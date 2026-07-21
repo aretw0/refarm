@@ -2,6 +2,8 @@ export {
 	cookieFetch,
 	cookieHeader,
 	createCookieFetchDriver,
+	createFetchDriver,
+	sessionFetch,
 	createLiveFetch,
 	loadCookieState,
 	saveCookieState,

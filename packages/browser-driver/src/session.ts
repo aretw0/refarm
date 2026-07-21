@@ -33,6 +33,13 @@ export interface BrowserSession {
 	/** Ensure an authenticated session for `baseUrl`, returning its cookies. For a real browser
 	 * this blocks until login is auto-detected (URL/selector/cookie signals), never on Enter. */
 	ensureLoggedIn(baseUrl: string): Promise<SessionCookie[]>;
+	/**
+	 * OPTIONAL: serve a request from INSIDE the authenticated session, rather than replaying its
+	 * cookies from outside. An adapter that can do this should — see `createLiveFetch`, which
+	 * prefers it. Cookie replay is the portable fallback, not the better option: it drops the
+	 * browser's trust store, cookie path/httpOnly scoping, and any cookie the app mints later.
+	 */
+	fetchInSession?(url: string, init?: { headers?: Record<string, string> }): Promise<Response>;
 	close(): Promise<void>;
 }
 
@@ -71,13 +78,10 @@ export function saveCookieState(statePath: string, cookies: SessionCookie[]): vo
 	writeFileSync(statePath, `${JSON.stringify({ cookies }, null, 2)}\n`);
 }
 
-/** A plain cookie-carrying fetch driver: every request gets the session's Cookie header. Used
- * as the base a domain driver wraps with its own headers. */
-export function createCookieFetchDriver(
-	cookies: SessionCookie[],
-	base: typeof fetch = fetch,
-): WebFetchDriver {
-	const doFetch = cookieFetch(cookies, base);
+/** Wrap ANY authenticated fetch impl as a WebFetchDriver — the base a domain driver wraps with
+ * its own headers. How the fetch got its authority (replayed cookies, or the browser session
+ * itself) is not this function's business. */
+export function createFetchDriver(doFetch: typeof fetch): WebFetchDriver {
 	return async (request: WebFetchRequest): Promise<WebFetchResult> => {
 		const response = await doFetch(request.url, {
 			method: "GET",
@@ -87,6 +91,14 @@ export function createCookieFetchDriver(
 		const mediaType = response.headers.get("content-type") ?? "application/octet-stream";
 		return { body, mediaType };
 	};
+}
+
+/** A plain cookie-carrying fetch driver: every request gets the session's Cookie header. */
+export function createCookieFetchDriver(
+	cookies: SessionCookie[],
+	base: typeof fetch = fetch,
+): WebFetchDriver {
+	return createFetchDriver(cookieFetch(cookies, base));
 }
 
 export interface LiveFetchOptions {
@@ -101,12 +113,18 @@ export interface LiveFetchOptions {
 }
 
 export interface LiveFetch {
-	/** The authenticated fetch impl (cookies applied) — hand to a provider's `fetchImpl`. */
+	/** The authenticated fetch impl — hand to a provider's `fetchImpl`. */
 	fetchImpl: typeof fetch;
-	/** A ready cookie-carrying WebFetchDriver — for a consumer that wants the driver directly. */
+	/** A ready authenticated WebFetchDriver — for a consumer that wants the driver directly. */
 	driver: WebFetchDriver;
-	/** The captured session cookies. */
+	/** The captured session cookies (empty when requests are served from inside the session). */
 	cookies: SessionCookie[];
+	/**
+	 * Release the session. Required when requests are served from inside the browser — it is
+	 * still open, and holding the session. A no-op on the detached cookie path, so callers can
+	 * always call it.
+	 */
+	close(): Promise<void>;
 }
 
 /**
@@ -116,16 +134,53 @@ export interface LiveFetch {
  * closed after cookies are captured (fetches don't need it open).
  */
 export async function createLiveFetch(options: LiveFetchOptions): Promise<LiveFetch> {
-	let cookies = options.statePath ? loadCookieState(options.statePath) : [];
+	const inSession = options.session.fetchInSession?.bind(options.session);
+
+	// A session that can serve requests itself ALWAYS logs in fresh: a persisted jar is an
+	// optimization for the detached path only, and reusing one here would skip the very
+	// navigation that makes the app mint its own session cookie.
+	let cookies: SessionCookie[] = inSession
+		? []
+		: options.statePath
+			? loadCookieState(options.statePath)
+			: [];
 	if (cookies.length === 0) {
 		cookies = await options.session.ensureLoggedIn(options.baseUrl);
-		if (options.statePath) saveCookieState(options.statePath, cookies);
+		if (options.statePath && !inSession) saveCookieState(options.statePath, cookies);
 	}
+
+	if (inSession) {
+		// The browser STAYS OPEN — it is what holds the session. The caller closes it.
+		const fetchImpl = sessionFetch(inSession);
+		return {
+			fetchImpl,
+			driver: createFetchDriver(fetchImpl),
+			cookies,
+			close: () => options.session.close(),
+		};
+	}
+
 	await options.session.close();
 	const base = options.fetchImpl ?? fetch;
 	return {
 		fetchImpl: cookieFetch(cookies, base),
 		driver: createCookieFetchDriver(cookies, base),
 		cookies,
+		close: async () => {},
 	};
+}
+
+/** Adapt a session's own request method to the `fetch` shape callers already expect. */
+export function sessionFetch(
+	inSession: (url: string, init?: { headers?: Record<string, string> }) => Promise<Response>,
+): typeof fetch {
+	return ((input: RequestInfo | URL, init?: RequestInit) => {
+		const url =
+			typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+		const headers: Record<string, string> = {};
+		new Headers(init?.headers).forEach((value, key) => {
+			headers[key] = value;
+		});
+		return inSession(url, { headers });
+	}) as typeof fetch;
 }

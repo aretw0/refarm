@@ -35,6 +35,82 @@ function fakeSession(cookies: SessionCookie[], onLogin?: () => void): BrowserSes
 	};
 }
 
+/** A fake session that can serve requests itself — the shape a real browser adapter has. */
+function fakeInSessionBrowser(body: string) {
+	const seen: { url: string; headers: Record<string, string> }[] = [];
+	let closed = false;
+	const session: BrowserSession = {
+		async ensureLoggedIn() {
+			return [{ name: "captured", value: "1" }];
+		},
+		async fetchInSession(url, init) {
+			seen.push({ url, headers: init?.headers ?? {} });
+			return new Response(body, {
+				status: 200,
+				headers: { "content-type": "application/rdf+xml" },
+			});
+		},
+		async close() {
+			closed = true;
+		},
+	};
+	return { session, seen, isClosed: () => closed };
+}
+
+describe("createLiveFetch — a session that serves its own requests", () => {
+	it("routes fetches through the session and leaves the browser open for the caller to close", async () => {
+		const { session, seen, isClosed } = fakeInSessionBrowser("<rdf/>");
+		const live = await createLiveFetch({ session, baseUrl: "https://alm.example" });
+
+		const response = await live.fetchImpl("https://alm.example/rm/resources/TX_1", {
+			headers: { "DoorsRP-Request-Type": "private" },
+		});
+
+		expect(await response.text()).toBe("<rdf/>");
+		expect(seen).toHaveLength(1);
+		expect(seen[0]!.url).toBe("https://alm.example/rm/resources/TX_1");
+		// The domain headers must survive the hop into the session.
+		expect(seen[0]!.headers["doorsrp-request-type"]).toBe("private");
+		// Still open: the browser is what holds the session.
+		expect(isClosed()).toBe(false);
+
+		await live.close();
+		expect(isClosed()).toBe(true);
+	});
+
+	it("does NOT replay a persisted jar, so the app can mint its session during login", async () => {
+		const statePath = path.join(mkdtempSync(path.join(os.tmpdir(), "live-")), "state.json");
+		saveCookieState(statePath, [{ name: "stale", value: "old" }]);
+		let loggedIn = false;
+		const { session } = fakeInSessionBrowser("<rdf/>");
+		const spied: BrowserSession = {
+			...session,
+			async ensureLoggedIn() {
+				loggedIn = true;
+				return [];
+			},
+		};
+
+		await createLiveFetch({ session: spied, baseUrl: "https://alm.example", statePath });
+
+		expect(loggedIn).toBe(true);
+	});
+
+	it("its driver carries the domain headers too", async () => {
+		const { session, seen } = fakeInSessionBrowser("<rdf/>");
+		const live = await createLiveFetch({ session, baseUrl: "https://alm.example" });
+
+		const result = await live.driver({
+			url: "https://alm.example/rm/resources/TX_2",
+			headers: { "OSLC-Core-Version": "2.0" },
+		});
+
+		expect(result.mediaType).toBe("application/rdf+xml");
+		expect(seen[0]!.headers["oslc-core-version"]).toBe("2.0");
+		await live.close();
+	});
+});
+
 describe("cookieHeader / cookieFetch", () => {
 	it("serializes cookies into a Cookie header value", () => {
 		expect(cookieHeader(COOKIES)).toBe("JSESSIONID=abc; CSRFTOKEN=Form");

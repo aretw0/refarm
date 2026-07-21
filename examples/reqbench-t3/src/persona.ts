@@ -722,6 +722,21 @@ export interface LiveProviderOptions {
  * (any work / an agent can reuse it); this only adds the OSLC glue on top. The browser is
  * constructed only when `--live` is used (puppeteer-core imported lazily inside the driver).
  */
+/**
+ * Releases for live browser sessions opened during this process. A session that serves its own
+ * requests stays open for the whole run — it holds the authentication — so something has to end
+ * it, or the CLI never exits. The verb that opened it calls `closeLiveSessions()` in a finally.
+ */
+const openLiveSessions = new Set<() => Promise<void>>();
+
+/** Close every live browser session opened so far. Safe to call when none were opened. */
+export async function closeLiveSessions(): Promise<void> {
+	const pending = [...openLiveSessions];
+	openLiveSessions.clear();
+	// One stuck browser must not strand the others, nor fail the verb that already succeeded.
+	await Promise.allSettled(pending.map((close) => close()));
+}
+
 export function createLiveRequirementsProviderFactory(
 	options: LiveProviderOptions = {},
 ): (ref: string) => Promise<IngestSourceProvider> {
@@ -759,6 +774,10 @@ export function createLiveRequirementsProviderFactory(
 				// On re-auth, ignore the persisted cookies (they expired) and force a fresh login.
 				...(forceRelogin ? {} : statePath ? { statePath } : {}),
 			});
+			// A session that serves its own requests stays OPEN — it IS the session. Register its
+			// release so the verb closes it when the run ends; otherwise the browser would keep
+			// the process alive forever.
+			openLiveSessions.add(live.close);
 			return live.fetchImpl;
 		};
 
@@ -890,6 +909,10 @@ export function createRequirementsPullCapability(
 					nextAction:
 						"Check the ref is one `dgk source discover` lists, and its snapshot has a body.",
 				});
+			} finally {
+				// Whether the pull succeeded or failed, release the browser — it stays open while
+				// serving requests, so nothing else would end the process.
+				await closeLiveSessions();
 			}
 		},
 	};
@@ -968,6 +991,10 @@ export function createLiveCrawlerFactory(
 				baseUrl,
 				...(forceRelogin ? {} : statePath ? { statePath } : {}),
 			});
+			// A session that serves its own requests stays OPEN — it IS the session. Register its
+			// release so the verb closes it when the run ends; otherwise the browser would keep
+			// the process alive forever.
+			openLiveSessions.add(live.close);
 			return live.fetchImpl;
 		};
 

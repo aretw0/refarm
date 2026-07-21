@@ -67,6 +67,9 @@ export async function createPuppeteerSession(
 		args: ["--no-first-run"],
 	});
 
+	/** The authenticated page, kept open after login so `fetchInSession` can request from it. */
+	let sessionPage: Awaited<ReturnType<typeof browser.newPage>> | undefined;
+
 	return {
 		async ensureLoggedIn(baseUrl: string): Promise<SessionCookie[]> {
 			const page = await browser.newPage();
@@ -106,10 +109,61 @@ export async function createPuppeteerSession(
 			}
 
 			const raw = await page.cookies();
-			await page.close();
+			// KEEP the page open as the session page: `fetchInSession` issues requests from inside
+			// it, so the browser stays the one thing that holds the session. Closing here is what
+			// forced the detached-cookie path, and with it the whole class of problems below.
+			sessionPage = page;
 			return raw.map((c) => ({ name: c.name, value: c.value, domain: c.domain, path: c.path }));
 		},
+
+		/**
+		 * GET through the AUTHENTICATED PAGE instead of a detached fetch — the single most
+		 * important thing a real ALM run needs, and the reason a cookie-replay fetch fails against
+		 * one. Running `fetch` inside the page means the BROWSER owns the request, so it brings:
+		 *
+		 * - the operator's system trust store (a corporate/internal CA just works; Node's fetch
+		 *   ships Mozilla's list and fails such a host with SELF_SIGNED_CERT_IN_CHAIN);
+		 * - correct cookie semantics — path scoping, httpOnly, SameSite, and cookies the app mints
+		 *   DURING the run (a Jazz `/rm` app session is issued only when the app is first reached,
+		 *   and a jar captured before that never contains it);
+		 * - session renewal, so a long crawl does not decay.
+		 *
+		 * Same-origin is required for the page's cookies to apply, so the page is parked on the
+		 * target origin first. Returns a real Response, so callers stay `fetch`-shaped.
+		 */
+		async fetchInSession(url: string, init?: { headers?: Record<string, string> }) {
+			const page = sessionPage ?? (sessionPage = await browser.newPage());
+			const origin = new URL(url).origin;
+			if (!page.url().startsWith(origin)) {
+				await page.goto(origin, { waitUntil: "domcontentloaded" });
+			}
+			const result = (await page.evaluate(
+				async (target: string, headers: Record<string, string>) => {
+					const response = await fetch(target, { headers, credentials: "include" });
+					const collected: Record<string, string> = {};
+					response.headers.forEach((value, key) => {
+						collected[key] = value;
+					});
+					return {
+						status: response.status,
+						statusText: response.statusText,
+						headers: collected,
+						body: await response.text(),
+					};
+				},
+				url,
+				init?.headers ?? {},
+			)) as { status: number; statusText: string; headers: Record<string, string>; body: string };
+
+			return new Response(result.body, {
+				status: result.status,
+				statusText: result.statusText,
+				headers: result.headers,
+			});
+		},
+
 		async close(): Promise<void> {
+			sessionPage = undefined;
 			await browser.close();
 		},
 	};
