@@ -133,19 +133,28 @@ Do not run `pnpm run clean:light` after every small Rust slice. It saves disk bu
 also removes incremental caches; use it at session/checkpoint boundaries or when
 `pnpm run clean:rust:check` shows pressure.
 
-## CARGO_TARGET_DIR workspace cache (devcontainer)
+## Workspace cargo cache (devcontainer AND host checkout)
 
-The devcontainer sets `CARGO_TARGET_DIR=/workspaces/refarm/.cache/cargo-target`.
-All cargo builds — including `cargo component build` for agent and
-`cargo build --release` for tractor — write to that workspace cache instead of
-each package's own `target/` subdirectory.
+`.cargo/config.toml` sets `target-dir = ".cache/cargo-target"`, and cargo resolves a
+relative `target-dir` against the directory holding that config — so every crate
+writes to `<repo>/.cache/cargo-target` no matter which package the build runs from.
+All cargo builds land there — including `cargo component build` for agent and
+`cargo build --release` for tractor — instead of each package's own `target/`.
+
+The path is deliberately relative rather than absolute. In the devcontainer the repo
+IS `/workspaces/refarm`, so it resolves exactly where it always did; on a host
+checkout it resolves under that checkout instead of failing to create `/workspaces`.
+An absolute path here made `cargo test` error out on any clone outside the container.
+
+`CARGO_TARGET_DIR` still overrides the config when a separate volume is wanted.
 
 Consequences:
 
 - **Binary paths**: `tractor` binary lives at `$CARGO_TARGET_DIR/release/tractor`;
   `agent.wasm` at `$CARGO_TARGET_DIR/wasm32-wasip1/release/agent.wasm`.
   Scripts read `CARGO_TARGET_DIR` and fall back to the workspace paths when the var
-  is unset (local dev without the devcontainer).
+  is unset — which is now the ordinary case, since the config already points at the
+  workspace cache without anyone exporting anything.
 - **Host disk**: workspace `target/` dirs are stale once the redirect is active. Run
   `pnpm run clean:heavy` once to remove them and reclaim duplicate space.
 - **Workspace cache**: `pnpm run clean:rust:check` reports this cache separately.

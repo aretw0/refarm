@@ -5,7 +5,13 @@
 jobs = 4
 # Keep build artifacts in the workspace cache so dev shells, containers, and
 # sandboxed agents all share a writable target dir.
-target-dir = "/workspaces/refarm/.cache/cargo-target"
+#
+# RELATIVE ON PURPOSE: cargo resolves a relative `target-dir` against the directory holding
+# this config, not the current one — so every crate in the repo shares `<repo>/.cache/cargo-target`
+# no matter where the build is invoked from. In the devcontainer the repo IS /workspaces/refarm,
+# so this resolves to the same path it always did; on a host checkout it resolves there instead
+# of failing to create /workspaces. `CARGO_TARGET_DIR` still overrides it for a separate volume.
+target-dir = ".cache/cargo-target"
 
 [profile.dev]
 # Reduce per-crate memory during dev/test builds.
