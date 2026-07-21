@@ -49,9 +49,29 @@ const sharedEnv = {
  */
 const NAMESPACE = process.env.DGK_COMMAND ?? "poc";
 const BRAND = /\brefarm\b/gi;
+/**
+ * The invocation as the repo runs it — `node examples/<name>/dist/cli.js` — names the EXAMPLE,
+ * which identifies the framework as surely as the brand does. It is also not how an operator
+ * would run anything: the white-label command is. Rewriting it says the true thing and drops the
+ * internal name in one move.
+ */
+const REPO_INVOCATION = /node\s+examples\/[a-z0-9-]+\/dist\/cli\.js/gi;
+/** Any surviving example directory reference, for a path the pattern above does not shape. */
+const EXAMPLE_PATH = /examples\/[a-z0-9-]+/gi;
+/**
+ * A plugin id scoped to an example — `@devbench/coding-agent` — reaches the figure through the
+ * manifest, and the scope names the example as plainly as a path does. Mapped to the neutral
+ * namespace so the id still reads as an id.
+ */
+const EXAMPLE_SCOPE = /@(?:devbench|wallet|reqbench)(?=\/)/gi;
 
 function neutralize(text) {
-	return typeof text === "string" ? text.replace(BRAND, NAMESPACE) : text;
+	if (typeof text !== "string") return text;
+	return text
+		.replace(REPO_INVOCATION, NAMESPACE)
+		.replace(EXAMPLE_PATH, NAMESPACE)
+		.replace(EXAMPLE_SCOPE, `@${NAMESPACE}`)
+		.replace(BRAND, NAMESPACE);
 }
 
 /** Write an artifact with the framework's name mapped to the neutral namespace. */
@@ -486,7 +506,9 @@ function renderSearchResults(search) {
 function renderAgentPluginFlow(agentManifest, lspManifest, liveAsk) {
 	const agentVerbs = manifestVerbNames(agentManifest);
 	const lspVerbs = manifestVerbNames(lspManifest);
-	const answer = liveAsk?.content ? `<p class="refarm-note"><strong>Registro real:</strong> ${escapeHtml(liveAsk.content)}</p>` : "";
+	const answer = liveAsk?.effortId
+		? `<p class="refarm-note"><strong>Registro real:</strong> execução <code>${escapeHtml(String(liveAsk.effortId).slice(0, 8))}</code> concluída no runtime, com resposta e efeitos na trilha de auditoria.</p>`
+		: "";
 	return `<section class="refarm-stack">
 		<div class="flow-map" role="img" aria-label="Fluxo: usuário chama o agente; agente usa ferramentas contribuídas por plugins; lsp-code-ops chama o LSP; o runtime audita.">
 			<div class="flow-node flow-node--user"><span>Operador</span><small>pedido / verificação</small></div>
@@ -497,7 +519,7 @@ function renderAgentPluginFlow(agentManifest, lspManifest, liveAsk) {
 			<div class="flow-arrow">→</div>
 			<div class="flow-node flow-node--lsp"><span>LSP</span><small>referências · rename · move</small></div>
 			<div class="flow-arrow">→</div>
-			<div class="flow-node flow-node--audit"><span>Auditoria</span><small>task · stream · scarecrow</small></div>
+			<div class="flow-node flow-node--audit"><span>Auditoria</span><small>tarefa · fluxo · trilha</small></div>
 		</div>
 		<div class="metric-row">
 			<div class="metric"><span>${escapeHtml(String((agentManifest.permissions ?? []).length))}</span><small>permissões do agent</small></div>
@@ -507,7 +529,7 @@ function renderAgentPluginFlow(agentManifest, lspManifest, liveAsk) {
 		<table class="refarm-table"><thead><tr><th>Peça</th><th>Papel no trabalho</th><th>Limite honesto</th></tr></thead><tbody>
 			<tr><td><code>${escapeHtml(agentManifest.id)}</code></td><td>Runtime agent como plugin carregado, não chat externo; responde via <code>integration:respond</code>.</td><td>Prova POC local; não medir qualidade do modelo.</td></tr>
 			<tr><td><code>${escapeHtml(lspManifest.id)}</code></td><td>Plugin efeito-capable que acrescenta operações semânticas de código ao agente via <code>code-ops</code>.</td><td>Usa LSP/fake LSP de demonstração; não é scanner completo.</td></tr>
-			<tr><td><code>tractor</code></td><td>Carrega componentes WASM, aplica permissões e registra efeitos.</td><td>Governança demonstrada localmente, não certificação de produção.</td></tr>
+			<tr><td><code>runtime</code></td><td>Carrega componentes WASM, aplica permissões e registra efeitos.</td><td>Governança demonstrada localmente, não certificação de produção.</td></tr>
 		</tbody></table>
 		${answer}
 	</section>`;
