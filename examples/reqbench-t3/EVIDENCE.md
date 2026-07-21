@@ -33,12 +33,18 @@ sistema, promove correções e revisão, e lê um MOC navegável. Cada linha apo
   hash-pai"** é seguro; **JAMAIS** "sha256", "criptográfico", "tamper-evident" ou "à prova de adulteração" para
   o histórico de requisitos. _(O carimbo de execução do `report`/`evidence.json` é SHA-256 real — isso é dos
   arquivos de saída, não da cadeia de revisões.)_
-- **`--live` é um teste de fumaça OSLC de artefato ÚNICO** da cadeia login → GET autenticado → parse → registro.
-  **Não** descobre projeto, **não** abre dashboard, **não** pagina, **não** segue links `/rm/…`. Multi-fonte
-  (EFD/NFE) é provado **só no ledger offline**.
-- **Sem validação de interoperabilidade JSON-LD com consumidor externo** (`grep jsonld|expand|frame` → **zero**;
-  nenhuma dep `jsonld`). O documento é JSON-LD e o contexto é servido; **não** escrever "interoperabilidade
-  validada".
+- **`--live` foi EXECUTADO contra um ALM institucional real** — autenticação federada, sessão de aplicação,
+  GET autenticado, parse e registro persistido com identificador, título e corpo íntegros. Continua sendo um
+  teste de fumaça de artefato **ÚNICO**: **não** descobre projeto, **não** abre dashboard, **não** pagina,
+  **não** segue links `/rm/…`. Multi-fonte (EFD/NFE) é provado **só no ledger offline**, e o corpo do alvo NFE
+  é ilustrativo — não veio de um sistema NFE real.
+- **Leitura por consumidor externo: demonstrada. Cobertura do vocabulário: não.** O processador JSON-LD de
+  referência expande um registro contra o contexto servido, com os tipos declarados resolvendo às IRIs
+  declaradas e o alias `id → @id` valendo (`jsonld-interop.test.ts`, dep de desenvolvimento apenas). Mas o
+  contexto declara `@vocab`, então **um termo não declarado também resolve** — a expansão atesta **forma**,
+  não cobertura. A primeira asserção escrita foi "todo termo resolve a IRI"; ela passou e era vazia. Dizer
+  "lido por processador padrão" é seguro; **não** escrever "vocabulário completo" nem "interoperabilidade
+  plena".
 - **Não existe chave literal `@id`** nos registros: existe `id: "record:…"` que **resolve** para `@id` via o
   alias `id: "@id"` do contexto servido. Correto em JSON-LD, mas um leitor que abrir `fixture.ts` e não achar
   `@id` pode concluir inflação — declarar isso.
