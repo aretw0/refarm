@@ -22,7 +22,9 @@ export function governanceToHtml(result: GovernancePocResult): string {
 	const criteriaRows = scorecard.criteria
 		.map(
 			(c) =>
-				`<tr><td>${esc(c.name)}</td><td class="num">${c.score.toFixed(1)}</td><td class="num">${c.weight}</td><td>${esc(c.note)}</td></tr>`,
+				// An unexercised criterion shows a dash, not a number: printing 0.0 would read as a
+				// failing score, and printing nothing would hide that the criterion exists.
+				`<tr><td>${esc(c.name)}</td><td class="num">${c.score === null ? "—" : c.score.toFixed(1)}</td><td class="num">${c.weight}</td><td>${esc(c.note)}</td></tr>`,
 		)
 		.join("");
 

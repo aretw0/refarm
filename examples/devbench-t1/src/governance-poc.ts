@@ -157,8 +157,16 @@ export function runCombination(extension: ExtensionUnderTest, profile: PolicyPro
 
 /** The scorecard — an objective, weighted read of whether the PoC supports an incremental pilot. */
 export interface Scorecard {
-	criteria: Array<{ name: string; score: number; weight: number; note: string }>;
-	/** Weighted mean, 0–5. */
+	criteria: Array<{
+		name: string;
+		/** null when the run did not exercise this criterion — see `notExercised`. */
+		score: number | null;
+		weight: number;
+		note: string;
+		/** The run produced no evidence either way, so the criterion is reported and NOT averaged. */
+		notExercised?: boolean;
+	}>;
+	/** Weighted mean over the EXERCISED criteria only, 0–5. */
 	score: number;
 	gate: "continue" | "revise";
 }
@@ -229,14 +237,27 @@ export function runGovernancePoc(
 	const isolationWorks = metrics.isolatedFailures > 0 && metrics.abortedFailures > 0;
 	const blocksOverreach = metrics.blockedOutOfGrant > 0;
 	const auditable = metrics.telemetryCoverage >= 0.95;
+	// A criterion no combination exercises has no evidence either way. Scoring it full marks
+	// would lift the total on the strength of something that never ran — and the note would
+	// contradict the score, reading "0 gates de revisão" beside a 5. It is carried, marked, and
+	// left out of the average, so the number reflects only what the run actually demonstrated.
+	const reviewExercised = metrics.humanReviewGates > 0;
 	const criteria = [
 		{ name: "Isolamento de falha (tolerante) vs abortar (estrito)", score: isolationWorks ? 5 : 2, weight: 3, note: `${metrics.isolatedFailures} isoladas, ${metrics.abortedFailures} abortadas` },
 		{ name: "Bloqueio de capacidade fora da concessão", score: blocksOverreach ? 5 : 1, weight: 3, note: `${metrics.blockedOutOfGrant} bloqueios` },
-		{ name: "Revisão humana antes de ampliar permissão", score: 5, weight: 2, note: `${metrics.humanReviewGates} gates de revisão` },
+		{
+			name: "Revisão humana antes de ampliar permissão",
+			...(reviewExercised ? { score: 5 } : { score: null, notExercised: true }),
+			weight: 2,
+			note: reviewExercised
+				? `${metrics.humanReviewGates} gates de revisão`
+				: "não exercitado: nenhuma combinação pede ampliação de permissão",
+		},
 		{ name: "Trilha de execução auditável (telemetria)", score: auditable ? 5 : 3, weight: 2, note: `${(metrics.telemetryCoverage * 100).toFixed(0)}% cobertura` },
 	];
-	const totalWeight = criteria.reduce((a, c) => a + c.weight, 0);
-	const score = criteria.reduce((a, c) => a + c.score * c.weight, 0) / totalWeight;
+	const scored = criteria.filter((c) => typeof c.score === "number");
+	const totalWeight = scored.reduce((a, c) => a + c.weight, 0);
+	const score = scored.reduce((a, c) => a + (c.score as number) * c.weight, 0) / totalWeight;
 	const scorecard: Scorecard = { criteria, score: Number(score.toFixed(2)), gate: score >= 4 ? "continue" : "revise" };
 
 	return { combinations, metrics, scorecard };

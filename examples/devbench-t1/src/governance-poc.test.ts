@@ -51,6 +51,27 @@ describe("runCombination — the outcome per (extension × mode)", () => {
 describe("runGovernancePoc — the full 2 modes × 3 extensions = 6 combinations", () => {
 	const result = runGovernancePoc();
 
+	it("reports an unexercised criterion as unexercised, and keeps it out of the average", () => {
+		// The scorecard is offered as objective evidence, so a criterion that scores full marks on
+		// no evidence undermines the whole table — and its own note gave it away, reading
+		// "0 gates de revisão" beside a 5.
+		const { scorecard, metrics } = runGovernancePoc();
+		const review = scorecard.criteria.find((c) => c.name.includes("Revisão humana"));
+
+		expect(metrics.humanReviewGates).toBe(0);
+		expect(review?.notExercised).toBe(true);
+		expect(review?.score).toBeNull();
+		expect(review?.note).toContain("não exercitado");
+
+		// The average covers only what ran: recomputing over the scored criteria must reproduce it.
+		const scored = scorecard.criteria.filter((c) => typeof c.score === "number");
+		const weight = scored.reduce((a, c) => a + c.weight, 0);
+		const expected = scored.reduce((a, c) => a + (c.score as number) * c.weight, 0) / weight;
+		expect(scorecard.score).toBeCloseTo(expected, 2);
+		// And the unexercised one is genuinely excluded — otherwise this weight would match.
+		expect(weight).toBeLessThan(scorecard.criteria.reduce((a, c) => a + c.weight, 0));
+	});
+
 	it("runs exactly 6 combinations", () => {
 		expect(result.combinations).toHaveLength(6);
 		expect(result.metrics.combinationsRun).toBe(6);
