@@ -332,4 +332,73 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		const present = await run("present", { id: authorized.id as string });
 		expect(present.ok).not.toBe(false);
 	});
+
+	// The wallet's promise is not "we refuse bad things" — it is that a refusal SAYS WHICH CHECK
+	// caught it. A citizen who cannot tell a revoked authorization from a forged one has an opaque
+	// no, and an opaque no is indistinguishable from an arbitrary one.
+	it("a receipt whose scope grew after issuance is refused, and the refusal names the signature check", async () => {
+		const statePath = tempStatePath();
+		const reg = buildRegistry({ statePath });
+		const run = async (name: string, args: Record<string, string> = {}, options: Record<string, string> = {}) => {
+			const verb = reg.get(name);
+			if (!verb || "actions" in verb) throw new Error(`${name} verb not mounted`);
+			return (await verb.run({ args, options, json: true })) as unknown as Record<string, unknown>;
+		};
+
+		const granted = await run(
+			"authorize",
+			{ requester: "Órgão Fictício" },
+			{ purpose: "Conferir elegibilidade", scope: "nome,documento", expires: "2026-12-31T00:00:00Z" },
+		);
+		expect((await run("present", { id: granted.id as string })).ok).not.toBe(false);
+
+		// Widen the granted scope on disk while keeping the proof that was issued for the narrow
+		// one — the privilege escalation a receipt exists to make detectable.
+		const { readFileSync, writeFileSync } = await import("node:fs");
+		const manifest = JSON.parse(readFileSync(statePath, "utf8")) as {
+			records: { fields?: { authorization?: { scope?: string[] } } }[];
+		};
+		for (const record of manifest.records) {
+			const authorization = record.fields?.authorization;
+			if (authorization?.scope) authorization.scope = [...authorization.scope, "dados_bancarios"];
+		}
+		writeFileSync(statePath, JSON.stringify(manifest));
+
+		const tampered = await buildRegistry({ statePath }).get("present");
+		if (!tampered || "actions" in tampered) throw new Error("present verb not mounted");
+		const refused = (await tampered.run({
+			args: { id: granted.id as string },
+			options: {},
+			json: true,
+		})) as unknown as { ok?: boolean; message?: string };
+
+		expect(refused.ok).toBe(false);
+		expect(refused.message).toContain("signature");
+		// Only the signature check failed: the authorization is still active, so naming
+		// revocation here would misdescribe what happened.
+		expect(refused.message).not.toContain("not-revoked");
+	});
+
+	it("a revoked authorization is refused, and the refusal names revocation alongside the signature", async () => {
+		const statePath = tempStatePath();
+		const reg = buildRegistry({ statePath });
+		const run = async (name: string, args: Record<string, string> = {}, options: Record<string, string> = {}) => {
+			const verb = reg.get(name);
+			if (!verb || "actions" in verb) throw new Error(`${name} verb not mounted`);
+			return (await verb.run({ args, options, json: true })) as unknown as Record<string, unknown>;
+		};
+
+		const granted = await run(
+			"authorize",
+			{ requester: "Órgão Fictício" },
+			{ purpose: "Conferir elegibilidade", scope: "nome,documento", expires: "2026-12-31T00:00:00Z" },
+		);
+		expect((await run("present", { id: granted.id as string })).ok).not.toBe(false);
+
+		await run("revoke", { id: granted.id as string });
+		const refused = (await run("present", { id: granted.id as string })) as { ok?: boolean; message?: string };
+
+		expect(refused.ok).toBe(false);
+		expect(refused.message).toContain("not-revoked");
+	});
 });
