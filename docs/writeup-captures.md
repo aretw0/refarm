@@ -37,6 +37,67 @@ O script usa os CLIs já compilados em `examples/*/dist/cli.js` e `google-chrome
 para transformar os fragments HTML/SVG dos exemplos em PNG. Se um CLI ainda não existir, rode o build
 escopado do exemplo ou use `--build`.
 
+Para registrar uma execução real do plugin `@refarm/agent` no runtime Rust:
+
+```bash
+refarm sow   # se a rota/credencial do modelo estiver expirada
+CARGO_TARGET_DIR="$PWD/.cache/cargo-target" pnpm run writeup:agent-record
+```
+
+Saída padrão: `.dgk/agent-live-record/<timestamp>/`, com `ask-live.json`, estado do runtime/plugin,
+`session-live.json`, `task-result-live.json`, `scarecrow-audit.ndjson`, `tractor.log` e um `INDEX.md`
+com a legenda curta. O script importa a rota de modelo recém-semeada via `refarm model env` sem gravar
+valores secretos no pacote de evidência.
+
+### Registro COM chamada de ferramenta (agente + lsp-code-ops)
+
+O registro acima prova governança e observabilidade, mas sai com `tool_calls: 0`: o prompt padrão é
+uma pergunta, e o agente sozinho não tem ferramenta para chamar. Para uma trilha que exercite
+`code-ops`, três coisas precisam estar no lugar — e nenhuma é automática.
+
+**1. O plugin de ferramenta precisa ser instalado E autorizado.** Estar compilado não basta; o
+runtime recusa carregar o que não foi declarado confiável. O ciclo completo, que é ele próprio a
+evidência de governança:
+
+```bash
+export CARGO_TARGET_DIR="$PWD/.cache/cargo-target" REFARM_HOME="$PWD/.refarm"
+refarm plugin review packages/lsp-code-ops/dist          # valida o manifesto, instala nada
+refarm plugin install packages/lsp-code-ops/dist/plugin.json   # carimba integridade SHA-256
+refarm plugin permissions @refarm/lsp-code-ops           # o que ele pede, e com que risco
+refarm plugin trust lsp-code-ops --scope workspace       # eixo IDENTIDADE: pode carregar
+refarm plugin trust agent --scope workspace              # a lista É a lista: sem isto o agente sai
+refarm plugin approve @refarm/lsp-code-ops --approve fs:read --approve fs:write --scope workspace
+refarm runtime restart --wait
+```
+
+O `approve` acima concede as duas permissões de menor risco e deixa `shell:spawn` de fora — a trilha
+depois mostra `host-effect:fs:read` e nenhum efeito da recusada. **Confiar apenas no plugin novo
+derruba o agente**: a lista de confiança substitui, não acrescenta.
+
+**2. Um servidor de linguagem precisa existir e ser apontado.** O host gerencia o subprocesso e o
+default é `rust-analyzer`; apontá-lo a um arquivo `.ts` devolve resultado sem sentido, não um erro.
+
+```bash
+pnpm add -g typescript-language-server typescript
+# o daemon lê .refarm/.env — o valor tem espaço, então precisa de aspas:
+echo 'REFACTOR_LSP_CMD="'"$HOME"'/.local/share/pnpm/bin/typescript-language-server --stdio"' > .refarm/.env
+```
+
+**3. O prompt precisa dar a posição exata.** Pedir ao agente que "encontre o símbolo X" o faz estimar
+linha e coluna a partir da leitura do arquivo, e ele erra por algumas linhas — a ferramenta então
+responde sobre outra coisa. Passar `file`, `line` e `column` isola o que se quer demonstrar:
+
+```bash
+L=$(grep -n "export async function createLiveFetch" packages/browser-driver/src/session.ts | cut -d: -f1)
+node scripts/capture-agent-runtime-record.mjs --prompt "Use a ferramenta code-ops find-references com \
+file=$PWD/packages/browser-driver/src/session.ts, line=$L, column=23. Responda quantas referências \
+foram encontradas e liste arquivo e linha de cada uma."
+```
+
+Resultado esperado: duas referências — a declaração e o reexport em `index.ts`. **Uma só significa que
+a análise ainda não assentou**, e o servidor não avisa quando isso acontece (ver
+`packages/tractor/src/host/lsp_bridge.rs`).
+
 ## 1. One declaration → every surface (the invariant)
 
 The spine of the whole system: a verb declared once appears on the CLI, the web, the agent, and the
@@ -70,6 +131,9 @@ SYNTHETIC).
 | Capture | Command / where | Proves |
 | --- | --- | --- |
 | PRINT | `<cli> agent-telemetry --mock` | a real multi-turn agent run; the timeline from the runtime's own `agent:*` events |
+| SHOT | `t1-agent-plugin-and-lsp-flow` | the agent as a runtime plugin, extended by a second plugin (`lsp-code-ops`) rather than a black-box chatbot |
+| SHOT | `t1-agent-telemetry-trace` | route, iterations, tool calls, host effects, and tokens as a causal run trace |
+| SHOT | `t1-lsp-code-ops-value` | tangible agentic value: LSP-backed references + semantic rename, useful as the base of vulnerability/debt triage |
 | SHOT | the `agent-telemetry` web face | the run timeline as an accessible Metric/Value `<table>` |
 | PRINT + SHOT | `<cli> plugin-catalog` | the Barn's sovereign inventory (plugin · cache · sha256) — TUI + web table |
 | FILE | `enforce-evidence.json` (SHA-256 stamped) + `EVIDENCE.md` | the honest evidence ledger — what is REAL, what it emits, the limits |
