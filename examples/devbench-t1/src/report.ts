@@ -61,7 +61,9 @@ Figura: \`.dgk/report/spi-graph.svg\`.
 
 O quartete decide → registra → recusa, provado ao vivo. A PoC roda ${governance.metrics.combinationsRun}
 combinações (modos de política × comportamentos de extensão) e produz um scorecard objetivo
-(total: ${scoreLine}). Ver \`diagrams/flow.svg\` e os artefatos em \`.dgk/governance/\`.
+(total: ${scoreLine}). O total cobre apenas os critérios que a execução exercitou: um critério
+sem evidência aparece marcado e fica fora da média, em vez de somar nota máxima sobre nada.
+Ver \`diagrams/flow.svg\` e os artefatos em \`.dgk/governance/\`.
 
 ## O que os testes garantem
 
