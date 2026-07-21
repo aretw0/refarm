@@ -74,6 +74,10 @@ describe("buildVaultOverview — the vault in one view", () => {
 		expect(html).toContain("5 requisitos");
 		expect(html).toContain("saudável — sem órfãos, duplicados ou vínculos quebrados");
 		expect(html).not.toMatch(/\b(requirements|healthy|orphans|dangling|no history yet)\b/);
+		// A stored review state is an identifier; what the reader sees is a word in their language.
+		// Pinned because the figure sits beside prose that says "rascunho".
+		expect(html).not.toMatch(/\b(draft|reviewed)\b/);
+		expect(html).toContain("rascunho: <strong>5</strong>");
 		expect(html).toContain("EFD: <strong>5</strong>");
 	});
 });

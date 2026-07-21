@@ -80,11 +80,31 @@ function escapeHtml(value: string): string {
 	return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function countRow(label: string, counts: Record<string, number>): string {
+function countRow(
+	label: string,
+	counts: Record<string, number>,
+	/** Applied to the KEYS — a coverage line reads the same values the table below it does. */
+	labelFor: (key: string) => string = (key) => key,
+): string {
 	const cells = Object.entries(counts)
-		.map(([k, n]) => `${escapeHtml(k)}: <strong>${n}</strong>`)
+		.map(([k, n]) => `${escapeHtml(labelFor(k))}: <strong>${n}</strong>`)
 		.join(" · ");
 	return `<tr><td>${escapeHtml(label)}</td><td>${cells || "—"}</td></tr>`;
+}
+
+/**
+ * How a review state READS to a person. The stored values (`draft`, `reviewed`) are stable
+ * identifiers the logic compares and the tests pin; translating them would spread a presentation
+ * concern through the domain. The translation belongs here, where the value is displayed —
+ * otherwise a figure says "draft" while the prose beside it says "rascunho".
+ */
+const STATUS_LABEL: Record<string, string> = {
+	draft: "rascunho",
+	reviewed: "revisado",
+};
+
+function statusLabel(value: string): string {
+	return STATUS_LABEL[value] ?? value;
 }
 
 /** Render the overview as a self-contained HTML dashboard (mirrors governanceToHtml / plugin-ops). */
@@ -104,7 +124,7 @@ export function vaultOverviewToHtml(o: VaultOverview): string {
     <tbody>
       ${countRow("Sistema", o.bySistema)}
       ${countRow("Tipo", o.byTipo)}
-      ${countRow("Status", o.byStatus)}
+      ${countRow("Status", o.byStatus, statusLabel)}
       <tr><td>Rastreabilidade</td><td><strong>${o.relations}</strong> relações · <strong>${o.attachments}</strong> anexos</td></tr>
       <tr><td>Saúde</td><td>${escapeHtml(healthLine)}</td></tr>
       <tr><td>Última mudança</td><td>${last}</td></tr>
@@ -161,7 +181,7 @@ export function createRequirementsOverviewCapability(recordsDeps: RecordsCommand
 								id: record.id,
 								sistema: record.fields?.sistema ?? "—",
 								tipo: record.fields?.tipo ?? "—",
-								status: record.fields?.status ?? "—",
+								status: statusLabel(String(record.fields?.status ?? "—")),
 							})),
 							{ caption: `Requisitos no vault (${manifest.records.length})` },
 						),
