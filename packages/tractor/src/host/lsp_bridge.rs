@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::io::{Read as _, Write as _};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
@@ -13,6 +14,10 @@ pub(crate) const DEFAULT_RUST_LSP_CMD: &str = "rust-analyzer";
 const LSP_CMD_ENV: &str = "REFACTOR_LSP_CMD";
 const LEGACY_LSP_CMD_ENV: &str = "REFACTOR_LSP_RUST_ANALYZER_CMD";
 const LSP_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
+/// How often to re-ask while the server's analysis is still settling, and how long to keep
+/// trying. See `settle_document_analysis` for why polling is the portable option.
+const LSP_SETTLE_POLL: Duration = Duration::from_millis(400);
+const LSP_SETTLE_BUDGET: Duration = Duration::from_secs(8);
 
 static LSP_SESSION: OnceLock<Mutex<Option<LspServerProcess>>> = OnceLock::new();
 
@@ -36,6 +41,13 @@ struct LspServerProcess {
     messages: Receiver<Result<serde_json::Value, String>>,
     reader: Option<JoinHandle<()>>,
     initialized: bool,
+    /// Documents already announced with `textDocument/didOpen`, by URI. A language server
+    /// answers about its OWN copy of a document, not about the file on disk, so a query on a
+    /// document it was never told about is answered against nothing — and a server like
+    /// typescript-language-server will still answer, resolving the position against an empty
+    /// buffer and returning references to whatever it finds there. Re-opening on every call
+    /// would discard the server's analysis, so each document is announced once per session.
+    opened: HashSet<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,6 +88,7 @@ impl LspServerProcess {
             messages,
             reader: Some(reader),
             initialized: false,
+            opened: HashSet::new(),
         })
     }
 
@@ -177,6 +190,8 @@ impl LspBridge {
             .ok_or_else(|| "lsp session unavailable after start".to_string())?;
 
         ensure_initialized(session)?;
+        ensure_document_open(session, &loc.file)?;
+        settle_document_analysis(session, loc)?;
         let response =
             session.request_response(&rename_request(3, loc, new_name), LSP_REQUEST_TIMEOUT)?;
         let edits = parse_rename_response(&response)?;
@@ -194,6 +209,8 @@ impl LspBridge {
             .ok_or_else(|| "lsp session unavailable after start".to_string())?;
 
         ensure_initialized(session)?;
+        ensure_document_open(session, &loc.file)?;
+        settle_document_analysis(session, loc)?;
         let response =
             session.request_response(&references_request(2, loc), LSP_REQUEST_TIMEOUT)?;
         parse_references_response(&response)
@@ -215,6 +232,8 @@ impl LspBridge {
             .ok_or_else(|| "lsp session unavailable after start".to_string())?;
 
         ensure_initialized(session)?;
+        ensure_document_open(session, &loc.file)?;
+        settle_document_analysis(session, loc)?;
         let response =
             session.request_response(&move_request(4, loc, target_file), LSP_REQUEST_TIMEOUT)?;
         // A move returns a WorkspaceEdit exactly like rename — reuse the parse + apply.
@@ -387,6 +406,93 @@ fn workspace_root_uri() -> String {
             .to_string_lossy()
             .as_ref(),
     )
+}
+
+/// The LSP `languageId` for a path. Servers use it to pick the analyzer for the document;
+/// getting it wrong (or omitting it) makes a server treat source as plain text.
+fn language_id_for(path: &str) -> &'static str {
+    match std::path::Path::new(path)
+        .extension()
+        .and_then(|ext| ext.to_str())
+    {
+        Some("ts") => "typescript",
+        Some("tsx") => "typescriptreact",
+        Some("mts") | Some("cts") => "typescript",
+        Some("js") | Some("mjs") | Some("cjs") => "javascript",
+        Some("jsx") => "javascriptreact",
+        Some("rs") => "rust",
+        Some("py") => "python",
+        Some("go") => "go",
+        _ => "plaintext",
+    }
+}
+
+fn did_open_notification(path: &str, text: &str) -> serde_json::Value {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "textDocument/didOpen",
+        "params": {
+            "textDocument": {
+                "uri": file_uri(path),
+                "languageId": language_id_for(path),
+                "version": 1,
+                "text": text
+            }
+        }
+    })
+}
+
+/// Announce a document to the server before asking anything about it — the step that makes a
+/// code op answer about the file the caller meant. Idempotent per session.
+fn ensure_document_open(session: &mut LspServerProcess, path: &str) -> Result<(), String> {
+    let uri = file_uri(path);
+    if session.opened.contains(&uri) {
+        return Ok(());
+    }
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| format!("lsp didOpen: cannot read {path}: {e}"))?;
+    session.send(&did_open_notification(path, &text))?;
+    session.opened.insert(uri);
+    Ok(())
+}
+
+/// Wait until the server's answer for `loc` stops growing.
+///
+/// A language server answers a positional query with WHAT IT KNOWS SO FAR, and says nothing
+/// about the analysis still loading. Ask right after `didOpen` and the reply carries only the
+/// hits inside the file just opened — a plausible, complete-looking, WRONG answer. Measured
+/// against typescript-language-server on this workspace: the same query returns 1 reference at
+/// 0ms, 200ms and 800ms, and 2 (the cross-file one included) at 1500ms.
+///
+/// There is no portable "indexing finished" signal to wait on — with baseline capabilities the
+/// server emits only `window/logMessage`. So the settle is measured, not announced: re-ask a
+/// READ-ONLY query until two consecutive answers agree, bounded by a budget. Rename and move
+/// settle through the same read-only probe, never by repeating the mutating request.
+///
+/// Runs once per document, right after it is opened; a warm session pays nothing.
+fn settle_document_analysis(
+    session: &mut LspServerProcess,
+    loc: &SymbolLocation,
+) -> Result<(), String> {
+    let deadline = std::time::Instant::now() + LSP_SETTLE_BUDGET;
+    let mut previous: Option<usize> = None;
+    let mut probe_id = 100u64;
+    while std::time::Instant::now() < deadline {
+        probe_id += 1;
+        let response =
+            session.request_response(&references_request(probe_id, loc), LSP_REQUEST_TIMEOUT)?;
+        let count = parse_references_response(&response)
+            .map(|refs| refs.len())
+            .unwrap_or(0);
+        if previous == Some(count) {
+            return Ok(());
+        }
+        previous = Some(count);
+        std::thread::sleep(LSP_SETTLE_POLL);
+    }
+    // Budget spent: proceed with whatever the server has. The caller gets a real answer, just
+    // not a guaranteed-complete one — better than blocking a code op indefinitely.
+    Ok(())
 }
 
 fn references_request(id: u64, loc: &SymbolLocation) -> serde_json::Value {
@@ -877,6 +983,37 @@ mod tests {
     }
 
     #[test]
+    fn did_open_carries_the_file_content_and_a_real_language_id() {
+        // A server answers about ITS copy of a document. Announce a TypeScript file as
+        // plaintext (or not at all) and the analyzer never runs on it.
+        let note = did_open_notification("/repo/packages/a/src/session.ts", "export const x = 1;\n");
+
+        assert_eq!(note["method"], "textDocument/didOpen");
+        assert_eq!(note["params"]["textDocument"]["languageId"], "typescript");
+        assert_eq!(note["params"]["textDocument"]["version"], 1);
+        assert_eq!(
+            note["params"]["textDocument"]["text"],
+            "export const x = 1;\n"
+        );
+        assert_eq!(
+            note["params"]["textDocument"]["uri"],
+            file_uri("/repo/packages/a/src/session.ts")
+        );
+    }
+
+    #[test]
+    fn language_id_follows_the_extension_and_degrades_to_plaintext() {
+        assert_eq!(language_id_for("a/b.ts"), "typescript");
+        assert_eq!(language_id_for("a/b.tsx"), "typescriptreact");
+        assert_eq!(language_id_for("a/b.mjs"), "javascript");
+        assert_eq!(language_id_for("a/b.rs"), "rust");
+        assert_eq!(language_id_for("a/b.py"), "python");
+        // Unknown is not a crash and not a guess: the server decides what to do with it.
+        assert_eq!(language_id_for("a/LICENSE"), "plaintext");
+        assert_eq!(language_id_for("a/b"), "plaintext");
+    }
+
+    #[test]
     fn initialize_request_sets_root_uri_and_process_id() {
         let init = initialize_request("file:///workspace/project");
 
@@ -1305,6 +1442,69 @@ mod tests {
         };
 
         assert_eq!(lsp_position(&loc), serde_json::json!({"line":0,"character":0}));
+    }
+
+    /// The regression this file's `didOpen` + settle exist for.
+    ///
+    /// Before them, a positional query reached the server for a document it had never been
+    /// told about, and typescript-language-server answered anyway — resolving the position
+    /// against an empty buffer and returning references to unrelated symbols. The failure
+    /// looked like a plausible result, not an error, which is why only a real server catches
+    /// it: the fake in this file answers regardless of `didOpen`.
+    #[test]
+    #[ignore = "requires typescript-language-server and indexes the workspace"]
+    fn live_typescript_server_resolves_the_symbol_it_was_asked_about() {
+        let Some(cmd) = typescript_language_server_for_test() else {
+            eprintln!("skipping: typescript-language-server is not runnable");
+            return;
+        };
+        // SAFETY: single-threaded test; the bridge reads this at construction.
+        unsafe { std::env::set_var(LSP_CMD_ENV, format!("{cmd} --stdio")) };
+
+        let file = concat!(env!("CARGO_MANIFEST_DIR"), "/../browser-driver/src/session.ts");
+        if !std::path::Path::new(file).exists() {
+            eprintln!("skipping: fixture source not present at {file}");
+            return;
+        }
+        // `createLiveFetch`, at its declaration.
+        let mut loc = SymbolLocation {
+            file: file.to_string(),
+            line: 0,
+            column: 23,
+        };
+        let source = std::fs::read_to_string(file).unwrap();
+        loc.line = source
+            .lines()
+            .position(|l| l.contains("export async function createLiveFetch"))
+            .map(|i| (i + 1) as u32)
+            .expect("declaration present in fixture");
+
+        let refs = LspBridge::from_env().find_references(&loc).unwrap();
+        LspBridge::stop_lsp_session().unwrap();
+        unsafe { std::env::remove_var(LSP_CMD_ENV) };
+
+        // Every hit must be the symbol asked about — the pre-fix bug returned line-1 imports.
+        assert!(!refs.is_empty(), "expected references, got none");
+        for reference in &refs {
+            let line = source.lines().nth(reference.line.saturating_sub(1) as usize);
+            assert!(
+                line.is_some_and(|l| l.contains("createLiveFetch")),
+                "reference at line {} is not the symbol queried: {:?}",
+                reference.line,
+                line
+            );
+        }
+    }
+
+    fn typescript_language_server_for_test() -> Option<String> {
+        let home = std::env::var("HOME").ok()?;
+        let path = format!("{home}/.local/share/pnpm/bin/typescript-language-server");
+        std::process::Command::new(&path)
+            .arg("--version")
+            .output()
+            .ok()
+            .filter(|out| out.status.success())
+            .map(|_| path)
     }
 
     #[test]
