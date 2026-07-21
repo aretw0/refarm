@@ -51,6 +51,54 @@ describe("ProjectAuditor", () => {
 		]);
 	});
 
+	it("flags a package whose dist is older than its src, and stays quiet when it is newer", async () => {
+		// The failure this exists for: everything resolves to dist, so a consumer imports the stale
+		// artifact and the symptom surfaces somewhere else entirely.
+		const stale = makeWorkspacePackage("packages", "stale", { name: "stale" }, [
+			"tsconfig.build.json",
+			"dist/index.js",
+		]);
+		const fresh = makeWorkspacePackage("packages", "fresh", { name: "fresh" }, [
+			"tsconfig.build.json",
+			"dist/index.js",
+		]);
+
+		const old = new Date("2026-01-01T00:00:00Z");
+		const recent = new Date("2026-01-02T00:00:00Z");
+		// stale: source edited AFTER the build.
+		fs.mkdirSync(path.join(stale, "src"), { recursive: true });
+		fs.writeFileSync(path.join(stale, "src/index.ts"), "", "utf-8");
+		fs.utimesSync(path.join(stale, "dist/index.js"), old, old);
+		fs.utimesSync(path.join(stale, "src/index.ts"), recent, recent);
+		// fresh: built after the last edit.
+		fs.mkdirSync(path.join(fresh, "src"), { recursive: true });
+		fs.writeFileSync(path.join(fresh, "src/index.ts"), "", "utf-8");
+		fs.utimesSync(path.join(fresh, "src/index.ts"), old, old);
+		fs.utimesSync(path.join(fresh, "dist/index.js"), recent, recent);
+
+		const auditor = new ProjectAuditor();
+		const staleBuilds = auditor.checkStaleBuilds(rootDir, { workspaceRoots: ["packages"] });
+
+		expect(staleBuilds.map((i) => i.package)).toEqual(["packages/stale"]);
+		expect(staleBuilds[0].type).toBe("stale_build");
+		expect(staleBuilds[0].staleBySeconds).toBe(86_400);
+	});
+
+	it("says nothing about a package that was never built", async () => {
+		// No dist is not staleness — the resolution status already reports an unbuilt package,
+		// and reporting it twice would train the reader to skim this list.
+		const pkg = makeWorkspacePackage("packages", "unbuilt", { name: "unbuilt" }, [
+			"tsconfig.build.json",
+		]);
+		fs.mkdirSync(path.join(pkg, "src"), { recursive: true });
+		fs.writeFileSync(path.join(pkg, "src/index.ts"), "", "utf-8");
+
+		const auditor = new ProjectAuditor();
+		const staleBuilds = auditor.checkStaleBuilds(rootDir, { workspaceRoots: ["packages"] });
+
+		expect(staleBuilds).toEqual([]);
+	});
+
 	it("accepts custom workspace roots", async () => {
 		const auditor = new ProjectAuditor({ workspaceRoots: ["modules"] });
 		makeWorkspacePackage(

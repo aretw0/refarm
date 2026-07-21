@@ -2,6 +2,40 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
+/**
+ * The newest mtime under `dir`, in epoch milliseconds, or null when it holds no files.
+ * Walks the tree because a build touches only what changed: the directory's own mtime says
+ * nothing about the files inside it.
+ */
+function newestMtime(dir) {
+	let newest = null;
+	const walk = (current) => {
+		let entries;
+		try {
+			entries = fs.readdirSync(current, { withFileTypes: true });
+		} catch {
+			return; // unreadable subtree tells us nothing; it is not evidence of staleness
+		}
+		for (const entry of entries) {
+			const full = path.join(current, entry.name);
+			if (entry.isDirectory()) {
+				if (entry.name === "node_modules") continue;
+				walk(full);
+				continue;
+			}
+			try {
+				const { mtimeMs } = fs.statSync(full);
+				if (newest === null || mtimeMs > newest) newest = mtimeMs;
+			} catch {
+				// a file that vanished mid-walk is not a staleness signal
+			}
+		}
+	};
+	walk(dir);
+	return newest;
+}
+
+
 const DEFAULT_WORKSPACE_ROOTS = ["packages", "apps"];
 const REFARM_EXEMPT_PACKAGE_IDS = ["packages/deps", "packages/heartwood", "packages/tsconfig"];
 const PROJECT_AUTOMATIONS_RELATIVE_PATH = ".project/automations.json";
@@ -77,6 +111,7 @@ export class ProjectAuditor {
 		return {
 			git: genericResults.git || [],
 			builds: await this.checkBuildConfigs(rootDir, { workspaceRoots, exemptPackageIds }),
+			staleBuilds: this.checkStaleBuilds(rootDir, { workspaceRoots, exemptPackageIds }),
 			alignment: await this.checkPackageAlignment(rootDir, { workspaceRoots, exemptPackageIds }),
 			automations: this.checkProjectAutomations(rootDir),
 			namespaceWarnings: this.checkWorkspaceNamespaces(rootDir, { workspaceNamespaces }),
@@ -138,6 +173,48 @@ export class ProjectAuditor {
 	/**
 	 * Verifies if TypeScript package entry points point to dist/.
 	 */
+	/**
+	 * Packages whose `dist/` is older than their `src/` — a build that no longer reflects the
+	 * source it claims to be.
+	 *
+	 * This is the failure the rest of the audit cannot see. Everything resolves to `dist`, so a
+	 * consumer imports the STALE artifact: its types miss a field the source added, and its
+	 * behaviour is whatever it was on the day it was built. The symptoms surface far from the
+	 * cause — a type error in an unrelated example, or a test failing against a function that
+	 * looks correct in the source you are reading.
+	 *
+	 * Observed twice in one afternoon in this repository: a five-day-old `homestead/dist` failed
+	 * six surface tests, and a `capabilities-v1/dist` predating a new field broke all three
+	 * examples' builds. Both cost far more to diagnose than to fix, because nothing pointed at
+	 * the artifact.
+	 *
+	 * Compares the newest mtime under `src/` against the newest under `dist/`. A package with no
+	 * `dist/` has not been built at all, which the resolution status already covers.
+	 */
+	checkStaleBuilds(rootDir, options = {}) {
+		const issues = [];
+		for (const pkg of this.workspacePackageDirs(rootDir, options)) {
+			if (this.isExemptPackage(pkg, options)) continue;
+			if (this.isNonTsPackage(pkg.path)) continue;
+
+			const srcDir = path.join(pkg.path, "src");
+			const distDir = path.join(pkg.path, "dist");
+			if (!fs.existsSync(srcDir) || !fs.existsSync(distDir)) continue;
+
+			const srcMtime = newestMtime(srcDir);
+			const distMtime = newestMtime(distDir);
+			if (srcMtime === null || distMtime === null) continue;
+			if (srcMtime <= distMtime) continue;
+
+			issues.push({
+				package: pkg.id,
+				type: "stale_build",
+				staleBySeconds: Math.round((srcMtime - distMtime) / 1000),
+			});
+		}
+		return issues;
+	}
+
 	async checkPackageAlignment(rootDir, options = {}) {
 		const issues = [];
 		const status = await this.checkResolutionStatus(rootDir, options);
