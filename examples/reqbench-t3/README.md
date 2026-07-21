@@ -74,13 +74,19 @@ it fetches **one OSLC resource URL** (the target's `url`) with the Jazz RDF cont
 whatever requirements that one RDF document contains → into records → the MOC. It reuses the
 cookie session across runs, and re-authenticates (a fresh browser login) if a pull hits a 401.
 
-**It does NOT (yet)**: discover a project. It does **not** open a dashboard, list folders, walk
-the artifact tree, paginate, or follow `/rm/links` to traverse the requirement graph. So it
-pulls the artifact(s) in the URL you point at — **not a whole project**. Pointing `url` at a
-dashboard/collection URL will return an HTML shell, not RDF, and yield **zero** records. This is
-a build-it gap (the discovery/walk machinery isn't written), not a config knob. Treat `--live`
-today as a **single-artifact OSLC smoke test** of the login → authenticated-GET → parse → record
-chain.
+**`requirements-pull` is single-artifact BY DESIGN**, not by omission. It fetches the URL you
+point at and parses whatever requirements that RDF holds — it does not open a dashboard, list
+folders, walk the artifact tree, paginate or follow `/rm/links`. Point `url` at a
+dashboard/collection and you get an HTML shell, not RDF, and **zero** records.
+
+Walking a whole project is a **different verb**: `requirements-crawl <ref> [--live]` follows the
+project's OSLC link graph and ingests every requirement, incrementally — a re-crawl re-ingests
+only what changed, gated by an accumulative cache manifest kept per ref. Reach for `pull` to
+verify the chain login → authenticated-GET → parse → record against one known artifact; reach
+for `crawl` to take a project.
+
+That distinction used to read here as "the discovery/walk machinery isn't written", which sent
+at least one reader off to build what already existed.
 
 ### Steps
 
@@ -88,16 +94,16 @@ chain.
    **resource** and `attributes.streamURI` is **required** (it becomes the OSLC
    `Configuration-Context` header — without it a config-managed component GET is unscoped and
    usually 400s). The host of `url` must be your real ALM and **not** a private/VPN IP
-   (`10.x`/`192.168.x`/`.local` are egress-blocked; a real hostname like `alm.serpro` is fine):
+   (`10.x`/`192.168.x`/`.local` are egress-blocked; a real hostname like `alm.exemplo-interno` is fine):
 
    ```json
    {
      "targets": [
        {
          "identity": "efd",
-         "url": "https://alm.serpro/rm/resources/<a-real-artifact-id>",
+         "url": "https://alm.exemplo-interno/rm/resources/<a-real-artifact-id>",
          "session": { "kind": "authenticated", "principal": "you" },
-         "attributes": { "streamURI": "https://alm.serpro/rm/cm/stream/<real>" }
+         "attributes": { "streamURI": "https://alm.exemplo-interno/rm/cm/stream/<real>" }
        }
      ]
    }
