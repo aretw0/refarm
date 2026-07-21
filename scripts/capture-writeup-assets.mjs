@@ -47,6 +47,9 @@ const sharedEnv = {
  * Published identifiers that a claim depends on (a served JSON-LD context, for instance) are NOT
  * rewritten — only the framework's own name in package ids and style hooks.
  */
+// Figure titles carry no `T1 —` / `T2 —` prefix: those are this project's internal theme codes.
+// In a delivered document the figure is "Figura 4", and a stray theme code tells the reader
+// about the production process rather than about what they are looking at.
 const NAMESPACE = process.env.DGK_COMMAND ?? "poc";
 const BRAND = /\brefarm\b/gi;
 /**
@@ -111,7 +114,7 @@ function captureT1() {
 	if (governance?.governanceHtml) {
 		writeHtmlAsset({
 			slug: "t1-governance-dashboard",
-			title: "T1 — Governança executada",
+			title: "Governança executada",
 			kicker: "Plugins WASM / máquina extensível",
 			caption: "Decisão, bloqueio, isolamento e scorecard são dados executados: 6 combinações, 2 bloqueios fora do grant, 1 falha isolada e gate de continuação.",
 			body: governance.governanceHtml,
@@ -124,7 +127,7 @@ function captureT1() {
 	if (graph?.graphSvg) {
 		writeSvgAsset({
 			slug: "t1-extension-graph",
-			title: "T1 — Grafo SPI de extensões",
+			title: "Grafo SPI de extensões",
 			kicker: "requiresApi → providesApi",
 			caption: `Grafo com ${graph.pluginCount ?? "?"} plugins, ${graph.spiEdges ?? "?"} arestas SPI e ${graph.executedCount ?? "?"} arestas executadas marcadas.`,
 			svg: graph.graphSvg,
@@ -137,7 +140,7 @@ function captureT1() {
 	if (extension) {
 		writeHtmlAsset({
 			slug: "t1-declare-once-surfaces",
-			title: "T1 — Declare uma vez → aparece nas superfícies",
+			title: "Declare uma vez → aparece nas superfícies",
 			kicker: extension.pluginId ?? "@devbench/coding-agent",
 			caption: "O manifesto declara agent:code e agent:review; a ponte sintetiza verbos de primeira classe para CLI, HTTP, REPL, TUI e web.",
 			body: renderT1Extension(extension),
@@ -158,7 +161,7 @@ function captureAgentPluginMaterial() {
 		const liveAsk = readJsonFile(path.join(repoRoot, ".dgk", "agent-live-record", "script-live-after-sow", "ask-live.json"));
 		writeHtmlAsset({
 			slug: "t1-agent-plugin-and-lsp-flow",
-			title: "T1 — Agent como plugin + ferramenta LSP",
+			title: "Agent como plugin + ferramenta LSP",
 			kicker: "Aplicação assistida por agente / extensão governada",
 			caption: "O agente não é uma tela de chat solta: ele é um plugin WASM carregado pelo runtime; o lsp-code-ops é outro plugin que adiciona operações semânticas de editor ao agente.",
 			body: renderAgentPluginFlow(agentManifest, lspManifest, liveAsk),
@@ -172,7 +175,7 @@ function captureAgentPluginMaterial() {
 	if (telemetry?.timeline) {
 		writeHtmlAsset({
 			slug: "t1-agent-telemetry-trace",
-			title: "T1 — Execução do agente com trilha causal",
+			title: "Execução do agente com trilha causal",
 			kicker: "agent:* + host-effect:*",
 			caption: `${telemetry.timeline.iterations ?? "?"} iterações, ${(telemetry.timeline.toolCalls ?? []).length} tool calls e ${telemetry.trace?.effectCount ?? "?"} efeitos de host correlacionados no audit log.`,
 			body: renderAgentTelemetry(telemetry),
@@ -186,7 +189,7 @@ function captureAgentPluginMaterial() {
 	if (references?.ok && rename?.ok) {
 		writeHtmlAsset({
 			slug: "t1-lsp-code-ops-value",
-			title: "T1 — Valor tangível: inspeção e refatoração semântica",
+			title: "Valor tangível: inspeção e refatoração semântica",
 			kicker: "lsp-code-ops / verificação assistida",
 			caption: `${(references.result ?? []).length} referências encontradas por LSP; rename aplicou ${rename.result?.editsApplied ?? "?"} edições em ${rename.result?.filesChanged ?? "?"} arquivo(s).`,
 			body: renderCodeOpsValue(references, rename),
@@ -201,7 +204,7 @@ function captureT2() {
 	if (wallet?.walletHtml) {
 		writeHtmlAsset({
 			slug: "t2-wallet",
-			title: "T2 — Minha Carteira Digital",
+			title: "Minha Carteira Digital",
 			kicker: "Cidadão soberano / local-first",
 			caption: `${wallet.total ?? "?"} itens na carteira; ${wallet.byState?.verified ?? "?"} verificados e ${wallet.byState?.draft ?? "?"} a verificar.`,
 			body: wallet.walletHtml,
@@ -228,7 +231,7 @@ function captureT2() {
 	if (sovereignty?.sovereigntyHtml) {
 		writeHtmlAsset({
 			slug: "t2-sovereignty-dashboard",
-			title: "T2 — Consentimento e disclosure",
+			title: "Consentimento e disclosure",
 			kicker: "Escopo, finalidade e histórico",
 			caption: "Um pedido autorizado aparece como disclosure com escopo explícito; a superfície mostra consentimentos ativos/revogados e última mudança.",
 			body: sovereignty.sovereigntyHtml,
@@ -241,7 +244,7 @@ function captureT2() {
 	if (disclosure?.graphSvg) {
 		writeSvgAsset({
 			slug: "t2-disclosure-graph",
-			title: "T2 — Grafo de compartilhamento",
+			title: "Grafo de compartilhamento",
 			kicker: "Com quem compartilhei o quê",
 			caption: `${disclosure.disclosureCount ?? "?"} disclosure(s) no grafo após a autorização sintética de demonstração.`,
 			svg: disclosure.graphSvg,
@@ -254,11 +257,15 @@ function captureT2() {
 }
 
 function captureT3() {
+	// Ingest before reporting: without this the verbs answer from the built-in fallback, and the
+	// figure shows a fixture rather than a corpus that was actually pulled — visible as an empty
+	// `sistema` column, because the fallback carries no source system.
+	runJson("T3 requirements-pull", cli.t3, ["requirements-pull", "web:efd", "--json"]);
 	const moc = runJson("T3 requirements", cli.t3, ["requirements", "--json"]);
 	if (moc?.mocHtml) {
 		writeHtmlAsset({
 			slug: "t3-requirements-moc",
-			title: "T3 — Mapa de Conteúdo de requisitos",
+			title: "Mapa de Conteúdo de requisitos",
 			kicker: "Analista de requisitos / result mode",
 			caption: `${moc.total ?? "?"} requisitos organizados em ${moc.groupCount ?? "?"} grupos, com relações preservadas nos itens.`,
 			body: moc.mocHtml,
@@ -271,7 +278,7 @@ function captureT3() {
 	if (overview?.overviewHtml) {
 		writeHtmlAsset({
 			slug: "t3-vault-overview",
-			title: "T3 — Saúde e cobertura do vault",
+			title: "Saúde e cobertura do vault",
 			kicker: "Cobertura, rastreabilidade e qualidade",
 			caption: `Corpus com ${overview.total ?? "?"} requisitos, ${overview.relations ?? "?"} relações e ${overview.attachments ?? "?"} anexos registrados.`,
 			body: overview.overviewHtml,
@@ -284,7 +291,7 @@ function captureT3() {
 	if (graph?.svg) {
 		writeSvgAsset({
 			slug: "t3-requirements-graph",
-			title: "T3 — Rede de requisitos",
+			title: "Rede de requisitos",
 			kicker: "Rastreabilidade visual",
 			caption: `${graph.total ?? "?"} requisitos projetados como grafo; os links vêm dos registros, não de desenho manual.`,
 			svg: graph.svg,
@@ -297,7 +304,7 @@ function captureT3() {
 	if (search) {
 		writeHtmlAsset({
 			slug: "t3-search-cnpj",
-			title: "T3 — Busca facetada por CNPJ",
+			title: "Busca facetada por CNPJ",
 			kicker: "Consulta sobre o corpus",
 			caption: `${search.matched ?? "?"} requisitos encontrados para a consulta “CNPJ”.`,
 			body: renderSearchResults(search),

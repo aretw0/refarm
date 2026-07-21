@@ -90,13 +90,16 @@ function countRow(label: string, counts: Record<string, number>): string {
 /** Render the overview as a self-contained HTML dashboard (mirrors governanceToHtml / plugin-ops). */
 export function vaultOverviewToHtml(o: VaultOverview): string {
 	const healthLine = o.health.healthy
-		? "healthy — no orphans, duplicates, or dangling links"
-		: `${o.health.orphans} orphan · ${o.health.duplicates} duplicate · ${o.health.dangling} dangling`;
+		? "saudável — sem órfãos, duplicados ou vínculos quebrados"
+		: `${o.health.orphans} órfão(s) · ${o.health.duplicates} duplicado(s) · ${o.health.dangling} vínculo(s) quebrado(s)`;
+	// A raw ISO stamp with milliseconds is machine detail in a view a person reads; the date and
+	// time are what answers "when did this last change".
+	const changedAt = o.lastChange?.recordedAt?.replace("T", " ").replace(/:\d\dZ?$|\.\d+Z?$/, "") ?? "";
 	const last = o.lastChange
-		? `${escapeHtml(o.lastChange.origin ?? "—")} at ${escapeHtml(o.lastChange.recordedAt)} (${o.lastChange.totalRevisions} revisions)`
-		: "no history yet";
+		? `${escapeHtml(o.lastChange.origin ?? "—")} em ${escapeHtml(changedAt)} (${o.lastChange.totalRevisions} revisões)`
+		: "sem histórico ainda";
 	return `<section class="refarm-stack" data-vault-overview>
-  <h3>Vault overview — ${o.total} requirements</h3>
+  <h3>Panorama do vault — ${o.total} requisitos</h3>
   <table class="vault-overview-coverage">
     <tbody>
       ${countRow("Sistema", o.bySistema)}
@@ -151,7 +154,15 @@ export function createRequirementsOverviewCapability(recordsDeps: RecordsCommand
 								{ key: "tipo", header: "Tipo" },
 								{ key: "status", header: "Status" },
 							],
-							manifest.records,
+							// A record keeps its domain values under `fields`; only `id` is top level.
+							// Handing the records straight to the table rendered three empty columns —
+							// a table that looks populated and says nothing.
+							manifest.records.map((record) => ({
+								id: record.id,
+								sistema: record.fields?.sistema ?? "—",
+								tipo: record.fields?.tipo ?? "—",
+								status: record.fields?.status ?? "—",
+							})),
 							{ caption: `Requisitos no vault (${manifest.records.length})` },
 						),
 				},

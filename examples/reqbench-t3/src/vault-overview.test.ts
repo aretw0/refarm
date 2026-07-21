@@ -69,8 +69,11 @@ describe("buildVaultOverview — the vault in one view", () => {
 			lastChange: { origin: "pull", recordedAt: "2026-07-14T00:00:00Z", totalRevisions: 5 },
 		});
 		expect(html).toContain("data-vault-overview");
-		expect(html).toContain("5 requirements");
-		expect(html).toContain("healthy");
+		// This surface speaks Portuguese to the analyst; these strings were English and showed up
+		// mixed into the same table in every capture. Pinned so the inconsistency cannot return.
+		expect(html).toContain("5 requisitos");
+		expect(html).toContain("saudável — sem órfãos, duplicados ou vínculos quebrados");
+		expect(html).not.toMatch(/\b(requirements|healthy|orphans|dangling|no history yet)\b/);
 		expect(html).toContain("EFD: <strong>5</strong>");
 	});
 });
