@@ -18,6 +18,11 @@ const LSP_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 /// trying. See `settle_document_analysis` for why polling is the portable option.
 const LSP_SETTLE_POLL: Duration = Duration::from_millis(400);
 const LSP_SETTLE_BUDGET: Duration = Duration::from_secs(8);
+/// Stability is not completion. While the project loads, the server answers the SAME partial
+/// result every time, so consecutive replies agree long before the analysis is done. Measured
+/// on this workspace, the answer was still partial at 800ms and complete at 1500ms — so no
+/// agreement is trusted before this floor has passed.
+const LSP_SETTLE_FLOOR: Duration = Duration::from_millis(1_600);
 
 static LSP_SESSION: OnceLock<Mutex<Option<LspServerProcess>>> = OnceLock::new();
 
@@ -474,7 +479,8 @@ fn settle_document_analysis(
     session: &mut LspServerProcess,
     loc: &SymbolLocation,
 ) -> Result<(), String> {
-    let deadline = std::time::Instant::now() + LSP_SETTLE_BUDGET;
+    let started = std::time::Instant::now();
+    let deadline = started + LSP_SETTLE_BUDGET;
     let mut previous: Option<usize> = None;
     let mut probe_id = 100u64;
     while std::time::Instant::now() < deadline {
@@ -484,7 +490,7 @@ fn settle_document_analysis(
         let count = parse_references_response(&response)
             .map(|refs| refs.len())
             .unwrap_or(0);
-        if previous == Some(count) {
+        if previous == Some(count) && started.elapsed() >= LSP_SETTLE_FLOOR {
             return Ok(());
         }
         previous = Some(count);
@@ -1484,16 +1490,26 @@ mod tests {
         unsafe { std::env::remove_var(LSP_CMD_ENV) };
 
         // Every hit must be the symbol asked about — the pre-fix bug returned line-1 imports.
+        // Read each hit from ITS OWN file: a correct answer spans files, so checking every line
+        // against the queried file's source would fail on exactly the result we want.
         assert!(!refs.is_empty(), "expected references, got none");
         for reference in &refs {
-            let line = source.lines().nth(reference.line.saturating_sub(1) as usize);
+            let text = std::fs::read_to_string(&reference.file)
+                .unwrap_or_else(|e| panic!("cannot read {}: {e}", reference.file));
+            let line = text.lines().nth(reference.line.saturating_sub(1) as usize);
             assert!(
                 line.is_some_and(|l| l.contains("createLiveFetch")),
-                "reference at line {} is not the symbol queried: {:?}",
+                "hit at {}:{} is not the symbol queried: {:?}",
+                reference.file,
                 reference.line,
                 line
             );
         }
+        // The settle exists so the answer reaches beyond the file just opened.
+        assert!(
+            refs.iter().any(|r| !r.file.ends_with("session.ts")),
+            "expected a cross-file reference; the analysis had not settled: {refs:?}"
+        );
     }
 
     fn typescript_language_server_for_test() -> Option<String> {
