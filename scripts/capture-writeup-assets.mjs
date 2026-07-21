@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -33,6 +33,31 @@ const sharedEnv = {
 	DGK_WALLET_STATE_PATH: path.join(stateDir, "wallet.manifest.json"),
 	DGK_REQUIREMENTS_STATE_PATH: path.join(stateDir, "requirements.manifest.json"),
 };
+
+/**
+ * The neutral namespace this package speaks in. The examples white-label their COMMAND through
+ * `DGK_COMMAND`, but package ids and CSS class prefixes come from the source tree and carry the
+ * framework's name into the artifact regardless — `@refarm/agent` renders inside the figure, and
+ * `refarm-table` rides along in the HTML that produced it.
+ *
+ * These captures are meant for readers who must not be told which framework produced them, so the
+ * package is neutralized AT GENERATION rather than sanitized afterwards. Sanitizing later is a
+ * step someone eventually forgets, and no gate catches a brand name inside a PNG.
+ *
+ * Published identifiers that a claim depends on (a served JSON-LD context, for instance) are NOT
+ * rewritten — only the framework's own name in package ids and style hooks.
+ */
+const NAMESPACE = process.env.DGK_COMMAND ?? "poc";
+const BRAND = /\brefarm\b/gi;
+
+function neutralize(text) {
+	return typeof text === "string" ? text.replace(BRAND, NAMESPACE) : text;
+}
+
+/** Write an artifact with the framework's name mapped to the neutral namespace. */
+function writeNeutralized(file, contents) {
+	writeFileSync(file, neutralize(contents), "utf8");
+}
 
 const assets = [];
 const failures = [];
@@ -101,7 +126,54 @@ function captureT1() {
 		});
 	}
 
+	captureAgentPluginMaterial();
+
 	runReport("T1 report", cli.t1, ["report", "--apply", "--json"]);
+}
+
+function captureAgentPluginMaterial() {
+	const agentManifest = readJsonFile(path.join(repoRoot, "packages", "agent", "plugin.json"));
+	const lspManifest = readJsonFile(path.join(repoRoot, "packages", "lsp-code-ops", "plugin.json"));
+	if (agentManifest && lspManifest) {
+		const liveAsk = readJsonFile(path.join(repoRoot, ".dgk", "agent-live-record", "script-live-after-sow", "ask-live.json"));
+		writeHtmlAsset({
+			slug: "t1-agent-plugin-and-lsp-flow",
+			title: "T1 — Agent como plugin + ferramenta LSP",
+			kicker: "Aplicação assistida por agente / extensão governada",
+			caption: "O agente não é uma tela de chat solta: ele é um plugin WASM carregado pelo runtime; o lsp-code-ops é outro plugin que adiciona operações semânticas de editor ao agente.",
+			body: renderAgentPluginFlow(agentManifest, lspManifest, liveAsk),
+			command: "packages/agent/plugin.json + packages/lsp-code-ops/plugin.json + pnpm run writeup:agent-record",
+			// A figura descreve o que foi executado; quem julga se isso é inovação é quem lê.
+			claim: "Cadeia executada: plugin de agente → ferramenta contribuída por plugin → operação semântica auditável.",
+		});
+	}
+
+	const telemetry = runJson("T1 agent telemetry", cli.t1, ["agent-telemetry", "--mock", "--with-effects", "--json"]);
+	if (telemetry?.timeline) {
+		writeHtmlAsset({
+			slug: "t1-agent-telemetry-trace",
+			title: "T1 — Execução do agente com trilha causal",
+			kicker: "agent:* + host-effect:*",
+			caption: `${telemetry.timeline.iterations ?? "?"} iterações, ${(telemetry.timeline.toolCalls ?? []).length} tool calls e ${telemetry.trace?.effectCount ?? "?"} efeitos de host correlacionados no audit log.`,
+			body: renderAgentTelemetry(telemetry),
+			command: "node examples/devbench-t1/dist/cli.js agent-telemetry --mock --with-effects --json",
+			claim: "O comportamento agentic fica verificável: rota, iterações, ferramentas, efeitos e tokens viram registro técnico, não narrativa.",
+		});
+	}
+
+	const references = runJson("T1 code-ops find-references", cli.t1, ["code-ops", "find-references", "--line", "1", "--column", "5", "--json"]);
+	const rename = runJson("T1 code-ops rename-symbol", cli.t1, ["code-ops", "rename-symbol", "--line", "1", "--column", "5", "--new-name", "secureSubject", "--json"]);
+	if (references?.ok && rename?.ok) {
+		writeHtmlAsset({
+			slug: "t1-lsp-code-ops-value",
+			title: "T1 — Valor tangível: inspeção e refatoração semântica",
+			kicker: "lsp-code-ops / verificação assistida",
+			caption: `${(references.result ?? []).length} referências encontradas por LSP; rename aplicou ${rename.result?.editsApplied ?? "?"} edições em ${rename.result?.filesChanged ?? "?"} arquivo(s).`,
+			body: renderCodeOpsValue(references, rename),
+			command: "node examples/devbench-t1/dist/cli.js code-ops find-references ... && code-ops rename-symbol ...",
+			claim: "A POC entrega um uso agentic concreto: localizar evidência de código e aplicar mudança semântica auditável — a base para triagem de vulnerabilidades e dívida técnica.",
+		});
+	}
 }
 
 function captureT2() {
@@ -250,14 +322,14 @@ function runCommand(label, cmd, cmdArgs, { cwd, env, fatal = true }) {
 function writeHtmlAsset({ slug, title, kicker, caption, body, command, claim }) {
 	const htmlPath = path.join(htmlDir, `${slug}.html`);
 	const pngPath = path.join(pngDir, `${slug}.png`);
-	writeFileSync(htmlPath, wrapHtml({ title, kicker, caption, body, command, claim }), "utf8");
+	writeNeutralized(htmlPath, wrapHtml({ title, kicker, caption, body, command, claim }));
 	const png = screenshot(htmlPath, pngPath) ? pngPath : null;
 	assets.push({ slug, title, caption, claim, command, html: htmlPath, png });
 }
 
 function writeSvgAsset({ slug, title, kicker, caption, svg, command, claim }) {
 	const svgPath = path.join(svgDir, `${slug}.svg`);
-	writeFileSync(svgPath, svg, "utf8");
+	writeNeutralized(svgPath, svg);
 	writeHtmlAsset({
 		slug,
 		title,
@@ -362,7 +434,7 @@ function writeIndexes() {
 		for (const failure of failures) md.push(`- **${failure.label}**: ${String(failure.message ?? "").split("\n")[0]}`);
 		md.push("");
 	}
-	writeFileSync(path.join(outDir, "INDEX.md"), md.join("\n"), "utf8");
+	writeNeutralized(path.join(outDir, "INDEX.md"), md.join("\n"));
 
 	const htmlIndex = [
 		wrapHtml({
@@ -374,7 +446,7 @@ function writeIndexes() {
 			claim: "Poucos registros fortes valem mais que muitos diagramas maçantes.",
 		}),
 	].join("\n");
-	writeFileSync(path.join(outDir, "index.html"), htmlIndex, "utf8");
+	writeNeutralized(path.join(outDir, "index.html"), htmlIndex);
 }
 
 function renderGalleryCard(asset) {
@@ -409,6 +481,96 @@ function renderSearchResults(search) {
 		${rows.map((row) => `<tr><td><code>${escapeHtml(row.recordId ?? "")}</code><br/>${escapeHtml(row.title ?? "")}</td><td>${escapeHtml(row.tipo ?? "")}</td><td>${escapeHtml(String(row.score ?? ""))}</td></tr>`).join("")}
 		</tbody></table>
 	</section>`;
+}
+
+function renderAgentPluginFlow(agentManifest, lspManifest, liveAsk) {
+	const agentVerbs = manifestVerbNames(agentManifest);
+	const lspVerbs = manifestVerbNames(lspManifest);
+	const answer = liveAsk?.content ? `<p class="refarm-note"><strong>Registro real:</strong> ${escapeHtml(liveAsk.content)}</p>` : "";
+	return `<section class="refarm-stack">
+		<div class="flow-map" role="img" aria-label="Fluxo: usuário chama o agente; agente usa ferramentas contribuídas por plugins; lsp-code-ops chama o LSP; o runtime audita.">
+			<div class="flow-node flow-node--user"><span>Operador</span><small>pedido / verificação</small></div>
+			<div class="flow-arrow">→</div>
+			<div class="flow-node flow-node--agent"><span>${escapeHtml(agentManifest.id)}</span><small>${agentVerbs.join(" · ")}</small></div>
+			<div class="flow-arrow">→</div>
+			<div class="flow-node flow-node--tool"><span>${escapeHtml(lspManifest.id)}</span><small>${lspVerbs.join(" · ")}</small></div>
+			<div class="flow-arrow">→</div>
+			<div class="flow-node flow-node--lsp"><span>LSP</span><small>referências · rename · move</small></div>
+			<div class="flow-arrow">→</div>
+			<div class="flow-node flow-node--audit"><span>Auditoria</span><small>task · stream · scarecrow</small></div>
+		</div>
+		<div class="metric-row">
+			<div class="metric"><span>${escapeHtml(String((agentManifest.permissions ?? []).length))}</span><small>permissões do agent</small></div>
+			<div class="metric"><span>${escapeHtml(String(lspVerbs.length))}</span><small>verbos LSP plugáveis</small></div>
+			<div class="metric"><span>${escapeHtml(String(liveAsk?.ok === true ? "ok" : "doc"))}</span><small>registro live</small></div>
+		</div>
+		<table class="refarm-table"><thead><tr><th>Peça</th><th>Papel no trabalho</th><th>Limite honesto</th></tr></thead><tbody>
+			<tr><td><code>${escapeHtml(agentManifest.id)}</code></td><td>Runtime agent como plugin carregado, não chat externo; responde via <code>integration:respond</code>.</td><td>Prova POC local; não medir qualidade do modelo.</td></tr>
+			<tr><td><code>${escapeHtml(lspManifest.id)}</code></td><td>Plugin efeito-capable que acrescenta operações semânticas de código ao agente via <code>code-ops</code>.</td><td>Usa LSP/fake LSP de demonstração; não é scanner completo.</td></tr>
+			<tr><td><code>tractor</code></td><td>Carrega componentes WASM, aplica permissões e registra efeitos.</td><td>Governança demonstrada localmente, não certificação de produção.</td></tr>
+		</tbody></table>
+		${answer}
+	</section>`;
+}
+
+function renderAgentTelemetry(telemetry) {
+	const calls = telemetry.timeline.toolCalls ?? [];
+	const traceSteps = telemetry.trace?.steps ?? [];
+	return `<section class="refarm-stack">
+		<div class="metric-row">
+			<div class="metric"><span>${escapeHtml(String(telemetry.timeline.iterations ?? "?"))}</span><small>iterações</small></div>
+			<div class="metric"><span>${escapeHtml(String(calls.length))}</span><small>tool calls</small></div>
+			<div class="metric"><span>${escapeHtml(String(telemetry.trace?.effectCount ?? "?"))}</span><small>efeitos de host</small></div>
+		</div>
+		<table class="refarm-table"><thead><tr><th>Camada</th><th>Evidência</th><th>Valor para gestão</th></tr></thead><tbody>
+			<tr><td>Rota</td><td><code>${escapeHtml(telemetry.timeline.route?.provider ?? "?")}/${escapeHtml(telemetry.timeline.route?.model ?? "?")}</code></td><td>Mostra qual provedor/modelo executou a decisão.</td></tr>
+			<tr><td>Loop</td><td>${escapeHtml(String(telemetry.timeline.iterations ?? "?"))}/${escapeHtml(String(telemetry.timeline.maxIterations ?? "?"))} iterações</td><td>Evita tratar o agente como caixa-preta.</td></tr>
+			<tr><td>Tokens</td><td>${escapeHtml(String(telemetry.timeline.tokensIn ?? 0))} in · ${escapeHtml(String(telemetry.timeline.tokensOut ?? 0))} out</td><td>Base para custo, quota e governança operacional.</td></tr>
+			<tr><td>Outcome</td><td><span class="refarm-badge refarm-badge-ok">${escapeHtml(telemetry.timeline.outcome ?? "?")}</span></td><td>Resultado observável da execução.</td></tr>
+		</tbody></table>
+		<table class="refarm-table"><thead><tr><th>Tool</th><th>Argumentos</th><th>Efeitos correlacionados</th></tr></thead><tbody>
+			${calls.map((call, index) => `<tr><td><code>${escapeHtml(call.tool)}</code></td><td>${escapeHtml(call.argsSummary ?? "")}</td><td>${escapeHtml((traceSteps[index]?.effects ?? []).map((effect) => effect.event).join(" · ") || "—")}</td></tr>`).join("")}
+		</tbody></table>
+	</section>`;
+}
+
+function renderCodeOpsValue(references, rename) {
+	const refs = Array.isArray(references.result) ? references.result : [];
+	return `<section class="refarm-stack">
+		<div class="metric-row">
+			<div class="metric"><span>${escapeHtml(String(refs.length))}</span><small>referências LSP</small></div>
+			<div class="metric"><span>${escapeHtml(String(rename.result?.editsApplied ?? "?"))}</span><small>edições aplicadas</small></div>
+			<div class="metric"><span>${escapeHtml(String(rename.result?.filesChanged ?? "?"))}</span><small>arquivos mudados</small></div>
+		</div>
+		<table class="refarm-table"><thead><tr><th>Referência</th><th>Arquivo</th><th>Por que importa</th></tr></thead><tbody>
+			${refs.map((ref, index) => `<tr><td>#${index + 1} · linha ${escapeHtml(ref.line)} col ${escapeHtml(ref.column)}</td><td><code>${escapeHtml(shortenPath(ref.file))}</code></td><td>${escapeHtml(ref.kind ?? "reference")} localizado pelo servidor de linguagem, não por busca textual.</td></tr>`).join("")}
+		</tbody></table>
+		<div class="value-strip">
+			<div><strong>Uso análogo a vulnerabilidades:</strong> o agente recebe um achado ou suspeita, chama <code>code-ops_find-references</code> para mapear todos os usos de uma API/símbolo crítico, e só então propõe patch ou revisão.</div>
+			<div><strong>Honestidade:</strong> isto não é um scanner de CVE; é o substrato agentic que torna a verificação e a correção menos manuais e mais auditáveis.</div>
+		</div>
+	</section>`;
+}
+
+function manifestVerbNames(manifest) {
+	return Object.keys(manifest?.capabilities?.verbs?.list ?? {});
+}
+
+function shortenPath(file) {
+	const value = String(file ?? "");
+	const repoRelative = path.relative(repoRoot, value);
+	if (repoRelative && !repoRelative.startsWith("..")) return repoRelative;
+	const parts = value.split(/[\\/]/).filter(Boolean);
+	return parts.slice(-3).join("/") || value;
+}
+
+function readJsonFile(file) {
+	try {
+		if (!existsSync(file)) return null;
+		return JSON.parse(readFileSync(file, "utf8"));
+	} catch {
+		return null;
+	}
 }
 
 function wrapHtml({ title, kicker, caption, body, command, claim }) {
@@ -453,6 +615,16 @@ tr:last-child td { border-bottom:0; }
 .metric { background:#f7fbf6; border:1px solid var(--line); border-radius:18px; padding:16px; }
 .metric span { display:block; font-size:32px; font-weight:850; color: var(--accent); }
 .metric small { color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+.flow-map { display:grid; grid-template-columns: 1fr auto 1.2fr auto 1.2fr auto 1fr auto 1fr; gap: 10px; align-items:center; }
+.flow-node { min-height: 112px; border:1px solid var(--line); border-radius:20px; padding:15px; background:#f8fbf6; display:flex; flex-direction:column; justify-content:center; box-shadow: inset 0 0 0 1px rgba(255,255,255,.65); }
+.flow-node span { font-weight:850; color:#17391f; overflow-wrap:anywhere; }
+.flow-node small { color:var(--muted); margin-top:6px; line-height:1.35; }
+.flow-node--agent { background:#e8f7ec; border-color:#bfe8c8; }
+.flow-node--tool { background:#eaf2ff; border-color:#c7d8f6; }
+.flow-node--audit { background:#fff7e8; border-color:#f0d8a8; }
+.flow-arrow { color:var(--accent); font-size:28px; font-weight:900; text-align:center; }
+.value-strip { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.value-strip > div { border:1px solid var(--line); border-radius:18px; padding:16px; background:#f8fbf6; line-height:1.5; }
 .svg-frame { background:#fff; border-radius:18px; padding: 12px; overflow:hidden; }
 .svg-frame svg, svg.surveyor-graph { width:100%; min-height: 620px; display:block; }
 ul { margin-top: 0; }
@@ -460,7 +632,7 @@ pre { white-space: pre-wrap; word-break: break-word; background:#102017; color:#
 .gallery { display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
 .gallery-card { padding: 16px; }
 .gallery-card img { width:100%; border-radius:14px; border:1px solid var(--line); display:block; }
-@media (max-width: 860px) { .hero { grid-template-columns: 1fr; } .metric-row { grid-template-columns: 1fr; } .capture { width: min(100vw - 28px, 1180px); margin: 14px auto; } }
+@media (max-width: 860px) { .hero { grid-template-columns: 1fr; } .metric-row, .flow-map, .value-strip { grid-template-columns: 1fr; } .flow-arrow { transform: rotate(90deg); } .capture { width: min(100vw - 28px, 1180px); margin: 14px auto; } }
 </style>
 </head>
 <body>
@@ -472,9 +644,9 @@ pre { white-space: pre-wrap; word-break: break-word; background:#102017; color:#
       <p class="caption">${escapeHtml(caption)}</p>
     </div>
     <aside class="panel">
-      <p class="eyebrow">Claim para legenda</p>
+      <p class="eyebrow">O que a figura mostra</p>
       <p class="claim">${escapeHtml(claim)}</p>
-      <p class="eyebrow">Comando reprodutível</p>
+      <p class="eyebrow">Como reproduzir</p>
       <p class="command">${escapeHtml(command)}</p>
     </aside>
   </section>
