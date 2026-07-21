@@ -723,6 +723,83 @@ export interface LiveProviderOptions {
  * constructed only when `--live` is used (puppeteer-core imported lazily inside the driver).
  */
 /**
+ * WHERE THE BROWSER MUST LAND TO SIGN IN — the application root, never a bare origin and never a
+ * deep resource URL.
+ *
+ * An enterprise app behind SSO issues TWO things: the identity provider authenticates you, and
+ * then the APPLICATION mints its own session, but only when the application itself is reached.
+ * Sign in against a resource URL and you end up authenticated yet session-less: the identity
+ * cookie is set, the app's is not, and every resource GET answers 401 — an authorization failure
+ * that reads exactly like a credential problem and sends you hunting in the wrong place.
+ *
+ * Declarable per target (`attributes.loginUrl`) because the app path is deployment-specific;
+ * defaults to the app segment of the resource URL, which for Jazz RM turns
+ * `/rm/resources/TX_1` into `/rm/web`.
+ */
+export function loginUrlForTarget(target: {
+	url: string;
+	attributes?: Record<string, string | undefined>;
+}): string {
+	const declared = target.attributes?.loginUrl;
+	if (declared) return declared;
+	const url = new URL(target.url);
+	const appSegment = url.pathname.split("/").filter(Boolean)[0];
+	return appSegment
+		? `${url.protocol}//${url.host}/${appSegment}/web`
+		: `${url.protocol}//${url.host}`;
+}
+
+/**
+ * The artifact's own UI deep link — where the application shows THIS artifact, in THIS
+ * configuration. Jazz routes its SPA through the fragment, so the action and all three
+ * coordinates ride in the hash.
+ */
+export function artifactPageUrl(
+	resourceUrl: string,
+	context: { streamURI?: string; componentURI?: string },
+): string {
+	const url = new URL(resourceUrl);
+	const appSegment = url.pathname.split("/").filter(Boolean)[0] ?? "rm";
+	const params = [
+		"action=com.ibm.rdm.web.pages.showArtifactPage",
+		`artifactURI=${encodeURIComponent(resourceUrl)}`,
+		...(context.streamURI ? [`vvc.configuration=${encodeURIComponent(context.streamURI)}`] : []),
+		...(context.componentURI ? [`componentURI=${encodeURIComponent(context.componentURI)}`] : []),
+	];
+	return `${url.protocol}//${url.host}/${appSegment}/web#${params.join("&")}`;
+}
+
+/**
+ * Wrap an in-session fetch so a resource is OPENED IN THE APPLICATION before it is requested.
+ *
+ * A cold session can be fully authenticated and still answer 401 for a resource: an application
+ * like Jazz scopes what it will serve to what its UI has been shown, so the first request for an
+ * artifact the session has never displayed is refused. Warming the page is what a working
+ * scraper does before the first fetch — it is not a workaround, it is how the application
+ * expects to be driven.
+ *
+ * Each artifact is warmed ONCE: after the first visit the session holds it, and a re-pull or a
+ * refresh needs no navigation. That is why a warm cache is cheap and a cold start is not.
+ */
+export function warmingFetch(
+	fetchImpl: typeof fetch,
+	navigate: (url: string, options?: { waitForSelector?: string }) => Promise<void>,
+	context: { streamURI?: string; componentURI?: string },
+): typeof fetch {
+	const warmed = new Set<string>();
+	return (async (input: RequestInfo | URL, init?: RequestInit) => {
+		const target =
+			typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+		if (/\/rm\/resources\//i.test(target) && !warmed.has(target)) {
+			warmed.add(target);
+			// A failed warm-up must not mask the real request's own error.
+			await navigate(artifactPageUrl(target, context)).catch(() => undefined);
+		}
+		return fetchImpl(input as RequestInfo, init);
+	}) as typeof fetch;
+}
+
+/**
  * Releases for live browser sessions opened during this process. A session that serves its own
  * requests stays open for the whole run — it holds the authentication — so something has to end
  * it, or the CLI never exits. The verb that opened it calls `closeLiveSessions()` in a finally.
@@ -750,7 +827,9 @@ export function createLiveRequirementsProviderFactory(
 			);
 		}
 		const base = new URL(target.url);
-		const baseUrl = `${base.protocol}//${base.host}`;
+		// Sign in at the APPLICATION root so the app mints its own session — not the bare
+		// origin, which leaves you authenticated to the identity provider only.
+		const baseUrl = loginUrlForTarget(target);
 		const statePath = options.sessionDir
 			? path.join(options.sessionDir, "auth-state.json")
 			: undefined;
@@ -778,7 +857,18 @@ export function createLiveRequirementsProviderFactory(
 			// release so the verb closes it when the run ends; otherwise the browser would keep
 			// the process alive forever.
 			openLiveSessions.add(live.close);
-			return live.fetchImpl;
+			// Open each artifact in the application before requesting it — a cold session serves
+			// only what its UI has been shown. No-op when the adapter cannot navigate.
+			return live.navigate
+				? warmingFetch(live.fetchImpl, live.navigate, {
+						...(target.attributes?.streamURI
+							? { streamURI: target.attributes.streamURI }
+							: {}),
+						...(target.attributes?.componentURI
+							? { componentURI: target.attributes.componentURI }
+							: {}),
+					})
+				: live.fetchImpl;
 		};
 
 		// The provider re-wraps this cookie-carrying fetch with the OSLC contract (RDF headers +
@@ -969,7 +1059,9 @@ export function createLiveCrawlerFactory(
 			);
 		}
 		const base = new URL(target.url);
-		const baseUrl = `${base.protocol}//${base.host}`;
+		// Sign in at the APPLICATION root so the app mints its own session — not the bare
+		// origin, which leaves you authenticated to the identity provider only.
+		const baseUrl = loginUrlForTarget(target);
 		const streamURI = target.attributes?.streamURI;
 		// The project root to crawl from: the declared componentURI (a project/folder root) if the
 		// analyst set one, else the single resource url (a one-artifact crawl, still valid).
@@ -995,7 +1087,16 @@ export function createLiveCrawlerFactory(
 			// release so the verb closes it when the run ends; otherwise the browser would keep
 			// the process alive forever.
 			openLiveSessions.add(live.close);
-			return live.fetchImpl;
+			// Open each artifact in the application before requesting it — a cold session serves
+			// only what its UI has been shown. No-op when the adapter cannot navigate.
+			return live.navigate
+				? warmingFetch(live.fetchImpl, live.navigate, {
+						...(streamURI ? { streamURI } : {}),
+						...(target.attributes?.componentURI
+							? { componentURI: target.attributes.componentURI }
+							: {}),
+					})
+				: live.fetchImpl;
 		};
 
 		const fetchImpl = await openLiveFetch(false);

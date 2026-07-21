@@ -133,7 +133,7 @@ export function extractAttachmentRef(body: string): OslcAttachmentRef | undefine
 		/<public_rm_10:wrappedResourceContentType[^>]*>([^<]+)<\/public_rm_10:wrappedResourceContentType>/,
 		body,
 	)?.trim();
-	const title = firstMatch(/dcterms:title[^>]*>([^<]*)</, body)?.trim();
+	const title = firstMatch(/<dcterms:title[^>]*>([^<]*)</, body)?.trim();
 	return {
 		wrappedResourceUri,
 		...(contentType ? { contentType } : {}),
@@ -176,7 +176,7 @@ function tipoFromRdf(block: string): string {
  * requirement's rich body (tables of acceptance criteria, links to related requirements), so
  * the substrate's htmlToMarkdown preserves that structure instead of the old flat tag-strip. */
 function textFromPrimary(block: string): string {
-	const primary = firstMatch(/jazz_rm:primaryText[^>]*>([\s\S]*?)<\/jazz_rm:primaryText>/, block);
+	const primary = firstMatch(/<jazz_rm:primaryText[^>]*>([\s\S]*?)<\/jazz_rm:primaryText>/, block);
 	if (!primary) return "";
 	return htmlToMarkdown(primary);
 }
@@ -256,9 +256,9 @@ export const parseRequirementsFromRdf: SourceRecordParser = (body, context) => {
 	const parsed: Parsed[] = [];
 	const idByUri = new Map<string, string>();
 	for (const block of blocks) {
-		const key = firstMatch(/dcterms:identifier>([^<]+)</, block);
+		const key = firstMatch(/<dcterms:identifier[^>]*>([^<]+)</, block);
 		if (!key) continue; // not a requirement resource
-		const title = firstMatch(/dcterms:title[^>]*>([^<]*)</, block)?.trim() ?? key;
+		const title = firstMatch(/<dcterms:title[^>]*>([^<]*)</, block)?.trim() ?? key;
 		const artifactUri = firstMatch(/rdf:about="([^"]+)"/, block);
 		const tipo = tipoFromRdf(block);
 		const text = textFromPrimary(block);

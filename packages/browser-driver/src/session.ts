@@ -40,6 +40,14 @@ export interface BrowserSession {
 	 * browser's trust store, cookie path/httpOnly scoping, and any cookie the app mints later.
 	 */
 	fetchInSession?(url: string, init?: { headers?: Record<string, string> }): Promise<Response>;
+	/**
+	 * OPTIONAL: drive the session's page to a URL and wait for it to settle. Some applications
+	 * only put a resource in scope for the session once its own UI has been opened on it — a
+	 * cold session can be authenticated and still answer 401 for a resource it has never been
+	 * shown. The DOMAIN decides when this is needed and what URL to open; the session only
+	 * provides the mechanism.
+	 */
+	navigateInSession?(url: string, options?: { waitForSelector?: string }): Promise<void>;
 	close(): Promise<void>;
 }
 
@@ -120,6 +128,12 @@ export interface LiveFetch {
 	/** The captured session cookies (empty when requests are served from inside the session). */
 	cookies: SessionCookie[];
 	/**
+	 * Drive the session's page, when the adapter can. Present only for a session that serves its
+	 * own requests — the domain uses it to open a resource's own UI before requesting it, for an
+	 * application that scopes resources to what its UI has been shown.
+	 */
+	navigate?(url: string, options?: { waitForSelector?: string }): Promise<void>;
+	/**
 	 * Release the session. Required when requests are served from inside the browser — it is
 	 * still open, and holding the session. A no-op on the detached cookie path, so callers can
 	 * always call it.
@@ -152,10 +166,12 @@ export async function createLiveFetch(options: LiveFetchOptions): Promise<LiveFe
 	if (inSession) {
 		// The browser STAYS OPEN — it is what holds the session. The caller closes it.
 		const fetchImpl = sessionFetch(inSession);
+		const navigate = options.session.navigateInSession?.bind(options.session);
 		return {
 			fetchImpl,
 			driver: createFetchDriver(fetchImpl),
 			cookies,
+			...(navigate ? { navigate } : {}),
 			close: () => options.session.close(),
 		};
 	}

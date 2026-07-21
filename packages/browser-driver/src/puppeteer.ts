@@ -162,6 +162,24 @@ export async function createPuppeteerSession(
 			});
 		},
 
+		/**
+		 * Drive the session's page to `url`. A hash-route change (the shape enterprise SPAs use
+		 * for deep links) does not trigger a navigation event, so a plain `goto` can resolve
+		 * before the app has actually loaded anything: settle on the selector when the caller
+		 * knows one, and otherwise give the app a brief moment to react.
+		 */
+		async navigateInSession(url: string, navOptions?: { waitForSelector?: string }) {
+			const page = sessionPage ?? (sessionPage = await browser.newPage());
+			await page.goto(url, { waitUntil: "domcontentloaded" });
+			if (navOptions?.waitForSelector) {
+				await page
+					.waitForSelector(navOptions.waitForSelector, { timeout: 30_000 })
+					.catch(() => undefined); // absent selector is a signal, not a crash
+			} else {
+				await new Promise((resolve) => setTimeout(resolve, 2_500));
+			}
+		},
+
 		async close(): Promise<void> {
 			sessionPage = undefined;
 			await browser.close();

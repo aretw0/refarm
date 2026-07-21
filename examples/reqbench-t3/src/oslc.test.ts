@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { CrawledPage } from "@refarm.dev/source-web";
 
+import { loginUrlForTarget } from "./persona.js";
 import {
 	createOslcCrawlExtractor,
 	createOslcFetchDriver,
@@ -198,5 +199,64 @@ describe("extractAttachmentRef — a file artifact's wrapped binary", () => {
 	it("returns undefined for a plain text requirement (no wrappedResource)", () => {
 		const body = `<rdf:Description><dcterms:title>Regra</dcterms:title></rdf:Description>`;
 		expect(extractAttachmentRef(body)).toBeUndefined();
+	});
+});
+
+describe("loginUrlForTarget — sign in at the app, not at a resource", () => {
+	it("turns a Jazz resource URL into the application root", () => {
+		expect(
+			loginUrlForTarget({ url: "https://alm.example/rm/resources/TX_WA8C8CLlEfGnFu6QlLLI_A" }),
+		).toBe("https://alm.example/rm/web");
+	});
+
+	it("honours a target's declared loginUrl over the derivation", () => {
+		expect(
+			loginUrlForTarget({
+				url: "https://alm.example/rm/resources/TX_1",
+				attributes: { loginUrl: "https://alm.example/custom/portal" },
+			}),
+		).toBe("https://alm.example/custom/portal");
+	});
+
+	it("falls back to the origin when the URL has no app segment", () => {
+		expect(loginUrlForTarget({ url: "https://alm.example/" })).toBe("https://alm.example");
+	});
+});
+
+describe("parseRequirementsFromRdf — tags carrying attributes", () => {
+	// The shape a real Jazz RM server answers with: dcterms:identifier declares a datatype and
+	// dcterms:title declares parseType. A regex anchored on `identifier>` instead of the opening
+	// `<identifier` matches the CLOSING tag and captures the whitespace after it — the record then
+	// arrives with an empty id. The offline fixture had bare tags, so this never surfaced.
+	const rdf = `<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+	xmlns:dcterms="http://purl.org/dc/terms/" xmlns:jazz_rm="http://jazz.net/ns/rm#">
+	<rdf:Description rdf:about="https://alm.example/rm/resources/TX_ABC">
+		<dcterms:identifier rdf:datatype="http://www.w3.org/2001/XMLSchema#string">989746</dcterms:identifier>
+		<dcterms:title rdf:parseType="Literal">RN-Validar CNPJ</dcterms:title>
+		<jazz_rm:primaryText rdf:parseType="Literal"><div xmlns="http://www.w3.org/1999/xhtml"><p>Validar o CNPJ conforme o layout.</p></div></jazz_rm:primaryText>
+	</rdf:Description>
+</rdf:RDF>`;
+
+	it("reads the identifier from the opening tag, not the closing one", () => {
+		const records = parseRequirementsFromRdf(rdf, {
+			ref: "web:efd",
+			url: "https://alm.example/rm/resources/TX_ABC",
+			mediaType: "application/rdf+xml",
+		} as never);
+
+		expect(records).toHaveLength(1);
+		expect(records[0]!.id).toContain("989746");
+		expect(records[0]!.id).not.toMatch(/req-\s*$/);
+	});
+
+	it("reads the title through its parseType attribute", () => {
+		const records = parseRequirementsFromRdf(rdf, {
+			ref: "web:efd",
+			url: "https://alm.example/rm/resources/TX_ABC",
+			mediaType: "application/rdf+xml",
+		} as never);
+
+		expect(JSON.stringify(records[0])).toContain("RN-Validar CNPJ");
 	});
 });
