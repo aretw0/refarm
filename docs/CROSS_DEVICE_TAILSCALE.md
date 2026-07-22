@@ -42,8 +42,26 @@ refarm discover announce --status     # confirma; o IP 100.x aparece como "mesh"
 node scripts/farm-hello.mjs 100.x.y.z     # o IP mesh do host
 ```
 
-O sync `ws://100.x.y.z:42000` deve conectar de qualquer rede — inclusive com o Wi-Fi
-desligado, só nos dados móveis. É a primeira travessia cross-device completa.
+O sync `ws://100.x.y.z:42000` (ou pelo nome: `ws://serpro-1577853:42000`) conecta de
+qualquer rede — inclusive com o Wi-Fi desligado, só nos dados móveis. Alcançar o **sync
+já é entrar na malha da fazenda** — a travessia cross-device essencial. ✅ comprovado do
+Android em Wi-Fi e 5G.
+
+### Dirigir a fazenda daqui (opcional): expor o sidecar na mesh
+
+O `sync` (`:42000`) é a malha CRDT. O `sidecar` (`:42001`, plano de controle — efforts,
+chat) fica em **loopback por padrão, de propósito**. Para dirigir a fazenda a partir do
+celular, exponha o sidecar no host — **de forma soberana, só na tailnet** (não na LAN
+corporativa nem na VPN):
+
+```bash
+# no host, reinicie o runtime bindando o sidecar SÓ no IP mesh:
+REFARM_HTTP_HOST=100.105.71.127 bash scripts/tractor-start.sh --background
+```
+
+Bindar no IP mesh específico (não `0.0.0.0`) é a escolha soberana: o sidecar passa a
+responder apenas por dentro da tailnet cifrada, invisível para a LAN e a VPN. Depois
+disso, `farm-hello <nome>` mostra sidecar ✅ e o hub/efforts funcionam do celular.
 
 - Para o HUB no navegador do celular: `https://<nome-magicdns-do-host>` depois de servir
   com `refarm web serve apps/me/dist --host 0.0.0.0 --tls-cert … --tls-key …` (ou, com

@@ -171,18 +171,32 @@ async function probeSidecar() {
 
 console.log(`\n🌱 farm-hello — ${deviceName()} → ${host} (${via})\n`);
 
-const sidecar = await probeSidecar();
-console.log(`${label(sidecar.ok)} sidecar  http://${host}:${HTTP_PORT}  ${sidecar.detail}`);
-
+// The two capabilities are INDEPENDENT, not a single pass/fail:
+//   sync  (ws :42000) — join the CRDT mesh. THIS is "you reached the farm".
+//   sidecar (http :42001) — the control plane (efforts/chat). Loopback by
+//     default ON PURPOSE; exposing it is a separate, deliberate decision.
 const sync = await syncHandshake(host);
 console.log(`${label(sync.ok)} sync     ws://${host}:${WS_PORT}    ${sync.detail}`);
 
-if (sidecar.ok && sync.ok) {
-  console.log("\n🎉 A fazenda responde. Este dispositivo alcança o runtime.\n");
+const sidecar = await probeSidecar();
+console.log(`${label(sidecar.ok)} sidecar  http://${host}:${HTTP_PORT}  ${sidecar.detail}`);
+
+if (sync.ok) {
+  console.log("\n🎉 Você alcançou a MALHA da fazenda — este dispositivo entra no sync CRDT.");
+  if (sidecar.ok) {
+    console.log("   E o plano de controle (efforts/chat) também responde. Alcance completo.\n");
+  } else {
+    console.log("   O plano de controle (sidecar :42001) está fechado em loopback POR PADRÃO.");
+    console.log("   Para dirigir a fazenda (efforts/chat) daqui, exponha-o no host — de forma");
+    console.log("   soberana, só na mesh (não na LAN corporativa):");
+    console.log("     REFARM_HTTP_HOST=<IP-mesh-do-host> bash scripts/tractor-start.sh --background");
+    console.log("     (ex.: REFARM_HTTP_HOST=100.105.71.127 — pega só a tailnet)\n");
+  }
   process.exit(0);
 }
-console.log("\nA fazenda não respondeu por completo. No host, verifique:");
-console.log("  refarm runtime status        # o daemon está de pé?");
-console.log("  tractor --http-host 0.0.0.0  # o sidecar precisa ouvir além do loopback");
-console.log("  (o WS :42000 já ouve em todas as interfaces por padrão)\n");
+
+console.log("\nEste dispositivo NÃO alcançou a malha. No host, verifique:");
+console.log("  refarm runtime status                 # o daemon está de pé?");
+console.log("  (o WS :42000 já ouve em 0.0.0.0 — cobre LAN e tailnet por padrão)");
+console.log("  numa tailnet, use o NOME do host: node scripts/farm-hello.mjs <nome>\n");
 process.exit(1);
