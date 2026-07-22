@@ -1,15 +1,15 @@
 {
-  "context": "Checkpoint 2026-07-22 (14th). Tailscale rail slice 1 landed (49d1d599): classifyAddressScope labels farm addresses by reach (mesh/lan/vpn/other), status lists mesh-first and nudges to overlay when absent, + docs/CROSS_DEVICE_TAILSCALE.md full setup. This is the recognition half; install is the operator's step (sudo, possibly corporate policy). The LAN rail is enshrined as machine-conditional in the beacon header — valid elsewhere, blocked HERE by ds_agent (corporate EDR, inbound-only). Transport rails mapped in the umbrella spec; Tailscale is primary (private any-network, WireGuard E2E, Headscale for full sovereignty), Cloudflare for public hub surface, Pears for decentralized end-state — all outbound, all defeat the inbound EDR.",
-  "timestamp": "2026-07-22T21:47:22.905Z",
+  "context": "Checkpoint 2026-07-22 (15th). Tailscale UP on host: mesh IP 100.105.71.127, MagicDNS name serpro-1577853.tail894688.ts.net. PROVEN LIVE: sync CRDT answers over BOTH the mesh IP and the MagicDNS name (daemon binds 0.0.0.0, so the tailnet address is covered with zero change). Convergence answer to the operator: on a tailnet the phone uses the NAME, not an IP — farm-hello <name> resolves via MagicDNS from any network. farm-hello gained dialect 0 (tailnet peer enumeration via tailscale status --json, probes each peer's sync directly, no announcer needed); 0 peers today because the phone has not joined. Announcer religado governed on host.",
+  "timestamp": "2026-07-22T22:04:29.800Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit 49d1d599 — address scope classification + Tailscale setup doc; 1634 tests green."
+    "Commit 9672750b — tailnet discovery + MagicDNS handle; tailnet:test 4 green; sync proven over mesh IP and name."
   ],
   "blockers": [],
   "next_actions": [
-    "OPERATOR STEP: install Tailscale on host (curl -fsSL https://tailscale.com/install.sh | sh; sudo tailscale up) and the Android app on the same account, then node scripts/farm-hello.mjs <host-100.x> from mobile data — the first cross-device crossing that works despite the EDR. Corporate policy may block the host install; if so, Cloudflare tunnel (also outbound) is the fallback for the demo.",
-    "After a working crossing: distribution rung 2 (bundle apps/refarm CLI to single .mjs, GitHub Release asset) so the phone runs refarm, not scripts.",
-    "Then: Cloudflare tunnel service in infra-cloudflare (public hub), and Pears spec fatia 1 research (the sovereign end-state). Optional: refarm net status recognizing tailscale0/MagicDNS."
+    "OPERATOR: join the phone to the tailnet (Tailscale Android app, same account aretw0@). Then on Termux: node scripts/farm-hello.mjs serpro-1577853 — NO IP, from mobile data (Wi-Fi off) — the first cross-device crossing. sync should be ✅ over the mesh; sidecar ❌ until sidecar exposure is decided (separate).",
+    "Once the phone is a peer, farm-hello with NO argument should auto-find it via tailnet peer enumeration — the true zero-typing path. Verify.",
+    "Then distribution rung 2 (bundle apps/refarm CLI to single .mjs, Release asset); Cloudflare tunnel for the public hub; Pears spec fatia 1 research. Optional: farm-announce could bridge the beacon over the tailnet, or a refarm net status reading tailscale status."
   ],
   "open_questions": [],
   "key_decisions_active": [
