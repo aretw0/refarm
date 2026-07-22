@@ -1,15 +1,15 @@
 {
-  "context": "Checkpoint 2026-07-22 (18th). CONCEPTUAL CORRECTION recorded (memory + kit doc): Refarm coordinates WORKLOADS, agents are one kind (given current model-dependence, but the core admits model-less workloads); the neutral surface any client speaks is the wire contract (sidecar HTTP efforts/plugins, WS sync), not 'the agent'. The phone DROVE the farm live (farm-ask returned a rich capability description over the mesh). Organized what worked: the Farm Client Kit (farm-hello/announce/ask + beacon/tailnet/effort-result libs) is named, framed workload-neutral, and its DECOUPLING from apps/refarm is now an executable invariant (test-farm-client-decoupled.mjs) — imports must be node builtins + own siblings only. Kit is a reusable block for any refarm-like project, promotable to @refarm.dev/farm-client when an external consumer proves reuse.",
-  "timestamp": "2026-07-22T23:18:32.442Z",
+  "context": "Checkpoint 2026-07-22 (19th). The device kit is now a REAL PACKAGE: @refarm.dev/farm-client (js-tool, zero runtime deps, pure ESM). The operator's intent — decentralize what was stuck in refarm so it/others receive via import, not just ad-hoc scripts. src/ is the importable library (beacon/tailnet/effort-result, 16 exports + subpaths); bin/ are the git-pull executables (farm-hello/announce/ask, import ../src relatively so no install needed on Termux). Decoupling is an in-package test invariant. apps/refarm discover spawns the package bin; scripts/farm-*.mjs are thin compat shims. Answer to the operator's question: it is a PACKAGE not an app (apps are opinionated distros; this is a reusable block). Proven live over the tailnet + as a library import. All structural validators green (validate-packages js-tool, test-runner:contracts, brand guard).",
+  "timestamp": "2026-07-22T23:28:33.324Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit b5af95c2 — Farm Client Kit named + decoupling guard (3 tests); conceptual correction in memory."
+    "Commit (farm-client package) — device kit promoted; 18 pkg tests + validators green; farm-ask proven live from the package bin."
   ],
   "blockers": [],
   "next_actions": [
-    "Depth options, all decoupled: (a) the HUB in the phone browser (refarm web serve + TLS + tailnet name — visual experience); (b) distribution rung 2 (bundle apps/refarm CLI to single .mjs Release asset); (c) promote the kit to @refarm.dev/farm-client package (product-neutral naming) when a second/external consumer appears.",
-    "Sovereign follow-ons: daemon dual-bind (loopback+mesh) to retire 0.0.0.0 broad exposure; Cloudflare tunnel (public hub); Pears P2P (spec fatia 1 research). All outbound, all defeat the inbound EDR.",
-    "Keep the workload-neutral framing when documenting/naming: the agent is one plugin verb; efforts are workloads with or without a model."
+    "Promotion follow-through when ready: consider farm-client for the vault-seed-ready selection (product-neutral consumer-pulled block) once an external consumer imports it; add it to DISTRIBUTION_STATUS if selected.",
+    "Depth options unchanged, all decoupled: HUB in the phone browser (refarm web serve + TLS + tailnet name); distribution rung 2 (bundle apps/refarm CLI itself, separate from farm-client); sovereign follow-ons (daemon dual-bind, Cloudflare tunnel, Pears P2P).",
+    "Keep the workload-neutral framing: agent is one plugin verb; farm-client's effort-result and wire contract are workload-neutral."
   ],
   "open_questions": [],
   "key_decisions_active": [
