@@ -4,7 +4,7 @@ import type { CapabilityDescriptor } from "@refarm.dev/capabilities";
 import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createServeServer } from "./serve-capability.js";
+import { createServeServer, startServeServer } from "./serve-capability.js";
 
 /** A read-only verb reachable over HTTP AND opted into the agent surface. */
 const pingCapability: CapabilityDescriptor = {
@@ -94,5 +94,25 @@ describe("refarm serve — the capability HTTP surface (real socket)", () => {
 		const base = await listen();
 		const res = await fetch(`${base}/nope`);
 		expect(res.status).toBe(404);
+	});
+});
+
+describe("startServeServer — the bind seam (--host)", () => {
+	it("binds loopback by default and reports the bound url", async () => {
+		const started = await startServeServer(ENTRIES, { port: 0, host: "127.0.0.1" });
+		server = started.server;
+		expect(started.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+		const res = await fetch(`${started.url}/agent-tools`);
+		expect(res.status).toBe(200);
+	});
+
+	it("honors an explicit host — the LAN exposure is an operator decision", async () => {
+		const started = await startServeServer(ENTRIES, { port: 0, host: "0.0.0.0" });
+		server = started.server;
+		expect(started.url).toMatch(/^http:\/\/0\.0\.0\.0:\d+$/);
+		// A 0.0.0.0 bind answers on loopback too — prove the socket is real.
+		const port = started.url.split(":").pop();
+		const res = await fetch(`http://127.0.0.1:${port}/agent-tools`);
+		expect(res.status).toBe(200);
 	});
 });

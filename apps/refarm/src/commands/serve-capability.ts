@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
-import { mountedHttpHandler } from "@refarm.dev/capability-host";
 import { createCapabilityRegistry, type CapabilityEntry } from "@refarm.dev/capabilities";
+import { mountedHttpHandler } from "@refarm.dev/capability-host";
 import { Command } from "commander";
 
 import { capabilityRegistry } from "./capability-registry.js";
@@ -50,32 +50,51 @@ export function createServeServer(entries: readonly CapabilityEntry[]): Server {
 
 interface ServeOptions {
 	port?: string;
+	host?: string;
 	json?: boolean;
+}
+
+/** Start the capability-surface listener and resolve once bound. The default bind
+ *  stays loopback; exposing the surface to other devices is an explicit operator
+ *  decision (`--host 0.0.0.0`) — the same posture as the Rust daemon's `--http-host`. */
+export function startServeServer(
+	entries: readonly CapabilityEntry[],
+	options: { port: number; host: string },
+): Promise<{ server: Server; url: string }> {
+	const server = createServeServer(entries);
+	return new Promise((resolve) => {
+		server.listen(options.port, options.host, () => {
+			const addr = server.address();
+			const boundPort = typeof addr === "object" && addr ? addr.port : options.port;
+			resolve({ server, url: `http://${options.host}:${boundPort}` });
+		});
+	});
 }
 
 function createServeCommand(): Command {
 	return new Command("serve")
 		.description("Serve the capability HTTP surface (/capabilities/* + /agent-tools)")
 		.option("--port <port>", "TCP port to listen on", "4321")
+		.option(
+			"--host <host>",
+			"Bind address; 0.0.0.0 exposes the surface to other devices",
+			"127.0.0.1",
+		)
 		.option("--json", "Print the listening address as JSON")
-		.action((options: ServeOptions) => {
+		.action(async (options: ServeOptions) => {
 			const port = Number.parseInt(options.port ?? "4321", 10);
-			const server = createServeServer(capabilityRegistry.list());
-			server.listen(port, "127.0.0.1", () => {
-				const addr = server.address();
-				const boundPort = typeof addr === "object" && addr ? addr.port : port;
-				const url = `http://127.0.0.1:${boundPort}`;
-				if (options.json) {
-					process.stdout.write(`${JSON.stringify({ ok: true, url })}\n`);
-				} else {
-					process.stdout.write(
-						`refarm capability surface listening on ${url}\n` +
-							`  GET  ${url}/agent-tools            — agent tool schemas\n` +
-							`  GET  ${url}/openapi.json           — OpenAPI capability spec\n` +
-							`  POST ${url}/capabilities/<verb>    — run a capability\n`,
-					);
-				}
-			});
+			const host = options.host ?? "127.0.0.1";
+			const { url } = await startServeServer(capabilityRegistry.list(), { port, host });
+			if (options.json) {
+				process.stdout.write(`${JSON.stringify({ ok: true, url })}\n`);
+			} else {
+				process.stdout.write(
+					`refarm capability surface listening on ${url}\n` +
+						`  GET  ${url}/agent-tools            — agent tool schemas\n` +
+						`  GET  ${url}/openapi.json           — OpenAPI capability spec\n` +
+						`  POST ${url}/capabilities/<verb>    — run a capability\n`,
+				);
+			}
 		});
 }
 
