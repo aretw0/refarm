@@ -343,12 +343,13 @@ describe("operator resume", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const handoffs = buildOperatorResumeCommands("acme");
 		const appCommand = "acme doctor --next-command";
+		const packageManagerCommand = "pnpm run clean:rust:check";
 		const environmentPressure = {
 			command: "environment-pressure",
 			operation: "check",
 			ok: false,
 			decision: "stop-and-investigate" as const,
-			nextCommands: [appCommand, "pnpm run clean:rust:check"],
+			nextCommands: [appCommand, packageManagerCommand],
 			signals: [],
 		};
 		const summary = buildOperatorResumeSummary({
