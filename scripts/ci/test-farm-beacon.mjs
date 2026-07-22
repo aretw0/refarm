@@ -8,6 +8,7 @@ import {
 	encodeFarmAnnounce,
 	encodeFarmProbe,
 	FARM_BEACON_MULTICAST_GROUP,
+	subnetSweepTargets,
 } from "../lib/farm-beacon.mjs";
 
 test("probe and announce roundtrip through their codecs", () => {
@@ -28,6 +29,29 @@ test("malformed, wrong-magic, and oversized datagrams decode to null", () => {
 	// A probe is never an announce and vice versa.
 	assert.equal(decodeFarmAnnounce(encodeFarmProbe()), null);
 	assert.equal(decodeFarmProbe(encodeFarmAnnounce({ name: "q", wsPort: 1, httpPort: 2 })), null);
+});
+
+test("subnet sweep enumerates the /24, skips self, and refuses big subnets", () => {
+	const interfaces = {
+		wlan0: [
+			{ family: "IPv4", internal: false, address: "192.168.0.20", netmask: "255.255.255.0" },
+		],
+		big0: [
+			// /18 would be 16k packets — a sweep must refuse it, not degrade into a scan storm.
+			{ family: "IPv4", internal: false, address: "172.24.38.251", netmask: "255.255.192.0" },
+		],
+		lo: [{ family: "IPv4", internal: true, address: "127.0.0.1", netmask: "255.0.0.0" }],
+	};
+	const targets = subnetSweepTargets(42002, interfaces);
+	const addresses = targets.map((t) => t.address);
+	assert.equal(addresses.length, 253); // 254 hosts minus self
+	assert.ok(addresses.includes("192.168.0.1"));
+	assert.ok(addresses.includes("192.168.0.254"));
+	assert.ok(!addresses.includes("192.168.0.20")); // never probe yourself
+	assert.ok(!addresses.includes("192.168.0.0")); // network address out
+	assert.ok(!addresses.includes("192.168.0.255")); // broadcast handled by dialect 1
+	assert.ok(!addresses.some((a) => a.startsWith("172.24."))); // /18 refused
+	assert.ok(targets.every((t) => t.port === 42002));
 });
 
 test("announcer answers a probe and discovery finds it (loopback roundtrip)", async () => {

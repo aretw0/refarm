@@ -156,6 +156,56 @@ function directedBroadcast(address, netmask) {
 	return ip.map((octet, i) => (octet & mask[i]) | (~mask[i] & 0xff)).join(".");
 }
 
+/**
+ * Dialect 3 — unicast sweep: probe every host of the local /24 individually.
+ * Routers that filter broadcast AND multicast between clients usually still
+ * pass client-to-client unicast (full AP isolation blocks that too — then
+ * nothing on the LAN works and the P2P rung is the answer). Bounded on
+ * purpose: subnets wider than /24 are refused, never degraded into a scan
+ * storm; own address, network, and broadcast are excluded.
+ */
+export function subnetSweepTargets(port = FARM_BEACON_PORT, interfaces = networkInterfaces()) {
+	const targets = [];
+	for (const entries of Object.values(interfaces)) {
+		for (const entry of entries ?? []) {
+			if (entry.family !== "IPv4" || entry.internal) continue;
+			const prefix = netmaskPrefix(entry.netmask);
+			if (prefix === null || prefix < 24 || prefix > 30) continue;
+			const ip = ipToInt(entry.address);
+			if (ip === null) continue;
+			const maskBits = (0xffffffff << (32 - prefix)) >>> 0;
+			const network = (ip & maskBits) >>> 0;
+			const hostCount = 2 ** (32 - prefix) - 2;
+			for (let host = 1; host <= hostCount; host += 1) {
+				const candidate = (network + host) >>> 0;
+				if (candidate === ip) continue;
+				targets.push({ address: intToIp(candidate), port });
+			}
+		}
+	}
+	return targets;
+}
+
+function netmaskPrefix(netmask) {
+	const value = ipToInt(netmask ?? "");
+	if (value === null) return null;
+	const bits = value.toString(2);
+	if (!/^1*0*$/.test(bits.padStart(32, "0"))) return null;
+	return bits.split("").filter((b) => b === "1").length;
+}
+
+function ipToInt(address) {
+	const parts = address.split(".").map(Number);
+	if (parts.length !== 4 || parts.some((p) => Number.isNaN(p) || p < 0 || p > 255)) return null;
+	return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+}
+
+function intToIp(value) {
+	return [(value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff].join(
+		".",
+	);
+}
+
 /** Broadcast a probe and collect every distinct farm that answers within the
  *  window. Returns [{ name, wsPort, httpPort, address }]. */
 export function discoverFarms({

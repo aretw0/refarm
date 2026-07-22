@@ -18,31 +18,72 @@
  *   1. HTTP sidecar (http://<host>:42001/plugins) — is the farm's control plane up?
  *   2. CRDT WebSocket (ws://<host>:42000) — can this device join the sync mesh?
  */
-import { defaultProbeTargets, discoverFarms } from "./lib/farm-beacon.mjs";
+import { networkInterfaces } from "node:os";
+import { defaultProbeTargets, discoverFarms, subnetSweepTargets } from "./lib/farm-beacon.mjs";
+
+function localPrefixes() {
+  const prefixes = [];
+  for (const entries of Object.values(networkInterfaces())) {
+    for (const entry of entries ?? []) {
+      if (entry.family !== "IPv4" || entry.internal) continue;
+      prefixes.push(entry.address.split(".").slice(0, 3).join("."));
+    }
+  }
+  return prefixes;
+}
+
+function pickFarm(farms, via) {
+  // The SAME farm can answer from several addresses (loopback, VPN, Wi-Fi) —
+  // group by name, prefer the address on one of THIS device's subnets.
+  const byName = new Map();
+  for (const farm of farms) {
+    const list = byName.get(farm.name) ?? [];
+    list.push(farm);
+    byName.set(farm.name, list);
+  }
+  if (byName.size > 1) {
+    console.log("🔎 Mais de uma fazenda respondeu — escolha uma:");
+    for (const [name, list] of byName) {
+      console.log(`   node scripts/farm-hello.mjs ${list[0].address}   # ${name}`);
+    }
+    process.exit(1);
+  }
+  const candidates = [...byName.values()][0];
+  const prefixes = localPrefixes();
+  const preferred =
+    candidates.find((farm) => prefixes.includes(farm.address.split(".").slice(0, 3).join("."))) ??
+    candidates[0];
+  return { host: preferred.address, via: `${via} (${preferred.name})` };
+}
 
 async function resolveHost() {
   const explicit = process.argv[2] ?? process.env.FARM_HOST;
   if (explicit) return { host: explicit, via: "explícito" };
+
+  // Dialeto 1+2: broadcast + multicast — o caminho barato quando o roteador deixa.
   const targets = defaultProbeTargets();
   const farms = await discoverFarms({ targets });
-  if (farms.length === 1) {
-    return { host: farms[0].address, via: `descoberto (${farms[0].name})` };
+  if (farms.length > 0) return pickFarm(farms, "descoberto");
+
+  // Dialeto 3: varredura unicast da /24 — roteadores que filtram broadcast e
+  // multicast entre clientes normalmente ainda passam unicast direto.
+  const sweep = subnetSweepTargets();
+  if (sweep.length > 0) {
+    console.log(`🔎 Broadcast/multicast sem resposta — varrendo a sub-rede (${sweep.length} endereços, unicast)…`);
+    const swept = await discoverFarms({ targets: sweep, timeoutMs: 2500 });
+    if (swept.length > 0) return pickFarm(swept, "descoberto por varredura");
   }
-  if (farms.length > 1) {
-    console.log("🔎 Mais de uma fazenda anunciando — escolha uma:");
-    for (const farm of farms) {
-      console.log(`   node scripts/farm-hello.mjs ${farm.address}   # ${farm.name}`);
-    }
-    process.exit(1);
-  }
-  console.log("🔎 Nenhuma fazenda respondeu ao probe. Onde procurei (broadcast udp/42002):");
+
+  console.log("🔎 Nenhuma fazenda respondeu em nenhum dialeto. Onde procurei:");
   for (const target of targets) {
-    console.log(`   ${target.address}`);
+    console.log(`   ${target.address} (broadcast/multicast)`);
   }
+  if (sweep.length > 0) console.log(`   + varredura unicast de ${sweep.length} endereços da sub-rede`);
   console.log("   Possíveis causas: anunciante parado no host (refarm discover announce),");
-  console.log("   roteador com isolamento de clientes/broadcast filtrado, ou redes distintas.");
+  console.log("   isolamento total de clientes no roteador, ou redes distintas.");
   console.log("   Teste direto: node scripts/farm-hello.mjs <IP-do-host>");
   console.log("   (no host, `refarm discover announce --status` lista os IPs da fazenda)");
+  console.log("   Se nem o teste direto passar, o caminho é o rail P2P (spec do Pears).");
   console.log("   Tentando localhost…");
   return { host: "127.0.0.1", via: "fallback localhost" };
 }
