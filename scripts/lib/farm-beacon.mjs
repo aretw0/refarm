@@ -22,6 +22,10 @@ import { hostname } from "node:os";
 import { networkInterfaces } from "node:os";
 
 export const FARM_BEACON_PORT = 42002;
+/** Organization-local multicast group (RFC 2365 space) — the SECOND discovery
+ *  dialect: routers that filter subnet broadcast often pass multicast (it is
+ *  how casting devices are found), so probes go out on BOTH. */
+export const FARM_BEACON_MULTICAST_GROUP = "239.255.42.42";
 const MAGIC_PROBE = "discover";
 const MAGIC_ANNOUNCE = "announce";
 const VERSION = 1;
@@ -84,8 +88,27 @@ export function createFarmAnnouncer({
 	return new Promise((resolve, reject) => {
 		socket.once("error", reject);
 		socket.bind(port, host, () => {
+			// Join the multicast group ON EVERY IPv4 INTERFACE — with several
+			// interfaces (Wi-Fi + a VPN tunnel), a single default membership can
+			// land on the wrong one and probes silently miss. Best-effort per
+			// interface: a host without multicast still answers broadcast/unicast.
+			let multicast = false;
+			for (const address of multicastInterfaceAddresses()) {
+				try {
+					socket.addMembership(FARM_BEACON_MULTICAST_GROUP, address);
+					multicast = true;
+				} catch {
+					// this interface refused membership — try the others
+				}
+			}
+			try {
+				socket.setMulticastLoopback(true);
+			} catch {
+				// loopback delivery unavailable — cross-host multicast may still work
+			}
 			resolve({
 				port: socket.address().port,
+				multicast,
 				close: () =>
 					new Promise((resolveClose) => {
 						socket.close(resolveClose);
@@ -99,7 +122,10 @@ export function createFarmAnnouncer({
  *  each interface's directed broadcast (ip | ~netmask) — some networks pass one
  *  but not the other. */
 export function defaultProbeTargets(port = FARM_BEACON_PORT) {
-	const targets = [{ address: "255.255.255.255", port }];
+	const targets = [
+		{ address: "255.255.255.255", port },
+		{ address: FARM_BEACON_MULTICAST_GROUP, port },
+	];
 	for (const entries of Object.values(networkInterfaces())) {
 		for (const entry of entries ?? []) {
 			if (entry.family !== "IPv4" || entry.internal) continue;
@@ -108,6 +134,19 @@ export function defaultProbeTargets(port = FARM_BEACON_PORT) {
 		}
 	}
 	return targets;
+}
+
+/** Every local IPv4 address a multicast membership/egress can anchor to —
+ *  loopback included, so same-host discovery works with loopback delivery on. */
+function multicastInterfaceAddresses() {
+	const addresses = ["127.0.0.1"];
+	for (const entries of Object.values(networkInterfaces())) {
+		for (const entry of entries ?? []) {
+			if (entry.family !== "IPv4" || entry.internal) continue;
+			addresses.push(entry.address);
+		}
+	}
+	return addresses;
 }
 
 function directedBroadcast(address, netmask) {
@@ -122,6 +161,7 @@ function directedBroadcast(address, netmask) {
 export function discoverFarms({
 	targets = defaultProbeTargets(),
 	timeoutMs = 1500,
+	multicastLoopback = false,
 } = {}) {
 	return new Promise((resolve) => {
 		const socket = dgram.createSocket("udp4");
@@ -140,15 +180,39 @@ export function discoverFarms({
 			clearTimeout(timer);
 			finish();
 		});
-		socket.bind(0, () => {
+		socket.bind(0, async () => {
 			try {
 				socket.setBroadcast(true);
 			} catch {
 				// Broadcast permission can fail on constrained hosts; directed sends may still work.
 			}
+			try {
+				socket.setMulticastTTL(4);
+				if (multicastLoopback) socket.setMulticastLoopback(true);
+			} catch {
+				// No multicast on this host — the broadcast dialects still go out.
+			}
 			const probe = encodeFarmProbe();
+			const sendOnce = (target) =>
+				new Promise((resolveSend) =>
+					socket.send(probe, target.port, target.address, () => resolveSend()),
+				);
 			for (const target of targets) {
-				socket.send(probe, target.port, target.address, () => {});
+				if (target.address === FARM_BEACON_MULTICAST_GROUP) {
+					// A multicast probe leaves through ONE interface; with several
+					// (Wi-Fi + VPN) the default may be the wrong one — send once per
+					// interface, serialized because egress selection is socket state.
+					for (const address of multicastInterfaceAddresses()) {
+						try {
+							socket.setMulticastInterface(address);
+						} catch {
+							continue;
+						}
+						await sendOnce(target);
+					}
+					continue;
+				}
+				await sendOnce(target);
 			}
 		});
 	});

@@ -7,6 +7,7 @@ import {
 	discoverFarms,
 	encodeFarmAnnounce,
 	encodeFarmProbe,
+	FARM_BEACON_MULTICAST_GROUP,
 } from "../lib/farm-beacon.mjs";
 
 test("probe and announce roundtrip through their codecs", () => {
@@ -47,6 +48,42 @@ test("announcer answers a probe and discovery finds it (loopback roundtrip)", as
 		assert.equal(farms[0].wsPort, 42000);
 		assert.equal(farms[0].httpPort, 42001);
 		assert.equal(farms[0].address, "127.0.0.1");
+	} finally {
+		await announcer.close();
+	}
+});
+
+test("multicast probe reaches the announcer — the dialect broadcast filters miss", async (t) => {
+	const announcer = await createFarmAnnouncer({
+		name: "quinta-multicast",
+		wsPort: 42000,
+		httpPort: 42001,
+		port: 0,
+		host: "0.0.0.0",
+	});
+	try {
+		if (!announcer.multicast) {
+			t.skip("multicast membership unavailable on this host");
+			return;
+		}
+		const viaMulticast = await discoverFarms({
+			targets: [{ address: FARM_BEACON_MULTICAST_GROUP, port: announcer.port }],
+			timeoutMs: 2000,
+			multicastLoopback: true,
+		});
+		if (viaMulticast.length === 0) {
+			// Some hosts (wireless drivers, rp_filter) never deliver locally-sent
+			// multicast back to the same machine. Distinguish that ENVIRONMENT from a
+			// broken announcer with a unicast control probe before skipping.
+			const viaUnicast = await discoverFarms({
+				targets: [{ address: "127.0.0.1", port: announcer.port }],
+				timeoutMs: 1500,
+			});
+			assert.equal(viaUnicast.length, 1, "announcer answered neither dialect — broken");
+			t.skip("local multicast delivery unavailable on this host (unicast control passed)");
+			return;
+		}
+		assert.equal(viaMulticast[0].name, "quinta-multicast");
 	} finally {
 		await announcer.close();
 	}
