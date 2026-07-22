@@ -1,12 +1,19 @@
 ---
 import { loadProjectScheduledWork } from "@refarm.dev/cli/project-automations";
 import { Layout } from "@refarm.dev/homestead/ui";
+import { resolveRefarmMeSyncWsUrlFromEnv } from "../lib/me-sync-url";
 
 const scheduledWork = await loadProjectScheduledWork();
 const refarmMeOperatorStatusScript = scheduledWork
   ? `globalThis.__REFARM_ME_BOOTSTRAP_OPERATOR_STATUS__ = ${serializeRefarmMeJson({
       scheduledWork,
     })};`
+  : "";
+// Multi-device seam: an explicit REFARM_ME_SYNC_WS_URL pins the daemon this hub
+// syncs to; absent, the runtime derives ws://<page-host>:42000 at boot.
+const refarmMeSyncWsUrl = resolveRefarmMeSyncWsUrlFromEnv(process.env);
+const refarmMeSyncUrlScript = refarmMeSyncWsUrl
+  ? `globalThis.__REFARM_ME_BOOTSTRAP_SYNC_URL__ = ${serializeRefarmMeJson(refarmMeSyncWsUrl)};`
   : "";
 
 function serializeRefarmMeJson(value: unknown): string {
@@ -23,6 +30,9 @@ function serializeRefarmMeJson(value: unknown): string {
     <meta name="theme-color" content="#1b5e3b" />
     {refarmMeOperatorStatusScript ? (
       <script is:inline set:html={refarmMeOperatorStatusScript} />
+    ) : null}
+    {refarmMeSyncUrlScript ? (
+      <script is:inline set:html={refarmMeSyncUrlScript} />
     ) : null}
   </Fragment>
 

@@ -23,6 +23,7 @@ import {
 	REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
 	REFARM_ME_SYNC_STATUS,
 } from "./me-surfaces";
+import { deriveRefarmMeSyncWsUrl } from "./me-sync-url";
 
 export const REFARM_ME_LOADING_ID = "loading-overlay";
 export const REFARM_ME_RENDERER = REFARM_ME_WEB_RENDERER;
@@ -135,7 +136,10 @@ export async function bootRefarmMeWorkbench(
 ): Promise<RefarmMeWorkbench> {
 	const doc = options.document ?? document;
 	const browserSyncTelemetry = createRefarmMeBrowserSyncTelemetryBuffer(doc);
-	const browserSyncWsUrl = options.browserSyncWsUrl ?? readRefarmMeBootstrapSyncUrl();
+	const browserSyncWsUrl =
+		options.browserSyncWsUrl ??
+		readRefarmMeBootstrapSyncUrl() ??
+		deriveRefarmMeSyncWsUrl(globalThis.location);
 	const browserSyncOptions: NonNullable<BootStudioRuntimeOptions["browserSync"]> = {
 		onEvent: browserSyncTelemetry.capture,
 	};

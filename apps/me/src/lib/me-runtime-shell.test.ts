@@ -112,6 +112,14 @@ describe("refarm.me real shell runtime", () => {
 		);
 		expect(personalCapabilitySurface).not.toBeNull();
 		expect(personalCapabilitySurface?.textContent).toContain("Meu espaço pessoal");
+		// Multi-device seam: with no explicit sync URL, the runtime derives the daemon
+		// address from the page's own host — here (jsdom on localhost) the historical
+		// default; on a LAN-served hub, the serving host's address.
+		expect(bootRuntime).toHaveBeenCalledWith(
+			expect.objectContaining({
+				browserSync: expect.objectContaining({ wsUrl: "ws://localhost:42000" }),
+			}),
+		);
 	});
 });
 
