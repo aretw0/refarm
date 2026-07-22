@@ -28,6 +28,10 @@ export class HttpSidecar {
 	constructor(
 		private readonly port: number,
 		private readonly adapter: SidecarAdapter,
+		/** Bind address. Loopback by default; 0.0.0.0 exposes the sidecar to other
+		 *  devices — an explicit operator decision, mirroring the Rust daemon's
+		 *  `--http-host` (and the OPERATOR_PRIMITIVES Docker guidance). */
+		private readonly host: string = "127.0.0.1",
 	) {
 		this.server = http.createServer((req, res) => {
 			void this.handle(req, res);
@@ -36,7 +40,7 @@ export class HttpSidecar {
 
 	async start(): Promise<void> {
 		return new Promise((resolve) => {
-			this.server.listen(this.port, "127.0.0.1", resolve);
+			this.server.listen(this.port, this.host, resolve);
 		});
 	}
 

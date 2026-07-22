@@ -477,3 +477,27 @@ describe("HttpSidecar", () => {
 		expect(status).toBe(409);
 	});
 });
+
+describe("HttpSidecar bind seam (FARMHAND_HTTP_HOST parity with the Rust daemon)", () => {
+	it("defaults to loopback", async () => {
+		const sidecar = new HttpSidecar(0, makeAdapter());
+		await sidecar.start();
+		try {
+			const address = sidecar.httpServer.address();
+			expect(typeof address === "object" && address ? address.address : "").toBe("127.0.0.1");
+		} finally {
+			await sidecar.stop();
+		}
+	});
+
+	it("honors an explicit host — LAN exposure is an operator decision", async () => {
+		const sidecar = new HttpSidecar(0, makeAdapter(), "0.0.0.0");
+		await sidecar.start();
+		try {
+			const address = sidecar.httpServer.address();
+			expect(typeof address === "object" && address ? address.address : "").toBe("0.0.0.0");
+		} finally {
+			await sidecar.stop();
+		}
+	});
+});

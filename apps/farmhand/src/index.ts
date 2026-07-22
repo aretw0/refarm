@@ -59,6 +59,9 @@ import { createTasksRouteHandler } from "./transports/tasks.js";
 
 const FARMHAND_PORT = 42000;
 const FARMHAND_HTTP_PORT = Number(process.env.FARMHAND_HTTP_PORT ?? 42001);
+// Bind parity with the Rust daemon's --http-host: loopback unless the operator
+// explicitly opens the sidecar to other devices.
+const FARMHAND_HTTP_HOST = process.env.FARMHAND_HTTP_HOST?.trim() || "127.0.0.1";
 const FARMHAND_PLUGIN_ID = "farmhand";
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
@@ -449,7 +452,7 @@ async function main() {
 	const stopFileWatcher = fileTransport.watch();
 	console.log(`[farmhand] File transport watching ${farmhandBaseDir}/tasks/`);
 
-	const httpSidecar = new HttpSidecar(FARMHAND_HTTP_PORT, fileTransport);
+	const httpSidecar = new HttpSidecar(FARMHAND_HTTP_PORT, fileTransport, FARMHAND_HTTP_HOST);
 	httpSidecar.addRouteHandler(createSessionsRouteHandler(runtime));
 	httpSidecar.addRouteHandler(createTasksRouteHandler(taskMemoryAdapter));
 	httpSidecar.addRouteHandler(createControlSurfaceRouteHandler(fileTransport));
@@ -457,7 +460,9 @@ async function main() {
 		createPluginsRouteHandler(runtime, farmhandBaseDir, pluginTracker, localExtRegistry),
 	);
 	await httpSidecar.start();
-	console.log("[farmhand] HTTP sidecar listening on http://127.0.0.1:42001");
+	console.log(
+		`[farmhand] HTTP sidecar listening on http://${FARMHAND_HTTP_HOST}:${FARMHAND_HTTP_PORT}`,
+	);
 
 	const streamsDir = path.join(farmhandBaseDir, "streams");
 	const fileStreamTransport = new FileStreamTransport(streamsDir);
