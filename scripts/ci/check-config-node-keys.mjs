@@ -1,6 +1,6 @@
 // check:config-node-keys — the config-node key lists must not drift Rust↔TS.
 //
-// The config node (`urn:refarm:config:workspace`) replicates cross-device, and its
+// The config node (`urn:sovereign:config:workspace`) replicates cross-device, and its
 // `revision` is a byte-identical sha256 across stacks. That parity holds ONLY if the
 // two producers strip the SAME keys before hashing. Two lists gate what leaves a
 // device:

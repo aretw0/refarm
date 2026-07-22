@@ -24,7 +24,7 @@ const REFARM_NODE_ARGS_PREFIX = [
 ];
 
 const skipBuild = process.argv.includes("--skip-build");
-const TREE_STUB_SESSION_ID = "urn:refarm:session:v1:000treecli01";
+const TREE_STUB_SESSION_ID = "urn:sovereign:session:v1:000treecli01";
 const TREE_STUB_SESSION = {
 	"@id": TREE_STUB_SESSION_ID,
 	"@type": "Session",
@@ -33,7 +33,7 @@ const TREE_STUB_SESSION = {
 	leaf_entry_id: "entry-cli-1",
 };
 const TREE_OLDER_STUB_SESSION = {
-	"@id": "urn:refarm:session:v1:oldertree01",
+	"@id": "urn:sovereign:session:v1:oldertree01",
 	"@type": "Session",
 	name: "older-tree-cli-smoke-session",
 	created_at_ns: 1_600_000_000_000_000_000,

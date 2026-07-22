@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createModelMock, says, toolCall } from "../../packages/model-mock/dist/index.js";
 import {
 	parseJsonOutput,
@@ -129,19 +130,34 @@ function runtimeArtifact(relativePath) {
 	return path.join(cargoTargetDir(), relativePath);
 }
 
+/**
+ * Pair the freshly built agent wasm with the canonical manifest in an isolated
+ * install dir. The runtime elects its default responder from the MANIFEST beside
+ * the wasm — a bare artifact loads with an empty capability profile, so booting
+ * `--plugin <raw agent.wasm>` yields a runtime that answers nothing. This is the
+ * same materialized plugin.wasm + plugin.json shape `load_plugin_by_hash` uses.
+ */
+async function materializeAgentPlugin(tempDir) {
+	const wasmSrc = runtimeArtifact(path.join("wasm32-wasip1", "release", "agent.wasm"));
+	assert(existsSync(wasmSrc), `runtime agent WASM missing: ${wasmSrc}`);
+	const dir = path.join(tempDir, "agent-plugin");
+	await mkdir(dir, { recursive: true });
+	const wasmDest = path.join(dir, "plugin.wasm");
+	await copyFile(wasmSrc, wasmDest);
+	const template = JSON.parse(
+		await readFile(path.join(ROOT, "packages", "agent", "plugin.json"), "utf8"),
+	);
+	delete template._note;
+	template.entry = pathToFileURL(wasmDest).href;
+	const wasmBytes = await readFile(wasmDest);
+	template.integrity = `sha256-${createHash("sha256").update(wasmBytes).digest("hex")}`;
+	await writeFile(path.join(dir, "plugin.json"), `${JSON.stringify(template, null, "\t")}\n`);
+	return wasmDest;
+}
+
 function startMockRuntime(env, options) {
 	const tractor = runtimeArtifact(path.join("release", "tractor"));
-	const installedAgentPlugin = path.join(
-		String(env.HOME),
-		".refarm",
-		"plugins",
-		"@refarm",
-		"agent",
-		"plugin.wasm",
-	);
-	const agentPluginWasm = existsSync(installedAgentPlugin)
-		? installedAgentPlugin
-		: runtimeArtifact(path.join("wasm32-wasip1", "release", "agent.wasm"));
+	const agentPluginWasm = options.agentPluginWasm;
 	assert(existsSync(tractor), `tractor binary missing: ${tractor}`);
 	assert(existsSync(agentPluginWasm), `runtime agent WASM missing: ${agentPluginWasm}`);
 
@@ -305,6 +321,7 @@ async function main() {
 		refarmDir: refarmHomeDir,
 		cwd: policyProof ? runtimeWorkspaceDir : ROOT,
 		wsPort,
+		agentPluginWasm: await materializeAgentPlugin(tempDir),
 	};
 	let runtime;
 
@@ -389,11 +406,11 @@ async function main() {
 		);
 		const session = await runRefarmHandoff(showSessionCommand, env);
 		assert(
-			session.session?.participants?.includes("urn:refarm:agent:runtime-agent"),
+			session.session?.participants?.includes("urn:sovereign:agent:runtime-agent"),
 			`runtime agent session participant missing: ${JSON.stringify(session)}`,
 		);
 		assert(
-			!session.session?.participants?.includes("urn:refarm:agent:agent"),
+			!session.session?.participants?.includes("urn:sovereign:agent:agent"),
 			`legacy agent participant leaked into new session: ${JSON.stringify(session)}`,
 		);
 
