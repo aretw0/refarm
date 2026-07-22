@@ -6,15 +6,40 @@
  * with `git pull && node scripts/farm-hello.mjs`. No pnpm install, no build.
  *
  * Usage:
- *   node scripts/farm-hello.mjs [host]            # default host: 127.0.0.1
+ *   node scripts/farm-hello.mjs                   # AUTO-DISCOVER the farm on the LAN
+ *   node scripts/farm-hello.mjs 192.168.0.10      # or point at a host explicitly
  *   FARM_HOST=192.168.0.10 node scripts/farm-hello.mjs
+ *
+ * Auto-discovery asks the LAN (UDP broadcast) for an opt-in announcer — start
+ * `node scripts/farm-announce.mjs` beside the daemon. No announcer answering →
+ * this script says so and falls back to localhost.
  *
  * Probes, in order:
  *   1. HTTP sidecar (http://<host>:42001/plugins) — is the farm's control plane up?
  *   2. CRDT WebSocket (ws://<host>:42000) — can this device join the sync mesh?
  */
+import { discoverFarms } from "./lib/farm-beacon.mjs";
 
-const host = process.argv[2] ?? process.env.FARM_HOST ?? "127.0.0.1";
+async function resolveHost() {
+  const explicit = process.argv[2] ?? process.env.FARM_HOST;
+  if (explicit) return { host: explicit, via: "explícito" };
+  const farms = await discoverFarms();
+  if (farms.length === 1) {
+    return { host: farms[0].address, via: `descoberto (${farms[0].name})` };
+  }
+  if (farms.length > 1) {
+    console.log("🔎 Mais de uma fazenda anunciando — escolha uma:");
+    for (const farm of farms) {
+      console.log(`   node scripts/farm-hello.mjs ${farm.address}   # ${farm.name}`);
+    }
+    process.exit(1);
+  }
+  console.log("🔎 Nenhuma fazenda anunciando na rede (o host roda farm-announce.mjs?).");
+  console.log("   Tentando localhost…");
+  return { host: "127.0.0.1", via: "fallback localhost" };
+}
+
+const { host, via } = await resolveHost();
 const HTTP_PORT = Number(process.env.FARM_HTTP_PORT ?? 42001);
 const WS_PORT = Number(process.env.FARM_WS_PORT ?? 42000);
 
@@ -74,7 +99,7 @@ function probeSync() {
   });
 }
 
-console.log(`\n🌱 farm-hello — ${deviceName()} → ${host}\n`);
+console.log(`\n🌱 farm-hello — ${deviceName()} → ${host} (${via})\n`);
 
 const sidecar = await probeSidecar();
 console.log(`${label(sidecar.ok)} sidecar  http://${host}:${HTTP_PORT}  ${sidecar.detail}`);
