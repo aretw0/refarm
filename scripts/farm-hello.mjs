@@ -6,20 +6,58 @@
  * with `git pull && node scripts/farm-hello.mjs`. No pnpm install, no build.
  *
  * Usage:
- *   node scripts/farm-hello.mjs                   # AUTO-DISCOVER the farm on the LAN
+ *   node scripts/farm-hello.mjs                   # AUTO-DISCOVER (tailnet, then LAN)
+ *   node scripts/farm-hello.mjs serpro-1577853    # a MagicDNS name — no IP needed
  *   node scripts/farm-hello.mjs 192.168.0.10      # or point at a host explicitly
  *   FARM_HOST=192.168.0.10 node scripts/farm-hello.mjs
  *
- * Auto-discovery asks the LAN (UDP broadcast) for an opt-in announcer — start
- * `node scripts/farm-announce.mjs` beside the daemon. No announcer answering →
- * this script says so and falls back to localhost.
+ * Discovery ladder (first hit wins):
+ *   0. Tailscale peers (if the `tailscale` CLI is here) — precise, works from
+ *      ANY network. No IP typed. On a device without the CLI, pass the host's
+ *      MagicDNS name (it resolves over the tailnet from anywhere).
+ *   1. LAN broadcast + multicast — the opt-in announcer (refarm discover announce).
+ *   2. LAN unicast /24 sweep — when the router filters broadcast/multicast.
  *
- * Probes, in order:
- *   1. HTTP sidecar (http://<host>:42001/plugins) — is the farm's control plane up?
- *   2. CRDT WebSocket (ws://<host>:42000) — can this device join the sync mesh?
+ * Then it probes the resolved host:
+ *   - HTTP sidecar (http://<host>:42001/plugins) — is the control plane up?
+ *   - CRDT WebSocket (ws://<host>:42000) — can this device join the sync mesh?
  */
 import { networkInterfaces } from "node:os";
 import { defaultProbeTargets, discoverFarms, subnetSweepTargets } from "./lib/farm-beacon.mjs";
+import { tailnetPeers } from "./lib/tailnet.mjs";
+
+const WS_PORT = Number(process.env.FARM_WS_PORT ?? 42000);
+
+/** Does <host>:42000 accept a WS handshake? Used both to pick a tailnet peer
+ *  and as the final sync check. Resolves {ok, detail}. */
+function syncHandshake(host, timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (ok, detail) => {
+      if (settled) return;
+      settled = true;
+      resolve({ ok, detail });
+    };
+    try {
+      const ws = new WebSocket(`ws://${host}:${WS_PORT}`);
+      const timer = setTimeout(() => {
+        ws.close();
+        done(false, "timeout after 5s");
+      }, timeoutMs);
+      ws.addEventListener("open", () => {
+        clearTimeout(timer);
+        done(true, "handshake accepted — this device can join the mesh");
+        ws.close();
+      });
+      ws.addEventListener("error", () => {
+        clearTimeout(timer);
+        done(false, "connection refused");
+      });
+    } catch (err) {
+      done(false, err.message);
+    }
+  });
+}
 
 function localPrefixes() {
   const prefixes = [];
@@ -60,6 +98,19 @@ async function resolveHost() {
   const explicit = process.argv[2] ?? process.env.FARM_HOST;
   if (explicit) return { host: explicit, via: "explícito" };
 
+  // Dialeto 0: peers da tailnet (Tailscale) — preciso, funciona de QUALQUER rede.
+  // O beacon UDP não cruza a tailnet; a lista de peers, sim. Probamos o sync de
+  // cada peer diretamente (não precisa do anunciante).
+  const peers = await tailnetPeers();
+  if (peers.length > 0) {
+    console.log(`🔎 Tailnet detectada — testando ${peers.length} peer(s)…`);
+    for (const peer of peers) {
+      const check = await syncHandshake(peer.ip, 3000);
+      if (check.ok) return { host: peer.ip, via: `tailnet (${peer.name})` };
+    }
+    console.log("   nenhum peer da tailnet respondeu o sync (a fazenda está de pé lá?).");
+  }
+
   // Dialeto 1+2: broadcast + multicast — o caminho barato quando o roteador deixa.
   const targets = defaultProbeTargets();
   const farms = await discoverFarms({ targets });
@@ -80,17 +131,17 @@ async function resolveHost() {
   }
   if (sweep.length > 0) console.log(`   + varredura unicast de ${sweep.length} endereços da sub-rede`);
   console.log("   Possíveis causas: anunciante parado no host (refarm discover announce),");
-  console.log("   isolamento total de clientes no roteador, ou redes distintas.");
-  console.log("   Teste direto: node scripts/farm-hello.mjs <IP-do-host>");
-  console.log("   (no host, `refarm discover announce --status` lista os IPs da fazenda)");
-  console.log("   Se nem o teste direto passar, o caminho é o rail P2P (spec do Pears).");
+  console.log("   isolamento de clientes no roteador, firewall/EDR no host, ou redes distintas.");
+  console.log("   Numa TAILNET (Tailscale), use o NOME do host — resolve de qualquer rede:");
+  console.log("      node scripts/farm-hello.mjs <nome-do-host>   # ex.: serpro-1577853");
+  console.log("   Ou o IP direto: node scripts/farm-hello.mjs <IP-do-host>");
+  console.log("   (no host, `refarm discover announce --status` mostra o endereço mesh/LAN)");
   console.log("   Tentando localhost…");
   return { host: "127.0.0.1", via: "fallback localhost" };
 }
 
 const { host, via } = await resolveHost();
 const HTTP_PORT = Number(process.env.FARM_HTTP_PORT ?? 42001);
-const WS_PORT = Number(process.env.FARM_WS_PORT ?? 42000);
 
 const label = (ok) => (ok ? "✅" : "❌");
 
@@ -118,42 +169,12 @@ async function probeSidecar() {
   }
 }
 
-function probeSync() {
-  const url = `ws://${host}:${WS_PORT}`;
-  return new Promise((resolve) => {
-    let settled = false;
-    const done = (ok, detail) => {
-      if (settled) return;
-      settled = true;
-      resolve({ ok, detail });
-    };
-    try {
-      const ws = new WebSocket(url);
-      const timer = setTimeout(() => {
-        ws.close();
-        done(false, "timeout after 5s");
-      }, 5000);
-      ws.addEventListener("open", () => {
-        clearTimeout(timer);
-        done(true, "handshake accepted — this device can join the mesh");
-        ws.close();
-      });
-      ws.addEventListener("error", () => {
-        clearTimeout(timer);
-        done(false, "connection refused");
-      });
-    } catch (err) {
-      done(false, err.message);
-    }
-  });
-}
-
 console.log(`\n🌱 farm-hello — ${deviceName()} → ${host} (${via})\n`);
 
 const sidecar = await probeSidecar();
 console.log(`${label(sidecar.ok)} sidecar  http://${host}:${HTTP_PORT}  ${sidecar.detail}`);
 
-const sync = await probeSync();
+const sync = await syncHandshake(host);
 console.log(`${label(sync.ok)} sync     ws://${host}:${WS_PORT}    ${sync.detail}`);
 
 if (sidecar.ok && sync.ok) {
