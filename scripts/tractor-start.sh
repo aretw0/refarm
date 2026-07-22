@@ -31,11 +31,15 @@ resolve_cargo_target() {
     local from_config
     from_config="$(grep -m1 '^\s*target-dir\s*=' "$config" | sed 's/.*=\s*"\(.*\)"/\1/')"
     if [ -n "$from_config" ]; then
-      printf "%s" "$from_config"
+      # cargo anchors a relative target-dir to the config's directory, not the cwd
+      case "$from_config" in
+        /*) printf "%s" "$from_config" ;;
+        *) printf "%s" "$ROOT/$from_config" ;;
+      esac
       return
     fi
   fi
-  printf "%s" "$ROOT/packages/tractor/target"
+  printf "%s" "$ROOT/.cache/cargo-target"
 }
 
 _CARGO_TARGET="$(resolve_cargo_target)"

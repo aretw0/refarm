@@ -3,10 +3,9 @@
  * Installs agent into $REFARM_HOME/plugins/@refarm/agent/ so the
  * runtime can auto-load it on boot.
  *
- * WASM path resolution order (first found wins):
- *   1. $CARGO_TARGET_DIR env var (set by devcontainer or ~/.bashrc)
- *   2. target-dir in .cargo/config.toml (same value, but read directly)
- *   3. packages/agent/target/ (workspace fallback)
+ * WASM path resolution comes from the shared cargo-target resolver
+ * (scripts/lib/cargo-target.mjs): $CARGO_TARGET_DIR env var, then target-dir
+ * in .cargo/config.toml (anchored to the repo root), then .cache/cargo-target.
  *
  * Usage:
  *   <package-manager> run agent:install
@@ -26,41 +25,15 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { agentWasmPath } from "./lib/cargo-target.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-/** Read target-dir from .cargo/config.toml without a TOML parser. */
-function cargoTargetDirFromConfig() {
-  const configPath = path.join(ROOT, ".cargo/config.toml");
-  if (!existsSync(configPath)) return null;
-  const content = readFileSync(configPath, "utf-8");
-  const match = content.match(/^\s*target-dir\s*=\s*"([^"]+)"/m);
-  return match ? match[1] : null;
-}
-
-function resolveCargoTarget() {
-  if (process.env.CARGO_TARGET_DIR) return process.env.CARGO_TARGET_DIR;
-  const fromConfig = cargoTargetDirFromConfig();
-  if (fromConfig) {
-    console.log(`[agent-install] CARGO_TARGET_DIR not in env; read from .cargo/config.toml: ${fromConfig}`);
-    return fromConfig;
-  }
-  return null;
-}
-
-const cargoTarget = resolveCargoTarget();
-const WASM_REL = "wasm32-wasip1/release/agent.wasm";
-
-const candidates = [
-  cargoTarget && path.join(cargoTarget, WASM_REL),
-  path.join(ROOT, "packages/agent/target", WASM_REL),
-].filter(Boolean);
-
-const wasmSrc = candidates.find(existsSync);
+const wasmCandidate = agentWasmPath(ROOT);
+const wasmSrc = existsSync(wasmCandidate) ? wasmCandidate : null;
 
 if (!wasmSrc) {
-  console.error("[agent-install] WASM binary not found. Searched:");
-  for (const c of candidates) console.error(`  ${c}`);
+  console.error(`[agent-install] WASM binary not found at: ${wasmCandidate}`);
   console.error("\nBuild first:");
   console.error("  cargo component build --manifest-path packages/agent/Cargo.toml --release");
   process.exit(1);

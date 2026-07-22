@@ -17,6 +17,7 @@ import net from "node:net";
 import { pathToFileURL } from "node:url";
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import { packageScriptCommand } from "../../packages/config/src/package-manager.js";
+import { agentWasmPath } from "../lib/cargo-target.mjs";
 import {
 	parseJsonOutput,
 	prepareTaskSmokeTypeBuilds,
@@ -271,9 +272,7 @@ async function main() {
 			);
 		}
 
-		const wasmPath = process.env.CARGO_TARGET_DIR
-			? path.join(process.env.CARGO_TARGET_DIR, "wasm32-wasip1/release/agent.wasm")
-			: path.join(process.cwd(), "packages/agent/target/wasm32-wasip1/release/agent.wasm");
+		const wasmPath = agentWasmPath(process.cwd());
 		if (!skipWasmBuild && !existsSync(wasmPath)) {
 			console.log("[task-smoke:agent] building agent wasm component...");
 			await runSubprocess("cargo", ["component", "build", "--release"], {

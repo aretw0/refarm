@@ -16,6 +16,7 @@ import {
   defaultModelForProvider,
   modelCredentialStatus,
 } from '../packages/config/src/model-routing.js';
+import { agentWasmPath, tractorBinaryPath } from './lib/cargo-target.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
@@ -108,10 +109,7 @@ async function httpProbe(url) {
 // ── tractor WS probe ──────────────────────────────────────────────────────────
 
 function tractorWsProbe(port) {
-  const _cargoTarget = process.env.CARGO_TARGET_DIR;
-  const bin = _cargoTarget
-    ? join(_cargoTarget, 'release/tractor')
-    : join(ROOT, 'packages/tractor/target/release/tractor');
+  const bin = tractorBinaryPath(ROOT);
   if (!existsSync(bin)) return { ok: false, reason: 'binary not found' };
   const r = spawnSync(bin, ['health', '--ws-port', String(port), '--skip-boot-probe'], {
     encoding: 'utf8', timeout: 3000,
@@ -122,14 +120,9 @@ function tractorWsProbe(port) {
 // ── artifact paths ────────────────────────────────────────────────────────────
 
 function artifactPaths() {
-  const t = process.env.CARGO_TARGET_DIR;
   return {
-    tractor: t
-      ? join(t, 'release/tractor')
-      : join(ROOT, 'packages/tractor/target/release/tractor'),
-    wasm: t
-      ? join(t, 'wasm32-wasip1/release/agent.wasm')
-      : join(ROOT, 'packages/agent/target/wasm32-wasip1/release/agent.wasm'),
+    tractor: tractorBinaryPath(ROOT),
+    wasm: agentWasmPath(ROOT),
   };
 }
 

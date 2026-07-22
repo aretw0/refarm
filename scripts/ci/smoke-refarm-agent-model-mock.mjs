@@ -11,6 +11,7 @@ import {
 	parseJsonOutput,
 	runSubprocess,
 } from "./subprocess-utils.mjs";
+import { resolveCargoTargetDir } from "../lib/cargo-target.mjs";
 
 const ROOT = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -121,8 +122,7 @@ async function getFreePort() {
 }
 
 function cargoTargetDir() {
-	if (process.env.CARGO_TARGET_DIR) return path.resolve(process.env.CARGO_TARGET_DIR);
-	return "/workspaces/refarm/.cache/cargo-target";
+	return resolveCargoTargetDir(ROOT);
 }
 
 function runtimeArtifact(relativePath) {

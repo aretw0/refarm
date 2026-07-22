@@ -20,11 +20,10 @@ import {
   defaultModelForProvider,
   modelCredentialStatus,
 } from '../packages/config/src/model-routing.js';
+import { tractorBinaryPath } from './lib/cargo-target.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
-const TRACTOR = process.env.CARGO_TARGET_DIR
-  ? join(process.env.CARGO_TARGET_DIR, 'release/tractor')
-  : join(ROOT, 'packages/tractor/target/release/tractor');
+const TRACTOR = tractorBinaryPath(ROOT);
 const HISTORY_FILE = join(ROOT, '.refarm', '.repl_history');
 const ENV_FILE = join(ROOT, '.refarm', '.env');
 

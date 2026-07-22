@@ -15,19 +15,15 @@ import {
   defaultModelForProvider,
   modelCredentialStatus,
 } from '../packages/config/src/model-routing.js';
+import { agentWasmPath, tractorBinaryPath } from './lib/cargo-target.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
 const PID_FILE   = join(ROOT, '.refarm', 'tractor.pid');
 const ENV_FILE   = join(ROOT, '.refarm', '.env');
 const CONFIG_FILE = join(ROOT, '.refarm', 'config.json');
-const _cargoTarget = process.env.CARGO_TARGET_DIR;
-const TRACTOR    = _cargoTarget
-  ? join(_cargoTarget, 'release/tractor')
-  : join(ROOT, 'packages/tractor/target/release/tractor');
-const AGENT_WASM = _cargoTarget
-  ? join(_cargoTarget, 'wasm32-wasip1/release/agent.wasm')
-  : join(ROOT, 'packages/agent/target/wasm32-wasip1/release/agent.wasm');
+const TRACTOR    = tractorBinaryPath(ROOT);
+const AGENT_WASM = agentWasmPath(ROOT);
 
 const c = {
   reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m',

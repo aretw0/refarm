@@ -154,8 +154,8 @@ export ANTHROPIC_API_KEY=sk-ant-...           # if using Anthropic
 export MODEL_PROVIDER=anthropic               # or: ollama (no key needed, requires local Ollama)
 export MODEL_ID=claude-sonnet-4-6            # optional model override
 
-TRACTOR=packages/tractor/target/release/tractor
-WASM=packages/agent/target/wasm32-wasip1/release/agent.wasm
+TRACTOR=.cache/cargo-target/release/tractor
+WASM=.cache/cargo-target/wasm32-wasip1/release/agent.wasm
 
 # Start daemon (Ctrl+C to stop)
 $TRACTOR --plugin "$WASM" --log-level info

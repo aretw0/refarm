@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { tractorBinaryPath } from "../../../scripts/lib/cargo-target.mjs";
 import { startAstroDevServer } from "./lib/astro-dev-server.mjs";
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -146,11 +147,10 @@ try {
 
 async function resolveTractorBinary(root) {
 	if (process.env.REFARM_TRACTOR_BIN) return process.env.REFARM_TRACTOR_BIN;
-	const config = await readFile(join(root, ".cargo/config.toml"), "utf8");
-	const targetDir =
-		config.match(/^\s*target-dir\s*=\s*"([^"]+)"/m)?.[1] ??
-		join(root, "packages/tractor/target");
-	return join(targetDir, "release/tractor");
+	// The shared resolver also anchors a relative `target-dir` to the workspace
+	// root — the old inline parse joined it against the cwd, which is apps/me
+	// when this script runs via its package script.
+	return tractorBinaryPath(root);
 }
 
 async function reservePort() {
