@@ -1,15 +1,15 @@
 {
-  "context": "Checkpoint 2026-07-22 (12th). Phone probe data proved both devices share the /24 — the router filters broadcast AND multicast between clients. Dialect 3 landed (3a35350a): bounded unicast sweep of the /24 (refuses wider subnets), staged after the cheap dialects, with farm-name dedup and own-subnet address preference. Operator raised the DISTRIBUTION question: stop running ad-hoc scripts on the phone, build refarm ON THE PC and hand the device a finished artifact — the script only bootstraps and fetches.",
-  "timestamp": "2026-07-22T20:50:22.648Z",
+  "context": "Checkpoint 2026-07-22 (13th). ROOT CAUSE FOUND for every failed LAN dialect from the phone: NOT ufw (operator disabled it; my detection wrongly read the service not ufw.conf ENABLED) but Trend Micro Deep Security (ds_agent) — a MANAGED CORPORATE endpoint agent (host serpro-*, corporate VPN) dropping inbound probes by policy, unfixable with the operator's sudo. Detection corrected and typed by fixability (5aaaf899): firewalls get scoped allow rules, endpoint agents get named + pointed at the P2P rail, no false sudo rule. This corporate host-lock makes the Pears/tunnel rail the ONLY viable cross-device path here, not a nice-to-have.",
+  "timestamp": "2026-07-22T21:21:29.760Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commits 25357674 (multicast + Pears spec), 3a35350a (unicast sweep) — pushed pending; beacon suite 6 green."
+    "Commit 5aaaf899 — honest inbound-filter detection; 1629 tests green."
   ],
   "blockers": [],
   "next_actions": [
-    "RETRY on the phone after git pull: plain farm-hello — the sweep should find the farm if client unicast passes; if even that fails, AP isolation is total and the P2P rail (Pears spec fatia 2) becomes the only LAN-independent path.",
-    "Device distribution channel (operator direction): rung 1 git-pull (current); rung 2 single-file device CLI bundled ON the PC (esbuild-class bundler as devDep, apps/refarm dist -> one .mjs; verify no native deps in the CLI graph), delivered via GitHub Release asset — never committed dist (source sovereignty); farm-hello gains a fetch-once bootstrap. Rung 3: device CLI pointed at the farm through the governed tunnel, not raw sidecar exposure. Rung 4: bare/Pears runtime as the true mobile citizen (spec fatia 1 research).",
-    "Feedback loop com o Android é o laboratório: cada limitação encontrada (broadcast filtrado, multicast filtrado, contexto seguro, agora distribuição) virou primitiva ou spec no mesmo dia — manter esse ritmo."
+    "The LAN rail is BLOCKED BY CORPORATE POLICY on this host — pivot to distribution + P2P. Distribution rung 2: bundle apps/refarm CLI to a single .mjs on the PC (verify no native deps in CLI graph), ship as GitHub Release asset, farm-hello fetches once. This gets refarm (not scripts) onto the phone regardless of the network wall.",
+    "P2P rail (Pears spec) rises to PRIMARY: it is LAN-independent, so ds_agent's inbound filter is irrelevant — outbound hyperswarm connections punch out. Start spec fatia 1 research (hyperswarm API, CGNAT/mobile hole-punch, bare-on-Android).",
+    "Cloudflare tunnel is the pragmatic bridge meanwhile: cloudflared makes an OUTBOUND connection from the host (ds_agent allows outbound), giving a stable https hostname the phone reaches from anywhere — no inbound hole needed. Strong candidate for the FIRST working cross-device demo."
   ],
   "open_questions": [],
   "key_decisions_active": [
