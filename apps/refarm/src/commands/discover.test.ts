@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	announceStatus,
+	classifyAddressScope,
 	startAnnounce,
 	stopAnnounce,
 	type DiscoverAnnounceDeps,
@@ -32,6 +33,35 @@ function makeDeps(overrides: Partial<DiscoverAnnounceDeps> = {}): DiscoverAnnoun
 		...overrides,
 	};
 }
+
+describe("classifyAddressScope — which address reaches from where", () => {
+	it("labels a private LAN address as lan", () => {
+		expect(classifyAddressScope("192.168.0.7", "wlp0s20f3")).toBe("lan");
+		expect(classifyAddressScope("10.1.2.3", "eth0")).toBe("lan");
+		expect(classifyAddressScope("172.16.5.5", "eth0")).toBe("lan");
+	});
+
+	it("labels the Tailscale CGNAT range as mesh — reachable from any network", () => {
+		expect(classifyAddressScope("100.101.102.103", "tailscale0")).toBe("mesh");
+		expect(classifyAddressScope("100.64.0.1", "eth0")).toBe("mesh");
+		expect(classifyAddressScope("100.127.255.254", "x")).toBe("mesh");
+	});
+
+	it("labels a tailscale-named interface as mesh even outside the CGNAT guess", () => {
+		expect(classifyAddressScope("10.9.8.7", "tailscale0")).toBe("mesh");
+	});
+
+	it("100.x OUTSIDE the CGNAT block is not mesh — real public 100.x exists", () => {
+		expect(classifyAddressScope("100.128.0.1", "eth0")).toBe("other");
+		expect(classifyAddressScope("100.63.255.255", "eth0")).toBe("other");
+	});
+
+	it("labels a known VPN tunnel interface as vpn", () => {
+		expect(classifyAddressScope("172.24.38.251", "ovpntun0")).toBe("vpn");
+		expect(classifyAddressScope("10.8.0.2", "tun0")).toBe("vpn");
+		expect(classifyAddressScope("10.8.0.2", "wg0")).toBe("vpn");
+	});
+});
 
 describe("refarm discover announce — the managed LAN announcer", () => {
 	it("starts detached, records the pid, and hands off to status", () => {
@@ -99,18 +129,17 @@ describe("refarm discover announce — the managed LAN announcer", () => {
 		expect(status.filters ?? []).toEqual([]);
 	});
 
-	it("status lists the farm's reachable addresses — no operator guessing", () => {
+	it("status lists reachable addresses with their scope — mesh first", () => {
 		const deps = makeDeps({
 			listAddresses: () => [
-				{ address: "192.168.0.7", interface: "wlp0s20f3" },
-				{ address: "172.24.38.251", interface: "ovpntun0" },
+				{ address: "192.168.0.7", interface: "wlp0s20f3", scope: "lan" },
+				{ address: "100.101.102.103", interface: "tailscale0", scope: "mesh" },
 			],
 		});
 		const status = announceStatus(deps);
-		expect(status.addresses).toEqual([
-			{ address: "192.168.0.7", interface: "wlp0s20f3" },
-			{ address: "172.24.38.251", interface: "ovpntun0" },
-		]);
+		// A mesh address reaches from any network — it sorts to the front.
+		expect(status.addresses?.[0]?.scope).toBe("mesh");
+		expect(status.addresses?.[0]?.address).toBe("100.101.102.103");
 	});
 
 	it("stop kills the announcer, removes the pidfile, and hands off to start", () => {

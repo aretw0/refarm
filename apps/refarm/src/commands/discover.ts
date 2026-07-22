@@ -24,9 +24,50 @@ import { findRepoRoot } from "./session-launch.js";
  * and stop actually stops. Announcing stays opt-in: this command is the opt-in.
  */
 
+/** How far an address reaches. `mesh` (a Tailscale/overlay address) reaches from
+ *  ANY network — it is what an operator hands a device on mobile data. `lan` is
+ *  same-subnet only; `vpn` rides a corporate tunnel; `other` is unclassified. */
+export type DiscoverAddressScope = "mesh" | "lan" | "vpn" | "other";
+
 export interface DiscoverFarmAddress {
 	address: string;
 	interface: string;
+	scope?: DiscoverAddressScope;
+}
+
+const SCOPE_ORDER: Record<DiscoverAddressScope, number> = {
+	mesh: 0,
+	lan: 1,
+	vpn: 2,
+	other: 3,
+};
+
+/** Classify an address by reach, from its value + interface name. Pure —
+ *  a Tailscale interface OR the 100.64.0.0/10 CGNAT block it uses reads as mesh;
+ *  tun/wg/ovpn interfaces read as vpn; RFC1918 reads as lan. */
+export function classifyAddressScope(address: string, iface: string): DiscoverAddressScope {
+	const name = iface.toLowerCase();
+	if (/^(tailscale|ts)\d*/.test(name)) return "mesh";
+	if (inCidr(address, "100.64.0.0", 10)) return "mesh";
+	if (/^(tun|wg|ovpn|ovpntun|utun|wt|zt|nebula)\d*/.test(name)) return "vpn";
+	if (inCidr(address, "10.0.0.0", 8)) return "lan";
+	if (inCidr(address, "172.16.0.0", 12)) return "lan";
+	if (inCidr(address, "192.168.0.0", 16)) return "lan";
+	return "other";
+}
+
+function inCidr(address: string, network: string, prefix: number): boolean {
+	const a = ipInt(address);
+	const n = ipInt(network);
+	if (a === null || n === null) return false;
+	const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
+	return (a & mask) === (n & mask);
+}
+
+function ipInt(address: string): number | null {
+	const parts = address.split(".").map(Number);
+	if (parts.length !== 4 || parts.some((p) => Number.isNaN(p) || p < 0 || p > 255)) return null;
+	return ((parts[0]! << 24) | (parts[1]! << 16) | (parts[2]! << 8) | parts[3]!) >>> 0;
 }
 
 export interface DiscoverAnnounceDeps {
@@ -107,10 +148,22 @@ function defaultListAddresses(): DiscoverFarmAddress[] {
 	for (const [name, entries] of Object.entries(networkInterfaces())) {
 		for (const entry of entries ?? []) {
 			if (entry.family !== "IPv4" || entry.internal) continue;
-			addresses.push({ address: entry.address, interface: name });
+			addresses.push({
+				address: entry.address,
+				interface: name,
+				scope: classifyAddressScope(entry.address, name),
+			});
 		}
 	}
 	return addresses;
+}
+
+/** Reach-first ordering: a mesh address (works from any network) before a LAN
+ *  one before a VPN one — the operator sees the "from anywhere" address first. */
+function byReach(addresses: DiscoverFarmAddress[]): DiscoverFarmAddress[] {
+	return [...addresses].sort(
+		(a, b) => SCOPE_ORDER[a.scope ?? "other"] - SCOPE_ORDER[b.scope ?? "other"],
+	);
 }
 
 function defaultDeps(): DiscoverAnnounceDeps {
@@ -191,7 +244,7 @@ export function announceStatus(
 	const pidFile = announcePidFile(deps);
 	const pid = deps.readPid(pidFile);
 	const running = pid !== null && deps.processAlive(pid);
-	const addresses = (deps.listAddresses ?? defaultListAddresses)();
+	const addresses = byReach((deps.listAddresses ?? defaultListAddresses)());
 	const filters = (deps.probeFilters ?? defaultProbeFilters)();
 	const nextCommand = running
 		? refarmCommand(STOP_COMMAND_ARGS)
@@ -346,7 +399,20 @@ export function createDiscoverCommand(deps: DiscoverAnnounceDeps = defaultDeps()
 						: `silencioso — anuncie com: ${result.nextCommand}`,
 				);
 				for (const entry of result.addresses ?? []) {
-					console.log(`   fazenda alcançável em ${entry.address} (${entry.interface})`);
+					const reach =
+						entry.scope === "mesh"
+							? " — mesh: alcançável de QUALQUER rede (4G inclusive)"
+							: entry.scope === "lan"
+								? " — só na mesma rede local"
+								: entry.scope === "vpn"
+									? " — via túnel VPN"
+									: "";
+					console.log(`   fazenda alcançável em ${entry.address} (${entry.interface})${reach}`);
+				}
+				if (!(result.addresses ?? []).some((entry) => entry.scope === "mesh")) {
+					console.log(
+						"   dica: sem endereço mesh — uma overlay (Tailscale) daria um IP alcançável de qualquer rede.",
+					);
 				}
 				for (const filter of result.filters ?? []) {
 					if (filter.kind === "firewall") {
