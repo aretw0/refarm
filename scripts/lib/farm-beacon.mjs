@@ -16,6 +16,15 @@
  *     oversized, or with a version they don't speak;
  *   - discovery only DISCOVERS: reaching the farm still crosses the same
  *     bind/TLS/auth posture every other path crosses.
+ *
+ * SCOPE — this rail is CONDITIONAL, not the whole answer. It is the fastest,
+ * zero-dependency path WHERE the network permits client-to-client traffic
+ * (most home routers, most LANs). It cannot cross a router that isolates
+ * clients, a host firewall, or a managed endpoint agent that drops inbound —
+ * and it never leaves the LAN. Those cases are served by the OTHER rails
+ * (overlay mesh / ingress tunnel / P2P), mapped in
+ * docs/superpowers/specs/2026-07-22-cross-network-transport-rails.md. A failure
+ * HERE says "not this network", never "wrong approach".
  */
 import dgram from "node:dgram";
 import { hostname } from "node:os";
