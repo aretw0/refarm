@@ -4,7 +4,6 @@ import {
 	findSovereignConfigPath,
 	loadConfig,
 	sovereignConfigPathCandidates,
-	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
 	type DeclaredWorkspaceNamespaceConfig,
 } from "@refarm.dev/config";
 import fs from "node:fs";
