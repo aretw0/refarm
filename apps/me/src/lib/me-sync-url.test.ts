@@ -48,10 +48,19 @@ describe("deriveRefarmMeSyncWsUrl", () => {
 		);
 	});
 
-	it("upgrades to wss when the page itself is https — mixed content is blocked anyway", () => {
+	it("https pages go same-origin — wss through the serving host's /sync proxy", () => {
+		// Direct wss://host:42000 cannot work: the daemon speaks plain ws. A secure
+		// page instead syncs through the origin that served it (refarm web serve
+		// proxies /sync to the daemon), so the device talks to ONE origin.
 		expect(
-			deriveRefarmMeSyncWsUrl({ hostname: "farm.example", protocol: "https:" }),
-		).toBe("wss://farm.example:42000");
+			deriveRefarmMeSyncWsUrl({ hostname: "farm.example", protocol: "https:", port: "8443" }),
+		).toBe("wss://farm.example:8443/sync");
+	});
+
+	it("https on the default port keeps the origin's implicit port", () => {
+		expect(
+			deriveRefarmMeSyncWsUrl({ hostname: "farm.example", protocol: "https:", port: "" }),
+		).toBe("wss://farm.example/sync");
 	});
 
 	it("returns undefined without a hostname (non-browser contexts)", () => {

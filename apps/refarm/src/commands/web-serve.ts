@@ -1,6 +1,8 @@
-import { createReadStream } from "node:fs";
+import { createReadStream, readFileSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { createServer as createTlsServer } from "node:https";
+import { connect, type Socket } from "node:net";
 import path from "node:path";
 
 import { Command } from "commander";
@@ -96,17 +98,96 @@ export function createWebServeHandler(
 	};
 }
 
-/** Start the static hub server and resolve once bound. */
+/** Where the `/sync` WebSocket proxy forwards to — the daemon's CRDT socket. */
+export interface WebServeSyncTarget {
+	host: string;
+	port: number;
+}
+
+const DEFAULT_SYNC_TARGET: WebServeSyncTarget = { host: "127.0.0.1", port: 42000 };
+
+/** Headers a WebSocket handshake needs; everything else stays behind the proxy. */
+const SYNC_FORWARD_HEADERS = [
+	"upgrade",
+	"connection",
+	"sec-websocket-key",
+	"sec-websocket-version",
+	"sec-websocket-protocol",
+	"sec-websocket-extensions",
+] as const;
+
+/**
+ * Forward a `/sync` upgrade to the daemon and pipe bytes both ways. The request
+ * line is rewritten to the daemon's root — the upstream contract is "the CRDT
+ * WS", not our proxy path. Anything outside `/sync` is destroyed: this server
+ * proxies exactly one thing.
+ */
+function handleSyncUpgrade(
+	target: WebServeSyncTarget,
+	req: IncomingMessage,
+	clientSocket: Socket,
+	head: Buffer,
+): void {
+	const url = new URL(req.url ?? "/", "http://localhost");
+	if (url.pathname !== "/sync") {
+		clientSocket.destroy();
+		return;
+	}
+	const upstream = connect(target.port, target.host, () => {
+		const lines = [`GET / HTTP/1.1`, `Host: ${target.host}:${target.port}`];
+		for (const name of SYNC_FORWARD_HEADERS) {
+			const value = req.headers[name];
+			if (typeof value === "string") lines.push(`${name}: ${value}`);
+		}
+		upstream.write(`${lines.join("\r\n")}\r\n\r\n`);
+		if (head.length > 0) upstream.write(head);
+		upstream.pipe(clientSocket);
+		clientSocket.pipe(upstream);
+	});
+	const teardown = () => {
+		upstream.destroy();
+		clientSocket.destroy();
+	};
+	upstream.on("error", teardown);
+	clientSocket.on("error", teardown);
+}
+
+export interface WebServeTlsOptions {
+	certFile: string;
+	keyFile: string;
+}
+
+/** Start the static hub server and resolve once bound. With `tls` the origin is
+ *  https — the secure context service workers and OPFS/WASM demand off-localhost. */
 export function startWebServeServer(
 	rootDir: string,
-	options: { port: number; host: string },
+	options: {
+		port: number;
+		host: string;
+		tls?: WebServeTlsOptions;
+		syncTarget?: WebServeSyncTarget;
+	},
 ): Promise<{ server: Server; url: string }> {
-	const server = createServer(createWebServeHandler(rootDir));
+	const handler = createWebServeHandler(rootDir);
+	const server = options.tls
+		? createTlsServer(
+				{
+					cert: readFileSync(options.tls.certFile),
+					key: readFileSync(options.tls.keyFile),
+				},
+				handler,
+			)
+		: createServer(handler);
+	const syncTarget = options.syncTarget ?? DEFAULT_SYNC_TARGET;
+	server.on("upgrade", (req, socket, head) =>
+		handleSyncUpgrade(syncTarget, req, socket as Socket, head),
+	);
+	const scheme = options.tls ? "https" : "http";
 	return new Promise((resolve) => {
 		server.listen(options.port, options.host, () => {
 			const addr = server.address();
 			const boundPort = typeof addr === "object" && addr ? addr.port : options.port;
-			resolve({ server, url: `http://${options.host}:${boundPort}` });
+			resolve({ server, url: `${scheme}://${options.host}:${boundPort}` });
 		});
 	});
 }
@@ -114,7 +195,19 @@ export function startWebServeServer(
 interface WebServeOptions {
 	port?: string;
 	host?: string;
+	tlsCert?: string;
+	tlsKey?: string;
+	syncTarget?: string;
 	json?: boolean;
+}
+
+function parseSyncTarget(value: string): WebServeSyncTarget {
+	const [host, portRaw] = value.split(":");
+	const port = Number.parseInt(portRaw ?? "", 10);
+	if (!host || Number.isNaN(port)) {
+		throw new Error(`--sync-target expects host:port, got "${value}"`);
+	}
+	return { host, port };
 }
 
 export function createWebServeCommand(): Command {
@@ -127,18 +220,40 @@ export function createWebServeCommand(): Command {
 			"Bind address; 0.0.0.0 exposes the hub to other devices",
 			"127.0.0.1",
 		)
+		.option("--tls-cert <file>", "TLS certificate (PEM) — with --tls-key, serves https")
+		.option("--tls-key <file>", "TLS private key (PEM) — with --tls-cert, serves https")
+		.option(
+			"--sync-target <host:port>",
+			"Daemon CRDT WS the /sync proxy forwards to",
+			"127.0.0.1:42000",
+		)
 		.option("--json", "Print the listening address as JSON")
 		.action(async (dir: string, options: WebServeOptions) => {
 			const port = Number.parseInt(options.port ?? "4321", 10);
 			const host = options.host ?? "127.0.0.1";
-			const { url } = await startWebServeServer(dir, { port, host });
+			if (Boolean(options.tlsCert) !== Boolean(options.tlsKey)) {
+				throw new Error("--tls-cert and --tls-key must be provided together.");
+			}
+			const tls =
+				options.tlsCert && options.tlsKey
+					? { certFile: options.tlsCert, keyFile: options.tlsKey }
+					: undefined;
+			const { url } = await startWebServeServer(dir, {
+				port,
+				host,
+				...(tls ? { tls } : {}),
+				syncTarget: parseSyncTarget(options.syncTarget ?? "127.0.0.1:42000"),
+			});
 			if (options.json) {
 				process.stdout.write(`${JSON.stringify({ ok: true, url, dir: path.resolve(dir) })}\n`);
 			} else {
 				process.stdout.write(
 					`refarm hub serving ${path.resolve(dir)} on ${url}\n` +
 						"  COOP/COEP headers on — the browser runtime can boot cross-origin-isolated.\n" +
-						"  Note: off-localhost origins still need HTTPS for service worker + OPFS/WASM.\n",
+						"  /sync proxies WebSocket upgrades to the daemon (see --sync-target).\n" +
+						(tls
+							? "  https origin — service worker + OPFS/WASM work from other devices.\n"
+							: "  Note: off-localhost origins still need --tls-cert/--tls-key (e.g. mkcert) for service worker + OPFS/WASM.\n"),
 				);
 			}
 		});

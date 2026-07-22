@@ -463,6 +463,12 @@ importers:
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../../packages/vtconfig
+      '@types/ws':
+        specifier: 'catalog:'
+        version: 8.18.1
+      ws:
+        specifier: 8.21.0
+        version: 8.21.0
 
   apps/site:
     dependencies:
@@ -12304,7 +12310,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 25.8.0
+      '@types/node': 25.9.4
 
   '@types/yargs-parser@21.0.3': {}
 

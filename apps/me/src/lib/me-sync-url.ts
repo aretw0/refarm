@@ -30,13 +30,21 @@ export function resolveRefarmMeSyncWsUrlFromEnv(
 	}
 }
 
-/** Derive the daemon URL from the page location. `https:` pages get `wss:` —
- *  browsers block plain `ws:` from secure origins as mixed content. */
+/** Derive the daemon URL from the page location.
+ *  - `http:` pages dial the daemon's WS directly (`ws://<host>:42000`) — the
+ *    daemon already listens on all interfaces.
+ *  - `https:` pages go SAME-ORIGIN (`wss://<origin>/sync`): the daemon speaks
+ *    plain ws, so a secure page syncs through the `/sync` proxy of the origin
+ *    that served it (`refarm web serve` forwards it to the daemon). One origin,
+ *    no mixed content, no TLS on the daemon. */
 export function deriveRefarmMeSyncWsUrl(
-	location: { hostname: string; protocol: string } | undefined,
+	location: { hostname: string; protocol: string; port?: string } | undefined,
 ): string | undefined {
 	const hostname = location?.hostname?.trim();
 	if (!hostname) return undefined;
-	const scheme = location?.protocol === "https:" ? "wss" : "ws";
-	return `${scheme}://${hostname}:${REFARM_ME_SYNC_WS_PORT}`;
+	if (location?.protocol === "https:") {
+		const port = location.port?.trim();
+		return `wss://${hostname}${port ? `:${port}` : ""}/sync`;
+	}
+	return `ws://${hostname}:${REFARM_ME_SYNC_WS_PORT}`;
 }

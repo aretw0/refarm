@@ -75,7 +75,9 @@
 	"devDependencies": {
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
-		"@refarm.dev/vtconfig": "workspace:*"
+		"@refarm.dev/vtconfig": "workspace:*",
+		"@types/ws": "catalog:",
+		"ws": "catalog:"
 	},
 	"license": "AGPL-3.0-only"
 }
