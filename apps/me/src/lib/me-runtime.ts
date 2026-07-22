@@ -1,22 +1,24 @@
 import { buildCapabilityIndex } from "@refarm.dev/cli/capability-index";
 import type { HomesteadHostRendererDescriptor } from "@refarm.dev/homestead/sdk/host-renderer";
+import { registerSurfacePlugins } from "@refarm.dev/homestead/sdk/register-surfaces";
 import {
 	bootStudioRuntime,
 	type BootStudioRuntimeOptions,
 } from "@refarm.dev/homestead/sdk/runtime";
-import { registerSurfacePlugins } from "@refarm.dev/homestead/sdk/register-surfaces";
 import type { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
+import { mountRefarmMeChat } from "./me-chat";
 import {
 	installRefarmMeContentPlugins,
 	type RefarmMeContentPluginInstallInput,
 	type RefarmMeContentPluginManifest,
 } from "./me-content-plugins";
-import { mountRefarmMeChat } from "./me-chat";
+import type { RefarmMePersonalStatus } from "./me-personal-capabilities";
 import { REFARM_ME_WEB_RENDERER } from "./me-renderers";
 import {
 	createRefarmMeSurfaceActionHandler,
 	createRefarmMeSurfaceContextProvider,
 	createRefarmMeSurfacePlugins,
+	defaultRefarmMePersonalStatus,
 	REFARM_ME_IDENTITY_STATUS,
 	REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
 	REFARM_ME_SYNC_STATUS,
@@ -25,6 +27,28 @@ import {
 export const REFARM_ME_LOADING_ID = "loading-overlay";
 export const REFARM_ME_RENDERER = REFARM_ME_WEB_RENDERER;
 export const REFARM_ME_PLUGIN_REGISTRY_TYPE = "refarm:PluginRegistry";
+
+/** The registry twin's LIVE status thunk (convergence Slice 2 follow-on): sync is
+ *  sampled at dispatch time — the telemetry source is push-updated — while the
+ *  graph/driver numbers are the same boot snapshot the hero panel narrates. */
+export function buildRefarmMePersonalStatus(sources: {
+	syncStatus: () => string;
+	graphMode: string;
+	pluginRegistryCount: number;
+	discoveredContentPluginCount: number;
+	referenceDriverCapabilityIds: readonly string[];
+	scheduledWorkSummary: RefarmMeScheduledWorkSummary | null;
+}): () => RefarmMePersonalStatus {
+	return () => ({
+		...defaultRefarmMePersonalStatus(),
+		syncStatus: sources.syncStatus(),
+		graphMode: sources.graphMode,
+		pluginRegistryCount: sources.pluginRegistryCount,
+		discoveredContentPluginCount: sources.discoveredContentPluginCount,
+		referenceDriverCapabilityIds: sources.referenceDriverCapabilityIds,
+		scheduledWorkSummary: sources.scheduledWorkSummary,
+	});
+}
 
 type RefarmMeRuntime = Awaited<ReturnType<typeof bootStudioRuntime>>;
 type RefarmMeTractor = RefarmMeRuntime["tractor"];
@@ -153,9 +177,18 @@ export async function bootRefarmMeWorkbench(
 	// The surface-registration phase is the framework's (registerSurfacePlugins) — apps/me can't use
 	// the atomic bootCapabilityWebShell because it installs content plugins (above) BETWEEN the runtime
 	// boot and this registration, but it shares the register phase so the loop isn't copied here.
+	const personalStatus = buildRefarmMePersonalStatus({
+		syncStatus: () => browserSyncTelemetry.status(),
+		graphMode: graphStatus.mode,
+		pluginRegistryCount: graphStatus.pluginRegistryIds.length,
+		discoveredContentPluginCount: graphStatus.discoveredContentPlugins.length,
+		referenceDriverCapabilityIds: driverStatus.referenceDriverCapabilityIds,
+		scheduledWorkSummary: driverStatus.scheduledWorkSummary ?? null,
+	});
 	const surfacePluginIds = registerSurfacePlugins(
 		tractor,
-		options.createSurfacePlugins ?? createRefarmMeSurfacePlugins,
+		options.createSurfacePlugins ??
+			((emitTelemetry) => createRefarmMeSurfacePlugins(emitTelemetry, personalStatus)),
 	);
 
 	const setupShell = options.setupShell ?? (await loadSetupStudioShell());

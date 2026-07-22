@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { installRefarmMeContentPlugins } from "./me-content-plugins";
 import {
 	bootRefarmMeWorkbench,
+	buildRefarmMePersonalStatus,
 	REFARM_ME_LOADING_ID,
 	REFARM_ME_PLUGIN_REGISTRY_TYPE,
 	REFARM_ME_RENDERER,
@@ -483,6 +484,44 @@ describe("refarm.me runtime", () => {
 				wsUrl: "ws://localhost:42000",
 			},
 		});
+	});
+});
+
+describe("buildRefarmMePersonalStatus", () => {
+	it("serves the boot snapshot the hero also narrates", () => {
+		const status = buildRefarmMePersonalStatus({
+			syncStatus: () => "synced",
+			graphMode: "graph",
+			pluginRegistryCount: 3,
+			discoveredContentPluginCount: 2,
+			referenceDriverCapabilityIds: ["records:v1", "source:v1"],
+			scheduledWorkSummary: { total: 1, due: 0, scheduled: 1, unsupported: 0 },
+		})();
+		expect(status).toMatchObject({
+			syncStatus: "synced",
+			graphMode: "graph",
+			pluginRegistryCount: 3,
+			discoveredContentPluginCount: 2,
+			referenceDriverCapabilityIds: ["records:v1", "source:v1"],
+			scheduledWorkSummary: { total: 1, due: 0, scheduled: 1, unsupported: 0 },
+		});
+		expect(status.identityStatus).toBe(REFARM_ME_IDENTITY_STATUS);
+		expect(status.profileName.length).toBeGreaterThan(0);
+	});
+
+	it("samples sync at call time — a live source, not a boot snapshot", () => {
+		let sync = "waiting-for-tractor";
+		const status = buildRefarmMePersonalStatus({
+			syncStatus: () => sync,
+			graphMode: "bootstrap",
+			pluginRegistryCount: 0,
+			discoveredContentPluginCount: 0,
+			referenceDriverCapabilityIds: [],
+			scheduledWorkSummary: null,
+		});
+		expect(status().syncStatus).toBe("waiting-for-tractor");
+		sync = "synced";
+		expect(status().syncStatus).toBe("synced");
 	});
 });
 
