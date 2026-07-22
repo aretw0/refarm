@@ -1,15 +1,15 @@
 {
-  "context": "Checkpoint 2026-07-22 (15th). Tailscale UP on host: mesh IP 100.105.71.127, MagicDNS name serpro-1577853.tail894688.ts.net. PROVEN LIVE: sync CRDT answers over BOTH the mesh IP and the MagicDNS name (daemon binds 0.0.0.0, so the tailnet address is covered with zero change). Convergence answer to the operator: on a tailnet the phone uses the NAME, not an IP — farm-hello <name> resolves via MagicDNS from any network. farm-hello gained dialect 0 (tailnet peer enumeration via tailscale status --json, probes each peer's sync directly, no announcer needed); 0 peers today because the phone has not joined. Announcer religado governed on host.",
-  "timestamp": "2026-07-22T22:04:29.800Z",
+  "context": "Checkpoint 2026-07-22 (16th). FULL REACH proven on host: after restarting the runtime with REFARM_HTTP_HOST=0.0.0.0, the sidecar answers on BOTH 127.0.0.1:42001 (local tooling intact) and 100.105.71.127:42001 (mesh) — farm-hello by MagicDNS name reports sync ✅ AND sidecar ✅, exit 0. Corrected prior mesh-only guidance (breaks local tooling); 0.0.0.0 is the bind, sovereignty cost named (LAN/VPN exposure contained here only by the EDR). The operator's Android already crossed sync over Wi-Fi and 5G; the sidecar is now exposed for the FULL control-plane crossing. Runtime restarted (new tractor pid 271701), announcer religado, check green.",
+  "timestamp": "2026-07-22T22:20:32.285Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit 9672750b — tailnet discovery + MagicDNS handle; tailnet:test 4 green; sync proven over mesh IP and name."
+    "Runtime restarted with sidecar on 0.0.0.0; farm-hello full reach proven on host; doc corrected (commit pending push)."
   ],
   "blockers": [],
   "next_actions": [
-    "OPERATOR: join the phone to the tailnet (Tailscale Android app, same account aretw0@). Then on Termux: node scripts/farm-hello.mjs serpro-1577853 — NO IP, from mobile data (Wi-Fi off) — the first cross-device crossing. sync should be ✅ over the mesh; sidecar ❌ until sidecar exposure is decided (separate).",
-    "Once the phone is a peer, farm-hello with NO argument should auto-find it via tailnet peer enumeration — the true zero-typing path. Verify.",
-    "Then distribution rung 2 (bundle apps/refarm CLI to single .mjs, Release asset); Cloudflare tunnel for the public hub; Pears spec fatia 1 research. Optional: farm-announce could bridge the beacon over the tailnet, or a refarm net status reading tailscale status."
+    "OPERATOR RETRY NOW: on the phone (Wi-Fi or 5G), node scripts/farm-hello.mjs serpro-1577853 — should show BOTH sync ✅ and sidecar ✅, full reach. This is the complete cross-device crossing: the phone can now DRIVE the farm (efforts/chat), not just join the mesh.",
+    "Then: hub in the phone browser (refarm web serve with TLS + the tailnet name), and distribution rung 2 (bundle apps/refarm CLI to single .mjs, Release asset) so the phone runs refarm not scripts.",
+    "Sovereign follow-on: daemon dual-bind (loopback + mesh IP) so 0.0.0.0's broad exposure is not needed on machines without an inbound EDR; §8 tractor change via lock/handoff."
   ],
   "open_questions": [],
   "key_decisions_active": [
