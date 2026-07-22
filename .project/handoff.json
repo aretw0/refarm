@@ -1,15 +1,16 @@
 {
-  "context": "Checkpoint 2026-07-22 (5th). The no-token runtime e2e smoke now has a CI witness (bc4ed7c6): it rides the build-wasm job in test.yml, gated on run_task_smoke/tractor_gates paths, with a direct pnpm tractor build guaranteeing the release binary against turbo's outputs-less cache hits. This closes the loop the smoke's own rot exposed — drift without a scheduled witness stays invisible. Workflow validators (actions:pins, actions:contracts) pass; the smoke itself was proven locally in c678331f.",
-  "timestamp": "2026-07-22T12:46:18.896Z",
+  "context": "Checkpoint 2026-07-22 (7th) — STRATEGIC DIRECTION CHANGE by operator decision (Arthur): the handoff is not a dictator; the outward horizon (refarm operating through the operator's devices and platforms, individual and collective) outranks further inward daily-driver hardening. A reach map was compiled: the CRDT sync socket already binds 0.0.0.0:42000; the gaps were pointing and serving, not engineering. Two landed today: the hub derives/accepts its sync URL (c48e7033 — multi-device sync unblocked on the pointing side) and refarm serve gained --host (a034071a). The daily-driver loop remains legitimate where it unblocks reach.",
+  "timestamp": "2026-07-22T16:04:36.700Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit bc4ed7c6 ci(test): e2e mock smoke wired into build-wasm with path gates and timeout headroom."
+    "Commits c48e7033 (hub sync URL seam: env-validated + location-derived), a034071a (serve --host bind seam), 147a3745 (contract fixture hoist). All lanes green."
   ],
   "blockers": [],
   "next_actions": [
-    "Watch the first CI run of the new smoke step on the next push/PR (gh run watch --exit-status) — a CI-only environment difference (ports, HOME, cargo target) would surface there, not locally.",
-    "Daily-driver priority 1 continues: exercise runtime up → ask → session → resume → finish as real operator slices; fix what breaks.",
-    "Standing tails stay demand-driven: wallet follow-ons (OPFS, WASM signer), ADR-087 allowlist chewing, publication hold behind the daily-driver gate."
+    "Outward slice 3: farmhand HTTP sidecar bind parity with the Rust daemon (apps/farmhand/src/transports/http.ts hardcodes 127.0.0.1; read FARMHAND_HTTP_HOST like the daemon's --http-host).",
+    "Outward slice 4: a real 'refarm web serve <dir> --host' static server for apps/me/dist with COOP/COEP headers — the missing hub-serve command (spec already suggested in local-surface).",
+    "Outward slice 5 (the true wall): secure-context path for LAN — https/mkcert or tunnel so service worker + crossOriginIsolated (OPFS/WASM boot) work off-localhost. Then: hands-on proof from a real second device.",
+    "Interop lanes mapped for later: Pi->refarm effort submission already works via sidecar POST /efforts; channel contracts (Telegram et al) are consumer-owned in vault-seed; agents-lab needs the farmhand skill engine-binding."
   ],
   "open_questions": [],
   "key_decisions_active": [
