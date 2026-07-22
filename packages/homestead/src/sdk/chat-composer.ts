@@ -16,7 +16,9 @@
  * missing link between submit and the existing observation layer.
  */
 
-import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config";
+// The pure subpath, ON PURPOSE: the config ROOT's module body reaches node:fs,
+// and this SDK file ships in browser bundles (the hub's chat panel).
+import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config/plugin-identity";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 
 /** The source label a web-face turn carries, distinct from the CLI's `refarm-chat`. */

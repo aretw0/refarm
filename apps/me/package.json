@@ -19,9 +19,12 @@
 		"smoke:pwa": "node scripts/smoke-pwa.mjs",
 		"smoke:offline-roundtrip": "node scripts/smoke-offline-roundtrip.mjs",
 		"smoke:real-daemon-roundtrip": "node scripts/smoke-real-daemon-roundtrip.mjs",
-		"lint": "eslint src"
+		"lint": "eslint src",
+		"smoke:remote-device": "astro build && node scripts/smoke-remote-device-roundtrip.mjs"
 	},
 	"dependencies": {
+		"@refarm.dev/capabilities": "workspace:*",
+		"@refarm.dev/capabilities-v1": "workspace:*",
 		"@refarm.dev/capability-homestead-surface": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
 		"@refarm.dev/cli": "workspace:*",

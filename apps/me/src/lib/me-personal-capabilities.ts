@@ -1,10 +1,9 @@
-import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
 import {
-	buildJsonSuccessEnvelope,
-	createLocalCapabilityDeps,
-	defineCapabilityHost,
+	createCapabilityRegistry,
 	type CapabilityDescriptor,
-} from "@refarm.dev/capability-host";
+} from "@refarm.dev/capabilities";
+import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
+import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
 import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 
 export const REFARM_ME_PERSONAL_CAPABILITY_SURFACE_PLUGIN_ID =
@@ -98,17 +97,12 @@ export function createRefarmMePersonalCapabilitySurface(
 	status: () => RefarmMePersonalStatus,
 	options: { slot?: string } = {},
 ): RuntimePluginHandle {
-	const host = defineCapabilityHost({
-		id: "apps/me/personal",
-		command: "me",
-		description: "O espaço pessoal do cidadão",
-		version: "0.0.0",
-		capabilities: () => ({
-			deps: createLocalCapabilityDeps(),
-			extensions: createRefarmMePersonalCapabilities(status),
-		}),
-	});
-	return createCapabilityWebSurfacePlugin(host.registry(), {
+	// A PURE registry over the personal descriptors — deliberately NOT a
+	// defineCapabilityHost: the host mounts the builtin source/vault verbs, whose
+	// local deps reach node:fs/node:os and cannot exist in the browser. The hub
+	// runs in a real browser; this panel needs exactly its own two verbs.
+	const registry = createCapabilityRegistry(createRefarmMePersonalCapabilities(status));
+	return createCapabilityWebSurfacePlugin(registry, {
 		pluginId: REFARM_ME_PERSONAL_CAPABILITY_SURFACE_PLUGIN_ID,
 		name: "Refarm.me Personal Capabilities",
 		title: "Meu espaço pessoal",

@@ -1,42 +1,50 @@
-import { defineCapabilityHost } from "@refarm.dev/capability-host";
+import { createCapabilityRegistry } from "@refarm.dev/capabilities";
+import { defaultRecordsDeps } from "@refarm.dev/capabilities-v1/records-view";
+import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
 import type { RuntimePluginHandle } from "@refarm.dev/runtime";
-import { createWalletCapabilities, walletCapabilityBundle, walletWebSurface } from "@refarm.dev/wallet";
+import {
+	createInMemoryAuthorizationProviderFixture,
+	createWalletAuthorizeCapability,
+	createWalletConsentCapability,
+	createWalletDeclineCapability,
+	createWalletPresentCapability,
+	createWalletRequestCapability,
+	createWalletRevokeCapability,
+} from "@refarm.dev/wallet/browser";
 
 export const REFARM_ME_WALLET_SURFACE_PLUGIN_ID = "refarm-me-wallet-surface";
 
 /**
- * The citizen's WALLET as ONE surface of the hub — import/verify/hold credentials, purpose-bound
- * consent with selective disclosure of the citizen's VERIFIED attributes, and a sandboxed signer.
+ * The citizen's WALLET as ONE surface of the hub — the consent journey, live in the
+ * browser: a service REQUESTS attributes, the citizen SEES the pending consent and
+ * decides (consent/decline), authorizes a purpose-bound scope, PRESENTS only that
+ * scope, and can revoke it later.
  *
- * Composed from the reusable `@refarm.dev/wallet` block (the SAME block the standalone example
- * proves) — so the hub consumes the framework directly and depends on no example. It is one panel
- * AMONG the hub's several (the personal surface, chat, and future panels), never the hub itself.
- * With the shared surface's dispatch loop + arg-input forms, the mounted wallet is immediately
- * usable in the browser, not a snapshot. Out of the box it uses the block's in-memory backing
- * (offline, deterministic); a durable OPFS-backed store is a follow-on.
+ * Composed STRICTLY from `@refarm.dev/wallet/browser` — the wallet's isomorphic core.
+ * The main barrel's assembly (walletCapabilityBundle, credentials/verifier providers)
+ * imports `capability-host/node` + `node:fs` and CANNOT exist in a browser bundle;
+ * slice 3 originally mounted that barrel and the hub only booted in jsdom (where
+ * node modules exist) — the first real-browser drive of the built hub caught it.
+ * In-memory records + authorization fixture out of the box; durable OPFS backing and
+ * the WASM signer stay follow-ons.
  */
 export function createRefarmMeWalletSurface(
-	options: { statePath?: string; slot?: string } = {},
+	options: { slot?: string } = {},
 ): RuntimePluginHandle {
-	const { deps, records, credentialsProvider, identity, authorizationProvider, verifyPolicy } =
-		walletCapabilityBundle(options.statePath ? { statePath: options.statePath } : {});
-	const host = defineCapabilityHost({
-		id: "apps/me/wallet",
-		command: "wallet",
-		description: "Carteira do cidadão",
-		version: "0.0.0",
-		capabilities: () => ({
-			deps,
-			extensions: createWalletCapabilities(records, {
-				credentialsProvider,
-				identity,
-				authorizationProvider,
-				...(verifyPolicy ? { verifyPolicy } : {}),
-			}),
-		}),
-	});
-	return walletWebSurface(host.registry(), {
+	const records = defaultRecordsDeps();
+	const { provider } = createInMemoryAuthorizationProviderFixture();
+	const registry = createCapabilityRegistry([
+		createWalletRequestCapability(records),
+		createWalletConsentCapability(records),
+		createWalletDeclineCapability(records),
+		createWalletAuthorizeCapability(records, provider),
+		createWalletPresentCapability(records, provider),
+		createWalletRevokeCapability(records, provider),
+	]);
+	return createCapabilityWebSurfacePlugin(registry, {
 		pluginId: REFARM_ME_WALLET_SURFACE_PLUGIN_ID,
+		name: "Refarm.me Wallet",
+		title: "👜 Minha Carteira Digital",
 		...(options.slot ? { slot: options.slot } : {}),
 	}) as RuntimePluginHandle;
 }

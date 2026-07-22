@@ -43,6 +43,13 @@ export function coreAstroAliases(root) {
 		"@refarm.dev/homestead/ui": path.resolve(root, "packages/homestead/src/ui/index.ts"),
 		"@refarm.dev/tractor/browser": path.resolve(root, "packages/tractor-ts/src/index.browser.ts"),
 		"@refarm.dev/tractor": path.resolve(root, "packages/tractor-ts/src/index.browser.ts"),
+		// The subpath BEFORE the root: the root alias points at a FILE, so without
+		// this entry `@refarm.dev/config/plugin-identity` resolves to <file>/… and
+		// fails with "Not a directory". Order matters — vite matches in insertion order.
+		"@refarm.dev/config/plugin-identity": path.resolve(
+			root,
+			"packages/config/src/plugin-identity.js",
+		),
 		"@refarm.dev/config": path.resolve(root, "packages/config/src/index.js"),
 		"@refarm.dev/ds/styles/tokens.css": path.resolve(root, "packages/ds/src/tokens.css"),
 		"@refarm.dev/ds/styles/styles.css": path.resolve(root, "packages/ds/src/styles.css"),
