@@ -920,7 +920,9 @@ describe("resolveLaunchRuntime", () => {
 
 	it("uses Rust in auto mode when the Rust tractor binary exists", () => {
 		const repoRoot = join(tmpdir(), `refarm-runtime-rust-${Date.now()}`);
-		const binDir = join(repoRoot, "packages", "tractor", "target", "release");
+		// `.cargo/config.toml` (`target-dir = ".cache/cargo-target"`) resolves against the
+		// repo root, so this is where every default build actually puts the binary.
+		const binDir = join(repoRoot, ".cache", "cargo-target", "release");
 		mkdirSync(binDir, { recursive: true });
 		writeFileSync(join(binDir, process.platform === "win32" ? "tractor.exe" : "tractor"), "");
 
@@ -934,15 +936,56 @@ describe("resolveLaunchRuntime", () => {
 		}
 	});
 
+	it("uses Rust when explicitly configured and the workspace binary exists", () => {
+		const repoRoot = join(tmpdir(), `refarm-runtime-rust-explicit-${Date.now()}`);
+		const binDir = join(repoRoot, ".cache", "cargo-target", "release");
+		mkdirSync(binDir, { recursive: true });
+		writeFileSync(join(binDir, process.platform === "win32" ? "tractor.exe" : "tractor"), "");
+
+		try {
+			expect(resolveLaunchRuntime(repoRoot, "rust")).toMatchObject({
+				activeEngine: "rust",
+				reason: "configured-rust",
+			});
+		} finally {
+			rmSync(repoRoot, { recursive: true, force: true });
+		}
+	});
+
+	it("honors CARGO_TARGET_DIR over the workspace target dir", () => {
+		const repoRoot = join(tmpdir(), `refarm-runtime-rust-envdir-${Date.now()}`);
+		const overrideDir = join(repoRoot, "custom-target");
+		const binDir = join(overrideDir, "release");
+		mkdirSync(binDir, { recursive: true });
+		writeFileSync(join(binDir, process.platform === "win32" ? "tractor.exe" : "tractor"), "");
+		const saved = process.env.CARGO_TARGET_DIR;
+		process.env.CARGO_TARGET_DIR = overrideDir;
+
+		try {
+			expect(resolveLaunchRuntime(repoRoot, "rust")).toMatchObject({
+				activeEngine: "rust",
+				reason: "configured-rust",
+			});
+		} finally {
+			if (saved === undefined) delete process.env.CARGO_TARGET_DIR;
+			else process.env.CARGO_TARGET_DIR = saved;
+			rmSync(repoRoot, { recursive: true, force: true });
+		}
+	});
+
 	it("fails early when Rust is explicitly configured but the binary is absent", () => {
 		const repoRoot = join(tmpdir(), `refarm-runtime-rust-missing-${Date.now()}`);
 		mkdirSync(repoRoot, { recursive: true });
+		const saved = process.env.CARGO_TARGET_DIR;
+		delete process.env.CARGO_TARGET_DIR;
 
 		try {
+			// The guidance must name the path a default build will actually use.
 			expect(() => resolveLaunchRuntime(repoRoot, "rust")).toThrow(
-				/tractor\.engine=rust but the Rust tractor binary is not built/,
+				join(repoRoot, ".cache", "cargo-target"),
 			);
 		} finally {
+			if (saved !== undefined) process.env.CARGO_TARGET_DIR = saved;
 			rmSync(repoRoot, { recursive: true, force: true });
 		}
 	});

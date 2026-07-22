@@ -3,13 +3,13 @@
  * No readline REPL, no Commander. Just policy.
  */
 
+import { ambientActivitySink, newActivityRef } from "@refarm.dev/capabilities";
 import { executeProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
 	hasUsableModelCredential,
 	hasUsableModelCredentialSource,
 	modelCredentialSource,
 } from "@refarm.dev/config";
-import { ambientActivitySink, newActivityRef } from "@refarm.dev/capabilities";
 import { createStdioOperatorChannel, type OperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import {
 	autoStartRuntime as operatorAutoStartRuntime,
@@ -270,9 +270,11 @@ export async function readTractorEngineModeAsync(): Promise<TractorEngineMode> {
 }
 
 function tractorBinaryPath(repoRoot: string): string {
+	// Mirrors `.cargo/config.toml` (`target-dir = ".cache/cargo-target"`): cargo resolves
+	// that relative dir against the repo root, so every default build lands there.
 	const targetDir = process.env.CARGO_TARGET_DIR
 		? path.resolve(process.env.CARGO_TARGET_DIR)
-		: path.join(repoRoot, "packages", "tractor", "target");
+		: path.join(repoRoot, ".cache", "cargo-target");
 	return path.join(targetDir, "release", process.platform === "win32" ? "tractor.exe" : "tractor");
 }
 
