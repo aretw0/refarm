@@ -1,15 +1,15 @@
 {
-  "context": "Checkpoint 2026-07-22 (16th). FULL REACH proven on host: after restarting the runtime with REFARM_HTTP_HOST=0.0.0.0, the sidecar answers on BOTH 127.0.0.1:42001 (local tooling intact) and 100.105.71.127:42001 (mesh) — farm-hello by MagicDNS name reports sync ✅ AND sidecar ✅, exit 0. Corrected prior mesh-only guidance (breaks local tooling); 0.0.0.0 is the bind, sovereignty cost named (LAN/VPN exposure contained here only by the EDR). The operator's Android already crossed sync over Wi-Fi and 5G; the sidecar is now exposed for the FULL control-plane crossing. Runtime restarted (new tractor pid 271701), announcer religado, check green.",
-  "timestamp": "2026-07-22T22:20:32.285Z",
+  "context": "Checkpoint 2026-07-22 (17th). MILESTONE — a device DROVE the farm end to end: farm-ask (zero-dep) submits an effort to the sidecar and polls the result; FARM_HOST=serpro-1577853 farm-ask 'o que é o Refarm?' returned a real one-sentence answer from the host's model+agent over the tailnet. The full arc is closed: the phone reaches the mesh (sync), the control plane (sidecar), AND now uses the agent (efforts). This is 'usar o refarm através dos meus dispositivos' realized at the terminal level.",
+  "timestamp": "2026-07-22T22:44:59.907Z",
   "current_phase": "12",
   "current_tasks": [
-    "Runtime restarted with sidecar on 0.0.0.0; farm-hello full reach proven on host; doc corrected (commit pending push)."
+    "Commit (farm-ask + effort-result lib + 6 tests) — proven live over the mesh; sidecar exposed on 0.0.0.0 (tractor pid 271701)."
   ],
   "blockers": [],
   "next_actions": [
-    "OPERATOR RETRY NOW: on the phone (Wi-Fi or 5G), node scripts/farm-hello.mjs serpro-1577853 — should show BOTH sync ✅ and sidecar ✅, full reach. This is the complete cross-device crossing: the phone can now DRIVE the farm (efforts/chat), not just join the mesh.",
-    "Then: hub in the phone browser (refarm web serve with TLS + the tailnet name), and distribution rung 2 (bundle apps/refarm CLI to single .mjs, Release asset) so the phone runs refarm not scripts.",
-    "Sovereign follow-on: daemon dual-bind (loopback + mesh IP) so 0.0.0.0's broad exposure is not needed on machines without an inbound EDR; §8 tractor change via lock/handoff."
+    "OPERATOR: on the phone, FARM_HOST=serpro-1577853 node scripts/farm-ask.mjs 'sua pergunta' — ask the farm anything from Termux, over Wi-Fi or 5G. The daily driver in your pocket.",
+    "Next depth: the HUB in the phone browser (refarm web serve with TLS + tailnet name — the visual experience), and distribution rung 2 (bundle apps/refarm CLI to single .mjs Release asset so the phone runs refarm, not scripts).",
+    "Sovereign follow-ons unchanged: daemon dual-bind (loopback+mesh) to retire 0.0.0.0's broad exposure; Cloudflare tunnel for public hub; Pears P2P research."
   ],
   "open_questions": [],
   "key_decisions_active": [
