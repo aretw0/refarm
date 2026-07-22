@@ -1,15 +1,16 @@
 {
-  "context": "Checkpoint 2026-07-22 (9th). The outward horizon's five slices are ALL landed: sync URL seam (c48e7033), serve --host (a034071a), farmhand bind parity (8aba8583), web serve command (15a2da84), and the secure-context wall (f662d556) — https via --tls-cert/--tls-key plus a /sync WebSocket proxy so a secure page syncs same-origin to the plain-ws daemon. Proven live: https verified with isolation headers, wss handshake through the proxy to the real daemon. Ad-hoc-to-production note per operator: seams are named and tested; production polish (cert management, auth, tenancy) comes when parts launch officially.",
-  "timestamp": "2026-07-22T18:01:01.303Z",
+  "context": "Checkpoint 2026-07-22 (10th). The phone test became a TEST: smoke:remote-device drives real Chromium at the host's LAN https origin against the built hub — and its first run caught three browser-graph regressions (personal panel's node deps, wallet mounted via the node barrel instead of @refarm.dev/wallet/browser, chat-composer importing the config root), all fixed (8f8d2b67); the smoke now passes the full outward contract (081a6f41). farm-hello.mjs opens the Termux/Raspberry door: zero-dep device probe via git pull. Known issue: the dev-mode smoke's managed astro server accumulates stale daemons and vite first-load re-optimization churn — needs its own lifecycle slice; the built-dist smoke is authoritative.",
+  "timestamp": "2026-07-22T19:18:48.240Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit f662d556 — full secure chain proven end-to-end on this host."
+    "Commits 8f8d2b67, 081a6f41 — remote-device smoke green end-to-end; farm-hello green against the live daemon."
   ],
   "blockers": [],
   "next_actions": [
-    "The hands-on milestone is ready: mkcert (or self-signed) cert, refarm web serve apps/me/dist --host 0.0.0.0 --tls-cert --tls-key, phone on the LAN opens https://<host-ip>:4321 — service worker, OPFS/WASM boot, and /sync all should work. First live cross-device operation; capture what breaks.",
-    "Production lapidation backlog (when launching officially): cert provisioning UX (mkcert helper or refarm-issued CA), identity/auth on the hub (today: stub citizen identity, no-op signer), tenancy for the collective use.",
-    "Interop lanes unchanged: Pi->refarm POST /efforts works; channels consumer-owned; agents-lab skill engine-binding pending."
+    "LIVE with the operator: on the phone (Termux: pkg install git nodejs), git clone/pull develop, node scripts/farm-hello.mjs <host-ip>. WS probe should pass already; the sidecar probe needs the daemon started with --http-host 0.0.0.0. Then the browser milestone via smoke:remote-device's manual twin.",
+    "Pears/Holepunch assimilation spec (operator direction): P2P transport as a seam for sync (hyperswarm-style hole punching vs LAN ws), Pear as a distribution channel — write the spec in docs/superpowers/specs before any code, agents-lab-portability style.",
+    "Raspberry Pi lane: Node path first (farm-hello → farmhand TS engine on ARM), Rust tractor aarch64 later; same git-pull distribution as Termux.",
+    "Dev-mode smoke lifecycle slice: stale astro daemons + vite optimize churn made the dev harness flaky; the reload retry is in, the server lifecycle needs ownership."
   ],
   "open_questions": [],
   "key_decisions_active": [
