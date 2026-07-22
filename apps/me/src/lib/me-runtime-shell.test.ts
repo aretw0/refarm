@@ -3,6 +3,7 @@ import type { StudioHostTelemetryEvent } from "@refarm.dev/homestead/sdk";
 import type { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
 import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { REFARM_ME_PERSONAL_CAPABILITY_SURFACE_PLUGIN_ID } from "./me-personal-capabilities";
 import { bootRefarmMeWorkbench, REFARM_ME_LOADING_ID } from "./me-runtime";
 import {
 	REFARM_ME_IDENTITY_STATUS,
@@ -90,10 +91,12 @@ describe("refarm.me real shell runtime", () => {
 				pluginId: REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
 			}),
 		);
-		// The hub mounts the personal surface AND the wallet — one panel among several.
+		// The hub mounts the personal hero, the wallet, AND the registry-derived personal
+		// panel — several panels, one hub (convergence Slices 2 + 3).
 		expect(workbench.surfacePluginIds).toEqual([
 			REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
 			REFARM_ME_WALLET_SURFACE_PLUGIN_ID,
+			REFARM_ME_PERSONAL_CAPABILITY_SURFACE_PLUGIN_ID,
 		]);
 		// The wallet (from the reusable @refarm.dev/wallet block) mounted as a real panel in the hub.
 		const walletSurface = document.querySelector(
@@ -102,6 +105,13 @@ describe("refarm.me real shell runtime", () => {
 		expect(walletSurface).not.toBeNull();
 		expect(walletSurface?.getAttribute("data-refarm-slot-id")).toBe("main");
 		expect(walletSurface?.textContent).toContain("Minha Carteira Digital");
+		// The registry-derived personal panel (Slice 2) mounts BESIDE the bespoke hero — the
+		// product dogfooding the same capability-web primitive the examples use.
+		const personalCapabilitySurface = document.querySelector(
+			`[data-refarm-plugin-id="${REFARM_ME_PERSONAL_CAPABILITY_SURFACE_PLUGIN_ID}"]`,
+		);
+		expect(personalCapabilitySurface).not.toBeNull();
+		expect(personalCapabilitySurface?.textContent).toContain("Meu espaço pessoal");
 	});
 });
 

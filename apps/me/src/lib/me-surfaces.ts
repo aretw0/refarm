@@ -13,6 +13,10 @@ import {
 } from "@refarm.dev/homestead/sdk/surface-renderer";
 import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 
+import {
+	createRefarmMePersonalCapabilitySurface,
+	type RefarmMePersonalStatus,
+} from "./me-personal-capabilities";
 import { createRefarmMeWalletSurface } from "./me-wallet";
 
 export const REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID = "refarm-me-personal-surface";
@@ -53,6 +57,7 @@ export interface RefarmMeSurfaceContextOptions {
 
 export function createRefarmMeSurfacePlugins(
 	emitTelemetry: RefarmMeSurfaceTelemetry = () => {},
+	personalStatus: () => RefarmMePersonalStatus = defaultRefarmMePersonalStatus,
 ): RuntimePluginHandle[] {
 	return [
 		createHomesteadSurfacePluginHandle({
@@ -78,7 +83,28 @@ export function createRefarmMeSurfacePlugins(
 		// framework directly; it depends on no example. Interactive out of the box (dispatch loop +
 		// arg forms), it lets the citizen import → verify → authorize → present inside their own hub.
 		createRefarmMeWalletSurface(),
+		// The personal panel DERIVED from a registry (convergence Slice 2) — the product dogfoods
+		// createCapabilityWebSurfacePlugin, the same primitive the examples and the wallet use.
+		// Mounted ALONGSIDE the bespoke hero, never replacing it: the hub keeps its breadth.
+		createRefarmMePersonalCapabilitySurface(personalStatus),
 	];
+}
+
+/** The hero panel's own defaults, served as the registry verbs' baseline — one source of
+ *  truth for what the hub says about itself before live wiring supplies real data. */
+export function defaultRefarmMePersonalStatus(): RefarmMePersonalStatus {
+	return {
+		profileName: "My Sovereign Space",
+		identityStatus: REFARM_ME_IDENTITY_STATUS,
+		syncStatus: REFARM_ME_SYNC_STATUS,
+		graphMode: REFARM_ME_GRAPH_MODE,
+		storageScope: "refarm-me-main",
+		syncScope: "citizen",
+		pluginRegistryCount: 0,
+		discoveredContentPluginCount: 0,
+		referenceDriverCapabilityIds: [],
+		scheduledWorkSummary: null,
+	};
 }
 
 export function renderRefarmMePersonalSurface(

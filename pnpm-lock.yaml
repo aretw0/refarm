@@ -272,6 +272,9 @@ importers:
 
   apps/me:
     dependencies:
+      '@refarm.dev/capability-homestead-surface':
+        specifier: workspace:*
+        version: link:../../packages/capability-homestead-surface
       '@refarm.dev/capability-host':
         specifier: workspace:*
         version: link:../../packages/capability-host
@@ -12813,7 +12816,7 @@ snapshots:
       unstorage: 1.17.5
       vfile: 6.0.3
       vite: 8.0.16(@types/node@25.8.0)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
-      vitefu: 1.1.3(vite@8.0.16(@types/node@25.8.0)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
+      vitefu: 1.1.3(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
       xxhash-wasm: 1.1.0
       yargs-parser: 22.0.0
       zod: 4.4.3
@@ -17317,10 +17320,6 @@ snapshots:
       terser: 5.47.1
       tsx: 4.23.0
       yaml: 2.9.0
-
-  vitefu@1.1.3(vite@8.0.16(@types/node@25.8.0)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)):
-    optionalDependencies:
-      vite: 8.0.16(@types/node@25.8.0)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
 
   vitefu@1.1.3(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)):
     optionalDependencies:
