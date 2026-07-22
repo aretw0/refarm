@@ -250,6 +250,7 @@
 		"farm:beacon:test": "node --test scripts/ci/test-farm-beacon.mjs",
 		"tailnet:test": "node --test scripts/ci/test-tailnet.mjs",
 		"effort-result:test": "node --test scripts/ci/test-effort-result.mjs",
+		"farm-client:decoupled:test": "node --test scripts/ci/test-farm-client-decoupled.mjs",
 		"clean:rust": "bash scripts/rust-clean.sh",
 		"clean:rust:full": "bash scripts/rust-clean.sh --full",
 		"clean:rust:check": "bash scripts/rust-clean.sh --check",
