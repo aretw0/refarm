@@ -1,16 +1,16 @@
 {
-  "context": "Checkpoint 2026-07-22. Runtime unblocked: session-launch now resolves the tractor binary at the .cargo/config.toml workspace target dir (.cache/cargo-target), so a clean checkout builds and comes up rust-active without CARGO_TARGET_DIR exported by hand. Affected-workspace lint gate is green again after dropping the import fd6af5ab orphaned.",
-  "timestamp": "2026-07-22T02:39:59.335Z",
+  "context": "Checkpoint 2026-07-22 (2nd). Three lanes closed this cycle: (1) one shared cargo-target resolver for all scripts (34c8ab79) — seven divergent copies retired; (2) ADR-087 phase 6 — generalized brand source-guard (release:brand:guard) landed and immediately caught+fixed two live leaks in operator-resume and context-provider-v1, with the untracked renderer/contract identifiers inventoried in the ADR as decide-before-publication (f23a66c0); (3) vault-seed-ready packet rematerialized at .refarm/handoff/vault-seed/2026-07-22 — 23 tarballs accepted, 72 checks, consumer-install verifier OK, health doc drift reconciled (75ad78cb). These lanes are DONE for this cycle — do not reopen as standalone grinds.",
+  "timestamp": "2026-07-22T04:06:34.103Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit 241ed432 fix(refarm): look for the tractor binary where cargo actually puts it.",
-    "Commit 255087a8 fix(refarm): drop the import fd6af5ab orphaned.",
-    "Validation: pnpm -C apps/refarm run test -- session-launch (1607 passing); turbo type-check lint build --filter=./apps/refarm; refarm agent finish --lane after-edit and after-commit both ok; refarm check --next-action --json passes with rust engine active and 23/23 efforts delivered."
+    "Commits 34c8ab79, f23a66c0, 75ad78cb — all through after-edit/after-commit lanes.",
+    "Validation: cargo:target:test 5/5; release:brand:guard 3/3; packages/cli 254 tests; context-provider-v1 35 tests; release:vault-seed:check 23/23 dry-run; consumer-install --latest-accepted OK at SHA f23a66c0."
   ],
   "blockers": [],
   "next_actions": [
-    "Continue naming audit/split before publish: avoid Refarm-branded terms in SDK surfaces that should be provider/product neutral.",
-    "Return to package readiness/publication lane for vault-seed-ready primitives, using .refarm/handoff for local tarball handoffs."
+    "Converge other fronts: wallet/apps-me convergence (docs/superpowers/specs/2026-07-16-wallet-block-apps-me-convergence.md) and daily-driver readiness — start from refarm resume --json as always.",
+    "Brand tail (ADR-087 phase-6 inventory + allowlist): chew opportunistically when a listed package is touched for another reason; the renderer/contract identifier renames need a human decision before public publication.",
+    "Public npm publication stays held behind the daily-driver gate; the local tarball lane is proven repeatable whenever vault-seed needs a refresh."
   ],
   "open_questions": [],
   "key_decisions_active": [
