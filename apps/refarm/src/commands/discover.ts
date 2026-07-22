@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { networkInterfaces } from "node:os";
 import { dirname, join } from "node:path";
 
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
@@ -22,6 +23,11 @@ import { findRepoRoot } from "./session-launch.js";
  * and stop actually stops. Announcing stays opt-in: this command is the opt-in.
  */
 
+export interface DiscoverFarmAddress {
+	address: string;
+	interface: string;
+}
+
 export interface DiscoverAnnounceDeps {
 	repoRoot(): string;
 	startDetached(spec: ProcessHandoffSpec, options: { logPath: string }): { pid?: number };
@@ -30,6 +36,20 @@ export interface DiscoverAnnounceDeps {
 	readPid(pidFile: string): number | null;
 	writePid(pidFile: string, pid: number): void;
 	removePid(pidFile: string): void;
+	/** The farm's reachable IPv4 addresses — surfaced so an operator (or wizard)
+	 *  can hand a device an explicit address when discovery is filtered. */
+	listAddresses?(): DiscoverFarmAddress[];
+}
+
+function defaultListAddresses(): DiscoverFarmAddress[] {
+	const addresses: DiscoverFarmAddress[] = [];
+	for (const [name, entries] of Object.entries(networkInterfaces())) {
+		for (const entry of entries ?? []) {
+			if (entry.family !== "IPv4" || entry.internal) continue;
+			addresses.push({ address: entry.address, interface: name });
+		}
+	}
+	return addresses;
 }
 
 function defaultDeps(): DiscoverAnnounceDeps {
@@ -84,6 +104,7 @@ const START_COMMAND_ARGS = ["discover", "announce", "--json"];
 
 /** One shape for every announce outcome — the optional discriminants tell the story. */
 export interface DiscoverAnnounceResult {
+	addresses?: DiscoverFarmAddress[];
 	command?: string;
 	operation?: string;
 	ok: boolean;
@@ -108,6 +129,7 @@ export function announceStatus(
 	const pidFile = announcePidFile(deps);
 	const pid = deps.readPid(pidFile);
 	const running = pid !== null && deps.processAlive(pid);
+	const addresses = (deps.listAddresses ?? defaultListAddresses)();
 	const nextCommand = running
 		? refarmCommand(STOP_COMMAND_ARGS)
 		: refarmCommand(START_COMMAND_ARGS);
@@ -117,10 +139,11 @@ export function announceStatus(
 			operation: "announce-status",
 			nextCommand,
 			nextCommands: [nextCommand],
-			extra: { running, ...(running && pid ? { pid } : {}), pidFile },
+			extra: { running, ...(running && pid ? { pid } : {}), pidFile, addresses },
 		}),
 		running,
 		...(running && pid ? { pid } : {}),
+		addresses,
 	};
 }
 
@@ -235,6 +258,9 @@ export function createDiscoverCommand(deps: DiscoverAnnounceDeps = defaultDeps()
 						? `📣 anunciando (pid ${result.pid}) — pare com: ${result.nextCommand}`
 						: `silencioso — anuncie com: ${result.nextCommand}`,
 				);
+				for (const entry of result.addresses ?? []) {
+					console.log(`   fazenda alcançável em ${entry.address} (${entry.interface})`);
+				}
 				return;
 			}
 			if ("stopped" in result || "alreadyStopped" in result) {

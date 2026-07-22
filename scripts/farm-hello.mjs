@@ -18,12 +18,13 @@
  *   1. HTTP sidecar (http://<host>:42001/plugins) — is the farm's control plane up?
  *   2. CRDT WebSocket (ws://<host>:42000) — can this device join the sync mesh?
  */
-import { discoverFarms } from "./lib/farm-beacon.mjs";
+import { defaultProbeTargets, discoverFarms } from "./lib/farm-beacon.mjs";
 
 async function resolveHost() {
   const explicit = process.argv[2] ?? process.env.FARM_HOST;
   if (explicit) return { host: explicit, via: "explícito" };
-  const farms = await discoverFarms();
+  const targets = defaultProbeTargets();
+  const farms = await discoverFarms({ targets });
   if (farms.length === 1) {
     return { host: farms[0].address, via: `descoberto (${farms[0].name})` };
   }
@@ -34,7 +35,14 @@ async function resolveHost() {
     }
     process.exit(1);
   }
-  console.log("🔎 Nenhuma fazenda anunciando na rede (o host roda farm-announce.mjs?).");
+  console.log("🔎 Nenhuma fazenda respondeu ao probe. Onde procurei (broadcast udp/42002):");
+  for (const target of targets) {
+    console.log(`   ${target.address}`);
+  }
+  console.log("   Possíveis causas: anunciante parado no host (refarm discover announce),");
+  console.log("   roteador com isolamento de clientes/broadcast filtrado, ou redes distintas.");
+  console.log("   Teste direto: node scripts/farm-hello.mjs <IP-do-host>");
+  console.log("   (no host, `refarm discover announce --status` lista os IPs da fazenda)");
   console.log("   Tentando localhost…");
   return { host: "127.0.0.1", via: "fallback localhost" };
 }

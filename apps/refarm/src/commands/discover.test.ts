@@ -70,6 +70,20 @@ describe("refarm discover announce — the managed LAN announcer", () => {
 		expect(status.pid).toBe(4242);
 	});
 
+	it("status lists the farm's reachable addresses — no operator guessing", () => {
+		const deps = makeDeps({
+			listAddresses: () => [
+				{ address: "192.168.0.7", interface: "wlp0s20f3" },
+				{ address: "172.24.38.251", interface: "ovpntun0" },
+			],
+		});
+		const status = announceStatus(deps);
+		expect(status.addresses).toEqual([
+			{ address: "192.168.0.7", interface: "wlp0s20f3" },
+			{ address: "172.24.38.251", interface: "ovpntun0" },
+		]);
+	});
+
 	it("stop kills the announcer, removes the pidfile, and hands off to start", () => {
 		const deps = makeDeps();
 		startAnnounce(deps);
