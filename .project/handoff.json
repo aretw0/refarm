@@ -1,16 +1,15 @@
 {
-  "context": "Checkpoint 2026-07-22 (10th). The phone test became a TEST: smoke:remote-device drives real Chromium at the host's LAN https origin against the built hub — and its first run caught three browser-graph regressions (personal panel's node deps, wallet mounted via the node barrel instead of @refarm.dev/wallet/browser, chat-composer importing the config root), all fixed (8f8d2b67); the smoke now passes the full outward contract (081a6f41). farm-hello.mjs opens the Termux/Raspberry door: zero-dep device probe via git pull. Known issue: the dev-mode smoke's managed astro server accumulates stale daemons and vite first-load re-optimization churn — needs its own lifecycle slice; the built-dist smoke is authoritative.",
-  "timestamp": "2026-07-22T19:18:48.240Z",
+  "context": "Checkpoint 2026-07-22 (11th). MILESTONE: farm-hello RAN ON THE OPERATOR'S ANDROID (Termux, arm64) straight from git pull — first foreign device executing refarm code. Its probes failed honestly (no announcer up; localhost fallback found no farm on the phone). Sovereignty answer landed: refarm discover announce (governed detached announcer, pidfile+log+status/stop) — no long-lived process dangles. Announcer is RUNNING on this host awaiting the phone's retry.",
+  "timestamp": "2026-07-22T20:14:22.465Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commits 8f8d2b67, 081a6f41 — remote-device smoke green end-to-end; farm-hello green against the live daemon."
+    "Commit 0aa7d737 (beacon primitive + auto-discovery) and this one — all lanes green incl. handoffs."
   ],
   "blockers": [],
   "next_actions": [
-    "LIVE with the operator: on the phone (Termux: pkg install git nodejs), git clone/pull develop, node scripts/farm-hello.mjs <host-ip>. WS probe should pass already; the sidecar probe needs the daemon started with --http-host 0.0.0.0. Then the browser milestone via smoke:remote-device's manual twin.",
-    "Pears/Holepunch assimilation spec (operator direction): P2P transport as a seam for sync (hyperswarm-style hole punching vs LAN ws), Pear as a distribution channel — write the spec in docs/superpowers/specs before any code, agents-lab-portability style.",
-    "Raspberry Pi lane: Node path first (farm-hello → farmhand TS engine on ARM), Rust tractor aarch64 later; same git-pull distribution as Termux.",
-    "Dev-mode smoke lifecycle slice: stale astro daemons + vite optimize churn made the dev harness flaky; the reload retry is in, the server lifecycle needs ownership."
+    "LIVE RETRY with the phone: announcer is up (refarm discover announce --status); operator re-runs node scripts/farm-hello.mjs on Termux. If discovery still finds nothing, debug network segmentation (AP isolation / phone on different SSID); WS probe via explicit IP is the fallback test.",
+    "Sidecar exposure stays the operator's explicit call (--http-host 0.0.0.0); document a governed path for it next (refarm runtime flag rather than hand-run tractor).",
+    "Pears assimilation spec + Raspberry lane unchanged; beacon promotes to a package block when the hub wizard or Pi consumes the codec."
   ],
   "open_questions": [],
   "key_decisions_active": [
