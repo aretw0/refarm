@@ -1,15 +1,15 @@
 {
-  "context": "Checkpoint 2026-07-22 (11th). MILESTONE: farm-hello RAN ON THE OPERATOR'S ANDROID (Termux, arm64) straight from git pull — first foreign device executing refarm code. Its probes failed honestly (no announcer up; localhost fallback found no farm on the phone). Sovereignty answer landed: refarm discover announce (governed detached announcer, pidfile+log+status/stop) — no long-lived process dangles. Announcer is RUNNING on this host awaiting the phone's retry.",
-  "timestamp": "2026-07-22T20:14:22.465Z",
+  "context": "Checkpoint 2026-07-22 (12th). Phone probe data proved both devices share the /24 — the router filters broadcast AND multicast between clients. Dialect 3 landed (3a35350a): bounded unicast sweep of the /24 (refuses wider subnets), staged after the cheap dialects, with farm-name dedup and own-subnet address preference. Operator raised the DISTRIBUTION question: stop running ad-hoc scripts on the phone, build refarm ON THE PC and hand the device a finished artifact — the script only bootstraps and fetches.",
+  "timestamp": "2026-07-22T20:50:22.648Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit 0aa7d737 (beacon primitive + auto-discovery) and this one — all lanes green incl. handoffs."
+    "Commits 25357674 (multicast + Pears spec), 3a35350a (unicast sweep) — pushed pending; beacon suite 6 green."
   ],
   "blockers": [],
   "next_actions": [
-    "LIVE RETRY with the phone: announcer is up (refarm discover announce --status); operator re-runs node scripts/farm-hello.mjs on Termux. If discovery still finds nothing, debug network segmentation (AP isolation / phone on different SSID); WS probe via explicit IP is the fallback test.",
-    "Sidecar exposure stays the operator's explicit call (--http-host 0.0.0.0); document a governed path for it next (refarm runtime flag rather than hand-run tractor).",
-    "Pears assimilation spec + Raspberry lane unchanged; beacon promotes to a package block when the hub wizard or Pi consumes the codec."
+    "RETRY on the phone after git pull: plain farm-hello — the sweep should find the farm if client unicast passes; if even that fails, AP isolation is total and the P2P rail (Pears spec fatia 2) becomes the only LAN-independent path.",
+    "Device distribution channel (operator direction): rung 1 git-pull (current); rung 2 single-file device CLI bundled ON the PC (esbuild-class bundler as devDep, apps/refarm dist -> one .mjs; verify no native deps in the CLI graph), delivered via GitHub Release asset — never committed dist (source sovereignty); farm-hello gains a fetch-once bootstrap. Rung 3: device CLI pointed at the farm through the governed tunnel, not raw sidecar exposure. Rung 4: bare/Pears runtime as the true mobile citizen (spec fatia 1 research).",
+    "Feedback loop com o Android é o laboratório: cada limitação encontrada (broadcast filtrado, multicast filtrado, contexto seguro, agora distribuição) virou primitiva ou spec no mesmo dia — manter esse ritmo."
   ],
   "open_questions": [],
   "key_decisions_active": [
