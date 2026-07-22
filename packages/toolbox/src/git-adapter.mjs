@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { loadConfig } from "@refarm.dev/config";
 
 let resolvedGitHost = "github";
@@ -17,8 +17,8 @@ export const gitUrlAdapter = {
 	checkCli: () => {
 		if (gitHost === "github") {
 			try {
-				execSync("gh --version", { encoding: "utf8", stdio: "pipe" });
-				execSync("gh auth status", { encoding: "utf8", stdio: "pipe" });
+				execFileSync("gh", ["--version"], { encoding: "utf8", stdio: "pipe" });
+				execFileSync("gh", ["auth", "status"], { encoding: "utf8", stdio: "pipe" });
 				return true;
 			} catch {
 				return false;
@@ -30,7 +30,7 @@ export const gitUrlAdapter = {
 	issue: {
 		view: (id) => {
 			if (gitHost === "github") {
-				return execSync(`gh issue view ${id} --json title`, {
+				return execFileSync("gh", ["issue", "view", String(id), "--json", "title"], {
 					encoding: "utf8",
 					stdio: "pipe",
 				}).trim();
@@ -42,10 +42,16 @@ export const gitUrlAdapter = {
 		},
 		create: (title, label, body) => {
 			if (gitHost === "github") {
-				return execSync(`gh issue create --title "${title}" --label "${label}" --body "${body}"`, {
-					encoding: "utf8",
-					stdio: "pipe",
-				}).trim();
+				// argv elements, never a shell string — issue titles/bodies are
+				// arbitrary text and must stay inert (no interpolation surface).
+				return execFileSync(
+					"gh",
+					["issue", "create", "--title", title, "--label", label, "--body", body],
+					{
+						encoding: "utf8",
+						stdio: "pipe",
+					},
+				).trim();
 			} else {
 				throw new Error(
 					`Git host adapter for '${gitHost}' is not implemented yet. Supported: github`,
@@ -69,9 +75,11 @@ export const gitUrlAdapter = {
 		ensure: (name, color, description) => {
 			if (gitHost === "github") {
 				try {
-					execSync(`gh label create "${name}" --color "${color}" --description "${description}"`, {
-						stdio: "pipe",
-					});
+					execFileSync(
+						"gh",
+						["label", "create", name, "--color", color, "--description", description],
+						{ stdio: "pipe" },
+					);
 				} catch (err) {
 					// Label likely already exists, we skip
 				}
