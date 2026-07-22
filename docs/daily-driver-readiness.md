@@ -81,6 +81,14 @@ What is already solid:
   `apps/refarm`, started an isolated runtime, captured two model-mock requests,
   produced two stream files, and returned executable handoffs for plugin
   status, `ask`, task status/logs, task resume, and top-level resume.
+- 2026-07-22 host-checkout validation ran `pnpm run refarm:agent:e2e:mock`
+  directly (the lane's nested spawn is sandbox-restricted; the direct command is
+  the documented fallback) and passed end-to-end with the Rust engine for the
+  first time on a plain host: responder election, mock `ask`, task dispatch,
+  stream files, and resume handoffs. The run surfaced and fixed two silent
+  drifts in the smoke itself — it booted the raw wasm without the manifest the
+  responder election reads, and its asserts predated the `urn:sovereign:*` URN
+  migration (c678331f).
 - The no-token e2e path now builds `@refarm.dev/agent` on a Windows-mounted
   checkout without relying on Git symlinks for WIT imports; `check:wit` guards
   the copied host WIT against drift from the canonical `plugin-wit`

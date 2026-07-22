@@ -1,16 +1,16 @@
 {
-  "context": "Checkpoint 2026-07-22 (3rd). Wallet/apps-me convergence: all three mandatory slices DONE. Slice 2 landed today (bf7a9411): the hub's personal panel gained a registry-derived twin (verbs status/profile as honest envelopes) via createCapabilityWebSurfacePlugin, mounted ALONGSIDE the bespoke hero — the 'mount BOTH' option, hub breadth preserved. Slices 1 (packages/wallet extraction) and 3 (wallet mounted in hub, aef05a02) were already in. Spec updated with status.",
-  "timestamp": "2026-07-22T04:38:21.577Z",
+  "context": "Checkpoint 2026-07-22 (4th). Daily-driver front: the no-token execution-plane gate (refarm:agent:e2e:mock) passes end-to-end on this host with the Rust engine for the first time. Running it surfaced two silent drifts in the smoke itself, both fixed (c678331f): it booted the raw wasm without the manifest the responder election reads (now materializes plugin.wasm+plugin.json like load_plugin_by_hash), and its asserts predated the urn:sovereign URN migration (also fixed in the tree smoke stubs). ADR-087 orbit closed per operator direction: the ratchet guard automates vigilance; no more standalone brand work.",
+  "timestamp": "2026-07-22T11:36:02.796Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit bf7a9411 feat(apps/me): personal panel's registry twin — 27 tests passing incl. jsdom shell asserting all three panels mount.",
-    "Spec docs/superpowers/specs/2026-07-16-wallet-block-apps-me-convergence.md marked slices 1-3 done."
+    "Commit c678331f fix(ci): e2e mock smoke materializes the plugin pair + URN asserts updated.",
+    "Validation: pnpm run refarm:agent:e2e:mock exit 0 (plugin elected, mock ask, task dispatch, 2 stream files, resume handoffs); smoke-refarm-tree-cli passed; after-edit/after-commit lanes ok."
   ],
   "blockers": [],
   "next_actions": [
-    "Optional follow-ons on the wallet front, take only when consumer demand appears: slice 4 (sovereign WASM signer backing the hub wallet) and the durable OPFS-backed wallet store (today: in-memory, resets on reload).",
-    "Wire live hub data into the personal capability host's status thunk (createRefarmMeSurfacePlugins second arg) when me-runtime has real identity/sync state to serve.",
-    "Daily-driver readiness remains the standing convergence gate; brand tail stays governed in ADR-087 for opportunistic chewing."
+    "Daily-driver priority 1 continues: keep exercising runtime up → ask → session → resume → finish as real operator slices and fix what breaks; the readiness doc records both validations (devcontainer 06-13, host 07-22).",
+    "Consider wiring the e2e mock smoke (or a cheap subset) into CI — its two drifts stayed invisible precisely because no workflow runs it.",
+    "Wallet follow-ons stay demand-driven (OPFS store, WASM signer); brand tail stays governed in ADR-087."
   ],
   "open_questions": [],
   "key_decisions_active": [
