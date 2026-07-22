@@ -28,6 +28,7 @@ import {
 	resolveStatusPayload,
 	type ResolveStatusPayloadResult,
 } from "./status.js";
+import { createWebServeCommand } from "./web-serve.js";
 const WEB_LAUNCHER_MODES = ["dev", "preview"] as const;
 
 export type RefarmWebLauncherMode = (typeof WEB_LAUNCHER_MODES)[number];
@@ -138,6 +139,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 
 	return new Command("web")
 		.description("Report web renderer posture and optionally launch local web runtime")
+		.addCommand(createWebServeCommand())
 		.addHelpText(
 			"after",
 			[
