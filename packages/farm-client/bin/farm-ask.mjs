@@ -6,12 +6,17 @@
  * runs from `git pull` on Termux or a Raspberry — nothing installed but git+node.
  *
  * Usage:
- *   FARM_HOST=serpro-1577853 node scripts/farm-ask.mjs "quem é você?"
- *   node scripts/farm-ask.mjs "olá"        # FARM_HOST unset → tailnet, then localhost
+ *   FARM_HOST=serpro-1577853 farm-ask "quem é você?"
+ *   farm-ask "olá"                          # FARM_HOST unset → tailnet, then localhost
+ *
+ * Route to a specific model (e.g. a worker-quota model) — omit to use the
+ * farm's default route:
+ *   FARM_PROVIDER=openai-codex FARM_MODEL=gpt-5.3-codex-spark farm-ask "tarefa"
  *
  * It submits an effort to the farm's sidecar (POST /efforts) and polls the
  * result (GET /efforts/:id) until the agent answers.
  */
+import { buildRespondEffort } from "../src/effort.mjs";
 import { extractAnswer, isSuccessEffort, isTerminalEffort } from "../src/effort-result.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
 
@@ -46,26 +51,12 @@ async function resolveHost() {
   return "127.0.0.1";
 }
 
-function uuid() {
-  return crypto.randomUUID();
-}
-
-function buildEffort(text) {
-  return {
-    id: uuid(),
-    direction: "ask",
-    tasks: [
-      {
-        id: uuid(),
-        pluginId: "@refarm/agent",
-        fn: "respond",
-        args: { prompt: text, history_turns: 0 },
-      },
-    ],
-    source: "farm-ask",
-    submittedAt: new Date().toISOString(),
-  };
-}
+// Optional route: a worker-quota model (or any specific model) via env.
+// Absent → the farm's default route decides.
+const route = {
+  ...(process.env.FARM_PROVIDER ? { provider: process.env.FARM_PROVIDER } : {}),
+  ...(process.env.FARM_MODEL ? { model: process.env.FARM_MODEL } : {}),
+};
 
 const host = await resolveHost();
 const base = `http://${host}:${HTTP_PORT}`;
@@ -77,14 +68,15 @@ if (!(await sidecarUp(host))) {
   process.exit(1);
 }
 
-console.log(`\n🌱 farm-ask → ${host}\n▸ ${prompt}\n`);
+const routeLabel = route.model ? ` [${route.provider ?? "?"}/${route.model}]` : "";
+console.log(`\n🌱 farm-ask → ${host}${routeLabel}\n▸ ${prompt}\n`);
 
 let effortId;
 try {
   const res = await fetch(`${base}/efforts`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(buildEffort(prompt)),
+    body: JSON.stringify(buildRespondEffort(prompt, route)),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   effortId = (await res.json()).effortId;
