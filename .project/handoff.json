@@ -1,15 +1,15 @@
 {
-  "context": "Checkpoint 2026-07-22 (8th). Outward slices 3 and 4 landed: FARMHAND_HTTP_HOST bind parity (8aba8583) and the refarm web serve command (15a2da84) — the built hub served with COOP/COEP/CORP, proven end-to-end via the compiled CLI against apps/me/dist. The remaining wall is the secure context: off-localhost origins need HTTPS for service worker + crossOriginIsolated, so the hub's OPFS/WASM runtime boots on another device.",
-  "timestamp": "2026-07-22T16:48:49.306Z",
+  "context": "Checkpoint 2026-07-22 (9th). The outward horizon's five slices are ALL landed: sync URL seam (c48e7033), serve --host (a034071a), farmhand bind parity (8aba8583), web serve command (15a2da84), and the secure-context wall (f662d556) — https via --tls-cert/--tls-key plus a /sync WebSocket proxy so a secure page syncs same-origin to the plain-ws daemon. Proven live: https verified with isolation headers, wss handshake through the proxy to the real daemon. Ad-hoc-to-production note per operator: seams are named and tested; production polish (cert management, auth, tenancy) comes when parts launch officially.",
+  "timestamp": "2026-07-22T18:01:01.303Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commits 8aba8583, 15a2da84 — lanes green, e2e proof recorded."
+    "Commit f662d556 — full secure chain proven end-to-end on this host."
   ],
   "blockers": [],
   "next_actions": [
-    "Secure-context path (slice 5): mkcert/self-signed HTTPS option on web serve, or a documented tunnel recipe — then the hands-on proof: open the hub from a real second device, watch sync connect.",
-    "Hands-on session with the operator: serve apps/me/dist with --host 0.0.0.0, daemon already on 0.0.0.0:42000, walk the phone through it — the first live cross-device operation.",
-    "Interop lanes stay mapped: Pi->refarm via POST /efforts works today; channels are consumer-owned in vault-seed; agents-lab needs the farmhand skill engine-binding."
+    "The hands-on milestone is ready: mkcert (or self-signed) cert, refarm web serve apps/me/dist --host 0.0.0.0 --tls-cert --tls-key, phone on the LAN opens https://<host-ip>:4321 — service worker, OPFS/WASM boot, and /sync all should work. First live cross-device operation; capture what breaks.",
+    "Production lapidation backlog (when launching officially): cert provisioning UX (mkcert helper or refarm-issued CA), identity/auth on the hub (today: stub citizen identity, no-op signer), tenancy for the collective use.",
+    "Interop lanes unchanged: Pi->refarm POST /efforts works; channels consumer-owned; agents-lab skill engine-binding pending."
   ],
   "open_questions": [],
   "key_decisions_active": [
