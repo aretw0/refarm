@@ -62,11 +62,23 @@ try {
 			waitUntil: "domcontentloaded",
 			timeout: timeoutMs,
 		});
-		await page.waitForFunction(
-			() => globalThis.__REFARM_ME_REAL_DAEMON__?.workbench,
-			undefined,
-			{ timeout: timeoutMs },
-		);
+		try {
+			await page.waitForFunction(
+				() => globalThis.__REFARM_ME_REAL_DAEMON__?.workbench,
+				undefined,
+				{ timeout: timeoutMs },
+			);
+		} catch {
+			// Vite dev re-optimizes newly discovered deps DURING the first load and
+			// answers 504 (Outdated Optimize Dep) — one reload lands on the fresh
+			// graph. Build output never does this; it is a dev-server-only retry.
+			await page.reload({ waitUntil: "domcontentloaded", timeout: timeoutMs });
+			await page.waitForFunction(
+				() => globalThis.__REFARM_ME_REAL_DAEMON__?.workbench,
+				undefined,
+				{ timeout: timeoutMs },
+			);
+		}
 
 		await stopProcess(tractor);
 		tractor = null;
