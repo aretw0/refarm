@@ -6,13 +6,14 @@ import { capabilitiesCommand } from "./commands/capabilities.js";
 import { capabilityCliCommands } from "./commands/capability-registry.js";
 import { chatCommand } from "./commands/chat.js";
 import { checkCommand } from "./commands/check.js";
-import { lintCommand } from "./commands/lint.js";
 import { configCommand } from "./commands/config.js";
 import { configureCommand } from "./commands/configure.js";
 import { deployCommand } from "./commands/deploy.js";
+import { discoverCommand } from "./commands/discover.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { guideCommand } from "./commands/guide.js";
 import { headlessCommand } from "./commands/headless.js";
+import { lintCommand } from "./commands/lint.js";
 import { openUrlCommand } from "./commands/open-url.js";
 import { packageManagerCommand } from "./commands/package-manager.js";
 import { extensionCommand } from "./commands/plugin-local.js";
@@ -220,6 +221,7 @@ for (const command of capabilityCliCommands()) {
 	program.addCommand(command);
 }
 program.addCommand(webCommand);
+program.addCommand(discoverCommand);
 program.addCommand(serveCommand);
 program.addCommand(workspaceCommand);
 program.addCommand(tuiCommand);
