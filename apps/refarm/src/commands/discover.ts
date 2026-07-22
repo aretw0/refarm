@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	createProcessHandoffSpecFromRunner,
+	runProcessHandoffSync,
 	startDetachedProcessHandoff,
 	type ProcessHandoffSpec,
 } from "@refarm.dev/cli/process-handoff";
@@ -39,6 +40,24 @@ export interface DiscoverAnnounceDeps {
 	/** The farm's reachable IPv4 addresses — surfaced so an operator (or wizard)
 	 *  can hand a device an explicit address when discovery is filtered. */
 	listAddresses?(): DiscoverFarmAddress[];
+	/** Best-effort host firewall detection — an active firewall silently drops
+	 *  device probes while every host-local test passes; the status must SAY it. */
+	probeFirewall?(): { name: string; active: boolean } | null;
+}
+
+function defaultProbeFirewall(): { name: string; active: boolean } | null {
+	for (const name of ["ufw", "firewalld"]) {
+		try {
+			const result = runProcessHandoffSync(
+				createProcessHandoffSpecFromRunner("systemctl", ["is-active", name]),
+				{ capture: true },
+			);
+			if (result.exitCode === 0) return { name, active: true };
+		} catch {
+			// systemctl unavailable (container, mac) — nothing to report
+		}
+	}
+	return null;
 }
 
 function defaultListAddresses(): DiscoverFarmAddress[] {
@@ -105,6 +124,7 @@ const START_COMMAND_ARGS = ["discover", "announce", "--json"];
 /** One shape for every announce outcome — the optional discriminants tell the story. */
 export interface DiscoverAnnounceResult {
 	addresses?: DiscoverFarmAddress[];
+	firewall?: { name: string; active: boolean };
 	command?: string;
 	operation?: string;
 	ok: boolean;
@@ -130,20 +150,43 @@ export function announceStatus(
 	const pid = deps.readPid(pidFile);
 	const running = pid !== null && deps.processAlive(pid);
 	const addresses = (deps.listAddresses ?? defaultListAddresses)();
+	const firewall = (deps.probeFirewall ?? defaultProbeFirewall)();
 	const nextCommand = running
 		? refarmCommand(STOP_COMMAND_ARGS)
 		: refarmCommand(START_COMMAND_ARGS);
+	// An active firewall is the classic silent killer of device probes: name it
+	// and hand the operator scoped allow rules (their LAN /24, beacon + sync).
+	const firewallActions = firewall?.active
+		? addresses
+				.filter((entry) => entry.address.includes("."))
+				.slice(0, 1)
+				.flatMap((entry) => {
+					const lan = `${entry.address.split(".").slice(0, 3).join(".")}.0/24`;
+					return [
+						`sudo ${firewall.name} allow from ${lan} to any port 42002 proto udp`,
+						`sudo ${firewall.name} allow from ${lan} to any port 42000 proto tcp`,
+					];
+				})
+		: [];
 	return {
 		...buildJsonSuccessEnvelope({
 			command: "discover",
 			operation: "announce-status",
+			nextActions: firewallActions,
 			nextCommand,
 			nextCommands: [nextCommand],
-			extra: { running, ...(running && pid ? { pid } : {}), pidFile, addresses },
+			extra: {
+				running,
+				...(running && pid ? { pid } : {}),
+				pidFile,
+				addresses,
+				...(firewall?.active ? { firewall } : {}),
+			},
 		}),
 		running,
 		...(running && pid ? { pid } : {}),
 		addresses,
+		...(firewall?.active ? { firewall } : {}),
 	};
 }
 
@@ -260,6 +303,14 @@ export function createDiscoverCommand(deps: DiscoverAnnounceDeps = defaultDeps()
 				);
 				for (const entry of result.addresses ?? []) {
 					console.log(`   fazenda alcançável em ${entry.address} (${entry.interface})`);
+				}
+				if (result.firewall?.active) {
+					console.log(
+						`   ⚠️ firewall ATIVO (${result.firewall.name}) — probes de dispositivos são descartados em silêncio.`,
+					);
+					for (const action of result.nextActions) {
+						console.log(`   liberar (escopo LAN): ${action}`);
+					}
 				}
 				return;
 			}

@@ -70,6 +70,24 @@ describe("refarm discover announce — the managed LAN announcer", () => {
 		expect(status.pid).toBe(4242);
 	});
 
+	it("status denounces an active host firewall — the silent drop made explicit", () => {
+		const deps = makeDeps({
+			listAddresses: () => [{ address: "192.168.0.7", interface: "wlp0s20f3" }],
+			probeFirewall: () => ({ name: "ufw", active: true }),
+		});
+		const status = announceStatus(deps);
+		expect(status.firewall).toEqual({ name: "ufw", active: true });
+		expect(
+			status.nextActions.some((action) => action.includes("ufw allow")),
+		).toBe(true);
+	});
+
+	it("status stays quiet about firewalls when none is active", () => {
+		const deps = makeDeps({ probeFirewall: () => null });
+		const status = announceStatus(deps);
+		expect(status.firewall).toBeUndefined();
+	});
+
 	it("status lists the farm's reachable addresses — no operator guessing", () => {
 		const deps = makeDeps({
 			listAddresses: () => [
