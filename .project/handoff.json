@@ -1,11 +1,11 @@
 {
-  "context": "Checkpoint 2026-06-28. Nested process restrictions are now surfaced as explicit direct-run guidance in command-plan results, so agent finish can tell agents to run the failing command directly when managed sandboxes reject nested spawnSync.",
-  "timestamp": "2026-06-28T04:41:57.396Z",
+  "context": "Checkpoint 2026-07-22. Runtime unblocked: session-launch now resolves the tractor binary at the .cargo/config.toml workspace target dir (.cache/cargo-target), so a clean checkout builds and comes up rust-active without CARGO_TARGET_DIR exported by hand. Affected-workspace lint gate is green again after dropping the import fd6af5ab orphaned.",
+  "timestamp": "2026-07-22T02:39:59.335Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit 0b0677b8 fix(cli): explain restricted nested spawns.",
-    "Validation passed: pnpm -C packages/cli run test -- command-plan; pnpm -C packages/cli run type-check; pnpm -C packages/cli run build; timeout 60s refarm agent finish --lane after-edit --run --json returned direct-run guidance; refarm check --next-action --json passed directly.",
-    "Observed sandbox behavior: Node child_process spawnSync may emit EPERM under nested execution even when direct shell commands work; finish now points to the direct command instead of encouraging repeated nested finish retries."
+    "Commit 241ed432 fix(refarm): look for the tractor binary where cargo actually puts it.",
+    "Commit 255087a8 fix(refarm): drop the import fd6af5ab orphaned.",
+    "Validation: pnpm -C apps/refarm run test -- session-launch (1607 passing); turbo type-check lint build --filter=./apps/refarm; refarm agent finish --lane after-edit and after-commit both ok; refarm check --next-action --json passes with rust engine active and 23/23 efforts delivered."
   ],
   "blockers": [],
   "next_actions": [
