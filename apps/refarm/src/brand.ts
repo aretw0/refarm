@@ -15,6 +15,10 @@ import {
  *  to any generic package that takes a binary (ADR-087). */
 export const REFARM_BINARY = "refarm";
 
+/** The product name spoken to the model in agent prompts (ADR-087) — generic
+ *  packages take it injected, never name it themselves. */
+export const REFARM_PRODUCT_NAME = "Refarm";
+
 /** A shareable `refarm <args…>` handoff string (the stable, canonical binary name). */
 export function refarmCommand(args: string[]): string {
 	return applicationCommand(REFARM_BINARY, args);

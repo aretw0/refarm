@@ -105,19 +105,31 @@ describe("GitStatusContextProvider", () => {
 describe("OperatorStateProvider", () => {
 	describe("parseResumeJson", () => {
 		it("returns null for empty object", () => {
-			expect(OperatorStateProvider.parseResumeJson({})).toBeNull();
+			expect(OperatorStateProvider.parseResumeJson({}, "refarm")).toBeNull();
+		});
+
+		it("speaks the injected binary in the header — no brand literal", () => {
+			const entry = OperatorStateProvider.parseResumeJson(
+				{ finish: { status: "ok" } },
+				"acme",
+			);
+			expect(entry!.content).toContain("Operator state (acme resume):");
+			expect(entry!.content).not.toMatch(/refarm/i);
 		});
 
 		it("surfaces failed finish with blocked command and pending steps", () => {
-			const entry = OperatorStateProvider.parseResumeJson({
-				finish: {
-					status: "failed",
-					failedCommand: "refarm tidy imports --check --json",
-					nextCommands: ["refarm tidy imports --check --json"],
-					remainingCommands: ["refarm health --next-action --json"],
+			const entry = OperatorStateProvider.parseResumeJson(
+				{
+					finish: {
+						status: "failed",
+						failedCommand: "refarm tidy imports --check --json",
+						nextCommands: ["refarm tidy imports --check --json"],
+						remainingCommands: ["refarm health --next-action --json"],
+					},
+					session: { shortId: "abc123" },
 				},
-				session: { shortId: "abc123" },
-			});
+				"refarm",
+			);
 			expect(entry).not.toBeNull();
 			expect(entry!.label).toBe("operator_state");
 			expect(entry!.priority).toBe(15);
@@ -129,36 +141,44 @@ describe("OperatorStateProvider", () => {
 		});
 
 		it("surfaces ok finish as clean state", () => {
-			const entry = OperatorStateProvider.parseResumeJson({
-				finish: { status: "ok" },
-				session: { shortId: "def456", showCommand: "refarm tree show def456 --json" },
-			});
+			const entry = OperatorStateProvider.parseResumeJson(
+				{
+					finish: { status: "ok" },
+					session: { shortId: "def456", showCommand: "refarm tree show def456 --json" },
+				},
+				"refarm",
+			);
 			expect(entry!.content).toContain("OK — last gate passed");
 			expect(entry!.content).toContain("Session: def456");
 			expect(entry!.content).toContain("inspect: refarm tree show def456 --json");
 		});
 
 		it("shows no-gate-recorded when finish is absent", () => {
-			const entry = OperatorStateProvider.parseResumeJson({
-				session: { shortId: "ghi789" },
-			});
+			const entry = OperatorStateProvider.parseResumeJson(
+				{
+					session: { shortId: "ghi789" },
+				},
+				"refarm",
+			);
 			expect(entry!.content).toContain("no recent gate recorded");
 			expect(entry!.content).toContain("Session: ghi789");
 		});
 
 		it("returns null when only finish with unknown status and no session", () => {
-			expect(OperatorStateProvider.parseResumeJson({ finish: { status: "unknown" } })).toBeNull();
+			expect(
+				OperatorStateProvider.parseResumeJson({ finish: { status: "unknown" } }, "refarm"),
+			).toBeNull();
 		});
 	});
 
-	it("returns empty array when refarm execution fails", async () => {
-		const provider = new OperatorStateProvider();
+	it("returns empty array when the app binary execution fails", async () => {
+		const provider = new OperatorStateProvider("refarm");
 		const entries = await provider.provide({ cwd: "/__does_not_exist__" });
 		expect(entries).toEqual([]);
 	});
 
-	it("returns parsed operator state entries when refarm output is available", async () => {
-		const provider = new OperatorStateProvider();
+	it("returns parsed operator state entries when the app binary output is available", async () => {
+		const provider = new OperatorStateProvider("refarm");
 		const entries = await provider.provide({ cwd: tempDir });
 		expect(Array.isArray(entries)).toBe(true);
 	});

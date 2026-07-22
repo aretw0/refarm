@@ -18,7 +18,7 @@ import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
-import { refarmCommand } from "../brand.js";
+import { REFARM_BINARY, REFARM_PRODUCT_NAME, refarmCommand } from "../brand.js";
 import { MODEL_SCOPES, parseModelScope, type ModelScope } from "../model-routing.js";
 import { RUNTIME_AUTOSTART_ENV_VAR } from "../utils/runtime-config.js";
 import {
@@ -89,9 +89,9 @@ export {
 	readLatestAgentEntryFromSession,
 	resolveRuntimeStreamsDir,
 	resolveRuntimeTaskResultsDir,
-};
+	};
 
-export interface AskDeps {
+	export interface AskDeps {
 	submitEffort(effort: Effort): Promise<string>;
 	followStream(
 		effortId: string,
@@ -116,20 +116,20 @@ export interface AskDeps {
 	readPluginState?(): Promise<RuntimePluginState | null>;
 	reloadPlugins?(pluginIds: string[]): Promise<RuntimePluginReloadResult | null>;
 	collectSystemPrompt?(request: { cwd: string; query: string; files: string[] }): Promise<string>;
-}
+	}
 
-interface SessionNode {
+	interface SessionNode {
 	"@id": string;
-}
+	}
 
-export interface AskJsonResult {
+	export interface AskJsonResult {
 	effortId: string;
 	sessionId: string;
 	content: string;
 	metadata?: Record<string, unknown>;
-}
+	}
 
-async function submitViaHttp(effort: Effort): Promise<string> {
+	async function submitViaHttp(effort: Effort): Promise<string> {
 	const response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/efforts"), {
 		method: "POST",
 		headers: { "content-type": "application/json" },
@@ -140,15 +140,15 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 	}
 	const payload = (await response.json()) as { effortId: string };
 	return payload.effortId;
-}
+	}
 
-function newSessionId(): string {
+	function newSessionId(): string {
 	return `urn:sovereign:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
-}
+	}
 
-function sourceForAskScope(
+	function sourceForAskScope(
 	scope: ModelScope,
-): "refarm-ask" | "refarm-ask:worker" | "refarm-ask:monitor" {
+	): "refarm-ask" | "refarm-ask:worker" | "refarm-ask:monitor" {
 	switch (scope) {
 		case "default":
 			return "refarm-ask";
@@ -157,13 +157,13 @@ function sourceForAskScope(
 		case "monitor":
 			return "refarm-ask:monitor";
 	}
-}
+	}
 
-async function collectDefaultSystemPrompt(request: {
+	async function collectDefaultSystemPrompt(request: {
 	cwd: string;
 	query: string;
 	files: string[];
-}): Promise<string> {
+	}): Promise<string> {
 	const providers: ContextProvider[] = [
 		// Feed the resolved sidecar URL (env REFARM_SIDECAR_URL → home/cwd .refarm
 		// config → replicated config graph node → default) instead of the provider's
@@ -173,7 +173,7 @@ async function collectDefaultSystemPrompt(request: {
 		}),
 		new CwdContextProvider(),
 		new PolicyFilesContextProvider(),
-		new OperatorStateProvider(),
+		new OperatorStateProvider(REFARM_BINARY),
 		new DateContextProvider(),
 		new GitStatusContextProvider(),
 		...(request.files.length > 0 ? [new FilesContextProvider(request.files)] : []),
@@ -184,10 +184,10 @@ async function collectDefaultSystemPrompt(request: {
 		cwd: request.cwd,
 		query: request.query,
 	});
-	return buildSystemPrompt(entries);
-}
+	return buildSystemPrompt(entries, { productName: REFARM_PRODUCT_NAME, binary: REFARM_BINARY });
+	}
 
-async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
+	async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 
 	const response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/sessions"));
@@ -196,9 +196,9 @@ async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string
 	}
 	const body = (await response.json()) as { sessions?: SessionNode[] };
 	return resolveSessionIdPrefix(prefix, body.sessions ?? []);
-}
+	}
 
-function defaultDeps(): AskDeps {
+	function defaultDeps(): AskDeps {
 	const streamsDir = resolveRuntimeStreamsDir();
 	const resultsDir = resolveRuntimeTaskResultsDir();
 	return {
@@ -220,12 +220,12 @@ function defaultDeps(): AskDeps {
 		readPluginState: readRuntimePluginState,
 		reloadPlugins: reloadRuntimePlugins,
 	};
-}
+	}
 
-const DEFAULT_HISTORY_TURNS = 10;
-const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
+	const DEFAULT_HISTORY_TURNS = 10;
+	const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
 
-async function ensureAskRuntimeReady(launch: LaunchDeps, json = false): Promise<boolean> {
+	async function ensureAskRuntimeReady(launch: LaunchDeps, json = false): Promise<boolean> {
 	let readiness = await checkSessionReadiness();
 
 	const canPrompt = Boolean(process.stdin.isTTY && process.stdout.isTTY);
@@ -244,13 +244,13 @@ async function ensureAskRuntimeReady(launch: LaunchDeps, json = false): Promise<
 	}
 
 	return true;
-}
+	}
 
-async function ensureAgentReady(
+	async function ensureAgentReady(
 	readPluginState: (() => Promise<RuntimePluginState | null>) | undefined,
 	reloadPlugins: ((pluginIds: string[]) => Promise<RuntimePluginReloadResult | null>) | undefined,
 	json = false,
-): Promise<boolean> {
+	): Promise<boolean> {
 	if (!readPluginState) return true;
 	const state = await readPluginState();
 	if (!state) return true;
@@ -365,9 +365,9 @@ async function ensureAgentReady(
 	);
 	console.error(chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`));
 	return false;
-}
+	}
 
-export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Command {
+	export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Command {
 	const resolved = deps ?? defaultDeps();
 	const readActiveSession = resolved.readActiveSessionId ?? readActiveSessionId;
 	const clearActiveSession = resolved.clearActiveSessionId ?? clearActiveSessionId;
@@ -705,6 +705,6 @@ export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Comma
 				}
 			},
 		);
-}
+	}
 
-export const askCommand = createAskCommand();
+	export const askCommand = createAskCommand();

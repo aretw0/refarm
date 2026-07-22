@@ -339,6 +339,27 @@ describe("operator resume", () => {
 		});
 	});
 
+	it("keeps a white-label binary's pressure commands — no brand literal in the filter", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const handoffs = buildOperatorResumeCommands("acme");
+		const appCommand = "acme doctor --next-command";
+		const environmentPressure = {
+			command: "environment-pressure",
+			operation: "check",
+			ok: false,
+			decision: "stop-and-investigate" as const,
+			nextCommands: [appCommand, "pnpm run clean:rust:check"],
+			signals: [],
+		};
+		const summary = buildOperatorResumeSummary({
+			handoffs,
+			status: readyStatus,
+			environmentPressure,
+		});
+
+		expect(operatorResumeNextCommands(summary, handoffs.commands)).toEqual([appCommand]);
+	});
+
 	it("uses task resume when a checkpoint has resumable work without an active effort", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({

@@ -35,6 +35,9 @@ export interface OperatorResumeTaskCheckpoint {
 }
 
 export interface OperatorResumeCommands {
+	/** The app binary these commands were built for (ADR-087) — lets consumers
+	 *  recognize "one of ours" without this package naming any brand. */
+	binary: string;
 	runtimeDoctor: string;
 	taskList: string;
 	taskResume: string;
@@ -282,7 +285,7 @@ export function buildOperatorResumeCommands(binary: string): OperatorResumeHando
 		sessionShow: (sessionId: string) => fn(sessionShowArgs(sessionId)),
 	});
 	return {
-		commands: mapArgs(cmd),
+		commands: { binary, ...mapArgs(cmd) },
 		processes: mapArgs(proc),
 		processBuilder: proc,
 	};
@@ -321,8 +324,8 @@ function taskJsonSummary(tasks: OperatorResumeTaskSummary): OperatorResumeTaskSu
 	};
 }
 
-function isRefarmResumeCommand(command: string): boolean {
-	return command.trim().startsWith("refarm ");
+function isApplicationResumeCommand(command: string, binary: string): boolean {
+	return command.trim().startsWith(`${binary} `);
 }
 
 function isTerminalTaskStatus(status: string | undefined): boolean {
@@ -477,7 +480,11 @@ export function operatorResumeNextCommands(
 	const nextCommands: string[] = [];
 
 	if (summary.environmentPressure?.decision === "stop-and-investigate") {
-		nextCommands.push(...summary.environmentPressure.nextCommands.filter(isRefarmResumeCommand));
+		nextCommands.push(
+			...summary.environmentPressure.nextCommands.filter((command) =>
+				isApplicationResumeCommand(command, resolved.binary),
+			),
+		);
 		return [...new Set(nextCommands)];
 	}
 

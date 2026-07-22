@@ -1,7 +1,7 @@
 # ADR-087: Brand-Agnostic Packages — Only the App Owns Its Name
 
 **Status**: Accepted  
-**Progress**: Binary decoupling phases 1-3a DONE + tested; env-prefix phase 4a (the config env-bridge, the structural leak) DONE; remaining env-prefix work is scattered injectable-defaults, chewed opportunistically per the phase-4 survey  
+**Progress**: Binary decoupling phases 1-3a DONE + tested; env-prefix phase 4a (the config env-bridge, the structural leak) DONE; phase 6 generalized cross-package source-guard DONE (`release:brand:guard`, allowlist-ratcheted) with `context-provider-v1` and `operator-resume` leaks fixed; remaining: allowlisted injectable defaults (phase-4 survey) + the renderer/contract identifier inventory in phase 6's out-of-scope list  
 **Date**: 2026-07-10
 **Deciders**: Arthur Silva, Refarm agents
 **Related**: ADR-086 (Plugin Vocabulary Convergence — the `plugin` command; its
@@ -209,3 +209,43 @@ the use site). Keep a namespace/prefix when it genuinely disambiguates.
    the shared `@refarm.dev/config` under the `DGK` prefix, zero refarm leak. The
    lesson: a real T1 consumer reveals brand leaks in BOTH directions (refarm →
    example AND example → shared substrate).
+
+6. ✅ **DONE** (this commit). The generalized cross-package source-guard the
+   Consequences section called for now exists:
+   `scripts/ci/test-brand-agnostic-packages.mjs` (`pnpm run release:brand:guard`)
+   walks EVERY `packages/*/src`, strips comments, and fails on a brand string
+   literal or `applicationCommand("refarm", …)` outside a surveyed allowlist that
+   may only shrink (a ratchet test forces entries out when a file is cleaned).
+   Writing the guard immediately caught and fixed two live leaks the cli-only
+   guard could not see:
+   - `packages/cli/src/operator-resume.ts` filtered pressure commands with
+     `startsWith("refarm ")` — a form the cli guard's own regex missed (no verb
+     after the space). Fixed by carrying `binary` on `OperatorResumeCommands`.
+   - `packages/context-provider-v1` — a kernel-contract publication candidate —
+     spawned the branded binary (`operator-state.ts`) and spoke the brand in the
+     agent system prompt (`registry.ts`). Both now take an injected identity:
+     `buildSystemPrompt(entries, { productName, binary })` (REQUIRED, fail up)
+     and `new OperatorStateProvider(binary)`; the app injects
+     `REFARM_PRODUCT_NAME`/`REFARM_BINARY` from `brand.ts`.
+
+   **Surveyed remainder (the allowlist, deferred deliberately):** injectable
+   defaults (`capabilities/ide-projector.ts` namespace, `infra-*` team names),
+   vocabulary ids (`config/workspaces-config.js` workspace kind), an inert
+   conformance fixture (`storage-contract-v1`), repo-internal tooling
+   (`toolbox/reso.mjs`), and a §8-locked OPFS segment
+   (`tractor-ts/opfs-plugin-cache.ts` — change only via lock/handoff).
+
+   **Out of the guard's scope, tracked here instead** (renames change public
+   contracts — decide before public publication, not by sweep):
+   - `refarm-*` CSS classes / `data-refarm-*` attrs / `--refarm-*` vars across
+     renderer SDKs (`authorization-contract-v1/render.ts`,
+     `capability-homestead-surface`, `homestead` SDK, `ds/tokens-emit.ts`
+     dual selector + exported `RefarmThemeToken`).
+   - Served JSON-LD context IRIs `https://refarm.dev/contexts/{authorization,
+     credentials,records}/v1` (+ hardcoded copies in `packages/wallet`).
+   - Branded contract identifiers: VC type `RefarmConformanceCredential`
+     (`credentials-contract-v1/conformance.ts`), DID method `did:refarm-wasm:`
+     (`identity-provider-ref`), plugin-id namespace `@refarm/agent` (ADR-086).
+   - The Rust twin of the agent prompt (`packages/agent/src/runtime/policy.rs`)
+     still says "Refarm runtime agent" — changing it means a wasm rebuild plus
+     harness revalidation; take it as its own slice.

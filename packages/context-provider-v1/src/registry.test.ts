@@ -69,11 +69,16 @@ describe("ContextRegistry", () => {
 });
 
 describe("buildSystemPrompt", () => {
+	const identity = { productName: "Refarm", binary: "refarm" };
+
 	it("sorts entries by priority and wraps with context blocks", () => {
-		const prompt = buildSystemPrompt([
-			{ label: "last", content: "Z", priority: 90 },
-			{ label: "first", content: "A", priority: 10 },
-		]);
+		const prompt = buildSystemPrompt(
+			[
+				{ label: "last", content: "Z", priority: 90 },
+				{ label: "first", content: "A", priority: 10 },
+			],
+			identity,
+		);
 		expect(prompt).toContain("You are the Refarm runtime agent");
 		expect(prompt).toContain("<contexts>");
 		expect(prompt).toContain('<context label="first">');
@@ -81,7 +86,7 @@ describe("buildSystemPrompt", () => {
 	});
 
 	it("includes deterministic coding workflow guidance", () => {
-		const prompt = buildSystemPrompt([{ label: "cwd", content: "/workspaces/refarm" }]);
+		const prompt = buildSystemPrompt([{ label: "cwd", content: "/workspaces/refarm" }], identity);
 		expect(prompt).toContain("When the user asks you to edit code");
 		expect(prompt).toContain("refarm package-manager --json");
 		expect(prompt).toContain("refarm agent finish --lane after-edit --run --json");
@@ -90,5 +95,15 @@ describe("buildSystemPrompt", () => {
 			"refarm agent finish --profile package --workspace <dir> --run --json",
 		);
 		expect(prompt).toContain("Do not commit until verification passes");
+	});
+
+	it("speaks only the injected identity — no upstream brand under a white label", () => {
+		const prompt = buildSystemPrompt(
+			[{ label: "cwd", content: "/workspaces/acme" }],
+			{ productName: "Acme", binary: "acme" },
+		);
+		expect(prompt).toContain("You are the Acme runtime agent");
+		expect(prompt).toContain("acme agent finish --lane after-edit --run --json");
+		expect(prompt).not.toMatch(/refarm/i);
 	});
 });

@@ -26,10 +26,12 @@ import {
 	SessionDigestContextProvider,
 } from "@refarm.dev/context-provider-v1";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import readline from "node:readline";
+import { REFARM_BINARY, REFARM_PRODUCT_NAME } from "../brand.js";
 import {
 	capabilityHooksFor,
 	capabilityRegistry,
@@ -65,7 +67,6 @@ import {
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
 import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
-import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { resolveSidecarUrlAsync, sidecarUrlAsync } from "./sidecar-url.js";
 export {
 	loadChatHistory,
@@ -80,9 +81,9 @@ export {
 	readLatestAgentEntryFromSession,
 	resolveRuntimeStreamsDir,
 	resolveRuntimeTaskResultsDir,
-};
+	};
 
-export interface ChatDeps {
+	export interface ChatDeps {
 	submitEffort(effort: Effort): Promise<string>;
 	followStream(
 		effortId: string,
@@ -120,15 +121,15 @@ export interface ChatDeps {
 	recoverRuntime?(): Promise<boolean>;
 	/** Override the spinner label. Receives the tick frame index and elapsed ms. */
 	spinnerMessage?(frame: number, elapsedMs: number): string;
-}
+	}
 
-const DEFAULT_HISTORY_TURNS = 20;
+	const DEFAULT_HISTORY_TURNS = 20;
 
-function newSessionId(): string {
+	function newSessionId(): string {
 	return `urn:sovereign:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
-}
+	}
 
-async function submitViaHttp(effort: Effort): Promise<string> {
+	async function submitViaHttp(effort: Effort): Promise<string> {
 	const response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/efforts"), {
 		method: "POST",
 		headers: { "content-type": "application/json" },
@@ -139,9 +140,9 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 	}
 	const payload = (await response.json()) as { effortId: string };
 	return payload.effortId;
-}
+	}
 
-async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
+	async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 	const response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/sessions"));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
@@ -149,9 +150,9 @@ async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string
 		sessions?: Array<{ "@id": string }>;
 	};
 	return resolveSessionIdPrefix(prefix, body.sessions ?? []);
-}
+	}
 
-export function defaultChatDeps(): ChatDeps {
+	export function defaultChatDeps(): ChatDeps {
 	const streamsDir = resolveRuntimeStreamsDir();
 	const resultsDir = resolveRuntimeTaskResultsDir();
 	return {
@@ -183,9 +184,9 @@ export function defaultChatDeps(): ChatDeps {
 		configureCredentials: runSowCommand,
 		recoverRuntime: () => autoStartFarmhand(findRepoRoot(), defaultLaunchDeps()),
 	};
-}
+	}
 
-async function runStatusCommand(args: string[] = []): Promise<void> {
+	async function runStatusCommand(args: string[] = []): Promise<void> {
 	const node = process.argv[0];
 	const entrypoint = process.argv[1];
 	if (!node || !entrypoint) {
@@ -199,9 +200,9 @@ async function runStatusCommand(args: string[] = []): Promise<void> {
 	if (exitCode !== 0) {
 		throw new Error(`Status command exited with ${exitCode}`);
 	}
-}
+	}
 
-async function runSowCommand(args: string[] = []): Promise<void> {
+	async function runSowCommand(args: string[] = []): Promise<void> {
 	const node = process.argv[0];
 	const entrypoint = process.argv[1];
 	if (!node || !entrypoint) {
@@ -215,13 +216,13 @@ async function runSowCommand(args: string[] = []): Promise<void> {
 	if (exitCode !== 0) {
 		throw new Error(`Credential setup exited with ${exitCode}`);
 	}
-}
+	}
 
-const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const;
+	const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const;
 
-export function startThinkingSpinner(
+	export function startThinkingSpinner(
 	getMessage?: (frame: number, elapsedMs: number) => string,
-): () => void {
+	): () => void {
 	if (!process.stdout.isTTY) return () => {};
 	const startMs = Date.now();
 	let frame = 0;
@@ -236,17 +237,17 @@ export function startThinkingSpinner(
 		clearInterval(timer);
 		process.stdout.write("\r\x1b[2K");
 	};
-}
+	}
 
-function usageLine(metadata: Record<string, unknown>): string {
+	function usageLine(metadata: Record<string, unknown>): string {
 	const model = metadata.model ?? "unknown";
 	const tokensIn = metadata.tokens_in ?? 0;
 	const tokensOut = metadata.tokens_out ?? 0;
 	const pricing = pricingDisplay(metadata);
 	return `model: ${model}  tokens: ${tokensIn} in / ${tokensOut} out  ${pricing}`;
-}
+	}
 
-function pricingDisplay(metadata: Record<string, unknown>): string {
+	function pricingDisplay(metadata: Record<string, unknown>): string {
 	if (metadata.pricing_mode === "subscription" || metadata.provider === "openai-codex") {
 		return "subscription";
 	}
@@ -254,32 +255,32 @@ function pricingDisplay(metadata: Record<string, unknown>): string {
 		return "local";
 	}
 	return metadata.estimated_usd != null ? `~$${Number(metadata.estimated_usd).toFixed(4)}` : "";
-}
+	}
 
-function printChatError(message: string): void {
+	function printChatError(message: string): void {
 	if (isSidecarUnavailable(message)) {
 		console.error();
 		printSidecarUnavailable();
 	} else {
 		console.error(chalk.red(`\n✗  ${message}`));
 	}
-}
+	}
 
-export function resolveChatRuntimeModelRoute(
+	export function resolveChatRuntimeModelRoute(
 	modelStatus: ReturnType<typeof buildCurrentModelStatus>,
-): { modelProvider?: string; modelId?: string } {
+	): { modelProvider?: string; modelId?: string } {
 	return resolveRuntimeModelRoute(modelStatus, "default");
-}
+	}
 
-export function buildChatSessionResumeHint(sessionId: string): string {
+	export function buildChatSessionResumeHint(sessionId: string): string {
 	return `To continue this session, run: refarm session --session ${sessionId}`;
-}
+	}
 
-export function buildChatOperatorResumeHint(): string {
+	export function buildChatOperatorResumeHint(): string {
 	return "To inspect next operator action, run: refarm resume --next-action";
-}
+	}
 
-export async function createChatEffort(
+	export async function createChatEffort(
 	query: string,
 	sessionId: string,
 	modelDeps: ModelCommandDeps,
@@ -289,7 +290,7 @@ export async function createChatEffort(
 				historyTurns?: number;
 		  }
 		| undefined,
-): Promise<Effort> {
+	): Promise<Effort> {
 	const modelStatus = buildCurrentModelStatus(await modelDeps.loadTokens());
 	const { modelProvider, modelId } = resolveChatRuntimeModelRoute(modelStatus);
 	const historyTurns = options?.historyTurns ?? DEFAULT_HISTORY_TURNS;
@@ -303,16 +304,16 @@ export async function createChatEffort(
 		modelProvider,
 		modelId,
 	});
-}
+	}
 
-async function runTurn(
+	async function runTurn(
 	query: string,
 	sessionId: string,
 	deps: ChatDeps,
 	// Called once the turn's effort is submitted, so the REPL can wire ESC-to-cancel to
 	// THIS effort id (the id `POST /efforts/:id/cancel` needs). Absent → no cancel wiring.
 	onEffortStarted?: (effortId: string) => void,
-): Promise<void> {
+	): Promise<void> {
 	const providers = [
 		// Resolved sidecar URL (env → .refarm config → config graph node → default),
 		// not the provider's hardcoded 42001 which ignored REFARM_SIDECAR_URL.
@@ -321,13 +322,16 @@ async function runTurn(
 		}),
 		new CwdContextProvider(),
 		new PolicyFilesContextProvider(),
-		new OperatorStateProvider(),
+		new OperatorStateProvider(REFARM_BINARY),
 		new DateContextProvider(),
 		new GitStatusContextProvider(),
 	];
 	const registry = new ContextRegistry(providers);
 	const entries = await registry.collect({ cwd: process.cwd(), query });
-	const system = buildSystemPrompt(entries);
+	const system = buildSystemPrompt(entries, {
+		productName: REFARM_PRODUCT_NAME,
+		binary: REFARM_BINARY,
+	});
 
 	const modelDeps = deps.model ?? defaultModelDeps();
 	const effort = await createChatEffort(query, sessionId, modelDeps, {
@@ -408,18 +412,18 @@ async function runTurn(
 	} finally {
 		clearSpinner();
 	}
-}
+	}
 
-/**
+	/**
  * Core REPL loop. Call this after all readiness checks pass.
  * Both `refarm` (bare) and `refarm session` converge here.
  */
-export async function runSessionRepl(
+	export async function runSessionRepl(
 	sessionId: string,
 	deps: ChatDeps,
 	label = "refarm",
 	initialMessage?: string,
-): Promise<void> {
+	): Promise<void> {
 	const clearActiveSession = deps.clearActiveSessionId ?? clearActiveSessionId;
 	const persistActiveSession = deps.persistActiveSessionId ?? writeActiveSessionIdAndVerify;
 
@@ -714,9 +718,9 @@ export async function runSessionRepl(
 			resolve();
 		});
 	});
-}
+	}
 
-export function createChatCommand(deps?: ChatDeps): Command {
+	export function createChatCommand(deps?: ChatDeps): Command {
 	return new Command("chat")
 		.description("Interactive REPL — optionally send an initial message")
 		.argument("[message]", "Initial message to send immediately")
@@ -740,6 +744,6 @@ export function createChatCommand(deps?: ChatDeps): Command {
 			const { runSessionLaunchFlow } = await import("./session.js");
 			await runSessionLaunchFlow({ ...opts, message }, deps);
 		});
-}
+	}
 
-export const chatCommand = createChatCommand();
+	export const chatCommand = createChatCommand();

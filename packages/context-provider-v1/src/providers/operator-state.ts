@@ -28,21 +28,25 @@ export class OperatorStateProvider implements ContextProvider {
 	readonly name = "operator_state";
 	readonly capability = CONTEXT_CAPABILITY;
 
+	/** The app binary that answers `<binary> resume --json` (ADR-087) — injected,
+	 *  never named by this generic package. REQUIRED, no default brand. */
+	constructor(private readonly binary: string) {}
+
 	async provide(request: ContextRequest): Promise<ContextEntry[]> {
 		try {
-			const result = await execFileAsync("refarm", ["resume", "--json"], {
+			const result = await execFileAsync(this.binary, ["resume", "--json"], {
 				cwd: request.cwd,
 			});
 			const parsed = JSON.parse(result.stdout) as ResumeJson;
-			const entry = OperatorStateProvider.parseResumeJson(parsed);
+			const entry = OperatorStateProvider.parseResumeJson(parsed, this.binary);
 			return entry ? [entry] : [];
 		} catch {
 			return [];
 		}
 	}
 
-	static parseResumeJson(parsed: ResumeJson): ContextEntry | null {
-		const lines: string[] = ["Operator state (refarm resume):"];
+	static parseResumeJson(parsed: ResumeJson, binary: string): ContextEntry | null {
+		const lines: string[] = [`Operator state (${binary} resume):`];
 		let hasContent = false;
 
 		const finish = parsed.finish;
