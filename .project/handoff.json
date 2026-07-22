@@ -1,16 +1,15 @@
 {
-  "context": "Checkpoint 2026-07-22 (4th). Daily-driver front: the no-token execution-plane gate (refarm:agent:e2e:mock) passes end-to-end on this host with the Rust engine for the first time. Running it surfaced two silent drifts in the smoke itself, both fixed (c678331f): it booted the raw wasm without the manifest the responder election reads (now materializes plugin.wasm+plugin.json like load_plugin_by_hash), and its asserts predated the urn:sovereign URN migration (also fixed in the tree smoke stubs). ADR-087 orbit closed per operator direction: the ratchet guard automates vigilance; no more standalone brand work.",
-  "timestamp": "2026-07-22T11:36:02.796Z",
+  "context": "Checkpoint 2026-07-22 (5th). The no-token runtime e2e smoke now has a CI witness (bc4ed7c6): it rides the build-wasm job in test.yml, gated on run_task_smoke/tractor_gates paths, with a direct pnpm tractor build guaranteeing the release binary against turbo's outputs-less cache hits. This closes the loop the smoke's own rot exposed — drift without a scheduled witness stays invisible. Workflow validators (actions:pins, actions:contracts) pass; the smoke itself was proven locally in c678331f.",
+  "timestamp": "2026-07-22T12:46:18.896Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit c678331f fix(ci): e2e mock smoke materializes the plugin pair + URN asserts updated.",
-    "Validation: pnpm run refarm:agent:e2e:mock exit 0 (plugin elected, mock ask, task dispatch, 2 stream files, resume handoffs); smoke-refarm-tree-cli passed; after-edit/after-commit lanes ok."
+    "Commit bc4ed7c6 ci(test): e2e mock smoke wired into build-wasm with path gates and timeout headroom."
   ],
   "blockers": [],
   "next_actions": [
-    "Daily-driver priority 1 continues: keep exercising runtime up → ask → session → resume → finish as real operator slices and fix what breaks; the readiness doc records both validations (devcontainer 06-13, host 07-22).",
-    "Consider wiring the e2e mock smoke (or a cheap subset) into CI — its two drifts stayed invisible precisely because no workflow runs it.",
-    "Wallet follow-ons stay demand-driven (OPFS store, WASM signer); brand tail stays governed in ADR-087."
+    "Watch the first CI run of the new smoke step on the next push/PR (gh run watch --exit-status) — a CI-only environment difference (ports, HOME, cargo target) would surface there, not locally.",
+    "Daily-driver priority 1 continues: exercise runtime up → ask → session → resume → finish as real operator slices; fix what breaks.",
+    "Standing tails stay demand-driven: wallet follow-ons (OPFS, WASM signer), ADR-087 allowlist chewing, publication hold behind the daily-driver gate."
   ],
   "open_questions": [],
   "key_decisions_active": [
