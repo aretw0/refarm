@@ -174,7 +174,7 @@ jobs:
           fi
 
           run_task_smoke=false
-          if has_match '^(apps/farmhand/|apps/refarm/|packages/context-provider-v1/|packages/effort-contract-v1/|packages/file-stream-transport/|packages/agent/|packages/plugin-wit/|packages/registry/|packages/sse-stream-transport/|packages/stream-contract-v1/|packages/tractor-ts/|packages/ws-stream-transport/|scripts/ci/smoke-task-execution-loop\.mjs|scripts/ci/smoke-task-agent-respond\.mjs|scripts/ci/subprocess-utils\.mjs|scripts/ci/esm-extension-loader\.mjs|scripts/ci/esm-extension-register\.mjs|scripts/ci/task-smoke-daemon\.mjs|scripts/ci/task-smoke-cli\.mjs|scripts/ci/refarm-telemetry-gate\.mjs|package\.json$|pnpm-lock\.yaml$|\.github/workflows/test\.yml$)'; then
+          if has_match '^(apps/farmhand/|apps/refarm/|packages/context-provider-v1/|packages/effort-contract-v1/|packages/file-stream-transport/|packages/agent/|packages/plugin-wit/|packages/registry/|packages/sse-stream-transport/|packages/stream-contract-v1/|packages/tractor-ts/|packages/ws-stream-transport/|scripts/ci/smoke-task-execution-loop\.mjs|scripts/ci/smoke-task-agent-respond\.mjs|scripts/ci/smoke-refarm-agent-model-mock\.mjs|scripts/lib/cargo-target\.mjs|scripts/ci/subprocess-utils\.mjs|scripts/ci/esm-extension-loader\.mjs|scripts/ci/esm-extension-register\.mjs|scripts/ci/task-smoke-daemon\.mjs|scripts/ci/task-smoke-cli\.mjs|scripts/ci/refarm-telemetry-gate\.mjs|package\.json$|pnpm-lock\.yaml$|\.github/workflows/test\.yml$)'; then
             run_task_smoke=true
           fi
 
@@ -323,7 +323,9 @@ jobs:
   # (which depends on it) resolves them as cache hits instead of rebuilding blind.
   build-wasm:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # 25 → 35: the runtime e2e smoke rides this job; a cold rust-cache pays the full
+    # tractor release build before the smoke starts.
+    timeout-minutes: 35
     needs: changes
     if: needs.changes.outputs.skip_duplicate_push != 'true' && (needs.changes.outputs.code_changes == 'true' || needs.changes.outputs.run_task_smoke == 'true')
     steps:
@@ -352,6 +354,19 @@ jobs:
           --filter=@refarm.dev/lsp-code-ops
           --filter=@refarm.dev/scarecrow-plugin
           --cache-dir=.turbo --output-logs=new-only --ui=stream
+
+      # The no-token runtime e2e smoke runs HERE because this is the one PR job with the
+      # wasm toolchain and the tractor build already provisioned. The direct pnpm build
+      # (not turbo) guarantees the release binary exists even on a turbo cache hit — the
+      # tractor build task declares no outputs, so a hit restores nothing; cargo itself
+      # is the incremental no-op when the rust-cache is warm.
+      - name: Ensure the tractor release binary (cargo no-op when fresh)
+        if: needs.changes.outputs.run_task_smoke == 'true' || needs.changes.outputs.tractor_gates == 'true'
+        run: pnpm --filter @refarm.dev/tractor-rs run build
+
+      - name: Runtime agent e2e smoke (no-token, model-mock)
+        if: needs.changes.outputs.run_task_smoke == 'true' || needs.changes.outputs.tractor_gates == 'true'
+        run: pnpm run refarm:agent:e2e:mock
 
   # Proof-in-CI for the WASM component features. The reference components
   # (sovereign identity, vault surface, quality checker) transpile their WASM to
