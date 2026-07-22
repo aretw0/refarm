@@ -70,22 +70,33 @@ describe("refarm discover announce — the managed LAN announcer", () => {
 		expect(status.pid).toBe(4242);
 	});
 
-	it("status denounces an active host firewall — the silent drop made explicit", () => {
+	it("status denounces an ENABLED host firewall with scoped allow rules", () => {
 		const deps = makeDeps({
 			listAddresses: () => [{ address: "192.168.0.7", interface: "wlp0s20f3" }],
-			probeFirewall: () => ({ name: "ufw", active: true }),
+			probeFilters: () => [{ name: "ufw", kind: "firewall", detail: "enabled" }],
 		});
 		const status = announceStatus(deps);
-		expect(status.firewall).toEqual({ name: "ufw", active: true });
-		expect(
-			status.nextActions.some((action) => action.includes("ufw allow")),
-		).toBe(true);
+		expect(status.filters).toEqual([{ name: "ufw", kind: "firewall", detail: "enabled" }]);
+		expect(status.nextActions.some((action) => action.includes("ufw allow"))).toBe(true);
 	});
 
-	it("status stays quiet about firewalls when none is active", () => {
-		const deps = makeDeps({ probeFirewall: () => null });
+	it("status flags a managed-endpoint agent but offers no self-serve fix", () => {
+		const deps = makeDeps({
+			listAddresses: () => [{ address: "192.168.0.7", interface: "wlp0s20f3" }],
+			probeFilters: () => [
+				{ name: "ds_agent", kind: "endpoint-agent", detail: "Trend Micro Deep Security" },
+			],
+		});
 		const status = announceStatus(deps);
-		expect(status.firewall).toBeUndefined();
+		expect(status.filters?.[0]?.kind).toBe("endpoint-agent");
+		// A corporate agent is not an operator `ufw allow` away — no false rule offered.
+		expect(status.nextActions.some((action) => action.includes("allow"))).toBe(false);
+	});
+
+	it("status stays quiet when nothing is filtering", () => {
+		const deps = makeDeps({ probeFilters: () => [] });
+		const status = announceStatus(deps);
+		expect(status.filters ?? []).toEqual([]);
 	});
 
 	it("status lists the farm's reachable addresses — no operator guessing", () => {

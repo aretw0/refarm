@@ -40,24 +40,66 @@ export interface DiscoverAnnounceDeps {
 	/** The farm's reachable IPv4 addresses — surfaced so an operator (or wizard)
 	 *  can hand a device an explicit address when discovery is filtered. */
 	listAddresses?(): DiscoverFarmAddress[];
-	/** Best-effort host firewall detection — an active firewall silently drops
-	 *  device probes while every host-local test passes; the status must SAY it. */
-	probeFirewall?(): { name: string; active: boolean } | null;
+	/** Best-effort detection of anything that silently drops inbound device
+	 *  probes while every host-local test passes — the status must SAY it. */
+	probeFilters?(): DiscoverInboundFilter[];
 }
 
-function defaultProbeFirewall(): { name: string; active: boolean } | null {
-	for (const name of ["ufw", "firewalld"]) {
-		try {
-			const result = runProcessHandoffSync(
-				createProcessHandoffSpecFromRunner("systemctl", ["is-active", name]),
-				{ capture: true },
-			);
-			if (result.exitCode === 0) return { name, active: true };
-		} catch {
-			// systemctl unavailable (container, mac) — nothing to report
+/** Something on the host that can drop inbound traffic. `firewall` is
+ *  operator-owned (fixable with a scoped allow); `endpoint-agent` is a managed
+ *  security agent (corporate policy — not a self-serve `allow` away). */
+export interface DiscoverInboundFilter {
+	name: string;
+	kind: "firewall" | "endpoint-agent";
+	detail: string;
+}
+
+/** Managed endpoint/host-IPS agents whose presence explains an inbound black
+ *  hole that no local test reveals. Keyed by systemd unit basename. */
+const ENDPOINT_AGENTS: Record<string, string> = {
+	ds_agent: "Trend Micro Deep Security",
+	falcon_sensor: "CrowdStrike Falcon",
+	mfetpd: "McAfee/Trellix Endpoint",
+	cbagentd: "VMware Carbon Black",
+	cortex: "Palo Alto Cortex XDR",
+	sentinelone: "SentinelOne",
+};
+
+/** Read ufw's REAL state: the service can run with the firewall disabled — the
+ *  truth is `ENABLED=yes` in ufw.conf, readable without sudo. */
+function ufwEnabled(): boolean {
+	try {
+		const conf = readFileSync("/etc/ufw/ufw.conf", "utf8");
+		return /^\s*ENABLED\s*=\s*yes\s*$/im.test(conf);
+	} catch {
+		return false;
+	}
+}
+
+function systemdUnitActive(unit: string): boolean {
+	try {
+		return (
+			runProcessHandoffSync(createProcessHandoffSpecFromRunner("systemctl", ["is-active", unit]), {
+				capture: true,
+			}).exitCode === 0
+		);
+	} catch {
+		return false;
+	}
+}
+
+function defaultProbeFilters(): DiscoverInboundFilter[] {
+	const filters: DiscoverInboundFilter[] = [];
+	if (ufwEnabled()) filters.push({ name: "ufw", kind: "firewall", detail: "enabled" });
+	if (systemdUnitActive("firewalld")) {
+		filters.push({ name: "firewalld", kind: "firewall", detail: "active" });
+	}
+	for (const [unit, product] of Object.entries(ENDPOINT_AGENTS)) {
+		if (systemdUnitActive(unit)) {
+			filters.push({ name: unit, kind: "endpoint-agent", detail: product });
 		}
 	}
-	return null;
+	return filters;
 }
 
 function defaultListAddresses(): DiscoverFarmAddress[] {
@@ -124,7 +166,7 @@ const START_COMMAND_ARGS = ["discover", "announce", "--json"];
 /** One shape for every announce outcome — the optional discriminants tell the story. */
 export interface DiscoverAnnounceResult {
 	addresses?: DiscoverFarmAddress[];
-	firewall?: { name: string; active: boolean };
+	filters?: DiscoverInboundFilter[];
 	command?: string;
 	operation?: string;
 	ok: boolean;
@@ -150,24 +192,26 @@ export function announceStatus(
 	const pid = deps.readPid(pidFile);
 	const running = pid !== null && deps.processAlive(pid);
 	const addresses = (deps.listAddresses ?? defaultListAddresses)();
-	const firewall = (deps.probeFirewall ?? defaultProbeFirewall)();
+	const filters = (deps.probeFilters ?? defaultProbeFilters)();
 	const nextCommand = running
 		? refarmCommand(STOP_COMMAND_ARGS)
 		: refarmCommand(START_COMMAND_ARGS);
-	// An active firewall is the classic silent killer of device probes: name it
-	// and hand the operator scoped allow rules (their LAN /24, beacon + sync).
-	const firewallActions = firewall?.active
-		? addresses
-				.filter((entry) => entry.address.includes("."))
-				.slice(0, 1)
-				.flatMap((entry) => {
-					const lan = `${entry.address.split(".").slice(0, 3).join(".")}.0/24`;
-					return [
-						`sudo ${firewall.name} allow from ${lan} to any port 42002 proto udp`,
-						`sudo ${firewall.name} allow from ${lan} to any port 42000 proto tcp`,
-					];
-				})
-		: [];
+	// A host firewall the operator OWNS gets scoped allow rules (their LAN /24,
+	// beacon + sync). A managed endpoint agent does NOT — offering a `ufw allow`
+	// for it would be a lie; it names the agent and stops there.
+	const lan = addresses.find((entry) => entry.address.includes("."));
+	const firewallActions =
+		lan && filters.some((filter) => filter.kind === "firewall")
+			? filters
+					.filter((filter) => filter.kind === "firewall")
+					.flatMap((filter) => {
+						const cidr = `${lan.address.split(".").slice(0, 3).join(".")}.0/24`;
+						return [
+							`sudo ${filter.name} allow from ${cidr} to any port 42002 proto udp`,
+							`sudo ${filter.name} allow from ${cidr} to any port 42000 proto tcp`,
+						];
+					})
+			: [];
 	return {
 		...buildJsonSuccessEnvelope({
 			command: "discover",
@@ -180,13 +224,13 @@ export function announceStatus(
 				...(running && pid ? { pid } : {}),
 				pidFile,
 				addresses,
-				...(firewall?.active ? { firewall } : {}),
+				...(filters.length > 0 ? { filters } : {}),
 			},
 		}),
 		running,
 		...(running && pid ? { pid } : {}),
 		addresses,
-		...(firewall?.active ? { firewall } : {}),
+		...(filters.length > 0 ? { filters } : {}),
 	};
 }
 
@@ -304,13 +348,19 @@ export function createDiscoverCommand(deps: DiscoverAnnounceDeps = defaultDeps()
 				for (const entry of result.addresses ?? []) {
 					console.log(`   fazenda alcançável em ${entry.address} (${entry.interface})`);
 				}
-				if (result.firewall?.active) {
-					console.log(
-						`   ⚠️ firewall ATIVO (${result.firewall.name}) — probes de dispositivos são descartados em silêncio.`,
-					);
-					for (const action of result.nextActions) {
-						console.log(`   liberar (escopo LAN): ${action}`);
+				for (const filter of result.filters ?? []) {
+					if (filter.kind === "firewall") {
+						console.log(
+							`   ⚠️ firewall LIGADO (${filter.name}) — probes de dispositivos podem ser descartados em silêncio.`,
+						);
+					} else {
+						console.log(
+							`   ⚠️ agente de segurança gerido: ${filter.detail} (${filter.name}) — pode filtrar tráfego de entrada por POLÍTICA CORPORATIVA, fora do seu alcance com sudo. Se a LAN não passar, o caminho é o rail P2P (spec do Pears).`,
+						);
 					}
+				}
+				for (const action of result.nextActions) {
+					console.log(`   liberar (escopo LAN): ${action}`);
 				}
 				return;
 			}
