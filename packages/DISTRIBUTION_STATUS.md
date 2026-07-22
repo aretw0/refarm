@@ -64,6 +64,7 @@ channel, not a public npm publication promise.
 - `@refarm.dev/source-web`
 - `@refarm.dev/local-surface`
 - `@refarm.dev/ds-astro`
+- `@refarm.dev/health`
 
 Validation:
 
@@ -208,7 +209,6 @@ packages are ready:
 
 | Surface | Current status | Reason |
 | --- | --- | --- |
-| `@refarm.dev/health` | release-profiled; not selected | generic diagnostics, `environment-pressure`, and work-ceiling SDK primitives are ready, but promotion waits for a consumer-pulled proof or default-candidate decision |
 | `@refarm.dev/source-git` | release-profiled; not selected | clean cached checkout adapter is implemented and dogfooded; handoff promotion waits for a selected consumer path that needs package consumption |
 | `@refarm.dev/source-local` | release-profiled; not selected | live working-tree reads are useful for Refarm dogfood and expected downstream assimilation, but handoff promotion waits for a proof that dirty/untracked state is required |
 | `@refarm.dev/source-dispatch` | not created | dispatch adapter activates when Refarm, `vault-seed`, or `agents-lab` needs `source:v1` through `dispatch-surface` with an executable proof |
