@@ -1,15 +1,15 @@
 {
-  "context": "Checkpoint 2026-07-22 (17th). MILESTONE — a device DROVE the farm end to end: farm-ask (zero-dep) submits an effort to the sidecar and polls the result; FARM_HOST=serpro-1577853 farm-ask 'o que é o Refarm?' returned a real one-sentence answer from the host's model+agent over the tailnet. The full arc is closed: the phone reaches the mesh (sync), the control plane (sidecar), AND now uses the agent (efforts). This is 'usar o refarm através dos meus dispositivos' realized at the terminal level.",
-  "timestamp": "2026-07-22T22:44:59.907Z",
+  "context": "Checkpoint 2026-07-22 (18th). CONCEPTUAL CORRECTION recorded (memory + kit doc): Refarm coordinates WORKLOADS, agents are one kind (given current model-dependence, but the core admits model-less workloads); the neutral surface any client speaks is the wire contract (sidecar HTTP efforts/plugins, WS sync), not 'the agent'. The phone DROVE the farm live (farm-ask returned a rich capability description over the mesh). Organized what worked: the Farm Client Kit (farm-hello/announce/ask + beacon/tailnet/effort-result libs) is named, framed workload-neutral, and its DECOUPLING from apps/refarm is now an executable invariant (test-farm-client-decoupled.mjs) — imports must be node builtins + own siblings only. Kit is a reusable block for any refarm-like project, promotable to @refarm.dev/farm-client when an external consumer proves reuse.",
+  "timestamp": "2026-07-22T23:18:32.442Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit (farm-ask + effort-result lib + 6 tests) — proven live over the mesh; sidecar exposed on 0.0.0.0 (tractor pid 271701)."
+    "Commit b5af95c2 — Farm Client Kit named + decoupling guard (3 tests); conceptual correction in memory."
   ],
   "blockers": [],
   "next_actions": [
-    "OPERATOR: on the phone, FARM_HOST=serpro-1577853 node scripts/farm-ask.mjs 'sua pergunta' — ask the farm anything from Termux, over Wi-Fi or 5G. The daily driver in your pocket.",
-    "Next depth: the HUB in the phone browser (refarm web serve with TLS + tailnet name — the visual experience), and distribution rung 2 (bundle apps/refarm CLI to single .mjs Release asset so the phone runs refarm, not scripts).",
-    "Sovereign follow-ons unchanged: daemon dual-bind (loopback+mesh) to retire 0.0.0.0's broad exposure; Cloudflare tunnel for public hub; Pears P2P research."
+    "Depth options, all decoupled: (a) the HUB in the phone browser (refarm web serve + TLS + tailnet name — visual experience); (b) distribution rung 2 (bundle apps/refarm CLI to single .mjs Release asset); (c) promote the kit to @refarm.dev/farm-client package (product-neutral naming) when a second/external consumer appears.",
+    "Sovereign follow-ons: daemon dual-bind (loopback+mesh) to retire 0.0.0.0 broad exposure; Cloudflare tunnel (public hub); Pears P2P (spec fatia 1 research). All outbound, all defeat the inbound EDR.",
+    "Keep the workload-neutral framing when documenting/naming: the agent is one plugin verb; efforts are workloads with or without a model."
   ],
   "open_questions": [],
   "key_decisions_active": [
