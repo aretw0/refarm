@@ -4,7 +4,7 @@ import {
 	extractAnswer,
 	isSuccessEffort,
 	isTerminalEffort,
-} from "../lib/effort-result.mjs";
+} from "../src/effort-result.mjs";
 
 test("isTerminalEffort covers stopped states, not running ones", () => {
 	for (const s of ["done", "delivered", "partial", "failed", "timed-out", "cancelled"]) {

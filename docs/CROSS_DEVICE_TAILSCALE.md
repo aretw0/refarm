@@ -36,10 +36,12 @@ refarm discover announce --status     # confirma; o IP 100.x aparece como "mesh"
 
 - Instale o app **Tailscale** (Play Store) e faça login na MESMA conta → o telefone
   entra na tailnet.
-- No Termux, teste o alcance direto pelo IP mesh do host (o `100.x` do passo 1):
+- No Termux, teste o alcance direto pelo nome ou IP mesh do host (o `100.x` do passo 1).
+  Os clientes são o pacote `@refarm.dev/farm-client` (rode do `git pull`, sem instalar):
 
 ```bash
-node scripts/farm-hello.mjs 100.x.y.z     # o IP mesh do host
+node packages/farm-client/bin/farm-hello.mjs serpro-1577853   # pelo nome MagicDNS
+# (o atalho de compat `node scripts/farm-hello.mjs …` também funciona)
 ```
 
 O sync `ws://100.x.y.z:42000` (ou pelo nome: `ws://serpro-1577853:42000`) conecta de

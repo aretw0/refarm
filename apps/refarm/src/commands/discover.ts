@@ -306,7 +306,13 @@ export function startAnnounce(deps: DiscoverAnnounceDeps = defaultDeps()): Disco
 	}
 	if (existing !== null) deps.removePid(pidFile); // stale pidfile — dead process
 
-	const scriptPath = join(deps.repoRoot(), "scripts", "farm-announce.mjs");
+	const scriptPath = join(
+		deps.repoRoot(),
+		"packages",
+		"farm-client",
+		"bin",
+		"farm-announce.mjs",
+	);
 	const spec = createProcessHandoffSpecFromRunner(process.execPath, [scriptPath], {
 		cwd: deps.repoRoot(),
 	});

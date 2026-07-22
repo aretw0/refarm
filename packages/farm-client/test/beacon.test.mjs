@@ -9,7 +9,7 @@ import {
 	encodeFarmProbe,
 	FARM_BEACON_MULTICAST_GROUP,
 	subnetSweepTargets,
-} from "../lib/farm-beacon.mjs";
+} from "../src/beacon.mjs";
 
 test("probe and announce roundtrip through their codecs", () => {
 	const probe = decodeFarmProbe(encodeFarmProbe());

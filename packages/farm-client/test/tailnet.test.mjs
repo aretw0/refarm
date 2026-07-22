@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseTailnetPeers, tailnetShortName } from "../lib/tailnet.mjs";
+import { parseTailnetPeers, tailnetShortName } from "../src/tailnet.mjs";
 
 const STATUS = {
 	Self: {

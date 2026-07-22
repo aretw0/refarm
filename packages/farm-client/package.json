@@ -1,0 +1,27 @@
+{
+	"name": "@refarm.dev/farm-client",
+	"version": "0.1.0",
+	"description": "Zero-dependency client to reach, discover, and drive a Refarm farm over its wire contract — from any device.",
+	"type": "module",
+	"private": false,
+	"publishConfig": {
+		"access": "public"
+	},
+	"main": "./src/index.mjs",
+	"exports": {
+		".": "./src/index.mjs",
+		"./beacon": "./src/beacon.mjs",
+		"./tailnet": "./src/tailnet.mjs",
+		"./effort-result": "./src/effort-result.mjs"
+	},
+	"bin": {
+		"farm-hello": "./bin/farm-hello.mjs",
+		"farm-announce": "./bin/farm-announce.mjs",
+		"farm-ask": "./bin/farm-ask.mjs"
+	},
+	"files": ["src", "bin", "README.md"],
+	"scripts": {
+		"test": "node --test test/*.test.mjs",
+		"test:unit": "node --test test/*.test.mjs"
+	}
+}
