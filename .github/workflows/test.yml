@@ -364,6 +364,17 @@ jobs:
         if: needs.changes.outputs.run_task_smoke == 'true' || needs.changes.outputs.tractor_gates == 'true'
         run: pnpm --filter @refarm.dev/tractor-rs run build
 
+      # The smoke wrapper builds its leaves with bare workspace scripts (no turbo), so
+      # the app's workspace dependencies must exist as dist first — turbo builds the
+      # closure in dependency order, mostly as remote-cache hits.
+      - name: Build the e2e smoke closure (apps/refarm + model-mock, with dependencies)
+        if: needs.changes.outputs.run_task_smoke == 'true' || needs.changes.outputs.tractor_gates == 'true'
+        run: >-
+          pnpm turbo run build
+          --filter=@refarm.dev/refarm
+          --filter=@refarm.dev/model-mock
+          --cache-dir=.turbo --output-logs=new-only --ui=stream
+
       - name: Runtime agent e2e smoke (no-token, model-mock)
         if: needs.changes.outputs.run_task_smoke == 'true' || needs.changes.outputs.tractor_gates == 'true'
         run: pnpm run refarm:agent:e2e:mock
