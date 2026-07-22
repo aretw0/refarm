@@ -1,6 +1,12 @@
 # Convergence: a reusable wallet block, mounted in the citizen hub
 
-> Status: design (2026-07-16). Grounded in the current tree. The goal Arthur set: the BEST
+> Status: slices 1-3 DONE (2026-07-22). Slice 1: `packages/wallet` extracted, `wallet-t2` is a
+> thin consumer. Slice 3: the wallet mounts in the hub (aef05a02). Slice 2: the registry-derived
+> personal panel mounts ALONGSIDE the bespoke hero (bf7a9411) — the "mount BOTH" option, keeping
+> the hub's breadth. Open: slice 4 (sovereign WASM backing in the hub) and the durable OPFS-backed
+> wallet store, both optional follow-ons.
+>
+> Original: design (2026-07-16). Grounded in the current tree. The goal Arthur set: the BEST
 > long-term shape — a mix of refactoring `apps/me` and mounting the wallet, using the full stack,
 > not a throwaway coupling.
 

@@ -1,16 +1,16 @@
 {
-  "context": "Checkpoint 2026-07-22 (2nd). Three lanes closed this cycle: (1) one shared cargo-target resolver for all scripts (34c8ab79) — seven divergent copies retired; (2) ADR-087 phase 6 — generalized brand source-guard (release:brand:guard) landed and immediately caught+fixed two live leaks in operator-resume and context-provider-v1, with the untracked renderer/contract identifiers inventoried in the ADR as decide-before-publication (f23a66c0); (3) vault-seed-ready packet rematerialized at .refarm/handoff/vault-seed/2026-07-22 — 23 tarballs accepted, 72 checks, consumer-install verifier OK, health doc drift reconciled (75ad78cb). These lanes are DONE for this cycle — do not reopen as standalone grinds.",
-  "timestamp": "2026-07-22T04:06:34.103Z",
+  "context": "Checkpoint 2026-07-22 (3rd). Wallet/apps-me convergence: all three mandatory slices DONE. Slice 2 landed today (bf7a9411): the hub's personal panel gained a registry-derived twin (verbs status/profile as honest envelopes) via createCapabilityWebSurfacePlugin, mounted ALONGSIDE the bespoke hero — the 'mount BOTH' option, hub breadth preserved. Slices 1 (packages/wallet extraction) and 3 (wallet mounted in hub, aef05a02) were already in. Spec updated with status.",
+  "timestamp": "2026-07-22T04:38:21.577Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commits 34c8ab79, f23a66c0, 75ad78cb — all through after-edit/after-commit lanes.",
-    "Validation: cargo:target:test 5/5; release:brand:guard 3/3; packages/cli 254 tests; context-provider-v1 35 tests; release:vault-seed:check 23/23 dry-run; consumer-install --latest-accepted OK at SHA f23a66c0."
+    "Commit bf7a9411 feat(apps/me): personal panel's registry twin — 27 tests passing incl. jsdom shell asserting all three panels mount.",
+    "Spec docs/superpowers/specs/2026-07-16-wallet-block-apps-me-convergence.md marked slices 1-3 done."
   ],
   "blockers": [],
   "next_actions": [
-    "Converge other fronts: wallet/apps-me convergence (docs/superpowers/specs/2026-07-16-wallet-block-apps-me-convergence.md) and daily-driver readiness — start from refarm resume --json as always.",
-    "Brand tail (ADR-087 phase-6 inventory + allowlist): chew opportunistically when a listed package is touched for another reason; the renderer/contract identifier renames need a human decision before public publication.",
-    "Public npm publication stays held behind the daily-driver gate; the local tarball lane is proven repeatable whenever vault-seed needs a refresh."
+    "Optional follow-ons on the wallet front, take only when consumer demand appears: slice 4 (sovereign WASM signer backing the hub wallet) and the durable OPFS-backed wallet store (today: in-memory, resets on reload).",
+    "Wire live hub data into the personal capability host's status thunk (createRefarmMeSurfacePlugins second arg) when me-runtime has real identity/sync state to serve.",
+    "Daily-driver readiness remains the standing convergence gate; brand tail stays governed in ADR-087 for opportunistic chewing."
   ],
   "open_questions": [],
   "key_decisions_active": [
