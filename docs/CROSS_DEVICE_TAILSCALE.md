@@ -47,21 +47,30 @@ qualquer rede — inclusive com o Wi-Fi desligado, só nos dados móveis. Alcan�
 já é entrar na malha da fazenda** — a travessia cross-device essencial. ✅ comprovado do
 Android em Wi-Fi e 5G.
 
-### Dirigir a fazenda daqui (opcional): expor o sidecar na mesh
+### Dirigir a fazenda daqui (opcional): expor o sidecar
 
 O `sync` (`:42000`) é a malha CRDT. O `sidecar` (`:42001`, plano de controle — efforts,
 chat) fica em **loopback por padrão, de propósito**. Para dirigir a fazenda a partir do
-celular, exponha o sidecar no host — **de forma soberana, só na tailnet** (não na LAN
-corporativa nem na VPN):
+celular, o daemon precisa ouvir o sidecar além do loopback:
 
 ```bash
-# no host, reinicie o runtime bindando o sidecar SÓ no IP mesh:
-REFARM_HTTP_HOST=100.105.71.127 bash scripts/tractor-start.sh --background
+# no host, reinicie o runtime bindando o sidecar em 0.0.0.0:
+REFARM_HTTP_HOST=0.0.0.0 bash scripts/tractor-start.sh --background
 ```
 
-Bindar no IP mesh específico (não `0.0.0.0`) é a escolha soberana: o sidecar passa a
-responder apenas por dentro da tailnet cifrada, invisível para a LAN e a VPN. Depois
-disso, `farm-hello <nome>` mostra sidecar ✅ e o hub/efforts funcionam do celular.
+Por que `0.0.0.0` e não o IP mesh específico: o tooling LOCAL do refarm fala com
+`127.0.0.1:42001`; bindar só no IP mesh quebraria tudo que roda no próprio host. `0.0.0.0`
+cobre loopback (local) E a tailnet (celular) de uma vez.
+
+**Nota de soberania — honesta:** `0.0.0.0` também escuta na LAN e na VPN. NESTA máquina
+isso é contido pelo EDR corporativo (`ds_agent`), que descarta inbound na LAN/VPN — então
+o sidecar fica de fato alcançável só em loopback + tailnet. Numa máquina SEM esse filtro
+de entrada, `0.0.0.0` exporia o sidecar (sem autenticação) para toda a LAN. A resposta
+soberana geral é dual-bind (loopback + IP mesh) no daemon — um follow-on rastreado — ou
+pôr o sidecar atrás do proxy same-origin (`refarm serve --host`) bindado só na mesh.
+
+Depois do restart, `farm-hello <nome>` mostra sidecar ✅ e o hub/efforts funcionam do
+celular.
 
 - Para o HUB no navegador do celular: `https://<nome-magicdns-do-host>` depois de servir
   com `refarm web serve apps/me/dist --host 0.0.0.0 --tls-cert … --tls-key …` (ou, com
