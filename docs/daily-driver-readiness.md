@@ -144,7 +144,11 @@ What is already solid:
 
 What still blocks the 95/100 product target:
 
-- Some scripts and legacy toolbox flows still execute shell command strings.
+- Shell command strings that interpolated DATA are gone: the toolbox gh adapter
+  (issue titles/bodies/labels — a real injection surface) and the git helpers in
+  quality-gate/check-diagrams now use argv arrays. What remains are repo-constant
+  package-manager invocations (`migration-health-check`, `rebrand`, the
+  deprecated `reso.mjs` wrapper) — no data reaches those strings.
 - Remaining direct app prompts are expected to go through
   `@refarm.dev/prompt-contract-v1`; legacy `ExitPromptError` cancellation is
   recognized by shape for compatibility without a direct app dependency.

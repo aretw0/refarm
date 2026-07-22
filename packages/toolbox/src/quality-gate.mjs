@@ -10,7 +10,7 @@
  *   node quality-gate.mjs [--strict] [--branch <name>]
  */
 
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 
 const args = process.argv.slice(2);
 const isStrict = args.includes("--strict");
@@ -20,7 +20,7 @@ console.log(`🔍 Running Refarm Quality Gate (SDD->BDD->TDD->DDD)...`);
 
 try {
 	// 1. Get changed files compared to target branch
-	const changedFiles = execSync(`git diff --name-only origin/${targetBranch}...HEAD`)
+	const changedFiles = execFileSync("git", ["diff", "--name-only", `origin/${targetBranch}...HEAD`])
 		.toString()
 		.split("\n")
 		.filter(Boolean);

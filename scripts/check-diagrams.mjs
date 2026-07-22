@@ -13,7 +13,7 @@
  *   node scripts/check-diagrams.mjs --ci     // Regenerate + fail (or warn) if SVGs drifted
  */
 
-import { execSync, execFileSync } from "child_process";
+import { execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -112,7 +112,7 @@ function validateDiagrams() {
   if (CI_MODE) {
     // On CI: Check if git detected any changes
     try {
-      const gitStatus = execSync("git status --porcelain", {
+      const gitStatus = execFileSync("git", ["status", "--porcelain"], {
         cwd: projectRoot,
         encoding: "utf-8",
       });
