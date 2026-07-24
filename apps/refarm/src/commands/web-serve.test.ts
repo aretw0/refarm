@@ -1,4 +1,5 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createServer as createHttpServer } from "node:http";
 import { get as httpsGet } from "node:https";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -11,7 +12,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { WebSocket, WebSocketServer } from "ws";
 
-import { startWebServeServer } from "./web-serve.js";
+import { isSidecarApiPath, startWebServeServer } from "./web-serve.js";
 
 /** Run openssl through the app's sanctioned process seam (never raw child_process). */
 function runOpenssl(args: string[]): number {
@@ -192,6 +193,54 @@ describe.skipIf(!opensslAvailable)("refarm web serve — TLS (the secure-context
 			expect(response.headers["cross-origin-opener-policy"]).toBe("same-origin");
 		} finally {
 			rmSync(certDir, { recursive: true, force: true });
+		}
+	});
+});
+
+describe("refarm web serve — the sidecar API proxy", () => {
+	it("isSidecarApiPath matches the sidecar API, not static assets", () => {
+		expect(isSidecarApiPath("/efforts")).toBe(true);
+		expect(isSidecarApiPath("/efforts/abc")).toBe(true);
+		expect(isSidecarApiPath("/sessions/1/history")).toBe(true);
+		expect(isSidecarApiPath("/nodes")).toBe(true);
+		expect(isSidecarApiPath("/")).toBe(false);
+		expect(isSidecarApiPath("/manifest.webmanifest")).toBe(false);
+		expect(isSidecarApiPath("/assets/app.wasm")).toBe(false);
+		expect(isSidecarApiPath("/effortsxyz")).toBe(false); // a prefix must be a whole segment
+	});
+
+	it("proxies POST /efforts to the daemon sidecar (so the hub works over any origin)", async () => {
+		const fake = createHttpServer((req, res) => {
+			let body = "";
+			req.on("data", (chunk) => (body += chunk));
+			req.on("end", () => {
+				res.statusCode = 201;
+				res.setHeader("content-type", "application/json");
+				res.end(JSON.stringify({ method: req.method, path: req.url, body }));
+			});
+		});
+		await new Promise<void>((resolve) => fake.listen(0, "127.0.0.1", () => resolve()));
+		const fakePort = (fake.address() as AddressInfo).port;
+		const started = await startWebServeServer(root, {
+			port: 0,
+			host: "127.0.0.1",
+			sidecarTarget: { host: "127.0.0.1", port: fakePort },
+		});
+		server = started.server;
+		try {
+			const res = await fetch(`${started.url}/efforts`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ hi: 1 }),
+			});
+			// 201 from the fake sidecar — NOT the 405 the static-only server would give.
+			expect(res.status).toBe(201);
+			const echoed = (await res.json()) as { method: string; path: string; body: string };
+			expect(echoed.method).toBe("POST");
+			expect(echoed.path).toBe("/efforts");
+			expect(JSON.parse(echoed.body)).toEqual({ hi: 1 });
+		} finally {
+			await new Promise<void>((resolve) => fake.close(() => resolve()));
 		}
 	});
 });

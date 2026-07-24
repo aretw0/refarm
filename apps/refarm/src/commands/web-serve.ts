@@ -1,6 +1,12 @@
 import { createReadStream, readFileSync } from "node:fs";
 import { stat } from "node:fs/promises";
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import {
+	createServer,
+	request as httpRequest,
+	type IncomingMessage,
+	type Server,
+	type ServerResponse,
+} from "node:http";
 import { createServer as createTlsServer } from "node:https";
 import { connect, type Socket } from "node:net";
 import path from "node:path";
@@ -53,19 +59,66 @@ function containedPath(root: string, pathname: string): string | null {
 	return resolved;
 }
 
+/** Sidecar HTTP API paths the hub calls same-origin (POST /efforts, GET
+ * /efforts/:id, …). web serve proxies them to the daemon's sidecar so the hub
+ * works over ANY origin it was served from — a tunnel included — the same way
+ * /sync (the CRDT WebSocket) is proxied. Without this a same-origin POST /efforts
+ * hits the static server and 405s (which broke the phone chat over a tunnel). */
+const SIDECAR_API_PREFIXES = ["/efforts", "/sessions", "/nodes", "/tasks", "/plugins"] as const;
+
+export function isSidecarApiPath(pathname: string): boolean {
+	return SIDECAR_API_PREFIXES.some(
+		(prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+	);
+}
+
+function proxyToSidecar(
+	target: WebServeSyncTarget,
+	req: IncomingMessage,
+	res: ServerResponse,
+): void {
+	const upstream = httpRequest(
+		{
+			host: target.host,
+			port: target.port,
+			method: req.method,
+			path: req.url,
+			headers: { ...req.headers, host: `${target.host}:${target.port}` },
+		},
+		(upstreamRes) => {
+			res.statusCode = upstreamRes.statusCode ?? 502;
+			for (const [name, value] of Object.entries(upstreamRes.headers)) {
+				if (value !== undefined) res.setHeader(name, value);
+			}
+			upstreamRes.pipe(res);
+		},
+	);
+	upstream.on("error", () => {
+		if (!res.headersSent) res.statusCode = 502;
+		res.end();
+	});
+	req.pipe(upstream);
+}
+
 export function createWebServeHandler(
 	rootDir: string,
+	sidecarTarget?: WebServeSyncTarget,
 ): (req: IncomingMessage, res: ServerResponse) => void {
 	const root = path.resolve(rootDir);
 	return (req, res) => {
 		void (async () => {
+			const url = new URL(req.url ?? "/", "http://localhost");
+			// Sidecar API → proxy to the daemon; everything else is served static.
+			if (sidecarTarget && isSidecarApiPath(url.pathname)) {
+				proxyToSidecar(sidecarTarget, req, res);
+				return;
+			}
 			writeIsolationHeaders(res);
 			if (req.method !== "GET" && req.method !== "HEAD") {
 				res.statusCode = 405;
 				res.setHeader("Allow", "GET, HEAD");
 				return res.end();
 			}
-			const url = new URL(req.url ?? "/", "http://localhost");
 			const contained = containedPath(root, url.pathname);
 			if (!contained) {
 				res.statusCode = 404;
@@ -105,6 +158,7 @@ export interface WebServeSyncTarget {
 }
 
 const DEFAULT_SYNC_TARGET: WebServeSyncTarget = { host: "127.0.0.1", port: 42000 };
+const DEFAULT_SIDECAR_TARGET: WebServeSyncTarget = { host: "127.0.0.1", port: 42001 };
 
 /** Headers a WebSocket handshake needs; everything else stays behind the proxy. */
 const SYNC_FORWARD_HEADERS = [
@@ -166,9 +220,10 @@ export function startWebServeServer(
 		host: string;
 		tls?: WebServeTlsOptions;
 		syncTarget?: WebServeSyncTarget;
+		sidecarTarget?: WebServeSyncTarget;
 	},
 ): Promise<{ server: Server; url: string }> {
-	const handler = createWebServeHandler(rootDir);
+	const handler = createWebServeHandler(rootDir, options.sidecarTarget ?? DEFAULT_SIDECAR_TARGET);
 	const server = options.tls
 		? createTlsServer(
 				{
@@ -198,6 +253,7 @@ interface WebServeOptions {
 	tlsCert?: string;
 	tlsKey?: string;
 	syncTarget?: string;
+	sidecarTarget?: string;
 	json?: boolean;
 }
 
@@ -227,6 +283,11 @@ export function createWebServeCommand(): Command {
 			"Daemon CRDT WS the /sync proxy forwards to",
 			"127.0.0.1:42000",
 		)
+		.option(
+			"--sidecar-target <host:port>",
+			"Daemon sidecar HTTP API the /efforts proxy forwards to",
+			"127.0.0.1:42001",
+		)
 		.option("--json", "Print the listening address as JSON")
 		.action(async (dir: string, options: WebServeOptions) => {
 			const port = Number.parseInt(options.port ?? "4321", 10);
@@ -243,6 +304,7 @@ export function createWebServeCommand(): Command {
 				host,
 				...(tls ? { tls } : {}),
 				syncTarget: parseSyncTarget(options.syncTarget ?? "127.0.0.1:42000"),
+				sidecarTarget: parseSyncTarget(options.sidecarTarget ?? "127.0.0.1:42001"),
 			});
 			if (options.json) {
 				process.stdout.write(`${JSON.stringify({ ok: true, url, dir: path.resolve(dir) })}\n`);
