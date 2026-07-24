@@ -1,16 +1,16 @@
 {
-  "context": "Checkpoint 2026-07-24 (22nd). MESH ARTIFACT DISTRIBUTION v1 landed + proven live. The dev PC is now a temporary binary/build server on the tailnet: 'refarm dist publish' assembles the farm-client kit + a sha256-verified manifest.json into .refarm/dist/farm-client (gitignored artifact); 'refarm web serve <that> --host 0.0.0.0' exposes it (reused, no new server); the zero-dep 'farm-update' bin pulls only changed files, VERIFIES each sha256, stages, and swaps atomically. Proven end-to-end: farm-update pulled the 12-file kit (46 KB) into a bare dir, verified it, and the DOWNLOADED farm-ask then drove the farm and printed its usage footer — a device with only Node (no git/npm/clone) got the software over the mesh. Manifest is a neutral wire contract (path-traversal-guarded), extensible to a compiled tractor binary for an x86 peer. 3 commits pushed (08bc6003 doc, 8b4e8468 farm-client, 284673a1 dist publish); all gates green; +12 tests (9 farm-client manifest + 3 apps/refarm).",
-  "timestamp": "2026-07-24T15:42:33.949Z",
+  "context": "Checkpoint 2026-07-24 (23rd). COLD-BOOTSTRAP landed + proven: a device with only Node installs the whole farm-client kit over the mesh with NO git/clone/npm — 'curl -fsSL http://serpro-1577853:4321/install.mjs | node --input-type=module -'. dist publish auto-detects the farm's MagicDNS name (tailscale Self.HostName) and bakes it into a self-contained install.mjs. Proven: curl-pipe pulled the 14-file kit into a bare dir and farm-ask drove the farm, host remembered. This session's farm-client arc (all zero-dep, all proven live over the mesh): usage footer → error-hint (plan-gated) → kit-remembers-the-farm → progress spinner → cold-bootstrap. Commits pushed 79e534fd. NEW: operator shared the north star — refarm = single control plane for their WHOLE life (personal+professional), a personal agentic OS; both their computers now on the tailnet.",
+  "timestamp": "2026-07-24T20:36:30.719Z",
   "current_phase": "12",
   "current_tasks": [],
   "blockers": [],
   "next_actions": [
-    "x86 payload (operator is bringing a 2nd x86 node onto the tailnet): distribute the compiled tractor binary + agent.wasm via the SAME manifest pattern — add a 'platform'/arch field and a dist-publish source for the binary. The manifest contract already admits it.",
-    "Optional: 'refarm dist serve' one-shot (publish + web serve together); auto-update polling on the device; operator signing atop sha256 (trust chain) when leaving the mesh's WireGuard trust boundary.",
-    "BASELINE bloat lever (still open, lab-method per operator): measure marginal token contribution of system-prompt/tool-defs (~1.3k floor) and trim by evidence, not opinion."
+    "PWA on the phone (ladder step 3): audit apps/me for installable-PWA pieces (web manifest + service worker + offline), then serve via 'refarm web serve apps/me/dist --tls' — installable hub over the mesh. PWA, not APK (no native blocks; reuse apps/me + web serve).",
+    "Cloudflare Tunnel (ladder step 4): real hostname + TLS (fixes PWA secure-context + reach from any network), reuses packages/infra-cloudflare. Railway = persistent always-on node, later. Operator to decide Cloudflare vs Railway — recommend Cloudflare first.",
+    "x86 tractor node (ladder step 5): the personal PC (now on the tailnet) as a farm node via the same manifest + a platform field. Also the natural payload-2 for dist."
   ],
   "open_questions": [
-    "gpt-5.3-codex-spark 400 = confirmed account-level gate. Open: operator's pi.dev spark via ChatGPT OAuth account (same token refarm uses) or pi.dev hosted infra?"
+    "Cloudflare vs Railway for raising nodes — recommend Cloudflare first (tunnel/TLS/edge, existing block); Railway for persistent compute later."
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
