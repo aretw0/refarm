@@ -21,6 +21,7 @@ const KIT_FILES = [
 	"src/tailnet.mjs",
 	"src/effort.mjs",
 	"src/effort-result.mjs",
+	"src/usage.mjs",
 	"bin/farm-hello.mjs",
 	"bin/farm-announce.mjs",
 	"bin/farm-ask.mjs",

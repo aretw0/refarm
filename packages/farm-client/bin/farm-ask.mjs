@@ -19,6 +19,7 @@
 import { buildRespondEffort } from "../src/effort.mjs";
 import { extractAnswer, isSuccessEffort, isTerminalEffort } from "../src/effort-result.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
+import { formatUsage, parseUsage } from "../src/usage.mjs";
 
 const HTTP_PORT = Number(process.env.FARM_HTTP_PORT ?? 42001);
 const prompt = process.argv.slice(2).join(" ").trim();
@@ -103,6 +104,11 @@ while (Date.now() < deadline) {
   const answer = extractAnswer(result);
   if (isSuccessEffort(result.status) && answer) {
     console.log(`${answer}\n`);
+    // Usage footer → stderr, so stdout stays the pure answer (pipeable). This is
+    // the "spend visibility everyone has": tokens in/out (+ reasoning/cached) and
+    // the estimated cost, so context bloat is felt at a glance.
+    const usageLine = formatUsage(parseUsage(result));
+    if (usageLine) console.error(`\x1b[2m${usageLine}\x1b[0m`);
     process.exit(0);
   }
   console.error(`❌ o agente terminou em '${result.status}'${answer ? `: ${answer}` : ""}`);
