@@ -19,11 +19,35 @@ export function isSuccessEffort(status) {
 	return status === "done" || status === "delivered" || status === "partial";
 }
 
+/**
+ * Turn a raw agent error into an actionable hint, then let the surface show it.
+ * Generic on purpose — pattern-based, not a per-model table — so a model gated by
+ * the account's plan (e.g. a Pro-only model on a Plus plan) points at the next
+ * step instead of leaking a raw backend string. The model id is lifted from the
+ * message itself, and the original detail is preserved (never hidden).
+ */
+export function humanizeAgentError(text) {
+	const raw = typeof text === "string" ? text : String(text ?? "");
+	const lower = raw.toLowerCase();
+	const planGated =
+		lower.includes("not supported when using") ||
+		(lower.includes("not supported") && lower.includes("model")) ||
+		lower.includes("does not have access");
+	if (planGated) {
+		const model = raw.match(/'([^']+)'/)?.[1];
+		return (
+			`⚠️ O modelo ${model ? `'${model}' ` : ""}não está disponível no seu plano — ` +
+			`verifique seu plano ou use outro modelo disponível (ex.: gpt-5.5).\n   detalhe: ${raw}`
+		);
+	}
+	return `⚠️ ${raw}`;
+}
+
 /** Pull the agent's text answer from an EffortResult, tolerant of shape. */
 export function extractAnswer(effortResult) {
 	const task = (effortResult?.results ?? []).find((t) => t?.status === "ok") ?? effortResult?.results?.[0];
 	if (!task) return null;
-	if (task.error) return `⚠️ ${task.error}`;
+	if (task.error) return humanizeAgentError(task.error);
 	return textFromResult(task.result);
 }
 
