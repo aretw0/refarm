@@ -1,17 +1,17 @@
 {
-  "context": "Checkpoint 2026-07-22 (19th). The device kit is now a REAL PACKAGE: @refarm.dev/farm-client (js-tool, zero runtime deps, pure ESM). The operator's intent — decentralize what was stuck in refarm so it/others receive via import, not just ad-hoc scripts. src/ is the importable library (beacon/tailnet/effort-result, 16 exports + subpaths); bin/ are the git-pull executables (farm-hello/announce/ask, import ../src relatively so no install needed on Termux). Decoupling is an in-package test invariant. apps/refarm discover spawns the package bin; scripts/farm-*.mjs are thin compat shims. Answer to the operator's question: it is a PACKAGE not an app (apps are opinionated distros; this is a reusable block). Proven live over the tailnet + as a library import. All structural validators green (validate-packages js-tool, test-runner:contracts, brand guard).",
-  "timestamp": "2026-07-22T23:28:33.324Z",
+  "context": "Checkpoint 2026-07-24 (21st). TOKEN EFFICIENCY landed + PROVEN. Two slices this session, both live over the farm: (1) Usage visibility end-to-end (sidecar now surfaces the UsageRecord on the effort wire contract; farm-client renders a footer) — pushed earlier as e61c47e5/ca2ffe0a/39d83d41. (2) Prompt caching: the codex Responses body now sends prompt_cache_key (session id, else a stable instructions-derived key), so the large stable prefix (system prompt + tool defs) is billed at the cached rate on repeat. PROVEN with the footer as instrument (Active Inference): a repeated 4,245-token context billed 3,584 cached = 84% from cache ('4.2k in . 3.6k cached'). Below ~1k tokens caching does not engage. Commit 04fca81e (packages/agent, non-8, agent.wasm rebuilt + reinstalled, daemon pid 772877 on mesh). All gates green; 13 codex-body tests.",
+  "timestamp": "2026-07-24T13:07:55.486Z",
   "current_phase": "12",
-  "current_tasks": [
-    "Commit (farm-client package) — device kit promoted; 18 pkg tests + validators green; farm-ask proven live from the package bin."
-  ],
+  "current_tasks": [],
   "blockers": [],
   "next_actions": [
-    "Promotion follow-through when ready: consider farm-client for the vault-seed-ready selection (product-neutral consumer-pulled block) once an external consumer imports it; add it to DISTRIBUTION_STATUS if selected.",
-    "Depth options unchanged, all decoupled: HUB in the phone browser (refarm web serve + TLS + tailnet name); distribution rung 2 (bundle apps/refarm CLI itself, separate from farm-client); sovereign follow-ons (daemon dual-bind, Cloudflare tunnel, Pears P2P).",
-    "Keep the workload-neutral framing: agent is one plugin verb; farm-client's effort-result and wire contract are workload-neutral."
+    "DISTRIBUTION front (operator sequenced: tokens first — DONE — then distribution): PC as a temporary binary/build server on the Tailscale mesh — serve the BUILT artifact + a version manifest over refarm web serve (already a mesh file server), a farm-update on the device pulls + swaps. Learn from docs/superpowers/specs/2026-07-22-pears-p2p-assimilation.md (farm-tunnel).",
+    "BASELINE bloat lever (the footer now exposes it): a trivial prompt costs ~1.3k input tokens = system prompt + tool defs. Leaning that prefix shrinks every turn's floor. Behavior-affecting — needs care + operator input on what to trim.",
+    "Optional codex body follow-ons (pi parity, each measurable via the footer): include:[reasoning.encrypted_content], text.verbosity, reasoning.effort — guard gpt-5.5 against regression."
   ],
-  "open_questions": [],
+  "open_questions": [
+    "gpt-5.3-codex-spark 400 remains a CONFIRMED account-level gate (see memory spark-is-account-gated-not-headers). Open: is the operator's pi.dev spark via their ChatGPT OAuth account (same token refarm uses) or pi.dev hosted infra? That decides if refarm can reach spark at all."
+  ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
     "DEC-032: produto CLI/host em apps/; packages/ guardam blocos reutilizáveis.",
