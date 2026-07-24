@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildKitManifest, integrityOf } from "./dist.js";
+import { bakeInstaller, buildKitManifest, integrityOf } from "./dist.js";
 
 describe("refarm dist — the kit manifest", () => {
 	it("integrityOf is SRI-style sha256-<base64> and content-addressed", () => {
@@ -32,5 +32,19 @@ describe("refarm dist — the kit manifest", () => {
 		const files = [{ path: "src/a.mjs", content: Buffer.from("a") }];
 		const meta = { name: "farm-client", version: "0.1.0", createdAt: "2026-07-24T00:00:00.000Z" };
 		expect(buildKitManifest(files, meta)).toEqual(buildKitManifest(files, meta));
+	});
+
+	it("bakeInstaller substitutes the farm host + port into the installer template", () => {
+		const template = 'const HOST = process.env.FARM_HOST || "__FARM_HOST__";\nconst PORT = Number("__FARM_PORT__");';
+		const baked = bakeInstaller(template, { host: "serpro-1577853", port: 4321 });
+		expect(baked).toContain('|| "serpro-1577853"');
+		expect(baked).toContain('Number("4321")');
+		expect(baked).not.toContain("__FARM_HOST__");
+		expect(baked).not.toContain("__FARM_PORT__");
+	});
+
+	it("bakeInstaller with an empty host leaves the installer requiring FARM_HOST", () => {
+		const baked = bakeInstaller('x || "__FARM_HOST__"', { host: "", port: 4321 });
+		expect(baked).toBe('x || ""');
 	});
 });

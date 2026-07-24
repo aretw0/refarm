@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -20,6 +21,25 @@ import { refarmCommand } from "../brand.js";
 /** SRI-style integrity — the same "sha256-<base64>" contract farm-client verifies. */
 export function integrityOf(bytes: Buffer | string): string {
 	return `sha256-${createHash("sha256").update(bytes).digest("base64")}`;
+}
+
+/** Bake the farm host + port into the cold-bootstrap installer template. PURE.
+ * An empty host leaves the installer requiring FARM_HOST at run time. */
+export function bakeInstaller(template: string, opts: { host: string; port: number }): string {
+	return template.replaceAll("__FARM_HOST__", opts.host).replaceAll("__FARM_PORT__", String(opts.port));
+}
+
+/** This machine's MagicDNS name, best-effort — so `dist publish` bakes the farm's
+ * own name into the installer without the operator repeating it. null if the
+ * tailscale CLI is absent or errors. */
+function detectTailnetHost(): string | null {
+	try {
+		const out = execFileSync("tailscale", ["status", "--json"], { encoding: "utf8", timeout: 3000 });
+		const host = (JSON.parse(out) as { Self?: { HostName?: string } })?.Self?.HostName;
+		return typeof host === "string" && host ? host : null;
+	} catch {
+		return null;
+	}
 }
 
 export interface KitFile {
@@ -85,6 +105,8 @@ async function collectKitFiles(kitDir: string): Promise<KitFile[]> {
 interface DistPublishOptions {
 	kit?: string;
 	out?: string;
+	host?: string;
+	port?: string;
 	json?: boolean;
 }
 
@@ -93,6 +115,11 @@ export function createDistPublishCommand(): Command {
 		.description("Assemble the farm-client kit + a hash-verified manifest into a served dir")
 		.option("--kit <dir>", "Kit package dir to publish", "packages/farm-client")
 		.option("--out <dir>", "Output root (served over the mesh)", ".refarm/dist")
+		.option(
+			"--host <name>",
+			"Farm MagicDNS name baked into the cold-bootstrap installer (auto-detected from tailscale if omitted)",
+		)
+		.option("--port <port>", "Port the mesh server will use — baked into the installer + hints", "4321")
 		.option("--json", "Print the result as JSON")
 		.action(async (options: DistPublishOptions) => {
 			const kitDir = path.resolve(options.kit ?? "packages/farm-client");
@@ -118,6 +145,14 @@ export function createDistPublishCommand(): Command {
 			}
 			await writeFile(path.join(outDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 
+			// Cold-bootstrap: a single self-contained installer, so a device with
+			// only Node installs the kit with no git/clone. Bake the farm's name so
+			// the served URL and the installer agree on where home is.
+			const port = Number.parseInt(options.port ?? "4321", 10) || 4321;
+			const host = options.host ?? detectTailnetHost() ?? "";
+			const template = await readFile(path.join(kitDir, "bootstrap", "install.mjs"), "utf8");
+			await writeFile(path.join(outDir, "install.mjs"), bakeInstaller(template, { host, port }));
+
 			const serveHint = refarmCommand([
 				"web",
 				"serve",
@@ -125,8 +160,11 @@ export function createDistPublishCommand(): Command {
 				"--host",
 				"0.0.0.0",
 				"--port",
-				"4321",
+				String(port),
 			]);
+			const coldBootstrap = host
+				? `curl -fsSL http://${host}:${port}/install.mjs | node --input-type=module -`
+				: `FARM_HOST=<farm> curl -fsSL http://<farm>:${port}/install.mjs | node --input-type=module -`;
 			if (options.json) {
 				process.stdout.write(
 					`${JSON.stringify({
@@ -135,15 +173,19 @@ export function createDistPublishCommand(): Command {
 						name: manifest.name,
 						version: manifest.version,
 						files: manifest.files.length,
+						host: host || null,
+						port,
 						serveCommand: serveHint,
+						coldBootstrap,
 					})}\n`,
 				);
 			} else {
 				process.stdout.write(
 					`📦 farm-client ${manifest.version} → ${outDir}\n` +
-						`   ${manifest.files.length} file(s) + manifest.json (sha256-verified).\n` +
+						`   ${manifest.files.length} file(s) + manifest.json + install.mjs (sha256-verified).\n` +
 						`   Serve on the mesh: ${serveHint}\n` +
-						`   On a device:       farm-update\n`,
+						`   Cold-bootstrap (device, no git): ${coldBootstrap}\n` +
+						`   Update thereafter:  farm-update\n`,
 				);
 			}
 		});
