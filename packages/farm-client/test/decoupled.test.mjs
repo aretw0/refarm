@@ -22,9 +22,11 @@ const KIT_FILES = [
 	"src/effort.mjs",
 	"src/effort-result.mjs",
 	"src/usage.mjs",
+	"src/manifest.mjs",
 	"bin/farm-hello.mjs",
 	"bin/farm-announce.mjs",
 	"bin/farm-ask.mjs",
+	"bin/farm-update.mjs",
 ];
 
 const IMPORT_RE = /^\s*import\s[^"']*["']([^"']+)["']/gm;

@@ -27,3 +27,4 @@ export { parseTailnetPeers, tailnetPeers, tailnetShortName } from "./tailnet.mjs
 export { buildRespondEffort } from "./effort.mjs";
 export { extractAnswer, isSuccessEffort, isTerminalEffort } from "./effort-result.mjs";
 export { compactTokens, formatUsage, formatUsd, parseUsage } from "./usage.mjs";
+export { buildManifest, integrityOf, isSafeRelPath, parseManifest, planUpdate } from "./manifest.mjs";
