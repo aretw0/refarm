@@ -726,11 +726,9 @@ fn send_model_http_post(
             return Err("OPENAI_CODEX_ACCESS_TOKEN not set".to_string());
         };
         let account_id = openai_codex_account_id_from_env()?;
-        req = req
-            .set("authorization", &header)
-            .set("chatgpt-account-id", &account_id)
-            .set("originator", "refarm")
-            .set("OpenAI-Beta", "responses=experimental");
+        for (name, value) in openai_codex_auth_headers(&header, &account_id, &codex_request_id()) {
+            req = req.set(name, &value);
+        }
     } else if let Some(header) = bearer_key_for_provider(&provider)? {
         req = req.set("authorization", &header);
     }
@@ -794,6 +792,42 @@ fn known_provider_api_path(provider: &str) -> &'static str {
 
 // Derive a Bearer auth header for any non-Anthropic provider.
 // Resolution order: {PROVIDER_UPPER}_API_KEY → OPENAI_API_KEY (generic compat) → None (ollama).
+/// A per-request identifier for the Codex `session-id`/`x-client-request-id`
+/// headers. Derived from the wall clock — unique enough to identify a request;
+/// prompt-cache affinity across a turn is a follow-on if it proves worth it.
+fn codex_request_id() -> String {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| format!("refarm-{:032x}", d.as_nanos()))
+        .unwrap_or_else(|_| "refarm-0".to_string())
+}
+
+/// The header set the ChatGPT-account Codex backend
+/// (chatgpt.com/backend-api/codex/responses) expects from a legitimate client.
+///
+/// Advanced models (e.g. gpt-5.3-codex-spark and its separate worker quota) are
+/// gated behind the FULL set a real Codex client sends — the default model works
+/// with less, but the gated models do not. `originator` is refarm's OWN honest
+/// identifier ("refarm", exactly as Pi sends "pi" — never impersonating the CLI);
+/// the pieces that were missing are the protocol headers: a User-Agent, an SSE
+/// `accept`, and a per-request session id. Pure so the shape is a tested invariant.
+fn openai_codex_auth_headers(
+    bearer: &str,
+    account_id: &str,
+    request_id: &str,
+) -> Vec<(&'static str, String)> {
+    vec![
+        ("authorization", bearer.to_string()),
+        ("chatgpt-account-id", account_id.to_string()),
+        ("originator", "refarm".to_string()),
+        ("OpenAI-Beta", "responses=experimental".to_string()),
+        ("User-Agent", concat!("refarm/", env!("CARGO_PKG_VERSION")).to_string()),
+        ("accept", "text/event-stream".to_string()),
+        ("session-id", request_id.to_string()),
+        ("x-client-request-id", request_id.to_string()),
+    ]
+}
+
 fn bearer_key_for_provider(provider: &str) -> Result<Option<String>, String> {
     let normalized = normalize_provider_name(provider);
 
@@ -1272,6 +1306,35 @@ fn normalize_path(path: &str) -> String {
 #[cfg(test)]
 mod core_pure_tests {
     use super::*;
+
+    // ── openai_codex_auth_headers ───────────────────────────────────────────
+    // The header set that unlocks gated Codex models (worker-quota spark). A
+    // regression guard: the protocol headers must stay present, and the
+    // originator must stay refarm's OWN honest identifier — never the CLI's.
+
+    #[test]
+    fn codex_auth_headers_carry_the_full_gated_client_set() {
+        let headers = openai_codex_auth_headers("Bearer tok", "acct-123", "req-abc");
+        let map: std::collections::HashMap<&str, String> = headers.into_iter().collect();
+        assert_eq!(map.get("authorization").map(String::as_str), Some("Bearer tok"));
+        assert_eq!(map.get("chatgpt-account-id").map(String::as_str), Some("acct-123"));
+        assert_eq!(map.get("OpenAI-Beta").map(String::as_str), Some("responses=experimental"));
+        assert_eq!(map.get("accept").map(String::as_str), Some("text/event-stream"));
+        assert_eq!(map.get("session-id").map(String::as_str), Some("req-abc"));
+        assert_eq!(map.get("x-client-request-id").map(String::as_str), Some("req-abc"));
+        // Honest identity — refarm names itself, and the UA is present + refarm-tagged.
+        assert_eq!(map.get("originator").map(String::as_str), Some("refarm"));
+        let ua = map.get("User-Agent").cloned().unwrap_or_default();
+        assert!(ua.starts_with("refarm/"), "User-Agent must identify refarm: {ua}");
+        assert!(!ua.contains("codex"), "must not impersonate the Codex CLI: {ua}");
+    }
+
+    #[test]
+    fn codex_request_id_is_refarm_tagged_and_nonempty() {
+        let id = codex_request_id();
+        assert!(id.starts_with("refarm-"), "request id should be refarm-tagged: {id}");
+        assert!(id.len() > "refarm-".len());
+    }
 
     // ── provider_base_url_for_liveness ──────────────────────────────────────
     // Reads MODEL_BASE_URL via ModelRoute::for_provider, so guard the env and
