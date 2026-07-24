@@ -29,6 +29,7 @@ const KIT_FILES = [
 	"bin/farm-announce.mjs",
 	"bin/farm-ask.mjs",
 	"bin/farm-update.mjs",
+	"bootstrap/install.mjs",
 ];
 
 const IMPORT_RE = /^\s*import\s[^"']*["']([^"']+)["']/gm;

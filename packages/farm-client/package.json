@@ -19,7 +19,7 @@
 		"farm-announce": "./bin/farm-announce.mjs",
 		"farm-ask": "./bin/farm-ask.mjs"
 	},
-	"files": ["src", "bin", "README.md"],
+	"files": ["src", "bin", "bootstrap", "README.md"],
 	"scripts": {
 		"test": "node --test test/*.test.mjs",
 		"test:unit": "node --test test/*.test.mjs"
