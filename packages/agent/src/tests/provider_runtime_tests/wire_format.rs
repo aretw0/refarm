@@ -144,6 +144,7 @@ fn provider_runtime_build_openai_codex_body_uses_responses_shape() {
             }
         }]),
         false,
+        None,
     );
     let v: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(v["model"], "gpt-5.5");
@@ -154,6 +155,9 @@ fn provider_runtime_build_openai_codex_body_uses_responses_shape() {
     assert_eq!(v["tools"][0]["type"], "function");
     assert_eq!(v["tools"][0]["name"], "read_file");
     assert!(v.get("messages").is_none());
+    // Prompt caching: a cache key is always present (session-derived here since
+    // none was passed), so the stable prefix routes to one cache.
+    assert!(v["prompt_cache_key"].as_str().unwrap().starts_with("refarm-"));
 }
 
 #[test]

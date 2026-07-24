@@ -25,11 +25,24 @@ pub(crate) fn build_openai_body_with_streaming(
     body.to_string()
 }
 
+/// A stable, deterministic cache key derived from a seed (the instructions
+/// prefix). Deterministic across processes — `DefaultHasher::new()` uses fixed
+/// keys — so every request carrying the same system-prompt prefix routes to the
+/// same prompt cache, billing that (large, unchanging) prefix at the cached rate
+/// on repeat. Not for security; only for cache locality.
+fn stable_cache_key(seed: &str) -> String {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    seed.hash(&mut hasher);
+    format!("refarm-{:016x}", hasher.finish())
+}
+
 pub(crate) fn build_openai_codex_responses_body_with_streaming(
     model: &str,
     wire_msgs: &[serde_json::Value],
     tools: serde_json::Value,
     _stream: bool,
+    session_key: Option<&str>,
 ) -> String {
     let mut instructions = Vec::new();
     let mut input = Vec::new();
@@ -84,6 +97,7 @@ pub(crate) fn build_openai_codex_responses_body_with_streaming(
     // max_output_tokens" — unlike the standard OpenAI Responses API. The output cap is
     // governed subscription-side, so we simply omit it here; the runtime's own loop limits
     // still bound the turn. (The non-codex OpenAI chat body above keeps `max_tokens`.)
+    let instructions_joined = instructions.join("\n\n");
     let mut body = serde_json::json!({
         "model": model,
         "store": false,
@@ -91,9 +105,20 @@ pub(crate) fn build_openai_codex_responses_body_with_streaming(
         "input": input,
         "tools": openai_chat_tools_to_responses_tools(tools),
     });
-    if !instructions.is_empty() {
-        body["instructions"] = serde_json::Value::String(instructions.join("\n\n"));
+    if !instructions_joined.is_empty() {
+        body["instructions"] = serde_json::Value::String(instructions_joined.clone());
     }
+    // Prompt caching (up to ~90% off cached input tokens): route requests that
+    // share this prefix to the same cache. Prefer the session id (per-conversation
+    // locality); otherwise derive a stable key from the instructions so every call
+    // carrying the same system prompt still shares the cache — the win for a
+    // single-tenant farm, where the large system-prompt/tools prefix is identical
+    // across turns. The endpoint accepts prompt_cache_key (unlike max_output_tokens).
+    let cache_key = session_key
+        .filter(|key| !key.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| stable_cache_key(&instructions_joined));
+    body["prompt_cache_key"] = serde_json::Value::String(cache_key);
     body.to_string()
 }
 
@@ -122,9 +147,66 @@ mod codex_responses_body_tests {
     use super::*;
 
     fn body_of(wire: &[serde_json::Value]) -> serde_json::Value {
-        let s =
-            build_openai_codex_responses_body_with_streaming("gpt-x", wire, serde_json::json!([]), true);
+        let s = build_openai_codex_responses_body_with_streaming(
+            "gpt-x",
+            wire,
+            serde_json::json!([]),
+            true,
+            None,
+        );
         serde_json::from_str(&s).expect("valid json")
+    }
+
+    fn body_with_key(wire: &[serde_json::Value], key: Option<&str>) -> serde_json::Value {
+        let s = build_openai_codex_responses_body_with_streaming(
+            "gpt-x",
+            wire,
+            serde_json::json!([]),
+            true,
+            key,
+        );
+        serde_json::from_str(&s).expect("valid json")
+    }
+
+    #[test]
+    fn explicit_session_key_becomes_the_prompt_cache_key() {
+        let body = body_with_key(
+            &[serde_json::json!({"role":"user","content":"hi"})],
+            Some("sess-123"),
+        );
+        assert_eq!(body["prompt_cache_key"], "sess-123");
+    }
+
+    #[test]
+    fn absent_session_key_falls_back_to_a_stable_instructions_derived_key() {
+        let wire = [
+            serde_json::json!({"role":"system","content":"be terse"}),
+            serde_json::json!({"role":"user","content":"hi"}),
+        ];
+        // Deterministic: the same system prompt yields the same key across calls,
+        // so every request sharing that prefix routes to one cache.
+        let a = body_with_key(&wire, None);
+        let b = body_with_key(&wire, None);
+        assert_eq!(a["prompt_cache_key"], b["prompt_cache_key"]);
+        assert!(
+            a["prompt_cache_key"].as_str().unwrap().starts_with("refarm-"),
+            "fallback key is the stable instructions hash"
+        );
+        // A DIFFERENT system prompt yields a different key.
+        let other = body_with_key(
+            &[
+                serde_json::json!({"role":"system","content":"be verbose"}),
+                serde_json::json!({"role":"user","content":"hi"}),
+            ],
+            None,
+        );
+        assert_ne!(a["prompt_cache_key"], other["prompt_cache_key"]);
+    }
+
+    #[test]
+    fn empty_session_key_is_treated_as_absent() {
+        let wire = [serde_json::json!({"role":"user","content":"hi"})];
+        assert_eq!(body_with_key(&wire, Some("")), body_with_key(&wire, None));
     }
 
     #[test]

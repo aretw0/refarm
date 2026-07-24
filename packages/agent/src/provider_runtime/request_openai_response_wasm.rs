@@ -22,11 +22,15 @@ pub(crate) fn openai_iteration_response(
 ) -> Result<serde_json::Value, String> {
     let stream = crate::streaming_config::provider_stream_request_enabled_from_env();
     let body = if provider == "openai-codex" {
+        // The session id (when the caller set one) keys the prompt cache; absent,
+        // the body falls back to a stable instructions-derived key.
+        let session_key = std::env::var("MODEL_SESSION_ID").ok();
         build_openai_codex_responses_body_with_streaming(
             model,
             wire_msgs,
             tools_openai_with_registry(),
             stream,
+            session_key.as_deref(),
         )
     } else {
         build_openai_body_with_streaming(model, wire_msgs, tools_openai_with_registry(), stream)
