@@ -16,6 +16,7 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { readRememberedHost, writeRememberedHost } from "../src/farm-host.mjs";
 import { integrityOf, planUpdate } from "../src/manifest.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
 
@@ -34,16 +35,23 @@ async function fetchWith(url, kind, timeoutMs) {
 	}
 }
 
+async function distReachable(host) {
+	try {
+		await fetchWith(`http://${host}:${DIST_PORT}/manifest.json`, "text", 3000);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 async function resolveHost() {
+	// 1) Explicit override. 2) The farm this kit was installed from (so repeat
+	// updates need no host). 3) Tailnet auto-discovery. 4) localhost.
 	if (process.env.FARM_HOST) return process.env.FARM_HOST;
-	// Tailnet peers first (works from any network), then localhost.
+	const remembered = await readRememberedHost(KIT_DIR);
+	if (remembered && (await distReachable(remembered))) return remembered;
 	for (const peer of await tailnetPeers()) {
-		try {
-			await fetchWith(`http://${peer.ip}:${DIST_PORT}/manifest.json`, "text", 3000);
-			return peer.ip;
-		} catch {
-			// not this peer
-		}
+		if (await distReachable(peer.ip)) return peer.ip;
 	}
 	return "127.0.0.1";
 }
@@ -86,6 +94,7 @@ try {
 
 console.log(`\n🌱 farm-update ← ${host}  [${plan.name} ${plan.fromVersion ?? "(nenhum)"} → ${plan.toVersion}]\n`);
 if (plan.upToDate) {
+	await writeRememberedHost(KIT_DIR, host);
 	console.log("✔ já atualizado\n");
 	process.exit(0);
 }
@@ -119,9 +128,11 @@ try {
 	process.exit(1);
 }
 await rm(staging, { recursive: true, force: true });
+// The kit remembers the farm it came from, so farm-ask needs no host next time.
+await writeRememberedHost(KIT_DIR, host);
 
 console.log(
 	`↻ ${plan.name} ${plan.fromVersion ?? "(nenhum)"} → ${plan.toVersion} · ${plan.toDownload.length} arquivo(s) · ${fmtBytes(plan.totalBytes)}`,
 );
-console.log(`  kit em ${KIT_DIR}`);
+console.log(`  kit em ${KIT_DIR} (fazenda lembrada: ${host})`);
 console.log(`  rodar: node ${join(KIT_DIR, "bin/farm-ask.mjs")} "sua pergunta"\n`);

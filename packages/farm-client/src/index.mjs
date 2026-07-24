@@ -28,3 +28,4 @@ export { buildRespondEffort } from "./effort.mjs";
 export { extractAnswer, humanizeAgentError, isSuccessEffort, isTerminalEffort } from "./effort-result.mjs";
 export { compactTokens, formatUsage, formatUsd, parseUsage } from "./usage.mjs";
 export { buildManifest, integrityOf, isSafeRelPath, parseManifest, planUpdate } from "./manifest.mjs";
+export { readRememberedHost, rememberedHostPath, writeRememberedHost } from "./farm-host.mjs";

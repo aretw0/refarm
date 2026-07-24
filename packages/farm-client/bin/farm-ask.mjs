@@ -16,10 +16,16 @@
  * It submits an effort to the farm's sidecar (POST /efforts) and polls the
  * result (GET /efforts/:id) until the agent answers.
  */
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { buildRespondEffort } from "../src/effort.mjs";
 import { extractAnswer, isSuccessEffort, isTerminalEffort } from "../src/effort-result.mjs";
+import { readRememberedHost } from "../src/farm-host.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
 import { formatUsage, parseUsage } from "../src/usage.mjs";
+
+// This kit's root (bin/..), where farm-update remembered the farm it came from.
+const KIT_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const HTTP_PORT = Number(process.env.FARM_HTTP_PORT ?? 42001);
 const prompt = process.argv.slice(2).join(" ").trim();
@@ -43,9 +49,14 @@ async function sidecarUp(host) {
 }
 
 async function resolveHost() {
+  // 1) Explicit override always wins.
   const explicit = process.env.FARM_HOST;
   if (explicit) return explicit;
-  // Tailnet peers first (works from any network), then localhost.
+  // 2) The farm this kit was installed from (farm-update remembered it) — the
+  //    device's default, so a name given once at update time need not repeat.
+  const remembered = await readRememberedHost(KIT_ROOT);
+  if (remembered && (await sidecarUp(remembered))) return remembered;
+  // 3) Tailnet auto-discovery (when the tailscale CLI is present), then localhost.
   for (const peer of await tailnetPeers()) {
     if (await sidecarUp(peer.ip)) return peer.ip;
   }
