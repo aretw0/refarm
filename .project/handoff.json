@@ -1,16 +1,16 @@
 {
-  "context": "Checkpoint 2026-07-24 (21st). TOKEN EFFICIENCY landed + PROVEN. Two slices this session, both live over the farm: (1) Usage visibility end-to-end (sidecar now surfaces the UsageRecord on the effort wire contract; farm-client renders a footer) — pushed earlier as e61c47e5/ca2ffe0a/39d83d41. (2) Prompt caching: the codex Responses body now sends prompt_cache_key (session id, else a stable instructions-derived key), so the large stable prefix (system prompt + tool defs) is billed at the cached rate on repeat. PROVEN with the footer as instrument (Active Inference): a repeated 4,245-token context billed 3,584 cached = 84% from cache ('4.2k in . 3.6k cached'). Below ~1k tokens caching does not engage. Commit 04fca81e (packages/agent, non-8, agent.wasm rebuilt + reinstalled, daemon pid 772877 on mesh). All gates green; 13 codex-body tests.",
-  "timestamp": "2026-07-24T13:07:55.486Z",
+  "context": "Checkpoint 2026-07-24 (22nd). MESH ARTIFACT DISTRIBUTION v1 landed + proven live. The dev PC is now a temporary binary/build server on the tailnet: 'refarm dist publish' assembles the farm-client kit + a sha256-verified manifest.json into .refarm/dist/farm-client (gitignored artifact); 'refarm web serve <that> --host 0.0.0.0' exposes it (reused, no new server); the zero-dep 'farm-update' bin pulls only changed files, VERIFIES each sha256, stages, and swaps atomically. Proven end-to-end: farm-update pulled the 12-file kit (46 KB) into a bare dir, verified it, and the DOWNLOADED farm-ask then drove the farm and printed its usage footer — a device with only Node (no git/npm/clone) got the software over the mesh. Manifest is a neutral wire contract (path-traversal-guarded), extensible to a compiled tractor binary for an x86 peer. 3 commits pushed (08bc6003 doc, 8b4e8468 farm-client, 284673a1 dist publish); all gates green; +12 tests (9 farm-client manifest + 3 apps/refarm).",
+  "timestamp": "2026-07-24T15:42:33.949Z",
   "current_phase": "12",
   "current_tasks": [],
   "blockers": [],
   "next_actions": [
-    "DISTRIBUTION front (operator sequenced: tokens first — DONE — then distribution): PC as a temporary binary/build server on the Tailscale mesh — serve the BUILT artifact + a version manifest over refarm web serve (already a mesh file server), a farm-update on the device pulls + swaps. Learn from docs/superpowers/specs/2026-07-22-pears-p2p-assimilation.md (farm-tunnel).",
-    "BASELINE bloat lever (the footer now exposes it): a trivial prompt costs ~1.3k input tokens = system prompt + tool defs. Leaning that prefix shrinks every turn's floor. Behavior-affecting — needs care + operator input on what to trim.",
-    "Optional codex body follow-ons (pi parity, each measurable via the footer): include:[reasoning.encrypted_content], text.verbosity, reasoning.effort — guard gpt-5.5 against regression."
+    "x86 payload (operator is bringing a 2nd x86 node onto the tailnet): distribute the compiled tractor binary + agent.wasm via the SAME manifest pattern — add a 'platform'/arch field and a dist-publish source for the binary. The manifest contract already admits it.",
+    "Optional: 'refarm dist serve' one-shot (publish + web serve together); auto-update polling on the device; operator signing atop sha256 (trust chain) when leaving the mesh's WireGuard trust boundary.",
+    "BASELINE bloat lever (still open, lab-method per operator): measure marginal token contribution of system-prompt/tool-defs (~1.3k floor) and trim by evidence, not opinion."
   ],
   "open_questions": [
-    "gpt-5.3-codex-spark 400 remains a CONFIRMED account-level gate (see memory spark-is-account-gated-not-headers). Open: is the operator's pi.dev spark via their ChatGPT OAuth account (same token refarm uses) or pi.dev hosted infra? That decides if refarm can reach spark at all."
+    "gpt-5.3-codex-spark 400 = confirmed account-level gate. Open: operator's pi.dev spark via ChatGPT OAuth account (same token refarm uses) or pi.dev hosted infra?"
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
