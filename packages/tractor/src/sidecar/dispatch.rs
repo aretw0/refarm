@@ -640,6 +640,53 @@ pub(crate) fn find_terminal_result(
     None
 }
 
+/// Build the device-facing usage view from a `UsageRecord` CRDT node — the SAME
+/// `{model, provider, usage:{...}}` shape the agent's direct respond path emits
+/// (agent/src/lib.rs::build_respond_json), so every surface (a git-pull device
+/// client, a compiled CLI/TUI/web) parses ONE wire contract regardless of path.
+/// `usage_raw` is re-parsed into a nested object so a reader never has to unwrap
+/// a JSON string. PURE.
+fn usage_view_from_record(node: &serde_json::Value) -> serde_json::Value {
+    let raw = node
+        .get("usage_raw")
+        .and_then(|v| v.as_str())
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+    let count = |key: &str| node.get(key).cloned().unwrap_or_else(|| serde_json::json!(0));
+    serde_json::json!({
+        "model": node.get("model").cloned().unwrap_or(serde_json::Value::Null),
+        "provider": node.get("provider").cloned().unwrap_or(serde_json::Value::Null),
+        "usage": {
+            "tokens_in": count("tokens_in"),
+            "tokens_out": count("tokens_out"),
+            "tokens_cached": count("tokens_cached"),
+            "tokens_reasoning": count("tokens_reasoning"),
+            "pricing_mode": node.get("pricing_mode").cloned().unwrap_or(serde_json::Value::Null),
+            "estimated_usd": node.get("estimated_usd").cloned().unwrap_or_else(|| serde_json::json!(0)),
+            "raw": raw,
+        }
+    })
+}
+
+/// The usage view for a respond effort, read from the correlated `UsageRecord`
+/// node. The agent persists one per turn keyed by the same `prompt_ref` the
+/// Response node carries, so `correlation_value` (the effort's prompt_ref) finds
+/// it. Returns None for a workload that wrote no UsageRecord — the result then
+/// stays content-only, unchanged. Additive and backward-compatible by design.
+fn find_usage_for(namespace: &str, prompt_ref: &str) -> Option<serde_json::Value> {
+    let storage = crate::storage::NativeStorage::open(namespace).ok()?;
+    let rows = storage.query_nodes("UsageRecord").ok()?;
+    for row in rows {
+        let Ok(node) = serde_json::from_str::<serde_json::Value>(&row.payload) else {
+            continue;
+        };
+        if node.get("prompt_ref").and_then(|v| v.as_str()) == Some(prompt_ref) {
+            return Some(usage_view_from_record(&node));
+        }
+    }
+    None
+}
+
 /// Watch for the terminal RESULT node an effort awaits (described by `spec`) and
 /// finalise the effort accordingly. A terminal success node finalises `done`; a
 /// terminal `is_error` node finalises `failed` (a guest error surfaces here
@@ -682,13 +729,26 @@ fn spawn_terminal_result_watcher(state: SidecarState, effort_id: String, spec: T
                         }],
                     );
                 } else {
+                    // Enrich the success result with the correlated UsageRecord so
+                    // spend (tokens + estimated cost) reaches the caller — the same
+                    // wire contract every surface reads. Additive: a workload that
+                    // wrote no UsageRecord keeps the content-only result.
+                    let mut payload = serde_json::json!({ "content": result.content });
+                    if let Some(usage) = find_usage_for(&state.namespace, &spec.correlation_value) {
+                        if let (Some(obj), Some(extra)) = (payload.as_object_mut(), usage.as_object())
+                        {
+                            for (key, value) in extra {
+                                obj.insert(key.clone(), value.clone());
+                            }
+                        }
+                    }
                     finalise_effort_if_active(
                         &state,
                         &effort_id,
                         super::EFFORT_DONE,
                         vec![TaskResult {
                             status: "ok".to_string(),
-                            result: Some(serde_json::json!({ "content": result.content })),
+                            result: Some(payload),
                             error: None,
                         }],
                     );
@@ -991,6 +1051,65 @@ mod tests {
         store
             .store_node(id, AGENT_RESPONSE_NODE_TYPE, None, &payload.to_string(), None)
             .unwrap();
+    }
+
+    fn store_usage_node(namespace: &str, id: &str, payload: Value) {
+        let store = crate::storage::NativeStorage::open(namespace).unwrap();
+        store
+            .store_node(id, "UsageRecord", None, &payload.to_string(), None)
+            .unwrap();
+    }
+
+    #[test]
+    fn usage_view_maps_record_to_the_device_wire_contract() {
+        // A real UsageRecord (from the live DB): usage_raw is a JSON *string*.
+        let node = json!({
+            "@type": "UsageRecord",
+            "prompt_ref": "p-1",
+            "provider": "openai-codex",
+            "model": "gpt-5.5",
+            "tokens_in": 1359,
+            "tokens_out": 5,
+            "tokens_cached": 0,
+            "tokens_reasoning": 0,
+            "pricing_mode": "subscription",
+            "estimated_usd": 0.0,
+            "usage_raw": "{\"input_tokens\":1359,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":5}"
+        });
+        let view = usage_view_from_record(&node);
+        assert_eq!(view["model"], "gpt-5.5");
+        assert_eq!(view["provider"], "openai-codex");
+        assert_eq!(view["usage"]["tokens_in"], 1359);
+        assert_eq!(view["usage"]["tokens_out"], 5);
+        assert_eq!(view["usage"]["pricing_mode"], "subscription");
+        // usage_raw is re-parsed into a nested object, never left as a string.
+        assert_eq!(view["usage"]["raw"]["input_tokens"], 1359);
+        assert_eq!(view["usage"]["raw"]["input_tokens_details"]["cached_tokens"], 0);
+    }
+
+    #[test]
+    fn find_usage_for_matches_prompt_ref_and_ignores_others() {
+        with_isolated_storage(|| {
+            let ns = "usage-corr";
+            store_usage_node(
+                ns,
+                "urn:usage:1",
+                json!({
+                    "prompt_ref": "p-1", "provider": "openai-codex", "model": "gpt-5.5",
+                    "tokens_in": 10, "tokens_out": 2, "pricing_mode": "subscription",
+                    "estimated_usd": 0.0, "usage_raw": "{}"
+                }),
+            );
+            store_usage_node(
+                ns,
+                "urn:usage:2",
+                json!({ "prompt_ref": "p-OTHER", "model": "y", "tokens_in": 99, "usage_raw": "{}" }),
+            );
+            let view = find_usage_for(ns, "p-1").expect("usage for p-1 exists");
+            assert_eq!(view["usage"]["tokens_in"], 10);
+            assert_eq!(view["model"], "gpt-5.5");
+            assert!(find_usage_for(ns, "p-NONE").is_none());
+        });
     }
 
     #[test]
