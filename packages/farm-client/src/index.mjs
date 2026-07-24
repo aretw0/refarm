@@ -29,3 +29,4 @@ export { extractAnswer, humanizeAgentError, isSuccessEffort, isTerminalEffort } 
 export { compactTokens, formatUsage, formatUsd, parseUsage } from "./usage.mjs";
 export { buildManifest, integrityOf, isSafeRelPath, parseManifest, planUpdate } from "./manifest.mjs";
 export { readRememberedHost, rememberedHostPath, writeRememberedHost } from "./farm-host.mjs";
+export { createSpinner, formatSpinnerLine, SPINNER_FRAMES } from "./progress.mjs";

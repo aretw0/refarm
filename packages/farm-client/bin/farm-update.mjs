@@ -18,6 +18,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { readRememberedHost, writeRememberedHost } from "../src/farm-host.mjs";
 import { integrityOf, planUpdate } from "../src/manifest.mjs";
+import { createSpinner } from "../src/progress.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
 
 const DIST_PORT = Number(process.env.FARM_DIST_PORT ?? 4321);
@@ -70,13 +71,16 @@ async function readLocalManifest() {
 	}
 }
 
+const spinner = createSpinner().start("procurando a fazenda…");
 const host = await resolveHost();
 const base = `http://${host}:${DIST_PORT}`;
 
 let remoteRaw;
 try {
+	spinner.setLabel(`buscando manifesto de ${host}…`);
 	remoteRaw = await fetchWith(`${base}/manifest.json`, "text", 8000);
 } catch (err) {
+	spinner.stop();
 	console.error(`❌ manifesto inalcançável em ${base}/manifest.json: ${err.message}`);
 	console.error(
 		`   No PC: refarm dist publish && refarm web serve .refarm/dist/farm-client --host 0.0.0.0 --port ${DIST_PORT}`,
@@ -88,10 +92,12 @@ let plan;
 try {
 	plan = planUpdate(remoteRaw, await readLocalManifest());
 } catch (err) {
+	spinner.stop();
 	console.error(`❌ manifesto inválido: ${err.message}`);
 	process.exit(1);
 }
 
+spinner.stop();
 console.log(`\n🌱 farm-update ← ${host}  [${plan.name} ${plan.fromVersion ?? "(nenhum)"} → ${plan.toVersion}]\n`);
 if (plan.upToDate) {
 	await writeRememberedHost(KIT_DIR, host);
@@ -104,8 +110,11 @@ if (plan.upToDate) {
 // version it doesn't have.
 const staging = join(KIT_DIR, ".staging");
 await rm(staging, { recursive: true, force: true });
+spinner.start(`baixando ${plan.name}…`);
+let downloaded = 0;
 try {
 	for (const file of plan.toDownload) {
+		spinner.setLabel(`baixando ${file.path} (${++downloaded}/${plan.toDownload.length})`);
 		const bytes = await fetchWith(`${base}/${file.path}`, "bytes", 30000);
 		const got = integrityOf(bytes);
 		if (got !== file.integrity) {
@@ -123,10 +132,12 @@ try {
 	}
 	await writeFile(join(KIT_DIR, "manifest.json"), remoteRaw);
 } catch (err) {
+	spinner.stop();
 	console.error(`❌ atualização abortada: ${err.message}`);
 	await rm(staging, { recursive: true, force: true });
 	process.exit(1);
 }
+spinner.stop();
 await rm(staging, { recursive: true, force: true });
 // The kit remembers the farm it came from, so farm-ask needs no host next time.
 await writeRememberedHost(KIT_DIR, host);

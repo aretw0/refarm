@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 import { buildRespondEffort } from "../src/effort.mjs";
 import { extractAnswer, isSuccessEffort, isTerminalEffort } from "../src/effort-result.mjs";
 import { readRememberedHost } from "../src/farm-host.mjs";
+import { createSpinner } from "../src/progress.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
 import { formatUsage, parseUsage } from "../src/usage.mjs";
 
@@ -98,6 +99,7 @@ try {
 }
 
 const deadline = Date.now() + 120_000; // agents can take a while
+const spinner = createSpinner({ label: "aguardando a fazenda…" }).start();
 let last = null;
 while (Date.now() < deadline) {
   await new Promise((r) => setTimeout(r, 800));
@@ -110,7 +112,11 @@ while (Date.now() < deadline) {
     continue;
   }
   last = result;
-  if (!isTerminalEffort(result.status)) continue;
+  if (!isTerminalEffort(result.status)) {
+    if (result.status) spinner.setLabel(`fazenda: ${result.status}…`);
+    continue;
+  }
+  spinner.stop();
 
   const answer = extractAnswer(result);
   if (isSuccessEffort(result.status) && answer) {
@@ -126,5 +132,6 @@ while (Date.now() < deadline) {
   process.exit(1);
 }
 
+spinner.stop();
 console.error(`⏳ tempo esgotado (último status: ${last?.status ?? "desconhecido"})`);
 process.exit(1);
