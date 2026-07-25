@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 const PKG_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 const KIT_FILES = [
 	"src/index.mjs",
+	"src/auth.mjs",
 	"src/beacon.mjs",
 	"src/tailnet.mjs",
 	"src/effort.mjs",

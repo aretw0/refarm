@@ -18,6 +18,7 @@
  */
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { farmAuthHeaders } from "../src/auth.mjs";
 import { buildRespondEffort } from "../src/effort.mjs";
 import { extractAnswer, isSuccessEffort, isTerminalEffort } from "../src/effort-result.mjs";
 import { readRememberedHost } from "../src/farm-host.mjs";
@@ -41,7 +42,10 @@ async function sidecarUp(host) {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 3000);
-    const res = await fetch(`http://${host}:${HTTP_PORT}/plugins`, { signal: controller.signal });
+    const res = await fetch(`http://${host}:${HTTP_PORT}/plugins`, {
+      signal: controller.signal,
+      headers: farmAuthHeaders(),
+    });
     clearTimeout(timer);
     return res.ok;
   } catch {
@@ -88,7 +92,7 @@ let effortId;
 try {
   const res = await fetch(`${base}/efforts`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...farmAuthHeaders() },
     body: JSON.stringify(buildRespondEffort(prompt, route)),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -105,7 +109,7 @@ while (Date.now() < deadline) {
   await new Promise((r) => setTimeout(r, 800));
   let result;
   try {
-    const res = await fetch(`${base}/efforts/${effortId}`);
+    const res = await fetch(`${base}/efforts/${effortId}`, { headers: farmAuthHeaders() });
     if (res.status === 404) continue; // not registered yet
     result = await res.json();
   } catch {

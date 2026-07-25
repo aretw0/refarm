@@ -24,6 +24,7 @@ export {
 	subnetSweepTargets,
 } from "./beacon.mjs";
 export { parseTailnetPeers, tailnetPeers, tailnetShortName } from "./tailnet.mjs";
+export { farmAuthHeaders } from "./auth.mjs";
 export { buildRespondEffort } from "./effort.mjs";
 export { extractAnswer, humanizeAgentError, isSuccessEffort, isTerminalEffort } from "./effort-result.mjs";
 export { compactTokens, formatUsage, formatUsd, parseUsage } from "./usage.mjs";
