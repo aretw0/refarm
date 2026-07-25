@@ -27,9 +27,19 @@ linkWorkspacePackages: true
 # reaches us only through the build-time WASM toolchain (@bytecodealliance/jco >
 # componentize-js > weval > decompress, a devDependency). It never touches shipped runtime
 # code or untrusted archives. Re-evaluate when jco/weval drop the decompress transitive.
+#
+# GHSA-mh99-v99m-4gvg (brace-expansion <=5.0.7, DoS via unbounded expansion) is patched only in
+# brace-expansion 5.0.8, which is ESM-only (named `expand`, no default export) and breaks
+# style-dictionary's `import expand from "brace-expansion"` — the packages/ds design-token build
+# (verified: forcing 5.x fails ds/platforms.test.ts). All 116 paths are dev tooling (glob >
+# minimatch > brace-expansion via test-exclude/istanbul/style-dictionary); the DoS needs a crafted
+# brace pattern, and dev-time globbing only ever sees the developer's own patterns. Net: forcing the
+# fix regresses the build for a negligible dev-only risk, so accept it. Re-evaluate when the
+# consumers move to a brace-expansion 5.x that keeps a default export (or drop the transitive).
 auditConfig:
   ignoreGhsas:
     - GHSA-mp2f-45pm-3cg9
+    - GHSA-mh99-v99m-4gvg
 
 packages:
   - "packages/*"
@@ -67,20 +77,17 @@ overrides:
   "@zenuml/core": 3.50.1
   dompurify: 3.4.11
   esbuild: 0.28.1
-  # Security bumps. NOTE two audit SCOPES exist in CI: Release Health + Security Audit run
-  # `pnpm audit --prod` (prod deps only); Test & Quality runs `pnpm audit --audit-level=high`
-  # WITHOUT --prod (dev deps too). brace-expansion below is a dev-dep DoS high that the --prod
-  # audits miss but Test & Quality's non-prod audit fails on — it spans four major lines in the tree
-  # (1.x/2.x/3-4.x/5.x), so four ranged overrides. Conditional forms bump only the vulnerable
-  # ranges; js-yaml keeps a blanket pin (raised 4.2.0 → 4.3.0, off the vulnerable line).
-  # astro is intentionally EXCLUDED: its patch (>=7.0.10 = 7.1.x) breaks the apps' build — astro
-  # 7.1's Rolldown-Vite rejects a cross-package re-export (verified: apps build on 7.0.3, fail on
-  # 7.1.3). Its advisories are moderate/low, only in the HELD apps, below the "high" gate. Migrating
-  # the apps to astro 7.1 is tracked separately (issue #56).
+  # Security bumps. NOTE two audit SCOPES in CI: Release Health/Security Audit run `pnpm audit
+  # --prod` (prod deps); Test & Quality runs `pnpm audit --audit-level=high` WITHOUT --prod (dev deps
+  # too). brace-expansion is a dev-dep DoS. The two within-major patches below are safe. The 3.x/4.x
+  # and <=5.0.7 advisories are patched ONLY by brace-expansion 5.x, which is ESM-only (named `expand`,
+  # NO default export) and breaks style-dictionary's `import expand from "brace-expansion"` (the
+  # packages/ds design-token build — verified: forcing 5.x fails ds/platforms.test.ts). Forcing 5.x is
+  # a net regression, so those ranges are ACCEPTED instead — see `auditConfig.ignoreGhsas` above
+  # (GHSA-mh99-v99m-4gvg). js-yaml keeps a blanket pin (4.2.0 → 4.3.0, off the vulnerable line).
+  # astro is intentionally EXCLUDED: its patch (>=7.0.10 = 7.1.x) breaks the apps' build (issue #56).
   brace-expansion@<1.1.16: ^1.1.16
   brace-expansion@>=2.0.0 <2.1.2: ^2.1.2
-  brace-expansion@>=3.0.0 <5.0.7: ^5.0.7
-  brace-expansion@<=5.0.7: ^5.0.8
   fast-uri@>=3.0.0 <=3.1.3: ^3.1.4
   js-yaml: 4.3.0
   postcss@<=8.5.17: ^8.5.18
