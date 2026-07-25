@@ -32,6 +32,21 @@ generalizing. Its shape is minimal and reveals exactly the blocks refarm.shop ne
 - a **"buy on WhatsApp" button** that opens `wa.me/<her number>?text=<the order, prefilled>`;
 - **order tracking** that is practical and cheap.
 
+### Sovereignty of the shop (the load-bearing principle)
+
+The operator does NOT track the friend's orders — **once the owner takes the site, the tracking is
+hers.** The operator only wants tracking to EXIST so she perceives her business growing, WITHOUT it
+depending on anything on his account carrying all shops. Each owner runs their own business and their
+own digital marketing. This is not a footnote — it is the doctrine of the whole surface:
+
+- **No central account.** A refarm.shop site is a static artifact the owner deploys under HER own
+  domain / GitHub Pages / hosting; orders land in HER WhatsApp; any counter uses HER free-tier
+  account. Refarm supplies the blocks; it never becomes the tenant or the middleman. The generator
+  hands over a self-owned shop, the way `git pull` handed over a self-owned kit.
+- **Multi-tenant by NOT being multi-tenant.** There is no "shops table" on the operator's node; there
+  are many sovereign shops, each complete on its own. (Mirrors the mesh-distribution model:
+  decentralize the artifact, don't centralize the service.)
+
 ### Order tracking — no paid database (the operator's explicit question)
 
 Researched; the answer is **you don't need to pay for a database**:
