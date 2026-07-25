@@ -1,13 +1,13 @@
 {
-  "context": "Checkpoint 2026-07-24 (27th). AUTH — the operator-usable CLI loop is COMPLETE: workspace-access-contract-v1 + opt-in §8 sidecar gate (auth.rs) + farm-client FARM_TOKEN + 'refarm auth enroll/list' (commits 6f3f5bb6, af560a9a, 00343d5f, 31d704f2). Proven end-to-end: enroll a device → daemon with that policy 401s without the token, works with FARM_TOKEN. Daemon runs DEFAULT (gate off) so devices keep working. Operator can turn on CLI auth TODAY: 'refarm auth enroll <id>' → FARM_TOKEN + REFARM_AUTH_POLICY. Public tunnel down; daemon tailnet-only.",
-  "timestamp": "2026-07-25T02:26:59.378Z",
+  "context": "Checkpoint 2026-07-25 (28th). Session close with DURABLE MATERIAL left for a rested-operator fresh pass (his instruction: advance where safe, leave specs/features/ADRs for the rest). DONE + proven this session: CLI auth loop complete (workspace-access-contract-v1 + opt-in §8 sidecar gate auth.rs + farm-client FARM_TOKEN + 'refarm auth enroll/list'); operator can turn on CLI auth today. LEFT AS DESIGN (ready to implement): (a) ADR-093 (specs/ADRs/) — the browser-hub + /sync WS credential channel decision (hub HTTP via stored token bootstrapped by one-time ?token=; /sync via Sec-WebSocket-Protocol subprotocol since a browser can't set Authorization on a WS; validated at daemon::WsServer handshake, fail-closed, one shared policy). (b) docs/superpowers/specs/2026-07-25-hub-hybrid-home-design.md — the chat-centered hybrid home for apps/me. Daemon runs DEFAULT (gate off). Real policy at .refarm/auth-policy.json is gitignored.",
+  "timestamp": "2026-07-25T12:20:59.768Z",
   "current_phase": "12",
   "current_tasks": [],
   "blockers": [],
   "next_actions": [
-    "AUTH hub+sync pair (FRESH pass — fiddly §8 security, investigated + spec'd): (1) /sync WS gate at daemon::WsServer (main.rs:561) — a browser CAN'T set Authorization on a WS, so use a subprotocol or ?token= or first-frame; the web-serve /sync proxy forwards it. (2) apps/me sends Authorization on /efforts (browser analog of FARM_TOKEN) from a client-side store + minimal login. Only after BOTH is a public tunnel safe for the hub.",
-    "AUTH Slice 2: namespace-per-request (gate injects ResolvedWorkspace via resolveAccess; 8 sites mod.rs + 2 dispatch.rs). Slice 3: full isolation (streams/efforts/sync daemon-global).",
-    "UX: hybrid home for apps/me (chat-centered + attention strip; strip me-surfaces.ts debug panel; fix i18n). Phone-testable once hub auth lands (safe credential-gated tunnel)."
+    "AUTH hub+sync (implement ADR-093, §8+apps/me): /sync WS gate at daemon::WsServer via Sec-WebSocket-Protocol subprotocol (reuse sidecar::auth::AuthPolicy::authenticate) + web-serve /sync proxy forwards the header + apps/me sends Authorization on /efforts and the subprotocol on the sync socket, token from localStorage bootstrapped by ?token=. Only then is a public tunnel safe for the hub.",
+    "UX hybrid home (implement the 2026-07-25 design doc, apps/me, non-§8): chat-centered + attention strip; strip me-surfaces debug panel; fix i18n. Build layout locally, validate on phone once ADR-093 lands.",
+    "AUTH Slice 2 (namespace-per-request via resolveAccess; 8 sites mod.rs + 2 dispatch.rs) then Slice 3 (full isolation: streams/efforts/sync are daemon-global). All in docs/superpowers/specs/2026-07-24-sovereign-auth-workspaces-design.md."
   ],
   "open_questions": [],
   "key_decisions_active": [
