@@ -661,6 +661,7 @@ pub async fn post_plugin_respond(
 mod agent_activity;
 pub(crate) use agent_activity::agent_event_to_activity;
 mod activity_sse;
+mod auth;
 mod cors;
 mod dispatch;
 pub(crate) use dispatch::*;
@@ -1566,6 +1567,16 @@ pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Resu
         .route("/providers/liveness", get(get_provider_liveness))
         .route("/stream/activity", get(activity_sse::get_stream_activity))
         .with_state(state);
+
+    // Opt-in per-device AUTH gate: unset REFARM_AUTH_POLICY ⇒ no layer, behavior unchanged
+    // (fail-closed off by default). Applied INNER of CORS below, so a browser's OPTIONS
+    // preflight — which carries no credential — is answered by CORS before the gate sees it.
+    let router = match auth::auth_config_from_env() {
+        Some(policy) => router.layer(axum::middleware::from_fn(move |req, next| {
+            auth::auth_middleware(policy.clone(), req, next)
+        })),
+        None => router,
+    };
 
     // ADR-088: layer OPT-IN CORS only when REFARM_SIDECAR_CORS_ORIGINS is set. The
     // default (unset) leaves the router untouched — no CORS surface — because the
