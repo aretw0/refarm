@@ -13,6 +13,8 @@ export interface ProcessHandoffSpec {
 export interface ProcessHandoffRunOptions {
 	capture?: boolean;
 	env?: NodeJS.ProcessEnv;
+	/** Milliseconds before the child is killed. Honored by the sync runner (spawnSync). */
+	timeout?: number;
 }
 
 export interface ProcessHandoffRunnerOptions extends ProcessHandoffRunOptions {
@@ -138,6 +140,7 @@ export function runProcessHandoffSync(
 		encoding: "utf-8",
 		env: options.env ?? process.env,
 		stdio: options.capture ? ["ignore", "pipe", "pipe"] : "inherit",
+		...(options.timeout ? { timeout: options.timeout } : {}),
 	});
 	return {
 		exitCode: result.status ?? (result.error ? 1 : 0),

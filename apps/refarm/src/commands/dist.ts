@@ -1,9 +1,9 @@
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { Command } from "commander";
+import { createProcessHandoffDisplay, runProcessHandoffSync } from "@refarm.dev/cli/process-handoff";
 
 import { refarmCommand } from "../brand.js";
 
@@ -34,8 +34,15 @@ export function bakeInstaller(template: string, opts: { host: string; port: numb
  * tailscale CLI is absent or errors. */
 function detectTailnetHost(): string | null {
 	try {
-		const out = execFileSync("tailscale", ["status", "--json"], { encoding: "utf8", timeout: 3000 });
-		const host = (JSON.parse(out) as { Self?: { HostName?: string } })?.Self?.HostName;
+		// Route through the process-handoff adapter, not node:child_process directly — the app
+		// source keeps the process boundary (apps/refarm/test/architecture/process-boundary.test.ts).
+		const args = ["status", "--json"];
+		const result = runProcessHandoffSync(
+			{ command: "tailscale", args, display: createProcessHandoffDisplay("tailscale", args) },
+			{ capture: true, timeout: 3000 },
+		);
+		if (result.exitCode !== 0 || !result.stdout) return null;
+		const host = (JSON.parse(result.stdout) as { Self?: { HostName?: string } })?.Self?.HostName;
 		return typeof host === "string" && host ? host : null;
 	} catch {
 		return null;

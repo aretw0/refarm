@@ -6,9 +6,11 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
+	createProcessHandoffDisplay,
 	createProcessHandoffRunner,
 	createProcessHandoffSpec,
 	createProcessHandoffSpecFromRunner,
+	runProcessHandoffSync,
 	splitProcessHandoffCommand,
 	startDetachedProcessHandoff,
 } from "./index.js";
@@ -127,5 +129,25 @@ describe("process-handoff leaf package", () => {
 				);
 			}),
 		).resolves.toMatchObject({ code: "ENOENT" });
+	});
+
+	it("captures stdout synchronously from a process spec", () => {
+		const args = ["-e", "process.stdout.write('sync-out')"];
+		const result = runProcessHandoffSync(
+			{ command: process.execPath, args, display: createProcessHandoffDisplay("node", args) },
+			{ capture: true },
+		);
+		expect(result.exitCode).toBe(0);
+		expect(result.stdout).toBe("sync-out");
+	});
+
+	it("honors a timeout, killing a child that outlives it", () => {
+		const args = ["-e", "setTimeout(() => {}, 10000)"];
+		const result = runProcessHandoffSync(
+			{ command: process.execPath, args, display: createProcessHandoffDisplay("node", args) },
+			{ capture: true, timeout: 100 },
+		);
+		// A killed child never exits 0 — status is null (SIGTERM), so exitCode falls through to 1.
+		expect(result.exitCode).not.toBe(0);
 	});
 });
