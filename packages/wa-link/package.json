@@ -1,0 +1,19 @@
+{
+	"name": "@refarm.dev/wa-link",
+	"version": "0.1.0",
+	"description": "Build a WhatsApp click-to-chat (wa.me) deep link and its prefilled message from a number and a template. Zero-dependency, browser + Node.",
+	"type": "module",
+	"private": false,
+	"publishConfig": {
+		"access": "public"
+	},
+	"main": "./src/index.mjs",
+	"exports": {
+		".": "./src/index.mjs"
+	},
+	"files": ["src", "README.md"],
+	"scripts": {
+		"test": "node --test test/*.test.mjs",
+		"test:unit": "node --test test/*.test.mjs"
+	}
+}
