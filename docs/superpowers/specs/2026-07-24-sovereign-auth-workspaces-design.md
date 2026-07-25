@@ -82,6 +82,28 @@ Add a new device: from an already-trusted device, approve the newcomer → a cre
 newcomer's `silo`, its derived identity added to the allow-list, mapped to the chosen workspace(s). (A QR
 or a short code over the mesh; the *ritual*, not Keycloak.)
 
+## Progress (2026-07-24)
+
+**The CLI auth loop is complete and proven live:**
+- `@refarm.dev/workspace-access-contract-v1` — the authorization block (resolveAccess).
+- The opt-in §8 gate on the sidecar HTTP (`packages/tractor/src/sidecar/auth.rs`): `REFARM_AUTH_POLICY`
+  unset ⇒ off (byte-identical); set ⇒ 401 without a valid `Authorization: Bearer <token>` (sha256 enrolled).
+- `farm-client` carries `FARM_TOKEN` → `Authorization: Bearer` on every sidecar call.
+- `refarm auth enroll <identity>` mints a token, writes its sha256 into the policy (0600), prints it once;
+  `refarm auth list`. Proven: enroll → daemon 401s without the token, works with it.
+
+**Next (the hub path + full coverage), best as a FRESH pass:**
+- **`/sync` WS gate (§8, `daemon::WsServer` in main.rs:561).** Gotcha: a browser CANNOT set an
+  `Authorization` header on a WebSocket, so the `/sync` credential must ride a browser-compatible channel
+  — a **subprotocol** (`Sec-WebSocket-Protocol`) or a **query param** (`?token=`, note it leaks in logs) or a
+  **first frame**. The hub derives `wss://<origin>/sync`; the web-serve `/sync` proxy must forward whichever
+  channel is chosen. Gate at the WsServer handshake, mirroring the sidecar's fail-closed opt-in.
+- **The hub's HTTP credential** — `apps/me` sends `Authorization` on its `/efforts` fetches (the browser
+  analog of `FARM_TOKEN`), read from a client-side store; needs a minimal login/enrollment UX. Couples with
+  the `/sync` credential above — do the pair together.
+- Only once BOTH are done is a public tunnel fully safe for the hub (today: the HTTP gate covers the CLI;
+  `/sync` is still ungated).
+
 ## Build slices (each atomic, gated; §8 — packages/tractor)
 1. **The gate** (Layer 2): credential → identity → 401. The direct answer to the operator's question.
    Bearer-secret-in-silo v1; Ed25519 request-signing is the hardening upgrade. Clients forward the credential.
