@@ -298,6 +298,7 @@
 		"release:readiness:plan": "node scripts/ci/release-readiness.mjs --plan",
 		"release:readiness:test": "node --test scripts/ci/test-release-check.mjs scripts/ci/test-release-readiness.mjs scripts/ci/test-release-boundary-audit.mjs scripts/ci/test-first-publish-selection.mjs scripts/ci/test-check-first-publish-changesets.mjs scripts/ci/test-agent-demo-release-proof.mjs scripts/ci/test-secure-extensibility-demo-proof.mjs scripts/ci/test-local-first-platform-proof.mjs scripts/ci/test-agents-lab-assimilation-audit.mjs scripts/ci/test-agents-lab-skill-import-manifest.mjs scripts/ci/test-agents-lab-skill-source-review.mjs scripts/ci/test-agents-lab-skill-convention-review.mjs scripts/ci/test-native-skill-system-roadmap.mjs scripts/ci/test-reference-driver-smoke.mjs scripts/ci/test-subprocess-utils.mjs scripts/ci/test-requirements-supply-handoff.mjs && node --test scripts/ci/test-vault-seed-ready-handoff.mjs scripts/ci/test-vault-seed-release-consumer.mjs scripts/ci/test-distribution-status-doc.mjs scripts/ci/test-audience-boundary.mjs codemods/registry.test.mjs codemods/ds-token-adoption.test.mjs codemods/package-workspace-adoption.test.mjs codemods/node-test-to-vitest.test.mjs codemods/astro-6-to-7.test.mjs",
 		"release:check": "node scripts/release-check.mjs",
+		"release:install:smoke": "node scripts/ci/release-install-smoke.mjs",
 		"release:first-publish:plan": "node scripts/release-check.mjs --plan",
 		"release:first-publish:check": "node scripts/release-check.mjs",
 		"release:first-publish": "node scripts/first-publish-selection.mjs",
