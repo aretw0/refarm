@@ -1,0 +1,56 @@
+{
+	"name": "@refarm.dev/workspace-access-contract-v1",
+	"version": "0.1.0",
+	"description": "Versioned workspace-access capability contract (workspace-access:v1): who may act in which workspace, and the storage namespace each maps to",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run",
+		"clean": "rm -rf dist"
+	},
+	"keywords": [
+		"plugin",
+		"capability",
+		"workspace",
+		"access",
+		"authorization",
+		"contract"
+	],
+	"author": "Refarm Contributors",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/workspace-access-contract-v1"
+	},
+	"bugs": {
+		"url": "https://github.com/aretw0/refarm/issues"
+	},
+	"homepage": "https://refarm.dev",
+	"files": [
+		"dist",
+		"!dist/**/*.tsbuildinfo",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
+}
