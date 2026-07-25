@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
 	normalizeAuditVulnerabilities,
+	parseAuditReport,
 	parseWorkspaceOverridesText,
 	patchedMinimumVersion,
 	planAuditFixes,
@@ -138,4 +139,45 @@ test("bumps direct non-catalog workspace dependencies", () => {
 	assert.deepEqual(workspacePackage.data.devDependencies, { "left-pad": "^1.3.0" });
 	assert.deepEqual(plan.workspaceOverrides, {});
 	assert.deepEqual(plan.packageUpdates, [workspacePackage]);
+});
+
+// parseAuditReport — the guard against a false "no vulnerabilities". A `pnpm audit --json` that
+// could not run (corporate proxy answering the advisory endpoint with HTTP 400, offline, spawn
+// failure) leaves stdout empty or a non-JSON error page. The old orchestrator did
+// `JSON.parse(stdout || "{}")`, so an empty stdout became `{}` → zero vulns → a dangerous false
+// green. These pin the distinction between a genuine report and a run that failed to produce one.
+
+test("parseAuditReport: a valid report with advisories is trusted", () => {
+	const result = parseAuditReport({ status: 1, stdout: '{"advisories":{"1234":{"module_name":"x"}}}' });
+	assert.equal(result.ok, true);
+	assert.deepEqual(result.report, { advisories: { 1234: { module_name: "x" } } });
+});
+
+test("parseAuditReport: a genuinely clean audit (empty JSON, exit 0) is trusted", () => {
+	const result = parseAuditReport({ status: 0, stdout: "{}\n" });
+	assert.equal(result.ok, true);
+	assert.deepEqual(result.report, {});
+});
+
+test("parseAuditReport: empty stdout (registry/proxy error) is NOT clean", () => {
+	const result = parseAuditReport({ status: 1, stdout: "", stderr: "Received HTTP 400" });
+	assert.equal(result.ok, false);
+	assert.match(result.reason, /unreachable|no JSON/i);
+});
+
+test("parseAuditReport: whitespace-only stdout is NOT clean", () => {
+	const result = parseAuditReport({ status: 1, stdout: "   \n  " });
+	assert.equal(result.ok, false);
+});
+
+test("parseAuditReport: an HTML error page on stdout is NOT clean", () => {
+	const result = parseAuditReport({ status: 1, stdout: "<!DOCTYPE html><html><body>400 Bad Request</body></html>" });
+	assert.equal(result.ok, false);
+	assert.match(result.reason, /not valid JSON|error page/i);
+});
+
+test("parseAuditReport: a spawn error is NOT clean", () => {
+	const result = parseAuditReport({ status: null, error: new Error("spawn pnpm ENOENT") });
+	assert.equal(result.ok, false);
+	assert.match(result.reason, /spawn|ENOENT/i);
 });

@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import { detectPackageManager } from "../../packages/config/src/package-manager.js";
 import {
 	normalizeAuditVulnerabilities,
+	parseAuditReport,
 	parseWorkspaceOverridesText,
 	patchedMinimumVersion,
 	planAuditFixes,
@@ -106,8 +107,19 @@ if (PACKAGE_MANAGER !== "pnpm") {
 }
 
 const auditResult = run("pnpm", ["audit", "--json"]);
-const report = JSON.parse(auditResult.stdout || "{}");
-const vulns = normalizeAuditVulnerabilities(report);
+const parsed = parseAuditReport(auditResult);
+if (!parsed.ok) {
+	// A run that could not read advisories must fail loudly — never masquerade as clean.
+	console.error(`❌ Cannot trust the audit: ${parsed.reason}.`);
+	console.error('   Refusing to report "no vulnerabilities" from an audit that did not run.');
+	if (auditResult.stderr?.trim()) {
+		console.error(
+			auditResult.stderr.trim().split("\n").slice(0, 5).map((line) => `   ${line}`).join("\n"),
+		);
+	}
+	process.exit(2);
+}
+const vulns = normalizeAuditVulnerabilities(parsed.report);
 
 if (Object.keys(vulns).length === 0) {
 	console.log("✅ No vulnerabilities — nothing to fix.");

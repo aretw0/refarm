@@ -54,6 +54,40 @@ export function renderWorkspaceOverridesText(state) {
 	return lines.join("\n");
 }
 
+/**
+ * Interpret a `pnpm audit --json` invocation before trusting it.
+ *
+ * A registry/network failure — e.g. a corporate proxy answering the advisory endpoint with
+ * HTTP 400 — leaves stdout empty or a non-JSON error page while often still exiting non-zero,
+ * indistinguishable from "vulnerabilities found" unless you inspect the payload. Reporting that
+ * as "no vulnerabilities" is a dangerous false-clean, which is the whole point of returning
+ * `{ ok: false }` here: an audit that could not read advisories must NEVER be treated as clean.
+ *
+ * @param {{ status?: number|null, stdout?: string, stderr?: string, error?: Error }} result
+ *   The spawnSync result of `pnpm audit --json`.
+ * @returns {{ ok: true, report: object } | { ok: false, reason: string }}
+ */
+export function parseAuditReport(result) {
+	if (result?.error) {
+		return { ok: false, reason: `pnpm audit could not be spawned: ${result.error.message}` };
+	}
+	const stdout = (result?.stdout ?? "").trim();
+	if (!stdout) {
+		return {
+			ok: false,
+			reason: `pnpm audit produced no JSON on stdout (exit ${result?.status ?? "?"}) — the advisory endpoint is likely unreachable, not clean`,
+		};
+	}
+	try {
+		return { ok: true, report: JSON.parse(stdout) };
+	} catch {
+		return {
+			ok: false,
+			reason: `pnpm audit stdout was not valid JSON (exit ${result?.status ?? "?"}) — likely a registry/proxy error page, not an audit report`,
+		};
+	}
+}
+
 export function normalizeAuditVulnerabilities(report) {
 	if (report.vulnerabilities && Object.keys(report.vulnerabilities).length > 0) {
 		return report.vulnerabilities;
