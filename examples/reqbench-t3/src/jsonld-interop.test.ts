@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import jsonld from "jsonld";
+import jsonld, { type ContextDefinition } from "jsonld";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -62,7 +62,7 @@ describe("records are JSON-LD a standard processor can act on", () => {
 		const context = servedContext();
 		const expanded = (await jsonld.expand({
 			...record,
-			"@context": (context as { "@context": unknown })["@context"],
+			"@context": (context as { "@context": ContextDefinition })["@context"],
 		})) as Array<Record<string, unknown>>;
 
 		expect(expanded).toHaveLength(1);
@@ -86,7 +86,7 @@ describe("records are JSON-LD a standard processor can act on", () => {
 		const expanded = (await jsonld.expand({
 			...record,
 			naoDefinidoNoVocabulario: "algum valor",
-			"@context": (context as { "@context": unknown })["@context"],
+			"@context": (context as { "@context": ContextDefinition })["@context"],
 		})) as Array<Record<string, unknown>>;
 
 		// A term nobody declared still resolves, under the @vocab namespace. Asserted so the
