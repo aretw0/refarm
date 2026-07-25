@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { actionsCommand } from "./commands/actions.js";
 import { agentCommand } from "./commands/agent.js";
 import { askCommand } from "./commands/ask.js";
+import { authCommand } from "./commands/auth.js";
 import { capabilitiesCommand } from "./commands/capabilities.js";
 import { capabilityCliCommands } from "./commands/capability-registry.js";
 import { chatCommand } from "./commands/chat.js";
@@ -215,6 +216,7 @@ program.addCommand(configCommand);
 program.addCommand(configureCommand);
 program.addCommand(releaseCommand);
 program.addCommand(distCommand);
+program.addCommand(authCommand);
 // Capability verbs (health, model, skill, …) are derived from the ONE capability
 // registry — the same registry the REPL slashes derive from — so a verb declared
 // (and, later, plugin-contributed) once lights up on the CLI and the REPL without
