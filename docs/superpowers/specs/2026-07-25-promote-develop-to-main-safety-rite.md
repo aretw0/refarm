@@ -62,9 +62,22 @@ It composes existing importable functions and emits a JSON verdict + operator ha
    Quality`) required and is a PR required? A finding when weak.
 6. Latest `Test & Quality` status on `develop` (is the source green?).
 
-**Verdict:** `SAFE` (nothing would publish / held), `WOULD-PUBLISH` (list — confirm intent), or
-`BLOCKED` (source red / posture broken). Exit non-zero only when a real accidental-publish risk or a
-red source is detected; `WOULD-PUBLISH` is a warn (intended releases are legitimate).
+**Branch divergence (local git):**
+7. Is the promotion a clean fast-forward, or have `main` and `develop` diverged? `main` ahead of
+   `develop` at all ⇒ a naive merge/squash would conflict or drop `main`-only work ⇒ not a routine
+   promotion. (This dimension was added after the first run: the branches diverged on 2026-03-06 and
+   `main` carries 1372 commits / 54 files `develop` lacks — publish-safety alone would have wrongly
+   reported "go".)
+
+**Verdict:** `SAFE` (nothing would publish / held), `WOULD-PUBLISH` (list — confirm intent),
+`DIVERGED` (base not an ancestor — reconcile first), or `BLOCKED` (source red). Exit non-zero for
+`DIVERGED`, `BLOCKED`, or an unconfirmed `WOULD-PUBLISH`; plain `SAFE` exits 0.
+
+> **Current real state (2026-07-25): `DIVERGED`.** Publish-safety is fine (guard blocks), but `main`
+> and `develop` have diverged for ~4.5 months into parallel codebases (2558 files differ; much is the
+> `pi-agent`→`agent` rename, but there is genuine parallel evolution + `main`-only commands like
+> `extension.ts`). A naive `develop→main` merge is unsafe. Promotion needs a deliberate reconciliation
+> — a dedicated effort, not covered here.
 
 **Durability:** wired as `release:promote:check` in root `package.json`; a `node --test`
 regression test (`scripts/ci/test-promote-check.mjs`) pins the verdict logic over fixtures (all-0.1.0

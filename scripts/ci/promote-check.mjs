@@ -58,13 +58,22 @@ export function classifyChangesets({ changesets, versions }) {
  * @param {{blocked: boolean, wouldPublish: object[], sourceGreen: boolean|null, allowPublish: boolean}} input
  * @returns {{verdict: "SAFE"|"WOULD-PUBLISH"|"BLOCKED", ok: boolean, exitCode: number, reasons: string[]}}
  */
-export function computeVerdict({ blocked, wouldPublish, sourceGreen, allowPublish }) {
+export function computeVerdict({ blocked, wouldPublish, sourceGreen, allowPublish, divergence }) {
 	const reasons = [];
 
 	// A red source branch is never promotable, whatever the publish state.
 	if (sourceGreen === false) {
 		reasons.push("Source branch (develop) is not green on Test & Quality.");
 		return { verdict: "BLOCKED", ok: false, exitCode: 1, reasons };
+	}
+
+	// A diverged base is not a clean promotion — a naive merge/squash would conflict or drop work.
+	// This is orthogonal to publishing but blocks a routine promotion just the same.
+	if (divergence?.available && !divergence.clean) {
+		reasons.push(
+			`main has ${divergence.mainAhead} commit(s) and ${divergence.filesOnlyOnMain} file(s) that develop lacks — a naive merge/squash would conflict or drop main's work. Reconcile the branches before promoting (this is not a fast-forward).`,
+		);
+		return { verdict: "DIVERGED", ok: false, exitCode: 1, reasons };
 	}
 
 	// blocked=true skips the ENTIRE changesets step on main — nothing publishes.
@@ -182,6 +191,38 @@ function readSourceGreen(branch = "develop") {
 	}
 }
 
+function git(args) {
+	try {
+		return execFileSync("git", args, { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Is the promotion a clean fast-forward, or have the branches diverged? A diverged base means a
+ * naive merge/squash would conflict or drop base-only work — the promotion is a reconciliation,
+ * not a routine update. `clean` is true only when base is an ancestor of head (mainAhead === 0).
+ */
+function readBranchDivergence(base = "origin/main", head = "origin/develop") {
+	git(["fetch", "origin", "main", "--quiet"]); // best-effort; ignore failure (offline)
+	const mainAheadRaw = git(["rev-list", "--count", `${head}..${base}`]);
+	const developAheadRaw = git(["rev-list", "--count", `${base}..${head}`]);
+	if (mainAheadRaw === null || developAheadRaw === null) return { available: false };
+	const nameStatus = git(["diff", "--name-status", base, head]) ?? "";
+	const filesOnlyOnMain = nameStatus.split("\n").filter((line) => line.startsWith("D\t")).length;
+	const mainAhead = Number(mainAheadRaw);
+	return {
+		available: true,
+		base,
+		head,
+		mainAhead,
+		developAhead: Number(developAheadRaw),
+		filesOnlyOnMain,
+		clean: mainAhead === 0,
+	};
+}
+
 // ── posture-derived advisory findings ────────────────────────────────────────
 
 function postureFindings(posture) {
@@ -231,9 +272,22 @@ if (isMain()) {
 
 	const posture = offline ? { available: false } : readGithubPosture();
 	const sourceGreen = offline ? null : readSourceGreen("develop");
+	const divergence = offline ? { available: false } : readBranchDivergence();
 	const findings = postureFindings(posture);
+	if (divergence.available && !divergence.clean) {
+		findings.push({
+			level: "warn",
+			text: `Branches diverged: main is ${divergence.mainAhead} commit(s) / ${divergence.filesOnlyOnMain} file(s) ahead of develop. Not a fast-forward — a naive merge/squash would conflict or drop main-only work.`,
+		});
+	}
 
-	const { verdict, ok, exitCode, reasons } = computeVerdict({ blocked, wouldPublish, sourceGreen, allowPublish });
+	const { verdict, ok, exitCode, reasons } = computeVerdict({
+		blocked,
+		wouldPublish,
+		sourceGreen,
+		allowPublish,
+		divergence,
+	});
 
 	const nextCommands =
 		verdict === "SAFE"
@@ -242,7 +296,9 @@ if (isMain()) {
 				]
 			: verdict === "WOULD-PUBLISH"
 				? ["# review the would-publish list; if intended re-run with --allow-publish, else hold the changesets"]
-				: ["# fix the source branch (develop) before promoting"];
+				: verdict === "DIVERGED"
+					? ["# reconcile main↔develop first — they diverged; a naive merge/squash would conflict or drop main-only work"]
+					: ["# fix the source branch (develop) before promoting"];
 
 	const payload = {
 		ok,
@@ -253,6 +309,7 @@ if (isMain()) {
 		wouldPublish: wouldPublish.map((r) => `${r.packageName}@${r.currentVersion}`),
 		unknownTargets: unknown.map((r) => r.packageName),
 		sourceGreen,
+		divergence,
 		posture,
 		findings,
 		reasons,
@@ -270,6 +327,11 @@ if (isMain()) {
 			`\n  pending changesets: ${changesets.length} (guarded@0.1.0: ${guarded.length}, would-publish: ${wouldPublish.length}, unknown: ${unknown.length})\n`,
 		);
 		process.stdout.write(`  source (develop) green: ${sourceGreen === null ? "unknown" : sourceGreen}\n`);
+		if (divergence.available) {
+			process.stdout.write(
+				`  divergence: main +${divergence.mainAhead} commits / +${divergence.filesOnlyOnMain} files vs develop (clean fast-forward: ${divergence.clean})\n`,
+			);
+		}
 		if (posture.available) {
 			process.stdout.write(
 				`  posture: RELEASE_AUTOMATION=${posture.releaseAutomation}, npmToken=${posture.npmTokenPresent}, cargoToken=${posture.cargoTokenPresent}, main PR/checks required=${posture.mainRequiresPr}/${posture.mainRequiresChecks}\n`,

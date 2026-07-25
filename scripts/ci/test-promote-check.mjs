@@ -81,3 +81,39 @@ test("computeVerdict: source status unknown (null) does not force BLOCKED", () =
 	const v = computeVerdict({ blocked: true, wouldPublish: [], sourceGreen: null, allowPublish: false });
 	assert.equal(v.verdict, "SAFE");
 });
+
+test("computeVerdict: a diverged base is DIVERGED even when publish-safe", () => {
+	const v = computeVerdict({
+		blocked: true,
+		wouldPublish: [],
+		sourceGreen: true,
+		allowPublish: false,
+		divergence: { available: true, clean: false, mainAhead: 1372, filesOnlyOnMain: 54 },
+	});
+	assert.equal(v.verdict, "DIVERGED");
+	assert.equal(v.ok, false);
+	assert.equal(v.exitCode, 1);
+	assert.match(v.reasons.join(" "), /1372 commit/);
+});
+
+test("computeVerdict: a clean base (main is ancestor) does not force DIVERGED", () => {
+	const v = computeVerdict({
+		blocked: true,
+		wouldPublish: [],
+		sourceGreen: true,
+		allowPublish: false,
+		divergence: { available: true, clean: true, mainAhead: 0, filesOnlyOnMain: 0 },
+	});
+	assert.equal(v.verdict, "SAFE");
+});
+
+test("computeVerdict: unavailable divergence (offline) does not force DIVERGED", () => {
+	const v = computeVerdict({
+		blocked: true,
+		wouldPublish: [],
+		sourceGreen: true,
+		allowPublish: false,
+		divergence: { available: false },
+	});
+	assert.equal(v.verdict, "SAFE");
+});
