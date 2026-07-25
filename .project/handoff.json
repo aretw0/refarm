@@ -1,17 +1,15 @@
 {
-  "context": "Checkpoint 2026-07-24 (23rd). COLD-BOOTSTRAP landed + proven: a device with only Node installs the whole farm-client kit over the mesh with NO git/clone/npm — 'curl -fsSL http://serpro-1577853:4321/install.mjs | node --input-type=module -'. dist publish auto-detects the farm's MagicDNS name (tailscale Self.HostName) and bakes it into a self-contained install.mjs. Proven: curl-pipe pulled the 14-file kit into a bare dir and farm-ask drove the farm, host remembered. This session's farm-client arc (all zero-dep, all proven live over the mesh): usage footer → error-hint (plan-gated) → kit-remembers-the-farm → progress spinner → cold-bootstrap. Commits pushed 79e534fd. NEW: operator shared the north star — refarm = single control plane for their WHOLE life (personal+professional), a personal agentic OS; both their computers now on the tailnet.",
-  "timestamp": "2026-07-24T20:36:30.719Z",
+  "context": "Checkpoint 2026-07-24 (24th). SECURITY design + first block. Spec written (docs/superpowers/specs/2026-07-24-sovereign-auth-workspaces-design.md): daemon has NO app-auth today (only Tailscale); layered model network→app-auth-gate→identity-workspace (personal isolated + shared collective). Operator constraint: GENERIC BLOCKS IN PACKAGES ALWAYS, never inline-per-use. First block landed: @refarm.dev/workspace-access-contract-v1 (workspace-access:v1) — pure resolveAccess(policy, identity, requestedWorkspace)→{namespace}|{denied} + validatePolicy + workspacesFor; 10 tests; the reusable authorization heart the §8 gate enforces and the hub/enrollment read. Commit 6f3f5bb6. ALSO this session: chat-over-tunnel fixed (web serve proxies sidecar HTTP /efforts, commit 960c150d), cloudflared quick-tunnel PWA install proven (then torn down — public+unauth risk), PWA audit (apps/me already has manifest+SW+registration+smoke). Public tunnel is DOWN; daemon tailnet-only.",
+  "timestamp": "2026-07-25T00:27:44.484Z",
   "current_phase": "12",
   "current_tasks": [],
   "blockers": [],
   "next_actions": [
-    "PWA on the phone (ladder step 3): audit apps/me for installable-PWA pieces (web manifest + service worker + offline), then serve via 'refarm web serve apps/me/dist --tls' — installable hub over the mesh. PWA, not APK (no native blocks; reuse apps/me + web serve).",
-    "Cloudflare Tunnel (ladder step 4): real hostname + TLS (fixes PWA secure-context + reach from any network), reuses packages/infra-cloudflare. Railway = persistent always-on node, later. Operator to decide Cloudflare vs Railway — recommend Cloudflare first.",
-    "x86 tractor node (ladder step 5): the personal PC (now on the tailnet) as a farm node via the same manifest + a platform field. Also the natural payload-2 for dist."
+    "AUTH Slice 1 — the §8 daemon gate (packages/tractor): axum from_fn layer at sidecar mod.rs:1573 (mirror CORS) + /sync WS: extract per-device credential → identity (identity block / deriveFromSession) → resolveAccess (the new contract) → 401 (TokenAuthError vocab) or inject ResolvedWorkspace. Provision the host's own credential via silo; farm-client + apps/me + web-serve proxy forward it. Ship gate + client credential together (breaking change). Do it in a FRESH pass — security §8, not the tail of a long session.",
+    "AUTH Slice 2 — namespace-per-request: 8 NativeStorage::open sites in mod.rs + 2 in dispatch.rs read ResolvedWorkspace.namespace; state.namespace demotes to default. Slice 3 (larger axis) = full isolation of streams/efforts/plugins/sync (daemon-global today).",
+    "UX Slice — the hybrid home for apps/me (chat-centered + slim attention strip): strip the debug surfaces (me-surfaces.ts), fix i18n, move status/wallet/graph behind a tap. Mockup aligned with operator. (Chat now works over the tunnel.)"
   ],
-  "open_questions": [
-    "Cloudflare vs Railway for raising nodes — recommend Cloudflare first (tunnel/TLS/edge, existing block); Railway for persistent compute later."
-  ],
+  "open_questions": [],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
     "DEC-032: produto CLI/host em apps/; packages/ guardam blocos reutilizáveis.",
