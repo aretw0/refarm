@@ -455,6 +455,7 @@ _Refreshed 2026-07-03; the previous single row (WASM + WIT capability enforcemen
 | Silo storage surface free of the identity closure | ADR-076 | 2026-07-03 | Accepted after source verification: dynamic key-manager import, heartwood as `optionalDependencies`, 0600/0700 hardening, closure test |
 | Agent-commons environment ceilings | ADR-078 | 2026-07-03 | Accepted with phased implementation: cgroup boundary + contract test shipped; watchdog-first per the 2026-07-02 revision |
 | Plugin dispatch model | ADR-084 | 2026-07-05 | Accepted after adversarial source recon: async-default (the agent's proven model) + sync-negotiated by a metadata capability flag (never a free choice); "both, let them choose" refuted as fragmenting |
+| Device auth gate + browser/WS credential channel | ADR-093 | 2026-07-25 | CLI/HTTP gate shipped (opt-in bearer, sha256 policy, `refarm auth enroll`); hub HTTP via stored token bootstrapped by one-time `?token=`, `/sync` WS via `Sec-WebSocket-Protocol` subprotocol (browser can't set `Authorization`) — fresh-pass implementation |
 
 ---
 
