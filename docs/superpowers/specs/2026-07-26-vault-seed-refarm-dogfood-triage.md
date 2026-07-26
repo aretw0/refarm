@@ -55,8 +55,13 @@ path's ergonomics and dependency-closure.
 
 ## Fix path (the focused convergence pass)
 
-1. Handoff UX: pack-by-default or a clear "--pack required" error. *(open)*
-2. Handoff: build the `vault-seed-ready` selection before packing (rope #1). *(open)*
+1. **DONE (commit `d83183a4`).** Handoff UX: running without `--pack` now prints a clear "this audits
+   an existing handoff; build the selection and re-run with --pack" hint instead of an opaque
+   "missing expected tarball".
+2. **Mitigated (no code change needed).** Rope #1 build-before-publish: the manifest already flags
+   `missing build output` and blocks when a package's `dist/` is absent, so it never silently ships an
+   empty tarball; the `--pack` hint now also tells you to build first. Auto-building all 23 packages
+   (incl. heartwood's cargo+jco) inside the handoff is heavy/RAM-bound and deliberately out of scope.
 3. **DONE (commit `ddd4d169`) — rope #2 closed.** `computeTransitiveRefarmClosure` walks the selected
    packages' `@refarm.dev` deps, finds those NOT in the selection (`config`), and the handoff now packs
    them and declares them in `consumerInstall.pnpmOverrides` + `copyFiles` — **without** selection
