@@ -903,6 +903,15 @@ if (isMain()) {
 		}
 
 		if (!manifest.ok) {
+			// The common footgun: running without --pack AUDITS an existing packet, so an empty dir
+			// reads as "missing tarball(s)". Say plainly how to GENERATE one instead of just failing.
+			if (!options.pack && (manifest.missing?.length ?? 0) > 0) {
+				process.stderr.write(
+					`\n[vault-seed-ready:handoff] ${manifest.missing.length} tarball(s) are not in the packet dir. ` +
+						`This command AUDITS an existing handoff; to GENERATE one, build the selection (so dist/ exists) ` +
+						`then re-run with --pack:\n  pnpm run release:vault-seed:handoff -- --pack\n`,
+				);
+			}
 			process.exit(1);
 		}
 	} catch (error) {
