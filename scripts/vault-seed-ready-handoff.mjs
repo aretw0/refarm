@@ -276,9 +276,17 @@ function releaseBoundaryAuditIssues(releaseBoundaryAudit) {
 	});
 }
 
-function buildConsumerInstall({ packages, handoffDir }) {
+function buildConsumerInstall({ packages, transitivePackages = [], handoffDir }) {
 	const fileSpecs = Object.fromEntries(
 		packages.map((entry) => [
+			entry.packageName,
+			`file:./vendor/${entry.tarball}`,
+		]),
+	);
+	// Transitive @refarm.dev deps (e.g. health -> config): vendored + overridden so the consumer
+	// install is dependency-closed, but NOT direct fileSpecs (the consumer never imports them).
+	const transitiveSpecs = Object.fromEntries(
+		transitivePackages.map((entry) => [
 			entry.packageName,
 			`file:./vendor/${entry.tarball}`,
 		]),
@@ -287,9 +295,13 @@ function buildConsumerInstall({ packages, handoffDir }) {
 		packageManager: "pnpm",
 		vendorDir: "vendor",
 		copyFrom: handoffDir,
-		copyFiles: ["manifest.json", ...packages.map((entry) => entry.tarball)],
+		copyFiles: [
+			"manifest.json",
+			...packages.map((entry) => entry.tarball),
+			...transitivePackages.map((entry) => entry.tarball),
+		],
 		fileSpecs,
-		pnpmOverrides: { ...fileSpecs },
+		pnpmOverrides: { ...fileSpecs, ...transitiveSpecs },
 		revendorPolicy: REVENDOR_POLICY,
 		proofChecklist: "consumerProofs",
 	};
@@ -402,6 +414,66 @@ function expectedTarballSet(cwd, commands) {
 	);
 }
 
+/**
+ * The transitive closure of @refarm.dev deps a selected package pulls in but that are NOT themselves in
+ * the selection (e.g. health -> config). These must be vendored and declared as pnpmOverrides so the
+ * consumer install is dependency-closed, WITHOUT entering the consumer-proven selection (the boundary
+ * audit reserves selection membership for directly-consumed, consumer-proven blocks).
+ *
+ * @param {{ selected: { packageName: string, packageDir: string }[], workspaceRefarmPackages: Map<string, string>, readDeps: (packageDir: string) => string[] }} input
+ * @returns {{ packageName: string, packageDir: string }[]} sorted by name
+ */
+function workspaceRefarmPackageMap(cwd) {
+	const map = new Map();
+	const pkgRoot = path.join(cwd, "packages");
+	if (!existsSync(pkgRoot)) return map;
+	for (const entry of readdirSync(pkgRoot, { withFileTypes: true })) {
+		if (!entry.isDirectory()) continue;
+		const manifestPath = path.join(pkgRoot, entry.name, "package.json");
+		if (!existsSync(manifestPath)) continue;
+		try {
+			const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+			if (typeof manifest.name === "string" && manifest.name.startsWith("@refarm.dev/")) {
+				map.set(manifest.name, path.join("packages", entry.name));
+			}
+		} catch {
+			// an unreadable manifest is another lane problem
+		}
+	}
+	return map;
+}
+
+function readRefarmDeps(cwd, packageDir) {
+	try {
+		const manifest = JSON.parse(readFileSync(path.join(cwd, packageDir, "package.json"), "utf8"));
+		return Object.keys({ ...manifest.dependencies });
+	} catch {
+		return [];
+	}
+}
+
+export function computeTransitiveRefarmClosure({ selected, workspaceRefarmPackages, readDeps }) {
+	const selectedNames = new Set(selected.map((entry) => entry.packageName));
+	const closure = new Map();
+	const stack = selected.map((entry) => entry.packageDir);
+	const visited = new Set();
+	while (stack.length > 0) {
+		const dir = stack.pop();
+		if (visited.has(dir)) continue;
+		visited.add(dir);
+		for (const dep of readDeps(dir)) {
+			if (!dep.startsWith("@refarm.dev/")) continue;
+			if (selectedNames.has(dep)) continue;
+			if (closure.has(dep)) continue;
+			const depDir = workspaceRefarmPackages.get(dep);
+			if (!depDir) continue;
+			closure.set(dep, { packageName: dep, packageDir: depDir });
+			stack.push(depDir);
+		}
+	}
+	return [...closure.values()].sort((a, b) => a.packageName.localeCompare(b.packageName));
+}
+
 export function materializeHandoffTarballs({
 	cwd = process.cwd(),
 	env = process.env,
@@ -429,9 +501,14 @@ export function materializeHandoffTarballs({
 		"--pack-destination",
 		absoluteHandoffDir,
 	]);
+	const closure = computeTransitiveRefarmClosure({
+		selected: check.commands.map((c) => ({ packageName: c.packageName, packageDir: c.packageDir })),
+		workspaceRefarmPackages: workspaceRefarmPackageMap(cwd),
+		readDeps: (dir) => readRefarmDeps(cwd, dir),
+	});
 	const packed = [];
 
-	for (const command of check.commands) {
+	for (const command of [...check.commands, ...closure]) {
 		const packageCwd = path.join(cwd, command.packageDir);
 		const result = spawnSync(spawnCommand.command, spawnCommand.args, {
 			cwd: packageCwd,
@@ -594,7 +671,18 @@ export function buildHandoffManifest({
 		};
 	});
 
-	const expected = new Set(packages.map((entry) => entry.tarball));
+	const closure = computeTransitiveRefarmClosure({
+		selected: check.commands.map((c) => ({ packageName: c.packageName, packageDir: c.packageDir })),
+		workspaceRefarmPackages: workspaceRefarmPackageMap(cwd),
+		readDeps: (dir) => readRefarmDeps(cwd, dir),
+	});
+	const transitivePackages = closure.map((entry) => {
+		const version = readPackageVersion(cwd, entry.packageDir);
+		const tarball = packageTarballName(entry.packageName, version);
+		return { packageName: entry.packageName, packageDir: entry.packageDir, version, tarball };
+	});
+
+	const expected = new Set([...packages, ...transitivePackages].map((entry) => entry.tarball));
 	const missing = packages
 		.filter((entry) => !entry.exists)
 		.map((entry) => entry.tarball);
@@ -631,6 +719,7 @@ export function buildHandoffManifest({
 		packages,
 		consumerInstall: buildConsumerInstall({
 			packages,
+			transitivePackages,
 			handoffDir: maybeRelative(cwd, absoluteHandoffDir),
 		}),
 		consumerProofs: buildConsumerProofs(packages),

@@ -11,12 +11,58 @@ import path from "node:path";
 import test from "node:test";
 import {
 	buildHandoffManifest,
+	computeTransitiveRefarmClosure,
 	formatHandoffMarkdown,
 	packageTarballName,
 	parseHandoffArgs,
 	pruneExtraHandoffTarballs,
 	writePacketManifests,
 } from "../vault-seed-ready-handoff.mjs";
+
+// The transitive @refarm.dev closure — the rope #2 fix: health -> config must be vendored + overridden
+// without entering the consumer-proven selection.
+test("computeTransitiveRefarmClosure: pulls a selected package's transitive @refarm.dev dep (health→config)", () => {
+	const workspaceRefarmPackages = new Map([
+		["@refarm.dev/health", "packages/health"],
+		["@refarm.dev/config", "packages/config"],
+		["@refarm.dev/storage-contract-v1", "packages/storage-contract-v1"],
+	]);
+	const deps = {
+		"packages/health": ["@refarm.dev/config", "picomatch"],
+		"packages/config": [],
+		"packages/storage-contract-v1": [],
+	};
+	const closure = computeTransitiveRefarmClosure({
+		selected: [
+			{ packageName: "@refarm.dev/health", packageDir: "packages/health" },
+			{ packageName: "@refarm.dev/storage-contract-v1", packageDir: "packages/storage-contract-v1" },
+		],
+		workspaceRefarmPackages,
+		readDeps: (dir) => deps[dir] ?? [],
+	});
+	assert.deepEqual(closure, [{ packageName: "@refarm.dev/config", packageDir: "packages/config" }]);
+});
+
+test("computeTransitiveRefarmClosure: excludes already-selected deps, non-workspace deps, and recurses", () => {
+	const workspaceRefarmPackages = new Map([
+		["@refarm.dev/a", "packages/a"],
+		["@refarm.dev/b", "packages/b"],
+		["@refarm.dev/c", "packages/c"],
+	]);
+	const deps = {
+		"packages/a": ["@refarm.dev/b", "@refarm.dev/c", "@refarm.dev/external-only"],
+		"packages/b": ["@refarm.dev/c"], // recursion: b pulls c
+		"packages/c": [],
+	};
+	const closure = computeTransitiveRefarmClosure({
+		selected: [{ packageName: "@refarm.dev/a", packageDir: "packages/a" }],
+		workspaceRefarmPackages, // b is selected below, external-only is not in the workspace map
+		readDeps: (dir) => deps[dir] ?? [],
+	}).map((entry) => entry.packageName);
+	// a selects b transitively → but b IS a selected package here? no: only a is selected.
+	// So b and c are both transitive; external-only is skipped (not a workspace package).
+	assert.deepEqual(closure, ["@refarm.dev/b", "@refarm.dev/c"]);
+});
 
 const PROCESS_HANDOFF_CONSUMER_PULL = {
 	proofId: "process-handoff.dgk-runner-adapter",
@@ -513,8 +559,16 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 		],
 	);
 	assert.equal(Object.keys(manifest.consumerInstall.fileSpecs).length, manifest.packages.length);
-	assert.equal(Object.keys(manifest.consumerInstall.pnpmOverrides).length, manifest.packages.length);
-	assert.equal(manifest.consumerInstall.copyFiles.length, manifest.packages.length + 1);
+	// pnpmOverrides ⊇ fileSpecs — it adds the transitive @refarm.dev closure (e.g. health → config)
+	// so the consumer's install is dependency-closed; copyFiles carries every overridden tarball + manifest.
+	for (const key of Object.keys(manifest.consumerInstall.fileSpecs)) {
+		assert.ok(key in manifest.consumerInstall.pnpmOverrides);
+	}
+	assert.ok(Object.keys(manifest.consumerInstall.pnpmOverrides).length >= manifest.packages.length);
+	assert.equal(
+		manifest.consumerInstall.copyFiles.length,
+		Object.keys(manifest.consumerInstall.pnpmOverrides).length + 1,
+	);
 	assert.equal(manifest.consumerInstall.revendorPolicy.proofAfterRefresh, "consumerProofs");
 	assert.equal(
 		manifest.consumerInstall.fileSpecs["@refarm.dev/ds"],
