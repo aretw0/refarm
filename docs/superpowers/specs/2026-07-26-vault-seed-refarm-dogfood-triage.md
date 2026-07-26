@@ -55,13 +55,35 @@ path's ergonomics and dependency-closure.
 
 ## Fix path (the focused convergence pass)
 
-1. Handoff UX: pack-by-default or a clear "--pack required" error.
-2. Handoff: build the `vault-seed-ready` selection before packing (rope #1).
-3. Handoff: compute the transitive `@refarm.dev` closure, vendor those tarballs, and emit them in
-   `consumerInstall.pnpmOverrides` — the dependency-closure fix for rope #2, the model-respecting way.
-4. Then re-vendor into vault-seed and install to completion — and only then do the **real** triage:
-   run all consumer contract tests to see what refarm's months of evolution actually broke (API-compat),
-   and assess which *new* refarm blocks vault-seed can assimilate next.
+1. Handoff UX: pack-by-default or a clear "--pack required" error. *(open)*
+2. Handoff: build the `vault-seed-ready` selection before packing (rope #1). *(open)*
+3. **DONE (commit `ddd4d169`) — rope #2 closed.** `computeTransitiveRefarmClosure` walks the selected
+   packages' `@refarm.dev` deps, finds those NOT in the selection (`config`), and the handoff now packs
+   them and declares them in `consumerInstall.pnpmOverrides` + `copyFiles` — **without** selection
+   membership (so the boundary audit stays `ok`; config is not a consumer-pulled block). Verified:
+   handoff Status `ok`, 23 selected + 1 transitive (`config`); config in `pnpmOverrides`, not
+   `fileSpecs`/`packages[]`. Closure logic is unit-tested.
+4. **DONE — the real triage ran, and it's green.** Re-vendored the 24-tarball handoff into vault-seed,
+   added the `@refarm.dev/config` override to its `pnpm-workspace.yaml`, and `pnpm install` **completed**
+   (18.8s, `vitest` linked — the graph resolves now). Then the consumer contract tests, run **via
+   vitest** (not `node --test` — they use vitest's runner): **43/43 tests green across 16 files.** After
+   months of refarm evolution the convergence held almost entirely; the **only** drift was a
+   brand-agnostic rename — `@refarm.dev/local-surface` dropped the `refarm.` prefix from its schema ids
+   (`refarm.local-surface.v1` → `local-surface.v1`, `…launch-plan.v1` → `local-surface.launch-plan.v1`,
+   ADR-087). vault-seed's contract test was stale; updated to the new ids → green.
+
+## Bottom line
+
+The first cultivation seed is **proven end-to-end**: the handoff regenerates against today's refarm,
+is now dependency-closed (rope #2 fixed in refarm, `ddd4d169`), and vault-seed — the real consumer —
+installs it and passes all 43 consumer contracts. The `--pack` UX and build-before-publish ropes
+(items 1–2) remain open but did not block the loop this session. Next seeds: those two ergonomics
+fixes, assessing *new* refarm blocks to assimilate, and the doceria (the external commerce seed).
+
+### Changes left in vault-seed (`~/github/vault-seed`, its own repo — commit there)
+`.npmrc` → public npm (Nexus bypass); `pnpm-workspace.yaml` overrides += `@refarm.dev/config`;
+re-vendored 24 tarballs in `vendor/`; `scripts/refarm_local_surface_consumer_contract.test.mjs` schema
+ids updated to the brand-agnostic form.
 
 ## State left
 
