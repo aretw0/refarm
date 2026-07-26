@@ -42,6 +42,11 @@ const RELEASE_READINESS_STEPS = [
 		script: "workspace:artifacts:ownership",
 		reason: "Generated artifacts must stay derived from source, not manually edited.",
 	},
+		{
+			id: "no-tracked-artifacts",
+			script: "workspace:artifacts:no-tracked",
+			reason: "Generated artifacts (bindings.rs, dist/, target/) must never be tracked — untrack before they reach history, not via a later rewrite.",
+		},
 	{
 		id: "test-runner-contracts",
 		script: "test-runner:contracts",
