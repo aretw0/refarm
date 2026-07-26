@@ -849,8 +849,8 @@
 				],
 				"consumerPull": {
 					"proofId": "dispatch-surface.dgk-descriptor",
-					"downstreamUse": "Multi-surface command/action descriptor substrate",
-					"proofTarget": "dgk exposes product commands through dispatch-surface-compatible descriptors",
+					"downstreamUse": "Channel/transport dispatch primitives — parseTaskTransport (file/http/channel:*), the control-surface adapter, and channel effort payloads that feed the runtime HTTP surface.",
+					"proofTarget": "Consumers route channel/transport dispatch operations through these shared primitives. This is NOT a product-command/CLI registry — product commands stay in the consumer command layer (the old wording wrongly suggested modeling CLI commands on it).",
 					"ownershipBoundary": "Surface labels, routes, and product-specific actions remain downstream"
 				}
 			},
