@@ -64,10 +64,10 @@ automation) — the ocamento is *migration + one missing provider*, not new prim
 - **(A)** proved one vault migration — `examples/reqbench-t3/src/workitem-task.test.ts`: rcdc5's `ccm_*` work-item ⇒ `task:v1`+`provenance:v1`, overlay preserved, boundary asserted (5/5 green).
 - **(B)** built + consumed the missing provider — `packages/source-oslc` (generic OSLC/Jazz toolkit, 7/7); reqbench-t3 rewired to consume it, duplication dropped, full suite 90/1-skip green.
 - **almtask kernel** — `packages/task-recurrence` (generic recurring-task → `task:v1` expansion, 8/8); the write-side complement of source-oslc. SERPRO UST/CSV/emit stays in rcdc5.
+- **Full `source:v1` OSLC provider** — `createOslcSourceProvider` in `packages/source-oslc` (composed over `source-web`: resolve/materialize/status/refresh/discover + session/egress/cache/provenance; OSLC driver injected; 401→re-auth). 11/11 green. The read side is complete.
 
 **Next corners (grounded, unordered — take by real friction):**
-- **Real vault migration** (beyond the proof): make an actual vault (rcdc5 or professional) CONSUME the lattice via the handoff, like vault-seed — the first that vendors `@refarm.dev/*` and replaces its `@rcdcp/*` engine.
-- **Full `source:v1` OSLC provider** — wrap `source-oslc`'s toolkit + a session/auth module into a materialize/discover provider (source-oslc today is the dialect toolkit, not yet a full `SourceProvider` class).
+- **Real vault migration** (operator: "só depois" — the next big one): make an actual vault (rcdc5 or professional) CONSUME the lattice via the handoff, like vault-seed — the first that vendors `@refarm.dev/*` and replaces its `@rcdcp/*` engine, using `source-oslc` (`createOslcSourceProvider`) + `task:v1`/`provenance:v1` + `task-recurrence`.
 - **Full external-ALM emit sink** — the inverse of `source:v1` (write work-items OUT to a tracker), wrapping `task-recurrence`'s output; only under real second-consumer pressure. **`task:v1` optional `priority`** (only under real need); coop-vault collective proof (`workspace-access-contract-v1`); per-device surfaces (PWA/Termux); plugin authoring ergonomics.
 
 **Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.

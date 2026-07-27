@@ -79,8 +79,10 @@ durable material:
 - **(B) Build the one missing provider — DONE 2026-07-27 (toolkit).** `packages/source-oslc` — the generic
   OSLC/Jazz read toolkit (request contract, fetch driver w/ 401 re-auth, folder→artifact crawl, RDF parsing,
   traceability links, attachments), 7/7 green; reqbench-t3 rewired to consume it (duplication dropped, full
-  suite 90/1-skip green). NOTE: this is the OSLC *dialect toolkit*; a full `source:v1` `SourceProvider` class
-  (materialize/discover + a session/auth module) wrapping it is the next extension.
+  suite 90/1-skip green). The full `source:v1` provider followed: `createOslcSourceProvider` composes the
+  toolkit over `source-web`'s `createWebSourceProvider` (resolve/materialize/status/refresh/discover +
+  session/egress/cache/provenance; OSLC driver injected; per-target Configuration-Context; 401→re-auth),
+  the vendor `fetchImpl`/URLs/egress passed in by the consumer. 11/11 green. **The read side is complete.**
 
 ## Sovereign boundary (the rule governing every assimilation)
 
