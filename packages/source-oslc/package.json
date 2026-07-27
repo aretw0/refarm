@@ -24,6 +24,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@refarm.dev/source-contract-v1": "workspace:*",
 		"@refarm.dev/source-web": "workspace:*"
 	},
 	"devDependencies": {

@@ -15,3 +15,8 @@ export {
 	type OslcCrawlOptions,
 	type OslcRelationLink,
 } from "./oslc.js";
+export {
+	createOslcSourceProvider,
+	type OslcSourceProviderOptions,
+	type OslcSourceTarget,
+} from "./provider.js";
