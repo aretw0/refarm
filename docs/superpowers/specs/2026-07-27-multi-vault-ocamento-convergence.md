@@ -100,9 +100,16 @@ stays in rcdc5** as product/config (matcher-is-data), never in a contract.
 `~/git/rcdc5/almtask` (Python) is the *inverse* of the read adapter: it **generates** work-items into an
 external ALM from a UST service catalog + Outlook `.ics` + recurring-task YAML → import CSV
 (`ID, Resumo, Descrição, Tipo, Responsável, Planejado para, Tags, Estimativa, Grupo/Item de UST`). Its
-**generic idea** — a *work-item emitter / write-back* from (catalog + schedule + recurrence rules) — is an
-assimilation candidate (a future `source:v1` write face or a dedicated capability). The UST catalog and the
-SERPRO CSV columns stay in rcdc5 per the boundary above. Capture now, build under the same C→A→B discipline.
+**generic idea** — a *work-item emitter / write-back* from (catalog + schedule + recurrence rules) — split
+into a generic kernel and vendor product.
+
+**DONE 2026-07-27 (the recurrence kernel):** `packages/task-recurrence` assimilates the genuinely-generic
+core — a schedule-reference resolver (`today` / `next-weekday:N` / `month-day:N`) + a text templater →
+a `task:v1` create-input (title templated, `due_at_ns` from deadline/resolved date). Pure given an explicit
+`now`; 8/8 tests. Second-consumer pressure is real (coop-vault + professional vault both carry recurring
+routines). **Stays in rcdc5 (product):** the UST service catalog, the effort→deadline math, the import-CSV
+columns/format, the actual emit to CCM. **Still a candidate:** a full "emit work-items to an external ALM"
+sink (the inverse of `source:v1`) — build only under real second-consumer pressure.
 
 ## SDK-first guardrail
 

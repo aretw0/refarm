@@ -63,11 +63,12 @@ automation) — the ocamento is *migration + one missing provider*, not new prim
 - **(C)** reconciled the design docs — annotated rcdc5's `ARQUITETURA-CONVERGENCIA.md` + this repo's spec: refarm already fills the roles; sovereign boundary (generic OSLC+auth → refarm, SERPRO → rcdc5); `almtask` write-back folded in.
 - **(A)** proved one vault migration — `examples/reqbench-t3/src/workitem-task.test.ts`: rcdc5's `ccm_*` work-item ⇒ `task:v1`+`provenance:v1`, overlay preserved, boundary asserted (5/5 green).
 - **(B)** built + consumed the missing provider — `packages/source-oslc` (generic OSLC/Jazz toolkit, 7/7); reqbench-t3 rewired to consume it, duplication dropped, full suite 90/1-skip green.
+- **almtask kernel** — `packages/task-recurrence` (generic recurring-task → `task:v1` expansion, 8/8); the write-side complement of source-oslc. SERPRO UST/CSV/emit stays in rcdc5.
 
 **Next corners (grounded, unordered — take by real friction):**
 - **Real vault migration** (beyond the proof): make an actual vault (rcdc5 or professional) CONSUME the lattice via the handoff, like vault-seed — the first that vendors `@refarm.dev/*` and replaces its `@rcdcp/*` engine.
 - **Full `source:v1` OSLC provider** — wrap `source-oslc`'s toolkit + a session/auth module into a materialize/discover provider (source-oslc today is the dialect toolkit, not yet a full `SourceProvider` class).
-- **`almtask` write-back** primitive; **`task:v1` optional `priority`** (only under real need); coop-vault collective proof (`workspace-access-contract-v1`); per-device surfaces (PWA/Termux); plugin authoring ergonomics.
+- **Full external-ALM emit sink** — the inverse of `source:v1` (write work-items OUT to a tracker), wrapping `task-recurrence`'s output; only under real second-consumer pressure. **`task:v1` optional `priority`** (only under real need); coop-vault collective proof (`workspace-access-contract-v1`); per-device surfaces (PWA/Termux); plugin authoring ergonomics.
 
 **Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.
 
