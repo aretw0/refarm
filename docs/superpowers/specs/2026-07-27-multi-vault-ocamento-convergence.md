@@ -105,13 +105,18 @@ external ALM from a UST service catalog + Outlook `.ics` + recurring-task YAML �
 **generic idea** — a *work-item emitter / write-back* from (catalog + schedule + recurrence rules) — split
 into a generic kernel and vendor product.
 
-**DONE 2026-07-27 (the recurrence kernel):** `packages/task-recurrence` assimilates the genuinely-generic
-core — a schedule-reference resolver (`today` / `next-weekday:N` / `month-day:N`) + a text templater →
-a `task:v1` create-input (title templated, `due_at_ns` from deadline/resolved date). Pure given an explicit
-`now`; 8/8 tests. Second-consumer pressure is real (coop-vault + professional vault both carry recurring
-routines). **Stays in rcdc5 (product):** the UST service catalog, the effort→deadline math, the import-CSV
-columns/format, the actual emit to CCM. **Still a candidate:** a full "emit work-items to an external ALM"
-sink (the inverse of `source:v1`) — build only under real second-consumer pressure.
+**DONE 2026-07-27 (both task-generation kernels):** almtask has two generic generators, both now assimilated:
+- `packages/task-recurrence` — a schedule-reference resolver (`today` / `next-weekday:N` / `month-day:N`) +
+  templater → `task:v1` (8/8).
+- `packages/task-calendar` — RFC 5545 iCalendar (`.ics`) VEVENT parsing (unfolding, DTSTART/DTEND/DURATION,
+  unescape) → `task:v1`, optional future-only (4/4).
+Both pure given an explicit `now`. **Stays in rcdc5/almtask (product):** the UST service catalog, the
+effort→deadline math, the description/CSV formatting, the actual emit to CCM. **Still a candidate:** a full
+"emit work-items to an external ALM" sink (the inverse of `source:v1`) — only under real second-consumer pressure.
+
+**rcdc5 migration blueprint — DONE 2026-07-27:** `rcdc5/docs/OCAMENTO-REFARM.md` (commit `0e12c8c`) maps each
+`@rcdcp/*` package to its refarm block (generic) or its Nexus-published SERPRO product (specific), with the
+migration order (start: `scraper-playwright` → `source-oslc`) and the vendoring mechanism (handoff tarballs).
 
 ## SDK-first guardrail
 
