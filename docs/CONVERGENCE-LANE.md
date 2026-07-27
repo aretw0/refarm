@@ -52,15 +52,22 @@ pressure (avoid premature generalization).
 
 ## Living backlog
 
-**Done (recent):** vault-seed↔refarm convergence proven + hardened (transitive-closure handoff, `--pack`
-UX, SOVEREIGN_DIR); assimilation avaliação (field largely planted); promote-check + main aligned to
-develop; security highs fixed.
+**Done (recent):** vault-seed↔refarm convergence proven + hardened; vault-seed product polish + convergence
+committed in its repo; promote-check + main aligned to develop; security highs fixed. **Multi-vault survey +
+convergence map** — the three other vaults mapped (professional, rcdc5, coop-vault) and the finding recorded
+in `docs/superpowers/specs/2026-07-27-multi-vault-ocamento-convergence.md`: **the contract lattice already
+assimilated the convergence design** (records/vault/task/provenance/enrichment/source/sync/workspace-access/
+automation) — the ocamento is *migration + one missing provider*, not new primitives.
 
-**Doing:** vault-seed product-layer polish (this lane's current corner).
+**Doing:** choosing the first grounded ocamento pass (fork A/B/C in the spec) — awaiting operator steer.
 
-**Next corners (unordered — take by real friction):** drop vault-seed's stale stand-in comments; the
-other `~/git` vaults' first ocamento pass; the coop-vault personal+collective proof; the per-device
-surfaces (PWA/Termux); plugin authoring ergonomics. **Held:** the doceria (until creator-complete).
+**Next corners (grounded):**
+- **(A)** prove one vault migration — rcdc5 `WorkItemContent`+`ccm_*` ⇒ `task:v1`+`provenance:v1` w/ consumer test.
+- **(B)** build the one missing provider — `source-alm`/`source-oslc` (`source:v1`, sibling of `source-web`) = the creator's "Fase A".
+- **(C)** reconcile the design docs — record in rcdc5's `ARQUITETURA-CONVERGENCIA.md` that refarm already fills the roles.
+- coop-vault collective proof (`workspace-access-contract-v1` in practice); per-device surfaces (PWA/Termux); plugin authoring ergonomics.
+
+**Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.
 
 ## How to resume
 
