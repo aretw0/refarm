@@ -73,11 +73,14 @@ durable material:
 - **(C) Reconcile the design docs — DONE 2026-07-27.** Annotated rcdc5's March `ARQUITETURA-CONVERGENCIA.md`
   with a "Reconciliação 2026-07-27" block recording that refarm already fills the roles (design→lattice table),
   the revised A–D, the sovereign boundary below, and this sequence. This spec is its refarm-side mirror.
-- **(A) Prove one vault migration.** Take rcdc5's `WorkItemContent` + `ccm_*` frontmatter and show it is
-  expressible as `task:v1` + `provenance:v1`, with a consumer-contract test (the vault-seed pattern). Smallest
-  pass that validates the work-item/source path end-to-end.
-- **(B) Build the one missing provider.** `source-oslc` (`source:v1`, sibling of `source-web`) — the **generic**
-  OSLC read protocol + the generic auth patterns only. The creator's "Fase A", now as a refarm source.
+- **(A) Prove one vault migration — DONE 2026-07-27.** `examples/reqbench-t3/src/workitem-task.test.ts`
+  proves rcdc5's `ccm_*` work-item maps to `task:v1` (Task + TaskEvent log + by_status) + `provenance:v1`,
+  overlay preserved outside both, sovereign boundary asserted. 5/5 green, type-check clean.
+- **(B) Build the one missing provider — DONE 2026-07-27 (toolkit).** `packages/source-oslc` — the generic
+  OSLC/Jazz read toolkit (request contract, fetch driver w/ 401 re-auth, folder→artifact crawl, RDF parsing,
+  traceability links, attachments), 7/7 green; reqbench-t3 rewired to consume it (duplication dropped, full
+  suite 90/1-skip green). NOTE: this is the OSLC *dialect toolkit*; a full `source:v1` `SourceProvider` class
+  (materialize/discover + a session/auth module) wrapping it is the next extension.
 
 ## Sovereign boundary (the rule governing every assimilation)
 

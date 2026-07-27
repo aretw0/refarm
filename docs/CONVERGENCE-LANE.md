@@ -59,13 +59,15 @@ in `docs/superpowers/specs/2026-07-27-multi-vault-ocamento-convergence.md`: **th
 assimilated the convergence design** (records/vault/task/provenance/enrichment/source/sync/workspace-access/
 automation) — the ocamento is *migration + one missing provider*, not new primitives.
 
-**Doing:** choosing the first grounded ocamento pass (fork A/B/C in the spec) — awaiting operator steer.
+**Done — the C→A→B program shipped (2026-07-27):**
+- **(C)** reconciled the design docs — annotated rcdc5's `ARQUITETURA-CONVERGENCIA.md` + this repo's spec: refarm already fills the roles; sovereign boundary (generic OSLC+auth → refarm, SERPRO → rcdc5); `almtask` write-back folded in.
+- **(A)** proved one vault migration — `examples/reqbench-t3/src/workitem-task.test.ts`: rcdc5's `ccm_*` work-item ⇒ `task:v1`+`provenance:v1`, overlay preserved, boundary asserted (5/5 green).
+- **(B)** built + consumed the missing provider — `packages/source-oslc` (generic OSLC/Jazz toolkit, 7/7); reqbench-t3 rewired to consume it, duplication dropped, full suite 90/1-skip green.
 
-**Next corners (grounded):**
-- **(A)** prove one vault migration — rcdc5 `WorkItemContent`+`ccm_*` ⇒ `task:v1`+`provenance:v1` w/ consumer test.
-- **(B)** build the one missing provider — `source-alm`/`source-oslc` (`source:v1`, sibling of `source-web`) = the creator's "Fase A".
-- **(C)** reconcile the design docs — record in rcdc5's `ARQUITETURA-CONVERGENCIA.md` that refarm already fills the roles.
-- coop-vault collective proof (`workspace-access-contract-v1` in practice); per-device surfaces (PWA/Termux); plugin authoring ergonomics.
+**Next corners (grounded, unordered — take by real friction):**
+- **Real vault migration** (beyond the proof): make an actual vault (rcdc5 or professional) CONSUME the lattice via the handoff, like vault-seed — the first that vendors `@refarm.dev/*` and replaces its `@rcdcp/*` engine.
+- **Full `source:v1` OSLC provider** — wrap `source-oslc`'s toolkit + a session/auth module into a materialize/discover provider (source-oslc today is the dialect toolkit, not yet a full `SourceProvider` class).
+- **`almtask` write-back** primitive; **`task:v1` optional `priority`** (only under real need); coop-vault collective proof (`workspace-access-contract-v1`); per-device surfaces (PWA/Termux); plugin authoring ergonomics.
 
 **Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.
 
