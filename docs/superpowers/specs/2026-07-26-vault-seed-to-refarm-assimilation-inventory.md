@@ -15,33 +15,47 @@
   runtime** rather than a vault-seed *consumption* target — but that changes the selection/handoff, so
   weigh it against the now-verified 43/43 convergence before touching it.
 
-## Candidates (assess-then-assimilate, priority order)
+## Candidates — VERIFIED (assessed each; the field is largely already planted)
 
-1. **YAML-LD codec — HIGH, the cleanest SDK primitive.** vault-seed's feedback: "o codec (parse/serialize,
-   preserve-unknown, forward-safe) é **genérico**". A pure, side-effect-free codec is an ideal importable
-   block, and it sits on the `records:v1` / `refarm.dev/contexts/records/v1` axis refarm already owns.
-   *Next:* locate it (referenced from `scripts/generate_records_data.mjs`), check its deps are closed,
-   extract into a refarm block (e.g. `@refarm.dev/yaml-ld` or fold into a records/codec package), add a
-   consumer contract test, and add it to the `vault-seed-ready` handoff. Product vocab/schema stays downstream.
+The headline, after reading the actual code: **the big generic capabilities are already assimilated**
+(records, ds, health, quality-contract, local-surface, enrichment, content-projection, source-web,
+ds-astro, process-handoff, channel-policy — all refarm SDK blocks, all consumer-proven). What remains
+in vault-seed is trivial, product-coupled, or a Python/rubric story. **That is the ocamento succeeding**
+— vault-seed is now genuinely a thin product layer on refarm's SDK.
 
-2. **quality:v1 Python checkers — MEDIUM.** The `quality:v1` *contract* is already assimilated, but the
-   checker *story* is not: pt-text (accent drift) + `avaliar_textos.py` / `avaliar_apresentacoes.py`
-   (`packages/cli/vendor/quality/`) are generic prose/presentation checkers. Generic = the rule engine,
-   severity, and `quality:v1` envelope; downstream = rubrics, weights, rule catalog, copy. More involved
-   (Python + CLI). **It is quality, not health** — keep the capabilities distinct.
+1. **YAML-LD codec — ALREADY DONE (not a candidate).** Refarm implements it as
+   `@refarm.dev/records-contract-v1/yaml` (`recordFromYamlLdObject`, `recordToYamlLdObject`,
+   `parseRecordsYamlLdFrontMatter`, …), spec `specs/features/2026-06-30-records-yaml-ld-codec-candidate.md`
+   ("IMPLEMENTED CANDIDATE, second-consumer proof closed in vault-seed"). vault-seed consumes the contract
+   for stamping/validation (`buildRecordsFromNotes` → `computeRecordContentHash`, `createReferenceRecordsProvider`);
+   its `noteToRecord` is legitimately **product** projection (folder→@type, wikilinks→relations, PARA) that
+   the spec keeps downstream. records consumer contract is green (part of 43/43). The earlier "HIGH candidate"
+   here was stale feedback from before the 2nd-consumer proof.
 
-3. **`@aretw0/dgk-channels` (rate limiter + contact topology) — MEDIUM, needs scoping.** Self-described
-   "platform-agnostic rate limiter and contact topology for publishing pipelines" — sounds like a clean
-   generic primitive, but its exports weren't legible in this survey. *Next:* read its API; if it's a
-   pure rate-limiter/topology lib, it's an SDK block; if it's welded to dgk's publishing product, leave it.
+2. **quality:v1 Python checkers — deferred, not a clean SDK plant.** The `quality:v1` *contract* is already
+   assimilated. The checkers (`pt-text`, `avaliar_textos.py`/`avaliar_apresentacoes.py`) are Python + carry
+   vault-specific rubrics/weights/copy — the generic part (a rule-runner emitting `quality:v1`) is thin and
+   speculative, and a Python capability is a bigger, cross-language effort. Leave until there's real second
+   pressure for a generic quality-rule-runner.
 
-## Non-candidate (already covered)
+3. **`@aretw0/dgk-channels` — NOT a clean primitive (product-coupled).** Read its API: `rate_limiter.js`
+   hardcodes `~/.dgk` state path + `PLATFORM_LIMITS`; `contacts.js` is vault/telegram-coupled
+   (`resolveContactsDir(vaultRoot)`, `CONTACTS_LOCATION_VAULT`, `telegramChatsToContacts`). A generic pure
+   rate-limiter core *could* be carved out, but it's welded to dgk/vault/telegram and the SDK value is
+   speculative. Leave unless a second, non-vault consumer needs a generic rate limiter.
 
-- **`@aretw0/dgk-runner`** — it is **9 lines**: `export const run = createProcessHandoffRunner()` from
-  `@refarm.dev/process-handoff`. refarm already provides the runner engine; the package is a trivial
-  default wrapper. *Action:* the stale comment "Replace with `@refarm.dev/dgk-runner` when the refarm
-  engine is available" should be updated in vault-seed — the engine (`createProcessHandoffRunner`) is
+- **`@aretw0/dgk-runner` — non-candidate (already covered).** 9 lines: `export const run =
+  createProcessHandoffRunner()` from `@refarm.dev/process-handoff`. refarm already provides the engine.
+  *Action:* update vault-seed's stale "Replace with `@refarm.dev/dgk-runner` when available" comment — it's
   already available and consumed.
+
+## Bottom line for assimilation
+
+**No clean, high-value generic capability remains ready to plant** — the ocamento is largely complete.
+The honest next moves are consumer-side polish (drop vault-seed's stale stand-in comments; the dispatch-surface
+wording is already fixed), not new refarm blocks. Re-open only when a *second* consumer creates real pressure
+for one of the deferred items (a generic quality-rule-runner, a platform-agnostic rate limiter). This is the
+SDK-first model working as intended: refarm owns the generic, vault-seed keeps the thin product.
 
 ## SDK-first guardrail (applies to every item above)
 
