@@ -34,6 +34,7 @@
 		"@refarm.dev/provenance-contract-v1": "workspace:*",
 		"@refarm.dev/quality-contract-v1": "workspace:*",
 		"@refarm.dev/records-contract-v1": "workspace:*",
+		"@refarm.dev/source-oslc": "workspace:*",
 		"@refarm.dev/source-web": "workspace:*",
 		"@refarm.dev/surveyor": "workspace:*",
 		"@refarm.dev/task-contract-v1": "workspace:*",
