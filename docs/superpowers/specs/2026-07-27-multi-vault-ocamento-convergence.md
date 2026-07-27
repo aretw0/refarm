@@ -65,18 +65,41 @@ operational requirements vault**" = vault-seed + rcdc5; "two vault POCs" = vault
   `content-projection` derives the Markdown view. `@refarm/source-ialm` = item 2; `@refarm/view-obsidian`
   = a projection consumer.
 
-## Recommended first atomic step (fork for the operator)
+## Agreed program (operator-chosen sequence C → A → B)
 
-The foundation is planted, so the honest next pass is one of these — each small, each provable:
+The foundation is planted, so the work is a three-step ant-journey, each pass small, provable, and leaving
+durable material:
 
+- **(C) Reconcile the design docs — DONE 2026-07-27.** Annotated rcdc5's March `ARQUITETURA-CONVERGENCIA.md`
+  with a "Reconciliação 2026-07-27" block recording that refarm already fills the roles (design→lattice table),
+  the revised A–D, the sovereign boundary below, and this sequence. This spec is its refarm-side mirror.
 - **(A) Prove one vault migration.** Take rcdc5's `WorkItemContent` + `ccm_*` frontmatter and show it is
   expressible as `task:v1` + `provenance:v1`, with a consumer-contract test (the vault-seed pattern). Smallest
-  pass that validates the whole work-item/source path end-to-end. **Recommended** — highest signal, lowest risk.
-- **(B) Build the one missing provider.** `source-alm`/`source-oslc` (`source:v1`), unlocking the creator's
-  "immediate value" (auto-scraping into the lattice). Bigger, but delivers live data flow.
-- **(C) Reconcile the design docs.** Update rcdc5's March `ARQUITETURA-CONVERGENCIA.md` (and cross-link this
-  spec) to record that refarm already fills the roles, leaving only migration + `source-alm`. Cheapest; locks
-  shared understanding before code.
+  pass that validates the work-item/source path end-to-end.
+- **(B) Build the one missing provider.** `source-oslc` (`source:v1`, sibling of `source-web`) — the **generic**
+  OSLC read protocol + the generic auth patterns only. The creator's "Fase A", now as a refarm source.
+
+## Sovereign boundary (the rule governing every assimilation)
+
+Operator's directive: **refarm assimilates the GENERIC of OSLC and of authentication; the SERPRO-specific
+stays in rcdc5** as product/config (matcher-is-data), never in a contract.
+
+- **→ refarm (generic):** the OSLC protocol verbs (`discoverProjectArea → listArtifacts → fetchById →
+  html→md`); the auth *patterns* (cookie/QR session persistence, OAuth-redirect) via the existing
+  `credentials/identity/authorization-contract-v1`. iAlm's `extrator_alm/` + rcdc5's `scraper-playwright`
+  are the reference implementations to distil.
+- **↛ stays in rcdc5 (SERPRO product):** SerproID `tokenAuth`/`ni` payload, `alm.serpro` base URLs, the
+  UST catalog, `codar` code labels, SIGED field names, the RM taxonomy (`cdu/rn/nf/fun`, `01-demanda…15-colecoes`),
+  the PARA routing map. Refarm never imports SERPRO vocab; rcdc5 never re-rolls the generic.
+
+## `almtask` — folded in (the write-back direction)
+
+`~/git/rcdc5/almtask` (Python) is the *inverse* of the read adapter: it **generates** work-items into an
+external ALM from a UST service catalog + Outlook `.ics` + recurring-task YAML → import CSV
+(`ID, Resumo, Descrição, Tipo, Responsável, Planejado para, Tags, Estimativa, Grupo/Item de UST`). Its
+**generic idea** — a *work-item emitter / write-back* from (catalog + schedule + recurrence rules) — is an
+assimilation candidate (a future `source:v1` write face or a dedicated capability). The UST catalog and the
+SERPRO CSV columns stay in rcdc5 per the boundary above. Capture now, build under the same C→A→B discipline.
 
 ## SDK-first guardrail
 
