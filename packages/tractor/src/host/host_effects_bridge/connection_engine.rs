@@ -137,3 +137,196 @@ pub(crate) async fn establish(
 
     Ok(outcome)
 }
+
+// ── The shared registry ──────────────────────────────────────────────────────
+//
+// A connection is a NAMED, HOST-OWNED, SHARED resource. Callers do not hold processes;
+// they hold claims on a name. One live instance per declared name exists by construction —
+// asking for a connection that is already up performs NO second login, which for the Serpro
+// VPN means no second push on the operator's phone.
+
+// `HashMap` is already in scope here: this file is `include!`d into the flattened
+// `host_effects_bridge` module, which imports it via `connection_decl.rs`'s
+// `use std::collections::HashMap;`. A second `use std::collections::HashMap;` would
+// collide (E0252).
+use std::sync::Mutex;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ConnectionStatus {
+    Down,
+    Connecting,
+    Up,
+    Failed,
+}
+
+/// A caller's interest in a live connection.
+#[derive(Debug, Clone)]
+pub(crate) struct Claim {
+    pub(crate) id: u64,
+    pub(crate) name: String,
+}
+
+struct LiveConnection {
+    status: ConnectionStatus,
+    /// Stop handle for the held process; `None` once it is gone.
+    stop: Option<Arc<Notify>>,
+    /// (claim id, owner).
+    claims: Vec<(u64, String)>,
+    /// How many times a process was actually spawned — the sharing guarantee is asserted
+    /// on this.
+    spawn_count: u32,
+    linger: Linger,
+}
+
+pub(crate) struct ConnectionRegistry {
+    live: Mutex<HashMap<String, LiveConnection>>,
+    next_claim_id: std::sync::atomic::AtomicU64,
+}
+
+impl ConnectionRegistry {
+    pub(crate) fn new() -> Self {
+        Self {
+            live: Mutex::new(HashMap::new()),
+            next_claim_id: std::sync::atomic::AtomicU64::new(1),
+        }
+    }
+
+    pub(crate) fn status(&self, name: &str) -> ConnectionStatus {
+        self.live
+            .lock()
+            .expect("connection registry poisoned")
+            .get(name)
+            .map(|c| c.status.clone())
+            .unwrap_or(ConnectionStatus::Down)
+    }
+
+    pub(crate) fn spawn_count(&self, name: &str) -> u32 {
+        self.live
+            .lock()
+            .expect("connection registry poisoned")
+            .get(name)
+            .map(|c| c.spawn_count)
+            .unwrap_or(0)
+    }
+
+    pub(crate) fn claim_count(&self, name: &str) -> usize {
+        self.live
+            .lock()
+            .expect("connection registry poisoned")
+            .get(name)
+            .map(|c| c.claims.len())
+            .unwrap_or(0)
+    }
+
+    fn issue_claim(&self, name: &str, owner: &str) -> Claim {
+        let id = self.next_claim_id.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let mut live = self.live.lock().expect("connection registry poisoned");
+        if let Some(entry) = live.get_mut(name) {
+            entry.claims.push((id, owner.to_string()));
+        }
+        Claim { id, name: name.to_string() }
+    }
+
+    /// Idempotent. Already up ⇒ a new claim and NO new login. Down ⇒ establish once.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn ensure(
+        &self,
+        name: &str,
+        owner: &str,
+        decls: &HashMap<String, ConnectionDeclaration>,
+        spawn: impl FnOnce(&ConnectionDeclaration) -> Result<FlowProcess, String>,
+        probe: &mut (dyn FnMut() -> bool + Send),
+        sync: &NativeSync,
+        now_ns: &(dyn Fn() -> u64 + Sync),
+    ) -> Result<Claim, String> {
+        let decl = decls.get(name).ok_or_else(|| {
+            format!("no connection named '{name}' is declared in .refarm/config.json")
+        })?;
+
+        // Fast path: already up. This is the whole point of sharing.
+        if matches!(self.status(name), ConnectionStatus::Up) {
+            return Ok(self.issue_claim(name, owner));
+        }
+
+        {
+            let mut live = self.live.lock().expect("connection registry poisoned");
+            let entry = live.entry(name.to_string()).or_insert_with(|| LiveConnection {
+                status: ConnectionStatus::Down,
+                stop: None,
+                claims: Vec::new(),
+                spawn_count: 0,
+                linger: decl.linger.clone(),
+            });
+            entry.status = ConnectionStatus::Connecting;
+            entry.spawn_count += 1;
+        }
+
+        let mut process = spawn(decl)?;
+        let stop = process.stop.clone();
+        let mut publisher = ConnectionFramePublisher::new(name, now_ns());
+        let outcome = establish(decl, &mut process, probe, &mut publisher, sync, now_ns).await?;
+
+        {
+            let mut live = self.live.lock().expect("connection registry poisoned");
+            let entry = live.get_mut(name).expect("entry inserted above");
+            match outcome {
+                EstablishOutcome::Ready => {
+                    entry.status = ConnectionStatus::Up;
+                    entry.stop = Some(stop);
+                }
+                EstablishOutcome::Timeout => {
+                    entry.status = ConnectionStatus::Failed;
+                    entry.stop = None;
+                    return Err(format!(
+                        "connection '{name}' did not become ready within {}ms",
+                        decl.ready_timeout_ms
+                    ));
+                }
+                EstablishOutcome::Exit => {
+                    entry.status = ConnectionStatus::Failed;
+                    entry.stop = None;
+                    return Err(format!(
+                        "connection '{name}' did not become ready: the establish process ended first"
+                    ));
+                }
+            }
+        }
+
+        Ok(self.issue_claim(name, owner))
+    }
+
+    /// Drop one claim. Whether the connection itself falls is the DECLARATION's linger
+    /// policy, never the caller's choice.
+    pub(crate) fn release(&self, claim: &Claim) {
+        let mut live = self.live.lock().expect("connection registry poisoned");
+        if let Some(entry) = live.get_mut(&claim.name) {
+            entry.claims.retain(|(id, _)| *id != claim.id);
+            Self::apply_linger(entry);
+        }
+    }
+
+    /// Release every claim held by an owner — called when a plugin is unloaded or revoked,
+    /// so interest can never outlive its holder.
+    pub(crate) fn release_owner(&self, owner: &str) {
+        let mut live = self.live.lock().expect("connection registry poisoned");
+        for entry in live.values_mut() {
+            entry.claims.retain(|(_, o)| o != owner);
+            Self::apply_linger(entry);
+        }
+    }
+
+    /// `Linger::Operator` (the default) keeps a connection up once established:
+    /// re-establishing costs a human interruption, holding costs nearly nothing. A
+    /// non-zero `Idle` window is swept by the caller, not here.
+    fn apply_linger(entry: &mut LiveConnection) {
+        if !entry.claims.is_empty() {
+            return;
+        }
+        if let Linger::Idle { ms: 0 } = entry.linger {
+            if let Some(stop) = entry.stop.take() {
+                stop.notify_waiters();
+            }
+            entry.status = ConnectionStatus::Down;
+        }
+    }
+}

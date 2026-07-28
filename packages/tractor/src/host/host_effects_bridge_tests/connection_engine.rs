@@ -294,4 +294,148 @@ mod connection_engine_tests {
             "the probe must get one more chance after the process ends, before Exit is concluded"
         );
     }
+
+    fn catalog() -> std::collections::HashMap<String, ConnectionDeclaration> {
+        parse_connections(&serde_json::json!({
+            "connections": { "c": {
+                "establish": ["bin"],
+                "probe": { "run": ["true"] },
+                "probeIntervalMs": 1,
+                "readyTimeoutMs": 200
+            }}
+        }))
+        .unwrap()
+    }
+
+    /// A spawner yielding a process that stays open — a held connection.
+    fn holding_spawner() -> impl FnOnce(&ConnectionDeclaration) -> Result<FlowProcess, String> {
+        |_decl| {
+            let (tx, rx) = mpsc::channel(8);
+            std::mem::forget(tx);
+            Ok(FlowProcess { chunks: rx, stop: Arc::new(Notify::new()) })
+        }
+    }
+
+    #[tokio::test]
+    async fn ensure_establishes_a_down_connection_and_returns_a_claim() {
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let mut probe = probe_after(0);
+        let clk = clock();
+
+        let claim = reg
+            .ensure("c", "plugin.a", &decls, holding_spawner(), &mut probe, &sync, &clk)
+            .await
+            .unwrap();
+
+        assert_eq!(claim.name, "c");
+        assert!(matches!(reg.status("c"), ConnectionStatus::Up));
+        assert_eq!(reg.spawn_count("c"), 1);
+    }
+
+    #[tokio::test]
+    async fn a_second_ensure_shares_it_and_performs_no_second_login() {
+        // THE guarantee: a second login is a second push on the operator's phone.
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+
+        let mut p1 = probe_after(0);
+        let _a = reg.ensure("c", "plugin.a", &decls, holding_spawner(), &mut p1, &sync, &clk).await.unwrap();
+
+        let mut p2 = || panic!("must not probe: the connection is already up");
+        let b = reg
+            .ensure("c", "plugin.b", &decls, |_| panic!("must not spawn a second process"), &mut p2, &sync, &clk)
+            .await
+            .unwrap();
+
+        assert_eq!(b.name, "c");
+        assert_eq!(reg.spawn_count("c"), 1);
+        assert_eq!(reg.claim_count("c"), 2);
+    }
+
+    #[tokio::test]
+    async fn releasing_one_claim_leaves_it_up_for_the_other() {
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let mut p1 = probe_after(0);
+
+        let a = reg.ensure("c", "plugin.a", &decls, holding_spawner(), &mut p1, &sync, &clk).await.unwrap();
+        let mut p2 = || true;
+        let _b = reg.ensure("c", "plugin.b", &decls, |_| panic!("no second spawn"), &mut p2, &sync, &clk).await.unwrap();
+
+        reg.release(&a);
+        assert!(matches!(reg.status("c"), ConnectionStatus::Up));
+        assert_eq!(reg.claim_count("c"), 1);
+    }
+
+    #[tokio::test]
+    async fn releasing_the_last_claim_under_operator_linger_keeps_it_up() {
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let mut probe = probe_after(0);
+
+        let a = reg.ensure("c", "plugin.a", &decls, holding_spawner(), &mut probe, &sync, &clk).await.unwrap();
+        reg.release(&a);
+
+        assert!(
+            matches!(reg.status("c"), ConnectionStatus::Up),
+            "operator linger is the default: re-establishing costs a human interruption"
+        );
+    }
+
+    #[tokio::test]
+    async fn unloading_a_plugin_releases_every_claim_it_held() {
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let mut p1 = probe_after(0);
+
+        let _a = reg.ensure("c", "plugin.a", &decls, holding_spawner(), &mut p1, &sync, &clk).await.unwrap();
+        let mut p2 = || true;
+        let _a2 = reg.ensure("c", "plugin.a", &decls, |_| panic!("no second spawn"), &mut p2, &sync, &clk).await.unwrap();
+
+        reg.release_owner("plugin.a");
+        assert_eq!(reg.claim_count("c"), 0, "a plugin cannot leak interest past its own lifetime");
+    }
+
+    #[tokio::test]
+    async fn ensure_of_an_undeclared_name_names_the_missing_declaration() {
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let mut probe = probe_after(0);
+
+        let err = reg
+            .ensure("nope", "plugin.a", &decls, holding_spawner(), &mut probe, &sync, &clk)
+            .await
+            .unwrap_err();
+        assert!(err.contains("no connection named 'nope' is declared"), "unexpected: {err}");
+    }
+
+    #[tokio::test]
+    async fn a_failed_attempt_leaves_it_failed_and_claimless() {
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let mut probe = || false;
+
+        let err = reg
+            .ensure("c", "plugin.a", &decls, holding_spawner(), &mut probe, &sync, &clk)
+            .await
+            .unwrap_err();
+
+        assert!(err.contains("did not become ready"), "the reason must reach the caller: {err}");
+        assert!(matches!(reg.status("c"), ConnectionStatus::Failed));
+        assert_eq!(reg.claim_count("c"), 0);
+    }
 }
