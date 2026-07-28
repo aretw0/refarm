@@ -593,4 +593,195 @@ mod connection_engine_tests {
             .expect("the stream is open");
         assert!(chunk.contains("Conectando"), "unexpected: {chunk}");
     }
+
+    // ── Fix round 1: an unkillable orphan on the publisher-error paths ──────────────────
+    //
+    // `establish`'s early `?` returns (via `publisher.notice` / `publisher.terminal`) used
+    // to skip the final "stop unless Ready" step entirely. With Tasks 3-4's fake
+    // channel-backed processes that was invisible; with Task 5's REAL subprocess it is a
+    // genuinely unkillable orphan holding a real OS resource. `NativeStorage` is `Clone`
+    // (it shares one `Arc<Mutex<Connection>>`), so a cloned handle can drop the `nodes`
+    // table out from under a live `NativeSync` and force a REAL `store_node` failure —
+    // no need to fake or skip the failure per the brief's fallback.
+
+    /// A `NativeSync` whose every `store_node` call fails — used to force a genuine
+    /// publisher error instead of asserting only the `mark_failed` half.
+    fn sync_with_broken_storage() -> NativeSync {
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let broken = storage.clone();
+        let sync = NativeSync::new(storage, ":memory:").unwrap();
+        broken.execute("DROP TABLE nodes", &[]).unwrap();
+        sync
+    }
+
+    #[tokio::test]
+    async fn a_publisher_failure_while_publishing_a_notice_still_stops_the_process() {
+        // Exercises the `publisher.notice(...)?` early return inside the drain loop.
+        let sync = sync_with_broken_storage();
+        let decl = base(serde_json::json!({
+            "notices": [{ "pattern": "Conectando", "message": "aprove o push" }],
+            "readyTimeoutMs": 200
+        }));
+        let (mut proc_, _tx, stop) = holding(&["Conectando…\n"]);
+        let observed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let watcher = {
+            let stop = stop.clone();
+            let observed = observed.clone();
+            tokio::spawn(async move {
+                stop.notified().await;
+                observed.store(true, Ordering::SeqCst);
+            })
+        };
+        tokio::task::yield_now().await;
+
+        let mut probe = || false; // never succeeds — the notice must be reached first
+        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let clk = clock();
+
+        let err = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            establish(&decl, &mut proc_, &mut probe, &mut pubr, &sync, &clk),
+        )
+        .await
+        .expect("establish must not hang")
+        .unwrap_err();
+        assert!(err.contains("store connection chunk"), "unexpected error: {err}");
+
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        assert!(
+            observed.load(Ordering::SeqCst),
+            "a publisher failure while publishing a notice must still stop the process — no orphan"
+        );
+        watcher.abort();
+    }
+
+    #[tokio::test]
+    async fn a_publisher_failure_while_publishing_the_terminal_frame_still_stops_the_process() {
+        // Exercises the `publisher.terminal(...)?` return AFTER the loop, on the Ready
+        // path specifically: Ready normally LEAVES the process running, but a terminal-
+        // publish failure still makes `establish` return `Err`, and the caller (`ensure`)
+        // treats any `Err` as a failed attempt and disowns the process — so it must be
+        // stopped here too, or it strands with nothing left able to signal it.
+        let sync = sync_with_broken_storage();
+        let decl = base(serde_json::json!({}));
+        let (mut proc_, _tx, stop) = holding(&[]);
+        let observed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let watcher = {
+            let stop = stop.clone();
+            let observed = observed.clone();
+            tokio::spawn(async move {
+                stop.notified().await;
+                observed.store(true, Ordering::SeqCst);
+            })
+        };
+        tokio::task::yield_now().await;
+
+        let mut probe = probe_after(0); // Ready on the very first probe
+        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let clk = clock();
+
+        let err = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            establish(&decl, &mut proc_, &mut probe, &mut pubr, &sync, &clk),
+        )
+        .await
+        .expect("establish must not hang")
+        .unwrap_err();
+        assert!(err.contains("store connection"), "unexpected error: {err}");
+
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        assert!(
+            observed.load(Ordering::SeqCst),
+            "a publisher failure on the Ready path must still stop the process — the caller \
+             treats any Err from establish as failed and disowns it regardless of outcome"
+        );
+        watcher.abort();
+    }
+
+    #[tokio::test]
+    async fn mark_failed_stops_a_process_it_disowns() {
+        // Direct coverage of the `mark_failed` half of the fix: a route that reaches
+        // `mark_failed` with a live `stop` handle ALREADY stashed in the registry entry
+        // (which the two current call sites in `ensure` never do — `entry.stop` is only
+        // populated on `Ready`) must still notify it before clearing, so any future or
+        // indirect caller can never silently drop a live process.
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let mut probe = probe_after(0);
+
+        let stop = Arc::new(Notify::new());
+        let stop_for_process = stop.clone();
+        let spawner = move |_decl: &ConnectionDeclaration| {
+            let (tx, rx) = mpsc::channel::<String>(8);
+            std::mem::forget(tx); // stays open — a held connection
+            Ok(FlowProcess { chunks: rx, stop: stop_for_process })
+        };
+
+        let claim = reg
+            .ensure("c", "plugin.a", &decls, spawner, &mut probe, &sync, &clk)
+            .await
+            .unwrap();
+        assert!(matches!(reg.status("c"), ConnectionStatus::Up), "must be Up with entry.stop stashed");
+
+        let observed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let watcher = {
+            let stop = stop.clone();
+            let observed = observed.clone();
+            tokio::spawn(async move {
+                stop.notified().await;
+                observed.store(true, Ordering::SeqCst);
+            })
+        };
+        tokio::task::yield_now().await;
+
+        reg.mark_failed("c");
+
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        assert!(
+            observed.load(Ordering::SeqCst),
+            "mark_failed must stop any process it disowns, from any route"
+        );
+        assert!(matches!(reg.status("c"), ConnectionStatus::Failed));
+        drop(claim);
+        watcher.abort();
+    }
+
+    // ── Fix round 1: a multi-byte character split across two reads ──────────────────────
+
+    #[test]
+    fn split_utf8_prefix_carries_a_split_multibyte_character_across_two_reads() {
+        // "📲" (U+1F4F2) is 4 bytes in UTF-8. Simulate the OS splitting the read after the
+        // first 2 bytes — exactly the boundary hazard a chatty login process can hit when
+        // its output is Portuguese with accents and emoji.
+        let phone = "📲".as_bytes();
+        assert_eq!(phone.len(), 4);
+
+        let (text1, leftover) = split_utf8_prefix(phone[..2].to_vec());
+        assert_eq!(text1, "", "an incomplete lead byte must not be corrupted into a replacement char");
+        assert_eq!(leftover, phone[..2].to_vec());
+
+        let mut second_read = leftover;
+        second_read.extend_from_slice(&phone[2..]);
+        second_read.extend_from_slice(" Aprove a conexão".as_bytes());
+        let (text2, leftover2) = split_utf8_prefix(second_read);
+        assert_eq!(text2, "📲 Aprove a conexão");
+        assert!(leftover2.is_empty());
+    }
+
+    #[test]
+    fn split_utf8_prefix_flushes_genuinely_invalid_bytes_instead_of_waiting_forever() {
+        // A truncated tail (error_len() == None) is held back; but a genuinely invalid
+        // byte (error_len() == Some(_)) would never become valid no matter how many more
+        // bytes arrive, so it must be flushed immediately rather than buffered forever.
+        let mut bytes = b"ok ".to_vec();
+        bytes.push(0xFF); // not a valid UTF-8 lead byte anywhere
+        bytes.extend_from_slice(b" more");
+
+        let (text, leftover) = split_utf8_prefix(bytes);
+        assert!(leftover.is_empty(), "genuinely invalid bytes must not be held back");
+        assert!(text.starts_with("ok "));
+        assert!(text.ends_with(" more"));
+    }
 }

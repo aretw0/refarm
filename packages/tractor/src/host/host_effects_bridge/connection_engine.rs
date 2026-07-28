@@ -109,7 +109,16 @@ pub(crate) async fn establish(
                     for (i, rule) in decl.notices.iter().enumerate() {
                         if !fired[i] && rule.pattern.is_match(&buffer) {
                             fired[i] = true;
-                            publisher.notice(sync, &rule.message, now_ns())?;
+                            // A publisher failure here still ends the attempt — this early
+                            // return must not skip the stop-the-process step below, or a
+                            // just-spawned real child leaks with nothing left able to
+                            // signal it (it never reaches the loop's own Ready/Timeout/Exit
+                            // outcome, so the `if !matches!(outcome, Ready)` guard further
+                            // down is never even evaluated for this path).
+                            if let Err(e) = publisher.notice(sync, &rule.message, now_ns()) {
+                                process.stop.notify_waiters();
+                                return Err(e);
+                            }
                         }
                     }
                 }
@@ -128,7 +137,14 @@ pub(crate) async fn establish(
             "the establish process ended before the probe succeeded".to_string(),
         ),
     };
-    publisher.terminal(sync, reason, &detail, now_ns())?;
+    // A publisher failure here must ALSO stop the process, even when `outcome` is `Ready`:
+    // `establish` returning `Err` at all makes the caller (`ensure`) treat this attempt as
+    // failed and disown the process (see `mark_failed`), so leaving it running because the
+    // outcome was technically Ready would strand it — nothing would retain a way to stop it.
+    if let Err(e) = publisher.terminal(sync, reason, &detail, now_ns()) {
+        process.stop.notify_waiters();
+        return Err(e);
+    }
 
     // Ready LEAVES the process running (it holds the connection). Anything else stops it —
     // a failed attempt must never leak a live process.
@@ -252,11 +268,17 @@ impl ConnectionRegistry {
     /// An establish attempt is over and did not reach `Ready`. Every early return out of
     /// `ensure` after the transition to `Connecting` — spawn failing, `establish` erroring,
     /// timeout, exit — must land here so `status` never reports `Connecting` forever.
+    ///
+    /// Whatever `stop` handle the entry is holding is notified BEFORE it is cleared: a
+    /// connection marked failed by any route must also stop its process, from any caller —
+    /// disowning a live process without signalling it first is exactly how one leaks.
     fn mark_failed(&self, name: &str) {
         let mut live = self.live.lock().expect("connection registry poisoned");
         if let Some(entry) = live.get_mut(name) {
             entry.status = ConnectionStatus::Failed;
-            entry.stop = None;
+            if let Some(stop) = entry.stop.take() {
+                stop.notify_waiters();
+            }
         }
     }
 
@@ -438,6 +460,35 @@ pub(crate) async fn run_probe(decl: &ConnectionDeclaration, policy: &HostEffectP
     expect.is_match(&text)
 }
 
+/// Decode as much of `pending` as valid UTF-8, returning the decoded text and any leftover
+/// bytes that must be carried into the next read. `pending` is the concatenation of any
+/// leftover from a prior call plus the newly-read bytes.
+///
+/// A truncated trailing sequence (the tail ran out of bytes mid-character — exactly what
+/// happens when a multi-byte character straddles two OS-level reads) is carried over intact
+/// rather than corrupted. A tail that is genuinely invalid (not merely truncated) is instead
+/// flushed via lossy decoding immediately — more bytes would never make garbage valid, and
+/// holding it back would stall the notice pipeline forever.
+fn split_utf8_prefix(pending: Vec<u8>) -> (String, Vec<u8>) {
+    match String::from_utf8(pending) {
+        Ok(text) => (text, Vec::new()),
+        Err(e) => {
+            let incomplete_tail = e.utf8_error().error_len().is_none();
+            let valid_up_to = e.utf8_error().valid_up_to();
+            let mut bytes = e.into_bytes();
+            let rest = bytes.split_off(valid_up_to);
+            let text = String::from_utf8(bytes).expect("valid_up_to bounds a valid UTF-8 prefix");
+            if incomplete_tail {
+                (text, rest)
+            } else {
+                let mut text = text;
+                text.push_str(&String::from_utf8_lossy(&rest));
+                (text, Vec::new())
+            }
+        }
+    }
+}
+
 /// Spawn the establish argv and stream its merged stdout+stderr into a `FlowProcess`.
 /// Unlike `spawn_process`, nothing here kills on a timeout: a connection is SUPPOSED to
 /// outlive the call. The bounds are the probe loop's deadline, then the registry's
@@ -486,12 +537,29 @@ pub(crate) fn spawn_establish_process(
         let tx = tx.clone();
         tokio::spawn(async move {
             let mut buf = [0u8; 4096];
+            // A multi-byte character (the notices this engine matches are Portuguese with
+            // accents and emoji, e.g. "📲 Aprove a conexão…") can straddle two OS-level
+            // reads. Decoding each 4096-byte read independently with `from_utf8_lossy`
+            // would corrupt the split character into replacement chars on BOTH sides of
+            // the boundary — so an incomplete trailing sequence is held here and prefixed
+            // onto the next read instead.
+            let mut pending: Vec<u8> = Vec::new();
             loop {
                 match tokio::io::AsyncReadExt::read(&mut reader, &mut buf).await {
-                    Ok(0) | Err(_) => break,
+                    Ok(0) | Err(_) => {
+                        // The process ended (or the pipe broke) with an incomplete tail
+                        // still buffered — flush it lossily rather than silently dropping
+                        // the last bytes a dying process wrote.
+                        if !pending.is_empty() {
+                            let _ = tx.send(String::from_utf8_lossy(&pending).to_string()).await;
+                        }
+                        break;
+                    }
                     Ok(n) => {
-                        let text = String::from_utf8_lossy(&buf[..n]).to_string();
-                        if tx.send(text).await.is_err() {
+                        pending.extend_from_slice(&buf[..n]);
+                        let (text, rest) = split_utf8_prefix(std::mem::take(&mut pending));
+                        pending = rest;
+                        if !text.is_empty() && tx.send(text).await.is_err() {
                             break;
                         }
                     }
