@@ -13,9 +13,14 @@ Design spec: [`docs/superpowers/specs/2026-07-28-declared-connections-shared-ses
 ## Global Constraints
 
 - **Source is truth.** Never edit generated artifacts (CLAUDE.md §1).
-- **Rust build economy** (CLAUDE.md §7, ~8GB RAM): use `cargo check --quiet -p tractor` and
+- **Run every cargo command from `packages/tractor/`.** There is NO root `Cargo.toml` — the Rust
+  crates are not a workspace at the repo root, so `cargo … -p tractor` from the root fails with
+  "could not find `Cargo.toml`". Verified: `cd packages/tractor && cargo check --quiet` succeeds.
+- **Rust build economy** (CLAUDE.md §7): use `cargo check --quiet` and
   `cargo test --lib <filter> --quiet`. **Never** run bare `cargo test`. **Never** run
-  `cargo component build` in this plan.
+  `cargo component build` in this plan. The crate is already compiled and `.cargo/config.toml`
+  redirects `target-dir` to `.cache/cargo-target`, so incremental checks are seconds, not minutes —
+  do not clean it.
 - **No WASM component involved.** Tests construct plain Rust values, mirroring
   `packages/tractor/src/host/host_effects_bridge_tests/fs_shell_core.rs`.
 - **Do not touch `packages/plugin-manifest/**`, `.github/workflows/**`, `.project/**`** — protected
