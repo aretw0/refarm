@@ -526,4 +526,71 @@ mod connection_engine_tests {
             "an idleMs: 0 linger drops the connection as soon as it becomes claimless"
         );
     }
+
+    fn permissive_policy() -> HostEffectPolicy {
+        HostEffectPolicy::default()
+    }
+
+    #[tokio::test]
+    async fn the_probe_runner_reports_true_on_exit_zero() {
+        let decl = base(serde_json::json!({ "probe": { "run": ["true"] } }));
+        assert!(run_probe(&decl, &permissive_policy()).await);
+    }
+
+    #[tokio::test]
+    async fn the_probe_runner_reports_false_on_a_nonzero_exit() {
+        let decl = base(serde_json::json!({ "probe": { "run": ["false"] } }));
+        assert!(!run_probe(&decl, &permissive_policy()).await);
+    }
+
+    #[tokio::test]
+    async fn the_probe_runner_requires_expect_to_match_even_on_exit_zero() {
+        // The real case: `ip link show` exits 0 for an interface that exists but is DOWN.
+        let decl = base(serde_json::json!({
+            "probe": { "run": ["echo", "ovpntun0 DOWN"], "expect": "\\bUP\\b" }
+        }));
+        assert!(!run_probe(&decl, &permissive_policy()).await);
+
+        let decl_up = base(serde_json::json!({
+            "probe": { "run": ["echo", "ovpntun0 UP"], "expect": "\\bUP\\b" }
+        }));
+        assert!(run_probe(&decl_up, &permissive_policy()).await);
+    }
+
+    #[tokio::test]
+    async fn the_probe_runner_reports_false_for_a_missing_binary() {
+        let decl = base(serde_json::json!({
+            "probe": { "run": ["definitely-not-a-real-binary-xyz"] }
+        }));
+        assert!(!run_probe(&decl, &permissive_policy()).await, "a probe that cannot run means not up");
+    }
+
+    #[tokio::test]
+    async fn the_establish_spawner_rejects_argv_outside_the_shell_allowlist() {
+        let decl = base(serde_json::json!({ "establish": ["definitely-not-allowed"] }));
+        let policy = HostEffectPolicy::new(
+            Some(std::collections::HashSet::from(["echo".to_string()])),
+            Ok(None),
+            String::new(),
+        );
+        let err = spawn_establish_process(&decl, &policy).unwrap_err();
+        assert!(
+            err.contains("blocked"),
+            "a declared connection is not an exemption from the allowlist: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_establish_spawner_streams_a_real_process() {
+        let decl = base(serde_json::json!({
+            "establish": ["echo", "Conectando ao gateway"],
+            "notices": [{ "pattern": "Conectando", "message": "aprove o push" }]
+        }));
+        let mut process = spawn_establish_process(&decl, &permissive_policy()).unwrap();
+        let chunk = tokio::time::timeout(std::time::Duration::from_secs(5), process.chunks.recv())
+            .await
+            .expect("a chunk arrives")
+            .expect("the stream is open");
+        assert!(chunk.contains("Conectando"), "unexpected: {chunk}");
+    }
 }

@@ -35,6 +35,7 @@ pub(crate) enum EstablishOutcome {
 
 /// A live process reduced to what the loop needs: raw output chunks in order, and a way to
 /// stop it. Injectable — a test drives it with a channel.
+#[derive(Debug)]
 pub(crate) struct FlowProcess {
     /// Raw stdout+stderr chunks. The channel closing means the process ended.
     pub(crate) chunks: mpsc::Receiver<String>,
@@ -399,4 +400,113 @@ impl ConnectionRegistry {
             entry.status = ConnectionStatus::Down;
         }
     }
+}
+
+// ── The real adapters ────────────────────────────────────────────────────────
+//
+// Both reuse the SAME guards a batch `spawn` passes: a declared connection is another door
+// in the same corridor, never an exemption from the machine's own policy.
+
+/// Probe timeout. A health check that hangs must not stall the probe loop; the loop's own
+/// deadline owns the overall failure.
+const PROBE_TIMEOUT_MS: u32 = 5_000;
+
+/// Ask the SYSTEM whether the connection is up. Success is exit code 0 AND, when `expect`
+/// is declared, the combined output matching it. Any error means "not up" — a probe that
+/// cannot run is not evidence of health.
+pub(crate) async fn run_probe(decl: &ConnectionDeclaration, policy: &HostEffectPolicy) -> bool {
+    let Ok((stdout, stderr, exit_code, timed_out)) = spawn_process(
+        &decl.probe.run,
+        &decl.env,
+        decl.cwd.as_deref(),
+        PROBE_TIMEOUT_MS,
+        None,
+        policy,
+    )
+    .await
+    else {
+        return false;
+    };
+    if timed_out || exit_code != 0 {
+        return false;
+    }
+    let Some(expect) = decl.probe.expect.as_ref() else {
+        return true;
+    };
+    let mut text = String::from_utf8_lossy(&stdout).to_string();
+    text.push_str(&String::from_utf8_lossy(&stderr));
+    expect.is_match(&text)
+}
+
+/// Spawn the establish argv and stream its merged stdout+stderr into a `FlowProcess`.
+/// Unlike `spawn_process`, nothing here kills on a timeout: a connection is SUPPOSED to
+/// outlive the call. The bounds are the probe loop's deadline, then the registry's
+/// claim/linger policy, then the explicit stop signal.
+pub(crate) fn spawn_establish_process(
+    decl: &ConnectionDeclaration,
+    policy: &HostEffectPolicy,
+) -> Result<FlowProcess, String> {
+    enforce_shell_allowlist(&decl.establish, policy)?;
+    enforce_spawn_env(&decl.env)?;
+    if let Some(dir) = decl.cwd.as_deref() {
+        enforce_spawn_cwd(dir, policy)?;
+    }
+
+    let mut cmd = tokio::process::Command::new(&decl.establish[0]);
+    cmd.args(&decl.establish[1..])
+        .env_clear()
+        .envs(decl.env.iter().map(|(k, v)| (k.as_str(), v.as_str())))
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .stdin(std::process::Stdio::null())
+        // Own process group, so stopping the connection kills any grandchild it forked
+        // instead of leaving an orphan reparented to init — the same reason
+        // `spawn_process` does this.
+        .process_group(0);
+    if let Some(dir) = decl.cwd.as_deref() {
+        cmd.current_dir(dir);
+    }
+
+    let mut child = cmd.spawn().map_err(|e| {
+        format!("connection '{}': spawn({}): {e}", decl.name, decl.establish[0])
+    })?;
+
+    let (tx, rx) = tokio::sync::mpsc::channel::<String>(64);
+
+    // Pump stdout and stderr into ONE ordered stream — a login's meaningful lines land on
+    // either pipe and must be seen interleaved as they arrive.
+    let mut readers: Vec<Box<dyn tokio::io::AsyncRead + Unpin + Send>> = Vec::new();
+    if let Some(out) = child.stdout.take() {
+        readers.push(Box::new(out));
+    }
+    if let Some(err) = child.stderr.take() {
+        readers.push(Box::new(err));
+    }
+    for mut reader in readers {
+        let tx = tx.clone();
+        tokio::spawn(async move {
+            let mut buf = [0u8; 4096];
+            loop {
+                match tokio::io::AsyncReadExt::read(&mut reader, &mut buf).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        let text = String::from_utf8_lossy(&buf[..n]).to_string();
+                        if tx.send(text).await.is_err() {
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+    }
+    drop(tx);
+
+    let stop = Arc::new(Notify::new());
+    let stop_for_task = stop.clone();
+    tokio::spawn(async move {
+        stop_for_task.notified().await;
+        kill_process_group(&mut child).await;
+    });
+
+    Ok(FlowProcess { chunks: rx, stop })
 }
