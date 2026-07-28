@@ -92,37 +92,90 @@ several workspaces legitimately share one. The workspace still owns the specific
 // .refarm/config.json
 "connections": {
   "serpro-vpn": {
-    "run": ["serpro-vpn", "connect"],          // argv, never a shell string
-    "ready": "VPN Serpro CONECTADA",
-    "fail": "^❌ ",
+    "establish": ["serpro-vpn", "connect"],     // argv, never a shell string
+    // Readiness is a PROBE, not a pattern — see D1b.
+    "probe": { "run": ["ip", "-br", "link", "show", "ovpntun0"], "expect": "UP" },
+    "probeIntervalMs": 1000,
     "readyTimeoutMs": 120000,
-    "hold": true,                               // the process holds the tunnel
+    // Accelerators and human notices only — never load-bearing for correctness.
+    "notices": [
+      { "pattern": "Conectando", "message": "aprove o push no celular" }
+    ],
     "linger": "operator"                        // see D6
   }
 }
 ```
 
-**The patterns match the adapter, not `ovpnctl`.** rcdc5's `serpro-vpn` does not pass the raw
-`ovpnctl` stream through: it consumes `login-flow` events and prints its own curated lines
-(`rcdc5/packages/serpro-vpn/src/cli.ts:24-43`) — `▶ Conectando VPN Serpro…`, the notice
-`📲 Aprove a conexão no seu app SerproID (celular)…`, and on success
-`✅ VPN Serpro CONECTADA (perfil …, reconexão automática ligada).` The real `ovpnctl` patterns
-(`ready: /Conectado/`, `fail: /Saindo: auth-failure|auth-failure/`,
-`notice: /Conectando/`, `ovpnctl.ts:134-137`) live one layer below and are never seen by the host
-while the adapter is driven as a whole.
+### D1b — Readiness is a probe, not a pattern
 
-Two consequences, both good for step 1:
+**The single most important correction in this design.** An earlier pass had the host decide a
+connection was up by matching a string in the process's output. For the adapter that meant matching
+`✅ VPN Serpro CONECTADA` — a `console.log` line with an emoji
+(`rcdc5/packages/serpro-vpn/src/cli.ts:24-43`). That is screen-scraping a UI, not consuming an
+interface: any cosmetic edit breaks the connection, and correctness rests on a display string.
 
-- **It changes nothing in rcdc5.** The declaration matches the adapter's output contract, so the
-  engine is proven against the real binary with zero cross-repo edit — the surgical-not-bulk posture
-  the lane already set for rcdc5 swaps.
-- **The adapter already supervises.** `serpro-vpn` defaults to `supervise: true`
-  (`superviseConnection`, reconnect-on-drop, announcing the new push). Host-side supervision (step 3)
-  is therefore **redundant for this connection** and needed only for adapters that do not supervise
-  themselves. With no host supervision in step 1, the two never fight.
-- Longer term, the convergent move is to thin the adapter to discovery (profile + certificate) and let
-  the host drive `ovpnctl` directly with the real patterns — one more parity-gated surgical swap, not
-  part of this design.
+Refarm already assimilated the right idea for exactly this problem, one substrate over. In
+`packages/browser-driver/src/session.ts:104`:
+
+```ts
+awaitLoginDetected(probe: LoginProbe, signals: LoginSignals, options)
+```
+
+Login is not detected by watching text go by — the loop **asks the system** (`currentUrl`,
+`hasSelector`, `hasCookie`) until the declared signals hold. Its own doc names the case: *"a project
+brings its own signals for its own SSO/app (a SerproID redirect back to the ALM, a Keycloak cookie);
+the shared block just polls them."*
+
+And rcdc5's adapter **already knows this and does both**: it matches `/Conectado/` to finish the
+connect flow (`ovpnctl.ts:134`), but its supervisor's health check is
+*"Is the ALM tunnel up? (`ovpntun0` in state UP)"* (`ovpnctl.ts:146-153`). The truth was always the
+link state; the string was only a flow signal. The earlier pass elected the weak signal as the source
+of truth and ignored the strong one.
+
+So:
+
+- **`probe` decides.** A structured command plus an expected output; success is exit code 0 **and**
+  `expect` matching. Polled every `probeIntervalMs` until `readyTimeoutMs`.
+- **`notices` accelerate and inform.** They surface human messages ("aprove o push no celular") and
+  may prompt an immediate re-probe, but a missed notice is cosmetic — it can never make a connection
+  wrongly considered up or down.
+- **No `ready` / `fail` patterns at all.** They were load-bearing only because the probe was missing.
+
+**The probe is structured argv, never a shell.** `["sh", "-c", "… | grep -q UP"]` would reintroduce
+the shell through the back door — allowing `sh` in the allowlist allows everything. Hence
+`{ run: [...], expect: "..." }`, which passes the same `enforce_shell_allowlist` as any other spawn
+and covers both real cases: a missing interface exits non-zero, and an existing-but-down interface
+exits zero while printing `DOWN`.
+
+This generalizes, which is the point. A SerproID application session's probe is an HTTP request that
+returns 200; a browser session's probe is `browser-driver`'s `LoginProbe`. One idea, three
+substrates — cohesion rather than three ad-hoc automations.
+
+**Consequences for this step:** nothing changes in rcdc5. The adapter stays the `establish` command
+and its output stops being load-bearing, so it is now freely replaceable. The adapter also already
+supervises itself (`supervise: true`, reconnect-on-drop, announcing the new push), so host-side
+supervision (step 3) is redundant for this connection and cannot fight it. The convergent follow-on
+is the full `ovpnctl` map — `resolve` (profile + certificate discovery, Serpro-specific, staying in
+rcdc5 behind a `serpro-vpn resolve --json`) → `establish` the resolved argv → the same `probe`.
+Because the probe already owns correctness, that swap becomes plumbing rather than a redesign.
+
+## The umbrella: how connections meet plugins, automations, apps, and the operator
+
+A connection is a **noun** — a named, shared resource with a lifecycle. `automation:v1`
+(`packages/automation-contract-v1/src/types.ts`) is a **verb** — *when* work happens
+(`ManualTrigger` / `CronTrigger` / `OneShotTrigger` / `EventTrigger`) and *what* work (an `Effort`).
+They are different axes, and they meet at two seams that already exist rather than at a new
+mechanism:
+
+1. **One way to declare a precondition.** A plugin says `capabilities.requiresConnections` (D10). An
+   automation that needs the VPN must not re-implement "connect first" — it declares the same
+   requirement, in the same vocabulary. So do an app over the capability host and the operator on the
+   CLI. Four consumers, one contract.
+2. **Connections are observable, so automations compose with them for free.** A connection's
+   lifecycle publishes `StreamSession` / `StreamChunk` nodes, and `EventTrigger` fires on an
+   `eventType` such as `node.created`. "When `serpro-vpn` comes up, run the scrape" is therefore
+   expressible today with no new contract: the connection emits facts, the automation reacts to
+   facts.
 
 ### D2 — The host drives the loop; nobody passes a script across the boundary
 
@@ -161,6 +214,9 @@ The Rust `regex` crate is linear-time with no backtracking, so a declared patter
 host. It does **not** support lookahead/lookbehind or backreferences — shared vectors must stay
 inside the subset both engines accept. Pattern count and length are capped; a pattern that fails to
 compile is a clean configuration error, never a panic.
+
+After D1b, patterns govern only `notices` and the probe's `expect` — never whether a connection is
+up. That narrows the blast radius of a bad pattern to a missed human message.
 
 ### D5 — One live instance per declared name, shared by claims
 
@@ -364,9 +420,10 @@ Coverage to write:
 5. `release` of the last claim under `linger: "operator"` → connection stays up.
 6. `release` of the last claim under `linger: { idleMs }` → falls after the idle window.
 7. plugin unload → its claims released; a connection with no other claimant follows its linger policy.
-8. `fail` pattern → status `failed`, the matched text surfaced, process killed.
-9. `readyTimeoutMs` → status `failed` with a timeout reason, process killed.
-10. notice rule → a `notice` frame with the human message; fires once per occurrence.
+8. probe never succeeds → `readyTimeoutMs` settles as `failed`, process killed.
+9. probe exits 0 but its output fails `expect` (interface present but `DOWN`) → not up.
+10. notice rule → a `notice` frame with the human message; fires once per occurrence, and a missed
+    notice changes no outcome (correctness rests on the probe alone).
 11. `ensure` of an undeclared name → clean error naming the missing declaration.
 12. a declaration carrying `prompts` in step 1 → **rejected at load with a clear error** (no answer
     path exists yet; accepting it would let a login hang on an unanswered prompt).
