@@ -87,7 +87,11 @@ pub(crate) async fn establish(
         }
 
         // Drain whatever output arrived within this probe interval, publishing notices.
-        let slice_end = Instant::now() + interval;
+        // Clamped to `deadline`: without this, a slice can outlast the ready-timeout by up
+        // to one full `probe_interval_ms` — the outer loop only re-checks the deadline
+        // AFTER this inner drain returns, so an unclamped slice lets `establish` block past
+        // `ready_timeout_ms`.
+        let slice_end = (Instant::now() + interval).min(deadline);
         loop {
             let remaining = slice_end.saturating_duration_since(Instant::now());
             if remaining.is_zero() {

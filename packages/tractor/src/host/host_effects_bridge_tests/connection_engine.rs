@@ -243,4 +243,55 @@ mod connection_engine_tests {
         assert_eq!(finals.len(), 1);
         assert_eq!(finals[0]["payload_kind"], "ready");
     }
+
+    #[tokio::test]
+    async fn the_probe_slice_is_clamped_to_the_deadline() {
+        // The outer loop only re-checks the deadline AFTER the inner drain slice returns,
+        // so an unclamped slice (`Instant::now() + interval`, not bounded by `deadline`)
+        // lets `establish` block for up to one full `probe_interval_ms` past
+        // `ready_timeout_ms`. Here the interval (200ms) is far larger than the timeout
+        // (50ms): a clamped implementation settles Timeout close to 50ms; an unclamped one
+        // blocks for ~200ms. The threshold below sits strictly between the two, so this
+        // test fails under the unclamped code and passes under the clamped one.
+        let sync = sync();
+        let decl = base(serde_json::json!({ "probeIntervalMs": 200, "readyTimeoutMs": 50 }));
+        let (mut proc_, _tx, _stop) = holding(&[]); // stays open, emits nothing
+        let mut probe = || false; // never succeeds
+        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let clk = clock();
+
+        let started = std::time::Instant::now();
+        let out = establish(&decl, &mut proc_, &mut probe, &mut pubr, &sync, &clk).await.unwrap();
+        let elapsed = started.elapsed();
+
+        assert!(matches!(out, EstablishOutcome::Timeout));
+        assert!(
+            elapsed < std::time::Duration::from_millis(150),
+            "establish overshot the ready-timeout: took {elapsed:?}; an unclamped slice \
+             would take ~200ms, a clamped one ~50ms"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_probe_gets_one_more_chance_before_an_ended_process_settles_as_exit() {
+        // Discriminates the ordering at the top of the loop: the probe must be checked
+        // BEFORE `ended` is allowed to conclude Exit, because a connect command may exit
+        // once it hands the tunnel off to a daemon. The process channel is already closed
+        // (ends immediately), and the probe fails on its very first call but succeeds on
+        // every call after. If `ended` were checked before probing again, the loop would
+        // settle Exit right after the process closes, without ever taking the second,
+        // succeeding probe call — so a reversed ordering yields Exit here, not Ready.
+        let sync = sync();
+        let decl = base(serde_json::json!({}));
+        let mut proc_ = ending(&[]);
+        let mut probe = probe_after(1); // false on call 1, true from call 2 on
+        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let clk = clock();
+
+        let out = establish(&decl, &mut proc_, &mut probe, &mut pubr, &sync, &clk).await.unwrap();
+        assert!(
+            matches!(out, EstablishOutcome::Ready),
+            "the probe must get one more chance after the process ends, before Exit is concluded"
+        );
+    }
 }
