@@ -51,6 +51,7 @@ function normalizeDeclaredWorkspace(id, value, baseDir) {
 	const cache = normalizeWorkspaceCache(value.cache ?? value.execution?.cache);
 	const bridges = normalizeWorkspaceBridges(value.bridges);
 	const repository = normalizeWorkspaceRepository(value.repository);
+	const commands = normalizeWorkspaceCommands(value.commands);
 
 	return {
 		id,
@@ -61,7 +62,46 @@ function normalizeDeclaredWorkspace(id, value, baseDir) {
 		cache,
 		repository,
 		bridges,
+		commands,
 	};
+}
+
+/**
+ * A workspace's declared command ALLOWLIST — the named, bounded operations refarm may run in that
+ * workspace (e.g. `{ vpn: "pnpm --filter @rcdcp/serpro-vpn run vpn connect" }`). This is an
+ * operation catalog, NOT a shell: each `run` is normalized to an argv array (no shell, no
+ * metacharacter interpretation), and callers may only trigger a declared NAME — never arbitrary
+ * input. This is what lets a remote surface (a phone over the tailnet) operate a workspace's
+ * command without becoming a generic remote shell.
+ */
+function normalizeWorkspaceCommands(value) {
+	if (!isRecord(value)) return {};
+	const commands = {};
+	for (const [name, entry] of Object.entries(value)) {
+		if (typeof name !== "string" || !name.trim()) continue;
+		const run = normalizeCommandRun(typeof entry === "string" ? entry : entry?.run);
+		if (!run) continue;
+		const command = { run };
+		if (isRecord(entry)) {
+			if (typeof entry.cwd === "string" && entry.cwd.trim()) command.cwd = entry.cwd.trim();
+			if (typeof entry.description === "string" && entry.description.trim()) {
+				command.description = entry.description.trim();
+			}
+		}
+		commands[name.trim()] = command;
+	}
+	return commands;
+}
+
+/** Normalize a declared command to an argv array — an array as-is, or a string split on
+ * whitespace (bounded, no shell). Returns null for anything unusable. */
+function normalizeCommandRun(run) {
+	if (Array.isArray(run)) {
+		const argv = run.filter((token) => typeof token === "string" && token.length > 0);
+		return argv.length > 0 ? argv : null;
+	}
+	if (typeof run === "string" && run.trim()) return run.trim().split(/\s+/);
+	return null;
 }
 
 function normalizeWorkspaceExecution(value) {

@@ -53,6 +53,7 @@ describe("workspace config declarations", () => {
 				},
 				repository: null,
 				bridges: [],
+				commands: {},
 			},
 			{
 				id: "refarm",
@@ -74,8 +75,45 @@ describe("workspace config declarations", () => {
 				},
 				repository: null,
 				bridges: [],
+				commands: {},
 			},
 		]);
+	});
+
+	it("normalizes a declared command allowlist to argv (an operation catalog, not a shell)", () => {
+		const workspace = declaredWorkspaceFromConfig(
+			{
+				workspaces: {
+					rcdc5: {
+						path: "../rcdc5",
+						kind: "project",
+						commands: {
+							// shorthand string → split to argv (no shell)
+							vpn: "pnpm --filter @rcdcp/serpro-vpn run vpn connect",
+							// explicit argv + cwd + description
+							scrape: {
+								run: ["node", "src/index.js", "scrape"],
+								cwd: "packages/scraper-playwright",
+								description: "Raspagem de requisitos",
+							},
+							"": "ignored — blank name",
+							bad: { run: 42 },
+						},
+					},
+				},
+			},
+			"rcdc5",
+			{ baseDir: "/home/me/git/refarm" },
+		);
+
+		expect(workspace?.commands).toEqual({
+			vpn: { run: ["pnpm", "--filter", "@rcdcp/serpro-vpn", "run", "vpn", "connect"] },
+			scrape: {
+				run: ["node", "src/index.js", "scrape"],
+				cwd: "packages/scraper-playwright",
+				description: "Raspagem de requisitos",
+			},
+		});
 	});
 
 	it("uses conservative defaults for partial declarations", () => {
