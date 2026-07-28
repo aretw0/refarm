@@ -206,9 +206,20 @@ export interface SuperviseSpec {
 	sleep?: (ms: number) => Promise<void>;
 }
 
+export interface ConnectionClosed {
+	/** Why supervision ended: `stop()` was called, or it gave up reconnecting. */
+	reason: "stopped" | "gaveup";
+}
+
 export interface ConnectionSupervisor {
 	/** Resolves on the FIRST successful connect; rejects if the initial connect gives up. */
 	connected: Promise<void>;
+	/**
+	 * Resolves when supervision ENDS — `stop()` was called, or it gave up reconnecting. Await this
+	 * to exit cleanly instead of hanging: a consumer should `await supervisor.closed` rather than
+	 * block forever, so a give-up (or a stop) tears the process down instead of lingering idle.
+	 */
+	closed: Promise<ConnectionClosed>;
 	/** Stop supervising and tear down the connection (kills the held process). */
 	stop(): Promise<void>;
 }
@@ -234,6 +245,16 @@ export function superviseConnection(spec: SuperviseSpec): ConnectionSupervisor {
 		resolveConnected = resolve;
 		rejectConnected = reject;
 	});
+	let resolveClosed!: (outcome: ConnectionClosed) => void;
+	const closed = new Promise<ConnectionClosed>((resolve) => {
+		resolveClosed = resolve;
+	});
+	let closedSettled = false;
+	function finishClosed(reason: ConnectionClosed["reason"]): void {
+		if (closedSettled) return;
+		closedSettled = true;
+		resolveClosed({ reason });
+	}
 
 	async function run(): Promise<void> {
 		while (!stopped) {
@@ -241,7 +262,10 @@ export function superviseConnection(spec: SuperviseSpec): ConnectionSupervisor {
 			let attempt = 0;
 			let result: LoginFlowResult;
 			for (;;) {
-				if (stopped) return;
+				if (stopped) {
+					finishClosed("stopped");
+					return;
+				}
 				attempt += 1;
 				result = await runLoginFlow(spec.flow);
 				if (result.ok) break;
@@ -249,12 +273,14 @@ export function superviseConnection(spec: SuperviseSpec): ConnectionSupervisor {
 				if (attempt >= maxAttempts) {
 					emit({ kind: "gaveup", attempt });
 					if (!firstConnected) rejectConnected(new Error(`connect gave up after ${attempt} attempts`));
+					finishClosed("gaveup");
 					return;
 				}
 				await sleep(backoffMs);
 			}
 			if (stopped) {
 				result.process.kill();
+				finishClosed("stopped");
 				return;
 			}
 
@@ -278,16 +304,19 @@ export function superviseConnection(spec: SuperviseSpec): ConnectionSupervisor {
 			}
 		}
 		current?.kill();
+		finishClosed("stopped");
 	}
 
 	void run();
 
 	return {
 		connected,
+		closed,
 		async stop() {
 			stopped = true;
 			current?.kill();
 			emit({ kind: "stopped" });
+			finishClosed("stopped");
 		},
 	};
 }

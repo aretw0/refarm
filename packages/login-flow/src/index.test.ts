@@ -197,6 +197,7 @@ describe("superviseConnection — keep it up, feel the drop early", () => {
 
 		expect(events[0]).toBe("connected");
 		expect(events).toContain("stopped");
+		expect((await sup.closed).reason).toBe("stopped"); // closed resolves so a consumer can exit
 	});
 
 	it("reconnects the instant health drops (feel the pain early)", async () => {
@@ -235,6 +236,7 @@ describe("superviseConnection — keep it up, feel the drop early", () => {
 
 		await expect(sup.connected).rejects.toThrow("gave up");
 		expect(events).toEqual(["reconnecting", "reconnecting", "gaveup"]);
+		expect((await sup.closed).reason).toBe("gaveup"); // closed resolves → consumer exits, no idle hang
 	});
 });
 
