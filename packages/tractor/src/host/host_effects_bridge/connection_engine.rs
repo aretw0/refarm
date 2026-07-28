@@ -172,14 +172,22 @@ struct LiveConnection {
     stop: Option<Arc<Notify>>,
     /// (claim id, owner).
     claims: Vec<(u64, String)>,
-    /// How many times a process was actually spawned — the sharing guarantee is asserted
-    /// on this.
+    /// How many times a process was ACTUALLY spawned — the sharing guarantee is asserted
+    /// on this. Only incremented once `spawn` has returned `Ok`; an attempt that errored
+    /// before a process existed is not a login and must not be counted as one.
     spawn_count: u32,
     linger: Linger,
 }
 
 pub(crate) struct ConnectionRegistry {
     live: Mutex<HashMap<String, LiveConnection>>,
+    /// One establish gate per connection name, acquired before spawning and held across
+    /// the whole establish attempt. This is what makes `ensure` single-flight: without it,
+    /// two callers racing a Down connection both pass the `Up` fast path below and both
+    /// spawn — for the Serpro VPN that is two logins, i.e. two pushes on the operator's
+    /// phone. Deliberately `tokio::sync::Mutex`, not `std::sync::Mutex`: this one is held
+    /// across `.await`, which a `std::sync::Mutex` guard must never be.
+    gates: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
     next_claim_id: std::sync::atomic::AtomicU64,
 }
 
@@ -187,6 +195,7 @@ impl ConnectionRegistry {
     pub(crate) fn new() -> Self {
         Self {
             live: Mutex::new(HashMap::new()),
+            gates: Mutex::new(HashMap::new()),
             next_claim_id: std::sync::atomic::AtomicU64::new(1),
         }
     }
@@ -227,7 +236,31 @@ impl ConnectionRegistry {
         Claim { id, name: name.to_string() }
     }
 
-    /// Idempotent. Already up ⇒ a new claim and NO new login. Down ⇒ establish once.
+    /// The gate that serializes establish attempts for one connection name. Fetched (or
+    /// created) under the metadata lock only long enough to clone the `Arc` — that lock is
+    /// dropped before the returned `tokio::sync::Mutex` is ever locked, so a `.await` on it
+    /// never happens while the `std::sync::Mutex` guard is held.
+    fn establish_gate(&self, name: &str) -> Arc<tokio::sync::Mutex<()>> {
+        let mut gates = self.gates.lock().expect("connection registry poisoned");
+        gates
+            .entry(name.to_string())
+            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+            .clone()
+    }
+
+    /// An establish attempt is over and did not reach `Ready`. Every early return out of
+    /// `ensure` after the transition to `Connecting` — spawn failing, `establish` erroring,
+    /// timeout, exit — must land here so `status` never reports `Connecting` forever.
+    fn mark_failed(&self, name: &str) {
+        let mut live = self.live.lock().expect("connection registry poisoned");
+        if let Some(entry) = live.get_mut(name) {
+            entry.status = ConnectionStatus::Failed;
+            entry.stop = None;
+        }
+    }
+
+    /// Idempotent. Already up ⇒ a new claim and NO new login. Down ⇒ establish once — and
+    /// AT MOST once even under concurrent callers, via the per-name establish gate.
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn ensure(
         &self,
@@ -248,6 +281,18 @@ impl ConnectionRegistry {
             return Ok(self.issue_claim(name, owner));
         }
 
+        // Serialize establish attempts for this name. Held across every await below: two
+        // callers racing a Down connection must not both spawn — for the Serpro VPN a
+        // second spawn is a second login, i.e. a second push on the operator's phone.
+        let gate = self.establish_gate(name);
+        let _permit = gate.lock().await;
+
+        // Re-check now that we hold the gate: another caller may have finished
+        // establishing it while we were waiting, in which case we share it — no spawn.
+        if matches!(self.status(name), ConnectionStatus::Up) {
+            return Ok(self.issue_claim(name, owner));
+        }
+
         {
             let mut live = self.live.lock().expect("connection registry poisoned");
             let entry = live.entry(name.to_string()).or_insert_with(|| LiveConnection {
@@ -258,13 +303,38 @@ impl ConnectionRegistry {
                 linger: decl.linger.clone(),
             });
             entry.status = ConnectionStatus::Connecting;
-            entry.spawn_count += 1;
         }
 
-        let mut process = spawn(decl)?;
+        let mut process = match spawn(decl) {
+            Ok(process) => process,
+            Err(e) => {
+                // `?` here would skip straight past the Failed-setting block below and
+                // leave `status` stuck at `Connecting` forever.
+                self.mark_failed(name);
+                return Err(e);
+            }
+        };
+
+        // A process now genuinely exists — THIS is what `spawn_count` counts, never an
+        // attempt that errored before one did.
+        {
+            let mut live = self.live.lock().expect("connection registry poisoned");
+            if let Some(entry) = live.get_mut(name) {
+                entry.spawn_count += 1;
+            }
+        }
+
         let stop = process.stop.clone();
         let mut publisher = ConnectionFramePublisher::new(name, now_ns());
-        let outcome = establish(decl, &mut process, probe, &mut publisher, sync, now_ns).await?;
+        let outcome = match establish(decl, &mut process, probe, &mut publisher, sync, now_ns).await {
+            Ok(outcome) => outcome,
+            Err(e) => {
+                // Same hazard as the spawn error above: `?` would leave `status` stuck at
+                // `Connecting`.
+                self.mark_failed(name);
+                return Err(e);
+            }
+        };
 
         {
             let mut live = self.live.lock().expect("connection registry poisoned");

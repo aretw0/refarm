@@ -438,4 +438,92 @@ mod connection_engine_tests {
         assert!(matches!(reg.status("c"), ConnectionStatus::Failed));
         assert_eq!(reg.claim_count("c"), 0);
     }
+
+    #[tokio::test]
+    async fn concurrent_ensures_on_a_down_connection_perform_exactly_one_spawn() {
+        // THE regression this guards: two callers racing a Down connection must not both
+        // pass the `Up` fast path and both spawn — for the Serpro VPN, a second spawn is a
+        // second login, i.e. a second push on the operator's phone. `probe_after(1)` forces
+        // the first attempt through one real probe-interval wait (a genuine `.await`), which
+        // is exactly the window a caller without an establish gate would race through.
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let mut p1 = probe_after(1);
+        let mut p2 = probe_after(0);
+
+        let first = reg.ensure("c", "plugin.a", &decls, holding_spawner(), &mut p1, &sync, &clk);
+        let second = reg.ensure(
+            "c",
+            "plugin.b",
+            &decls,
+            |_| panic!("must not spawn a second process — single-flight is broken"),
+            &mut p2,
+            &sync,
+            &clk,
+        );
+
+        let (a, b) = tokio::join!(first, second);
+        let a = a.unwrap();
+        let b = b.unwrap();
+
+        assert_eq!(a.name, "c");
+        assert_eq!(b.name, "c");
+        assert_eq!(reg.spawn_count("c"), 1, "single-flight: at most one process is ever spawned");
+        assert_eq!(reg.claim_count("c"), 2);
+    }
+
+    #[tokio::test]
+    async fn a_spawn_error_leaves_it_failed_and_claimless() {
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let mut probe = probe_after(0);
+
+        let err = reg
+            .ensure(
+                "c",
+                "plugin.a",
+                &decls,
+                |_decl| Err("boom: binary not found".to_string()),
+                &mut probe,
+                &sync,
+                &clk,
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(err, "boom: binary not found", "the spawn error must reach the caller");
+        assert!(matches!(reg.status("c"), ConnectionStatus::Failed));
+        assert_eq!(reg.claim_count("c"), 0);
+        assert_eq!(reg.spawn_count("c"), 0, "an attempt that never produced a process is not a spawn");
+    }
+
+    #[tokio::test]
+    async fn releasing_the_last_claim_under_zero_idle_linger_takes_it_down() {
+        let sync = sync();
+        let decls = parse_connections(&serde_json::json!({
+            "connections": { "c": {
+                "establish": ["bin"],
+                "probe": { "run": ["true"] },
+                "probeIntervalMs": 1,
+                "readyTimeoutMs": 200,
+                "linger": { "idleMs": 0 }
+            }}
+        }))
+        .unwrap();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let mut probe = probe_after(0);
+
+        let a = reg.ensure("c", "plugin.a", &decls, holding_spawner(), &mut probe, &sync, &clk).await.unwrap();
+        reg.release(&a);
+
+        assert!(
+            matches!(reg.status("c"), ConnectionStatus::Down),
+            "an idleMs: 0 linger drops the connection as soon as it becomes claimless"
+        );
+    }
 }
