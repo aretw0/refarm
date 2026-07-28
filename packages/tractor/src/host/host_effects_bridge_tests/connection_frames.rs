@@ -74,6 +74,23 @@ mod connection_frames_tests {
     }
 
     #[test]
+    fn a_non_ready_terminal_reason_marks_the_session_failed() {
+        // The `status` branch in `ConnectionFramePublisher::terminal` is
+        // `"completed"` only for `reason == "ready"`; every other reason (timeout,
+        // exit, error, ...) must land as `"failed"`. Without this assertion,
+        // collapsing the branch to always return `"completed"` would not fail
+        // any test.
+        let sync = sync();
+        let mut p = ConnectionFramePublisher::new("c", 1);
+        p.terminal(&sync, "timeout", "probe never succeeded", 2).unwrap();
+
+        let raw = sync.get_node(&connection_stream_ref("c")).unwrap().unwrap();
+        let node: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(node["@type"], "StreamSession");
+        assert_eq!(node["status"], "failed");
+    }
+
+    #[test]
     fn a_session_node_tracks_the_connection_instance() {
         let sync = sync();
         let mut p = ConnectionFramePublisher::new("c", 10);
