@@ -93,17 +93,36 @@ several workspaces legitimately share one. The workspace still owns the specific
 "connections": {
   "serpro-vpn": {
     "run": ["serpro-vpn", "connect"],          // argv, never a shell string
-    "ready": "Initialization Sequence Completed",
-    "fail": "AUTH_FAILED|TLS handshake failed",
-    "notices": [
-      { "pattern": "Waiting for .* approval", "message": "aprove o push no celular" }
-    ],
+    "ready": "VPN Serpro CONECTADA",
+    "fail": "^❌ ",
     "readyTimeoutMs": 120000,
     "hold": true,                               // the process holds the tunnel
     "linger": "operator"                        // see D6
   }
 }
 ```
+
+**The patterns match the adapter, not `ovpnctl`.** rcdc5's `serpro-vpn` does not pass the raw
+`ovpnctl` stream through: it consumes `login-flow` events and prints its own curated lines
+(`rcdc5/packages/serpro-vpn/src/cli.ts:24-43`) — `▶ Conectando VPN Serpro…`, the notice
+`📲 Aprove a conexão no seu app SerproID (celular)…`, and on success
+`✅ VPN Serpro CONECTADA (perfil …, reconexão automática ligada).` The real `ovpnctl` patterns
+(`ready: /Conectado/`, `fail: /Saindo: auth-failure|auth-failure/`,
+`notice: /Conectando/`, `ovpnctl.ts:134-137`) live one layer below and are never seen by the host
+while the adapter is driven as a whole.
+
+Two consequences, both good for step 1:
+
+- **It changes nothing in rcdc5.** The declaration matches the adapter's output contract, so the
+  engine is proven against the real binary with zero cross-repo edit — the surgical-not-bulk posture
+  the lane already set for rcdc5 swaps.
+- **The adapter already supervises.** `serpro-vpn` defaults to `supervise: true`
+  (`superviseConnection`, reconnect-on-drop, announcing the new push). Host-side supervision (step 3)
+  is therefore **redundant for this connection** and needed only for adapters that do not supervise
+  themselves. With no host supervision in step 1, the two never fight.
+- Longer term, the convergent move is to thin the adapter to discovery (profile + certificate) and let
+  the host drive `ovpnctl` directly with the real patterns — one more parity-gated surgical swap, not
+  part of this design.
 
 ### D2 — The host drives the loop; nobody passes a script across the boundary
 
