@@ -34,6 +34,8 @@ import {
 	loadConfig,
 	type DeclaredWorkspaceConfig,
 } from "@refarm.dev/config";
+import { spawn } from "node:child_process";
+import path from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { refarmCommand } from "../brand.js";
@@ -208,6 +210,93 @@ function loadDeclaredWorkspaces(
 ): DeclaredWorkspaceConfig[] {
 	const config = (deps?.loadConfig ?? loadConfig)(baseDir);
 	return declaredWorkspacesFromConfig(config, { baseDir });
+}
+
+/** One entry of a workspace's declared command allowlist (from `@refarm.dev/config`; runtime
+ * shape carried by `normalizeWorkspaceCommands`). Bridged locally so this file doesn't depend on
+ * the base config type exposing it. */
+export interface WorkspaceDeclaredCommand {
+	run: string[];
+	cwd?: string;
+	description?: string;
+}
+
+/** How a resolved declared command is actually executed — injected so the resolver is testable
+ * without spawning a process, and so a remote surface can swap in a streaming runner later. */
+export interface WorkspaceRunSpec {
+	command: string;
+	args: string[];
+	cwd: string;
+	env?: NodeJS.ProcessEnv;
+}
+export type WorkspaceRunner = (spec: WorkspaceRunSpec) => Promise<number>;
+
+export interface WorkspaceRunResult {
+	workspace: string;
+	command: string;
+	argv: string[];
+	cwd: string;
+	exitCode: number;
+}
+
+function workspaceCommands(
+	workspace: DeclaredWorkspaceConfig,
+): Record<string, WorkspaceDeclaredCommand> {
+	return (
+		(workspace as { commands?: Record<string, WorkspaceDeclaredCommand> }).commands ?? {}
+	);
+}
+
+/** The real runner: spawn the command with INHERITED stdio, so a local `run` is fully interactive
+ * (the command's own prompts/notices/streaming reach the terminal — e.g. serpro-vpn's
+ * "approve the push" + "Conectado"). A command that holds (a VPN tunnel) holds this too. */
+async function defaultWorkspaceRunner(spec: WorkspaceRunSpec): Promise<number> {
+	return await new Promise<number>((resolve) => {
+		const child = spawn(spec.command, spec.args, {
+			cwd: spec.cwd,
+			env: spec.env ?? process.env,
+			stdio: "inherit",
+		});
+		child.on("close", (code) => resolve(code ?? 0));
+		child.on("error", (error) => {
+			console.error(chalk.red(`Failed to run: ${error instanceof Error ? error.message : String(error)}`));
+			resolve(127);
+		});
+	});
+}
+
+/**
+ * Resolve a NAMED declared command in a workspace and run it. This is an operation catalog, not a
+ * shell: the name must be in the workspace's `commands` allowlist (config data); anything else is
+ * rejected. Refarm holds only the argv + cwd; the logic lives in the workspace (e.g. rcdc5's
+ * `@rcdcp/serpro-vpn`). The boundary that lets a remote surface trigger it safely.
+ */
+export async function runDeclaredWorkspaceCommand(
+	input: { workspace: string; command: string; extraArgs: string[] },
+	deps: WorkspaceCommandDeps | undefined,
+	runner: WorkspaceRunner = defaultWorkspaceRunner,
+): Promise<WorkspaceRunResult> {
+	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const config = (deps?.loadConfig ?? loadConfig)(baseDir);
+	const workspace = declaredWorkspaceFromConfig(config, input.workspace, { baseDir });
+	if (!workspace) {
+		throw new Error(`Workspace not declared in config: ${input.workspace}`);
+	}
+	const commands = workspaceCommands(workspace);
+	const declared = commands[input.command];
+	if (!declared) {
+		const names = Object.keys(commands);
+		throw new Error(
+			`Command "${input.command}" is not declared for workspace "${input.workspace}". ` +
+				`Declared commands: ${names.length ? names.join(", ") : "(none)"}`,
+		);
+	}
+	const cwd = declared.cwd ? path.join(workspace.absolutePath, declared.cwd) : workspace.absolutePath;
+	const argv = [...declared.run, ...input.extraArgs];
+	const [command, ...args] = argv;
+	if (!command) throw new Error(`Command "${input.command}" resolved to an empty argv.`);
+	const exitCode = await runner({ command, args, cwd, env: deps?.env });
+	return { workspace: workspace.id, command: input.command, argv, cwd, exitCode };
 }
 
 function resolveWorkspaceExecutionCwd(
@@ -903,6 +992,34 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 				return;
 			}
 			printDeclaredWorkspaces(workspaces);
+		});
+
+	command
+		.command("run <workspace> <command> [args...]")
+		.description("Run a NAMED command from a workspace's declared commands allowlist")
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Runs only commands declared under a workspace's `commands` in .refarm/config.json —",
+				"an operation catalog, not a shell. Refarm holds the command string + cwd; the logic",
+				"lives in the workspace. Example config:",
+				'  { "workspaces": { "rcdc5": { "path": "../rcdc5",',
+				'      "commands": { "vpn": "pnpm --filter @rcdcp/serpro-vpn run vpn connect" } } } }',
+				"  $ refarm workspace run rcdc5 vpn",
+			].join("\n"),
+		)
+		.action(async (workspace: string, cmd: string, args: string[]) => {
+			try {
+				const result = await runDeclaredWorkspaceCommand(
+					{ workspace, command: cmd, extraArgs: args ?? [] },
+					deps,
+				);
+				process.exitCode = result.exitCode;
+			} catch (error) {
+				console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+				process.exitCode = 1;
+			}
 		});
 
 	return command;
