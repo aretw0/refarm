@@ -91,9 +91,15 @@ The maintainer sharpened the North Star: the goal is not "rcdc5 imports `@refarm
 - When Refarm publishes to public npm: swap rcdc5's `file:vendor/*.tgz` overrides for versioned deps.
 - **Full external-ALM emit sink** — the inverse of `source:v1` (write work-items OUT to a tracker), wrapping `task-recurrence`'s output; only under real second-consumer pressure. **`task:v1` optional `priority`** (only under real need); coop-vault collective proof (`workspace-access-contract-v1`); per-device surfaces (PWA/Termux); plugin authoring ergonomics.
 
+- **White-label operation catalog + Termux/PWA administration** (the umbrella): a `commands` allowlist in workspace config + `refarm workspace run <ws> <cmd>` are DONE (refarm `bfd3cc92`/`3e7368f7`) — the LOCAL half of operating any workspace's declared command from refarm (`dgk ≡ refarm`; only declared NAMES run, argv-normalized, not a shell; logic stays in the workspace). **Next:** slice 3 = expose it over the capability-host HTTP bound to the tailnet (bind-tailnet-only + shared token) — **GATED on operator security sign-off**; then a Termux/PWA trigger. Canonical direction + the Remote-workspace-control track: [`REFARM_WORK_FOCUS.md`](./REFARM_WORK_FOCUS.md).
+
 **Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.
 
 ## How to resume
 
-`refarm resume --json` → follow `nextCommands`; read this doc + the specs in `docs/superpowers/specs/`
-and the context memories. Pick a corner, take one atomic pass, leave material, update the columns.
+`refarm resume --json` → follow `nextCommands`. The canonical restart note is
+[`REFARM_WORK_FOCUS.md`](./REFARM_WORK_FOCUS.md) (North Star + the ocamento umbrella + the track orbit ledger);
+this doc is the ant-journey lane. Read both + the specs in `docs/superpowers/specs/` and the context memories.
+Pick a corner, take one atomic pass, leave material, update the columns. **The direction does not rest until
+every creator operation is ocado under one surface (Termux/PWA) — generic capabilities in refarm, specifics in
+their own workspace, cross-workspace operations composed from the same operational layer.**

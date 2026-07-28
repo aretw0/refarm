@@ -23,6 +23,29 @@ The CLI product should be named `refarm` and live as a distro under
 `apps/refarm`. Packages remain reusable blocks. This preserves Refarm's
 composition model: apps make product choices; packages provide primitives.
 
+## The ocamento umbrella (anti-regression convergence)
+
+The direction does not rest until every one of the creator's operations —
+personal and work — is *ocado*: its generic capabilities assimilated as Refarm
+blocks, its specifics kept in their own workspace, and the whole administrable
+from ONE surface of the creator's choosing (Termux or PWA) over the tailnet.
+Refarm is thus both the **SDK** (blocks others build on) and the **operational
+compatibility layer** (the umbrella that operates those workspaces and the
+collective integrations between them). This is anti-regression: assimilate what
+already works in isolated tools, keep learning from what exists, and organize it
+per the architecture — cultivating new or existing blocks in this monorepo and
+in the others' (`rcdc5`, `vault-seed`, the vaults).
+
+**White-label is now concrete, not just posture.** A compatible workspace's own
+CLI (vault-seed's `dgk`, an example's command) is reachable as the equivalent
+`refarm` command: `refarm workspace run <ws> <cmd>` runs a workspace's declared,
+NAMED command — an allowlist operation catalog in `.refarm/config.json`
+`commands` (argv-normalized, never a remote shell); refarm holds only the
+command string + cwd, the logic stays in the workspace. A user who knows a
+workspace is Refarm-compatible need not remember `dgk`. The living ant-journey
+lane is [`docs/CONVERGENCE-LANE.md`](./CONVERGENCE-LANE.md); the current
+cross-machine slice is the Remote-workspace-control track below.
+
 ## 2026-06 release focus
 
 Treat `v0.1.0` as an earned reliability label, not as a calendar milestone. The
@@ -81,7 +104,7 @@ into a new control plane. "Dormant" means gated by evidence, not abandoned.
 | Native skills | Activation-gated. Skills are distributed capabilities over plugin/manifest/policy substrate, not a second plugin ecosystem. | Write/execute the native skill contract plus plugin-manifest skill surface with one `dgk-skills` or `agents-lab` fixture. | Copying external skills into Refarm or building a parallel runtime outside Barn/plugin policy. |
 | Source librarian | Partially active. `source:v1`, `source-git`, and `source-local` exist; `source-dispatch` waits for executable dispatch pressure. | Wire `source:v1` through `dispatch-surface` only when the agent/kernel path needs it. | Creating a generic source megasystem before dogfood, `vault-seed`, or `agents-lab` proves dispatch semantics. |
 | Distributed availability / Pears | Evidence-active, runtime-adoption-gated. ADR-075 is reference pressure for portable core and thin surfaces. | Turn the existing availability proof into install/update descriptor or blind-replica policy only when dogfood or a second consumer needs it. | Adopting Bare/Hypercore/Pears wholesale as Refarm storage/runtime before the boundary is proven. |
-| Remote workspace control | Horizon-active. The desired shape is capability-scoped control of local and remote machines through explicit handoffs. | Extend workspace descriptors, read-only probes, and environment ceilings when current workflows need cross-machine observation or dispatch. | Treating mounts, host paths, Telegram, Matrix, or Tailscale as the core abstraction. |
+| Remote workspace control | Active. Local half shipped: a `commands` allowlist in workspace config + `refarm workspace run <ws> <cmd>` (an operation catalog, not a remote shell). First operated command is `rcdc5`'s `serpro-vpn` over `@refarm.dev/login-flow` (`runLoginFlow` + `superviseConnection` = connect + reconnect-on-drop) — VPN connect **live-proven** (agent ran one command, operator approved the phone push, `ovpntun0` came up). Remote reach decided: Refarm's own mesh over the **tailnet**, NOT sshd. | Slice 3: expose `workspace run` over the capability-host HTTP bound to the tailnet (bind-to-tailnet-only + shared token), status stream — **GATED on operator security sign-off** (a listener that triggers named machine commands on a Serpro machine). Then a Termux/PWA trigger. | Treating SSH, mounts, host paths, or Tailscale as the core abstraction; a generic remote shell — only declared NAMES run. |
 | Content projection / MD-MDX authoring | Phase 1 implemented, selected, and downstream-proven. `@refarm.dev/content-projection` projects frontmatter, wikilinks, and inline Markdown links into valid `records:v1`; the official `vault-seed` MDX inventory now supplies render pressure for `ds-astro`. | Build the separate `@refarm.dev/ds-astro` render adapter over `ds/html`, prove one `apps/site` MDX fixture, then hand off a candidate tarball for the downstream proof plan. | Naming it a `source-*` adapter (acquisition is `source-local`); coupling `ds` core to Astro (bind only in `ds-astro`); folding in the DS composition guardrail (separate graduation); building a local vault-seed block library instead. |
 
 Validation packages under `validations/` are evidence surfaces, not publication
