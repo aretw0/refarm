@@ -141,11 +141,41 @@ So:
   wrongly considered up or down.
 - **No `ready` / `fail` patterns at all.** They were load-bearing only because the probe was missing.
 
-**The probe is structured argv, never a shell.** `["sh", "-c", "… | grep -q UP"]` would reintroduce
-the shell through the back door — allowing `sh` in the allowlist allows everything. Hence
+**The probe is structured argv, never a shell — by default.** `["sh", "-c", "… | grep -q UP"]` would
+reintroduce the shell through the back door: allowing `sh` in the allowlist allows everything. Hence
 `{ run: [...], expect: "..." }`, which passes the same `enforce_shell_allowlist` as any other spawn
 and covers both real cases: a missing interface exits non-zero, and an existing-but-down interface
-exits zero while printing `DOWN`.
+exits zero while printing `DOWN`. Shell-like binaries (`sh`, `bash`, `env`, …) are rejected by
+basename, so `/bin/sh` is caught as well as `sh`.
+
+### D1c — A probe that genuinely needs composition must ask, not be silently allowed or flatly denied
+
+A flat "no" would eventually be wrong: some platform's health check will not fit in a single argv
+(a pipe, a chained condition). A silent "yes" is worse. The rule the operator set is neither — **the
+declaration announces the need, and the operator grants it.**
+
+Refarm already owns the mechanism: `tractor-bridge` exposes
+`request-permission: func(capability: string, reason: string) -> bool`
+(`packages/plugin-wit/wit/host.wit:18`), and `Permission` already carries the persona-facing `label`
+and `risk` for exactly this approval surface (`packages/tractor/src/host/permission.rs:112-131`).
+
+So a composing probe declares its intent and its reason:
+
+```jsonc
+"probe": {
+  "shell": "ip -br link show ovpntun0 | grep -q UP",
+  "reason": "the tunnel check needs a pipe; no single argv reports link state"
+}
+```
+
+Loading such a declaration does not run it. The host asks the operator, who may grant it **once**
+for this attempt, or **persist** the grant for that named connection. An ungranted composing probe
+is a clear error naming the connection and the reason it asked — never a silent downgrade to
+"not up", which would look like a broken tunnel instead of a withheld permission.
+
+The default stays structured-argv, so the common case needs no approval at all and the exception is
+visible precisely because it is rare. **Not in step 1** — step 1 rejects `shell` outright with a
+message pointing at this decision, so nothing is silently permitted before the approval path exists.
 
 This generalizes, which is the point. A SerproID application session's probe is an HTTP request that
 returns 200; a browser session's probe is `browser-driver`'s `LoginProbe`. One idea, three

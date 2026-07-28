@@ -23,9 +23,11 @@ Design spec: [`docs/superpowers/specs/2026-07-28-declared-connections-shared-ses
 - **Do not add a WIT interface, a `Permission` variant, or a CLI command here** — Plans 2 and 3.
 - **Readiness is the probe, never a pattern** (design D1b). Patterns govern only `notices` and the
   probe's `expect`. A missed notice must never change an outcome.
-- **The probe is structured argv, never a shell.** Reject `sh`/`bash`-style wrappers at parse time:
-  allowing `sh -c` in the allowlist allows everything, which is the doctrine this design exists to
-  hold.
+- **The probe is structured argv, never a shell.** Reject `sh`/`bash`-style wrappers at parse time
+  (by basename, so `/bin/sh` is caught too): allowing `sh -c` in the allowlist allows everything.
+  A probe that genuinely needs composition must **declare that intent and ask the operator**
+  (design D1c) — a path not implemented in this plan, so `probe.shell` is rejected with a message
+  naming the decision rather than silently downgraded to "not up".
 - **Regex engine:** Rust `regex` crate only. No lookahead, lookbehind, or backreferences.
 - **No prompt answering in this plan.** A declaration containing `prompts` is rejected at parse time.
 - **Commit trailers:** end every commit message with the two lines this repo uses — copy them from
@@ -409,7 +411,19 @@ fn parse_probe(name: &str, value: &serde_json::Value) -> Result<Probe, String> {
     if SHELL_LIKE.contains(&binary) {
         return Err(format!(
             "connection '{name}': probe must not invoke a shell ('{binary}') — use structured argv \
-             with an `expect` pattern instead"
+             with an `expect` pattern. If the check genuinely needs composition, a future \
+             `probe.shell` + `probe.reason` declares that intent and asks the operator to grant it \
+             (design D1c); it is not supported yet."
+        ));
+    }
+
+    // D1c: a composing probe must ASK, never be silently allowed. Until the approval path
+    // exists, declaring one is a clear error naming the decision — not a silent downgrade
+    // to "not up", which would read as a broken tunnel instead of a withheld permission.
+    if probe_value.get("shell").is_some() {
+        return Err(format!(
+            "connection '{name}': probe.shell requires an operator grant, which is not implemented \
+             yet (design D1c) — use structured `probe.run` with `expect` for now"
         ));
     }
 
