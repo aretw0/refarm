@@ -177,6 +177,121 @@ export async function runLoginFlow(spec: LoginFlowSpec): Promise<LoginFlowResult
 	});
 }
 
+export interface SuperviseEvent {
+	kind: "connected" | "reconnected" | "dropped" | "reconnecting" | "gaveup" | "stopped";
+	/** The (re)connect attempt number, for reconnecting/gaveup. */
+	attempt?: number;
+	/** Why the last flow attempt failed, for reconnecting. */
+	reason?: LoginFlowReason;
+}
+
+export interface SuperviseSpec {
+	/** The flow that (re)establishes the connection. `flow.spawn()` is called fresh each attempt. */
+	flow: LoginFlowSpec;
+	/**
+	 * Is the connection currently up? Polled after connect, on `healthIntervalMs`. The moment it
+	 * returns false the supervisor emits `dropped` and reconnects — this is where you "feel the pain
+	 * early". For a VPN: `() => ovpntun0 is UP`.
+	 */
+	isHealthy: () => boolean | Promise<boolean>;
+	/** Health poll interval (ms, default 5_000). */
+	healthIntervalMs?: number;
+	/** Backoff between failed (re)connect attempts (ms, default 3_000). */
+	backoffMs?: number;
+	/** Max CONSECUTIVE failed (re)connect attempts before giving up (default Infinity). Set a small
+	 * number so a not-approved push doesn't spam retries forever. */
+	maxAttempts?: number;
+	onEvent?: (event: SuperviseEvent) => void;
+	/** Injected sleep (tests). Defaults to setTimeout-based. */
+	sleep?: (ms: number) => Promise<void>;
+}
+
+export interface ConnectionSupervisor {
+	/** Resolves on the FIRST successful connect; rejects if the initial connect gives up. */
+	connected: Promise<void>;
+	/** Stop supervising and tear down the connection (kills the held process). */
+	stop(): Promise<void>;
+}
+
+/**
+ * Keep a connection up: run the flow to connect, watch its health, and reconnect the instant it
+ * drops. Returns immediately with a handle — `connected` resolves once, `stop()` tears it down.
+ * The supervisor OWNS the live process (from `runLoginFlow`), so there is no orphaned babysitter.
+ */
+export function superviseConnection(spec: SuperviseSpec): ConnectionSupervisor {
+	const sleep = spec.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
+	const healthIntervalMs = spec.healthIntervalMs ?? 5_000;
+	const backoffMs = spec.backoffMs ?? 3_000;
+	const maxAttempts = spec.maxAttempts ?? Number.POSITIVE_INFINITY;
+	const emit = (event: SuperviseEvent): void => spec.onEvent?.(event);
+
+	let stopped = false;
+	let current: LoginFlowProcess | undefined;
+	let firstConnected = false;
+	let resolveConnected!: () => void;
+	let rejectConnected!: (error: Error) => void;
+	const connected = new Promise<void>((resolve, reject) => {
+		resolveConnected = resolve;
+		rejectConnected = reject;
+	});
+
+	async function run(): Promise<void> {
+		while (!stopped) {
+			// (Re)connect, retrying with backoff up to maxAttempts consecutive failures.
+			let attempt = 0;
+			let result: LoginFlowResult;
+			for (;;) {
+				if (stopped) return;
+				attempt += 1;
+				result = await runLoginFlow(spec.flow);
+				if (result.ok) break;
+				emit({ kind: "reconnecting", attempt, reason: result.reason });
+				if (attempt >= maxAttempts) {
+					emit({ kind: "gaveup", attempt });
+					if (!firstConnected) rejectConnected(new Error(`connect gave up after ${attempt} attempts`));
+					return;
+				}
+				await sleep(backoffMs);
+			}
+			if (stopped) {
+				result.process.kill();
+				return;
+			}
+
+			current = result.process;
+			emit({ kind: firstConnected ? "reconnected" : "connected" });
+			if (!firstConnected) {
+				firstConnected = true;
+				resolveConnected();
+			}
+
+			// Watch health until it drops (→ reconnect) or we're stopped.
+			let dropped = false;
+			while (!stopped && !dropped) {
+				await sleep(healthIntervalMs);
+				if (stopped) break;
+				if (!(await spec.isHealthy())) {
+					dropped = true;
+					emit({ kind: "dropped" }); // felt within one poll interval
+					current.kill();
+				}
+			}
+		}
+		current?.kill();
+	}
+
+	void run();
+
+	return {
+		connected,
+		async stop() {
+			stopped = true;
+			current?.kill();
+			emit({ kind: "stopped" });
+		},
+	};
+}
+
 /**
  * The real `node:child_process` adapter — spawn a command as a `LoginFlowProcess`. stdout and
  * stderr are MERGED (a connect CLI often writes prompts/status to either), delivered as raw

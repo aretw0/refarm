@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
 	runLoginFlow,
 	spawnLoginProcess,
+	superviseConnection,
+	type ConnectionSupervisor,
 	type LoginFlowEvent,
 	type LoginFlowProcess,
+	type SuperviseEvent,
 } from "./index.js";
 
 /** A fake process: the test drives its output with `emit`, inspects stdin via `written`, and can
@@ -144,6 +147,94 @@ describe("runLoginFlow — the connect/login state machine", () => {
 		const outcome = await result;
 		expect(outcome.reason).toBe("exit");
 		expect(outcome.ok).toBe(false);
+	});
+});
+
+/** A process that auto-emits its scripted output once a listener attaches — so the supervisor's
+ * internal runLoginFlow calls resolve without the test driving each emit. */
+function autoProcess(script: string, opts?: { exitCode?: number }): LoginFlowProcess {
+	let resolveExit!: (code: number) => void;
+	const exited = new Promise<number>((resolve) => {
+		resolveExit = resolve;
+	});
+	return {
+		onData(cb) {
+			queueMicrotask(() => {
+				cb(script);
+				if (opts?.exitCode !== undefined) resolveExit(opts.exitCode);
+			});
+		},
+		write() {},
+		kill() {
+			resolveExit(143);
+		},
+		exited,
+	};
+}
+
+const macroSleep = () => new Promise((resolve) => setTimeout(resolve, 0));
+async function waitFor(cond: () => boolean, timeoutMs = 1_000): Promise<void> {
+	const started = Date.now();
+	while (!cond()) {
+		if (Date.now() - started > timeoutMs) throw new Error("waitFor: condition not met in time");
+		await new Promise((resolve) => setTimeout(resolve, 5));
+	}
+}
+
+describe("superviseConnection — keep it up, feel the drop early", () => {
+	it("connects, resolves `connected`, and tears down on stop()", async () => {
+		const events: SuperviseEvent["kind"][] = [];
+		const sup = superviseConnection({
+			flow: { spawn: () => autoProcess("Conectado\n"), ready: /Conectado/ },
+			isHealthy: () => true,
+			healthIntervalMs: 0,
+			sleep: macroSleep,
+			onEvent: (e) => events.push(e.kind),
+		});
+
+		await sup.connected;
+		await sup.stop();
+
+		expect(events[0]).toBe("connected");
+		expect(events).toContain("stopped");
+	});
+
+	it("reconnects the instant health drops (feel the pain early)", async () => {
+		const events: SuperviseEvent["kind"][] = [];
+		const health = [true, true, false]; // healthy twice, then the tunnel drops
+		let i = 0;
+		let sup!: ConnectionSupervisor;
+		sup = superviseConnection({
+			flow: { spawn: () => autoProcess("Conectado\n"), ready: /Conectado/ },
+			isHealthy: () => health[i++] ?? true,
+			healthIntervalMs: 0,
+			sleep: macroSleep,
+			onEvent: (e) => {
+				events.push(e.kind);
+				if (e.kind === "reconnected") void sup.stop(); // end deterministically
+			},
+		});
+
+		await sup.connected;
+		await waitFor(() => events.includes("reconnected"));
+
+		expect(events).toEqual(["connected", "dropped", "reconnected", "stopped"]);
+	});
+
+	it("gives up after maxAttempts consecutive failures and rejects `connected`", async () => {
+		const events: SuperviseEvent["kind"][] = [];
+		const sup = superviseConnection({
+			// exits before ready → each attempt fails
+			flow: { spawn: () => autoProcess("iniciando\n", { exitCode: 1 }), ready: /Conectado/ },
+			isHealthy: () => true,
+			maxAttempts: 2,
+			backoffMs: 0,
+			sleep: macroSleep,
+			onEvent: (e) => events.push(e.kind),
+		});
+
+		await expect(sup.connected).rejects.toThrow("gave up");
+		expect(events).toEqual(["reconnecting", "reconnecting", "gaveup"]);
 	});
 });
 

@@ -42,6 +42,29 @@ if (outcome.ok) {
 }
 ```
 
+## Keeping it up — `superviseConnection`
+
+`runLoginFlow` connects once. `superviseConnection` keeps it connected: it runs the flow, watches
+a health check, and **reconnects the instant the connection drops** — so you feel the pain within
+one poll interval instead of hitting a wall later. It owns the live process (no orphaned
+babysitter).
+
+```ts
+import { superviseConnection } from "@refarm.dev/login-flow";
+
+const sup = superviseConnection({
+  flow: { spawn: () => spawnLoginProcess("ovpnctl", ["connect", fp, profile]), ready: /Conectado/, fail: /auth-failure/ },
+  isHealthy: () => tunIsUp("ovpntun0"),      // "is the tunnel up?" — polled on interval
+  healthIntervalMs: 5_000,
+  maxAttempts: 3,                            // a not-approved push won't retry forever
+  onEvent: (e) => console.log(e.kind),       // connected | dropped | reconnecting | reconnected | gaveup | stopped
+});
+
+await sup.connected;   // resolves on the first successful connect
+// … later …
+await sup.stop();       // tear the connection down
+```
+
 ## Semantics
 
 - **`ready`** (a stream pattern) is the success signal. On success the process is **left running**
