@@ -16,6 +16,7 @@ import {
 	type AutostartActivityReporter,
 	type AutostartVocabulary,
 } from "@refarm.dev/runtime-operator";
+import { resolveSiloHome } from "@refarm.dev/silo";
 import chalk from "chalk";
 import fs from "node:fs";
 import path from "node:path";
@@ -119,8 +120,19 @@ export async function checkSessionReadiness(): Promise<SessionReadiness> {
 }
 
 // Exported for tests — returns dirs to search for .refarm config, home first.
+//
+// Silo's home is included because that is where `refarm sow` actually stores an
+// OAuth model credential (`identity.json` under `SILO_HOME || REFARM_HOME ||
+// ~/.silo`). Without it, a machine with REFARM_HOME unset puts the store in
+// ~/.silo where this search never looked, so `model current` reported
+// `silo-oauth` while `ask` refused with "no usable credentials" — and re-running
+// `sow` could not help, because `sow` writes exactly where the gate was not
+// looking. When the two homes resolve to the same directory the Set dedupes,
+// which is why the defect was invisible on any setup that exports REFARM_HOME.
 export function refarmSearchDirs(): string[] {
-	return Array.from(new Set([resolveRefarmHome(), path.join(process.cwd(), ".refarm")]));
+	return Array.from(
+		new Set([resolveRefarmHome(), resolveSiloHome(), path.join(process.cwd(), ".refarm")]),
+	);
 }
 
 /**
