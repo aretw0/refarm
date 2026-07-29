@@ -76,6 +76,18 @@ function findBlockingProbeIssue(issues: CatalogIssue[]): CatalogIssue | undefine
 	return issues.find((issue) => BLOCKING_PROBE_ISSUE_FIELDS.has(issue.field));
 }
 
+/** The connection status report: per-connection results plus any catalog-level issue —
+ * one attached to the `connections` block as a whole (a malformed block, an over-cap
+ * declaration count) rather than to any single named connection (Task 1's
+ * `readConnectionCatalog` tags these with the sentinel connection name `"(connections)"`).
+ * A catalog-level issue is never dropped just because it has no connection to attach
+ * to — this surface exists to show the operator reality, and a silently-missing issue
+ * is a wrong default for that purpose. */
+export interface ConnectionStatusReport {
+	connections: ConnectionReport[];
+	catalogIssues: CatalogIssue[];
+}
+
 /**
  * Build the connection status report. The probe runner is INJECTED so this function is
  * hermetic — every test drives it with a literal `runProbe`, no process is ever spawned
@@ -84,7 +96,7 @@ function findBlockingProbeIssue(issues: CatalogIssue[]): CatalogIssue | undefine
 export async function reportConnections(deps: {
 	config: Record<string, unknown>;
 	runProbe: (connection: DeclaredConnection) => Promise<{ ok: boolean; detail?: string }>;
-}): Promise<ConnectionReport[]> {
+}): Promise<ConnectionStatusReport> {
 	const { connections, issues } = readConnectionCatalog(deps.config);
 	const reports: ConnectionReport[] = [];
 
@@ -126,7 +138,14 @@ export async function reportConnections(deps: {
 		});
 	}
 
-	return reports;
+	// Any issue not attributable to a specific reported connection is catalog-level —
+	// this is deliberately a structural check (not a hardcoded match on Task 1's private
+	// `"(connections)"` sentinel) so it also catches any future catalog-wide issue kind
+	// without this file needing to know its exact name.
+	const reportedNames = new Set(reports.map((report) => report.name));
+	const catalogIssues = issues.filter((issue) => !reportedNames.has(issue.connection));
+
+	return { connections: reports, catalogIssues };
 }
 
 /**
@@ -140,17 +159,37 @@ export async function reportConnections(deps: {
  * Bounded by `timeoutMs` so a hung probe cannot hang the operator's terminal; never
  * throws — a missing binary or a spawn error resolves `ok: false` with a `detail`
  * rather than rejecting, so callers never need a try/catch around this.
+ *
+ * The child gets ONLY the declared `env` — nothing inherited from this process. This
+ * mirrors the host exactly: `run_probe` -> `spawn_process` in
+ * `host_effects_bridge/core.rs` does `.env_clear().envs(env)`, so a probe whose verdict
+ * depends on an inherited-but-undeclared variable reports `down` there. If this adapter
+ * merged in `process.env` instead, the CLI could report `up` for the same declaration
+ * the host would call `down` — a disagreement with the engine that defeats this
+ * command's entire purpose (telling the operator what the host would find). Because the
+ * child's environment is cleared, there is no `PATH` left to search a bare command name
+ * against at spawn time, so `probe.run[0]` is resolved to an ABSOLUTE path up front via
+ * Task 1's `resolveBinary` (against THIS process's real PATH). That is a small,
+ * deliberate improvement over the host's PATH-at-spawn behaviour — deterministic,
+ * single resolution, reusing the same function `reportConnections` already used to
+ * decide whether to attempt the probe at all — not an accidental divergence.
  */
 export function runProbeProcess(
 	connection: DeclaredConnection,
 	timeoutMs: number = DEFAULT_PROBE_TIMEOUT_MS,
 ): Promise<{ ok: boolean; detail?: string }> {
 	return new Promise((resolve) => {
-		const [bin, ...args] = connection.probe.run;
-		if (!bin) {
+		const argv0 = connection.probe.run[0];
+		if (!argv0) {
 			resolve({ ok: false, detail: "probe.run is empty" });
 			return;
 		}
+		const bin = resolveBinary(argv0);
+		if (!bin) {
+			resolve({ ok: false, detail: `probe binary not found: ${argv0}` });
+			return;
+		}
+		const args = connection.probe.run.slice(1);
 
 		let settled = false;
 		const settle = (result: { ok: boolean; detail?: string }): void => {
@@ -161,7 +200,9 @@ export function runProbeProcess(
 
 		const child = spawn(bin, args, {
 			cwd: connection.cwd,
-			env: { ...process.env, ...connection.env },
+			// ONLY the declared env — see the doc comment above for why this must not be
+			// merged with `process.env`.
+			env: connection.env,
 			stdio: ["ignore", "pipe", "pipe"],
 		});
 
@@ -228,19 +269,28 @@ const STATE_COLOR: Record<ConnectionReport["state"], (text: string) => string> =
 	unknown: chalk.yellow,
 };
 
-function printConnectionReports(reports: ConnectionReport[]): void {
+function printConnectionReports(report: ConnectionStatusReport): void {
 	console.log(chalk.bold("Connections"));
-	if (reports.length === 0) {
+	if (report.catalogIssues.length > 0) {
+		console.log(chalk.yellow(`  ${report.catalogIssues.length} catalog-level issue(s):`));
+		for (const issue of report.catalogIssues) {
+			console.log(chalk.dim(`    ${issue.field}: ${issue.message}`));
+		}
+	}
+	if (report.connections.length === 0) {
 		console.log(chalk.dim("  none declared"));
 		return;
 	}
-	for (const report of reports) {
-		const color = STATE_COLOR[report.state];
-		const suffix = report.state === "up" ? "" : ` ${chalk.dim(`(${report.detail ?? "no reason given"})`)}`;
-		console.log(`  ${report.name}: ${color(report.state)}${suffix}`);
-		if (report.issues.length > 0) {
-			console.log(chalk.dim(`    ${report.issues.length} declaration issue(s):`));
-			for (const issue of report.issues) {
+	for (const connection of report.connections) {
+		const color = STATE_COLOR[connection.state];
+		const suffix =
+			connection.state === "up"
+				? ""
+				: ` ${chalk.dim(`(${connection.detail ?? "no reason given"})`)}`;
+		console.log(`  ${connection.name}: ${color(connection.state)}${suffix}`);
+		if (connection.issues.length > 0) {
+			console.log(chalk.dim(`    ${connection.issues.length} declaration issue(s):`));
+			for (const issue of connection.issues) {
 				console.log(chalk.dim(`      ${issue.field}: ${issue.message}`));
 			}
 		}
@@ -293,7 +343,7 @@ async function printConnectionStatus(
 		return;
 	}
 
-	const reports = await reportConnections({
+	const report = await reportConnections({
 		config,
 		runProbe: deps?.runProbe ?? ((connection) => runProbeProcess(connection)),
 	});
@@ -303,13 +353,13 @@ async function printConnectionStatus(
 			buildJsonSuccessEnvelope({
 				command: "connection",
 				operation: "status",
-				extra: { connections: reports },
-				nextCommands: connectionStatusNextCommands(reports),
+				extra: { connections: report.connections, catalogIssues: report.catalogIssues },
+				nextCommands: connectionStatusNextCommands(report.connections),
 			}),
 		);
 		return;
 	}
-	printConnectionReports(reports);
+	printConnectionReports(report);
 }
 
 export function createConnectionCommand(deps?: ConnectionCommandDeps): Command {
