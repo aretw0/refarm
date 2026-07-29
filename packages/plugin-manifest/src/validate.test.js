@@ -76,6 +76,30 @@ describe("composition validation", () => {
 		const result = validatePluginManifest(manifest);
 		expect(result.errors).toContain("capabilities.providesApi must not contain duplicates");
 	});
+
+	it("accepts a manifest declaring requiresConnections", () => {
+		const manifest = createMockManifest({
+			capabilities: {
+				provides: ["test"],
+				requires: [],
+				providesApi: [],
+				requiresApi: [],
+				requiresConnections: ["serpro-vpn"],
+			},
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+	});
+
+	it("rejects duplicates in requiresConnections", () => {
+		const manifest = createMockManifest();
+		manifest.capabilities.requiresConnections = ["serpro-vpn", "serpro-vpn"];
+
+		const result = validatePluginManifest(manifest);
+		expect(result.errors).toContain(
+			"capabilities.requiresConnections must not contain duplicates",
+		);
+	});
 });
 
 describe("certification validation", () => {
