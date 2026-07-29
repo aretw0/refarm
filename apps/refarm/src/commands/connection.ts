@@ -22,14 +22,18 @@ import {
 	type ProcessHandoffRunResult,
 } from "@refarm.dev/cli/process-handoff";
 import { loadConfig } from "@refarm.dev/config";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import chalk from "chalk";
 import { Command } from "commander";
+import { refarmCommand } from "../brand.js";
 import {
 	readConnectionCatalog,
 	resolveBinary,
 	type CatalogIssue,
 	type DeclaredConnection,
 } from "./connection-catalog.js";
+import { reportSidecarError } from "./sidecar-error.js";
+import { sidecarUrl } from "./sidecar-url.js";
 
 /**
  * Mirrors `PROBE_TIMEOUT_MS` in `connection_engine.rs`: a health check that hangs must
@@ -289,6 +293,278 @@ export async function runProbeProcess(
 	return interpretProbeResult(result, connection.probe.expect, timeoutMs);
 }
 
+// ─── `refarm connection up` / `refarm connection down` ──────────────────────────
+//
+// Unlike `status` above (a direct probe, works with no runtime), `up` and `down`
+// need the RUNTIME: establishing or stopping a shared connection is the host's
+// job — it owns the `ConnectionRegistry`, the claim bookkeeping, and the real
+// adapters (`spawn_establish_process`/`run_probe`) that decide what "up" means.
+// These two subcommands are thin HTTP callers of `POST /connections/:name/up`
+// and `POST /connections/:name/down` on the sidecar; they never spawn anything
+// themselves.
+//
+// WHY `up` IS SHAPED THIS WAY (decision D13, declared-connections-shared-
+// sessions-design.md): the defect this whole feature responds to was the
+// supervisor spending phone-approval pushes at an ABSENT human — establishing a
+// connection can need a human (a push, a QR scan, an MFA code), and that is a
+// scarce resource that only exists when the human is actually there. D13's rule
+// is that a step needing a human must first ACQUIRE the human before spending
+// that resource. `refarm connection up <name>` satisfies this BY CONSTRUCTION,
+// not as a nicety: the operator had to type the command for it to run at all, so
+// the acquisition already happened — there is no supervisor guessing whether
+// anyone is present. This is why `up` is a command the operator RUNS, rather
+// than something a background process is left to retry on its own.
+
+/** Mirrors the Rust `ConnectionOperatorState` (`connection_ops.rs`) — the JSON
+ * body `POST /connections/:name/{up,down}` and `GET /connections` return on
+ * success. `status` is the registry's own vocabulary, distinct from `probe`'s
+ * three-state `up`/`down`/`unknown` above: the host can report `connecting` or
+ * `failed` mid-flight, states a client-side probe never sees. */
+export interface ConnectionOperatorState {
+	name: string;
+	status: "down" | "connecting" | "up" | "failed";
+	sinceNs: number | null;
+	claims: number;
+	claim: number | null;
+}
+
+/**
+ * The outcome of one `up`/`down` call against the sidecar — a closed set so the
+ * command layer never has to sniff error text to decide how to respond:
+ *   - `ok`        — the host acted and returned the resulting state.
+ *   - `undeclared`— no connection by that name in `.refarm/config.json` (the
+ *     sidecar's clean 404, never a 500).
+ *   - `failed`    — the host tried and could not do it (a malformed config, a
+ *     spawn/probe error, the registry itself refusing). Not the operator's typo
+ *     to fix by retrying with a different name.
+ * A genuinely UNREACHABLE sidecar (runtime not running) is deliberately NOT a
+ * member of this union — `requestConnectionUp`/`requestConnectionDown` let that
+ * case propagate as a thrown error, so the caller can route it to
+ * `reportSidecarError` and get the runtime-recovery wording instead of a
+ * connection-specific message that would misdiagnose "the runtime is down" as
+ * "this connection failed".
+ */
+export type ConnectionOperatorOutcome =
+	| { outcome: "ok"; state: ConnectionOperatorState }
+	| { outcome: "undeclared"; message: string }
+	| { outcome: "failed"; message: string };
+
+export type ConnectionDownOutcome =
+	| { outcome: "ok"; state: ConnectionOperatorState; claimsActive: number }
+	| { outcome: "undeclared"; message: string }
+	| { outcome: "failed"; message: string };
+
+const CONNECTION_STATUS_JSON_COMMAND = refarmCommand(["connection", "status", "--json"]);
+
+const OPERATOR_STATUS_VALUES = new Set(["down", "connecting", "up", "failed"]);
+
+function asConnectionOperatorState(body: Record<string, unknown>): ConnectionOperatorState {
+	const status = typeof body.status === "string" && OPERATOR_STATUS_VALUES.has(body.status)
+		? (body.status as ConnectionOperatorState["status"])
+		: "down";
+	return {
+		name: typeof body.name === "string" ? body.name : "",
+		status,
+		sinceNs: typeof body.sinceNs === "number" ? body.sinceNs : null,
+		claims: typeof body.claims === "number" ? body.claims : 0,
+		claim: typeof body.claim === "number" ? body.claim : null,
+	};
+}
+
+/** POST `/connections/:name/{up,down}` and classify the response. Network/timeout
+ * failures are NOT caught here — they propagate to the caller as a thrown error,
+ * which is exactly what lets `up`/`down` tell "the sidecar is unreachable" apart
+ * from "the sidecar answered no". */
+async function requestConnectionAction(
+	name: string,
+	action: "up" | "down",
+): Promise<{ status: number; body: Record<string, unknown> }> {
+	const response = await fetchSidecarWithTimeout(
+		sidecarUrl(`/connections/${encodeURIComponent(name)}/${action}`),
+		{ method: "POST" },
+	);
+	const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+	return { status: response.status, body };
+}
+
+function classifyConnectionError(status: number): "undeclared" | "failed" {
+	return status === 404 ? "undeclared" : "failed";
+}
+
+function connectionErrorMessage(status: number, body: Record<string, unknown>): string {
+	return typeof body.error === "string" ? body.error : `sidecar HTTP ${status}`;
+}
+
+/** The real `up` adapter — the default for `ConnectionCommandDeps.connectionUp`. */
+export async function requestConnectionUp(name: string): Promise<ConnectionOperatorOutcome> {
+	const { status, body } = await requestConnectionAction(name, "up");
+	if (status === 200) return { outcome: "ok", state: asConnectionOperatorState(body) };
+	return { outcome: classifyConnectionError(status), message: connectionErrorMessage(status, body) };
+}
+
+/** The real `down` adapter — the default for `ConnectionCommandDeps.connectionDown`. */
+export async function requestConnectionDown(name: string): Promise<ConnectionDownOutcome> {
+	const { status, body } = await requestConnectionAction(name, "down");
+	if (status === 200) {
+		return {
+			outcome: "ok",
+			state: asConnectionOperatorState(body),
+			claimsActive: typeof body.claimsActive === "number" ? body.claimsActive : 0,
+		};
+	}
+	return { outcome: classifyConnectionError(status), message: connectionErrorMessage(status, body) };
+}
+
+const OPERATOR_STATE_COLOR: Record<ConnectionOperatorState["status"], (text: string) => string> = {
+	up: chalk.green,
+	connecting: chalk.yellow,
+	down: chalk.red,
+	failed: chalk.red,
+};
+
+export interface ConnectionUpCommandOptions {
+	json?: boolean;
+}
+
+export interface ConnectionDownCommandOptions {
+	json?: boolean;
+}
+
+async function printConnectionUp(
+	name: string,
+	options: ConnectionUpCommandOptions,
+	deps: ConnectionCommandDeps | undefined,
+): Promise<void> {
+	let result: ConnectionOperatorOutcome;
+	try {
+		result = await (deps?.connectionUp ?? requestConnectionUp)(name);
+	} catch (error) {
+		reportSidecarError(error, { json: options.json, command: "connection", operation: "up" });
+		return;
+	}
+
+	if (result.outcome === "undeclared") {
+		if (options.json) {
+			printJson(
+				buildJsonErrorEnvelope({
+					command: "connection",
+					operation: "up",
+					error: "connection-undeclared",
+					message: result.message,
+					nextAction: `Run \`${CONNECTION_STATUS_JSON_COMMAND}\` to see which connections are declared.`,
+					nextCommand: CONNECTION_STATUS_JSON_COMMAND,
+				}),
+			);
+		} else {
+			console.error(chalk.red(`✗  ${result.message}`));
+			console.error(chalk.dim(`   ${CONNECTION_STATUS_JSON_COMMAND}`));
+		}
+		process.exitCode = 1;
+		return;
+	}
+
+	if (result.outcome === "failed") {
+		reportSidecarError(new Error(result.message), {
+			json: options.json,
+			command: "connection",
+			operation: "up",
+		});
+		return;
+	}
+
+	const { state } = result;
+	if (options.json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "connection",
+				operation: "up",
+				extra: {
+					name: state.name,
+					status: state.status,
+					sinceNs: state.sinceNs,
+					claims: state.claims,
+					claim: state.claim,
+				},
+				nextCommand: CONNECTION_STATUS_JSON_COMMAND,
+			}),
+		);
+		return;
+	}
+	const color = OPERATOR_STATE_COLOR[state.status];
+	console.log(`${chalk.bold(state.name)}: ${color(state.status)}`);
+	console.log(chalk.dim(`  claims: ${state.claims}`));
+}
+
+async function printConnectionDown(
+	name: string,
+	options: ConnectionDownCommandOptions,
+	deps: ConnectionCommandDeps | undefined,
+): Promise<void> {
+	let result: ConnectionDownOutcome;
+	try {
+		result = await (deps?.connectionDown ?? requestConnectionDown)(name);
+	} catch (error) {
+		reportSidecarError(error, { json: options.json, command: "connection", operation: "down" });
+		return;
+	}
+
+	if (result.outcome === "undeclared") {
+		if (options.json) {
+			printJson(
+				buildJsonErrorEnvelope({
+					command: "connection",
+					operation: "down",
+					error: "connection-undeclared",
+					message: result.message,
+					nextAction: `Run \`${CONNECTION_STATUS_JSON_COMMAND}\` to see which connections are declared.`,
+					nextCommand: CONNECTION_STATUS_JSON_COMMAND,
+				}),
+			);
+		} else {
+			console.error(chalk.red(`✗  ${result.message}`));
+			console.error(chalk.dim(`   ${CONNECTION_STATUS_JSON_COMMAND}`));
+		}
+		process.exitCode = 1;
+		return;
+	}
+
+	if (result.outcome === "failed") {
+		reportSidecarError(new Error(result.message), {
+			json: options.json,
+			command: "connection",
+			operation: "down",
+		});
+		return;
+	}
+
+	const { state, claimsActive } = result;
+	if (options.json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "connection",
+				operation: "down",
+				extra: {
+					name: state.name,
+					status: state.status,
+					sinceNs: state.sinceNs,
+					claims: state.claims,
+					claim: state.claim,
+					// D12 ("the operator is shown reality"): a `down` taken while other claims
+					// were outstanding is sovereign — it still happens — but this count must
+					// never be swallowed. Someone else's plugin/session was relying on this
+					// connection; silently dropping that fact is exactly what D12 forbids.
+					claimsActive,
+				},
+				nextCommand: CONNECTION_STATUS_JSON_COMMAND,
+			}),
+		);
+		return;
+	}
+	const color = OPERATOR_STATE_COLOR[state.status];
+	console.log(`${chalk.bold(state.name)}: ${color(state.status)}`);
+	console.log(chalk.dim(`  claims active when stopped: ${claimsActive}`));
+}
+
 const STATE_COLOR: Record<ConnectionReport["state"], (text: string) => string> = {
 	up: chalk.green,
 	down: chalk.red,
@@ -396,6 +672,9 @@ export interface ConnectionCommandDeps {
 	cwd?: () => string;
 	loadConfig?: (root?: string) => Record<string, unknown>;
 	runProbe?: (connection: DeclaredConnection) => Promise<ProbeResult>;
+	/** Injected in tests so `up`/`down` are hermetic — no network, no runtime. */
+	connectionUp?: (name: string) => Promise<ConnectionOperatorOutcome>;
+	connectionDown?: (name: string) => Promise<ConnectionDownOutcome>;
 }
 
 async function printConnectionStatus(
@@ -470,6 +749,53 @@ export function createConnectionCommand(deps?: ConnectionCommandDeps): Command {
 		)
 		.action(async (options: ConnectionStatusCommandOptions) => {
 			await printConnectionStatus(options, deps);
+		});
+
+	command
+		.command("up <name>")
+		.description("Bring a declared connection up through the runtime")
+		.option("--json", "Output machine-readable connection state")
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm connection up serpro-vpn",
+				"  $ refarm connection up serpro-vpn --json",
+				"",
+				"Notes:",
+				"  Unlike `status`, this needs the runtime: establishing a connection is the",
+				"  host's job. If establishing needs a human (a push, a QR scan), typing this",
+				"  command IS that acquisition — the operator is present by construction,",
+				"  because they had to type it (design decision D13).",
+				"  If the runtime is not running, this reports that plainly with the recovery",
+				"  command, instead of a confusing connection error.",
+			].join("\n"),
+		)
+		.action(async (name: string, options: ConnectionUpCommandOptions) => {
+			await printConnectionUp(name, options, deps);
+		});
+
+	command
+		.command("down <name>")
+		.description("Stop a declared connection through the runtime")
+		.option("--json", "Output machine-readable connection state")
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm connection down serpro-vpn",
+				"  $ refarm connection down serpro-vpn --json",
+				"",
+				"Notes:",
+				"  Sovereign: this stops the connection even if other plugins/sessions hold",
+				"  claims on it. The number of claims active at the moment of the stop is",
+				"  always reported (design decision D12) — it is never dropped silently.",
+			].join("\n"),
+		)
+		.action(async (name: string, options: ConnectionDownCommandOptions) => {
+			await printConnectionDown(name, options, deps);
 		});
 
 	return command;
