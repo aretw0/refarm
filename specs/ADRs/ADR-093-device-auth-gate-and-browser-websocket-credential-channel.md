@@ -2,8 +2,12 @@
 
 ## Status
 
-**Accepted** for the CLI/HTTP gate (shipped 2026-07-24); **Proposed** for the browser-hub and
-`/sync` WebSocket channel (the fresh-pass implementation this ADR unblocks).
+**Accepted** for the CLI/HTTP gate (shipped 2026-07-24) and for the `/sync` WebSocket credential
+handshake (shipped 2026-07-29: `daemon::WsServer` gates the upgrade itself via `accept_hdr_async`,
+and `packages/sync-loro/src/browser-sync-client.ts` can offer a token). **Proposed** for the
+browser hub's OWN token bootstrap/persistence (`apps/me` reading `?token=`, `localStorage`,
+attaching `Authorization` to `/efforts`) — the server- and client-library-side gates this ADR
+described now exist; wiring the hub itself to use them is the remaining piece.
 
 ## Context
 

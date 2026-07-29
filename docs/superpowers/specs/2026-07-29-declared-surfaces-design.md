@@ -80,6 +80,14 @@ declare only `loopback` until ADR-093's credential handshake lands; declaring `t
 capability changes and the same declaration becomes legal — the config did not change, the truth
 did.
 
+**Update (2026-07-29):** ADR-093's `/sync` WebSocket handshake shipped. `daemon-ws` now enforces
+`device-token` exactly like `sidecar-http` (`surface_enforceable_gate` in
+`host_effects_bridge/surfaces_decl.rs`), so it may declare `"expose": "host:<ip>", "gate":
+"device-token"` — validated at load AND, since `sidecar::bind_guard::
+refuse_unguarded_nonloopback_ws_bind` was promoted to the same declaration-aware shape the sidecar
+uses, at bind time. `tailnet` stays refused for both surfaces (open question 1 below is still
+open); only `host:<ip>` widened.
+
 ### S4 — One resolver, several runtimes
 
 Rust and TypeScript both read this block, exactly as both read the permission vocabulary today. That
