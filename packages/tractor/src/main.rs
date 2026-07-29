@@ -52,12 +52,13 @@ struct DaemonArgs {
     #[arg(long, default_value_t = 42000)]
     port: u16,
 
-    /// WebSocket daemon bind host. Defaults to loopback. This socket accepts
+    /// WebSocket daemon bind host. Loopback only, for now. This socket accepts
     /// `user:prompt` frames from any peer that can reach it with NO credential check
-    /// (the WS auth handshake, ADR-093, is not yet implemented) — so a non-loopback
-    /// bind here is refused at startup unless an auth policy is configured
-    /// (`sidecar::bind_guard`, reused by the WS listener). Named to mirror
-    /// `--http-host`.
+    /// (the WS auth handshake, ADR-093, is not yet implemented), and — unlike the HTTP
+    /// sidecar — no middleware reads `REFARM_AUTH_POLICY` here, so a policy file cannot
+    /// gate it and therefore cannot authorize a wider bind either. A non-loopback value
+    /// is refused at startup outright (`sidecar::bind_guard::refuse_nonloopback_ws_bind`).
+    /// Named to mirror `--http-host`, but strictly stricter than it until ADR-093 lands.
     #[arg(long, default_value = "127.0.0.1")]
     ws_host: String,
 
@@ -401,6 +402,15 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         )
         .init();
 
+    // Preflight the WS bind BEFORE booting anything. The WS server is started at the very
+    // end of `run_daemon`, so its own (load-bearing) bind guard would otherwise fire only
+    // after storage is open, plugins are instantiated and the supervisor + audit
+    // subscriber are running — and that late `?` also returned past `tractor.shutdown()`,
+    // dropping a booted runtime on the floor. Refusing here means nothing was started, so
+    // there is nothing to tear down, and the operator sees the reason immediately instead
+    // of after a full boot.
+    daemon::preflight_ws_bind_host(&args.ws_host)?;
+
     let security_mode = match args.security_mode.as_str() {
         "permissive" => SecurityMode::Permissive,
         "none" => SecurityMode::None,
@@ -567,7 +577,11 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         scarecrow_base.display()
     );
 
-    daemon::WsServer::new(
+    // Hold the result instead of `?`-ing it: a `?` here returned PAST `tractor.shutdown()`,
+    // so any WS start failure (bind refused, port taken) leaked a fully booted runtime —
+    // plugin instances, supervisor, audit subscriber, open storage — instead of shutting
+    // it down. Shut down first, then report whichever failure happened.
+    let ws_result = daemon::WsServer::new(
         std::sync::Arc::new(tractor.sync.clone()),
         args.ws_host.clone(),
         config.port,
@@ -576,9 +590,11 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         tractor.event_router.clone(),
     )
     .start()
-    .await?;
+    .await;
 
-    tractor.shutdown().await?;
+    let shutdown_result = tractor.shutdown().await;
+    ws_result?;
+    shutdown_result?;
     Ok(())
 }
 

@@ -160,6 +160,29 @@ fn daemon_cli_accepts_ws_host_override() {
 }
 
 #[test]
+fn ws_host_preflight_refuses_nonloopback_before_boot() {
+    // `--ws-host` PARSES anything (the test above) — the refusal is a separate,
+    // deliberate step so the operator gets a reason, not a clap usage error. This
+    // asserts `run_daemon`'s FIRST act rejects a non-loopback host, PURE: no runtime
+    // booted, no socket opened. Mutation guard for deleting the preflight call —
+    // without it the refusal moves to after a full boot (and used to skip shutdown).
+    assert!(daemon::preflight_ws_bind_host("0.0.0.0").is_err());
+    assert!(daemon::preflight_ws_bind_host("100.64.0.1").is_err());
+    assert!(daemon::preflight_ws_bind_host("127.0.0.1").is_ok());
+}
+
+#[test]
+fn ws_host_preflight_ignores_a_configured_auth_policy() {
+    // A policy file does NOT gate the WS (no middleware reads it), so it must not
+    // unlock the bind. Setting the env the sidecar uses must change nothing here.
+    // Uses a path that need not exist: the preflight must never read it at all.
+    std::env::set_var("REFARM_AUTH_POLICY", "/nonexistent/policy.json");
+    let refused = daemon::preflight_ws_bind_host("100.64.0.1").is_err();
+    std::env::remove_var("REFARM_AUTH_POLICY");
+    assert!(refused, "a policy must not authorize a non-loopback WS bind");
+}
+
+#[test]
 fn watch_cli_accepts_generic_stream_filters() {
     let cli = Cli::try_parse_from([
         "tractor",

@@ -44,6 +44,42 @@ pub(crate) fn refuse_unguarded_nonloopback_bind(
     ))
 }
 
+/// Refuse a non-loopback bind for the CRDT/agent WebSocket, **regardless of policy**.
+/// PURE: never binds a socket, never resolves DNS.
+///
+/// The HTTP sidecar treats "a policy is configured" as the operator's opt-in, and that
+/// is honest there: a configured policy installs `auth::auth_middleware`, so every
+/// request on the widened bind must carry an enrolled credential.
+///
+/// The WS listener has NO such middleware. `handle_connection` accepts `user:prompt`
+/// frames from any peer that completes the handshake — there is no credential channel on
+/// this socket at all (ADR-093's `Sec-WebSocket-Protocol` handshake is planned, not
+/// implemented). So reusing `refuse_unguarded_nonloopback_bind` here would let a policy
+/// file — which the WS never reads and never enforces — unlock fully open agent dispatch,
+/// and the guard's `Ok` would read as "this is gated" when nothing gates it. A guard that
+/// approves what it does not gate is worse than no guard, because it is mistaken for
+/// permission.
+///
+/// Until the WS credential handshake ships, the only honest answer for a non-loopback WS
+/// bind is `Err`. When ADR-093 lands, this becomes the same policy-aware call the sidecar
+/// makes — and not a moment before.
+pub(crate) fn refuse_nonloopback_ws_bind(host: &str) -> Result<(), String> {
+    if is_loopback_host(host) {
+        return Ok(());
+    }
+    Err(format!(
+        "refusing to bind the agent/CRDT WebSocket to non-loopback host {host:?}: this \
+         socket has NO credential gate at all — any peer that can reach it may dispatch \
+         `user:prompt` to a plugin. Unlike the HTTP sidecar, a configured \
+         REFARM_AUTH_POLICY does NOT gate this listener (no middleware reads it), so it \
+         cannot authorize a wider bind either. The WS credential handshake over \
+         `Sec-WebSocket-Protocol` (ADR-093) is not implemented yet; until it ships, reach \
+         this port from another device through an authenticated front (e.g. `refarm web \
+         serve` on a loopback-proxied origin) or a network-layer tunnel, not by widening \
+         this bind."
+    ))
+}
+
 /// `true` for `127.0.0.0/8`, `::1`, and the literal `localhost`. Everything else —
 /// including the unspecified addresses `0.0.0.0` / `[::]`, and any host that fails to
 /// parse as an `IpAddr` — is treated as NOT loopback. PURE.
@@ -186,5 +222,58 @@ mod tests {
         // A policy is a blanket permission for non-loopback binds regardless of host
         // shape — this guard's job is to refuse the UNGUARDED case, not validate hosts.
         assert!(refuse_unguarded_nonloopback_bind("some.hostname", true).is_ok());
+    }
+
+    // ── WS guard: policy is NOT a key here ───────────────────────────────────────
+
+    #[test]
+    fn ws_loopback_hosts_are_allowed() {
+        for host in ["127.0.0.1", "127.5.5.5", "::1", "[::1]", "localhost", "LOCALHOST"] {
+            assert!(
+                refuse_nonloopback_ws_bind(host).is_ok(),
+                "{host} must be recognized as loopback for the WS bind"
+            );
+        }
+    }
+
+    #[test]
+    fn ws_nonloopback_is_refused_even_with_a_policy_configured() {
+        // THE point of this guard. `refuse_unguarded_nonloopback_bind` says Ok to a
+        // tailnet IP once a policy file exists — correct for HTTP, where a policy
+        // installs auth middleware. The WS has no middleware, so a policy unlocks
+        // nothing and must not unlock the bind either. This asserts the WS guard does
+        // not take a policy argument at all: there is no value that flips it to Ok.
+        assert!(refuse_unguarded_nonloopback_bind("100.64.0.1", true).is_ok());
+        assert!(refuse_nonloopback_ws_bind("100.64.0.1").is_err());
+    }
+
+    #[test]
+    fn ws_unspecified_and_mapped_families_are_refused() {
+        for host in ["0.0.0.0", "::", "[::]", "::ffff:0.0.0.0", "::ffff:127.0.0.1"] {
+            assert!(
+                refuse_nonloopback_ws_bind(host).is_err(),
+                "{host} must be refused for the WS bind"
+            );
+        }
+    }
+
+    #[test]
+    fn ws_unparseable_host_fails_closed() {
+        assert!(refuse_nonloopback_ws_bind("not-an-ip-or-localhost").is_err());
+        assert!(refuse_nonloopback_ws_bind("some.hostname").is_err());
+    }
+
+    #[test]
+    fn ws_refusal_says_the_gate_is_not_implemented_rather_than_naming_a_policy_fix() {
+        let err = refuse_nonloopback_ws_bind("0.0.0.0")
+            .expect_err("0.0.0.0 must be refused for the WS bind");
+        assert!(err.contains("not implemented"), "must say the gate is missing: {err}");
+        assert!(err.contains("ADR-093"), "must point at the tracking ADR: {err}");
+        // Must NOT tell the operator to set a policy — that would be a lie here: a
+        // policy does not gate this socket and will not lift this refusal.
+        assert!(
+            !err.contains("refarm auth enroll"),
+            "must not offer a fix that does not work for the WS: {err}"
+        );
     }
 }

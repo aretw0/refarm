@@ -31,6 +31,21 @@ type ClientMap = Arc<Mutex<HashMap<ClientId, mpsc::UnboundedSender<Vec<u8>>>>>;
 
 static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(0);
 
+/// Decide whether `host` is an acceptable WS bind BEFORE anything boots. PURE — no
+/// socket, no I/O, no env read.
+///
+/// `WsServer::start` applies the same guard at the moment it binds (that check is the
+/// load-bearing one — it cannot be bypassed by a caller who forgets this). This exists so
+/// the binary can refuse a bad `--ws-host` as its FIRST act: the WS server is started at
+/// the very END of daemon boot, so without a preflight the operator pays a full runtime
+/// boot — storage opened, plugins instantiated, supervisor and audit subscriber spawned —
+/// only to be told the host was never acceptable. Refusing up front means nothing was
+/// started, so there is also nothing to tear down.
+pub fn preflight_ws_bind_host(host: &str) -> Result<()> {
+    crate::sidecar::bind_guard::refuse_nonloopback_ws_bind(host)
+        .map_err(|reason| anyhow::anyhow!(reason))
+}
+
 /// WebSocket server — the farmhand replacement.
 pub struct WsServer {
     sync: Arc<NativeSync>,
@@ -69,20 +84,21 @@ impl WsServer {
 
     /// Start the WebSocket server and block until Ctrl-C.
     pub async fn start(&self) -> Result<()> {
-        // Fail-closed bind guard — same doctrine, same function, as the HTTP sidecar
-        // (`sidecar::bind_guard`, extended here rather than duplicated): refuse a
-        // non-loopback bind when no auth policy is configured. This closes the
-        // DEFAULT-EXPOSURE gap only (binding every interface with zero credential by
-        // default). It does NOT add authentication to this socket: once an operator
-        // opts into a non-loopback bind with a policy configured, `user:prompt` frames
-        // on `/sync` are still accepted from any peer that can reach the port — the WS
-        // credential handshake over `Sec-WebSocket-Protocol` (ADR-093) is a separate,
-        // not-yet-implemented piece. Track that gap there, not as closed by this guard.
-        crate::sidecar::bind_guard::refuse_unguarded_nonloopback_bind(
-            &self.host,
-            crate::sidecar::auth::auth_config_from_env().is_some(),
-        )
-        .map_err(|reason| anyhow::anyhow!(reason))?;
+        // Fail-closed bind guard — same doctrine as the HTTP sidecar, but the STRICTER
+        // of the two variants (`sidecar::bind_guard`, shared rather than duplicated).
+        //
+        // The sidecar's guard treats a configured `REFARM_AUTH_POLICY` as the operator's
+        // opt-in, because there a policy installs `auth::auth_middleware` and every
+        // request on the widened bind must then carry an enrolled credential. This
+        // listener has no middleware: `handle_connection` accepts `user:prompt` from any
+        // peer that completes the handshake. So a policy would unlock the bind while
+        // gating nothing — the guard's `Ok` would be mistaken for permission. Until the
+        // WS credential handshake (ADR-093) ships, a non-loopback bind here is refused
+        // OUTRIGHT, policy or not. Deliberately does NOT call `auth_config_from_env()`:
+        // it must not matter, and re-reading it here would also re-emit the sidecar's
+        // enable/deny-all log line a second time per daemon start.
+        crate::sidecar::bind_guard::refuse_nonloopback_ws_bind(&self.host)
+            .map_err(|reason| anyhow::anyhow!(reason))?;
 
         let addr = self.bind_addr();
         let listener = TcpListener::bind(&addr).await?;
@@ -91,12 +107,16 @@ impl WsServer {
 
     /// Run the server with a pre-bound listener (used directly in tests to avoid TOCTOU).
     pub async fn run(&self, listener: TcpListener) -> Result<()> {
-        tracing::info!(port = self.port, "WebSocket daemon listening");
+        // Log the HOST too, not just the port: a line that says only "listening on 42000"
+        // cannot be read as evidence of WHERE it listens, and this whole class of defect
+        // (a listener open to the network while the operator believes it is loopback) is
+        // exactly what a port-only log hides.
+        tracing::info!(host = %self.host, port = self.port, "WebSocket daemon listening");
 
         self.telemetry.emit_named(
             "daemon:start",
             None,
-            Some(serde_json::json!({ "port": self.port })),
+            Some(serde_json::json!({ "host": self.host, "port": self.port })),
         );
 
         let clients: ClientMap = Arc::new(Mutex::new(HashMap::new()));

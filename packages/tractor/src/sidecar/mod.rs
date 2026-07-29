@@ -664,7 +664,13 @@ pub async fn post_plugin_respond(
 mod agent_activity;
 pub(crate) use agent_activity::agent_event_to_activity;
 mod activity_sse;
-pub(crate) mod auth;
+// `auth` is the sidecar's OWN gate — nothing outside this module may consult it. It was
+// briefly `pub(crate)` so the WS listener could read "is a policy configured"; that turned
+// out to be exactly the wrong question (a policy gates HTTP requests, not WS frames), so
+// the WS guard no longer asks it and this narrows back to module-private. Keep it private:
+// a caller reaching for `auth` from outside is almost certainly about to mistake "a policy
+// exists" for "this surface is gated".
+mod auth;
 pub(crate) mod bind_guard;
 mod cors;
 mod dispatch;
