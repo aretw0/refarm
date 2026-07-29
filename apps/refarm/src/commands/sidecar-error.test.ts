@@ -23,6 +23,19 @@ describe("sidecar-error", () => {
 		expect(isSidecarUnavailable("sidecar HTTP 404")).toBe(false);
 	});
 
+	it("does not misreport a host-side failure that merely MENTIONS 'fetch failed' later in its message", () => {
+		// Regression: `.includes("fetch failed")` matched this substring anywhere, so a
+		// connection's own establish script failing with a message that happens to
+		// contain the phrase (not at the start) was misreported as "the runtime is not
+		// running" — sending the operator to `runtime ensure` for a failure that has
+		// nothing to do with the runtime being reachable. The real transport failure
+		// (`fetch-with-timeout.ts`'s bare `fetch()` throwing) is always PREFIX-shaped:
+		// exactly "fetch failed" or "fetch failed: <cause>" — never this shape.
+		expect(
+			isSidecarUnavailable("connection 'vpn': curl: (7) fetch failed while connecting"),
+		).toBe(false);
+	});
+
 	it("prints recovery commands for runtime unavailability", () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 

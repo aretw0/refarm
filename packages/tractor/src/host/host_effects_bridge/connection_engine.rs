@@ -225,7 +225,13 @@ pub(crate) struct Claim {
 
 struct LiveConnection {
     status: ConnectionStatus,
-    /// Stop handle for the held process; `None` once it is gone.
+    /// Stop handle for the held process; `None` once it is gone. Populated by `ensure`
+    /// as soon as a process EXISTS — right after `spawn` returns `Ok`, not only once
+    /// `establish` reaches `Ready` (a prior version waited for `Ready`; see `ensure`'s
+    /// own comment at the point it is set for why that left `Connecting` entries
+    /// unrecoverable). This is what lets `stop()` reach the process — and take the
+    /// entry to `Down` — even for an attempt that is still `Connecting`, including one
+    /// whose `ensure` call will never run again at all (see `stop`'s own doc).
     stop: Option<Arc<Notify>>,
     /// (claim id, owner).
     claims: Vec<(u64, String)>,
@@ -234,6 +240,18 @@ struct LiveConnection {
     /// before a process existed is not a login and must not be counted as one.
     spawn_count: u32,
     linger: Linger,
+    /// Bumped by `stop()` on every call that finds an entry — the operator's explicit,
+    /// sovereign override. `ensure` reads this ONCE, at the moment it transitions an
+    /// entry to `Connecting` (before the spawn/probe `.await`s that can run for as long
+    /// as `ready_timeout_ms`, e.g. 120s for a phone-approval VPN), and compares it again
+    /// right before it would write a final outcome. `stop` itself holds no gate — it is
+    /// a fast, synchronous operator override, not something that should block behind an
+    /// in-flight establish for up to two minutes — so without this counter a `stop()`
+    /// landing mid-establish is invisible to the `ensure` call already in flight: that
+    /// call finishes anyway and unconditionally overwrites `status` back to `Up` (or
+    /// `Failed`), silently undoing the operator's drop. See the generation check in
+    /// `ensure` below for what happens when a mismatch is observed.
+    generation: u64,
 }
 
 pub(crate) struct ConnectionRegistry {
@@ -304,6 +322,19 @@ impl ConnectionRegistry {
             .entry(name.to_string())
             .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
             .clone()
+    }
+
+    /// True when `stop()` landed on `name` AFTER this `ensure` attempt captured
+    /// `observed_generation` — i.e. the operator explicitly stopped this connection
+    /// WHILE this attempt was in flight (spawn/probe `.await`). A name with no live
+    /// entry cannot have been preempted (nothing to stop yet).
+    fn preempted_by_stop(&self, name: &str, observed_generation: u64) -> bool {
+        self.live
+            .lock()
+            .expect("connection registry poisoned")
+            .get(name)
+            .map(|c| c.generation != observed_generation)
+            .unwrap_or(false)
     }
 
     /// An establish attempt is over and did not reach `Ready`. Every early return out of
@@ -384,7 +415,12 @@ impl ConnectionRegistry {
             return Ok(self.issue_claim(name, owner));
         }
 
-        {
+        // Captured in the SAME lock scope as the Connecting transition, so it reflects
+        // whatever `stop()` has (or has not) done up to the exact instant this attempt
+        // begins spawning. Compared again at every exit point below — any `stop()` that
+        // lands strictly AFTER this read is a preemption this attempt must honour, never
+        // silently overwrite.
+        let observed_generation = {
             let mut live = self.live.lock().expect("connection registry poisoned");
             let entry = live.entry(name.to_string()).or_insert_with(|| LiveConnection {
                 status: ConnectionStatus::Down,
@@ -392,30 +428,50 @@ impl ConnectionRegistry {
                 claims: Vec::new(),
                 spawn_count: 0,
                 linger: decl.linger.clone(),
+                generation: 0,
             });
             entry.status = ConnectionStatus::Connecting;
-        }
+            entry.generation
+        };
 
         let mut process = match spawn(decl) {
             Ok(process) => process,
             Err(e) => {
                 // `?` here would skip straight past the Failed-setting block below and
-                // leave `status` stuck at `Connecting` forever.
-                self.mark_failed(name);
+                // leave `status` stuck at `Connecting` forever. But if the operator
+                // already stopped this attempt, `status` is already `Down` (their call),
+                // and `mark_failed` would overwrite that with `Failed` — skip it.
+                if !self.preempted_by_stop(name, observed_generation) {
+                    self.mark_failed(name);
+                }
                 return Err(e);
             }
         };
 
+        let stop = process.stop.clone();
         // A process now genuinely exists — THIS is what `spawn_count` counts, never an
-        // attempt that errored before one did.
+        // attempt that errored before one did. `entry.stop` is handed to the registry
+        // HERE too, not only in the `Ready` branch far below. Reason: this whole `async
+        // fn` can simply STOP RUNNING without any of its own cleanup code ever
+        // executing — `post_connection_up` (`sidecar/mod.rs`) awaits `ensure` inline
+        // inside an axum handler, and axum DROPS a handler's future outright when the
+        // HTTP client disconnects (e.g. this CLI's own request hitting its timeout). A
+        // dropped future runs no more `.await` points, ever — not `mark_failed`, not
+        // the commit block below, nothing. Without an early `entry.stop`, the process
+        // spawned above becomes unreachable (only the detached killer task inside
+        // `spawn_establish_process` still holds a reference to its `Notify`, and
+        // nothing else can ever signal it), and the entry is stuck reporting
+        // `Connecting` forever. With it, a LATER `stop()` call — even though nothing
+        // here ever resumes to see it — can still find the process, signal it, and
+        // take the entry to `Down`. See `stop`'s own doc for that half.
         {
             let mut live = self.live.lock().expect("connection registry poisoned");
             if let Some(entry) = live.get_mut(name) {
                 entry.spawn_count += 1;
+                entry.stop = Some(stop.clone());
             }
         }
 
-        let stop = process.stop.clone();
         // `new` RESUMES the connection's stream: the frame cursor continues from the last
         // published sequence so a consumer following this name never sees it go backwards.
         let mut publisher = ConnectionFramePublisher::new(sync, name, now_ns());
@@ -423,8 +479,11 @@ impl ConnectionRegistry {
             Ok(outcome) => outcome,
             Err(e) => {
                 // Same hazard as the spawn error above: `?` would leave `status` stuck at
-                // `Connecting`.
-                self.mark_failed(name);
+                // `Connecting`. And the same preemption exception applies: an operator
+                // stop already in effect must not be overwritten with `Failed`.
+                if !self.preempted_by_stop(name, observed_generation) {
+                    self.mark_failed(name);
+                }
                 return Err(e);
             }
         };
@@ -432,10 +491,35 @@ impl ConnectionRegistry {
         {
             let mut live = self.live.lock().expect("connection registry poisoned");
             let entry = live.get_mut(name).expect("entry inserted above");
+            let preempted = entry.generation != observed_generation;
             match outcome {
+                // The operator called `stop()` WHILE this attempt was establishing.
+                // `stop` holds no gate against an in-flight attempt (it is a fast,
+                // synchronous override, not something that should block for up to
+                // `ready_timeout_ms`), so this is the one place that race is closed: the
+                // process genuinely came up, faithfully, but nothing owns it anymore —
+                // the operator already said down. Kill it (exactly like every other
+                // "attempt is over and not kept" path in this file) and report the
+                // preemption instead of silently resurrecting `Up`.
+                EstablishOutcome::Ready if preempted => {
+                    drop(live);
+                    signal_stop(&stop);
+                    return Err(format!(
+                        "connection '{name}': the operator stopped it while it was establishing"
+                    ));
+                }
                 EstablishOutcome::Ready => {
                     entry.status = ConnectionStatus::Up;
-                    entry.stop = Some(stop);
+                    entry.stop = Some(stop); // already set when spawned above; re-affirmed
+                }
+                // Timeout/Exit while preempted: `entry.status`/`entry.stop` already
+                // reflect the operator's `stop()` (Down, no handle) — leave that alone
+                // rather than overwriting it with `Failed`. The attempt failed on its
+                // own terms too, but the operator's drop is the fact that matters here.
+                _ if preempted => {
+                    return Err(format!(
+                        "connection '{name}': did not become ready, and the operator stopped it while establishing"
+                    ));
                 }
                 EstablishOutcome::Timeout => {
                     entry.status = ConnectionStatus::Failed;
@@ -456,6 +540,50 @@ impl ConnectionRegistry {
         }
 
         Ok(self.issue_claim(name, owner))
+    }
+
+    /// An explicit OPERATOR stop — deliberately NOT `release`/`release_by_id`. Those drop
+    /// one caller's interest and defer to the declaration's `linger` policy; this is the
+    /// operator overriding that policy outright. `Linger::Operator` (the default) promises
+    /// a connection "stays up until the operator drops it or the host shuts down" — before
+    /// this method existed there was no way to keep that promise, since nothing could drop
+    /// it. The operator is SOVEREIGN here: it stops the connection even with claims
+    /// outstanding, silently taking it out from under whatever still holds it. But per D12
+    /// ("the operator is shown reality") that must never happen silently — the caller is
+    /// TOLD how many claims were active, not shielded from the consequence.
+    ///
+    /// A connection with no live entry (never established) or already `Down` (with no
+    /// claims, by construction — see `apply_linger`) is a clean no-op returning 0: stop is
+    /// idempotent, not an error over a state that already matches what was asked for.
+    ///
+    /// This is also the ONLY recovery path for an entry WEDGED at `Connecting` — the
+    /// `ensure` call that put it there can be gone for good (its future dropped mid-
+    /// establish by an axum handler on client disconnect; see `ensure`'s comment where
+    /// `entry.stop` is populated), never to run its own cleanup. `stop` does not care
+    /// whether anything is still awaiting: it reads `entry.stop` directly and, if
+    /// populated, signals whatever process it points at and takes the entry to `Down`
+    /// regardless of the CURRENT `status`.
+    pub(crate) fn stop(&self, name: &str) -> usize {
+        let mut live = self.live.lock().expect("connection registry poisoned");
+        let Some(entry) = live.get_mut(name) else {
+            return 0;
+        };
+        let active_claims = entry.claims.len();
+        entry.claims.clear();
+        // Signal BEFORE the status flip, mirroring `mark_failed`: a connection stopped by
+        // any route must also stop its process — disowning a live process without
+        // signalling it first is exactly how one leaks.
+        if let Some(stop) = entry.stop.take() {
+            signal_stop(&stop);
+        }
+        entry.status = ConnectionStatus::Down;
+        // Bumped even when nothing is currently establishing (harmless — nothing reads
+        // it then) — this is what lets `ensure` notice a stop that lands while ITS
+        // spawn/probe attempt is in flight and refuse to overwrite this `Down` back to
+        // `Up`/`Failed` once that attempt finishes. See `LiveConnection::generation`'s
+        // doc and the preemption check in `ensure`.
+        entry.generation = entry.generation.wrapping_add(1);
+        active_claims
     }
 
     /// Drop one claim. Whether the connection itself falls is the DECLARATION's linger

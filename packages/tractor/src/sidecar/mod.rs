@@ -12,6 +12,9 @@
 //!   GET    /nodes/:id                  — graph node by id
 //!   GET    /plugins                    — installed/loaded plugin state
 //!   POST   /plugins/reload             — report reload readiness for loaded plugins
+//!   GET    /connections                — every declared connection's registry state
+//!   POST   /connections/:name/up       — ensure a declared connection (owner refarm/operator)
+//!   POST   /connections/:name/down     — explicit operator stop
 //!   GET    /stream/activity            — live SSE of process:* / agent:* activity
 //!
 //! Effort execution is async: each effort is dispatched in a separate tokio
@@ -1538,6 +1541,105 @@ async fn get_task(
     Json(serde_json::json!({ "task": task, "events": events })).into_response()
 }
 
+// ── connection handlers ──────────────────────────────────────────────────────
+//
+// The operator's own door onto the shared connection engine (the design at
+// `docs/superpowers/specs/2026-07-28-declared-connections-shared-sessions-design.md`).
+// `GET /connections` lists every DECLARED connection (a name declared but never
+// established reports `down`, never omitted); `POST .../up` ensures it under the fixed
+// owner `CONNECTION_OWNER_OPERATOR` ("refarm/operator") — a value no plugin id can ever
+// be, since it contains a `/` (see that constant's own doc) — so `release_owner` (run
+// on plugin unload) can never collect it as a side effect of plugin lifecycle;
+// `POST .../down` is the explicit
+// operator stop — sovereign even with claims outstanding, but the response REPORTS how
+// many were active rather than hiding the count (D12, "the operator is shown reality").
+//
+// All three sit BEHIND the same opt-in auth gate as every other route here — they are
+// registered on the SAME `Router` in `start()` below, inside the `auth::auth_middleware`
+// layer applied to the whole router, not on some side door around it.
+
+fn connection_operator_state_json(state: &crate::host::ConnectionOperatorState) -> Value {
+    serde_json::json!({
+        "name": state.name,
+        "status": state.status,
+        "sinceNs": state.since_ns,
+        "claims": state.claims,
+        "claim": state.claim,
+    })
+}
+
+/// `None` when the sidecar was built without a live host wired (`with_reload`) — a test
+/// sidecar, or a boot ordering issue. Reported honestly as 503, matching the other
+/// `state.reload`-gated routes (`post_plugins_reload`, `post_plugins_load_by_hash`)
+/// rather than pretending the call happened.
+fn require_live_host(state: &SidecarState) -> Result<&std::sync::Arc<crate::TractorNative>, axum::response::Response> {
+    state.reload.as_ref().ok_or_else(|| {
+        err(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "no live host wired; connections are unavailable",
+        )
+        .into_response()
+    })
+}
+
+async fn get_connections(State(state): State<SidecarState>) -> impl IntoResponse {
+    let host = match require_live_host(&state) {
+        Ok(host) => host,
+        Err(response) => return response,
+    };
+    match host.plugins.list_declared_connections(&host.sync) {
+        Ok(list) => {
+            let connections: Vec<Value> = list.iter().map(connection_operator_state_json).collect();
+            Json(serde_json::json!({ "connections": connections })).into_response()
+        }
+        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()).into_response(),
+    }
+}
+
+async fn post_connection_up(
+    State(state): State<SidecarState>,
+    AxumPath(name): AxumPath<String>,
+) -> impl IntoResponse {
+    let host = match require_live_host(&state) {
+        Ok(host) => host,
+        Err(response) => return response,
+    };
+    match host.plugins.ensure_connection_as_operator(&host.sync, &name).await {
+        Ok(conn_state) => {
+            (StatusCode::OK, Json(connection_operator_state_json(&conn_state))).into_response()
+        }
+        Err(crate::host::ConnectionOperatorError::Undeclared(message)) => {
+            err(StatusCode::NOT_FOUND, &message).into_response()
+        }
+        Err(crate::host::ConnectionOperatorError::Failed(message)) => {
+            err(StatusCode::INTERNAL_SERVER_ERROR, &message).into_response()
+        }
+    }
+}
+
+async fn post_connection_down(
+    State(state): State<SidecarState>,
+    AxumPath(name): AxumPath<String>,
+) -> impl IntoResponse {
+    let host = match require_live_host(&state) {
+        Ok(host) => host,
+        Err(response) => return response,
+    };
+    match host.plugins.stop_connection_as_operator(&name) {
+        Ok((conn_state, claims_active)) => {
+            let mut body = connection_operator_state_json(&conn_state);
+            body["claimsActive"] = serde_json::json!(claims_active);
+            (StatusCode::OK, Json(body)).into_response()
+        }
+        Err(crate::host::ConnectionOperatorError::Undeclared(message)) => {
+            err(StatusCode::NOT_FOUND, &message).into_response()
+        }
+        Err(crate::host::ConnectionOperatorError::Failed(message)) => {
+            err(StatusCode::INTERNAL_SERVER_ERROR, &message).into_response()
+        }
+    }
+}
+
 // ── public API ────────────────────────────────────────────────────────────────
 
 pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Result<()> {
@@ -1565,6 +1667,9 @@ pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Resu
         .route("/plugins/load-by-hash", post(post_plugins_load_by_hash))
         .route("/plugins/:id/respond", post(post_plugin_respond))
         .route("/providers/liveness", get(get_provider_liveness))
+        .route("/connections", get(get_connections))
+        .route("/connections/:name/up", post(post_connection_up))
+        .route("/connections/:name/down", post(post_connection_down))
         .route("/stream/activity", get(activity_sse::get_stream_activity))
         .with_state(state);
 

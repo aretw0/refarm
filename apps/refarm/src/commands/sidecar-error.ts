@@ -15,7 +15,15 @@ import {
 export function isSidecarUnavailable(message: string): boolean {
 	return (
 		message.includes("ECONNREFUSED") ||
-		message.includes("fetch failed") ||
+		// PREFIX, not substring: Node/undici's own transport failure is always exactly
+		// "fetch failed" or "fetch failed: <cause>" (see the EPERM case below and
+		// `fetch-with-timeout.ts`'s bare `fetch(...)` call, which throws that shape
+		// verbatim). A `.includes` here misreported a genuine HOST-SIDE failure whose
+		// message merely happened to CONTAIN that phrase later on — e.g. a connection's
+		// own establish script failing with "curl: (7) fetch failed while connecting" —
+		// as "the runtime is not running", sending the operator to `runtime ensure`
+		// instead of the real diagnostic for that failure.
+		message.startsWith("fetch failed") ||
 		message.includes("Runtime HTTP") ||
 		message.includes("Farmhand HTTP")
 	);

@@ -20,7 +20,13 @@ use crate::host::plugin_host::plugin::host::host_connection::{
     ConnectionState, ConnectionStatus as WitConnectionStatus, Host as HostConnectionHost,
 };
 
-fn now_ns() -> u64 {
+// `pub(crate)`, not module-private: `PluginHost::ensure_connection_as_operator` and its
+// siblings (`plugin_host/connection_ops.rs`) are the OPERATOR's door onto this same engine
+// — reusing this exact clock, catalog resolution, and error wording rather than
+// duplicating the wiring, per the design's instruction ("connection_host.rs already wires
+// all three for the WIT layer — reuse the same helpers"). `plugin_host` is a sibling of
+// `host_effects_bridge` under `host`, so `fn` (module-private) would not reach it.
+pub(crate) fn now_ns() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos() as u64)
@@ -46,7 +52,9 @@ fn map_connection_status(status: ConnectionStatus) -> WitConnectionStatus {
 /// unreadable node (never established, or a fresh host) yields `(None, 0)`,
 /// matching `ConnectionFramePublisher::new`'s own "start fresh" fallback — this
 /// never fails the call over a missing cursor.
-fn read_connection_session_cursor(sync: &NativeSync, stream_ref: &str) -> (Option<u64>, u32) {
+// `pub(crate)` for the same reason as `now_ns` above — reused by the operator's door
+// (`plugin_host/connection_ops.rs`) rather than reimplemented there.
+pub(crate) fn read_connection_session_cursor(sync: &NativeSync, stream_ref: &str) -> (Option<u64>, u32) {
     let node = sync
         .get_node(&stream_session_observation_id(stream_ref))
         .ok()
@@ -105,11 +113,12 @@ fn connection_state(
 /// file. Filesystem-only per the design — a connection names a command that runs
 /// on THIS machine, so a name replicated from another device over CRDT must never
 /// be honoured here.
-fn connections_catalog() -> Result<HashMap<String, ConnectionDeclaration>, String> {
+// `pub(crate)` for the same reason as `now_ns`/`read_connection_session_cursor` above.
+pub(crate) fn connections_catalog() -> Result<HashMap<String, ConnectionDeclaration>, String> {
     resolve_connections(&std::env::current_dir().unwrap_or_default())
 }
 
-fn undeclared_connection_error(name: &str) -> String {
+pub(crate) fn undeclared_connection_error(name: &str) -> String {
     format!("no connection named '{name}' is declared in .refarm/config.json")
 }
 

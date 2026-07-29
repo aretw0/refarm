@@ -547,6 +547,282 @@ mod connection_engine_tests {
         );
     }
 
+    // ── ConnectionRegistry::stop — the explicit OPERATOR stop ─────────────────────
+    //
+    // NOT `release`/`release_by_id`: those drop one caller's interest and defer to
+    // `linger`. `stop` is the operator overriding that policy outright — see the
+    // method's own doc for why it must report the claim count rather than hide it.
+
+    #[tokio::test]
+    async fn stop_with_claims_outstanding_reports_the_count_and_takes_it_down() {
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let mut p1 = probe_after(0);
+        let _a = reg.ensure("c", "plugin.a", &decls, holding_spawner(), &mut p1, &sync, &clk).await.unwrap();
+        let mut p2 = || std::future::ready(true);
+        let _b = reg
+            .ensure("c", "plugin.b", &decls, |_| panic!("no second spawn"), &mut p2, &sync, &clk)
+            .await
+            .unwrap();
+        assert_eq!(reg.claim_count("c"), 2, "sanity: two claims outstanding before stop");
+
+        // The operator is SOVEREIGN here — stop works even with claims outstanding — but
+        // D12 says it must REPORT how many were active rather than swallow the count.
+        let active = reg.stop("c");
+        assert_eq!(active, 2, "both outstanding claims must be reported");
+        assert!(matches!(reg.status("c"), ConnectionStatus::Down));
+        assert_eq!(reg.claim_count("c"), 0, "claims are CLEARED, not merely counted");
+    }
+
+    #[tokio::test]
+    async fn stop_on_an_already_down_connection_is_a_clean_no_op() {
+        let reg = ConnectionRegistry::new();
+
+        // Never established at all — no live entry exists for this name.
+        assert_eq!(reg.stop("never-touched"), 0);
+        assert!(matches!(reg.status("never-touched"), ConnectionStatus::Down));
+
+        // Established, then genuinely brought Down via a zero-idle linger releasing the
+        // last claim — a live entry exists, already Down, already claimless.
+        let sync = sync();
+        let decls = parse_connections(&serde_json::json!({
+            "connections": { "c": {
+                "establish": ["bin"],
+                "probe": { "run": ["true"] },
+                "probeIntervalMs": 1,
+                "readyTimeoutMs": 200,
+                "linger": { "idleMs": 0 }
+            }}
+        }))
+        .unwrap();
+        let clk = clock();
+        let mut probe = probe_after(0);
+        let a = reg.ensure("c", "plugin.a", &decls, holding_spawner(), &mut probe, &sync, &clk).await.unwrap();
+        reg.release(&a);
+        assert!(matches!(reg.status("c"), ConnectionStatus::Down), "sanity: released down via idle linger");
+
+        assert_eq!(reg.stop("c"), 0, "stop on an already-down connection is idempotent");
+        assert!(matches!(reg.status("c"), ConnectionStatus::Down));
+    }
+
+    #[tokio::test]
+    async fn stop_signals_the_live_process_not_just_the_status() {
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let mut probe = probe_after(0);
+
+        // A spawner that keeps an external handle to the SAME stop `Notify` the registry
+        // will end up holding — `holding_spawner()` (used by every other test in this
+        // file) discards its own `Notify`, so it can't be watched from outside.
+        let stop_handle = Arc::new(Notify::new());
+        let spawner_stop = stop_handle.clone();
+        let spawn = move |_decl: &ConnectionDeclaration| {
+            let (tx, rx) = mpsc::channel(8);
+            std::mem::forget(tx); // the process "holds" — never ends on its own
+            Ok(FlowProcess { chunks: rx, stop: spawner_stop.clone() })
+        };
+
+        let _claim = reg.ensure("c", "plugin.a", &decls, spawn, &mut probe, &sync, &clk).await.unwrap();
+        assert!(matches!(reg.status("c"), ConnectionStatus::Up));
+
+        let observed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let watcher = {
+            let stop_handle = stop_handle.clone();
+            let observed = observed.clone();
+            tokio::spawn(async move {
+                stop_handle.notified().await;
+                observed.store(true, Ordering::SeqCst);
+            })
+        };
+        tokio::task::yield_now().await;
+
+        assert_eq!(reg.stop("c"), 1);
+        assert!(matches!(reg.status("c"), ConnectionStatus::Down));
+
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        assert!(
+            observed.load(Ordering::SeqCst),
+            "stop must SIGNAL the live process, not just flip the status — a failure to \
+             signal here would leak the connection's process the same way a failed \
+             establish attempt would if it forgot to (see `mark_failed`'s own doc)"
+        );
+        watcher.abort();
+    }
+
+    #[tokio::test]
+    async fn an_operator_stop_during_an_in_flight_establish_is_never_silently_undone() {
+        // IMPORTANT regression: `stop` locks only `live` — it does NOT take the
+        // per-name establish gate `ensure` holds across its whole spawn/probe await
+        // (deliberately: `stop` is a fast, synchronous operator override, and blocking
+        // it behind an in-flight establish for up to `ready_timeout_ms` — 120s by
+        // default, for a VPN waiting on a phone approval — would be its own defect).
+        // Before the generation check in `ensure` existed, a `stop()` landing while an
+        // `establish` was still awaiting the probe flipped `status` to `Down`, and then
+        // the in-flight `ensure` finished anyway and UNCONDITIONALLY overwrote it back
+        // to `Up`, handing out a claim — silently undoing the operator's sovereign
+        // drop. Realistic case: a plugin reconnecting right as the operator says stop.
+        let sync = sync();
+        // A generous readyTimeoutMs so a slow CI host can never turn this into a
+        // Timeout race instead of the Ready race under test; a small probeIntervalMs so
+        // the whole test still finishes quickly.
+        let decls = parse_connections(&serde_json::json!({
+            "connections": { "c": {
+                "establish": ["bin"],
+                "probe": { "run": ["true"] },
+                "probeIntervalMs": 2,
+                "readyTimeoutMs": 5000
+            }}
+        }))
+        .unwrap();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+
+        // A spawner that keeps an external handle to the SAME stop `Notify` the
+        // registry will end up holding — same technique as
+        // `stop_signals_the_live_process_not_just_the_status` above.
+        let stop_handle = Arc::new(Notify::new());
+        let spawner_stop = stop_handle.clone();
+        let spawn = move |_decl: &ConnectionDeclaration| {
+            let (tx, rx) = mpsc::channel(8);
+            std::mem::forget(tx); // the process "holds" — never ends on its own
+            Ok(FlowProcess { chunks: rx, stop: spawner_stop.clone() })
+        };
+
+        let observed_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let watcher = {
+            let stop_handle = stop_handle.clone();
+            let observed_stop = observed_stop.clone();
+            tokio::spawn(async move {
+                stop_handle.notified().await;
+                observed_stop.store(true, Ordering::SeqCst);
+            })
+        };
+        tokio::task::yield_now().await;
+
+        // Fails 30 times before succeeding — ~60ms of real probeIntervalMs waits at
+        // 2ms/iteration, which is the window `stop_fut` (below) races into.
+        let mut probe = probe_after(30);
+
+        let ensure_fut = reg.ensure("c", "plugin.a", &decls, spawn, &mut probe, &sync, &clk);
+        let stop_fut = async {
+            // Let `ensure` pass Connecting and start awaiting the probe loop — well
+            // before the ~60ms it takes the probe to succeed — then stop it mid-flight.
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            reg.stop("c")
+        };
+
+        let (result, active_claims_at_stop) = tokio::join!(ensure_fut, stop_fut);
+
+        assert!(
+            result.is_err(),
+            "an ensure preempted by an operator stop must not hand out a claim"
+        );
+        assert_eq!(
+            active_claims_at_stop, 0,
+            "sanity: no claim existed yet at the moment of the stop"
+        );
+        assert!(
+            matches!(reg.status("c"), ConnectionStatus::Down),
+            "the operator's stop must win — the connection must not resurrect as Up \
+             (or get overwritten to Failed) once the in-flight establish finishes"
+        );
+        assert_eq!(reg.claim_count("c"), 0);
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        assert!(
+            observed_stop.load(Ordering::SeqCst),
+            "the process that DID come up must still be killed once nothing owns it — \
+             an operator stop must never leak the process it preempted"
+        );
+        watcher.abort();
+    }
+
+    #[tokio::test]
+    async fn stop_recovers_an_entry_wedged_at_connecting_by_a_dropped_establish_future() {
+        // Newly-introduced-by-the-fix-above regression (caught in re-review): the
+        // previous test proves `stop` beats an `ensure` that is still ALIVE and
+        // running. It says nothing about an `ensure` whose future is simply GONE —
+        // which is exactly what happens in production: `post_connection_up`
+        // (`sidecar/mod.rs`) awaits `ensure` inline inside an axum handler, and axum
+        // DROPS a handler's future outright when the HTTP client disconnects (e.g.
+        // this CLI's own request hitting ITS OWN timeout while the host is still
+        // establishing). A dropped future runs no more of its own code, ever — no
+        // `mark_failed`, no commit block, nothing settles the entry.
+        //
+        // `tokio::time::timeout` dropping its inner future on elapse is the same
+        // shape (a future that stops being polled mid-`.await`), and is the standard
+        // way to exercise this without standing up axum. Before `entry.stop` was
+        // populated as soon as a process exists (rather than only once `establish`
+        // reaches `Ready`), this scenario left the entry stuck reporting `Connecting`
+        // forever, with the spawned process reachable by NOTHING — not even `stop`.
+        let sync = sync();
+        let decls = catalog(); // probeIntervalMs: 1, readyTimeoutMs: 200
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+
+        let stop_handle = Arc::new(Notify::new());
+        let spawner_stop = stop_handle.clone();
+        let spawn = move |_decl: &ConnectionDeclaration| {
+            let (tx, rx) = mpsc::channel(8);
+            std::mem::forget(tx); // the process "holds" — never ends on its own
+            Ok(FlowProcess { chunks: rx, stop: spawner_stop.clone() })
+        };
+
+        let observed_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let watcher = {
+            let stop_handle = stop_handle.clone();
+            let observed_stop = observed_stop.clone();
+            tokio::spawn(async move {
+                stop_handle.notified().await;
+                observed_stop.store(true, Ordering::SeqCst);
+            })
+        };
+        tokio::task::yield_now().await;
+
+        // Never succeeds, so `establish` is still inside its probe-loop `.await` when
+        // the 10ms deadline below elapses and drops this `ensure` call outright.
+        let mut probe = || std::future::ready(false);
+
+        let ensure_result = tokio::time::timeout(
+            std::time::Duration::from_millis(10),
+            reg.ensure("c", "plugin.a", &decls, spawn, &mut probe, &sync, &clk),
+        )
+        .await;
+        assert!(
+            ensure_result.is_err(),
+            "sanity: the ensure future must have been dropped mid-flight (Elapsed), \
+             not completed — otherwise this test is not exercising the wedge at all"
+        );
+
+        // Confirm the wedge exists BEFORE calling `stop`: nothing inside `ensure` ran
+        // again to settle it, so it must still read `Connecting`.
+        assert!(
+            matches!(reg.status("c"), ConnectionStatus::Connecting),
+            "sanity: the entry must be wedged at Connecting — the dropped `ensure` \
+             future never reached its own cleanup"
+        );
+
+        let active_claims = reg.stop("c");
+        assert_eq!(active_claims, 0, "no claim was ever issued to this wedged attempt");
+        assert!(
+            matches!(reg.status("c"), ConnectionStatus::Down),
+            "stop must be able to un-wedge a Connecting entry all the way to Down, \
+             not just no-op over a status it doesn't recognise"
+        );
+
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        assert!(
+            observed_stop.load(Ordering::SeqCst),
+            "stop must still reach and signal the orphaned process — an entry wedged \
+             by a dropped future must not leak the process it was holding"
+        );
+        watcher.abort();
+    }
+
     fn permissive_policy() -> HostEffectPolicy {
         HostEffectPolicy::default()
     }
