@@ -1,68 +1,128 @@
-//! Fail-closed bind guard for the runtime sidecar.
+//! Fail-closed bind guard for the runtime sidecar and daemon WS — PROMOTED to enforce the
+//! `surfaces` declaration (docs/superpowers/specs/2026-07-29-declared-surfaces-design.md).
 //!
-//! `sidecar::start` binds an HTTP listener to an operator-chosen `(host, port)`. The
-//! default — `127.0.0.1` — is loopback, so no other device on the network can reach it,
-//! policy or not. The moment the operator points the bind at anything else (a tailnet
-//! IP, `0.0.0.0`, a hostname), the listener becomes reachable from OUTSIDE this machine,
-//! and routes like `POST /connections/:name/up` establish real processes. Without the
-//! opt-in auth gate (`auth::auth_config_from_env`), that is an unauthenticated listener
-//! that can run things — on this machine, potentially on a corporate network.
+//! Before this design, the guard answered "is this host loopback, and is a policy present?"
+//! — a question a lone `REFARM_AUTH_POLICY` file could answer FOR any surface, including the
+//! WS, which has no middleware to actually check it. Now it answers the promoted question:
+//! "does the `surfaces` declaration PERMIT this bind, and can this surface ENFORCE what the
+//! declaration claims?" Two rules carry the weight:
 //!
-//! `auth.rs` already carries this instinct one level down: "policy present but
-//! unreadable ⇒ deny-all — if you asked for auth, a broken policy must lock the door,
-//! not leave it open." This module extends the same doctrine one layer OUT, to the bind
-//! itself: no policy at all + a bind that reaches beyond loopback must also lock the
-//! door, rather than trust operator discipline to always remember `127.0.0.1`.
+//! - S1 (undeclared means closed): no `surfaces.<name>` entry at all ⇒ the CEILING is
+//!   loopback, full stop — a configured auth policy does not widen that. A default a flag
+//!   can overwrite was exactly the shape of hole that left the WS bound to `0.0.0.0` with
+//!   nothing to contradict it; the ABSENCE of a declaration must be a stronger, non-
+//!   overridable signal than any default.
+//! - S5 (a flag may only narrow, never widen): the declaration's `expose` is the ceiling a
+//!   `--http-host`/`--ws-host` value may match or fall inside of (loopback is always inside
+//!   any ceiling), never a value that points somewhere ELSE or wider.
 //!
-//! The decision is a PURE function of `(host, policy_present)` — no socket, no I/O, no
-//! DNS — so it is exhaustively unit-tested without ever binding a port.
+//! `refuse_unguarded_nonloopback_bind` (the HTTP sidecar's guard) additionally enforces S3:
+//! a non-loopback declaration must name a gate the sidecar can enforce (`device-token`), AND
+//! that gate must actually be configured right now (a real, readable `REFARM_AUTH_POLICY`) —
+//! a declared-but-unconfigured gate enforces nothing and must not be mistaken for one that
+//! does.
+//!
+//! `refuse_nonloopback_ws_bind` does not take a declaration at all: `daemon-ws` has NO
+//! middleware whatsoever (ADR-093's credential handshake is not implemented), so
+//! `surfaces_decl::parse_one_surface` already refuses ANY non-loopback `daemon-ws`
+//! declaration AT LOAD, before this function could ever see one — the only value this
+//! function could receive here is `loopback`, which changes nothing about its answer. So its
+//! unconditional refusal of every non-loopback host, policy or declaration or not, already
+//! answers the promoted question correctly; nothing about the function needed to change, only
+//! this comment, to say so.
+//!
+//! Every decision below is a PURE function of its inputs — no socket, no I/O, no DNS — so it
+//! is exhaustively unit-tested without ever binding a port.
 
 use std::net::IpAddr;
 
-/// Refuse to start the sidecar when `host` is NOT loopback and no auth policy is
-/// configured. PURE: never binds a socket, never resolves DNS.
+use crate::host::{SurfaceDeclaration, SurfaceExpose, SurfaceGate};
+
+/// Refuse to start the sidecar when `host` is NOT loopback and the `surfaces.sidecar-http`
+/// declaration does not permit it. PURE: never binds a socket, never resolves DNS.
 ///
-/// - loopback (`127.0.0.0/8`, `::1`, the literal `localhost`) ⇒ always `Ok`, policy or
-///   not. This is the sidecar's default (`127.0.0.1`) and its behavior is UNCHANGED by
-///   this guard.
-/// - non-loopback + a policy configured ⇒ `Ok` — the operator opted into the identity
-///   gate before opening the bind beyond loopback.
-/// - non-loopback + no policy ⇒ `Err` naming the fix, not just the refusal.
+/// - loopback (`127.0.0.0/8`, `::1`, the literal `localhost`) ⇒ always `Ok` — this is the
+///   sidecar's default (`127.0.0.1`) and is inside every declaration's ceiling, declared or
+///   not.
+/// - non-loopback + no declaration (`declared: None`) ⇒ `Err` (S1) — an undeclared surface
+///   binds loopback only; a configured `auth_policy_present` does NOT change this anymore.
+/// - non-loopback + a declaration whose `expose` is `"loopback"` ⇒ `Err` (S5) — the flag is
+///   trying to widen past the declared ceiling.
+/// - non-loopback + a declaration whose `expose` is `host:<ip>` that does NOT match `host`
+///   ⇒ `Err` (S5) — the flag points somewhere else (or wider) than what was declared; the
+///   declaration is authoritative for WHICH address, not just whether non-loopback is legal.
+/// - non-loopback + a matching `host:<ip>` declaration ⇒ `Ok` only if the declared `gate` is
+///   `device-token` AND `auth_policy_present` (S3) — a declared gate that is not actually
+///   configured enforces nothing and must not be mistaken for one that does.
 pub(crate) fn refuse_unguarded_nonloopback_bind(
     host: &str,
     auth_policy_present: bool,
+    declared: Option<&SurfaceDeclaration>,
 ) -> Result<(), String> {
-    if auth_policy_present || is_loopback_host(host) {
+    if is_loopback_host(host) {
         return Ok(());
     }
-    Err(format!(
-        "refusing to bind the sidecar to non-loopback host {host:?} with no auth policy \
-         configured — an unauthenticated listener here can establish real processes \
-         (e.g. POST /connections/:name/up). Mint a per-device credential with \
-         `refarm auth enroll`, then set REFARM_AUTH_POLICY to the resulting policy file \
-         before binding beyond loopback."
-    ))
+
+    let Some(decl) = declared else {
+        return Err(format!(
+            "refusing to bind the sidecar to non-loopback host {host:?}: no \
+             `surfaces.sidecar-http` declaration is present in .refarm/config.json, and an \
+             undeclared surface binds loopback only. Declare it first:\n  \"surfaces\": {{ \
+             \"sidecar-http\": {{ \"expose\": \"host:{host}\", \"gate\": \"device-token\" }} \
+             }}\nthen mint a per-device credential with `refarm auth enroll` and set \
+             REFARM_AUTH_POLICY to the resulting policy file before binding beyond loopback."
+        ));
+    };
+
+    let SurfaceExpose::Host(declared_ip) = &decl.expose else {
+        return Err(format!(
+            "refusing to bind the sidecar to non-loopback host {host:?}: \
+             surfaces.sidecar-http declares \"expose\": \"loopback\" — a flag may narrow that \
+             declaration, never widen it. Widen the declaration in .refarm/config.json first."
+        ));
+    };
+
+    if !hosts_match(host, declared_ip) {
+        return Err(format!(
+            "refusing to bind the sidecar to {host:?}: surfaces.sidecar-http declares \
+             \"expose\": \"host:{declared_ip}\" — a flag may only match that declaration or \
+             narrow it to loopback, never point somewhere else or wider."
+        ));
+    }
+
+    match decl.gate {
+        Some(SurfaceGate::DeviceToken) if auth_policy_present => Ok(()),
+        Some(SurfaceGate::DeviceToken) => Err(format!(
+            "refusing to bind the sidecar to {host:?}: surfaces.sidecar-http declares \
+             \"gate\": \"device-token\" but no REFARM_AUTH_POLICY is configured, so nothing \
+             would actually enforce it. Mint a per-device credential with `refarm auth \
+             enroll`, then set REFARM_AUTH_POLICY to the resulting policy file before binding \
+             beyond loopback."
+        )),
+        None => Err(format!(
+            "refusing to bind the sidecar to {host:?}: surfaces.sidecar-http declares a \
+             non-loopback expose with no gate. Declare \"gate\": \"device-token\" to bind \
+             beyond loopback."
+        )),
+    }
 }
 
-/// Refuse a non-loopback bind for the CRDT/agent WebSocket, **regardless of policy**.
-/// PURE: never binds a socket, never resolves DNS.
+/// Refuse a non-loopback bind for the CRDT/agent WebSocket, UNCONDITIONALLY. PURE: never
+/// binds a socket, never resolves DNS, never reads `surfaces` (see the module doc for why a
+/// declaration cannot change this answer — `daemon-ws` may only ever declare `"loopback"`,
+/// enforced at load by `surfaces_decl::parse_one_surface`).
 ///
-/// The HTTP sidecar treats "a policy is configured" as the operator's opt-in, and that
-/// is honest there: a configured policy installs `auth::auth_middleware`, so every
-/// request on the widened bind must carry an enrolled credential.
-///
-/// The WS listener has NO such middleware. `handle_connection` accepts `user:prompt`
+/// The WS listener has NO credential middleware. `handle_connection` accepts `user:prompt`
 /// frames from any peer that completes the handshake — there is no credential channel on
 /// this socket at all (ADR-093's `Sec-WebSocket-Protocol` handshake is planned, not
-/// implemented). So reusing `refuse_unguarded_nonloopback_bind` here would let a policy
-/// file — which the WS never reads and never enforces — unlock fully open agent dispatch,
-/// and the guard's `Ok` would read as "this is gated" when nothing gates it. A guard that
-/// approves what it does not gate is worse than no guard, because it is mistaken for
-/// permission.
+/// implemented). A policy file — or a `surfaces` declaration claiming otherwise — would
+/// unlock a bind while gating nothing, and the guard's `Ok` would read as "this is gated"
+/// when nothing gates it. A guard that approves what it does not gate is worse than no
+/// guard, because it is mistaken for permission.
 ///
 /// Until the WS credential handshake ships, the only honest answer for a non-loopback WS
-/// bind is `Err`. When ADR-093 lands, this becomes the same policy-aware call the sidecar
-/// makes — and not a moment before.
+/// bind is `Err`. When ADR-093 lands, this becomes the same declaration-aware call the
+/// sidecar makes — and not a moment before.
 pub(crate) fn refuse_nonloopback_ws_bind(host: &str) -> Result<(), String> {
     if is_loopback_host(host) {
         return Ok(());
@@ -72,12 +132,25 @@ pub(crate) fn refuse_nonloopback_ws_bind(host: &str) -> Result<(), String> {
          socket has NO credential gate at all — any peer that can reach it may dispatch \
          `user:prompt` to a plugin. Unlike the HTTP sidecar, a configured \
          REFARM_AUTH_POLICY does NOT gate this listener (no middleware reads it), so it \
-         cannot authorize a wider bind either. The WS credential handshake over \
-         `Sec-WebSocket-Protocol` (ADR-093) is not implemented yet; until it ships, reach \
-         this port from another device through an authenticated front (e.g. `refarm web \
-         serve` on a loopback-proxied origin) or a network-layer tunnel, not by widening \
-         this bind."
+         cannot authorize a wider bind either — and neither can any `surfaces.daemon-ws` \
+         declaration (that block accepts only `\"expose\": \"loopback\"` for this surface; \
+         anything else is refused when `.refarm/config.json` loads, before this ever runs). \
+         The WS credential handshake over `Sec-WebSocket-Protocol` (ADR-093) is not \
+         implemented yet; until it ships, reach this port from another device through an \
+         authenticated front (e.g. `refarm web serve` on a loopback-proxied origin) or a \
+         network-layer tunnel, not by widening this bind."
     ))
+}
+
+/// Strip a surrounding `[...]` (RFC 3986 bracketed host syntax) before parsing. SYNTAX
+/// ONLY — removes bracket characters, never touches the address's bits or family. Shared by
+/// `is_loopback_host` and `hosts_match` so both use the identical parse.
+fn parse_bind_ip(host: &str) -> Option<IpAddr> {
+    let unbracketed = host
+        .strip_prefix('[')
+        .and_then(|rest| rest.strip_suffix(']'))
+        .unwrap_or(host);
+    unbracketed.parse::<IpAddr>().ok()
 }
 
 /// `true` for `127.0.0.0/8`, `::1`, and the literal `localhost`. Everything else —
@@ -90,27 +163,20 @@ fn is_loopback_host(host: &str) -> bool {
     // The bind address is built as `format!("{host}:{port}")`. A bare `::1` in that
     // template yields `::1:8080` — not a parseable socket address, so it never binds
     // — meaning `[::1]` (bracketed, RFC 3986 host syntax) is the ONLY IPv6-loopback
-    // spelling that ever binds successfully. Strip a surrounding `[...]` before parsing
-    // so that form is recognized as loopback.
+    // spelling that ever binds successfully. `parse_bind_ip` strips a surrounding
+    // `[...]` before parsing so that form is recognized as loopback.
     //
-    // This stripping is SYNTAX ONLY — it removes bracket characters, never touches the
-    // address's bits or family — and it happens unconditionally before the parse, for
-    // every host, loopback or not. Do NOT extend this into address *canonicalization*
-    // (e.g. folding an IPv4-mapped IPv6 address down to its embedded IPv4 form) to
-    // "simplify" the checks below: `Ipv6Addr::is_unspecified()` is `false` for the
-    // IPv4-mapped `::ffff:0.0.0.0`, so canonicalizing mapped addresses before the
-    // unspecified check would make that address parse as plain `0.0.0.0` and get
-    // caught by accident rather than by policy — and the mirror mistake, folding
-    // `::ffff:127.0.0.1` down to `127.0.0.1`, would make `ip.is_loopback()` return
-    // `true` and silently ALLOW an unauthenticated all-interfaces-reachable bind
-    // through the mapped-address family. `::ffff:0.0.0.0` and `::ffff:127.0.0.1` (and
-    // the rest of `::ffff:0.0.0.0/96`) must both stay refused exactly as they are
-    // today: not loopback, no special-casing.
-    let unbracketed = host
-        .strip_prefix('[')
-        .and_then(|rest| rest.strip_suffix(']'))
-        .unwrap_or(host);
-    let Ok(ip) = unbracketed.parse::<IpAddr>() else {
+    // Do NOT extend `parse_bind_ip` into address *canonicalization* (e.g. folding an
+    // IPv4-mapped IPv6 address down to its embedded IPv4 form) to "simplify" the checks
+    // below: `Ipv6Addr::is_unspecified()` is `false` for the IPv4-mapped `::ffff:0.0.0.0`,
+    // so canonicalizing mapped addresses before the unspecified check would make that
+    // address parse as plain `0.0.0.0` and get caught by accident rather than by policy —
+    // and the mirror mistake, folding `::ffff:127.0.0.1` down to `127.0.0.1`, would make
+    // `ip.is_loopback()` return `true` and silently ALLOW an unauthenticated
+    // all-interfaces-reachable bind through the mapped-address family. `::ffff:0.0.0.0`
+    // and `::ffff:127.0.0.1` (and the rest of `::ffff:0.0.0.0/96`) must both stay refused
+    // exactly as they are today: not loopback, no special-casing.
+    let Some(ip) = parse_bind_ip(host) else {
         // Doesn't parse and isn't `localhost` ⇒ unknown shape ⇒ fail closed, not loopback.
         return false;
     };
@@ -124,25 +190,52 @@ fn is_loopback_host(host: &str) -> bool {
     ip.is_loopback()
 }
 
+/// S5's "matches the declaration" test: `requested` (what a flag asked to bind) and
+/// `declared` (the `host:<ip>` a `SurfaceExpose::Host` carries) name the SAME address.
+/// Compares parsed `IpAddr`s (not raw strings) so `[2001:db8::1]` and `2001:db8::1` are
+/// recognized as the same declaration. A `requested` host that does not even parse as an IP
+/// can never match a (pre-validated, always-parseable) declared one — fails closed, exactly
+/// like `is_loopback_host` does for an unparseable host. PURE.
+fn hosts_match(requested: &str, declared: &str) -> bool {
+    match (parse_bind_ip(requested), parse_bind_ip(declared)) {
+        (Some(a), Some(b)) => a == b,
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn declare_loopback() -> SurfaceDeclaration {
+        SurfaceDeclaration { expose: SurfaceExpose::Loopback, gate: None }
+    }
+
+    fn declare_host(ip: &str, gate: Option<SurfaceGate>) -> SurfaceDeclaration {
+        SurfaceDeclaration { expose: SurfaceExpose::Host(ip.to_string()), gate }
+    }
+
+    // ── loopback is always fine — declared, undeclared, policy or not ───────────────
+
     #[test]
-    fn loopback_v4_starts_regardless_of_policy() {
-        assert!(refuse_unguarded_nonloopback_bind("127.0.0.1", false).is_ok());
-        assert!(refuse_unguarded_nonloopback_bind("127.0.0.1", true).is_ok());
+    fn loopback_v4_starts_regardless_of_policy_or_declaration() {
+        assert!(refuse_unguarded_nonloopback_bind("127.0.0.1", false, None).is_ok());
+        assert!(refuse_unguarded_nonloopback_bind("127.0.0.1", true, None).is_ok());
+        assert!(
+            refuse_unguarded_nonloopback_bind("127.0.0.1", false, Some(&declare_loopback()))
+                .is_ok()
+        );
     }
 
     #[test]
     fn loopback_v4_range_starts_without_policy() {
         // The whole 127.0.0.0/8 range is loopback, not just 127.0.0.1.
-        assert!(refuse_unguarded_nonloopback_bind("127.5.5.5", false).is_ok());
+        assert!(refuse_unguarded_nonloopback_bind("127.5.5.5", false, None).is_ok());
     }
 
     #[test]
     fn loopback_v6_starts_without_policy() {
-        assert!(refuse_unguarded_nonloopback_bind("::1", false).is_ok());
+        assert!(refuse_unguarded_nonloopback_bind("::1", false, None).is_ok());
     }
 
     #[test]
@@ -151,15 +244,15 @@ mod tests {
         // through `format!("{host}:{port}")` (bare `::1` yields the unparseable
         // `::1:8080`), so this is the shape operators/config actually use. It must be
         // recognized as loopback, same as `::1` and `127.0.0.1`.
-        assert!(refuse_unguarded_nonloopback_bind("[::1]", false).is_ok());
+        assert!(refuse_unguarded_nonloopback_bind("[::1]", false, None).is_ok());
     }
 
     #[test]
-    fn bracketed_unspecified_v6_with_no_policy_is_refused() {
+    fn bracketed_unspecified_v6_with_no_declaration_is_refused() {
         // `[::]` — the bracketed, actually-bindable spelling of "every IPv6 interface"
         // — must stay refused exactly like `::` and `0.0.0.0`. Bracket-stripping is
         // syntax only; it must not accidentally launder the unspecified address through.
-        assert!(refuse_unguarded_nonloopback_bind("[::]", false).is_err());
+        assert!(refuse_unguarded_nonloopback_bind("[::]", false, None).is_err());
     }
 
     #[test]
@@ -167,10 +260,9 @@ mod tests {
         // `::ffff:127.0.0.1` is the IPv4-mapped spelling of loopback, but
         // `Ipv6Addr::is_loopback()` only matches the literal `::1` — it does not
         // special-case the mapped family. This guard must never canonicalize a mapped
-        // address down to its embedded IPv4 form before checking (see the comment on
-        // `is_loopback_host`), or this would flip to `Ok` and silently allow an
-        // all-interfaces-reachable bind through the back door.
-        assert!(refuse_unguarded_nonloopback_bind("::ffff:127.0.0.1", false).is_err());
+        // address down to its embedded IPv4 form before checking, or this would flip to
+        // `Ok` and silently allow an all-interfaces-reachable bind through the back door.
+        assert!(refuse_unguarded_nonloopback_bind("::ffff:127.0.0.1", false, None).is_err());
     }
 
     #[test]
@@ -180,51 +272,133 @@ mod tests {
         // this guard ever canonicalized mapped addresses before the unspecified check,
         // this one would slip past that check too. It doesn't need the check: mapped
         // addresses are never loopback here, so it stays refused regardless.
-        assert!(refuse_unguarded_nonloopback_bind("::ffff:0.0.0.0", false).is_err());
+        assert!(refuse_unguarded_nonloopback_bind("::ffff:0.0.0.0", false, None).is_err());
     }
 
     #[test]
     fn localhost_literal_starts_without_policy() {
-        assert!(refuse_unguarded_nonloopback_bind("localhost", false).is_ok());
-        assert!(refuse_unguarded_nonloopback_bind("LOCALHOST", false).is_ok());
+        assert!(refuse_unguarded_nonloopback_bind("localhost", false, None).is_ok());
+        assert!(refuse_unguarded_nonloopback_bind("LOCALHOST", false, None).is_ok());
+    }
+
+    // ── S1 mutation-verify: undeclared means closed, a policy does NOT widen it ─────
+
+    #[test]
+    fn undeclared_nonloopback_with_no_policy_is_refused_and_names_the_declaration() {
+        let err = refuse_unguarded_nonloopback_bind("0.0.0.0", false, None)
+            .expect_err("0.0.0.0 with no declaration must be refused");
+        assert!(err.contains("surfaces"), "must name the declaration: {err}");
+        assert!(err.contains("sidecar-http"), "must name the surface: {err}");
     }
 
     #[test]
-    fn unspecified_v4_with_no_policy_is_refused_and_names_the_fix() {
-        let err = refuse_unguarded_nonloopback_bind("0.0.0.0", false)
-            .expect_err("0.0.0.0 with no policy must be refused");
-        assert!(err.contains("refarm auth enroll"), "must name the enroll command: {err}");
-        assert!(err.contains("REFARM_AUTH_POLICY"), "must name the env var: {err}");
+    fn undeclared_nonloopback_with_a_policy_present_is_still_refused() {
+        // THE S1 mutation guard. Before this design, a configured policy alone was
+        // enough to widen the sidecar's bind — `refuse_unguarded_nonloopback_bind`
+        // used to take only `(host, auth_policy_present)` and this exact case (a
+        // tailnet-shaped address, policy present, no declaration in sight) returned
+        // `Ok`. Under S1, undeclared means closed regardless of policy: silence must
+        // outrank a flag/env var, or the very hole this design closes (the WS was
+        // never DECIDED open, just never contradicted) reopens for the sidecar too.
+        assert!(refuse_unguarded_nonloopback_bind("100.64.0.1", true, None).is_err());
+        assert!(refuse_unguarded_nonloopback_bind("0.0.0.0", true, None).is_err());
     }
 
     #[test]
-    fn unspecified_v6_with_no_policy_is_refused() {
-        assert!(refuse_unguarded_nonloopback_bind("::", false).is_err());
+    fn undeclared_unparseable_host_is_refused_even_with_a_policy_present() {
+        // Same S1 guard for a host shape that isn't even a parseable IP: a policy is
+        // no longer a blanket "any non-loopback host is fine" permission — the
+        // declaration decides, and there isn't one.
+        assert!(refuse_unguarded_nonloopback_bind("some.hostname", true, None).is_err());
+    }
+
+    // ── declared "loopback": a flag may narrow (trivially true), never widen ────────
+
+    #[test]
+    fn declared_loopback_permits_a_loopback_bind() {
+        assert!(
+            refuse_unguarded_nonloopback_bind("127.0.0.1", false, Some(&declare_loopback()))
+                .is_ok()
+        );
     }
 
     #[test]
-    fn tailnet_shaped_address_with_no_policy_is_refused() {
-        assert!(refuse_unguarded_nonloopback_bind("100.64.0.1", false).is_err());
+    fn declared_loopback_refuses_any_wider_flag() {
+        let decl = declare_loopback();
+        let err = refuse_unguarded_nonloopback_bind("0.0.0.0", true, Some(&decl))
+            .expect_err("a loopback declaration must not be widened by a flag");
+        assert!(err.contains("loopback"), "must name the declared ceiling: {err}");
+    }
+
+    // ── declared "host:<ip>" — the declaration is authoritative for WHICH address ───
+
+    #[test]
+    fn declared_host_with_gate_and_policy_present_is_allowed() {
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        assert!(refuse_unguarded_nonloopback_bind("100.64.0.1", true, Some(&decl)).is_ok());
     }
 
     #[test]
-    fn tailnet_shaped_address_with_a_policy_present_is_allowed() {
-        assert!(refuse_unguarded_nonloopback_bind("100.64.0.1", true).is_ok());
+    fn declared_host_with_gate_but_no_policy_present_is_refused() {
+        // The declaration NAMES a gate it can enforce, but nothing is actually
+        // configured to enforce it right now — S3's runtime half.
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        let err = refuse_unguarded_nonloopback_bind("100.64.0.1", false, Some(&decl))
+            .expect_err("a declared gate with no configured policy must be refused");
+        assert!(err.contains("REFARM_AUTH_POLICY"), "must name the fix: {err}");
     }
 
     #[test]
-    fn unparseable_host_with_no_policy_is_refused() {
-        assert!(refuse_unguarded_nonloopback_bind("not-an-ip-or-localhost", false).is_err());
+    fn declared_host_with_no_gate_is_refused_even_with_policy_present() {
+        // A non-loopback declaration with NO gate at all is refused independent of
+        // whether a policy happens to be configured — the declaration itself never
+        // claimed anything would enforce this bind.
+        let decl = declare_host("100.64.0.1", None);
+        assert!(refuse_unguarded_nonloopback_bind("100.64.0.1", true, Some(&decl)).is_err());
+    }
+
+    // ── S5 mutation-verify: narrowing is honoured, widening is refused ──────────────
+
+    #[test]
+    fn flag_narrowing_a_host_declaration_to_loopback_is_honoured() {
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        assert!(
+            refuse_unguarded_nonloopback_bind("127.0.0.1", false, Some(&decl)).is_ok(),
+            "loopback is inside every declared ceiling, even without a policy"
+        );
     }
 
     #[test]
-    fn unparseable_host_with_a_policy_present_is_allowed() {
-        // A policy is a blanket permission for non-loopback binds regardless of host
-        // shape — this guard's job is to refuse the UNGUARDED case, not validate hosts.
-        assert!(refuse_unguarded_nonloopback_bind("some.hostname", true).is_ok());
+    fn flag_matching_the_declared_host_exactly_is_honoured() {
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        assert!(refuse_unguarded_nonloopback_bind("100.64.0.1", true, Some(&decl)).is_ok());
     }
 
-    // ── WS guard: policy is NOT a key here ───────────────────────────────────────
+    #[test]
+    fn flag_pointing_at_a_different_host_than_declared_is_refused() {
+        // THE S5 mutation guard: a flag may match the declaration or narrow it, never
+        // point somewhere ELSE — even another single, specific, non-loopback address.
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        let err = refuse_unguarded_nonloopback_bind("192.168.1.5", true, Some(&decl))
+            .expect_err("a flag pointing at an undeclared address must be refused");
+        assert!(err.contains("100.64.0.1"), "must name the declared ceiling: {err}");
+    }
+
+    #[test]
+    fn flag_widening_a_specific_host_declaration_to_every_interface_is_refused() {
+        // THE S5 mutation guard, the sharper form: `0.0.0.0` is not "one more specific
+        // address" — it is EVERY interface, strictly wider than any declared `host:<ip>`.
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        assert!(refuse_unguarded_nonloopback_bind("0.0.0.0", true, Some(&decl)).is_err());
+    }
+
+    #[test]
+    fn declared_host_bracketed_ipv6_matches_unbracketed_flag_value() {
+        let decl = declare_host("2001:db8::1", Some(SurfaceGate::DeviceToken));
+        assert!(refuse_unguarded_nonloopback_bind("[2001:db8::1]", true, Some(&decl)).is_ok());
+    }
+
+    // ── WS guard: unconditional, no declaration or policy value flips it ────────────
 
     #[test]
     fn ws_loopback_hosts_are_allowed() {
@@ -239,11 +413,8 @@ mod tests {
     #[test]
     fn ws_nonloopback_is_refused_even_with_a_policy_configured() {
         // THE point of this guard. `refuse_unguarded_nonloopback_bind` says Ok to a
-        // tailnet IP once a policy file exists — correct for HTTP, where a policy
-        // installs auth middleware. The WS has no middleware, so a policy unlocks
-        // nothing and must not unlock the bind either. This asserts the WS guard does
-        // not take a policy argument at all: there is no value that flips it to Ok.
-        assert!(refuse_unguarded_nonloopback_bind("100.64.0.1", true).is_ok());
+        // MATCHING declared tailnet IP — correct for HTTP, where a policy installs auth
+        // middleware. The WS has no middleware, so nothing unlocks the bind.
         assert!(refuse_nonloopback_ws_bind("100.64.0.1").is_err());
     }
 

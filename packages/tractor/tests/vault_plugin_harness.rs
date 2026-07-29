@@ -550,7 +550,9 @@ async fn run_operator_loop_e2e(spec: OperatorLoopSpec) {
         p
     };
     tokio::spawn(async move {
-        let _ = tractor::sidecar::start(state, "127.0.0.1".to_string(), port).await;
+        // Loopback bind: no `surfaces.sidecar-http` declaration needed (S1's default),
+        // so `None` is the correct/honest value here, not a stand-in for a real one.
+        let _ = tractor::sidecar::start(state, "127.0.0.1".to_string(), port, None).await;
     });
     for _ in 0..50 {
         if std::net::TcpStream::connect(("127.0.0.1", port)).is_ok() {

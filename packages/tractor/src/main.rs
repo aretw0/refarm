@@ -57,8 +57,11 @@ struct DaemonArgs {
     /// (the WS auth handshake, ADR-093, is not yet implemented), and — unlike the HTTP
     /// sidecar — no middleware reads `REFARM_AUTH_POLICY` here, so a policy file cannot
     /// gate it and therefore cannot authorize a wider bind either. A non-loopback value
-    /// is refused at startup outright (`sidecar::bind_guard::refuse_nonloopback_ws_bind`).
-    /// Named to mirror `--http-host`, but strictly stricter than it until ADR-093 lands.
+    /// is refused at startup outright (`sidecar::bind_guard::refuse_nonloopback_ws_bind`),
+    /// and `surfaces.daemon-ws` in `.refarm/config.json` may declare only `"loopback"` —
+    /// anything else is refused when the config loads, before this flag is even read
+    /// (docs/superpowers/specs/2026-07-29-declared-surfaces-design.md, S1/S3). Named to
+    /// mirror `--http-host`, but strictly stricter than it until ADR-093 lands.
     #[arg(long, default_value = "127.0.0.1")]
     ws_host: String,
 
@@ -112,7 +115,10 @@ struct DaemonArgs {
     #[arg(long, default_value_t = 42001)]
     http_port: u16,
 
-    /// HTTP sidecar bind host.
+    /// HTTP sidecar bind host. May only NARROW `surfaces.sidecar-http`'s declared
+    /// `expose` (or stay loopback, the default, when undeclared) — never widen past it.
+    /// See `sidecar::bind_guard::refuse_unguarded_nonloopback_bind` and
+    /// docs/superpowers/specs/2026-07-29-declared-surfaces-design.md (S1/S3/S5).
     #[arg(long, default_value = "127.0.0.1")]
     http_host: String,
 
@@ -402,6 +408,13 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         )
         .init();
 
+    // Resolve the `surfaces` declaration ONCE, fs-only, BEFORE any boot work — a
+    // malformed declaration, or one that names a gate a surface cannot enforce (S3, e.g.
+    // `daemon-ws` declaring anything but `"loopback"`), must fail at LOAD, not partway
+    // through — or after — a full runtime boot. Same "preflight before boot" doctrine as
+    // the WS host check immediately below.
+    let surfaces = tractor::host::surfaces_from_config().map_err(|reason| anyhow::anyhow!(reason))?;
+
     // Preflight the WS bind BEFORE booting anything. The WS server is started at the very
     // end of `run_daemon`, so its own (load-bearing) bind guard would otherwise fire only
     // after storage is open, plugins are instantiated and the supervisor + audit
@@ -547,8 +560,13 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
                     .with_registry(tractor.plugin_registry.clone());
                 let http_host = args.http_host.clone();
                 let http_port = args.http_port;
+                // Resolved once, above, alongside the WS preflight — `start` never reads
+                // `.refarm/config.json` itself (see its doc comment).
+                let declared_surface = surfaces.get(tractor::host::SURFACE_SIDECAR_HTTP).cloned();
                 tokio::spawn(async move {
-                    if let Err(e) = tractor::sidecar::start(state, http_host, http_port).await {
+                    if let Err(e) =
+                        tractor::sidecar::start(state, http_host, http_port, declared_surface).await
+                    {
                         tracing::error!("HTTP sidecar error: {e}");
                     }
                 });

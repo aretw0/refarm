@@ -1649,18 +1649,27 @@ async fn post_connection_down(
 
 // ── public API ────────────────────────────────────────────────────────────────
 
-pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Result<()> {
+pub async fn start(
+    state: SidecarState,
+    host: String,
+    port: u16,
+    // The resolved `surfaces.sidecar-http` declaration (S1/S3/S5), read ONCE at daemon
+    // boot (`crate::host::surfaces_from_config`) and threaded in by the caller — `start`
+    // never reads `.refarm/config.json` itself, matching `auth_policy` below (resolved
+    // once, reused). `None` means undeclared, NOT "declaration permits anything" (S1).
+    declared_surface: Option<crate::host::SurfaceDeclaration>,
+) -> anyhow::Result<()> {
     // Resolved ONCE here: reused for the fail-closed bind guard immediately below AND
     // for the auth middleware layer further down, so a configured policy is read from
     // disk (and its enable/deny-all log line emitted) exactly once per daemon start.
     let auth_policy = auth::auth_config_from_env();
 
-    // Fail-closed bind guard: refuse to open a non-loopback listener with no auth
-    // policy configured. Same doctrine as auth::auth_config_from_env's deny-all-on-
-    // unreadable-policy, one layer out — see bind_guard for the full reasoning. This
-    // is checked before anything else in `start` so an unguarded non-loopback bind
-    // never gets as far as building a router or touching a socket.
-    bind_guard::refuse_unguarded_nonloopback_bind(&host, auth_policy.is_some())
+    // Fail-closed bind guard: refuse a non-loopback bind the `surfaces` declaration does
+    // not permit, or names a gate that is not actually configured — see bind_guard for
+    // the full S1/S3/S5 reasoning. This is checked before anything else in `start` so a
+    // disallowed non-loopback bind never gets as far as building a router or touching a
+    // socket.
+    bind_guard::refuse_unguarded_nonloopback_bind(&host, auth_policy.is_some(), declared_surface.as_ref())
         .map_err(|reason| anyhow::anyhow!(reason))?;
 
     // Reclaim terminal-and-old task-results/streams artifacts in the background,

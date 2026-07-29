@@ -58,7 +58,9 @@ async fn start_sidecar(tractor: &TractorNative, base_dir: &Path) -> u16 {
     .with_registry(tractor.plugin_registry.clone());
 
     tokio::spawn(async move {
-        let _ = tractor::sidecar::start(state, "127.0.0.1".to_string(), port).await;
+        // Loopback bind: no `surfaces.sidecar-http` declaration needed (S1's default),
+        // so `None` is the correct/honest value here, not a stand-in for a real one.
+        let _ = tractor::sidecar::start(state, "127.0.0.1".to_string(), port, None).await;
     });
     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
     port
