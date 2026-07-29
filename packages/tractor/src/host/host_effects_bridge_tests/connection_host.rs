@@ -232,6 +232,76 @@ async fn two_plugin_ids_sharing_one_connection_produce_one_spawn_and_two_claims(
 }
 
 #[tokio::test]
+async fn release_cannot_drop_another_plugins_claim() {
+    // THE critical guarantee: claim ids come from ONE sequential counter
+    // starting at 1, and `claim: u64` is all that crosses the WASM boundary
+    // (D7) — so a plugin holding `connection:use` can enumerate ids
+    // (`release(1)`, `release(2)`, …) and try to strip a claim it never
+    // held. If that worked, plugin A could force plugin B's live connection
+    // down (under `Linger::Idle{ms:0}`, or simply starve B down to a state
+    // where B's next `ensure` re-logs-in) — exactly the harm the shared-
+    // connection design exists to prevent. `release` must check OWNERSHIP,
+    // not just the id's existence.
+    let _env = crate::test_support::env_lock();
+    ensure_sovereign_dir_env();
+    let dir = tempfile::tempdir().unwrap();
+    write_connections_config(dir.path(), trivial_connection_json());
+    let _cwd = CwdGuard::enter(dir.path());
+
+    let storage = NativeStorage::open(":memory:").unwrap();
+    let sync = NativeSync::new(storage, ":memory:").unwrap();
+    let registry = std::sync::Arc::new(ConnectionRegistry::new());
+
+    let mut plugin_a = bindings_with(
+        "plugin-a",
+        PermissionGrant::strict_declaring(&["connection:use"]),
+        sync.clone(),
+        registry.clone(),
+    );
+    let mut plugin_b = bindings_with(
+        "plugin-b",
+        PermissionGrant::strict_declaring(&["connection:use"]),
+        sync,
+        registry.clone(),
+    );
+
+    let claim_a = HostConnectionHost::ensure(&mut plugin_a, "c".to_string())
+        .await
+        .unwrap()
+        .claim
+        .unwrap();
+    let claim_b = HostConnectionHost::ensure(&mut plugin_b, "c".to_string())
+        .await
+        .unwrap()
+        .claim
+        .unwrap();
+    assert_eq!(registry.claim_count("c"), 2);
+
+    // plugin-a calls release with plugin-b's claim id. The call succeeds
+    // (lenient — a distinguishing error would let a caller fingerprint
+    // another plugin's ids), but must drop NOTHING.
+    HostConnectionHost::release(&mut plugin_a, claim_b).await.unwrap();
+    assert_eq!(
+        registry.claim_count("c"),
+        2,
+        "plugin-a must not be able to drop plugin-b's claim by guessing its id"
+    );
+
+    // plugin-a releasing its OWN claim still works normally.
+    HostConnectionHost::release(&mut plugin_a, claim_a).await.unwrap();
+    assert_eq!(registry.claim_count("c"), 1, "plugin-a's own claim is gone");
+
+    // plugin-b's claim is released by plugin-b itself — proving it genuinely
+    // survived plugin-a's attempt above, not just an unrelated count
+    // coincidence (if plugin-a's release above had silently already removed
+    // it, THIS release would be the idempotent no-op case and the final
+    // count would still read 0, which the assertion below tells apart from
+    // "count went 2 → 1 → 0 across three real releases").
+    HostConnectionHost::release(&mut plugin_b, claim_b).await.unwrap();
+    assert_eq!(registry.claim_count("c"), 0);
+}
+
+#[tokio::test]
 async fn release_by_id_drops_only_the_named_claim_and_is_idempotent() {
     let _env = crate::test_support::env_lock();
     ensure_sovereign_dir_env();

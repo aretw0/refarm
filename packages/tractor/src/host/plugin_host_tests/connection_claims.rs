@@ -59,3 +59,91 @@
             "release_connection_claims must reach the SAME registry every plugin's bindings share"
         );
     }
+
+    /// The SEAM itself: `TractorNative::unregister` (lib.rs) is the production
+    /// caller of `PluginHost::release_connection_claims` — not a hypothetical.
+    /// This drives it end to end through a REAL loaded plugin's REAL id (never a
+    /// hand-picked string), which is the part the test above cannot show (it
+    /// calls `release_connection_claims` directly).
+    ///
+    /// No WASM component in this repo imports `host-connection` yet (building
+    /// one needs `cargo component build`, out of scope for this round), so the
+    /// claim is minted directly through the shared registry — attributed to the
+    /// plugin's genuine, host-assigned id — rather than via a guest's own
+    /// `ensure` call. `tests/plugin_shutdown.rs` (an external integration-test
+    /// crate) cannot express this: it only sees `PluginHost`'s `pub` surface,
+    /// and `connection_registry` is deliberately NOT part of that (exposing the
+    /// whole registry publicly on `PluginHost` would be a bigger surface change
+    /// than this fix round warrants), so this lives here instead — a unit test
+    /// inside the crate, where the private field is visible because this module
+    /// is a descendant of `host::plugin_host`.
+    #[tokio::test]
+    async fn unregister_releases_connection_claims_for_the_real_plugin_id() {
+        let component_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/null-plugin.wasm");
+        if !component_path.exists() {
+            eprintln!(
+                "SKIP: null-plugin.wasm fixture missing at {}",
+                component_path.display()
+            );
+            return;
+        }
+
+        let tractor = crate::TractorNative::boot(crate::TractorNativeConfig {
+            namespace: ":memory:".to_string(),
+            port: 0,
+            security_mode: crate::SecurityMode::None,
+            ..Default::default()
+        })
+        .await
+        .expect("boot tractor");
+
+        let handle = tractor
+            .load_plugin(&component_path)
+            .await
+            .expect("load null-plugin fixture");
+        let plugin_id = handle.id.clone();
+        tractor.register_for_events(handle);
+
+        let decls = crate::host::host_effects_bridge::parse_connections(&serde_json::json!({
+            "connections": {
+                "c": {
+                    "establish": ["true"],
+                    "probe": { "run": ["true"] },
+                    "probeIntervalMs": 1,
+                    "readyTimeoutMs": 5000
+                }
+            }
+        }))
+        .unwrap();
+        let policy = crate::host::host_effects_bridge::HostEffectPolicy::default();
+
+        let probe_decls = decls.clone();
+        let probe_policy = policy.clone();
+        let mut probe = move || {
+            let decl = probe_decls.get("c").unwrap().clone();
+            let policy = probe_policy.clone();
+            async move { crate::host::host_effects_bridge::run_probe(&decl, &policy).await }
+        };
+        let spawn = move |decl: &crate::host::host_effects_bridge::ConnectionDeclaration| {
+            crate::host::host_effects_bridge::spawn_establish_process(decl, &policy)
+        };
+
+        tractor
+            .plugins
+            .connection_registry
+            .ensure("c", &plugin_id, &decls, spawn, &mut probe, &tractor.sync, &|| 0)
+            .await
+            .expect("ensure must succeed");
+        assert_eq!(tractor.plugins.connection_registry.claim_count("c"), 1);
+
+        let was_loaded = tractor.unregister(&plugin_id).await;
+        assert!(was_loaded, "unregister must report the plugin was loaded");
+        assert_eq!(
+            tractor.plugins.connection_registry.claim_count("c"),
+            0,
+            "TractorNative::unregister must reach release_connection_claims for the REAL plugin id"
+        );
+
+        tractor.shutdown().await.expect("shutdown must succeed");
+    }
