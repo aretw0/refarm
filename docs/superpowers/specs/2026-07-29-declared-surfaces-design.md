@@ -117,9 +117,22 @@ to audit. `surfaces` is what makes the exposure reviewable in a glance instead o
    surfaces gain a verifier reading the same `.refarm/auth-policy.json` the Rust side reads, or
    `device-token` is declarable only on surfaces that can enforce it, per S3. The second is honest
    and smaller; the first is where it has to end up.
-3. **Does `surfaces` subsume the existing flags** (`--http-host`, `--host`, `--ws-host`), or do they
+3. ~~**Does `surfaces` subsume the existing flags** (`--http-host`, `--host`, `--ws-host`), or do they
    remain as overrides? An override that can widen a declaration reopens the hole; an override that
-   can only narrow it is safe and useful for a container.
+   can only narrow it is safe and useful for a container.~~ **Answered** (2026-07-29, the "reachable"
+   follow-up): they remain as overrides, narrow-only — but getting there required noticing that the
+   Rust CLI flags were never actually optional. `--http-host`/`--ws-host` carried `default_value =
+   "127.0.0.1"`, so the flag ALWAYS held a value, and under S5 a present value always narrows — so a
+   `surfaces.sidecar-http` declaring `host:<ip>` could never take effect; the whole slice was inert
+   for that surface and nothing said so. The general lesson: **under a narrowing rule, a CLI default
+   stops being neutral** — a default value is indistinguishable from an explicit operator choice.
+   Both flags are now `Option<String>` with no default: absent means "the declaration decides",
+   present means "the operator is narrowing" (`sidecar::bind_guard::resolve_sidecar_bind_host` /
+   `resolve_ws_bind_host`). This is also what let `scripts/tractor-start.sh` stop synthesising a
+   `surfaces.sidecar-http` declaration at container boot (it used to read-then-write
+   `.refarm/config.json` with `jq`, inverting the "operator states intent as data" doctrine this
+   design rests on) — a container now gets loud guidance plus
+   `docs/container-surfaces.example.json` to copy in, not an auto-authored declaration.
 
 ## First slice, when this is taken
 

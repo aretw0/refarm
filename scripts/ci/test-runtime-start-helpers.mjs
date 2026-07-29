@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
 
+const tractorStart = resolve("scripts/tractor-start.sh");
+
 const helper = resolve("scripts/model-provider.sh");
 
 function makeRoot() {
@@ -162,5 +164,75 @@ test("tractor-start.sh reinstalls when the compiled agent is newer than the inst
 	assert.ok(
 		/agent-install\.mjs/.test(source),
 		"tractor-start.sh must reinstall (via agent-install.mjs) when the install is stale",
+	);
+});
+
+// ── surfaces declaration doctrine: the launch script must never author it ────────
+// docs/superpowers/specs/2026-07-29-declared-surfaces-design.md's whole doctrine is
+// "the operator states intent as data; the runtime interprets it" — a launch script
+// that reads-then-writes `surfaces.sidecar-http` into .refarm/config.json inverts
+// that (what the machine declares becomes a function of how it was launched, and of
+// whether `jq` happened to be installed). tractor-start.sh used to do exactly this
+// via three now-deleted helpers; these are static, source-level mutation guards so a
+// future edit cannot silently reintroduce that write path.
+test("tractor-start.sh never writes .refarm/config.json", () => {
+	const source = readFileSync(tractorStart, "utf8");
+
+	// The three deleted synthesis helpers must never come back under any name.
+	for (const helperName of [
+		"_sidecar_surface_already_declared",
+		"_declared_sidecar_expose_host",
+		"_declare_container_sidecar_surface",
+	]) {
+		assert.ok(
+			!source.includes(helperName),
+			`tractor-start.sh must not reintroduce ${helperName} — the declaration is ` +
+				"the operator's, not the launch script's, to author",
+		);
+	}
+
+	// No shell redirection ever targets config.json (covers `> "$CONFIG_JSON"`,
+	// `>"$CONFIG_JSON"`, `>>`, and a literal `.refarm/config.json` path spelled out
+	// instead of through the variable).
+	assert.ok(
+		!/>>?\s*"?\$CONFIG_JSON"?/.test(source),
+		"tractor-start.sh must not redirect output into $CONFIG_JSON",
+	);
+	assert.ok(
+		!/>>?\s*"?[^"\s]*\.refarm\/config\.json"?/.test(source),
+		"tractor-start.sh must not redirect output into a literal .refarm/config.json path",
+	);
+
+	// No `jq` invocation at all on this path (the write helpers were its only
+	// consumer) — a bare grep for the binary name catches any reintroduction, even
+	// one that does not touch CONFIG_JSON directly.
+	assert.ok(
+		!/\bjq\b/.test(source.replace(/#.*$/gm, "")),
+		"tractor-start.sh must not depend on jq (stripped of comment lines, which may " +
+			"still mention it historically)",
+	);
+});
+
+test("tractor-start.sh passes bash -n (syntax check)", () => {
+	// A cheap, direct syntax proof alongside the source-level assertions above —
+	// catches an unbalanced `if`/`fi` or similar introduced while editing the bind
+	// hosts block without needing to actually run the script.
+	execFileSync("bash", ["-n", tractorStart], { stdio: "pipe" });
+});
+
+test("tractor-start.sh omits --http-host when REFARM_HTTP_HOST is unset (lets the declaration decide)", () => {
+	const source = readFileSync(tractorStart, "utf8");
+	assert.match(
+		source,
+		/if \[ "\$HAS_HTTP_HOST" = "0" \] && \[ -n "\$REFARM_HTTP_HOST" \]; then/,
+		"tractor-start.sh must only forward --http-host when REFARM_HTTP_HOST is non-empty",
+	);
+	// Mutation guard against the old always-defaulted shape: no `:=127.0.0.1` default
+	// assignment for REFARM_HTTP_HOST anywhere (that was Problem 1's root cause when
+	// mirrored into the CLI flag itself — the script must not resurrect an equivalent).
+	assert.ok(
+		!/REFARM_HTTP_HOST:=/.test(source),
+		"tractor-start.sh must not default REFARM_HTTP_HOST — an absent flag is what " +
+			"lets surfaces.sidecar-http decide",
 	);
 });

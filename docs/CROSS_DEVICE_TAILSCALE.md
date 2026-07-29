@@ -53,11 +53,20 @@ Android em Wi-Fi e 5G.
 
 O `sync` (`:42000`) é a malha CRDT. O `sidecar` (`:42001`, plano de controle — efforts,
 chat) fica em **loopback por padrão, de propósito**. Para dirigir a fazenda a partir do
-celular, o daemon precisa ouvir o sidecar além do loopback:
+celular, o daemon precisa ouvir o sidecar além do loopback — e desde
+`docs/superpowers/specs/2026-07-29-declared-surfaces-design.md` (S1) isso exige uma
+declaração em `.refarm/config.json`, não só a flag: um bind não-loopback sem
+`surfaces.sidecar-http` declarado é recusado na largada, política configurada ou não.
 
 ```bash
-# no host, reinicie o runtime bindando o sidecar em 0.0.0.0:
-REFARM_HTTP_HOST=0.0.0.0 bash scripts/tractor-start.sh --background
+# 1. declare a exposição (uma vez; fica em .refarm/config.json, do operador, gitignored):
+#    "surfaces": { "sidecar-http": { "expose": "host:0.0.0.0", "gate": "device-token" } }
+# 2. credencial por dispositivo:
+refarm auth enroll
+export REFARM_AUTH_POLICY=<o arquivo de política resultante>
+# 3. no host, reinicie o runtime — SEM REFARM_HTTP_HOST: com a flag ausente
+#    (packages/tractor's --http-host é Option, sem default) a declaração decide:
+bash scripts/tractor-start.sh --background
 ```
 
 Por que `0.0.0.0` e não o IP mesh específico: o tooling LOCAL do refarm fala com

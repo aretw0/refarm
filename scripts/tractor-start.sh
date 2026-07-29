@@ -8,19 +8,21 @@
 #   MODEL_PROVIDER=openai ./scripts/tractor-start.sh      # override provider
 #
 # Bind hosts (see the "bind hosts" block below for the full reasoning):
-#   REFARM_HTTP_HOST   sidecar bind. Default 127.0.0.1. In a container it becomes
-#                      0.0.0.0 ONLY when REFARM_AUTH_POLICY names a readable policy
-#                      file; without one it stays loopback and the script says so.
-#                      Since docs/superpowers/specs/2026-07-29-declared-surfaces-design.md
-#                      (S1), an undeclared surface binds loopback and NO flag can widen
-#                      past that — so widening also requires a `surfaces.sidecar-http`
-#                      declaration in .refarm/config.json; this script writes one for the
-#                      container case (see `_declare_container_sidecar_surface` below).
+#   REFARM_HTTP_HOST   sidecar bind. Left UNSET unless the operator (or .refarm/.env)
+#                      names one explicitly — this script never invents a value or
+#                      writes to .refarm/config.json. Unset means "let the declaration
+#                      decide" (packages/tractor's `--http-host` is `Option<String>`,
+#                      no default): undeclared or `"loopback"` ⇒ 127.0.0.1; a
+#                      `surfaces.sidecar-http` declaring `"host:<ip>"` (see
+#                      docs/container-surfaces.example.json) ⇒ that host, once its
+#                      gate is actually configured (S3). A container gets loud
+#                      guidance instead of automation — see the "bind hosts" block.
 #   REFARM_WS_HOST     CRDT/agent WS bind. Default 127.0.0.1, and the daemon refuses
 #                      anything else regardless of policy until ADR-093 lands (S3:
 #                      `surfaces.daemon-ws` may declare only "loopback").
 #   REFARM_AUTH_POLICY the per-device credential policy. The same file the daemon
-#                      reads; its presence is what unlocks a wider sidecar bind.
+#                      reads; its presence is what unlocks a wider sidecar bind, once
+#                      `surfaces.sidecar-http` also names it.
 #
 # Keys are loaded from .refarm/.env (gitignored).
 # Run `refarm sow` to configure them.
@@ -204,41 +206,42 @@ esac
 
 # ── bind hosts ────────────────────────────────────────────────────────────────
 #
-# This block used to set REFARM_HTTP_HOST=0.0.0.0 whenever /.dockerenv existed, so a
-# published `-p` port would reach the sidecar. The daemon now refuses a non-loopback HTTP
-# bind with no auth policy configured (packages/tractor/src/sidecar/bind_guard.rs), which
-# turned that unconditional widening into "the container starts but the sidecar silently
-# does not". Neither a container that cannot start nor a container that is silently open is
-# acceptable, so the widening is now CONDITIONAL and the consequence is always PRINTED.
+# This block used to set REFARM_HTTP_HOST=0.0.0.0 whenever /.dockerenv existed, then
+# (after S1 made an undeclared surface bind loopback regardless of any flag) it went
+# further and WROTE `surfaces.sidecar-http` into .refarm/config.json itself with `jq`,
+# so a container would still widen automatically. That inverted the doctrine the whole
+# `surfaces` design rests on: the declaration is the OPERATOR's statement of intent,
+# interpreted by the runtime — if a launch script synthesises it, what the machine
+# declares becomes a function of how it was launched (and of whether `jq` happened to be
+# installed), which is precisely the disease `surfaces` exists to cure. This script does
+# not read or write .refarm/config.json anymore, anywhere in this file, and needs no
+# `jq` dependency for this path.
 #
-# Since docs/superpowers/specs/2026-07-29-declared-surfaces-design.md (S1), an undeclared
-# surface binds loopback and NO flag — including this script's own REFARM_HTTP_HOST — can
-# widen past that anymore; widening now ALSO requires a `surfaces.sidecar-http` declaration
-# in .refarm/config.json. There is no human at a container's start to author one, so this
-# script mechanizes the SAME opt-in decision it already made (container + a configured
-# REFARM_AUTH_POLICY) into that declaration — but ONLY when the key is not already there:
-# an operator-authored `surfaces.sidecar-http` is authoritative and this script never
-# overwrites it, it only reads what it implies.
+# A container is a DEPLOYMENT, and a deployment declares its surfaces like any other
+# machine — the declaration travels WITH the container (baked into the image or bind-
+# mounted at .refarm/config.json) rather than being invented at boot. See
+# docs/container-surfaces.example.json for the declaration to copy in, and the
+# `tractor::sidecar::bind_guard` doc comment for the full S1/S3/S5 reasoning.
 #
-#   container + policy + surfaces.sidecar-http already declared  ⇒ whatever it says
-#   container + policy + surfaces.sidecar-http undeclared        ⇒ declare host:0.0.0.0
-#                                                                    (gate: device-token),
-#                                                                    then bind it
-#   container + policy, but jq unavailable to declare it          ⇒ 127.0.0.1 + a loud
-#                                                                    explanation
-#   container + no policy                                         ⇒ 127.0.0.1 + a loud
-#                                                                    explanation
-#   not a container                                                ⇒ 127.0.0.1
+# Since packages/tractor/src/main.rs's `--http-host` is now `Option<String>` (no
+# `default_value`), passing NOTHING lets `surfaces.sidecar-http` decide — undeclared or
+# `"loopback"` ⇒ loopback, a `"host:<ip>"` declaration ⇒ that host, once its gate is
+# actually configured. So:
+#
+#   operator set REFARM_HTTP_HOST (env or .refarm/.env)  ⇒ pass it through verbatim —
+#                                                             their explicit choice; the
+#                                                             daemon's guard narrows or
+#                                                             refuses it against whatever
+#                                                             IS declared, exactly as any
+#                                                             --http-host flag always has
+#   operator did not set it                                ⇒ pass nothing; the daemon
+#                                                             resolves it from the
+#                                                             declaration
 #
 # An operator who exports REFARM_HTTP_HOST=0.0.0.0 by hand still gets exactly what they
-# asked for: the daemon's guard refuses it and names the fix (the exact `surfaces` JSON to
-# add). That refusal is honest — an explicit request answered with an explicit reason —
-# and it is not this script's job to route around it; the auto-declare below only ever
-# fires through the container's own implicit (empty REFARM_HTTP_HOST) path.
-#
-# No escape hatch is offered here on purpose. An env var that means "bind wide with no
-# auth" would be pasted into a compose file once and then live forever, which is the
-# failure mode the guard exists to prevent.
+# asked for: the daemon's guard refuses it and names the fix (the exact `surfaces` JSON
+# to add) if nothing declares it. That refusal is honest — an explicit request answered
+# with an explicit reason — and it is not this script's job to route around it.
 
 _auth_policy_configured() {
   [ -n "${REFARM_AUTH_POLICY:-}" ] && [ -f "${REFARM_AUTH_POLICY}" ]
@@ -246,73 +249,9 @@ _auth_policy_configured() {
 
 CONFIG_JSON="$ROOT/.refarm/config.json"
 
-# `true` iff .refarm/config.json already has ANY `surfaces.sidecar-http` entry, valid or
-# not — presence alone means operator-authored, and this script must never touch it.
-_sidecar_surface_already_declared() {
-  command -v jq >/dev/null 2>&1 || return 1
-  [ -f "$CONFIG_JSON" ] || return 1
-  jq -e '.surfaces["sidecar-http"] // empty' "$CONFIG_JSON" >/dev/null 2>&1
-}
-
-# Print the bind host an EXISTING `surfaces.sidecar-http` declaration implies:
-# "loopback" → 127.0.0.1, "host:<ip>" → <ip>. Fails (empty output, non-zero exit) for
-# anything this script does not know how to read (e.g. "tailnet") — the caller then falls
-# back to loopback rather than guessing, and the daemon's own load-time validation is what
-# explains an actually-invalid declaration (this script never re-implements that check).
-_declared_sidecar_expose_host() {
-  local expose
-  expose="$(jq -r '.surfaces["sidecar-http"].expose // empty' "$CONFIG_JSON" 2>/dev/null)"
-  [ -n "$expose" ] || return 1
-  case "$expose" in
-    loopback) printf '%s' "127.0.0.1" ;;
-    host:*) printf '%s' "${expose#host:}" ;;
-    *) return 1 ;;
-  esac
-}
-
-# Idempotently ADD `surfaces.sidecar-http` to .refarm/config.json, merging into whatever is
-# already there (trusted_plugins, connections, spawnEnv, …). Only ever called when the key
-# is NOT already present (see the caller), so this never overrides an operator-authored
-# declaration — it only fills the silence the container's own widen-decision (a configured
-# REFARM_AUTH_POLICY) already implied, in the form S1 now requires: a declaration, not an
-# implicit default.
-_declare_container_sidecar_surface() {
-  local host="$1"
-  mkdir -p "$(dirname "$CONFIG_JSON")"
-  local current="{}"
-  [ -f "$CONFIG_JSON" ] && current="$(cat "$CONFIG_JSON")"
-  local updated
-  if ! updated="$(printf '%s' "$current" | jq --arg host "$host" \
-      '.surfaces = (.surfaces // {}) + {"sidecar-http": {"expose": ("host:" + $host), "gate": "device-token"}}' 2>/dev/null)"; then
-    echo "⚠   Could not update $CONFIG_JSON (invalid existing JSON?) — leaving the sidecar on 127.0.0.1."
-    return 1
-  fi
-  printf '%s\n' "$updated" >"$CONFIG_JSON"
-  echo "   declared surfaces.sidecar-http = { expose: \"host:$host\", gate: \"device-token\" } in $CONFIG_JSON"
-}
-
 IN_CONTAINER=0
 if [ -f "/.dockerenv" ]; then
   IN_CONTAINER=1
-fi
-
-if [ -z "$REFARM_HTTP_HOST" ]; then
-  if [ "$IN_CONTAINER" = "1" ] && _auth_policy_configured; then
-    if _sidecar_surface_already_declared; then
-      # Never touch an operator-authored declaration. Use the host it implies when
-      # this script can read it; an unreadable one (e.g. "tailnet") falls through to
-      # the loopback default below and the daemon's own load-time refusal explains why.
-      DECLARED_SIDECAR_HOST="$(_declared_sidecar_expose_host || true)"
-      [ -n "$DECLARED_SIDECAR_HOST" ] && REFARM_HTTP_HOST="$DECLARED_SIDECAR_HOST"
-    elif command -v jq >/dev/null 2>&1 && _declare_container_sidecar_surface "0.0.0.0"; then
-      REFARM_HTTP_HOST="0.0.0.0"
-    elif ! command -v jq >/dev/null 2>&1; then
-      echo "⚠   jq is required to declare surfaces.sidecar-http automatically — leaving"
-      echo "    the sidecar on 127.0.0.1. Add this to $CONFIG_JSON by hand to publish it:"
-      echo "      \"surfaces\": { \"sidecar-http\": { \"expose\": \"host:0.0.0.0\", \"gate\": \"device-token\" } }"
-    fi
-  fi
-  : "${REFARM_HTTP_HOST:=127.0.0.1}"
 fi
 
 # The WS (:42000) is stricter than the sidecar: the daemon refuses ANY non-loopback bind
@@ -326,15 +265,19 @@ if [ -z "$REFARM_WS_HOST" ]; then
 fi
 
 if [ "$IN_CONTAINER" = "1" ]; then
-  if [ "$REFARM_HTTP_HOST" = "127.0.0.1" ]; then
-    echo "⚠   Container detected, but the sidecar is binding 127.0.0.1 (not 0.0.0.0)."
-    echo "    A published '-p 42001:42001' will NOT reach it. This is deliberate: the"
-    echo "    daemon refuses an unauthenticated (and, since S1, an UNDECLARED) listener"
-    echo "    that other devices can reach. To publish it, mint a per-device credential:"
-    echo "      refarm auth enroll"
-    echo "      export REFARM_AUTH_POLICY=<the resulting policy file>"
-    echo "    Then this script both declares surfaces.sidecar-http in $CONFIG_JSON and"
-    echo "    binds 0.0.0.0, with the gate on."
+  if [ -z "$REFARM_HTTP_HOST" ]; then
+    echo "⚠   Container detected, REFARM_HTTP_HOST not set — the sidecar binds whatever"
+    echo "    surfaces.sidecar-http declares in $CONFIG_JSON (undeclared ⇒ 127.0.0.1)."
+    echo "    A published '-p 42001:42001' will NOT reach an undeclared/loopback sidecar."
+    echo "    This is deliberate: the daemon refuses an unauthenticated, undeclared"
+    echo "    listener other devices can reach. To publish it, declare the surface —"
+    echo "    docs/container-surfaces.example.json is a copy-pasteable example:"
+    echo "      \"surfaces\": { \"sidecar-http\": { \"expose\": \"host:0.0.0.0\", \"gate\": \"device-token\" } }"
+    if ! _auth_policy_configured; then
+      echo "    then mint a per-device credential and point the daemon at it:"
+      echo "      refarm auth enroll"
+      echo "      export REFARM_AUTH_POLICY=<the resulting policy file>"
+    fi
   fi
   echo "⚠   The CRDT/agent WebSocket stays on 127.0.0.1 — '-p 42000:42000' will NOT"
   echo "    reach it, policy or not. That socket has no credential gate yet (ADR-093);"
@@ -370,11 +313,18 @@ for _p in ${TRUSTED_PLUGINS[@]+"${TRUSTED_PLUGINS[@]}"}; do
   TRACTOR_ARGS+=(--plugin "$_p")
 done
 
-if [ "$HAS_HTTP_HOST" = "0" ]; then
+# Only pass --http-host when the operator explicitly set REFARM_HTTP_HOST (env or
+# .refarm/.env) — tractor's `--http-host` is `Option<String>` now, and passing NOTHING
+# is how the operator lets `surfaces.sidecar-http` decide (Problem 1's fix). Passing an
+# empty string here would be an explicit (and wrong) request for "" as a hostname, not
+# the same as omitting the flag — so this is a real branch, not a style choice.
+if [ "$HAS_HTTP_HOST" = "0" ] && [ -n "$REFARM_HTTP_HOST" ]; then
   TRACTOR_ARGS+=(--http-host "$REFARM_HTTP_HOST")
 fi
-# Pass --ws-host explicitly for the same reason --http-host is passed explicitly: the bind
-# this script chose should be visible in the process args, not inferred from a default.
+# Pass --ws-host explicitly for the same reason --http-host was historically passed
+# explicitly: the bind this script chose should be visible in the process args, not
+# inferred from a default. Unlike --http-host, REFARM_WS_HOST is ALWAYS resolved above
+# (loopback if unset) because no declaration can ever change what the WS accepts.
 if [ "$HAS_WS_HOST" = "0" ]; then
   TRACTOR_ARGS+=(--ws-host "$REFARM_WS_HOST")
 fi
@@ -386,7 +336,7 @@ echo "   provider : $MODEL_PROVIDER"
 echo "   plugin   : $AGENT_PLUGIN"
 [ ${#TRUSTED_PLUGINS[@]} -gt 0 ] && echo "   +trusted : ${#TRUSTED_PLUGINS[@]} plugin(s) from composition"
 echo "   streams  : $REFARM_STREAMS_DIR"
-echo "   http bind: $REFARM_HTTP_HOST:42001"
+echo "   http bind: ${REFARM_HTTP_HOST:-<unset — surfaces.sidecar-http decides>}:42001"
 echo "   ws bind  : $REFARM_WS_HOST:42000"
 [ $# -gt 0 ] && echo "   extra    : $*"
 
