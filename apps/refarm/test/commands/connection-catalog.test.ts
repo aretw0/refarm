@@ -236,6 +236,186 @@ describe("validating notice rules (mirrors the Rust parser, but reports)", () =>
 	});
 });
 
+/**
+ * The host runs three guards BEFORE it spawns anything (`enforce_shell_allowlist`,
+ * `enforce_spawn_env`, `enforce_spawn_cwd` in `host_effects_bridge`), and `run_probe`
+ * swallows their error into `false`. A declaration that trips one of them is permanently
+ * down on the host — so it must not read as clean here, or `connection status` reports
+ * `up` for something the engine can never even ask about.
+ */
+describe("spawn-time policy parity with the host", () => {
+	/** Build a config around one connection, overriding just the field under test. */
+	function declare(overrides: Record<string, unknown>): Record<string, unknown> {
+		return {
+			connections: {
+				c: { establish: ["true"], probe: { run: ["true"] }, ...overrides },
+			},
+		};
+	}
+
+	function fieldIssues(config: Record<string, unknown>, field: string): string[] {
+		return readConnectionCatalog(config)
+			.issues.filter((issue) => issue.field === field)
+			.map((issue) => issue.message);
+	}
+
+	it("accepts a declaration that satisfies every spawn guard", () => {
+		const { issues } = readConnectionCatalog(
+			declare({ env: { OVPN_PROFILE: "serpro" }, cwd: "/tmp" }),
+		);
+		expect(issues).toEqual([]);
+	});
+
+	// ── env keys ──────────────────────────────────────────────────────────────
+
+	it("reports an env key outside [A-Za-z_][A-Za-z0-9_]*", () => {
+		expect(fieldIssues(declare({ env: { "1BAD": "x" } }), "env")).toEqual([
+			expect.stringContaining("not a valid spawn env key"),
+		]);
+		expect(fieldIssues(declare({ env: { "WITH-DASH": "x" } }), "env")).toEqual([
+			expect.stringContaining("not a valid spawn env key"),
+		]);
+	});
+
+	it("reports an env key over 128 bytes", () => {
+		expect(fieldIssues(declare({ env: { ["A".repeat(129)]: "x" } }), "env")).toEqual([
+			expect.stringContaining("not a valid spawn env key"),
+		]);
+		// 128 is the cap, not a violation.
+		expect(fieldIssues(declare({ env: { ["A".repeat(128)]: "x" } }), "env")).toEqual([]);
+	});
+
+	it("reports env keys that differ only in case — the host compares them case-insensitively", () => {
+		expect(fieldIssues(declare({ env: { PATH: "/usr/bin", Path: "/bin" } }), "env")).toEqual([
+			expect.stringContaining("duplicate keys"),
+		]);
+	});
+
+	it("reports more than 128 env vars", () => {
+		const env = Object.fromEntries(Array.from({ length: 129 }, (_, i) => [`V${i}`, "x"]));
+		expect(fieldIssues(declare({ env }), "env")).toEqual([
+			expect.stringContaining("too many variables"),
+		]);
+	});
+
+	// ── env values ────────────────────────────────────────────────────────────
+
+	it("reports an env value over 4096 bytes", () => {
+		expect(fieldIssues(declare({ env: { V: "x".repeat(4097) } }), "env")).toEqual([
+			expect.stringContaining("exceeds max length"),
+		]);
+	});
+
+	it("reports a non-ASCII env value", () => {
+		expect(fieldIssues(declare({ env: { V: "conexão" } }), "env")).toEqual([
+			expect.stringContaining("must be ASCII"),
+		]);
+	});
+
+	it("reports an env value with surrounding whitespace", () => {
+		expect(fieldIssues(declare({ env: { V: " padded" } }), "env")).toEqual([
+			expect.stringContaining("surrounding whitespace"),
+		]);
+	});
+
+	it("reports an env value with interior whitespace — the host forbids any at all", () => {
+		expect(fieldIssues(declare({ env: { V: "two words" } }), "env")).toEqual([
+			expect.stringContaining("must not contain whitespace"),
+		]);
+	});
+
+	it("reports an env value with control characters", () => {
+		expect(fieldIssues(declare({ env: { V: "a\u0001b" } }), "env")).toEqual([
+			expect.stringContaining("control characters"),
+		]);
+	});
+
+	it("counts env length in BYTES, like the host's str::len(), not UTF-16 units", () => {
+		// 2049 two-byte characters = 4098 bytes but only 2049 `String.length` units. Judged
+		// by `String.length` this passes; judged by the host's ruler it does not.
+		const value = "é".repeat(2049);
+		expect(value.length).toBeLessThan(4096);
+		expect(fieldIssues(declare({ env: { V: value } }), "env")).toContainEqual(
+			expect.stringContaining("exceeds max length"),
+		);
+	});
+
+	// ── argv ──────────────────────────────────────────────────────────────────
+
+	it("reports an argv with more than 128 entries", () => {
+		const run = ["true", ...Array.from({ length: 128 }, () => "-x")];
+		expect(fieldIssues(declare({ probe: { run } }), "probe.run")).toContainEqual(
+			expect.stringContaining("too many entries"),
+		);
+	});
+
+	it("reports an argv entry over 4096 bytes", () => {
+		expect(
+			fieldIssues(declare({ probe: { run: ["true", "x".repeat(4097)] } }), "probe.run"),
+		).toContainEqual(expect.stringContaining("exceeds max length"));
+	});
+
+	it("reports a non-ASCII argv[0]", () => {
+		expect(fieldIssues(declare({ probe: { run: ["verificação"] } }), "probe.run")).toContainEqual(
+			expect.stringContaining("must be ASCII"),
+		);
+	});
+
+	it("reports whitespace in argv[0] — a binary and its args must be separate entries", () => {
+		expect(fieldIssues(declare({ probe: { run: ["ip link"] } }), "probe.run")).toContainEqual(
+			expect.stringContaining("contains whitespace"),
+		);
+		expect(fieldIssues(declare({ probe: { run: [" true"] } }), "probe.run")).toContainEqual(
+			expect.stringContaining("surrounding whitespace"),
+		);
+	});
+
+	it("reports control characters in argv[0]", () => {
+		expect(fieldIssues(declare({ probe: { run: ["tr\u0001ue"] } }), "probe.run")).toContainEqual(
+			expect.stringContaining("control characters"),
+		);
+	});
+
+	it("applies the same argv guards to establish, which the host spawns through the same gate", () => {
+		expect(fieldIssues(declare({ establish: ["serpro vpn"] }), "establish")).toContainEqual(
+			expect.stringContaining("contains whitespace"),
+		);
+	});
+
+	// ── cwd ───────────────────────────────────────────────────────────────────
+
+	it("reports a cwd with whitespace, control characters, or non-ASCII", () => {
+		expect(fieldIssues(declare({ cwd: "/tmp/my dir" }), "cwd")).toEqual([
+			expect.stringContaining("must not contain whitespace"),
+		]);
+		expect(fieldIssues(declare({ cwd: "/tmp/x\u0001" }), "cwd")).toEqual([
+			expect.stringContaining("control characters"),
+		]);
+		expect(fieldIssues(declare({ cwd: "/tmp/ação" }), "cwd")).toEqual([
+			expect.stringContaining("must be ASCII"),
+		]);
+		expect(fieldIssues(declare({ cwd: "" }), "cwd")).toEqual([
+			expect.stringContaining("must be non-empty"),
+		]);
+	});
+
+	it("does NOT report a cwd that simply does not exist — that is environmental, not lexical", () => {
+		// `readConnectionCatalog` is pure over a config object; a path this process cannot
+		// see may exist perfectly well on the host. It surfaces as `unknown` at probe time.
+		expect(fieldIssues(declare({ cwd: "/definitely/not/here/xyz" }), "cwd")).toEqual([]);
+	});
+
+	// ── the documented gap ────────────────────────────────────────────────────
+
+	it("does NOT flag a sensitive env key — the host's blocklist is deliberately not copied", () => {
+		// `is_blocked_spawn_env_key` -> `host::sensitive_aliases` refuses this, so the host
+		// reports `down` while this surface can still report `up`. Copying that table here
+		// would be its own drift; closing this needs the host to EXPORT its policy. This
+		// test pins the KNOWN gap so it cannot be closed by accident and left undocumented.
+		expect(fieldIssues(declare({ env: { AWS_SECRET_ACCESS_KEY: "abc" } }), "env")).toEqual([]);
+	});
+});
+
 describe("resolving a declared binary", () => {
 	it("resolves an absolute path that exists", () => {
 		expect(resolveBinary("/usr/bin/true")).toBe("/usr/bin/true");

@@ -34,6 +34,234 @@ const MAX_CONNECTION_PATTERN_LEN = 512;
 /** Mirrors `MAX_CONNECTION_NOTICES` in the Rust parser. */
 const MAX_CONNECTION_NOTICES = 16;
 
+// ── The host's SPAWN-TIME policy guards ──────────────────────────────────────
+//
+// The Rust parser above (`connection_decl.rs`) is only the first gate. Before the host
+// actually spawns anything — `run_probe` -> `spawn_process`, and `spawn_establish_process`
+// for the establish argv — it runs three more guards in
+// `host_effects_bridge/core.rs` + `policy_and_fs.rs`: `enforce_shell_allowlist`,
+// `enforce_spawn_env` and `enforce_spawn_cwd`. All three return `Err` BEFORE the process
+// exists, and `run_probe` swallows that error into `false`.
+//
+// So a declaration that violates any of them is PERMANENTLY down on the host, while this
+// CLI — which spawns through Node, not through those guards — would spawn it happily and
+// report `up`. That lie runs the dangerous way round: the operator is told the tunnel is
+// fine when the engine can never even ask. The constants and checks below mirror the
+// deterministic, LEXICAL half of those guards so the same declaration is refused here.
+//
+// What is deliberately NOT mirrored, and why:
+//   - The SENSITIVE-KEY blocklist (`is_blocked_spawn_env_key` ->
+//     `host::sensitive_aliases`). That table is ~2000 lines of alias/prefix/suffix policy
+//     that the host evolves on its own schedule. A copy of it here would be its own drift:
+//     it would go stale silently and start disagreeing with the host in BOTH directions
+//     (missing a newly-blocked key, or blocking one the host has since allowed) — the exact
+//     failure this whole file exists to prevent. So a declaration whose `env` names a
+//     sensitive key (an auth token, a credential alias) passes THIS check and is still
+//     refused by the host: `connection status` can report `up` for it while the engine
+//     reports `down`. Closing that needs the host to EXPORT its policy (a WIT query or a
+//     generated table), not a second hand-written copy. Same posture as the regex-dialect
+//     gap documented on `findHostUnsupportedRegexConstruct`.
+//   - The ENVIRONMENTAL half of `enforce_spawn_cwd`: that the directory exists, is a
+//     directory, and lies inside `MODEL_FS_ROOT`. Those depend on the filesystem and on a
+//     host env var, and `readConnectionCatalog` is pure over a config object by contract
+//     (see its doc comment) — a config that is fine on the host's machine must not be
+//     reported as broken here just because this process cannot see the path. A missing
+//     `cwd` surfaces instead as `unknown` at probe time (the spawn error path), which is
+//     the honest answer: "I could not ask."
+//   - The shell ALLOWLIST membership itself (`policy.shell_allowlist()`): host policy read
+//     from the sovereign config at runtime, not a lexical property of the declaration.
+
+/** Mirrors `MAX_SPAWN_ARGV_COUNT` in `host_effects_bridge/core.rs`. */
+const MAX_SPAWN_ARGV_COUNT = 128;
+/** Mirrors `MAX_SPAWN_ARG_LEN` — per-entry, in BYTES (Rust `str::len()`). */
+const MAX_SPAWN_ARG_LEN = 4096;
+/** Mirrors `MAX_SPAWN_ARGV_TOTAL_BYTES`. */
+const MAX_SPAWN_ARGV_TOTAL_BYTES = 64 * 1024;
+/** Mirrors `MAX_SHELL_TOKEN_LEN`, applied by `enforce_shell_allowlist_with` to argv[0]. */
+const MAX_SHELL_TOKEN_LEN = 256;
+/** Mirrors `MAX_SPAWN_ENV_VARS`. */
+const MAX_SPAWN_ENV_VARS = 128;
+/** Mirrors `MAX_SPAWN_ENV_KEY_LEN`. */
+const MAX_SPAWN_ENV_KEY_LEN = 128;
+/** Mirrors `MAX_SPAWN_ENV_VALUE_LEN`. */
+const MAX_SPAWN_ENV_VALUE_LEN = 4096;
+/** Mirrors `MAX_SPAWN_ENV_TOTAL_BYTES`. */
+const MAX_SPAWN_ENV_TOTAL_BYTES = 128 * 1024;
+/** Mirrors `MAX_SPAWN_CWD_LEN`. */
+const MAX_SPAWN_CWD_LEN = 4096;
+
+/**
+ * `is_safe_spawn_env_key`'s charset rule: an ASCII letter or `_`, then ASCII
+ * alphanumerics or `_`. Anchored, so it also rejects control characters and whitespace —
+ * the two checks the Rust helper makes separately before the charset walk.
+ */
+const SAFE_SPAWN_ENV_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** Rust's `str::len()` is BYTES, not UTF-16 code units — a multi-byte name, pattern, arg
+ * or env value must be judged by the same ruler the host uses, or a declaration passes
+ * here and is refused there (or vice versa). */
+function byteLength(value: string): number {
+	return Buffer.byteLength(value, "utf8");
+}
+
+/** Rust's `str::is_ascii()`: every byte below 0x80. */
+function isAscii(value: string): boolean {
+	for (let i = 0; i < value.length; i += 1) {
+		if (value.charCodeAt(i) > 0x7f) return false;
+	}
+	return true;
+}
+
+/** Rust's `char::is_control()`: the Unicode `Cc` general category. */
+function containsControlChars(value: string): boolean {
+	return /\p{Cc}/u.test(value);
+}
+
+/** Rust's `char::is_whitespace()`: the Unicode `White_Space` property. `String.trim()`
+ * is close but not identical (it also strips U+FEFF and misses U+0085), so both the
+ * "surrounding" and the "any" whitespace checks go through this one property. */
+function containsWhitespace(value: string): boolean {
+	return /\p{White_Space}/u.test(value);
+}
+
+function hasSurroundingWhitespace(value: string): boolean {
+	return (
+		value.length > 0 &&
+		(containsWhitespace(value[0]!) || containsWhitespace(value[value.length - 1]!))
+	);
+}
+
+/**
+ * Mirrors `enforce_shell_allowlist_with` + `enforce_spawn_argv_within_limits` (the
+ * declaration-lexical half). Applied to BOTH `establish` and `probe.run`, because both
+ * argvs reach the same guard on the host: `spawn_establish_process` and `run_probe` each
+ * call `enforce_shell_allowlist` before spawning.
+ *
+ * An empty argv is not reported here — `parseOne`/`readProbeField` already report that,
+ * and a second issue for one root cause is noise, not information.
+ */
+function checkSpawnArgv(name: string, field: string, argv: string[], issues: CatalogIssue[]): void {
+	if (argv.length === 0) return;
+	if (argv.length > MAX_SPAWN_ARGV_COUNT) {
+		issues.push({
+			connection: name,
+			field,
+			message: `${field} has too many entries (max ${MAX_SPAWN_ARGV_COUNT}) — the host refuses to spawn it`,
+		});
+	}
+
+	// argv[0] carries the stricter rules: the host treats it as the binary token, not as
+	// data, so it must be ASCII, whitespace- and control-free, and within the shell-token
+	// length cap. Trailing/leading whitespace is its own error there because a padded
+	// binary name silently resolves to a DIFFERENT (usually nonexistent) file.
+	const binary = argv[0]!;
+	if (binary.trim().length === 0) {
+		issues.push({
+			connection: name,
+			field,
+			message: `${field}[0] must be a non-empty binary name — the host refuses to spawn it`,
+		});
+	} else if (hasSurroundingWhitespace(binary)) {
+		issues.push({
+			connection: name,
+			field,
+			message: `${field}[0] has surrounding whitespace — the host refuses to spawn it`,
+		});
+	} else if (containsControlChars(binary)) {
+		issues.push({
+			connection: name,
+			field,
+			message: `${field}[0] contains control characters — the host refuses to spawn it`,
+		});
+	} else if (containsWhitespace(binary)) {
+		issues.push({
+			connection: name,
+			field,
+			message:
+				`${field}[0] contains whitespace — a binary and its arguments must be separate ` +
+				"argv entries; the host refuses to spawn it",
+		});
+	} else if (!isAscii(binary)) {
+		issues.push({
+			connection: name,
+			field,
+			message: `${field}[0] must be ASCII — the host refuses to spawn it`,
+		});
+	} else if (byteLength(binary) > MAX_SHELL_TOKEN_LEN) {
+		issues.push({
+			connection: name,
+			field,
+			message: `${field}[0] exceeds max length (${MAX_SHELL_TOKEN_LEN} bytes) — the host refuses to spawn it`,
+		});
+	}
+
+	let totalBytes = 0;
+	for (let i = 0; i < argv.length; i += 1) {
+		const entry = argv[i]!;
+		if (byteLength(entry) > MAX_SPAWN_ARG_LEN) {
+			issues.push({
+				connection: name,
+				field,
+				message: `${field}[${i}] exceeds max length (${MAX_SPAWN_ARG_LEN} bytes) — the host refuses to spawn it`,
+			});
+		} else if (i > 0 && !isAscii(entry)) {
+			issues.push({
+				connection: name,
+				field,
+				message: `${field}[${i}] must be ASCII — the host refuses to spawn it`,
+			});
+		} else if (i > 0 && containsControlChars(entry)) {
+			issues.push({
+				connection: name,
+				field,
+				message: `${field}[${i}] contains control characters — the host refuses to spawn it`,
+			});
+		}
+		totalBytes += byteLength(entry);
+	}
+	if (totalBytes > MAX_SPAWN_ARGV_TOTAL_BYTES) {
+		issues.push({
+			connection: name,
+			field,
+			message: `${field} payload exceeds max total bytes (${MAX_SPAWN_ARGV_TOTAL_BYTES}) — the host refuses to spawn it`,
+		});
+	}
+}
+
+/**
+ * Mirrors `enforce_spawn_cwd_with`'s lexical half. The existence / is-a-directory /
+ * inside-`MODEL_FS_ROOT` half is deliberately NOT mirrored — see the block comment on the
+ * spawn-guard constants above for why.
+ */
+function checkSpawnCwd(name: string, cwd: string, issues: CatalogIssue[]): void {
+	const push = (message: string): void => {
+		issues.push({ connection: name, field: "cwd", message });
+	};
+	if (cwd.trim().length === 0) {
+		push("cwd must be non-empty — the host refuses to spawn with it");
+		return;
+	}
+	if (hasSurroundingWhitespace(cwd)) {
+		push("cwd has surrounding whitespace — the host refuses to spawn with it");
+		return;
+	}
+	if (byteLength(cwd) > MAX_SPAWN_CWD_LEN) {
+		push(`cwd exceeds max length (${MAX_SPAWN_CWD_LEN} bytes) — the host refuses to spawn with it`);
+		return;
+	}
+	if (!isAscii(cwd)) {
+		push("cwd must be ASCII — the host refuses to spawn with it");
+		return;
+	}
+	if (containsControlChars(cwd)) {
+		push("cwd contains control characters — the host refuses to spawn with it");
+		return;
+	}
+	if (containsWhitespace(cwd)) {
+		push("cwd must not contain whitespace — the host refuses to spawn with it");
+	}
+}
+
 /**
  * Binaries that would smuggle a shell back in through the probe. `sh -c "…"` is
  * argv-shaped but interprets a command string, so allowing it in the allowlist allows
@@ -173,11 +401,11 @@ function checkHostPattern(
 	pattern: string,
 	issues: CatalogIssue[],
 ): boolean {
-	if (pattern.length > MAX_CONNECTION_PATTERN_LEN) {
+	if (byteLength(pattern) > MAX_CONNECTION_PATTERN_LEN) {
 		issues.push({
 			connection: name,
 			field,
-			message: `${field} pattern exceeds max length (${MAX_CONNECTION_PATTERN_LEN})`,
+			message: `${field} pattern exceeds max length (${MAX_CONNECTION_PATTERN_LEN} bytes)`,
 		});
 		return false;
 	}
@@ -283,18 +511,29 @@ function readNoticesField(name: string, raw: unknown, issues: CatalogIssue[]): v
 	}
 }
 
-function readEnvField(
-	name: string,
-	raw: unknown,
-	issues: CatalogIssue[],
-): Record<string, string> {
+function readEnvField(name: string, raw: unknown, issues: CatalogIssue[]): Record<string, string> {
 	if (raw === undefined || raw === null) return {};
 	if (!isPlainObject(raw)) {
 		issues.push({ connection: name, field: "env", message: "env must be an object of strings" });
 		return {};
 	}
+	const entries = Object.entries(raw);
+	if (entries.length > MAX_SPAWN_ENV_VARS) {
+		issues.push({
+			connection: name,
+			field: "env",
+			message: `env declares too many variables (max ${MAX_SPAWN_ENV_VARS}) — the host refuses to spawn with it`,
+		});
+	}
+
 	const out: Record<string, string> = {};
-	for (const [key, value] of Object.entries(raw)) {
+	// Mirrors `enforce_spawn_env`'s duplicate check, which normalizes with
+	// `to_ascii_uppercase`. JSON object keys are already unique by exact string, so this
+	// only ever fires for keys that differ ONLY in case (`Path` vs `PATH`) — which the
+	// host rejects outright rather than letting the platform pick a winner.
+	const seenUppercase = new Map<string, string>();
+	let totalBytes = 0;
+	for (const [key, value] of entries) {
 		if (typeof value !== "string") {
 			// A dropped entry changes the environment the command would run in, so it is
 			// reported — but the rest of `env` is still usable, so every other entry is
@@ -303,16 +542,79 @@ function readEnvField(
 			issues.push({ connection: name, field: "env", message: `env['${key}'] must be a string` });
 			continue;
 		}
+
+		const upper = key.toUpperCase();
+		const previous = seenUppercase.get(upper);
+		if (previous !== undefined) {
+			issues.push({
+				connection: name,
+				field: "env",
+				message: `env declares duplicate keys '${previous}' and '${key}' (the host compares them case-insensitively) — it refuses to spawn with them`,
+			});
+		} else {
+			seenUppercase.set(upper, key);
+		}
+
+		if (!SAFE_SPAWN_ENV_KEY.test(key) || byteLength(key) > MAX_SPAWN_ENV_KEY_LEN) {
+			issues.push({
+				connection: name,
+				field: "env",
+				message:
+					`env key '${key}' is not a valid spawn env key — it must match ` +
+					`[A-Za-z_][A-Za-z0-9_]* and stay within ${MAX_SPAWN_ENV_KEY_LEN} bytes; ` +
+					"the host refuses to spawn with it",
+			});
+		}
+
+		// Value rules, in the host's own order — first problem wins per value, then the
+		// next variable is still checked (report posture; the host returns on the first).
+		if (byteLength(value) > MAX_SPAWN_ENV_VALUE_LEN) {
+			issues.push({
+				connection: name,
+				field: "env",
+				message: `env['${key}'] exceeds max length (${MAX_SPAWN_ENV_VALUE_LEN} bytes) — the host refuses to spawn with it`,
+			});
+		} else if (hasSurroundingWhitespace(value)) {
+			issues.push({
+				connection: name,
+				field: "env",
+				message: `env['${key}'] has surrounding whitespace — the host refuses to spawn with it`,
+			});
+		} else if (!isAscii(value)) {
+			issues.push({
+				connection: name,
+				field: "env",
+				message: `env['${key}'] must be ASCII — the host refuses to spawn with it`,
+			});
+		} else if (containsControlChars(value)) {
+			issues.push({
+				connection: name,
+				field: "env",
+				message: `env['${key}'] contains control characters — the host refuses to spawn with it`,
+			});
+		} else if (containsWhitespace(value)) {
+			issues.push({
+				connection: name,
+				field: "env",
+				message: `env['${key}'] must not contain whitespace — the host refuses to spawn with it`,
+			});
+		}
+
+		totalBytes += byteLength(key) + byteLength(value);
 		out[key] = value;
+	}
+
+	if (totalBytes > MAX_SPAWN_ENV_TOTAL_BYTES) {
+		issues.push({
+			connection: name,
+			field: "env",
+			message: `env payload exceeds max total bytes (${MAX_SPAWN_ENV_TOTAL_BYTES}) — the host refuses to spawn with it`,
+		});
 	}
 	return out;
 }
 
-function readProbeField(
-	name: string,
-	raw: unknown,
-	issues: CatalogIssue[],
-): ConnectionProbe {
+function readProbeField(name: string, raw: unknown, issues: CatalogIssue[]): ConnectionProbe {
 	if (raw === undefined || raw === null) {
 		issues.push({
 			connection: name,
@@ -348,6 +650,11 @@ function readProbeField(
 					"and ask the operator to grant it; it is not supported yet.",
 			});
 		}
+		// The host applies its spawn-time argv guards to `probe.run` too (`run_probe` ->
+		// `spawn_process` -> `enforce_shell_allowlist`), so a violation here means the
+		// host's probe can never run — reporting `up` for such a declaration would be the
+		// exact CLI-says-up/engine-says-down lie this parity exists to close.
+		checkSpawnArgv(name, "probe.run", run, issues);
 	}
 
 	// D1c: a composing probe must ASK, never be silently allowed. Declaring `probe.shell`
@@ -447,7 +754,9 @@ function parseOne(
 ): { connection: DeclaredConnection; issues: CatalogIssue[] } {
 	const issues: CatalogIssue[] = [];
 
-	if (name.length === 0 || name.length > MAX_CONNECTION_NAME_LEN) {
+	// Byte length, not `String.length`: the Rust parser measures with `str::len()`, so an
+	// accented or emoji-bearing name must be judged by the same ruler on both sides.
+	if (name.length === 0 || byteLength(name) > MAX_CONNECTION_NAME_LEN) {
 		issues.push({
 			connection: name,
 			field: "name",
@@ -495,11 +804,16 @@ function parseOne(
 			message: "establish must be a non-empty array of strings",
 		});
 	}
+	// `spawn_establish_process` runs the same `enforce_shell_allowlist` guard on this argv
+	// before the host ever forks, so an argv the host refuses is a connection that can
+	// never be brought up — worth reporting even though it does not stop us PROBING.
+	checkSpawnArgv(name, "establish", establish, issues);
 
 	const probe = readProbeField(name, value.probe, issues);
 	readNoticesField(name, value.notices, issues);
 	const env = readEnvField(name, value.env, issues);
 	const cwd = readOptionalStringField(name, "cwd", value.cwd, issues);
+	if (cwd !== undefined) checkSpawnCwd(name, cwd, issues);
 	const readyTimeoutMs = readOptionalNonNegativeIntegerField(
 		name,
 		"readyTimeoutMs",
@@ -537,7 +851,11 @@ export function readConnectionCatalog(config: Record<string, unknown>): {
 		return {
 			connections: [],
 			issues: [
-				{ connection: CATALOG_LEVEL_ISSUE, field: "connections", message: "connections must be an object" },
+				{
+					connection: CATALOG_LEVEL_ISSUE,
+					field: "connections",
+					message: "connections must be an object",
+				},
 			],
 		};
 	}
