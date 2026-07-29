@@ -1,5 +1,22 @@
 import type { StatusJson } from "@refarm.dev/cli/status";
+import { accessSync, constants as fsConstants } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+/** The Task 3 connection-finding tests below resolve `/usr/bin/true` against the REAL
+ * PATH (via `resolveBinary`, transitively through `buildConnectionDoctorRecommendations`)
+ * to exercise a "this binary resolves fine" case — fail loudly up front rather than let
+ * a missing binary make an unrelated assertion pass for the wrong reason, same doctrine
+ * as `connection-status.test.ts`. */
+function requireBinary(path: string): void {
+	try {
+		accessSync(path, fsConstants.X_OK);
+	} catch {
+		throw new Error(
+			`${path} is required for this test but is not present/executable on this host`,
+		);
+	}
+}
+requireBinary("/usr/bin/true");
 
 const { mockResolveStatusPayload, mockShutdown } = vi.hoisted(() => ({
 	mockResolveStatusPayload: vi.fn(),
@@ -13,6 +30,7 @@ vi.mock("../../src/commands/status.js", () => ({
 import {
 	buildRefarmDoctorRecommendations,
 	buildRefarmDoctorReport,
+	createDoctorCommand,
 	doctorCommand,
 } from "../../src/commands/doctor.js";
 
@@ -117,6 +135,59 @@ describe("buildRefarmDoctorReport", () => {
 		expect(report.ok).toBe(false);
 		expect(report.failureCount).toBe(0);
 		expect(report.warningCount).toBe(1);
+	});
+
+	// --- Task 3: a declared connection with an unresolvable binary or a catalog issue
+	// becomes a doctor finding. `buildConnectionDoctorRecommendations` has its own
+	// dedicated tests (connection-doctor.test.ts); these confirm it is actually WIRED
+	// into `buildRefarmDoctorReport`'s warnings/recommendations/nextCommands, and stays
+	// a `warning`, never a `failure`.
+
+	it("folds a connection with a missing binary into warnings and recommendations", () => {
+		const report = buildRefarmDoctorReport(makeStatus([]), {
+			connectionConfig: {
+				connections: {
+					vpn: {
+						establish: ["definitely-not-a-real-binary-xyz"],
+						probe: { run: ["/usr/bin/true"] },
+					},
+				},
+			},
+		});
+
+		expect(report.failureCount).toBe(0);
+		expect(report.warningCount).toBe(1);
+		expect(report.warnings).toEqual(["connection:binary-missing:vpn:establish"]);
+		expect(report.recommendations).toContainEqual(
+			expect.objectContaining({
+				diagnostic: "connection:binary-missing:vpn:establish",
+				severity: "warning",
+				command: "refarm connection status --json",
+			}),
+		);
+		// A missing connection binary must never gate `ok` by itself — only
+		// `--fail-on-warnings` (a warning, never a failure) does that.
+		expect(report.ok).toBe(true);
+		expect(report.nextCommands).toContain("refarm connection status --json");
+	});
+
+	it("fails on a connection finding only when failOnWarnings is enabled", () => {
+		const report = buildRefarmDoctorReport(makeStatus([]), {
+			failOnWarnings: true,
+			connectionConfig: {
+				connections: {
+					vpn: { establish: ["definitely-not-a-real-binary-xyz"], probe: { run: [] } },
+				},
+			},
+		});
+		expect(report.ok).toBe(false);
+	});
+
+	it("produces no connection findings when the catalog is empty (the default)", () => {
+		const report = buildRefarmDoctorReport(makeStatus([]));
+		expect(report.warningCount).toBe(0);
+		expect(report.warnings).toEqual([]);
+		expect(report.recommendations).toEqual([]);
 	});
 });
 
@@ -375,5 +446,61 @@ describe("doctorCommand", () => {
 		});
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
+	});
+
+	// --- Task 3: `createDoctorCommand` accepts injected `loadConfig`/`cwd`, so the
+	// wiring from "declared connection catalog" to "doctor JSON output" is exercised
+	// WITHOUT ever touching the real `.refarm/config.json`.
+
+	it("createDoctorCommand surfaces a connection finding via injected loadConfig, never touching the real config", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const loadConfigSpy = vi.fn().mockReturnValue({
+			connections: {
+				vpn: {
+					establish: ["definitely-not-a-real-binary-xyz"],
+					probe: { run: ["/usr/bin/true"] },
+				},
+			},
+		});
+
+		try {
+			await createDoctorCommand({ loadConfig: loadConfigSpy, cwd: () => "/fake/root" }).parseAsync(
+				["--json"],
+				{ from: "user" },
+			);
+
+			expect(loadConfigSpy).toHaveBeenCalledWith("/fake/root");
+			const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+			expect(output.warnings).toContain("connection:binary-missing:vpn:establish");
+			expect(output.recommendations).toContainEqual(
+				expect.objectContaining({
+					diagnostic: "connection:binary-missing:vpn:establish",
+					severity: "warning",
+					command: "refarm connection status --json",
+				}),
+			);
+			// A connection warning does not fail doctor by itself.
+			expect(output.ok).toBe(true);
+			expect(process.exitCode).toBeUndefined();
+		} finally {
+			logSpy.mockRestore();
+		}
+	});
+
+	it("createDoctorCommand reports no connection findings when loadConfig throws (report, never fail shut)", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		try {
+			await createDoctorCommand({
+				loadConfig: () => {
+					throw new Error("config is malformed");
+				},
+			}).parseAsync(["--json"], { from: "user" });
+
+			const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+			expect(output.ok).toBe(true);
+			expect(output.warnings).toEqual([]);
+		} finally {
+			logSpy.mockRestore();
+		}
 	});
 });

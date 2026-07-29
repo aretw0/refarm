@@ -3,7 +3,9 @@ import {
 	STATUS_DIAGNOSTICS,
 	type StatusJson,
 } from "@refarm.dev/cli/status";
+import { loadConfig } from "@refarm.dev/config";
 import { Command } from "commander";
+import { buildConnectionDoctorRecommendations } from "./connection-doctor.js";
 import {
 	diagnosticNextActions,
 	diagnosticNextCommands,
@@ -57,17 +59,37 @@ export interface RefarmDoctorOptions {
 
 export function buildRefarmDoctorReport(
 	status: StatusJson,
-	options: { failOnWarnings?: boolean; metadata?: RefarmRuntimeMetadata } = {},
+	options: {
+		failOnWarnings?: boolean;
+		metadata?: RefarmRuntimeMetadata;
+		/** The config object `loadConfig()` returns — read ONLY for the declared
+		 * `connections` block (see `connection-doctor.ts`). Omitted (the default) means
+		 * "nothing declared", which produces no connection findings — this keeps the
+		 * function pure and every caller that does not pass it (including every existing
+		 * test) unaffected. */
+		connectionConfig?: Record<string, unknown>;
+	} = {},
 ): RefarmDoctorReport {
-	const { failures, warnings, informational } = classifyStatusDiagnostics(status);
+	const { failures, warnings: statusWarnings, informational } = classifyStatusDiagnostics(status);
+	// A declared connection with an unresolvable binary, or a catalog issue, is a doctor
+	// finding in its own right (Task 3) — folded into the SAME `warnings`/`recommendations`
+	// buckets status diagnostics use rather than a parallel mechanism, so the existing
+	// output/JSON/next-action plumbing (doctor-output.ts) surfaces it for free.
+	const connectionRecommendations = buildConnectionDoctorRecommendations(
+		options.connectionConfig ?? {},
+	);
+	const warnings = [...statusWarnings, ...connectionRecommendations.map((r) => r.diagnostic)];
 
 	const failOnWarnings = options.failOnWarnings === true;
 	const ok = failures.length === 0 && (!failOnWarnings || warnings.length === 0);
-	const recommendations = buildRefarmDoctorRecommendations({
-		failures,
-		warnings,
-		informational,
-	});
+	const recommendations = [
+		...buildRefarmDoctorRecommendations({
+			failures,
+			warnings: statusWarnings,
+			informational,
+		}),
+		...connectionRecommendations,
+	];
 	const nextActions = diagnosticNextActions(recommendations);
 	const nextCommands = diagnosticNextCommands(recommendations);
 
@@ -196,24 +218,50 @@ function createRefarmDoctorRecommendation(
 	}
 }
 
-export const doctorCommand = new Command("doctor")
-	.description("Run host readiness checks from the refarm status contract")
-	.option(
-		"--input <path>",
-		"Read status payload from JSON file (or '-' for stdin) instead of booting runtime",
-	)
-	.option(
-		"--renderer <kind>",
-		"Renderer mode when booting runtime: web | tui | headless",
-		"headless",
-	)
-	.option("--json", "Output machine-readable doctor report")
-	.option("--next-action", "Print only the first blocking recovery action")
-	.option("--next-command", "Print only the first executable recovery command")
-	.option("--fail-on-warnings", "Treat warning diagnostics as failures")
-	.addHelpText(
-		"after",
-		`
+export interface RefarmDoctorCommandDeps {
+	/** Overrides for resolving the config `buildConnectionDoctorRecommendations` reads
+	 * (Task 3). Both default to the real `process.cwd()` / `loadConfig()` — injected so
+	 * tests can drive the connection-finding wiring without ever touching the real
+	 * `.refarm/config.json`. */
+	cwd?: () => string;
+	loadConfig?: (root?: string) => Record<string, unknown>;
+}
+
+/**
+ * Resolve the config object connection findings are read from. Never throws: a broken
+ * `.refarm/config.json` is a different failure surface — `refarm connection status`
+ * already surfaces a load failure explicitly with a JSON error envelope — so doctor
+ * must not crash the WHOLE report over it. It just has nothing to check for connection
+ * findings this run, same "report, never fail shut" posture as `readConnectionCatalog`.
+ */
+function resolveConnectionConfig(deps: RefarmDoctorCommandDeps | undefined): Record<string, unknown> {
+	const baseDir = deps?.cwd?.() ?? process.cwd();
+	try {
+		return (deps?.loadConfig ?? loadConfig)(baseDir) as Record<string, unknown>;
+	} catch {
+		return {};
+	}
+}
+
+export function createDoctorCommand(deps?: RefarmDoctorCommandDeps): Command {
+	return new Command("doctor")
+		.description("Run host readiness checks from the refarm status contract")
+		.option(
+			"--input <path>",
+			"Read status payload from JSON file (or '-' for stdin) instead of booting runtime",
+		)
+		.option(
+			"--renderer <kind>",
+			"Renderer mode when booting runtime: web | tui | headless",
+			"headless",
+		)
+		.option("--json", "Output machine-readable doctor report")
+		.option("--next-action", "Print only the first blocking recovery action")
+		.option("--next-command", "Print only the first executable recovery command")
+		.option("--fail-on-warnings", "Treat warning diagnostics as failures")
+		.addHelpText(
+			"after",
+			`
 
 Examples:
   $ refarm doctor
@@ -229,22 +277,26 @@ Notes:
   Doctor turns status diagnostics into operator recommendations.
   Use refarm check when you also want the repository health gate.
 `,
-	)
-	.action(async (options: RefarmDoctorOptions) => {
-		const report = await withResolvedStatusPayload({
-			resolveStatusPayload,
-			resolveOptions: options,
-			run: (status) => {
-				const report = buildRefarmDoctorReport(status, {
-					failOnWarnings: options.failOnWarnings,
-				});
-				const outputMode = resolveDoctorOutputMode(options);
-				emitRefarmDoctorOutput({ report, mode: outputMode });
-				return report;
-			},
-		});
+		)
+		.action(async (options: RefarmDoctorOptions) => {
+			const report = await withResolvedStatusPayload({
+				resolveStatusPayload,
+				resolveOptions: options,
+				run: (status) => {
+					const report = buildRefarmDoctorReport(status, {
+						failOnWarnings: options.failOnWarnings,
+						connectionConfig: resolveConnectionConfig(deps),
+					});
+					const outputMode = resolveDoctorOutputMode(options);
+					emitRefarmDoctorOutput({ report, mode: outputMode });
+					return report;
+				},
+			});
 
-		if (!report.ok) {
-			process.exitCode = 1;
-		}
-	});
+			if (!report.ok) {
+				process.exitCode = 1;
+			}
+		});
+}
+
+export const doctorCommand = createDoctorCommand();
