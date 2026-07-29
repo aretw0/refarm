@@ -175,31 +175,35 @@ fn daemon_cli_http_host_is_absent_by_default() {
 #[test]
 fn ws_host_preflight_resolves_absent_flag_to_loopback() {
     // `daemon::preflight_ws_bind_host` now RESOLVES the bind host too (not just
-    // validates): an absent flag resolves to loopback and is returned, not just Ok(()).
-    assert_eq!(daemon::preflight_ws_bind_host(None).unwrap(), "127.0.0.1");
+    // validates): an absent flag + no declaration resolves to loopback and is
+    // returned, not just Ok(()).
+    assert_eq!(daemon::preflight_ws_bind_host(None, None).unwrap(), "127.0.0.1");
 }
 
 #[test]
 fn ws_host_preflight_refuses_nonloopback_before_boot() {
     // `--ws-host` PARSES anything (the test above) — the refusal is a separate,
     // deliberate step so the operator gets a reason, not a clap usage error. This
-    // asserts `run_daemon`'s FIRST act rejects a non-loopback host, PURE: no runtime
-    // booted, no socket opened. Mutation guard for deleting the preflight call —
-    // without it the refusal moves to after a full boot (and used to skip shutdown).
-    assert!(daemon::preflight_ws_bind_host(Some("0.0.0.0")).is_err());
-    assert!(daemon::preflight_ws_bind_host(Some("100.64.0.1")).is_err());
-    assert!(daemon::preflight_ws_bind_host(Some("127.0.0.1")).is_ok());
+    // asserts `run_daemon`'s FIRST act rejects a non-loopback host with no declaration,
+    // PURE: no runtime booted, no socket opened. Mutation guard for deleting the
+    // preflight call — without it the refusal moves to after a full boot (and used to
+    // skip shutdown).
+    assert!(daemon::preflight_ws_bind_host(Some("0.0.0.0"), None).is_err());
+    assert!(daemon::preflight_ws_bind_host(Some("100.64.0.1"), None).is_err());
+    assert!(daemon::preflight_ws_bind_host(Some("127.0.0.1"), None).is_ok());
 }
 
 #[test]
-fn ws_host_preflight_ignores_a_configured_auth_policy() {
-    // A policy file does NOT gate the WS (no middleware reads it), so it must not
-    // unlock the bind. Setting the env the sidecar uses must change nothing here.
-    // Uses a path that need not exist: the preflight must never read it at all.
+fn ws_host_preflight_ignores_a_configured_auth_policy_when_undeclared() {
+    // S1: an UNDECLARED `daemon-ws` binds loopback only, and a configured policy does
+    // not widen that — same as the sidecar's own S1 guard. Setting the env the sidecar
+    // (and, since ADR-093, the WS handshake) uses must change nothing here when there
+    // is no `surfaces.daemon-ws` declaration at all. Uses a path that need not exist:
+    // the preflight's cheap presence peek never reads the file's contents.
     std::env::set_var("REFARM_AUTH_POLICY", "/nonexistent/policy.json");
-    let refused = daemon::preflight_ws_bind_host(Some("100.64.0.1")).is_err();
+    let refused = daemon::preflight_ws_bind_host(Some("100.64.0.1"), None).is_err();
     std::env::remove_var("REFARM_AUTH_POLICY");
-    assert!(refused, "a policy must not authorize a non-loopback WS bind");
+    assert!(refused, "an undeclared surface must not be unlocked by a policy alone");
 }
 
 #[test]
@@ -463,6 +467,7 @@ async fn ws_probe_succeeds_when_daemon_is_listening() {
         telemetry,
         channels,
         tractor::EventRouter::default(),
+        None,
     );
 
     tokio::spawn(async move {

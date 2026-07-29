@@ -16,10 +16,12 @@ async fn start_server(sync: Arc<NativeSync>) -> u16 {
         Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
     let server = WsServer::new(
         sync,
+        "127.0.0.1".to_string(),
         port,
         telemetry,
         plugin_channels,
         tractor::EventRouter::default(),
+        None,
     );
     tokio::spawn(async move { server.run(listener).await.unwrap() });
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;

@@ -52,22 +52,21 @@ struct DaemonArgs {
     #[arg(long, default_value_t = 42000)]
     port: u16,
 
-    /// WebSocket daemon bind host. Loopback only, for now. This socket accepts
-    /// `user:prompt` frames from any peer that can reach it with NO credential check
-    /// (the WS auth handshake, ADR-093, is not yet implemented), and — unlike the HTTP
-    /// sidecar — no middleware reads `REFARM_AUTH_POLICY` here, so a policy file cannot
-    /// gate it and therefore cannot authorize a wider bind either. A non-loopback value
-    /// is refused at startup outright (`sidecar::bind_guard::refuse_nonloopback_ws_bind`),
-    /// and `surfaces.daemon-ws` in `.refarm/config.json` may declare only `"loopback"` —
-    /// anything else is refused when the config loads, before this flag is even read
-    /// (docs/superpowers/specs/2026-07-29-declared-surfaces-design.md, S1/S3). Named to
-    /// mirror `--http-host`, but strictly stricter than it until ADR-093 lands.
+    /// WebSocket daemon bind host. May only NARROW `surfaces.daemon-ws`'s declared
+    /// `expose` (or stay loopback when undeclared) — never widen past it, exactly like
+    /// `http_host` below. Since ADR-093, `daemon::WsServer` authenticates every
+    /// `Sec-WebSocket-Protocol` handshake against the SAME `REFARM_AUTH_POLICY` the HTTP
+    /// sidecar uses, so `surfaces.daemon-ws` may declare `"host:<ip>"` with `"gate":
+    /// "device-token"` exactly like `sidecar-http` — a non-loopback value is only
+    /// accepted when that declaration is present AND a policy is actually configured
+    /// (S1/S3/S5; see `sidecar::bind_guard::refuse_unguarded_nonloopback_ws_bind` and
+    /// docs/superpowers/specs/2026-07-29-declared-surfaces-design.md).
     ///
     /// `Option`, not a defaulted `String` — see `http_host`'s doc comment for why: under
     /// S5 (a flag may only narrow, never widen) a CLI default is not neutral, because a
     /// default value is indistinguishable from an explicit operator choice. `None` means
-    /// "no flag was passed"; loopback is simply what an absent flag resolves to today,
-    /// since `daemon-ws` cannot legally declare anything wider.
+    /// "no flag was passed"; the `surfaces.daemon-ws` declaration decides what an absent
+    /// flag resolves to (loopback if it declares `"loopback"` or is absent — S1).
     #[arg(long)]
     ws_host: Option<String>,
 
@@ -432,6 +431,10 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     // through — or after — a full runtime boot. Same "preflight before boot" doctrine as
     // the WS host check immediately below.
     let surfaces = tractor::host::surfaces_from_config().map_err(|reason| anyhow::anyhow!(reason))?;
+    // Resolved once, alongside `surfaces` itself, and reused below for `WsServer::new` —
+    // `preflight_ws_bind_host`/`WsServer::start` never read `.refarm/config.json`
+    // themselves (same pattern as `declared_surface` for the HTTP sidecar further down).
+    let declared_ws_surface = surfaces.get(tractor::host::SURFACE_DAEMON_WS).cloned();
 
     // Preflight the WS bind BEFORE booting anything. The WS server is started at the very
     // end of `run_daemon`, so its own (load-bearing) bind guard would otherwise fire only
@@ -441,12 +444,15 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     // there is nothing to tear down, and the operator sees the reason immediately instead
     // of after a full boot.
     //
-    // Also RESOLVES the bind host from the (now-optional) `--ws-host` flag: an absent
-    // flag means loopback (the only value `daemon-ws` can ever legally declare), a
-    // present flag is the operator narrowing/asserting one, checked exactly as before.
-    // Resolved ONCE here and reused below for `WsServer::new`, so the value that was
-    // validated is the exact value that gets bound.
-    let resolved_ws_host = daemon::preflight_ws_bind_host(args.ws_host.as_deref())?;
+    // Also RESOLVES the bind host from the (now-optional) `--ws-host` flag and the
+    // `surfaces.daemon-ws` declaration: an absent flag lets the declaration decide
+    // (loopback if it declares `"loopback"` or is absent — S1), a present flag is the
+    // operator narrowing/asserting one, checked against the declared ceiling exactly as
+    // the HTTP sidecar's `--http-host` always has. Resolved ONCE here and reused below
+    // for `WsServer::new`, so the value that was validated is the exact value that gets
+    // bound.
+    let resolved_ws_host =
+        daemon::preflight_ws_bind_host(args.ws_host.as_deref(), declared_ws_surface.as_ref())?;
 
     let security_mode = match args.security_mode.as_str() {
         "permissive" => SecurityMode::Permissive,
@@ -634,6 +640,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         tractor.telemetry.clone(),
         tractor.plugin_channels.clone(),
         tractor.event_router.clone(),
+        declared_ws_surface,
     )
     .start()
     .await;

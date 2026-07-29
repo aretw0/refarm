@@ -16,20 +16,22 @@
 //!   `--http-host`/`--ws-host` value may match or fall inside of (loopback is always inside
 //!   any ceiling), never a value that points somewhere ELSE or wider.
 //!
-//! `refuse_unguarded_nonloopback_bind` (the HTTP sidecar's guard) additionally enforces S3:
-//! a non-loopback declaration must name a gate the sidecar can enforce (`device-token`), AND
+//! `refuse_unguarded_nonloopback_bind` (the HTTP sidecar's guard) and
+//! `refuse_unguarded_nonloopback_ws_bind` (the WS guard, below) BOTH enforce S3: a
+//! non-loopback declaration must name a gate the surface can enforce (`device-token`), AND
 //! that gate must actually be configured right now (a real, readable `REFARM_AUTH_POLICY`) —
 //! a declared-but-unconfigured gate enforces nothing and must not be mistaken for one that
 //! does.
 //!
-//! `refuse_nonloopback_ws_bind` does not take a declaration at all: `daemon-ws` has NO
-//! middleware whatsoever (ADR-093's credential handshake is not implemented), so
-//! `surfaces_decl::parse_one_surface` already refuses ANY non-loopback `daemon-ws`
-//! declaration AT LOAD, before this function could ever see one — the only value this
-//! function could receive here is `loopback`, which changes nothing about its answer. So its
-//! unconditional refusal of every non-loopback host, policy or declaration or not, already
-//! answers the promoted question correctly; nothing about the function needed to change, only
-//! this comment, to say so.
+//! Until ADR-093 shipped, `refuse_nonloopback_ws_bind` (this function's former name and
+//! shape) took no declaration at all and refused every non-loopback host unconditionally:
+//! `daemon-ws` had NO middleware whatsoever, so a configured policy could never gate what it
+//! bound, and `surfaces_decl::parse_one_surface` refused any non-loopback `daemon-ws`
+//! declaration AT LOAD for the same reason. Now that `daemon::ws_server`'s
+//! `Sec-WebSocket-Protocol` handshake (ADR-093) actually authenticates every connection
+//! against the SAME `sidecar::auth::AuthPolicy` the sidecar uses, `daemon-ws` can enforce
+//! `device-token` exactly like `sidecar-http` — so its guard is now the SAME declaration-
+//! aware shape, not a bespoke unconditional refusal.
 //!
 //! Every decision below is a PURE function of its inputs — no socket, no I/O, no DNS — so it
 //! is exhaustively unit-tested without ever binding a port.
@@ -107,39 +109,76 @@ pub(crate) fn refuse_unguarded_nonloopback_bind(
     }
 }
 
-/// Refuse a non-loopback bind for the CRDT/agent WebSocket, UNCONDITIONALLY. PURE: never
-/// binds a socket, never resolves DNS, never reads `surfaces` (see the module doc for why a
-/// declaration cannot change this answer — `daemon-ws` may only ever declare `"loopback"`,
-/// enforced at load by `surfaces_decl::parse_one_surface`).
+/// Refuse to start the WS daemon when `host` is NOT loopback and the `surfaces.daemon-ws`
+/// declaration does not permit it. PURE: never binds a socket, never resolves DNS. The WS
+/// mirror of `refuse_unguarded_nonloopback_bind` — see that function's doc for the shared
+/// shape (S1/S5); this one differs only in which surface/messages it names, and in what
+/// `auth_policy_present` actually gates: `daemon::ws_server`'s `accept_hdr_async` callback
+/// (ADR-093), authenticating the `Sec-WebSocket-Protocol` handshake against the SAME
+/// `sidecar::auth::AuthPolicy` the sidecar's HTTP middleware uses — not the sidecar's HTTP
+/// requests. A policy present here means the WS gate is ACTUALLY live, not merely that some
+/// unrelated surface happens to have one configured.
 ///
-/// The WS listener has NO credential middleware. `handle_connection` accepts `user:prompt`
-/// frames from any peer that completes the handshake — there is no credential channel on
-/// this socket at all (ADR-093's `Sec-WebSocket-Protocol` handshake is planned, not
-/// implemented). A policy file — or a `surfaces` declaration claiming otherwise — would
-/// unlock a bind while gating nothing, and the guard's `Ok` would read as "this is gated"
-/// when nothing gates it. A guard that approves what it does not gate is worse than no
-/// guard, because it is mistaken for permission.
-///
-/// Until the WS credential handshake ships, the only honest answer for a non-loopback WS
-/// bind is `Err`. When ADR-093 lands, this becomes the same declaration-aware call the
-/// sidecar makes — and not a moment before.
-pub(crate) fn refuse_nonloopback_ws_bind(host: &str) -> Result<(), String> {
+/// - loopback ⇒ always `Ok`.
+/// - non-loopback + no declaration ⇒ `Err` (S1) — an undeclared surface binds loopback
+///   only; a configured policy does not widen this.
+/// - non-loopback + a `"loopback"` declaration ⇒ `Err` (S5) — the flag would widen past
+///   the declared ceiling.
+/// - non-loopback + a `host:<ip>` declaration that does not match `host` ⇒ `Err` (S5).
+/// - non-loopback + a matching `host:<ip>` declaration ⇒ `Ok` only if the declared `gate`
+///   is `device-token` AND `auth_policy_present` (S3) — a declared gate the handshake is
+///   not actually configured to check enforces nothing.
+pub(crate) fn refuse_unguarded_nonloopback_ws_bind(
+    host: &str,
+    auth_policy_present: bool,
+    declared: Option<&SurfaceDeclaration>,
+) -> Result<(), String> {
     if is_loopback_host(host) {
         return Ok(());
     }
-    Err(format!(
-        "refusing to bind the agent/CRDT WebSocket to non-loopback host {host:?}: this \
-         socket has NO credential gate at all — any peer that can reach it may dispatch \
-         `user:prompt` to a plugin. Unlike the HTTP sidecar, a configured \
-         REFARM_AUTH_POLICY does NOT gate this listener (no middleware reads it), so it \
-         cannot authorize a wider bind either — and neither can any `surfaces.daemon-ws` \
-         declaration (that block accepts only `\"expose\": \"loopback\"` for this surface; \
-         anything else is refused when `.refarm/config.json` loads, before this ever runs). \
-         The WS credential handshake over `Sec-WebSocket-Protocol` (ADR-093) is not \
-         implemented yet; until it ships, reach this port from another device through an \
-         authenticated front (e.g. `refarm web serve` on a loopback-proxied origin) or a \
-         network-layer tunnel, not by widening this bind."
-    ))
+
+    let Some(decl) = declared else {
+        return Err(format!(
+            "refusing to bind the agent/CRDT WebSocket to non-loopback host {host:?}: no \
+             `surfaces.daemon-ws` declaration is present in .refarm/config.json, and an \
+             undeclared surface binds loopback only. Declare it first:\n  \"surfaces\": {{ \
+             \"daemon-ws\": {{ \"expose\": \"host:{host}\", \"gate\": \"device-token\" }} \
+             }}\nthen mint a per-device credential with `refarm auth enroll` and set \
+             REFARM_AUTH_POLICY to the resulting policy file before binding beyond loopback."
+        ));
+    };
+
+    let SurfaceExpose::Host(declared_ip) = &decl.expose else {
+        return Err(format!(
+            "refusing to bind the agent/CRDT WebSocket to non-loopback host {host:?}: \
+             surfaces.daemon-ws declares \"expose\": \"loopback\" — a flag may narrow that \
+             declaration, never widen it. Widen the declaration in .refarm/config.json first."
+        ));
+    };
+
+    if !hosts_match(host, declared_ip) {
+        return Err(format!(
+            "refusing to bind the agent/CRDT WebSocket to {host:?}: surfaces.daemon-ws \
+             declares \"expose\": \"host:{declared_ip}\" — a flag may only match that \
+             declaration or narrow it to loopback, never point somewhere else or wider."
+        ));
+    }
+
+    match decl.gate {
+        Some(SurfaceGate::DeviceToken) if auth_policy_present => Ok(()),
+        Some(SurfaceGate::DeviceToken) => Err(format!(
+            "refusing to bind the agent/CRDT WebSocket to {host:?}: surfaces.daemon-ws \
+             declares \"gate\": \"device-token\" but no REFARM_AUTH_POLICY is configured, \
+             so the Sec-WebSocket-Protocol handshake (ADR-093) has nothing to authenticate \
+             against. Mint a per-device credential with `refarm auth enroll`, then set \
+             REFARM_AUTH_POLICY to the resulting policy file before binding beyond loopback."
+        )),
+        None => Err(format!(
+            "refusing to bind the agent/CRDT WebSocket to {host:?}: surfaces.daemon-ws \
+             declares a non-loopback expose with no gate. Declare \"gate\": \"device-token\" \
+             to bind beyond loopback."
+        )),
+    }
 }
 
 /// Resolve the ACTUAL sidecar bind host from the operator's `--http-host` flag (if any)
@@ -167,27 +206,38 @@ pub(crate) fn resolve_sidecar_bind_host(
     auth_policy_present: bool,
     declared: Option<&SurfaceDeclaration>,
 ) -> Result<String, String> {
-    let requested = match flag {
+    let requested = resolve_declared_bind_host(flag, declared);
+    refuse_unguarded_nonloopback_bind(&requested, auth_policy_present, declared)?;
+    Ok(requested)
+}
+
+/// Shared by `resolve_sidecar_bind_host` and `resolve_ws_bind_host`: an absent flag
+/// resolves to whatever `host:<ip>` the declaration names (loopback if it declares
+/// `"loopback"` or is absent entirely — S1); a present flag is the operator's own value,
+/// validated by the caller's guard immediately after. PURE: no socket, no I/O, no DNS.
+fn resolve_declared_bind_host(flag: Option<&str>, declared: Option<&SurfaceDeclaration>) -> String {
+    match flag {
         Some(v) => v.to_string(),
         None => match declared.map(|decl| &decl.expose) {
             Some(SurfaceExpose::Host(ip)) => ip.clone(),
             Some(SurfaceExpose::Loopback) | None => "127.0.0.1".to_string(),
         },
-    };
-    refuse_unguarded_nonloopback_bind(&requested, auth_policy_present, declared)?;
-    Ok(requested)
+    }
 }
 
-/// Resolve the ACTUAL WS bind host from the operator's `--ws-host` flag (if any), then
-/// validate it. `flag: None` (the flag was not passed) resolves to loopback — the ONLY
-/// value `surfaces.daemon-ws` may ever legally declare (enforced at config load, see the
-/// module doc), so there is nothing for a declaration to add here: an absent flag means
-/// the same thing a present-and-loopback flag would. `flag: Some(v)` is validated
-/// unconditionally, exactly as `refuse_nonloopback_ws_bind` always has — no declaration,
-/// no policy, changes that answer. PURE: no socket, no I/O, no DNS.
-pub(crate) fn resolve_ws_bind_host(flag: Option<&str>) -> Result<String, String> {
-    let requested = flag.unwrap_or("127.0.0.1").to_string();
-    refuse_nonloopback_ws_bind(&requested)?;
+/// Resolve the ACTUAL WS bind host from the operator's `--ws-host` flag (if any) and the
+/// `surfaces.daemon-ws` declaration, then validate the result. Since ADR-093, this is
+/// exactly `resolve_sidecar_bind_host`'s shape applied to the WS guard — an absent flag
+/// lets a `host:<ip>` declaration decide (S1 default: loopback), a present flag narrows or
+/// asserts, validated against the declared ceiling and `auth_policy_present` (S3/S5) by
+/// `refuse_unguarded_nonloopback_ws_bind`. PURE: no socket, no I/O, no DNS.
+pub(crate) fn resolve_ws_bind_host(
+    flag: Option<&str>,
+    auth_policy_present: bool,
+    declared: Option<&SurfaceDeclaration>,
+) -> Result<String, String> {
+    let requested = resolve_declared_bind_host(flag, declared);
+    refuse_unguarded_nonloopback_ws_bind(&requested, auth_policy_present, declared)?;
     Ok(requested)
 }
 
@@ -504,31 +554,23 @@ mod tests {
         assert_eq!(resolved, "100.64.0.1");
     }
 
-    // ── WS guard: unconditional, no declaration or policy value flips it ────────────
+    // ── WS guard: since ADR-093, declaration-aware exactly like the sidecar's ──────────
 
     #[test]
-    fn ws_loopback_hosts_are_allowed() {
+    fn ws_loopback_hosts_are_allowed_regardless_of_policy_or_declaration() {
         for host in ["127.0.0.1", "127.5.5.5", "::1", "[::1]", "localhost", "LOCALHOST"] {
             assert!(
-                refuse_nonloopback_ws_bind(host).is_ok(),
+                refuse_unguarded_nonloopback_ws_bind(host, false, None).is_ok(),
                 "{host} must be recognized as loopback for the WS bind"
             );
         }
     }
 
     #[test]
-    fn ws_nonloopback_is_refused_even_with_a_policy_configured() {
-        // THE point of this guard. `refuse_unguarded_nonloopback_bind` says Ok to a
-        // MATCHING declared tailnet IP — correct for HTTP, where a policy installs auth
-        // middleware. The WS has no middleware, so nothing unlocks the bind.
-        assert!(refuse_nonloopback_ws_bind("100.64.0.1").is_err());
-    }
-
-    #[test]
     fn ws_unspecified_and_mapped_families_are_refused() {
         for host in ["0.0.0.0", "::", "[::]", "::ffff:0.0.0.0", "::ffff:127.0.0.1"] {
             assert!(
-                refuse_nonloopback_ws_bind(host).is_err(),
+                refuse_unguarded_nonloopback_ws_bind(host, true, None).is_err(),
                 "{host} must be refused for the WS bind"
             );
         }
@@ -536,43 +578,134 @@ mod tests {
 
     #[test]
     fn ws_unparseable_host_fails_closed() {
-        assert!(refuse_nonloopback_ws_bind("not-an-ip-or-localhost").is_err());
-        assert!(refuse_nonloopback_ws_bind("some.hostname").is_err());
+        assert!(refuse_unguarded_nonloopback_ws_bind("not-an-ip-or-localhost", true, None).is_err());
+        assert!(refuse_unguarded_nonloopback_ws_bind("some.hostname", true, None).is_err());
+    }
+
+    // ── S1 mutation-verify: undeclared means closed, a policy does NOT widen it ─────
+
+    #[test]
+    fn ws_undeclared_nonloopback_with_no_policy_is_refused_and_names_the_declaration() {
+        let err = refuse_unguarded_nonloopback_ws_bind("0.0.0.0", false, None)
+            .expect_err("0.0.0.0 with no declaration must be refused");
+        assert!(err.contains("surfaces"), "must name the declaration: {err}");
+        assert!(err.contains("daemon-ws"), "must name the surface: {err}");
     }
 
     #[test]
-    fn ws_refusal_says_the_gate_is_not_implemented_rather_than_naming_a_policy_fix() {
-        let err = refuse_nonloopback_ws_bind("0.0.0.0")
-            .expect_err("0.0.0.0 must be refused for the WS bind");
-        assert!(err.contains("not implemented"), "must say the gate is missing: {err}");
-        assert!(err.contains("ADR-093"), "must point at the tracking ADR: {err}");
-        // Must NOT tell the operator to set a policy — that would be a lie here: a
-        // policy does not gate this socket and will not lift this refusal.
+    fn ws_undeclared_nonloopback_with_a_policy_present_is_still_refused() {
+        // THE S1 mutation guard for the WS guard specifically: a configured policy alone
+        // must not widen an UNDECLARED daemon-ws bind — silence outranks a policy/flag.
+        assert!(refuse_unguarded_nonloopback_ws_bind("100.64.0.1", true, None).is_err());
+    }
+
+    // ── declared "loopback": a flag may narrow (trivially true), never widen ────────
+
+    #[test]
+    fn ws_declared_loopback_permits_a_loopback_bind() {
         assert!(
-            !err.contains("refarm auth enroll"),
-            "must not offer a fix that does not work for the WS: {err}"
+            refuse_unguarded_nonloopback_ws_bind("127.0.0.1", false, Some(&declare_loopback()))
+                .is_ok()
         );
     }
 
-    // ── resolve_ws_bind_host: absent flag ⇒ loopback; present ⇒ unconditional refusal ──
+    #[test]
+    fn ws_declared_loopback_refuses_any_wider_flag() {
+        let decl = declare_loopback();
+        let err = refuse_unguarded_nonloopback_ws_bind("0.0.0.0", true, Some(&decl))
+            .expect_err("a loopback declaration must not be widened by a flag");
+        assert!(err.contains("loopback"), "must name the declared ceiling: {err}");
+    }
+
+    // ── declared "host:<ip>" — the declaration is authoritative for WHICH address ───
 
     #[test]
-    fn resolve_ws_absent_flag_defaults_to_loopback() {
-        assert_eq!(resolve_ws_bind_host(None).unwrap(), "127.0.0.1");
+    fn ws_declared_host_with_gate_and_policy_present_is_allowed() {
+        // THE ADR-093 mutation guard: before the handshake shipped, this exact input
+        // (a matching declared host, gated, policy present) was refused UNCONDITIONALLY
+        // — the WS had nothing to enforce the gate with. Now it must be allowed, same as
+        // the sidecar's `declared_host_with_gate_and_policy_present_is_allowed`.
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        assert!(refuse_unguarded_nonloopback_ws_bind("100.64.0.1", true, Some(&decl)).is_ok());
+    }
+
+    #[test]
+    fn ws_declared_host_with_gate_but_no_policy_present_is_refused() {
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        let err = refuse_unguarded_nonloopback_ws_bind("100.64.0.1", false, Some(&decl))
+            .expect_err("a declared gate with no configured policy must be refused");
+        assert!(err.contains("REFARM_AUTH_POLICY"), "must name the fix: {err}");
+    }
+
+    #[test]
+    fn ws_declared_host_with_no_gate_is_refused_even_with_policy_present() {
+        let decl = declare_host("100.64.0.1", None);
+        assert!(refuse_unguarded_nonloopback_ws_bind("100.64.0.1", true, Some(&decl)).is_err());
+    }
+
+    // ── S5 mutation-verify: narrowing is honoured, widening is refused ──────────────
+
+    #[test]
+    fn ws_flag_narrowing_a_host_declaration_to_loopback_is_honoured() {
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        assert!(
+            refuse_unguarded_nonloopback_ws_bind("127.0.0.1", false, Some(&decl)).is_ok(),
+            "loopback is inside every declared ceiling, even without a policy"
+        );
+    }
+
+    #[test]
+    fn ws_flag_pointing_at_a_different_host_than_declared_is_refused() {
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        let err = refuse_unguarded_nonloopback_ws_bind("192.168.1.5", true, Some(&decl))
+            .expect_err("a flag pointing at an undeclared address must be refused");
+        assert!(err.contains("100.64.0.1"), "must name the declared ceiling: {err}");
+    }
+
+    #[test]
+    fn ws_flag_widening_a_specific_host_declaration_to_every_interface_is_refused() {
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        assert!(refuse_unguarded_nonloopback_ws_bind("0.0.0.0", true, Some(&decl)).is_err());
+    }
+
+    // ── resolve_ws_bind_host: absent flag ⇒ the declaration decides (S1 default:
+    // loopback); present flag narrows/asserts, validated exactly as the guard above ──
+
+    #[test]
+    fn resolve_ws_absent_flag_with_no_declaration_defaults_to_loopback() {
+        let resolved = resolve_ws_bind_host(None, false, None)
+            .expect("undeclared + absent flag must default, not refuse");
+        assert_eq!(resolved, "127.0.0.1");
+    }
+
+    #[test]
+    fn resolve_ws_absent_flag_with_a_declared_host_binds_the_declared_host() {
+        // THE ADR-093 mutation guard for `resolve_ws_bind_host`: before the handshake
+        // shipped this function ignored `declared` entirely (`flag.unwrap_or(loopback)`),
+        // so a `surfaces.daemon-ws` declaring `host:<ip>` could never take effect — same
+        // Problem-1 shape `resolve_sidecar_bind_host` was fixed for.
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        let resolved = resolve_ws_bind_host(None, true, Some(&decl))
+            .expect("an absent flag + a matching declared+gated host must resolve, not refuse");
+        assert_eq!(resolved, "100.64.0.1");
     }
 
     #[test]
     fn resolve_ws_present_loopback_flag_is_allowed() {
-        assert_eq!(resolve_ws_bind_host(Some("127.0.0.1")).unwrap(), "127.0.0.1");
+        assert_eq!(resolve_ws_bind_host(Some("127.0.0.1"), false, None).unwrap(), "127.0.0.1");
     }
 
     #[test]
-    fn resolve_ws_present_nonloopback_flag_is_refused_regardless_of_declaration_or_policy() {
-        // `resolve_ws_bind_host` takes no `declared`/policy argument at all — WS's
-        // `surfaces.daemon-ws` can only ever legally declare `"loopback"` (enforced at
-        // config load, see the module doc), so a non-loopback WS bind stays refused
-        // unconditionally, same as `refuse_nonloopback_ws_bind` always has.
-        assert!(resolve_ws_bind_host(Some("100.64.0.1")).is_err());
-        assert!(resolve_ws_bind_host(Some("0.0.0.0")).is_err());
+    fn resolve_ws_present_nonloopback_flag_with_no_declaration_is_refused() {
+        assert!(resolve_ws_bind_host(Some("100.64.0.1"), true, None).is_err());
+        assert!(resolve_ws_bind_host(Some("0.0.0.0"), true, None).is_err());
+    }
+
+    #[test]
+    fn resolve_ws_present_flag_matching_a_declared_gated_host_with_policy_is_allowed() {
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        let resolved = resolve_ws_bind_host(Some("100.64.0.1"), true, Some(&decl))
+            .expect("a flag exactly matching a declared+gated+policy-present host resolves");
+        assert_eq!(resolved, "100.64.0.1");
     }
 }
