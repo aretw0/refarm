@@ -28,6 +28,10 @@ requireBinary("/usr/bin/echo");
 // suite uses to prove env-parity with the host's `run_probe` (env_clear + declared env
 // only). Verified present rather than assumed, same as the three binaries above.
 requireBinary("/usr/bin/env");
+// The probe-timeout test needs a binary that reliably outlives a short deadline.
+requireBinary("/usr/bin/sleep");
+// The output-cap test needs a binary that emits more than 1 MiB and then exits cleanly.
+requireBinary("/usr/bin/dd");
 
 /** A minimal, otherwise-valid `DeclaredConnection` — every test overrides just the
  * field(s) it's exercising, so nothing here needs to change when unrelated fields do. */
@@ -54,7 +58,7 @@ describe("reportConnections (hermetic — an injected probe runner, no process e
 					vpn: { establish: ["serpro-vpn", "connect"], probe: { run: ["ip", "link"] } },
 				},
 			},
-			runProbe: async () => ({ ok: true }),
+			runProbe: async () => ({ outcome: "up" }),
 		});
 		expect(reports).toHaveLength(1);
 		expect(reports[0]).toMatchObject({ name: "vpn", state: "up" });
@@ -68,7 +72,7 @@ describe("reportConnections (hermetic — an injected probe runner, no process e
 					vpn: { establish: ["serpro-vpn", "connect"], probe: { run: ["ip", "link"] } },
 				},
 			},
-			runProbe: async () => ({ ok: false, detail: "interface exists but is DOWN" }),
+			runProbe: async () => ({ outcome: "down", detail: "interface exists but is DOWN" }),
 		});
 		expect(reports[0]).toMatchObject({
 			name: "vpn",
@@ -90,7 +94,7 @@ describe("reportConnections (hermetic — an injected probe runner, no process e
 			},
 			runProbe: async () => {
 				probeCalled = true;
-				return { ok: true };
+				return { outcome: "up" };
 			},
 		});
 		expect(probeCalled).toBe(false);
@@ -108,7 +112,7 @@ describe("reportConnections (hermetic — an injected probe runner, no process e
 					broken: { establish: [], probe: { run: ["/usr/bin/true"] } },
 				},
 			},
-			runProbe: async () => ({ ok: true }),
+			runProbe: async () => ({ outcome: "up" }),
 		});
 		expect(reports).toHaveLength(1);
 		expect(reports[0]).toMatchObject({ name: "broken", state: "up" });
@@ -126,7 +130,7 @@ describe("reportConnections (hermetic — an injected probe runner, no process e
 			},
 			runProbe: async () => {
 				probeCalled = true;
-				return { ok: true };
+				return { outcome: "up" };
 			},
 		});
 		expect(probeCalled).toBe(false);
@@ -152,11 +156,36 @@ describe("reportConnections (hermetic — an injected probe runner, no process e
 			},
 			runProbe: async () => {
 				probeCalled = true;
-				return { ok: true };
+				return { outcome: "up" };
 			},
 		});
 		expect(probeCalled).toBe(false);
 		expect(reports[0]).toMatchObject({ name: "broken", state: "unknown" });
+	});
+
+	it("reports unknown, without probing, when a spawn-time guard the HOST enforces is violated", async () => {
+		// `enforce_spawn_env` refuses this env key before the host ever forks, and
+		// `run_probe` swallows that into `false` — so the host is permanently `down` here.
+		// Spawning it locally (Node has no such guard) and reporting `up` is the lie that
+		// runs the dangerous way. `unknown` is the honest answer and points at the fix.
+		let probeCalled = false;
+		const { connections: reports } = await reportConnections({
+			config: {
+				connections: {
+					vpn: {
+						establish: ["/usr/bin/true"],
+						probe: { run: ["/usr/bin/true"] },
+						env: { "1BAD": "x" },
+					},
+				},
+			},
+			runProbe: async () => {
+				probeCalled = true;
+				return { outcome: "up" };
+			},
+		});
+		expect(probeCalled).toBe(false);
+		expect(reports[0]).toMatchObject({ name: "vpn", state: "unknown" });
 	});
 
 	it("reports a connection whose establish binary is missing, rather than omitting it", async () => {
@@ -169,7 +198,7 @@ describe("reportConnections (hermetic — an injected probe runner, no process e
 					},
 				},
 			},
-			runProbe: async () => ({ ok: true }),
+			runProbe: async () => ({ outcome: "up" }),
 		});
 		expect(reports).toHaveLength(1);
 		expect(reports[0]).toMatchObject({
@@ -183,7 +212,7 @@ describe("reportConnections (hermetic — an injected probe runner, no process e
 	});
 
 	it("reports an empty catalog cleanly", async () => {
-		const report = await reportConnections({ config: {}, runProbe: async () => ({ ok: true }) });
+		const report = await reportConnections({ config: {}, runProbe: async () => ({ outcome: "up" }) });
 		expect(report).toEqual({ connections: [], catalogIssues: [] });
 	});
 
@@ -196,7 +225,7 @@ describe("reportConnections (hermetic — an injected probe runner, no process e
 		);
 		const { connections, catalogIssues } = await reportConnections({
 			config: { connections: manyConnections },
-			runProbe: async () => ({ ok: true }),
+			runProbe: async () => ({ outcome: "up" }),
 		});
 		// Every declared connection is STILL listed — the cap issue is additional
 		// information, not a reason to drop anything.
@@ -221,48 +250,50 @@ describe("reportConnections (hermetic — an injected probe runner, no process e
 });
 
 describe("runProbeProcess (the real adapter — exercised against real binaries, bounded by a timeout)", () => {
-	it("resolves ok:true for a probe that exits 0", async () => {
+	it("resolves up for a probe that exits 0", async () => {
 		const result = await runProbeProcess(
 			connection({ probe: { run: ["/usr/bin/true"] } }),
 			REAL_PROBE_TIMEOUT_MS,
 		);
-		expect(result.ok).toBe(true);
+		expect(result.outcome).toBe("up");
 	});
 
-	it("resolves ok:false for a probe that exits non-zero", async () => {
+	it("resolves down for a probe that exits non-zero", async () => {
 		const result = await runProbeProcess(
 			connection({ probe: { run: ["/usr/bin/false"] } }),
 			REAL_PROBE_TIMEOUT_MS,
 		);
-		expect(result.ok).toBe(false);
+		expect(result.outcome).toBe("down");
 		expect(result.detail).toMatch(/exited with code/);
 	});
 
-	it("resolves ok:false when the process exits 0 but the expected pattern does not match", async () => {
+	it("resolves down when the process exits 0 but the expected pattern does not match", async () => {
 		// This is the exact case the design calls out: an interface that EXISTS still
 		// exits zero even while printing DOWN — exit-code-only would misreport this as up.
 		const result = await runProbeProcess(
 			connection({ probe: { run: ["/usr/bin/echo", "DOWN"], expect: "\\bUP\\b" } }),
 			REAL_PROBE_TIMEOUT_MS,
 		);
-		expect(result.ok).toBe(false);
+		expect(result.outcome).toBe("down");
 		expect(result.detail).toMatch(/did not match/);
 	});
 
-	it("resolves ok:true when the process exits 0 and the expected pattern matches combined output", async () => {
+	it("resolves up when the process exits 0 and the expected pattern matches combined output", async () => {
 		const result = await runProbeProcess(
 			connection({ probe: { run: ["/usr/bin/echo", "tunnel is UP"], expect: "\\bUP\\b" } }),
 			REAL_PROBE_TIMEOUT_MS,
 		);
-		expect(result.ok).toBe(true);
+		expect(result.outcome).toBe("up");
 	});
 
-	it("resolves ok:false, rather than throwing or hanging, for a missing binary", async () => {
+	it("resolves unknown — not down — rather than throwing or hanging, for a missing binary", async () => {
 		const result = await runProbeProcess(
 			connection({ probe: { run: ["definitely-not-a-real-binary-xyz"] } }),
 			REAL_PROBE_TIMEOUT_MS,
 		);
-		expect(result.ok).toBe(false);
+		// "I could not ask" — never `down`, which would send the operator to re-establish a
+		// tunnel that may be perfectly up.
+		expect(result.outcome).toBe("unknown");
 	});
 
 	// --- Env parity with the host's `run_probe` (core.rs's `spawn_process` does
@@ -289,7 +320,7 @@ describe("runProbeProcess (the real adapter — exercised against real binaries,
 			// this inherited variable and `expect` would match — reporting `up` for a probe
 			// the host's env_clear()'d run_probe would report `down` for. That disagreement
 			// with the engine is exactly what this test guards against.
-			expect(result.ok).toBe(false);
+			expect(result.outcome).toBe("down");
 		} finally {
 			if (previous === undefined) delete process.env[marker];
 			else process.env[marker] = previous;
@@ -304,7 +335,57 @@ describe("runProbeProcess (the real adapter — exercised against real binaries,
 			}),
 			REAL_PROBE_TIMEOUT_MS,
 		);
-		expect(result.ok).toBe(true);
+		expect(result.outcome).toBe("up");
+	});
+
+	// --- The three states must not collapse at spawn time. `child.on("error")` fires for
+	// everything that stops the process from EXISTING; none of it says anything about the
+	// tunnel, so none of it may report `down`.
+
+	it("resolves unknown when the spawn itself fails — a cwd that does not exist", async () => {
+		// The operator's most likely version of this is a typo in `cwd`. Reporting `down`
+		// would paint every connection red and point them at a re-establish they do not need.
+		const result = await runProbeProcess(
+			connection({
+				probe: { run: ["/usr/bin/true"] },
+				cwd: "/definitely/not/a/real/directory/xyz",
+			}),
+			REAL_PROBE_TIMEOUT_MS,
+		);
+		expect(result.outcome).toBe("unknown");
+		expect(result.detail).toMatch(/could not be started/);
+	});
+
+	it("resolves unknown, not down, when probe.run is empty — there is nothing to ask", async () => {
+		const result = await runProbeProcess(
+			connection({ probe: { run: [] } }),
+			REAL_PROBE_TIMEOUT_MS,
+		);
+		expect(result.outcome).toBe("unknown");
+	});
+
+	it("caps probe output at 1 MiB per stream, with the host's own truncation marker", async () => {
+		// `read_spawn_pipe_limited` in the host keeps the first MAX_SPAWN_STDIO_LEN bytes and
+		// appends this exact marker. Without a cap here, a runaway probe grows this process's
+		// heap for as long as the timeout allows.
+		const result = await runProbeProcess(
+			connection({
+				probe: {
+					run: ["/usr/bin/dd", "if=/dev/zero", "bs=1024", "count=2048"],
+					expect: "truncated: spawn output exceeded limit",
+				},
+			}),
+			REAL_PROBE_TIMEOUT_MS,
+		);
+		expect(result.outcome).toBe("up");
+	});
+
+	it("resolves DOWN on timeout — matching the host, where a timed-out probe is not healthy", async () => {
+		// `run_probe` folds `timed_out` into the same `false` a non-zero exit produces. This
+		// is the one non-answer that is deliberately NOT `unknown`.
+		const result = await runProbeProcess(connection({ probe: { run: ["/usr/bin/sleep", "5"] } }), 150);
+		expect(result.outcome).toBe("down");
+		expect(result.detail).toMatch(/timed out/);
 	});
 });
 
@@ -318,7 +399,7 @@ describe("createConnectionCommand (the full command — JSON envelope + injected
 						vpn: { establish: ["/usr/bin/true"], probe: { run: ["/usr/bin/true"] } },
 					},
 				}),
-				runProbe: async () => ({ ok: true }),
+				runProbe: async () => ({ outcome: "up" }),
 			}).parseAsync(["status", "--json"], { from: "user" });
 
 			expect(logSpy).toHaveBeenCalledTimes(1);
@@ -339,7 +420,7 @@ describe("createConnectionCommand (the full command — JSON envelope + injected
 		try {
 			await createConnectionCommand({
 				loadConfig: () => ({}),
-				runProbe: async () => ({ ok: true }),
+				runProbe: async () => ({ outcome: "up" }),
 			}).parseAsync(["status", "--json"], { from: "user" });
 
 			const output: unknown = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
@@ -348,4 +429,5 @@ describe("createConnectionCommand (the full command — JSON envelope + injected
 			logSpy.mockRestore();
 		}
 	});
+
 });

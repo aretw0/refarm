@@ -33,6 +33,33 @@ import {
  */
 const DEFAULT_PROBE_TIMEOUT_MS = 5_000;
 
+/**
+ * Mirrors `MAX_SPAWN_STDIO_LEN` in `host_effects_bridge/core.rs` (1 MiB per stream). A
+ * probe that floods stdout must not grow this process's heap without bound — the host
+ * truncates at exactly this point and appends the same marker, so an `expect` pattern
+ * that only matches inside the truncated tail fails identically on both sides.
+ */
+const MAX_PROBE_OUTPUT_BYTES = 1024 * 1024;
+/** Mirrors the host's truncation marker byte-for-byte (`read_spawn_pipe_limited`). */
+const PROBE_OUTPUT_TRUNCATION_MARKER = "\n[truncated: spawn output exceeded limit]";
+
+/**
+ * What a probe attempt concluded. NOT a boolean: the third case is the whole point.
+ *
+ * `up`      — the probe ran and said yes.
+ * `down`    — the probe ran and said no.
+ * `unknown` — the probe could not be RUN. The operator's fix is the setup (a missing
+ *             binary, a `cwd` that does not exist, a permissions error), not the tunnel.
+ *
+ * Collapsing `unknown` into `down` is the failure this file's header forbids: a typo in
+ * `cwd` would paint every connection red and send the operator to re-establish a tunnel
+ * that was never down.
+ */
+export interface ProbeResult {
+	outcome: "up" | "down" | "unknown";
+	detail?: string;
+}
+
 export interface ConnectionReport {
 	name: string;
 	/** The argv that brings the connection up — reported so the operator can see what
@@ -63,14 +90,25 @@ export interface ConnectionReport {
 }
 
 /**
- * Catalog issue fields that describe the PROBE argv itself as unrunnable (as opposed
- * to, say, a `linger` or `env` issue, which does not prevent asking the probe). A
- * declaration flagged this way must not be probed even when its `probe.run[0]` happens
- * to resolve on PATH — e.g. `probe.run: ["sh", "-c", "..."]` resolves `sh` fine, but the
- * catalog reader already refused it as a shell escape, and probing it anyway would run
- * exactly the shell invocation the catalog reader exists to prevent.
+ * Catalog issue fields that make the probe unrunnable ON THE HOST — as opposed to, say, a
+ * `linger` or `establish` issue, which does not prevent asking whether the connection is
+ * up right now. A declaration flagged this way must not be probed even when its
+ * `probe.run[0]` happens to resolve on PATH.
+ *
+ * Two distinct reasons land in this set:
+ *   - `probe`, `probe.run`, `probe.shell`: the probe argv itself is refused. E.g.
+ *     `probe.run: ["sh", "-c", "..."]` resolves `sh` fine, but the catalog reader already
+ *     refused it as a shell escape, and probing it anyway would run exactly the shell
+ *     invocation the catalog reader exists to prevent.
+ *   - `env`, `cwd`: the host's SPAWN-TIME guards (`enforce_spawn_env`,
+ *     `enforce_spawn_cwd`) reject these BEFORE the process exists, and `run_probe`
+ *     swallows that error into `false`. So the host's probe can never run for such a
+ *     declaration. This CLI spawns through Node, which has no such guards — it would
+ *     spawn happily and report `up` for something the engine reports `down` for. That is
+ *     the lie running the dangerous way, so these become `unknown` here: the honest
+ *     answer is "I could not ask", and the fix is the declaration, not the tunnel.
  */
-const BLOCKING_PROBE_ISSUE_FIELDS = new Set(["probe", "probe.run", "probe.shell"]);
+const BLOCKING_PROBE_ISSUE_FIELDS = new Set(["probe", "probe.run", "probe.shell", "env", "cwd"]);
 
 function findBlockingProbeIssue(issues: CatalogIssue[]): CatalogIssue | undefined {
 	return issues.find((issue) => BLOCKING_PROBE_ISSUE_FIELDS.has(issue.field));
@@ -95,7 +133,7 @@ export interface ConnectionStatusReport {
  */
 export async function reportConnections(deps: {
 	config: Record<string, unknown>;
-	runProbe: (connection: DeclaredConnection) => Promise<{ ok: boolean; detail?: string }>;
+	runProbe: (connection: DeclaredConnection) => Promise<ProbeResult>;
 }): Promise<ConnectionStatusReport> {
 	const { connections, issues } = readConnectionCatalog(deps.config);
 	const reports: ConnectionReport[] = [];
@@ -126,13 +164,15 @@ export async function reportConnections(deps: {
 			continue;
 		}
 
+		// The runner's three-state outcome maps STRAIGHT through — no boolean in between.
+		// Any collapse here would re-create the conflation this file's header forbids.
 		const result = await deps.runProbe(connection);
 		reports.push({
 			name: connection.name,
 			establish: connection.establish,
 			establishBinary,
 			probeBinary,
-			state: result.ok ? "up" : "down",
+			state: result.outcome,
 			...(result.detail !== undefined ? { detail: result.detail } : {}),
 			issues: connectionIssues,
 		});
@@ -149,6 +189,40 @@ export async function reportConnections(deps: {
 }
 
 /**
+ * A stdout/stderr accumulator capped at `MAX_PROBE_OUTPUT_BYTES`, mirroring the host's
+ * `read_spawn_pipe_limited`: it keeps the first 1 MiB and appends the host's own
+ * truncation marker. Without a cap, a chatty or runaway probe grows this process's heap
+ * for as long as it keeps writing — bounded only by the probe timeout, which is exactly
+ * the kind of unbounded buffer the host already refuses to have.
+ *
+ * Truncation is at a BYTE boundary, so a multi-byte character straddling the cap decodes
+ * to a replacement character — the same thing the host's `from_utf8_lossy` produces.
+ */
+function createBoundedOutput(): { push: (chunk: Buffer) => void; text: () => string } {
+	const chunks: Buffer[] = [];
+	let bytes = 0;
+	let truncated = false;
+	return {
+		push(chunk: Buffer): void {
+			if (truncated) return;
+			const room = MAX_PROBE_OUTPUT_BYTES - bytes;
+			if (chunk.length > room) {
+				chunks.push(chunk.subarray(0, room));
+				bytes = MAX_PROBE_OUTPUT_BYTES;
+				truncated = true;
+				return;
+			}
+			chunks.push(chunk);
+			bytes += chunk.length;
+		},
+		text(): string {
+			const text = Buffer.concat(chunks).toString("utf8");
+			return truncated ? text + PROBE_OUTPUT_TRUNCATION_MARKER : text;
+		},
+	};
+}
+
+/**
  * The real probe adapter: spawn `probe.run` as structured argv — NEVER a shell — and
  * decide readiness exactly like the host's `run_probe` does: success is exit code 0
  * AND, when `probe.expect` is declared, the pattern matching the COMBINED stdout+stderr.
@@ -157,8 +231,21 @@ export async function reportConnections(deps: {
  * halves matter — checking only the exit code would report that second case as `up`.
  *
  * Bounded by `timeoutMs` so a hung probe cannot hang the operator's terminal; never
- * throws — a missing binary or a spawn error resolves `ok: false` with a `detail`
- * rather than rejecting, so callers never need a try/catch around this.
+ * throws — a missing binary or a spawn error resolves `outcome: "unknown"` with a
+ * `detail` rather than rejecting, so callers never need a try/catch around this.
+ *
+ * Which outcome each exit path takes, and why:
+ *   - exit 0 (and `expect` matches, when declared)  -> `up`
+ *   - non-zero exit, or `expect` declared and unmatched -> `down` (the probe RAN and
+ *     answered no)
+ *   - TIMEOUT -> `down`, deliberately. The host agrees: `run_probe` treats
+ *     `timed_out` exactly like a non-zero exit and returns `false`. A health check that
+ *     hangs is not a healthy connection, and reporting `unknown` here would diverge from
+ *     the engine on a case the engine has already decided.
+ *   - the spawn never happened (`child.on("error")`: a nonexistent `cwd`, EACCES, the
+ *     binary vanishing between resolution and spawn) -> `unknown`. Nothing was asked, so
+ *     nothing can be concluded about the tunnel. The operator's fix is the setup.
+ *   - `probe.run` empty, or `probe.run[0]` unresolvable -> `unknown`, same reason.
  *
  * The child gets ONLY the declared `env` — nothing inherited from this process. This
  * mirrors the host exactly: `run_probe` -> `spawn_process` in
@@ -177,22 +264,22 @@ export async function reportConnections(deps: {
 export function runProbeProcess(
 	connection: DeclaredConnection,
 	timeoutMs: number = DEFAULT_PROBE_TIMEOUT_MS,
-): Promise<{ ok: boolean; detail?: string }> {
+): Promise<ProbeResult> {
 	return new Promise((resolve) => {
 		const argv0 = connection.probe.run[0];
 		if (!argv0) {
-			resolve({ ok: false, detail: "probe.run is empty" });
+			resolve({ outcome: "unknown", detail: "probe.run is empty — there is nothing to ask" });
 			return;
 		}
 		const bin = resolveBinary(argv0);
 		if (!bin) {
-			resolve({ ok: false, detail: `probe binary not found: ${argv0}` });
+			resolve({ outcome: "unknown", detail: `probe binary not found: ${argv0}` });
 			return;
 		}
 		const args = connection.probe.run.slice(1);
 
 		let settled = false;
-		const settle = (result: { ok: boolean; detail?: string }): void => {
+		const settle = (result: ProbeResult): void => {
 			if (settled) return;
 			settled = true;
 			resolve(result);
@@ -208,43 +295,42 @@ export function runProbeProcess(
 
 		const timer = setTimeout(() => {
 			child.kill("SIGKILL");
-			settle({ ok: false, detail: `probe timed out after ${timeoutMs}ms` });
+			// `down`, not `unknown`: the host's `run_probe` folds `timed_out` into the same
+			// `false` a non-zero exit produces. A probe that hangs is a connection that is
+			// not answering, and diverging from the engine here would defeat the point.
+			settle({ outcome: "down", detail: `probe timed out after ${timeoutMs}ms` });
 		}, timeoutMs);
 		timer.unref?.();
 
-		let stdout = "";
-		let stderr = "";
-		child.stdout?.on("data", (chunk: Buffer) => {
-			stdout += chunk.toString("utf8");
-		});
-		child.stderr?.on("data", (chunk: Buffer) => {
-			stderr += chunk.toString("utf8");
-		});
+		const stdout = createBoundedOutput();
+		const stderr = createBoundedOutput();
+		child.stdout?.on("data", (chunk: Buffer) => stdout.push(chunk));
+		child.stderr?.on("data", (chunk: Buffer) => stderr.push(chunk));
 
-		// A missing binary (ENOENT) or another spawn-time failure surfaces here, not as a
-		// thrown exception — `resolveBinary` should already have kept an unresolvable
-		// binary out of this call, but a binary that vanishes between resolution and spawn
-		// (a race, not a bug in the caller) must still resolve, not crash the command.
+		// The spawn never happened: a nonexistent `cwd`, EACCES on the binary, or a binary
+		// that vanished between `resolveBinary` and this spawn. This is "I could not ask",
+		// NOT "the connection is down" — reporting `down` here would send the operator to
+		// re-establish a tunnel that may be perfectly up, over a typo in their config.
 		child.on("error", (error) => {
 			clearTimeout(timer);
 			settle({
-				ok: false,
-				detail: `probe failed to start: ${error instanceof Error ? error.message : String(error)}`,
+				outcome: "unknown",
+				detail: `probe could not be started: ${error instanceof Error ? error.message : String(error)}`,
 			});
 		});
 
 		child.on("close", (code) => {
 			clearTimeout(timer);
 			if (code !== 0) {
-				settle({ ok: false, detail: `probe exited with code ${code ?? "unknown"}` });
+				settle({ outcome: "down", detail: `probe exited with code ${code ?? "unknown"}` });
 				return;
 			}
 			const expect = connection.probe.expect;
 			if (!expect) {
-				settle({ ok: true });
+				settle({ outcome: "up" });
 				return;
 			}
-			const combined = stdout + stderr;
+			const combined = stdout.text() + stderr.text();
 			let matches = false;
 			try {
 				matches = new RegExp(expect).test(combined);
@@ -256,8 +342,11 @@ export function runProbeProcess(
 			}
 			settle(
 				matches
-					? { ok: true }
-					: { ok: false, detail: `probe output did not match expected pattern /${expect}/` },
+					? { outcome: "up" }
+					: {
+							outcome: "down",
+							detail: `probe output did not match expected pattern /${expect}/`,
+						},
 			);
 		});
 	});
@@ -313,7 +402,7 @@ export interface ConnectionStatusCommandOptions {
 export interface ConnectionCommandDeps {
 	cwd?: () => string;
 	loadConfig?: (root?: string) => Record<string, unknown>;
-	runProbe?: (connection: DeclaredConnection) => Promise<{ ok: boolean; detail?: string }>;
+	runProbe?: (connection: DeclaredConnection) => Promise<ProbeResult>;
 }
 
 async function printConnectionStatus(
