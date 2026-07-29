@@ -474,22 +474,48 @@ impl ConnectionRegistry {
     /// the native `Claim{id, name}` `release` above. Claim ids are minted from ONE
     /// registry-wide counter (`next_claim_id`), so they are unique across every
     /// declared connection — a linear scan over the (capped at `MAX_CONNECTIONS`)
-    /// live entries finds the right one. Lenient like `release`: an unknown or
-    /// already-released id is a harmless no-op, never an error — a plugin's
-    /// shutdown path must not fail on a stale claim.
-    pub(crate) fn release_by_id(&self, claim_id: u64) {
+    /// live entries finds the right one.
+    ///
+    /// `caller` MUST match the claim's recorded owner. `claim_id` alone is not a
+    /// capability: it crosses the WASM boundary as a plain `u64` from a counter
+    /// that starts at 1 and increments by 1, so any plugin holding `connection:use`
+    /// can guess another plugin's claim id by counting. Matching only the id would
+    /// let plugin A call `release(1)`, `release(2)`, … and strip claims plugin B
+    /// never released — under `Linger::Idle{ms:0}` that reaches `apply_linger` →
+    /// `signal_stop`, dropping a connection B still holds and forcing B's next
+    /// `ensure` into a fresh login (for the Serpro VPN, a fresh phone push). That is
+    /// exactly the harm the shared-connection design exists to prevent, so this is
+    /// an authorization check, not a correctness nicety.
+    ///
+    /// Lenient like `release`: an id that does not exist, or exists but is owned by
+    /// someone else, is a harmless no-op, never an error — a plugin's shutdown path
+    /// must not fail on a stale claim, and a caller must not learn (via a
+    /// distinguishing error) whether a given id belongs to another plugin.
+    pub(crate) fn release_by_id(&self, claim_id: u64, caller: &str) {
         let mut live = self.live.lock().expect("connection registry poisoned");
         for entry in live.values_mut() {
-            if entry.claims.iter().any(|(id, _)| *id == claim_id) {
-                entry.claims.retain(|(id, _)| *id != claim_id);
+            if entry
+                .claims
+                .iter()
+                .any(|(id, owner)| *id == claim_id && owner == caller)
+            {
+                entry.claims.retain(|(id, owner)| !(*id == claim_id && owner == caller));
                 Self::apply_linger(entry);
                 return;
             }
         }
     }
 
-    /// Release every claim held by an owner — called when a plugin is unloaded or revoked,
-    /// so interest can never outlive its holder.
+    /// Release every claim held by an owner — called from `TractorNative::unregister`
+    /// (the crate's one clean plugin-unload point: normal unload, and the
+    /// unregister-then-reload half of hot-reload) so interest can never outlive its
+    /// holder. NOTE: this does NOT run on revocation by itself — revocation
+    /// (`resolve_revocations`/`trusted_to_load`) is enforced at the LOAD gate, so a
+    /// revoked plugin cannot load again; nothing in this crate today proactively
+    /// unloads an ALREADY-RUNNING plugin the moment it is revoked. If that gap is
+    /// ever closed, routing the unload through `unregister` (as every other unload
+    /// path already does) is what makes this method fire for it too — no change
+    /// needed here.
     pub(crate) fn release_owner(&self, owner: &str) {
         let mut live = self.live.lock().expect("connection registry poisoned");
         for entry in live.values_mut() {

@@ -38,13 +38,14 @@ fn map_connection_status(status: ConnectionStatus) -> WitConnectionStatus {
 
 /// Read back the resume cursor (`last_sequence`) and the timestamp of the most
 /// recent frame (`updated_at_ns`) from the SAME `StreamSession` node
-/// `ConnectionFramePublisher` maintains (`connection_frames.rs`). Nothing writes
-/// to that node again once a connection reaches `Ready` and is merely shared (no
-/// further establish attempt), so `updated_at_ns` at that point IS the moment the
-/// current live instance came up — the WIT record's `since-ns`. Best-effort: an
-/// absent or unreadable node (never established, or a fresh host) yields
-/// `(None, 0)`, matching `ConnectionFramePublisher::new`'s own "start fresh"
-/// fallback — this never fails the call over a missing cursor.
+/// `ConnectionFramePublisher` maintains (`connection_frames.rs`). This node is
+/// PERSISTED and survives a host restart, so `updated_at_ns` alone can describe a
+/// connection from a PRIOR process — the caller (`connection_state`) must gate it
+/// on the REGISTRY currently agreeing the connection is up before treating it as
+/// `since-ns`; this function only reads what is on disk. Best-effort: an absent or
+/// unreadable node (never established, or a fresh host) yields `(None, 0)`,
+/// matching `ConnectionFramePublisher::new`'s own "start fresh" fallback — this
+/// never fails the call over a missing cursor.
 fn read_connection_session_cursor(sync: &NativeSync, stream_ref: &str) -> (Option<u64>, u32) {
     let node = sync
         .get_node(&stream_session_observation_id(stream_ref))
@@ -74,7 +75,17 @@ fn connection_state(
 ) -> ConnectionState {
     let status = registry.status(name);
     let stream_ref = connection_stream_ref(name);
-    let (since_ns, last_sequence) = read_connection_session_cursor(sync, &stream_ref);
+    let (persisted_since_ns, last_sequence) = read_connection_session_cursor(sync, &stream_ref);
+    // The WIT contract promises "when the CURRENT live instance came up". The
+    // persisted node survives a host restart, so its `updated_at_ns` can describe a
+    // connection this PROCESS's registry does not currently hold up (e.g. right
+    // after a restart, before anything re-establishes it) — surface it only when
+    // the registry agrees the connection is up RIGHT NOW.
+    let since_ns = if matches!(status, ConnectionStatus::Up) {
+        persisted_since_ns
+    } else {
+        None
+    };
     ConnectionState {
         name: name.to_string(),
         status: map_connection_status(status),
@@ -145,7 +156,11 @@ impl HostConnectionHost for TractorNativeBindings {
 
     async fn release(&mut self, claim: u64) -> Result<(), String> {
         self.enforce_permission(Permission::ConnectionUse)?;
-        self.connection_registry.release_by_id(claim);
+        // The CALLING plugin's own id is the authorization, not just the claim id —
+        // see `release_by_id`'s doc: a bare `u64` from a sequential counter is
+        // guessable, so ownership must be checked or any plugin could strip any
+        // other plugin's claim.
+        self.connection_registry.release_by_id(claim, &self.plugin_id);
         Ok(())
     }
 
