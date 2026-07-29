@@ -2,9 +2,13 @@ import { accessSync, constants as fsConstants } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+	connectionStatusNextActions,
+	connectionStatusNextCommands,
 	createConnectionCommand,
+	printConnectionReports,
 	reportConnections,
 	runProbeProcess,
+	type ConnectionReport,
 } from "../../src/commands/connection.js";
 import type { DeclaredConnection } from "../../src/commands/connection-catalog.js";
 
@@ -389,6 +393,167 @@ describe("runProbeProcess (the real adapter — exercised against real binaries,
 	});
 });
 
+describe("connectionStatusNextCommands / connectionStatusNextActions (the operator handoff)", () => {
+	function report(overrides: Partial<ConnectionReport> = {}): ConnectionReport {
+		return {
+			name: "vpn",
+			establish: ["serpro-vpn", "connect"],
+			establishBinary: null,
+			probeBinary: "/usr/bin/true",
+			state: "up",
+			issues: [],
+			...overrides,
+		};
+	}
+
+	// CLAUDE.md §4 makes `nextCommands` a promise that the command RUNS. Nothing this
+	// surface can name today keeps that promise, so it emits nothing — for every state.
+
+	it("emits no next-command for an up connection", () => {
+		expect(connectionStatusNextCommands([report({ state: "up" })])).toEqual([]);
+	});
+
+	it("emits no next-command for a down connection — there is no generic re-establish command", () => {
+		// The old code emitted `refarm workspace run <workspace> serpro-vpn connect`, which
+		// cannot run: `workspace run` resolves a NAMED entry from a workspace's declared
+		// command allowlist, not an argv, and `<workspace>` was never filled in.
+		expect(connectionStatusNextCommands([report({ state: "down" })])).toEqual([]);
+	});
+
+	it("emits no next-command for an unknown connection", () => {
+		expect(connectionStatusNextCommands([report({ state: "unknown" })])).toEqual([]);
+	});
+
+	it("emits no next-command for a mixed report, and none for an empty one", () => {
+		expect(
+			connectionStatusNextCommands([
+				report({ name: "a", state: "up" }),
+				report({ name: "b", state: "down" }),
+				report({ name: "c", state: "unknown" }),
+			]),
+		).toEqual([]);
+		expect(connectionStatusNextCommands([])).toEqual([]);
+	});
+
+	it("never emits a `workspace run` handoff, which is the command that could not run", () => {
+		const commands = connectionStatusNextCommands([
+			report({ state: "down" }),
+			report({ state: "unknown" }),
+		]);
+		expect(commands.some((c) => c.includes("workspace run"))).toBe(false);
+		expect(commands.some((c) => c.includes("<workspace>"))).toBe(false);
+	});
+
+	// The remedy still has to reach the operator — as prose, which is read, not executed.
+
+	it("says nothing for an up connection", () => {
+		expect(connectionStatusNextActions([report({ state: "up" })])).toEqual([]);
+	});
+
+	it("names the declared establish argv for a down connection, as information", () => {
+		const [action] = connectionStatusNextActions([report({ state: "down" })]);
+		expect(action).toContain("vpn");
+		expect(action).toContain("serpro-vpn connect");
+	});
+
+	it("gives an unknown connection the install/PATH/declaration remedy", () => {
+		const [action] = connectionStatusNextActions([report({ state: "unknown" })]);
+		expect(action).toMatch(/could not be probed/);
+		expect(action).toMatch(/install the binary/);
+		expect(action).toMatch(/PATH/);
+		expect(action).toMatch(/config\.json/);
+	});
+});
+
+describe("printConnectionReports (the human output — the surface an operator actually reads)", () => {
+	function capture(fn: () => void): string {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		try {
+			fn();
+			return logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		} finally {
+			logSpy.mockRestore();
+		}
+	}
+
+	function report(overrides: Partial<ConnectionReport> = {}): ConnectionReport {
+		return {
+			name: "vpn",
+			establish: ["serpro-vpn", "connect"],
+			establishBinary: null,
+			probeBinary: "/usr/bin/true",
+			state: "up",
+			issues: [],
+			...overrides,
+		};
+	}
+
+	it("prints an up connection with no reason and no remedy — there is nothing to fix", () => {
+		const output = capture(() =>
+			printConnectionReports({ connections: [report({ state: "up" })], catalogIssues: [] }),
+		);
+		expect(output).toContain("vpn");
+		expect(output).toContain("up");
+		expect(output).not.toMatch(/fix:/);
+	});
+
+	it("prints a down connection with the reason the probe gave", () => {
+		const output = capture(() =>
+			printConnectionReports({
+				connections: [report({ state: "down", detail: "probe exited with code 1" })],
+				catalogIssues: [],
+			}),
+		);
+		expect(output).toContain("down");
+		expect(output).toContain("probe exited with code 1");
+		// `down` means the tunnel, not the setup — it must not carry the setup remedy.
+		expect(output).not.toMatch(/install the binary/);
+	});
+
+	it("gives an unknown connection a one-line remedy — accurate but terminal is not enough", () => {
+		// This is the FIRST state the operator meets: on their machine `serpro-vpn` is not
+		// on PATH. Without this line they get a colour and no move.
+		const output = capture(() =>
+			printConnectionReports({
+				connections: [
+					report({ state: "unknown", detail: "probe binary not found: serpro-vpn" }),
+				],
+				catalogIssues: [],
+			}),
+		);
+		expect(output).toContain("unknown");
+		expect(output).toContain("probe binary not found: serpro-vpn");
+		expect(output).toMatch(/install the binary/);
+		expect(output).toMatch(/PATH/);
+		expect(output).toMatch(/config\.json/);
+	});
+
+	it("prints declaration issues and catalog-level issues alongside the states", () => {
+		const output = capture(() =>
+			printConnectionReports({
+				connections: [
+					report({
+						state: "unknown",
+						issues: [{ connection: "vpn", field: "env", message: "env['V'] must be ASCII" }],
+					}),
+				],
+				catalogIssues: [
+					{ connection: "(connections)", field: "connections", message: "too many connections" },
+				],
+			}),
+		);
+		expect(output).toContain("env['V'] must be ASCII");
+		expect(output).toContain("too many connections");
+	});
+
+	it("says so when nothing is declared, instead of printing an empty list", () => {
+		const output = capture(() =>
+			printConnectionReports({ connections: [], catalogIssues: [] }),
+		);
+		expect(output).toMatch(/none declared/);
+	});
+});
+
 describe("createConnectionCommand (the full command — JSON envelope + injected deps)", () => {
 	it("prints a JSON envelope with ok, command:'connection', operation:'status', and a connections array", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -430,4 +595,55 @@ describe("createConnectionCommand (the full command — JSON envelope + injected
 		}
 	});
 
+	it("emits an EMPTY nextCommands and a prose nextAction for a down connection", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		try {
+			await createConnectionCommand({
+				loadConfig: () => ({
+					connections: {
+						vpn: { establish: ["/usr/bin/true", "connect"], probe: { run: ["/usr/bin/true"] } },
+					},
+				}),
+				runProbe: async () => ({ outcome: "down", detail: "interface is DOWN" }),
+			}).parseAsync(["status", "--json"], { from: "user" });
+
+			const output = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+				nextCommand: string | null;
+				nextCommands: string[];
+				nextAction: string | null;
+			};
+			// Nothing runnable exists — an agent following CLAUDE.md §4 must not be handed a
+			// command that fails.
+			expect(output.nextCommands).toEqual([]);
+			expect(output.nextCommand).toBeNull();
+			// The remedy still reaches the operator, as prose.
+			expect(output.nextAction).toContain("vpn");
+		} finally {
+			logSpy.mockRestore();
+		}
+	});
+
+	it("prints the human report, with the unknown remedy, when --json is absent", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		try {
+			await createConnectionCommand({
+				loadConfig: () => ({
+					connections: {
+						vpn: {
+							establish: ["definitely-not-a-real-binary-xyz"],
+							probe: { run: ["definitely-not-a-real-binary-xyz"] },
+						},
+					},
+				}),
+				runProbe: async () => ({ outcome: "up" }),
+			}).parseAsync(["status"], { from: "user" });
+
+			const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+			expect(output).toContain("vpn");
+			expect(output).toContain("unknown");
+			expect(output).toMatch(/install the binary/);
+		} finally {
+			logSpy.mockRestore();
+		}
+	});
 });

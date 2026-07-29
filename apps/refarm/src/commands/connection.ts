@@ -358,7 +358,17 @@ const STATE_COLOR: Record<ConnectionReport["state"], (text: string) => string> =
 	unknown: chalk.yellow,
 };
 
-function printConnectionReports(report: ConnectionStatusReport): void {
+/**
+ * The one-line remedy for `unknown`. `unknown` is the FIRST state most operators meet —
+ * the declared binary is simply not installed on this machine yet — and an accurate but
+ * terminal "unknown" line leaves them with a colour and no move. `refarm doctor` already
+ * knows the answer (see `missingBinaryRecommendation` in `connection-doctor.ts`); this
+ * says the same thing at the moment the operator is actually looking.
+ */
+const UNKNOWN_REMEDY =
+	"fix: install the binary where refarm can reach it, fix PATH, or fix this connection's declaration in .refarm/config.json";
+
+export function printConnectionReports(report: ConnectionStatusReport): void {
 	console.log(chalk.bold("Connections"));
 	if (report.catalogIssues.length > 0) {
 		console.log(chalk.yellow(`  ${report.catalogIssues.length} catalog-level issue(s):`));
@@ -377,6 +387,9 @@ function printConnectionReports(report: ConnectionStatusReport): void {
 				? ""
 				: ` ${chalk.dim(`(${connection.detail ?? "no reason given"})`)}`;
 		console.log(`  ${connection.name}: ${color(connection.state)}${suffix}`);
+		if (connection.state === "unknown") {
+			console.log(chalk.dim(`    ${UNKNOWN_REMEDY}`));
+		}
 		if (connection.issues.length > 0) {
 			console.log(chalk.dim(`    ${connection.issues.length} declaration issue(s):`));
 			for (const issue of connection.issues) {
@@ -386,13 +399,56 @@ function printConnectionReports(report: ConnectionStatusReport): void {
 	}
 }
 
-function connectionStatusNextCommands(reports: ConnectionReport[]): string[] {
-	// A down connection has a documented fix (bring it up); an unknown one does not — the
-	// operator's next move there is to fix the DECLARATION or the binary, not to run
-	// something this surface can name generically.
-	const down = reports.filter((report) => report.state === "down");
-	if (down.length === 0) return [];
-	return down.map((report) => `refarm workspace run <workspace> ${report.establish.join(" ")}`);
+/**
+ * ALWAYS EMPTY, on purpose — and this is a contract, not an oversight.
+ *
+ * `nextCommands` is not advice. CLAUDE.md §4 tells every agent in this repo to FOLLOW it,
+ * so a command here that does not run is worse than no command at all: it hands the
+ * repo's own operator loop a guaranteed failure on the primary case.
+ *
+ * There is no correct command to emit today:
+ *   - `refarm workspace run <ws> <cmd>` (what this used to emit) resolves a NAMED entry
+ *     from a workspace's declared-command allowlist. It does not take an argv, so
+ *     `refarm workspace run <workspace> serpro-vpn connect` would look for a command
+ *     literally named `serpro-vpn` — and `<workspace>` was never even filled in.
+ *   - There is no generic re-establish command. Establishing a connection is the HOST's
+ *     job (`spawn_establish_process`, the claim/linger registry), and the WIT surface that
+ *     would let the CLI ask for it is not built. Naming a fake one here would be inventing
+ *     a capability.
+ *   - `refarm doctor --json` is real and runnable, but `connection-doctor.ts` already
+ *     points its own findings BACK at `refarm connection status --json`. Emitting it would
+ *     close a two-command livelock that an agent following handoffs would spin in.
+ *
+ * The remedy the operator actually needs is prose, so it goes out as `nextActions` (see
+ * `connectionStatusNextActions`) — the envelope carries both, and only one of them is a
+ * promise that something will execute.
+ */
+export function connectionStatusNextCommands(_reports: ConnectionReport[]): string[] {
+	return [];
+}
+
+/**
+ * The prose half of the handoff: what to DO about each non-`up` connection. Unlike
+ * `nextCommands` these are read, not executed, so they can describe an action refarm
+ * cannot yet perform on the operator's behalf.
+ */
+export function connectionStatusNextActions(reports: ConnectionReport[]): string[] {
+	const actions: string[] = [];
+	for (const report of reports) {
+		if (report.state === "unknown") {
+			actions.push(
+				`Connection '${report.name}' could not be probed — ${UNKNOWN_REMEDY}, then re-run refarm connection status --json.`,
+			);
+		} else if (report.state === "down") {
+			// The establish argv is REPORTED (it is already on every `ConnectionReport`),
+			// never handed over as a command: refarm cannot run it for the operator yet, and
+			// pretending otherwise is what finding 1 was.
+			actions.push(
+				`Connection '${report.name}' is down — bring it up with its declared establish command (${report.establish.join(" ")}), then re-run refarm connection status --json.`,
+			);
+		}
+	}
+	return actions;
 }
 
 export interface ConnectionStatusCommandOptions {
@@ -443,6 +499,7 @@ async function printConnectionStatus(
 				command: "connection",
 				operation: "status",
 				extra: { connections: report.connections, catalogIssues: report.catalogIssues },
+				nextActions: connectionStatusNextActions(report.connections),
 				nextCommands: connectionStatusNextCommands(report.connections),
 			}),
 		);
