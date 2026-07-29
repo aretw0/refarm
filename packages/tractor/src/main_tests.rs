@@ -143,6 +143,23 @@ fn daemon_cli_accepts_model_stream_responses_flag() {
 }
 
 #[test]
+fn daemon_cli_ws_host_defaults_to_loopback() {
+    // Mutation guard: the WS daemon must default to loopback, matching --http-host's
+    // default, NOT bind every interface. See ws_server::tests::
+    // bind_addr_uses_configured_host_not_all_interfaces for the corresponding
+    // pure check on the value actually passed to `TcpListener::bind`.
+    let cli = Cli::try_parse_from(["tractor"]).expect("cli parse");
+    assert_eq!(cli.daemon.ws_host, "127.0.0.1");
+}
+
+#[test]
+fn daemon_cli_accepts_ws_host_override() {
+    let cli =
+        Cli::try_parse_from(["tractor", "--ws-host", "0.0.0.0"]).expect("cli parse");
+    assert_eq!(cli.daemon.ws_host, "0.0.0.0");
+}
+
+#[test]
 fn watch_cli_accepts_generic_stream_filters() {
     let cli = Cli::try_parse_from([
         "tractor",
@@ -398,6 +415,7 @@ async fn ws_probe_succeeds_when_daemon_is_listening() {
         Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
     let server = daemon::WsServer::new(
         sync,
+        "127.0.0.1".to_string(),
         port,
         telemetry,
         channels,

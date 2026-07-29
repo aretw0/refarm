@@ -52,6 +52,15 @@ struct DaemonArgs {
     #[arg(long, default_value_t = 42000)]
     port: u16,
 
+    /// WebSocket daemon bind host. Defaults to loopback. This socket accepts
+    /// `user:prompt` frames from any peer that can reach it with NO credential check
+    /// (the WS auth handshake, ADR-093, is not yet implemented) — so a non-loopback
+    /// bind here is refused at startup unless an auth policy is configured
+    /// (`sidecar::bind_guard`, reused by the WS listener). Named to mirror
+    /// `--http-host`.
+    #[arg(long, default_value = "127.0.0.1")]
+    ws_host: String,
+
     /// Security mode: strict | permissive | none
     #[arg(long, default_value = "strict")]
     security_mode: String,
@@ -560,6 +569,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
 
     daemon::WsServer::new(
         std::sync::Arc::new(tractor.sync.clone()),
+        args.ws_host.clone(),
         config.port,
         tractor.telemetry.clone(),
         tractor.plugin_channels.clone(),

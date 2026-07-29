@@ -664,8 +664,8 @@ pub async fn post_plugin_respond(
 mod agent_activity;
 pub(crate) use agent_activity::agent_event_to_activity;
 mod activity_sse;
-mod auth;
-mod bind_guard;
+pub(crate) mod auth;
+pub(crate) mod bind_guard;
 mod cors;
 mod dispatch;
 pub(crate) use dispatch::*;

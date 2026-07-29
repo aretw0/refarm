@@ -34,6 +34,7 @@ static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(0);
 /// WebSocket server — the farmhand replacement.
 pub struct WsServer {
     sync: Arc<NativeSync>,
+    host: String,
     port: u16,
     telemetry: TelemetryBus,
     plugin_channels: PluginChannels,
@@ -43,6 +44,7 @@ pub struct WsServer {
 impl WsServer {
     pub fn new(
         sync: Arc<NativeSync>,
+        host: String,
         port: u16,
         telemetry: TelemetryBus,
         plugin_channels: PluginChannels,
@@ -50,6 +52,7 @@ impl WsServer {
     ) -> Self {
         Self {
             sync,
+            host,
             port,
             telemetry,
             plugin_channels,
@@ -57,9 +60,31 @@ impl WsServer {
         }
     }
 
+    /// The address `start()` binds. PURE — no socket, no I/O — split out so the
+    /// default host can be asserted without ever opening a port (see the `daemon`
+    /// mutation-guard test below).
+    fn bind_addr(&self) -> String {
+        format!("{}:{}", self.host, self.port)
+    }
+
     /// Start the WebSocket server and block until Ctrl-C.
     pub async fn start(&self) -> Result<()> {
-        let addr = format!("0.0.0.0:{}", self.port);
+        // Fail-closed bind guard — same doctrine, same function, as the HTTP sidecar
+        // (`sidecar::bind_guard`, extended here rather than duplicated): refuse a
+        // non-loopback bind when no auth policy is configured. This closes the
+        // DEFAULT-EXPOSURE gap only (binding every interface with zero credential by
+        // default). It does NOT add authentication to this socket: once an operator
+        // opts into a non-loopback bind with a policy configured, `user:prompt` frames
+        // on `/sync` are still accepted from any peer that can reach the port — the WS
+        // credential handshake over `Sec-WebSocket-Protocol` (ADR-093) is a separate,
+        // not-yet-implemented piece. Track that gap there, not as closed by this guard.
+        crate::sidecar::bind_guard::refuse_unguarded_nonloopback_bind(
+            &self.host,
+            crate::sidecar::auth::auth_config_from_env().is_some(),
+        )
+        .map_err(|reason| anyhow::anyhow!(reason))?;
+
+        let addr = self.bind_addr();
         let listener = TcpListener::bind(&addr).await?;
         self.run(listener).await
     }
@@ -262,6 +287,7 @@ mod tests {
         let addr = listener.local_addr().unwrap();
         let server = WsServer::new(
             make_sync(),
+            "127.0.0.1".to_string(),
             0,
             TelemetryBus::new(10),
             channels,
@@ -311,6 +337,26 @@ mod tests {
             matches!(first, Message::Binary(_)),
             "expected Binary CRDT frame on connect"
         );
+    }
+
+    // ── bind host ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn bind_addr_uses_configured_host_not_all_interfaces() {
+        // Mutation guard: `start()` used to hardcode `format!("0.0.0.0:{port}")` —
+        // every interface, unconditionally, no auth. This asserts the address that
+        // flows into the bind call, PURE — no socket opened — so a regression back to
+        // a hardcoded 0.0.0.0 default is caught without ever touching the network.
+        let server = WsServer::new(
+            make_sync(),
+            "127.0.0.1".to_string(),
+            42000,
+            TelemetryBus::new(10),
+            Arc::new(RwLock::new(HashMap::new())),
+            crate::EventRouter::default(),
+        );
+        assert_eq!(server.bind_addr(), "127.0.0.1:42000");
+        assert_ne!(server.bind_addr(), "0.0.0.0:42000");
     }
 
     // ── resilience ───────────────────────────────────────────────────────────
