@@ -35,6 +35,7 @@ fn make_strict_bindings(caps: &[&str]) -> TractorNativeBindings {
         PermissionGrant::strict_declaring(caps),
         None,
         None,
+        std::sync::Arc::new(ConnectionRegistry::new()),
     )
 }
 

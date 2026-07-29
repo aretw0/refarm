@@ -140,6 +140,17 @@ pub struct TractorNativeBindings {
     /// `None` for test-constructed bindings / hosts wired without a registry — those
     /// paths keep the pre-registry behavior (empty tool list, `get_plugin_api` NotFound).
     pub(crate) cross_plugin: Option<crate::host::wasi_bridge::CrossPluginAccess>,
+    /// The SHARED connection registry — ONE per host process, never one per plugin
+    /// instance. A connection (e.g. `serpro-vpn`) is a resource several plugins
+    /// legitimately want at once, and each establish is a phone-approval push for
+    /// the operator; sharing is the entire point (see `host-connection` in
+    /// `packages/plugin-wit/wit/host.wit`). `PluginHost` owns the single
+    /// `Arc<ConnectionRegistry>` (beside `engine`/`linker`) and clones this SAME
+    /// `Arc` into every `TractorNativeBindings` at load — constructing a fresh
+    /// registry here instead would silently give each plugin its own "shared"
+    /// connection, one login apiece.
+    pub(crate) connection_registry:
+        std::sync::Arc<crate::host::host_effects_bridge::ConnectionRegistry>,
 }
 
 /// A plugin's capability grant for the `request-permission` host export.
@@ -284,6 +295,7 @@ impl TractorNativeBindings {
         permission_grant: PermissionGrant,
         trusted_plugins: Option<std::collections::HashSet<String>>,
         cross_plugin: Option<CrossPluginAccess>,
+        connection_registry: std::sync::Arc<crate::host::host_effects_bridge::ConnectionRegistry>,
     ) -> Self {
         Self {
             plugin_id: plugin_id.into(),
@@ -298,6 +310,7 @@ impl TractorNativeBindings {
             permission_grant,
             trusted_plugins,
             cross_plugin,
+            connection_registry,
         }
     }
 }

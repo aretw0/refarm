@@ -961,6 +961,49 @@ fn spawn_epoch_ticker(engine: &Arc<Engine>, module_engine: &Arc<Engine>) {
         .expect("spawn epoch-ticker thread");
 }
 
+/// Guards against a claim leak on a FAILED load. Guest code can run — and call
+/// ANY host import, including `host-connection.ensure` — from the moment
+/// `instantiate_async` starts the component (its own `start` function) through
+/// `call_metadata` and `call_setup`, all BEFORE `load` has committed to
+/// returning a handle the caller will ever hand to `register_for_events` (and
+/// therefore, later, to `TractorNative::unregister`). If a later `?` aborts the
+/// load — a manifest/runtime mismatch, a `setup()` failure — this plugin id is
+/// never registered, so nothing would otherwise release a claim it minted
+/// during init: a permanent leak, and for a connection like `serpro-vpn` a
+/// claim that silently keeps a live tunnel from ever falling.
+///
+/// Armed from construction; releases this plugin id's claims on `Drop` UNLESS
+/// `disarm()` was already called. `disarm()` is the LAST thing `load` does once
+/// `call_setup` has actually succeeded, so a genuinely successful load keeps
+/// whatever the plugin legitimately holds — this only fires on the failure
+/// paths in between.
+struct ReleaseClaimsOnLoadFailure<'a> {
+    registry: &'a crate::host::host_effects_bridge::ConnectionRegistry,
+    plugin_id: &'a str,
+    armed: bool,
+}
+
+impl<'a> ReleaseClaimsOnLoadFailure<'a> {
+    fn new(
+        registry: &'a crate::host::host_effects_bridge::ConnectionRegistry,
+        plugin_id: &'a str,
+    ) -> Self {
+        Self { registry, plugin_id, armed: true }
+    }
+
+    fn disarm(mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for ReleaseClaimsOnLoadFailure<'_> {
+    fn drop(&mut self) {
+        if self.armed {
+            self.registry.release_owner(self.plugin_id);
+        }
+    }
+}
+
 impl PluginHost {
     pub fn new(
         trust: TrustManager,
@@ -1051,7 +1094,23 @@ impl PluginHost {
             // exist. `new` has no runtime context, so it starts None (pre-registry
             // behavior: empty tool list, `get_plugin_api` NotFound).
             cross_plugin: None,
+            // ONE registry for the whole host, constructed exactly once here — see
+            // the field doc on `connection_registry` for why this must never be
+            // constructed per-bindings instead.
+            connection_registry: Arc::new(crate::host::host_effects_bridge::ConnectionRegistry::new()),
         })
+    }
+
+    /// Release every claim a departed plugin held on shared connections. The single
+    /// production caller is `TractorNative::unregister` (lib.rs) — the one clean
+    /// unload point for a plugin, whether it is a normal unload, a hot-reload
+    /// (unregister + reload), or a revocation. A claim that outlives its holder is
+    /// the leak the design forbids: another plugin sharing the same connection must
+    /// see this plugin's interest drop, while the connection itself follows its
+    /// declared `linger` policy (unaffected here — `release_owner` only touches the
+    /// claim set, never the process).
+    pub fn release_connection_claims(&self, plugin_id: &str) {
+        self.connection_registry.release_owner(plugin_id);
     }
 
     /// Override the sovereign trusted-plugins allowlist that seeds the Strict load
@@ -1368,7 +1427,13 @@ impl PluginHost {
             permission_grant,
             trusted_at_load,
             self.cross_plugin.clone(),
+            self.connection_registry.clone(),
         );
+
+        // Armed from here: guest code can run (and mint a connection claim) from
+        // `instantiate_async` onward, before this plugin is ever registered. See
+        // `ReleaseClaimsOnLoadFailure`'s doc.
+        let claim_guard = ReleaseClaimsOnLoadFailure::new(&self.connection_registry, &plugin_id);
 
         let component = self.cached_component(&wasm_hash, &bytes)?;
         // Armed-at-creation: epoch_interruption(true) makes an un-armed store trap
@@ -1422,6 +1487,12 @@ impl PluginHost {
         .with_requires_api(requires_api)
         .with_on_event_budget_ms(self.on_event_budget_ms);
         handle.call_setup().await?;
+        // `call_setup` succeeded: the plugin is about to be returned to the
+        // caller, which registers it (and, eventually, unregisters it — the path
+        // that normally releases its connection claims). From here on, nothing
+        // remaining in `load` can abort it, so any claim minted during init is a
+        // legitimate one this plugin now owns, not a leak.
+        claim_guard.disarm();
 
         if let Err(e) = store_refarm_config_node(sync, config_json.as_ref()) {
             tracing::warn!(plugin_id = %plugin_id, error = %e, "failed to store RefarmConfig node");
@@ -1584,6 +1655,7 @@ impl PluginHost {
             None,
             // Not a dispatchable plugin — no cross-plugin surface.
             None,
+            self.connection_registry.clone(),
         );
 
         let component = Component::from_file(&self.engine, path)?;

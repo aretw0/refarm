@@ -255,6 +255,12 @@ pub struct PluginHost {
     /// `None` until the runtime wires it via `with_cross_plugin` (test hosts / the
     /// bare `new` keep the pre-registry behavior). Set once at boot; Arc-shared.
     cross_plugin: Option<crate::host::wasi_bridge::CrossPluginAccess>,
+    /// The SHARED registry of declared connections — ONE per host process,
+    /// constructed once in `new` beside `engine`/`linker` and cloned (the `Arc`,
+    /// not a fresh instance) into every `TractorNativeBindings` at load. This is
+    /// what makes `ensure("serpro-vpn")` from two different plugins observe the
+    /// SAME live connection and ONE login, instead of one login per plugin.
+    connection_registry: Arc<crate::host::host_effects_bridge::ConnectionRegistry>,
 }
 
 /// Forward only MODEL_* vars into plugin WASI env.

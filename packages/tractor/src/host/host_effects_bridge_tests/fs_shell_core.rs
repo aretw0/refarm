@@ -28,6 +28,7 @@
             crate::host::wasi_bridge::PermissionGrant::permissive(),
             None,
             None,
+            std::sync::Arc::new(ConnectionRegistry::new()),
         )
     }
 
@@ -50,6 +51,7 @@
             crate::host::wasi_bridge::PermissionGrant::permissive(),
             trusted,
             None,
+            std::sync::Arc::new(ConnectionRegistry::new()),
         )
     }
 
