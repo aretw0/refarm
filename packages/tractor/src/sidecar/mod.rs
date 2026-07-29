@@ -665,6 +665,7 @@ mod agent_activity;
 pub(crate) use agent_activity::agent_event_to_activity;
 mod activity_sse;
 mod auth;
+mod bind_guard;
 mod cors;
 mod dispatch;
 pub(crate) use dispatch::*;
@@ -1643,6 +1644,19 @@ async fn post_connection_down(
 // ── public API ────────────────────────────────────────────────────────────────
 
 pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Result<()> {
+    // Resolved ONCE here: reused for the fail-closed bind guard immediately below AND
+    // for the auth middleware layer further down, so a configured policy is read from
+    // disk (and its enable/deny-all log line emitted) exactly once per daemon start.
+    let auth_policy = auth::auth_config_from_env();
+
+    // Fail-closed bind guard: refuse to open a non-loopback listener with no auth
+    // policy configured. Same doctrine as auth::auth_config_from_env's deny-all-on-
+    // unreadable-policy, one layer out — see bind_guard for the full reasoning. This
+    // is checked before anything else in `start` so an unguarded non-loopback bind
+    // never gets as far as building a router or touching a socket.
+    bind_guard::refuse_unguarded_nonloopback_bind(&host, auth_policy.is_some())
+        .map_err(|reason| anyhow::anyhow!(reason))?;
+
     // Reclaim terminal-and-old task-results/streams artifacts in the background,
     // bounding the daemon's on-disk growth. Self-terminates when state drops.
     // Reaper knobs resolved from env ONCE here at daemon start.
@@ -1676,7 +1690,8 @@ pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Resu
     // Opt-in per-device AUTH gate: unset REFARM_AUTH_POLICY ⇒ no layer, behavior unchanged
     // (fail-closed off by default). Applied INNER of CORS below, so a browser's OPTIONS
     // preflight — which carries no credential — is answered by CORS before the gate sees it.
-    let router = match auth::auth_config_from_env() {
+    // `auth_policy` was already resolved above for the bind guard; reused here as-is.
+    let router = match auth_policy {
         Some(policy) => router.layer(axum::middleware::from_fn(move |req, next| {
             auth::auth_middleware(policy.clone(), req, next)
         })),
