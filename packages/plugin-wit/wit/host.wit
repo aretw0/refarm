@@ -118,6 +118,45 @@ interface host-shell {
     spawn: func(req: spawn-request) -> result<spawn-result, string>;
 }
 
+/// Shared, host-owned connections. A connection is a long-lived interactive
+/// process (a VPN client holding a tunnel, a logged-in session) declared by the
+/// OPERATOR in `.refarm/config.json` and named here. The plugin never supplies
+/// argv, patterns, or timeouts — it asks for a declared connection by name and
+/// holds a claim on it. Several plugins share ONE live connection: asking for a
+/// connection that is already up performs no second login.
+///
+/// Gated on `connection:use`. Lower authority than `shell:spawn` — the plugin
+/// does not choose what runs — but not free: establishing a connection can
+/// interrupt the operator (a phone approval).
+interface host-connection {
+    enum connection-status { down, connecting, up, failed }
+
+    record connection-state {
+        name: string,
+        status: connection-status,
+        /// stream:v1 ref carrying this connection's frames (notice / prompt / terminal).
+        stream-ref: string,
+        /// The caller's claim, present when status is `up`. Release it when done.
+        claim: option<u64>,
+        /// When the current live instance came up.
+        since-ns: option<u64>,
+        /// Cursor of the last published frame (the resume point).
+        last-sequence: u32,
+    }
+
+    /// Idempotent. Already up ⇒ returns immediately with a new claim and NO new
+    /// login. Down ⇒ runs the declared flow once; concurrent callers wait on that
+    /// single attempt rather than starting a rival process.
+    ensure: func(name: string) -> result<connection-state, string>;
+
+    /// Drop this caller's interest. Whether the connection itself falls is the
+    /// declaration's `linger` policy, not the caller's choice.
+    release: func(claim: u64) -> result<_, string>;
+
+    /// Observe without acquiring interest.
+    status: func(name: string) -> result<connection-state, string>;
+}
+
 /// Structured I/O — parse and write JSON/TOML/YAML files with validation and pagination.
 ///
 /// Defined here (plugin:host package) so any plugin can import it as a host capability.

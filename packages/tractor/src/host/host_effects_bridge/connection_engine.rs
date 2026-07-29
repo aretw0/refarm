@@ -468,6 +468,26 @@ impl ConnectionRegistry {
         }
     }
 
+    /// Release a claim identified only by its id — the shape the `host-connection`
+    /// WIT surface hands back to a plugin: `release: func(claim: u64)` carries no
+    /// connection name (D7 — as little as possible crosses the boundary), unlike
+    /// the native `Claim{id, name}` `release` above. Claim ids are minted from ONE
+    /// registry-wide counter (`next_claim_id`), so they are unique across every
+    /// declared connection — a linear scan over the (capped at `MAX_CONNECTIONS`)
+    /// live entries finds the right one. Lenient like `release`: an unknown or
+    /// already-released id is a harmless no-op, never an error — a plugin's
+    /// shutdown path must not fail on a stale claim.
+    pub(crate) fn release_by_id(&self, claim_id: u64) {
+        let mut live = self.live.lock().expect("connection registry poisoned");
+        for entry in live.values_mut() {
+            if entry.claims.iter().any(|(id, _)| *id == claim_id) {
+                entry.claims.retain(|(id, _)| *id != claim_id);
+                Self::apply_linger(entry);
+                return;
+            }
+        }
+    }
+
     /// Release every claim held by an owner — called when a plugin is unloaded or revoked,
     /// so interest can never outlive its holder.
     pub(crate) fn release_owner(&self, owner: &str) {

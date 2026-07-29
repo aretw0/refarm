@@ -1051,7 +1051,23 @@ impl PluginHost {
             // exist. `new` has no runtime context, so it starts None (pre-registry
             // behavior: empty tool list, `get_plugin_api` NotFound).
             cross_plugin: None,
+            // ONE registry for the whole host, constructed exactly once here — see
+            // the field doc on `connection_registry` for why this must never be
+            // constructed per-bindings instead.
+            connection_registry: Arc::new(crate::host::host_effects_bridge::ConnectionRegistry::new()),
         })
+    }
+
+    /// Release every claim a departed plugin held on shared connections. The single
+    /// production caller is `TractorNative::unregister` (lib.rs) — the one clean
+    /// unload point for a plugin, whether it is a normal unload, a hot-reload
+    /// (unregister + reload), or a revocation. A claim that outlives its holder is
+    /// the leak the design forbids: another plugin sharing the same connection must
+    /// see this plugin's interest drop, while the connection itself follows its
+    /// declared `linger` policy (unaffected here — `release_owner` only touches the
+    /// claim set, never the process).
+    pub fn release_connection_claims(&self, plugin_id: &str) {
+        self.connection_registry.release_owner(plugin_id);
     }
 
     /// Override the sovereign trusted-plugins allowlist that seeds the Strict load
@@ -1368,6 +1384,7 @@ impl PluginHost {
             permission_grant,
             trusted_at_load,
             self.cross_plugin.clone(),
+            self.connection_registry.clone(),
         );
 
         let component = self.cached_component(&wasm_hash, &bytes)?;
@@ -1584,6 +1601,7 @@ impl PluginHost {
             None,
             // Not a dispatchable plugin — no cross-plugin surface.
             None,
+            self.connection_registry.clone(),
         );
 
         let component = Component::from_file(&self.engine, path)?;
