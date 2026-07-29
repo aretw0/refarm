@@ -340,6 +340,48 @@ The operator asked not to be shielded from what they misconfigured or over-permi
 means: conflicting requests are refused loudly with the remedy in the message; a failed login
 surfaces its `fail` match rather than a generic error; and claims are attributable to plugins by name.
 
+### D13 — An attempt that needs a human must first acquire the human
+
+**Found in real use, 2026-07-28.** The operator's VPN dropped and the supervisor reconnected while
+they were away from their phone. rcdc5's adapter sets `maxAttempts: 3` (`ovpnctl.ts:221`) and
+`login-flow`'s `timeoutMs` defaults to 120s, so the sequence was: push 1 → 120s → 3s backoff → push
+2 → 120s → push 3 → 120s → `gaveup`. **Three phone approvals spent in about six minutes at an absent
+human**, ending with the tunnel down and nothing saying so.
+
+The defect is not the retry count. It is that the system spends a **scarce resource that only exists
+when a human is present** — an approval on the operator's phone — without first establishing that
+they are there. A push approval is not a retryable network operation; retrying it blind burns the
+operator's attention, risks SerproID rate-limiting, and ends in a silence the operator reads as
+success.
+
+Note the asymmetry the probe (D1b) makes explicit: **probing is cheap and truthful; establishing is
+expensive and human-dependent.** Today's supervisor treats them as if they cost the same.
+
+So:
+
+- **A declaration states whether establishing needs human attention** (the phone push, a QR scan, an
+  MFA code). When it does, the host does not spawn on its own initiative: it **requests attention
+  first and waits for acknowledgement**, then establishes. One push, fired when the operator said go.
+- **The acknowledgement is the same seam as a prompt answer** (D9): a frame goes out on `stream:v1`,
+  the reply comes back through the host's control plane. This is deliberately not a second
+  mechanism — it is the one that already exists, and it is what later lets the phone itself both
+  carry the request and answer it.
+- **A drop does not retry into an absent human.** The connection enters an explicit `needs-attention`
+  state and stays there, visible in `refarm connection status` and announced once. That is not a
+  failure state; it is "waiting for you", and it is honest in a way `gaveup` is not.
+- **A reconnect that needs no human is not gated.** If a flow can re-establish without human action,
+  supervision proceeds normally — the gate applies only where the human is actually on the critical
+  path.
+
+This reshapes step 3: supervision is not "reconnect on drop". It is **detect the drop truthfully
+(the probe), re-establish silently when no human is needed, and otherwise hold the operator's
+attention request until they answer.**
+
+**Open for the operator:** whether an unacknowledged attention request should expire (and the
+connection settle as failed) or park indefinitely. The default proposed here is to park — an expiry
+recreates the original defect on a longer timer, and a parked connection is discoverable in status
+while an expired one is another silence.
+
 ## The contract
 
 New interface in `packages/plugin-wit/wit/host.wit`, added to the `effect-capable` and `host-plugin`
@@ -482,7 +524,10 @@ and prompts for nothing.
 
 - `askHuman` implementation and the control-plane answer call (step 2) — the SerproID
   user+password+MFA rung.
-- Supervision / reconnect-on-drop, the Rust twin of `superviseConnection` (step 3).
+- Supervision (step 3) — and per D13 it is **not** a Rust twin of `superviseConnection`'s
+  reconnect-on-drop. It is: probe truthfully, re-establish silently when no human is needed, and
+  otherwise park in `needs-attention` holding one acknowledged request. The existing blind-retry
+  behaviour is the thing being replaced, not ported.
 - `secretRef` resolution — **open question**, see below.
 - A guest consumer proof (needs `cargo component build`).
 - The remote surface (the original slice 3).
