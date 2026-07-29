@@ -80,6 +80,14 @@ export type ProcessHandoffRunner = (
 ) => Promise<void>;
 
 export interface ProcessHandoffRunResult {
+	/**
+	 * The child's exit code, or `-1` when it did not exit with one — a signal death (Node's
+	 * `close` reports `code: null` in that case) or this module's own timeout. Mirrors the
+	 * host's `status.code().unwrap_or(-1)` in `spawn_process`
+	 * (`packages/tractor/src/host/host_effects_bridge/core.rs`): `-1` is the only fallback
+	 * that cannot be misread as a clean exit, so a caller checking `exitCode !== 0` stays
+	 * in parity with the host's `run_probe`, which folds exactly this case into `false`.
+	 */
 	exitCode: number;
 	stdout?: string;
 	stderr?: string;
@@ -87,6 +95,14 @@ export interface ProcessHandoffRunResult {
 	 * mirrored strategy, its whole process group) was killed before it exited on its own.
 	 * Present only when `options.timeout` was set. */
 	timedOut?: boolean;
+	/** The signal that killed the child, when Node's `close` event reported one — e.g. a
+	 * process killed by something OTHER than this module's own timeout (an external
+	 * SIGKILL, a segfault, an OOM kill). A timeout-driven kill reports via `timedOut`
+	 * instead, not this field. Absent when the child exited normally (with a numeric exit
+	 * code). Present so a caller can tell *how* a non-zero-looking result came to be —
+	 * `exitCode` alone cannot distinguish "exited 0" from "killed by a signal", which is
+	 * why `exitCode` never reports `0` for a signal death (see its doc note below). */
+	signal?: NodeJS.Signals;
 	/** Present only when `options.spawnErrorAsResult` is true and the spawn itself failed —
 	 * see that option's doc comment. `exitCode` is `-1` in this case; nothing ran. */
 	spawnError?: { message: string; code?: string };
@@ -226,15 +242,23 @@ function resolveOutputCapBytes(outputCap: ProcessHandoffRunOptions["outputCap"])
  * Every new guarantee below is OPT-IN via `options`, so a caller that passes none of them
  * sees byte-for-byte the same spawn call, the same capture behavior, and the same
  * resolve/reject shape this function has always had:
- *   - `options.timeout` bounds the run; on expiry the child (and its process group, via
- *     `killProcessGroup`) is killed and the result resolves with `timedOut: true` and
- *     `exitCode: -1`, mirroring the host's own timeout result shape.
+ *   - `options.timeout` bounds the run; on expiry the child's process group is killed
+ *     (`killProcessGroup`) and the call settles IMMEDIATELY from the timer itself —
+ *     mirroring the host, which returns as soon as it kills rather than waiting for the
+ *     child to fully exit (see the timer callback's own comment for why: a grandchild
+ *     that escapes the killed group can hold the inherited stdio pipe open forever, and
+ *     Node's `close` event would then never fire). Resolves `timedOut: true`,
+ *     `exitCode: -1`.
  *   - `options.isolatedEnv` runs with exactly `options.env` (or `{}`), never falling back to
  *     `process.env` — mirrors the host's `env_clear().envs(env)`.
  *   - `options.outputCap` bounds captured stdout/stderr per stream, appending the host's own
  *     truncation marker.
  *   - `options.spawnErrorAsResult` resolves (rather than rejects) on a spawn failure, with
  *     `result.spawnError` set.
+ *
+ * Independent of any option: a signal-killed child (`close`'s `code` is `null`) always
+ * resolves `exitCode: -1`, never `0` — see `ProcessHandoffRunResult.exitCode`'s doc
+ * comment for why this one is not gated behind a flag.
  */
 export function runProcessHandoff(
 	spec: ProcessHandoffSpec,
@@ -282,26 +306,48 @@ export function runProcessHandoff(
 		});
 
 		let settled = false;
-		let timedOut = false;
 		let timer: ReturnType<typeof setTimeout> | undefined;
+
+		/** Marks the call as settled exactly once and cancels any pending timer. Returns
+		 * false when something else already settled it — every settling site must check
+		 * this before resolving/rejecting, so a `close`/`error`/timeout race never
+		 * double-settles the promise. */
+		const markSettled = (): boolean => {
+			if (settled) return false;
+			settled = true;
+			if (timer) clearTimeout(timer);
+			return true;
+		};
 
 		if (hasTimeout) {
 			timer = setTimeout(() => {
-				timedOut = true;
+				// Mirrors the host's timeout branch (`spawn_process` in
+				// `host_effects_bridge/core.rs`): kill the process group and return
+				// IMMEDIATELY, rather than waiting for the child to fully exit. Node's
+				// `close` event fires only once every stdio stream has ALSO closed — a
+				// grandchild that escaped the killed process group (e.g. a daemonizing
+				// wrapper that called `setsid`, entirely plausible for something like a VPN
+				// client) can hold the inherited pipe open indefinitely, and `close` would
+				// then never fire. Settling HERE, not in the `close` handler, is what keeps
+				// the timeout an actual deadline instead of a best-effort suggestion.
+				// `killProcessGroup` runs unconditionally (a kill on an already-exited
+				// child is a harmless no-op — see its own doc comment), but the result is
+				// only resolved if nothing else settled the call first (a natural exit can
+				// race the timer by a hair).
 				killProcessGroup(child);
+				if (!markSettled()) return;
+				resolve({
+					exitCode: -1,
+					...(options.capture ? captured() : {}),
+					timedOut: true,
+				});
 			}, options.timeout);
 			timer.unref?.();
 		}
 
-		const clearTimer = (): void => {
-			if (timer) clearTimeout(timer);
-		};
-
 		child.once("error", (error) => {
-			if (settled) return;
-			settled = true;
-			clearTimer();
 			if (options.spawnErrorAsResult) {
+				if (!markSettled()) return;
 				const errno = error as NodeJS.ErrnoException;
 				resolve({
 					exitCode: -1,
@@ -313,36 +359,66 @@ export function runProcessHandoff(
 				});
 				return;
 			}
+			if (!markSettled()) return;
 			reject(error);
 		});
 
-		child.once("close", (code) => {
-			if (settled) return;
-			settled = true;
-			clearTimer();
+		child.once("close", (code, signal) => {
+			if (!markSettled()) return;
 			resolve({
-				exitCode: timedOut ? -1 : (code ?? 0),
+				// `code` is `null` when the child died by signal — falling back to `0`
+				// there would report a killed process as a clean exit. `-1` (never `0`)
+				// mirrors the host; see `ProcessHandoffRunResult.exitCode`'s doc comment.
+				exitCode: code ?? -1,
 				...(options.capture ? captured() : {}),
-				...(hasTimeout ? { timedOut } : {}),
+				...(signal ? { signal } : {}),
+				...(hasTimeout ? { timedOut: false } : {}),
 			});
 		});
 	});
+}
+
+/**
+ * Truncates already-decoded text to `capBytes` UTF-8 bytes, appending
+ * `PROCESS_HANDOFF_OUTPUT_TRUNCATION_MARKER` when it had to cut — the sync counterpart of
+ * `createBoundedTextAccumulator`. `spawnSync` hands back the full string in one shot (no
+ * stream to cap as it arrives), so this caps it after the fact instead; the observable
+ * result — the same byte-identical marker on anything over the limit — is the same either
+ * way. `capBytes === null` (the default: no `outputCap` given) returns `text` unchanged,
+ * preserving every existing sync caller's behavior exactly.
+ */
+function truncateToBytes(text: string, capBytes: number | null): string {
+	if (capBytes === null) return text;
+	const buf = Buffer.from(text, "utf-8");
+	if (buf.length <= capBytes) return text;
+	return buf.subarray(0, capBytes).toString("utf-8") + PROCESS_HANDOFF_OUTPUT_TRUNCATION_MARKER;
 }
 
 export function runProcessHandoffSync(
 	spec: ProcessHandoffSpec,
 	options: ProcessHandoffRunOptions = {},
 ): ProcessHandoffRunResult {
+	const capBytes = resolveOutputCapBytes(options.outputCap);
 	const result = spawnSync(spec.command, spec.args, {
 		cwd: spec.cwd ?? process.cwd(),
 		encoding: "utf-8",
-		env: options.env ?? process.env,
+		// Honors `isolatedEnv` exactly like the async runner (see its doc comment) —
+		// `ProcessHandoffRunOptions` is shared between both runners, and a sync caller
+		// passing `isolatedEnv: true` must not silently get full `process.env`
+		// inheritance instead. Additive: omitted/false preserves the existing
+		// `env ?? process.env` fallback for every current sync caller.
+		env: options.isolatedEnv ? (options.env ?? {}) : (options.env ?? process.env),
 		stdio: options.capture ? ["ignore", "pipe", "pipe"] : "inherit",
 		...(options.timeout ? { timeout: options.timeout } : {}),
 	});
 	return {
 		exitCode: result.status ?? (result.error ? 1 : 0),
-		...(options.capture ? { stdout: result.stdout ?? "", stderr: result.stderr ?? "" } : {}),
+		...(options.capture
+			? {
+					stdout: truncateToBytes(result.stdout ?? "", capBytes),
+					stderr: truncateToBytes(result.stderr ?? "", capBytes),
+				}
+			: {}),
 	};
 }
 

@@ -391,6 +391,21 @@ describe("runProbeProcess (the real adapter — exercised against real binaries,
 		expect(result.outcome).toBe("down");
 		expect(result.detail).toMatch(/timed out/);
 	});
+
+	it("resolves DOWN — not up — when the probe process is killed by a signal (host parity: unwrap_or(-1))", async () => {
+		// No timeout involved: this process kills ITSELF with SIGKILL, so `close` reports
+		// `code: null`. The boundary must fall back to a non-zero `exitCode` (mirroring the
+		// host's `status.code().unwrap_or(-1)`), never `0` — a `0` fallback here would make
+		// an exited-via-signal probe (e.g. OOM-killed, segfaulted) look like a clean,
+		// healthy exit and report `up` for a connection that answered nothing.
+		const args = ["-e", "process.kill(process.pid, 'SIGKILL')"];
+		const result = await runProbeProcess(
+			connection({ probe: { run: [process.execPath, ...args] } }),
+			REAL_PROBE_TIMEOUT_MS,
+		);
+		expect(result.outcome).toBe("down");
+		expect(result.detail).toMatch(/exited with code/);
+	});
 });
 
 describe("connectionStatusNextCommands / connectionStatusNextActions (the operator handoff)", () => {

@@ -3,7 +3,7 @@ import {
 	validateTaskArtifactManifest,
 	type TaskArtifactManifest,
 } from "@refarm.dev/artifact-contract-v1";
-import { readFileSync, unlinkSync } from "node:fs";
+import { accessSync, constants as fsConstants, readFileSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -155,7 +155,71 @@ describe("process-handoff leaf package", () => {
 		// A killed child never exits 0 — status is null (SIGTERM), so exitCode falls through to 1.
 		expect(result.exitCode).not.toBe(0);
 	});
+
+	// `ProcessHandoffRunOptions` is shared between the async and sync runners.
+	// `isolatedEnv`/`outputCap` must not silently no-op on the sync side — see the
+	// `runProcessHandoffSync` doc comment for why both are honored rather than ignored.
+
+	it("isolates the environment on the sync runner too, when isolatedEnv is set", () => {
+		const marker = "REFARM_PROCESS_HANDOFF_SYNC_ISOLATION_TEST_MARKER";
+		const previous = process.env[marker];
+		process.env[marker] = "leaked-from-parent";
+		try {
+			const args = ["-e", `process.stdout.write(process.env.${marker} || "absent")`];
+			const result = runProcessHandoffSync(
+				{ command: process.execPath, args, display: createProcessHandoffDisplay("node", args) },
+				{ capture: true, isolatedEnv: true },
+			);
+			expect(result.stdout).toBe("absent");
+		} finally {
+			if (previous === undefined) delete process.env[marker];
+			else process.env[marker] = previous;
+		}
+	});
+
+	it("caps captured output on the sync runner too, when outputCap is set", () => {
+		const args = ["-e", "process.stdout.write('A'.repeat(50))"];
+		const result = runProcessHandoffSync(
+			{ command: process.execPath, args, display: createProcessHandoffDisplay("node", args) },
+			{ capture: true, outputCap: 10 },
+		);
+		expect(result.stdout).toBe("A".repeat(10) + PROCESS_HANDOFF_OUTPUT_TRUNCATION_MARKER);
+	});
 });
+
+/** These tests spawn real system binaries (`/bin/bash`, `/usr/bin/setsid`) to exercise
+ * process-group behavior that cannot be faked with a Node-only child — fail loudly up
+ * front rather than let a missing binary make an unrelated assertion pass for the wrong
+ * reason, same doctrine as `apps/refarm/test/commands/connection-status.test.ts`. */
+function requireBinary(path: string): void {
+	try {
+		accessSync(path, fsConstants.X_OK);
+	} catch {
+		throw new Error(
+			`${path} is required for this test but is not present/executable on this host`,
+		);
+	}
+}
+requireBinary("/bin/bash");
+requireBinary("/usr/bin/setsid");
+
+/** Best-effort cleanup for a pidfile a test script wrote a background/escaped process's
+ * pid into: kills that process (ignoring "already gone") and removes the file. Wrapped so
+ * a missing/unwritten pidfile (a `readFileSync` throw) can never leak a temp file or an
+ * orphan process past the test that created them. */
+function cleanupPidFile(pidFile: string): void {
+	try {
+		const pid = Number(readFileSync(pidFile, "utf-8").trim());
+		if (Number.isFinite(pid)) process.kill(pid, "SIGKILL");
+	} catch {
+		// Already gone, or the file was never written — nothing more to clean up.
+	}
+	try {
+		unlinkSync(pidFile);
+	} catch {
+		// Never written, or already removed.
+	}
+}
 
 /**
  * The five guarantees P1 of the process-administration design
@@ -256,22 +320,56 @@ describe("runProcessHandoff — the five async boundary guarantees (P1)", () => 
 		// reparented to init.
 		const pidFile = join(tmpdir(), `process-handoff-grandchild-pid-${Date.now()}-${process.pid}`);
 		const script = `sleep 5 & echo $! > ${JSON.stringify(pidFile)}; wait`;
-		const result = await runProcessHandoff(
-			{ command: "/bin/bash", args: ["-c", script], display: "bash -c <script>" },
-			{ timeout: 300 },
-		);
-		expect(result.timedOut).toBe(true);
-		// Give the OS a beat to finish reaping after the signal.
-		await new Promise((resolve) => setTimeout(resolve, 300));
-		const grandchildPid = Number(readFileSync(pidFile, "utf-8").trim());
-		let alive = true;
 		try {
-			process.kill(grandchildPid, 0);
-		} catch {
-			alive = false;
+			const result = await runProcessHandoff(
+				{ command: "/bin/bash", args: ["-c", script], display: "bash -c <script>" },
+				{ timeout: 300 },
+			);
+			expect(result.timedOut).toBe(true);
+			// Give the OS a beat to finish reaping after the signal.
+			await new Promise((resolve) => setTimeout(resolve, 300));
+			const grandchildPid = Number(readFileSync(pidFile, "utf-8").trim());
+			let alive = true;
+			try {
+				process.kill(grandchildPid, 0);
+			} catch {
+				alive = false;
+			}
+			expect(alive).toBe(false);
+		} finally {
+			// Runs even if an assertion above throws or `readFileSync` never got a chance
+			// to write — a failed assertion must not leak the temp pidfile or, worse, an
+			// orphaned `sleep` that the group-kill was supposed to have already reaped.
+			cleanupPidFile(pidFile);
 		}
-		unlinkSync(pidFile);
-		expect(alive).toBe(false);
+	});
+
+	it("settles from the timeout even when a grandchild escapes the killed process group (mirrors the host returning immediately, not waiting for close)", async () => {
+		// `setsid` puts the grandchild in a NEW session (and thus a new process group),
+		// so `killProcessGroup`'s `-pgid` signal — which only reaches the ORIGINAL group —
+		// never touches it. It still inherits this call's stdout/stderr pipe (no
+		// redirection), so it holds that pipe open long after the killed shell is gone.
+		// Node's `close` event fires only once every stdio stream has ALSO closed, so
+		// waiting for `close` here would hang for as long as the escaped grandchild keeps
+		// the pipe open — the exact bug the timer settling immediately (instead of in the
+		// `close` handler) exists to prevent.
+		const pidFile = join(
+			tmpdir(),
+			`process-handoff-escaped-grandchild-pid-${Date.now()}-${process.pid}`,
+		);
+		const script = `setsid sleep 10 & echo $! > ${JSON.stringify(pidFile)}`;
+		try {
+			const start = Date.now();
+			const result = await runProcessHandoff(
+				{ command: "/bin/bash", args: ["-c", script], display: "bash -c <escaping script>" },
+				{ capture: true, timeout: 300 },
+			);
+			expect(Date.now() - start).toBeLessThan(2_000);
+			expect(result.timedOut).toBe(true);
+			expect(result.exitCode).toBe(-1);
+		} finally {
+			cleanupPidFile(pidFile);
+		}
 	});
 
 	it("resolves spawn failure as a result when spawnErrorAsResult is set, instead of throwing", async () => {
@@ -289,5 +387,22 @@ describe("runProcessHandoff — the five async boundary guarantees (P1)", () => 
 		await expect(
 			runProcessHandoff({ command: missingCommand, args: [], display: missingCommand }),
 		).rejects.toMatchObject({ code: "ENOENT" });
+	});
+
+	it("does not report success for a signal-killed process — no timeout involved (host parity: unwrap_or(-1))", async () => {
+		// No `timeout` option here at all — this is a process that died by signal on its
+		// OWN (an external SIGKILL, a segfault, an OOM kill would all look the same to
+		// `close`), not one this module killed. `code` is `null` in that case; falling
+		// back to `0` (the old behavior) reports a killed process as a clean exit — the
+		// exact host-divergence `spawn_process`'s `status.code().unwrap_or(-1)` avoids.
+		const args = ["-e", "process.kill(process.pid, 'SIGKILL')"];
+		const result = await runProcessHandoff(
+			{ command: process.execPath, args, display: createProcessHandoffDisplay("node", args) },
+			{},
+		);
+		expect(result.exitCode).not.toBe(0);
+		expect(result.exitCode).toBe(-1);
+		expect(result.signal).toBe("SIGKILL");
+		expect(result.timedOut).toBeUndefined();
 	});
 });
