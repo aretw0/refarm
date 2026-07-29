@@ -79,6 +79,161 @@ describe("reading the declared connection catalog", () => {
 		});
 		expect(issues).toContainEqual(expect.objectContaining({ connection: "c", field: "linger" }));
 	});
+
+	it("reports a legacy `ready`/`fail` field as no longer supported", () => {
+		const { issues } = readConnectionCatalog({
+			connections: {
+				c: { establish: ["bin"], probe: { run: ["true"] }, ready: "up", fail: "down" },
+			},
+		});
+		expect(issues).toContainEqual(expect.objectContaining({ connection: "c", field: "ready" }));
+		expect(issues).toContainEqual(expect.objectContaining({ connection: "c", field: "fail" }));
+	});
+
+	it("reports a `prompts` block as not supported yet", () => {
+		const { issues } = readConnectionCatalog({
+			connections: {
+				c: {
+					establish: ["bin"],
+					probe: { run: ["true"] },
+					prompts: [{ match: "user:", answer: "operator" }],
+				},
+			},
+		});
+		expect(issues).toContainEqual(expect.objectContaining({ connection: "c", field: "prompts" }));
+	});
+
+	it("reports a connection name that exceeds the length cap", () => {
+		const longName = "x".repeat(129);
+		const { issues } = readConnectionCatalog({
+			connections: { [longName]: { establish: ["bin"], probe: { run: ["true"] } } },
+		});
+		expect(issues).toContainEqual(expect.objectContaining({ connection: longName, field: "name" }));
+	});
+
+	it("reports too many declared connections, but still lists every one of them", () => {
+		const connections = Object.fromEntries(
+			Array.from({ length: 33 }, (_, i) => [
+				`c${i}`,
+				{ establish: ["bin"], probe: { run: ["true"] } },
+			]),
+		);
+		const { connections: parsed, issues } = readConnectionCatalog({ connections });
+		expect(parsed).toHaveLength(33);
+		expect(issues).toContainEqual(
+			expect.objectContaining({ connection: "(connections)", field: "connections" }),
+		);
+	});
+
+	it("reports a non-array probe.run", () => {
+		const { issues } = readConnectionCatalog({
+			connections: { c: { establish: ["bin"], probe: { run: "true" } } },
+		});
+		expect(issues).toContainEqual(expect.objectContaining({ connection: "c", field: "probe.run" }));
+	});
+
+	it("reports a probe.expect pattern that exceeds the length cap", () => {
+		const longPattern = "a".repeat(513);
+		const { connections, issues } = readConnectionCatalog({
+			connections: { c: { establish: ["bin"], probe: { run: ["true"], expect: longPattern } } },
+		});
+		expect(issues).toContainEqual(
+			expect.objectContaining({ connection: "c", field: "probe.expect" }),
+		);
+		expect(connections[0]!.probe.expect).toBeUndefined();
+	});
+
+	it("reports a probe.expect pattern that does not compile as a regex", () => {
+		const { connections, issues } = readConnectionCatalog({
+			connections: { c: { establish: ["bin"], probe: { run: ["true"], expect: "(" } } },
+		});
+		expect(issues).toContainEqual(
+			expect.objectContaining({ connection: "c", field: "probe.expect" }),
+		);
+		expect(connections[0]!.probe.expect).toBeUndefined();
+	});
+
+	it("flags a probe.expect pattern using a JS-only regex construct the host's Rust engine rejects", () => {
+		// Lookahead compiles fine in JS's RegExp but the host's Rust `regex` crate has no
+		// lookaround support at all, so this would fail shut on the host.
+		const { connections, issues } = readConnectionCatalog({
+			connections: { c: { establish: ["bin"], probe: { run: ["true"], expect: "UP(?=d)" } } },
+		});
+		expect(issues).toContainEqual(
+			expect.objectContaining({ connection: "c", field: "probe.expect" }),
+		);
+		// Still usable locally — the value is kept for display since JS can compile it,
+		// even though the host will refuse to run this connection.
+		expect(connections[0]!.probe.expect).toBe("UP(?=d)");
+	});
+});
+
+describe("validating notice rules (mirrors the Rust parser, but reports)", () => {
+	const base = { establish: ["bin"], probe: { run: ["true"] } };
+
+	it("reports a non-array notices block, but still lists the connection", () => {
+		const { connections, issues } = readConnectionCatalog({
+			connections: { c: { ...base, notices: "oops" } },
+		});
+		expect(connections.map((c) => c.name)).toContain("c");
+		expect(issues).toContainEqual(expect.objectContaining({ connection: "c", field: "notices" }));
+	});
+
+	it("reports a notice entry that is not an object", () => {
+		const { issues } = readConnectionCatalog({
+			connections: { c: { ...base, notices: ["not-an-object"] } },
+		});
+		expect(issues).toContainEqual(
+			expect.objectContaining({ connection: "c", field: "notices[0]" }),
+		);
+	});
+
+	it("reports a notice entry missing a string pattern", () => {
+		const { issues } = readConnectionCatalog({
+			connections: { c: { ...base, notices: [{ message: "hi" }] } },
+		});
+		expect(issues).toContainEqual(
+			expect.objectContaining({ connection: "c", field: "notices[0].pattern" }),
+		);
+	});
+
+	it("reports a notice entry missing a string message", () => {
+		const { issues } = readConnectionCatalog({
+			connections: { c: { ...base, notices: [{ pattern: "hi" }] } },
+		});
+		expect(issues).toContainEqual(
+			expect.objectContaining({ connection: "c", field: "notices[0].message" }),
+		);
+	});
+
+	it("reports a notice pattern that exceeds the length cap", () => {
+		const { issues } = readConnectionCatalog({
+			connections: {
+				c: { ...base, notices: [{ pattern: "a".repeat(513), message: "hi" }] },
+			},
+		});
+		expect(issues).toContainEqual(
+			expect.objectContaining({ connection: "c", field: "notices[0].pattern" }),
+		);
+	});
+
+	it("reports a notice pattern that does not compile as a regex", () => {
+		const { issues } = readConnectionCatalog({
+			connections: { c: { ...base, notices: [{ pattern: "(", message: "hi" }] } },
+		});
+		expect(issues).toContainEqual(
+			expect.objectContaining({ connection: "c", field: "notices[0].pattern" }),
+		);
+	});
+
+	it("reports more than the max number of notice rules, but still lists the connection", () => {
+		const notices = Array.from({ length: 17 }, (_, i) => ({ pattern: `p${i}`, message: `m${i}` }));
+		const { connections, issues } = readConnectionCatalog({
+			connections: { c: { ...base, notices } },
+		});
+		expect(connections.map((c) => c.name)).toContain("c");
+		expect(issues).toContainEqual(expect.objectContaining({ connection: "c", field: "notices" }));
+	});
 });
 
 describe("resolving a declared binary", () => {

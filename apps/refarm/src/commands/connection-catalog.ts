@@ -28,8 +28,11 @@ const DEFAULT_PROBE_INTERVAL_MS = 1_000;
 const MAX_CONNECTIONS = 32;
 /** Mirrors `MAX_CONNECTION_NAME_LEN` in the Rust parser. */
 const MAX_CONNECTION_NAME_LEN = 128;
-/** Mirrors `MAX_CONNECTION_PATTERN_LEN` in the Rust parser, applied to `probe.expect`. */
+/** Mirrors `MAX_CONNECTION_PATTERN_LEN` in the Rust parser, applied to `probe.expect` and
+ * to each notice rule's `pattern`. */
 const MAX_CONNECTION_PATTERN_LEN = 512;
+/** Mirrors `MAX_CONNECTION_NOTICES` in the Rust parser. */
+const MAX_CONNECTION_NOTICES = 16;
 
 /**
  * Binaries that would smuggle a shell back in through the probe. `sh -c "…"` is
@@ -127,6 +130,81 @@ function readOptionalStringField(
 	return raw;
 }
 
+/**
+ * Constructs that JavaScript's `RegExp` accepts but the host's Rust `regex` crate does
+ * not: lookahead, lookbehind, and backreferences — the crate is a linear-time engine and
+ * deliberately has none of these. A pattern that uses one compiles fine right here and
+ * then fails shut on the host, which is exactly the drift this surface exists to catch —
+ * "the operator reads fine for something the host refuses to run."
+ *
+ * This is a SUBSTRING heuristic, not a parser, and it is deliberately incomplete:
+ *   - It DOES catch the unambiguous lookaround/named-backreference syntax — `(?=`, `(?!`,
+ *     `(?<=`, `(?<!`, `\k<` — because these character sequences have no other meaning in a
+ *     regex body, so a substring match is already a reliable positive.
+ *   - It does NOT catch numbered backreferences (`\1`, `\2`, …). Telling a real
+ *     backreference apart from a harmless escaped digit requires tracking how many capture
+ *     groups precede it, which is parsing, not a substring check — cheap-and-reliable
+ *     stops here. A pattern using only a numbered backreference will pass this check and
+ *     can still be rejected by the host. Do not extend this function to "detect
+ *     everything"; it is a best-effort tripwire, not a Rust-regex validator.
+ */
+function findHostUnsupportedRegexConstruct(pattern: string): string | null {
+	if (pattern.includes("(?<=")) return "lookbehind ((?<=...))";
+	if (pattern.includes("(?<!")) return "negative lookbehind ((?<!...))";
+	if (pattern.includes("(?=")) return "lookahead ((?=...))";
+	if (pattern.includes("(?!")) return "negative lookahead ((?!...))";
+	if (pattern.includes("\\k<")) return "named backreference (\\k<...>)";
+	return null;
+}
+
+/**
+ * Validates a pattern string against the same rules `compile_pattern` enforces on the
+ * host: within the length cap, and compilable. Also flags (but does not reject) the
+ * JS/Rust regex-dialect gap above, since a pattern using one of those constructs is still
+ * a valid JS `RegExp` — it is USABLE here, just not on the host.
+ *
+ * Returns whether the pattern is usable in JS (i.e. whether the caller should keep the
+ * value); the dialect-gap warning does not affect this — it is reported as an additional
+ * issue alongside a `true` result.
+ */
+function checkHostPattern(
+	name: string,
+	field: string,
+	pattern: string,
+	issues: CatalogIssue[],
+): boolean {
+	if (pattern.length > MAX_CONNECTION_PATTERN_LEN) {
+		issues.push({
+			connection: name,
+			field,
+			message: `${field} pattern exceeds max length (${MAX_CONNECTION_PATTERN_LEN})`,
+		});
+		return false;
+	}
+	try {
+		new RegExp(pattern);
+	} catch (error) {
+		issues.push({
+			connection: name,
+			field,
+			message: `${field} invalid pattern: ${error instanceof Error ? error.message : String(error)}`,
+		});
+		return false;
+	}
+	const unsupported = findHostUnsupportedRegexConstruct(pattern);
+	if (unsupported) {
+		issues.push({
+			connection: name,
+			field,
+			message:
+				`${field} uses ${unsupported}, which JavaScript's RegExp accepts but the host's Rust ` +
+				"regex engine does not support (no lookaround or backreferences) — the host will " +
+				"refuse to run this connection even though it parses here",
+		});
+	}
+	return true;
+}
+
 /** Reads `probe.expect`: a string, within the length cap, and a compilable pattern. A
  * non-string or unusable `expect` must not silently degrade to "no expect at all" — that
  * would weaken readiness to exit-code-only, exactly the case the Rust parser's doc comment
@@ -139,25 +217,70 @@ function readOptionalPatternField(
 ): string | undefined {
 	const value = readOptionalStringField(name, field, raw, issues);
 	if (value === undefined) return undefined;
-	if (value.length > MAX_CONNECTION_PATTERN_LEN) {
+	return checkHostPattern(name, field, value, issues) ? value : undefined;
+}
+
+/**
+ * Reads `notices`: an array of `{ pattern, message }` rules. Mirrors the Rust parser's
+ * validation exactly (a non-array block, a non-object entry, a missing/non-string
+ * `pattern` or `message`, an over-length or uncompilable `pattern`, and more than
+ * `MAX_CONNECTION_NOTICES` entries all fail `parse_one` on the host) but REPORTS every
+ * problem instead of aborting at the first one — same posture as the rest of this file.
+ *
+ * `notices` is cosmetic on the host ("a missed notice never changes an outcome" — see the
+ * Rust doc comment), so it is validated here for parity but deliberately NOT exposed on
+ * `DeclaredConnection`: this task's interface has no field for it, and surfacing the
+ * validation result is the point, not carrying the payload around.
+ */
+function readNoticesField(name: string, raw: unknown, issues: CatalogIssue[]): void {
+	if (raw === undefined || raw === null) return;
+	if (!Array.isArray(raw)) {
 		issues.push({
 			connection: name,
-			field,
-			message: `${field} pattern exceeds max length (${MAX_CONNECTION_PATTERN_LEN})`,
+			field: "notices",
+			message: "notices must be an array of rules",
 		});
-		return undefined;
+		return;
 	}
-	try {
-		new RegExp(value);
-	} catch (error) {
+	if (raw.length > MAX_CONNECTION_NOTICES) {
+		// Report the cap violation but still validate every entry below — same "never
+		// silently drop information" doctrine as the top-level MAX_CONNECTIONS cap: the
+		// operator sees every problem at once, not just the first one that tripped a limit.
 		issues.push({
 			connection: name,
-			field,
-			message: `${field} invalid pattern: ${error instanceof Error ? error.message : String(error)}`,
+			field: "notices",
+			message: `too many notice rules (max ${MAX_CONNECTION_NOTICES})`,
 		});
-		return undefined;
 	}
-	return value;
+	for (let i = 0; i < raw.length; i += 1) {
+		const entry: unknown = raw[i];
+		if (!isPlainObject(entry)) {
+			issues.push({
+				connection: name,
+				field: `notices[${i}]`,
+				message: `notices[${i}] must be an object with 'pattern' and 'message'`,
+			});
+			continue;
+		}
+		const pattern = entry.pattern;
+		if (typeof pattern !== "string") {
+			issues.push({
+				connection: name,
+				field: `notices[${i}].pattern`,
+				message: `notices[${i}].pattern is required and must be a string`,
+			});
+		} else {
+			checkHostPattern(name, `notices[${i}].pattern`, pattern, issues);
+		}
+		const message = entry.message;
+		if (typeof message !== "string") {
+			issues.push({
+				connection: name,
+				field: `notices[${i}].message`,
+				message: `notices[${i}].message is required and must be a string`,
+			});
+		}
+	}
 }
 
 function readEnvField(
@@ -374,6 +497,7 @@ function parseOne(
 	}
 
 	const probe = readProbeField(name, value.probe, issues);
+	readNoticesField(name, value.notices, issues);
 	const env = readEnvField(name, value.env, issues);
 	const cwd = readOptionalStringField(name, "cwd", value.cwd, issues);
 	const readyTimeoutMs = readOptionalNonNegativeIntegerField(
