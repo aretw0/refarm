@@ -4,6 +4,7 @@ include!("host_effects_bridge_tests/spawn_env.rs");
 include!("host_effects_bridge_tests/capability_gate.rs");
 include!("host_effects_bridge_tests/capability_tools_leg.rs");
 include!("host_effects_bridge_tests/connection_decl.rs");
+include!("host_effects_bridge_tests/surfaces_decl.rs");
 include!("host_effects_bridge_tests/connection_frames.rs");
 include!("host_effects_bridge_tests/connection_engine.rs");
 include!("host_effects_bridge_tests/connection_host.rs");
