@@ -50,12 +50,14 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 			}),
 		);
 
-		await createConnectionCommand({ connectionUp }).parseAsync(
+		await createConnectionCommand({ connectionUp, loadConfig: () => ({}) }).parseAsync(
 			["up", "serpro-vpn", "--json"],
 			{ from: "user" },
 		);
 
-		expect(connectionUp).toHaveBeenCalledWith("serpro-vpn");
+		// The second arg is the computed sidecar request timeout — see the
+		// CRITICAL-1 block below for what happens when it is silently dropped.
+		expect(connectionUp).toHaveBeenCalledWith("serpro-vpn", expect.any(Number));
 		const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
 		expect(output).toMatchObject({
 			ok: true,
@@ -76,14 +78,99 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 			state: operatorState({ status: "connecting", claims: 1 }),
 		}));
 
-		await createConnectionCommand({ connectionUp }).parseAsync(["up", "serpro-vpn"], {
-			from: "user",
-		});
+		await createConnectionCommand({ connectionUp, loadConfig: () => ({}) }).parseAsync(
+			["up", "serpro-vpn"],
+			{ from: "user" },
+		);
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("serpro-vpn");
 		expect(output).toContain("connecting");
 		expect(output).toContain("claims: 1");
+	});
+
+	it("up on an unrecognised (forward-compatible) status shows it AS ITSELF, never coerced to 'down'", () => {
+		// D12 Minor: a status this CLI does not know about yet (D13's planned
+		// `needs-attention`, or anything else the host starts reporting later) must be
+		// shown verbatim — defaulting an unrecognised-but-real state to "down" is a lie
+		// by omission the same way silently swallowing the runtime being down is.
+		const state = operatorState({ status: "needs-attention" });
+		expect(state.status).toBe("needs-attention");
+	});
+
+	// ─── up: sidecar request timeout — CRITICAL-1 ────────────────────────────
+	//
+	// `POST /connections/:name/up` SYNCHRONOUSLY awaits the host's establish, which can
+	// legitimately run for as long as the declaration's `readyTimeoutMs` (120s default —
+	// the Serpro VPN this feature exists for waits on a phone-approval push). The sidecar
+	// client's own default request timeout is 500ms. `up` must never let that bare
+	// default reach `fetchSidecarWithTimeout` — see `requestConnectionUp`'s own real-HTTP
+	// regression test further below for the version of this proven against the real
+	// timeout machinery; these two prove the COMMAND computes the right value to pass it.
+
+	it("up computes its sidecar request timeout from the connection's declared readyTimeoutMs", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const connectionUp = vi.fn(async (): Promise<ConnectionOperatorOutcome> => ({
+			outcome: "ok",
+			state: operatorState({ status: "up" }),
+		}));
+
+		await createConnectionCommand({
+			connectionUp,
+			loadConfig: () => ({
+				connections: {
+					"serpro-vpn": {
+						establish: ["/usr/bin/true"],
+						probe: { run: ["/usr/bin/true"] },
+						readyTimeoutMs: 30_000,
+					},
+				},
+			}),
+		}).parseAsync(["up", "serpro-vpn", "--json"], { from: "user" });
+
+		// declared readyTimeoutMs (30_000) + the fixed round-trip headroom (5_000).
+		expect(connectionUp).toHaveBeenCalledWith("serpro-vpn", 35_000);
+		void logSpy;
+	});
+
+	it("up falls back to a generous default timeout when the connection is not declared locally", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const connectionUp = vi.fn(async (): Promise<ConnectionOperatorOutcome> => ({
+			outcome: "ok",
+			state: operatorState({ status: "up" }),
+		}));
+
+		// Nothing declared locally at all — the HOST is still the authority on whether
+		// "serpro-vpn" exists; the local catalog read here is diagnostic-only sizing.
+		await createConnectionCommand({ connectionUp, loadConfig: () => ({}) }).parseAsync(
+			["up", "serpro-vpn", "--json"],
+			{ from: "user" },
+		);
+
+		// DEFAULT_READY_TIMEOUT_MS (120_000) + the fixed round-trip headroom (5_000).
+		expect(connectionUp).toHaveBeenCalledWith("serpro-vpn", 125_000);
+		void logSpy;
+	});
+
+	it("up still attempts the request when the local config cannot be loaded at all, using the generous default", async () => {
+		const connectionUp = vi.fn(async (): Promise<ConnectionOperatorOutcome> => ({
+			outcome: "ok",
+			state: operatorState({ status: "up" }),
+		}));
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createConnectionCommand({
+			connectionUp,
+			loadConfig: () => {
+				throw new Error("boom: config unreadable");
+			},
+		}).parseAsync(["up", "serpro-vpn", "--json"], { from: "user" });
+
+		// A local config-read failure is diagnostic-only for `up` — it must not block the
+		// attempt (unlike `status`, which genuinely needs the catalog to probe anything).
+		expect(connectionUp).toHaveBeenCalledWith("serpro-vpn", 125_000);
+		const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(output.ok).toBe(true);
 	});
 
 	// ─── up: undeclared name surfaces a clean error, not a stack trace ───────
@@ -95,7 +182,7 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 			message: "no connection named 'nope' is declared in .refarm/config.json",
 		}));
 
-		await createConnectionCommand({ connectionUp }).parseAsync(["up", "nope"], {
+		await createConnectionCommand({ connectionUp, loadConfig: () => ({}) }).parseAsync(["up", "nope"], {
 			from: "user",
 		});
 
@@ -113,7 +200,7 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 			message: "no connection named 'nope' is declared in .refarm/config.json",
 		}));
 
-		await createConnectionCommand({ connectionUp }).parseAsync(["up", "nope", "--json"], {
+		await createConnectionCommand({ connectionUp, loadConfig: () => ({}) }).parseAsync(["up", "nope", "--json"], {
 			from: "user",
 		});
 
@@ -136,7 +223,7 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 			message: "registry refused the attempt",
 		}));
 
-		await createConnectionCommand({ connectionUp }).parseAsync(["up", "serpro-vpn"], {
+		await createConnectionCommand({ connectionUp, loadConfig: () => ({}) }).parseAsync(["up", "serpro-vpn"], {
 			from: "user",
 		});
 
@@ -215,7 +302,7 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 			throw new Error("fetch failed");
 		});
 
-		await createConnectionCommand({ connectionUp }).parseAsync(["up", "serpro-vpn"], {
+		await createConnectionCommand({ connectionUp, loadConfig: () => ({}) }).parseAsync(["up", "serpro-vpn"], {
 			from: "user",
 		});
 
@@ -232,7 +319,7 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 			throw new Error("ECONNREFUSED");
 		});
 
-		await createConnectionCommand({ connectionUp }).parseAsync(
+		await createConnectionCommand({ connectionUp, loadConfig: () => ({}) }).parseAsync(
 			["up", "serpro-vpn", "--json"],
 			{ from: "user" },
 		);
@@ -264,6 +351,68 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 		expect(process.exitCode).toBe(1);
 	});
 
+	// ─── an aborted request is an honest timeout, never "the runtime is down" ────
+
+	function abortError(): Error {
+		return Object.assign(new Error("This operation was aborted."), { name: "AbortError" });
+	}
+
+	it("up: a request that ran past ITS OWN generous timeout reports an honest 'still establishing' message, not runtime-unavailable", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const connectionUp = vi.fn(async (): Promise<ConnectionOperatorOutcome> => {
+			throw abortError();
+		});
+
+		await createConnectionCommand({ connectionUp, loadConfig: () => ({}) }).parseAsync(
+			["up", "serpro-vpn"],
+			{ from: "user" },
+		);
+
+		const output = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("still be running on the host");
+		expect(output).not.toContain("Refarm runtime is not running");
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("up: an aborted request reports connection-request-timed-out as JSON, with a real nextCommand", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const connectionUp = vi.fn(async (): Promise<ConnectionOperatorOutcome> => {
+			throw abortError();
+		});
+
+		await createConnectionCommand({ connectionUp, loadConfig: () => ({}) }).parseAsync(
+			["up", "serpro-vpn", "--json"],
+			{ from: "user" },
+		);
+
+		const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(output).toMatchObject({
+			ok: false,
+			command: "connection",
+			operation: "up",
+			error: "connection-request-timed-out",
+			nextCommand: "refarm connection status --json",
+		});
+		expect(output.message).toContain("still be running on the host");
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("down: an aborted request also reports an honest timeout, not runtime-unavailable", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const connectionDown = vi.fn(async (): Promise<ConnectionDownOutcome> => {
+			throw abortError();
+		});
+
+		await createConnectionCommand({ connectionDown }).parseAsync(["down", "serpro-vpn"], {
+			from: "user",
+		});
+
+		const output = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("timed out");
+		expect(output).not.toContain("Refarm runtime is not running");
+		expect(process.exitCode).toBe(1);
+	});
+
 	// ─── The real HTTP adapter — the default when no client is injected ──────
 	// Stubs the global `fetch` (the same technique `test/commands/tasks.test.ts`
 	// uses) so this stays hermetic: no real network call, no real runtime.
@@ -277,7 +426,7 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 				),
 			);
 
-			const result = await requestConnectionUp("serpro-vpn");
+			const result = await requestConnectionUp("serpro-vpn", 2_000);
 			expect(result).toEqual({
 				outcome: "ok",
 				state: { name: "serpro-vpn", status: "up", sinceNs: 999, claims: 1, claim: 5 },
@@ -292,7 +441,7 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 				),
 			);
 
-			const result = await requestConnectionUp("nope");
+			const result = await requestConnectionUp("nope", 2_000);
 			expect(result).toEqual({
 				outcome: "undeclared",
 				message: "no connection named 'nope' is declared",
@@ -305,7 +454,7 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 				vi.fn().mockResolvedValue(jsonResponse({ error: "spawn failed" }, 500)),
 			);
 
-			const result = await requestConnectionUp("serpro-vpn");
+			const result = await requestConnectionUp("serpro-vpn", 2_000);
 			expect(result).toEqual({ outcome: "failed", message: "spawn failed" });
 		});
 
@@ -335,7 +484,69 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 		it("propagates a network failure as a thrown error, not a result", async () => {
 			vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch failed")));
 
-			await expect(requestConnectionUp("serpro-vpn")).rejects.toThrow("fetch failed");
+			await expect(requestConnectionUp("serpro-vpn", 2_000)).rejects.toThrow("fetch failed");
 		});
+
+		/** A `fetch` stand-in that resolves after `delayMs`, but honours `init.signal`
+		 * exactly like real `fetch`/undici: an abort during the delay rejects immediately
+		 * with an `AbortError`-shaped error, instead of the canned response. Needed
+		 * because a plain `vi.fn().mockResolvedValue(...)` ignores the signal entirely,
+		 * which would make a timeout regression invisible to a test built on one. */
+		function delayedJsonFetch(delayMs: number, body: unknown, status = 200) {
+			return vi.fn((_url: unknown, init?: RequestInit) => {
+				return new Promise((resolve, reject) => {
+					const timer = setTimeout(() => resolve(jsonResponse(body, status)), delayMs);
+					const signal = init?.signal;
+					if (!signal) return;
+					const onAbort = () => {
+						clearTimeout(timer);
+						const reason: unknown = (signal as { reason?: unknown }).reason;
+						reject(
+							reason instanceof Error
+								? reason
+								: Object.assign(new Error("This operation was aborted."), {
+										name: "AbortError",
+									}),
+						);
+					};
+					if (signal.aborted) onAbort();
+					else signal.addEventListener("abort", onAbort, { once: true });
+				});
+			});
+		}
+
+		it(
+			"CRITICAL-1 regression: does not abort a slow establish just because it runs past the sidecar client's bare 500ms default",
+			async () => {
+				// The OLD code called `fetchSidecarWithTimeout` for `up` with no `timeoutMs`
+				// override, silently inheriting the sidecar client's own 500ms default
+				// (`DEFAULT_SIDE_REQUEST_TIMEOUT_MS`) — far too short for
+				// `POST /connections/:name/up`, which synchronously awaits the host's
+				// establish (up to a declaration's `readyTimeoutMs`, 120s by default for a
+				// phone-approval VPN). This fetch resolves at 600ms — well past that old
+				// 500ms default. With an explicit, generous `timeoutMs` passed through (as
+				// `printConnectionUp` now does via `resolveConnectionUpTimeoutMs`), this must
+				// still succeed; against the old code (no override reaching
+				// `fetchSidecarWithTimeout`) the real `AbortController` fires at 500ms first
+				// and this exact test fails with an AbortError.
+				vi.stubGlobal(
+					"fetch",
+					delayedJsonFetch(600, {
+						name: "serpro-vpn",
+						status: "up",
+						sinceNs: 1,
+						claims: 1,
+						claim: 9,
+					}),
+				);
+
+				const result = await requestConnectionUp("serpro-vpn", 5_000);
+				expect(result).toEqual({
+					outcome: "ok",
+					state: { name: "serpro-vpn", status: "up", sinceNs: 1, claims: 1, claim: 9 },
+				});
+			},
+			10_000,
+		);
 	});
 });

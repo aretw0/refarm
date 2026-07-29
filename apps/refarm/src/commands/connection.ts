@@ -27,6 +27,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { refarmCommand } from "../brand.js";
 import {
+	DEFAULT_READY_TIMEOUT_MS,
 	readConnectionCatalog,
 	resolveBinary,
 	type CatalogIssue,
@@ -322,7 +323,18 @@ export async function runProbeProcess(
  * `failed` mid-flight, states a client-side probe never sees. */
 export interface ConnectionOperatorState {
 	name: string;
-	status: "down" | "connecting" | "up" | "failed";
+	/**
+	 * The registry's own status vocabulary — today `"down" | "connecting" | "up" |
+	 * "failed"`, but deliberately typed as a plain `string`, NOT that closed union.
+	 * D13 (`declared-connections-shared-sessions-design.md`) plans a `needs-attention`
+	 * state for a connection waiting on a phone approval — a real, distinct state the
+	 * operator needs to SEE as itself. Forwarding whatever the sidecar reports, verbatim,
+	 * is what makes that forward-compatible; coercing anything unrecognised down to
+	 * `"down"` (the previous behaviour) is exactly the D12 lie this surface exists to
+	 * prevent — a state the operator has never seen before would default to the ONE
+	 * state that reads as "nothing to worry about, already handled".
+	 */
+	status: string;
 	sinceNs: number | null;
 	claims: number;
 	claim: number | null;
@@ -356,12 +368,15 @@ export type ConnectionDownOutcome =
 
 const CONNECTION_STATUS_JSON_COMMAND = refarmCommand(["connection", "status", "--json"]);
 
-const OPERATOR_STATUS_VALUES = new Set(["down", "connecting", "up", "failed"]);
-
+/**
+ * The status field is forwarded VERBATIM when it is a non-empty string — including a
+ * value this CLI does not yet know about (see `ConnectionOperatorState.status`'s own
+ * doc). `"unknown"` is used ONLY when the sidecar's response is malformed (the field is
+ * missing or not a string at all) — that is genuinely unknown, unlike a recognised-but-
+ * unfamiliar status string, which is not.
+ */
 function asConnectionOperatorState(body: Record<string, unknown>): ConnectionOperatorState {
-	const status = typeof body.status === "string" && OPERATOR_STATUS_VALUES.has(body.status)
-		? (body.status as ConnectionOperatorState["status"])
-		: "down";
+	const status = typeof body.status === "string" && body.status.trim().length > 0 ? body.status : "unknown";
 	return {
 		name: typeof body.name === "string" ? body.name : "",
 		status,
@@ -371,6 +386,24 @@ function asConnectionOperatorState(body: Record<string, unknown>): ConnectionOpe
 	};
 }
 
+/**
+ * `@refarm.dev/sidecar-client`'s OWN silent default when no `timeoutMs` is passed
+ * (`DEFAULT_SIDE_REQUEST_TIMEOUT_MS`, `sidecar-client/src/index.ts`) — 500ms. That is
+ * sized for a request the sidecar answers itself, in-process. `POST /connections/:name/up`
+ * is not that: it SYNCHRONOUSLY awaits the establish inside the HTTP handler
+ * (`ensure_connection_as_operator` → `ConnectionRegistry::ensure`), and establishing is
+ * the one thing in this whole feature that can legitimately take a while — up to a
+ * declaration's `readyTimeoutMs` (120s by default; the Serpro VPN case this feature was
+ * built for waits on a phone-approval push). Passing this bare 500ms default to `up`
+ * would abort the CLI's OWN wait long before the host is done — the establish keeps
+ * running server-side regardless, so the operator would see a raw abort error while a
+ * real login attempt was quietly still in flight. `up` must NEVER call
+ * `requestConnectionAction`/`fetchSidecarWithTimeout` without an explicit, generous
+ * `timeoutMs` override; `printConnectionUp` computes one from the DECLARED
+ * `readyTimeoutMs` before ever reaching this function — see `resolveConnectionUpTimeoutMs`.
+ */
+const CONNECTION_UP_TIMEOUT_HEADROOM_MS = 5_000;
+
 /** POST `/connections/:name/{up,down}` and classify the response. Network/timeout
  * failures are NOT caught here — they propagate to the caller as a thrown error,
  * which is exactly what lets `up`/`down` tell "the sidecar is unreachable" apart
@@ -378,10 +411,12 @@ function asConnectionOperatorState(body: Record<string, unknown>): ConnectionOpe
 async function requestConnectionAction(
 	name: string,
 	action: "up" | "down",
+	timeoutMs?: number,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
 	const response = await fetchSidecarWithTimeout(
 		sidecarUrl(`/connections/${encodeURIComponent(name)}/${action}`),
 		{ method: "POST" },
+		timeoutMs === undefined ? {} : { timeoutMs },
 	);
 	const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
 	return { status: response.status, body };
@@ -395,14 +430,30 @@ function connectionErrorMessage(status: number, body: Record<string, unknown>): 
 	return typeof body.error === "string" ? body.error : `sidecar HTTP ${status}`;
 }
 
-/** The real `up` adapter — the default for `ConnectionCommandDeps.connectionUp`. */
-export async function requestConnectionUp(name: string): Promise<ConnectionOperatorOutcome> {
-	const { status, body } = await requestConnectionAction(name, "up");
+/**
+ * The real `up` adapter — the default for `ConnectionCommandDeps.connectionUp`.
+ * `timeoutMs` is REQUIRED, not optional with a silent fallback here: the one thing this
+ * function must never do is quietly inherit the sidecar client's 500ms default for a
+ * request that can legitimately run for two minutes (see `CONNECTION_UP_TIMEOUT_HEADROOM_MS`'s
+ * doc). The command computes it from the declaration; a caller with no declaration to
+ * read from must still pass something — `resolveConnectionUpTimeoutMs`'s own generous
+ * fallback — rather than omitting the argument and reverting to the bug this exists to
+ * fix.
+ */
+export async function requestConnectionUp(
+	name: string,
+	timeoutMs: number,
+): Promise<ConnectionOperatorOutcome> {
+	const { status, body } = await requestConnectionAction(name, "up", timeoutMs);
 	if (status === 200) return { outcome: "ok", state: asConnectionOperatorState(body) };
 	return { outcome: classifyConnectionError(status), message: connectionErrorMessage(status, body) };
 }
 
-/** The real `down` adapter — the default for `ConnectionCommandDeps.connectionDown`. */
+/** The real `down` adapter — the default for `ConnectionCommandDeps.connectionDown`.
+ * `POST /connections/:name/down` (`stop_connection_as_operator` → `ConnectionRegistry::
+ * stop`) does not await a spawn or a probe — it is a synchronous registry mutation — so
+ * unlike `up` it carries no slow-path hazard and can use the sidecar client's own default
+ * timeout. */
 export async function requestConnectionDown(name: string): Promise<ConnectionDownOutcome> {
 	const { status, body } = await requestConnectionAction(name, "down");
 	if (status === 200) {
@@ -415,12 +466,83 @@ export async function requestConnectionDown(name: string): Promise<ConnectionDow
 	return { outcome: classifyConnectionError(status), message: connectionErrorMessage(status, body) };
 }
 
-const OPERATOR_STATE_COLOR: Record<ConnectionOperatorState["status"], (text: string) => string> = {
+const KNOWN_OPERATOR_STATE_COLOR: Record<string, (text: string) => string> = {
 	up: chalk.green,
 	connecting: chalk.yellow,
 	down: chalk.red,
 	failed: chalk.red,
 };
+
+/** A status this CLI does not recognise (a forward-compatible one like D13's planned
+ * `needs-attention`, or a malformed `"unknown"`) is shown in the ATTENTION colour, never
+ * silently green or red — those two are reserved for a state this code actually knows
+ * the meaning of. */
+function operatorStateColor(status: string): (text: string) => string {
+	return KNOWN_OPERATOR_STATE_COLOR[status] ?? chalk.yellow;
+}
+
+/**
+ * How long the CLI should wait for `POST /connections/:name/up` to answer, sized off the
+ * connection's OWN declared `readyTimeoutMs` plus `CONNECTION_UP_TIMEOUT_HEADROOM_MS` —
+ * never the sidecar client's bare 500ms default. Reading the local catalog here is
+ * DIAGNOSTIC ONLY: the HOST is the authority on whether `name` is declared and what its
+ * `readyTimeoutMs` is (this same request will 404 cleanly if it is not), so a failure to
+ * load `.refarm/config.json`, or `name` simply not being present in it, must never block
+ * the `up` attempt itself — it falls back to `DEFAULT_READY_TIMEOUT_MS` (the same default
+ * the Rust parser and this CLI's own catalog reader already use when a declaration omits
+ * the field) plus the same headroom, so an operator running from a checkout with no local
+ * catalog, or a stale one, still gets a timeout generous enough for a REAL establish.
+ */
+function resolveConnectionUpTimeoutMs(name: string, deps: ConnectionCommandDeps | undefined): number {
+	try {
+		const baseDir = deps?.cwd?.() ?? process.cwd();
+		const config = (deps?.loadConfig ?? loadConfig)(baseDir) as Record<string, unknown>;
+		const { connections } = readConnectionCatalog(config);
+		const declared = connections.find((connection) => connection.name === name);
+		return (declared?.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) + CONNECTION_UP_TIMEOUT_HEADROOM_MS;
+	} catch {
+		return DEFAULT_READY_TIMEOUT_MS + CONNECTION_UP_TIMEOUT_HEADROOM_MS;
+	}
+}
+
+/**
+ * True for the `AbortError` `fetchSidecarWithTimeout`'s internal `AbortController`
+ * produces when ITS OWN deadline elapses (Node/undici names it `"AbortError"`). Must be
+ * checked before `reportSidecarError`: an abort here means this specific REQUEST did not
+ * get an answer in time — it says nothing about whether the runtime is reachable (it
+ * plainly is; it accepted the request and started working). Routing it through
+ * `reportSidecarError`'s generic path would either misreport it as
+ * "Refarm runtime is not running" (if the message happened to match
+ * `isSidecarUnavailable`) or as an opaque request failure — both wrong, and for `up`
+ * specifically actively misleading: the establish this request started keeps running
+ * SERVER-SIDE regardless of the CLI giving up on waiting for it.
+ */
+function isAbortError(error: unknown): boolean {
+	return error instanceof Error && error.name === "AbortError";
+}
+
+function printConnectionRequestTimedOut(
+	operation: "up" | "down",
+	message: string,
+	options: { json?: boolean },
+): void {
+	if (options.json) {
+		printJson(
+			buildJsonErrorEnvelope({
+				command: "connection",
+				operation,
+				error: "connection-request-timed-out",
+				message,
+				nextAction: `Run \`${CONNECTION_STATUS_JSON_COMMAND}\` to check whether it finished.`,
+				nextCommand: CONNECTION_STATUS_JSON_COMMAND,
+			}),
+		);
+	} else {
+		console.error(chalk.red(`✗  ${message}`));
+		console.error(chalk.dim(`   ${CONNECTION_STATUS_JSON_COMMAND}`));
+	}
+	process.exitCode = 1;
+}
 
 export interface ConnectionUpCommandOptions {
 	json?: boolean;
@@ -437,8 +559,17 @@ async function printConnectionUp(
 ): Promise<void> {
 	let result: ConnectionOperatorOutcome;
 	try {
-		result = await (deps?.connectionUp ?? requestConnectionUp)(name);
+		const timeoutMs = resolveConnectionUpTimeoutMs(name, deps);
+		result = await (deps?.connectionUp ?? requestConnectionUp)(name, timeoutMs);
 	} catch (error) {
+		if (isAbortError(error)) {
+			printConnectionRequestTimedOut(
+				"up",
+				`connection '${name}': the request timed out, but the establish may still be running on the host — it can wait on a phone approval, and this request did not cancel it.`,
+				options,
+			);
+			return;
+		}
 		reportSidecarError(error, { json: options.json, command: "connection", operation: "up" });
 		return;
 	}
@@ -490,7 +621,7 @@ async function printConnectionUp(
 		);
 		return;
 	}
-	const color = OPERATOR_STATE_COLOR[state.status];
+	const color = operatorStateColor(state.status);
 	console.log(`${chalk.bold(state.name)}: ${color(state.status)}`);
 	console.log(chalk.dim(`  claims: ${state.claims}`));
 }
@@ -504,6 +635,14 @@ async function printConnectionDown(
 	try {
 		result = await (deps?.connectionDown ?? requestConnectionDown)(name);
 	} catch (error) {
+		if (isAbortError(error)) {
+			printConnectionRequestTimedOut(
+				"down",
+				`connection '${name}': the request to stop it timed out — it may still have taken effect on the host.`,
+				options,
+			);
+			return;
+		}
 		reportSidecarError(error, { json: options.json, command: "connection", operation: "down" });
 		return;
 	}
@@ -560,7 +699,7 @@ async function printConnectionDown(
 		);
 		return;
 	}
-	const color = OPERATOR_STATE_COLOR[state.status];
+	const color = operatorStateColor(state.status);
 	console.log(`${chalk.bold(state.name)}: ${color(state.status)}`);
 	console.log(chalk.dim(`  claims active when stopped: ${claimsActive}`));
 }
@@ -672,8 +811,11 @@ export interface ConnectionCommandDeps {
 	cwd?: () => string;
 	loadConfig?: (root?: string) => Record<string, unknown>;
 	runProbe?: (connection: DeclaredConnection) => Promise<ProbeResult>;
-	/** Injected in tests so `up`/`down` are hermetic — no network, no runtime. */
-	connectionUp?: (name: string) => Promise<ConnectionOperatorOutcome>;
+	/** Injected in tests so `up`/`down` are hermetic — no network, no runtime.
+	 * `timeoutMs` is the value `resolveConnectionUpTimeoutMs` computed from the declared
+	 * `readyTimeoutMs` (see its doc) — a test can assert on it to prove the CLI is not
+	 * silently using the sidecar client's bare 500ms default for a slow establish. */
+	connectionUp?: (name: string, timeoutMs: number) => Promise<ConnectionOperatorOutcome>;
 	connectionDown?: (name: string) => Promise<ConnectionDownOutcome>;
 }
 

@@ -206,3 +206,58 @@
             }
         }
     }
+
+    #[tokio::test]
+    async fn a_plugin_whose_id_is_literally_operator_cannot_touch_the_operators_claims() {
+        // CRITICAL-2 regression: `PluginHost::load` derives a plugin's runtime id as
+        // EITHER the last `/`-segment of its manifest `id` (`@vendor/operator` ⇒
+        // `operator`) OR, with no manifest at all, the wasm file's stem (a file literally
+        // named `operator.wasm` ⇒ `operator`) — and the manifest validator reserves no
+        // names. If `CONNECTION_OWNER_OPERATOR` were the bare string `"operator"`, such a
+        // plugin's unload would silently sweep every operator claim via `release_owner`
+        // (collect), and while still loaded it could `release()` the operator's claim by
+        // GUESSING its id — claim ids come from one sequential, registry-wide counter, so
+        // any plugin holding `connection:use` can enumerate them (release). Both vectors
+        // must fail now that the owner is `"refarm/operator"`, a string neither derivation
+        // can ever produce (neither can contain a `/`).
+        let _env = crate::test_support::env_lock();
+        ensure_sovereign_dir_env();
+        let dir = tempfile::tempdir().unwrap();
+        write_connections_config(dir.path(), trivial_connection_json());
+        let _cwd = CwdGuard::enter(dir.path());
+
+        let host = bare_host();
+        let sync = memory_sync();
+
+        let state = host.ensure_connection_as_operator(&sync, "c").await.unwrap();
+        let claim_id = state.claim.expect("ensure mints a claim");
+        assert_eq!(state.claims, 1);
+
+        // COLLECT vector: a plugin whose runtime id is literally "operator" unloading
+        // must not sweep the operator's claim.
+        host.release_connection_claims("operator");
+        assert_eq!(
+            host.list_declared_connections(&sync).unwrap()[0].claims,
+            1,
+            "a plugin with runtime id 'operator' must NOT collect the operator's claim on unload"
+        );
+
+        // RELEASE vector: a plugin whose runtime id is literally "operator", still
+        // loaded, must not be able to release the operator's claim by guessing its id.
+        host.connection_release_claim_as(claim_id, "operator");
+        assert_eq!(
+            host.list_declared_connections(&sync).unwrap()[0].claims,
+            1,
+            "a plugin with runtime id 'operator' must NOT release the operator's claim by id"
+        );
+
+        // Sanity: the mechanism itself works — the REAL operator owner can still
+        // release it. Proves the two assertions above are not vacuously true because
+        // release_by_id is broken outright.
+        host.connection_release_claim_as(claim_id, "refarm/operator");
+        assert_eq!(
+            host.list_declared_connections(&sync).unwrap()[0].claims,
+            0,
+            "sanity: the real operator owner must still be able to release its own claim"
+        );
+    }

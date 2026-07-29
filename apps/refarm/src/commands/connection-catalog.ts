@@ -20,8 +20,10 @@ import { constants as fsConstants } from "node:fs";
 import fs from "node:fs";
 import path from "node:path";
 
-/** Mirrors `DEFAULT_READY_TIMEOUT_MS` in the Rust parser. */
-const DEFAULT_READY_TIMEOUT_MS = 120_000;
+/** Mirrors `DEFAULT_READY_TIMEOUT_MS` in the Rust parser. Exported so `connection.ts`'s
+ * `up` command can size its sidecar request timeout off the SAME default the host
+ * itself falls back to, instead of a second, drifting magic number. */
+export const DEFAULT_READY_TIMEOUT_MS = 120_000;
 /** Mirrors `DEFAULT_PROBE_INTERVAL_MS` in the Rust parser. */
 const DEFAULT_PROBE_INTERVAL_MS = 1_000;
 /** Mirrors `MAX_CONNECTIONS` in the Rust parser. */

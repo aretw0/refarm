@@ -234,6 +234,18 @@ struct LiveConnection {
     /// before a process existed is not a login and must not be counted as one.
     spawn_count: u32,
     linger: Linger,
+    /// Bumped by `stop()` on every call that finds an entry — the operator's explicit,
+    /// sovereign override. `ensure` reads this ONCE, at the moment it transitions an
+    /// entry to `Connecting` (before the spawn/probe `.await`s that can run for as long
+    /// as `ready_timeout_ms`, e.g. 120s for a phone-approval VPN), and compares it again
+    /// right before it would write a final outcome. `stop` itself holds no gate — it is
+    /// a fast, synchronous operator override, not something that should block behind an
+    /// in-flight establish for up to two minutes — so without this counter a `stop()`
+    /// landing mid-establish is invisible to the `ensure` call already in flight: that
+    /// call finishes anyway and unconditionally overwrites `status` back to `Up` (or
+    /// `Failed`), silently undoing the operator's drop. See the generation check in
+    /// `ensure` below for what happens when a mismatch is observed.
+    generation: u64,
 }
 
 pub(crate) struct ConnectionRegistry {
@@ -304,6 +316,19 @@ impl ConnectionRegistry {
             .entry(name.to_string())
             .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
             .clone()
+    }
+
+    /// True when `stop()` landed on `name` AFTER this `ensure` attempt captured
+    /// `observed_generation` — i.e. the operator explicitly stopped this connection
+    /// WHILE this attempt was in flight (spawn/probe `.await`). A name with no live
+    /// entry cannot have been preempted (nothing to stop yet).
+    fn preempted_by_stop(&self, name: &str, observed_generation: u64) -> bool {
+        self.live
+            .lock()
+            .expect("connection registry poisoned")
+            .get(name)
+            .map(|c| c.generation != observed_generation)
+            .unwrap_or(false)
     }
 
     /// An establish attempt is over and did not reach `Ready`. Every early return out of
@@ -384,7 +409,12 @@ impl ConnectionRegistry {
             return Ok(self.issue_claim(name, owner));
         }
 
-        {
+        // Captured in the SAME lock scope as the Connecting transition, so it reflects
+        // whatever `stop()` has (or has not) done up to the exact instant this attempt
+        // begins spawning. Compared again at every exit point below — any `stop()` that
+        // lands strictly AFTER this read is a preemption this attempt must honour, never
+        // silently overwrite.
+        let observed_generation = {
             let mut live = self.live.lock().expect("connection registry poisoned");
             let entry = live.entry(name.to_string()).or_insert_with(|| LiveConnection {
                 status: ConnectionStatus::Down,
@@ -392,16 +422,22 @@ impl ConnectionRegistry {
                 claims: Vec::new(),
                 spawn_count: 0,
                 linger: decl.linger.clone(),
+                generation: 0,
             });
             entry.status = ConnectionStatus::Connecting;
-        }
+            entry.generation
+        };
 
         let mut process = match spawn(decl) {
             Ok(process) => process,
             Err(e) => {
                 // `?` here would skip straight past the Failed-setting block below and
-                // leave `status` stuck at `Connecting` forever.
-                self.mark_failed(name);
+                // leave `status` stuck at `Connecting` forever. But if the operator
+                // already stopped this attempt, `status` is already `Down` (their call),
+                // and `mark_failed` would overwrite that with `Failed` — skip it.
+                if !self.preempted_by_stop(name, observed_generation) {
+                    self.mark_failed(name);
+                }
                 return Err(e);
             }
         };
@@ -423,8 +459,11 @@ impl ConnectionRegistry {
             Ok(outcome) => outcome,
             Err(e) => {
                 // Same hazard as the spawn error above: `?` would leave `status` stuck at
-                // `Connecting`.
-                self.mark_failed(name);
+                // `Connecting`. And the same preemption exception applies: an operator
+                // stop already in effect must not be overwritten with `Failed`.
+                if !self.preempted_by_stop(name, observed_generation) {
+                    self.mark_failed(name);
+                }
                 return Err(e);
             }
         };
@@ -432,10 +471,35 @@ impl ConnectionRegistry {
         {
             let mut live = self.live.lock().expect("connection registry poisoned");
             let entry = live.get_mut(name).expect("entry inserted above");
+            let preempted = entry.generation != observed_generation;
             match outcome {
+                // The operator called `stop()` WHILE this attempt was establishing.
+                // `stop` holds no gate against an in-flight attempt (it is a fast,
+                // synchronous override, not something that should block for up to
+                // `ready_timeout_ms`), so this is the one place that race is closed: the
+                // process genuinely came up, faithfully, but nothing owns it anymore —
+                // the operator already said down. Kill it (exactly like every other
+                // "attempt is over and not kept" path in this file) and report the
+                // preemption instead of silently resurrecting `Up`.
+                EstablishOutcome::Ready if preempted => {
+                    drop(live);
+                    signal_stop(&stop);
+                    return Err(format!(
+                        "connection '{name}': the operator stopped it while it was establishing"
+                    ));
+                }
                 EstablishOutcome::Ready => {
                     entry.status = ConnectionStatus::Up;
                     entry.stop = Some(stop);
+                }
+                // Timeout/Exit while preempted: `entry.status`/`entry.stop` already
+                // reflect the operator's `stop()` (Down, no handle) — leave that alone
+                // rather than overwriting it with `Failed`. The attempt failed on its
+                // own terms too, but the operator's drop is the fact that matters here.
+                _ if preempted => {
+                    return Err(format!(
+                        "connection '{name}': did not become ready, and the operator stopped it while establishing"
+                    ));
                 }
                 EstablishOutcome::Timeout => {
                     entry.status = ConnectionStatus::Failed;
@@ -485,6 +549,12 @@ impl ConnectionRegistry {
             signal_stop(&stop);
         }
         entry.status = ConnectionStatus::Down;
+        // Bumped even when nothing is currently establishing (harmless — nothing reads
+        // it then) — this is what lets `ensure` notice a stop that lands while ITS
+        // spawn/probe attempt is in flight and refuse to overwrite this `Down` back to
+        // `Up`/`Failed` once that attempt finishes. See `LiveConnection::generation`'s
+        // doc and the preemption check in `ensure`.
+        entry.generation = entry.generation.wrapping_add(1);
         active_claims
     }
 

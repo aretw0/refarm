@@ -23,16 +23,29 @@
 /// The fixed owner every OPERATOR-established connection is attributed to — CLI or
 /// phone, never a plugin. `ConnectionRegistry::release_owner` (called from
 /// `TractorNative::unregister` on every plugin unload, see `PluginHost::
-/// release_connection_claims`) collects claims by EXACT owner-string match. If an
-/// operator-driven `ensure` used a plugin's own id as the owner, its claim would be
-/// silently swallowed the moment that plugin unloads — exactly the leak the shared-
-/// connection design forbids (D5/D6: a connection lives until the OPERATOR drops it,
-/// not until some unrelated plugin's lifecycle ends). `"operator"` is not a value any
-/// loaded plugin registers under (plugin ids come from the manifest loader, never from
-/// this literal), so `release_owner` can never collect the operator's claims as a side
-/// effect of plugin lifecycle — proven by
-/// `operator_claim_survives_unrelated_plugin_unload` below.
-pub(crate) const CONNECTION_OWNER_OPERATOR: &str = "operator";
+/// release_connection_claims`) collects claims by EXACT owner-string match, and
+/// `release_by_id`'s only authorization is owner-string equality over a sequential,
+/// guessable claim id (see that method's own doc). If an operator-driven `ensure` used
+/// a value a PLUGIN could ever hold as its own id, that plugin's unload would collect
+/// the operator's claims as a side effect (the leak D5/D6 forbids: a connection must
+/// live until the OPERATOR drops it, never until some unrelated plugin's lifecycle
+/// ends) — or, worse, a still-loaded plugin sharing that id could `release` a claim id
+/// it never minted and take the operator's connection down from inside the WIT
+/// surface.
+///
+/// A bare `"operator"` is NOT safe for this, and asserting otherwise here was a bug:
+/// `PluginHost::load` (`env_and_runtime.rs`) derives a plugin's runtime id as EITHER
+/// the last `/`-segment of its manifest `id` (`manifest_runtime_plugin_id`) or, with no
+/// manifest, the wasm file's stem (`path.file_stem()`) — and the manifest validator
+/// reserves no names. A manifest id of `@vendor/operator`, or a file literally named
+/// `operator.wasm` with no manifest at all, both yield the plugin id `"operator"`.
+/// `"refarm/operator"` is safe where the bare literal was not, because NEITHER
+/// derivation can ever produce a value containing a `/`: `rsplit('/').next()` is by
+/// construction the text AFTER the last `/` in the source string, and a filesystem path
+/// segment (`file_stem`) cannot contain a `/` either — it is a component of the path,
+/// not the whole thing. Proven by
+/// `a_plugin_whose_id_is_literally_operator_cannot_touch_the_operators_claims` below.
+pub(crate) const CONNECTION_OWNER_OPERATOR: &str = "refarm/operator";
 
 /// Map the engine's internal status enum to the wire-friendly string the sidecar's JSON
 /// responses use. Kept as a free function (not `Display` on the engine type) because
@@ -143,8 +156,9 @@ impl PluginHost {
     }
 
     /// `POST /connections/:name/up` — ensure the declared connection under the fixed
-    /// `"operator"` owner (see `CONNECTION_OWNER_OPERATOR`'s doc for why that must never be
-    /// a plugin id). Idempotent, sharing with any plugin already holding it: the SAME
+    /// `CONNECTION_OWNER_OPERATOR` owner (see its own doc for why that string must
+    /// contain a `/`, which no plugin id can ever contain). Idempotent, sharing with
+    /// any plugin already holding it: the SAME
     /// `ConnectionRegistry` and the SAME real adapters (`run_probe`/`spawn_establish_process`)
     /// `connection_host.rs` wires for the WIT `ensure` are reused verbatim here — a second
     /// call while the connection is up performs NO second login, matching D5.
@@ -229,5 +243,17 @@ impl PluginHost {
     #[cfg(test)]
     pub(crate) fn connection_spawn_count(&self, name: &str) -> u32 {
         self.connection_registry.spawn_count(name)
+    }
+
+    /// Attempt to release a claim AS `caller` — test-only. Lets a test simulate exactly
+    /// what `connection_host.rs`'s WIT `release: func(claim: u64)` binding does
+    /// (`self.connection_registry.release_by_id(claim, &self.plugin_id)`) for an
+    /// arbitrary `caller` id, without standing up a real WASM plugin, so CRITICAL-2's
+    /// regression (a plugin whose runtime id happens to be `"operator"` releasing the
+    /// operator's own claim) is provable at this layer too — not just the `release_owner`
+    /// (unload-collects-claims) half `connection_spawn_count`'s sibling test already covers.
+    #[cfg(test)]
+    pub(crate) fn connection_release_claim_as(&self, claim_id: u64, caller: &str) {
+        self.connection_registry.release_by_id(claim_id, caller);
     }
 }

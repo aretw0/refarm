@@ -13,7 +13,7 @@
 //!   GET    /plugins                    — installed/loaded plugin state
 //!   POST   /plugins/reload             — report reload readiness for loaded plugins
 //!   GET    /connections                — every declared connection's registry state
-//!   POST   /connections/:name/up       — ensure a declared connection (owner "operator")
+//!   POST   /connections/:name/up       — ensure a declared connection (owner refarm/operator)
 //!   POST   /connections/:name/down     — explicit operator stop
 //!   GET    /stream/activity            — live SSE of process:* / agent:* activity
 //!
@@ -1547,8 +1547,10 @@ async fn get_task(
 // `docs/superpowers/specs/2026-07-28-declared-connections-shared-sessions-design.md`).
 // `GET /connections` lists every DECLARED connection (a name declared but never
 // established reports `down`, never omitted); `POST .../up` ensures it under the fixed
-// owner `"operator"` — never a plugin id, so `release_owner` (run on plugin unload) can
-// never collect it as a side effect of plugin lifecycle; `POST .../down` is the explicit
+// owner `CONNECTION_OWNER_OPERATOR` ("refarm/operator") — a value no plugin id can ever
+// be, since it contains a `/` (see that constant's own doc) — so `release_owner` (run
+// on plugin unload) can never collect it as a side effect of plugin lifecycle;
+// `POST .../down` is the explicit
 // operator stop — sovereign even with claims outstanding, but the response REPORTS how
 // many were active rather than hiding the count (D12, "the operator is shown reality").
 //

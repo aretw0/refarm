@@ -653,6 +653,94 @@ mod connection_engine_tests {
         watcher.abort();
     }
 
+    #[tokio::test]
+    async fn an_operator_stop_during_an_in_flight_establish_is_never_silently_undone() {
+        // IMPORTANT regression: `stop` locks only `live` — it does NOT take the
+        // per-name establish gate `ensure` holds across its whole spawn/probe await
+        // (deliberately: `stop` is a fast, synchronous operator override, and blocking
+        // it behind an in-flight establish for up to `ready_timeout_ms` — 120s by
+        // default, for a VPN waiting on a phone approval — would be its own defect).
+        // Before the generation check in `ensure` existed, a `stop()` landing while an
+        // `establish` was still awaiting the probe flipped `status` to `Down`, and then
+        // the in-flight `ensure` finished anyway and UNCONDITIONALLY overwrote it back
+        // to `Up`, handing out a claim — silently undoing the operator's sovereign
+        // drop. Realistic case: a plugin reconnecting right as the operator says stop.
+        let sync = sync();
+        // A generous readyTimeoutMs so a slow CI host can never turn this into a
+        // Timeout race instead of the Ready race under test; a small probeIntervalMs so
+        // the whole test still finishes quickly.
+        let decls = parse_connections(&serde_json::json!({
+            "connections": { "c": {
+                "establish": ["bin"],
+                "probe": { "run": ["true"] },
+                "probeIntervalMs": 2,
+                "readyTimeoutMs": 5000
+            }}
+        }))
+        .unwrap();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+
+        // A spawner that keeps an external handle to the SAME stop `Notify` the
+        // registry will end up holding — same technique as
+        // `stop_signals_the_live_process_not_just_the_status` above.
+        let stop_handle = Arc::new(Notify::new());
+        let spawner_stop = stop_handle.clone();
+        let spawn = move |_decl: &ConnectionDeclaration| {
+            let (tx, rx) = mpsc::channel(8);
+            std::mem::forget(tx); // the process "holds" — never ends on its own
+            Ok(FlowProcess { chunks: rx, stop: spawner_stop.clone() })
+        };
+
+        let observed_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let watcher = {
+            let stop_handle = stop_handle.clone();
+            let observed_stop = observed_stop.clone();
+            tokio::spawn(async move {
+                stop_handle.notified().await;
+                observed_stop.store(true, Ordering::SeqCst);
+            })
+        };
+        tokio::task::yield_now().await;
+
+        // Fails 30 times before succeeding — ~60ms of real probeIntervalMs waits at
+        // 2ms/iteration, which is the window `stop_fut` (below) races into.
+        let mut probe = probe_after(30);
+
+        let ensure_fut = reg.ensure("c", "plugin.a", &decls, spawn, &mut probe, &sync, &clk);
+        let stop_fut = async {
+            // Let `ensure` pass Connecting and start awaiting the probe loop — well
+            // before the ~60ms it takes the probe to succeed — then stop it mid-flight.
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            reg.stop("c")
+        };
+
+        let (result, active_claims_at_stop) = tokio::join!(ensure_fut, stop_fut);
+
+        assert!(
+            result.is_err(),
+            "an ensure preempted by an operator stop must not hand out a claim"
+        );
+        assert_eq!(
+            active_claims_at_stop, 0,
+            "sanity: no claim existed yet at the moment of the stop"
+        );
+        assert!(
+            matches!(reg.status("c"), ConnectionStatus::Down),
+            "the operator's stop must win — the connection must not resurrect as Up \
+             (or get overwritten to Failed) once the in-flight establish finishes"
+        );
+        assert_eq!(reg.claim_count("c"), 0);
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        assert!(
+            observed_stop.load(Ordering::SeqCst),
+            "the process that DID come up must still be killed once nothing owns it — \
+             an operator stop must never leak the process it preempted"
+        );
+        watcher.abort();
+    }
+
     fn permissive_policy() -> HostEffectPolicy {
         HostEffectPolicy::default()
     }
