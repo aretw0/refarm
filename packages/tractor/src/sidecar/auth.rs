@@ -105,6 +105,21 @@ pub(crate) fn parse_policy(raw: &str) -> Result<AuthPolicy, serde_json::Error> {
     Ok(AuthPolicy { credentials })
 }
 
+/// `true` exactly when `REFARM_AUTH_POLICY` is set to a non-blank value — the SAME
+/// condition `auth_config_from_env` uses to decide `Some` (gate on, whether or not the
+/// file turns out readable — an unreadable policy is still `Some(deny_all)`) vs `None`
+/// (gate off). Deliberately does NOT read or parse the file, and emits no log line: this
+/// is a cheap presence peek for callers that only need "is a policy configured" (e.g. the
+/// WS bind preflight, which runs from `main.rs` BEFORE the runtime boots, before the
+/// authoritative read is due) without triggering the enable/deny-all log line that only
+/// the one real resolution — `auth_config_from_env`, called once per daemon start — should
+/// ever emit. PURE: env inspection only, no file I/O.
+pub(crate) fn auth_policy_configured() -> bool {
+    std::env::var(AUTH_POLICY_ENV)
+        .map(|raw| !raw.trim().is_empty())
+        .unwrap_or(false)
+}
+
 /// Resolve the auth policy from env ONCE at daemon start.
 ///   - unset/blank ⇒ `None` (layer never added — the secure default is off, opt-in).
 ///   - set + readable ⇒ the parsed policy (gate on).
@@ -190,6 +205,23 @@ mod tests {
     fn deny_all_authenticates_nothing() {
         let policy = AuthPolicy::deny_all();
         assert_eq!(policy.authenticate("anything"), None);
+    }
+
+    #[test]
+    fn auth_policy_configured_matches_env_presence_not_file_readability() {
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        assert!(!auth_policy_configured(), "unset ⇒ not configured");
+
+        std::env::set_var(AUTH_POLICY_ENV, "   ");
+        assert!(!auth_policy_configured(), "blank ⇒ not configured");
+
+        // A path that does not exist is still "configured" — presence never depends on
+        // readability, exactly like `auth_config_from_env`'s `Some(deny_all)` fallback.
+        std::env::set_var(AUTH_POLICY_ENV, "/nonexistent/policy.json");
+        assert!(auth_policy_configured(), "set + unreadable ⇒ still configured");
+
+        std::env::remove_var(AUTH_POLICY_ENV);
     }
 
     #[test]

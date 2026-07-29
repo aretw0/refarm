@@ -664,13 +664,20 @@ pub async fn post_plugin_respond(
 mod agent_activity;
 pub(crate) use agent_activity::agent_event_to_activity;
 mod activity_sse;
-// `auth` is the sidecar's OWN gate — nothing outside this module may consult it. It was
-// briefly `pub(crate)` so the WS listener could read "is a policy configured"; that turned
-// out to be exactly the wrong question (a policy gates HTTP requests, not WS frames), so
-// the WS guard no longer asks it and this narrows back to module-private. Keep it private:
-// a caller reaching for `auth` from outside is almost certainly about to mistake "a policy
-// exists" for "this surface is gated".
-mod auth;
+// `auth` is the sidecar's per-device credential policy. It was briefly `pub(crate)` so the
+// WS bind guard could read "is a policy configured", and that WAS the wrong question at
+// the time: the WS listener had no middleware, so a configured-but-unenforced policy is
+// not permission (see `bind_guard`'s module doc) — the guard narrowed back to a private
+// `auth`, refusing every non-loopback WS bind unconditionally.
+//
+// ADR-093 changes what is being asked. `daemon::ws_server` now REALLY authenticates the
+// `Sec-WebSocket-Protocol` handshake against this SAME policy (`AuthPolicy::authenticate`,
+// the same file, the same sha256 matching) — not a presence peek, an actual gate. That is
+// the right question, so `auth` widens to `pub(crate)` for it. The bind guard's OWN "is a
+// policy present" bool still comes from `auth::auth_policy_configured()` — a cheap,
+// non-authoritative peek (no file I/O, no log line) — never from resolving the full
+// policy twice; see that function's doc comment for why the two stay distinct.
+pub(crate) mod auth;
 pub(crate) mod bind_guard;
 mod cors;
 mod dispatch;
