@@ -9,6 +9,7 @@ import { chatCommand } from "./commands/chat.js";
 import { checkCommand } from "./commands/check.js";
 import { configCommand } from "./commands/config.js";
 import { configureCommand } from "./commands/configure.js";
+import { connectionCommand } from "./commands/connection.js";
 import { deployCommand } from "./commands/deploy.js";
 import { discoverCommand } from "./commands/discover.js";
 import { distCommand } from "./commands/dist.js";
@@ -113,6 +114,7 @@ program
 			"  $ refarm tidy imports --check    Check import organization on changed files",
 			"  $ refarm package-manager --json  Inspect detected npm/pnpm/yarn/bun launcher",
 			"  $ refarm workspace execution --json Inspect workspace executor/cache readiness",
+			"  $ refarm connection status --json Probe declared connections (VPN tunnels, sessions)",
 			"  $ refarm capabilities --json List compact capability descriptors for consumers",
 			"  $ refarm project handoff validate --json Validate durable project handoff state",
 			"  $ refarm release preflight --selection default --json Inspect release candidates and supply posture",
@@ -228,6 +230,7 @@ program.addCommand(webCommand);
 program.addCommand(discoverCommand);
 program.addCommand(serveCommand);
 program.addCommand(workspaceCommand);
+program.addCommand(connectionCommand);
 program.addCommand(tuiCommand);
 program.addCommand(headlessCommand);
 program.addCommand(
