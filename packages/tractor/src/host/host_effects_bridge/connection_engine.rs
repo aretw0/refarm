@@ -458,6 +458,36 @@ impl ConnectionRegistry {
         Ok(self.issue_claim(name, owner))
     }
 
+    /// An explicit OPERATOR stop — deliberately NOT `release`/`release_by_id`. Those drop
+    /// one caller's interest and defer to the declaration's `linger` policy; this is the
+    /// operator overriding that policy outright. `Linger::Operator` (the default) promises
+    /// a connection "stays up until the operator drops it or the host shuts down" — before
+    /// this method existed there was no way to keep that promise, since nothing could drop
+    /// it. The operator is SOVEREIGN here: it stops the connection even with claims
+    /// outstanding, silently taking it out from under whatever still holds it. But per D12
+    /// ("the operator is shown reality") that must never happen silently — the caller is
+    /// TOLD how many claims were active, not shielded from the consequence.
+    ///
+    /// A connection with no live entry (never established) or already `Down` (with no
+    /// claims, by construction — see `apply_linger`) is a clean no-op returning 0: stop is
+    /// idempotent, not an error over a state that already matches what was asked for.
+    pub(crate) fn stop(&self, name: &str) -> usize {
+        let mut live = self.live.lock().expect("connection registry poisoned");
+        let Some(entry) = live.get_mut(name) else {
+            return 0;
+        };
+        let active_claims = entry.claims.len();
+        entry.claims.clear();
+        // Signal BEFORE the status flip, mirroring `mark_failed`: a connection stopped by
+        // any route must also stop its process — disowning a live process without
+        // signalling it first is exactly how one leaks.
+        if let Some(stop) = entry.stop.take() {
+            signal_stop(&stop);
+        }
+        entry.status = ConnectionStatus::Down;
+        active_claims
+    }
+
     /// Drop one claim. Whether the connection itself falls is the DECLARATION's linger
     /// policy, never the caller's choice.
     pub(crate) fn release(&self, claim: &Claim) {

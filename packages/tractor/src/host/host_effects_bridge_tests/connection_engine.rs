@@ -547,6 +547,112 @@ mod connection_engine_tests {
         );
     }
 
+    // ── ConnectionRegistry::stop — the explicit OPERATOR stop ─────────────────────
+    //
+    // NOT `release`/`release_by_id`: those drop one caller's interest and defer to
+    // `linger`. `stop` is the operator overriding that policy outright — see the
+    // method's own doc for why it must report the claim count rather than hide it.
+
+    #[tokio::test]
+    async fn stop_with_claims_outstanding_reports_the_count_and_takes_it_down() {
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let mut p1 = probe_after(0);
+        let _a = reg.ensure("c", "plugin.a", &decls, holding_spawner(), &mut p1, &sync, &clk).await.unwrap();
+        let mut p2 = || std::future::ready(true);
+        let _b = reg
+            .ensure("c", "plugin.b", &decls, |_| panic!("no second spawn"), &mut p2, &sync, &clk)
+            .await
+            .unwrap();
+        assert_eq!(reg.claim_count("c"), 2, "sanity: two claims outstanding before stop");
+
+        // The operator is SOVEREIGN here — stop works even with claims outstanding — but
+        // D12 says it must REPORT how many were active rather than swallow the count.
+        let active = reg.stop("c");
+        assert_eq!(active, 2, "both outstanding claims must be reported");
+        assert!(matches!(reg.status("c"), ConnectionStatus::Down));
+        assert_eq!(reg.claim_count("c"), 0, "claims are CLEARED, not merely counted");
+    }
+
+    #[tokio::test]
+    async fn stop_on_an_already_down_connection_is_a_clean_no_op() {
+        let reg = ConnectionRegistry::new();
+
+        // Never established at all — no live entry exists for this name.
+        assert_eq!(reg.stop("never-touched"), 0);
+        assert!(matches!(reg.status("never-touched"), ConnectionStatus::Down));
+
+        // Established, then genuinely brought Down via a zero-idle linger releasing the
+        // last claim — a live entry exists, already Down, already claimless.
+        let sync = sync();
+        let decls = parse_connections(&serde_json::json!({
+            "connections": { "c": {
+                "establish": ["bin"],
+                "probe": { "run": ["true"] },
+                "probeIntervalMs": 1,
+                "readyTimeoutMs": 200,
+                "linger": { "idleMs": 0 }
+            }}
+        }))
+        .unwrap();
+        let clk = clock();
+        let mut probe = probe_after(0);
+        let a = reg.ensure("c", "plugin.a", &decls, holding_spawner(), &mut probe, &sync, &clk).await.unwrap();
+        reg.release(&a);
+        assert!(matches!(reg.status("c"), ConnectionStatus::Down), "sanity: released down via idle linger");
+
+        assert_eq!(reg.stop("c"), 0, "stop on an already-down connection is idempotent");
+        assert!(matches!(reg.status("c"), ConnectionStatus::Down));
+    }
+
+    #[tokio::test]
+    async fn stop_signals_the_live_process_not_just_the_status() {
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let mut probe = probe_after(0);
+
+        // A spawner that keeps an external handle to the SAME stop `Notify` the registry
+        // will end up holding — `holding_spawner()` (used by every other test in this
+        // file) discards its own `Notify`, so it can't be watched from outside.
+        let stop_handle = Arc::new(Notify::new());
+        let spawner_stop = stop_handle.clone();
+        let spawn = move |_decl: &ConnectionDeclaration| {
+            let (tx, rx) = mpsc::channel(8);
+            std::mem::forget(tx); // the process "holds" — never ends on its own
+            Ok(FlowProcess { chunks: rx, stop: spawner_stop.clone() })
+        };
+
+        let _claim = reg.ensure("c", "plugin.a", &decls, spawn, &mut probe, &sync, &clk).await.unwrap();
+        assert!(matches!(reg.status("c"), ConnectionStatus::Up));
+
+        let observed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let watcher = {
+            let stop_handle = stop_handle.clone();
+            let observed = observed.clone();
+            tokio::spawn(async move {
+                stop_handle.notified().await;
+                observed.store(true, Ordering::SeqCst);
+            })
+        };
+        tokio::task::yield_now().await;
+
+        assert_eq!(reg.stop("c"), 1);
+        assert!(matches!(reg.status("c"), ConnectionStatus::Down));
+
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        assert!(
+            observed.load(Ordering::SeqCst),
+            "stop must SIGNAL the live process, not just flip the status — a failure to \
+             signal here would leak the connection's process the same way a failed \
+             establish attempt would if it forgot to (see `mark_failed`'s own doc)"
+        );
+        watcher.abort();
+    }
+
     fn permissive_policy() -> HostEffectPolicy {
         HostEffectPolicy::default()
     }
