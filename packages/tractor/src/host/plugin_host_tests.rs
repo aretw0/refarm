@@ -14,3 +14,4 @@ include!("plugin_host_tests/env_policy_edges.rs");
 include!("plugin_host_tests/p1_module_loader.rs");
 include!("plugin_host_tests/epoch_semantics.rs");
 include!("plugin_host_tests/connection_claims.rs");
+include!("plugin_host_tests/connection_ops.rs");
