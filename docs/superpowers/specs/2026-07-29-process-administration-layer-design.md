@@ -1,7 +1,7 @@
 # Process administration — one layer, four models to reconcile
 
 Date: 2026-07-29
-Status: Designed; only the boundary consolidation is in scope for implementation now
+Status: P1 (boundary consolidation) shipped; P10 (derived spawn environment) in scope; the rest designed with triggers
 Lane: [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md) — machine empowerment / operate-model
 
 ## Why
@@ -161,9 +161,72 @@ daemon, a browser session held across calls, or a plugin's own worker.
 When it arrives, the connection registry is the template, not the special case: rename the concept,
 keep claims, probes and linger, and add the class field from P2.
 
+### P10 — The host derives the environment a spawn needs; the plugin still may not choose it
+
+**Found by dogfooding, 2026-07-29.** With the operator's own shell blocked by a harness outage, the
+refarm agent was asked to run the test suite on the idle OpenAI quota. It spawned — the mechanism
+works, it is trusted, it declares `shell:spawn`. It failed with:
+
+```
+[spawn error] spawn(pnpm): No such file or directory (os error 2)
+/usr/bin/env: 'node': No such file or directory
+```
+
+Two correct decisions collide. `spawn_process` runs `.env_clear().envs(env)`, so the child inherits
+nothing; and `is_spawn_sensitive_env_key` (`sensitive_aliases/policy.rs:291`) blocks `PATH`, `HOME`,
+`XDG_*`, `IFS`, `LD_*`, `DYLD_*` — the classic injection vectors. So the child has no `PATH`, and
+essentially every Node-ecosystem binary starts `#!/usr/bin/env node`, which needs `PATH` to find
+`node`. **`pnpm`, `vitest`, `tsc` and `npx` therefore cannot run at all**, even by absolute path,
+even for a trusted plugin.
+
+That is a direct block on the operator's stated need — the refarm agent working on idle quota, which
+they want precisely because they need it repeatedly. It is also the third time this layer's shell
+effect has not had the shape its caller needed (after batch-versus-interactive, and after the
+environment-parity divergence between the CLI probe and the host).
+
+**Why the block is right, and what it actually protects.** A plugin choosing `PATH` is a plugin
+choosing which binary runs — privilege escalation by shadowing: plant a binary earlier in the path
+and invoke it by name. That must stay impossible.
+
+**But notice what the block does not protect.** A plugin with `shell:spawn` may already run anything
+by absolute path, and that is allowed. So a `PATH` does not widen its *reach* — it only makes shebang
+resolution work. The real risk is **shadowing, not reach**, and shadowing is a question of *who chose
+the directories*.
+
+**So: the operator declares, the plugin consumes, the host enforces** — the same doctrine as
+`connections`, `commands` and `surfaces`. The host composes the sensitive-but-necessary variables
+from an operator declaration and injects them; the plugin still cannot set them, and the blocklist
+keeps exactly the meaning it had: *the plugin* may not choose these. *The operator* may.
+
+```jsonc
+// .refarm/config.json
+"spawnEnv": {
+  "path": ["/home/…/.nvm/versions/node/v22.19.0/bin", "/usr/bin", "/bin"],
+  "home": "/home/…"
+}
+```
+
+Constraints that keep the guarantee intact:
+
+- **Derived from the declaration, never from the host's ambient environment.** Passing the host's own
+  `PATH` through would reintroduce shadowing via any user-writable directory that happens to be on
+  it, and would make the child's behaviour depend on how the daemon was launched.
+- **Order is the operator's, and it is meaningful.** The declared sequence is the search order, so
+  shadowing becomes a thing the operator can see in their own config rather than an emergent
+  property.
+- **The plugin's own env is still filtered.** A plugin passing `PATH` is still rejected; the injected
+  value wins because the plugin never had a say.
+- **Undeclared means absent, not inherited.** No `spawnEnv` ⇒ the child gets no `PATH`, i.e. today's
+  behaviour exactly. The fix cannot silently widen an existing deployment.
+- `HOME` matters as much as `PATH` in practice — npm/pnpm caches, git config — so it is declared the
+  same way rather than special-cased.
+
+**Not solved by this:** a tool that needs a variable nobody anticipated. The declaration is a list,
+not a policy engine, and it should stay one until a second real case argues otherwise.
+
 ## In scope now
 
-Only P1 — the boundary consolidation. Concretely: grow `process-handoff` with the five guarantees,
+Only P1 (the boundary consolidation, done) and P10 (the derived spawn environment). P10 was promoted from a named corner to in-scope by the operator: without idle-quota help the walk does not pay, and they need it repeatedly. Concretely: grow `process-handoff` with the five guarantees,
 move `apps/refarm/src/commands/workspace.ts` and `commands/connection.ts` onto it, and let the
 architecture test go green by being obeyed rather than amended.
 
