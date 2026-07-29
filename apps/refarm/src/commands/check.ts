@@ -63,6 +63,21 @@ async function runDefaultDoctor(options: {
 	]);
 	const statusPayload = await resolveStatusPayload({ renderer: "headless" });
 	try {
+		// `connectionConfig` is DELIBERATELY not passed, so `refarm check` stays silent about
+		// declared connections while bare `refarm doctor` warns about them. This is the only
+		// `buildRefarmDoctorReport` call `check` makes — both `deps.runDoctor(...)` sites in
+		// the action below route here — so the omission is decided once, here.
+		//
+		// Why: `check` is the composite GATE the agent loop runs before every commit
+		// (CLAUDE.md §4), and `--fail-on-warnings` turns any warning into a red gate. A
+		// declared connection is an operator-environment fact, not a property of the change
+		// being committed: an operator whose VPN client is not installed on this machine
+		// would have every commit gate on a warning that no edit of theirs can clear. That
+		// trains them to pass `--no-fail-on-warnings`, which costs far more than the warning
+		// is worth. `refarm doctor` (which nobody gates on) and `refarm connection status`
+		// (which the operator runs when they want to know) are the right places for it.
+		//
+		// Changing this changes GATING behaviour — do not wire it in silently.
 		return buildRefarmDoctorReport(statusPayload.json, {
 			failOnWarnings: options.failOnWarnings,
 		});

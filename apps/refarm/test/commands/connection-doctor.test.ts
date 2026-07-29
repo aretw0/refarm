@@ -101,6 +101,24 @@ describe("buildConnectionDoctorRecommendations", () => {
 		expect(findings[0]!.diagnostic).toContain("catalog-issue");
 	});
 
+	it("gives two issues on the SAME field distinct diagnostic ids", () => {
+		// `connection:field` alone collides: two bad `env` entries on one connection used to
+		// produce two byte-identical warnings, which render as a duplicate AND double-count
+		// `warningCount` (buildRefarmDoctorReport appends every id to `warnings` un-deduped).
+		const findings = buildConnectionDoctorRecommendations({
+			connections: {
+				vpn: {
+					establish: ["/usr/bin/true"],
+					probe: { run: ["/usr/bin/true"] },
+					env: { GOOD: "x", "1BAD": "y", "2ALSO-BAD": "z" },
+				},
+			},
+		});
+		const envFindings = findings.filter((f) => f.diagnostic.includes(":env:"));
+		expect(envFindings.length).toBeGreaterThan(1);
+		expect(new Set(envFindings.map((f) => f.diagnostic)).size).toBe(envFindings.length);
+	});
+
 	it("names every declared connection, never dropping one just because another is fine", () => {
 		const findings = buildConnectionDoctorRecommendations({
 			connections: {

@@ -48,9 +48,20 @@ function missingBinaryRecommendation(
 	};
 }
 
-function catalogIssueRecommendation(issue: CatalogIssue): RefarmDoctorRecommendation {
+/**
+ * `connection:field` alone is NOT unique: one connection can collect several issues on the
+ * same field (two malformed `env` entries, several bad `probe.run` args). Identical
+ * diagnostic ids would render as duplicate warnings AND double-count `warningCount` in
+ * `buildRefarmDoctorReport`, which appends every recommendation's id to `warnings`
+ * un-deduped. The ordinal is per (connection, field) group so an unrelated field gaining
+ * an issue does not renumber this one.
+ */
+function catalogIssueRecommendation(
+	issue: CatalogIssue,
+	ordinal: number,
+): RefarmDoctorRecommendation {
 	return {
-		diagnostic: `connection:catalog-issue:${issue.connection}:${issue.field}`,
+		diagnostic: `connection:catalog-issue:${issue.connection}:${issue.field}:${ordinal}`,
 		severity: "warning",
 		summary: `Connection '${issue.connection}' has a declaration issue (${issue.field}): ${issue.message}`,
 		action: "Fix the connection declaration in .refarm/config.json, then re-run connection status.",
@@ -91,8 +102,12 @@ export function buildConnectionDoctorRecommendations(
 		}
 	}
 
+	const seenPerField = new Map<string, number>();
 	for (const issue of issues) {
-		recommendations.push(catalogIssueRecommendation(issue));
+		const key = `${issue.connection}:${issue.field}`;
+		const ordinal = (seenPerField.get(key) ?? 0) + 1;
+		seenPerField.set(key, ordinal);
+		recommendations.push(catalogIssueRecommendation(issue, ordinal));
 	}
 
 	return recommendations;
