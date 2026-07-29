@@ -198,6 +198,8 @@ fn storage_path() -> String {
 // Per-family test modules. tests.rs lives in sidecar/, so `#[path]` must be
 // explicitly `tests/<family>.rs` (a bare `mod x;` would look for sidecar/x.rs).
 // Each child is body-only and pulls the shared helpers above via `use super::*;`.
+#[path = "tests/connection.rs"]
+mod connection;
 #[path = "tests/effort.rs"]
 mod effort;
 #[path = "tests/node.rs"]
