@@ -1219,6 +1219,11 @@ impl TractorNative {
         // Neutral router + capability registry + agent policy + interrupt/staging state.
         self.event_router.unsubscribe_all(plugin_id);
         self.plugin_registry.unregister(plugin_id);
+        // A departed plugin cannot keep interest in a shared connection alive: drop
+        // every claim it held (serpro-vpn etc.) so the registry's claim count — and
+        // therefore its linger decision — reflects reality. Whether the connection
+        // itself falls is the declaration's `linger` policy, not this call's concern.
+        self.plugins.release_connection_claims(plugin_id);
         self.cancel_flags
             .write()
             .expect("cancel_flags poisoned")
