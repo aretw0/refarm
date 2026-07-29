@@ -61,9 +61,18 @@ mod connection_engine_tests {
     }
 
     /// A probe that fails `fail_times` times and then succeeds forever.
-    fn probe_after(fail_times: u32) -> impl FnMut() -> bool + Send {
+    ///
+    /// The loop drives an ASYNC probe now (the real one spawns a process), so even the
+    /// trivial injected probes return a future.
+    fn probe_after(fail_times: u32) -> impl FnMut() -> std::future::Ready<bool> + Send {
         let calls = AtomicU32::new(0);
-        move || calls.fetch_add(1, Ordering::SeqCst) >= fail_times
+        move || std::future::ready(calls.fetch_add(1, Ordering::SeqCst) >= fail_times)
+    }
+
+    /// A probe whose verdict is flipped from outside — used to age a cached `Up` out.
+    fn switchable(up: &Arc<std::sync::atomic::AtomicBool>) -> impl FnMut() -> std::future::Ready<bool> + Send {
+        let up = up.clone();
+        move || std::future::ready(up.load(Ordering::SeqCst))
     }
 
     #[tokio::test]
@@ -72,7 +81,7 @@ mod connection_engine_tests {
         let decl = base(serde_json::json!({}));
         let (mut proc_, _tx, _stop) = holding(&["▶ Conectando…\n"]);
         let mut probe = probe_after(0);
-        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let mut pubr = ConnectionFramePublisher::new(&sync, "c", 0);
         let clk = clock();
 
         let out = establish(&decl, &mut proc_, &mut probe, &mut pubr, &sync, &clk).await.unwrap();
@@ -86,8 +95,8 @@ mod connection_engine_tests {
         let sync = sync();
         let decl = base(serde_json::json!({ "readyTimeoutMs": 60 }));
         let (mut proc_, _tx, _stop) = holding(&["✅ VPN Serpro CONECTADA\n"]);
-        let mut probe = || false;
-        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let mut probe = || std::future::ready(false);
+        let mut pubr = ConnectionFramePublisher::new(&sync, "c", 0);
         let clk = clock();
 
         let out = establish(&decl, &mut proc_, &mut probe, &mut pubr, &sync, &clk).await.unwrap();
@@ -100,7 +109,7 @@ mod connection_engine_tests {
         let decl = base(serde_json::json!({}));
         let (mut proc_, _tx, _stop) = holding(&[]);
         let mut probe = probe_after(3);
-        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let mut pubr = ConnectionFramePublisher::new(&sync, "c", 0);
         let clk = clock();
 
         let out = establish(&decl, &mut proc_, &mut probe, &mut pubr, &sync, &clk).await.unwrap();
@@ -123,8 +132,8 @@ mod connection_engine_tests {
         };
         tokio::task::yield_now().await;
 
-        let mut probe = || false;
-        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let mut probe = || std::future::ready(false);
+        let mut pubr = ConnectionFramePublisher::new(&sync, "c", 0);
         let clk = clock();
         let out = establish(&decl, &mut proc_, &mut probe, &mut pubr, &sync, &clk).await.unwrap();
 
@@ -139,8 +148,8 @@ mod connection_engine_tests {
         let sync = sync();
         let decl = base(serde_json::json!({}));
         let mut proc_ = ending(&["starting…\n", "gave up\n"]);
-        let mut probe = || false;
-        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let mut probe = || std::future::ready(false);
+        let mut pubr = ConnectionFramePublisher::new(&sync, "c", 0);
         let clk = clock();
 
         let out = establish(&decl, &mut proc_, &mut probe, &mut pubr, &sync, &clk).await.unwrap();
@@ -148,15 +157,22 @@ mod connection_engine_tests {
     }
 
     #[tokio::test]
-    async fn a_notice_fires_once_per_occurrence() {
+    async fn a_notice_fires_once_per_attempt_not_once_per_matching_chunk() {
+        // The name used to say "once per occurrence", which this asserts the opposite of:
+        // two genuine occurrences arrive and exactly ONE notice is published. The contract
+        // is once per ATTEMPT, and that is deliberate — matching is over the ACCUMULATED
+        // buffer, so a pattern that has matched keeps matching on every later chunk;
+        // re-arming the flag would announce the same occurrence again on every subsequent
+        // line rather than on the next real one. A genuine per-occurrence repeat needs
+        // occurrence counting that survives `push_bounded` dropping the buffer's head.
         let sync = sync();
         let decl = base(serde_json::json!({
             "notices": [{ "pattern": "Conectando", "message": "aprove o push" }],
             "readyTimeoutMs": 60
         }));
         let (mut proc_, _tx, _stop) = holding(&["Conectando…\n", "Conectando…\n"]);
-        let mut probe = || false;
-        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let mut probe = || std::future::ready(false);
+        let mut pubr = ConnectionFramePublisher::new(&sync, "c", 0);
         let clk = clock();
 
         let _ = establish(&decl, &mut proc_, &mut probe, &mut pubr, &sync, &clk).await.unwrap();
@@ -168,7 +184,7 @@ mod connection_engine_tests {
             .filter_map(|row| serde_json::from_str::<serde_json::Value>(&row.payload).ok())
             .filter(|n| n["payload_kind"] == "notice")
             .count();
-        assert_eq!(notices, 1, "a notice fires once, not per matching chunk");
+        assert_eq!(notices, 1, "a notice fires once per attempt, not per matching chunk");
     }
 
     #[tokio::test]
@@ -181,8 +197,8 @@ mod connection_engine_tests {
             "readyTimeoutMs": 60
         }));
         let (mut proc_, _tx, _stop) = holding(&["Conec", "tando…"]);
-        let mut probe = || false;
-        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let mut probe = || std::future::ready(false);
+        let mut pubr = ConnectionFramePublisher::new(&sync, "c", 0);
         let clk = clock();
 
         let _ = establish(&decl, &mut proc_, &mut probe, &mut pubr, &sync, &clk).await.unwrap();
@@ -206,8 +222,8 @@ mod connection_engine_tests {
         }));
         let filler = "x".repeat(MAX_CONNECTION_BUFFER);
         let (mut proc_, _tx, _stop) = holding(&[&filler, "LATE-MARKER"]);
-        let mut probe = || false;
-        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let mut probe = || std::future::ready(false);
+        let mut pubr = ConnectionFramePublisher::new(&sync, "c", 0);
         let clk = clock();
 
         let _ = establish(&decl, &mut proc_, &mut probe, &mut pubr, &sync, &clk).await.unwrap();
@@ -228,7 +244,7 @@ mod connection_engine_tests {
         let decl = base(serde_json::json!({}));
         let (mut proc_, _tx, _stop) = holding(&[]);
         let mut probe = probe_after(0);
-        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let mut pubr = ConnectionFramePublisher::new(&sync, "c", 0);
         let clk = clock();
 
         establish(&decl, &mut proc_, &mut probe, &mut pubr, &sync, &clk).await.unwrap();
@@ -256,8 +272,8 @@ mod connection_engine_tests {
         let sync = sync();
         let decl = base(serde_json::json!({ "probeIntervalMs": 200, "readyTimeoutMs": 50 }));
         let (mut proc_, _tx, _stop) = holding(&[]); // stays open, emits nothing
-        let mut probe = || false; // never succeeds
-        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let mut probe = || std::future::ready(false); // never succeeds
+        let mut pubr = ConnectionFramePublisher::new(&sync, "c", 0);
         let clk = clock();
 
         let started = std::time::Instant::now();
@@ -285,7 +301,7 @@ mod connection_engine_tests {
         let decl = base(serde_json::json!({}));
         let mut proc_ = ending(&[]);
         let mut probe = probe_after(1); // false on call 1, true from call 2 on
-        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let mut pubr = ConnectionFramePublisher::new(&sync, "c", 0);
         let clk = clock();
 
         let out = establish(&decl, &mut proc_, &mut probe, &mut pubr, &sync, &clk).await.unwrap();
@@ -345,7 +361,11 @@ mod connection_engine_tests {
         let mut p1 = probe_after(0);
         let _a = reg.ensure("c", "plugin.a", &decls, holding_spawner(), &mut p1, &sync, &clk).await.unwrap();
 
-        let mut p2 = || panic!("must not probe: the connection is already up");
+        // The second caller DOES probe — a cached `Up` is re-verified against the system
+        // before a claim is issued on it (nothing supervises a tunnel that drops). What it
+        // must never do is SPAWN: a second spawn is a second login, i.e. a second push on
+        // the operator's phone. That is the guarantee under test.
+        let mut p2 = probe_after(0);
         let b = reg
             .ensure("c", "plugin.b", &decls, |_| panic!("must not spawn a second process"), &mut p2, &sync, &clk)
             .await
@@ -365,7 +385,7 @@ mod connection_engine_tests {
         let mut p1 = probe_after(0);
 
         let a = reg.ensure("c", "plugin.a", &decls, holding_spawner(), &mut p1, &sync, &clk).await.unwrap();
-        let mut p2 = || true;
+        let mut p2 = || std::future::ready(true);
         let _b = reg.ensure("c", "plugin.b", &decls, |_| panic!("no second spawn"), &mut p2, &sync, &clk).await.unwrap();
 
         reg.release(&a);
@@ -399,7 +419,7 @@ mod connection_engine_tests {
         let mut p1 = probe_after(0);
 
         let _a = reg.ensure("c", "plugin.a", &decls, holding_spawner(), &mut p1, &sync, &clk).await.unwrap();
-        let mut p2 = || true;
+        let mut p2 = || std::future::ready(true);
         let _a2 = reg.ensure("c", "plugin.a", &decls, |_| panic!("no second spawn"), &mut p2, &sync, &clk).await.unwrap();
 
         reg.release_owner("plugin.a");
@@ -427,7 +447,7 @@ mod connection_engine_tests {
         let decls = catalog();
         let reg = ConnectionRegistry::new();
         let clk = clock();
-        let mut probe = || false;
+        let mut probe = || std::future::ready(false);
 
         let err = reg
             .ensure("c", "plugin.a", &decls, holding_spawner(), &mut probe, &sync, &clk)
@@ -634,8 +654,8 @@ mod connection_engine_tests {
         };
         tokio::task::yield_now().await;
 
-        let mut probe = || false; // never succeeds — the notice must be reached first
-        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let mut probe = || std::future::ready(false); // never succeeds — the notice must be reached first
+        let mut pubr = ConnectionFramePublisher::new(&sync, "c", 0);
         let clk = clock();
 
         let err = tokio::time::timeout(
@@ -677,7 +697,7 @@ mod connection_engine_tests {
         tokio::task::yield_now().await;
 
         let mut probe = probe_after(0); // Ready on the very first probe
-        let mut pubr = ConnectionFramePublisher::new("c", 0);
+        let mut pubr = ConnectionFramePublisher::new(&sync, "c", 0);
         let clk = clock();
 
         let err = tokio::time::timeout(
@@ -783,5 +803,211 @@ mod connection_engine_tests {
         assert!(leftover.is_empty(), "genuinely invalid bytes must not be held back");
         assert!(text.starts_with("ok "));
         assert!(text.ends_with(" more"));
+    }
+
+    // ── Fix round 2: the two halves of the engine must actually compose ─────────────────
+    //
+    // `establish`/`ensure` used to take a SYNCHRONOUS probe while the real probe
+    // (`run_probe`) is `async`. Nothing bridged them: the loop was only ever driven by
+    // test closures, and `run_probe` was only ever called on its own. The design's central
+    // mechanism — "readiness is decided by a probe that asks the system" — had never run
+    // end to end. These two tests wire the REAL probe into the REAL registry against a
+    // REAL establish process, and make the probe's verdict decide the outcome.
+
+    /// Hermetic binaries with fixed exit codes: `/usr/bin/true` is a probe that always says
+    /// "up", `/usr/bin/false` one that never does. Both are already used by this suite.
+    fn real_connection(probe_binary: &str, ready_timeout_ms: u32) -> ConnectionDeclaration {
+        base(serde_json::json!({
+            // A process that HOLDS (a tunnel) and prints nothing at all — so readiness can
+            // only have come from the probe, never from output.
+            "establish": ["/usr/bin/sleep", "30"],
+            "probe": { "run": [probe_binary] },
+            "probeIntervalMs": 20,
+            "readyTimeoutMs": ready_timeout_ms
+        }))
+    }
+
+    fn catalog_of(decl: &ConnectionDeclaration) -> std::collections::HashMap<String, ConnectionDeclaration> {
+        std::collections::HashMap::from([("c".to_string(), decl.clone())])
+    }
+
+    #[tokio::test]
+    async fn the_real_probe_drives_the_real_registry_to_up() {
+        let sync = sync();
+        let policy = permissive_policy();
+        let decl = real_connection("/usr/bin/true", 3_000);
+        let decls = catalog_of(&decl);
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+
+        // THE composition: the async `run_probe` — which spawns a process and awaits it —
+        // driven by `ensure`'s loop. A synchronous probe signature could not express this
+        // without `block_on`, which panics on a current-thread runtime.
+        let probe_decl = decl.clone();
+        let mut probe = || run_probe(&probe_decl, &policy);
+
+        let claim = tokio::time::timeout(
+            std::time::Duration::from_secs(20),
+            reg.ensure("c", "plugin.a", &decls, |d| spawn_establish_process(d, &policy), &mut probe, &sync, &clk),
+        )
+        .await
+        .expect("ensure must not hang")
+        .expect("the probe says up, so the connection must come up");
+
+        assert_eq!(claim.name, "c");
+        assert!(matches!(reg.status("c"), ConnectionStatus::Up));
+        assert_eq!(reg.spawn_count("c"), 1);
+
+        // The session belongs to a LIVE connection, so it must not be terminal — otherwise
+        // node_reap sweeps it and its resume cursor out from under the tunnel.
+        let raw = sync.get_node(&connection_stream_ref("c")).unwrap().unwrap();
+        let node: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(node["status"], "active");
+
+        // Do not leave a real `sleep 30` behind: this is the route that stops it.
+        reg.mark_failed("c");
+    }
+
+    #[tokio::test]
+    async fn the_real_probe_refusing_keeps_the_real_registry_from_coming_up() {
+        // Same real process, same real code path — only the probe's verdict differs. That
+        // is what makes the previous test a proof and not a coincidence.
+        let sync = sync();
+        let policy = permissive_policy();
+        let decl = real_connection("/usr/bin/false", 400);
+        let decls = catalog_of(&decl);
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+
+        let probe_decl = decl.clone();
+        let mut probe = || run_probe(&probe_decl, &policy);
+
+        let err = tokio::time::timeout(
+            std::time::Duration::from_secs(20),
+            reg.ensure("c", "plugin.a", &decls, |d| spawn_establish_process(d, &policy), &mut probe, &sync, &clk),
+        )
+        .await
+        .expect("ensure must not hang")
+        .expect_err("the probe never says up, so the connection must never be considered up");
+
+        assert!(err.contains("did not become ready"), "unexpected: {err}");
+        assert!(matches!(reg.status("c"), ConnectionStatus::Failed));
+        assert_eq!(reg.claim_count("c"), 0);
+    }
+
+    // ── Fix round 2: a stop signalled before the killer task polls must still kill ──────
+
+    #[tokio::test]
+    async fn a_stop_signalled_with_no_intervening_await_still_kills_the_real_process() {
+        // `spawn_establish_process` registers its killer inside a `tokio::spawn`, so the
+        // task has not been polled when it returns. `notify_waiters` stores NO permit: on
+        // the fast failure paths — where nothing yields between the spawn returning and the
+        // first stop — the signal was dropped on the floor and the SIGKILL never fired,
+        // leaving a live VPN process nothing could signal. `notify_one` stores a permit, so
+        // the late-registering killer still wakes.
+        let decl = base(serde_json::json!({ "establish": ["/usr/bin/sleep", "300"] }));
+        let mut process = spawn_establish_process(&decl, &permissive_policy()).unwrap();
+
+        signal_stop(&process.stop); // no `.await` between the spawn and this line
+
+        // Liveness observed the way `FlowProcess` itself defines it: the chunk channel
+        // closes only when both pipes reach EOF, which for `sleep` happens only when the
+        // process dies. `sleep 300` would hold its stdout open for five minutes.
+        let ended = tokio::time::timeout(std::time::Duration::from_secs(15), process.chunks.recv())
+            .await
+            .expect("the child must die, not outlive a stop signalled before the killer polled");
+        assert_eq!(ended, None, "the establish process must be gone");
+    }
+
+    #[tokio::test]
+    async fn a_publisher_failure_on_the_ready_path_kills_the_real_child_it_spawned() {
+        // The same lost wakeup on a REAL code path, with a REAL child. `probe_after(0)`
+        // returns `std::future::Ready`, which completes without ever yielding to the
+        // executor, so from `spawn_establish_process` returning to `establish`'s
+        // `signal_stop` on the terminal-publish failure there is no scheduling point at
+        // all — the killer task has still never been polled.
+        let sync = sync_with_broken_storage();
+        let decl = base(serde_json::json!({ "establish": ["/usr/bin/sleep", "300"] }));
+        let mut process = spawn_establish_process(&decl, &permissive_policy()).unwrap();
+        let mut probe = probe_after(0);
+        let mut pubr = ConnectionFramePublisher::new(&sync, "c", 0);
+        let clk = clock();
+
+        let err = establish(&decl, &mut process, &mut probe, &mut pubr, &sync, &clk)
+            .await
+            .unwrap_err();
+        assert!(err.contains("store connection"), "unexpected: {err}");
+
+        let ended = tokio::time::timeout(std::time::Duration::from_secs(15), process.chunks.recv())
+            .await
+            .expect("a publisher failure must not strand a live child");
+        assert_eq!(ended, None, "the establish process must be gone");
+    }
+
+    // ── Fix round 2: a cached `Up` is a memory, not a measurement ───────────────────────
+
+    #[tokio::test]
+    async fn a_stale_up_is_re_probed_before_a_claim_is_issued_on_it() {
+        // Nothing supervises a live connection yet, so `status()` reported `Up` forever
+        // once it had been up once — and `ensure`'s fast path handed out claims on a dead
+        // tunnel. The fast path must ASK the system again, not trust the cached boolean.
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let up = Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let mut probe = switchable(&up);
+
+        let _a = reg
+            .ensure("c", "plugin.a", &decls, holding_spawner(), &mut probe, &sync, &clk)
+            .await
+            .unwrap();
+        assert!(matches!(reg.status("c"), ConnectionStatus::Up));
+        assert_eq!(reg.claim_count("c"), 1);
+
+        // The tunnel drops. Nothing tells the registry; only the probe can notice.
+        up.store(false, Ordering::SeqCst);
+
+        let err = reg
+            .ensure("c", "plugin.b", &decls, holding_spawner(), &mut probe, &sync, &clk)
+            .await
+            .unwrap_err();
+
+        assert!(
+            err.contains("did not become ready"),
+            "a stale `Up` must fall through to a fresh establish, not short-circuit: {err}"
+        );
+        assert!(
+            !matches!(reg.status("c"), ConnectionStatus::Up),
+            "a connection the probe says is down must not still report Up"
+        );
+        assert_eq!(
+            reg.claim_count("c"),
+            1,
+            "no NEW claim may be issued on a connection the probe says is down"
+        );
+        assert_eq!(reg.spawn_count("c"), 2, "the stale entry must be re-established, not reused");
+    }
+
+    #[tokio::test]
+    async fn a_still_healthy_up_is_shared_without_a_second_spawn() {
+        // The other half: re-probing must not cost a second login. A probe that still says
+        // "up" shares the existing connection exactly as before.
+        let sync = sync();
+        let decls = catalog();
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+        let up = Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let mut probe = switchable(&up);
+
+        let _a = reg.ensure("c", "plugin.a", &decls, holding_spawner(), &mut probe, &sync, &clk).await.unwrap();
+        let b = reg
+            .ensure("c", "plugin.b", &decls, |_| panic!("re-probing must not cause a second login"), &mut probe, &sync, &clk)
+            .await
+            .unwrap();
+
+        assert_eq!(b.name, "c");
+        assert_eq!(reg.spawn_count("c"), 1);
+        assert_eq!(reg.claim_count("c"), 2);
     }
 }

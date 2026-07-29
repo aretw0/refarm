@@ -12,8 +12,14 @@ use crate::streaming::{
 };
 use crate::sync::NativeSync;
 
+// These surfaces are complete and fully unit-tested, but nothing in the crate CALLS them
+// yet: the consumer is the `host-connection` WIT surface, which is a later plan. Marked
+// `allow(dead_code)` for the non-test build ONLY — the test build still audits them — so the
+// crate stays warning-clean and a genuinely new warning is not buried under twenty of these.
+
 /// The stream a connection publishes on. Stable and derivable, so any surface can
 /// subscribe by name without asking the host for a handle.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn connection_stream_ref(name: &str) -> String {
     format!("urn:tractor:stream:connection:{name}")
 }
@@ -25,14 +31,35 @@ pub(crate) struct ConnectionFramePublisher {
     started_at_ns: u64,
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 impl ConnectionFramePublisher {
-    pub(crate) fn new(name: &str, now_ns: u64) -> Self {
-        Self {
-            stream_ref: connection_stream_ref(name),
-            sequence: 0,
-            chunk_count: 0,
-            started_at_ns: now_ns,
-        }
+    /// Open (or RESUME) the connection's stream.
+    ///
+    /// `stream_ref` and the session node id are stable per connection NAME, so a second
+    /// establish attempt writes to the same stream a consumer is already following. Starting
+    /// `sequence` back at 0 on every attempt would therefore make that consumer's resume
+    /// cursor go BACKWARDS after a re-establish — it would either replay frames it already
+    /// saw or, worse, filter out the new ones as stale. The cursor is continued from the
+    /// session node's own `last_sequence`, which is the value the consumer holds.
+    ///
+    /// A storage read is best-effort here: a publisher must always be constructible, so an
+    /// unreadable or absent session simply starts a fresh stream at 0.
+    pub(crate) fn new(sync: &NativeSync, name: &str, now_ns: u64) -> Self {
+        let stream_ref = connection_stream_ref(name);
+        let prior = sync
+            .get_node(&stream_session_observation_id(&stream_ref))
+            .ok()
+            .flatten()
+            .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok());
+        let (sequence, chunk_count, started_at_ns) = match prior {
+            Some(node) => (
+                node.get("last_sequence").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+                node.get("chunk_count").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+                node.get("started_at_ns").and_then(|v| v.as_u64()).unwrap_or(now_ns),
+            ),
+            None => (0, 0, now_ns),
+        };
+        Self { stream_ref, sequence, chunk_count, started_at_ns }
     }
 
     pub(crate) fn last_sequence(&self) -> u32 {
@@ -59,8 +86,18 @@ impl ConnectionFramePublisher {
         now_ns: u64,
     ) -> Result<(), String> {
         self.chunk(sync, reason, detail, true, now_ns)?;
-        let status = if reason == "ready" { "completed" } else { "failed" };
-        self.session(sync, status, Some(now_ns), now_ns)
+        // `is_final` on the CHUNK is right either way — it closes the establish attempt.
+        // The SESSION is a different lifetime: `ready` means the tunnel is now UP and
+        // HOLDING, which is the opposite of finished. Marking it `completed` put it in
+        // `node_reap`'s terminal set (`completed`/`failed`), so after the TTL the reaper
+        // would sweep the session node — and with it the resume cursor — out from under a
+        // live connection. Only a failure reason genuinely settles the session.
+        let (status, completed_at_ns) = if reason == "ready" {
+            ("active", None)
+        } else {
+            ("failed", Some(now_ns))
+        };
+        self.session(sync, status, completed_at_ns, now_ns)
     }
 
     fn chunk(

@@ -39,8 +39,30 @@ pub(crate) enum EstablishOutcome {
 pub(crate) struct FlowProcess {
     /// Raw stdout+stderr chunks. The channel closing means the process ended.
     pub(crate) chunks: mpsc::Receiver<String>,
-    /// Notifying this stops the process and its group.
+    /// Signalling this stops the process and its group. See `signal_stop`.
     pub(crate) stop: Arc<Notify>,
+}
+
+// These surfaces are complete and fully unit-tested, but nothing in the crate CALLS them
+// yet: the consumer is the `host-connection` WIT surface, which is a later plan. Marked
+// `allow(dead_code)` for the non-test build ONLY — the test build still audits them — so the
+// crate stays warning-clean and a genuinely new warning is not buried under twenty of these.
+
+/// Signal a process to stop, in the ONE way that cannot be lost.
+///
+/// `Notify::notify_waiters` stores no permit: it wakes whoever is already registered and
+/// drops the signal on the floor otherwise. The killer task registers LATE — it is a
+/// `tokio::spawn`ed task inside `spawn_establish_process`, and on the fast failure paths
+/// there is no `.await` between the spawn returning and the first stop, so on a
+/// current-thread runtime the task has not been polled yet. The signal vanished and the
+/// SIGKILL never fired: a live VPN process with nothing left able to signal it.
+///
+/// `notify_one` DOES store a permit, so a stop signalled before the killer task first polls
+/// still kills the process. One permit is exactly right — there is exactly one killer task
+/// per `FlowProcess`, and one kill is enough.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn signal_stop(stop: &Notify) {
+    stop.notify_one();
 }
 
 /// Keep the buffer bounded while preserving its TAIL, so a marker arriving after a flood is
@@ -59,22 +81,40 @@ fn push_bounded(buffer: &mut String, chunk: &str) {
 /// Bring the connection up: poll the probe on its interval, publishing notices matched in
 /// the output along the way, until the probe succeeds, the process ends, or the deadline
 /// passes.
-pub(crate) async fn establish(
+///
+/// The probe is generic over a FUTURE-returning closure, not a synchronous `bool`. The real
+/// probe (`run_probe`) is `async` — it spawns a process and awaits it — so a synchronous
+/// signature could only be bridged with `block_on`, which blocks a worker thread and panics
+/// outright on a current-thread runtime. Making the loop `await` the probe is what lets the
+/// two halves of this engine actually compose.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) async fn establish<P, F>(
     decl: &ConnectionDeclaration,
     process: &mut FlowProcess,
-    probe: &mut (dyn FnMut() -> bool + Send),
+    probe: &mut P,
     publisher: &mut ConnectionFramePublisher,
     sync: &NativeSync,
     now_ns: &(dyn Fn() -> u64 + Sync),
-) -> Result<EstablishOutcome, String> {
+) -> Result<EstablishOutcome, String>
+where
+    P: FnMut() -> F + Send,
+    F: std::future::Future<Output = bool> + Send,
+{
     let mut buffer = String::new();
+    // ONCE PER ATTEMPT, deliberately — not once per occurrence. Matching is over the
+    // ACCUMULATED buffer, so once a pattern has matched it keeps matching on every later
+    // chunk: resetting this flag would announce the same single occurrence again on every
+    // subsequent line, a notice storm rather than a repeat. A genuine per-occurrence repeat
+    // (which a push-approval retry would deserve) needs occurrence COUNTING, and counting
+    // has to survive `push_bounded` dropping the buffer's head — that is a separate piece of
+    // work, not a flag flip. Until then the contract is one announcement per attempt.
     let mut fired: Vec<bool> = vec![false; decl.notices.len()];
     let interval = Duration::from_millis(decl.probe_interval_ms.max(1));
     let deadline = Instant::now() + Duration::from_millis(decl.ready_timeout_ms.max(1) as u64);
     let mut ended = false;
 
     let outcome = loop {
-        if probe() {
+        if probe().await {
             break EstablishOutcome::Ready;
         }
         // The probe is the only authority, so an ended process is only decisive AFTER a
@@ -116,7 +156,7 @@ pub(crate) async fn establish(
                             // outcome, so the `if !matches!(outcome, Ready)` guard further
                             // down is never even evaluated for this path).
                             if let Err(e) = publisher.notice(sync, &rule.message, now_ns()) {
-                                process.stop.notify_waiters();
+                                signal_stop(&process.stop);
                                 return Err(e);
                             }
                         }
@@ -142,14 +182,14 @@ pub(crate) async fn establish(
     // failed and disown the process (see `mark_failed`), so leaving it running because the
     // outcome was technically Ready would strand it — nothing would retain a way to stop it.
     if let Err(e) = publisher.terminal(sync, reason, &detail, now_ns()) {
-        process.stop.notify_waiters();
+        signal_stop(&process.stop);
         return Err(e);
     }
 
     // Ready LEAVES the process running (it holds the connection). Anything else stops it —
     // a failed attempt must never leak a live process.
     if !matches!(outcome, EstablishOutcome::Ready) {
-        process.stop.notify_waiters();
+        signal_stop(&process.stop);
     }
 
     Ok(outcome)
@@ -208,6 +248,7 @@ pub(crate) struct ConnectionRegistry {
     next_claim_id: std::sync::atomic::AtomicU64,
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 impl ConnectionRegistry {
     pub(crate) fn new() -> Self {
         Self {
@@ -277,30 +318,57 @@ impl ConnectionRegistry {
         if let Some(entry) = live.get_mut(name) {
             entry.status = ConnectionStatus::Failed;
             if let Some(stop) = entry.stop.take() {
-                stop.notify_waiters();
+                signal_stop(&stop);
             }
         }
+    }
+
+    /// A cached `Up` is only the MEMORY of a probe that succeeded once. A tunnel can drop
+    /// with nothing telling the registry, and there is no supervisor re-checking it yet, so
+    /// every fast path that would hand out a claim on a cached `Up` re-asks the system
+    /// first. A stale entry is marked failed (which also stops whatever it was still
+    /// holding) and the caller falls through to a fresh establish.
+    ///
+    /// Returns `true` when the connection is genuinely up right now.
+    async fn revalidate_up<P, F>(&self, name: &str, probe: &mut P) -> bool
+    where
+        P: FnMut() -> F + Send,
+        F: std::future::Future<Output = bool> + Send,
+    {
+        if !matches!(self.status(name), ConnectionStatus::Up) {
+            return false;
+        }
+        if probe().await {
+            return true;
+        }
+        self.mark_failed(name);
+        false
     }
 
     /// Idempotent. Already up ⇒ a new claim and NO new login. Down ⇒ establish once — and
     /// AT MOST once even under concurrent callers, via the per-name establish gate.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn ensure(
+    pub(crate) async fn ensure<P, F>(
         &self,
         name: &str,
         owner: &str,
         decls: &HashMap<String, ConnectionDeclaration>,
         spawn: impl FnOnce(&ConnectionDeclaration) -> Result<FlowProcess, String>,
-        probe: &mut (dyn FnMut() -> bool + Send),
+        probe: &mut P,
         sync: &NativeSync,
         now_ns: &(dyn Fn() -> u64 + Sync),
-    ) -> Result<Claim, String> {
+    ) -> Result<Claim, String>
+    where
+        P: FnMut() -> F + Send,
+        F: std::future::Future<Output = bool> + Send,
+    {
         let decl = decls.get(name).ok_or_else(|| {
             format!("no connection named '{name}' is declared in .refarm/config.json")
         })?;
 
-        // Fast path: already up. This is the whole point of sharing.
-        if matches!(self.status(name), ConnectionStatus::Up) {
+        // Fast path: already up. This is the whole point of sharing — but the cached status
+        // is re-verified against the SYSTEM before a claim is issued on it.
+        if self.revalidate_up(name, probe).await {
             return Ok(self.issue_claim(name, owner));
         }
 
@@ -312,7 +380,7 @@ impl ConnectionRegistry {
 
         // Re-check now that we hold the gate: another caller may have finished
         // establishing it while we were waiting, in which case we share it — no spawn.
-        if matches!(self.status(name), ConnectionStatus::Up) {
+        if self.revalidate_up(name, probe).await {
             return Ok(self.issue_claim(name, owner));
         }
 
@@ -348,8 +416,10 @@ impl ConnectionRegistry {
         }
 
         let stop = process.stop.clone();
-        let mut publisher = ConnectionFramePublisher::new(name, now_ns());
-        let outcome = match establish(decl, &mut process, probe, &mut publisher, sync, now_ns).await {
+        // `new` RESUMES the connection's stream: the frame cursor continues from the last
+        // published sequence so a consumer following this name never sees it go backwards.
+        let mut publisher = ConnectionFramePublisher::new(sync, name, now_ns());
+        let outcome = match establish(decl, &mut process, &mut *probe, &mut publisher, sync, now_ns).await {
             Ok(outcome) => outcome,
             Err(e) => {
                 // Same hazard as the spawn error above: `?` would leave `status` stuck at
@@ -417,7 +487,7 @@ impl ConnectionRegistry {
         }
         if let Linger::Idle { ms: 0 } = entry.linger {
             if let Some(stop) = entry.stop.take() {
-                stop.notify_waiters();
+                signal_stop(&stop);
             }
             entry.status = ConnectionStatus::Down;
         }
@@ -436,6 +506,7 @@ const PROBE_TIMEOUT_MS: u32 = 5_000;
 /// Ask the SYSTEM whether the connection is up. Success is exit code 0 AND, when `expect`
 /// is declared, the combined output matching it. Any error means "not up" — a probe that
 /// cannot run is not evidence of health.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) async fn run_probe(decl: &ConnectionDeclaration, policy: &HostEffectPolicy) -> bool {
     let Ok((stdout, stderr, exit_code, timed_out)) = spawn_process(
         &decl.probe.run,
@@ -493,6 +564,7 @@ fn split_utf8_prefix(pending: Vec<u8>) -> (String, Vec<u8>) {
 /// Unlike `spawn_process`, nothing here kills on a timeout: a connection is SUPPOSED to
 /// outlive the call. The bounds are the probe loop's deadline, then the registry's
 /// claim/linger policy, then the explicit stop signal.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn spawn_establish_process(
     decl: &ConnectionDeclaration,
     policy: &HostEffectPolicy,
