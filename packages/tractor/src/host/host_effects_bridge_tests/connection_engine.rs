@@ -831,6 +831,15 @@ mod connection_engine_tests {
         std::collections::HashMap::from([("c".to_string(), decl.clone())])
     }
 
+    /// Give the killer task spawned inside `spawn_establish_process` a chance to run before
+    /// the test's runtime is dropped. `ensure` owns and drops the `FlowProcess` internally,
+    /// so a test cannot observe the child's death here the way the two dedicated
+    /// process-death tests do — but leaving a real `sleep` behind would be a genuine leak,
+    /// and one that looks exactly like the orphan bug this suite exists to catch.
+    async fn reap_stopped_children() {
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    }
+
     #[tokio::test]
     async fn the_real_probe_drives_the_real_registry_to_up() {
         let sync = sync();
@@ -864,8 +873,12 @@ mod connection_engine_tests {
         let node: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(node["status"], "active");
 
-        // Do not leave a real `sleep 30` behind: this is the route that stops it.
+        // Do not leave a real `sleep 30` behind: `mark_failed` is the route that stops it,
+        // but the killer task needs ONE scheduling opportunity before this test's runtime is
+        // torn down — a dropped runtime drops pending tasks unpolled, and tokio's `Child`
+        // does not kill on drop.
         reg.mark_failed("c");
+        reap_stopped_children().await;
     }
 
     #[tokio::test]
@@ -893,6 +906,7 @@ mod connection_engine_tests {
         assert!(err.contains("did not become ready"), "unexpected: {err}");
         assert!(matches!(reg.status("c"), ConnectionStatus::Failed));
         assert_eq!(reg.claim_count("c"), 0);
+        reap_stopped_children().await;
     }
 
     // ── Fix round 2: a stop signalled before the killer task polls must still kill ──────
