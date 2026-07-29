@@ -84,11 +84,62 @@ fn compile_pattern(raw: &str, field: &str, name: &str) -> Result<regex::Regex, S
     regex::Regex::new(raw).map_err(|e| format!("connection '{name}': {field} invalid regex: {e}"))
 }
 
-fn string_array(value: Option<&serde_json::Value>) -> Vec<String> {
-    value
-        .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|s| s.as_str().map(str::to_string)).collect())
-        .unwrap_or_default()
+/// Read an argv-shaped field STRICTLY. Skipping a non-string entry would silently run a
+/// DIFFERENT argv than the operator declared (`["ovpnctl", 5, "connect"]` becomes
+/// `ovpnctl connect`), which is the same silent rewrite this file already refuses for
+/// `prompts`, `ready`/`fail` and `probe.shell`. An absent field is still an empty argv —
+/// the caller decides whether emptiness is an error.
+fn string_array(
+    value: Option<&serde_json::Value>,
+    field: &str,
+    name: &str,
+) -> Result<Vec<String>, String> {
+    let Some(value) = value else {
+        return Ok(Vec::new());
+    };
+    let Some(items) = value.as_array() else {
+        return Err(format!("connection '{name}': {field} must be an array of strings"));
+    };
+    let mut out = Vec::with_capacity(items.len());
+    for (i, item) in items.iter().enumerate() {
+        let Some(s) = item.as_str() else {
+            return Err(format!(
+                "connection '{name}': {field}[{i}] must be a string — a non-string entry would \
+                 be dropped and run a different command than the one declared"
+            ));
+        };
+        out.push(s.to_string());
+    }
+    Ok(out)
+}
+
+/// Read an optional string field STRICTLY: a non-string value must not degrade to "absent".
+fn optional_string(
+    value: Option<&serde_json::Value>,
+    field: &str,
+    name: &str,
+) -> Result<Option<String>, String> {
+    match value {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(serde_json::Value::String(s)) => Ok(Some(s.clone())),
+        Some(_) => Err(format!("connection '{name}': {field} must be a string")),
+    }
+}
+
+/// Read an optional integer field STRICTLY: a non-integer value must not silently fall back
+/// to the default, which reads as "my timeout is being honoured" when it is not.
+fn optional_u64(
+    value: Option<&serde_json::Value>,
+    field: &str,
+    name: &str,
+) -> Result<Option<u64>, String> {
+    match value {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(v) => v
+            .as_u64()
+            .map(Some)
+            .ok_or_else(|| format!("connection '{name}': {field} must be a non-negative integer")),
+    }
 }
 
 fn parse_probe(name: &str, value: &serde_json::Value) -> Result<Probe, String> {
@@ -96,7 +147,7 @@ fn parse_probe(name: &str, value: &serde_json::Value) -> Result<Probe, String> {
         format!("connection '{name}': probe is required — readiness is decided by a probe, not by output")
     })?;
 
-    let run = string_array(probe_value.get("run"));
+    let run = string_array(probe_value.get("run"), "probe.run", name)?;
     if run.is_empty() {
         return Err(format!("connection '{name}': probe.run must be a non-empty array of strings"));
     }
@@ -126,8 +177,11 @@ fn parse_probe(name: &str, value: &serde_json::Value) -> Result<Probe, String> {
         ));
     }
 
-    let expect = match probe_value.get("expect").and_then(|v| v.as_str()) {
-        Some(raw) => Some(compile_pattern(raw, "probe.expect", name)?),
+    // A non-string `expect` must not degrade to "no expect at all": that would silently
+    // weaken readiness to exit-code-only, the exact case the design calls out (an interface
+    // that exists but is DOWN exits zero).
+    let expect = match optional_string(probe_value.get("expect"), "probe.expect", name)? {
+        Some(raw) => Some(compile_pattern(&raw, "probe.expect", name)?),
         None => None,
     };
 
@@ -157,7 +211,7 @@ fn parse_one(name: &str, value: &serde_json::Value) -> Result<ConnectionDeclarat
         ));
     }
 
-    let establish = string_array(value.get("establish"));
+    let establish = string_array(value.get("establish"), "establish", name)?;
     if establish.is_empty() {
         return Err(format!(
             "connection '{name}': establish must be a non-empty array of strings"
@@ -166,7 +220,15 @@ fn parse_one(name: &str, value: &serde_json::Value) -> Result<ConnectionDeclarat
 
     let probe = parse_probe(name, value)?;
 
-    let notice_values = value.get("notices").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    // A non-array `notices` must not become an empty catalog: the operator would see no
+    // announcements and no reason why.
+    let notice_values = match value.get("notices") {
+        None | Some(serde_json::Value::Null) => Vec::new(),
+        Some(v) => v
+            .as_array()
+            .cloned()
+            .ok_or_else(|| format!("connection '{name}': notices must be an array of rules"))?,
+    };
     if notice_values.len() > MAX_CONNECTION_NOTICES {
         return Err(format!(
             "connection '{name}': too many notice rules (max {MAX_CONNECTION_NOTICES})"
@@ -186,31 +248,59 @@ fn parse_one(name: &str, value: &serde_json::Value) -> Result<ConnectionDeclarat
         notices.push(NoticeRule { pattern: compile_pattern(raw, "notice", name)?, message });
     }
 
-    let env: Vec<(String, String)> = value
-        .get("env")
-        .and_then(|v| v.as_object())
-        .map(|o| o.iter().filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string()))).collect())
-        .unwrap_or_default();
+    // A dropped env entry changes the environment the command runs in — `env` is part of
+    // the declaration, not a best-effort hint.
+    let env: Vec<(String, String)> = match value.get("env") {
+        None | Some(serde_json::Value::Null) => Vec::new(),
+        Some(v) => {
+            let obj = v
+                .as_object()
+                .ok_or_else(|| format!("connection '{name}': env must be an object of strings"))?;
+            let mut out = Vec::with_capacity(obj.len());
+            for (k, v) in obj {
+                let Some(s) = v.as_str() else {
+                    return Err(format!("connection '{name}': env['{k}'] must be a string"));
+                };
+                out.push((k.clone(), s.to_string()));
+            }
+            out
+        }
+    };
 
-    let cwd = value.get("cwd").and_then(|v| v.as_str()).map(str::to_string);
+    let cwd = optional_string(value.get("cwd"), "cwd", name)?;
 
-    let ready_timeout_ms = value
-        .get("readyTimeoutMs")
-        .and_then(|v| v.as_u64())
+    let ready_timeout_ms = optional_u64(value.get("readyTimeoutMs"), "readyTimeoutMs", name)?
         .map(|v| v.min(u32::MAX as u64) as u32)
         .unwrap_or(DEFAULT_READY_TIMEOUT_MS);
 
-    let probe_interval_ms = value
-        .get("probeIntervalMs")
-        .and_then(|v| v.as_u64())
-        .filter(|v| *v > 0)
-        .unwrap_or(DEFAULT_PROBE_INTERVAL_MS);
+    let probe_interval_ms = match optional_u64(value.get("probeIntervalMs"), "probeIntervalMs", name)? {
+        None => DEFAULT_PROBE_INTERVAL_MS,
+        Some(0) => {
+            return Err(format!(
+                "connection '{name}': probeIntervalMs must be greater than 0"
+            ))
+        }
+        Some(ms) => ms,
+    };
 
     let linger = match value.get("linger") {
         None => Linger::Operator,
         Some(serde_json::Value::String(s)) if s == "operator" => Linger::Operator,
-        Some(v) => match v.get("idleMs").and_then(|x| x.as_u64()) {
-            Some(ms) => Linger::Idle { ms },
+        Some(v) => match optional_u64(v.get("idleMs"), "linger.idleMs", name)? {
+            Some(0) => Linger::Idle { ms: 0 },
+            // A non-zero idle window PARSES today and then does nothing: `apply_linger`
+            // only acts on `ms: 0`, deferring the real window to a sweeper that does not
+            // exist. Accepting it silently is the same failure mode this file loudly
+            // refuses for `prompts`, `ready`/`fail` and `probe.shell` — the operator would
+            // believe the connection falls after the window when it never does.
+            Some(ms) => {
+                return Err(format!(
+                    "connection '{name}': linger.idleMs = {ms} is not implemented yet — there is \
+                     no idle sweeper, so a non-zero window would be silently ignored. Use \
+                     \"operator\" (stay up) or {{ \"idleMs\": 0 }} (fall as soon as the last \
+                     claim is released)."
+                ))
+            }
             None => {
                 return Err(format!(
                     "connection '{name}': linger must be \"operator\" or {{ idleMs: <number> }}"
