@@ -11,12 +11,16 @@
 // all" (unknown) — see `ConnectionReport.state` below. The two lead the operator to
 // different next actions: fix the tunnel, or fix the setup that is supposed to check it.
 
-import { spawn } from "node:child_process";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
+import {
+	createProcessHandoffDisplay,
+	runProcessHandoff,
+	type ProcessHandoffRunResult,
+} from "@refarm.dev/cli/process-handoff";
 import { loadConfig } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -32,16 +36,6 @@ import {
  * not stall the operator's terminal — the probe's own timeout is what fails it shut.
  */
 const DEFAULT_PROBE_TIMEOUT_MS = 5_000;
-
-/**
- * Mirrors `MAX_SPAWN_STDIO_LEN` in `host_effects_bridge/core.rs` (1 MiB per stream). A
- * probe that floods stdout must not grow this process's heap without bound — the host
- * truncates at exactly this point and appends the same marker, so an `expect` pattern
- * that only matches inside the truncated tail fails identically on both sides.
- */
-const MAX_PROBE_OUTPUT_BYTES = 1024 * 1024;
-/** Mirrors the host's truncation marker byte-for-byte (`read_spawn_pipe_limited`). */
-const PROBE_OUTPUT_TRUNCATION_MARKER = "\n[truncated: spawn output exceeded limit]";
 
 /**
  * What a probe attempt concluded. NOT a boolean: the third case is the whole point.
@@ -189,65 +183,71 @@ export async function reportConnections(deps: {
 }
 
 /**
- * A stdout/stderr accumulator capped at `MAX_PROBE_OUTPUT_BYTES`, mirroring the host's
- * `read_spawn_pipe_limited`: it keeps the first 1 MiB and appends the host's own
- * truncation marker. Without a cap, a chatty or runaway probe grows this process's heap
- * for as long as it keeps writing — bounded only by the probe timeout, which is exactly
- * the kind of unbounded buffer the host already refuses to have.
+ * Turn a boundary result into the probe's three-state verdict — exactly like the host's
+ * `run_probe`: success is exit code 0 AND, when `probe.expect` is declared, the pattern
+ * matching the COMBINED stdout+stderr. A missing interface exits non-zero (down via exit
+ * code); an existing-but-down one can still exit zero while printing e.g. "DOWN" (down
+ * via the unmatched `expect`). Both halves matter — checking only the exit code would
+ * report that second case as `up`.
  *
- * Truncation is at a BYTE boundary, so a multi-byte character straddling the cap decodes
- * to a replacement character — the same thing the host's `from_utf8_lossy` produces.
- */
-function createBoundedOutput(): { push: (chunk: Buffer) => void; text: () => string } {
-	const chunks: Buffer[] = [];
-	let bytes = 0;
-	let truncated = false;
-	return {
-		push(chunk: Buffer): void {
-			if (truncated) return;
-			const room = MAX_PROBE_OUTPUT_BYTES - bytes;
-			if (chunk.length > room) {
-				chunks.push(chunk.subarray(0, room));
-				bytes = MAX_PROBE_OUTPUT_BYTES;
-				truncated = true;
-				return;
-			}
-			chunks.push(chunk);
-			bytes += chunk.length;
-		},
-		text(): string {
-			const text = Buffer.concat(chunks).toString("utf8");
-			return truncated ? text + PROBE_OUTPUT_TRUNCATION_MARKER : text;
-		},
-	};
-}
-
-/**
- * The real probe adapter: spawn `probe.run` as structured argv — NEVER a shell — and
- * decide readiness exactly like the host's `run_probe` does: success is exit code 0
- * AND, when `probe.expect` is declared, the pattern matching the COMBINED stdout+stderr.
- * A missing interface exits non-zero (down via exit code); an existing-but-down one can
- * still exit zero while printing e.g. "DOWN" (down via the unmatched `expect`). Both
- * halves matter — checking only the exit code would report that second case as `up`.
- *
- * Bounded by `timeoutMs` so a hung probe cannot hang the operator's terminal; never
- * throws — a missing binary or a spawn error resolves `outcome: "unknown"` with a
- * `detail` rather than rejecting, so callers never need a try/catch around this.
- *
- * Which outcome each exit path takes, and why:
- *   - exit 0 (and `expect` matches, when declared)  -> `up`
- *   - non-zero exit, or `expect` declared and unmatched -> `down` (the probe RAN and
- *     answered no)
- *   - TIMEOUT -> `down`, deliberately. The host agrees: `run_probe` treats
+ * Which outcome each result shape takes, and why:
+ *   - `result.spawnError` set -> `unknown`. The spawn never happened (a nonexistent
+ *     `cwd`, EACCES, the binary vanishing between resolution and spawn) — nothing was
+ *     asked, so nothing can be concluded about the tunnel. The operator's fix is the
+ *     setup, not a re-establish.
+ *   - `result.timedOut` -> `down`, deliberately. The host agrees: `run_probe` treats
  *     `timed_out` exactly like a non-zero exit and returns `false`. A health check that
  *     hangs is not a healthy connection, and reporting `unknown` here would diverge from
  *     the engine on a case the engine has already decided.
- *   - the spawn never happened (`child.on("error")`: a nonexistent `cwd`, EACCES, the
- *     binary vanishing between resolution and spawn) -> `unknown`. Nothing was asked, so
- *     nothing can be concluded about the tunnel. The operator's fix is the setup.
- *   - `probe.run` empty, or `probe.run[0]` unresolvable -> `unknown`, same reason.
+ *   - non-zero exit, or `expect` declared and unmatched -> `down` (the probe RAN and
+ *     answered no).
+ *   - exit 0 (and `expect` matches, when declared) -> `up`.
+ */
+function interpretProbeResult(
+	result: ProcessHandoffRunResult,
+	expect: string | undefined,
+	timeoutMs: number,
+): ProbeResult {
+	if (result.spawnError) {
+		return { outcome: "unknown", detail: `probe could not be started: ${result.spawnError.message}` };
+	}
+	if (result.timedOut) {
+		return { outcome: "down", detail: `probe timed out after ${timeoutMs}ms` };
+	}
+	if (result.exitCode !== 0) {
+		return { outcome: "down", detail: `probe exited with code ${result.exitCode}` };
+	}
+	if (!expect) {
+		return { outcome: "up" };
+	}
+	const combined = (result.stdout ?? "") + (result.stderr ?? "");
+	let matches = false;
+	try {
+		matches = new RegExp(expect).test(combined);
+	} catch {
+		// An uncompilable `expect` should already have been dropped by the catalog reader
+		// (`readOptionalPatternField`), so this is unreachable in practice — but never
+		// throw out of a probe over a defensive fallback either way.
+		matches = false;
+	}
+	return matches
+		? { outcome: "up" }
+		: { outcome: "down", detail: `probe output did not match expected pattern /${expect}/` };
+}
+
+/**
+ * The real probe adapter — a thin caller of the `@refarm.dev/process-handoff` boundary
+ * (`runProcessHandoff`), which now carries every guarantee this probe needs: a timeout, a
+ * 1 MiB-per-stream output cap with the host's own truncation marker, environment
+ * isolation, process-group kill on timeout, and spawn failure surfaced as a result
+ * instead of a thrown error. See `docs/superpowers/specs/2026-07-29-process-administration-
+ * layer-design.md` (decision P1) — these were implemented here first and have moved down
+ * a layer so `commands/workspace.ts` and any future caller get them too, without
+ * `apps/refarm/src` importing `node:child_process` directly (the architecture test in
+ * `test/architecture/process-boundary.test.ts` forbids it).
  *
- * The child gets ONLY the declared `env` — nothing inherited from this process. This
+ * `probe.run` is spawned as structured argv — NEVER a shell. The child gets ONLY the
+ * declared `env` (`isolatedEnv: true`) — nothing inherited from this process. This
  * mirrors the host exactly: `run_probe` -> `spawn_process` in
  * `host_effects_bridge/core.rs` does `.env_clear().envs(env)`, so a probe whose verdict
  * depends on an inherited-but-undeclared variable reports `down` there. If this adapter
@@ -261,95 +261,32 @@ function createBoundedOutput(): { push: (chunk: Buffer) => void; text: () => str
  * single resolution, reusing the same function `reportConnections` already used to
  * decide whether to attempt the probe at all — not an accidental divergence.
  */
-export function runProbeProcess(
+export async function runProbeProcess(
 	connection: DeclaredConnection,
 	timeoutMs: number = DEFAULT_PROBE_TIMEOUT_MS,
 ): Promise<ProbeResult> {
-	return new Promise((resolve) => {
-		const argv0 = connection.probe.run[0];
-		if (!argv0) {
-			resolve({ outcome: "unknown", detail: "probe.run is empty — there is nothing to ask" });
-			return;
-		}
-		const bin = resolveBinary(argv0);
-		if (!bin) {
-			resolve({ outcome: "unknown", detail: `probe binary not found: ${argv0}` });
-			return;
-		}
-		const args = connection.probe.run.slice(1);
+	const argv0 = connection.probe.run[0];
+	if (!argv0) {
+		return { outcome: "unknown", detail: "probe.run is empty — there is nothing to ask" };
+	}
+	const bin = resolveBinary(argv0);
+	if (!bin) {
+		return { outcome: "unknown", detail: `probe binary not found: ${argv0}` };
+	}
+	const args = connection.probe.run.slice(1);
 
-		let settled = false;
-		const settle = (result: ProbeResult): void => {
-			if (settled) return;
-			settled = true;
-			resolve(result);
-		};
-
-		const child = spawn(bin, args, {
-			cwd: connection.cwd,
-			// ONLY the declared env — see the doc comment above for why this must not be
-			// merged with `process.env`.
+	const result = await runProcessHandoff(
+		{ command: bin, args, cwd: connection.cwd, display: createProcessHandoffDisplay(bin, args) },
+		{
+			capture: true,
 			env: connection.env,
-			stdio: ["ignore", "pipe", "pipe"],
-		});
-
-		const timer = setTimeout(() => {
-			child.kill("SIGKILL");
-			// `down`, not `unknown`: the host's `run_probe` folds `timed_out` into the same
-			// `false` a non-zero exit produces. A probe that hangs is a connection that is
-			// not answering, and diverging from the engine here would defeat the point.
-			settle({ outcome: "down", detail: `probe timed out after ${timeoutMs}ms` });
-		}, timeoutMs);
-		timer.unref?.();
-
-		const stdout = createBoundedOutput();
-		const stderr = createBoundedOutput();
-		child.stdout?.on("data", (chunk: Buffer) => stdout.push(chunk));
-		child.stderr?.on("data", (chunk: Buffer) => stderr.push(chunk));
-
-		// The spawn never happened: a nonexistent `cwd`, EACCES on the binary, or a binary
-		// that vanished between `resolveBinary` and this spawn. This is "I could not ask",
-		// NOT "the connection is down" — reporting `down` here would send the operator to
-		// re-establish a tunnel that may be perfectly up, over a typo in their config.
-		child.on("error", (error) => {
-			clearTimeout(timer);
-			settle({
-				outcome: "unknown",
-				detail: `probe could not be started: ${error instanceof Error ? error.message : String(error)}`,
-			});
-		});
-
-		child.on("close", (code) => {
-			clearTimeout(timer);
-			if (code !== 0) {
-				settle({ outcome: "down", detail: `probe exited with code ${code ?? "unknown"}` });
-				return;
-			}
-			const expect = connection.probe.expect;
-			if (!expect) {
-				settle({ outcome: "up" });
-				return;
-			}
-			const combined = stdout.text() + stderr.text();
-			let matches = false;
-			try {
-				matches = new RegExp(expect).test(combined);
-			} catch {
-				// An uncompilable `expect` should already have been dropped by the catalog
-				// reader (`readOptionalPatternField`), so this is unreachable in practice —
-				// but never throw out of a probe over a defensive fallback either way.
-				matches = false;
-			}
-			settle(
-				matches
-					? { outcome: "up" }
-					: {
-							outcome: "down",
-							detail: `probe output did not match expected pattern /${expect}/`,
-						},
-			);
-		});
-	});
+			isolatedEnv: true,
+			timeout: timeoutMs,
+			outputCap: true,
+			spawnErrorAsResult: true,
+		},
+	);
+	return interpretProbeResult(result, connection.probe.expect, timeoutMs);
 }
 
 const STATE_COLOR: Record<ConnectionReport["state"], (text: string) => string> = {

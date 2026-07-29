@@ -11,6 +11,7 @@ import {
 	type CommandPlanStepRunResult,
 	type CommandProcessSpec,
 } from "@refarm.dev/cli/command-plan";
+import { createProcessHandoffDisplay, runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
 	workspaceExecutionRecommendations as baseWorkspaceExecutionRecommendations,
 	buildWorkspaceSourceCachePlan,
@@ -34,7 +35,6 @@ import {
 	loadConfig,
 	type DeclaredWorkspaceConfig,
 } from "@refarm.dev/config";
-import { spawn } from "node:child_process";
 import path from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -247,22 +247,36 @@ function workspaceCommands(
 	);
 }
 
-/** The real runner: spawn the command with INHERITED stdio, so a local `run` is fully interactive
- * (the command's own prompts/notices/streaming reach the terminal — e.g. serpro-vpn's
- * "approve the push" + "Conectado"). A command that holds (a VPN tunnel) holds this too. */
+/**
+ * The real runner — a thin caller of the `@refarm.dev/process-handoff` boundary
+ * (`runProcessHandoff`) with `capture: false`, which the boundary maps to INHERITED
+ * stdio, so a local `run` is fully interactive (the command's own prompts/notices/
+ * streaming reach the terminal — e.g. serpro-vpn's "approve the push" + "Conectado"). A
+ * command that holds (a VPN tunnel) holds this too.
+ *
+ * Deliberately NOT given `timeout` or `outputCap`: those are guarantees the boundary
+ * grew for the connection probe (`commands/connection.ts`'s `runProbeProcess`), a
+ * short-lived, non-interactive check. This runner is the opposite case — an operator
+ * mid-login is exactly who a timeout would kill, which is the pain this whole lane
+ * (`docs/CONVERGENCE-LANE.md`) exists to fix. `spawnErrorAsResult` IS used, so a missing
+ * binary or bad cwd is a result to branch on rather than a rejection to catch — but the
+ * observable behavior is unchanged: exit code 127, with the same logged message.
+ */
 async function defaultWorkspaceRunner(spec: WorkspaceRunSpec): Promise<number> {
-	return await new Promise<number>((resolve) => {
-		const child = spawn(spec.command, spec.args, {
+	const result = await runProcessHandoff(
+		{
+			command: spec.command,
+			args: spec.args,
 			cwd: spec.cwd,
-			env: spec.env ?? process.env,
-			stdio: "inherit",
-		});
-		child.on("close", (code) => resolve(code ?? 0));
-		child.on("error", (error) => {
-			console.error(chalk.red(`Failed to run: ${error instanceof Error ? error.message : String(error)}`));
-			resolve(127);
-		});
-	});
+			display: createProcessHandoffDisplay(spec.command, spec.args),
+		},
+		{ capture: false, env: spec.env, spawnErrorAsResult: true },
+	);
+	if (result.spawnError) {
+		console.error(chalk.red(`Failed to run: ${result.spawnError.message}`));
+		return 127;
+	}
+	return result.exitCode;
 }
 
 /**
