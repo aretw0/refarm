@@ -487,27 +487,43 @@ pub(crate) struct HostEffectPolicy {
     /// at boot. Read per code-op (rename/find-references) instead of rebuilding
     /// LspBridge::from_env each time.
     lsp_cmd: String,
+    /// P10 — the operator-declared spawn environment (`spawnEnv` in
+    /// `.refarm/config.json`): the composed PATH/HOME the host injects into every
+    /// spawned child, derived ONLY from the declaration, never the host's own
+    /// ambient environment. Resolved ONCE here (boot, filesystem-only — see
+    /// `spawn_env_from_config`), then cloned into every plugin's bindings, so a
+    /// spawn never re-reads config from disk. Stored as the SAME Result
+    /// `spawn_env_from_config()` returned, mirroring `fs_root`: a malformed
+    /// declaration fails at first spawn USE (via `HostEffectPolicy::spawn_env`),
+    /// never at host construction.
+    spawn_env: Result<SpawnEnvDecl, String>,
 }
 
 impl HostEffectPolicy {
     /// Boot-time resolver — the ONLY place MODEL_SHELL_ALLOWLIST / MODEL_FS_ROOT
-    /// / REFACTOR_LSP_CMD are read from env.
+    /// / REFACTOR_LSP_CMD / `.refarm/config.json`'s `spawnEnv` are read.
     pub(crate) fn from_env() -> Self {
         Self {
             shell_allowlist: shell_allowlist_from_env(),
             fs_root: configured_fs_root(),
             lsp_cmd: crate::host::lsp_bridge::configured_lsp_command(),
+            spawn_env: spawn_env_from_config(),
         }
     }
 
-    /// Explicit constructor (tests) — no env access.
+    /// Explicit constructor (tests) — no env/fs access. `spawn_env` defaults to
+    /// undeclared (`SpawnEnvDecl::default()`, i.e. no PATH/HOME injected) so every
+    /// existing call site keeps today's behaviour unchanged; a test that needs a
+    /// specific declaration passes `Ok(SpawnEnvDecl { .. })` or an `Err(..)` to
+    /// exercise the fail-shut path.
     #[cfg(test)]
     pub(crate) fn new(
         shell_allowlist: Option<std::collections::HashSet<String>>,
         fs_root: Result<Option<PathBuf>, String>,
         lsp_cmd: String,
+        spawn_env: Result<SpawnEnvDecl, String>,
     ) -> Self {
-        Self { shell_allowlist, fs_root, lsp_cmd }
+        Self { shell_allowlist, fs_root, lsp_cmd, spawn_env }
     }
 
     fn shell_allowlist(&self) -> Option<&std::collections::HashSet<String>> {
@@ -523,16 +539,24 @@ impl HostEffectPolicy {
     pub(crate) fn lsp_cmd(&self) -> &str {
         &self.lsp_cmd
     }
+
+    /// Clone the boot Result — a malformed `spawnEnv` declaration surfaces its
+    /// error on THIS call (first spawn use), never at `HostEffectPolicy`
+    /// construction, mirroring `fs_root()` above.
+    fn spawn_env(&self) -> Result<SpawnEnvDecl, String> {
+        self.spawn_env.clone()
+    }
 }
 
 impl Default for HostEffectPolicy {
-    /// Permissive default (env-unset equivalent): no allowlist, no fs jail, and
-    /// the default LSP command.
+    /// Permissive default (env-unset equivalent): no allowlist, no fs jail, the
+    /// default LSP command, and no spawnEnv declared (no PATH/HOME injected).
     fn default() -> Self {
         Self {
             shell_allowlist: None,
             fs_root: Ok(None),
             lsp_cmd: crate::host::lsp_bridge::DEFAULT_RUST_LSP_CMD.to_string(),
+            spawn_env: Ok(SpawnEnvDecl::default()),
         }
     }
 }

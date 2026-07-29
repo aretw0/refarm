@@ -1277,6 +1277,7 @@
             None,
             Ok(None),
             format!("python3 {}", script.display()),
+            Ok(SpawnEnvDecl::default()),
         );
         let mut b = make_bindings_with_policy(policy);
         let refs = CodeOpsHost::find_references(
@@ -1318,6 +1319,7 @@
             None,
             Ok(None),
             format!("python3 {}", script.display()),
+            Ok(SpawnEnvDecl::default()),
         );
         let mut b = make_bindings_with_policy(policy);
         let result = CodeOpsHost::rename_symbol(

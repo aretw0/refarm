@@ -868,6 +868,7 @@ mod connection_engine_tests {
             Some(std::collections::HashSet::from(["echo".to_string()])),
             Ok(None),
             String::new(),
+            Ok(SpawnEnvDecl::default()),
         );
         let err = spawn_establish_process(&decl, &policy).unwrap_err();
         assert!(
