@@ -7,6 +7,15 @@
 #   ./scripts/tractor-start.sh --namespace myproject    # custom namespace
 #   MODEL_PROVIDER=openai ./scripts/tractor-start.sh      # override provider
 #
+# Bind hosts (see the "bind hosts" block below for the full reasoning):
+#   REFARM_HTTP_HOST   sidecar bind. Default 127.0.0.1. In a container it becomes
+#                      0.0.0.0 ONLY when REFARM_AUTH_POLICY names a readable policy
+#                      file; without one it stays loopback and the script says so.
+#   REFARM_WS_HOST     CRDT/agent WS bind. Default 127.0.0.1, and the daemon refuses
+#                      anything else regardless of policy until ADR-093 lands.
+#   REFARM_AUTH_POLICY the per-device credential policy. The same file the daemon
+#                      reads; its presence is what unlocks a wider sidecar bind.
+#
 # Keys are loaded from .refarm/.env (gitignored).
 # Run `refarm sow` to configure them.
 # Run `refarm runtime stop` to stop a backgrounded daemon.
@@ -50,15 +59,12 @@ REFARM_HOME="${REFARM_HOME:-$ROOT/.refarm}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$REFARM_HOME/data}"
 REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}"
 INSTALLED_AGENT_PLUGIN="$REFARM_HOME/plugins/@refarm/agent/plugin.wasm"
-REFARM_HTTP_HOST="${REFARM_HTTP_HOST:-}"
 
-if [ -z "$REFARM_HTTP_HOST" ]; then
-  if [ -f "/.dockerenv" ]; then
-    REFARM_HTTP_HOST="0.0.0.0"
-  else
-    REFARM_HTTP_HOST="127.0.0.1"
-  fi
-fi
+# Bind hosts are resolved LATER (after .refarm/.env is sourced), because the decision
+# depends on REFARM_AUTH_POLICY and that may be set in the env file. Only the operator's
+# explicit process-env values are captured here.
+REFARM_HTTP_HOST="${REFARM_HTTP_HOST:-}"
+REFARM_WS_HOST="${REFARM_WS_HOST:-}"
 
 if [ ! -f "$MODEL_PROVIDER_HELPER" ]; then
   echo "❌  model provider helper not found: $MODEL_PROVIDER_HELPER"
@@ -190,12 +196,78 @@ case "$MODEL_PROVIDER" in
     ;;
 esac
 
+# ── bind hosts ────────────────────────────────────────────────────────────────
+#
+# This block used to set REFARM_HTTP_HOST=0.0.0.0 whenever /.dockerenv existed, so a
+# published `-p` port would reach the sidecar. The daemon now refuses a non-loopback HTTP
+# bind with no auth policy configured (packages/tractor/src/sidecar/bind_guard.rs), which
+# turned that unconditional widening into "the container starts but the sidecar silently
+# does not". Neither a container that cannot start nor a container that is silently open is
+# acceptable, so the widening is now CONDITIONAL and the consequence is always PRINTED.
+#
+#   container + a readable REFARM_AUTH_POLICY  ⇒ 0.0.0.0 (published ports work, gate on)
+#   container + no policy                      ⇒ 127.0.0.1 + a loud explanation
+#   not a container                            ⇒ 127.0.0.1
+#
+# An operator who exports REFARM_HTTP_HOST=0.0.0.0 by hand still gets exactly what they
+# asked for: the daemon's guard refuses it and names the fix. That refusal is honest —
+# an explicit request answered with an explicit reason — and it is not this script's job
+# to route around it.
+#
+# No escape hatch is offered here on purpose. An env var that means "bind wide with no
+# auth" would be pasted into a compose file once and then live forever, which is the
+# failure mode the guard exists to prevent.
+
+_auth_policy_configured() {
+  [ -n "${REFARM_AUTH_POLICY:-}" ] && [ -f "${REFARM_AUTH_POLICY}" ]
+}
+
+IN_CONTAINER=0
+if [ -f "/.dockerenv" ]; then
+  IN_CONTAINER=1
+fi
+
+if [ -z "$REFARM_HTTP_HOST" ]; then
+  if [ "$IN_CONTAINER" = "1" ] && _auth_policy_configured; then
+    REFARM_HTTP_HOST="0.0.0.0"
+  else
+    REFARM_HTTP_HOST="127.0.0.1"
+  fi
+fi
+
+# The WS (:42000) is stricter than the sidecar: the daemon refuses ANY non-loopback bind
+# there regardless of policy, because that socket has no credential gate at all (no
+# middleware reads the policy) and accepts `user:prompt` from whoever reaches it. Until
+# ADR-093's WS credential handshake ships there is no value of REFARM_WS_HOST other than
+# loopback that the daemon will accept — so the script passes loopback explicitly instead
+# of leaving the bind to whatever the default happens to be that week.
+if [ -z "$REFARM_WS_HOST" ]; then
+  REFARM_WS_HOST="127.0.0.1"
+fi
+
+if [ "$IN_CONTAINER" = "1" ]; then
+  if [ "$REFARM_HTTP_HOST" = "127.0.0.1" ]; then
+    echo "⚠   Container detected, but the sidecar is binding 127.0.0.1 (not 0.0.0.0)."
+    echo "    A published '-p 42001:42001' will NOT reach it. This is deliberate: the"
+    echo "    daemon refuses an unauthenticated listener that other devices can reach."
+    echo "    To publish it, mint a per-device credential and point the daemon at it:"
+    echo "      refarm auth enroll"
+    echo "      export REFARM_AUTH_POLICY=<the resulting policy file>"
+    echo "    Then this script binds 0.0.0.0 by itself, with the gate on."
+  fi
+  echo "⚠   The CRDT/agent WebSocket stays on 127.0.0.1 — '-p 42000:42000' will NOT"
+  echo "    reach it, policy or not. That socket has no credential gate yet (ADR-093);"
+  echo "    reach it through an authenticated front, not by publishing the port."
+fi
+
 # ── start daemon ──────────────────────────────────────────────────────────────
 
 HAS_HTTP_HOST=0
+HAS_WS_HOST=0
 for arg in "$@"; do
   case "$arg" in
     --http-host|--http-host=*) HAS_HTTP_HOST=1 ;;
+    --ws-host|--ws-host=*) HAS_WS_HOST=1 ;;
   esac
 done
 
@@ -220,6 +292,11 @@ done
 if [ "$HAS_HTTP_HOST" = "0" ]; then
   TRACTOR_ARGS+=(--http-host "$REFARM_HTTP_HOST")
 fi
+# Pass --ws-host explicitly for the same reason --http-host is passed explicitly: the bind
+# this script chose should be visible in the process args, not inferred from a default.
+if [ "$HAS_WS_HOST" = "0" ]; then
+  TRACTOR_ARGS+=(--ws-host "$REFARM_WS_HOST")
+fi
 TRACTOR_ARGS+=(--refarm-dir "$REFARM_HOME")
 TRACTOR_ARGS+=("$@")
 
@@ -229,6 +306,7 @@ echo "   plugin   : $AGENT_PLUGIN"
 [ ${#TRUSTED_PLUGINS[@]} -gt 0 ] && echo "   +trusted : ${#TRUSTED_PLUGINS[@]} plugin(s) from composition"
 echo "   streams  : $REFARM_STREAMS_DIR"
 echo "   http bind: $REFARM_HTTP_HOST:42001"
+echo "   ws bind  : $REFARM_WS_HOST:42000"
 [ $# -gt 0 ] && echo "   extra    : $*"
 
 mkdir -p "$(dirname "$PID_FILE")" "$REFARM_HOME" "$REFARM_STREAMS_DIR" "$XDG_DATA_HOME"

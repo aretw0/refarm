@@ -229,6 +229,9 @@ importers:
       '@refarm.dev/sse-stream-transport':
         specifier: workspace:*
         version: link:../../packages/sse-stream-transport
+      '@refarm.dev/std':
+        specifier: workspace:*
+        version: link:../../packages/std
       '@refarm.dev/storage-contract-v1':
         specifier: workspace:*
         version: link:../../packages/storage-contract-v1
@@ -438,6 +441,9 @@ importers:
       '@refarm.dev/sower':
         specifier: workspace:*
         version: link:../../packages/sower
+      '@refarm.dev/std':
+        specifier: workspace:*
+        version: link:../../packages/std
       '@refarm.dev/storage-node-view':
         specifier: workspace:*
         version: link:../../packages/storage-node-view
@@ -858,6 +864,9 @@ importers:
       '@refarm.dev/source-web':
         specifier: workspace:*
         version: link:../source-web
+      '@refarm.dev/std':
+        specifier: workspace:*
+        version: link:../std
       '@refarm.dev/surface-terminal':
         specifier: workspace:*
         version: link:../surface-terminal

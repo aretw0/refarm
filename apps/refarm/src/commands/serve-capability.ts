@@ -2,6 +2,8 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 
 import { createCapabilityRegistry, type CapabilityEntry } from "@refarm.dev/capabilities";
 import { mountedHttpHandler } from "@refarm.dev/capability-host";
+import { DEFAULT_BIND_HOST, refuseUnguardedNonLoopbackBind } from "@refarm.dev/std";
+import { authPolicyPresent } from "@refarm.dev/std/node";
 import { Command } from "commander";
 
 import { capabilityRegistry } from "./capability-registry.js";
@@ -54,13 +56,32 @@ interface ServeOptions {
 	json?: boolean;
 }
 
-/** Start the capability-surface listener and resolve once bound. The default bind
- *  stays loopback; exposing the surface to other devices is an explicit operator
- *  decision (`--host 0.0.0.0`) — the same posture as the Rust daemon's `--http-host`. */
+/** Start the capability-surface listener and resolve once bound. The default bind stays
+ *  loopback; exposing the surface to other devices is an explicit operator decision
+ *  (`--host 0.0.0.0`) which is REFUSED unless an auth policy is configured — the same
+ *  fail-closed rule the Rust daemon applies to `--http-host`.
+ *
+ *  Read the parity claim precisely: this shares the daemon's BIND rule, not its auth. The
+ *  daemon's `--http-host` sits in front of `auth_middleware`, so a widened bind there is
+ *  actually gated per request. This surface has no request-level gate at all — a
+ *  configured policy is the operator's word that they set credentials up, and nothing here
+ *  checks them yet. So a non-loopback bind here is opened on trust, and the earlier comment
+ *  claiming "the same posture as `--http-host`" overstated it. Wiring the bearer check into
+ *  this surface is tracked separately (ADR-093); it is deliberately not done in this
+ *  bind-sweep slice. */
 export function startServeServer(
 	entries: readonly CapabilityEntry[],
 	options: { port: number; host: string },
 ): Promise<{ server: Server; url: string }> {
+	// Refused before anything is constructed; returned as a rejection so every bind refusal
+	// in the substrate has the same shape at the call site.
+	const refusal = refuseUnguardedNonLoopbackBind(
+		options.host,
+		authPolicyPresent(),
+		"the capability surface (`refarm serve`)",
+	);
+	if (refusal) return Promise.reject(new Error(refusal));
+
 	const server = createServeServer(entries);
 	return new Promise((resolve) => {
 		server.listen(options.port, options.host, () => {
@@ -77,13 +98,13 @@ function createServeCommand(): Command {
 		.option("--port <port>", "TCP port to listen on", "4321")
 		.option(
 			"--host <host>",
-			"Bind address; 0.0.0.0 exposes the surface to other devices",
-			"127.0.0.1",
+			"Bind address; a non-loopback host needs REFARM_AUTH_POLICY configured or the bind is refused",
+			DEFAULT_BIND_HOST,
 		)
 		.option("--json", "Print the listening address as JSON")
 		.action(async (options: ServeOptions) => {
 			const port = Number.parseInt(options.port ?? "4321", 10);
-			const host = options.host ?? "127.0.0.1";
+			const host = options.host ?? DEFAULT_BIND_HOST;
 			const { url } = await startServeServer(capabilityRegistry.list(), { port, host });
 			if (options.json) {
 				process.stdout.write(`${JSON.stringify({ ok: true, url })}\n`);

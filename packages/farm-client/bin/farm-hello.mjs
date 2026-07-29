@@ -188,7 +188,10 @@ if (sync.ok) {
   } else {
     console.log("   O plano de controle (sidecar :42001) está fechado em loopback POR PADRÃO.");
     console.log("   Para dirigir a fazenda (efforts/chat) daqui, exponha-o no host — de forma");
-    console.log("   soberana, só na mesh (não na LAN corporativa):");
+    console.log("   soberana, só na mesh (não na LAN corporativa). O daemon RECUSA um bind");
+    console.log("   fora do loopback sem credencial, então são dois passos:");
+    console.log("     refarm auth enroll                  # gera a credencial deste dispositivo");
+    console.log("     export REFARM_AUTH_POLICY=<arquivo de política gerado>");
     console.log("     REFARM_HTTP_HOST=<IP-mesh-do-host> bash scripts/tractor-start.sh --background");
     console.log("     (ex.: REFARM_HTTP_HOST=100.105.71.127 — pega só a tailnet)\n");
   }
@@ -197,6 +200,10 @@ if (sync.ok) {
 
 console.log("\nEste dispositivo NÃO alcançou a malha. No host, verifique:");
 console.log("  refarm runtime status                 # o daemon está de pé?");
-console.log("  (o WS :42000 já ouve em 0.0.0.0 — cobre LAN e tailnet por padrão)");
-console.log("  numa tailnet, use o NOME do host: node scripts/farm-hello.mjs <nome>\n");
+// Era: "o WS :42000 já ouve em 0.0.0.0 — cobre LAN e tailnet por padrão". Isso deixou de
+// ser verdade (e nunca deveria ter sido): o WS não tem NENHUMA checagem de credencial, e
+// o daemon agora recusa bind fora do loopback nessa porta, com ou sem política.
+console.log("  (o WS :42000 ouve SÓ em loopback — de propósito: essa porta não tem gate)");
+console.log("  para alcançá-la de outro dispositivo, use uma frente autenticada/túnel;");
+console.log("  o handshake de credencial do WS (ADR-093) ainda não existe.\n");
 process.exit(1);

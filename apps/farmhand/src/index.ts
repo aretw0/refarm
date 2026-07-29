@@ -2,8 +2,9 @@
  * Farmhand — Headless Refarm daemon
  *
  * Boots a Tractor instance backed by LoroCRDTStorage (ADR-045) and exposes a
- * WebSocket sync transport on port 42000. Studio (browser) connects to
- * ws://localhost:42000 for binary Loro CRDT sync.
+ * WebSocket sync transport on 127.0.0.1:42000 (loopback by default — see
+ * FARMHAND_WS_HOST). Studio (browser) connects to ws://localhost:42000 for binary
+ * Loro CRDT sync.
  *
  * Reactive behaviors:
  *  - PluginRoute nodes  → load the referenced plugin into this Tractor instance
@@ -16,6 +17,7 @@ import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import type { RuntimeHost, RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
 import { SiloCore } from "@refarm.dev/silo";
 import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
+import { DEFAULT_BIND_HOST } from "@refarm.dev/std";
 import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { createTaskV1StorageAdapter } from "@refarm.dev/storage-sqlite";
 import { createNodeSqliteStorageProvider } from "@refarm.dev/storage-sqlite/node";
@@ -58,10 +60,15 @@ import { createSessionsRouteHandler } from "./transports/sessions.js";
 import { createTasksRouteHandler } from "./transports/tasks.js";
 
 const FARMHAND_PORT = 42000;
+// Bind parity with the Rust daemon's --ws-host: loopback unless the operator explicitly
+// opens the relay. This is an UNAUTHENTICATED CRDT relay — a peer that reaches it reads and
+// writes the whole document — so a non-loopback value is refused by the shared bind guard
+// unless REFARM_AUTH_POLICY is configured (see transport.ts).
+const FARMHAND_WS_HOST = process.env.FARMHAND_WS_HOST?.trim() || DEFAULT_BIND_HOST;
 const FARMHAND_HTTP_PORT = Number(process.env.FARMHAND_HTTP_PORT ?? 42001);
 // Bind parity with the Rust daemon's --http-host: loopback unless the operator
 // explicitly opens the sidecar to other devices.
-const FARMHAND_HTTP_HOST = process.env.FARMHAND_HTTP_HOST?.trim() || "127.0.0.1";
+const FARMHAND_HTTP_HOST = process.env.FARMHAND_HTTP_HOST?.trim() || DEFAULT_BIND_HOST;
 const FARMHAND_PLUGIN_ID = "farmhand";
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
@@ -502,8 +509,11 @@ async function main() {
 	console.log("[farmhand] Presence node written.");
 
 	// Start WebSocket transport (binary Uint8Array frames — Loro deltas)
-	const transport = new WebSocketSyncTransport(FARMHAND_PORT);
-	console.log(`[farmhand] WebSocket server listening on ws://localhost:${FARMHAND_PORT}`);
+	const transport = new WebSocketSyncTransport(FARMHAND_PORT, FARMHAND_WS_HOST);
+	// Print the host it ACTUALLY bound. This line used to say `ws://localhost:42000` while
+	// the server bound every interface — a log that actively misreported the exposure, which
+	// is worse than no log: an operator reading it concludes the relay is local-only.
+	console.log(`[farmhand] WebSocket server listening on ws://${transport.host}:${FARMHAND_PORT}`);
 
 	// Wire transport ↔ LoroCRDTStorage (binary Loro sync)
 	transport.onMessage((bytes) => void storage.applyUpdate(bytes));

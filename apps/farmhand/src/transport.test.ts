@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { describe, it, expect, vi, afterEach } from "vitest";
 
 // Shared mock state — must be declared before vi.mock is hoisted
@@ -5,15 +6,22 @@ const mockState = vi.hoisted(() => {
 	const wssClose = vi.fn((cb?: () => void) => cb && cb());
 	const wssAddress = vi.fn().mockReturnValue({ port: 42000 });
 	const wssOn = vi.fn();
+	/** Every options object handed to `new WebSocketServer(...)`, so a test can assert the
+	 *  HOST that would have been bound without binding anything. */
+	const wssOptions: Array<{ port: number; host?: string }> = [];
 
 	// A proper constructor mock: use a named function so `new` works
-	function MockWebSocketServer(this: Record<string, unknown>, _opts: { port: number }) {
+	function MockWebSocketServer(
+		this: Record<string, unknown>,
+		opts: { port: number; host?: string },
+	) {
+		wssOptions.push(opts);
 		this.on = wssOn;
 		this.close = wssClose;
 		this.address = wssAddress;
 	}
 
-	return { wssClose, wssAddress, wssOn, MockWebSocketServer };
+	return { wssClose, wssAddress, wssOn, wssOptions, MockWebSocketServer };
 });
 
 vi.mock("ws", () => ({
@@ -25,6 +33,8 @@ import { WebSocketSyncTransport } from "./transport.js";
 
 afterEach(() => {
 	vi.clearAllMocks();
+	mockState.wssOptions.length = 0;
+	delete process.env.REFARM_AUTH_POLICY;
 	// Restore address default after per-test override
 	mockState.wssAddress.mockReturnValue({ port: 42000 });
 });
@@ -88,5 +98,50 @@ describe("WebSocketSyncTransport", () => {
 		mockState.wssAddress.mockReturnValueOnce(null);
 		const transport = new WebSocketSyncTransport(42000);
 		expect(transport.port).toBe(0);
+	});
+});
+
+describe("WebSocketSyncTransport bind safety", () => {
+	// `ws` is mocked in this file, so every case below is PURE: the host that WOULD be bound
+	// is asserted from the options object, and no socket is ever opened.
+
+	it("binds loopback by default", () => {
+		// Mutation guard for the original defect: `new WebSocketServer({ port })` with no host
+		// binds EVERY interface — an unauthenticated CRDT relay on 42000 reachable from the
+		// whole network. Dropping the host from the options makes this fail.
+		const transport = new WebSocketSyncTransport(42000);
+		expect(transport.host).toBe("127.0.0.1");
+		expect(mockState.wssOptions.at(-1)).toEqual({ port: 42000, host: "127.0.0.1" });
+	});
+
+	it("refuses a non-loopback host with no auth policy — and constructs nothing", () => {
+		expect(() => new WebSocketSyncTransport(42000, "0.0.0.0")).toThrow(
+			/no auth policy configured/,
+		);
+		// The guard runs BEFORE the server is constructed, so no relay exists to leak.
+		expect(mockState.wssOptions).toHaveLength(0);
+	});
+
+	it("refuses a tailnet-shaped host too", () => {
+		expect(() => new WebSocketSyncTransport(42000, "100.64.0.1")).toThrow(/refusing to bind/);
+	});
+
+	it("names the farmhand relay in the refusal so the operator knows which listener said no", () => {
+		expect(() => new WebSocketSyncTransport(42000, "0.0.0.0")).toThrow(
+			/farmhand CRDT sync relay/,
+		);
+	});
+
+	it("allows a wider bind once an auth policy is configured", () => {
+		// The policy file must EXIST — a dangling REFARM_AUTH_POLICY is not an opt-in.
+		process.env.REFARM_AUTH_POLICY = fileURLToPath(import.meta.url);
+		const transport = new WebSocketSyncTransport(42000, "0.0.0.0");
+		expect(transport.host).toBe("0.0.0.0");
+		expect(mockState.wssOptions.at(-1)).toEqual({ port: 42000, host: "0.0.0.0" });
+	});
+
+	it("treats a REFARM_AUTH_POLICY pointing at nothing as no policy at all", () => {
+		process.env.REFARM_AUTH_POLICY = "/nonexistent/policy.json";
+		expect(() => new WebSocketSyncTransport(42000, "0.0.0.0")).toThrow(/refusing to bind/);
 	});
 });

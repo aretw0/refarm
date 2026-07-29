@@ -1,4 +1,7 @@
+import { rmSync, writeFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 import type { CapabilityDescriptor } from "@refarm.dev/capabilities";
 import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
@@ -106,13 +109,38 @@ describe("startServeServer — the bind seam (--host)", () => {
 		expect(res.status).toBe(200);
 	});
 
-	it("honors an explicit host — the LAN exposure is an operator decision", async () => {
-		const started = await startServeServer(ENTRIES, { port: 0, host: "0.0.0.0" });
-		server = started.server;
-		expect(started.url).toMatch(/^http:\/\/0\.0\.0\.0:\d+$/);
-		// A 0.0.0.0 bind answers on loopback too — prove the socket is real.
-		const port = started.url.split(":").pop();
-		const res = await fetch(`http://127.0.0.1:${port}/agent-tools`);
-		expect(res.status).toBe(200);
+	it("REFUSES a non-loopback bind with no auth policy — and opens nothing", async () => {
+		// PURE: the guard throws before the server object exists, so no socket is opened and
+		// there is nothing to close.
+		delete process.env.REFARM_AUTH_POLICY;
+		await expect(startServeServer(ENTRIES, { port: 0, host: "0.0.0.0" })).rejects.toThrow(
+			/no auth policy configured/,
+		);
+		await expect(startServeServer(ENTRIES, { port: 0, host: "100.64.0.1" })).rejects.toThrow(
+			/refusing to bind/,
+		);
+	});
+
+	it("honors an explicit host once an auth policy is configured", async () => {
+		// The LAN exposure is still an operator decision — now one with a prerequisite. NOTE
+		// the honest limit: a policy gates the BIND here, not the requests. This surface has
+		// no bearer check of its own (the Rust sidecar's `auth_middleware` is the only place
+		// that verifies a credential today), so a widened bind here is opened on the
+		// operator's word. Wiring the check in is tracked under ADR-093.
+		const policy = path.join(tmpdir(), `refarm-serve-capability-policy-${process.pid}.json`);
+		writeFileSync(policy, JSON.stringify({ credentials: [] }));
+		process.env.REFARM_AUTH_POLICY = policy;
+		try {
+			const started = await startServeServer(ENTRIES, { port: 0, host: "0.0.0.0" });
+			server = started.server;
+			expect(started.url).toMatch(/^http:\/\/0\.0\.0\.0:\d+$/);
+			// A 0.0.0.0 bind answers on loopback too — prove the socket is real.
+			const port = started.url.split(":").pop();
+			const res = await fetch(`http://127.0.0.1:${port}/agent-tools`);
+			expect(res.status).toBe(200);
+		} finally {
+			delete process.env.REFARM_AUTH_POLICY;
+			rmSync(policy, { force: true });
+		}
 	});
 });

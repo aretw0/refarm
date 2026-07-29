@@ -100,13 +100,47 @@ describe("refarm web serve — the hub's static server", () => {
 		expect(res.status).toBe(405);
 	});
 
-	it("honors an explicit host bind — LAN exposure is an operator decision", async () => {
-		const started = await startWebServeServer(root, { port: 0, host: "0.0.0.0" });
-		server = started.server;
-		expect(started.url).toMatch(/^http:\/\/0\.0\.0\.0:\d+$/);
-		const port = started.url.split(":").pop();
-		const res = await fetch(`http://127.0.0.1:${port}/`);
-		expect(res.status).toBe(200);
+	it("REFUSES a non-loopback bind with no auth policy — and opens nothing", async () => {
+		// This listener proxies /sync to the daemon's CRDT socket, which the daemon itself
+		// refuses to expose because it has no credential gate. Widening THIS bind hands that
+		// socket to the network through a path the daemon cannot see: from its side the
+		// connection arrives from loopback. So the flag is not free — it is gated.
+		// PURE: the guard throws before any server object exists, so no socket is opened.
+		delete process.env.REFARM_AUTH_POLICY;
+		await expect(startWebServeServer(root, { port: 0, host: "0.0.0.0" })).rejects.toThrow(
+			/no auth policy configured/,
+		);
+		await expect(startWebServeServer(root, { port: 0, host: "100.64.0.1" })).rejects.toThrow(
+			/refusing to bind/,
+		);
+	});
+
+	it("treats a dangling REFARM_AUTH_POLICY as no policy at all", async () => {
+		process.env.REFARM_AUTH_POLICY = path.join(outside, "does-not-exist.json");
+		try {
+			await expect(startWebServeServer(root, { port: 0, host: "0.0.0.0" })).rejects.toThrow(
+				/refusing to bind/,
+			);
+		} finally {
+			delete process.env.REFARM_AUTH_POLICY;
+		}
+	});
+
+	it("honors an explicit host bind once an auth policy is configured", async () => {
+		// LAN exposure stays an operator decision — it is now a decision with a prerequisite.
+		const policy = path.join(outside, "auth-policy.json");
+		writeFileSync(policy, JSON.stringify({ credentials: [] }));
+		process.env.REFARM_AUTH_POLICY = policy;
+		try {
+			const started = await startWebServeServer(root, { port: 0, host: "0.0.0.0" });
+			server = started.server;
+			expect(started.url).toMatch(/^http:\/\/0\.0\.0\.0:\d+$/);
+			const port = started.url.split(":").pop();
+			const res = await fetch(`http://127.0.0.1:${port}/`);
+			expect(res.status).toBe(200);
+		} finally {
+			delete process.env.REFARM_AUTH_POLICY;
+		}
 	});
 
 	it("proxies /sync WebSocket upgrades to the daemon — one origin for the device", async () => {

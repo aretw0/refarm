@@ -160,6 +160,11 @@ export function createDistPublishCommand(): Command {
 			const template = await readFile(path.join(kitDir, "bootstrap", "install.mjs"), "utf8");
 			await writeFile(path.join(outDir, "install.mjs"), bakeInstaller(template, { host, port }));
 
+			// `--host 0.0.0.0` is still the right hint — serving the kit to other devices is
+			// the whole point of `dist publish` — but it is no longer a bind that just
+			// happens. `refarm web serve` refuses a non-loopback bind without an auth policy
+			// (that listener proxies /sync to the daemon's ungated CRDT socket), so the hint
+			// carries its precondition instead of failing in the operator's face.
 			const serveHint = refarmCommand([
 				"web",
 				"serve",
@@ -191,6 +196,8 @@ export function createDistPublishCommand(): Command {
 					`📦 farm-client ${manifest.version} → ${outDir}\n` +
 						`   ${manifest.files.length} file(s) + manifest.json + install.mjs (sha256-verified).\n` +
 						`   Serve on the mesh: ${serveHint}\n` +
+						`     (needs REFARM_AUTH_POLICY set — a non-loopback bind is refused without it;\n` +
+						`      mint one with \`refarm auth enroll\`)\n` +
 						`   Cold-bootstrap (device, no git): ${coldBootstrap}\n` +
 						`   Update thereafter:  farm-update\n`,
 				);

@@ -11,6 +11,8 @@ import { createServer as createTlsServer } from "node:https";
 import { connect, type Socket } from "node:net";
 import path from "node:path";
 
+import { DEFAULT_BIND_HOST, refuseUnguardedNonLoopbackBind } from "@refarm.dev/std";
+import { authPolicyPresent } from "@refarm.dev/std/node";
 import { Command } from "commander";
 
 /**
@@ -22,6 +24,17 @@ import { Command } from "commander";
  * cannot boot off-localhost. Loopback by default; `--host 0.0.0.0` exposes the
  * hub to the operator's other devices, the same posture as `serve` and the
  * daemon's `--http-host`. Serving is read-only: GET/HEAD, root-contained paths.
+ *
+ * WHY THE BIND GUARD IS LOAD-BEARING HERE, not just consistent:
+ * this server is not only static. It PROXIES `/sync` WebSocket upgrades to the
+ * daemon's CRDT socket on `127.0.0.1:42000` — the very socket the daemon refuses
+ * to bind off-loopback because it has no credential gate. Widening THIS bind
+ * hands the outside world that socket through a path the daemon's own guard
+ * cannot observe: from the daemon's side the connection arrives from loopback,
+ * indistinguishable from a local client. So `--host 0.0.0.0` here is not a
+ * static-file decision, it is a remote-agent-dispatch decision, and it goes
+ * through the same fail-closed rule as every other bind in the substrate.
+ * The flag stays — it is refused without a policy, not removed.
  */
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -223,6 +236,20 @@ export function startWebServeServer(
 		sidecarTarget?: WebServeSyncTarget;
 	},
 ): Promise<{ server: Server; url: string }> {
+	// Fail closed BEFORE building the server: a non-loopback bind with no auth policy is
+	// refused, because this listener proxies `/sync` to the daemon's ungated CRDT socket.
+	// Checked before anything is constructed — no server object, no cert read from disk, no
+	// socket — so a refused bind leaves nothing behind. Returned as a REJECTION rather than a
+	// synchronous throw so every bind refusal in the substrate has the same shape at the call
+	// site (`serveCapabilities` rejects too); `await` sees the same thing either way, but a
+	// caller holding the promise without awaiting immediately does not.
+	const refusal = refuseUnguardedNonLoopbackBind(
+		options.host,
+		authPolicyPresent(),
+		"the hub (`refarm web serve`)",
+	);
+	if (refusal) return Promise.reject(new Error(refusal));
+
 	const handler = createWebServeHandler(rootDir, options.sidecarTarget ?? DEFAULT_SIDECAR_TARGET);
 	const server = options.tls
 		? createTlsServer(
@@ -273,8 +300,9 @@ export function createWebServeCommand(): Command {
 		.option("--port <port>", "TCP port to listen on", "4321")
 		.option(
 			"--host <host>",
-			"Bind address; 0.0.0.0 exposes the hub to other devices",
-			"127.0.0.1",
+			"Bind address; a non-loopback host proxies /sync to the ungated daemon socket, so it " +
+				"needs REFARM_AUTH_POLICY configured or the bind is refused",
+			DEFAULT_BIND_HOST,
 		)
 		.option("--tls-cert <file>", "TLS certificate (PEM) — with --tls-key, serves https")
 		.option("--tls-key <file>", "TLS private key (PEM) — with --tls-cert, serves https")
@@ -291,7 +319,7 @@ export function createWebServeCommand(): Command {
 		.option("--json", "Print the listening address as JSON")
 		.action(async (dir: string, options: WebServeOptions) => {
 			const port = Number.parseInt(options.port ?? "4321", 10);
-			const host = options.host ?? "127.0.0.1";
+			const host = options.host ?? DEFAULT_BIND_HOST;
 			if (Boolean(options.tlsCert) !== Boolean(options.tlsKey)) {
 				throw new Error("--tls-cert and --tls-key must be provided together.");
 			}
