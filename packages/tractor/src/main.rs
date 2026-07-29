@@ -62,8 +62,14 @@ struct DaemonArgs {
     /// anything else is refused when the config loads, before this flag is even read
     /// (docs/superpowers/specs/2026-07-29-declared-surfaces-design.md, S1/S3). Named to
     /// mirror `--http-host`, but strictly stricter than it until ADR-093 lands.
-    #[arg(long, default_value = "127.0.0.1")]
-    ws_host: String,
+    ///
+    /// `Option`, not a defaulted `String` — see `http_host`'s doc comment for why: under
+    /// S5 (a flag may only narrow, never widen) a CLI default is not neutral, because a
+    /// default value is indistinguishable from an explicit operator choice. `None` means
+    /// "no flag was passed"; loopback is simply what an absent flag resolves to today,
+    /// since `daemon-ws` cannot legally declare anything wider.
+    #[arg(long)]
+    ws_host: Option<String>,
 
     /// Security mode: strict | permissive | none
     #[arg(long, default_value = "strict")]
@@ -116,11 +122,23 @@ struct DaemonArgs {
     http_port: u16,
 
     /// HTTP sidecar bind host. May only NARROW `surfaces.sidecar-http`'s declared
-    /// `expose` (or stay loopback, the default, when undeclared) — never widen past it.
-    /// See `sidecar::bind_guard::refuse_unguarded_nonloopback_bind` and
+    /// `expose` (or stay loopback when undeclared) — never widen past it. See
+    /// `sidecar::bind_guard::refuse_unguarded_nonloopback_bind` and
     /// docs/superpowers/specs/2026-07-29-declared-surfaces-design.md (S1/S3/S5).
-    #[arg(long, default_value = "127.0.0.1")]
-    http_host: String,
+    ///
+    /// `Option`, not a defaulted `String`. Under a narrowing rule, a CLI default stops
+    /// being neutral: if this flag always carried a value (its old `default_value =
+    /// "127.0.0.1"`), that value would ALWAYS be present and ALWAYS be loopback, which
+    /// ALWAYS narrows — so a `surfaces.sidecar-http` declaring `host:<ip>` could never
+    /// take effect, ever, and nothing would say so (that was the bug: the whole
+    /// declaration was inert for this surface, and it looked fine because loopback is
+    /// what most runs wanted anyway). A default value is indistinguishable from an
+    /// explicit operator choice — so there cannot be a default here. `None` means "the
+    /// operator did not pass `--http-host`; let the `surfaces` declaration decide."
+    /// `Some(v)` means "the operator IS narrowing" — `v` is validated against the
+    /// declared ceiling exactly as before.
+    #[arg(long)]
+    http_host: Option<String>,
 
     /// Base directory for streams and task-results (default: ~/.refarm)
     #[arg(long)]
@@ -422,7 +440,13 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     // dropping a booted runtime on the floor. Refusing here means nothing was started, so
     // there is nothing to tear down, and the operator sees the reason immediately instead
     // of after a full boot.
-    daemon::preflight_ws_bind_host(&args.ws_host)?;
+    //
+    // Also RESOLVES the bind host from the (now-optional) `--ws-host` flag: an absent
+    // flag means loopback (the only value `daemon-ws` can ever legally declare), a
+    // present flag is the operator narrowing/asserting one, checked exactly as before.
+    // Resolved ONCE here and reused below for `WsServer::new`, so the value that was
+    // validated is the exact value that gets bound.
+    let resolved_ws_host = daemon::preflight_ws_bind_host(args.ws_host.as_deref())?;
 
     let security_mode = match args.security_mode.as_str() {
         "permissive" => SecurityMode::Permissive,
@@ -558,6 +582,10 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
                 let state = state
                     .with_reload(tractor.clone())
                     .with_registry(tractor.plugin_registry.clone());
+                // `Option<String>`, threaded straight through: `start` resolves the actual
+                // bind host itself (absent flag ⇒ the declaration decides; present flag ⇒
+                // the operator is narrowing), because that resolution needs `auth_policy`
+                // and `declared_surface`, both already local to `start`.
                 let http_host = args.http_host.clone();
                 let http_port = args.http_port;
                 // Resolved once, above, alongside the WS preflight — `start` never reads
@@ -571,7 +599,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
                     }
                 });
                 tracing::info!(
-                    host = %args.http_host,
+                    http_host_flag = %args.http_host.as_deref().unwrap_or("<absent — surfaces.sidecar-http decides>"),
                     port = args.http_port,
                     "HTTP sidecar started (ADR-060)"
                 );
@@ -601,7 +629,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     // it down. Shut down first, then report whichever failure happened.
     let ws_result = daemon::WsServer::new(
         std::sync::Arc::new(tractor.sync.clone()),
-        args.ws_host.clone(),
+        resolved_ws_host.clone(),
         config.port,
         tractor.telemetry.clone(),
         tractor.plugin_channels.clone(),

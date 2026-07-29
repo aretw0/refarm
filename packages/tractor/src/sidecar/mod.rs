@@ -1651,7 +1651,12 @@ async fn post_connection_down(
 
 pub async fn start(
     state: SidecarState,
-    host: String,
+    // `None` means `--http-host` was not passed — under S1/S5 an absent flag is not a
+    // value at all (see main.rs's `DaemonArgs::http_host` doc comment), so the
+    // `surfaces.sidecar-http` DECLARATION decides the actual bind host below.
+    // `Some(v)` means the operator IS narrowing (or asserting) — `v` is validated
+    // against the declared ceiling, never widened past it.
+    host: Option<String>,
     port: u16,
     // The resolved `surfaces.sidecar-http` declaration (S1/S3/S5), read ONCE at daemon
     // boot (`crate::host::surfaces_from_config`) and threaded in by the caller — `start`
@@ -1664,13 +1669,18 @@ pub async fn start(
     // disk (and its enable/deny-all log line emitted) exactly once per daemon start.
     let auth_policy = auth::auth_config_from_env();
 
-    // Fail-closed bind guard: refuse a non-loopback bind the `surfaces` declaration does
-    // not permit, or names a gate that is not actually configured — see bind_guard for
-    // the full S1/S3/S5 reasoning. This is checked before anything else in `start` so a
-    // disallowed non-loopback bind never gets as far as building a router or touching a
-    // socket.
-    bind_guard::refuse_unguarded_nonloopback_bind(&host, auth_policy.is_some(), declared_surface.as_ref())
-        .map_err(|reason| anyhow::anyhow!(reason))?;
+    // Resolve the ACTUAL bind host from the flag + declaration, and validate it in the
+    // same call — see `bind_guard::resolve_sidecar_bind_host` for the full S1/S3/S5
+    // reasoning. This is the promoted question: does the declaration PERMIT this bind
+    // (or DECIDE it, when the flag was absent), and can this surface ENFORCE what the
+    // declaration claims? Checked before anything else in `start` so a disallowed
+    // non-loopback bind never gets as far as building a router or touching a socket.
+    let host = bind_guard::resolve_sidecar_bind_host(
+        host.as_deref(),
+        auth_policy.is_some(),
+        declared_surface.as_ref(),
+    )
+    .map_err(|reason| anyhow::anyhow!(reason))?;
 
     // Reclaim terminal-and-old task-results/streams artifacts in the background,
     // bounding the daemon's on-disk growth. Self-terminates when state drops.

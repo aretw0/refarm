@@ -31,8 +31,14 @@ type ClientMap = Arc<Mutex<HashMap<ClientId, mpsc::UnboundedSender<Vec<u8>>>>>;
 
 static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(0);
 
-/// Decide whether `host` is an acceptable WS bind BEFORE anything boots. PURE — no
-/// socket, no I/O, no env read.
+/// Resolve AND decide whether the WS bind is acceptable BEFORE anything boots. PURE —
+/// no socket, no I/O, no env read. `host: None` means `--ws-host` was not passed — under
+/// S1/S5 an absent flag is not a value at all, so it resolves to loopback (the only
+/// thing `surfaces.daemon-ws` can ever legally declare, enforced at config load — see
+/// `sidecar::bind_guard`'s module doc for why the declaration itself never needs
+/// consulting here). `host: Some(v)` is the operator's explicit choice, validated
+/// unconditionally exactly as before. Returns the RESOLVED host string so the caller
+/// binds the exact value that was validated, rather than re-deriving it.
 ///
 /// `WsServer::start` applies the same guard at the moment it binds (that check is the
 /// load-bearing one — it cannot be bypassed by a caller who forgets this). This exists so
@@ -41,8 +47,8 @@ static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(0);
 /// boot — storage opened, plugins instantiated, supervisor and audit subscriber spawned —
 /// only to be told the host was never acceptable. Refusing up front means nothing was
 /// started, so there is also nothing to tear down.
-pub fn preflight_ws_bind_host(host: &str) -> Result<()> {
-    crate::sidecar::bind_guard::refuse_nonloopback_ws_bind(host)
+pub fn preflight_ws_bind_host(host: Option<&str>) -> Result<String> {
+    crate::sidecar::bind_guard::resolve_ws_bind_host(host)
         .map_err(|reason| anyhow::anyhow!(reason))
 }
 

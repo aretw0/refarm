@@ -142,6 +142,55 @@ pub(crate) fn refuse_nonloopback_ws_bind(host: &str) -> Result<(), String> {
     ))
 }
 
+/// Resolve the ACTUAL sidecar bind host from the operator's `--http-host` flag (if any)
+/// and the `surfaces.sidecar-http` declaration, then validate the result — one call
+/// instead of two, so the value that gets bound is exactly the value that was checked.
+///
+/// `flag: None` means `--http-host` was not passed. Under S5 (a flag may only narrow,
+/// never widen) a CLI DEFAULT is not neutral — a default value is indistinguishable from
+/// an explicit operator choice, so main.rs's `http_host` no longer HAS one. Absence is a
+/// real third state: it means "the declaration decides", so the resolved host becomes
+/// whatever `host:<ip>` the declaration names (loopback if it declares `"loopback"` or is
+/// absent entirely — S1). This is the fix for the bug that made the whole `surfaces`
+/// slice inert for this surface: previously the flag ALWAYS carried a value (its old
+/// `default_value = "127.0.0.1"`), so it ALWAYS narrowed, so a `host:<ip>` declaration
+/// could never take effect.
+///
+/// `flag: Some(v)` means the operator IS narrowing (or asserting) — `v` is validated
+/// against the declared ceiling exactly as `refuse_unguarded_nonloopback_bind` always
+/// has: it may match the declaration, narrow it to loopback, but never widen or point
+/// elsewhere.
+///
+/// PURE: no socket, no I/O, no DNS.
+pub(crate) fn resolve_sidecar_bind_host(
+    flag: Option<&str>,
+    auth_policy_present: bool,
+    declared: Option<&SurfaceDeclaration>,
+) -> Result<String, String> {
+    let requested = match flag {
+        Some(v) => v.to_string(),
+        None => match declared.map(|decl| &decl.expose) {
+            Some(SurfaceExpose::Host(ip)) => ip.clone(),
+            Some(SurfaceExpose::Loopback) | None => "127.0.0.1".to_string(),
+        },
+    };
+    refuse_unguarded_nonloopback_bind(&requested, auth_policy_present, declared)?;
+    Ok(requested)
+}
+
+/// Resolve the ACTUAL WS bind host from the operator's `--ws-host` flag (if any), then
+/// validate it. `flag: None` (the flag was not passed) resolves to loopback — the ONLY
+/// value `surfaces.daemon-ws` may ever legally declare (enforced at config load, see the
+/// module doc), so there is nothing for a declaration to add here: an absent flag means
+/// the same thing a present-and-loopback flag would. `flag: Some(v)` is validated
+/// unconditionally, exactly as `refuse_nonloopback_ws_bind` always has — no declaration,
+/// no policy, changes that answer. PURE: no socket, no I/O, no DNS.
+pub(crate) fn resolve_ws_bind_host(flag: Option<&str>) -> Result<String, String> {
+    let requested = flag.unwrap_or("127.0.0.1").to_string();
+    refuse_nonloopback_ws_bind(&requested)?;
+    Ok(requested)
+}
+
 /// Strip a surrounding `[...]` (RFC 3986 bracketed host syntax) before parsing. SYNTAX
 /// ONLY — removes bracket characters, never touches the address's bits or family. Shared by
 /// `is_loopback_host` and `hosts_match` so both use the identical parse.
@@ -398,6 +447,63 @@ mod tests {
         assert!(refuse_unguarded_nonloopback_bind("[2001:db8::1]", true, Some(&decl)).is_ok());
     }
 
+    // ── resolve_sidecar_bind_host: Problem 1 — the declaration decides when the flag is
+    // absent, an operator-present flag narrows ─────────────────────────────────────
+
+    #[test]
+    fn resolve_sidecar_absent_flag_with_a_declared_host_binds_the_declared_host() {
+        // THE mutation guard for Problem 1. Before this fix, main.rs's `--http-host`
+        // had `default_value = "127.0.0.1"`, so the flag ALWAYS carried a value, and a
+        // present value ALWAYS narrows (S5) — so a `surfaces.sidecar-http` declaring
+        // `host:<ip>` could NEVER take effect: the resolved host would always come out
+        // "127.0.0.1", never "100.64.0.1", no matter what was declared. If this
+        // function regresses to that shape (e.g. `flag.unwrap_or("127.0.0.1")` with no
+        // declaration fallback), this assertion fails: it demands the declared host,
+        // not loopback.
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        let resolved = resolve_sidecar_bind_host(None, true, Some(&decl))
+            .expect("an absent flag + a matching declared+gated host must resolve, not refuse");
+        assert_eq!(resolved, "100.64.0.1");
+    }
+
+    #[test]
+    fn resolve_sidecar_absent_flag_with_no_declaration_defaults_to_loopback() {
+        let resolved = resolve_sidecar_bind_host(None, false, None)
+            .expect("undeclared + absent flag must default, not refuse");
+        assert_eq!(resolved, "127.0.0.1");
+    }
+
+    #[test]
+    fn resolve_sidecar_absent_flag_with_a_loopback_declaration_defaults_to_loopback() {
+        let resolved = resolve_sidecar_bind_host(None, false, Some(&declare_loopback()))
+            .expect("a loopback declaration + absent flag must default, not refuse");
+        assert_eq!(resolved, "127.0.0.1");
+    }
+
+    #[test]
+    fn resolve_sidecar_present_loopback_flag_narrows_a_host_declaration_and_is_allowed() {
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        let resolved = resolve_sidecar_bind_host(Some("127.0.0.1"), false, Some(&decl))
+            .expect("loopback narrows any declared ceiling, even without a policy");
+        assert_eq!(resolved, "127.0.0.1");
+    }
+
+    #[test]
+    fn resolve_sidecar_present_flag_wider_than_the_declaration_is_refused() {
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        let err = resolve_sidecar_bind_host(Some("0.0.0.0"), true, Some(&decl))
+            .expect_err("a flag wider than the declared ceiling must be refused");
+        assert!(err.contains("100.64.0.1"), "must name the declared ceiling: {err}");
+    }
+
+    #[test]
+    fn resolve_sidecar_present_flag_matching_the_declared_host_is_allowed() {
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
+        let resolved = resolve_sidecar_bind_host(Some("100.64.0.1"), true, Some(&decl))
+            .expect("a flag exactly matching the declaration must resolve, not refuse");
+        assert_eq!(resolved, "100.64.0.1");
+    }
+
     // ── WS guard: unconditional, no declaration or policy value flips it ────────────
 
     #[test]
@@ -446,5 +552,27 @@ mod tests {
             !err.contains("refarm auth enroll"),
             "must not offer a fix that does not work for the WS: {err}"
         );
+    }
+
+    // ── resolve_ws_bind_host: absent flag ⇒ loopback; present ⇒ unconditional refusal ──
+
+    #[test]
+    fn resolve_ws_absent_flag_defaults_to_loopback() {
+        assert_eq!(resolve_ws_bind_host(None).unwrap(), "127.0.0.1");
+    }
+
+    #[test]
+    fn resolve_ws_present_loopback_flag_is_allowed() {
+        assert_eq!(resolve_ws_bind_host(Some("127.0.0.1")).unwrap(), "127.0.0.1");
+    }
+
+    #[test]
+    fn resolve_ws_present_nonloopback_flag_is_refused_regardless_of_declaration_or_policy() {
+        // `resolve_ws_bind_host` takes no `declared`/policy argument at all — WS's
+        // `surfaces.daemon-ws` can only ever legally declare `"loopback"` (enforced at
+        // config load, see the module doc), so a non-loopback WS bind stays refused
+        // unconditionally, same as `refuse_nonloopback_ws_bind` always has.
+        assert!(resolve_ws_bind_host(Some("100.64.0.1")).is_err());
+        assert!(resolve_ws_bind_host(Some("0.0.0.0")).is_err());
     }
 }

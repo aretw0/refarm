@@ -143,20 +143,40 @@ fn daemon_cli_accepts_model_stream_responses_flag() {
 }
 
 #[test]
-fn daemon_cli_ws_host_defaults_to_loopback() {
-    // Mutation guard: the WS daemon must default to loopback, matching --http-host's
-    // default, NOT bind every interface. See ws_server::tests::
-    // bind_addr_uses_configured_host_not_all_interfaces for the corresponding
-    // pure check on the value actually passed to `TcpListener::bind`.
+fn daemon_cli_ws_host_is_absent_by_default() {
+    // Mutation guard for Problem 1: `--ws-host` (and `--http-host`) must NOT carry a
+    // `default_value` anymore. Under S5 (a flag may only narrow, never widen) a CLI
+    // default is not neutral — a default value is indistinguishable from an explicit
+    // operator choice, so a value that is ALWAYS present would ALWAYS narrow, and a
+    // `surfaces.*` declaration could never take effect. Absence is what lets the
+    // declaration decide; see `daemon::preflight_ws_bind_host` /
+    // `sidecar::bind_guard::resolve_sidecar_bind_host` for where that resolution lives.
     let cli = Cli::try_parse_from(["tractor"]).expect("cli parse");
-    assert_eq!(cli.daemon.ws_host, "127.0.0.1");
+    assert_eq!(cli.daemon.ws_host, None);
 }
 
 #[test]
 fn daemon_cli_accepts_ws_host_override() {
     let cli =
         Cli::try_parse_from(["tractor", "--ws-host", "0.0.0.0"]).expect("cli parse");
-    assert_eq!(cli.daemon.ws_host, "0.0.0.0");
+    assert_eq!(cli.daemon.ws_host, Some("0.0.0.0".to_string()));
+}
+
+#[test]
+fn daemon_cli_http_host_is_absent_by_default() {
+    // Same mutation guard as `daemon_cli_ws_host_is_absent_by_default`, for the flag
+    // that was ACTUALLY broken by a `default_value` (`--ws-host` is unconditionally
+    // refused non-loopback regardless, so its old default was harmless; `--http-host`'s
+    // default is what made `surfaces.sidecar-http` inert — see main.rs's doc comment).
+    let cli = Cli::try_parse_from(["tractor"]).expect("cli parse");
+    assert_eq!(cli.daemon.http_host, None);
+}
+
+#[test]
+fn ws_host_preflight_resolves_absent_flag_to_loopback() {
+    // `daemon::preflight_ws_bind_host` now RESOLVES the bind host too (not just
+    // validates): an absent flag resolves to loopback and is returned, not just Ok(()).
+    assert_eq!(daemon::preflight_ws_bind_host(None).unwrap(), "127.0.0.1");
 }
 
 #[test]
@@ -166,9 +186,9 @@ fn ws_host_preflight_refuses_nonloopback_before_boot() {
     // asserts `run_daemon`'s FIRST act rejects a non-loopback host, PURE: no runtime
     // booted, no socket opened. Mutation guard for deleting the preflight call —
     // without it the refusal moves to after a full boot (and used to skip shutdown).
-    assert!(daemon::preflight_ws_bind_host("0.0.0.0").is_err());
-    assert!(daemon::preflight_ws_bind_host("100.64.0.1").is_err());
-    assert!(daemon::preflight_ws_bind_host("127.0.0.1").is_ok());
+    assert!(daemon::preflight_ws_bind_host(Some("0.0.0.0")).is_err());
+    assert!(daemon::preflight_ws_bind_host(Some("100.64.0.1")).is_err());
+    assert!(daemon::preflight_ws_bind_host(Some("127.0.0.1")).is_ok());
 }
 
 #[test]
@@ -177,7 +197,7 @@ fn ws_host_preflight_ignores_a_configured_auth_policy() {
     // unlock the bind. Setting the env the sidecar uses must change nothing here.
     // Uses a path that need not exist: the preflight must never read it at all.
     std::env::set_var("REFARM_AUTH_POLICY", "/nonexistent/policy.json");
-    let refused = daemon::preflight_ws_bind_host("100.64.0.1").is_err();
+    let refused = daemon::preflight_ws_bind_host(Some("100.64.0.1")).is_err();
     std::env::remove_var("REFARM_AUTH_POLICY");
     assert!(refused, "a policy must not authorize a non-loopback WS bind");
 }
