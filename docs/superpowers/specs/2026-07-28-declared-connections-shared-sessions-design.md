@@ -377,10 +377,11 @@ This reshapes step 3: supervision is not "reconnect on drop". It is **detect the
 (the probe), re-establish silently when no human is needed, and otherwise hold the operator's
 attention request until they answer.**
 
-**Open for the operator:** whether an unacknowledged attention request should expire (and the
-connection settle as failed) or park indefinitely. The default proposed here is to park — an expiry
-recreates the original defect on a longer timer, and a parked connection is discoverable in status
-while an expired one is another silence.
+**Settled by the operator (2026-07-28): an unacknowledged request parks indefinitely.** The
+connection stays in `needs-attention` until answered, discoverable in status, and never decides on
+its own that the operator is not coming. An expiry would recreate the original defect on a longer
+timer, and an expired request is one more silence — which is the failure mode this decision exists
+to remove.
 
 ## The contract
 
