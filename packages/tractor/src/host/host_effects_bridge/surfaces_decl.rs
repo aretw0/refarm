@@ -14,9 +14,13 @@
 //
 // S3 — a surface may not declare a gate it cannot enforce, checked HERE, AT LOAD (not
 // deferred to bind time): `sidecar-http` has real per-request bearer middleware
-// (`sidecar::auth::auth_middleware`) and may declare `"gate": "device-token"`; `daemon-ws`
-// has NO middleware at all (ADR-093's credential handshake is not implemented), so it may
-// declare only `"loopback"` — anything else is refused here, naming ADR-093, rather than
+// (`sidecar::auth::auth_middleware`) and may declare `"gate": "device-token"`. `daemon-ws`
+// gained its own enforcement when ADR-093's `Sec-WebSocket-Protocol` credential handshake
+// shipped (`daemon::ws_server`'s `accept_hdr_async` callback, gated by the SAME
+// `sidecar::auth::AuthPolicy`) — so it too may now declare `"gate": "device-token"` on a
+// non-loopback `expose`, exactly like `sidecar-http`. Both surfaces still refuse a
+// non-loopback `expose` with no gate at all, or a gate the surface cannot enforce (checked
+// against `surface_enforceable_gate` below), naming the reason here, at load, rather than
 // silently accepted and only caught later at bind time.
 //
 // `expose: "tailnet"` is deliberately IN the vocabulary and REJECTED: who resolves this
@@ -84,7 +88,9 @@ pub struct SurfaceDeclaration {
 pub(crate) fn surface_enforceable_gate(surface: &str) -> Option<SurfaceGate> {
     match surface {
         SURFACE_SIDECAR_HTTP => Some(SurfaceGate::DeviceToken),
-        SURFACE_DAEMON_WS => None,
+        // ADR-093's `Sec-WebSocket-Protocol` credential handshake gives `daemon-ws` the
+        // same enforcement `sidecar-http` has — see the module doc's S3 section.
+        SURFACE_DAEMON_WS => Some(SurfaceGate::DeviceToken),
         _ => None,
     }
 }
@@ -167,10 +173,13 @@ fn parse_one_surface(name: &str, value: &serde_json::Value) -> Result<SurfaceDec
         // only witness is a comment saying "trust me").
         match surface_enforceable_gate(name) {
             None => {
+                // Currently unreachable for either known surface (both `sidecar-http` and
+                // `daemon-ws`, since ADR-093, enforce `device-token`) — kept as the
+                // fail-shut default for any future surface `KNOWN_SURFACES` grows to
+                // include before `surface_enforceable_gate` is taught its enforcement.
                 return Err(format!(
                     "surfaces['{name}'].expose = {expose_raw:?}: '{name}' has no credential \
-                     gate implemented at all (ADR-093's credential handshake is not \
-                     implemented yet) — it may declare only \"loopback\""
+                     gate implemented at all — it may declare only \"loopback\""
                 ));
             }
             Some(capable) => match gate {

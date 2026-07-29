@@ -183,28 +183,39 @@ fn parse_surfaces_daemon_ws_loopback_is_allowed() {
 }
 
 #[test]
-fn parse_surfaces_daemon_ws_host_is_rejected_naming_adr_093() {
+fn parse_surfaces_daemon_ws_host_without_a_gate_is_rejected() {
+    // Mirrors `parse_surfaces_sidecar_http_host_without_a_gate_is_rejected`: since
+    // ADR-093, `daemon-ws` CAN enforce `device-token` — but a non-loopback `expose` with
+    // no gate at all still recreates the hole this design closes (a wide bind whose only
+    // witness is silence), so it is refused for the same reason, not "unenforceable".
     let cfg = serde_json::json!({ "surfaces": { "daemon-ws": { "expose": "host:100.64.0.1" } } });
     let err = parse_surfaces(&cfg).unwrap_err();
-    assert!(err.contains("ADR-093"), "must name the tracking ADR: {err}");
-    assert!(err.contains("loopback"), "must say what IS legal: {err}");
+    assert!(err.contains("needs a gate"), "unexpected: {err}");
+    assert!(err.contains("device-token"), "must name the fix: {err}");
 }
 
 #[test]
-fn parse_surfaces_daemon_ws_host_with_a_gate_declared_is_still_rejected_naming_adr_093() {
-    // A NAMED gate does not help `daemon-ws`: it has no enforcement mechanism at all, so
-    // no gate value — known or not — can make a non-loopback expose legal for it.
+fn parse_surfaces_daemon_ws_host_with_device_token_gate_is_allowed() {
+    // THE ADR-093 mutation guard: `daemon-ws` used to be unable to declare anything but
+    // "loopback" no matter what gate was named, because it had no enforcement mechanism
+    // at all. Now that `daemon::ws_server`'s `Sec-WebSocket-Protocol` handshake enforces
+    // `device-token` the same way the sidecar does, this declaration must parse — exactly
+    // like `parse_surfaces_sidecar_http_host_with_device_token_gate_is_allowed`.
     let cfg = serde_json::json!({
         "surfaces": { "daemon-ws": { "expose": "host:100.64.0.1", "gate": "device-token" } }
     });
-    let err = parse_surfaces(&cfg).unwrap_err();
-    assert!(err.contains("ADR-093"), "unexpected: {err}");
+    let out = parse_surfaces(&cfg).unwrap();
+    let decl = &out[SURFACE_DAEMON_WS];
+    assert_eq!(decl.expose, SurfaceExpose::Host("100.64.0.1".to_string()));
+    assert_eq!(decl.gate, Some(SurfaceGate::DeviceToken));
 }
 
 #[test]
 fn surface_enforceable_gate_table_matches_the_design() {
+    // Both Rust listeners enforce `device-token` since ADR-093 shipped the WS handshake —
+    // the mutation guard for `daemon-ws` reverting to `None` (unenforceable) here.
     assert_eq!(surface_enforceable_gate(SURFACE_SIDECAR_HTTP), Some(SurfaceGate::DeviceToken));
-    assert_eq!(surface_enforceable_gate(SURFACE_DAEMON_WS), None);
+    assert_eq!(surface_enforceable_gate(SURFACE_DAEMON_WS), Some(SurfaceGate::DeviceToken));
     assert_eq!(surface_enforceable_gate("unknown-surface"), None);
 }
 
@@ -258,11 +269,28 @@ fn resolve_surfaces_malformed_file_fails_shut() {
 #[test]
 fn resolve_surfaces_daemon_ws_violation_is_refused_at_load() {
     // "Refused at load" (design doc S3): a `daemon-ws` declaration wider than loopback
-    // fails resolution itself — the caller never gets as far as a bind attempt.
+    // with NO gate fails resolution itself — the caller never gets as far as a bind
+    // attempt. (Since ADR-093, a GATED `host:<ip>` declaration for `daemon-ws` is legal —
+    // see `resolve_surfaces_daemon_ws_host_with_gate_is_allowed` — so this specifically
+    // tests the still-illegal ungated shape, not "any non-loopback daemon-ws".)
     let _env = crate::test_support::env_lock();
     ensure_sovereign_dir_env();
     let dir = tempfile::tempdir().unwrap();
     write_surfaces_config(dir.path(), r#"{"daemon-ws":{"expose":"host:0.0.0.0"}}"#);
     let err = resolve_surfaces(dir.path()).unwrap_err();
-    assert!(err.contains("ADR-093"), "unexpected: {err}");
+    assert!(err.contains("needs a gate"), "unexpected: {err}");
+}
+
+#[test]
+fn resolve_surfaces_daemon_ws_host_with_gate_is_allowed() {
+    let _env = crate::test_support::env_lock();
+    ensure_sovereign_dir_env();
+    let dir = tempfile::tempdir().unwrap();
+    write_surfaces_config(
+        dir.path(),
+        r#"{"daemon-ws":{"expose":"host:100.64.0.1","gate":"device-token"}}"#,
+    );
+    let out = resolve_surfaces(dir.path()).unwrap();
+    assert_eq!(out[SURFACE_DAEMON_WS].expose, SurfaceExpose::Host("100.64.0.1".to_string()));
+    assert_eq!(out[SURFACE_DAEMON_WS].gate, Some(SurfaceGate::DeviceToken));
 }
