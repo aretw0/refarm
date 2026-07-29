@@ -44,6 +44,10 @@ pub(crate) enum Permission {
     ShellSpawn,
     /// Make outbound network requests (wasi:http/outgoing-handler).
     NetworkOutbound,
+    /// Ask for a declared connection by name (a long-lived interactive
+    /// process the OPERATOR named in `.refarm/config.json`). The plugin
+    /// never supplies argv, patterns, or timeouts — only the name.
+    ConnectionUse,
 }
 
 /// How much authority a permission hands a plugin — the axis the persona weighs
@@ -81,6 +85,7 @@ impl Permission {
         Permission::FsWrite,
         Permission::ShellSpawn,
         Permission::NetworkOutbound,
+        Permission::ConnectionUse,
     ];
 
     /// The canonical wire string (what appears in `plugin.json`).
@@ -90,6 +95,7 @@ impl Permission {
             Permission::FsWrite => "fs:write",
             Permission::ShellSpawn => "shell:spawn",
             Permission::NetworkOutbound => "network:outbound",
+            Permission::ConnectionUse => "connection:use",
         }
     }
 
@@ -115,6 +121,7 @@ impl Permission {
             Permission::FsWrite => "Write and edit files",
             Permission::ShellSpawn => "Run system commands",
             Permission::NetworkOutbound => "Make network requests",
+            Permission::ConnectionUse => "Use a declared connection",
         }
     }
 
@@ -127,6 +134,7 @@ impl Permission {
             Permission::FsWrite => RiskLevel::Medium,
             Permission::NetworkOutbound => RiskLevel::Medium,
             Permission::ShellSpawn => RiskLevel::High,
+            Permission::ConnectionUse => RiskLevel::Medium,
         }
     }
 }
@@ -179,7 +187,7 @@ mod tests {
         // decision + updating the mirrored TS table + the drift guard).
         assert_eq!(
             Permission::ALL.len(),
-            4,
+            5,
             "vocabulary size changed — update the TS mirror + guard"
         );
     }

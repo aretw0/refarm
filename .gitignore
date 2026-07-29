@@ -184,3 +184,7 @@ __pycache__/
 packages/*/src/bindings.rs
 validations/**/src/bindings.rs
 !packages/tractor/tests/fixtures/**/src/bindings.rs
+
+# Superpowers subagent-driven-development scratch (ledger, briefs, reports, review packages).
+# Per-plan working area; the durable record is git history + docs/superpowers/.
+.superpowers/
