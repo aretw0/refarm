@@ -16,6 +16,7 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
+import { quoteCommandArgIfNeeded } from "@refarm.dev/cli/command-handoff";
 import {
 	createProcessHandoffDisplay,
 	runProcessHandoff,
@@ -563,9 +564,12 @@ async function printConnectionUp(
 		result = await (deps?.connectionUp ?? requestConnectionUp)(name, timeoutMs);
 	} catch (error) {
 		if (isAbortError(error)) {
+			// Do NOT claim to know whether the establish is still running — that is not
+			// knowable from here (see `isAbortError`'s doc). Point at the two things the
+			// operator can actually do: check reality, or force it down.
 			printConnectionRequestTimedOut(
 				"up",
-				`connection '${name}': the request timed out, but the establish may still be running on the host — it can wait on a phone approval, and this request did not cancel it.`,
+				`connection '${name}': timed out waiting for a reply. It may or may not still be establishing on the host — check \`${CONNECTION_STATUS_JSON_COMMAND}\`, or force it down with \`${refarmCommand(["connection", "down", quoteCommandArgIfNeeded(name)])}\`.`,
 				options,
 			);
 			return;

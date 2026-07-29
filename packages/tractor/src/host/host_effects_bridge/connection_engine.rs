@@ -225,7 +225,13 @@ pub(crate) struct Claim {
 
 struct LiveConnection {
     status: ConnectionStatus,
-    /// Stop handle for the held process; `None` once it is gone.
+    /// Stop handle for the held process; `None` once it is gone. Populated by `ensure`
+    /// as soon as a process EXISTS — right after `spawn` returns `Ok`, not only once
+    /// `establish` reaches `Ready` (a prior version waited for `Ready`; see `ensure`'s
+    /// own comment at the point it is set for why that left `Connecting` entries
+    /// unrecoverable). This is what lets `stop()` reach the process — and take the
+    /// entry to `Down` — even for an attempt that is still `Connecting`, including one
+    /// whose `ensure` call will never run again at all (see `stop`'s own doc).
     stop: Option<Arc<Notify>>,
     /// (claim id, owner).
     claims: Vec<(u64, String)>,
@@ -442,16 +448,30 @@ impl ConnectionRegistry {
             }
         };
 
+        let stop = process.stop.clone();
         // A process now genuinely exists — THIS is what `spawn_count` counts, never an
-        // attempt that errored before one did.
+        // attempt that errored before one did. `entry.stop` is handed to the registry
+        // HERE too, not only in the `Ready` branch far below. Reason: this whole `async
+        // fn` can simply STOP RUNNING without any of its own cleanup code ever
+        // executing — `post_connection_up` (`sidecar/mod.rs`) awaits `ensure` inline
+        // inside an axum handler, and axum DROPS a handler's future outright when the
+        // HTTP client disconnects (e.g. this CLI's own request hitting its timeout). A
+        // dropped future runs no more `.await` points, ever — not `mark_failed`, not
+        // the commit block below, nothing. Without an early `entry.stop`, the process
+        // spawned above becomes unreachable (only the detached killer task inside
+        // `spawn_establish_process` still holds a reference to its `Notify`, and
+        // nothing else can ever signal it), and the entry is stuck reporting
+        // `Connecting` forever. With it, a LATER `stop()` call — even though nothing
+        // here ever resumes to see it — can still find the process, signal it, and
+        // take the entry to `Down`. See `stop`'s own doc for that half.
         {
             let mut live = self.live.lock().expect("connection registry poisoned");
             if let Some(entry) = live.get_mut(name) {
                 entry.spawn_count += 1;
+                entry.stop = Some(stop.clone());
             }
         }
 
-        let stop = process.stop.clone();
         // `new` RESUMES the connection's stream: the frame cursor continues from the last
         // published sequence so a consumer following this name never sees it go backwards.
         let mut publisher = ConnectionFramePublisher::new(sync, name, now_ns());
@@ -490,7 +510,7 @@ impl ConnectionRegistry {
                 }
                 EstablishOutcome::Ready => {
                     entry.status = ConnectionStatus::Up;
-                    entry.stop = Some(stop);
+                    entry.stop = Some(stop); // already set when spawned above; re-affirmed
                 }
                 // Timeout/Exit while preempted: `entry.status`/`entry.stop` already
                 // reflect the operator's `stop()` (Down, no handle) — leave that alone
@@ -535,6 +555,14 @@ impl ConnectionRegistry {
     /// A connection with no live entry (never established) or already `Down` (with no
     /// claims, by construction — see `apply_linger`) is a clean no-op returning 0: stop is
     /// idempotent, not an error over a state that already matches what was asked for.
+    ///
+    /// This is also the ONLY recovery path for an entry WEDGED at `Connecting` — the
+    /// `ensure` call that put it there can be gone for good (its future dropped mid-
+    /// establish by an axum handler on client disconnect; see `ensure`'s comment where
+    /// `entry.stop` is populated), never to run its own cleanup. `stop` does not care
+    /// whether anything is still awaiting: it reads `entry.stop` directly and, if
+    /// populated, signals whatever process it points at and takes the entry to `Down`
+    /// regardless of the CURRENT `status`.
     pub(crate) fn stop(&self, name: &str) -> usize {
         let mut live = self.live.lock().expect("connection registry poisoned");
         let Some(entry) = live.get_mut(name) else {

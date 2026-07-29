@@ -89,13 +89,46 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 		expect(output).toContain("claims: 1");
 	});
 
-	it("up on an unrecognised (forward-compatible) status shows it AS ITSELF, never coerced to 'down'", () => {
-		// D12 Minor: a status this CLI does not know about yet (D13's planned
-		// `needs-attention`, or anything else the host starts reporting later) must be
-		// shown verbatim — defaulting an unrecognised-but-real state to "down" is a lie
-		// by omission the same way silently swallowing the runtime being down is.
-		const state = operatorState({ status: "needs-attention" });
-		expect(state.status).toBe("needs-attention");
+	it("an unrecognised (forward-compatible) sidecar status survives parsing AS ITSELF, never coerced to 'down'", async () => {
+		// D12 Minor, and a re-review catch on the FIRST version of this test: it built a
+		// test-local literal `ConnectionOperatorState` and read the field straight back,
+		// which passes whether or not the production parser coerces anything — it never
+		// called `asConnectionOperatorState` at all. This drives the REAL sidecar
+		// response parser (`requestConnectionUp`, via a stubbed `fetch`) with a status
+		// D13 plans to introduce (`needs-attention`) but this CLI does not know about
+		// yet — coercing it to "down" would be exactly the D12 lie this exists to catch.
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(
+				jsonResponse({
+					name: "serpro-vpn",
+					status: "needs-attention",
+					sinceNs: null,
+					claims: 1,
+					claim: 3,
+				}),
+			),
+		);
+
+		const result = await requestConnectionUp("serpro-vpn", 2_000);
+		expect(result).toMatchObject({ outcome: "ok", state: { status: "needs-attention" } });
+	});
+
+	it("an unrecognised status also survives the human print path, never rendered as 'down'", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const connectionUp = vi.fn(async (): Promise<ConnectionOperatorOutcome> => ({
+			outcome: "ok",
+			state: operatorState({ status: "needs-attention" }),
+		}));
+
+		await createConnectionCommand({ connectionUp, loadConfig: () => ({}) }).parseAsync(
+			["up", "serpro-vpn"],
+			{ from: "user" },
+		);
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("needs-attention");
+		expect(output).not.toMatch(/:\s*down\b/);
 	});
 
 	// ─── up: sidecar request timeout — CRITICAL-1 ────────────────────────────
@@ -357,7 +390,12 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 		return Object.assign(new Error("This operation was aborted."), { name: "AbortError" });
 	}
 
-	it("up: a request that ran past ITS OWN generous timeout reports an honest 'still establishing' message, not runtime-unavailable", async () => {
+	it("up: a request that ran past ITS OWN generous timeout reports an honest message — never a claim about whether it cancelled anything", async () => {
+		// Re-review regression: the message used to assert "this request did not cancel
+		// it" — stated as fact, when it is NOT knowable from the CLI: whether the
+		// establish is still alive on the host cannot be determined from an aborted HTTP
+		// request. The honest message says what IS actionable — check status, or force
+		// it down — and claims nothing about cancellation either way.
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const connectionUp = vi.fn(async (): Promise<ConnectionOperatorOutcome> => {
 			throw abortError();
@@ -369,12 +407,15 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 		);
 
 		const output = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("still be running on the host");
+		expect(output).toContain("may or may not still be establishing");
+		expect(output).toContain("refarm connection status");
+		expect(output).toContain("refarm connection down serpro-vpn");
+		expect(output).not.toContain("did not cancel");
 		expect(output).not.toContain("Refarm runtime is not running");
 		expect(process.exitCode).toBe(1);
 	});
 
-	it("up: an aborted request reports connection-request-timed-out as JSON, with a real nextCommand", async () => {
+	it("up: an aborted request reports connection-request-timed-out as JSON, with a real nextCommand and an honest message", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const connectionUp = vi.fn(async (): Promise<ConnectionOperatorOutcome> => {
 			throw abortError();
@@ -393,7 +434,9 @@ describe("refarm connection up / down (hermetic — an injected sidecar client, 
 			error: "connection-request-timed-out",
 			nextCommand: "refarm connection status --json",
 		});
-		expect(output.message).toContain("still be running on the host");
+		expect(output.message).toContain("may or may not still be establishing");
+		expect(output.message).toContain("refarm connection down serpro-vpn");
+		expect(output.message).not.toContain("did not cancel");
 		expect(process.exitCode).toBe(1);
 	});
 

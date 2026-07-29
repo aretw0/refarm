@@ -741,6 +741,88 @@ mod connection_engine_tests {
         watcher.abort();
     }
 
+    #[tokio::test]
+    async fn stop_recovers_an_entry_wedged_at_connecting_by_a_dropped_establish_future() {
+        // Newly-introduced-by-the-fix-above regression (caught in re-review): the
+        // previous test proves `stop` beats an `ensure` that is still ALIVE and
+        // running. It says nothing about an `ensure` whose future is simply GONE —
+        // which is exactly what happens in production: `post_connection_up`
+        // (`sidecar/mod.rs`) awaits `ensure` inline inside an axum handler, and axum
+        // DROPS a handler's future outright when the HTTP client disconnects (e.g.
+        // this CLI's own request hitting ITS OWN timeout while the host is still
+        // establishing). A dropped future runs no more of its own code, ever — no
+        // `mark_failed`, no commit block, nothing settles the entry.
+        //
+        // `tokio::time::timeout` dropping its inner future on elapse is the same
+        // shape (a future that stops being polled mid-`.await`), and is the standard
+        // way to exercise this without standing up axum. Before `entry.stop` was
+        // populated as soon as a process exists (rather than only once `establish`
+        // reaches `Ready`), this scenario left the entry stuck reporting `Connecting`
+        // forever, with the spawned process reachable by NOTHING — not even `stop`.
+        let sync = sync();
+        let decls = catalog(); // probeIntervalMs: 1, readyTimeoutMs: 200
+        let reg = ConnectionRegistry::new();
+        let clk = clock();
+
+        let stop_handle = Arc::new(Notify::new());
+        let spawner_stop = stop_handle.clone();
+        let spawn = move |_decl: &ConnectionDeclaration| {
+            let (tx, rx) = mpsc::channel(8);
+            std::mem::forget(tx); // the process "holds" — never ends on its own
+            Ok(FlowProcess { chunks: rx, stop: spawner_stop.clone() })
+        };
+
+        let observed_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let watcher = {
+            let stop_handle = stop_handle.clone();
+            let observed_stop = observed_stop.clone();
+            tokio::spawn(async move {
+                stop_handle.notified().await;
+                observed_stop.store(true, Ordering::SeqCst);
+            })
+        };
+        tokio::task::yield_now().await;
+
+        // Never succeeds, so `establish` is still inside its probe-loop `.await` when
+        // the 10ms deadline below elapses and drops this `ensure` call outright.
+        let mut probe = || std::future::ready(false);
+
+        let ensure_result = tokio::time::timeout(
+            std::time::Duration::from_millis(10),
+            reg.ensure("c", "plugin.a", &decls, spawn, &mut probe, &sync, &clk),
+        )
+        .await;
+        assert!(
+            ensure_result.is_err(),
+            "sanity: the ensure future must have been dropped mid-flight (Elapsed), \
+             not completed — otherwise this test is not exercising the wedge at all"
+        );
+
+        // Confirm the wedge exists BEFORE calling `stop`: nothing inside `ensure` ran
+        // again to settle it, so it must still read `Connecting`.
+        assert!(
+            matches!(reg.status("c"), ConnectionStatus::Connecting),
+            "sanity: the entry must be wedged at Connecting — the dropped `ensure` \
+             future never reached its own cleanup"
+        );
+
+        let active_claims = reg.stop("c");
+        assert_eq!(active_claims, 0, "no claim was ever issued to this wedged attempt");
+        assert!(
+            matches!(reg.status("c"), ConnectionStatus::Down),
+            "stop must be able to un-wedge a Connecting entry all the way to Down, \
+             not just no-op over a status it doesn't recognise"
+        );
+
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        assert!(
+            observed_stop.load(Ordering::SeqCst),
+            "stop must still reach and signal the orphaned process — an entry wedged \
+             by a dropped future must not leak the process it was holding"
+        );
+        watcher.abort();
+    }
+
     fn permissive_policy() -> HostEffectPolicy {
         HostEffectPolicy::default()
     }
