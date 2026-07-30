@@ -251,12 +251,99 @@ describe("resolveBaseSurfaceStatus", () => {
 			{
 				operatorAttentionScope: "connection-up:mobile",
 				operatorAttentionWindowMs: 120000,
+				operatorAttentionProfile: "mobile-ready",
 			},
 		);
 
 		expect(resolveOperatorAttention).toHaveBeenCalledWith({
 			operatorAttentionScope: "connection-up:mobile",
 			operatorAttentionWindowMs: 120000,
+			operatorAttentionProfile: "mobile-ready",
 		});
+	});
+
+	it("aplica defaults do attention-profile no resolver interno", async () => {
+		const model = await resolveBaseSurfaceStatus(
+			{
+				resolveRuntime: vi.fn().mockResolvedValue({
+					command: "runtime",
+					operation: "status",
+					ok: true,
+					nextAction: null,
+					nextActions: [],
+					nextCommand: null,
+					nextCommands: [],
+				}),
+				resolveModel: vi.fn().mockResolvedValue({
+					command: "model",
+					operation: "current",
+					ok: true,
+					nextAction: null,
+					nextActions: [],
+					nextCommand: null,
+					nextCommands: [],
+				}),
+				resolveHealth: vi.fn().mockResolvedValue({
+					command: "health",
+					operation: "audit",
+					ok: true,
+					issueCount: 0,
+					recommendations: [],
+					nextAction: null,
+					nextActions: [],
+					nextCommand: null,
+					nextCommands: [],
+				}),
+			},
+			{ operatorAttentionProfile: "cross-device-handoff" },
+		);
+
+		expect(model.units.map((unit) => unit.id)).toContain("operator-attention");
+		expect(model.units.find((unit) => unit.id === "operator-attention")).toMatchObject({
+			state: "blocked",
+			summary: "Canal de atenção ainda não armado para 'attention:cross-device-handoff'.",
+		});
+		expect(model.nextCommand).toBe(
+			"node scripts/operator-attention-gate.mjs 'attention:cross-device-handoff' --prepare-only --window-ms 120000 --json",
+		);
+	});
+
+	it("falha com profile desconhecido", async () => {
+		await expect(
+			resolveBaseSurfaceStatus(
+				{
+					resolveRuntime: vi.fn().mockResolvedValue({
+						command: "runtime",
+						operation: "status",
+						ok: true,
+						nextAction: null,
+						nextActions: [],
+						nextCommand: null,
+						nextCommands: [],
+					}),
+					resolveModel: vi.fn().mockResolvedValue({
+						command: "model",
+						operation: "current",
+						ok: true,
+						nextAction: null,
+						nextActions: [],
+						nextCommand: null,
+						nextCommands: [],
+					}),
+					resolveHealth: vi.fn().mockResolvedValue({
+						command: "health",
+						operation: "audit",
+						ok: true,
+						issueCount: 0,
+						recommendations: [],
+						nextAction: null,
+						nextActions: [],
+						nextCommand: null,
+						nextCommands: [],
+					}),
+				},
+				{ operatorAttentionProfile: "unknown-profile" },
+			),
+		).rejects.toThrow(/Unknown --attention-profile/);
 	});
 });

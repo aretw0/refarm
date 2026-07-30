@@ -1,7 +1,7 @@
 import type { StatusOptions } from "@refarm.dev/cli/status";
 import {
-	HOMESTEAD_HOST_RENDERER_KINDS,
-	requiredHomesteadHostRendererCapabilities,
+    HOMESTEAD_HOST_RENDERER_KINDS,
+    requiredHomesteadHostRendererCapabilities,
 } from "@refarm.dev/homestead/sdk/host-renderer";
 import fs from "node:fs";
 import os from "node:os";
@@ -40,8 +40,8 @@ vi.mock("../../src/commands/runtime-readiness.js", () => ({
 }));
 
 import {
-	STATUS_INSPECT_TRUST_ACTION_ID,
-	STATUS_OPEN_REPORT_ACTION_ID,
+    STATUS_INSPECT_TRUST_ACTION_ID,
+    STATUS_OPEN_REPORT_ACTION_ID,
 } from "../../src/commands/status-surfaces.js";
 import { createStatusCommand, statusCommand } from "../../src/commands/status.js";
 
@@ -157,6 +157,7 @@ describe("statusCommand", () => {
 		expect(help).toContain("refarm status --base");
 		expect(help).toContain("refarm status --base --json");
 		expect(help).toContain("refarm status --base --attention-scope connection-up:ovpn-serpro");
+		expect(help).toContain("refarm status --base --attention-profile cross-device-handoff");
 	});
 
 	it("prints the base model as JSON", async () => {
@@ -198,6 +199,7 @@ describe("statusCommand", () => {
 		expect(resolveBaseSurfaceStatus).toHaveBeenCalledWith({
 			operatorAttentionScope: undefined,
 			operatorAttentionWindowMs: undefined,
+			operatorAttentionProfile: undefined,
 		});
 
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
@@ -241,6 +243,40 @@ describe("statusCommand", () => {
 		expect(resolveBaseSurfaceStatus).toHaveBeenCalledWith({
 			operatorAttentionScope: "connection-up:phone",
 			operatorAttentionWindowMs: 90000,
+			operatorAttentionProfile: undefined,
+		});
+		spy.mockRestore();
+	});
+
+	it("encaminha attention-profile para status --base", async () => {
+		const resolveBaseSurfaceStatus = vi.fn().mockResolvedValue({
+			schemaVersion: 1,
+			command: "status",
+			operation: "base",
+			ok: true,
+			units: [],
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
+		});
+		const command = createStatusCommand({ resolveBaseSurfaceStatus });
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			[
+				"--base",
+				"--json",
+				"--attention-profile",
+				"cross-device-handoff",
+			],
+			{ from: "user" },
+		);
+
+		expect(resolveBaseSurfaceStatus).toHaveBeenCalledWith({
+			operatorAttentionScope: undefined,
+			operatorAttentionWindowMs: undefined,
+			operatorAttentionProfile: "cross-device-handoff",
 		});
 		spy.mockRestore();
 	});
@@ -250,7 +286,17 @@ describe("statusCommand", () => {
 			statusCommand.parseAsync(["--attention-scope", "connection-up:phone"], {
 				from: "user",
 			}),
-		).rejects.toThrow(/--attention-scope\/--attention-window-ms require --base/);
+		).rejects.toThrow(
+			/--attention-scope\/--attention-window-ms\/--attention-profile require --base/,
+		);
+
+		await expect(
+			statusCommand.parseAsync(["--attention-profile", "cross-device-handoff"], {
+				from: "user",
+			}),
+		).rejects.toThrow(
+			/--attention-scope\/--attention-window-ms\/--attention-profile require --base/,
+		);
 	});
 
 	it("builds status from a local runtime snapshot without booting tractor-ts", async () => {

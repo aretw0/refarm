@@ -26,7 +26,23 @@ export interface BaseSurfaceStatusDeps {
 export interface BaseSurfaceStatusOptions {
 	operatorAttentionScope?: string;
 	operatorAttentionWindowMs?: number;
+	operatorAttentionProfile?: string;
 }
+
+const OPERATOR_ATTENTION_PROFILES: Record<string, { scope: string; windowMs: number }> = {
+	"cross-device-handoff": {
+		scope: "attention:cross-device-handoff",
+		windowMs: 120000,
+	},
+	"mobile-ready": {
+		scope: "attention:mobile-ready",
+		windowMs: 90000,
+	},
+	"operator-sync": {
+		scope: "attention:operator-sync",
+		windowMs: 300000,
+	},
+};
 
 export async function resolveBaseSurfaceStatus(
 	deps: BaseSurfaceStatusDeps = {},
@@ -67,13 +83,16 @@ async function resolveHealthBaseInput(): Promise<BaseSurfaceModelInput["health"]
 async function resolveOperatorAttentionBaseInput(
 	options: BaseSurfaceStatusOptions,
 ): Promise<OperatorAttentionGateStatus | null> {
+	const profile = resolveOperatorAttentionProfile(options.operatorAttentionProfile);
 	const scope =
 		options.operatorAttentionScope?.trim() ||
+		profile?.scope ||
 		process.env.REFARM_OPERATOR_ATTENTION_SCOPE?.trim();
 	if (!scope) return null;
 
 	const defaultWindowMs =
 		options.operatorAttentionWindowMs ??
+		profile?.windowMs ??
 		Number(process.env.REFARM_OPERATOR_ATTENTION_WINDOW_MS ?? 5 * 60 * 1000);
 	const filePath = operatorAttentionStatePath(scope);
 	const state = readJson(filePath);
@@ -114,4 +133,19 @@ function readJson(filePath: string): Record<string, unknown> {
 	} catch {
 		return {};
 	}
+}
+
+function resolveOperatorAttentionProfile(
+	profileName?: string,
+): { scope: string; windowMs: number } | null {
+	const name = profileName?.trim();
+	if (!name) return null;
+	const profile = OPERATOR_ATTENTION_PROFILES[name];
+	if (!profile) {
+		const available = Object.keys(OPERATOR_ATTENTION_PROFILES).join(", ");
+		throw new Error(
+			`Unknown --attention-profile '${name}'. Available profiles: ${available}.`,
+		);
+	}
+	return profile;
 }

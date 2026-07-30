@@ -1,10 +1,10 @@
 import { printJson } from "@refarm.dev/capabilities/envelope";
 import {
-	assertStatusJson,
-	buildStatusJson,
-	formatStatusSummary,
-	parseStatusJson,
-	type StatusJson,
+    assertStatusJson,
+    buildStatusJson,
+    formatStatusSummary,
+    parseStatusJson,
+    type StatusJson,
 } from "@refarm.dev/cli/status";
 import { isHomesteadHostRendererKind } from "@refarm.dev/homestead/sdk/host-renderer";
 import type { BaseSurfaceModel } from "@refarm.dev/operator-state";
@@ -15,21 +15,21 @@ import { resolveRefarmRenderer } from "../renderers.js";
 import { resolveTractorNamespace } from "../utils/tractor-store.js";
 import { formatBaseSurfaceModel } from "./base-surface-output.js";
 import {
-	resolveBaseSurfaceStatus,
-	type BaseSurfaceStatusOptions,
+    resolveBaseSurfaceStatus,
+    type BaseSurfaceStatusOptions,
 } from "./base-surface-status.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 import { probeRuntimeLiveness } from "./runtime-readiness.js";
 import {
-	RUNTIME_DOCTOR_COMMAND,
-	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-	RUNTIME_DOCTOR_NEXT_COMMAND,
-	RUNTIME_STATUS_COMMAND,
+    RUNTIME_DOCTOR_COMMAND,
+    RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+    RUNTIME_DOCTOR_NEXT_COMMAND,
+    RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 import {
-	findRepoRoot,
-	readTractorEngineModeAsync,
-	resolveLaunchRuntime,
+    findRepoRoot,
+    readTractorEngineModeAsync,
+    resolveLaunchRuntime,
 } from "./session-launch.js";
 import { invokeStatusSurfaceActionSelection } from "./status-actions.js";
 import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
@@ -60,6 +60,7 @@ interface StatusCommandOptions {
 	base?: boolean;
 	attentionScope?: string;
 	attentionWindowMs?: number;
+	attentionProfile?: string;
 }
 
 async function createStatusRuntimeSummary(namespace: string): Promise<StatusJson["runtime"]> {
@@ -117,6 +118,10 @@ export function createStatusCommand(deps: StatusCommandDeps = {}): Command {
 			parsePositiveInt,
 		)
 		.option(
+			"--attention-profile <name>",
+			"Named operator-attention intent profile for --base (cross-device-handoff | mobile-ready | operator-sync)",
+		)
+		.option(
 			"--action <id-or-index>",
 			"Invoke a live app-owned status action by available action ID or row index",
 		)
@@ -131,6 +136,7 @@ Examples:
   $ refarm status --base
   $ refarm status --base --json
 	$ refarm status --base --attention-scope connection-up:ovpn-serpro
+	$ refarm status --base --attention-profile cross-device-handoff
   $ refarm status --renderer web
   $ refarm status --input status.json --markdown
   $ refarm status --action inspect-trust
@@ -143,8 +149,17 @@ Notes:
 `,
 		)
 		.action(async (options: StatusCommandOptions) => {
-			if (!options.base && (options.attentionScope || options.attentionWindowMs !== undefined)) {
-				throw new Error("--attention-scope/--attention-window-ms require --base.");
+			if (
+				!options.base &&
+				(
+					options.attentionScope ||
+					options.attentionWindowMs !== undefined ||
+					options.attentionProfile
+				)
+			) {
+				throw new Error(
+					"--attention-scope/--attention-window-ms/--attention-profile require --base.",
+				);
 			}
 			if (options.base) {
 				await emitBaseStatus(options, deps);
@@ -184,7 +199,13 @@ export const statusCommand = createStatusCommand();
 async function emitBaseStatus(
 	options: Pick<
 		StatusCommandOptions,
-		"json" | "markdown" | "input" | "action" | "attentionScope" | "attentionWindowMs"
+		| "json"
+		| "markdown"
+		| "input"
+		| "action"
+		| "attentionScope"
+		| "attentionWindowMs"
+		| "attentionProfile"
 	>,
 	deps: StatusCommandDeps,
 ): Promise<void> {
@@ -200,6 +221,7 @@ async function emitBaseStatus(
 	const model = await (deps.resolveBaseSurfaceStatus ?? resolveBaseSurfaceStatus)({
 		operatorAttentionScope: options.attentionScope,
 		operatorAttentionWindowMs: options.attentionWindowMs,
+		operatorAttentionProfile: options.attentionProfile,
 	});
 	if (options.json) {
 		printJson(model);
