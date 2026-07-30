@@ -76,11 +76,7 @@ function parseIpv6(text: string): number[] | null {
 		if (head.length + tail.length > 7) return null;
 	}
 
-	const groups = [
-		...head,
-		...new Array<string>(8 - head.length - tail.length).fill("0"),
-		...tail,
-	];
+	const groups = [...head, ...new Array<string>(8 - head.length - tail.length).fill("0"), ...tail];
 	const hextets: number[] = [];
 	for (const group of groups) {
 		if (!/^[0-9a-f]{1,4}$/.test(group)) return null;
@@ -173,9 +169,12 @@ export interface BindDecision {
  * the right question and this remains the right guard. For one that does not, it never was:
  * a Node listener could bind off-loopback because some OTHER surface had credentials, while
  * declaring nothing and verifying nothing. Such a surface must use
- * `refuseBindOutsideDeclaration` (surfaces.ts), which asks whether the `surfaces` declaration
- * permits THIS bind. `refarm web serve` moved; `serveCapabilities` and farmhand's transport
- * have not yet.
+ * `resolveDeclaredSurfaceBind` (surfaces.ts), which asks whether the `surfaces` declaration
+ * permits THIS bind. `refarm web serve`, `refarm serve` and farmhand's CRDT relay have all
+ * moved. The ONE listener still on this criterion is `serveCapabilities`
+ * (`packages/capabilities-v1/src/mount.ts`), the SDK primitive a white-label app mounts: its
+ * host comes from its consumer rather than from a flag, so which declaration it should read is
+ * a question about that consumer's layout, not about this guard.
  *
  * - loopback ⇒ always allowed, policy or not. This is the default and is UNCHANGED by the guard.
  * - non-loopback + a policy configured ⇒ allowed — the operator opted into the identity gate

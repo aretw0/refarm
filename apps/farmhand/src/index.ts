@@ -30,7 +30,6 @@ import path from "node:path";
 import { autoInstallPlugins } from "./auto-install-plugins.js";
 import { bundleInstallPlugins, type BundledEntry } from "./bundled-plugins.js";
 import { injectConfigEnv } from "./config-env.js";
-import { injectSkillEnv } from "./skill-env.js";
 import { injectConfiguredProvidersEnv } from "./configured-providers-env.js";
 import { loadInstalledPlugins } from "./installed-plugins.js";
 import { LocalExtensionRegistry } from "./local-extensions.js";
@@ -43,6 +42,7 @@ import {
 } from "./model-routes.js";
 import { PluginUsageTracker } from "./plugin-usage-tracker.js";
 import { createSiloModelEnvInjector, type OAuthCreds } from "./silo-model-env.js";
+import { injectSkillEnv } from "./skill-env.js";
 import {
 	projectStreamChunk,
 	shouldProjectStreamChunk,
@@ -60,11 +60,14 @@ import { createSessionsRouteHandler } from "./transports/sessions.js";
 import { createTasksRouteHandler } from "./transports/tasks.js";
 
 const FARMHAND_PORT = 42000;
-// Bind parity with the Rust daemon's --ws-host: loopback unless the operator explicitly
-// opens the relay. This is an UNAUTHENTICATED CRDT relay — a peer that reaches it reads and
-// writes the whole document — so a non-loopback value is refused by the shared bind guard
-// unless REFARM_AUTH_POLICY is configured (see transport.ts).
-const FARMHAND_WS_HOST = process.env.FARMHAND_WS_HOST?.trim() || DEFAULT_BIND_HOST;
+// `undefined` when the operator set nothing, NOT a loopback default. The absence is
+// load-bearing: this is the `daemon-ws` surface, and under S5 a value that is always present
+// always NARROWS, so substituting `127.0.0.1` here would make `surfaces.daemon-ws` permanently
+// inert and silent — the exact defect `refarm web serve`'s `--host` default carried. An absent
+// value means "let the declaration decide"; loopback is what an absent DECLARATION resolves to
+// (S1). This is an UNAUTHENTICATED CRDT relay — a peer that reaches it reads and writes the
+// whole document — so it refuses any declaration it cannot enforce (see transport.ts).
+const FARMHAND_WS_HOST = process.env.FARMHAND_WS_HOST?.trim() || undefined;
 const FARMHAND_HTTP_PORT = Number(process.env.FARMHAND_HTTP_PORT ?? 42001);
 // Bind parity with the Rust daemon's --http-host: loopback unless the operator
 // explicitly opens the sidecar to other devices.
@@ -499,7 +502,7 @@ async function main() {
 		"@context": "https://schema.refarm.dev/",
 		"@type": "FarmhandPresence",
 		"@id": `urn:farmhand:presence:${FARMHAND_ID}`,
-		"sourcePlugin": FARMHAND_PLUGIN_ID,
+		sourcePlugin: FARMHAND_PLUGIN_ID,
 		farmhandId: FARMHAND_ID,
 		status: "online",
 		startedAt: new Date().toISOString(),
@@ -530,7 +533,7 @@ async function main() {
 				"@context": "https://schema.refarm.dev/",
 				"@type": "FarmhandPresence",
 				"@id": `urn:farmhand:presence:${FARMHAND_ID}`,
-				"sourcePlugin": FARMHAND_PLUGIN_ID,
+				sourcePlugin: FARMHAND_PLUGIN_ID,
 				farmhandId: FARMHAND_ID,
 				status: "online",
 				lastHeartbeatAt: new Date().toISOString(),

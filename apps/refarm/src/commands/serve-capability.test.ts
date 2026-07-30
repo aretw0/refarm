@@ -5,9 +5,10 @@ import path from "node:path";
 
 import type { CapabilityDescriptor } from "@refarm.dev/capabilities";
 import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
+import { parseSurfaces, type SurfaceCatalog } from "@refarm.dev/std";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createServeServer, startServeServer } from "./serve-capability.js";
+import { createServeServer, serveCommand, startServeServer } from "./serve-capability.js";
 
 /** A read-only verb reachable over HTTP AND opted into the agent surface. */
 const pingCapability: CapabilityDescriptor = {
@@ -100,47 +101,136 @@ describe("refarm serve — the capability HTTP surface (real socket)", () => {
 	});
 });
 
-describe("startServeServer — the bind seam (--host)", () => {
-	it("binds loopback by default and reports the bound url", async () => {
-		const started = await startServeServer(ENTRIES, { port: 0, host: "127.0.0.1" });
+/** A catalog built through the REAL parser, so a combination the parser refuses can never be
+ *  smuggled into a bind test by hand. */
+const declare = (surfaces: Record<string, unknown>): SurfaceCatalog => parseSurfaces({ surfaces });
+const UNDECLARED: SurfaceCatalog = parseSurfaces({});
+
+describe("startServeServer — the `capabilities` declaration decides the bind (O5)", () => {
+	// Every case here either binds LOOPBACK or refuses before a socket exists. A non-loopback
+	// bind is asserted at the pure-rule level in `@refarm.dev/std`'s surfaces.test.ts, so this
+	// suite never opens a port to the network to prove a point about one.
+
+	it("binds loopback when `capabilities` is undeclared (S1) and reports the bound url", async () => {
+		const started = await startServeServer(ENTRIES, { port: 0, surfaces: UNDECLARED });
 		server = started.server;
 		expect(started.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
 		const res = await fetch(`${started.url}/agent-tools`);
 		expect(res.status).toBe(200);
 	});
 
-	it("REFUSES a non-loopback bind with no auth policy — and opens nothing", async () => {
+	it("REFUSES a non-loopback bind when the surface is undeclared — and opens nothing", async () => {
 		// PURE: the guard throws before the server object exists, so no socket is opened and
 		// there is nothing to close.
-		delete process.env.REFARM_AUTH_POLICY;
-		await expect(startServeServer(ENTRIES, { port: 0, host: "0.0.0.0" })).rejects.toThrow(
-			/no auth policy configured/,
-		);
-		await expect(startServeServer(ENTRIES, { port: 0, host: "100.64.0.1" })).rejects.toThrow(
-			/refusing to bind/,
-		);
+		await expect(
+			startServeServer(ENTRIES, { port: 0, host: "0.0.0.0", surfaces: UNDECLARED }),
+		).rejects.toThrow(/no `surfaces.capabilities` declaration is present/);
+		await expect(
+			startServeServer(ENTRIES, { port: 0, host: "100.64.0.1", surfaces: UNDECLARED }),
+		).rejects.toThrow(/refusing to bind/);
 	});
 
-	it("honors an explicit host once an auth policy is configured", async () => {
-		// The LAN exposure is still an operator decision — now one with a prerequisite. NOTE
-		// the honest limit: a policy gates the BIND here, not the requests. This surface has
-		// no bearer check of its own (the Rust sidecar's `auth_middleware` is the only place
-		// that verifies a credential today), so a widened bind here is opened on the
-		// operator's word. Wiring the check in is tracked under ADR-093.
+	it("an auth policy existing somewhere no longer permits ANY bind (O5)", async () => {
+		// The criterion this replaced, pinned as a mutation guard. `REFARM_AUTH_POLICY` naming a
+		// file that exists used to be the whole permission to open this surface to the network —
+		// a policy belonging to the SIDECAR, while this listener reads no `Authorization` header
+		// on any route. Restore `authPolicyPresent()` as the criterion and this test passes a
+		// bind it must refuse.
 		const policy = path.join(tmpdir(), `refarm-serve-capability-policy-${process.pid}.json`);
 		writeFileSync(policy, JSON.stringify({ credentials: [] }));
 		process.env.REFARM_AUTH_POLICY = policy;
 		try {
-			const started = await startServeServer(ENTRIES, { port: 0, host: "0.0.0.0" });
-			server = started.server;
-			expect(started.url).toMatch(/^http:\/\/0\.0\.0\.0:\d+$/);
-			// A 0.0.0.0 bind answers on loopback too — prove the socket is real.
-			const port = started.url.split(":").pop();
-			const res = await fetch(`http://127.0.0.1:${port}/agent-tools`);
-			expect(res.status).toBe(200);
+			await expect(
+				startServeServer(ENTRIES, { port: 0, host: "0.0.0.0", surfaces: UNDECLARED }),
+			).rejects.toThrow(/refusing to bind/);
 		} finally {
 			delete process.env.REFARM_AUTH_POLICY;
 			rmSync(policy, { force: true });
 		}
+	});
+
+	it('`gate: "device-token"` is REFUSED for this surface — it verifies nothing (S3)', () => {
+		// Not a bind-time check: the vocabulary itself will not let this surface claim a gate it
+		// has no machinery for, at ANY expose, loopback included.
+		expect(() => declare({ capabilities: { expose: "tailnet", gate: "device-token" } })).toThrow(
+			/verifies no bearer credential at all/,
+		);
+		expect(() => declare({ capabilities: { expose: "loopback", gate: "device-token" } })).toThrow(
+			/verifies no bearer credential at all/,
+		);
+	});
+
+	it("a declared ceiling may be NARROWED by the flag, and the tailnet is never asked", async () => {
+		let asked = 0;
+		const started = await startServeServer(ENTRIES, {
+			port: 0,
+			host: "127.0.0.1",
+			surfaces: declare({ capabilities: { expose: "tailnet", gate: "none" } }),
+			resolveTailnet: () => {
+				asked += 1;
+				return { ok: true, ipv4: "100.64.7.7" } as const;
+			},
+		});
+		server = started.server;
+		expect(started.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+		expect(asked).toBe(0);
+	});
+
+	it("a flag may never WIDEN or re-point the declared ceiling (S5)", async () => {
+		await expect(
+			startServeServer(ENTRIES, {
+				port: 0,
+				host: "0.0.0.0",
+				surfaces: declare({ capabilities: { expose: "tailnet", gate: "none" } }),
+				resolveTailnet: () => ({ ok: true, ipv4: "100.64.7.7" }) as const,
+			}),
+		).rejects.toThrow(/never point somewhere else or wider/);
+		await expect(
+			startServeServer(ENTRIES, {
+				port: 0,
+				host: "0.0.0.0",
+				surfaces: declare({ capabilities: { expose: "loopback" } }),
+			}),
+		).rejects.toThrow(/a flag may narrow that declaration, never widen it/);
+	});
+
+	it("a declared tailnet FAILS CLOSED when the tailnet cannot answer", async () => {
+		await expect(
+			startServeServer(ENTRIES, {
+				port: 0,
+				surfaces: declare({ capabilities: { expose: "tailnet", gate: "none" } }),
+				resolveTailnet: () => ({ ok: false, reason: "down", detail: "the tailnet is down" }),
+			}),
+		).rejects.toThrow(/tailscale up/);
+	});
+
+	it("names the capability surface in the refusal, so the operator knows which listener said no", async () => {
+		await expect(
+			startServeServer(ENTRIES, { port: 0, host: "0.0.0.0", surfaces: UNDECLARED }),
+		).rejects.toThrow(/capability surface \(`refarm serve`\)/);
+	});
+});
+
+describe("the `refarm serve` --host flag carries NO default (the defaulted-flag defect)", () => {
+	it("declares `--host` with no default value at all", () => {
+		// THE defect that made `surfaces` inert for the sidecar for weeks, and that `web serve`
+		// had to fix: under S5 a flag may only NARROW, so a `--host` that ALWAYS carries
+		// `127.0.0.1` ALWAYS narrows — the declaration can never take effect, and nothing says
+		// so. Restore `DEFAULT_BIND_HOST` as the option's default and this fails.
+		const host = serveCommand.options.find((option) => option.long === "--host");
+		expect(host).toBeDefined();
+		expect(host?.defaultValue).toBeUndefined();
+	});
+
+	it("the absence survives the action — `undefined` reaches the bind rule as `undefined`", async () => {
+		// A commander default is not the only way to lose the absence: `options.host ?? "127.0.0.1"`
+		// inside the action would do it just as silently. This pins the whole path by declaring a
+		// ceiling and proving the DECLARATION, not the flag, decided the bind.
+		const started = await startServeServer(ENTRIES, {
+			port: 0,
+			surfaces: declare({ capabilities: { expose: "loopback" } }),
+		});
+		server = started.server;
+		expect(started.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
 	});
 });

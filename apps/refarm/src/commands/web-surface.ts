@@ -1,14 +1,17 @@
+import {
+	createProcessHandoffDisplay,
+	runProcessHandoffSync,
+} from "@refarm.dev/cli/process-handoff";
 import { loadRawSovereignConfig } from "@refarm.dev/config";
-import { createProcessHandoffDisplay, runProcessHandoffSync } from "@refarm.dev/cli/process-handoff";
 import {
 	anySurfaceDeclaresDeviceTokenGate,
 	isLoopbackBindHost,
 	parseSurfaces,
-	refuseBindOutsideDeclaration,
-	resolveDeclaredBindHost,
+	resolveDeclaredSurfaceBind,
 	SURFACE_WEB,
+	type SurfaceBindResolution,
 	type SurfaceCatalog,
-	type SurfaceDeclaration,
+	type TailnetSelfResolution,
 } from "@refarm.dev/std";
 import { authPolicyPresent } from "@refarm.dev/std/node";
 
@@ -31,8 +34,13 @@ import { authPolicyPresent } from "@refarm.dev/std/node";
  *    parse time. It is resolved HERE, at bind time, by asking Tailscale — the same split the
  *    Rust `sidecar::tailnet_resolve` makes, including its distinction between "the tailnet is
  *    down" (a trustworthy answer that is not usable) and "I could not ask".
- * 3. MAY THIS BIND HAPPEN — `refuseBindOutsideDeclaration` (S1/S3/S5) plus O6's extra clause
- *    below, which is about the surfaces this one proxies TO.
+ * 3. MAY THIS BIND HAPPEN — `resolveDeclaredSurfaceBind` (S1/S3/S5, and the order in which they
+ *    are asked) plus O6's extra clause below, which is about the surfaces this one proxies TO.
+ *
+ * Questions 1 and 3 are NOT web-specific and are not written here: they live in
+ * `@refarm.dev/std` so `refarm serve` and farmhand's CRDT relay obey the same rule from the same
+ * code. What stays in this file is what is genuinely local — asking Tailscale through the app's
+ * process boundary, reading the app's config root, and O6.
  */
 
 /** The gate the PROXIED upstreams enforce, and whether it is actually live right now.
@@ -64,11 +72,9 @@ export function readSurfacesFromFilesystem(root = process.cwd()): SurfaceCatalog
 	return parseSurfaces(loadRawSovereignConfig(root));
 }
 
-/** What asking Tailscale for THIS machine's address produced. `ok` carries the IPv4; the two
- *  failure shapes are kept apart because they are different operator actions. */
-export type TailnetSelfResolution =
-	| { readonly ok: true; readonly ipv4: string }
-	| { readonly ok: false; readonly reason: "down" | "unreachable"; readonly detail: string };
+/** What asking Tailscale for THIS machine's address produced — re-exported from `@refarm.dev/std`,
+ *  where the bind rule that consumes it lives. */
+export type { TailnetSelfResolution };
 
 /** This machine's own tailnet IPv4, by asking `tailscale status --json` — the only one of the
  *  ways to ask that explains a failure instead of merely exiting non-zero.
@@ -117,7 +123,10 @@ export function parseTailnetSelfIpv4(stdout: string): TailnetSelfResolution {
 			detail: "`tailscale status --json` printed JSON that is not a status document",
 		};
 	}
-	const doc = parsed as { BackendState?: unknown; Self?: { Online?: unknown; TailscaleIPs?: unknown } };
+	const doc = parsed as {
+		BackendState?: unknown;
+		Self?: { Online?: unknown; TailscaleIPs?: unknown };
+	};
 	if (!("Self" in doc) && !("BackendState" in doc)) {
 		return {
 			ok: false,
@@ -146,12 +155,7 @@ export function parseTailnetSelfIpv4(stdout: string): TailnetSelfResolution {
 	return { ok: true, ipv4 };
 }
 
-export interface WebBindResolution {
-	/** The host `listen()` will actually be given. */
-	readonly host: string;
-	/** The declaration that decided it — `undefined` when the surface is undeclared (S1). */
-	readonly declared: SurfaceDeclaration | undefined;
-}
+export type WebBindResolution = SurfaceBindResolution;
 
 export interface ResolveWebBindHostInput {
 	/** The `--host` value the operator actually passed, or `undefined` when they passed none.
@@ -170,45 +174,15 @@ export interface ResolveWebBindHostInput {
  * `tailnet` declaration is actually in play and the flag is not already loopback.
  */
 export function resolveWebBindHost(input: ResolveWebBindHostInput): WebBindResolution {
-	const {
-		flagHost,
+	const { flagHost, surfaces, resolveTailnet = resolveTailnetSelfIpv4, env = process.env } = input;
+
+	const { host, declared } = resolveDeclaredSurfaceBind({
+		surface: SURFACE_WEB,
 		surfaces,
-		resolveTailnet = resolveTailnetSelfIpv4,
-		env = process.env,
-	} = input;
-	const declared = surfaces.get(SURFACE_WEB);
-
-	// A loopback flag needs no tailnet at all: it narrows every ceiling, so asking Tailscale
-	// would be a subprocess spawned to answer a question already settled.
-	const wantsTailnet =
-		declared?.expose.kind === "tailnet" &&
-		(flagHost === undefined || !isLoopbackBindHost(flagHost));
-
-	let effective = declared;
-	if (wantsTailnet) {
-		const resolution = resolveTailnet();
-		if (!resolution.ok) {
-			throw new Error(
-				`refusing to bind the hub (\`refarm web serve\`): surfaces.${SURFACE_WEB} declares ` +
-					`"expose": "tailnet" and ${resolution.detail}. ` +
-					(resolution.reason === "down"
-						? "Bring the tailnet up (`tailscale up`) or narrow the bind with `--host 127.0.0.1`."
-						: "Install/repair the `tailscale` CLI, or narrow the bind with `--host 127.0.0.1`.") +
-					" A declared tailnet expose FAILS CLOSED when the tailnet cannot answer — it never" +
-					" falls back to a wider address.",
-			);
-		}
-		effective = { expose: { kind: "host", host: resolution.ipv4 }, gate: declared?.gate ?? null };
-	}
-
-	const host = resolveDeclaredBindHost(flagHost, effective);
-	const refusal = refuseBindOutsideDeclaration(
-		SURFACE_WEB,
-		host,
-		effective,
-		"the hub (`refarm web serve`)",
-	);
-	if (refusal) throw new Error(refusal);
+		flagHost,
+		label: "the hub (`refarm web serve`)",
+		resolveTailnet,
+	});
 
 	// O6 — the proxy routes ride this same listener. Artifact routes are read-only and open by
 	// declaration; the proxies are only admissible because their UPSTREAMS gate them, so an
@@ -225,5 +199,5 @@ export function resolveWebBindHost(input: ResolveWebBindHostInput): WebBindResol
 		);
 	}
 
-	return { host, declared: effective };
+	return { host, declared };
 }

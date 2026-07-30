@@ -1,6 +1,11 @@
-import { assertBindAllowed, DEFAULT_BIND_HOST } from "@refarm.dev/std";
-import { authPolicyPresent } from "@refarm.dev/std/node";
-import { WebSocketServer, WebSocket } from "ws";
+import { loadRawSovereignConfig } from "@refarm.dev/config";
+import {
+	parseSurfaces,
+	resolveDeclaredSurfaceBind,
+	SURFACE_DAEMON_WS,
+	type SurfaceCatalog,
+} from "@refarm.dev/std";
+import { WebSocket, WebSocketServer } from "ws";
 
 /**
  * WebSocketSyncTransport
@@ -19,8 +24,32 @@ import { WebSocketServer, WebSocket } from "ws";
  * default, and it is what this did, on port 42000, for an UNAUTHENTICATED CRDT relay. Any
  * peer that could route here could read the whole document and write into it. The Rust
  * daemon closed exactly this port on exactly this reasoning; this is the same close for the
- * Node relay. The bind is loopback by default and a wider one is refused unless an auth
- * policy is configured — the shared guard in `@refarm.dev/std`, one rule for both runtimes.
+ * Node relay.
+ *
+ * WHICH SURFACE THIS IS: `daemon-ws`. Surfaces are named for LISTENERS, and this listener is
+ * the daemon's CRDT WebSocket — same port 42000, same binary Loro relay, same clients.
+ * `packages/tractor/src/daemon/ws_server.rs` opens with "WebSocket daemon — replaces farmhand
+ * on port 42000": these are two implementations of ONE listener, not two listeners, and only
+ * one of them can hold the port.
+ *
+ * WHERE THE BIND COMES FROM (O5,
+ * docs/superpowers/specs/2026-07-30-open-by-declaration-surfaces-design.md): the
+ * `surfaces.daemon-ws` declaration in the FILESYSTEM `.refarm/config.json`. It used to come
+ * from `authPolicyPresent()` — "does REFARM_AUTH_POLICY name a file that exists" — which for
+ * THIS relay was the wrong question twice over: the policy belongs to the sidecar and to the
+ * Rust WS handshake, and this relay reads neither. It never verified anything, so a policy
+ * file lying somewhere on the machine was opening an ungated CRDT relay to the network.
+ *
+ * WHAT THAT MEANS IN PRACTICE, and it is deliberately strict: `daemon-ws` CAN be declared
+ * beyond loopback — the Rust daemon enforces it with ADR-093's `Sec-WebSocket-Protocol`
+ * credential handshake, so `surfaceEnforceableGate("daemon-ws")` is `"device-token"`. This
+ * relay implements no such handshake. The capability table is true of the SURFACE and false
+ * of THIS listener, so `refuseGateThisListenerCannotEnforce` refuses the bind here while the
+ * same declaration stays perfectly valid for the daemon. And O2's read-only clause already
+ * bars `"gate": "none"` for `daemon-ws` at parse time, because it accepts mutations. Net:
+ * this relay binds loopback, or it refuses and says which runtime would have honoured the
+ * declaration — instead of quietly binding loopback and leaving the operator to believe their
+ * declaration took effect.
  */
 export class WebSocketSyncTransport {
 	private readonly wss: WebSocketServer;
@@ -29,15 +58,34 @@ export class WebSocketSyncTransport {
 	/** The host actually bound — so callers log the truth instead of guessing "localhost". */
 	readonly host: string;
 
-	constructor(port: number, host: string = DEFAULT_BIND_HOST) {
+	/**
+	 * @param host The host the operator explicitly asked for (`FARMHAND_WS_HOST`), or
+	 *   `undefined` when they asked for none. The absence is LOAD-BEARING: it is what lets the
+	 *   declaration decide (S1/S5). A caller that substitutes a loopback default here would
+	 *   make `surfaces.daemon-ws` permanently inert and silent.
+	 * @param options.surfaces The declaration this bind obeys. Injected by tests; production
+	 *   reads the FILESYSTEM `.refarm/config.json` under `configRoot`, never the replicated
+	 *   config node — exposure decides how THIS machine is reachable, so a declaration
+	 *   replicated from another device must never decide it.
+	 */
+	constructor(
+		port: number,
+		host?: string,
+		options: { surfaces?: SurfaceCatalog; configRoot?: string } = {},
+	) {
 		// Throws before the socket exists when the bind is not allowed. A relay with no
 		// credential check must not be reachable from off-box just because nobody passed a
-		// host.
-		this.host = assertBindAllowed(
-			host,
-			authPolicyPresent(),
-			"the farmhand CRDT sync relay",
-		).host;
+		// host — nor because some other surface has credentials.
+		const surfaces = options.surfaces ?? readDeclaredSurfaces(options.configRoot);
+		this.host = resolveDeclaredSurfaceBind({
+			surface: SURFACE_DAEMON_WS,
+			surfaces,
+			flagHost: host,
+			label: "the farmhand CRDT sync relay",
+			// This listener verifies NOTHING. Stated explicitly rather than taken from
+			// `surfaceEnforceableGate`, whose answer for `daemon-ws` describes the Rust daemon.
+			verifies: null,
+		}).host;
 		this.wss = new WebSocketServer({ port, host: this.host });
 
 		this.wss.on("connection", (ws: WebSocket) => {
@@ -93,6 +141,24 @@ export class WebSocketSyncTransport {
 		const addr = this.wss.address();
 		return typeof addr === "object" && addr !== null ? (addr as { port: number }).port : 0;
 	}
+}
+
+/**
+ * The `surfaces` catalog from the FILESYSTEM `.refarm/config.json` under `root`.
+ *
+ * A malformed declaration THROWS (fail-shut, exactly like `parse_surfaces`). What is caught is
+ * narrower and different in kind: `loadRawSovereignConfig` raises when no `SOVEREIGN_DIR` is
+ * selected in this process, i.e. there is no config FILE to have a declaration in. That is S1's
+ * silence, and S1's silence is loopback — the closed answer, not a fallback to a wider one.
+ */
+function readDeclaredSurfaces(root?: string): SurfaceCatalog {
+	let raw: unknown;
+	try {
+		raw = loadRawSovereignConfig(root);
+	} catch {
+		return new Map();
+	}
+	return parseSurfaces(raw);
 }
 
 function toUint8Array(data: Buffer | ArrayBuffer | Buffer[]): Uint8Array {

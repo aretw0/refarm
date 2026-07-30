@@ -424,11 +424,27 @@ export function refuseBindOutsideDeclaration(
 			}
 			return null;
 		case "device-token":
-			return (
-				`refusing to bind ${label} to ${JSON.stringify(host)}: surfaces.${surface} declares ` +
-				`"gate": "device-token", but '${surface}' verifies no bearer credential at all, so ` +
-				'nothing would enforce it. Declare "gate": "none" if it is deliberately open.'
-			);
+			// Refused only where the SURFACE cannot enforce it — which is what the arm always
+			// meant and, until this was noticed, not what it did: it refused unconditionally,
+			// so a declaration `sidecar-http`/`daemon-ws` really can enforce was refused too.
+			// That went unseen because no TypeScript listener bound either surface. Whether the
+			// listener at hand can enforce it is a SEPARATE question, and a stricter one — see
+			// `refuseGateThisListenerCannotEnforce`, which farmhand's Node CRDT relay needs
+			// precisely because `daemon-ws` CAN enforce and that relay cannot.
+			//
+			// The Rust twin takes one more input this has no way to ask for: whether a policy is
+			// actually RESOLVABLE right now (`auth_policy_resolvable`). A TypeScript listener
+			// that genuinely verifies bearers must check that itself before binding; none does
+			// today, which is exactly why `surfaceEnforceableGate` answers `null` for both
+			// TS-owned surfaces.
+			if (enforceable !== "device-token") {
+				return (
+					`refusing to bind ${label} to ${JSON.stringify(host)}: surfaces.${surface} declares ` +
+					`"gate": "device-token", but '${surface}' verifies no bearer credential at all, so ` +
+					'nothing would enforce it. Declare "gate": "none" if it is deliberately open.'
+				);
+			}
+			return null;
 		default:
 			return (
 				`refusing to bind ${label} to ${JSON.stringify(host)}: surfaces.${surface} declares a ` +
@@ -436,6 +452,176 @@ export function refuseBindOutsideDeclaration(
 				"open (read-only, admitted devices only), or narrow the expose to loopback."
 			);
 	}
+}
+
+/**
+ * Refuse a bind whose DECLARED gate THIS listener does not itself verify.
+ *
+ * {@link refuseBindOutsideDeclaration} asks whether the VOCABULARY permits the bind, and its
+ * capability table ({@link surfaceEnforceableGate}) answers per SURFACE — which is the same thing
+ * only while exactly one listener binds each name. It is not. `daemon-ws` is bound by the Rust
+ * daemon, whose ADR-093 `Sec-WebSocket-Protocol` handshake really does verify a bearer, AND by
+ * farmhand's Node CRDT relay, which verifies nothing at all (`ws_server.rs` opens with "WebSocket
+ * daemon — replaces farmhand on port 42000"). For that relay the table is true of the surface and
+ * false of the listener, and S3 — "a surface may not declare a gate it cannot enforce" — is a
+ * statement about whatever is actually accepting the connection.
+ *
+ * So a listener passes what IT verifies and this refuses the mismatch. Two clauses, and the second
+ * is the one that keeps a declaration from going silently inert:
+ *
+ * - a NON-LOOPBACK declaration whose gate this listener does not verify is refused — binding it
+ *   would be the appearance of a gate without a gate;
+ * - refused EVEN WHEN the resolved host came out loopback. An unresolved `tailnet` resolves to
+ *   loopback through {@link resolveDeclaredBindHost}'s fail-closed fallback, so without this the
+ *   listener would quietly bind loopback under a tailnet declaration and say nothing — exactly the
+ *   defaulted-flag failure mode, one layer down. The operator asked for something this listener
+ *   cannot do; it has to hear that.
+ *
+ * An operator who passes an explicit LOOPBACK host has narrowed the bind themselves (S5) and is
+ * exposing nothing, so there is no unenforceable claim left to refuse — that is the one case this
+ * lets through.
+ *
+ * `gate: "open"` never trips this: openness is the explicit statement that nothing is verified
+ * (O1), not a claim of enforcement. PURE.
+ */
+export function refuseGateThisListenerCannotEnforce(
+	surface: string,
+	declared: SurfaceDeclaration | undefined,
+	verifies: SurfaceGate | null,
+	flagHost: string | undefined,
+	label = `the ${surface} surface`,
+): string | null {
+	// S1 — no declaration is not a claim. `refuseBindOutsideDeclaration` refuses the bind itself.
+	if (!declared) return null;
+	if (declared.expose.kind === "loopback") return null;
+	// No gate at all is S3's other failure, and the shared guard already refuses it.
+	if (declared.gate === null) return null;
+	// O1 — "deliberately open" claims no enforcement, so there is nothing to fail to enforce.
+	if (declared.gate === "open") return null;
+	if (declared.gate === verifies) return null;
+	// The operator narrowed to loopback themselves: nothing is exposed, so nothing is claimed.
+	if (flagHost !== undefined && isLoopbackBindHost(flagHost)) return null;
+
+	return (
+		`refusing to bind ${label}: surfaces.${surface} declares "gate": ` +
+		`${JSON.stringify(declared.gate)}, and this listener verifies ` +
+		(verifies === null ? "no credential at all" : `only ${JSON.stringify(verifies)}`) +
+		`. The declaration may be honoured by another runtime that binds '${surface}' — the ` +
+		"capability table is per SURFACE — but it cannot be honoured HERE, and binding beyond " +
+		"loopback anyway would be the appearance of a gate without a gate (S3). Narrow this " +
+		"listener with an explicit loopback host, or run the runtime that enforces the gate."
+	);
+}
+
+/** The host a listener will bind, and the declaration that decided it. */
+export interface SurfaceBindResolution {
+	/** The host `listen()` will actually be given. */
+	readonly host: string;
+	/** The declaration that decided it — `undefined` when the surface is undeclared (S1), and
+	 *  carrying the RESOLVED address when `expose: "tailnet"` was resolved. */
+	readonly declared: SurfaceDeclaration | undefined;
+}
+
+export interface ResolveDeclaredSurfaceBindInput {
+	/** Which declared surface this listener IS — one of {@link KNOWN_SURFACES}. */
+	readonly surface: string;
+	readonly surfaces: SurfaceCatalog;
+	/** The `--host`/env value the operator actually passed, or `undefined` when they passed none.
+	 *  `undefined` is LOAD-BEARING — see {@link resolveDeclaredBindHost}'s note on defaulted flags. */
+	readonly flagHost?: string | undefined;
+	/** How the listener is named in a refusal, so an operator learns WHICH one refused. */
+	readonly label?: string;
+	/** What THIS listener actually verifies, when that differs from the surface's own capability
+	 *  table — see {@link refuseGateThisListenerCannotEnforce}. Defaults to the table. */
+	readonly verifies?: SurfaceGate | null;
+	/** Seam for `expose: "tailnet"` (S2: intent, never an address at parse time). Absent means this
+	 *  listener has no way to ask, and a tailnet declaration it would have to resolve is refused
+	 *  rather than quietly narrowed. */
+	readonly resolveTailnet?: () => TailnetSelfResolution;
+}
+
+/** What asking the tailnet for THIS machine's address produced. `ok` carries the IPv4; the two
+ *  failure shapes are kept apart because they are different operator actions — "the tailnet is
+ *  down" is `tailscale up`, "I could not ask" is a broken/missing CLI. */
+export type TailnetSelfResolution =
+	| { readonly ok: true; readonly ipv4: string }
+	| { readonly ok: false; readonly reason: "down" | "unreachable"; readonly detail: string };
+
+/**
+ * THE bind rule for a declared surface, in one place — O5, whole.
+ *
+ * Every TypeScript listener that owns a surface calls this and binds what it returns, or does not
+ * bind at all. It exists so the ORDER of the four questions is written once: getting them in the
+ * wrong order is how a listener ends up refusing with the wrong reason, or silently narrowing where
+ * it should refuse.
+ *
+ * 1. **Can this listener enforce what was declared?** ({@link refuseGateThisListenerCannotEnforce})
+ *    FIRST, because it is the only question that does not depend on resolving anything — and
+ *    because asking it later would answer a `tailnet` declaration with "intent is not an address"
+ *    when the true reason is that this listener could never have honoured it.
+ * 2. **What address is `tailnet`, concretely?** Resolved HERE, at bind time, never at parse (S2).
+ *    Skipped when a loopback flag has already settled the question.
+ * 3. **What host does an absent flag mean?** ({@link resolveDeclaredBindHost}) — the declaration's,
+ *    or loopback.
+ * 4. **Does the declaration permit THIS bind?** ({@link refuseBindOutsideDeclaration}) — S1/S3/S5.
+ *
+ * Throws the refusal rather than returning it: there is nothing sensible to return when a bind is
+ * refused, and every call site is a `listen()`. PURE except for the injected `resolveTailnet`.
+ */
+export function resolveDeclaredSurfaceBind(
+	input: ResolveDeclaredSurfaceBindInput,
+): SurfaceBindResolution {
+	const { surface, surfaces, flagHost, resolveTailnet } = input;
+	const label = input.label ?? `the ${surface} surface`;
+	const verifies = input.verifies === undefined ? surfaceEnforceableGate(surface) : input.verifies;
+	const declared = surfaces.get(surface);
+
+	const unenforceable = refuseGateThisListenerCannotEnforce(
+		surface,
+		declared,
+		verifies,
+		flagHost,
+		label,
+	);
+	if (unenforceable) throw new Error(unenforceable);
+
+	// A loopback flag needs no tailnet at all: it narrows every ceiling, so resolving would be work
+	// done to answer a question already settled.
+	const wantsTailnet =
+		declared?.expose.kind === "tailnet" &&
+		(flagHost === undefined || !isLoopbackBindHost(flagHost));
+
+	let effective = declared;
+	if (wantsTailnet) {
+		if (!resolveTailnet) {
+			throw new Error(
+				`refusing to bind ${label}: surfaces.${surface} declares "expose": "tailnet", and this ` +
+					"listener has no way to resolve that against this machine's tailnet address. A " +
+					"declared tailnet expose FAILS CLOSED — it is never quietly narrowed to loopback. " +
+					"Narrow it explicitly with a loopback host, or bind it from a listener that resolves " +
+					"the tailnet.",
+			);
+		}
+		const resolution = resolveTailnet();
+		if (!resolution.ok) {
+			throw new Error(
+				`refusing to bind ${label}: surfaces.${surface} declares "expose": "tailnet" and ` +
+					`${resolution.detail}. ` +
+					(resolution.reason === "down"
+						? "Bring the tailnet up (`tailscale up`) or narrow the bind with `--host 127.0.0.1`."
+						: "Install/repair the `tailscale` CLI, or narrow the bind with `--host 127.0.0.1`.") +
+					" A declared tailnet expose FAILS CLOSED when the tailnet cannot answer — it never" +
+					" falls back to a wider address.",
+			);
+		}
+		effective = { expose: { kind: "host", host: resolution.ipv4 }, gate: declared?.gate ?? null };
+	}
+
+	const host = resolveDeclaredBindHost(flagHost, effective);
+	const refusal = refuseBindOutsideDeclaration(surface, host, effective, label);
+	if (refusal) throw new Error(refusal);
+
+	return { host, declared: effective };
 }
 
 /**

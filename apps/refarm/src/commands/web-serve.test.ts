@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { WebSocket, WebSocketServer } from "ws";
 
 import {
+	createWebServeCommand,
 	ifNoneMatchMatches,
 	isSidecarApiPath,
 	manifestETag,
@@ -252,10 +253,21 @@ describe.skipIf(!opensslAvailable)("refarm web serve — TLS (the secure-context
 		try {
 			expect(
 				runOpenssl([
-					"req", "-x509", "-newkey", "rsa:2048", "-nodes",
-					"-keyout", keyFile, "-out", certFile,
-					"-days", "1", "-subj", "/CN=localhost",
-					"-addext", "subjectAltName=IP:127.0.0.1,DNS:localhost",
+					"req",
+					"-x509",
+					"-newkey",
+					"rsa:2048",
+					"-nodes",
+					"-keyout",
+					keyFile,
+					"-out",
+					certFile,
+					"-days",
+					"1",
+					"-subj",
+					"/CN=localhost",
+					"-addext",
+					"subjectAltName=IP:127.0.0.1,DNS:localhost",
 				]),
 			).toBe(0);
 			const started = await startWebServeServer(root, {
@@ -272,14 +284,10 @@ describe.skipIf(!opensslAvailable)("refarm web serve — TLS (the secure-context
 				status: number;
 				headers: Record<string, string | string[] | undefined>;
 			}>((resolve, reject) => {
-				const request = httpsGet(
-					`${started.url}/`,
-					{ ca: readFileSync(certFile) },
-					(res) => {
-						res.resume();
-						resolve({ status: res.statusCode ?? 0, headers: res.headers });
-					},
-				);
+				const request = httpsGet(`${started.url}/`, { ca: readFileSync(certFile) }, (res) => {
+					res.resume();
+					resolve({ status: res.statusCode ?? 0, headers: res.headers });
+				});
 				request.on("error", reject);
 			});
 			expect(response.status).toBe(200);
@@ -376,7 +384,10 @@ function gatedSidecarStub(): ReturnType<typeof createHttpServer> {
 /** A stub of ADR-093's WS handshake gate: the credential rides `Sec-WebSocket-Protocol` as
  *  `bearer.<token>` (a browser cannot set `Authorization` on a WebSocket), and only the
  *  protocol NAME is ever echoed back — never the token half. */
-function gatedDaemonWsStub(): { server: ReturnType<typeof createHttpServer>; close: () => Promise<void> } {
+function gatedDaemonWsStub(): {
+	server: ReturnType<typeof createHttpServer>;
+	close: () => Promise<void>;
+} {
 	const wss = new WebSocketServer({ noServer: true, handleProtocols: () => "refarm-sync-v1" });
 	wss.on("connection", (socket) => socket.on("message", (data) => socket.send(data)));
 	const http = createHttpServer((_req, res) => {
@@ -516,7 +527,9 @@ describe("the manifest's traffic policy — ETag + If-None-Match (first slice)",
 	it("answers 200 to a STALE If-None-Match — the 304 is conditional, not sticky", async () => {
 		const base = await serve();
 		const stale = await fetch(`${base}/manifest.json`, {
-			headers: { "if-none-match": '"0000000000000000000000000000000000000000000000000000000000000000"' },
+			headers: {
+				"if-none-match": '"0000000000000000000000000000000000000000000000000000000000000000"',
+			},
 		});
 		expect(stale.status).toBe(200);
 		expect(await stale.text()).toBe(MANIFEST);
@@ -525,8 +538,13 @@ describe("the manifest's traffic policy — ETag + If-None-Match (first slice)",
 	it("a changed manifest changes the validator — the 304 cannot outlive its content", async () => {
 		const base = await serve();
 		const before = (await fetch(`${base}/manifest.json`)).headers.get("etag");
-		writeFileSync(path.join(root, "manifest.json"), JSON.stringify({ name: "farm-client", version: "2", files: [] }));
-		const after = await fetch(`${base}/manifest.json`, { headers: { "if-none-match": before ?? "" } });
+		writeFileSync(
+			path.join(root, "manifest.json"),
+			JSON.stringify({ name: "farm-client", version: "2", files: [] }),
+		);
+		const after = await fetch(`${base}/manifest.json`, {
+			headers: { "if-none-match": before ?? "" },
+		});
 		expect(after.status).toBe(200);
 		expect(after.headers.get("etag")).not.toBe(before);
 	});
@@ -546,5 +564,36 @@ describe("the manifest's traffic policy — ETag + If-None-Match (first slice)",
 		expect(ifNoneMatchMatches('W/"abc"', etag)).toBe(true);
 		expect(ifNoneMatchMatches("*", etag)).toBe(true);
 		expect(ifNoneMatchMatches('"zzz"', etag)).toBe(false);
+	});
+});
+
+describe("the `refarm web serve` --host flag carries NO default (the defaulted-flag defect)", () => {
+	it("declares `--host` with no default value at all", () => {
+		// THE defect that made `surfaces` inert for the sidecar for weeks. Under S5 a flag may
+		// only NARROW the declaration, so a `--host` that ALWAYS carries `127.0.0.1` ALWAYS
+		// narrows: `surfaces.web` could never take effect, and nothing would say so — inert AND
+		// silent. Give the option a default again and this fails.
+		const host = createWebServeCommand().options.find((option) => option.long === "--host");
+		expect(host).toBeDefined();
+		expect(host?.defaultValue).toBeUndefined();
+	});
+
+	it("the absence survives the action — the DECLARATION decides when no flag was passed", async () => {
+		// A commander default is not the only way to lose the absence: `options.host ?? "127.0.0.1"`
+		// inside the action would do it just as silently.
+		const root = mkdtempSync(path.join(tmpdir(), "refarm-web-serve-default-"));
+		try {
+			const started = await startWebServeServer(root, {
+				port: 0,
+				surfaces: parseSurfaces({ surfaces: { web: { expose: "loopback" } } }),
+			});
+			try {
+				expect(started.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+			} finally {
+				await new Promise<void>((resolve) => started.server.close(() => resolve()));
+			}
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 });

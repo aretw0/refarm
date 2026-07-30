@@ -4,9 +4,15 @@ import {
 	anySurfaceDeclaresDeviceTokenGate,
 	parseSurfaces,
 	refuseBindOutsideDeclaration,
+	refuseGateThisListenerCannotEnforce,
 	resolveDeclaredBindHost,
+	resolveDeclaredSurfaceBind,
+	SURFACE_CAPABILITIES,
+	SURFACE_DAEMON_WS,
+	SURFACE_WEB,
 	SurfaceDeclarationError,
 	surfaceEnforceableGate,
+	type SurfaceCatalog,
 	type SurfaceDeclaration,
 } from "./surfaces.js";
 
@@ -64,9 +70,9 @@ describe("parseSurfaces — one vocabulary, mirrored from surfaces_decl.rs", () 
 		expect(() =>
 			parseSurfaces({ surfaces: { web: { expose: "host:0.0.0.0", gate: "none" } } }),
 		).toThrow(/EVERY interface on this machine/);
-		expect(() => parseSurfaces({ surfaces: { web: { expose: "host:[::]", gate: "none" } } })).toThrow(
-			/EVERY interface on this machine/,
-		);
+		expect(() =>
+			parseSurfaces({ surfaces: { web: { expose: "host:[::]", gate: "none" } } }),
+		).toThrow(/EVERY interface on this machine/);
 	});
 
 	it("O2 — a surface that HAS a gate may not declare itself open beyond loopback", () => {
@@ -81,7 +87,7 @@ describe("parseSurfaces — one vocabulary, mirrored from surfaces_decl.rs", () 
 		).toEqual({ expose: { kind: "loopback" }, gate: "open" });
 	});
 
-	it("S3 — a non-loopback expose on a gateless surface needs `gate: \"none\"` explicitly", () => {
+	it('S3 — a non-loopback expose on a gateless surface needs `gate: "none"` explicitly', () => {
 		expect(() => parseSurfaces({ surfaces: { web: { expose: "tailnet" } } })).toThrow(
 			/has no credential gate implemented at all/,
 		);
@@ -102,7 +108,7 @@ describe("parseSurfaces — one vocabulary, mirrored from surfaces_decl.rs", () 
 		expect(() => parseSurfaces({ surfaces: [] })).toThrow(/surfaces must be an object/);
 	});
 
-	it("anySurfaceDeclaresDeviceTokenGate answers NO to `gate: \"none\"` (O1)", () => {
+	it('anySurfaceDeclaresDeviceTokenGate answers NO to `gate: "none"` (O1)', () => {
 		const open = parseSurfaces({ surfaces: { web: { expose: "tailnet", gate: "none" } } });
 		expect(anySurfaceDeclaresDeviceTokenGate(open)).toBe(false);
 	});
@@ -132,9 +138,9 @@ describe("resolveDeclaredBindHost — an absent flag lets the declaration decide
 	});
 
 	it("an unresolved tailnet falls back to loopback — fail CLOSED, never a silent widen", () => {
-		expect(
-			resolveDeclaredBindHost(undefined, { expose: { kind: "tailnet" }, gate: "open" }),
-		).toBe("127.0.0.1");
+		expect(resolveDeclaredBindHost(undefined, { expose: { kind: "tailnet" }, gate: "open" })).toBe(
+			"127.0.0.1",
+		);
 	});
 
 	it("a present flag is the operator's own value, validated by the guard afterwards", () => {
@@ -158,7 +164,9 @@ describe("refuseBindOutsideDeclaration — the declaration is the ceiling", () =
 		const refusal = refuseBindOutsideDeclaration("web", "0.0.0.0", undefined);
 		expect(refusal).toMatch(/no `surfaces.web` declaration is present/);
 		expect(refusal).toMatch(/"expose": "tailnet", "gate": "none"/);
-		expect(refuseBindOutsideDeclaration("web", "100.64.0.1", undefined)).toMatch(/refusing to bind/);
+		expect(refuseBindOutsideDeclaration("web", "100.64.0.1", undefined)).toMatch(
+			/refusing to bind/,
+		);
 	});
 
 	it("S5 — a declared loopback ceiling refuses a widening flag", () => {
@@ -212,9 +220,210 @@ describe("refuseBindOutsideDeclaration — the declaration is the ceiling", () =
 		).toMatch(/verifies no bearer credential at all/);
 	});
 
-	it("defence in depth: `gate: \"none\"` never permits a surface that HAS a gate", () => {
+	it('defence in depth: `gate: "none"` never permits a surface that HAS a gate', () => {
+		expect(refuseBindOutsideDeclaration("sidecar-http", "100.64.0.1", openTailnet)).toMatch(
+			/accepts mutations and HAS a credential gate/,
+		);
+	});
+});
+
+/** A catalog built through the REAL parser, so a combination the parser refuses can never be
+ *  smuggled into a bind test by hand. */
+const declare = (surfaces: Record<string, unknown>): SurfaceCatalog => parseSurfaces({ surfaces });
+const UNDECLARED = parseSurfaces({});
+const tailnetIs = (ipv4: string) => () => ({ ok: true, ipv4 }) as const;
+
+describe("refuseGateThisListenerCannotEnforce — S3 is about the LISTENER, not the name", () => {
+	const declaredTailnetToken = declare({
+		"daemon-ws": { expose: "tailnet", gate: "device-token" },
+	}).get(SURFACE_DAEMON_WS);
+
+	it("passes when the listener verifies what was declared", () => {
 		expect(
-			refuseBindOutsideDeclaration("sidecar-http", "100.64.0.1", openTailnet),
-		).toMatch(/accepts mutations and HAS a credential gate/);
+			refuseGateThisListenerCannotEnforce(
+				SURFACE_DAEMON_WS,
+				declaredTailnetToken,
+				"device-token",
+				undefined,
+			),
+		).toBeNull();
+	});
+
+	it("refuses when the SURFACE has the gate but THIS listener does not", () => {
+		// `daemon-ws` is bound by the Rust daemon (ADR-093 handshake) AND by farmhand's Node
+		// relay, which verifies nothing. The per-surface capability table is true of the first
+		// and false of the second.
+		expect(
+			refuseGateThisListenerCannotEnforce(SURFACE_DAEMON_WS, declaredTailnetToken, null, undefined),
+		).toMatch(/this listener verifies no credential at all/);
+	});
+
+	it("refuses even though the RESOLVED host would have come out loopback", () => {
+		// The silent-inertness case: an unresolved `tailnet` falls back to loopback through
+		// `resolveDeclaredBindHost`, so a listener that only checked the final host would bind
+		// 127.0.0.1 and say nothing while the operator believed the declaration took effect.
+		expect(resolveDeclaredBindHost(undefined, declaredTailnetToken)).toBe("127.0.0.1");
+		expect(
+			refuseGateThisListenerCannotEnforce(SURFACE_DAEMON_WS, declaredTailnetToken, null, undefined),
+		).not.toBeNull();
+	});
+
+	it("lets an EXPLICIT loopback flag through — the operator narrowed it themselves (S5)", () => {
+		expect(
+			refuseGateThisListenerCannotEnforce(
+				SURFACE_DAEMON_WS,
+				declaredTailnetToken,
+				null,
+				"127.0.0.1",
+			),
+		).toBeNull();
+	});
+
+	it('never trips on `gate: "none"` — openness claims no enforcement (O1)', () => {
+		const open = declare({ web: { expose: "tailnet", gate: "none" } }).get(SURFACE_WEB);
+		expect(refuseGateThisListenerCannotEnforce(SURFACE_WEB, open, null, undefined)).toBeNull();
+	});
+
+	it("says nothing about an undeclared or loopback surface — those are other rules", () => {
+		expect(refuseGateThisListenerCannotEnforce(SURFACE_WEB, undefined, null, "0.0.0.0")).toBeNull();
+		const loopback = declare({ "daemon-ws": { expose: "loopback" } }).get(SURFACE_DAEMON_WS);
+		expect(
+			refuseGateThisListenerCannotEnforce(SURFACE_DAEMON_WS, loopback, null, undefined),
+		).toBeNull();
+	});
+});
+
+describe.each([SURFACE_WEB, SURFACE_CAPABILITIES])(
+	"resolveDeclaredSurfaceBind — the whole O5 rule, per surface: %s",
+	(surface) => {
+		it("undeclared ⇒ loopback (S1)", () => {
+			expect(resolveDeclaredSurfaceBind({ surface, surfaces: UNDECLARED }).host).toBe("127.0.0.1");
+		});
+
+		it("undeclared ⇒ a non-loopback flag is REFUSED (S1)", () => {
+			expect(() =>
+				resolveDeclaredSurfaceBind({ surface, surfaces: UNDECLARED, flagHost: "0.0.0.0" }),
+			).toThrow(new RegExp(`no \`surfaces.${surface}\` declaration is present`));
+		});
+
+		it("declared ⇒ the declaration is the ceiling, with no flag at all (S5)", () => {
+			const resolved = resolveDeclaredSurfaceBind({
+				surface,
+				surfaces: declare({ [surface]: { expose: "tailnet", gate: "none" } }),
+				resolveTailnet: tailnetIs("100.64.7.7"),
+			});
+			expect(resolved.host).toBe("100.64.7.7");
+			expect(resolved.declared).toEqual({
+				expose: { kind: "host", host: "100.64.7.7" },
+				gate: "open",
+			});
+		});
+
+		it("a flag may NARROW the ceiling to loopback, and asks the tailnet nothing", () => {
+			let asked = 0;
+			const resolved = resolveDeclaredSurfaceBind({
+				surface,
+				surfaces: declare({ [surface]: { expose: "tailnet", gate: "none" } }),
+				flagHost: "127.0.0.1",
+				resolveTailnet: () => {
+					asked += 1;
+					return tailnetIs("100.64.7.7")();
+				},
+			});
+			expect(resolved.host).toBe("127.0.0.1");
+			expect(asked).toBe(0);
+		});
+
+		it("a flag may NEVER widen or re-point the ceiling (S5)", () => {
+			const surfaces = declare({ [surface]: { expose: "tailnet", gate: "none" } });
+			expect(() =>
+				resolveDeclaredSurfaceBind({
+					surface,
+					surfaces,
+					flagHost: "0.0.0.0",
+					resolveTailnet: tailnetIs("100.64.7.7"),
+				}),
+			).toThrow(/never point somewhere else or wider/);
+			expect(() =>
+				resolveDeclaredSurfaceBind({
+					surface,
+					surfaces: declare({ [surface]: { expose: "loopback" } }),
+					flagHost: "0.0.0.0",
+				}),
+			).toThrow(/a flag may narrow that declaration, never widen it/);
+		});
+
+		it("a gate this surface cannot enforce is REFUSED at parse, at every expose (S3)", () => {
+			expect(() => declare({ [surface]: { expose: "tailnet", gate: "device-token" } })).toThrow(
+				/verifies no bearer credential at all/,
+			);
+			expect(() => declare({ [surface]: { expose: "loopback", gate: "device-token" } })).toThrow(
+				/verifies no bearer credential at all/,
+			);
+		});
+
+		it("a gate this surface cannot enforce is REFUSED at bind too (defence in depth)", () => {
+			// Unreachable through `parseSurfaces`; kept because a declaration built some other way
+			// must not slip past, exactly as the Rust guard keeps its mirror arm.
+			const forged = new Map([
+				[
+					surface,
+					{ expose: { kind: "host" as const, host: "10.0.0.4" }, gate: "device-token" as const },
+				],
+			]);
+			expect(() =>
+				resolveDeclaredSurfaceBind({ surface, surfaces: forged, flagHost: "10.0.0.4" }),
+			).toThrow(/verifies no bearer credential at all|this listener verifies no credential/);
+		});
+
+		it("a declared `tailnet` FAILS CLOSED when the tailnet cannot answer", () => {
+			const surfaces = declare({ [surface]: { expose: "tailnet", gate: "none" } });
+			expect(() =>
+				resolveDeclaredSurfaceBind({
+					surface,
+					surfaces,
+					resolveTailnet: () => ({ ok: false, reason: "down", detail: "the tailnet is down" }),
+				}),
+			).toThrow(/tailscale up/);
+			// And with NO resolver at all: refused, never quietly narrowed to loopback.
+			expect(() => resolveDeclaredSurfaceBind({ surface, surfaces })).toThrow(
+				/no way to resolve that against this machine's tailnet address/,
+			);
+		});
+
+		it("names the listener in every refusal, so the operator learns WHICH one said no", () => {
+			expect(() =>
+				resolveDeclaredSurfaceBind({
+					surface,
+					surfaces: UNDECLARED,
+					flagHost: "0.0.0.0",
+					label: "the hub (`refarm web serve`)",
+				}),
+			).toThrow(/the hub \(`refarm web serve`\)/);
+		});
+	},
+);
+
+describe("resolveDeclaredSurfaceBind — daemon-ws, the surface with two listeners", () => {
+	const declared = declare({ "daemon-ws": { expose: "host:10.0.0.4", gate: "device-token" } });
+
+	it("the RUST daemon's listener may bind it — it enforces ADR-093's handshake", () => {
+		expect(
+			resolveDeclaredSurfaceBind({
+				surface: SURFACE_DAEMON_WS,
+				surfaces: declared,
+				verifies: "device-token",
+			}).host,
+		).toBe("10.0.0.4");
+	});
+
+	it("a listener that verifies nothing may NOT — same declaration, same name", () => {
+		expect(() =>
+			resolveDeclaredSurfaceBind({
+				surface: SURFACE_DAEMON_WS,
+				surfaces: declared,
+				verifies: null,
+			}),
+		).toThrow(/cannot be honoured HERE/);
 	});
 });
