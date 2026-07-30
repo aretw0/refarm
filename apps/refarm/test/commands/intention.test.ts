@@ -117,6 +117,39 @@ describe("intentionCommand", () => {
 		);
 	});
 
+	it("supports compact JSON output for portable prepare", async () => {
+		const command = createIntentionCommand({ now: () => 1_700_000_000_000 });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			[
+				"prepare",
+				"--scope",
+				"attention:operator-sync",
+				"--window-ms",
+				"60000",
+				"--json",
+				"--output",
+				"compact",
+			],
+			{ from: "user" },
+		);
+
+		const payload = JSON.parse(logSpy.mock.calls[0]?.[0] as string);
+		expect(payload).toMatchObject({
+			v: 1,
+			ok: true,
+			op: "prepare",
+			scope: "attention:operator-sync",
+			source: "portable",
+			windowMs: 60000,
+		});
+		expect(typeof payload.intentToken).toBe("string");
+		expect(Array.isArray(payload.nextCommands)).toBe(true);
+		expect(payload.nextAction).toBeUndefined();
+		expect(payload.command).toBeUndefined();
+	});
+
 	it("checks readiness via portable token from another device", async () => {
 		const now = Date.now();
 		const command = createIntentionCommand({ now: () => now });
@@ -246,5 +279,34 @@ describe("intentionCommand", () => {
 			source: "token",
 			scope: "attention:operator-sync",
 		});
+	});
+
+	it("supports compact JSON output for token check", async () => {
+		const now = Date.now();
+		const command = createIntentionCommand({ now: () => now });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["arm", "--scope", "attention:mobile-ready", "--window-ms", "90000", "--json"],
+			{ from: "user" },
+		);
+		const token = JSON.parse(logSpy.mock.calls[0]?.[0] as string).intentToken as string;
+
+		logSpy.mockClear();
+		await command.parseAsync(["check", "--token", token, "--json", "--output", "compact"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(logSpy.mock.calls[0]?.[0] as string);
+		expect(payload).toMatchObject({
+			v: 1,
+			ok: true,
+			op: "check",
+			scope: "attention:mobile-ready",
+			source: "token",
+			armed: true,
+			windowMs: 90000,
+		});
+		expect(payload.command).toBeUndefined();
 	});
 });

@@ -11,6 +11,7 @@ interface IntentionCommandOptions {
 	windowMs?: number;
 	profile?: string;
 	token?: string;
+	output?: string;
 	json?: boolean;
 }
 
@@ -45,6 +46,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 			"--profile <name>",
 			"Named intent profile (cross-device-handoff | mobile-ready | operator-sync)",
 		)
+		.option("--output <mode>", "JSON output mode: full | compact")
 		.option("--json", "Output machine-readable JSON")
 		.action((options: IntentionCommandOptions) => {
 			const now = deps.now?.() ?? Date.now();
@@ -71,7 +73,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 					intentionConsumeTokenCommand(token),
 				],
 			};
-			emit(payload, options.json ?? false, `Intenção portátil preparada para '${target.scope}'.`);
+			emit(payload, options, `Intenção portátil preparada para '${target.scope}'.`);
 		});
 
 	command
@@ -87,6 +89,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 			"--profile <name>",
 			"Named intent profile (cross-device-handoff | mobile-ready | operator-sync)",
 		)
+		.option("--output <mode>", "JSON output mode: full | compact")
 		.option("--json", "Output machine-readable JSON")
 		.action((options: IntentionCommandOptions) => {
 			const now = deps.now?.() ?? Date.now();
@@ -119,7 +122,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 				nextCommand: intentionCheckCommand(target.scope, target.windowMs),
 				nextCommands: [intentionCheckCommand(target.scope, target.windowMs)],
 			};
-			emit(payload, options.json ?? false, `Intenção armada para '${target.scope}'.`);
+			emit(payload, options, `Intenção armada para '${target.scope}'.`);
 		});
 
 	command
@@ -136,6 +139,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 			"Named intent profile (cross-device-handoff | mobile-ready | operator-sync)",
 		)
 		.option("--token <value>", "Portable intent token from another device")
+		.option("--output <mode>", "JSON output mode: full | compact")
 		.option("--json", "Output machine-readable JSON")
 		.action((options: IntentionCommandOptions) => {
 			const now = deps.now?.() ?? Date.now();
@@ -168,7 +172,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 				};
 				emit(
 					payload,
-					options.json ?? false,
+					options,
 					armed
 						? `Intenção pronta para '${tokenState.scope}' (token).`
 						: `Intenção expirada ou inválida para '${tokenState.scope}' (token).`,
@@ -198,7 +202,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 			};
 			emit(
 				payload,
-				options.json ?? false,
+				options,
 				armed
 					? `Intenção pronta para '${target.scope}'.`
 					: `Intenção ainda não armada para '${target.scope}'.`,
@@ -215,6 +219,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 			"Named intent profile (cross-device-handoff | mobile-ready | operator-sync)",
 		)
 		.option("--token <value>", "Portable intent token from another device")
+		.option("--output <mode>", "JSON output mode: full | compact")
 		.option("--json", "Output machine-readable JSON")
 		.action((options: IntentionCommandOptions) => {
 			if (options.token) {
@@ -237,7 +242,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 				};
 				emit(
 					payload,
-					options.json ?? false,
+					options,
 					`Intenção consumida para '${tokenState.scope}' (token).`,
 				);
 				return;
@@ -261,7 +266,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 				nextCommand: intentionArmCommand(target.scope, target.windowMs),
 				nextCommands: [intentionArmCommand(target.scope, target.windowMs)],
 			};
-			emit(payload, options.json ?? false, `Intenção consumida para '${target.scope}'.`);
+			emit(payload, options, `Intenção consumida para '${target.scope}'.`);
 		});
 
 	return command;
@@ -301,12 +306,43 @@ function intentionConsumeTokenCommand(token: string): string {
 	return `refarm intention consume --token ${shellQuote(token)} --json`;
 }
 
-function emit(payload: Record<string, unknown>, json: boolean, message: string): void {
-	if (json) {
-		printJson(payload);
+type IntentionOutputMode = "full" | "compact";
+
+function emit(payload: Record<string, unknown>, options: IntentionCommandOptions, message: string): void {
+	if (options.json) {
+		const outputMode = resolveOutputMode(options.output);
+		printJson(projectPayloadByOutputMode(payload, outputMode));
 		return;
 	}
 	console.log(message);
+}
+
+function resolveOutputMode(value?: string): IntentionOutputMode {
+	if (!value || value === "full") return "full";
+	if (value === "compact") return "compact";
+	throw new Error("--output must be one of: full, compact.");
+}
+
+function projectPayloadByOutputMode(
+	payload: Record<string, unknown>,
+	mode: IntentionOutputMode,
+): Record<string, unknown> {
+	if (mode === "full") return payload;
+
+	const compact: Record<string, unknown> = {
+		v: 1,
+		ok: payload.ok,
+		op: payload.operation,
+		scope: payload.scope,
+	};
+	if (payload.source !== undefined) compact.source = payload.source;
+	if (payload.windowMs !== undefined) compact.windowMs = payload.windowMs;
+	if (payload.armed !== undefined) compact.armed = payload.armed;
+	if (payload.expiresAt !== undefined) compact.expiresAt = payload.expiresAt;
+	if (payload.intentToken !== undefined) compact.intentToken = payload.intentToken;
+	if (Array.isArray(payload.nextCommands)) compact.nextCommands = payload.nextCommands;
+	if (payload.nextCommand !== undefined) compact.nextCommand = payload.nextCommand;
+	return compact;
 }
 
 function resolveRefarmHome(): string {
