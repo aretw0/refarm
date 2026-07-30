@@ -16,6 +16,7 @@ import { distCommand } from "./commands/dist.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { guideCommand } from "./commands/guide.js";
 import { headlessCommand } from "./commands/headless.js";
+import { intentionCommand } from "./commands/intention.js";
 import { lintCommand } from "./commands/lint.js";
 import { openUrlCommand } from "./commands/open-url.js";
 import { packageManagerCommand } from "./commands/package-manager.js";
@@ -115,6 +116,7 @@ program
 			"  $ refarm package-manager --json  Inspect detected npm/pnpm/yarn/bun launcher",
 			"  $ refarm workspace execution --json Inspect workspace executor/cache readiness",
 			"  $ refarm connection status --json Probe declared connections (VPN tunnels, sessions)",
+			"  $ refarm intention check --profile cross-device-handoff --json Inspect explicit operator intent",
 			"  $ refarm capabilities --json List compact capability descriptors for consumers",
 			"  $ refarm project handoff validate --json Validate durable project handoff state",
 			"  $ refarm release preflight --selection default --json Inspect release candidates and supply posture",
@@ -231,6 +233,7 @@ program.addCommand(discoverCommand);
 program.addCommand(serveCommand);
 program.addCommand(workspaceCommand);
 program.addCommand(connectionCommand);
+program.addCommand(intentionCommand);
 program.addCommand(tuiCommand);
 program.addCommand(headlessCommand);
 program.addCommand(

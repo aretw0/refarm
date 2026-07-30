@@ -10,6 +10,7 @@ describe("refarm program", () => {
 		expect(names).toContain("model");
 		expect(names).toContain("status");
 		expect(names).toContain("headless");
+		expect(names).toContain("intention");
 		expect(names).toContain("web");
 		expect(names).toContain("tui");
 		expect(names).toContain("doctor");
@@ -112,6 +113,7 @@ describe("refarm program", () => {
 		expect(help).toContain("refarm tidy imports --check");
 		expect(help).toContain("refarm capabilities --json");
 		expect(help).toContain("refarm project handoff validate --json");
+		expect(help).toContain("refarm intention check --profile cross-device-handoff --json");
 		expect(help).toContain("refarm agent --next-command");
 		expect(help).toContain("refarm agent finish --next-command");
 		expect(help).toContain("refarm agent finish --lane after-edit --run --json");

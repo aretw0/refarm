@@ -11,6 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { runHealthAudit } from "./health.js";
 import { buildCurrentModelEnvelope, defaultModelDeps } from "./model.js";
+import { resolveOperatorAttentionProfile } from "./operator-attention-profile.js";
 import { buildRuntimeJsonPayload, runtimeStatusPayload } from "./runtime-status.js";
 import { defaultRuntimeCommandDeps } from "./runtime.js";
 
@@ -28,21 +29,6 @@ export interface BaseSurfaceStatusOptions {
 	operatorAttentionWindowMs?: number;
 	operatorAttentionProfile?: string;
 }
-
-const OPERATOR_ATTENTION_PROFILES: Record<string, { scope: string; windowMs: number }> = {
-	"cross-device-handoff": {
-		scope: "attention:cross-device-handoff",
-		windowMs: 120000,
-	},
-	"mobile-ready": {
-		scope: "attention:mobile-ready",
-		windowMs: 90000,
-	},
-	"operator-sync": {
-		scope: "attention:operator-sync",
-		windowMs: 300000,
-	},
-};
 
 export async function resolveBaseSurfaceStatus(
 	deps: BaseSurfaceStatusDeps = {},
@@ -83,7 +69,7 @@ async function resolveHealthBaseInput(): Promise<BaseSurfaceModelInput["health"]
 async function resolveOperatorAttentionBaseInput(
 	options: BaseSurfaceStatusOptions,
 ): Promise<OperatorAttentionGateStatus | null> {
-	const profile = resolveOperatorAttentionProfile(options.operatorAttentionProfile);
+	const profile = resolveOperatorAttentionProfileDefaults(options.operatorAttentionProfile);
 	const scope =
 		options.operatorAttentionScope?.trim() ||
 		profile?.scope ||
@@ -135,17 +121,10 @@ function readJson(filePath: string): Record<string, unknown> {
 	}
 }
 
-function resolveOperatorAttentionProfile(
+function resolveOperatorAttentionProfileDefaults(
 	profileName?: string,
 ): { scope: string; windowMs: number } | null {
-	const name = profileName?.trim();
-	if (!name) return null;
-	const profile = OPERATOR_ATTENTION_PROFILES[name];
-	if (!profile) {
-		const available = Object.keys(OPERATOR_ATTENTION_PROFILES).join(", ");
-		throw new Error(
-			`Unknown --attention-profile '${name}'. Available profiles: ${available}.`,
-		);
-	}
-	return profile;
+	const resolved = resolveOperatorAttentionProfile(profileName);
+	if (!resolved) return null;
+	return { scope: resolved.scope, windowMs: resolved.windowMs };
 }
