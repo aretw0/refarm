@@ -23,13 +23,16 @@
  *   - CRDT WebSocket (ws://<host>:42000) — can this device join the sync mesh?
  */
 import { networkInterfaces } from "node:os";
+import { farmSyncWsProtocols } from "../src/auth.mjs";
 import { defaultProbeTargets, discoverFarms, subnetSweepTargets } from "../src/beacon.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
 
 const WS_PORT = Number(process.env.FARM_WS_PORT ?? 42000);
 
 /** Does <host>:42000 accept a WS handshake? Used both to pick a tailnet peer
- *  and as the final sync check. Resolves {ok, detail}. */
+ *  and as the final sync check. Resolves {ok, detail}. When FARM_TOKEN is set
+ *  (ADR-093, a gated farm), offers it as a `bearer.<token>` subprotocol — see
+ *  `farmSyncWsProtocols`. Unset ⇒ no protocols offered, unchanged from before. */
 function syncHandshake(host, timeoutMs = 5000) {
   return new Promise((resolve) => {
     let settled = false;
@@ -39,7 +42,7 @@ function syncHandshake(host, timeoutMs = 5000) {
       resolve({ ok, detail });
     };
     try {
-      const ws = new WebSocket(`ws://${host}:${WS_PORT}`);
+      const ws = new WebSocket(`ws://${host}:${WS_PORT}`, farmSyncWsProtocols());
       const timer = setTimeout(() => {
         ws.close();
         done(false, "timeout after 5s");
