@@ -13,8 +13,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AuthPolicyFile } from "./auth.js";
 import {
+	createAuthCommand,
 	createAuthEnrollCommand,
+	createAuthRevokeCommand,
 	promptForIdentity,
+	removeCredential,
 	sha256Hex,
 	upsertCredential,
 	validateIdentityLabel,
@@ -1693,5 +1696,388 @@ describe("refarm auth enroll — the gate instruction follows the daemon's deriv
 
 		const payload = JSON.parse(written()) as { token: string; enable: string };
 		expect(payload.enable).not.toContain(payload.token);
+	});
+});
+
+/**
+ * `refarm auth revoke` — a lost or retired device must be cuttable off without
+ * hand-editing JSON. Until this landed, `auth` had `enroll` and `list` and
+ * nothing else.
+ */
+describe("refarm auth revoke — removeCredential (pure)", () => {
+	it("removes exactly the named credential and leaves the others byte-identical", () => {
+		const policy: AuthPolicyFile = {
+			credentials: [
+				{ identity: "spouse", tokenSha256: "s" },
+				{ identity: "my-phone", tokenSha256: "p" },
+				{ identity: "laptop", tokenSha256: "l" },
+			],
+		};
+
+		const next = removeCredential(policy, "my-phone");
+
+		// MUTATION GUARD: this is the assertion that catches "removed the wrong one".
+		// Both survivors are named, with their digests, and in order — an
+		// off-by-one in the filter changes this list.
+		expect(next.credentials).toEqual([
+			{ identity: "spouse", tokenSha256: "s" },
+			{ identity: "laptop", tokenSha256: "l" },
+		]);
+		// Pure: the input policy is untouched.
+		expect(policy.credentials).toHaveLength(3);
+	});
+
+	it("refuses an identity that is not enrolled — an honest error, not a silent success", () => {
+		const policy: AuthPolicyFile = { credentials: [{ identity: "spouse", tokenSha256: "s" }] };
+
+		expect(() => removeCredential(policy, "my-phone")).toThrow(/not enrolled/);
+	});
+
+	it("carries Slice-2 fields (workspaces/memberships) through verbatim", () => {
+		const policy: AuthPolicyFile = {
+			credentials: [{ identity: "spouse", tokenSha256: "s" }],
+			workspaces: [{ id: "personal-arthur", kind: "personal", namespace: "personal-arthur" }],
+			memberships: [{ identity: "spouse", workspace: "personal-arthur" }],
+		};
+
+		const next = removeCredential(policy, "spouse");
+
+		expect(next.workspaces).toEqual(policy.workspaces);
+		expect(next.memberships).toEqual(policy.memberships);
+		expect(next.credentials).toEqual([]);
+	});
+
+	it("is exact about the identity — no prefix, case, or whitespace fuzz", () => {
+		const policy: AuthPolicyFile = { credentials: [{ identity: "my-phone", tokenSha256: "p" }] };
+
+		expect(() => removeCredential(policy, "my-pho")).toThrow(/not enrolled/);
+		expect(() => removeCredential(policy, "My-Phone")).toThrow(/not enrolled/);
+		expect(() => removeCredential(policy, " my-phone")).toThrow(/not enrolled/);
+	});
+});
+
+describe("refarm auth revoke — the command", () => {
+	const tempDirs: string[] = [];
+	let stdoutSpy: ReturnType<typeof vi.spyOn>;
+	let stderrSpy: ReturnType<typeof vi.spyOn>;
+	let logSpy: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(() => {
+		stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+		stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+	});
+
+	afterEach(() => {
+		stdoutSpy.mockRestore();
+		stderrSpy.mockRestore();
+		logSpy.mockRestore();
+		process.exitCode = undefined;
+		for (const dir of tempDirs.splice(0)) {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	function tempPolicyPath(): string {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-auth-revoke-test-"));
+		tempDirs.push(dir);
+		return path.join(dir, "auth-policy.json");
+	}
+
+	function writePolicy(policyPath: string, policy: AuthPolicyFile, mode = 0o600): string {
+		fs.mkdirSync(path.dirname(policyPath), { recursive: true });
+		fs.writeFileSync(policyPath, `${JSON.stringify(policy, null, 2)}\n`, { mode });
+		fs.chmodSync(policyPath, mode);
+		return policyPath;
+	}
+
+	function readPolicyFile(policyPath: string): AuthPolicyFile {
+		return JSON.parse(fs.readFileSync(policyPath, "utf8")) as AuthPolicyFile;
+	}
+
+	function stdoutText(): string {
+		return stdoutSpy.mock.calls.map((call: unknown[]) => String(call[0])).join("");
+	}
+
+	function stderrText(): string {
+		return stderrSpy.mock.calls.map((call: unknown[]) => String(call[0])).join("");
+	}
+
+	const TWO: AuthPolicyFile = {
+		credentials: [
+			{ identity: "spouse", tokenSha256: "s" },
+			{ identity: "my-phone", tokenSha256: "p" },
+		],
+	};
+
+	it("revokes the named identity and leaves every other credential untouched", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), TWO);
+		const cmd = createAuthRevokeCommand();
+
+		await cmd.parseAsync(["my-phone", "--policy", policyPath, "--yes"], { from: "user" });
+
+		expect(process.exitCode).toBeUndefined();
+		expect(readPolicyFile(policyPath).credentials).toEqual([
+			{ identity: "spouse", tokenSha256: "s" },
+		]);
+		expect(stdoutText()).toContain('revoked "my-phone"');
+	});
+
+	it("preserves mode 0600 on the rewritten file", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), TWO);
+		const cmd = createAuthRevokeCommand();
+
+		await cmd.parseAsync(["my-phone", "--policy", policyPath, "--yes"], { from: "user" });
+
+		expect(fs.statSync(policyPath).mode & 0o777).toBe(0o600);
+	});
+
+	it("preserves the rest of the file verbatim (workspaces/memberships)", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), {
+			...TWO,
+			workspaces: [{ id: "personal-arthur", kind: "personal" }],
+		});
+		const cmd = createAuthRevokeCommand();
+
+		await cmd.parseAsync(["my-phone", "--policy", policyPath, "--yes"], { from: "user" });
+
+		expect(readPolicyFile(policyPath).workspaces).toEqual([
+			{ id: "personal-arthur", kind: "personal" },
+		]);
+	});
+
+	it("an identity that is not enrolled is an error, and nothing is written", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), TWO);
+		const before = fs.readFileSync(policyPath, "utf8");
+		const cmd = createAuthRevokeCommand();
+
+		await cmd.parseAsync(["ghost", "--policy", policyPath, "--yes"], { from: "user" });
+
+		expect(process.exitCode).toBe(1);
+		expect(stderrText()).toMatch(/not enrolled/);
+		expect(fs.readFileSync(policyPath, "utf8")).toBe(before);
+	});
+
+	it("no TTY and no identity: refuses with the usage message rather than prompting", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), TWO);
+		const before = fs.readFileSync(policyPath, "utf8");
+		const cmd = createAuthRevokeCommand({
+			input: fakeStream(false),
+			output: fakeStream(false),
+		});
+
+		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
+
+		expect(process.exitCode).toBe(1);
+		expect(stderrText()).toMatch(/missing required argument 'identity'/);
+		// Crucially it did NOT default-pick the first credential.
+		expect(fs.readFileSync(policyPath, "utf8")).toBe(before);
+	});
+
+	it("--json without an identity refuses — a JSON call is non-interactive by nature", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), TWO);
+		const cmd = createAuthRevokeCommand({ input: fakeStream(true), output: fakeStream(true) });
+
+		await cmd.parseAsync(["--policy", policyPath, "--json"], { from: "user" });
+
+		expect(process.exitCode).toBe(1);
+		expect(stderrText()).toMatch(/identity is required with --json/);
+		expect(readPolicyFile(policyPath).credentials).toHaveLength(2);
+	});
+
+	it("--yes without an identity refuses too — it skips the confirm, not the choice", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), TWO);
+		const cmd = createAuthRevokeCommand({ input: fakeStream(true), output: fakeStream(true) });
+
+		await cmd.parseAsync(["--policy", policyPath, "--yes"], { from: "user" });
+
+		expect(process.exitCode).toBe(1);
+		expect(readPolicyFile(policyPath).credentials).toHaveLength(2);
+	});
+
+	it("--json prints the sibling-shaped payload", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), TWO);
+		const cmd = createAuthRevokeCommand();
+
+		await cmd.parseAsync(["my-phone", "--policy", policyPath, "--json"], { from: "user" });
+
+		const payload = JSON.parse(stdoutText()) as {
+			ok: boolean;
+			identity: string;
+			revoked: boolean;
+			policy: string;
+			remaining: string[];
+			nextCommand: string;
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			identity: "my-phone",
+			revoked: true,
+			policy: policyPath,
+			remaining: ["spouse"],
+		});
+		expect(payload.nextCommand).toBe("refarm auth list");
+	});
+
+	it("interactive with no argument: offers the enrolled identities to pick from", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), TWO);
+		const { operator, prompts } = recordingOperator(["my-phone", true]);
+		const cmd = createAuthRevokeCommand({
+			operator,
+			input: fakeStream(true),
+			output: fakeStream(true),
+		});
+
+		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
+
+		const select = selectPrompt(prompts);
+		expect(select.options.map((o) => o.value)).toEqual(["spouse", "my-phone"]);
+		expect(select.options[0]?.description).toBe("revoke its credential");
+		expect(readPolicyFile(policyPath).credentials).toEqual([
+			{ identity: "spouse", tokenSha256: "s" },
+		]);
+	});
+
+	it("NEVER offers a revoke-all affordance", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), TWO);
+		const { operator, prompts } = recordingOperator(["my-phone", true]);
+		const cmd = createAuthRevokeCommand({
+			operator,
+			input: fakeStream(true),
+			output: fakeStream(true),
+		});
+
+		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
+
+		const select = selectPrompt(prompts);
+		// One entry per enrolled device and nothing else — no "all", no "everything",
+		// and no free-text entry that could name a device that is not there.
+		expect(select.options).toHaveLength(2);
+		for (const option of select.options) {
+			expect(`${option.value} ${option.label} ${option.description ?? ""}`).not.toMatch(
+				/\ball\b|todos|every/i,
+			);
+		}
+	});
+
+	it("interactive: confirms before writing, and a decline writes nothing", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), TWO);
+		const before = fs.readFileSync(policyPath, "utf8");
+		const { operator, prompts } = recordingOperator(["my-phone", false]);
+		const cmd = createAuthRevokeCommand({
+			operator,
+			input: fakeStream(true),
+			output: fakeStream(true),
+		});
+
+		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
+
+		const confirm = prompts.find((p) => p.type === "confirm");
+		expect(confirm?.type).toBe("confirm");
+		// Destructive: the safe answer is the default one.
+		expect(confirm?.type === "confirm" && confirm.default).toBe(false);
+		expect(confirm?.question).toContain("my-phone");
+		expect(fs.readFileSync(policyPath, "utf8")).toBe(before);
+		expect(stdoutText()).toContain("Nothing was revoked");
+		expect(process.exitCode).toBeUndefined();
+	});
+
+	it("interactive with an explicit identity still confirms", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), TWO);
+		const { operator, prompts } = recordingOperator([false]);
+		const cmd = createAuthRevokeCommand({
+			operator,
+			input: fakeStream(true),
+			output: fakeStream(true),
+		});
+
+		await cmd.parseAsync(["my-phone", "--policy", policyPath], { from: "user" });
+
+		expect(prompts.filter((p) => p.type === "confirm")).toHaveLength(1);
+		expect(readPolicyFile(policyPath).credentials).toHaveLength(2);
+	});
+
+	it("cancelling the picker is graceful: exit 130, nothing revoked", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), TWO);
+		const before = fs.readFileSync(policyPath, "utf8");
+		const operator = {
+			ask: async () => {
+				throw new OperatorPromptCancelledError();
+			},
+		} as unknown as OperatorChannel;
+		const cmd = createAuthRevokeCommand({
+			operator,
+			input: fakeStream(true),
+			output: fakeStream(true),
+		});
+
+		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
+
+		expect(process.exitCode).toBe(130);
+		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("Nothing was revoked"));
+		expect(fs.readFileSync(policyPath, "utf8")).toBe(before);
+	});
+
+	it("cancelling the CONFIRMATION is graceful too — nothing is written", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), TWO);
+		const before = fs.readFileSync(policyPath, "utf8");
+		let asked = 0;
+		const operator = {
+			ask: async (prompt: OperatorPrompt): Promise<string> => {
+				asked += 1;
+				if (prompt.type === "confirm") throw new OperatorPromptCancelledError();
+				return "my-phone";
+			},
+		} as unknown as OperatorChannel;
+		const cmd = createAuthRevokeCommand({
+			operator,
+			input: fakeStream(true),
+			output: fakeStream(true),
+		});
+
+		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
+
+		expect(asked).toBe(2);
+		expect(process.exitCode).toBe(130);
+		expect(fs.readFileSync(policyPath, "utf8")).toBe(before);
+	});
+
+	it("an empty policy says so rather than opening an empty picker", async () => {
+		const policyPath = writePolicy(tempPolicyPath(), { credentials: [] });
+		const { operator, prompts } = recordingOperator([]);
+		const cmd = createAuthRevokeCommand({
+			operator,
+			input: fakeStream(true),
+			output: fakeStream(true),
+		});
+
+		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
+
+		expect(prompts).toHaveLength(0);
+		expect(process.exitCode).toBe(1);
+		expect(stderrText()).toMatch(/nothing to revoke/i);
+	});
+
+	it("a missing policy file is not a silent success", async () => {
+		const policyPath = path.join(
+			fs.mkdtempSync(path.join(os.tmpdir(), "refarm-auth-revoke-test-")),
+			"nope.json",
+		);
+		tempDirs.push(path.dirname(policyPath));
+		const cmd = createAuthRevokeCommand();
+
+		await cmd.parseAsync(["my-phone", "--policy", policyPath, "--yes"], { from: "user" });
+
+		expect(process.exitCode).toBe(1);
+		expect(stderrText()).toMatch(/not enrolled/);
+		expect(fs.existsSync(policyPath)).toBe(false);
+	});
+
+	it("is wired into `refarm auth` alongside enroll and list", () => {
+		expect(
+			createAuthCommand()
+				.commands.map((c) => c.name())
+				.sort(),
+		).toEqual(["enroll", "list", "revoke"]);
 	});
 });

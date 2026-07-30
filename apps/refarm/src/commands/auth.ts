@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import {
@@ -39,6 +39,7 @@ export type { IdentityCandidate, IdentityCandidateSource } from "./identity-cand
 
 const DEFAULT_POLICY_PATH = ".refarm/auth-policy.json";
 
+
 /** SHA-256 as lowercase hex — the exact digest the daemon (auth.rs) matches. */
 export function sha256Hex(input: string): string {
 	return createHash("sha256").update(input).digest("hex");
@@ -75,6 +76,21 @@ export function upsertCredential(
 	const next =
 		at >= 0 ? credentials.map((c, i) => (i === at ? entry : c)) : [...credentials, entry];
 	return { ...policy, credentials: next };
+}
+
+/** Remove `identity`'s credential. PURE — returns a new policy, never mutates.
+ * Throws when the identity is not enrolled: asking to cut off a device that was
+ * never there is a mistaken belief about the world, and reporting success would
+ * leave the operator believing a device is off when it may simply be spelled
+ * differently. Everything else in the file — other credentials, and any Slice-2
+ * workspaces/memberships — is carried through verbatim. */
+export function removeCredential(policy: AuthPolicyFile, identity: string): AuthPolicyFile {
+	const credentials = Array.isArray(policy.credentials) ? policy.credentials : [];
+	const at = credentials.findIndex((c) => c.identity === identity);
+	if (at < 0) {
+		throw new Error(`identity "${identity}" is not enrolled — nothing to revoke`);
+	}
+	return { ...policy, credentials: credentials.filter((_, index) => index !== at) };
 }
 
 /** Read the policy file, tolerant of a missing file (→ empty policy) but NOT of a
@@ -526,11 +542,188 @@ export function createAuthListCommand(): Command {
 		});
 }
 
+interface RevokeOptions {
+	policy?: string;
+	json?: boolean;
+	yes?: boolean;
+}
+
+export interface AuthRevokeDeps {
+	/** Pre-built operator channel — tests inject `createScriptedOperatorChannel(...)`
+	 * to drive the picker and the confirmation without ever touching a TTY. */
+	operator?: OperatorChannel;
+	input?: NodeJS.ReadStream;
+	output?: NodeJS.WriteStream;
+}
+
+/**
+ * Ask WHICH enrolled device to cut off.
+ *
+ * A deliberate sibling of `promptForIdentity` rather than a reuse of it: that
+ * prompt's list always ends in "A new device", and every enrolled entry there is
+ * described as "rotate its token". Both are exactly wrong here — you cannot
+ * revoke a device that was never enrolled, and picking one must not read as
+ * rotating it. What IS shared is the contract: one `OperatorChannel`, one
+ * single-select, one device per invocation.
+ *
+ * There is no "revoke all" entry, and there must never be one. A list is a
+ * convenience for finding the right name; cutting off every device at once is a
+ * different act with a different blast radius, and it does not get to be one
+ * keystroke away from the common case.
+ */
+export async function promptForIdentityToRevoke(
+	operator: OperatorChannel,
+	enrolledIdentities: readonly string[],
+): Promise<string> {
+	return operator.ask({
+		type: "select",
+		question: "Which device's credential should stop working?",
+		options: enrolledIdentities.map((identity) => ({
+			value: identity,
+			label: identity,
+			description: "revoke its credential",
+		})),
+	});
+}
+
+export function createAuthRevokeCommand(deps: AuthRevokeDeps = {}): Command {
+	return new Command("revoke")
+		.description("Remove a device's credential from the sidecar auth policy")
+		.argument(
+			"[identity]",
+			"The enrolled identity to cut off, e.g. my-phone. Omit to choose interactively.",
+		)
+		.option("--policy <path>", "Auth policy file to update", DEFAULT_POLICY_PATH)
+		.option("--json", "Print the result as JSON")
+		.option("--yes", "Skip the confirmation (requires the identity as an argument)")
+		.action(async (identityArg: string | undefined, options: RevokeOptions) => {
+			try {
+				await runAuthRevoke(deps, identityArg, options);
+			} catch (error) {
+				// Interactive-only: cancelling the picker or the confirmation (Ctrl+C /
+				// Ctrl+D) is a normal exit, not a crash — and it must leave the policy
+				// untouched, which it does because nothing is written before both
+				// prompts have returned. Mirrors `createAuthEnrollCommand`.
+				if (!(error instanceof OperatorPromptCancelledError)) throw error;
+				console.log("\n  Cancelled. Nothing was revoked.");
+				process.exitCode = 130;
+			}
+		});
+}
+
+async function runAuthRevoke(
+	deps: AuthRevokeDeps,
+	identityArg: string | undefined,
+	options: RevokeOptions,
+): Promise<void> {
+	const policyPath = path.resolve(options.policy ?? DEFAULT_POLICY_PATH);
+	const input = deps.input ?? process.stdin;
+	const output = deps.output ?? process.stdout;
+	const interactive = Boolean(input.isTTY && output.isTTY);
+	// There is somewhere to ask only when a real terminal (or an injected channel)
+	// is present. `--json` and `--yes` are non-interactive contracts by nature, so
+	// both forfeit prompting entirely — including the picker.
+	const mayAsk = !options.json && !options.yes && (interactive || Boolean(deps.operator));
+	// Built at most once, and only on a path where prompting is legitimate — never
+	// `createAutoOperatorChannel()`, which would answer a destructive question with
+	// a default.
+	let channel: OperatorChannel | undefined;
+	const operatorChannel = (): OperatorChannel =>
+		(channel ??= deps.operator ?? createStdioOperatorChannel({ input, output }));
+
+	let policy: AuthPolicyFile;
+	try {
+		policy = await readPolicy(policyPath);
+	} catch (error) {
+		console.error((error as Error).message);
+		process.exitCode = 1;
+		return;
+	}
+	const enrolled = policy.credentials.map((c) => c.identity);
+
+	let identity = identityArg;
+	if (!identity) {
+		if (!mayAsk) {
+			// Never construct `createAutoOperatorChannel()` on this path: it answers
+			// every prompt with a default, which for a select over enrolled devices
+			// would silently pick the first one and revoke it. Destructive work does
+			// not get a default.
+			console.error(
+				options.json
+					? `${refarmCommand(["auth", "revoke"])}: an identity is required with --json (non-interactive; does not prompt)`
+					: "error: missing required argument 'identity'\n" +
+							`  (not running interactively — pass one explicitly, e.g. \`${refarmCommand(["auth", "revoke", "my-phone"])}\`)`,
+			);
+			process.exitCode = 1;
+			return;
+		}
+		if (enrolled.length === 0) {
+			console.error(`No devices are enrolled in ${policyPath} — nothing to revoke.`);
+			process.exitCode = 1;
+			return;
+		}
+		identity = await promptForIdentityToRevoke(operatorChannel(), enrolled);
+	}
+
+	// Deliberately NOT validated with `validateIdentityLabel`: revocation must be
+	// able to remove whatever is actually in the file. A label that today's
+	// validator would reject (written by an older version, or by hand) is exactly
+	// the credential an operator most needs to be able to cut off.
+	if (mayAsk) {
+		const confirmed = await operatorChannel().ask({
+			type: "confirm",
+			question: `Revoke "${identity}"? Its token stops working and cannot be recovered.`,
+			default: false,
+		});
+		if (!confirmed) {
+			process.stdout.write("  Nothing was revoked.\n");
+			return;
+		}
+	}
+
+	// Re-read at the moment of the write, exactly as enrolment does: the file may
+	// have changed while a human was reading the confirmation.
+	let next: AuthPolicyFile;
+	try {
+		next = removeCredential(await readPolicy(policyPath), identity);
+	} catch (error) {
+		console.error((error as Error).message);
+		process.exitCode = 1;
+		return;
+	}
+	await mkdir(path.dirname(policyPath), { recursive: true });
+	await writeFile(policyPath, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
+	// `mode` on `writeFile` only applies when the file is CREATED, and a revoke by
+	// definition rewrites one that exists — so state the mode explicitly rather
+	// than inheriting whatever the file happened to carry.
+	await chmod(policyPath, 0o600);
+
+	const remaining = next.credentials.map((c) => c.identity);
+	const listHint = refarmCommand(["auth", "list"]);
+	if (options.json) {
+		process.stdout.write(
+			`${JSON.stringify({ ok: true, identity, revoked: true, policy: policyPath, remaining, nextCommand: listHint, nextCommands: [listHint] })}\n`,
+		);
+		return;
+	}
+	const remainingLine =
+		remaining.length === 0
+			? `   No devices remain enrolled — this policy now matches no token.\n`
+			: `   Still enrolled: ${remaining.join(", ")}\n`;
+	process.stdout.write(
+		`🗝  revoked "${identity}"\n\n` +
+			remainingLine +
+			`   Policy: ${policyPath} (mode 0600)\n` +
+			`   Confirm with:  ${listHint}\n`,
+	);
+}
+
 export function createAuthCommand(): Command {
 	return new Command("auth")
-		.description("Manage the sidecar auth gate — enroll device credentials")
+		.description("Manage the sidecar auth gate — enroll, list and revoke device credentials")
 		.addCommand(createAuthEnrollCommand())
-		.addCommand(createAuthListCommand());
+		.addCommand(createAuthListCommand())
+		.addCommand(createAuthRevokeCommand());
 }
 
 export const authCommand = createAuthCommand();
