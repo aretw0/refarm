@@ -16,6 +16,7 @@ import {
 	createAuthCommand,
 	createAuthEnrollCommand,
 	createAuthRevokeCommand,
+	deviceInstructionLines,
 	promptForIdentity,
 	removeCredential,
 	sha256Hex,
@@ -1696,6 +1697,79 @@ describe("refarm auth enroll — the gate instruction follows the daemon's deriv
 
 		const payload = JSON.parse(written()) as { token: string; enable: string };
 		expect(payload.enable).not.toContain(payload.token);
+	});
+});
+
+/**
+ * The DEVICE instruction. The previous wording used THIS node's command name to
+ * instruct ANOTHER machine — `FARM_TOKEN=… refarm ask "olá"` — and the operator
+ * followed it on their phone and got `No command refarm found`, because the
+ * device that most needs a credential is precisely the one carrying only the
+ * zero-dependency kit. The line that WOULD have worked was parenthetical, with an
+ * elided `.../` path nobody can copy. It was wrong for an hour and no test
+ * noticed; these pin both forms and their ORDER so it cannot go silently wrong
+ * again.
+ */
+describe("refarm auth enroll — the device instruction leads with the zero-dependency form", () => {
+	it("names the kit path in full — never an elided `.../`", () => {
+		const out = deviceInstructionLines("TOK");
+
+		expect(out).toContain("node ~/.refarm/kit/farm-client/bin/farm-ask.mjs");
+		expect(out).not.toContain(".../");
+	});
+
+	it("the zero-dependency form comes FIRST, the CLI form second", () => {
+		const out = deviceInstructionLines("TOK");
+
+		const kitAt = out.indexOf("farm-ask.mjs");
+		const cliAt = out.indexOf("refarm ask");
+		expect(kitAt).toBeGreaterThan(-1);
+		expect(cliAt).toBeGreaterThan(-1);
+		// The whole point of the fix: cheapest-to-satisfy first. Swap them and this fails.
+		expect(kitAt).toBeLessThan(cliAt);
+	});
+
+	it("both forms carry the real token, so either is copyable as-is", () => {
+		const out = deviceInstructionLines("TOK");
+
+		expect(out).toContain('FARM_TOKEN=TOK node ~/.refarm/kit/farm-client/bin/farm-ask.mjs "olá"');
+		expect(out).toContain('FARM_TOKEN=TOK refarm ask "olá"');
+		// Never elides the token behind `FARM_TOKEN=…` the way the old alternative did.
+		expect(out).not.toContain("FARM_TOKEN=…");
+	});
+
+	it("presents the CLI form as the alternative — it does not detect, it offers both", () => {
+		const out = deviceInstructionLines("TOK");
+
+		expect(out).toContain("with the zero-dependency kit (needs only node)");
+		expect(out).toContain("On a device that has the CLI installed");
+	});
+
+	it("the enrolment success output really prints it, with the minted token", async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-auth-device-test-"));
+		const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+		try {
+			const policyPath = path.join(dir, "auth-policy.json");
+			const cmd = createAuthEnrollCommand({ identityCandidateSources: [] });
+
+			await cmd.parseAsync(["my-phone", "--policy", policyPath], { from: "user" });
+
+			const out = stdoutSpy.mock.calls.map((call: unknown[]) => String(call[0])).join("");
+			const token = (JSON.parse(fs.readFileSync(policyPath, "utf8")) as AuthPolicyFile)
+				.credentials[0]?.tokenSha256;
+			expect(token).toBeTruthy();
+			expect(out).toContain("node ~/.refarm/kit/farm-client/bin/farm-ask.mjs");
+			// The printed token is the RAW one; the file stores only its digest. The
+			// instruction lines must carry the raw token, both of them.
+			const printed = /FARM_TOKEN=(\S+) node/.exec(out)?.[1];
+			expect(printed).toBeTruthy();
+			expect(sha256Hex(printed as string)).toBe(token);
+			expect(out).toContain(`FARM_TOKEN=${printed} refarm ask "olá"`);
+		} finally {
+			stdoutSpy.mockRestore();
+			process.exitCode = undefined;
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });
 

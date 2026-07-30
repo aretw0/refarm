@@ -39,6 +39,30 @@ export type { IdentityCandidate, IdentityCandidateSource } from "./identity-cand
 
 const DEFAULT_POLICY_PATH = ".refarm/auth-policy.json";
 
+/** Where `@refarm.dev/farm-client`'s cold-bootstrap (`bootstrap/install.mjs`)
+ * puts the zero-dependency kit on a device: `~/.refarm/kit/farm-client`. Spelled
+ * out in full — never elided to `.../` — because this is a line an operator
+ * copies onto a phone while holding a one-shot token. */
+const FARM_CLIENT_ASK_PATH = "~/.refarm/kit/farm-client/bin/farm-ask.mjs";
+
+/**
+ * How the DEVICE spends the token it was just handed.
+ *
+ * The zero-dependency form leads. This node cannot know what the other machine
+ * has, and must not guess: the device that most needs a credential is precisely
+ * the one carrying only the `farm-client` kit (a phone in Termux — `node` and
+ * nothing else), so instructing it with THIS node's CLI name produced a literal
+ * `No command refarm found`. Both forms are printed, honestly, cheapest-to-
+ * satisfy first — the CLI form is the alternative, not the headline.
+ */
+export function deviceInstructionLines(token: string): string {
+	return (
+		`   On the device — with the zero-dependency kit (needs only node):\n` +
+		`     FARM_TOKEN=${token} node ${FARM_CLIENT_ASK_PATH} "olá"\n` +
+		`   On a device that has the CLI installed:\n` +
+		`     FARM_TOKEN=${token} ${refarmCommand(["ask", '"olá"'])}\n`
+	);
+}
 
 /** SHA-256 as lowercase hex — the exact digest the daemon (auth.rs) matches. */
 export function sha256Hex(input: string): string {
@@ -451,8 +475,7 @@ async function runAuthEnroll(
 	process.stdout.write(
 		`🔑 enrolled "${validIdentity}"\n\n` +
 			`   TOKEN (shown once — save it on the device):\n     ${token}\n\n` +
-			`   On the device:  FARM_TOKEN=${token} ${refarmCommand(["ask", '"olá"'])}\n` +
-			`                   (or: FARM_TOKEN=… node .../farm-ask.mjs "…")\n` +
+			deviceInstructionLines(token) +
 			gateLine +
 			`   Policy: ${policyPath} (mode 0600; only the token's sha256 is stored)\n`,
 	);
