@@ -21,7 +21,15 @@ const HOST = process.env.FARM_HOST || "__FARM_HOST__";
 const PORT = Number(process.env.FARM_DIST_PORT || "__FARM_PORT__");
 const KIT_DIR = process.env.FARM_KIT_DIR || join(homedir(), ".refarm", "kit", "farm-client");
 
-if (!HOST || HOST === "__FARM_HOST__") {
+// The "nobody baked a host into me" sentinel, assembled at RUN time so that
+// `bakeInstaller`'s replaceAll cannot rewrite it. Written as a literal, this
+// guard was substituted along with the value it guards — `refarm dist publish
+// --host serpro-1577853` produced `HOST === "serpro-1577853"`, so the baked
+// installer refused its own baked farm and the cold-bootstrap one-liner exited 2
+// every time unless the operator overrode FARM_HOST with a DIFFERENT name.
+const UNBAKED = ["__FARM", "HOST__"].join("_");
+
+if (!HOST || HOST === UNBAKED) {
 	console.error("❌ defina FARM_HOST (o nome MagicDNS da fazenda), ex.: FARM_HOST=serpro-1577853");
 	process.exit(2);
 }
