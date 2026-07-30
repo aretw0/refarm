@@ -39,7 +39,13 @@ test("a BAKED installer accepts its own baked farm — the cold-bootstrap one-li
 	// refused the farm it was baked for. The published one-liner
 	// (`curl … | node --input-type=module -`) exited 2 before downloading a byte.
 	const template = await readFile(INSTALLER, "utf8");
-	const baked = bake(template, { host: "serpro-1577853", port: 4321 });
+	// A DOCUMENTATION host (RFC 5737 TEST-NET-1) on port 1, never a real farm name.
+	// The first version of this test baked `serpro-1577853` — the operator's actual
+	// farm — and asserted it was unreachable, so it made a real network request to
+	// their machine and passed only while that machine was DOWN. It went red the
+	// moment the mesh server came up, which is the opposite of what a test should do.
+	// The incident's data is not the test's fixture.
+	const baked = bake(template, { host: "192.0.2.1", port: 1 });
 
 	const result = await runInstaller(baked, { FARM_HOST: "" });
 	assert.notEqual(result.code, 2, `baked installer refused its baked host:\n${result.stderr}`);
@@ -48,7 +54,7 @@ test("a BAKED installer accepts its own baked farm — the cold-bootstrap one-li
 		false,
 		"a baked installer must never ask for the host it already carries",
 	);
-	// It gets as far as the network — there is no farm at serpro-1577853 here.
+	// It gets as far as the network, and TEST-NET-1:1 can never answer.
 	assert.equal(result.stderr.includes("manifesto inalcançável"), true);
 });
 
