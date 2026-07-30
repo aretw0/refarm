@@ -167,17 +167,16 @@ export function createDistPublishCommand(): Command {
 			const template = await readFile(path.join(kitDir, "bootstrap", "install.mjs"), "utf8");
 			await writeFile(path.join(outDir, "install.mjs"), bakeInstaller(template, { host, port }));
 
-			// `--host 0.0.0.0` is still the right hint — serving the kit to other devices is
-			// the whole point of `dist publish` — but it is no longer a bind that just
-			// happens. `refarm web serve` refuses a non-loopback bind without an auth policy
-			// (that listener proxies /sync to the daemon's ungated CRDT socket), so the hint
-			// carries its precondition instead of failing in the operator's face.
+			// NO `--host` in the hint. Serving the kit to other devices is the whole point of
+			// `dist publish`, but since O5 that exposure comes from the DECLARATION, not from a
+			// flag: `surfaces.web` in .refarm/config.json is the ceiling, and a flag may only
+			// narrow it (docs/superpowers/specs/2026-07-30-open-by-declaration-surfaces-design.md).
+			// So the hint names the command, and the line under it names the declaration that
+			// opens it — instead of a flag that would now simply be refused.
 			const serveHint = refarmCommand([
 				"web",
 				"serve",
 				path.relative(process.cwd(), outDir) || outDir,
-				"--host",
-				"0.0.0.0",
 				"--port",
 				String(port),
 			]);
@@ -203,8 +202,9 @@ export function createDistPublishCommand(): Command {
 					`📦 farm-client ${manifest.version} → ${outDir}\n` +
 						`   ${manifest.files.length} file(s) + manifest.json + install.mjs (sha256-verified).\n` +
 						`   Serve on the mesh: ${serveHint}\n` +
-						`     (needs REFARM_AUTH_POLICY set — a non-loopback bind is refused without it;\n` +
-						`      mint one with \`refarm auth enroll\`)\n` +
+						`     (loopback until declared. To reach other devices, declare it in\n` +
+						`      .refarm/config.json: "surfaces": { "web": { "expose": "tailnet", "gate": "none" } }\n` +
+						`      — deliberately open, read-only, admitted devices only)\n` +
 						`   Cold-bootstrap (device, no git): ${coldBootstrap}\n` +
 						`   Update thereafter:  farm-update\n`,
 				);

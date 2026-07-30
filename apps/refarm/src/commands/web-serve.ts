@@ -11,9 +11,14 @@ import { createServer as createTlsServer } from "node:https";
 import { connect, type Socket } from "node:net";
 import path from "node:path";
 
-import { DEFAULT_BIND_HOST, refuseUnguardedNonLoopbackBind } from "@refarm.dev/std";
-import { authPolicyPresent } from "@refarm.dev/std/node";
+import { type SurfaceCatalog } from "@refarm.dev/std";
 import { Command } from "commander";
+
+import {
+	readSurfacesFromFilesystem,
+	resolveWebBindHost,
+	type TailnetSelfResolution,
+} from "./web-surface.js";
 
 /**
  * `refarm web serve <dir>` — the missing hub-serve command (outward horizon).
@@ -21,20 +26,26 @@ import { Command } from "commander";
  * A hardened static server for a built hub (`apps/me/dist` and kin), sending the
  * cross-origin-isolation headers on every response — without COOP/COEP the
  * browser refuses `crossOriginIsolated`, and the hub's OPFS-SQLite/WASM runtime
- * cannot boot off-localhost. Loopback by default; `--host 0.0.0.0` exposes the
- * hub to the operator's other devices, the same posture as `serve` and the
- * daemon's `--http-host`. Serving is read-only: GET/HEAD, root-contained paths.
+ * cannot boot off-localhost. Loopback unless the `surfaces.web` declaration says
+ * otherwise. Serving is read-only: GET/HEAD, root-contained paths.
  *
- * WHY THE BIND GUARD IS LOAD-BEARING HERE, not just consistent:
- * this server is not only static. It PROXIES `/sync` WebSocket upgrades to the
- * daemon's CRDT socket on `127.0.0.1:42000` — the very socket the daemon refuses
- * to bind off-loopback because it has no credential gate. Widening THIS bind
- * hands the outside world that socket through a path the daemon's own guard
- * cannot observe: from the daemon's side the connection arrives from loopback,
- * indistinguishable from a local client. So `--host 0.0.0.0` here is not a
- * static-file decision, it is a remote-agent-dispatch decision, and it goes
- * through the same fail-closed rule as every other bind in the substrate.
- * The flag stays — it is refused without a policy, not removed.
+ * WHERE THE BIND COMES FROM (O5,
+ * docs/superpowers/specs/2026-07-30-open-by-declaration-surfaces-design.md):
+ * the `surfaces.web` declaration in the FILESYSTEM `.refarm/config.json`, and
+ * nothing else. It used to come from "does REFARM_AUTH_POLICY name a file that
+ * exists" — a criterion that measured the wrong thing entirely, since this
+ * listener never reads `Authorization`, not once. A surface that verifies no
+ * bearer may not claim a gate (S3); what it CAN do is say `"gate": "none"` and
+ * mean it. See `web-surface.ts` for the whole rule.
+ *
+ * WHY THAT IS LOAD-BEARING HERE, not merely consistent: this server is not only
+ * static. It PROXIES `/sync` WebSocket upgrades to the daemon's CRDT socket on
+ * `127.0.0.1:42000` and the sidecar API to `127.0.0.1:42001`. O6: those routes
+ * share this listener, so declaring the surface open opens them too — it cannot
+ * be waved off as "a different surface". They are admissible because the caller's
+ * credential is FORWARDED and the upstream gate still enforces (proven by
+ * `web-serve.test.ts`'s three probes through each proxy route), and only while a
+ * credential policy is actually live on this node (`proxiedUpstreamsAreGated`).
  */
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -148,11 +159,10 @@ export function createWebServeHandler(
 					res.statusCode = 404;
 					return res.end();
 				}
+				const contentType =
+					CONTENT_TYPES[path.extname(filePath).toLowerCase()] ?? "application/octet-stream";
 				res.statusCode = 200;
-				res.setHeader(
-					"Content-Type",
-					CONTENT_TYPES[path.extname(filePath).toLowerCase()] ?? "application/octet-stream",
-				);
+				res.setHeader("Content-Type", contentType);
 				res.setHeader("Content-Length", stats.size);
 				if (req.method === "HEAD") return res.end();
 				createReadStream(filePath).pipe(res);
@@ -230,25 +240,38 @@ export function startWebServeServer(
 	rootDir: string,
 	options: {
 		port: number;
-		host: string;
+		/** The `--host` value the operator passed, or `undefined` when they passed none. The
+		 *  absence is meaningful — it is what lets `surfaces.web` decide (S1/S5). */
+		host?: string | undefined;
 		tls?: WebServeTlsOptions;
 		syncTarget?: WebServeSyncTarget;
 		sidecarTarget?: WebServeSyncTarget;
+		/** The declaration this bind obeys. Injected by tests; production reads the FILESYSTEM
+		 *  `.refarm/config.json` under `configRoot`, never the replicated config node. */
+		surfaces?: SurfaceCatalog;
+		configRoot?: string;
+		/** Seam for `expose: "tailnet"` resolution — see `web-surface.ts`. */
+		resolveTailnet?: () => TailnetSelfResolution;
 	},
 ): Promise<{ server: Server; url: string }> {
-	// Fail closed BEFORE building the server: a non-loopback bind with no auth policy is
-	// refused, because this listener proxies `/sync` to the daemon's ungated CRDT socket.
+	// Fail closed BEFORE building the server: the bind is decided by the `surfaces.web`
+	// declaration (S1/S3/S5 + O6), never by a policy file existing somewhere on the machine.
 	// Checked before anything is constructed — no server object, no cert read from disk, no
 	// socket — so a refused bind leaves nothing behind. Returned as a REJECTION rather than a
 	// synchronous throw so every bind refusal in the substrate has the same shape at the call
 	// site (`serveCapabilities` rejects too); `await` sees the same thing either way, but a
 	// caller holding the promise without awaiting immediately does not.
-	const refusal = refuseUnguardedNonLoopbackBind(
-		options.host,
-		authPolicyPresent(),
-		"the hub (`refarm web serve`)",
-	);
-	if (refusal) return Promise.reject(new Error(refusal));
+	let host: string;
+	try {
+		const surfaces = options.surfaces ?? readSurfacesFromFilesystem(options.configRoot);
+		({ host } = resolveWebBindHost({
+			flagHost: options.host,
+			surfaces,
+			...(options.resolveTailnet ? { resolveTailnet: options.resolveTailnet } : {}),
+		}));
+	} catch (error) {
+		return Promise.reject(error instanceof Error ? error : new Error(String(error)));
+	}
 
 	const handler = createWebServeHandler(rootDir, options.sidecarTarget ?? DEFAULT_SIDECAR_TARGET);
 	const server = options.tls
@@ -266,10 +289,12 @@ export function startWebServeServer(
 	);
 	const scheme = options.tls ? "https" : "http";
 	return new Promise((resolve) => {
-		server.listen(options.port, options.host, () => {
+		// `host`, never `options.host`: the RESOLVED value is what the declaration permitted, and
+		// with an absent flag it is the only value there is.
+		server.listen(options.port, host, () => {
 			const addr = server.address();
 			const boundPort = typeof addr === "object" && addr ? addr.port : options.port;
-			resolve({ server, url: `${scheme}://${options.host}:${boundPort}` });
+			resolve({ server, url: `${scheme}://${host}:${boundPort}` });
 		});
 	});
 }
@@ -298,11 +323,17 @@ export function createWebServeCommand(): Command {
 		.description("Serve a built hub directory with cross-origin-isolation headers")
 		.argument("<dir>", "Directory to serve (e.g. apps/me/dist)")
 		.option("--port <port>", "TCP port to listen on", "4321")
+		// NO DEFAULT VALUE, deliberately. Under S5 ("a flag may only narrow the declaration") a
+		// CLI default stops being neutral: a `--host` that ALWAYS carried `127.0.0.1` would
+		// ALWAYS be present and ALWAYS narrow, so a `surfaces.web` declaration could never take
+		// effect — the declaration would be inert and nothing would say so. That is the exact
+		// bug the Rust side found in `--http-host` and fixed by making it an `Option`. An absent
+		// flag means "let the declaration decide"; loopback remains what an absent DECLARATION
+		// resolves to (S1).
 		.option(
 			"--host <host>",
-			"Bind address; a non-loopback host proxies /sync to the ungated daemon socket, so it " +
-				"needs REFARM_AUTH_POLICY configured or the bind is refused",
-			DEFAULT_BIND_HOST,
+			"Bind address. Absent, the `surfaces.web` declaration in .refarm/config.json decides " +
+				"(undeclared ⇒ loopback). A value may only narrow that declaration, never widen it",
 		)
 		.option("--tls-cert <file>", "TLS certificate (PEM) — with --tls-key, serves https")
 		.option("--tls-key <file>", "TLS private key (PEM) — with --tls-cert, serves https")
@@ -319,7 +350,6 @@ export function createWebServeCommand(): Command {
 		.option("--json", "Print the listening address as JSON")
 		.action(async (dir: string, options: WebServeOptions) => {
 			const port = Number.parseInt(options.port ?? "4321", 10);
-			const host = options.host ?? DEFAULT_BIND_HOST;
 			if (Boolean(options.tlsCert) !== Boolean(options.tlsKey)) {
 				throw new Error("--tls-cert and --tls-key must be provided together.");
 			}
@@ -329,7 +359,9 @@ export function createWebServeCommand(): Command {
 					: undefined;
 			const { url } = await startWebServeServer(dir, {
 				port,
-				host,
+				// Passed through EXACTLY as commander gave it, `undefined` included — see the
+				// `--host` option above for why the absence must survive this call.
+				...(options.host !== undefined ? { host: options.host } : {}),
 				...(tls ? { tls } : {}),
 				syncTarget: parseSyncTarget(options.syncTarget ?? "127.0.0.1:42000"),
 				sidecarTarget: parseSyncTarget(options.sidecarTarget ?? "127.0.0.1:42001"),

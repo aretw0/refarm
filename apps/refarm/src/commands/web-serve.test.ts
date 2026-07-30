@@ -9,10 +9,24 @@ import {
 	createProcessHandoffSpecFromRunner,
 	runProcessHandoffSync,
 } from "@refarm.dev/cli/process-handoff";
+import { parseSurfaces, type SurfaceCatalog } from "@refarm.dev/std";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { WebSocket, WebSocketServer } from "ws";
 
 import { isSidecarApiPath, startWebServeServer } from "./web-serve.js";
+
+/** Every test injects the declaration rather than letting the server read the machine's real
+ *  `.refarm/config.json` — the bind must be decided by data the test controls, and the
+ *  operator's live config is not a fixture. */
+const UNDECLARED: SurfaceCatalog = parseSurfaces({});
+/** The operator's live shape: a device-token gate on the sidecar, `daemon-ws` loopback. It is
+ *  what makes O6's upstream-gated precondition true without saying anything about `web`. */
+const GATED_NODE_SHAPE = {
+	"sidecar-http": { expose: "tailnet", gate: "device-token" },
+	"daemon-ws": { expose: "loopback" },
+};
+const declaring = (web: Record<string, unknown>): SurfaceCatalog =>
+	parseSurfaces({ surfaces: { ...GATED_NODE_SHAPE, web } });
 
 /** Run openssl through the app's sanctioned process seam (never raw child_process). */
 function runOpenssl(args: string[]): number {
@@ -48,9 +62,13 @@ afterEach(async () => {
 });
 
 async function serve(): Promise<string> {
-	const started = await startWebServeServer(root, { port: 0, host: "127.0.0.1" });
+	const started = await startWebServeServer(root, {
+		port: 0,
+		host: "127.0.0.1",
+		surfaces: UNDECLARED,
+	});
 	server = started.server;
-	return started.url.replace("http://127.0.0.1", "http://127.0.0.1");
+	return started.url;
 }
 
 describe("refarm web serve — the hub's static server", () => {
@@ -100,47 +118,77 @@ describe("refarm web serve — the hub's static server", () => {
 		expect(res.status).toBe(405);
 	});
 
-	it("REFUSES a non-loopback bind with no auth policy — and opens nothing", async () => {
-		// This listener proxies /sync to the daemon's CRDT socket, which the daemon itself
-		// refuses to expose because it has no credential gate. Widening THIS bind hands that
-		// socket to the network through a path the daemon cannot see: from its side the
-		// connection arrives from loopback. So the flag is not free — it is gated.
+	it("S1 — an UNDECLARED `web` binds loopback and refuses everything wider", async () => {
 		// PURE: the guard throws before any server object exists, so no socket is opened.
-		delete process.env.REFARM_AUTH_POLICY;
-		await expect(startWebServeServer(root, { port: 0, host: "0.0.0.0" })).rejects.toThrow(
-			/no auth policy configured/,
-		);
-		await expect(startWebServeServer(root, { port: 0, host: "100.64.0.1" })).rejects.toThrow(
-			/refusing to bind/,
-		);
+		await expect(
+			startWebServeServer(root, { port: 0, host: "0.0.0.0", surfaces: UNDECLARED }),
+		).rejects.toThrow(/no `surfaces.web` declaration is present/);
+		await expect(
+			startWebServeServer(root, { port: 0, host: "100.64.0.1", surfaces: UNDECLARED }),
+		).rejects.toThrow(/undeclared surface binds loopback only/);
 	});
 
-	it("treats a dangling REFARM_AUTH_POLICY as no policy at all", async () => {
-		process.env.REFARM_AUTH_POLICY = path.join(outside, "does-not-exist.json");
-		try {
-			await expect(startWebServeServer(root, { port: 0, host: "0.0.0.0" })).rejects.toThrow(
-				/refusing to bind/,
-			);
-		} finally {
-			delete process.env.REFARM_AUTH_POLICY;
-		}
-	});
-
-	it("honors an explicit host bind once an auth policy is configured", async () => {
-		// LAN exposure stays an operator decision — it is now a decision with a prerequisite.
+	it("O5 — an auth policy elsewhere on the machine no longer opens this listener", async () => {
+		// THE MUTATION GUARD for the criterion this slice replaced. Under the old rule BOTH of
+		// these bound: a policy file existed, so a listener that reads no `Authorization` header
+		// — not once — was permitted to open itself to every device that can route here. The
+		// question was never about this surface, and now it is.
 		const policy = path.join(outside, "auth-policy.json");
 		writeFileSync(policy, JSON.stringify({ credentials: [] }));
 		process.env.REFARM_AUTH_POLICY = policy;
 		try {
-			const started = await startWebServeServer(root, { port: 0, host: "0.0.0.0" });
-			server = started.server;
-			expect(started.url).toMatch(/^http:\/\/0\.0\.0\.0:\d+$/);
-			const port = started.url.split(":").pop();
-			const res = await fetch(`http://127.0.0.1:${port}/`);
-			expect(res.status).toBe(200);
+			await expect(
+				startWebServeServer(root, { port: 0, host: "0.0.0.0", surfaces: UNDECLARED }),
+			).rejects.toThrow(/no `surfaces.web` declaration is present/);
+			// …and not even a node whose OTHER surface declares a real credential gate.
+			await expect(
+				startWebServeServer(root, {
+					port: 0,
+					host: "0.0.0.0",
+					surfaces: parseSurfaces({ surfaces: GATED_NODE_SHAPE }),
+				}),
+			).rejects.toThrow(/undeclared surface binds loopback only/);
 		} finally {
 			delete process.env.REFARM_AUTH_POLICY;
 		}
+	});
+
+	it("S3 — `web` may not declare a gate it cannot enforce; the refusal names the fix", () => {
+		// Refused AT PARSE, exactly where the Rust daemon refuses it, so one config file means
+		// one thing in both runtimes. `refarm web serve` verifies no bearer, so `device-token`
+		// on this surface would claim an enforcement that does not exist.
+		expect(() => declaring({ expose: "tailnet", gate: "device-token" })).toThrow(
+			"surfaces['web'].gate \"device-token\": 'web' verifies no bearer credential at all, so " +
+				"declaring that gate would claim an enforcement that does not exist. If 'web' is " +
+				'deliberately open, say so — declare "gate": "none", which is admissible with ' +
+				'"expose": "tailnet" or "loopback"',
+		);
+		// Loopback included — a lie is a lie wherever it binds.
+		expect(() => declaring({ expose: "loopback", gate: "device-token" })).toThrow(
+			/verifies no bearer credential at all/,
+		);
+	});
+
+	it("S5 — a declared tailnet expose binds the resolved address, and a flag may only narrow it", async () => {
+		const surfaces = declaring({ expose: "tailnet", gate: "none" });
+		// A flag pointing somewhere wider than the declaration is refused…
+		await expect(
+			startWebServeServer(root, {
+				port: 0,
+				host: "0.0.0.0",
+				surfaces,
+				resolveTailnet: () => ({ ok: true, ipv4: "127.0.0.1" }),
+			}),
+		).rejects.toThrow(/never point somewhere else or wider/);
+		// …and narrowing to loopback is always allowed, so the listener really does serve.
+		const started = await startWebServeServer(root, {
+			port: 0,
+			host: "127.0.0.1",
+			surfaces,
+			resolveTailnet: () => ({ ok: true, ipv4: "100.64.7.7" }),
+		});
+		server = started.server;
+		expect((await fetch(`${started.url}/`)).status).toBe(200);
 	});
 
 	it("proxies /sync WebSocket upgrades to the daemon — one origin for the device", async () => {
@@ -154,6 +202,7 @@ describe("refarm web serve — the hub's static server", () => {
 			const started = await startWebServeServer(root, {
 				port: 0,
 				host: "127.0.0.1",
+				surfaces: UNDECLARED,
 				syncTarget: { host: "127.0.0.1", port: daemonPort },
 			});
 			server = started.server;
@@ -172,7 +221,11 @@ describe("refarm web serve — the hub's static server", () => {
 	});
 
 	it("destroys upgrade attempts outside /sync", async () => {
-		const started = await startWebServeServer(root, { port: 0, host: "127.0.0.1" });
+		const started = await startWebServeServer(root, {
+			port: 0,
+			host: "127.0.0.1",
+			surfaces: UNDECLARED,
+		});
 		server = started.server;
 		const port = started.url.split(":").pop();
 		const client = new WebSocket(`ws://127.0.0.1:${port}/other`);
@@ -203,6 +256,7 @@ describe.skipIf(!opensslAvailable)("refarm web serve — TLS (the secure-context
 			const started = await startWebServeServer(root, {
 				port: 0,
 				host: "127.0.0.1",
+				surfaces: UNDECLARED,
 				tls: { certFile, keyFile },
 			});
 			server = started.server;
@@ -258,6 +312,7 @@ describe("refarm web serve — the sidecar API proxy", () => {
 		const started = await startWebServeServer(root, {
 			port: 0,
 			host: "127.0.0.1",
+			surfaces: UNDECLARED,
 			sidecarTarget: { host: "127.0.0.1", port: fakePort },
 		});
 		server = started.server;
@@ -275,6 +330,151 @@ describe("refarm web serve — the sidecar API proxy", () => {
 			expect(JSON.parse(echoed.body)).toEqual({ hi: 1 });
 		} finally {
 			await new Promise<void>((resolve) => fake.close(() => resolve()));
+		}
+	});
+});
+
+/**
+ * O6 — one listener, several routes: declaring it open opens all of them.
+ *
+ * The artifact routes are read-only and open by declaration. The proxy routes are NOT open:
+ * they inherit their upstream's gate, and the design is explicit that this inheritance "must be
+ * demonstrated by test, not asserted". So each proxy route is driven with the SAME three probes
+ * that were run by hand against the sidecar — no credential, wrong credential, valid credential
+ * — through the proxy rather than at the upstream. The upstream is a STUB that enforces the way
+ * the real one does; nothing here depends on a live daemon.
+ *
+ * A proxy route whose upstream has no gate may not be served on an open surface at all — that
+ * is the precondition `resolveWebBindHost` enforces at bind time (see web-surface.test.ts).
+ */
+const VALID_TOKEN = "device-token-abc123";
+
+/** A stub of the sidecar's `auth_middleware`: a bearer credential on EVERY request, or 401. */
+function gatedSidecarStub(): ReturnType<typeof createHttpServer> {
+	return createHttpServer((req, res) => {
+		req.resume();
+		const authorization = req.headers.authorization;
+		if (typeof authorization !== "string" || !authorization.startsWith("Bearer ")) {
+			res.statusCode = 401;
+			return res.end("missing credential");
+		}
+		if (authorization.slice("Bearer ".length) !== VALID_TOKEN) {
+			res.statusCode = 401;
+			return res.end("invalid credential");
+		}
+		res.statusCode = 200;
+		res.setHeader("content-type", "application/json");
+		res.end(JSON.stringify({ ok: true }));
+	});
+}
+
+/** A stub of ADR-093's WS handshake gate: the credential rides `Sec-WebSocket-Protocol` as
+ *  `bearer.<token>` (a browser cannot set `Authorization` on a WebSocket), and only the
+ *  protocol NAME is ever echoed back — never the token half. */
+function gatedDaemonWsStub(): { server: ReturnType<typeof createHttpServer>; close: () => Promise<void> } {
+	const wss = new WebSocketServer({ noServer: true, handleProtocols: () => "refarm-sync-v1" });
+	wss.on("connection", (socket) => socket.on("message", (data) => socket.send(data)));
+	const http = createHttpServer((_req, res) => {
+		res.statusCode = 426;
+		res.end();
+	});
+	http.on("upgrade", (req, socket, head) => {
+		const offered = String(req.headers["sec-websocket-protocol"] ?? "")
+			.split(",")
+			.map((entry) => entry.trim())
+			.filter(Boolean);
+		const token = offered
+			.filter((entry) => entry.startsWith("bearer."))
+			.map((entry) => entry.slice("bearer.".length))
+			.find((value) => value.length > 0);
+		if (token !== VALID_TOKEN) {
+			const reason = token === undefined ? "missing credential" : "invalid credential";
+			socket.write(`HTTP/1.1 401 Unauthorized\r\nx-refarm-reason: ${reason}\r\n\r\n`);
+			socket.destroy();
+			return;
+		}
+		wss.handleUpgrade(req, socket as never, head, (client) => wss.emit("connection", client, req));
+	});
+	return {
+		server: http,
+		close: () =>
+			new Promise<void>((resolve) => {
+				wss.close();
+				http.close(() => resolve());
+			}),
+	};
+}
+
+/** Attempt the `/sync` handshake THROUGH the proxy and report what the upstream decided. */
+function probeSyncProxy(base: string, protocols?: string[]): Promise<"accepted" | "refused"> {
+	const url = `${base.replace("http://", "ws://")}/sync`;
+	const client = protocols ? new WebSocket(url, protocols) : new WebSocket(url);
+	return new Promise((resolve) => {
+		client.on("open", () => {
+			client.close();
+			resolve("accepted");
+		});
+		client.on("error", () => resolve("refused"));
+	});
+}
+
+describe("O6 — proxy routes inherit their upstream's gate (demonstrated, not asserted)", () => {
+	it("the sidecar API proxy: no credential ⇒ refused, wrong ⇒ refused, valid ⇒ accepted", async () => {
+		const upstream = gatedSidecarStub();
+		await new Promise<void>((resolve) => upstream.listen(0, "127.0.0.1", () => resolve()));
+		const upstreamPort = (upstream.address() as AddressInfo).port;
+		const started = await startWebServeServer(root, {
+			port: 0,
+			host: "127.0.0.1",
+			surfaces: UNDECLARED,
+			sidecarTarget: { host: "127.0.0.1", port: upstreamPort },
+		});
+		server = started.server;
+		try {
+			// Driven THROUGH the proxy route, never at the upstream directly — that is the whole
+			// point: the question is whether proxying loses the credential, not whether the
+			// sidecar checks one.
+			expect((await fetch(`${started.url}/efforts`, { method: "POST" })).status).toBe(401);
+			expect(
+				(
+					await fetch(`${started.url}/efforts`, {
+						method: "POST",
+						headers: { authorization: "Bearer wrong-token" },
+					})
+				).status,
+			).toBe(401);
+			const accepted = await fetch(`${started.url}/efforts`, {
+				method: "POST",
+				headers: { authorization: `Bearer ${VALID_TOKEN}` },
+			});
+			expect(accepted.status).toBe(200);
+			expect(await accepted.json()).toEqual({ ok: true });
+		} finally {
+			await new Promise<void>((resolve) => upstream.close(() => resolve()));
+		}
+	});
+
+	it("the /sync WS proxy: no credential ⇒ refused, wrong ⇒ refused, valid ⇒ accepted", async () => {
+		const upstream = gatedDaemonWsStub();
+		await new Promise<void>((resolve) => upstream.server.listen(0, "127.0.0.1", () => resolve()));
+		const upstreamPort = (upstream.server.address() as AddressInfo).port;
+		const started = await startWebServeServer(root, {
+			port: 0,
+			host: "127.0.0.1",
+			surfaces: UNDECLARED,
+			syncTarget: { host: "127.0.0.1", port: upstreamPort },
+		});
+		server = started.server;
+		try {
+			expect(await probeSyncProxy(started.url)).toBe("refused");
+			expect(await probeSyncProxy(started.url, ["refarm-sync-v1", "bearer.wrong-token"])).toBe(
+				"refused",
+			);
+			expect(await probeSyncProxy(started.url, ["refarm-sync-v1", `bearer.${VALID_TOKEN}`])).toBe(
+				"accepted",
+			);
+		} finally {
+			await upstream.close();
 		}
 	});
 });
