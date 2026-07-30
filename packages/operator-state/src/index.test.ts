@@ -5,6 +5,7 @@ import {
 	buildCapabilitySurfaceUnit,
 	buildOperatorAttentionGateCommands,
 	buildOperatorAttentionGateHandoff,
+	buildOperatorAttentionSurfaceUnit,
 	buildReviewQueueSurfaceUnit,
 	createBaseSurfaceActionRequest,
 	createBaseSurfaceActionRows,
@@ -509,5 +510,61 @@ describe("operator state model", () => {
 			nextCommand: null,
 			nextCommands: [],
 		});
+	});
+
+	it("modela unit de atenção com ação de preparo quando ainda não armado", () => {
+		const attentionUnit = buildOperatorAttentionSurfaceUnit({
+			owner: "apps/refarm",
+			status: {
+				scope: "connection-up:ovpn-serpro",
+				armed: false,
+				windowMs: 60000,
+				expiresAt: null,
+			},
+		});
+		const model = buildBaseSurfaceModel({ units: [attentionUnit] });
+
+		expect(attentionUnit).toMatchObject({
+			id: "operator-attention",
+			state: "blocked",
+			severity: "warning",
+			summary: "Canal de atenção ainda não armado para 'connection-up:ovpn-serpro'.",
+		});
+		expect(attentionUnit.actions).toEqual([
+			{
+				id: "prepare",
+				label: "Arme o canal de atenção para 'connection-up:ovpn-serpro'.",
+				command:
+					"node scripts/operator-attention-gate.mjs 'connection-up:ovpn-serpro' --prepare-only --window-ms 60000 --json",
+				intent: "operator-attention:prepare",
+				primary: true,
+			},
+		]);
+		expect(model.nextCommand).toBe(
+			"node scripts/operator-attention-gate.mjs 'connection-up:ovpn-serpro' --prepare-only --window-ms 60000 --json",
+		);
+	});
+
+	it("modela unit de atenção pronta sem ações pendentes quando já armado", () => {
+		const attentionUnit = buildOperatorAttentionSurfaceUnit({
+			owner: "apps/refarm",
+			status: {
+				scope: "connection-up:ovpn-serpro",
+				armed: true,
+				windowMs: 60000,
+				expiresAt: "2026-01-01T00:00:00.000Z",
+			},
+		});
+		const model = buildBaseSurfaceModel({ units: [attentionUnit] });
+
+		expect(attentionUnit).toMatchObject({
+			id: "operator-attention",
+			state: "ready",
+			severity: "info",
+			summary: "Canal de atenção armado para 'connection-up:ovpn-serpro'.",
+		});
+		expect(attentionUnit.actions).toEqual([]);
+		expect(model.nextCommand).toBeNull();
+		expect(model.nextCommands).toEqual([]);
 	});
 });

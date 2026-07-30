@@ -232,6 +232,15 @@ export interface ReviewQueueSurfaceUnitOptions {
 	details?: Record<string, unknown>;
 }
 
+export interface OperatorAttentionSurfaceUnitOptions {
+	owner: string;
+	status: OperatorAttentionGateStatus;
+	id?: string;
+	label?: string;
+	commandOptions?: OperatorAttentionGateCommandOptions;
+	details?: Record<string, unknown>;
+}
+
 export interface BaseSurfaceTextFormatOptions {
 	title?: string;
 }
@@ -323,6 +332,52 @@ export function buildReviewQueueSurfaceUnit(
 		],
 		actions: hasPending && options.pendingAction ? [options.pendingAction] : [],
 		details: options.details,
+	};
+}
+
+export function buildOperatorAttentionSurfaceUnit(
+	options: OperatorAttentionSurfaceUnitOptions,
+): BaseSurfaceUnit {
+	const handoff = buildOperatorAttentionGateHandoff(options.status, options.commandOptions);
+	const commands = buildOperatorAttentionGateCommands(
+		options.status.scope,
+		options.status.windowMs,
+		options.commandOptions,
+	);
+	const actions: BaseSurfaceAction[] = handoff.ok
+		? []
+		: [
+				{
+					id: "prepare",
+					label: handoff.nextAction ?? "Arme o canal de atenção.",
+					command: handoff.nextCommand ?? commands.prepare,
+					intent: "operator-attention:prepare",
+					primary: true,
+				},
+			];
+
+	return {
+		id: options.id ?? "operator-attention",
+		label: options.label ?? "Operator Attention",
+		owner: options.owner,
+		state: handoff.ok ? "ready" : "blocked",
+		severity: handoff.ok ? "info" : "warning",
+		summary: handoff.ok
+			? `Canal de atenção armado para '${options.status.scope}'.`
+			: `Canal de atenção ainda não armado para '${options.status.scope}'.`,
+		evidence: [
+			{ kind: "state", label: "scope", value: options.status.scope },
+			{ kind: "duration", label: "windowMs", value: String(options.status.windowMs) },
+			{ kind: "state", label: "armed", value: handoff.armed ? "true" : "false" },
+			...(handoff.expiresAt ? [{ kind: "time", label: "expiresAt", value: handoff.expiresAt }] : []),
+		],
+		actions,
+		details: {
+			handoff,
+			checkCommand: commands.check,
+			consumeCommand: commands.consume,
+			...(options.details ?? {}),
+		},
 	};
 }
 
