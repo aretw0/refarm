@@ -1,4 +1,5 @@
-import { printJson } from "@refarm.dev/capabilities/envelope";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
 import os from "node:os";
@@ -28,6 +29,53 @@ export interface IntentionCommandDeps {
 
 const DEFAULT_WINDOW_MS = 5 * 60 * 1000;
 
+const INTENTION_HELP_COMMAND = "refarm intention --help";
+
+/**
+ * The action boundary. An operator-facing command must never surface a raw Node
+ * stack trace, and a `--json` consumer must get an envelope on the error path too —
+ * the same contract `connection.ts` follows. Every `throw` below stays as an internal
+ * signal; this is the single place they stop being one.
+ *
+ * Found by running `refarm intention check --json` with no `--scope`: it printed a
+ * stack trace and ignored `--json` entirely, and none of the suite's 1967 tests
+ * exercised a missing-argument path.
+ */
+function failIntention(operation: string, options: IntentionCommandOptions, error: unknown): void {
+	const message = error instanceof Error ? error.message : String(error);
+	if (options.json) {
+		printJson(
+			buildJsonErrorEnvelope({
+				command: "intention",
+				operation,
+				error: "intention-invalid-request",
+				message,
+				nextAction: `Run \`${INTENTION_HELP_COMMAND}\` to see the accepted options.`,
+				nextCommand: INTENTION_HELP_COMMAND,
+			}),
+		);
+	} else {
+		console.error(chalk.red(`✗  ${message}`));
+		console.error(chalk.dim(`   ${INTENTION_HELP_COMMAND}`));
+	}
+	process.exitCode = 1;
+}
+
+/** Wrap an action so a thrown validation error becomes the repo's refusal shape
+ *  instead of an uncaught exception. */
+function guarded(
+	operation: string,
+	handler: (options: IntentionCommandOptions) => void,
+): (options: IntentionCommandOptions) => void {
+	return (options) => {
+		try {
+			handler(options);
+		} catch (error) {
+			failIntention(operation, options, error);
+		}
+	};
+}
+
 export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command {
 	const command = new Command("intention").description(
 		"Manage explicit operator-attention intent across devices and workflows",
@@ -48,7 +96,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 		)
 		.option("--output <mode>", "JSON output mode: full | compact")
 		.option("--json", "Output machine-readable JSON")
-		.action((options: IntentionCommandOptions) => {
+		.action(guarded("prepare", (options: IntentionCommandOptions) => {
 			const now = deps.now?.() ?? Date.now();
 			const target = resolveAttentionTarget(options);
 			const token = encodeIntentToken({
@@ -74,7 +122,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 				],
 			};
 			emit(payload, options, `Intenção portátil preparada para '${target.scope}'.`);
-		});
+		}));
 
 	command
 		.command("arm")
@@ -91,7 +139,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 		)
 		.option("--output <mode>", "JSON output mode: full | compact")
 		.option("--json", "Output machine-readable JSON")
-		.action((options: IntentionCommandOptions) => {
+		.action(guarded("arm", (options: IntentionCommandOptions) => {
 			const now = deps.now?.() ?? Date.now();
 			const target = resolveAttentionTarget(options);
 			const statePath = operatorAttentionStatePath(target.scope);
@@ -123,7 +171,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 				nextCommands: [intentionCheckCommand(target.scope, target.windowMs)],
 			};
 			emit(payload, options, `Intenção armada para '${target.scope}'.`);
-		});
+		}));
 
 	command
 		.command("check")
@@ -141,7 +189,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 		.option("--token <value>", "Portable intent token from another device")
 		.option("--output <mode>", "JSON output mode: full | compact")
 		.option("--json", "Output machine-readable JSON")
-		.action((options: IntentionCommandOptions) => {
+		.action(guarded("check", (options: IntentionCommandOptions) => {
 			const now = deps.now?.() ?? Date.now();
 			if (options.token) {
 				const tokenState = decodeIntentToken(options.token);
@@ -208,7 +256,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 					: `Intenção ainda não armada para '${target.scope}'.`,
 			);
 			process.exitCode = armed ? 0 : 2;
-		});
+		}));
 
 	command
 		.command("consume")
@@ -221,7 +269,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 		.option("--token <value>", "Portable intent token from another device")
 		.option("--output <mode>", "JSON output mode: full | compact")
 		.option("--json", "Output machine-readable JSON")
-		.action((options: IntentionCommandOptions) => {
+		.action(guarded("consume", (options: IntentionCommandOptions) => {
 			if (options.token) {
 				const tokenState = decodeIntentToken(options.token);
 				if (!tokenState) {
@@ -267,7 +315,7 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 				nextCommands: [intentionArmCommand(target.scope, target.windowMs)],
 			};
 			emit(payload, options, `Intenção consumida para '${target.scope}'.`);
-		});
+		}));
 
 	return command;
 }

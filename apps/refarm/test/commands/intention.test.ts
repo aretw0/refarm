@@ -310,3 +310,99 @@ describe("intentionCommand", () => {
 		expect(payload.command).toBeUndefined();
 	});
 });
+
+/**
+ * The refusal path. Running `refarm intention check --json` with no `--scope`
+ * printed a raw Node stack trace and ignored `--json` entirely — a JSON consumer
+ * got a crash on stderr and no envelope. None of the suite's 1967 tests exercised
+ * a missing-argument path, so nothing caught it.
+ *
+ * These pin the boundary for every subcommand: a validation error becomes the
+ * repo's refusal shape (envelope under --json, one calm line otherwise, non-zero
+ * exit) and NEVER an uncaught exception.
+ */
+describe("intentionCommand — invalid input refuses, never throws", () => {
+	let home: string;
+	let originalHome: string | undefined;
+
+	beforeEach(() => {
+		home = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-intention-refuse-"));
+		originalHome = process.env.REFARM_HOME;
+		process.env.REFARM_HOME = home;
+		process.exitCode = undefined;
+	});
+
+	afterEach(() => {
+		if (originalHome === undefined) delete process.env.REFARM_HOME;
+		else process.env.REFARM_HOME = originalHome;
+		vi.restoreAllMocks();
+		process.exitCode = undefined;
+		fs.rmSync(home, { recursive: true, force: true });
+	});
+
+	const cases: Array<{ name: string; argv: string[]; operation: string }> = [
+		{ name: "prepare with neither scope nor profile", argv: ["prepare"], operation: "prepare" },
+		{ name: "arm with neither scope nor profile", argv: ["arm"], operation: "arm" },
+		{ name: "check with neither scope nor profile", argv: ["check"], operation: "check" },
+		{ name: "consume with neither scope nor profile", argv: ["consume"], operation: "consume" },
+		{
+			name: "check with a malformed portable token",
+			argv: ["check", "--token", "not-a-real-token"],
+			operation: "check",
+		},
+		{
+			name: "consume with a malformed portable token",
+			argv: ["consume", "--token", "not-a-real-token"],
+			operation: "consume",
+		},
+	];
+
+	for (const { name, argv, operation } of cases) {
+		it(`${name} — emits an error envelope under --json`, async () => {
+			const command = createIntentionCommand();
+			const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+			// The assertion that matters: this resolves. Before the boundary existed it rejected.
+			await command.parseAsync([...argv, "--json"], { from: "user" });
+
+			const payload = JSON.parse(logSpy.mock.calls[0]?.[0] as string) as {
+				ok: boolean;
+				command: string;
+				operation: string;
+				error: string;
+				message: string;
+				nextCommand: string;
+			};
+			expect(payload.ok).toBe(false);
+			expect(payload.command).toBe("intention");
+			expect(payload.operation).toBe(operation);
+			expect(payload.error).toBe("intention-invalid-request");
+			expect(payload.message.length).toBeGreaterThan(0);
+			expect(payload.nextCommand).toBe("refarm intention --help");
+			expect(process.exitCode).toBe(1);
+		});
+
+		it(`${name} — one calm line and no stack trace without --json`, async () => {
+			const command = createIntentionCommand();
+			const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+			await command.parseAsync(argv, { from: "user" });
+
+			const written = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+			expect(written).not.toContain("    at ");
+			expect(written).toContain("refarm intention --help");
+			expect(process.exitCode).toBe(1);
+		});
+	}
+
+	it("a refused command writes no attention state", async () => {
+		const command = createIntentionCommand();
+		vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["arm"], { from: "user" });
+
+		// A refusal must leave the machine exactly as it found it — arming is the one
+		// subcommand that persists, so a half-applied arm is the failure to exclude.
+		expect(fs.existsSync(path.join(home, ".refarm"))).toBe(false);
+	});
+});
