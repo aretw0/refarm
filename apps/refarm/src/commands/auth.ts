@@ -14,8 +14,10 @@ import { refarmCommand } from "../brand.js";
 import {
 	collectIdentityCandidates,
 	NO_IDENTITY_CANDIDATES,
+	replaceSourceCandidates,
 	validateIdentityLabel,
 	type IdentityCandidate,
+	type IdentityCandidateReport,
 	type IdentityCandidateSource,
 } from "./identity-candidates.js";
 import { defaultIdentityCandidateSources } from "./identity-sources.js";
@@ -93,11 +95,21 @@ interface EnrollOptions {
 	policy?: string;
 	rotate?: boolean;
 	json?: boolean;
+	discover?: boolean;
 }
 
 /** Sentinel select-option value for "enroll a new identity" — chosen so it can never
  * collide with a real (validated, non-control-character) identity label. */
 const NEW_DEVICE_CHOICE = " new-device";
+
+/** Sentinel prefix for "invoke this discovery source NOW". Same trick as
+ * `NEW_DEVICE_CHOICE`: a leading space, so it can never collide with a validated
+ * identity label. */
+const DISCOVER_CHOICE_PREFIX = " discover:";
+
+function discoverChoice(sourceId: string): string {
+	return `${DISCOVER_CHOICE_PREFIX}${sourceId}`;
+}
 
 export interface PromptedIdentity {
 	identity: string;
@@ -105,83 +117,145 @@ export interface PromptedIdentity {
 	impliedRotate: boolean;
 }
 
+export interface PromptForIdentityOptions {
+	/** Devices already discovered before the prompt opened — the `--discover`
+	 * pre-population. Empty in the plain interactive case. */
+	candidates?: readonly IdentityCandidate[];
+	/** Discovery verbs the operator may INVOKE from inside the prompt. One entry
+	 * each, labelled by the source. Empty ⇒ byte-identical canonical prompt. */
+	sources?: readonly IdentityCandidateSource[];
+	/** Sources already invoked before the prompt opened, so their entry reads
+	 * "again" rather than pretending nothing has been asked yet. */
+	alreadyDiscovered?: readonly string[];
+	/** Where a notice raised by an in-prompt discovery goes. */
+	writeNotice?: (notice: string) => void;
+}
+
 /** Ask the operator which identity to enroll when none was passed as a CLI argument.
- * An empty policy goes straight to a label prompt; a populated one offers a choice
- * between rotating an already-enrolled identity or enrolling a new one.
+ * An empty policy with nothing to discover goes straight to a label prompt; anything
+ * else offers a choice between rotating an already-enrolled identity, enrolling a
+ * discovered device, asking a source to look, or typing a new name.
  *
- * `candidates` is the seam an EXTENDED flow plugs into (see
- * identity-candidates.ts): devices some source can already see and propose a name
- * for. This function does not know, and must never learn, what any source is —
- * with an empty list its behaviour is byte-identical to the canonical flow.
+ * `sources` is the seam an EXTENDED flow plugs into (see identity-candidates.ts):
+ * each one contributes ONE invocable entry, worded by the source. This function
+ * does not know, and must never learn, what any source asks — with an empty list
+ * its behaviour is byte-identical to the canonical flow.
  *
- * Three rules the list obeys, whatever contributed to it:
- *   - C2.1 the operator picks ONE device per invocation; there is no "enroll all".
- *   - C2.2 "A new device" (free text) is always the last option, never removed.
+ * Rules the list obeys, whatever contributed to it:
+ *   - C2.1 the operator picks ONE device per invocation; there is no "enroll all",
+ *     and discovering is a separate act from enrolling.
+ *   - C2.2 "A new device" (free text) is always the last option, never removed —
+ *     including immediately after a discovery.
+ *   - C3 nothing is queried until an entry is picked. Rendering the entry costs
+ *     no spawn; the pick IS the operator's declaration of intent.
  *   - a candidate that is already enrolled appears ONCE, as a rotate — a source
  *     seeing a device does not make it fresh. */
 export async function promptForIdentity(
 	operator: OperatorChannel,
 	enrolledIdentities: string[],
-	candidates: readonly IdentityCandidate[] = [],
+	options: PromptForIdentityOptions = {},
 ): Promise<PromptedIdentity> {
-	if (enrolledIdentities.length === 0 && candidates.length === 0) {
-		const identity = await operator.ask({
-			type: "text",
-			question: "Label for the new device (e.g. my-phone)",
-		});
-		return { identity, impliedRotate: false };
-	}
+	const sources = options.sources ?? [];
+	const writeNotice = options.writeNotice ?? ((notice: string) => emitNotice(notice));
+	let candidates: readonly IdentityCandidate[] = options.candidates ?? [];
+	const invoked = new Set<string>(options.alreadyDiscovered ?? []);
 
-	const enrolled = new Set(enrolledIdentities);
-	const byValue = new Map(candidates.map((c) => [c.value, c]));
-	// Enrolled first (a candidate that matches one is folded into it, never listed
-	// twice), then the fresh candidates, then always "A new device".
-	const options = [
-		...enrolledIdentities.map((id) => ({
-			value: id,
-			label: id,
-			description: withAction(byValue.get(id)?.description, "rotate its token"),
-		})),
-		...candidates
-			.filter((c) => !enrolled.has(c.value))
-			.map((c) => ({
-				value: c.value,
-				label: c.label,
-				description: withAction(c.description, "enroll it"),
+	// Loops because a discovery is not an answer: it re-renders the same question
+	// with more (or different) devices on it. Every other choice returns.
+	for (;;) {
+		if (enrolledIdentities.length === 0 && candidates.length === 0 && sources.length === 0) {
+			const identity = await operator.ask({
+				type: "text",
+				question: "Label for the new device (e.g. my-phone)",
+			});
+			return { identity, impliedRotate: false };
+		}
+
+		const enrolled = new Set(enrolledIdentities);
+		const byValue = new Map(candidates.map((c) => [c.value, c]));
+		// Enrolled first (a candidate that matches one is folded into it, never listed
+		// twice), then the discovered candidates, then the discovery verbs, then
+		// always "A new device".
+		const promptOptions = [
+			...enrolledIdentities.map((id) => ({
+				value: id,
+				label: id,
+				description: withAction(byValue.get(id)?.description, "rotate its token"),
 			})),
-		{ value: NEW_DEVICE_CHOICE, label: "A new device", description: "enroll a new identity" },
-	];
+			...candidates
+				.filter((c) => !enrolled.has(c.value))
+				.map((c) => ({
+					value: c.value,
+					label: c.label,
+					description: withAction(c.description, "enroll it"),
+				})),
+			...sources.map((source) => discoveryOption(source, invoked.has(source.id))),
+			{ value: NEW_DEVICE_CHOICE, label: "A new device", description: "enroll a new identity" },
+		];
 
-	const choice = await operator.ask({
-		type: "select",
-		question: "Which device?",
-		default: NEW_DEVICE_CHOICE,
-		options,
-	});
-
-	if (choice === NEW_DEVICE_CHOICE) {
-		const identity = await operator.ask({
-			type: "text",
-			question: "Label for the new device (e.g. my-phone)",
+		const choice = await operator.ask({
+			type: "select",
+			question: "Which device?",
+			default: NEW_DEVICE_CHOICE,
+			options: promptOptions,
 		});
-		return { identity, impliedRotate: false };
-	}
-	if (enrolled.has(choice)) return { identity: choice, impliedRotate: true };
 
-	const candidate = byValue.get(choice);
-	if (candidate?.needsConfirmation) {
-		// The source had to repair this name to make it a usable label. Show the
-		// operator the original and let them accept or edit the repair — a
-		// credential's identity is theirs to choose, never something discovery
-		// rewrites behind their back.
-		const identity = await operator.ask({
-			type: "text",
-			question: `Label for "${candidate.rawName ?? choice}" (adjusted to a usable label — accept or edit)`,
-			default: candidate.value,
-		});
-		return { identity, impliedRotate: false };
+		const invokedSource = sources.find((source) => discoverChoice(source.id) === choice);
+		if (invokedSource) {
+			// The query happens HERE, at the moment of the pick, and again on every
+			// re-pick. Nothing is memoised: the answer is a snapshot of the world as
+			// it is right now, which is the only reason "again" means anything.
+			const report = await collectIdentityCandidates([invokedSource]);
+			for (const notice of report.notices) writeNotice(notice);
+			candidates = replaceSourceCandidates(candidates, invokedSource.id, report.candidates);
+			invoked.add(invokedSource.id);
+			continue;
+		}
+
+		if (choice === NEW_DEVICE_CHOICE) {
+			const identity = await operator.ask({
+				type: "text",
+				question: "Label for the new device (e.g. my-phone)",
+			});
+			return { identity, impliedRotate: false };
+		}
+		if (enrolled.has(choice)) return { identity: choice, impliedRotate: true };
+
+		const candidate = byValue.get(choice);
+		if (candidate?.needsConfirmation) {
+			// The source had to repair this name to make it a usable label. Show the
+			// operator the original and let them accept or edit the repair — a
+			// credential's identity is theirs to choose, never something discovery
+			// rewrites behind their back.
+			const identity = await operator.ask({
+				type: "text",
+				question: `Label for "${candidate.rawName ?? choice}" (adjusted to a usable label — accept or edit)`,
+				default: candidate.value,
+			});
+			return { identity, impliedRotate: false };
+		}
+		return { identity: choice, impliedRotate: false };
 	}
-	return { identity: choice, impliedRotate: false };
+}
+
+/** One source, one entry — worded by the source, laid out by the prompt. */
+function discoveryOption(
+	source: IdentityCandidateSource,
+	alreadyInvoked: boolean,
+): { value: string; label: string; description?: string } {
+	const { label, againLabel, description, againDescription } = source.discovery;
+	const qualifier = alreadyInvoked ? (againDescription ?? description) : description;
+	return {
+		value: discoverChoice(source.id),
+		label: alreadyInvoked ? againLabel : label,
+		...(qualifier === undefined ? {} : { description: qualifier }),
+	};
+}
+
+/** Notices are the operator's channel, not a log: indented under the prompt, on
+ * stdout, exactly as `runAuthEnroll` prints the ones raised before it opens. */
+function emitNotice(notice: string): void {
+	process.stdout.write(`  ${notice}\n`);
 }
 
 /** Compose a source's qualifier ("on your tailnet") with the canonical action
@@ -198,10 +272,10 @@ export interface AuthEnrollDeps {
 	operator?: OperatorChannel;
 	input?: NodeJS.ReadStream;
 	output?: NodeJS.WriteStream;
-	/** Extended flows that may CONTRIBUTE devices to the interactive list. Defaults
-	 * to `defaultIdentityCandidateSources()`; each source gates itself on an
-	 * operator declaration, so the default contributes nothing unless something was
-	 * declared. Pass `[]` to pin a test to the strictly canonical flow. */
+	/** Extended flows the operator may INVOKE from the interactive list. Defaults to
+	 * `defaultIdentityCandidateSources()`. Registering a source costs nothing until
+	 * its entry is picked — no source is consulted just for being registered. Pass
+	 * `[]` to pin a test to the strictly canonical prompt. */
 	identityCandidateSources?: readonly IdentityCandidateSource[];
 }
 
@@ -215,6 +289,11 @@ export function createAuthEnrollCommand(deps: AuthEnrollDeps = {}): Command {
 		.option("--policy <path>", "Auth policy file to write", DEFAULT_POLICY_PATH)
 		.option("--rotate", "Replace the token if this identity is already enrolled")
 		.option("--json", "Print the result as JSON")
+		.option(
+			"--discover",
+			"Ask every discovery source for devices. Interactively, the list arrives populated; " +
+				"otherwise the candidates are printed and NOTHING is enrolled.",
+		)
 		.action(async (identityArg: string | undefined, options: EnrollOptions) => {
 			try {
 				await runAuthEnroll(deps, identityArg, options);
@@ -237,6 +316,22 @@ async function runAuthEnroll(
 	let identity = identityArg;
 	let rotate = Boolean(options.rotate);
 
+	const input = deps.input ?? process.stdin;
+	const output = deps.output ?? process.stdout;
+	const interactive = Boolean(input.isTTY && output.isTTY);
+	// The prompt can only run when there is somewhere to prompt AND nothing has
+	// already answered the question. Everything else is a non-interactive call.
+	const canPrompt = !identityArg && !options.json && (interactive || Boolean(deps.operator));
+	const sources = deps.identityCandidateSources ?? defaultIdentityCandidateSources();
+
+	// `--discover` outside the interactive picker REPORTS and stops. Seeing a
+	// device is not authorising it (C2.1): a script discovers here, then enrols by
+	// explicit label in a second call. Exit 0 — nothing failed, nothing was minted.
+	if (options.discover && !canPrompt) {
+		await reportDiscovery(sources, Boolean(options.json));
+		return;
+	}
+
 	if (!identity) {
 		// --json is a non-interactive contract by nature — fail clearly rather than prompt.
 		if (options.json) {
@@ -246,10 +341,6 @@ async function runAuthEnroll(
 			process.exitCode = 1;
 			return;
 		}
-
-		const input = deps.input ?? process.stdin;
-		const output = deps.output ?? process.stdout;
-		const interactive = Boolean(input.isTTY && output.isTTY);
 
 		// No TTY and no pre-built channel: never construct createAutoOperatorChannel()
 		// here — it answers every prompt with a default, which for an identity label
@@ -277,20 +368,22 @@ async function runAuthEnroll(
 		}
 		const enrolledIdentities = existingPolicy.credentials.map((c) => c.identity);
 
-		// Extended flows get their say HERE and only here — after --json and the
-		// no-TTY guard have already returned, so neither ever queries anything, and
-		// before the prompt, which only ever sees plain candidates.
-		const sources = deps.identityCandidateSources ?? defaultIdentityCandidateSources();
-		const contributed =
-			sources.length === 0 ? NO_IDENTITY_CANDIDATES : await collectIdentityCandidates(sources);
-		// C2.3: a source that could not ask says so, in its own words, BEFORE the
-		// prompt — never by rendering an empty list that reads as "you have no
-		// devices". Then the canonical prompt runs regardless.
-		for (const notice of contributed.notices) {
-			process.stdout.write(`  ${notice}\n`);
-		}
+		// `--discover` only skips a keystroke: it runs, up front, exactly the query
+		// the operator would otherwise invoke from the list. Without it NOTHING is
+		// queried before the prompt — the entry is rendered, and picking it asks.
+		const upFront =
+			options.discover && sources.length > 0
+				? await collectIdentityCandidates(sources)
+				: NO_IDENTITY_CANDIDATES;
+		// C2.3: a source that could not ask says so, in its own words — never by
+		// rendering an empty list that reads as "you have no devices".
+		for (const notice of upFront.notices) emitNotice(notice);
 
-		const picked = await promptForIdentity(operator, enrolledIdentities, contributed.candidates);
+		const picked = await promptForIdentity(operator, enrolledIdentities, {
+			candidates: upFront.candidates,
+			sources,
+			alreadyDiscovered: options.discover ? sources.map((source) => source.id) : [],
+		});
 		identity = picked.identity;
 		rotate = rotate || picked.impliedRotate;
 	}
@@ -331,6 +424,62 @@ async function runAuthEnroll(
 			`                   (or: FARM_TOKEN=… node .../farm-ask.mjs "…")\n` +
 			`   Turn the gate on (restart the daemon with):\n     ${enableHint}\n` +
 			`   Policy: ${policyPath} (mode 0600; only the token's sha256 is stored)\n`,
+	);
+}
+
+/**
+ * `--discover` outside the interactive picker: ask every source, print what came
+ * back, mint NOTHING.
+ *
+ * This is C2.1 held at the machine boundary. Interactively, "I can see eight
+ * devices" is prevented from becoming "enrol eight devices" by the list being a
+ * single-select; non-interactively there is no operator to pick, so the only
+ * honest thing to return is the list. A script that wants a credential asks for
+ * one by name in a second call, which is an explicit authorisation of exactly one
+ * device. Exit code stays 0: discovering nothing is an answer, not a failure.
+ */
+async function reportDiscovery(
+	sources: readonly IdentityCandidateSource[],
+	json: boolean,
+): Promise<void> {
+	const report: IdentityCandidateReport =
+		sources.length === 0 ? NO_IDENTITY_CANDIDATES : await collectIdentityCandidates(sources);
+	const enrollHint = refarmCommand(["auth", "enroll", "<label>"]);
+
+	if (json) {
+		process.stdout.write(
+			`${JSON.stringify({
+				ok: true,
+				// Named `enrolled: false` rather than left implicit: a consumer must be
+				// able to see, in the payload itself, that discovery minted nothing.
+				enrolled: false,
+				discovered: report.candidates.map((candidate) => ({
+					identity: candidate.value,
+					source: candidate.source ?? null,
+					description: candidate.description ?? null,
+					needsConfirmation: Boolean(candidate.needsConfirmation),
+					rawName: candidate.rawName ?? null,
+				})),
+				notices: report.notices,
+				nextCommand: enrollHint,
+				nextCommands: [enrollHint],
+			})}\n`,
+		);
+		return;
+	}
+
+	for (const notice of report.notices) emitNotice(notice);
+	if (report.candidates.length === 0) {
+		process.stdout.write(`No devices discovered. Nothing was enrolled.\n`);
+		return;
+	}
+	const lines = report.candidates.map((candidate) => {
+		const qualifier = candidate.description ? ` — ${candidate.description}` : "";
+		return `  • ${candidate.value}${qualifier}`;
+	});
+	process.stdout.write(
+		`Discovered devices (nothing was enrolled):\n${lines.join("\n")}\n\n` +
+			`   Enrol one by name:  ${enrollHint}\n`,
 	);
 }
 
