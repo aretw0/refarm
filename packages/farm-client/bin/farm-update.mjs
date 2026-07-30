@@ -85,6 +85,10 @@ try {
 	console.error(
 		`   No PC: refarm dist publish && refarm web serve .refarm/dist/farm-client --host 0.0.0.0 --port ${DIST_PORT}`,
 	);
+	// Mesma pré-condição do install.mjs: bind fora do loopback é recusado sem política.
+	console.error(
+		`   (o web serve exige REFARM_AUTH_POLICY para bind fora do loopback — \`refarm auth enroll\` gera a política)`,
+	);
 	process.exit(1);
 }
 
