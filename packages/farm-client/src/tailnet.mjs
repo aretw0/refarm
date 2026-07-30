@@ -16,8 +16,9 @@
 import { execFile } from "node:child_process";
 
 /** Extract online tailnet peers from `tailscale status --json` as FULL records —
- *  the OS hostname, the IPv4, and the MagicDNS name in both its raw and short
- *  forms. Pure. Self is excluded — discovery looks for OTHER devices.
+ *  the OS hostname, the IPv4, the MagicDNS name in both its raw and short forms,
+ *  and whether the peer is online (plus, when Tailscale reports it, when it was
+ *  last seen). Pure. Self is excluded — discovery looks for OTHER devices.
  *
  *  This is the single parse; `parseTailnetPeers` is a projection of it down to
  *  the `{name, ip}` pair its four zero-dependency callers have always received. */
@@ -35,6 +36,7 @@ export function parseTailnetPeerRecords(status, { includeOffline = false } = {})
 			dnsName: typeof peer.DNSName === "string" ? peer.DNSName : null,
 			shortName: tailnetShortName(peer.DNSName),
 			online: Boolean(peer?.Online),
+			lastSeen: typeof peer?.LastSeen === "string" ? peer.LastSeen : null,
 		});
 	}
 	return result;

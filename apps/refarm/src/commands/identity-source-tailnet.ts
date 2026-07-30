@@ -1,6 +1,7 @@
 import { loadRawSovereignConfig } from "@refarm.dev/config";
 import {
 	tailnetPeersReport,
+	type TailnetPeerRecord,
 	type TailnetPeersReport,
 	type TailnetRunner,
 } from "@refarm.dev/farm-client/tailnet";
@@ -27,6 +28,13 @@ import {
  * A machine that merely HAS Tailscale installed and running gets the canonical
  * flow, and `tailscale` is never spawned. Detection decides HOW to satisfy a
  * declared intent; it never decides WHAT the operator wants.
+ *
+ * C2.4 — enrolment is not discovery. Offline peers are OFFERED here, clearly
+ * marked, never filtered out: a credential minted today is for a device that
+ * will use it later, and a device not yet enrolled is typically offline for
+ * exactly that reason. `tailnetPeers`' online-only default is for `farm-hello`
+ * and friends, who must reach a peer NOW — this source asks for the wider set
+ * on purpose and marks each candidate with what it actually knows.
  */
 
 export const TAILNET_IDENTITY_SOURCE_ID = "tailnet";
@@ -93,7 +101,13 @@ export function createTailnetIdentitySource(
 				// flow with no evidence that this source exists.
 				return { candidates: [], notices: [] };
 			}
-			const report = await tailnetPeersReport({ run: options.run });
+			// includeOffline: true — enrolment is not discovery (C2.4). `farm-hello`
+			// needs a peer reachable NOW, so it keeps `tailnetPeers`' online-only
+			// default untouched. Enrolment mints a credential the device will use
+			// LATER, and a device not yet set up is typically offline for exactly
+			// that reason — excluding it would make the feature inert on precisely
+			// the tailnet it exists to help.
+			const report = await tailnetPeersReport({ run: options.run, includeOffline: true });
 			return reportToCandidates(report);
 		},
 	};
@@ -101,16 +115,22 @@ export function createTailnetIdentitySource(
 
 /**
  * Turn a tailnet answer into candidates and notices. PURE — the whole C2.3 split
- * lives here and is unit-testable without a tailnet.
+ * lives here and is unit-testable without a tailnet. `now` is injectable so the
+ * "last seen" rendering is deterministic in tests; production never passes it.
  *
  * Three distinct operator-visible outcomes, never collapsed into each other:
- *   - peers      ⇒ candidates, no notice.
+ *   - peers      ⇒ candidates, no notice. This is "peers" even when EVERY peer
+ *     in it is offline (C2.4) — an all-offline tailnet is not the same answer
+ *     as a tailnet with nobody on it at all.
  *   - no-peers   ⇒ NO candidates + "your tailnet answered: nobody else is on it".
  *   - not ok     ⇒ NO candidates + "could not ask your tailnet (<why>)".
  * The last two are the difference between "you have no devices" and "Tailscale
  * is not running" — different truths, different next actions.
  */
-export function reportToCandidates(report: TailnetPeersReport): IdentityCandidateReport {
+export function reportToCandidates(
+	report: TailnetPeersReport,
+	now: number = Date.now(),
+): IdentityCandidateReport {
 	if (!report.ok) {
 		return {
 			candidates: [],
@@ -135,7 +155,7 @@ export function reportToCandidates(report: TailnetPeersReport): IdentityCandidat
 		// within the tailnet and DNS-label-safe, where two devices may perfectly
 		// well share a raw `HostName`. A credential identity must not be ambiguous.
 		const raw = peer.shortName ?? peer.name;
-		const candidate = toCandidate(raw);
+		const candidate = toCandidate(peer, raw, now);
 		if (!candidate) {
 			notices.push(
 				`Skipped a tailnet peer whose name cannot be used as a device label (${JSON.stringify(raw)}).`,
@@ -149,14 +169,19 @@ export function reportToCandidates(report: TailnetPeersReport): IdentityCandidat
 
 /** A peer name that already passes label validation is offered as-is; one that
  * does not is offered REPAIRED and flagged for the operator to accept or edit.
- * A name nothing can repair is not offered at all (the caller says so). */
-function toCandidate(raw: string): IdentityCandidate | null {
+ * A name nothing can repair is not offered at all (the caller says so).
+ *
+ * The qualifier suffix (empty for an online peer) is what makes an offline
+ * candidate visually distinguishable from an online one in the same list —
+ * neither is hidden, but only one reads as available right now. */
+function toCandidate(peer: TailnetPeerRecord, raw: string, now: number): IdentityCandidate | null {
+	const suffix = offlineSuffix(peer, now);
 	try {
 		const valid = validateIdentityLabel(raw);
 		return {
 			value: valid,
 			label: valid,
-			description: "on your tailnet",
+			description: `on your tailnet${suffix}`,
 			source: TAILNET_IDENTITY_SOURCE_ID,
 		};
 	} catch {
@@ -165,10 +190,35 @@ function toCandidate(raw: string): IdentityCandidate | null {
 		return {
 			value: repaired,
 			label: repaired,
-			description: "on your tailnet, name adjusted",
+			description: `on your tailnet, name adjusted${suffix}`,
 			needsConfirmation: true,
 			rawName: raw,
 			source: TAILNET_IDENTITY_SOURCE_ID,
 		};
 	}
+}
+
+/** "" for an online peer; ", offline" — with "(last seen …)" appended when the
+ * status document carried `LastSeen` for it — for one that is not. */
+function offlineSuffix(peer: TailnetPeerRecord, now: number): string {
+	if (peer.online) return "";
+	const seen = formatLastSeen(peer.lastSeen, now);
+	return seen ? `, offline (last seen ${seen})` : ", offline";
+}
+
+/** A short "Nd/Nh/Nm ago" from an ISO-8601 `LastSeen`. Never invents a value:
+ * an absent or unparseable timestamp renders as null and the caller falls
+ * back to the bare ", offline" mark. */
+function formatLastSeen(lastSeen: string | null, now: number): string | null {
+	if (!lastSeen) return null;
+	const then = Date.parse(lastSeen);
+	if (Number.isNaN(then)) return null;
+	const elapsedMs = now - then;
+	if (elapsedMs < 60_000) return "just now";
+	const minutes = Math.floor(elapsedMs / 60_000);
+	if (minutes < 60) return `${minutes}m ago`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours}h ago`;
+	const days = Math.floor(hours / 24);
+	return `${days}d ago`;
 }

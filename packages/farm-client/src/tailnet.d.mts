@@ -19,6 +19,9 @@ export interface TailnetPeerRecord extends TailnetPeer {
 	/** The short MagicDNS handle, e.g. `phone` — null when there is no DNSName. */
 	shortName: string | null;
 	online: boolean;
+	/** ISO-8601 timestamp of `tailscale status --json`'s own `LastSeen` for this
+	 *  peer, or null when the status document does not carry one. */
+	lastSeen: string | null;
 }
 
 export interface TailnetParseOptions {

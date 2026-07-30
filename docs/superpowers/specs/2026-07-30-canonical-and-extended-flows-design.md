@@ -69,6 +69,17 @@ This is the same distinction the connection probe (`down` vs `unknown`) and the 
 is no longer a coincidence — **it is the shape of any answer obtained by asking the world**, and
 `tailnetPeers` should be brought into line rather than special-cased around.
 
+### C2.4 — Enrolment is not discovery
+
+`tailnetPeers`' `includeOffline: false` default is right for `farm-hello`, which must reach a peer
+*now* — an offline peer cannot answer, so offering it as a discovery target would be a false promise.
+It is wrong for enrolment: a credential minted today is for a device to use *later*, and a device is
+often offline for the ordinary reason that it has not been enrolled yet — inheriting the discovery
+default would make the feature inert on exactly the tailnet it exists to help. So the extended source
+queries with `includeOffline: true` of its own accord, while `tailnetPeers`' own default — and every
+existing caller of it — stays untouched. An offline candidate is offered, never hidden, and marked so
+the operator can tell it apart from one that is reachable right now.
+
 ## C3 — Extended is offered, never assumed
 
 The trigger is the **declaration**, not detection. If tailnet is not declared in `surfaces`, refarm
@@ -133,6 +144,12 @@ canonical prompt, the seam, and every canonical test stay untouched.
   ("Could not ask your tailnet …"), never into the empty list that reads as "you have no devices"
   ("Your tailnet answered: no other devices are on it right now."). Output that parses as JSON but
   is not a status document counts as *could not ask*, not as *no*.
+- **C2.4** — `createTailnetIdentitySource` queries `tailnetPeersReport` with `includeOffline: true`,
+  so a tailnet whose peers are all offline still reads as `peers`, never collapsing into the
+  `no-peers` notice. `reportToCandidates` marks each offline candidate's description
+  (`"on your tailnet, offline"`, plus `"(last seen …)"` when the status document's `LastSeen` is
+  present) so it reads apart from an online one at a glance. `tailnetPeers`' own default is
+  unchanged, and a farm-client test pins it.
 - **Already enrolled** — a candidate matching an enrolled identity is folded into that entry and
   shown once, as a rotate ("on your tailnet — rotate its token").
 - **The name** — the short MagicDNS handle (`tailnetShortName(DNSName)`), falling back to `HostName`.

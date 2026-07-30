@@ -28,6 +28,7 @@ const STATUS = {
 			DNSName: "raspberry.tail894688.ts.net.",
 			TailscaleIPs: ["100.88.3.4"],
 			Online: false,
+			LastSeen: "2026-07-27T10:00:00Z",
 		},
 	},
 };
@@ -68,6 +69,7 @@ test("parseTailnetPeerRecords carries the MagicDNS name alongside the hostname",
 			dnsName: "meu-android.tail894688.ts.net.",
 			shortName: "meu-android",
 			online: true,
+			lastSeen: null,
 		},
 	]);
 	// A peer with no DNSName still parses — shortName is simply absent.
@@ -76,6 +78,17 @@ test("parseTailnetPeerRecords carries the MagicDNS name alongside the hostname",
 	});
 	assert.equal(noDns[0].shortName, null);
 	assert.equal(noDns[0].dnsName, null);
+	assert.equal(noDns[0].lastSeen, null);
+});
+
+test("parseTailnetPeerRecords carries LastSeen when the status document has it, additively", () => {
+	const records = parseTailnetPeerRecords(STATUS, { includeOffline: true });
+	const raspberry = records.find((p) => p.name === "raspberry");
+	assert.equal(raspberry.online, false);
+	assert.equal(raspberry.lastSeen, "2026-07-27T10:00:00Z");
+	// The online peer in this fixture carries no LastSeen — null, never invented.
+	const android = records.find((p) => p.name === "meu-android");
+	assert.equal(android.lastSeen, null);
 });
 
 test("parseTailnetPeers stays the exact {name, ip} projection of the records", () => {
@@ -170,4 +183,15 @@ test("tailnetPeers honours includeOffline exactly as before", async () => {
 		includeOffline: true,
 	});
 	assert.deepEqual(peers.map((p) => p.name).sort(), ["meu-android", "raspberry"]);
+});
+
+// PINS the default `tailnetPeers` (and therefore `farm-hello`/`farm-ask`/
+// `farm-update`, its four zero-dependency callers) must keep: online-only. A
+// caller with a reason to see offline peers too (extended enrolment) passes
+// `includeOffline: true` explicitly — this default itself must never move,
+// because `farm-hello` needs to reach a peer NOW, not mint a credential for
+// one that answers later.
+test("tailnetPeers excludes offline peers by default — this is the discovery default, pinned", async () => {
+	const peers = await tailnetPeers({ run: () => Promise.resolve(JSON.stringify(STATUS)) });
+	assert.deepEqual(peers, [{ name: "meu-android", ip: "100.88.1.2" }]);
 });

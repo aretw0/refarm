@@ -344,6 +344,29 @@ describe("the tailnet identity source — C3", () => {
 		});
 		expect((await source.collect()).candidates.map((c) => c.value)).toEqual(["bare-host"]);
 	});
+
+	// C2.4: this source queries WITH offline peers, unlike `tailnetPeers`' default.
+	// The operator's real situation — a tailnet with peers, all of them offline —
+	// must still contribute candidates, not silently produce an empty list.
+	it("offers candidates even when every peer on the tailnet is offline", async () => {
+		const source = createTailnetIdentitySource({
+			loadConfig: () => DECLARED_TAILNET,
+			run: async () =>
+				statusWith({
+					a: tailnetPeerJson("galaxy-a55-5g", "galaxy-a55-5g.tail1.ts.net.", "100.88.1.2", {
+						online: false,
+						lastSeen: "2026-07-27T00:00:00Z",
+					}),
+					b: tailnetPeerJson("r2vivo", "r2vivo.tail1.ts.net.", "100.88.1.3", { online: false }),
+				}),
+		});
+		const report = await source.collect();
+		expect(report.candidates.map((c) => c.value).sort()).toEqual(["galaxy-a55-5g", "r2vivo"]);
+		expect(report.notices).toEqual([]);
+		for (const candidate of report.candidates) {
+			expect(candidate.description).toMatch(/offline/);
+		}
+	});
 });
 
 // ── C2.3: "no peers" and "could not ask" are different answers ───────────────
@@ -389,6 +412,7 @@ describe("reportToCandidates — the C2.3 split", () => {
 					dnsName: null,
 					shortName: null,
 					online: true,
+					lastSeen: null,
 				},
 			],
 			detail: null,
@@ -410,13 +434,114 @@ describe("reportToCandidates — the C2.3 split", () => {
 			ok: true,
 			reason: "peers",
 			peers: [
-				{ name: "", ip: "100.88.1.2", dnsName: null, shortName: null, online: true },
-				{ name: "good", ip: "100.88.1.3", dnsName: null, shortName: "good", online: true },
+				{ name: "", ip: "100.88.1.2", dnsName: null, shortName: null, online: true, lastSeen: null },
+				{ name: "good", ip: "100.88.1.3", dnsName: null, shortName: "good", online: true, lastSeen: null },
 			],
 			detail: null,
 		});
 		expect(report.candidates.map((c) => c.value)).toEqual(["good"]);
 		expect(report.notices[0]).toMatch(/cannot be used as a device label/);
+	});
+});
+
+// ── C2.4: enrolment is not discovery — offline peers are offered, marked ─────
+
+describe("reportToCandidates — C2.4, offline peers are offered and marked", () => {
+	it("an online peer is offered plain; an offline peer is offered marked offline", () => {
+		const report = reportToCandidates({
+			ok: true,
+			reason: "peers",
+			peers: [
+				{ name: "online-one", ip: "100.88.1.2", dnsName: null, shortName: null, online: true, lastSeen: null },
+				{
+					name: "offline-one",
+					ip: "100.88.1.3",
+					dnsName: null,
+					shortName: null,
+					online: false,
+					lastSeen: null,
+				},
+			],
+			detail: null,
+		});
+		const byValue = new Map(report.candidates.map((c) => [c.value, c]));
+		expect(byValue.get("online-one")?.description).toBe("on your tailnet");
+		expect(byValue.get("offline-one")?.description).toBe("on your tailnet, offline");
+		// Distinguishable, and neither is hidden.
+		expect(report.candidates.map((c) => c.value).sort()).toEqual(["offline-one", "online-one"]);
+	});
+
+	it("renders last-seen when the status document carried it, and stays generic when it did not", () => {
+		const now = Date.parse("2026-07-28T12:00:00Z");
+		const report = reportToCandidates(
+			{
+				ok: true,
+				reason: "peers",
+				peers: [
+					{
+						name: "phone-with-time",
+						ip: "100.88.1.2",
+						dnsName: null,
+						shortName: null,
+						online: false,
+						lastSeen: "2026-07-27T12:00:00Z", // exactly 1 day before `now`
+					},
+					{
+						name: "phone-no-time",
+						ip: "100.88.1.3",
+						dnsName: null,
+						shortName: null,
+						online: false,
+						lastSeen: null,
+					},
+				],
+				detail: null,
+			},
+			now,
+		);
+		const byValue = new Map(report.candidates.map((c) => [c.value, c]));
+		expect(byValue.get("phone-with-time")?.description).toBe("on your tailnet, offline (last seen 1d ago)");
+		// No LastSeen in the status document ⇒ no invented value, just the mark.
+		expect(byValue.get("phone-no-time")?.description).toBe("on your tailnet, offline");
+	});
+
+	it("a repaired offline candidate's description carries both facts: name adjusted AND offline", () => {
+		const report = reportToCandidates({
+			ok: true,
+			reason: "peers",
+			// A control character forces the repair path (as in the "name adjusted" test above).
+			peers: [{ name: "myphone", ip: "100.88.1.2", dnsName: null, shortName: null, online: false, lastSeen: null }],
+			detail: null,
+		});
+		expect(report.candidates[0]?.description).toBe("on your tailnet, name adjusted, offline");
+	});
+
+	it("a tailnet where EVERY peer is offline still yields candidates — never the 'no other devices' notice", () => {
+		// The operator's exact situation this closes: two peers, both offline.
+		const report = reportToCandidates({
+			ok: true,
+			reason: "peers",
+			peers: [
+				{
+					name: "Galaxy A55 5G",
+					ip: "100.88.1.2",
+					dnsName: null,
+					shortName: null,
+					online: false,
+					lastSeen: null,
+				},
+				{ name: "r2vivo", ip: "100.88.1.3", dnsName: null, shortName: "r2vivo", online: false, lastSeen: null },
+			],
+			detail: null,
+		});
+		expect(report.candidates).toHaveLength(2);
+		expect(report.candidates.map((c) => c.value)).toEqual(
+			expect.arrayContaining(["Galaxy A55 5G", "r2vivo"]),
+		);
+		expect(report.notices).toEqual([]);
+		// The regression this guards against: collapsing "peers, all offline" into
+		// the trustworthy-empty answer.
+		expect(report.notices.join(" ")).not.toMatch(/no other devices are on it/);
 	});
 });
 
@@ -463,12 +588,18 @@ function statusWith(peers: Record<string, unknown>): string {
 	});
 }
 
-function tailnetPeerJson(hostName: string, dnsName: string | null, ip = "100.88.1.2") {
+function tailnetPeerJson(
+	hostName: string,
+	dnsName: string | null,
+	ip = "100.88.1.2",
+	options: { online?: boolean; lastSeen?: string } = {},
+) {
 	return {
 		HostName: hostName,
 		...(dnsName === null ? {} : { DNSName: dnsName }),
 		TailscaleIPs: [ip],
-		Online: true,
+		Online: options.online ?? true,
+		...(options.lastSeen === undefined ? {} : { LastSeen: options.lastSeen }),
 	};
 }
 
@@ -741,6 +872,48 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		// C2.1 — exactly ONE credential was minted, no "enroll all".
 		const policy = readPolicyFile(policyPath);
 		expect(policy.credentials.map((c) => c.identity)).toEqual(["meu-android"]);
+	});
+
+	// C2.4 — the operator's real situation: a tailnet with peers, every one of
+	// them offline. The feature must stay live, not go inert, and the operator
+	// must be able to tell online from offline at a glance.
+	it("declared tailnet, ALL peers offline: still offered, marked, and enrollable — not the empty-tailnet notice", async () => {
+		const policyPath = tempPolicyPath();
+		const { source, calls } = tailnetSource({
+			config: DECLARED_TAILNET,
+			stdout: statusWith({
+				a: tailnetPeerJson("galaxy-a55-5g", "galaxy-a55-5g.tail1.ts.net.", "100.88.1.2", {
+					online: false,
+					// A real `LastSeen` far enough in the past that "Xd ago" is stable
+					// regardless of exactly when this test happens to run.
+					lastSeen: "2000-01-01T00:00:00Z",
+				}),
+				b: tailnetPeerJson("r2vivo", "r2vivo.tail1.ts.net.", "100.88.3.4", { online: false }),
+			}),
+		});
+		const { operator, prompts } = recordingOperator(["r2vivo"]);
+		const cmd = createAuthEnrollCommand({
+			operator,
+			input: fakeStream(true),
+			output: fakeStream(true),
+			identityCandidateSources: [source],
+		});
+
+		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
+
+		expect(calls).toEqual([["status", "--json"]]);
+		expect(process.exitCode).toBeUndefined();
+		const options = selectPrompt(prompts).options;
+		expect(options.map((o) => o.value)).toEqual(["galaxy-a55-5g", "r2vivo", " new-device"]);
+		// Both offline peers are visibly marked, one with last-seen, one without —
+		// online vs. offline is distinguishable, and the exact "Xd ago" count is
+		// left to the unit-level `reportToCandidates` tests (deterministic `now`).
+		expect(options[0]?.description).toMatch(/^on your tailnet, offline \(last seen \d+d ago\) — enroll it$/);
+		expect(options[1]?.description).toBe("on your tailnet, offline — enroll it");
+		// The regression this closes: an all-offline tailnet must not fall back to
+		// the "no other devices" notice — the select prompt itself IS the proof.
+		expect(stdoutText()).not.toMatch(/no other devices are on it/);
+		expect(readPolicyFile(policyPath).credentials.map((c) => c.identity)).toEqual(["r2vivo"]);
 	});
 
 	it("declared tailnet: 'A new device' still leads to free text even with peers on offer", async () => {
