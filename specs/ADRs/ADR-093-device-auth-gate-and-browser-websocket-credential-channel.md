@@ -51,6 +51,27 @@ with the HTTP gate on — so the hub cannot be safely remote until this is decid
 The policy is shared: the same `parse_policy`/`authenticate` (sha256-of-token → enrolled?) the
 sidecar uses; the WS gate must not diverge. Authorization (which workspace) stays Slice 2.
 
+### Amendment (2026-07-30) — the DECLARATION is the opt-in, not the env var
+
+Everywhere above that reads "`REFARM_AUTH_POLICY` set ⇒ gate on, unset ⇒ off" is superseded.
+`surfaces.<name>` with `"gate": "device-token"` in `.refarm/config.json` is what turns the gate
+on; the daemon then DERIVES the policy path as `<refarm-dir>/auth-policy.json` — the same
+conventional file `refarm auth enroll` already writes by default. The writer knew that
+convention and the reader did not, so an operator who declared the gate was still made to plumb
+the path by hand before the declaration would be believed; that asymmetry is removed.
+
+- `REFARM_AUTH_POLICY` remains, as an **override**: set it only to point at a policy file
+  somewhere else. A set-but-blank value is not a value — it behaves exactly as unset.
+- A declared gate whose policy file does not exist yet resolves to **deny-all**: the surface
+  binds and rejects every request `401` until `refarm auth enroll` mints a credential. Denying
+  all is the strictest enforcement of the declared gate, not a hole, and it keeps a
+  declared-but-not-yet-enrolled node bootable. The daemon says so once at start, naming the
+  derived path and the enroll command.
+- Nothing declared and no env ⇒ still no gate at all, byte-identical to before it existed.
+
+Implementation: `packages/tractor/src/sidecar/auth.rs` (`AuthPolicySource`,
+`resolve_policy_path`, `resolve_auth_policy`), consumed by `sidecar::bind_guard`'s S3 check.
+
 ## Consequences
 
 ### Positive

@@ -17,12 +17,16 @@
 #                      docs/container-surfaces.example.json) ⇒ that host, once its
 #                      gate is actually configured (S3). A container gets loud
 #                      guidance instead of automation — see the "bind hosts" block.
-#   REFARM_WS_HOST     CRDT/agent WS bind. Default 127.0.0.1, and the daemon refuses
-#                      anything else regardless of policy until ADR-093 lands (S3:
-#                      `surfaces.daemon-ws` may declare only "loopback").
-#   REFARM_AUTH_POLICY the per-device credential policy. The same file the daemon
-#                      reads; its presence is what unlocks a wider sidecar bind, once
-#                      `surfaces.sidecar-http` also names it.
+#   REFARM_WS_HOST     CRDT/agent WS bind. This script pins it to 127.0.0.1 (see the
+#                      "bind hosts" block); ADR-093's credential handshake shipped, so
+#                      the DAEMON would accept a declared+gated `surfaces.daemon-ws`
+#                      host — the pin here is this script's own conservative choice.
+#   REFARM_AUTH_POLICY OPTIONAL, and normally unset. A `surfaces.*` declaration with
+#                      `"gate": "device-token"` is what turns the gate on; the daemon
+#                      then DERIVES the policy path from the --refarm-dir it is given
+#                      (<REFARM_HOME>/auth-policy.json — the same file `refarm auth
+#                      enroll` writes). Set this only to point at a policy file
+#                      somewhere else; it overrides the derivation, nothing more.
 #
 # Keys are loaded from .refarm/.env (gitignored).
 # Run `refarm sow` to configure them.
@@ -243,8 +247,27 @@ esac
 # to add) if nothing declares it. That refusal is honest — an explicit request answered
 # with an explicit reason — and it is not this script's job to route around it.
 
-_auth_policy_configured() {
-  [ -n "${REFARM_AUTH_POLICY:-}" ] && [ -f "${REFARM_AUTH_POLICY}" ]
+# Is a credential policy FILE actually there? Mirrors the daemon's own resolution
+# (packages/tractor/src/sidecar/auth.rs::resolve_policy_path): REFARM_AUTH_POLICY overrides
+# the path when the operator set one; otherwise the daemon derives
+# <refarm-dir>/auth-policy.json from the --refarm-dir it is passed below ($REFARM_HOME).
+#
+# This is only used to decide whether to PRINT the enroll hint. It deliberately does NOT
+# read .refarm/config.json to find out whether a gate is declared, and it never writes one
+# — the declaration is the operator's statement of intent, and a launch script that
+# synthesises it makes what the machine declares a function of how it was launched. The
+# daemon needs nothing from this function; deriving nothing here, and simply not needing an
+# export, is the point.
+_auth_policy_file() {
+  if [ -n "${REFARM_AUTH_POLICY:-}" ]; then
+    printf "%s" "$REFARM_AUTH_POLICY"
+  else
+    printf "%s" "$REFARM_HOME/auth-policy.json"
+  fi
+}
+
+_auth_policy_present() {
+  [ -f "$(_auth_policy_file)" ]
 }
 
 CONFIG_JSON="$ROOT/.refarm/config.json"
@@ -254,12 +277,14 @@ if [ -f "/.dockerenv" ]; then
   IN_CONTAINER=1
 fi
 
-# The WS (:42000) is stricter than the sidecar: the daemon refuses ANY non-loopback bind
-# there regardless of policy, because that socket has no credential gate at all (no
-# middleware reads the policy) and accepts `user:prompt` from whoever reaches it. Until
-# ADR-093's WS credential handshake ships there is no value of REFARM_WS_HOST other than
-# loopback that the daemon will accept — so the script passes loopback explicitly instead
-# of leaving the bind to whatever the default happens to be that week.
+# The WS (:42000) is pinned to loopback BY THIS SCRIPT, not by the daemon. ADR-093's
+# `Sec-WebSocket-Protocol` credential handshake shipped (2026-07-29): `daemon::WsServer`
+# authenticates every upgrade against the same policy the sidecar uses, so
+# `surfaces.daemon-ws` may now declare `"host:<ip>"` with `"gate": "device-token"` exactly
+# like `sidecar-http`, and the daemon WOULD accept it. The pin stays because this script
+# has no reason to widen the CRDT socket on the operator's behalf — an operator who wants
+# it wider declares the surface and sets REFARM_WS_HOST, and the daemon's guard checks
+# that value against the declaration exactly as it does --http-host.
 if [ -z "$REFARM_WS_HOST" ]; then
   REFARM_WS_HOST="127.0.0.1"
 fi
@@ -273,15 +298,16 @@ if [ "$IN_CONTAINER" = "1" ]; then
     echo "    listener other devices can reach. To publish it, declare the surface —"
     echo "    docs/container-surfaces.example.json is a copy-pasteable example:"
     echo "      \"surfaces\": { \"sidecar-http\": { \"expose\": \"host:0.0.0.0\", \"gate\": \"device-token\" } }"
-    if ! _auth_policy_configured; then
-      echo "    then mint a per-device credential and point the daemon at it:"
+    if ! _auth_policy_present; then
+      echo "    then mint a per-device credential — no env export needed, the declared"
+      echo "    gate derives $(_auth_policy_file):"
       echo "      refarm auth enroll"
-      echo "      export REFARM_AUTH_POLICY=<the resulting policy file>"
+      echo "    (until it exists the surface binds and denies EVERY request, by design.)"
     fi
   fi
   echo "⚠   The CRDT/agent WebSocket stays on 127.0.0.1 — '-p 42000:42000' will NOT"
-  echo "    reach it, policy or not. That socket has no credential gate yet (ADR-093);"
-  echo "    reach it through an authenticated front, not by publishing the port."
+  echo "    reach it. That is this script's pin, not a daemon limit: ADR-093's handshake"
+  echo "    shipped, so a declared+gated surfaces.daemon-ws would be accepted."
 fi
 
 # ── start daemon ──────────────────────────────────────────────────────────────

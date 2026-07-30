@@ -88,6 +88,18 @@ refuse_unguarded_nonloopback_ws_bind` was promoted to the same declaration-aware
 uses, at bind time. `tailnet` stays refused for both surfaces (open question 1 below is still
 open); only `host:<ip>` widened.
 
+**Update (2026-07-30):** S3's runtime half — "the gate must actually be configured right now" —
+no longer means "a `REFARM_AUTH_POLICY` env var is set". Declaring `"gate": "device-token"` DERIVES
+the policy path (`<refarm-dir>/auth-policy.json`, the file `refarm auth enroll` already writes), so
+the declaration is now sufficient on its own; the env is only an override. The guard's parameter is
+renamed `auth_policy_resolvable` to say so. A declared gate whose policy file does not exist yet
+resolves to **deny-all** — bound, and rejecting everything until enrollment — which is the
+strictest possible enforcement of the declared gate rather than a hole, and avoids a runtime that
+refuses to boot because the operator has not enrolled yet. (This exact combination already existed:
+an env var naming a missing file has always produced `Some(deny_all)` plus a "present" peek.) What
+this does NOT change: a surface still needs its OWN declaration and gate to bind non-loopback — a
+gate declared on `sidecar-http` never widens `daemon-ws` (S1).
+
 ### S4 — One resolver, several runtimes
 
 Rust and TypeScript both read this block, exactly as both read the permission vocabulary today. That
