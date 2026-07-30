@@ -85,6 +85,64 @@ describe("intentionCommand", () => {
 			scope: "attention:cross-device-handoff",
 			windowMs: 120000,
 		});
+		expect(typeof payload.intentToken).toBe("string");
+		expect((payload.intentToken as string).startsWith("rfint.v1.")).toBe(true);
+	});
+
+	it("checks readiness via portable token from another device", async () => {
+		const now = Date.now();
+		const command = createIntentionCommand({ now: () => now });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["arm", "--scope", "attention:mobile-ready", "--window-ms", "90000", "--json"],
+			{ from: "user" },
+		);
+		const armPayload = JSON.parse(logSpy.mock.calls[0]?.[0] as string);
+		const token = armPayload.intentToken as string;
+
+		logSpy.mockClear();
+		await command.parseAsync(["check", "--token", token, "--json"], {
+			from: "user",
+		});
+
+		const checkPayload = JSON.parse(logSpy.mock.calls[0]?.[0] as string);
+		expect(checkPayload).toMatchObject({
+			ok: true,
+			operation: "check",
+			source: "token",
+			scope: "attention:mobile-ready",
+			windowMs: 90000,
+		});
+		expect(process.exitCode).toBe(0);
+	});
+
+	it("fails check when portable token is expired", async () => {
+		const armedAt = Date.now();
+		const armCommand = createIntentionCommand({ now: () => armedAt });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await armCommand.parseAsync(
+			["arm", "--scope", "attention:mobile-ready", "--window-ms", "1000", "--json"],
+			{ from: "user" },
+		);
+		const token = JSON.parse(logSpy.mock.calls[0]?.[0] as string).intentToken as string;
+
+		logSpy.mockClear();
+		process.exitCode = undefined;
+		const checkCommand = createIntentionCommand({ now: () => armedAt + 1500 });
+		await checkCommand.parseAsync(["check", "--token", token, "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(logSpy.mock.calls[0]?.[0] as string);
+		expect(payload).toMatchObject({
+			ok: false,
+			operation: "check",
+			source: "token",
+			scope: "attention:mobile-ready",
+		});
+		expect(process.exitCode).toBe(2);
 	});
 
 	it("consumes intent and asks for re-arm", async () => {
@@ -107,6 +165,32 @@ describe("intentionCommand", () => {
 			scope: "attention:mobile-ready",
 			nextCommand:
 				"refarm intention arm --scope 'attention:mobile-ready' --window-ms 300000 --json",
+		});
+	});
+
+	it("consumes portable token without local state", async () => {
+		const command = createIntentionCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["arm", "--scope", "attention:cross-device-handoff", "--window-ms", "120000", "--json"],
+			{ from: "user" },
+		);
+		const token = JSON.parse(logSpy.mock.calls[0]?.[0] as string).intentToken as string;
+
+		logSpy.mockClear();
+		await command.parseAsync(["consume", "--token", token, "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(logSpy.mock.calls[0]?.[0] as string);
+		expect(payload).toMatchObject({
+			ok: true,
+			operation: "consume",
+			source: "token",
+			scope: "attention:cross-device-handoff",
+			nextCommand:
+				"refarm intention arm --scope 'attention:cross-device-handoff' --window-ms 120000 --json",
 		});
 	});
 });

@@ -10,6 +10,7 @@ interface IntentionCommandOptions {
 	scope?: string;
 	windowMs?: number;
 	profile?: string;
+	token?: string;
 	json?: boolean;
 }
 
@@ -66,6 +67,11 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 				scope: target.scope,
 				windowMs: target.windowMs,
 				expiresAt: new Date(now + target.windowMs).toISOString(),
+				intentToken: encodeIntentToken({
+					scope: target.scope,
+					armedAt: now,
+					windowMs: target.windowMs,
+				}),
 				nextAction: `Verifique a prontidão da intenção '${target.scope}'.`,
 				nextActions: [`Verifique a prontidão da intenção '${target.scope}'.`],
 				nextCommand: intentionCheckCommand(target.scope, target.windowMs),
@@ -87,9 +93,47 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 			"--profile <name>",
 			"Named intent profile (cross-device-handoff | mobile-ready | operator-sync)",
 		)
+		.option("--token <value>", "Portable intent token from another device")
 		.option("--json", "Output machine-readable JSON")
 		.action((options: IntentionCommandOptions) => {
 			const now = deps.now?.() ?? Date.now();
+			if (options.token) {
+				const tokenState = decodeIntentToken(options.token);
+				if (!tokenState) {
+					throw new Error("Invalid --token value.");
+				}
+				const ageMs = now - tokenState.armedAt;
+				const armed = ageMs >= 0 && ageMs <= tokenState.windowMs;
+				const payload = {
+					ok: armed,
+					command: "intention",
+					operation: "check",
+					source: "token",
+					scope: tokenState.scope,
+					windowMs: tokenState.windowMs,
+					armed,
+					expiresAt: armed
+						? new Date(tokenState.armedAt + tokenState.windowMs).toISOString()
+						: null,
+					nextAction: armed ? null : `Arme a intenção '${tokenState.scope}'.`,
+					nextActions: armed ? [] : [`Arme a intenção '${tokenState.scope}'.`],
+					nextCommand: armed
+						? null
+						: intentionArmCommand(tokenState.scope, tokenState.windowMs),
+					nextCommands: armed
+						? []
+						: [intentionArmCommand(tokenState.scope, tokenState.windowMs)],
+				};
+				emit(
+					payload,
+					options.json ?? false,
+					armed
+						? `Intenção pronta para '${tokenState.scope}' (token).`
+						: `Intenção expirada ou inválida para '${tokenState.scope}' (token).`,
+				);
+				process.exitCode = armed ? 0 : 2;
+				return;
+			}
 			const target = resolveAttentionTarget(options);
 			const statePath = operatorAttentionStatePath(target.scope);
 			const state = readState(statePath);
@@ -128,8 +172,34 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 			"--profile <name>",
 			"Named intent profile (cross-device-handoff | mobile-ready | operator-sync)",
 		)
+		.option("--token <value>", "Portable intent token from another device")
 		.option("--json", "Output machine-readable JSON")
 		.action((options: IntentionCommandOptions) => {
+			if (options.token) {
+				const tokenState = decodeIntentToken(options.token);
+				if (!tokenState) {
+					throw new Error("Invalid --token value.");
+				}
+				const payload = {
+					ok: true,
+					command: "intention",
+					operation: "consume",
+					source: "token",
+					scope: tokenState.scope,
+					nextAction: `Arme novamente a intenção '${tokenState.scope}' quando necessário.`,
+					nextActions: [
+						`Arme novamente a intenção '${tokenState.scope}' quando necessário.`,
+					],
+					nextCommand: intentionArmCommand(tokenState.scope, tokenState.windowMs),
+					nextCommands: [intentionArmCommand(tokenState.scope, tokenState.windowMs)],
+				};
+				emit(
+					payload,
+					options.json ?? false,
+					`Intenção consumida para '${tokenState.scope}' (token).`,
+				);
+				return;
+			}
 			const target = resolveAttentionTarget(options);
 			const statePath = operatorAttentionStatePath(target.scope);
 			const state = readState(statePath);
@@ -230,4 +300,49 @@ function parsePositiveInt(value: string): number {
 
 function shellQuote(value: string): string {
 	return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
+interface PortableIntentTokenState {
+	scope: string;
+	armedAt: number;
+	windowMs: number;
+}
+
+function encodeIntentToken(state: PortableIntentTokenState): string {
+	const payload = {
+		v: 1,
+		scope: state.scope,
+		armedAt: state.armedAt,
+		windowMs: state.windowMs,
+	};
+	const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+	return `rfint.v1.${encoded}`;
+}
+
+function decodeIntentToken(token: string): PortableIntentTokenState | null {
+	if (!token.startsWith("rfint.v1.")) return null;
+	const encoded = token.slice("rfint.v1.".length);
+	if (!encoded) return null;
+	try {
+		const raw = Buffer.from(encoded, "base64url").toString("utf8");
+		const parsed = JSON.parse(raw) as {
+			v?: number;
+			scope?: unknown;
+			armedAt?: unknown;
+			windowMs?: unknown;
+		};
+		if (parsed.v !== 1) return null;
+		if (typeof parsed.scope !== "string" || !parsed.scope.trim()) return null;
+		const armedAt = Number(parsed.armedAt);
+		const windowMs = Number(parsed.windowMs);
+		if (!Number.isFinite(armedAt) || armedAt <= 0) return null;
+		if (!Number.isFinite(windowMs) || windowMs <= 0) return null;
+		return {
+			scope: parsed.scope,
+			armedAt,
+			windowMs,
+		};
+	} catch {
+		return null;
+	}
 }
