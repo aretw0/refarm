@@ -451,7 +451,13 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     // the HTTP sidecar's `--http-host` always has. Resolved ONCE here and reused below
     // for `WsServer::new`, so the value that was validated is the exact value that gets
     // bound.
-    let resolved_ws_host =
+    //
+    // `declared_ws_surface` is REBOUND to the EFFECTIVE declaration `preflight_ws_bind_host`
+    // returns: if `surfaces.daemon-ws` declares `"tailnet"`, that has ALREADY been resolved
+    // (a `tailscale status --json` ask, ≤~2s) to a concrete `host:<ip>` by this call — so
+    // `WsServer::new` below never re-asks, and its own re-validation at actual bind time
+    // sees the exact same resolved address, not a second (possibly different) answer.
+    let (resolved_ws_host, declared_ws_surface) =
         daemon::preflight_ws_bind_host(args.ws_host.as_deref(), declared_ws_surface.as_ref())?;
 
     let security_mode = match args.security_mode.as_str() {

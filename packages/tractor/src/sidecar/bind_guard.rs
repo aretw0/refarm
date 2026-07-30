@@ -220,7 +220,17 @@ fn resolve_declared_bind_host(flag: Option<&str>, declared: Option<&SurfaceDecla
         Some(v) => v.to_string(),
         None => match declared.map(|decl| &decl.expose) {
             Some(SurfaceExpose::Host(ip)) => ip.clone(),
-            Some(SurfaceExpose::Loopback) | None => "127.0.0.1".to_string(),
+            // `Tailnet` reaching a PURE function is a defensive fallback, not an expected
+            // path: `sidecar::tailnet_resolve::resolve_declared_expose_for_bind` ALWAYS
+            // rewrites a `Tailnet` declaration to `Host(<resolved ip>)` (or refuses,
+            // before this function is ever called) whenever the flag is absent — the
+            // exact condition this `None =>` arm is under. Folded into the SAME fallback
+            // as `Loopback`/no-declaration rather than given its own branch: if this
+            // invariant is ever violated by a future caller, failing toward loopback is
+            // the fail-CLOSED direction (S1), never a silent widen.
+            Some(SurfaceExpose::Loopback) | Some(SurfaceExpose::Tailnet) | None => {
+                "127.0.0.1".to_string()
+            }
         },
     }
 }
@@ -255,7 +265,13 @@ fn parse_bind_ip(host: &str) -> Option<IpAddr> {
 /// `true` for `127.0.0.0/8`, `::1`, and the literal `localhost`. Everything else —
 /// including the unspecified addresses `0.0.0.0` / `[::]`, and any host that fails to
 /// parse as an `IpAddr` — is treated as NOT loopback. PURE.
-fn is_loopback_host(host: &str) -> bool {
+///
+/// `pub(crate)`, not private: `sidecar::tailnet_resolve::resolve_declared_expose_for_bind`
+/// reuses this EXACT check (rather than re-deriving its own) to decide whether a
+/// `--http-host`/`--ws-host` flag is already loopback-shaped and can therefore skip
+/// resolving `tailnet` entirely — one source of truth for the IPv4-mapped/unspecified
+/// edge cases this function's own doc already warns are easy to get subtly wrong twice.
+pub(crate) fn is_loopback_host(host: &str) -> bool {
     if host.eq_ignore_ascii_case("localhost") {
         return true;
     }

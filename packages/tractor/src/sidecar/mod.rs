@@ -679,6 +679,7 @@ mod activity_sse;
 // policy twice; see that function's doc comment for why the two stay distinct.
 pub(crate) mod auth;
 pub(crate) mod bind_guard;
+pub(crate) mod tailnet_resolve;
 mod cors;
 mod dispatch;
 pub(crate) use dispatch::*;
@@ -1675,6 +1676,19 @@ pub async fn start(
     // for the auth middleware layer further down, so a configured policy is read from
     // disk (and its enable/deny-all log line emitted) exactly once per daemon start.
     let auth_policy = auth::auth_config_from_env();
+
+    // Resolve `expose: "tailnet"` into a concrete `host:<ip>` BEFORE the guard ever runs
+    // — see `tailnet_resolve`'s module doc (open question 1 of the declared-surfaces
+    // design). A no-op (no `tailscale` spawn) unless `declared_surface` actually declares
+    // `tailnet` and the flag isn't already narrowing to loopback. `bind_guard` below never
+    // sees an unresolved `Tailnet` as a result.
+    let declared_surface = tailnet_resolve::resolve_declared_expose_for_bind(
+        crate::host::SURFACE_SIDECAR_HTTP,
+        "the sidecar",
+        host.as_deref(),
+        declared_surface.as_ref(),
+    )
+    .map_err(|reason| anyhow::anyhow!(reason))?;
 
     // Resolve the ACTUAL bind host from the flag + declaration, and validate it in the
     // same call — see `bind_guard::resolve_sidecar_bind_host` for the full S1/S3/S5

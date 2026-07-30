@@ -176,8 +176,11 @@ fn daemon_cli_http_host_is_absent_by_default() {
 fn ws_host_preflight_resolves_absent_flag_to_loopback() {
     // `daemon::preflight_ws_bind_host` now RESOLVES the bind host too (not just
     // validates): an absent flag + no declaration resolves to loopback and is
-    // returned, not just Ok(()).
-    assert_eq!(daemon::preflight_ws_bind_host(None, None).unwrap(), "127.0.0.1");
+    // returned, not just Ok(()). It also returns the EFFECTIVE declaration (`tailnet`
+    // resolution — see `sidecar::tailnet_resolve`); `None` in, `None` out here.
+    let (host, effective_surface) = daemon::preflight_ws_bind_host(None, None).unwrap();
+    assert_eq!(host, "127.0.0.1");
+    assert!(effective_surface.is_none());
 }
 
 #[test]

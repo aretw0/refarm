@@ -79,13 +79,36 @@ fn parse_surfaces_unknown_expose_value_is_rejected() {
 }
 
 #[test]
-fn parse_surfaces_tailnet_is_refused_as_not_implemented() {
+fn parse_surfaces_tailnet_parses_as_intent_only() {
+    // S2: `expose: "tailnet"` is INTENT, not an address — `parse_expose` never resolves
+    // it (no I/O here at all); `sidecar::tailnet_resolve` does that at bind time.
+    for surface in [SURFACE_SIDECAR_HTTP, SURFACE_DAEMON_WS] {
+        let cfg =
+            serde_json::json!({ "surfaces": { surface: { "expose": "tailnet", "gate": "device-token" } } });
+        let out = parse_surfaces(&cfg).unwrap();
+        let decl = &out[surface];
+        assert_eq!(decl.expose, SurfaceExpose::Tailnet, "{surface}: unexpected expose");
+        assert_eq!(decl.gate, Some(SurfaceGate::DeviceToken), "{surface}: unexpected gate");
+    }
+}
+
+#[test]
+fn parse_surfaces_tailnet_without_a_gate_is_rejected() {
+    // S3: `tailnet` is non-loopback exactly like `host:<ip>` — it needs a gate this
+    // surface can enforce, and NO gate at all recreates the hole this design closes.
     for surface in [SURFACE_SIDECAR_HTTP, SURFACE_DAEMON_WS] {
         let cfg = serde_json::json!({ "surfaces": { surface: { "expose": "tailnet" } } });
         let err = parse_surfaces(&cfg).unwrap_err();
-        assert!(err.contains("not implemented"), "{surface}: unexpected: {err}");
-        assert!(err.contains("tailnet"), "{surface}: must name the value: {err}");
+        assert!(err.contains("needs a gate"), "{surface}: unexpected: {err}");
+        assert!(err.contains("device-token"), "{surface}: must name the fix: {err}");
     }
+}
+
+#[test]
+fn parse_surfaces_tailnet_with_unenforceable_gate_is_rejected() {
+    let cfg = serde_json::json!({ "surfaces": { "sidecar-http": { "expose": "tailnet", "gate": "bearer" } } });
+    let err = parse_surfaces(&cfg).unwrap_err();
+    assert!(err.contains("is not a known gate"), "unexpected: {err}");
 }
 
 #[test]

@@ -23,12 +23,17 @@
 // against `surface_enforceable_gate` below), naming the reason here, at load, rather than
 // silently accepted and only caught later at bind time.
 //
-// `expose: "tailnet"` is deliberately IN the vocabulary and REJECTED: who resolves this
-// machine's tailnet address, and how that resolver tells "the tailnet is down" from "I
-// could not ask" (so the fail-closed promise holds), is an open question (design doc, open
-// question 1) — declaring it loudly refuses rather than silently doing the wrong thing,
-// same pattern the repo already uses for `probe.shell` and a non-zero `linger.idleMs`
-// (connection_decl.rs).
+// `expose: "tailnet"` parses into `SurfaceExpose::Tailnet` — intent only (S2: "expose is
+// intent, not an address"), never an address at parse time. `sidecar::tailnet_resolve`
+// resolves it at BIND TIME by asking Tailscale (`tailscale status --json`, the only one of
+// the three ways to ask that explains a failure instead of just a non-zero exit) and
+// distinguishes "the tailnet is down" (a complete, trustworthy answer that isn't usable —
+// not Running, not Online, or no IPv4 address) from "could not ask" (the CLI is missing,
+// the process wouldn't spawn, it timed out, or the shape is unexpected) — open question 1
+// of the design doc, answered. `sidecar::bind_guard`'s pure guard functions never see an
+// unresolved `Tailnet`: by the time they run, `sidecar::tailnet_resolve::
+// resolve_declared_expose_for_bind` has already rewritten it to `Host(<resolved ip>)`, or
+// refused with a distinguishable message before the guard is ever reached.
 //
 // Read from the FILESYSTEM ONLY, never the replicated config node: exposure decides how
 // THIS machine is reachable, so a declaration replicated from another device over CRDT
@@ -60,10 +65,10 @@ pub(crate) enum SurfaceGate {
     DeviceToken,
 }
 
-/// `expose` intent, resolved from the operator's string (S2). `Tailnet` is deliberately
-/// NOT a variant here: `parse_expose` refuses the string outright, so no downstream code
-/// (parser or `sidecar::bind_guard`) can ever hold a value meaning "bind the tailnet" —
-/// there is nothing yet that could honor it correctly.
+/// `expose` intent, resolved from the operator's string (S2). PURE at PARSE time — even
+/// `Tailnet` carries no address here, only intent; `sidecar::tailnet_resolve` is the one
+/// place that turns it into a concrete `Host(<ip>)`, at bind time, by actually asking
+/// Tailscale.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum SurfaceExpose {
     Loopback,
@@ -71,6 +76,12 @@ pub(crate) enum SurfaceExpose {
     /// stored exactly as declared (brackets stripped). `sidecar::bind_guard` compares the
     /// actual requested bind host against this value; it does not trust the label alone.
     Host(String),
+    /// Bind to whatever this machine's tailnet resolves to RIGHT NOW — resolved lazily,
+    /// at bind time, by `sidecar::tailnet_resolve::resolve_declared_expose_for_bind`
+    /// (never here, never at parse time: S2). `sidecar::bind_guard`'s pure guard
+    /// functions never receive this variant in practice — the resolver always rewrites
+    /// it to `Host(<resolved ip>)` first, or refuses before the guard is ever called.
+    Tailnet,
 }
 
 /// One surface's parsed, validated declaration.
@@ -110,13 +121,7 @@ fn parse_gate(raw: &str, surface: &str) -> Result<SurfaceGate, String> {
 fn parse_expose(raw: &str, surface: &str) -> Result<SurfaceExpose, String> {
     match raw {
         "loopback" => Ok(SurfaceExpose::Loopback),
-        "tailnet" => Err(format!(
-            "surfaces['{surface}'].expose = \"tailnet\" is not implemented yet: who resolves \
-             this machine's tailnet address, and how that resolver tells \"the tailnet is \
-             down\" from \"I could not ask\" (so the fail-closed promise holds), is an open \
-             question (docs/superpowers/specs/2026-07-29-declared-surfaces-design.md, open \
-             question 1) — declare \"loopback\" or a literal \"host:<ip>\" instead"
-        )),
+        "tailnet" => Ok(SurfaceExpose::Tailnet),
         other => {
             let Some(ip_raw) = other.strip_prefix("host:") else {
                 return Err(format!(

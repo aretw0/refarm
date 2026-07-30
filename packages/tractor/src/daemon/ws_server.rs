@@ -92,13 +92,28 @@ static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(0);
 /// boot — storage opened, plugins instantiated, supervisor and audit subscriber spawned —
 /// only to be told the host was never acceptable. Refusing up front means nothing was
 /// started, so there is also nothing to tear down.
+///
+/// ALSO resolves `expose: "tailnet"` (`crate::sidecar::tailnet_resolve` — open question 1
+/// of the declared-surfaces design), returning the EFFECTIVE declaration alongside the
+/// resolved host so the caller (`main.rs`) threads that same already-resolved value into
+/// `WsServer::new` — `Tailnet` is asked about (a `tailscale` spawn, up to ~2s) AT MOST
+/// ONCE per daemon start, here, not a second time when `WsServer::start` re-validates.
 pub fn preflight_ws_bind_host(
     host: Option<&str>,
     declared: Option<&crate::host::SurfaceDeclaration>,
-) -> Result<String> {
+) -> Result<(String, Option<crate::host::SurfaceDeclaration>)> {
+    let effective = crate::sidecar::tailnet_resolve::resolve_declared_expose_for_bind(
+        crate::host::SURFACE_DAEMON_WS,
+        "the agent/CRDT WebSocket",
+        host,
+        declared,
+    )
+    .map_err(|reason| anyhow::anyhow!(reason))?;
     let auth_policy_present = crate::sidecar::auth::auth_policy_configured();
-    crate::sidecar::bind_guard::resolve_ws_bind_host(host, auth_policy_present, declared)
-        .map_err(|reason| anyhow::anyhow!(reason))
+    let resolved_host =
+        crate::sidecar::bind_guard::resolve_ws_bind_host(host, auth_policy_present, effective.as_ref())
+            .map_err(|reason| anyhow::anyhow!(reason))?;
+    Ok((resolved_host, effective))
 }
 
 /// WebSocket server — the farmhand replacement.
