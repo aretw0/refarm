@@ -5,14 +5,17 @@
  *
  * The canonical prompt (`promptForIdentity` in auth.ts) selects among candidates
  * and always offers "A new device". An extended flow does not branch inside that
- * prompt — it CONTRIBUTES candidates to the list the prompt already renders. So
+ * prompt — it offers an INVOCABLE entry ("Discover devices on my tailnet…") and,
+ * once invoked, CONTRIBUTES candidates to the list the prompt already renders. So
  * this module is deliberately ignorant of every source that exists: it knows
- * about labels and candidates, never about tailnets, Bluetooth, an address book,
- * or whatever the second source turns out to be.
+ * about labels, candidates, and "a verb the operator can pick", never about
+ * tailnets, Bluetooth, an address book, or whatever the second source turns out
+ * to be.
  *
  * Adding a source means writing an `IdentityCandidateSource` and registering it
  * in `identity-sources.ts`. It means touching NOTHING here and NOTHING in the
- * canonical prompt. That is the whole point.
+ * canonical prompt — the prompt renders one entry per registered source from the
+ * source's own labels, so a second source is a second entry and no new code.
  *
  * PURE: no I/O, no spawn, no filesystem. Sources do the asking; this merges.
  */
@@ -87,9 +90,35 @@ export interface IdentityCandidateReport {
 	notices: string[];
 }
 
+/**
+ * How a source's INVOCATION reads in the identity prompt. The source owns this
+ * wording — the prompt only lays it out — which is what lets a second source add
+ * a second entry with no change to the prompt and no new flag.
+ *
+ * Two labels because re-asking is a different act from asking: the first says
+ * what the verb does, the second says the answer is being taken again. The list
+ * a source returns is a live snapshot; "again" is how the operator picks up a
+ * device that appeared after the prompt opened.
+ */
+export interface IdentityDiscoveryEntry {
+	/** Before this source has been invoked, e.g. "Discover devices on my tailnet…". */
+	readonly label: string;
+	/** After it has, e.g. "Discover again on my tailnet". */
+	readonly againLabel: string;
+	/** Short qualifier shown beside `label`. */
+	readonly description?: string;
+	/** Short qualifier shown beside `againLabel`. */
+	readonly againDescription?: string;
+}
+
 export interface IdentityCandidateSource {
 	/** Stable id, for diagnostics and for tests that assert the registry wiring. */
 	readonly id: string;
+	/** What picking this source's entry looks like. Presentation only — the
+	 * prompt never interprets it, and never learns what the source asks. */
+	readonly discovery: IdentityDiscoveryEntry;
+	/** Ask the world, NOW. Called at the moment the operator invokes the entry,
+	 * never speculatively and never from a cache. */
 	collect(): Promise<IdentityCandidateReport>;
 }
 
@@ -130,4 +159,30 @@ export async function collectIdentityCandidates(
 		}
 	}
 	return { candidates, notices };
+}
+
+/**
+ * Fold a FRESH answer from one source into the list already on screen. PURE.
+ *
+ * The source's previous contribution is DROPPED, not merged: a re-query is a new
+ * snapshot of the world, so a device that has since left must disappear from the
+ * list exactly as a device that has since arrived must appear. Merging would turn
+ * the list into an accumulating cache of everything ever seen — the one thing a
+ * live query must not become. Candidates from other sources, and any the caller
+ * supplied without a source, are kept as they were.
+ */
+export function replaceSourceCandidates(
+	existing: readonly IdentityCandidate[],
+	sourceId: string,
+	fresh: readonly IdentityCandidate[],
+): IdentityCandidate[] {
+	const kept = existing.filter((candidate) => candidate.source !== sourceId);
+	const merged: IdentityCandidate[] = [...kept];
+	const seen = new Set(kept.map((candidate) => candidate.value));
+	for (const candidate of fresh) {
+		if (seen.has(candidate.value)) continue;
+		seen.add(candidate.value);
+		merged.push(candidate);
+	}
+	return merged;
 }

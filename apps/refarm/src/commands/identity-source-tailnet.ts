@@ -1,4 +1,3 @@
-import { loadRawSovereignConfig } from "@refarm.dev/config";
 import {
 	tailnetPeersReport,
 	type TailnetPeerRecord,
@@ -15,19 +14,19 @@ import {
 } from "./identity-candidates.js";
 
 /**
- * The EXTENDED enrolment source: when the operator has declared a tailnet
- * surface, offer the devices already on it, named as the tailnet names them
+ * The EXTENDED enrolment source: ask the tailnet which devices are on it and
+ * offer them named as the tailnet names them
  * (docs/superpowers/specs/2026-07-30-canonical-and-extended-flows-design.md).
  *
  * Nothing here is reachable from the canonical flow. `auth.ts` asks a registry
  * for sources; this happens to be one of them. Delete this file and enrolment
  * still works, unchanged — that is the test of whether the seam is real.
  *
- * C3 — the gate is the DECLARATION, never detection. `expose: "tailnet"` in
- * `.refarm/config.json`'s `surfaces` is the only thing that unlocks the query.
- * A machine that merely HAS Tailscale installed and running gets the canonical
- * flow, and `tailscale` is never spawned. Detection decides HOW to satisfy a
- * declared intent; it never decides WHAT the operator wants.
+ * C3 — this source is INVOKED, never assumed. `collect()` runs only because the
+ * operator picked "Discover devices on my tailnet…" (or passed `--discover`).
+ * There is no config read here and no detection: refarm does not go looking on
+ * its own, and picking the entry is the operator saying "look". Detection still
+ * decides HOW to satisfy the intent; it never decides WHAT the operator wants.
  *
  * C2.4 — enrolment is not discovery. Offline peers are OFFERED here, clearly
  * marked, never filtered out: a credential minted today is for a device that
@@ -39,41 +38,10 @@ import {
 
 export const TAILNET_IDENTITY_SOURCE_ID = "tailnet";
 
-/** The `expose` value that unlocks this source. Matches the Rust parser's
- * vocabulary exactly (`packages/tractor/.../surfaces_decl.rs` `parse_expose`):
- * `"loopback" | "host:<ip>" | "tailnet"`. */
-const TAILNET_EXPOSE = "tailnet";
-
-/**
- * Does ANY declared surface say `expose: "tailnet"`? PURE — takes the already-read
- * config object, so the gate is testable without a filesystem.
- *
- * Deliberately not restricted to the two surfaces the Rust runtime knows today
- * (`sidecar-http`, `daemon-ws`): the question asked here is "has this operator
- * declared that this node lives on a tailnet", and a future TypeScript surface
- * declaring the same thing answers it just as well. A malformed or absent
- * `surfaces` block answers "no" — silence is closed (S1), never an invitation
- * to go looking.
- */
-export function declaresTailnetSurface(config: unknown): boolean {
-	if (config == null || typeof config !== "object") return false;
-	const surfaces = (config as Record<string, unknown>).surfaces;
-	if (surfaces == null || typeof surfaces !== "object" || Array.isArray(surfaces)) return false;
-	for (const declaration of Object.values(surfaces as Record<string, unknown>)) {
-		if (declaration == null || typeof declaration !== "object") continue;
-		if ((declaration as Record<string, unknown>).expose === TAILNET_EXPOSE) return true;
-	}
-	return false;
-}
-
 export interface TailnetIdentitySourceOptions {
-	/** Where `.refarm/config.json` lives. Defaults to the process cwd. */
-	root?: string;
-	/** Injected `tailscale` runner. Tests assert this is NEVER called when the
-	 * surface is undeclared — that assertion is C3's teeth. */
+	/** Injected `tailscale` runner. Tests assert how many times it was called —
+	 * "twice after a re-discovery" is what proves the list is a live snapshot. */
 	run?: TailnetRunner;
-	/** Injected raw-config reader, for tests. Production uses the fs-only reader. */
-	loadConfig?: (root: string) => Record<string, unknown> | null;
 }
 
 export function createTailnetIdentitySource(
@@ -81,26 +49,17 @@ export function createTailnetIdentitySource(
 ): IdentityCandidateSource {
 	return {
 		id: TAILNET_IDENTITY_SOURCE_ID,
+		discovery: {
+			label: "Discover devices on my tailnet…",
+			description: "ask your tailnet, right now",
+			againLabel: "Discover again on my tailnet",
+			againDescription: "ask again — the list is a live snapshot, never cached",
+		},
 		async collect(): Promise<IdentityCandidateReport> {
-			const root = options.root ?? process.cwd();
-			// FILESYSTEM ONLY, never the replicated config node (`resolveSovereignConfig`).
-			// Exposure decides how THIS machine is reachable, so a declaration replicated
-			// from another device over CRDT must never decide it — the same doctrine
-			// `surfaces_decl.rs` states for the Rust side. It also means the gate costs
-			// one `readFileSync` and never touches the runtime.
-			const load = options.loadConfig ?? loadRawSovereignConfig;
-			let config: Record<string, unknown> | null;
-			try {
-				config = load(root);
-			} catch {
-				config = null;
-			}
-			if (!declaresTailnetSurface(config)) {
-				// C3: undeclared ⇒ we do not go looking. `run` is not called, the
-				// `tailscale` CLI is not spawned, and the operator gets the canonical
-				// flow with no evidence that this source exists.
-				return { candidates: [], notices: [] };
-			}
+			// No gate, no cache, no memo: every call is a fresh query, because that is
+			// what the operator asked for by picking the entry. A device that joined
+			// the tailnet a second ago shows up on the next invocation.
+			//
 			// includeOffline: true — enrolment is not discovery (C2.4). `farm-hello`
 			// needs a peer reachable NOW, so it keeps `tailnetPeers`' online-only
 			// default untouched. Enrolment mints a credential the device will use
