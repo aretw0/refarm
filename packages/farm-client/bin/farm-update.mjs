@@ -3,7 +3,8 @@
  * farm-update — pull the latest kit from the farm's mesh artifact server.
  *
  * The dev PC publishes a built payload + manifest (`refarm dist publish`) and
- * serves it over the tailnet (`refarm web serve … --host 0.0.0.0`). This updates
+ * serves it over the tailnet (`refarm web serve`, bound by the `surfaces.web`
+ * declaration — never by a flag alone). This updates
  * a device from that server: fetch the manifest, download only the changed files,
  * VERIFY each one's sha256 integrity, and swap them into place atomically — so a
  * device gets updates with nothing installed but Node (no git, no npm, no clone).
@@ -18,7 +19,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { cancellationExit, resolveFarmHost } from "../src/ask-host.mjs";
 import { writeRememberedHost } from "../src/farm-host.mjs";
-import { integrityOf, planUpdate } from "../src/manifest.mjs";
+import { conditionalManifestHeaders, integrityOf, isUsableETag, planUpdate } from "../src/manifest.mjs";
 import { createSpinner } from "../src/progress.mjs";
 import { defaultBinDir, installShims, pathAdviceLines, pathStatus } from "../src/shims.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
@@ -26,21 +27,76 @@ import { tailnetPeers } from "../src/tailnet.mjs";
 const DIST_PORT = Number(process.env.FARM_DIST_PORT ?? 4321);
 const KIT_DIR = process.env.FARM_KIT_DIR ?? join(homedir(), ".refarm", "kit", "farm-client");
 
-async function fetchWith(url, kind, timeoutMs) {
+async function fetchWith(url, kind, timeoutMs, headers) {
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), timeoutMs);
 	try {
-		const res = await fetch(url, { signal: controller.signal });
+		const res = await fetch(url, { signal: controller.signal, headers: headers ?? {} });
+		// 304 is not an error and not a body — it is the server agreeing that what the device
+		// already holds is current. Surfaced as its own shape so the caller never parses it.
+		if (res.status === 304) return { notModified: true };
 		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		return kind === "bytes" ? Buffer.from(await res.arrayBuffer()) : await res.text();
+		const body = kind === "bytes" ? Buffer.from(await res.arrayBuffer()) : await res.text();
+		return { notModified: false, body, etag: res.headers.get("etag") };
 	} finally {
 		clearTimeout(timer);
 	}
 }
 
+/** The bytes of a fetch that was NOT conditional — every caller but the manifest. */
+async function fetchBody(url, kind, timeoutMs) {
+	const result = await fetchWith(url, kind, timeoutMs);
+	// Unreachable without an `if-none-match` request header, and a fail-loud guard is better
+	// than silently returning `undefined` into an integrity check.
+	if (result.notModified) throw new Error("unexpected 304 for an unconditional request");
+	return result.body;
+}
+
+/**
+ * Where the device remembers the manifest's validator. A sibling of `manifest.json` inside the
+ * kit dir, so the two facts the conditional fetch depends on live and die together — deleting
+ * the kit forgets the ETag, which is exactly right.
+ *
+ * Zero-dependency, like everything else here: a file with a string in it. That constraint is
+ * load-bearing — it is what lets this kit run on a phone with nothing installed but Node.
+ */
+function etagPath() {
+	return join(KIT_DIR, ".manifest-etag");
+}
+
+async function readRememberedETag() {
+	try {
+		const raw = (await readFile(etagPath(), "utf8")).trim();
+		return isUsableETag(raw) ? raw : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Guarda o validador — SEMPRE depois de o manifesto local estar no lugar, nunca no momento da
+ * busca. A ordem é a correção: um ETag guardado antes de uma atualização que aborta descreveria
+ * um manifesto que o aparelho não tem, e a próxima execução leria 304 e um manifesto velho como
+ * se estivesse em dia.
+ */
+async function rememberETag(etag) {
+	if (!isUsableETag(etag)) {
+		// Uma fazenda sem ETag (mais antiga) não pode deixar para trás um validador velho, que
+		// seria oferecido contra conteúdo que ela já não descreve.
+		await rm(etagPath(), { force: true });
+		return;
+	}
+	try {
+		await mkdir(KIT_DIR, { recursive: true });
+		await writeFile(etagPath(), etag);
+	} catch {
+		// Best-effort: falhar aqui custa uma busca inteira de manifesto na próxima vez, nada mais.
+	}
+}
+
 async function distReachable(host) {
 	try {
-		await fetchWith(`http://${host}:${DIST_PORT}/manifest.json`, "text", 3000);
+		await fetchBody(`http://${host}:${DIST_PORT}/manifest.json`, "text", 3000);
 		return true;
 	} catch {
 		return false;
@@ -108,26 +164,49 @@ try {
 }
 const base = `http://${host}:${DIST_PORT}`;
 
+// A fetch condicional do manifesto: o kit oferece o ETag que guardou e o servidor
+// responde 304 quando nada mudou — a única busca deste fluxo que pagava o preço
+// inteiro toda vez, em todo dispositivo. Só é condicional quando o manifesto local
+// EXISTE: um 304 sem manifesto ao lado seria "atualizado" sem nada instalado.
+const localRaw = await readLocalManifest();
+const rememberedETag = await readRememberedETag();
 let remoteRaw;
+let fetchedETag = null;
+let notModified = false;
 try {
 	spinner.setLabel(`buscando manifesto de ${host}…`);
-	remoteRaw = await fetchWith(`${base}/manifest.json`, "text", 8000);
+	const fetched = await fetchWith(
+		`${base}/manifest.json`,
+		"text",
+		8000,
+		conditionalManifestHeaders(rememberedETag, localRaw != null),
+	);
+	if (fetched.notModified) {
+		// Inalterado: nem sequer se reanalisa o documento — reusa-se o local, que o ETag
+		// acabou de provar ser exatamente o que a fazenda serve.
+		notModified = true;
+		remoteRaw = localRaw;
+	} else {
+		remoteRaw = fetched.body;
+		fetchedETag = fetched.etag;
+	}
 } catch (err) {
 	spinner.stop();
 	console.error(`❌ manifesto inalcançável em ${base}/manifest.json: ${err.message}`);
 	console.error(
-		`   No PC: refarm dist publish && refarm web serve .refarm/dist/farm-client --host 0.0.0.0 --port ${DIST_PORT}`,
+		`   No PC: refarm dist publish && refarm web serve .refarm/dist/farm-client --port ${DIST_PORT}`,
 	);
-	// Mesma pré-condição do install.mjs: bind fora do loopback é recusado sem política.
+	// Mesma pré-condição do install.mjs: um bind fora do loopback vem da DECLARAÇÃO,
+	// não de um flag — `surfaces.web` em .refarm/config.json é o teto.
 	console.error(
-		`   (o web serve exige REFARM_AUTH_POLICY para bind fora do loopback — \`refarm auth enroll\` gera a política)`,
+		'   (o web serve só sai do loopback se .refarm/config.json declarar: "surfaces": { "web": { "expose": "tailnet", "gate": "none" } })',
 	);
 	process.exit(1);
 }
 
 let plan;
 try {
-	plan = planUpdate(remoteRaw, await readLocalManifest());
+	plan = planUpdate(remoteRaw, localRaw);
 } catch (err) {
 	spinner.stop();
 	console.error(`❌ manifesto inválido: ${err.message}`);
@@ -136,7 +215,15 @@ try {
 
 spinner.stop();
 console.log(`\n🌱 farm-update ← ${host}  [${plan.name} ${plan.fromVersion ?? "(nenhum)"} → ${plan.toVersion}]\n`);
+if (notModified) console.log("  (manifesto inalterado — 304, nem baixado nem reanalisado)");
 if (plan.upToDate) {
+	if (!notModified) {
+		// Veio inteiro e confere: este é o manifesto vigente, então persiste-se junto do
+		// validador que o descreve — os dois nascem e morrem juntos.
+		await mkdir(KIT_DIR, { recursive: true });
+		await writeFile(join(KIT_DIR, "manifest.json"), remoteRaw);
+		await rememberETag(fetchedETag);
+	}
 	await writeRememberedHost(KIT_DIR, host);
 	console.log("✔ já atualizado");
 	await refreshShims();
@@ -154,7 +241,7 @@ let downloaded = 0;
 try {
 	for (const file of plan.toDownload) {
 		spinner.setLabel(`baixando ${file.path} (${++downloaded}/${plan.toDownload.length})`);
-		const bytes = await fetchWith(`${base}/${file.path}`, "bytes", 30000);
+		const bytes = await fetchBody(`${base}/${file.path}`, "bytes", 30000);
 		const got = integrityOf(bytes);
 		if (got !== file.integrity) {
 			throw new Error(`integridade falhou em ${file.path}\n   esperado ${file.integrity}\n   obtido   ${got}`);
@@ -170,6 +257,8 @@ try {
 		await rename(join(staging, file.path), dest);
 	}
 	await writeFile(join(KIT_DIR, "manifest.json"), remoteRaw);
+	// Só AGORA o validador vale: ele descreve exatamente o manifesto que acabou de entrar.
+	await rememberETag(fetchedETag);
 } catch (err) {
 	spinner.stop();
 	console.error(`❌ atualização abortada: ${err.message}`);

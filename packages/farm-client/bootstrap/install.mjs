@@ -58,13 +58,13 @@ try {
 } catch (err) {
 	console.error(`❌ manifesto inalcançável: ${err.message}`);
 	console.error(
-		`   A fazenda serve? No PC: refarm dist publish --host ${HOST} && refarm web serve .refarm/dist/farm-client --host 0.0.0.0 --port ${port}`,
+		`   A fazenda serve? No PC: refarm dist publish --host ${HOST} && refarm web serve .refarm/dist/farm-client --port ${port}`,
 	);
 	// O bind fora do loopback é RECUSADO sem política de auth (esse listener faz proxy
 	// de /sync para o socket CRDT do daemon). Dizer o comando sem a pré-condição fazia
 	// o operador levar a recusa na cara depois de seguir a instrução.
 	console.error(
-		`   (o web serve exige REFARM_AUTH_POLICY para bind fora do loopback — \`refarm auth enroll\` gera a política)`,
+		'   (o web serve só sai do loopback se .refarm/config.json declarar: "surfaces": { "web": { "expose": "tailnet", "gate": "none" } })',
 	);
 	process.exit(1);
 }

@@ -13,7 +13,12 @@ import { parseSurfaces, type SurfaceCatalog } from "@refarm.dev/std";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { WebSocket, WebSocketServer } from "ws";
 
-import { isSidecarApiPath, startWebServeServer } from "./web-serve.js";
+import {
+	ifNoneMatchMatches,
+	isSidecarApiPath,
+	manifestETag,
+	startWebServeServer,
+} from "./web-serve.js";
 
 /** Every test injects the declaration rather than letting the server read the machine's real
  *  `.refarm/config.json` — the bind must be decided by data the test controls, and the
@@ -476,5 +481,70 @@ describe("O6 — proxy routes inherit their upstream's gate (demonstrated, not a
 		} finally {
 			await upstream.close();
 		}
+	});
+});
+
+describe("the manifest's traffic policy — ETag + If-None-Match (first slice)", () => {
+	const MANIFEST = JSON.stringify({ name: "farm-client", version: "1", files: [] });
+
+	beforeEach(() => {
+		writeFileSync(path.join(root, "manifest.json"), MANIFEST);
+	});
+
+	it("serves manifest.json with a STRONG ETag derived from its bytes", async () => {
+		const base = await serve();
+		const res = await fetch(`${base}/manifest.json`);
+		expect(res.status).toBe(200);
+		const etag = res.headers.get("etag");
+		expect(etag).toBe(manifestETag(MANIFEST));
+		// Strong: quoted, no `W/` prefix — a match really does mean byte-identical content.
+		expect(etag).toMatch(/^"[0-9a-f]{64}"$/);
+		expect(await res.text()).toBe(MANIFEST);
+	});
+
+	it("answers 304 to a matching If-None-Match, with no body", async () => {
+		const base = await serve();
+		const first = await fetch(`${base}/manifest.json`);
+		const etag = first.headers.get("etag") ?? "";
+		await first.text();
+		const second = await fetch(`${base}/manifest.json`, { headers: { "if-none-match": etag } });
+		expect(second.status).toBe(304);
+		expect(second.headers.get("etag")).toBe(etag);
+		expect(await second.text()).toBe("");
+	});
+
+	it("answers 200 to a STALE If-None-Match — the 304 is conditional, not sticky", async () => {
+		const base = await serve();
+		const stale = await fetch(`${base}/manifest.json`, {
+			headers: { "if-none-match": '"0000000000000000000000000000000000000000000000000000000000000000"' },
+		});
+		expect(stale.status).toBe(200);
+		expect(await stale.text()).toBe(MANIFEST);
+	});
+
+	it("a changed manifest changes the validator — the 304 cannot outlive its content", async () => {
+		const base = await serve();
+		const before = (await fetch(`${base}/manifest.json`)).headers.get("etag");
+		writeFileSync(path.join(root, "manifest.json"), JSON.stringify({ name: "farm-client", version: "2", files: [] }));
+		const after = await fetch(`${base}/manifest.json`, { headers: { "if-none-match": before ?? "" } });
+		expect(after.status).toBe(200);
+		expect(after.headers.get("etag")).not.toBe(before);
+	});
+
+	it("keeps the policy to the manifest — other files carry no validator (T3: no DSL yet)", async () => {
+		const base = await serve();
+		expect((await fetch(`${base}/index.html`)).headers.get("etag")).toBeNull();
+		expect((await fetch(`${base}/manifest.webmanifest`)).headers.get("etag")).toBeNull();
+	});
+
+	it("ifNoneMatchMatches reads a list, the wildcard, and a weakened offer", () => {
+		const etag = '"abc"';
+		expect(ifNoneMatchMatches(undefined, etag)).toBe(false);
+		expect(ifNoneMatchMatches("", etag)).toBe(false);
+		expect(ifNoneMatchMatches('"abc"', etag)).toBe(true);
+		expect(ifNoneMatchMatches('"zzz", "abc"', etag)).toBe(true);
+		expect(ifNoneMatchMatches('W/"abc"', etag)).toBe(true);
+		expect(ifNoneMatchMatches("*", etag)).toBe(true);
+		expect(ifNoneMatchMatches('"zzz"', etag)).toBe(false);
 	});
 });

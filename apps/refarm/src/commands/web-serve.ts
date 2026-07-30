@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { createReadStream, readFileSync } from "node:fs";
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import {
 	createServer,
 	request as httpRequest,
@@ -124,6 +125,39 @@ function proxyToSidecar(
 	req.pipe(upstream);
 }
 
+/**
+ * The one file served with a conditional-request policy — the first slice of
+ * docs/superpowers/specs/2026-07-30-declared-traffic-budget-design.md.
+ *
+ * `farm-update` fetches this on every run, on every device, forever, and it is the ONLY fetch
+ * in that flow with no policy: the payload layer is already content-addressed (`planUpdate`
+ * downloads only files whose sha256 changed), so the manifest is the control fetch that pays
+ * full price every time. An `ETag` + `304` makes the common case — nothing changed — cost a
+ * header exchange instead of a document.
+ *
+ * DELIBERATELY just this one name, not a vocabulary. T3: "do not build a DSL"; the general
+ * three-knob declaration (`freshness`, `floor`, `live`) is a later slice, and building the
+ * framework ahead of its second consumer is how a floor becomes a burden.
+ */
+const CONDITIONAL_FILE = "manifest.json";
+
+/** A STRONG ETag over the file's bytes. Strong (unquoted-by-`W/`) because it is derived from
+ *  the content itself, so byte-identical content always produces the identical validator and
+ *  a match really does mean "you already have exactly this". PURE. */
+export function manifestETag(bytes: Buffer | string): string {
+	return `"${createHash("sha256").update(bytes).digest("hex")}"`;
+}
+
+/** Does the client's `If-None-Match` cover `etag`? RFC 9110 allows a comma-separated list and
+ *  the wildcard `*`; a `W/` prefix on an offered validator is tolerated on the way in (a client
+ *  may weaken what we sent), it is simply never something this server emits. PURE. */
+export function ifNoneMatchMatches(header: string | undefined, etag: string): boolean {
+	if (!header) return false;
+	const offered = header.split(",").map((entry) => entry.trim());
+	if (offered.includes("*")) return true;
+	return offered.some((entry) => (entry.startsWith("W/") ? entry.slice(2) : entry) === etag);
+}
+
 export function createWebServeHandler(
 	rootDir: string,
 	sidecarTarget?: WebServeSyncTarget,
@@ -161,6 +195,25 @@ export function createWebServeHandler(
 				}
 				const contentType =
 					CONTENT_TYPES[path.extname(filePath).toLowerCase()] ?? "application/octet-stream";
+				if (path.basename(filePath) === CONDITIONAL_FILE) {
+					// Read it whole: the validator is derived from the BYTES, so there is nothing to
+					// compare against until they are in hand. The manifest is a small control
+					// document by construction (paths + hashes), which is exactly why it is the one
+					// file worth spending a read on to save a transfer.
+					const bytes = await readFile(filePath);
+					const etag = manifestETag(bytes);
+					res.setHeader("ETag", etag);
+					if (ifNoneMatchMatches(req.headers["if-none-match"], etag)) {
+						// 304 carries no body and no Content-Length — the client keeps what it has.
+						res.statusCode = 304;
+						return res.end();
+					}
+					res.statusCode = 200;
+					res.setHeader("Content-Type", contentType);
+					res.setHeader("Content-Length", bytes.length);
+					if (req.method === "HEAD") return res.end();
+					return res.end(bytes);
+				}
 				res.statusCode = 200;
 				res.setHeader("Content-Type", contentType);
 				res.setHeader("Content-Length", stats.size);
