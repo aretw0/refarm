@@ -372,6 +372,9 @@ importers:
       '@refarm.dev/enrichment-contract-v1':
         specifier: workspace:*
         version: link:../../packages/enrichment-contract-v1
+      '@refarm.dev/farm-client':
+        specifier: workspace:*
+        version: link:../../packages/farm-client
       '@refarm.dev/file-stream-transport':
         specifier: workspace:*
         version: link:../../packages/file-stream-transport
