@@ -49,11 +49,12 @@ tailnet is not anonymous — it comes from a device the operator already admitte
 That is a genuine first factor, and it is exactly the kind of thing the layering exists to let us
 rely on.
 
-So a narrowly-scoped surface is admissible: **tailnet-only, unauthenticated, and able to do exactly
-one thing — create a pending request that grants nothing.** The knot shrinks to a set of conditions
-rather than an impossibility:
+So a narrowly-scoped surface is admissible: **reachable only over an admitted-device transport,
+unauthenticated, and able to do exactly one thing — create a pending request that grants nothing.**
+The knot shrinks to a set of conditions rather than an impossibility:
 
-- reachable **only** over the tailnet — never loopback-only (useless) and never public;
+- reachable **only** over a transport the operator declared as carrying admitted devices — never
+  loopback-only (useless) and never public;
 - its sole effect is a pending request; no credential, no state a caller can read back;
 - bounded — a queue depth and a rate limit, so a misbehaving peer cannot flood the operator;
 - every pending request is confirmed out of band, with E3's comparison.
@@ -96,6 +97,52 @@ Two constraints for whoever builds it:
   visual ambiguity breaks the comparison. A home-grown set is a footgun wearing a costume.
 - **The security parameter is bits compared, not the presence of emoji.** Matrix compares 6 of 64,
   about 36 bits. Trimming the count for a prettier screen weakens it for real.
+
+## E4 — Transport and verification are registries, not choices
+
+**Added after the fact.** The first two versions of this document said "tailnet" wherever they meant
+"a network whose peers the operator has already admitted", and "emoji SAS" wherever they meant "a way
+for a human to confirm this is the right device". Both are implementations that got written down as
+the concept — the same mistake C3 made with the `surfaces` declaration, three documents in a row now.
+
+The operator named the cost: an overlay that is not Tailscale, or refarm's own mesh superseding it,
+or a confirmation that arrives through Telegram or Matrix, would each have to be bolted on rather
+than plugged in.
+
+So both are **registries**:
+
+- **Admitted-device transports.** What matters is the property, not the product: arriving over this
+  transport already means the operator admitted this device to something. A tailnet has that
+  property. Refarm's mesh can have it. A LAN with mTLS can have it. The pending-request surface asks
+  the registry "is this request arriving over an admitted-device transport?", never "is this
+  Tailscale?".
+- **Verification methods.** Emoji SAS is one entry, and the strongest for two screens in one pair of
+  hands. A confirmation delivered through an already-trusted account — Telegram, Matrix — is another
+  entry with different properties, and the operator has said they want those anyway, since refarm
+  tends to become the operational sink for credentials and accounts.
+
+This is not speculative architecture. `apps/refarm/src/commands/identity-sources.ts` is already
+exactly this shape, and it shipped today: a new discovery source is one file plus one registry line,
+and the canonical flow does not learn that it exists. Give transports and verification methods the
+same seam and the second one of each is cheap.
+
+## E5 — Honest protocol citizenship, written once in the substrate
+
+The operator is sceptical that we should worry much about a proliferation of bad citizens, and
+right that the worry is not abstract morality — it is about our own stack not becoming a promoter,
+including through our own footguns.
+
+The practical form is a short list, and its value is entirely in *where* it lives. Written once in
+the substrate, every adapter inherits it. Left to each adapter, it is forgotten once per adapter:
+
+- a bounded queue and a rate limit on anything a remote peer can create;
+- honest polling — backoff, not a tight loop, and a stated interval rather than as-fast-as-possible;
+- a client that identifies itself, so the other side can attribute and throttle us;
+- nothing readable back before confirmation, so a request cannot be used to probe;
+- refusal that says why, since a silent drop teaches a caller to retry harder.
+
+The last one is this codebase's own recurring lesson — "the answer is no" and "I could not ask" are
+different — pointed outward at the peers we talk to instead of inward at ourselves.
 
 ## What this is actually blocked on
 

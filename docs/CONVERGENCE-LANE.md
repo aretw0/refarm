@@ -52,6 +52,16 @@ pressure (avoid premature generalization).
 
 ## Living backlog
 
+**Next — the multi-surface operator path (2026-07-30):** ordered in
+`docs/superpowers/specs/2026-07-30-multi-surface-operator-path.md`. (1) a second `OperatorChannel`
+adapter over the already-declared tailnet surface, making the phone a second screen for the node's
+prompts — measure `web-serve.ts` first, it is unverified; (2) delivery, so a waiting prompt reaches
+the operator (Telegram first, Matrix second); (3) the admitted-device-transport and verification
+registries, then enrolment initiated from either side; (4) systray, last, as comfort. Each slice is
+a **second consumer** of something already built. Enrolment's own design, with the transport and
+verification corrections, is in
+`docs/superpowers/specs/2026-07-30-phone-initiated-enrolment-design.md`.
+
 **Done (recent):** vault-seed↔refarm convergence proven + hardened; vault-seed product polish + convergence
 committed in its repo; promote-check + main aligned to develop; security highs fixed. **Multi-vault survey +
 convergence map** — the three other vaults mapped (professional, rcdc5, coop-vault) and the finding recorded
