@@ -27,12 +27,14 @@ const KIT_FILES = [
 	"src/farm-host.mjs",
 	"src/ask-host.mjs",
 	"src/shims.mjs",
+	"src/path-operation.mjs",
 	"src/progress.mjs",
 	"src/reach.mjs",
-	// A BUILT block the kit CARRIES (see scripts/vendor.mjs). It is held to the
+	// BUILT blocks the kit CARRIES (see scripts/vendor.mjs). They are held to the
 	// same promise as hand-written kit source: node built-ins only. That is the
 	// property that makes vendoring legitimate rather than a dependency in disguise.
 	"vendor/prompt-contract-v1.mjs",
+	"vendor/operation-consent-v1.mjs",
 	"bin/farm-hello.mjs",
 	"bin/farm-announce.mjs",
 	"bin/farm-ask.mjs",

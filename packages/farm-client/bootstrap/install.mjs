@@ -106,8 +106,10 @@ console.log(`  fazenda lembrada: ${HOST}`);
 // atualização). Se a fazenda servir um kit antigo, sem o módulo, a instalação
 // segue válida e o operador recebe o caminho completo.
 //
-// O que este bloco NUNCA faz: escrever no perfil de shell de ninguém. Ele diz se
-// o diretório está no PATH e qual é a única linha a acrescentar — e para aí.
+// O perfil de shell continua NUNCA sendo editado em silêncio. O que mudou é que,
+// havendo um terminal, o instalador PEDE — mostrando o arquivo, a linha e a
+// posição exatas — e registra a resposta (src/path-operation.mjs). Sem terminal,
+// ou com uma decisão já registrada, a fala é exatamente a de sempre.
 try {
 	const shims = await import(pathToFileURL(join(KIT_DIR, "src", "shims.mjs")).href);
 	const binDir = shims.defaultBinDir();
@@ -115,9 +117,22 @@ try {
 	if (planted.created.length === 0) {
 		throw new Error(`nenhum atalho pôde ser criado em ${binDir}`);
 	}
-	for (const line of shims.pathAdviceLines(shims.pathStatus({ binDir }), { kitDir: KIT_DIR })) {
-		console.log(line);
+	const status = shims.pathStatus({ binDir });
+	let lines;
+	try {
+		const operation = await import(pathToFileURL(join(KIT_DIR, "src", "path-operation.mjs")).href);
+		({ lines } = await operation.ensurePathOperation({
+			binDir,
+			kitDir: KIT_DIR,
+			status,
+			home: homedir(),
+		}));
+	} catch {
+		// Kit antigo (sem o módulo) ou qualquer falha na jornada: a instalação já
+		// deu certo, então cai-se na fala de sempre em vez de estragar o final.
+		lines = shims.pathAdviceLines(status, { kitDir: KIT_DIR });
 	}
+	for (const line of lines) console.log(line);
 } catch (err) {
 	console.log(`  (sem atalhos: ${err.message})`);
 	console.log(`  rode: node ${join(KIT_DIR, "bin", "farm-ask.mjs")} "quem é você?"`);

@@ -162,7 +162,11 @@ test("the installer plants shims through THIS module, not a private copy", async
 	assert.ok(updater.includes("installShims"));
 });
 
-test("the installer never edits a shell profile — no writer targets one", async () => {
+test("shims.mjs stays the ADVICE module — it never writes to a shell profile", async () => {
+	// The kit can now change a profile, but only through the authorised journey in
+	// src/path-operation.mjs. This module must stay what it is: it plants launchers,
+	// it says how the PATH stands, and it writes nothing else. A profile writer
+	// appearing here would be a silent edit by another name.
 	const source = await readFile(new URL("../src/shims.mjs", import.meta.url), "utf8");
 	for (const profile of ["bashrc", "zshrc", ".profile", "bash_profile"]) {
 		assert.equal(
@@ -171,4 +175,14 @@ test("the installer never edits a shell profile — no writer targets one", asyn
 			`shims.mjs must never write to ${profile}`,
 		);
 	}
+});
+
+test("the module that DOES edit a profile only writes through the consent journey", async () => {
+	// path-operation.mjs proposes the change; the block applies it after the operator
+	// authorises. If this file ever grew its own writeFile/appendFile, the change
+	// would escape the request, the record and the undo — the whole point.
+	const source = await readFile(new URL("../src/path-operation.mjs", import.meta.url), "utf8");
+	assert.equal(/\b(writeFile|appendFile|writeFileSync|appendFileSync)\s*\(/.test(source), false);
+	assert.ok(source.includes("runOperationConsent"), "the decision must come from the block");
+	assert.ok(source.includes("vendor/operation-consent-v1.mjs"), "and from the carried block, not a copy");
 });

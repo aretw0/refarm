@@ -13,6 +13,10 @@
  *   farm-update                     # tailnet host, then localhost; port 4321
  *   FARM_HOST=serpro-1577853 farm-update
  *   FARM_DIST_PORT=4321 FARM_KIT_DIR=~/.refarm/kit/farm-client farm-update
+ *
+ * Sem rede, e de propósito — a soberania sobre a alteração de PATH que o kit pediu:
+ *   farm-update --revisit-path   # reabre a pergunta que você já respondeu
+ *   farm-update --undo-path      # desfaz a alteração autorizada, e registra o desfazer
  */
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -20,12 +24,14 @@ import { dirname, join } from "node:path";
 import { cancellationExit, resolveFarmHost } from "../src/ask-host.mjs";
 import { writeRememberedHost } from "../src/farm-host.mjs";
 import { conditionalManifestHeaders, integrityOf, isUsableETag, planUpdate } from "../src/manifest.mjs";
+import { ensurePathOperation, undoPathOperation } from "../src/path-operation.mjs";
 import { createSpinner } from "../src/progress.mjs";
-import { defaultBinDir, installShims, pathAdviceLines, pathStatus } from "../src/shims.mjs";
+import { defaultBinDir, installShims, pathStatus } from "../src/shims.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
 
 const DIST_PORT = Number(process.env.FARM_DIST_PORT ?? 4321);
 const KIT_DIR = process.env.FARM_KIT_DIR ?? join(homedir(), ".refarm", "kit", "farm-client");
+const ARGV = process.argv.slice(2);
 
 async function fetchWith(url, kind, timeoutMs, headers) {
 	const controller = new AbortController();
@@ -127,21 +133,43 @@ function fmtBytes(n) {
 }
 
 /**
- * (Re)planta os lançadores e DIZ como está o PATH. Roda em toda atualização —
- * é assim que um kit instalado antes dos atalhos ganha `farm-ask` sem precisar
- * de um novo cold-bootstrap. Best-effort: falhar aqui não invalida a
- * atualização, o kit continua chamável pelo caminho completo.
+ * (Re)planta os lançadores e resolve o PATH. Roda em toda atualização — é assim
+ * que um kit instalado antes dos atalhos ganha `farm-ask` sem precisar de um novo
+ * cold-bootstrap. Best-effort: falhar aqui não invalida a atualização, o kit
+ * continua chamável pelo caminho completo.
+ *
+ * Com terminal e sem decisão anterior, PROPÕE a alteração exata do perfil e
+ * registra a resposta (`--revisit-path` reabre a questão de propósito). Sem
+ * terminal, ou com uma decisão já tomada, ninguém é perguntado.
  */
-async function refreshShims() {
+async function refreshShims({ revisit = false } = {}) {
 	const binDir = defaultBinDir();
 	const result = await installShims({ kitDir: KIT_DIR, binDir });
 	if (result.created.length === 0) {
 		console.log(`  (não consegui plantar atalhos em ${binDir} — use o caminho completo do kit)`);
 		return;
 	}
-	for (const line of pathAdviceLines(pathStatus({ binDir }), { kitDir: KIT_DIR })) {
-		console.log(line);
-	}
+	const outcome = await ensurePathOperation({
+		binDir,
+		kitDir: KIT_DIR,
+		status: pathStatus({ binDir }),
+		home: homedir(),
+		revisit,
+	});
+	for (const line of outcome.lines) console.log(line);
+}
+
+// Dois caminhos DELIBERADOS, que não precisam de rede nem de atualização: rever a
+// decisão de PATH, e desfazer o que foi autorizado. Um comando digitado é
+// exatamente a diferença entre o operador rever e o assistente re-perguntar.
+if (ARGV.includes("--undo-path")) {
+	const outcome = await undoPathOperation({ binDir: defaultBinDir(), home: homedir() });
+	for (const line of outcome.lines) console.log(line);
+	process.exit(outcome.status === "undone" ? 0 : 1);
+}
+if (ARGV.includes("--revisit-path")) {
+	await refreshShims({ revisit: true });
+	process.exit(0);
 }
 
 async function readLocalManifest() {
