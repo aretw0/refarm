@@ -27,6 +27,7 @@ import {
 	type AutostartMode,
 	type TractorEngineMode,
 } from "../utils/runtime-config.js";
+import { CommandRefusal, guardedAction, type RefusalHandoff } from "./action-boundary.js";
 import { createConfigPluginsCommand } from "./config-plugins.js";
 import {
 	buildConfigHistory,
@@ -63,6 +64,32 @@ export {
 } from "./config-plugins.js";
 
 const CONFIG_JSON_COMMAND = refarmCommand(["config", "--json"]);
+const CONFIG_HISTORY_JSON_COMMAND = refarmCommand(["config", "history", "--json"]);
+
+/** The handoff a refused `config <operation>` carries. `refarm config --json` is the honest
+ *  next step for every one of them: it prints the effective values and their sources, which
+ *  is what an operator (or an agent) needs after being told a key, value or profile was not
+ *  recognized. */
+function configRefusalHandoff(
+	operation: string,
+	nextCommand = CONFIG_JSON_COMMAND,
+): RefusalHandoff {
+	return {
+		command: "config",
+		operation,
+		error: "config-invalid-request",
+		nextAction: `Inspect the effective config with \`${nextCommand}\`.`,
+		nextCommand,
+		nextCommands: [nextCommand],
+	};
+}
+
+/** Commander hands an action `(...arguments, options, command)`. `--json` may be bound to
+ *  EITHER the subcommand or its parent (both declare it), so the boundary reads it the same
+ *  way every other `config` path does — through `hasJsonOption`. */
+function configActionJson(...args: unknown[]): boolean {
+	return hasJsonOption(args.at(-2) as JsonOptionCarrier, args.at(-1) as JsonOptionCarrier);
+}
 
 type ConfigKey =
 	| "runtime.autostart"
@@ -211,52 +238,68 @@ function resolveSidecarUrl(
 	return resolveRuntimeSidecarUrl({ cwd: deps.cwd(), home: deps.home(), env: process.env }, opts);
 }
 
-function parseConfigKey(value: string): ConfigKey | null {
+/**
+ * The refusal helpers THROW rather than print.
+ *
+ * They used to write two red lines to stderr, set `process.exitCode = 1` and return `null`,
+ * which the action read as "stop". That silently ignored `--json`: the consumer got exit 1,
+ * a plain sentence on stderr and NOTHING on stdout — no envelope, no handoff. Since they
+ * are called from three levels down (`applyKeyToConfig` → `persistConfigValue` → the
+ * action), threading the output mode through them would thread a display concern through
+ * the whole write path. Throwing keeps them pure signals and lets the ACTION BOUNDARY —
+ * the one place that knows whether `--json` was asked for — decide how a refusal is shown.
+ */
+function parseConfigKey(value: string): ConfigKey {
 	if ((CONFIG_KEYS as readonly string[]).includes(value)) return value as ConfigKey;
-	console.error(chalk.red(`✗  Unknown config key: ${value}`));
-	console.error(chalk.dim(`   Use: ${CONFIG_KEYS.join(", ")}`));
-	process.exitCode = 1;
-	return null;
+	throw new CommandRefusal(
+		"unknown-config-key",
+		`Unknown config key: ${value}`,
+		`Use: ${CONFIG_KEYS.join(", ")}`,
+	);
 }
 
 function parseConfigAutostartMode(
 	key: Extract<ConfigKey, "runtime.autostart">,
 	value: string,
-): AutostartMode | null {
+): AutostartMode {
 	const mode = parseAutostartMode(value);
 	if (mode) return mode;
-	console.error(chalk.red(`✗  Invalid ${key}: ${value}`));
-	console.error(chalk.dim(`   Use: ${AUTOSTART_MODES.join(", ")}`));
-	process.exitCode = 1;
-	return null;
+	throw new CommandRefusal(
+		"invalid-config-value",
+		`Invalid ${key}: ${value}`,
+		`Use: ${AUTOSTART_MODES.join(", ")}`,
+	);
 }
 
-function parseConfigOpenExternalLinksMode(value: string): OpenExternalLinksMode | null {
+function parseConfigOpenExternalLinksMode(value: string): OpenExternalLinksMode {
 	if ((OPEN_EXTERNAL_LINKS_MODES as readonly string[]).includes(value)) {
 		return value as OpenExternalLinksMode;
 	}
-	console.error(chalk.red(`✗  Invalid operator.openExternalLinks: ${value}`));
-	console.error(chalk.dim(`   Use: ${OPEN_EXTERNAL_LINKS_MODES.join(", ")}`));
-	process.exitCode = 1;
-	return null;
+	throw new CommandRefusal(
+		"invalid-config-value",
+		`Invalid operator.openExternalLinks: ${value}`,
+		`Use: ${OPEN_EXTERNAL_LINKS_MODES.join(", ")}`,
+	);
 }
 
-function parseConfigTractorEngineMode(value: string): TractorEngineMode | null {
+function parseConfigTractorEngineMode(value: string): TractorEngineMode {
 	const mode = parseTractorEngineMode(value);
 	if (mode) return mode;
-	console.error(chalk.red(`✗  Invalid tractor.engine: ${value}`));
-	console.error(chalk.dim(`   Use: ${TRACTOR_ENGINE_MODES.join(", ")}`));
-	process.exitCode = 1;
-	return null;
+	throw new CommandRefusal(
+		"invalid-config-value",
+		`Invalid tractor.engine: ${value}`,
+		`Use: ${TRACTOR_ENGINE_MODES.join(", ")}`,
+	);
 }
 
-function parseConfigSidecarUrl(value: string): string | null {
+function parseConfigSidecarUrl(value: string): string {
 	const sidecarUrl = parseRuntimeSidecarUrl(value);
 	if (sidecarUrl) return sidecarUrl;
-	console.error(chalk.red(`✗  Invalid runtime.sidecarUrl: ${value}`));
-	console.error(chalk.dim("   Use an http:// or https:// URL, for example http://127.0.0.1:42001"));
-	process.exitCode = 1;
-	return null;
+	throw new CommandRefusal(
+		"invalid-config-value",
+		`Invalid runtime.sidecarUrl: ${value}`,
+		"Use an http:// or https:// URL, for example http://127.0.0.1:42001",
+	);
 }
 
 function warnIgnoredEnvOverride(
@@ -517,12 +560,13 @@ function applyConfigProfile(
 	profile: string,
 	opts: { local?: boolean },
 	deps: ConfigDeps,
-): AppliedConfigProfile | null {
+): AppliedConfigProfile {
 	if (profile !== "coding") {
-		console.error(chalk.red(`✗  Unknown config profile: ${profile}`));
-		console.error(chalk.dim("   Use: coding"));
-		process.exitCode = 1;
-		return null;
+		throw new CommandRefusal(
+			"unknown-config-profile",
+			`Unknown config profile: ${profile}`,
+			"Use: coding",
+		);
 	}
 	const filePath = configPath(deps, opts);
 	const config = readConfig(filePath);
@@ -557,35 +601,29 @@ function printAppliedConfigProfileJson(result: AppliedConfigProfile): void {
 	);
 }
 
-/** Apply `key = value` to an in-memory config object, returning the value actually persisted, or
- *  `null` when the value is invalid (the parser already reported it). PURE over `config`, which it
- *  mutates in place — the caller owns the object and decides whether it is ever written. */
-function applyKeyToConfig(config: RefarmCliConfig, key: ConfigKey, value: string): string | null {
+/** Apply `key = value` to an in-memory config object, returning the value actually persisted.
+ *  Throws a `CommandRefusal` when the value is invalid — the parsers are the validators and the
+ *  action boundary renders what they raise. PURE over `config`, which it mutates in place — the
+ *  caller owns the object and decides whether it is ever written. */
+function applyKeyToConfig(config: RefarmCliConfig, key: ConfigKey, value: string): string {
 	if (key === "runtime.autostart") {
 		const mode = parseConfigAutostartMode(key, value);
-		if (!mode) return null;
 		config.autostart = mode;
 		return mode;
 	}
 	if (key === "operator.openExternalLinks") {
 		const mode = parseConfigOpenExternalLinksMode(value);
-		if (!mode) return null;
 		config.operator = { ...(config.operator ?? {}), openExternalLinks: mode };
 		return mode;
 	}
 	if (key === "runtime.sidecarUrl") {
 		const sidecarUrl = parseConfigSidecarUrl(value);
-		if (!sidecarUrl) return null;
 		config.runtime = { ...(config.runtime ?? {}), sidecarUrl };
 		return sidecarUrl;
 	}
-	if (key === "tractor.engine") {
-		const mode = parseConfigTractorEngineMode(value);
-		if (!mode) return null;
-		config.tractor = { ...(config.tractor ?? {}), engine: mode };
-		return mode;
-	}
-	return null;
+	const mode = parseConfigTractorEngineMode(value);
+	config.tractor = { ...(config.tractor ?? {}), engine: mode };
+	return mode;
 }
 
 /** Remove `key` from an in-memory config object. `true` when it was actually there. */
@@ -630,11 +668,12 @@ async function persistConfigValue(
 	opts: ConfigMutationOptions,
 	deps: ConfigDeps,
 	recordDeps: ConfigRecordDeps = {},
-): Promise<PersistedConfigValue | null> {
+): Promise<PersistedConfigValue> {
 	const filePath = configPath(deps, opts);
 	const config = readConfig(filePath);
+	// Throws before anything is written when the value is invalid: a refusal must leave the
+	// file exactly as it found it.
 	const persisted = applyKeyToConfig(config, key, value);
-	if (persisted === null) return null;
 
 	const scope = configScope(opts);
 	const record = await recordConfigMutation(
@@ -777,19 +816,24 @@ Notes:
 `,
 				)
 				.action(
-					(
-						profile: string,
-						opts: { local?: boolean } & JsonOptionCarrier,
-						command: JsonOptionCarrier,
-					) => {
-						const result = applyConfigProfile(profile, opts, deps);
-						if (!result) return;
-						if (hasJsonOption(opts, command)) {
-							printAppliedConfigProfileJson(result);
-							return;
-						}
-						printAppliedConfigProfile(result);
-					},
+					guardedAction(
+						(...args) => ({
+							json: configActionJson(...args),
+							...configRefusalHandoff("profile"),
+						}),
+						(
+							profile: string,
+							opts: { local?: boolean } & JsonOptionCarrier,
+							command: JsonOptionCarrier,
+						) => {
+							const result = applyConfigProfile(profile, opts, deps);
+							if (hasJsonOption(opts, command)) {
+								printAppliedConfigProfileJson(result);
+								return;
+							}
+							printAppliedConfigProfile(result);
+						},
+					),
 				),
 		)
 		.addCommand(createConfigPluginsCommand(deps))
@@ -824,19 +868,24 @@ Notes:
 `,
 				)
 				.action(
-					(
-						key: string,
-						opts: { local?: boolean } & JsonOptionCarrier,
-						command: JsonOptionCarrier,
-					) => {
-						const parsedKey = parseConfigKey(key);
-						if (!parsedKey) return;
-						if (hasJsonOption(opts, command)) {
-							printConfigValueJson(parsedKey, opts, deps);
-							return;
-						}
-						printConfigValue(parsedKey, opts, deps);
-					},
+					guardedAction(
+						(...args) => ({
+							json: configActionJson(...args),
+							...configRefusalHandoff("get"),
+						}),
+						(
+							key: string,
+							opts: { local?: boolean } & JsonOptionCarrier,
+							command: JsonOptionCarrier,
+						) => {
+							const parsedKey = parseConfigKey(key);
+							if (hasJsonOption(opts, command)) {
+								printConfigValueJson(parsedKey, opts, deps);
+								return;
+							}
+							printConfigValue(parsedKey, opts, deps);
+						},
+					),
 				),
 		)
 		.addCommand(
@@ -874,20 +923,25 @@ Notes:
 `,
 				)
 				.action(
-					async (
-						key: string,
-						opts: ConfigMutationOptions & JsonOptionCarrier,
-						command: JsonOptionCarrier,
-					) => {
-						const parsedKey = parseConfigKey(key);
-						if (!parsedKey) return;
-						const result = await unsetConfigValue(parsedKey, opts, deps, recordDeps);
-						if (hasJsonOption(opts, command)) {
-							printUnsetConfigValueJson(result);
-							return;
-						}
-						printUnsetConfigValue(result);
-					},
+					guardedAction(
+						(...args) => ({
+							json: configActionJson(...args),
+							...configRefusalHandoff("unset"),
+						}),
+						async (
+							key: string,
+							opts: ConfigMutationOptions & JsonOptionCarrier,
+							command: JsonOptionCarrier,
+						) => {
+							const parsedKey = parseConfigKey(key);
+							const result = await unsetConfigValue(parsedKey, opts, deps, recordDeps);
+							if (hasJsonOption(opts, command)) {
+								printUnsetConfigValueJson(result);
+								return;
+							}
+							printUnsetConfigValue(result);
+						},
+					),
 				),
 		)
 		.addCommand(
@@ -926,22 +980,26 @@ Notes:
 `,
 				)
 				.action(
-					async (
-						key: string,
-						value: string,
-						opts: ConfigMutationOptions & JsonOptionCarrier,
-						command: JsonOptionCarrier,
-					) => {
-						const parsedKey = parseConfigKey(key);
-						if (!parsedKey) return;
-						const result = await persistConfigValue(parsedKey, value, opts, deps, recordDeps);
-						if (!result) return;
-						if (hasJsonOption(opts, command)) {
-							printPersistedConfigValueJson(result);
-							return;
-						}
-						printPersistedConfigValue(result);
-					},
+					guardedAction(
+						(...args) => ({
+							json: configActionJson(...args),
+							...configRefusalHandoff("set"),
+						}),
+						async (
+							key: string,
+							value: string,
+							opts: ConfigMutationOptions & JsonOptionCarrier,
+							command: JsonOptionCarrier,
+						) => {
+							const parsedKey = parseConfigKey(key);
+							const result = await persistConfigValue(parsedKey, value, opts, deps, recordDeps);
+							if (hasJsonOption(opts, command)) {
+								printPersistedConfigValueJson(result);
+								return;
+							}
+							printPersistedConfigValue(result);
+						},
+					),
 				),
 		)
 		.addCommand(createConfigHistoryCommand(deps, recordDeps));
@@ -1006,45 +1064,45 @@ Notes:
 				.option("--local", "Undo from the project-local trail")
 				.option("--json", "Output the machine-readable reversal record")
 				.action(
-					async (
-						id: string,
-						opts: { local?: boolean } & JsonOptionCarrier,
-						command: JsonOptionCarrier,
-					) => {
-						const filePath = configPath(deps, opts);
-						let record;
-						try {
-							record = await undoConfigOperation(filePath, id, recordDeps);
-						} catch (error) {
-							console.error(chalk.red(`✗  ${error instanceof Error ? error.message : error}`));
-							process.exitCode = 1;
-							return;
-						}
-						if (hasJsonOption(opts, command)) {
-							printJson(
-								buildJsonSuccessEnvelope({
-									command: "config",
-									operation: "history-undo",
-									extra: {
-										id: record.id,
-										undoneRecordId: record.revisitOf ?? null,
-										paths: record.changes.map((change) => change.path),
-										decidedAt: record.decidedAt,
-									},
-									nextCommand: CONFIG_JSON_COMMAND,
-									nextCommands: [CONFIG_JSON_COMMAND],
-								}),
+					guardedAction(
+						(...args) => ({
+							json: configActionJson(...args),
+							// The ids come from the listing, so the listing is where an unknown id sends you.
+							...configRefusalHandoff("history-undo", CONFIG_HISTORY_JSON_COMMAND),
+						}),
+						async (
+							id: string,
+							opts: { local?: boolean } & JsonOptionCarrier,
+							command: JsonOptionCarrier,
+						) => {
+							const filePath = configPath(deps, opts);
+							const record = await undoConfigOperation(filePath, id, recordDeps);
+							if (hasJsonOption(opts, command)) {
+								printJson(
+									buildJsonSuccessEnvelope({
+										command: "config",
+										operation: "history-undo",
+										extra: {
+											id: record.id,
+											undoneRecordId: record.revisitOf ?? null,
+											paths: record.changes.map((change) => change.path),
+											decidedAt: record.decidedAt,
+										},
+										nextCommand: CONFIG_JSON_COMMAND,
+										nextCommands: [CONFIG_JSON_COMMAND],
+									}),
+								);
+								return;
+							}
+							console.log(chalk.green(`✓  undone: ${record.title}`));
+							for (const change of record.changes) {
+								console.log(chalk.dim(`   ${change.path} restored`));
+							}
+							console.log(
+								chalk.dim("   the reversal is itself recorded — the trail stays append-only"),
 							);
-							return;
-						}
-						console.log(chalk.green(`✓  undone: ${record.title}`));
-						for (const change of record.changes) {
-							console.log(chalk.dim(`   ${change.path} restored`));
-						}
-						console.log(
-							chalk.dim("   the reversal is itself recorded — the trail stays append-only"),
-						);
-					},
+						},
+					),
 				),
 		);
 }

@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	createAutoOperatorChannel,
 	createStdioOperatorChannel,
@@ -38,6 +39,56 @@ export type { IdentityCandidate, IdentityCandidateSource } from "./identity-cand
  */
 
 const DEFAULT_POLICY_PATH = ".refarm/auth-policy.json";
+
+/** The handoffs a refused credential command carries. `auth list` names identities and never
+ *  tokens, so it is always safe to send an operator (or an agent) there. */
+const AUTH_LIST_HINT = refarmCommand(["auth", "list"]);
+const ENROLL_LABEL_HINT = refarmCommand(["auth", "enroll", "my-phone"]);
+const REVOKE_LABEL_HINT = refarmCommand(["auth", "revoke", "my-phone"]);
+
+/**
+ * A refusal that respects `--json`.
+ *
+ * Both credential commands refused correctly for a human — one sentence on stderr, exit 1 —
+ * and gave a `--json` consumer that same sentence with NOTHING on stdout: no envelope, no
+ * error code, no handoff. The human text is unchanged, byte for byte; this only adds the
+ * machine-readable half that was missing.
+ *
+ * TWO invariants, because this is the credential path:
+ *
+ *  - the envelope NEVER carries token material. It names the identity and the policy PATH;
+ *    a minted token is printed exactly once, on the success path, and never here.
+ *  - every call site sits BEFORE the policy write. A refused enrol or revoke leaves
+ *    `auth-policy.json` exactly as it found it — there is no half-written policy to undo.
+ */
+function refuseAuth(input: {
+	json: boolean;
+	operation: "enroll" | "revoke";
+	error: string;
+	/** The envelope `message` — the same sentence the human mode prints, without its layout. */
+	message: string;
+	/** The exact stderr text human mode has always printed. */
+	text: string;
+	nextAction: string;
+	nextCommand: string;
+}): void {
+	if (input.json) {
+		printJson(
+			buildJsonErrorEnvelope({
+				command: "auth",
+				operation: input.operation,
+				error: input.error,
+				message: input.message,
+				nextAction: input.nextAction,
+				nextCommand: input.nextCommand,
+				nextCommands: [input.nextCommand],
+			}),
+		);
+	} else {
+		console.error(input.text);
+	}
+	process.exitCode = 1;
+}
 
 /** Where `@refarm.dev/farm-client`'s cold-bootstrap (`bootstrap/install.mjs`)
  * puts the zero-dependency kit on a device: `~/.refarm/kit/farm-client`. Spelled
@@ -375,10 +426,15 @@ async function runAuthEnroll(
 	if (!identity) {
 		// --json is a non-interactive contract by nature — fail clearly rather than prompt.
 		if (options.json) {
-			console.error(
-				"refarm auth enroll: an identity is required with --json (non-interactive; does not prompt)",
-			);
-			process.exitCode = 1;
+			refuseAuth({
+				json: true,
+				operation: "enroll",
+				error: "identity-required",
+				message: "an identity is required with --json (non-interactive; does not prompt)",
+				text: "refarm auth enroll: an identity is required with --json (non-interactive; does not prompt)",
+				nextAction: `Pass the device label explicitly, e.g. \`${ENROLL_LABEL_HINT}\`.`,
+				nextCommand: ENROLL_LABEL_HINT,
+			});
 			return;
 		}
 
@@ -386,11 +442,17 @@ async function runAuthEnroll(
 		// here — it answers every prompt with a default, which for an identity label
 		// would silently invent one. Fail with the usage message instead.
 		if (!interactive && !deps.operator) {
-			console.error(
-				"error: missing required argument 'identity'\n" +
+			refuseAuth({
+				json: false,
+				operation: "enroll",
+				error: "identity-required",
+				message: "missing required argument 'identity'",
+				text:
+					"error: missing required argument 'identity'\n" +
 					"  (not running interactively — pass one explicitly, e.g. `refarm auth enroll my-phone`)",
-			);
-			process.exitCode = 1;
+				nextAction: `Pass the device label explicitly, e.g. \`${ENROLL_LABEL_HINT}\`.`,
+				nextCommand: ENROLL_LABEL_HINT,
+			});
 			return;
 		}
 
@@ -402,8 +464,15 @@ async function runAuthEnroll(
 		try {
 			existingPolicy = await readPolicy(policyPath);
 		} catch (error) {
-			console.error((error as Error).message);
-			process.exitCode = 1;
+			refuseAuth({
+				json: Boolean(options.json),
+				operation: "enroll",
+				error: "auth-policy-unreadable",
+				message: (error as Error).message,
+				text: (error as Error).message,
+				nextAction: `Inspect or repair the auth policy at ${policyPath}.`,
+				nextCommand: AUTH_LIST_HINT,
+			});
 			return;
 		}
 		const enrolledIdentities = existingPolicy.credentials.map((c) => c.identity);
@@ -432,8 +501,15 @@ async function runAuthEnroll(
 	try {
 		validIdentity = validateIdentityLabel(identity);
 	} catch (error) {
-		console.error((error as Error).message);
-		process.exitCode = 1;
+		refuseAuth({
+			json: Boolean(options.json),
+			operation: "enroll",
+			error: "invalid-identity",
+			message: (error as Error).message,
+			text: (error as Error).message,
+			nextAction: `Pass an accepted device label, e.g. \`${ENROLL_LABEL_HINT}\`.`,
+			nextCommand: ENROLL_LABEL_HINT,
+		});
 		return;
 	}
 
@@ -443,8 +519,17 @@ async function runAuthEnroll(
 		const policy = await readPolicy(policyPath);
 		next = upsertCredential(policy, validIdentity, sha256Hex(token), rotate);
 	} catch (error) {
-		console.error((error as Error).message);
-		process.exitCode = 1;
+		// Nothing has been written yet, and the token minted above is discarded unprinted:
+		// a refused enrol leaves the policy — and the device — exactly as they were.
+		refuseAuth({
+			json: Boolean(options.json),
+			operation: "enroll",
+			error: "enroll-refused",
+			message: (error as Error).message,
+			text: (error as Error).message,
+			nextAction: `Inspect what is enrolled with \`${AUTH_LIST_HINT}\`, then re-run with --rotate to replace a token.`,
+			nextCommand: AUTH_LIST_HINT,
+		});
 		return;
 	}
 	await mkdir(path.dirname(policyPath), { recursive: true });
@@ -658,8 +743,15 @@ async function runAuthRevoke(
 	try {
 		policy = await readPolicy(policyPath);
 	} catch (error) {
-		console.error((error as Error).message);
-		process.exitCode = 1;
+		refuseAuth({
+			json: Boolean(options.json),
+			operation: "revoke",
+			error: "auth-policy-unreadable",
+			message: (error as Error).message,
+			text: (error as Error).message,
+			nextAction: `Inspect or repair the auth policy at ${policyPath}.`,
+			nextCommand: AUTH_LIST_HINT,
+		});
 		return;
 	}
 	const enrolled = policy.credentials.map((c) => c.identity);
@@ -671,18 +763,32 @@ async function runAuthRevoke(
 			// every prompt with a default, which for a select over enrolled devices
 			// would silently pick the first one and revoke it. Destructive work does
 			// not get a default.
-			console.error(
-				options.json
+			refuseAuth({
+				json: Boolean(options.json),
+				operation: "revoke",
+				error: "identity-required",
+				message: options.json
+					? "an identity is required with --json (non-interactive; does not prompt)"
+					: "missing required argument 'identity'",
+				text: options.json
 					? `${refarmCommand(["auth", "revoke"])}: an identity is required with --json (non-interactive; does not prompt)`
 					: "error: missing required argument 'identity'\n" +
-							`  (not running interactively — pass one explicitly, e.g. \`${refarmCommand(["auth", "revoke", "my-phone"])}\`)`,
-			);
-			process.exitCode = 1;
+						`  (not running interactively — pass one explicitly, e.g. \`${REVOKE_LABEL_HINT}\`)`,
+				nextAction: `Name the device to cut off explicitly, e.g. \`${REVOKE_LABEL_HINT}\`.`,
+				nextCommand: AUTH_LIST_HINT,
+			});
 			return;
 		}
 		if (enrolled.length === 0) {
-			console.error(`No devices are enrolled in ${policyPath} — nothing to revoke.`);
-			process.exitCode = 1;
+			refuseAuth({
+				json: Boolean(options.json),
+				operation: "revoke",
+				error: "nothing-enrolled",
+				message: `No devices are enrolled in ${policyPath} — nothing to revoke.`,
+				text: `No devices are enrolled in ${policyPath} — nothing to revoke.`,
+				nextAction: `Enrol a device first, e.g. \`${ENROLL_LABEL_HINT}\`.`,
+				nextCommand: ENROLL_LABEL_HINT,
+			});
 			return;
 		}
 		identity = await promptForIdentityToRevoke(operatorChannel(), enrolled);
@@ -710,8 +816,16 @@ async function runAuthRevoke(
 	try {
 		next = removeCredential(await readPolicy(policyPath), identity);
 	} catch (error) {
-		console.error((error as Error).message);
-		process.exitCode = 1;
+		// Before the write, so a refused revoke leaves every credential exactly as it was.
+		refuseAuth({
+			json: Boolean(options.json),
+			operation: "revoke",
+			error: "revoke-refused",
+			message: (error as Error).message,
+			text: (error as Error).message,
+			nextAction: `Inspect what is enrolled with \`${AUTH_LIST_HINT}\`.`,
+			nextCommand: AUTH_LIST_HINT,
+		});
 		return;
 	}
 	await mkdir(path.dirname(policyPath), { recursive: true });

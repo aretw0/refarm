@@ -353,42 +353,6 @@ const KNOWN_DEFECTS: Record<string, { codes: ViolationCode[]; note: string }> = 
 		codes: ["ok-false-exit-zero"],
 		note: "prints an ok:false envelope but exits 0 — `refarm guide --json && …` reads as success.",
 	},
-	"refarm config profile": {
-		codes: ["json-no-envelope"],
-		note: "refuses an unknown profile with a plain stderr line and exit 1; --json gets nothing.",
-	},
-	"refarm config get": {
-		codes: ["json-no-envelope"],
-		note: "refuses an unknown key with a plain stderr line and exit 1; --json gets nothing.",
-	},
-	"refarm config unset": {
-		codes: ["json-no-envelope"],
-		note: "refuses an unknown key with a plain stderr line and exit 1; --json gets nothing.",
-	},
-	"refarm config set": {
-		codes: ["json-no-envelope"],
-		note: "refuses an unknown key with a plain stderr line and exit 1; --json gets nothing.",
-	},
-	"refarm config history undo": {
-		codes: ["json-no-envelope"],
-		note: "refuses an unknown history id with a plain stderr line and exit 1; --json gets nothing.",
-	},
-	"refarm config plugins suppress": {
-		codes: ["ok-false-exit-zero"],
-		note: "prints an ok:false envelope but exits 0.",
-	},
-	"refarm config plugins unsuppress": {
-		codes: ["ok-false-exit-zero"],
-		note: "prints an ok:false envelope but exits 0.",
-	},
-	"refarm auth enroll": {
-		codes: ["json-no-envelope"],
-		note: "refuses with a plain stderr line and exit 1; --json gets nothing.",
-	},
-	"refarm auth revoke": {
-		codes: ["json-no-envelope"],
-		note: "refuses with a plain stderr line and exit 1; --json gets nothing.",
-	},
 	"refarm agent doctor": {
 		codes: ["ok-false-exit-zero"],
 		note: "prints an ok:false envelope but exits 0.",
@@ -400,10 +364,6 @@ const KNOWN_DEFECTS: Record<string, { codes: ViolationCode[]; note: string }> = 
 	"refarm runtime status": {
 		codes: ["ok-false-exit-zero"],
 		note: "prints an ok:false envelope but exits 0. Triage: is 'runtime not running' an error or a state?",
-	},
-	"refarm tasks show": {
-		codes: ["json-no-envelope"],
-		note: "exits 1 under --json with no envelope on stdout.",
 	},
 };
 

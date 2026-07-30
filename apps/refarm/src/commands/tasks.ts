@@ -353,8 +353,16 @@ export function createTasksCommand(): Command {
 				.description("Show details and events for a task")
 				.argument("<id>", "Task ID or unique prefix")
 				.option("--json", "Output machine-readable JSON")
-				.action(async (prefix: string, opts: { json?: boolean }) => {
-					await showTask(prefix, { json: opts.json });
+				.action(async (prefix: string, opts: { json?: boolean }, subcommand: Command) => {
+					// `refarm tasks show <id> --json` bound `--json` to the PARENT, not here:
+					// Commander consumes an option the parent declares wherever it appears, and
+					// `tasks` declares `--json` too. So `opts.json` was undefined and the command
+					// printed human text (and, on a refusal, an unparseable stderr line) to a
+					// consumer that had asked for JSON. Read it from either place, the way
+					// `runtime status` and `agent doctor` already do.
+					const json =
+						opts.json === true || subcommand.parent?.opts<{ json?: boolean }>().json === true;
+					await showTask(prefix, { json });
 				}),
 		)
 		.action(async (opts: { status?: string; session?: string; limit?: number; json?: boolean }) => {

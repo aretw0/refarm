@@ -445,12 +445,38 @@ describe("config command", () => {
 		});
 	});
 
-	it("rejects the removed farmhand autostart key on get --json", async () => {
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+	it("rejects the removed farmhand autostart key on get --json — with an envelope", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		vi.spyOn(console, "error").mockImplementation(() => {});
 
 		await command().parseAsync(["get", "farmhand.autostart", "--json"], {
 			from: "user",
 		});
+
+		// It used to print the refusal as two red lines on stderr and NOTHING on stdout, so
+		// a `--json` consumer got exit 1 and no envelope to read it from.
+		const envelope = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			command: string;
+			operation: string;
+			error: string;
+			message: string;
+			nextCommand: string | null;
+			nextCommands: string[];
+		};
+		expect(envelope.ok).toBe(false);
+		expect(envelope.command).toBe("config");
+		expect(envelope.operation).toBe("get");
+		expect(envelope.error).toBe("unknown-config-key");
+		expect(envelope.message).toContain("Unknown config key: farmhand.autostart");
+		expect(envelope.nextCommands.length).toBeGreaterThan(0);
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints the same refusal as one calm line, with no --json", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command().parseAsync(["get", "farmhand.autostart"], { from: "user" });
 
 		const errors = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(errors).toContain("Unknown config key: farmhand.autostart");
@@ -966,9 +992,15 @@ describe("config set/unset are RECORDED — and never confirmed", () => {
 				},
 			},
 		);
-		await expect(
-			failing.parseAsync(["set", "tractor.engine", "rust"], { from: "user" }),
-		).rejects.toThrow(/trail is read-only/);
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		// The rollback is unchanged; what changed is how the operator hears about it. This
+		// used to escape `parseAsync` as a raw exception — a Node stack trace for a condition
+		// the command handles perfectly well. It now refuses at the action boundary.
+		await failing.parseAsync(["set", "tractor.engine", "rust"], { from: "user" });
+		expect(process.exitCode).toBe(1);
+		expect(errorSpy.mock.calls.map((call) => String(call[0])).join("\n")).toContain(
+			"trail is read-only",
+		);
 		// The file is exactly what it was — the second change was not made at all.
 		expect(fs.readFileSync(homeConfig(), "utf-8")).toBe(beforeSecond);
 	});

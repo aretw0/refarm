@@ -37,6 +37,23 @@ const CONFIG_PLUGINS_LIST_JSON_COMMAND = refarmCommand(["config", "plugins", "li
 // SURFACE_KEYS is imported from composition.ts (the single source, guarded exhaustive
 // against the SurfaceKey union) — no longer re-listed here where it could drift.
 
+/**
+ * Emit a composition envelope and make the EXIT CODE agree with it.
+ *
+ * These commands built a correct `ok:false` envelope — unknown scope, unknown surface,
+ * a source that is not declared, a suppression that would flip an allowlist — and then
+ * exited 0, so `refarm config plugins suppress … --json && …` read a refusal as success
+ * and a `set -e` script sailed past it.
+ *
+ * Every `ok:false` here is a REFUSAL of the request: the command did not do its job, which
+ * is exactly what a non-zero exit is for. That is the opposite of a status command
+ * reporting that its subject is down — see `docs/NAMING_REGISTRY.md` § "`ok` semantics".
+ */
+function emitCompositionEnvelope(envelope: { ok: boolean }): void {
+	printJson(envelope);
+	if (!envelope.ok) process.exitCode = 1;
+}
+
 /** Parse a --scope value for a composition write; null when unrecognized. */
 function parseCompositionScope(value: string | undefined): LedgerScope | null {
 	if (value === undefined) return "user";
@@ -131,6 +148,7 @@ function printCompositionList(
 	};
 	if (!envelope.ok) {
 		console.error(chalk.red(`✗  ${envelope.message ?? envelope.error}`));
+		process.exitCode = 1;
 		return;
 	}
 	if ((envelope.count ?? 0) === 0) {
@@ -257,6 +275,7 @@ function printCompositionMutation(
 	};
 	if (!envelope.ok) {
 		console.error(chalk.red(`✗  ${envelope.message ?? envelope.error}`));
+		process.exitCode = 1;
 		return;
 	}
 	const verb = op === "add" ? "added" : "removed";
@@ -447,6 +466,7 @@ function printCompositionSuppress(
 	};
 	if (!envelope.ok) {
 		console.error(chalk.red(`✗  ${envelope.message ?? envelope.error}`));
+		process.exitCode = 1;
 		return;
 	}
 	if (!envelope.changed) {
@@ -502,7 +522,7 @@ Notes:
 						command: JsonOptionCarrier,
 					) => {
 						if (hasJsonOption(opts, command)) {
-							printJson(buildCompositionListEnvelope(deps, opts));
+							emitCompositionEnvelope(buildCompositionListEnvelope(deps, opts));
 							return;
 						}
 						printCompositionList(deps, opts);
@@ -522,7 +542,7 @@ Notes:
 						command: JsonOptionCarrier,
 					) => {
 						if (hasJsonOption(opts, command)) {
-							printJson(buildCompositionMutationEnvelope(deps, "add", source, opts));
+							emitCompositionEnvelope(buildCompositionMutationEnvelope(deps, "add", source, opts));
 							return;
 						}
 						printCompositionMutation(deps, "add", source, opts);
@@ -543,7 +563,9 @@ Notes:
 						command: JsonOptionCarrier,
 					) => {
 						if (hasJsonOption(opts, command)) {
-							printJson(buildCompositionMutationEnvelope(deps, "remove", source, opts));
+							emitCompositionEnvelope(
+								buildCompositionMutationEnvelope(deps, "remove", source, opts),
+							);
 							return;
 						}
 						printCompositionMutation(deps, "remove", source, opts);
@@ -574,7 +596,7 @@ Notes:
 						command: JsonOptionCarrier,
 					) => {
 						if (hasJsonOption(opts, command)) {
-							printJson(
+							emitCompositionEnvelope(
 								buildCompositionSuppressEnvelope(deps, "suppress", source, surface, pattern, opts),
 							);
 							return;
@@ -600,7 +622,7 @@ Notes:
 						command: JsonOptionCarrier,
 					) => {
 						if (hasJsonOption(opts, command)) {
-							printJson(
+							emitCompositionEnvelope(
 								buildCompositionSuppressEnvelope(
 									deps,
 									"unsuppress",

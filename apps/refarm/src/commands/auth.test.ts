@@ -978,8 +978,9 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		expect(fs.existsSync(policyPath)).toBe(false);
 	});
 
-	it("--json with no identity fails rather than prompting", async () => {
+	it("--json with no identity refuses WITH AN ENVELOPE rather than prompting", async () => {
 		const policyPath = tempPolicyPath();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const cmd = createAuthEnrollCommand({
 			input: fakeStream(true),
 			output: fakeStream(true),
@@ -988,8 +989,27 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		await cmd.parseAsync(["--policy", policyPath, "--json"], { from: "user" });
 
 		expect(process.exitCode).toBe(1);
-		expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining("--json"));
+		// A `--json` caller asked for JSON on the SUCCESS path and on this one alike: it used
+		// to get exit 1, one sentence on stderr and nothing at all on stdout.
+		const envelope = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			command: string;
+			operation: string;
+			error: string;
+			message: string;
+			nextCommand: string | null;
+			nextCommands: string[];
+		};
+		expect(envelope.ok).toBe(false);
+		expect(envelope.command).toBe("auth");
+		expect(envelope.operation).toBe("enroll");
+		expect(envelope.error).toBe("identity-required");
+		expect(envelope.message).toContain("--json");
+		expect(envelope.nextCommands.length).toBeGreaterThan(0);
+		// Never a token, and never a half-written policy.
+		expect(JSON.stringify(envelope)).not.toMatch(/token/i);
 		expect(fs.existsSync(policyPath)).toBe(false);
+		logSpy.mockRestore();
 	});
 
 	it("rejects an empty typed label without writing the policy", async () => {
@@ -1948,15 +1968,29 @@ describe("refarm auth revoke — the command", () => {
 		expect(fs.readFileSync(policyPath, "utf8")).toBe(before);
 	});
 
-	it("--json without an identity refuses — a JSON call is non-interactive by nature", async () => {
+	it("--json without an identity refuses WITH AN ENVELOPE — a JSON call is non-interactive by nature", async () => {
 		const policyPath = writePolicy(tempPolicyPath(), TWO);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const cmd = createAuthRevokeCommand({ input: fakeStream(true), output: fakeStream(true) });
 
 		await cmd.parseAsync(["--policy", policyPath, "--json"], { from: "user" });
 
 		expect(process.exitCode).toBe(1);
-		expect(stderrText()).toMatch(/identity is required with --json/);
+		const envelope = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			operation: string;
+			error: string;
+			message: string;
+			nextCommands: string[];
+		};
+		expect(envelope.ok).toBe(false);
+		expect(envelope.operation).toBe("revoke");
+		expect(envelope.error).toBe("identity-required");
+		expect(envelope.message).toMatch(/identity is required with --json/);
+		expect(envelope.nextCommands.length).toBeGreaterThan(0);
+		// The refusal is BEFORE the write: both credentials are still there.
 		expect(readPolicyFile(policyPath).credentials).toHaveLength(2);
+		logSpy.mockRestore();
 	});
 
 	it("--yes without an identity refuses too — it skips the confirm, not the choice", async () => {
