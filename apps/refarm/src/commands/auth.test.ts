@@ -21,16 +21,24 @@ import {
 } from "./auth.js";
 import {
 	collectIdentityCandidates,
+	replaceSourceCandidates,
 	sanitiseIdentityLabel,
 	type IdentityCandidate,
+	type IdentityCandidateReport,
 	type IdentityCandidateSource,
 } from "./identity-candidates.js";
-import {
-	createTailnetIdentitySource,
-	declaresTailnetSurface,
-	reportToCandidates,
-} from "./identity-source-tailnet.js";
+import { createTailnetIdentitySource, reportToCandidates } from "./identity-source-tailnet.js";
 import { defaultIdentityCandidateSources } from "./identity-sources.js";
+
+/** The enrolment flow must never consult the operator's declaration
+ * (`.refarm/config.json`) — discovery is an invoked verb, not a configured mode.
+ * Mocking the config package and asserting ZERO calls is the new gate's teeth:
+ * re-introduce the read anywhere in the enrolment graph and this spy fires. */
+const configReaderSpy = vi.hoisted(() => vi.fn(() => null));
+vi.mock("@refarm.dev/config", () => ({
+	loadRawSovereignConfig: configReaderSpy,
+	resolveSovereignConfig: configReaderSpy,
+}));
 
 describe("refarm auth — credential policy", () => {
 	it("sha256Hex matches the digest the daemon stores (lowercase hex)", () => {
@@ -107,18 +115,24 @@ describe("promptForIdentity", () => {
 		expect(result).toEqual({ identity: "arthur-tablet", impliedRotate: false });
 	});
 
-	it("with zero contributed candidates the prompt is byte-identical to the canonical one", async () => {
+	it("with zero registered sources the prompt is byte-identical to the canonical one", async () => {
 		// Same two shapes as above, but with the seam's parameter explicitly empty:
-		// the extension must be invisible when nothing plugged in.
+		// the extension must be invisible when nothing is registered. This options
+		// array is the pre-change baseline, pinned verbatim.
 		const bare = recordingOperator(["arthur-phone"]);
-		expect(await promptForIdentity(bare.operator, [], [])).toEqual({
+		expect(await promptForIdentity(bare.operator, [], {})).toEqual({
 			identity: "arthur-phone",
 			impliedRotate: false,
 		});
 		expect(bare.prompts.map((p) => p.type)).toEqual(["text"]);
 
 		const populated = recordingOperator(["arthur"]);
-		expect(await promptForIdentity(populated.operator, ["arthur", "spouse"], [])).toEqual({
+		expect(
+			await promptForIdentity(populated.operator, ["arthur", "spouse"], {
+				candidates: [],
+				sources: [],
+			}),
+		).toEqual({
 			identity: "arthur",
 			impliedRotate: true,
 		});
@@ -131,11 +145,9 @@ describe("promptForIdentity", () => {
 
 	it("a contributed candidate is offered by name, and 'A new device' is still last", async () => {
 		const { operator, prompts } = recordingOperator(["meu-android"]);
-		const result = await promptForIdentity(
-			operator,
-			[],
-			[{ value: "meu-android", label: "meu-android", description: "on your tailnet" }],
-		);
+		const result = await promptForIdentity(operator, [], {
+			candidates: [{ value: "meu-android", label: "meu-android", description: "on your tailnet" }],
+		});
 		expect(result).toEqual({ identity: "meu-android", impliedRotate: false });
 		expect(selectPrompt(prompts).options).toEqual([
 			{ value: "meu-android", label: "meu-android", description: "on your tailnet — enroll it" },
@@ -145,14 +157,12 @@ describe("promptForIdentity", () => {
 
 	it("a contributed candidate that is already enrolled appears once, as a rotate", async () => {
 		const { operator, prompts } = recordingOperator(["meu-android"]);
-		const result = await promptForIdentity(
-			operator,
-			["meu-android"],
-			[
+		const result = await promptForIdentity(operator, ["meu-android"], {
+			candidates: [
 				{ value: "meu-android", label: "meu-android", description: "on your tailnet" },
 				{ value: "raspberry", label: "raspberry", description: "on your tailnet" },
 			],
-		);
+		});
 		expect(result).toEqual({ identity: "meu-android", impliedRotate: true });
 		const values = selectPrompt(prompts).options.map((o) => o.value);
 		expect(values).toEqual(["meu-android", "raspberry", " new-device"]);
@@ -164,10 +174,8 @@ describe("promptForIdentity", () => {
 
 	it("a repaired candidate name is offered for confirmation, never enrolled silently", async () => {
 		const { operator, prompts } = recordingOperator(["myphone", "myphone-edited"]);
-		const result = await promptForIdentity(
-			operator,
-			[],
-			[
+		const result = await promptForIdentity(operator, [], {
+			candidates: [
 				{
 					value: "myphone",
 					label: "myphone",
@@ -176,13 +184,189 @@ describe("promptForIdentity", () => {
 					rawName: "myphone",
 				},
 			],
-		);
+		});
 		// The operator EDITED the offer — what they typed is what gets enrolled.
 		expect(result).toEqual({ identity: "myphone-edited", impliedRotate: false });
 		const text = prompts.find((p) => p.type === "text");
 		expect(text).toBeDefined();
 		expect(text?.type === "text" && text.default).toBe("myphone");
 		expect(text?.question).toContain("accept or edit");
+	});
+});
+
+// ── C3: discovery is an INVOKED verb, not a configured mode ──────────────────
+
+describe("promptForIdentity — discovery is an entry the operator picks", () => {
+	it("registering a source costs one entry and NOT one query", async () => {
+		const { source, calls } = tailnetSource({
+			stdout: statusWith({ a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.") }),
+		});
+		const { operator, prompts } = recordingOperator([" new-device", "typed-by-hand"]);
+
+		const result = await promptForIdentity(operator, [], { sources: [source] });
+
+		// The teeth of the new C3: the entry is on screen, and NOTHING was spawned.
+		expect(calls).toEqual([]);
+		expect(result).toEqual({ identity: "typed-by-hand", impliedRotate: false });
+		expect(selectPrompt(prompts).options).toEqual([
+			{
+				value: " discover:tailnet",
+				label: "Discover devices on my tailnet…",
+				description: "ask your tailnet, right now",
+			},
+			{ value: " new-device", label: "A new device", description: "enroll a new identity" },
+		]);
+	});
+
+	it("picking the entry asks the tailnet AT THAT MOMENT and repopulates the list", async () => {
+		const { source, calls } = tailnetSource({
+			stdout: statusWith({
+				a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.", "100.88.1.2"),
+				b: tailnetPeerJson("raspberry", "raspberry.tail1.ts.net.", "100.88.3.4"),
+			}),
+		});
+		const { operator, prompts } = recordingOperator([" discover:tailnet", "meu-android"]);
+
+		const result = await promptForIdentity(operator, [], { sources: [source] });
+
+		expect(result).toEqual({ identity: "meu-android", impliedRotate: false });
+		expect(calls).toEqual([["status", "--json"]]);
+		const selects = selectPrompts(prompts);
+		expect(selects).toHaveLength(2);
+		expect(selects[0]?.options.map((o) => o.value)).toEqual([" discover:tailnet", " new-device"]);
+		expect(selects[1]?.options.map((o) => o.value)).toEqual([
+			"meu-android",
+			"raspberry",
+			" discover:tailnet",
+			" new-device",
+		]);
+		// C2.2 — free text is present BEFORE the discovery and AFTER it.
+		expect(selects[0]?.options.at(-1)?.label).toBe("A new device");
+		expect(selects[1]?.options.at(-1)?.label).toBe("A new device");
+		// Having asked once, the entry says so.
+		expect(selects[1]?.options[2]?.label).toBe("Discover again on my tailnet");
+	});
+
+	it("'Discover again' issues a SECOND query — the list is live, never cached", async () => {
+		const { source, calls } = tailnetSource({
+			stdout: [
+				statusWith({
+					a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.", "100.88.1.2"),
+				}),
+				// The device the operator turned on while the prompt was open.
+				statusWith({
+					a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.", "100.88.1.2"),
+					b: tailnetPeerJson("late-joiner", "late-joiner.tail1.ts.net.", "100.88.9.9"),
+				}),
+			],
+		});
+		const { operator, prompts } = recordingOperator([
+			" discover:tailnet",
+			" discover:tailnet",
+			"late-joiner",
+		]);
+
+		const result = await promptForIdentity(operator, [], { sources: [source] });
+
+		// THE assertion: two real spawns. One would mean the second pick replayed a
+		// cached answer, and a device that joined in between could never be enrolled.
+		expect(calls).toEqual([
+			["status", "--json"],
+			["status", "--json"],
+		]);
+		expect(result).toEqual({ identity: "late-joiner", impliedRotate: false });
+		const selects = selectPrompts(prompts);
+		expect(selects[1]?.options.map((o) => o.value)).toEqual([
+			"meu-android",
+			" discover:tailnet",
+			" new-device",
+		]);
+		expect(selects[2]?.options.map((o) => o.value)).toEqual([
+			"meu-android",
+			"late-joiner",
+			" discover:tailnet",
+			" new-device",
+		]);
+	});
+
+	it("a re-query is a new snapshot: a peer that left the tailnet leaves the list", async () => {
+		const { source } = tailnetSource({
+			stdout: [
+				statusWith({
+					a: tailnetPeerJson("stays", "stays.tail1.ts.net.", "100.88.1.2"),
+					b: tailnetPeerJson("goes-away", "goes-away.tail1.ts.net.", "100.88.1.3"),
+				}),
+				statusWith({ a: tailnetPeerJson("stays", "stays.tail1.ts.net.", "100.88.1.2") }),
+			],
+		});
+		const { operator, prompts } = recordingOperator([
+			" discover:tailnet",
+			" discover:tailnet",
+			"stays",
+		]);
+
+		await promptForIdentity(operator, [], { sources: [source] });
+
+		// An accumulating cache would still be offering "goes-away" here.
+		expect(selectPrompts(prompts)[2]?.options.map((o) => o.value)).toEqual([
+			"stays",
+			" discover:tailnet",
+			" new-device",
+		]);
+	});
+
+	it("a second registered source is a second entry — no new flag, no prompt change", async () => {
+		const alpha = fakeDiscoverySource("alpha", [
+			{ candidates: [{ value: "from-alpha", label: "from-alpha" }], notices: [] },
+		]);
+		const beta = fakeDiscoverySource("beta", [
+			{ candidates: [{ value: "from-beta", label: "from-beta" }], notices: [] },
+		]);
+		const { operator, prompts } = recordingOperator([" discover:beta", "from-beta"]);
+
+		const result = await promptForIdentity(operator, [], {
+			sources: [alpha.source, beta.source],
+		});
+
+		expect(result).toEqual({ identity: "from-beta", impliedRotate: false });
+		// Each source words its own entry; the prompt only lays them out.
+		expect(selectPrompts(prompts)[0]?.options.map((o) => o.label)).toEqual([
+			"Discover on alpha…",
+			"Discover on beta…",
+			"A new device",
+		]);
+		// Picking one source's entry queries THAT source and no other.
+		expect(alpha.calls).toBe(0);
+		expect(beta.calls).toBe(1);
+		expect(selectPrompts(prompts)[1]?.options.map((o) => o.label)).toEqual([
+			"from-beta",
+			"Discover on alpha…",
+			"Discover again on beta",
+			"A new device",
+		]);
+	});
+
+	it("a discovery's notices reach the operator, and the prompt re-renders regardless", async () => {
+		const notices: string[] = [];
+		const { source } = tailnetSource({
+			fail: Object.assign(new Error("spawn tailscale ENOENT"), { code: "ENOENT" }),
+		});
+		const { operator, prompts } = recordingOperator([" discover:tailnet", " new-device", "typed"]);
+
+		const result = await promptForIdentity(operator, [], {
+			sources: [source],
+			writeNotice: (notice) => notices.push(notice),
+		});
+
+		expect(result).toEqual({ identity: "typed", impliedRotate: false });
+		expect(notices).toHaveLength(1);
+		expect(notices[0]).toMatch(/Could not ask your tailnet/);
+		// Still on screen afterwards, with the re-ask offered — a failed query is not
+		// a dead end.
+		expect(selectPrompts(prompts)[1]?.options.map((o) => o.value)).toEqual([
+			" discover:tailnet",
+			" new-device",
+		]);
 	});
 });
 
@@ -196,7 +380,7 @@ describe("collectIdentityCandidates", () => {
 			notices: string[];
 		},
 	): IdentityCandidateSource {
-		return { id, collect: async () => report };
+		return { id, discovery: discoveryLabels(id), collect: async () => report };
 	}
 
 	it("merges candidates and notices across sources, in order", async () => {
@@ -220,6 +404,7 @@ describe("collectIdentityCandidates", () => {
 		const merged = await collectIdentityCandidates([
 			{
 				id: "broken",
+				discovery: discoveryLabels("broken"),
 				collect: async () => {
 					throw new Error("kaboom");
 				},
@@ -240,92 +425,70 @@ describe("sanitiseIdentityLabel", () => {
 	});
 });
 
-// ── C3: the gate is the declaration, never detection ─────────────────────────
-
-describe("declaresTailnetSurface", () => {
-	it("is true only when a surface declares expose: tailnet", () => {
-		expect(
-			declaresTailnetSurface({
-				surfaces: { "sidecar-http": { expose: "tailnet", gate: "device-token" } },
-			}),
-		).toBe(true);
-		// Any surface name answers the question — including one Rust does not read yet.
-		expect(declaresTailnetSurface({ surfaces: { web: { expose: "tailnet" } } })).toBe(true);
+describe("replaceSourceCandidates — a re-query replaces, never accumulates", () => {
+	it("drops the source's previous answer and keeps everyone else's", () => {
+		const existing: IdentityCandidate[] = [
+			{ value: "typed", label: "typed" },
+			{ value: "old-a", label: "old-a", source: "alpha" },
+			{ value: "kept-b", label: "kept-b", source: "beta" },
+		];
+		const merged = replaceSourceCandidates(existing, "alpha", [
+			{ value: "new-a", label: "new-a", source: "alpha" },
+		]);
+		expect(merged.map((c) => c.value)).toEqual(["typed", "kept-b", "new-a"]);
 	});
 
-	it("is false for everything else — silence is closed, not an invitation", () => {
-		expect(declaresTailnetSurface(null)).toBe(false);
-		expect(declaresTailnetSurface({})).toBe(false);
-		expect(declaresTailnetSurface({ surfaces: {} })).toBe(false);
-		expect(declaresTailnetSurface({ surfaces: [] })).toBe(false);
-		expect(declaresTailnetSurface({ surfaces: "tailnet" })).toBe(false);
-		expect(
-			declaresTailnetSurface({
-				surfaces: { "sidecar-http": { expose: "loopback" }, "daemon-ws": { expose: "loopback" } },
-			}),
-		).toBe(false);
-		expect(
-			declaresTailnetSurface({ surfaces: { "sidecar-http": { expose: "host:10.0.0.2" } } }),
-		).toBe(false);
-		// The word appearing anywhere else in the config is not a declaration.
-		expect(declaresTailnetSurface({ tailnet: true, connections: { tailnet: {} } })).toBe(false);
+	it("an empty fresh answer empties that source's contribution", () => {
+		const merged = replaceSourceCandidates(
+			[{ value: "gone", label: "gone", source: "alpha" }],
+			"alpha",
+			[],
+		);
+		expect(merged).toEqual([]);
+	});
+
+	it("never lists one device twice when two sources see it", () => {
+		const merged = replaceSourceCandidates(
+			[{ value: "shared", label: "from-beta", source: "beta" }],
+			"alpha",
+			[{ value: "shared", label: "from-alpha", source: "alpha" }],
+		);
+		expect(merged).toEqual([{ value: "shared", label: "from-beta", source: "beta" }]);
 	});
 });
 
-describe("the tailnet identity source — C3", () => {
-	it("NEVER invokes `tailscale` when no surface declares it", async () => {
-		const calls: string[][] = [];
-		const run = async (args: string[]) => {
-			calls.push(args);
-			return statusWith({ k: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.") });
-		};
-		for (const config of [
-			null,
-			{},
-			{ surfaces: {} },
-			{ surfaces: { "sidecar-http": { expose: "loopback" }, "daemon-ws": { expose: "loopback" } } },
-			{ surfaces: { "sidecar-http": { expose: "host:100.64.0.1", gate: "device-token" } } },
-		]) {
-			const source = createTailnetIdentitySource({ loadConfig: () => config, run });
-			await expect(source.collect()).resolves.toEqual({ candidates: [], notices: [] });
-		}
-		// The teeth: not one spawn, on a machine that may well have Tailscale running.
-		expect(calls).toEqual([]);
-	});
-
-	it("a config reader that throws closes the gate rather than opening it", async () => {
+describe("the tailnet identity source", () => {
+	it("asks the tailnet every time it is collected — no gate, no memo", async () => {
 		const calls: string[][] = [];
 		const source = createTailnetIdentitySource({
-			loadConfig: () => {
-				throw new Error("unreadable");
-			},
-			run: async (args) => {
-				calls.push(args);
-				return "{}";
-			},
-		});
-		await expect(source.collect()).resolves.toEqual({ candidates: [], notices: [] });
-		expect(calls).toEqual([]);
-	});
-
-	it("queries only once the declaration is present", async () => {
-		const calls: string[][] = [];
-		const source = createTailnetIdentitySource({
-			loadConfig: () => DECLARED_TAILNET,
 			run: async (args) => {
 				calls.push(args);
 				return statusWith({ k: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.") });
 			},
 		});
-		const report = await source.collect();
-		expect(calls).toEqual([["status", "--json"]]);
-		expect(report.candidates.map((c) => c.value)).toEqual(["meu-android"]);
-		expect(report.notices).toEqual([]);
+
+		const first = await source.collect();
+		const second = await source.collect();
+
+		expect(calls).toEqual([
+			["status", "--json"],
+			["status", "--json"],
+		]);
+		expect(first.candidates.map((c) => c.value)).toEqual(["meu-android"]);
+		expect(second.candidates.map((c) => c.value)).toEqual(["meu-android"]);
+		expect(first.notices).toEqual([]);
+	});
+
+	it("carries its own wording for the prompt entry, first ask and re-ask", () => {
+		const { discovery } = createTailnetIdentitySource();
+		expect(discovery.label).toBe("Discover devices on my tailnet…");
+		expect(discovery.againLabel).toBe("Discover again on my tailnet");
+		// The two must read differently, or "again" tells the operator nothing.
+		expect(discovery.againLabel).not.toBe(discovery.label);
 	});
 
 	it("prefers the short MagicDNS handle over the raw OS hostname", async () => {
 		const source = createTailnetIdentitySource({
-			loadConfig: () => DECLARED_TAILNET,
 			// Tailscale deduplicated a shared HostName into a unique MagicDNS name.
 			run: async () =>
 				statusWith({
@@ -339,7 +502,6 @@ describe("the tailnet identity source — C3", () => {
 
 	it("falls back to the hostname when a peer has no MagicDNS name", async () => {
 		const source = createTailnetIdentitySource({
-			loadConfig: () => DECLARED_TAILNET,
 			run: async () => statusWith({ a: tailnetPeerJson("bare-host", null) }),
 		});
 		expect((await source.collect()).candidates.map((c) => c.value)).toEqual(["bare-host"]);
@@ -350,7 +512,6 @@ describe("the tailnet identity source — C3", () => {
 	// must still contribute candidates, not silently produce an empty list.
 	it("offers candidates even when every peer on the tailnet is offline", async () => {
 		const source = createTailnetIdentitySource({
-			loadConfig: () => DECLARED_TAILNET,
 			run: async () =>
 				statusWith({
 					a: tailnetPeerJson("galaxy-a55-5g", "galaxy-a55-5g.tail1.ts.net.", "100.88.1.2", {
@@ -434,8 +595,22 @@ describe("reportToCandidates — the C2.3 split", () => {
 			ok: true,
 			reason: "peers",
 			peers: [
-				{ name: "", ip: "100.88.1.2", dnsName: null, shortName: null, online: true, lastSeen: null },
-				{ name: "good", ip: "100.88.1.3", dnsName: null, shortName: "good", online: true, lastSeen: null },
+				{
+					name: "",
+					ip: "100.88.1.2",
+					dnsName: null,
+					shortName: null,
+					online: true,
+					lastSeen: null,
+				},
+				{
+					name: "good",
+					ip: "100.88.1.3",
+					dnsName: null,
+					shortName: "good",
+					online: true,
+					lastSeen: null,
+				},
 			],
 			detail: null,
 		});
@@ -452,7 +627,14 @@ describe("reportToCandidates — C2.4, offline peers are offered and marked", ()
 			ok: true,
 			reason: "peers",
 			peers: [
-				{ name: "online-one", ip: "100.88.1.2", dnsName: null, shortName: null, online: true, lastSeen: null },
+				{
+					name: "online-one",
+					ip: "100.88.1.2",
+					dnsName: null,
+					shortName: null,
+					online: true,
+					lastSeen: null,
+				},
 				{
 					name: "offline-one",
 					ip: "100.88.1.3",
@@ -500,7 +682,9 @@ describe("reportToCandidates — C2.4, offline peers are offered and marked", ()
 			now,
 		);
 		const byValue = new Map(report.candidates.map((c) => [c.value, c]));
-		expect(byValue.get("phone-with-time")?.description).toBe("on your tailnet, offline (last seen 1d ago)");
+		expect(byValue.get("phone-with-time")?.description).toBe(
+			"on your tailnet, offline (last seen 1d ago)",
+		);
 		// No LastSeen in the status document ⇒ no invented value, just the mark.
 		expect(byValue.get("phone-no-time")?.description).toBe("on your tailnet, offline");
 	});
@@ -510,7 +694,16 @@ describe("reportToCandidates — C2.4, offline peers are offered and marked", ()
 			ok: true,
 			reason: "peers",
 			// A control character forces the repair path (as in the "name adjusted" test above).
-			peers: [{ name: "myphone", ip: "100.88.1.2", dnsName: null, shortName: null, online: false, lastSeen: null }],
+			peers: [
+				{
+					name: "myphone",
+					ip: "100.88.1.2",
+					dnsName: null,
+					shortName: null,
+					online: false,
+					lastSeen: null,
+				},
+			],
 			detail: null,
 		});
 		expect(report.candidates[0]?.description).toBe("on your tailnet, name adjusted, offline");
@@ -530,7 +723,14 @@ describe("reportToCandidates — C2.4, offline peers are offered and marked", ()
 					online: false,
 					lastSeen: null,
 				},
-				{ name: "r2vivo", ip: "100.88.1.3", dnsName: null, shortName: "r2vivo", online: false, lastSeen: null },
+				{
+					name: "r2vivo",
+					ip: "100.88.1.3",
+					dnsName: null,
+					shortName: "r2vivo",
+					online: false,
+					lastSeen: null,
+				},
 			],
 			detail: null,
 		});
@@ -572,12 +772,67 @@ function selectPrompt(prompts: OperatorPrompt[]): SelectPrompt {
 	return found;
 }
 
-const DECLARED_TAILNET = {
-	surfaces: { "sidecar-http": { expose: "tailnet", gate: "device-token" } },
-};
-const UNDECLARED_TAILNET = {
-	surfaces: { "sidecar-http": { expose: "loopback" }, "daemon-ws": { expose: "loopback" } },
-};
+/** EVERY select the prompt issued, in order. A discovery re-renders the question,
+ * so "what the operator was shown" is a sequence, not a single snapshot. */
+function selectPrompts(prompts: OperatorPrompt[]): SelectPrompt[] {
+	return prompts.filter((p): p is SelectPrompt => p.type === "select");
+}
+
+/** Generic entry wording for a source whose identity does not matter to the test. */
+function discoveryLabels(id: string) {
+	return {
+		label: `Discover on ${id}…`,
+		description: `ask ${id}`,
+		againLabel: `Discover again on ${id}`,
+		againDescription: `ask ${id} again`,
+	};
+}
+
+/** A source with canned successive answers (the last one repeats), counting how
+ * many times it was actually asked. */
+function fakeDiscoverySource(
+	id: string,
+	answers: IdentityCandidateReport[],
+): { source: IdentityCandidateSource; readonly calls: number } {
+	const state = { calls: 0 };
+	return {
+		source: {
+			id,
+			discovery: discoveryLabels(id),
+			collect: async () => {
+				const answer = answers[Math.min(state.calls, answers.length - 1)];
+				state.calls += 1;
+				return answer ?? { candidates: [], notices: [] };
+			},
+		},
+		get calls() {
+			return state.calls;
+		},
+	};
+}
+
+/** The REAL tailnet source wired to a fake `tailscale`, recording every spawn so a
+ * test can assert both the ones it must make and the ones it must not. `stdout` may
+ * be a sequence: successive queries get successive answers (the last one repeats),
+ * which is how a re-discovery can be shown to have really re-asked. */
+function tailnetSource(options: { stdout?: string | string[]; fail?: Error }): {
+	source: IdentityCandidateSource;
+	calls: string[][];
+} {
+	const calls: string[][] = [];
+	const answers = Array.isArray(options.stdout)
+		? options.stdout
+		: [options.stdout ?? statusWith({})];
+	const source = createTailnetIdentitySource({
+		run: async (args) => {
+			const at = calls.length;
+			calls.push(args);
+			if (options.fail) throw options.fail;
+			return answers[Math.min(at, answers.length - 1)] ?? statusWith({});
+		},
+	});
+	return { source, calls };
+}
 
 /** A `tailscale status --json` document, shaped enough to be read as one. */
 function statusWith(peers: Record<string, unknown>): string {
@@ -651,6 +906,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 			operator,
 			input: fakeStream(true),
 			output: fakeStream(true),
+			identityCandidateSources: [],
 		});
 
 		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
@@ -671,6 +927,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 			operator,
 			input: fakeStream(true),
 			output: fakeStream(true),
+			identityCandidateSources: [],
 		});
 
 		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
@@ -692,6 +949,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 			operator,
 			input: fakeStream(true),
 			output: fakeStream(true),
+			identityCandidateSources: [],
 		});
 
 		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
@@ -737,6 +995,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 			operator,
 			input: fakeStream(true),
 			output: fakeStream(true),
+			identityCandidateSources: [],
 		});
 
 		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
@@ -758,6 +1017,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 			operator,
 			input: fakeStream(true),
 			output: fakeStream(true),
+			identityCandidateSources: [],
 		});
 
 		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
@@ -802,26 +1062,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("arthur-phone");
 	});
 
-	// ── The extended path, end to end ────────────────────────────────────────
-
-	/** A tailnet source wired to a fake config + a fake `tailscale`, recording every
-	 * spawn it makes so a test can assert on the ones it must NOT make. */
-	function tailnetSource(options: {
-		config: Record<string, unknown> | null;
-		stdout?: string;
-		fail?: Error;
-	}): { source: IdentityCandidateSource; calls: string[][] } {
-		const calls: string[][] = [];
-		const source = createTailnetIdentitySource({
-			loadConfig: () => options.config,
-			run: async (args) => {
-				calls.push(args);
-				if (options.fail) throw options.fail;
-				return options.stdout ?? statusWith({});
-			},
-		});
-		return { source, calls };
-	}
+	// The extended path, end to end ------------------------------------------
 
 	/** A source that records whether it was consulted at all. */
 	function spySource(): { source: IdentityCandidateSource; calls: number } {
@@ -829,6 +1070,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		return {
 			source: {
 				id: "spy",
+				discovery: discoveryLabels("spy"),
 				collect: async () => {
 					state.calls += 1;
 					return { candidates: [], notices: [] };
@@ -840,16 +1082,39 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		};
 	}
 
-	it("declared tailnet: peers are offered by their tailnet name, 'A new device' still there", async () => {
+	it("registering a source adds ONE entry and asks nothing until it is picked", async () => {
 		const policyPath = tempPolicyPath();
 		const { source, calls } = tailnetSource({
-			config: DECLARED_TAILNET,
+			stdout: statusWith({ a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.") }),
+		});
+		const { operator, prompts } = recordingOperator([" new-device", "arthur-phone"]);
+		const cmd = createAuthEnrollCommand({
+			operator,
+			input: fakeStream(true),
+			output: fakeStream(true),
+			identityCandidateSources: [source],
+		});
+
+		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
+
+		// C3, as it now stands: registration is not invocation.
+		expect(calls).toEqual([]);
+		expect(selectPrompt(prompts).options.map((o) => o.value)).toEqual([
+			" discover:tailnet",
+			" new-device",
+		]);
+		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("arthur-phone");
+	});
+
+	it("picking discovery: peers are offered by their tailnet name, 'A new device' still there", async () => {
+		const policyPath = tempPolicyPath();
+		const { source, calls } = tailnetSource({
 			stdout: statusWith({
 				a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.", "100.88.1.2"),
 				b: tailnetPeerJson("raspberry", "raspberry.tail1.ts.net.", "100.88.3.4"),
 			}),
 		});
-		const { operator, prompts } = recordingOperator(["meu-android"]);
+		const { operator, prompts } = recordingOperator([" discover:tailnet", "meu-android"]);
 		const cmd = createAuthEnrollCommand({
 			operator,
 			input: fakeStream(true),
@@ -861,26 +1126,30 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 
 		expect(calls).toEqual([["status", "--json"]]);
 		expect(process.exitCode).toBeUndefined();
-		const options = selectPrompt(prompts).options;
-		expect(options.map((o) => o.value)).toEqual(["meu-android", "raspberry", " new-device"]);
-		// C2.2 — typing a name never disappears.
+		const options = selectPrompts(prompts)[1]?.options ?? [];
+		expect(options.map((o) => o.value)).toEqual([
+			"meu-android",
+			"raspberry",
+			" discover:tailnet",
+			" new-device",
+		]);
+		// C2.2 - typing a name never disappears.
 		expect(options.at(-1)).toEqual({
 			value: " new-device",
 			label: "A new device",
 			description: "enroll a new identity",
 		});
-		// C2.1 — exactly ONE credential was minted, no "enroll all".
+		// C2.1 - exactly ONE credential was minted, no "enroll all".
 		const policy = readPolicyFile(policyPath);
 		expect(policy.credentials.map((c) => c.identity)).toEqual(["meu-android"]);
 	});
 
-	// C2.4 — the operator's real situation: a tailnet with peers, every one of
+	// C2.4 - the operator's real situation: a tailnet with peers, every one of
 	// them offline. The feature must stay live, not go inert, and the operator
 	// must be able to tell online from offline at a glance.
-	it("declared tailnet, ALL peers offline: still offered, marked, and enrollable — not the empty-tailnet notice", async () => {
+	it("ALL peers offline: still offered, marked, and enrollable, not the empty-tailnet notice", async () => {
 		const policyPath = tempPolicyPath();
 		const { source, calls } = tailnetSource({
-			config: DECLARED_TAILNET,
 			stdout: statusWith({
 				a: tailnetPeerJson("galaxy-a55-5g", "galaxy-a55-5g.tail1.ts.net.", "100.88.1.2", {
 					online: false,
@@ -891,7 +1160,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 				b: tailnetPeerJson("r2vivo", "r2vivo.tail1.ts.net.", "100.88.3.4", { online: false }),
 			}),
 		});
-		const { operator, prompts } = recordingOperator(["r2vivo"]);
+		const { operator, prompts } = recordingOperator([" discover:tailnet", "r2vivo"]);
 		const cmd = createAuthEnrollCommand({
 			operator,
 			input: fakeStream(true),
@@ -903,26 +1172,36 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 
 		expect(calls).toEqual([["status", "--json"]]);
 		expect(process.exitCode).toBeUndefined();
-		const options = selectPrompt(prompts).options;
-		expect(options.map((o) => o.value)).toEqual(["galaxy-a55-5g", "r2vivo", " new-device"]);
-		// Both offline peers are visibly marked, one with last-seen, one without —
+		const options = selectPrompts(prompts)[1]?.options ?? [];
+		expect(options.map((o) => o.value)).toEqual([
+			"galaxy-a55-5g",
+			"r2vivo",
+			" discover:tailnet",
+			" new-device",
+		]);
+		// Both offline peers are visibly marked, one with last-seen, one without:
 		// online vs. offline is distinguishable, and the exact "Xd ago" count is
 		// left to the unit-level `reportToCandidates` tests (deterministic `now`).
-		expect(options[0]?.description).toMatch(/^on your tailnet, offline \(last seen \d+d ago\) — enroll it$/);
+		expect(options[0]?.description).toMatch(
+			/^on your tailnet, offline \(last seen \d+d ago\) — enroll it$/,
+		);
 		expect(options[1]?.description).toBe("on your tailnet, offline — enroll it");
 		// The regression this closes: an all-offline tailnet must not fall back to
-		// the "no other devices" notice — the select prompt itself IS the proof.
+		// the "no other devices" notice - the select prompt itself IS the proof.
 		expect(stdoutText()).not.toMatch(/no other devices are on it/);
 		expect(readPolicyFile(policyPath).credentials.map((c) => c.identity)).toEqual(["r2vivo"]);
 	});
 
-	it("declared tailnet: 'A new device' still leads to free text even with peers on offer", async () => {
+	it("'A new device' still leads to free text even with peers on offer", async () => {
 		const policyPath = tempPolicyPath();
 		const { source } = tailnetSource({
-			config: DECLARED_TAILNET,
 			stdout: statusWith({ a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.") }),
 		});
-		const operator = createScriptedOperatorChannel([" new-device", "not-on-the-tailnet"]);
+		const operator = createScriptedOperatorChannel([
+			" discover:tailnet",
+			" new-device",
+			"not-on-the-tailnet",
+		]);
 		const cmd = createAuthEnrollCommand({
 			operator,
 			input: fakeStream(true),
@@ -938,13 +1217,16 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		]);
 	});
 
-	it("declared tailnet, genuinely zero peers: says so, then falls through to typing a name", async () => {
+	// C2.3 survives the move: "no" and "could not ask" stay different ---------
+
+	it("genuinely zero peers: says so, and the list is still there to re-ask or type", async () => {
 		const policyPath = tempPolicyPath();
-		const { source, calls } = tailnetSource({
-			config: DECLARED_TAILNET,
-			stdout: statusWith({}),
-		});
-		const { operator, prompts } = recordingOperator(["arthur-phone"]);
+		const { source, calls } = tailnetSource({ stdout: statusWith({}) });
+		const { operator, prompts } = recordingOperator([
+			" discover:tailnet",
+			" new-device",
+			"arthur-phone",
+		]);
 		const cmd = createAuthEnrollCommand({
 			operator,
 			input: fakeStream(true),
@@ -958,18 +1240,20 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		const shown = stdoutText();
 		expect(shown).toMatch(/no other devices are on it/);
 		expect(shown).not.toMatch(/[Cc]ould not ask/);
-		// No empty list masquerading as a device list — straight to the canonical ask.
-		expect(prompts.map((p) => p.type)).toEqual(["text"]);
+		// No empty list masquerading as a device list - only the verbs come back.
+		expect(selectPrompts(prompts)[1]?.options.map((o) => o.value)).toEqual([
+			" discover:tailnet",
+			" new-device",
+		]);
 		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("arthur-phone");
 	});
 
-	it("declared tailnet, query failed: says it could not ask (and why), then falls through", async () => {
+	it("no `tailscale` on PATH: says it could not ask (and why), never that the tailnet is empty", async () => {
 		const policyPath = tempPolicyPath();
 		const { source } = tailnetSource({
-			config: DECLARED_TAILNET,
 			fail: Object.assign(new Error("spawn tailscale ENOENT"), { code: "ENOENT" }),
 		});
-		const { operator, prompts } = recordingOperator(["arthur-phone"]);
+		const { operator } = recordingOperator([" discover:tailnet", " new-device", "arthur-phone"]);
 		const cmd = createAuthEnrollCommand({
 			operator,
 			input: fakeStream(true),
@@ -980,12 +1264,11 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
 
 		const shown = stdoutText();
-		// C2.3 — a DIFFERENT operator-visible outcome from "no peers": it names the
+		// C2.3 - a DIFFERENT operator-visible outcome from "no peers": it names the
 		// reason, and never claims the tailnet is empty.
 		expect(shown).toMatch(/Could not ask your tailnet/);
 		expect(shown).toMatch(/not on PATH/);
 		expect(shown).not.toMatch(/no other devices are on it/);
-		expect(prompts.map((p) => p.type)).toEqual(["text"]);
 		expect(process.exitCode).toBeUndefined();
 		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("arthur-phone");
 	});
@@ -996,13 +1279,12 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 			credentials: [{ identity: "meu-android", tokenSha256: sha256Hex("old") }],
 		});
 		const { source } = tailnetSource({
-			config: DECLARED_TAILNET,
 			stdout: statusWith({
 				a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.", "100.88.1.2"),
 				b: tailnetPeerJson("raspberry", "raspberry.tail1.ts.net.", "100.88.3.4"),
 			}),
 		});
-		const { operator, prompts } = recordingOperator(["meu-android"]);
+		const { operator, prompts } = recordingOperator([" discover:tailnet", "meu-android"]);
 		const cmd = createAuthEnrollCommand({
 			operator,
 			input: fakeStream(true),
@@ -1012,7 +1294,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 
 		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
 
-		const options = selectPrompt(prompts).options;
+		const options = selectPrompts(prompts)[1]?.options ?? [];
 		expect(options.filter((o) => o.value === "meu-android")).toHaveLength(1);
 		expect(options[0]?.description).toBe("on your tailnet — rotate its token");
 		expect(process.exitCode).toBeUndefined();
@@ -1024,14 +1306,13 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 	it("a peer name that fails label validation is offered repaired, for the operator to accept", async () => {
 		const policyPath = tempPolicyPath();
 		const { source } = tailnetSource({
-			config: DECLARED_TAILNET,
 			// No DNSName, and a HostName carrying a control character: the label
 			// validator rejects it, so the source offers a repair rather than
 			// dropping the device or crashing.
 			stdout: statusWith({ a: tailnetPeerJson("myphone", null, "100.88.1.2") }),
 		});
 		// Picks the repaired candidate, then ACCEPTS the offered default verbatim.
-		const { operator, prompts } = recordingOperator(["myphone", "myphone"]);
+		const { operator, prompts } = recordingOperator([" discover:tailnet", "myphone", "myphone"]);
 		const cmd = createAuthEnrollCommand({
 			operator,
 			input: fakeStream(true),
@@ -1041,7 +1322,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 
 		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
 
-		expect(selectPrompt(prompts).options[0]?.description).toBe(
+		expect(selectPrompts(prompts)[1]?.options[0]?.description).toBe(
 			"on your tailnet, name adjusted — enroll it",
 		);
 		const confirm = prompts.find((p) => p.type === "text");
@@ -1050,10 +1331,9 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("myphone");
 	});
 
-	it("cancelling the extended select stays graceful — exit 130, no policy written", async () => {
+	it("cancelling the extended select stays graceful: exit 130, no policy written", async () => {
 		const policyPath = tempPolicyPath();
 		const { source } = tailnetSource({
-			config: DECLARED_TAILNET,
 			stdout: statusWith({ a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.") }),
 		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -1077,9 +1357,133 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		logSpy.mockRestore();
 	});
 
-	// ── The three paths that must NEVER ask a source anything ────────────────
+	// --discover: the same verb, invoked from the command line ----------------
 
-	it("--json never consults a candidate source", async () => {
+	it("--discover interactive: the list arrives already populated, one keystroke fewer", async () => {
+		const policyPath = tempPolicyPath();
+		const { source, calls } = tailnetSource({
+			stdout: statusWith({
+				a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.", "100.88.1.2"),
+				b: tailnetPeerJson("raspberry", "raspberry.tail1.ts.net.", "100.88.3.4"),
+			}),
+		});
+		const { operator, prompts } = recordingOperator(["meu-android"]);
+		const cmd = createAuthEnrollCommand({
+			operator,
+			input: fakeStream(true),
+			output: fakeStream(true),
+			identityCandidateSources: [source],
+		});
+
+		await cmd.parseAsync(["--policy", policyPath, "--discover"], { from: "user" });
+
+		expect(calls).toEqual([["status", "--json"]]);
+		// ONE select, already carrying the peers - no "pick discovery" round-trip.
+		const selects = selectPrompts(prompts);
+		expect(selects).toHaveLength(1);
+		expect(selects[0]?.options.map((o) => o.value)).toEqual([
+			"meu-android",
+			"raspberry",
+			" discover:tailnet",
+			" new-device",
+		]);
+		// Having already asked, the entry offers to ask AGAIN.
+		expect(selects[0]?.options[2]?.label).toBe("Discover again on my tailnet");
+		expect(readPolicyFile(policyPath).credentials.map((c) => c.identity)).toEqual(["meu-android"]);
+	});
+
+	it("--discover with no TTY prints the candidates and mints NOTHING", async () => {
+		const policyPath = tempPolicyPath();
+		const { source, calls } = tailnetSource({
+			stdout: statusWith({
+				a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.", "100.88.1.2"),
+				b: tailnetPeerJson("raspberry", "raspberry.tail1.ts.net.", "100.88.3.4"),
+			}),
+		});
+		const cmd = createAuthEnrollCommand({
+			input: fakeStream(false),
+			output: fakeStream(false),
+			identityCandidateSources: [source],
+		});
+
+		await cmd.parseAsync(["--policy", policyPath, "--discover"], { from: "user" });
+
+		// Exit 0: discovering is a complete, successful answer.
+		expect(process.exitCode).toBeUndefined();
+		expect(calls).toEqual([["status", "--json"]]);
+		const shown = stdoutText();
+		expect(shown).toMatch(/meu-android/);
+		expect(shown).toMatch(/raspberry/);
+		expect(shown).toMatch(/nothing was enrolled/i);
+		expect(shown).toMatch(/auth enroll/);
+		// C2.1 at the machine boundary - seeing a device is not authorising it.
+		expect(fs.existsSync(policyPath)).toBe(false);
+	});
+
+	it("--discover --json prints the candidates as JSON and mints NOTHING", async () => {
+		const policyPath = tempPolicyPath();
+		const { source } = tailnetSource({
+			stdout: statusWith({
+				a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.", "100.88.1.2"),
+				b: tailnetPeerJson("raspberry", "raspberry.tail1.ts.net.", "100.88.3.4", {
+					online: false,
+				}),
+			}),
+		});
+		const cmd = createAuthEnrollCommand({
+			input: fakeStream(true),
+			output: fakeStream(true),
+			identityCandidateSources: [source],
+		});
+
+		await cmd.parseAsync(["--policy", policyPath, "--json", "--discover"], { from: "user" });
+
+		expect(process.exitCode).toBeUndefined();
+		const payload = JSON.parse(stdoutText()) as {
+			ok: boolean;
+			enrolled: boolean;
+			discovered: Array<{ identity: string; source: string | null; description: string | null }>;
+			notices: string[];
+			nextCommand: string;
+		};
+		expect(payload.ok).toBe(true);
+		// The payload SAYS nothing was minted; a consumer never has to infer it.
+		expect(payload.enrolled).toBe(false);
+		expect(payload.discovered.map((d) => d.identity)).toEqual(["meu-android", "raspberry"]);
+		expect(payload.discovered[0]?.source).toBe("tailnet");
+		expect(payload.discovered[1]?.description).toMatch(/offline/);
+		expect(payload.nextCommand).toMatch(/auth enroll/);
+		expect(fs.existsSync(policyPath)).toBe(false);
+	});
+
+	it("--discover --json says WHY it could not ask, and still mints nothing", async () => {
+		const policyPath = tempPolicyPath();
+		const { source } = tailnetSource({
+			fail: Object.assign(new Error("spawn tailscale ENOENT"), { code: "ENOENT" }),
+		});
+		const cmd = createAuthEnrollCommand({
+			input: fakeStream(true),
+			output: fakeStream(true),
+			identityCandidateSources: [source],
+		});
+
+		await cmd.parseAsync(["--policy", policyPath, "--json", "--discover"], { from: "user" });
+
+		const payload = JSON.parse(stdoutText()) as {
+			discovered: unknown[];
+			notices: string[];
+			enrolled: boolean;
+		};
+		expect(payload.discovered).toEqual([]);
+		expect(payload.notices.join(" ")).toMatch(/Could not ask your tailnet/);
+		expect(payload.notices.join(" ")).not.toMatch(/no other devices are on it/);
+		expect(payload.enrolled).toBe(false);
+		expect(fs.existsSync(policyPath)).toBe(false);
+	});
+
+	// The paths that must NEVER ask a source anything -------------------------
+
+	it("--json without --discover never consults a candidate source", async () => {
 		const policyPath = tempPolicyPath();
 		const spy = spySource();
 		const cmd = createAuthEnrollCommand({
@@ -1094,7 +1498,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		expect(process.exitCode).toBe(1);
 	});
 
-	it("the no-TTY path never consults a candidate source", async () => {
+	it("the no-TTY path without --discover never consults a candidate source", async () => {
 		const policyPath = tempPolicyPath();
 		const spy = spySource();
 		const cmd = createAuthEnrollCommand({
@@ -1125,13 +1529,12 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("arthur-phone");
 	});
 
-	it("an undeclared tailnet never spawns `tailscale`, even through the real command", async () => {
+	it("an untouched prompt never spawns `tailscale`, even through the real command", async () => {
 		const policyPath = tempPolicyPath();
 		const { source, calls } = tailnetSource({
-			config: UNDECLARED_TAILNET,
 			stdout: statusWith({ a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.") }),
 		});
-		const { operator, prompts } = recordingOperator(["arthur-phone"]);
+		const { operator } = recordingOperator([" new-device", "arthur-phone"]);
 		const cmd = createAuthEnrollCommand({
 			operator,
 			input: fakeStream(true),
@@ -1142,9 +1545,46 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
 
 		expect(calls).toEqual([]);
-		expect(prompts.map((p) => p.type)).toEqual(["text"]);
-		expect(stdoutText()).not.toMatch(/tailnet/i);
 		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("arthur-phone");
+	});
+
+	// The declaration is no longer consulted, at all --------------------------
+
+	it("a full enrolment WITH discovery never reads the operator's declaration", async () => {
+		const policyPath = tempPolicyPath();
+		const { source } = tailnetSource({
+			stdout: statusWith({ a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.") }),
+		});
+		const operator = createScriptedOperatorChannel([" discover:tailnet", "meu-android"]);
+		const cmd = createAuthEnrollCommand({
+			operator,
+			input: fakeStream(true),
+			output: fakeStream(true),
+			identityCandidateSources: [source],
+		});
+
+		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
+
+		// The new gate's teeth, replacing the old C3 assertion: enrolment asks the
+		// world because the operator invoked it, never because a file said so.
+		expect(configReaderSpy).not.toHaveBeenCalled();
+		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("meu-android");
+	});
+
+	it("no enrolment module so much as names the declaration file", () => {
+		// The spy above catches the read at runtime; this catches a hand-rolled one
+		// that never goes through the config package.
+		for (const file of [
+			"auth.ts",
+			"identity-candidates.ts",
+			"identity-sources.ts",
+			"identity-source-tailnet.ts",
+		]) {
+			const source = fs.readFileSync(new URL(file, import.meta.url), "utf8");
+			expect(source, file).not.toMatch(/@refarm\.dev\/config/);
+			expect(source, file).not.toMatch(/loadRawSovereignConfig|resolveSovereignConfig/);
+			expect(source, file).not.toMatch(/config\.json/);
+		}
 	});
 
 	/** Everything the command wrote to stdout during this test. */
