@@ -115,11 +115,29 @@ to audit. `surfaces` is what makes the exposure reviewable in a glance instead o
 
 ## Open questions
 
-1. **Who resolves `tailnet`, and how?** The Rust daemon has no Tailscale dependency. Shelling out to
+1. ~~**Who resolves `tailnet`, and how?** The Rust daemon has no Tailscale dependency. Shelling out to
    `tailscale ip -4` is a spawn from inside the host; reading the interface directly avoids the
    spawn but couples to the interface name. Neither is obviously right, and the choice affects the
    fail-closed promise: whatever resolves it must distinguish "the tailnet is down" from "I could not
-   ask", exactly as the connection probe distinguishes `down` from `unknown`.
+   ask", exactly as the connection probe distinguishes `down` from `unknown`.~~ **Answered**
+   (2026-07-29): `tailscale status --json`, not `ip -4` or reading the `tailscale0` interface — it is
+   the only one of the three that explains ITSELF (its `BackendState` field names why, where a bare
+   exit code or an absent interface cannot). `sidecar::tailnet_resolve` (`packages/tractor/src/
+   sidecar/tailnet_resolve.rs`) is a PURE classifier over the parsed JSON plus a thin injectable
+   fetcher, so every scenario is tested against real/realistic fixtures with no process ever spawned
+   in a test. It resolves `SurfaceExpose::Tailnet` into `SurfaceExpose::Host(<ip>)` BEFORE
+   `sidecar::bind_guard`'s pure guard functions ever run, so those stay exactly as pure as they
+   always were — resolution decides WHERE, the guard still decides WHETHER. Two distinguishable
+   refusals, matching the connection engine's `down`/`unknown` split: `TailnetRefusal::Down` (a
+   complete, trustworthy answer that isn't usable — not `Running`, not `Online`, or no IPv4 address)
+   vs `TailnetRefusal::CouldNotAsk` (no trustworthy answer at all — missing binary, spawn/timeout
+   failure, or an unexpected shape), each with an operator-facing message naming the opposite remedy
+   (fix the tailnet vs fix the local invocation). Bound with a 2s timeout, treated as `CouldNotAsk`.
+   Resolution is skipped entirely — no spawn, no latency — when a `--http-host`/`--ws-host` flag is
+   already narrowing to loopback (S5 must still hold even when Tailscale isn't installed at all,
+   e.g. in a container). `Self.Online: false` while `Running`, and an IPv6-only address, both
+   bucket as `Down` (a complete answer that just isn't bindable right now) — see that module's doc
+   for the reasoning on both.
 2. **What does `gate: "device-token"` mean on a TypeScript surface?** Today no Node surface verifies
    a bearer at all — the TS bind guard shares the bind rule, not the authentication. Either the TS
    surfaces gain a verifier reading the same `.refarm/auth-policy.json` the Rust side reads, or
