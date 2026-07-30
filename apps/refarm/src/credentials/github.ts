@@ -1,7 +1,7 @@
+import { withActivity } from "@refarm.dev/capabilities";
 import { loadConfig } from "@refarm.dev/config";
 import chalk from "chalk";
 import { refarmCommand } from "../brand.js";
-import { startSpinner } from "../utils/spinner.js";
 import type { CollectContext, CredentialProvider } from "./types.js";
 
 // Default client_id for the refarm GitHub OAuth App.
@@ -98,16 +98,21 @@ export const githubCredentialProvider: CredentialProvider = {
 		console.log(chalk.gray(`  → ${device.verification_uri}\n`));
 		ctx.tryOpenUrl(device.verification_uri);
 
-		const stop = startSpinner("Waiting for authorization…");
-		try {
-			const token = await pollForToken(clientId, device.device_code, device.interval);
-			stop();
-			const login = await resolveUsername(token);
-			console.log(chalk.green(`  ✓ GitHub — authorized as ${login}`));
-			return token;
-		} catch (err) {
-			stop();
-			throw err;
-		}
+		// Emit the surface-neutral "working" signal instead of driving the spinner
+		// directly — the CLI's activity subscriber (attached once at process boot)
+		// renders it, so this flow lights up the same terminal spinner as before
+		// without owning any rendering itself. `withActivity` emits `finished{ok:false}`
+		// and rethrows on any failure (a declined authorization included), so the
+		// spinner never hangs open.
+		return withActivity(
+			"Waiting for GitHub authorization",
+			async () => {
+				const token = await pollForToken(clientId, device.device_code, device.interval);
+				const login = await resolveUsername(token);
+				console.log(chalk.green(`  ✓ GitHub — authorized as ${login}`));
+				return token;
+			},
+			{ kind: "auth" },
+		);
 	},
 };

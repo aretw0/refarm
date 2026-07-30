@@ -1,8 +1,8 @@
+import { withActivity } from "@refarm.dev/capabilities";
 import { modelCredentialEnvKey } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { isContainer } from "@refarm.dev/root";
 import chalk from "chalk";
-import { startProgressIndicator, type ProgressIndicator } from "../utils/spinner.js";
 import type {
 	OAuthCallbackWaitStatus,
 	OAuthCredentials,
@@ -173,83 +173,88 @@ async function runOAuthFlow(
 	ctx: CollectContext,
 	provider: OAuthProviderInterface,
 ): Promise<ModelCredential> {
-	const containerEnv = isContainer();
-	const hasPortForwarding =
-		process.env["REFARM_DEVCONTAINER"] === "true" ||
-		Boolean(process.env["VSCODE_REMOTE_CONTAINERS_SESSION"]) ||
-		Boolean(process.env["REMOTE_CONTAINERS"]) ||
-		Boolean(process.env["CODESPACES"]);
-	const forceManual = process.env["REFARM_OAUTH_CALLBACK_MODE"] === "manual";
-	const callbackCanReachBrowser =
-		Boolean(provider.usesCallbackServer) && !forceManual && (!containerEnv || hasPortForwarding);
-	const needsManualCode = Boolean(provider.usesCallbackServer) && !callbackCanReachBrowser;
-	let progress: ProgressIndicator | undefined;
+	// Emit the surface-neutral "working" signal for the OAuth round-trip instead of
+	// driving the spinner directly — the CLI's activity subscriber (attached once at
+	// process boot in cli-main.ts) renders it, and the SAME event would light up a TUI
+	// indicator or a web/mesh pill without this flow knowing the difference. `report`
+	// carries the existing "exchanging token" style progress notes onto that signal.
+	return withActivity(
+		`Signing in to ${provider.name}`,
+		async (report) => {
+			const containerEnv = isContainer();
+			const hasPortForwarding =
+				process.env["REFARM_DEVCONTAINER"] === "true" ||
+				Boolean(process.env["VSCODE_REMOTE_CONTAINERS_SESSION"]) ||
+				Boolean(process.env["REMOTE_CONTAINERS"]) ||
+				Boolean(process.env["CODESPACES"]);
+			const forceManual = process.env["REFARM_OAUTH_CALLBACK_MODE"] === "manual";
+			const callbackCanReachBrowser =
+				Boolean(provider.usesCallbackServer) && !forceManual && (!containerEnv || hasPortForwarding);
+			const needsManualCode = Boolean(provider.usesCallbackServer) && !callbackCanReachBrowser;
 
-	const loginCallbacks: OAuthLoginCallbacks = {
-		onAuth: ({ url, instructions }) => {
-			console.log(chalk.dim(`\n  ${instructions ?? "Complete login in your browser."}`));
-			console.log(chalk.cyan(`  → ${url}\n`));
-			if (needsManualCode) {
-				console.log(
-					chalk.yellow(
-						"  ⚠  Running in a container — the browser redirect cannot reach this environment.",
-					),
-				);
-				console.log(
-					chalk.dim(
-						"     After logging in, copy the full redirect URL or authorization code and paste it below.\n",
-					),
-				);
-			} else if (containerEnv && provider.usesCallbackServer) {
-				console.log(
-					chalk.dim(
-						"     Devcontainer detected — VS Code should forward the callback port automatically.",
-					),
-				);
-				console.log(
-					chalk.dim(
-						"     If the browser does not return here, you will be prompted to paste the redirect URL.",
-					),
-				);
-				console.log(
-					chalk.dim(
-						"     You can paste the full redirect URL into this terminal early; it will be consumed when the fallback prompt appears.\n",
-					),
-				);
-			}
-			ctx.tryOpenUrl(url);
-		},
-		onPrompt: async ({ message }) => promptCode(ctx, message),
-		onCallbackWait: (status) =>
-			renderCallbackWaitStatus(status, {
-				containerEnv,
-				hasPortForwarding,
-			}),
-		onProgress: (msg) => {
-			if (progress) {
-				progress.update(msg);
-				return;
-			}
-			progress = startProgressIndicator(msg);
-		},
-		...(callbackCanReachBrowser && containerEnv
-			? {
-					callbackTimeoutMs: DEVCONTAINER_CALLBACK_TIMEOUT_MS,
-				}
-			: {}),
-		// In plain containers without a known port-forwarding bridge, the host
-		// browser cannot reach the callback server, so prompt for the code.
-		...(needsManualCode
-			? {
-					skipCallbackServer: true,
-					onManualCodeInput: () => promptCode(ctx, "Paste the redirect URL or authorization code:"),
-				}
-			: {}),
-	};
+			const loginCallbacks: OAuthLoginCallbacks = {
+				onAuth: ({ url, instructions }) => {
+					console.log(chalk.dim(`\n  ${instructions ?? "Complete login in your browser."}`));
+					console.log(chalk.cyan(`  → ${url}\n`));
+					if (needsManualCode) {
+						console.log(
+							chalk.yellow(
+								"  ⚠  Running in a container — the browser redirect cannot reach this environment.",
+							),
+						);
+						console.log(
+							chalk.dim(
+								"     After logging in, copy the full redirect URL or authorization code and paste it below.\n",
+							),
+						);
+					} else if (containerEnv && provider.usesCallbackServer) {
+						console.log(
+							chalk.dim(
+								"     Devcontainer detected — VS Code should forward the callback port automatically.",
+							),
+						);
+						console.log(
+							chalk.dim(
+								"     If the browser does not return here, you will be prompted to paste the redirect URL.",
+							),
+						);
+						console.log(
+							chalk.dim(
+								"     You can paste the full redirect URL into this terminal early; it will be consumed when the fallback prompt appears.\n",
+							),
+						);
+					}
+					ctx.tryOpenUrl(url);
+				},
+				onPrompt: async ({ message }) => promptCode(ctx, message),
+				onCallbackWait: (status) =>
+					renderCallbackWaitStatus(status, {
+						containerEnv,
+						hasPortForwarding,
+					}),
+				onProgress: (msg) => report(msg),
+				...(callbackCanReachBrowser && containerEnv
+					? {
+							callbackTimeoutMs: DEVCONTAINER_CALLBACK_TIMEOUT_MS,
+						}
+					: {}),
+				// In plain containers without a known port-forwarding bridge, the host
+				// browser cannot reach the callback server, so prompt for the code.
+				...(needsManualCode
+					? {
+							skipCallbackServer: true,
+							onManualCodeInput: () =>
+								promptCode(ctx, "Paste the redirect URL or authorization code:"),
+						}
+					: {}),
+			};
 
-	const creds = await provider.login(loginCallbacks).finally(() => progress?.stop());
-	console.log(chalk.green(`  ✓ ${provider.name} — authenticated`));
-	return { provider: provider.id, apiKey: provider.getApiKey(creds), oauthCredentials: creds };
+			const creds = await provider.login(loginCallbacks);
+			console.log(chalk.green(`  ✓ ${provider.name} — authenticated`));
+			return { provider: provider.id, apiKey: provider.getApiKey(creds), oauthCredentials: creds };
+		},
+		{ kind: "auth" },
+	);
 }
 
 async function runApiKeyFlow(

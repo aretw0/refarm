@@ -1,19 +1,9 @@
+import { ambientActivitySink, type ProcessActivity } from "@refarm.dev/capabilities";
 import type { OperatorChannel, SelectPrompt } from "@refarm.dev/prompt-contract-v1";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@refarm.dev/root", () => ({
 	isContainer: vi.fn().mockReturnValue(false),
-}));
-
-const { startProgressIndicatorMock } = vi.hoisted(() => ({
-	startProgressIndicatorMock: vi.fn(() => ({
-		update: vi.fn(),
-		stop: vi.fn(),
-	})),
-}));
-
-vi.mock("../utils/spinner.js", () => ({
-	startProgressIndicator: startProgressIndicatorMock,
 }));
 
 // OAuth flows open browsers — mock them out
@@ -41,10 +31,14 @@ import { anthropicOAuthProvider } from "./oauth/index.js";
 const mockOAuthLogin = vi.mocked(anthropicOAuthProvider.login);
 const mockIsContainer = vi.mocked(isContainer);
 
-function lastProgress() {
-	return startProgressIndicatorMock.mock.results.at(-1)?.value as
-		| { update: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn> }
-		| undefined;
+/** Subscribe to the ambient activity sink for the duration of one test, collecting
+ * every event. `model.ts` always emits on the ambient sink (no sink injection point
+ * in the `CredentialProvider` API), so this is how a caller observes it — the same
+ * shape the CLI's own activity subscriber uses in production. */
+function collectActivity(): { events: ProcessActivity[]; stop: () => void } {
+	const events: ProcessActivity[] = [];
+	const unsubscribe = ambientActivitySink.subscribe((e) => events.push(e));
+	return { events, stop: unsubscribe };
 }
 
 function makeCtx(answers: string[]) {
@@ -248,17 +242,44 @@ describe("modelCredentialProvider — OAuth container environment", () => {
 		await modelCredentialProvider.collectModel(ctx);
 	});
 
-	it("shows progress while exchanging OAuth callback codes", async () => {
+	it("emits activity started → progress → finished{ok:true} around the OAuth exchange", async () => {
 		mockIsContainer.mockReturnValue(false);
+		const activity = collectActivity();
 		mockOAuthLogin.mockImplementation(async (callbacks) => {
 			callbacks.onProgress?.("Exchanging code for tokens...");
 			return { access: "tok", refresh: "ref", expires: Date.now() + 3600_000 };
 		});
 
 		await modelCredentialProvider.collectModel(ctx);
+		activity.stop();
 
-		expect(startProgressIndicatorMock).toHaveBeenCalledWith("Exchanging code for tokens...");
-		expect(lastProgress()?.stop).toHaveBeenCalledOnce();
+		expect(activity.events.map((e) => e.phase)).toEqual(["started", "progress", "finished"]);
+		expect(activity.events[0]).toMatchObject({ kind: "auth", label: "Signing in to Anthropic" });
+		expect(activity.events[1]).toMatchObject({
+			phase: "progress",
+			note: "Exchanging code for tokens...",
+		});
+		expect(activity.events[2]).toMatchObject({ phase: "finished", ok: true });
+		// Every event of one login correlates to the same unit of work.
+		expect(activity.events[0]!.activityRef).toBe(activity.events[2]!.activityRef);
+	});
+
+	it("emits finished{ok:false} and rethrows when the OAuth provider login fails", async () => {
+		mockIsContainer.mockReturnValue(false);
+		const activity = collectActivity();
+		const failure = new Error("network unreachable");
+		mockOAuthLogin.mockImplementation(async () => {
+			throw failure;
+		});
+
+		await expect(modelCredentialProvider.collectModel(ctx)).rejects.toThrow(failure);
+		activity.stop();
+
+		// The activity must still FINISH on failure — an activity that never finishes
+		// leaves every subscriber (CLI spinner, TUI line, a future mesh pill) spinning
+		// forever, which is exactly the operator-visible gap this change closes.
+		expect(activity.events.map((e) => e.phase)).toEqual(["started", "finished"]);
+		expect(activity.events[1]).toMatchObject({ phase: "finished", ok: false });
 	});
 
 	it("prints callback wait status so devcontainer login is not silent", async () => {
