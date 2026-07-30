@@ -26,6 +26,7 @@ const KIT_FILES = [
 	"src/manifest.mjs",
 	"src/farm-host.mjs",
 	"src/progress.mjs",
+	"src/reach.mjs",
 	"bin/farm-hello.mjs",
 	"bin/farm-announce.mjs",
 	"bin/farm-ask.mjs",

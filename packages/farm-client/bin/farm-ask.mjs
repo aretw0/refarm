@@ -23,6 +23,7 @@ import { buildRespondEffort } from "../src/effort.mjs";
 import { extractAnswer, isSuccessEffort, isTerminalEffort } from "../src/effort-result.mjs";
 import { readRememberedHost } from "../src/farm-host.mjs";
 import { createSpinner } from "../src/progress.mjs";
+import { sidecarExposureLines } from "../src/reach.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
 import { formatUsage, parseUsage } from "../src/usage.mjs";
 
@@ -80,8 +81,11 @@ const base = `http://${host}:${HTTP_PORT}`;
 
 if (!(await sidecarUp(host))) {
   console.error(`❌ sidecar inalcançável em ${base}`);
-  console.error("   A fazenda expõe o sidecar? No host: REFARM_HTTP_HOST=0.0.0.0 bash scripts/tractor-start.sh --background");
-  console.error("   Alcance primeiro com: node scripts/farm-hello.mjs " + host);
+  // Era: "No host: REFARM_HTTP_HOST=0.0.0.0 bash scripts/tractor-start.sh --background".
+  // Isso mandava o operador contornar a própria declaração e abrir a porta em TODAS as
+  // interfaces — o footgun exato que o trabalho de `surfaces` existe para remover.
+  for (const line of sidecarExposureLines()) console.error(line);
+  console.error(`   Alcance primeiro com: node ${join(KIT_ROOT, "bin", "farm-hello.mjs")} ${host}`);
   process.exit(1);
 }
 
