@@ -123,21 +123,55 @@ export function createStdioOperatorChannel(
 	return { ask };
 }
 
-function askConfirm(
+/**
+ * Ask a single line via `rl.question`, settling with the raw answer text — or
+ * rejecting with `OperatorPromptCancelledError` when the operator cancels, by
+ * either way a terminal user quits: SIGINT (Ctrl+C) or closing stdin (Ctrl+D /
+ * piped EOF). Node's `readline.Interface` already turns both into its own
+ * 'SIGINT' and 'close' events (even against a fake, non-real-TTY stream, which
+ * is what lets the conformance suite drive this without a real terminal), so
+ * this only needs to listen for them and settle exactly once. Listeners are
+ * always removed before the promise settles so nothing leaks onto `rl` (or the
+ * shared input stream) across the next prompt.
+ */
+function askLine(rl: readline.Interface, query: string): Promise<string> {
+	return new Promise((resolve, reject) => {
+		let settled = false;
+		const finish = (run: () => void) => {
+			if (settled) return;
+			settled = true;
+			rl.off("SIGINT", onSigint);
+			rl.off("close", onClose);
+			run();
+		};
+		const onSigint = () =>
+			finish(() => {
+				rl.close();
+				reject(new OperatorPromptCancelledError());
+			});
+		const onClose = () => finish(() => reject(new OperatorPromptCancelledError()));
+		rl.on("SIGINT", onSigint);
+		rl.on("close", onClose);
+		rl.question(query, (answer) =>
+			finish(() => {
+				rl.close();
+				resolve(answer);
+			}),
+		);
+	});
+}
+
+async function askConfirm(
 	prompt: ConfirmPrompt,
 	input: NodeJS.ReadStream,
 	output: NodeJS.WriteStream,
 ): Promise<boolean> {
 	const rl = readline.createInterface({ input, output });
 	const hint = prompt.default === false ? "(y/N)" : "(Y/n)";
-	return new Promise((resolve) => {
-		rl.question(`${prompt.question} ${hint} `, (answer) => {
-			rl.close();
-			const t = answer.trim().toLowerCase();
-			if (!t) resolve(prompt.default ?? true);
-			else resolve(t !== "n" && t !== "no");
-		});
-	});
+	const answer = await askLine(rl, `${prompt.question} ${hint} `);
+	const t = answer.trim().toLowerCase();
+	if (!t) return prompt.default ?? true;
+	return t !== "n" && t !== "no";
 }
 
 function askSelect(
@@ -151,7 +185,7 @@ function askSelect(
 	return askSelectNumbered(prompt, input, output);
 }
 
-function askSelectNumbered(
+async function askSelectNumbered(
 	prompt: SelectPrompt,
 	input: NodeJS.ReadStream,
 	output: NodeJS.WriteStream,
@@ -169,25 +203,20 @@ function askSelectNumbered(
 			: 1;
 	const effectiveDefault = defaultIndex > 0 ? defaultIndex : 1;
 
-	return new Promise((resolve) => {
-		rl.question(`Enter number (${effectiveDefault}): `, (answer) => {
-			rl.close();
-			const t = answer.trim();
-			if (!t) {
-				resolve(prompt.default ?? prompt.options[0]?.value ?? "");
-				return;
-			}
-			const n = parseInt(t, 10);
-			const opt =
-				Number.isFinite(n) && n >= 1 && n <= prompt.options.length
-					? prompt.options[n - 1]
-					: undefined;
-			if (!opt) {
-				process.stderr.write(`  Invalid choice, using default.\n`);
-			}
-			resolve(opt?.value ?? prompt.default ?? prompt.options[0]?.value ?? "");
-		});
-	});
+	const answer = await askLine(rl, `Enter number (${effectiveDefault}): `);
+	const t = answer.trim();
+	if (!t) {
+		return prompt.default ?? prompt.options[0]?.value ?? "";
+	}
+	const n = parseInt(t, 10);
+	const opt =
+		Number.isFinite(n) && n >= 1 && n <= prompt.options.length
+			? prompt.options[n - 1]
+			: undefined;
+	if (!opt) {
+		process.stderr.write(`  Invalid choice, using default.\n`);
+	}
+	return opt?.value ?? prompt.default ?? prompt.options[0]?.value ?? "";
 }
 
 function askSelectTui(
@@ -203,6 +232,7 @@ function askSelectTui(
 	return new Promise((resolve, reject) => {
 		const wasRaw = input.isRaw;
 		let renderedLines = 0;
+		let settled = false;
 
 		const render = () => {
 			if (renderedLines > 0) {
@@ -225,15 +255,30 @@ function askSelectTui(
 
 		const cleanup = () => {
 			input.off("keypress", onKeypress);
+			input.off("end", onEnd);
 			input.setRawMode(wasRaw);
 			input.pause();
 			output.write("\n");
 		};
 
+		// Settle at most once — cancellation can race a completing keystroke, and
+		// this guard is what keeps cleanup() (listeners + raw mode) from running
+		// twice or a settled promise from being resolved/rejected again.
+		const finish = (run: () => void) => {
+			if (settled) return;
+			settled = true;
+			cleanup();
+			run();
+		};
+
+		// Defense in depth for a genuine stream close (e.g. piped stdin ending
+		// mid-prompt) — Ctrl+D itself is caught below via the keypress handler,
+		// since raw mode delivers it as data rather than a stream-level EOF.
+		const onEnd = () => finish(() => reject(new OperatorPromptCancelledError()));
+
 		const onKeypress = (str: string, key: readline.Key) => {
-			if (key.ctrl && key.name === "c") {
-				cleanup();
-				reject(new OperatorPromptCancelledError());
+			if (key.ctrl && (key.name === "c" || key.name === "d")) {
+				finish(() => reject(new OperatorPromptCancelledError()));
 				return;
 			}
 			if (key.name === "up") {
@@ -247,8 +292,7 @@ function askSelectTui(
 				return;
 			}
 			if (key.name === "return" || key.name === "enter") {
-				cleanup();
-				resolve(prompt.options[selectedIndex]?.value ?? "");
+				finish(() => resolve(prompt.options[selectedIndex]?.value ?? ""));
 				return;
 			}
 			if (/^[1-9]$/.test(str)) {
@@ -264,6 +308,7 @@ function askSelectTui(
 		input.setRawMode(true);
 		input.resume();
 		input.on("keypress", onKeypress);
+		input.once("end", onEnd);
 		render();
 	});
 }
@@ -277,7 +322,7 @@ function promptSuffix(question: string): string {
 	return /[:?]\s*$/.test(question) ? " " : ": ";
 }
 
-function askText(
+async function askText(
 	prompt: TextPrompt,
 	input: NodeJS.ReadStream,
 	output: NodeJS.WriteStream,
@@ -286,12 +331,8 @@ function askText(
 	let hint = "";
 	if (prompt.placeholder) hint += ` (${prompt.placeholder})`;
 	if (prompt.default) hint += ` [${prompt.default}]`;
-	return new Promise((resolve) => {
-		rl.question(`${prompt.question}${hint}${promptSuffix(prompt.question)}`, (answer) => {
-			rl.close();
-			resolve(answer.trim() || prompt.default || "");
-		});
-	});
+	const answer = await askLine(rl, `${prompt.question}${hint}${promptSuffix(prompt.question)}`);
+	return answer.trim() || prompt.default || "";
 }
 
 function maskSecret(value: string, visibleTail: number): string {
@@ -314,6 +355,7 @@ function askSecret(
 	return new Promise((resolve, reject) => {
 		let value = "";
 		const wasRaw = input.isRaw;
+		let settled = false;
 
 		const render = () => {
 			readline.clearLine(output, 0);
@@ -323,20 +365,34 @@ function askSecret(
 
 		const cleanup = () => {
 			input.off("keypress", onKeypress);
+			input.off("end", onEnd);
 			input.setRawMode(wasRaw);
 			input.pause();
 			output.write("\n");
 		};
 
+		// See askSelectTui's `finish` for why settling is guarded: cancellation can
+		// race a completing keystroke, and this is what keeps cleanup() (listeners +
+		// raw mode) from running twice or a settled promise from settling again.
+		const finish = (run: () => void) => {
+			if (settled) return;
+			settled = true;
+			cleanup();
+			run();
+		};
+
+		// Defense in depth for a genuine stream close — Ctrl+D itself is caught
+		// below via the keypress handler, since raw mode delivers it as data
+		// rather than a stream-level EOF.
+		const onEnd = () => finish(() => reject(new OperatorPromptCancelledError()));
+
 		const onKeypress = (str: string, key: readline.Key) => {
-			if (key.ctrl && key.name === "c") {
-				cleanup();
-				reject(new OperatorPromptCancelledError());
+			if (key.ctrl && (key.name === "c" || key.name === "d")) {
+				finish(() => reject(new OperatorPromptCancelledError()));
 				return;
 			}
 			if (key.name === "return" || key.name === "enter") {
-				cleanup();
-				resolve(value);
+				finish(() => resolve(value));
 				return;
 			}
 			if (key.name === "backspace") {
@@ -354,6 +410,7 @@ function askSecret(
 		input.setRawMode(true);
 		input.resume();
 		input.on("keypress", onKeypress);
+		input.once("end", onEnd);
 		render();
 	});
 }
@@ -367,8 +424,36 @@ export interface OperatorChannelConformanceResult {
 	failures: string[];
 }
 
+export interface OperatorChannelConformanceOptions {
+	/**
+	 * Simulate an operator cancelling an in-flight prompt — e.g. for a
+	 * `createStdioOperatorChannel` under test, deliver a SIGINT (or end the fake
+	 * input stream) to its underlying I/O. Conformance calls this once, right
+	 * after starting a prompt, and requires the outstanding `ask()` to settle by
+	 * rejecting with `OperatorPromptCancelledError`.
+	 *
+	 * Omit for a channel with no cancellable I/O window: `createAutoOperatorChannel`
+	 * and `createScriptedOperatorChannel` resolve every prompt synchronously from a
+	 * default/canned answer and never wait on external input, so there is nothing
+	 * for a SIGINT/EOF to interrupt. Without `triggerCancel`, conformance only
+	 * checks that `ask()` still settles promptly — which it trivially does — rather
+	 * than requiring a cancellation rejection those channels have no way to produce.
+	 */
+	triggerCancel?: () => void;
+}
+
+/** How long a channel gets to settle after `triggerCancel` fires before conformance
+ * treats it as hung. Generous relative to real settling (same event-loop turn), but
+ * short enough that a genuinely broken (never-settling) channel fails fast. */
+const CONFORMANCE_CANCEL_TIMEOUT_MS = 300;
+
+function delay(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function runOperatorChannelConformance(
 	channel: OperatorChannel,
+	options: OperatorChannelConformanceOptions = {},
 ): Promise<OperatorChannelConformanceResult> {
 	const failures: string[] = [];
 	let checksRun = 0;
@@ -425,6 +510,30 @@ export async function runOperatorChannelConformance(
 		if (typeof result !== "string") failures.push("secret: did not return string");
 	} catch (e) {
 		failures.push(`secret threw: ${String(e)}`);
+	}
+
+	// 5 — cancellation: ask() must settle once cancellation is triggered, never
+	// hang. An unsettled prompt promise is exactly the defect this check exists to
+	// catch (an operator's Ctrl+C leaving an "unsettled top-level await" behind).
+	checksRun++;
+	{
+		const pending = channel.ask({ type: "text", question: "_conformance_cancel_" });
+		// Attach the outcome handler immediately (not after the race) so a channel
+		// that settles LATE — after the timeout below already lost the race — never
+		// produces its own unhandled-rejection warning; this itself always settles.
+		const outcome = pending.then(
+			() => "resolved" as const,
+			(error) => (error instanceof OperatorPromptCancelledError ? "cancelled" : "rejected-other"),
+		);
+		options.triggerCancel?.();
+		const settled = await Promise.race([outcome, delay(CONFORMANCE_CANCEL_TIMEOUT_MS).then(() => "timeout" as const)]);
+		if (settled === "timeout") {
+			failures.push("cancellation: ask() did not settle after cancellation was triggered");
+		} else if (options.triggerCancel && settled !== "cancelled") {
+			failures.push(
+				`cancellation: expected rejection with OperatorPromptCancelledError, got "${settled}"`,
+			);
+		}
 	}
 
 	const failed = failures.length;

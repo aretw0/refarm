@@ -1,3 +1,4 @@
+import { OperatorPromptCancelledError } from "@refarm.dev/prompt-contract-v1";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockAgentParseAsync, mockCheckParseAsync, mockProgramParseAsync, mockTidyParseAsync } = vi.hoisted(() => ({
@@ -86,5 +87,19 @@ describe("runCliMain", () => {
 		expect(mockCheckParseAsync).not.toHaveBeenCalled();
 		expect(mockAgentParseAsync).not.toHaveBeenCalled();
 		expect(mockTidyParseAsync).not.toHaveBeenCalled();
+	});
+
+	it("exits gracefully (130, no throw) when a command's prompt was cancelled and it had no bespoke handling", async () => {
+		// Safety net: some prompting commands (sow, auth enroll, init, migrate) catch
+		// OperatorPromptCancelledError themselves for a tailored message; this is the
+		// backstop for the rest (e.g. a runtime-recovery prompt reached via ask/session/
+		// chat) so a Ctrl+C/Ctrl+D there still exits calmly instead of a stack trace or
+		// an "unsettled top-level await" warning.
+		mockProgramParseAsync.mockRejectedValueOnce(new OperatorPromptCancelledError());
+		const { runCliMain } = await import("../src/cli-main.js");
+
+		await runCliMain(["node", "refarm", "ask", "hello"]);
+
+		expect(process.exitCode).toBe(130);
 	});
 });

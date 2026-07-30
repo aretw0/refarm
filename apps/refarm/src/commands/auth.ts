@@ -5,6 +5,7 @@ import path from "node:path";
 import {
 	createAutoOperatorChannel,
 	createStdioOperatorChannel,
+	OperatorPromptCancelledError,
 	type OperatorChannel,
 } from "@refarm.dev/prompt-contract-v1";
 import { Command } from "commander";
@@ -116,7 +117,7 @@ export async function promptForIdentity(
 	if (enrolledIdentities.length === 0) {
 		const identity = await operator.ask({
 			type: "text",
-			question: "Label for the new device (e.g. arthur-phone)",
+			question: "Label for the new device (e.g. my-phone)",
 		});
 		return { identity, impliedRotate: false };
 	}
@@ -138,7 +139,7 @@ export async function promptForIdentity(
 	if (choice === NEW_DEVICE_CHOICE) {
 		const identity = await operator.ask({
 			type: "text",
-			question: "Label for the new device (e.g. arthur-phone)",
+			question: "Label for the new device (e.g. my-phone)",
 		});
 		return { identity, impliedRotate: false };
 	}
@@ -159,101 +160,115 @@ export function createAuthEnrollCommand(deps: AuthEnrollDeps = {}): Command {
 		.description("Mint a per-device credential and write it into the sidecar auth policy")
 		.argument(
 			"[identity]",
-			"A label for the device/identity, e.g. arthur-phone. Omit to choose interactively.",
+			"A label for the device/identity, e.g. my-phone. Omit to choose interactively.",
 		)
 		.option("--policy <path>", "Auth policy file to write", DEFAULT_POLICY_PATH)
 		.option("--rotate", "Replace the token if this identity is already enrolled")
 		.option("--json", "Print the result as JSON")
 		.action(async (identityArg: string | undefined, options: EnrollOptions) => {
-			const policyPath = path.resolve(options.policy ?? DEFAULT_POLICY_PATH);
-			let identity = identityArg;
-			let rotate = Boolean(options.rotate);
-
-			if (!identity) {
-				// --json is a non-interactive contract by nature — fail clearly rather than prompt.
-				if (options.json) {
-					console.error(
-						"refarm auth enroll: an identity is required with --json (non-interactive; does not prompt)",
-					);
-					process.exitCode = 1;
-					return;
-				}
-
-				const input = deps.input ?? process.stdin;
-				const output = deps.output ?? process.stdout;
-				const interactive = Boolean(input.isTTY && output.isTTY);
-
-				// No TTY and no pre-built channel: never construct createAutoOperatorChannel()
-				// here — it answers every prompt with a default, which for an identity label
-				// would silently invent one. Fail with the usage message instead.
-				if (!interactive && !deps.operator) {
-					console.error(
-						"error: missing required argument 'identity'\n" +
-							"  (not running interactively — pass one explicitly, e.g. `refarm auth enroll arthur-phone`)",
-					);
-					process.exitCode = 1;
-					return;
-				}
-
-				const operator: OperatorChannel =
-					deps.operator ??
-					(interactive
-						? createStdioOperatorChannel({ input, output })
-						: createAutoOperatorChannel());
-
-				let existingPolicy: AuthPolicyFile;
-				try {
-					existingPolicy = await readPolicy(policyPath);
-				} catch (error) {
-					console.error((error as Error).message);
-					process.exitCode = 1;
-					return;
-				}
-				const enrolledIdentities = existingPolicy.credentials.map((c) => c.identity);
-
-				const picked = await promptForIdentity(operator, enrolledIdentities);
-				identity = picked.identity;
-				rotate = rotate || picked.impliedRotate;
-			}
-
-			let validIdentity: string;
 			try {
-				validIdentity = validateIdentityLabel(identity);
+				await runAuthEnroll(deps, identityArg, options);
 			} catch (error) {
-				console.error((error as Error).message);
-				process.exitCode = 1;
-				return;
+				// Interactive-only: an operator cancelling the device-label prompt (Ctrl+C
+				// or Ctrl+D) is a normal exit, not a crash. Mirrors sow.ts's handling.
+				if (!(error instanceof OperatorPromptCancelledError)) throw error;
+				console.log("\n  Cancelled.");
+				process.exitCode = 130;
 			}
-
-			const token = randomBytes(32).toString("base64url");
-			let next: AuthPolicyFile;
-			try {
-				const policy = await readPolicy(policyPath);
-				next = upsertCredential(policy, validIdentity, sha256Hex(token), rotate);
-			} catch (error) {
-				console.error((error as Error).message);
-				process.exitCode = 1;
-				return;
-			}
-			await mkdir(path.dirname(policyPath), { recursive: true });
-			await writeFile(policyPath, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
-
-			const enableHint = `REFARM_AUTH_POLICY=${options.policy ?? DEFAULT_POLICY_PATH}`;
-			if (options.json) {
-				process.stdout.write(
-					`${JSON.stringify({ ok: true, identity: validIdentity, token, policy: policyPath, enable: enableHint })}\n`,
-				);
-				return;
-			}
-			process.stdout.write(
-				`🔑 enrolled "${validIdentity}"\n\n` +
-					`   TOKEN (shown once — save it on the device):\n     ${token}\n\n` +
-					`   On the device:  FARM_TOKEN=${token} ${refarmCommand(["ask", '"olá"'])}\n` +
-					`                   (or: FARM_TOKEN=… node .../farm-ask.mjs "…")\n` +
-					`   Turn the gate on (restart the daemon with):\n     ${enableHint}\n` +
-					`   Policy: ${policyPath} (mode 0600; only the token's sha256 is stored)\n`,
-			);
 		});
+}
+
+async function runAuthEnroll(
+	deps: AuthEnrollDeps,
+	identityArg: string | undefined,
+	options: EnrollOptions,
+): Promise<void> {
+	const policyPath = path.resolve(options.policy ?? DEFAULT_POLICY_PATH);
+	let identity = identityArg;
+	let rotate = Boolean(options.rotate);
+
+	if (!identity) {
+		// --json is a non-interactive contract by nature — fail clearly rather than prompt.
+		if (options.json) {
+			console.error(
+				"refarm auth enroll: an identity is required with --json (non-interactive; does not prompt)",
+			);
+			process.exitCode = 1;
+			return;
+		}
+
+		const input = deps.input ?? process.stdin;
+		const output = deps.output ?? process.stdout;
+		const interactive = Boolean(input.isTTY && output.isTTY);
+
+		// No TTY and no pre-built channel: never construct createAutoOperatorChannel()
+		// here — it answers every prompt with a default, which for an identity label
+		// would silently invent one. Fail with the usage message instead.
+		if (!interactive && !deps.operator) {
+			console.error(
+				"error: missing required argument 'identity'\n" +
+					"  (not running interactively — pass one explicitly, e.g. `refarm auth enroll my-phone`)",
+			);
+			process.exitCode = 1;
+			return;
+		}
+
+		const operator: OperatorChannel =
+			deps.operator ??
+			(interactive ? createStdioOperatorChannel({ input, output }) : createAutoOperatorChannel());
+
+		let existingPolicy: AuthPolicyFile;
+		try {
+			existingPolicy = await readPolicy(policyPath);
+		} catch (error) {
+			console.error((error as Error).message);
+			process.exitCode = 1;
+			return;
+		}
+		const enrolledIdentities = existingPolicy.credentials.map((c) => c.identity);
+
+		const picked = await promptForIdentity(operator, enrolledIdentities);
+		identity = picked.identity;
+		rotate = rotate || picked.impliedRotate;
+	}
+
+	let validIdentity: string;
+	try {
+		validIdentity = validateIdentityLabel(identity);
+	} catch (error) {
+		console.error((error as Error).message);
+		process.exitCode = 1;
+		return;
+	}
+
+	const token = randomBytes(32).toString("base64url");
+	let next: AuthPolicyFile;
+	try {
+		const policy = await readPolicy(policyPath);
+		next = upsertCredential(policy, validIdentity, sha256Hex(token), rotate);
+	} catch (error) {
+		console.error((error as Error).message);
+		process.exitCode = 1;
+		return;
+	}
+	await mkdir(path.dirname(policyPath), { recursive: true });
+	await writeFile(policyPath, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
+
+	const enableHint = `REFARM_AUTH_POLICY=${options.policy ?? DEFAULT_POLICY_PATH}`;
+	if (options.json) {
+		process.stdout.write(
+			`${JSON.stringify({ ok: true, identity: validIdentity, token, policy: policyPath, enable: enableHint })}\n`,
+		);
+		return;
+	}
+	process.stdout.write(
+		`🔑 enrolled "${validIdentity}"\n\n` +
+			`   TOKEN (shown once — save it on the device):\n     ${token}\n\n` +
+			`   On the device:  FARM_TOKEN=${token} ${refarmCommand(["ask", '"olá"'])}\n` +
+			`                   (or: FARM_TOKEN=… node .../farm-ask.mjs "…")\n` +
+			`   Turn the gate on (restart the daemon with):\n     ${enableHint}\n` +
+			`   Policy: ${policyPath} (mode 0600; only the token's sha256 is stored)\n`,
+	);
 }
 
 interface ListOptions {

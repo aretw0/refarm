@@ -10,6 +10,12 @@ const { mockMirrorRepo, mockSiloResolve, mockOperatorAsk } = vi.hoisted(() => ({
 
 vi.mock("@refarm.dev/prompt-contract-v1", () => ({
   createStdioOperatorChannel: vi.fn(() => ({ ask: mockOperatorAsk })),
+  OperatorPromptCancelledError: class OperatorPromptCancelledError extends Error {
+    constructor(message = "Operator prompt cancelled") {
+      super(message);
+      this.name = "OperatorPromptCancelledError";
+    }
+  },
 }));
 
 vi.mock("@refarm.dev/silo", () => ({
@@ -256,5 +262,21 @@ describe("migrateCommand", () => {
 
     logSpy.mockRestore();
     errorSpy.mockRestore();
+  });
+
+  it("exits gracefully (130, calm message, no throw) when the target-URL prompt is cancelled", async () => {
+    const { OperatorPromptCancelledError } = await import("@refarm.dev/prompt-contract-v1");
+    mockOperatorAsk.mockRejectedValueOnce(new OperatorPromptCancelledError());
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+      logs.push(String(value));
+    });
+
+    await migrateCommand.parseAsync(["--dry-run"], { from: "user" });
+
+    expect(process.exitCode).toBe(130);
+    expect(logs.some((line) => line.includes("Cancelled"))).toBe(true);
+    expect(mockMirrorRepo).not.toHaveBeenCalled();
+    logSpy.mockRestore();
   });
 });

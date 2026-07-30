@@ -1,3 +1,4 @@
+import { OperatorPromptCancelledError } from "@refarm.dev/prompt-contract-v1";
 import chalk from "chalk";
 import { isModuleResolutionError, renderBootstrapFailure } from "./bootstrap-preflight.js";
 import { TokenAuthError } from "./credentials/token-auth-error.js";
@@ -67,6 +68,17 @@ function handleCliMainError(err: unknown): void {
 	if (isModuleResolutionError(err)) {
 		renderBootstrapFailure(err);
 		process.exitCode = 1;
+		return;
+	}
+	// Safety net: commands that prompt (sow, auth enroll, init, migrate, and any
+	// runtime-recovery prompt reached via ask/session/chat) mostly catch this
+	// themselves for a command-specific message, but an operator cancelling
+	// (Ctrl+C or Ctrl+D) must NEVER surface as a stack trace or an "unsettled
+	// top-level await" warning from any command — including ones this file's
+	// author didn't anticipate. 130 is the conventional SIGINT exit code.
+	if (err instanceof OperatorPromptCancelledError) {
+		console.log(chalk.gray("\n  Cancelled."));
+		process.exitCode = 130;
 		return;
 	}
 	throw err;
