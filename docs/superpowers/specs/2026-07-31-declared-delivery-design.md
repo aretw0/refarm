@@ -175,7 +175,44 @@ shipped as a plugin** with `network:outbound`.
 assumed — including what happens when Android stops the poller, which D4's "could not attempt" exists
 to make visible.
 
+## D9 — The web surface joins the first slice, because reach and interaction are halves
+
+This document first deferred the web surface for needing something that does not exist. Measuring
+again, that was wrong: `refarm web serve` already serves static files, `web` is already a declarable
+surface, and `KNOWN_SURFACES` already admits it. What is missing is **a page**, not infrastructure.
+
+The operator's reason for pulling it forward is sound — *"ficar sem web interface por muito tempo não
+é interessante para a gente que precisa ganhar em muitas frentes"* — and so is the technical shape:
+the smallest useful page is the pending-prompt list, one screen with no framework, consuming the same
+wire shape the kit consumes. It is the **third consumer** that
+[P6](2026-07-30-pending-prompt-wire-design.md) named as the test of whether the abstraction is real.
+
+Telegram and the page are not competitors but complements: **Telegram is reach** — it finds the
+operator in a pocket and survives doze — and **the page is the interaction surface** for anything
+richer than a yes/no. A notification carrying a link to the page is the shape real systems settled on.
+
+### The open question the page forces: where a browser keeps the credential
+
+`web` is declared `gate: "none"` so cold bootstrap can work. The page being public is harmless — it is
+HTML and JS. Its **calls** to the sidecar are not: they need a device credential, so a browser has to
+hold a secret.
+
+`localStorage` is the pragmatic answer and its cost is real: a secret readable by any script on that
+origin. The good long-term answer is [E3](2026-07-30-phone-initiated-enrolment-design.md) — the
+browser proves it is the operator's device through the emoji comparison and receives a scoped
+credential, with nothing pasted. That is the SAS slice, not this one.
+
+This is a decision for the operator, not a default to pick quietly: paste once and accept
+browser-storage exposure, or stay on Telegram until E3 lands.
+
+## Revised order
+
+1. the pending-prompt wire shape;
+2. **Telegram as a plugin *and* the web page** — reach and interaction together;
+3. `termux-notification` in the kit — the attended, fully sovereign mode (D8).
+
 ## Not in this slice
 
-The PWA. It is wanted and it is named, but it additionally needs a web surface that does not exist
-yet, so it is not merely a matter of writing an adapter.
+Web Push. The page and push are separable: a page you open is useful immediately, while push drags in
+FCM, VAPID and a service worker. Shipping the page first keeps that cost where it belongs — with the
+feature that needs it, not with the surface.
