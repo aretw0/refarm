@@ -94,13 +94,57 @@ An adapter *author* writes one file and one registry line. Anything more elabora
 failed the brief, and the systemd/s6 lesson recorded in the connections design applies here too:
 converge the vocabulary, do not build a configuration language.
 
+## D6 — Adapters split by *where they run*, and that decides the plugin question
+
+The operator asked whether this belongs in an existing block, a new one, or a plugin. It has two
+answers, and the split is not arbitrary — it is about which machine the notification appears on.
+
+- **Node-side (push outward)** — Telegram, Matrix, Web Push, ntfy. They run on the node and need
+  `NetworkOutbound`, which `packages/tractor/src/host/permission.rs` already has, alongside
+  `ShellSpawn`, `FsRead`, `FsWrite` and `ConnectionUse`. These are **natural plugins**: refarm's core
+  has no business shipping a Telegram client, and the plugin system already provides declared
+  permissions, SHA-256 integrity through the Barn, and a lifecycle. The extension point exists and
+  sits idle.
+- **Device-side (raise locally)** — `termux-notification`. It must run on the phone, and the phone
+  runs the zero-dependency kit, **not a WASM plugin host**. It cannot be a plugin. It is a kit
+  capability, by physics rather than by preference — recorded here so nobody later "unifies" the two
+  and breaks one.
+
+## D7 — The cost I under-weighed, and the order it changes
+
+The first version of this document recommended `termux-notification` first, for being fully local and
+needing no infrastructure. That comparison omitted its real cost.
+
+For a Termux notification to reach the operator **without a terminal open**, something must run in the
+background on the phone, polling. Android kills background processes deliberately; wake-locks and the
+job scheduler exist to fight that, and fighting it is the hard part of mobile, not an incidental. So
+the sovereign option is not the cheap option — it is the one that requires winning an argument with
+the device's operating system.
+
+Meanwhile Telegram's app has already solved doze, battery and background delivery, maintained by
+people whose job that is. Borrowing it is **the same move as borrowing systemd** in
+[`2026-07-30-declared-processes-design.md`](2026-07-30-declared-processes-design.md): keep the
+declaration, lend out the act.
+
+Neither is free. Termux costs a technical fight that may be lost on the endpoint; Telegram costs
+metadata at a third party. Presenting the first as free was the error.
+
+**Order: Telegram as a plugin, then Termux in the kit.** The second is not optional politeness — it is
+what proves the registry survives a device-side adapter, which is a genuinely different shape from a
+node-side one. A registry validated by two adapters of the same shape has not been validated.
+
 ## First slice
 
-The declared `delivery` catalog with announce/answer capability, the registry, `termux-notification`
-as its first entry, and the three-outcome result from D4 recorded on the pending prompt.
+The declared `delivery` catalog with announce/answer capability (D3), the registry, the three-outcome
+result (D4), and **Telegram as the first adapter, shipped as a plugin** with `network:outbound`.
+
+## Second slice
+
+`termux-notification` in the kit, with the background-poller question answered honestly rather than
+assumed — including what happens when Android stops the poller, which D4's "could not attempt" exists
+to make visible.
 
 ## Not in this slice
 
-Telegram and the PWA. Both are named and both are wanted; each arrives as a second and third consumer
-that proves the seam rather than shaping it. The PWA additionally needs a web surface that does not
-exist yet, so it is not merely a matter of writing an adapter.
+The PWA. It is wanted and it is named, but it additionally needs a web surface that does not exist
+yet, so it is not merely a matter of writing an adapter.
