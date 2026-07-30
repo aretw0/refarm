@@ -204,6 +204,8 @@ mod connection;
 mod effort;
 #[path = "tests/node.rs"]
 mod node;
+#[path = "tests/node_local.rs"]
+mod node_local;
 #[path = "tests/plugin.rs"]
 mod plugin;
 #[path = "tests/provider_liveness.rs"]

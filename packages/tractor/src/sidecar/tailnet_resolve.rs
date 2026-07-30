@@ -351,7 +351,12 @@ pub(crate) fn resolve_declared_expose_for_bind(
 /// `resolve_declared_expose_for_bind`, parameterized on the resolver — the injection seam
 /// tests use to prove the skip conditions and the refusal formatting WITHOUT ever calling
 /// the real fetcher (`resolve_tailnet_bind_ip`, which shells out for real).
-fn resolve_declared_expose_for_bind_with(
+///
+/// `pub(crate)` for that seam alone: `sidecar::node_local`'s tests drive the WHOLE chain a
+/// `tailnet` declaration travels (resolve → bind guard → listen plan) and must do it without
+/// a `tailscale` binary anywhere near the test process. Production code has exactly one entry
+/// point, `resolve_declared_expose_for_bind` above, which wires in the real fetcher.
+pub(crate) fn resolve_declared_expose_for_bind_with(
     surface_key: &str,
     surface_label: &str,
     flag: Option<&str>,

@@ -1,6 +1,12 @@
 //! HTTP sidecar — implements the ADR-060 effort protocol on top of TractorNative.
 //!
-//! Binds on the configured host and port (`127.0.0.1:42001` by default) and exposes:
+//! Binds on the host its `surfaces.sidecar-http` declaration resolves to (`127.0.0.1:42001`
+//! when nothing is declared) — and, when that host is NOT loopback, on `127.0.0.1` as well,
+//! ungated: the node is not a remote device and does not authenticate to itself. See
+//! `node_local` for the rule, why the credential layer is chosen per LISTENER rather than
+//! per request, and the regression that made the invariant explicit.
+//!
+//! Exposes:
 //!   POST   /efforts                    — submit effort, returns { effortId }
 //!   GET    /efforts                    — list effort results
 //!   GET    /efforts/summary            — aggregate summary
@@ -24,6 +30,9 @@
 use std::{
     collections::HashMap,
     fs,
+    // `axum::serve(..)` is `IntoFuture`, not `Future`: with more than one listener the
+    // futures must be materialized and joined rather than `.await`ed in sequence.
+    future::IntoFuture,
     io::Write,
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
@@ -687,6 +696,11 @@ pub(crate) mod auth;
 pub use auth::{AuthPolicySource, ResolvedAuthPolicy};
 pub(crate) mod bind_guard;
 pub(crate) mod tailnet_resolve;
+// The general "a node reaches itself" rule: a surface whose RESOLVED exposure is
+// non-loopback ALSO listens on `127.0.0.1`, and the credential layer is chosen per
+// LISTENER — never per request. `pub(crate)` because `daemon::ws_server` builds its own
+// listen plan from the same rule; nothing about it is sidecar-specific.
+pub(crate) mod node_local;
 mod cors;
 mod dispatch;
 pub(crate) use dispatch::*;
@@ -1664,6 +1678,80 @@ async fn post_connection_down(
 
 // ── public API ────────────────────────────────────────────────────────────────
 
+/// The sidecar's routes — the SHARED half of every listener, identical on all of them. A
+/// surface's routes are a property of the surface, not of which socket a request arrived
+/// on: the node-local listener serves exactly the same API as the declared one, and the
+/// only difference between the two is the credential layer `listener_router` adds (or does
+/// not add) on top. PURE: builds a value, binds nothing.
+fn sidecar_routes(state: SidecarState) -> Router {
+    Router::new()
+        .route("/efforts", post(post_efforts).get(get_efforts))
+        .route("/efforts/summary", get(get_efforts_summary))
+        .route("/efforts/:id", get(get_effort))
+        .route("/efforts/:id/logs", get(get_effort_logs))
+        .route("/efforts/:id/retry", post(post_effort_retry))
+        .route("/efforts/:id/cancel", post(post_effort_cancel))
+        .route("/sessions", post(post_session_new).get(get_sessions))
+        .route("/sessions/:id/fork", post(post_session_fork))
+        .route("/sessions/:id/history", get(get_session_history))
+        .route("/nodes", get(get_nodes))
+        .route("/nodes/:id", get(get_node_by_id))
+        .route("/tasks", get(get_tasks))
+        .route("/tasks/:id", get(get_task))
+        .route("/plugins", get(get_plugins))
+        .route("/plugins/reload", post(post_plugins_reload))
+        .route("/plugins/load-by-hash", post(post_plugins_load_by_hash))
+        .route("/plugins/:id/respond", post(post_plugin_respond))
+        .route("/providers/liveness", get(get_provider_liveness))
+        .route("/connections", get(get_connections))
+        .route("/connections/:name/up", post(post_connection_up))
+        .route("/connections/:name/down", post(post_connection_down))
+        .route("/stream/activity", get(activity_sse::get_stream_activity))
+        .with_state(state)
+}
+
+/// The router ONE listener serves: the shared routes, plus the credential layer that
+/// listener's ROLE earns, plus CORS. THE place the per-listener authentication decision is
+/// realized, and the reason it is a named function rather than an inline block in `start`:
+/// the credential layer is attached (or not) here, once per socket, from `role` — never from
+/// anything a request carries.
+///
+/// - `node_local::gate_for(role, gate)` yields `None` for a [`node_local::ListenRole::NodeLocal`]
+///   listener whatever `gate` is, so that listener is CONSTRUCTED with no auth middleware at
+///   all. There is no code inside it that could decide to skip authentication, because there
+///   is no authentication inside it to skip.
+/// - a [`node_local::ListenRole::Declared`] listener gets exactly the layer it always got:
+///   `Some(gate)` ⇒ every request must carry a valid bearer credential (`deny_all` behind the
+///   gate ⇒ every request `401`, the strictest enforcement of a declared gate); `None` ⇒ no
+///   layer, byte-identical to a sidecar with no gate declared.
+///
+/// The auth layer goes on INNER of CORS, unchanged, so a browser's OPTIONS preflight — which
+/// carries no credential — is answered by CORS before the gate sees it. What the layer
+/// captures is the LIVE gate (an `Arc`), not a copy of the credentials: a copy would freeze
+/// the policy at boot and put enrolment — and revocation — behind a full runtime restart.
+/// See `auth::AuthGate`.
+///
+/// PURE: builds a value, binds nothing.
+fn listener_router(
+    routes: Router,
+    role: node_local::ListenRole,
+    gate: Option<auth::AuthGate>,
+    cors_policy: Option<cors::CorsPolicy>,
+) -> Router {
+    let routes = match node_local::gate_for(role, gate) {
+        Some(gate) => routes.layer(axum::middleware::from_fn(move |req, next| {
+            auth::auth_middleware(gate.clone(), req, next)
+        })),
+        None => routes,
+    };
+    match cors_policy {
+        Some(policy) => routes.layer(axum::middleware::from_fn(move |req, next| {
+            cors::cors_middleware(policy.clone(), req, next)
+        })),
+        None => routes,
+    }
+}
+
 pub async fn start(
     state: SidecarState,
     // `None` means `--http-host` was not passed — under S1/S5 an absent flag is not a
@@ -1717,65 +1805,64 @@ pub async fn start(
     // Reaper knobs resolved from env ONCE here at daemon start.
     reap::spawn_reaper(&state, reap::ReaperConfig::from_env());
 
-    let router = Router::new()
-        .route("/efforts", post(post_efforts).get(get_efforts))
-        .route("/efforts/summary", get(get_efforts_summary))
-        .route("/efforts/:id", get(get_effort))
-        .route("/efforts/:id/logs", get(get_effort_logs))
-        .route("/efforts/:id/retry", post(post_effort_retry))
-        .route("/efforts/:id/cancel", post(post_effort_cancel))
-        .route("/sessions", post(post_session_new).get(get_sessions))
-        .route("/sessions/:id/fork", post(post_session_fork))
-        .route("/sessions/:id/history", get(get_session_history))
-        .route("/nodes", get(get_nodes))
-        .route("/nodes/:id", get(get_node_by_id))
-        .route("/tasks", get(get_tasks))
-        .route("/tasks/:id", get(get_task))
-        .route("/plugins", get(get_plugins))
-        .route("/plugins/reload", post(post_plugins_reload))
-        .route("/plugins/load-by-hash", post(post_plugins_load_by_hash))
-        .route("/plugins/:id/respond", post(post_plugin_respond))
-        .route("/providers/liveness", get(get_provider_liveness))
-        .route("/connections", get(get_connections))
-        .route("/connections/:name/up", post(post_connection_up))
-        .route("/connections/:name/down", post(post_connection_down))
-        .route("/stream/activity", get(activity_sse::get_stream_activity))
-        .with_state(state);
-
-    // Opt-in per-device AUTH gate: no declared `device-token` gate and no
-    // REFARM_AUTH_POLICY ⇒ no layer, behavior unchanged (fail-closed off by default). A
-    // declared gate whose policy file does not exist yet ⇒ a deny-all layer, not no layer.
-    // Applied INNER of CORS below, so a browser's OPTIONS
-    // preflight — which carries no credential — is answered by CORS before the gate sees it.
-    // `auth_policy` is the value main.rs resolved at daemon start; the same value the bind
-    // guard above consulted, and the same value the WS handshake gate enforces. What the
-    // layer captures is the LIVE gate (an `Arc`), not a copy of the credentials: the router
-    // is built once, so a copy here would freeze the policy at boot and put enrolment — and
-    // revocation — behind a full runtime restart. See `auth::AuthGate`.
-    let router = match auth_policy.gate() {
-        Some(gate) => router.layer(axum::middleware::from_fn(move |req, next| {
-            auth::auth_middleware(gate.clone(), req, next)
-        })),
-        None => router,
-    };
+    let router = sidecar_routes(state);
 
     // ADR-088: layer OPT-IN CORS only when REFARM_SIDECAR_CORS_ORIGINS is set. The
     // default (unset) leaves the router untouched — no CORS surface — because the
-    // supported browser path is the same-origin proxy on `refarm serve`.
-    let router = match cors::cors_config_from_env() {
-        Some(policy) => {
-            tracing::info!(?policy, "sidecar CORS enabled (opt-in)");
-            router.layer(axum::middleware::from_fn(move |req, next| {
-                cors::cors_middleware(policy.clone(), req, next)
-            }))
-        }
-        None => router,
-    };
+    // supported browser path is the same-origin proxy on `refarm serve`. Read ONCE here,
+    // then applied identically to every listener below: the CORS surface is a property of
+    // the sidecar, not of which socket a request arrived on.
+    let cors_policy = cors::cors_config_from_env();
+    if let Some(policy) = cors_policy.as_ref() {
+        tracing::info!(?policy, "sidecar CORS enabled (opt-in)");
+    }
 
-    let bind_addr = format!("{host}:{port}");
-    let listener = TcpListener::bind(&bind_addr).await?;
-    tracing::info!(host = %host, port, "HTTP sidecar listening");
-    axum::serve(listener, router).await?;
+    // The node reaches itself: a resolved host that is NOT loopback opens a second,
+    // ADDITIVE `127.0.0.1` socket alongside it — see `node_local`'s module doc for the
+    // regression this closes (`expose: "tailnet"` bound ONLY the tailnet address, so every
+    // local client, `refarm ask` first among them, reported a live runtime as down). A
+    // loopback-resolved host yields exactly one target, unchanged.
+    let plan = node_local::listen_plan(&host);
+
+    // Bind EVERY target before serving ANY of them, and treat a failure on either as fatal
+    // to the whole surface. Half-bound is the exact state this rule exists to eliminate:
+    // outward-only breaks the operator's own CLI while the daemon logs success, and
+    // local-only makes a declared surface silently absent from the address it advertises.
+    // Binding first also means a refusal leaves nothing serving — the already-bound
+    // listeners are dropped by this `?`.
+    let mut bound = Vec::with_capacity(plan.len());
+    for target in &plan {
+        let addr = format!("{}:{}", target.host, port);
+        let listener = TcpListener::bind(&addr).await.map_err(|e| {
+            anyhow::anyhow!(target.role.describe_bind_failure("the sidecar", &addr, &e.to_string()))
+        })?;
+        bound.push((listener, target.role));
+    }
+
+    // ONE line, naming every address and its role. A line naming a single host was accurate
+    // only while there was a single socket; with two, it hides exactly the fact an operator
+    // needs (which addresses answer, and which of them is gated).
+    tracing::info!(
+        addresses = %node_local::describe_listen_plan(&plan, port),
+        port,
+        "HTTP sidecar listening"
+    );
+
+    // THE authentication decision, made once per LISTENER and never per request, inside
+    // `listener_router`: the node-local socket is CONSTRUCTED without the credential layer,
+    // the declared socket with it. `auth_policy` is the value main.rs resolved at daemon
+    // start — the same value the bind guard above consulted, and the same value the WS
+    // handshake gate enforces.
+    let mut serving = Vec::with_capacity(bound.len());
+    for (listener, role) in bound {
+        let router =
+            listener_router(router.clone(), role, auth_policy.gate(), cors_policy.clone());
+        serving.push(axum::serve(listener, router).into_future());
+    }
+
+    // Serve every socket concurrently; the first failure ends the surface. There is no
+    // "keep the other listener alive" path for the same reason there is no half-bound start.
+    futures_util::future::try_join_all(serving).await?;
     Ok(())
 }
 

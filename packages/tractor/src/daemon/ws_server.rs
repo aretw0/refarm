@@ -69,6 +69,7 @@ use tokio_tungstenite::tungstenite::http::{header, HeaderValue, StatusCode};
 use tokio_tungstenite::{accept_hdr_async, tungstenite::Message};
 
 use crate::sidecar::auth::{AuthGate, AuthPolicy};
+use crate::sidecar::node_local::ListenRole;
 use crate::sync::NativeSync;
 use crate::telemetry::TelemetryBus;
 use crate::PluginChannels;
@@ -177,11 +178,16 @@ impl WsServer {
         }
     }
 
-    /// The address `start()` binds. PURE — no socket, no I/O — split out so the
-    /// default host can be asserted without ever opening a port (see the `daemon`
-    /// mutation-guard test below).
-    fn bind_addr(&self) -> String {
-        format!("{}:{}", self.host, self.port)
+    /// Every address `start()` binds, in order. PURE — no socket, no I/O — and derived
+    /// from the very same `node_local::listen_plan` `start` uses, so it cannot drift from
+    /// what is actually bound. Split out so the resolved host can be asserted without ever
+    /// opening a port (see the `daemon` mutation-guard tests below).
+    #[cfg(test)]
+    fn bind_addrs(&self) -> Vec<String> {
+        crate::sidecar::node_local::listen_plan(&self.host)
+            .iter()
+            .map(|t| format!("{}:{}", t.host, self.port))
+            .collect()
     }
 
     /// Start the WebSocket server and block until Ctrl-C.
@@ -206,9 +212,32 @@ impl WsServer {
         )
         .map_err(|reason| anyhow::anyhow!(reason))?;
 
-        let addr = self.bind_addr();
-        let listener = TcpListener::bind(&addr).await?;
-        self.run_gated(listener, self.auth_policy.gate()).await
+        // The node reaches itself — the SAME general rule the HTTP sidecar follows, stated
+        // once in `sidecar::node_local` over the resolved host string and applied here
+        // without this surface being named there. `daemon-ws` is declared `"loopback"` in
+        // practice, so the plan is a single target and nothing about this socket changes;
+        // were it ever declared outward, it would additionally answer on `127.0.0.1` — and
+        // that companion listener would be CONSTRUCTED without the handshake gate, exactly
+        // as the sidecar's is.
+        let plan = crate::sidecar::node_local::listen_plan(&self.host);
+
+        // Bind every target before serving any: half-bound is refused for the WS exactly as
+        // it is for the sidecar (see `node_local`'s module doc). The `?` drops whatever was
+        // already bound, so a refusal leaves nothing listening.
+        let mut bound = Vec::with_capacity(plan.len());
+        for target in &plan {
+            let addr = format!("{}:{}", target.host, self.port);
+            let listener = TcpListener::bind(&addr).await.map_err(|e| {
+                anyhow::anyhow!(target.role.describe_bind_failure(
+                    "the agent/CRDT WebSocket",
+                    &addr,
+                    &e.to_string()
+                ))
+            })?;
+            bound.push((listener, target.role));
+        }
+
+        self.run_all(bound, self.auth_policy.gate()).await
     }
 
     /// Run the server with a pre-bound listener and the WS credential gate OFF
@@ -234,16 +263,53 @@ impl WsServer {
         listener: TcpListener,
         auth_policy: Option<AuthGate>,
     ) -> Result<()> {
-        // Log the HOST too, not just the port: a line that says only "listening on 42000"
-        // cannot be read as evidence of WHERE it listens, and this whole class of defect
-        // (a listener open to the network while the operator believes it is loopback) is
-        // exactly what a port-only log hides.
-        tracing::info!(host = %self.host, port = self.port, "WebSocket daemon listening");
+        self.run_all(vec![(listener, ListenRole::Declared)], auth_policy).await
+    }
+
+    /// Serve one or more ALREADY-BOUND listeners, each carrying its own credential
+    /// configuration, over ONE shared client map and ONE broadcast subscription.
+    ///
+    /// The sharing is the reason this takes a list instead of being called twice:
+    /// `set_broadcast_callback` REPLACES any previous subscription and each call would build
+    /// its own `ClientMap`, so two independent `run_gated` calls would leave clients on the
+    /// first listener permanently deaf to local changes and invisible to peers on the second.
+    /// One call, one map, one callback — the listeners differ only in their gate.
+    ///
+    /// Which gate each listener gets is decided by `node_local::gate_for` from the LISTENER's
+    /// role, at this point, before a single connection is accepted. The gate is then moved
+    /// into that listener's accept loop, so a connection is judged by the configuration of the
+    /// socket it arrived on and by nothing it sends.
+    pub(crate) async fn run_all(
+        &self,
+        bound: Vec<(TcpListener, ListenRole)>,
+        auth_policy: Option<AuthGate>,
+    ) -> Result<()> {
+        // Log every ACTUAL bound address, not just the configured host: a line that says only
+        // "listening on 42000" cannot be read as evidence of WHERE it listens, and this whole
+        // class of defect (a listener open to the network while the operator believes it is
+        // loopback — or absent from loopback while the operator believes it is there) is
+        // exactly what a partial log hides.
+        let addresses = bound
+            .iter()
+            .map(|(listener, role)| {
+                let addr = listener
+                    .local_addr()
+                    .map(|a| a.to_string())
+                    .unwrap_or_else(|_| format!("{}:{}", self.host, self.port));
+                format!("{addr} ({})", role.label())
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        tracing::info!(host = %self.host, port = self.port, %addresses, "WebSocket daemon listening");
 
         self.telemetry.emit_named(
             "daemon:start",
             None,
-            Some(serde_json::json!({ "host": self.host, "port": self.port })),
+            Some(serde_json::json!({
+                "host": self.host,
+                "port": self.port,
+                "addresses": addresses,
+            })),
         );
 
         let clients: ClientMap = Arc::new(Mutex::new(HashMap::new()));
@@ -265,45 +331,61 @@ impl WsServer {
             });
         });
 
-        let accept_loop = async {
-            loop {
-                match listener.accept().await {
-                    Ok((tcp_stream, addr)) => {
-                        tracing::debug!(%addr, "new connection");
-                        let sync = self.sync.clone();
-                        let clients = clients.clone();
-                        let plugin_channels = self.plugin_channels.clone();
-                        let event_router = self.event_router.clone();
-                        let telemetry = self.telemetry.clone();
-                        let auth_policy = auth_policy.clone();
-                        tokio::spawn(async move {
-                            if let Err(e) = handle_connection(
-                                tcp_stream,
-                                sync,
-                                clients,
-                                plugin_channels,
-                                event_router,
-                                telemetry,
-                                auth_policy,
-                            )
-                            .await
-                            {
-                                tracing::warn!("connection error: {e}");
-                            }
-                        });
-                    }
-                    Err(e) => tracing::error!("accept error: {e}"),
-                }
-            }
-        };
+        // One accept loop per listener, each holding the gate its ROLE was given. They share
+        // `clients`, so a peer on either socket sees every other peer's updates.
+        let accept_loops = futures_util::future::join_all(bound.into_iter().map(
+            |(listener, role)| {
+                self.accept_loop(
+                    listener,
+                    crate::sidecar::node_local::gate_for(role, auth_policy.clone()),
+                    clients.clone(),
+                )
+            },
+        ));
 
         tokio::select! {
-            _ = accept_loop => {},
+            _ = accept_loops => {},
             _ = tokio::signal::ctrl_c() => {
                 tracing::info!("Shutdown signal received");
             }
         }
         Ok(())
+    }
+
+    /// Accept forever on ONE listener, handing every connection the gate THIS listener was
+    /// constructed with. `gate` is captured once, here, and cloned per connection — the
+    /// handshake never asks where a connection came from, only what credential it offers.
+    /// The peer address is logged and never compared to anything.
+    async fn accept_loop(&self, listener: TcpListener, gate: Option<AuthGate>, clients: ClientMap) {
+        loop {
+            match listener.accept().await {
+                Ok((tcp_stream, addr)) => {
+                    tracing::debug!(%addr, "new connection");
+                    let sync = self.sync.clone();
+                    let clients = clients.clone();
+                    let plugin_channels = self.plugin_channels.clone();
+                    let event_router = self.event_router.clone();
+                    let telemetry = self.telemetry.clone();
+                    let auth_policy = gate.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = handle_connection(
+                            tcp_stream,
+                            sync,
+                            clients,
+                            plugin_channels,
+                            event_router,
+                            telemetry,
+                            auth_policy,
+                        )
+                        .await
+                        {
+                            tracing::warn!("connection error: {e}");
+                        }
+                    });
+                }
+                Err(e) => tracing::error!("accept error: {e}"),
+            }
+        }
     }
 }
 
@@ -677,24 +759,47 @@ mod tests {
 
     // ── bind host ────────────────────────────────────────────────────────────
 
-    #[test]
-    fn bind_addr_uses_configured_host_not_all_interfaces() {
-        // Mutation guard: `start()` used to hardcode `format!("0.0.0.0:{port}")` —
-        // every interface, unconditionally, no auth. This asserts the address that
-        // flows into the bind call, PURE — no socket opened — so a regression back to
-        // a hardcoded 0.0.0.0 default is caught without ever touching the network.
-        let server = WsServer::new(
+    /// A server on `host`, with no gate — the shape both bind-address guards below need.
+    fn server_on(host: &str) -> WsServer {
+        WsServer::new(
             make_sync(),
-            "127.0.0.1".to_string(),
+            host.to_string(),
             42000,
             TelemetryBus::new(10),
             Arc::new(RwLock::new(HashMap::new())),
             crate::EventRouter::default(),
             None,
             no_auth_policy(),
+        )
+    }
+
+    #[test]
+    fn bind_addr_uses_configured_host_not_all_interfaces() {
+        // Mutation guard: `start()` used to hardcode `format!("0.0.0.0:{port}")` —
+        // every interface, unconditionally, no auth. This asserts the address that
+        // flows into the bind call, PURE — no socket opened — so a regression back to
+        // a hardcoded 0.0.0.0 default is caught without ever touching the network.
+        assert_eq!(server_on("127.0.0.1").bind_addrs(), vec!["127.0.0.1:42000".to_string()]);
+        assert!(!server_on("127.0.0.1").bind_addrs().contains(&"0.0.0.0:42000".to_string()));
+    }
+
+    #[test]
+    fn a_loopback_declared_ws_binds_exactly_one_socket_as_it_always_has() {
+        // `daemon-ws` is declared `"loopback"`; the node-reaches-itself rule must leave it
+        // byte-identical — one socket, at the declared address.
+        assert_eq!(server_on("127.0.0.1").bind_addrs().len(), 1);
+    }
+
+    #[test]
+    fn an_outward_declared_ws_also_answers_on_loopback() {
+        // The general rule reaches this surface too — stated once in `node_local`, applied
+        // here without that module naming `daemon-ws`. Were the WS ever declared outward,
+        // the node would still reach it at 127.0.0.1, ungated (`gate_for` gives the
+        // node-local listener no handshake gate).
+        assert_eq!(
+            server_on("100.105.71.127").bind_addrs(),
+            vec!["100.105.71.127:42000".to_string(), "127.0.0.1:42000".to_string()],
         );
-        assert_eq!(server.bind_addr(), "127.0.0.1:42000");
-        assert_ne!(server.bind_addr(), "0.0.0.0:42000");
     }
 
     // ── resilience ───────────────────────────────────────────────────────────
