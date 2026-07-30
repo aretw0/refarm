@@ -33,13 +33,27 @@
 //! server. `resolve_auth_policy` is private to this module so that "once" is a compile-time
 //! property — see `ResolvedAuthPolicy` for the defect that made it necessary.
 //!
+//! RESOLVED once, but not FROZEN once. "One resolution" is about there being one reader of
+//! the file and one answer both gates enforce — it was never meant to make a credential
+//! policy immutable for the lifetime of the process. It briefly did, and the operational
+//! cost was immediate: enrolling a device (`refarm auth enroll` writes this exact file)
+//! required a full runtime restart before the new credential was accepted, and revoking one
+//! required a restart before it STOPPED being accepted. A credential policy is precisely the
+//! kind of state that must be re-read when it changes. So the one answer both gates hold is
+//! a SHARED, updatable handle (`AuthGate`) rather than a snapshot each gate copied: a
+//! background watcher re-reads the file and swaps the value behind it, and both gates observe
+//! the swap at once because there is only ever one value. See `AuthGate::reload_if_changed`
+//! for the fail-closed rule that governs every re-read.
+//!
 //! Slice 1 (this module) AUTHENTICATES: enrolled device or not. Which workspace/namespace an
 //! identity may act in is authorization — Slice 2 (via `@refarm.dev/workspace-access-contract-v1`).
 //! The credential is a bearer token; only its SHA-256 is ever stored in the policy (never the
 //! raw token), and the lookup is over hashes. `/sync` (the CRDT WS on :42000) is a separate
 //! gate, tracked as a follow-up.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, RwLock};
+use std::time::Duration;
 
 use axum::{
     body::Body,
@@ -60,6 +74,19 @@ pub(crate) const AUTH_POLICY_ENV: &str = "REFARM_AUTH_POLICY";
 /// reader, because the whole defect this constant fixes was the writer knowing a convention
 /// the reader did not.
 pub(crate) const AUTH_POLICY_FILE_NAME: &str = "auth-policy.json";
+
+/// How often the watcher re-reads the policy file. The upper bound on how long an enrolment
+/// waits to be honoured — and, more importantly, on how long a REVOCATION waits to bite.
+///
+/// Deliberately a poll and not an inotify subscription: no watch crate is in this crate's
+/// dependency tree (`notify` is not in the lock), and the writer this must follow is an
+/// atomic tmp→rename, which replaces the INODE. An inotify watch on the path would follow
+/// the old inode and go permanently deaf after the first enrolment unless the parent
+/// directory were watched instead — more machinery, and a new dependency, to observe a
+/// ~200-byte file. A read of that file every two seconds costs nothing measurable, follows
+/// a rename by construction, and re-reads nothing when the bytes are unchanged (see
+/// `Reading::fingerprint`).
+const RELOAD_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
 /// A device credential: the SHA-256 (lowercase hex) of its bearer token → the identity it
 /// authenticates as. The raw token never lives in the policy.
@@ -89,6 +116,13 @@ impl AuthPolicy {
     /// A deny-all policy — every request is rejected. The fail-closed fallback.
     fn deny_all() -> Self {
         Self { credentials: Vec::new() }
+    }
+
+    /// How many device identities this policy admits. The ONLY quantity about the policy
+    /// that is ever logged: a count says "the revocation landed" without naming a token, a
+    /// hash, or an identity.
+    fn identity_count(&self) -> usize {
+        self.credentials.len()
     }
 
     #[cfg(test)]
@@ -245,35 +279,243 @@ pub(crate) fn auth_policy_configured(source: &AuthPolicySource) -> bool {
 /// only caller, so "resolve once per daemon start" is enforced by the compiler rather than by
 /// a comment every future call site has to read. A second resolution elsewhere in the crate
 /// is now a name-resolution error, not a second file read and a second log line.
-fn resolve_auth_policy(source: &AuthPolicySource) -> Option<AuthPolicy> {
+fn resolve_auth_policy(source: &AuthPolicySource) -> Option<AuthGate> {
     let located = resolve_policy_path(source)?;
-    let read = std::fs::read_to_string(&located.path);
-    if let Ok(raw) = &read {
-        if let Ok(policy) = parse_policy(raw) {
+    let reading = read_policy_file(&located.path);
+    let policy = match &reading.observed {
+        Observed::Policy(policy) => {
             tracing::info!(
-                credentials = policy.credentials.len(),
+                credentials = policy.identity_count(),
                 path = %located.path.display(),
                 derived = located.derived,
                 "sidecar auth gate enabled (opt-in)"
             );
-            return Some(policy);
+            policy.clone()
+        }
+        Observed::Absent if located.derived => {
+            tracing::warn!(
+                path = %located.path.display(),
+                "auth policy file is ABSENT at the derived path — a surface declares \"gate\": \
+                 \"device-token\", so the gate is bound and enforced DENY-ALL: every request is \
+                 rejected 401 until a credential exists. Fix: run `refarm auth enroll`"
+            );
+            AuthPolicy::deny_all()
+        }
+        _ => {
+            tracing::error!(
+                path = %located.path.display(),
+                "auth policy configured but unreadable/invalid — gating DENY-ALL"
+            );
+            AuthPolicy::deny_all()
+        }
+    };
+    Some(AuthGate::new(located, policy, reading.fingerprint))
+}
+
+/// WHAT one read of the policy file said. Three outcomes, because they warrant three
+/// different log lines — but only ONE of them is ever a policy: everything else is
+/// `deny_all`, at boot and at every reload alike.
+enum Observed {
+    /// Read and parsed cleanly. The only case that installs credentials.
+    Policy(AuthPolicy),
+    /// The file is not there. At boot on a DERIVED path this is the expected
+    /// "declared but not enrolled yet"; after a reload it is a disappearance.
+    Absent,
+    /// There is a file and it cannot be believed — unreadable (permissions), unparseable,
+    /// or HALF-WRITTEN. Never a policy, and never mistaken for an empty one: a truncated
+    /// `{"credentials": [{"iden` is a `serde_json` error, not zero credentials, so it can
+    /// only ever land here.
+    Broken,
+}
+
+/// One read of the policy file: what it said, plus a fingerprint that identifies this exact
+/// observation so a reload can tell "changed" from "unchanged" without re-applying (and
+/// re-LOGGING) an answer already in force.
+///
+/// The fingerprint is the SHA-256 of the bytes when there were bytes, and a bracketed
+/// sentinel otherwise. The two spaces cannot collide: a digest is 64 lowercase hex chars and
+/// a sentinel starts with `<`. Fingerprinting the CONTENT rather than the mtime is what makes
+/// the watcher correct across an atomic tmp→rename (new inode, possibly older mtime) and
+/// across a rewrite that lands inside the same filesystem timestamp granularity.
+struct Reading {
+    observed: Observed,
+    fingerprint: String,
+}
+
+/// Read the policy file once. NO logging and no state change — the caller decides what this
+/// observation means (a boot line, a reload line, or nothing at all) and is the single
+/// emitter for it. One `read_to_string`, so a concurrent writer can only ever hand us bytes,
+/// never a partially-applied policy.
+fn read_policy_file(path: &Path) -> Reading {
+    match std::fs::read_to_string(path) {
+        Ok(raw) => {
+            let fingerprint = sha256_hex(&raw);
+            match parse_policy(&raw) {
+                Ok(policy) => Reading { observed: Observed::Policy(policy), fingerprint },
+                Err(_) => Reading { observed: Observed::Broken, fingerprint },
+            }
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            Reading { observed: Observed::Absent, fingerprint: "<absent>".to_string() }
+        }
+        Err(e) => Reading {
+            observed: Observed::Broken,
+            fingerprint: format!("<unreadable:{:?}>", e.kind()),
+        },
+    }
+}
+
+/// THE live policy — one value, shared by every gate, re-read when the file changes.
+///
+/// Cloning an `AuthGate` clones an `Arc`, never the policy: the HTTP middleware layer and the
+/// WS handshake callback each hold a clone, and both therefore observe a reload the instant it
+/// is applied. That is the same guarantee `ResolvedAuthPolicy` already made — "both gates
+/// enforce the same credentials" — extended from "the same value at boot" to "the same value,
+/// always". Re-introducing a per-gate SNAPSHOT held for the process lifetime would silently
+/// undo it: one gate would keep honouring a credential the other has revoked.
+#[derive(Clone)]
+pub(crate) struct AuthGate {
+    state: Arc<GateState>,
+}
+
+struct GateState {
+    /// The path resolved ONCE at boot (env override or derivation). The watcher re-reads
+    /// this exact path forever; it never re-resolves, because re-resolving is how two
+    /// readers start disagreeing about which file is the policy.
+    located: PolicyPath,
+    /// What the gates enforce RIGHT NOW.
+    current: RwLock<AuthPolicy>,
+    /// The fingerprint of the observation currently in force. Guards both the re-apply and
+    /// the log line: no change, no swap, no line.
+    applied: Mutex<String>,
+}
+
+/// Never prints credentials — not the tokens, not their hashes, not the identities. A
+/// derived `Debug` would have printed every stored hash the moment anyone wrote `?gate`.
+impl std::fmt::Debug for AuthGate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuthGate")
+            .field("path", &self.state.located.path)
+            .field("derived", &self.state.located.derived)
+            .field("identities", &self.identity_count())
+            .finish()
+    }
+}
+
+impl AuthGate {
+    fn new(located: PolicyPath, policy: AuthPolicy, fingerprint: String) -> Self {
+        Self {
+            state: Arc::new(GateState {
+                located,
+                current: RwLock::new(policy),
+                applied: Mutex::new(fingerprint),
+            }),
         }
     }
-    let absent = matches!(&read, Err(e) if e.kind() == std::io::ErrorKind::NotFound);
-    if absent && located.derived {
-        tracing::warn!(
-            path = %located.path.display(),
-            "auth policy file is ABSENT at the derived path — a surface declares \"gate\": \
-             \"device-token\", so the gate is bound and enforced DENY-ALL: every request is \
-             rejected 401 until a credential exists. Fix: run `refarm auth enroll`"
-        );
-    } else {
-        tracing::error!(
-            path = %located.path.display(),
-            "auth policy configured but unreadable/invalid — gating DENY-ALL"
-        );
+
+    /// Authenticate a bearer token against the policy IN FORCE right now → its identity.
+    /// The HTTP gate's entry point. Returns an owned identity because the value is read out
+    /// from behind a lock — a borrow would pin the policy and block the next reload.
+    pub(crate) fn authenticate(&self, token: &str) -> Option<String> {
+        self.snapshot().authenticate(token).map(str::to_string)
     }
-    Some(AuthPolicy::deny_all())
+
+    /// A copy of the policy in force, for the one caller that needs the whole value: the WS
+    /// handshake, whose decision function (`decide_ws_handshake`) is PURE over an
+    /// `&AuthPolicy` and stays that way. Taken per connection at handshake time — so a
+    /// connection attempted after a revocation is judged by the post-revocation policy —
+    /// and cheap: a small `Vec` of hashes.
+    pub(crate) fn snapshot(&self) -> AuthPolicy {
+        self.state.current.read().expect("auth policy lock poisoned").clone()
+    }
+
+    fn identity_count(&self) -> usize {
+        self.state.current.read().expect("auth policy lock poisoned").identity_count()
+    }
+
+    /// Re-read the policy file and, if the observation CHANGED, swap in the new answer for
+    /// every gate at once. Returns `true` exactly when a swap happened — which is also
+    /// exactly when one log line is emitted.
+    ///
+    /// FAIL-CLOSED, by the SAME rule the boot resolution uses, deliberately: anything that
+    /// is not a cleanly parsed policy installs `deny_all`. There is no "keep the
+    /// last-known-good" path.
+    ///
+    /// That choice is the doctrine of this module, not a preference. `resolve_auth_policy`
+    /// has always answered "configured but unreadable/invalid ⇒ deny_all" — if you asked for
+    /// auth, a policy that cannot be believed locks the door. A reload that instead kept the
+    /// last-known-good policy would make the module answer the same question two different
+    /// ways depending on WHEN it was asked, and the divergence lands exactly on the case
+    /// that matters most: an operator revokes a device, the write leaves the file corrupt,
+    /// and last-known-good keeps admitting the credential they just revoked — indefinitely,
+    /// and silently, because nothing further changes to trigger another read. Deny-all
+    /// cannot fail that way. Its cost is bounded and visible: the door is shut, loudly, until
+    /// the file is readable again — and the next good write reopens it within one poll.
+    ///
+    /// A half-written file cannot masquerade as an empty policy: truncated JSON does not
+    /// parse, so it is `Observed::Broken` (an ERROR line), never `Observed::Policy` with zero
+    /// credentials (an INFO "reloaded, 0 identities"). Both deny, but only one of them is a
+    /// deliberate revocation, and an operator must be able to tell which they are looking at.
+    pub(crate) fn reload_if_changed(&self) -> bool {
+        let reading = read_policy_file(&self.state.located.path);
+        let mut applied = self.state.applied.lock().expect("auth policy lock poisoned");
+        if *applied == reading.fingerprint {
+            return false;
+        }
+        *applied = reading.fingerprint;
+
+        let path = self.state.located.path.display().to_string();
+        let previously = self.identity_count();
+        let next = match reading.observed {
+            Observed::Policy(policy) => {
+                // The ONE reload line. `identities` is what an operator watches after
+                // running `refarm auth enroll` (it goes up) or revoking (it goes DOWN) —
+                // the moment a revocation takes effect is the moment they most need
+                // confirmation, so it is stated, counted, and never guessed at. Counts
+                // only: no token, no hash, no identity name.
+                tracing::info!(
+                    identities = policy.identity_count(),
+                    previously,
+                    path = %path,
+                    "auth policy reloaded — the change is in force for every gate, no restart"
+                );
+                policy
+            }
+            Observed::Absent => {
+                tracing::warn!(
+                    previously,
+                    path = %path,
+                    "auth policy file DISAPPEARED — gating DENY-ALL: every request is rejected \
+                     401 until the file is back. Fix: run `refarm auth enroll`"
+                );
+                AuthPolicy::deny_all()
+            }
+            Observed::Broken => {
+                tracing::error!(
+                    previously,
+                    path = %path,
+                    "auth policy became unreadable/invalid (a truncated write, or a corrupt \
+                     file) — gating DENY-ALL. The previous policy is NOT kept: a policy that \
+                     cannot be read cannot be enforced"
+                );
+                AuthPolicy::deny_all()
+            }
+        };
+        *self.state.current.write().expect("auth policy lock poisoned") = next;
+        true
+    }
+
+    /// Test-only: a gate over an injected policy, pointed at a path that does not exist.
+    /// For the handshake/middleware tests, which are about ENFORCEMENT, not about reloading
+    /// — they never call `reload_if_changed`, so the path is never read.
+    #[cfg(test)]
+    pub(crate) fn for_test(policy: AuthPolicy) -> Self {
+        Self::new(
+            PolicyPath { path: PathBuf::from("/nonexistent/injected-policy.json"), derived: false },
+            policy,
+            "<injected>".to_string(),
+        )
+    }
 }
 
 /// THE auth policy of this daemon: resolved ONCE at start, then handed to every gate that
@@ -300,10 +542,14 @@ fn resolve_auth_policy(source: &AuthPolicySource) -> Option<AuthPolicy> {
 #[derive(Debug, Clone)]
 pub struct ResolvedAuthPolicy {
     /// `None` ⇒ no policy was resolvable at all (nothing declared, no env) ⇒ no gate is
-    /// bound anywhere. `Some` ⇒ the gate is bound and this is what it enforces — including
-    /// `Some(deny_all)`, which is the STRICTEST enforcement of a declared gate, not an
-    /// absence of one.
-    policy: Option<AuthPolicy>,
+    /// bound anywhere, and there is nothing to watch. `Some` ⇒ the gate is bound and this
+    /// handle is what it enforces — including a `deny_all` behind it, which is the STRICTEST
+    /// enforcement of a declared gate, not an absence of one.
+    ///
+    /// A HANDLE, not a snapshot: whether the gate is bound is fixed at boot (it follows the
+    /// declaration and the env, which do not change under a running daemon), but WHAT it
+    /// enforces follows the file.
+    gate: Option<AuthGate>,
 }
 
 impl ResolvedAuthPolicy {
@@ -313,28 +559,77 @@ impl ResolvedAuthPolicy {
     /// `pub` because `main.rs` is a separate crate and is where the boot happens — it is the
     /// single place that holds an `AuthPolicySource`, which is what keeps "once" true.
     pub fn resolve(source: &AuthPolicySource) -> Self {
-        Self { policy: resolve_auth_policy(source) }
+        Self { gate: resolve_auth_policy(source) }
     }
 
     /// `true` when a gate is BOUND — the bool both bind guards take. Equal by construction to
     /// `auth_policy_configured(source)` for the same source (both are exactly
     /// "`resolve_policy_path` is `Some`"), which is why the WS preflight's cheap peek and this
     /// authoritative answer can never disagree.
+    ///
+    /// Unaffected by reloads on purpose: a policy file that becomes unreadable does not
+    /// UNBIND the gate (that would widen access to "no gate at all"); it makes the bound gate
+    /// deny everything.
     pub(crate) fn is_gated(&self) -> bool {
-        self.policy.is_some()
+        self.gate.is_some()
     }
 
-    /// The policy to ENFORCE, or `None` when no gate is bound. Both gates read it from here:
-    /// the sidecar's `auth_middleware` layer and the WS `Sec-WebSocket-Protocol` handshake.
-    pub(crate) fn policy(&self) -> Option<&AuthPolicy> {
-        self.policy.as_ref()
+    /// The live gate to ENFORCE, or `None` when no gate is bound. Both gates take a clone
+    /// from here — the sidecar's `auth_middleware` layer and the WS
+    /// `Sec-WebSocket-Protocol` handshake — and a clone is an `Arc` bump, so both keep
+    /// observing the same value across every reload.
+    pub(crate) fn gate(&self) -> Option<AuthGate> {
+        self.gate.clone()
+    }
+
+    /// Start the ONE watcher that keeps the policy current. Call once per daemon start,
+    /// from `main.rs`, right after `resolve` — inside the tokio runtime.
+    ///
+    /// This is what makes enrolment and revocation operational without a restart. Before it,
+    /// admitting a device the operator had just enrolled meant restarting the whole runtime:
+    /// the wrong granularity by a wide margin, and a `401` with no explanation for anyone who
+    /// enrolled after the boot.
+    ///
+    /// A no-op when no gate is bound — there is no path to watch, and nothing declared means
+    /// nothing to claim. `pub` for the same reason `resolve` is: `main.rs` is a separate
+    /// crate, and keeping the spawn there keeps "once per daemon start" true of the watcher
+    /// exactly as it is of the resolution.
+    pub fn spawn_reload_watcher(&self) {
+        self.spawn_reload_watcher_every(RELOAD_POLL_INTERVAL);
+    }
+
+    /// The watcher, with its period named. Split out so the test suite can drive the REAL
+    /// loop — same task, same `reload_if_changed`, same fail-closed rule — at a period that
+    /// costs no wall-clock seconds, rather than either sleeping through two-second polls or
+    /// pulling in tokio's `test-util` feature to fake the clock. The period is a constant,
+    /// not a decision: nothing in the loop's behaviour depends on its value.
+    fn spawn_reload_watcher_every(&self, period: Duration) {
+        let Some(gate) = self.gate.clone() else {
+            return;
+        };
+        tracing::info!(
+            path = %gate.state.located.path.display(),
+            poll_ms = period.as_millis() as u64,
+            "watching the auth policy for changes — enrolment and revocation take effect \
+             without restarting the runtime"
+        );
+        tokio::spawn(async move {
+            let mut ticker = tokio::time::interval(period);
+            // A tick missed because the host was busy must not become a burst of catch-up
+            // reads of a file that changes a few times a year.
+            ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            loop {
+                ticker.tick().await;
+                gate.reload_if_changed();
+            }
+        });
     }
 
     /// Test-only: a resolved value built WITHOUT resolving, for tests that inject a policy
     /// directly (hermetic — no env mutation, no file on disk).
     #[cfg(test)]
     pub(crate) fn from_policy(policy: Option<AuthPolicy>) -> Self {
-        Self { policy }
+        Self { gate: policy.map(AuthGate::for_test) }
     }
 }
 
@@ -360,14 +655,18 @@ fn unauthorized(reason: &str) -> Response<Body> {
 
 /// Axum middleware: reject any request without a valid enrolled credential. An
 /// authenticated request passes through unchanged (Slice 2 will route its workspace).
+///
+/// Takes the live `AuthGate`, not a copy of the policy: the layer is built once when the
+/// router is, and a copy taken there would be the policy as it stood at boot forever — which
+/// is precisely the restart-to-enroll defect, and worse, restart-to-REVOKE.
 pub(crate) async fn auth_middleware(
-    policy: AuthPolicy,
+    gate: AuthGate,
     request: Request<Body>,
     next: Next,
 ) -> Response<Body> {
     match bearer_token(&request) {
         None => unauthorized("missing"),
-        Some(token) => match policy.authenticate(&token) {
+        Some(token) => match gate.authenticate(&token) {
             Some(_identity) => next.run(request).await,
             None => unauthorized("invalid"),
         },
@@ -414,10 +713,24 @@ mod tests {
     /// Write a policy enrolling exactly one `token` at `path`. Returns nothing — the
     /// assertion is always "does resolving find THIS credential", never the file's bytes.
     fn write_policy(path: &std::path::Path, token: &str, identity: &str) {
-        let body = serde_json::json!({
-            "credentials": [{ "identity": identity, "tokenSha256": sha256_hex(token) }]
-        });
-        std::fs::write(path, serde_json::to_vec(&body).unwrap()).unwrap();
+        write_policy_many(path, &[(token, identity)]);
+    }
+
+    /// The same, for an enrolment set — the shape `refarm auth enroll` writes when more than
+    /// one device is enrolled, and what the reload tests add to and remove from.
+    fn write_policy_many(path: &std::path::Path, enrolled: &[(&str, &str)]) {
+        std::fs::write(path, policy_bytes(enrolled)).unwrap();
+    }
+
+    /// The bytes of a policy file, so a test can write a PREFIX of them (a truncated write).
+    fn policy_bytes(enrolled: &[(&str, &str)]) -> Vec<u8> {
+        let credentials: Vec<_> = enrolled
+            .iter()
+            .map(|(token, identity)| {
+                serde_json::json!({ "identity": identity, "tokenSha256": sha256_hex(token) })
+            })
+            .collect();
+        serde_json::to_vec_pretty(&serde_json::json!({ "credentials": credentials })).unwrap()
     }
 
     type LogBuffer = std::sync::Arc<std::sync::Mutex<Vec<u8>>>;
@@ -475,8 +788,8 @@ mod tests {
 
         let source = source_for(dir.path(), true);
         assert!(auth_policy_configured(&source), "a declared gate makes a policy resolvable");
-        let policy = resolve_auth_policy(&source).expect("declared gate ⇒ Some");
-        assert_eq!(policy.authenticate("declared-token"), Some("id-arthur"));
+        let gate = resolve_auth_policy(&source).expect("declared gate ⇒ Some");
+        assert_eq!(gate.authenticate("declared-token").as_deref(), Some("id-arthur"));
     }
 
     #[test]
@@ -497,8 +810,8 @@ mod tests {
 
         let mut resolved = None;
         let logs = captured_logs(|| resolved = resolve_auth_policy(&source));
-        let policy = resolved.expect("an absent derived policy must be Some(deny_all), never None");
-        assert_eq!(policy.authenticate("anything-at-all"), None, "deny ALL");
+        let gate = resolved.expect("an absent derived policy must be Some(deny_all), never None");
+        assert_eq!(gate.authenticate("anything-at-all"), None, "deny ALL");
 
         // The line must be findable by an operator staring at an unexplained 401.
         assert!(logs.contains(&derived.display().to_string()), "must name the derived path: {logs}");
@@ -518,11 +831,11 @@ mod tests {
         write_policy(&override_path, "override-token", "id-override");
 
         std::env::set_var(AUTH_POLICY_ENV, &override_path);
-        let policy = resolve_auth_policy(&source_for(dir.path(), true)).expect("Some");
+        let gate = resolve_auth_policy(&source_for(dir.path(), true)).expect("Some");
         std::env::remove_var(AUTH_POLICY_ENV);
 
-        assert_eq!(policy.authenticate("override-token"), Some("id-override"));
-        assert_eq!(policy.authenticate("derived-token"), None, "the derived file must be ignored");
+        assert_eq!(gate.authenticate("override-token").as_deref(), Some("id-override"));
+        assert_eq!(gate.authenticate("derived-token"), None, "the derived file must be ignored");
     }
 
     #[test]
@@ -541,7 +854,10 @@ mod tests {
         std::env::remove_var(AUTH_POLICY_ENV);
 
         assert!(configured);
-        assert_eq!(policy.expect("Some").authenticate("explicit-token"), Some("id-explicit"));
+        assert_eq!(
+            policy.expect("Some").authenticate("explicit-token").as_deref(),
+            Some("id-explicit")
+        );
     }
 
     #[test]
@@ -570,7 +886,7 @@ mod tests {
             assert_eq!(blank_gated, unset_gated, "blank {blank:?} must equal unset (gated)");
             assert!(blank_gated, "blank is not a value — the declaration still decides");
             assert_eq!(
-                blank_policy.expect("gated ⇒ Some").authenticate("declared-token"),
+                blank_policy.expect("gated ⇒ Some").authenticate("declared-token").as_deref(),
                 Some("id-arthur"),
                 "blank must fall through to the DERIVED path, not to a deny-all"
             );
@@ -602,8 +918,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join(AUTH_POLICY_FILE_NAME), "{ not json").unwrap();
 
-        let policy = resolve_auth_policy(&source_for(dir.path(), true)).expect("Some(deny_all)");
-        assert_eq!(policy.authenticate("anything"), None);
+        let gate = resolve_auth_policy(&source_for(dir.path(), true)).expect("Some(deny_all)");
+        assert_eq!(gate.authenticate("anything"), None);
     }
 
     #[test]
@@ -757,23 +1073,23 @@ mod tests {
         let resolved = ResolvedAuthPolicy::resolve(&source_for(dir.path(), true));
         assert!(resolved.is_gated(), "a readable declared policy ⇒ the gate is bound");
         assert_eq!(
-            resolved.policy().expect("gated ⇒ Some").authenticate("shared-token"),
+            resolved.gate().expect("gated ⇒ Some").authenticate("shared-token").as_deref(),
             Some("id-shared"),
             "the value handed to both gates must be the policy that was actually READ"
         );
 
-        // Deleting the file after resolution changes NOTHING for either gate: they hold the
-        // resolved value, not a promise to read the file again — which is precisely why two
-        // reads could once disagree and now cannot.
+        // Deleting the file changes nothing until the daemon LOOKS again: the gates hold the
+        // resolved value, not a promise to re-read on every request. (What happens when it
+        // does look is `a_disappeared_policy_file_reloads_to_deny_all`, below.)
         std::fs::remove_file(dir.path().join(AUTH_POLICY_FILE_NAME)).unwrap();
-        let for_http = resolved.clone();
-        let for_ws = resolved;
+        let for_http = resolved.gate().expect("gated ⇒ Some");
+        let for_ws = resolved.gate().expect("gated ⇒ Some");
         assert_eq!(
-            for_http.policy().unwrap().authenticate("shared-token"),
-            for_ws.policy().unwrap().authenticate("shared-token"),
+            for_http.authenticate("shared-token"),
+            for_ws.authenticate("shared-token"),
             "both gates must hold the same answer, from the same single read"
         );
-        assert_eq!(for_ws.policy().unwrap().authenticate("some-other-token"), None);
+        assert_eq!(for_ws.authenticate("some-other-token"), None);
     }
 
     #[test]
@@ -791,14 +1107,14 @@ mod tests {
         std::env::set_var(AUTH_POLICY_ENV, &override_path);
         let overridden = ResolvedAuthPolicy::resolve(&source_for(dir.path(), true));
         std::env::remove_var(AUTH_POLICY_ENV);
-        let policy = overridden.policy().expect("override ⇒ Some");
-        assert_eq!(policy.authenticate("override-token"), Some("id-override"));
-        assert_eq!(policy.authenticate("derived-token"), None, "the derived file is ignored");
+        let gate = overridden.gate().expect("override ⇒ Some");
+        assert_eq!(gate.authenticate("override-token").as_deref(), Some("id-override"));
+        assert_eq!(gate.authenticate("derived-token"), None, "the derived file is ignored");
 
         // 2. declared gate, env unset ⇒ the derived path.
         let derived_only = ResolvedAuthPolicy::resolve(&source_for(dir.path(), true));
         assert_eq!(
-            derived_only.policy().expect("declared ⇒ Some").authenticate("derived-token"),
+            derived_only.gate().expect("declared ⇒ Some").authenticate("derived-token").as_deref(),
             Some("id-derived")
         );
 
@@ -806,12 +1122,12 @@ mod tests {
         let empty = tempfile::tempdir().unwrap();
         let absent = ResolvedAuthPolicy::resolve(&source_for(empty.path(), true));
         assert!(absent.is_gated(), "absent must still BIND the gate");
-        assert_eq!(absent.policy().unwrap().authenticate("anything"), None, "deny ALL");
+        assert_eq!(absent.gate().unwrap().authenticate("anything"), None, "deny ALL");
 
         // 4. nothing declared, no env ⇒ no gate at all, even with a file sitting there.
         let undeclared = ResolvedAuthPolicy::resolve(&source_for(dir.path(), false));
         assert!(!undeclared.is_gated());
-        assert!(undeclared.policy().is_none(), "no declaration ⇒ no gate");
+        assert!(undeclared.gate().is_none(), "no declaration ⇒ no gate");
     }
 
     #[test]
@@ -845,6 +1161,317 @@ mod tests {
             std::env::remove_var(AUTH_POLICY_ENV);
             assert_eq!(peeked, resolved, "peek and resolution disagree for: {label}");
         }
+    }
+
+    // ── hot reload: the policy follows the FILE, and no gate restarts ─────────────
+    //
+    // The operational fact these pin: `refarm auth enroll` writes this file while the daemon
+    // is running. Reading it only at boot made enrolling a device require a full runtime
+    // restart before its credential was accepted — and, in the direction that actually
+    // matters, made REVOKING one require a restart before it stopped being accepted.
+
+    /// The one resolution, on a declared gate over a real temp refarm dir, with `enrolled`
+    /// already written. Returns the dir (kept alive), the policy path, and the live gate —
+    /// exactly the handle `sidecar::start` and `WsServer::start` each clone.
+    fn resolved_gate(enrolled: &[(&str, &str)]) -> (tempfile::TempDir, PathBuf, AuthGate) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(AUTH_POLICY_FILE_NAME);
+        write_policy_many(&path, enrolled);
+        let gate = ResolvedAuthPolicy::resolve(&source_for(dir.path(), true))
+            .gate()
+            .expect("a declared gate ⇒ a bound gate");
+        (dir, path, gate)
+    }
+
+    #[test]
+    fn a_credential_added_to_the_file_is_accepted_without_a_restart() {
+        // The operator's Tuesday: the daemon is up, the phone is enrolled, and the phone
+        // works. Before this, the enrolment landed in the file and the running daemon never
+        // looked again — a 401 with no explanation for anyone who enrolled after the boot.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let (_dir, path, gate) = resolved_gate(&[("laptop-token", "id-laptop")]);
+        assert_eq!(gate.authenticate("phone-token"), None, "not enrolled yet ⇒ rejected");
+
+        write_policy_many(&path, &[("laptop-token", "id-laptop"), ("phone-token", "id-phone")]);
+        assert!(gate.reload_if_changed(), "the file changed ⇒ the policy is re-read");
+
+        assert_eq!(
+            gate.authenticate("phone-token").as_deref(),
+            Some("id-phone"),
+            "the newly enrolled device must be admitted by the RUNNING daemon"
+        );
+        assert_eq!(
+            gate.authenticate("laptop-token").as_deref(),
+            Some("id-laptop"),
+            "and the device that was already enrolled must not be disturbed"
+        );
+    }
+
+    #[test]
+    fn a_credential_removed_from_the_file_stops_being_accepted_without_a_restart() {
+        // MUTATION GUARD, and the more important direction. Revocation is the one that is
+        // dangerous to get wrong: a stolen phone whose credential the operator has deleted
+        // must stop working NOW, not at the next restart — and a reload that only ever ADDS
+        // (merging into the policy in force instead of REPLACING it) would pass the
+        // enrolment test above and silently fail here forever.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let (_dir, path, gate) =
+            resolved_gate(&[("laptop-token", "id-laptop"), ("phone-token", "id-phone")]);
+        assert_eq!(gate.authenticate("phone-token").as_deref(), Some("id-phone"));
+
+        // The revocation: the file is rewritten WITHOUT the phone.
+        write_policy_many(&path, &[("laptop-token", "id-laptop")]);
+        assert!(gate.reload_if_changed(), "the file changed ⇒ the policy is re-read");
+
+        assert_eq!(
+            gate.authenticate("phone-token"),
+            None,
+            "a REVOKED credential must stop authenticating in the running daemon"
+        );
+        assert_eq!(
+            gate.authenticate("laptop-token").as_deref(),
+            Some("id-laptop"),
+            "revoking one device must not evict the others"
+        );
+    }
+
+    #[test]
+    fn a_policy_that_becomes_invalid_never_widens_access() {
+        // MUTATION GUARD. Fail-closed on re-read, by the SAME rule as boot
+        // (`a_derived_policy_that_exists_but_is_invalid_is_deny_all`): a policy that cannot
+        // be believed locks the door. The dangerous mutations are silent — parse failure
+        // leaving the previous policy in force (a revoked credential surviving a corrupt
+        // write, indefinitely), or worse, a failed parse being treated as "no constraints".
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let (_dir, path, gate) = resolved_gate(&[("laptop-token", "id-laptop")]);
+        assert_eq!(gate.authenticate("laptop-token").as_deref(), Some("id-laptop"));
+
+        std::fs::write(&path, "{ not json").unwrap();
+        let logs = captured_logs(|| {
+            assert!(gate.reload_if_changed(), "a broken file is a CHANGE, and must be acted on");
+        });
+
+        assert_eq!(gate.authenticate("laptop-token"), None, "deny-all, not last-known-good");
+        assert_eq!(gate.authenticate("anything-else"), None, "and certainly not ungated");
+        assert!(logs.contains("DENY-ALL"), "the operator must be told the door shut: {logs}");
+        assert!(
+            !logs.contains("auth policy reloaded"),
+            "a broken file must never be reported as a successful reload: {logs}"
+        );
+    }
+
+    #[test]
+    fn an_unreadable_policy_file_never_widens_access() {
+        // The other half of "cannot be believed": the bytes are there but the process may
+        // not have them (a permission change, a mount going away). Same answer as invalid —
+        // deny-all — because "I could not read the policy" is not "there is no policy".
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let (_dir, path, gate) = resolved_gate(&[("laptop-token", "id-laptop")]);
+        assert_eq!(gate.authenticate("laptop-token").as_deref(), Some("id-laptop"));
+
+        // A DIRECTORY where the file was: `read_to_string` fails with something that is
+        // neither NotFound nor a parse error — the third branch, reached without needing to
+        // run as a non-root user (in a container, chmod 000 does not stop root).
+        std::fs::remove_file(&path).unwrap();
+        std::fs::create_dir(&path).unwrap();
+
+        assert!(gate.reload_if_changed(), "unreadable is a change");
+        assert_eq!(gate.authenticate("laptop-token"), None, "deny-all, not last-known-good");
+    }
+
+    #[test]
+    fn a_truncated_write_is_never_observed_as_a_valid_empty_policy() {
+        // Enrolment WRITES this file, so a partial read is a real race, not a theory. The
+        // failure to design against is a half-written file being taken for a policy: parsed
+        // as "no credentials" and reported as a clean reload, which reads in the log exactly
+        // like a deliberate revocation of every device. It cannot be — truncated JSON does
+        // not parse — and the log must say so.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let (_dir, path, gate) = resolved_gate(&[("laptop-token", "id-laptop")]);
+
+        let complete = policy_bytes(&[("laptop-token", "id-laptop"), ("phone-token", "id-phone")]);
+        for cut in [1, complete.len() / 3, complete.len() / 2, complete.len() - 1] {
+            std::fs::write(&path, &complete[..cut]).unwrap();
+            let logs = captured_logs(|| {
+                gate.reload_if_changed();
+            });
+            assert!(
+                !logs.contains("auth policy reloaded"),
+                "a {cut}-byte prefix must not be reported as a successful reload: {logs}"
+            );
+            assert_eq!(gate.authenticate("phone-token"), None, "a prefix enrols nobody");
+            assert_eq!(gate.authenticate("laptop-token"), None, "and admits nobody: deny-all");
+        }
+
+        // …and the write COMPLETING is itself a change, so the gate is not wedged shut by
+        // having observed the prefix: the enrolment lands on the very next read.
+        std::fs::write(&path, &complete).unwrap();
+        assert!(gate.reload_if_changed(), "the completed write is a change");
+        assert_eq!(gate.authenticate("phone-token").as_deref(), Some("id-phone"));
+        assert_eq!(gate.authenticate("laptop-token").as_deref(), Some("id-laptop"));
+    }
+
+    #[test]
+    fn a_disappeared_policy_file_reloads_to_deny_all() {
+        // Deleting the policy is not "the gate is off" — the gate is DECLARED, and a
+        // declaration is turned off by editing the declaration, never by removing a file.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let (_dir, path, gate) = resolved_gate(&[("laptop-token", "id-laptop")]);
+        std::fs::remove_file(&path).unwrap();
+
+        let logs = captured_logs(|| assert!(gate.reload_if_changed()));
+        assert_eq!(gate.authenticate("laptop-token"), None, "deny ALL");
+        assert!(logs.contains("DENY-ALL"), "and say so: {logs}");
+    }
+
+    #[test]
+    fn both_gates_observe_the_same_value_after_a_reload() {
+        // The single-resolution contract, extended through time. Each gate takes its own
+        // clone at boot — the HTTP sidecar into its middleware layer
+        // (`AuthGate::authenticate`), the WS server into its handshake callback
+        // (`AuthGate::snapshot`) — and a clone is an `Arc` bump, not a copy of the
+        // credentials. If either gate ever held a SNAPSHOT for the process lifetime, one
+        // would keep honouring a credential the other had revoked, with nothing in the log
+        // to explain it: the exact drift resolving once was meant to make impossible.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(AUTH_POLICY_FILE_NAME);
+        write_policy_many(&path, &[("laptop-token", "id-laptop")]);
+        let resolved = ResolvedAuthPolicy::resolve(&source_for(dir.path(), true));
+
+        let for_http = resolved.gate().expect("gated");
+        let for_ws = resolved.gate().expect("gated");
+
+        // Enrolment, observed by ONE of them …
+        write_policy_many(&path, &[("laptop-token", "id-laptop"), ("phone-token", "id-phone")]);
+        assert!(for_http.reload_if_changed());
+        // … is in force for the OTHER, at the exact call its gate makes.
+        assert_eq!(
+            for_ws.snapshot().authenticate("phone-token"),
+            Some("id-phone"),
+            "the WS handshake must see an enrolment applied by the HTTP side"
+        );
+
+        // And the reverse, for the direction that matters: a revocation applied by the WS
+        // side is in force for the HTTP middleware.
+        write_policy_many(&path, &[("laptop-token", "id-laptop")]);
+        assert!(for_ws.reload_if_changed());
+        assert_eq!(
+            for_http.authenticate("phone-token"),
+            None,
+            "the HTTP gate must see a revocation applied by the WS side"
+        );
+        assert_eq!(for_http.authenticate("laptop-token").as_deref(), Some("id-laptop"));
+        assert_eq!(
+            for_http.authenticate("laptop-token").as_deref(),
+            for_ws.snapshot().authenticate("laptop-token"),
+            "one value, two gates — always"
+        );
+    }
+
+    #[test]
+    fn a_reload_emits_exactly_one_line_and_an_unchanged_file_emits_none() {
+        // The one-emitter discipline the boot line already keeps, applied to reloads. Two
+        // lines per reload and the operator stops reading them; a line per POLL (every two
+        // seconds, forever) and the log is unusable. And the count is what makes a
+        // revocation legible — `identities` going down is the confirmation the operator is
+        // looking for at the moment they most need it.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let (_dir, path, gate) =
+            resolved_gate(&[("laptop-token", "id-laptop"), ("phone-token", "id-phone")]);
+
+        let quiet = captured_logs(|| {
+            assert!(!gate.reload_if_changed(), "nothing changed ⇒ no reload");
+            assert!(!gate.reload_if_changed(), "still nothing changed");
+        });
+        assert!(quiet.is_empty(), "an unchanged file must say nothing at all: {quiet}");
+
+        write_policy_many(&path, &[("laptop-token", "id-laptop")]);
+        let logs = captured_logs(|| {
+            assert!(gate.reload_if_changed(), "the revocation is a change");
+            assert!(!gate.reload_if_changed(), "and re-reading it is not a second one");
+        });
+        assert_eq!(
+            logs.matches("auth policy reloaded").count(),
+            1,
+            "exactly ONE line per reload: {logs}"
+        );
+        assert!(logs.contains("identities=1"), "the new count, so a revocation is visible: {logs}");
+        assert!(logs.contains("previously=2"), "and what it was, so the DELTA is visible: {logs}");
+        assert!(!logs.contains("id-phone"), "never an identity name: {logs}");
+        assert!(!logs.contains(&sha256_hex("phone-token")), "and never a hash: {logs}");
+    }
+
+    #[test]
+    fn no_declared_gate_means_no_watcher_and_nothing_to_reload() {
+        // The secure default stays off-by-absence, watcher included: nothing declared ⇒ no
+        // path is watched and no task is spawned. Called OUTSIDE a tokio runtime on purpose
+        // — a `tokio::spawn` here would panic, which is the assertion.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let dir = tempfile::tempdir().unwrap();
+        write_policy(&dir.path().join(AUTH_POLICY_FILE_NAME), "stray-token", "id-stray");
+
+        let resolved = ResolvedAuthPolicy::resolve(&source_for(dir.path(), false));
+        assert!(!resolved.is_gated());
+        resolved.spawn_reload_watcher();
+        assert!(resolved.gate().is_none(), "no declaration ⇒ no gate, and nothing to watch");
+    }
+
+    #[tokio::test]
+    async fn the_watcher_applies_an_enrolment_and_then_a_revocation_on_its_own() {
+        // `reload_if_changed` is what the tests above drive directly; this is the thing that
+        // CALLS it in a running daemon. Without this, every assertion above holds and an
+        // operator still has to restart, because nothing ever looks at the file.
+        //
+        // The real loop, at a 5ms period instead of the production two seconds — see
+        // `spawn_reload_watcher_every`.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(AUTH_POLICY_FILE_NAME);
+        write_policy_many(&path, &[("laptop-token", "id-laptop")]);
+
+        let resolved = ResolvedAuthPolicy::resolve(&source_for(dir.path(), true));
+        let gate = resolved.gate().expect("gated");
+        resolved.spawn_reload_watcher_every(Duration::from_millis(5));
+
+        /// Wait for the watcher to reach `expected`, or give up. Never a bare sleep: the
+        /// assertion is what the watcher DID, not how long the test was willing to wait.
+        async fn until(gate: &AuthGate, token: &str, expected: Option<&str>) -> bool {
+            for _ in 0..200 {
+                if gate.authenticate(token).as_deref() == expected {
+                    return true;
+                }
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+            false
+        }
+
+        write_policy_many(&path, &[("laptop-token", "id-laptop"), ("phone-token", "id-phone")]);
+        assert!(
+            until(&gate, "phone-token", Some("id-phone")).await,
+            "the watcher must apply the enrolment with no restart and no prompting"
+        );
+
+        write_policy_many(&path, &[("laptop-token", "id-laptop")]);
+        assert!(
+            until(&gate, "phone-token", None).await,
+            "and the revocation, which is the one that must not wait for a restart"
+        );
+        assert_eq!(
+            gate.authenticate("laptop-token").as_deref(),
+            Some("id-laptop"),
+            "without evicting the device that was never revoked"
+        );
     }
 
     #[test]

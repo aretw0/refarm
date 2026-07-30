@@ -42,6 +42,10 @@
 //! That policy is resolved ONCE per daemon start (in `main.rs`) and threaded into BOTH this
 //! server and the HTTP sidecar. This server holds the resolved value, not the source it came
 //! from, so the two gates cannot read the policy file separately — nor disagree about it.
+//! The value is a LIVE handle (`sidecar::auth::AuthGate`), so when the policy file changes
+//! the daemon re-reads it and this handshake gate sees the new credentials on the very next
+//! connection — no restart to admit an enrolled device, and none to refuse a revoked one.
+//! The snapshot `decide_ws_handshake` judges is taken per handshake, from that one handle.
 //!
 //! The accept/reject DECISION (`decide_ws_handshake`) is a PURE function of the offered
 //! protocol tokens and the policy — no socket, no headers, no tungstenite types — so it is
@@ -64,7 +68,7 @@ use tokio_tungstenite::tungstenite::handshake::server::{
 use tokio_tungstenite::tungstenite::http::{header, HeaderValue, StatusCode};
 use tokio_tungstenite::{accept_hdr_async, tungstenite::Message};
 
-use crate::sidecar::auth::AuthPolicy;
+use crate::sidecar::auth::{AuthGate, AuthPolicy};
 use crate::sync::NativeSync;
 use crate::telemetry::TelemetryBus;
 use crate::PluginChannels;
@@ -204,14 +208,14 @@ impl WsServer {
 
         let addr = self.bind_addr();
         let listener = TcpListener::bind(&addr).await?;
-        self.run_gated(listener, self.auth_policy.policy().cloned()).await
+        self.run_gated(listener, self.auth_policy.gate()).await
     }
 
     /// Run the server with a pre-bound listener and the WS credential gate OFF
     /// (`REFARM_AUTH_POLICY` behaves as unset) — used directly by tests outside this
     /// crate (the `tractor` binary's own test suite) to avoid TOCTOU. A thin `pub`
-    /// wrapper around `run_gated` that never names `AuthPolicy` in its own signature:
-    /// `AuthPolicy` is `pub(crate)` (see `sidecar::mod.rs`'s `auth` module doc for why
+    /// wrapper around `run_gated` that never names `AuthGate` in its own signature:
+    /// `AuthGate` is `pub(crate)` (see `sidecar::mod.rs`'s `auth` module doc for why
     /// that stays scoped), so a `pub fn` cannot take it as a parameter without widening
     /// that visibility. Production code never calls this — `start` calls `run_gated`
     /// directly with the real resolved policy.
@@ -228,7 +232,7 @@ impl WsServer {
     pub(crate) async fn run_gated(
         &self,
         listener: TcpListener,
-        auth_policy: Option<AuthPolicy>,
+        auth_policy: Option<AuthGate>,
     ) -> Result<()> {
         // Log the HOST too, not just the port: a line that says only "listening on 42000"
         // cannot be read as evidence of WHERE it listens, and this whole class of defect
@@ -310,7 +314,7 @@ async fn handle_connection(
     plugin_channels: PluginChannels,
     event_router: crate::EventRouter,
     telemetry: TelemetryBus,
-    auth_policy: Option<AuthPolicy>,
+    auth_policy: Option<AuthGate>,
 ) -> Result<()> {
     // `accept_hdr_async` (not `accept_async`) so `ws_handshake_callback` can inspect the
     // offered `Sec-WebSocket-Protocol` tokens and gate the upgrade itself (ADR-093) — see
@@ -487,17 +491,21 @@ fn ws_unauthorized_response(reason: &str) -> WsErrorResponse {
 }
 
 /// Build the `accept_hdr_async` callback (`tungstenite::handshake::server::Callback`) for
-/// one connection. `policy` is cloned once per connection from the value `WsServer::run`
-/// resolved ONCE at start (see its doc) — cheap, since `AuthPolicy` is a small `Vec` of
-/// hashes. Thin glue: parses the request, calls the PURE `decide_ws_handshake`, then either
+/// one connection. `gate` is the LIVE handle `WsServer::run_gated` holds — cloned per
+/// connection, which is an `Arc` bump, and read (snapshotted) once inside. Thin glue: parses the request, calls the PURE `decide_ws_handshake`, then either
 /// echoes `WS_SYNC_PROTOCOL` (accept) or writes a `401` (reject) — all logging happens
 /// here, at the boundary, never inside the pure decision.
 fn ws_handshake_callback(
-    policy: Option<AuthPolicy>,
+    gate: Option<AuthGate>,
 ) -> impl FnOnce(&WsHandshakeRequest, WsHandshakeResponse) -> Result<WsHandshakeResponse, WsErrorResponse> {
     move |request, response| {
         let offered = parse_offered_protocols(request);
         let offered_refs: Vec<&str> = offered.iter().map(String::as_str).collect();
+        // The snapshot is taken HERE, per handshake, from the live gate — so a connection
+        // arriving after a revocation is judged by the post-revocation policy, and one
+        // arriving after an enrolment by the post-enrolment policy. `decide_ws_handshake`
+        // stays PURE over the value it is handed.
+        let policy = gate.as_ref().map(AuthGate::snapshot);
         match decide_ws_handshake(&offered_refs, policy.as_ref()) {
             WsHandshakeDecision::Passthrough => Ok(response),
             WsHandshakeDecision::Accept { identity } => {
@@ -533,7 +541,7 @@ mod tests {
 
     use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
-    use crate::sidecar::auth::{sha256_hex, AuthPolicy, Credential, AUTH_POLICY_ENV};
+    use crate::sidecar::auth::{sha256_hex, AuthGate, AuthPolicy, Credential, AUTH_POLICY_ENV};
     use crate::{EventEnvelope, NativeStorage, NativeSync, TelemetryBus};
 
     fn make_sync() -> Arc<NativeSync> {
@@ -577,13 +585,20 @@ mod tests {
     /// policy is injected directly into `run`), so these tests stay hermetic: no env var
     /// mutation, no race with other tests in the same `cargo test` process.
     async fn spawn_server_with_auth_policy(channels: PluginChannels, policy: AuthPolicy) -> String {
-        spawn_server_full(channels, crate::EventRouter::default(), Some(policy)).await
+        spawn_server_full(channels, crate::EventRouter::default(), Some(AuthGate::for_test(policy)))
+            .await
+    }
+
+    /// Same, but over a LIVE gate resolved from a real policy file — for the reload test,
+    /// which changes the file under a server that keeps running.
+    async fn spawn_server_with_gate(channels: PluginChannels, gate: AuthGate) -> String {
+        spawn_server_full(channels, crate::EventRouter::default(), Some(gate)).await
     }
 
     async fn spawn_server_full(
         channels: PluginChannels,
         event_router: crate::EventRouter,
-        auth_policy: Option<AuthPolicy>,
+        auth_policy: Option<AuthGate>,
     ) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
@@ -841,9 +856,9 @@ mod tests {
         std::env::remove_var(AUTH_POLICY_ENV);
 
         let policy = resolved
-            .policy()
-            .cloned()
-            .expect("unreadable policy must still resolve to Some(deny_all)");
+            .gate()
+            .expect("unreadable policy must still resolve to Some(deny_all)")
+            .snapshot();
         let offered = [WS_SYNC_PROTOCOL, "bearer.any-token-at-all"];
         assert_eq!(
             decide_ws_handshake(&offered, Some(&policy)),
@@ -915,8 +930,10 @@ mod tests {
                 )
                 .body(())
                 .unwrap();
-            let accept_result =
-                ws_handshake_callback(Some(policy.clone()))(&accept_req, WsHandshakeResponse::new(()));
+            let accept_result = ws_handshake_callback(Some(AuthGate::for_test(policy.clone())))(
+                &accept_req,
+                WsHandshakeResponse::new(()),
+            );
             assert!(accept_result.is_ok(), "valid token must be accepted");
 
             let reject_req = tokio_tungstenite::tungstenite::http::Request::builder()
@@ -926,8 +943,10 @@ mod tests {
                 )
                 .body(())
                 .unwrap();
-            let reject_result =
-                ws_handshake_callback(Some(policy.clone()))(&reject_req, WsHandshakeResponse::new(()));
+            let reject_result = ws_handshake_callback(Some(AuthGate::for_test(policy.clone())))(
+                &reject_req,
+                WsHandshakeResponse::new(()),
+            );
             assert!(reject_result.is_err(), "wrong token must be refused");
         });
 
@@ -1045,6 +1064,68 @@ mod tests {
             }
             other => panic!("expected an HTTP 401 handshake refusal, got: {other:?}"),
         }
+    }
+
+    #[tokio::test]
+    async fn e2e_a_running_server_admits_an_enrolment_and_refuses_a_revocation() {
+        // The whole point, over a real socket, on ONE server that is never restarted:
+        // enrolling a device makes the SAME running daemon accept it, and revoking it makes
+        // the same running daemon refuse it. Before the reload, both required a restart —
+        // which for the revocation direction means a credential the operator had already
+        // deleted kept opening the door until they happened to bounce the runtime.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(crate::sidecar::auth::AUTH_POLICY_FILE_NAME);
+
+        let write = |tokens: &[(&str, &str)]| {
+            let credentials: Vec<_> = tokens
+                .iter()
+                .map(|(t, id)| serde_json::json!({ "identity": id, "tokenSha256": sha256_hex(t) }))
+                .collect();
+            std::fs::write(
+                &path,
+                serde_json::to_vec(&serde_json::json!({ "credentials": credentials })).unwrap(),
+            )
+            .unwrap();
+        };
+        write(&[("laptop-token", "id-laptop")]);
+
+        let resolved = crate::sidecar::ResolvedAuthPolicy::resolve(
+            &crate::sidecar::AuthPolicySource::new(dir.path().to_path_buf(), true),
+        );
+        let gate = resolved.gate().expect("declared ⇒ gated");
+        let addr =
+            spawn_server_with_gate(Arc::new(RwLock::new(HashMap::new())), gate.clone()).await;
+
+        let connect = |token: &str| {
+            let request =
+                client_request_with_protocols(&addr, &[WS_SYNC_PROTOCOL, &format!("bearer.{token}")]);
+            async move { timeout(Duration::from_secs(2), connect_async(request)).await }
+        };
+
+        assert!(
+            connect("phone-token").await.expect("no hang").is_err(),
+            "a device that has not been enrolled must be refused"
+        );
+
+        write(&[("laptop-token", "id-laptop"), ("phone-token", "id-phone")]);
+        assert!(gate.reload_if_changed(), "the enrolment is a change");
+        assert!(
+            connect("phone-token").await.expect("no hang").is_ok(),
+            "the SAME running server must admit the newly enrolled device — no restart"
+        );
+
+        write(&[("laptop-token", "id-laptop")]);
+        assert!(gate.reload_if_changed(), "the revocation is a change");
+        assert!(
+            connect("phone-token").await.expect("no hang").is_err(),
+            "and must refuse it again the moment it is revoked — no restart"
+        );
+        assert!(
+            connect("laptop-token").await.expect("no hang").is_ok(),
+            "while the device that was never revoked keeps working throughout"
+        );
     }
 
     // ── one resolution, two gates (the single-resolution fix, end to end) ─────────

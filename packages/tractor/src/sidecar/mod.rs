@@ -1748,10 +1748,13 @@ pub async fn start(
     // Applied INNER of CORS below, so a browser's OPTIONS
     // preflight — which carries no credential — is answered by CORS before the gate sees it.
     // `auth_policy` is the value main.rs resolved at daemon start; the same value the bind
-    // guard above consulted, and the same value the WS handshake gate enforces.
-    let router = match auth_policy.policy().cloned() {
-        Some(policy) => router.layer(axum::middleware::from_fn(move |req, next| {
-            auth::auth_middleware(policy.clone(), req, next)
+    // guard above consulted, and the same value the WS handshake gate enforces. What the
+    // layer captures is the LIVE gate (an `Arc`), not a copy of the credentials: the router
+    // is built once, so a copy here would freeze the policy at boot and put enrolment — and
+    // revocation — behind a full runtime restart. See `auth::AuthGate`.
+    let router = match auth_policy.gate() {
+        Some(gate) => router.layer(axum::middleware::from_fn(move |req, next| {
+            auth::auth_middleware(gate.clone(), req, next)
         })),
         None => router,
     };

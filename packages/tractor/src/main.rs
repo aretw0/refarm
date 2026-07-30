@@ -496,6 +496,17 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     // answer the same predicate and cannot disagree (see `sidecar::auth`).
     let auth_policy = tractor::sidecar::ResolvedAuthPolicy::resolve(&auth_source);
 
+    // …and ONE watcher that keeps that answer CURRENT. Resolving once was right; freezing
+    // once was not. With the policy read only at boot, enrolling a device (`refarm auth
+    // enroll` writes this very file) did not admit it until the whole runtime was restarted
+    // — and revoking one did not refuse it until then either. Restarting a runtime to admit
+    // a phone is the wrong granularity; a credential policy is state that must be re-read
+    // when it changes. The watcher re-reads the SAME resolved path and swaps the value both
+    // gates hold — one shared handle, so neither can drift from the other, and neither
+    // re-resolves. Fail-closed on every re-read, exactly as at boot (see
+    // `sidecar::auth::AuthGate::reload_if_changed`). A no-op when no gate is declared.
+    auth_policy.spawn_reload_watcher();
+
     let security_mode = match args.security_mode.as_str() {
         "permissive" => SecurityMode::Permissive,
         "none" => SecurityMode::None,
