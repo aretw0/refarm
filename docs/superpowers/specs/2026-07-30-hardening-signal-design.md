@@ -1,0 +1,98 @@
+# The hardening signal — the suite tells you where to grow, not just whether you broke it
+
+Date: 2026-07-30
+Status: Designed, not implemented
+Lane: [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md) — substrate
+
+## What forced this
+
+The CLI refusal harness was about to be added, and it will almost certainly go red on several
+commands. The operator turned that from a problem into the point:
+
+> *"gosto da ideia de tornar essas deficiências como parte de um sinal da nossa suite para nos
+> mostrar onde endurecer … como queremos crescer bastante, crescer direito, com os sinais que mais
+> nos ajudam a postos, sempre saberíamos onde melhorar a stack."*
+
+They are right, and the reframing is worth more than the harness that prompted it.
+
+## What already exists (measured, 2026-07-30)
+
+**21 exported `*ConformanceResult` types across 22 packages**, and seven exported
+`run*Conformance` entry points — asset-resolver, ds-theme, host-renderer, dispatch-result,
+event-bus, provenance, operator-channel, and more with result shapes but no runner.
+
+Every block already knows how to check itself. **Nothing ever asks all of them at once.** The
+capability is built and uncollected — the same shape as the day's other findings, one level up.
+
+## H1 — A gate and a signal are different things, and conflating them is why demanding checks never get added
+
+A **gate** must be green for work to proceed. A **signal** reports where you are and is allowed to
+be non-zero.
+
+A check that must be green can only be introduced when everything already satisfies it — which means
+it can never be introduced into a real codebase. That is the whole reason demanding checks get
+written, run once, and deleted.
+
+So the harness produces both:
+
+- **the signal** — the current list of things that do not yet satisfy a contract, visible and
+  counted;
+- **the gate** — that list must not *grow*.
+
+## H2 — The ratchet: a baseline that can only shrink
+
+Known non-conformances are recorded as a baseline. The gate compares against it:
+
+- a new failure not in the baseline ⇒ **red**, because that is a regression;
+- a baseline entry that now passes ⇒ it must be **removed** from the baseline, so progress is
+  permanent and cannot silently un-happen;
+- the baseline shrinking is the only direction that requires no ceremony.
+
+**Adding an entry to the baseline must be an explicit, reviewable act** — a deliberate edit, never
+an automatic capture. Auto-capture turns the baseline into a mute button, and a mute button is worse
+than no check because it looks like coverage.
+
+## H3 — "Not applicable" is not "not done"
+
+A signal that lumps *this contract does not apply here* together with *this has not been hardened
+yet* is noise, and noise gets ignored, and an ignored signal is worse than none.
+
+This is the distinction this repo keeps rediscovering — `down` vs `unknown` on a probe, "the tailnet
+answered nobody" vs "I could not ask", a refused declaration vs an absent one. Its sixth appearance
+should settle it as a house rule rather than a recurring surprise: **whenever an answer can be
+absent, say which kind of absent.**
+
+So an entry carries its kind: conformant, not-yet-hardened (with a pointer to what would fix it), or
+not-applicable (with the reason it does not apply).
+
+## H4 — A signal nobody reads is a log
+
+R3 of the operation-consent design says a record without an undo is a log, and a log does not give
+you sovereignty. The same applies here, pointed at ourselves: a hardening count buried in CI output
+that nobody opens is not a signal.
+
+It has to be answerable on demand — one command, human-readable and `--json`, saying what is
+hardened, what is not, and what the next most valuable thing to fix is. If the operator cannot ask
+*"where should I harden next?"* and get an answer, this document has produced a report format, not a
+signal.
+
+## H5 — Aggregate what exists before writing anything new
+
+The 21 conformance results are the substance. The work is a collector that runs them, normalises
+their shapes, and reports — plus the CLI refusal harness as one more contributor, not as the centre.
+
+Writing a new conformance framework while 21 uncollected ones sit in the repo would repeat the
+mistake this document exists to name.
+
+## First slice
+
+The collector over the suites that already have runnable entry points, plus the CLI refusal harness,
+plus the baseline and its ratchet. `refarm health` is the natural home for the question — it already
+audits structure, build alignment and resolution — but the signal must be its own answer, not a line
+buried in an existing report.
+
+## Not in this slice
+
+Scoring or weighting the entries. "The next most valuable thing to fix" is H4's promise, and the
+honest first version orders by contract and package rather than pretending to a priority model
+nobody has calibrated.
