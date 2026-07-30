@@ -69,6 +69,37 @@ export interface BaseSurfaceActionRequest<
 	nextCommands: string[];
 }
 
+export interface OperatorAttentionGateStatus {
+	scope: string;
+	armed: boolean;
+	windowMs: number;
+	expiresAt: string | null;
+}
+
+export interface OperatorAttentionGateCommandOptions {
+	commandPrefix?: string;
+	json?: boolean;
+}
+
+export interface OperatorAttentionGateCommands {
+	prepare: string;
+	check: string;
+	consume: string;
+}
+
+export interface OperatorAttentionGateHandoff {
+	ok: boolean;
+	command: "operator-attention-gate";
+	scope: string;
+	armed: boolean;
+	windowMs: number;
+	expiresAt: string | null;
+	nextAction: string | null;
+	nextActions: string[];
+	nextCommand: string | null;
+	nextCommands: string[];
+}
+
 export interface BaseSurfaceUnit {
 	id: string;
 	label: string;
@@ -332,6 +363,55 @@ export function createBaseSurfaceActionRows(
 	});
 }
 
+export function buildOperatorAttentionGateCommands(
+	scope: string,
+	windowMs: number,
+	options: OperatorAttentionGateCommandOptions = {},
+): OperatorAttentionGateCommands {
+	const commandPrefix = options.commandPrefix ?? "node scripts/operator-attention-gate.mjs";
+	const jsonFlag = options.json === false ? "" : " --json";
+	const quotedScope = shellQuote(scope);
+	return {
+		prepare: `${commandPrefix} ${quotedScope} --prepare-only --window-ms ${windowMs}${jsonFlag}`,
+		check: `${commandPrefix} ${quotedScope} --check-only --window-ms ${windowMs}${jsonFlag}`,
+		consume: `${commandPrefix} ${quotedScope} --consume-only${jsonFlag}`,
+	};
+}
+
+export function buildOperatorAttentionGateHandoff(
+	status: OperatorAttentionGateStatus,
+	options: OperatorAttentionGateCommandOptions = {},
+): OperatorAttentionGateHandoff {
+	const commands = buildOperatorAttentionGateCommands(status.scope, status.windowMs, options);
+	if (status.armed) {
+		return {
+			ok: true,
+			command: "operator-attention-gate",
+			scope: status.scope,
+			armed: true,
+			windowMs: status.windowMs,
+			expiresAt: status.expiresAt,
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
+		};
+	}
+
+	return {
+		ok: false,
+		command: "operator-attention-gate",
+		scope: status.scope,
+		armed: false,
+		windowMs: status.windowMs,
+		expiresAt: status.expiresAt,
+		nextAction: `Arme o canal de atenção para '${status.scope}'.`,
+		nextActions: [`Arme o canal de atenção para '${status.scope}'.`],
+		nextCommand: commands.prepare,
+		nextCommands: [commands.prepare],
+	};
+}
+
 export function resolveBaseSurfaceActionSelection(
 	rows: readonly BaseSurfaceActionRow[],
 	selection: string,
@@ -421,6 +501,10 @@ function slugActionId(value: string): string {
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-+|-+$/g, "");
 	return slug || "action";
+}
+
+function shellQuote(value: string): string {
+	return `'${value.replaceAll("'", `'"'"'`)}'`;
 }
 
 function renderReviewQueueSummary(
