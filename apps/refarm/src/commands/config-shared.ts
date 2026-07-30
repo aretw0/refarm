@@ -102,9 +102,15 @@ export function readConfig(filePath: string): RefarmCliConfig {
 	}
 }
 
+/** The exact bytes {@link writeConfig} would write. Split out so a mutation can be recorded as a
+ *  before/after SNAPSHOT pair before anything touches disk — the record's undo is those bytes. */
+export function serializeConfig(config: RefarmCliConfig): string {
+	return `${JSON.stringify(config, null, 2)}\n`;
+}
+
 export function writeConfig(filePath: string, config: RefarmCliConfig): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
-	fs.writeFileSync(filePath, `${JSON.stringify(config, null, 2)}\n`, "utf-8");
+	fs.writeFileSync(filePath, serializeConfig(config), "utf-8");
 }
 
 export function hasJsonOption(opts: JsonOptionCarrier, command?: JsonOptionCarrier): boolean {

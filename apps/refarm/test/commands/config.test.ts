@@ -35,6 +35,23 @@ function configGetHandoff(key: string, local = false) {
 	};
 }
 
+/** A mutation's handoff: read the value back, and then read the RECORD of the change — the
+ *  record is only sovereignty if the operator is pointed at where to find it. */
+function configMutationHandoff(key: string, local = false) {
+	const nextCommand = `refarm config get ${key} --json${local ? " --local" : ""}`;
+	return {
+		ok: true,
+		nextAction: null,
+		nextActions: [],
+		nextCommand,
+		nextCommands: [nextCommand, `refarm config history --json${local ? " --local" : ""}`],
+	};
+}
+
+/** A fixed clock, so a record id (`<requestId>#<decidedAt>`) is a stable string a test can
+ *  assert exactly rather than a shape it can only pattern-match. */
+const RECORDED_AT = "2026-07-30T12:00:00.000Z";
+
 describe("config command", () => {
 	let cwd: string;
 	let home: string;
@@ -92,10 +109,13 @@ describe("config command", () => {
 	});
 
 	function command() {
-		return createConfigCommand({
-			cwd: () => cwd,
-			home: () => home,
-		});
+		return createConfigCommand(
+			{
+				cwd: () => cwd,
+				home: () => home,
+			},
+			{ now: () => RECORDED_AT, decidedBy: "op", host: "torre" },
+		);
 	}
 
 	it("rejects the removed farmhand autostart key on set", async () => {
@@ -114,10 +134,7 @@ describe("config command", () => {
 	it("rejects the removed farmhand autostart key on set --local", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		await command().parseAsync(
-			["set", "farmhand.autostart", "never", "--local"],
-			{ from: "user" },
-		);
+		await command().parseAsync(["set", "farmhand.autostart", "never", "--local"], { from: "user" });
 
 		const errors = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(errors).toContain("Unknown config key: farmhand.autostart");
@@ -137,9 +154,7 @@ describe("config command", () => {
 			fs.readFileSync(path.join(home, ".refarm", "config.json"), "utf-8"),
 		) as { autostart?: string };
 		expect(saved.autostart).toBe("always");
-		expect(logSpy).toHaveBeenCalledWith(
-			expect.stringContaining("runtime.autostart=always"),
-		);
+		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("runtime.autostart=always"));
 	});
 
 	it("prints persisted config value as JSON", async () => {
@@ -155,7 +170,8 @@ describe("config command", () => {
 			value: "always",
 			path: path.join(home, ".refarm", "config.json"),
 			scope: "home",
-			...configGetHandoff("runtime.autostart"),
+			recordId: `config:home:runtime.autostart#${RECORDED_AT}`,
+			...configMutationHandoff("runtime.autostart"),
 		});
 	});
 
@@ -173,7 +189,8 @@ describe("config command", () => {
 			value: "never",
 			path: path.join(cwd, ".refarm", "config.json"),
 			scope: "local",
-			...configGetHandoff("operator.openExternalLinks", true),
+			recordId: `config:local:operator.openExternalLinks#${RECORDED_AT}`,
+			...configMutationHandoff("operator.openExternalLinks", true),
 		});
 	});
 
@@ -205,10 +222,7 @@ describe("config command", () => {
 			nextAction: null,
 			nextActions: [],
 			nextCommand: "refarm runtime ensure --wait --next-command",
-			nextCommands: [
-				"refarm runtime ensure --wait --next-command",
-				"refarm config --json",
-			],
+			nextCommands: ["refarm runtime ensure --wait --next-command", "refarm config --json"],
 		});
 	});
 
@@ -257,9 +271,7 @@ describe("config command", () => {
 			fs.readFileSync(path.join(home, ".refarm", "config.json"), "utf-8"),
 		) as { autostart?: string };
 		expect(saved.autostart).toBeUndefined();
-		expect(logSpy).toHaveBeenCalledWith(
-			expect.stringContaining("unset runtime.autostart"),
-		);
+		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("unset runtime.autostart"));
 	});
 
 	it("prints unset config result as JSON", async () => {
@@ -271,10 +283,9 @@ describe("config command", () => {
 		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await command().parseAsync(
-			["unset", "operator.openExternalLinks", "--local", "--json"],
-			{ from: "user" },
-		);
+		await command().parseAsync(["unset", "operator.openExternalLinks", "--local", "--json"], {
+			from: "user",
+		});
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
 			...configIdentity("unset"),
@@ -282,7 +293,8 @@ describe("config command", () => {
 			path: path.join(cwd, ".refarm", "config.json"),
 			scope: "local",
 			removed: true,
-			...configGetHandoff("operator.openExternalLinks", true),
+			recordId: `config:local:operator.openExternalLinks#${RECORDED_AT}`,
+			...configMutationHandoff("operator.openExternalLinks", true),
 		});
 	});
 
@@ -299,9 +311,13 @@ describe("config command", () => {
 			path: path.join(home, ".refarm", "config.json"),
 			scope: "home",
 			removed: false,
+			// Nothing was set, so nothing changed, so nothing was recorded. A trail full of
+			// entries whose undo restores a file to itself is noise dressed as memory.
+			recordId: null,
 			...configGetHandoff("tractor.engine"),
 		});
 		expect(fs.existsSync(path.join(home, ".refarm", "config.json"))).toBe(false);
+		expect(fs.existsSync(path.join(home, ".refarm", "operations.json"))).toBe(false);
 	});
 
 	it("rejects the removed farmhand autostart key on get", async () => {
@@ -452,7 +468,9 @@ describe("config command", () => {
 		expect(output).toContain("runtime.sidecarUrl=http://127.0.0.1:42001");
 		expect(output).toContain("operator.openExternalLinks=auto");
 		expect(output).toContain("tractor.engine=auto");
-		expect(output).toContain("Future: running this command without arguments can become interactive");
+		expect(output).toContain(
+			"Future: running this command without arguments can become interactive",
+		);
 	});
 
 	it("prints effective config sources when run without a subcommand", async () => {
@@ -560,10 +578,9 @@ describe("config command", () => {
 	it("sets runtime sidecar URL preference", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await command().parseAsync(
-			["set", "runtime.sidecarUrl", "http://127.0.0.1:52001/"],
-			{ from: "user" },
-		);
+		await command().parseAsync(["set", "runtime.sidecarUrl", "http://127.0.0.1:52001/"], {
+			from: "user",
+		});
 
 		const saved = JSON.parse(
 			fs.readFileSync(path.join(home, ".refarm", "config.json"), "utf-8"),
@@ -712,9 +729,7 @@ describe("config command", () => {
 			fs.readFileSync(path.join(home, ".refarm", "config.json"), "utf-8"),
 		) as { tractor?: { engine?: string } };
 		expect(saved.tractor?.engine).toBe("rust");
-		expect(logSpy).toHaveBeenCalledWith(
-			expect.stringContaining("tractor.engine=rust"),
-		);
+		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("tractor.engine=rust"));
 	});
 
 	it("prints default tractor engine preference", async () => {
@@ -755,9 +770,7 @@ describe("config command", () => {
 			from: "user",
 		});
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Invalid runtime.autostart"),
-		);
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid runtime.autostart"));
 		expect(process.exitCode).toBe(1);
 	});
 
@@ -768,9 +781,7 @@ describe("config command", () => {
 			from: "user",
 		});
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Unknown config key"),
-		);
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Unknown config key"));
 		expect(process.exitCode).toBe(1);
 	});
 
@@ -781,9 +792,7 @@ describe("config command", () => {
 			from: "user",
 		});
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Invalid tractor.engine"),
-		);
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid tractor.engine"));
 		expect(process.exitCode).toBe(1);
 	});
 
@@ -794,9 +803,293 @@ describe("config command", () => {
 			from: "user",
 		});
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Invalid runtime.sidecarUrl"),
-		);
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid runtime.sidecarUrl"));
 		expect(process.exitCode).toBe(1);
+	});
+});
+
+// ── the record: a config change is remembered, with a working undo ────────────
+
+describe("config set/unset are RECORDED — and never confirmed", () => {
+	let cwd: string;
+	let home: string;
+	let tick: number;
+
+	beforeEach(() => {
+		cwd = makeTempDir();
+		home = makeTempDir();
+		tick = 0;
+		process.exitCode = undefined;
+		vi.clearAllMocks();
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+		process.exitCode = undefined;
+		// Every scope here is a throwaway under /tmp; remove it so a suite that writes config
+		// files and trails does not leave a trail of its own across the machine.
+		fs.rmSync(cwd, { recursive: true, force: true });
+		fs.rmSync(home, { recursive: true, force: true });
+	});
+
+	/** A clock that advances, so two changes to the SAME key get distinct record ids. */
+	const clock = () => `2026-07-30T12:00:0${tick++}.000Z`;
+
+	function command() {
+		return createConfigCommand(
+			{ cwd: () => cwd, home: () => home },
+			{ now: clock, decidedBy: "op", host: "torre" },
+		);
+	}
+
+	const homeConfig = () => path.join(home, ".refarm", "config.json");
+	const homeTrail = () => path.join(home, ".refarm", "operations.json");
+	const localTrail = () => path.join(cwd, ".refarm", "operations.json");
+
+	function readTrail(trailPath: string): {
+		capability: string;
+		version: number;
+		records: Array<{
+			id: string;
+			requestId: string;
+			kind: string;
+			title: string;
+			purpose: string;
+			requester: string;
+			decidedBy: string;
+			decision: string;
+			decidedAt: string;
+			appliedAt: string | null;
+			host?: string;
+			changes: Array<{ path: string; before: string | null; after: string | null }>;
+			undo: { kind: string; summary?: string; reason?: string };
+			revisitOf?: string;
+		}>;
+	} {
+		return JSON.parse(fs.readFileSync(trailPath, "utf-8"));
+	}
+
+	it("records a `set` with everything R3 asks for: what, why, who, when, and the undo", async () => {
+		vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(
+			["set", "runtime.autostart", "always", "--why", "quero o daemon subindo sozinho"],
+			{ from: "user" },
+		);
+
+		const trail = readTrail(homeTrail());
+		expect(trail.capability).toBe("operation-consent:v1");
+		expect(trail.records).toHaveLength(1);
+		const record = trail.records[0]!;
+		expect(record.kind).toBe("config-set");
+		expect(record.title).toBe("refarm config set runtime.autostart always");
+		// WHY — the operator's own words, carried verbatim rather than re-worded.
+		expect(record.purpose).toBe("quero o daemon subindo sozinho");
+		// WHO asked, WHO authorised, WHEN, and on which machine.
+		expect(record.requester).toBe("refarm config set");
+		expect(record.decidedBy).toBe("op");
+		expect(record.host).toBe("torre");
+		expect(record.decision).toBe("authorized");
+		expect(record.appliedAt).toBe(record.decidedAt);
+		// WHAT CHANGED — complete snapshots, both sides.
+		expect(record.changes).toHaveLength(1);
+		expect(record.changes[0]?.path).toBe(homeConfig());
+		expect(record.changes[0]?.before).toBeNull(); // the file did not exist yet
+		expect(JSON.parse(String(record.changes[0]?.after))).toEqual({ autostart: "always" });
+		// HOW TO UNDO IT.
+		expect(record.undo.kind).toBe("restore-snapshot");
+	});
+
+	it("falls back to a factual purpose rather than inventing a motive", async () => {
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		await command().parseAsync(["set", "tractor.engine", "rust"], { from: "user" });
+		expect(readTrail(homeTrail()).records[0]?.purpose).toBe(
+			'Operator set tractor.engine to "rust" in the home scope.',
+		);
+	});
+
+	it("records an `unset` with the value that WAS there, so the undo can put it back", async () => {
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		await command().parseAsync(["set", "runtime.autostart", "always"], { from: "user" });
+		await command().parseAsync(["unset", "runtime.autostart"], { from: "user" });
+
+		const records = readTrail(homeTrail()).records;
+		expect(records.map((entry) => entry.kind)).toEqual(["config-set", "config-unset"]);
+		const unset = records[1]!;
+		expect(JSON.parse(String(unset.changes[0]?.before))).toEqual({ autostart: "always" });
+		expect(JSON.parse(String(unset.changes[0]?.after))).toEqual({});
+		// Same key, same scope ⇒ same requestId, so the two are ONE timeline.
+		expect(unset.requestId).toBe(records[0]?.requestId);
+		expect(unset.requestId).toBe("config:home:runtime.autostart");
+	});
+
+	it("NEVER asks the operator anything — no prompt, and no flag to suppress one", async () => {
+		// The design decision, pinned. `config set` is the operator's own deliberate intent;
+		// confirming what they just typed is the click-through training R4 exists to prevent.
+		// Two guards: stdin is never touched, and there is no `--yes`/`--force`/`--confirm`.
+		const stdinRead = vi.spyOn(process.stdin, "read");
+		vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const configCommand = command();
+		await configCommand.parseAsync(["set", "runtime.autostart", "always"], { from: "user" });
+		expect(stdinRead).not.toHaveBeenCalled();
+
+		const set = configCommand.commands.find((sub) => sub.name() === "set");
+		const unset = configCommand.commands.find((sub) => sub.name() === "unset");
+		for (const sub of [set, unset]) {
+			const flags = (sub?.options ?? []).map((option) => option.long);
+			expect(flags).not.toContain("--yes");
+			expect(flags).not.toContain("--force");
+			expect(flags).not.toContain("--confirm");
+			expect(flags).not.toContain("--no-confirm");
+		}
+	});
+
+	it("ROLLS BACK the config write when the record cannot be written", async () => {
+		// "A change that cannot be remembered is not made" — the kit's PATH operation already
+		// guarantees this, and `config set` inherits it by letting the block do the writing.
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		await command().parseAsync(["set", "runtime.autostart", "always"], { from: "user" });
+		const beforeSecond = fs.readFileSync(homeConfig(), "utf-8");
+
+		const failing = createConfigCommand(
+			{ cwd: () => cwd, home: () => home },
+			{
+				now: clock,
+				trail: {
+					async read() {
+						return [];
+					},
+					async append(): Promise<never> {
+						throw new Error("trail is read-only");
+					},
+				},
+			},
+		);
+		await expect(
+			failing.parseAsync(["set", "tractor.engine", "rust"], { from: "user" }),
+		).rejects.toThrow(/trail is read-only/);
+		// The file is exactly what it was — the second change was not made at all.
+		expect(fs.readFileSync(homeConfig(), "utf-8")).toBe(beforeSecond);
+	});
+
+	it("`config history` lists what changed, when, why, and what would reverse it", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		await command().parseAsync(["set", "runtime.autostart", "always", "--why", "porque sim"], {
+			from: "user",
+		});
+		logSpy.mockClear();
+
+		await command().parseAsync(["history"], { from: "user" });
+		const printed = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(printed).toContain(homeTrail());
+		expect(printed).toContain("refarm config set runtime.autostart always");
+		expect(printed).toContain("why:   porque sim");
+		expect(printed).toContain("who:   op");
+		expect(printed).toContain(homeConfig());
+		// The clock ticks once for `requestedAt` and once for `decidedAt`; the id carries the
+		// moment the change was DECIDED, which is the one an undo has to address.
+		expect(printed).toContain(
+			"refarm config history undo config:home:runtime.autostart#2026-07-30T12:00:01.000Z",
+		);
+	});
+
+	it("`config history --json` is newest-first and hands off the undo", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		await command().parseAsync(["set", "runtime.autostart", "always"], { from: "user" });
+		await command().parseAsync(["set", "tractor.engine", "rust"], { from: "user" });
+		logSpy.mockClear();
+
+		await command().parseAsync(["history", "--json"], { from: "user" });
+		const envelope = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			operation: string;
+			trail: string;
+			entries: Array<{ title: string; undoCommand: string | null }>;
+			nextCommand: string;
+		};
+		expect(envelope.ok).toBe(true);
+		expect(envelope.operation).toBe("history");
+		expect(envelope.trail).toBe(homeTrail());
+		expect(envelope.entries.map((entry) => entry.title)).toEqual([
+			"refarm config set tractor.engine rust",
+			"refarm config set runtime.autostart always",
+		]);
+		expect(envelope.nextCommand).toBe(envelope.entries[0]?.undoCommand);
+	});
+
+	it("prints an empty history without inventing a file", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		await command().parseAsync(["history"], { from: "user" });
+		expect(logSpy.mock.calls.map((call) => String(call[0])).join("\n")).toContain(
+			"(nothing recorded yet)",
+		);
+		expect(fs.existsSync(homeTrail())).toBe(false);
+	});
+
+	it("the undo is EXECUTED, and the config file actually goes back", async () => {
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		await command().parseAsync(["set", "runtime.autostart", "always"], { from: "user" });
+		const afterFirst = fs.readFileSync(homeConfig(), "utf-8");
+		await command().parseAsync(["set", "tractor.engine", "rust"], { from: "user" });
+		expect(JSON.parse(fs.readFileSync(homeConfig(), "utf-8"))).toEqual({
+			autostart: "always",
+			tractor: { engine: "rust" },
+		});
+
+		const second = readTrail(homeTrail()).records[1]!;
+		await command().parseAsync(["history", "undo", second.id], { from: "user" });
+
+		// Not "the undo string was stored" — the FILE is back, byte for byte.
+		expect(fs.readFileSync(homeConfig(), "utf-8")).toBe(afterFirst);
+		expect(JSON.parse(fs.readFileSync(homeConfig(), "utf-8"))).toEqual({ autostart: "always" });
+		// Append-only: the reversal is its own record, pointing at what it reversed.
+		const records = readTrail(homeTrail()).records;
+		expect(records.map((entry) => entry.decision)).toEqual(["authorized", "authorized", "undone"]);
+		expect(records[2]?.revisitOf).toBe(second.id);
+	});
+
+	it("undoes a `set` that CREATED the config file by removing it again", async () => {
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		await command().parseAsync(["set", "runtime.autostart", "always"], { from: "user" });
+		expect(fs.existsSync(homeConfig())).toBe(true);
+
+		const first = readTrail(homeTrail()).records[0]!;
+		await command().parseAsync(["history", "undo", first.id], { from: "user" });
+		expect(fs.existsSync(homeConfig())).toBe(false);
+		// The trail itself survives — it lives beside the config, not inside it.
+		expect(fs.existsSync(homeTrail())).toBe(true);
+	});
+
+	it("refuses an id that is not in the trail, naming how to find the ones that are", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		await command().parseAsync(["set", "runtime.autostart", "always"], { from: "user" });
+
+		await command().parseAsync(["history", "undo", "config:home:nope#whenever"], {
+			from: "user",
+		});
+		expect(String(errorSpy.mock.calls[0]?.[0])).toContain("refarm config history");
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("`--local` keeps its trail beside the project config, not in HOME", async () => {
+		// A record whose file path points inside a checkout must not outlive the checkout.
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		await command().parseAsync(["set", "tractor.engine", "rust", "--local"], { from: "user" });
+
+		expect(fs.existsSync(localTrail())).toBe(true);
+		expect(fs.existsSync(homeTrail())).toBe(false);
+		const record = readTrail(localTrail()).records[0]!;
+		expect(record.requestId).toBe("config:local:tractor.engine");
+		expect(record.changes[0]?.path).toBe(path.join(cwd, ".refarm", "config.json"));
+	});
+
+	it("the home trail is the SAME file the cold-bootstrap kit writes its operations to", async () => {
+		// `defaultTrailPath` in packages/farm-client is `join(home, ".refarm", "operations.json")`.
+		// One place to read what has been configured on this machine, whichever tool did it.
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		await command().parseAsync(["set", "runtime.autostart", "always"], { from: "user" });
+		expect(homeTrail()).toBe(path.join(home, ".refarm", "operations.json"));
 	});
 });

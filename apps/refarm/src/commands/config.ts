@@ -29,11 +29,25 @@ import {
 } from "../utils/runtime-config.js";
 import { createConfigPluginsCommand } from "./config-plugins.js";
 import {
+	buildConfigHistory,
+	CONFIG_SET_KIND,
+	CONFIG_UNSET_KIND,
+	configTrailPath,
+	readConfigSnapshot,
+	readConfigTrail,
+	recordConfigMutation,
+	undoConfigOperation,
+	type ConfigHistoryEntry,
+	type ConfigRecordDeps,
+} from "./config-record.js";
+import {
 	hasJsonOption,
 	readConfig,
+	serializeConfig,
 	writeConfig,
 	type ConfigDeps,
 	type JsonOptionCarrier,
+	type RefarmCliConfig,
 } from "./config-shared.js";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
@@ -71,6 +85,9 @@ interface PersistedConfigValue {
 	value: string;
 	path: string;
 	scope: "home" | "local";
+	/** The operation record this change was remembered as — the handle `config history undo`
+	 *  takes. Printed, not merely stored: a record the operator cannot address is a log. */
+	recordId: string;
 }
 
 interface UnsetConfigValue {
@@ -78,6 +95,16 @@ interface UnsetConfigValue {
 	path: string;
 	scope: "home" | "local";
 	removed: boolean;
+	/** `null` when nothing was set, so nothing changed and nothing was recorded. */
+	recordId: string | null;
+}
+
+/** The options a MUTATING config subcommand accepts. `why` is the operator's own reason, carried
+ *  verbatim into the record — R3 wants "why", and the only honest source of it is the person
+ *  making the change. It is NOT a confirmation and NOT required. */
+interface ConfigMutationOptions {
+	local?: boolean;
+	why?: string;
 }
 
 interface AppliedConfigProfile {
@@ -375,6 +402,15 @@ function configScope(opts: { local?: boolean }): "home" | "local" {
 function printPersistedConfigValue(result: PersistedConfigValue): void {
 	console.log(chalk.green(`✓  ${result.key}=${result.value}`));
 	console.log(chalk.dim(`   ${result.path}`));
+	// The record is only sovereignty if the operator can find it. Printing the undo command is
+	// the difference between a trail and a log nobody knows how to act on (R3).
+	console.log(
+		chalk.dim(
+			`   recorded — undo with \`refarm config history undo ${result.recordId}${
+				result.scope === "local" ? " --local" : ""
+			}\``,
+		),
+	);
 }
 
 function printPersistedConfigValueJson(result: PersistedConfigValue): void {
@@ -385,7 +421,7 @@ function printPersistedConfigValueJson(result: PersistedConfigValue): void {
 			operation: "set",
 			extra: result,
 			nextCommand,
-			nextCommands: [nextCommand],
+			nextCommands: [nextCommand, configHistoryCommand({ local: result.scope === "local" })],
 		}),
 	);
 }
@@ -397,6 +433,15 @@ function printUnsetConfigValue(result: UnsetConfigValue): void {
 		console.log(chalk.dim(`-  ${result.key} was not set`));
 	}
 	console.log(chalk.dim(`   ${result.path}`));
+	if (result.recordId) {
+		console.log(
+			chalk.dim(
+				`   recorded — undo with \`refarm config history undo ${result.recordId}${
+					result.scope === "local" ? " --local" : ""
+				}\``,
+			),
+		);
+	}
 }
 
 function printUnsetConfigValueJson(result: UnsetConfigValue): void {
@@ -407,7 +452,59 @@ function printUnsetConfigValueJson(result: UnsetConfigValue): void {
 			operation: "unset",
 			extra: result,
 			nextCommand,
-			nextCommands: [nextCommand],
+			nextCommands: result.recordId
+				? [nextCommand, configHistoryCommand({ local: result.scope === "local" })]
+				: [nextCommand],
+		}),
+	);
+}
+
+function configHistoryCommand(opts: { local?: boolean }): string {
+	return refarmCommand(["config", "history", "--json", ...(opts.local ? ["--local"] : [])]);
+}
+
+/**
+ * `refarm config history` — the record made readable.
+ *
+ * R3 is explicit that a record nobody can read is a log, and that a log does not give the operator
+ * sovereignty over what was done. This is the view that closes that gap: what changed, when, who,
+ * why, and the exact command that puts it back.
+ *
+ * It reads the WHOLE trail for the scope, not only `config-*` records — for the home scope that
+ * file is `~/.refarm/operations.json`, which the cold-bootstrap kit also writes its PATH decision
+ * into. Filtering the kit's entry out would hide half of what has been configured on this machine
+ * from the one command whose job is showing it.
+ */
+function printConfigHistory(entries: ConfigHistoryEntry[], trailPath: string): void {
+	console.log(chalk.bold("Refarm config history"));
+	console.log(chalk.dim(`  ${trailPath}`));
+	if (entries.length === 0) {
+		console.log(chalk.dim("  (nothing recorded yet)"));
+		return;
+	}
+	for (const entry of entries) {
+		console.log("");
+		console.log(`  ${entry.decidedAt}  ${entry.decision}  ${entry.title}`);
+		console.log(chalk.dim(`    why:   ${entry.purpose}`));
+		console.log(chalk.dim(`    who:   ${entry.decidedBy} (asked by ${entry.requester})`));
+		for (const filePath of entry.paths) console.log(chalk.dim(`    file:  ${filePath}`));
+		console.log(chalk.dim(`    undo:  ${entry.undo}`));
+		console.log(
+			chalk.dim(
+				`    ${entry.undoCommand ? `run:   ${entry.undoCommand}` : "run:   (not reversible)"}`,
+			),
+		);
+	}
+}
+
+function printConfigHistoryJson(entries: ConfigHistoryEntry[], trailPath: string): void {
+	const nextCommand = entries[0]?.undoCommand ?? null;
+	printJson(
+		buildJsonSuccessEnvelope({
+			command: "config",
+			operation: "history",
+			extra: { trail: trailPath, entries },
+			...(nextCommand ? { nextCommand, nextCommands: [nextCommand] } : {}),
 		}),
 	);
 }
@@ -460,124 +557,147 @@ function printAppliedConfigProfileJson(result: AppliedConfigProfile): void {
 	);
 }
 
-function persistConfigValue(
-	key: ConfigKey,
-	value: string,
-	opts: { local?: boolean },
-	deps: ConfigDeps,
-): PersistedConfigValue | null {
+/** Apply `key = value` to an in-memory config object, returning the value actually persisted, or
+ *  `null` when the value is invalid (the parser already reported it). PURE over `config`, which it
+ *  mutates in place — the caller owns the object and decides whether it is ever written. */
+function applyKeyToConfig(config: RefarmCliConfig, key: ConfigKey, value: string): string | null {
 	if (key === "runtime.autostart") {
 		const mode = parseConfigAutostartMode(key, value);
 		if (!mode) return null;
-		const filePath = configPath(deps, opts);
-		const config = readConfig(filePath);
 		config.autostart = mode;
-		writeConfig(filePath, config);
-		return {
-			key,
-			value: mode,
-			path: filePath,
-			scope: configScope(opts),
-		};
+		return mode;
 	}
 	if (key === "operator.openExternalLinks") {
 		const mode = parseConfigOpenExternalLinksMode(value);
 		if (!mode) return null;
-		const filePath = configPath(deps, opts);
-		const config = readConfig(filePath);
-		config.operator = {
-			...(config.operator ?? {}),
-			openExternalLinks: mode,
-		};
-		writeConfig(filePath, config);
-		return {
-			key,
-			value: mode,
-			path: filePath,
-			scope: configScope(opts),
-		};
+		config.operator = { ...(config.operator ?? {}), openExternalLinks: mode };
+		return mode;
 	}
 	if (key === "runtime.sidecarUrl") {
 		const sidecarUrl = parseConfigSidecarUrl(value);
 		if (!sidecarUrl) return null;
-		const filePath = configPath(deps, opts);
-		const config = readConfig(filePath);
-		config.runtime = {
-			...(config.runtime ?? {}),
-			sidecarUrl,
-		};
-		writeConfig(filePath, config);
-		return {
-			key,
-			value: sidecarUrl,
-			path: filePath,
-			scope: configScope(opts),
-		};
+		config.runtime = { ...(config.runtime ?? {}), sidecarUrl };
+		return sidecarUrl;
 	}
 	if (key === "tractor.engine") {
 		const mode = parseConfigTractorEngineMode(value);
 		if (!mode) return null;
-		const filePath = configPath(deps, opts);
-		const config = readConfig(filePath);
-		config.tractor = {
-			...(config.tractor ?? {}),
-			engine: mode,
-		};
-		writeConfig(filePath, config);
-		return {
-			key,
-			value: mode,
-			path: filePath,
-			scope: configScope(opts),
-		};
+		config.tractor = { ...(config.tractor ?? {}), engine: mode };
+		return mode;
 	}
 	return null;
 }
 
-function unsetConfigValue(
-	key: ConfigKey,
-	opts: { local?: boolean },
-	deps: ConfigDeps,
-): UnsetConfigValue {
-	const filePath = configPath(deps, opts);
-	const config = readConfig(filePath);
-	let removed = false;
-
+/** Remove `key` from an in-memory config object. `true` when it was actually there. */
+function removeKeyFromConfig(config: RefarmCliConfig, key: ConfigKey): boolean {
 	if (key === "runtime.autostart") {
-		removed = Object.prototype.hasOwnProperty.call(config, "autostart");
-		if (removed) {
-			delete config.autostart;
-		}
-	} else if (key === "operator.openExternalLinks") {
-		removed = Object.prototype.hasOwnProperty.call(config.operator ?? {}, "openExternalLinks");
-		if (removed && config.operator) {
-			delete config.operator.openExternalLinks;
-		}
-	} else if (key === "runtime.sidecarUrl") {
-		removed = Object.prototype.hasOwnProperty.call(config.runtime ?? {}, "sidecarUrl");
-		if (removed && config.runtime) {
-			delete config.runtime.sidecarUrl;
-		}
-	} else if (key === "tractor.engine") {
-		removed = Object.prototype.hasOwnProperty.call(config.tractor ?? {}, "engine");
-		if (removed && config.tractor) {
-			delete config.tractor.engine;
-		}
+		const removed = Object.prototype.hasOwnProperty.call(config, "autostart");
+		if (removed) delete config.autostart;
+		return removed;
 	}
-
-	if (removed) {
-		writeConfig(filePath, config);
+	if (key === "operator.openExternalLinks") {
+		const removed = Object.prototype.hasOwnProperty.call(
+			config.operator ?? {},
+			"openExternalLinks",
+		);
+		if (removed && config.operator) delete config.operator.openExternalLinks;
+		return removed;
 	}
-
-	return {
-		key,
-		path: filePath,
-		scope: configScope(opts),
-		removed,
-	};
+	if (key === "runtime.sidecarUrl") {
+		const removed = Object.prototype.hasOwnProperty.call(config.runtime ?? {}, "sidecarUrl");
+		if (removed && config.runtime) delete config.runtime.sidecarUrl;
+		return removed;
+	}
+	if (key === "tractor.engine") {
+		const removed = Object.prototype.hasOwnProperty.call(config.tractor ?? {}, "engine");
+		if (removed && config.tractor) delete config.tractor.engine;
+		return removed;
+	}
+	return false;
 }
 
-export function createConfigCommand(deps: ConfigDeps = defaultDeps()): Command {
+/**
+ * Persist `key = value` AND remember it.
+ *
+ * The write itself is performed by `recordConfigMutation`, not by `writeConfig`: the mutation and
+ * its record are one operation, so a trail that cannot be appended rolls the file back rather than
+ * leaving a change nobody can see, judge, or undo. No prompt is involved — see `config-record.ts`
+ * for why confirming what the operator just typed is the behaviour R4 exists to prevent.
+ */
+async function persistConfigValue(
+	key: ConfigKey,
+	value: string,
+	opts: ConfigMutationOptions,
+	deps: ConfigDeps,
+	recordDeps: ConfigRecordDeps = {},
+): Promise<PersistedConfigValue | null> {
+	const filePath = configPath(deps, opts);
+	const config = readConfig(filePath);
+	const persisted = applyKeyToConfig(config, key, value);
+	if (persisted === null) return null;
+
+	const scope = configScope(opts);
+	const record = await recordConfigMutation(
+		{
+			kind: CONFIG_SET_KIND,
+			key,
+			value: persisted,
+			scope,
+			filePath,
+			// Read as BYTES, so the undo restores what was actually on disk rather than a
+			// re-serialisation of what we managed to parse out of it.
+			before: readConfigSnapshot(filePath),
+			after: serializeConfig(config),
+			why: opts.why,
+			requestedAt: (recordDeps.now ?? (() => new Date().toISOString()))(),
+		},
+		recordDeps,
+	);
+
+	return { key, value: persisted, path: filePath, scope, recordId: record.id };
+}
+
+async function unsetConfigValue(
+	key: ConfigKey,
+	opts: ConfigMutationOptions,
+	deps: ConfigDeps,
+	recordDeps: ConfigRecordDeps = {},
+): Promise<UnsetConfigValue> {
+	const filePath = configPath(deps, opts);
+	const config = readConfig(filePath);
+	const before = readConfigSnapshot(filePath);
+	const removed = removeKeyFromConfig(config, key);
+	const scope = configScope(opts);
+
+	// Nothing was there ⇒ nothing changed ⇒ nothing to remember. Recording a no-op would fill the
+	// trail with entries whose undo restores a file to itself, which is noise dressed as memory.
+	if (!removed) {
+		return { key, path: filePath, scope, removed, recordId: null };
+	}
+
+	const record = await recordConfigMutation(
+		{
+			kind: CONFIG_UNSET_KIND,
+			key,
+			scope,
+			filePath,
+			before,
+			after: serializeConfig(config),
+			why: opts.why,
+			requestedAt: (recordDeps.now ?? (() => new Date().toISOString()))(),
+		},
+		recordDeps,
+	);
+
+	return { key, path: filePath, scope, removed, recordId: record.id };
+}
+
+export function createConfigCommand(
+	deps: ConfigDeps = defaultDeps(),
+	/** Seams for the operation RECORD — clock, operator identity, filesystem, trail. Injected by
+	 *  tests so a config change can be recorded without a real HOME and without a real clock. */
+	recordDeps: ConfigRecordDeps = {},
+): Command {
 	return new Command("config")
 		.description("Inspect and change refarm CLI preferences")
 		.option("--json", "Output effective config values as JSON")
@@ -596,6 +716,8 @@ Examples:
   $ refarm config unset runtime.autostart
   $ refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local
   $ refarm config set operator.openExternalLinks never
+  $ refarm config history
+  $ refarm config history undo <id>
   $ refarm config profile coding --local --json
   $ ${RUNTIME_ENGINE_AUTO_COMMAND}
   $ ${TRACTOR_ENGINE_ENV_VAR}=rust refarm runtime
@@ -617,6 +739,8 @@ Notes:
   ${TRACTOR_ENGINE_ENV_VAR} can be ${TRACTOR_ENGINE_ENV_HELP} for one-shot runtime selection.
   Without a subcommand, config prints the effective values and their sources.
   The no-argument form is reserved for the future interactive configuration surface.
+  Every set/unset is RECORDED with the undo that reverses it — see \`refarm config history\`.
+  You are never asked to confirm: the command is the authorisation, the record is the memory.
 `,
 		)
 		.action((opts: JsonOptionCarrier, command: JsonOptionCarrier) => {
@@ -720,6 +844,10 @@ Notes:
 				.description("Remove a persisted config value so defaults or environment can apply")
 				.argument("<key>", "Config key")
 				.option("--local", "Update project-local .refarm/config.json")
+				// NOT a confirmation, and deliberately optional. R3 wants "why" in the record and the
+				// only honest source of it is the person making the change; a default sentence stating
+				// WHAT was asked for is the fallback, never an invented motive.
+				.option("--why <reason>", "Record why you are making this change")
 				.option("--json", "Output machine-readable unset result")
 				.addHelpText(
 					"after",
@@ -740,17 +868,20 @@ Keys:
 Notes:
   Unset only changes persisted config. Environment overrides such as
   ${RUNTIME_AUTOSTART_ENV_VAR} still take precedence until removed from the shell.
+  Removing a value that was set is RECORDED, with the previous file as the undo.
+  Removing one that was never set changes nothing and records nothing.
+  Use --why to say why; \`refarm config history\` reads it back.
 `,
 				)
 				.action(
-					(
+					async (
 						key: string,
-						opts: { local?: boolean } & JsonOptionCarrier,
+						opts: ConfigMutationOptions & JsonOptionCarrier,
 						command: JsonOptionCarrier,
 					) => {
 						const parsedKey = parseConfigKey(key);
 						if (!parsedKey) return;
-						const result = unsetConfigValue(parsedKey, opts, deps);
+						const result = await unsetConfigValue(parsedKey, opts, deps, recordDeps);
 						if (hasJsonOption(opts, command)) {
 							printUnsetConfigValueJson(result);
 							return;
@@ -765,6 +896,7 @@ Notes:
 				.argument("<key>", "Config key")
 				.argument("<value>", "Config value")
 				.option("--local", "Write project-local .refarm/config.json")
+				.option("--why <reason>", "Record why you are making this change")
 				.option("--json", "Output machine-readable persisted value")
 				.addHelpText(
 					"after",
@@ -787,26 +919,131 @@ Keys:
 Notes:
   Use --local for repository-specific operator preferences. Home config is the
   default and applies across Refarm workspaces for the current user.
+  The change is RECORDED with a full before/after snapshot, so \`refarm config history
+  undo <id>\` restores the file exactly. Use --why to record why you made it.
   For one-shot overrides, use ${RUNTIME_AUTOSTART_ENV_VAR}, ${OPEN_EXTERNAL_LINKS_ENV_VAR},
   or ${TRACTOR_ENGINE_ENV_VAR} without changing persisted config.
 `,
 				)
 				.action(
-					(
+					async (
 						key: string,
 						value: string,
-						opts: { local?: boolean } & JsonOptionCarrier,
+						opts: ConfigMutationOptions & JsonOptionCarrier,
 						command: JsonOptionCarrier,
 					) => {
 						const parsedKey = parseConfigKey(key);
 						if (!parsedKey) return;
-						const result = persistConfigValue(parsedKey, value, opts, deps);
+						const result = await persistConfigValue(parsedKey, value, opts, deps, recordDeps);
 						if (!result) return;
 						if (hasJsonOption(opts, command)) {
 							printPersistedConfigValueJson(result);
 							return;
 						}
 						printPersistedConfigValue(result);
+					},
+				),
+		)
+		.addCommand(createConfigHistoryCommand(deps, recordDeps));
+}
+
+/**
+ * `refarm config history` (+ `history undo <id>`) — reading and reversing what was recorded.
+ *
+ * The undo is a SUBCOMMAND of history rather than a flag on it, and rather than a top-level
+ * `config undo`, because the id it takes comes from the listing: the two commands are one
+ * workflow, and nesting says so. `config plugins list` already establishes the three-level shape.
+ */
+function createConfigHistoryCommand(deps: ConfigDeps, recordDeps: ConfigRecordDeps): Command {
+	return new Command("history")
+		.description("Show config changes: what changed, when, why, and how to undo each one")
+		.option("--local", "Read the project-local trail (.refarm/operations.json in this directory)")
+		.option("--limit <n>", "Show at most this many entries (newest first)", "20")
+		.option("--json", "Output the machine-readable trail")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm config history
+  $ refarm config history --json
+  $ refarm config history --local
+  $ refarm config history undo config:home:runtime.autostart#2026-07-30T12:00:00.000Z
+
+Notes:
+  Every \`config set\`/\`unset\` is recorded with full before/after snapshots of the config
+  file, so the undo restores exactly what was there — it is executed, not described.
+  The home-scope trail is ~/.refarm/operations.json, the same file the cold-bootstrap kit
+  records its own operations in; --local reads ./.refarm/operations.json instead.
+  \`config set\` never asks for confirmation: the command IS the authorisation. What it
+  owes you is the memory of it, which is this.
+`,
+		)
+		.action(
+			async (
+				opts: { local?: boolean; limit?: string } & JsonOptionCarrier,
+				command: JsonOptionCarrier,
+			) => {
+				const filePath = configPath(deps, opts);
+				const records = await readConfigTrail(filePath, recordDeps);
+				const limit = Number.parseInt(opts.limit ?? "20", 10);
+				const entries = buildConfigHistory(records, {
+					local: opts.local === true,
+					...(Number.isNaN(limit) ? {} : { limit }),
+				});
+				const trailPath = configTrailPath(filePath);
+				if (hasJsonOption(opts, command)) {
+					printConfigHistoryJson(entries, trailPath);
+					return;
+				}
+				printConfigHistory(entries, trailPath);
+			},
+		)
+		.addCommand(
+			new Command("undo")
+				.description("Reverse a recorded config change, restoring the file exactly")
+				.argument("<id>", "Record id, as shown by `refarm config history`")
+				.option("--local", "Undo from the project-local trail")
+				.option("--json", "Output the machine-readable reversal record")
+				.action(
+					async (
+						id: string,
+						opts: { local?: boolean } & JsonOptionCarrier,
+						command: JsonOptionCarrier,
+					) => {
+						const filePath = configPath(deps, opts);
+						let record;
+						try {
+							record = await undoConfigOperation(filePath, id, recordDeps);
+						} catch (error) {
+							console.error(chalk.red(`✗  ${error instanceof Error ? error.message : error}`));
+							process.exitCode = 1;
+							return;
+						}
+						if (hasJsonOption(opts, command)) {
+							printJson(
+								buildJsonSuccessEnvelope({
+									command: "config",
+									operation: "history-undo",
+									extra: {
+										id: record.id,
+										undoneRecordId: record.revisitOf ?? null,
+										paths: record.changes.map((change) => change.path),
+										decidedAt: record.decidedAt,
+									},
+									nextCommand: CONFIG_JSON_COMMAND,
+									nextCommands: [CONFIG_JSON_COMMAND],
+								}),
+							);
+							return;
+						}
+						console.log(chalk.green(`✓  undone: ${record.title}`));
+						for (const change of record.changes) {
+							console.log(chalk.dim(`   ${change.path} restored`));
+						}
+						console.log(
+							chalk.dim("   the reversal is itself recorded — the trail stays append-only"),
+						);
 					},
 				),
 		);
