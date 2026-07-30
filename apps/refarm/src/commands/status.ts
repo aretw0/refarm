@@ -1,10 +1,10 @@
 import { printJson } from "@refarm.dev/capabilities/envelope";
 import {
-    assertStatusJson,
-    buildStatusJson,
-    formatStatusSummary,
-    parseStatusJson,
-    type StatusJson,
+	assertStatusJson,
+	buildStatusJson,
+	formatStatusSummary,
+	parseStatusJson,
+	type StatusJson,
 } from "@refarm.dev/cli/status";
 import { isHomesteadHostRendererKind } from "@refarm.dev/homestead/sdk/host-renderer";
 import type { BaseSurfaceModel } from "@refarm.dev/operator-state";
@@ -15,21 +15,21 @@ import { resolveRefarmRenderer } from "../renderers.js";
 import { resolveTractorNamespace } from "../utils/tractor-store.js";
 import { formatBaseSurfaceModel } from "./base-surface-output.js";
 import {
-    resolveBaseSurfaceStatus,
-    type BaseSurfaceStatusOptions,
+	resolveBaseSurfaceStatus,
+	type BaseSurfaceStatusOptions,
 } from "./base-surface-status.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 import { probeRuntimeLiveness } from "./runtime-readiness.js";
 import {
-    RUNTIME_DOCTOR_COMMAND,
-    RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-    RUNTIME_DOCTOR_NEXT_COMMAND,
-    RUNTIME_STATUS_COMMAND,
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 import {
-    findRepoRoot,
-    readTractorEngineModeAsync,
-    resolveLaunchRuntime,
+	findRepoRoot,
+	readTractorEngineModeAsync,
+	resolveLaunchRuntime,
 } from "./session-launch.js";
 import { invokeStatusSurfaceActionSelection } from "./status-actions.js";
 import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";

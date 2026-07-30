@@ -27,17 +27,17 @@ import { releaseCommand } from "./commands/release.js";
 import { resumeCommand } from "./commands/resume.js";
 import { resolveRefarmVersion } from "./commands/runtime-metadata.js";
 import {
-	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
-	RUNTIME_ENGINE_AUTO_COMMAND,
+    RUNTIME_AUTOSTART_ALWAYS_COMMAND,
+    RUNTIME_ENGINE_AUTO_COMMAND,
 } from "./commands/runtime-recovery.js";
 import { runtimeCommand } from "./commands/runtime.js";
 import { serveCommand } from "./commands/serve-capability.js";
 import { runSessionLaunchFlow, sessionCommand } from "./commands/session.js";
 import { sessionsCommand } from "./commands/sessions.js";
 import {
-	SOW_COMMAND_DESCRIPTION,
-	SOW_HELP_TEXT,
-	SOW_MODEL_OPTION_DESCRIPTION,
+    SOW_COMMAND_DESCRIPTION,
+    SOW_HELP_TEXT,
+    SOW_MODEL_OPTION_DESCRIPTION,
 } from "./commands/sow-metadata.js";
 import { statusCommand } from "./commands/status.js";
 import { taskCommand } from "./commands/task.js";

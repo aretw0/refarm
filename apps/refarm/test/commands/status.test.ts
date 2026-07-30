@@ -1,7 +1,7 @@
 import type { StatusOptions } from "@refarm.dev/cli/status";
 import {
-    HOMESTEAD_HOST_RENDERER_KINDS,
-    requiredHomesteadHostRendererCapabilities,
+	HOMESTEAD_HOST_RENDERER_KINDS,
+	requiredHomesteadHostRendererCapabilities,
 } from "@refarm.dev/homestead/sdk/host-renderer";
 import fs from "node:fs";
 import os from "node:os";
@@ -40,8 +40,8 @@ vi.mock("../../src/commands/runtime-readiness.js", () => ({
 }));
 
 import {
-    STATUS_INSPECT_TRUST_ACTION_ID,
-    STATUS_OPEN_REPORT_ACTION_ID,
+	STATUS_INSPECT_TRUST_ACTION_ID,
+	STATUS_OPEN_REPORT_ACTION_ID,
 } from "../../src/commands/status-surfaces.js";
 import { createStatusCommand, statusCommand } from "../../src/commands/status.js";
 
