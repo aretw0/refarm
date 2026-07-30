@@ -113,6 +113,43 @@ exists" — measures the wrong thing entirely. It is replaced by the same rule t
 `authPolicyPresent` does not disappear — a surface that *does* verify bearers still needs to know a
 policy exists. It stops being the answer to a question it never addressed.
 
+**Built (2026-07-30), all three TS listeners.** `refarm web serve` moved first; `refarm serve` and
+farmhand's CRDT relay followed. The rule now lives once, in `@refarm.dev/std`:
+`resolveDeclaredSurfaceBind` writes down the ORDER of the four questions (can this listener enforce
+what was declared → resolve `tailnet` → what an absent flag means → does the declaration permit this
+bind), because getting them in the wrong order is how a listener refuses with the wrong reason or
+silently narrows where it should refuse. `web-surface.ts` keeps only what is genuinely local:
+asking Tailscale through the app's process seam, the config root, and O6.
+
+Which surface each listener IS, named for the LISTENER as the `dist-http`/`web` decision settled:
+`refarm serve` is `capabilities`; farmhand's relay is `daemon-ws` — same port 42000, same binary
+Loro relay, and `daemon/ws_server.rs` opens with "replaces farmhand on port 42000". Two
+implementations of ONE listener.
+
+`daemon-ws` forced a distinction the per-SURFACE capability table cannot make, and it is the one
+new rule this slice adds. That surface really does have a gate — ADR-093's handshake, in the Rust
+daemon — while farmhand's relay verifies nothing. So `refuseGateThisListenerCannotEnforce` asks
+what THIS listener verifies, and refuses even when the resolved host came out loopback: an
+unresolved `tailnet` falls back to loopback, so without that clause the relay would bind 127.0.0.1
+and say nothing while the operator believed their declaration took effect. An explicit loopback
+host is the one case it lets through — the operator narrowed it themselves, so nothing is exposed
+and nothing is claimed.
+
+Both converted listeners also carried the **defaulted-flag defect** the sidecar had: `refarm serve
+--host` held a commander default and `FARMHAND_WS_HOST` fell back to `DEFAULT_BIND_HOST`. A value
+always present always narrows, so the declaration could never take effect and nothing would say so
+— inert AND silent. Both now pass the absence through, pinned by a test on each, including on
+`web serve`, which had the fix but no test protecting it.
+
+One listener is deliberately NOT converted: `serveCapabilities`
+(`packages/capabilities-v1/src/mount.ts`), the SDK primitive a white-label app mounts. Its host
+comes from its consumer rather than from a flag, so *which* declaration it should read is a
+question about that consumer's layout, not about this design.
+
+Corrected in passing: `refuseBindOutsideDeclaration`'s `device-token` arm refused unconditionally
+rather than "on a surface that cannot enforce it", as its own doc comment said. Invisible until now
+because no TypeScript listener bound `sidecar-http` or `daemon-ws`.
+
 ## What this unblocks
 
 With O1–O5, `dist-http` can be declared honestly, `refarm web serve` binds to the tailnet because

@@ -103,3 +103,40 @@ change, a record carrying the undo, and a declined path that is remembered.
 
 `refarm config set`/`unset` become the second consumer — they mutate persisted configuration today
 and record nothing, which is the same gap one layer in.
+
+## Built (2026-07-30) — the second consumer, and what it taught
+
+The two parts above turn out to be **separable**, and separating them is the whole design decision
+for this consumer. The consent PROMPT is for something proposing a change *on the operator's
+behalf*. `refarm config set runtime.autostart always` is not that: the operator typed it. Asking
+them to confirm what they just typed carries no information and costs exactly what R4 protects — a
+prompt nobody learns from is a prompt people learn to click through, and the next one, the real one,
+gets waved past too. So `config set`/`unset` get the RECORD and no confirmation, and consequently no
+`--yes` flag: there is nothing to suppress.
+
+`recordOperation` is that half of the block — apply, append, and roll the files back if the trail
+cannot be written. It takes no channel parameter at all, so a consumer cannot accidentally acquire
+a confirmation step. It also does not consult the standing decision: a declined PATH line must not
+be re-asked, but a config value set twice is two changes, and the second is not a question anyone
+declined.
+
+R3 is unchanged and fully paid. The change carries full before/after snapshots of the config file
+(read as BYTES, so the undo restores what was on disk rather than a re-serialisation of what
+parsed), the purpose, who asked and who authorised, when, and an executable undo. `--why` is
+optional and carried verbatim; absent, the purpose states WHAT was asked for rather than inventing
+a motive.
+
+**Where the record lives: beside the configuration it describes**, `<scope>/.refarm/operations.json`.
+For the default home scope that IS `~/.refarm/operations.json` — the same file the kit writes its
+PATH decision into, so one command answers "what has been configured on this machine" whichever
+tool did it. The kit put it outside the kit dir so a decision survives `farm-update`; a home-scoped
+config change has the same lifetime. For `--local` it is `<repo>/.refarm/operations.json` instead,
+because a record whose file path points inside a checkout must not outlive the checkout, and
+because `config history --local` in one repo must not show another repo's changes. Node-scoped
+(replicated) stays out of this slice for R5's reason.
+
+**`refarm config history`** closes R3's other half: a record nobody can read is a log. It lists what
+changed, when, who, why, and the exact command that reverses it; `refarm config history undo <id>`
+executes that reversal and appends it as its own record, so the trail stays append-only and reads as
+what happened rather than as a claim that it did not. An unset that removed nothing changes nothing
+and records nothing — a trail of undos that restore a file to itself is noise dressed as memory.
