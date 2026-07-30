@@ -343,29 +343,18 @@ const DEEP_PROBE_EXCLUSIONS: Record<string, string> = {
  * on a quarantined command still fails, and FIXING one also fails (with a message
  * telling you to delete the entry). It cannot rot into permanent cover.
  *
- * Found by the first run of this harness against 163 discovered commands. The list is
- * for triage with the operator — several entries are genuine design questions (should
- * `runtime status --json` exit non-zero when the runtime is simply not running?) rather
- * than mechanical fixes, and guessing at those would be worse than naming them.
+ * EMPTY, and that is the point. The first run of this harness quarantined 17 commands;
+ * all 17 were triaged and fixed, and each fix deleted its own entry because the ratchet
+ * required it. Six of them were not mechanical — they were the question the harness could
+ * not answer alone: does `ok:false` mean "the command failed" or "the answer was no"? The
+ * operator's ruling is now the house rule, recorded in `docs/NAMING_REGISTRY.md`
+ * § "`ok` semantics" and applied per command:
+ *
+ *   `ok` means "the command did its job", not "the answer was yes."
+ *
+ * A new entry here is a debt, never a way to make a run green.
  */
-const KNOWN_DEFECTS: Record<string, { codes: ViolationCode[]; note: string }> = {
-	"refarm guide": {
-		codes: ["ok-false-exit-zero"],
-		note: "prints an ok:false envelope but exits 0 — `refarm guide --json && …` reads as success.",
-	},
-	"refarm agent doctor": {
-		codes: ["ok-false-exit-zero"],
-		note: "prints an ok:false envelope but exits 0.",
-	},
-	"refarm runtime": {
-		codes: ["ok-false-exit-zero"],
-		note: "prints an ok:false envelope but exits 0. Triage: is 'runtime not running' an error or a state?",
-	},
-	"refarm runtime status": {
-		codes: ["ok-false-exit-zero"],
-		note: "prints an ok:false envelope but exits 0. Triage: is 'runtime not running' an error or a state?",
-	},
-};
+const KNOWN_DEFECTS: Record<string, { codes: ViolationCode[]; note: string }> = {};
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // DISCOVERY — from the program, never from a list.

@@ -517,32 +517,32 @@ Notes:
 			const timeoutMs = opts.timeout ? Number(opts.timeout) : undefined;
 			const result = await probeAgentLiveness({ timeoutMs });
 			if (json) {
-				const extra = {
-					status: result.status,
-					message: result.message,
-					elapsedMs: result.elapsedMs,
-				};
-				if (result.status === "responsive") {
-					printJson(
-						buildJsonSuccessEnvelope({
-							command: "agent",
-							operation: "doctor",
-							nextAction: result.nextAction,
-							extra,
-						}),
-					);
-				} else {
-					printJson(
-						buildJsonErrorEnvelope({
-							command: "agent",
-							operation: "doctor",
-							error: `agent-${result.status}`,
+				// `ok` says the PROBE ran, not that the agent is alive.
+				//
+				// It used to be `status === "responsive"`, so a zombie agent produced
+				// `ok:false` with exit 0 — an envelope and an exit code that disagreed. The fix
+				// is not to make it exit non-zero: `agent doctor`'s own outcome vocabulary
+				// (`AgentLivenessStatus`) treats unresponsive, no-agent and runtime-unreachable
+				// as VERDICTS it reaches, not as failures to reach one. The probe always
+				// completes and always classifies, so it always did its job, and the verdict
+				// lives in `status` where a consumer must read it deliberately.
+				//
+				// The narrow, scriptable "is the agent alive" gate is
+				// `status === "responsive"` — one field, and nothing else changes meaning with
+				// it. See `docs/NAMING_REGISTRY.md` § "`ok` semantics".
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "agent",
+						operation: "doctor",
+						nextAction: result.nextAction,
+						extra: {
+							status: result.status,
+							responsive: result.status === "responsive",
 							message: result.message,
-							nextAction: result.nextAction,
-							extra,
-						}),
-					);
-				}
+							elapsedMs: result.elapsedMs,
+						},
+					}),
+				);
 				return;
 			}
 			const mark = result.status === "responsive" ? "✅" : "✗";

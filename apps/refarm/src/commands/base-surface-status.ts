@@ -12,7 +12,11 @@ import path from "node:path";
 import { runHealthAudit } from "./health.js";
 import { buildCurrentModelEnvelope, defaultModelDeps } from "./model.js";
 import { resolveOperatorAttentionProfile } from "./operator-attention-profile.js";
-import { buildRuntimeJsonPayload, runtimeStatusPayload } from "./runtime-status.js";
+import {
+	buildRuntimeJsonPayload,
+	runtimeIsHealthy,
+	runtimeStatusPayload,
+} from "./runtime-status.js";
 import { defaultRuntimeCommandDeps } from "./runtime.js";
 
 export interface BaseSurfaceStatusDeps {
@@ -54,7 +58,10 @@ export async function resolveBaseSurfaceStatus(
 
 async function resolveRuntimeBaseInput(): Promise<BaseSurfaceModelInput["runtime"]> {
 	const payload = await runtimeStatusPayload(defaultRuntimeCommandDeps());
-	return buildRuntimeJsonPayload(payload);
+	// The base surface asks about the SUBJECT — is the runtime usable — not about whether a
+	// command succeeded, so it overrides the `status` envelope's `ok` (which is always true,
+	// because producing a status report always works) with the health verdict itself.
+	return { ...buildRuntimeJsonPayload(payload), ok: runtimeIsHealthy(payload) };
 }
 
 async function resolveModelBaseInput(): Promise<BaseSurfaceModelInput["model"]> {

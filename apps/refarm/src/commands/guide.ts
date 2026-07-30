@@ -46,7 +46,16 @@ interface GuideReport {
 	command: "guide";
 	operation: "audit";
 	outputPath: string;
+	/**
+	 * Did the AUDIT run? It always does — `guide` inspects local setup and reports what it
+	 * found, so `ok` is true whenever the report was produced. It used to be
+	 * `nextActions.length === 0`, i.e. the verdict on the SUBJECT, which made
+	 * `refarm guide --json` look like a failure on a machine that simply has not configured
+	 * Cloudflare yet. See `ready` below, and `docs/NAMING_REGISTRY.md` § "`ok` semantics".
+	 */
 	ok: boolean;
+	/** The subject state: every audited item is configured. THIS is the "answer was yes". */
+	ready: boolean;
 	checks: GuideCheck[];
 	nextAction: string | null;
 	nextActions: string[];
@@ -176,7 +185,8 @@ export function createGuideCommand(deps: GuideDeps = defaultGuideDeps()): Comman
 				command: "guide",
 				operation: "audit",
 				outputPath: "refarm-audit.md",
-				ok: nextActions.length === 0,
+				ok: true,
+				ready: nextActions.length === 0,
 				checks,
 				nextAction: nextActions[0] ?? null,
 				nextActions,

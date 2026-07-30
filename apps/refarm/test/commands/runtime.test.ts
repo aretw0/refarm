@@ -127,7 +127,7 @@ describe("runtime command", () => {
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
 			command: "runtime",
 			operation: "status",
-			ok: false,
+			ok: true,
 			configuredEngine: "ts",
 			activeEngine: "ts",
 			ready: false,
@@ -137,11 +137,63 @@ describe("runtime command", () => {
 			nextAction: "refarm runtime ensure --wait --next-command",
 			nextActions: ["refarm runtime ensure --wait --next-command"],
 			nextCommand: "refarm runtime ensure --wait --next-command",
-			nextCommands: [
-				"refarm runtime ensure --wait --next-command",
-				"refarm doctor --next-command",
-			],
+			nextCommands: ["refarm runtime ensure --wait --next-command", "refarm doctor --next-command"],
 		});
+		logSpy.mockRestore();
+	});
+
+	// The house rule, pinned: `ok` says the COMMAND did its job, not that the subject is
+	// healthy. A status report of a runtime that is down is a successful status report — the
+	// answer lives in `ready`. Were `ok` the verdict on the runtime, `set -e` would kill any
+	// script merely for ASKING how things are, which is why `git status` exits 0 on a dirty
+	// tree. `refarm intention check` is the deliberate exception, and it is not a status report.
+	it("a status report of a DOWN runtime is a successful report: ok true, ready false, exit 0", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "ts",
+			readAutostart: () => "never",
+			probeReady: vi.fn().mockResolvedValue(false),
+			resolveRuntime: () => ({
+				configuredEngine: "ts",
+				activeEngine: "ts",
+				reason: "configured-ts",
+			}),
+		});
+
+		await command.parseAsync(["status", "--json"], { from: "user" });
+
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string) as {
+			ok: boolean;
+			ready: boolean;
+			nextCommands: string[];
+		};
+		expect(payload.ok).toBe(true);
+		expect(payload.ready).toBe(false);
+		// The exit code AGREES with `ok` — a report is not a failure.
+		expect(process.exitCode).toBeUndefined();
+		// And it still hands the operator the way out.
+		expect(payload.nextCommands).toContain("refarm runtime ensure --wait --next-command");
+		logSpy.mockRestore();
+	});
+
+	// The other half of the same rule: an ACT is judged by whether it acted.
+	it("`runtime start` that cannot start still reports ok false — it is an act, not a report", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "rust",
+			readAutostart: () => "ask",
+			resolveRuntime: () => {
+				throw new Error("tractor.engine=rust but the Rust tractor binary is not built");
+			},
+		});
+
+		await command.parseAsync(["start", "--json"], { from: "user" });
+
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string) as { ok: boolean };
+		expect(payload.ok).toBe(false);
+		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 	});
 
@@ -172,7 +224,7 @@ describe("runtime command", () => {
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
 			command: "runtime",
 			operation: "status",
-			ok: false,
+			ok: true,
 			sidecarUrl: "http://127.0.0.1:52001",
 			sidecarUrlSource: "/workspace/.refarm/config.json",
 			sidecarProbe: {
@@ -212,7 +264,7 @@ describe("runtime command", () => {
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
 			command: "runtime",
 			operation: "status",
-			ok: false,
+			ok: true,
 			sidecarUrl: "http://127.0.0.1:52001",
 			sidecarUrlSource: "/workspace/.refarm/config.json",
 			sidecarProbe: {
@@ -253,14 +305,11 @@ describe("runtime command", () => {
 			sidecarUrlSource: "default",
 			ready: false,
 			startCommand: "farmhand --background",
-			ok: false,
+			ok: true,
 			nextAction: "refarm runtime ensure --wait --next-command",
 			nextActions: ["refarm runtime ensure --wait --next-command"],
 			nextCommand: "refarm runtime ensure --wait --next-command",
-			nextCommands: [
-				"refarm runtime ensure --wait --next-command",
-				"refarm doctor --next-command",
-			],
+			nextCommands: ["refarm runtime ensure --wait --next-command", "refarm doctor --next-command"],
 		});
 		logSpy.mockRestore();
 	});
@@ -282,7 +331,7 @@ describe("runtime command", () => {
 		expect(payload).toMatchObject({
 			command: "runtime",
 			operation: "status",
-			ok: false,
+			ok: true,
 			configuredEngine: "rust",
 			activeEngine: "unknown",
 			autostart: "ask",
@@ -855,9 +904,7 @@ describe("runtime command", () => {
 			localNoKeyModel: "refarm sow --model ollama/llama3.2 --json",
 			openExternalLinks: "refarm config get operator.openExternalLinks --json",
 		});
-		expect(payload.diagnostics?.logPath).toBe(
-			join(repoRoot, ".refarm", "ts-runtime-start.log"),
-		);
+		expect(payload.diagnostics?.logPath).toBe(join(repoRoot, ".refarm", "ts-runtime-start.log"));
 		expect(payload.diagnostics?.logTail).toContain(
 			"MODEL_PROVIDER=openai but OPENAI_API_KEY is not set.",
 		);
@@ -985,9 +1032,7 @@ describe("runtime command", () => {
 		await command.parseAsync(["start", "--wait"], { from: "user" });
 
 		expect(process.exitCode).toBe(1);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Runtime did not become ready"),
-		);
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Runtime did not become ready"));
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
 	});
@@ -1066,9 +1111,7 @@ describe("runtime command", () => {
 		await command.parseAsync(["start"], { from: "user" });
 
 		expect(process.exitCode).toBe(1);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Cannot start Refarm runtime"),
-		);
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Cannot start Refarm runtime"));
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Rust tractor binary is not built"),
 		);

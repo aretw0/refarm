@@ -151,7 +151,7 @@ export function buildRuntimeJsonPayload<TExtra extends object = object>(
 		operation,
 		...payload,
 		...(extra ?? {}),
-		ok: runtimePayloadOk(payload),
+		ok: runtimeOperationOk(payload, operation),
 		nextAction: nextActions[0] ?? null,
 		nextActions,
 		nextCommand: nextCommands[0] ?? null,
@@ -159,7 +159,30 @@ export function buildRuntimeJsonPayload<TExtra extends object = object>(
 	} as RuntimeJsonPayload<TExtra>;
 }
 
-function runtimePayloadOk(payload: RuntimeStatusPayload): boolean {
+/**
+ * `ok` answers "did the command do its job", which is a DIFFERENT question per operation.
+ *
+ * `status` is a report. Producing it is the job, and it always succeeds — a runtime that is
+ * not running is precisely what the operator asked about, and it is already carried by
+ * `ready: false` (plus `activeEngine` and `issue`). Reporting that faithfully with
+ * `ok: false` and a non-zero exit would kill any `set -e` script merely for ASKING how
+ * things are; `git status` on a dirty tree exits 0 for exactly this reason.
+ *
+ * `start` / `ensure` / `restart` are acts. Their job is a runtime that ends up ready, so
+ * `runtimeIsHealthy` IS the verdict on whether they did it — unchanged.
+ *
+ * See `docs/NAMING_REGISTRY.md` § "`ok` semantics".
+ */
+function runtimeOperationOk(
+	payload: RuntimeStatusPayload,
+	operation: RuntimeJsonPayload["operation"],
+): boolean {
+	return operation === "status" ? true : runtimeIsHealthy(payload);
+}
+
+/** Is the runtime itself usable? The SUBJECT's state — never confuse it with `ok`, which is
+ *  about the command. Exported because the base surface asks this question directly. */
+export function runtimeIsHealthy(payload: RuntimeStatusPayload): boolean {
 	return payload.activeEngine !== "unknown" && !payload.issue && payload.ready !== false;
 }
 
