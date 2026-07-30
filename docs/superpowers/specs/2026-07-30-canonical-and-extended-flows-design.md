@@ -1,7 +1,7 @@
 # Canonical and extended flows — what refarm does when it knows nothing, and what it may do when the operator declared more
 
 Date: 2026-07-30
-Status: Designed, not implemented
+Status: Implemented (first slice — `auth enroll`)
 Lane: [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md) — DX / machine empowerment
 
 ## The question
@@ -91,8 +91,58 @@ connection is offered), notification delivery (canonical = the terminal; extende
 device), and model login (canonical = browser callback; extended = device code on a surface with no
 browser).
 
-## First slice, when taken
+## First slice, as taken
 
-`enroll` gains the extended path: when `surfaces` declares tailnet, offer the peers by their tailnet
-names plus "type a name", with C2.1–C2.3 honoured. `tailnetPeers` grows the ability to say *why* it
-returned nothing. The canonical path does not change.
+`enroll` gained the extended path: when `surfaces` declares tailnet, it offers the peers by their
+tailnet names plus "type a name", with C2.1–C2.3 honoured. `tailnetPeers` grew the ability to say
+*why* it returned nothing. The canonical path did not change.
+
+### The seam: a candidate list, not a branch
+
+The extension does not add a tailnet branch to the enrolment prompt. It **contributes candidates**
+to the list `promptForIdentity` already renders:
+
+- [`apps/refarm/src/commands/identity-candidates.ts`](../../../apps/refarm/src/commands/identity-candidates.ts)
+  — the seam. `IdentityCandidateSource` (`{ id, collect() → { candidates, notices } }`),
+  `collectIdentityCandidates`, and the label validate/sanitise pair. PURE, and deliberately ignorant
+  of every source that exists.
+- [`identity-sources.ts`](../../../apps/refarm/src/commands/identity-sources.ts) — the registry: the
+  ONLY file that knows which extended flows exist.
+- [`identity-source-tailnet.ts`](../../../apps/refarm/src/commands/identity-source-tailnet.ts) — the
+  tailnet source, gated by `declaresTailnetSurface`.
+- `promptForIdentity(operator, enrolledIdentities, candidates = [])` in `auth.ts` — with an empty
+  list its behaviour is byte-identical to the canonical flow. It never learns what a source is.
+
+Adding a second source (the boot offer, notification delivery, model login — the candidates this
+document already names) means one new `identity-source-*.ts` and one line in the registry. The
+canonical prompt, the seam, and every canonical test stay untouched.
+
+### How each rule is actually enforced
+
+- **C3** — `createTailnetIdentitySource().collect()` reads `.refarm/config.json` **from the
+  filesystem only** (`loadRawSovereignConfig`, never the replicated node — exposure decides how THIS
+  machine is reachable, the same doctrine `surfaces_decl.rs` states) and returns an empty report
+  unless some surface declares `expose: "tailnet"`. Undeclared ⇒ `tailscale` is never spawned, on a
+  machine that may well have it running. A test asserts on the injected runner; a mutation that
+  removes the gate kills four tests.
+- **C2.1** — one credential per invocation. The list is a `select`, not a multi-select, and picking
+  a peer mints exactly one token.
+- **C2.2** — "A new device" is always appended last, whatever contributed above it.
+- **C2.3** — `tailnetPeersReport` reports `peers` / `no-peers` / `cli-missing` / `query-failed` /
+  `bad-output`, and `reportToCandidates` turns the last three into a notice that names the reason
+  ("Could not ask your tailnet …"), never into the empty list that reads as "you have no devices"
+  ("Your tailnet answered: no other devices are on it right now."). Output that parses as JSON but
+  is not a status document counts as *could not ask*, not as *no*.
+- **Already enrolled** — a candidate matching an enrolled identity is folded into that entry and
+  shown once, as a rotate ("on your tailnet — rotate its token").
+- **The name** — the short MagicDNS handle (`tailnetShortName(DNSName)`), falling back to `HostName`.
+  MagicDNS is unique within a tailnet and DNS-label-safe where a raw `HostName` is neither, and it is
+  the handle the rest of refarm already addresses devices by (`farm-hello <hostname>`). A credential
+  identity must not be ambiguous.
+- **A peer name that fails label validation** — offered **repaired** and flagged
+  (`needsConfirmation`), so choosing it opens a text prompt pre-filled with the repair and showing
+  the original. The operator accepts or edits; nothing is silently rewritten. A name nothing can
+  repair is skipped with a notice, never a crash.
+
+Untouched, and tested as such: `--json`, the no-TTY path, and `enroll <label>`. All three return
+before any source is consulted, so they never query anything.
