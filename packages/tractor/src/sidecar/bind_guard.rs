@@ -22,6 +22,12 @@
 //! that gate must actually be RESOLVABLE right now (`auth_policy_resolvable`) — a gate with
 //! no policy behind it at all enforces nothing and must not be mistaken for one that does.
 //!
+//! Since the open-by-declaration slice (spec 2026-07-30) the vocabulary also contains
+//! `"gate": "none"` (`SurfaceGate::Open`), and BOTH guards below refuse it explicitly. It
+//! is a declaration of deliberate openness, not a gate: it may never satisfy an arm that
+//! wants one, and neither of these two surfaces — agent dispatch over HTTP, agent dispatch
+//! and CRDT writes over WS — is the read-only kind of surface O2 admits openness for.
+//!
 //! "Resolvable" — not "a `REFARM_AUTH_POLICY` env var is set", which is what this used to
 //! mean. `sidecar::auth::resolve_policy_path` derives the policy path from the DECLARATION
 //! (`<refarm-dir>/auth-policy.json`) when no env override is given, so declaring the gate is
@@ -112,6 +118,19 @@ pub(crate) fn refuse_unguarded_nonloopback_bind(
              the daemon derives the policy path from the refarm dir it was given; \
              REFARM_AUTH_POLICY only overrides that path."
         )),
+        // O2: `"gate": "none"` is a DECLARATION of openness, never a gate — it can no more
+        // permit this bind than silence can. `surfaces_decl` already refuses the shape at
+        // LOAD (`sidecar-http` accepts mutations, so it may not declare itself open beyond
+        // loopback), so this arm is defence in depth for any caller that builds a
+        // `SurfaceDeclaration` some other way; it must stay a REFUSAL, never fall through
+        // to the `DeviceToken` arm.
+        Some(SurfaceGate::Open) => Err(format!(
+            "refusing to bind the sidecar to {host:?}: surfaces.sidecar-http declares \
+             \"gate\": \"none\" — deliberate openness is not a gate, and this surface \
+             dispatches agents and accepts mutations, so it may not be open beyond \
+             loopback. Declare \"gate\": \"device-token\" and mint a per-device credential \
+             with `refarm auth enroll`."
+        )),
         None => Err(format!(
             "refusing to bind the sidecar to {host:?}: surfaces.sidecar-http declares a \
              non-loopback expose with no gate. Declare \"gate\": \"device-token\" to bind \
@@ -185,6 +204,16 @@ pub(crate) fn refuse_unguarded_nonloopback_ws_bind(
              against. Mint a per-device credential with `refarm auth enroll` — the daemon \
              derives the policy path from the refarm dir it was given; REFARM_AUTH_POLICY \
              only overrides that path."
+        )),
+        // O2, the WS mirror of the sidecar's arm above: openness is a declaration, not a
+        // gate, and this socket carries agent dispatch and CRDT writes — the least
+        // read-only surface on the node. Refused here as well as at load.
+        Some(SurfaceGate::Open) => Err(format!(
+            "refusing to bind the agent/CRDT WebSocket to {host:?}: surfaces.daemon-ws \
+             declares \"gate\": \"none\" — deliberate openness is not a gate, and this \
+             socket carries agent dispatch and CRDT writes, so it may not be open beyond \
+             loopback. Declare \"gate\": \"device-token\" and mint a per-device credential \
+             with `refarm auth enroll`."
         )),
         None => Err(format!(
             "refusing to bind the agent/CRDT WebSocket to {host:?}: surfaces.daemon-ws \
@@ -742,6 +771,74 @@ mod tests {
     fn ws_flag_widening_a_specific_host_declaration_to_every_interface_is_refused() {
         let decl = declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken));
         assert!(refuse_unguarded_nonloopback_ws_bind("0.0.0.0", true, Some(&decl)).is_err());
+    }
+
+    // ── O2 mutation-verify: `"gate": "none"` is not a gate, for EITHER surface ─────
+    // (docs/superpowers/specs/2026-07-30-open-by-declaration-surfaces-design.md)
+
+    #[test]
+    fn an_open_gate_never_satisfies_the_device_token_guard() {
+        // THE mutation guard for O1's "openness must never satisfy anything that wants a
+        // real gate". If `SurfaceGate::Open` were ever folded into the
+        // `Some(SurfaceGate::DeviceToken) if auth_policy_resolvable` arm — or the match
+        // loosened to `Some(_)` — this flips to `Ok` and a surface that verifies NOTHING
+        // binds the tailnet. It must refuse for BOTH values of `auth_policy_resolvable`:
+        // a policy existing elsewhere on the node is exactly the "appearance of a gate"
+        // this design exists to remove, so it must not rescue an open declaration either.
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::Open));
+        for resolvable in [false, true] {
+            let err = refuse_unguarded_nonloopback_bind("100.64.0.1", resolvable, Some(&decl))
+                .expect_err("an open sidecar declaration must never bind non-loopback");
+            assert!(err.contains("not a gate"), "must say what openness is not: {err}");
+            assert!(
+                err.contains("\"gate\": \"device-token\""),
+                "must name the fix verbatim: {err}"
+            );
+            let err = refuse_unguarded_nonloopback_ws_bind("100.64.0.1", resolvable, Some(&decl))
+                .expect_err("an open WS declaration must never bind non-loopback");
+            assert!(err.contains("not a gate"), "must say what openness is not: {err}");
+            assert!(
+                err.contains("\"gate\": \"device-token\""),
+                "must name the fix verbatim: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_open_gate_is_refused_on_a_tailnet_declaration_too() {
+        // `SurfaceExpose::Tailnet` normally never reaches these pure guards
+        // (`tailnet_resolve` rewrites it first), but if it ever did, an open declaration
+        // must fail CLOSED here as well — the resolver's absence must not become a hole.
+        let decl = SurfaceDeclaration { expose: SurfaceExpose::Tailnet, gate: Some(SurfaceGate::Open) };
+        assert!(refuse_unguarded_nonloopback_bind("100.64.0.1", true, Some(&decl)).is_err());
+        assert!(refuse_unguarded_nonloopback_ws_bind("100.64.0.1", true, Some(&decl)).is_err());
+    }
+
+    #[test]
+    fn an_open_gate_still_permits_every_loopback_bind() {
+        // Openness declared on a loopback ceiling changes nothing about loopback itself —
+        // the local tools (`127.0.0.1:42001`) must be unaffected by the new value.
+        let declarations = [
+            SurfaceDeclaration { expose: SurfaceExpose::Loopback, gate: Some(SurfaceGate::Open) },
+            declare_host("100.64.0.1", Some(SurfaceGate::Open)),
+        ];
+        for decl in &declarations {
+            for host in ["127.0.0.1", "::1", "[::1]", "localhost"] {
+                assert!(refuse_unguarded_nonloopback_bind(host, false, Some(decl)).is_ok());
+                assert!(refuse_unguarded_nonloopback_ws_bind(host, false, Some(decl)).is_ok());
+            }
+        }
+    }
+
+    #[test]
+    fn resolve_bind_host_never_resolves_an_open_declaration_to_its_declared_host() {
+        // The end-to-end shape of the same guard: an absent flag would otherwise resolve
+        // to the DECLARED host (that is `resolve_declared_bind_host`'s whole job), so the
+        // refusal has to happen before the value is returned — never "resolved, then
+        // bound, then regretted".
+        let decl = declare_host("100.64.0.1", Some(SurfaceGate::Open));
+        assert!(resolve_sidecar_bind_host(None, true, Some(&decl)).is_err());
+        assert!(resolve_ws_bind_host(None, true, Some(&decl)).is_err());
     }
 
     // ── resolve_ws_bind_host: absent flag ⇒ the declaration decides (S1 default:

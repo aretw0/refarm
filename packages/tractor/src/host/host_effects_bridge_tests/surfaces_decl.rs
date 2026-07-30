@@ -42,10 +42,17 @@ fn parse_surfaces_too_many_entries_is_rejected() {
 
 #[test]
 fn parse_surfaces_unknown_surface_name_is_rejected() {
-    let cfg = serde_json::json!({ "surfaces": { "capabilities": { "expose": "loopback" } } });
-    let err = parse_surfaces(&cfg).unwrap_err();
-    assert!(err.contains("capabilities"), "must name the offending key: {err}");
-    assert!(err.contains("not a surface this daemon reads"), "unexpected: {err}");
+    // Still fail-shut for a name NO runtime declares — O4 widened the vocabulary, it did
+    // not remove the refusal. `dist-http` is the specific name to pin: the 07-30 design's
+    // prose uses it for the `refarm web serve` listener, and this slice deliberately
+    // admits that listener under ONE name (`web`, after the listener) rather than two.
+    for unknown in ["totally-made-up", "dist-http"] {
+        let cfg = serde_json::json!({ "surfaces": { unknown: { "expose": "loopback" } } });
+        let err = parse_surfaces(&cfg).unwrap_err();
+        assert!(err.contains(unknown), "must name the offending key: {err}");
+        assert!(err.contains("is not a surface any refarm runtime declares"), "unexpected: {err}");
+        assert!(err.contains("web"), "must name the vocabulary it could have meant: {err}");
+    }
 }
 
 #[test]
@@ -242,6 +249,223 @@ fn surface_enforceable_gate_table_matches_the_design() {
     assert_eq!(surface_enforceable_gate("unknown-surface"), None);
 }
 
+// ── O1 — `"gate": "none"` is an explicit value: a CHOICE, not a forgetting ────────
+// (docs/superpowers/specs/2026-07-30-open-by-declaration-surfaces-design.md)
+
+#[test]
+fn parse_surfaces_gate_none_parses_as_an_explicit_declaration() {
+    // The value that makes honesty sayable: a TS surface that verifies no bearer may now
+    // declare openness instead of declaring nothing.
+    for surface in [SURFACE_CAPABILITIES, SURFACE_WEB] {
+        let cfg = serde_json::json!({
+            "surfaces": { surface: { "expose": "tailnet", "gate": "none" } }
+        });
+        let decl = &parse_surfaces(&cfg).unwrap()[surface];
+        assert_eq!(decl.expose, SurfaceExpose::Tailnet, "{surface}: unexpected expose");
+        assert_eq!(decl.gate, Some(SurfaceGate::Open), "{surface}: unexpected gate");
+    }
+}
+
+#[test]
+fn parse_surfaces_gate_none_is_distinguishable_from_an_absent_gate() {
+    // THE O1 mutation guard, and the whole reason the value exists: if `"gate": "none"`
+    // ever parsed to the SAME thing as writing no `gate` key at all, an auditor could no
+    // longer tell a deliberate choice from an oversight — which is the entire distinction
+    // this slice buys. `Some(Open)` and `None` must stay two different values.
+    let declared = serde_json::json!({
+        "surfaces": { "web": { "expose": "loopback", "gate": "none" } }
+    });
+    let forgotten = serde_json::json!({ "surfaces": { "web": { "expose": "loopback" } } });
+    assert_eq!(parse_surfaces(&declared).unwrap()[SURFACE_WEB].gate, Some(SurfaceGate::Open));
+    assert_eq!(parse_surfaces(&forgotten).unwrap()[SURFACE_WEB].gate, None);
+    assert_ne!(
+        parse_surfaces(&declared).unwrap()[SURFACE_WEB],
+        parse_surfaces(&forgotten).unwrap()[SURFACE_WEB],
+        "a declared openness must not collapse into silence"
+    );
+}
+
+#[test]
+fn parse_surfaces_gate_none_with_loopback_is_admissible_and_means_nothing_special() {
+    // Loopback + "none" parses for EVERY surface, Rust-owned included: loopback was
+    // already the floor S1 gives everything, so declaring openness there grants nothing.
+    for surface in [SURFACE_SIDECAR_HTTP, SURFACE_DAEMON_WS, SURFACE_CAPABILITIES, SURFACE_WEB] {
+        let cfg = serde_json::json!({
+            "surfaces": { surface: { "expose": "loopback", "gate": "none" } }
+        });
+        let decl = &parse_surfaces(&cfg).unwrap()[surface];
+        assert_eq!(decl.expose, SurfaceExpose::Loopback, "{surface}: unexpected expose");
+        assert_eq!(decl.gate, Some(SurfaceGate::Open), "{surface}: unexpected gate");
+    }
+}
+
+// ── O2 — openness is admissible ONLY with the constraints that make it safe ────────
+// Every one of these is REFUSED AT PARSE TIME, never warned about.
+
+#[test]
+fn parse_surfaces_gate_none_with_a_literal_host_is_refused() {
+    // O2's core refusal: a literal address is not evidence that its peers were admitted.
+    let cfg = serde_json::json!({
+        "surfaces": { "web": { "expose": "host:192.168.1.5", "gate": "none" } }
+    });
+    let err = parse_surfaces(&cfg).unwrap_err();
+    assert!(err.contains("192.168.1.5"), "must echo the declared value: {err}");
+    assert!(
+        err.contains("\"expose\": \"tailnet\""),
+        "must name the fix, not merely the refusal: {err}"
+    );
+}
+
+#[test]
+fn parse_surfaces_gate_none_with_a_cgnat_range_host_is_refused_too() {
+    // THE RULING, pinned: ONLY the literal `"tailnet"` counts as an admitted-device
+    // transport. An address that merely LOOKS like a tailnet's (100.64.0.0/10 is RFC 6598
+    // carrier-grade NAT, which Tailscale borrows but ISPs and containers also use) does
+    // NOT qualify — `parse_expose` shape-validates a `host:<ip>` without resolving or
+    // trusting it (S2), so inferring an ADMISSION property from a numeric range would be
+    // the parser manufacturing exactly the appearance-of-a-gate O1/S3 forbid. If this ever
+    // flips to `Ok`, the range-sniffing shortcut has been introduced.
+    for ip in ["100.64.0.1", "100.100.100.100", "100.127.255.254"] {
+        let cfg = serde_json::json!({
+            "surfaces": { "web": { "expose": format!("host:{ip}"), "gate": "none" } }
+        });
+        let err = parse_surfaces(&cfg)
+            .expect_err(&format!("host:{ip} + gate none must be refused"));
+        assert!(err.contains("100.64.0.0/10"), "{ip}: must explain why the shape is not enough: {err}");
+        assert!(err.contains("\"expose\": \"tailnet\""), "{ip}: must name the fix: {err}");
+    }
+}
+
+#[test]
+fn parse_surfaces_gate_none_with_every_interface_is_refused() {
+    // O2 names `host:0.0.0.0` specifically as the combination that may never be admitted;
+    // `[::]` is the same address in the other family and must not slip past.
+    for raw in ["host:0.0.0.0", "host:[::]"] {
+        let cfg = serde_json::json!({ "surfaces": { "web": { "expose": raw, "gate": "none" } } });
+        let err =
+            parse_surfaces(&cfg).expect_err(&format!("{raw} + gate none must be refused"));
+        assert!(err.contains("EVERY interface"), "{raw}: must say what it is: {err}");
+        assert!(err.contains("\"expose\": \"tailnet\""), "{raw}: must name the fix: {err}");
+    }
+}
+
+#[test]
+fn parse_surfaces_gate_none_on_a_mutating_rust_surface_is_refused_beyond_loopback() {
+    // O2's read-only clause: `sidecar-http` dispatches agents and `daemon-ws` carries CRDT
+    // writes, so neither may declare itself open on the tailnet — the ONE place a Rust
+    // surface could otherwise have used `"none"` to bind wide with nothing enforcing.
+    for surface in [SURFACE_SIDECAR_HTTP, SURFACE_DAEMON_WS] {
+        let cfg = serde_json::json!({
+            "surfaces": { surface: { "expose": "tailnet", "gate": "none" } }
+        });
+        let err = parse_surfaces(&cfg)
+            .expect_err(&format!("{surface} may not declare itself open"));
+        assert!(err.contains("accepts mutations"), "{surface}: must say why: {err}");
+        assert!(
+            err.contains("\"gate\": \"device-token\""),
+            "{surface}: must name the fix: {err}"
+        );
+    }
+}
+
+#[test]
+fn parse_surfaces_device_token_on_a_surface_that_verifies_nothing_is_refused() {
+    // O1's first half (S3): a surface may not declare a gate it cannot enforce — checked
+    // at EVERY expose, loopback included, because the claim is false wherever it binds.
+    // This is what leaves a TS surface with nothing to say, and therefore what makes
+    // `"gate": "none"` necessary rather than convenient.
+    for surface in [SURFACE_CAPABILITIES, SURFACE_WEB] {
+        for expose in ["loopback", "tailnet", "host:100.64.0.1"] {
+            let cfg = serde_json::json!({
+                "surfaces": { surface: { "expose": expose, "gate": "device-token" } }
+            });
+            let err = parse_surfaces(&cfg)
+                .expect_err(&format!("{surface}/{expose} must be refused"));
+            assert!(
+                err.contains("verifies no bearer credential"),
+                "{surface}/{expose}: must say why: {err}"
+            );
+            assert!(
+                err.contains("\"gate\": \"none\""),
+                "{surface}/{expose}: must name the honest alternative: {err}"
+            );
+        }
+    }
+}
+
+#[test]
+fn parse_surfaces_ts_surface_beyond_loopback_with_no_gate_at_all_is_still_refused() {
+    // Silence is not openness (S1/O1): a TS surface on the tailnet with NO `gate` key is
+    // refused exactly as before — widening the vocabulary must not have widened the hole.
+    let cfg = serde_json::json!({ "surfaces": { "web": { "expose": "tailnet" } } });
+    let err = parse_surfaces(&cfg).unwrap_err();
+    assert!(err.contains("no credential gate implemented"), "unexpected: {err}");
+    assert!(err.contains("\"gate\": \"none\""), "must name the fix: {err}");
+}
+
+// ── O4 — one vocabulary, two enforcers ────────────────────────────────────────────
+
+#[test]
+fn parse_surfaces_ts_surfaces_are_in_the_vocabulary_but_enforce_nothing() {
+    // The catalog widened (a TS entry no longer stops the daemon booting), and the
+    // enforcement table did NOT: Rust still owns exactly two surfaces.
+    for surface in [SURFACE_CAPABILITIES, SURFACE_WEB] {
+        let cfg = serde_json::json!({ "surfaces": { surface: { "expose": "loopback" } } });
+        assert!(parse_surfaces(&cfg).is_ok(), "{surface} must parse");
+        assert_eq!(surface_enforceable_gate(surface), None, "{surface} must enforce nothing");
+    }
+}
+
+#[test]
+fn parse_surfaces_a_declared_ts_surface_never_reaches_binding_logic() {
+    // O4's split, proven behaviourally rather than asserted: an OPEN `web` declaration
+    // parses, and yet nothing about the Rust binds changes. Both Rust guards look their
+    // declaration up BY KEY (main.rs does the same), so they see `None` — S1's loopback
+    // ceiling — and refuse a non-loopback bind exactly as if nothing had been declared.
+    let cfg = serde_json::json!({
+        "surfaces": { "web": { "expose": "tailnet", "gate": "none" } }
+    });
+    let surfaces = parse_surfaces(&cfg).unwrap();
+    assert!(surfaces.get(SURFACE_SIDECAR_HTTP).is_none());
+    assert!(surfaces.get(SURFACE_DAEMON_WS).is_none());
+    assert!(
+        crate::sidecar::bind_guard::refuse_unguarded_nonloopback_bind(
+            "100.64.0.1",
+            true,
+            surfaces.get(SURFACE_SIDECAR_HTTP),
+        )
+        .is_err(),
+        "an open TS surface must never widen the sidecar's bind"
+    );
+    assert!(
+        crate::sidecar::bind_guard::refuse_unguarded_nonloopback_ws_bind(
+            "100.64.0.1",
+            true,
+            surfaces.get(SURFACE_DAEMON_WS),
+        )
+        .is_err(),
+        "an open TS surface must never widen the WS bind"
+    );
+}
+
+#[test]
+fn parse_surfaces_one_config_parses_for_both_runtimes() {
+    // O4's point in one assertion: the operator's live declaration PLUS the TS surfaces
+    // that motivated this slice, in ONE file, parsed by the Rust runtime without refusal.
+    let cfg = serde_json::json!({
+        "surfaces": {
+            "sidecar-http": { "expose": "tailnet", "gate": "device-token" },
+            "daemon-ws": { "expose": "loopback" },
+            "web": { "expose": "tailnet", "gate": "none" },
+            "capabilities": { "expose": "loopback" }
+        }
+    });
+    let out = parse_surfaces(&cfg).unwrap();
+    assert_eq!(out.len(), 4);
+    assert_eq!(out[SURFACE_SIDECAR_HTTP].gate, Some(SurfaceGate::DeviceToken));
+    assert_eq!(out[SURFACE_WEB].gate, Some(SurfaceGate::Open));
+}
+
 // ── resolve_surfaces — filesystem-only resolution ────────────────────────────────
 //
 // Mirrors `spawn_env_from_config_at`'s own precedent: pass an explicit `base` (a
@@ -360,4 +584,95 @@ fn a_gate_on_one_surface_answers_true_for_the_node_without_widening_the_other() 
         .is_err(),
         "a gate declared on sidecar-http must never widen a loopback daemon-ws"
     );
+}
+
+#[test]
+fn open_gate_does_not_derive_an_auth_policy_path() {
+    // THE mutation guard for O1's second half: `"gate": "none"` must never satisfy
+    // anything that wants a REAL gate. If this predicate ever loosened to
+    // `decl.gate.is_some()`, a node whose ONLY declaration is deliberate openness would
+    // manufacture the `auth_policy_resolvable` signal `bind_guard` reads as "a credential
+    // gate is live" — an open surface conjuring the appearance of a closed one.
+    for (label, cfg) in [
+        (
+            "an open TS surface alone",
+            serde_json::json!({ "surfaces": { "web": { "expose": "tailnet", "gate": "none" } } }),
+        ),
+        (
+            "an open surface on loopback",
+            serde_json::json!({
+                "surfaces": {
+                    "capabilities": { "expose": "loopback", "gate": "none" },
+                    "sidecar-http": { "expose": "loopback", "gate": "none" }
+                }
+            }),
+        ),
+    ] {
+        let surfaces = parse_surfaces(&cfg).unwrap();
+        assert!(
+            !any_surface_declares_device_token_gate(&surfaces),
+            "{label}: declared openness is not a declared credential gate"
+        );
+    }
+}
+
+#[test]
+fn an_open_surface_alongside_a_gated_one_neither_adds_nor_removes_the_node_wide_fact() {
+    // The node-wide answer must come from the DEVICE-TOKEN declaration only — an open
+    // surface sitting next to it neither creates the fact nor cancels it.
+    let cfg = serde_json::json!({
+        "surfaces": {
+            "sidecar-http": { "expose": "tailnet", "gate": "device-token" },
+            "web": { "expose": "tailnet", "gate": "none" }
+        }
+    });
+    assert!(any_surface_declares_device_token_gate(&parse_surfaces(&cfg).unwrap()));
+}
+
+// ── the operator's live config shape, pinned ──────────────────────────────────────
+
+#[test]
+fn resolve_surfaces_parses_the_operators_live_declaration() {
+    // A FIXTURE of the shape actually in `.refarm/config.json` on the operator's machine
+    // (`sidecar-http` on the tailnet behind a device-token gate; `daemon-ws` loopback).
+    // Widening the vocabulary and adding a gate value must not disturb the declaration a
+    // live daemon is running on right now — this is the regression that would be felt
+    // immediately, as a daemon that no longer boots.
+    let _env = crate::test_support::env_lock();
+    ensure_sovereign_dir_env();
+    let dir = tempfile::tempdir().unwrap();
+    write_surfaces_config(
+        dir.path(),
+        r#"{"sidecar-http":{"expose":"tailnet","gate":"device-token"},"daemon-ws":{"expose":"loopback"}}"#,
+    );
+    let out = resolve_surfaces(dir.path()).unwrap();
+    assert_eq!(out.len(), 2);
+    assert_eq!(out[SURFACE_SIDECAR_HTTP].expose, SurfaceExpose::Tailnet);
+    assert_eq!(out[SURFACE_SIDECAR_HTTP].gate, Some(SurfaceGate::DeviceToken));
+    assert_eq!(out[SURFACE_DAEMON_WS].expose, SurfaceExpose::Loopback);
+    assert_eq!(out[SURFACE_DAEMON_WS].gate, None);
+    assert!(
+        any_surface_declares_device_token_gate(&out),
+        "the operator's declaration must still derive the auth-policy path"
+    );
+}
+
+#[test]
+fn resolve_surfaces_parses_the_operators_declaration_with_a_ts_surface_added() {
+    // The file the next slice writes: the live declaration UNCHANGED, plus the open TS
+    // surface that used to stop the daemon booting (O4). Both must load, and the Rust
+    // side's two answers must be byte-identical to the fixture above.
+    let _env = crate::test_support::env_lock();
+    ensure_sovereign_dir_env();
+    let dir = tempfile::tempdir().unwrap();
+    write_surfaces_config(
+        dir.path(),
+        r#"{"sidecar-http":{"expose":"tailnet","gate":"device-token"},"daemon-ws":{"expose":"loopback"},"web":{"expose":"tailnet","gate":"none"}}"#,
+    );
+    let out = resolve_surfaces(dir.path()).unwrap();
+    assert_eq!(out.len(), 3);
+    assert_eq!(out[SURFACE_SIDECAR_HTTP].expose, SurfaceExpose::Tailnet);
+    assert_eq!(out[SURFACE_SIDECAR_HTTP].gate, Some(SurfaceGate::DeviceToken));
+    assert_eq!(out[SURFACE_DAEMON_WS].expose, SurfaceExpose::Loopback);
+    assert_eq!(out[SURFACE_WEB].gate, Some(SurfaceGate::Open));
 }
