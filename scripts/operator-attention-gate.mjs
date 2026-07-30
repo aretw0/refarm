@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 import {
   buildOperatorAttentionGateCommands,
   buildOperatorAttentionGateHandoff,
-} from "../packages/operator-state/dist/index.js";
+} from "./lib/operator-state-bridge.mjs";
 
 function resolveRefarmHome() {
   const envHome = process.env.REFARM_HOME?.trim();
