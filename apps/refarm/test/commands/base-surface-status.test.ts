@@ -150,4 +150,65 @@ describe("resolveBaseSurfaceStatus", () => {
 
 		expect(calls).toEqual(["runtime:start", "runtime:end", "model", "health"]);
 	});
+
+	it("adiciona unit de atenção do operador quando resolver retorna escopo", async () => {
+		const model = await resolveBaseSurfaceStatus({
+			resolveRuntime: vi.fn().mockResolvedValue({
+				command: "runtime",
+				operation: "status",
+				ok: true,
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				ready: true,
+				nextAction: null,
+				nextActions: [],
+				nextCommand: null,
+				nextCommands: [],
+			}),
+			resolveModel: vi.fn().mockResolvedValue({
+				command: "model",
+				operation: "current",
+				ok: true,
+				current: { ref: "openai-codex/gpt-5.3-codex-spark" },
+				credential: { state: "silo-oauth" },
+				nextAction: null,
+				nextActions: [],
+				nextCommand: null,
+				nextCommands: [],
+			}),
+			resolveHealth: vi.fn().mockResolvedValue({
+				command: "health",
+				operation: "audit",
+				ok: true,
+				issueCount: 0,
+				recommendations: [],
+				nextAction: null,
+				nextActions: [],
+				nextCommand: null,
+				nextCommands: [],
+			}),
+			resolveOperatorAttention: vi.fn().mockResolvedValue({
+				scope: "connection-up:ovpn-serpro",
+				armed: false,
+				windowMs: 60000,
+				expiresAt: null,
+			}),
+		});
+
+		expect(model.units.map((unit) => unit.id)).toEqual([
+			"runtime",
+			"model",
+			"health",
+			"operator-attention",
+		]);
+		expect(model.units[3]).toMatchObject({
+			id: "operator-attention",
+			state: "blocked",
+			severity: "warning",
+			summary: "Canal de atenção ainda não armado para 'connection-up:ovpn-serpro'.",
+		});
+		expect(model.nextCommand).toBe(
+			"node scripts/operator-attention-gate.mjs 'connection-up:ovpn-serpro' --prepare-only --window-ms 60000 --json",
+		);
+	});
 });
