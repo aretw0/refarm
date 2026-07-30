@@ -82,7 +82,7 @@ describe("refarm auth — credential policy", () => {
 
 describe("validateIdentityLabel", () => {
 	it("trims surrounding whitespace", () => {
-		expect(validateIdentityLabel("  arthur-phone  ")).toBe("arthur-phone");
+		expect(validateIdentityLabel("  my-phone  ")).toBe("my-phone");
 	});
 
 	it("rejects an empty (or whitespace-only) label", () => {
@@ -98,9 +98,9 @@ describe("validateIdentityLabel", () => {
 
 describe("promptForIdentity", () => {
 	it("goes straight to a text prompt when no identity is enrolled yet", async () => {
-		const operator = createScriptedOperatorChannel(["arthur-phone"]);
+		const operator = createScriptedOperatorChannel(["my-phone"]);
 		const result = await promptForIdentity(operator, []);
-		expect(result).toEqual({ identity: "arthur-phone", impliedRotate: false });
+		expect(result).toEqual({ identity: "my-phone", impliedRotate: false });
 	});
 
 	it("choosing an already-enrolled identity implies rotation", async () => {
@@ -119,9 +119,9 @@ describe("promptForIdentity", () => {
 		// Same two shapes as above, but with the seam's parameter explicitly empty:
 		// the extension must be invisible when nothing is registered. This options
 		// array is the pre-change baseline, pinned verbatim.
-		const bare = recordingOperator(["arthur-phone"]);
+		const bare = recordingOperator(["my-phone"]);
 		expect(await promptForIdentity(bare.operator, [], {})).toEqual({
-			identity: "arthur-phone",
+			identity: "my-phone",
 			impliedRotate: false,
 		});
 		expect(bare.prompts.map((p) => p.type)).toEqual(["text"]);
@@ -901,7 +901,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 
 	it("empty policy goes straight to the text prompt and enrolls the typed label", async () => {
 		const policyPath = tempPolicyPath();
-		const operator = createScriptedOperatorChannel(["arthur-phone"]);
+		const operator = createScriptedOperatorChannel(["my-phone"]);
 		const cmd = createAuthEnrollCommand({
 			operator,
 			input: fakeStream(true),
@@ -914,7 +914,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		expect(process.exitCode).toBeUndefined();
 		const policy = readPolicyFile(policyPath);
 		expect(policy.credentials).toHaveLength(1);
-		expect(policy.credentials[0]?.identity).toBe("arthur-phone");
+		expect(policy.credentials[0]?.identity).toBe("my-phone");
 	});
 
 	it("populated policy offers select-plus-new; choosing existing identity implies rotation", async () => {
@@ -1036,17 +1036,17 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 			output: fakeStream(false),
 		});
 
-		await cmd.parseAsync(["arthur-phone", "--policy", policyPath], { from: "user" });
+		await cmd.parseAsync(["my-phone", "--policy", policyPath], { from: "user" });
 
 		expect(process.exitCode).toBeUndefined();
 		const policy = readPolicyFile(policyPath);
 		expect(policy.credentials).toHaveLength(1);
-		expect(policy.credentials[0]?.identity).toBe("arthur-phone");
+		expect(policy.credentials[0]?.identity).toBe("my-phone");
 	});
 
 	it("an explicitly empty source list leaves the canonical flow exactly as it was", async () => {
 		const policyPath = tempPolicyPath();
-		const { operator, prompts } = recordingOperator(["arthur-phone"]);
+		const { operator, prompts } = recordingOperator(["my-phone"]);
 		const cmd = createAuthEnrollCommand({
 			operator,
 			input: fakeStream(true),
@@ -1059,7 +1059,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		expect(process.exitCode).toBeUndefined();
 		expect(prompts.map((p) => p.type)).toEqual(["text"]);
 		expect(stdoutText()).not.toMatch(/tailnet/i);
-		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("arthur-phone");
+		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("my-phone");
 	});
 
 	// The extended path, end to end ------------------------------------------
@@ -1087,7 +1087,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		const { source, calls } = tailnetSource({
 			stdout: statusWith({ a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.") }),
 		});
-		const { operator, prompts } = recordingOperator([" new-device", "arthur-phone"]);
+		const { operator, prompts } = recordingOperator([" new-device", "my-phone"]);
 		const cmd = createAuthEnrollCommand({
 			operator,
 			input: fakeStream(true),
@@ -1103,7 +1103,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 			" discover:tailnet",
 			" new-device",
 		]);
-		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("arthur-phone");
+		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("my-phone");
 	});
 
 	it("picking discovery: peers are offered by their tailnet name, 'A new device' still there", async () => {
@@ -1225,7 +1225,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		const { operator, prompts } = recordingOperator([
 			" discover:tailnet",
 			" new-device",
-			"arthur-phone",
+			"my-phone",
 		]);
 		const cmd = createAuthEnrollCommand({
 			operator,
@@ -1245,7 +1245,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 			" discover:tailnet",
 			" new-device",
 		]);
-		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("arthur-phone");
+		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("my-phone");
 	});
 
 	it("no `tailscale` on PATH: says it could not ask (and why), never that the tailnet is empty", async () => {
@@ -1253,7 +1253,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		const { source } = tailnetSource({
 			fail: Object.assign(new Error("spawn tailscale ENOENT"), { code: "ENOENT" }),
 		});
-		const { operator } = recordingOperator([" discover:tailnet", " new-device", "arthur-phone"]);
+		const { operator } = recordingOperator([" discover:tailnet", " new-device", "my-phone"]);
 		const cmd = createAuthEnrollCommand({
 			operator,
 			input: fakeStream(true),
@@ -1270,7 +1270,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		expect(shown).toMatch(/not on PATH/);
 		expect(shown).not.toMatch(/no other devices are on it/);
 		expect(process.exitCode).toBeUndefined();
-		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("arthur-phone");
+		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("my-phone");
 	});
 
 	it("a peer that is already enrolled shows once, as a rotate, and rotates its token", async () => {
@@ -1522,11 +1522,11 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 			identityCandidateSources: [spy.source],
 		});
 
-		await cmd.parseAsync(["arthur-phone", "--policy", policyPath], { from: "user" });
+		await cmd.parseAsync(["my-phone", "--policy", policyPath], { from: "user" });
 
 		expect(spy.calls).toBe(0);
 		expect(process.exitCode).toBeUndefined();
-		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("arthur-phone");
+		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("my-phone");
 	});
 
 	it("an untouched prompt never spawns `tailscale`, even through the real command", async () => {
@@ -1534,7 +1534,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		const { source, calls } = tailnetSource({
 			stdout: statusWith({ a: tailnetPeerJson("meu-android", "meu-android.tail1.ts.net.") }),
 		});
-		const { operator } = recordingOperator([" new-device", "arthur-phone"]);
+		const { operator } = recordingOperator([" new-device", "my-phone"]);
 		const cmd = createAuthEnrollCommand({
 			operator,
 			input: fakeStream(true),
@@ -1545,7 +1545,7 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 		await cmd.parseAsync(["--policy", policyPath], { from: "user" });
 
 		expect(calls).toEqual([]);
-		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("arthur-phone");
+		expect(readPolicyFile(policyPath).credentials[0]?.identity).toBe("my-phone");
 	});
 
 	// The declaration is no longer consulted, at all --------------------------
@@ -1593,4 +1593,105 @@ describe("refarm auth enroll — no identity argument (interactive selection)", 
 			.map((call) => String(call[0] ?? ""))
 			.join("");
 	}
+});
+
+/**
+ * The success output tells the operator what to do next, and until now NOTHING
+ * pinned it — the instruction changed from "export REFARM_AUTH_POLICY=…" to
+ * "just restart" and all 1871 tests still passed. That silence is the bug these
+ * tests close: the daemon now DERIVES the policy path from a `"gate":
+ * "device-token"` declaration, so telling the operator to plumb an env var is
+ * wrong for the default path and still right for a custom one.
+ */
+describe("refarm auth enroll — the gate instruction follows the daemon's derivation", () => {
+	const tempDirs: string[] = [];
+	let stdoutSpy: ReturnType<typeof vi.spyOn>;
+	let cwdBefore: string;
+
+	beforeEach(() => {
+		cwdBefore = process.cwd();
+		stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	});
+
+	afterEach(() => {
+		process.chdir(cwdBefore);
+		stdoutSpy.mockRestore();
+		process.exitCode = undefined;
+		for (const dir of tempDirs.splice(0)) {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	/** The DEFAULT path resolves against cwd, so the only safe way to exercise it
+	 * is from a throwaway cwd — otherwise the test writes the repo's real policy. */
+	function tempCwd(): string {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-auth-hint-test-"));
+		tempDirs.push(dir);
+		process.chdir(dir);
+		return dir;
+	}
+
+	function written(): string {
+		return stdoutSpy.mock.calls.map((call: unknown[]) => String(call[0])).join("");
+	}
+
+	it("default path: says no env var is needed and never names REFARM_AUTH_POLICY", async () => {
+		const dir = tempCwd();
+		const cmd = createAuthEnrollCommand({ identityCandidateSources: [] });
+
+		await cmd.parseAsync(["my-phone"], { from: "user" });
+
+		expect(process.exitCode).toBeUndefined();
+		const out = written();
+		expect(out).not.toContain("REFARM_AUTH_POLICY");
+		expect(out).toContain("no environment variable needed");
+		expect(out).toContain('"gate": "device-token"');
+		// It really did enrol, at the derived location — the hint is not the only claim.
+		expect(fs.existsSync(path.join(dir, ".refarm", "auth-policy.json"))).toBe(true);
+	});
+
+	it("custom path: names the override and says why it is required", async () => {
+		tempCwd();
+		const custom = path.join(tempDirs[0] as string, "elsewhere.json");
+		const cmd = createAuthEnrollCommand({ identityCandidateSources: [] });
+
+		await cmd.parseAsync(["my-phone", "--policy", custom], { from: "user" });
+
+		const out = written();
+		expect(out).toContain(`REFARM_AUTH_POLICY=${custom}`);
+		expect(out).toContain("not the derived default");
+	});
+
+	it("--json carries enableRequired, false for the derived default", async () => {
+		tempCwd();
+		const cmd = createAuthEnrollCommand({ identityCandidateSources: [] });
+
+		await cmd.parseAsync(["my-phone", "--json"], { from: "user" });
+
+		const payload = JSON.parse(written()) as { enableRequired: boolean; enable: string };
+		expect(payload.enableRequired).toBe(false);
+		// `enable` stays a valid assignment either way — setting it explicitly always
+		// works. `enableRequired` is what tells a consumer whether it MUST.
+		expect(payload.enable).toContain("REFARM_AUTH_POLICY=");
+	});
+
+	it("--json carries enableRequired true for a custom path", async () => {
+		tempCwd();
+		const custom = path.join(tempDirs[0] as string, "elsewhere.json");
+		const cmd = createAuthEnrollCommand({ identityCandidateSources: [] });
+
+		await cmd.parseAsync(["my-phone", "--policy", custom, "--json"], { from: "user" });
+
+		expect((JSON.parse(written()) as { enableRequired: boolean }).enableRequired).toBe(true);
+	});
+
+	it("never prints the token into the instruction lines", async () => {
+		tempCwd();
+		const cmd = createAuthEnrollCommand({ identityCandidateSources: [] });
+
+		await cmd.parseAsync(["my-phone", "--json"], { from: "user" });
+
+		const payload = JSON.parse(written()) as { token: string; enable: string };
+		expect(payload.enable).not.toContain(payload.token);
+	});
 });

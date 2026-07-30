@@ -410,19 +410,34 @@ async function runAuthEnroll(
 	await mkdir(path.dirname(policyPath), { recursive: true });
 	await writeFile(policyPath, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
 
+	// The daemon DERIVES this path from the declaration: a surface declaring
+	// `"gate": "device-token"` reads `<refarm-dir>/auth-policy.json` with no env at
+	// all. `REFARM_AUTH_POLICY` is an override, so it is only worth mentioning when
+	// the operator chose a path the derivation will not find. Deliberately does NOT
+	// read the config to check whether a gate is declared — enrolment stopped
+	// depending on the declaration, and re-introducing that read here would put the
+	// coupling back one command over.
 	const enableHint = `REFARM_AUTH_POLICY=${options.policy ?? DEFAULT_POLICY_PATH}`;
+	// `--policy` carries DEFAULT_POLICY_PATH as its option default, so this is never
+	// undefined: an unpassed flag compares equal and the override goes unmentioned.
+	const enableRequired = options.policy !== DEFAULT_POLICY_PATH;
 	if (options.json) {
 		process.stdout.write(
-			`${JSON.stringify({ ok: true, identity: validIdentity, token, policy: policyPath, enable: enableHint })}\n`,
+			`${JSON.stringify({ ok: true, identity: validIdentity, token, policy: policyPath, enable: enableHint, enableRequired })}\n`,
 		);
 		return;
 	}
+	const gateLine = enableRequired
+		? `   Turn the gate on (restart the daemon with):\n     ${enableHint}\n` +
+			`     (this path is not the derived default — the override is required)\n`
+		: `   Restart the daemon to load it. A surface declaring "gate": "device-token"\n` +
+			`   picks this file up automatically — no environment variable needed.\n`;
 	process.stdout.write(
 		`🔑 enrolled "${validIdentity}"\n\n` +
 			`   TOKEN (shown once — save it on the device):\n     ${token}\n\n` +
 			`   On the device:  FARM_TOKEN=${token} ${refarmCommand(["ask", '"olá"'])}\n` +
 			`                   (or: FARM_TOKEN=… node .../farm-ask.mjs "…")\n` +
-			`   Turn the gate on (restart the daemon with):\n     ${enableHint}\n` +
+			gateLine +
 			`   Policy: ${policyPath} (mode 0600; only the token's sha256 is stored)\n`,
 	);
 }

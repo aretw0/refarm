@@ -154,8 +154,10 @@ export function refuseUnguardedNonLoopbackBind(
 		`refusing to bind ${surface} to non-loopback host ${JSON.stringify(host)} with no auth ` +
 		"policy configured — an unauthenticated listener reachable from other devices is not a " +
 		"default this surface will pick for you. Mint a per-device credential with " +
-		"`refarm auth enroll`, then set REFARM_AUTH_POLICY to the resulting policy file before " +
-		"binding beyond loopback (or pass an explicit loopback host)."
+		"`refarm auth enroll`, then point this surface at the resulting policy file via " +
+		"REFARM_AUTH_POLICY before binding beyond loopback (or pass an explicit loopback host). " +
+		"Note the refarm daemon DERIVES that path from its own `gate` declaration and needs no " +
+		"env var; a TypeScript surface still resolves it from the environment."
 	);
 }
 
