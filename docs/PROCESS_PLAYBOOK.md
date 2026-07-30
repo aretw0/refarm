@@ -217,6 +217,52 @@ curl -s 'http://127.0.0.1:42001/telemetry/window?minutes=30'
 pnpm run farm:status
 # Stop:
 refarm runtime stop
+
+### Scenario 3a — VPN com preparo explícito (sem auto-disparo)
+
+Use este fluxo para evitar tentativas automáticas quando o operador ainda não
+está com o celular em mãos.
+
+```bash
+# 1) Inspecionar estado da conexão declarada
+refarm workspace run refarm vpn-status
+
+# 2) Armar preparo explícito do operador (janela curta)
+refarm workspace run refarm vpn-prepare
+
+# 3) Checar prontidão sem efeito colateral
+refarm workspace run refarm vpn-ready
+
+# 4) Só então tentar subida segura
+refarm workspace run refarm vpn-up-safe
+```
+
+Notas operacionais:
+
+- `vpn-up-safe` bloqueia quando não houve preparo explícito recente.
+- `vpn-up-safe` também bloqueia durante cooldown para evitar rajada de tentativas.
+- `vpn-ready` é read-only: apenas informa se está pronto para tentar.
+
+Canal reutilizável (além de VPN):
+
+- O contrato do preparo explícito agora vive no pacote compartilhado
+  `packages/operator-state/src/index.ts` (helpers de comandos e handoff
+  neutro de atenção).
+- `scripts/operator-attention-gate.mjs` atua como adaptador fino desse
+  contrato para uso direto em shell.
+- A VPN é apenas um consumidor desse canal (`scope = connection-up:<name>`).
+- Outras ações sensíveis podem reaproveitar o mesmo contrato, sem acoplar regra
+  de negócio ao workspace `rcdc5`.
+- O contrato é surface-agnostic (`ok`, `nextAction`, `nextActions`,
+  `nextCommand`, `nextCommands`) para beneficiar CLI, web, automações e futuras
+  superfícies sem depender de detalhes do app `refarm`.
+
+Exemplo genérico:
+
+```bash
+node scripts/operator-attention-gate.mjs attention:minha-acao --prepare-only --window-ms 120000 --json
+node scripts/operator-attention-gate.mjs attention:minha-acao --check-only --json
+node scripts/operator-attention-gate.mjs attention:minha-acao --consume-only --json
 ```
 
 ### Scenario 3b — Canonical local ask flow (daily driver)
