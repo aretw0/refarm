@@ -70,7 +70,9 @@ async fn start_sidecar(tractor: &TractorNative, base_dir: &Path) -> u16 {
             Some("127.0.0.1".to_string()),
             port,
             None,
-            tractor::sidecar::AuthPolicySource::new(auth_base, false),
+            tractor::sidecar::ResolvedAuthPolicy::resolve(
+                &tractor::sidecar::AuthPolicySource::new(auth_base, false),
+            ),
         )
         .await;
     });

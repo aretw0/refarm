@@ -481,6 +481,21 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         &auth_source,
     )?;
 
+    // THE auth policy resolution — ONCE per daemon start, right here, and the RESULT is
+    // threaded into both gates below (the HTTP sidecar's middleware and the WS handshake).
+    // It used to happen twice: `sidecar::start` and `WsServer::start` each held the SOURCE
+    // and each resolved for itself, so a declared-but-unenrolled gate printed its
+    // derived-but-ABSENT warning twice per boot, ~10µs apart — and, worse than the noise,
+    // two independent reads of one file are two answers that can disagree. Both gates now
+    // receive a `ResolvedAuthPolicy` and no source at all, so neither can read it again.
+    //
+    // Placed AFTER the WS preflight deliberately: the preflight's job is to refuse a bad
+    // `--ws-host` as the daemon's FIRST act, using `auth_policy_configured`'s cheap
+    // no-I/O-no-log peek, so nothing is read from disk and nothing is claimed about the gate
+    // until a bind we would actually accept is on the table. The peek and this resolution
+    // answer the same predicate and cannot disagree (see `sidecar::auth`).
+    let auth_policy = tractor::sidecar::ResolvedAuthPolicy::resolve(&auth_source);
+
     let security_mode = match args.security_mode.as_str() {
         "permissive" => SecurityMode::Permissive,
         "none" => SecurityMode::None,
@@ -624,16 +639,17 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
                 // Resolved once, above, alongside the WS preflight — `start` never reads
                 // `.refarm/config.json` itself (see its doc comment).
                 let declared_surface = surfaces.get(tractor::host::SURFACE_SIDECAR_HTTP).cloned();
-                // Same source the WS preflight already used — built once at boot, cloned
-                // (not re-derived) so both surfaces resolve the SAME policy file.
-                let sidecar_auth_source = auth_source.clone();
+                // The policy RESOLVED once above — cloned, not re-resolved. The WS server
+                // below gets the very same value, so both gates enforce one policy read
+                // once, and the enable/deny-all line was logged exactly once, at boot.
+                let sidecar_auth_policy = auth_policy.clone();
                 tokio::spawn(async move {
                     if let Err(e) = tractor::sidecar::start(
                         state,
                         http_host,
                         http_port,
                         declared_surface,
-                        sidecar_auth_source,
+                        sidecar_auth_policy,
                     )
                     .await
                     {
@@ -677,7 +693,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         tractor.plugin_channels.clone(),
         tractor.event_router.clone(),
         declared_ws_surface,
-        auth_source,
+        auth_policy,
     )
     .start()
     .await;

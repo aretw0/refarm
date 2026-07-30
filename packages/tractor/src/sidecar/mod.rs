@@ -678,12 +678,13 @@ mod activity_sse;
 // non-authoritative peek (no file I/O, no log line) — never from resolving the full
 // policy twice; see that function's doc comment for why the two stay distinct.
 pub(crate) mod auth;
-// `AuthPolicySource` (the refarm dir + "does the declaration name a device-token gate")
-// is the ONE thing from `auth` that must cross the library/binary crate boundary: `main.rs`
-// knows both facts at boot and threads them in, exactly as it threads `SurfaceDeclaration`.
-// `AuthPolicy` itself deliberately stays `pub(crate)` — the SOURCE travels, the credentials
-// never do.
-pub use auth::AuthPolicySource;
+// `AuthPolicySource` (the refarm dir + "does the declaration name a device-token gate") and
+// `ResolvedAuthPolicy` (what resolving it ONCE produced) are what must cross the
+// library/binary crate boundary: `main.rs` knows both source facts at boot, resolves exactly
+// once, and threads the ANSWER into both gates, exactly as it threads `SurfaceDeclaration`.
+// `AuthPolicy` itself deliberately stays `pub(crate)`, and `ResolvedAuthPolicy`'s field is
+// private — the SOURCE and the opaque ANSWER travel, the credentials never do.
+pub use auth::{AuthPolicySource, ResolvedAuthPolicy};
 pub(crate) mod bind_guard;
 pub(crate) mod tailnet_resolve;
 mod cors;
@@ -1677,17 +1678,14 @@ pub async fn start(
     // never reads `.refarm/config.json` itself, matching `auth_policy` below (resolved
     // once, reused). `None` means undeclared, NOT "declaration permits anything" (S1).
     declared_surface: Option<crate::host::SurfaceDeclaration>,
-    // WHERE the auth policy comes from — the daemon's `--refarm-dir` plus whether the
-    // declaration names a `device-token` gate, both decided in main.rs and threaded in
-    // (same doctrine as `declared_surface`: this function reads no global state to find
-    // out what the operator declared). See `auth::AuthPolicySource`.
-    auth_source: auth::AuthPolicySource,
+    // The auth policy ALREADY RESOLVED — once, at daemon start, by main.rs — and threaded
+    // in, exactly like `declared_surface`. This function does not receive an
+    // `AuthPolicySource` and therefore CANNOT resolve one: it used to, and so did
+    // `daemon::WsServer::start`, which is why a declared-but-unenrolled gate printed its
+    // ABSENT warning twice per boot and why two gates could in principle read two different
+    // policies. See `auth::ResolvedAuthPolicy`.
+    auth_policy: auth::ResolvedAuthPolicy,
 ) -> anyhow::Result<()> {
-    // Resolved ONCE here: reused for the fail-closed bind guard immediately below AND
-    // for the auth middleware layer further down, so a resolvable policy is read from
-    // disk (and its enable/deny-all log line emitted) exactly once per sidecar start.
-    let auth_policy = auth::resolve_auth_policy(&auth_source);
-
     // Resolve `expose: "tailnet"` into a concrete `host:<ip>` BEFORE the guard ever runs
     // — see `tailnet_resolve`'s module doc (open question 1 of the declared-surfaces
     // design). A no-op (no `tailscale` spawn) unless `declared_surface` actually declares
@@ -1709,7 +1707,7 @@ pub async fn start(
     // non-loopback bind never gets as far as building a router or touching a socket.
     let host = bind_guard::resolve_sidecar_bind_host(
         host.as_deref(),
-        auth_policy.is_some(),
+        auth_policy.is_gated(),
         declared_surface.as_ref(),
     )
     .map_err(|reason| anyhow::anyhow!(reason))?;
@@ -1749,8 +1747,9 @@ pub async fn start(
     // declared gate whose policy file does not exist yet ⇒ a deny-all layer, not no layer.
     // Applied INNER of CORS below, so a browser's OPTIONS
     // preflight — which carries no credential — is answered by CORS before the gate sees it.
-    // `auth_policy` was already resolved above for the bind guard; reused here as-is.
-    let router = match auth_policy {
+    // `auth_policy` is the value main.rs resolved at daemon start; the same value the bind
+    // guard above consulted, and the same value the WS handshake gate enforces.
+    let router = match auth_policy.policy().cloned() {
         Some(policy) => router.layer(axum::middleware::from_fn(move |req, next| {
             auth::auth_middleware(policy.clone(), req, next)
         })),

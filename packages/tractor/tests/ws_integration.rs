@@ -22,12 +22,14 @@ async fn start_server(sync: Arc<NativeSync>) -> u16 {
         plugin_channels,
         tractor::EventRouter::default(),
         None,
-        // No declared `device-token` gate ⇒ no policy resolvable ⇒ the WS handshake gate
-        // stays off, exactly as it was before ADR-093's credential channel existed.
-        tractor::sidecar::AuthPolicySource::new(
+        // No declared `device-token` gate ⇒ nothing resolvable ⇒ the WS handshake gate
+        // stays off, exactly as it was before ADR-093's credential channel existed. The
+        // server takes the RESOLVED policy (main.rs resolves once at boot and hands the
+        // same value to both gates), not the source it came from.
+        tractor::sidecar::ResolvedAuthPolicy::resolve(&tractor::sidecar::AuthPolicySource::new(
             std::path::PathBuf::from("/nonexistent-refarm-dir"),
             false,
-        ),
+        )),
     );
     tokio::spawn(async move { server.run(listener).await.unwrap() });
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;

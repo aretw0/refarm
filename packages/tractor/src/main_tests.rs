@@ -18,6 +18,14 @@ fn no_auth_source() -> tractor::sidecar::AuthPolicySource {
     )
 }
 
+/// The RESOLVED counterpart, for `WsServer::new` — which since the single-resolution fix
+/// takes the answer, not the source (main.rs resolves once at boot and hands the value to
+/// both gates). Resolving `no_auth_source()` yields "no gate" with no file read and no log
+/// line, which is what tests that are not about the policy want.
+fn no_auth_policy() -> tractor::sidecar::ResolvedAuthPolicy {
+    tractor::sidecar::ResolvedAuthPolicy::resolve(&no_auth_source())
+}
+
 fn test_response_event(content: &str, is_final: bool, prompt_ref: Option<&str>) -> ResponseEvent {
     ResponseEvent {
         id: format!("event-{content}-{is_final}"),
@@ -482,7 +490,7 @@ async fn ws_probe_succeeds_when_daemon_is_listening() {
         channels,
         tractor::EventRouter::default(),
         None,
-        no_auth_source(),
+        no_auth_policy(),
     );
 
     tokio::spawn(async move {

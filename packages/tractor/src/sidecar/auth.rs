@@ -28,6 +28,11 @@
 //!     silently ungated): if you asked for auth, a broken policy must lock the door, not
 //!     leave it open.
 //!
+//! Resolved ONCE per daemon start, never once per gate: `main.rs` calls
+//! `ResolvedAuthPolicy::resolve` and hands the ANSWER to both the HTTP sidecar and the WS
+//! server. `resolve_auth_policy` is private to this module so that "once" is a compile-time
+//! property — see `ResolvedAuthPolicy` for the defect that made it necessary.
+//!
 //! Slice 1 (this module) AUTHENTICATES: enrolled device or not. Which workspace/namespace an
 //! identity may act in is authorization — Slice 2 (via `@refarm.dev/workspace-access-contract-v1`).
 //! The credential is a bearer token; only its SHA-256 is ever stored in the policy (never the
@@ -211,17 +216,23 @@ fn policy_path_override() -> Option<String> {
 /// declaration is what the reader must believe.
 ///
 /// Deliberately does NOT read or parse the file, and emits no log line: it is the cheap peek
-/// for callers that only need "is a policy resolvable" (e.g. the WS bind preflight, which runs
-/// from `main.rs` BEFORE the runtime boots, before the authoritative read is due) without
+/// for callers that only need "is a policy resolvable" (the WS bind preflight, which runs from
+/// `main.rs` BEFORE the runtime boots and BEFORE the authoritative read is due) without
 /// triggering the enable/deny-all log line that only the one real resolution —
-/// `resolve_auth_policy`, called once per surface start — should ever emit. PURE: env
+/// `ResolvedAuthPolicy::resolve`, called once per daemon start — should ever emit. PURE: env
 /// inspection and a path join, no file I/O, no logging.
+///
+/// The peek is kept, and kept ahead of the resolution, because the preflight's whole purpose
+/// is to refuse a bad `--ws-host` as the daemon's FIRST act — before any file is read and
+/// before anything boots. It cannot disagree with `ResolvedAuthPolicy::is_gated()`: both are
+/// literally "`resolve_policy_path` is `Some`", pinned by
+/// `the_cheap_peek_agrees_with_the_one_resolution_in_every_case`.
 pub(crate) fn auth_policy_configured(source: &AuthPolicySource) -> bool {
     resolve_policy_path(source).is_some()
 }
 
-/// Resolve the auth policy ONCE at daemon start — the ONE emitter of the gate's
-/// enable/deny-all log line (`auth_policy_configured` above stays silent by design).
+/// Resolve the auth policy — the ONE emitter of the gate's enable/deny-all log line
+/// (`auth_policy_configured` above stays silent by design).
 ///   - no declared gate + no env ⇒ `None` (layer never added — the secure default is off).
 ///   - resolvable + readable/valid ⇒ the parsed policy (gate on).
 ///   - DERIVED + the file does not exist yet ⇒ `Some(deny_all)`, with a loud line naming the
@@ -229,7 +240,12 @@ pub(crate) fn auth_policy_configured(source: &AuthPolicySource) -> bool {
 ///     everything until a credential exists. A silent 401 is a ghost hunt.
 ///   - anything else unreadable/invalid (including an override path that isn't there — the
 ///     operator's explicit value, so their error to see) ⇒ `Some(deny_all)`, fail-closed.
-pub(crate) fn resolve_auth_policy(source: &AuthPolicySource) -> Option<AuthPolicy> {
+///
+/// PRIVATE to this module, and that privacy is the fix: `ResolvedAuthPolicy::resolve` is the
+/// only caller, so "resolve once per daemon start" is enforced by the compiler rather than by
+/// a comment every future call site has to read. A second resolution elsewhere in the crate
+/// is now a name-resolution error, not a second file read and a second log line.
+fn resolve_auth_policy(source: &AuthPolicySource) -> Option<AuthPolicy> {
     let located = resolve_policy_path(source)?;
     let read = std::fs::read_to_string(&located.path);
     if let Ok(raw) = &read {
@@ -258,6 +274,68 @@ pub(crate) fn resolve_auth_policy(source: &AuthPolicySource) -> Option<AuthPolic
         );
     }
     Some(AuthPolicy::deny_all())
+}
+
+/// THE auth policy of this daemon: resolved ONCE at start, then handed to every gate that
+/// enforces it, instead of each gate resolving for itself.
+///
+/// The defect this closes was audible. With a `"gate": "device-token"` declaration and no
+/// policy file yet, a boot printed the derived-but-ABSENT warning TWICE, ~10µs apart, because
+/// the HTTP sidecar (`sidecar::start`) and the WS server (`daemon::WsServer::start`) each
+/// called `resolve_auth_policy` for themselves. Both call sites long pre-date that warning —
+/// they resolved twice from the env before it existed too; the warning only made an inherited
+/// duplication audible. And the doubled line is the SYMPTOM: two independent reads of the same
+/// file are two answers that can in principle disagree, leaving one gate honouring a
+/// credential the other has never heard of. One read, one line, one value both gates enforce.
+///
+/// The SOURCE is what `main.rs` knows (the refarm dir + the declaration); the RESULT is what
+/// travels. `main.rs` builds the `AuthPolicySource`, calls `resolve` exactly once, and clones
+/// this value into both gates — which no longer receive a source at all, so they *cannot*
+/// resolve a second time.
+///
+/// Opaque outside the crate on purpose: the field is private and `AuthPolicy` stays
+/// `pub(crate)`, so `main.rs` (a separate crate) can carry this value from the resolution to
+/// the gates without ever being able to read a credential out of it. Same doctrine as
+/// `AuthPolicySource` — what crosses the crate boundary is a handle, never the credentials.
+#[derive(Debug, Clone)]
+pub struct ResolvedAuthPolicy {
+    /// `None` ⇒ no policy was resolvable at all (nothing declared, no env) ⇒ no gate is
+    /// bound anywhere. `Some` ⇒ the gate is bound and this is what it enforces — including
+    /// `Some(deny_all)`, which is the STRICTEST enforcement of a declared gate, not an
+    /// absence of one.
+    policy: Option<AuthPolicy>,
+}
+
+impl ResolvedAuthPolicy {
+    /// The one resolution. Call EXACTLY ONCE per daemon start: this is the only file read of
+    /// the policy and the only emitter of the enable/deny-all log line.
+    ///
+    /// `pub` because `main.rs` is a separate crate and is where the boot happens — it is the
+    /// single place that holds an `AuthPolicySource`, which is what keeps "once" true.
+    pub fn resolve(source: &AuthPolicySource) -> Self {
+        Self { policy: resolve_auth_policy(source) }
+    }
+
+    /// `true` when a gate is BOUND — the bool both bind guards take. Equal by construction to
+    /// `auth_policy_configured(source)` for the same source (both are exactly
+    /// "`resolve_policy_path` is `Some`"), which is why the WS preflight's cheap peek and this
+    /// authoritative answer can never disagree.
+    pub(crate) fn is_gated(&self) -> bool {
+        self.policy.is_some()
+    }
+
+    /// The policy to ENFORCE, or `None` when no gate is bound. Both gates read it from here:
+    /// the sidecar's `auth_middleware` layer and the WS `Sec-WebSocket-Protocol` handshake.
+    pub(crate) fn policy(&self) -> Option<&AuthPolicy> {
+        self.policy.as_ref()
+    }
+
+    /// Test-only: a resolved value built WITHOUT resolving, for tests that inject a policy
+    /// directly (hermetic — no env mutation, no file on disk).
+    #[cfg(test)]
+    pub(crate) fn from_policy(policy: Option<AuthPolicy>) -> Self {
+        Self { policy }
+    }
 }
 
 /// The bearer token from `Authorization: Bearer <token>`, if present and non-empty. PURE.
@@ -342,30 +420,47 @@ mod tests {
         std::fs::write(path, serde_json::to_vec(&body).unwrap()).unwrap();
     }
 
+    type LogBuffer = std::sync::Arc<std::sync::Mutex<Vec<u8>>>;
+
+    struct Sink(LogBuffer);
+    impl std::io::Write for Sink {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn log_subscriber(buffer: LogBuffer) -> impl tracing::Subscriber + Send + Sync {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::TRACE)
+            .with_ansi(false)
+            .with_writer(move || Sink(buffer.clone()))
+            .finish()
+    }
+
+    fn drain(buffer: &LogBuffer) -> String {
+        String::from_utf8_lossy(&buffer.lock().unwrap().clone()).to_string()
+    }
+
     /// Capture everything `tracing` emits while `f` runs. Used both ways: to prove the
     /// derived-but-absent line IS emitted, and to prove the cheap peek emits NOTHING.
     fn captured_logs(f: impl FnOnce()) -> String {
-        use std::sync::{Arc, Mutex};
-        let buffer = Arc::new(Mutex::new(Vec::<u8>::new()));
-        struct Sink(Arc<Mutex<Vec<u8>>>);
-        impl std::io::Write for Sink {
-            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-                self.0.lock().unwrap().extend_from_slice(buf);
-                Ok(buf.len())
-            }
-            fn flush(&mut self) -> std::io::Result<()> {
-                Ok(())
-            }
-        }
-        let writer = buffer.clone();
-        let subscriber = tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::TRACE)
-            .with_ansi(false)
-            .with_writer(move || Sink(writer.clone()))
-            .finish();
-        tracing::subscriber::with_default(subscriber, f);
-        let captured = buffer.lock().unwrap().clone();
-        String::from_utf8_lossy(&captured).to_string()
+        let buffer: LogBuffer = Default::default();
+        tracing::subscriber::with_default(log_subscriber(buffer.clone()), f);
+        drain(&buffer)
+    }
+
+    /// The same capture as a GUARD, for async tests: a daemon boot spans `.await` points, so
+    /// it cannot be wrapped in one closure. Hold the guard across the boot, drop it, read the
+    /// buffer. Sound under `#[tokio::test]`'s single-threaded runtime — the guard is
+    /// thread-local and the whole test body stays on one thread.
+    fn capture_logs_until_dropped() -> (LogBuffer, tracing::subscriber::DefaultGuard) {
+        let buffer: LogBuffer = Default::default();
+        let guard = tracing::subscriber::set_default(log_subscriber(buffer.clone()));
+        (buffer, guard)
     }
 
     #[test]
@@ -571,6 +666,185 @@ mod tests {
         let source = AuthPolicySource::new(std::path::PathBuf::from("/srv/other-farm"), true);
         let located = resolve_policy_path(&source).expect("declared ⇒ a path");
         assert_eq!(located.path, std::path::PathBuf::from("/srv/other-farm/auth-policy.json"));
+    }
+
+    // ── ONE resolution per daemon start: the answer travels, not the source ───────
+
+    /// A `WsServer` holding `resolved`, on a host its own bind guard REFUSES (non-loopback
+    /// with no declaration — S1). The refusal happens inside the real `start`, after all of
+    /// its policy handling and before `TcpListener::bind`, so these tests drive the true
+    /// production entry point without ever opening a socket.
+    fn ws_gate(resolved: ResolvedAuthPolicy) -> crate::daemon::WsServer {
+        let storage = crate::NativeStorage::open(":memory:").unwrap();
+        crate::daemon::WsServer::new(
+            std::sync::Arc::new(crate::NativeSync::new(storage, ":memory:").unwrap()),
+            "0.0.0.0".to_string(),
+            0,
+            crate::TelemetryBus::new(4),
+            std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
+            crate::EventRouter::default(),
+            None,
+            resolved,
+        )
+    }
+
+    /// The HTTP sidecar's real entry point, refused by its own bind guard for the same
+    /// reason and at the same point — after the policy is handled, before the reaper spawns
+    /// or anything binds.
+    async fn http_gate(dir: &std::path::Path, resolved: ResolvedAuthPolicy) -> anyhow::Result<()> {
+        let state = crate::sidecar::SidecarState::for_test(dir, ":memory:").unwrap();
+        crate::sidecar::start(state, Some("0.0.0.0".to_string()), 0, None, resolved).await
+    }
+
+    #[tokio::test]
+    async fn a_daemon_start_logs_the_deny_all_line_exactly_once_across_both_gates() {
+        // THE BUG, pinned. `sidecar::start` and `daemon::WsServer::start` each used to call
+        // `resolve_auth_policy` for themselves, so a real boot with a declared-but-unenrolled
+        // gate printed the derived-but-ABSENT warning TWICE, ~10µs apart — and the noise was
+        // the mild half: two independent reads of one file are two answers that can disagree.
+        //
+        // This reproduces a boot against the REAL entry points — resolve once, hand the same
+        // value to both gates — and counts the line. Two is the defect; one is the contract.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let dir = tempfile::tempdir().unwrap();
+        let source = source_for(dir.path(), true);
+        assert!(
+            !dir.path().join(AUTH_POLICY_FILE_NAME).exists(),
+            "the gate is declared and enrollment has not happened — the case that warns"
+        );
+
+        let (logs, guard) = capture_logs_until_dropped();
+
+        // Exactly what main.rs does: ONE resolution per daemon start …
+        let resolved = ResolvedAuthPolicy::resolve(&source);
+        // … then the SAME value into both gates, neither of which holds a source to
+        // re-resolve from. Both refuse the bind, which is how they return without a socket.
+        assert!(
+            http_gate(dir.path(), resolved.clone()).await.is_err(),
+            "the sidecar's bind guard must refuse 0.0.0.0 with no declaration (S1)"
+        );
+        assert!(
+            ws_gate(resolved).start().await.is_err(),
+            "the WS bind guard must refuse 0.0.0.0 with no declaration (S1)"
+        );
+
+        drop(guard);
+        let logs = drain(&logs);
+        assert_eq!(
+            logs.matches("ABSENT").count(),
+            1,
+            "the deny-all line must be emitted EXACTLY ONCE per daemon start — not once per \
+             gate. A second count here means a gate resolved the policy for itself again: \
+             {logs}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_policy_readable_at_resolution_time_reaches_both_gates_as_one_value() {
+        // The other half of "resolve once": the value that travels must be the RESOLVED one,
+        // not an empty placeholder each gate is expected to fill in later. With a real policy
+        // file on disk, one resolution must produce one policy that BOTH gates carry — the
+        // sidecar into its middleware layer, the WS server into its handshake gate — and it
+        // must authenticate the enrolled credential in both. (That both ENFORCE it over a
+        // real socket is proven end-to-end in `daemon::ws_server`'s
+        // `one_resolution_is_the_policy_both_gates_really_enforce`.)
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let dir = tempfile::tempdir().unwrap();
+        write_policy(&dir.path().join(AUTH_POLICY_FILE_NAME), "shared-token", "id-shared");
+
+        let resolved = ResolvedAuthPolicy::resolve(&source_for(dir.path(), true));
+        assert!(resolved.is_gated(), "a readable declared policy ⇒ the gate is bound");
+        assert_eq!(
+            resolved.policy().expect("gated ⇒ Some").authenticate("shared-token"),
+            Some("id-shared"),
+            "the value handed to both gates must be the policy that was actually READ"
+        );
+
+        // Deleting the file after resolution changes NOTHING for either gate: they hold the
+        // resolved value, not a promise to read the file again — which is precisely why two
+        // reads could once disagree and now cannot.
+        std::fs::remove_file(dir.path().join(AUTH_POLICY_FILE_NAME)).unwrap();
+        let for_http = resolved.clone();
+        let for_ws = resolved;
+        assert_eq!(
+            for_http.policy().unwrap().authenticate("shared-token"),
+            for_ws.policy().unwrap().authenticate("shared-token"),
+            "both gates must hold the same answer, from the same single read"
+        );
+        assert_eq!(for_ws.policy().unwrap().authenticate("some-other-token"), None);
+    }
+
+    #[test]
+    fn resolving_through_the_shared_value_keeps_all_four_cases_intact() {
+        // The wrapper is PLUMBING — who calls the resolution, not what it decides. All four
+        // cases must answer exactly as they did when each gate resolved for itself.
+        let _env = crate::test_support::env_lock();
+        let dir = tempfile::tempdir().unwrap();
+        let derived = dir.path().join(AUTH_POLICY_FILE_NAME);
+        let override_path = dir.path().join("elsewhere.json");
+        write_policy(&derived, "derived-token", "id-derived");
+        write_policy(&override_path, "override-token", "id-override");
+
+        // 1. env override wins over the derivation.
+        std::env::set_var(AUTH_POLICY_ENV, &override_path);
+        let overridden = ResolvedAuthPolicy::resolve(&source_for(dir.path(), true));
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let policy = overridden.policy().expect("override ⇒ Some");
+        assert_eq!(policy.authenticate("override-token"), Some("id-override"));
+        assert_eq!(policy.authenticate("derived-token"), None, "the derived file is ignored");
+
+        // 2. declared gate, env unset ⇒ the derived path.
+        let derived_only = ResolvedAuthPolicy::resolve(&source_for(dir.path(), true));
+        assert_eq!(
+            derived_only.policy().expect("declared ⇒ Some").authenticate("derived-token"),
+            Some("id-derived")
+        );
+
+        // 3. declared gate, file absent ⇒ bound and deny-all, never None.
+        let empty = tempfile::tempdir().unwrap();
+        let absent = ResolvedAuthPolicy::resolve(&source_for(empty.path(), true));
+        assert!(absent.is_gated(), "absent must still BIND the gate");
+        assert_eq!(absent.policy().unwrap().authenticate("anything"), None, "deny ALL");
+
+        // 4. nothing declared, no env ⇒ no gate at all, even with a file sitting there.
+        let undeclared = ResolvedAuthPolicy::resolve(&source_for(dir.path(), false));
+        assert!(!undeclared.is_gated());
+        assert!(undeclared.policy().is_none(), "no declaration ⇒ no gate");
+    }
+
+    #[test]
+    fn the_cheap_peek_agrees_with_the_one_resolution_in_every_case() {
+        // The WS bind preflight still runs BEFORE the single resolution and still answers
+        // from `auth_policy_configured` — no file read, no log line, so it can refuse a bad
+        // `--ws-host` as the daemon's first act. That ordering is only honest while the peek
+        // and the resolution cannot disagree: both are exactly "`resolve_policy_path` is
+        // `Some`". If they ever diverge, the preflight would permit a bind the gate does not
+        // actually guard (or refuse one it does).
+        let _env = crate::test_support::env_lock();
+        let dir = tempfile::tempdir().unwrap();
+        write_policy(&dir.path().join(AUTH_POLICY_FILE_NAME), "tok", "id");
+        let missing = dir.path().join("not-there.json");
+
+        for (label, env, gate) in [
+            ("nothing declared, no env", None, false),
+            ("declared, no env (derived)", None, true),
+            ("env override, no declaration", Some(missing.clone()), false),
+            ("env override + declaration", Some(missing.clone()), true),
+            ("blank env, declared", Some(std::path::PathBuf::from("  ")), true),
+            ("blank env, undeclared", Some(std::path::PathBuf::from("  ")), false),
+        ] {
+            match &env {
+                Some(v) => std::env::set_var(AUTH_POLICY_ENV, v),
+                None => std::env::remove_var(AUTH_POLICY_ENV),
+            }
+            let source = source_for(dir.path(), gate);
+            let peeked = auth_policy_configured(&source);
+            let resolved = ResolvedAuthPolicy::resolve(&source).is_gated();
+            std::env::remove_var(AUTH_POLICY_ENV);
+            assert_eq!(peeked, resolved, "peek and resolution disagree for: {label}");
+        }
     }
 
     #[test]

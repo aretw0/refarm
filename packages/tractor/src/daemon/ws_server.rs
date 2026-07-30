@@ -36,8 +36,12 @@
 //! `REFARM_AUTH_POLICY` ⇒ no policy ⇒ `decide_ws_handshake` is `Passthrough` unconditionally
 //! ⇒ behaviour is byte-identical to pre-ADR-093 (no header inspection, nothing echoed, any
 //! client connects). A policy that is resolvable but absent/unreadable ⇒
-//! `sidecar::auth::resolve_auth_policy` resolves `Some(deny_all)` ⇒ every handshake is
+//! `sidecar::ResolvedAuthPolicy::resolve` yields `Some(deny_all)` ⇒ every handshake is
 //! refused — "if you asked for auth, a broken policy must lock the door".
+//!
+//! That policy is resolved ONCE per daemon start (in `main.rs`) and threaded into BOTH this
+//! server and the HTTP sidecar. This server holds the resolved value, not the source it came
+//! from, so the two gates cannot read the policy file separately — nor disagree about it.
 //!
 //! The accept/reject DECISION (`decide_ws_handshake`) is a PURE function of the offered
 //! protocol tokens and the policy — no socket, no headers, no tungstenite types — so it is
@@ -81,10 +85,12 @@ static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// `auth_policy_resolvable` comes from `sidecar::auth::auth_policy_configured(auth_source)` —
 /// a cheap, non-authoritative peek at the declaration + env (no file read, no log line), NOT
-/// the full `resolve_auth_policy()` resolution: that authoritative read (and its
-/// enable/deny-all log line) happens exactly ONCE, later, inside `WsServer::start` — see that
-/// function's doc for why re-reading it here would double the log line and cost a needless
-/// file read before the runtime has even started booting.
+/// a resolution: the authoritative read (and its enable/deny-all log line) happens exactly
+/// ONCE per daemon start, in `main.rs`, via `sidecar::ResolvedAuthPolicy::resolve`, and the
+/// RESULT is threaded into both gates. This preflight deliberately runs BEFORE that read,
+/// because its whole purpose is to refuse a bad `--ws-host` as the daemon's first act —
+/// without touching the filesystem and without saying anything about the gate. The peek and
+/// the resolution cannot disagree: both are exactly "`resolve_policy_path` is `Some`".
 ///
 /// `WsServer::start` applies the same guard again at the moment it binds (that check is
 /// the load-bearing one — it cannot be bypassed by a caller who forgets this). This exists
@@ -134,11 +140,13 @@ pub struct WsServer {
     // `sidecar::start` receives `declared_surface` rather than reading
     // `.refarm/config.json` itself. `None` means undeclared, NOT "permits anything" (S1).
     declared_surface: Option<crate::host::SurfaceDeclaration>,
-    // WHERE the auth policy comes from (the daemon's `--refarm-dir` + whether the
-    // declaration names a `device-token` gate) — threaded in by the caller for the same
-    // reason `declared_surface` is: `start` reads no global state to learn what the
-    // operator declared. See `sidecar::auth::AuthPolicySource`.
-    auth_source: crate::sidecar::AuthPolicySource,
+    // The auth policy ALREADY RESOLVED — once, at daemon start, by main.rs — and threaded
+    // in for the same reason `declared_surface` is: `start` reads no global state to learn
+    // what the operator declared. NOT an `AuthPolicySource`: holding the source is what let
+    // this server resolve the policy a SECOND time (the HTTP sidecar resolved the first),
+    // doubling the derived-but-ABSENT warning on every boot and making two independent reads
+    // of one file possible. See `sidecar::auth::ResolvedAuthPolicy`.
+    auth_policy: crate::sidecar::ResolvedAuthPolicy,
 }
 
 impl WsServer {
@@ -151,7 +159,7 @@ impl WsServer {
         plugin_channels: PluginChannels,
         event_router: crate::EventRouter,
         declared_surface: Option<crate::host::SurfaceDeclaration>,
-        auth_source: crate::sidecar::AuthPolicySource,
+        auth_policy: crate::sidecar::ResolvedAuthPolicy,
     ) -> Self {
         Self {
             sync,
@@ -161,7 +169,7 @@ impl WsServer {
             plugin_channels,
             event_router,
             declared_surface,
-            auth_source,
+            auth_policy,
         }
     }
 
@@ -174,29 +182,29 @@ impl WsServer {
 
     /// Start the WebSocket server and block until Ctrl-C.
     pub async fn start(&self) -> Result<()> {
-        // Resolved ONCE here: reused for the fail-closed bind guard immediately below AND
-        // threaded into `run` for the per-connection handshake gate, so a resolvable
-        // policy is read from disk (and its enable/deny-all log line emitted) exactly
-        // once per WS start — same discipline as `sidecar::start`.
-        let auth_policy = crate::sidecar::auth::resolve_auth_policy(&self.auth_source);
-
+        // NO resolution here — `self.auth_policy` IS the resolution, performed once at
+        // daemon start and handed to this server and to the HTTP sidecar alike. Consulted
+        // twice below (the bind guard, then the per-connection handshake gate), but READ
+        // once from disk, so the enable/deny-all log line is emitted exactly once per boot
+        // and both gates provably enforce the same credentials.
+        //
         // Fail-closed bind guard — same doctrine and (since ADR-093) the SAME shape as
         // the HTTP sidecar's: a declared `device-token` gate is the operator's opt-in
         // ONLY because something now actually enforces it — `handle_connection`'s
         // `accept_hdr_async` callback authenticates every `Sec-WebSocket-Protocol`
-        // handshake against this exact `auth_policy` before any frame is read. A policy
+        // handshake against this exact policy before any frame is read. A policy
         // resolvable with no declaration, or a declaration naming no gate, still refuses
         // (S1/S3) — see `sidecar::bind_guard::refuse_unguarded_nonloopback_ws_bind`.
         crate::sidecar::bind_guard::refuse_unguarded_nonloopback_ws_bind(
             &self.host,
-            auth_policy.is_some(),
+            self.auth_policy.is_gated(),
             self.declared_surface.as_ref(),
         )
         .map_err(|reason| anyhow::anyhow!(reason))?;
 
         let addr = self.bind_addr();
         let listener = TcpListener::bind(&addr).await?;
-        self.run_gated(listener, auth_policy).await
+        self.run_gated(listener, self.auth_policy.policy().cloned()).await
     }
 
     /// Run the server with a pre-bound listener and the WS credential gate OFF
@@ -213,8 +221,8 @@ impl WsServer {
 
     /// Same as `run`, but with an explicit (possibly `None`) auth policy — the ADR-093
     /// handshake gate. `pub(crate)`: callable from anywhere in THIS crate, including
-    /// `start` (the real production path, which resolves the policy from env exactly
-    /// once) and this module's own `#[cfg(test)]` suite, which injects a policy
+    /// `start` (the real production path, which passes the policy resolved once at
+    /// daemon start) and this module's own `#[cfg(test)]` suite, which injects a policy
     /// directly — hermetically, with no env var mutation (`std::env::set_var` is
     /// process-global and races across parallel `cargo test` threads).
     pub(crate) async fn run_gated(
@@ -534,14 +542,20 @@ mod tests {
     }
 
     /// An `AuthPolicySource` that resolves to nothing: a refarm dir that does not exist and
-    /// NO declared `device-token` gate. These tests drive the gate through `run_gated`'s
-    /// explicit policy argument, so the source must never be what decides — the derivation
-    /// itself is covered beside it, in `sidecar::auth`.
+    /// NO declared `device-token` gate. The derivation itself is covered beside it, in
+    /// `sidecar::auth`.
     fn no_auth_source() -> crate::sidecar::AuthPolicySource {
         crate::sidecar::AuthPolicySource::new(
             std::path::PathBuf::from("/nonexistent-refarm-dir"),
             false,
         )
+    }
+
+    /// The "no gate anywhere" resolved policy these tests hand to `WsServer::new`. They drive
+    /// the gate through `run_gated`'s explicit policy argument instead, so what the server
+    /// was constructed with must never be what decides.
+    fn no_auth_policy() -> crate::sidecar::ResolvedAuthPolicy {
+        crate::sidecar::ResolvedAuthPolicy::from_policy(None)
     }
 
     /// Bind on an ephemeral port, start the server in a background task, no auth policy
@@ -581,7 +595,7 @@ mod tests {
             channels,
             event_router,
             None,
-            no_auth_source(),
+            no_auth_policy(),
         );
         tokio::spawn(async move {
             let _ = server.run_gated(listener, auth_policy).await;
@@ -662,7 +676,7 @@ mod tests {
             Arc::new(RwLock::new(HashMap::new())),
             crate::EventRouter::default(),
             None,
-            no_auth_source(),
+            no_auth_policy(),
         );
         assert_eq!(server.bind_addr(), "127.0.0.1:42000");
         assert_ne!(server.bind_addr(), "0.0.0.0:42000");
@@ -817,16 +831,19 @@ mod tests {
 
     #[test]
     fn deny_all_policy_from_unreadable_config_rejects_every_credential() {
-        // Exercises the REAL resolution (`resolve_auth_policy`), not a hand-built policy:
-        // "policy resolvable but unreadable ⇒ deny all" is `sidecar::auth`'s own doctrine —
-        // the WS gate reuses the SAME resolution, so a broken policy must lock the WS door
-        // too, not leave it open.
+        // Exercises the REAL resolution (`ResolvedAuthPolicy::resolve`), not a hand-built
+        // policy: "policy resolvable but unreadable ⇒ deny all" is `sidecar::auth`'s own
+        // doctrine — the WS gate enforces the SAME resolved value the sidecar does, so a
+        // broken policy must lock the WS door too, not leave it open.
         let _env = crate::test_support::env_lock();
         std::env::set_var(AUTH_POLICY_ENV, "/nonexistent/policy-for-ws-handshake-test.json");
-        let resolved = crate::sidecar::auth::resolve_auth_policy(&no_auth_source());
+        let resolved = crate::sidecar::ResolvedAuthPolicy::resolve(&no_auth_source());
         std::env::remove_var(AUTH_POLICY_ENV);
 
-        let policy = resolved.expect("unreadable policy must still resolve to Some(deny_all)");
+        let policy = resolved
+            .policy()
+            .cloned()
+            .expect("unreadable policy must still resolve to Some(deny_all)");
         let offered = [WS_SYNC_PROTOCOL, "bearer.any-token-at-all"];
         assert_eq!(
             decide_ws_handshake(&offered, Some(&policy)),
@@ -1028,5 +1045,149 @@ mod tests {
             }
             other => panic!("expected an HTTP 401 handshake refusal, got: {other:?}"),
         }
+    }
+
+    // ── one resolution, two gates (the single-resolution fix, end to end) ─────────
+
+    /// An OS-assigned free port, released immediately — for the two servers below, which
+    /// bind the address themselves (`start`) rather than accepting a pre-bound listener.
+    async fn free_port() -> u16 {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        port
+    }
+
+    async fn wait_until_listening(port: u16) {
+        for _ in 0..100 {
+            if tokio::net::TcpStream::connect(("127.0.0.1", port)).await.is_ok() {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        panic!("server on port {port} never started listening");
+    }
+
+    #[tokio::test]
+    async fn one_resolution_is_the_policy_both_gates_really_enforce() {
+        // The point of resolving once is not tidiness — it is that the HTTP sidecar and the
+        // WS server must enforce THE SAME credentials. When each resolved for itself they
+        // read the same file twice, and two reads are two answers that can drift apart: one
+        // gate honouring a credential the other has never heard of, with nothing in the logs
+        // to explain it.
+        //
+        // So: resolve ONCE from a policy file that exists, hand the value to both REAL
+        // servers over REAL loopback sockets, and require both to accept exactly the enrolled
+        // token and reject exactly everything else.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join(crate::sidecar::auth::AUTH_POLICY_FILE_NAME),
+            serde_json::to_vec(&serde_json::json!({
+                "credentials": [
+                    { "identity": "id-both", "tokenSha256": sha256_hex("both-gates-token") }
+                ]
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        // ONE resolution — what main.rs performs at daemon start.
+        let resolved = crate::sidecar::ResolvedAuthPolicy::resolve(
+            &crate::sidecar::AuthPolicySource::new(dir.path().to_path_buf(), true),
+        );
+
+        // ── gate 1: the WS handshake, via the real `WsServer::start` ──────────────
+        let ws_port = free_port().await;
+        let ws_server = WsServer::new(
+            make_sync(),
+            "127.0.0.1".to_string(),
+            ws_port,
+            TelemetryBus::new(10),
+            Arc::new(RwLock::new(HashMap::new())),
+            crate::EventRouter::default(),
+            None,
+            resolved.clone(),
+        );
+        tokio::spawn(async move {
+            let _ = ws_server.start().await;
+        });
+        wait_until_listening(ws_port).await;
+        let ws_addr = format!("ws://127.0.0.1:{ws_port}");
+
+        let accepted = timeout(
+            Duration::from_secs(2),
+            connect_async(client_request_with_protocols(
+                &ws_addr,
+                &[WS_SYNC_PROTOCOL, "bearer.both-gates-token"],
+            )),
+        )
+        .await
+        .expect("connect must not hang");
+        assert!(accepted.is_ok(), "the WS gate must accept the ONE resolved credential");
+
+        let ws_refused = timeout(
+            Duration::from_secs(2),
+            connect_async(client_request_with_protocols(
+                &ws_addr,
+                &[WS_SYNC_PROTOCOL, "bearer.not-the-token"],
+            )),
+        )
+        .await
+        .expect("connect must not hang")
+        .expect_err("the WS gate must reject anything else");
+        match ws_refused {
+            tokio_tungstenite::tungstenite::Error::Http(response) => {
+                assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+            }
+            other => panic!("expected an HTTP 401 handshake refusal, got: {other:?}"),
+        }
+
+        // ── gate 2: the HTTP sidecar middleware, via the real `sidecar::start` ────
+        let http_port = free_port().await;
+        let state = crate::sidecar::SidecarState::for_test(dir.path(), ":memory:").unwrap();
+        let http_policy = resolved.clone();
+        tokio::spawn(async move {
+            let _ = crate::sidecar::start(
+                state,
+                Some("127.0.0.1".to_string()),
+                http_port,
+                None,
+                http_policy,
+            )
+            .await;
+        });
+        wait_until_listening(http_port).await;
+        let efforts = format!("http://127.0.0.1:{http_port}/efforts");
+
+        let client = reqwest::Client::new();
+        assert_eq!(
+            client.get(&efforts).send().await.unwrap().status(),
+            reqwest::StatusCode::UNAUTHORIZED,
+            "no credential ⇒ the HTTP gate must 401, from the same resolved policy"
+        );
+        assert_eq!(
+            client
+                .get(&efforts)
+                .bearer_auth("not-the-token")
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            reqwest::StatusCode::UNAUTHORIZED,
+            "a credential the WS gate rejects must be rejected here too"
+        );
+        assert_eq!(
+            client
+                .get(&efforts)
+                .bearer_auth("both-gates-token")
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            reqwest::StatusCode::OK,
+            "the credential the WS gate accepted must be accepted here too — ONE policy"
+        );
     }
 }

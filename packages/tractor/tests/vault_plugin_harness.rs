@@ -561,9 +561,11 @@ async fn run_operator_loop_e2e(spec: OperatorLoopSpec) {
             Some("127.0.0.1".to_string()),
             port,
             None,
-            tractor::sidecar::AuthPolicySource::new(
-                std::path::PathBuf::from("/nonexistent-refarm-dir"),
-                false,
+            tractor::sidecar::ResolvedAuthPolicy::resolve(
+                &tractor::sidecar::AuthPolicySource::new(
+                    std::path::PathBuf::from("/nonexistent-refarm-dir"),
+                    false,
+                ),
             ),
         )
         .await;
