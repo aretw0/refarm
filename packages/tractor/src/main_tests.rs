@@ -7,6 +7,17 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tractor::{NativeStorage, NativeSync, PluginChannels, TelemetryBus};
 
+/// An `AuthPolicySource` for tests that are not about the policy: a refarm dir that does
+/// not exist and NO declared `device-token` gate, so nothing is resolvable and the
+/// preflight's answer depends only on the thing the test is actually asserting. The unit
+/// coverage for the derivation itself lives beside it, in `sidecar::auth`.
+fn no_auth_source() -> tractor::sidecar::AuthPolicySource {
+    tractor::sidecar::AuthPolicySource::new(
+        std::path::PathBuf::from("/nonexistent-refarm-dir"),
+        false,
+    )
+}
+
 fn test_response_event(content: &str, is_final: bool, prompt_ref: Option<&str>) -> ResponseEvent {
     ResponseEvent {
         id: format!("event-{content}-{is_final}"),
@@ -178,7 +189,7 @@ fn ws_host_preflight_resolves_absent_flag_to_loopback() {
     // validates): an absent flag + no declaration resolves to loopback and is
     // returned, not just Ok(()). It also returns the EFFECTIVE declaration (`tailnet`
     // resolution — see `sidecar::tailnet_resolve`); `None` in, `None` out here.
-    let (host, effective_surface) = daemon::preflight_ws_bind_host(None, None).unwrap();
+    let (host, effective_surface) = daemon::preflight_ws_bind_host(None, None, &no_auth_source()).unwrap();
     assert_eq!(host, "127.0.0.1");
     assert!(effective_surface.is_none());
 }
@@ -191,9 +202,9 @@ fn ws_host_preflight_refuses_nonloopback_before_boot() {
     // PURE: no runtime booted, no socket opened. Mutation guard for deleting the
     // preflight call — without it the refusal moves to after a full boot (and used to
     // skip shutdown).
-    assert!(daemon::preflight_ws_bind_host(Some("0.0.0.0"), None).is_err());
-    assert!(daemon::preflight_ws_bind_host(Some("100.64.0.1"), None).is_err());
-    assert!(daemon::preflight_ws_bind_host(Some("127.0.0.1"), None).is_ok());
+    assert!(daemon::preflight_ws_bind_host(Some("0.0.0.0"), None, &no_auth_source()).is_err());
+    assert!(daemon::preflight_ws_bind_host(Some("100.64.0.1"), None, &no_auth_source()).is_err());
+    assert!(daemon::preflight_ws_bind_host(Some("127.0.0.1"), None, &no_auth_source()).is_ok());
 }
 
 #[test]
@@ -204,7 +215,7 @@ fn ws_host_preflight_ignores_a_configured_auth_policy_when_undeclared() {
     // is no `surfaces.daemon-ws` declaration at all. Uses a path that need not exist:
     // the preflight's cheap presence peek never reads the file's contents.
     std::env::set_var("REFARM_AUTH_POLICY", "/nonexistent/policy.json");
-    let refused = daemon::preflight_ws_bind_host(Some("100.64.0.1"), None).is_err();
+    let refused = daemon::preflight_ws_bind_host(Some("100.64.0.1"), None, &no_auth_source()).is_err();
     std::env::remove_var("REFARM_AUTH_POLICY");
     assert!(refused, "an undeclared surface must not be unlocked by a policy alone");
 }
@@ -471,6 +482,7 @@ async fn ws_probe_succeeds_when_daemon_is_listening() {
         channels,
         tractor::EventRouter::default(),
         None,
+        no_auth_source(),
     );
 
     tokio::spawn(async move {

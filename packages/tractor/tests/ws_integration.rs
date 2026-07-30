@@ -22,6 +22,12 @@ async fn start_server(sync: Arc<NativeSync>) -> u16 {
         plugin_channels,
         tractor::EventRouter::default(),
         None,
+        // No declared `device-token` gate ⇒ no policy resolvable ⇒ the WS handshake gate
+        // stays off, exactly as it was before ADR-093's credential channel existed.
+        tractor::sidecar::AuthPolicySource::new(
+            std::path::PathBuf::from("/nonexistent-refarm-dir"),
+            false,
+        ),
     );
     tokio::spawn(async move { server.run(listener).await.unwrap() });
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;

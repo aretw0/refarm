@@ -245,3 +245,22 @@ pub(crate) fn resolve_surfaces(base: &Path) -> Result<HashMap<String, SurfaceDec
 pub fn surfaces_from_config() -> Result<HashMap<String, SurfaceDeclaration>, String> {
     resolve_surfaces(&std::env::current_dir().unwrap_or_default())
 }
+
+/// `true` when ANY declared surface names `"gate": "device-token"` — the node-wide fact
+/// `sidecar::auth::AuthPolicySource` derives the conventional policy path from, so declaring
+/// the gate is ENOUGH (the operator never plumbs `REFARM_AUTH_POLICY` by hand to be believed).
+///
+/// Node-WIDE, not per-surface, because the policy is node-wide: ONE `auth-policy.json`, one
+/// credential set, read by every surface's enforcement (`sidecar::auth_middleware` and
+/// ADR-093's WS handshake resolve the SAME file). Answering per-surface would mean two
+/// resolutions, two reads and two log lines for one file.
+///
+/// This does NOT widen any surface: `sidecar::bind_guard` still requires THIS surface to
+/// declare the gate itself before permitting its own non-loopback bind, so a gate declared on
+/// `sidecar-http` never unlocks an undeclared or ungated `daemon-ws` (S1/S3). All this
+/// answers is "is a credential policy part of what this node declared".
+pub fn any_surface_declares_device_token_gate(
+    surfaces: &HashMap<String, SurfaceDeclaration>,
+) -> bool {
+    surfaces.values().any(|decl| decl.gate == Some(SurfaceGate::DeviceToken))
+}

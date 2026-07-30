@@ -436,6 +436,24 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     // themselves (same pattern as `declared_surface` for the HTTP sidecar further down).
     let declared_ws_surface = surfaces.get(tractor::host::SURFACE_DAEMON_WS).cloned();
 
+    // The refarm dir the daemon was GIVEN. Resolved ONCE here, before any boot work,
+    // because the auth policy path is derived from it (below) and the WS preflight needs
+    // that answer before anything starts. Reused verbatim by the sidecar's dirs and the
+    // Scarecrow audit base further down — one dir, decided once, never re-derived.
+    let refarm_dir = args.refarm_dir.clone().unwrap_or_else(dirs_sovereign_base);
+
+    // WHERE the per-device auth policy comes from — the declaration first, the env only as
+    // an override. A `surfaces` entry with `"gate": "device-token"` IS the opt-in: it
+    // derives `<refarm-dir>/auth-policy.json`, the same conventional file `refarm auth
+    // enroll` writes, so declaring the gate is enough and the operator never plumbs
+    // REFARM_AUTH_POLICY by hand to be believed. Both facts are known only HERE (the
+    // declaration was just read; the refarm dir came from the CLI), so this is where the
+    // source is built — then threaded into every surface, never re-derived from globals.
+    let auth_source = tractor::sidecar::AuthPolicySource::new(
+        refarm_dir.clone(),
+        tractor::host::any_surface_declares_device_token_gate(&surfaces),
+    );
+
     // Preflight the WS bind BEFORE booting anything. The WS server is started at the very
     // end of `run_daemon`, so its own (load-bearing) bind guard would otherwise fire only
     // after storage is open, plugins are instantiated and the supervisor + audit
@@ -457,8 +475,11 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     // (a `tailscale status --json` ask, ≤~2s) to a concrete `host:<ip>` by this call — so
     // `WsServer::new` below never re-asks, and its own re-validation at actual bind time
     // sees the exact same resolved address, not a second (possibly different) answer.
-    let (resolved_ws_host, declared_ws_surface) =
-        daemon::preflight_ws_bind_host(args.ws_host.as_deref(), declared_ws_surface.as_ref())?;
+    let (resolved_ws_host, declared_ws_surface) = daemon::preflight_ws_bind_host(
+        args.ws_host.as_deref(),
+        declared_ws_surface.as_ref(),
+        &auth_source,
+    )?;
 
     let security_mode = match args.security_mode.as_str() {
         "permissive" => SecurityMode::Permissive,
@@ -579,7 +600,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
 
     // ── HTTP sidecar (ADR-060) ────────────────────────────────────────────────
     if args.http_port > 0 {
-        let base_dir = args.refarm_dir.clone().unwrap_or_else(dirs_sovereign_base);
+        let base_dir = refarm_dir.clone();
         match tractor::sidecar::SidecarState::new(
             tractor.plugin_channels.clone(),
             tractor.cancel_flags.clone(),
@@ -603,9 +624,18 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
                 // Resolved once, above, alongside the WS preflight — `start` never reads
                 // `.refarm/config.json` itself (see its doc comment).
                 let declared_surface = surfaces.get(tractor::host::SURFACE_SIDECAR_HTTP).cloned();
+                // Same source the WS preflight already used — built once at boot, cloned
+                // (not re-derived) so both surfaces resolve the SAME policy file.
+                let sidecar_auth_source = auth_source.clone();
                 tokio::spawn(async move {
-                    if let Err(e) =
-                        tractor::sidecar::start(state, http_host, http_port, declared_surface).await
+                    if let Err(e) = tractor::sidecar::start(
+                        state,
+                        http_host,
+                        http_port,
+                        declared_surface,
+                        sidecar_auth_source,
+                    )
+                    .await
                     {
                         tracing::error!("HTTP sidecar error: {e}");
                     }
@@ -623,7 +653,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     }
 
     // ── Scarecrow audit subscriber ────────────────────────────────────────────
-    let scarecrow_base = args.refarm_dir.clone().unwrap_or_else(dirs_sovereign_base);
+    let scarecrow_base = refarm_dir.clone();
     tractor::observer::spawn_audit_subscriber(
         tractor.telemetry.clone(),
         scarecrow_base.clone(),
@@ -647,6 +677,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         tractor.plugin_channels.clone(),
         tractor.event_router.clone(),
         declared_ws_surface,
+        auth_source,
     )
     .start()
     .await;

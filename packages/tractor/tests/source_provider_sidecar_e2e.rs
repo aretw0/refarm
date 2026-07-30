@@ -57,13 +57,22 @@ async fn start_sidecar(tractor: &TractorNative, base_dir: &Path) -> u16 {
     .expect("sidecar state")
     .with_registry(tractor.plugin_registry.clone());
 
+    let auth_base = base_dir.to_path_buf();
     tokio::spawn(async move {
         // Loopback bind: no `surfaces.sidecar-http` declaration needed (S1's default),
         // so `None` is the correct/honest value for `declared_surface`, not a stand-in
         // for a real one. `Some("127.0.0.1")` for `host` is this harness explicitly
         // asserting loopback, mirroring an operator who passed `--http-host 127.0.0.1`.
-        let _ =
-            tractor::sidecar::start(state, Some("127.0.0.1".to_string()), port, None).await;
+        // No declared `device-token` gate and (normally) no REFARM_AUTH_POLICY ⇒ no
+        // policy is resolvable ⇒ no auth layer, which is what this harness wants.
+        let _ = tractor::sidecar::start(
+            state,
+            Some("127.0.0.1".to_string()),
+            port,
+            None,
+            tractor::sidecar::AuthPolicySource::new(auth_base, false),
+        )
+        .await;
     });
     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
     port

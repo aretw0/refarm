@@ -32,11 +32,12 @@
 //! response WRITTEN to the socket before it closes (tungstenite's `ErrorResponse` path), so
 //! a client can tell "refused" from "the network died" — never a silent drop.
 //!
-//! Opt-in, exactly like the HTTP sidecar's gate: `REFARM_AUTH_POLICY` unset ⇒ no policy ⇒
-//! `decide_ws_handshake` is `Passthrough` unconditionally ⇒ behaviour is byte-identical to
-//! pre-ADR-093 (no header inspection, nothing echoed, any client connects). Policy present
-//! but unreadable ⇒ `sidecar::auth::auth_config_from_env` resolves `Some(deny_all)` ⇒ every
-//! handshake is refused — "if you asked for auth, a broken policy must lock the door".
+//! Opt-in, exactly like the HTTP sidecar's gate: no declared `device-token` gate and no
+//! `REFARM_AUTH_POLICY` ⇒ no policy ⇒ `decide_ws_handshake` is `Passthrough` unconditionally
+//! ⇒ behaviour is byte-identical to pre-ADR-093 (no header inspection, nothing echoed, any
+//! client connects). A policy that is resolvable but absent/unreadable ⇒
+//! `sidecar::auth::resolve_auth_policy` resolves `Some(deny_all)` ⇒ every handshake is
+//! refused — "if you asked for auth, a broken policy must lock the door".
 //!
 //! The accept/reject DECISION (`decide_ws_handshake`) is a PURE function of the offered
 //! protocol tokens and the policy — no socket, no headers, no tungstenite types — so it is
@@ -78,12 +79,12 @@ static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(0);
 /// RESOLVED host string so the caller binds the exact value that was validated, rather
 /// than re-deriving it.
 ///
-/// `auth_policy_present` comes from `sidecar::auth::auth_policy_configured()` — a cheap,
-/// non-authoritative env-var peek (no file read, no log line), NOT the full
-/// `auth_config_from_env()` resolution: that authoritative read (and its enable/deny-all
-/// log line) happens exactly ONCE, later, inside `WsServer::start` — see that function's
-/// doc for why re-reading it here would double the log line and cost a needless file read
-/// before the runtime has even started booting.
+/// `auth_policy_resolvable` comes from `sidecar::auth::auth_policy_configured(auth_source)` —
+/// a cheap, non-authoritative peek at the declaration + env (no file read, no log line), NOT
+/// the full `resolve_auth_policy()` resolution: that authoritative read (and its
+/// enable/deny-all log line) happens exactly ONCE, later, inside `WsServer::start` — see that
+/// function's doc for why re-reading it here would double the log line and cost a needless
+/// file read before the runtime has even started booting.
 ///
 /// `WsServer::start` applies the same guard again at the moment it binds (that check is
 /// the load-bearing one — it cannot be bypassed by a caller who forgets this). This exists
@@ -101,6 +102,7 @@ static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(0);
 pub fn preflight_ws_bind_host(
     host: Option<&str>,
     declared: Option<&crate::host::SurfaceDeclaration>,
+    auth_source: &crate::sidecar::AuthPolicySource,
 ) -> Result<(String, Option<crate::host::SurfaceDeclaration>)> {
     let effective = crate::sidecar::tailnet_resolve::resolve_declared_expose_for_bind(
         crate::host::SURFACE_DAEMON_WS,
@@ -109,10 +111,13 @@ pub fn preflight_ws_bind_host(
         declared,
     )
     .map_err(|reason| anyhow::anyhow!(reason))?;
-    let auth_policy_present = crate::sidecar::auth::auth_policy_configured();
-    let resolved_host =
-        crate::sidecar::bind_guard::resolve_ws_bind_host(host, auth_policy_present, effective.as_ref())
-            .map_err(|reason| anyhow::anyhow!(reason))?;
+    let auth_policy_resolvable = crate::sidecar::auth::auth_policy_configured(auth_source);
+    let resolved_host = crate::sidecar::bind_guard::resolve_ws_bind_host(
+        host,
+        auth_policy_resolvable,
+        effective.as_ref(),
+    )
+    .map_err(|reason| anyhow::anyhow!(reason))?;
     Ok((resolved_host, effective))
 }
 
@@ -129,9 +134,15 @@ pub struct WsServer {
     // `sidecar::start` receives `declared_surface` rather than reading
     // `.refarm/config.json` itself. `None` means undeclared, NOT "permits anything" (S1).
     declared_surface: Option<crate::host::SurfaceDeclaration>,
+    // WHERE the auth policy comes from (the daemon's `--refarm-dir` + whether the
+    // declaration names a `device-token` gate) — threaded in by the caller for the same
+    // reason `declared_surface` is: `start` reads no global state to learn what the
+    // operator declared. See `sidecar::auth::AuthPolicySource`.
+    auth_source: crate::sidecar::AuthPolicySource,
 }
 
 impl WsServer {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         sync: Arc<NativeSync>,
         host: String,
@@ -140,6 +151,7 @@ impl WsServer {
         plugin_channels: PluginChannels,
         event_router: crate::EventRouter,
         declared_surface: Option<crate::host::SurfaceDeclaration>,
+        auth_source: crate::sidecar::AuthPolicySource,
     ) -> Self {
         Self {
             sync,
@@ -149,6 +161,7 @@ impl WsServer {
             plugin_channels,
             event_router,
             declared_surface,
+            auth_source,
         }
     }
 
@@ -162,17 +175,17 @@ impl WsServer {
     /// Start the WebSocket server and block until Ctrl-C.
     pub async fn start(&self) -> Result<()> {
         // Resolved ONCE here: reused for the fail-closed bind guard immediately below AND
-        // threaded into `run` for the per-connection handshake gate, so a configured
+        // threaded into `run` for the per-connection handshake gate, so a resolvable
         // policy is read from disk (and its enable/deny-all log line emitted) exactly
-        // once per daemon start — same discipline as `sidecar::start`.
-        let auth_policy = crate::sidecar::auth::auth_config_from_env();
+        // once per WS start — same discipline as `sidecar::start`.
+        let auth_policy = crate::sidecar::auth::resolve_auth_policy(&self.auth_source);
 
         // Fail-closed bind guard — same doctrine and (since ADR-093) the SAME shape as
-        // the HTTP sidecar's: a configured `REFARM_AUTH_POLICY` is the operator's opt-in
+        // the HTTP sidecar's: a declared `device-token` gate is the operator's opt-in
         // ONLY because something now actually enforces it — `handle_connection`'s
         // `accept_hdr_async` callback authenticates every `Sec-WebSocket-Protocol`
         // handshake against this exact `auth_policy` before any frame is read. A policy
-        // present with no declaration, or a declaration naming no gate, still refuses
+        // resolvable with no declaration, or a declaration naming no gate, still refuses
         // (S1/S3) — see `sidecar::bind_guard::refuse_unguarded_nonloopback_ws_bind`.
         crate::sidecar::bind_guard::refuse_unguarded_nonloopback_ws_bind(
             &self.host,
@@ -520,6 +533,17 @@ mod tests {
         Arc::new(NativeSync::new(storage, ":memory:").unwrap())
     }
 
+    /// An `AuthPolicySource` that resolves to nothing: a refarm dir that does not exist and
+    /// NO declared `device-token` gate. These tests drive the gate through `run_gated`'s
+    /// explicit policy argument, so the source must never be what decides — the derivation
+    /// itself is covered beside it, in `sidecar::auth`.
+    fn no_auth_source() -> crate::sidecar::AuthPolicySource {
+        crate::sidecar::AuthPolicySource::new(
+            std::path::PathBuf::from("/nonexistent-refarm-dir"),
+            false,
+        )
+    }
+
     /// Bind on an ephemeral port, start the server in a background task, no auth policy
     /// (today's behaviour, unchanged). Returns the `ws://` address so tests can connect
     /// immediately.
@@ -557,6 +581,7 @@ mod tests {
             channels,
             event_router,
             None,
+            no_auth_source(),
         );
         tokio::spawn(async move {
             let _ = server.run_gated(listener, auth_policy).await;
@@ -637,6 +662,7 @@ mod tests {
             Arc::new(RwLock::new(HashMap::new())),
             crate::EventRouter::default(),
             None,
+            no_auth_source(),
         );
         assert_eq!(server.bind_addr(), "127.0.0.1:42000");
         assert_ne!(server.bind_addr(), "0.0.0.0:42000");
@@ -791,13 +817,13 @@ mod tests {
 
     #[test]
     fn deny_all_policy_from_unreadable_config_rejects_every_credential() {
-        // Exercises the REAL env-driven resolution (`auth_config_from_env`), not a
-        // hand-built policy: "policy present but unreadable ⇒ deny all" is
-        // `sidecar::auth`'s own doctrine — the WS gate reuses the SAME resolution, so a
-        // broken policy must lock the WS door too, not leave it open.
+        // Exercises the REAL resolution (`resolve_auth_policy`), not a hand-built policy:
+        // "policy resolvable but unreadable ⇒ deny all" is `sidecar::auth`'s own doctrine —
+        // the WS gate reuses the SAME resolution, so a broken policy must lock the WS door
+        // too, not leave it open.
         let _env = crate::test_support::env_lock();
         std::env::set_var(AUTH_POLICY_ENV, "/nonexistent/policy-for-ws-handshake-test.json");
-        let resolved = crate::sidecar::auth::auth_config_from_env();
+        let resolved = crate::sidecar::auth::resolve_auth_policy(&no_auth_source());
         std::env::remove_var(AUTH_POLICY_ENV);
 
         let policy = resolved.expect("unreadable policy must still resolve to Some(deny_all)");

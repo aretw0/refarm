@@ -26,7 +26,10 @@ pub(crate) use wasi_bridge::provider_base_url_for_liveness;
 // the declaration is resolved once at boot (`surfaces_from_config`) and threaded into
 // `sidecar::start`, so the type has to cross that crate boundary. `sidecar::bind_guard`
 // (same crate) reads the struct's fields, which stay `pub(crate)`.
-pub use host_effects_bridge::{surfaces_from_config, SurfaceDeclaration, SURFACE_DAEMON_WS, SURFACE_SIDECAR_HTTP};
+pub use host_effects_bridge::{
+    any_surface_declares_device_token_gate, surfaces_from_config, SurfaceDeclaration,
+    SURFACE_DAEMON_WS, SURFACE_SIDECAR_HTTP,
+};
 // `SurfaceExpose`/`SurfaceGate` never appear in a signature main.rs has to name (they are
 // only reachable through `SurfaceDeclaration`'s `pub(crate)` fields), but `bind_guard`
 // (same crate, different module) still needs to match on them.

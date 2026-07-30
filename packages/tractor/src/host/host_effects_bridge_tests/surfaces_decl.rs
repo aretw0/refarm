@@ -317,3 +317,47 @@ fn resolve_surfaces_daemon_ws_host_with_gate_is_allowed() {
     assert_eq!(out[SURFACE_DAEMON_WS].expose, SurfaceExpose::Host("100.64.0.1".to_string()));
     assert_eq!(out[SURFACE_DAEMON_WS].gate, Some(SurfaceGate::DeviceToken));
 }
+
+// ── any_surface_declares_device_token_gate — the fact the policy path derives from ──
+
+#[test]
+fn no_declared_gate_anywhere_is_false() {
+    // Includes the shapes that look adjacent to a gate but are not one: nothing declared
+    // at all, and a loopback surface (which needs no gate to be legal).
+    assert!(!any_surface_declares_device_token_gate(&parse_surfaces(&serde_json::json!({})).unwrap()));
+    let cfg = serde_json::json!({ "surfaces": { "sidecar-http": { "expose": "loopback" } } });
+    assert!(!any_surface_declares_device_token_gate(&parse_surfaces(&cfg).unwrap()));
+}
+
+#[test]
+fn a_single_declared_device_token_gate_is_enough() {
+    // This is what makes the conventional policy path meaningful — declaring the gate is
+    // the opt-in, so no `REFARM_AUTH_POLICY` export is needed to be believed.
+    let cfg = serde_json::json!({
+        "surfaces": { "sidecar-http": { "expose": "host:0.0.0.0", "gate": "device-token" } }
+    });
+    assert!(any_surface_declares_device_token_gate(&parse_surfaces(&cfg).unwrap()));
+}
+
+#[test]
+fn a_gate_on_one_surface_answers_true_for_the_node_without_widening_the_other() {
+    // Node-WIDE by design (one policy file, one resolution). The guard, not this query,
+    // is what keeps `daemon-ws` closed: it still requires ITS OWN declaration + gate.
+    let cfg = serde_json::json!({
+        "surfaces": {
+            "sidecar-http": { "expose": "host:0.0.0.0", "gate": "device-token" },
+            "daemon-ws": { "expose": "loopback" }
+        }
+    });
+    let surfaces = parse_surfaces(&cfg).unwrap();
+    assert!(any_surface_declares_device_token_gate(&surfaces));
+    assert!(
+        crate::sidecar::bind_guard::refuse_unguarded_nonloopback_ws_bind(
+            "100.64.0.1",
+            true,
+            surfaces.get(SURFACE_DAEMON_WS),
+        )
+        .is_err(),
+        "a gate declared on sidecar-http must never widen a loopback daemon-ws"
+    );
+}

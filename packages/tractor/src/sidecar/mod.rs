@@ -674,10 +674,16 @@ mod activity_sse;
 // `Sec-WebSocket-Protocol` handshake against this SAME policy (`AuthPolicy::authenticate`,
 // the same file, the same sha256 matching) — not a presence peek, an actual gate. That is
 // the right question, so `auth` widens to `pub(crate)` for it. The bind guard's OWN "is a
-// policy present" bool still comes from `auth::auth_policy_configured()` — a cheap,
+// policy resolvable" bool still comes from `auth::auth_policy_configured()` — a cheap,
 // non-authoritative peek (no file I/O, no log line) — never from resolving the full
 // policy twice; see that function's doc comment for why the two stay distinct.
 pub(crate) mod auth;
+// `AuthPolicySource` (the refarm dir + "does the declaration name a device-token gate")
+// is the ONE thing from `auth` that must cross the library/binary crate boundary: `main.rs`
+// knows both facts at boot and threads them in, exactly as it threads `SurfaceDeclaration`.
+// `AuthPolicy` itself deliberately stays `pub(crate)` — the SOURCE travels, the credentials
+// never do.
+pub use auth::AuthPolicySource;
 pub(crate) mod bind_guard;
 pub(crate) mod tailnet_resolve;
 mod cors;
@@ -1671,11 +1677,16 @@ pub async fn start(
     // never reads `.refarm/config.json` itself, matching `auth_policy` below (resolved
     // once, reused). `None` means undeclared, NOT "declaration permits anything" (S1).
     declared_surface: Option<crate::host::SurfaceDeclaration>,
+    // WHERE the auth policy comes from — the daemon's `--refarm-dir` plus whether the
+    // declaration names a `device-token` gate, both decided in main.rs and threaded in
+    // (same doctrine as `declared_surface`: this function reads no global state to find
+    // out what the operator declared). See `auth::AuthPolicySource`.
+    auth_source: auth::AuthPolicySource,
 ) -> anyhow::Result<()> {
     // Resolved ONCE here: reused for the fail-closed bind guard immediately below AND
-    // for the auth middleware layer further down, so a configured policy is read from
-    // disk (and its enable/deny-all log line emitted) exactly once per daemon start.
-    let auth_policy = auth::auth_config_from_env();
+    // for the auth middleware layer further down, so a resolvable policy is read from
+    // disk (and its enable/deny-all log line emitted) exactly once per sidecar start.
+    let auth_policy = auth::resolve_auth_policy(&auth_source);
 
     // Resolve `expose: "tailnet"` into a concrete `host:<ip>` BEFORE the guard ever runs
     // — see `tailnet_resolve`'s module doc (open question 1 of the declared-surfaces
@@ -1733,8 +1744,10 @@ pub async fn start(
         .route("/stream/activity", get(activity_sse::get_stream_activity))
         .with_state(state);
 
-    // Opt-in per-device AUTH gate: unset REFARM_AUTH_POLICY ⇒ no layer, behavior unchanged
-    // (fail-closed off by default). Applied INNER of CORS below, so a browser's OPTIONS
+    // Opt-in per-device AUTH gate: no declared `device-token` gate and no
+    // REFARM_AUTH_POLICY ⇒ no layer, behavior unchanged (fail-closed off by default). A
+    // declared gate whose policy file does not exist yet ⇒ a deny-all layer, not no layer.
+    // Applied INNER of CORS below, so a browser's OPTIONS
     // preflight — which carries no credential — is answered by CORS before the gate sees it.
     // `auth_policy` was already resolved above for the bind guard; reused here as-is.
     let router = match auth_policy {

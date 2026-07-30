@@ -19,9 +19,17 @@
 //! `refuse_unguarded_nonloopback_bind` (the HTTP sidecar's guard) and
 //! `refuse_unguarded_nonloopback_ws_bind` (the WS guard, below) BOTH enforce S3: a
 //! non-loopback declaration must name a gate the surface can enforce (`device-token`), AND
-//! that gate must actually be configured right now (a real, readable `REFARM_AUTH_POLICY`) —
-//! a declared-but-unconfigured gate enforces nothing and must not be mistaken for one that
-//! does.
+//! that gate must actually be RESOLVABLE right now (`auth_policy_resolvable`) — a gate with
+//! no policy behind it at all enforces nothing and must not be mistaken for one that does.
+//!
+//! "Resolvable" — not "a `REFARM_AUTH_POLICY` env var is set", which is what this used to
+//! mean. `sidecar::auth::resolve_policy_path` derives the policy path from the DECLARATION
+//! (`<refarm-dir>/auth-policy.json`) when no env override is given, so declaring the gate is
+//! itself enough to resolve one; and a resolvable-but-absent policy is `deny_all`, i.e. the
+//! strictest possible enforcement of the declared gate, not an ungated bind. Note this
+//! combination — bound, and denying everything — is not new: an env var pointing at a
+//! nonexistent file has always produced exactly it (`Some(deny_all)` + a "present" peek).
+//! What changed is that the operator no longer has to name the path by hand to get there.
 //!
 //! Until ADR-093 shipped, `refuse_nonloopback_ws_bind` (this function's former name and
 //! shape) took no declaration at all and refused every non-loopback host unconditionally:
@@ -47,18 +55,20 @@ use crate::host::{SurfaceDeclaration, SurfaceExpose, SurfaceGate};
 ///   sidecar's default (`127.0.0.1`) and is inside every declaration's ceiling, declared or
 ///   not.
 /// - non-loopback + no declaration (`declared: None`) ⇒ `Err` (S1) — an undeclared surface
-///   binds loopback only; a configured `auth_policy_present` does NOT change this anymore.
+///   binds loopback only; a resolvable `auth_policy_resolvable` does NOT change this anymore.
 /// - non-loopback + a declaration whose `expose` is `"loopback"` ⇒ `Err` (S5) — the flag is
 ///   trying to widen past the declared ceiling.
 /// - non-loopback + a declaration whose `expose` is `host:<ip>` that does NOT match `host`
 ///   ⇒ `Err` (S5) — the flag points somewhere else (or wider) than what was declared; the
 ///   declaration is authoritative for WHICH address, not just whether non-loopback is legal.
 /// - non-loopback + a matching `host:<ip>` declaration ⇒ `Ok` only if the declared `gate` is
-///   `device-token` AND `auth_policy_present` (S3) — a declared gate that is not actually
-///   configured enforces nothing and must not be mistaken for one that does.
+///   `device-token` AND `auth_policy_resolvable` (S3) — a declared gate with no policy behind
+///   it enforces nothing and must not be mistaken for one that does. In practice declaring
+///   the gate is what MAKES a policy resolvable (`sidecar::auth::resolve_policy_path`), so
+///   this arm is now defence in depth rather than a state the operator can be stuck in.
 pub(crate) fn refuse_unguarded_nonloopback_bind(
     host: &str,
-    auth_policy_present: bool,
+    auth_policy_resolvable: bool,
     declared: Option<&SurfaceDeclaration>,
 ) -> Result<(), String> {
     if is_loopback_host(host) {
@@ -71,8 +81,9 @@ pub(crate) fn refuse_unguarded_nonloopback_bind(
              `surfaces.sidecar-http` declaration is present in .refarm/config.json, and an \
              undeclared surface binds loopback only. Declare it first:\n  \"surfaces\": {{ \
              \"sidecar-http\": {{ \"expose\": \"host:{host}\", \"gate\": \"device-token\" }} \
-             }}\nthen mint a per-device credential with `refarm auth enroll` and set \
-             REFARM_AUTH_POLICY to the resulting policy file before binding beyond loopback."
+             }}\nthen mint a per-device credential with `refarm auth enroll`. The declared \
+             gate derives the policy path from the daemon's refarm dir, so no \
+             REFARM_AUTH_POLICY export is needed — that env only OVERRIDES the path."
         ));
     };
 
@@ -93,13 +104,13 @@ pub(crate) fn refuse_unguarded_nonloopback_bind(
     }
 
     match decl.gate {
-        Some(SurfaceGate::DeviceToken) if auth_policy_present => Ok(()),
+        Some(SurfaceGate::DeviceToken) if auth_policy_resolvable => Ok(()),
         Some(SurfaceGate::DeviceToken) => Err(format!(
             "refusing to bind the sidecar to {host:?}: surfaces.sidecar-http declares \
-             \"gate\": \"device-token\" but no REFARM_AUTH_POLICY is configured, so nothing \
-             would actually enforce it. Mint a per-device credential with `refarm auth \
-             enroll`, then set REFARM_AUTH_POLICY to the resulting policy file before binding \
-             beyond loopback."
+             \"gate\": \"device-token\" but no auth policy is resolvable, so nothing would \
+             actually enforce it. Mint a per-device credential with `refarm auth enroll` — \
+             the daemon derives the policy path from the refarm dir it was given; \
+             REFARM_AUTH_POLICY only overrides that path."
         )),
         None => Err(format!(
             "refusing to bind the sidecar to {host:?}: surfaces.sidecar-http declares a \
@@ -113,24 +124,24 @@ pub(crate) fn refuse_unguarded_nonloopback_bind(
 /// declaration does not permit it. PURE: never binds a socket, never resolves DNS. The WS
 /// mirror of `refuse_unguarded_nonloopback_bind` — see that function's doc for the shared
 /// shape (S1/S5); this one differs only in which surface/messages it names, and in what
-/// `auth_policy_present` actually gates: `daemon::ws_server`'s `accept_hdr_async` callback
+/// `auth_policy_resolvable` actually gates: `daemon::ws_server`'s `accept_hdr_async` callback
 /// (ADR-093), authenticating the `Sec-WebSocket-Protocol` handshake against the SAME
 /// `sidecar::auth::AuthPolicy` the sidecar's HTTP middleware uses — not the sidecar's HTTP
-/// requests. A policy present here means the WS gate is ACTUALLY live, not merely that some
+/// requests. A resolvable policy here means the WS gate is ACTUALLY live, not merely that some
 /// unrelated surface happens to have one configured.
 ///
 /// - loopback ⇒ always `Ok`.
 /// - non-loopback + no declaration ⇒ `Err` (S1) — an undeclared surface binds loopback
-///   only; a configured policy does not widen this.
+///   only; a resolvable policy does not widen this.
 /// - non-loopback + a `"loopback"` declaration ⇒ `Err` (S5) — the flag would widen past
 ///   the declared ceiling.
 /// - non-loopback + a `host:<ip>` declaration that does not match `host` ⇒ `Err` (S5).
 /// - non-loopback + a matching `host:<ip>` declaration ⇒ `Ok` only if the declared `gate`
-///   is `device-token` AND `auth_policy_present` (S3) — a declared gate the handshake is
-///   not actually configured to check enforces nothing.
+///   is `device-token` AND `auth_policy_resolvable` (S3) — a declared gate the handshake has
+///   no policy to check against enforces nothing.
 pub(crate) fn refuse_unguarded_nonloopback_ws_bind(
     host: &str,
-    auth_policy_present: bool,
+    auth_policy_resolvable: bool,
     declared: Option<&SurfaceDeclaration>,
 ) -> Result<(), String> {
     if is_loopback_host(host) {
@@ -143,8 +154,9 @@ pub(crate) fn refuse_unguarded_nonloopback_ws_bind(
              `surfaces.daemon-ws` declaration is present in .refarm/config.json, and an \
              undeclared surface binds loopback only. Declare it first:\n  \"surfaces\": {{ \
              \"daemon-ws\": {{ \"expose\": \"host:{host}\", \"gate\": \"device-token\" }} \
-             }}\nthen mint a per-device credential with `refarm auth enroll` and set \
-             REFARM_AUTH_POLICY to the resulting policy file before binding beyond loopback."
+             }}\nthen mint a per-device credential with `refarm auth enroll`. The declared \
+             gate derives the policy path from the daemon's refarm dir, so no \
+             REFARM_AUTH_POLICY export is needed — that env only OVERRIDES the path."
         ));
     };
 
@@ -165,13 +177,14 @@ pub(crate) fn refuse_unguarded_nonloopback_ws_bind(
     }
 
     match decl.gate {
-        Some(SurfaceGate::DeviceToken) if auth_policy_present => Ok(()),
+        Some(SurfaceGate::DeviceToken) if auth_policy_resolvable => Ok(()),
         Some(SurfaceGate::DeviceToken) => Err(format!(
             "refusing to bind the agent/CRDT WebSocket to {host:?}: surfaces.daemon-ws \
-             declares \"gate\": \"device-token\" but no REFARM_AUTH_POLICY is configured, \
-             so the Sec-WebSocket-Protocol handshake (ADR-093) has nothing to authenticate \
-             against. Mint a per-device credential with `refarm auth enroll`, then set \
-             REFARM_AUTH_POLICY to the resulting policy file before binding beyond loopback."
+             declares \"gate\": \"device-token\" but no auth policy is resolvable, so the \
+             Sec-WebSocket-Protocol handshake (ADR-093) has nothing to authenticate \
+             against. Mint a per-device credential with `refarm auth enroll` — the daemon \
+             derives the policy path from the refarm dir it was given; REFARM_AUTH_POLICY \
+             only overrides that path."
         )),
         None => Err(format!(
             "refusing to bind the agent/CRDT WebSocket to {host:?}: surfaces.daemon-ws \
@@ -203,11 +216,11 @@ pub(crate) fn refuse_unguarded_nonloopback_ws_bind(
 /// PURE: no socket, no I/O, no DNS.
 pub(crate) fn resolve_sidecar_bind_host(
     flag: Option<&str>,
-    auth_policy_present: bool,
+    auth_policy_resolvable: bool,
     declared: Option<&SurfaceDeclaration>,
 ) -> Result<String, String> {
     let requested = resolve_declared_bind_host(flag, declared);
-    refuse_unguarded_nonloopback_bind(&requested, auth_policy_present, declared)?;
+    refuse_unguarded_nonloopback_bind(&requested, auth_policy_resolvable, declared)?;
     Ok(requested)
 }
 
@@ -239,15 +252,15 @@ fn resolve_declared_bind_host(flag: Option<&str>, declared: Option<&SurfaceDecla
 /// `surfaces.daemon-ws` declaration, then validate the result. Since ADR-093, this is
 /// exactly `resolve_sidecar_bind_host`'s shape applied to the WS guard — an absent flag
 /// lets a `host:<ip>` declaration decide (S1 default: loopback), a present flag narrows or
-/// asserts, validated against the declared ceiling and `auth_policy_present` (S3/S5) by
+/// asserts, validated against the declared ceiling and `auth_policy_resolvable` (S3/S5) by
 /// `refuse_unguarded_nonloopback_ws_bind`. PURE: no socket, no I/O, no DNS.
 pub(crate) fn resolve_ws_bind_host(
     flag: Option<&str>,
-    auth_policy_present: bool,
+    auth_policy_resolvable: bool,
     declared: Option<&SurfaceDeclaration>,
 ) -> Result<String, String> {
     let requested = resolve_declared_bind_host(flag, declared);
-    refuse_unguarded_nonloopback_ws_bind(&requested, auth_policy_present, declared)?;
+    refuse_unguarded_nonloopback_ws_bind(&requested, auth_policy_resolvable, declared)?;
     Ok(requested)
 }
 
@@ -466,10 +479,50 @@ mod tests {
     #[test]
     fn declared_host_with_no_gate_is_refused_even_with_policy_present() {
         // A non-loopback declaration with NO gate at all is refused independent of
-        // whether a policy happens to be configured — the declaration itself never
-        // claimed anything would enforce this bind.
+        // whether a policy happens to be resolvable — the declaration itself never
+        // claimed anything would enforce this bind. Since a DECLARED gate is now what
+        // derives the policy path, this is the case that actually reaches an operator:
+        // they exposed a host and forgot the gate, and the refusal must name the fix.
         let decl = declare_host("100.64.0.1", None);
-        assert!(refuse_unguarded_nonloopback_bind("100.64.0.1", true, Some(&decl)).is_err());
+        for resolvable in [false, true] {
+            let err = refuse_unguarded_nonloopback_bind("100.64.0.1", resolvable, Some(&decl))
+                .expect_err("a non-loopback declaration with no gate must be refused");
+            assert!(err.contains("no gate"), "must say what is missing: {err}");
+            assert!(
+                err.contains("\"gate\": \"device-token\""),
+                "must name the fix verbatim: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_loopback_bind_is_unchanged_across_every_combination() {
+        // Loopback is inside every ceiling, always — declared or not, gated or not,
+        // policy resolvable or not. Pinned as an exhaustive matrix because the
+        // declaration-derived policy changed WHEN `auth_policy_resolvable` is true, and
+        // the one thing that must not move with it is the loopback default every local
+        // tool (`127.0.0.1:42001`) depends on.
+        let declarations = [
+            None,
+            Some(declare_loopback()),
+            Some(declare_host("100.64.0.1", None)),
+            Some(declare_host("100.64.0.1", Some(SurfaceGate::DeviceToken))),
+        ];
+        for decl in &declarations {
+            for resolvable in [false, true] {
+                for host in ["127.0.0.1", "127.5.5.5", "::1", "[::1]", "localhost", "LOCALHOST"] {
+                    assert!(
+                        refuse_unguarded_nonloopback_bind(host, resolvable, decl.as_ref()).is_ok(),
+                        "sidecar {host} must stay permitted (resolvable={resolvable}, decl={decl:?})"
+                    );
+                    assert!(
+                        refuse_unguarded_nonloopback_ws_bind(host, resolvable, decl.as_ref())
+                            .is_ok(),
+                        "ws {host} must stay permitted (resolvable={resolvable}, decl={decl:?})"
+                    );
+                }
+            }
+        }
     }
 
     // ── S5 mutation-verify: narrowing is honoured, widening is refused ──────────────
@@ -656,7 +709,14 @@ mod tests {
     #[test]
     fn ws_declared_host_with_no_gate_is_refused_even_with_policy_present() {
         let decl = declare_host("100.64.0.1", None);
-        assert!(refuse_unguarded_nonloopback_ws_bind("100.64.0.1", true, Some(&decl)).is_err());
+        for resolvable in [false, true] {
+            let err = refuse_unguarded_nonloopback_ws_bind("100.64.0.1", resolvable, Some(&decl))
+                .expect_err("a non-loopback declaration with no gate must be refused");
+            assert!(
+                err.contains("\"gate\": \"device-token\""),
+                "must name the fix verbatim: {err}"
+            );
+        }
     }
 
     // ── S5 mutation-verify: narrowing is honoured, widening is refused ──────────────

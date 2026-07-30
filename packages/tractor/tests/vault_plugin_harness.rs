@@ -554,8 +554,19 @@ async fn run_operator_loop_e2e(spec: OperatorLoopSpec) {
         // so `None` is the correct/honest value for `declared_surface`, not a stand-in
         // for a real one. `Some("127.0.0.1")` for `host` is this harness explicitly
         // asserting loopback, mirroring an operator who passed `--http-host 127.0.0.1`.
-        let _ =
-            tractor::sidecar::start(state, Some("127.0.0.1".to_string()), port, None).await;
+        // No declared `device-token` gate and (normally) no REFARM_AUTH_POLICY ⇒ no
+        // policy is resolvable ⇒ no auth layer, which is what this harness wants.
+        let _ = tractor::sidecar::start(
+            state,
+            Some("127.0.0.1".to_string()),
+            port,
+            None,
+            tractor::sidecar::AuthPolicySource::new(
+                std::path::PathBuf::from("/nonexistent-refarm-dir"),
+                false,
+            ),
+        )
+        .await;
     });
     for _ in 0..50 {
         if std::net::TcpStream::connect(("127.0.0.1", port)).is_ok() {
