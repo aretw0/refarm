@@ -6,6 +6,7 @@ import { createProcessHandoffDisplay, runProcessHandoffSync } from "@refarm.dev/
 import { Command } from "commander";
 
 import { refarmCommand } from "../brand.js";
+import { guardedAction, type RefusalHandoff } from "./action-boundary.js";
 
 /**
  * `refarm dist publish` — the PC side of mesh artifact distribution.
@@ -124,6 +125,17 @@ interface DistPublishOptions {
 	json?: boolean;
 }
 
+/** A `dist publish` that cannot read its kit (a missing `package.json`, an unbuilt
+ *  `--kit` dir) refuses instead of throwing a raw ENOENT at the operator. */
+const DIST_PUBLISH_REFUSAL_HANDOFF: RefusalHandoff = {
+	command: "dist",
+	operation: "publish",
+	error: "dist-publish-failed",
+	nextAction:
+		"Check that the kit directory exists and is built, or point --kit at one, then re-run.",
+	nextCommand: refarmCommand(["dist", "publish", "--help"]),
+};
+
 export function createDistPublishCommand(): Command {
 	return new Command("publish")
 		.description("Assemble the farm-client kit + a hash-verified manifest into a served dir")
@@ -135,81 +147,95 @@ export function createDistPublishCommand(): Command {
 		)
 		.option("--port <port>", "Port the mesh server will use — baked into the installer + hints", "4321")
 		.option("--json", "Print the result as JSON")
-		.action(async (options: DistPublishOptions) => {
-			const kitDir = path.resolve(options.kit ?? "packages/farm-client");
-			const pkg = JSON.parse(await readFile(path.join(kitDir, "package.json"), "utf8")) as {
-				version?: string;
-			};
-			const files = await collectKitFiles(kitDir);
-			if (files.length === 0) {
-				throw new Error(`dist publish: no kit files found under ${kitDir}/{src,bin}`);
-			}
-			const manifest = buildKitManifest(files, {
-				name: "farm-client",
-				version: pkg.version ?? "0.0.0",
-				createdAt: new Date().toISOString(),
-			});
+		.action(
+			guardedAction(
+				(options: DistPublishOptions) => ({
+					json: options.json === true,
+					...DIST_PUBLISH_REFUSAL_HANDOFF,
+				}),
+				async (options: DistPublishOptions) => {
+					const kitDir = path.resolve(options.kit ?? "packages/farm-client");
+					const pkg = JSON.parse(await readFile(path.join(kitDir, "package.json"), "utf8")) as {
+						version?: string;
+					};
+					const files = await collectKitFiles(kitDir);
+					if (files.length === 0) {
+						throw new Error(`dist publish: no kit files found under ${kitDir}/{src,bin}`);
+					}
+					const manifest = buildKitManifest(files, {
+						name: "farm-client",
+						version: pkg.version ?? "0.0.0",
+						createdAt: new Date().toISOString(),
+					});
 
-			const outDir = path.resolve(options.out ?? ".refarm/dist", "farm-client");
-			await rm(outDir, { recursive: true, force: true });
-			for (const file of files) {
-				const dest = path.join(outDir, file.path);
-				await mkdir(path.dirname(dest), { recursive: true });
-				await writeFile(dest, file.content);
-			}
-			await writeFile(path.join(outDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+					const outDir = path.resolve(options.out ?? ".refarm/dist", "farm-client");
+					await rm(outDir, { recursive: true, force: true });
+					for (const file of files) {
+						const dest = path.join(outDir, file.path);
+						await mkdir(path.dirname(dest), { recursive: true });
+						await writeFile(dest, file.content);
+					}
+					await writeFile(
+						path.join(outDir, "manifest.json"),
+						`${JSON.stringify(manifest, null, 2)}\n`,
+					);
 
-			// Cold-bootstrap: a single self-contained installer, so a device with
-			// only Node installs the kit with no git/clone. Bake the farm's name so
-			// the served URL and the installer agree on where home is.
-			const port = Number.parseInt(options.port ?? "4321", 10) || 4321;
-			const host = options.host ?? detectTailnetHost() ?? "";
-			const template = await readFile(path.join(kitDir, "bootstrap", "install.mjs"), "utf8");
-			await writeFile(path.join(outDir, "install.mjs"), bakeInstaller(template, { host, port }));
+					// Cold-bootstrap: a single self-contained installer, so a device with
+					// only Node installs the kit with no git/clone. Bake the farm's name so
+					// the served URL and the installer agree on where home is.
+					const port = Number.parseInt(options.port ?? "4321", 10) || 4321;
+					const host = options.host ?? detectTailnetHost() ?? "";
+					const template = await readFile(path.join(kitDir, "bootstrap", "install.mjs"), "utf8");
+					await writeFile(
+						path.join(outDir, "install.mjs"),
+						bakeInstaller(template, { host, port }),
+					);
 
-			// NO `--host` in the hint. Serving the kit to other devices is the whole point of
-			// `dist publish`, but since O5 that exposure comes from the DECLARATION, not from a
-			// flag: `surfaces.web` in .refarm/config.json is the ceiling, and a flag may only
-			// narrow it (docs/superpowers/specs/2026-07-30-open-by-declaration-surfaces-design.md).
-			// So the hint names the command, and the line under it names the declaration that
-			// opens it — instead of a flag that would now simply be refused.
-			const serveHint = refarmCommand([
-				"web",
-				"serve",
-				path.relative(process.cwd(), outDir) || outDir,
-				"--port",
-				String(port),
-			]);
-			const coldBootstrap = host
-				? `curl -fsSL http://${host}:${port}/install.mjs | node --input-type=module -`
-				: `FARM_HOST=<farm> curl -fsSL http://<farm>:${port}/install.mjs | node --input-type=module -`;
-			if (options.json) {
-				process.stdout.write(
-					`${JSON.stringify({
-						ok: true,
-						outDir,
-						name: manifest.name,
-						version: manifest.version,
-						files: manifest.files.length,
-						host: host || null,
-						port,
-						serveCommand: serveHint,
-						coldBootstrap,
-					})}\n`,
-				);
-			} else {
-				process.stdout.write(
-					`📦 farm-client ${manifest.version} → ${outDir}\n` +
-						`   ${manifest.files.length} file(s) + manifest.json + install.mjs (sha256-verified).\n` +
-						`   Serve on the mesh: ${serveHint}\n` +
-						`     (loopback until declared. To reach other devices, declare it in\n` +
-						`      .refarm/config.json: "surfaces": { "web": { "expose": "tailnet", "gate": "none" } }\n` +
-						`      — deliberately open, read-only, admitted devices only)\n` +
-						`   Cold-bootstrap (device, no git): ${coldBootstrap}\n` +
-						`   Update thereafter:  farm-update\n`,
-				);
-			}
-		});
+					// NO `--host` in the hint. Serving the kit to other devices is the whole point of
+					// `dist publish`, but since O5 that exposure comes from the DECLARATION, not from a
+					// flag: `surfaces.web` in .refarm/config.json is the ceiling, and a flag may only
+					// narrow it (docs/superpowers/specs/2026-07-30-open-by-declaration-surfaces-design.md).
+					// So the hint names the command, and the line under it names the declaration that
+					// opens it — instead of a flag that would now simply be refused.
+					const serveHint = refarmCommand([
+						"web",
+						"serve",
+						path.relative(process.cwd(), outDir) || outDir,
+						"--port",
+						String(port),
+					]);
+					const coldBootstrap = host
+						? `curl -fsSL http://${host}:${port}/install.mjs | node --input-type=module -`
+						: `FARM_HOST=<farm> curl -fsSL http://<farm>:${port}/install.mjs | node --input-type=module -`;
+					if (options.json) {
+						process.stdout.write(
+							`${JSON.stringify({
+								ok: true,
+								outDir,
+								name: manifest.name,
+								version: manifest.version,
+								files: manifest.files.length,
+								host: host || null,
+								port,
+								serveCommand: serveHint,
+								coldBootstrap,
+							})}\n`,
+						);
+					} else {
+						process.stdout.write(
+							`📦 farm-client ${manifest.version} → ${outDir}\n` +
+								`   ${manifest.files.length} file(s) + manifest.json + install.mjs (sha256-verified).\n` +
+								`   Serve on the mesh: ${serveHint}\n` +
+								`     (loopback until declared. To reach other devices, declare it in\n` +
+								`      .refarm/config.json: "surfaces": { "web": { "expose": "tailnet", "gate": "none" } }\n` +
+								`      — deliberately open, read-only, admitted devices only)\n` +
+								`   Cold-bootstrap (device, no git): ${coldBootstrap}\n` +
+								`   Update thereafter:  farm-update\n`,
+						);
+					}
+				},
+			),
+		);
 }
 
 export function createDistCommand(): Command {

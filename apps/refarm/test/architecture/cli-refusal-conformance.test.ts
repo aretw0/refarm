@@ -349,10 +349,6 @@ const DEEP_PROBE_EXCLUSIONS: Record<string, string> = {
  * than mechanical fixes, and guessing at those would be worse than naming them.
  */
 const KNOWN_DEFECTS: Record<string, { codes: ViolationCode[]; note: string }> = {
-	"refarm check": {
-		codes: ["escaped-exception"],
-		note: "throws `Release policy selection not found: default` out of the action in both modes.",
-	},
 	"refarm guide": {
 		codes: ["ok-false-exit-zero"],
 		note: "prints an ok:false envelope but exits 0 — `refarm guide --json && …` reads as success.",
@@ -385,10 +381,6 @@ const KNOWN_DEFECTS: Record<string, { codes: ViolationCode[]; note: string }> = 
 		codes: ["ok-false-exit-zero"],
 		note: "prints an ok:false envelope but exits 0.",
 	},
-	"refarm dist publish": {
-		codes: ["escaped-exception"],
-		note: "throws a raw ENOENT for a missing package.json out of the action in both modes.",
-	},
 	"refarm auth enroll": {
 		codes: ["json-no-envelope"],
 		note: "refuses with a plain stderr line and exit 1; --json gets nothing.",
@@ -412,10 +404,6 @@ const KNOWN_DEFECTS: Record<string, { codes: ViolationCode[]; note: string }> = 
 	"refarm tasks show": {
 		codes: ["json-no-envelope"],
 		note: "exits 1 under --json with no envelope on stdout.",
-	},
-	"refarm tidy imports": {
-		codes: ["escaped-exception"],
-		note: "a failed spawn of the package manager escapes as a raw error instead of a refusal.",
 	},
 };
 

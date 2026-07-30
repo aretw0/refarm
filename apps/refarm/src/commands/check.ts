@@ -4,6 +4,7 @@ import { refarmCommand } from "../brand.js";
 
 import { printJson } from "@refarm.dev/capabilities/envelope";
 import { STATUS_DIAGNOSTICS } from "@refarm.dev/cli/status";
+import { guardedAction, type RefusalHandoff } from "./action-boundary.js";
 import { runDefaultNodeSubstrate } from "./check-node-substrate.js";
 import type {
 	EnvironmentPressureCheck,
@@ -165,6 +166,20 @@ async function runDefaultReleasePolicy(): Promise<ReleasePolicyCheck> {
 	};
 }
 
+/** Where a `check` that could not COMPLETE sends the operator. Not "the gate failed" —
+ *  that path already prints the report and exits 1 — but "a sub-check threw", e.g. a
+ *  release policy with no `default` selection. The composite cannot say which gate is red
+ *  when one of them never answered, so the handoff is the cheaper component gate. */
+const CHECK_REFUSAL_HANDOFF: RefusalHandoff = {
+	command: "check",
+	operation: "gate",
+	error: "check-incomplete",
+	nextAction:
+		"A `refarm check` sub-check could not complete. Run the component gate to see which one, then re-run.",
+	nextCommand: refarmCommand(["health", "--json"]),
+	nextCommands: [refarmCommand(["health", "--json"]), refarmCommand(["doctor", "--json"])],
+};
+
 function isBlockingRecommendation(recommendation: DiagnosticRecommendation): boolean {
 	return recommendation.severity !== "warning" && recommendation.severity !== "info";
 }
@@ -216,90 +231,99 @@ Notes:
   Use it before a commit or handoff when you need a quick local confidence signal.
 `,
 		)
-		.action(async (options: RefarmCheckOptions) => {
-			const nextActionOnly = Boolean(options.nextAction || options.nextCommand);
-			let preflightDoctor: RefarmDoctorReport | undefined;
-			if (nextActionOnly) {
-				preflightDoctor = await deps.runDoctor({
-					failOnWarnings: options.failOnWarnings,
-				});
-				if (isRuntimePreflightFailureDoctorReport(preflightDoctor)) {
-					const recommendations = preflightDoctor.recommendations.filter(isBlockingRecommendation);
-					const payload = buildDiagnosticNextActionPayload({
-						ok: false,
-						nextActions: preflightDoctor.nextActions,
-						nextCommands: preflightDoctor.nextCommands,
-						recommendations,
-					});
-					if (options.json) {
-						printJson(payload);
-					} else if (options.nextCommand) {
-						const [command] = payload.nextCommands;
-						if (command) console.log(command);
-					} else {
-						const [action] = payload.nextActions;
-						if (action) console.log(action);
+		.action(
+			guardedAction(
+				(options: RefarmCheckOptions) => ({
+					json: options.json === true,
+					...CHECK_REFUSAL_HANDOFF,
+				}),
+				async (options: RefarmCheckOptions) => {
+					const nextActionOnly = Boolean(options.nextAction || options.nextCommand);
+					let preflightDoctor: RefarmDoctorReport | undefined;
+					if (nextActionOnly) {
+						preflightDoctor = await deps.runDoctor({
+							failOnWarnings: options.failOnWarnings,
+						});
+						if (isRuntimePreflightFailureDoctorReport(preflightDoctor)) {
+							const recommendations =
+								preflightDoctor.recommendations.filter(isBlockingRecommendation);
+							const payload = buildDiagnosticNextActionPayload({
+								ok: false,
+								nextActions: preflightDoctor.nextActions,
+								nextCommands: preflightDoctor.nextCommands,
+								recommendations,
+							});
+							if (options.json) {
+								printJson(payload);
+							} else if (options.nextCommand) {
+								const [command] = payload.nextCommands;
+								if (command) console.log(command);
+							} else {
+								const [action] = payload.nextActions;
+								if (action) console.log(action);
+							}
+							process.exitCode = 1;
+							return;
+						}
 					}
-					process.exitCode = 1;
-					return;
-				}
-			}
-			const [
-				doctor,
-				nodeSubstrate,
-				rustSubstrate,
-				environmentPressure,
-				health,
-				model,
-				workspaceExecution,
-				workspaceSweep,
-				releasePolicy,
-			] = await Promise.all([
-				preflightDoctor ??
-					deps.runDoctor({
-						failOnWarnings: options.failOnWarnings,
-					}),
-				deps.runNodeSubstrate?.(),
-				deps.runRustSubstrate?.(),
-				deps.runEnvironmentPressure?.(),
-				deps.runHealth(),
-				nextActionOnly ? undefined : deps.runModelDoctor?.(),
-				nextActionOnly ? undefined : deps.runWorkspaceExecution?.(),
-				nextActionOnly ? undefined : deps.runWorkspaceSweep?.(),
-				nextActionOnly ? undefined : deps.runReleasePolicy?.(),
-			]);
-			const report = buildRefarmCheckReport({
-				nodeSubstrate,
-				rustSubstrate,
-				environmentPressure,
-				workspaceExecution,
-				workspaceSweep,
-				releasePolicy,
-				health,
-				doctor,
-				model,
-			});
+					const [
+						doctor,
+						nodeSubstrate,
+						rustSubstrate,
+						environmentPressure,
+						health,
+						model,
+						workspaceExecution,
+						workspaceSweep,
+						releasePolicy,
+					] = await Promise.all([
+						preflightDoctor ??
+							deps.runDoctor({
+								failOnWarnings: options.failOnWarnings,
+							}),
+						deps.runNodeSubstrate?.(),
+						deps.runRustSubstrate?.(),
+						deps.runEnvironmentPressure?.(),
+						deps.runHealth(),
+						nextActionOnly ? undefined : deps.runModelDoctor?.(),
+						nextActionOnly ? undefined : deps.runWorkspaceExecution?.(),
+						nextActionOnly ? undefined : deps.runWorkspaceSweep?.(),
+						nextActionOnly ? undefined : deps.runReleasePolicy?.(),
+					]);
+					const report = buildRefarmCheckReport({
+						nodeSubstrate,
+						rustSubstrate,
+						environmentPressure,
+						workspaceExecution,
+						workspaceSweep,
+						releasePolicy,
+						health,
+						doctor,
+						model,
+					});
 
-			if (options.nextCommand && options.json) {
-				printRefarmCheckNextActionJson(report);
-			} else if (options.nextCommand) {
-				const [command] = report.nextCommands;
-				if (command) console.log(command);
-			} else if (options.nextAction && options.json) {
-				printRefarmCheckNextActionJson(report);
-			} else if (options.nextAction) {
-				const [action] = report.nextActions;
-				if (action) console.log(action);
-			} else if (options.json) {
-				printJson(report);
-			} else {
-				printRefarmCheckSummary(report);
-			}
+					if (options.nextCommand && options.json) {
+						printRefarmCheckNextActionJson(report);
+					} else if (options.nextCommand) {
+						const [command] = report.nextCommands;
+						if (command) console.log(command);
+					} else if (options.nextAction && options.json) {
+						printRefarmCheckNextActionJson(report);
+					} else if (options.nextAction) {
+						const [action] = report.nextActions;
+						if (action) console.log(action);
+					} else if (options.json) {
+						printJson(report);
+					} else {
+						printRefarmCheckSummary(report);
+					}
 
-			if (!report.ok) {
-				process.exitCode = 1;
-			}
-		});
+					if (!report.ok) {
+						process.exitCode = 1;
+					}
+				},
+			),
+		);
 }
 
 export const checkCommand = createCheckCommand();
