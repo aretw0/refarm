@@ -143,6 +143,39 @@ export function createPressureClient(
 	};
 }
 
+/**
+ * The per-device bearer credential (`refarm auth enroll`), from `FARM_TOKEN`.
+ * Absent or empty (the default, ungated farm) ⇒ `undefined`, so no header is
+ * added and behavior is byte-identical to before the auth gate existed.
+ */
+function resolveFarmToken(env: NodeJS.ProcessEnv): string | undefined {
+	const token = typeof env.FARM_TOKEN === "string" ? env.FARM_TOKEN.trim() : "";
+	return token.length > 0 ? token : undefined;
+}
+
+/** Case-insensitive `Authorization` presence check across all three `HeadersInit`
+ * shapes (`Headers`, an array of pairs, a plain object) — a caller-supplied header
+ * must win regardless of which shape it arrives in. */
+function hasAuthorizationHeader(headers: HeadersInit | undefined): boolean {
+	if (!headers) return false;
+	if (headers instanceof Headers) {
+		return headers.has("authorization");
+	}
+	if (Array.isArray(headers)) {
+		return headers.some(([key]) => key.toLowerCase() === "authorization");
+	}
+	return Object.keys(headers).some((key) => key.toLowerCase() === "authorization");
+}
+
+/** Attach `Authorization: Bearer <token>` unless the caller already set one
+ * (any casing, any `HeadersInit` shape) — never clobber an explicit header. */
+function withFarmTokenAuthorization(init: RequestInit, token: string): RequestInit {
+	if (hasAuthorizationHeader(init.headers)) return init;
+	const headers = new Headers(init.headers);
+	headers.set("Authorization", `Bearer ${token}`);
+	return { ...init, headers };
+}
+
 function normalizeSidecarBaseUrl(baseUrl: string | URL): string {
 	return String(baseUrl).replace(/\/+$/, "");
 }
@@ -174,13 +207,21 @@ export { SIDECAR_REQUEST_TIMEOUT_ENV_VAR, resolveSidecarRequestTimeoutMs };
  * client for talking to sidecars, consumed by CLIs, context providers, and
  * anything else that reaches that surface, so none of them reimplements the
  * call with a hardcoded port.
+ *
+ * This is also the single choke point that attaches the device's auth-gate
+ * credential: when `FARM_TOKEN` is set and non-empty, every call gets
+ * `Authorization: Bearer <token>` unless the caller already set that header.
+ * Absent/empty `FARM_TOKEN` ⇒ no header at all, byte-identical to before the
+ * gate existed. The token is never logged and never surfaces in a thrown error.
  */
 export async function fetchSidecarWithTimeout(
 	url: string | URL,
 	init: RequestInit = {},
 	options: SidecarRequestOptions = {},
 ): Promise<Response> {
-	return fetchWithTimeout(url, init, {
+	const token = resolveFarmToken(options.env ?? process.env);
+	const requestInit = token ? withFarmTokenAuthorization(init, token) : init;
+	return fetchWithTimeout(url, requestInit, {
 		env: options.env,
 		timeoutEnvVar: options.timeoutEnvVar ?? SIDECAR_REQUEST_TIMEOUT_ENV_VAR,
 		defaultTimeoutMs: options.defaultTimeoutMs ?? DEFAULT_SIDE_REQUEST_TIMEOUT_MS,

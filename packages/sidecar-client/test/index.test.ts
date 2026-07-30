@@ -269,4 +269,119 @@ describe("sidecar-client", () => {
 			status: 503,
 		});
 	});
+
+	// ── FARM_TOKEN → Authorization bearer (device auth gate) ────────────────────
+
+	it("adds no Authorization header when FARM_TOKEN is unset", async () => {
+		const fetchMock = vi.fn(
+			async (
+				_input: Parameters<typeof fetch>[0],
+				_init?: Parameters<typeof fetch>[1],
+			) => new Response("ok", { status: 200 }),
+		);
+
+		await fetchSidecarWithTimeout(
+			"http://sidecar.test/x",
+			{},
+			{ fetch: fetchMock as unknown as typeof fetch, env: {} },
+		);
+
+		const init = fetchMock.mock.calls[0]?.[1];
+		expect(init?.headers).toBeUndefined();
+		expect(new Headers(init?.headers).has("authorization")).toBe(false);
+	});
+
+	it("treats an empty-string FARM_TOKEN as unset (no header added)", async () => {
+		const fetchMock = vi.fn(
+			async (
+				_input: Parameters<typeof fetch>[0],
+				_init?: Parameters<typeof fetch>[1],
+			) => new Response("ok", { status: 200 }),
+		);
+
+		await fetchSidecarWithTimeout(
+			"http://sidecar.test/x",
+			{},
+			{ fetch: fetchMock as unknown as typeof fetch, env: { FARM_TOKEN: "" } },
+		);
+
+		const init = fetchMock.mock.calls[0]?.[1];
+		expect(new Headers(init?.headers).has("authorization")).toBe(false);
+	});
+
+	it("adds Authorization: Bearer <token> when FARM_TOKEN is set", async () => {
+		const fetchMock = vi.fn(
+			async (
+				_input: Parameters<typeof fetch>[0],
+				_init?: Parameters<typeof fetch>[1],
+			) => new Response("ok", { status: 200 }),
+		);
+
+		await fetchSidecarWithTimeout(
+			"http://sidecar.test/x",
+			{},
+			{ fetch: fetchMock as unknown as typeof fetch, env: { FARM_TOKEN: "secret-device-token" } },
+		);
+
+		const init = fetchMock.mock.calls[0]?.[1];
+		expect(new Headers(init?.headers).get("authorization")).toBe("Bearer secret-device-token");
+	});
+
+	it.each<[string, HeadersInit]>([
+		["a Headers instance", new Headers({ Authorization: "Bearer caller-supplied" })],
+		["an array of pairs", [["Authorization", "Bearer caller-supplied"]]],
+		["a plain object", { Authorization: "Bearer caller-supplied" }],
+		["a plain object with a lowercase key", { authorization: "Bearer caller-supplied" }],
+	])(
+		"never clobbers a caller-supplied Authorization header (%s)",
+		async (_label, callerHeaders) => {
+			const fetchMock = vi.fn(
+				async (
+					_input: Parameters<typeof fetch>[0],
+					_init?: Parameters<typeof fetch>[1],
+				) => new Response("ok", { status: 200 }),
+			);
+
+			await fetchSidecarWithTimeout(
+				"http://sidecar.test/x",
+				{ headers: callerHeaders },
+				{ fetch: fetchMock as unknown as typeof fetch, env: { FARM_TOKEN: "secret-device-token" } },
+			);
+
+			const init = fetchMock.mock.calls[0]?.[1];
+			expect(new Headers(init?.headers).get("authorization")).toBe("Bearer caller-supplied");
+		},
+	);
+
+	it("never logs the token or includes it in a thrown error's message", async () => {
+		const token = "must-never-leak-3f9a";
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const fetchMock = vi.fn(async () => {
+			throw new Error("network unreachable");
+		});
+
+		try {
+			const rejection = await fetchSidecarWithTimeout(
+				"http://sidecar.test/x",
+				{},
+				{ fetch: fetchMock as unknown as typeof fetch, env: { FARM_TOKEN: token } },
+			).catch((err: unknown) => err);
+
+			expect(rejection).toBeInstanceOf(Error);
+			expect(String((rejection as Error).message)).not.toContain(token);
+			expect(String((rejection as Error).stack)).not.toContain(token);
+
+			for (const spy of [logSpy, errorSpy, warnSpy]) {
+				for (const call of spy.mock.calls) {
+					expect(call.map((arg) => String(arg)).join(" ")).not.toContain(token);
+				}
+			}
+		} finally {
+			logSpy.mockRestore();
+			errorSpy.mockRestore();
+			warnSpy.mockRestore();
+		}
+	});
 });
