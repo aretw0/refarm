@@ -133,10 +133,41 @@ metadata at a third party. Presenting the first as free was the error.
 what proves the registry survives a device-side adapter, which is a genuinely different shape from a
 node-side one. A registry validated by two adapters of the same shape has not been validated.
 
+## D8 — Attended and unattended are different jobs, and the operator already declares which
+
+D7 called Termux "expensive". The operator corrected it, and the correction is the better design:
+
+> *"acredito que o termux ainda possa servir caso estejamos falando de um operador que sabe que
+> precisa ficar no aplicativo durante a operação para não correr o risco."*
+
+The background-poller cost applies **only to unattended delivery**. An operator who knows an
+operation is running and deliberately stays in the app pays none of it — and in that case Termux is
+the *best* option available, because it is the only fully sovereign one.
+
+Two jobs, neither better than the other:
+
+- **attended** — "I am bringing the VPN up now and watching." A local notification suffices, and no
+  third party sees anything.
+- **unattended** — "the machine woke at 3am and wants to know." Needs a channel that survives doze.
+
+**And refarm already knows which applies**, because the operator declares it: `refarm intention arm`
+is precisely *"I am attending, for this window"*. So the attention window is not only a gate for the
+VPN — it is the fact that routes delivery. Armed ⇒ the device-side adapter is enough. Not armed ⇒
+only an adapter that survives the phone being in a pocket will do.
+
+This is the uniformisation, and it is why the kit keeps growing rather than being a lesser path: the
+kit is the device-side surface, and the device-side surface is the *correct* one for attended
+operation — which is how the operator works today, phone in hand.
+
+It also means an adapter declares one more thing beside announce/answer: whether it delivers when
+nobody is attending. An adapter that only works while the operator is looking is honest and useful;
+one that claims otherwise and fails silently is D4's worst case.
+
 ## First slice
 
-The declared `delivery` catalog with announce/answer capability (D3), the registry, the three-outcome
-result (D4), and **Telegram as the first adapter, shipped as a plugin** with `network:outbound`.
+The declared `delivery` catalog with announce/answer capability (D3), the attended/unattended
+property (D8), the registry, the three-outcome result (D4), and **Telegram as the first adapter,
+shipped as a plugin** with `network:outbound`.
 
 ## Second slice
 
