@@ -44,6 +44,54 @@ import {
 	type WorkspaceExecutionStatus,
 } from "./workspace-execution.js";
 
+const WORKSPACE_HELP_COMMAND = refarmCommand(["workspace", "--help"]);
+
+/**
+ * The action boundary — the same one `commands/intention.ts` adopted in 0534737b, and
+ * for the same reason: a validation error must REFUSE, not throw. An operator-facing
+ * command must never surface a raw Node stack trace, and a `--json` consumer must get
+ * an envelope on the error path too.
+ *
+ * Found by `test/architecture/cli-refusal-conformance.test.ts`: `refarm workspace
+ * sources materialize` (and `refresh`) with neither `--dry-run` nor `--run` threw
+ * straight out of the action. Every `throw` below stays exactly where it is — this is
+ * the single place they stop being internal signals.
+ */
+function failWorkspace(operation: string, options: { json?: boolean }, error: unknown): void {
+	const message = error instanceof Error ? error.message : String(error);
+	if (options.json) {
+		printJson(
+			buildJsonErrorEnvelope({
+				command: "workspace",
+				operation,
+				error: "workspace-invalid-request",
+				message,
+				nextAction: `Run \`${WORKSPACE_HELP_COMMAND}\` to see the accepted options.`,
+				nextCommand: WORKSPACE_HELP_COMMAND,
+			}),
+		);
+	} else {
+		console.error(chalk.red(`✗  ${message}`));
+		console.error(chalk.dim(`   ${WORKSPACE_HELP_COMMAND}`));
+	}
+	process.exitCode = 1;
+}
+
+/** Wrap an action so a thrown validation error becomes the repo's refusal shape
+ *  instead of an uncaught exception. */
+function guardedWorkspace<TOptions extends { json?: boolean }>(
+	operation: string,
+	handler: (options: TOptions, command: Command) => void,
+): (options: TOptions, command: Command) => void {
+	return (options, command) => {
+		try {
+			handler(options, command);
+		} catch (error) {
+			failWorkspace(operation, options, error);
+		}
+	};
+}
+
 export interface WorkspaceExecutionCommandOptions {
 	cwd?: string;
 	workspace?: string;
@@ -657,6 +705,9 @@ function printWorkspaceSourceMaterialize(
 					nextCommand: WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND,
 				}),
 			);
+			// An ok:false envelope with exit 0 is a lie to the shell: `refarm … --json &&`
+			// reads this refusal as success. Envelope and exit code must agree.
+			process.exitCode = 1;
 			return;
 		}
 		throw new Error("workspace sources materialize currently requires --dry-run or --run");
@@ -780,6 +831,8 @@ function printWorkspaceSourceRefresh(
 					nextCommand: WORKSPACE_SOURCES_REFRESH_DRY_RUN_JSON_COMMAND,
 				}),
 			);
+			// Same contract as materialize above: an ok:false envelope must not exit 0.
+			process.exitCode = 1;
 			return;
 		}
 		throw new Error("workspace sources refresh currently requires --dry-run or --run");
@@ -956,15 +1009,20 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.option("--dry-run", "Print clone processes without executing them")
 		.option("--run", "Execute source cache materialization processes")
 		.option("--json", "Output machine-readable materialization dry-run")
-		.action((options: WorkspaceSourceMaterializeCommandOptions, materializeCommand: Command) => {
-			printWorkspaceSourceMaterialize(
-				{
-					...options,
-					json: options.json || materializeCommand.parent?.opts().json,
+		.action(
+			guardedWorkspace<WorkspaceSourceMaterializeCommandOptions>(
+				"source-materialize",
+				(options, materializeCommand) => {
+					printWorkspaceSourceMaterialize(
+						{
+							...options,
+							json: options.json || materializeCommand.parent?.opts().json,
+						},
+						deps,
+					);
 				},
-				deps,
-			);
-		});
+			),
+		);
 
 	sourcesCommand
 		.command("refresh")
@@ -972,15 +1030,20 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.option("--dry-run", "Print fetch processes without executing them")
 		.option("--run", "Execute stale source cache refresh processes")
 		.option("--json", "Output machine-readable refresh dry-run")
-		.action((options: WorkspaceSourceRefreshCommandOptions, refreshCommand: Command) => {
-			printWorkspaceSourceRefresh(
-				{
-					...options,
-					json: options.json || refreshCommand.parent?.opts().json,
+		.action(
+			guardedWorkspace<WorkspaceSourceRefreshCommandOptions>(
+				"source-refresh",
+				(options, refreshCommand) => {
+					printWorkspaceSourceRefresh(
+						{
+							...options,
+							json: options.json || refreshCommand.parent?.opts().json,
+						},
+						deps,
+					);
 				},
-				deps,
-			);
-		});
+			),
+		);
 
 	sourcesCommand.action((options: WorkspaceSourcesCommandOptions) => {
 		printWorkspaceSources(options, deps);
