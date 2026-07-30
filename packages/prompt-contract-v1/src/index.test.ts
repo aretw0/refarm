@@ -1,13 +1,30 @@
 import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 import {
+	checkPendingPromptAnswer,
 	createAutoOperatorChannel,
+	createPeeredOperatorChannel,
+	createPendingPromptHub,
+	createRemoteOperatorChannel,
 	createScriptedOperatorChannel,
 	createStdioOperatorChannel,
+	handlePendingPromptHttp,
+	NODE_LOCAL_PROMPT_DEVICE,
+	RESERVED_PROMPT_DEVICES,
 	OperatorPromptCancelledError,
+	OperatorPromptExpiredError,
+	parseOperatorPrompt,
+	parsePendingPrompt,
+	parsePendingPromptList,
+	PENDING_PROMPT_WIRE,
 	PROMPT_CAPABILITY,
+	resolveAnsweringDevice,
 	runOperatorChannelConformance,
+	TERMINAL_PROMPT_DEVICE,
+	toPendingPrompt,
 	type OperatorChannel,
+	type OperatorPrompt,
+	type PendingPromptHub,
 } from "./index.js";
 
 function makeTtyIo() {
@@ -507,6 +524,692 @@ describe("runOperatorChannelConformance", () => {
 		// 5 — cancellation: runOperatorChannelConformance calls triggerCancel itself.
 
 		const result = await resultPromise;
+		expect(result.failures).toEqual([]);
+		expect(result.pass).toBe(true);
+	});
+});
+
+// ── The pending prompt on the wire ────────────────────────────────────────────
+
+const ASKER = { command: "refarm auth enrol", pid: 4242, host: "serpro-1577853" };
+
+function pendingOf(prompt: OperatorPrompt, id = "p-1", timeoutMs: number | null = null) {
+	return toPendingPrompt(prompt, { id, asker: ASKER, askedAt: 1_000, timeoutMs });
+}
+
+/** JSON is the only thing the wire actually carries — round-trip through it,
+ *  never through a structured clone that would hide a non-serialisable field. */
+function overWire<T>(value: T): unknown {
+	return JSON.parse(JSON.stringify(value));
+}
+
+describe("PendingPrompt wire shape", () => {
+	it("round-trips every prompt kind through JSON", () => {
+		const prompts: OperatorPrompt[] = [
+			{ type: "confirm", question: "Proceed?", default: false },
+			{
+				type: "select",
+				question: "Which node?",
+				options: [
+					{ value: "a", label: "A", description: "the first" },
+					{ value: "b", label: "B" },
+				],
+				default: "b",
+			},
+			{ type: "text", question: "Farm name?", default: "serpro", placeholder: "MagicDNS" },
+			{ type: "secret", question: "VPN password?", visibleTail: 2 },
+		];
+		for (const prompt of prompts) {
+			const pending = pendingOf(prompt);
+			expect(parsePendingPrompt(overWire(pending))).toEqual(pending);
+		}
+	});
+
+	it("marks a secret prompt as travelling, and nothing else (P4)", () => {
+		expect(pendingOf({ type: "secret", question: "token?" }).answerTravels).toBe(true);
+		expect(pendingOf({ type: "text", question: "name?" }).answerTravels).toBe(false);
+		expect(pendingOf({ type: "confirm", question: "ok?" }).answerTravels).toBe(false);
+		expect(
+			pendingOf({ type: "select", question: "which?", options: [{ value: "a", label: "A" }] })
+				.answerTravels,
+		).toBe(false);
+	});
+
+	it("recomputes answerTravels on parse — a peer cannot strip the P4 warning", () => {
+		const pending = pendingOf({ type: "secret", question: "VPN password?" });
+		const tampered = { ...(overWire(pending) as object), answerTravels: false };
+		expect(parsePendingPrompt(tampered)?.answerTravels).toBe(true);
+	});
+
+	it("carries the asker's deadline, or null when there is none (P5)", () => {
+		expect(pendingOf({ type: "text", question: "q" }, "p-1", null).expiresAt).toBeNull();
+		expect(pendingOf({ type: "text", question: "q" }, "p-1", 5_000).expiresAt).toBe(6_000);
+	});
+
+	it("rejects malformed wire values instead of trusting them", () => {
+		const good = overWire(pendingOf({ type: "text", question: "q" })) as Record<string, unknown>;
+		expect(parsePendingPrompt(null)).toBeNull();
+		expect(parsePendingPrompt("nope")).toBeNull();
+		expect(parsePendingPrompt({ ...good, wire: "pending-prompt.v2" })).toBeNull();
+		expect(parsePendingPrompt({ ...good, id: "" })).toBeNull();
+		expect(parsePendingPrompt({ ...good, prompt: { type: "wat", question: "q" } })).toBeNull();
+		expect(parsePendingPrompt({ ...good, prompt: { type: "text" } })).toBeNull();
+		expect(parsePendingPrompt({ ...good, asker: {} })).toBeNull();
+		expect(parsePendingPrompt({ ...good, askedAt: "soon" })).toBeNull();
+		expect(parsePendingPrompt({ ...good, expiresAt: "later" })).toBeNull();
+		// A select with no options is not a question anybody can answer.
+		expect(
+			parsePendingPrompt({ ...good, prompt: { type: "select", question: "q", options: [] } }),
+		).toBeNull();
+	});
+
+	it("drops unparseable entries from a list instead of failing the whole list", () => {
+		const ok = overWire(pendingOf({ type: "text", question: "q" }, "p-ok"));
+		expect(parsePendingPromptList({ prompts: [ok, { junk: true }, null] })).toHaveLength(1);
+		expect(parsePendingPromptList({})).toEqual([]);
+		expect(parsePendingPromptList(null)).toEqual([]);
+	});
+
+	it("drops a select default that is not one of the options", () => {
+		const parsed = parseOperatorPrompt({
+			type: "select",
+			question: "q",
+			options: [{ value: "a", label: "A" }],
+			default: "ghost",
+		});
+		expect(parsed).toEqual({ type: "select", question: "q", options: [{ value: "a", label: "A" }] });
+	});
+});
+
+describe("checkPendingPromptAnswer", () => {
+	it("holds a select to the options it offered", () => {
+		const prompt: OperatorPrompt = {
+			type: "select",
+			question: "q",
+			options: [{ value: "a", label: "A" }],
+		};
+		expect(checkPendingPromptAnswer(prompt, "a")).toEqual({ ok: true, value: "a" });
+		expect(checkPendingPromptAnswer(prompt, "z").ok).toBe(false);
+		expect(checkPendingPromptAnswer(prompt, 1).ok).toBe(false);
+	});
+
+	it("accepts a boolean or its usual spellings for confirm", () => {
+		const prompt: OperatorPrompt = { type: "confirm", question: "q" };
+		expect(checkPendingPromptAnswer(prompt, true)).toEqual({ ok: true, value: true });
+		expect(checkPendingPromptAnswer(prompt, "no")).toEqual({ ok: true, value: false });
+		expect(checkPendingPromptAnswer(prompt, "Y")).toEqual({ ok: true, value: true });
+		expect(checkPendingPromptAnswer(prompt, "maybe").ok).toBe(false);
+	});
+
+	it("never quotes the submitted value in a rejection — that is where a secret would leak", () => {
+		const result = checkPendingPromptAnswer({ type: "secret", question: "q" }, 12345);
+		expect(result.ok).toBe(false);
+		expect(result.ok === false && result.reason).not.toContain("12345");
+	});
+});
+
+describe("resolveAnsweringDevice", () => {
+	it("records the identity the gate resolved", () => {
+		expect(resolveAnsweringDevice("pixel-7")).toBe("pixel-7");
+	});
+
+	it("records an unauthenticated caller as node-local", () => {
+		expect(resolveAnsweringDevice(null)).toBe(NODE_LOCAL_PROMPT_DEVICE);
+		expect(resolveAnsweringDevice(undefined)).toBe(NODE_LOCAL_PROMPT_DEVICE);
+		expect(resolveAnsweringDevice("   ")).toBe(NODE_LOCAL_PROMPT_DEVICE);
+	});
+
+	it("cannot be talked into a reserved identity — they are unreachable by trimming", () => {
+		for (const reserved of RESERVED_PROMPT_DEVICES) {
+			expect(resolveAnsweringDevice(reserved)).toBe(reserved.trim());
+			expect(RESERVED_PROMPT_DEVICES).not.toContain(reserved.trim());
+		}
+	});
+});
+
+// ── The races. Exactly one answer may settle a prompt. ────────────────────────
+
+describe("createPendingPromptHub", () => {
+	it("lists what is pending and forgets it the moment it settles (P1)", () => {
+		const hub = createPendingPromptHub();
+		const ticket = hub.publish(pendingOf({ type: "text", question: "q" }));
+		expect(hub.list().map((p) => p.id)).toEqual(["p-1"]);
+		hub.answer("p-1", "answer", "pixel-7");
+		expect(hub.list()).toEqual([]);
+		return expect(ticket.settled).resolves.toMatchObject({ value: "answer" });
+	});
+
+	it("lets exactly one of two simultaneous devices win (P2)", async () => {
+		const hub = createPendingPromptHub();
+		const ticket = hub.publish(pendingOf({ type: "text", question: "q" }));
+
+		// Both submissions in the SAME tick — the shape of two operators tapping
+		// at once, which is the race the rule exists for.
+		const results = [hub.answer("p-1", "from-pixel", "pixel-7"), hub.answer("p-1", "from-tablet", "tablet-1")];
+
+		expect(results.filter((r) => r.ok)).toHaveLength(1);
+		const loser = results.find((r) => !r.ok)!;
+		expect(loser).toMatchObject({ ok: false, reason: "already-settled" });
+		expect(loser.ok === false && loser.reason === "already-settled" && loser.settlement.device).toBe(
+			"pixel-7",
+		);
+		await expect(ticket.settled).resolves.toMatchObject({ value: "from-pixel" });
+	});
+
+	it("tells a device that lost to the terminal WHO settled it, not just 404", async () => {
+		const hub = createPendingPromptHub();
+		const ticket = hub.publish(pendingOf({ type: "text", question: "q" }));
+		ticket.withdraw("cancelled", TERMINAL_PROMPT_DEVICE);
+
+		const late = hub.answer("p-1", "too late", "pixel-7");
+		expect(late).toMatchObject({
+			ok: false,
+			reason: "already-settled",
+			settlement: { outcome: "abandoned", device: TERMINAL_PROMPT_DEVICE, reason: "cancelled" },
+		});
+	});
+
+	it("reports a prompt it never knew as unknown, not as settled", () => {
+		expect(createPendingPromptHub().answer("ghost", "x", "pixel-7")).toEqual({
+			ok: false,
+			reason: "unknown",
+		});
+	});
+
+	it("refuses an answer the prompt's own constraints reject", () => {
+		const hub = createPendingPromptHub();
+		hub.publish(
+			pendingOf({ type: "select", question: "q", options: [{ value: "a", label: "A" }] }),
+		);
+		expect(hub.answer("p-1", "z", "pixel-7")).toMatchObject({ ok: false, reason: "invalid" });
+		// Still pending: a rejected answer settles nothing.
+		expect(hub.list()).toHaveLength(1);
+	});
+
+	it("withdraws idempotently — an asker dying twice is not two settlements", () => {
+		const hub = createPendingPromptHub();
+		const ticket = hub.publish(pendingOf({ type: "text", question: "q" }));
+		expect(ticket.withdraw()).toBe(true);
+		expect(ticket.withdraw()).toBe(false);
+	});
+
+	it("refuses to grow an unbounded queue of questions nobody will see", () => {
+		const hub = createPendingPromptHub({ maxPending: 2 });
+		hub.publish(pendingOf({ type: "text", question: "q" }, "p-1"));
+		hub.publish(pendingOf({ type: "text", question: "q" }, "p-2"));
+		expect(() => hub.publish(pendingOf({ type: "text", question: "q" }, "p-3"))).toThrow(
+			/refusing to queue more/,
+		);
+	});
+
+	it("bounds what it remembers about settled prompts", () => {
+		const hub = createPendingPromptHub({ recentSettlements: 1 });
+		hub.publish(pendingOf({ type: "text", question: "q" }, "p-1"));
+		hub.publish(pendingOf({ type: "text", question: "q" }, "p-2"));
+		hub.answer("p-1", "a", "pixel-7");
+		hub.answer("p-2", "b", "pixel-7");
+		expect(hub.settlementOf("p-2")).not.toBeNull();
+		expect(hub.settlementOf("p-1")).toBeNull();
+	});
+
+	it("carries no answer value in a settlement — the safe-to-show record stays safe (P4)", () => {
+		const hub = createPendingPromptHub();
+		hub.publish(pendingOf({ type: "secret", question: "VPN password?" }));
+		const result = hub.answer("p-1", "hunter2-do-not-log", "pixel-7");
+		expect(JSON.stringify(result.ok && result.settlement)).not.toContain("hunter2");
+		expect(JSON.stringify(hub.settlementOf("p-1"))).not.toContain("hunter2");
+	});
+
+	it("notifies subscribers on publish", () => {
+		const hub = createPendingPromptHub();
+		const seen: string[] = [];
+		const off = hub.subscribe((p) => seen.push(p.id));
+		hub.publish(pendingOf({ type: "text", question: "q" }, "p-1"));
+		off();
+		hub.publish(pendingOf({ type: "text", question: "q" }, "p-2"));
+		expect(seen).toEqual(["p-1"]);
+	});
+});
+
+// ── The remote channel, and local/remote as peers ─────────────────────────────
+
+/** A channel whose single in-flight `ask()` the test settles by hand, and which
+ *  honours the abort signal exactly as the stdio channel does. Stands in for the
+ *  terminal without needing a fake TTY per test. */
+function makeControllableChannel() {
+	let resolveAsk: ((value: boolean | string) => void) | null = null;
+	let rejectAsk: ((error: unknown) => void) | null = null;
+	const create = (signal: AbortSignal): OperatorChannel => ({
+		ask: ((_prompt: OperatorPrompt) =>
+			new Promise<boolean | string>((resolve, reject) => {
+				resolveAsk = resolve;
+				rejectAsk = reject;
+				signal.addEventListener("abort", () => reject(new OperatorPromptCancelledError()), {
+					once: true,
+				});
+			})) as OperatorChannel["ask"],
+	});
+	return {
+		create,
+		answer: (value: boolean | string) => resolveAsk?.(value),
+		fail: (error: unknown) => rejectAsk?.(error),
+	};
+}
+
+/** An attending device that answers whatever appears — the phone, in a test. */
+function attend(hub: PendingPromptHub, device = "pixel-7") {
+	return hub.subscribe((pending) => {
+		// The conformance suite's cancellation check must be left to be cancelled;
+		// answering it would settle the very prompt whose interruption is under test.
+		if (pending.prompt.question === "_conformance_cancel_") return;
+		queueMicrotask(() => {
+			const prompt = pending.prompt;
+			const value =
+				prompt.type === "confirm"
+					? true
+					: prompt.type === "select"
+						? prompt.options[0]!.value
+						: "attended";
+			hub.answer(pending.id, value, device);
+		});
+	});
+}
+
+describe("createRemoteOperatorChannel", () => {
+	it("returns the value an attending device submitted, and records which one (P3)", async () => {
+		const hub = createPendingPromptHub();
+		const channel = createRemoteOperatorChannel({ hub, asker: ASKER });
+		const pendingAsk = channel.ask({ type: "text", question: "Farm name?" });
+		await tick();
+		const [published] = hub.list();
+		expect(published?.asker.command).toBe("refarm auth enrol");
+		hub.answer(published!.id, "serpro-1577853", "pixel-7");
+		await expect(pendingAsk).resolves.toBe("serpro-1577853");
+		expect(channel.lastSettlement()).toMatchObject({ outcome: "answered", device: "pixel-7" });
+	});
+
+	it("holds the answer to the prompt's constraints, wherever it came from", async () => {
+		const hub = createPendingPromptHub();
+		const channel = createRemoteOperatorChannel({ hub, asker: ASKER });
+		const pendingAsk = channel.ask({
+			type: "select",
+			question: "Which?",
+			options: [{ value: "a", label: "A" }],
+		});
+		await tick();
+		const id = hub.list()[0]!.id;
+		expect(hub.answer(id, "z", "pixel-7")).toMatchObject({ ok: false, reason: "invalid" });
+		hub.answer(id, "a", "pixel-7");
+		await expect(pendingAsk).resolves.toBe("a");
+	});
+
+	it("expires into a distinct outcome the asker can handle, never a hang (P5)", async () => {
+		const hub = createPendingPromptHub();
+		const channel = createRemoteOperatorChannel({ hub, asker: ASKER, timeoutMs: 20 });
+		await expect(channel.ask({ type: "text", question: "q" })).rejects.toBeInstanceOf(
+			OperatorPromptExpiredError,
+		);
+		// An expired question is not still on offer.
+		expect(hub.list()).toEqual([]);
+		expect(channel.lastSettlement()).toMatchObject({ outcome: "abandoned", reason: "expired" });
+	});
+
+	it("is cancellable by its signal, rejecting exactly as a Ctrl+C does", async () => {
+		const hub = createPendingPromptHub();
+		const abort = new AbortController();
+		const channel = createRemoteOperatorChannel({ hub, asker: ASKER, signal: abort.signal });
+		const pendingAsk = channel.ask({ type: "text", question: "q" });
+		await tick();
+		abort.abort();
+		await expect(pendingAsk).rejects.toBeInstanceOf(OperatorPromptCancelledError);
+	});
+
+	it("refuses a remote answer that arrives after cancellation", async () => {
+		const hub = createPendingPromptHub();
+		const abort = new AbortController();
+		const channel = createRemoteOperatorChannel({ hub, asker: ASKER, signal: abort.signal });
+		const pendingAsk = channel.ask({ type: "text", question: "q" });
+		await tick();
+		const id = hub.list()[0]!.id;
+		abort.abort();
+		await expect(pendingAsk).rejects.toBeInstanceOf(OperatorPromptCancelledError);
+		expect(hub.answer(id, "too late", "pixel-7")).toMatchObject({
+			ok: false,
+			reason: "already-settled",
+		});
+	});
+
+	it("dies with its asker — a withdrawn prompt is answerable by nobody (P1)", async () => {
+		const hub = createPendingPromptHub();
+		const channel = createRemoteOperatorChannel({ hub, asker: ASKER });
+		const pendingAsk = channel.ask({ type: "text", question: "q" });
+		await tick();
+		const id = hub.list()[0]!.id;
+		// The asker's process is going away mid-flight.
+		expect(hub.answer(id, "x", "pixel-7").ok).toBe(true);
+		await expect(pendingAsk).resolves.toBe("x");
+		expect(hub.answer(id, "y", "tablet-1")).toMatchObject({
+			ok: false,
+			reason: "already-settled",
+		});
+	});
+});
+
+describe("createPeeredOperatorChannel", () => {
+	function peered(hub: PendingPromptHub, local: ReturnType<typeof makeControllableChannel>, timeoutMs: number | null = null) {
+		const notices: string[] = [];
+		const channel = createPeeredOperatorChannel({
+			local: local.create,
+			remote: (signal) => createRemoteOperatorChannel({ hub, asker: ASKER, signal, timeoutMs }),
+			notify: (message) => notices.push(message),
+		});
+		return { channel, notices };
+	}
+
+	it("settles at the terminal and withdraws the question from every device", async () => {
+		const hub = createPendingPromptHub();
+		const local = makeControllableChannel();
+		const { channel } = peered(hub, local);
+		const pendingAsk = channel.ask({ type: "text", question: "q" });
+		await tick();
+		const id = hub.list()[0]!.id;
+
+		local.answer("typed-at-the-desk");
+		await expect(pendingAsk).resolves.toBe("typed-at-the-desk");
+		expect(hub.list()).toEqual([]);
+		expect(hub.answer(id, "from-phone", "pixel-7")).toMatchObject({
+			ok: false,
+			reason: "already-settled",
+		});
+	});
+
+	it("settles remotely, interrupts the terminal, and says which device answered (P2)", async () => {
+		const hub = createPendingPromptHub();
+		const local = makeControllableChannel();
+		const { channel, notices } = peered(hub, local);
+		const pendingAsk = channel.ask({ type: "text", question: "q" });
+		await tick();
+
+		hub.answer(hub.list()[0]!.id, "typed-on-the-phone", "pixel-7");
+		await expect(pendingAsk).resolves.toBe("typed-on-the-phone");
+		// The terminal is TOLD, and told by whom — silence is the failure to avoid.
+		expect(notices).toHaveLength(1);
+		expect(notices[0]).toContain("pixel-7");
+		// ...and never carries the answer itself.
+		expect(notices[0]).not.toContain("typed-on-the-phone");
+	});
+
+	it("propagates a Ctrl+C at the terminal, and a remote answer after it does not apply", async () => {
+		const hub = createPendingPromptHub();
+		const local = makeControllableChannel();
+		const { channel } = peered(hub, local);
+		const pendingAsk = channel.ask({ type: "text", question: "q" });
+		await tick();
+		const id = hub.list()[0]!.id;
+
+		local.fail(new OperatorPromptCancelledError());
+		await expect(pendingAsk).rejects.toBeInstanceOf(OperatorPromptCancelledError);
+		expect(hub.answer(id, "too late", "pixel-7")).toMatchObject({
+			ok: false,
+			reason: "already-settled",
+		});
+	});
+
+	it("keeps the terminal prompt alive when the remote side is simply broken", async () => {
+		const local = makeControllableChannel();
+		const notices: string[] = [];
+		const channel = createPeeredOperatorChannel({
+			local: local.create,
+			remote: () => ({
+				ask: (() => Promise.reject(new Error("sidecar unreachable"))) as OperatorChannel["ask"],
+				lastSettlement: () => null,
+			}),
+			notify: (message) => notices.push(message),
+		});
+		const pendingAsk = channel.ask({ type: "text", question: "q" });
+		await tick();
+		local.answer("still works");
+		await expect(pendingAsk).resolves.toBe("still works");
+		expect(notices).toEqual([]);
+	});
+
+	it("ends BOTH sides when the asker's own deadline passes (P5)", async () => {
+		const hub = createPendingPromptHub();
+		const local = makeControllableChannel();
+		const { channel } = peered(hub, local, 20);
+		const pendingAsk = channel.ask({ type: "text", question: "q" });
+		await expect(pendingAsk).rejects.toBeInstanceOf(OperatorPromptExpiredError);
+		// The terminal was released too — an expired ask leaves nothing hanging.
+		local.answer("late");
+		expect(hub.list()).toEqual([]);
+	});
+
+	it("interrupts a REAL stdio prompt when the answer arrives from a device", async () => {
+		const hub = createPendingPromptHub();
+		const io = makeLineModeTtyIo();
+		const channel = createPeeredOperatorChannel({
+			local: (signal) => createStdioOperatorChannel({ ...io, signal }),
+			remote: (signal) => createRemoteOperatorChannel({ hub, asker: ASKER, signal }),
+			notify: () => {},
+		});
+		const pendingAsk = channel.ask({ type: "text", question: "Farm name?" });
+		await tick();
+		hub.answer(hub.list()[0]!.id, "serpro-1577853", "pixel-7");
+		await expect(pendingAsk).resolves.toBe("serpro-1577853");
+	});
+
+	it("still cancels locally with a real Ctrl+C while a remote peer is attending", async () => {
+		const hub = createPendingPromptHub();
+		const { input, output } = makeTtyIo();
+		const channel = createPeeredOperatorChannel({
+			local: (signal) => createStdioOperatorChannel({ input, output, signal }),
+			remote: (signal) => createRemoteOperatorChannel({ hub, asker: ASKER, signal }),
+			notify: () => {},
+		});
+		const pendingAsk = channel.ask({ type: "text", question: "Farm name?" });
+		await tick();
+		input.emit("keypress", "", { ctrl: true, name: "c" });
+		await expect(pendingAsk).rejects.toBeInstanceOf(OperatorPromptCancelledError);
+		// The question is gone from every attending device too — a cancelled ask
+		// leaves nothing on offer anywhere.
+		expect(hub.list()).toEqual([]);
+	});
+});
+
+// ── The HTTP surface ──────────────────────────────────────────────────────────
+
+describe("handlePendingPromptHttp", () => {
+	function hubWith(prompt: OperatorPrompt = { type: "text", question: "Farm name?" }) {
+		const hub = createPendingPromptHub();
+		hub.publish(pendingOf(prompt));
+		return hub;
+	}
+
+	it("lists pending prompts and states the interval to poll at", () => {
+		const response = handlePendingPromptHttp(hubWith(), { method: "GET", path: "/prompts" });
+		expect(response.status).toBe(200);
+		expect(response.body.wire).toBe(PENDING_PROMPT_WIRE);
+		expect(response.body.pollIntervalMs).toBeGreaterThan(0);
+		expect(parsePendingPromptList(overWire(response.body))).toHaveLength(1);
+	});
+
+	it("accepts an answer from an enrolled device and records it as that device (P3)", () => {
+		const hub = hubWith();
+		const response = handlePendingPromptHttp(hub, {
+			method: "POST",
+			path: "/prompts/p-1/answer",
+			body: { value: "serpro-1577853" },
+			authenticatedDevice: "pixel-7",
+		});
+		expect(response).toEqual({ status: 200, body: { outcome: "answered", device: "pixel-7" } });
+		expect(hub.settlementOf("p-1")?.device).toBe("pixel-7");
+	});
+
+	it("never lets a caller name itself — the gate's identity wins", () => {
+		const hub = hubWith();
+		handlePendingPromptHttp(hub, {
+			method: "POST",
+			path: "/prompts/p-1/answer",
+			body: { value: "x", device: "somebody-else" },
+			authenticatedDevice: "pixel-7",
+		});
+		expect(hub.settlementOf("p-1")?.device).toBe("pixel-7");
+	});
+
+	it("records an UNAUTHENTICATED loopback answer as node-local, whatever it claims", () => {
+		// The node's loopback listener is ungated by design (a token the node
+		// presents to itself defends nothing). Answering from there is acceptable —
+		// a local caller could equally walk to the terminal and type — but it must
+		// never be able to forge WHO answered.
+		for (const claimed of [TERMINAL_PROMPT_DEVICE, "pixel-7", NODE_LOCAL_PROMPT_DEVICE, ""]) {
+			const hub = hubWith();
+			const response = handlePendingPromptHttp(hub, {
+				method: "POST",
+				path: "/prompts/p-1/answer",
+				body: { value: "x", device: claimed },
+				authenticatedDevice: null,
+			});
+			expect(response.status).toBe(200);
+			expect(hub.settlementOf("p-1")?.device).toBe(NODE_LOCAL_PROMPT_DEVICE);
+		}
+	});
+
+	it("answers a lost race with 409 and who won, not a bare 404", () => {
+		const hub = hubWith();
+		hub.answer("p-1", "first", "pixel-7");
+		const response = handlePendingPromptHttp(hub, {
+			method: "POST",
+			path: "/prompts/p-1/answer",
+			body: { value: "second" },
+			authenticatedDevice: "tablet-1",
+		});
+		expect(response.status).toBe(409);
+		expect(response.body).toMatchObject({ error: "already-settled", device: "pixel-7" });
+	});
+
+	it("rejects an answer the prompt's constraints refuse, with 400", () => {
+		const hub = hubWith({ type: "select", question: "q", options: [{ value: "a", label: "A" }] });
+		const response = handlePendingPromptHttp(hub, {
+			method: "POST",
+			path: "/prompts/p-1/answer",
+			body: { value: "z" },
+			authenticatedDevice: "pixel-7",
+		});
+		expect(response.status).toBe(400);
+	});
+
+	it("404s an unknown prompt and an unknown path, 405s a wrong method", () => {
+		const hub = hubWith();
+		expect(
+			handlePendingPromptHttp(hub, { method: "POST", path: "/prompts/ghost/answer", body: {} })
+				.status,
+		).toBe(404);
+		expect(handlePendingPromptHttp(hub, { method: "GET", path: "/nope" }).status).toBe(404);
+		expect(handlePendingPromptHttp(hub, { method: "POST", path: "/prompts" }).status).toBe(405);
+		expect(handlePendingPromptHttp(hub, { method: "GET", path: "/prompts/p-1/answer" }).status).toBe(
+			405,
+		);
+	});
+
+	it("cannot be used to read an answer back — only to give one", () => {
+		const hub = hubWith({ type: "secret", question: "VPN password?" });
+		const answer = handlePendingPromptHttp(hub, {
+			method: "POST",
+			path: "/prompts/p-1/answer",
+			body: { value: "hunter2-do-not-log" },
+			authenticatedDevice: "pixel-7",
+		});
+		const list = handlePendingPromptHttp(hub, { method: "GET", path: "/prompts" });
+		const conflict = handlePendingPromptHttp(hub, {
+			method: "POST",
+			path: "/prompts/p-1/answer",
+			body: { value: "probe" },
+			authenticatedDevice: "tablet-1",
+		});
+		for (const response of [answer, list, conflict]) {
+			expect(JSON.stringify(response)).not.toContain("hunter2");
+		}
+	});
+});
+
+describe("a secret answered from a device (P4)", () => {
+	it("never appears in anything either side renders, logs, or returns to a peer", async () => {
+		const SECRET = "s3nh4-do-cofre-nunca-logar";
+		const hub = createPendingPromptHub();
+		const written: string[] = [];
+		const { input, output } = makeTtyIo();
+		output.on("data", (chunk) => written.push(String(chunk)));
+
+		const channel = createPeeredOperatorChannel({
+			local: (signal) => createStdioOperatorChannel({ input, output, signal }),
+			remote: (signal) => createRemoteOperatorChannel({ hub, asker: ASKER, signal }),
+			notify: (message) => written.push(message),
+		});
+		const pendingAsk = channel.ask({ type: "secret", question: "VPN password?" });
+		await tick();
+
+		const published = hub.list()[0]!;
+		// The attending device is TOLD the answer will travel, before typing.
+		expect(published.answerTravels).toBe(true);
+		written.push(JSON.stringify(handlePendingPromptHttp(hub, { method: "GET", path: "/prompts" })));
+
+		written.push(
+			JSON.stringify(
+				handlePendingPromptHttp(hub, {
+					method: "POST",
+					path: `/prompts/${published.id}/answer`,
+					body: { value: SECRET },
+					authenticatedDevice: "pixel-7",
+				}),
+			),
+		);
+
+		// The asker — and only the asker — receives the value.
+		await expect(pendingAsk).resolves.toBe(SECRET);
+		written.push(JSON.stringify(hub.settlementOf(published.id)));
+		expect(written.join("\n")).not.toContain(SECRET);
+	});
+});
+
+describe("runOperatorChannelConformance — the remote channel is a subject too", () => {
+	it("passes for createRemoteOperatorChannel with a device attending", async () => {
+		const hub = createPendingPromptHub();
+		const abort = new AbortController();
+		const off = attend(hub);
+		const channel = createRemoteOperatorChannel({ hub, asker: ASKER, signal: abort.signal });
+		const result = await runOperatorChannelConformance(channel, {
+			triggerCancel: () => abort.abort(),
+		});
+		off();
+		expect(result.failures).toEqual([]);
+		expect(result.pass).toBe(true);
+	});
+
+	it("passes for createPeeredOperatorChannel, whichever peer answers", async () => {
+		const hub = createPendingPromptHub();
+		const off = attend(hub, "tablet-1");
+		let cancelPeer: (() => void) | null = null;
+		const channel = createPeeredOperatorChannel({
+			// The terminal is present but silent — every conformance answer arrives
+			// from the device, which is exactly the path under test.
+			local: (signal) => ({
+				ask: ((_prompt: OperatorPrompt) =>
+					new Promise<boolean | string>((_resolve, reject) => {
+						cancelPeer = () => reject(new OperatorPromptCancelledError());
+						signal.addEventListener(
+							"abort",
+							() => reject(new OperatorPromptCancelledError()),
+							{ once: true },
+						);
+					})) as OperatorChannel["ask"],
+			}),
+			remote: (signal) => createRemoteOperatorChannel({ hub, asker: ASKER, signal }),
+			notify: () => {},
+		});
+		const result = await runOperatorChannelConformance(channel, {
+			triggerCancel: () => cancelPeer?.(),
+		});
+		off();
 		expect(result.failures).toEqual([]);
 		expect(result.pass).toBe(true);
 	});
