@@ -18,18 +18,26 @@ export interface BaseSurfaceStatusDeps {
 	resolveRuntime?: () => Promise<BaseSurfaceModelInput["runtime"]>;
 	resolveModel?: () => Promise<BaseSurfaceModelInput["model"]>;
 	resolveHealth?: () => Promise<BaseSurfaceModelInput["health"]>;
-	resolveOperatorAttention?: () => Promise<OperatorAttentionGateStatus | null>;
+	resolveOperatorAttention?: (
+		options: BaseSurfaceStatusOptions,
+	) => Promise<OperatorAttentionGateStatus | null>;
+}
+
+export interface BaseSurfaceStatusOptions {
+	operatorAttentionScope?: string;
+	operatorAttentionWindowMs?: number;
 }
 
 export async function resolveBaseSurfaceStatus(
 	deps: BaseSurfaceStatusDeps = {},
+	options: BaseSurfaceStatusOptions = {},
 ): Promise<BaseSurfaceModel> {
 	const runtime = await (deps.resolveRuntime ?? resolveRuntimeBaseInput)();
 	const model = await (deps.resolveModel ?? resolveModelBaseInput)();
 	const health = await (deps.resolveHealth ?? resolveHealthBaseInput)();
 	const operatorAttention = await (
 		deps.resolveOperatorAttention ?? resolveOperatorAttentionBaseInput
-	)();
+	)(options);
 	const units: BaseSurfaceUnit[] = [];
 	if (operatorAttention) {
 		units.push(
@@ -56,13 +64,17 @@ async function resolveHealthBaseInput(): Promise<BaseSurfaceModelInput["health"]
 	return runHealthAudit();
 }
 
-async function resolveOperatorAttentionBaseInput(): Promise<OperatorAttentionGateStatus | null> {
-	const scope = process.env.REFARM_OPERATOR_ATTENTION_SCOPE?.trim();
+async function resolveOperatorAttentionBaseInput(
+	options: BaseSurfaceStatusOptions,
+): Promise<OperatorAttentionGateStatus | null> {
+	const scope =
+		options.operatorAttentionScope?.trim() ||
+		process.env.REFARM_OPERATOR_ATTENTION_SCOPE?.trim();
 	if (!scope) return null;
 
-	const defaultWindowMs = Number(
-		process.env.REFARM_OPERATOR_ATTENTION_WINDOW_MS ?? 5 * 60 * 1000,
-	);
+	const defaultWindowMs =
+		options.operatorAttentionWindowMs ??
+		Number(process.env.REFARM_OPERATOR_ATTENTION_WINDOW_MS ?? 5 * 60 * 1000);
 	const filePath = operatorAttentionStatePath(scope);
 	const state = readJson(filePath);
 	const armedAt = Number(state.armedAt ?? 0);

@@ -193,7 +193,7 @@ describe("resolveBaseSurfaceStatus", () => {
 				windowMs: 60000,
 				expiresAt: null,
 			}),
-		});
+		}, {});
 
 		expect(model.units.map((unit) => unit.id)).toEqual([
 			"runtime",
@@ -210,5 +210,53 @@ describe("resolveBaseSurfaceStatus", () => {
 		expect(model.nextCommand).toBe(
 			"node scripts/operator-attention-gate.mjs 'connection-up:ovpn-serpro' --prepare-only --window-ms 60000 --json",
 		);
+	});
+
+	it("encaminha options explícitas de atenção para o resolver opcional", async () => {
+		const resolveOperatorAttention = vi.fn().mockResolvedValue(null);
+
+		await resolveBaseSurfaceStatus(
+			{
+				resolveRuntime: vi.fn().mockResolvedValue({
+					command: "runtime",
+					operation: "status",
+					ok: true,
+					nextAction: null,
+					nextActions: [],
+					nextCommand: null,
+					nextCommands: [],
+				}),
+				resolveModel: vi.fn().mockResolvedValue({
+					command: "model",
+					operation: "current",
+					ok: true,
+					nextAction: null,
+					nextActions: [],
+					nextCommand: null,
+					nextCommands: [],
+				}),
+				resolveHealth: vi.fn().mockResolvedValue({
+					command: "health",
+					operation: "audit",
+					ok: true,
+					issueCount: 0,
+					recommendations: [],
+					nextAction: null,
+					nextActions: [],
+					nextCommand: null,
+					nextCommands: [],
+				}),
+				resolveOperatorAttention,
+			},
+			{
+				operatorAttentionScope: "connection-up:mobile",
+				operatorAttentionWindowMs: 120000,
+			},
+		);
+
+		expect(resolveOperatorAttention).toHaveBeenCalledWith({
+			operatorAttentionScope: "connection-up:mobile",
+			operatorAttentionWindowMs: 120000,
+		});
 	});
 });
