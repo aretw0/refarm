@@ -27,8 +27,12 @@
  *   - CRDT WebSocket (ws://<host>:42000) — can this device join the sync mesh?
  */
 import { networkInterfaces } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { askFarmHost, cancellationExit } from "../src/ask-host.mjs";
 import { farmSyncWsProtocols } from "../src/auth.mjs";
 import { defaultProbeTargets, discoverFarms, subnetSweepTargets } from "../src/beacon.mjs";
+import { readRememberedHost } from "../src/farm-host.mjs";
 import {
 	byNameLines,
 	daemonWsExposureLines,
@@ -41,6 +45,8 @@ const WS_PORT = Number(process.env.FARM_WS_PORT ?? 42000);
 /** How this script was actually invoked, so every suggested command is copyable
  *  as-is — on a phone the kit lives under ~/.refarm/kit/farm-client, not here. */
 const SELF = `node ${process.argv[1] ?? "bin/farm-hello.mjs"}`;
+/** This kit's root (bin/..), where the farm it came from is remembered. */
+const KIT_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** Does <host>:42000 accept a WS handshake? Used both to pick a tailnet peer
  *  and as the final sync check. Resolves {ok, detail}. When FARM_TOKEN is set
@@ -114,6 +120,12 @@ async function resolveHost() {
   const explicit = process.argv[2] ?? process.env.FARM_HOST;
   if (explicit) return { host: explicit, via: "explícito" };
 
+  // O nome que este aparelho já conhece. Perguntado uma vez (ou trazido pelo
+  // install), ele vale como um argumento explícito: é o mesmo caminho por NOME,
+  // só que o operador não precisa redigitá-lo a cada hello.
+  const remembered = await readRememberedHost(KIT_ROOT);
+  if (remembered) return { host: remembered, via: "fazenda lembrada" };
+
   // Dialeto 0: peers da tailnet (Tailscale) — preciso, funciona de QUALQUER rede.
   // O beacon UDP não cruza a tailnet; a lista de peers, sim. Probamos o sync de
   // cada peer diretamente (não precisa do anunciante).
@@ -148,6 +160,14 @@ async function resolveHost() {
     if (swept.length > 0) return pickFarm(swept, "descoberto por varredura");
   }
 
+  // Nada respondeu em dialeto nenhum, e o caminho que resta — o NOME — é o único
+  // que este aparelho não consegue descobrir sozinho. Então PERGUNTAR vem antes
+  // de EXPLICAR: num terminal, uma pergunta resolve o que quatro parágrafos de
+  // orientação apenas descrevem. A resposta fica guardada, então pergunta-se uma
+  // vez. Sem terminal não se pergunta — segue a ladainha honesta, como antes.
+  const asked = await askFarmHost({ kitRootDir: KIT_ROOT });
+  if (asked.host) return { host: asked.host, via: "você informou" };
+
   console.log("🔎 Nenhuma fazenda respondeu em nenhum dialeto. Onde procurei:");
   for (const target of targets) {
     console.log(`   ${target.address} (broadcast/multicast)`);
@@ -163,7 +183,16 @@ async function resolveHost() {
   return { host: "127.0.0.1", via: "fallback localhost" };
 }
 
-const { host, via } = await resolveHost();
+// Cancelar a pergunta (Ctrl+C / Ctrl+D) é uma REJEIÇÃO do bloco de prompt, não
+// um crash: uma linha e o código de SIGINT, nunca um stack trace.
+let host, via;
+try {
+  ({ host, via } = await resolveHost());
+} catch (err) {
+  const code = cancellationExit(err);
+  if (code !== null) process.exit(code);
+  throw err;
+}
 const HTTP_PORT = Number(process.env.FARM_HTTP_PORT ?? 42001);
 
 const label = (ok) => (ok ? "✅" : "❌");

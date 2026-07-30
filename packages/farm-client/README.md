@@ -32,13 +32,56 @@ se alguém acoplar o kit ao monorepo, o teste falha.
 | `farm-hello.mjs` | alcançar | descobre a fazenda (tailnet → LAN broadcast/multicast → varredura) e prova sync + sidecar |
 | `farm-announce.mjs` | anunciar | (no host) responde probes de descoberta na LAN — opt-in |
 | `farm-ask.mjs` | usar | submete um effort e imprime a resposta do agente |
+| `farm-update.mjs` | atualizar | puxa o kit do servidor de malha da fazenda (manifesto + sha256) |
 
 ```bash
 # alcançar (auto-descoberta; ou passe o nome/IP)
-node scripts/farm-hello.mjs [serpro-1577853]
+farm-hello [serpro-1577853]
 
 # usar — o daily driver no bolso
-FARM_HOST=serpro-1577853 node scripts/farm-ask.mjs "sua pergunta"
+farm-ask "sua pergunta"
+```
+
+## O kit PERGUNTA o nome da fazenda
+
+O caminho que alcança uma fazenda de **qualquer** rede é o **nome** (MagicDNS) — não
+depende de enumerar peers nem de estar na mesma LAN. Mas num celular a CLI `tailscale`
+não existe (o Android roda o APP), então enumerar ali é estruturalmente impossível e o
+kit **não tem como descobrir esse nome sozinho**.
+
+Então ele pergunta, em vez de explicar:
+
+```
+🌱 Não sei o nome da sua fazenda — e é o NOME que alcança de qualquer rede, sem enumerar nada.
+Como se chama a sua fazenda? (nome MagicDNS, ex.: serpro-1577853)
+```
+
+- **Uma vez por aparelho** — a resposta vai para `.farm-host`, onde o kit já lembra a
+  fazenda de onde veio.
+- **Só com terminal** — sem TTY (script, pipe, cron) ele **nunca** pergunta: entrega o
+  erro honesto e a dica do alcance por nome, como antes.
+- **Ctrl+C sai limpo** — o bloco de prompt rejeita com `OperatorPromptCancelledError` e o
+  kit responde com uma linha e o código 130, nunca com um stack trace.
+
+A pergunta vem do bloco `@refarm.dev/prompt-contract-v1`, **carregado** em
+`vendor/prompt-contract-v1.mjs` — não reimplementada aqui. Zero-dependência é "nada a
+instalar", não "nada a reusar": o bloco tem zero dependências e importa só
+`node:readline`, então viaja dentro do kit e é distribuído com manifesto + sha256 como
+qualquer outro arquivo. `node scripts/vendor.mjs --check` (e `test/vendor.test.mjs`)
+garantem que a cópia é byte a byte o build do bloco — se divergir, o teste fica vermelho.
+
+## Atalhos no PATH
+
+O `install.mjs` (e todo `farm-update`) planta lançadores `farm-ask`, `farm-hello` e
+`farm-update` em `~/.local/bin` — a convenção por usuário que existe tanto num Linux
+normal quanto no Termux, onde não há `/usr/local/bin` nem `sudo`. `FARM_BIN_DIR` manda
+em tudo.
+
+O instalador **diz** se esse diretório está no seu `PATH` e, se não estiver, qual é a
+única linha a acrescentar — e para aí. Ele **nunca** edita o seu perfil de shell:
+
+```
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ## As primitivas (`./lib`, puras e testadas)

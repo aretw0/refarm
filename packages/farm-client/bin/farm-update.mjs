@@ -16,9 +16,11 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { readRememberedHost, writeRememberedHost } from "../src/farm-host.mjs";
+import { cancellationExit, resolveFarmHost } from "../src/ask-host.mjs";
+import { writeRememberedHost } from "../src/farm-host.mjs";
 import { integrityOf, planUpdate } from "../src/manifest.mjs";
 import { createSpinner } from "../src/progress.mjs";
+import { defaultBinDir, installShims, pathAdviceLines, pathStatus } from "../src/shims.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
 
 const DIST_PORT = Number(process.env.FARM_DIST_PORT ?? 4321);
@@ -45,22 +47,45 @@ async function distReachable(host) {
 	}
 }
 
-async function resolveHost() {
-	// 1) Explicit override. 2) The farm this kit was installed from (so repeat
-	// updates need no host). 3) Tailnet auto-discovery. 4) localhost.
-	if (process.env.FARM_HOST) return process.env.FARM_HOST;
-	const remembered = await readRememberedHost(KIT_DIR);
-	if (remembered && (await distReachable(remembered))) return remembered;
-	for (const peer of await tailnetPeers()) {
-		if (await distReachable(peer.ip)) return peer.ip;
-	}
-	return "127.0.0.1";
+/** A escada mora em `resolveFarmHost` (src/ask-host.mjs) — aqui só se injeta o
+ *  I/O. O último degrau PERGUNTA o nome quando nada respondeu e o kit não
+ *  conhece nenhum; `announce` para o spinner antes, senão a pergunta apareceria
+ *  por cima da animação. */
+function resolveHost(spinner) {
+	return resolveFarmHost({
+		kitRootDir: KIT_DIR,
+		explicit: process.env.FARM_HOST,
+		probe: distReachable,
+		peers: async () => (await tailnetPeers()).map((peer) => peer.ip),
+		announce: (line) => {
+			spinner.stop();
+			process.stderr.write(`${line}\n`);
+		},
+	});
 }
 
 function fmtBytes(n) {
 	if (n < 1024) return `${n} B`;
 	if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
 	return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * (Re)planta os lançadores e DIZ como está o PATH. Roda em toda atualização —
+ * é assim que um kit instalado antes dos atalhos ganha `farm-ask` sem precisar
+ * de um novo cold-bootstrap. Best-effort: falhar aqui não invalida a
+ * atualização, o kit continua chamável pelo caminho completo.
+ */
+async function refreshShims() {
+	const binDir = defaultBinDir();
+	const result = await installShims({ kitDir: KIT_DIR, binDir });
+	if (result.created.length === 0) {
+		console.log(`  (não consegui plantar atalhos em ${binDir} — use o caminho completo do kit)`);
+		return;
+	}
+	for (const line of pathAdviceLines(pathStatus({ binDir }), { kitDir: KIT_DIR })) {
+		console.log(line);
+	}
 }
 
 async function readLocalManifest() {
@@ -72,7 +97,15 @@ async function readLocalManifest() {
 }
 
 const spinner = createSpinner().start("procurando a fazenda…");
-const host = await resolveHost();
+let host;
+try {
+	({ host } = await resolveHost(spinner));
+} catch (err) {
+	spinner.stop();
+	const code = cancellationExit(err);
+	if (code !== null) process.exit(code);
+	throw err;
+}
 const base = `http://${host}:${DIST_PORT}`;
 
 let remoteRaw;
@@ -105,7 +138,9 @@ spinner.stop();
 console.log(`\n🌱 farm-update ← ${host}  [${plan.name} ${plan.fromVersion ?? "(nenhum)"} → ${plan.toVersion}]\n`);
 if (plan.upToDate) {
 	await writeRememberedHost(KIT_DIR, host);
-	console.log("✔ já atualizado\n");
+	console.log("✔ já atualizado");
+	await refreshShims();
+	console.log("");
 	process.exit(0);
 }
 
@@ -150,4 +185,5 @@ console.log(
 	`↻ ${plan.name} ${plan.fromVersion ?? "(nenhum)"} → ${plan.toVersion} · ${plan.toDownload.length} arquivo(s) · ${fmtBytes(plan.totalBytes)}`,
 );
 console.log(`  kit em ${KIT_DIR} (fazenda lembrada: ${host})`);
-console.log(`  rodar: node ${join(KIT_DIR, "bin/farm-ask.mjs")} "sua pergunta"\n`);
+await refreshShims();
+console.log("");

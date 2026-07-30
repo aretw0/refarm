@@ -18,10 +18,10 @@
  */
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { cancellationExit, resolveFarmHost } from "../src/ask-host.mjs";
 import { farmAuthHeaders } from "../src/auth.mjs";
 import { buildRespondEffort } from "../src/effort.mjs";
 import { extractAnswer, isSuccessEffort, isTerminalEffort } from "../src/effort-result.mjs";
-import { readRememberedHost } from "../src/farm-host.mjs";
 import { createSpinner } from "../src/progress.mjs";
 import { sidecarExposureLines } from "../src/reach.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
@@ -54,19 +54,17 @@ async function sidecarUp(host) {
   }
 }
 
-async function resolveHost() {
-  // 1) Explicit override always wins.
-  const explicit = process.env.FARM_HOST;
-  if (explicit) return explicit;
-  // 2) The farm this kit was installed from (farm-update remembered it) — the
-  //    device's default, so a name given once at update time need not repeat.
-  const remembered = await readRememberedHost(KIT_ROOT);
-  if (remembered && (await sidecarUp(remembered))) return remembered;
-  // 3) Tailnet auto-discovery (when the tailscale CLI is present), then localhost.
-  for (const peer of await tailnetPeers()) {
-    if (await sidecarUp(peer.ip)) return peer.ip;
-  }
-  return "127.0.0.1";
+/** A escada inteira mora em `resolveFarmHost` (src/ask-host.mjs), que é pura de
+ *  rede — aqui só se injeta O QUE É I/O: o probe do sidecar e os peers da
+ *  tailnet. O último degrau é o novo: quando nada respondeu e o kit não conhece
+ *  nome nenhum, ele PERGUNTA (só com terminal) em vez de explicar. */
+function resolveHost() {
+  return resolveFarmHost({
+    kitRootDir: KIT_ROOT,
+    explicit: process.env.FARM_HOST,
+    probe: sidecarUp,
+    peers: async () => (await tailnetPeers()).map((peer) => peer.ip),
+  });
 }
 
 // Optional route: a worker-quota model (or any specific model) via env.
@@ -76,7 +74,16 @@ const route = {
   ...(process.env.FARM_MODEL ? { model: process.env.FARM_MODEL } : {}),
 };
 
-const host = await resolveHost();
+// Um Ctrl+C na pergunta é uma REJEIÇÃO do bloco de prompt, não um crash: sai
+// com uma linha e o código de SIGINT, nunca com um stack trace na cara.
+let host;
+try {
+  ({ host } = await resolveHost());
+} catch (err) {
+  const code = cancellationExit(err);
+  if (code !== null) process.exit(code);
+  throw err;
+}
 const base = `http://${host}:${HTTP_PORT}`;
 
 if (!(await sidecarUp(host))) {

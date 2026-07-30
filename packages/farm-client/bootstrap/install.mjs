@@ -16,6 +16,7 @@ import { createHash } from "node:crypto";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const HOST = process.env.FARM_HOST || "__FARM_HOST__";
 const PORT = Number(process.env.FARM_DIST_PORT || "__FARM_PORT__");
@@ -98,4 +99,27 @@ await rm(staging, { recursive: true, force: true });
 
 console.log(`\n✔ farm-client ${manifest.version ?? ""} instalado em ${KIT_DIR}`);
 console.log(`  fazenda lembrada: ${HOST}`);
-console.log(`  rode: node ${join(KIT_DIR, "bin", "farm-ask.mjs")} "quem é você?"\n`);
+
+// Atalhos: o instalador não pode importar o kit ANTES de instalá-lo — mas
+// depois, pode. Então ele USA o `src/shims.mjs` que acabou de escrever em vez de
+// reimplementar o plantio aqui (o mesmo módulo que o farm-update replanta a cada
+// atualização). Se a fazenda servir um kit antigo, sem o módulo, a instalação
+// segue válida e o operador recebe o caminho completo.
+//
+// O que este bloco NUNCA faz: escrever no perfil de shell de ninguém. Ele diz se
+// o diretório está no PATH e qual é a única linha a acrescentar — e para aí.
+try {
+	const shims = await import(pathToFileURL(join(KIT_DIR, "src", "shims.mjs")).href);
+	const binDir = shims.defaultBinDir();
+	const planted = await shims.installShims({ kitDir: KIT_DIR, binDir });
+	if (planted.created.length === 0) {
+		throw new Error(`nenhum atalho pôde ser criado em ${binDir}`);
+	}
+	for (const line of shims.pathAdviceLines(shims.pathStatus({ binDir }), { kitDir: KIT_DIR })) {
+		console.log(line);
+	}
+} catch (err) {
+	console.log(`  (sem atalhos: ${err.message})`);
+	console.log(`  rode: node ${join(KIT_DIR, "bin", "farm-ask.mjs")} "quem é você?"`);
+}
+console.log("");

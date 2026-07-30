@@ -25,8 +25,14 @@ const KIT_FILES = [
 	"src/usage.mjs",
 	"src/manifest.mjs",
 	"src/farm-host.mjs",
+	"src/ask-host.mjs",
+	"src/shims.mjs",
 	"src/progress.mjs",
 	"src/reach.mjs",
+	// A BUILT block the kit CARRIES (see scripts/vendor.mjs). It is held to the
+	// same promise as hand-written kit source: node built-ins only. That is the
+	// property that makes vendoring legitimate rather than a dependency in disguise.
+	"vendor/prompt-contract-v1.mjs",
 	"bin/farm-hello.mjs",
 	"bin/farm-announce.mjs",
 	"bin/farm-ask.mjs",
@@ -48,7 +54,14 @@ test("imports only node builtins and own siblings — no workspace deps", () => 
 	const offenders = [];
 	for (const file of KIT_FILES) {
 		for (const spec of importsOf(file)) {
-			const ok = spec.startsWith("node:") || spec.startsWith("./") || spec.startsWith("../src/");
+			// `../vendor/` is the kit's OWN carried block — a file that ships inside the
+			// kit and is verified byte-identical to its built source (test/vendor.test.mjs),
+			// not a resolution into node_modules or the monorepo.
+			const ok =
+				spec.startsWith("node:") ||
+				spec.startsWith("./") ||
+				spec.startsWith("../src/") ||
+				spec.startsWith("../vendor/");
 			if (!ok) offenders.push(`${file} → ${spec}`);
 		}
 	}

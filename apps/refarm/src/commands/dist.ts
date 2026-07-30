@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { Command } from "commander";
 import { createProcessHandoffDisplay, runProcessHandoffSync } from "@refarm.dev/cli/process-handoff";
+import { Command } from "commander";
 
 import { refarmCommand } from "../brand.js";
 
@@ -85,11 +85,18 @@ export function buildKitManifest(
 	};
 }
 
-/** Collect the kit's distributable files: every .mjs under src/ and bin/, plus
- * README.md when present. Tests (test/) and configs are intentionally excluded. */
-async function collectKitFiles(kitDir: string): Promise<KitFile[]> {
+/** Collect the kit's distributable files: every .mjs under src/, bin/ and
+ * vendor/, plus README.md when present. Tests (test/) and configs are
+ * intentionally excluded.
+ *
+ * `vendor/` carries BUILT blocks the zero-dependency kit reuses instead of
+ * reimplementing (today: `@refarm.dev/prompt-contract-v1`, which is what lets
+ * the kit ASK for the farm's name instead of explaining it). Zero-dependency
+ * means nothing to install on the device — not nothing to reuse — so a vendored
+ * block is distributed, hashed, and integrity-checked like every other kit file. */
+export async function collectKitFiles(kitDir: string): Promise<KitFile[]> {
 	const files: KitFile[] = [];
-	for (const sub of ["src", "bin"]) {
+	for (const sub of ["src", "bin", "vendor"]) {
 		let entries: string[];
 		try {
 			entries = (await readdir(path.join(kitDir, sub))).filter((name) => name.endsWith(".mjs"));
