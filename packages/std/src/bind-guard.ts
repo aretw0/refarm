@@ -122,6 +122,37 @@ export function isLoopbackBindHost(host: string): boolean {
 	return v6.slice(0, 7).every((hextet) => hextet === 0) && v6[7] === 1;
 }
 
+/**
+ * Do two bind hosts name the SAME address? The TS twin of `bind_guard::hosts_match`, and the
+ * one place a requested host is ever compared against a declared `host:<ip>` (see
+ * `surfaces.ts`). PURE.
+ *
+ * Fails CLOSED: if either side does not parse as an IP literal this guard reasons about, the
+ * answer is `false` — an unparseable host never "matches" a declaration, so a declaration can
+ * never be satisfied by a string neither side agrees about. That is stricter than Rust for the
+ * IPv4-mapped family (`::ffff:1.2.3.4` parses in Rust and not here), and stricter is the safe
+ * direction: it refuses a bind rather than permitting one.
+ */
+export function bindHostsMatch(a: string, b: string): boolean {
+	const normalizedA = normalizeBindIp(a);
+	const normalizedB = normalizeBindIp(b);
+	if (normalizedA === null || normalizedB === null) return false;
+	return normalizedA === normalizedB;
+}
+
+/** A canonical, comparable spelling of an IP literal, or `null` when `host` is not one.
+ *  Family-tagged so a v4 and a v6 value can never collide as strings. */
+function normalizeBindIp(host: string): string | null {
+	const trimmed = host.trim();
+	const unbracketed =
+		trimmed.startsWith("[") && trimmed.endsWith("]") ? trimmed.slice(1, -1) : trimmed;
+	const v4 = parseIpv4(unbracketed);
+	if (v4) return `v4:${v4.join(".")}`;
+	const v6 = parseIpv6(unbracketed.toLowerCase());
+	if (v6) return `v6:${v6.join(":")}`;
+	return null;
+}
+
 /** How a listener's bind was decided, for callers that want to log or assert it. */
 export interface BindDecision {
 	/** The host that will actually be passed to `listen()`. */
@@ -135,6 +166,16 @@ export interface BindDecision {
  * allowed, or the refusal message when it is not. PURE: never binds a socket, never reads env or
  * disk — the caller resolves `authPolicyPresent` (see `authPolicyPresent()` in
  * `@refarm.dev/std/node`, which reads the SAME `REFARM_AUTH_POLICY` file the Rust sidecar reads).
+ *
+ * SCOPE, since O5 (docs/superpowers/specs/2026-07-30-open-by-declaration-surfaces-design.md):
+ * this guard answers "has the operator opted into the identity gate on this machine" — a fact
+ * about the MACHINE, not about the surface asking. For a surface that VERIFIES bearers that is
+ * the right question and this remains the right guard. For one that does not, it never was:
+ * a Node listener could bind off-loopback because some OTHER surface had credentials, while
+ * declaring nothing and verifying nothing. Such a surface must use
+ * `refuseBindOutsideDeclaration` (surfaces.ts), which asks whether the `surfaces` declaration
+ * permits THIS bind. `refarm web serve` moved; `serveCapabilities` and farmhand's transport
+ * have not yet.
  *
  * - loopback ⇒ always allowed, policy or not. This is the default and is UNCHANGED by the guard.
  * - non-loopback + a policy configured ⇒ allowed — the operator opted into the identity gate

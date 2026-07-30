@@ -25,19 +25,25 @@ export const AUTH_POLICY_ENV = "REFARM_AUTH_POLICY";
  * the Rust daemon resolves it: `REFARM_AUTH_POLICY` set, non-blank, and pointing at a file that
  * exists.
  *
- * SCOPE — read this before trusting it for more than it claims. This answers "did the operator
- * opt into the identity gate", which is exactly what the BIND decision needs: a bind wide enough
- * to reach other devices should only be possible once the operator has set up credentials. It
- * does NOT verify credentials, and today no Node surface does: the bearer check lives in the Rust
- * sidecar's `auth_middleware`. So a TS listener that binds non-loopback because this returned
- * true is opened on the operator's word, not on an enforced gate.
+ * SCOPE — read this before trusting it for more than it claims. This answers exactly one
+ * question: "is a credential policy configured on this MACHINE." It does NOT read the policy,
+ * validate it, or relate it to the caller, and it says nothing whatsoever about whether the
+ * surface asking can verify a bearer.
  *
- * That is a real gap, and it is the reason the WS listener in the Rust daemon refuses a
- * non-loopback bind outright regardless of policy: a guard must not approve what it does not
- * gate. The TS surfaces are one step behind that standard on purpose — they are opt-in,
- * loopback-by-default, and the operator must both set a policy AND pass an explicit host — but
- * the honest next step is for these surfaces to actually verify the bearer token against the
- * policy file before serving a request, not merely to observe that the file exists.
+ * WHAT IT IS NO LONGER THE ANSWER TO (O5,
+ * docs/superpowers/specs/2026-07-30-open-by-declaration-surfaces-design.md). It used to decide
+ * whether a Node listener could bind off-loopback. That criterion measured the wrong thing
+ * entirely: a listener that verifies nothing could open itself to other devices because some
+ * OTHER surface had credentials — the appearance of a gate without a gate, which S3 forbids.
+ * A surface's bind is now decided by the `surfaces` declaration
+ * (`refuseBindOutsideDeclaration` in `@refarm.dev/std`), read from the FILESYSTEM
+ * `.refarm/config.json`, exactly as the Rust guard decides its own.
+ *
+ * WHAT IT IS STILL THE ANSWER TO. A surface that DOES verify bearers needs to know a policy
+ * exists — that is the question this function was always about. And O6's question about the
+ * routes `refarm web serve` PROXIES is a machine-level question too: those requests are gated
+ * by the daemon's policy upstream, not by anything the proxy does, so "is a credential policy
+ * live on this machine" is precisely what has to be true before an open surface may carry them.
  *
  * Deliberately NOT cached: a long-lived process may have the policy provisioned after boot, and a
  * cached `false` would then be a stale reason to keep refusing.
