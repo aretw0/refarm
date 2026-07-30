@@ -89,6 +89,34 @@ describe("intentionCommand", () => {
 		expect((payload.intentToken as string).startsWith("rfint.v1.")).toBe(true);
 	});
 
+	it("prepares portable intent without local state coupling", async () => {
+		const now = Date.now();
+		const command = createIntentionCommand({ now: () => now });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["prepare", "--profile", "cross-device-handoff", "--json"],
+			{ from: "user" },
+		);
+
+		const payload = JSON.parse(logSpy.mock.calls[0]?.[0] as string);
+		expect(payload).toMatchObject({
+			ok: true,
+			operation: "prepare",
+			source: "portable",
+			scope: "attention:cross-device-handoff",
+			windowMs: 120000,
+		});
+		expect(typeof payload.intentToken).toBe("string");
+		expect(payload.nextCommands).toHaveLength(2);
+		expect((payload.nextCommands[0] as string).startsWith("refarm intention check --token")).toBe(
+			true,
+		);
+		expect((payload.nextCommands[1] as string).startsWith("refarm intention consume --token")).toBe(
+			true,
+		);
+	});
+
 	it("checks readiness via portable token from another device", async () => {
 		const now = Date.now();
 		const command = createIntentionCommand({ now: () => now });
@@ -191,6 +219,32 @@ describe("intentionCommand", () => {
 			scope: "attention:cross-device-handoff",
 			nextCommand:
 				"refarm intention arm --scope 'attention:cross-device-handoff' --window-ms 120000 --json",
+		});
+	});
+
+	it("allows token handoff between separate device contexts", async () => {
+		const now = Date.now();
+		const senderCommand = createIntentionCommand({ now: () => now });
+		const senderLog = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await senderCommand.parseAsync(
+			["prepare", "--scope", "attention:operator-sync", "--window-ms", "60000", "--json"],
+			{ from: "user" },
+		);
+		const token = JSON.parse(senderLog.mock.calls[0]?.[0] as string).intentToken as string;
+
+		senderLog.mockClear();
+		const receiverHome = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-intention-other-home-"));
+		process.env.REFARM_HOME = receiverHome;
+		const receiverCommand = createIntentionCommand({ now: () => now + 1000 });
+		await receiverCommand.parseAsync(["check", "--token", token, "--json"], { from: "user" });
+
+		const checkPayload = JSON.parse(senderLog.mock.calls[0]?.[0] as string);
+		expect(checkPayload).toMatchObject({
+			ok: true,
+			operation: "check",
+			source: "token",
+			scope: "attention:operator-sync",
 		});
 	});
 });

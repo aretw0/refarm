@@ -33,6 +33,48 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 	);
 
 	command
+		.command("prepare")
+		.description("Prepare portable intent handoff without writing local state")
+		.option("--scope <scope>", "Attention scope to prepare")
+		.option(
+			"--window-ms <ms>",
+			"Window (ms) that keeps the portable intent valid",
+			parsePositiveInt,
+		)
+		.option(
+			"--profile <name>",
+			"Named intent profile (cross-device-handoff | mobile-ready | operator-sync)",
+		)
+		.option("--json", "Output machine-readable JSON")
+		.action((options: IntentionCommandOptions) => {
+			const now = deps.now?.() ?? Date.now();
+			const target = resolveAttentionTarget(options);
+			const token = encodeIntentToken({
+				scope: target.scope,
+				armedAt: now,
+				windowMs: target.windowMs,
+			});
+			const payload = {
+				ok: true,
+				command: "intention",
+				operation: "prepare",
+				source: "portable",
+				scope: target.scope,
+				windowMs: target.windowMs,
+				expiresAt: new Date(now + target.windowMs).toISOString(),
+				intentToken: token,
+				nextAction: "Compartilhe o token com o dispositivo que executará a operação.",
+				nextActions: ["Compartilhe o token com o dispositivo que executará a operação."],
+				nextCommand: intentionCheckTokenCommand(token),
+				nextCommands: [
+					intentionCheckTokenCommand(token),
+					intentionConsumeTokenCommand(token),
+				],
+			};
+			emit(payload, options.json ?? false, `Intenção portátil preparada para '${target.scope}'.`);
+		});
+
+	command
 		.command("arm")
 		.description("Arm operator-attention intent")
 		.option("--scope <scope>", "Attention scope to arm")
@@ -249,6 +291,14 @@ function intentionArmCommand(scope: string, windowMs: number): string {
 
 function intentionCheckCommand(scope: string, windowMs: number): string {
 	return `refarm intention check --scope ${shellQuote(scope)} --window-ms ${windowMs} --json`;
+}
+
+function intentionCheckTokenCommand(token: string): string {
+	return `refarm intention check --token ${shellQuote(token)} --json`;
+}
+
+function intentionConsumeTokenCommand(token: string): string {
+	return `refarm intention consume --token ${shellQuote(token)} --json`;
 }
 
 function emit(payload: Record<string, unknown>, json: boolean, message: string): void {
