@@ -265,6 +265,30 @@ node scripts/operator-attention-gate.mjs attention:minha-acao --check-only --jso
 node scripts/operator-attention-gate.mjs attention:minha-acao --consume-only --json
 ```
 
+Fluxo recomendado no CLI (entre dispositivos/processos):
+
+```bash
+# 1) Armar intenção com perfil reutilizável
+refarm intention arm --profile cross-device-handoff --json
+
+# 2) Verificar prontidão explícita da intenção
+refarm intention check --profile cross-device-handoff --json
+
+# 3) Projetar esse estado no status base
+refarm status --base --attention-profile cross-device-handoff --json
+
+# 4) Consumir intenção após executar a ação sensível
+refarm intention consume --profile cross-device-handoff --json
+```
+
+Notas:
+
+- `refarm intention` separa o ato de intencionar da execução operacional.
+- Perfis (`cross-device-handoff`, `mobile-ready`, `operator-sync`) reduzem
+  ad-hoc de `scope/window` e facilitam assimilação de processos recorrentes.
+- `refarm status --base` continua aceitando override explícito por
+  `--attention-scope` e `--attention-window-ms` quando necessário.
+
 ### Scenario 3b — Canonical local ask flow (daily driver)
 
 ```bash
