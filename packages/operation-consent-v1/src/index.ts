@@ -123,6 +123,10 @@ export interface OperationRequest {
 	requestedAt: string;
 	changes: OperationFileChange[];
 	undo: OperationUndo;
+	/** Anything else the operator needs WHILE DECIDING that the diff alone does not say — why this
+	 *  file and not the other candidate, what will still be needed afterwards. Carried into the
+	 *  record, because the reason a choice was made is part of judging whether it was made well. */
+	notes?: string[];
 }
 
 // ── The record ────────────────────────────────────────────────────────────────
@@ -161,6 +165,8 @@ export interface OperationRecord {
 	changes: OperationFileChange[];
 	/** HOW TO UNDO IT — or why it cannot be undone. */
 	undo: OperationUndo;
+	/** What the operator was told while deciding, beyond the diff itself. */
+	notes?: string[];
 	/** The machine that performed it. For this slice the record stays local to it (R5). */
 	host?: string;
 	/** The record id this decision deliberately supersedes — set only on a revisit, so "I changed
@@ -194,6 +200,7 @@ export function makeOperationRecord(input: {
 		appliedAt: input.appliedAt ?? null,
 		changes: input.changes ?? request.changes,
 		undo: request.undo,
+		...(request.notes?.length ? { notes: request.notes } : {}),
 		...(input.host ? { host: input.host } : {}),
 		...(input.revisitOf ? { revisitOf: input.revisitOf } : {}),
 	};
@@ -462,6 +469,7 @@ export function renderOperationRequest(
 		}
 	}
 
+	for (const note of request.notes ?? []) out.push(`   ℹ️  ${note}`);
 	out.push(
 		request.undo.kind === "restore-snapshot"
 			? `   ${l.undo}: ${request.undo.summary}`

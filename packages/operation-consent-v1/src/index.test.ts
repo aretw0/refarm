@@ -142,6 +142,22 @@ describe("the request states the change exactly, before it is made", () => {
 		expect(isReversible(request.undo)).toBe(false);
 	});
 
+	it("carries decision-time notes into the render AND into the record", async () => {
+		const request = requestAppending("# perfil\n");
+		request.notes = ["escolhi ~/.bashrc porque seu shell é bash; ~/.profile também existe"];
+		expect(renderOperationRequest(request).join("\n")).toContain("porque seu shell é bash");
+
+		const trail = createMemoryOperationTrail();
+		await runOperationConsent({
+			request,
+			trail,
+			fs: memoryFs({ [PROFILE]: "# perfil\n" }),
+			channel: channelAnswering(OPERATION_AUTHORIZE),
+			now: clock,
+		});
+		expect((await trail.read())[0]!.notes).toEqual(request.notes);
+	});
+
 	it("offers three answers, and Enter changes nothing", () => {
 		const prompt = operationDecisionPrompt(requestAppending(""));
 		expect(prompt.options.map((o) => o.value)).toEqual([
