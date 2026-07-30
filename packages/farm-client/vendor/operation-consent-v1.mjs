@@ -371,6 +371,58 @@ export async function runOperationConsent(options) {
     return { status: "authorized", record };
 }
 /**
+ * Apply and remember an operation the operator DID NOT need to be asked about — the half of this
+ * block that is the RECORD without the CONSENT PROMPT.
+ *
+ * WHY THAT SPLIT EXISTS, because it decides where each function belongs. {@link
+ * runOperationConsent} is for something proposing a change *on the operator's behalf*: an
+ * installer that wants to edit `.bashrc` has to acquire the human first (R2/D13). `refarm config
+ * set runtime.autostart always` is not that. The operator typed the change. Asking them to confirm
+ * what they just typed adds no information and costs the thing R4 exists to protect — a prompt
+ * nobody learns anything from is a prompt people learn to click through, which is exactly how a
+ * later, real question gets waved past. So: no prompt, and deliberately no `--yes` flag to
+ * suppress one that should never have existed.
+ *
+ * What does NOT change is R3. The command is the authorisation; it is not the memory. `config
+ * set`/`unset` mutated persisted configuration and recorded nothing — "não configura nada e
+ * esquece" is the failure named in the design, and it is the same gap the PATH operation had, one
+ * layer in. So the full record is written: what changed (before/after snapshots), why, who, when,
+ * and an undo that executes.
+ *
+ * Ordering is the same as the consent journey and for the same reason: files are written BEFORE
+ * the record, and if the record cannot be written the files are put back and the failure raised. A
+ * change nobody can remember is a change this block will not make.
+ */
+export async function recordOperation(options) {
+    const { request, trail, fs = createNodeOperationFileSystem(), now = () => new Date().toISOString(), decidedBy = "operator", host, } = options;
+    const decidedAt = now();
+    await applyChanges(request.changes, fs);
+    const record = makeOperationRecord({
+        request,
+        decision: "authorized",
+        decidedBy,
+        decidedAt,
+        appliedAt: decidedAt,
+        host,
+    });
+    try {
+        await trail.append(record);
+    }
+    catch (error) {
+        // Roll back rather than leave an unrecorded change behind — identical to the consent
+        // journey's rollback, and best-effort for the same reason: if the rollback itself fails
+        // there is nothing honest left to do but raise the original failure.
+        try {
+            await applyChanges(reverseChanges(request.changes), fs);
+        }
+        catch {
+            // fall through — the append failure is the one worth reporting
+        }
+        throw error;
+    }
+    return record;
+}
+/**
  * Reverse an applied operation and APPEND the reversal as its own record.
  *
  * The trail stays append-only (history-contract-v1's rule): the original record is never edited to

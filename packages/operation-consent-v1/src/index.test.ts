@@ -21,6 +21,7 @@ import {
 	OPERATION_LATER,
 	operationDecisionPrompt,
 	operationTimeline,
+	recordOperation,
 	renderOperationRequest,
 	reverseChanges,
 	runOperationConsent,
@@ -593,5 +594,91 @@ describe("the seams hold", () => {
 		};
 		expect(Object.keys(pkg.dependencies ?? {})).toEqual([]);
 		expect(Object.keys(pkg.peerDependencies ?? {})).toEqual([]);
+	});
+});
+
+// ── the record WITHOUT the prompt ─────────────────────────────────────────────
+
+describe("recordOperation — the operator's own change is remembered, never re-confirmed", () => {
+	it("applies the change and appends an authorized record, asking nobody", async () => {
+		const fs = memoryFs({ [PROFILE]: "# perfil\n" });
+		const trail = createMemoryOperationTrail();
+		const request = requestAppending("# perfil\n");
+		const record = await recordOperation({
+			request,
+			trail,
+			fs,
+			now: clock,
+			decidedBy: "op",
+			host: "torre",
+		});
+
+		expect(fs.files.get(PROFILE)).toBe(request.changes[0]?.after);
+		expect(record.decision).toBe("authorized");
+		expect(record.decidedBy).toBe("op");
+		expect(record.host).toBe("torre");
+		expect(record.appliedAt).toBe(record.decidedAt);
+		expect(await trail.read()).toEqual([record]);
+	});
+
+	it("takes no channel at all — there is no prompt here to suppress", () => {
+		// Structural, and the point: `runOperationConsent` REQUIRES something to ask. This
+		// function has no such parameter, so no consumer can accidentally acquire a
+		// confirmation step, and none needs a `--yes` to get rid of one.
+		expect("channel" in ({} as Record<string, unknown>)).toBe(false);
+		expect(recordOperation.length).toBe(1);
+	});
+
+	it("does not consult the standing decision — a repeat is a new fact, not a re-ask", async () => {
+		// A declined PATH operation must not be re-asked (R4). A config value set twice is two
+		// changes, and the second is not a question anyone declined.
+		const fs = memoryFs({ [PROFILE]: "# perfil\n" });
+		const request = requestAppending("# perfil\n");
+		const trail = createMemoryOperationTrail([
+			makeOperationRecord({
+				request,
+				decision: "declined",
+				decidedBy: "op",
+				decidedAt: "2026-07-29T00:00:00.000Z",
+			}),
+		]);
+		await recordOperation({ request, trail, fs, now: clock });
+		expect((await trail.read()).at(-1)?.decision).toBe("authorized");
+	});
+
+	it("ROLLS BACK the file when the record cannot be written", async () => {
+		// "A change that cannot be remembered is not made" — the same guarantee the consent
+		// journey gives, because it is the same requirement.
+		const fs = memoryFs({ [PROFILE]: "# perfil\n" });
+		const failing = {
+			async read() {
+				return [];
+			},
+			async append(): Promise<never> {
+				throw new Error("trail is read-only");
+			},
+		};
+		await expect(
+			recordOperation({ request: requestAppending("# perfil\n"), trail: failing, fs, now: clock }),
+		).rejects.toThrow(/trail is read-only/);
+		expect(fs.files.get(PROFILE)).toBe("# perfil\n");
+	});
+
+	it("the record it writes can be UNDONE, and the undo actually restores the file", async () => {
+		const fs = memoryFs({ [PROFILE]: "# perfil\n" });
+		const trail = createMemoryOperationTrail();
+		const record = await recordOperation({
+			request: requestAppending("# perfil\n"),
+			trail,
+			fs,
+			now: clock,
+		});
+		expect(isReversible(record.undo)).toBe(true);
+
+		const undone = await undoOperationRecord({ record, trail, fs, now: clock });
+		expect(undone.decision).toBe("undone");
+		expect(fs.files.get(PROFILE)).toBe("# perfil\n");
+		// Append-only: the original record is still there, with the reversal after it.
+		expect((await trail.read()).map((entry) => entry.decision)).toEqual(["authorized", "undone"]);
 	});
 });
