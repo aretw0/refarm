@@ -150,11 +150,21 @@ to audit. `surfaces` is what makes the exposure reviewable in a glance instead o
    e.g. in a container). `Self.Online: false` while `Running`, and an IPv6-only address, both
    bucket as `Down` (a complete answer that just isn't bindable right now) — see that module's doc
    for the reasoning on both.
-2. **What does `gate: "device-token"` mean on a TypeScript surface?** Today no Node surface verifies
+2. ~~**What does `gate: "device-token"` mean on a TypeScript surface?** Today no Node surface verifies
    a bearer at all — the TS bind guard shares the bind rule, not the authentication. Either the TS
    surfaces gain a verifier reading the same `.refarm/auth-policy.json` the Rust side reads, or
    `device-token` is declarable only on surfaces that can enforce it, per S3. The second is honest
-   and smaller; the first is where it has to end up.
+   and smaller; the first is where it has to end up.~~ **Answered** (2026-07-30, and implemented in
+   the Rust half the same day): it means nothing, so it may not be declared there at all — refused at
+   load, at *every* `expose`, loopback included. Refusing the lie is only half an answer, though,
+   since it leaves an honest surface with nothing to say; so the vocabulary gained
+   `"gate": "none"` — deliberate openness as an explicit value, admissible only with an
+   admitted-device transport. See
+   [the open-by-declaration design](2026-07-30-open-by-declaration-surfaces-design.md) (O1/O2/O4) for
+   the constraints, and `SurfaceGate::Open` in `host_effects_bridge/surfaces_decl.rs` for the
+   enforcement. `KNOWN_SURFACES` widened at the same time (`capabilities`, `web`), so one
+   `.refarm/config.json` now parses in both runtimes instead of one treating the other's entries as
+   corruption.
 3. ~~**Does `surfaces` subsume the existing flags** (`--http-host`, `--host`, `--ws-host`), or do they
    remain as overrides? An override that can widen a declaration reopens the hole; an override that
    can only narrow it is safe and useful for a container.~~ **Answered** (2026-07-29, the "reachable"

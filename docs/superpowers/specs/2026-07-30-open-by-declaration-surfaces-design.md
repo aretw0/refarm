@@ -72,6 +72,34 @@ split of responsibility:
 What must not happen is two vocabularies. A config file must mean one thing, and today a `gate`
 value the TS side invented would crash the Rust daemon at boot.
 
+**Built (2026-07-30), Rust half — O1, O2 and O4.** `packages/tractor/src/host/host_effects_bridge/
+surfaces_decl.rs` gained `SurfaceGate::Open` (`"gate": "none"`), O2's combination rules as parse-time
+refusals, and a widened `KNOWN_SURFACES`; `sidecar::bind_guard` refuses `Open` explicitly in both
+guards, and `any_surface_declares_device_token_gate` still answers only to `device-token`, so
+declaring openness can never derive an auth-policy path. Two decisions the implementation had to
+make, recorded because the prose above underdetermines them:
+
+- **One name for the `refarm web serve` listener: `web`** (alongside `capabilities`), not
+  `dist-http`. O6 establishes that the artifact routes and the proxy routes share ONE listener and
+  that declaring it open opens all of them — "this cannot be waved off as 'a different surface'". A
+  name taken from the payload invites exactly that excuse, and admitting both names would let one
+  listener carry two `expose`/`gate` values with no answer as to which wins, which is the
+  two-vocabulary failure O4 exists to prevent. Surfaces are named for listeners here, as
+  `sidecar-http` and `daemon-ws` already are. `dist-http` stays refused as an unknown name.
+- **Only the literal `expose: "tailnet"` counts as an admitted-device transport.** A
+  `host:<ip>` inside 100.64.0.0/10 does NOT qualify: `parse_expose` shape-validates a literal
+  without resolving or trusting it (S2), that range is RFC 6598 carrier-grade NAT which Tailscale
+  merely borrows (ISPs and containers use it too), and inferring an *admission* property from a
+  numeric range would be the parser manufacturing precisely the appearance-of-a-gate O1 forbids.
+  `"tailnet"` is also the form that fails closed at bind time when the tailnet is down, where a
+  hardcoded 100.x literal would bind regardless.
+
+Also settled here: `"gate": "device-token"` is now refused on a surface that verifies nothing at
+*every* `expose`, loopback included — question 2 of the 07-29 design, answered in the direction that
+doc called "honest and smaller", which is what makes `"gate": "none"` necessary rather than
+convenient. And `sidecar-http`/`daemon-ws` may not declare themselves open beyond loopback at all:
+they dispatch agents and accept CRDT writes, so O2's read-only clause excludes them.
+
 ## O5 — TS surfaces bind on the declaration, not on a policy file existing somewhere
 
 `refuseUnguardedNonLoopbackBind`'s current criterion — "does `REFARM_AUTH_POLICY` name a file that
