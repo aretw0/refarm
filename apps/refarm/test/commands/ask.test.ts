@@ -321,6 +321,13 @@ describe("refarm ask", () => {
 			.spyOn(fs, "readFileSync")
 			.mockReturnValue("urn:sovereign:session:v1:active123");
 		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
+		// getWriteCandidatePaths() probes writability with a real (unmocked) accessSync
+		// on the lock dir's parent. That parent only pre-exists by accident on a real
+		// operator machine (the actual ~/.refarm) — under the suite-wide throwaway HOME
+		// (see vitest.setup.ts) the sandboxed dir is genuinely empty, so this must be
+		// stubbed too, or the write path resolves to "none available" instead of the
+		// production fallback this test exercises.
+		vi.spyOn(fs, "accessSync").mockImplementation(() => undefined);
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")
 			.mockImplementation(() => undefined);

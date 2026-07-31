@@ -206,6 +206,10 @@ describe("refarm tree switch and guards", () => {
 		vi.spyOn(fs, "mkdirSync").mockImplementation(
 			() => undefined as string | undefined,
 		);
+		// getWriteCandidatePaths() probes writability with a real (unmocked) accessSync
+		// on the lock dir's parent — see the sibling tests above in this file, and
+		// vitest.setup.ts, for why this must be stubbed under the throwaway HOME.
+		vi.spyOn(fs, "accessSync").mockImplementation(() => undefined);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		const command = createTreeCommand();
