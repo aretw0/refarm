@@ -1,7 +1,7 @@
 # Declared delivery — being reached, on whatever you actually carry
 
 Date: 2026-07-31
-Status: Designed, not implemented
+Status: First slice implemented (2026-07-30) — see "Implementation record" below
 Lane: [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md) — interfaces, devices and nodes
 Pairs with: [`2026-07-30-pending-prompt-wire-design.md`](2026-07-30-pending-prompt-wire-design.md)
 
@@ -216,3 +216,114 @@ browser-storage exposure, or stay on Telegram until E3 lands.
 Web Push. The page and push are separable: a page you open is useful immediately, while push drags in
 FCM, VAPID and a service worker. Shipping the page first keeps that cost where it belongs — with the
 feature that needs it, not with the surface.
+
+---
+
+# Implementation record — first slice, 2026-07-30
+
+Status: **implemented** (catalog, capability vocabulary, attendance routing, three outcomes,
+registry, Telegram adapter). The web page (D9) is **not** in this landing.
+
+## Deviation from D6: Telegram ships as a package, not as a WASM plugin
+
+D6 says node-side adapters are natural plugins, and for a **third party** that stays true — the
+plugin system's declared permissions, SHA-256 integrity through the Barn, and lifecycle are exactly
+what an untrusted adapter should have to pass through.
+
+It is **not** what shipped here. A WASM plugin means Rust plus WIT plus Barn integrity, and the
+immediate goal was reaching the operator at all. So:
+
+- the **catalog and registry live in the core** (`apps/refarm/src/commands/delivery.ts`,
+  `delivery-adapters.ts`);
+- **Telegram ships as `@refarm.dev/delivery-telegram`**, a separate package outside the core app,
+  consumed through the declared catalog.
+
+This keeps the concern D6 actually had — *refarm's core has no business shipping a Telegram client*
+— without paying the WASM cost now. The core imports one symbol,
+`telegramDeliveryAdapterFactory`; it never learns that a chat id, an inline keyboard or `getUpdates`
+exist. The adapter package imports `@refarm.dev/delivery-contract-v1` and nothing else, and has no
+idea refarm's core exists.
+
+What is genuinely deferred, and should not be forgotten: a **third-party** adapter installed by an
+operator still has no integrity check and no declared permission boundary. A package in this
+monorepo is trusted because it is in this monorepo. The plugin path is the answer for adapters that
+are not, and D6's reasoning survives intact for that case.
+
+## The contract is a block, because an adapter must not import the core
+
+D2 asks for "one file plus one registry line". That is only achievable if the adapter can import the
+vocabulary from somewhere neutral — a package cannot depend on `apps/refarm`. So the seam is
+`@refarm.dev/delivery-contract-v1`, a zero-dependency block on the `prompt-contract-v1` /
+`operation-consent-v1` model, carrying the capability vocabulary, the catalog parser, the routing
+rules and the three outcomes. The registry itself is core, as scoped.
+
+## A rule D3 was missing, found by writing the first adapter
+
+A decision with **no enumerable choices** degrades to `announce`. A notification channel carries a
+choice — an action button, an inline keyboard — not a text field; collecting free text needs a
+conversation, which is a different capability from being reached. Left unstated, an answer-capable
+channel would have accepted a `text` prompt it could never settle: the D3 failure, one level down.
+Termux action buttons have the same shape, so this is vocabulary, not a Telegram limit leaking in.
+
+## Where the operator's bot token goes
+
+**Never in `.refarm/config.json`.** The catalog parser refuses `token`, `botToken`, `apiKey`,
+`secret`, `password` and friends outright, and says so. A declaration NAMES a source; resolution
+happens at use, following `REFARM_AUTH_POLICY`, which carries a path and never contents.
+
+Exactly one of:
+
+- `"tokenFile": ".refarm/delivery/telegram.token"` — a path, relative to the sovereign root or
+  absolute. **Recommended**: file permissions are a real boundary, and the value never enters the
+  process environment or any child process.
+- `"tokenEnv": "REFARM_TELEGRAM_BOT_TOKEN"` — the NAME of an environment variable.
+
+The declaration an operator writes to enable Telegram, in full:
+
+```json
+{
+  "delivery": {
+    "telegram": {
+      "capability": "answer",
+      "unattended": true,
+      "chatId": "123456789",
+      "tokenFile": ".refarm/delivery/telegram.token"
+    }
+  }
+}
+```
+
+`chatId` is an identifier, not a secret, so it belongs in the declaration. `capability` and
+`unattended` are both **required**: refarm will not guess whether a channel can carry a decision, nor
+whether it reaches the operator when nobody is attending.
+
+## The Rust side does not need to know
+
+Checked before declaring anything, because `surfaces_decl.rs` is fail-shut and
+`packages/tractor/**` is protected. The result: **no Rust change, and none needed.**
+
+`refarm_config_json_from` parses `.refarm/config.json` into an untyped `serde_json::Value`, and every
+catalog reads its own key by name — `cfg.get("surfaces")`, `cfg.get("connections")`,
+`cfg.get("spawnEnv")`, `cfg.get("trusted_plugins")`, `cfg.get("approvedPermissions")`. There is no
+`deny_unknown_fields` and no top-level key allowlist anywhere in the crate. The fail-shut refusal in
+`surfaces_decl.rs` rejects an unknown **surface name inside** the `surfaces` block, which is a
+different thing from an unknown top-level key.
+
+The proof by precedent is already in production: `workspaces` has been a top-level key in the live
+config for some time and Rust reads it nowhere. Verified empirically too — parsing the real config
+with and without a `delivery` block yields a byte-identical `surfaces` catalog.
+
+## Known debts, named rather than hidden
+
+- **Attention is read in three places.** `intention.ts` writes the state file,
+  `base-surface-status.ts` reads it, and `delivery.ts` now reads it too. Converging them into one
+  reader is real work that would touch commands this slice had no business changing.
+- **Proactive rate limiting is not implemented.** The operator already owns a researched,
+  platform-agnostic limiter in `@aretw0/dgk-channels` (vault-seed), written explicitly to be shared.
+  Its Telegram figures and its reasoning are used here rather than re-derived, and its `throttle()`
+  is deliberately **not** reimplemented. Converging it properly — moving it into refarm as a shared
+  block, with vault-seed then consuming refarm — is larger than this slice and is the right shape.
+- **No third-party integrity boundary**, per the D6 deviation above.
+- **Nothing mounts delivery in production yet.** The seam is complete and tested; like the
+  pending-prompt hub it hooks, no long-running host constructs it. That wiring is the next step, and
+  it is one call: `attachDeliveryToHub`.
