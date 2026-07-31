@@ -33,7 +33,7 @@ import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 
-import { refarmCommand } from "../brand.js";
+import { refarmCommand, refarmPrivilegedCommand } from "../brand.js";
 
 /**
  * `refarm cert` — the operator's side of sovereign TLS.
@@ -60,10 +60,18 @@ import { refarmCommand } from "../brand.js";
  */
 
 /** The handoffs this command hands on. Built through the brand helper (ADR-087) rather than
- *  written as literals, so the binary is named in exactly one place. */
+ *  written as literals, so the binary is named in exactly one place.
+ *
+ * `cert trust` is declared privileged (`src/privileged-steps.ts`): it writes into
+ * `/usr/local/share/ca-certificates`, which belongs to root. So its handoffs are built through
+ * `refarmPrivilegedCommand`, which names the interpreter and the entrypoint by absolute path.
+ * The bare `refarm cert trust` this used to print was correct in the operator's shell and
+ * UNRUNNABLE the moment `sudo` went in front of it — `sudo` replaces PATH with `secure_path`,
+ * which omits `~/.local/bin`. The operator got `sudo: refarm: command not found` from a command
+ * that had just told them, in the same breath, that root was required. */
 const CERT_ISSUE_COMMAND = refarmCommand(["cert", "issue", "--json"]);
-const CERT_TRUST_COMMAND = refarmCommand(["cert", "trust", "--json"]);
-const CERT_TRUST_PLAIN_COMMAND = `  ${refarmCommand(["cert", "trust"])}`;
+const CERT_TRUST_COMMAND = refarmPrivilegedCommand(["cert", "trust", "--json"]);
+const CERT_TRUST_PLAIN_COMMAND = `  ${refarmPrivilegedCommand(["cert", "trust"])}`;
 const CERT_HELP_COMMAND = refarmCommand(["cert", "--help"]);
 
 /** Where this node keeps its CA and the certificates it has issued. */
@@ -379,7 +387,7 @@ export async function runCertTrust(
 			throw new CertificateRefusal(
 				"issuance-failed",
 				`refarm cert trust: no permission to write ${anchorPath}`,
-				`A system trust store belongs to root. Re-run as \`sudo -E refarm cert trust\`, or ` +
+				`A system trust store belongs to root. Re-run as \`${CERT_TRUST_PLAIN_COMMAND.trim()}\`, or ` +
 					`pass --anchor <path> to stage the file somewhere you can write and install it ` +
 					`yourself with \`sudo cp\` + \`${LINUX_CA_REFRESH_COMMAND}\`.`,
 			);

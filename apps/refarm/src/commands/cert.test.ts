@@ -165,7 +165,16 @@ describe.skipIf(!opensslAvailable)("`refarm cert issue` — the canonical path",
 	it("hands the operator the exact command that serves it beside the plain listener", async () => {
 		const result = await runCertIssue({ dir, days: 7 }, { root: dir, hostname: HOST });
 		expect(result.serveCommand).toMatch(/refarm web serve .* --tls-cert .* --tls-key /);
-		expect(result.nextCommands).toContain("refarm cert trust --json");
+		// The trust step needs root, and `sudo` replaces PATH with `secure_path` — which omits
+		// `~/.local/bin`, where the launcher lives. So the handoff names the interpreter and the
+		// entrypoint by ABSOLUTE PATH rather than the bare binary the operator's own shell finds.
+		// Asserted as a property, not a literal: the path is derived from the running process, so
+		// it is different on every machine — pinning the string would pin this host.
+		const trust = result.nextCommands.find((command) => command.includes("cert trust --json"));
+		expect(trust).toBeDefined();
+		expect(trust).toMatch(/^sudo -E /);
+		expect(trust).not.toMatch(/^sudo -E refarm\b/);
+		expect(trust).toContain(process.execPath);
 	});
 
 	it("re-issuing reuses the same CA — rotation is running the command again", async () => {
