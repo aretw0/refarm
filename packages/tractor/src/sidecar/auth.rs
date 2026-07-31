@@ -99,9 +99,10 @@
 //! UNIX epoch refuses EVERY scoped credential — an unreadable clock cannot be used to say a
 //! deadline has not passed. Device credentials have no expiry and are untouched by any of it.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use axum::{
     body::Body,
@@ -166,10 +167,21 @@ impl Scope {
         }
     }
 
-    /// The wire string for this scope. Test-only: nothing in the running gate ever renders a
+    /// The wire string for this scope.
+    ///
+    /// This was test-only, under the rule that "nothing in the running gate ever renders a
     /// scope — a scope printed beside an identity is exactly the log line this module refuses
-    /// to emit — so the only callers are fixtures that build policy JSON.
-    #[cfg(test)]
+    /// to emit". That rule is NARROWED here, deliberately and to one place: it remains true of
+    /// every `tracing` line this module emits (none names a scope, an identity, or a hash), and
+    /// it stops being true of the authorisation audit, which exists precisely so the operator
+    /// can see what authority was exercised and by whom.
+    ///
+    /// The two are different objects, not a rule and its exception. A log line is emitted to
+    /// whatever collects the process's output; the audit is a local, rotation-bounded,
+    /// operator-owned file whose entire purpose is answering "was this device used last
+    /// night, and to do what". An audit that withheld the scope could not answer the second
+    /// half — and a scope is authority metadata, not a secret: it is never a credential, and
+    /// knowing that a route required `prompt:answer` helps nobody hold one.
     pub(crate) const fn wire(self) -> &'static str {
         match self {
             Scope::AnswerPrompts => SCOPE_ANSWER_PROMPTS,
@@ -399,6 +411,429 @@ pub(crate) fn sha256_hex(input: &str) -> String {
         let _ = write!(out, "{byte:02x}");
     }
     out
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════
+// A BOUND ON FAILED AUTHENTICATION
+// ═══════════════════════════════════════════════════════════════════════════════════════
+//
+// The gate refused bad credentials from the day it existed, and did so an unlimited number of
+// times. Refusing is not the same as bounding: a device on the tailnet could present wrong
+// credentials as fast as it could open sockets, forever, and the node would answer every one
+// of them with a fresh hash and a fresh `401`. E5 of the phone-enrolment design
+// (`docs/superpowers/specs/2026-07-30-phone-initiated-enrolment-design.md`) asks for "a
+// bounded queue and a rate limit on anything a remote peer can create" — written once in the
+// substrate so every adapter inherits it. It was applied to what this node SENDS. This is the
+// same sentence applied to what it ACCEPTS.
+//
+// ## What the limit is keyed on, and why every other key is worse
+//
+// The key is a tag of the CREDENTIAL PRESENTED. Not a claimed identity, not a peer address.
+//
+// A **claimed identity** is the tempting key and the dangerous one. A limiter keyed on who the
+// caller SAYS it is hands any caller a remote lockout tool aimed at anyone they can name:
+// present garbage in someone else's name until their budget is gone, and the gate does the
+// attacker's work for them. This module never learns a claimed identity in the first place —
+// a failed verification yields no identity at all, only `None` — and that stays true here.
+// The identity in an audit line below is only ever one this gate RESOLVED, never one a caller
+// asserted.
+//
+// A **network address** is the other tempting key, and this codebase has already refused it,
+// for a reason that outranks rate limiting: `sidecar::node_local`'s
+// `no_code_path_can_decide_authentication_from_a_request_property` asserts that the mechanisms
+// for learning where a request came from appear in NO file that serves a request. That
+// invariant is what keeps "is this authenticated" a question about a credential instead of a
+// question about what a packet claims. A refusal keyed on the caller's address would drag
+// exactly that mechanism back into this file, and the next "…but trust it when it looks local"
+// branch would then be writable. It also fails on its own terms: several devices behind one
+// address share one budget, so the neighbour exhausts yours.
+//
+// The presented credential has the property neither of those has: **spending a credential's
+// budget requires presenting that credential.** A third party cannot burn the operator's
+// budget without already holding the operator's token — and if they hold it they are not
+// guessing, they authenticate, and the lockout has cost the operator nothing that was not
+// already lost. The budget belongs to the secret, and only the secret's holder can spend it.
+//
+// ## Two tiers, asymmetric on purpose
+//
+// Keying on the credential bounds REPEAT attempts of one credential. It cannot, on its own,
+// bound a search across many distinct credentials — each guess is a new key, so no bucket ever
+// fills. The honest fix for that is a shared counter, and a shared counter consulted BEFORE
+// verification would be precisely the third-party lockout this design refuses: a stranger's
+// flood would deny the operator their own node.
+//
+// So the two tiers are consulted at different moments, and that asymmetry is the whole design:
+//
+//   - the **per-credential** bucket is consulted BEFORE the policy is read, and refuses
+//     outright. Safe at that position because only the credential's holder can fill it.
+//   - the **overflow** counter — one shared bucket, reached only once the table is full — is
+//     consulted only AFTER verification has already FAILED. It changes what a failing request
+//     is told (`429` rather than `401`) and never blocks a request that would have succeeded.
+//     A flood therefore cannot deny service to anyone holding a valid credential, because the
+//     valid credential is verified before the shared counter is ever consulted.
+//
+// ## Bounded memory
+//
+// [`FAILURE_TABLE_CAPACITY`] entries, and not one more. Failures against untracked credentials
+// once the table is full go to the single shared overflow counter, so a flood of distinct
+// tokens grows the limiter's state by exactly zero. Stale buckets are reclaimed lazily when
+// the table is full; buckets still inside their window are NEVER evicted, because eviction
+// under pressure would be an escape hatch — flood the table, evict your own lockout, resume.
+
+/// How many failures ONE presented credential may accrue before the gate stops even looking
+/// at it. Five: enough that a client with a stale token in its config does not trip on its
+/// first retry, and not a useful number of guesses.
+pub(crate) const FAILURE_THRESHOLD: u32 = 5;
+
+/// How long a tripped credential is refused — and how long a bucket survives without a new
+/// failure before it is forgotten. ONE duration for both, because they are one statement: the
+/// limiter remembers a failure for exactly as long as it is willing to act on it.
+///
+/// Measured from the LAST COUNTED failure, and attempts made while locked out are not counted
+/// (they never reach the counter — see [`FailureLimiter::blocked`]). So hammering the door
+/// cannot extend the lockout, and the recovery is unconditional: wait this long.
+pub(crate) const FAILURE_WINDOW: Duration = Duration::from_secs(60);
+
+/// THE memory bound: how many distinct credentials the failure table tracks at once.
+pub(crate) const FAILURE_TABLE_CAPACITY: usize = 256;
+
+/// How many failures against UNTRACKED credentials — the ones arriving once the table is full,
+/// which is what a flood of distinct tokens looks like — before failing requests are answered
+/// `429` instead of `401`. Higher than the per-credential threshold because it is a shared
+/// counter: it should mean "this node is being ground", not "a few clients are misconfigured".
+pub(crate) const OVERFLOW_THRESHOLD: u32 = 64;
+
+/// Mixed into the limiter's key so the tag is NOT a prefix of the `tokenSha256` the policy
+/// stores. Both are digests of the same token; without separation the tag would be a partial
+/// match for the stored hash the moment anything rendered it. Nothing renders it — but the
+/// property should not have to depend on that.
+const LIMITER_TAG_DOMAIN: &[u8] = b"refarm-auth-failure-limiter\0";
+
+/// A short, domain-separated tag of a presented credential — the failure table's key.
+///
+/// 64 bits rather than the whole digest because the table needs a NAME for a credential, not
+/// the credential. A collision merges two buckets, which only ever makes the limiter stricter
+/// (two callers sharing one budget) — the fail-closed direction, and at 256 entries it is not
+/// a direction anyone will observe.
+fn credential_tag(token: &str) -> u64 {
+    let mut hasher = Sha256::new();
+    hasher.update(LIMITER_TAG_DOMAIN);
+    hasher.update(token.as_bytes());
+    let digest = hasher.finalize();
+    let mut head = [0u8; 8];
+    head.copy_from_slice(&digest[..8]);
+    u64::from_be_bytes(head)
+}
+
+/// What to tell a caller whose request did not authenticate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Refusal {
+    /// The credential did not authenticate. `401`, and the same one word as ever.
+    Invalid,
+    /// Too many failures. `429`, with how long it is worth waiting before trying again —
+    /// stated, because E5's own list ends with "refusal that says why, since a silent drop
+    /// teaches a caller to retry harder". Saying "too many, wait 60s" tells the caller nothing
+    /// about any credential's validity: it is a fact about their own behaviour.
+    RateLimited { retry_after: Duration },
+}
+
+/// One credential's failure bucket.
+#[derive(Debug, Clone, Copy)]
+struct Bucket {
+    failures: u32,
+    /// When the most recent COUNTED failure landed. The window runs from here.
+    last: Instant,
+}
+
+/// The bounded failure limiter. Not `Clone`: there is one, behind the gate's `Arc`, so every
+/// listener sharing that gate shares one set of budgets.
+#[derive(Debug, Default)]
+pub(crate) struct FailureLimiter {
+    buckets: HashMap<u64, Bucket>,
+    /// The one shared bucket for credentials the table had no room for. `None` until the
+    /// table has actually overflowed, so the ordinary case carries no extra state.
+    overflow: Option<Bucket>,
+}
+
+impl FailureLimiter {
+    /// Is this credential locked out RIGHT NOW — asked before the policy is consulted, so a
+    /// locked-out credential is refused without the gate doing the work of verifying it.
+    /// `Some(retry_after)` ⇒ refuse; `None` ⇒ carry on to verification.
+    ///
+    /// Expiry is applied here, on read, rather than by a sweeping task: a bucket whose window
+    /// has closed is removed the moment anyone asks about it, so the lockout ends on its own
+    /// with nothing scheduled and nothing to fail.
+    fn blocked(&mut self, tag: u64, now: Instant) -> Option<Duration> {
+        let bucket = *self.buckets.get(&tag)?;
+        if bucket.failures < FAILURE_THRESHOLD {
+            return None;
+        }
+        let elapsed = now.saturating_duration_since(bucket.last);
+        if elapsed >= FAILURE_WINDOW {
+            self.buckets.remove(&tag);
+            return None;
+        }
+        Some(FAILURE_WINDOW - elapsed)
+    }
+
+    /// Count a failure against this credential and say what to tell the caller.
+    fn on_failure(&mut self, tag: u64, now: Instant) -> Refusal {
+        let failures = match self.buckets.get_mut(&tag) {
+            Some(bucket) => {
+                // A bucket whose window closed while it was below the threshold starts over,
+                // so five typos spread across a week are not five typos in a minute.
+                if now.saturating_duration_since(bucket.last) >= FAILURE_WINDOW {
+                    bucket.failures = 0;
+                }
+                bucket.failures = bucket.failures.saturating_add(1);
+                bucket.last = now;
+                bucket.failures
+            }
+            None => {
+                if self.buckets.len() >= FAILURE_TABLE_CAPACITY {
+                    self.reclaim(now);
+                }
+                if self.buckets.len() >= FAILURE_TABLE_CAPACITY {
+                    return self.overflow_failure(now);
+                }
+                self.buckets.insert(tag, Bucket { failures: 1, last: now });
+                1
+            }
+        };
+        // ONE threshold comparison in the whole limiter, so there is one place for it to be
+        // wrong and one place for a mutation to be caught.
+        if failures >= FAILURE_THRESHOLD {
+            Refusal::RateLimited { retry_after: FAILURE_WINDOW }
+        } else {
+            Refusal::Invalid
+        }
+    }
+
+    /// A failure against a credential the table had no room for. Shared counter, consulted
+    /// ONLY after verification already failed — see the module section above for why its
+    /// position in the request path is what makes it safe.
+    fn overflow_failure(&mut self, now: Instant) -> Refusal {
+        let bucket = self.overflow.get_or_insert(Bucket { failures: 0, last: now });
+        if now.saturating_duration_since(bucket.last) >= FAILURE_WINDOW {
+            bucket.failures = 0;
+        }
+        bucket.failures = bucket.failures.saturating_add(1);
+        bucket.last = now;
+        if bucket.failures >= OVERFLOW_THRESHOLD {
+            Refusal::RateLimited { retry_after: FAILURE_WINDOW }
+        } else {
+            Refusal::Invalid
+        }
+    }
+
+    /// Drop buckets whose window has closed. Called only when the table is full, so the cost
+    /// is paid under pressure and never on the ordinary path — and it is bounded by the
+    /// capacity, which is the point of having one.
+    ///
+    /// Only STALE buckets go. A bucket still inside its window survives even when the table is
+    /// full, which is what stops a flood from being an escape hatch: an attacker cannot evict
+    /// their own lockout by filling the table, because their own bucket is the freshest thing
+    /// in it.
+    fn reclaim(&mut self, now: Instant) {
+        self.buckets
+            .retain(|_, bucket| now.saturating_duration_since(bucket.last) < FAILURE_WINDOW);
+    }
+
+    /// Forget this credential's failures, because it has just authenticated.
+    ///
+    /// A success resets the counter, and it must. The budget exists to bound GUESSING, and a
+    /// correct credential is proof the caller was not guessing: a client that retried a stale
+    /// token four times and then had its config fixed must not carry four failures into the
+    /// next hour. It gives an attacker nothing — resetting a bucket requires presenting the
+    /// credential that owns it, and presenting it is authenticating, so the reset grants
+    /// exactly the access they already had.
+    fn on_success(&mut self, tag: u64) {
+        self.buckets.remove(&tag);
+    }
+
+    /// How many buckets are held. The memory bound, observable — for the flood test, which
+    /// asserts it stops rising, and for nothing else.
+    #[cfg(test)]
+    pub(crate) fn tracked(&self) -> usize {
+        self.buckets.len()
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════
+// THE AUTHORISATION AUDIT TRAIL
+// ═══════════════════════════════════════════════════════════════════════════════════════
+//
+// `operations.json` records what CHANGED. Nothing recorded who came in. The operator could not
+// answer "was this device used last night?" — the one question an enrolled-device gate exists
+// to make answerable — because every authentication, successful or not, left the process as a
+// `tracing` line and nothing else.
+//
+// ## What it reuses, and what it deliberately does not
+//
+// It writes to the daemon's EXISTING audit trail: `<refarm-dir>/scarecrow-audit.ndjson`,
+// through `observer::append_line`, under an `auth:` event prefix beside the `host-effect:` and
+// `agent:` ones already there. That is a real reuse and not a cosmetic one — the rotation
+// (`observer::AuditConfig`, 8 MiB segments), the retention (16 sealed segments, oldest pruned),
+// the tamper-evidence rule that a full segment is SEALED by rename rather than truncated, and
+// the operator's existing habit of reading one file all come with it. A second security log
+// would have needed its own rotation, its own cap, and its own ways of going wrong.
+//
+// Three stores were considered and not used. `operations.json`
+// (`packages/operation-consent-v1`) rewrites its whole JSON document on every append and has no
+// cap at all — O(n) per event and unbounded growth, which is the wrong shape for an event
+// stream a remote peer can drive. `history-contract-v1` and `provenance-contract-v1` are
+// TypeScript wire contracts with no storage implementation and no Rust side at all
+// (`RecordHistoryStore` is literally a `Vec`); adopting either would have meant writing the
+// persistence from scratch and calling it reuse.
+//
+// It does NOT go through the `TelemetryBus`, which was the shorter path to the same file. The
+// bus is a `tokio::sync::broadcast`: it drops messages when a subscriber lags, and a flood of
+// failed authentications is exactly when it would lag. A security trail with holes in it
+// precisely when it is interesting is worse than no trail, because it reads as quiet.
+//
+// ## Why it survives a restart
+//
+// On disk, under the refarm dir, appended and fsync-free but flushed per line — the same
+// durability the host-effect trail has had. Anything in memory answers "was this device used
+// last night" only while the daemon that saw last night is still running, which is the one
+// condition under which the question is least likely to be asked.
+//
+// ## Bounded growth, twice over
+//
+// The file is bounded by the rotation it inherits: 8 MiB × 16 segments, ~128 MiB ceiling,
+// oldest pruned, both already tunable by the existing `REFARM_AUDIT_ROTATE_BYTES` /
+// `REFARM_AUDIT_MAX_SEGMENTS`. And the RATE is bounded by the limiter above: attempts refused
+// while a credential is locked out write NO line, because the lockout was already recorded on
+// the attempt that tripped it. Writing one line per attempt during a lockout would have handed
+// an attacker a disk-filling amplifier and taught the operator to skim.
+//
+// ## What is never written
+//
+// No token. No token hash. No limiter tag. Not truncated, not salted, not "just the first
+// eight characters" — none of it, in any form. The identity is the label the policy already
+// stores in plaintext and is the entire point of an attribution; the scope is the ROUTE's
+// requirement, not an enumeration of what the credential holds. `audit_line` is a pure
+// function of six values and none of them is derived from the secret, which is what makes
+// that assertion testable rather than aspirational.
+
+/// The outcome of one authentication decision, as the audit records it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AuditOutcome {
+    /// A credential verified. The request proceeded.
+    Accepted,
+    /// A credential did not verify. `401`.
+    Refused,
+    /// The failure that TRIPPED the limit. `429`, and the last line this credential writes
+    /// until its window closes.
+    LockedOut,
+}
+
+impl AuditOutcome {
+    /// The `event` name — `auth:` prefixed, so it sits in the shared trail as its own
+    /// namespace beside `host-effect:` and `agent:`, greppable and routable on its own.
+    fn event(self) -> &'static str {
+        match self {
+            AuditOutcome::Accepted => "auth:accepted",
+            AuditOutcome::Refused => "auth:refused",
+            AuditOutcome::LockedOut => "auth:locked-out",
+        }
+    }
+
+    fn outcome(self) -> &'static str {
+        match self {
+            AuditOutcome::Accepted => "accepted",
+            AuditOutcome::Refused => "refused",
+            AuditOutcome::LockedOut => "locked-out",
+        }
+    }
+}
+
+/// The absence of a value, rendered. A failure has no identity and no credential kind — and
+/// writing `-` rather than omitting the key keeps every line the same shape, so an operator
+/// grepping the trail does not have to know which fields a refusal happens to carry.
+const AUDIT_ABSENT: &str = "-";
+
+/// One audit line. PURE — six values in, a string out; no clock, no I/O, no lock. That is what
+/// lets the "no credential material is ever written" rule be tested as a property of a
+/// function rather than asserted about a file and hoped for.
+///
+/// Note what is NOT a parameter: the token, its digest, and the limiter tag. They are not
+/// omitted from the output, they are absent from the SIGNATURE — this function could not write
+/// a credential if someone asked it to.
+pub(crate) fn audit_line(
+    now_ms: i64,
+    outcome: AuditOutcome,
+    identity: Option<&str>,
+    kind: Option<CredentialKind>,
+    required: RouteRequirement,
+    method: &str,
+) -> String {
+    // Rendered through serde_json, never formatted by hand: an identity or a method is
+    // attacker-adjacent text, and a hand-built line is how one of them becomes a second line.
+    serde_json::json!({
+        "ts": now_ms,
+        "event": outcome.event(),
+        "outcome": outcome.outcome(),
+        // Only ever an identity this gate RESOLVED from a verified credential — never one a
+        // caller claimed, because a caller has no way to claim one here.
+        "identity": identity.unwrap_or(AUDIT_ABSENT),
+        "credential": match kind {
+            Some(CredentialKind::Device) => "device",
+            Some(CredentialKind::Scoped) => "scoped",
+            None => AUDIT_ABSENT,
+        },
+        // The scope the ROUTE required, which is the authority that was exercised (or sought).
+        // Not the scope set the credential holds: the question the operator asks is "what was
+        // done with this", not "what else could this have done".
+        "scope": match required {
+            RouteRequirement::Scoped(scope) => scope.wire(),
+            RouteRequirement::DeviceOnly => AUDIT_ABSENT,
+        },
+        "method": method,
+    })
+    .to_string()
+}
+
+/// Where authentication events are written. A path and the retention knobs, resolved once at
+/// boot beside the policy itself.
+#[derive(Debug, Clone)]
+pub(crate) struct AuthAudit {
+    path: PathBuf,
+    config: crate::observer::AuditConfig,
+}
+
+impl AuthAudit {
+    /// The trail for a refarm dir — the SAME file `observer::spawn_audit_subscriber` writes,
+    /// derived the same way from the same dir, so there is one trail and not two.
+    fn for_refarm_dir(refarm_dir: &Path) -> Self {
+        Self {
+            path: refarm_dir.join(crate::observer::AUDIT_FILE),
+            config: crate::observer::AuditConfig::from_env(),
+        }
+    }
+
+    /// Write one line. Best-effort in the same sense the host-effect trail is: a write that
+    /// fails warns (through `observer::append_line`) rather than failing the request, because
+    /// a node that stops authenticating when its disk is full is a worse outcome than a gap in
+    /// the trail — and the gap is audible.
+    async fn record(
+        &self,
+        outcome: AuditOutcome,
+        identity: Option<&str>,
+        kind: Option<CredentialKind>,
+        required: RouteRequirement,
+        method: &str,
+    ) {
+        let line = audit_line(
+            host_clock_ms().unwrap_or_default(),
+            outcome,
+            identity,
+            kind,
+            required,
+            method,
+        );
+        crate::observer::append_line(&self.path, &line, self.config).await;
+    }
 }
 
 /// The policy file shape. Unknown fields (workspaces/memberships for Slice 2) are ignored
@@ -670,7 +1105,11 @@ fn resolve_auth_policy(source: &AuthPolicySource) -> Option<AuthGate> {
             AuthPolicy::deny_all()
         }
     };
-    Some(AuthGate::new(located, policy, reading.fingerprint))
+    // The trail is derived from the refarm dir the daemon was GIVEN, never from the policy
+    // path's parent: `REFARM_AUTH_POLICY` can point the policy anywhere, and the audit must
+    // still land in the node's own directory beside the trail the rest of the runtime writes.
+    let audit = AuthAudit::for_refarm_dir(&source.refarm_dir);
+    Some(AuthGate::new(located, policy, reading.fingerprint, Some(audit)))
 }
 
 /// WHAT one read of the policy file said. Three outcomes, because they warrant three
@@ -749,6 +1188,19 @@ struct GateState {
     /// The fingerprint of the observation currently in force. Guards both the re-apply and
     /// the log line: no change, no swap, no line.
     applied: Mutex<String>,
+    /// The bound on failed authentication. Lives HERE, behind the same `Arc` as the policy, so
+    /// every listener that shares this gate shares one set of budgets — a per-listener limiter
+    /// would give an attacker as many budgets as the node has sockets.
+    ///
+    /// A `std::sync::Mutex` and not an async one: every critical section is a hash lookup and
+    /// an integer bump, held across no `.await` (the middleware takes the lock, decides, and
+    /// drops it before any I/O). An async mutex here would buy contention behaviour this never
+    /// needs and would make the guard live across the audit write, which is the one thing that
+    /// must not happen.
+    limiter: Mutex<FailureLimiter>,
+    /// Where authentication events are recorded. `None` only in tests that inject a policy and
+    /// have no dir to write to — a gate resolved at boot always has one.
+    audit: Option<AuthAudit>,
 }
 
 /// Never prints credentials — not the tokens, not their hashes, not the identities. A
@@ -765,14 +1217,69 @@ impl std::fmt::Debug for AuthGate {
 }
 
 impl AuthGate {
-    fn new(located: PolicyPath, policy: AuthPolicy, fingerprint: String) -> Self {
+    fn new(
+        located: PolicyPath,
+        policy: AuthPolicy,
+        fingerprint: String,
+        audit: Option<AuthAudit>,
+    ) -> Self {
         Self {
             state: Arc::new(GateState {
                 located,
                 current: RwLock::new(policy),
                 applied: Mutex::new(fingerprint),
+                limiter: Mutex::new(FailureLimiter::default()),
+                audit,
             }),
         }
+    }
+
+    /// Is this credential locked out right now? Takes the lock, decides, releases it — the
+    /// guard never outlives this call, which is what keeps the middleware's future `Send`.
+    fn blocked(&self, tag: u64, now: Instant) -> Option<Duration> {
+        self.state
+            .limiter
+            .lock()
+            .expect("auth limiter lock poisoned")
+            .blocked(tag, now)
+    }
+
+    /// Count a failure and say what to answer.
+    fn note_failure(&self, tag: u64, now: Instant) -> Refusal {
+        self.state
+            .limiter
+            .lock()
+            .expect("auth limiter lock poisoned")
+            .on_failure(tag, now)
+    }
+
+    /// Forget this credential's failures — it has just authenticated.
+    fn note_success(&self, tag: u64) {
+        self.state
+            .limiter
+            .lock()
+            .expect("auth limiter lock poisoned")
+            .on_success(tag);
+    }
+
+    /// Record one authentication event, if this gate has a trail to write to.
+    async fn audit(
+        &self,
+        outcome: AuditOutcome,
+        identity: Option<&str>,
+        kind: Option<CredentialKind>,
+        required: RouteRequirement,
+        method: &str,
+    ) {
+        if let Some(audit) = &self.state.audit {
+            audit.record(outcome, identity, kind, required, method).await;
+        }
+    }
+
+    /// Test-only: how many credentials the limiter is tracking — the memory bound, observable.
+    #[cfg(test)]
+    pub(crate) fn tracked_failures(&self) -> usize {
+        self.state.limiter.lock().expect("auth limiter lock poisoned").tracked()
     }
 
     /// Authenticate a bearer token as a DEVICE against the policy IN FORCE right now → its
@@ -925,6 +1432,19 @@ impl AuthGate {
             PolicyPath { path: PathBuf::from("/nonexistent/injected-policy.json"), derived: false },
             policy,
             "<injected>".to_string(),
+            None,
+        )
+    }
+
+    /// Test-only: a gate that WRITES its audit to a named dir, for the tests that read the
+    /// trail back. Separate from `for_test` so the enforcement tests keep writing nowhere.
+    #[cfg(test)]
+    pub(crate) fn for_test_with_audit(policy: AuthPolicy, refarm_dir: &Path) -> Self {
+        Self::new(
+            PolicyPath { path: PathBuf::from("/nonexistent/injected-policy.json"), derived: false },
+            policy,
+            "<injected>".to_string(),
+            Some(AuthAudit::for_refarm_dir(refarm_dir)),
         )
     }
 }
@@ -1080,6 +1600,36 @@ fn unauthorized(reason: &str) -> Response<Body> {
         .unwrap_or_else(|_| Response::new(Body::empty()))
 }
 
+/// `429`, with `Retry-After` in seconds — the refusal that says why.
+///
+/// `429` and not `401`, and the distinction carries no information about any credential: it is
+/// a statement about how often THIS caller has failed, which the caller already knows. It is
+/// also the status this codebase already uses for a bound being reached
+/// (`pending_prompt`'s full queue), so an operator meets one meaning of `429` on this node and
+/// not two.
+///
+/// `Retry-After` is stated because E5's list ends with "refusal that says why, since a silent
+/// drop teaches a caller to retry harder" — and a caller told to wait 60 seconds is a caller
+/// that stops hammering. That is the honest-citizenship half of the same sentence that asked
+/// for the limit in the first place.
+fn too_many_requests(retry_after: Duration) -> Response<Body> {
+    // Always at least a second: `Retry-After: 0` reads as "immediately", which is the opposite
+    // of what a limiter means.
+    let seconds = retry_after.as_secs().max(1);
+    let body = serde_json::json!({
+        "error": "too_many_requests",
+        "reason": "too many failed authentication attempts",
+        "retryAfterSeconds": seconds,
+    })
+    .to_string();
+    Response::builder()
+        .status(StatusCode::TOO_MANY_REQUESTS)
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::RETRY_AFTER, seconds.to_string())
+        .body(Body::from(body))
+        .unwrap_or_else(|_| Response::new(Body::empty()))
+}
+
 /// Axum middleware: reject any request without a valid enrolled credential. An
 /// authenticated request passes through carrying the identity the gate resolved for it
 /// ([`AuthenticatedDevice`]) and nothing else changed.
@@ -1099,20 +1649,77 @@ fn unauthorized(reason: &str) -> Response<Body> {
 /// declares nothing admits device credentials only. A refusal says `invalid` whether the
 /// credential was unknown, out of scope, or expired: one word, on purpose, because a gate
 /// that distinguishes the three is a gate that helps someone enumerate.
+/// ## The limiter's position in this function, which is the design
+///
+/// A request with NO credential is refused and NOT counted. It guesses nothing — there is no
+/// credential being tested — so counting it would let ordinary unauthenticated noise (a
+/// mis-pointed client, a probe, a browser that wandered in) spend a budget that exists to
+/// detect guessing, which is a way for a third party to blunt the signal for free.
+///
+/// A request WITH a credential meets the limiter twice, at two different moments:
+///
+///   1. BEFORE verification, against that credential's own bucket. A locked-out credential is
+///      refused here without the policy being consulted at all. Safe at this position for the
+///      one reason the whole design rests on: only the holder of a credential can fill its
+///      bucket.
+///   2. AFTER verification has failed, to count the failure and decide `401` or `429`.
+///
+/// A SUCCESSFUL verification is never refused by the limiter — step 1 can only fire for a
+/// credential that has itself failed five times, and step 2 is not reached. That is the
+/// anti-lockout property stated as control flow rather than as a promise.
+///
+/// The node-local listener is untouched by every word of this: it is constructed WITHOUT this
+/// layer (`node_local::gate_for`), so it has no credential, no failures to count, and no way
+/// to reach a limiter that lives inside a middleware it never runs.
 pub(crate) async fn auth_middleware(
     gate: AuthGate,
     mut request: Request<Body>,
     next: Next,
 ) -> Response<Body> {
     let required = route_requirement(request.method(), request.uri().path());
-    match bearer_token(&request) {
-        None => unauthorized("missing"),
-        Some(token) => match gate.verify(&token, required) {
-            Some(verified) => {
-                request.extensions_mut().insert(AuthenticatedDevice(verified.identity));
-                next.run(request).await
+    let method = request.method().clone();
+    let Some(token) = bearer_token(&request) else {
+        // Not counted, not audited: nothing was presented, so nothing was attempted.
+        return unauthorized("missing");
+    };
+
+    // The limiter's clock is MONOTONIC, unlike the expiry clock a few lines up. A lockout is a
+    // local duration, not an instant minted elsewhere, so it must not be lengthened or ended by
+    // the host's wall clock being corrected — which is also the one clock an attacker on the
+    // same host might influence.
+    let now = Instant::now();
+    let tag = credential_tag(&token);
+
+    if let Some(retry_after) = gate.blocked(tag, now) {
+        // Deliberately silent in the trail. The lockout was recorded on the attempt that
+        // tripped it; a line per attempt while locked out would be a disk-filling amplifier
+        // handed to whoever is hammering, and would bury the one line that mattered.
+        return too_many_requests(retry_after);
+    }
+
+    match gate.verify(&token, required) {
+        Some(verified) => {
+            gate.note_success(tag);
+            gate.audit(
+                AuditOutcome::Accepted,
+                Some(&verified.identity),
+                Some(verified.kind),
+                required,
+                method.as_str(),
+            )
+            .await;
+            request.extensions_mut().insert(AuthenticatedDevice(verified.identity));
+            next.run(request).await
+        }
+        None => match gate.note_failure(tag, now) {
+            Refusal::Invalid => {
+                gate.audit(AuditOutcome::Refused, None, None, required, method.as_str()).await;
+                unauthorized("invalid")
             }
-            None => unauthorized("invalid"),
+            Refusal::RateLimited { retry_after } => {
+                gate.audit(AuditOutcome::LockedOut, None, None, required, method.as_str()).await;
+                too_many_requests(retry_after)
+            }
         },
     }
 }
@@ -2604,5 +3211,479 @@ mod tests {
                 .find(|c| c.token_sha256 == hash)
                 .map(|c| c.identity.as_str())
         }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════════════
+    // THE FAILURE LIMITER
+    // ══════════════════════════════════════════════════════════════════════════════════
+    //
+    // The limiter's decision is a pure function of (state, tag, Instant), so every property
+    // below is asserted at NAMED instants — no sleeping, no wall clock, and no flake.
+
+    /// An instant `secs` after a fixed origin. `Instant` cannot be constructed from an epoch,
+    /// so the origin is "now" and every test instant is an offset from it.
+    fn at(origin: Instant, secs: u64) -> Instant {
+        origin + Duration::from_secs(secs)
+    }
+
+    #[test]
+    fn a_credential_is_refused_outright_once_it_has_failed_the_threshold() {
+        let mut limiter = FailureLimiter::default();
+        let origin = Instant::now();
+        let tag = credential_tag("a-wrong-token");
+
+        // Below the threshold: refused `401`, and NOT blocked — the gate keeps looking.
+        for attempt in 1..FAILURE_THRESHOLD {
+            assert_eq!(
+                limiter.on_failure(tag, at(origin, 0)),
+                Refusal::Invalid,
+                "attempt {attempt} is below the threshold and must be an ordinary refusal"
+            );
+            assert_eq!(
+                limiter.blocked(tag, at(origin, 0)),
+                None,
+                "attempt {attempt} must not have locked the credential out yet"
+            );
+        }
+
+        // THE threshold attempt trips it.
+        assert_eq!(
+            limiter.on_failure(tag, at(origin, 0)),
+            Refusal::RateLimited { retry_after: FAILURE_WINDOW },
+            "the {FAILURE_THRESHOLD}th failure must trip the limit"
+        );
+        assert_eq!(
+            limiter.blocked(tag, at(origin, 0)),
+            Some(FAILURE_WINDOW),
+            "and the credential must now be refused BEFORE the policy is consulted"
+        );
+    }
+
+    #[test]
+    fn the_lockout_releases_itself_after_the_window_and_nothing_has_to_run() {
+        let mut limiter = FailureLimiter::default();
+        let origin = Instant::now();
+        let tag = credential_tag("a-wrong-token");
+        for _ in 0..FAILURE_THRESHOLD {
+            limiter.on_failure(tag, at(origin, 0));
+        }
+
+        // One second before the window closes: still shut, and the remaining time is stated.
+        let remaining = limiter
+            .blocked(tag, at(origin, FAILURE_WINDOW.as_secs() - 1))
+            .expect("still locked out one second before the window closes");
+        assert_eq!(remaining, Duration::from_secs(1), "the wait must be counted down honestly");
+
+        // At the window: open, with nothing scheduled and nothing swept.
+        assert_eq!(
+            limiter.blocked(tag, at(origin, FAILURE_WINDOW.as_secs())),
+            None,
+            "the lockout must expire on its own — waiting is the whole recovery path"
+        );
+        assert_eq!(
+            limiter.tracked(),
+            0,
+            "and the expired bucket must be released, not merely ignored"
+        );
+    }
+
+    #[test]
+    fn hammering_a_locked_out_credential_does_not_extend_the_lockout() {
+        // The operator's recovery guarantee: waiting WORKS, unconditionally. If attempts made
+        // during a lockout refreshed the bucket, a client retrying in a loop — which is what
+        // clients do — would hold its own door shut forever, and "wait 60s" would be a lie.
+        let mut limiter = FailureLimiter::default();
+        let origin = Instant::now();
+        let tag = credential_tag("a-wrong-token");
+        for _ in 0..FAILURE_THRESHOLD {
+            limiter.on_failure(tag, at(origin, 0));
+        }
+        // Hammer all the way through the window. `blocked` short-circuits, so `on_failure` is
+        // never reached — exactly as the middleware arranges it.
+        for second in 0..FAILURE_WINDOW.as_secs() {
+            assert!(limiter.blocked(tag, at(origin, second)).is_some(), "shut at second {second}");
+        }
+        assert_eq!(
+            limiter.blocked(tag, at(origin, FAILURE_WINDOW.as_secs())),
+            None,
+            "the window must close on schedule regardless of how hard it was hammered"
+        );
+    }
+
+    #[test]
+    fn a_successful_authentication_clears_that_credentials_failures() {
+        // A client with a stale token in its config fails four times, is fixed, and succeeds.
+        // It must not carry those four failures into the next window.
+        let mut limiter = FailureLimiter::default();
+        let origin = Instant::now();
+        let tag = credential_tag("the-real-token");
+        for _ in 0..FAILURE_THRESHOLD - 1 {
+            assert_eq!(limiter.on_failure(tag, at(origin, 0)), Refusal::Invalid);
+        }
+        limiter.on_success(tag);
+        assert_eq!(limiter.tracked(), 0, "success must forget the bucket entirely");
+
+        // The next failure starts from one, so the threshold is a fresh five away.
+        assert_eq!(
+            limiter.on_failure(tag, at(origin, 1)),
+            Refusal::Invalid,
+            "the count must restart at one, not resume at five"
+        );
+    }
+
+    #[test]
+    fn one_credentials_failures_never_touch_another_credentials_budget() {
+        // THE property the key was chosen for. A third party grinding cannot spend the
+        // operator's budget, because a budget is spent only by presenting the credential that
+        // owns it — and presenting it is authenticating.
+        let mut limiter = FailureLimiter::default();
+        let origin = Instant::now();
+        let attacker = credential_tag("attacker-guess");
+        let operator = credential_tag("the-operators-real-token");
+
+        for _ in 0..FAILURE_THRESHOLD * 4 {
+            limiter.on_failure(attacker, at(origin, 0));
+        }
+        assert!(limiter.blocked(attacker, at(origin, 0)).is_some(), "the grinder is shut out");
+        assert_eq!(
+            limiter.blocked(operator, at(origin, 0)),
+            None,
+            "and the operator's own credential is entirely unaffected by it"
+        );
+    }
+
+    #[test]
+    fn the_limiters_memory_is_bounded_under_a_flood_of_distinct_credentials() {
+        // The requirement stated as an assertion: an attacker must not be able to grow this
+        // structure without bound. Ten times the capacity in distinct tokens, and the table
+        // stops at the capacity — the rest lands in the ONE shared overflow bucket.
+        let mut limiter = FailureLimiter::default();
+        let origin = Instant::now();
+        for n in 0..FAILURE_TABLE_CAPACITY * 10 {
+            limiter.on_failure(credential_tag(&format!("flood-token-{n}")), at(origin, 0));
+            assert!(
+                limiter.tracked() <= FAILURE_TABLE_CAPACITY,
+                "the table exceeded its capacity at attempt {n} — the bound is not a bound"
+            );
+        }
+        assert_eq!(
+            limiter.tracked(),
+            FAILURE_TABLE_CAPACITY,
+            "and it should be full: the flood is what fills it"
+        );
+    }
+
+    #[test]
+    fn a_flood_cannot_evict_a_live_lockout() {
+        // Eviction under pressure would be an escape hatch: trip your own lockout, flood the
+        // table until your bucket is evicted, resume guessing. Only STALE buckets are
+        // reclaimed, so a live lockout survives a table-filling flood.
+        let mut limiter = FailureLimiter::default();
+        let origin = Instant::now();
+        let locked = credential_tag("the-locked-out-credential");
+        for _ in 0..FAILURE_THRESHOLD {
+            limiter.on_failure(locked, at(origin, 0));
+        }
+        assert!(limiter.blocked(locked, at(origin, 1)).is_some(), "locked out to begin with");
+
+        for n in 0..FAILURE_TABLE_CAPACITY * 4 {
+            limiter.on_failure(credential_tag(&format!("evictor-{n}")), at(origin, 1));
+        }
+        assert!(
+            limiter.blocked(locked, at(origin, 1)).is_some(),
+            "a flood must not buy an attacker their way out of their own lockout"
+        );
+    }
+
+    #[test]
+    fn stale_buckets_are_reclaimed_so_a_full_table_is_not_permanent() {
+        // The other half of the bound: without reclamation the table would fill once and stay
+        // full forever, and every later credential would be judged by the shared counter.
+        let mut limiter = FailureLimiter::default();
+        let origin = Instant::now();
+        for n in 0..FAILURE_TABLE_CAPACITY {
+            limiter.on_failure(credential_tag(&format!("old-{n}")), at(origin, 0));
+        }
+        assert_eq!(limiter.tracked(), FAILURE_TABLE_CAPACITY, "full");
+
+        // A failure a full window later: the stale entries go, and this one is tracked.
+        limiter.on_failure(credential_tag("fresh"), at(origin, FAILURE_WINDOW.as_secs() + 1));
+        assert_eq!(limiter.tracked(), 1, "stale buckets must be reclaimed, not accumulated");
+    }
+
+    #[test]
+    fn the_shared_overflow_counter_only_ever_shapes_a_refusal_never_an_admission() {
+        // The overflow tier is consulted ONLY after verification has already failed (see
+        // `auth_middleware`). Here we pin its own behaviour: it escalates a refusal to `429`
+        // once a flood is unmistakable, and it is reached only when the table is full.
+        let mut limiter = FailureLimiter::default();
+        let origin = Instant::now();
+        for n in 0..FAILURE_TABLE_CAPACITY {
+            limiter.on_failure(credential_tag(&format!("filler-{n}")), at(origin, 0));
+        }
+        let mut escalated = false;
+        for n in 0..OVERFLOW_THRESHOLD {
+            let refusal = limiter.on_failure(credential_tag(&format!("overflow-{n}")), at(origin, 0));
+            if refusal == (Refusal::RateLimited { retry_after: FAILURE_WINDOW }) {
+                escalated = true;
+            }
+        }
+        assert!(escalated, "a flood past the overflow threshold must be told to slow down");
+        assert_eq!(
+            limiter.tracked(),
+            FAILURE_TABLE_CAPACITY,
+            "and it must have cost the limiter no additional memory at all"
+        );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════════════
+    // THE AUDIT LINE
+    // ══════════════════════════════════════════════════════════════════════════════════
+
+    /// Every rendering of the audit line, for the tests that must hold across ALL of them.
+    fn every_audit_line(token: &str) -> Vec<String> {
+        let _ = token;
+        vec![
+            audit_line(
+                1_753_900_000_000,
+                AuditOutcome::Accepted,
+                Some("id-arthur"),
+                Some(CredentialKind::Device),
+                RouteRequirement::DeviceOnly,
+                "GET",
+            ),
+            audit_line(
+                1_753_900_000_001,
+                AuditOutcome::Accepted,
+                Some("id-browser"),
+                Some(CredentialKind::Scoped),
+                RouteRequirement::Scoped(Scope::AnswerPrompts),
+                "POST",
+            ),
+            audit_line(
+                1_753_900_000_002,
+                AuditOutcome::Refused,
+                None,
+                None,
+                RouteRequirement::DeviceOnly,
+                "GET",
+            ),
+            audit_line(
+                1_753_900_000_003,
+                AuditOutcome::LockedOut,
+                None,
+                None,
+                RouteRequirement::Scoped(Scope::AnswerPrompts),
+                "GET",
+            ),
+        ]
+    }
+
+    #[test]
+    fn an_accepted_line_names_who_when_what_kind_and_which_scope() {
+        let line = audit_line(
+            1_753_900_000_000,
+            AuditOutcome::Accepted,
+            Some("id-arthur"),
+            Some(CredentialKind::Device),
+            RouteRequirement::Scoped(Scope::AnswerPrompts),
+            "GET",
+        );
+        let parsed: serde_json::Value = serde_json::from_str(&line).expect("valid JSON");
+        assert_eq!(parsed["event"], "auth:accepted");
+        assert_eq!(parsed["outcome"], "accepted");
+        assert_eq!(parsed["identity"], "id-arthur");
+        assert_eq!(parsed["credential"], "device");
+        assert_eq!(parsed["scope"], SCOPE_ANSWER_PROMPTS);
+        assert_eq!(parsed["ts"], 1_753_900_000_000_i64);
+        assert_eq!(parsed["method"], "GET");
+    }
+
+    #[test]
+    fn a_failed_attempt_is_recorded_as_fully_as_a_successful_one() {
+        // "A failed attempt is as interesting as a successful one — arguably more." Both
+        // outcomes must produce a line, with the same keys, so a trail can be read as one
+        // sequence rather than two.
+        let refused = audit_line(
+            1_753_900_000_000,
+            AuditOutcome::Refused,
+            None,
+            None,
+            RouteRequirement::DeviceOnly,
+            "POST",
+        );
+        let parsed: serde_json::Value = serde_json::from_str(&refused).expect("valid JSON");
+        assert_eq!(parsed["event"], "auth:refused");
+        assert_eq!(parsed["outcome"], "refused");
+        // A failure has no identity — the gate never learned one, and a CLAIMED one is not a
+        // thing this module can be handed.
+        assert_eq!(parsed["identity"], AUDIT_ABSENT);
+        assert_eq!(parsed["credential"], AUDIT_ABSENT);
+
+        let locked = audit_line(
+            1_753_900_000_001,
+            AuditOutcome::LockedOut,
+            None,
+            None,
+            RouteRequirement::DeviceOnly,
+            "POST",
+        );
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&locked).unwrap()["event"],
+            "auth:locked-out",
+            "the attempt that trips the limit is its own, distinguishable event"
+        );
+    }
+
+    #[test]
+    fn every_audit_line_has_the_same_keys_whatever_the_outcome() {
+        let expected = ["ts", "event", "outcome", "identity", "credential", "scope", "method"];
+        for line in every_audit_line("any-token") {
+            let parsed: serde_json::Value = serde_json::from_str(&line).expect("valid JSON");
+            let object = parsed.as_object().expect("an object");
+            assert_eq!(
+                object.len(),
+                expected.len(),
+                "line has an unexpected number of fields: {line}"
+            );
+            for key in expected {
+                assert!(object.contains_key(key), "line is missing {key:?}: {line}");
+            }
+        }
+    }
+
+    #[test]
+    fn no_audit_line_can_contain_credential_material() {
+        // THE rule, and it is asserted as a property of the function rather than of a file:
+        // `audit_line` is not given the token, its digest, or the limiter's tag, so no
+        // rendering of it can contain any of them. The assertion is over every outcome.
+        let token = "arthur-device-1-secret";
+        let digest = sha256_hex(token);
+        let tag = credential_tag(token).to_string();
+        for line in every_audit_line(token) {
+            assert!(!line.contains(token), "the raw token appears in an audit line: {line}");
+            assert!(!line.contains(&digest), "the token's sha256 appears: {line}");
+            assert!(
+                !line.contains(&tag),
+                "the limiter's tag for the token appears: {line}"
+            );
+            // A truncated hash is still credential material. Nothing that looks like a hex
+            // digest of any length beyond a plausible identity may appear.
+            assert!(
+                !line.contains(&digest[..8]),
+                "even a truncated digest is credential material: {line}"
+            );
+            assert!(
+                !contains_hex_run(&line, 16),
+                "an audit line contains a long hex run, which is what a hash looks like: {line}"
+            );
+        }
+    }
+
+    /// Does `text` contain an unbroken run of at least `len` hex digits? The shape of a hash,
+    /// caught regardless of what anyone decides to call the field it lands in.
+    fn contains_hex_run(text: &str, len: usize) -> bool {
+        let mut run = 0usize;
+        for ch in text.chars() {
+            if ch.is_ascii_hexdigit() {
+                run += 1;
+                if run >= len {
+                    return true;
+                }
+            } else {
+                run = 0;
+            }
+        }
+        false
+    }
+
+    #[test]
+    fn the_limiter_tag_is_not_a_prefix_of_the_stored_credential_hash() {
+        // Domain separation, asserted. Both are digests of the same token; if the tag were a
+        // prefix of the stored `tokenSha256`, rendering the tag anywhere would leak a partial
+        // match for the hash the policy file stores.
+        for token in ["arthur-device-1", "another", ""] {
+            let stored = sha256_hex(token);
+            let tag = format!("{:016x}", credential_tag(token));
+            assert!(
+                !stored.starts_with(&tag),
+                "the limiter tag is a prefix of the stored hash for {token:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_audit_trail_is_the_one_the_rest_of_the_runtime_already_writes() {
+        // Reuse, pinned: the auth trail must be the SAME file the host-effect trail uses, in
+        // the refarm dir, so it inherits that file's rotation and retention rather than
+        // needing its own. A second security log is the thing this must not become.
+        let audit = AuthAudit::for_refarm_dir(std::path::Path::new("/tmp/some-refarm-dir"));
+        assert_eq!(
+            audit.path,
+            std::path::Path::new("/tmp/some-refarm-dir").join(crate::observer::AUDIT_FILE)
+        );
+    }
+
+    #[test]
+    fn the_audit_is_bounded_by_the_rotation_it_inherits() {
+        // Bounded growth is inherited, not reimplemented — and it must actually be finite.
+        let audit = AuthAudit::for_refarm_dir(std::path::Path::new("/tmp/some-refarm-dir"));
+        assert!(audit.config.rotate_bytes > 0, "a zero rotation size is no rotation");
+        assert!(audit.config.max_segments > 0, "keeping zero segments would delete the trail");
+        // The ceiling is a real number of bytes, not "eventually someone notices".
+        let ceiling = audit.config.rotate_bytes * (audit.config.max_segments as u64 + 1);
+        assert!(
+            ceiling <= 1024 * 1024 * 1024,
+            "the audit's worst case must be a bounded, defensible amount of disk"
+        );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════════════
+    // THE OPERATOR'S REAL POLICY SHAPE
+    // ══════════════════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn the_operators_real_policy_shape_still_parses_unchanged() {
+        // A FIXTURE of the shape the operator's own `.refarm/auth-policy.json` has: device
+        // credentials only, no `scopedCredentials` key at all. Nothing in this slice touches
+        // the parser, and this is what pins that: the same bytes, the same credentials, no
+        // scoped entries and none refused.
+        //
+        // The hashes here are of the literal strings named beside them — fixture values, never
+        // the operator's.
+        let raw = r#"{
+  "credentials": [
+    { "identity": "id-workstation", "tokenSha256": "PLACEHOLDER_A" },
+    { "identity": "id-phone", "tokenSha256": "PLACEHOLDER_B" }
+  ]
+}"#
+        .replace("PLACEHOLDER_A", &sha256_hex("fixture-workstation-token"))
+        .replace("PLACEHOLDER_B", &sha256_hex("fixture-phone-token"));
+
+        let policy = parse_policy(&raw).expect("the operator's policy shape must still parse");
+        assert_eq!(policy.identity_count(), 2, "both device credentials must survive");
+        assert_eq!(
+            policy.scoped_count(),
+            0,
+            "a policy with no scopedCredentials key has no scoped credentials"
+        );
+        assert_eq!(
+            policy.refused_scoped_count(),
+            0,
+            "and an ABSENT key must refuse nothing — absence is not a malformed entry"
+        );
+        assert_eq!(
+            policy.authenticate("fixture-workstation-token"),
+            Some("id-workstation"),
+            "a device credential must still authenticate exactly as before"
+        );
+        assert_eq!(
+            policy.verify("fixture-phone-token", RouteRequirement::DeviceOnly, Some(0)),
+            Some(Verified {
+                identity: "id-phone".to_string(),
+                kind: CredentialKind::Device
+            }),
+            "and must still satisfy a device-only route"
+        );
     }
 }

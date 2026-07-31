@@ -392,8 +392,17 @@ mod tests {
             "the bearer credential is the gate's one input"
         );
         assert!(
-            auth.contains("match bearer_token(&request)"),
+            auth.contains("bearer_token(&request)"),
             "auth_middleware must branch on the CREDENTIAL alone — missing, invalid, or valid"
+        );
+        // The failure limiter is keyed on the credential too, and that is the only thing it
+        // may be keyed on. `credential_tag` takes the token and nothing else; if a second
+        // argument ever appears here, the reviewer is being asked whether a REFUSAL is now a
+        // function of something the caller controls — the same question the assertion above
+        // asks about an admission.
+        assert!(
+            auth.contains("fn credential_tag(token: &str) -> u64"),
+            "the limiter's key must be derived from the presented credential alone"
         );
     }
 

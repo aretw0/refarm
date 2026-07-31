@@ -239,16 +239,31 @@ async fn sidecar_declared_listener_refuses_a_scoped_credential_on_every_undeclar
     let gate = gate_with_scoped("device-token", "browser-token", epoch_ms_now() + 600_000);
     let (port, _tmp) = serve_as(ListenRole::Declared, Some(gate)).await;
 
-    for (method, path) in [
+    // Every one of these must BOUNCE — that is the invariant, and it is unchanged. The status
+    // of the last one is not: this is the same credential failing five times in a row, which
+    // is exactly what the failure limiter (`sidecar::auth`) exists to notice, so the fifth
+    // refusal is a `429` rather than a `401`. Both are refusals and neither admits anything;
+    // what this test pins is that authority follows the ROUTE's declaration, so it asserts
+    // "refused, never admitted" and lets the limiter own the difference between the two ways
+    // of saying no.
+    for (n, (method, path)) in [
         (reqwest::Method::POST, "/prompts"),
         (reqwest::Method::GET, "/efforts"),
         (reqwest::Method::POST, "/efforts"),
         (reqwest::Method::GET, "/plugins"),
         (reqwest::Method::GET, "/connections"),
-    ] {
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let status = request_status(port, method.clone(), path, Some("browser-token")).await;
+        // An out-of-scope refusal is a `401` — stated exactly, so an over-eager limiter that
+        // started refusing on the FIRST attempt would fail here rather than hide behind "some
+        // kind of refusal".
+        let expected =
+            if (n as u32) < crate::sidecar::auth::FAILURE_THRESHOLD - 1 { 401 } else { 429 };
         assert_eq!(
-            request_status(port, method.clone(), path, Some("browser-token")).await,
-            401,
+            status, expected,
             "{method} {path} declares no scope ⇒ a scoped credential must bounce"
         );
     }
