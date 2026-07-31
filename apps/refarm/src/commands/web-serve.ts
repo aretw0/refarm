@@ -15,6 +15,7 @@ import path from "node:path";
 import { type SurfaceCatalog } from "@refarm.dev/std";
 import { Command } from "commander";
 
+import { createAttendSurface, type AttendSurface } from "./web-serve-attend.js";
 import { createSasVerificationSurface, type SasVerificationSurface } from "./web-serve-sas.js";
 import {
 	readSurfacesFromFilesystem,
@@ -89,8 +90,24 @@ function containedPath(root: string, pathname: string): string | null {
  * /efforts/:id, …). web serve proxies them to the daemon's sidecar so the hub
  * works over ANY origin it was served from — a tunnel included — the same way
  * /sync (the CRDT WebSocket) is proxied. Without this a same-origin POST /efforts
- * hits the static server and 405s (which broke the phone chat over a tunnel). */
-const SIDECAR_API_PREFIXES = ["/efforts", "/sessions", "/nodes", "/tasks", "/plugins"] as const;
+ * hits the static server and 405s (which broke the phone chat over a tunnel).
+ *
+ * `/prompts` joined them so `/attend` can call `GET /prompts` and
+ * `POST /prompts/:id/answer` same-origin — no CORS to arrange, no preflight, and no
+ * second origin for a credential to be scoped to. It widens NOTHING: the request's
+ * `Authorization` is forwarded untouched and the Rust gate is still the only thing that
+ * decides, which is exactly the reasoning O6 already accepted for the routes above. What
+ * makes it safe to add is that the gate now judges those two paths by SCOPE — a
+ * `prompt:answer` credential passes there and nowhere else, and `POST /prompts`
+ * (publishing a question) stays device-only on the same path. */
+const SIDECAR_API_PREFIXES = [
+	"/efforts",
+	"/sessions",
+	"/nodes",
+	"/tasks",
+	"/plugins",
+	"/prompts",
+] as const;
 
 export function isSidecarApiPath(pathname: string): boolean {
 	return SIDECAR_API_PREFIXES.some(
@@ -163,6 +180,7 @@ export function createWebServeHandler(
 	rootDir: string,
 	sidecarTarget?: WebServeSyncTarget,
 	sas?: SasVerificationSurface,
+	attend?: AttendSurface,
 ): (req: IncomingMessage, res: ServerResponse) => void {
 	const root = path.resolve(rootDir);
 	return (req, res) => {
@@ -177,6 +195,10 @@ export function createWebServeHandler(
 			// root: it is an API on this listener, not a file under it, and it must not
 			// be shadowed by a directory someone happens to have called `auth`.
 			if (sas && (await sas.handle(req, res, url.pathname))) return;
+			// The attend page, for the same reason and in the same position: a route on
+			// this listener, never a file under its root. That root IS the cold-bootstrap
+			// kit and must stay exactly what `refarm dist publish` put there.
+			if (attend && (await attend.handle(req, res, url.pathname))) return;
 			writeIsolationHeaders(res);
 			if (req.method !== "GET" && req.method !== "HEAD") {
 				res.statusCode = 405;
@@ -318,6 +340,13 @@ export function startWebServeServer(
 		 * entirely for a listener that should serve nothing but files.
 		 */
 		sas?: SasVerificationSurface | null;
+		/**
+		 * The `/attend` page. Built by default, so `refarm web serve` carries it without a
+		 * flag; pass `null` for a listener that should serve nothing but files. There is no
+		 * per-instance state to inject — the page is a constant and the prompts live on the
+		 * daemon, reached through the sidecar proxy like every other API path here.
+		 */
+		attend?: AttendSurface | null;
 	},
 ): Promise<{ server: Server; url: string }> {
 	// Fail closed BEFORE building the server: the bind is decided by the `surfaces.web`
@@ -346,7 +375,13 @@ export function startWebServeServer(
 				createSasVerificationSurface(
 					options.configRoot === undefined ? {} : { configRoot: options.configRoot },
 				));
-	const handler = createWebServeHandler(rootDir, options.sidecarTarget ?? DEFAULT_SIDECAR_TARGET, sas);
+	const attend = options.attend === null ? undefined : (options.attend ?? createAttendSurface());
+	const handler = createWebServeHandler(
+		rootDir,
+		options.sidecarTarget ?? DEFAULT_SIDECAR_TARGET,
+		sas,
+		attend,
+	);
 	const server = options.tls
 		? createTlsServer(
 				{
@@ -448,6 +483,8 @@ export function createWebServeCommand(): Command {
 						"  /sync proxies WebSocket upgrades to the daemon (see --sync-target).\n" +
 						`  ${url}/auth/verify — a surface with no credential can ask to be vouched for;\n` +
 						"    confirm the seven emoji with `refarm auth verify` at this node.\n" +
+						`  ${url}/attend — answer the farm's pending questions from a browser;\n` +
+						"    it runs the same seven-emoji handshake, then holds a scoped, expiring credential.\n" +
 						(tls
 							? "  https origin — service worker + OPFS/WASM work from other devices.\n"
 							: "  Note: off-localhost origins still need --tls-cert/--tls-key (e.g. mkcert) for service worker + OPFS/WASM.\n"),

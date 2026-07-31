@@ -29,6 +29,7 @@
 	},
 	"dependencies": {
 		"@refarm.dev/asset-resolver-contract-v1": "workspace:*",
+		"@refarm.dev/attend-web-v1": "workspace:*",
 		"@refarm.dev/barn": "workspace:*",
 		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",

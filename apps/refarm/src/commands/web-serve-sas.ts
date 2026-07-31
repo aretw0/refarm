@@ -1,7 +1,4 @@
-import { readFile } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { createRequire } from "node:module";
-import path from "node:path";
 
 import {
 	createSasRateLimiter,
@@ -12,6 +9,7 @@ import {
 } from "@refarm.dev/emoji-sas-v1";
 
 import { createFilesystemSasExchangeStore, resolveAuthPolicyPath, resolveSasDir } from "./sas-store.js";
+import { resolveBlockDistDir, serveBlockModule } from "./web-serve-block-lib.js";
 
 /**
  * The emoji-SAS exchange, mounted on `refarm web serve`.
@@ -100,29 +98,6 @@ function sendJson(res: ServerResponse, status: number, body: unknown, retryAfter
 	res.setHeader("Cache-Control", "no-store");
 	if (retryAfterSeconds !== undefined) res.setHeader("Retry-After", String(retryAfterSeconds));
 	res.end(text);
-}
-
-/**
- * Where the block's compiled ESM lives, so the page can import it.
- *
- * Resolved through the package's own `package.json` — never a path assembled out of
- * `node_modules` by hand, which breaks the moment the workspace is laid out differently
- * or resolution is toggled (`reso src` / `reso dist`).
- *
- * Via `package.json` rather than the `.` entry point, deliberately: the block is
- * ESM-only, so its `exports` map has an `import` condition and no `require` one, and
- * `createRequire().resolve("@refarm.dev/emoji-sas-v1")` therefore fails outright with
- * `ERR_PACKAGE_PATH_NOT_EXPORTED`. Resolving the manifest and joining `dist` gets the
- * same answer without asking a CommonJS resolver to honour an ESM-only entry.
- */
-function resolveBlockDistDir(): string | null {
-	try {
-		const require = createRequire(import.meta.url);
-		const manifest = require.resolve("@refarm.dev/emoji-sas-v1/package.json");
-		return path.join(path.dirname(manifest), "dist");
-	} catch {
-		return null;
-	}
 }
 
 /** The page. Self-contained, no build step, no framework, no external fetch — it
@@ -219,7 +194,7 @@ export function createSasVerificationSurface(
 	// ONE limiter for the process, so the bound is a bound rather than a per-request
 	// object that resets itself.
 	const limiter = createSasRateLimiter();
-	const distDir = resolveBlockDistDir();
+	const distDir = resolveBlockDistDir("@refarm.dev/emoji-sas-v1");
 	const page = verificationPage();
 
 	return {
@@ -233,22 +208,9 @@ export function createSasVerificationSurface(
 			}
 
 			if (pathname.startsWith(LIB_PREFIX)) {
-				const name = pathname.slice(LIB_PREFIX.length);
-				// Basename only, `.js` only, from one directory. There is no traversal to
-				// contain because nothing that is not a bare module filename is served.
-				if (!distDir || !/^[a-z0-9-]+\.js$/.test(name)) {
-					sendJson(res, 404, { error: "not-found" });
-					return true;
-				}
-				try {
-					const bytes = await readFile(path.join(distDir, name));
-					res.statusCode = 200;
-					res.setHeader("Content-Type", "text/javascript; charset=utf-8");
-					res.setHeader("Content-Length", bytes.length);
-					res.end(req.method === "HEAD" ? undefined : bytes);
-				} catch {
-					sendJson(res, 404, { error: "not-found" });
-				}
+				// Basename only, `.js` only, from one directory — see `web-serve-block-lib.ts`
+				// for why there is no traversal to contain.
+				await serveBlockModule(distDir, pathname.slice(LIB_PREFIX.length), req, res);
 				return true;
 			}
 

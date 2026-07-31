@@ -342,6 +342,9 @@ importers:
       '@refarm.dev/asset-resolver-contract-v1':
         specifier: workspace:*
         version: link:../../packages/asset-resolver-contract-v1
+      '@refarm.dev/attend-web-v1':
+        specifier: workspace:*
+        version: link:../../packages/attend-web-v1
       '@refarm.dev/barn':
         specifier: workspace:*
         version: link:../../packages/barn
