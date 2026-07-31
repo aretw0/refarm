@@ -488,7 +488,9 @@ export type DeliveryRefusalReason =
 	/** D8 — nobody is attending and this channel only works when somebody is. */
 	| "attended-only"
 	/** P4 — the answer would travel, and this channel is not a place to send it. */
-	| "answer-would-travel";
+	| "answer-would-travel"
+	/** The decision is free text, which a notification channel cannot collect. */
+	| "needs-free-text";
 
 export interface DeliveryRefusal {
 	adapter: string;
@@ -582,12 +584,7 @@ export function routeDelivery(input: RouteDeliveryInput): DeliveryPlan {
 			refusals.push({
 				adapter: adapter.id,
 				channel: declaration.name,
-				reason: input.request.answerTravels && declaration.capability === "answer"
-					? "answer-would-travel"
-					: "announce-only",
-				detail: input.request.answerTravels && declaration.capability === "answer"
-					? `"${declaration.name}" will announce only: this answer would travel and must not cross this channel`
-					: `"${declaration.name}" can only announce, so it cannot carry this decision back`,
+				...explainDegradedToAnnounce(input.request, declaration),
 			});
 		}
 
@@ -602,6 +599,34 @@ export function routeDelivery(input: RouteDeliveryInput): DeliveryPlan {
 }
 
 /**
+ * Say WHY a decision-needing request degraded to an announcement on this
+ * channel. Every degradation gets a distinct reason, because "your channel
+ * cannot do this" and "this particular question cannot be asked this way" are
+ * different facts and lead the operator to different fixes.
+ */
+function explainDegradedToAnnounce(
+	request: DeliveryRequest,
+	declaration: DeliveryDeclaration,
+): { reason: DeliveryRefusalReason; detail: string } {
+	if (declaration.capability !== "answer") {
+		return {
+			reason: "announce-only",
+			detail: `"${declaration.name}" can only announce, so it cannot carry this decision back`,
+		};
+	}
+	if (request.answerTravels) {
+		return {
+			reason: "answer-would-travel",
+			detail: `"${declaration.name}" will announce only: this answer would travel and must not cross this channel`,
+		};
+	}
+	return {
+		reason: "needs-free-text",
+		detail: `"${declaration.name}" can carry a choice but not free text, so this one must be answered elsewhere`,
+	};
+}
+
+/**
  * What ONE channel may carry for ONE request. The decision D3 turns on, isolated
  * so it can be read and tested on its own.
  *
@@ -609,6 +634,13 @@ export function routeDelivery(input: RouteDeliveryInput): DeliveryPlan {
  * channel: sending the value through a delivery transport is a different act
  * from answering inside the tailnet, and the operator declared a notification
  * channel, not a place to type passwords.
+ *
+ * A decision with no enumerable choices degrades too. A notification channel
+ * carries a CHOICE — an action button, an inline keyboard — not a text field;
+ * collecting free text needs a conversation, which is a different capability
+ * from being reached. This is not a Telegram limit leaking into the contract:
+ * Termux action buttons have exactly the same shape, and an adapter that
+ * pretended otherwise would hang a wizard on an answer that can never arrive.
  */
 export function resolveDeliveryMode(
 	request: DeliveryRequest,
@@ -617,6 +649,7 @@ export function resolveDeliveryMode(
 	if (!request.needsDecision) return "announce";
 	if (declaration.capability !== "answer") return "announce";
 	if (request.answerTravels) return "announce";
+	if (!request.choices || request.choices.length === 0) return "announce";
 	return "answer";
 }
 

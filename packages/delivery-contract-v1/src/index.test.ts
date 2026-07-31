@@ -33,6 +33,10 @@ function request(overrides: Partial<DeliveryRequest> = {}): DeliveryRequest {
 		question: "Bring the VPN up?",
 		asker: "refarm connection up",
 		needsDecision: true,
+		choices: [
+			{ value: "true", label: "Yes" },
+			{ value: "false", label: "No" },
+		],
 		answerTravels: false,
 		expiresAt: null,
 		...overrides,
@@ -358,6 +362,40 @@ describe("D3 — refarm refuses to route a decision to an announce-only channel"
 		expect(plan.refusals[0]!.reason).toBe("answer-would-travel");
 	});
 
+	it("a FREE-TEXT decision degrades to announce: a keyboard carries a choice, not a text field", () => {
+		const { adapter } = fakeAdapter({ capability: "answer" });
+		const plan = routeDelivery({
+			request: request({ choices: undefined }),
+			channels: [channel(adapter)],
+			attending: true,
+		});
+		expect(plan.routes[0]!.mode).toBe("announce");
+		expect(plan.refusals[0]!.reason).toBe("needs-free-text");
+		expect(plan.answerable).toBe(false);
+	});
+
+	it("an empty choice list is the same as none — never an answerable route", () => {
+		const { adapter } = fakeAdapter({ capability: "answer" });
+		const plan = routeDelivery({
+			request: request({ choices: [] }),
+			channels: [channel(adapter)],
+			attending: true,
+		});
+		expect(plan.routes[0]!.mode).toBe("announce");
+		expect(plan.refusals[0]!.reason).toBe("needs-free-text");
+	});
+
+	it("each degradation gets its OWN reason, so the operator knows what to fix", () => {
+		const answerAdapter = fakeAdapter({ capability: "answer" }).adapter;
+		const announceAdapter = fakeAdapter({ capability: "announce", id: "email" }).adapter;
+		const reasonFor = (r: DeliveryRequest, a: DeliveryAdapter) =>
+			routeDelivery({ request: r, channels: [channel(a)], attending: true }).refusals[0]?.reason;
+
+		expect(reasonFor(request(), announceAdapter)).toBe("announce-only");
+		expect(reasonFor(request({ answerTravels: true }), answerAdapter)).toBe("answer-would-travel");
+		expect(reasonFor(request({ choices: undefined }), answerAdapter)).toBe("needs-free-text");
+	});
+
 	it("resolveDeliveryMode is the whole decision, in isolation", () => {
 		expect(resolveDeliveryMode(request(), declaration({ capability: "answer" }))).toBe("answer");
 		expect(resolveDeliveryMode(request(), declaration({ capability: "announce" }))).toBe("announce");
@@ -366,6 +404,9 @@ describe("D3 — refarm refuses to route a decision to an announce-only channel"
 		).toBe("announce");
 		expect(
 			resolveDeliveryMode(request({ answerTravels: true }), declaration({ capability: "answer" })),
+		).toBe("announce");
+		expect(
+			resolveDeliveryMode(request({ choices: undefined }), declaration({ capability: "answer" })),
 		).toBe("announce");
 	});
 });
