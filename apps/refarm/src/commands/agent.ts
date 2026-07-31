@@ -1,9 +1,5 @@
 import { buildCommandPlanRunEnvelope } from "@refarm.dev/cli/command-plan";
-import {
-	buildJsonErrorEnvelope,
-	buildJsonSuccessEnvelope,
-	printJson,
-} from "@refarm.dev/capabilities/envelope";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { Command } from "commander";
 import {
 	buildAgentFinishPlanEnvelope,
