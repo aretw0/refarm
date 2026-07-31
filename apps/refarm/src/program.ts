@@ -5,6 +5,7 @@ import { askCommand } from "./commands/ask.js";
 import { authCommand } from "./commands/auth.js";
 import { capabilitiesCommand } from "./commands/capabilities.js";
 import { capabilityCliCommands } from "./commands/capability-registry.js";
+import { createCertCommand } from "./commands/cert.js";
 import { chatCommand } from "./commands/chat.js";
 import { checkCommand } from "./commands/check.js";
 import { configCommand } from "./commands/config.js";
@@ -28,17 +29,17 @@ import { releaseCommand } from "./commands/release.js";
 import { resumeCommand } from "./commands/resume.js";
 import { resolveRefarmVersion } from "./commands/runtime-metadata.js";
 import {
-    RUNTIME_AUTOSTART_ALWAYS_COMMAND,
-    RUNTIME_ENGINE_AUTO_COMMAND,
+	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
+	RUNTIME_ENGINE_AUTO_COMMAND,
 } from "./commands/runtime-recovery.js";
 import { runtimeCommand } from "./commands/runtime.js";
 import { serveCommand } from "./commands/serve-capability.js";
 import { runSessionLaunchFlow, sessionCommand } from "./commands/session.js";
 import { sessionsCommand } from "./commands/sessions.js";
 import {
-    SOW_COMMAND_DESCRIPTION,
-    SOW_HELP_TEXT,
-    SOW_MODEL_OPTION_DESCRIPTION,
+	SOW_COMMAND_DESCRIPTION,
+	SOW_HELP_TEXT,
+	SOW_MODEL_OPTION_DESCRIPTION,
 } from "./commands/sow-metadata.js";
 import { statusCommand } from "./commands/status.js";
 import { taskCommand } from "./commands/task.js";
@@ -263,6 +264,10 @@ program.addCommand(configureCommand);
 program.addCommand(releaseCommand);
 program.addCommand(distCommand);
 program.addCommand(authCommand);
+// The door the browser surface needs: `crypto.subtle` refuses to exist outside a
+// secure context, so `/attend` and `/auth/verify` cannot work over plain http off
+// localhost. `refarm cert` is how the operator opens it without depending on anyone.
+program.addCommand(createCertCommand());
 // Capability verbs (health, model, skill, …) are derived from the ONE capability
 // registry — the same registry the REPL slashes derive from — so a verb declared
 // (and, later, plugin-contributed) once lights up on the CLI and the REPL without

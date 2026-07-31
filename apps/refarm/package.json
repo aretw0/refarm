@@ -33,6 +33,8 @@
 		"@refarm.dev/barn": "workspace:*",
 		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
+		"@refarm.dev/certificate-contract-v1": "workspace:*",
+		"@refarm.dev/certificate-local-ca": "workspace:*",
 		"@refarm.dev/cli": "workspace:*",
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/context-provider-v1": "workspace:*",

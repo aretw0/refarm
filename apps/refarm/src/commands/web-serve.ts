@@ -315,9 +315,67 @@ export interface WebServeTlsOptions {
 	keyFile: string;
 }
 
-/** Start the static hub server and resolve once bound. With `tls` the origin is
- *  https — the secure context service workers and OPFS/WASM demand off-localhost. */
-export function startWebServeServer(
+/** The port `refarm web serve` listens on by default, and the one every already-bootstrapped
+ *  device has baked into `farm-update`. */
+export const DEFAULT_WEB_SERVE_PORT = 4321;
+
+/**
+ * T5 — CHANGING THE SCHEME BREAKS THE DEVICES ALREADY BOOTSTRAPPED, so it does not change.
+ *
+ * `docs/superpowers/specs/2026-07-31-sovereign-tls-design.md` names the risk: the kit installed
+ * on the operator's phone polls `http://<host>:4321/manifest.json` on every run, forever. Three
+ * migrations were possible — serve both schemes, teach the kit to follow a scheme change, or
+ * re-bake and re-install — and the observation that decides between them was checked in the code
+ * rather than assumed:
+ *
+ *   - `packages/farm-client/bin/farm-update.mjs` builds its base as the LITERAL
+ *     `http://${host}:${DIST_PORT}`. There is no scheme variable to follow.
+ *   - the kit's integrity does not come from TLS. `manifest.mjs` verifies every file with a
+ *     per-file `sha256-` digest computed by `node:crypto`, and `planUpdate` downloads only what
+ *     changed. That check is content-addressed and works identically over plaintext.
+ *   - nothing in the kit touches `crypto.subtle`, `isSecureContext`, a service worker or OPFS. It
+ *     runs in Node, in Termux, on a phone with nothing else installed.
+ *
+ * So the kit NEEDS NO SECURE CONTEXT, and only the browser does. The migration is therefore
+ * ADDITIVE: the plain listener stays exactly where it was, on the same port, and HTTPS is a SECOND
+ * listener beside it sharing the same handler. An already-bootstrapped device keeps updating and
+ * never learns anything changed — which is the whole requirement, since "delivered vs
+ * could-not-attempt" in a new costume is precisely what silently breaking `farm-update` would be.
+ *
+ * Which is why the two ports may not be the same: taking 4321 for HTTPS is the very breakage this
+ * function exists to prevent, and it is refused by name rather than discovered by a phone that
+ * stops updating.
+ */
+export function resolveTlsPort(options: { port: number; tlsPort?: number | undefined }): number {
+	const tlsPort = options.tlsPort ?? options.port + 1;
+	// Port 0 is not a port — it is "give me any free one", and two requests for it get two
+	// DIFFERENT ports. Comparing them would refuse the exact configuration every test binds with,
+	// on the strength of a collision that cannot happen.
+	if (options.port !== 0 && tlsPort === options.port) {
+		throw new Error(
+			`--tls-port ${tlsPort} is the same as --port ${options.port}. The plain listener has to ` +
+				"stay where it is: every device already bootstrapped polls " +
+				`http://<host>:${options.port}/manifest.json on every \`farm-update\`, and the kit builds ` +
+				"that URL with a literal `http://` — it cannot follow a scheme change. Give HTTPS its " +
+				`own port (e.g. --tls-port ${options.port + 1}); both are served at once.`,
+		);
+	}
+	return tlsPort;
+}
+
+/** What `startWebServeServer` bound. `url` is ALWAYS the plain origin — the one the kit uses and
+ *  the one that must never move. `tls`, when present, is the additional https origin a browser
+ *  opens to get a secure context. */
+export interface WebServeListeners {
+	server: Server;
+	url: string;
+	tls?: { server: Server; url: string };
+}
+
+/** Start the static hub server and resolve once bound. With `tls`, a SECOND listener is started
+ *  beside it on `tlsPort` — https, the secure context `crypto.subtle`, service workers and
+ *  OPFS/WASM demand off-localhost — while the plain one stays exactly where the kit expects it. */
+export async function startWebServeServer(
 	rootDir: string,
 	options: {
 		port: number;
@@ -325,6 +383,9 @@ export function startWebServeServer(
 		 *  absence is meaningful — it is what lets `surfaces.web` decide (S1/S5). */
 		host?: string | undefined;
 		tls?: WebServeTlsOptions;
+		/** Where the https listener goes. Absent ⇒ `port + 1`. Never `port` — see
+		 *  {@link resolveTlsPort} for why that would break an already-bootstrapped device. */
+		tlsPort?: number | undefined;
 		syncTarget?: WebServeSyncTarget;
 		sidecarTarget?: WebServeSyncTarget;
 		/** The declaration this bind obeys. Injected by tests; production reads the FILESYSTEM
@@ -348,7 +409,7 @@ export function startWebServeServer(
 		 */
 		attend?: AttendSurface | null;
 	},
-): Promise<{ server: Server; url: string }> {
+): Promise<WebServeListeners> {
 	// Fail closed BEFORE building the server: the bind is decided by the `surfaces.web`
 	// declaration (S1/S3/S5 + O6), never by a policy file existing somewhere on the machine.
 	// Checked before anything is constructed — no server object, no cert read from disk, no
@@ -357,6 +418,7 @@ export function startWebServeServer(
 	// site (`serveCapabilities` rejects too); `await` sees the same thing either way, but a
 	// caller holding the promise without awaiting immediately does not.
 	let host: string;
+	let tlsPort: number | null = null;
 	try {
 		const surfaces = options.surfaces ?? readSurfacesFromFilesystem(options.configRoot);
 		({ host } = resolveWebBindHost({
@@ -364,6 +426,11 @@ export function startWebServeServer(
 			surfaces,
 			...(options.resolveTailnet ? { resolveTailnet: options.resolveTailnet } : {}),
 		}));
+		// Refused here, beside the bind refusal and for the same reason: before anything is
+		// constructed, so a refusal leaves nothing behind.
+		if (options.tls) {
+			tlsPort = resolveTlsPort({ port: options.port, tlsPort: options.tlsPort });
+		}
 	} catch (error) {
 		return Promise.reject(error instanceof Error ? error : new Error(String(error)));
 	}
@@ -382,29 +449,41 @@ export function startWebServeServer(
 		sas,
 		attend,
 	);
-	const server = options.tls
-		? createTlsServer(
-				{
-					cert: readFileSync(options.tls.certFile),
-					key: readFileSync(options.tls.keyFile),
-				},
-				handler,
-			)
-		: createServer(handler);
 	const syncTarget = options.syncTarget ?? DEFAULT_SYNC_TARGET;
-	server.on("upgrade", (req, socket, head) =>
-		handleSyncUpgrade(syncTarget, req, socket as Socket, head),
-	);
-	const scheme = options.tls ? "https" : "http";
-	return new Promise((resolve) => {
-		// `host`, never `options.host`: the RESOLVED value is what the declaration permitted, and
-		// with an absent flag it is the only value there is.
-		server.listen(options.port, host, () => {
-			const addr = server.address();
-			const boundPort = typeof addr === "object" && addr ? addr.port : options.port;
-			resolve({ server, url: `${scheme}://${host}:${boundPort}` });
+
+	function bind(server: Server, port: number, scheme: "http" | "https"): Promise<string> {
+		server.on("upgrade", (req, socket, head) =>
+			handleSyncUpgrade(syncTarget, req, socket as Socket, head),
+		);
+		return new Promise((resolve) => {
+			// `host`, never `options.host`: the RESOLVED value is what the declaration permitted, and
+			// with an absent flag it is the only value there is.
+			server.listen(port, host, () => {
+				const addr = server.address();
+				const boundPort = typeof addr === "object" && addr ? addr.port : port;
+				resolve(`${scheme}://${host}:${boundPort}`);
+			});
 		});
-	});
+	}
+
+	// The plain listener FIRST and unconditionally. It is the one an already-bootstrapped device
+	// polls, and it is served whether or not TLS is configured — that is the whole of T5's
+	// migration: additive, so nothing that works today stops working.
+	const server = createServer(handler);
+	const url = await bind(server, options.port, "http");
+	if (!options.tls || tlsPort === null) return { server, url };
+
+	const tlsServer = createTlsServer(
+		{
+			cert: readFileSync(options.tls.certFile),
+			// Read straight into the TLS context and never into a variable that outlives this call —
+			// the key is material, not a value this process passes around.
+			key: readFileSync(options.tls.keyFile),
+		},
+		handler,
+	);
+	const tlsUrl = await bind(tlsServer, tlsPort, "https");
+	return { server, url, tls: { server: tlsServer, url: tlsUrl } };
 }
 
 interface WebServeOptions {
@@ -412,6 +491,7 @@ interface WebServeOptions {
 	host?: string;
 	tlsCert?: string;
 	tlsKey?: string;
+	tlsPort?: string;
 	syncTarget?: string;
 	sidecarTarget?: string;
 	json?: boolean;
@@ -427,68 +507,105 @@ function parseSyncTarget(value: string): WebServeSyncTarget {
 }
 
 export function createWebServeCommand(): Command {
-	return new Command("serve")
-		.description("Serve a built hub directory with cross-origin-isolation headers")
-		.argument("<dir>", "Directory to serve (e.g. apps/me/dist)")
-		.option("--port <port>", "TCP port to listen on", "4321")
-		// NO DEFAULT VALUE, deliberately. Under S5 ("a flag may only narrow the declaration") a
-		// CLI default stops being neutral: a `--host` that ALWAYS carried `127.0.0.1` would
-		// ALWAYS be present and ALWAYS narrow, so a `surfaces.web` declaration could never take
-		// effect — the declaration would be inert and nothing would say so. That is the exact
-		// bug the Rust side found in `--http-host` and fixed by making it an `Option`. An absent
-		// flag means "let the declaration decide"; loopback remains what an absent DECLARATION
-		// resolves to (S1).
-		.option(
-			"--host <host>",
-			"Bind address. Absent, the `surfaces.web` declaration in .refarm/config.json decides " +
-				"(undeclared ⇒ loopback). A value may only narrow that declaration, never widen it",
-		)
-		.option("--tls-cert <file>", "TLS certificate (PEM) — with --tls-key, serves https")
-		.option("--tls-key <file>", "TLS private key (PEM) — with --tls-cert, serves https")
-		.option(
-			"--sync-target <host:port>",
-			"Daemon CRDT WS the /sync proxy forwards to",
-			"127.0.0.1:42000",
-		)
-		.option(
-			"--sidecar-target <host:port>",
-			"Daemon sidecar HTTP API the /efforts proxy forwards to",
-			"127.0.0.1:42001",
-		)
-		.option("--json", "Print the listening address as JSON")
-		.action(async (dir: string, options: WebServeOptions) => {
-			const port = Number.parseInt(options.port ?? "4321", 10);
-			if (Boolean(options.tlsCert) !== Boolean(options.tlsKey)) {
-				throw new Error("--tls-cert and --tls-key must be provided together.");
-			}
-			const tls =
-				options.tlsCert && options.tlsKey
-					? { certFile: options.tlsCert, keyFile: options.tlsKey }
-					: undefined;
-			const { url } = await startWebServeServer(dir, {
-				port,
-				// Passed through EXACTLY as commander gave it, `undefined` included — see the
-				// `--host` option above for why the absence must survive this call.
-				...(options.host !== undefined ? { host: options.host } : {}),
-				...(tls ? { tls } : {}),
-				syncTarget: parseSyncTarget(options.syncTarget ?? "127.0.0.1:42000"),
-				sidecarTarget: parseSyncTarget(options.sidecarTarget ?? "127.0.0.1:42001"),
-			});
-			if (options.json) {
-				process.stdout.write(`${JSON.stringify({ ok: true, url, dir: path.resolve(dir) })}\n`);
-			} else {
-				process.stdout.write(
-					`refarm hub serving ${path.resolve(dir)} on ${url}\n` +
-						"  COOP/COEP headers on — the browser runtime can boot cross-origin-isolated.\n" +
-						"  /sync proxies WebSocket upgrades to the daemon (see --sync-target).\n" +
-						`  ${url}/auth/verify — a surface with no credential can ask to be vouched for;\n` +
-						"    confirm the seven emoji with `refarm auth verify` at this node.\n" +
-						`  ${url}/attend — answer the farm's pending questions from a browser;\n` +
-						"    it runs the same seven-emoji handshake, then holds a scoped, expiring credential.\n" +
-						(tls
-							? "  https origin — service worker + OPFS/WASM work from other devices.\n"
-							: "  Note: off-localhost origins still need --tls-cert/--tls-key (e.g. mkcert) for service worker + OPFS/WASM.\n"),
-				);
-			}
-		});
+	return (
+		new Command("serve")
+			.description("Serve a built hub directory with cross-origin-isolation headers")
+			.argument("<dir>", "Directory to serve (e.g. apps/me/dist)")
+			.option("--port <port>", "TCP port to listen on", "4321")
+			// NO DEFAULT VALUE, deliberately. Under S5 ("a flag may only narrow the declaration") a
+			// CLI default stops being neutral: a `--host` that ALWAYS carried `127.0.0.1` would
+			// ALWAYS be present and ALWAYS narrow, so a `surfaces.web` declaration could never take
+			// effect — the declaration would be inert and nothing would say so. That is the exact
+			// bug the Rust side found in `--http-host` and fixed by making it an `Option`. An absent
+			// flag means "let the declaration decide"; loopback remains what an absent DECLARATION
+			// resolves to (S1).
+			.option(
+				"--host <host>",
+				"Bind address. Absent, the `surfaces.web` declaration in .refarm/config.json decides " +
+					"(undeclared ⇒ loopback). A value may only narrow that declaration, never widen it",
+			)
+			.option(
+				"--tls-cert <file>",
+				"TLS certificate (PEM) — with --tls-key, ADDS an https listener beside the plain one " +
+					"(`refarm cert issue` produces both files)",
+			)
+			.option(
+				"--tls-key <file>",
+				"TLS private key (PEM) — with --tls-cert, adds the https listener",
+			)
+			.option(
+				"--tls-port <port>",
+				"Port for the https listener. Absent ⇒ --port + 1. It may NOT be --port: the plain " +
+					"listener has to stay where every already-bootstrapped device polls it",
+			)
+			.option(
+				"--sync-target <host:port>",
+				"Daemon CRDT WS the /sync proxy forwards to",
+				"127.0.0.1:42000",
+			)
+			.option(
+				"--sidecar-target <host:port>",
+				"Daemon sidecar HTTP API the /efforts proxy forwards to",
+				"127.0.0.1:42001",
+			)
+			.option("--json", "Print the listening address as JSON")
+			.action(async (dir: string, options: WebServeOptions) => {
+				const port = Number.parseInt(options.port ?? "4321", 10);
+				if (Boolean(options.tlsCert) !== Boolean(options.tlsKey)) {
+					throw new Error("--tls-cert and --tls-key must be provided together.");
+				}
+				const tls =
+					options.tlsCert && options.tlsKey
+						? { certFile: options.tlsCert, keyFile: options.tlsKey }
+						: undefined;
+				const tlsPort =
+					options.tlsPort === undefined ? undefined : Number.parseInt(options.tlsPort, 10);
+				const listeners = await startWebServeServer(dir, {
+					port,
+					// Passed through EXACTLY as commander gave it, `undefined` included — see the
+					// `--host` option above for why the absence must survive this call.
+					...(options.host !== undefined ? { host: options.host } : {}),
+					...(tls ? { tls } : {}),
+					...(tlsPort !== undefined ? { tlsPort } : {}),
+					syncTarget: parseSyncTarget(options.syncTarget ?? "127.0.0.1:42000"),
+					sidecarTarget: parseSyncTarget(options.sidecarTarget ?? "127.0.0.1:42001"),
+				});
+				const { url } = listeners;
+				// The browser goes to https when there is one; the kit ALWAYS stays on the plain origin.
+				const pageOrigin = listeners.tls?.url ?? url;
+				if (options.json) {
+					process.stdout.write(
+						`${JSON.stringify({
+							ok: true,
+							url,
+							...(listeners.tls ? { tlsUrl: listeners.tls.url } : {}),
+							kitUrl: url,
+							pageUrl: pageOrigin,
+							dir: path.resolve(dir),
+						})}\n`,
+					);
+				} else {
+					process.stdout.write(
+						`refarm hub serving ${path.resolve(dir)} on ${url}\n` +
+							"  COOP/COEP headers on — the browser runtime can boot cross-origin-isolated.\n" +
+							"  /sync proxies WebSocket upgrades to the daemon (see --sync-target).\n" +
+							(listeners.tls
+								? `  ${listeners.tls.url} — the SAME surface over https, which is what makes\n` +
+									"    /attend a secure context (crypto.subtle refuses to run without one).\n" +
+									`    The plain ${url} stays up unchanged: \`farm-update\` on every device already\n` +
+									"    bootstrapped polls it, and the kit builds that URL with a literal http://.\n"
+								: "") +
+							`  ${pageOrigin}/auth/verify — a surface with no credential can ask to be vouched for;\n` +
+							"    confirm the seven emoji with `refarm auth verify` at this node.\n" +
+							`  ${pageOrigin}/attend — answer the farm's pending questions from a browser;\n` +
+							"    it runs the same seven-emoji handshake, then holds a scoped, expiring credential.\n" +
+							(tls
+								? ""
+								: "  Note: off-localhost origins need a certificate for crypto.subtle, service worker\n" +
+									"    and OPFS/WASM. `refarm cert issue --json` produces one; pass it with\n" +
+									"    --tls-cert/--tls-key and https is ADDED beside this listener, not instead of it.\n"),
+					);
+				}
+			})
+	);
 }

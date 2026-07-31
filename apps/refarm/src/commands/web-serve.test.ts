@@ -15,9 +15,11 @@ import { WebSocket, WebSocketServer } from "ws";
 
 import {
 	createWebServeCommand,
+	DEFAULT_WEB_SERVE_PORT,
 	ifNoneMatchMatches,
 	isSidecarApiPath,
 	manifestETag,
+	resolveTlsPort,
 	startWebServeServer,
 } from "./web-serve.js";
 
@@ -245,56 +247,163 @@ describe("refarm web serve — the hub's static server", () => {
 
 const opensslAvailable = runOpenssl(["version"]) === 0;
 
-describe.skipIf(!opensslAvailable)("refarm web serve — TLS (the secure-context door)", () => {
-	it("serves https with an operator-supplied cert/key pair — verified against that very cert", async () => {
-		const certDir = mkdtempSync(path.join(tmpdir(), "refarm-web-serve-tls-"));
-		const keyFile = path.join(certDir, "key.pem");
-		const certFile = path.join(certDir, "cert.pem");
-		try {
-			expect(
-				runOpenssl([
-					"req",
-					"-x509",
-					"-newkey",
-					"rsa:2048",
-					"-nodes",
-					"-keyout",
-					keyFile,
-					"-out",
-					certFile,
-					"-days",
-					"1",
-					"-subj",
-					"/CN=localhost",
-					"-addext",
-					"subjectAltName=IP:127.0.0.1,DNS:localhost",
-				]),
-			).toBe(0);
-			const started = await startWebServeServer(root, {
-				port: 0,
+describe("refarm web serve — T5, the migration that does not break a bootstrapped device", () => {
+	it("defaults the https listener to the port beside the plain one", () => {
+		expect(resolveTlsPort({ port: 4321 })).toBe(4322);
+		expect(resolveTlsPort({ port: 4321, tlsPort: 8443 })).toBe(8443);
+		expect(resolveTlsPort({ port: DEFAULT_WEB_SERVE_PORT })).toBe(DEFAULT_WEB_SERVE_PORT + 1);
+	});
+
+	it("refuses to take the plain listener's port for https, and says why", () => {
+		expect(() => resolveTlsPort({ port: 4321, tlsPort: 4321 })).toThrow(/farm-update/);
+		expect(() => resolveTlsPort({ port: 4321, tlsPort: 4321 })).toThrow(/literal `http:\/\//);
+	});
+
+	it("the refusal happens before anything is bound — no listener is left behind", async () => {
+		await expect(
+			startWebServeServer(root, {
+				port: 43911,
+				tlsPort: 43911,
 				host: "127.0.0.1",
 				surfaces: UNDECLARED,
-				tls: { certFile, keyFile },
-			});
-			server = started.server;
-			expect(started.url).toMatch(/^https:\/\/127\.0\.0\.1:\d+$/);
-			// Full TLS verification, anchored on the fixture cert itself (its own CA) —
-			// never rejectUnauthorized:false, even in tests.
-			const response = await new Promise<{
-				status: number;
-				headers: Record<string, string | string[] | undefined>;
-			}>((resolve, reject) => {
-				const request = httpsGet(`${started.url}/`, { ca: readFileSync(certFile) }, (res) => {
-					res.resume();
-					resolve({ status: res.statusCode ?? 0, headers: res.headers });
-				});
-				request.on("error", reject);
-			});
-			expect(response.status).toBe(200);
-			expect(response.headers["cross-origin-opener-policy"]).toBe("same-origin");
-		} finally {
-			rmSync(certDir, { recursive: true, force: true });
+				tls: { certFile: "/nonexistent.crt", keyFile: "/nonexistent.key" },
+			}),
+		).rejects.toThrow(/--tls-port 43911 is the same as --port 43911/);
+		// If a server HAD been created, this bind would fail with EADDRINUSE.
+		const probe = await startWebServeServer(root, {
+			port: 43911,
+			host: "127.0.0.1",
+			surfaces: UNDECLARED,
+		});
+		server = probe.server;
+		expect(probe.url).toBe("http://127.0.0.1:43911");
+	});
+});
+
+describe.skipIf(!opensslAvailable)("refarm web serve — TLS (the secure-context door)", () => {
+	let certDir: string;
+	let keyFile: string;
+	let certFile: string;
+	let tlsServer: import("node:http").Server | undefined;
+
+	beforeEach(() => {
+		certDir = mkdtempSync(path.join(tmpdir(), "refarm-web-serve-tls-"));
+		keyFile = path.join(certDir, "key.pem");
+		certFile = path.join(certDir, "cert.pem");
+		expect(
+			runOpenssl([
+				"req",
+				"-x509",
+				"-newkey",
+				"rsa:2048",
+				"-nodes",
+				"-keyout",
+				keyFile,
+				"-out",
+				certFile,
+				"-days",
+				"1",
+				"-subj",
+				"/CN=localhost",
+				"-addext",
+				"subjectAltName=IP:127.0.0.1,DNS:localhost",
+			]),
+		).toBe(0);
+	});
+
+	afterEach(async () => {
+		if (tlsServer) {
+			await new Promise<void>((resolve) => tlsServer?.close(() => resolve()));
+			tlsServer = undefined;
 		}
+		rmSync(certDir, { recursive: true, force: true });
+	});
+
+	async function getOverTls(url: string): Promise<{
+		status: number;
+		headers: Record<string, string | string[] | undefined>;
+	}> {
+		// Full TLS verification, anchored on the fixture cert itself (its own CA) —
+		// never rejectUnauthorized:false, even in tests.
+		return new Promise((resolve, reject) => {
+			const request = httpsGet(url, { ca: readFileSync(certFile) }, (res) => {
+				res.resume();
+				resolve({ status: res.statusCode ?? 0, headers: res.headers });
+			});
+			request.on("error", reject);
+		});
+	}
+
+	it("serves https with an operator-supplied cert/key pair — verified against that very cert", async () => {
+		const started = await startWebServeServer(root, {
+			port: 0,
+			tlsPort: 0,
+			host: "127.0.0.1",
+			surfaces: UNDECLARED,
+			tls: { certFile, keyFile },
+		});
+		server = started.server;
+		tlsServer = started.tls?.server;
+		expect(started.tls?.url).toMatch(/^https:\/\/127\.0\.0\.1:\d+$/);
+		const response = await getOverTls(`${started.tls?.url}/`);
+		expect(response.status).toBe(200);
+		expect(response.headers["cross-origin-opener-policy"]).toBe("same-origin");
+	});
+
+	it("THE KIT'S HTTP PATH IS UNAFFECTED — the plain listener stays up, on its own port", async () => {
+		writeFileSync(path.join(root, "manifest.json"), JSON.stringify({ files: [] }));
+		const started = await startWebServeServer(root, {
+			port: 0,
+			tlsPort: 0,
+			host: "127.0.0.1",
+			surfaces: UNDECLARED,
+			tls: { certFile, keyFile },
+		});
+		server = started.server;
+		tlsServer = started.tls?.server;
+
+		// `url` is ALWAYS the plain origin: it is what `farm-update` builds with a literal
+		// `http://`, and it must not move when TLS is added.
+		expect(started.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+		expect(started.tls?.url).not.toBe(started.url);
+
+		// The very fetch the kit performs on every run, over plain http, with its ETag policy intact.
+		const manifest = await fetch(`${started.url}/manifest.json`);
+		expect(manifest.status).toBe(200);
+		const etag = manifest.headers.get("etag");
+		expect(etag).toBeTruthy();
+		const revalidated = await fetch(`${started.url}/manifest.json`, {
+			headers: { "if-none-match": etag as string },
+		});
+		expect(revalidated.status).toBe(304);
+	});
+
+	it("both listeners serve the SAME surface — one handler, two doors", async () => {
+		const started = await startWebServeServer(root, {
+			port: 0,
+			tlsPort: 0,
+			host: "127.0.0.1",
+			surfaces: UNDECLARED,
+			tls: { certFile, keyFile },
+		});
+		server = started.server;
+		tlsServer = started.tls?.server;
+		const overHttp = await fetch(`${started.url}/`);
+		const overTls = await getOverTls(`${started.tls?.url}/`);
+		expect(overHttp.status).toBe(200);
+		expect(overTls.status).toBe(200);
+		expect(await overHttp.text()).toContain("hub");
+	});
+
+	it("without TLS there is exactly one listener, and it is the plain one", async () => {
+		const started = await startWebServeServer(root, {
+			port: 0,
+			host: "127.0.0.1",
+			surfaces: UNDECLARED,
+		});
+		server = started.server;
+		expect(started.tls).toBeUndefined();
+		expect(started.url).toMatch(/^http:\/\//);
 	});
 });
 
