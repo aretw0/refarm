@@ -6,7 +6,6 @@ import {
 	type DeliveryCatalog,
 } from "@refarm.dev/delivery-contract-v1";
 import {
-	createPendingPromptHub,
 	createRemoteOperatorChannel,
 	setPromptPublisher,
 	type PendingPromptAsker,
@@ -14,6 +13,8 @@ import {
 	type PromptPublisher,
 } from "@refarm.dev/prompt-contract-v1";
 import type { DeliveryAttachment, DeliveryChannelIssue } from "./delivery.js";
+import { createSidecarPromptHub } from "./pending-prompt-sidecar.js";
+import { resolveSidecarUrl } from "./sidecar-url.js";
 
 /**
  * THE LAST MILE — where a declared delivery channel stops being a seam and starts
@@ -41,13 +42,37 @@ import type { DeliveryAttachment, DeliveryChannelIssue } from "./delivery.js";
  * the refarm CLI. Not one line of `auth.ts`, `intention.ts` or the kit's PATH
  * consent wizard changes, and none of them can tell the difference.
  *
+ * ── THE HUB IS THE NODE'S, NOT THIS PROCESS'S ─────────────────────────────────
+ *
+ * This mount published to `createPendingPromptHub()` — an in-process hub that dies
+ * with the CLI — while every attending surface (the kit on the operator's phone,
+ * the `/attend` page, the `web serve` proxy that joins them) polled the NODE's hub
+ * in `packages/tractor/src/sidecar/pending_prompt.rs`. Two hubs, so a question
+ * asked at the terminal reached no device, and nothing in this repository ever
+ * called `POST /prompts`. Both halves passed their own tests.
+ *
+ * The hub is now `createSidecarPromptHub` — the same interface, backed by the
+ * node over loopback. Nothing else in this file changed shape, because nothing
+ * else had to: the publisher, the peering, the no-deadline decision and the
+ * delivery attachment were all written against `PendingPromptHub`.
+ *
  * ── WHAT IT COSTS WHEN NOTHING IS DECLARED (D1) ───────────────────────────────
  *
- * Nothing. `installDeclaredDelivery` reads the `delivery` block and, finding it
- * absent, installs NO publisher and returns before the adapter registry is even
- * imported. `createStdioOperatorChannel` then returns exactly what it returned
- * before any of this existed. An operator who never wants to be notified is not
- * merely un-notified; they are running the same code path.
+ * Nothing, of DELIVERY. Finding no `delivery` block, this returns before the
+ * adapter registry is imported, constructs no adapter, announces nothing, and
+ * reports `declared: false` with no channels — an operator who never wants to be
+ * notified is not merely un-notified, they are running the same code path.
+ *
+ * The node's own hub is a different axis and is deliberately NOT declaration-gated:
+ * a question asked on the node is offered to the node, because that is where the
+ * operator's enrolled devices are already listening — enrolling the phone WAS the
+ * declaration, and `delivery` declares something else (an announcement pushed out
+ * to a third party). Gating the wire on a Telegram channel would leave every
+ * attending surface reading a hub with no publisher, which is the defect.
+ *
+ * It is still paid for only if a question is asked: `setPromptPublisher` takes a
+ * THUNK, the publisher is built at channel construction, and the node is contacted
+ * at `ask()`. A command that never prompts touches no socket.
  *
  * ── WHAT IT COSTS WHEN DELIVERY IS BROKEN (D4) ────────────────────────────────
  *
@@ -66,8 +91,13 @@ export interface DeclaredDeliveryMount {
 	channels: string[];
 	/** Declared channels that could NOT be brought up, and why (D4, never a secret). */
 	issues: DeliveryChannelIssue[];
-	/** Present only when at least one channel came up. */
-	hub: PendingPromptHub | null;
+	/**
+	 * The hub this process's questions are published to — the NODE's, over
+	 * loopback. Always present: it is what the operator's attending devices read,
+	 * and it does not depend on a `delivery` declaration.
+	 */
+	hub: PendingPromptHub;
+	/** Present only when at least one delivery channel came up. */
 	attachment: DeliveryAttachment | null;
 	/** Undo. Idempotent: detaches delivery and restores the previous publisher. */
 	unmount(): void;
@@ -91,6 +121,19 @@ export interface InstallDeclaredDeliveryOptions {
 	/** Injected in tests so routing can be exercised without the filesystem (D8). */
 	attending?: () => boolean;
 	now?: () => number;
+	/**
+	 * The node's sidecar base URL. Defaults to the same resolution every other
+	 * command uses (`REFARM_SIDECAR_URL` → config → `http://127.0.0.1:42001`), so
+	 * the questions go to the same daemon `refarm status` reports on.
+	 */
+	sidecarUrl?: string;
+	/**
+	 * Injected so the join can be exercised against a stub. A test that had to
+	 * reach the operator's LIVE daemon to prove the wiring would be publishing real
+	 * questions to real devices — see the end-to-end run instead, which stands up
+	 * its own throwaway node.
+	 */
+	fetch?: typeof globalThis.fetch;
 }
 
 function defaultWarn(message: string): void {
@@ -98,17 +141,6 @@ function defaultWarn(message: string): void {
 	process.stderr.write(`${message}\n`);
 }
 
-/** An inert mount. Returned whenever nothing is (or can be) announcing. */
-function inert(issues: DeliveryChannelIssue[] = [], declared = false): DeclaredDeliveryMount {
-	return {
-		declared,
-		channels: [],
-		issues,
-		hub: null,
-		attachment: null,
-		unmount: () => {},
-	};
-}
 
 /**
  * Read the `delivery` block. TOTAL — an unreadable or malformed declaration is an
@@ -135,44 +167,59 @@ export function readDeclaredDeliveryCatalog(root: string): {
 }
 
 /**
- * Bring declared delivery up for THIS process and this asker.
+ * Publish THIS process's questions to the node, and bring declared delivery up on
+ * top of them.
  *
- * Returns without installing anything when nothing is declared — including
- * without importing the adapter registry, which is what makes the undeclared
- * path free rather than merely quiet.
+ * The two are separate acts with separate conditions, and this is the one place
+ * that is visible: the hub is always built (the operator's devices are already
+ * polling it), and the adapter registry is imported only if a channel is declared —
+ * which is what makes the undeclared delivery path free rather than merely quiet.
  */
 export async function installDeclaredDelivery(
 	options: InstallDeclaredDeliveryOptions,
 ): Promise<DeclaredDeliveryMount> {
 	const warn = options.warn ?? defaultWarn;
 	const root = options.root ?? process.cwd();
+	const env = options.env ?? process.env;
 
 	const { catalog, issues: catalogIssues } = readDeclaredDeliveryCatalog(root);
-	if (catalogIssues.length > 0) {
-		// A declaration the operator wrote and refarm cannot read is exactly D4's
-		// worst case in slow motion: say so now, while they are at the terminal.
-		for (const issue of catalogIssues) warn(`refarm delivery: ${issue.detail}`);
-		return inert(catalogIssues, true);
-	}
-	// D1 — silence is closed. Nothing declared, nothing loaded, nothing installed.
-	if (catalog.size === 0) return inert();
+	// A declaration the operator wrote and refarm cannot read is exactly D4's worst
+	// case in slow motion: say so now, while they are at the terminal. It costs the
+	// announcement, never the question — which still goes to the node below.
+	for (const issue of catalogIssues) warn(`refarm delivery: ${issue.detail}`);
 
-	// Only now is the adapter registry worth loading.
-	const { resolveDeliveryChannels, attachDeliveryToHub } = await import("./delivery.js");
-	const resolveOptions: Parameters<typeof resolveDeliveryChannels>[1] = { root };
-	if (options.env) resolveOptions.env = options.env;
-	if (options.factories) resolveOptions.factories = options.factories;
-	const { channels, issues } = resolveDeliveryChannels(catalog, resolveOptions);
-	for (const issue of issues) {
-		warn(`refarm delivery: channel "${issue.channel}" is declared but cannot be used — ${issue.detail}`);
-	}
-	if (channels.length === 0) return inert(issues, true);
+	// The node's hub, over loopback. Built before any delivery decision because it
+	// does not depend on one: see the header.
+	const hubOptions: Parameters<typeof createSidecarPromptHub>[0] = {
+		baseUrl: options.sidecarUrl ?? resolveSidecarUrl(env),
+		env,
+		warn,
+	};
+	if (options.fetch) hubOptions.fetch = options.fetch;
+	if (options.now) hubOptions.now = options.now;
+	const hub = createSidecarPromptHub(hubOptions);
 
-	const hub = createPendingPromptHub();
-	const attachOptions: Parameters<typeof attachDeliveryToHub>[1] = { channels, warn };
-	if (options.attending) attachOptions.attending = options.attending;
-	if (options.now) attachOptions.now = options.now;
-	const attachment = attachDeliveryToHub(hub, attachOptions);
+	const declared = catalogIssues.length > 0 || catalog.size > 0;
+	let channels: Awaited<ReturnType<typeof resolveChannels>>["channels"] = [];
+	let issues: DeliveryChannelIssue[] = [...catalogIssues];
+	let attachment: DeliveryAttachment | null = null;
+
+	// D1 — silence is closed. Nothing declared, nothing loaded, nothing announcing,
+	// and `./delivery.js` (with the whole adapter registry behind it) never imported.
+	if (catalogIssues.length === 0 && catalog.size > 0) {
+		const resolved = await resolveChannels(catalog, options, root, warn);
+		channels = resolved.channels;
+		issues = resolved.issues;
+		if (channels.length > 0) {
+			const attachOptions: Parameters<typeof resolved.attachDeliveryToHub>[1] = {
+				channels,
+				warn,
+			};
+			if (options.attending) attachOptions.attending = options.attending;
+			if (options.now) attachOptions.now = options.now;
+			attachment = resolved.attachDeliveryToHub(hub, attachOptions);
+		}
+	}
 
 	const publisher: PromptPublisher = {
 		remote: (signal) =>
@@ -191,7 +238,7 @@ export async function installDeclaredDelivery(
 
 	let unmounted = false;
 	return {
-		declared: true,
+		declared,
 		channels: channels.map((channel) => channel.declaration.name),
 		issues,
 		hub,
@@ -200,9 +247,34 @@ export async function installDeclaredDelivery(
 			if (unmounted) return;
 			unmounted = true;
 			restore();
-			attachment.detach();
+			attachment?.detach();
 		},
 	};
+}
+
+/**
+ * Load the adapter registry and bring up what the catalog declared.
+ *
+ * Split out so the dynamic `import("./delivery.js")` has exactly ONE call site,
+ * under exactly one condition — the D1 guarantee is that this function is never
+ * entered when nothing is declared, and a guarantee is easier to keep when the
+ * thing it is about has a name.
+ */
+async function resolveChannels(
+	catalog: DeliveryCatalog,
+	options: InstallDeclaredDeliveryOptions,
+	root: string,
+	warn: (message: string) => void,
+) {
+	const { resolveDeliveryChannels, attachDeliveryToHub } = await import("./delivery.js");
+	const resolveOptions: Parameters<typeof resolveDeliveryChannels>[1] = { root };
+	if (options.env) resolveOptions.env = options.env;
+	if (options.factories) resolveOptions.factories = options.factories;
+	const { channels, issues } = resolveDeliveryChannels(catalog, resolveOptions);
+	for (const issue of issues) {
+		warn(`refarm delivery: channel "${issue.channel}" is declared but cannot be used — ${issue.detail}`);
+	}
+	return { channels, issues, attachDeliveryToHub };
 }
 
 /**
