@@ -50,6 +50,54 @@
 //! The credential is a bearer token; only its SHA-256 is ever stored in the policy (never the
 //! raw token), and the lookup is over hashes. `/sync` (the CRDT WS on :42000) is a separate
 //! gate, tracked as a follow-up.
+//!
+//! ## TWO arrays, two meanings — and the one that must never drift
+//!
+//! `credentials[]` is a DEVICE credential: unscoped, non-expiring, full authority over every
+//! route this gate guards. That is exactly what it has always meant, and nothing here widens
+//! or narrows it. In particular a `credentials[]` entry that happens to carry a `scope` or an
+//! `expiresAt` key is STILL a full device credential — those fields are ignored there, as
+//! every unknown field always has been. A field appearing in one array does not change the
+//! other array's meaning; the two are parsed by two different functions into two different
+//! types, so they cannot be confused for one another by accident.
+//!
+//! `scopedCredentials[]` (`packages/emoji-sas-v1`, wire `scoped-credential.v1`) is the
+//! opposite kind of thing: NARROW authority, and it DIES. It exists so a browser can answer
+//! the operator's pending questions without holding a device token. It was deliberately given
+//! its own top-level key because this module used to have no scope check and no clock — a
+//! "scoped" entry placed in `credentials[]` would have been honoured as a full, permanent
+//! device credential. This module now reads that key, with scope and expiry as verified
+//! fields, which is what makes the separation an enforcement rather than an absence.
+//!
+//! ## Routes DECLARE what they require; silence is device-only
+//!
+//! [`route_requirement`] is the table. A route that names a scope is reachable by a scoped
+//! credential holding it — and by any device credential, which is unscoped by design. A route
+//! that names NOTHING admits device credentials only. That is the fail-closed reading of
+//! silence, and it is the important half: a route added tomorrow, renamed today, or reached
+//! by a path this table does not recognize is device-only until someone writes down the scope
+//! it is willing to be reached with. Silence never grants.
+//!
+//! ## The clock, stated
+//!
+//! Expiry is judged at AUTHENTICATION time, against the host wall clock
+//! ([`host_clock_ms`]), never at parse time. An `expiresAt` already in the past when the file
+//! is read is therefore a RUNTIME REFUSAL, not a parse error — three reasons, all structural:
+//! [`parse_policy`] must stay a pure function of the bytes (a clock inside it would make the
+//! same bytes parse two ways); the reload is fingerprint-driven, so an unchanged file is never
+//! re-parsed and a deadline that passes between writes would never be noticed if expiry were a
+//! load-time decision; and refusing at the door is strictly stricter than refusing at load,
+//! because it also covers the credential that expires while the process runs.
+//!
+//! There is NO skew grace, deliberately. The comparison is `now >= expiresAt` — the same
+//! boundary `packages/emoji-sas-v1` uses (`expiresAt <= now` ⇒ expired) — with no tolerance
+//! window in either direction. A window could only ever EXTEND a credential's life, which is a
+//! widening, and this module does not widen. A host clock running behind therefore lets a
+//! credential outlive its deadline by the skew (unavoidable without a trusted time source, and
+//! bounded by it); a host clock running ahead kills one early, which is the fail-closed
+//! direction and is accepted as the cost. A clock that cannot be read as a point after the
+//! UNIX epoch refuses EVERY scoped credential — an unreadable clock cannot be used to say a
+//! deadline has not passed. Device credentials have no expiry and are untouched by any of it.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
@@ -57,7 +105,7 @@ use std::time::Duration;
 
 use axum::{
     body::Body,
-    http::{header, Request, Response, StatusCode},
+    http::{header, Method, Request, Response, StatusCode},
     middleware::Next,
 };
 use sha2::{Digest, Sha256};
@@ -88,23 +136,170 @@ pub(crate) const AUTH_POLICY_FILE_NAME: &str = "auth-policy.json";
 /// `Reading::fingerprint`).
 const RELOAD_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
+/// The wire name of the one scope this node knows. Byte-identical to
+/// `SCOPE_ANSWER_PROMPTS` in `packages/emoji-sas-v1/src/scoped-credential.ts`, which is the
+/// side that MINTS it — one vocabulary, two runtimes, exactly like `AUTH_POLICY_FILE_NAME`.
+pub(crate) const SCOPE_ANSWER_PROMPTS: &str = "prompt:answer";
+
+/// The wire discriminator every scoped entry must carry (`SCOPED_CREDENTIAL_WIRE` in
+/// `emoji-sas-v1`). An entry without it is not a scoped credential and is refused.
+pub(crate) const SCOPED_CREDENTIAL_WIRE: &str = "scoped-credential.v1";
+
+/// A scope, VALIDATED. An enum rather than a string, and that is the point: an unknown scope
+/// string CANNOT be represented, so "an unknown scope refuses the credential" is a property
+/// of the type instead of a check somebody has to remember to write at every use site. The
+/// only door into this type is [`Scope::from_wire`], and it is total.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Scope {
+    /// `prompt:answer` — read this node's pending questions and settle them, and nothing
+    /// else. The one scope `packages/emoji-sas-v1` issues today.
+    AnswerPrompts,
+}
+
+impl Scope {
+    /// The wire string, or `None` when the string names no scope this node knows. Fail-closed
+    /// by construction: a scope we do not understand is never narrowed to one we do.
+    fn from_wire(raw: &str) -> Option<Self> {
+        match raw {
+            SCOPE_ANSWER_PROMPTS => Some(Scope::AnswerPrompts),
+            _ => None,
+        }
+    }
+
+    /// The wire string for this scope. Test-only: nothing in the running gate ever renders a
+    /// scope — a scope printed beside an identity is exactly the log line this module refuses
+    /// to emit — so the only callers are fixtures that build policy JSON.
+    #[cfg(test)]
+    pub(crate) const fn wire(self) -> &'static str {
+        match self {
+            Scope::AnswerPrompts => SCOPE_ANSWER_PROMPTS,
+        }
+    }
+}
+
+/// The two route paths whose scope is DECLARED below. Stated here and registered from here
+/// (`sidecar::sidecar_routes` names these constants), so the route the router serves and the
+/// route this table judges cannot drift apart by a rename — the drift that would silently
+/// turn a scoped route back into a device-only one, or the reverse.
+pub(crate) const ROUTE_PROMPTS: &str = "/prompts";
+/// The answer route, in axum's pattern form. [`route_requirement`] matches the CONCRETE path
+/// (`/prompts/<id>/answer`) segment by segment; `route_requirement_matches_the_registered_patterns`
+/// pins the two spellings against each other.
+pub(crate) const ROUTE_PROMPT_ANSWER: &str = "/prompts/:id/answer";
+
+/// What a ROUTE requires of the credential presented to it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RouteRequirement {
+    /// The route DECLARES a scope. A scoped credential holding it passes — and so does any
+    /// device credential, which is unscoped by design and always had authority here.
+    Scoped(Scope),
+    /// The route declares NOTHING, and therefore admits a device credential only. The
+    /// default, and the fail-closed reading of silence: an unrecognised path, an unexpected
+    /// method, a route added tomorrow — all device-only until someone writes down the scope
+    /// the route is willing to be reached with.
+    DeviceOnly,
+}
+
+/// THE route→scope table. PURE: a method and a path in, a requirement out; no state, no
+/// request body, nothing a caller can influence beyond the request line itself.
+///
+/// Matched over the CONCRETE path's segments rather than axum's `MatchedPath` extension so
+/// the decision is a testable pure function of two values instead of a property of how the
+/// middleware happens to be layered — and so that a path this table does not recognize
+/// (percent-encoded, trailing-slashed, mis-nested) falls through to [`RouteRequirement::DeviceOnly`]
+/// rather than to whatever a partial match would have yielded.
+///
+/// Note the two entries are METHOD-specific: `GET /prompts` (read the questions) is scoped,
+/// `POST /prompts` (publish one — an asking process's act, not an answering device's) is not.
+/// Same path, different authority.
+pub(crate) fn route_requirement(method: &Method, path: &str) -> RouteRequirement {
+    let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+    match (method, segments.as_slice()) {
+        (&Method::GET, ["prompts"]) => RouteRequirement::Scoped(Scope::AnswerPrompts),
+        (&Method::POST, ["prompts", _, "answer"]) => RouteRequirement::Scoped(Scope::AnswerPrompts),
+        _ => RouteRequirement::DeviceOnly,
+    }
+}
+
 /// A device credential: the SHA-256 (lowercase hex) of its bearer token → the identity it
 /// authenticates as. The raw token never lives in the policy.
+///
+/// UNSCOPED and NON-EXPIRING, exactly as it has always been: this is the full authority of an
+/// enrolled device. There is deliberately no scope field and no expiry field here — a device
+/// credential that could carry either would be a scoped credential under a name that promises
+/// otherwise, and the whole separation would be a comment again.
 #[derive(Debug, Clone)]
 pub(crate) struct Credential {
     pub(crate) token_sha256: String,
     pub(crate) identity: String,
 }
 
-/// The resolved auth policy: the enrolled device credentials.
+/// A scoped credential: narrow authority, and it dies. Structurally a DIFFERENT TYPE from
+/// [`Credential`], parsed by a different function out of a different array — which is what
+/// makes "a scoped entry is never a device credential" impossible to get wrong rather than
+/// merely intended.
+#[derive(Debug, Clone)]
+pub(crate) struct ScopedCredential {
+    pub(crate) token_sha256: String,
+    pub(crate) identity: String,
+    /// What it may do. Never empty off disk (an entry with no scope is refused at parse), so
+    /// an empty set can only be constructed in a test — where it is exactly the mutation
+    /// guard for a `scope.contains(..)` that got optimised into `true`.
+    pub(crate) scope: Vec<Scope>,
+    /// Epoch ms. Never optional: a scoped credential with no deadline is a device credential
+    /// with a different field name.
+    pub(crate) expires_at_ms: i64,
+}
+
+/// WHAT authenticated — the identity to attribute the request to, and which KIND of
+/// credential said so. The kind is not used to grant anything (the grant already happened);
+/// it exists so "this scoped entry was honoured as a scoped credential, not promoted to a
+/// device one" is a thing a test can assert directly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Verified {
+    pub(crate) identity: String,
+    pub(crate) kind: CredentialKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CredentialKind {
+    Device,
+    Scoped,
+}
+
+/// The host wall clock as epoch milliseconds, or `None` when it cannot be read as a point
+/// after the UNIX epoch. `None` refuses every scoped credential — see the module doc's clock
+/// section: an unreadable clock cannot be used to assert that a deadline has NOT passed.
+///
+/// Wall clock and not a monotonic one because `expiresAt` is an absolute epoch instant minted
+/// on another machine; there is nothing for a monotonic reading to be compared against.
+fn host_clock_ms() -> Option<i64> {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|elapsed| elapsed.as_millis() as i64)
+}
+
+/// The resolved auth policy: the enrolled device credentials, plus any scoped credentials.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct AuthPolicy {
     credentials: Vec<Credential>,
+    scoped: Vec<ScopedCredential>,
+    /// How many `scopedCredentials` entries were REFUSED by the parser. A count, for the one
+    /// log line — never which entry, never whose.
+    refused_scoped: usize,
 }
 
 impl AuthPolicy {
-    /// Authenticate a bearer token → the identity it maps to, or `None`. The token is
-    /// hashed and matched against stored hashes — the raw token is never compared. PURE.
+    /// Authenticate a bearer token as a DEVICE → the identity it maps to, or `None`. The
+    /// token is hashed and matched against stored hashes — the raw token is never compared.
+    /// PURE.
+    ///
+    /// Device credentials ONLY, and that is unchanged in every particular: a scoped
+    /// credential is never returned from here, whatever it holds and whenever it is asked.
+    /// This is what the WS handshake (`daemon::ws_server::decide_ws_handshake`) enforces, and
+    /// the WS handshake declares no scope — so by the module's own rule for silence, only a
+    /// device credential can satisfy it.
     pub(crate) fn authenticate(&self, token: &str) -> Option<&str> {
         let digest = sha256_hex(token);
         self.credentials
@@ -113,21 +308,85 @@ impl AuthPolicy {
             .map(|c| c.identity.as_str())
     }
 
-    /// A deny-all policy — every request is rejected. The fail-closed fallback.
-    fn deny_all() -> Self {
-        Self { credentials: Vec::new() }
+    /// Verify a bearer token against ONE route's requirement, at one instant. PURE — the
+    /// clock is an argument, so the whole decision is testable without waiting for time to
+    /// pass or faking a global.
+    ///
+    /// Order matters and is deliberate: a DEVICE credential is checked first and satisfies
+    /// every requirement, because it is unscoped by design. Only then, and only if the route
+    /// declared a scope, is the scoped set consulted — so a route that declared nothing can
+    /// never be reached by a scoped credential, no matter what that credential holds.
+    ///
+    /// The three scoped conditions are all required, every time: the hash matches, the scope
+    /// is held, and the deadline has not passed. `None` for any failure, with no reason
+    /// returned — a gate that says WHICH of the three failed is a gate that helps someone
+    /// enumerate.
+    pub(crate) fn verify(
+        &self,
+        token: &str,
+        required: RouteRequirement,
+        now_ms: Option<i64>,
+    ) -> Option<Verified> {
+        let digest = sha256_hex(token);
+        if let Some(device) = self.credentials.iter().find(|c| c.token_sha256 == digest) {
+            return Some(Verified {
+                identity: device.identity.clone(),
+                kind: CredentialKind::Device,
+            });
+        }
+        let RouteRequirement::Scoped(required) = required else {
+            return None;
+        };
+        let entry = self.scoped.iter().find(|c| c.token_sha256 == digest)?;
+        if !entry.scope.contains(&required) {
+            return None;
+        }
+        // An unreadable clock refuses, rather than being treated as instant zero (which would
+        // make every deadline lie in the future — the widening direction).
+        let now = now_ms?;
+        if now >= entry.expires_at_ms {
+            return None;
+        }
+        Some(Verified { identity: entry.identity.clone(), kind: CredentialKind::Scoped })
     }
 
-    /// How many device identities this policy admits. The ONLY quantity about the policy
-    /// that is ever logged: a count says "the revocation landed" without naming a token, a
-    /// hash, or an identity.
+    /// A deny-all policy — every request is rejected. The fail-closed fallback.
+    fn deny_all() -> Self {
+        Self::default()
+    }
+
+    /// How many device identities this policy admits. A count says "the revocation landed"
+    /// without naming a token, a hash, or an identity.
     fn identity_count(&self) -> usize {
         self.credentials.len()
     }
 
+    /// How many scoped credentials this policy admits — counted the same way, and logged
+    /// separately from `identity_count` so an operator can tell a browser session appearing
+    /// from a device being enrolled.
+    fn scoped_count(&self) -> usize {
+        self.scoped.len()
+    }
+
+    /// How many scoped entries the parser REFUSED. Non-zero means the file contains something
+    /// this gate will not honour — visible, and countable, without naming it.
+    fn refused_scoped_count(&self) -> usize {
+        self.refused_scoped
+    }
+
+    /// Test-only: a DEVICE-only policy. Signature deliberately unchanged — the WS handshake's
+    /// tests build policies through it, and "a device-only policy is what the WS gate judges"
+    /// is part of what stays true.
     #[cfg(test)]
     pub(crate) fn from_credentials(credentials: Vec<Credential>) -> Self {
-        Self { credentials }
+        Self { credentials, ..Default::default() }
+    }
+
+    /// Test-only: both arrays at once, bypassing the parser — for the wire tests, and for the
+    /// mechanism guards that need a scope set the parser would never produce (an empty one).
+    #[cfg(test)]
+    pub(crate) fn from_parts(credentials: Vec<Credential>, scoped: Vec<ScopedCredential>) -> Self {
+        Self { credentials, scoped, refused_scoped: 0 }
     }
 }
 
@@ -146,8 +405,20 @@ pub(crate) fn sha256_hex(input: &str) -> String {
 /// so the file format is stable across slices.
 #[derive(serde::Deserialize)]
 struct PolicyFile {
+    /// UNCHANGED, deliberately: a typed `Vec`, so a malformed device entry is a whole-file
+    /// parse error and therefore a deny-all. That is the present meaning of this array and it
+    /// is not being widened or narrowed here.
     #[serde(default)]
     credentials: Vec<CredentialEntry>,
+    /// A raw `Value`, and NOT a typed `Vec<ScopedEntry>` — the difference is load-bearing.
+    /// Typed, one malformed browser-session entry would fail the whole document, which is
+    /// deny-all, which means a bad scoped entry could revoke the operator's phone. Raw, each
+    /// entry is validated on its own and refuses only itself (and a `scopedCredentials` that
+    /// is not an array at all refuses only itself, leaving every device credential standing).
+    /// Absent ⇒ `Value::Null` ⇒ no scoped credentials and nothing refused, which is exactly
+    /// what the operator's real policy file is.
+    #[serde(rename = "scopedCredentials", default)]
+    scoped_credentials: serde_json::Value,
 }
 
 #[derive(serde::Deserialize)]
@@ -157,7 +428,10 @@ struct CredentialEntry {
     token_sha256: String,
 }
 
-/// Parse a policy JSON string into an `AuthPolicy`. PURE (no I/O) so it is native-testable.
+/// Parse a policy JSON string into an `AuthPolicy`. PURE (no I/O, NO CLOCK) so it is
+/// native-testable — and so the same bytes always parse to the same value, which is what lets
+/// the fingerprinted reload skip a re-read without skipping a decision. Expiry is judged at
+/// the door, not here; see the module doc's clock section.
 pub(crate) fn parse_policy(raw: &str) -> Result<AuthPolicy, serde_json::Error> {
     let file: PolicyFile = serde_json::from_str(raw)?;
     let credentials = file
@@ -168,7 +442,92 @@ pub(crate) fn parse_policy(raw: &str) -> Result<AuthPolicy, serde_json::Error> {
             identity: c.identity,
         })
         .collect();
-    Ok(AuthPolicy { credentials })
+    let (scoped, refused_scoped) = parse_scoped_credentials(&file.scoped_credentials);
+    Ok(AuthPolicy { credentials, scoped, refused_scoped })
+}
+
+/// Every scoped credential in the `scopedCredentials` value, plus how many entries were
+/// REFUSED. PURE.
+///
+/// One bad entry never takes another with it, and never takes the gate with it: the survivors
+/// are kept and the refusals are counted. A `scopedCredentials` that is not an array is itself
+/// one refusal — the key is unusable, so nothing under it is honoured, and the device
+/// credentials in the same file are untouched.
+fn parse_scoped_credentials(raw: &serde_json::Value) -> (Vec<ScopedCredential>, usize) {
+    let Some(entries) = raw.as_array() else {
+        // Null is ABSENCE (no key at all), not a malformation — the shape of every policy
+        // written before scoped credentials existed, and of the operator's today.
+        return (Vec::new(), usize::from(!raw.is_null()));
+    };
+    let mut parsed = Vec::with_capacity(entries.len());
+    let mut refused = 0usize;
+    for entry in entries {
+        match parse_scoped_credential(entry) {
+            Some(credential) => parsed.push(credential),
+            None => refused += 1,
+        }
+    }
+    (parsed, refused)
+}
+
+/// Validate ONE scoped entry off disk, or refuse it. PURE, total, and fail-closed in every
+/// branch: a missing field, a blank field, a non-numeric deadline, an empty scope list, a
+/// scope string this node does not know — any of them refuses THIS entry and nothing else.
+///
+/// The required-field set mirrors `parseScopedCredential` in
+/// `packages/emoji-sas-v1/src/scoped-credential.ts` so the two runtimes agree on what a valid
+/// entry is, with one deliberate difference: an unknown scope string refuses the entry HERE
+/// (`Scope::from_wire`), because authority this gate cannot describe is authority it must not
+/// grant. Silently dropping the unknown scope and honouring the rest would be narrowing a
+/// grant nobody asked to have narrowed.
+fn parse_scoped_credential(value: &serde_json::Value) -> Option<ScopedCredential> {
+    let entry = value.as_object()?;
+    let text = |key: &str| {
+        entry
+            .get(key)
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    };
+
+    if text("wire")? != SCOPED_CREDENTIAL_WIRE {
+        return None;
+    }
+    // Required to be STATED even though the gate never reads them: `id` is what
+    // `refarm auth revoke` names, `surface`/`issuedVia` are what an audit reads. An entry
+    // missing them is not the shape `emoji-sas-v1` mints, and honouring a shape neither side
+    // agrees on is how the two halves start drifting.
+    text("id")?;
+    text("surface")?;
+    text("issuedVia")?;
+    let identity = text("identity")?.to_string();
+    let token_sha256 = text("tokenSha256")?.to_ascii_lowercase();
+    // Present and numeric, or refused. `issuedAt`'s VALUE decides nothing — only its
+    // presence, so a half-formed entry cannot pass as a well-formed one.
+    epoch_ms(entry.get("issuedAt")?)?;
+    let expires_at_ms = epoch_ms(entry.get("expiresAt")?)?;
+
+    let declared = entry.get("scope")?.as_array()?;
+    if declared.is_empty() {
+        return None;
+    }
+    let mut scope = Vec::with_capacity(declared.len());
+    for named in declared {
+        scope.push(Scope::from_wire(named.as_str()?.trim())?);
+    }
+    Some(ScopedCredential { token_sha256, identity, scope, expires_at_ms })
+}
+
+/// A JSON number as epoch milliseconds, or `None` when it is not a finite number at all.
+/// Mirrors `Number.isFinite` on the TypeScript side — `Date.now()` serializes as an integer,
+/// but a hand-edited `1.7e12` must not be the difference between a credential working and a
+/// whole policy being refused.
+fn epoch_ms(value: &serde_json::Value) -> Option<i64> {
+    if let Some(exact) = value.as_i64() {
+        return Some(exact);
+    }
+    let approximate = value.as_f64()?;
+    approximate.is_finite().then(|| approximate.floor() as i64)
 }
 
 /// The two boot-time facts the policy path is resolved FROM. Decided ONCE in `main.rs` and
@@ -286,6 +645,8 @@ fn resolve_auth_policy(source: &AuthPolicySource) -> Option<AuthGate> {
         Observed::Policy(policy) => {
             tracing::info!(
                 credentials = policy.identity_count(),
+                scoped = policy.scoped_count(),
+                refused_scoped = policy.refused_scoped_count(),
                 path = %located.path.display(),
                 derived = located.derived,
                 "sidecar auth gate enabled (opt-in)"
@@ -398,6 +759,7 @@ impl std::fmt::Debug for AuthGate {
             .field("path", &self.state.located.path)
             .field("derived", &self.state.located.derived)
             .field("identities", &self.identity_count())
+            .field("scoped", &self.scoped_count())
             .finish()
     }
 }
@@ -413,9 +775,18 @@ impl AuthGate {
         }
     }
 
-    /// Authenticate a bearer token against the policy IN FORCE right now → its identity.
-    /// The HTTP gate's entry point. Returns an owned identity because the value is read out
-    /// from behind a lock — a borrow would pin the policy and block the next reload.
+    /// Authenticate a bearer token as a DEVICE against the policy IN FORCE right now → its
+    /// identity. Returns an owned identity because the value is read out from behind a lock —
+    /// a borrow would pin the policy and block the next reload.
+    ///
+    /// TEST-ONLY since routes began declaring scopes: production's HTTP entry point is
+    /// [`AuthGate::verify`], which takes the route's requirement, and the WS handshake reads
+    /// [`AuthGate::snapshot`] and calls [`AuthPolicy::authenticate`] on the value. Kept
+    /// because it is the exact question most of this module's tests ask ("is this token a
+    /// device credential, right now"), and because a production caller that could ask it
+    /// WITHOUT naming a route is precisely the hole scoped credentials introduce: it would be
+    /// an authentication that no route requirement was ever consulted for.
+    #[cfg(test)]
     pub(crate) fn authenticate(&self, token: &str) -> Option<String> {
         self.snapshot().authenticate(token).map(str::to_string)
     }
@@ -431,6 +802,42 @@ impl AuthGate {
 
     fn identity_count(&self) -> usize {
         self.state.current.read().expect("auth policy lock poisoned").identity_count()
+    }
+
+    fn scoped_count(&self) -> usize {
+        self.state.current.read().expect("auth policy lock poisoned").scoped_count()
+    }
+
+    /// Verify a bearer token against ONE route's requirement, using the policy IN FORCE right
+    /// now and the host clock right now. The HTTP gate's real entry point.
+    ///
+    /// Reads the live value under the lock rather than snapshotting it: what a request is
+    /// judged by must be the policy at THAT instant, so an issued scoped credential works on
+    /// the next request and a revoked one stops on the next request — the same guarantee
+    /// `authenticate` already gives device credentials, extended to the scoped set for free
+    /// because there is only ever one value behind this handle.
+    pub(crate) fn verify(&self, token: &str, required: RouteRequirement) -> Option<Verified> {
+        self.state
+            .current
+            .read()
+            .expect("auth policy lock poisoned")
+            .verify(token, required, host_clock_ms())
+    }
+
+    /// Test-only: the same verification at a NAMED instant, so an expiry can be crossed
+    /// without waiting for wall time.
+    #[cfg(test)]
+    pub(crate) fn verify_at(
+        &self,
+        token: &str,
+        required: RouteRequirement,
+        now_ms: i64,
+    ) -> Option<Verified> {
+        self.state
+            .current
+            .read()
+            .expect("auth policy lock poisoned")
+            .verify(token, required, Some(now_ms))
     }
 
     /// Re-read the policy file and, if the observation CHANGED, swap in the new answer for
@@ -466,6 +873,7 @@ impl AuthGate {
 
         let path = self.state.located.path.display().to_string();
         let previously = self.identity_count();
+        let scoped_previously = self.scoped_count();
         let next = match reading.observed {
             Observed::Policy(policy) => {
                 // The ONE reload line. `identities` is what an operator watches after
@@ -476,6 +884,9 @@ impl AuthGate {
                 tracing::info!(
                     identities = policy.identity_count(),
                     previously,
+                    scoped = policy.scoped_count(),
+                    scoped_previously,
+                    refused_scoped = policy.refused_scoped_count(),
                     path = %path,
                     "auth policy reloaded — the change is in force for every gate, no restart"
                 );
@@ -682,16 +1093,23 @@ fn unauthorized(reason: &str) -> Response<Body> {
 /// authentication path, and a handler that read the identity out of a request BODY would let
 /// a caller name itself. Neither is possible when the only producer is the verification
 /// itself.
+///
+/// The SCOPE required is read from the request LINE — method and path, through the pure
+/// [`route_requirement`] table — before the credential is even looked at, and a route that
+/// declares nothing admits device credentials only. A refusal says `invalid` whether the
+/// credential was unknown, out of scope, or expired: one word, on purpose, because a gate
+/// that distinguishes the three is a gate that helps someone enumerate.
 pub(crate) async fn auth_middleware(
     gate: AuthGate,
     mut request: Request<Body>,
     next: Next,
 ) -> Response<Body> {
+    let required = route_requirement(request.method(), request.uri().path());
     match bearer_token(&request) {
         None => unauthorized("missing"),
-        Some(token) => match gate.authenticate(&token) {
-            Some(identity) => {
-                request.extensions_mut().insert(AuthenticatedDevice(identity));
+        Some(token) => match gate.verify(&token, required) {
+            Some(verified) => {
+                request.extensions_mut().insert(AuthenticatedDevice(verified.identity));
                 next.run(request).await
             }
             None => unauthorized("invalid"),
@@ -1498,6 +1916,672 @@ mod tests {
             Some("id-laptop"),
             "without evicting the device that was never revoked"
         );
+    }
+
+    // ── scoped credentials: narrow authority, and it DIES ─────────────────────────
+    //
+    // The operational fact these pin: `refarm auth verify` (the emoji-SAS exchange) writes a
+    // `scopedCredentials` entry into this same file so a BROWSER can answer the operator's
+    // pending questions without holding a device token. Everything below is about that entry
+    // being honoured for exactly what it says and nothing more — the right routes, and only
+    // until its deadline.
+
+    /// A route requirement, spelled short. `ANSWER` is what the two prompt routes declare;
+    /// `DEVICE_ONLY` is what every other route in the sidecar declares by saying nothing.
+    const ANSWER: RouteRequirement = RouteRequirement::Scoped(Scope::AnswerPrompts);
+    const DEVICE_ONLY: RouteRequirement = RouteRequirement::DeviceOnly;
+
+    /// An epoch-ms instant to hang the tests off, so "expired" and "live" are statements
+    /// about the credential rather than about how fast the suite runs.
+    const NOW: i64 = 1_800_000_000_000;
+
+    /// One scoped credential's JSON, in the exact shape `apps/refarm`'s `auth verify` writes
+    /// (`packages/emoji-sas-v1`'s `ScopedCredential`).
+    fn scoped_entry(
+        token: &str,
+        identity: &str,
+        scope: &[&str],
+        expires_at_ms: i64,
+    ) -> serde_json::Value {
+        serde_json::json!({
+            "wire": SCOPED_CREDENTIAL_WIRE,
+            "id": format!("scr_{identity}"),
+            "identity": identity,
+            "tokenSha256": sha256_hex(token),
+            "scope": scope,
+            "surface": "web",
+            "issuedVia": "emoji-sas.v1",
+            "issuedAt": NOW - 60_000,
+            "expiresAt": expires_at_ms,
+        })
+    }
+
+    /// A live `prompt:answer` credential — the ordinary case.
+    fn live_scoped(token: &str, identity: &str) -> serde_json::Value {
+        scoped_entry(token, identity, &[Scope::AnswerPrompts.wire()], NOW + 60_000)
+    }
+
+    /// The bytes of a policy carrying BOTH arrays — devices, and whatever raw scoped entries
+    /// a test wants to put in front of the parser.
+    fn policy_bytes_with_scoped(
+        enrolled: &[(&str, &str)],
+        scoped: &[serde_json::Value],
+    ) -> Vec<u8> {
+        let credentials: Vec<_> = enrolled
+            .iter()
+            .map(|(token, identity)| {
+                serde_json::json!({ "identity": identity, "tokenSha256": sha256_hex(token) })
+            })
+            .collect();
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "credentials": credentials,
+            "scopedCredentials": scoped,
+        }))
+        .unwrap()
+    }
+
+    fn parse_with_scoped(enrolled: &[(&str, &str)], scoped: &[serde_json::Value]) -> AuthPolicy {
+        let bytes = policy_bytes_with_scoped(enrolled, scoped);
+        parse_policy(std::str::from_utf8(&bytes).unwrap()).expect("valid JSON")
+    }
+
+    // ── the route table: what each route DECLARES ────────────────────────────────
+
+    #[test]
+    fn route_requirement_declares_the_two_prompt_reads_and_nothing_else() {
+        // The table, stated as a test so a widening is a diff. Note the method split on the
+        // SAME path: reading the questions is scoped, publishing one is not — an asking
+        // process is not an answering device.
+        assert_eq!(route_requirement(&Method::GET, "/prompts"), ANSWER);
+        assert_eq!(route_requirement(&Method::POST, "/prompts/p-1/answer"), ANSWER);
+
+        assert_eq!(
+            route_requirement(&Method::POST, "/prompts"),
+            DEVICE_ONLY,
+            "publishing a question is an ASKER's act — a browser session must not be able to"
+        );
+        for (method, path) in [
+            (Method::GET, "/efforts"),
+            (Method::POST, "/efforts"),
+            (Method::GET, "/sessions"),
+            (Method::GET, "/plugins"),
+            (Method::POST, "/plugins/reload"),
+            (Method::GET, "/connections"),
+            (Method::POST, "/connections/vpn/up"),
+            (Method::GET, "/stream/activity"),
+            (Method::GET, "/nodes"),
+            (Method::GET, "/tasks"),
+        ] {
+            assert_eq!(
+                route_requirement(&method, path),
+                DEVICE_ONLY,
+                "{method} {path} declares no scope ⇒ device credentials only"
+            );
+        }
+    }
+
+    #[test]
+    fn a_route_that_declares_nothing_is_device_only_including_ones_nobody_wrote_down() {
+        // THE fail-closed reading of silence, and the half that has to survive future edits:
+        // a path this table has never heard of — a route added tomorrow, a typo, a nesting
+        // that is one segment off — is DEVICE-ONLY. Not "unknown ⇒ allow", and not
+        // "unknown ⇒ inherit the nearest match".
+        for path in [
+            "/",
+            "/prompts/p-1",
+            "/prompts/p-1/answer/extra",
+            "/prompts/answer",
+            "/some/route/invented/later",
+            "//prompts//answer",
+        ] {
+            assert_eq!(
+                route_requirement(&Method::GET, path),
+                DEVICE_ONLY,
+                "GET {path} was never declared scoped ⇒ device-only"
+            );
+            assert_eq!(route_requirement(&Method::POST, path), DEVICE_ONLY, "POST {path}");
+        }
+        // …and an unexpected METHOD on a declared path is equally undeclared.
+        for method in [Method::PUT, Method::DELETE, Method::PATCH, Method::HEAD] {
+            assert_eq!(route_requirement(&method, "/prompts"), DEVICE_ONLY, "{method} /prompts");
+        }
+    }
+
+    #[test]
+    fn route_requirement_matches_the_patterns_the_router_actually_registers() {
+        // The two spellings — axum's `:id` pattern (what `sidecar_routes` registers) and this
+        // module's segment matcher (what the gate judges) — must describe the same route. A
+        // rename of one alone is exactly how a scoped route silently becomes device-only, or
+        // a device-only route silently becomes reachable by a browser session.
+        assert_eq!(ROUTE_PROMPTS, "/prompts");
+        assert_eq!(ROUTE_PROMPT_ANSWER, "/prompts/:id/answer");
+        let concrete = ROUTE_PROMPT_ANSWER.replace(":id", "prm_01HZY");
+        assert_eq!(route_requirement(&Method::POST, &concrete), ANSWER);
+        assert_eq!(route_requirement(&Method::GET, ROUTE_PROMPTS), ANSWER);
+        // A percent-encoded id is still ONE segment to axum's matcher, so it is still this
+        // route — and must be judged as this route. The two matchers agreeing on the same
+        // request is the property; treating it as an unknown path would refuse a legitimate
+        // answer, and treating an unknown path as this one would grant a scope to a route
+        // that never declared it.
+        assert_eq!(route_requirement(&Method::POST, "/prompts/p%2F1/answer"), ANSWER);
+    }
+
+    // ── accepted for its scope, refused for anything else ────────────────────────
+
+    #[test]
+    fn a_scoped_credential_is_accepted_for_its_scope_and_refused_for_every_other_route() {
+        let policy = parse_with_scoped(&[], &[live_scoped("browser-token", "web-session-abc")]);
+
+        let verified = policy
+            .verify("browser-token", ANSWER, Some(NOW))
+            .expect("the scope it holds ⇒ admitted");
+        assert_eq!(verified.identity, "web-session-abc");
+        assert_eq!(
+            verified.kind,
+            CredentialKind::Scoped,
+            "honoured AS a scoped credential — never promoted to a device one"
+        );
+
+        // MUTATION GUARD (silent + dangerous): a scoped credential accepted by a route that
+        // never declared its scope. Every route in the sidecar except the two prompt reads is
+        // this case, and each of them is a full-authority route.
+        assert_eq!(
+            policy.verify("browser-token", DEVICE_ONLY, Some(NOW)),
+            None,
+            "a route that declared NO scope must never be reachable by a scoped credential"
+        );
+        assert_eq!(policy.verify("some-other-token", ANSWER, Some(NOW)), None);
+    }
+
+    #[test]
+    fn a_scoped_credential_that_does_not_hold_the_required_scope_is_refused() {
+        // MUTATION GUARD for the scope check itself, isolated from the route table. With one
+        // wire scope defined today, "does not hold it" is expressed by an EMPTY scope set —
+        // which the parser refuses to produce, so it can only exist here. If
+        // `scope.contains(required)` ever becomes `true`, or the check is dropped, this is
+        // the test that notices; the route-table guard above would not, because the route
+        // there declares no scope at all.
+        let policy = AuthPolicy::from_parts(
+            vec![],
+            vec![ScopedCredential {
+                token_sha256: sha256_hex("browser-token"),
+                identity: "web-session-abc".to_string(),
+                scope: vec![],
+                expires_at_ms: NOW + 60_000,
+            }],
+        );
+        assert_eq!(
+            policy.verify("browser-token", ANSWER, Some(NOW)),
+            None,
+            "a credential that does not HOLD the required scope is refused, deadline or no"
+        );
+    }
+
+    // ── expiry: enforced at the door, at every request ───────────────────────────
+
+    #[test]
+    fn an_expired_scoped_credential_is_refused_and_the_deadline_itself_is_already_past() {
+        // MUTATION GUARD (silent + dangerous): an expired credential accepted. A browser
+        // session that outlives its deadline is a device token with extra steps — the exact
+        // thing the scoped shape exists to avoid.
+        let policy = parse_with_scoped(&[], &[live_scoped("browser-token", "web-session-abc")]);
+
+        // …live before the deadline …
+        assert!(policy.verify("browser-token", ANSWER, Some(NOW + 59_999)).is_some());
+        // … dead AT it (`now >= expiresAt`, the same boundary emoji-sas-v1 uses) …
+        assert_eq!(
+            policy.verify("browser-token", ANSWER, Some(NOW + 60_000)),
+            None,
+            "the deadline instant is already expired — `>=`, not `>`"
+        );
+        // … and dead after.
+        assert_eq!(policy.verify("browser-token", ANSWER, Some(NOW + 60_001)), None);
+    }
+
+    #[test]
+    fn an_expiry_already_past_at_load_time_parses_and_is_refused_at_the_door() {
+        // THE stated clock policy, pinned: an already-expired entry is a RUNTIME refusal, not
+        // a parse error. Parsing must be a pure function of the bytes (the reload is
+        // fingerprint-driven — same bytes, no re-read), so a clock inside the parser would
+        // make the same file mean two different things at two different times, and a deadline
+        // that passes while the file sits unchanged would never be noticed at all.
+        let policy = parse_with_scoped(
+            &[("laptop-token", "id-laptop")],
+            &[scoped_entry("stale-token", "web-session-old", &[SCOPE_ANSWER_PROMPTS], NOW - 1)],
+        );
+        assert_eq!(policy.scoped_count(), 1, "it PARSES — the bytes are well formed");
+        assert_eq!(policy.refused_scoped_count(), 0, "and is not a parse refusal");
+        assert_eq!(
+            policy.verify("stale-token", ANSWER, Some(NOW)),
+            None,
+            "…and it authenticates NOTHING, which is where expiry is actually enforced"
+        );
+        assert_eq!(
+            policy.authenticate("laptop-token"),
+            Some("id-laptop"),
+            "a dead scoped entry must not disturb the devices in the same file"
+        );
+    }
+
+    #[test]
+    fn an_unreadable_host_clock_refuses_every_scoped_credential_and_no_device_one() {
+        // The skew policy's edge: a clock that cannot be read as a point after the UNIX epoch
+        // cannot be used to say a deadline has NOT passed, so it says nothing and everything
+        // scoped is refused. Device credentials have no deadline and are untouched — the
+        // operator is never locked out of their own node by a bad clock.
+        let policy = parse_with_scoped(
+            &[("laptop-token", "id-laptop")],
+            &[live_scoped("browser-token", "web-session-abc")],
+        );
+        assert_eq!(policy.verify("browser-token", ANSWER, None), None, "no clock ⇒ no grant");
+        assert_eq!(
+            policy.verify("laptop-token", ANSWER, None).map(|v| v.kind),
+            Some(CredentialKind::Device),
+            "a device credential does not consult the clock and never did"
+        );
+    }
+
+    // ── a device credential is unscoped, and stays unscoped ──────────────────────
+
+    #[test]
+    fn a_device_credential_satisfies_every_route_scoped_or_not() {
+        let policy = parse_with_scoped(
+            &[("laptop-token", "id-laptop")],
+            &[live_scoped("browser-token", "web-session-abc")],
+        );
+        for required in [DEVICE_ONLY, ANSWER] {
+            let verified = policy
+                .verify("laptop-token", required, Some(NOW))
+                .unwrap_or_else(|| panic!("a device credential must satisfy {required:?}"));
+            assert_eq!(verified.identity, "id-laptop");
+            assert_eq!(verified.kind, CredentialKind::Device);
+        }
+        // …including long after any scoped credential in the same file would have died: a
+        // device credential has no expiry, and acquiring one would be a narrowing.
+        assert!(policy.verify("laptop-token", DEVICE_ONLY, Some(NOW + 10_000_000)).is_some());
+    }
+
+    #[test]
+    fn a_scoped_entry_is_never_a_device_credential() {
+        // MUTATION GUARD (silent + dangerous), and the whole reason `emoji-sas-v1` refused to
+        // write into `credentials[]` in the first place: a scoped entry treated as a device
+        // credential would be full authority over every route, forever.
+        let policy = parse_with_scoped(&[], &[live_scoped("browser-token", "web-session-abc")]);
+
+        assert_eq!(
+            policy.authenticate("browser-token"),
+            None,
+            "the DEVICE lookup — which is what the WS handshake enforces — must not see it"
+        );
+        assert_eq!(policy.identity_count(), 0, "it is not an enrolled device identity");
+        assert_eq!(policy.scoped_count(), 1);
+        assert_eq!(
+            policy.verify("browser-token", ANSWER, Some(NOW)).map(|v| v.kind),
+            Some(CredentialKind::Scoped),
+            "admitted, and admitted AS scoped"
+        );
+    }
+
+    #[test]
+    fn credentials_keep_their_exact_meaning_when_scoped_looking_fields_appear_beside_them() {
+        // REQUIREMENT, pinned in both directions: a field appearing in one array must not
+        // change the other array's semantics. A `credentials[]` entry carrying `scope` and
+        // `expiresAt` is STILL a full, unscoped, non-expiring device credential — those keys
+        // are ignored there exactly as every unknown key always has been. Reading them would
+        // silently reclassify an enrolled device.
+        let raw = serde_json::json!({
+            "credentials": [{
+                "identity": "id-arthur",
+                "tokenSha256": sha256_hex("phone-token"),
+                "scope": ["prompt:answer"],
+                "expiresAt": NOW - 10_000_000,
+                "wire": SCOPED_CREDENTIAL_WIRE,
+            }],
+            "scopedCredentials": [live_scoped("browser-token", "web-session-abc")],
+        })
+        .to_string();
+        let policy = parse_policy(&raw).expect("valid policy");
+
+        assert_eq!(policy.identity_count(), 1, "still an enrolled device");
+        assert_eq!(policy.authenticate("phone-token"), Some("id-arthur"));
+        for required in [DEVICE_ONLY, ANSWER] {
+            assert_eq!(
+                policy.verify("phone-token", required, Some(NOW)).map(|v| v.kind),
+                Some(CredentialKind::Device),
+                "an ignored `expiresAt`/`scope` beside a device credential changes NOTHING"
+            );
+        }
+        assert!(
+            policy.verify("phone-token", DEVICE_ONLY, None).is_some(),
+            "and it is still clock-independent"
+        );
+    }
+
+    // ── one bad entry refuses itself, and only itself ────────────────────────────
+
+    #[test]
+    fn a_malformed_scoped_entry_refuses_only_itself() {
+        // FAIL-CLOSED, and BOUNDED. Two ways this rots, both bad: a malformed entry being
+        // honoured, or a malformed entry taking the whole file down with it (which is
+        // deny-all — a browser session's bad entry revoking the operator's phone).
+        let good = live_scoped("browser-token", "web-session-abc");
+        let mut entries = vec![
+            serde_json::json!("not even an object"),
+            serde_json::json!({}),
+            serde_json::json!([1, 2, 3]),
+            serde_json::Value::Null,
+        ];
+        // Each REQUIRED field, removed one at a time — every one of them refuses the entry.
+        for missing in
+            ["wire", "id", "identity", "tokenSha256", "scope", "surface", "issuedVia", "issuedAt", "expiresAt"]
+        {
+            let mut entry = live_scoped("mutant-token", "web-session-mutant");
+            entry.as_object_mut().unwrap().remove(missing);
+            entries.push(entry);
+        }
+        // …and each one BLANKED, which is not a value either.
+        for blanked in ["wire", "id", "identity", "tokenSha256", "surface", "issuedVia"] {
+            let mut entry = live_scoped("mutant-token", "web-session-mutant");
+            entry[blanked] = serde_json::json!("   ");
+            entries.push(entry);
+        }
+        // …plus the shapes that are present but wrong.
+        entries.push(scoped_entry("mutant-token", "web-session-mutant", &[], NOW + 60_000));
+        let mut wrong_wire = live_scoped("mutant-token", "web-session-mutant");
+        wrong_wire["wire"] = serde_json::json!("device-credential.v1");
+        entries.push(wrong_wire);
+        let mut string_deadline = live_scoped("mutant-token", "web-session-mutant");
+        string_deadline["expiresAt"] = serde_json::json!("2026-07-31T00:00:00Z");
+        entries.push(string_deadline);
+        let mut scope_not_an_array = live_scoped("mutant-token", "web-session-mutant");
+        scope_not_an_array["scope"] = serde_json::json!("prompt:answer");
+        entries.push(scope_not_an_array);
+        let mut scope_of_numbers = live_scoped("mutant-token", "web-session-mutant");
+        scope_of_numbers["scope"] = serde_json::json!([7]);
+        entries.push(scope_of_numbers);
+
+        let refused_count = entries.len();
+        entries.push(good);
+        let policy = parse_with_scoped(&[("laptop-token", "id-laptop")], &entries);
+
+        assert_eq!(policy.refused_scoped_count(), refused_count, "every mutant refused");
+        assert_eq!(policy.scoped_count(), 1, "and exactly the good one survived");
+        assert_eq!(
+            policy.verify("mutant-token", ANSWER, Some(NOW)),
+            None,
+            "no malformed entry authenticates anything"
+        );
+        assert_eq!(
+            policy.verify("browser-token", ANSWER, Some(NOW)).map(|v| v.kind),
+            Some(CredentialKind::Scoped),
+            "the well-formed neighbour is untouched"
+        );
+        assert_eq!(
+            policy.authenticate("laptop-token"),
+            Some("id-laptop"),
+            "and the DEVICE credentials in the same file are untouched — a bad browser entry \
+             must never revoke the operator's phone"
+        );
+    }
+
+    #[test]
+    fn an_unknown_scope_string_refuses_that_credential_and_leaves_the_others() {
+        // Fail-closed on vocabulary: authority this node cannot describe is authority it must
+        // not grant. Refused whole rather than narrowed to the scopes it DOES understand —
+        // narrowing would silently hand back a grant nobody asked to have narrowed, and hide
+        // that the two halves disagree about what scopes exist.
+        let policy = parse_with_scoped(
+            &[],
+            &[
+                scoped_entry("invented-token", "web-session-x", &["effort:dispatch"], NOW + 60_000),
+                scoped_entry(
+                    "mixed-token",
+                    "web-session-y",
+                    &[SCOPE_ANSWER_PROMPTS, "plugins:load"],
+                    NOW + 60_000,
+                ),
+                live_scoped("browser-token", "web-session-abc"),
+            ],
+        );
+        assert_eq!(policy.refused_scoped_count(), 2);
+        assert_eq!(policy.scoped_count(), 1);
+        assert_eq!(policy.verify("invented-token", ANSWER, Some(NOW)), None);
+        assert_eq!(
+            policy.verify("mixed-token", ANSWER, Some(NOW)),
+            None,
+            "an entry that ALSO names an unknown scope is refused whole, never narrowed to \
+             the known half"
+        );
+        assert!(policy.verify("browser-token", ANSWER, Some(NOW)).is_some());
+    }
+
+    #[test]
+    fn a_scoped_credentials_key_that_is_not_an_array_never_disables_the_gate() {
+        // The key itself malformed. Fail-closed on the SCOPED set (nothing under an unusable
+        // key is honoured) without touching the devices — deny-all here would mean a
+        // hand-edit of a browser-session key locks the operator out of their own runtime.
+        for shape in [
+            serde_json::json!({ "web": "token" }),
+            serde_json::json!("scoped"),
+            serde_json::json!(7),
+            serde_json::json!(true),
+        ] {
+            let raw = serde_json::json!({
+                "credentials": [{
+                    "identity": "id-laptop",
+                    "tokenSha256": sha256_hex("laptop-token"),
+                }],
+                "scopedCredentials": shape,
+            })
+            .to_string();
+            let policy = parse_policy(&raw).expect("the DOCUMENT is still valid JSON");
+            assert_eq!(policy.scoped_count(), 0, "nothing under an unusable key is honoured");
+            assert_eq!(policy.refused_scoped_count(), 1, "and the refusal is visible");
+            assert_eq!(
+                policy.authenticate("laptop-token"),
+                Some("id-laptop"),
+                "the device credentials in the same file must survive"
+            );
+        }
+    }
+
+    #[test]
+    fn the_operators_real_policy_shape_parses_exactly_as_it_always_has() {
+        // PIN of the file that is actually on this node: `{"credentials":[{"identity",
+        // "tokenSha256"}]}` — device credentials only, and NO `scopedCredentials` key at all.
+        // The shape that must not acquire a new requirement, a new default, or a new refusal.
+        // Byte-for-byte the file's structure (`refarm auth enroll`'s two-space-indented
+        // output), with the operator's own digest replaced by one this test can also present
+        // a raw token for.
+        let raw = format!(
+            "{{\n  \"credentials\": [\n    {{\n      \"identity\": \"id-operator-phone\",\n      \
+             \"tokenSha256\": \"{}\"\n    }}\n  ]\n}}\n",
+            sha256_hex("operator-phone-token")
+        );
+        let policy = parse_policy(&raw).expect("the operator's shape must parse");
+        assert_eq!(policy.identity_count(), 1);
+        assert_eq!(policy.scoped_count(), 0, "no key ⇒ no scoped credentials");
+        assert_eq!(
+            policy.refused_scoped_count(),
+            0,
+            "an ABSENT key is absence, never a malformation — a policy written before scoped \
+             credentials existed must not start reporting a refusal"
+        );
+        assert_eq!(policy.authenticate("operator-phone-token"), Some("id-operator-phone"));
+        // And it is a FULL device credential on every route, unscoped and clock-free.
+        for required in [DEVICE_ONLY, ANSWER] {
+            assert_eq!(
+                policy.verify("operator-phone-token", required, Some(NOW)).map(|v| v.kind),
+                Some(CredentialKind::Device),
+                "the operator's enrolled phone satisfies {required:?}, exactly as before"
+            );
+        }
+        assert!(
+            policy.verify("operator-phone-token", DEVICE_ONLY, None).is_some(),
+            "and it never consults the clock"
+        );
+    }
+
+    // ── hot reload covers scoped credentials too ─────────────────────────────────
+
+    /// The one resolution over a temp refarm dir, with both arrays already written.
+    fn resolved_gate_with_scoped(
+        enrolled: &[(&str, &str)],
+        scoped: &[serde_json::Value],
+    ) -> (tempfile::TempDir, PathBuf, AuthGate) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(AUTH_POLICY_FILE_NAME);
+        std::fs::write(&path, policy_bytes_with_scoped(enrolled, scoped)).unwrap();
+        let gate = ResolvedAuthPolicy::resolve(&source_for(dir.path(), true))
+            .gate()
+            .expect("a declared gate ⇒ a bound gate");
+        (dir, path, gate)
+    }
+
+    #[test]
+    fn a_scoped_credential_issued_into_the_file_is_accepted_without_a_restart() {
+        // `refarm auth verify` writes this file while the daemon is running — the browser is
+        // sitting on the confirmation screen. If the gate only read scoped credentials at
+        // boot, the operator would compare seven emoji and then be told to restart their
+        // runtime before the session they just approved could do anything.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let (_dir, path, gate) = resolved_gate_with_scoped(&[("laptop-token", "id-laptop")], &[]);
+        assert_eq!(gate.verify_at("browser-token", ANSWER, NOW), None, "not issued yet");
+
+        std::fs::write(
+            &path,
+            policy_bytes_with_scoped(
+                &[("laptop-token", "id-laptop")],
+                &[live_scoped("browser-token", "web-session-abc")],
+            ),
+        )
+        .unwrap();
+        assert!(gate.reload_if_changed(), "the file changed ⇒ the policy is re-read");
+
+        assert_eq!(
+            gate.verify_at("browser-token", ANSWER, NOW).map(|v| v.kind),
+            Some(CredentialKind::Scoped),
+            "the newly issued browser session must be admitted by the RUNNING daemon"
+        );
+        assert_eq!(
+            gate.verify_at("browser-token", DEVICE_ONLY, NOW),
+            None,
+            "…and admitted for its scope ONLY, reload or no reload"
+        );
+        assert_eq!(
+            gate.authenticate("laptop-token").as_deref(),
+            Some("id-laptop"),
+            "without disturbing the device that was already enrolled"
+        );
+    }
+
+    #[test]
+    fn a_scoped_credential_revoked_from_the_file_stops_being_accepted_without_a_restart() {
+        // MUTATION GUARD, and the direction that matters. A browser session the operator has
+        // just revoked (`refarm auth revoke <id>`) must stop working NOW. A reload that only
+        // ever ADDS scoped credentials — merging into the set in force rather than REPLACING
+        // it — passes the issue test above and silently fails here forever.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let (_dir, path, gate) = resolved_gate_with_scoped(
+            &[("laptop-token", "id-laptop")],
+            &[live_scoped("browser-token", "web-session-abc"), live_scoped("kiosk-token", "web-session-kiosk")],
+        );
+        assert!(gate.verify_at("browser-token", ANSWER, NOW).is_some());
+
+        std::fs::write(
+            &path,
+            policy_bytes_with_scoped(
+                &[("laptop-token", "id-laptop")],
+                &[live_scoped("kiosk-token", "web-session-kiosk")],
+            ),
+        )
+        .unwrap();
+        assert!(gate.reload_if_changed());
+
+        assert_eq!(
+            gate.verify_at("browser-token", ANSWER, NOW),
+            None,
+            "a REVOKED scoped credential must stop authenticating in the running daemon"
+        );
+        assert!(
+            gate.verify_at("kiosk-token", ANSWER, NOW).is_some(),
+            "revoking one session must not evict the others"
+        );
+        assert_eq!(gate.authenticate("laptop-token").as_deref(), Some("id-laptop"));
+    }
+
+    #[tokio::test]
+    async fn the_watcher_applies_a_scoped_issue_and_revoke_on_its_own() {
+        // The reload tests above drive `reload_if_changed` by hand; this is the thing that
+        // CALLS it in a running daemon — the same real loop the device credentials get, at a
+        // 5ms period. Without it, every assertion above holds and the operator still has to
+        // restart, because nothing ever looks at the file.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(AUTH_POLICY_FILE_NAME);
+        std::fs::write(&path, policy_bytes_with_scoped(&[("laptop-token", "id-laptop")], &[]))
+            .unwrap();
+
+        let resolved = ResolvedAuthPolicy::resolve(&source_for(dir.path(), true));
+        let gate = resolved.gate().expect("gated");
+        resolved.spawn_reload_watcher_every(Duration::from_millis(5));
+
+        async fn until_scoped(gate: &AuthGate, token: &str, expected: bool) -> bool {
+            for _ in 0..200 {
+                if gate.verify_at(token, ANSWER, NOW).is_some() == expected {
+                    return true;
+                }
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+            false
+        }
+
+        std::fs::write(
+            &path,
+            policy_bytes_with_scoped(
+                &[("laptop-token", "id-laptop")],
+                &[live_scoped("browser-token", "web-session-abc")],
+            ),
+        )
+        .unwrap();
+        assert!(
+            until_scoped(&gate, "browser-token", true).await,
+            "the watcher must apply the ISSUE with no restart and no prompting"
+        );
+
+        std::fs::write(&path, policy_bytes_with_scoped(&[("laptop-token", "id-laptop")], &[]))
+            .unwrap();
+        assert!(
+            until_scoped(&gate, "browser-token", false).await,
+            "and the REVOKE, which is the one that must not wait for a restart"
+        );
+        assert_eq!(
+            gate.authenticate("laptop-token").as_deref(),
+            Some("id-laptop"),
+            "without evicting the device that was never revoked"
+        );
+    }
+
+    #[test]
+    fn a_broken_policy_file_denies_scoped_credentials_too() {
+        // The module's fail-closed doctrine, extended to the new set: a policy that cannot be
+        // believed locks the door for browser sessions exactly as it does for devices. Not
+        // last-known-good, and certainly not "no constraints".
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let (_dir, path, gate) = resolved_gate_with_scoped(
+            &[("laptop-token", "id-laptop")],
+            &[live_scoped("browser-token", "web-session-abc")],
+        );
+        assert!(gate.verify_at("browser-token", ANSWER, NOW).is_some());
+
+        std::fs::write(&path, "{ not json").unwrap();
+        assert!(gate.reload_if_changed());
+        assert_eq!(gate.verify_at("browser-token", ANSWER, NOW), None, "deny-all");
+        assert_eq!(gate.authenticate("laptop-token"), None, "for both sets alike");
     }
 
     #[test]

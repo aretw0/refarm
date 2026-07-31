@@ -163,3 +163,149 @@ async fn sidecar_the_same_gate_produces_two_listeners_that_differ_only_by_constr
     // …and the declared one still serves a valid credential, so nothing outward weakened.
     assert_eq!(get_with_token(declared_port, "shared-token").await, 200);
 }
+
+// ── scoped credentials, on the wire ────────────────────────────────────────────────────
+//
+// `sidecar::auth`'s own tests pin the PURE decisions (the route table, the three scoped
+// conditions, the clock). These pin the consequence over a real socket, through the
+// production `listener_router`: a browser session's credential reaching the sidecar for the
+// routes it was issued for, and bouncing off everything else.
+
+use crate::sidecar::auth::{Scope, ScopedCredential};
+
+fn epoch_ms_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("a host clock after 1970")
+        .as_millis() as i64
+}
+
+/// A gate holding one enrolled DEVICE and one `prompt:answer` browser session, with the
+/// session's deadline named by the caller.
+fn gate_with_scoped(device_token: &str, scoped_token: &str, expires_at_ms: i64) -> AuthGate {
+    AuthGate::for_test(AuthPolicy::from_parts(
+        vec![Credential {
+            token_sha256: sha256_hex(device_token),
+            identity: "id-test-device".to_string(),
+        }],
+        vec![ScopedCredential {
+            token_sha256: sha256_hex(scoped_token),
+            identity: "web-session-test".to_string(),
+            scope: vec![Scope::AnswerPrompts],
+            expires_at_ms,
+        }],
+    ))
+}
+
+/// Any request, with an optional bearer credential. Returns the status only — what is under
+/// test is the GATE, never a handler's body.
+async fn request_status(
+    port: u16,
+    method: reqwest::Method,
+    path: &str,
+    token: Option<&str>,
+) -> reqwest::StatusCode {
+    let mut builder = reqwest::Client::new()
+        .request(method, format!("{}{path}", base(port)))
+        .json(&serde_json::json!({}));
+    if let Some(token) = token {
+        builder = builder.header("Authorization", format!("Bearer {token}"));
+    }
+    builder.send().await.unwrap().status()
+}
+
+#[tokio::test]
+async fn sidecar_declared_listener_serves_a_scoped_credential_on_the_route_it_declares() {
+    // THE thing this slice closes: a browser holding a scoped, expiring credential — not the
+    // device token — reaches the pending-prompt hub. Before, `scopedCredentials` was a key
+    // the Rust gate did not read, so this request was a 401 with no way to make it anything
+    // else short of handing the browser a full device credential.
+    let gate = gate_with_scoped("device-token", "browser-token", epoch_ms_now() + 600_000);
+    let (port, _tmp) = serve_as(ListenRole::Declared, Some(gate)).await;
+
+    assert_eq!(
+        request_status(port, reqwest::Method::GET, "/prompts", Some("browser-token")).await,
+        200,
+        "GET /prompts declares `prompt:answer`, and the session holds it"
+    );
+}
+
+#[tokio::test]
+async fn sidecar_declared_listener_refuses_a_scoped_credential_on_every_undeclared_route() {
+    // The other half, and the one that must never rot: authority is what the ROUTE declared,
+    // not what the credential managed to get past. Note `POST /prompts` — the SAME path the
+    // test above succeeds on, refused because publishing a question is an asking process's
+    // act and the route declares no scope for it.
+    let gate = gate_with_scoped("device-token", "browser-token", epoch_ms_now() + 600_000);
+    let (port, _tmp) = serve_as(ListenRole::Declared, Some(gate)).await;
+
+    for (method, path) in [
+        (reqwest::Method::POST, "/prompts"),
+        (reqwest::Method::GET, "/efforts"),
+        (reqwest::Method::POST, "/efforts"),
+        (reqwest::Method::GET, "/plugins"),
+        (reqwest::Method::GET, "/connections"),
+    ] {
+        assert_eq!(
+            request_status(port, method.clone(), path, Some("browser-token")).await,
+            401,
+            "{method} {path} declares no scope ⇒ a scoped credential must bounce"
+        );
+    }
+}
+
+#[tokio::test]
+async fn sidecar_declared_listener_refuses_an_expired_scoped_credential() {
+    // Expiry, at the door. The credential is otherwise perfect — right hash, right scope —
+    // and its deadline passed one second ago.
+    let gate = gate_with_scoped("device-token", "browser-token", epoch_ms_now() - 1_000);
+    let (port, _tmp) = serve_as(ListenRole::Declared, Some(gate)).await;
+
+    assert_eq!(
+        request_status(port, reqwest::Method::GET, "/prompts", Some("browser-token")).await,
+        401,
+        "an expired session is refused on the very route it was issued for"
+    );
+}
+
+#[tokio::test]
+async fn sidecar_declared_listener_still_serves_a_device_credential_on_a_scoped_route() {
+    // A device credential is UNSCOPED by design, so declaring a scope on a route must not
+    // have narrowed the operator's own phone out of it.
+    let gate = gate_with_scoped("device-token", "browser-token", epoch_ms_now() + 600_000);
+    let (port, _tmp) = serve_as(ListenRole::Declared, Some(gate)).await;
+
+    for (method, path) in [
+        (reqwest::Method::GET, "/prompts"),
+        (reqwest::Method::POST, "/prompts"),
+        (reqwest::Method::GET, "/efforts"),
+    ] {
+        assert_ne!(
+            request_status(port, method.clone(), path, Some("device-token")).await,
+            401,
+            "{method} {path} must still admit an enrolled device"
+        );
+    }
+}
+
+#[tokio::test]
+async fn sidecar_node_local_listener_is_not_scope_checked_and_has_no_scope_to_check() {
+    // `node-local` is UNCHANGED by scoped credentials, in both directions. It has no
+    // credential layer at all, so it is not "granted every scope" (there is nothing to grant
+    // — no credential is ever resolved there) and it is not scope-checked either. An
+    // uncredentialed local request to a route that DECLARES a scope is served exactly as it
+    // was before this table existed.
+    let gate = gate_with_scoped("device-token", "browser-token", epoch_ms_now() - 1_000);
+    let (port, _tmp) = serve_as(ListenRole::NodeLocal, Some(gate)).await;
+
+    assert_eq!(
+        request_status(port, reqwest::Method::GET, "/prompts", None).await,
+        200,
+        "the node does not authenticate to itself, on a scoped route as on any other"
+    );
+    assert_eq!(
+        request_status(port, reqwest::Method::GET, "/prompts", Some("browser-token")).await,
+        200,
+        "and an EXPIRED scoped token is as irrelevant here as a garbage one — no check exists"
+    );
+}

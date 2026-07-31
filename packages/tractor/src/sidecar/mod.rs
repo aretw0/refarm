@@ -1722,12 +1722,16 @@ fn sidecar_routes(state: SidecarState) -> Router {
         .route("/plugins/load-by-hash", post(post_plugins_load_by_hash))
         .route("/plugins/:id/respond", post(post_plugin_respond))
         .route("/providers/liveness", get(get_provider_liveness))
+        // The two routes whose required SCOPE is declared — `auth::route_requirement` names
+        // these same constants, so the path the router serves and the path the gate judges
+        // cannot drift apart by a rename. `GET` here is reachable by a `prompt:answer` scoped
+        // credential; `POST /prompts` (publishing a question) is not, and no other route is.
         .route(
-            "/prompts",
+            auth::ROUTE_PROMPTS,
             post(pending_prompt::post_prompts).get(pending_prompt::get_prompts),
         )
         .route(
-            "/prompts/:id/answer",
+            auth::ROUTE_PROMPT_ANSWER,
             post(pending_prompt::post_prompt_answer),
         )
         .route("/connections", get(get_connections))
