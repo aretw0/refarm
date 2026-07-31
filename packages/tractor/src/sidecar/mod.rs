@@ -21,6 +21,9 @@
 //!   GET    /connections                — every declared connection's registry state
 //!   POST   /connections/:name/up       — ensure a declared connection (owner refarm/operator)
 //!   POST   /connections/:name/down     — explicit operator stop
+//!   POST   /prompts                    — publish a question and WAIT for it (long-poll)
+//!   GET    /prompts                    — questions still waiting + the stated poll interval
+//!   POST   /prompts/:id/answer         — settle one; first answer wins, attribution is the gate's
 //!   GET    /stream/activity            — live SSE of process:* / agent:* activity
 //!
 //! Effort execution is async: each effort is dispatched in a separate tokio
@@ -180,6 +183,16 @@ pub struct SidecarState {
     /// consult `serves_sync` (ADR-084's negotiated-sync guard) before dispatching a
     /// respond. Injected by the daemon via `with_registry`; None in tests without one.
     pub plugin_registry: Option<crate::host::PluginRegistry>,
+    /// Questions waiting for the operator, answerable from any surface that reaches this
+    /// node (`pending_prompt`). In-memory and never persisted: a pending prompt's lifetime
+    /// is its asker's open request, so nothing survives the asker — which is P1 of the
+    /// pending-prompt design, obtained by construction rather than by a reaper.
+    ///
+    /// `pub(crate)` while every other field here is `pub`: the daemon binary builds this
+    /// state through `new()` and never names the hub, and a hub reachable from outside the
+    /// crate would be a second way to publish and settle prompts that bypasses the routes —
+    /// which is exactly where the gate-resolved attribution lives.
+    pub(crate) prompts: pending_prompt::PromptHub,
 }
 
 /// Timeout + poll cadence (ms) for the respond watcher. Resolved from env ONCE
@@ -242,6 +255,7 @@ impl SidecarState {
             respond_watch: RespondWatchConfig::from_env(),
             reload: None,
             plugin_registry: None,
+            prompts: pending_prompt::PromptHub::new(),
         })
     }
 
@@ -701,6 +715,11 @@ pub(crate) mod tailnet_resolve;
 // LISTENER — never per request. `pub(crate)` because `daemon::ws_server` builds its own
 // listen plan from the same rule; nothing about it is sidecar-specific.
 pub(crate) mod node_local;
+// The pending prompt: a question a blocked command is waiting on, listed and settled over
+// this same gated surface so the operator can answer from wherever they are. `pub(crate)`
+// so the hub type can sit on `SidecarState`; the routes are mounted in `sidecar_routes`
+// alongside every other one, inside the same per-listener credential layer.
+pub(crate) mod pending_prompt;
 mod cors;
 mod dispatch;
 pub(crate) use dispatch::*;
@@ -1703,6 +1722,14 @@ fn sidecar_routes(state: SidecarState) -> Router {
         .route("/plugins/load-by-hash", post(post_plugins_load_by_hash))
         .route("/plugins/:id/respond", post(post_plugin_respond))
         .route("/providers/liveness", get(get_provider_liveness))
+        .route(
+            "/prompts",
+            post(pending_prompt::post_prompts).get(pending_prompt::get_prompts),
+        )
+        .route(
+            "/prompts/:id/answer",
+            post(pending_prompt::post_prompt_answer),
+        )
         .route("/connections", get(get_connections))
         .route("/connections/:name/up", post(post_connection_up))
         .route("/connections/:name/down", post(post_connection_down))

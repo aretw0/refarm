@@ -643,6 +643,22 @@ fn bearer_token(request: &Request<Body>) -> Option<String> {
     (!token.is_empty()).then(|| token.to_string())
 }
 
+/// The identity THIS LISTENER's gate resolved for the request in hand — attached by
+/// [`auth_middleware`] itself, from the credential it has just verified.
+///
+/// It exists so a handler can ATTRIBUTE an action to a device without ever asking the caller
+/// who they are (P3 of the pending-prompt design). The guarantee is structural: this value is
+/// only ever constructed here, out of a `gate.authenticate` result, and axum populates request
+/// extensions server-side only — nothing a caller sends can produce one. A listener
+/// constructed WITHOUT the credential layer (the node-local socket) therefore has no
+/// extension at all, and a handler that finds none knows it was not authenticated rather than
+/// being told so by the request.
+///
+/// Not a credential and not a secret: it is the identity label the policy already stores in
+/// plaintext, and naming it is the whole point of an attribution.
+#[derive(Debug, Clone)]
+pub(crate) struct AuthenticatedDevice(pub(crate) String);
+
 fn unauthorized(reason: &str) -> Response<Body> {
     let body = serde_json::json!({ "error": "unauthorized", "reason": reason }).to_string();
     Response::builder()
@@ -654,20 +670,30 @@ fn unauthorized(reason: &str) -> Response<Body> {
 }
 
 /// Axum middleware: reject any request without a valid enrolled credential. An
-/// authenticated request passes through unchanged (Slice 2 will route its workspace).
+/// authenticated request passes through carrying the identity the gate resolved for it
+/// ([`AuthenticatedDevice`]) and nothing else changed.
 ///
 /// Takes the live `AuthGate`, not a copy of the policy: the layer is built once when the
 /// router is, and a copy taken there would be the policy as it stood at boot forever — which
 /// is precisely the restart-to-enroll defect, and worse, restart-to-REVOKE.
+///
+/// The identity is attached HERE, at the one place it is known, rather than re-derived by a
+/// handler: a handler that re-read the `Authorization` header would be a second
+/// authentication path, and a handler that read the identity out of a request BODY would let
+/// a caller name itself. Neither is possible when the only producer is the verification
+/// itself.
 pub(crate) async fn auth_middleware(
     gate: AuthGate,
-    request: Request<Body>,
+    mut request: Request<Body>,
     next: Next,
 ) -> Response<Body> {
     match bearer_token(&request) {
         None => unauthorized("missing"),
         Some(token) => match gate.authenticate(&token) {
-            Some(_identity) => next.run(request).await,
+            Some(identity) => {
+                request.extensions_mut().insert(AuthenticatedDevice(identity));
+                next.run(request).await
+            }
             None => unauthorized("invalid"),
         },
     }

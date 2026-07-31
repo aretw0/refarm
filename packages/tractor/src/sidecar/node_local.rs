@@ -335,6 +335,12 @@ mod tests {
         ("sidecar/mod.rs", include_str!("mod.rs")),
         ("sidecar/auth.rs", include_str!("auth.rs")),
         ("sidecar/cors.rs", include_str!("cors.rs")),
+        // The pending-prompt routes ATTRIBUTE an action to a device, which makes them the
+        // first place a "…but trust the caller when it looks local" shortcut would be
+        // tempting. They are held to the same rule as every other request-path file: the
+        // identity comes from the credential layer this listener was CONSTRUCTED with, or
+        // from nothing at all.
+        ("sidecar/pending_prompt.rs", include_str!("pending_prompt.rs")),
         ("daemon/ws_server.rs", include_str!("../daemon/ws_server.rs")),
     ];
 
