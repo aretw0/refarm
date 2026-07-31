@@ -13,6 +13,7 @@ import {
 	MAX_ANSWER_POLLS,
 	parseCallbackData,
 	statusIsTransportRefusal,
+	verdictCode,
 	TELEGRAM_USER_AGENT,
 } from "./index.js";
 
@@ -196,6 +197,38 @@ describe("D4 — the three outcomes are produced by real transport conditions", 
 		);
 		expect((await adapter(fetchImpl).announce(request())).status).toBe("delivered");
 		expect(calls).toHaveLength(2);
+	});
+
+	it("the BODY's error_code is the verdict when Telegram sent one", async () => {
+		// An intermediary rewrote the status to 200; Telegram still said 403.
+		const { fetchImpl, calls } = mockFetch(() => ({
+			status: 200,
+			json: { ok: false, error_code: 403, description: "Forbidden: bot was blocked by the user" },
+		}));
+		const outcome = await adapter(fetchImpl).announce(request());
+		expect(outcome.status).toBe("refused");
+		expect(calls).toHaveLength(1);
+	});
+
+	it("verdictCode prefers the body, and falls back to the HTTP status", () => {
+		expect(verdictCode(200, { ok: false, error_code: 403 })).toBe(403);
+		expect(verdictCode(500, { ok: false })).toBe(500);
+		expect(verdictCode(429, null)).toBe(429);
+	});
+
+	it("a 429 declared only in the BODY still gets the rate-limit wait", async () => {
+		const slept: number[] = [];
+		const { fetchImpl } = mockFetch((_c, n) =>
+			n === 1
+				? { status: 200, json: { ok: false, error_code: 429, description: "Too Many Requests" } }
+				: okSend,
+		);
+		await adapter(fetchImpl, {
+			sleep: async (ms) => {
+				slept.push(ms);
+			},
+		}).announce(request());
+		expect(slept).toEqual([30_000]);
 	});
 
 	it("statusIsTransportRefusal separates a verdict from a transient failure", () => {

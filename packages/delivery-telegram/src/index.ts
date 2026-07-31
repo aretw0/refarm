@@ -137,9 +137,26 @@ export interface TelegramDeliveryOptions {
 
 interface TelegramResponse {
 	ok: boolean;
+	error_code?: number;
 	description?: string;
 	parameters?: { retry_after?: number };
 	result?: unknown;
+}
+
+/**
+ * The verdict code for a response — the BODY's `error_code` when Telegram sent
+ * one, otherwise the HTTP status.
+ *
+ * The body is preferred because it is where Telegram actually states its
+ * verdict, and it survives an intermediary that rewrites the status. A proxy
+ * answering `200 {ok:false, error_code:403}` still means "the bot is blocked",
+ * and treating that as a transient failure would retry a refusal three times
+ * and then report the wrong outcome. `@aretw0/dgk-channels` reads `error_code`
+ * off the body for the same reason.
+ */
+export function verdictCode(status: number, payload: TelegramResponse | null): number {
+	const declared = payload?.error_code;
+	return typeof declared === "number" && Number.isFinite(declared) ? declared : status;
 }
 
 /** What a send attempt concluded, before it becomes a `DeliveryOutcome`. */
@@ -323,8 +340,9 @@ export function createTelegramDeliveryAdapter(options: TelegramDeliveryOptions):
 				return { kind: "sent", messageId: result?.message_id ?? null };
 			}
 
-			const described = payload?.description ?? `HTTP ${status}`;
-			if (statusIsTransportRefusal(status)) {
+			const code = verdictCode(status, payload);
+			const described = payload?.description ?? `HTTP ${code}`;
+			if (statusIsTransportRefusal(code)) {
 				// Telegram was reached and said no. That is a verdict, and it is final:
 				// retrying a blocked bot or a wrong chat id just makes us a bad guest.
 				return { kind: "refused", detail: `Telegram refused: ${described}` };
@@ -332,7 +350,7 @@ export function createTelegramDeliveryAdapter(options: TelegramDeliveryOptions):
 
 			lastDetail = `Telegram did not accept it: ${described}`;
 			if (attempt < MAX_SEND_ATTEMPTS) {
-				await sleep(backoffDelayMs(attempt, payload?.parameters?.retry_after, status === 429));
+				await sleep(backoffDelayMs(attempt, payload?.parameters?.retry_after, code === 429));
 			}
 		}
 		return { kind: "could-not-attempt", detail: lastDetail };
