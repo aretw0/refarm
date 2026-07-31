@@ -24,6 +24,7 @@ import {
 	type AuthCredential,
 	type AuthPolicyFile,
 } from "./auth-policy-file.js";
+import { createAuthRemoteCommand } from "./auth-remote.js";
 import { createAuthVerifyCommand, formatLifetime } from "./auth-verify.js";
 import {
 	collectIdentityCandidates,
@@ -946,6 +947,7 @@ export function createAuthCommand(): Command {
 		)
 		.addCommand(createAuthEnrollCommand())
 		.addCommand(createAuthListCommand())
+		.addCommand(createAuthRemoteCommand())
 		.addCommand(createAuthVerifyCommand())
 		.addCommand(createAuthRevokeCommand());
 }
