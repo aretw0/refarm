@@ -8,6 +8,8 @@ import {
 	createRemoteOperatorChannel,
 	createScriptedOperatorChannel,
 	createStdioOperatorChannel,
+	createTerminalOperatorChannel,
+	currentPromptPublisher,
 	handlePendingPromptHttp,
 	NODE_LOCAL_PROMPT_DEVICE,
 	RESERVED_PROMPT_DEVICES,
@@ -20,11 +22,13 @@ import {
 	PROMPT_CAPABILITY,
 	resolveAnsweringDevice,
 	runOperatorChannelConformance,
+	setPromptPublisher,
 	TERMINAL_PROMPT_DEVICE,
 	toPendingPrompt,
 	type OperatorChannel,
 	type OperatorPrompt,
 	type PendingPromptHub,
+	type PromptPublisher,
 } from "./index.js";
 
 function makeTtyIo() {
@@ -1212,5 +1216,133 @@ describe("runOperatorChannelConformance — the remote channel is a subject too"
 		off();
 		expect(result.failures).toEqual([]);
 		expect(result.pass).toBe(true);
+	});
+});
+
+// ── The ambient prompt publisher ──────────────────────────────────────────────
+//
+// The seam that closes the last mile without a wizard learning it exists. Two
+// properties carry the whole design, and both are asserted here rather than
+// assumed: with nothing declared the terminal channel is UNCHANGED, and with
+// something declared every channel built afterwards is a peer of it.
+
+describe("setPromptPublisher", () => {
+	function hubPublisher(hub: PendingPromptHub): PromptPublisher {
+		return {
+			remote: (signal) =>
+				createRemoteOperatorChannel({ hub, asker: ASKER, signal, timeoutMs: null }),
+		};
+	}
+
+	it("is OFF by default — nothing is published and nothing is declared", () => {
+		expect(currentPromptPublisher()).toBeNull();
+	});
+
+	it("with nothing declared, the stdio channel IS the terminal channel", async () => {
+		const { input, output } = makeTtyIo();
+		const hub = createPendingPromptHub();
+		const channel = createStdioOperatorChannel({ input, output });
+
+		const answer = channel.ask({ type: "confirm", question: "proceed?" });
+		input.write("y\n");
+		await expect(answer).resolves.toBe(true);
+		// The decisive part: no hub anywhere saw it, because there is no publisher.
+		expect(hub.list()).toEqual([]);
+	});
+
+	it("with a publisher declared, the SAME call yields a peer of the terminal", async () => {
+		const hub = createPendingPromptHub();
+		const off = setPromptPublisher(() => hubPublisher(hub));
+		try {
+			const { input, output } = makeTtyIo();
+			const channel = createStdioOperatorChannel({ input, output });
+			const answer = channel.ask({ type: "confirm", question: "Bring the VPN up?" });
+			await Promise.resolve();
+			await Promise.resolve();
+
+			const pending = hub.list();
+			expect(pending).toHaveLength(1);
+			expect(pending[0]!.prompt.question).toBe("Bring the VPN up?");
+
+			// …and the elsewhere wins the race, with the terminal still untouched.
+			expect(hub.answer(pending[0]!.id, true, "my-phone").ok).toBe(true);
+			await expect(answer).resolves.toBe(true);
+		} finally {
+			off();
+		}
+	});
+
+	it("the terminal still wins when the operator is standing at it", async () => {
+		const hub = createPendingPromptHub();
+		const off = setPromptPublisher(() => hubPublisher(hub));
+		try {
+			const { input, output } = makeTtyIo();
+			const channel = createStdioOperatorChannel({ input, output });
+			const answer = channel.ask({ type: "confirm", question: "proceed?" });
+			await Promise.resolve();
+			input.write("n\n");
+			await expect(answer).resolves.toBe(false);
+			// The question is not left hanging on the wire once the terminal settled it.
+			expect(hub.list()).toEqual([]);
+		} finally {
+			off();
+		}
+	});
+
+	it("a source that throws means the terminal alone, never a broken prompt", async () => {
+		const off = setPromptPublisher(() => {
+			throw new Error("delivery is misconfigured");
+		});
+		try {
+			expect(currentPromptPublisher()).toBeNull();
+			const { input, output } = makeTtyIo();
+			const answer = createStdioOperatorChannel({ input, output }).ask({
+				type: "confirm",
+				question: "proceed?",
+			});
+			input.write("y\n");
+			await expect(answer).resolves.toBe(true);
+		} finally {
+			off();
+		}
+	});
+
+	it("a source returning null means the terminal alone", async () => {
+		const off = setPromptPublisher(() => null);
+		try {
+			expect(currentPromptPublisher()).toBeNull();
+		} finally {
+			off();
+		}
+		expect(currentPromptPublisher()).toBeNull();
+	});
+
+	it("undoing is idempotent and restores what was there before", () => {
+		const hub = createPendingPromptHub();
+		const offOuter = setPromptPublisher(() => hubPublisher(hub));
+		const offInner = setPromptPublisher(() => null);
+		expect(currentPromptPublisher()).toBeNull();
+		offInner();
+		offInner();
+		expect(currentPromptPublisher()).not.toBeNull();
+		offOuter();
+		expect(currentPromptPublisher()).toBeNull();
+	});
+
+	it("createTerminalOperatorChannel ignores the publisher entirely", async () => {
+		const hub = createPendingPromptHub();
+		const off = setPromptPublisher(() => hubPublisher(hub));
+		try {
+			const { input, output } = makeTtyIo();
+			const answer = createTerminalOperatorChannel({ input, output }).ask({
+				type: "confirm",
+				question: "proceed?",
+			});
+			input.write("y\n");
+			await expect(answer).resolves.toBe(true);
+			expect(hub.list()).toEqual([]);
+		} finally {
+			off();
+		}
 	});
 });

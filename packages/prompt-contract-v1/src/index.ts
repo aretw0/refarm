@@ -131,7 +131,17 @@ export function createScriptedOperatorChannel(answers: Array<boolean | string>):
 // ── createStdioOperatorChannel ────────────────────────────────────────────────
 // Interactive readline implementation. No external dependencies.
 
-export function createStdioOperatorChannel(
+/**
+ * The terminal, and ONLY the terminal.
+ *
+ * This is what `createStdioOperatorChannel` was before a process could declare
+ * somewhere else to publish its questions (see `setPromptPublisher`), and it is
+ * still exactly what that function returns when nothing is declared. Kept
+ * separate and exported so "the terminal alone" stays reachable by name — a host
+ * that must not peer, and a test asserting the undeclared path is unchanged,
+ * both need to say so rather than hope.
+ */
+export function createTerminalOperatorChannel(
 	options: StdioOperatorChannelOptions = {},
 ): OperatorChannel {
 	const input = options.input ?? process.stdin;
@@ -148,6 +158,124 @@ export function createStdioOperatorChannel(
 		return askText(prompt, input, output, signal);
 	}
 	return { ask };
+}
+
+// ── The process's prompt publisher (ambient, opt-in, off by default) ──────────
+//
+// THE LAST MILE, and the reason it is here rather than in a wizard.
+//
+// A wizard asks through `createStdioOperatorChannel()`. For the same question to
+// also reach the operator somewhere else — an attending device, a declared
+// delivery channel — SOMETHING has to publish it, and D5 of the declared-delivery
+// design says that something is never the wizard: "a wizard author writes nothing
+// about delivery". The only remaining place is the construction of the channel
+// itself, which is what these three functions make declarable.
+//
+// A HOST (the CLI, a daemon) declares once, at startup, where this process's
+// questions are published. Every channel built afterwards is then a PEER of that
+// publisher: the terminal and the elsewhere race, the first answer wins, and the
+// loser is told (P2). No wizard learns any of it happened.
+//
+// NOTHING IS INSTALLED BY DEFAULT, and that is load-bearing. With no publisher
+// declared, `createStdioOperatorChannel` returns `createTerminalOperatorChannel`
+// — the same object, from the same code path, as before this existed. Silence is
+// closed: a process that declares nothing behaves exactly as it did.
+
+/** Somewhere else this process's questions can be answered. */
+export interface PromptPublisher {
+	/** Build the elsewhere-side channel for ONE ask, interruptible by `signal`. */
+	remote(signal: AbortSignal): RemoteOperatorChannel;
+}
+
+/**
+ * Where a publisher comes from, consulted at channel construction.
+ *
+ * A THUNK rather than a value so a host can declare the intent cheaply and pay
+ * for it only if a question is actually asked: returning `null` means "not for
+ * this process", and a process that never prompts never runs whatever the thunk
+ * would have had to read.
+ */
+export type PromptPublisherSource = () => PromptPublisher | null;
+
+let ambientPublisherSource: PromptPublisherSource | null = null;
+
+/**
+ * Declare where this process publishes its questions. Returns the undo.
+ *
+ * Deliberately process-global: the alternative is threading a publisher through
+ * every wizard signature, which is precisely the D5 failure this exists to
+ * avoid. Pass `null` to go back to the terminal alone.
+ */
+export function setPromptPublisher(source: PromptPublisherSource | null): () => void {
+	const previous = ambientPublisherSource;
+	ambientPublisherSource = source;
+	let restored = false;
+	return () => {
+		if (restored) return;
+		restored = true;
+		ambientPublisherSource = previous;
+	};
+}
+
+/**
+ * The publisher in force, or null.
+ *
+ * TOTAL: a source that throws is treated as "nowhere else", because a broken
+ * notification arrangement must never be the reason a wizard cannot ask its
+ * question. The failure is not silent — the host that installed the source is
+ * the one that reports it (D4) — but it stops here.
+ */
+export function currentPromptPublisher(): PromptPublisher | null {
+	if (ambientPublisherSource === null) return null;
+	try {
+		return ambientPublisherSource() ?? null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * One signal that fires when either fires, without leaving a listener behind on
+ * the caller's (long-lived) signal once the ask has settled.
+ */
+function anySignal(a?: AbortSignal, b?: AbortSignal): AbortSignal | undefined {
+	if (!a) return b;
+	if (!b) return a;
+	if (a.aborted) return a;
+	if (b.aborted) return b;
+	const controller = new AbortController();
+	const abort = () => controller.abort();
+	a.addEventListener("abort", abort, { once: true });
+	b.addEventListener("abort", abort, { once: true });
+	controller.signal.addEventListener(
+		"abort",
+		() => {
+			a.removeEventListener("abort", abort);
+			b.removeEventListener("abort", abort);
+		},
+		{ once: true },
+	);
+	return controller.signal;
+}
+
+/**
+ * Ask the operator — at the terminal, and anywhere else this process declared.
+ *
+ * With no publisher declared this IS `createTerminalOperatorChannel`, unchanged.
+ * With one declared, the terminal keeps working exactly as it does today and
+ * gains a peer; see `createPeeredOperatorChannel` for what "peer" costs and
+ * guarantees.
+ */
+export function createStdioOperatorChannel(
+	options: StdioOperatorChannelOptions = {},
+): OperatorChannel {
+	const publisher = currentPromptPublisher();
+	if (publisher === null) return createTerminalOperatorChannel(options);
+	return createPeeredOperatorChannel({
+		local: (signal) =>
+			createTerminalOperatorChannel({ ...options, signal: anySignal(options.signal, signal) }),
+		remote: (signal) => publisher.remote(signal),
+	});
 }
 
 /**

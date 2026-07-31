@@ -52,7 +52,17 @@ export function createScriptedOperatorChannel(answers) {
 }
 // ── createStdioOperatorChannel ────────────────────────────────────────────────
 // Interactive readline implementation. No external dependencies.
-export function createStdioOperatorChannel(options = {}) {
+/**
+ * The terminal, and ONLY the terminal.
+ *
+ * This is what `createStdioOperatorChannel` was before a process could declare
+ * somewhere else to publish its questions (see `setPromptPublisher`), and it is
+ * still exactly what that function returns when nothing is declared. Kept
+ * separate and exported so "the terminal alone" stays reachable by name — a host
+ * that must not peer, and a test asserting the undeclared path is unchanged,
+ * both need to say so rather than hope.
+ */
+export function createTerminalOperatorChannel(options = {}) {
     const input = options.input ?? process.stdin;
     const output = options.output ?? process.stdout;
     const signal = options.signal;
@@ -66,6 +76,83 @@ export function createStdioOperatorChannel(options = {}) {
         return askText(prompt, input, output, signal);
     }
     return { ask };
+}
+let ambientPublisherSource = null;
+/**
+ * Declare where this process publishes its questions. Returns the undo.
+ *
+ * Deliberately process-global: the alternative is threading a publisher through
+ * every wizard signature, which is precisely the D5 failure this exists to
+ * avoid. Pass `null` to go back to the terminal alone.
+ */
+export function setPromptPublisher(source) {
+    const previous = ambientPublisherSource;
+    ambientPublisherSource = source;
+    let restored = false;
+    return () => {
+        if (restored)
+            return;
+        restored = true;
+        ambientPublisherSource = previous;
+    };
+}
+/**
+ * The publisher in force, or null.
+ *
+ * TOTAL: a source that throws is treated as "nowhere else", because a broken
+ * notification arrangement must never be the reason a wizard cannot ask its
+ * question. The failure is not silent — the host that installed the source is
+ * the one that reports it (D4) — but it stops here.
+ */
+export function currentPromptPublisher() {
+    if (ambientPublisherSource === null)
+        return null;
+    try {
+        return ambientPublisherSource() ?? null;
+    }
+    catch {
+        return null;
+    }
+}
+/**
+ * One signal that fires when either fires, without leaving a listener behind on
+ * the caller's (long-lived) signal once the ask has settled.
+ */
+function anySignal(a, b) {
+    if (!a)
+        return b;
+    if (!b)
+        return a;
+    if (a.aborted)
+        return a;
+    if (b.aborted)
+        return b;
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    a.addEventListener("abort", abort, { once: true });
+    b.addEventListener("abort", abort, { once: true });
+    controller.signal.addEventListener("abort", () => {
+        a.removeEventListener("abort", abort);
+        b.removeEventListener("abort", abort);
+    }, { once: true });
+    return controller.signal;
+}
+/**
+ * Ask the operator — at the terminal, and anywhere else this process declared.
+ *
+ * With no publisher declared this IS `createTerminalOperatorChannel`, unchanged.
+ * With one declared, the terminal keeps working exactly as it does today and
+ * gains a peer; see `createPeeredOperatorChannel` for what "peer" costs and
+ * guarantees.
+ */
+export function createStdioOperatorChannel(options = {}) {
+    const publisher = currentPromptPublisher();
+    if (publisher === null)
+        return createTerminalOperatorChannel(options);
+    return createPeeredOperatorChannel({
+        local: (signal) => createTerminalOperatorChannel({ ...options, signal: anySignal(options.signal, signal) }),
+        remote: (signal) => publisher.remote(signal),
+    });
 }
 /**
  * Ask a single line via `rl.question`, settling with the raw answer text — or
