@@ -3227,6 +3227,53 @@ mod tests {
     }
 
     #[test]
+    fn the_limits_themselves_are_the_policy_and_are_pinned_to_their_values() {
+        // Every other test here is written in terms of these constants, which makes them all
+        // pass when a constant CHANGES — the mechanism still works, at whatever number it was
+        // given. That is exactly how a bound silently stops being one: raise the threshold to
+        // 5000 and every behavioural test still passes while the limit protects nothing.
+        // (Verified by mutation: without this test, FAILURE_THRESHOLD = 50 passed the whole
+        // suite.)
+        //
+        // So the values are pinned here, literally. These four numbers ARE the policy this
+        // node enforces; changing one is an operator-visible decision about how much guessing
+        // is tolerated and how much memory a stranger may occupy, and it should have to be
+        // made deliberately, in a diff that says so, rather than tuned in passing.
+        assert_eq!(FAILURE_THRESHOLD, 5, "failures allowed per credential before it is refused");
+        assert_eq!(FAILURE_WINDOW, Duration::from_secs(60), "how long a lockout lasts");
+        assert_eq!(FAILURE_TABLE_CAPACITY, 256, "THE memory bound — buckets held at once");
+        assert_eq!(OVERFLOW_THRESHOLD, 64, "failures against untracked credentials before 429");
+    }
+
+    #[test]
+    fn the_fifth_failure_is_the_one_that_trips_the_limit() {
+        // The threshold's CONSEQUENCE, in literal numbers rather than in terms of the constant
+        // — so that raising the constant breaks this test rather than relocating it, and so
+        // that an off-by-one in the comparison is caught on the attempt it changes.
+        let mut limiter = FailureLimiter::default();
+        let origin = Instant::now();
+        let tag = credential_tag("a-wrong-token");
+
+        for attempt in 1..=4 {
+            assert_eq!(
+                limiter.on_failure(tag, at(origin, 0)),
+                Refusal::Invalid,
+                "attempt {attempt} of 5 must be an ordinary 401 refusal"
+            );
+        }
+        assert_eq!(
+            limiter.on_failure(tag, at(origin, 0)),
+            Refusal::RateLimited { retry_after: Duration::from_secs(60) },
+            "the FIFTH failure trips the limit, and the wait is 60 seconds"
+        );
+        assert_eq!(
+            limiter.blocked(tag, at(origin, 0)),
+            Some(Duration::from_secs(60)),
+            "and from that moment the credential is refused before the policy is consulted"
+        );
+    }
+
+    #[test]
     fn a_credential_is_refused_outright_once_it_has_failed_the_threshold() {
         let mut limiter = FailureLimiter::default();
         let origin = Instant::now();
