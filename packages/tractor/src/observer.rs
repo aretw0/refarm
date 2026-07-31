@@ -200,7 +200,14 @@ pub(crate) fn format_audit_line(event: &TelemetryEvent) -> Option<String> {
     serde_json::to_string(&serde_json::Value::Object(obj)).ok()
 }
 
-async fn append_line(path: &Path, line: &str, config: AuditConfig) {
+/// Append one NDJSON line to an audit file, rotating and pruning as configured.
+///
+/// `pub(crate)` because this is now the ONE audit writer in the daemon, not the observer's
+/// private one: `sidecar::auth` records authentication events through it so the security
+/// trail is a single file with a single retention policy, rather than a second log that
+/// would need its own rotation, its own cap, and its own way of going wrong. What is shared
+/// is the WRITER and the retention; what each caller decides is its own line.
+pub(crate) async fn append_line(path: &Path, line: &str, config: AuditConfig) {
     // Rotate BEFORE appending so a sealed segment never grows past the threshold.
     rotate_if_needed(path, config).await;
     match OpenOptions::new()
