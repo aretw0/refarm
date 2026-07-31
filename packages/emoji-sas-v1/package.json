@@ -2,7 +2,7 @@
 	"name": "@refarm.dev/emoji-sas-v1",
 	"version": "0.1.0",
 	"private": true,
-	"description": "Emoji short-authentication-string exchange (P-256 ECDH + Matrix's 64 emoji) and the scoped credential it issues — zero dependencies, browser/node/kit",
+	"description": "Emoji short-authentication-string exchange (P-256 ECDH + Matrix's 64 emoji) and the scoped credential it issues \u2014 zero dependencies, browser/node/kit",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -10,7 +10,8 @@
 		".": {
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
-		}
+		},
+		"./package.json": "./package.json"
 	},
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",

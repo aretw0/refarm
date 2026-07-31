@@ -15,6 +15,7 @@ import path from "node:path";
 import { type SurfaceCatalog } from "@refarm.dev/std";
 import { Command } from "commander";
 
+import { createSasVerificationSurface, type SasVerificationSurface } from "./web-serve-sas.js";
 import {
 	readSurfacesFromFilesystem,
 	resolveWebBindHost,
@@ -161,6 +162,7 @@ export function ifNoneMatchMatches(header: string | undefined, etag: string): bo
 export function createWebServeHandler(
 	rootDir: string,
 	sidecarTarget?: WebServeSyncTarget,
+	sas?: SasVerificationSurface,
 ): (req: IncomingMessage, res: ServerResponse) => void {
 	const root = path.resolve(rootDir);
 	return (req, res) => {
@@ -171,6 +173,10 @@ export function createWebServeHandler(
 				proxyToSidecar(sidecarTarget, req, res);
 				return;
 			}
+			// The emoji-SAS exchange, BEFORE the isolation headers and before the static
+			// root: it is an API on this listener, not a file under it, and it must not
+			// be shadowed by a directory someone happens to have called `auth`.
+			if (sas && (await sas.handle(req, res, url.pathname))) return;
 			writeIsolationHeaders(res);
 			if (req.method !== "GET" && req.method !== "HEAD") {
 				res.statusCode = 405;
@@ -305,6 +311,13 @@ export function startWebServeServer(
 		configRoot?: string;
 		/** Seam for `expose: "tailnet"` resolution — see `web-surface.ts`. */
 		resolveTailnet?: () => TailnetSelfResolution;
+		/**
+		 * The emoji-SAS verification surface. Built by default from the sovereign root,
+		 * so `refarm web serve` carries it without a flag; pass a value to point it at a
+		 * throwaway policy (which is what every test does), or `null` to leave it off
+		 * entirely for a listener that should serve nothing but files.
+		 */
+		sas?: SasVerificationSurface | null;
 	},
 ): Promise<{ server: Server; url: string }> {
 	// Fail closed BEFORE building the server: the bind is decided by the `surfaces.web`
@@ -326,7 +339,14 @@ export function startWebServeServer(
 		return Promise.reject(error instanceof Error ? error : new Error(String(error)));
 	}
 
-	const handler = createWebServeHandler(rootDir, options.sidecarTarget ?? DEFAULT_SIDECAR_TARGET);
+	const sas =
+		options.sas === null
+			? undefined
+			: (options.sas ??
+				createSasVerificationSurface(
+					options.configRoot === undefined ? {} : { configRoot: options.configRoot },
+				));
+	const handler = createWebServeHandler(rootDir, options.sidecarTarget ?? DEFAULT_SIDECAR_TARGET, sas);
 	const server = options.tls
 		? createTlsServer(
 				{
@@ -426,6 +446,8 @@ export function createWebServeCommand(): Command {
 					`refarm hub serving ${path.resolve(dir)} on ${url}\n` +
 						"  COOP/COEP headers on — the browser runtime can boot cross-origin-isolated.\n" +
 						"  /sync proxies WebSocket upgrades to the daemon (see --sync-target).\n" +
+						`  ${url}/auth/verify — a surface with no credential can ask to be vouched for;\n` +
+						"    confirm the seven emoji with `refarm auth verify` at this node.\n" +
 						(tls
 							? "  https origin — service worker + OPFS/WASM work from other devices.\n"
 							: "  Note: off-localhost origins still need --tls-cert/--tls-key (e.g. mkcert) for service worker + OPFS/WASM.\n"),

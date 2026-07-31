@@ -1,8 +1,13 @@
-import { createHash, randomBytes } from "node:crypto";
-import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
 import path from "node:path";
 
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import {
+	isScopedCredentialExpired,
+	readScopedCredentials,
+	removeScopedCredential,
+	type ScopedCredential,
+} from "@refarm.dev/emoji-sas-v1";
 import {
 	createAutoOperatorChannel,
 	createStdioOperatorChannel,
@@ -12,6 +17,14 @@ import {
 import { Command } from "commander";
 
 import { refarmCommand } from "../brand.js";
+import {
+	readPolicy,
+	sha256Hex,
+	writePolicy,
+	type AuthCredential,
+	type AuthPolicyFile,
+} from "./auth-policy-file.js";
+import { createAuthVerifyCommand, formatLifetime } from "./auth-verify.js";
 import {
 	collectIdentityCandidates,
 	NO_IDENTITY_CANDIDATES,
@@ -29,6 +42,13 @@ import { defaultIdentityCandidateSources } from "./identity-sources.js";
 // importing this file would close a cycle.
 export { validateIdentityLabel } from "./identity-candidates.js";
 export type { IdentityCandidate, IdentityCandidateSource } from "./identity-candidates.js";
+
+// The file contract moved to `auth-policy-file.ts` so `auth verify` can write the same
+// file without closing an import cycle with this module (which registers it as a
+// subcommand). Re-exported here because this IS the credential command's public
+// surface, and its callers and tests have always imported them from here.
+export { sha256Hex } from "./auth-policy-file.js";
+export type { AuthCredential, AuthPolicyFile } from "./auth-policy-file.js";
 
 /**
  * `refarm auth enroll` — mint a per-device credential and write it into the
@@ -115,22 +135,6 @@ export function deviceInstructionLines(token: string): string {
 	);
 }
 
-/** SHA-256 as lowercase hex — the exact digest the daemon (auth.rs) matches. */
-export function sha256Hex(input: string): string {
-	return createHash("sha256").update(input).digest("hex");
-}
-
-export interface AuthCredential {
-	identity: string;
-	tokenSha256: string;
-}
-
-export interface AuthPolicyFile {
-	credentials: AuthCredential[];
-	// workspaces/memberships (Slice 2) are preserved verbatim if present.
-	[key: string]: unknown;
-}
-
 /** Add or rotate a credential for `identity`. PURE — returns a new policy, never
  * mutates. Throws if the identity is already enrolled and `rotate` is false, so a
  * device is never silently clobbered. */
@@ -166,20 +170,6 @@ export function removeCredential(policy: AuthPolicyFile, identity: string): Auth
 		throw new Error(`identity "${identity}" is not enrolled — nothing to revoke`);
 	}
 	return { ...policy, credentials: credentials.filter((_, index) => index !== at) };
-}
-
-/** Read the policy file, tolerant of a missing file (→ empty policy) but NOT of a
- * corrupt one (a present-but-broken policy must not be silently overwritten). */
-async function readPolicy(policyPath: string): Promise<AuthPolicyFile> {
-	let raw: string;
-	try {
-		raw = await readFile(policyPath, "utf8");
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === "ENOENT") return { credentials: [] };
-		throw error;
-	}
-	const parsed = JSON.parse(raw) as AuthPolicyFile;
-	return { ...parsed, credentials: Array.isArray(parsed.credentials) ? parsed.credentials : [] };
 }
 
 interface EnrollOptions {
@@ -532,8 +522,7 @@ async function runAuthEnroll(
 		});
 		return;
 	}
-	await mkdir(path.dirname(policyPath), { recursive: true });
-	await writeFile(policyPath, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
+	await writePolicy(policyPath, next);
 
 	// The daemon DERIVES this path from the declaration: a surface declaring
 	// `"gate": "device-token"` reads `<refarm-dir>/auth-policy.json` with no env at
@@ -627,26 +616,74 @@ interface ListOptions {
 	json?: boolean;
 }
 
-export function createAuthListCommand(): Command {
+/**
+ * One line per scoped credential. PURE, and exported so the wording is testable.
+ *
+ * S3 requires a browser session to appear here "as its own entry rather than hiding
+ * behind the device that opened it", which means the line has to carry the three facts
+ * that distinguish it from a device: what it may do, and until when — and its ID, since
+ * that is what `auth revoke` takes.
+ */
+export function formatScopedCredentialLine(credential: ScopedCredential, now: number): string {
+	const remaining = credential.expiresAt - now;
+	const when = isScopedCredentialExpired(credential, now)
+		? "EXPIRED (it authenticates nothing; revoke to tidy up)"
+		: `expires in ${formatLifetime(remaining)}`;
+	return `  • ${credential.id}  ${credential.identity} — ${credential.scope.join(", ")} on ${credential.surface} — ${when}`;
+}
+
+export function createAuthListCommand(deps: { now?: () => number } = {}): Command {
 	return new Command("list")
-		.description("List enrolled identities (never the tokens)")
+		.description("List enrolled identities and scoped credentials (never the tokens)")
 		.option("--policy <path>", "Auth policy file to read", DEFAULT_POLICY_PATH)
 		.option("--json", "Print the result as JSON")
 		.action(async (options: ListOptions) => {
+			const now = (deps.now ?? (() => Date.now()))();
 			const policyPath = path.resolve(options.policy ?? DEFAULT_POLICY_PATH);
 			const policy = await readPolicy(policyPath);
 			const identities = (policy.credentials ?? []).map((c) => c.identity);
+			const scoped = readScopedCredentials(policy);
 			if (options.json) {
-				process.stdout.write(`${JSON.stringify({ ok: true, identities })}\n`);
+				// `identities` keeps its exact shape and meaning — DEVICE credentials, the
+				// ones the daemon's gate honours. Scoped credentials are a sibling key, not
+				// entries mixed into that list: a consumer counting devices must not start
+				// counting browser sessions because a new feature shipped.
+				process.stdout.write(
+					`${JSON.stringify({
+						ok: true,
+						identities,
+						scoped: scoped.map((credential) => ({
+							id: credential.id,
+							identity: credential.identity,
+							scope: credential.scope,
+							surface: credential.surface,
+							issuedVia: credential.issuedVia,
+							issuedAt: credential.issuedAt,
+							expiresAt: credential.expiresAt,
+							expired: isScopedCredentialExpired(credential, now),
+						})),
+					})}\n`,
+				);
+				return;
+			}
+			if (identities.length === 0 && scoped.length === 0) {
+				process.stdout.write(`No devices enrolled in ${policyPath}.\n`);
 				return;
 			}
 			if (identities.length === 0) {
 				process.stdout.write(`No devices enrolled in ${policyPath}.\n`);
-				return;
+			} else {
+				process.stdout.write(
+					`Enrolled devices (${policyPath}):\n${identities.map((id) => `  • ${id}`).join("\n")}\n`,
+				);
 			}
-			process.stdout.write(
-				`Enrolled devices (${policyPath}):\n${identities.map((id) => `  • ${id}`).join("\n")}\n`,
-			);
+			if (scoped.length > 0) {
+				process.stdout.write(
+					`\nScoped credentials (${policyPath}):\n` +
+						`${scoped.map((credential) => formatScopedCredentialLine(credential, now)).join("\n")}\n` +
+						`  These are NOT device credentials — the runtime's sidecar gate never sees them.\n`,
+				);
+			}
 		});
 }
 
@@ -682,15 +719,28 @@ export interface AuthRevokeDeps {
 export async function promptForIdentityToRevoke(
 	operator: OperatorChannel,
 	enrolledIdentities: readonly string[],
+	scoped: readonly ScopedCredential[] = [],
 ): Promise<string> {
 	return operator.ask({
 		type: "select",
-		question: "Which device's credential should stop working?",
-		options: enrolledIdentities.map((identity) => ({
-			value: identity,
-			label: identity,
-			description: "revoke its credential",
-		})),
+		question: "Which credential should stop working?",
+		options: [
+			...enrolledIdentities.map((identity) => ({
+				value: identity,
+				label: identity,
+				description: "revoke its credential",
+			})),
+			// S3: a browser session appears here as ITS OWN entry, keyed by its id. It is
+			// listed after the devices and described differently, because revoking one is
+			// a materially smaller act than cutting off a device and the list should not
+			// make the two look interchangeable. With no scoped credentials present the
+			// prompt is byte-identical to what it has always been.
+			...scoped.map((credential) => ({
+				value: credential.id,
+				label: credential.id,
+				description: `${credential.identity} — scoped ${credential.scope.join(", ")} on ${credential.surface}`,
+			})),
+		],
 	});
 }
 
@@ -755,6 +805,7 @@ async function runAuthRevoke(
 		return;
 	}
 	const enrolled = policy.credentials.map((c) => c.identity);
+	const scoped = readScopedCredentials(policy);
 
 	let identity = identityArg;
 	if (!identity) {
@@ -779,7 +830,7 @@ async function runAuthRevoke(
 			});
 			return;
 		}
-		if (enrolled.length === 0) {
+		if (enrolled.length === 0 && scoped.length === 0) {
 			refuseAuth({
 				json: Boolean(options.json),
 				operation: "revoke",
@@ -791,7 +842,7 @@ async function runAuthRevoke(
 			});
 			return;
 		}
-		identity = await promptForIdentityToRevoke(operatorChannel(), enrolled);
+		identity = await promptForIdentityToRevoke(operatorChannel(), enrolled, scoped);
 	}
 
 	// Deliberately NOT validated with `validateIdentityLabel`: revocation must be
@@ -813,8 +864,28 @@ async function runAuthRevoke(
 	// Re-read at the moment of the write, exactly as enrolment does: the file may
 	// have changed while a human was reading the confirmation.
 	let next: AuthPolicyFile;
+	let kind: "device" | "scoped" = "device";
+	let revokedScoped: ScopedCredential | undefined;
 	try {
-		next = removeCredential(await readPolicy(policyPath), identity);
+		const current = await readPolicy(policyPath);
+		// DEVICE FIRST, always. A device credential and a scoped one could in principle
+		// carry the same string, and the device is the larger authority — resolving to it
+		// means a revoke can never leave a device running because a browser session
+		// happened to share its name.
+		if (current.credentials.some((c) => c.identity === identity)) {
+			next = removeCredential(current, identity);
+		} else if (
+			readScopedCredentials(current).some((c) => c.id === identity || c.identity === identity)
+		) {
+			const removal = removeScopedCredential(current, identity);
+			next = removal.policy as AuthPolicyFile;
+			revokedScoped = removal.removed;
+			kind = "scoped";
+		} else {
+			// Nothing of either kind. Falls through to `removeCredential` so the refusal
+			// is the one this command has always given, word for word.
+			next = removeCredential(current, identity);
+		}
 	} catch (error) {
 		// Before the write, so a refused revoke leaves every credential exactly as it was.
 		refuseAuth({
@@ -828,18 +899,31 @@ async function runAuthRevoke(
 		});
 		return;
 	}
-	await mkdir(path.dirname(policyPath), { recursive: true });
-	await writeFile(policyPath, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
-	// `mode` on `writeFile` only applies when the file is CREATED, and a revoke by
-	// definition rewrites one that exists — so state the mode explicitly rather
-	// than inheriting whatever the file happened to carry.
-	await chmod(policyPath, 0o600);
+	// `writePolicy` re-chmods after the write: `mode` on `writeFile` only applies when
+	// the file is CREATED, and a revoke by definition rewrites one that exists.
+	await writePolicy(policyPath, next);
 
 	const remaining = next.credentials.map((c) => c.identity);
+	const remainingScoped = readScopedCredentials(next).map((c) => c.id);
 	const listHint = refarmCommand(["auth", "list"]);
 	if (options.json) {
+		// `remaining` still means DEVICE identities, unchanged. `kind` and
+		// `remainingScoped` are additive: a consumer that never heard of a scoped
+		// credential reads exactly what it always read.
 		process.stdout.write(
-			`${JSON.stringify({ ok: true, identity, revoked: true, policy: policyPath, remaining, nextCommand: listHint, nextCommands: [listHint] })}\n`,
+			`${JSON.stringify({ ok: true, identity, kind, revoked: true, policy: policyPath, remaining, remainingScoped, nextCommand: listHint, nextCommands: [listHint] })}\n`,
+		);
+		return;
+	}
+	if (kind === "scoped") {
+		process.stdout.write(
+			`🗝  revoked scoped credential "${identity}"${revokedScoped ? ` (${revokedScoped.identity})` : ""}\n\n` +
+				`   Every device credential is untouched — a scoped credential is its own entry.\n` +
+				(remainingScoped.length === 0
+					? `   No scoped credentials remain.\n`
+					: `   Still scoped: ${remainingScoped.join(", ")}\n`) +
+				`   Policy: ${policyPath} (mode 0600)\n` +
+				`   Confirm with:  ${listHint}\n`,
 		);
 		return;
 	}
@@ -857,9 +941,12 @@ async function runAuthRevoke(
 
 export function createAuthCommand(): Command {
 	return new Command("auth")
-		.description("Manage the sidecar auth gate — enroll, list and revoke device credentials")
+		.description(
+			"Manage the sidecar auth gate — enroll, list, verify and revoke device and scoped credentials",
+		)
 		.addCommand(createAuthEnrollCommand())
 		.addCommand(createAuthListCommand())
+		.addCommand(createAuthVerifyCommand())
 		.addCommand(createAuthRevokeCommand());
 }
 

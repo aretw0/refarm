@@ -2181,11 +2181,16 @@ describe("refarm auth revoke — the command", () => {
 		expect(fs.existsSync(policyPath)).toBe(false);
 	});
 
-	it("is wired into `refarm auth` alongside enroll and list", () => {
+	it("is wired into `refarm auth` alongside enroll, list and verify", () => {
+		// `verify` joined the set when emoji SAS landed: it is the confirming side of an
+		// exchange, and confirming is a credential act, so it belongs here rather than
+		// under `web`. The assertion stays exhaustive on purpose — a new subcommand of
+		// `auth` is a new way to mint or remove authority, and it should never appear
+		// without someone editing this line.
 		expect(
 			createAuthCommand()
 				.commands.map((c) => c.name())
 				.sort(),
-		).toEqual(["enroll", "list", "revoke"]);
+		).toEqual(["enroll", "list", "revoke", "verify"]);
 	});
 });

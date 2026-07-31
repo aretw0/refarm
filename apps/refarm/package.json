@@ -40,6 +40,7 @@
 		"@refarm.dev/dispatch-surface": "workspace:*",
 		"@refarm.dev/ds": "workspace:*",
 		"@refarm.dev/effort-contract-v1": "workspace:*",
+		"@refarm.dev/emoji-sas-v1": "workspace:*",
 		"@refarm.dev/enrichment-contract-v1": "workspace:*",
 		"@refarm.dev/farm-client": "workspace:*",
 		"@refarm.dev/file-stream-transport": "workspace:*",

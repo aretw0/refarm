@@ -375,6 +375,9 @@ importers:
       '@refarm.dev/effort-contract-v1':
         specifier: workspace:*
         version: link:../../packages/effort-contract-v1
+      '@refarm.dev/emoji-sas-v1':
+        specifier: workspace:*
+        version: link:../../packages/emoji-sas-v1
       '@refarm.dev/enrichment-contract-v1':
         specifier: workspace:*
         version: link:../../packages/enrichment-contract-v1
