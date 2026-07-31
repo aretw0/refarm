@@ -295,7 +295,7 @@ describe("D5 — the mount reaches a declared channel with no wizard change", ()
 describe("D4 — the question survives every way delivery can fail", () => {
 	it("a transport that REFUSES leaves the prompt answerable at the terminal", async () => {
 		const spy = spyAdapter({
-			offerOutcome: (request) => refused("spy", "answer", `no chat for ${request.promptId}`),
+			offerOutcome: (request) => refused("spy", "answer", 1, `no chat for ${request.promptId}`),
 		});
 		const warnings: string[] = [];
 		await mount({
@@ -342,8 +342,8 @@ describe("D4 — the question survives every way delivery can fail", () => {
 			status: string;
 		}> = [
 			{ outcome: () => delivered("spy", "answer", 1), status: "delivered" },
-			{ outcome: () => refused("spy", "answer", "chat not found"), status: "refused" },
-			{ outcome: () => couldNotAttempt("spy", "answer", "network unreachable"), status: "could-not-attempt" },
+			{ outcome: () => refused("spy", "answer", 1, "chat not found"), status: "refused" },
+			{ outcome: () => couldNotAttempt("spy", "answer", 1, "network unreachable"), status: "could-not-attempt" },
 		];
 
 		for (const testCase of cases) {
