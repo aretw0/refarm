@@ -11,7 +11,18 @@ import {
 } from "@refarm.dev/delivery-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
-import { loadDeclaredDelivery, operatorIsAttending, type DeliveryChannelIssue } from "./delivery.js";
+import {
+	DeliveryAddRefusal,
+	runDeliveryAdd,
+	runDeliveryTest,
+	type DeliveryAddOptions,
+	type DeliveryAddResult,
+} from "./delivery-add.js";
+import {
+	loadDeclaredDelivery,
+	operatorIsAttending,
+	type DeliveryChannelIssue,
+} from "./delivery.js";
 
 /**
  * `refarm delivery` — look at the declaration WITHOUT being interrupted by it.
@@ -77,6 +88,50 @@ function failDelivery(operation: string, options: DeliveryCommandOptions, messag
 		console.error(chalk.dim(`   ${DELIVERY_HELP_COMMAND}`));
 	}
 	process.exitCode = 1;
+}
+
+/**
+ * The refusal shape for the authoring subcommands, which carry their OWN code and handoff.
+ *
+ * `DeliveryAddRefusal` knows why it refused and where the operator should go next — a wizard that
+ * cannot find a token file and one that has no terminal to ask at need different next commands,
+ * and flattening both into "see --help" throws away the only useful part.
+ */
+function failAuthoring(operation: string, options: DeliveryCommandOptions, error: unknown): void {
+	const refusal = error instanceof DeliveryAddRefusal ? error : null;
+	const message = error instanceof Error ? error.message : String(error);
+	const code = refusal?.code ?? "delivery-invalid-request";
+	const nextCommands = refusal?.nextCommands ?? [DELIVERY_HELP_COMMAND];
+	if (options.json) {
+		printJson(
+			buildJsonErrorEnvelope({
+				command: "delivery",
+				operation,
+				error: code,
+				message,
+				nextAction: `Run \`${nextCommands[0] ?? DELIVERY_HELP_COMMAND}\`.`,
+				nextCommands,
+			}),
+		);
+	} else {
+		console.error(chalk.red(`✗  ${message}`));
+		for (const next of nextCommands) console.error(chalk.dim(`   ${next}`));
+	}
+	process.exitCode = 1;
+}
+
+/** Wrap an async action so any failure becomes a refusal rather than an escaped exception. */
+function guardedAsync(
+	operation: string,
+	handler: (options: DeliveryCommandOptions & DeliveryAddOptions) => Promise<void>,
+): (options: DeliveryCommandOptions & DeliveryAddOptions) => Promise<void> {
+	return async (options) => {
+		try {
+			await handler(options);
+		} catch (error) {
+			failAuthoring(operation, options, error);
+		}
+	};
 }
 
 /** Wrap an action so a validation error becomes the repo's refusal shape. */
@@ -145,6 +200,71 @@ function resolveKind(value: string | undefined): string {
 		throw new Error(`--kind must be one of: ${PROBE_KINDS.join(", ")}.`);
 	}
 	return kind;
+}
+
+/** `--option key=value`, repeatable. */
+function collectOption(value: string, previous: string[]): string[] {
+	return [...previous, value];
+}
+
+/**
+ * Where the operator goes next, per outcome.
+ *
+ * `ok` means "the command did its job", not "the answer was yes" — so a decline, a deferral and a
+ * cancellation are all successful runs of a command whose job was to ask. What changes is the
+ * handoff, because those three lead to genuinely different next steps.
+ */
+function addNextAction(result: DeliveryAddResult): string | null {
+	switch (result.status) {
+		case "declared":
+			return result.route.answerable
+				? `Send one real test message with \`refarm delivery test ${result.channel}\` when you want to prove it end to end.`
+				: `Declared, but a decision would not reach you there — check the refusals above, then \`refarm delivery test ${result.channel}\`.`;
+		case "declined":
+			return "Nothing was written. The refusal is recorded, so this will not be asked again.";
+		case "deferred":
+			return "Nothing was written and nothing recorded — run it again when you want to decide.";
+		case "cancelled":
+			return "Cancelled. Nothing was written.";
+		case "unchanged":
+			return "Kept what was already there.";
+	}
+}
+
+function addNextCommands(result: DeliveryAddResult): string[] {
+	if (result.status === "declared") {
+		return [`refarm delivery test ${result.channel}`, DELIVERY_LIST_COMMAND, result.undoCommand];
+	}
+	return [DELIVERY_LIST_COMMAND];
+}
+
+function printAddResult(result: DeliveryAddResult): void {
+	if (result.status !== "declared") {
+		console.log(chalk.dim(addNextAction(result) ?? ""));
+		return;
+	}
+	console.log(
+		chalk.green(
+			`✓  ${result.replaced ? "replaced" : "declared"} "${result.channel}" (${result.adapter})`,
+		),
+	);
+	console.log(chalk.dim(`   ${result.configPath}`));
+	if (result.tokenFile) console.log(chalk.dim(`   token: ${result.tokenFile} (0600)`));
+	if (result.tokenEnv) console.log(chalk.dim(`   token: env:${result.tokenEnv}`));
+	console.log(chalk.dim(`   undo:  ${result.undoCommand}`));
+	// VERIFIED, not claimed: this is the real router, run against what was just written.
+	console.log(
+		result.route.answerable
+			? chalk.green("   uma decisão chegaria até você por aqui, mesmo sem você estar atendendo")
+			: chalk.yellow("   uma decisão NÃO chegaria até você por aqui:"),
+	);
+	for (const route of result.route.routes) {
+		console.log(chalk.dim(`     → ${route.channel} (${route.adapter}) carrega ${route.mode}`));
+	}
+	for (const refusal of result.route.refusals) {
+		console.log(chalk.dim(`     · ${refusal.detail}`));
+	}
+	console.log(chalk.dim(`   ${addNextAction(result)}`));
 }
 
 export function createDeliveryCommand(): Command {
@@ -269,19 +389,93 @@ export function createDeliveryCommand(): Command {
 			}),
 		);
 
+	command
+		.command("add")
+		.description("Declare a delivery channel, guided — writes the same .refarm/config.json")
+		.option("--name <name>", "What to call the channel (defaults to the adapter's id)")
+		.option("--adapter <id>", "Which registered adapter serves it")
+		.option("--capability <mode>", "announce | answer — asked when not given")
+		.option("--unattended", "It reaches you when you are not attending")
+		.option("--attended-only", "It only reaches you while you are attending")
+		.option("--token-env <NAME>", "Name an environment variable holding the token")
+		.option("--token-file <path>", "Point at a token file you already wrote")
+		.option("--option <key=value>", "Adapter-owned setting (repeatable)", collectOption, [])
+		.option("--replace", "Re-open a channel that is already declared or already decided")
+		.option("--json", "Output machine-readable JSON")
+		.action(
+			guardedAsync("add", async (options) => {
+				const result = await runDeliveryAdd(options);
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "delivery",
+							operation: "add",
+							nextAction: addNextAction(result),
+							nextCommands: addNextCommands(result),
+							extra: { ...result },
+						}),
+					);
+					return;
+				}
+				printAddResult(result);
+			}),
+		);
+
+	command
+		.command("test")
+		.description("Send ONE real message through a declared channel — asks first, every time")
+		.argument("<name>", "The declared channel to test")
+		.option("--json", "Output machine-readable JSON")
+		.action(async (name: string, options: DeliveryCommandOptions) => {
+			try {
+				const result = await runDeliveryTest(name);
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "delivery",
+							operation: "test",
+							nextAction: result.sent ? null : "Nothing was sent.",
+							nextCommands: [DELIVERY_LIST_COMMAND],
+							extra: { ...result },
+						}),
+					);
+					return;
+				}
+				if (!result.sent) {
+					console.log(chalk.dim("Nada foi enviado."));
+					return;
+				}
+				for (const outcome of result.outcomes) {
+					const mark = outcome.status === "delivered" ? chalk.green("✓") : chalk.yellow("!");
+					console.log(
+						`${mark}  ${outcome.adapter}: ${outcome.status}${outcome.detail ? ` — ${outcome.detail}` : ""}`,
+					);
+				}
+			} catch (error) {
+				failAuthoring("test", options, error);
+			}
+		});
+
 	command.addHelpText(
 		"after",
 		`
 
 Examples:
+  $ refarm delivery add
+  $ refarm delivery add --adapter telegram --option chatId=123456789 --token-env TG_TOKEN \\
+      --capability answer --unattended
   $ refarm delivery list --json
   $ refarm delivery route --kind confirm --json
   $ refarm delivery route --kind secret --attending
+  $ refarm delivery test telegram
 
 Notes:
-  Neither subcommand sends anything, reads a token, or publishes a prompt.
-  Declare channels under "delivery" in .refarm/config.json; a token is named
-  by "tokenFile" (a path) or "tokenEnv" (a variable NAME), never written there.
+  \`list\` and \`route\` send nothing, read no token, and publish no prompt.
+  \`add\` is a humane path to the SAME file: it asks, shows the exact JSON, and writes
+  only after you authorise it. Hand-editing .refarm/config.json keeps working, and
+  \`add\` reads what you wrote. A token is prompted without echo and written to
+  .refarm/delivery/<name>.token at 0600; the declaration names the FILE, never the value.
+  \`test\` is the only subcommand that sends anything, and it asks first, separately.
 `,
 	);
 
