@@ -56,6 +56,8 @@
 		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/plugin-surface-loader": "workspace:*",
 		"@refarm.dev/pressure-contract-v1": "workspace:*",
+		"@refarm.dev/process-contract-v1": "workspace:*",
+		"@refarm.dev/process-systemd-user": "workspace:*",
 		"@refarm.dev/prompt-contract-v1": "workspace:*",
 		"@refarm.dev/quality-checker-ref": "workspace:*",
 		"@refarm.dev/quality-contract-v1": "workspace:*",

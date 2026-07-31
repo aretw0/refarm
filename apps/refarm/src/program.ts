@@ -23,6 +23,7 @@ import { lintCommand } from "./commands/lint.js";
 import { openUrlCommand } from "./commands/open-url.js";
 import { packageManagerCommand } from "./commands/package-manager.js";
 import { extensionCommand } from "./commands/plugin-local.js";
+import { createProcessCommand } from "./commands/process.js";
 import { projectCommand } from "./commands/project.js";
 import { provisionCommand } from "./commands/provision.js";
 import { releaseCommand } from "./commands/release.js";
@@ -168,9 +169,8 @@ program
  */
 program.hook("preAction", async (_thisCommand, actionCommand) => {
 	try {
-		const { askerForCommandPath, installDeclaredDelivery } = await import(
-			"./commands/delivery-mount.js"
-		);
+		const { askerForCommandPath, installDeclaredDelivery } =
+			await import("./commands/delivery-mount.js");
 		const argvPath: string[] = [];
 		for (let node: Command | null = actionCommand; node && node.parent; node = node.parent) {
 			argvPath.unshift(node.name());
@@ -281,6 +281,10 @@ program.addCommand(serveCommand);
 program.addCommand(workspaceCommand);
 program.addCommand(connectionCommand);
 program.addCommand(deliveryCommand);
+// The long-running processes refarm OWNS: declared in `.refarm/config.json`, supervised by the
+// host's own supervisor. Before this, `refarm web serve` ran under a nohup'd shell — the operator
+// rebooted, it went away, and nothing said so.
+program.addCommand(createProcessCommand());
 program.addCommand(intentionCommand);
 program.addCommand(tuiCommand);
 program.addCommand(headlessCommand);

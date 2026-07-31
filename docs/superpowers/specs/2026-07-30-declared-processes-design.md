@@ -1,7 +1,7 @@
 # Declared processes — refarm owns the declaration, the host may own the act
 
 Date: 2026-07-30
-Status: Designed, not implemented
+Status: **First slice implemented** (2026-07-31) — see [First slice](#first-slice) below
 Lane: [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md) — substrate
 Triggered by: *"P6 when refarm supervises a process it owns"* —
 [`2026-07-29-process-administration-layer-design.md`](2026-07-29-process-administration-layer-design.md)
@@ -95,3 +95,61 @@ tractor is not involved.
 
 W5's fallback lands when a supervised process is needed on a host without a supervisor — the phone,
 most likely, and that is the moment tractor takes it on.
+
+### What shipped, 2026-07-31
+
+Two blocks and one command:
+
+- **`@refarm.dev/process-contract-v1`** — the `processes` catalog (W1), fail-shut like
+  `parseSurfaces`, with `restart` **required** rather than defaulted. Four-valued status: `running`,
+  `not-running`, `not-declared`, `could-not-ask`. `resolveSupervisionBackend` is W1's detection —
+  deciding *how*, never *what* — and refuses honestly on a host with no borrowable supervisor.
+- **`@refarm.dev/process-systemd-user`** — the borrowed act. Renders the unit, probes state
+  read-only, and builds the consent request (W2) whose undo removes the file. W3 is enforced
+  structurally: `describeUnitLifetime` states the *measured* lifetime, and `refuseBundledLinger`
+  makes bundling lingering into a unit installation impossible in both directions.
+- **`refarm process list|status|install|uninstall|linger`** — the operator surface.
+
+**The Rust side needed to learn nothing.** `refarm_config_json_from`
+(`packages/tractor/src/host/plugin_host/env_and_runtime.rs`) parses the file into an untyped
+`serde_json::Value`, and each consumer (`revokedPlugins`, the config node) reads its own key. There
+is no top-level allowlist, and `redact_config` walks the tree generically rather than filtering by
+known key, so a new `processes` block flows through untouched. `packages/tractor/**` is unmodified
+by this slice.
+
+**What this deliberately does NOT do:** it never runs `systemctl --user enable/start/stop`. refarm
+writes the unit through consent and hands the activation line to the operator — the boundary
+`refarm cert trust` already draws. And it adds **no SIGTERM handling** to `packages/tractor/`:
+`TimeoutStopSec` gives ordered termination from the supervisor today, which is exactly W1's
+"borrow the act". Teaching the runtime and `web serve` to handle the signal is a follow-up that
+makes the wait *productive* rather than making it *exist*.
+
+**The declaration an operator writes** (`.refarm/config.json`):
+
+```json
+{
+  "processes": {
+    "web-serve": {
+      "description": "the mesh distribution server the phone bootstraps from",
+      "command": [
+        "/home/<you>/.local/bin/refarm",
+        "web",
+        "serve",
+        ".refarm/dist/farm-client",
+        "--port",
+        "4321"
+      ],
+      "workingDirectory": "/home/<you>/github/refarm",
+      "restart": "always",
+      "stopTimeoutSeconds": 20
+    }
+  }
+}
+```
+
+`command` is an **argv, not a shell line** — a string is refused, because splitting one is a
+quoting bug waiting for a path with a space in it. `command[0]` must be absolute: systemd does not
+search `PATH`, and the refusal names `command -v refarm`.
+
+The **second passenger** the design names is certificate renewal — a `tailscale cert` or local-CA
+renewal is a supervised process under the same catalog, with `restart: "on-failure"`.

@@ -30,13 +30,22 @@ export function createNodeCommandRunner(
 	return {
 		run(command, args) {
 			return new Promise<CommandResult>((resolve) => {
-				execFile(
+				let settled = false;
+				const settle = (result: CommandResult): void => {
+					if (settled) return;
+					settled = true;
+					resolve(result);
+				};
+				const notFound = (): void =>
+					settle({ spawned: false, code: null, stdout: "", stderr: `${command}: not found` });
+
+				const child = execFile(
 					command,
 					[...args],
 					{ timeout, encoding: "utf8", ...(options.env ? { env: options.env } : {}) },
 					(error, stdout, stderr) => {
 						if (error && (error as NodeJS.ErrnoException).code === "ENOENT") {
-							resolve({ spawned: false, code: null, stdout: "", stderr: `${command}: not found` });
+							notFound();
 							return;
 						}
 						const code =
@@ -45,9 +54,20 @@ export function createNodeCommandRunner(
 								: error
 									? 1
 									: 0;
-						resolve({ spawned: true, code, stdout: stdout ?? "", stderr: stderr ?? "" });
+						settle({ spawned: true, code, stdout: stdout ?? "", stderr: stderr ?? "" });
 					},
 				);
+
+				// Belt AND braces, and the braces are load-bearing: a probe that never settles would
+				// hang the CLI, and `execFile`'s callback is not the only way this can end. Listening
+				// on the child covers a spawn that fails before the callback path is reached at all.
+				child.on("error", (error: NodeJS.ErrnoException) => {
+					if (error.code === "ENOENT") notFound();
+					else settle({ spawned: false, code: null, stdout: "", stderr: error.message });
+				});
+				child.on("close", (code) => {
+					settle({ spawned: true, code: code ?? null, stdout: "", stderr: "" });
+				});
 			});
 		},
 	};
