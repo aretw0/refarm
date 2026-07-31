@@ -13,34 +13,17 @@
  * else, so there is nothing a wizard could read to learn where it was started from.
  */
 
-import { Command } from "commander";
 import { describe, expect, it } from "vitest";
 
 import { program } from "../program.js";
 import {
-	REMOTELY_INITIABLE_OPERATIONS,
+	everyCommandPath,
 	remoteInitiationCommandLine,
+	REMOTELY_INITIABLE_OPERATIONS,
 	resolveRemoteInitiation,
 } from "./remote-initiation.js";
 
 const DEVICE = { kind: "device" } as const;
-
-/** Every command path the real CLI has, as the space-joined id a device would send. */
-function everyCommandPath(root: Command): string[] {
-	const paths: string[] = [];
-	const walk = (command: Command, prefix: readonly string[]): void => {
-		for (const child of command.commands) {
-			// Commander keeps the declared spelling (`run <workspace> <command>`) in `name()` for
-			// some commands; the head token is the name a device would ever plausibly send.
-			const name = child.name().split(/\s+/)[0] ?? child.name();
-			const here = [...prefix, name];
-			paths.push(here.join(" "));
-			walk(child, here);
-		}
-	};
-	walk(root, []);
-	return paths;
-}
 
 describe("the remote-initiation declaration", () => {
 	it("declares nothing by accident — every entry is a constant argv with a stated reason", () => {

@@ -153,7 +153,7 @@ fn validate_spawn_env_absolute_entry(entry: &str, field: &str) -> Result<(), Str
 /// `resolve_connections` uses for a missing file; malformed file ⇒ error,
 /// matching the hardened reader's (`read_refarm_config_value_at`) fail-shut
 /// posture on a corrupt one.
-fn spawn_env_from_config_at(base: &Path) -> Result<SpawnEnvDecl, String> {
+pub(crate) fn spawn_env_from_config_at(base: &Path) -> Result<SpawnEnvDecl, String> {
     match read_refarm_config_value_at(base)? {
         Some(cfg) => parse_spawn_env(&cfg),
         None => Ok(SpawnEnvDecl::default()),

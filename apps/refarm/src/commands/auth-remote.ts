@@ -1,10 +1,14 @@
+import { spawn } from "node:child_process";
+
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { Command } from "commander";
 
 import { refarmCommand } from "../brand.js";
 import {
-	REMOTELY_INITIABLE_OPERATIONS,
+	everyCommandPath,
 	remoteInitiationCommandLine,
+	REMOTELY_INITIABLE_OPERATIONS,
+	resolveRemoteInitiation,
 } from "./remote-initiation.js";
 
 /**
@@ -28,9 +32,159 @@ import {
  * `auth list`'s question, and conflating the two would let a reader think an empty device list
  * narrowed this one.
  */
+/**
+ * `refarm auth remote run <operation>` — THE ONE ENTRYPOINT THE NODE'S ROUTE SPAWNS.
+ *
+ * R4 of the composable-onboarding design. The sidecar route
+ * (`packages/tractor/src/sidecar/remote_initiation.rs`) accepts an OPAQUE operation id from an
+ * enrolled device and spawns exactly this, as `<refarm> auth remote run <id>` — three constant
+ * tokens and the caller's bytes in one argv element. It never parses, joins or derives a
+ * command line from what a device sent, because it cannot: the decision is HERE, in the
+ * runtime that owns the declaration.
+ *
+ * Duplicating the table in Rust would have been the obvious shape and is the one this refuses.
+ * Two answers to "may this be started remotely" diverge — not at once, which is what makes it
+ * dangerous, but at the first entry somebody adds to one side.
+ *
+ * ── The verdict line, and why it is a line ───────────────────────────────────────────────
+ * The route has to answer its caller in milliseconds while the wizard it started runs for
+ * minutes. So this command's FIRST act is to print exactly one line of JSON on stdout —
+ * {@link REMOTE_INITIATION_WIRE} — saying whether it started, and only then does it start
+ * anything. The node reads that one line (bounded by lines, bytes and a deadline), answers
+ * its caller, and discards everything after it: output does not travel to the initiating
+ * device, deliberately, and a drain that logged would smuggle it back in.
+ *
+ * ── Three refusals, not one ─────────────────────────────────────────────────────────────
+ * {@link resolveRemoteInitiation} answers `undeclared` for two genuinely different situations,
+ * and a device deserves to know which:
+ *
+ *   - `unknown-operation` — the id names no command this CLI has at all. A typo, an older
+ *     phone, a guess.
+ *   - `not-remotely-invocable` — the id names a REAL refarm command that did not declare
+ *     itself remotely initiable. Silence is closed (R5), and saying so is how the operator
+ *     learns the door exists and is shut rather than that they mistyped.
+ *
+ * The distinction is DERIVED from the real `program` tree ({@link everyCommandPath}) and is
+ * consulted strictly after the gate has already refused. It phrases a refusal; it never
+ * softens one — there is exactly one path to starting anything and it is an exact table hit.
+ *
+ * ── The wizard must not learn it was started remotely ───────────────────────────────────
+ * It is spawned as a SEPARATE PROCESS with the table's own constant argv and inherited stdio,
+ * reconstructing this process's own invocation (`execPath` + `execArgv` + `argv[1]`). No flag,
+ * no environment variable, no marker of any kind — there is nothing to leak, which is stronger
+ * than a rule saying not to leak it. Its questions reach the operator through the
+ * pending-prompt hub because the CLI already publishes there; that path is untouched.
+ *
+ * stdin is INHERITED on purpose. The node hands this process a pipe it holds open and never
+ * writes to, so the wizard's terminal side waits forever and the hub settles the question —
+ * and when the node goes away, the pipe closes, the terminal side reads EOF, and the wizard
+ * ends. A wizard started remotely cannot outlive the node that started it.
+ */
+export const REMOTE_INITIATION_WIRE = "remote-initiation.v1";
+
+/** Why an initiation was refused, in the two words the node relays verbatim. */
+export type RemoteInitiationRefusalReason = "unknown-operation" | "not-remotely-invocable";
+
+/** The one line this command prints before it does anything else. */
+export type RemoteInitiationVerdict =
+	| { readonly wire: string; readonly ok: true; readonly operation: string }
+	| {
+			readonly wire: string;
+			readonly ok: false;
+			readonly reason: RemoteInitiationRefusalReason;
+			readonly detail: string;
+	  };
+
+/**
+ * The verdict, as a PURE function of the requested id and what the CLI has.
+ *
+ * The credential is not a parameter and must not become one: authority is the NODE's
+ * question, answered by the listener's own gate before this process exists (`/operations`
+ * declares no scope, so it admits device credentials only). Accepting a credential here would
+ * be a second authentication path reachable by anyone who can run this command locally —
+ * which is everyone who is already on the node.
+ */
+export function remoteInitiationVerdict(
+	requested: string,
+	knownCommandPaths: readonly string[],
+): RemoteInitiationVerdict {
+	// The gate, first and unchanged. Its `ok: true` is the only way past this line.
+	const decision = resolveRemoteInitiation({
+		operation: requested,
+		credential: { kind: "device" },
+	});
+	if (decision.ok) {
+		return { wire: REMOTE_INITIATION_WIRE, ok: true, operation: decision.operation.id };
+	}
+	const known = knownCommandPaths.includes(requested);
+	return {
+		wire: REMOTE_INITIATION_WIRE,
+		ok: false,
+		reason: known ? "not-remotely-invocable" : "unknown-operation",
+		detail: known
+			? "That is a real command on this node, and it has not declared itself startable " +
+				"from a device. An operation that says nothing may not be started remotely — " +
+				"silence is closed, including for an operation added tomorrow."
+			: "This node has no such operation. " + decision.refusal.detail,
+	};
+}
+
+/**
+ * This process's own invocation, so the wizard is started the way the operator would have
+ * started it — same interpreter, same loader flags, same entry script.
+ *
+ * `execArgv` matters: the installed `refarm` runs Node with `--import <loader>`, and dropping
+ * it would start a wizard that cannot resolve the workspace at all.
+ */
+export function reinvocationArgv(
+	operationArgv: readonly string[],
+	process_: Pick<typeof process, "execArgv" | "argv"> = process,
+): string[] {
+	const entry = process_.argv[1];
+	return [...process_.execArgv, ...(entry ? [entry] : []), ...operationArgv];
+}
+
+function createAuthRemoteRunCommand(): Command {
+	return new Command("run")
+		.description("Start a declared operation — the entrypoint the node's /operations route spawns")
+		.argument("<operation>", "The declared operation id, exactly as `refarm auth remote` prints it")
+		.action(async (requested: string) => {
+			// The real command tree, imported lazily: `program.ts` imports `auth.ts` imports this
+			// module, so a top-level import would be a cycle. By the time an action runs, the
+			// module graph is settled and this is a cache hit.
+			const { program } = await import("../program.js");
+			const verdict = remoteInitiationVerdict(requested, everyCommandPath(program));
+			// ONE line, and it is the first thing on stdout. The node reads exactly this.
+			process.stdout.write(`${JSON.stringify(verdict)}\n`);
+			if (!verdict.ok) {
+				process.exitCode = 1;
+				return;
+			}
+			const decision = resolveRemoteInitiation({
+				operation: requested,
+				credential: { kind: "device" },
+			});
+			// Unreachable: `verdict.ok` is exactly `decision.ok`. Spelled out rather than
+			// asserted so a future edit that breaks the correspondence fails closed.
+			if (!decision.ok) {
+				process.exitCode = 1;
+				return;
+			}
+			const code = await new Promise<number>((resolve) => {
+				const child = spawn(process.execPath, reinvocationArgv(decision.argv), {
+					stdio: "inherit",
+				});
+				child.on("error", () => resolve(1));
+				child.on("exit", (exitCode, signal) => resolve(signal ? 1 : (exitCode ?? 0)));
+			});
+			process.exitCode = code;
+		});
+}
+
 export function createAuthRemoteCommand(): Command {
 	return new Command("remote")
 		.description("List the operations an enrolled device may start on this node")
+		.addCommand(createAuthRemoteRunCommand())
 		.option("--json", "Print the result as JSON")
 		.action((options: { json?: boolean }) => {
 			const operations = REMOTELY_INITIABLE_OPERATIONS.map((operation) => ({

@@ -30,6 +30,12 @@ pub use host_effects_bridge::{
     any_surface_declares_device_token_gate, surfaces_from_config, SurfaceDeclaration,
     SURFACE_DAEMON_WS, SURFACE_SIDECAR_HTTP,
 };
+// The operator's derived spawn environment (P10) — `PATH`/`HOME` composed from
+// `.refarm/config.json`'s `spawnEnv` and NOTHING inherited. `pub(crate)` because
+// `sidecar::remote_initiation` starts a wizard with the very same environment a `connections`
+// establish gets: one declaration, one search order, so a wizard started from a phone finds
+// exactly what a local one finds.
+pub(crate) use host_effects_bridge::{spawn_env_from_config_at, SpawnEnvDecl};
 // `SurfaceExpose`/`SurfaceGate` never appear in a signature main.rs has to name (they are
 // only reachable through `SurfaceDeclaration`'s `pub(crate)` fields), but `bind_guard`
 // (same crate, different module) still needs to match on them.

@@ -193,6 +193,11 @@ pub struct SidecarState {
     /// crate would be a second way to publish and settle prompts that bypasses the routes —
     /// which is exactly where the gate-resolved attribution lives.
     pub(crate) prompts: pending_prompt::PromptHub,
+    /// The spawn ceiling for remote initiation (R4) — at most one started operation and one
+    /// catalog read, ever. `pub(crate)` for the same reason `prompts` is: a ceiling reachable
+    /// from outside the crate would be a second way to spawn that bypasses the routes, which
+    /// is exactly where the bound lives.
+    pub(crate) remote_initiations: remote_initiation::RemoteInitiations,
 }
 
 /// Timeout + poll cadence (ms) for the respond watcher. Resolved from env ONCE
@@ -256,6 +261,7 @@ impl SidecarState {
             reload: None,
             plugin_registry: None,
             prompts: pending_prompt::PromptHub::new(),
+            remote_initiations: remote_initiation::RemoteInitiations::new(),
         })
     }
 
@@ -720,6 +726,10 @@ pub(crate) mod node_local;
 // so the hub type can sit on `SidecarState`; the routes are mounted in `sidecar_routes`
 // alongside every other one, inside the same per-listener credential layer.
 pub(crate) mod pending_prompt;
+// Starting one of refarm's OWN wizards from a device (R4). Deliberately the dumbest module
+// here: it knows no operation, holds no table, and hands an opaque id to one fixed
+// entrypoint as one argv element. The decision lives in TypeScript, where R5 put it.
+pub(crate) mod remote_initiation;
 mod cors;
 mod dispatch;
 pub(crate) use dispatch::*;
@@ -1733,6 +1743,13 @@ fn sidecar_routes(state: SidecarState) -> Router {
         .route(
             auth::ROUTE_PROMPT_ANSWER,
             post(pending_prompt::post_prompt_answer),
+        )
+        // Remote initiation (R4). NOT named in `auth::route_requirement`, and that omission
+        // is the decision: a route declaring no scope admits device credentials only. A
+        // browser's `prompt:answer` credential answers questions; it never starts work.
+        .route(
+            remote_initiation::ROUTE_OPERATIONS,
+            post(remote_initiation::post_operations).get(remote_initiation::get_operations),
         )
         .route("/connections", get(get_connections))
         .route("/connections/:name/up", post(post_connection_up))

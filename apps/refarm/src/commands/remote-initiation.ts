@@ -210,3 +210,38 @@ export function resolveRemoteInitiation(request: {
 export function remoteInitiationCommandLine(operation: RemotelyInitiableOperation): string {
 	return ["refarm", ...operation.argv].join(" ");
 }
+
+/** The shape of a commander command, named structurally so this module keeps no runtime
+ *  dependency on commander — it is a pure declaration and stays one. */
+interface CommandLike {
+	name(): string;
+	readonly commands: readonly CommandLike[];
+}
+
+/**
+ * Every command path the CLI actually has, as the space-joined id a device would send.
+ *
+ * Exists so a refusal can tell "I do not know that command" from "I know it and it is not
+ * open to devices" — two different sentences that a single `undeclared` verdict collapses.
+ * The walk is the point: a command added to `program.ts` is covered for free, and a
+ * hand-maintained list is exactly what fails to cover the next one.
+ *
+ * DERIVED, never authoritative. Nothing here decides whether something may be started —
+ * {@link resolveRemoteInitiation} is the only gate, and this is consulted strictly AFTER it
+ * has already refused, purely to phrase the refusal.
+ */
+export function everyCommandPath(root: CommandLike): string[] {
+	const paths: string[] = [];
+	const walk = (command: CommandLike, prefix: readonly string[]): void => {
+		for (const child of command.commands) {
+			// Commander keeps the declared spelling (`run <workspace> <command>`) in `name()` for
+			// some commands; the head token is the name a device would ever plausibly send.
+			const name = child.name().split(/\s+/)[0] ?? child.name();
+			const here = [...prefix, name];
+			paths.push(here.join(" "));
+			walk(child, here);
+		}
+	};
+	walk(root, []);
+	return paths;
+}
