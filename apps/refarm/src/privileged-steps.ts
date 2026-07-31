@@ -16,18 +16,27 @@
  * so a renamed or removed command takes its entry down with it instead of leaving a rule that
  * silently guards nothing.
  *
- * THIS IS AN OVER-APPROXIMATION, DELIBERATELY. `refarm cert trust --anchor ~/staging.crt`
+ * THIS IS AN OVER-APPROXIMATION, DELIBERATELY. `refarm cert trust system --anchor ~/staging.crt`
  * needs no root at all. Declaring the step rather than the exact invocation means the guidance
  * defaults to the form that works in the case that actually bites — the system trust store —
  * and the operator who passed `--anchor` loses nothing but an unnecessary `sudo`.
+ *
+ * AN OVER-APPROXIMATION IS NOT A LICENCE TO DECLARE THE WHOLE COMMAND. `cert trust` used to be
+ * keyed here, and it should not have been: its default scope writes into the operator's own NSS
+ * databases under `$HOME` and needs nothing. Declaring the parent forced every emission of it
+ * through `refarmPrivilegedCommand`, so the guidance printed `sudo -E <interpreter> <entrypoint>
+ * cert trust` for a step that needs no privilege — which is how an operator ends up typing `sudo`
+ * to open a page in their own browser. The key is the SUBCOMMAND that actually touches root's
+ * directory, and the scope is a subcommand precisely so this file can say which.
  */
 
 /** Key: the argv path from the root binary, space-joined. Value: why root is involved. */
 export const PRIVILEGED_STEPS: Readonly<Record<string, string>> = {
-	"cert trust":
+	"cert trust system":
 		"writes the CA trust anchor into the system trust store (/usr/local/share/ca-certificates) " +
 		"and refreshes it with `update-ca-certificates` — both belong to root. sudo's secure_path " +
-		"drops ~/.local/bin, so a bare `refarm` here is not found.",
+		"drops ~/.local/bin, so a bare `refarm` here is not found. Its sibling `cert trust` " +
+		"(browser scope) writes only inside $HOME and is deliberately NOT declared here.",
 };
 
 /** The argv path a handoff points at, in the form {@link PRIVILEGED_STEPS} is keyed by. */

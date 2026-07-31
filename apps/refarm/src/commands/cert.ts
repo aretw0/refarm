@@ -14,11 +14,25 @@ import {
 } from "@refarm.dev/certificate-contract-v1";
 import {
 	buildCaTrustRequest,
+	buildNssCaTrustRequest,
+	certutilCommandLine,
+	certutilDeleteArgs,
+	CERTUTIL_MISSING_FIX,
+	chromiumNssDir,
 	createLocalCaProvider,
+	createNodeCertutilRunner,
+	createNssOperationFileSystem,
 	describeCaGrant,
+	describeNssStoreReach,
+	detectCertutil,
+	discoverNssStores,
+	firefoxProfileRoots,
 	LINUX_CA_REFRESH_COMMAND,
 	linuxCaAnchorPath,
+	nssEntryPath,
+	type CertutilRunner,
 	type LocalCaProvider,
+	type NssStore,
 } from "@refarm.dev/certificate-local-ca";
 import {
 	createFileOperationTrail,
@@ -51,27 +65,56 @@ import { refarmCommand, refarmPrivilegedCommand } from "../brand.js";
  *    not one refarm should make on the operator's behalf.
  *  - `issue` — get a certificate. Canonically from the operator's own CA (`local-ca`), which needs
  *    no network, no account, no root and no standing privilege grant.
- *  - `trust` — install that CA on a device. A SIGNIFICANT GRANT, carried through
+ *  - `trust` — install that CA in a trust store. A SIGNIFICANT GRANT, carried through
  *    `@refarm.dev/operation-consent-v1` so it is proposed as an exact diff, decided by the human,
  *    and remembered with an undo that executes.
  *
  * T2's third case needs no subcommand and that is the point: an operator who already HAS a
  * certificate passes `--cert-file`/`--key-file` and no provider runs at all.
+ *
+ * ── WHY `trust` HAS TWO SCOPES, AND WHY THE SMALLER ONE IS THE DEFAULT ───────────
+ *
+ * `trust` asked for root because it wrote into `/usr/local/share/ca-certificates`. That was the
+ * largest grant available, and the goal it was serving — open this page in a browser — needs the
+ * SMALLEST: on Linux, Chrome and Firefox each keep their own NSS database in the operator's own
+ * home, and adding a CA there needs no privilege at all. Asking for root to achieve something that
+ * root was never required for is the defect, not the missing `sudo`.
+ *
+ * So the scope is explicit and the default is the small one:
+ *
+ *  - `refarm cert trust` (= `trust browser`) — this user's own browser stores. No root, no
+ *    `update-ca-certificates`, nothing outside `$HOME`. Reaches every Chromium-family browser and
+ *    each Firefox profile that is authorised individually.
+ *  - `refarm cert trust system` — `/usr/local/share/ca-certificates` + `update-ca-certificates`.
+ *    Reaches `curl`, `node`, `git` and every system tool, and every user on the machine. Needs
+ *    root, and says so.
+ *
+ * NEITHER SCOPE ESCALATES INTO THE OTHER. A machine with no browser store gets a refusal that
+ * names the system scope as the operator's choice — never a silent `sudo`. A machine with browser
+ * stores is never told the system store is required, because for the browser it is not: the two
+ * are different reaches, and the request states each one's.
  */
 
 /** The handoffs this command hands on. Built through the brand helper (ADR-087) rather than
  *  written as literals, so the binary is named in exactly one place.
  *
- * `cert trust` is declared privileged (`src/privileged-steps.ts`): it writes into
- * `/usr/local/share/ca-certificates`, which belongs to root. So its handoffs are built through
- * `refarmPrivilegedCommand`, which names the interpreter and the entrypoint by absolute path.
- * The bare `refarm cert trust` this used to print was correct in the operator's shell and
- * UNRUNNABLE the moment `sudo` went in front of it — `sudo` replaces PATH with `secure_path`,
- * which omits `~/.local/bin`. The operator got `sudo: refarm: command not found` from a command
- * that had just told them, in the same breath, that root was required. */
+ * ONLY `cert trust system` IS DECLARED PRIVILEGED (`src/privileged-steps.ts`): it is the one that
+ * writes into `/usr/local/share/ca-certificates`, which belongs to root. Its handoffs go through
+ * `refarmPrivilegedCommand`, which names the interpreter and the entrypoint by absolute path —
+ * the bare `refarm cert trust` this used to print was correct in the operator's shell and
+ * UNRUNNABLE the moment `sudo` went in front of it, because `sudo` replaces PATH with
+ * `secure_path`, which omits `~/.local/bin`.
+ *
+ * The DEFAULT handoff is deliberately the bare, unprivileged one. Emitting the absolute
+ * interpreter path for a step that needs no root would carry the whole cost of privilege — the
+ * unreadable command, the `sudo` prompt — to buy nothing. */
 const CERT_ISSUE_COMMAND = refarmCommand(["cert", "issue", "--json"]);
-const CERT_TRUST_COMMAND = refarmPrivilegedCommand(["cert", "trust", "--json"]);
-const CERT_TRUST_PLAIN_COMMAND = `  ${refarmPrivilegedCommand(["cert", "trust"])}`;
+const CERT_TRUST_COMMAND = refarmCommand(["cert", "trust", "--json"]);
+const CERT_TRUST_PLAIN_COMMAND = `  ${refarmCommand(["cert", "trust"])}`;
+/** Named ONLY where the larger grant is genuinely the operator's choice — a refusal that explains
+ *  why the small scope could not serve them. Deliberately absent from every `nextCommands` menu: a
+ *  machine following a handoff list must not be able to pick `sudo` off it by accident. */
+const CERT_TRUST_SYSTEM_PLAIN_COMMAND = refarmPrivilegedCommand(["cert", "trust", "system"]);
 const CERT_HELP_COMMAND = refarmCommand(["cert", "--help"]);
 
 /** Where this node keeps its CA and the certificates it has issued. */
@@ -105,6 +148,13 @@ export interface CertDeps {
 	now?: () => string;
 	say?: (line: string) => void;
 	hostname?: string;
+	/** The certutil seam. Injected in tests so a suite drives a throwaway database and never the
+	 *  operator's own. */
+	certutil?: CertutilRunner;
+	/** The NSS stores to consider, when the caller has already measured them. */
+	stores?: readonly NssStore[];
+	/** Whose stores — `os.homedir()` unless a test says otherwise. */
+	home?: string;
 }
 
 /** Build the registry for this node. One line per provider, exactly as T2 asks — `tailscale cert`
@@ -268,18 +318,64 @@ export async function runCertIssue(
 
 // ── trust ─────────────────────────────────────────────────────────────────────
 
+/** WHICH trust store. `browser` is this user's own NSS databases and needs no privilege;
+ *  `system` is `/usr/local/share/ca-certificates` and needs root. */
+export type CertTrustScope = "browser" | "system";
+
+/** THE SMALLEST GRANT THAT OPENS THE PAGE. Stated as a constant so "what does the default do?" is
+ *  answered by one value rather than by reading a branch. */
+export const DEFAULT_CERT_TRUST_SCOPE: CertTrustScope = "browser";
+
+/** The nickname the CA is filed under inside an NSS database, and the one the undo deletes. */
+export const NSS_CA_NICKNAME = "refarm";
+
 export interface CertTrustOptions {
+	/** Defaults to {@link DEFAULT_CERT_TRUST_SCOPE}. */
+	scope?: CertTrustScope;
 	device?: string;
+	/** `system` scope only: where the anchor file is written. */
 	anchor?: string;
 	dir?: string;
 	suffix?: string[];
+	/** `browser` scope only: narrow to these store ids, instead of every one discovered. */
+	store?: string[];
 	/** Deliberately re-open a decision the operator already made. */
 	revisit?: boolean;
+}
+
+/** What happened in ONE store. Per store, because each is a separate grant with a separate reach —
+ *  declining Chrome must not be read as declining a Firefox profile. */
+export interface CertTrustStoreOutcome {
+	store: string;
+	kind: NssStore["kind"];
+	label: string;
+	dir: string;
+	status: OperationOutcome["status"];
+	/** What this store reaches, and what it does not. */
+	reaches: string[];
+	doesNotReach: string[];
+	recordId: string | null;
+	/** The exact command that undoes it without refarm. */
+	undoCommand: string;
 }
 
 export type CertTrustResult =
 	| {
 			ok: boolean;
+			scope: "browser";
+			/** Stated in the OUTPUT, not only in prose: this asked for nothing. */
+			privileged: false;
+			device: string;
+			fingerprint: string;
+			grant: string[];
+			stores: CertTrustStoreOutcome[];
+			nextCommand: string;
+			nextCommands: string[];
+	  }
+	| {
+			ok: boolean;
+			scope: "system";
+			privileged: true;
 			status: OperationOutcome["status"];
 			device: string;
 			anchorPath: string;
@@ -296,6 +392,7 @@ export type CertTrustResult =
 			 *  pretending. The grant is printed anyway, because the operator is about to perform it
 			 *  by hand and deserves the same words. */
 			status: "manual";
+			scope: "manual";
 			device: string;
 			caFile: string;
 			fingerprint: string;
@@ -315,6 +412,7 @@ export async function runCertTrust(
 	const device = options.device?.trim() || hostname;
 	const suffixes = options.suffix?.length ? options.suffix : defaultNameSuffixes(hostname);
 	const say = deps.say ?? (() => {});
+	const scope = options.scope ?? DEFAULT_CERT_TRUST_SCOPE;
 
 	const localCa =
 		deps.localCa ?? buildCertificateRegistry({ dir, nameSuffixes: suffixes, log: say }).localCa;
@@ -337,6 +435,7 @@ export async function runCertTrust(
 		return {
 			ok: true,
 			status: "manual",
+			scope: "manual",
 			device,
 			caFile: ca.certFile,
 			fingerprint: ca.fingerprint,
@@ -350,6 +449,10 @@ export async function runCertTrust(
 			nextCommand: CERT_ISSUE_COMMAND,
 			nextCommands: [CERT_ISSUE_COMMAND],
 		};
+	}
+
+	if (scope === "browser") {
+		return runBrowserTrust({ options, deps, root, device, hostname, ca, caPem, grant, say });
 	}
 
 	const anchorPath = options.anchor ? path.resolve(options.anchor) : linuxCaAnchorPath("refarm");
@@ -386,10 +489,12 @@ export async function runCertTrust(
 		if (code === "EACCES" || code === "EPERM") {
 			throw new CertificateRefusal(
 				"issuance-failed",
-				`refarm cert trust: no permission to write ${anchorPath}`,
-				`A system trust store belongs to root. Re-run as \`${CERT_TRUST_PLAIN_COMMAND.trim()}\`, or ` +
+				`refarm cert trust system: no permission to write ${anchorPath}`,
+				`A system trust store belongs to root. Re-run as \`${CERT_TRUST_SYSTEM_PLAIN_COMMAND}\`, or ` +
 					`pass --anchor <path> to stage the file somewhere you can write and install it ` +
-					`yourself with \`sudo cp\` + \`${LINUX_CA_REFRESH_COMMAND}\`.`,
+					`yourself with \`sudo cp\` + \`${LINUX_CA_REFRESH_COMMAND}\`. If all you need is a ` +
+					`BROWSER, none of this is required: \`${CERT_TRUST_PLAIN_COMMAND.trim()}\` writes into ` +
+					`your own NSS store and asks for no privilege.`,
 			);
 		}
 		throw error;
@@ -398,6 +503,8 @@ export async function runCertTrust(
 	const authorized = outcome.status === "authorized";
 	return {
 		ok: outcome.status !== "declined",
+		scope: "system",
+		privileged: true,
 		status: outcome.status,
 		device,
 		anchorPath,
@@ -409,6 +516,137 @@ export async function runCertTrust(
 		nextCommands: authorized
 			? [LINUX_CA_REFRESH_COMMAND, CERT_ISSUE_COMMAND]
 			: [CERT_ISSUE_COMMAND],
+	};
+}
+
+// ── browser scope — the smallest grant that opens the page ────────────────────
+
+/** Where discovery LOOKED, named in the refusal, so "refarm says I have no browser store" is a
+ *  claim the operator can check rather than one they have to take on faith. PURE. */
+export function nssSearchLocations(home: string): string[] {
+	return [chromiumNssDir(home), ...firefoxProfileRoots(home).map((root) => `${root}/profiles.ini`)];
+}
+
+/**
+ * The unprivileged path: this user's own NSS databases, ONE CONSENTED GRANT EACH.
+ *
+ * Per store rather than one blanket question, because they are not one thing. Chrome's database
+ * and a Firefox profile's database have different reaches and do not see each other; a single
+ * "may I trust this in your browsers?" would be exactly the category-shaped prompt that
+ * `operation-consent-v1` exists to refuse to ask. Declining Firefox must leave Chrome undecided.
+ */
+async function runBrowserTrust(input: {
+	options: CertTrustOptions;
+	deps: CertDeps;
+	root: string;
+	device: string;
+	hostname: string;
+	ca: { fingerprint: string; nameSuffixes: readonly string[]; certFile: string };
+	caPem: string;
+	grant: string[];
+	say: (line: string) => void;
+}): Promise<CertTrustResult> {
+	const { options, deps, root, device, hostname, ca, caPem, say } = input;
+	const home = deps.home ?? os.homedir();
+	const run = deps.certutil ?? createNodeCertutilRunner();
+
+	// THE TOOL FIRST, because its absence is the one thing consent cannot work around — and because
+	// a refusal that names the package is worth more than a stack trace out of certutil. Same shape
+	// `cert issue` uses for a missing openssl.
+	const presence = await detectCertutil(run);
+	if (!presence.present) {
+		throw new CertificateRefusal(
+			"tool-missing",
+			`refarm cert trust: ${presence.detail} — a browser's own trust store is an NSS database, ` +
+				"and certutil is the only tool that can write one",
+			`${CERTUTIL_MISSING_FIX} If you would rather not install it, the SYSTEM store is the other ` +
+				"option — it reaches curl and node as well as browsers, and it needs root: " +
+				`\`${CERT_TRUST_SYSTEM_PLAIN_COMMAND}\`.`,
+		);
+	}
+
+	const discovered = deps.stores ?? (await discoverNssStores({ home }));
+	const wanted = options.store?.length ? new Set(options.store) : null;
+	const stores = wanted ? discovered.filter((store) => wanted.has(store.id)) : [...discovered];
+
+	// NO SILENT ESCALATION. "No browser store here" is not a reason to reach for root on the
+	// operator's behalf. It is a fact, reported with WHERE we looked, and with the larger grant
+	// offered as THEIR choice rather than taken as our conclusion.
+	if (stores.length === 0) {
+		throw new CertificateRefusal(
+			"missing-file",
+			wanted
+				? `refarm cert trust: no NSS store here matches ${[...wanted].join(", ")} ` +
+					`(found: ${discovered.map((store) => store.id).join(", ") || "none"})`
+				: "refarm cert trust: this user has no browser trust store yet — there is nothing to " +
+					"install into",
+			`Looked in: ${nssSearchLocations(home).join(", ")}. Open Chrome or Firefox once — each ` +
+				"creates its store on first run — and try again. If what you actually need is `curl`, " +
+				"`node` or `git` to trust the CA, that is the SYSTEM store: it reaches every user on " +
+				`this machine, and it needs root — \`${CERT_TRUST_SYSTEM_PLAIN_COMMAND}\`.`,
+		);
+	}
+
+	const trail = deps.trail ?? createFileOperationTrail(resolveCertTrailPath(root));
+	const channel = deps.operator === undefined ? createStdioOperatorChannel() : deps.operator;
+	const fs = createNssOperationFileSystem(run);
+	const requestedAt = deps.now?.() ?? new Date().toISOString();
+
+	const outcomes: CertTrustStoreOutcome[] = [];
+	const grant: string[] = [];
+	for (const store of stores) {
+		const entry = nssEntryPath(store.dir, NSS_CA_NICKNAME);
+		const existingPem = await fs.readFile(entry);
+		const request = buildNssCaTrustRequest({
+			caName: "refarm",
+			caPem,
+			fingerprint: ca.fingerprint,
+			nameSuffixes: ca.nameSuffixes,
+			device,
+			store,
+			nickname: NSS_CA_NICKNAME,
+			existingPem,
+			requester: "refarm cert trust",
+			requestedAt,
+		});
+		grant.push(...(request.notes ?? []));
+		const outcome = await runOperationConsent({
+			request,
+			trail,
+			channel,
+			fs,
+			...(deps.now ? { now: deps.now } : {}),
+			host: hostname,
+			...(options.revisit ? { revisit: true } : {}),
+			// The rendered "Arquivo" is an ENTRY in a database, not a file on disk. Saying so is the
+			// difference between a diff the operator can place and one they have to decode.
+			labels: { file: "Repositório de confiança" },
+			announce: (line) => say(line),
+		});
+		const reach = describeNssStoreReach(store);
+		outcomes.push({
+			store: store.id,
+			kind: store.kind,
+			label: store.label,
+			dir: store.dir,
+			status: outcome.status,
+			reaches: reach.reaches,
+			doesNotReach: reach.doesNotReach,
+			recordId: outcome.record?.id ?? null,
+			undoCommand: certutilCommandLine(certutilDeleteArgs(store.dir, NSS_CA_NICKNAME)),
+		});
+	}
+
+	return {
+		ok: outcomes.some((outcome) => outcome.status !== "declined"),
+		scope: "browser",
+		privileged: false,
+		device,
+		fingerprint: ca.fingerprint,
+		grant,
+		stores: outcomes,
+		nextCommand: CERT_ISSUE_COMMAND,
+		nextCommands: [CERT_ISSUE_COMMAND],
 	};
 }
 
@@ -525,7 +763,7 @@ export function createCertCommand(): Command {
 					...(result.caFile
 						? [
 								"",
-								"Each device that will open the page must trust the CA first:",
+								"Each browser that will open the page must trust the CA first — this needs no root:",
 								CERT_TRUST_PLAIN_COMMAND,
 							]
 						: []),
@@ -533,40 +771,115 @@ export function createCertCommand(): Command {
 			}),
 		);
 
-	command
+	/** The options every scope takes. Declared on the group AND on each subcommand, because the two
+	 *  declarations answer different questions: the subcommand's is what makes
+	 *  `cert trust system --json` a legitimate invocation (and what the executable-guidance harness
+	 *  reads), while Commander itself files the VALUE on the nearest ancestor that declares the same
+	 *  long option — which is why every action below reads {@link commandOptions} rather than the
+	 *  object Commander hands it. */
+	const sharedTrustOptions = (target: Command): Command =>
+		target
+			.option("--device <name>", "Which device is being changed (default: this host)")
+			.option("--dir <path>", "Where the CA lives")
+			.option("--suffix <dns>", "A suffix this node's CA may vouch for (repeatable)", collect)
+			.option("--revisit", "Re-open a decision you already made")
+			.option("--json", "Print the result as JSON");
+
+	/**
+	 * WHAT THE OPERATOR ACTUALLY TYPED, wherever Commander decided to file it.
+	 *
+	 * Commander 14 resolves an option to the nearest ANCESTOR that declares the same long name, so
+	 * `cert trust system --json` lands `json` on `trust`, not on `system`, and the subcommand's own
+	 * `opts()` comes back `{}`. A handler reading that would take `--json` to be absent — it would
+	 * print a refusal as prose to stderr and hand a `--json` consumer an empty stdout, which is the
+	 * exact "exited 1 with no envelope" shape `cli-refusal-conformance.test.ts` exists to catch.
+	 * `optsWithGlobals()` merges the chain, so the handler sees the invocation rather than the tree.
+	 */
+	const commandOptions = <T>(handler: (options: T) => Promise<void>) =>
+		async function (this: Command, _options: unknown, command: Command): Promise<void> {
+			await handler(command.optsWithGlobals() as T);
+		};
+
+	const renderTrust = (json: boolean, result: CertTrustResult): void => {
+		if (result.scope === "manual") {
+			print(json, result, [
+				`"${result.device}" não é este dispositivo — o refarm não alcança o repositório de`,
+				"confiança dele, e não vai fingir que alcança.",
+				...result.grant.map((line) => `  ${line}`),
+				"",
+				...result.steps.map((line) => `  · ${line}`),
+			]);
+			return;
+		}
+		if (result.scope === "system") {
+			print(json, result, [
+				`escopo:  sistema (precisa de root) — alcança curl, node, git e todo usuário da máquina`,
+				`decisão: ${result.status}`,
+				`anchor:  ${result.anchorPath}`,
+				`sha256:  ${result.fingerprint}`,
+				...(result.status === "authorized" ? ["", `Falta rodar: ${result.refreshCommand}`] : []),
+			]);
+			return;
+		}
+		print(json, result, [
+			"escopo:  navegador (sem privilégio) — só os repositórios do seu usuário",
+			`sha256:  ${result.fingerprint}`,
+			"",
+			...result.stores.flatMap((store) => [
+				`  ${store.status === "authorized" ? "✓" : "·"} ${store.label} — ${store.status}`,
+				`      base:     ${store.dir}`,
+				`      alcança:  ${store.reaches.join("; ")}`,
+				`      NÃO vai:  ${store.doesNotReach.join("; ")}`,
+				`      desfazer: ${store.undoCommand}`,
+			]),
+			"",
+			"Feche e reabra o navegador para ele reler o repositório.",
+		]);
+	};
+
+	const trust = command
 		.command("trust")
-		.description("Ask to trust this node's CA on a device — a grant, stated plainly")
-		.option("--device <name>", "Which device is being changed (default: this host)")
-		.option("--anchor <path>", "Where the trust anchor is written")
-		.option("--dir <path>", "Where the CA lives")
-		.option("--suffix <dns>", "A suffix this node's CA may vouch for (repeatable)", collect)
-		.option("--revisit", "Re-open a decision you already made")
-		.option("--json", "Print the result as JSON")
-		.action(
+		.description(
+			"Trust this node's CA in your own browsers — no root. `trust system` is the larger grant",
+		);
+	const trustAction = (scope: CertTrustScope) =>
+		commandOptions(
 			guarded("trust", async (options: CertTrustOptions & { json?: boolean }) => {
-				const result = await runCertTrust(options, {
-					say: (line) => {
-						if (!options.json) process.stdout.write(`${line}\n`);
-					},
-				});
-				if (result.status === "manual") {
-					print(Boolean(options.json), result, [
-						`"${result.device}" não é este dispositivo — o refarm não alcança o repositório de`,
-						"confiança dele, e não vai fingir que alcança.",
-						...result.grant.map((line) => `  ${line}`),
-						"",
-						...result.steps.map((line) => `  · ${line}`),
-					]);
-					return;
-				}
-				print(Boolean(options.json), result, [
-					`decisão: ${result.status}`,
-					`anchor:  ${result.anchorPath}`,
-					`sha256:  ${result.fingerprint}`,
-					...(result.status === "authorized" ? ["", `Falta rodar: ${result.refreshCommand}`] : []),
-				]);
+				renderTrust(
+					Boolean(options.json),
+					await runCertTrust(
+						{ ...options, scope },
+						{
+							say: (line) => {
+								if (!options.json) process.stdout.write(`${line}\n`);
+							},
+						},
+					),
+				);
 			}),
 		);
+
+	sharedTrustOptions(trust)
+		.option("--store <id>", "Only this NSS store (repeatable; default: every one found)", collect)
+		.action(trustAction("browser"));
+
+	sharedTrustOptions(
+		trust
+			.command("browser")
+			.description("Say the default out loud: this user's own browser trust stores, no privilege"),
+	)
+		.option("--store <id>", "Only this NSS store (repeatable; default: every one found)", collect)
+		.action(trustAction("browser"));
+
+	sharedTrustOptions(
+		trust
+			.command("system")
+			.description(
+				"The SYSTEM trust store — reaches curl, node, git and every user here. Needs root",
+			),
+	)
+		.option("--anchor <path>", "Where the trust anchor is written")
+		.action(trustAction("system"));
 
 	return command;
 }

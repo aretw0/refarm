@@ -666,12 +666,19 @@ describe("executable guidance conformance", () => {
 			150,
 		);
 		expect(new Set(CANDIDATES.map((entry) => entry.file)).size).toBeGreaterThan(50);
-		// The step this harness was written for is in the harvest, from both directions.
-		const certTrust = CANDIDATES.filter((entry) =>
-			entry.tokens.join(" ").startsWith("cert trust"),
-		);
+		// The step this harness was written for is in the harvest, from both directions — and so is
+		// its unprivileged sibling, which must NOT be dragged into the absolute-path form. Both
+		// halves are asserted, because "everything carries an absolute path" would be satisfied by a
+		// regression that made the browser scope demand sudo too.
+		const certTrust = CANDIDATES.filter((entry) => entry.tokens.join(" ").startsWith("cert trust"));
 		expect(certTrust.length).toBeGreaterThan(0);
-		expect(certTrust.every((entry) => isAbsoluteCommandPath(entry.head))).toBe(true);
+		const privileged = certTrust.filter((entry) => entry.tokens[2] === "system");
+		const unprivileged = certTrust.filter((entry) => entry.tokens[2] !== "system");
+		expect(privileged.length).toBeGreaterThan(0);
+		expect(privileged.every((entry) => isAbsoluteCommandPath(entry.head))).toBe(true);
+		expect(unprivileged.length).toBeGreaterThan(0);
+		expect(unprivileged.every((entry) => entry.head === REFARM_BINARY)).toBe(true);
+		expect(unprivileged.some((entry) => entry.sudoInText)).toBe(false);
 	});
 
 	it("resolves the CLI the way a shell would, without executing it", () => {
@@ -709,8 +716,11 @@ describe("executable guidance conformance", () => {
 			return node === undefined;
 		});
 		expect(orphans).toEqual([]);
-		// Non-vacuous: the step that produced this harness is in it.
-		expect(Object.keys(PRIVILEGED_STEPS)).toContain("cert trust");
+		// Non-vacuous: the step that produced this harness is in it — at the SUBCOMMAND that touches
+		// root's directory, not at its parent. Declaring the parent would force `sudo` onto the
+		// browser scope, which writes only inside $HOME.
+		expect(Object.keys(PRIVILEGED_STEPS)).toContain("cert trust system");
+		expect(Object.keys(PRIVILEGED_STEPS)).not.toContain("cert trust");
 	});
 
 	it("accepts a placeholder standing in a declared argument position", () => {
@@ -786,18 +796,18 @@ describe("executable guidance conformance", () => {
 				file: "fixture.ts",
 				line: 1,
 				origin: "printed-text",
-				raw: "refarm cert trust",
+				raw: "refarm cert trust system",
 				head: REFARM_BINARY,
-				tokens: ["cert", "trust"],
+				tokens: ["cert", "trust", "system"],
 				sudoInText: false,
 			},
 			{
 				file: "fixture.ts",
 				line: 2,
 				origin: "printed-text",
-				raw: "sudo -E refarm cert trust",
+				raw: "sudo -E refarm cert trust system",
 				head: REFARM_BINARY,
-				tokens: ["cert", "trust"],
+				tokens: ["cert", "trust", "system"],
 				sudoInText: true,
 			},
 		]);
@@ -812,10 +822,38 @@ describe("executable guidance conformance", () => {
 					file: "fixture.ts",
 					line: 1,
 					origin: "printed-text",
-					raw: "sudo -E /usr/bin/node /opt/refarm/index.js cert trust",
+					raw: "sudo -E /usr/bin/node /opt/refarm/index.js cert trust system",
 					head: "/opt/refarm/index.js",
-					tokens: ["cert", "trust"],
+					tokens: ["cert", "trust", "system"],
 					sudoInText: true,
+				},
+			]),
+		).toEqual([]);
+	});
+
+	it("leaves the UNPRIVILEGED sibling alone — a bare `refarm cert trust` is not a violation", () => {
+		// The regression this whole change exists to prevent, asserted as a property: the browser
+		// scope writes inside $HOME, so demanding an absolute interpreter path there would be the
+		// harness itself pushing the operator back into `sudo`.
+		expect(
+			auditApp([
+				{
+					file: "fixture.ts",
+					line: 1,
+					origin: "printed-text",
+					raw: "refarm cert trust",
+					head: REFARM_BINARY,
+					tokens: ["cert", "trust"],
+					sudoInText: false,
+				},
+				{
+					file: "fixture.ts",
+					line: 2,
+					origin: "handoff",
+					raw: "refarm cert trust --store chromium --json",
+					head: REFARM_BINARY,
+					tokens: ["cert", "trust", "--store", "chromium", "--json"],
+					sudoInText: false,
 				},
 			]),
 		).toEqual([]);
@@ -828,16 +866,16 @@ describe("executable guidance conformance", () => {
 					file: "hardcoded.ts",
 					line: 1,
 					origin: "printed-text",
-					raw: "sudo -E /home/op/.local/bin/refarm cert trust",
+					raw: "sudo -E /home/op/.local/bin/refarm cert trust system",
 					head: "/home/op/.local/bin/refarm",
-					tokens: ["cert", "trust"],
+					tokens: ["cert", "trust", "system"],
 					sudoInText: true,
 				},
 			],
 			tree: TREE,
 			privilegedSteps: PRIVILEGED_STEPS,
 			binaryNames: BINARY_NAMES,
-			sourceOf: () => 'const CERT = "sudo -E /home/op/.local/bin/refarm cert trust";',
+			sourceOf: () => 'const CERT = "sudo -E /home/op/.local/bin/refarm cert trust system";',
 		}).map((violation) => violation.code);
 		expect(codes).toEqual(["hardcoded-home-path"]);
 	});

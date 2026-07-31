@@ -14,12 +14,14 @@
 
 import { refarmCommand } from "../../../src/brand.js";
 
-/** BROKEN — `cert trust` is declared privileged, and `sudo`'s secure_path omits `~/.local/bin`,
- *  so the bare binary is not found. This is the exact line `refarm cert issue` used to print. */
-export const BARE_PRIVILEGED_STEP = refarmCommand(["cert", "trust"]);
+/** BROKEN — `cert trust system` is declared privileged, and `sudo`'s secure_path omits
+ *  `~/.local/bin`, so the bare binary is not found. This is the exact shape `refarm cert issue`
+ *  used to print. (Its sibling `refarm cert trust` — the browser scope — is NOT broken: it writes
+ *  inside `$HOME` and needs no privilege, which is why it is absent from this file.) */
+export const BARE_PRIVILEGED_STEP = refarmCommand(["cert", "trust", "system"]);
 
 /** BROKEN — the same step spelled out under `sudo` in printed prose. */
-export const SUDO_IN_PROSE = "Re-run as `sudo -E refarm cert trust`.";
+export const SUDO_IN_PROSE = "Re-run as `sudo -E refarm cert trust system`.";
 
 /** BROKEN twice over — no such subcommand (a shell finds `refarm`, and `refarm` refuses), and
  *  `--json` is an option of `cert trust`, which this does not reach, not of the `cert` group. */
