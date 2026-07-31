@@ -10,6 +10,7 @@ import { checkCommand } from "./commands/check.js";
 import { configCommand } from "./commands/config.js";
 import { configureCommand } from "./commands/configure.js";
 import { connectionCommand } from "./commands/connection.js";
+import { deliveryCommand } from "./commands/delivery-command.js";
 import { deployCommand } from "./commands/deploy.js";
 import { discoverCommand } from "./commands/discover.js";
 import { distCommand } from "./commands/dist.js";
@@ -143,6 +144,47 @@ program
 		await runSessionLaunchFlow();
 	});
 
+/**
+ * THE LAST MILE — declared delivery is brought up once, before any command runs.
+ *
+ * This is the only place in the CLI that knows delivery exists, and it is here
+ * rather than in a wizard because of D5: *"a wizard author writes nothing about
+ * delivery"*. `installDeclaredDelivery` declares where this process publishes its
+ * questions; every `createStdioOperatorChannel()` built afterwards — in `auth`,
+ * in `init`, in `sow`, in anything not yet written — is peered with the declared
+ * channels automatically. Not one of them changes, and none can tell.
+ *
+ * Three things keep this honest:
+ *
+ *  - **undeclared is inert (D1)**: with no `delivery` block the install returns
+ *    before the adapter registry is even imported, and nothing is installed, so
+ *    prompts run the identical code path they ran before this hook existed;
+ *  - **it can never break a command (D4)**: the whole call is contained, and a
+ *    failure to arrange notification is reported on stderr, never raised into
+ *    the command the operator actually ran;
+ *  - **the dynamic import** keeps the delivery graph out of CLI startup for the
+ *    invocations (the vast majority) that never mount anything.
+ */
+program.hook("preAction", async (_thisCommand, actionCommand) => {
+	try {
+		const { askerForCommandPath, installDeclaredDelivery } = await import(
+			"./commands/delivery-mount.js"
+		);
+		const argvPath: string[] = [];
+		for (let node: Command | null = actionCommand; node && node.parent; node = node.parent) {
+			argvPath.unshift(node.name());
+		}
+		await installDeclaredDelivery({ asker: askerForCommandPath(argvPath) });
+	} catch (error) {
+		// Notification is never the reason a command does not run.
+		process.stderr.write(
+			`refarm delivery: could not bring up declared delivery (${
+				error instanceof Error ? error.message : String(error)
+			})\n`,
+		);
+	}
+});
+
 program.addCommand(
 	createLazyCommand<{ force?: boolean }>({
 		name: "init",
@@ -233,6 +275,7 @@ program.addCommand(discoverCommand);
 program.addCommand(serveCommand);
 program.addCommand(workspaceCommand);
 program.addCommand(connectionCommand);
+program.addCommand(deliveryCommand);
 program.addCommand(intentionCommand);
 program.addCommand(tuiCommand);
 program.addCommand(headlessCommand);
