@@ -1,0 +1,32 @@
+{
+	"name": "@refarm.dev/attend-web-v1",
+	"version": "0.1.0",
+	"private": true,
+	"description": "The browser's half of a pending prompt — read the questions, render each kind, answer one, and tell the three refusals apart. Zero dependencies, browser-first",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		},
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run",
+		"clean": "rm -rf dist",
+		"lint": "eslint src"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/prompt-contract-v1": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"typescript": "catalog:"
+	}
+}
