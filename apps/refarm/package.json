@@ -35,6 +35,8 @@
 		"@refarm.dev/cli": "workspace:*",
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/context-provider-v1": "workspace:*",
+		"@refarm.dev/delivery-contract-v1": "workspace:*",
+		"@refarm.dev/delivery-telegram": "workspace:*",
 		"@refarm.dev/dispatch-surface": "workspace:*",
 		"@refarm.dev/ds": "workspace:*",
 		"@refarm.dev/effort-contract-v1": "workspace:*",

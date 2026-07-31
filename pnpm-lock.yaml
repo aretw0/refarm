@@ -360,6 +360,12 @@ importers:
       '@refarm.dev/context-provider-v1':
         specifier: workspace:*
         version: link:../../packages/context-provider-v1
+      '@refarm.dev/delivery-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/delivery-contract-v1
+      '@refarm.dev/delivery-telegram':
+        specifier: workspace:*
+        version: link:../../packages/delivery-telegram
       '@refarm.dev/dispatch-surface':
         specifier: workspace:*
         version: link:../../packages/dispatch-surface

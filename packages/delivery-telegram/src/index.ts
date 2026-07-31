@@ -29,9 +29,12 @@ import {
 	assertNoSecretInDetail,
 	couldNotAttempt,
 	delivered,
+	DeliveryDeclarationError,
 	refused,
 	scrubSecret,
 	type DeliveryAdapter,
+	type DeliveryAdapterContext,
+	type DeliveryAdapterFactory,
 	type DeliveryAnswerSink,
 	type DeliveryOutcome,
 	type DeliveryRequest,
@@ -508,3 +511,34 @@ function errorMessage(error: unknown): string {
 	if (error instanceof Error) return error.message;
 	return typeof error === "string" ? error : "unknown error";
 }
+
+/**
+ * The registry entry. This is the whole of what refarm's core imports — it
+ * never learns that a chat id, an inline keyboard or `getUpdates` exist.
+ *
+ * A missing `chatId` is refused HERE, at resolution, rather than becoming a
+ * 400 from Telegram the first time the operator is actually waiting for
+ * something.
+ */
+export const telegramDeliveryAdapterFactory: DeliveryAdapterFactory = {
+	id: TELEGRAM_ADAPTER_ID,
+	create(context: DeliveryAdapterContext): DeliveryAdapter {
+		const chatId = context.declaration.options.chatId;
+		if (typeof chatId !== "string" && typeof chatId !== "number") {
+			throw new DeliveryDeclarationError(
+				`delivery."${context.declaration.name}": telegram needs a "chatId" — the chat the bot ` +
+					`should message. It is an identifier, not a secret, so it belongs in the declaration.`,
+			);
+		}
+		const resolved = String(chatId).trim();
+		if (!resolved) {
+			throw new DeliveryDeclarationError(
+				`delivery."${context.declaration.name}": telegram's "chatId" must not be blank`,
+			);
+		}
+		return createTelegramDeliveryAdapter({
+			chatId: resolved,
+			resolveToken: () => context.resolveToken(),
+		});
+	},
+};

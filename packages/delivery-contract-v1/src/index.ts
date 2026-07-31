@@ -208,6 +208,34 @@ export interface DeliveryAdapter {
 }
 
 /**
+ * What an adapter package needs to build one instance of itself from one
+ * declaration.
+ *
+ * `resolveToken` is a THUNK, not a value: the core resolves the declared secret
+ * at the moment of use and the adapter never receives it early, never stores
+ * it, and never sees where it came from. That is what keeps "a declaration
+ * names where a secret comes from" true all the way down.
+ */
+export interface DeliveryAdapterContext {
+	declaration: DeliveryDeclaration;
+	resolveToken(): Promise<string>;
+}
+
+/**
+ * The registry entry (D2). An adapter package exports ONE of these, and the
+ * core's registry is one import and one array element — the `identity-sources.ts`
+ * precedent, which is the whole measure of whether this seam succeeded.
+ *
+ * `create` may throw `DeliveryDeclarationError` for a declaration it cannot
+ * serve (a missing chat id, an unparseable option). Refusing at resolution is
+ * the point: an adapter that half-builds itself fails at 3am instead.
+ */
+export interface DeliveryAdapterFactory {
+	readonly id: string;
+	create(context: DeliveryAdapterContext): DeliveryAdapter;
+}
+
+/**
  * S3, structurally: a thing may not declare a capability it cannot enforce.
  *
  * An adapter object claiming `capability: "answer"` without an `offerAnswer`
