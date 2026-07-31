@@ -1,17 +1,23 @@
 import {
 	checkPendingPromptAnswer,
+	checkPendingPromptListWire,
 	parsePendingPromptList,
 	promptAnswerTravels,
 	toPendingPrompt,
+	PENDING_PROMPT_WIRE,
 	type OperatorPrompt,
 } from "@refarm.dev/prompt-contract-v1";
 import { describe, expect, it } from "vitest";
 
 import {
+	ATTEND_WIRE,
 	attendAnswerPath,
 	attendAnswerTravels,
 	checkAttendAnswer,
+	checkAttendListWire,
+	checkAttendWire,
 	describeAttendingDevice,
+	readDeclaredAttendWire,
 	readPendingPromptList,
 } from "./wire.js";
 
@@ -95,6 +101,18 @@ describe("reading `GET /prompts` in a browser", () => {
 		expect(attendAnswerPath("p/1")).toBe("/prompts/p%2F1/answer");
 	});
 
+	it("shows what a node that has moved on would otherwise do to this page", () => {
+		// The defect, made visible: with a wire the reader does not recognise, EVERY entry
+		// is dropped and the page paints "Nothing pending" over a farm full of questions.
+		// That is why the envelope check has to run before the reader, not after it.
+		const moved = {
+			wire: "pending-prompt.v2",
+			prompts: PROMPTS.map(published).map((entry) => ({ ...entry, wire: "pending-prompt.v2" })),
+		};
+		expect(readPendingPromptList(moved)).toEqual([]);
+		expect(checkAttendListWire(moved).verdict).toBe("incompatible");
+	});
+
 	it("names the reserved identities without letting a device impersonate one", () => {
 		expect(describeAttendingDevice(" terminal")).toBe("the terminal that asked");
 		expect(describeAttendingDevice(" node-local")).toBe("the node itself");
@@ -158,5 +176,92 @@ describe("the browser reader agrees with the block, case for case", () => {
 		expect(refusal.ok).toBe(false);
 		if (refusal.ok) return;
 		expect(refusal.reason).not.toContain("12345");
+	});
+
+	it("speaks the SAME version the block declares", () => {
+		// The one constant that must never drift: the page's literal and the block's
+		// exported constant are the same string, or this whole check is checking nothing.
+		expect(ATTEND_WIRE).toBe(PENDING_PROMPT_WIRE);
+	});
+
+	it("returns the same wire verdict for every envelope worth disagreeing about", () => {
+		const bodies: unknown[] = [
+			{ pollIntervalMs: 2000, prompts: [], wire: "pending-prompt.v1" },
+			{ pollIntervalMs: 2000, prompts: [], wire: "pending-prompt.v2" },
+			{ pollIntervalMs: 2000, prompts: [], wire: "pending-prompt.v0" },
+			{ pollIntervalMs: 2000, prompts: [], wire: "pending-prompt.v1 " },
+			{ pollIntervalMs: 2000, prompts: [], wire: "" },
+			{ pollIntervalMs: 2000, prompts: [], wire: null },
+			{ pollIntervalMs: 2000, prompts: [], wire: 1 },
+			{ pollIntervalMs: 2000, prompts: [] },
+			{},
+			null,
+			undefined,
+			7,
+			"pending-prompt.v1",
+			[{ wire: "pending-prompt.v1" }],
+		];
+		for (const body of bodies) {
+			expect({ body, check: checkAttendListWire(body) }).toEqual({
+				body,
+				check: checkPendingPromptListWire(body),
+			});
+		}
+	});
+});
+
+describe("the declared wire version, in a browser", () => {
+	/** What `GET /prompts` returns from the node today, pinned as a literal. This is the
+	 *  shape the operator's surfaces are talking to right now, and it must keep passing. */
+	const LIVE_ENVELOPE = { pollIntervalMs: 2000, prompts: [], wire: "pending-prompt.v1" };
+
+	it("says compatible for the envelope the node serves today", () => {
+		expect(checkAttendListWire(LIVE_ENVELOPE)).toEqual({
+			verdict: "compatible",
+			declared: "pending-prompt.v1",
+			expected: ATTEND_WIRE,
+		});
+	});
+
+	it("says incompatible for a version this page does not speak", () => {
+		const check = checkAttendListWire({ ...LIVE_ENVELOPE, wire: "pending-prompt.v2" });
+		expect(check.verdict).toBe("incompatible");
+		expect(check.declared).toBe("pending-prompt.v2");
+		expect(check.expected).toBe(ATTEND_WIRE);
+	});
+
+	it("says unknown — never compatible — when the node declared nothing", () => {
+		for (const body of [
+			{ pollIntervalMs: 2000, prompts: [] },
+			{ ...LIVE_ENVELOPE, wire: "" },
+			{ ...LIVE_ENVELOPE, wire: 2 },
+			{ ...LIVE_ENVELOPE, wire: null },
+			null,
+			undefined,
+			"not an object",
+			[LIVE_ENVELOPE],
+		]) {
+			const check = checkAttendListWire(body);
+			expect(check.verdict).toBe("unknown");
+			expect(check.verdict).not.toBe("compatible");
+			expect(check.declared).toBeNull();
+		}
+	});
+
+	it("compares by exact match — a near-miss refuses rather than guessing", () => {
+		for (const near of [
+			"pending-prompt.v1 ",
+			"Pending-Prompt.v1",
+			"pending-prompt.v10",
+			"pending-prompt",
+		]) {
+			expect(checkAttendWire(near).verdict).toBe("incompatible");
+		}
+		expect(checkAttendWire(ATTEND_WIRE).verdict).toBe("compatible");
+	});
+
+	it("reads the declared version off an envelope, or null", () => {
+		expect(readDeclaredAttendWire(LIVE_ENVELOPE)).toBe("pending-prompt.v1");
+		expect(readDeclaredAttendWire({ prompts: [] })).toBeNull();
 	});
 });

@@ -56,6 +56,55 @@ export function declaredPollIntervalMs(listBody) {
 		: DEFAULT_POLL_INTERVAL_MS;
 }
 
+// ── A versão do fio, conferida ────────────────────────────────────────────────
+//
+// O nó SEMPRE declarou `wire` no envelope de `GET /prompts`. Declarar e ninguém
+// ler é decoração: um nó que mudasse de forma continuaria sendo consultado, por
+// um kit congelado, como se nada tivesse acontecido — e o estrago seria SILENCIOSO,
+// porque `parsePendingPromptList` descarta o que não reconhece. O aparelho
+// mostraria "nada pendente" para uma fazenda cheia de perguntas.
+//
+// A DECISÃO (compatível / incompatível / não declarado) mora no bloco vendorado,
+// junto da forma que ela protege — um lugar só, para os três clientes. O que mora
+// aqui é a SUPERFÍCIE: as palavras que o operador lê e o comando que resolve. É a
+// mesma divisão do resto deste módulo — a forma diz o que a pergunta É, a
+// superfície decide como ela aparece.
+
+/** O comando que traz o kit para a versão que o nó publica. O kit tem UM. */
+export const KIT_UPDATE_COMMAND = "farm-update";
+
+/**
+ * A recusa, com o que o operador precisa para agir: o que este kit fala, o que o
+ * nó fala, e o único comando que conserta. PURO — devolve linhas, quem chama imprime.
+ *
+ * Por que `farm-update` é O comando: neste desenho o kit se atualiza A PARTIR do
+ * nó (`refarm dist publish` no PC, `farm-update` no aparelho). O nó é sempre o
+ * lado que anda primeiro; o kit é sempre o lado que fica para trás. Então o
+ * desencontro que esta topologia produz tem um conserto só, e é este.
+ */
+export function wireRefusalLines(check, { updateCommand = KIT_UPDATE_COMMAND } = {}) {
+	return [
+		"❌ este nó fala uma versão do fio de perguntas que este kit não conhece.",
+		`   este kit fala: ${check.expected}`,
+		`   o nó fala:     ${check.declared}`,
+		`   Atualize o kit com: ${updateCommand}`,
+		"   Enquanto não atualizar, responda no terminal que perguntou.",
+	];
+}
+
+/**
+ * O outro lado não declarou versão nenhuma.
+ *
+ * Não é recusa, e é dito. Um nó anterior à declaração é um nó mais VELHO que este
+ * kit, não um nó quebrado — e travar aqui tiraria do ar um aparelho que hoje
+ * funciona, que é o oposto do que uma trava de segurança serve. Mas seguir calado
+ * seria fingir que houve conferência: a linha existe para o operador saber que
+ * passou sem conferir. PURO.
+ */
+export function wireUnknownLine(check) {
+	return `⚠ este nó não declarou a versão do fio — seguindo como ${check.expected}, sem conferir.`;
+}
+
 // ── O que o sidecar respondeu ─────────────────────────────────────────────────
 
 /**

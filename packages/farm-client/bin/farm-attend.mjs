@@ -32,6 +32,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+	checkPendingPromptListWire,
 	createStdioOperatorChannel,
 	parsePendingPromptList,
 } from "../vendor/prompt-contract-v1.mjs";
@@ -48,6 +49,8 @@ import {
 	nextPollDelayMs,
 	promptHeaderLines,
 	PROMPTS_PATH,
+	wireRefusalLines,
+	wireUnknownLine,
 } from "../src/pending-prompt.mjs";
 import { sidecarExposureLines } from "../src/reach.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
@@ -98,6 +101,35 @@ if (!(await sidecarUp(host))) {
 	process.exit(1);
 }
 
+/** O aviso de "não declarou nada" é dito UMA vez por execução. Em `--watch` a
+ *  mesma linha a cada duas voltas viraria ruído, e ruído não se lê. */
+let saidWireUnknown = false;
+
+/**
+ * A versão do fio que o nó declarou, HONRADA — três respostas, não duas.
+ *
+ *   compatível     → segue.
+ *   incompatível   → recusa, dizendo o que conserta. Nunca segue torcendo: as
+ *                    perguntas seriam DESCARTADAS pelo parser e o aparelho diria
+ *                    "nada pendente" para uma fazenda cheia — o estrago silencioso
+ *                    que esta conferência existe para impedir. Esperar não
+ *                    resolve, então recusa vale também em `--watch`.
+ *   não declarou   → segue, e DIZ. Um nó sem a declaração é um nó mais velho que
+ *                    este kit; travar aqui derrubaria um aparelho que funciona
+ *                    hoje, sem nenhum sinal de que algo esteja errado.
+ */
+function honourDeclaredWire(body) {
+	const check = checkPendingPromptListWire(body);
+	if (check.verdict === "incompatible") {
+		for (const line of wireRefusalLines(check)) console.error(line);
+		process.exit(1);
+	}
+	if (check.verdict === "unknown" && !saidWireUnknown) {
+		console.error(wireUnknownLine(check));
+		saidWireUnknown = true;
+	}
+}
+
 /** O que está pendente agora. `null` quando a consulta falhou — diferente de
  *  "nada pendente", e tratado diferente: um erro de rede não é uma fazenda calma. */
 async function fetchPending() {
@@ -112,6 +144,7 @@ async function fetchPending() {
 		}
 		if (!res.ok) return { prompts: null, pollIntervalMs: null, status: res.status };
 		const body = await res.json();
+		honourDeclaredWire(body);
 		return {
 			prompts: parsePendingPromptList(body),
 			pollIntervalMs: declaredPollIntervalMs(body),

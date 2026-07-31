@@ -529,6 +529,55 @@ export async function runOperatorChannelConformance(channel, options = {}) {
 /** Wire discriminator. Bump only for a breaking change to the shape below. */
 export const PENDING_PROMPT_WIRE = "pending-prompt.v1";
 /**
+ * The `wire` a `GET /prompts` envelope declared, or `null`.
+ *
+ * An empty string is `null`, not a version: a peer that sent `""` declared
+ * nothing, and treating it as a version to compare against would manufacture an
+ * incompatibility out of a blank field.
+ */
+export function readDeclaredPendingPromptWire(body) {
+    if (!isRecord(body))
+        return null;
+    const declared = body.wire;
+    return typeof declared === "string" && declared !== "" ? declared : null;
+}
+/**
+ * Compare what a peer declared against what this side speaks.
+ *
+ * PURE, and it decides nothing about what to DO — a surface reads `verdict` and
+ * chooses its own words and its own remedy, because the remedy differs by
+ * surface (a kit runs `farm-update`; a browser reloads). What must not differ,
+ * and therefore lives here, is the judgement itself.
+ *
+ * ── WHY `unknown` IS ADMITTED AND NOT REFUSED ────────────────────────────────
+ *
+ * `unknown` is a peer that declared nothing. In this topology there is exactly
+ * one thing that can be: a peer OLDER than the declaration. Every peer that has
+ * the field sends it, so refusing on `unknown` would refuse precisely the older
+ * peers — and the older peer, always, is the operator's phone, whose kit is
+ * frozen at the last `farm-update`, and the browser tab holding a cached page.
+ * A safety mechanism whose first act is to lock the operator out of a device
+ * that works today has not made anything safer.
+ *
+ * It is admitted, not ignored. The verdict stays `unknown` all the way to the
+ * surface, which says so; nobody is left believing a version was checked when
+ * none was offered. That is the difference between admitting a case and
+ * collapsing it into `compatible`.
+ */
+export function checkPendingPromptWire(declared, expected = PENDING_PROMPT_WIRE) {
+    if (declared === null)
+        return { verdict: "unknown", declared: null, expected };
+    return {
+        verdict: declared === expected ? "compatible" : "incompatible",
+        declared,
+        expected,
+    };
+}
+/** The verdict on a `GET /prompts` envelope, in one call. */
+export function checkPendingPromptListWire(body, expected = PENDING_PROMPT_WIRE) {
+    return checkPendingPromptWire(readDeclaredPendingPromptWire(body), expected);
+}
+/**
  * The interval an attending device is TOLD to poll at, and the ceiling backoff
  * may walk to. Stated rather than implied: honest polling means a declared
  * interval and a backoff, not as-fast-as-possible (E5 of the phone-initiated

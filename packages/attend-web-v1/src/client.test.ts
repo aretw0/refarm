@@ -156,3 +156,51 @@ describe("the client keeps the three refusals apart", () => {
 		expect(calls[0]?.init?.signal).toBe(controller.signal);
 	});
 });
+
+describe("the client honours the wire version the node declares", () => {
+	it("proceeds on the version it speaks, and reports the verdict", async () => {
+		const { fetch } = scripted(() => json(200, listBody));
+		const outcome = await createAttendClient({ fetch, token: () => "tok" }).list();
+		expect(outcome.ok).toBe(true);
+		if (!outcome.ok) return;
+		expect(outcome.wire.verdict).toBe("compatible");
+		expect(outcome.prompts).toHaveLength(1);
+	});
+
+	it("refuses a version it does not speak, instead of reading an empty list", async () => {
+		// Without the check the reader would drop every entry and this would come back
+		// `ok: true` with `prompts: []` — a page confidently showing "Nothing pending".
+		const moved = {
+			...listBody,
+			wire: "pending-prompt.v2",
+			prompts: listBody.prompts.map((p) => ({ ...p, wire: "pending-prompt.v2" })),
+		};
+		const outcome = await createAttendClient({
+			fetch: scripted(() => json(200, moved)).fetch,
+			token: () => "tok",
+		}).list();
+		expect(outcome.ok).toBe(false);
+		if (outcome.ok) return;
+		expect(outcome.refusal).toEqual({
+			reason: "wire-incompatible",
+			declared: "pending-prompt.v2",
+			expected: "pending-prompt.v1",
+		});
+	});
+
+	it("proceeds on a node that declared nothing, and says which case that was", async () => {
+		// The operator's frozen surfaces, still working. `unknown` never becomes
+		// `compatible`, and it never becomes a refusal either.
+		const { wire: _dropped, ...undeclared } = listBody;
+		const { fetch } = scripted(() => json(200, undeclared));
+		const outcome = await createAttendClient({ fetch, token: () => "tok" }).list();
+		expect(outcome.ok).toBe(true);
+		if (!outcome.ok) return;
+		expect(outcome.wire.verdict).toBe("unknown");
+		expect(outcome.wire.verdict).not.toBe("compatible");
+		// Still fully usable: the prompts themselves declare their own wire, and they do
+		// speak this one.
+		expect(outcome.prompts).toHaveLength(1);
+		expect(outcome.prompts[0]?.id).toBe("p-1");
+	});
+});

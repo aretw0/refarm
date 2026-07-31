@@ -141,10 +141,12 @@ import {
   createMemoryAttendStorage,
   describeAttendExpiry,
   describeAttendRefusal,
+  describeAttendWireNotice,
   describeAttendingDevice,
   loadAttendCredential,
   nextAttendPollDelayMs,
   nextAttendRetryDelayMs,
+  refusalIsTerminal,
   refusalNeedsNewCredential,
   saveAttendCredential,
 } from "${ATTEND_LIB_PREFIX}index.js";
@@ -450,6 +452,17 @@ async function tick() {
       const ok = await reauthenticate();
       return ok ? 0 : null;
     }
+    // The node declared a wire version this page cannot speak. A page cached in a
+    // browser is a frozen client, exactly as the kit on a phone is, and the honest
+    // response is to STOP and say what fixes it — not to keep polling and paint
+    // "Nothing pending" over a farm full of questions, which is what the reader
+    // dropping every unrecognised entry would otherwise look like.
+    if (refusalIsTerminal(outcome.refusal)) {
+      say(describeAttendRefusal(outcome.refusal, describeAttendingDevice), "bad");
+      main.replaceChildren();
+      cards.clear();
+      return null;
+    }
     // Unreachable is the network, and the page says exactly that rather than blaming the
     // credential. It backs off hard instead of hammering a node that is down.
     failures += 1;
@@ -458,7 +471,12 @@ async function tick() {
   }
 
   failures = 0;
-  say("");
+  // \`unknown\` — the node declared no wire version — is admitted, and SAID. Collapsing
+  // it into "compatible" is how a silent break happens; refusing it would take a
+  // working surface off the air over a peer merely being older. A matching version
+  // returns null here and the banner clears, because a banner that is always on is a
+  // banner nobody reads.
+  say(describeAttendWireNotice(outcome.wire) ?? "");
   reconcile(outcome.prompts);
   emptyRounds = outcome.prompts.length > 0 ? 0 : emptyRounds + 1;
   // The cadence the NODE advertised is the floor. This page never asks faster.

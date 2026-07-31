@@ -22,7 +22,12 @@ import {
 	type AttendRefusal,
 } from "./refusal.js";
 import { declaredAttendPollIntervalMs } from "./poll.js";
-import { ATTEND_PROMPTS_PATH, attendAnswerPath, readPendingPromptList } from "./wire.js";
+import {
+	ATTEND_PROMPTS_PATH,
+	attendAnswerPath,
+	readPendingPromptList,
+	type AttendWireCheck,
+} from "./wire.js";
 
 import type { PendingPrompt } from "@refarm.dev/prompt-contract-v1";
 
@@ -45,6 +50,12 @@ export interface AttendListResult {
 	readonly prompts: readonly PendingPrompt[];
 	/** What the node said its polling cadence is. The caller must not undercut it. */
 	readonly pollIntervalMs: number;
+	/**
+	 * The verdict on the node's declared wire version. Never `incompatible` here — that
+	 * became a refusal — but `unknown` reaches the page on purpose, so it can say that the
+	 * node declared nothing rather than implying a check that did not happen.
+	 */
+	readonly wire: AttendWireCheck;
 }
 
 export type AttendListOutcome = AttendListResult | { readonly ok: false; readonly refusal: AttendRefusal };
@@ -94,6 +105,7 @@ export function createAttendClient(options: AttendClientOptions): AttendClient {
 				ok: true,
 				prompts: readPendingPromptList(classified.body),
 				pollIntervalMs: declaredAttendPollIntervalMs(classified.body),
+				wire: classified.wire,
 			};
 		},
 

@@ -752,6 +752,114 @@ export async function runOperatorChannelConformance(
 /** Wire discriminator. Bump only for a breaking change to the shape below. */
 export const PENDING_PROMPT_WIRE = "pending-prompt.v1" as const;
 
+// ── Skew: the declared version, CHECKED ───────────────────────────────────────
+//
+// `GET /prompts` has always declared `wire` in its envelope. Declaring it and
+// having nobody read it is decoration: a node that moved to a newer shape would
+// be talked to, by a frozen client, exactly as though nothing had happened —
+// misparsing quietly rather than refusing loudly. The kit on the operator's
+// phone is a VENDORED copy frozen at whatever `farm-update` last fetched, and a
+// page cached in a browser is the same frozen client with a different name, so
+// "the other side is older than me" is the normal condition here, not the exotic
+// one.
+//
+// The check lives HERE, beside the constant it enforces, for the same reason the
+// shape does: this block is zero-dependency and already travels inside the kit,
+// so the phone can make the judgement with nothing installed.
+//
+// ── EXACT MATCH, NOT A COMPATIBILITY RULE ────────────────────────────────────
+//
+// `pending-prompt.v1` is ONE opaque discriminator, not a semver triple. There is
+// no minor or patch component a rule could be lenient about, so any rule would
+// first have to invent a versioning scheme the wire does not have — and then be
+// right about it forever, in a frozen copy on a device nobody can reach.
+//
+// It is also unnecessary. The doc above says the constant is bumped ONLY for a
+// breaking change, which means every difference in it is by construction
+// breaking. Additive, non-breaking growth already needs no bump at all:
+// `parsePendingPrompt` ignores fields it does not know, so the shape can gain
+// them without the discriminator moving. Friendliness therefore already exists,
+// in the parser, where it is tested. A second lenient mechanism layered on the
+// version would overlap it and could be WRONG, which is the one thing this check
+// exists to prevent.
+//
+// So: string equality. Blunt, and it cannot mislead.
+
+export type PendingPromptWireVerdict = "compatible" | "incompatible" | "unknown";
+
+/**
+ * The verdict on a peer's declared wire version.
+ *
+ * Three answers, not two — the same distinction this codebase keeps making
+ * between `down` and `unknown`, between no-peers and could-not-ask. "The peer
+ * says something I cannot speak" and "the peer said nothing" are different
+ * facts with different right responses, and collapsing them is how a silent
+ * break happens.
+ */
+export interface PendingPromptWireCheck {
+	readonly verdict: PendingPromptWireVerdict;
+	/** What the peer declared, or `null` when it declared nothing at all. */
+	readonly declared: string | null;
+	/** What the side doing the checking speaks. */
+	readonly expected: string;
+}
+
+/**
+ * The `wire` a `GET /prompts` envelope declared, or `null`.
+ *
+ * An empty string is `null`, not a version: a peer that sent `""` declared
+ * nothing, and treating it as a version to compare against would manufacture an
+ * incompatibility out of a blank field.
+ */
+export function readDeclaredPendingPromptWire(body: unknown): string | null {
+	if (!isRecord(body)) return null;
+	const declared = body.wire;
+	return typeof declared === "string" && declared !== "" ? declared : null;
+}
+
+/**
+ * Compare what a peer declared against what this side speaks.
+ *
+ * PURE, and it decides nothing about what to DO — a surface reads `verdict` and
+ * chooses its own words and its own remedy, because the remedy differs by
+ * surface (a kit runs `farm-update`; a browser reloads). What must not differ,
+ * and therefore lives here, is the judgement itself.
+ *
+ * ── WHY `unknown` IS ADMITTED AND NOT REFUSED ────────────────────────────────
+ *
+ * `unknown` is a peer that declared nothing. In this topology there is exactly
+ * one thing that can be: a peer OLDER than the declaration. Every peer that has
+ * the field sends it, so refusing on `unknown` would refuse precisely the older
+ * peers — and the older peer, always, is the operator's phone, whose kit is
+ * frozen at the last `farm-update`, and the browser tab holding a cached page.
+ * A safety mechanism whose first act is to lock the operator out of a device
+ * that works today has not made anything safer.
+ *
+ * It is admitted, not ignored. The verdict stays `unknown` all the way to the
+ * surface, which says so; nobody is left believing a version was checked when
+ * none was offered. That is the difference between admitting a case and
+ * collapsing it into `compatible`.
+ */
+export function checkPendingPromptWire(
+	declared: string | null,
+	expected: string = PENDING_PROMPT_WIRE,
+): PendingPromptWireCheck {
+	if (declared === null) return { verdict: "unknown", declared: null, expected };
+	return {
+		verdict: declared === expected ? "compatible" : "incompatible",
+		declared,
+		expected,
+	};
+}
+
+/** The verdict on a `GET /prompts` envelope, in one call. */
+export function checkPendingPromptListWire(
+	body: unknown,
+	expected: string = PENDING_PROMPT_WIRE,
+): PendingPromptWireCheck {
+	return checkPendingPromptWire(readDeclaredPendingPromptWire(body), expected);
+}
+
 /**
  * The interval an attending device is TOLD to poll at, and the ceiling backoff
  * may walk to. Stated rather than implied: honest polling means a declared

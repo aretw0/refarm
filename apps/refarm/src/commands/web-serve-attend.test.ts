@@ -205,6 +205,42 @@ describe("the page lives on the listener, not in the cold-bootstrap kit", () => 
 		expect((await fetch(`${url}/`)).status).toBe(200);
 	});
 
+	it("the page honours the wire version the node declares, from the block's own check", async () => {
+		const url = await serve();
+		const html = await (await fetch(`${url}${ATTEND_PAGE_PATH}`)).text();
+
+		// A page cached in a browser is a frozen client, exactly as the kit on a phone is.
+		// It must therefore READ the version the node declares rather than assume it — and
+		// it must do so through the block, not through a copy of the rule written here.
+		expect(html).toContain("refusalIsTerminal");
+		expect(html).toContain("describeAttendWireNotice");
+		// No version literal in the page: the constant lives in the block, and a second
+		// copy here would be the next thing to drift.
+		expect(html).not.toContain("pending-prompt.v");
+
+		// And the block it imports really exports them — followed through the module
+		// GRAPH, not asserted against a bundle. `tsc` emits one file per source file, so
+		// `index.js` carries only re-export lines and the symbols live in their own
+		// modules; a browser resolves that fine. Asserting the symbol inside `index.js`
+		// asserted a bundled shape this build never produces, which is why it failed while
+		// the page itself was correct.
+		const entry = await (await fetch(`${url}/attend/lib/index.js`)).text();
+		const reexported = [...entry.matchAll(/from\s+"\.\/([\w.-]+\.js)"/g)].map((m) => m[1]);
+		expect(reexported.length).toBeGreaterThan(0);
+
+		const graph = await Promise.all(
+			reexported.map(async (file) => {
+				const response = await fetch(`${url}/attend/lib/${file}`);
+				expect(response.status).toBe(200);
+				return response.text();
+			}),
+		);
+		const served = [entry, ...graph].join("\n");
+		for (const symbol of ["refusalIsTerminal", "describeAttendWireNotice", "checkAttendListWire"]) {
+			expect(served).toContain(symbol);
+		}
+	});
+
 	it("does not shadow a static file that happens to be called something else", async () => {
 		writeFileSync(path.join(root, "attendance.txt"), "not the page");
 		const url = await serve();

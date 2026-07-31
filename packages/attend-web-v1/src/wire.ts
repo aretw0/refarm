@@ -48,6 +48,16 @@ import type {
 /** The route that lists what is waiting. */
 export const ATTEND_PROMPTS_PATH = "/prompts";
 
+/**
+ * The wire version THIS page speaks — the block's `PENDING_PROMPT_WIRE`.
+ *
+ * A literal for the same mechanical reason the reader below is a copy: the block's
+ * runtime cannot be loaded in a browser, so a value cannot be imported from it, only a
+ * type. The agreement test in `wire.test.ts` asserts this equals the block's constant, so
+ * the two cannot drift apart without a red test.
+ */
+export const ATTEND_WIRE = "pending-prompt.v1" as const;
+
 /** The route that answers ONE question. */
 export function attendAnswerPath(promptId: string): string {
 	return `/prompts/${encodeURIComponent(promptId)}/answer`;
@@ -128,10 +138,66 @@ export function attendAnswerTravels(prompt: OperatorPrompt): boolean {
 	return prompt.type === "secret";
 }
 
+// ── The version the node declares, CHECKED ────────────────────────────────────────
+//
+// A page cached in a browser is the same frozen client the vendored kit is: it holds the
+// JavaScript that was current when the tab was opened, and it keeps polling a node that
+// may have moved on. Without this, a moved node produces the worst possible screen —
+// "Nothing pending", forever, on a farm full of questions, because `readPendingPrompt`
+// below drops every entry whose `wire` it does not recognise. Silent, confident, wrong.
+//
+// A COPY of the block's `checkPendingPromptWire`, for the reason at the top of this file,
+// and covered by the same agreement test. Exact match, not a compatibility rule: the
+// discriminator is one opaque token that moves only for a breaking change, so every
+// difference in it is breaking, and a rule would have to invent a versioning scheme the
+// wire does not have.
+
+export type AttendWireVerdict = "compatible" | "incompatible" | "unknown";
+
+export interface AttendWireCheck {
+	readonly verdict: AttendWireVerdict;
+	/** What the node declared, or `null` when it declared nothing at all. */
+	readonly declared: string | null;
+	/** What this page speaks. */
+	readonly expected: string;
+}
+
+/** The `wire` a `GET /prompts` envelope declared, or null. An empty string is nothing
+ *  declared, not a version to compare against. */
+export function readDeclaredAttendWire(body: unknown): string | null {
+	if (!isRecord(body)) return null;
+	const declared = body.wire;
+	return typeof declared === "string" && declared !== "" ? declared : null;
+}
+
+/**
+ * Three answers, never two.
+ *
+ * `unknown` — the node declared nothing — is ADMITTED, and it is said. In this topology
+ * a peer that declares nothing is a peer OLDER than the declaration, and every node that
+ * has the field sends it; refusing here would refuse precisely the older peers, and the
+ * older peer is always the operator's own frozen surface. A safety mechanism whose first
+ * act is to lock someone out of a device that works today has made nothing safer. But it
+ * does not become `compatible`: the verdict survives to the page, which shows it, so
+ * nobody believes a version was checked when none was offered.
+ */
+export function checkAttendWire(
+	declared: string | null,
+	expected: string = ATTEND_WIRE,
+): AttendWireCheck {
+	if (declared === null) return { verdict: "unknown", declared: null, expected };
+	return { verdict: declared === expected ? "compatible" : "incompatible", declared, expected };
+}
+
+/** The verdict on a `GET /prompts` envelope, in one call. */
+export function checkAttendListWire(body: unknown, expected: string = ATTEND_WIRE): AttendWireCheck {
+	return checkAttendWire(readDeclaredAttendWire(body), expected);
+}
+
 /** Validate one pending prompt off the wire, or null. */
 export function readPendingPrompt(value: unknown): PendingPrompt | null {
 	if (!isRecord(value)) return null;
-	if (value.wire !== "pending-prompt.v1") return null;
+	if (value.wire !== ATTEND_WIRE) return null;
 	const id = asString(value.id);
 	if (id === null || id === "") return null;
 	const prompt = readOperatorPrompt(value.prompt);
@@ -152,7 +218,7 @@ export function readPendingPrompt(value: unknown): PendingPrompt | null {
 	const host = asString(value.asker.host);
 	if (host !== null) asker.host = host;
 	return {
-		wire: "pending-prompt.v1",
+		wire: ATTEND_WIRE,
 		id,
 		prompt,
 		answerTravels: attendAnswerTravels(prompt),

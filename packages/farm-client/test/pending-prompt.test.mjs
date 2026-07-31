@@ -12,9 +12,13 @@ import {
 	isExpired,
 	MAX_POLL_INTERVAL_MS,
 	nextPollDelayMs,
+	KIT_UPDATE_COMMAND,
 	promptHeaderLines,
 	PROMPTS_PATH,
+	wireRefusalLines,
+	wireUnknownLine,
 } from "../src/pending-prompt.mjs";
+import { checkPendingPromptListWire, PENDING_PROMPT_WIRE } from "../vendor/prompt-contract-v1.mjs";
 
 test("the routes are the wire's, and an id with a slash cannot escape its path", () => {
 	assert.equal(PROMPTS_PATH, "/prompts");
@@ -152,4 +156,51 @@ test("a non-secret prompt carries no scary warning it does not need", () => {
 test("the idle line states the interval, so silence reads as calm and not as a hang", () => {
 	assert.match(idleLine(4000), /4s/);
 	assert.match(idleLine(4000), /Ctrl\+C/);
+});
+
+// ── The declared wire version: the words, and the command ─────────────────────
+//
+// The DECISION lives in the vendored block (one place, three clients). What lives
+// here is what the operator reads, so it is asserted here — a refusal that does
+// not name the fix is a refusal that leaves someone stuck.
+
+test("a refusal names what is old, what is new, and the ONE command that fixes it", () => {
+	const check = checkPendingPromptListWire({ wire: "pending-prompt.v2", prompts: [] });
+	assert.equal(check.verdict, "incompatible");
+
+	const lines = wireRefusalLines(check);
+	const text = lines.join("\n");
+	// What this kit speaks.
+	assert.match(text, /este kit fala: pending-prompt\.v1/);
+	// What the node speaks.
+	assert.match(text, /o nó fala:\s+pending-prompt\.v2/);
+	// The one command.
+	assert.match(text, new RegExp(`Atualize o kit com: ${KIT_UPDATE_COMMAND}`));
+	assert.equal(KIT_UPDATE_COMMAND, "farm-update");
+	// And the way out that never depends on an update landing.
+	assert.match(text, /responda no terminal que perguntou/);
+	// Never a bare "something went wrong".
+	assert.ok(lines.length >= 4);
+});
+
+test("the undeclared case is admitted and NAMED — it never passes as a checked version", () => {
+	// The operator's currently-installed kit talking to a peer that predates the
+	// declaration. Admitting it is deliberate: refusing would take a working device
+	// off the air. Saying nothing would be a lie about what was verified.
+	const check = checkPendingPromptListWire({ pollIntervalMs: 2000, prompts: [] });
+	assert.equal(check.verdict, "unknown");
+	assert.notEqual(check.verdict, "compatible");
+
+	const line = wireUnknownLine(check);
+	assert.match(line, /não declarou a versão do fio/);
+	assert.match(line, new RegExp(PENDING_PROMPT_WIRE.replace(".", "\\.")));
+	// It is a notice, not a refusal: no command to run, nothing to fix.
+	assert.ok(!line.includes(KIT_UPDATE_COMMAND), line);
+});
+
+test("the envelope the node serves today is compatible — the shape the phone talks to now", () => {
+	// Pinned as a literal: this is what `GET /prompts` returns on the operator's
+	// node right now, and the check must keep saying yes to it.
+	const live = { pollIntervalMs: 2000, prompts: [], wire: "pending-prompt.v1" };
+	assert.equal(checkPendingPromptListWire(live).verdict, "compatible");
 });

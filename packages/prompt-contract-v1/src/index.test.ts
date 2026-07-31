@@ -2,6 +2,8 @@ import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 import {
 	checkPendingPromptAnswer,
+	checkPendingPromptListWire,
+	checkPendingPromptWire,
 	createAutoOperatorChannel,
 	createPeeredOperatorChannel,
 	createPendingPromptHub,
@@ -20,6 +22,7 @@ import {
 	parsePendingPromptList,
 	PENDING_PROMPT_WIRE,
 	PROMPT_CAPABILITY,
+	readDeclaredPendingPromptWire,
 	resolveAnsweringDevice,
 	runOperatorChannelConformance,
 	setPromptPublisher,
@@ -622,6 +625,77 @@ describe("PendingPrompt wire shape", () => {
 			default: "ghost",
 		});
 		expect(parsed).toEqual({ type: "select", question: "q", options: [{ value: "a", label: "A" }] });
+	});
+});
+
+describe("the declared wire version, checked", () => {
+	/** The envelope the node serves TODAY, byte-for-byte as `GET /prompts` returns it.
+	 *  Pinned as a literal rather than built from the constant on purpose: this is the
+	 *  shape the operator's phone is talking to right now, and a change to it must break
+	 *  a test here rather than a device in a pocket. */
+	const LIVE_ENVELOPE = { pollIntervalMs: 2000, prompts: [], wire: "pending-prompt.v1" };
+
+	it("says compatible for the envelope the node serves today", () => {
+		expect(checkPendingPromptListWire(LIVE_ENVELOPE)).toEqual({
+			verdict: "compatible",
+			declared: "pending-prompt.v1",
+			expected: PENDING_PROMPT_WIRE,
+		});
+	});
+
+	it("says incompatible — never compatible — for a version this side does not speak", () => {
+		const check = checkPendingPromptListWire({ ...LIVE_ENVELOPE, wire: "pending-prompt.v2" });
+		expect(check.verdict).toBe("incompatible");
+		expect(check.declared).toBe("pending-prompt.v2");
+		expect(check.expected).toBe(PENDING_PROMPT_WIRE);
+	});
+
+	it("says unknown — never compatible — when the peer declared nothing", () => {
+		// THE mutation this suite exists to catch. A peer that declared nothing has not
+		// agreed to anything, and recording that as `compatible` is exactly the silent
+		// break the check was added to stop.
+		for (const body of [
+			{ pollIntervalMs: 2000, prompts: [] }, // an older node: no field at all
+			{ ...LIVE_ENVELOPE, wire: "" }, // a blank field is not a version
+			{ ...LIVE_ENVELOPE, wire: 1 }, // nor is a number
+			{ ...LIVE_ENVELOPE, wire: null },
+			null,
+			"not an object",
+		]) {
+			const check = checkPendingPromptListWire(body);
+			expect(check.verdict).toBe("unknown");
+			expect(check.verdict).not.toBe("compatible");
+			expect(check.declared).toBeNull();
+		}
+	});
+
+	it("compares by exact match, so a near-miss is a refusal and not a guess", () => {
+		// No semver rule, no prefix rule, no case folding. The discriminator moves only
+		// for a breaking change, so every difference in it IS breaking.
+		for (const near of [
+			"pending-prompt.v1 ",
+			"Pending-Prompt.v1",
+			"pending-prompt.v1.1",
+			"pending-prompt.v10",
+			"pending-prompt",
+		]) {
+			expect(checkPendingPromptWire(near).verdict).toBe("incompatible");
+		}
+		expect(checkPendingPromptWire(PENDING_PROMPT_WIRE).verdict).toBe("compatible");
+	});
+
+	it("reads the declared version off an envelope, or null", () => {
+		expect(readDeclaredPendingPromptWire(LIVE_ENVELOPE)).toBe("pending-prompt.v1");
+		expect(readDeclaredPendingPromptWire({ prompts: [] })).toBeNull();
+		expect(readDeclaredPendingPromptWire([{ wire: "pending-prompt.v1" }])).toBeNull();
+	});
+
+	it("what the node serves and what this side expects are the SAME constant", () => {
+		// The end of the defect: the version is declared here and read here.
+		const hub = createPendingPromptHub();
+		hub.publish(pendingOf({ type: "text", question: "Farm name?" }));
+		const served = handlePendingPromptHttp(hub, { method: "GET", path: "/prompts" });
+		expect(checkPendingPromptListWire(served.body).verdict).toBe("compatible");
 	});
 });
 

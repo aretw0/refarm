@@ -41,9 +41,17 @@ async function listenLocal(handler) {
 	throw new Error("no free port in 43901-43919");
 }
 
-/** A node that speaks exactly the two routes the kit needs, plus the `/plugins`
- *  liveness probe every kit command uses to decide the farm is reachable. */
-async function startNode({ authenticatedDevice = "pixel-7" } = {}) {
+/**
+ * A node that speaks exactly the two routes the kit needs, plus the `/plugins`
+ * liveness probe every kit command uses to decide the farm is reachable.
+ *
+ * `declaredWire` rewrites what `GET /prompts` declares, which is the only way to
+ * stand a SKEWED node up: `undefined` leaves the block's own declaration alone,
+ * a string overrides it, and `null` removes the field entirely — the shape a
+ * node older than the declaration serves, and the shape any frozen side produces
+ * for a field it never learned about.
+ */
+async function startNode({ authenticatedDevice = "pixel-7", declaredWire } = {}) {
 	const hub = createPendingPromptHub();
 	const { server, port } = await listenLocal((req, res) => {
 		const url = new URL(req.url, "http://127.0.0.1");
@@ -67,8 +75,14 @@ async function startNode({ authenticatedDevice = "pixel-7" } = {}) {
 				body,
 				authenticatedDevice,
 			});
+			let served = response.body;
+			if (declaredWire !== undefined && url.pathname === "/prompts") {
+				served = { ...served };
+				if (declaredWire === null) delete served.wire;
+				else served.wire = declaredWire;
+			}
 			res.writeHead(response.status, { "content-type": "application/json" });
-			res.end(JSON.stringify(response.body));
+			res.end(JSON.stringify(served));
 		});
 	});
 	return {
@@ -273,4 +287,96 @@ test("refuses to poll forever at a node that does not speak the wire", async () 
 	} finally {
 		await new Promise((resolve) => server.close(resolve));
 	}
+});
+
+// ── The declared wire version, honoured ───────────────────────────────────────
+//
+// The node has always declared `wire` on every `GET /prompts`. Until now nothing
+// read it, which made it decoration: the three cases below are the whole reason
+// it stops being decoration, and each is run against a real node over a real
+// socket, through the same binary the operator's phone runs.
+
+test("a node speaking THIS wire is proceeded with, and nothing is said about versions", async () => {
+	const node = await startNodeTracked();
+	const channel = createRemoteOperatorChannel({ hub: node.hub, asker: ASKER });
+	const asking = channel.ask({ type: "text", question: "Qual o nome?" });
+	await waitForPending(node.hub);
+
+	const { done } = runAttend(node.port, { stdin: "compatível\n" });
+	const result = await done;
+
+	assert.equal(result.code, 0, result.output);
+	assert.equal(await asking, "compatível");
+	// Compatible is the silent case: a version that matches is not news.
+	assert.ok(
+		!/versão do fio/.test(result.output),
+		`a matching version must say nothing:\n${result.output}`,
+	);
+});
+
+test("a node speaking a wire this kit does not know is REFUSED, with the one command that fixes it", async () => {
+	const node = await startNodeTracked({ declaredWire: "pending-prompt.v2" });
+	const channel = createRemoteOperatorChannel({ hub: node.hub, asker: ASKER });
+	const asking = channel.ask({ type: "text", question: "Qual o nome?" });
+	const published = await waitForPending(node.hub);
+
+	const { done } = runAttend(node.port, { stdin: "nunca deveria chegar\n" });
+	const result = await done;
+
+	assert.equal(result.code, 1, result.output);
+	// What is old, what is new, and the ONE command.
+	assert.match(result.stderr, /este kit fala: pending-prompt\.v1/);
+	assert.match(result.stderr, /o nó fala:\s+pending-prompt\.v2/);
+	assert.match(result.stderr, /farm-update/);
+	// And the fallback that is true whatever happens.
+	assert.match(result.stderr, /responda no terminal que perguntou/);
+	// It refused rather than proceeding and hoping: the question was NOT drawn and
+	// NOT answered. Without the check the parser would have dropped every entry and
+	// the device would have shown "nada pendente" for a farm full of questions.
+	assert.ok(!/Qual o nome\?/.test(result.stdout), result.output);
+	assert.ok(!/nada pendente/.test(result.stdout), result.output);
+	assert.equal(node.hub.list().length, 1);
+
+	node.hub.answer(published.id, "cleanup", "pixel-7");
+	await asking;
+});
+
+test("a skewed node is refused in --watch too — waiting does not change a version", async () => {
+	const node = await startNodeTracked({ declaredWire: "pending-prompt.v2" });
+	const { done } = runAttend(node.port, { args: ["--watch"] });
+	const result = await done;
+	assert.equal(result.code, 1, result.output);
+	assert.match(result.stderr, /farm-update/);
+});
+
+test("a node that declares NOTHING is proceeded with — and said so once, not silently", async () => {
+	// The unknown case, and the one with teeth: this is the shape a peer older than
+	// the declaration serves. Refusing here would lock the operator out of a device
+	// that works today, which is the opposite of what a safety mechanism is for.
+	const node = await startNodeTracked({ declaredWire: null });
+	const channel = createRemoteOperatorChannel({ hub: node.hub, asker: ASKER });
+	const asking = channel.ask({ type: "text", question: "Qual o nome?" });
+	await waitForPending(node.hub);
+
+	const { done } = runAttend(node.port, { stdin: "ainda funciona\n" });
+	const result = await done;
+
+	// It still works, end to end: the question is drawn and the asker is unblocked.
+	assert.equal(result.code, 0, result.output);
+	assert.match(result.stdout, /Qual o nome\?/);
+	assert.equal(await asking, "ainda funciona");
+	// But it is NOT silent — "declared nothing" never masquerades as "checked and fine".
+	assert.match(result.stderr, /não declarou a versão do fio/);
+	assert.ok(!/farm-update/.test(result.stderr), "unknown is not a refusal");
+});
+
+test("the undeclared warning is said once per run, not once per poll", async () => {
+	const node = await startNodeTracked({ declaredWire: null });
+	const { child, done } = runAttend(node.port, { args: ["--watch"] });
+	// Long enough for several empty rounds at the declared 2s floor plus backoff.
+	await new Promise((resolve) => setTimeout(resolve, 5000));
+	child.kill("SIGINT");
+	const result = await done;
+	const said = result.stderr.match(/não declarou a versão do fio/g) ?? [];
+	assert.equal(said.length, 1, `warned ${said.length} times:\n${result.stderr}`);
 });
