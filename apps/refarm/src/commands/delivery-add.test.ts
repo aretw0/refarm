@@ -5,6 +5,7 @@ import {
 } from "@refarm.dev/operation-consent-v1";
 import {
 	OperatorPromptCancelledError,
+	setPromptPublisher,
 	type OperatorChannel,
 	type OperatorPrompt,
 } from "@refarm.dev/prompt-contract-v1";
@@ -12,18 +13,18 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createDeliveryCommand } from "./delivery-command.js";
 import {
 	buildDeliveryEntry,
+	DeliveryAddRefusal,
 	deliveryCapabilityPrompt,
 	deliveryTokenRelativePath,
 	deliveryUnattendedPrompt,
-	DeliveryAddRefusal,
 	runDeliveryAdd,
 	type DeliveryAddDeps,
 	type DeliveryAddOptions,
 	type DeliveryAddResult,
 } from "./delivery-add.js";
+import { createDeliveryCommand } from "./delivery-command.js";
 
 /**
  * `refarm delivery add` — the wizard held to the promises that make it safe to have one.
@@ -118,6 +119,14 @@ function deps(channel: OperatorChannel, extra: Partial<DeliveryAddDeps> = {}): D
 		announce: (line) => void announced.push(line),
 		...extra,
 	};
+}
+
+/** `deps` pins `interactive: true` so most tests never argue with the gate. These two are
+ *  ABOUT the gate, so they hand it back the decision. */
+function letTheGateDecide(base: DeliveryAddDeps): DeliveryAddDeps {
+	const withoutIt = { ...base };
+	delete (withoutIt as { interactive?: boolean }).interactive;
+	return withoutIt;
 }
 
 /** The happy path's answers, in the order the wizard asks them. */
@@ -500,6 +509,69 @@ describe("refarm delivery add — with nobody to ask", () => {
 		expect(refusal?.code).toBe("delivery-add-not-interactive");
 		expect(refusal?.message).toContain("by hand");
 		expect(refusal?.message).toContain(configPath());
+	});
+
+	/**
+	 * R4 of the composable-onboarding design, as an assertion about this gate.
+	 *
+	 * The gate's old premise — "no terminal means nobody to ask" — stopped being true the day
+	 * the CLI started publishing its questions to the node's pending-prompt hub. A wizard
+	 * started on the node from a phone has no TTY and a very present operator, and refusing it
+	 * would have made the one case this design was asked for impossible.
+	 *
+	 * So the question is "is there anywhere to ask", and a declared publisher is somewhere.
+	 * MUTATION-VERIFIED: put the TTY-only condition back and this fails.
+	 */
+	it("asks anyway when a surface is attending, even with no terminal at all", async () => {
+		const restore = setPromptPublisher(() => ({
+			// Never reached: the terminal side of the peered channel is replaced by `deps`'
+			// recording channel, so this only has to EXIST to make the gate true.
+			remote: () => {
+				throw new Error("not used in this test");
+			},
+		}));
+		try {
+			const stdin = process.stdin as unknown as { isTTY?: boolean };
+			const stdout = process.stdout as unknown as { isTTY?: boolean };
+			const [wasIn, wasOut] = [stdin.isTTY, stdout.isTTY];
+			stdin.isTTY = false;
+			stdout.isTTY = false;
+			try {
+				const { channel } = recordingChannel(fullRun());
+				// `interactive` is deliberately NOT passed: the gate has to decide for itself,
+				// which is the whole point — a wizard never learns where it is being answered.
+				const result = await runDeliveryAdd({}, letTheGateDecide(deps(channel)));
+				expect(result.status).toBe("declared");
+			} finally {
+				stdin.isTTY = wasIn;
+				stdout.isTTY = wasOut;
+			}
+		} finally {
+			restore();
+		}
+	});
+
+	it("still refuses when there is neither a terminal nor anywhere else", async () => {
+		const stdin = process.stdin as unknown as { isTTY?: boolean };
+		const stdout = process.stdout as unknown as { isTTY?: boolean };
+		const [wasIn, wasOut] = [stdin.isTTY, stdout.isTTY];
+		stdin.isTTY = false;
+		stdout.isTTY = false;
+		try {
+			const { channel, asked } = recordingChannel([]);
+			let refusal: DeliveryAddRefusal | null = null;
+			try {
+				await runDeliveryAdd({}, letTheGateDecide(deps(channel)));
+			} catch (caught) {
+				refusal = caught as DeliveryAddRefusal;
+			}
+			expect(refusal?.code).toBe("delivery-add-not-interactive");
+			expect(refusal?.message).toContain("nowhere to ask you");
+			expect(asked).toHaveLength(0);
+		} finally {
+			stdin.isTTY = wasIn;
+			stdout.isTTY = wasOut;
+		}
 	});
 });
 

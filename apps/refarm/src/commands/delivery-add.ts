@@ -1,9 +1,9 @@
 import {
 	deliver,
 	parseDeliveryCatalog,
-	routeDelivery,
 	refuseOverclaimedDeclaration,
 	refuseUnenforceableAdapter,
+	routeDelivery,
 	type DeliveryAdapter,
 	type DeliveryAdapterFactory,
 	type DeliveryDeclaration,
@@ -19,6 +19,7 @@ import {
 } from "@refarm.dev/operation-consent-v1";
 import {
 	createStdioOperatorChannel,
+	currentPromptPublisher,
 	OperatorPromptCancelledError,
 	type OperatorChannel,
 	type SelectPrompt,
@@ -481,15 +482,35 @@ export async function runDeliveryAdd(
 	const say = deps.announce ?? ((line: string) => console.log(line));
 	const factories = deps.factories ?? defaultDeliveryAdapterFactories();
 
-	// NO TTY ⇒ NO PROMPT, and no hang either. A declaration is the operator's; with nobody to ask
-	// there is nobody to author it. The honest answer is to refuse and name the two paths that do
-	// work — run it at a terminal, or write the block by hand, which never stopped working.
-	const interactive = deps.interactive ?? Boolean(process.stdin.isTTY && process.stdout.isTTY);
+	// NOWHERE TO ASK ⇒ NO PROMPT, and no hang either. A declaration is the operator's; with
+	// nobody to ask there is nobody to author it. The honest answer is to refuse and name the
+	// paths that do work.
+	//
+	// The gate USED to be "is there a TTY", and its premise — "no terminal means nobody to ask"
+	// — stopped being true. A question asked here is published to the node's pending-prompt hub
+	// as well as to the terminal (`installDeclaredDelivery`, the `preAction` hook in
+	// `program.ts`), and the operator answers it from whichever surface they are attending on:
+	// the phone, the `/attend` page, `farm-attend`. R4 of the composable-onboarding design makes
+	// that the whole point — the operator declaring a notification channel on the node WITHOUT
+	// opening a terminal on the node.
+	//
+	// So the question the gate asks is now the honest one: **is there anywhere to ask at all?**
+	// A terminal is one such place; a declared publisher is another. Only when there is neither
+	// is there nobody to author the declaration, and only then does this refuse.
+	//
+	// `delivery test` (below) keeps the strict TTY gate on purpose, and the difference is not an
+	// oversight: this command WRITES a declaration the operator can read back and remove, while
+	// that one sends a REAL message out of the machine. Authorising the second from somewhere
+	// else is a different decision, and it has not been made.
+	const atTerminal = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+	const somewhereElse = currentPromptPublisher() !== null;
+	const interactive = deps.interactive ?? (atTerminal || somewhereElse);
 	if (!interactive) {
 		throw new DeliveryAddRefusal(
 			"delivery-add-not-interactive",
-			"Declaring a channel is your authorisation, and there is no terminal to ask at. " +
-				"Run this from an interactive shell, or write the `delivery` block into " +
+			"Declaring a channel is your authorisation, and there is nowhere to ask you — no " +
+				"terminal here, and no surface attending this node. Run this from an interactive " +
+				"shell, attend the node from a device, or write the `delivery` block into " +
 				`${catalogConfigPath(root, env)} by hand — hand-editing is ` +
 				"still a first-class path, and this command reads what you wrote.",
 			[DELIVERY_ADD_COMMAND, DELIVERY_LIST_COMMAND],
