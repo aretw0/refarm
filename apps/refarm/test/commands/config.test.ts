@@ -870,6 +870,7 @@ describe("config set/unset are RECORDED — and never confirmed", () => {
 
 	const homeConfig = () => path.join(home, ".refarm", "config.json");
 	const homeTrail = () => path.join(home, ".refarm", "operations.json");
+	const localConfig = () => path.join(cwd, ".refarm", "config.json");
 	const localTrail = () => path.join(cwd, ".refarm", "operations.json");
 
 	function readTrail(trailPath: string): {
@@ -1115,6 +1116,31 @@ describe("config set/unset are RECORDED — and never confirmed", () => {
 		const record = readTrail(localTrail()).records[0]!;
 		expect(record.requestId).toBe("config:local:tractor.engine");
 		expect(record.changes[0]?.path).toBe(path.join(cwd, ".refarm", "config.json"));
+	});
+
+	it("`history undo --local` undoes the LOCAL change, not whatever HOME happens to hold", async () => {
+		// The bug this pins: `history` declares `--local` and has an action of its own, so
+		// Commander parsed the whole argv at the parent and swallowed the flag — `undo` ran
+		// against the HOME trail and reported the id as missing. The command `config history`
+		// itself prints as the undo is the one that has to work.
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		await command().parseAsync(["set", "tractor.engine", "rust", "--local"], { from: "user" });
+		const localBefore = fs.readFileSync(localConfig(), "utf-8");
+		await command().parseAsync(["set", "runtime.autostart", "always", "--local"], {
+			from: "user",
+		});
+		const second = readTrail(localTrail()).records[1]!;
+
+		await command().parseAsync(["history", "undo", second.id, "--local"], { from: "user" });
+
+		expect(fs.readFileSync(localConfig(), "utf-8")).toBe(localBefore);
+		expect(readTrail(localTrail()).records.map((entry) => entry.decision)).toEqual([
+			"authorized",
+			"authorized",
+			"undone",
+		]);
+		// HOME was never touched on the way.
+		expect(fs.existsSync(homeTrail())).toBe(false);
 	});
 
 	it("the home trail is the SAME file the cold-bootstrap kit writes its operations to", async () => {

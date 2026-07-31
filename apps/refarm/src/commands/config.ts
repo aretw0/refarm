@@ -43,6 +43,7 @@ import {
 } from "./config-record.js";
 import {
 	hasJsonOption,
+	hasLocalOption,
 	readConfig,
 	serializeConfig,
 	writeConfig,
@@ -1075,7 +1076,10 @@ Notes:
 							opts: { local?: boolean } & JsonOptionCarrier,
 							command: JsonOptionCarrier,
 						) => {
-							const filePath = configPath(deps, opts);
+							// `--local` up the whole chain: `history` declares the same flag and, having
+							// an action of its own, parses the argv first and swallows it. See
+							// `hasLocalOption` — the scope of an undo decides which file is rewritten.
+							const filePath = configPath(deps, { local: hasLocalOption(opts, command) });
 							const record = await undoConfigOperation(filePath, id, recordDeps);
 							if (hasJsonOption(opts, command)) {
 								printJson(

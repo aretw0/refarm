@@ -86,7 +86,7 @@ export interface ConfigDeps {
 
 export interface JsonOptionCarrier {
 	json?: boolean;
-	opts?: () => { json?: boolean };
+	opts?: () => { json?: boolean; local?: boolean };
 	/** The parent command in the chain — recursive so `hasJsonOption` can walk to
 	 * an ancestor that owns a `--json` declared higher up (e.g. `config --json`). */
 	parent?: JsonOptionCarrier;
@@ -121,6 +121,32 @@ export function hasJsonOption(opts: JsonOptionCarrier, command?: JsonOptionCarri
 	let node: JsonOptionCarrier | undefined = command;
 	while (node) {
 		if (node.opts?.().json === true) return true;
+		node = node.parent;
+	}
+	return false;
+}
+
+/**
+ * `--local`, wherever Commander happened to attach it.
+ *
+ * Same hazard as `--json`, and for a sharper reason. `config history` declares `--local` AND has
+ * an action handler AND has an `undo` subcommand. With Commander's default (options may appear
+ * anywhere), the PARENT parses the whole argv first and swallows `--local` — so
+ * `config history undo <id> --local` reached the action with `{}` and quietly undid against the
+ * HOME trail, reporting the id as missing. `--json` never showed the bug only because
+ * {@link hasJsonOption} already walked the ancestors.
+ *
+ * The scope of an undo is not a place to be approximately right: it decides which file gets
+ * rewritten. So it is read the same way, up the whole chain.
+ */
+export function hasLocalOption(
+	opts: { local?: boolean } & JsonOptionCarrier,
+	command?: JsonOptionCarrier,
+): boolean {
+	if (opts.local === true || opts.opts?.().local === true) return true;
+	let node: JsonOptionCarrier | undefined = command;
+	while (node) {
+		if (node.opts?.().local === true) return true;
 		node = node.parent;
 	}
 	return false;
