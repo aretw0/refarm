@@ -110,8 +110,14 @@ function attendPage(): string {
            background: transparent; color: inherit; cursor: pointer; margin: .25rem .4rem .25rem 0; }
   button[disabled] { opacity: .5; cursor: default; }
   .verdict { margin-top: .6rem; font-size: .9rem; }
-  .row { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0; }
-  .cell { text-align: center; min-width: 4rem; }
+  /* The seven emoji are COMPARED against another screen, position by position —
+     they are a row to scan, not prose to read. So they are centred with equal
+     space either side and equal-width cells, deliberately different from the
+     left-aligned text around them, and each wrapped line stays centred on a
+     narrow phone. */
+  .row { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start;
+         gap: .9rem 1.1rem; margin: 1.4rem auto; }
+  .cell { text-align: center; flex: 0 0 auto; min-width: 4.5rem; }
   .glyph { font-size: 2.2rem; line-height: 1.1; }
   .name { font-size: .75rem; opacity: .75; }
   code { font-family: ui-monospace, monospace; font-size: .85em; }
