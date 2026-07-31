@@ -26,8 +26,11 @@ async function withTmp(run_) {
 	}
 }
 
-test("the three device commands get launchers", () => {
-	assert.deepEqual(SHIM_NAMES, ["farm-ask", "farm-hello", "farm-update"]);
+test("the device commands get launchers — including the one that ANSWERS", () => {
+	// `farm-attend` is the most device-side command there is: the farm asks, and
+	// whoever answers is holding the phone. Missing its shim is a question left
+	// hanging over glass-keyboard friction.
+	assert.deepEqual(SHIM_NAMES, ["farm-ask", "farm-attend", "farm-hello", "farm-update"]);
 });
 
 test("defaultBinDir is ~/.local/bin — the per-user convention that exists on Termux too", () => {
@@ -59,7 +62,7 @@ test("shims are created, are executable, and point at the right entry point", as
 		const binDir = join(dir, "bin");
 		const result = await installShims({ kitDir, binDir });
 
-		assert.deepEqual(result.created, ["farm-ask", "farm-hello", "farm-update"]);
+		assert.deepEqual(result.created, ["farm-ask", "farm-attend", "farm-hello", "farm-update"]);
 		assert.deepEqual(result.failed, []);
 		assert.equal(result.binDir, binDir);
 

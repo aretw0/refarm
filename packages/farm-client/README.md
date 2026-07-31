@@ -32,6 +32,7 @@ se alguém acoplar o kit ao monorepo, o teste falha.
 | `farm-hello.mjs` | alcançar | descobre a fazenda (tailnet → LAN broadcast/multicast → varredura) e prova sync + sidecar |
 | `farm-announce.mjs` | anunciar | (no host) responde probes de descoberta na LAN — opt-in |
 | `farm-ask.mjs` | usar | submete um effort e imprime a resposta do agente |
+| `farm-attend.mjs` | atender | responde, daqui, as perguntas que a fazenda deixou pendentes |
 | `farm-update.mjs` | atualizar | puxa o kit do servidor de malha da fazenda (manifesto + sha256) |
 
 ```bash
@@ -40,7 +41,26 @@ farm-hello [serpro-1577853]
 
 # usar — o daily driver no bolso
 farm-ask "sua pergunta"
+
+# atender — a fazenda perguntou e você não está na mesa
+farm-attend            # responde o que estiver pendente e sai
+farm-attend --watch    # fica de plantão (intervalo declarado + backoff)
+farm-attend --list     # só olha; não responde
 ```
+
+Todo assistente do refarm pergunta pelo mesmo contrato (`OperatorChannel`), então
+`farm-attend` atende **qualquer** um deles — inclusive os que ainda não existem — sem
+que nenhum assistente mude uma linha. O prompt é desenhado pelo bloco carregado em
+`vendor/prompt-contract-v1.mjs`, o mesmo arquivo que o nó usa no terminal: mesma cara,
+mesmo Ctrl+C.
+
+Uma pergunta de **segredo** avisa, antes de você digitar, que a resposta atravessa a
+rede (autenticada por aparelho, dentro da tailnet). Quem preferir ir até a mesa fica
+sabendo na hora certa. O valor nunca é escrito em log, eco ou linha de desfecho —
+nem aqui, nem no nó.
+
+Uma pergunta vive enquanto quem perguntou viver: se o comando do outro lado morreu ou
+o prazo dele passou, a pergunta some, porque não há mais ninguém esperando a resposta.
 
 ## O kit PERGUNTA o nome da fazenda
 
@@ -72,8 +92,8 @@ garantem que a cópia é byte a byte o build do bloco — se divergir, o teste f
 
 ## Atalhos no PATH
 
-O `install.mjs` (e todo `farm-update`) planta lançadores `farm-ask`, `farm-hello` e
-`farm-update` em `~/.local/bin` — a convenção por usuário que existe tanto num Linux
+O `install.mjs` (e todo `farm-update`) planta lançadores `farm-ask`, `farm-attend`,
+`farm-hello` e `farm-update` em `~/.local/bin` — a convenção por usuário que existe tanto num Linux
 normal quanto no Termux, onde não há `/usr/local/bin` nem `sudo`. `FARM_BIN_DIR` manda
 em tudo.
 

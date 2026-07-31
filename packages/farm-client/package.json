@@ -18,6 +18,7 @@
 		"farm-hello": "./bin/farm-hello.mjs",
 		"farm-announce": "./bin/farm-announce.mjs",
 		"farm-ask": "./bin/farm-ask.mjs",
+		"farm-attend": "./bin/farm-attend.mjs",
 		"farm-update": "./bin/farm-update.mjs"
 	},
 	"files": ["src", "bin", "bootstrap", "vendor", "README.md"],

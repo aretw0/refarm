@@ -24,8 +24,13 @@ import { homedir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 
 /** Os comandos que ganham lançador. `farm-announce` fica de fora de propósito:
- *  ele é do lado HOST (anuncia a fazenda), não do aparelho que a alcança. */
-export const SHIM_NAMES = ["farm-ask", "farm-hello", "farm-update"];
+ *  ele é do lado HOST (anuncia a fazenda), não do aparelho que a alcança.
+ *
+ *  `farm-attend` entra pelo motivo oposto: é o comando MAIS do lado do aparelho
+ *  que existe — a fazenda pergunta, e quem responde está com o telefone na mão.
+ *  Um atalho a menos aqui é uma pergunta que fica pendurada por atrito de
+ *  teclado de vidro. */
+export const SHIM_NAMES = ["farm-ask", "farm-attend", "farm-hello", "farm-update"];
 
 /** Onde os lançadores vão. `FARM_BIN_DIR` > `~/.local/bin`. */
 export function defaultBinDir({ env = process.env, home = homedir() } = {}) {

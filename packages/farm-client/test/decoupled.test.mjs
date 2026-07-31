@@ -28,6 +28,7 @@ const KIT_FILES = [
 	"src/ask-host.mjs",
 	"src/shims.mjs",
 	"src/path-operation.mjs",
+	"src/pending-prompt.mjs",
 	"src/progress.mjs",
 	"src/reach.mjs",
 	// BUILT blocks the kit CARRIES (see scripts/vendor.mjs). They are held to the
@@ -38,6 +39,7 @@ const KIT_FILES = [
 	"bin/farm-hello.mjs",
 	"bin/farm-announce.mjs",
 	"bin/farm-ask.mjs",
+	"bin/farm-attend.mjs",
 	"bin/farm-update.mjs",
 	"bootstrap/install.mjs",
 ];
