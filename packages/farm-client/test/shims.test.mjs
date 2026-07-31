@@ -26,20 +26,35 @@ async function withTmp(run_) {
 	}
 }
 
-test("the device commands get launchers — including the one that ANSWERS", () => {
+test("the device commands get launchers — including the ones that ASK and ANSWER", () => {
 	// `farm-attend` is the most device-side command there is: the farm asks, and
 	// whoever answers is holding the phone. Missing its shim is a question left
 	// hanging over glass-keyboard friction.
-	assert.deepEqual(SHIM_NAMES, ["farm-ask", "farm-attend", "farm-hello", "farm-update"]);
+	//
+	// `farm-start` is its other half: attending only ever works on a question that
+	// already exists, and making one exist used to require being at the computer.
+	assert.deepEqual(SHIM_NAMES, [
+		"farm-ask",
+		"farm-attend",
+		"farm-hello",
+		"farm-start",
+		"farm-update",
+	]);
 });
 
 test("defaultBinDir is ~/.local/bin — the per-user convention that exists on Termux too", () => {
 	assert.equal(defaultBinDir({ env: {}, home: "/home/op" }), join("/home/op", ".local", "bin"));
 	// No /usr/local/bin, no sudo: Termux's HOME is the only writable, PATH-able place.
-	assert.equal(defaultBinDir({ env: {}, home: "/data/data/com.termux/files/home" }), join("/data/data/com.termux/files/home", ".local", "bin"));
+	assert.equal(
+		defaultBinDir({ env: {}, home: "/data/data/com.termux/files/home" }),
+		join("/data/data/com.termux/files/home", ".local", "bin"),
+	);
 	// FARM_BIN_DIR wins, for an operator who already has somewhere else.
 	assert.equal(defaultBinDir({ env: { FARM_BIN_DIR: "/opt/bin" }, home: "/home/op" }), "/opt/bin");
-	assert.equal(defaultBinDir({ env: { FARM_BIN_DIR: "  " }, home: "/home/op" }), join("/home/op", ".local", "bin"));
+	assert.equal(
+		defaultBinDir({ env: { FARM_BIN_DIR: "  " }, home: "/home/op" }),
+		join("/home/op", ".local", "bin"),
+	);
 });
 
 test("a shim is a sh launcher that execs the kit's own entry point", () => {
@@ -62,7 +77,7 @@ test("shims are created, are executable, and point at the right entry point", as
 		const binDir = join(dir, "bin");
 		const result = await installShims({ kitDir, binDir });
 
-		assert.deepEqual(result.created, ["farm-ask", "farm-attend", "farm-hello", "farm-update"]);
+		assert.deepEqual(result.created, SHIM_NAMES);
 		assert.deepEqual(result.failed, []);
 		assert.equal(result.binDir, binDir);
 
@@ -89,7 +104,7 @@ test("a planted shim actually runs its entry point, with the argument intact", a
 		await run("mkdir", ["-p", join(kitDir, "bin")]);
 		await writeFile(
 			join(kitDir, "bin", "farm-ask.mjs"),
-			'process.stdout.write(JSON.stringify(process.argv.slice(2)));\n',
+			"process.stdout.write(JSON.stringify(process.argv.slice(2)));\n",
 		);
 
 		const { stdout } = await run(join(binDir, "farm-ask"), ["olá, tudo bem?"]);
@@ -109,20 +124,29 @@ test("an unwritable bin dir degrades instead of failing the install", async () =
 });
 
 test("pathStatus reports correctly when the dir IS on PATH", () => {
-	const status = pathStatus({ binDir: "/home/op/.local/bin", env: { PATH: ["/usr/bin", "/home/op/.local/bin"].join(delimiter) } });
+	const status = pathStatus({
+		binDir: "/home/op/.local/bin",
+		env: { PATH: ["/usr/bin", "/home/op/.local/bin"].join(delimiter) },
+	});
 	assert.equal(status.onPath, true);
 	assert.equal(status.binDir, "/home/op/.local/bin");
 });
 
 test("pathStatus reports correctly when the dir is NOT on PATH", () => {
-	const status = pathStatus({ binDir: "/home/op/.local/bin", env: { PATH: ["/usr/bin", "/bin"].join(delimiter) } });
+	const status = pathStatus({
+		binDir: "/home/op/.local/bin",
+		env: { PATH: ["/usr/bin", "/bin"].join(delimiter) },
+	});
 	assert.equal(status.onPath, false);
 	assert.ok(status.exportLine.includes(".local/bin"));
 	assert.ok(status.exportLine.startsWith("export PATH="));
 });
 
 test("pathStatus does not mistake a trailing-slash or relative entry for a miss", () => {
-	const status = pathStatus({ binDir: "/home/op/.local/bin", env: { PATH: ["/home/op/.local/bin/"].join(delimiter) } });
+	const status = pathStatus({
+		binDir: "/home/op/.local/bin",
+		env: { PATH: ["/home/op/.local/bin/"].join(delimiter) },
+	});
 	assert.equal(status.onPath, true);
 });
 
@@ -132,13 +156,21 @@ test("an empty PATH is honestly 'not on PATH', never a crash", () => {
 });
 
 test("the advice tells the operator plainly which case they are in", () => {
-	const on = pathAdviceLines({ binDir: "/home/op/.local/bin", onPath: true, exportLine: 'export PATH="$HOME/.local/bin:$PATH"' });
+	const on = pathAdviceLines({
+		binDir: "/home/op/.local/bin",
+		onPath: true,
+		exportLine: 'export PATH="$HOME/.local/bin:$PATH"',
+	});
 	assert.ok(on.join("\n").includes("já está no seu PATH"));
 	assert.ok(on.join("\n").includes('farm-ask "quem é você?"'));
 	assert.ok(!on.join("\n").includes("export PATH="), "no noise when there is nothing to do");
 
 	const off = pathAdviceLines(
-		{ binDir: "/home/op/.local/bin", onPath: false, exportLine: 'export PATH="$HOME/.local/bin:$PATH"' },
+		{
+			binDir: "/home/op/.local/bin",
+			onPath: false,
+			exportLine: 'export PATH="$HOME/.local/bin:$PATH"',
+		},
 		{ kitDir: "/home/op/.refarm/kit/farm-client" },
 	);
 	const text = off.join("\n");
@@ -156,7 +188,10 @@ test("the installer plants shims through THIS module, not a private copy", async
 	// and it does. This guard keeps the delegation from being quietly replaced by
 	// an inlined reimplementation that then drifts from what farm-update plants.
 	const installer = await readFile(new URL("../bootstrap/install.mjs", import.meta.url), "utf8");
-	assert.ok(installer.includes('"src", "shims.mjs"'), "install.mjs must import the installed shims module");
+	assert.ok(
+		installer.includes('"src", "shims.mjs"'),
+		"install.mjs must import the installed shims module",
+	);
 	for (const fn of ["defaultBinDir", "installShims", "pathStatus", "pathAdviceLines"]) {
 		assert.ok(installer.includes(fn), `install.mjs must use ${fn} from the kit`);
 	}
@@ -187,5 +222,8 @@ test("the module that DOES edit a profile only writes through the consent journe
 	const source = await readFile(new URL("../src/path-operation.mjs", import.meta.url), "utf8");
 	assert.equal(/\b(writeFile|appendFile|writeFileSync|appendFileSync)\s*\(/.test(source), false);
 	assert.ok(source.includes("runOperationConsent"), "the decision must come from the block");
-	assert.ok(source.includes("vendor/operation-consent-v1.mjs"), "and from the carried block, not a copy");
+	assert.ok(
+		source.includes("vendor/operation-consent-v1.mjs"),
+		"and from the carried block, not a copy",
+	);
 });

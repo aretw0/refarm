@@ -1,0 +1,179 @@
+/**
+ * remote-initiation — COMEÇAR, do bolso, um trabalho que roda no nó.
+ *
+ * O kit já sabia ATENDER: `farm-attend` lê as perguntas penduradas no nó e as
+ * responde. Faltava a outra metade — não havia como FAZER uma aparecer. Para
+ * configurar o Telegram naquele computador o operador ainda tinha que ir até ele
+ * e digitar `refarm delivery add`. Este módulo é o lado do aparelho da rota que
+ * fecha esse ciclo (R4 do desenho de onboarding componível).
+ *
+ * ── O que o nó abre, e o que ele não abre ────────────────────────────────────
+ * O aparelho manda um IDENTIFICADOR e nada mais. Não manda argv, não manda
+ * opção, não manda nome de canal: quem decide o que aquele identificador começa
+ * é uma tabela que vive no nó, em TypeScript, e cujo silêncio é fechado — uma
+ * operação que não se declarou iniciável remotamente NÃO pode ser começada
+ * daqui, inclusive uma acrescentada amanhã. Este módulo não tem cópia dessa
+ * tabela e não deve ganhar uma: duas respostas para a mesma pergunta de
+ * segurança divergem, e divergem calado.
+ *
+ * Por isso `farm-start` sem argumento PERGUNTA ao nó o que ele oferece, em vez
+ * de recitar uma lista de memória. A lista é sempre a do nó com quem se está
+ * falando.
+ *
+ * ── Credencial de APARELHO, não a do navegador ───────────────────────────────
+ * `POST /operations` é device-only, como `POST /prompts`. A credencial estreita
+ * que o navegador ganha em `refarm auth verify` serve para RESPONDER pergunta;
+ * ela nunca começa trabalho. Um `401` aqui quase sempre é isso — e a mensagem
+ * diz isso, em vez de mandar "tente de novo".
+ *
+ * ── Cinco respostas, nunca uma ───────────────────────────────────────────────
+ * O nó distingue, e o aparelho não pode colapsar de volta:
+ *   - começou;
+ *   - **não conheço essa operação** (o id não é comando nenhum lá);
+ *   - **conheço e está fechada** (é comando de verdade, não se declarou);
+ *   - **não consegui começar** (o nó não achou o `refarm` que ele mesmo declarou);
+ *   - **já tem uma rodando** (o teto: uma operação por vez).
+ *
+ * Tudo aqui é PURO — sem rede, sem relógio, sem terminal. Quem faz I/O é
+ * `bin/farm-start.mjs`. Zero dependência, como o resto do kit.
+ */
+
+/** A rota que lista o que pode ser começado, e que começa uma. */
+export const OPERATIONS_PATH = "/operations";
+
+/** O fio desta superfície. `REMOTE_INITIATION_WIRE` no nó é a outra metade. */
+export const REMOTE_INITIATION_WIRE = "remote-initiation.v1";
+
+/**
+ * O catálogo que o nó devolveu, ou `null` quando aquilo não é um catálogo.
+ *
+ * O nó relata o documento que o próprio `refarm auth remote --json` imprimiu,
+ * inteiro, embaixo de `catalog` — ele não interpreta a tabela e este módulo
+ * também não. Aqui só se pega a lista e se descartam entradas sem forma. PURO.
+ */
+export function parseOperationCatalog(body) {
+	const operations = body?.catalog?.operations;
+	if (!Array.isArray(operations)) return null;
+	const parsed = [];
+	for (const entry of operations) {
+		const id = typeof entry?.id === "string" ? entry.id : null;
+		if (!id) continue;
+		parsed.push({
+			id,
+			command: typeof entry?.command === "string" ? entry.command : `refarm ${id}`,
+			why: typeof entry?.why === "string" ? entry.why : "",
+		});
+	}
+	return parsed;
+}
+
+/** As linhas do catálogo, para o operador ler numa tela pequena. PURO. */
+export function catalogLines(operations, { start = "farm-start" } = {}) {
+	if (operations.length === 0) {
+		return [
+			"Nenhuma operação deste nó pode ser começada de um aparelho.",
+			"   Silêncio é fechado: o que não se declarou iniciável remotamente não começa daqui.",
+		];
+	}
+	const lines = [`O que este nó deixa você começar (${operations.length}):`];
+	for (const operation of operations) {
+		lines.push("", `  • ${operation.id}`);
+		lines.push(`      no computador seria:  ${operation.command}`);
+		if (operation.why) lines.push(`      ${operation.why}`);
+	}
+	lines.push("", `Para começar:  ${start} "${operations[0].id}"`);
+	return lines;
+}
+
+/**
+ * O desfecho de um `POST /operations`, das CINCO maneiras que ele tem — nunca
+ * de uma. PURO: recebe status e corpo, devolve `{ outcome, lines, exitCode }`.
+ *
+ * Nenhum ramo manda "tente de novo" sem dizer o que mudaria: um teto pede que se
+ * termine o que já está rodando, um 401 pede a credencial de aparelho, e um
+ * `could-not-start` repete o que o nó disse — que é onde está o conserto, porque
+ * é o nó que sabe qual `spawnEnv.path` ele declarou.
+ */
+export function classifyStartResponse(status, body, { attend = "farm-attend" } = {}) {
+	const detail = typeof body?.detail === "string" ? body.detail : "";
+	if (status === 202 || body?.started === true) {
+		const named = typeof body?.operation === "string" ? body.operation : "a operação";
+		return {
+			outcome: "started",
+			exitCode: 0,
+			lines: [
+				`▶ começou no nó: ${named}`,
+				"",
+				"   As perguntas dela chegam onde você já atende. Continue com:",
+				`     ${attend} --watch`,
+				"",
+				"   A saída do comando NÃO viaja — a interface dele são as perguntas.",
+			],
+		};
+	}
+	if (status === 401 || status === 403) {
+		if (body?.error === "not-remotely-invocable") {
+			return {
+				outcome: "not-remotely-invocable",
+				exitCode: 1,
+				lines: [
+					"✋ esse comando existe nesse nó, e não está aberto para aparelhos.",
+					`   ${detail}`,
+					"",
+					"   Isso não é engano seu: é uma porta fechada de propósito. Abrir é um",
+					"   commit no nó, que é justamente quando alguém pode perguntar por quê.",
+				],
+			};
+		}
+		return {
+			outcome: "not-a-device",
+			exitCode: 1,
+			lines: [
+				"🔒 começar trabalho exige a credencial de APARELHO deste nó.",
+				"   A credencial estreita do navegador responde pergunta; ela não começa nada.",
+				"   Exporte a do aparelho em FARM_TOKEN e tente de novo.",
+			],
+		};
+	}
+	if (status === 404) {
+		return {
+			outcome: "unknown-operation",
+			exitCode: 1,
+			lines: [
+				"❓ esse nó não tem essa operação.",
+				`   ${detail}`,
+				"",
+				"   Veja o que ele oferece com:  farm-start",
+			],
+		};
+	}
+	if (status === 409) {
+		const running = typeof body?.running === "string" ? body.running : null;
+		return {
+			outcome: "already-running",
+			exitCode: 1,
+			lines: [
+				running
+					? `⏳ já tem uma rodando neste nó: ${running}`
+					: "⏳ já tem uma operação rodando neste nó.",
+				"   É uma por vez, de propósito: duas fazem perguntas na MESMA lista e",
+				"   ninguém consegue dizer qual pergunta é de qual.",
+				"",
+				"   Termine a que está aberta (farm-attend) e volte.",
+			],
+		};
+	}
+	return {
+		outcome: "could-not-start",
+		exitCode: 1,
+		lines: [
+			"❌ o nó não conseguiu começar.",
+			detail ? `   ${detail}` : `   O nó respondeu ${status}.`,
+		],
+	};
+}
+
+/** O corpo do pedido — UM campo, e o identificador vai inteiro. PURO. */
+export function startRequestBody(operation) {
+	return { operation };
+}

@@ -29,8 +29,13 @@ import { delimiter, join, resolve } from "node:path";
  *  `farm-attend` entra pelo motivo oposto: é o comando MAIS do lado do aparelho
  *  que existe — a fazenda pergunta, e quem responde está com o telefone na mão.
  *  Um atalho a menos aqui é uma pergunta que fica pendurada por atrito de
- *  teclado de vidro. */
-export const SHIM_NAMES = ["farm-ask", "farm-attend", "farm-hello", "farm-update"];
+ *  teclado de vidro.
+ *
+ *  `farm-start` entra pelo mesmo motivo, do outro lado: `farm-attend` só serve
+ *  para uma pergunta que JÁ existe, e até aqui fazer uma existir exigia estar no
+ *  computador. Os dois juntos fecham o ciclo — começar e atender — que é o que
+ *  torna o nó operável de longe. */
+export const SHIM_NAMES = ["farm-ask", "farm-attend", "farm-hello", "farm-start", "farm-update"];
 
 /** Onde os lançadores vão. `FARM_BIN_DIR` > `~/.local/bin`. */
 export function defaultBinDir({ env = process.env, home = homedir() } = {}) {
@@ -92,10 +97,7 @@ function exportLine(binDir, home = homedir()) {
 export function pathAdviceLines(status, { names = SHIM_NAMES, kitDir = null } = {}) {
 	const example = names.includes("farm-ask") ? 'farm-ask "quem é você?"' : names[0];
 	if (status.onPath) {
-		return [
-			`  atalhos em ${status.binDir} (já está no seu PATH)`,
-			`  rode: ${example}`,
-		];
+		return [`  atalhos em ${status.binDir} (já está no seu PATH)`, `  rode: ${example}`];
 	}
 	const fallback = kitDir
 		? `  até lá: node ${join(kitDir, "bin", "farm-ask.mjs")} "quem é você?"`
