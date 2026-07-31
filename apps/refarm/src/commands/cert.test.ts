@@ -26,10 +26,11 @@ import {
 	type OperationConsentChannel,
 	type OperationTrail,
 } from "@refarm.dev/operation-consent-v1";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
 	buildCertificateRegistry,
+	createCertCommand,
 	defaultNameSuffixes,
 	resolveCertTrailPath,
 	resolveNameSuffixes,
@@ -206,6 +207,36 @@ describe("`refarm cert issue` — T2's third case runs no provider at all", () =
 				{ root: dir, hostname: HOST, registry: createCertificateProviderRegistry() },
 			),
 		).rejects.toThrow(/gone\.crt/);
+	});
+});
+
+describe("a printed refusal shows its guidance ONCE, not twice", () => {
+	// The operator's transcript showed the `→` line, then the identical fix text again — the
+	// same `guarded()` rendering as every command in this file, driven end to end through the
+	// real Commander action rather than through `runCertIssue` directly, so this catches a
+	// regression in EITHER `CertificateRefusal` (which used to bake the fix into `.message`) or
+	// in `guarded()` itself. This refusal needs no openssl and no filesystem state beyond a
+	// throwaway `--dir`, so it is not gated on `opensslAvailable`.
+	it("the fix text appears exactly once across stdout and stderr", async () => {
+		const lines: string[] = [];
+		const errorSpy = vi
+			.spyOn(console, "error")
+			.mockImplementation((...args: unknown[]) => void lines.push(args.join(" ")));
+		const originalExitCode = process.exitCode;
+		try {
+			const command = createCertCommand();
+			await command.parseAsync(
+				["issue", "--dir", dir, "--cert-file", path.join(dir, "half-a-pair.crt")],
+				{ from: "user" },
+			);
+		} finally {
+			errorSpy.mockRestore();
+			process.exitCode = originalExitCode;
+		}
+		const printed = lines.join("\n");
+		const fixText = "Pass both, or pass neither and let `local-ca` issue one.";
+		expect(printed).toContain(fixText);
+		expect(printed.split(fixText).length - 1).toBe(1);
 	});
 });
 

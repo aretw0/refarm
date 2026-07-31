@@ -71,6 +71,14 @@ export const LEAF_ROTATION_MARGIN_RATIO = 1 / 3;
  * Every refusal in this domain, with the FIX in the value rather than in a sentence a caller has
  * to compose. A missing tool, an unknown provider and a declared-but-absent file are all things an
  * operator can act on, and an error that says only "failed" makes them go looking.
+ *
+ * `message` carries ONLY what went wrong; `fix` carries ONLY what to do about it — the same split
+ * every sibling refusal in this repo keeps (`SupervisionRefusal`, `DeliveryDeclarationError`: both
+ * call `super(message)` and leave `fix` as its own field). Baking `fix` into `message` too, as this
+ * constructor once did, does not add information — `error.fix` already carries it — and it made a
+ * refusal printed by `refarm cert` show its own guidance TWICE: once from `message` (which had the
+ * fix appended) and once more from the caller printing `error.fix` beside it, the way every other
+ * refusal in this codebase is rendered.
  */
 export class CertificateRefusal extends Error {
 	/** What the operator does about it. Always present, always actionable. */
@@ -79,7 +87,7 @@ export class CertificateRefusal extends Error {
 	readonly reason: CertificateRefusalReason;
 
 	constructor(reason: CertificateRefusalReason, message: string, fix: string) {
-		super(`${message}\n  → ${fix}`);
+		super(message);
 		this.name = "CertificateRefusal";
 		this.reason = reason;
 		this.fix = fix;

@@ -135,8 +135,19 @@ describe("parsing a declaration is fail-shut", () => {
 	});
 
 	it("refuses half a pair — a certificate is a pair", () => {
-		expect(() => parseCertificateDeclaration({ certFile: "/a.crt" })).toThrow(/PAIR/);
-		expect(() => parseCertificateDeclaration({ keyFile: "/a.key" })).toThrow(/PAIR/);
+		// "PAIR" lives in the FIX, not the complaint — this is the refusal that
+		// `CertificateRefusal` no longer folds into `.message` (that folding was Fix 2's
+		// duplicate-guidance bug), so it is asserted on `.fix` directly, the same way every
+		// other refusal in this file is.
+		for (const raw of [{ certFile: "/a.crt" }, { keyFile: "/a.key" }]) {
+			try {
+				parseCertificateDeclaration(raw);
+				expect.unreachable("should have refused");
+			} catch (error) {
+				expect(error).toBeInstanceOf(CertificateRefusal);
+				expect((error as CertificateRefusal).fix).toMatch(/PAIR/);
+			}
+		}
 	});
 
 	it("refuses a provider with no names", () => {
@@ -228,13 +239,20 @@ describe("resolution — the declared certificate is the case that proves the se
 
 	it("names the registered providers when the declared one is unknown", async () => {
 		const registry = createCertificateProviderRegistry([fakeProvider("local-ca")]);
-		await expect(
-			resolveCertificate({
+		// "Registered providers: …" is the FIX, not the complaint — see the note on
+		// `CertificateRefusal` for why `.message` no longer carries it too.
+		let refusal: CertificateRefusal | null = null;
+		try {
+			await resolveCertificate({
 				declaration: { kind: "provider", provider: "letsencrypt", names: ["node"] },
 				registry,
 				exists: nothingExists,
-			}),
-		).rejects.toThrow(/Registered providers: local-ca/);
+			});
+			expect.unreachable("should have refused");
+		} catch (error) {
+			refusal = error as CertificateRefusal;
+		}
+		expect(refusal?.fix).toMatch(/Registered providers: local-ca/);
 	});
 
 	it("turns a provider that is not ready into a refusal that carries its fix", async () => {

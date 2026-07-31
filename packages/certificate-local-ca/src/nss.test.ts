@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { CertificateRefusal } from "@refarm.dev/certificate-contract-v1";
 import {
 	createMemoryOperationTrail,
 	runOperationConsent,
@@ -427,9 +428,17 @@ describe("without certutil there is a refusal that names the package, never a cr
 	});
 
 	it("an attempted install refuses with the fix attached", async () => {
-		await expect(
-			createNssOperationFileSystem(missing).writeFile(nssEntryPath("/db", NICKNAME), "x"),
-		).rejects.toThrow(/libnss3-tools/);
+		// "libnss3-tools" lives in `.fix` (CERTUTIL_MISSING_FIX), not in `.message` — asserted
+		// there directly, since `CertificateRefusal` keeps the two separate rather than folding
+		// the fix into the message a second time.
+		let refusal: CertificateRefusal | null = null;
+		try {
+			await createNssOperationFileSystem(missing).writeFile(nssEntryPath("/db", NICKNAME), "x");
+			expect.unreachable("should have refused");
+		} catch (error) {
+			refusal = error as CertificateRefusal;
+		}
+		expect(refusal?.fix).toContain("libnss3-tools");
 	});
 });
 
