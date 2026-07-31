@@ -1,5 +1,6 @@
 import { X509Certificate } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -31,6 +32,7 @@ import {
 	buildCertificateRegistry,
 	defaultNameSuffixes,
 	resolveCertTrailPath,
+	resolveNameSuffixes,
 	resolveTlsDir,
 	runCertIssue,
 	runCertProviders,
@@ -96,6 +98,46 @@ describe("where things live is derived, never guessed", () => {
 	it("defaults the CA's constraint to this node's own hostname, and invents nothing wider", () => {
 		expect(defaultNameSuffixes("Serpro-1577853")).toEqual(["serpro-1577853"]);
 		expect(defaultNameSuffixes("  ")).toEqual([]);
+	});
+});
+
+describe("resolveNameSuffixes — explicit, then the CA already there, then the hostname guess", () => {
+	// The exact shape of the refusal the operator hit: `cert trust` on host `serpro-1577853`,
+	// against a CA already constrained to `tail894688.ts.net` — a name with no relation to the
+	// hostname at all. Reproduced here without openssl, by writing the same `ca.json` metadata
+	// `ensureCa` itself would have written.
+	async function writeExistingCaMetadata(nameSuffixes: string[]): Promise<void> {
+		await writeFile(
+			path.join(dir, "ca.json"),
+			JSON.stringify({ caName: "refarm", nameSuffixes, createdAt: "2026-01-01T00:00:00.000Z" }),
+		);
+	}
+
+	it("an explicit --suffix always wins, CA or no CA", async () => {
+		await writeExistingCaMetadata(["tail894688.ts.net"]);
+		expect(
+			await resolveNameSuffixes({ dir, suffix: ["explicit.example"], hostname: "serpro-1577853" }),
+		).toEqual(["explicit.example"]);
+	});
+
+	it("with no CA yet, falls back to the hostname guess — unchanged from before this fix", async () => {
+		expect(await resolveNameSuffixes({ dir, hostname: "Serpro-1577853" })).toEqual([
+			"serpro-1577853",
+		]);
+	});
+
+	it("prefers an existing CA's own constraint over a hostname that shares nothing with it", async () => {
+		await writeExistingCaMetadata(["tail894688.ts.net"]);
+		expect(await resolveNameSuffixes({ dir, hostname: "serpro-1577853" })).toEqual([
+			"tail894688.ts.net",
+		]);
+	});
+
+	it("a CA metadata file that fails to parse is treated as no CA, not as a crash", async () => {
+		await writeFile(path.join(dir, "ca.json"), "{ not json");
+		expect(await resolveNameSuffixes({ dir, hostname: "serpro-1577853" })).toEqual([
+			"serpro-1577853",
+		]);
 	});
 });
 
@@ -253,6 +295,45 @@ describe.skipIf(!opensslAvailable)(
 			expect(result.status).toBe("deferred");
 			expect(existsSync(anchor)).toBe(false);
 			expect(await trail.read()).toEqual([]);
+		});
+
+		// THE EXACT REFUSAL THE OPERATOR HIT: a CA already exists (issued once under a tailnet
+		// suffix that shares nothing with this host's own name), and `cert trust` is run with NO
+		// `--suffix`. Before this fix, the default guessed the hostname and collided with the CA's
+		// real constraint; the refusal was correct, but nothing should have asked for the collision.
+		it("an existing CA's constraint is the default — no --suffix needed to avoid the collision", async () => {
+			await runCertIssue(
+				{
+					dir,
+					suffix: ["tail894688.ts.net"],
+					name: [`${HOST}.tail894688.ts.net`],
+					days: 7,
+				},
+				{ root: dir, hostname: HOST, say: () => {} },
+			);
+			// `trustSystem` passes no `--suffix` at all — the exact operator invocation.
+			const result = await trustSystem(answering("later"));
+			expect(result.status).toBe("deferred");
+			expect(result.grant.join("\n")).toContain("tail894688.ts.net");
+		});
+
+		it("an explicit --suffix that genuinely conflicts with an existing CA still refuses", async () => {
+			await runCertIssue(
+				{
+					dir,
+					suffix: ["tail894688.ts.net"],
+					name: [`${HOST}.tail894688.ts.net`],
+					days: 7,
+				},
+				{ root: dir, hostname: HOST, say: () => {} },
+			);
+			await expect(
+				runCertTrust(
+					{ dir, anchor, scope: "system", suffix: ["totally-different.example"] },
+					deps(answering("authorize")),
+				),
+			).rejects.toThrow(/widening a CA's constraint in place/);
+			expect(existsSync(anchor)).toBe(false);
 		});
 
 		it("with no operator to ask, nothing is written", async () => {

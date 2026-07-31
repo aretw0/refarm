@@ -64,6 +64,7 @@ export {
 export {
 	createLocalCaProvider,
 	LOCAL_CA_PROVIDER_ID,
+	readLocalCaNameSuffixes,
 	subjectCommonName,
 	type LocalCaHandle,
 	type LocalCaOptions,

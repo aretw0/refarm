@@ -107,6 +107,33 @@ const CA_CERT = "ca.crt";
 const CA_KEY = "ca.key";
 const CA_META = "ca.json";
 
+/**
+ * WHAT AN EXISTING CA ALREADY CARRIES — read without constructing a provider, so a caller can
+ * pick the right `nameSuffixes` BEFORE asking for one, instead of guessing and hitting the
+ * refusal in {@link createLocalCaProvider}'s `ensureCa`.
+ *
+ * `refarm cert trust` used to default to the host's short hostname even when a CA already
+ * existed under a wider constraint (a tailnet suffix, say) — the refusal that followed was
+ * correct (widening a live CA in place is exactly what it should refuse), but the operator
+ * should never have hit it: the constraint the CA already carries is sitting in `ca.json`,
+ * on this machine, and reading it is strictly better than inventing a new guess.
+ *
+ * Returns `null` when there is nothing to read — no CA yet, or a metadata file this process
+ * cannot parse — so a caller falls back to its own default rather than being handed a lie.
+ */
+export async function readLocalCaNameSuffixes(dir: string): Promise<string[] | null> {
+	try {
+		const parsed = JSON.parse(await readFile(join(dir, CA_META), "utf8")) as {
+			nameSuffixes?: unknown;
+		};
+		return Array.isArray(parsed.nameSuffixes) && parsed.nameSuffixes.every((s) => typeof s === "string")
+			? normalizeNameSuffixes(parsed.nameSuffixes as string[])
+			: null;
+	} catch {
+		return null;
+	}
+}
+
 function failed(step: string, result: OpensslResult): CertificateRefusal {
 	const detail = redactPrivateKeys((result.stderr || result.stdout).trim()).slice(0, 800);
 	return new CertificateRefusal(

@@ -30,6 +30,7 @@ import {
 	LINUX_CA_REFRESH_COMMAND,
 	linuxCaAnchorPath,
 	nssEntryPath,
+	readLocalCaNameSuffixes,
 	type CertutilRunner,
 	type LocalCaProvider,
 	type NssStore,
@@ -128,15 +129,42 @@ export function resolveCertTrailPath(root: string = process.cwd()): string {
 }
 
 /**
- * The names this node answers to, by default.
+ * The names this node answers to, when there is nothing else to go on.
  *
  * Just the hostname. NOT a guess at a tailnet suffix: `expose: "tailnet"` is resolved at bind time
  * by asking Tailscale, and inventing a suffix here would put a name in a certificate that nothing
  * verified. The operator passes `--suffix` when their names live under something wider.
+ *
+ * This is the FLOOR, not the whole story — see {@link resolveNameSuffixes}, which prefers an
+ * EXISTING CA's own constraint over this guess, because that constraint is already known rather
+ * than invented.
  */
 export function defaultNameSuffixes(hostname: string = os.hostname()): string[] {
 	const trimmed = hostname.trim().toLowerCase();
 	return trimmed ? [trimmed] : [];
+}
+
+/**
+ * What suffix this CA's directory should be built with — explicit, then the CA THAT IS ALREADY
+ * THERE, then the hostname guess.
+ *
+ * `refarm cert trust` used to skip straight from "no `--suffix`" to the hostname guess, so an
+ * operator whose CA already carried a wider constraint (a tailnet suffix, issued earlier under
+ * `--suffix`) got refused for asking to narrow it — `ensureCa` correctly refuses a mismatch, but
+ * nothing should have asked for the mismatch in the first place. The constraint an existing CA
+ * carries is a FACT on this machine (`ca.json`, beside the CA itself), not a guess, so it outranks
+ * the hostname floor. An explicit `--suffix` still outranks both — and if it conflicts with a CA
+ * that already exists, `ensureCa` still refuses exactly as before: this only changes what happens
+ * with NO `--suffix` at all.
+ */
+export async function resolveNameSuffixes(input: {
+	dir: string;
+	suffix?: string[];
+	hostname: string;
+}): Promise<string[]> {
+	if (input.suffix?.length) return input.suffix;
+	const existing = await readLocalCaNameSuffixes(input.dir);
+	return existing ?? defaultNameSuffixes(input.hostname);
 }
 
 export interface CertDeps {
@@ -279,7 +307,7 @@ export async function runCertIssue(
 		);
 	}
 
-	const suffixes = options.suffix?.length ? options.suffix : defaultNameSuffixes(hostname);
+	const suffixes = await resolveNameSuffixes({ dir, suffix: options.suffix, hostname });
 	const registry =
 		deps.registry ?? buildCertificateRegistry({ dir, nameSuffixes: suffixes, log: say }).registry;
 
@@ -410,7 +438,7 @@ export async function runCertTrust(
 	const dir = options.dir ? path.resolve(options.dir) : resolveTlsDir(root);
 	const hostname = deps.hostname ?? os.hostname();
 	const device = options.device?.trim() || hostname;
-	const suffixes = options.suffix?.length ? options.suffix : defaultNameSuffixes(hostname);
+	const suffixes = await resolveNameSuffixes({ dir, suffix: options.suffix, hostname });
 	const say = deps.say ?? (() => {});
 	const scope = options.scope ?? DEFAULT_CERT_TRUST_SCOPE;
 
