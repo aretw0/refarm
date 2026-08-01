@@ -405,8 +405,11 @@ export const WEB_SERVE_RECIPE: ProcessRecipe = {
 	propose(context) {
 		const publishedRoot = path.join(context.root, ".refarm", "dist");
 		const kitDir = path.join(publishedRoot, "farm-client");
-		const directory =
-			context.overrides.directory ?? (context.exists(kitDir) ? kitDir : publishedRoot);
+		// `dist publish` ALWAYS writes the kit below `<out>/farm-client`. Falling back to
+		// the parent merely because the child does not exist turns an absent publication into
+		// a healthy empty static server: systemd sees a running PID while every device gets 404.
+		// A future path is still the exact path the publisher will create, never a nearby one.
+		const directory = context.overrides.directory ?? kitDir;
 		const port = context.overrides.port ?? DEFAULT_WEB_SERVE_PORT;
 		const command = [...context.invocation.argv, "web", "serve", directory, "--port", String(port)];
 		const published = context.exists(directory);

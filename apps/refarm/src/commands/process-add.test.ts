@@ -17,8 +17,8 @@ import {
 	deriveRefarmInvocation,
 	expandHome,
 	parseCommandLine,
-	processRestartPrompt,
 	ProcessAddRefusal,
+	processRestartPrompt,
 	resolveOnPath,
 	runProcessAdd,
 	WEB_SERVE_RECIPE,
@@ -811,7 +811,7 @@ describe("refarm process add — with nobody to ask", () => {
 // ── The recipe, in isolation ──────────────────────────────────────────────────
 
 describe("the web-serve recipe", () => {
-	it("prefers the assembled kit directory, and falls back to the published root", () => {
+	it("always names the assembled kit directory, even before it has been published", () => {
 		const kit = path.join("/farm", ".refarm", "dist", "farm-client");
 		const proposed = WEB_SERVE_RECIPE.propose({
 			root: "/farm",
@@ -822,14 +822,16 @@ describe("the web-serve recipe", () => {
 		});
 		expect(proposed.command).toContain(kit);
 
-		const fallback = WEB_SERVE_RECIPE.propose({
+		const beforePublish = WEB_SERVE_RECIPE.propose({
 			root: "/farm",
 			env: {},
 			invocation: INVOCATION,
 			exists: () => false,
 			overrides: {},
 		});
-		expect(fallback.command).toContain(path.join("/farm", ".refarm", "dist"));
+		expect(beforePublish.command).toContain(kit);
+		expect(beforePublish.command).not.toContain(path.join("/farm", ".refarm", "dist", "--port"));
+		expect(beforePublish.preflight.join("\n")).toContain(`${kit} ainda não existe`);
 	});
 
 	it("never proposes a restart policy — that is not a derivable fact", () => {
