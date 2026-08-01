@@ -19,7 +19,6 @@ import {
 } from "@refarm.dev/operation-consent-v1";
 import {
 	createStdioOperatorChannel,
-	currentPromptPublisher,
 	OperatorPromptCancelledError,
 	type OperatorChannel,
 	type SelectPrompt,
