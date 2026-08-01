@@ -111,6 +111,8 @@ use axum::{
 };
 use sha2::{Digest, Sha256};
 
+use crate::security_events::{Budget, SecurityEvent};
+
 /// Env naming the auth policy file — an OVERRIDE of the derived path, never the only way in.
 /// Set to a non-blank value ⇒ that exact path wins over any derivation (the operator's
 /// explicit value always beats a convention). Unset — or set to blank, which is not a value
@@ -279,6 +281,117 @@ pub(crate) enum CredentialKind {
     Scoped,
 }
 
+/// WHAT the gate decided about one credential on one route — the four facts it has always
+/// known and, until now, had no way to tell apart.
+///
+/// [`AuthPolicy::verify`] used to return `Option<Verified>`, and a bare `None` meant three
+/// unrelated things at once: nothing recognises this token, this token is recognised and may
+/// not do this, this token is recognised and has expired. Those have three different remedies
+/// and exactly one of them is an attack, so conflating them meant the limiter punished a
+/// caller with a scope bug as though it were guessing credentials.
+///
+/// The distinction stops HERE. `verify` still exists and still answers `Option<Verified>` —
+/// it is now literally defined as this value with the distinction forgotten
+/// ([`Decision::verified`]) — so every existing caller, the WS handshake included, is
+/// unchanged. What is new is that the middleware can ask the finer question, and does.
+///
+/// Nothing derived from this value reaches the caller. See [`auth_middleware`]: all three
+/// refusals render the same bytes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Decision {
+    /// The credential verified and the route's authority is satisfied.
+    Verified(Verified),
+    /// Nothing in force matches the token presented. The ONLY fact here that is evidence of
+    /// guessing, and therefore the only one that spends the guessing budget.
+    ///
+    /// Carries no identity because there is none to carry — a token that matches nothing
+    /// resolves to nobody, which is also why this variant can never name a victim.
+    AuthenticationFailed,
+    /// The credential VERIFIED — this node issued it and still honours it — and it does not
+    /// hold the authority this route requires.
+    ///
+    /// Only a scoped credential can reach here: a device credential is unscoped and satisfies
+    /// every requirement, so it never gets past the first branch of [`AuthPolicy::decide`].
+    AuthorizationRefused { identity: String },
+    /// The credential verified and its deadline has passed — or the host clock cannot be read,
+    /// which cannot be used to assert that a deadline has NOT passed.
+    ///
+    /// Checked before the route's authority on purpose: expiry is a property of the CREDENTIAL,
+    /// not of the request, so the fact does not change with whichever route the caller happened
+    /// to hit. An expired credential is expired everywhere, and the remedy ("issue another") is
+    /// the same everywhere.
+    CredentialExpired { identity: String },
+}
+
+impl Decision {
+    /// The distinction, FORGOTTEN — what every caller outside the middleware sees, and the
+    /// definition of [`AuthPolicy::verify`]. Written as a projection rather than as a second
+    /// code path so the two answers cannot drift: there is one decision procedure, and the
+    /// coarse answer is a function of the fine one.
+    ///
+    /// `#[cfg(test)]` for the same reason [`AuthGate::authenticate`] is: since the middleware
+    /// began asking the finer question, the coarse answer has no production caller, and a
+    /// production caller able to discard the reason is how the conflation would grow back. It
+    /// is kept — and exercised by every pre-existing test in this module, unchanged — because
+    /// "the new decision procedure answers exactly what the old one answered" is the whole
+    /// regression proof, and it is only checkable if the old question is still askable.
+    #[cfg(test)]
+    fn verified(self) -> Option<Verified> {
+        match self {
+            Decision::Verified(verified) => Some(verified),
+            _ => None,
+        }
+    }
+
+    /// The identity this decision RESOLVED, when it resolved one. Never one a caller claimed —
+    /// a caller has no way to claim one here.
+    fn identity(&self) -> Option<&str> {
+        match self {
+            Decision::Verified(verified) => Some(verified.identity.as_str()),
+            Decision::AuthorizationRefused { identity }
+            | Decision::CredentialExpired { identity } => Some(identity.as_str()),
+            Decision::AuthenticationFailed => None,
+        }
+    }
+
+    /// Which KIND of credential this decision concerns. `Scoped` for both recognised-refusals
+    /// by construction (see [`Decision::AuthorizationRefused`]) — stated here, in one place,
+    /// rather than hardcoded at the audit call site where it would rot silently the day a
+    /// device credential gains a scope.
+    fn kind(&self) -> Option<CredentialKind> {
+        match self {
+            Decision::Verified(verified) => Some(verified.kind),
+            Decision::AuthorizationRefused { .. } | Decision::CredentialExpired { .. } => {
+                Some(CredentialKind::Scoped)
+            }
+            Decision::AuthenticationFailed => None,
+        }
+    }
+
+    /// Which budget this decision spends when it is a refusal — the separation, as one
+    /// function. `None` for a verified decision: a success spends nothing.
+    fn budget(&self) -> Option<Budget> {
+        match self {
+            Decision::Verified(_) => None,
+            Decision::AuthenticationFailed => Some(Budget::Authentication),
+            Decision::AuthorizationRefused { .. } | Decision::CredentialExpired { .. } => {
+                Some(Budget::Authorization)
+            }
+        }
+    }
+
+    /// The event this decision emits when it is REFUSED (a rate limit engaging is decided by
+    /// the limiter, not here, and is named at that point).
+    fn refusal_event(&self) -> Option<SecurityEvent> {
+        match self {
+            Decision::Verified(_) => None,
+            Decision::AuthenticationFailed => Some(SecurityEvent::AuthenticationFailed),
+            Decision::AuthorizationRefused { .. } => Some(SecurityEvent::AuthorizationRefused),
+            Decision::CredentialExpired { .. } => Some(SecurityEvent::CredentialExpired),
+        }
+    }
+}
+
 /// The host wall clock as epoch milliseconds, or `None` when it cannot be read as a point
 /// after the UNIX epoch. `None` refuses every scoped credential — see the module doc's clock
 /// section: an unreadable clock cannot be used to assert that a deadline has NOT passed.
@@ -333,33 +446,73 @@ impl AuthPolicy {
     /// is held, and the deadline has not passed. `None` for any failure, with no reason
     /// returned — a gate that says WHICH of the three failed is a gate that helps someone
     /// enumerate.
+    ///
+    /// TEST-ONLY since the middleware began asking [`Self::decide`] — see
+    /// [`Decision::verified`]. Its every pre-existing assertion still holds, which is the
+    /// point: this is the old question, still answered the old way.
+    #[cfg(test)]
     pub(crate) fn verify(
         &self,
         token: &str,
         required: RouteRequirement,
         now_ms: Option<i64>,
     ) -> Option<Verified> {
+        self.decide(token, required, now_ms).verified()
+    }
+
+    /// The SAME verification, with the reason kept. PURE, for the same reason [`Self::verify`]
+    /// is: the clock is an argument.
+    ///
+    /// Order, and why each step is where it is:
+    ///
+    /// 1. **Device credential.** Unscoped by design, satisfies every requirement. Checked
+    ///    first, exactly as before, so a route that declared nothing can never be reached by a
+    ///    scoped credential no matter what it holds.
+    /// 2. **Is this token recognised at all?** A token matching neither set is
+    ///    [`Decision::AuthenticationFailed`] — and this is the ONE new lookup: the old code
+    ///    returned early for a `DeviceOnly` route without ever consulting the scoped set, so a
+    ///    browser holding a real scoped credential and a device-only route looked exactly like
+    ///    a stranger guessing. That is the conflation this whole change exists to end, and it
+    ///    lived in a `let … else` two lines long.
+    /// 3. **Expiry**, before authority — see [`Decision::CredentialExpired`].
+    /// 4. **Authority.** A route that declared nothing admits device credentials only, so a
+    ///    recognised scoped credential is refused there; a route that declared a scope admits
+    ///    a credential that holds it.
+    ///
+    /// The caller learns none of this. `verify` — which is what every existing call site uses
+    /// — is this function with steps 2–4 collapsed back into one `None`.
+    pub(crate) fn decide(
+        &self,
+        token: &str,
+        required: RouteRequirement,
+        now_ms: Option<i64>,
+    ) -> Decision {
         let digest = sha256_hex(token);
         if let Some(device) = self.credentials.iter().find(|c| c.token_sha256 == digest) {
-            return Some(Verified {
+            return Decision::Verified(Verified {
                 identity: device.identity.clone(),
                 kind: CredentialKind::Device,
             });
         }
-        let RouteRequirement::Scoped(required) = required else {
-            return None;
+        let Some(entry) = self.scoped.iter().find(|c| c.token_sha256 == digest) else {
+            return Decision::AuthenticationFailed;
         };
-        let entry = self.scoped.iter().find(|c| c.token_sha256 == digest)?;
-        if !entry.scope.contains(&required) {
-            return None;
-        }
         // An unreadable clock refuses, rather than being treated as instant zero (which would
         // make every deadline lie in the future — the widening direction).
-        let now = now_ms?;
-        if now >= entry.expires_at_ms {
-            return None;
+        let expired = match now_ms {
+            None => true,
+            Some(now) => now >= entry.expires_at_ms,
+        };
+        if expired {
+            return Decision::CredentialExpired { identity: entry.identity.clone() };
         }
-        Some(Verified { identity: entry.identity.clone(), kind: CredentialKind::Scoped })
+        let RouteRequirement::Scoped(required) = required else {
+            return Decision::AuthorizationRefused { identity: entry.identity.clone() };
+        };
+        if !entry.scope.contains(&required) {
+            return Decision::AuthorizationRefused { identity: entry.identity.clone() };
+        }
+        Decision::Verified(Verified { identity: entry.identity.clone(), kind: CredentialKind::Scoped })
     }
 
     /// A deny-all policy — every request is rejected. The fail-closed fallback.
@@ -414,8 +567,64 @@ pub(crate) fn sha256_hex(input: &str) -> String {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════
-// A BOUND ON FAILED AUTHENTICATION
+// A BOUND ON FAILED AUTHENTICATION — AND A SEPARATE ONE ON REFUSED AUTHORIZATION
 // ═══════════════════════════════════════════════════════════════════════════════════════
+//
+// ## The two facts, and why one budget was wrong
+//
+// This gate learns two different things and used to spend one budget on both:
+//
+//   * **authentication failed** — the credential does not verify. Evidence of GUESSING.
+//   * **authorization refused** — the credential verifies; the scope is wrong. Evidence of a
+//     BUG, in a caller this node itself issued a credential to.
+//
+// Sharing a budget meant a browser holding a real `prompt:answer` credential that asked for
+// five routes it had no authority for was locked out for a minute — including from the routes
+// it WAS entitled to — for a mistake in its own routing. A legitimate app punished as an
+// attacker, and the node blind to the difference in the one place it mattered.
+//
+// They no longer share. [`FailureLimiter`] holds two [`BudgetTable`]s, [`Budget`] names which
+// one a refusal spends, and a scope refusal cannot touch the guessing budget. What that buys,
+// precisely: a credential with a scope bug keeps working on the routes it is entitled to,
+// while still being told — at a bounded rate — about the ones it is not.
+//
+// ## Identical outward, distinguished inward
+//
+// The separation must not become a credential-validity ORACLE. Answering "valid credential,
+// wrong scope" differently from "no such credential" would tell whoever presented a guessed
+// token that the token EXISTS — the single most valuable thing an attacker can learn, handed
+// out by the very refusal meant to stop them. So the distinction is total inside and invisible
+// outside, and three separate mechanisms keep it invisible:
+//
+//   1. **Same bytes.** All three refusals render `401 {"error":"unauthorized","reason":
+//      "invalid"}`, exactly as before this change. One `unauthorized("invalid")` call site.
+//   2. **Same numbers.** Both budgets use the SAME threshold, window and capacity, so a caller
+//      counting `401`s until the `429` — and reading the same `Retry-After` — learns nothing
+//      about which budget they are spending. Different thresholds would have made the COUNT
+//      the oracle, which is the subtle way this design could have failed.
+//   3. **Same silence when locked out.** A caller at either bound gets `429` with no line
+//      written, by the same rule for the same reason.
+//
+// The one thing a scope-refused caller can observe that a guessing caller cannot is that its
+// ENTITLED routes still answer `200`. That is not a leak: it requires already holding a
+// credential that works, and a credential that works has already told its holder it is valid.
+//
+// ## Where each budget is consulted, which is the whole design
+//
+// | | authentication | authorization |
+// |---|---|---|
+// | consulted | BEFORE verification | only AFTER a refusal is decided |
+// | can refuse a request the policy would have served | yes (only for a credential that has itself failed) | **never**, structurally |
+// | cleared by a success | yes | no — see [`FailureLimiter::on_success`] |
+//
+// ## Why the authorization budget is bounded at all
+//
+// Unbounded was a defensible answer and is not the one taken. Reaching that budget requires
+// holding a credential this node issued, so bounding it stops no attack. It bounds the TRAIL:
+// every refusal writes an audit line, and an unbounded stream of them from one misconfigured
+// caller is a disk-filling amplifier pointed at the operator's own record — the exact failure
+// the authentication lockout's silence was introduced to prevent. It costs a legitimate caller
+// nothing, because it is only ever reached by a request that was already going to be refused.
 //
 // The gate refused bad credentials from the day it existed, and did so an unlimited number of
 // times. Refusing is not the same as bounding: a device on the tailnet could present wrong
@@ -545,17 +754,24 @@ struct Bucket {
     last: Instant,
 }
 
-/// The bounded failure limiter. Not `Clone`: there is one, behind the gate's `Arc`, so every
-/// listener sharing that gate shares one set of budgets.
+/// ONE budget's table: the per-credential buckets and the shared overflow counter.
+///
+/// Extracted so there can be TWO of them with identical mechanics and no copied code. Every
+/// rule below — the threshold, the window, the capacity, the lazy expiry, the
+/// never-evict-a-live-lockout reclaim — is stated once and holds for both budgets, which is
+/// what keeps their OUTWARD behaviour indistinguishable. A caller counts the same number of
+/// `401`s before the same `429` with the same `Retry-After` whichever budget they are
+/// spending; if the two tables had different numbers, the count itself would be the oracle
+/// this design refuses to hand out.
 #[derive(Debug, Default)]
-pub(crate) struct FailureLimiter {
+struct BudgetTable {
     buckets: HashMap<u64, Bucket>,
     /// The one shared bucket for credentials the table had no room for. `None` until the
     /// table has actually overflowed, so the ordinary case carries no extra state.
     overflow: Option<Bucket>,
 }
 
-impl FailureLimiter {
+impl BudgetTable {
     /// Is this credential locked out RIGHT NOW — asked before the policy is consulted, so a
     /// locked-out credential is refused without the gate doing the work of verifying it.
     /// `Some(retry_after)` ⇒ refuse; `None` ⇒ carry on to verification.
@@ -654,8 +870,89 @@ impl FailureLimiter {
     /// How many buckets are held. The memory bound, observable — for the flood test, which
     /// asserts it stops rising, and for nothing else.
     #[cfg(test)]
-    pub(crate) fn tracked(&self) -> usize {
+    fn tracked(&self) -> usize {
         self.buckets.len()
+    }
+}
+
+/// The bounded failure limiter: TWO budgets, one per fact, sharing nothing but their rules.
+///
+/// Not `Clone`: there is one, behind the gate's `Arc`, so every listener sharing that gate
+/// shares one set of budgets.
+///
+/// # Why they had to separate
+///
+/// They were one table. A browser holding a real `prompt:answer` credential that asked for a
+/// route it had no authority for spent the budget that exists to stop credential GUESSING —
+/// and five such requests locked it out of the routes it WAS entitled to, for a minute, for a
+/// bug in its own routing. A legitimate caller was punished as an attacker, and the node lost
+/// the ability to tell the two apart in the one place it most needed to.
+///
+/// # Why the authorization budget exists at all, rather than being unbounded
+///
+/// Unbounded was defensible and is not what this does. Reaching the authorization budget
+/// requires HOLDING a credential this node issued, so it is not the guessing population and
+/// bounding it protects against no attack. But a refusal is not free: each one writes a line
+/// to the operator's audit trail, and an unbounded stream of them from one misconfigured
+/// caller is a disk-filling amplifier pointed at the trail — the exact failure the lockout's
+/// silence was added to prevent on the authentication side. The bound costs a legitimate
+/// caller nothing (it is consulted only once the request was going to be refused anyway) and
+/// it keeps the trail readable. So: bounded, for the trail's sake, not for the door's.
+#[derive(Debug, Default)]
+pub(crate) struct FailureLimiter {
+    /// Bounds guessing. Consulted BEFORE verification.
+    authentication: BudgetTable,
+    /// Bounds refusal volume against recognised credentials. Consulted only AFTER a refusal
+    /// has been decided — so it can never block a request that would have succeeded, which is
+    /// the property that makes the whole separation worth having.
+    authorization: BudgetTable,
+}
+
+impl FailureLimiter {
+    fn table(&mut self, budget: Budget) -> &mut BudgetTable {
+        match budget {
+            Budget::Authentication => &mut self.authentication,
+            Budget::Authorization => &mut self.authorization,
+        }
+    }
+
+    /// Is this credential at this budget's bound RIGHT NOW?
+    fn blocked(&mut self, budget: Budget, tag: u64, now: Instant) -> Option<Duration> {
+        self.table(budget).blocked(tag, now)
+    }
+
+    /// Count a failure against ONE budget and say what to tell the caller.
+    fn on_failure(&mut self, budget: Budget, tag: u64, now: Instant) -> Refusal {
+        self.table(budget).on_failure(tag, now)
+    }
+
+    /// Forget this credential's failed AUTHENTICATIONS, because it has just authenticated.
+    ///
+    /// Deliberately not the authorization budget. The two budgets answer different questions
+    /// and a success answers only one of them. "Were you guessing?" — no, demonstrably, so the
+    /// guessing count goes. "Are you asking for authority you do not have?" — a success on a
+    /// route you ARE entitled to says nothing about that, and clearing it here would let a
+    /// caller alternate one good request with one refused one and generate refusals forever,
+    /// which is precisely the unbounded trail the authorization budget exists to prevent.
+    fn on_success(&mut self, tag: u64) {
+        self.authentication.on_success(tag);
+    }
+
+    /// How many credentials the GUESSING budget is tracking. The memory bound the flood test
+    /// watches; unchanged in meaning from when there was one table.
+    #[cfg(test)]
+    pub(crate) fn tracked(&self) -> usize {
+        self.authentication.tracked()
+    }
+
+    /// How many credentials one named budget is tracking — for the tests that must show a
+    /// scope refusal landing in one table and not the other.
+    #[cfg(test)]
+    pub(crate) fn tracked_in(&self, budget: Budget) -> usize {
+        match budget {
+            Budget::Authentication => self.authentication.tracked(),
+            Budget::Authorization => self.authorization.tracked(),
+        }
     }
 }
 
@@ -716,37 +1013,12 @@ impl FailureLimiter {
 // function of six values and none of them is derived from the secret, which is what makes
 // that assertion testable rather than aspirational.
 
-/// The outcome of one authentication decision, as the audit records it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum AuditOutcome {
-    /// A credential verified. The request proceeded.
-    Accepted,
-    /// A credential did not verify. `401`.
-    Refused,
-    /// The failure that TRIPPED the limit. `429`, and the last line this credential writes
-    /// until its window closes.
-    LockedOut,
-}
-
-impl AuditOutcome {
-    /// The `event` name — `auth:` prefixed, so it sits in the shared trail as its own
-    /// namespace beside `host-effect:` and `agent:`, greppable and routable on its own.
-    fn event(self) -> &'static str {
-        match self {
-            AuditOutcome::Accepted => "auth:accepted",
-            AuditOutcome::Refused => "auth:refused",
-            AuditOutcome::LockedOut => "auth:locked-out",
-        }
-    }
-
-    fn outcome(self) -> &'static str {
-        match self {
-            AuditOutcome::Accepted => "accepted",
-            AuditOutcome::Refused => "refused",
-            AuditOutcome::LockedOut => "locked-out",
-        }
-    }
-}
+// The outcome of one authentication decision is named by `crate::security_events`, not here.
+// It used to be a private three-variant enum (`Accepted` / `Refused` / `LockedOut`) whose
+// `Refused` covered three unrelated facts and whose names existed only inside this file. It is
+// now the framework's vocabulary: five names, one namespace, mirrored in TypeScript and pinned
+// against a shared wire fixture — because the consumer who most needs to tell a scope bug from
+// an attack is not this module.
 
 /// The absence of a value, rendered. A failure has no identity and no credential kind — and
 /// writing `-` rather than omitting the key keeps every line the same shape, so an operator
@@ -762,7 +1034,7 @@ const AUDIT_ABSENT: &str = "-";
 /// a credential if someone asked it to.
 pub(crate) fn audit_line(
     now_ms: i64,
-    outcome: AuditOutcome,
+    event: SecurityEvent,
     identity: Option<&str>,
     kind: Option<CredentialKind>,
     required: RouteRequirement,
@@ -772,8 +1044,18 @@ pub(crate) fn audit_line(
     // attacker-adjacent text, and a hand-built line is how one of them becomes a second line.
     serde_json::json!({
         "ts": now_ms,
-        "event": outcome.event(),
-        "outcome": outcome.outcome(),
+        "event": event.name(),
+        "outcome": event.outcome(),
+        // WHICH bound this fact moved. Derivable from the name for every variant but one, and
+        // the one it is not derivable for is the one a consumer most needs: a rate limit
+        // engaging on `authentication` means this node is being ground by someone guessing;
+        // the same limit engaging on `authorization` means one caller this node KNOWS is
+        // asking for authority it does not have. Opposite meanings, opposite responses, and
+        // no way to tell them apart from an HTTP status code — which is the point.
+        "budget": match event.budget() {
+            Some(budget) => budget.wire(),
+            None => AUDIT_ABSENT,
+        },
         // Only ever an identity this gate RESOLVED from a verified credential — never one a
         // caller claimed, because a caller has no way to claim one here.
         "identity": identity.unwrap_or(AUDIT_ABSENT),
@@ -818,7 +1100,7 @@ impl AuthAudit {
     /// the trail — and the gap is audible.
     async fn record(
         &self,
-        outcome: AuditOutcome,
+        event: SecurityEvent,
         identity: Option<&str>,
         kind: Option<CredentialKind>,
         required: RouteRequirement,
@@ -826,7 +1108,7 @@ impl AuthAudit {
     ) {
         let line = audit_line(
             host_clock_ms().unwrap_or_default(),
-            outcome,
+            event,
             identity,
             kind,
             required,
@@ -1234,23 +1516,24 @@ impl AuthGate {
         }
     }
 
-    /// Is this credential locked out right now? Takes the lock, decides, releases it — the
-    /// guard never outlives this call, which is what keeps the middleware's future `Send`.
-    fn blocked(&self, tag: u64, now: Instant) -> Option<Duration> {
+    /// Is this credential at the named budget's bound right now? Takes the lock, decides,
+    /// releases it — the guard never outlives this call, which is what keeps the middleware's
+    /// future `Send`.
+    fn blocked(&self, budget: Budget, tag: u64, now: Instant) -> Option<Duration> {
         self.state
             .limiter
             .lock()
             .expect("auth limiter lock poisoned")
-            .blocked(tag, now)
+            .blocked(budget, tag, now)
     }
 
-    /// Count a failure and say what to answer.
-    fn note_failure(&self, tag: u64, now: Instant) -> Refusal {
+    /// Count a failure against ONE budget and say what to answer.
+    fn note_failure(&self, budget: Budget, tag: u64, now: Instant) -> Refusal {
         self.state
             .limiter
             .lock()
             .expect("auth limiter lock poisoned")
-            .on_failure(tag, now)
+            .on_failure(budget, tag, now)
     }
 
     /// Forget this credential's failures — it has just authenticated.
@@ -1265,21 +1548,30 @@ impl AuthGate {
     /// Record one authentication event, if this gate has a trail to write to.
     async fn audit(
         &self,
-        outcome: AuditOutcome,
+        event: SecurityEvent,
         identity: Option<&str>,
         kind: Option<CredentialKind>,
         required: RouteRequirement,
         method: &str,
     ) {
         if let Some(audit) = &self.state.audit {
-            audit.record(outcome, identity, kind, required, method).await;
+            audit.record(event, identity, kind, required, method).await;
         }
     }
 
-    /// Test-only: how many credentials the limiter is tracking — the memory bound, observable.
+    /// Test-only: how many credentials the GUESSING budget is tracking — the memory bound,
+    /// observable.
     #[cfg(test)]
     pub(crate) fn tracked_failures(&self) -> usize {
         self.state.limiter.lock().expect("auth limiter lock poisoned").tracked()
+    }
+
+    /// Test-only: how many credentials ONE named budget is tracking. THE observation the whole
+    /// separation rests on — a scope refusal must move `Authorization` and leave
+    /// `Authentication` at zero.
+    #[cfg(test)]
+    pub(crate) fn tracked_failures_in(&self, budget: Budget) -> usize {
+        self.state.limiter.lock().expect("auth limiter lock poisoned").tracked_in(budget)
     }
 
     /// Authenticate a bearer token as a DEVICE against the policy IN FORCE right now → its
@@ -1323,12 +1615,24 @@ impl AuthGate {
     /// the next request and a revoked one stops on the next request — the same guarantee
     /// `authenticate` already gives device credentials, extended to the scoped set for free
     /// because there is only ever one value behind this handle.
-    pub(crate) fn verify(&self, token: &str, required: RouteRequirement) -> Option<Verified> {
+    ///
+    /// REMOVED as a gate-level method when the middleware began asking [`Self::decide`]: the
+    /// coarse question now has no caller here, and a gate-level way to discard the reason is
+    /// how the conflation would grow back. The projection itself still exists, and is still
+    /// exercised by every pre-existing test in this module, one level down at
+    /// [`AuthPolicy::verify`] — which is where the regression proof belongs, because that is
+    /// the pure function the old tests were written against.
+
+    /// The same verification with the REASON kept — the middleware's real entry point, and the
+    /// only place in the running daemon that asks the finer question. Everything downstream of
+    /// it (the response bytes) is identical for all three refusals; everything beside it (the
+    /// budget spent, the event written) is not.
+    pub(crate) fn decide(&self, token: &str, required: RouteRequirement) -> Decision {
         self.state
             .current
             .read()
             .expect("auth policy lock poisoned")
-            .verify(token, required, host_clock_ms())
+            .decide(token, required, host_clock_ms())
     }
 
     /// Test-only: the same verification at a NAMED instant, so an expiry can be crossed
@@ -1656,17 +1960,28 @@ fn too_many_requests(retry_after: Duration) -> Response<Body> {
 /// mis-pointed client, a probe, a browser that wandered in) spend a budget that exists to
 /// detect guessing, which is a way for a third party to blunt the signal for free.
 ///
-/// A request WITH a credential meets the limiter twice, at two different moments:
+/// A request WITH a credential meets the limiter at up to three moments, and WHICH budget it
+/// meets at each is the design:
 ///
-///   1. BEFORE verification, against that credential's own bucket. A locked-out credential is
-///      refused here without the policy being consulted at all. Safe at this position for the
-///      one reason the whole design rests on: only the holder of a credential can fill its
-///      bucket.
-///   2. AFTER verification has failed, to count the failure and decide `401` or `429`.
+///   1. BEFORE verification, against the AUTHENTICATION budget only. A credential that has
+///      itself failed five verifications is refused here without the policy being consulted.
+///      Safe at this position for the one reason the whole design rests on: only the holder of
+///      a credential can fill its bucket.
+///   2. AFTER the decision, and only if it was a refusal, against the AUTHORIZATION budget —
+///      but only for a credential this node RECOGNISES. Deliberately not at position 1: up
+///      there it would refuse a request before the policy was consulted, and the same
+///      credential may be entirely entitled to the route it is now asking for. Down here it
+///      can only change what an already-refused caller is told.
+///   3. To COUNT the refusal against whichever budget the decision named.
 ///
 /// A SUCCESSFUL verification is never refused by the limiter — step 1 can only fire for a
-/// credential that has itself failed five times, and step 2 is not reached. That is the
-/// anti-lockout property stated as control flow rather than as a promise.
+/// credential that has itself failed authentication five times, steps 2 and 3 are not reached
+/// at all, and no scope refusal can ever put a credential into the budget step 1 reads. That
+/// is the anti-lockout property, and the fix to "a legitimate app with a scope bug is punished
+/// as an attacker", stated as control flow rather than as a promise.
+///
+/// What the caller learns from any of it: nothing. Same status, same body, same headers, same
+/// number of attempts before the same `429`, whichever budget is moving.
 ///
 /// The node-local listener is untouched by every word of this: it is constructed WITHOUT this
 /// layer (`node_local::gate_for`), so it has no credential, no failures to count, and no way
@@ -1690,37 +2005,71 @@ pub(crate) async fn auth_middleware(
     let now = Instant::now();
     let tag = credential_tag(&token);
 
-    if let Some(retry_after) = gate.blocked(tag, now) {
+    if let Some(retry_after) = gate.blocked(Budget::Authentication, tag, now) {
         // Deliberately silent in the trail. The lockout was recorded on the attempt that
         // tripped it; a line per attempt while locked out would be a disk-filling amplifier
         // handed to whoever is hammering, and would bury the one line that mattered.
         return too_many_requests(retry_after);
     }
 
-    match gate.verify(&token, required) {
-        Some(verified) => {
-            gate.note_success(tag);
+    let decision = gate.decide(&token, required);
+    let identity = decision.identity().map(str::to_string);
+    let kind = decision.kind();
+
+    let Some(budget) = decision.budget() else {
+        // Verified. The one path that spends nothing and clears the guessing count.
+        let Decision::Verified(verified) = decision else {
+            unreachable!("only a verified decision has no budget to spend")
+        };
+        gate.note_success(tag);
+        gate.audit(
+            SecurityEvent::Accepted,
+            Some(&verified.identity),
+            Some(verified.kind),
+            required,
+            method.as_str(),
+        )
+        .await;
+        request.extensions_mut().insert(AuthenticatedDevice(verified.identity));
+        return next.run(request).await;
+    };
+
+    // The authorization budget is consulted HERE and not beside the authentication one at the
+    // top, and the position is the entire fix. Checked up there it would block a request
+    // before the policy was consulted — which is exactly the punishment being removed, since
+    // the same credential may be perfectly entitled to the route it is now asking for. Checked
+    // here, the request has ALREADY been decided a refusal, so this can only ever change what
+    // a refused caller is told. It can never deny service to a request that would have been
+    // served.
+    //
+    // The two budgets are otherwise indistinguishable from outside: same threshold, same
+    // window, same `Retry-After`, same bytes. A caller counting `401`s until the `429` learns
+    // nothing about which budget they are spending, and therefore nothing about whether the
+    // credential they hold is real.
+    if let Some(retry_after) = gate.blocked(budget, tag, now) {
+        return too_many_requests(retry_after);
+    }
+
+    match gate.note_failure(budget, tag, now) {
+        Refusal::Invalid => {
+            let event = decision.refusal_event().expect("a refusal names its event");
+            gate.audit(event, identity.as_deref(), kind, required, method.as_str()).await;
+            // THE no-oracle rule, as one line of code: three different facts, one response.
+            // `invalid` whether the credential was unknown, out of scope, or expired — a gate
+            // that said which is a gate that confirms a guessed credential exists.
+            unauthorized("invalid")
+        }
+        Refusal::RateLimited { retry_after } => {
             gate.audit(
-                AuditOutcome::Accepted,
-                Some(&verified.identity),
-                Some(verified.kind),
+                SecurityEvent::RateLimitEngaged(budget),
+                identity.as_deref(),
+                kind,
                 required,
                 method.as_str(),
             )
             .await;
-            request.extensions_mut().insert(AuthenticatedDevice(verified.identity));
-            next.run(request).await
+            too_many_requests(retry_after)
         }
-        None => match gate.note_failure(tag, now) {
-            Refusal::Invalid => {
-                gate.audit(AuditOutcome::Refused, None, None, required, method.as_str()).await;
-                unauthorized("invalid")
-            }
-            Refusal::RateLimited { retry_after } => {
-                gate.audit(AuditOutcome::LockedOut, None, None, required, method.as_str()).await;
-                too_many_requests(retry_after)
-            }
-        },
     }
 }
 
@@ -2018,6 +2367,13 @@ mod tests {
         // onto the refarm dir it was given. If either side renames the file alone, the
         // writer and the reader silently stop meeting — which was the original defect.
         assert_eq!(AUTH_POLICY_FILE_NAME, "auth-policy.json");
+        // `resolve_policy_path` READS `REFARM_AUTH_POLICY`, so this asserts about the DERIVED
+        // path only while no concurrent test has an override set. It was missing the lane its
+        // sibling below takes, and passed on scheduling luck; adding eleven tests to this
+        // module changed the luck and it began failing about half the time. A pre-existing
+        // race in the test, not in the gate.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
         let source = AuthPolicySource::new(std::path::PathBuf::from("/farm/.refarm"), true);
         let located = resolve_policy_path(&source).expect("declared ⇒ a path");
         assert_eq!(located.path, std::path::PathBuf::from("/farm/.refarm/auth-policy.json"));
@@ -3256,18 +3612,18 @@ mod tests {
 
         for attempt in 1..=4 {
             assert_eq!(
-                limiter.on_failure(tag, at(origin, 0)),
+                limiter.on_failure(Budget::Authentication, tag, at(origin, 0)),
                 Refusal::Invalid,
                 "attempt {attempt} of 5 must be an ordinary 401 refusal"
             );
         }
         assert_eq!(
-            limiter.on_failure(tag, at(origin, 0)),
+            limiter.on_failure(Budget::Authentication, tag, at(origin, 0)),
             Refusal::RateLimited { retry_after: Duration::from_secs(60) },
             "the FIFTH failure trips the limit, and the wait is 60 seconds"
         );
         assert_eq!(
-            limiter.blocked(tag, at(origin, 0)),
+            limiter.blocked(Budget::Authentication, tag, at(origin, 0)),
             Some(Duration::from_secs(60)),
             "and from that moment the credential is refused before the policy is consulted"
         );
@@ -3282,12 +3638,12 @@ mod tests {
         // Below the threshold: refused `401`, and NOT blocked — the gate keeps looking.
         for attempt in 1..FAILURE_THRESHOLD {
             assert_eq!(
-                limiter.on_failure(tag, at(origin, 0)),
+                limiter.on_failure(Budget::Authentication, tag, at(origin, 0)),
                 Refusal::Invalid,
                 "attempt {attempt} is below the threshold and must be an ordinary refusal"
             );
             assert_eq!(
-                limiter.blocked(tag, at(origin, 0)),
+                limiter.blocked(Budget::Authentication, tag, at(origin, 0)),
                 None,
                 "attempt {attempt} must not have locked the credential out yet"
             );
@@ -3295,12 +3651,12 @@ mod tests {
 
         // THE threshold attempt trips it.
         assert_eq!(
-            limiter.on_failure(tag, at(origin, 0)),
+            limiter.on_failure(Budget::Authentication, tag, at(origin, 0)),
             Refusal::RateLimited { retry_after: FAILURE_WINDOW },
             "the {FAILURE_THRESHOLD}th failure must trip the limit"
         );
         assert_eq!(
-            limiter.blocked(tag, at(origin, 0)),
+            limiter.blocked(Budget::Authentication, tag, at(origin, 0)),
             Some(FAILURE_WINDOW),
             "and the credential must now be refused BEFORE the policy is consulted"
         );
@@ -3312,18 +3668,18 @@ mod tests {
         let origin = Instant::now();
         let tag = credential_tag("a-wrong-token");
         for _ in 0..FAILURE_THRESHOLD {
-            limiter.on_failure(tag, at(origin, 0));
+            limiter.on_failure(Budget::Authentication, tag, at(origin, 0));
         }
 
         // One second before the window closes: still shut, and the remaining time is stated.
         let remaining = limiter
-            .blocked(tag, at(origin, FAILURE_WINDOW.as_secs() - 1))
+            .blocked(Budget::Authentication, tag, at(origin, FAILURE_WINDOW.as_secs() - 1))
             .expect("still locked out one second before the window closes");
         assert_eq!(remaining, Duration::from_secs(1), "the wait must be counted down honestly");
 
         // At the window: open, with nothing scheduled and nothing swept.
         assert_eq!(
-            limiter.blocked(tag, at(origin, FAILURE_WINDOW.as_secs())),
+            limiter.blocked(Budget::Authentication, tag, at(origin, FAILURE_WINDOW.as_secs())),
             None,
             "the lockout must expire on its own — waiting is the whole recovery path"
         );
@@ -3343,15 +3699,15 @@ mod tests {
         let origin = Instant::now();
         let tag = credential_tag("a-wrong-token");
         for _ in 0..FAILURE_THRESHOLD {
-            limiter.on_failure(tag, at(origin, 0));
+            limiter.on_failure(Budget::Authentication, tag, at(origin, 0));
         }
         // Hammer all the way through the window. `blocked` short-circuits, so `on_failure` is
         // never reached — exactly as the middleware arranges it.
         for second in 0..FAILURE_WINDOW.as_secs() {
-            assert!(limiter.blocked(tag, at(origin, second)).is_some(), "shut at second {second}");
+            assert!(limiter.blocked(Budget::Authentication, tag, at(origin, second)).is_some(), "shut at second {second}");
         }
         assert_eq!(
-            limiter.blocked(tag, at(origin, FAILURE_WINDOW.as_secs())),
+            limiter.blocked(Budget::Authentication, tag, at(origin, FAILURE_WINDOW.as_secs())),
             None,
             "the window must close on schedule regardless of how hard it was hammered"
         );
@@ -3365,14 +3721,14 @@ mod tests {
         let origin = Instant::now();
         let tag = credential_tag("the-real-token");
         for _ in 0..FAILURE_THRESHOLD - 1 {
-            assert_eq!(limiter.on_failure(tag, at(origin, 0)), Refusal::Invalid);
+            assert_eq!(limiter.on_failure(Budget::Authentication, tag, at(origin, 0)), Refusal::Invalid);
         }
         limiter.on_success(tag);
         assert_eq!(limiter.tracked(), 0, "success must forget the bucket entirely");
 
         // The next failure starts from one, so the threshold is a fresh five away.
         assert_eq!(
-            limiter.on_failure(tag, at(origin, 1)),
+            limiter.on_failure(Budget::Authentication, tag, at(origin, 1)),
             Refusal::Invalid,
             "the count must restart at one, not resume at five"
         );
@@ -3389,11 +3745,11 @@ mod tests {
         let operator = credential_tag("the-operators-real-token");
 
         for _ in 0..FAILURE_THRESHOLD * 4 {
-            limiter.on_failure(attacker, at(origin, 0));
+            limiter.on_failure(Budget::Authentication, attacker, at(origin, 0));
         }
-        assert!(limiter.blocked(attacker, at(origin, 0)).is_some(), "the grinder is shut out");
+        assert!(limiter.blocked(Budget::Authentication, attacker, at(origin, 0)).is_some(), "the grinder is shut out");
         assert_eq!(
-            limiter.blocked(operator, at(origin, 0)),
+            limiter.blocked(Budget::Authentication, operator, at(origin, 0)),
             None,
             "and the operator's own credential is entirely unaffected by it"
         );
@@ -3407,7 +3763,7 @@ mod tests {
         let mut limiter = FailureLimiter::default();
         let origin = Instant::now();
         for n in 0..FAILURE_TABLE_CAPACITY * 10 {
-            limiter.on_failure(credential_tag(&format!("flood-token-{n}")), at(origin, 0));
+            limiter.on_failure(Budget::Authentication, credential_tag(&format!("flood-token-{n}")), at(origin, 0));
             assert!(
                 limiter.tracked() <= FAILURE_TABLE_CAPACITY,
                 "the table exceeded its capacity at attempt {n} — the bound is not a bound"
@@ -3429,15 +3785,15 @@ mod tests {
         let origin = Instant::now();
         let locked = credential_tag("the-locked-out-credential");
         for _ in 0..FAILURE_THRESHOLD {
-            limiter.on_failure(locked, at(origin, 0));
+            limiter.on_failure(Budget::Authentication, locked, at(origin, 0));
         }
-        assert!(limiter.blocked(locked, at(origin, 1)).is_some(), "locked out to begin with");
+        assert!(limiter.blocked(Budget::Authentication, locked, at(origin, 1)).is_some(), "locked out to begin with");
 
         for n in 0..FAILURE_TABLE_CAPACITY * 4 {
-            limiter.on_failure(credential_tag(&format!("evictor-{n}")), at(origin, 1));
+            limiter.on_failure(Budget::Authentication, credential_tag(&format!("evictor-{n}")), at(origin, 1));
         }
         assert!(
-            limiter.blocked(locked, at(origin, 1)).is_some(),
+            limiter.blocked(Budget::Authentication, locked, at(origin, 1)).is_some(),
             "a flood must not buy an attacker their way out of their own lockout"
         );
     }
@@ -3449,12 +3805,12 @@ mod tests {
         let mut limiter = FailureLimiter::default();
         let origin = Instant::now();
         for n in 0..FAILURE_TABLE_CAPACITY {
-            limiter.on_failure(credential_tag(&format!("old-{n}")), at(origin, 0));
+            limiter.on_failure(Budget::Authentication, credential_tag(&format!("old-{n}")), at(origin, 0));
         }
         assert_eq!(limiter.tracked(), FAILURE_TABLE_CAPACITY, "full");
 
         // A failure a full window later: the stale entries go, and this one is tracked.
-        limiter.on_failure(credential_tag("fresh"), at(origin, FAILURE_WINDOW.as_secs() + 1));
+        limiter.on_failure(Budget::Authentication, credential_tag("fresh"), at(origin, FAILURE_WINDOW.as_secs() + 1));
         assert_eq!(limiter.tracked(), 1, "stale buckets must be reclaimed, not accumulated");
     }
 
@@ -3466,11 +3822,11 @@ mod tests {
         let mut limiter = FailureLimiter::default();
         let origin = Instant::now();
         for n in 0..FAILURE_TABLE_CAPACITY {
-            limiter.on_failure(credential_tag(&format!("filler-{n}")), at(origin, 0));
+            limiter.on_failure(Budget::Authentication, credential_tag(&format!("filler-{n}")), at(origin, 0));
         }
         let mut escalated = false;
         for n in 0..OVERFLOW_THRESHOLD {
-            let refusal = limiter.on_failure(credential_tag(&format!("overflow-{n}")), at(origin, 0));
+            let refusal = limiter.on_failure(Budget::Authentication, credential_tag(&format!("overflow-{n}")), at(origin, 0));
             if refusal == (Refusal::RateLimited { retry_after: FAILURE_WINDOW }) {
                 escalated = true;
             }
@@ -3488,12 +3844,15 @@ mod tests {
     // ══════════════════════════════════════════════════════════════════════════════════
 
     /// Every rendering of the audit line, for the tests that must hold across ALL of them.
+    /// Covers the WHOLE vocabulary — including a rate limit engaging on each budget — so the
+    /// credential-material rule and the shape rule are asserted over every event the gate can
+    /// emit, not over the three it used to have.
     fn every_audit_line(token: &str) -> Vec<String> {
         let _ = token;
         vec![
             audit_line(
                 1_753_900_000_000,
-                AuditOutcome::Accepted,
+                SecurityEvent::Accepted,
                 Some("id-arthur"),
                 Some(CredentialKind::Device),
                 RouteRequirement::DeviceOnly,
@@ -3501,7 +3860,7 @@ mod tests {
             ),
             audit_line(
                 1_753_900_000_001,
-                AuditOutcome::Accepted,
+                SecurityEvent::Accepted,
                 Some("id-browser"),
                 Some(CredentialKind::Scoped),
                 RouteRequirement::Scoped(Scope::AnswerPrompts),
@@ -3509,7 +3868,7 @@ mod tests {
             ),
             audit_line(
                 1_753_900_000_002,
-                AuditOutcome::Refused,
+                SecurityEvent::AuthenticationFailed,
                 None,
                 None,
                 RouteRequirement::DeviceOnly,
@@ -3517,10 +3876,34 @@ mod tests {
             ),
             audit_line(
                 1_753_900_000_003,
-                AuditOutcome::LockedOut,
+                SecurityEvent::AuthorizationRefused,
+                Some("id-browser"),
+                Some(CredentialKind::Scoped),
+                RouteRequirement::DeviceOnly,
+                "GET",
+            ),
+            audit_line(
+                1_753_900_000_004,
+                SecurityEvent::CredentialExpired,
+                Some("id-browser"),
+                Some(CredentialKind::Scoped),
+                RouteRequirement::Scoped(Scope::AnswerPrompts),
+                "POST",
+            ),
+            audit_line(
+                1_753_900_000_005,
+                SecurityEvent::RateLimitEngaged(Budget::Authentication),
                 None,
                 None,
                 RouteRequirement::Scoped(Scope::AnswerPrompts),
+                "GET",
+            ),
+            audit_line(
+                1_753_900_000_006,
+                SecurityEvent::RateLimitEngaged(Budget::Authorization),
+                Some("id-browser"),
+                Some(CredentialKind::Scoped),
+                RouteRequirement::DeviceOnly,
                 "GET",
             ),
         ]
@@ -3530,7 +3913,7 @@ mod tests {
     fn an_accepted_line_names_who_when_what_kind_and_which_scope() {
         let line = audit_line(
             1_753_900_000_000,
-            AuditOutcome::Accepted,
+            SecurityEvent::Accepted,
             Some("id-arthur"),
             Some(CredentialKind::Device),
             RouteRequirement::Scoped(Scope::AnswerPrompts),
@@ -3553,23 +3936,24 @@ mod tests {
         // sequence rather than two.
         let refused = audit_line(
             1_753_900_000_000,
-            AuditOutcome::Refused,
+            SecurityEvent::AuthenticationFailed,
             None,
             None,
             RouteRequirement::DeviceOnly,
             "POST",
         );
         let parsed: serde_json::Value = serde_json::from_str(&refused).expect("valid JSON");
-        assert_eq!(parsed["event"], "auth:refused");
-        assert_eq!(parsed["outcome"], "refused");
-        // A failure has no identity — the gate never learned one, and a CLAIMED one is not a
-        // thing this module can be handed.
+        assert_eq!(parsed["event"], "auth:authentication-failed");
+        assert_eq!(parsed["outcome"], "authentication-failed");
+        // A failed AUTHENTICATION has no identity — the gate never learned one, and a CLAIMED
+        // one is not a thing this module can be handed. (An authorization refusal DOES name
+        // one, because there the credential verified; see the vocabulary test below.)
         assert_eq!(parsed["identity"], AUDIT_ABSENT);
         assert_eq!(parsed["credential"], AUDIT_ABSENT);
 
         let locked = audit_line(
             1_753_900_000_001,
-            AuditOutcome::LockedOut,
+            SecurityEvent::RateLimitEngaged(Budget::Authentication),
             None,
             None,
             RouteRequirement::DeviceOnly,
@@ -3577,14 +3961,15 @@ mod tests {
         );
         assert_eq!(
             serde_json::from_str::<serde_json::Value>(&locked).unwrap()["event"],
-            "auth:locked-out",
+            "auth:rate-limit-engaged",
             "the attempt that trips the limit is its own, distinguishable event"
         );
     }
 
     #[test]
     fn every_audit_line_has_the_same_keys_whatever_the_outcome() {
-        let expected = ["ts", "event", "outcome", "identity", "credential", "scope", "method"];
+        let expected =
+            ["ts", "event", "outcome", "budget", "identity", "credential", "scope", "method"];
         for line in every_audit_line("any-token") {
             let parsed: serde_json::Value = serde_json::from_str(&line).expect("valid JSON");
             let object = parsed.as_object().expect("an object");
@@ -3732,5 +4117,363 @@ mod tests {
             }),
             "and must still satisfy a device-only route"
         );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════════════
+    // THE SEPARATION: AUTHENTICATION FAILED vs AUTHORIZATION REFUSED vs EXPIRED
+    // ══════════════════════════════════════════════════════════════════════════════════
+    //
+    // These pin the fact that the gate now KNOWS which of the three happened, that the three
+    // spend the budgets they should, and — the property that makes the separation safe —
+    // that a caller cannot tell any of it from the wire.
+
+    /// A policy with one device credential and one live `prompt:answer` browser session.
+    fn policy_device_and_browser() -> AuthPolicy {
+        parse_with_scoped(
+            &[("laptop-token", "id-laptop")],
+            &[live_scoped("browser-token", "id-browser")],
+        )
+    }
+
+    #[test]
+    fn the_gate_tells_a_guess_from_a_scope_bug_from_an_expiry() {
+        let policy = parse_with_scoped(
+            &[("laptop-token", "id-laptop")],
+            &[
+                live_scoped("browser-token", "id-browser"),
+                scoped_entry("stale-token", "id-stale", &[Scope::AnswerPrompts.wire()], NOW - 1),
+            ],
+        );
+
+        // A token nothing recognises. The one fact that is evidence of guessing.
+        assert_eq!(
+            policy.decide("invented-token", ANSWER, Some(NOW)),
+            Decision::AuthenticationFailed,
+            "a token matching nothing is a failed AUTHENTICATION and nothing else"
+        );
+
+        // A real credential on a route it has no authority for. THE case this change exists
+        // for: before it, this was indistinguishable from the line above.
+        assert_eq!(
+            policy.decide("browser-token", DEVICE_ONLY, Some(NOW)),
+            Decision::AuthorizationRefused { identity: "id-browser".to_string() },
+            "a credential this node issued, asked for authority it does not hold, is a \
+             refused AUTHORIZATION — not a guess"
+        );
+
+        // A real credential whose deadline passed.
+        assert_eq!(
+            policy.decide("stale-token", ANSWER, Some(NOW)),
+            Decision::CredentialExpired { identity: "id-stale".to_string() },
+            "an expired credential is its own fact, with its own remedy"
+        );
+
+        // And the ordinary successes, unchanged.
+        assert_eq!(
+            policy.decide("browser-token", ANSWER, Some(NOW)),
+            Decision::Verified(Verified {
+                identity: "id-browser".to_string(),
+                kind: CredentialKind::Scoped
+            })
+        );
+        assert_eq!(
+            policy.decide("laptop-token", DEVICE_ONLY, Some(NOW)),
+            Decision::Verified(Verified {
+                identity: "id-laptop".to_string(),
+                kind: CredentialKind::Device
+            })
+        );
+    }
+
+    #[test]
+    fn a_credential_that_holds_the_wrong_scope_is_refused_authorization_not_authentication() {
+        // A scoped credential carrying a scope that is not the one the route declares. The
+        // parser cannot produce this today (there is one scope), so it is built through
+        // `from_parts` — which is also the mutation guard for a `scope.contains(..)` that got
+        // optimised into `true`.
+        let policy = AuthPolicy::from_parts(
+            vec![],
+            vec![ScopedCredential {
+                token_sha256: sha256_hex("empty-scope-token"),
+                identity: "id-empty".to_string(),
+                scope: vec![],
+                expires_at_ms: NOW + 60_000,
+            }],
+        );
+        assert_eq!(
+            policy.decide("empty-scope-token", ANSWER, Some(NOW)),
+            Decision::AuthorizationRefused { identity: "id-empty".to_string() },
+            "holding no scope is a scope problem, not an identity problem"
+        );
+    }
+
+    #[test]
+    fn an_unreadable_clock_is_an_expiry_and_not_a_guess() {
+        // The clock rule is unchanged (`None` refuses every scoped credential); what changes is
+        // that refusing for want of a clock no longer looks like somebody guessing tokens.
+        let policy = policy_device_and_browser();
+        assert_eq!(
+            policy.decide("browser-token", ANSWER, None),
+            Decision::CredentialExpired { identity: "id-browser".to_string() },
+            "a clock that cannot be read cannot assert a deadline has NOT passed"
+        );
+        assert_eq!(
+            policy.decide("laptop-token", ANSWER, None),
+            Decision::Verified(Verified {
+                identity: "id-laptop".to_string(),
+                kind: CredentialKind::Device
+            }),
+            "and a device credential is untouched by any of it"
+        );
+    }
+
+    /// THE regression proof. `verify` is the old question; `decide` is the new one. Asked over
+    /// every credential this module can hold and both route requirements, they must agree
+    /// exactly — otherwise the finer answer has quietly widened or narrowed the door.
+    #[test]
+    fn the_finer_answer_admits_exactly_what_the_coarse_one_always_did() {
+        let policy = parse_with_scoped(
+            &[("laptop-token", "id-laptop")],
+            &[
+                live_scoped("browser-token", "id-browser"),
+                scoped_entry("stale-token", "id-stale", &[Scope::AnswerPrompts.wire()], NOW - 1),
+            ],
+        );
+        let mut admitted = 0;
+        let mut refused = 0;
+        for token in ["laptop-token", "browser-token", "stale-token", "invented-token", ""] {
+            for required in [ANSWER, DEVICE_ONLY] {
+                for clock in [Some(NOW), Some(NOW - 120_000), None] {
+                    let coarse = policy.verify(token, required, clock);
+                    let fine = policy.decide(token, required, clock);
+                    assert_eq!(
+                        coarse.is_some(),
+                        matches!(fine, Decision::Verified(_)),
+                        "{token:?} on {required:?} at {clock:?}: the two answers disagree \
+                         about whether the request is admitted"
+                    );
+                    if let Some(verified) = coarse {
+                        admitted += 1;
+                        assert_eq!(
+                            Decision::Verified(verified),
+                            fine,
+                            "and when both admit, they must admit the same identity and kind"
+                        );
+                    } else {
+                        refused += 1;
+                    }
+                }
+            }
+        }
+        // Pinned literally so a policy that stopped admitting anything (or admitted
+        // everything) could not pass this test by making both answers uniformly wrong.
+        assert_eq!(admitted, 9, "the matrix must contain exactly these admissions");
+        assert_eq!(refused, 21, "and exactly these refusals");
+    }
+
+    #[test]
+    fn each_fact_spends_the_budget_it_should() {
+        let policy = policy_device_and_browser();
+        assert_eq!(
+            policy.decide("invented-token", ANSWER, Some(NOW)).budget(),
+            Some(Budget::Authentication),
+            "guessing spends the guessing budget — that is what it is for"
+        );
+        assert_eq!(
+            policy.decide("browser-token", DEVICE_ONLY, Some(NOW)).budget(),
+            Some(Budget::Authorization),
+            "THE POINT: a valid credential on the wrong route must NOT spend the budget that \
+             exists to stop credential guessing"
+        );
+        assert_eq!(
+            policy.decide("browser-token", ANSWER, None).budget(),
+            Some(Budget::Authorization),
+            "nor may an expiry"
+        );
+        assert_eq!(
+            policy.decide("laptop-token", DEVICE_ONLY, Some(NOW)).budget(),
+            None,
+            "and a success spends nothing at all"
+        );
+    }
+
+    #[test]
+    fn each_fact_names_its_own_event_and_the_right_identity() {
+        let policy = policy_device_and_browser();
+        assert_eq!(
+            policy.decide("invented-token", ANSWER, Some(NOW)).refusal_event(),
+            Some(SecurityEvent::AuthenticationFailed)
+        );
+        assert_eq!(
+            policy.decide("browser-token", DEVICE_ONLY, Some(NOW)).refusal_event(),
+            Some(SecurityEvent::AuthorizationRefused)
+        );
+        assert_eq!(
+            policy.decide("browser-token", ANSWER, None).refusal_event(),
+            Some(SecurityEvent::CredentialExpired)
+        );
+        assert_eq!(policy.decide("laptop-token", ANSWER, Some(NOW)).refusal_event(), None);
+
+        // A failed authentication resolves NOBODY — there is no identity to carry, which is
+        // also why it can never name a victim. A recognised refusal does, because the gate
+        // genuinely knows whose credential it just declined.
+        assert_eq!(policy.decide("invented-token", ANSWER, Some(NOW)).identity(), None);
+        assert_eq!(
+            policy.decide("browser-token", DEVICE_ONLY, Some(NOW)).identity(),
+            Some("id-browser")
+        );
+        assert_eq!(
+            policy.decide("browser-token", DEVICE_ONLY, Some(NOW)).kind(),
+            Some(CredentialKind::Scoped),
+            "only a scoped credential can reach a recognised refusal"
+        );
+    }
+
+    // ── the two budgets, in the limiter ───────────────────────────────────────────────
+
+    #[test]
+    fn the_two_budgets_do_not_share_a_counter() {
+        // Spend the authorization budget to exhaustion against one credential; the guessing
+        // budget for that same credential must be untouched, and the credential must not be
+        // blocked at the position the guessing budget is read from.
+        let mut limiter = FailureLimiter::default();
+        let origin = Instant::now();
+        let tag = credential_tag("a-real-scoped-token");
+        for _ in 0..FAILURE_THRESHOLD * 2 {
+            limiter.on_failure(Budget::Authorization, tag, at(origin, 0));
+        }
+        assert_eq!(
+            limiter.tracked_in(Budget::Authentication),
+            0,
+            "THE separation: scope refusals must leave the guessing table empty"
+        );
+        assert_eq!(limiter.tracked_in(Budget::Authorization), 1);
+        assert_eq!(
+            limiter.blocked(Budget::Authentication, tag, at(origin, 0)),
+            None,
+            "and the credential must be free to walk through the pre-verification check that \
+             the guessing budget guards — which is what stops a scope bug locking an app out \
+             of the routes it IS entitled to"
+        );
+        assert!(
+            limiter.blocked(Budget::Authorization, tag, at(origin, 0)).is_some(),
+            "while still being bounded on the refusals themselves"
+        );
+    }
+
+    #[test]
+    fn the_budgets_are_indistinguishable_from_outside() {
+        // The no-oracle rule as it applies to the LIMITER rather than to the response bytes.
+        // If the two budgets tripped after different numbers of attempts, or counted down from
+        // different windows, the COUNT would be the oracle: a caller could tell "this
+        // credential is real" from how long it took to be rate-limited.
+        let origin = Instant::now();
+        let mut refusals: Vec<Vec<Refusal>> = Vec::new();
+        for budget in Budget::ALL {
+            let mut limiter = FailureLimiter::default();
+            let tag = credential_tag("the-same-token-either-way");
+            refusals.push(
+                (0..FAILURE_THRESHOLD + 2)
+                    .map(|n| limiter.on_failure(budget, tag, at(origin, u64::from(n) / 1000)))
+                    .collect(),
+            );
+        }
+        assert_eq!(
+            refusals[0], refusals[1],
+            "the two budgets must refuse on the same attempt, with the same retry-after — a \
+             difference here is a credential-validity oracle measured with a stopwatch"
+        );
+        // And pinned literally, so "identical" cannot be satisfied by both being wrong.
+        assert_eq!(
+            refusals[0],
+            vec![
+                Refusal::Invalid,
+                Refusal::Invalid,
+                Refusal::Invalid,
+                Refusal::Invalid,
+                Refusal::RateLimited { retry_after: FAILURE_WINDOW },
+                Refusal::RateLimited { retry_after: FAILURE_WINDOW },
+                Refusal::RateLimited { retry_after: FAILURE_WINDOW },
+            ]
+        );
+    }
+
+    #[test]
+    fn a_success_clears_the_guessing_count_and_not_the_refusal_count() {
+        // A success proves the caller was not guessing, so the guessing count goes. It proves
+        // nothing about whether they keep asking for authority they do not have — and clearing
+        // that would let a caller alternate one good request with one refused one and generate
+        // refusals for ever, which is the unbounded trail the second budget exists to prevent.
+        let mut limiter = FailureLimiter::default();
+        let origin = Instant::now();
+        let tag = credential_tag("mixed-behaviour-token");
+        limiter.on_failure(Budget::Authentication, tag, at(origin, 0));
+        limiter.on_failure(Budget::Authorization, tag, at(origin, 0));
+        limiter.on_success(tag);
+        assert_eq!(limiter.tracked_in(Budget::Authentication), 0);
+        assert_eq!(
+            limiter.tracked_in(Budget::Authorization),
+            1,
+            "a success on an entitled route says nothing about the unentitled ones"
+        );
+    }
+
+    // ── the vocabulary, as the audit renders it ───────────────────────────────────────
+
+    #[test]
+    fn every_fact_renders_its_own_event_name_and_names_the_budget_it_moved() {
+        let rendered: Vec<(String, String, String)> = every_audit_line("any-token")
+            .iter()
+            .map(|line| {
+                let parsed: serde_json::Value = serde_json::from_str(line).unwrap();
+                (
+                    parsed["event"].as_str().unwrap().to_string(),
+                    parsed["budget"].as_str().unwrap().to_string(),
+                    parsed["identity"].as_str().unwrap().to_string(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            rendered,
+            vec![
+                ("auth:accepted".into(), "-".into(), "id-arthur".into()),
+                ("auth:accepted".into(), "-".into(), "id-browser".into()),
+                ("auth:authentication-failed".into(), "authentication".into(), "-".into()),
+                ("auth:authorization-refused".into(), "authorization".into(), "id-browser".into()),
+                ("auth:credential-expired".into(), "authorization".into(), "id-browser".into()),
+                ("auth:rate-limit-engaged".into(), "authentication".into(), "-".into()),
+                ("auth:rate-limit-engaged".into(), "authorization".into(), "id-browser".into()),
+            ],
+            "each fact must be its own event, and a rate limit must say WHICH bound engaged — \
+             `authentication` means this node is being ground, `authorization` means one \
+             caller is asking for the wrong thing, and no status code distinguishes them"
+        );
+    }
+
+    /// The vocabulary is a contract with a SECOND RUNTIME, and this is what keeps the two
+    /// halves honest: one file of wire lines, asserted by the Rust that writes them and by the
+    /// TypeScript that parses them (`packages/event-contract-v1/src/security.test.ts`). A name
+    /// or a field changed on one side alone fails on both.
+    #[test]
+    fn the_wire_lines_are_exactly_what_the_shared_fixture_pins() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../event-contract-v1/security-events.fixture.ndjson");
+        let raw = std::fs::read_to_string(&path).unwrap_or_else(|error| {
+            panic!(
+                "the shared wire fixture must exist — it is the only thing keeping the Rust \
+                 vocabulary and the TypeScript one in step ({}): {error}",
+                path.display()
+            )
+        });
+        let expected: Vec<&str> = raw.lines().filter(|line| !line.trim().is_empty()).collect();
+        let rendered = every_audit_line("any-token");
+        assert_eq!(
+            rendered.len(),
+            expected.len(),
+            "the fixture must carry one line per rendering, no more and no fewer"
+        );
+        for (n, (got, want)) in rendered.iter().zip(expected).enumerate() {
+            assert_eq!(got, want, "fixture line {} has drifted from what the gate writes", n + 1);
+        }
     }
 }

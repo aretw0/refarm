@@ -280,8 +280,15 @@ async fn the_trail_records_a_success_and_a_failure_with_no_credential_material()
     );
 
     let refused = &lines[1];
-    assert_eq!(refused["event"], "auth:refused", "a failure is recorded as fully as a success");
-    assert_eq!(refused["outcome"], "refused");
+    assert_eq!(
+        refused["event"], "auth:authentication-failed",
+        "a failure is recorded as fully as a success — and now says WHICH failure it was"
+    );
+    assert_eq!(refused["outcome"], "authentication-failed");
+    assert_eq!(
+        refused["budget"], "authentication",
+        "a token nothing recognises spends the budget that exists to bound guessing"
+    );
     assert_eq!(refused["identity"], "-", "a failure resolved no identity, and claims none");
 
     // THE rule, over the actual bytes on disk.
@@ -319,7 +326,7 @@ async fn the_trail_survives_the_gate_that_wrote_it() {
     let lines = audit_lines(&dir);
     assert_eq!(lines.len(), 2, "the earlier line must still be there: {lines:?}");
     assert_eq!(lines[0]["event"], "auth:accepted", "written before the restart");
-    assert_eq!(lines[1]["event"], "auth:refused", "and appended to after it");
+    assert_eq!(lines[1]["event"], "auth:authentication-failed", "and appended to after it");
 }
 
 #[tokio::test]
@@ -348,13 +355,290 @@ async fn a_lockout_writes_one_line_and_then_stops_writing() {
 
     let lines = audit_lines(&dir);
     assert_eq!(
-        lines.iter().filter(|l| l["event"] == "auth:locked-out").count(),
+        lines.iter().filter(|l| l["event"] == "auth:rate-limit-engaged").count(),
         1,
         "the lockout is recorded exactly once, on the attempt that tripped it: {lines:?}"
     );
     assert_eq!(
-        lines.iter().filter(|l| l["event"] == "auth:refused").count(),
+        lines.iter().filter(|l| l["event"] == "auth:authentication-failed").count(),
         (FAILURE_THRESHOLD - 1) as usize,
         "and the refusals before it are each recorded once"
+    );
+}
+
+// ── the separation, on the wire ───────────────────────────────────────────────────────
+//
+// A gate that could not tell "the credential does not verify" from "the credential is fine,
+// the scope is wrong" punished a legitimate app for a routing bug exactly as it punished
+// somebody guessing tokens. These pin the fix AND the constraint on the fix: the two facts are
+// separated everywhere except where a caller can see them.
+
+/// A device credential plus one live `prompt:answer` browser session — the shape a phone
+/// enrols and a browser is handed.
+fn policy_with_a_browser_session() -> AuthPolicy {
+    let expires_at_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or_default()
+        + 600_000;
+    let raw = serde_json::json!({
+        "credentials": [{ "identity": GOOD_IDENTITY, "tokenSha256": sha256_hex(GOOD_TOKEN) }],
+        "scopedCredentials": [{
+            "wire": crate::sidecar::auth::SCOPED_CREDENTIAL_WIRE,
+            "id": "scr_browser",
+            "identity": BROWSER_IDENTITY,
+            "tokenSha256": sha256_hex(BROWSER_TOKEN),
+            "scope": [crate::sidecar::auth::SCOPE_ANSWER_PROMPTS],
+            "surface": "web",
+            "issuedVia": "emoji-sas.v1",
+            "issuedAt": expires_at_ms - 660_000,
+            "expiresAt": expires_at_ms,
+        }],
+    });
+    crate::sidecar::auth::parse_policy(&raw.to_string()).expect("a valid policy")
+}
+
+const BROWSER_TOKEN: &str = "the-browser-session-token";
+const BROWSER_IDENTITY: &str = "id-test-browser";
+
+/// `GET /prompts` — the one route that DECLARES `prompt:answer`, and therefore the route the
+/// browser session is entitled to.
+async fn get_prompts_with(port: u16, token: &str) -> reqwest::Response {
+    reqwest::Client::new()
+        .get(format!("http://127.0.0.1:{port}/prompts"))
+        .header("Authorization", format!("Bearer {token}"))
+        .send()
+        .await
+        .unwrap()
+}
+
+/// Status, every header, and the body bytes — everything a caller can observe.
+async fn observable(response: reqwest::Response) -> (u16, Vec<(String, String)>, String) {
+    let status = response.status().as_u16();
+    let mut headers: Vec<(String, String)> = response
+        .headers()
+        .iter()
+        .filter(|(name, _)| name.as_str() != "date" && name.as_str() != "content-length")
+        .map(|(name, value)| {
+            (name.as_str().to_string(), value.to_str().unwrap_or("<opaque>").to_string())
+        })
+        .collect();
+    headers.sort();
+    let body = response.text().await.unwrap();
+    (status, headers, body)
+}
+
+#[tokio::test]
+async fn a_scope_refusal_does_not_spend_the_budget_that_stops_credential_guessing() {
+    // THE test. A browser holding a real, live `prompt:answer` credential asks for routes it
+    // has no authority for — a routing bug, not an attack — far past the failure threshold.
+    // Before the separation this filled the guessing budget and locked the browser out of
+    // `GET /prompts`, the one route it WAS entitled to, for a minute.
+    let dir = temp_dir();
+    let gate = AuthGate::for_test_with_audit(policy_with_a_browser_session(), &dir);
+    let port = serve_gated(&dir, Some(gate.clone())).await;
+
+    for attempt in 1..=FAILURE_THRESHOLD * 3 {
+        let status = get_with(port, BROWSER_TOKEN).await.status();
+        assert!(
+            status == 401 || status == 429,
+            "attempt {attempt}: /efforts declares no scope, so a scoped credential must bounce"
+        );
+    }
+
+    assert_eq!(
+        gate.tracked_failures_in(crate::security_events::Budget::Authentication),
+        0,
+        "THE POINT: {} scope refusals must leave the guessing budget completely untouched",
+        FAILURE_THRESHOLD * 3
+    );
+    assert_eq!(
+        gate.tracked_failures_in(crate::security_events::Budget::Authorization),
+        1,
+        "they belong to the authorization budget, which is bounded for the trail's sake"
+    );
+
+    // And the consequence that matters to a human: the app still works where it is entitled.
+    assert_eq!(
+        get_prompts_with(port, BROWSER_TOKEN).await.status(),
+        200,
+        "a legitimate caller with a scope bug must NOT be locked out of the routes it holds \
+         authority for — that is the punishment this separation removes"
+    );
+    // Twice, because a success must not be what unlocks it either.
+    assert_eq!(get_prompts_with(port, BROWSER_TOKEN).await.status(), 200);
+}
+
+#[tokio::test]
+async fn a_guessed_credential_still_fills_the_guessing_budget() {
+    // The other direction, so the separation cannot be satisfied by simply never counting
+    // anything. A token nothing recognises is still evidence of guessing and still spends the
+    // budget that exists to bound it.
+    let dir = temp_dir();
+    let gate = AuthGate::for_test_with_audit(policy_with_a_browser_session(), &dir);
+    let port = serve_gated(&dir, Some(gate.clone())).await;
+
+    for _ in 0..FAILURE_THRESHOLD {
+        let _ = get_with(port, "a-token-nobody-issued").await;
+    }
+    assert_eq!(
+        gate.tracked_failures_in(crate::security_events::Budget::Authentication),
+        1,
+        "a guess must still be counted as a guess"
+    );
+    assert_eq!(
+        gate.tracked_failures_in(crate::security_events::Budget::Authorization),
+        0,
+        "and must not be filed as somebody's scope bug"
+    );
+    assert_eq!(
+        get_with(port, "a-token-nobody-issued").await.status(),
+        429,
+        "the guessing bound must still bite"
+    );
+}
+
+#[tokio::test]
+async fn a_bad_credential_and_a_wrong_scope_credential_are_byte_identical_on_the_wire() {
+    // THE NO-ORACLE RULE. Distinguishing the two facts in the RESPONSE would tell whoever
+    // presented a guessed token that the token exists — the single most valuable thing an
+    // attacker can learn, handed out by the refusal meant to stop them. Every observable is
+    // compared: status, every header (bar `date`/`content-length`), and the body bytes.
+    //
+    // Two listeners, so neither request can be influenced by the other's limiter state.
+    let dir_a = temp_dir();
+    let port_a =
+        serve_gated(&dir_a, Some(AuthGate::for_test_with_audit(policy_with_a_browser_session(), &dir_a)))
+            .await;
+    let unknown = observable(get_with(port_a, "a-token-nobody-issued").await).await;
+
+    let dir_b = temp_dir();
+    let port_b =
+        serve_gated(&dir_b, Some(AuthGate::for_test_with_audit(policy_with_a_browser_session(), &dir_b)))
+            .await;
+    let wrong_scope = observable(get_with(port_b, BROWSER_TOKEN).await).await;
+
+    assert_eq!(
+        unknown, wrong_scope,
+        "a wrong-scope refusal must be indistinguishable from an unknown-credential refusal"
+    );
+    // Pinned literally, so "identical" cannot be satisfied by both having drifted together.
+    assert_eq!(unknown.0, 401);
+    assert_eq!(unknown.2, r#"{"error":"unauthorized","reason":"invalid"}"#);
+    assert!(
+        unknown.1.contains(&("www-authenticate".to_string(), "Bearer".to_string())),
+        "and the headers must be the ones the gate has always sent: {:?}",
+        unknown.1
+    );
+
+    // The same, at the bound: the fifth refusal of each kind must also match, byte for byte,
+    // including the `Retry-After`. A different count or a different wait would be the oracle
+    // measured with a stopwatch rather than read off the page.
+    for _ in 1..FAILURE_THRESHOLD {
+        let _ = get_with(port_a, "a-token-nobody-issued").await;
+        let _ = get_with(port_b, BROWSER_TOKEN).await;
+    }
+    let limited_unknown = observable(get_with(port_a, "a-token-nobody-issued").await).await;
+    let limited_wrong_scope = observable(get_with(port_b, BROWSER_TOKEN).await).await;
+    assert_eq!(limited_unknown.0, 429, "the bound must engage on the same attempt for both");
+    assert_eq!(
+        limited_unknown, limited_wrong_scope,
+        "and the two bounds must be indistinguishable too"
+    );
+}
+
+#[tokio::test]
+async fn the_trail_tells_apart_what_the_wire_deliberately_cannot() {
+    // Identical outward; distinguished inward. The operator's own file is where the difference
+    // lives, under names a consumer can route on without parsing a status code or log prose.
+    let dir = temp_dir();
+    let port = serve_gated(
+        &dir,
+        Some(AuthGate::for_test_with_audit(policy_with_a_browser_session(), &dir)),
+    )
+    .await;
+
+    let _ = get_with(port, "a-token-nobody-issued").await; // authentication failed
+    let _ = get_with(port, BROWSER_TOKEN).await; //            authorization refused
+    let _ = get_prompts_with(port, GOOD_TOKEN).await; //       accepted
+
+    let events: Vec<(String, String)> = audit_lines(&dir)
+        .iter()
+        .map(|line| {
+            (
+                line["event"].as_str().unwrap_or_default().to_string(),
+                line["budget"].as_str().unwrap_or_default().to_string(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        events,
+        vec![
+            ("auth:authentication-failed".to_string(), "authentication".to_string()),
+            ("auth:authorization-refused".to_string(), "authorization".to_string()),
+            ("auth:accepted".to_string(), "-".to_string()),
+        ],
+        "three requests, three different facts, three different event names"
+    );
+
+    // The refusal that names a caller names the one the gate RESOLVED, never one claimed.
+    let refused = audit_lines(&dir)
+        .into_iter()
+        .find(|line| line["event"] == "auth:authorization-refused")
+        .expect("the scope refusal is recorded");
+    assert_eq!(refused["identity"], BROWSER_IDENTITY);
+    assert_eq!(refused["credential"], "scoped");
+
+    // And a failed authentication resolves nobody, so it cannot name a victim.
+    let failed = audit_lines(&dir)
+        .into_iter()
+        .find(|line| line["event"] == "auth:authentication-failed")
+        .expect("the guess is recorded");
+    assert_eq!(failed["identity"], "-");
+
+    // No credential material anywhere in the file, over the whole vocabulary.
+    let bytes = audit_bytes(&dir);
+    for secret in [BROWSER_TOKEN, GOOD_TOKEN, "a-token-nobody-issued"] {
+        assert!(!bytes.contains(secret), "the raw token {secret:?} must never reach the trail");
+        assert!(
+            !bytes.contains(&sha256_hex(secret)),
+            "nor its digest — the trail is an attribution, not a credential store"
+        );
+        assert!(
+            !bytes.contains(&sha256_hex(secret)[..8]),
+            "nor a truncated one: eight hex characters of a digest is still a digest"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_rate_limit_says_which_bound_engaged() {
+    // The one fact a consumer cannot derive from the event name, and the one it most needs:
+    // `authentication` means this node is being ground by someone guessing; `authorization`
+    // means one caller this node KNOWS is asking for the wrong thing. Opposite responses, and
+    // no HTTP status code distinguishes them — which is the whole reason the field exists.
+    let dir = temp_dir();
+    let port = serve_gated(
+        &dir,
+        Some(AuthGate::for_test_with_audit(policy_with_a_browser_session(), &dir)),
+    )
+    .await;
+
+    for _ in 0..FAILURE_THRESHOLD {
+        let _ = get_with(port, "a-token-nobody-issued").await;
+    }
+    for _ in 0..FAILURE_THRESHOLD {
+        let _ = get_with(port, BROWSER_TOKEN).await;
+    }
+
+    let engaged: Vec<String> = audit_lines(&dir)
+        .iter()
+        .filter(|line| line["event"] == "auth:rate-limit-engaged")
+        .map(|line| line["budget"].as_str().unwrap_or_default().to_string())
+        .collect();
+    assert_eq!(
+        engaged,
+        vec!["authentication".to_string(), "authorization".to_string()],
+        "both bounds engaged, and each said which one it was"
     );
 }
