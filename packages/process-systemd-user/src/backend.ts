@@ -190,10 +190,17 @@ export function createSystemdUserBackend(
 			const existingUnit = await options.readFile(unitPath);
 			const { state, detail } = await lingerState();
 			const lifetime = describeUnitLifetime(state, user);
-			const activationCommands = [
-				"systemctl --user daemon-reload",
-				`systemctl --user enable --now ${unitName}`,
-			];
+			const unitChanged = existingUnit !== null && existingUnit !== unitText;
+			const activationCommands = unitChanged
+				? [
+						"systemctl --user daemon-reload",
+						`systemctl --user enable ${unitName}`,
+						`systemctl --user restart ${unitName}`,
+					]
+				: [
+						"systemctl --user daemon-reload",
+						`systemctl --user enable --now ${unitName}`,
+					];
 
 			const change: OperationFileChange = {
 				path: unitPath,

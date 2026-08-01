@@ -22,7 +22,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createSystemdUserBackend, SYSTEMD_USER_BACKEND_ID } from "./backend.js";
 import { LINGER_DIR, lingerMarkerPath } from "./linger.js";
 import type { CommandResult, CommandRunner } from "./runner.js";
-import { systemdUnitPath } from "./unit.js";
+import { renderSystemdUnit, systemdUnitPath } from "./unit.js";
 
 const USER = "op";
 
@@ -235,6 +235,30 @@ describe("W3 — the request states the lifetime it ACTUALLY delivers", () => {
 			"systemctl --user enable --now refarm-web-serve.service",
 		]);
 		expect(plan.request.notes?.join("\n")).toMatch(/SÓ ESCREVE O ARQUIVO/);
+	});
+
+	it("restarts an active recipe after replacing its unit instead of leaving the old command alive", async () => {
+		const previous = renderSystemdUnit({
+			...DECLARATION,
+			command: ["/usr/local/bin/refarm", "web", "serve", ".refarm/dist"],
+		});
+		const backend = createSystemdUserBackend({
+			runner: scripted(LINGER_OFF),
+			user: USER,
+			env: { XDG_CONFIG_HOME: configHome },
+			async readFile() {
+				return previous;
+			},
+		});
+		const plan = await backend.plan(DECLARATION);
+		expect(plan.activationCommands).toEqual([
+			"systemctl --user daemon-reload",
+			"systemctl --user enable refarm-web-serve.service",
+			"systemctl --user restart refarm-web-serve.service",
+		]);
+		expect(plan.request.notes?.join("\n")).toContain(
+			"systemctl --user restart refarm-web-serve.service",
+		);
 	});
 });
 
