@@ -48,6 +48,20 @@ test("install-refarm-cli dry-run reports planned shims without writing", () => {
 	}
 });
 
+test("installed shim pins the Node executable for supervisor environments", () => {
+	if (process.platform === "win32") return;
+	const binDir = mkdtempSync(path.join(tmpdir(), "refarm-cli-install-test-"));
+	try {
+		const result = runInstall([], { REFARM_CLI_BIN_DIR: binDir });
+		assert.equal(result.status, 0, result.stderr);
+		const shim = readFileSync(path.join(binDir, "refarm"), "utf8");
+		assert.ok(shim.includes(`exec ${JSON.stringify(process.execPath)} --import`), shim);
+		assert.doesNotMatch(shim, /exec node --import/);
+	} finally {
+		rmSync(binDir, { recursive: true, force: true });
+	}
+});
+
 test("install-refarm-cli dry-run can emit a machine-readable handoff", () => {
 	const binDir = mkdtempSync(path.join(tmpdir(), "refarm-cli-install-test-"));
 	try {
