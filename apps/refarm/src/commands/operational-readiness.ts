@@ -8,6 +8,7 @@ import {
 	SURFACE_SIDECAR_HTTP,
 	SURFACE_WEB,
 } from "@refarm.dev/std";
+import fs from "node:fs";
 import path from "node:path";
 import { refarmCommand } from "../brand.js";
 import { readPolicy } from "./auth-policy-file.js";
@@ -17,6 +18,13 @@ export interface OperationalReadinessDeps {
 	config?: unknown;
 	credentialCount?: number;
 	observeProcesses?: (names: string[], root: string) => Promise<ProcessStatus[]>;
+	observeDistribution?: (directory: string) => DistributionReadiness;
+}
+
+export interface DistributionReadiness {
+	directory: string;
+	manifest: boolean;
+	installer: boolean;
 }
 
 /**
@@ -43,10 +51,69 @@ export async function resolveOperationalReadinessUnits(
 			? []
 			: await (deps.observeProcesses ?? observeProcesses)(processNames, root);
 
-	return [
+	const units = [
 		buildDeviceAccessUnit(surfaces, credentialCount),
 		buildSupervisionUnit(processes, processStatuses),
 	];
+	const webServe = processes.get("web-serve");
+	const directory = webServe ? webServeDirectory(webServe.command) : null;
+	if (directory) {
+		units.push(
+			buildDistributionUnit(
+				(deps.observeDistribution ?? observeDistribution)(directory),
+			),
+		);
+	}
+	return units;
+}
+
+function webServeDirectory(command: readonly string[]): string | null {
+	const web = command.findIndex((part, index) => part === "web" && command[index + 1] === "serve");
+	const directory = web >= 0 ? command[web + 2] : undefined;
+	return typeof directory === "string" && path.isAbsolute(directory) ? directory : null;
+}
+
+function observeDistribution(directory: string): DistributionReadiness {
+	return {
+		directory,
+		manifest: fs.existsSync(path.join(directory, "manifest.json")),
+		installer: fs.existsSync(path.join(directory, "install.mjs")),
+	};
+}
+
+function buildDistributionUnit(readiness: DistributionReadiness): BaseSurfaceUnit {
+	const missing = [
+		...(readiness.manifest ? [] : ["manifest.json"]),
+		...(readiness.installer ? [] : ["install.mjs"]),
+	];
+	const ready = missing.length === 0;
+	return {
+		id: "distribution",
+		label: "Device distribution",
+		owner: "apps/refarm",
+		state: ready ? "ready" : "degraded",
+		severity: ready ? "info" : "warning",
+		summary: ready
+			? "The supervised web root contains the update manifest and cold installer."
+			: `The supervised web root is missing ${missing.join(" and ")}; a running server would answer 404.`,
+		evidence: [
+			{ kind: "path", label: "served root", value: readiness.directory },
+			{ kind: "state", label: "manifest.json", value: readiness.manifest ? "present" : "missing" },
+			{ kind: "state", label: "install.mjs", value: readiness.installer ? "present" : "missing" },
+		],
+		actions: ready
+			? []
+			: [
+					{
+						id: "repair-web-distribution",
+						label: "Review the web-serve publication root",
+						command: refarmCommand(["process", "add", "web-serve", "--replace"]),
+						intent: "distribution:repair",
+						primary: true,
+					},
+				],
+		details: { ...readiness, missingFiles: missing },
+	};
 }
 
 async function observeProcesses(names: string[], root: string): Promise<ProcessStatus[]> {

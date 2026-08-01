@@ -68,12 +68,49 @@ describe("operational readiness surface units", () => {
 					supervised: true,
 				},
 			],
+			observeDistribution: (directory) => ({ directory, manifest: true, installer: true }),
 		});
 		const supervision = units.find((unit) => unit.id === "supervision");
 		expect(supervision).toMatchObject({ state: "degraded", severity: "warning" });
 		expect(supervision?.actions[0]?.command).toBe(
 			"systemctl --user restart refarm-web-serve.service",
 		);
+	});
+
+	it("does not call a running empty static server a ready distribution", async () => {
+		const servedRoot = "/srv/refarm/farm-client";
+		const units = await resolveOperationalReadinessUnits({
+			config: {
+				processes: {
+					"web-serve": {
+						command: ["/usr/bin/refarm", "web", "serve", servedRoot, "--port", "4321"],
+						restart: "always",
+					},
+				},
+			},
+			credentialCount: 0,
+			observeProcesses: async () => [
+				{
+					name: "web-serve",
+					state: "running",
+					detail: "active",
+					backend: "systemd-user",
+					supervised: true,
+				},
+			],
+			observeDistribution: (directory) => ({ directory, manifest: false, installer: false }),
+		});
+		const distribution = units.find((unit) => unit.id === "distribution");
+		expect(distribution).toMatchObject({
+			state: "degraded",
+			severity: "warning",
+			details: {
+				directory: servedRoot,
+				missingFiles: ["manifest.json", "install.mjs"],
+			},
+		});
+		expect(distribution?.summary).toContain("answer 404");
+		expect(distribution?.actions[0]?.command).toBe("refarm process add web-serve --replace");
 	});
 
 	it("asks for enrollment only when a declared surface actually has a credential gate", async () => {
