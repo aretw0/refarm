@@ -156,6 +156,16 @@ export function createHomesteadHostRendererDescriptor(
 	};
 }
 
+/**
+ * The package's reference descriptor factory. It is deliberately parameterized by renderer kind:
+ * conformance must exercise web, TUI, and headless rather than blessing one convenient surface.
+ */
+export function createReferenceHomesteadHostRendererDescriptor(
+	kind: HomesteadHostRendererKind,
+): HomesteadHostRendererDescriptor {
+	return createHomesteadHostRendererDescriptor(`refarm-${kind}`, kind);
+}
+
 export function homesteadHostRendererCan(
 	renderer: HomesteadHostRendererDescriptor,
 	capability: HomesteadHostRendererCapability,

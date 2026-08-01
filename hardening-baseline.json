@@ -1,9 +1,4 @@
 {
 	"note": "The hardening ratchet (docs/superpowers/specs/2026-07-30-hardening-signal-design.md, H2). Every entry is a KNOWN, ACCEPTED debt: `refarm hardening --gate` goes red when a suite that is NOT listed here stops being hardened, and equally red when a listed one starts passing and the entry was not deleted. This file is edited BY HAND, always: no command writes it, because a baseline a machine can append to is a mute button that looks like coverage. Adding an entry is a diff someone reads; removing one is progress made permanent.",
-	"entries": [
-		{
-			"id": "@refarm.dev/homestead#runHostRendererConformance",
-			"note": "runHostRendererConformance(kind, descriptorFactory) is driven by a HOST supplying its own renderer descriptors, and homestead exports no in-repo factory the collector can construct — so nothing here proves the host-renderer contract holds. Closing it means exporting a zero-argument reference descriptor factory from @refarm.dev/homestead (the shape every contract-v1 package already has as createInMemory*), after which the collector binds it by convention and this entry must be deleted."
-		}
-	]
+	"entries": []
 }

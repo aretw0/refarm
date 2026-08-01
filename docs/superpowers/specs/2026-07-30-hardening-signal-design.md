@@ -101,7 +101,7 @@ nobody has calibrated.
 
 `@refarm.dev/hardening` + `refarm hardening`. On this repo, today:
 
-> **26 conformance suites, 23 conformant (298 checks); 1 not yet hardened; 2 not applicable.**
+> **26 conformance suites, 24 conformant (298 checks); 0 not yet hardened; 2 not applicable.**
 
 Three things the design doc could not have known, and one it got wrong in a useful direction:
 
@@ -122,6 +122,7 @@ Three things the design doc could not have known, and one it got wrong in a usef
   `runOperatorChannelConformance`; the dedup is justified by comparing the runners' source, not by
   the `vendor/` path, so a copy that ever DRIFTS stops being merged and the signal grows by one.
 
-The one debt in `hardening-baseline.json` is `@refarm.dev/homestead#runHostRendererConformance`:
-it is driven by a host supplying its own renderer descriptors, and homestead exports no in-repo
-factory the collector can construct, so nothing here proves that contract holds.
+The first debt in `hardening-baseline.json`,
+`@refarm.dev/homestead#runHostRendererConformance`, closed on 2026-08-01. Homestead now exports a
+reference descriptor factory and the collector drives it once for each declared renderer kind:
+web, TUI, and headless. The baseline is empty — the valid destination of a shrinking ratchet.

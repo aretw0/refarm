@@ -109,6 +109,17 @@ const EXPLICIT_BINDINGS: Record<string, ExplicitBinding> = {
 			return Object.entries(themes).map(([label, theme]) => ({ label, args: [theme] }));
 		},
 	},
+	"@refarm.dev/homestead#runHostRendererConformance": {
+		why: "the runner takes a renderer kind AND a descriptor factory; the package ships one reference factory, and every declared kind is a separate subject for the same host contract",
+		build: async (_root, own) => {
+			const kinds = own.HOMESTEAD_HOST_RENDERER_KINDS as readonly unknown[] | undefined;
+			const factory = own.createReferenceHomesteadHostRendererDescriptor;
+			if (!Array.isArray(kinds) || typeof factory !== "function") {
+				throw new Error("@refarm.dev/homestead exports no reference host renderer factory");
+			}
+			return kinds.map((kind) => ({ label: String(kind), args: [kind, factory] }));
+		},
+	},
 	"@refarm.dev/prompt-contract-v1#runOperatorChannelConformance": {
 		why: "no createInMemory* factory exists; the non-interactive channel is `createAutoOperatorChannel`, which is what the package's own suite drives (the others read a TTY, a socket or a peer)",
 		build: async (root) => one([callFactory(root, "createAutoOperatorChannel")]),

@@ -99,7 +99,8 @@ describe("this repository's own baseline", () => {
 		const read = readHardeningBaseline(root);
 		expect(read.present).toBe(true);
 		expect(read.error).toBeNull();
-		expect(read.baseline.entries.length).toBeGreaterThan(0);
+		// Zero is the destination of a shrinking ratchet, so an empty baseline is valid and healthy.
+		expect(Array.isArray(read.baseline.entries)).toBe(true);
 		for (const item of read.baseline.entries) {
 			expect(item.id).toMatch(/^@[\w.@/-]+#[A-Za-z0-9]+$/);
 			// A note long enough to be a reason, not a shrug — the shape the CLI refusal harness uses
