@@ -14,7 +14,6 @@ import {
 	currentPromptPublisher,
 	handlePendingPromptHttp,
 	NODE_LOCAL_PROMPT_DEVICE,
-	RESERVED_PROMPT_DEVICES,
 	OperatorPromptCancelledError,
 	OperatorPromptExpiredError,
 	parseOperatorPrompt,
@@ -23,6 +22,7 @@ import {
 	PENDING_PROMPT_WIRE,
 	PROMPT_CAPABILITY,
 	readDeclaredPendingPromptWire,
+	RESERVED_PROMPT_DEVICES,
 	resolveAnsweringDevice,
 	runOperatorChannelConformance,
 	setPromptPublisher,
@@ -193,6 +193,42 @@ describe("createScriptedOperatorChannel", () => {
 });
 
 describe("createStdioOperatorChannel", () => {
+	it("separates each prompt from the preceding terminal trace by default", async () => {
+		const { input, output, state } = makeTtyIo();
+		const answer = createStdioOperatorChannel({ input, output }).ask({
+			type: "text",
+			question: "Next step",
+		});
+		input.write("done\n");
+		await expect(answer).resolves.toBe("done");
+		expect(state.outputText.startsWith("\n")).toBe(true);
+		expect(state.outputText).toContain("Next step: ");
+	});
+
+	it("lets a host preserve the trace or clear the screen between steps", async () => {
+		const preserved = makeTtyIo();
+		const preservedAnswer = createStdioOperatorChannel({
+			input: preserved.input,
+			output: preserved.output,
+			transition: "preserve",
+		}).ask({ type: "text", question: "Compact" });
+		preserved.input.write("ok\n");
+		await preservedAnswer;
+		expect(preserved.state.outputText.startsWith("\n")).toBe(false);
+		expect(preserved.state.outputText).toContain("Compact: ");
+
+		const cleared = makeTtyIo();
+		const clearedAnswer = createStdioOperatorChannel({
+			input: cleared.input,
+			output: cleared.output,
+			transition: "clear",
+		}).ask({ type: "text", question: "Fresh" });
+		cleared.input.write("ok\n");
+		await clearedAnswer;
+		expect(cleared.state.outputText.startsWith("\x1b[2J\x1b[H")).toBe(true);
+		expect(cleared.state.outputText).toContain("Fresh: ");
+	});
+
 	it("restores paused stdin after a raw-mode secret prompt", async () => {
 		const { input, output, state } = makeTtyIo();
 		const channel = createStdioOperatorChannel({ input, output });

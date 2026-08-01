@@ -67,6 +67,7 @@ export function createTerminalOperatorChannel(options = {}) {
     const output = options.output ?? process.stdout;
     const signal = options.signal;
     async function ask(prompt) {
+        writePromptTransition(output, options.transition ?? "space");
         if (prompt.type === "confirm")
             return askConfirm(prompt, input, output, signal);
         if (prompt.type === "select")
@@ -76,6 +77,15 @@ export function createTerminalOperatorChannel(options = {}) {
         return askText(prompt, input, output, signal);
     }
     return { ask };
+}
+function writePromptTransition(output, transition) {
+    if (transition === "preserve")
+        return;
+    if (transition === "clear" && output.isTTY) {
+        output.write("\x1b[2J\x1b[H");
+        return;
+    }
+    output.write("\n");
 }
 let ambientPublisherSource = null;
 /**

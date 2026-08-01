@@ -64,6 +64,12 @@ export interface StdioOperatorChannelOptions {
 	input?: NodeJS.ReadStream;
 	output?: NodeJS.WriteStream;
 	/**
+	 * How a new prompt is separated from the trace already on screen.
+	 * `space` is the readable default; `preserve` injects nothing; `clear` gives
+	 * each step a fresh TTY screen (and degrades to spacing when output is piped).
+	 */
+	transition?: "preserve" | "space" | "clear";
+	/**
 	 * Interrupt an in-flight prompt from OUTSIDE the terminal — the outstanding
 	 * `ask()` rejects with `OperatorPromptCancelledError`, exactly as a Ctrl+C
 	 * would. Without this a terminal prompt can only be ended by the person in
@@ -152,12 +158,25 @@ export function createTerminalOperatorChannel(
 	function ask(prompt: TextPrompt): Promise<string>;
 	function ask(prompt: SecretPrompt): Promise<string>;
 	async function ask(prompt: OperatorPrompt): Promise<boolean | string> {
+		writePromptTransition(output, options.transition ?? "space");
 		if (prompt.type === "confirm") return askConfirm(prompt, input, output, signal);
 		if (prompt.type === "select") return askSelect(prompt, input, output, signal);
 		if (prompt.type === "secret") return askSecret(prompt, input, output, signal);
 		return askText(prompt, input, output, signal);
 	}
 	return { ask };
+}
+
+function writePromptTransition(
+	output: NodeJS.WriteStream,
+	transition: NonNullable<StdioOperatorChannelOptions["transition"]>,
+): void {
+	if (transition === "preserve") return;
+	if (transition === "clear" && output.isTTY) {
+		output.write("\x1b[2J\x1b[H");
+		return;
+	}
+	output.write("\n");
 }
 
 // ── The process's prompt publisher (ambient, opt-in, off by default) ──────────
