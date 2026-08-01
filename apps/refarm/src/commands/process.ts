@@ -76,6 +76,27 @@ const PROCESS_LIST_COMMAND = refarmCommand(["process", "list", "--json"]);
 const PROCESS_STATUS_COMMAND = refarmCommand(["process", "status", "--json"]);
 const PROCESS_LINGER_COMMAND = refarmCommand(["process", "linger"]);
 
+/**
+ * A refusal that also knows WHERE THE OPERATOR GOES NEXT.
+ *
+ * `SupervisionRefusal` carries a `fix` in prose, which is right for "this host has no supervisor"
+ * — there is no command that fixes that. "You have not declared this yet" is the opposite: there
+ * is exactly one command that fixes it, and the refusal should hand it over rather than describe
+ * it. Local to this file, and a `SupervisionRefusal` still, so every existing `instanceof` keeps
+ * working and the contract package stays free of CLI vocabulary.
+ */
+class ProcessHandoffRefusal extends SupervisionRefusal {
+	constructor(
+		reason: string,
+		message: string,
+		fix: string,
+		readonly nextCommands: string[],
+	) {
+		super(reason, message, fix);
+		this.name = "ProcessHandoffRefusal";
+	}
+}
+
 /** Where the trail of process operations lives — beside the units they are about. */
 export function resolveProcessTrailPath(root: string = process.cwd()): string {
 	return path.join(root, ".refarm", "processes", "operations.json");
@@ -151,13 +172,26 @@ export function buildSupervisionBackends(
 	];
 }
 
+/**
+ * THE DEAD END, NAMED.
+ *
+ * This refusal used to end at `process list --json` — "here is what IS declared", which answers a
+ * question the operator did not ask. They had asked to supervise something; being shown an empty
+ * catalog leaves them with hand-editing JSON as the only visible path, and that is exactly the
+ * gap `refarm process add` was built to close. An error that names the fix is the repo's standard,
+ * so this one names the command that authors the missing declaration.
+ */
 function declarationOrRefusal(catalog: ProcessCatalog, name: string): ProcessDeclaration {
 	const declaration = catalog.get(name);
 	if (!declaration) {
-		throw new SupervisionRefusal(
+		const add = refarmCommand(["process", "add", name]);
+		throw new ProcessHandoffRefusal(
 			"not-declared",
 			`processes."${name}" is not declared in .refarm/config.json`,
-			`Declare it under "processes" first — \`${PROCESS_LIST_COMMAND}\` shows what is declared today.`,
+			`Declare it with \`${add}\` — it proposes the whole entry, shows the exact JSON and writes ` +
+				`only after you authorise it. Hand-editing the "processes" block works just as well, and ` +
+				`\`${PROCESS_LIST_COMMAND}\` shows what is declared today.`,
+			[add, PROCESS_LIST_COMMAND],
 		);
 	}
 	return declaration;
@@ -532,7 +566,11 @@ function guarded<TOptions extends { json?: boolean }>(
 			// A refusal that knows the command which fixes it hands it over; everything else falls
 			// back to `--help`, which is honest about knowing nothing more specific.
 			const nextCommands =
-				error instanceof ProcessAddRefusal ? error.nextCommands : [PROCESS_HELP_COMMAND];
+				error instanceof ProcessHandoffRefusal
+					? error.nextCommands
+					: error instanceof ProcessAddRefusal
+						? error.nextCommands
+						: [PROCESS_HELP_COMMAND];
 			if (options.json) {
 				printJson(
 					buildJsonErrorEnvelope({

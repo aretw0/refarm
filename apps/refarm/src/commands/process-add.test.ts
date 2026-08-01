@@ -872,4 +872,36 @@ describe("refarm process — the command surface", () => {
 		expect(process.exitCode).toBe(1);
 		expect(stdout.join("\n")).not.toContain("    at ");
 	});
+
+	/**
+	 * THE DEAD END THE OPERATOR HIT, closed.
+	 *
+	 * `refarm process install web-serve` on an undeclared name used to end at `process list` —
+	 * "here is what IS declared", which answers a question they did not ask. An error that names
+	 * the fix is the repo's standard, and the fix is the wizard.
+	 */
+	it("`install` on an undeclared name now names the wizard, not just `list`", async () => {
+		await createProcessCommand().parseAsync(["install", "web-serve", "--json"], { from: "user" });
+		const envelope = JSON.parse(stdout.join("\n")) as {
+			ok: boolean;
+			error: string;
+			nextAction: string;
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(envelope.ok).toBe(false);
+		expect(envelope.error).toBe("process-not-declared");
+		expect(envelope.nextAction).toContain("refarm process add web-serve");
+		expect(envelope.nextCommand).toBe("refarm process add web-serve");
+		expect(envelope.nextCommands).toContain("refarm process add web-serve");
+		// The old handoff is kept, because "what IS declared" is still worth knowing.
+		expect(envelope.nextCommands).toContain("refarm process list --json");
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("says the same thing in prose, for the operator who is not reading JSON", async () => {
+		await createProcessCommand().parseAsync(["uninstall", "web-serve"], { from: "user" });
+		expect(stdout.join("\n")).toContain("refarm process add web-serve");
+		expect(process.exitCode).toBe(1);
+	});
 });
