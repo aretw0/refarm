@@ -204,7 +204,10 @@ export function createSurfaceCommand(): Command {
 			const result = await runSurfaceAdd({ ...options, ...(name ? { name } : {}) }, { announce: (line) => { if (!options.json) console.log(line); } });
 			const nextCommands = result.status === "declared" ? [SURFACE_LIST_COMMAND, result.undoCommand] : [SURFACE_LIST_COMMAND];
 			if (options.json) printJson(buildJsonSuccessEnvelope({ command: "surface", operation: "add", nextAction: nextCommands[0] ?? null, nextCommands, extra: { ...result } }));
-			else console.log(result.status === "declared" ? chalk.green(`✓  declared "${result.surface}"`) : chalk.dim(`${result.status}: "${result.surface}"`));
+			else if (result.status === "declared") {
+				console.log(chalk.green(`✓  declared "${result.surface}"`));
+				console.log(chalk.dim(`   ${result.configPath}`));
+			} else console.log(chalk.dim(`${result.status}: "${result.surface}"`));
 		} catch (error) {
 			const refusal = error instanceof SurfaceAddRefusal ? error : null;
 			const message = error instanceof Error ? error.message : String(error);
@@ -215,10 +218,16 @@ export function createSurfaceCommand(): Command {
 		}
 	});
 	command.command("list").option("--json").action((options: { json?: boolean }) => {
-		const surfaces = serializeCatalog();
-		if (options.json) printJson(buildJsonSuccessEnvelope({ command: "surface", operation: "list", nextAction: null, nextCommands: [], extra: { surfaces } }));
-		else if (surfaces.length === 0) console.log('no surface is declared under "surfaces" in .refarm/config.json');
-		else for (const entry of surfaces) console.log(`${entry.name}: expose=${entry.expose}, gate=${entry.gate ?? "undeclared"}`);
+		const root = process.cwd();
+		const configPath = catalogConfigPath(root, process.env);
+		const surfaces = serializeCatalog(root);
+		if (options.json) printJson(buildJsonSuccessEnvelope({ command: "surface", operation: "list", nextAction: null, nextCommands: [], extra: { root, configPath, surfaces } }));
+		else {
+			console.log(chalk.dim(`scope: ${root}`));
+			console.log(chalk.dim(`config: ${configPath}`));
+			if (surfaces.length === 0) console.log('no surface is declared under "surfaces" in this config');
+			else for (const entry of surfaces) console.log(`${entry.name}: expose=${entry.expose}, gate=${entry.gate ?? "undeclared"}`);
+		}
 	});
 	return command;
 }

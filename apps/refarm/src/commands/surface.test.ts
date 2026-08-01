@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { deriveSurfaceGate, runSurfaceAdd } from "./surface.js";
+import { createSurfaceCommand, deriveSurfaceGate, runSurfaceAdd } from "./surface.js";
 
 let root: string;
 
@@ -75,5 +75,27 @@ describe("refarm surface add", () => {
 			),
 		).rejects.toThrow("not a surface any refarm runtime declares");
 		expect(fs.readFileSync(configPath, "utf8")).toBe(before);
+	});
+});
+
+describe("refarm surface list", () => {
+	it("names the sovereign root and config path in its machine-readable result", async () => {
+		const priorCwd = process.cwd();
+		const lines: string[] = [];
+		const log = console.log;
+		try {
+			process.chdir(root);
+			console.log = (line?: unknown) => lines.push(String(line));
+			await createSurfaceCommand().parseAsync(["node", "surface", "list", "--json"]);
+		} finally {
+			console.log = log;
+			process.chdir(priorCwd);
+		}
+		const payload = JSON.parse(lines.join("\n"));
+		expect(payload).toMatchObject({
+			root,
+			configPath: path.join(root, ".refarm", "config.json"),
+			surfaces: [],
+		});
 	});
 });
