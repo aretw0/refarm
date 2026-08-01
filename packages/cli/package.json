@@ -98,6 +98,10 @@
 			"types": "./dist/workspace-sweep.d.ts",
 			"import": "./dist/workspace-sweep.js"
 		},
+		"./workspace-declaration": {
+			"types": "./dist/workspace-declaration.d.ts",
+			"import": "./dist/workspace-declaration.js"
+		},
 		"./chat-repl": {
 			"types": "./dist/chat-repl.d.ts",
 			"import": "./dist/chat-repl.js"
@@ -165,6 +169,8 @@
 		"dist/worker-profile.js",
 		"dist/workspace-sweep.d.ts",
 		"dist/workspace-sweep.js",
+		"dist/workspace-declaration.d.ts",
+		"dist/workspace-declaration.js",
 		"dist/chat-repl.d.ts",
 		"dist/chat-repl.js",
 		"dist/chat-history.d.ts",

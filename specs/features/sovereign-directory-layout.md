@@ -22,6 +22,10 @@ The Refarm app owns the adapter:
 - node-wide workspace catalog: `<operator-root>/config.json#workspaces`, authored by
   `refarm workspace add`; physical paths remain device-local and never enter replicated config.
 
+Workspace inference is an SDK concern: `@refarm.dev/cli/workspace-declaration` derives the
+declaration and structured provenance without knowing an app name, home layout, renderer or
+consent channel. The Refarm app injects those policies and performs the authorised write.
+
 Workspace-relative `.refarm` paths remain valid when the data belongs to that workspace. They are
 not a substitute for operator state, and commands must make the selected scope observable.
 

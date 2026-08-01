@@ -237,6 +237,10 @@ workspace without manually changing shell directories. Use
 across every declared workspace; missing paths are reported per observation
 instead of turning the whole command into a write or recovery action.
 
+Apps that compose the same journey reuse
+`@refarm.dev/cli/workspace-declaration`; the Refarm app owns only its command,
+home policy, prompts and consent rendering.
+
 For container/host boundaries, workspace entries can include filesystem bridge
 candidates:
 

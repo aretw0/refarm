@@ -3,10 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-	deriveWorkspaceProposal,
-	runWorkspaceAdd,
-} from "./workspace-add.js";
+import { runWorkspaceAdd } from "./workspace-add.js";
 
 const roots: string[] = [];
 
@@ -21,35 +18,6 @@ afterEach(() => {
 });
 
 describe("workspace add", () => {
-	it("derives identity, kind and origin while keeping the host path explicit", () => {
-		const workspace = tempRoot("refarm-workspace-proposal-");
-		fs.mkdirSync(path.join(workspace, ".git"));
-		fs.writeFileSync(path.join(workspace, "package.json"), JSON.stringify({ name: "@acme/my-app" }));
-		fs.writeFileSync(
-			path.join(workspace, ".git", "config"),
-			'[remote "origin"]\n  url = https://example.test/acme/my-app.git\n',
-		);
-
-		expect(deriveWorkspaceProposal(workspace, {})).toMatchObject({
-			id: "my-app",
-			entry: {
-				path: workspace,
-				kind: "project",
-				execution: { preferredAdapter: "auto" },
-				repository: { url: "https://example.test/acme/my-app.git" },
-			},
-		});
-	});
-
-	it("refuses credentials in a repository URL before they can enter the operation trail", () => {
-		const workspace = tempRoot("refarm-workspace-secret-origin-");
-		expect(() =>
-			deriveWorkspaceProposal(workspace, {
-				repository: "https://operator:secret@example.test/acme/private.git",
-			}),
-		).toThrow(/contains credentials/);
-	});
-
 	it("writes only the operator catalog after explicit consent", async () => {
 		const operatorRoot = tempRoot("refarm-workspace-operator-");
 		const workspace = tempRoot("refarm-workspace-target-");

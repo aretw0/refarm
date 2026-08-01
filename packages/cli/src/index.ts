@@ -1,5 +1,12 @@
 export type { StatusJson, StatusOptions, StatusSurfaceAction } from "./status.js";
 export {
+	deriveWorkspaceDeclaration,
+	WorkspaceDeclarationError,
+	type WorkspaceDeclarationInput,
+	type WorkspaceDeclarationEvidence,
+	type WorkspaceDeclarationProposal,
+} from "./workspace-declaration.js";
+export {
 	assertStatusJson,
 	buildStatusJson,
 	formatStatusJson,

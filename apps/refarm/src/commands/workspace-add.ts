@@ -1,3 +1,8 @@
+import {
+	deriveWorkspaceDeclaration,
+	WorkspaceDeclarationError,
+	type WorkspaceDeclarationProposal,
+} from "@refarm.dev/cli/workspace-declaration";
 import { declaredWorkspacesFromConfig, WORKSPACE_KINDS } from "@refarm.dev/config";
 import {
 	createFileOperationTrail,
@@ -77,86 +82,19 @@ export class WorkspaceAddRefusal extends Error {
 	}
 }
 
-function workspaceId(value: string): string {
-	return value
-		.trim()
-		.toLowerCase()
-		.replace(/[^a-z0-9._-]+/g, "-")
-		.replace(/^-+|-+$/g, "");
-}
-
-function readJson(candidate: string, readFile: (candidate: string) => string): Record<string, unknown> {
-	try {
-		const value = JSON.parse(readFile(candidate));
-		return value && typeof value === "object" && !Array.isArray(value)
-			? (value as Record<string, unknown>)
-			: {};
-	} catch {
-		return {};
-	}
-}
-
-function originUrl(workspacePath: string, readFile: (candidate: string) => string): string | null {
-	try {
-		const config = readFile(path.join(workspacePath, ".git", "config"));
-		const section = config.match(/\[remote\s+"origin"\]([\s\S]*?)(?=\n\[|$)/)?.[1] ?? "";
-		return section.match(/^\s*url\s*=\s*(.+?)\s*$/m)?.[1]?.trim() ?? null;
-	} catch {
-		return null;
-	}
-}
-
-function repositoryUrl(value: string | null | undefined): string | null {
-	const trimmed = value?.trim();
-	if (!trimmed) return null;
-	try {
-		const parsed = new URL(trimmed);
-		if (parsed.username || parsed.password) {
-			throw new WorkspaceAddRefusal(
-				"workspace-add-repository-contains-credential",
-				"The repository URL contains credentials. Use a credential-free URL; secrets never enter config or its operation trail.",
-			);
-		}
-	} catch (error) {
-		if (error instanceof WorkspaceAddRefusal) throw error;
-		// SCP-style Git URLs (git@host:owner/repo.git) are intentionally valid.
-	}
-	return trimmed;
-}
-
-export function deriveWorkspaceProposal(
+function deriveWorkspaceProposal(
 	workspacePath: string,
 	options: Pick<WorkspaceAddOptions, "id" | "kind" | "repository">,
 	readFile: (candidate: string) => string = (candidate) => fs.readFileSync(candidate, "utf8"),
-): { id: string; entry: Record<string, unknown>; evidence: string[] } {
-	const packageJson = readJson(path.join(workspacePath, "package.json"), readFile);
-	const packageName = typeof packageJson.name === "string" ? packageJson.name : "";
-	const id = workspaceId(options.id || packageName.replace(/^@[^/]+\//, "") || path.basename(workspacePath));
-	if (!id) throw new WorkspaceAddRefusal("workspace-add-invalid-id", "Workspace id must not be blank.");
-	const inferredKind = packageName === "refarm" ? "refarm" : "project";
-	const kind = options.kind ?? inferredKind;
-	if (!WORKSPACE_KINDS.includes(kind)) {
-		throw new WorkspaceAddRefusal(
-			"workspace-add-invalid-kind",
-			`Unknown workspace kind ${JSON.stringify(kind)}; use ${WORKSPACE_KINDS.join(", ")}.`,
-		);
+): WorkspaceDeclarationProposal {
+	try {
+		return deriveWorkspaceDeclaration(workspacePath, options, readFile);
+	} catch (error) {
+		if (error instanceof WorkspaceDeclarationError) {
+			throw new WorkspaceAddRefusal(`workspace-add-${error.code.replace(/^workspace-/, "")}`, error.message);
+		}
+		throw error;
 	}
-	const repository = repositoryUrl(options.repository || originUrl(workspacePath, readFile));
-	return {
-		id,
-		entry: {
-			path: workspacePath,
-			kind,
-			execution: { preferredAdapter: "auto" },
-			...(repository ? { repository: { url: repository } } : {}),
-		},
-		evidence: [
-			`path: ${workspacePath} (caminho resolvido neste host; não replica)`,
-			`id: ${id} (${packageName ? "package.json#name" : "nome do diretório"})`,
-			`kind: ${kind} (${options.kind ? "--kind" : packageName === "refarm" ? "package.json" : "padrão project"})`,
-			...(repository ? [`repository: ${repository} (${options.repository ? "--repository" : ".git/config origin"})`] : []),
-		],
-	};
 }
 
 export async function runWorkspaceAdd(
@@ -211,7 +149,10 @@ export async function runWorkspaceAdd(
 		}
 		let proposal = deriveWorkspaceProposal(absolutePath, options, readFile);
 		id = proposal.id;
-		for (const line of proposal.evidence) say(`  ${line}`);
+		for (const evidence of proposal.evidence) {
+			say(`  ${evidence.key}: ${evidence.value}`);
+			say(`      ← ${evidence.source}`);
+		}
 		const useProposal = await operator.ask({
 			type: "select",
 			question: "Uso esta proposta?",
