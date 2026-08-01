@@ -28,11 +28,49 @@ describe("operational readiness surface units", () => {
 				},
 			},
 			credentialCount: 1,
+			observeProcesses: async () => [
+				{
+					name: "web-serve",
+					state: "running",
+					detail: "active",
+					backend: "systemd-user",
+					supervised: true,
+				},
+			],
 		});
 		expect(units.every((unit) => unit.state === "ready")).toBe(true);
 		expect(JSON.stringify(units)).not.toContain("token");
 		expect(units[0]?.details).toMatchObject({ enrolledDevices: 1, gatedSurfaces: 1 });
 		expect(units.flatMap((unit) => unit.actions)).toEqual([]);
+	});
+
+	it("turns an installed stopped process into a renderer-neutral restart action", async () => {
+		const units = await resolveOperationalReadinessUnits({
+			config: {
+				processes: {
+					"web-serve": {
+						description: "web",
+						command: ["/usr/bin/refarm", "web", "serve"],
+						restart: "always",
+					},
+				},
+			},
+			credentialCount: 0,
+			observeProcesses: async () => [
+				{
+					name: "web-serve",
+					state: "not-running",
+					detail: "failed",
+					backend: "systemd-user",
+					supervised: true,
+				},
+			],
+		});
+		const supervision = units.find((unit) => unit.id === "supervision");
+		expect(supervision).toMatchObject({ state: "degraded", severity: "warning" });
+		expect(supervision?.actions[0]?.command).toBe(
+			"systemctl --user restart refarm-web-serve.service",
+		);
 	});
 
 	it("asks for enrollment only when a declared surface actually has a credential gate", async () => {

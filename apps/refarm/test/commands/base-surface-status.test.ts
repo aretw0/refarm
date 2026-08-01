@@ -1,9 +1,26 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { BaseSurfaceModelInput } from "@refarm.dev/operator-state";
-import { resolveBaseSurfaceStatus } from "../../src/commands/base-surface-status.js";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import {
+	nearestProjectRoot,
+	resolveBaseSurfaceStatus,
+} from "../../src/commands/base-surface-status.js";
 
 describe("resolveBaseSurfaceStatus", () => {
+	it("does not treat an operational node root as all descendant workspaces", () => {
+		const home = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-node-root-"));
+		try {
+			const nestedRepo = path.join(home, "git", "private-workspace");
+			fs.mkdirSync(path.join(nestedRepo, ".git"), { recursive: true });
+			expect(nearestProjectRoot(home, home)).toBeNull();
+			expect(nearestProjectRoot(path.join(nestedRepo, "src"), home)).toBe(nestedRepo);
+		} finally {
+			fs.rmSync(home, { recursive: true, force: true });
+		}
+	});
 	it("adapts runtime, model, and health payloads into the base model", async () => {
 		const model = await resolveBaseSurfaceStatus({
 			resolveOperationalReadiness: vi.fn().mockResolvedValue([]),

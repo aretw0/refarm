@@ -23,7 +23,7 @@ import { defaultRuntimeCommandDeps } from "./runtime.js";
 export interface BaseSurfaceStatusDeps {
 	resolveRuntime?: () => Promise<BaseSurfaceModelInput["runtime"]>;
 	resolveModel?: () => Promise<BaseSurfaceModelInput["model"]>;
-	resolveHealth?: () => Promise<BaseSurfaceModelInput["health"]>;
+	resolveHealth?: () => Promise<BaseSurfaceModelInput["health"] | undefined>;
 	resolveOperationalReadiness?: () => Promise<BaseSurfaceUnit[]>;
 	resolveOperatorAttention?: (
 		options: BaseSurfaceStatusOptions,
@@ -67,7 +67,20 @@ async function resolveRuntimeBaseInput(): Promise<BaseSurfaceModelInput["runtime
 	// The base surface asks about the SUBJECT — is the runtime usable — not about whether a
 	// command succeeded, so it overrides the `status` envelope's `ok` (which is always true,
 	// because producing a status report always works) with the health verdict itself.
-	return { ...buildRuntimeJsonPayload(payload), ok: runtimeIsHealthy(payload) };
+	const healthy = runtimeIsHealthy(payload);
+	const input = { ...buildRuntimeJsonPayload(payload), ok: healthy };
+	// A handoff from a successful observation (normally `resume`) is navigation, not unfinished
+	// work. The base surface promises nextCommands are actions still needed, so ready units do not
+	// compete with degraded units for the operator's next step.
+	return healthy
+		? {
+				...input,
+				nextAction: null,
+				nextActions: [],
+				nextCommand: null,
+				nextCommands: [],
+			}
+		: input;
 }
 
 async function resolveModelBaseInput(): Promise<BaseSurfaceModelInput["model"]> {
@@ -75,8 +88,29 @@ async function resolveModelBaseInput(): Promise<BaseSurfaceModelInput["model"]> 
 	return buildCurrentModelEnvelope(tokens);
 }
 
-async function resolveHealthBaseInput(): Promise<BaseSurfaceModelInput["health"]> {
-	return runHealthAudit();
+async function resolveHealthBaseInput(): Promise<BaseSurfaceModelInput["health"] | undefined> {
+	const projectRoot = nearestProjectRoot(process.cwd());
+	// A node root is not implicitly a workspace. Auditing every descendant of $HOME leaks sibling
+	// projects into every renderer and turns unrelated repositories into Refarm health failures.
+	if (!projectRoot) return undefined;
+	return runHealthAudit(projectRoot);
+}
+
+export function nearestProjectRoot(start: string, boundary = os.homedir()): string | null {
+	let current = path.resolve(start);
+	const resolvedBoundary = path.resolve(boundary);
+	while (true) {
+		if (
+			fs.existsSync(path.join(current, ".git")) ||
+			fs.existsSync(path.join(current, "pnpm-workspace.yaml"))
+		) {
+			return current;
+		}
+		if (current === resolvedBoundary) return null;
+		const parent = path.dirname(current);
+		if (parent === current) return null;
+		current = parent;
+	}
 }
 
 async function resolveOperatorAttentionBaseInput(
