@@ -93,6 +93,7 @@
 		"docs:actionability:check:all": "node scripts/ci/check-spec-actionability.mjs --all",
 		"docs:actionability:check:strict": "node scripts/ci/check-spec-actionability.mjs --strict",
 		"docs:actionability:check:all:strict": "node scripts/ci/check-spec-actionability.mjs --all --strict",
+		"docs:device-journeys:test": "node --test scripts/ci/test-refarm-device-operator-journeys.mjs",
 		"text-quality:verify": "node scripts/ci/run-root-scripts.mjs text-quality:test docs:text-quality",
 		"wallet:poc": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
 		"wallet:poc:test": "node --test validations/citizen-data-wallet-poc/wallet-poc.test.mjs",

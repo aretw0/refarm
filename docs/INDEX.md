@@ -31,6 +31,7 @@
 - **[DevOps & Setup](DEVOPS.md)** — Dev containers, CI, security, hardware requirements.
 - **[Process Playbook](PROCESS_PLAYBOOK.md)** — Daily operational commands: services, agents, smoke gates, troubleshooting.
 - **[Operator Daily Driver](REFARM_OPERATOR_DAILY_DRIVER.md)** — Short maintained loop for using Refarm as the daily CLI driver.
+- **[Device Operator Journeys](REFARM_DEVICE_OPERATOR_JOURNEYS.md)** — Termux and PWA acceptance paths with commands, observable outcomes, undo, and automated proof, independent of the operator's network rail and downstream workspaces.
 - **[Operator Primitives](OPERATOR_PRIMITIVES.md)** — Stable JSON, session, task, runtime, model, and finish primitives for agentic operation.
 - **[Model Provider Strata](model-provider-strata.md)** — API-key billing vs subscription-backed provider contract for model routing.
 - **[NixOS Curated Runtime Strategy](NIXOS_CURATED_RUNTIME_STRATEGY.md)** — Strategic lane for evaluating Nix/NixOS as a reproducible Refarm substrate without becoming a distro prematurely.
