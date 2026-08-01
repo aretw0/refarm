@@ -1725,10 +1725,8 @@ describe("refarm auth enroll — the gate instruction follows the daemon's deriv
  * instruct ANOTHER machine — `FARM_TOKEN=… refarm ask "olá"` — and the operator
  * followed it on their phone and got `No command refarm found`, because the
  * device that most needs a credential is precisely the one carrying only the
- * zero-dependency kit. The line that WOULD have worked was parenthetical, with an
- * elided `.../` path nobody can copy. It was wrong for an hour and no test
- * noticed; these pin both forms and their ORDER so it cannot go silently wrong
- * again.
+ * zero-dependency kit. These tests now pin the actual device command (`farm-ask`)
+ * and keep the full Node path only as a PATH-recovery fallback.
  */
 describe("refarm auth enroll — the device instruction leads with the zero-dependency form", () => {
 	it("names the kit path in full — never an elided `.../`", () => {
@@ -1738,20 +1736,21 @@ describe("refarm auth enroll — the device instruction leads with the zero-depe
 		expect(out).not.toContain(".../");
 	});
 
-	it("the zero-dependency form comes FIRST, the CLI form second", () => {
+	it("the installed device shim comes FIRST, the full Node path second", () => {
 		const out = deviceInstructionLines("TOK");
 
-		const kitAt = out.indexOf("farm-ask.mjs");
-		const cliAt = out.indexOf("refarm ask");
-		expect(kitAt).toBeGreaterThan(-1);
-		expect(cliAt).toBeGreaterThan(-1);
-		// The whole point of the fix: cheapest-to-satisfy first. Swap them and this fails.
-		expect(kitAt).toBeLessThan(cliAt);
+		const shimAt = out.indexOf('farm-ask "olá"');
+		const pathAt = out.indexOf("farm-ask.mjs");
+		expect(shimAt).toBeGreaterThan(-1);
+		expect(pathAt).toBeGreaterThan(-1);
+		expect(shimAt).toBeLessThan(pathAt);
+		expect(out.indexOf("refarm ask")).toBeGreaterThan(pathAt);
 	});
 
 	it("both forms carry the real token, so either is copyable as-is", () => {
 		const out = deviceInstructionLines("TOK");
 
+		expect(out).toContain('FARM_TOKEN=TOK farm-ask "olá"');
 		expect(out).toContain('FARM_TOKEN=TOK node ~/.refarm/kit/farm-client/bin/farm-ask.mjs "olá"');
 		expect(out).toContain('FARM_TOKEN=TOK refarm ask "olá"');
 		// Never elides the token behind `FARM_TOKEN=…` the way the old alternative did.
@@ -1761,8 +1760,9 @@ describe("refarm auth enroll — the device instruction leads with the zero-depe
 	it("presents the CLI form as the alternative — it does not detect, it offers both", () => {
 		const out = deviceInstructionLines("TOK");
 
-		expect(out).toContain("with the zero-dependency kit (needs only node)");
-		expect(out).toContain("On a device that has the CLI installed");
+		expect(out).toContain("with the installed zero-dependency kit");
+		expect(out).toContain("If this shell has not picked up the shim yet");
+		expect(out).toContain("full Refarm app/CLI (not merely the farm-client kit)");
 	});
 
 	it("the enrolment success output really prints it, with the minted token", async () => {
@@ -1784,7 +1784,8 @@ describe("refarm auth enroll — the device instruction leads with the zero-depe
 			const printed = /FARM_TOKEN=(\S+) node/.exec(out)?.[1];
 			expect(printed).toBeTruthy();
 			expect(sha256Hex(printed as string)).toBe(token);
-			expect(out).toContain(`FARM_TOKEN=${printed} refarm ask "olá"`);
+			expect(out).toContain(`FARM_TOKEN=${printed} farm-ask "olá"`);
+			expect(out).toContain("refarm runtime restart --wait --json");
 		} finally {
 			stdoutSpy.mockRestore();
 			process.exitCode = undefined;

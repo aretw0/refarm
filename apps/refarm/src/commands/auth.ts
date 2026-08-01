@@ -120,18 +120,17 @@ const FARM_CLIENT_ASK_PATH = "~/.refarm/kit/farm-client/bin/farm-ask.mjs";
 /**
  * How the DEVICE spends the token it was just handed.
  *
- * The zero-dependency form leads. This node cannot know what the other machine
- * has, and must not guess: the device that most needs a credential is precisely
- * the one carrying only the `farm-client` kit (a phone in Termux — `node` and
- * nothing else), so instructing it with THIS node's CLI name produced a literal
- * `No command refarm found`. Both forms are printed, honestly, cheapest-to-
- * satisfy first — the CLI form is the alternative, not the headline.
+ * The installed kit's shim leads. `refarm` administers the node; `farm-ask` is
+ * the device client. The full Node path remains as a fallback when the shell has
+ * not reloaded PATH yet — neither form asks the phone to install the node CLI.
  */
 export function deviceInstructionLines(token: string): string {
 	return (
-		`   On the device — with the zero-dependency kit (needs only node):\n` +
+		`   On the device — with the installed zero-dependency kit:\n` +
+		`     FARM_TOKEN=${token} farm-ask "olá"\n` +
+		`   If this shell has not picked up the shim yet:\n` +
 		`     FARM_TOKEN=${token} node ${FARM_CLIENT_ASK_PATH} "olá"\n` +
-		`   On a device that has the CLI installed:\n` +
+		`   Only on a device with the full Refarm app/CLI (not merely the farm-client kit):\n` +
 		`     FARM_TOKEN=${token} ${refarmCommand(["ask", '"olá"'])}\n`
 	);
 }
@@ -536,17 +535,19 @@ async function runAuthEnroll(
 	// `--policy` carries DEFAULT_POLICY_PATH as its option default, so this is never
 	// undefined: an unpassed flag compares equal and the override goes unmentioned.
 	const enableRequired = options.policy !== DEFAULT_POLICY_PATH;
+	const restartCommand = refarmCommand(["runtime", "restart", "--wait", "--json"]);
 	if (options.json) {
 		process.stdout.write(
-			`${JSON.stringify({ ok: true, identity: validIdentity, token, policy: policyPath, enable: enableHint, enableRequired })}\n`,
+			`${JSON.stringify({ ok: true, identity: validIdentity, token, policy: policyPath, enable: enableHint, enableRequired, nextAction: "Restart the node runtime to load the rotated credential.", nextCommand: restartCommand, nextCommands: [restartCommand] })}\n`,
 		);
 		return;
 	}
 	const gateLine = enableRequired
-		? `   Turn the gate on (restart the daemon with):\n     ${enableHint}\n` +
+		? `   On this PC/node, load the credential now:\n     ${enableHint} ${restartCommand}\n` +
 			`     (this path is not the derived default — the override is required)\n`
-		: `   Restart the daemon to load it. A surface declaring "gate": "device-token"\n` +
-			`   picks this file up automatically — no environment variable needed.\n`;
+		: `   On this PC/node, load the credential now:\n     ${restartCommand}\n` +
+			`   A surface declaring "gate": "device-token" picks this file up automatically —\n` +
+			`   no environment variable needed.\n`;
 	process.stdout.write(
 		`🔑 enrolled "${validIdentity}"\n\n` +
 			`   TOKEN (shown once — save it on the device):\n     ${token}\n\n` +
