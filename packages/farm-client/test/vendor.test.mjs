@@ -34,8 +34,18 @@ const PKG_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 test("both carried blocks are registered — vendoring is not a one-off", () => {
 	assert.deepEqual(
 		VENDORED_BLOCKS.map((b) => b.vendorFile),
-		["vendor/prompt-contract-v1.mjs", "vendor/operation-consent-v1.mjs"],
+		["vendor/prompt-contract-v1/dist/index.js", "vendor/operation-consent-v1/dist/index.js"],
 	);
+	for (const block of VENDORED_BLOCKS) {
+		assert.deepEqual(
+			block.assets.map((asset) => asset.vendorFile),
+			[
+				`vendor/${block.block.slice("@refarm.dev/".length)}/dist/index.js`,
+				`vendor/${block.block.slice("@refarm.dev/".length)}/dist/index.js.map`,
+				`vendor/${block.block.slice("@refarm.dev/".length)}/src/index.ts`,
+			],
+		);
+	}
 });
 
 test("every vendored block is byte-identical to its built source", async () => {
@@ -64,14 +74,19 @@ test("checkVendor reports drift rather than passing when the bytes differ", asyn
 });
 
 test("checkVendor on a block whose copy is absent reports it, never passes", async () => {
-	const absent = { ...VENDORED, vendorPath: `${VENDORED.vendorPath}.does-not-exist` };
+	const absent = {
+		...VENDORED,
+		assets: VENDORED.assets.map((asset, index) =>
+			index === 0 ? { ...asset, vendorPath: `${asset.vendorPath}.does-not-exist` } : asset,
+		),
+	};
 	const result = await checkVendor(absent);
 	assert.equal(result.ok, false);
 	assert.equal(result.reason, "missing");
 });
 
 test("the vendored block exposes the prompt contract the kit consumes", async () => {
-	const block = await import("../vendor/prompt-contract-v1.mjs");
+	const block = await import("../vendor/prompt-contract-v1/dist/index.js");
 	for (const name of [
 		"createStdioOperatorChannel",
 		"createScriptedOperatorChannel",
@@ -85,7 +100,7 @@ test("the vendored block exposes the prompt contract the kit consumes", async ()
 });
 
 test("the vendored block exposes the operation-consent journey the kit consumes", async () => {
-	const block = await import("../vendor/operation-consent-v1.mjs");
+	const block = await import("../vendor/operation-consent-v1/dist/index.js");
 	for (const name of [
 		"runOperationConsent",
 		"undoOperationRecord",
@@ -102,13 +117,25 @@ test("the vendored block exposes the operation-consent journey the kit consumes"
 
 test("the vendored blocks stay installable-free — node built-ins only", async () => {
 	const expected = {
-		"vendor/prompt-contract-v1.mjs": ["node:readline"],
-		"vendor/operation-consent-v1.mjs": ["node:fs/promises", "node:path"],
+		"vendor/prompt-contract-v1/dist/index.js": ["node:readline"],
+		"vendor/operation-consent-v1/dist/index.js": ["node:fs/promises", "node:path"],
 	};
 	for (const target of VENDORED_BLOCKS) {
 		const source = await readFile(target.vendorPath, "utf8");
 		const specifiers = [...source.matchAll(/^\s*import\s[^"']*["']([^"']+)["']/gm)].map((m) => m[1]);
 		assert.deepEqual(specifiers, expected[target.vendorFile], `${target.vendorFile} imports`);
+	}
+});
+
+test("every source map resolves to source carried in the same package capsule", async () => {
+	for (const target of VENDORED_BLOCKS) {
+		const mapAsset = target.assets.find((asset) => asset.vendorFile.endsWith(".js.map"));
+		assert.ok(mapAsset, `${target.block} must carry a source map`);
+		const map = JSON.parse(await readFile(mapAsset.vendorPath, "utf8"));
+		assert.deepEqual(map.sources, ["../src/index.ts"]);
+		const sourceAsset = target.assets.find((asset) => asset.vendorFile.endsWith("/src/index.ts"));
+		assert.ok(sourceAsset, `${target.block} must carry the source named by its map`);
+		assert.equal(await readFile(sourceAsset.vendorPath, "utf8"), await readFile(sourceAsset.sourcePath, "utf8"));
 	}
 });
 

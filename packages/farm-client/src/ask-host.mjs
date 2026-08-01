@@ -22,7 +22,7 @@
 import {
 	createStdioOperatorChannel,
 	OperatorPromptCancelledError,
-} from "../vendor/prompt-contract-v1.mjs";
+} from "../vendor/prompt-contract-v1/dist/index.js";
 import { readRememberedHost, writeRememberedHost } from "./farm-host.mjs";
 
 export { OperatorPromptCancelledError };

@@ -5,7 +5,8 @@
  * `packages/farm-client` is zero-dependency so it runs on a phone with nothing
  * but Node. That means nothing to INSTALL — it does not mean nothing to REUSE.
  * A block with zero dependencies of its own, importing only `node:` built-ins,
- * has built output that can travel inside the kit as a plain `.mjs` file,
+ * has built output that can travel inside the kit as a self-contained package
+ * capsule (`dist/` plus the source referenced by its source map),
  * distributed by `farm-update` like any other kit file (manifest entry + sha256
  * integrity).
  *
@@ -36,22 +37,40 @@ import { fileURLToPath } from "node:url";
 const KIT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** One carried block: where its build lands, and where the copy lives. */
-function block(name, file) {
+function block(name) {
 	const blockDir = join(KIT_DIR, "..", name);
+	const vendorDir = join(KIT_DIR, "vendor", name);
 	return {
 		block: `@refarm.dev/${name}`,
 		blockDir,
 		sourcePath: join(blockDir, "dist", "index.js"),
-		vendorPath: join(KIT_DIR, "vendor", file),
-		vendorFile: `vendor/${file}`,
+		vendorPath: join(vendorDir, "dist", "index.js"),
+		vendorFile: `vendor/${name}/dist/index.js`,
+		assets: [
+			{
+				sourcePath: join(blockDir, "dist", "index.js"),
+				vendorPath: join(vendorDir, "dist", "index.js"),
+				vendorFile: `vendor/${name}/dist/index.js`,
+			},
+			{
+				sourcePath: join(blockDir, "dist", "index.js.map"),
+				vendorPath: join(vendorDir, "dist", "index.js.map"),
+				vendorFile: `vendor/${name}/dist/index.js.map`,
+			},
+			{
+				sourcePath: join(blockDir, "src", "index.ts"),
+				vendorPath: join(vendorDir, "src", "index.ts"),
+				vendorFile: `vendor/${name}/src/index.ts`,
+			},
+		],
 		buildCommand: `pnpm --filter @refarm.dev/${name} run build`,
 	};
 }
 
 /** Every block the kit carries. Adding one here is the whole registration. */
 export const VENDORED_BLOCKS = [
-	block("prompt-contract-v1", "prompt-contract-v1.mjs"),
-	block("operation-consent-v1", "operation-consent-v1.mjs"),
+	block("prompt-contract-v1"),
+	block("operation-consent-v1"),
 ];
 
 /** The first block, kept as a named export so existing callers/tests read naturally. */
@@ -118,22 +137,39 @@ export async function readVendoredBlock(target = VENDORED) {
  * (CLI, test) decide how loud to be.
  */
 export async function checkVendor(target = VENDORED) {
-	const built = await readBuiltBlock(target);
-	const vendored = await readVendoredBlock(target);
-	if (vendored === null) {
-		return { ok: false, reason: "missing", detail: `${target.vendorPath} does not exist` };
+	// A block is a distribution unit, not only its executable file. Preserve its
+	// dist/src layout so source-map URLs and their source paths remain true without
+	// rewriting bytes.
+	for (const asset of target.assets ?? [target]) {
+		let built;
+		try {
+			built = await readFile(asset.sourcePath);
+		} catch {
+			await readBuiltBlock(target);
+			built = await readFile(asset.sourcePath);
+		}
+		let vendored;
+		try {
+			vendored = await readFile(asset.vendorPath);
+		} catch {
+			return { ok: false, reason: "missing", detail: `${asset.vendorPath} does not exist` };
+		}
+		if (!built.equals(vendored)) {
+			return {
+				ok: false,
+				reason: "drift",
+				detail:
+					`${asset.vendorPath} is not the built ${target.block} asset\n` +
+					`   built:    ${built.length} bytes\n` +
+					`   vendored: ${vendored.length} bytes`,
+			};
+		}
 	}
-	if (!built.equals(vendored)) {
-		return {
-			ok: false,
-			reason: "drift",
-			detail:
-				`${target.vendorPath} is not the built ${target.block}\n` +
-				`   built:    ${built.length} bytes\n` +
-				`   vendored: ${vendored.length} bytes`,
-		};
-	}
-	return { ok: true, reason: "identical", detail: `${built.length} bytes` };
+	return {
+		ok: true,
+		reason: "identical",
+		detail: `${(target.assets ?? [target]).length} byte-identical assets`,
+	};
 }
 
 /** Every carried block, checked. `{ ok, results: [{ target, ...verdict }] }`. */
@@ -147,10 +183,15 @@ export async function checkAllVendored() {
 
 /** Copy one built block into the kit. Returns the byte count written. */
 export async function syncVendor(target = VENDORED) {
-	const built = await readBuiltBlock(target);
-	await mkdir(dirname(target.vendorPath), { recursive: true });
-	await copyFile(target.sourcePath, target.vendorPath);
-	return built.length;
+	await readBuiltBlock(target);
+	let bytes = 0;
+	for (const asset of target.assets ?? [target]) {
+		const built = await readFile(asset.sourcePath);
+		await mkdir(dirname(asset.vendorPath), { recursive: true });
+		await copyFile(asset.sourcePath, asset.vendorPath);
+		bytes += built.length;
+	}
+	return bytes;
 }
 
 // ── CLI ───────────────────────────────────────────────────────────────────────

@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { test } from "node:test";
 
-import { createNodeOperationFileSystem } from "../vendor/operation-consent-v1.mjs";
-import { OperatorPromptCancelledError } from "../vendor/prompt-contract-v1.mjs";
+import { createNodeOperationFileSystem } from "../vendor/operation-consent-v1/dist/index.js";
+import { OperatorPromptCancelledError } from "../vendor/prompt-contract-v1/dist/index.js";
 import {
 	alreadyOnPath,
 	chooseProfile,

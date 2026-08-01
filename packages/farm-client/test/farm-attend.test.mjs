@@ -9,7 +9,7 @@ import {
 	createPendingPromptHub,
 	createRemoteOperatorChannel,
 	handlePendingPromptHttp,
-} from "../vendor/prompt-contract-v1.mjs";
+} from "../vendor/prompt-contract-v1/dist/index.js";
 
 /**
  * The kit command, end to end, against a THROWAWAY node — never the operator's.

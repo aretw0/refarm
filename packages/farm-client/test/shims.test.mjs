@@ -223,7 +223,7 @@ test("the module that DOES edit a profile only writes through the consent journe
 	assert.equal(/\b(writeFile|appendFile|writeFileSync|appendFileSync)\s*\(/.test(source), false);
 	assert.ok(source.includes("runOperationConsent"), "the decision must come from the block");
 	assert.ok(
-		source.includes("vendor/operation-consent-v1.mjs"),
+		source.includes("vendor/operation-consent-v1/dist/index.js"),
 		"and from the carried block, not a copy",
 	);
 });

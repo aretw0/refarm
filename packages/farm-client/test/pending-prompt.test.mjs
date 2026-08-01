@@ -18,7 +18,7 @@ import {
 	wireRefusalLines,
 	wireUnknownLine,
 } from "../src/pending-prompt.mjs";
-import { checkPendingPromptListWire, PENDING_PROMPT_WIRE } from "../vendor/prompt-contract-v1.mjs";
+import { checkPendingPromptListWire, PENDING_PROMPT_WIRE } from "../vendor/prompt-contract-v1/dist/index.js";
 
 test("the routes are the wire's, and an id with a slash cannot escape its path", () => {
 	assert.equal(PROMPTS_PATH, "/prompts");

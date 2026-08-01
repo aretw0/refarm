@@ -12,7 +12,7 @@
  *   farm-attend --watch         # fica de plantão, com backoff honesto
  *   farm-attend --list          # só mostra o que está pendente; não responde
  *
- * O prompt é desenhado pelo BLOCO carregado em `vendor/prompt-contract-v1.mjs`
+ * O prompt é desenhado pelo BLOCO carregado em `vendor/prompt-contract-v1/dist/index.js`
  * — o mesmo arquivo, byte a byte, que o nó usa no terminal. É por isso que a
  * pergunta no celular tem a mesma cara e cancela do mesmo jeito que a do
  * terminal: não é uma segunda implementação, é a mesma.
@@ -35,7 +35,7 @@ import {
 	checkPendingPromptListWire,
 	createStdioOperatorChannel,
 	parsePendingPromptList,
-} from "../vendor/prompt-contract-v1.mjs";
+} from "../vendor/prompt-contract-v1/dist/index.js";
 import { cancellationExit, isOperatorCancellation, resolveFarmHost } from "../src/ask-host.mjs";
 import { farmAuthHeaders } from "../src/auth.mjs";
 import {

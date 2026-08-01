@@ -14,7 +14,7 @@ import {
 	resolveFarmHost,
 } from "../src/ask-host.mjs";
 import { rememberedHostPath } from "../src/farm-host.mjs";
-import { OperatorPromptCancelledError } from "../vendor/prompt-contract-v1.mjs";
+import { OperatorPromptCancelledError } from "../vendor/prompt-contract-v1/dist/index.js";
 
 /**
  * The kit ASKS instead of lecturing — and the guarantees around the asking are

@@ -37,8 +37,8 @@ import {
 	runOperationConsent,
 	standingDecision,
 	undoOperationRecord,
-} from "../vendor/operation-consent-v1.mjs";
-import { createStdioOperatorChannel } from "../vendor/prompt-contract-v1.mjs";
+} from "../vendor/operation-consent-v1/dist/index.js";
+import { createStdioOperatorChannel } from "../vendor/prompt-contract-v1/dist/index.js";
 import { canAskOperator, isOperatorCancellation } from "./ask-host.mjs";
 import { pathAdviceLines, SHIM_NAMES } from "./shims.mjs";
 

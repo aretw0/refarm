@@ -51,7 +51,7 @@ farm-attend --list     # só olha; não responde
 Todo assistente do refarm pergunta pelo mesmo contrato (`OperatorChannel`), então
 `farm-attend` atende **qualquer** um deles — inclusive os que ainda não existem — sem
 que nenhum assistente mude uma linha. O prompt é desenhado pelo bloco carregado em
-`vendor/prompt-contract-v1.mjs`, o mesmo arquivo que o nó usa no terminal: mesma cara,
+`vendor/prompt-contract-v1/dist/index.js`, o mesmo arquivo que o nó usa no terminal: mesma cara,
 mesmo Ctrl+C.
 
 Uma pergunta de **segredo** avisa, antes de você digitar, que a resposta atravessa a
@@ -84,7 +84,7 @@ Como se chama a sua fazenda? (nome MagicDNS, ex.: serpro-1577853)
   kit responde com uma linha e o código 130, nunca com um stack trace.
 
 A pergunta vem do bloco `@refarm.dev/prompt-contract-v1`, **carregado** em
-`vendor/prompt-contract-v1.mjs` — não reimplementada aqui. Zero-dependência é "nada a
+`vendor/prompt-contract-v1/dist/index.js` — não reimplementada aqui. Zero-dependência é "nada a
 instalar", não "nada a reusar": o bloco tem zero dependências e importa só
 `node:readline`, então viaja dentro do kit e é distribuído com manifesto + sha256 como
 qualquer outro arquivo. `node scripts/vendor.mjs --check` (e `test/vendor.test.mjs`)

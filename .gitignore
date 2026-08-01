@@ -108,6 +108,13 @@ playwright/.cache/
 packages/**/dist/
 packages/**/build/
 packages/**/.turbo/
+# farm-client is a zero-install distribution. Its vendor capsules deliberately
+# carry built runtime files, source maps, and their referenced source; they are
+# package contents guarded byte-for-byte by scripts/vendor.mjs, not local build
+# output. Keep future capsules addable without a fragile `git add -f` ritual.
+!packages/farm-client/vendor/
+!packages/farm-client/vendor/**/
+!packages/farm-client/vendor/**
 # JS/declaration files never belong in src/ — guard against tsc emitting without outDir
 packages/**/src/**/*.d.ts
 packages/**/src/**/*.d.ts.map
