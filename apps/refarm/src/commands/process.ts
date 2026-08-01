@@ -1,7 +1,11 @@
 import os from "node:os";
 import path from "node:path";
 
-import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "@refarm.dev/capabilities/envelope";
 import { loadRawSovereignConfig } from "@refarm.dev/config";
 import {
 	createFileOperationTrail,
@@ -41,6 +45,13 @@ import chalk from "chalk";
 import { Command } from "commander";
 
 import { refarmCommand } from "../brand.js";
+import {
+	processRecipeNames,
+	ProcessAddRefusal,
+	runProcessAdd,
+	type ProcessAddOptions,
+	type ProcessAddResult,
+} from "./process-add.js";
 
 /**
  * `refarm process` — what refarm supervises, and whether it is actually up.
@@ -512,31 +523,140 @@ function guarded<TOptions extends { json?: boolean }>(
 					: error instanceof ProcessDeclarationError
 						? "Fix the declaration in .refarm/config.json, then try again."
 						: null;
-			const reason = error instanceof SupervisionRefusal ? error.reason : "process-failed";
+			const reason =
+				error instanceof SupervisionRefusal
+					? error.reason
+					: error instanceof ProcessAddRefusal
+						? error.code
+						: "process-failed";
+			// A refusal that knows the command which fixes it hands it over; everything else falls
+			// back to `--help`, which is honest about knowing nothing more specific.
+			const nextCommands =
+				error instanceof ProcessAddRefusal ? error.nextCommands : [PROCESS_HELP_COMMAND];
 			if (options.json) {
 				printJson(
 					buildJsonErrorEnvelope({
 						command: "process",
 						operation,
-						error: `process-${reason}`,
+						// `ProcessAddRefusal` codes are already namespaced (`process-add-…`); a
+						// `SupervisionRefusal` reason is a bare word and gets the prefix here.
+						error: error instanceof ProcessAddRefusal ? reason : `process-${reason}`,
 						message,
-						nextAction: fix ?? `Run \`${PROCESS_HELP_COMMAND}\` to see the accepted options.`,
-						nextCommand: PROCESS_HELP_COMMAND,
+						nextAction: fix ?? `Run \`${nextCommands[0] ?? PROCESS_HELP_COMMAND}\`.`,
+						nextCommand: nextCommands[0] ?? PROCESS_HELP_COMMAND,
+						nextCommands,
 					}),
 				);
 			} else {
 				console.error(chalk.red(`✗  ${message}`));
-				console.error(chalk.dim(`   ${fix ?? PROCESS_HELP_COMMAND}`));
+				console.error(chalk.dim(`   ${fix ?? nextCommands[0] ?? PROCESS_HELP_COMMAND}`));
+				if (fix) for (const next of nextCommands) console.error(chalk.dim(`   ${next}`));
 			}
 			process.exitCode = 1;
 		}
 	};
 }
 
+/**
+ * Where the operator goes next, per outcome.
+ *
+ * `ok` means "the command did its job", not "the answer was yes" — declining, deferring and
+ * cancelling are all successful runs of a command whose job was to ask. What changes is the
+ * handoff, because those lead to genuinely different next steps.
+ */
+function addNextAction(result: ProcessAddResult): string | null {
+	switch (result.status) {
+		case "declared":
+			return (
+				`Declared. Nothing is supervised yet and no systemctl ran — \`${result.installCommand}\` ` +
+				"proposes the unit, shows it exactly, and then hands you the activation line."
+			);
+		case "declined":
+			return "Nothing was written. The refusal is recorded, so this will not be asked again.";
+		case "deferred":
+			return "Nothing was written and nothing recorded — run it again when you want to decide.";
+		case "cancelled":
+			return "Cancelled. Nothing was written.";
+		case "unchanged":
+			return "Kept what was already there.";
+	}
+}
+
+function addNextCommands(result: ProcessAddResult): string[] {
+	if (result.status === "declared") {
+		return [result.installCommand, PROCESS_STATUS_COMMAND, result.undoCommand];
+	}
+	return [PROCESS_LIST_COMMAND];
+}
+
+function printAddResult(result: ProcessAddResult): void {
+	if (result.status !== "declared") {
+		console.log(chalk.dim(addNextAction(result) ?? ""));
+		return;
+	}
+	console.log(chalk.green(`✓  ${result.replaced ? "replaced" : "declared"} "${result.process}"`));
+	console.log(chalk.dim(`   ${result.configPath}`));
+	console.log(chalk.dim(`   command: ${result.command.join(" ")}`));
+	if (result.workingDirectory) console.log(chalk.dim(`   cwd:     ${result.workingDirectory}`));
+	console.log(chalk.dim(`   restart: ${result.restart}`));
+	console.log(chalk.dim(`   undo:    ${result.undoCommand}`));
+	// VERIFIED, not claimed: the real `process status`, read back after the write.
+	for (const status of result.statuses)
+		console.log(chalk.dim(`   ${describeProcessStatus(status)}`));
+	console.log(chalk.dim(`   ${addNextAction(result)}`));
+}
+
 export function createProcessCommand(): Command {
 	const command = new Command("process").description(
 		"Long-running processes refarm owns — declared in .refarm/config.json, supervised by this host",
 	);
+
+	command
+		.command("add")
+		.description(
+			"Declare a process, guided — proposes what refarm can derive, asks only what it cannot",
+		)
+		.argument("[name]", `Which process (refarm proposes: ${processRecipeNames().join(", ")})`)
+		.option("--description <text>", "What it is FOR — becomes the unit's Description")
+		.option(
+			"--command <line>",
+			"The command, as you would type it (must exec a program, not a shell)",
+		)
+		.option("--working-directory <path>", "Absolute directory the supervisor starts it from")
+		.option("--restart <policy>", "always | on-failure | never — asked when not given")
+		.option("--dir <path>", "For web-serve: the directory to serve")
+		.option("--port <port>", "For web-serve: the port to listen on")
+		.option("--replace", "Re-open a process that is already declared or already decided")
+		.option(
+			"--attended-elsewhere",
+			"No terminal here, and that is fine — you are attending from another surface",
+		)
+		.option("--json", "Print the result as JSON")
+		.action(async (name: string | undefined, options: ProcessAddOptions & { json?: boolean }) => {
+			await guarded("add", async () => {
+				const result = await runProcessAdd(
+					{ ...options, ...(name ? { name } : {}) },
+					{
+						announce: (line) => {
+							if (!options.json) process.stdout.write(`${line}\n`);
+						},
+					},
+				);
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "process",
+							operation: "add",
+							nextAction: addNextAction(result),
+							nextCommands: addNextCommands(result),
+							extra: { ...result },
+						}),
+					);
+					return;
+				}
+				printAddResult(result);
+			})(options);
+		});
 
 	command
 		.command("list")
@@ -650,6 +770,25 @@ export function createProcessCommand(): Command {
 				]);
 			}),
 		);
+
+	command.addHelpText(
+		"after",
+		`
+
+Examples:
+  $ ${refarmCommand(["process", "add", "web-serve"])}
+  $ ${refarmCommand(["process", "add", "web-serve", "--restart", "always"])}
+  $ ${refarmCommand(["process", "list", "--json"])}
+  $ ${refarmCommand(["process", "install", "web-serve"])}
+
+Notes:
+  \`add\` is a humane path to the SAME .refarm/config.json: it PROPOSES what refarm can
+  derive (the command, the directory, the port), asks only what it cannot — \`restart\`
+  is never defaulted — shows the exact JSON, and writes only after you authorise it.
+  Hand-editing the "processes" block keeps working, and \`add\` reads what you wrote.
+  \`install\` writes the unit and then hands you the systemctl line; refarm never runs it.
+`,
+	);
 
 	return command;
 }
