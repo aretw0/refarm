@@ -2,7 +2,12 @@ import { loadRawSovereignConfig } from "@refarm.dev/config";
 import type { BaseSurfaceUnit } from "@refarm.dev/operator-state";
 import { parseProcessCatalog, type ProcessStatus } from "@refarm.dev/process-contract-v1";
 import { systemdUnitName } from "@refarm.dev/process-systemd-user";
-import { parseSurfaces } from "@refarm.dev/std";
+import {
+	parseSurfaces,
+	SURFACE_DAEMON_WS,
+	SURFACE_SIDECAR_HTTP,
+	SURFACE_WEB,
+} from "@refarm.dev/std";
 import path from "node:path";
 import { refarmCommand } from "../brand.js";
 import { readPolicy } from "./auth-policy-file.js";
@@ -54,27 +59,30 @@ function buildDeviceAccessUnit(
 	credentialCount: number,
 ): BaseSurfaceUnit {
 	const names = [...surfaces.keys()];
+	const required = [SURFACE_WEB, SURFACE_SIDECAR_HTTP, SURFACE_DAEMON_WS] as const;
+	const missing = required.filter((name) => !surfaces.has(name));
 	const gated = [...surfaces.values()].filter((entry) => entry.gate === "device-token").length;
 	const actions: BaseSurfaceUnit["actions"] = [];
-	if (names.length === 0) {
+	for (const name of missing) {
 		actions.push({
-			id: "declare-device-surface",
-			label: "Declare a device surface",
-			command: refarmCommand(["surface", "add"]),
+			id: `declare-${name}`,
+			label: `Declare the ${name} device surface`,
+			command: refarmCommand(["surface", "add", name]),
 			intent: "surface:declare",
-			primary: true,
+			primary: actions.length === 0,
 		});
-	} else if (gated > 0 && credentialCount === 0) {
+	}
+	if (gated > 0 && credentialCount === 0) {
 		actions.push({
 			id: "enroll-device",
 			label: "Enroll a device for the declared gate",
 			command: refarmCommand(["auth", "enroll", "<device-label>"]),
 			intent: "auth:enroll-device",
-			primary: true,
+			primary: actions.length === 0,
 		});
 	}
 
-	const ready = names.length > 0 && (gated === 0 || credentialCount > 0);
+	const ready = missing.length === 0 && credentialCount > 0;
 	return {
 		id: "device-access",
 		label: "Device access",
@@ -82,18 +90,24 @@ function buildDeviceAccessUnit(
 		state: ready ? "ready" : "degraded",
 		severity: ready ? "info" : "warning",
 		summary:
-			names.length === 0
-				? "No device surface is declared yet."
+			missing.length > 0
+				? `${missing.length} device-access surface(s) still need a declaration.`
 				: ready
 					? `${names.length} surface(s) declared; ${credentialCount} device identity(ies) enrolled.`
-					: "A credential-gated surface exists, but no device identity is enrolled.",
+					: "The device-access surfaces are declared, but no device identity is enrolled.",
 		evidence: [
 			{ kind: "count", label: "surfaces", value: String(names.length) },
 			{ kind: "state", label: "declared", value: names.join(", ") || "none" },
 			{ kind: "count", label: "enrolled devices", value: String(credentialCount) },
 		],
 		actions,
-		details: { surfaces: names, gatedSurfaces: gated, enrolledDevices: credentialCount },
+		details: {
+			surfaces: names,
+			requiredSurfaces: required,
+			missingSurfaces: missing,
+			gatedSurfaces: gated,
+			enrolledDevices: credentialCount,
+		},
 	};
 }
 

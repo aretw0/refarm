@@ -6,7 +6,9 @@ describe("operational readiness surface units", () => {
 		const units = await resolveOperationalReadinessUnits({ config: {}, credentialCount: 0 });
 		expect(units.map((unit) => unit.id)).toEqual(["device-access", "supervision"]);
 		expect(units.flatMap((unit) => unit.actions.map((action) => action.command))).toEqual([
-			"refarm surface add",
+			"refarm surface add web",
+			"refarm surface add sidecar-http",
+			"refarm surface add daemon-ws",
 			"refarm process add web-serve",
 		]);
 		expect(units.every((unit) => unit.state === "degraded")).toBe(true);
@@ -17,6 +19,7 @@ describe("operational readiness surface units", () => {
 			config: {
 				surfaces: {
 					"sidecar-http": { expose: "tailnet", gate: "device-token" },
+					"daemon-ws": { expose: "tailnet", gate: "device-token" },
 					web: { expose: "tailnet", gate: "none" },
 				},
 				processes: {
@@ -40,7 +43,7 @@ describe("operational readiness surface units", () => {
 		});
 		expect(units.every((unit) => unit.state === "ready")).toBe(true);
 		expect(JSON.stringify(units)).not.toContain("token");
-		expect(units[0]?.details).toMatchObject({ enrolledDevices: 1, gatedSurfaces: 1 });
+		expect(units[0]?.details).toMatchObject({ enrolledDevices: 1, gatedSurfaces: 2 });
 		expect(units.flatMap((unit) => unit.actions)).toEqual([]);
 	});
 
@@ -78,6 +81,21 @@ describe("operational readiness surface units", () => {
 			config: { surfaces: { "daemon-ws": { expose: "tailnet", gate: "device-token" } } },
 			credentialCount: 0,
 		});
-		expect(units[0]?.actions[0]?.command).toBe("refarm auth enroll <device-label>");
+		expect(units[0]?.actions.map((action) => action.command)).toEqual([
+			"refarm surface add web",
+			"refarm surface add sidecar-http",
+			"refarm auth enroll <device-label>",
+		]);
+	});
+
+	it("does not call an open web surface complete device access", async () => {
+		const units = await resolveOperationalReadinessUnits({
+			config: { surfaces: { web: { expose: "tailnet", gate: "none" } } },
+			credentialCount: 0,
+		});
+		expect(units[0]?.state).toBe("degraded");
+		expect(units[0]?.details).toMatchObject({
+			missingSurfaces: ["sidecar-http", "daemon-ws"],
+		});
 	});
 });
