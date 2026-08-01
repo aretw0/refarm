@@ -11,6 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { runHealthAudit } from "./health.js";
 import { buildCurrentModelEnvelope, defaultModelDeps } from "./model.js";
+import { resolveOperationalReadinessUnits } from "./operational-readiness.js";
 import { resolveOperatorAttentionProfile } from "./operator-attention-profile.js";
 import {
 	buildRuntimeJsonPayload,
@@ -23,6 +24,7 @@ export interface BaseSurfaceStatusDeps {
 	resolveRuntime?: () => Promise<BaseSurfaceModelInput["runtime"]>;
 	resolveModel?: () => Promise<BaseSurfaceModelInput["model"]>;
 	resolveHealth?: () => Promise<BaseSurfaceModelInput["health"]>;
+	resolveOperationalReadiness?: () => Promise<BaseSurfaceUnit[]>;
 	resolveOperatorAttention?: (
 		options: BaseSurfaceStatusOptions,
 	) => Promise<OperatorAttentionGateStatus | null>;
@@ -41,6 +43,9 @@ export async function resolveBaseSurfaceStatus(
 	const runtime = await (deps.resolveRuntime ?? resolveRuntimeBaseInput)();
 	const model = await (deps.resolveModel ?? resolveModelBaseInput)();
 	const health = await (deps.resolveHealth ?? resolveHealthBaseInput)();
+	const operationalUnits = await (
+		deps.resolveOperationalReadiness ?? resolveOperationalReadinessUnits
+	)();
 	const operatorAttention = await (
 		deps.resolveOperatorAttention ?? resolveOperatorAttentionBaseInput
 	)(options);
@@ -53,6 +58,7 @@ export async function resolveBaseSurfaceStatus(
 			}),
 		);
 	}
+	units.push(...operationalUnits);
 	return buildBaseSurfaceModel({ runtime, model, health, units }, { owner: "apps/refarm" });
 }
 

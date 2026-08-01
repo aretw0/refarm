@@ -6,6 +6,7 @@ import { resolveBaseSurfaceStatus } from "../../src/commands/base-surface-status
 describe("resolveBaseSurfaceStatus", () => {
 	it("adapts runtime, model, and health payloads into the base model", async () => {
 		const model = await resolveBaseSurfaceStatus({
+			resolveOperationalReadiness: vi.fn().mockResolvedValue([]),
 			resolveRuntime: vi.fn().mockResolvedValue({
 				command: "runtime",
 				operation: "status",
@@ -135,6 +136,7 @@ describe("resolveBaseSurfaceStatus", () => {
 		});
 
 		const pending = resolveBaseSurfaceStatus({
+			resolveOperationalReadiness: vi.fn().mockResolvedValue([]),
 			resolveRuntime: runtime,
 			resolveModel: model,
 			resolveHealth: health,
@@ -153,6 +155,7 @@ describe("resolveBaseSurfaceStatus", () => {
 
 	it("adiciona unit de atenção do operador quando resolver retorna escopo", async () => {
 		const model = await resolveBaseSurfaceStatus({
+			resolveOperationalReadiness: vi.fn().mockResolvedValue([]),
 			resolveRuntime: vi.fn().mockResolvedValue({
 				command: "runtime",
 				operation: "status",
@@ -217,6 +220,7 @@ describe("resolveBaseSurfaceStatus", () => {
 
 		await resolveBaseSurfaceStatus(
 			{
+				resolveOperationalReadiness: vi.fn().mockResolvedValue([]),
 				resolveRuntime: vi.fn().mockResolvedValue({
 					command: "runtime",
 					operation: "status",
@@ -265,6 +269,7 @@ describe("resolveBaseSurfaceStatus", () => {
 	it("aplica defaults do attention-profile no resolver interno", async () => {
 		const model = await resolveBaseSurfaceStatus(
 			{
+				resolveOperationalReadiness: vi.fn().mockResolvedValue([]),
 				resolveRuntime: vi.fn().mockResolvedValue({
 					command: "runtime",
 					operation: "status",
@@ -312,6 +317,7 @@ describe("resolveBaseSurfaceStatus", () => {
 		await expect(
 			resolveBaseSurfaceStatus(
 				{
+					resolveOperationalReadiness: vi.fn().mockResolvedValue([]),
 					resolveRuntime: vi.fn().mockResolvedValue({
 						command: "runtime",
 						operation: "status",

@@ -1,0 +1,45 @@
+import { describe, expect, it } from "vitest";
+import { resolveOperationalReadinessUnits } from "./operational-readiness.js";
+
+describe("operational readiness surface units", () => {
+	it("names the missing declarations without inventing completed work", async () => {
+		const units = await resolveOperationalReadinessUnits({ config: {}, credentialCount: 0 });
+		expect(units.map((unit) => unit.id)).toEqual(["device-access", "supervision"]);
+		expect(units.flatMap((unit) => unit.actions.map((action) => action.command))).toEqual([
+			"refarm surface add",
+			"refarm process add web-serve",
+		]);
+		expect(units.every((unit) => unit.state === "degraded")).toBe(true);
+	});
+
+	it("reports declarations and enrolled-device count without credential material", async () => {
+		const units = await resolveOperationalReadinessUnits({
+			config: {
+				surfaces: {
+					"sidecar-http": { expose: "tailnet", gate: "device-token" },
+					web: { expose: "tailnet", gate: "none" },
+				},
+				processes: {
+					"web-serve": {
+						description: "web",
+						command: ["/usr/bin/refarm", "web", "serve"],
+						restart: "always",
+					},
+				},
+			},
+			credentialCount: 1,
+		});
+		expect(units.every((unit) => unit.state === "ready")).toBe(true);
+		expect(JSON.stringify(units)).not.toContain("token");
+		expect(units[0]?.details).toMatchObject({ enrolledDevices: 1, gatedSurfaces: 1 });
+		expect(units.flatMap((unit) => unit.actions)).toEqual([]);
+	});
+
+	it("asks for enrollment only when a declared surface actually has a credential gate", async () => {
+		const units = await resolveOperationalReadinessUnits({
+			config: { surfaces: { "daemon-ws": { expose: "tailnet", gate: "device-token" } } },
+			credentialCount: 0,
+		});
+		expect(units[0]?.actions[0]?.command).toBe("refarm auth enroll <device-label>");
+	});
+});
