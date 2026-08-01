@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { Dirent } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -30,6 +31,20 @@ export function bakeInstaller(template: string, opts: { host: string; port: numb
 	return template.replaceAll("__FARM_HOST__", opts.host).replaceAll("__FARM_PORT__", String(opts.port));
 }
 
+/** Select the stable address Tailscale assigned to this node. PURE.
+ *
+ * `HostName` is only the OS label and can collide with local DNS or another node.
+ * `DNSName` is the canonical MagicDNS FQDN; Tailscale prints it with a terminal
+ * root dot, which is valid DNS but needlessly awkward in operator-facing URLs. */
+export function tailnetSelfHost(status: unknown): string | null {
+	if (typeof status !== "object" || status === null) return null;
+	const self = (status as { Self?: unknown }).Self;
+	if (typeof self !== "object" || self === null) return null;
+	const { DNSName, HostName } = self as { DNSName?: unknown; HostName?: unknown };
+	if (typeof DNSName === "string" && DNSName.trim()) return DNSName.trim().replace(/\.$/, "");
+	return typeof HostName === "string" && HostName.trim() ? HostName.trim() : null;
+}
+
 /** This machine's MagicDNS name, best-effort — so `dist publish` bakes the farm's
  * own name into the installer without the operator repeating it. null if the
  * tailscale CLI is absent or errors. */
@@ -43,8 +58,7 @@ function detectTailnetHost(): string | null {
 			{ capture: true, timeout: 3000 },
 		);
 		if (result.exitCode !== 0 || !result.stdout) return null;
-		const host = (JSON.parse(result.stdout) as { Self?: { HostName?: string } })?.Self?.HostName;
-		return typeof host === "string" && host ? host : null;
+		return tailnetSelfHost(JSON.parse(result.stdout));
 	} catch {
 		return null;
 	}
@@ -86,9 +100,9 @@ export function buildKitManifest(
 	};
 }
 
-/** Collect the kit's distributable files: every .mjs under src/, bin/ and
- * vendor/, plus README.md when present. Tests (test/) and configs are
- * intentionally excluded.
+/** Collect the kit's distributable files: every .mjs under src/ and bin/, each
+ * complete package capsule under vendor/, plus README.md when present. Tests
+ * (test/), scripts and configs are intentionally excluded.
  *
  * `vendor/` carries BUILT blocks the zero-dependency kit reuses instead of
  * reimplementing (today: `@refarm.dev/prompt-contract-v1`, which is what lets
@@ -97,18 +111,26 @@ export function buildKitManifest(
  * block is distributed, hashed, and integrity-checked like every other kit file. */
 export async function collectKitFiles(kitDir: string): Promise<KitFile[]> {
 	const files: KitFile[] = [];
-	for (const sub of ["src", "bin", "vendor"]) {
-		let entries: string[];
+	async function collect(relativeDir: string, accept: (name: string) => boolean): Promise<void> {
+		let entries: Dirent[];
 		try {
-			entries = (await readdir(path.join(kitDir, sub))).filter((name) => name.endsWith(".mjs"));
+			entries = await readdir(path.join(kitDir, relativeDir), { withFileTypes: true });
 		} catch {
-			continue;
+			return;
 		}
-		for (const name of entries.sort()) {
-			const rel = `${sub}/${name}`;
+		for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+			const rel = `${relativeDir}/${entry.name}`;
+			if (entry.isDirectory()) {
+				await collect(rel, accept);
+				continue;
+			}
+			if (!entry.isFile() || !accept(entry.name)) continue;
 			files.push({ path: rel, content: await readFile(path.join(kitDir, rel)) });
 		}
 	}
+	await collect("src", (name) => name.endsWith(".mjs"));
+	await collect("bin", (name) => name.endsWith(".mjs"));
+	await collect("vendor", () => true);
 	try {
 		files.push({ path: "README.md", content: await readFile(path.join(kitDir, "README.md")) });
 	} catch {

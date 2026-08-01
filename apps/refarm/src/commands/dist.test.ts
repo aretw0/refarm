@@ -3,7 +3,13 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { bakeInstaller, buildKitManifest, collectKitFiles, integrityOf } from "./dist.js";
+import {
+	bakeInstaller,
+	buildKitManifest,
+	collectKitFiles,
+	integrityOf,
+	tailnetSelfHost,
+} from "./dist.js";
 
 const KIT_DIR = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -11,6 +17,22 @@ const KIT_DIR = path.resolve(
 );
 
 describe("refarm dist — the kit manifest", () => {
+	it("prefers the canonical MagicDNS FQDN and removes only its terminal root dot", () => {
+		expect(
+			tailnetSelfHost({
+				Self: {
+					HostName: "serpro-1577853",
+					DNSName: "serpro-1577853.tail894688.ts.net.",
+				},
+			}),
+		).toBe("serpro-1577853.tail894688.ts.net");
+	});
+
+	it("falls back to the OS hostname when an older status has no MagicDNS name", () => {
+		expect(tailnetSelfHost({ Self: { HostName: "serpro-1577853" } })).toBe("serpro-1577853");
+		expect(tailnetSelfHost({ Self: {} })).toBeNull();
+	});
+
 	it("integrityOf is SRI-style sha256-<base64> and content-addressed", () => {
 		expect(integrityOf("hello")).toMatch(/^sha256-[A-Za-z0-9+/]+=*$/);
 		expect(integrityOf("hello")).toBe(integrityOf(Buffer.from("hello")));
@@ -64,7 +86,8 @@ describe("refarm dist — what actually reaches the device", () => {
 		// The kit is zero-dependency: nothing to INSTALL on the phone. The prompt
 		// block therefore travels INSIDE the kit — and a carried file that is not
 		// distributed is a wizard that never reaches the device.
-		expect(paths).toContain("vendor/prompt-contract-v1.mjs");
+		expect(paths).toContain("vendor/prompt-contract-v1/dist/index.js");
+		expect(paths).toContain("vendor/operation-consent-v1/dist/index.js");
 		expect(paths).toContain("src/ask-host.mjs");
 		expect(paths).toContain("src/shims.mjs");
 	});
@@ -83,7 +106,9 @@ describe("refarm dist — what actually reaches the device", () => {
 			expect(entry?.integrity).toBe(integrityOf(file.content));
 			expect(entry?.bytes).toBe(file.content.length);
 		}
-		const vendored = manifest.files.find((f) => f.path === "vendor/prompt-contract-v1.mjs");
+		const vendored = manifest.files.find(
+			(f) => f.path === "vendor/prompt-contract-v1/dist/index.js",
+		);
 		expect(vendored?.integrity).toMatch(/^sha256-/);
 		expect(vendored?.bytes).toBeGreaterThan(0);
 	});
