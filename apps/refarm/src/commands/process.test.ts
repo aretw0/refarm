@@ -99,7 +99,7 @@ function deps(runner: CommandRunner, extra: Partial<ProcessDeps> = {}): ProcessD
 		root,
 		runner,
 		user: USER,
-		env: { XDG_CONFIG_HOME: configHome },
+		env: { XDG_CONFIG_HOME: configHome, SOVEREIGN_DIR: ".refarm" },
 		config: CONFIG,
 		now: () => "2026-07-31T12:00:00.000Z",
 		...extra,
@@ -172,6 +172,7 @@ describe("refarm process status — three answers, kept apart", () => {
 		expect(result.statuses[0]?.backend).toBeNull();
 		expect(result.ok).toBe(true);
 		expect(result.lines[0]).toMatch(/not declared/);
+		expect(result.lines[0]).toContain(`Checked ${path.join(root, ".refarm", "config.json")}`);
 	});
 
 	it("COULD NOT ASK when there is no supervisor at all — never a silent 'down'", async () => {

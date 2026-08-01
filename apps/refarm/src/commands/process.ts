@@ -6,7 +6,7 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
-import { loadRawSovereignConfig } from "@refarm.dev/config";
+import { defaultSovereignConfigPath, loadRawSovereignConfig } from "@refarm.dev/config";
 import {
 	createFileOperationTrail,
 	renderOperationRequest,
@@ -46,8 +46,8 @@ import { Command } from "commander";
 
 import { refarmCommand } from "../brand.js";
 import {
-	processRecipeNames,
 	ProcessAddRefusal,
+	processRecipeNames,
 	runProcessAdd,
 	type ProcessAddOptions,
 	type ProcessAddResult,
@@ -276,7 +276,9 @@ export async function runProcessStatus(
 	names: string[],
 	deps: ProcessDeps = {},
 ): Promise<ProcessStatusResult> {
-	const catalog = readProcessCatalog(deps.root ?? process.cwd(), deps.config);
+	const root = deps.root ?? process.cwd();
+	const catalog = readProcessCatalog(root, deps.config);
+	const configPath = defaultSovereignConfigPath(root, deps.env ?? process.env);
 	const wanted = names.length > 0 ? names : [...catalog.keys()];
 
 	let backend: SupervisionBackend<SystemdUnitPlan> | null = null;
@@ -291,7 +293,11 @@ export async function runProcessStatus(
 	for (const name of wanted) {
 		const declaration = catalog.get(name);
 		if (!declaration) {
-			statuses.push(processNotDeclared(name));
+			const status = processNotDeclared(name);
+			statuses.push({
+				...status,
+				detail: `${status.detail} Checked ${configPath} (sovereign root: ${root}).`,
+			});
 			continue;
 		}
 		if (!backend) {
