@@ -396,6 +396,9 @@ importers:
       '@refarm.dev/file-stream-transport':
         specifier: workspace:*
         version: link:../../packages/file-stream-transport
+      '@refarm.dev/hardening':
+        specifier: workspace:*
+        version: link:../../packages/hardening
       '@refarm.dev/health':
         specifier: workspace:*
         version: link:../../packages/health
@@ -1405,6 +1408,18 @@ importers:
       '@refarm.dev/stream-contract-v1':
         specifier: workspace:*
         version: link:../stream-contract-v1
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
+  packages/hardening:
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*

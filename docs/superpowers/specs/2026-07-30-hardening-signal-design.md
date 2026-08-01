@@ -1,7 +1,7 @@
 # The hardening signal — the suite tells you where to grow, not just whether you broke it
 
 Date: 2026-07-30
-Status: Designed, not implemented
+Status: First slice implemented (2026-08-01) — `@refarm.dev/hardening`, `refarm hardening`
 Lane: [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md) — substrate
 
 ## What forced this
@@ -96,3 +96,32 @@ buried in an existing report.
 Scoring or weighting the entries. "The next most valuable thing to fix" is H4's promise, and the
 honest first version orders by contract and package rather than pretending to a priority model
 nobody has calibrated.
+
+## What the first slice found (2026-08-01)
+
+`@refarm.dev/hardening` + `refarm hardening`. On this repo, today:
+
+> **26 conformance suites, 23 conformant (298 checks); 1 not yet hardened; 2 not applicable.**
+
+Three things the design doc could not have known, and one it got wrong in a useful direction:
+
+- **The inventory was undercounted, twice over.** This document measured "seven exported
+  `run*Conformance` entry points" on 2026-07-30; the hand-measured inventory the implementation was
+  commissioned against named 15. Discovery finds **26**. That is the H5 point sharpened: the
+  capability was even more built, and even more uncollected, than the day's measurement showed.
+- **`grep -r` silently skips a file containing a NUL byte**, and
+  `packages/artifact-contract-v1/src/conformance.ts` has one (line 88, inside a string literal). Its
+  runner was invisible to every grep-driven audit of this repo — including the ones that produced
+  the counts above. The collector reads files itself for exactly this reason.
+- **"Result shapes but no runner" is now an empty set.** All 23 declared `*ConformanceResult` types
+  have a runner in their own package. The state is still modelled and still tested (a shape with no
+  entry point reports `not-applicable`, never a failure), because it will recur — but the gap this
+  document named has since closed on its own.
+- **The vendored copy is real and is byte-identical.** `packages/farm-client/vendor/`
+  `prompt-contract-v1.mjs` and `packages/prompt-contract-v1` export the same
+  `runOperatorChannelConformance`; the dedup is justified by comparing the runners' source, not by
+  the `vendor/` path, so a copy that ever DRIFTS stops being merged and the signal grows by one.
+
+The one debt in `hardening-baseline.json` is `@refarm.dev/homestead#runHostRendererConformance`:
+it is driven by a host supplying its own renderer descriptors, and homestead exports no in-repo
+factory the collector can construct, so nothing here proves that contract holds.

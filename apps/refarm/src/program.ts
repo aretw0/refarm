@@ -17,6 +17,7 @@ import { discoverCommand } from "./commands/discover.js";
 import { distCommand } from "./commands/dist.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { guideCommand } from "./commands/guide.js";
+import { hardeningCommand } from "./commands/hardening.js";
 import { headlessCommand } from "./commands/headless.js";
 import { intentionCommand } from "./commands/intention.js";
 import { lintCommand } from "./commands/lint.js";
@@ -257,6 +258,7 @@ program.addCommand(
 );
 program.addCommand(provisionCommand);
 program.addCommand(guideCommand);
+program.addCommand(hardeningCommand);
 program.addCommand(checkCommand);
 program.addCommand(lintCommand);
 program.addCommand(configCommand);
