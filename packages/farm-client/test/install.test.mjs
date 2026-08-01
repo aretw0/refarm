@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -55,7 +56,7 @@ test("a BAKED installer accepts its own baked farm — the cold-bootstrap one-li
 		"a baked installer must never ask for the host it already carries",
 	);
 	// It gets as far as the network, and TEST-NET-1:1 can never answer.
-	assert.equal(result.stderr.includes("manifesto inalcançável"), true);
+	assert.equal(result.stderr.includes("fazenda inalcançável"), true);
 });
 
 test("an UNBAKED installer still demands FARM_HOST", async () => {
@@ -76,4 +77,22 @@ test("FARM_HOST still overrides the baked farm", async () => {
 	// It reached the network against the OVERRIDE, not the baked farm.
 	assert.equal(result.stderr.includes("--host 127.0.0.1"), true, "the override must decide the farm");
 	assert.equal(result.stderr.includes("serpro-1577853"), false);
+});
+
+test("HTTP 404 proves the installer reached the farm but its manifest is absent", async (t) => {
+	const server = createServer((_req, res) => {
+		res.statusCode = 404;
+		res.end();
+	});
+	await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+	t.after(() => new Promise((resolve) => server.close(resolve)));
+	const template = await readFile(INSTALLER, "utf8");
+	const port = server.address().port;
+	const result = await runInstaller(bake(template, { host: "127.0.0.1", port }), {});
+
+	assert.equal(result.code, 1);
+	assert.match(result.stderr, /manifesto ausente/);
+	assert.match(result.stderr, /servidor respondeu HTTP 404/);
+	assert.match(result.stderr, /A rede, o nome do host e o web-serve responderam/);
+	assert.doesNotMatch(result.stderr, /manifesto inalcançável/);
 });

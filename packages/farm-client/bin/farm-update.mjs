@@ -41,12 +41,33 @@ async function fetchWith(url, kind, timeoutMs, headers) {
 		// 304 is not an error and not a body — it is the server agreeing that what the device
 		// already holds is current. Surfaced as its own shape so the caller never parses it.
 		if (res.status === 304) return { notModified: true };
-		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		if (!res.ok) {
+			const error = new Error(`HTTP ${res.status}`);
+			error.status = res.status;
+			error.url = url;
+			throw error;
+		}
 		const body = kind === "bytes" ? Buffer.from(await res.arrayBuffer()) : await res.text();
 		return { notModified: false, body, etag: res.headers.get("etag") };
 	} finally {
 		clearTimeout(timer);
 	}
+}
+
+function manifestFailureLines(error, url) {
+	if (error?.status === 404) {
+		return [
+			`❌ manifesto ausente em ${url}: o servidor respondeu HTTP 404`,
+			"   A rede, o nome do host e o web-serve responderam; o diretório servido não contém manifest.json.",
+		];
+	}
+	if (Number.isInteger(error?.status)) {
+		return [
+			`❌ manifesto recusado em ${url}: o servidor respondeu HTTP ${error.status}`,
+			"   O host está alcançável; inspecione a resposta e a política do web-serve.",
+		];
+	}
+	return [`❌ fazenda inalcançável em ${url}: ${error?.message ?? String(error)}`];
 }
 
 /** The bytes of a fetch that was NOT conditional — every caller but the manifest. */
@@ -220,7 +241,7 @@ try {
 	}
 } catch (err) {
 	spinner.stop();
-	console.error(`❌ manifesto inalcançável em ${base}/manifest.json: ${err.message}`);
+	for (const line of manifestFailureLines(err, `${base}/manifest.json`)) console.error(line);
 	console.error(
 		`   No PC: refarm dist publish && refarm web serve .refarm/dist/farm-client --port ${DIST_PORT}`,
 	);

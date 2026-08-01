@@ -47,7 +47,11 @@ const safeRelPath = (p) =>
 const base = `http://${HOST}:${port}`;
 async function get(path, kind) {
 	const res = await fetch(`${base}/${path}`);
-	if (!res.ok) throw new Error(`HTTP ${res.status} em ${path}`);
+	if (!res.ok) {
+		const error = new Error(`HTTP ${res.status} em ${path}`);
+		error.status = res.status;
+		throw error;
+	}
 	return kind === "bytes" ? Buffer.from(await res.arrayBuffer()) : await res.text();
 }
 
@@ -56,7 +60,17 @@ let manifest;
 try {
 	manifest = JSON.parse(await get("manifest.json", "text"));
 } catch (err) {
-	console.error(`❌ manifesto inalcançável: ${err.message}`);
+	if (err?.status === 404) {
+		console.error(`❌ manifesto ausente em ${base}/manifest.json: o servidor respondeu HTTP 404`);
+		console.error(
+			"   A rede, o nome do host e o web-serve responderam; o diretório servido não contém manifest.json.",
+		);
+	} else if (Number.isInteger(err?.status)) {
+		console.error(`❌ manifesto recusado: o servidor respondeu HTTP ${err.status}`);
+		console.error("   O host está alcançável; inspecione a resposta e a política do web-serve.");
+	} else {
+		console.error(`❌ fazenda inalcançável: ${err.message}`);
+	}
 	console.error(
 		`   A fazenda serve? No PC: refarm dist publish --host ${HOST} && refarm web serve .refarm/dist/farm-client --port ${port}`,
 	);

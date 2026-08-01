@@ -213,3 +213,24 @@ test("farm-update: uma fazenda SEM ETag não deixa validador velho para trás", 
 	// Um validador que descreve conteúdo que o servidor já não anuncia é pior que nenhum.
 	assert.equal(existsSync(join(kitDir, ".manifest-etag")), false);
 });
+
+test("farm-update: HTTP 404 prova alcance e nomeia o manifesto ausente", async (t) => {
+	const work = mkdtempSync(join(tmpdir(), "farm-update-missing-manifest-"));
+	const server = createServer((_req, res) => {
+		res.statusCode = 404;
+		res.end();
+	});
+	await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const port = server.address().port;
+	t.after(async () => {
+		await new Promise((resolve) => server.close(resolve));
+		rmSync(work, { recursive: true, force: true });
+	});
+
+	const result = await runUpdater(join(work, "kit"), join(work, "bin"), port);
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /manifesto ausente/);
+	assert.match(result.stderr, /servidor respondeu HTTP 404/);
+	assert.match(result.stderr, /A rede, o nome do host e o web-serve responderam/);
+	assert.doesNotMatch(result.stderr, /manifesto inalcançável/);
+});
