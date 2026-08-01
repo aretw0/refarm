@@ -44,6 +44,7 @@ import {
 	SOW_MODEL_OPTION_DESCRIPTION,
 } from "./commands/sow-metadata.js";
 import { statusCommand } from "./commands/status.js";
+import { createSurfaceCommand } from "./commands/surface.js";
 import { taskCommand } from "./commands/task.js";
 import { tasksCommand } from "./commands/tasks.js";
 import { telemetryCommand } from "./commands/telemetry.js";
@@ -283,6 +284,7 @@ program.addCommand(serveCommand);
 program.addCommand(workspaceCommand);
 program.addCommand(connectionCommand);
 program.addCommand(deliveryCommand);
+program.addCommand(createSurfaceCommand());
 // The long-running processes refarm OWNS: declared in `.refarm/config.json`, supervised by the
 // host's own supervisor. Before this, `refarm web serve` ran under a nohup'd shell — the operator
 // rebooted, it went away, and nothing said so.

@@ -21,6 +21,9 @@ test("device journeys keep the operational-plan contract", async () => {
 	}
 	for (const command of [
 		"refarm check --next-action --json",
+		"refarm surface add web",
+		"refarm surface add sidecar-http",
+		"refarm surface add daemon-ws",
 		"farm-hello <farm-host>",
 		"farm-start",
 		"farm-attend",

@@ -30,15 +30,15 @@ Termux affordance is already present in the PWA.
 - The node passes `refarm check --next-action --json`.
 - Node 22 or newer is installed on the device.
 - `<farm-host>` is reachable through a network rail chosen by the operator.
-- A declared, device-gated Refarm web/sidecar surface already permits that rail.
-
-The final precondition still has an authoring gap: there is no `refarm surface add` wizard yet. Do
-not hide that gap by presenting a private network choice as part of Refarm.
+- Refarm can reach the operator-selected network rail from this node.
 
 ### Prepare the node
 
 ```bash
 refarm check --next-action --json
+refarm surface add web
+refarm surface add sidecar-http
+refarm surface add daemon-ws
 refarm auth enroll <device-label>
 refarm dist publish --host <farm-host>
 refarm web serve .refarm/dist/farm-client --port 4321
