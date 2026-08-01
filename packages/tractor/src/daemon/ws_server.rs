@@ -47,16 +47,46 @@
 //! connection — no restart to admit an enrolled device, and none to refuse a revoked one.
 //! The snapshot `decide_ws_handshake` judges is taken per handshake, from that one handle.
 //!
-//! The accept/reject DECISION (`decide_ws_handshake`) is a PURE function of the offered
-//! protocol tokens and the policy — no socket, no headers, no tungstenite types — so it is
-//! exhaustively unit-tested without ever binding a port. Only the thin glue around it
-//! (`parse_offered_protocols`, `ws_unauthorized_response`, `ws_handshake_callback`) touches
-//! the handshake request/response types, and is covered by a bounded, real-loopback-socket
-//! test where genuine end-to-end coverage is worth the cost.
+//! The accept/reject DECISION (`decide_ws_handshake`) takes no socket, no headers and no
+//! tungstenite types — so it is exhaustively unit-tested without ever binding a port. Only the
+//! thin glue around it (`parse_offered_protocols`, `ws_unauthorized_response`,
+//! `ws_handshake_callback`) touches the handshake request/response types, and is covered by a
+//! bounded, real-loopback-socket test where genuine end-to-end coverage is worth the cost.
+//!
+//! ## The bound, and the trail
+//!
+//! This handshake is the same credential gate the HTTP sidecar runs, and for a while it had
+//! half the protection: the sidecar bounded failed authentication and recorded every attempt,
+//! and the handshake — the socket a browser and a phone both speak — did neither. It refused
+//! bad credentials an unlimited number of times, and left no record that it had.
+//!
+//! It now asks `sidecar::auth::AuthGate::admit`, which is the SAME sequence the HTTP middleware
+//! asks: the same limiter behind the same `Arc` (so a credential's budget is one budget across
+//! both surfaces, not one per socket), keyed the same way — on the CREDENTIAL PRESENTED, which
+//! the handshake holds, in the `bearer.` subprotocol token. Not on a claimed identity (which
+//! hands any caller a remote lockout aimed at whoever they name) and not on a peer address
+//! (which `sidecar::node_local`'s structural test forbids as a mechanism in every file that
+//! serves a request — this one included). Every attempt lands in the daemon's existing
+//! `scarecrow-audit.ndjson`, under the same `auth:` vocabulary, written by the same writer.
+//!
+//! ## What the wire learns: nothing new
+//!
+//! A refusal is BYTE-IDENTICAL to the refusal this handshake has always written — `401`, the
+//! same two headers, the same body — whether the credential was unknown, out of scope, expired,
+//! or belonged to a credential whose bound has engaged. The HTTP gate answers a `429` with
+//! `Retry-After` when a bound engages; the handshake deliberately does not, because a new
+//! status on a handshake is an announcement that the bound exists and that this caller reached
+//! it. So the limiter's whole effect here is inward: the policy is not consulted, and the trail
+//! is not written to, for an attempt made while locked out.
+//!
+//! The audit write happens AFTER the handshake response has gone to the socket
+//! (`handle_connection` drains what the synchronous callback recorded), so the trail's I/O is
+//! not on the refusal path and cannot become a timing signal either.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::time::Instant;
 
 use anyhow::Result;
 use futures_util::{SinkExt, StreamExt};
@@ -68,7 +98,7 @@ use tokio_tungstenite::tungstenite::handshake::server::{
 use tokio_tungstenite::tungstenite::http::{header, HeaderValue, StatusCode};
 use tokio_tungstenite::{accept_hdr_async, tungstenite::Message};
 
-use crate::sidecar::auth::{AuthGate, AuthPolicy};
+use crate::sidecar::auth::{AuditRecord, AuthGate, GateOutcome, RouteRequirement};
 use crate::sidecar::node_local::ListenRole;
 use crate::sync::NativeSync;
 use crate::telemetry::TelemetryBus;
@@ -401,8 +431,25 @@ async fn handle_connection(
     // `accept_hdr_async` (not `accept_async`) so `ws_handshake_callback` can inspect the
     // offered `Sec-WebSocket-Protocol` tokens and gate the upgrade itself (ADR-093) — see
     // the module doc. `auth_policy: None` makes the callback a no-op passthrough,
-    // byte-identical to the old `accept_async(tcp_stream)` call.
-    let ws = accept_hdr_async(tcp_stream, ws_handshake_callback(auth_policy)).await?;
+    // byte-identical to the old `accept_async(tcp_stream)` call: no gate, so no credential, no
+    // budget to spend, and nothing to record. That is the node-local listener's shape exactly
+    // (`node_local::gate_for` hands it `None`), so this whole layer is unreachable there rather
+    // than merely unused.
+    let recorded = HandshakeRecord::default();
+    let accepted =
+        accept_hdr_async(tcp_stream, ws_handshake_callback(auth_policy.clone(), recorded.clone()))
+            .await;
+
+    // BEFORE the `?`, deliberately: a REFUSED handshake is exactly the event the trail exists to
+    // carry, and an early return would drop it. Awaited here rather than inside the callback
+    // because the callback is synchronous — and because writing after the response has already
+    // gone to the socket keeps the trail's I/O off the refusal path, where it could otherwise
+    // become the timing signal the byte-identical response is there to deny.
+    if let (Some(gate), Some(record)) = (&auth_policy, recorded.take()) {
+        gate.record(&record, WS_HANDSHAKE_REQUIREMENT, WS_HANDSHAKE_METHOD).await;
+    }
+
+    let ws = accepted?;
     let (mut sink, mut stream) = ws.split();
 
     // Send current server state immediately on connect
@@ -502,11 +549,26 @@ const WS_SYNC_PROTOCOL: &str = "refarm-sync-v1";
 /// itself, e.g. `bearer.abc123...`. Matches the ADR's `bearer.<token>`.
 const WS_TOKEN_PROTOCOL_PREFIX: &str = "bearer.";
 
-/// The pure accept/reject decision for one handshake attempt, given the tokens the client
-/// offered in `Sec-WebSocket-Protocol` and the resolved policy. PURE — no I/O, no
-/// tungstenite types, no logging: the caller decides what to log and how to shape the HTTP
-/// response from the result. This is what the test suite drives directly, so the handshake
-/// gate is exhaustively covered without ever opening a socket.
+/// The HTTP method the audit records for a handshake. The WebSocket opening handshake IS an
+/// HTTP `GET` (RFC 6455 §4.1), so the trail's existing `method` field keeps its exact meaning
+/// and the shared wire fixture keeps its exact shape. A handshake-only field, or a
+/// handshake-only event name, would break the vocabulary that fixture exists to hold in
+/// lockstep across two runtimes — and this surface has no fact the vocabulary cannot already
+/// name.
+const WS_HANDSHAKE_METHOD: &str = "GET";
+/// What the handshake requires of a credential: nothing beyond being a device credential.
+///
+/// The handshake declares no scope, and by `sidecar::auth`'s own rule for silence a route that
+/// declares nothing admits device credentials ONLY — which is exactly what this handshake
+/// admitted before it asked the gate, when it called `AuthPolicy::authenticate` directly. Same
+/// admitted set, now with the REASON for a refusal kept, which is what lets the right budget be
+/// spent and the right event be written.
+const WS_HANDSHAKE_REQUIREMENT: RouteRequirement = RouteRequirement::DeviceOnly;
+
+/// The accept/reject decision for one handshake attempt, given the tokens the client offered in
+/// `Sec-WebSocket-Protocol`. No I/O, no tungstenite types, no logging: the caller decides what
+/// to log and how to shape the HTTP response from the result. This is what the test suite
+/// drives directly, so the handshake gate is exhaustively covered without ever opening a socket.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum WsHandshakeDecision {
     /// No policy configured (`REFARM_AUTH_POLICY` unset) — accept without touching the
@@ -519,25 +581,74 @@ pub(crate) enum WsHandshakeDecision {
     Accept { identity: String },
     /// Policy configured and the handshake must be refused with `401`. `reason` is a
     /// static, tokenless string — safe to log AND safe to return to the client.
+    ///
+    /// There are exactly TWO reasons, and there will not be a third. "The bound has engaged" is
+    /// deliberately NOT one of them: it is answered with `"invalid credential"`, the same bytes
+    /// a wrong token has always been answered with, because a handshake that named the bound
+    /// would be telling whoever tripped it that they had.
     Reject { reason: &'static str },
 }
 
-/// PURE decision function. `offered` is the list of subprotocol tokens the client sent
-/// (already split/trimmed from the raw header value — see `parse_offered_protocols`).
-fn decide_ws_handshake(offered: &[&str], policy: Option<&AuthPolicy>) -> WsHandshakeDecision {
-    let Some(policy) = policy else {
-        return WsHandshakeDecision::Passthrough;
+/// What one handshake decided: what to do with the socket, and what to write down.
+///
+/// The two are separated because they happen at different times. The decision must be returned
+/// synchronously — tungstenite's `Callback` is a plain `FnOnce` — while the write is `async`.
+/// So the record travels out of the callback and `handle_connection` awaits it, which also
+/// keeps the trail's I/O off the refusal path entirely.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct WsHandshakeOutcome {
+    pub(crate) decision: WsHandshakeDecision,
+    /// `None` when there is nothing to record, which is exactly three cases and the same three
+    /// the HTTP gate keeps silent about: no gate at all (nothing is being enforced), no
+    /// credential offered (nothing was attempted, and counting it would let ordinary noise spend
+    /// the budget that exists to detect guessing), and an attempt made while ALREADY locked out
+    /// (the lockout was recorded on the attempt that tripped it; a line per attempt is a
+    /// disk-filling amplifier handed to whoever is hammering).
+    pub(crate) record: Option<AuditRecord>,
+}
+
+/// THE handshake decision. `offered` is the list of subprotocol tokens the client sent (already
+/// split/trimmed from the raw header value — see `parse_offered_protocols`).
+///
+/// No longer pure over an `&AuthPolicy`, and that is the point of this change rather than a
+/// regression in it: a bound on failed authentication is STATE, and the state must be the one
+/// the HTTP gate already keeps. Judging a borrowed policy value is precisely what let this
+/// handshake refuse the same wrong credential forever. `now` is the limiter's monotonic clock,
+/// passed in so the whole sequence is drivable across a window boundary without waiting.
+fn decide_ws_handshake(
+    offered: &[&str],
+    gate: Option<&AuthGate>,
+    now: Instant,
+) -> WsHandshakeOutcome {
+    let Some(gate) = gate else {
+        return WsHandshakeOutcome { decision: WsHandshakeDecision::Passthrough, record: None };
     };
     let token = offered
         .iter()
         .find_map(|p| p.strip_prefix(WS_TOKEN_PROTOCOL_PREFIX))
         .filter(|t| !t.is_empty());
     let Some(token) = token else {
-        return WsHandshakeDecision::Reject { reason: "missing credential" };
+        // Nothing presented ⇒ nothing guessed. Refused, not counted, not recorded — the same
+        // rule `auth_middleware` applies to a request with no `Authorization` header.
+        return WsHandshakeOutcome {
+            decision: WsHandshakeDecision::Reject { reason: "missing credential" },
+            record: None,
+        };
     };
-    match policy.authenticate(token) {
-        Some(identity) => WsHandshakeDecision::Accept { identity: identity.to_string() },
-        None => WsHandshakeDecision::Reject { reason: "invalid credential" },
+    match gate.admit(token, WS_HANDSHAKE_REQUIREMENT, now) {
+        GateOutcome::Admitted { verified, record } => WsHandshakeOutcome {
+            decision: WsHandshakeDecision::Accept { identity: verified.identity },
+            record: Some(record),
+        },
+        // The refusal is DISCARDED here, on purpose, and the discard IS the no-oracle rule as
+        // control flow: a bound engaging and a token nothing recognises leave this function
+        // indistinguishable, so nothing downstream — no status, no header, no body — can differ
+        // between them. The bound's effect is entirely inward: the policy went unread and the
+        // trail went unwritten.
+        GateOutcome::Refused { refusal: _, record } => WsHandshakeOutcome {
+            decision: WsHandshakeDecision::Reject { reason: "invalid credential" },
+            record,
+        },
     }
 }
 
@@ -572,23 +683,47 @@ fn ws_unauthorized_response(reason: &str) -> WsErrorResponse {
         .unwrap_or_else(|_| WsErrorResponse::new(None))
 }
 
+/// Where a synchronous handshake leaves the fact it learned, for the async caller to write.
+///
+/// A `std::sync::Mutex` and not the `tokio::sync::Mutex` this module imports for the server
+/// itself: the callback is not async and cannot await anything, and the critical section is one
+/// `Option` move. The slot is filled at most once per connection, by construction — the
+/// callback is an `FnOnce`.
+#[derive(Clone, Default)]
+struct HandshakeRecord(Arc<std::sync::Mutex<Option<AuditRecord>>>);
+
+impl HandshakeRecord {
+    fn put(&self, record: Option<AuditRecord>) {
+        if let Some(record) = record {
+            *self.0.lock().expect("handshake record lock poisoned") = Some(record);
+        }
+    }
+
+    /// Take what the handshake recorded, leaving nothing behind — so a caller cannot write the
+    /// same fact twice.
+    fn take(&self) -> Option<AuditRecord> {
+        self.0.lock().expect("handshake record lock poisoned").take()
+    }
+}
+
 /// Build the `accept_hdr_async` callback (`tungstenite::handshake::server::Callback`) for
 /// one connection. `gate` is the LIVE handle `WsServer::run_gated` holds — cloned per
-/// connection, which is an `Arc` bump, and read (snapshotted) once inside. Thin glue: parses the request, calls the PURE `decide_ws_handshake`, then either
-/// echoes `WS_SYNC_PROTOCOL` (accept) or writes a `401` (reject) — all logging happens
-/// here, at the boundary, never inside the pure decision.
+/// connection, which is an `Arc` bump, so a connection arriving after a revocation is judged by
+/// the post-revocation policy and one arriving after an enrolment by the post-enrolment policy,
+/// and every listener sharing the gate shares ONE set of budgets. Thin glue: parses the request,
+/// calls `decide_ws_handshake`, deposits whatever is to be recorded, then either echoes
+/// `WS_SYNC_PROTOCOL` (accept) or writes a `401` (reject) — all logging happens here, at the
+/// boundary, never inside the decision.
 fn ws_handshake_callback(
     gate: Option<AuthGate>,
+    recorded: HandshakeRecord,
 ) -> impl FnOnce(&WsHandshakeRequest, WsHandshakeResponse) -> Result<WsHandshakeResponse, WsErrorResponse> {
     move |request, response| {
         let offered = parse_offered_protocols(request);
         let offered_refs: Vec<&str> = offered.iter().map(String::as_str).collect();
-        // The snapshot is taken HERE, per handshake, from the live gate — so a connection
-        // arriving after a revocation is judged by the post-revocation policy, and one
-        // arriving after an enrolment by the post-enrolment policy. `decide_ws_handshake`
-        // stays PURE over the value it is handed.
-        let policy = gate.as_ref().map(AuthGate::snapshot);
-        match decide_ws_handshake(&offered_refs, policy.as_ref()) {
+        let outcome = decide_ws_handshake(&offered_refs, gate.as_ref(), Instant::now());
+        recorded.put(outcome.record);
+        match outcome.decision {
             WsHandshakeDecision::Passthrough => Ok(response),
             WsHandshakeDecision::Accept { identity } => {
                 tracing::info!(identity = %identity, "daemon-ws handshake accepted");
@@ -623,7 +758,11 @@ mod tests {
 
     use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
-    use crate::sidecar::auth::{sha256_hex, AuthGate, AuthPolicy, Credential, AUTH_POLICY_ENV};
+    use crate::security_events::{Budget, SecurityEvent, SECURITY_EVENT_NAMES};
+    use crate::sidecar::auth::{
+        credential_tag, sha256_hex, AuthGate, AuthPolicy, Credential, AUTH_POLICY_ENV,
+        FAILURE_THRESHOLD, FAILURE_WINDOW,
+    };
     use crate::{EventEnvelope, NativeStorage, NativeSync, TelemetryBus};
 
     fn make_sync() -> Arc<NativeSync> {
@@ -874,40 +1013,52 @@ mod tests {
         }])
     }
 
+    /// A gate over a one-credential device policy — what these tests judge against now that
+    /// the decision needs the LIMITER's state and not only a policy value.
+    fn gate_with(token: &str, identity: &str) -> AuthGate {
+        AuthGate::for_test(policy_with(token, identity))
+    }
+
+    /// One handshake decision, at "now". The `.decision` projection keeps every assertion below
+    /// written about the same thing it was written about before the trail existed.
+    fn decide(offered: &[&str], gate: Option<&AuthGate>) -> WsHandshakeDecision {
+        decide_ws_handshake(offered, gate, Instant::now()).decision
+    }
+
     #[test]
     fn decide_no_policy_is_passthrough_regardless_of_what_is_offered() {
-        assert_eq!(decide_ws_handshake(&[], None), WsHandshakeDecision::Passthrough);
+        assert_eq!(decide(&[], None), WsHandshakeDecision::Passthrough);
         assert_eq!(
-            decide_ws_handshake(&[WS_SYNC_PROTOCOL, "bearer.anything"], None),
+            decide(&[WS_SYNC_PROTOCOL, "bearer.anything"], None),
             WsHandshakeDecision::Passthrough
         );
     }
 
     #[test]
     fn decide_policy_with_valid_token_accepts_and_resolves_identity() {
-        let policy = policy_with("good-token", "id-arthur");
+        let gate = gate_with("good-token", "id-arthur");
         let offered = [WS_SYNC_PROTOCOL, "bearer.good-token"];
         assert_eq!(
-            decide_ws_handshake(&offered, Some(&policy)),
+            decide(&offered, Some(&gate)),
             WsHandshakeDecision::Accept { identity: "id-arthur".to_string() }
         );
     }
 
     #[test]
     fn decide_policy_with_wrong_token_is_rejected() {
-        let policy = policy_with("good-token", "id-arthur");
+        let gate = gate_with("good-token", "id-arthur");
         let offered = [WS_SYNC_PROTOCOL, "bearer.wrong-token"];
         assert_eq!(
-            decide_ws_handshake(&offered, Some(&policy)),
+            decide(&offered, Some(&gate)),
             WsHandshakeDecision::Reject { reason: "invalid credential" }
         );
     }
 
     #[test]
     fn decide_policy_with_no_subprotocol_at_all_is_rejected() {
-        let policy = policy_with("good-token", "id-arthur");
+        let gate = gate_with("good-token", "id-arthur");
         assert_eq!(
-            decide_ws_handshake(&[], Some(&policy)),
+            decide(&[], Some(&gate)),
             WsHandshakeDecision::Reject { reason: "missing credential" }
         );
     }
@@ -916,20 +1067,20 @@ mod tests {
     fn decide_policy_with_protocol_name_but_no_token_entry_is_rejected() {
         // The protocol name alone, with no `bearer.` entry at all, must be treated the
         // same as offering nothing — not silently accepted because SOMETHING was sent.
-        let policy = policy_with("good-token", "id-arthur");
+        let gate = gate_with("good-token", "id-arthur");
         let offered = [WS_SYNC_PROTOCOL];
         assert_eq!(
-            decide_ws_handshake(&offered, Some(&policy)),
+            decide(&offered, Some(&gate)),
             WsHandshakeDecision::Reject { reason: "missing credential" }
         );
     }
 
     #[test]
     fn decide_policy_with_empty_token_value_is_rejected() {
-        let policy = policy_with("good-token", "id-arthur");
+        let gate = gate_with("good-token", "id-arthur");
         let offered = [WS_SYNC_PROTOCOL, "bearer."];
         assert_eq!(
-            decide_ws_handshake(&offered, Some(&policy)),
+            decide(&offered, Some(&gate)),
             WsHandshakeDecision::Reject { reason: "missing credential" }
         );
     }
@@ -939,14 +1090,23 @@ mod tests {
         // Mutation guard for "never echo the token": even in DEBUG form (the shape a
         // careless `tracing::info!("{decision:?}")` might log), the accept decision must
         // never contain the raw token — only the resolved identity, which the policy
-        // controls independently of the token's own bytes.
+        // controls independently of the token's own bytes. Asserted over the WHOLE outcome,
+        // record included: the record now travels out of the callback, so it is a second thing
+        // that could carry a secret and must not.
         let token = "super-secret-token-value-zzz";
-        let policy = policy_with(token, "id-arthur");
+        let gate = gate_with(token, "id-arthur");
         let offered = [WS_SYNC_PROTOCOL, &format!("{WS_TOKEN_PROTOCOL_PREFIX}{token}")];
-        let decision = decide_ws_handshake(&offered, Some(&policy));
-        let debug = format!("{decision:?}");
-        assert!(!debug.contains(token), "the accept decision must never carry the raw token: {debug}");
-        assert_eq!(decision, WsHandshakeDecision::Accept { identity: "id-arthur".to_string() });
+        let outcome = decide_ws_handshake(&offered, Some(&gate), Instant::now());
+        let debug = format!("{outcome:?}");
+        assert!(!debug.contains(token), "the accept outcome must never carry the raw token: {debug}");
+        assert!(
+            !debug.contains(&sha256_hex(token)),
+            "nor the token's digest: {debug}"
+        );
+        assert_eq!(
+            outcome.decision,
+            WsHandshakeDecision::Accept { identity: "id-arthur".to_string() }
+        );
     }
 
     #[test]
@@ -960,14 +1120,364 @@ mod tests {
         let resolved = crate::sidecar::ResolvedAuthPolicy::resolve(&no_auth_source());
         std::env::remove_var(AUTH_POLICY_ENV);
 
-        let policy = resolved
-            .gate()
-            .expect("unreadable policy must still resolve to Some(deny_all)")
-            .snapshot();
+        let gate = resolved.gate().expect("unreadable policy must still resolve to Some(deny_all)");
         let offered = [WS_SYNC_PROTOCOL, "bearer.any-token-at-all"];
         assert_eq!(
-            decide_ws_handshake(&offered, Some(&policy)),
+            decide(&offered, Some(&gate)),
             WsHandshakeDecision::Reject { reason: "invalid credential" }
+        );
+    }
+
+    // ── the bound on failed handshakes, and the trail ─────────────────────────────
+
+    /// The gate the bound-and-trail tests judge against, over the SAME one-credential device
+    /// policy the handshake tests have always used.
+    fn gated(token: &str, identity: &str) -> AuthGate {
+        gate_with(token, identity)
+    }
+
+    fn offered_bearer(token: &str) -> [String; 2] {
+        [WS_SYNC_PROTOCOL.to_string(), format!("{WS_TOKEN_PROTOCOL_PREFIX}{token}")]
+    }
+
+    fn attempt(gate: &AuthGate, token: &str, now: Instant) -> WsHandshakeOutcome {
+        let offered = offered_bearer(token);
+        let refs: Vec<&str> = offered.iter().map(String::as_str).collect();
+        decide_ws_handshake(&refs, Some(gate), now)
+    }
+
+    #[test]
+    fn a_failed_handshake_spends_the_guessing_budget_and_the_bound_engages() {
+        // The gap this closes, stated as a test: before it, a peer could offer a wrong
+        // `bearer.` subprotocol as fast as it could open sockets, for ever, and nothing counted.
+        let gate = gated("the-real-token", "id-arthur");
+        let now = Instant::now();
+
+        for n in 1..FAILURE_THRESHOLD {
+            let outcome = attempt(&gate, "a-guess", now);
+            assert_eq!(
+                outcome.decision,
+                WsHandshakeDecision::Reject { reason: "invalid credential" },
+                "attempt {n} must be refused"
+            );
+            assert_eq!(
+                outcome.record.map(|r| r.event),
+                Some(SecurityEvent::AuthenticationFailed),
+                "attempt {n} is a guess and must be recorded as one"
+            );
+        }
+        assert_eq!(
+            gate.tracked_failures(),
+            1,
+            "one credential presented ⇒ one bucket, whatever the number of attempts"
+        );
+
+        // The attempt that TRIPS the bound is its own, distinguishable event, written once.
+        let tripped = attempt(&gate, "a-guess", now);
+        assert_eq!(
+            tripped.record.map(|r| r.event),
+            Some(SecurityEvent::RateLimitEngaged(Budget::Authentication)),
+            "the {FAILURE_THRESHOLD}th failure must name the bound it engaged"
+        );
+
+        // …and every attempt after it is refused WITHOUT the policy being consulted and
+        // WITHOUT a further line. The silence is the bound doing its second job: a line per
+        // attempt while locked out is a disk-filling amplifier handed to whoever is hammering.
+        for _ in 0..3 {
+            let after = attempt(&gate, "a-guess", now);
+            assert_eq!(
+                after.decision,
+                WsHandshakeDecision::Reject { reason: "invalid credential" },
+                "a locked-out handshake is refused exactly as any other is"
+            );
+            assert_eq!(
+                after.record, None,
+                "an attempt made while already locked out must write nothing"
+            );
+        }
+    }
+
+    #[test]
+    fn the_bound_releases_itself_after_the_window_with_nothing_scheduled() {
+        let gate = gated("the-real-token", "id-arthur");
+        let origin = Instant::now();
+        for _ in 0..FAILURE_THRESHOLD {
+            attempt(&gate, "a-guess", origin);
+        }
+        assert_eq!(attempt(&gate, "a-guess", origin).record, None, "locked out");
+        // One window later, the bucket is forgotten on read — no sweeper, nothing to fail.
+        let later = origin + FAILURE_WINDOW;
+        assert_eq!(
+            attempt(&gate, "a-guess", later).record.map(|r| r.event),
+            Some(SecurityEvent::AuthenticationFailed),
+            "the lockout must end on its own, and counting must start over"
+        );
+    }
+
+    #[test]
+    fn the_bound_never_refuses_a_credential_that_authenticates() {
+        // The anti-lockout property, on the handshake: grinding one credential past its bound
+        // must not cost the enrolled device its own socket, because a budget belongs to the
+        // secret that spends it.
+        let gate = gated("the-real-token", "id-arthur");
+        let now = Instant::now();
+        for _ in 0..(FAILURE_THRESHOLD + 3) {
+            attempt(&gate, "a-guess", now);
+        }
+        let accepted = attempt(&gate, "the-real-token", now);
+        assert_eq!(
+            accepted.decision,
+            WsHandshakeDecision::Accept { identity: "id-arthur".to_string() },
+            "a flood against another credential must never shut the enrolled device out"
+        );
+        assert_eq!(
+            accepted.record.map(|r| r.event),
+            Some(SecurityEvent::Accepted),
+            "and the acceptance is attributed in the trail"
+        );
+    }
+
+    #[test]
+    fn a_successful_handshake_clears_that_credentials_guessing_count() {
+        // What the HTTP side decided, and it must hold here or enrolment gets worse rather than
+        // better: a phone that reconnects four times BEFORE the operator enrols it has spent
+        // four of its five, and the enrolment must not leave it one reconnection from a
+        // lockout. A success is proof the caller was not guessing, so the count goes.
+        //
+        // Driven over a REAL policy file, because "the same credential fails and then succeeds"
+        // is only reachable through an enrolment — which is exactly the operational moment.
+        let _env = crate::test_support::env_lock();
+        std::env::remove_var(AUTH_POLICY_ENV);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(crate::sidecar::auth::AUTH_POLICY_FILE_NAME);
+        let write = |tokens: &[(&str, &str)]| {
+            let credentials: Vec<_> = tokens
+                .iter()
+                .map(|(t, id)| serde_json::json!({ "identity": id, "tokenSha256": sha256_hex(t) }))
+                .collect();
+            std::fs::write(
+                &path,
+                serde_json::to_vec(&serde_json::json!({ "credentials": credentials })).unwrap(),
+            )
+            .unwrap();
+        };
+        write(&[("laptop-token", "id-laptop")]);
+        let gate = crate::sidecar::ResolvedAuthPolicy::resolve(
+            &crate::sidecar::AuthPolicySource::new(dir.path().to_path_buf(), true),
+        )
+        .gate()
+        .expect("declared ⇒ gated");
+
+        let now = Instant::now();
+        for _ in 0..(FAILURE_THRESHOLD - 1) {
+            attempt(&gate, "phone-token", now);
+        }
+        assert_eq!(gate.tracked_failures(), 1, "the phone has spent four of its five");
+
+        write(&[("laptop-token", "id-laptop"), ("phone-token", "id-phone")]);
+        assert!(gate.reload_if_changed(), "the enrolment is a change");
+
+        let accepted = attempt(&gate, "phone-token", now);
+        assert_eq!(
+            accepted.decision,
+            WsHandshakeDecision::Accept { identity: "id-phone".to_string() }
+        );
+        assert_eq!(
+            gate.tracked_failures(),
+            0,
+            "the enrolled phone must not carry its pre-enrolment failures into the next minute"
+        );
+    }
+
+    #[test]
+    fn a_recognised_credential_refused_here_spends_the_refusal_budget_not_the_guessing_one() {
+        // The separation the HTTP gate gained, carried to the handshake for free by asking the
+        // same question: a browser holding a real `prompt:answer` credential that points itself
+        // at the CRDT socket is a caller with a bug, not a stranger guessing — and it must not
+        // spend the budget that exists to detect guessing.
+        let policy = AuthPolicy::from_parts(
+            vec![],
+            vec![crate::sidecar::auth::ScopedCredential {
+                token_sha256: sha256_hex("browser-token"),
+                identity: "id-browser".to_string(),
+                scope: vec![crate::sidecar::auth::Scope::AnswerPrompts],
+                expires_at_ms: i64::MAX,
+            }],
+        );
+        let gate = AuthGate::for_test(policy);
+        let outcome = attempt(&gate, "browser-token", Instant::now());
+        assert_eq!(
+            outcome.decision,
+            WsHandshakeDecision::Reject { reason: "invalid credential" },
+            "the handshake declares no scope, so only a device credential satisfies it — \
+             unchanged, and the caller is told exactly what it was told before"
+        );
+        assert_eq!(
+            outcome.record.map(|r| r.event),
+            Some(SecurityEvent::AuthorizationRefused),
+            "inwardly, this is a caller this node KNOWS asking for authority it has not got"
+        );
+        assert_eq!(
+            gate.tracked_failures_in(Budget::Authentication),
+            0,
+            "a recognised credential is not evidence of guessing"
+        );
+        assert_eq!(gate.tracked_failures_in(Budget::Authorization), 1);
+    }
+
+    #[test]
+    fn a_handshake_offering_no_credential_is_refused_and_never_counted() {
+        // Nothing presented ⇒ nothing guessed. Counting an unaware client, a probe or a
+        // browser that wandered in would let ordinary noise spend the budget that exists to
+        // detect guessing — a way for a third party to blunt the signal for free.
+        let gate = gated("the-real-token", "id-arthur");
+        for offered in [vec![], vec![WS_SYNC_PROTOCOL], vec![WS_SYNC_PROTOCOL, "bearer."]] {
+            let outcome = decide_ws_handshake(&offered, Some(&gate), Instant::now());
+            assert_eq!(
+                outcome.decision,
+                WsHandshakeDecision::Reject { reason: "missing credential" }
+            );
+            assert_eq!(outcome.record, None, "nothing was attempted, so nothing is recorded");
+        }
+        assert_eq!(gate.tracked_failures(), 0, "and no budget was spent");
+    }
+
+    /// The refusal this handshake writes, rendered as the bytes it IS: status line, every
+    /// header (sorted, so the comparison cannot pass on iteration order), and the body.
+    fn render_refusal(response: &WsErrorResponse) -> String {
+        let mut headers: Vec<String> = response
+            .headers()
+            .iter()
+            .map(|(name, value)| format!("{}: {}", name.as_str(), value.to_str().unwrap_or("<!>")))
+            .collect();
+        headers.sort();
+        format!(
+            "{} {}\n{}\n\n{}",
+            response.status().as_u16(),
+            response.status().canonical_reason().unwrap_or(""),
+            headers.join("\n"),
+            response.body().as_deref().unwrap_or_default()
+        )
+    }
+
+    fn refuse_through_the_callback(gate: &AuthGate, token: &str) -> WsErrorResponse {
+        let request = tokio_tungstenite::tungstenite::http::Request::builder()
+            .header(
+                header::SEC_WEBSOCKET_PROTOCOL,
+                format!("{WS_SYNC_PROTOCOL}, {WS_TOKEN_PROTOCOL_PREFIX}{token}"),
+            )
+            .body(())
+            .unwrap();
+        ws_handshake_callback(Some(gate.clone()), HandshakeRecord::default())(
+            &request,
+            WsHandshakeResponse::new(()),
+        )
+        .expect_err("a wrong credential must be refused")
+    }
+
+    #[test]
+    fn the_refusal_is_byte_identical_whether_or_not_the_bound_has_engaged() {
+        // THE no-oracle rule for this surface, and it is not negotiable. The HTTP gate answers
+        // a `429` with `Retry-After` when a bound engages; the handshake deliberately does not,
+        // because a new status on a handshake announces both that the bound exists and that
+        // this caller reached it. Every refusal here — before the bound, on the attempt that
+        // trips it, and long after — must be the same bytes.
+        let gate = gated("the-real-token", "id-arthur");
+        let rendered: Vec<String> = (0..(FAILURE_THRESHOLD + 3))
+            .map(|_| render_refusal(&refuse_through_the_callback(&gate, "a-guess")))
+            .collect();
+        for (n, line) in rendered.iter().enumerate() {
+            assert_eq!(
+                line, &rendered[0],
+                "refusal {} differs from the first — the bound must be invisible on the wire",
+                n + 1
+            );
+        }
+
+        // Identical to the refusal a wrong credential got before any bound existed — the same
+        // function, on a gate that has never seen a failure.
+        let untouched = gated("the-real-token", "id-arthur");
+        assert_eq!(
+            rendered[0],
+            render_refusal(&refuse_through_the_callback(&untouched, "a-guess"))
+        );
+
+        // And pinned LITERALLY, so "identical" cannot be satisfied by all of them being wrong.
+        assert_eq!(
+            rendered[0],
+            "401 Unauthorized\n\
+             content-type: application/json\n\
+             www-authenticate: Bearer\n\
+             \n\
+             {\"error\":\"unauthorized\",\"reason\":\"invalid credential\"}"
+        );
+    }
+
+    #[test]
+    fn the_handshake_names_no_security_event_of_its_own() {
+        // The vocabulary is a contract with a second runtime, held in lockstep by
+        // `packages/event-contract-v1/security-events.fixture.ndjson`. A handshake-only event
+        // name would be a fact one side could emit and the other could not parse — so this file
+        // must not spell one, not even in a test.
+        let src = include_str!("ws_server.rs");
+        for name in crate::security_events::SECURITY_EVENT_NAMES {
+            assert!(
+                !src.contains(name),
+                "{name} is spelled in ws_server.rs — the handshake must name facts through \
+                 crate::security_events, never in its own words"
+            );
+        }
+        assert!(
+            src.contains("gate.admit(token, WS_HANDSHAKE_REQUIREMENT, now)"),
+            "the handshake must reach the bound through the gate's ONE decision, never a \
+             limiter of its own"
+        );
+        assert!(
+            src.contains("gate.record(&record, WS_HANDSHAKE_REQUIREMENT, WS_HANDSHAKE_METHOD)"),
+            "and the trail through the gate's ONE writer, never a second audit file"
+        );
+    }
+
+    // ── the ungated listener, and the operator's declared shape ────────────────────
+
+    #[test]
+    fn the_node_local_listener_gets_no_gate_and_therefore_no_bound_and_no_trail() {
+        // `node-local` is untouched, structurally: it is CONSTRUCTED without a gate, so it has
+        // no credential to key on, no budget to spend and nothing to record — the limiter is
+        // unreachable there rather than merely unused. It is also the operator's recovery path.
+        let gate = gated("the-real-token", "id-arthur");
+        assert!(
+            crate::sidecar::node_local::gate_for(ListenRole::NodeLocal, Some(gate.clone()))
+                .is_none(),
+            "the node-local listener must never carry the credential layer"
+        );
+        let ungated = decide_ws_handshake(
+            &[WS_SYNC_PROTOCOL, "bearer.anything-at-all"],
+            None,
+            Instant::now(),
+        );
+        assert_eq!(
+            ungated,
+            WsHandshakeOutcome { decision: WsHandshakeDecision::Passthrough, record: None },
+            "no gate ⇒ passthrough and silence, byte-identical to pre-ADR-093"
+        );
+        assert_eq!(gate.tracked_failures(), 0);
+    }
+
+    #[test]
+    fn a_loopback_declared_daemon_ws_opens_one_socket_and_it_is_the_gated_one() {
+        // The operator's own declaration: `surfaces.daemon-ws` is `"loopback"`. The plan is a
+        // single `Declared` target — there is no additive node-local companion to reason about
+        // — and that one socket carries whatever gate was resolved, exactly as it did before
+        // this change. Nothing about WHERE this surface listens moves.
+        let plan = crate::sidecar::node_local::listen_plan("127.0.0.1");
+        assert_eq!(plan.len(), 1, "a loopback-declared surface opens exactly one socket");
+        assert_eq!(plan[0].role, ListenRole::Declared);
+        assert_eq!(plan[0].host, "127.0.0.1");
+        let gate = gated("the-real-token", "id-arthur");
+        assert!(
+            crate::sidecar::node_local::gate_for(plan[0].role, Some(gate)).is_some(),
+            "and the declared socket is the one the gate is attached to"
         );
     }
 
@@ -1035,10 +1545,10 @@ mod tests {
                 )
                 .body(())
                 .unwrap();
-            let accept_result = ws_handshake_callback(Some(AuthGate::for_test(policy.clone())))(
-                &accept_req,
-                WsHandshakeResponse::new(()),
-            );
+            let accept_result = ws_handshake_callback(
+                Some(AuthGate::for_test(policy.clone())),
+                HandshakeRecord::default(),
+            )(&accept_req, WsHandshakeResponse::new(()));
             assert!(accept_result.is_ok(), "valid token must be accepted");
 
             let reject_req = tokio_tungstenite::tungstenite::http::Request::builder()
@@ -1048,10 +1558,10 @@ mod tests {
                 )
                 .body(())
                 .unwrap();
-            let reject_result = ws_handshake_callback(Some(AuthGate::for_test(policy.clone())))(
-                &reject_req,
-                WsHandshakeResponse::new(()),
-            );
+            let reject_result = ws_handshake_callback(
+                Some(AuthGate::for_test(policy.clone())),
+                HandshakeRecord::default(),
+            )(&reject_req, WsHandshakeResponse::new(()));
             assert!(reject_result.is_err(), "wrong token must be refused");
         });
 
@@ -1230,6 +1740,174 @@ mod tests {
         assert!(
             connect("laptop-token").await.expect("no hang").is_ok(),
             "while the device that was never revoked keeps working throughout"
+        );
+    }
+
+    // ── the trail, end to end over a real socket ───────────────────────────────────
+
+    /// Every `event` name the trail carries, in file order. Reads the SAME file the rest of the
+    /// runtime writes (`observer::AUDIT_FILE` under the refarm dir) — there is one trail, and
+    /// this test would fail if the handshake had opened a second.
+    fn audit_events(dir: &std::path::Path) -> Vec<String> {
+        audit_lines(dir)
+            .iter()
+            .map(|line| {
+                serde_json::from_str::<serde_json::Value>(line).expect("an audit line is JSON")
+                    ["event"]
+                    .as_str()
+                    .expect("every line names its event")
+                    .to_string()
+            })
+            .collect()
+    }
+
+    fn audit_lines(dir: &std::path::Path) -> Vec<String> {
+        std::fs::read_to_string(dir.join(crate::observer::AUDIT_FILE))
+            .unwrap_or_default()
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(str::to_string)
+            .collect()
+    }
+
+    /// The audit write happens in the connection's own task, after the handshake response has
+    /// already gone to the socket — so a test that connected must WAIT for the line rather than
+    /// assume it. Bounded; a missing line fails the assertion that follows, not this helper.
+    async fn wait_for_audit_lines(dir: &std::path::Path, expected: usize) {
+        for _ in 0..200 {
+            if audit_lines(dir).len() >= expected {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn e2e_the_handshake_records_every_attempt_in_the_one_trail_and_never_a_credential() {
+        let token = "ws-trail-secret-token-zzz";
+        let dir = tempfile::tempdir().unwrap();
+        let gate = AuthGate::for_test_with_audit(policy_with(token, "id-ws"), dir.path());
+        let addr = spawn_server_with_gate(Arc::new(RwLock::new(HashMap::new())), gate.clone()).await;
+
+        let connect = |offer: String| {
+            let request = client_request_with_protocols(&addr, &[WS_SYNC_PROTOCOL, &offer]);
+            async move { timeout(Duration::from_secs(2), connect_async(request)).await }
+        };
+
+        // 1. An accepted handshake is attributed.
+        let accepted = connect(format!("bearer.{token}")).await.expect("no hang");
+        assert!(accepted.is_ok(), "the enrolled credential must still connect");
+        wait_for_audit_lines(dir.path(), 1).await;
+
+        // 2. FAILURE_THRESHOLD guesses: the last one engages the bound.
+        for n in 0..FAILURE_THRESHOLD {
+            assert!(
+                connect("bearer.a-guess".to_string()).await.expect("no hang").is_err(),
+                "guess {n} must be refused"
+            );
+            wait_for_audit_lines(dir.path(), 2 + n as usize).await;
+        }
+
+        // 3. And an attempt made while locked out writes NOTHING — the amplifier bound.
+        assert!(connect("bearer.a-guess".to_string()).await.expect("no hang").is_err());
+        // Give the connection task the same chance to write that every step above had.
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let mut expected = vec![crate::security_events::ACCEPTED.to_string()];
+        for _ in 0..(FAILURE_THRESHOLD - 1) {
+            expected.push(crate::security_events::AUTHENTICATION_FAILED.to_string());
+        }
+        expected.push(crate::security_events::RATE_LIMIT_ENGAGED.to_string());
+        assert_eq!(
+            audit_events(dir.path()),
+            expected,
+            "every handshake attempt lands in the one trail, under the shared vocabulary — \
+             and an attempt made while locked out lands nowhere"
+        );
+        for name in audit_events(dir.path()) {
+            assert!(
+                SECURITY_EVENT_NAMES.contains(&name.as_str()),
+                "{name} is not in the vocabulary the fixture pins for both runtimes"
+            );
+        }
+
+        // THE rule: no credential material, in any form, anywhere in the trail.
+        let digest = sha256_hex(token);
+        let tag = credential_tag(token).to_string();
+        for line in audit_lines(dir.path()) {
+            assert!(!line.contains(token), "the raw token appears in the trail: {line}");
+            assert!(!line.contains(&digest), "the token's sha256 appears: {line}");
+            assert!(!line.contains(&digest[..8]), "a truncated digest is still material: {line}");
+            assert!(!line.contains(&tag), "the limiter's tag appears: {line}");
+            assert!(
+                !line.contains("a-guess"),
+                "a GUESSED credential is credential material too: {line}"
+            );
+            assert!(
+                !contains_hex_run(&line, 16),
+                "a long hex run is what a hash looks like: {line}"
+            );
+        }
+    }
+
+    /// Does `text` contain an unbroken run of at least `len` hex digits? The shape of a hash,
+    /// caught regardless of what anyone decides to call the field it lands in.
+    fn contains_hex_run(text: &str, len: usize) -> bool {
+        let mut run = 0usize;
+        for ch in text.chars() {
+            if ch.is_ascii_hexdigit() {
+                run += 1;
+                if run >= len {
+                    return true;
+                }
+            } else {
+                run = 0;
+            }
+        }
+        false
+    }
+
+    #[tokio::test]
+    async fn e2e_an_ungated_listener_writes_no_trail_while_a_gated_one_does() {
+        // `node-local` and the "nothing declared" case share one shape: no gate ⇒ passthrough,
+        // no budget, no line. Asserted over real sockets, and against a trail that is PROVEN
+        // live in the same test — a silent file is only evidence when something else would have
+        // written to it.
+        let token = "two-listeners-token";
+        let dir = tempfile::tempdir().unwrap();
+        let gate = AuthGate::for_test_with_audit(policy_with(token, "id-gated"), dir.path());
+
+        let ungated = spawn_server(Arc::new(RwLock::new(HashMap::new()))).await;
+        let (_ws, response) = timeout(Duration::from_secs(2), connect_async(&ungated))
+            .await
+            .expect("no hang")
+            .expect("an ungated listener admits any client, unchanged");
+        assert!(
+            response.headers().get(header::SEC_WEBSOCKET_PROTOCOL).is_none(),
+            "and echoes nothing, exactly as before"
+        );
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(
+            audit_lines(dir.path()).is_empty(),
+            "an ungated listener has no gate to record, and must not invent one"
+        );
+
+        let gated_addr =
+            spawn_server_with_gate(Arc::new(RwLock::new(HashMap::new())), gate).await;
+        let request =
+            client_request_with_protocols(&gated_addr, &[WS_SYNC_PROTOCOL, &format!("bearer.{token}")]);
+        assert!(
+            timeout(Duration::from_secs(2), connect_async(request))
+                .await
+                .expect("no hang")
+                .is_ok(),
+            "the gated listener admits the enrolled credential"
+        );
+        wait_for_audit_lines(dir.path(), 1).await;
+        assert_eq!(
+            audit_events(dir.path()),
+            vec![crate::security_events::ACCEPTED.to_string()],
+            "…and writes to the very file the ungated one left alone"
         );
     }
 

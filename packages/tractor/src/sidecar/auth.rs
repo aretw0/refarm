@@ -422,9 +422,15 @@ impl AuthPolicy {
     ///
     /// Device credentials ONLY, and that is unchanged in every particular: a scoped
     /// credential is never returned from here, whatever it holds and whenever it is asked.
-    /// This is what the WS handshake (`daemon::ws_server::decide_ws_handshake`) enforces, and
-    /// the WS handshake declares no scope — so by the module's own rule for silence, only a
-    /// device credential can satisfy it.
+    ///
+    /// TEST-ONLY since the WS handshake began asking [`AuthGate::admit`] with
+    /// [`RouteRequirement::DeviceOnly`]. That question ADMITS EXACTLY WHAT THIS ONE DID — a
+    /// device credential and nothing else, by the module's own rule for silence — and it also
+    /// says WHY it refused, which is what lets the handshake spend the right budget and write
+    /// the right event. Kept, and still asserted against, because "the finer question admits
+    /// exactly what the coarse one always did" is only checkable while the coarse one is still
+    /// askable.
+    #[cfg(test)]
     pub(crate) fn authenticate(&self, token: &str) -> Option<&str> {
         let digest = sha256_hex(token);
         self.credentials
@@ -724,7 +730,12 @@ const LIMITER_TAG_DOMAIN: &[u8] = b"refarm-auth-failure-limiter\0";
 /// the credential. A collision merges two buckets, which only ever makes the limiter stricter
 /// (two callers sharing one budget) — the fail-closed direction, and at 256 entries it is not
 /// a direction anyone will observe.
-fn credential_tag(token: &str) -> u64 {
+///
+/// `pub(crate)` so the WS handshake's suite can assert the tag NEVER reaches the trail, exactly
+/// as this module's own suite does. Widened for the assertion and for nothing else: it has no
+/// caller outside the limiter, and `node_local`'s structural test still pins its signature —
+/// the limiter's key is derived from the presented credential and from nothing else.
+pub(crate) fn credential_tag(token: &str) -> u64 {
     let mut hasher = Sha256::new();
     hasher.update(LIMITER_TAG_DOMAIN);
     hasher.update(token.as_bytes());
@@ -1447,6 +1458,64 @@ fn read_policy_file(path: &Path) -> Reading {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════════════
+// ONE GATE DECISION, ASKED BY EVERY SURFACE
+// ═══════════════════════════════════════════════════════════════════════════════════════
+//
+// The limiter, the policy and the budget were consulted in one place — inside
+// [`auth_middleware`] — in an order the middleware's own doc-comment describes at length. That
+// was correct and it was unreachable: the WS handshake is not a middleware, is not `async`, and
+// returns an `ErrorResponse` rather than a `Response`, so it could not call any of it. It had a
+// policy read and nothing else: no bound on failed handshakes, no line in the trail.
+//
+// The sequence is therefore stated ONCE, HERE, as [`AuthGate::admit`], and both surfaces ask it.
+// Not copied into the handshake — copied is how the two drift, and a second limiter is a second
+// budget, which is a way around the first.
+//
+// What [`AuthGate::admit`] deliberately does NOT do: build a response, or write a line. Those
+// are the two things the two surfaces genuinely differ on.
+//
+//   * The HTTP gate answers a `429` with `Retry-After` when a bound engages. The WS handshake
+//     answers the SAME `401` it has always answered, byte for byte — see
+//     [`GateOutcome::Refused`]. Both are honest renderings of the same [`Refusal`]; neither is a
+//     second decision.
+//   * The HTTP gate awaits the audit write inside the request path. The handshake callback is
+//     synchronous (tungstenite's `Callback` is `FnOnce(&Request, Response) -> Result<…>`), so it
+//     carries the record OUT and its caller writes it after the response has already gone to the
+//     socket — which is strictly better for the no-timing-signal rule, since the trail's I/O is
+//     then not on the refusal path at all.
+
+/// One fact to write down, carried from the decision to whoever can await the write.
+///
+/// Deliberately NOT the token, its digest, or the limiter's tag — the same absence
+/// [`audit_line`] enforces, restated one level up so a surface that holds this value between the
+/// decision and the write is holding nothing worth leaking. Every field here is either resolved
+/// by this gate from a verified credential or is a constant of the vocabulary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct AuditRecord {
+    /// The fact, named by `crate::security_events` — never by the surface that emits it.
+    pub(crate) event: SecurityEvent,
+    /// Only ever an identity this gate RESOLVED. Never one a caller claimed.
+    pub(crate) identity: Option<String>,
+    pub(crate) kind: Option<CredentialKind>,
+}
+
+/// The gate's whole answer about ONE presented credential: what to do with the caller, and what
+/// to write down. Rendered into bytes by the surface, which is the only part that differs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum GateOutcome {
+    /// Let it through, attributed to `verified.identity`.
+    Admitted { verified: Verified, record: AuditRecord },
+    /// Refuse. `refusal` is WHAT to tell the caller — and the HTTP gate distinguishes its two
+    /// variants while the WS handshake deliberately does not, because a handshake that answered
+    /// a new status when a bound engaged would be announcing the bound on the wire.
+    ///
+    /// `record` is `None` for exactly the two silences the HTTP gate already keeps: an attempt
+    /// made while ALREADY locked out (the lockout was recorded on the attempt that tripped it,
+    /// and a line per attempt is a disk-filling amplifier handed to whoever is hammering).
+    Refused { refusal: Refusal, record: Option<AuditRecord> },
+}
+
 /// THE live policy — one value, shared by every gate, re-read when the file changes.
 ///
 /// Cloning an `AuthGate` clones an `Arc`, never the policy: the HTTP middleware layer and the
@@ -1578,9 +1647,9 @@ impl AuthGate {
     /// identity. Returns an owned identity because the value is read out from behind a lock —
     /// a borrow would pin the policy and block the next reload.
     ///
-    /// TEST-ONLY since routes began declaring scopes: production's HTTP entry point is
-    /// [`AuthGate::verify`], which takes the route's requirement, and the WS handshake reads
-    /// [`AuthGate::snapshot`] and calls [`AuthPolicy::authenticate`] on the value. Kept
+    /// TEST-ONLY since routes began declaring scopes: production's entry point — for the HTTP
+    /// middleware and, since the handshake gained a bound and a trail, for the WS handshake too
+    /// — is [`AuthGate::admit`], which takes the requirement the surface declares. Kept
     /// because it is the exact question most of this module's tests ask ("is this token a
     /// device credential, right now"), and because a production caller that could ask it
     /// WITHOUT naming a route is precisely the hole scoped credentials introduce: it would be
@@ -1590,11 +1659,15 @@ impl AuthGate {
         self.snapshot().authenticate(token).map(str::to_string)
     }
 
-    /// A copy of the policy in force, for the one caller that needs the whole value: the WS
-    /// handshake, whose decision function (`decide_ws_handshake`) is PURE over an
-    /// `&AuthPolicy` and stays that way. Taken per connection at handshake time — so a
-    /// connection attempted after a revocation is judged by the post-revocation policy —
-    /// and cheap: a small `Vec` of hashes.
+    /// A copy of the policy in force.
+    ///
+    /// TEST-ONLY since the WS handshake began asking [`Self::admit`]. It was that handshake's
+    /// production entry point: it took a snapshot and judged it with a function that was PURE
+    /// over an `&AuthPolicy` — which is exactly why the handshake had no limiter and no trail,
+    /// since neither is a property of a policy value. A production caller able to obtain the
+    /// policy WITHOUT the gate is how a surface grows a second, unbounded door, so the door is
+    /// closed at the type level rather than by asking future callers not to.
+    #[cfg(test)]
     pub(crate) fn snapshot(&self) -> AuthPolicy {
         self.state.current.read().expect("auth policy lock poisoned").clone()
     }
@@ -1633,6 +1706,117 @@ impl AuthGate {
             .read()
             .expect("auth policy lock poisoned")
             .decide(token, required, host_clock_ms())
+    }
+
+    /// THE gate decision for one presented credential — the limiter, the policy, and the
+    /// limiter again, in the one order this module allows them to be consulted in. Every
+    /// surface that gates on a credential asks THIS: the HTTP middleware below, and the WS
+    /// handshake in `daemon::ws_server`.
+    ///
+    /// `now` is a MONOTONIC instant, taken by the caller and passed in — the limiter's clock is
+    /// deliberately not the expiry clock. A lockout is a local duration, not an instant minted
+    /// elsewhere, so it must not be lengthened or ended by the host's wall clock being
+    /// corrected, which is also the one clock an attacker on the same host might influence.
+    /// Passing it in additionally makes the whole sequence drivable across a window boundary in
+    /// a test without waiting sixty seconds.
+    ///
+    /// A credential meets the limiter at up to three moments, and WHICH budget it meets at each
+    /// is the design:
+    ///
+    ///   1. BEFORE verification, against the AUTHENTICATION budget only. A credential that has
+    ///      itself failed [`FAILURE_THRESHOLD`] verifications is refused here without the policy
+    ///      being consulted. Safe at this position for the one reason the whole design rests on:
+    ///      only the holder of a credential can fill its bucket.
+    ///   2. AFTER the decision, and only if it was a refusal, against the AUTHORIZATION budget.
+    ///      Deliberately not at position 1: up there it would refuse a request before the policy
+    ///      was consulted, and the same credential may be entirely entitled to what it is now
+    ///      asking for. Down here it can only change what an already-refused caller is told.
+    ///   3. To COUNT the refusal against whichever budget the decision named.
+    ///
+    /// A SUCCESSFUL verification is never refused by the limiter — step 1 can only fire for a
+    /// credential that has itself failed authentication [`FAILURE_THRESHOLD`] times, steps 2 and
+    /// 3 are not reached at all, and no scope refusal can ever put a credential into the budget
+    /// step 1 reads. That is the anti-lockout property, stated as control flow rather than as a
+    /// promise, and it now holds for the handshake as well as for the request.
+    ///
+    /// NOT called for a caller who presented NO credential: there is nothing to key on, nothing
+    /// was guessed, and counting ordinary unauthenticated noise would let a third party spend
+    /// the budget that exists to detect guessing. Both surfaces refuse that case before they get
+    /// here, and neither counts it.
+    pub(crate) fn admit(
+        &self,
+        token: &str,
+        required: RouteRequirement,
+        now: Instant,
+    ) -> GateOutcome {
+        let tag = credential_tag(token);
+
+        if let Some(retry_after) = self.blocked(Budget::Authentication, tag, now) {
+            return GateOutcome::Refused {
+                refusal: Refusal::RateLimited { retry_after },
+                // Deliberately silent in the trail — see [`GateOutcome::Refused`].
+                record: None,
+            };
+        }
+
+        let decision = self.decide(token, required);
+        let identity = decision.identity().map(str::to_string);
+        let kind = decision.kind();
+
+        let Some(budget) = decision.budget() else {
+            let Decision::Verified(verified) = decision else {
+                unreachable!("only a verified decision has no budget to spend")
+            };
+            // The one path that spends nothing and clears the guessing count.
+            self.note_success(tag);
+            let record = AuditRecord {
+                event: SecurityEvent::Accepted,
+                identity: Some(verified.identity.clone()),
+                kind: Some(verified.kind),
+            };
+            return GateOutcome::Admitted { verified, record };
+        };
+
+        if let Some(retry_after) = self.blocked(budget, tag, now) {
+            return GateOutcome::Refused {
+                refusal: Refusal::RateLimited { retry_after },
+                record: None,
+            };
+        }
+
+        match self.note_failure(budget, tag, now) {
+            Refusal::Invalid => GateOutcome::Refused {
+                refusal: Refusal::Invalid,
+                record: Some(AuditRecord {
+                    event: decision.refusal_event().expect("a refusal names its event"),
+                    identity,
+                    kind,
+                }),
+            },
+            Refusal::RateLimited { retry_after } => GateOutcome::Refused {
+                refusal: Refusal::RateLimited { retry_after },
+                // The attempt that TRIPS the limit gets its own event — it is the one line an
+                // operator most needs, and it is written exactly once per lockout.
+                record: Some(AuditRecord {
+                    event: SecurityEvent::RateLimitEngaged(budget),
+                    identity,
+                    kind,
+                }),
+            },
+        }
+    }
+
+    /// Write one [`AuditRecord`], if this gate has a trail to write to. The single writer both
+    /// surfaces reach the audit through — there is one trail, one line shape, and one place the
+    /// vocabulary is rendered.
+    pub(crate) async fn record(
+        &self,
+        record: &AuditRecord,
+        required: RouteRequirement,
+        method: &str,
+    ) {
+        self.audit(record.event, record.identity.as_deref(), record.kind, required, method)
+            .await;
     }
 
     /// Test-only: the same verification at a NAMED instant, so an expiry can be crossed
@@ -1953,32 +2137,15 @@ fn too_many_requests(retry_after: Duration) -> Response<Body> {
 /// declares nothing admits device credentials only. A refusal says `invalid` whether the
 /// credential was unknown, out of scope, or expired: one word, on purpose, because a gate
 /// that distinguishes the three is a gate that helps someone enumerate.
-/// ## The limiter's position in this function, which is the design
+/// ## The limiter's position, which is the design
 ///
 /// A request with NO credential is refused and NOT counted. It guesses nothing — there is no
 /// credential being tested — so counting it would let ordinary unauthenticated noise (a
 /// mis-pointed client, a probe, a browser that wandered in) spend a budget that exists to
-/// detect guessing, which is a way for a third party to blunt the signal for free.
-///
-/// A request WITH a credential meets the limiter at up to three moments, and WHICH budget it
-/// meets at each is the design:
-///
-///   1. BEFORE verification, against the AUTHENTICATION budget only. A credential that has
-///      itself failed five verifications is refused here without the policy being consulted.
-///      Safe at this position for the one reason the whole design rests on: only the holder of
-///      a credential can fill its bucket.
-///   2. AFTER the decision, and only if it was a refusal, against the AUTHORIZATION budget —
-///      but only for a credential this node RECOGNISES. Deliberately not at position 1: up
-///      there it would refuse a request before the policy was consulted, and the same
-///      credential may be entirely entitled to the route it is now asking for. Down here it
-///      can only change what an already-refused caller is told.
-///   3. To COUNT the refusal against whichever budget the decision named.
-///
-/// A SUCCESSFUL verification is never refused by the limiter — step 1 can only fire for a
-/// credential that has itself failed authentication five times, steps 2 and 3 are not reached
-/// at all, and no scope refusal can ever put a credential into the budget step 1 reads. That
-/// is the anti-lockout property, and the fix to "a legitimate app with a scope bug is punished
-/// as an attacker", stated as control flow rather than as a promise.
+/// detect guessing, which is a way for a third party to blunt the signal for free. That is the
+/// one decision this function still makes on its own; everything after it is
+/// [`AuthGate::admit`], which states the limiter/policy/limiter order ONCE for every surface
+/// that gates on a credential.
 ///
 /// What the caller learns from any of it: nothing. Same status, same body, same headers, same
 /// number of attempts before the same `429`, whichever budget is moving.
@@ -1998,77 +2165,23 @@ pub(crate) async fn auth_middleware(
         return unauthorized("missing");
     };
 
-    // The limiter's clock is MONOTONIC, unlike the expiry clock a few lines up. A lockout is a
-    // local duration, not an instant minted elsewhere, so it must not be lengthened or ended by
-    // the host's wall clock being corrected — which is also the one clock an attacker on the
-    // same host might influence.
-    let now = Instant::now();
-    let tag = credential_tag(&token);
-
-    if let Some(retry_after) = gate.blocked(Budget::Authentication, tag, now) {
-        // Deliberately silent in the trail. The lockout was recorded on the attempt that
-        // tripped it; a line per attempt while locked out would be a disk-filling amplifier
-        // handed to whoever is hammering, and would bury the one line that mattered.
-        return too_many_requests(retry_after);
-    }
-
-    let decision = gate.decide(&token, required);
-    let identity = decision.identity().map(str::to_string);
-    let kind = decision.kind();
-
-    let Some(budget) = decision.budget() else {
-        // Verified. The one path that spends nothing and clears the guessing count.
-        let Decision::Verified(verified) = decision else {
-            unreachable!("only a verified decision has no budget to spend")
-        };
-        gate.note_success(tag);
-        gate.audit(
-            SecurityEvent::Accepted,
-            Some(&verified.identity),
-            Some(verified.kind),
-            required,
-            method.as_str(),
-        )
-        .await;
-        request.extensions_mut().insert(AuthenticatedDevice(verified.identity));
-        return next.run(request).await;
-    };
-
-    // The authorization budget is consulted HERE and not beside the authentication one at the
-    // top, and the position is the entire fix. Checked up there it would block a request
-    // before the policy was consulted — which is exactly the punishment being removed, since
-    // the same credential may be perfectly entitled to the route it is now asking for. Checked
-    // here, the request has ALREADY been decided a refusal, so this can only ever change what
-    // a refused caller is told. It can never deny service to a request that would have been
-    // served.
-    //
-    // The two budgets are otherwise indistinguishable from outside: same threshold, same
-    // window, same `Retry-After`, same bytes. A caller counting `401`s until the `429` learns
-    // nothing about which budget they are spending, and therefore nothing about whether the
-    // credential they hold is real.
-    if let Some(retry_after) = gate.blocked(budget, tag, now) {
-        return too_many_requests(retry_after);
-    }
-
-    match gate.note_failure(budget, tag, now) {
-        Refusal::Invalid => {
-            let event = decision.refusal_event().expect("a refusal names its event");
-            gate.audit(event, identity.as_deref(), kind, required, method.as_str()).await;
-            // THE no-oracle rule, as one line of code: three different facts, one response.
-            // `invalid` whether the credential was unknown, out of scope, or expired — a gate
-            // that said which is a gate that confirms a guessed credential exists.
-            unauthorized("invalid")
+    match gate.admit(&token, required, Instant::now()) {
+        GateOutcome::Admitted { verified, record } => {
+            gate.record(&record, required, method.as_str()).await;
+            request.extensions_mut().insert(AuthenticatedDevice(verified.identity));
+            next.run(request).await
         }
-        Refusal::RateLimited { retry_after } => {
-            gate.audit(
-                SecurityEvent::RateLimitEngaged(budget),
-                identity.as_deref(),
-                kind,
-                required,
-                method.as_str(),
-            )
-            .await;
-            too_many_requests(retry_after)
+        GateOutcome::Refused { refusal, record } => {
+            if let Some(record) = record {
+                gate.record(&record, required, method.as_str()).await;
+            }
+            match refusal {
+                // THE no-oracle rule, as one line of code: three different facts, one response.
+                // `invalid` whether the credential was unknown, out of scope, or expired — a
+                // gate that said which is a gate that confirms a guessed credential exists.
+                Refusal::Invalid => unauthorized("invalid"),
+                Refusal::RateLimited { retry_after } => too_many_requests(retry_after),
+            }
         }
     }
 }
