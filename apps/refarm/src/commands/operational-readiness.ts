@@ -1,7 +1,12 @@
 import { loadRawSovereignConfig } from "@refarm.dev/config";
 import type { BaseSurfaceUnit } from "@refarm.dev/operator-state";
 import { parseProcessCatalog, type ProcessStatus } from "@refarm.dev/process-contract-v1";
-import { systemdUnitName } from "@refarm.dev/process-systemd-user";
+import {
+	createNodeCommandRunner,
+	readLingerState,
+	systemdUnitName,
+	type LingerState,
+} from "@refarm.dev/process-systemd-user";
 import {
 	parseSurfaces,
 	SURFACE_DAEMON_WS,
@@ -9,6 +14,7 @@ import {
 	SURFACE_WEB,
 } from "@refarm.dev/std";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { refarmCommand } from "../brand.js";
 import { readPolicy } from "./auth-policy-file.js";
@@ -18,7 +24,13 @@ export interface OperationalReadinessDeps {
 	config?: unknown;
 	credentialCount?: number;
 	observeProcesses?: (names: string[], root: string) => Promise<ProcessStatus[]>;
+	observeSupervisionLifetime?: () => Promise<SupervisionLifetimeReadiness>;
 	observeDistribution?: (directory: string) => DistributionReadiness;
+}
+
+export interface SupervisionLifetimeReadiness {
+	state: LingerState;
+	detail: string;
 }
 
 export interface DistributionReadiness {
@@ -50,10 +62,14 @@ export async function resolveOperationalReadinessUnits(
 		processNames.length === 0
 			? []
 			: await (deps.observeProcesses ?? observeProcesses)(processNames, root);
+	const supervisionLifetime =
+		processNames.length === 0
+			? null
+			: await (deps.observeSupervisionLifetime ?? observeSupervisionLifetime)();
 
 	const units = [
 		buildDeviceAccessUnit(surfaces, credentialCount),
-		buildSupervisionUnit(processes, processStatuses),
+		buildSupervisionUnit(processes, processStatuses, supervisionLifetime),
 	];
 	const webServe = processes.get("web-serve");
 	const directory = webServe ? webServeDirectory(webServe.command) : null;
@@ -121,6 +137,11 @@ async function observeProcesses(names: string[], root: string): Promise<ProcessS
 	return (await runProcessStatus(names, { root })).statuses;
 }
 
+async function observeSupervisionLifetime(): Promise<SupervisionLifetimeReadiness> {
+	const user = process.env.USER?.trim() || process.env.LOGNAME?.trim() || os.userInfo().username;
+	return readLingerState(createNodeCommandRunner(), user);
+}
+
 function buildDeviceAccessUnit(
 	surfaces: ReturnType<typeof parseSurfaces>,
 	credentialCount: number,
@@ -181,10 +202,13 @@ function buildDeviceAccessUnit(
 function buildSupervisionUnit(
 	processes: ReturnType<typeof parseProcessCatalog>,
 	statuses: ProcessStatus[],
+	lifetime: SupervisionLifetimeReadiness | null,
 ): BaseSurfaceUnit {
 	const names = [...processes.keys()];
 	const running = statuses.filter((status) => status.state === "running").length;
-	const ready = names.length > 0 && running === names.length;
+	const requiresDurability = processes.has("web-serve");
+	const durable = !requiresDurability || lifetime?.state === "enabled";
+	const ready = names.length > 0 && running === names.length && durable;
 	const actions: BaseSurfaceUnit["actions"] = [];
 	if (names.length === 0) {
 		actions.push({
@@ -223,6 +247,15 @@ function buildSupervisionUnit(
 				});
 			}
 		}
+		if (running === names.length && !durable) {
+			actions.push({
+				id: "enable-durable-supervision",
+				label: "Keep device distribution running after logout",
+				command: refarmCommand(["process", "linger"]),
+				intent: "process:linger",
+				primary: actions.length === 0,
+			});
+		}
 	}
 	return {
 		id: "supervision",
@@ -233,15 +266,22 @@ function buildSupervisionUnit(
 		summary:
 			names.length === 0
 				? "No long-running process is declared for host supervision."
-				: ready
+				: running === names.length && !durable
+					? lifetime?.state === "disabled"
+						? "All declared processes are running, but device distribution stops at logout."
+						: "All declared processes are running, but logout/boot durability could not be verified."
+					: ready
 					? `${running}/${names.length} declared process(es) are running.`
 					: `${running}/${names.length} declared process(es) are known to be running.`,
 		evidence: [
 			{ kind: "count", label: "declared processes", value: String(names.length) },
 			{ kind: "state", label: "declared", value: names.join(", ") || "none" },
 			{ kind: "count", label: "running", value: String(running) },
+			...(requiresDurability
+				? [{ kind: "state" as const, label: "logout/boot durability", value: lifetime?.state ?? "unknown" }]
+				: []),
 		],
 		actions,
-		details: { processes: names, statuses },
+		details: { processes: names, statuses, requiresDurability, lifetime },
 	};
 }

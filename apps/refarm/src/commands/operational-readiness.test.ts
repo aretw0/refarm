@@ -40,6 +40,7 @@ describe("operational readiness surface units", () => {
 					supervised: true,
 				},
 			],
+			observeSupervisionLifetime: async () => ({ state: "enabled", detail: "enabled" }),
 		});
 		expect(units.every((unit) => unit.state === "ready")).toBe(true);
 		expect(JSON.stringify(units)).not.toContain("token");
@@ -75,6 +76,38 @@ describe("operational readiness surface units", () => {
 		expect(supervision?.actions[0]?.command).toBe(
 			"systemctl --user restart refarm-web-serve.service",
 		);
+	});
+
+	it("does not call device distribution durable while it still stops at logout", async () => {
+		const units = await resolveOperationalReadinessUnits({
+			config: {
+				processes: {
+					"web-serve": {
+						command: ["/usr/bin/refarm", "web", "serve", "/srv/refarm/farm-client"],
+						restart: "always",
+					},
+				},
+			},
+			credentialCount: 0,
+			observeProcesses: async () => [
+				{
+					name: "web-serve",
+					state: "running",
+					detail: "active",
+					backend: "systemd-user",
+					supervised: true,
+				},
+			],
+			observeSupervisionLifetime: async () => ({ state: "disabled", detail: "off" }),
+			observeDistribution: (directory) => ({ directory, manifest: true, installer: true }),
+		});
+		const supervision = units.find((unit) => unit.id === "supervision");
+		expect(supervision).toMatchObject({
+			state: "degraded",
+			summary: "All declared processes are running, but device distribution stops at logout.",
+			details: { requiresDurability: true, lifetime: { state: "disabled" } },
+		});
+		expect(supervision?.actions[0]?.command).toBe("refarm process linger");
 	});
 
 	it("does not call a running empty static server a ready distribution", async () => {
