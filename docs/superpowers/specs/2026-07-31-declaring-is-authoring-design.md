@@ -165,12 +165,56 @@ and the suite was confirmed to go red before the break was reverted:
 The consent journey's record is not merely inspected: the undo is **applied inside the test**, and
 the config file is asserted byte-identical to what it was before.
 
+## A10 — The second consumer: `refarm process add`, and where a wizard may DERIVE
+
+Status: implemented — `apps/refarm/src/commands/process-add.ts`.
+
+The `processes` slice shipped `list | status | install | uninstall | linger` and no way to author a
+declaration, so the operator's first contact was `✗ processes."web-serve" is not declared`. Their
+second question is the one that extends this document:
+
+> *"não temos wizard ou sane defaults para aplicar (se fizer sentido)?"*
+
+**A3 forbids synthesis; it does not require ignorance.** `delivery add` had to interrogate because
+only the operator knows their `chatId` — refarm cannot derive a fact about a third party's chat.
+`web serve` has no such excuse: refarm already holds the command (its own launcher plus the argv
+`refarm dist publish` prints), the working directory (the sovereign root) and the port (the constant
+baked into every installer already handed to a device). Making the operator retype those is
+interrogation dressed as consent.
+
+So the line moves from *ask everything* to *ask what cannot be known*, and three properties keep it
+on the authoring side of A3:
+
+- **Derived is SHOWN, with provenance.** Every derived value is printed beside where it came from,
+  and carried in the result and in the record's notes. A proposal the operator cannot check is a
+  proposal they can only trust; naming the source is what makes accepting a *check*.
+- **A proposal can be EDITED, not only accepted.** "Uso assim / quero ajustar antes" re-asks each
+  derived value with the derived one pre-filled, then **re-derives** the whole entry from the
+  answers. A proposal you can only accept whole is a form with one field.
+- **What the parser refuses to guess is still asked, every time.** `restart` has no flag-free path
+  that fills it in and its prompt carries **no default** — the contract refuses to guess whether
+  something comes back after it dies, and a wizard may not guess on its behalf through a UI
+  affordance. Mutation-verified: defaulting it turns twenty tests red.
+
+**The command gets more care than an adapter option, because it is the operator's own argv.** A
+supervisor execs a program; it does not run a shell. Both rules already exist (`command[0]` must be
+absolute; a shell string is not a command) and this surfaces them as *questions while they are still
+typing*: a shell line is met with what a supervisor actually does and asked again, with
+`/bin/sh -c "…"` named as the way to mean it out loud; a bare name is resolved on `PATH` and the
+absolute result is **offered for confirmation** rather than substituted.
+
+It ends by verifying, not claiming (A7): the entry is read back through the real `process status`.
+And it stops at the same boundary `cert trust` and `process install` draw — it hands over
+`refarm process install <name>`, which proposes the unit and then hands over the `systemctl` line.
+refarm never reaches into a running session.
+
 ## What comes next, and what does not
 
 The seam is `apps/refarm/src/commands/catalog-authoring.ts`: plan the exact before/after for one
 entry in one catalog block, build the operation request, render the whole diff, run the consent
 journey, record it beside the config. It knows nothing about delivery. A second consumer writes its
-question set and nothing else.
+question set and nothing else — `processes` (A10) proved that: it added a question set, a recipe
+registry, and no change to the seam at all.
 
 Candidates, all of which require hand-editing today:
 
