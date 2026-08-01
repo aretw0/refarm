@@ -519,10 +519,21 @@ describe("refarm delivery add — with nobody to ask", () => {
 	 * started on the node from a phone has no TTY and a very present operator, and refusing it
 	 * would have made the one case this design was asked for impossible.
 	 *
-	 * So the question is "is there anywhere to ask", and a declared publisher is somewhere.
-	 * MUTATION-VERIFIED: put the TTY-only condition back and this fails.
+	 * CORRECTED. This used to assert that a PUBLISHER'S EXISTENCE was enough. That premise died
+	 * when the pending-prompt bridge began installing a publisher on every node unconditionally:
+	 * the condition became permanently true, the gate stopped gating, and `delivery add` with no
+	 * terminal waited forever on a human who was never coming. The refusal harness caught it.
+	 *
+	 * A publisher existing is not evidence that anyone is attending. Being attended is DECLARED
+	 * by the caller that knows it — `auth remote run`, which only ever runs because an enrolled
+	 * device asked. `delivery-add-not-interactive` covers the other half above: a publisher alone
+	 * still refuses.
+	 *
+	 * The allowance says one thing — no local terminal is required — never that the wizard is
+	 * remote. The argv the table declares stays byte-identical to what an operator would type,
+	 * pinned separately in `remote-initiation.test.ts`.
 	 */
-	it("asks anyway when a surface is attending, even with no terminal at all", async () => {
+	it("asks when the caller declares it is attended elsewhere, with no terminal", async () => {
 		const restore = setPromptPublisher(() => ({
 			// Never reached: the terminal side of the peered channel is replaced by `deps`'
 			// recording channel, so this only has to EXIST to make the gate true.
@@ -540,7 +551,13 @@ describe("refarm delivery add — with nobody to ask", () => {
 				const { channel } = recordingChannel(fullRun());
 				// `interactive` is deliberately NOT passed: the gate has to decide for itself,
 				// which is the whole point — a wizard never learns where it is being answered.
-				const result = await runDeliveryAdd({}, letTheGateDecide(deps(channel)));
+				// What it IS given is the caller's declaration that no local terminal is
+				// required, which is the only thing that can distinguish "attended from
+				// elsewhere" from "nobody is there".
+				const result = await runDeliveryAdd(
+					{ attendedElsewhere: true },
+					letTheGateDecide(deps(channel)),
+				);
 				expect(result.status).toBe("declared");
 			} finally {
 				stdin.isTTY = wasIn;

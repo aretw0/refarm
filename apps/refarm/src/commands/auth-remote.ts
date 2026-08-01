@@ -1,4 +1,7 @@
-import { spawn } from "node:child_process";
+import {
+	createProcessHandoffDisplay,
+	runProcessHandoff,
+} from "@refarm.dev/cli/process-handoff";
 
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { Command } from "commander";
@@ -170,14 +173,36 @@ function createAuthRemoteRunCommand(): Command {
 				process.exitCode = 1;
 				return;
 			}
-			const code = await new Promise<number>((resolve) => {
-				const child = spawn(process.execPath, reinvocationArgv(decision.argv), {
-					stdio: "inherit",
-				});
-				child.on("error", () => resolve(1));
-				child.on("exit", (exitCode, signal) => resolve(signal ? 1 : (exitCode ?? 0)));
-			});
-			process.exitCode = code;
+			// Through the process boundary, never `node:child_process` here — the rule
+			// `test/architecture/process-boundary.test.ts` enforces, for the reason P1 gave
+			// when it consolidated: one place decides how a child is spawned, so the CLI and
+			// the Rust host cannot drift on environment isolation or on what a signal death
+			// means.
+			//
+			// `capture: false` is the interactive shape (inherited stdio), which is exactly
+			// what this needs — the child IS the wizard, its questions reach the operator
+			// through the pending-prompt hub, and its stdin stays open as its lifeline.
+			// The DECLARATION stays byte-identical to what an operator would type — that is a
+			// pinned property of the table, so nothing there reads as a provenance marker and a
+			// wizard cannot branch on where the request came from.
+			//
+			// This allowance belongs to the INVOCATION instead, and states one thing only: no
+			// local terminal is required. It is necessary because the child genuinely cannot
+			// know a device is attending — a prompt publisher exists on every node since the
+			// pending-prompt bridge, so its presence proves nothing, and without this the wizard
+			// would refuse for want of a TTY or wait forever on a human who is not there.
+			const argv = [...reinvocationArgv(decision.argv), "--attended-elsewhere"];
+			const result = await runProcessHandoff(
+				{
+					command: process.execPath,
+					args: argv,
+					display: createProcessHandoffDisplay(process.execPath, argv),
+				},
+				{ capture: false },
+			);
+			// `-1` means it never exited with a code — a signal death, or a spawn that failed.
+			// Both are "it did not succeed", and neither may be reported as a clean 0.
+			process.exitCode = result.exitCode === -1 ? 1 : result.exitCode;
 		});
 }
 

@@ -401,6 +401,10 @@ export function createDeliveryCommand(): Command {
 		.option("--token-file <path>", "Point at a token file you already wrote")
 		.option("--option <key=value>", "Adapter-owned setting (repeatable)", collectOption, [])
 		.option("--replace", "Re-open a channel that is already declared or already decided")
+		.option(
+			"--attended-elsewhere",
+			"No terminal here, and that is fine — you are attending from another surface",
+		)
 		.option("--json", "Output machine-readable JSON")
 		.action(
 			guardedAsync("add", async (options) => {

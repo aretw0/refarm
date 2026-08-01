@@ -285,6 +285,15 @@ export interface DeliveryAddOptions {
 	option?: string[];
 	/** "I know something is already there / already decided — ask me anyway." */
 	replace?: boolean;
+	/**
+	 * "There is no terminal here, and that is fine — I am attending from another surface."
+	 *
+	 * Set by `auth remote run`, which only ever runs because an enrolled device asked it to,
+	 * so the device IS the attending surface. Never inferred: a publisher exists on every
+	 * node since the pending-prompt bridge, so its presence says nothing about whether a
+	 * human is watching.
+	 */
+	attendedElsewhere?: boolean;
 }
 
 export interface DeliveryRouteProbe {
@@ -502,9 +511,39 @@ export async function runDeliveryAdd(
 	// oversight: this command WRITES a declaration the operator can read back and remove, while
 	// that one sends a REAL message out of the machine. Authorising the second from somewhere
 	// else is a different decision, and it has not been made.
+	// Refuse what the operator ALREADY told us before deciding to ask them anything.
+	// A `--adapter` naming something unregistered is answerable from the arguments alone,
+	// and walking someone through a series of questions only to reject an argument they
+	// supplied at the start is the wrong order — worse still when "someone" is a device
+	// that has to be attended for the questions to arrive at all.
+	//
+	// This also restores a property the refusal harness relies on and that the gate below
+	// had quietly taken away: invalid input SETTLES, rather than waiting on a human who was
+	// never coming.
+	const declaredAdapterId = options.adapter?.trim();
+	if (declaredAdapterId && !factories.some((factory) => factory.id === declaredAdapterId)) {
+		throw new DeliveryAddRefusal(
+			"delivery-add-unknown-adapter",
+			`No delivery adapter called "${declaredAdapterId}" is registered. Registered: ` +
+				`${factories.map((factory) => factory.id).join(", ") || "(none)"}.`,
+			[DELIVERY_ADD_COMMAND, DELIVERY_LIST_COMMAND],
+		);
+	}
+
+	// A publisher EXISTING is not evidence that anyone is attending, and since the
+	// pending-prompt bridge landed it is installed unconditionally — so keying the gate on
+	// `currentPromptPublisher() !== null` made the condition permanently true and stopped it
+	// being a gate at all. A `delivery add` with no terminal then waited forever on a human
+	// who was never coming.
+	//
+	// So a terminal is the default evidence, and being attended from somewhere else is
+	// DECLARED by the caller that knows it — `auth remote run`, which was asked for by a
+	// device that is attending. Silence is closed here as everywhere else.
+	//
+	// This is not the wizard learning it is remote: it asks the same questions in the same
+	// order either way. It is the invocation stating that a local terminal is not required.
 	const atTerminal = Boolean(process.stdin.isTTY && process.stdout.isTTY);
-	const somewhereElse = currentPromptPublisher() !== null;
-	const interactive = deps.interactive ?? (atTerminal || somewhereElse);
+	const interactive = deps.interactive ?? (atTerminal || Boolean(options.attendedElsewhere));
 	if (!interactive) {
 		throw new DeliveryAddRefusal(
 			"delivery-add-not-interactive",
