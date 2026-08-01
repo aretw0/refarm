@@ -1,11 +1,11 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 import { EFFORT_TERMINAL_STATES } from "@refarm.dev/effort-contract-v1";
 import { resolveRequestTimeoutMs } from "@refarm.dev/root";
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { sidecarUrl } from "./sidecar-url.js";
 import { observedTaskResultError } from "./task-observation.js";
 
@@ -94,14 +94,14 @@ function stringEnv(value: string | undefined): string | null {
 
 export function resolveRuntimeStreamsDir(env: NodeJS.ProcessEnv = process.env): string {
 	return (
-		stringEnv(env[REFARM_STREAMS_DIR_ENV_VAR]) ?? path.join(os.homedir(), ".refarm", "streams")
+		stringEnv(env[REFARM_STREAMS_DIR_ENV_VAR]) ?? path.join(resolveRefarmHome(env), "streams")
 	);
 }
 
 export function resolveRuntimeTaskResultsDir(env: NodeJS.ProcessEnv = process.env): string {
 	return (
 		stringEnv(env[REFARM_TASK_RESULTS_DIR_ENV_VAR]) ??
-		path.join(os.homedir(), ".refarm", "task-results")
+		path.join(resolveRefarmHome(env), "task-results")
 	);
 }
 

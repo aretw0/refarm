@@ -9,6 +9,7 @@ import {
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { resolveRefarmScopeRoot } from "../utils/refarm-home.js";
 import { runHealthAudit } from "./health.js";
 import { buildCurrentModelEnvelope, defaultModelDeps } from "./model.js";
 import { resolveOperationalReadinessUnits } from "./operational-readiness.js";
@@ -144,19 +145,9 @@ async function resolveOperatorAttentionBaseInput(
 }
 
 function operatorAttentionStatePath(scope: string): string {
-	const refarmHome = resolveRefarmHome();
+	const refarmHome = resolveRefarmScopeRoot();
 	const safeScope = scope.replace(/[^a-zA-Z0-9._:-]/g, "_");
 	return path.join(refarmHome, "operator-attention", `${safeScope}.json`);
-}
-
-function resolveRefarmHome(): string {
-	const envHome = process.env.REFARM_HOME?.trim();
-	if (envHome) return envHome;
-
-	const cwdRefarm = path.join(process.cwd(), ".refarm");
-	if (fs.existsSync(cwdRefarm)) return cwdRefarm;
-
-	return path.join(os.homedir(), ".refarm");
 }
 
 function readJson(filePath: string): Record<string, unknown> {

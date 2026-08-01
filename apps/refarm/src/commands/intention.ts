@@ -2,9 +2,9 @@ import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/enve
 import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
+import { resolveRefarmScopeRoot } from "../utils/refarm-home.js";
 import { resolveOperatorAttentionProfile } from "./operator-attention-profile.js";
 
 interface IntentionCommandOptions {
@@ -393,18 +393,8 @@ function projectPayloadByOutputMode(
 	return compact;
 }
 
-function resolveRefarmHome(): string {
-	const envHome = process.env.REFARM_HOME?.trim();
-	if (envHome) return envHome;
-
-	const cwdRefarm = path.join(process.cwd(), ".refarm");
-	if (fs.existsSync(cwdRefarm)) return cwdRefarm;
-
-	return path.join(os.homedir(), ".refarm");
-}
-
 function operatorAttentionStatePath(scope: string): string {
-	const refarmHome = resolveRefarmHome();
+	const refarmHome = resolveRefarmScopeRoot();
 	const dir = path.join(refarmHome, "operator-attention");
 	fs.mkdirSync(dir, { recursive: true });
 	const safeScope = scope.replace(/[^a-zA-Z0-9._:-]/g, "_");

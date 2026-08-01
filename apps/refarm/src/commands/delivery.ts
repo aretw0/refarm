@@ -1,6 +1,3 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { loadRawSovereignConfig } from "@refarm.dev/config";
 import {
 	buildDeliveryRecord,
@@ -21,6 +18,9 @@ import {
 	type ResolvedDeliveryChannel,
 } from "@refarm.dev/delivery-contract-v1";
 import type { PendingPrompt, PendingPromptHub } from "@refarm.dev/prompt-contract-v1";
+import fs from "node:fs";
+import path from "node:path";
+import { resolveRefarmScopeRoot } from "../utils/refarm-home.js";
 import { defaultDeliveryAdapterFactories } from "./delivery-adapters.js";
 
 /**
@@ -179,17 +179,9 @@ export function resolveDeliveryChannels(
 
 const DEFAULT_ATTENTION_WINDOW_MS = 5 * 60 * 1000;
 
-function resolveRefarmHome(): string {
-	const envHome = process.env.REFARM_HOME?.trim();
-	if (envHome) return envHome;
-	const cwdRefarm = path.join(process.cwd(), ".refarm");
-	if (fs.existsSync(cwdRefarm)) return cwdRefarm;
-	return path.join(os.homedir(), ".refarm");
-}
-
 function attentionStatePath(scope: string): string {
 	const safeScope = scope.replace(/[^a-zA-Z0-9._:-]/g, "_");
-	return path.join(resolveRefarmHome(), "operator-attention", `${safeScope}.json`);
+	return path.join(resolveRefarmScopeRoot(), "operator-attention", `${safeScope}.json`);
 }
 
 export interface OperatorAttendingOptions {

@@ -240,8 +240,10 @@ describe("extension command", () => {
 		const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(tempDir);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const previousHome = process.env.HOME;
+		const previousRefarmHome = process.env.REFARM_HOME;
 		try {
 			process.env.HOME = homeDir;
+			process.env.REFARM_HOME = join(homeDir, ".refarm");
 			mkdirSync(extDir, { recursive: true });
 			writeFileSync(
 				join(extDir, "ext.json"),
@@ -279,6 +281,11 @@ describe("extension command", () => {
 				delete process.env.HOME;
 			} else {
 				process.env.HOME = previousHome;
+			}
+			if (previousRefarmHome === undefined) {
+				delete process.env.REFARM_HOME;
+			} else {
+				process.env.REFARM_HOME = previousRefarmHome;
 			}
 			cwdSpy.mockRestore();
 			logSpy.mockRestore();

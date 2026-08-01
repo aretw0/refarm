@@ -11,6 +11,7 @@ import { mkdir, rename } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { refarmCommand } from "../brand.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { capabilityCliCommandsForGroup } from "./capability-registry.js";
 import { PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
 
@@ -141,14 +142,14 @@ async function saveExtension(
 		return;
 	}
 	const cwd = process.cwd();
-	const homeDir = os.homedir();
+	const operatorExtensionsDir = path.join(resolveRefarmHome(), "extensions");
 
 	const srcDir = toGlobal
 		? path.join(cwd, ".refarm", "extensions", name)
-		: path.join(homeDir, ".refarm", "extensions", name);
+		: path.join(operatorExtensionsDir, name);
 
 	const destDir = toGlobal
-		? path.join(homeDir, ".refarm", "extensions", name)
+		? path.join(operatorExtensionsDir, name)
 		: path.join(cwd, ".refarm", "extensions", name);
 
 	if (!existsSync(srcDir)) {
