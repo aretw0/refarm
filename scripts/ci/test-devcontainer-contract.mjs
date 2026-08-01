@@ -102,7 +102,10 @@ test("devcontainer keeps runtime mutable state inside the workspace", () => {
 	assert.match(farm, /export REFARM_HOME=\$\{PROJECT_DIR\}\/\.refarm/);
 	assert.match(farm, /export XDG_DATA_HOME=\$\{REFARM_HOME\}\/data/);
 	assert.match(farm, /export REFARM_STREAMS_DIR=\$\{REFARM_HOME\}\/streams/);
-	assert.match(tractorStart, /REFARM_HOME="\$\{REFARM_HOME:-\$ROOT\/\.refarm\}"/);
+	assert.match(
+		tractorStart,
+		/REFARM_HOME="\$\{REFARM_HOME:-\$\{HOME:\?HOME must be set\}\/\.refarm\}"/,
+	);
 	assert.match(tractorStart, /XDG_DATA_HOME="\$\{XDG_DATA_HOME:-\$REFARM_HOME\/data\}"/);
 	assert.match(tractorStart, /REFARM_STREAMS_DIR="\$\{REFARM_STREAMS_DIR:-\$REFARM_HOME\/streams\}"/);
 	assert.match(tractorStart, /INSTALLED_AGENT_PLUGIN="\$REFARM_HOME\/plugins\/@refarm\/agent\/plugin\.wasm"/);

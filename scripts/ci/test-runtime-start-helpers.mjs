@@ -213,6 +213,15 @@ test("tractor-start.sh never writes .refarm/config.json", () => {
 	);
 });
 
+test("tractor-start.sh shares the CLI operator home unless explicitly isolated", () => {
+	const source = readFileSync(tractorStart, "utf8");
+	assert.match(
+		source,
+		/REFARM_HOME="\$\{REFARM_HOME:-\$\{HOME:\?HOME must be set\}\/\.refarm\}"/,
+	);
+	assert.match(source, /INSTALLED_AGENT_PLUGIN="\$REFARM_HOME\/plugins\/@refarm\/agent\/plugin\.wasm"/);
+});
+
 test("tractor-start.sh passes bash -n (syntax check)", () => {
 	// A cheap, direct syntax proof alongside the source-level assertions above —
 	// catches an unbalanced `if`/`fi` or similar introduced while editing the bind

@@ -66,7 +66,9 @@ _CARGO_TARGET="$(resolve_cargo_target)"
 TRACTOR="$_CARGO_TARGET/release/tractor"
 AGENT_PLUGIN="$_CARGO_TARGET/wasm32-wasip1/release/agent.wasm"
 REFARM_CLI="$ROOT/apps/refarm/dist/index.js"
-REFARM_HOME="${REFARM_HOME:-$ROOT/.refarm}"
+# Operator state is host-scoped by default, matching the Refarm CLI. Development
+# containers and other isolated deployments remain sovereign by setting REFARM_HOME.
+REFARM_HOME="${REFARM_HOME:-${HOME:?HOME must be set}/.refarm}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$REFARM_HOME/data}"
 REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}"
 INSTALLED_AGENT_PLUGIN="$REFARM_HOME/plugins/@refarm/agent/plugin.wasm"
