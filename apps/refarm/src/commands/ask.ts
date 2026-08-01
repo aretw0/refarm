@@ -62,6 +62,7 @@ import {
 	readEffortAndSessionFallback,
 	readEffortResultFile,
 	readLatestAgentEntryFromSession,
+	reconcileStreamMetadata,
 	resolveRuntimeStreamsDir,
 	resolveRuntimeTaskResultsDir,
 } from "./runtime-stream.js";
@@ -632,14 +633,19 @@ export {
 										process.stdout.write("\n");
 									}
 									metadata = chunk.metadata as Record<string, unknown> | undefined;
-									if (metadata && !opts.json) {
-										console.log(chalk.gray(`\n${"─".repeat(41)}`));
-										console.log(chalk.gray(usageLine(metadata)));
-									}
 								}
 							},
 							{ submittedAtMs },
 						);
+						metadata = await reconcileStreamMetadata(
+							effortId,
+							metadata,
+							resolved.readEffortResult,
+						);
+						if (metadata && !opts.json) {
+							console.log(chalk.gray(`\n${"─".repeat(41)}`));
+							console.log(chalk.gray(usageLine(metadata)));
+						}
 					} catch (streamError) {
 						const fallback = await readEffortAndSessionFallback(effortId, sessionId, {
 							readEffortResult: resolved.readEffortResult,

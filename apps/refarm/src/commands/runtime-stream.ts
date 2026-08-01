@@ -2,12 +2,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import { EFFORT_TERMINAL_STATES } from "@refarm.dev/effort-contract-v1";
-import { observedTaskResultError } from "./task-observation.js";
 import { resolveRequestTimeoutMs } from "@refarm.dev/root";
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
+import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import { sidecarUrl } from "./sidecar-url.js";
+import { observedTaskResultError } from "./task-observation.js";
 
 const REFARM_STREAMS_DIR_ENV_VAR = "REFARM_STREAMS_DIR";
 const REFARM_TASK_RESULTS_DIR_ENV_VAR = "REFARM_TASK_RESULTS_DIR";
@@ -38,6 +38,34 @@ export interface RuntimeSessionFallbackResult {
 	status: "ok";
 	content: string;
 	metadata?: Record<string, unknown>;
+}
+
+function streamMetadataNeedsTerminalResult(metadata: Record<string, unknown> | undefined): boolean {
+	if (!metadata) return true;
+	if (typeof metadata.model !== "string" || !metadata.model.trim()) return true;
+	if (typeof metadata.tokens_in !== "number" || typeof metadata.tokens_out !== "number") return true;
+	// The runtime stream's terminal marker predates metering and carries zero placeholders. A real
+	// zero-token result remains harmless: if no richer terminal result exists, these values survive.
+	return metadata.tokens_in === 0 && metadata.tokens_out === 0;
+}
+
+export async function reconcileStreamMetadata(
+	effortId: string,
+	streamMetadata: Record<string, unknown> | undefined,
+	readEffortResult: ((effortId: string) => Promise<RuntimeEffortResult | null>) | undefined,
+	options: { attempts?: number; delayMs?: number } = {},
+): Promise<Record<string, unknown> | undefined> {
+	if (!readEffortResult || !streamMetadataNeedsTerminalResult(streamMetadata)) return streamMetadata;
+	const attempts = options.attempts ?? 20;
+	const delayMs = options.delayMs ?? 50;
+	for (let attempt = 0; attempt < attempts; attempt += 1) {
+		const terminal = await readEffortResult(effortId);
+		if (terminal?.metadata) return { ...streamMetadata, ...terminal.metadata };
+		if (attempt + 1 < attempts) {
+			await new Promise((resolve) => setTimeout(resolve, delayMs));
+		}
+	}
+	return streamMetadata;
 }
 
 export async function readEffortAndSessionFallback(
@@ -273,11 +301,15 @@ function parseEffortResultPayload(result: unknown): RuntimeEffortResult | null {
 		const usage = value.usage as {
 			tokens_in?: unknown;
 			tokens_out?: unknown;
+			tokens_cached?: unknown;
+			tokens_reasoning?: unknown;
 			pricing_mode?: unknown;
 			estimated_usd?: unknown;
 		};
 		if (typeof usage.tokens_in === "number") metadata.tokens_in = usage.tokens_in;
 		if (typeof usage.tokens_out === "number") metadata.tokens_out = usage.tokens_out;
+		if (typeof usage.tokens_cached === "number") metadata.tokens_cached = usage.tokens_cached;
+		if (typeof usage.tokens_reasoning === "number") metadata.tokens_reasoning = usage.tokens_reasoning;
 		if (typeof usage.pricing_mode === "string") metadata.pricing_mode = usage.pricing_mode;
 		if (typeof usage.estimated_usd === "number") metadata.estimated_usd = usage.estimated_usd;
 	}

@@ -377,6 +377,42 @@ describe("refarm ask", () => {
 		outSpy.mockRestore();
 	});
 
+	it("replaces the stream's zero placeholders with usage from the terminal effort", async () => {
+		const deps = makeDeps({
+			followStream: vi.fn().mockImplementation(
+				async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+					onChunk(makeChunk("measured answer", 0, true, {
+						model: "gpt-5.5",
+						tokens_in: 0,
+						tokens_out: 0,
+					}));
+				},
+			),
+			readEffortResult: vi.fn().mockResolvedValue({
+				status: "ok",
+				content: "measured answer",
+				metadata: {
+					model: "gpt-5.5",
+					tokens_in: 1400,
+					tokens_out: 12,
+					pricing_mode: "subscription",
+				},
+			}),
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+		await createAskCommand(deps).parseAsync(["measure this"], { from: "user" });
+
+		const allLogs = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(allLogs).toContain("1400 in / 12 out");
+		expect(allLogs).toContain("subscription");
+		expect(allLogs).not.toContain("0 in / 0 out");
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
 	it("reconstructs the whole answer from deltas with an empty final marker", async () => {
 		// The guest's streaming contract: partial lines carry the deltas, and the
 		// FINAL line is an empty end-marker (content:"") so `content += chunk.content`
