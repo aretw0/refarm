@@ -30,6 +30,7 @@ pub mod host;
 pub mod node_reap;
 pub mod observer;
 pub(crate) mod respawn;
+pub mod security_events;
 pub mod sidecar;
 pub mod storage;
 pub(crate) mod streaming;
