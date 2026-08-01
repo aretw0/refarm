@@ -243,6 +243,26 @@ describe("workspace command", () => {
 		});
 	});
 
+	it("turns an empty workspace catalog into an authoring handoff", async () => {
+		const root = createWorkspaceRoot();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => root,
+			env: {},
+			loadConfig: () => ({}),
+		}).parseAsync(["list", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "workspace",
+			operation: "list",
+			ok: true,
+			workspaces: [],
+			nextCommand: "refarm workspace add",
+			nextCommands: ["refarm workspace add"],
+		});
+	});
+
 	it("observes every declared workspace with --all", async () => {
 		const controlRoot = createWorkspaceRoot();
 		const turboRoot = createWorkspaceRoot({

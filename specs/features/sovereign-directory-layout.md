@@ -19,6 +19,8 @@ The Refarm app owns the adapter:
   operator root;
 - current compact layout: all roles remain below that root, preserving installed nodes;
 - published device kit: `<operator-root>/dist/farm-client`, independent of a source checkout.
+- node-wide workspace catalog: `<operator-root>/config.json#workspaces`, authored by
+  `refarm workspace add`; physical paths remain device-local and never enter replicated config.
 
 Workspace-relative `.refarm` paths remain valid when the data belongs to that workspace. They are
 not a substitute for operator state, and commands must make the selected scope observable.

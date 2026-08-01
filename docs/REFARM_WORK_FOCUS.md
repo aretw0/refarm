@@ -210,8 +210,11 @@ wires that parser into `agent finish` steps whose `process.tool` is `turbo`.
 New executors should emit the same generic cache shape instead of teaching
 operators or agents to parse runner-specific logs.
 
-Workspace declarations belong in `.refarm/config.json` under `workspaces`.
-Each entry is intent, not observed state:
+Workspace declarations belong under `workspaces` in the operator catalog
+(`~/.refarm/config.json`, or `REFARM_HOME/config.json`). This makes the catalog
+available outside any checkout. `refarm workspace add --local` is the explicit
+escape hatch for a declaration owned only by the current workspace. Each entry
+is host-local intent, not observed or replicated state:
 
 ```json
 {
@@ -225,7 +228,9 @@ Each entry is intent, not observed state:
 }
 ```
 
-Use `refarm workspace list --json` to inspect configured workspaces and
+Use `refarm workspace add <path>` to derive a proposal from the directory and
+Git origin, review the exact change, and authorise it without editing JSON. Use
+`refarm workspace list --json` to inspect configured workspaces and
 `refarm workspace execution --workspace <id> --json` to observe a declared
 workspace without manually changing shell directories. Use
 `refarm workspace execution --all --json` for a read-only control-plane sweep

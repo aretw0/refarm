@@ -35,16 +35,22 @@ import {
 	loadConfig,
 	type DeclaredWorkspaceConfig,
 } from "@refarm.dev/config";
-import path from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
+import path from "node:path";
 import { refarmCommand } from "../brand.js";
+import {
+	runWorkspaceAdd,
+	WorkspaceAddRefusal,
+	type WorkspaceAddOptions,
+} from "./workspace-add.js";
 import {
 	buildWorkspaceExecutionStatus,
 	type WorkspaceExecutionStatus,
 } from "./workspace-execution.js";
 
 const WORKSPACE_HELP_COMMAND = refarmCommand(["workspace", "--help"]);
+const WORKSPACE_ADD_COMMAND = refarmCommand(["workspace", "add"]);
 
 /**
  * The action boundary — the same one `commands/intention.ts` adopted in 0534737b, and
@@ -240,6 +246,7 @@ function printDeclaredWorkspaces(workspaces: DeclaredWorkspaceConfig[]): void {
 	console.log(chalk.bold("Configured workspaces"));
 	if (workspaces.length === 0) {
 		console.log(chalk.dim("  none declared"));
+		console.log(chalk.dim(`  declare one: ${WORKSPACE_ADD_COMMAND}`));
 		return;
 	}
 	for (const workspace of workspaces) {
@@ -932,6 +939,64 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		);
 
 	command
+		.command("add [path]")
+		.description("Declare a workspace through a reviewed, authorised proposal")
+		.option("--id <id>", "Stable name used by workspace commands")
+		.option("--kind <kind>", "refarm | consumer | lab | vault | project")
+		.option("--repository <url>", "Portable repository URL; otherwise derive origin when present")
+		.option("--replace", "Re-open an existing declaration or prior decision")
+		.option("--local", "Write this workspace's local .refarm/config.json instead of operator home")
+		.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
+		.option("--json", "Output the declaration result as JSON")
+		.action(async (workspacePath: string | undefined, options: WorkspaceAddOptions) => {
+			try {
+				const result = await runWorkspaceAdd({ ...options, path: workspacePath });
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "workspace",
+							operation: "add",
+							extra: result,
+							nextCommands:
+								result.status === "declared"
+									? [refarmCommand(["workspace", "status", "--json"])]
+									: [],
+						}),
+					);
+					return;
+				}
+				if (result.status === "declared") {
+					console.log(chalk.green(`✓  declared "${result.workspace}"`));
+					console.log(chalk.dim(`   ${result.configPath}`));
+					console.log(chalk.dim(`   undo: ${result.undoCommand}`));
+					console.log(chalk.dim(`   inspect: ${refarmCommand(["workspace", "status", "--json"])}`));
+				} else {
+					console.log(chalk.dim(`workspace ${result.status}`));
+				}
+			} catch (error) {
+				if (error instanceof WorkspaceAddRefusal && options.json) {
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "workspace",
+							operation: "add",
+							error: error.code,
+							message: error.message,
+							nextAction: `Run \`${WORKSPACE_ADD_COMMAND}\` from an attended surface.`,
+							nextCommand: WORKSPACE_ADD_COMMAND,
+						}),
+					);
+					process.exitCode = 1;
+					return;
+				}
+				failWorkspace(
+					"add",
+					options,
+					error,
+				);
+			}
+		});
+
+	command
 		.command("execution")
 		.description("Inspect detected workspace executor and cache readiness")
 		.option("--cwd <dir>", "Inspect a workspace from another directory")
@@ -1064,6 +1129,11 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 						extra: {
 							workspaces,
 						},
+						nextAction:
+							workspaces.length === 0
+								? "Declare a workspace through a reviewed host-local proposal."
+								: null,
+						nextCommands: workspaces.length === 0 ? [WORKSPACE_ADD_COMMAND] : [],
 					}),
 				);
 				return;
