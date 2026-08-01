@@ -3,9 +3,11 @@ import { test } from "node:test";
 
 import {
 	byNameLines,
+	classifySidecarProbe,
 	daemonWsExposureLines,
 	planTailnetReach,
 	sidecarExposureLines,
+	sidecarProbeFailureLines,
 } from "../src/reach.mjs";
 
 const SELF = "node bin/farm-hello.mjs";
@@ -17,6 +19,28 @@ function shown(plan) {
 
 /** The five reasons `tailnetPeersReport` can return, as it returns them. */
 const couldNotAsk = (reason, detail) => ({ ok: false, reason, peers: [], detail });
+
+test("HTTP auth refusal proves reachability without pretending the sidecar is usable", () => {
+	assert.deepEqual(classifySidecarProbe(200), { reachable: true, usable: true, reason: "ready" });
+	assert.deepEqual(classifySidecarProbe(401), {
+		reachable: true,
+		usable: false,
+		reason: "credential-required",
+	});
+	assert.deepEqual(classifySidecarProbe(null), {
+		reachable: false,
+		usable: false,
+		reason: "unreachable",
+	});
+	const text = sidecarProbeFailureLines(
+		{ ...classifySidecarProbe(401), status: 401 },
+		"http://farm:42001",
+	).join("\n");
+	assert.match(text, /alcançável/);
+	assert.match(text, /HTTP 401/);
+	assert.match(text, /FARM_TOKEN presente/);
+	assert.doesNotMatch(text, /superfície não se abre/);
+});
 
 // ── The ordering change ───────────────────────────────────────────────────────
 // The operator's phone broadcast to 255.255.255.255, to a multicast group, to its

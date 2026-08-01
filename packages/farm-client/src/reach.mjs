@@ -119,6 +119,38 @@ export function sidecarExposureLines({ expose = "tailnet" } = {}) {
 	];
 }
 
+/** Classify an HTTP sidecar probe without confusing reachability with authorisation. */
+export function classifySidecarProbe(status) {
+	if (!Number.isInteger(status)) return { reachable: false, usable: false, reason: "unreachable" };
+	if (status >= 200 && status < 300) return { reachable: true, usable: true, reason: "ready" };
+	if (status === 401) return { reachable: true, usable: false, reason: "credential-required" };
+	if (status === 403) return { reachable: true, usable: false, reason: "credential-refused" };
+	return { reachable: true, usable: false, reason: "http-error" };
+}
+
+/** Actionable diagnosis once a host answered but the sidecar refused the probe. */
+export function sidecarProbeFailureLines(probe, base) {
+	if (probe?.reason === "credential-required") {
+		return [
+			`❌ sidecar alcançável em ${base}, mas a credencial não foi aceita (HTTP 401)`,
+			"   Confirme que o token deste aparelho está exportado nesta sessão:",
+			"     test -n \"$FARM_TOKEN\" && echo 'FARM_TOKEN presente'",
+			"   Se estiver presente, ele é antigo ou não corresponde ao aparelho: gere outro com",
+			"     refarm auth enroll <rótulo-deste-aparelho>   # no host; o token aparece 1x",
+		];
+	}
+	if (probe?.reason === "credential-refused") {
+		return [
+			`❌ sidecar alcançável em ${base}, mas esta credencial não autoriza a operação (HTTP 403)`,
+			"   Use uma credencial de aparelho criada por `refarm auth enroll`.",
+		];
+	}
+	if (probe?.reason === "http-error") {
+		return [`❌ sidecar alcançável em ${base}, mas respondeu HTTP ${probe.status}`];
+	}
+	return [`❌ sidecar inalcançável em ${base}`];
+}
+
 /**
  * O mesmo, para o WebSocket do CRDT.
  *

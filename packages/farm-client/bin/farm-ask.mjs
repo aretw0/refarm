@@ -23,7 +23,11 @@ import { farmAuthHeaders } from "../src/auth.mjs";
 import { buildRespondEffort } from "../src/effort.mjs";
 import { extractAnswer, isSuccessEffort, isTerminalEffort } from "../src/effort-result.mjs";
 import { createSpinner } from "../src/progress.mjs";
-import { sidecarExposureLines } from "../src/reach.mjs";
+import {
+  classifySidecarProbe,
+  sidecarExposureLines,
+  sidecarProbeFailureLines,
+} from "../src/reach.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
 import { formatUsage, parseUsage } from "../src/usage.mjs";
 
@@ -40,17 +44,18 @@ if (!prompt) {
 
 /** Does <host>:42001 answer /plugins? (the sidecar is up and reachable) */
 async function sidecarUp(host) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 3000);
     const res = await fetch(`http://${host}:${HTTP_PORT}/plugins`, {
       signal: controller.signal,
       headers: farmAuthHeaders(),
     });
-    clearTimeout(timer);
-    return res.ok;
+    return { ...classifySidecarProbe(res.status), status: res.status };
   } catch {
-    return false;
+    return classifySidecarProbe(null);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -62,7 +67,7 @@ function resolveHost() {
   return resolveFarmHost({
     kitRootDir: KIT_ROOT,
     explicit: process.env.FARM_HOST,
-    probe: sidecarUp,
+    probe: async (host) => (await sidecarUp(host)).reachable,
     peers: async () => (await tailnetPeers()).map((peer) => peer.ip),
   });
 }
@@ -86,12 +91,13 @@ try {
 }
 const base = `http://${host}:${HTTP_PORT}`;
 
-if (!(await sidecarUp(host))) {
-  console.error(`❌ sidecar inalcançável em ${base}`);
+const sidecar = await sidecarUp(host);
+if (!sidecar.usable) {
+  for (const line of sidecarProbeFailureLines(sidecar, base)) console.error(line);
   // Era: "No host: REFARM_HTTP_HOST=0.0.0.0 bash scripts/tractor-start.sh --background".
   // Isso mandava o operador contornar a própria declaração e abrir a porta em TODAS as
   // interfaces — o footgun exato que o trabalho de `surfaces` existe para remover.
-  for (const line of sidecarExposureLines()) console.error(line);
+  if (!sidecar.reachable) for (const line of sidecarExposureLines()) console.error(line);
   console.error(`   Alcance primeiro com: node ${join(KIT_ROOT, "bin", "farm-hello.mjs")} ${host}`);
   process.exit(1);
 }
