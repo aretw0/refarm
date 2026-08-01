@@ -181,6 +181,9 @@ O linter infere o tipo de cada pacote sem campo extra no `package.json`, em orde
 - `tsconfig.build.json` deve existir e conter `"@refarm.dev/tsconfig/build.json"` no array `extends`
 - `package.json` deve ter script `build` contendo `tsc`
 - `exports["."]` deve ter campos `import` e `types` apontando para `dist/`
+- cada entrypoint JavaScript declarado sob `dist/` deve ter uma fonte correspondente (`src/`, ou
+  `test/` nos packages híbridos). Isso cobre packages antigos e exports adicionados depois do
+  scaffold: um caminho de artefato sem causa em source é drift, mesmo que o JSON esteja bem formado.
 
 **`source-only`:**
 - `tsconfig.json` deve existir

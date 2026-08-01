@@ -102,6 +102,35 @@ function exportsToDist(exports) {
   return false;
 }
 
+function declaredExportTargets(value) {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(declaredExportTargets);
+  if (value && typeof value === "object") return Object.values(value).flatMap(declaredExportTargets);
+  return [];
+}
+
+/** A dist entrypoint is derived state; every declared JS entry must have a source cause. */
+export function validateDeclaredEntrypointSources(pkgDir, pkg, fileExists = existsSync) {
+  const violations = [];
+  const targets = new Set([
+    ...(typeof pkg.main === "string" ? [pkg.main] : []),
+    ...declaredExportTargets(pkg.exports),
+  ]);
+  for (const target of targets) {
+    if (!/^\.\/dist\/.+\.(?:mjs|cjs|js)$/.test(target) || target.includes("*")) continue;
+    const builtRelative = target.slice("./dist/".length);
+    const keepsBuildRelativePath = builtRelative.startsWith("src/") || builtRelative.startsWith("test/");
+    const sourceStem = (keepsBuildRelativePath ? builtRelative : `src/${builtRelative}`)
+      .replace(/\.(?:mjs|cjs|js)$/, "");
+    const candidates = [".ts", ".tsx", ".mts", ".cts", ".js", ".mjs", ".cjs"]
+      .map((extension) => join(pkgDir, `${sourceStem}${extension}`));
+    if (!candidates.some(fileExists)) {
+      violations.push(`${target} has no corresponding source entrypoint (${sourceStem}.{ts,tsx,mts,cts,js,mjs,cjs})`);
+    }
+  }
+  return violations;
+}
+
 function usesVtconfig(pkgDir, pkg) {
   const devDeps = pkg.devDependencies ?? {};
   return "@refarm.dev/vtconfig" in devDeps;
@@ -817,6 +846,9 @@ function main() {
     pkgViolations.push(...validateRuntimeAgentPluginPackage(pkg));
     pkgViolations.push(...validateSiloPublicApi(pkg));
     pkgViolations.push(...validateDsPublicApi(pkg));
+    if ((pkg.scripts?.build ?? "").includes("tsc")) {
+      pkgViolations.push(...validateDeclaredEntrypointSources(pkgDir, pkg));
+    }
 
     if (pkgViolations.length === 0) {
       console.log(`  ✓ ${name.padEnd(30)} ${type}`);
