@@ -5,6 +5,7 @@ import {
 	buildOperatorResumeSummary,
 	formatOperatorResumeSessionId,
 	formatOperatorResumeSummary,
+	operatorResumeNextActions,
 	operatorResumeNextCommands,
 	operatorResumeNextProcesses,
 } from "./operator-resume.js";
@@ -166,6 +167,8 @@ describe("operator resume", () => {
 			ok: true,
 			nextCommand: "refarm task list --json",
 			nextCommands: ["refarm task list --json"],
+			nextAction: "Inspect available task efforts.",
+			nextActions: ["Inspect available task efforts."],
 			nextProcesses: [
 				{
 					command: "refarm",
@@ -178,6 +181,38 @@ describe("operator resume", () => {
 			recentPrompts: [],
 			finish: { status: "none" },
 		});
+	});
+
+	it("keeps an existing session contextual and delivered efforts terminal", () => {
+		const summary = buildOperatorResumeSummary({
+			handoffs: HANDOFFS,
+			status: { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] },
+			activeSessionId: "urn:sovereign:session:v1:abcdef1234567890",
+			recentSessions: [
+				{
+					sessionId: "urn:sovereign:session:v1:abcdef1234567890",
+					shortId: "ef1234567890",
+					hasHistory: true,
+					showCommand: "refarm sessions show ef1234567890 --json",
+					useCommand: "refarm sessions use ef1234567890 --json",
+				},
+			],
+			taskCheckpoint: {
+				updatedAt: "2026-08-01T00:00:00.000Z",
+				efforts: [
+					{
+						effortId: "done-1",
+						transport: "file",
+						lastStatus: "delivered",
+						statusCommand: "refarm task status done-1 --transport file --json",
+						logsCommand: "refarm task logs done-1 --transport file --json",
+					},
+				],
+			},
+		});
+
+		expect(operatorResumeNextCommands(summary, HANDOFFS.commands)).toEqual([]);
+		expect(operatorResumeNextActions(summary)).toEqual([]);
 	});
 
 	it("carries repository project handoff context without changing command recovery", () => {

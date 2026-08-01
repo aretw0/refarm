@@ -331,6 +331,7 @@ function isApplicationResumeCommand(command: string, binary: string): boolean {
 function isTerminalTaskStatus(status: string | undefined): boolean {
 	return (
 		status === "done" ||
+		status === "delivered" ||
 		status === "partial" ||
 		status === "failed" ||
 		status === "timed-out" ||
@@ -493,9 +494,9 @@ export function operatorResumeNextCommands(
 		nextCommands.push(...summary.finish.nextCommands);
 	}
 
-	// Context: only active sessions are actionable; recent sessions stay contextual.
-	if (summary.session.showCommand) nextCommands.push(summary.session.showCommand);
-	else if (summary.session.status === "stale") {
+	// Sessions are context, not unfinished work. Only repair a dangling pointer;
+	// an existing active pointer must not commandeer an unrelated operator slice.
+	if (summary.session.status === "stale") {
 		nextCommands.push(resolved.sessionClear);
 		nextCommands.push(resolved.sessionList);
 	}
@@ -518,6 +519,24 @@ export function operatorResumeNextCommands(
 	}
 
 	return [...new Set(nextCommands)];
+}
+
+export function operatorResumeNextActions(summary: OperatorResumeSummary): string[] {
+	if (summary.runtime && !summary.runtime.ready) return ["Restore runtime readiness."];
+	if (summary.environmentPressure?.decision === "stop-and-investigate") {
+		return ["Investigate the reported environment pressure before continuing."];
+	}
+
+	const actions: string[] = [];
+	if (summary.finish.status === "failed") actions.push("Complete the failed validation handoff.");
+	if (summary.session.status === "stale") actions.push("Repair the stale active-session pointer.");
+	if (summary.model?.credential?.state === "missing") {
+		actions.push("Configure the missing model credential.");
+	}
+	if (summary.tasks.activeEffort) actions.push("Continue the active task effort.");
+	else if (hasResumableTaskEffort(summary.tasks)) actions.push("Resume unfinished task work.");
+	else if (summary.tasks.totalEfforts === 0) actions.push("Inspect available task efforts.");
+	return [...new Set(actions)];
 }
 
 function commandProcessKey(processSpec: ApplicationProcessSpec): string {
@@ -593,6 +612,7 @@ export function operatorResumeNextProcesses(
 
 export function buildOperatorResumeEnvelope(input: OperatorResumeInput): OperatorResumeEnvelope {
 	const summary = buildOperatorResumeSummary(input);
+	const nextActions = operatorResumeNextActions(summary);
 	const nextCommands = operatorResumeNextCommands(summary, input.handoffs.commands);
 	const nextProcesses = operatorResumeNextProcesses(summary, input.handoffs);
 	return buildJsonSuccessEnvelope<
@@ -600,7 +620,7 @@ export function buildOperatorResumeEnvelope(input: OperatorResumeInput): Operato
 	>({
 		command: "resume",
 		operation: "operator",
-		nextActions: nextCommands,
+		nextActions,
 		nextCommands,
 		extra: {
 			...operatorResumeJsonSummary(summary),
