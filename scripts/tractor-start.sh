@@ -17,10 +17,9 @@
 #                      docs/container-surfaces.example.json) ⇒ that host, once its
 #                      gate is actually configured (S3). A container gets loud
 #                      guidance instead of automation — see the "bind hosts" block.
-#   REFARM_WS_HOST     CRDT/agent WS bind. This script pins it to 127.0.0.1 (see the
-#                      "bind hosts" block); ADR-093's credential handshake shipped, so
-#                      the DAEMON would accept a declared+gated `surfaces.daemon-ws`
-#                      host — the pin here is this script's own conservative choice.
+#   REFARM_WS_HOST     CRDT/agent WS bind. Left UNSET unless the operator names one;
+#                      absent means `surfaces.daemon-ws` decides, under the same
+#                      declared+gated rule as the HTTP sidecar.
 #   REFARM_AUTH_POLICY OPTIONAL, and normally unset. A `surfaces.*` declaration with
 #                      `"gate": "device-token"` is what turns the gate on; the daemon
 #                      then DERIVES the policy path from the --refarm-dir it is given
@@ -277,18 +276,6 @@ if [ -f "/.dockerenv" ]; then
   IN_CONTAINER=1
 fi
 
-# The WS (:42000) is pinned to loopback BY THIS SCRIPT, not by the daemon. ADR-093's
-# `Sec-WebSocket-Protocol` credential handshake shipped (2026-07-29): `daemon::WsServer`
-# authenticates every upgrade against the same policy the sidecar uses, so
-# `surfaces.daemon-ws` may now declare `"host:<ip>"` with `"gate": "device-token"` exactly
-# like `sidecar-http`, and the daemon WOULD accept it. The pin stays because this script
-# has no reason to widen the CRDT socket on the operator's behalf — an operator who wants
-# it wider declares the surface and sets REFARM_WS_HOST, and the daemon's guard checks
-# that value against the declaration exactly as it does --http-host.
-if [ -z "$REFARM_WS_HOST" ]; then
-  REFARM_WS_HOST="127.0.0.1"
-fi
-
 if [ "$IN_CONTAINER" = "1" ]; then
   if [ -z "$REFARM_HTTP_HOST" ]; then
     echo "⚠   Container detected, REFARM_HTTP_HOST not set — the sidecar binds whatever"
@@ -305,9 +292,10 @@ if [ "$IN_CONTAINER" = "1" ]; then
       echo "    (until it exists the surface binds and denies EVERY request, by design.)"
     fi
   fi
-  echo "⚠   The CRDT/agent WebSocket stays on 127.0.0.1 — '-p 42000:42000' will NOT"
-  echo "    reach it. That is this script's pin, not a daemon limit: ADR-093's handshake"
-  echo "    shipped, so a declared+gated surfaces.daemon-ws would be accepted."
+  if [ -z "$REFARM_WS_HOST" ]; then
+    echo "⚠   REFARM_WS_HOST is not set — the CRDT/agent WebSocket binds whatever"
+    echo "    surfaces.daemon-ws declares (undeclared ⇒ 127.0.0.1)."
+  fi
 fi
 
 # ── start daemon ──────────────────────────────────────────────────────────────
@@ -347,11 +335,9 @@ done
 if [ "$HAS_HTTP_HOST" = "0" ] && [ -n "$REFARM_HTTP_HOST" ]; then
   TRACTOR_ARGS+=(--http-host "$REFARM_HTTP_HOST")
 fi
-# Pass --ws-host explicitly for the same reason --http-host was historically passed
-# explicitly: the bind this script chose should be visible in the process args, not
-# inferred from a default. Unlike --http-host, REFARM_WS_HOST is ALWAYS resolved above
-# (loopback if unset) because no declaration can ever change what the WS accepts.
-if [ "$HAS_WS_HOST" = "0" ]; then
+# As with HTTP, an absent flag is how the operator lets the declaration decide. An explicit
+# environment value remains a narrowing/assertion that the daemon validates against the ceiling.
+if [ "$HAS_WS_HOST" = "0" ] && [ -n "$REFARM_WS_HOST" ]; then
   TRACTOR_ARGS+=(--ws-host "$REFARM_WS_HOST")
 fi
 TRACTOR_ARGS+=(--refarm-dir "$REFARM_HOME")
@@ -363,7 +349,7 @@ echo "   plugin   : $AGENT_PLUGIN"
 [ ${#TRUSTED_PLUGINS[@]} -gt 0 ] && echo "   +trusted : ${#TRUSTED_PLUGINS[@]} plugin(s) from composition"
 echo "   streams  : $REFARM_STREAMS_DIR"
 echo "   http bind: ${REFARM_HTTP_HOST:-<unset — surfaces.sidecar-http decides>}:42001"
-echo "   ws bind  : $REFARM_WS_HOST:42000"
+echo "   ws bind  : ${REFARM_WS_HOST:-<unset — surfaces.daemon-ws decides>}:42000"
 [ $# -gt 0 ] && echo "   extra    : $*"
 
 mkdir -p "$(dirname "$PID_FILE")" "$REFARM_HOME" "$REFARM_STREAMS_DIR" "$XDG_DATA_HOME"

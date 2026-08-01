@@ -236,3 +236,18 @@ test("tractor-start.sh omits --http-host when REFARM_HTTP_HOST is unset (lets th
 			"lets surfaces.sidecar-http decide",
 	);
 });
+
+test("tractor-start.sh omits --ws-host when REFARM_WS_HOST is unset (lets the declaration decide)", () => {
+	const source = readFileSync(resolve("scripts/tractor-start.sh"), "utf8");
+	assert.match(
+		source,
+		/if \[ "\$HAS_WS_HOST" = "0" \] && \[ -n "\$REFARM_WS_HOST" \]/,
+		"tractor-start.sh must only forward --ws-host when REFARM_WS_HOST is non-empty",
+	);
+	assert.doesNotMatch(
+		source,
+		/REFARM_WS_HOST="127\.0\.0\.1"/,
+		"tractor-start.sh must not default REFARM_WS_HOST — an absent flag is what " +
+			"lets surfaces.daemon-ws decide",
+	);
+});
