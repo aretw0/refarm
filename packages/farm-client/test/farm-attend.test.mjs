@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { dirname, join } from "node:path";
-import { after, test } from "node:test";
+import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -95,8 +95,8 @@ async function startNode({ authenticatedDevice = "pixel-7", declaredWire } = {})
 }
 
 const running = [];
-after(async () => {
-	for (const node of running) await node.close();
+afterEach(async () => {
+	for (const node of running.splice(0)) await node.close();
 });
 
 async function startNodeTracked(options) {
