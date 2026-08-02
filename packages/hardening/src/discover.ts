@@ -232,9 +232,16 @@ function sourceFilesUnder(dir: string): string[] {
 export function moduleFor(pkg: WorkspacePackage, sourceFile: string): string | null {
 	const relative = path.relative(pkg.dir, sourceFile);
 	if (/\.(?:m|c)?js$/.test(relative)) return sourceFile;
-	const srcPrefix = `src${path.sep}`;
-	if (!relative.startsWith(srcPrefix)) return null;
-	return path.join(pkg.dir, "dist", relative.slice(srcPrefix.length).replace(/\.(?:m|c)?ts$/, ".js"));
+	// The convention is anchored at the root of whatever COMPILES, which is not always the
+	// package: a self-contained vendored capsule (`vendor/<name>/{src,dist}`) carries its own
+	// pair. Anchoring at the package's own `src/` returned null for those, so the collector
+	// reported a copy it could not load as unhardened debt instead of proving it a duplicate.
+	const segments = relative.split(path.sep);
+	const srcAt = segments.lastIndexOf("src");
+	if (srcAt === -1) return null;
+	const emitted = [...segments.slice(0, srcAt), "dist", ...segments.slice(srcAt + 1)];
+	emitted[emitted.length - 1] = String(emitted.at(-1)).replace(/\.(?:m|c)?ts$/, ".js");
+	return path.join(pkg.dir, ...emitted);
 }
 
 export function discoverConformanceSuites(workspaceRoot: string): DiscoveredSuite[] {
