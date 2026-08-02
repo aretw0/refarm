@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 /**
  * Serving a zero-dependency block's own compiled ESM to a page on this listener.
@@ -37,6 +38,21 @@ export function resolveBlockDistDir(packageName: string): string | null {
 		const require = createRequire(import.meta.url);
 		const manifest = require.resolve(`${packageName}/package.json`);
 		return path.join(path.dirname(manifest), "dist");
+	} catch {
+		try {
+			// Packages need not expose package.json. Their import entry is already in dist,
+			// and ESM resolution is the authoritative way to find an ESM-only block.
+			return path.dirname(fileURLToPath(import.meta.resolve(packageName)));
+		} catch {
+			return null;
+		}
+	}
+}
+
+/** Resolve one package export (for example DS CSS) without assuming workspace layout. */
+export function resolvePackageAsset(packageName: string, subpath: string): string | null {
+	try {
+		return createRequire(import.meta.url).resolve(`${packageName}/${subpath}`);
 	} catch {
 		return null;
 	}
@@ -76,6 +92,25 @@ export async function serveBlockModule(
 		const bytes = await readFile(path.join(distDir, name));
 		res.statusCode = 200;
 		res.setHeader("Content-Type", "text/javascript; charset=utf-8");
+		res.setHeader("Content-Length", bytes.length);
+		res.end(req.method === "HEAD" ? undefined : bytes);
+	} catch {
+		notFound(res);
+	}
+}
+
+/** Serve one already-resolved package asset. Caller input never enters its path. */
+export async function servePackageAsset(
+	filePath: string | null,
+	contentType: string,
+	req: IncomingMessage,
+	res: ServerResponse,
+): Promise<void> {
+	if (!filePath) return notFound(res);
+	try {
+		const bytes = await readFile(filePath);
+		res.statusCode = 200;
+		res.setHeader("Content-Type", contentType);
 		res.setHeader("Content-Length", bytes.length);
 		res.end(req.method === "HEAD" ? undefined : bytes);
 	} catch {

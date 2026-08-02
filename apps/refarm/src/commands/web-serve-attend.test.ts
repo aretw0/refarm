@@ -133,13 +133,65 @@ describe("the page lives on the listener, not in the cold-bootstrap kit", () => 
 		// Nothing is fetched from anywhere else: no CDN, no font, no framework. Over a
 		// tailnet on a phone there is no second chance to reach the internet.
 		expect(html).not.toMatch(/https?:\/\/(?!localhost)/);
-		expect(html).not.toContain("<link");
-		// The two module imports it has, and both are this node's own compiled blocks.
+		expect(html).toContain('href="/attend/ds/tokens.css"');
+		expect(html).toContain('href="/attend/ds/theme.css"');
+		expect(html).toContain('href="/attend/ds/components.css"');
+		// Every module import is one of this node's own compiled blocks.
 		expect(html).toContain('from "/auth/sas/lib/index.js"');
 		expect(html).toContain('from "/attend/lib/index.js"');
+		expect(html).toContain('from "/attend/operations-lib/index.js"');
+		expect(html).toContain('"@refarm.dev/localization-v1":"/attend/localization-lib/index.js"');
+		expect(html).toContain('"@refarm.dev/ds/html":"/attend/ds-lib/html.js"');
 		// It reimplements neither half.
 		expect(html).toContain("startSasVerification");
 		expect(html).toContain("createAttendClient");
+		expect(html).toContain("createOperationClient");
+	});
+
+	it("serves the reusable operation and localization blocks beside the prompt block", async () => {
+		const url = await serve();
+		for (const route of [
+			"/attend/operations-lib/index.js",
+			"/attend/operations-lib/client.js",
+			"/attend/operations-lib/messages.js",
+			"/attend/operations-lib/wire.js",
+			"/attend/localization-lib/index.js",
+			"/attend/ds-lib/html.js",
+		]) {
+			const response = await fetch(`${url}${route}`);
+			expect(response.status, `${route} must be served`).toBe(200);
+			expect(response.headers.get("content-type")).toContain("text/javascript");
+		}
+		for (const route of [
+			"/attend/ds/tokens.css",
+			"/attend/ds/theme.css",
+			"/attend/ds/components.css",
+		]) {
+			const response = await fetch(`${url}${route}`);
+			expect(response.status, `${route} must be served`).toBe(200);
+			expect(response.headers.get("content-type")).toContain("text/css");
+		}
+	});
+
+	it("the operation block's browser graph uses only relative imports or declared import-map blocks", async () => {
+		const url = await serve();
+		const seen = new Set<string>();
+		const queue = ["index.js"];
+		const mapped = new Set(["@refarm.dev/localization-v1", "@refarm.dev/ds/html"]);
+		while (queue.length > 0) {
+			const name = queue.shift()!;
+			if (seen.has(name)) continue;
+			seen.add(name);
+			const response = await fetch(`${url}/attend/operations-lib/${name}`);
+			expect(response.status, `${name} must be served`).toBe(200);
+			const source = await response.text();
+			for (const match of source.matchAll(/^\s*(?:import|export)\b[^;]*?from\s+"([^"]+)"/gm)) {
+				const specifier = match[1]!;
+				if (specifier.startsWith("./")) queue.push(specifier.slice(2));
+				else expect(mapped.has(specifier), `${name} imports unmapped ${specifier}`).toBe(true);
+			}
+		}
+		expect(seen).toEqual(new Set(["index.js", "client.js", "messages.js", "render.js", "wire.js"]));
 	});
 
 	it("serves the attend block's compiled ESM, and only bare module filenames from it", async () => {
@@ -150,7 +202,13 @@ describe("the page lives on the listener, not in the cold-bootstrap kit", () => 
 		const source = await module.text();
 		expect(source).toContain("export");
 
-		for (const attempt of ["../package.json", "..%2Fpackage.json", "sub/dir.js", "index.ts", "wire.test.js"]) {
+		for (const attempt of [
+			"../package.json",
+			"..%2Fpackage.json",
+			"sub/dir.js",
+			"index.ts",
+			"wire.test.js",
+		]) {
 			expect((await fetch(`${url}/attend/lib/${attempt}`)).status).toBe(404);
 		}
 	});

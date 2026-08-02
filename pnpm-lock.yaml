@@ -411,9 +411,15 @@ importers:
       '@refarm.dev/infra-turbo-cache':
         specifier: workspace:*
         version: link:../../packages/infra-turbo-cache
+      '@refarm.dev/localization-v1':
+        specifier: workspace:*
+        version: link:../../packages/localization-v1
       '@refarm.dev/operation-consent-v1':
         specifier: workspace:*
         version: link:../../packages/operation-consent-v1
+      '@refarm.dev/operation-web-v1':
+        specifier: workspace:*
+        version: link:../../packages/operation-web-v1
       '@refarm.dev/operator-state':
         specifier: workspace:*
         version: link:../../packages/operator-state
@@ -1791,6 +1797,28 @@ importers:
       '@refarm.dev/prompt-contract-v1':
         specifier: workspace:*
         version: link:../prompt-contract-v1
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
+  packages/operation-web-v1:
+    dependencies:
+      '@refarm.dev/ds':
+        specifier: workspace:*
+        version: link:../ds
+      '@refarm.dev/localization-v1':
+        specifier: workspace:*
+        version: link:../localization-v1
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig

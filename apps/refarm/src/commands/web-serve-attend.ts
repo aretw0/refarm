@@ -2,7 +2,12 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { SAS_HTTP_BASE } from "@refarm.dev/emoji-sas-v1";
 
-import { resolveBlockDistDir, serveBlockModule } from "./web-serve-block-lib.js";
+import {
+	resolveBlockDistDir,
+	resolvePackageAsset,
+	serveBlockModule,
+	servePackageAsset,
+} from "./web-serve-block-lib.js";
 
 /**
  * `/attend` — answering the farm's pending questions from a browser.
@@ -56,6 +61,13 @@ import { resolveBlockDistDir, serveBlockModule } from "./web-serve-block-lib.js"
 export const ATTEND_PAGE_PATH = "/attend";
 const ATTEND_LIB_PREFIX = `${ATTEND_PAGE_PATH}/lib/`;
 const ATTEND_BLOCK = "@refarm.dev/attend-web-v1";
+const OPERATION_LIB_PREFIX = `${ATTEND_PAGE_PATH}/operations-lib/`;
+const OPERATION_BLOCK = "@refarm.dev/operation-web-v1";
+const LOCALIZATION_LIB_PREFIX = `${ATTEND_PAGE_PATH}/localization-lib/`;
+const LOCALIZATION_BLOCK = "@refarm.dev/localization-v1";
+const DS_LIB_PREFIX = `${ATTEND_PAGE_PATH}/ds-lib/`;
+const DS_ASSET_PREFIX = `${ATTEND_PAGE_PATH}/ds/`;
+const DS_BLOCK = "@refarm.dev/ds";
 
 export interface AttendSurface {
 	/** Handle the request if it belongs to this surface. Returns whether it did. */
@@ -83,10 +95,15 @@ function attendPage(): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Pending questions — refarm</title>
+<script type="importmap">{"imports":{"@refarm.dev/localization-v1":"${LOCALIZATION_LIB_PREFIX}index.js","@refarm.dev/ds/html":"${DS_LIB_PREFIX}html.js"}}</script>
+<link rel="stylesheet" href="${DS_ASSET_PREFIX}tokens.css">
+<link rel="stylesheet" href="${DS_ASSET_PREFIX}theme.css">
+<link rel="stylesheet" href="${DS_ASSET_PREFIX}components.css">
 <style>
   :root { color-scheme: light dark; font-family: system-ui, -apple-system, sans-serif; }
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 1rem; max-width: 40rem; margin-inline: auto; line-height: 1.5; }
+  body { margin: 0; padding: 1rem; max-width: 40rem; margin-inline: auto; line-height: 1.5;
+         background: var(--background); color: var(--foreground); }
   h1 { font-size: 1.2rem; margin: 0; }
   header { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: baseline;
            justify-content: space-between; padding-bottom: .75rem; border-bottom: 1px solid; }
@@ -97,6 +114,9 @@ function attendPage(): string {
   #banner.bad { color: #b3261e; }
   #banner.ok { color: #1a7f37; }
   .card { border: 1px solid; border-radius: .5rem; padding: .9rem; margin: .9rem 0; }
+  .ds-operation-toolbar { display: flex; justify-content: flex-end; margin-block: .5rem; }
+  .ds-operation-command { overflow-wrap: anywhere; }
+  .ds-grid { grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr)); }
   .card.settled { opacity: .65; }
   .asker { font-size: .8rem; opacity: .75; font-family: ui-monospace, monospace;
            word-break: break-all; }
@@ -106,8 +126,8 @@ function attendPage(): string {
   .choice { display: block; margin: .3rem 0; }
   input[type=text], input[type=password] { width: 100%; padding: .55rem; font: inherit;
     border-radius: .4rem; border: 1px solid; background: transparent; color: inherit; }
-  button { font: inherit; padding: .5rem 1rem; border-radius: .4rem; border: 1px solid;
-           background: transparent; color: inherit; cursor: pointer; margin: .25rem .4rem .25rem 0; }
+  button:not(.ds-btn) { font: inherit; padding: .5rem 1rem; border-radius: .4rem; border: 1px solid;
+                        background: transparent; color: inherit; cursor: pointer; margin: .25rem .4rem .25rem 0; }
   button[disabled] { opacity: .5; cursor: default; }
   .verdict { margin-top: .6rem; font-size: .9rem; }
   /* The seven emoji are COMPARED against another screen, position by position —
@@ -123,12 +143,14 @@ function attendPage(): string {
   code { font-family: ui-monospace, monospace; font-size: .85em; }
 </style>
 </head>
-<body>
+<body data-ds-theme="verde-jardim">
 <header>
   <h1>Pending questions</h1>
   <div class="muted" id="credential">no credential yet</div>
 </header>
 <div id="banner"></div>
+<div id="operations"></div>
+<h2 id="questions-title">Pending questions</h2>
 <main id="main"></main>
 
 <script type="module">
@@ -156,10 +178,21 @@ import {
   refusalNeedsNewCredential,
   saveAttendCredential,
 } from "${ATTEND_LIB_PREFIX}index.js";
+import {
+  createOperationClient,
+  createOperationMessages,
+  describeOperationRefusal,
+  describeOperationRun,
+  renderOperationSurfaceHtml,
+} from "${OPERATION_LIB_PREFIX}index.js";
 
 const main = document.getElementById("main");
 const banner = document.getElementById("banner");
 const credentialLine = document.getElementById("credential");
+const operations = document.getElementById("operations");
+const operationMessages = createOperationMessages(navigator.languages ?? [navigator.language]);
+
+document.documentElement.lang = operationMessages.locale;
 
 /** localStorage when the browser allows it, memory when it does not. A page in private
  *  mode must still work for this session rather than throw on its first write. */
@@ -176,6 +209,7 @@ const storage = (() => {
 
 let credential = null;
 const client = createAttendClient({ token: () => (credential ? credential.token : null) });
+const operationClient = createOperationClient({ token: () => (credential ? credential.token : null) });
 
 /** Cards currently on screen, by prompt id, so a prompt that VANISHES can be told about
  *  rather than silently removed — the whole of P2 from this side. */
@@ -258,7 +292,66 @@ async function handshake() {
   showCredential();
   say("Verified. This surface may answer prompts and operate only the node's admitted catalog.", "ok");
   main.replaceChildren();
+  void loadOperations();
   return true;
+}
+
+// ── Admitted operations ────────────────────────────────────────────────────────
+
+async function watchOperation(run, state) {
+  let current = run;
+  while (current.state === "running") {
+    state.textContent = describeOperationRun(operationMessages, current);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const outcome = await operationClient.status(current.runId);
+    if (!outcome.ok) {
+      state.textContent = describeOperationRefusal(operationMessages, outcome.refusal);
+      return;
+    }
+    current = outcome.run;
+  }
+  state.textContent = describeOperationRun(operationMessages, current);
+  await loadOperations();
+}
+
+function bindOperationActions() {
+  operations.querySelector("[data-operation-refresh]")?.addEventListener("click", () => void loadOperations());
+  for (const start of operations.querySelectorAll("[data-operation-start]")) {
+    const operationId = start.getAttribute("data-operation-start");
+    const state = start.closest(".ds-card")?.querySelector("[data-operation-state]");
+    if (!operationId || !state) continue;
+    start.addEventListener("click", async () => {
+      start.disabled = true;
+      state.textContent = operationMessages.t("starting");
+      const outcome = await operationClient.start(operationId);
+      if (!outcome.ok) {
+        state.textContent = describeOperationRefusal(operationMessages, outcome.refusal);
+        start.disabled = false;
+        return;
+      }
+      void watchOperation(outcome.run, state);
+    });
+  }
+}
+
+async function loadOperations() {
+  if (!credential) return;
+  operations.innerHTML = renderOperationSurfaceHtml({ messages: operationMessages });
+  const outcome = await operationClient.list();
+  if (!outcome.ok) {
+    operations.innerHTML = renderOperationSurfaceHtml({
+      messages: operationMessages,
+      status: describeOperationRefusal(operationMessages, outcome.refusal),
+      statusKind: "error",
+    });
+    bindOperationActions();
+    return;
+  }
+  operations.innerHTML = renderOperationSurfaceHtml({
+    messages: operationMessages,
+    operations: outcome.operations,
+  });
+  bindOperationActions();
 }
 
 /** Drop the credential and get another. The ONE response that leads here is 401/403. */
@@ -508,6 +601,7 @@ async function loop() {
 
 credential = loadAttendCredential(storage, Date.now());
 showCredential();
+if (credential) void loadOperations();
 void loop();
 </script>
 </body>
@@ -517,6 +611,14 @@ void loop();
 
 export function createAttendSurface(): AttendSurface {
 	const distDir = resolveBlockDistDir(ATTEND_BLOCK);
+	const operationDistDir = resolveBlockDistDir(OPERATION_BLOCK);
+	const localizationDistDir = resolveBlockDistDir(LOCALIZATION_BLOCK);
+	const dsDistDir = resolveBlockDistDir(DS_BLOCK);
+	const dsAssets = new Map([
+		["tokens.css", resolvePackageAsset(DS_BLOCK, "tokens.css")],
+		["theme.css", resolvePackageAsset(DS_BLOCK, "themes/verde-jardim.css")],
+		["components.css", resolvePackageAsset(DS_BLOCK, "components.css")],
+	]);
 	const page = attendPage();
 
 	return {
@@ -532,6 +634,33 @@ export function createAttendSurface(): AttendSurface {
 			}
 			if (pathname.startsWith(ATTEND_LIB_PREFIX)) {
 				await serveBlockModule(distDir, pathname.slice(ATTEND_LIB_PREFIX.length), req, res);
+				return true;
+			}
+			if (pathname.startsWith(OPERATION_LIB_PREFIX)) {
+				await serveBlockModule(
+					operationDistDir,
+					pathname.slice(OPERATION_LIB_PREFIX.length),
+					req,
+					res,
+				);
+				return true;
+			}
+			if (pathname.startsWith(LOCALIZATION_LIB_PREFIX)) {
+				await serveBlockModule(
+					localizationDistDir,
+					pathname.slice(LOCALIZATION_LIB_PREFIX.length),
+					req,
+					res,
+				);
+				return true;
+			}
+			if (pathname.startsWith(DS_LIB_PREFIX)) {
+				await serveBlockModule(dsDistDir, pathname.slice(DS_LIB_PREFIX.length), req, res);
+				return true;
+			}
+			if (pathname.startsWith(DS_ASSET_PREFIX)) {
+				const name = pathname.slice(DS_ASSET_PREFIX.length);
+				await servePackageAsset(dsAssets.get(name) ?? null, "text/css; charset=utf-8", req, res);
 				return true;
 			}
 			return false;
