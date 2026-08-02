@@ -139,10 +139,11 @@ pub(crate) const AUTH_POLICY_FILE_NAME: &str = "auth-policy.json";
 /// `Reading::fingerprint`).
 const RELOAD_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
-/// The wire name of the one scope this node knows. Byte-identical to
-/// `SCOPE_ANSWER_PROMPTS` in `packages/emoji-sas-v1/src/scoped-credential.ts`, which is the
-/// side that MINTS it — one vocabulary, two runtimes, exactly like `AUTH_POLICY_FILE_NAME`.
+/// Wire scope names. Their vocabulary is pinned to emoji-sas-v1's shared fixture in tests:
+/// one authority contract, consumed by two runtimes.
 pub(crate) const SCOPE_ANSWER_PROMPTS: &str = "prompt:answer";
+pub(crate) const SCOPE_READ_OPERATIONS: &str = "operation:read";
+pub(crate) const SCOPE_START_OPERATIONS: &str = "operation:start";
 
 /// The wire discriminator every scoped entry must carry (`SCOPED_CREDENTIAL_WIRE` in
 /// `emoji-sas-v1`). An entry without it is not a scoped credential and is refused.
@@ -155,8 +156,10 @@ pub(crate) const SCOPED_CREDENTIAL_WIRE: &str = "scoped-credential.v1";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Scope {
     /// `prompt:answer` — read this node's pending questions and settle them, and nothing
-    /// else. The one scope `packages/emoji-sas-v1` issues today.
+    /// else.
     AnswerPrompts,
+    ReadOperations,
+    StartOperations,
 }
 
 impl Scope {
@@ -165,6 +168,8 @@ impl Scope {
     fn from_wire(raw: &str) -> Option<Self> {
         match raw {
             SCOPE_ANSWER_PROMPTS => Some(Scope::AnswerPrompts),
+            SCOPE_READ_OPERATIONS => Some(Scope::ReadOperations),
+            SCOPE_START_OPERATIONS => Some(Scope::StartOperations),
             _ => None,
         }
     }
@@ -187,6 +192,8 @@ impl Scope {
     pub(crate) const fn wire(self) -> &'static str {
         match self {
             Scope::AnswerPrompts => SCOPE_ANSWER_PROMPTS,
+            Scope::ReadOperations => SCOPE_READ_OPERATIONS,
+            Scope::StartOperations => SCOPE_START_OPERATIONS,
         }
     }
 }
@@ -231,6 +238,10 @@ pub(crate) fn route_requirement(method: &Method, path: &str) -> RouteRequirement
     match (method, segments.as_slice()) {
         (&Method::GET, ["prompts"]) => RouteRequirement::Scoped(Scope::AnswerPrompts),
         (&Method::POST, ["prompts", _, "answer"]) => RouteRequirement::Scoped(Scope::AnswerPrompts),
+        (&Method::GET, ["operations"]) | (&Method::GET, ["operations", _]) => {
+            RouteRequirement::Scoped(Scope::ReadOperations)
+        }
+        (&Method::POST, ["operations"]) => RouteRequirement::Scoped(Scope::StartOperations),
         _ => RouteRequirement::DeviceOnly,
     }
 }
@@ -3002,14 +3013,31 @@ mod tests {
     // being honoured for exactly what it says and nothing more — the right routes, and only
     // until its deadline.
 
-    /// A route requirement, spelled short. `ANSWER` is what the two prompt routes declare;
-    /// `DEVICE_ONLY` is what every other route in the sidecar declares by saying nothing.
+    /// Route requirements, spelled short. Undeclared routes remain device-only.
     const ANSWER: RouteRequirement = RouteRequirement::Scoped(Scope::AnswerPrompts);
+    const READ_OPERATIONS: RouteRequirement = RouteRequirement::Scoped(Scope::ReadOperations);
+    const START_OPERATIONS: RouteRequirement = RouteRequirement::Scoped(Scope::StartOperations);
     const DEVICE_ONLY: RouteRequirement = RouteRequirement::DeviceOnly;
 
     /// An epoch-ms instant to hang the tests off, so "expired" and "live" are statements
     /// about the credential rather than about how fast the suite runs.
     const NOW: i64 = 1_800_000_000_000;
+
+    #[test]
+    fn scope_vocabulary_matches_the_minting_runtime_fixture() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../emoji-sas-v1/scopes.fixture.json"
+        ))
+        .expect("scope fixture parses");
+        assert_eq!(
+            fixture["scopes"],
+            serde_json::json!([
+                SCOPE_ANSWER_PROMPTS,
+                SCOPE_READ_OPERATIONS,
+                SCOPE_START_OPERATIONS
+            ])
+        );
+    }
 
     /// One scoped credential's JSON, in the exact shape `apps/refarm`'s `auth verify` writes
     /// (`packages/emoji-sas-v1`'s `ScopedCredential`).
@@ -3064,12 +3092,15 @@ mod tests {
     // ── the route table: what each route DECLARES ────────────────────────────────
 
     #[test]
-    fn route_requirement_declares_the_two_prompt_reads_and_nothing_else() {
+    fn route_requirement_declares_each_narrow_browser_authority() {
         // The table, stated as a test so a widening is a diff. Note the method split on the
         // SAME path: reading the questions is scoped, publishing one is not — an asking
         // process is not an answering device.
         assert_eq!(route_requirement(&Method::GET, "/prompts"), ANSWER);
         assert_eq!(route_requirement(&Method::POST, "/prompts/p-1/answer"), ANSWER);
+        assert_eq!(route_requirement(&Method::GET, "/operations"), READ_OPERATIONS);
+        assert_eq!(route_requirement(&Method::GET, "/operations/r-one"), READ_OPERATIONS);
+        assert_eq!(route_requirement(&Method::POST, "/operations"), START_OPERATIONS);
 
         assert_eq!(
             route_requirement(&Method::POST, "/prompts"),
@@ -3159,8 +3190,7 @@ mod tests {
         );
 
         // MUTATION GUARD (silent + dangerous): a scoped credential accepted by a route that
-        // never declared its scope. Every route in the sidecar except the two prompt reads is
-        // this case, and each of them is a full-authority route.
+        // never declared its scope. Most sidecar routes are this case and remain full-authority.
         assert_eq!(
             policy.verify("browser-token", DEVICE_ONLY, Some(NOW)),
             None,

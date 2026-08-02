@@ -129,7 +129,7 @@ export function describeGrant(exchange: SasExchange, now: number): string[] {
 		lines.push(`   Scope       ${scope}`);
 	}
 	lines.push(
-		`               NOT a device credential — the runtime's sidecar gate will refuse it.`,
+		`               NOT a device credential — only the scopes shown above are admitted.`,
 		`   Lifetime    ${formatLifetime(exchange.lifetimeMs)}, then it stops working on its own`,
 		`   Revoke      ${refarmCommand(["auth", "revoke", "<id>"])} — its own entry, not the device's`,
 		`   Started     ${formatAge(now - exchange.createdAt)}`,

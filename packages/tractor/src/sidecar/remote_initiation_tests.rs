@@ -13,8 +13,8 @@
 //!      adversarial id.
 //!   2. [`this_module_builds_exactly_one_command_and_never_a_shell`] — add a second
 //!      `Command::new`, or route the spawn through `sh -c`, and the source-text guard fails.
-//!   3. [`a_scoped_credential_cannot_start_anything`] — declare a scope for `/operations` in
-//!      `auth::route_requirement` and the scoped credential starts getting through.
+//!   3. [`a_prompt_only_credential_cannot_operate`] — confuse prompt authority with operation
+//!      authority and the scoped credential starts getting through.
 //!   4. [`the_ceiling_holds`] — raise `MAX_STARTED_OPERATIONS`, or drop the claim, and a
 //!      second start is admitted.
 
@@ -330,24 +330,28 @@ fn the_two_ceilings_are_independent() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════
-// DEVICE-ONLY, OVER A REAL SOCKET
+// NARROW SCOPES, OVER A REAL SOCKET
 // ══════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn the_route_declares_no_scope_and_is_therefore_device_only() {
-    // The decision, at the level it is actually made: silence in `route_requirement`. There
-    // is no entry for `/operations` and that IS the enforcement.
-    for method in [Method::GET, Method::POST] {
-        assert_eq!(
-            crate::sidecar::auth::route_requirement(&method, ROUTE_OPERATIONS),
-            RouteRequirement::DeviceOnly,
-            "{method} {ROUTE_OPERATIONS} admits device credentials only"
-        );
-    }
+fn the_routes_declare_read_and_start_separately() {
+    assert_eq!(
+        crate::sidecar::auth::route_requirement(&Method::GET, ROUTE_OPERATIONS),
+        RouteRequirement::Scoped(Scope::ReadOperations)
+    );
+    assert_eq!(
+        crate::sidecar::auth::route_requirement(&Method::POST, ROUTE_OPERATIONS),
+        RouteRequirement::Scoped(Scope::StartOperations)
+    );
+    assert_eq!(
+        crate::sidecar::auth::route_requirement(&Method::GET, "/operations/r-one"),
+        RouteRequirement::Scoped(Scope::ReadOperations)
+    );
 }
 
 const DEVICE_TOKEN: &str = "device-token-for-initiation";
 const SCOPED_TOKEN: &str = "scoped-token-for-answering";
+const OPERATOR_TOKEN: &str = "scoped-token-for-operations";
 
 /// Far enough ahead that the scoped credential is LIVE for the whole run — the refusal under
 /// test must be about authority, never about a deadline that happened to pass.
@@ -365,6 +369,11 @@ fn gate_with_both() -> AuthGate {
             token_sha256: sha256_hex(SCOPED_TOKEN),
             identity: "id-browser".to_string(),
             scope: vec![Scope::AnswerPrompts],
+            expires_at_ms: FAR_FUTURE_MS,
+        }, ScopedCredential {
+            token_sha256: sha256_hex(OPERATOR_TOKEN),
+            identity: "id-browser-operator".to_string(),
+            scope: vec![Scope::ReadOperations, Scope::StartOperations],
             expires_at_ms: FAR_FUTURE_MS,
         }],
     ))
@@ -400,17 +409,12 @@ async fn post_operation(port: u16, token: Option<&str>) -> reqwest::StatusCode {
 }
 
 #[tokio::test]
-async fn a_scoped_credential_cannot_start_anything() {
-    // MUTATION-VERIFIED. Declare a scope for `/operations` in `route_requirement` and this
-    // credential starts getting through.
-    //
-    // The same credential a browser holds to ANSWER the farm's questions — live, in scope for
-    // what it is for, and refused here. Answering is not starting.
+async fn a_prompt_only_credential_cannot_operate() {
     let (port, _tmp) = serve_declared().await;
     assert_eq!(
         post_operation(port, Some(SCOPED_TOKEN)).await,
         401,
-        "a prompt:answer credential may answer questions; it may never start work"
+        "answering prompts does not imply starting operations"
     );
     assert_eq!(
         reqwest::Client::new()
@@ -421,7 +425,7 @@ async fn a_scoped_credential_cannot_start_anything() {
             .unwrap()
             .status(),
         401,
-        "and it may not even read the catalog of what could be started"
+        "answering prompts does not imply reading the operation catalog"
     );
     assert_eq!(
         reqwest::Client::new()
@@ -434,7 +438,20 @@ async fn a_scoped_credential_cannot_start_anything() {
             .unwrap()
             .status(),
         401,
-        "run lifecycle is device-only too"
+        "prompt authority does not imply lifecycle visibility"
+    );
+}
+
+#[tokio::test]
+async fn an_operation_scoped_credential_reaches_both_operation_handlers() {
+    let (port, _tmp) = serve_declared().await;
+    assert_ne!(post_operation(port, Some(OPERATOR_TOKEN)).await, 401);
+    assert_ne!(
+        reqwest::Client::new()
+            .get(format!("http://127.0.0.1:{port}{ROUTE_OPERATIONS}"))
+            .header("Authorization", format!("Bearer {OPERATOR_TOKEN}"))
+            .send().await.unwrap().status(),
+        401
     );
 }
 

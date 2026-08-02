@@ -41,13 +41,19 @@
 /** Wire discriminator for a scoped credential entry. */
 export const SCOPED_CREDENTIAL_WIRE = "scoped-credential.v1" as const;
 
-/** The one scope this slice issues: answer operator prompts, and nothing else. */
+/** Narrow authorities a verified browser may request. */
 export const SCOPE_ANSWER_PROMPTS = "prompt:answer" as const;
+export const SCOPE_READ_OPERATIONS = "operation:read" as const;
+export const SCOPE_START_OPERATIONS = "operation:start" as const;
 
 /** Scopes a caller may legally ask for. A request naming anything else is refused
  *  rather than narrowed — a surface asking for authority we do not grant has
  *  misunderstood something, and silently downgrading it hides that. */
-export const KNOWN_SCOPES: readonly string[] = [SCOPE_ANSWER_PROMPTS];
+export const KNOWN_SCOPES: readonly string[] = [
+	SCOPE_ANSWER_PROMPTS,
+	SCOPE_READ_OPERATIONS,
+	SCOPE_START_OPERATIONS,
+];
 
 /** The default lifetime of a browser session's credential: one hour. A browser session
  *  is not a device enrolment, and S3 asks for that difference to be VISIBLE in the
@@ -113,7 +119,9 @@ export function parseScopedCredential(value: unknown): ScopedCredential | null {
 	if (!id || !identity || !tokenSha256 || !surface || !issuedVia) return null;
 	if (issuedAt === null || expiresAt === null) return null;
 	if (!Array.isArray(value.scope)) return null;
-	const scope = value.scope.filter((entry): entry is string => typeof entry === "string" && entry !== "");
+	const scope = value.scope.filter(
+		(entry): entry is string => typeof entry === "string" && entry !== "",
+	);
 	if (scope.length === 0) return null;
 	return {
 		wire: SCOPED_CREDENTIAL_WIRE,
@@ -259,9 +267,14 @@ export function unknownScope(scope: readonly string[]): string | null {
  *  never just the emoji. Kept here, beside the credential it describes, so a second
  *  confirming surface cannot invent its own vocabulary for the same grant. */
 export function describeScopeForOperator(scope: readonly string[]): string[] {
-	return scope.map((entry) =>
-		entry === SCOPE_ANSWER_PROMPTS
-			? `${entry} — may answer operator prompts, and nothing else`
-			: entry,
-	);
+	return scope.map((entry) => {
+		if (entry === SCOPE_ANSWER_PROMPTS) return `${entry} — may answer operator prompts`;
+		if (entry === SCOPE_READ_OPERATIONS) {
+			return `${entry} — may list admitted operations and read their lifecycle`;
+		}
+		if (entry === SCOPE_START_OPERATIONS) {
+			return `${entry} — may start an operation already admitted by the node`;
+		}
+		return entry;
+	});
 }

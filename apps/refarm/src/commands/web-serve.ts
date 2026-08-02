@@ -97,8 +97,8 @@ function containedPath(root: string, pathname: string): string | null {
  * second origin for a credential to be scoped to. It widens NOTHING: the request's
  * `Authorization` is forwarded untouched and the Rust gate is still the only thing that
  * decides, which is exactly the reasoning O6 already accepted for the routes above. What
- * makes it safe to add is that the gate now judges those two paths by SCOPE — a
- * `prompt:answer` credential passes there and nowhere else, and `POST /prompts`
+ * makes it safe to add is that the gate judges each method/path by SCOPE: prompt answering,
+ * operation reads and operation starts are separate authorities, while `POST /prompts`
  * (publishing a question) stays device-only on the same path. */
 const SIDECAR_API_PREFIXES = [
 	"/efforts",
@@ -107,6 +107,7 @@ const SIDECAR_API_PREFIXES = [
 	"/tasks",
 	"/plugins",
 	"/prompts",
+	"/operations",
 ] as const;
 
 export function isSidecarApiPath(pathname: string): boolean {

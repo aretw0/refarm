@@ -43,7 +43,7 @@ import {
  *
  * R4 of the composable-onboarding design. The sidecar route
  * (`packages/tractor/src/sidecar/remote_initiation.rs`) accepts an OPAQUE operation id from an
- * enrolled device and spawns exactly this, as `<refarm> auth remote run <id>` — three constant
+ * authorised caller and spawns exactly this, as `<refarm> auth remote run <id>` — three constant
  * tokens and the caller's bytes in one argv element. It never parses, joins or derives a
  * command line from what a device sent, because it cannot: the decision is HERE, in the
  * runtime that owns the declaration.
@@ -105,8 +105,8 @@ export type RemoteInitiationVerdict =
  * The verdict, as a PURE function of the requested id and what the CLI has.
  *
  * The credential is not a parameter and must not become one: authority is the NODE's
- * question, answered by the listener's own gate before this process exists (`/operations`
- * declares no scope, so it admits device credentials only). Accepting a credential here would
+ * question, answered by the listener's own gate before this process exists (`POST /operations`
+ * declares `operation:start`). Accepting a credential here would
  * be a second authentication path reachable by anyone who can run this command locally —
  * which is everyone who is already on the node.
  */

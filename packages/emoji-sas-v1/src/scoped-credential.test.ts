@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -8,17 +9,30 @@ import {
 	describeScopeForOperator,
 	isScopedCredentialExpired,
 	MAX_SCOPED_LIFETIME_MS,
-	pruneExpiredScopedCredentials,
 	parseScopedCredential,
+	pruneExpiredScopedCredentials,
 	readScopedCredentials,
 	removeScopedCredential,
 	SCOPE_ANSWER_PROMPTS,
+	SCOPE_READ_OPERATIONS,
+	SCOPE_START_OPERATIONS,
 	SCOPED_CREDENTIAL_WIRE,
 	unknownScope,
 	type ScopedCredential,
 } from "./scoped-credential.js";
 
 const NOW = 1_700_000_000_000;
+
+it("keeps the scope constants aligned with the cross-runtime fixture", async () => {
+	const fixture = JSON.parse(
+		await readFile(new URL("../scopes.fixture.json", import.meta.url), "utf8"),
+	) as { scopes: string[] };
+	expect(fixture.scopes).toEqual([
+		SCOPE_ANSWER_PROMPTS,
+		SCOPE_READ_OPERATIONS,
+		SCOPE_START_OPERATIONS,
+	]);
+});
 
 function credential(overrides: Partial<ScopedCredential> = {}): ScopedCredential {
 	return {
@@ -45,7 +59,10 @@ describe("S3 — a scoped credential is NOT a device credential", () => {
 		// every sidecar route, forever — the browser holding the device token with extra
 		// steps. Placing it under a key that parser never reads is what makes "not a
 		// device credential" true on the other side of the file.
-		const policy = addScopedCredential({ credentials: [{ identity: "phone", tokenSha256: "b".repeat(64) }] }, credential());
+		const policy = addScopedCredential(
+			{ credentials: [{ identity: "phone", tokenSha256: "b".repeat(64) }] },
+			credential(),
+		);
 		expect(policy.credentials).toEqual([{ identity: "phone", tokenSha256: "b".repeat(64) }]);
 		expect(Array.isArray(policy.scopedCredentials)).toBe(true);
 		expect(JSON.stringify(policy.credentials)).not.toContain("sas-1");
@@ -83,7 +100,9 @@ describe("the gate over a scoped credential", () => {
 	const policy = addScopedCredential({ credentials: [] }, credential());
 
 	it("admits the right hash, with the right scope, before the deadline", () => {
-		expect(authenticateScopedToken(policy, "a".repeat(64), SCOPE_ANSWER_PROMPTS, NOW)?.id).toBe("sas-1");
+		expect(authenticateScopedToken(policy, "a".repeat(64), SCOPE_ANSWER_PROMPTS, NOW)?.id).toBe(
+			"sas-1",
+		);
 	});
 
 	it("refuses an unknown hash", () => {
@@ -96,15 +115,27 @@ describe("the gate over a scoped credential", () => {
 
 	it("refuses after the deadline — expiry is ENFORCED, not merely recorded", () => {
 		expect(
-			authenticateScopedToken(policy, "a".repeat(64), SCOPE_ANSWER_PROMPTS, NOW + DEFAULT_SCOPED_LIFETIME_MS),
+			authenticateScopedToken(
+				policy,
+				"a".repeat(64),
+				SCOPE_ANSWER_PROMPTS,
+				NOW + DEFAULT_SCOPED_LIFETIME_MS,
+			),
 		).toBeNull();
 		expect(
-			authenticateScopedToken(policy, "a".repeat(64), SCOPE_ANSWER_PROMPTS, NOW + DEFAULT_SCOPED_LIFETIME_MS + 1),
+			authenticateScopedToken(
+				policy,
+				"a".repeat(64),
+				SCOPE_ANSWER_PROMPTS,
+				NOW + DEFAULT_SCOPED_LIFETIME_MS + 1,
+			),
 		).toBeNull();
 	});
 
 	it("matches case-insensitively on the hex digest, and refuses a blank one", () => {
-		expect(authenticateScopedToken(policy, "A".repeat(64), SCOPE_ANSWER_PROMPTS, NOW)?.id).toBe("sas-1");
+		expect(authenticateScopedToken(policy, "A".repeat(64), SCOPE_ANSWER_PROMPTS, NOW)?.id).toBe(
+			"sas-1",
+		);
 		expect(authenticateScopedToken(policy, "   ", SCOPE_ANSWER_PROMPTS, NOW)).toBeNull();
 	});
 });
@@ -116,7 +147,10 @@ describe("individually revocable (S3)", () => {
 	);
 
 	it("revokes ONE by id, leaving its sibling and every device credential alone", () => {
-		const withDevice = { ...two, credentials: [{ identity: "phone", tokenSha256: "b".repeat(64) }] };
+		const withDevice = {
+			...two,
+			credentials: [{ identity: "phone", tokenSha256: "b".repeat(64) }],
+		};
 		const { policy, removed } = removeScopedCredential(withDevice, "sas-1");
 		expect(removed.id).toBe("sas-1");
 		expect(readScopedCredentials(policy).map((c) => c.id)).toEqual(["sas-2"]);
@@ -180,12 +214,17 @@ describe("housekeeping and vocabulary", () => {
 	});
 
 	it("names an unknown scope rather than silently narrowing it", () => {
-		expect(unknownScope([SCOPE_ANSWER_PROMPTS])).toBeNull();
+		expect(
+			unknownScope([SCOPE_ANSWER_PROMPTS, SCOPE_READ_OPERATIONS, SCOPE_START_OPERATIONS]),
+		).toBeNull();
 		expect(unknownScope([SCOPE_ANSWER_PROMPTS, "sidecar:call"])).toBe("sidecar:call");
 	});
 
 	it("describes the scope in words the operator can act on", () => {
-		expect(describeScopeForOperator([SCOPE_ANSWER_PROMPTS])[0]).toContain("may answer operator prompts");
-		expect(describeScopeForOperator([SCOPE_ANSWER_PROMPTS])[0]).toContain("nothing else");
+		expect(describeScopeForOperator([SCOPE_ANSWER_PROMPTS])[0]).toContain(
+			"may answer operator prompts",
+		);
+		expect(describeScopeForOperator([SCOPE_READ_OPERATIONS])[0]).toContain("read their lifecycle");
+		expect(describeScopeForOperator([SCOPE_START_OPERATIONS])[0]).toContain("already admitted");
 	});
 });

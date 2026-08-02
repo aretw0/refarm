@@ -413,6 +413,8 @@ describe("refarm web serve — the sidecar API proxy", () => {
 		expect(isSidecarApiPath("/efforts/abc")).toBe(true);
 		expect(isSidecarApiPath("/sessions/1/history")).toBe(true);
 		expect(isSidecarApiPath("/nodes")).toBe(true);
+		expect(isSidecarApiPath("/operations")).toBe(true);
+		expect(isSidecarApiPath("/operations/r-one")).toBe(true);
 		expect(isSidecarApiPath("/")).toBe(false);
 		expect(isSidecarApiPath("/manifest.webmanifest")).toBe(false);
 		expect(isSidecarApiPath("/assets/app.wasm")).toBe(false);

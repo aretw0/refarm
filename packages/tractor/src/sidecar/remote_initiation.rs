@@ -40,13 +40,11 @@
 //! entrypoint path, and none of the spellings a command line would need appears anywhere. A
 //! rule the compiler cannot check is checked by reading the source.
 //!
-//! ## Device-only, by silence
+//! ## Scoped browser authority, explicit and expiring
 //!
-//! No entry is added to [`super::auth::route_requirement`] for these routes, and that IS the
-//! decision: a route that declares no scope admits device credentials only. A browser's
-//! `prompt:answer` credential may ANSWER the farm's questions; it may never START work. This
-//! costs one line of code (zero) and is proved by `a_scoped_credential_cannot_start_anything`,
-//! which drives the real `listener_router` over a real socket.
+//! [`super::auth::route_requirement`] declares `operation:read` for catalog/status reads and
+//! `operation:start` for initiation. A verified browser must hold the exact authority for each;
+//! `prompt:answer` alone admits neither. Full device credentials continue to satisfy both.
 //!
 //! ## The bound, stated
 //!
@@ -149,7 +147,7 @@ use crate::host::{spawn_env_from_config_at, SpawnEnvDecl};
 pub(crate) const REMOTE_INITIATION_WIRE: &str = "remote-initiation.v1";
 
 /// The route. Registered from this constant (`sidecar_routes` names it) and DELIBERATELY
-/// absent from `auth::route_requirement`, which is what makes it device-only.
+/// registered beside the explicit read/start requirements in `auth::route_requirement`.
 pub(crate) const ROUTE_OPERATIONS: &str = "/operations";
 
 /// The binary the node starts. A bare file name, looked for only inside `spawnEnv.path`.
@@ -598,7 +596,7 @@ fn could_not_start(detail: String) -> axum::response::Response {
 
 /// `POST /operations` — start one of refarm's own wizards, named by an opaque id.
 ///
-/// Device-only by silence (see the module header). The body is read for EXACTLY one field,
+/// Requires `operation:start` (or a full device credential). The body is read for EXACTLY one field,
 /// `operation`, and that value becomes exactly one argv element; no other field is consulted,
 /// merged, or defaulted.
 ///
@@ -774,7 +772,7 @@ pub(crate) async fn get_operation(
 
 /// `GET /operations` — what an enrolled device may start here.
 ///
-/// Device-only by the same silence. Rust does not know the catalog and does not learn it: it
+/// Requires `operation:read` (or a full device credential). Rust does not know the catalog and does not learn it: it
 /// runs `refarm auth remote --json` and relays the JSON document that command printed, whole,
 /// under `catalog`. The declaration stays in exactly one place.
 pub(crate) async fn get_operations(State(state): State<SidecarState>) -> impl IntoResponse {

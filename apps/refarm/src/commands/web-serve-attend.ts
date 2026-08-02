@@ -230,7 +230,7 @@ async function handshake() {
   try {
     handle = await startSasVerification({
       client: navigator.userAgent.slice(0, 100),
-      scope: [ATTEND_SCOPE],
+      scope: [ATTEND_SCOPE, "operation:read", "operation:start"],
       lifetimeMs: ATTEND_LIFETIME_MS,
     });
   } catch (error) {
@@ -256,7 +256,7 @@ async function handshake() {
   credential = attendCredentialFromGrant(outcome, Date.now());
   saveAttendCredential(storage, credential);
   showCredential();
-  say("Verified. This surface may answer prompts, and nothing else.", "ok");
+  say("Verified. This surface may answer prompts and operate only the node's admitted catalog.", "ok");
   main.replaceChildren();
   return true;
 }
