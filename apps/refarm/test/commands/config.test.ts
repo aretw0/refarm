@@ -1151,3 +1151,85 @@ describe("config set/unset are RECORDED — and never confirmed", () => {
 		expect(homeTrail()).toBe(path.join(home, ".refarm", "operations.json"));
 	});
 });
+
+describe("config spawn-env authors the host spawn boundary", () => {
+	let cwd: string;
+	let home: string;
+	let tick: number;
+
+	beforeEach(() => {
+		cwd = makeTempDir();
+		home = makeTempDir();
+		tick = 0;
+		process.exitCode = undefined;
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+		process.exitCode = undefined;
+		fs.rmSync(cwd, { recursive: true, force: true });
+		fs.rmSync(home, { recursive: true, force: true });
+	});
+
+	function command() {
+		return createConfigCommand(
+			{ cwd: () => cwd, home: () => home },
+			{ now: () => `2026-08-02T18:00:0${tick++}.000Z`, decidedBy: "operator", host: "node" },
+		);
+	}
+
+	it("persists PATH in declared order with HOME and records one reversible operation", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		await command().parseAsync(
+			["spawn-env", "set", "/opt/refarm/bin", "/usr/bin", "/bin", "--home", "/home/operator", "--json"],
+			{ from: "user" },
+		);
+
+		const configPath = path.join(home, ".refarm", "config.json");
+		expect(JSON.parse(fs.readFileSync(configPath, "utf8"))).toMatchObject({
+			spawnEnv: { path: ["/opt/refarm/bin", "/usr/bin", "/bin"], home: "/home/operator" },
+		});
+		const result = JSON.parse(String(logSpy.mock.calls.at(-1)?.[0]));
+		expect(result).toMatchObject({
+			ok: true,
+			operation: "spawn-env.set",
+			path: ["/opt/refarm/bin", "/usr/bin", "/bin"],
+			home: "/home/operator",
+		});
+		const trail = JSON.parse(fs.readFileSync(path.join(home, ".refarm", "operations.json"), "utf8"));
+		expect(trail.records).toHaveLength(1);
+		expect(trail.records[0].requestId).toBe("config:home:spawnEnv");
+	});
+
+	it("rejects relative entries without creating config or history", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		await command().parseAsync(["spawn-env", "set", "relative/bin", "--home", "/home/operator"], {
+			from: "user",
+		});
+		expect(process.exitCode).toBe(1);
+		expect(errorSpy.mock.calls.flat().join("\n")).toContain("absolute filesystem path");
+		expect(fs.existsSync(path.join(home, ".refarm", "config.json"))).toBe(false);
+		expect(fs.existsSync(path.join(home, ".refarm", "operations.json"))).toBe(false);
+	});
+
+	it("unset is recorded and history undo restores the exact declaration", async () => {
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		await command().parseAsync(["spawn-env", "set", "/usr/bin", "/bin", "--home", "/home/operator"], { from: "user" });
+		const configPath = path.join(home, ".refarm", "config.json");
+		const declared = fs.readFileSync(configPath, "utf8");
+		await command().parseAsync(["spawn-env", "unset"], { from: "user" });
+		expect(JSON.parse(fs.readFileSync(configPath, "utf8"))).toEqual({});
+		const trail = JSON.parse(fs.readFileSync(path.join(home, ".refarm", "operations.json"), "utf8"));
+		await command().parseAsync(["history", "undo", trail.records[1].id], { from: "user" });
+		expect(fs.readFileSync(configPath, "utf8")).toBe(declared);
+	});
+
+	it("documents the dedicated list authoring surface and fail-closed posture", () => {
+		const spawnEnv = command().commands.find((subcommand) => subcommand.name() === "spawn-env");
+		let help = "";
+		spawnEnv?.configureOutput({ writeOut: (value) => { help += value; } });
+		spawnEnv?.outputHelp();
+		expect(help).toContain("refarm config spawn-env set");
+		expect(help).toContain("never falls back");
+	});
+});

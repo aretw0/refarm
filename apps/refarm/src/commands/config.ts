@@ -169,6 +169,17 @@ const CODING_PROFILE_VALUES = {
 	MODEL_TOOL_CALL_MAX_ITER: "20",
 	MODEL_STREAM_RESPONSES: "1",
 } as const;
+const MAX_SPAWN_ENV_PATH_ENTRIES = 64;
+const MAX_SPAWN_ENV_PATH_ENTRY_LENGTH = 4096;
+const MAX_SPAWN_ENV_PATH_TOTAL_LENGTH = 64 * 1024;
+
+interface SpawnEnvResult {
+	path: string[];
+	home: string | null;
+	configPath: string;
+	scope: "home" | "local";
+	recordId?: string;
+}
 
 function defaultDeps(): ConfigDeps {
 	return {
@@ -180,6 +191,165 @@ function defaultDeps(): ConfigDeps {
 function configPath(deps: ConfigDeps, opts: { local?: boolean }): string {
 	const base = opts.local ? deps.cwd() : deps.home();
 	return path.join(base, ".refarm", "config.json");
+}
+
+function validateSpawnEnvPath(value: string, field: string): string {
+	if (!value || value.length > MAX_SPAWN_ENV_PATH_ENTRY_LENGTH || /[\u0000-\u001f\u007f]/u.test(value)) {
+		throw new CommandRefusal(
+			"invalid-config-value",
+			`Invalid ${field}: paths must be non-empty, control-free, and at most ${MAX_SPAWN_ENV_PATH_ENTRY_LENGTH} characters.`,
+			"Use an absolute filesystem path.",
+		);
+	}
+	if (!path.isAbsolute(value)) {
+		throw new CommandRefusal(
+			"invalid-config-value",
+			`Invalid ${field}: ${value}`,
+			"Use an absolute filesystem path.",
+		);
+	}
+	return path.normalize(value);
+}
+
+function parseSpawnEnv(pathEntries: readonly string[], home: string | undefined) {
+	if (pathEntries.length === 0 || pathEntries.length > MAX_SPAWN_ENV_PATH_ENTRIES) {
+		throw new CommandRefusal(
+			"invalid-config-value",
+			`spawnEnv.path must contain between 1 and ${MAX_SPAWN_ENV_PATH_ENTRIES} entries.`,
+			"Name the executable search directories in deliberate order.",
+		);
+	}
+	const parsedPath = pathEntries.map((entry, index) =>
+		validateSpawnEnvPath(entry, `spawnEnv.path[${index}]`),
+	);
+	if (parsedPath.reduce((total, entry) => total + entry.length, 0) > MAX_SPAWN_ENV_PATH_TOTAL_LENGTH) {
+		throw new CommandRefusal(
+			"invalid-config-value",
+			`spawnEnv.path exceeds ${MAX_SPAWN_ENV_PATH_TOTAL_LENGTH} total characters.`,
+			"Declare a smaller executable search path.",
+		);
+	}
+	return {
+		path: parsedPath,
+		...(home ? { home: validateSpawnEnvPath(home, "spawnEnv.home") } : {}),
+	};
+}
+
+function readSpawnEnv(opts: { local?: boolean }, deps: ConfigDeps): SpawnEnvResult {
+	const filePath = configPath(deps, opts);
+	const spawnEnv = readConfig(filePath).spawnEnv;
+	return {
+		path: Array.isArray(spawnEnv?.path) ? [...spawnEnv.path] : [],
+		home: typeof spawnEnv?.home === "string" ? spawnEnv.home : null,
+		configPath: filePath,
+		scope: configScope(opts),
+	};
+}
+
+async function setSpawnEnv(
+	pathEntries: readonly string[],
+	opts: ConfigMutationOptions & { home?: string },
+	deps: ConfigDeps,
+	recordDeps: ConfigRecordDeps,
+): Promise<SpawnEnvResult> {
+	const filePath = configPath(deps, opts);
+	const config = readConfig(filePath);
+	const spawnEnv = parseSpawnEnv(pathEntries, opts.home);
+	config.spawnEnv = spawnEnv;
+	const record = await recordConfigMutation(
+		{
+			kind: CONFIG_SET_KIND,
+			key: "spawnEnv",
+			value: JSON.stringify(spawnEnv),
+			scope: configScope(opts),
+			filePath,
+			before: readConfigSnapshot(filePath),
+			after: serializeConfig(config),
+			why: opts.why,
+			requestedAt: (recordDeps.now ?? (() => new Date().toISOString()))(),
+		},
+		recordDeps,
+	);
+	return { path: spawnEnv.path, home: spawnEnv.home ?? null, configPath: filePath, scope: configScope(opts), recordId: record.id };
+}
+
+async function unsetSpawnEnv(
+	opts: ConfigMutationOptions,
+	deps: ConfigDeps,
+	recordDeps: ConfigRecordDeps,
+): Promise<SpawnEnvResult & { removed: boolean }> {
+	const filePath = configPath(deps, opts);
+	const config = readConfig(filePath);
+	const before = readConfigSnapshot(filePath);
+	const removed = Object.prototype.hasOwnProperty.call(config, "spawnEnv");
+	if (!removed) return { ...readSpawnEnv(opts, deps), removed };
+	delete config.spawnEnv;
+	const record = await recordConfigMutation(
+		{
+			kind: CONFIG_UNSET_KIND,
+			key: "spawnEnv",
+			scope: configScope(opts),
+			filePath,
+			before,
+			after: serializeConfig(config),
+			why: opts.why,
+			requestedAt: (recordDeps.now ?? (() => new Date().toISOString()))(),
+		},
+		recordDeps,
+	);
+	return { path: [], home: null, configPath: filePath, scope: configScope(opts), recordId: record.id, removed };
+}
+
+function printSpawnEnv(result: SpawnEnvResult): void {
+	console.log(chalk.bold("Refarm spawn environment"));
+	console.log(chalk.dim(`  ${result.configPath}`));
+	console.log(`  PATH: ${result.path.length ? result.path.join(path.delimiter) : "(undeclared)"}`);
+	console.log(`  HOME: ${result.home ?? "(undeclared)"}`);
+	if (result.recordId) console.log(chalk.dim(`  recorded — undo with \`refarm config history undo ${result.recordId}${result.scope === "local" ? " --local" : ""}\``));
+}
+
+function printSpawnEnvJson(operation: string, result: SpawnEnvResult): void {
+	printJson(buildJsonSuccessEnvelope({
+		command: "config",
+		operation,
+		extra: result,
+		nextCommand: refarmCommand(["config", "spawn-env", "--json", ...(result.scope === "local" ? ["--local"] : [])]),
+	}));
+}
+
+function createConfigSpawnEnvCommand(deps: ConfigDeps, recordDeps: ConfigRecordDeps): Command {
+	return new Command("spawn-env")
+		.description("Inspect or author the fail-closed environment used for spawned operations")
+		.option("--local", "Use project-local .refarm/config.json")
+		.option("--json", "Output machine-readable spawn environment")
+		.addHelpText("after", `\nExamples:\n  $ refarm config spawn-env\n  $ refarm config spawn-env set /home/me/.local/bin /usr/bin /bin --home /home/me\n  $ refarm config spawn-env unset\n\nNotes:\n  PATH order is authority: entries are persisted exactly in the declared order.\n  The runtime never falls back to the daemon's ambient PATH or HOME.\n`)
+		.action((opts: { local?: boolean } & JsonOptionCarrier, command: JsonOptionCarrier) => {
+			const result = readSpawnEnv(opts, deps);
+			if (hasJsonOption(opts, command)) printSpawnEnvJson("spawn-env.get", result);
+			else printSpawnEnv(result);
+		})
+		.addCommand(new Command("set")
+			.description("Declare the ordered executable search path and optional HOME")
+			.argument("<directories...>", "Absolute PATH entries in search order")
+			.option("--home <path>", "Absolute HOME injected into spawned operations")
+			.option("--local", "Write project-local .refarm/config.json")
+			.option("--why <reason>", "Record why you are making this change")
+			.option("--json", "Output machine-readable result")
+			.action(guardedAction((...args) => ({ json: configActionJson(...args), ...configRefusalHandoff("spawn-env.set") }), async (directories: string[], opts: ConfigMutationOptions & { home?: string } & JsonOptionCarrier, command: JsonOptionCarrier) => {
+				const result = await setSpawnEnv(directories, opts, deps, recordDeps);
+				if (hasJsonOption(opts, command)) printSpawnEnvJson("spawn-env.set", result);
+				else printSpawnEnv(result);
+			})))
+		.addCommand(new Command("unset")
+			.description("Remove the declared spawn environment")
+			.option("--local", "Update project-local .refarm/config.json")
+			.option("--why <reason>", "Record why you are making this change")
+			.option("--json", "Output machine-readable result")
+			.action(guardedAction((...args) => ({ json: configActionJson(...args), ...configRefusalHandoff("spawn-env.unset") }), async (opts: ConfigMutationOptions & JsonOptionCarrier, command: JsonOptionCarrier) => {
+				const result = await unsetSpawnEnv(opts, deps, recordDeps);
+				if (hasJsonOption(opts, command)) printSpawnEnvJson("spawn-env.unset", result);
+				else printSpawnEnv(result);
+			})));
 }
 
 function parseAutostartMode(value: string | undefined): AutostartMode | null {
@@ -838,6 +1008,7 @@ Notes:
 				),
 		)
 		.addCommand(createConfigPluginsCommand(deps))
+		.addCommand(createConfigSpawnEnvCommand(deps, recordDeps))
 		.addCommand(
 			new Command("get")
 				.description("Show an effective config value")

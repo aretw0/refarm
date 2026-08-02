@@ -1,12 +1,12 @@
 {
-  "context": "Checkpoint 2026-08-02. Remote workspace control is shipped through Termux and browser/PWA: named allowlisted starts, bounded lifecycle, cancellation, and operation-result.v1 summaries/metrics/findings without transporting stdout. Refarm commits d298f6d3 and d08134bf are validated and clean. rcdc5 commit 66f8d91 consumes the official contract from vendored tarballs; code-boundaries now passes across 10 packages with zero findings. Runtime and systemd-user web-serve are live; only galaxy-a55-5g remains enrolled. The final authenticated proof stopped fail-closed before spawn because the HOME sovereign config lacks spawnEnv.path. Do not bypass this by inheriting PATH or editing JSON manually.",
+  "context": "Checkpoint 2026-08-02. Remote workspace control is shipped through Termux and browser/PWA: named allowlisted starts, bounded lifecycle, cancellation, and operation-result.v1 summaries/metrics/findings without transporting stdout. Refarm commits d298f6d3 and d08134bf are validated; rcdc5 commit 66f8d91 consumes the official contract and code-boundaries passes across 10 packages with zero findings. The fail-closed spawn migration now has a dedicated, recorded authoring surface: refarm config spawn-env set <absolute-bin-dir>... --home <absolute-home-dir>, with strict host-parity validation and history undo. Runtime and systemd-user web-serve are live; only galaxy-a55-5g remains enrolled.",
   "timestamp": "2026-08-02T17:57:35.000Z",
   "current_phase": "12",
   "current_tasks": [],
   "blockers": [],
   "next_actions": [
-    "Implement recorded CLI authorship for spawnEnv.path and spawnEnv.home, including validation, history/undo, tests, and migration guidance for an existing sovereign root.",
-    "Use that CLI surface in /home/s095407044 (not a manual JSON edit), restart the runtime, and repeat workspace:rcdc5:code-boundaries through authenticated POST/GET /operations. Expected terminal result: succeeded with operation-result.v1, packagesScanned=10, issueCount=0.",
+    "Build/install the CLI containing config spawn-env, then use that surface in /home/s095407044 (not a manual JSON edit) and restart the runtime.",
+    "Repeat workspace:rcdc5:code-boundaries through authenticated POST/GET /operations. Expected terminal result: succeeded with operation-result.v1, packagesScanned=10, issueCount=0.",
     "Republish the home farm-client kit after client changes. Once Termux and PWA both show the structured result, the next channel may be Telegram over the same catalog/lifecycle/result contracts."
   ],
   "open_questions": [],
@@ -19,8 +19,5 @@
     "ADR-064 [ACCEPTED]: TokenAuthError com provider + reason + rotationUrl — produzido na camada de credenciais, renderizado por qualquer superfície.",
     "ADR-065 [ACCEPTED]: Farmhand transparent lifecycle — refarm é o single entry point. Auto-start com Y/n confirm, detached spawn, 300ms poll. LaunchDeps interface para testabilidade."
   ],
-  "files_in_flux": [
-    "apps/refarm/src/commands/config.ts (likely authoring surface; untouched at checkpoint)",
-    "spawnEnv migration tests/docs (not started)"
-  ]
+  "files_in_flux": []
 }

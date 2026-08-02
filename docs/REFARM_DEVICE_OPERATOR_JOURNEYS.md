@@ -79,7 +79,16 @@ farm-attend
   and result introspection rather than an unbounded log.
 - Remote spawning is fail-closed: the node must declare `spawnEnv.path` (and normally
   `spawnEnv.home`) in its sovereign config. An absent search path is a configuration migration to
-  author on the node, never permission to inherit the daemon's ambient environment.
+  author on the node, never permission to inherit the daemon's ambient environment. Use the
+  recorded list-authoring surface rather than editing JSON:
+
+  ```bash
+  refarm config spawn-env set <absolute-bin-dir>... --home <absolute-home-dir>
+  refarm config spawn-env --json
+  ```
+
+  The declared order is the executable search order. `refarm config history` exposes the change
+  and its executable undo.
 - `farm-attend` answers a pending operator prompt using the shared prompt contract.
 
 ### Re-observe and undo

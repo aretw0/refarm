@@ -16,6 +16,10 @@ export interface RefarmCliConfig {
 	tractor?: {
 		engine?: string;
 	};
+	spawnEnv?: {
+		path?: string[];
+		home?: string;
+	};
 	/**
 	 * The COMPOSITION layer: which packages this scope activates, with pi-style
 	 * `!`-surface suppression. Additive and deliberately NOT a `ConfigKey` — it is
