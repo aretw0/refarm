@@ -9,6 +9,9 @@ import {
 } from "@refarm.dev/hardening";
 import { Command } from "commander";
 
+import { refarmCommand } from "../brand.js";
+import { CommandRefusal, guardedAction } from "./action-boundary.js";
+
 export interface HardeningCommandOptions {
 	json?: boolean;
 	gate?: boolean;
@@ -50,7 +53,13 @@ export async function buildHardeningReport(
 	deps: HardeningCommandDeps = defaultDeps,
 ): Promise<HardeningCommandReport> {
 	const workspaceRoot = deps.findRoot(deps.cwd());
-	if (!workspaceRoot) throw new Error("No pnpm workspace root found from the current directory.");
+	if (!workspaceRoot) {
+		throw new CommandRefusal(
+			"no-workspace-root",
+			"No pnpm workspace root found from the current directory.",
+			"Run this from inside a pnpm workspace — hardening reads a workspace's conformance signal.",
+		);
+	}
 	const signal = await deps.collect({ workspaceRoot });
 	const baseline = deps.readBaseline(workspaceRoot);
 	const ratchet = baseline.error
@@ -97,11 +106,23 @@ export function createHardeningCommand(deps: HardeningCommandDeps = defaultDeps)
 		.description("Collect the workspace conformance signal and enforce its shrinking baseline")
 		.option("--json", "Output the complete machine-readable hardening signal")
 		.option("--gate", "Fail when hardening debt grows or the baseline becomes stale")
-		.action(async (options: HardeningCommandOptions) => {
-			const report = await buildHardeningReport(options, deps);
-			deps.emit(options.json ? JSON.stringify(report, null, 2) : renderHuman(report));
-			if (!report.ok) deps.setExitCode(1);
-		});
+		.action(
+			guardedAction(
+				(options: HardeningCommandOptions) => ({
+					json: options.json === true,
+					command: "hardening",
+					operation: options.gate ? "gate" : "signal",
+					error: "hardening-failed",
+					nextAction: "Run the command from a directory inside the workspace you mean to inspect.",
+					nextCommand: refarmCommand(["hardening", "--json"]),
+				}),
+				async (options: HardeningCommandOptions) => {
+					const report = await buildHardeningReport(options, deps);
+					deps.emit(options.json ? JSON.stringify(report, null, 2) : renderHuman(report));
+					if (!report.ok) deps.setExitCode(1);
+				},
+			),
+		);
 }
 
 export const hardeningCommand = createHardeningCommand();
