@@ -1499,6 +1499,9 @@ importers:
       '@refarm.dev/identity-contract-v1':
         specifier: workspace:*
         version: link:../identity-contract-v1
+      '@refarm.dev/localization-v1':
+        specifier: workspace:*
+        version: link:../localization-v1
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../plugin-manifest
@@ -1710,6 +1713,21 @@ importers:
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
+
+  packages/localization-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
 
   packages/login-flow:
     devDependencies:

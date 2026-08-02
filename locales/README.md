@@ -4,8 +4,8 @@ This directory contains translation files for Refarm in multiple languages.
 
 ## Supported Languages
 
-- **pt-BR** — Portuguese (Brazil) — Default
-- **en** — English
+- **en** — English — explicit fallback and public base
+- **pt-BR** — Portuguese (Brazil) — selected for Brazilian operators
 - **es** — Spanish
 
 ## File Structure
@@ -14,7 +14,7 @@ Each language has a corresponding JSON file with translation keys:
 
 ```
 locales/
-├── pt-BR.json    (Portuguese - Portugal)
+├── pt-BR.json    (Portuguese - Brazil)
 ├── en.json       (English)
 ├── es.json       (Spanish)
 └── README.md     (This file)
@@ -24,22 +24,22 @@ locales/
 
 ### 1. Add Key to Base Language
 
-Update all three locale files with the new key. Start with `pt-BR.json`:
+Update all three locale files with the new key. Start with the English fallback:
 
 ```json
 {
-  "existing.key": "Value",
-  "new.key": "Nova string"
+	"existing.key": "Value",
+	"new.key": "New string"
 }
 ```
 
 ### 2. Translate to Other Languages
 
-Add the same key to `en.json` and `es.json`:
+Add the same key to `pt-BR.json` and `es.json`:
 
 ```json
 {
-  "new.key": "New string"
+	"new.key": "Nova string"
 }
 ```
 
@@ -48,10 +48,10 @@ Add the same key to `en.json` and `es.json`:
 Run the validation script:
 
 ```bash
-npm run i18n:check
+pnpm --filter @refarm.dev/homestead test -- l8n-host
 ```
 
-This ensures all languages have the same keys (no missing or extra translations).
+This ensures no shipped language is missing an English fallback key.
 
 ## Key Naming Conventions
 
@@ -64,32 +64,34 @@ This ensures all languages have the same keys (no missing or extra translations)
 
 ```json
 {
-  "nav.home": "Início",
-  "nav.plugins": "Plugins",
-  "nav.docs": "Documentação",
-  "studio.welcome": "Bem-vindo",
-  "studio.plugins.title": "Meus Plugins",
-  "action.save": "Salvar",
-  "action.delete": "Deletar",
-  "error.network": "Erro de conexão"
+	"nav.home": "Início",
+	"nav.plugins": "Plugins",
+	"nav.docs": "Documentação",
+	"studio.welcome": "Bem-vindo",
+	"studio.plugins.title": "Meus Plugins",
+	"action.save": "Salvar",
+	"action.delete": "Deletar",
+	"error.network": "Erro de conexão"
 }
 ```
 
 ## Plural Handling
 
-Use ICU MessageFormat for plurals:
+Do not encode ICU syntax until a MessageFormat implementation is adopted. For now,
+use separate semantic messages for singular and plural. This keeps unsupported syntax
+from leaking into an operator surface.
 
 ```json
 {
-  "item.count": "{count, plural, one {# item} other {# items}}"
+	"item.count.one": "{count} item",
+	"item.count.other": "{count} items"
 }
 ```
 
 Usage in code:
 
 ```typescript
-t("item.count", { count: 5 })  // "5 items"
-t("item.count", { count: 1 })  // "1 item"
+t(count === 1 ? "item.count.one" : "item.count.other", { count });
 ```
 
 ## Date/Number Formatting
@@ -98,23 +100,23 @@ For dates and numbers, use `Intl` API in code. Define descriptive keys:
 
 ```json
 {
-  "date.format": "Date format will be handled by Intl API",
-  "number.currency": "Currency format will be handled by Intl API"
+	"date.format": "Date format will be handled by Intl API",
+	"number.currency": "Currency format will be handled by Intl API"
 }
 ```
 
 Code example:
 
 ```typescript
-const date = new Intl.DateTimeFormat('pt-BR', {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric'
+const date = new Intl.DateTimeFormat("pt-BR", {
+	year: "numeric",
+	month: "long",
+	day: "numeric",
 }).format(new Date());
 
-const price = new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL'
+const price = new Intl.NumberFormat("pt-BR", {
+	style: "currency",
+	currency: "BRL",
 }).format(123.45);
 ```
 
@@ -139,15 +141,9 @@ const price = new Intl.NumberFormat('pt-BR', {
 If adding a new language (e.g., `fr` for French):
 
 1. Create `fr.json` with all existing keys
-2. Run `npm run i18n:check` to verify
-3. Update `astro.config.mjs`:
-
-   ```javascript
-   i18n: {
-     locales: ["pt-BR", "en", "es", "fr"],
-     // ...
-   }
-   ```
+2. Run the verification command above
+3. Add it to `REFARM_SUPPORTED_LOCALES` in `@refarm.dev/localization-v1`.
+4. Run the localization and Homestead tests.
 
 ## Resources
 
@@ -158,4 +154,4 @@ If adding a new language (e.g., `fr` for French):
 
 ---
 
-**Last Updated**: March 2026
+**Last Updated**: August 2026
