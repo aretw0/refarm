@@ -31,6 +31,17 @@ describe("evaluateCapabilityGrant", () => {
 });
 
 describe("decidePluginPolicy", () => {
+	it("returns an invalid decision instead of throwing for arbitrary input", () => {
+		const decision = decidePluginPolicy({ id: "@example/incomplete" }, {
+			grantedCapabilities: [],
+			policyMode: "fail-fast",
+		});
+
+		expect(decision.status).toBe("invalid-manifest");
+		expect(decision.manifestValid).toBe(false);
+		expect(decision.manifestErrors[0]).toContain("manifest shape could not be validated");
+	});
+
 	it("completes when the granted set satisfies every requirement", () => {
 		const decision = decidePluginPolicy(manifestRequiring(["storage:v1"]), {
 			grantedCapabilities: ["storage:v1"],

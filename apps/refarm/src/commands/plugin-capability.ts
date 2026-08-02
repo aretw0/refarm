@@ -466,7 +466,6 @@ export function createPluginCapabilityGroup(
 			// --policy / --grant. Validate the shared policy option once.
 			const policy = input.options.policy;
 			if (
-				(origin === "local" || origin === "npm" || origin === "git") &&
 				policy !== undefined &&
 				policy !== "fail-fast" &&
 				policy !== "warn+continue"
@@ -522,7 +521,12 @@ export function createPluginCapabilityGroup(
 			// content-address (the hash gate), then content-store + install. Safe from
 			// an untrusted URL by construction — tampered bytes are rejected, not run.
 			if (origin === "url") {
-				return (await buildUrlInstallReport({ url: ref })) as CapabilityEnvelope;
+				return (await buildUrlInstallReport({
+					url: ref,
+					grantedCapabilities,
+					policyMode,
+					availableConnections,
+				})) as CapabilityEnvelope;
 			}
 
 			// Every PluginOrigin is now wired; this is a defensive catch for an

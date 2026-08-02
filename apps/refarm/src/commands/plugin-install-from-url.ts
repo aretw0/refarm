@@ -1,11 +1,15 @@
-import { createFsAssetStore } from "@refarm.dev/asset-resolver-contract-v1/node";
 import { isSha256Hex, verifyContentHash } from "@refarm.dev/asset-resolver-contract-v1";
+import { createFsAssetStore } from "@refarm.dev/asset-resolver-contract-v1/node";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	type JsonSuccessEnvelope,
 } from "@refarm.dev/capabilities/envelope";
-import { detectEntryFormat } from "@refarm.dev/plugin-manifest";
+import {
+	decidePluginPolicy,
+	detectEntryFormat,
+	type PluginPolicyMode,
+} from "@refarm.dev/plugin-manifest";
 import { scopedAssetsDir } from "@refarm.dev/storage-node-view";
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -50,6 +54,12 @@ export interface UrlInstallInput {
 	fetchImpl?: UrlFetch;
 	/** Per-request timeout in ms (default 15s), mirroring the config remote loader. */
 	timeoutMs?: number;
+	/** Capabilities explicitly granted by the operator for this install. */
+	grantedCapabilities?: string[];
+	/** Admission behavior when a requirement is missing. */
+	policyMode?: PluginPolicyMode;
+	/** Connection names declared by this host. */
+	availableConnections?: string[];
 }
 
 export type UrlInstallReport = JsonSuccessEnvelope<{
@@ -178,7 +188,42 @@ export async function buildUrlInstallReport(
 		});
 	}
 
-	// 4) Resolve the wasm entry URL (absolute, or relative to the descriptor URL).
+	// 4) A remote descriptor crosses the SAME admission gate as local/npm/git.
+	//    Integrity names the expected bytes; policy decides whether those bytes are
+	//    admissible on this host. Decide before fetching or storing the entry.
+	const policyMode = input.policyMode ?? "fail-fast";
+	const decision = decidePluginPolicy(descriptor as never, {
+		grantedCapabilities: input.grantedCapabilities ?? [],
+		policyMode,
+		...(input.availableConnections
+			? { availableConnections: input.availableConnections }
+			: {}),
+	});
+	if (decision.status !== "completed" || !decision.manifestValid) {
+		return buildJsonErrorEnvelope({
+			command: "plugin",
+			operation: "install",
+			error: "url_plugin_not_ready",
+			message: `Remote plugin is not ready to install (${decision.status}). ${
+				decision.missingCapabilities.length > 0
+					? `Denied capabilities (not granted): ${decision.missingCapabilities.join(", ")}.`
+					: decision.missingConnections.length > 0
+						? `Missing declared connections: ${decision.missingConnections.join(", ")}.`
+						: decision.manifestErrors.join("; ")
+			}`,
+			nextAction:
+				"Review the descriptor requirements, declare its connections, and grant only the capabilities it needs.",
+			extra: {
+				url: input.url,
+				pluginId: decision.pluginId,
+				deniedCapabilities: decision.missingCapabilities,
+				missingConnections: decision.missingConnections,
+				manifestErrors: decision.manifestErrors,
+			},
+		});
+	}
+
+	// 5) Resolve the wasm entry URL (absolute, or relative to the descriptor URL).
 	let wasmUrl: string;
 	try {
 		wasmUrl = new URL(descriptor.entry, input.url).toString();
@@ -193,7 +238,7 @@ export async function buildUrlInstallReport(
 		});
 	}
 
-	// 5) Fetch the wasm bytes.
+	// 6) Fetch the wasm bytes.
 	let wasmBytes: Uint8Array;
 	try {
 		const res = await fetchImpl(wasmUrl, { signal: AbortSignal.timeout(timeoutMs) });
@@ -220,7 +265,7 @@ export async function buildUrlInstallReport(
 		});
 	}
 
-	// 6) THE GATE: verify the fetched bytes against the declared integrity BEFORE
+	// 7) THE GATE: verify the fetched bytes against the declared integrity BEFORE
 	//    they are stored or trusted. Bytes from an untrusted URL that do not hash
 	//    to the declared content-address are rejected — never installed.
 	const verified = await verifyContentHash(
@@ -240,7 +285,7 @@ export async function buildUrlInstallReport(
 		});
 	}
 
-	// 7) Install: content-store the verified bytes, write the entry + rewritten
+	// 8) Install: content-store the verified bytes, write the entry + rewritten
 	//    manifest (file:// entry) + version sentinel — the SAME on-disk shape a
 	//    bundled/local install produces, so the runtime loads it identically. The
 	//    entry may be any supported format (js/mjs/cjs/wasm); its dest filename is

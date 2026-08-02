@@ -95,7 +95,24 @@ export function evaluateCapabilityGrant(requires, grantedCapabilities) {
  */
 export function decidePluginPolicy(manifest, options) {
 	const { grantedCapabilities, policyMode } = options;
-	const validation = validatePluginManifest(manifest);
+	let validation;
+	try {
+		validation = validatePluginManifest(manifest);
+	} catch (error) {
+		const detail = error instanceof Error ? error.message : String(error);
+		return {
+			pluginId:
+				typeof manifest === "object" && manifest !== null && typeof manifest.id === "string"
+					? manifest.id
+					: undefined,
+			status: "invalid-manifest",
+			policyMode,
+			manifestValid: false,
+			manifestErrors: [`manifest shape could not be validated: ${detail}`],
+			missingCapabilities: [],
+			missingConnections: [],
+		};
+	}
 
 	if (!validation.valid) {
 		return {
