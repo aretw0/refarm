@@ -1,10 +1,19 @@
 import { findWorkspaceRoot } from "@refarm.dev/config";
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	createTidyCommand,
 	resolveTidyImportsSpec,
 	type TidyDeps,
 } from "../../src/commands/tidy.js";
+
+/** The same choice `relativeCwd` makes: downward-reachable becomes relative, anything else stays
+ *  absolute. Kept here so the expectation tracks the rule instead of one of its outputs. */
+function relativeToLaunchDir(target: string): string {
+	const relative = path.relative(process.cwd(), target);
+	if (relative === "") return ".";
+	return relative && !relative.startsWith("..") ? relative.replace(/\\/g, "/") : target;
+}
 
 function makeDeps(overrides: Partial<TidyDeps> = {}): TidyDeps {
 	return {
@@ -51,7 +60,13 @@ describe("resolveTidyImportsSpec", () => {
 });
 
 describe("tidyCommand", () => {
-	const workspaceRoot = findWorkspaceRoot(".");
+	// `createPackageScriptCommand` spells the target directory RELATIVE to the launch directory
+	// when it can reach it downward (".", "apps/refarm") and absolutely when it cannot. Which
+	// spelling appears therefore depends on WHERE vitest was started: turbo runs it inside the
+	// package, a developer may run it from the repo root, and pinning either literal makes the
+	// suite pass or fail on that alone. Pin the RULE, so the assertion means "the script runs at
+	// the workspace root" however that is written.
+	const workspaceRoot = relativeToLaunchDir(findWorkspaceRoot("."));
 
 	afterEach(() => {
 		vi.restoreAllMocks();
