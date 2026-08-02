@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 
 import { program } from "../program.js";
 import {
+	nodeOperationRoot,
 	reinvocationArgv,
 	REMOTE_INITIATION_WIRE,
 	remoteInitiationVerdict,
@@ -22,6 +23,13 @@ import {
 import { everyCommandPath, REMOTELY_INITIABLE_OPERATIONS } from "./remote-initiation.js";
 
 const KNOWN = everyCommandPath(program);
+
+describe("node operation scope", () => {
+	it("is the user's sovereign scope, never the daemon's incidental workspace cwd", () => {
+		expect(nodeOperationRoot("/home/operator")).toBe("/home/operator");
+		expect(nodeOperationRoot("/home/operator")).not.toBe("/home/operator/github/refarm");
+	});
+});
 
 describe("remoteInitiationVerdict", () => {
 	it("distinguishes a local-only workspace operation from an unknown id", () => {

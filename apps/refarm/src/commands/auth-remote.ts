@@ -3,6 +3,7 @@ import { createProcessHandoffDisplay, runProcessHandoff } from "@refarm.dev/cli/
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { loadConfig } from "@refarm.dev/config";
 import { Command } from "commander";
+import os from "node:os";
 
 import { refarmCommand } from "../brand.js";
 import {
@@ -85,6 +86,18 @@ import {
  */
 export const REMOTE_INITIATION_WIRE = "remote-initiation.v1";
 
+/**
+ * A node's remote operation catalog is user-sovereign, not repository-local.
+ *
+ * The daemon may be launched while an agent happens to be inside any workspace. Letting that
+ * incidental cwd select the catalog makes the same running node advertise different authority
+ * after a restart. Home is already the source of truth used by `workspace add` without `--local`,
+ * device enrolment, surfaces and supervised processes; remote surfaces must see that same scope.
+ */
+export function nodeOperationRoot(home = os.homedir()): string {
+	return home;
+}
+
 /** Why an initiation was refused, in the two words the node relays verbatim. */
 export type RemoteInitiationRefusalReason = "unknown-operation" | "not-remotely-invocable";
 
@@ -154,7 +167,7 @@ function createAuthRemoteRunCommand(): Command {
 			// module, so a top-level import would be a cycle. By the time an action runs, the
 			// module graph is settled and this is a cache hit.
 			const { program } = await import("../program.js");
-			const config = loadConfig(process.cwd());
+			const config = loadConfig(nodeOperationRoot());
 			const allWorkspaceOperations = workspaceInitiationOperations(config);
 			const operations = [
 				...REMOTELY_INITIABLE_OPERATIONS,
@@ -222,7 +235,7 @@ export function createAuthRemoteCommand(): Command {
 		.action((options: { json?: boolean }) => {
 			const operations = [
 				...REMOTELY_INITIABLE_OPERATIONS,
-				...workspaceInitiationOperations(loadConfig(process.cwd()), { remoteOnly: true }),
+				...workspaceInitiationOperations(loadConfig(nodeOperationRoot()), { remoteOnly: true }),
 			].map((operation) => ({
 				id: operation.id,
 				command: remoteInitiationCommandLine(operation),
