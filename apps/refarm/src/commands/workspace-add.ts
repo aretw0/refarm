@@ -149,6 +149,7 @@ export async function runWorkspaceAdd(
 		}
 		let proposal = deriveWorkspaceProposal(absolutePath, options, readFile);
 		id = proposal.id;
+		for (const warning of proposal.warnings) say(`!  ${warning.message}`);
 		for (const evidence of proposal.evidence) {
 			say(`  ${evidence.key}: ${evidence.value}`);
 			say(`      ← ${evidence.source}`);

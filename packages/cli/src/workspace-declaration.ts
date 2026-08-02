@@ -12,6 +12,12 @@ export interface WorkspaceDeclarationProposal {
 	id: string;
 	entry: Record<string, unknown>;
 	evidence: WorkspaceDeclarationEvidence[];
+	warnings: WorkspaceDeclarationWarning[];
+}
+
+export interface WorkspaceDeclarationWarning {
+	code: "workspace-derived-repository-contains-credential";
+	message: string;
 }
 
 export interface WorkspaceDeclarationEvidence {
@@ -56,12 +62,27 @@ function originUrl(workspacePath: string, readFile: (candidate: string) => strin
 	}
 }
 
-function safeRepositoryUrl(value: string | null | undefined): string | null {
+function safeRepositoryUrl(
+	value: string | null | undefined,
+	derived: boolean,
+): { repository: string | null; warnings: WorkspaceDeclarationWarning[] } {
 	const trimmed = value?.trim();
-	if (!trimmed) return null;
+	if (!trimmed) return { repository: null, warnings: [] };
 	try {
 		const parsed = new URL(trimmed);
 		if (parsed.username || parsed.password) {
+			if (derived) {
+				return {
+					repository: null,
+					warnings: [
+						{
+							code: "workspace-derived-repository-contains-credential",
+							message:
+								"The observed git origin contains credentials, so repository was omitted from the proposal. The host path remains usable.",
+						},
+					],
+				};
+			}
 			throw new WorkspaceDeclarationError(
 				"workspace-repository-contains-credential",
 				"The repository URL contains credentials. Use a credential-free URL; secrets must never enter a declaration or operation trail.",
@@ -71,7 +92,7 @@ function safeRepositoryUrl(value: string | null | undefined): string | null {
 		if (error instanceof WorkspaceDeclarationError) throw error;
 		// SCP-style Git URLs (git@host:owner/repo.git) are intentionally valid.
 	}
-	return trimmed;
+	return { repository: trimmed, warnings: [] };
 }
 
 /**
@@ -108,9 +129,15 @@ export function deriveWorkspaceDeclaration(
 			`Unknown workspace kind ${JSON.stringify(kind)}; use ${WORKSPACE_KINDS.join(", ")}.`,
 		);
 	}
-	const repository = safeRepositoryUrl(input.repository || originUrl(workspacePath, readFile));
+	const explicitRepository = input.repository?.trim();
+	const repositoryObservation = safeRepositoryUrl(
+		explicitRepository || originUrl(workspacePath, readFile),
+		!explicitRepository,
+	);
+	const repository = repositoryObservation.repository;
 	return {
 		id,
+		warnings: repositoryObservation.warnings,
 		entry: {
 			path: workspacePath,
 			kind,

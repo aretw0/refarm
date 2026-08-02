@@ -40,4 +40,16 @@ describe("deriveWorkspaceDeclaration", () => {
 			),
 		).toThrow(/contains credentials/);
 	});
+
+	it("omits an unsafe observed origin without making a local workspace unusable", () => {
+		const secret = "operator:secret";
+		const proposal = deriveWorkspaceDeclaration("/work/acme", {}, (candidate) => {
+			if (candidate.endsWith("package.json")) return JSON.stringify({ name: "my-app" });
+			return `[remote "origin"]\n  url = https://${secret}@example.test/private.git\n`;
+		});
+
+		expect(proposal.entry).not.toHaveProperty("repository");
+		expect(proposal.warnings).toHaveLength(1);
+		expect(JSON.stringify(proposal)).not.toContain(secret);
+	});
 });
