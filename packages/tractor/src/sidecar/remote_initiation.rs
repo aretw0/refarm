@@ -130,7 +130,12 @@ use std::{
     time::Duration,
 };
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    extract::{Path as AxumPath, State},
+    http::StatusCode,
+    response::IntoResponse,
+    Json,
+};
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 
@@ -280,8 +285,23 @@ struct Slots {
     /// `Some` while a start is in flight. The inner `Option<String>` is the operation's
     /// name, and it is `None` until the entrypoint has CONFIRMED the id is declared — so one
     /// caller's raw input is never echoed to a different caller in a `409`.
-    started: Option<Option<String>>,
+    started: Option<StartedOperation>,
+    latest: Option<OperationRun>,
     catalog_reads: usize,
+}
+
+#[derive(Debug, Clone)]
+struct StartedOperation {
+    run_id: String,
+    operation: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct OperationRun {
+    run_id: String,
+    operation: String,
+    state: &'static str,
+    exit_code: Option<i32>,
 }
 
 /// The spawn ceiling for this surface, shared by every request. Cloned with `SidecarState`;
@@ -313,12 +333,17 @@ impl RemoteInitiations {
     fn claim_start(&self) -> Result<StartSlot, Option<String>> {
         let mut slots = self.inner.lock().expect("remote initiation slots poisoned");
         if let Some(running) = &slots.started {
-            return Err(running.clone());
+            return Err(running.operation.clone());
         }
         debug_assert_eq!(MAX_STARTED_OPERATIONS, 1, "the slot is a single Option");
-        slots.started = Some(None);
+        let run_id = format!("r-{}", uuid::Uuid::new_v4().simple());
+        slots.started = Some(StartedOperation {
+            run_id: run_id.clone(),
+            operation: None,
+        });
         Ok(StartSlot {
             registry: self.clone(),
+            run_id,
         })
     }
 
@@ -348,9 +373,33 @@ impl RemoteInitiations {
     /// itself confirmed. Only after this can a competing caller be told what is running.
     fn confirm_started(&self, operation: &str) {
         let mut slots = self.inner.lock().expect("remote initiation slots poisoned");
-        if slots.started.is_some() {
-            slots.started = Some(Some(operation.to_string()));
+        if let Some(started) = slots.started.as_mut() {
+            started.operation = Some(operation.to_string());
+            slots.latest = Some(OperationRun {
+                run_id: started.run_id.clone(),
+                operation: operation.to_string(),
+                state: "running",
+                exit_code: None,
+            });
         }
+    }
+
+    fn complete(&self, run_id: &str, exit_code: Option<i32>) {
+        let mut slots = self.inner.lock().expect("remote initiation slots poisoned");
+        if let Some(run) = slots.latest.as_mut().filter(|run| run.run_id == run_id) {
+            run.state = if exit_code == Some(0) { "succeeded" } else { "failed" };
+            run.exit_code = exit_code;
+        }
+    }
+
+    fn run(&self, run_id: &str) -> Option<OperationRun> {
+        self.inner
+            .lock()
+            .expect("remote initiation slots poisoned")
+            .latest
+            .as_ref()
+            .filter(|run| run.run_id == run_id)
+            .cloned()
     }
 
     /// Is a start in flight? Test-only: production code asks this to DO something.
@@ -377,6 +426,13 @@ impl RemoteInitiations {
 /// it without a single explicit call site having to be right.
 pub(crate) struct StartSlot {
     registry: RemoteInitiations,
+    run_id: String,
+}
+
+impl StartSlot {
+    fn run_id(&self) -> &str {
+        &self.run_id
+    }
 }
 
 impl Drop for StartSlot {
@@ -615,6 +671,8 @@ pub(crate) async fn post_operations(
     match verdict {
         Ok(Some(Verdict::Started { operation: named })) => {
             state.remote_initiations.confirm_started(&named);
+            let run_id = slot.run_id().to_string();
+            let background_run_id = run_id.clone();
             // WHAT was started and by nothing else — no argv, no environment, no output.
             tracing::info!(
                 operation = %named,
@@ -630,7 +688,8 @@ pub(crate) async fn post_operations(
                 // line here would be the smuggling route.
                 let mut sink = reader;
                 let _ = read_capped(&mut sink, usize::MAX / 2).await;
-                let _ = child.wait().await;
+                let exit_code = child.wait().await.ok().and_then(|status| status.code());
+                _slot.registry.complete(&background_run_id, exit_code);
             });
             (
                 StatusCode::ACCEPTED,
@@ -638,6 +697,8 @@ pub(crate) async fn post_operations(
                     "wire": REMOTE_INITIATION_WIRE,
                     "started": true,
                     "operation": named,
+                    "runId": run_id,
+                    "status": format!("{ROUTE_OPERATIONS}/{run_id}"),
                     "attend": "GET /prompts",
                 })),
             )
@@ -678,6 +739,37 @@ pub(crate) async fn post_operations(
             ))
         }
     }
+}
+
+/// `GET /operations/:run_id` — lifecycle only, never command output.
+///
+/// The registry retains exactly the current/most recent confirmed run. That makes status
+/// useful to a pocket client without turning the daemon into an unbounded history store.
+pub(crate) async fn get_operation(
+    State(state): State<SidecarState>,
+    AxumPath(run_id): AxumPath<String>,
+) -> impl IntoResponse {
+    let Some(run) = state.remote_initiations.run(&run_id) else {
+        return json_error(
+            StatusCode::NOT_FOUND,
+            serde_json::json!({
+                "wire": REMOTE_INITIATION_WIRE,
+                "error": "unknown-run",
+                "detail": "This node does not retain a run with that id.",
+            }),
+        );
+    };
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "wire": REMOTE_INITIATION_WIRE,
+            "runId": run.run_id,
+            "operation": run.operation,
+            "state": run.state,
+            "exitCode": run.exit_code,
+        })),
+    )
+        .into_response()
 }
 
 /// `GET /operations` — what an enrolled device may start here.

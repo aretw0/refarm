@@ -1755,6 +1755,7 @@ fn sidecar_routes(state: SidecarState) -> Router {
             remote_initiation::ROUTE_OPERATIONS,
             post(remote_initiation::post_operations).get(remote_initiation::get_operations),
         )
+        .route("/operations/:run_id", get(remote_initiation::get_operation))
         .route("/connections", get(get_connections))
         .route("/connections/:name/up", post(post_connection_up))
         .route("/connections/:name/down", post(post_connection_down))

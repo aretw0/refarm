@@ -64,12 +64,17 @@ failure must name the unavailable endpoint or the authentication problem; silenc
 ```bash
 farm-ask "report the node status"
 farm-start
+farm-start "<operation-id>"
+farm-start --status <run-id>
 farm-attend --list
 farm-attend
 ```
 
 - `farm-ask` submits work and prints its result and usage when the runtime reports it.
 - `farm-start` lists only operations declared remotely invocable by the node; it is not a shell.
+  A start returns an opaque run id, and `--status` reports `running`, `succeeded`, or `failed`
+  without carrying the command output over this control surface. The node retains only the
+  current/most recent run, so this is lifecycle introspection rather than an unbounded log.
 - `farm-attend` answers a pending operator prompt using the shared prompt contract.
 
 ### Re-observe and undo

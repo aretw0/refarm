@@ -6,8 +6,10 @@ import { test } from "node:test";
 
 import {
 	catalogLines,
+	classifyOperationStatus,
 	classifyStartResponse,
 	OPERATIONS_PATH,
+	operationStatusPath,
 	parseOperationCatalog,
 	REMOTE_INITIATION_WIRE,
 	startRequestBody,
@@ -116,6 +118,34 @@ test("started says WHERE the questions will show up, and that the output will no
 	assert.match(text, /delivery add/);
 	assert.match(text, /farm-attend/);
 	assert.match(text, /NÃO viaja/);
+});
+
+test("a started run carries one follow-up command, not a terminal stream", () => {
+	const verdict = classifyStartResponse(202, {
+		started: true,
+		operation: "workspace:home:refresh",
+		runId: "r-one",
+	});
+	assert.match(verdict.lines.join("\n"), /farm-start --status r-one/);
+	assert.equal(operationStatusPath("r/a b"), "/operations/r%2Fa%20b");
+});
+
+test("operation lifecycle keeps running, success, failure, and expiry distinct", () => {
+	for (const [state, exitCode, outcome] of [
+		["running", null, "running"],
+		["succeeded", 0, "succeeded"],
+		["failed", 7, "failed"],
+	]) {
+		const verdict = classifyOperationStatus(200, {
+			runId: "r-one",
+			operation: "workspace:home:refresh",
+			state,
+			exitCode,
+		});
+		assert.equal(verdict.outcome, outcome);
+		assert.match(verdict.lines.join("\n"), /r-one/);
+	}
+	assert.equal(classifyOperationStatus(404, { error: "unknown-run" }).outcome, "unknown-run");
 });
 
 test("the five answers are five, and none of them is 'tente de novo'", () => {

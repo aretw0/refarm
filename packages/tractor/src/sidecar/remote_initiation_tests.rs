@@ -282,6 +282,31 @@ fn the_ceiling_holds() {
 }
 
 #[test]
+fn lifecycle_retains_only_the_latest_confirmed_run() {
+    let registry = RemoteInitiations::new();
+    let first = registry.claim_start().expect("first run");
+    let first_id = first.run_id().to_string();
+    assert!(registry.run(&first_id).is_none(), "raw input is not a run");
+
+    registry.confirm_started("workspace:home:refresh");
+    let running = registry.run(&first_id).expect("confirmed run is visible");
+    assert_eq!(running.state, "running");
+    assert_eq!(running.operation, "workspace:home:refresh");
+    registry.complete(&first_id, Some(0));
+    assert_eq!(registry.run(&first_id).unwrap().state, "succeeded");
+    drop(first);
+
+    let second = registry.claim_start().expect("second run");
+    let second_id = second.run_id().to_string();
+    registry.confirm_started("workspace:work:sync");
+    registry.complete(&second_id, Some(7));
+    let failed = registry.run(&second_id).expect("latest retained");
+    assert_eq!(failed.state, "failed");
+    assert_eq!(failed.exit_code, Some(7));
+    assert!(registry.run(&first_id).is_none(), "history is bounded to one run");
+}
+
+#[test]
 fn the_catalog_ceiling_holds_and_releases() {
     let registry = RemoteInitiations::new();
     let first = registry.claim_catalog().expect("the first read takes the slot");
@@ -397,6 +422,19 @@ async fn a_scoped_credential_cannot_start_anything() {
             .status(),
         401,
         "and it may not even read the catalog of what could be started"
+    );
+    assert_eq!(
+        reqwest::Client::new()
+            .get(format!(
+                "http://127.0.0.1:{port}{ROUTE_OPERATIONS}/r-does-not-exist"
+            ))
+            .header("Authorization", format!("Bearer {SCOPED_TOKEN}"))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        401,
+        "run lifecycle is device-only too"
     );
 }
 

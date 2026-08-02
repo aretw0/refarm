@@ -44,6 +44,44 @@ export const OPERATIONS_PATH = "/operations";
 /** O fio desta superfície. `REMOTE_INITIATION_WIRE` no nó é a outra metade. */
 export const REMOTE_INITIATION_WIRE = "remote-initiation.v1";
 
+/** A run id is one URL segment. Encoding is the client's whole contribution to the path. */
+export function operationStatusPath(runId) {
+	return `${OPERATIONS_PATH}/${encodeURIComponent(runId)}`;
+}
+
+/** Lifecycle, without pretending that command output is part of this wire. */
+export function classifyOperationStatus(status, body) {
+	if (status === 200 && typeof body?.runId === "string") {
+		const state = ["running", "succeeded", "failed"].includes(body?.state) ? body.state : null;
+		if (state !== null) {
+			const operation = typeof body?.operation === "string" ? body.operation : "a operação";
+			const symbols = { running: "⏳", succeeded: "✓", failed: "✗" };
+			const labels = { running: "rodando", succeeded: "concluída", failed: "falhou" };
+			const suffix = Number.isInteger(body?.exitCode) ? ` (exit ${body.exitCode})` : "";
+			return {
+				outcome: state,
+				exitCode: state === "failed" ? 1 : 0,
+				lines: [
+					`${symbols[state]} ${operation}: ${labels[state]}${suffix}`,
+					`   run: ${body.runId}`,
+				],
+			};
+		}
+	}
+	if (status === 404 || body?.error === "unknown-run") {
+		return {
+			outcome: "unknown-run",
+			exitCode: 1,
+			lines: ["❓ este nó não retém essa execução.", "   Ele guarda somente a atual/mais recente."],
+		};
+	}
+	return {
+		outcome: "could-not-read",
+		exitCode: 1,
+		lines: ["❌ não deu para consultar a execução.", `   O nó respondeu ${status}.`],
+	};
+}
+
 /**
  * O catálogo que o nó devolveu, ou `null` quando aquilo não é um catálogo.
  *
@@ -94,10 +132,15 @@ export function catalogLines(operations, { start = "farm-start" } = {}) {
  * `could-not-start` repete o que o nó disse — que é onde está o conserto, porque
  * é o nó que sabe qual `spawnEnv.path` ele declarou.
  */
-export function classifyStartResponse(status, body, { attend = "farm-attend" } = {}) {
+export function classifyStartResponse(
+	status,
+	body,
+	{ attend = "farm-attend", start = "farm-start" } = {},
+) {
 	const detail = typeof body?.detail === "string" ? body.detail : "";
 	if (status === 202 || body?.started === true) {
 		const named = typeof body?.operation === "string" ? body.operation : "a operação";
+		const runId = typeof body?.runId === "string" ? body.runId : null;
 		return {
 			outcome: "started",
 			exitCode: 0,
@@ -106,6 +149,7 @@ export function classifyStartResponse(status, body, { attend = "farm-attend" } =
 				"",
 				"   As perguntas dela chegam onde você já atende. Continue com:",
 				`     ${attend} --watch`,
+				...(runId ? ["", "   Para acompanhar o desfecho:", `     ${start} --status ${runId}`] : []),
 				"",
 				"   A saída do comando NÃO viaja — a interface dele são as perguntas.",
 			],

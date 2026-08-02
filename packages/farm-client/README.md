@@ -33,6 +33,7 @@ se alguém acoplar o kit ao monorepo, o teste falha.
 | `farm-announce.mjs` | anunciar | (no host) responde probes de descoberta na LAN — opt-in |
 | `farm-ask.mjs` | usar | submete um effort e imprime a resposta do agente |
 | `farm-attend.mjs` | atender | responde, daqui, as perguntas que a fazenda deixou pendentes |
+| `farm-start.mjs` | começar/acompanhar | lista e inicia operações declaradas; consulta o estado pela identidade da execução |
 | `farm-update.mjs` | atualizar | puxa o kit do servidor de malha da fazenda (manifesto + sha256) |
 
 ```bash
@@ -46,6 +47,11 @@ farm-ask "sua pergunta"
 farm-attend            # responde o que estiver pendente e sai
 farm-attend --watch    # fica de plantão (intervalo declarado + backoff)
 farm-attend --list     # só olha; não responde
+
+# começar uma operação admitida pelo nó e acompanhar seu desfecho
+farm-start
+farm-start "<operation-id>"
+farm-start --status <run-id>
 ```
 
 Todo assistente do refarm pergunta pelo mesmo contrato (`OperatorChannel`), então

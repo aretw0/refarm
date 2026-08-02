@@ -30,8 +30,10 @@ import { farmAuthHeaders } from "../src/auth.mjs";
 import { sidecarExposureLines } from "../src/reach.mjs";
 import {
 	catalogLines,
+	classifyOperationStatus,
 	classifyStartResponse,
 	OPERATIONS_PATH,
+	operationStatusPath,
 	parseOperationCatalog,
 	startRequestBody,
 } from "../src/remote-initiation.mjs";
@@ -44,7 +46,12 @@ const HTTP_PORT = Number(process.env.FARM_HTTP_PORT ?? 42001);
 // tudo. `farm-start "delivery add"` manda `delivery add`, uma string, um campo.
 // Nada aqui monta uma linha de comando, e o nó também não: ele passa esses bytes
 // como UM argumento para um ponto de entrada fixo.
-const rest = process.argv.slice(2).filter((arg) => arg !== "--list" && arg !== "-l");
+const args = process.argv.slice(2);
+const statusAt = args.indexOf("--status");
+const STATUS_RUN_ID = statusAt >= 0 ? (args[statusAt + 1] ?? null) : null;
+const rest = args.filter(
+	(arg, index) => arg !== "--list" && arg !== "-l" && index !== statusAt && index !== statusAt + 1,
+);
 const OPERATION = rest.length > 0 ? rest.join(" ") : null;
 
 /** O sidecar responde? Mesmo probe do farm-attend — um kit, um jeito de alcançar. */
@@ -93,6 +100,26 @@ async function readJson(res) {
 	} catch {
 		return {};
 	}
+}
+
+if (statusAt >= 0) {
+	if (STATUS_RUN_ID === null) {
+		console.error("❌ --status precisa do id mostrado por farm-start.");
+		process.exit(1);
+	}
+	let res;
+	try {
+		res = await fetch(`${base}${operationStatusPath(STATUS_RUN_ID)}`, {
+			headers: farmAuthHeaders(),
+		});
+	} catch (err) {
+		console.error(`❌ não deu para consultar a execução: ${err?.message ?? err}`);
+		process.exit(1);
+	}
+	const verdict = classifyOperationStatus(res.status, await readJson(res));
+	const out = verdict.exitCode === 0 ? console.log : console.error;
+	for (const line of verdict.lines) out(line);
+	process.exit(verdict.exitCode);
 }
 
 if (OPERATION === null) {
