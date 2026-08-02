@@ -57,6 +57,7 @@ export interface GitInstallInput {
 	ref: string;
 	grantedCapabilities: string[];
 	policyMode: PluginPolicyMode;
+	availableConnections?: string[];
 	/** Optional plugin package directory inside a monorepo checkout. */
 	subdir?: string;
 	/** Injected clone (default: shallow `git clone`). */
@@ -157,6 +158,7 @@ export async function buildGitInstallReport(
 			targetPath: manifestDir,
 			grantedCapabilities: input.grantedCapabilities,
 			policyMode: input.policyMode,
+			...(input.availableConnections ? { availableConnections: input.availableConnections } : {}),
 			commandName: "plugin",
 		});
 	} finally {

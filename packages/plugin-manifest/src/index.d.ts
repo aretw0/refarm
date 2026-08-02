@@ -329,6 +329,7 @@ export interface PluginPolicyDecision {
 	manifestValid: boolean;
 	manifestErrors: string[];
 	missingCapabilities: string[];
+	missingConnections: string[];
 }
 
 export function evaluateCapabilityGrant(
@@ -337,7 +338,11 @@ export function evaluateCapabilityGrant(
 ): string[];
 export function decidePluginPolicy(
 	manifest: PluginManifest,
-	options: { grantedCapabilities: string[]; policyMode: PluginPolicyMode },
+	options: {
+		grantedCapabilities: string[];
+		policyMode: PluginPolicyMode;
+		availableConnections?: string[];
+	},
 ): PluginPolicyDecision;
 
 export type CapabilityGrantDecision = "granted" | "denied" | "review-required";

@@ -78,6 +78,31 @@ describe("decidePluginPolicy", () => {
 		});
 		expect(decision.manifestErrors.length).toBeGreaterThan(0);
 	});
+
+	it("blocks when a declared connection requirement is unavailable", () => {
+		const manifest = manifestRequiring([]);
+		manifest.capabilities.requiresConnections = ["corporate-vpn"];
+		const decision = decidePluginPolicy(manifest, {
+			grantedCapabilities: [],
+			availableConnections: ["other-vpn"],
+			policyMode: "fail-fast",
+		});
+		expect(decision).toMatchObject({
+			status: "blocked-fail-fast",
+			missingConnections: ["corporate-vpn"],
+		});
+	});
+
+	it("completes when every declared connection requirement is available", () => {
+		const manifest = manifestRequiring([]);
+		manifest.capabilities.requiresConnections = ["corporate-vpn"];
+		const decision = decidePluginPolicy(manifest, {
+			grantedCapabilities: [],
+			availableConnections: ["corporate-vpn"],
+			policyMode: "fail-fast",
+		});
+		expect(decision).toMatchObject({ status: "completed", missingConnections: [] });
+	});
 });
 
 describe("decideCapabilityGrants — risk-tiered grant/deny/review decision", () => {

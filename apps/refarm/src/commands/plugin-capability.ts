@@ -7,6 +7,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 } from "@refarm.dev/capabilities/envelope";
+import { loadConfig } from "@refarm.dev/config";
 import {
 	describePermission,
 	unknownPermissions,
@@ -77,6 +78,12 @@ import {
  *  console.log; headless/HTTP inject a no-op, the CLI injects a stderr writer. */
 export type OperatorProgress = (line: string) => void;
 const NOOP_PROGRESS: OperatorProgress = () => {};
+
+function declaredConnectionNames(): string[] {
+	const value = loadConfig()?.connections;
+	if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+	return Object.keys(value);
+}
 
 /**
  * The `plugin` command as a tri-surface CapabilityGroup — the migration of the
@@ -283,11 +290,6 @@ export function createPluginCapabilityGroup(
 				summary: "Policy mode: fail-fast or warn+continue",
 				defaultValue: "fail-fast",
 			},
-			{
-				name: "subdir",
-				kind: "string",
-				summary: "For a git <ref>: plugin package directory inside a monorepo",
-			},
 		],
 		run(input) {
 			const policy = input.options.policy;
@@ -306,6 +308,7 @@ export function createPluginCapabilityGroup(
 					grantedCapabilities: (input.options.grant as string[]) ?? [],
 					policyMode: (policy as PluginPolicyMode) ?? "fail-fast",
 					commandName: "plugin",
+					availableConnections: declaredConnectionNames(),
 				});
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
@@ -411,10 +414,16 @@ export function createPluginCapabilityGroup(
 				summary: "For a <ref>: policy mode: fail-fast or warn+continue",
 				defaultValue: "fail-fast",
 			},
+			{
+				name: "subdir",
+				kind: "string",
+				summary: "For a git <ref>: plugin package directory inside a monorepo",
+			},
 		],
 		async run(input) {
 			const ref = input.args.ref as string | undefined;
 			const bundled = input.options.bundled === true;
+			const availableConnections = declaredConnectionNames();
 
 			// --bundled and a positional <ref> are distinct intents (sync the fixed
 			// set vs install one unit); asking for both is an error, not a merge.
@@ -479,6 +488,7 @@ export function createPluginCapabilityGroup(
 					grantedCapabilities,
 					policyMode,
 					commandName: "plugin",
+					availableConnections,
 				})) as CapabilityEnvelope;
 			}
 
@@ -490,6 +500,7 @@ export function createPluginCapabilityGroup(
 					ref,
 					grantedCapabilities,
 					policyMode,
+					availableConnections,
 				})) as CapabilityEnvelope;
 			}
 
@@ -502,6 +513,7 @@ export function createPluginCapabilityGroup(
 					ref,
 					grantedCapabilities,
 					policyMode,
+					availableConnections,
 					...(subdir ? { subdir } : {}),
 				})) as CapabilityEnvelope;
 			}

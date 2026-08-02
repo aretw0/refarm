@@ -104,6 +104,25 @@ describe("buildExtensionReviewReport", () => {
 		expect(report.nextCommands.length).toBeGreaterThan(0);
 	});
 
+	it("blocks when a manifest requires a connection the host has not declared", () => {
+		const manifest = {
+			...structuredClone(VALID_MANIFEST),
+			capabilities: {
+				...structuredClone(VALID_MANIFEST.capabilities),
+				requiresConnections: ["corporate-vpn"],
+			},
+		};
+		const dir = writePreparedExtension(manifest);
+		const report = buildExtensionReviewReport({
+			targetPath: dir,
+			grantedCapabilities: ["network:v1", "storage:v1"],
+			availableConnections: [],
+			policyMode: "fail-fast",
+		});
+		expect(report.readyToInstall).toBe(false);
+		expect(report.missingConnections).toEqual(["corporate-vpn"]);
+	});
+
 	it("reports invalid-manifest without leaking a capability decision", () => {
 		const dir = writePreparedExtension({ ...VALID_MANIFEST, id: "no-scope" });
 		const report = buildExtensionReviewReport({

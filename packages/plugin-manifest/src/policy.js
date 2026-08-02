@@ -64,6 +64,7 @@ export function decideCapabilityGrants(requests, options) {
  *   manifestValid: boolean,
  *   manifestErrors: string[],
  *   missingCapabilities: string[],
+ *   missingConnections: string[],
  * }} PluginPolicyDecision
  */
 
@@ -89,7 +90,7 @@ export function evaluateCapabilityGrant(requires, grantedCapabilities) {
  * `blocked-warn-continue`. A satisfied grant is `completed`.
  *
  * @param {import('./index.js').PluginManifest} manifest
- * @param {{ grantedCapabilities: string[], policyMode: PluginPolicyMode }} options
+ * @param {{ grantedCapabilities: string[], policyMode: PluginPolicyMode, availableConnections?: string[] }} options
  * @returns {PluginPolicyDecision}
  */
 export function decidePluginPolicy(manifest, options) {
@@ -104,6 +105,7 @@ export function decidePluginPolicy(manifest, options) {
 			manifestValid: false,
 			manifestErrors: validation.errors,
 			missingCapabilities: [],
+			missingConnections: [],
 		};
 	}
 
@@ -111,8 +113,14 @@ export function decidePluginPolicy(manifest, options) {
 		manifest.capabilities.requires,
 		grantedCapabilities,
 	);
+	const missingConnections = Array.isArray(options.availableConnections)
+		? evaluateCapabilityGrant(
+				manifest.capabilities.requiresConnections ?? [],
+				options.availableConnections,
+			)
+		: [];
 
-	if (missingCapabilities.length > 0) {
+	if (missingCapabilities.length > 0 || missingConnections.length > 0) {
 		return {
 			pluginId: manifest.id,
 			status: policyMode === "fail-fast" ? "blocked-fail-fast" : "blocked-warn-continue",
@@ -120,6 +128,7 @@ export function decidePluginPolicy(manifest, options) {
 			manifestValid: true,
 			manifestErrors: [],
 			missingCapabilities,
+			missingConnections,
 		};
 	}
 
@@ -130,5 +139,6 @@ export function decidePluginPolicy(manifest, options) {
 		manifestValid: true,
 		manifestErrors: [],
 		missingCapabilities: [],
+		missingConnections: [],
 	};
 }

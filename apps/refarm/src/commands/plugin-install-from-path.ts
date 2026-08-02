@@ -44,6 +44,7 @@ export interface ExtensionInstallInput {
 	targetPath: string;
 	grantedCapabilities: string[];
 	policyMode: PluginPolicyMode;
+	availableConnections?: string[];
 	/**
 	 * The command verb this install is projected under (ADR-086) — stamped into the
 	 * envelope. Defaults to "extension" so the legacy `extension install` call-site
@@ -131,13 +132,16 @@ export async function buildExtensionInstallReport(
 			message: `Extension is not ready to install (${review.decision.status}). ${
 				review.deniedCapabilities.length > 0
 					? `Denied capabilities (not granted): ${review.deniedCapabilities.join(", ")}.`
+					: review.missingConnections.length > 0
+						? `Missing declared connections: ${review.missingConnections.join(", ")}.`
 					: review.decision.manifestErrors.join("; ")
 			}`,
 			nextAction: `Review it and grant the required capabilities, then install: \`${commandName} review <path> --grant <cap>\`.`,
-			extra: {
-				pluginId: review.decision.pluginId,
-				deniedCapabilities: review.deniedCapabilities,
-			},
+				extra: {
+					pluginId: review.decision.pluginId,
+					deniedCapabilities: review.deniedCapabilities,
+					missingConnections: review.missingConnections,
+				},
 		});
 	}
 
