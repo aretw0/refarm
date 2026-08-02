@@ -216,7 +216,7 @@ export interface ProcessListResult {
 	/** W3 — what a unit's lifetime actually is here. `null` when no backend could say. */
 	lifetime: string | null;
 	processes: ProcessListEntry[];
-	nextCommand: string;
+	nextCommand: null;
 	nextCommands: string[];
 }
 
@@ -249,8 +249,8 @@ export async function runProcessList(deps: ProcessDeps = {}): Promise<ProcessLis
 			stopTimeoutSeconds: declaration.stopTimeoutSeconds,
 			workingDirectory: declaration.workingDirectory ?? null,
 		})),
-		nextCommand: PROCESS_STATUS_COMMAND,
-		nextCommands: [PROCESS_STATUS_COMMAND],
+		nextCommand: null,
+		nextCommands: [],
 	};
 }
 
@@ -261,7 +261,7 @@ export interface ProcessStatusResult {
 	ok: boolean;
 	statuses: ProcessStatus[];
 	lines: string[];
-	nextCommand: string;
+	nextCommand: null;
 	nextCommands: string[];
 }
 
@@ -323,8 +323,8 @@ export async function runProcessStatus(
 			statuses.length > 0
 				? statuses.map(describeProcessStatus)
 				: ['no process is declared under "processes" in .refarm/config.json'],
-		nextCommand: PROCESS_LIST_COMMAND,
-		nextCommands: [PROCESS_LIST_COMMAND],
+		nextCommand: null,
+		nextCommands: [],
 	};
 }
 

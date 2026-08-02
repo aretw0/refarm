@@ -113,6 +113,8 @@ describe("refarm process list — the catalog, the supervisor, and the honest li
 		expect(result.processes.map((entry) => entry.name)).toEqual(["web-serve", "cert-renew"]);
 		expect(result.processes[0]?.restart).toBe("always");
 		expect(result.processes[1]?.stopTimeoutSeconds).toBe(60);
+		expect(result.nextCommand).toBeNull();
+		expect(result.nextCommands).toEqual([]);
 	});
 
 	it("states the lifetime it delivers, including the logout", async () => {
@@ -149,6 +151,8 @@ describe("refarm process status — three answers, kept apart", () => {
 		);
 		expect(result.ok).toBe(true);
 		expect(result.statuses[0]?.state).toBe("running");
+		expect(result.nextCommand).toBeNull();
+		expect(result.nextCommands).toEqual([]);
 	});
 
 	it("NOT RUNNING is a verdict from the supervisor", async () => {
