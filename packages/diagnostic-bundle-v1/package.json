@@ -1,0 +1,31 @@
+{
+	"name": "@refarm.dev/diagnostic-bundle-v1",
+	"version": "0.1.0",
+	"private": false,
+	"description": "Versioned, sanitized diagnostic bundle contract for Refarm hosts, plugins, and surfaces",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run src/index.test.ts",
+		"clean": "rm -rf dist"
+	},
+	"files": ["dist", "!dist/**/*.tsbuildinfo", "README.md"],
+	"publishConfig": { "access": "public" },
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
+}
