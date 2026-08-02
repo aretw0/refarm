@@ -94,6 +94,8 @@ export interface RemotelyInitiableOperation {
 	/** Why this one is open, in one line. Printed by `refarm auth remote`, so the operator can
 	 *  read the reasoning without reading this file. */
 	readonly why: string;
+	/** Closed structured result promise. Absence means lifecycle-only observation. */
+	readonly result?: "operation-result.v1";
 }
 
 /**
@@ -122,6 +124,7 @@ interface WorkspaceOperationEntry {
 	run: string[];
 	description?: string;
 	remote?: true;
+	result?: "operation-result.v1";
 }
 
 /** Stable opaque id for a workspace operation. It is never parsed back into argv. */
@@ -151,6 +154,9 @@ export function workspaceInitiationOperations(
 				why:
 					command.description ??
 					`Named operation "${name}" declared by workspace "${workspace.id}".`,
+				...(command.result === "operation-result.v1"
+					? { result: "operation-result.v1" as const }
+					: {}),
 			});
 		}
 	}

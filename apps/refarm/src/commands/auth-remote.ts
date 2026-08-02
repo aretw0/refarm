@@ -103,7 +103,12 @@ export type RemoteInitiationRefusalReason = "unknown-operation" | "not-remotely-
 
 /** The one line this command prints before it does anything else. */
 export type RemoteInitiationVerdict =
-	| { readonly wire: string; readonly ok: true; readonly operation: string }
+	| {
+			readonly wire: string;
+			readonly ok: true;
+			readonly operation: string;
+			readonly result?: "operation-result.v1";
+	  }
 	| {
 			readonly wire: string;
 			readonly ok: false;
@@ -128,7 +133,12 @@ export function remoteInitiationVerdict(
 	// The gate, first and unchanged. Its `ok: true` is the only way past this line.
 	const decision = resolveRemoteInitiation({ operation: requested }, operations);
 	if (decision.ok) {
-		return { wire: REMOTE_INITIATION_WIRE, ok: true, operation: decision.operation.id };
+		return {
+			wire: REMOTE_INITIATION_WIRE,
+			ok: true,
+			operation: decision.operation.id,
+			...(decision.operation.result ? { result: decision.operation.result } : {}),
+		};
 	}
 	const known = knownCommandPaths.includes(requested);
 	return {
@@ -240,6 +250,7 @@ export function createAuthRemoteCommand(): Command {
 				id: operation.id,
 				command: remoteInitiationCommandLine(operation),
 				why: operation.why,
+				...(operation.result ? { result: operation.result } : {}),
 			}));
 			if (options.json) {
 				printJson(

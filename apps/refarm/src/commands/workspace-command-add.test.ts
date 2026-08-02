@@ -84,6 +84,32 @@ describe("workspace command add", () => {
 		});
 	});
 
+	it("persists a reviewed closed result contract beside the exact argv", async () => {
+		const root = fixture();
+		await runWorkspaceCommandAdd(
+			{
+				workspace: "app",
+				name: "check",
+				argv: ["app", "check"],
+				remote: true,
+				result: "operation-result.v1",
+			},
+			{
+				root,
+				env: { SOVEREIGN_DIR: ".refarm" },
+				interactive: true,
+				operator: createScriptedOperatorChannel(["authorize"]),
+				announce: () => {},
+			},
+		);
+		const config = JSON.parse(fs.readFileSync(path.join(root, ".refarm", "config.json"), "utf8"));
+		expect(config.workspaces.app.commands.check).toEqual({
+			run: ["app", "check"],
+			remote: true,
+			result: "operation-result.v1",
+		});
+	});
+
 	it("removes only the authorized command and preserves sibling workspace data", async () => {
 		const root = fixture();
 		const configPath = path.join(root, ".refarm", "config.json");

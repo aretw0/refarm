@@ -32,6 +32,18 @@ describe("node operation scope", () => {
 });
 
 describe("remoteInitiationVerdict", () => {
+	it("carries a declared closed result promise into the first verdict line", () => {
+		const operation = {
+			id: "workspace:app:check",
+			argv: ["workspace", "run", "app", "check"],
+			why: "check",
+			result: "operation-result.v1" as const,
+		};
+		expect(remoteInitiationVerdict(operation.id, [operation.id], [operation])).toMatchObject({
+			ok: true,
+			result: "operation-result.v1",
+		});
+	});
 	it("distinguishes a local-only workspace operation from an unknown id", () => {
 		const remote = {
 			id: "workspace:rcdc5:vpn",

@@ -7,6 +7,8 @@ export interface WorkspaceCommandDeclarationInput {
 	description?: string;
 	/** Explicitly admit this named operation to enrolled-device surfaces. Default: local only. */
 	remote?: boolean;
+	/** Optional closed result contract. Absence means lifecycle-only remote observation. */
+	result?: string;
 }
 
 export interface WorkspaceCommandDeclarationProposal {
@@ -16,6 +18,7 @@ export interface WorkspaceCommandDeclarationProposal {
 		cwd?: string;
 		description?: string;
 		remote?: true;
+		result?: "operation-result.v1";
 	};
 }
 
@@ -62,6 +65,13 @@ export function deriveWorkspaceCommandDeclaration(
 		}
 	}
 	const description = input.description?.trim();
+	const result = input.result?.trim();
+	if (result && result !== "operation-result.v1") {
+		throw new WorkspaceCommandDeclarationError(
+			"workspace-command-invalid-result",
+			'Workspace command result must be "operation-result.v1" or omitted.',
+		);
+	}
 	return {
 		name,
 		entry: {
@@ -69,6 +79,7 @@ export function deriveWorkspaceCommandDeclaration(
 			...(cwd ? { cwd: path.normalize(cwd) } : {}),
 			...(description ? { description } : {}),
 			...(input.remote === true ? { remote: true as const } : {}),
+			...(result ? { result: "operation-result.v1" as const } : {}),
 		},
 	};
 }

@@ -62,7 +62,12 @@ describe("resolveRemoteInitiation", () => {
 				rcdc5: {
 					path: "/work/rcdc5",
 					commands: {
-						vpn: { run: ["rcdc5-vpn", "connect"], description: "Connect VPN", remote: true },
+						vpn: {
+							run: ["rcdc5-vpn", "connect"],
+							description: "Connect VPN",
+							remote: true,
+							result: "operation-result.v1",
+						},
 						secrets: { run: ["rcdc5", "dump-secrets"], remote: false },
 					},
 				},
@@ -80,6 +85,7 @@ describe("resolveRemoteInitiation", () => {
 				id: "workspace:rcdc5:vpn",
 				argv: ["workspace", "run", "rcdc5", "vpn"],
 				why: "Connect VPN",
+				result: "operation-result.v1",
 			},
 		]);
 		expect(resolveRemoteInitiation({ operation: "workspace:rcdc5:vpn" }, remote).ok).toBe(true);

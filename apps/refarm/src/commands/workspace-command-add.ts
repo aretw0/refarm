@@ -38,6 +38,7 @@ export interface WorkspaceCommandAddOptions {
 	cwd?: string;
 	description?: string;
 	remote?: boolean;
+	result?: string;
 	replace?: boolean;
 	local?: boolean;
 	attendedElsewhere?: boolean;

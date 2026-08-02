@@ -44,4 +44,17 @@ describe("deriveWorkspaceCommandDeclaration", () => {
 				.entry,
 		).toEqual({ run: ["tool", "status"], remote: true });
 	});
+
+	it("declares only the closed operation result contract", () => {
+		expect(
+			deriveWorkspaceCommandDeclaration({
+				name: "check",
+				argv: ["tool", "check"],
+				result: "operation-result.v1",
+			}).entry,
+		).toEqual({ run: ["tool", "check"], result: "operation-result.v1" });
+		expect(() =>
+			deriveWorkspaceCommandDeclaration({ name: "check", argv: ["tool"], result: "json" }),
+		).toThrow(/operation-result\.v1/);
+	});
 });

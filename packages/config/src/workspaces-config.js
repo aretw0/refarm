@@ -91,6 +91,9 @@ function normalizeWorkspaceCommands(value) {
 			// an operation accidentally; only the literal boolean written through reviewed
 			// authoring survives normalization.
 			if (entry.remote === true) command.remote = true;
+			// Result projection is closed just like remote admission: arbitrary format names
+			// disappear rather than becoming an accidental promise to parse stdout.
+			if (entry.result === "operation-result.v1") command.result = "operation-result.v1";
 		}
 		commands[name.trim()] = command;
 	}

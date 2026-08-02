@@ -281,6 +281,7 @@ export interface WorkspaceDeclaredCommand {
 	cwd?: string;
 	description?: string;
 	remote?: true;
+	result?: "operation-result.v1";
 }
 
 /** How a resolved declared command is actually executed — injected so the resolver is testable
@@ -1013,6 +1014,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.option("--cwd <path>", "Working directory relative to the workspace root")
 		.option("--description <text>", "Human description shown by operation surfaces")
 		.option("--remote", "Allow enrolled devices to start this named operation (default: local only)")
+		.option("--result <wire>", 'Structured result contract (supported: "operation-result.v1")')
 		.option("--replace", "Review and replace an existing operation")
 		.option("--local", "Write this workspace's local .refarm/config.json")
 		.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
@@ -1025,7 +1027,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 				"  $ refarm workspace command add my-app test -- pnpm test --runInBand",
 			].join("\n"),
 		)
-		.action(async (workspace: string, name: string, argv: string[], options: { cwd?: string; description?: string; remote?: boolean; replace?: boolean; local?: boolean; attendedElsewhere?: boolean; json?: boolean }) => {
+		.action(async (workspace: string, name: string, argv: string[], options: { cwd?: string; description?: string; remote?: boolean; result?: string; replace?: boolean; local?: boolean; attendedElsewhere?: boolean; json?: boolean }) => {
 			try {
 				const result = await runWorkspaceCommandAdd({ workspace, name, argv: argv ?? [], ...options });
 				if (options.json) {
