@@ -72,9 +72,14 @@ farm-attend
 
 - `farm-ask` submits work and prints its result and usage when the runtime reports it.
 - `farm-start` lists only operations declared remotely invocable by the node; it is not a shell.
-  A start returns an opaque run id, and `--status` reports `running`, `succeeded`, or `failed`
-  without carrying the command output over this control surface. The node retains only the
-  current/most recent run, so this is lifecycle introspection rather than an unbounded log.
+  A start returns an opaque run id, and `--status` reports `running`, `succeeded`, `failed`, or
+  `cancelled`. Stdout never crosses this control surface. An operation that explicitly declares
+  `result: "operation-result.v1"` may return only the contract's bounded, redacted summary,
+  metrics, and findings. The node retains only the current/most recent run, so this is lifecycle
+  and result introspection rather than an unbounded log.
+- Remote spawning is fail-closed: the node must declare `spawnEnv.path` (and normally
+  `spawnEnv.home`) in its sovereign config. An absent search path is a configuration migration to
+  author on the node, never permission to inherit the daemon's ambient environment.
 - `farm-attend` answers a pending operator prompt using the shared prompt contract.
 
 ### Re-observe and undo

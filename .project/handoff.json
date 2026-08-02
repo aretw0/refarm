@@ -1,13 +1,13 @@
 {
-  "context": "Checkpoint 2026-07-25 (30th). Advanced the RELEASE readiness + shop, per operator (green Actions + attack issues before main; each shop sovereign). SHIPPED: scripts/ci/release-install-smoke.mjs (pnpm run release:install:smoke) — the missing gate that packs a REAL tarball, npm installs it, and imports each entrypoint; catches the 'dry-run passes, install breaks' ropes. PROVEN: the 4 zero-dep kernel contracts (storage/sync/identity-contract-v1 + channel-policy-v1) pack→install→import cleanly. refarm.shop spec gained the sovereignty doctrine (each owner runs their own; nothing on the operator's account). CI STATE: the push 'Test & Quality' workflow is GREEN at HEAD; the earlier one-off 'failure' was a transient workflow-file issue (later runs pass). OPEN ISSUES: all 3 are automated bot reports — #55 Security Audit + #54 Release Health show 'Security audit (high): failure', which I could NOT reproduce here (the env times out reaching the npm advisory API; pnpm audit is network-blocked); #49 is dev-tooling dep bumps (deferred, risky). Commits 73f9e96c (wa-link), b1566b6a (install-smoke + shop sovereignty).",
-  "timestamp": "2026-07-25T13:08:47.130Z",
+  "context": "Checkpoint 2026-08-02. Remote workspace control is shipped through Termux and browser/PWA: named allowlisted starts, bounded lifecycle, cancellation, and operation-result.v1 summaries/metrics/findings without transporting stdout. Refarm commits d298f6d3 and d08134bf are validated and clean. rcdc5 commit 66f8d91 consumes the official contract from vendored tarballs; code-boundaries now passes across 10 packages with zero findings. Runtime and systemd-user web-serve are live; only galaxy-a55-5g remains enrolled. The final authenticated proof stopped fail-closed before spawn because the HOME sovereign config lacks spawnEnv.path. Do not bypass this by inheriting PATH or editing JSON manually.",
+  "timestamp": "2026-08-02T17:57:35.000Z",
   "current_phase": "12",
   "current_tasks": [],
   "blockers": [],
   "next_actions": [
-    "SECURITY (needs network — operator's machine or CI): run 'pnpm run security:audit' to see the high/critical advisory, then 'pnpm run security:fix' (or manually bump the flagged dep). Could NOT be done in this session (env can't reach the npm advisory API). This is the one 'attack the issue' item blocked on environment.",
-    "RELEASE next: wire release-install-smoke into release-readiness.mjs's step list + the first-publish workflow; run it over the wider vault-seed-ready set (it will surface Rope #2 health→config as a real install failure); then build-before-publish in the workflow (Rope #1); ship the 4 contracts. Full checklist in docs/2026-07-25-v0.1.0-release-readiness.md.",
-    "refarm.shop next: @refarm.dev/catalog-contract-v1 → <a href> button in ds/html → generators/shop/ → the doceria (self-owned, sovereign per the spec). Then auth hub+sync (ADR-093), UX hybrid home, AUTH Slice 2 — all design-doc'd."
+    "Implement recorded CLI authorship for spawnEnv.path and spawnEnv.home, including validation, history/undo, tests, and migration guidance for an existing sovereign root.",
+    "Use that CLI surface in /home/s095407044 (not a manual JSON edit), restart the runtime, and repeat workspace:rcdc5:code-boundaries through authenticated POST/GET /operations. Expected terminal result: succeeded with operation-result.v1, packagesScanned=10, issueCount=0.",
+    "Republish the home farm-client kit after client changes. Once Termux and PWA both show the structured result, the next channel may be Telegram over the same catalog/lifecycle/result contracts."
   ],
   "open_questions": [],
   "key_decisions_active": [
@@ -19,5 +19,8 @@
     "ADR-064 [ACCEPTED]: TokenAuthError com provider + reason + rotationUrl — produzido na camada de credenciais, renderizado por qualquer superfície.",
     "ADR-065 [ACCEPTED]: Farmhand transparent lifecycle — refarm é o single entry point. Auto-start com Y/n confirm, detached spawn, 300ms poll. LaunchDeps interface para testabilidade."
   ],
-  "files_in_flux": []
+  "files_in_flux": [
+    "apps/refarm/src/commands/config.ts (likely authoring surface; untouched at checkpoint)",
+    "spawnEnv migration tests/docs (not started)"
+  ]
 }
