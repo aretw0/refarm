@@ -70,6 +70,17 @@ refarm agent finish --lane after-commit --run --json
 refarm agent finish --lane handoffs --run --json
 ```
 
+**Before pushing:**
+
+```bash
+refarm agent finish --lane before-push --run --json
+```
+
+This lane also runs the three repo-wide contracts that used to live only in CI: the package
+scaffold, the task-smoke build order, and the high-severity audit. Both registries are maintained
+BY HAND — a new package satisfies them only if its author fed them — so run this before a push
+rather than discovering it from a red pipeline.
+
 **JSON handoff rules:**
 
 - Every JSON command exposes `ok`, `nextCommand`, and `nextCommands`. Always

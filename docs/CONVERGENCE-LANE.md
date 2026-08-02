@@ -138,9 +138,21 @@ The maintainer sharpened the North Star: the goal is not "rcdc5 imports `@refarm
   - **A floor that measured the runner, not the repo.** Hardening's `conformant >= 20` read 19 in CI and
     24 locally, because Verify's build is filtered to the changed set; the quality job now builds the
     workspace the collector imports, the same guarantee the Tractor smoke already carried.
-  - **The lane's own lesson:** `refarm agent finish --lane before-push` does NOT run the scaffold
-    validator, the build-order integrity check, or `pnpm audit` — all three are CI-only, all three are
-    seconds of local cost. Extending the lane would retire this whole class before a push.
+  - **The lane's own lesson, and the debt paid the same night.** `before-push` ran none of the three
+    repo-wide gates — the scaffold validator, the build-order integrity check, the high-severity audit
+    — so all three were CI-only, and four of the twelve reached `develop` through that gap. The lane
+    now runs them (`4827c20e`), each proven by breaking it on purpose and watching the lane refuse with
+    the failing step named. They belong to `before-push` and no earlier lane: each asks a whole-repo
+    question, so charging it to a one-file edit would be the wrong price, and a push is the first
+    moment the question is really being asked. The audit BLOCKS rather than warns, matching CI instead
+    of softening it — this lane's contract is to say what the pipeline will say (CLAUDE.md §6), and
+    `auditConfig.ignoreGhsas` is the escape hatch that charges a written reason.
+  - **The thirteenth was not a defect at all.** `tidy.test.ts` pinned one of the two spellings
+    `createPackageScriptCommand` produces (relative when it can reach the target downward, absolute
+    otherwise), so its verdict depended on the directory vitest was launched from: green under turbo,
+    which runs inside the package, and red from the repo root. It now pins the RULE and passes from
+    either (`e1acd409`). A test whose answer depends on your working directory is worse than a failing
+    one — it teaches you to distrust the signal, and it cost this session a false open question.
 
 **Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.
 
