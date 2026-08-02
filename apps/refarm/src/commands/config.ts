@@ -336,7 +336,10 @@ function createConfigSpawnEnvCommand(deps: ConfigDeps, recordDeps: ConfigRecordD
 			.option("--why <reason>", "Record why you are making this change")
 			.option("--json", "Output machine-readable result")
 			.action(guardedAction((...args) => ({ json: configActionJson(...args), ...configRefusalHandoff("spawn-env.set") }), async (directories: string[], opts: ConfigMutationOptions & { home?: string } & JsonOptionCarrier, command: JsonOptionCarrier) => {
-				const result = await setSpawnEnv(directories, opts, deps, recordDeps);
+				// Commander files `--local` on the nearest ancestor declaring it — `spawn-env`,
+				// not `set` — so reading it off our own opts() writes the HOME scope while the
+				// operator asked for the repo one. Same walk `config history undo` already does.
+				const result = await setSpawnEnv(directories, { ...opts, local: hasLocalOption(opts, command) }, deps, recordDeps);
 				if (hasJsonOption(opts, command)) printSpawnEnvJson("spawn-env.set", result);
 				else printSpawnEnv(result);
 			})))
@@ -346,7 +349,7 @@ function createConfigSpawnEnvCommand(deps: ConfigDeps, recordDeps: ConfigRecordD
 			.option("--why <reason>", "Record why you are making this change")
 			.option("--json", "Output machine-readable result")
 			.action(guardedAction((...args) => ({ json: configActionJson(...args), ...configRefusalHandoff("spawn-env.unset") }), async (opts: ConfigMutationOptions & JsonOptionCarrier, command: JsonOptionCarrier) => {
-				const result = await unsetSpawnEnv(opts, deps, recordDeps);
+				const result = await unsetSpawnEnv({ ...opts, local: hasLocalOption(opts, command) }, deps, recordDeps);
 				if (hasJsonOption(opts, command)) printSpawnEnvJson("spawn-env.unset", result);
 				else printSpawnEnv(result);
 			})));
