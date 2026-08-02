@@ -31,9 +31,11 @@ import { sidecarExposureLines } from "../src/reach.mjs";
 import {
 	catalogLines,
 	classifyOperationStatus,
+	classifyCancelResponse,
 	classifyStartResponse,
 	OPERATIONS_PATH,
 	operationStatusPath,
+	operationCancelPath,
 	parseOperationCatalog,
 	startRequestBody,
 } from "../src/remote-initiation.mjs";
@@ -48,9 +50,11 @@ const HTTP_PORT = Number(process.env.FARM_HTTP_PORT ?? 42001);
 // como UM argumento para um ponto de entrada fixo.
 const args = process.argv.slice(2);
 const statusAt = args.indexOf("--status");
+const cancelAt = args.indexOf("--cancel");
 const STATUS_RUN_ID = statusAt >= 0 ? (args[statusAt + 1] ?? null) : null;
+const CANCEL_RUN_ID = cancelAt >= 0 ? (args[cancelAt + 1] ?? null) : null;
 const rest = args.filter(
-	(arg, index) => arg !== "--list" && arg !== "-l" && index !== statusAt && index !== statusAt + 1,
+	(arg, index) => arg !== "--list" && arg !== "-l" && index !== statusAt && index !== statusAt + 1 && index !== cancelAt && index !== cancelAt + 1,
 );
 const OPERATION = rest.length > 0 ? rest.join(" ") : null;
 
@@ -91,6 +95,27 @@ if (!(await sidecarUp(host))) {
 	for (const line of sidecarExposureLines()) console.error(line);
 	console.error(`   Alcance primeiro com: node ${join(KIT_ROOT, "bin", "farm-hello.mjs")} ${host}`);
 	process.exit(1);
+}
+
+if (cancelAt >= 0) {
+	if (CANCEL_RUN_ID === null) {
+		console.error("❌ --cancel precisa do run id mostrado por farm-start.");
+		process.exit(1);
+	}
+	let res;
+	try {
+		res = await fetch(`${base}${operationCancelPath(CANCEL_RUN_ID)}`, {
+			method: "POST",
+			headers: farmAuthHeaders(),
+		});
+	} catch (err) {
+		console.error(`❌ não deu para abandonar a execução: ${err?.message ?? err}`);
+		process.exit(1);
+	}
+	const verdict = classifyCancelResponse(res.status, await readJson(res));
+	const out = verdict.exitCode === 0 ? console.log : console.error;
+	for (const line of verdict.lines) out(line);
+	process.exit(verdict.exitCode);
 }
 
 /** Corpo JSON, ou `{}` quando não veio nenhum — o status ainda diz o desfecho. */

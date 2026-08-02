@@ -267,12 +267,19 @@ fn the_ceiling_holds() {
     assert!(registry.started_in_flight());
     // Nothing is told what is running until the entrypoint CONFIRMED the id is declared —
     // one caller's raw input is never echoed to a different caller.
-    assert_eq!(registry.claim_start().err(), Some(None), "the second is refused");
+    assert_eq!(
+        registry.claim_start().err(),
+        Some(StartedConflict { run_id: first.run_id().to_string(), operation: None }),
+        "the second is refused"
+    );
 
     registry.confirm_started("delivery add");
     assert_eq!(
         registry.claim_start().err(),
-        Some(Some("delivery add".to_string())),
+        Some(StartedConflict {
+            run_id: first.run_id().to_string(),
+            operation: Some("delivery add".to_string()),
+        }),
         "and once confirmed, a competing caller is told WHAT is running"
     );
 
@@ -294,6 +301,7 @@ fn lifecycle_retains_only_the_latest_confirmed_run() {
     assert_eq!(running.operation, "workspace:home:refresh");
     registry.complete(&first_id, Some(0));
     assert_eq!(registry.run(&first_id).unwrap().state, "succeeded");
+    assert!(matches!(registry.request_cancel(&first_id), CancelRequest::Finished(_)));
     drop(first);
 
     let second = registry.claim_start().expect("second run");
@@ -304,6 +312,21 @@ fn lifecycle_retains_only_the_latest_confirmed_run() {
     assert_eq!(failed.state, "failed");
     assert_eq!(failed.exit_code, Some(7));
     assert!(registry.run(&first_id).is_none(), "history is bounded to one run");
+}
+
+#[test]
+fn cancellation_targets_only_the_current_running_id() {
+    let registry = RemoteInitiations::new();
+    let slot = registry.claim_start().expect("start");
+    let run_id = slot.run_id().to_string();
+    registry.confirm_started("delivery add");
+
+    assert!(matches!(registry.request_cancel("r-other"), CancelRequest::Unknown));
+    assert!(matches!(registry.request_cancel(&run_id), CancelRequest::Requested(_)));
+    registry.cancelled(&run_id);
+    assert_eq!(registry.run(&run_id).unwrap().state, "cancelled");
+    assert!(matches!(registry.request_cancel(&run_id), CancelRequest::Finished(_)));
+    drop(slot);
 }
 
 #[test]
@@ -346,6 +369,10 @@ fn the_routes_declare_read_and_start_separately() {
     assert_eq!(
         crate::sidecar::auth::route_requirement(&Method::GET, "/operations/r-one"),
         RouteRequirement::Scoped(Scope::ReadOperations)
+    );
+    assert_eq!(
+        crate::sidecar::auth::route_requirement(&Method::POST, "/operations/r-one/cancel"),
+        RouteRequirement::Scoped(Scope::StartOperations)
     );
 }
 

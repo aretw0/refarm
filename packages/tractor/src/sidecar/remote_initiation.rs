@@ -136,6 +136,7 @@ use axum::{
 };
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
+use tokio::sync::Notify;
 
 use super::SidecarState;
 use crate::host::{spawn_env_from_config_at, SpawnEnvDecl};
@@ -292,6 +293,13 @@ struct Slots {
 struct StartedOperation {
     run_id: String,
     operation: Option<String>,
+    cancellation: Arc<Notify>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct StartedConflict {
+    run_id: String,
+    operation: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -328,16 +336,20 @@ impl RemoteInitiations {
 
     /// Take the start slot, or report what is already holding it (`None` inside the `Err`
     /// when the holder has not been confirmed as a declared operation yet).
-    fn claim_start(&self) -> Result<StartSlot, Option<String>> {
+    fn claim_start(&self) -> Result<StartSlot, StartedConflict> {
         let mut slots = self.inner.lock().expect("remote initiation slots poisoned");
         if let Some(running) = &slots.started {
-            return Err(running.operation.clone());
+            return Err(StartedConflict {
+                run_id: running.run_id.clone(),
+                operation: running.operation.clone(),
+            });
         }
         debug_assert_eq!(MAX_STARTED_OPERATIONS, 1, "the slot is a single Option");
         let run_id = format!("r-{}", uuid::Uuid::new_v4().simple());
         slots.started = Some(StartedOperation {
             run_id: run_id.clone(),
             operation: None,
+            cancellation: Arc::new(Notify::new()),
         });
         Ok(StartSlot {
             registry: self.clone(),
@@ -390,6 +402,29 @@ impl RemoteInitiations {
         }
     }
 
+    fn request_cancel(&self, run_id: &str) -> CancelRequest {
+        let slots = self.inner.lock().expect("remote initiation slots poisoned");
+        let Some(run) = slots.latest.as_ref().filter(|run| run.run_id == run_id) else {
+            return CancelRequest::Unknown;
+        };
+        if run.state != "running" {
+            return CancelRequest::Finished(run.clone());
+        }
+        let Some(started) = slots.started.as_ref().filter(|started| started.run_id == run_id) else {
+            return CancelRequest::Unknown;
+        };
+        started.cancellation.notify_one();
+        CancelRequest::Requested(run.clone())
+    }
+
+    fn cancelled(&self, run_id: &str) {
+        let mut slots = self.inner.lock().expect("remote initiation slots poisoned");
+        if let Some(run) = slots.latest.as_mut().filter(|run| run.run_id == run_id) {
+            run.state = "cancelled";
+            run.exit_code = None;
+        }
+    }
+
     fn run(&self, run_id: &str) -> Option<OperationRun> {
         self.inner
             .lock()
@@ -431,6 +466,22 @@ impl StartSlot {
     fn run_id(&self) -> &str {
         &self.run_id
     }
+
+    fn cancellation(&self) -> Arc<Notify> {
+        let slots = self.registry.inner.lock().expect("remote initiation slots poisoned");
+        slots
+            .started
+            .as_ref()
+            .filter(|started| started.run_id == self.run_id)
+            .map(|started| Arc::clone(&started.cancellation))
+            .expect("a live start slot owns its cancellation signal")
+    }
+}
+
+enum CancelRequest {
+    Requested(OperationRun),
+    Finished(OperationRun),
+    Unknown,
 }
 
 impl Drop for StartSlot {
@@ -627,7 +678,8 @@ pub(crate) async fn post_operations(
                     "wire": REMOTE_INITIATION_WIRE,
                     "error": "already-running",
                     // `null` while the running id is still just some caller's string.
-                    "running": running,
+                    "running": running.operation,
+                    "runId": running.run_id,
                     "maxStarted": MAX_STARTED_OPERATIONS,
                     "detail":
                         "An operation started from a device is already running on this node. \
@@ -671,6 +723,7 @@ pub(crate) async fn post_operations(
             state.remote_initiations.confirm_started(&named);
             let run_id = slot.run_id().to_string();
             let background_run_id = run_id.clone();
+            let cancellation = slot.cancellation();
             // WHAT was started and by nothing else — no argv, no environment, no output.
             tracing::info!(
                 operation = %named,
@@ -682,12 +735,28 @@ pub(crate) async fn post_operations(
             // the slot until it exits.
             tokio::spawn(async move {
                 let _slot = slot;
-                // Drained and DISCARDED: output does not travel (see the header), and a log
-                // line here would be the smuggling route.
-                let mut sink = reader;
-                let _ = read_capped(&mut sink, usize::MAX / 2).await;
-                let exit_code = child.wait().await.ok().and_then(|status| status.code());
-                _slot.registry.complete(&background_run_id, exit_code);
+                let completion = async {
+                    // Drained and DISCARDED: output does not travel (see the header), and a
+                    // log line here would be the smuggling route.
+                    let mut sink = reader;
+                    let _ = read_capped(&mut sink, usize::MAX / 2).await;
+                    child.wait().await.ok().and_then(|status| status.code())
+                };
+                tokio::pin!(completion);
+                tokio::select! {
+                    exit_code = &mut completion => {
+                        _slot.registry.complete(&background_run_id, exit_code);
+                    }
+                    () = cancellation.notified() => {
+                        if let Some(pid) = pid {
+                            // SAFETY: the child leads this process group; a negative pid
+                            // targets that bounded tree and touches no memory.
+                            unsafe { libc::kill(-(pid as i32), libc::SIGKILL); }
+                        }
+                        let _ = completion.await;
+                        _slot.registry.cancelled(&background_run_id);
+                    }
+                }
             });
             (
                 StatusCode::ACCEPTED,
@@ -736,6 +805,43 @@ pub(crate) async fn post_operations(
                 "the entrypoint said nothing within {VERDICT_DEADLINE_MS}ms and was stopped"
             ))
         }
+    }
+}
+
+/// Explicitly abandon a remotely-started operation. The run id is the capability's target:
+/// names are not accepted, and completed/unknown runs are never killed.
+pub(crate) async fn post_operation_cancel(
+    State(state): State<SidecarState>,
+    AxumPath(run_id): AxumPath<String>,
+) -> impl IntoResponse {
+    match state.remote_initiations.request_cancel(&run_id) {
+        CancelRequest::Requested(run) => (
+            StatusCode::ACCEPTED,
+            Json(serde_json::json!({
+                "wire": REMOTE_INITIATION_WIRE,
+                "runId": run.run_id,
+                "operation": run.operation,
+                "state": "cancelling",
+            })),
+        ).into_response(),
+        CancelRequest::Finished(run) => json_error(
+            StatusCode::CONFLICT,
+            serde_json::json!({
+                "wire": REMOTE_INITIATION_WIRE,
+                "error": "run-finished",
+                "runId": run.run_id,
+                "state": run.state,
+                "detail": "This operation has already finished and cannot be cancelled.",
+            }),
+        ),
+        CancelRequest::Unknown => json_error(
+            StatusCode::NOT_FOUND,
+            serde_json::json!({
+                "wire": REMOTE_INITIATION_WIRE,
+                "error": "unknown-run",
+                "detail": "This node does not retain a running operation with that id.",
+            }),
+        ),
     }
 }
 

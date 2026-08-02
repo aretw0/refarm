@@ -6,10 +6,12 @@ import { test } from "node:test";
 
 import {
 	catalogLines,
+	classifyCancelResponse,
 	classifyOperationStatus,
 	classifyStartResponse,
 	OPERATIONS_PATH,
 	operationStatusPath,
+	operationCancelPath,
 	parseOperationCatalog,
 	REMOTE_INITIATION_WIRE,
 	startRequestBody,
@@ -128,6 +130,7 @@ test("a started run carries one follow-up command, not a terminal stream", () =>
 	});
 	assert.match(verdict.lines.join("\n"), /farm-start --status r-one/);
 	assert.equal(operationStatusPath("r/a b"), "/operations/r%2Fa%20b");
+	assert.equal(operationCancelPath("r/a b"), "/operations/r%2Fa%20b/cancel");
 });
 
 test("operation lifecycle keeps running, success, failure, and expiry distinct", () => {
@@ -135,6 +138,7 @@ test("operation lifecycle keeps running, success, failure, and expiry distinct",
 		["running", null, "running"],
 		["succeeded", 0, "succeeded"],
 		["failed", 7, "failed"],
+		["cancelled", null, "cancelled"],
 	]) {
 		const verdict = classifyOperationStatus(200, {
 			runId: "r-one",
@@ -146,6 +150,13 @@ test("operation lifecycle keeps running, success, failure, and expiry distinct",
 		assert.match(verdict.lines.join("\n"), /r-one/);
 	}
 	assert.equal(classifyOperationStatus(404, { error: "unknown-run" }).outcome, "unknown-run");
+});
+
+test("cancellation keeps requested, finished, unknown and unauthorized distinct", () => {
+	assert.equal(classifyCancelResponse(202, { state: "cancelling", runId: "r-1" }).outcome, "cancelling");
+	assert.equal(classifyCancelResponse(409, { error: "run-finished" }).outcome, "run-finished");
+	assert.equal(classifyCancelResponse(404, { error: "unknown-run" }).outcome, "unknown-run");
+	assert.equal(classifyCancelResponse(401, {}).outcome, "not-authorized");
 });
 
 test("the five answers are five, and none of them is 'tente de novo'", () => {
@@ -188,10 +199,11 @@ test("a 403 that names not-remotely-invocable is a shut door, not a typo", () =>
 });
 
 test("the ceiling explains itself — one at a time, and why", () => {
-	const named = classifyStartResponse(409, { error: "already-running", running: "delivery add" });
+	const named = classifyStartResponse(409, { error: "already-running", running: "delivery add", runId: "r-one" });
 	assert.equal(named.outcome, "already-running");
 	assert.match(named.lines.join("\n"), /delivery add/);
 	assert.match(named.lines.join("\n"), /MESMA lista/);
+	assert.match(named.lines.join("\n"), /farm-start --cancel r-one/);
 
 	// O nó não diz o nome enquanto não confirmou que aquilo é uma operação declarada
 	// — os bytes de um chamador não vazam para outro. O aparelho não inventa um.

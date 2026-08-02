@@ -49,14 +49,20 @@ export function operationStatusPath(runId) {
 	return `${OPERATIONS_PATH}/${encodeURIComponent(runId)}`;
 }
 
+export function operationCancelPath(runId) {
+	return `${operationStatusPath(runId)}/cancel`;
+}
+
 /** Lifecycle, without pretending that command output is part of this wire. */
 export function classifyOperationStatus(status, body) {
 	if (status === 200 && typeof body?.runId === "string") {
-		const state = ["running", "succeeded", "failed"].includes(body?.state) ? body.state : null;
+		const state = ["running", "succeeded", "failed", "cancelled"].includes(body?.state)
+			? body.state
+			: null;
 		if (state !== null) {
 			const operation = typeof body?.operation === "string" ? body.operation : "a operação";
-			const symbols = { running: "⏳", succeeded: "✓", failed: "✗" };
-			const labels = { running: "rodando", succeeded: "concluída", failed: "falhou" };
+			const symbols = { running: "⏳", succeeded: "✓", failed: "✗", cancelled: "■" };
+			const labels = { running: "rodando", succeeded: "concluída", failed: "falhou", cancelled: "abandonada" };
 			const suffix = Number.isInteger(body?.exitCode) ? ` (exit ${body.exitCode})` : "";
 			return {
 				outcome: state,
@@ -80,6 +86,26 @@ export function classifyOperationStatus(status, body) {
 		exitCode: 1,
 		lines: ["❌ não deu para consultar a execução.", `   O nó respondeu ${status}.`],
 	};
+}
+
+export function classifyCancelResponse(status, body) {
+	if (status === 202 && body?.state === "cancelling") {
+		return {
+			outcome: "cancelling",
+			exitCode: 0,
+			lines: [`■ abandonando ${body?.operation ?? "a operação"}…`, `   run: ${body?.runId ?? "?"}`],
+		};
+	}
+	if (status === 404 || body?.error === "unknown-run") {
+		return { outcome: "unknown-run", exitCode: 1, lines: ["❓ este nó não retém essa execução."] };
+	}
+	if (status === 409 || body?.error === "run-finished") {
+		return { outcome: "run-finished", exitCode: 1, lines: ["✓ essa execução já terminou; nada foi abandonado."] };
+	}
+	if (status === 401 || status === 403) {
+		return { outcome: "not-authorized", exitCode: 1, lines: ["🔒 esta credencial não pode abandonar operações neste nó."] };
+	}
+	return { outcome: "could-not-cancel", exitCode: 1, lines: [`❌ não deu para abandonar a execução (${status}).`] };
 }
 
 /**
@@ -193,6 +219,7 @@ export function classifyStartResponse(
 	}
 	if (status === 409) {
 		const running = typeof body?.running === "string" ? body.running : null;
+		const runId = typeof body?.runId === "string" ? body.runId : null;
 		return {
 			outcome: "already-running",
 			exitCode: 1,
@@ -204,6 +231,7 @@ export function classifyStartResponse(
 				"   ninguém consegue dizer qual pergunta é de qual.",
 				"",
 				"   Termine a que está aberta (farm-attend) e volte.",
+				...(runId ? ["   Ou abandone explicitamente:", `     ${start} --cancel ${runId}`] : []),
 			],
 		};
 	}

@@ -242,6 +242,9 @@ pub(crate) fn route_requirement(method: &Method, path: &str) -> RouteRequirement
             RouteRequirement::Scoped(Scope::ReadOperations)
         }
         (&Method::POST, ["operations"]) => RouteRequirement::Scoped(Scope::StartOperations),
+        (&Method::POST, ["operations", _, "cancel"]) => {
+            RouteRequirement::Scoped(Scope::StartOperations)
+        }
         _ => RouteRequirement::DeviceOnly,
     }
 }
@@ -3101,6 +3104,10 @@ mod tests {
         assert_eq!(route_requirement(&Method::GET, "/operations"), READ_OPERATIONS);
         assert_eq!(route_requirement(&Method::GET, "/operations/r-one"), READ_OPERATIONS);
         assert_eq!(route_requirement(&Method::POST, "/operations"), START_OPERATIONS);
+        assert_eq!(
+            route_requirement(&Method::POST, "/operations/r-one/cancel"),
+            START_OPERATIONS
+        );
 
         assert_eq!(
             route_requirement(&Method::POST, "/prompts"),
