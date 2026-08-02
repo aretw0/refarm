@@ -220,6 +220,9 @@ export interface CatalogOperationRequestInput {
 	requestedAt: string;
 	/** Anything the diff alone does not say — a token file being written beside it, for instance. */
 	notes?: string[];
+	/** A narrower operation identity when an entry replacement authors one nested capability. */
+	operationId?: string;
+	operationKind?: string;
 }
 
 /**
@@ -249,8 +252,8 @@ export function buildCatalogOperationRequest(
 		);
 	}
 	return {
-		id: catalogOperationId(plan.block, plan.name),
-		kind: catalogOperationKind(plan.block),
+		id: input.operationId ?? catalogOperationId(plan.block, plan.name),
+		kind: input.operationKind ?? catalogOperationKind(plan.block),
 		title: input.title,
 		purpose: input.purpose,
 		requester: input.requester,

@@ -102,6 +102,10 @@
 			"types": "./dist/workspace-declaration.d.ts",
 			"import": "./dist/workspace-declaration.js"
 		},
+		"./workspace-command-declaration": {
+			"types": "./dist/workspace-command-declaration.d.ts",
+			"import": "./dist/workspace-command-declaration.js"
+		},
 		"./chat-repl": {
 			"types": "./dist/chat-repl.d.ts",
 			"import": "./dist/chat-repl.js"

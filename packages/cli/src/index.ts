@@ -7,6 +7,12 @@ export {
 	type WorkspaceDeclarationProposal,
 } from "./workspace-declaration.js";
 export {
+	deriveWorkspaceCommandDeclaration,
+	WorkspaceCommandDeclarationError,
+	type WorkspaceCommandDeclarationInput,
+	type WorkspaceCommandDeclarationProposal,
+} from "./workspace-command-declaration.js";
+export {
 	assertStatusJson,
 	buildStatusJson,
 	formatStatusJson,

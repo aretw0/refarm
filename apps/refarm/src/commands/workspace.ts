@@ -45,6 +45,10 @@ import {
 	type WorkspaceAddOptions,
 } from "./workspace-add.js";
 import {
+	runWorkspaceCommandAdd,
+	WorkspaceCommandAddRefusal,
+} from "./workspace-command-add.js";
+import {
 	buildWorkspaceExecutionStatus,
 	type WorkspaceExecutionStatus,
 } from "./workspace-execution.js";
@@ -996,6 +1000,62 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 			}
 		});
 
+	const workspaceOperationCommand = command
+		.command("command")
+		.description("Author named, shell-free operations for declared workspaces");
+
+	workspaceOperationCommand
+		.command("add <workspace> <name> [argv...]")
+		.description("Declare an exact argv operation through reviewed consent")
+		.option("--cwd <path>", "Working directory relative to the workspace root")
+		.option("--description <text>", "Human description shown by operation surfaces")
+		.option("--replace", "Review and replace an existing operation")
+		.option("--local", "Write this workspace's local .refarm/config.json")
+		.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
+		.option("--json", "Output the declaration result as JSON")
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Use `--` before argv when it contains flags, so Refarm preserves every token exactly:",
+				"  $ refarm workspace command add my-app test -- pnpm test --runInBand",
+			].join("\n"),
+		)
+		.action(async (workspace: string, name: string, argv: string[], options: { cwd?: string; description?: string; replace?: boolean; local?: boolean; attendedElsewhere?: boolean; json?: boolean }) => {
+			try {
+				const result = await runWorkspaceCommandAdd({ workspace, name, argv: argv ?? [], ...options });
+				if (options.json) {
+					printJson(buildJsonSuccessEnvelope({
+						command: "workspace",
+						operation: "command-add",
+						extra: result,
+						nextCommands: result.status === "declared" ? [refarmCommand(["workspace", "run", workspace, name])] : [],
+					}));
+					return;
+				}
+				if (result.status === "declared") {
+					console.log(chalk.green(`✓  declared "${workspace}:${name}"`));
+					console.log(chalk.dim(`   ${result.configPath}`));
+					console.log(chalk.dim(`   undo: ${result.undoCommand}`));
+					console.log(chalk.dim(`   run:  ${refarmCommand(["workspace", "run", workspace, name])}`));
+				} else console.log(chalk.dim(`workspace command ${result.status}`));
+			} catch (error) {
+				if (error instanceof WorkspaceCommandAddRefusal && options.json) {
+					printJson(buildJsonErrorEnvelope({
+						command: "workspace",
+						operation: "command-add",
+						error: error.code,
+						message: error.message,
+						nextAction: `Run \`${refarmCommand(["workspace", "command", "add", "--help"])}\` from an attended surface.`,
+						nextCommand: refarmCommand(["workspace", "command", "add", "--help"]),
+					}));
+					process.exitCode = 1;
+					return;
+				}
+				failWorkspace("command-add", options, error);
+			}
+		});
+
 	command
 		.command("execution")
 		.description("Inspect detected workspace executor and cache readiness")
@@ -1148,12 +1208,11 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 			"after",
 			[
 				"",
-				"Runs only commands declared under a workspace's `commands` in .refarm/config.json —",
+				"Runs only commands authored with `refarm workspace command add` (or declared directly) —",
 				"an operation catalog, not a shell. Refarm holds the command string + cwd; the logic",
-				"lives in the workspace. Example config:",
-				'  { "workspaces": { "rcdc5": { "path": "../rcdc5",',
-				'      "commands": { "vpn": "pnpm --filter @rcdcp/serpro-vpn run vpn connect" } } } }',
-				"  $ refarm workspace run rcdc5 vpn",
+				"lives in the workspace. Authoring preserves argv exactly and asks for consent:",
+				"  $ refarm workspace command add my-app test -- pnpm test",
+				"  $ refarm workspace run my-app test",
 			].join("\n"),
 		)
 		.action(async (workspace: string, cmd: string, args: string[]) => {
