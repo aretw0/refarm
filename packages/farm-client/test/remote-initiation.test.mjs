@@ -109,7 +109,7 @@ test("the request body has ONE field and carries the id whole", () => {
 	}
 });
 
-test("started says WHERE the questions will show up, and that the output will not", () => {
+test("started distinguishes private stdout from declared structured results", () => {
 	const verdict = classifyStartResponse(202, {
 		wire: REMOTE_INITIATION_WIRE,
 		started: true,
@@ -120,7 +120,9 @@ test("started says WHERE the questions will show up, and that the output will no
 	const text = verdict.lines.join("\n");
 	assert.match(text, /delivery add/);
 	assert.match(text, /farm-attend/);
-	assert.match(text, /NÃO viaja/);
+	assert.match(text, /stdout não viaja/);
+	assert.match(text, /resultado estruturado/);
+	assert.match(text, /status/);
 });
 
 test("a started run carries one follow-up command, not a terminal stream", () => {

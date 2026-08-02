@@ -206,7 +206,8 @@ export function classifyStartResponse(
 				`     ${attend} --watch`,
 				...(runId ? ["", "   Para acompanhar o desfecho:", `     ${start} --status ${runId}`] : []),
 				"",
-				"   A saída do comando NÃO viaja — a interface dele são as perguntas.",
+				"   O stdout não viaja. Se a operação declarou resultado estruturado,",
+				"   ele aparece no status; perguntas continuam chegando no attend.",
 			],
 		};
 	}
