@@ -36,6 +36,7 @@ test("the device commands get launchers — including the ones that ASK and ANSW
 	assert.deepEqual(SHIM_NAMES, [
 		"farm-ask",
 		"farm-attend",
+		"farm-auth",
 		"farm-hello",
 		"farm-start",
 		"farm-update",

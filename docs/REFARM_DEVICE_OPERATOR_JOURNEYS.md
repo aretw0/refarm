@@ -51,8 +51,8 @@ do not paste it into documentation, logs, issue trackers, or committed configura
 
 ```bash
 curl -fsSL http://<farm-host>:4321/install.mjs | node --input-type=module -
-read -rsp "Device token: " FARM_TOKEN && printf '\n'
-export FARM_TOKEN
+farm-auth set
+farm-auth status
 farm-hello <farm-host>
 ```
 
@@ -81,12 +81,16 @@ farm-attend
 
 ```bash
 farm-hello <farm-host>
-unset FARM_TOKEN
+farm-auth remove
 refarm auth revoke <device-label>
 ```
 
 Run `auth revoke` on the node. After revocation, the former credential must no longer authorize the
-device. Stopping a temporary distribution server is a separate process/supervisor operation.
+device. `farm-auth` keeps the credential outside the updateable kit in
+`~/.refarm/credentials/device-token` (directory mode `0700`, file mode `0600`), so `farm-update`
+cannot overwrite it. `FARM_TOKEN` remains the higher-precedence override for one command or one
+shell, and `FARM_TOKEN_FILE` may point automation at another private file; neither needs to enter a
+shell profile. Stopping a temporary distribution server is a separate process/supervisor operation.
 
 ### Proof plan
 

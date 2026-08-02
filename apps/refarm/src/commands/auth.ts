@@ -116,6 +116,7 @@ function refuseAuth(input: {
  * out in full — never elided to `.../` — because this is a line an operator
  * copies onto a phone while holding a one-shot token. */
 const FARM_CLIENT_ASK_PATH = "~/.refarm/kit/farm-client/bin/farm-ask.mjs";
+const FARM_CLIENT_AUTH_PATH = "~/.refarm/kit/farm-client/bin/farm-auth.mjs";
 
 /**
  * How the DEVICE spends the token it was just handed.
@@ -127,9 +128,13 @@ const FARM_CLIENT_ASK_PATH = "~/.refarm/kit/farm-client/bin/farm-ask.mjs";
 export function deviceInstructionLines(token: string): string {
 	return (
 		`   On the device — with the installed zero-dependency kit:\n` +
-		`     FARM_TOKEN=${token} farm-ask "olá"\n` +
+		`     farm-auth set                 # paste the one-shot token above; input is masked\n` +
+		`     farm-ask "olá"\n` +
 		`   If this shell has not picked up the shim yet:\n` +
-		`     FARM_TOKEN=${token} node ${FARM_CLIENT_ASK_PATH} "olá"\n` +
+		`     node ${FARM_CLIENT_AUTH_PATH} set\n` +
+		`     node ${FARM_CLIENT_ASK_PATH} "olá"\n` +
+		`   Temporary override (not persisted):\n` +
+		`     FARM_TOKEN=${token} farm-ask "olá"\n` +
 		`   Only on a device with the full Refarm app/CLI (not merely the farm-client kit):\n` +
 		`     FARM_TOKEN=${token} ${refarmCommand(["ask", '"olá"'])}\n`
 	);

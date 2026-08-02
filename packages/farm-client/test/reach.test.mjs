@@ -38,7 +38,7 @@ test("HTTP auth refusal proves reachability without pretending the sidecar is us
 	).join("\n");
 	assert.match(text, /alcançável/);
 	assert.match(text, /HTTP 401/);
-	assert.match(text, /FARM_TOKEN presente/);
+	assert.match(text, /farm-auth status/);
 	assert.doesNotMatch(text, /superfície não se abre/);
 });
 
@@ -173,7 +173,7 @@ test("the sidecar advice DECLARES a surface — it never tells anyone to bind 0.
 	assert.match(text, /\.refarm\/config\.json/);
 	// A declaration alone is not reach: the device also needs a credential.
 	assert.match(text, /refarm auth enroll/);
-	assert.match(text, /FARM_TOKEN/);
+	assert.match(text, /farm-auth set/);
 });
 
 test("the sidecar advice can name any legal expose value", () => {

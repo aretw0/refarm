@@ -30,7 +30,7 @@ import { networkInterfaces } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { askFarmHost, cancellationExit } from "../src/ask-host.mjs";
-import { farmSyncWsProtocols } from "../src/auth.mjs";
+import { farmAuthHeaders, farmSyncWsProtocols } from "../src/auth.mjs";
 import { defaultProbeTargets, discoverFarms, subnetSweepTargets } from "../src/beacon.mjs";
 import { readRememberedHost } from "../src/farm-host.mjs";
 import {
@@ -208,7 +208,7 @@ async function probeSidecar() {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, { signal: controller.signal, headers: farmAuthHeaders() });
     clearTimeout(timer);
     if (!res.ok) return { ok: false, detail: `HTTP ${res.status}` };
     const body = await res.json();

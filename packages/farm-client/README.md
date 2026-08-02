@@ -33,6 +33,7 @@ se alguém acoplar o kit ao monorepo, o teste falha.
 | `farm-announce.mjs` | anunciar | (no host) responde probes de descoberta na LAN — opt-in |
 | `farm-ask.mjs` | usar | submete um effort e imprime a resposta do agente |
 | `farm-attend.mjs` | atender | responde, daqui, as perguntas que a fazenda deixou pendentes |
+| `farm-auth.mjs` | credencial | guarda, inspeciona ou remove a credencial do aparelho sem shell history |
 | `farm-start.mjs` | começar/acompanhar | lista e inicia operações declaradas; consulta o estado pela identidade da execução |
 | `farm-update.mjs` | atualizar | puxa o kit do servidor de malha da fazenda (manifesto + sha256) |
 
@@ -47,6 +48,11 @@ farm-ask "sua pergunta"
 farm-attend            # responde o que estiver pendente e sai
 farm-attend --watch    # fica de plantão (intervalo declarado + backoff)
 farm-attend --list     # só olha; não responde
+
+# credencial persistente, privada e fora do perfil do shell
+farm-auth set
+farm-auth status
+farm-auth remove
 
 # começar uma operação admitida pelo nó e acompanhar seu desfecho
 farm-start
@@ -99,7 +105,7 @@ garantem que a cópia é byte a byte o build do bloco — se divergir, o teste f
 ## Atalhos no PATH
 
 O `install.mjs` (e todo `farm-update`) planta lançadores `farm-ask`, `farm-attend`,
-`farm-hello` e `farm-update` em `~/.local/bin` — a convenção por usuário que existe tanto num Linux
+`farm-auth`, `farm-hello`, `farm-start` e `farm-update` em `~/.local/bin` — a convenção por usuário que existe tanto num Linux
 normal quanto no Termux, onde não há `/usr/local/bin` nem `sudo`. `FARM_BIN_DIR` manda
 em tudo.
 

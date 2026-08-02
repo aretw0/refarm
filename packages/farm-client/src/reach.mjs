@@ -115,7 +115,7 @@ export function sidecarExposureLines({ expose = "tailnet" } = {}) {
 		'     (expose: "loopback" | "host:<ip>" | "tailnet" — o não declarado fica fechado)',
 		"   E este dispositivo precisa da credencial dele:",
 		"     refarm auth enroll <rótulo-deste-aparelho>   # no host; o token aparece 1x",
-		"     export FARM_TOKEN=<token>                    # aqui, no aparelho",
+		"     farm-auth set                                # aqui, no aparelho; entrada mascarada",
 	];
 }
 
@@ -133,8 +133,8 @@ export function sidecarProbeFailureLines(probe, base) {
 	if (probe?.reason === "credential-required") {
 		return [
 			`❌ sidecar alcançável em ${base}, mas a credencial não foi aceita (HTTP 401)`,
-			"   Confirme que o token deste aparelho está exportado nesta sessão:",
-			"     test -n \"$FARM_TOKEN\" && echo 'FARM_TOKEN presente'",
+			"   Confirme a credencial persistida (ou o override FARM_TOKEN desta sessão):",
+			"     farm-auth status",
 			"   Se estiver presente, ele é antigo ou não corresponde ao aparelho: gere outro com",
 			"     refarm auth enroll <rótulo-deste-aparelho>   # no host; o token aparece 1x",
 		];
@@ -167,7 +167,7 @@ export function daemonWsExposureLines() {
 		"   O WS fica em LOOPBACK enquanto ninguém o declara. Para alcançá-lo daqui,",
 		"   o host declara, em .refarm/config.json:",
 		'     "surfaces": { "daemon-ws": { "expose": "host:<ip>", "gate": "device-token" } }',
-		"   e este aparelho apresenta a credencial no handshake — com FARM_TOKEN setado,",
+		"   e este aparelho apresenta a credencial no handshake — após `farm-auth set`,",
 		"   o kit já oferece `bearer.<token>` automaticamente (ADR-093).",
 	];
 }

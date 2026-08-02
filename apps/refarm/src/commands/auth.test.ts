@@ -1747,11 +1747,12 @@ describe("refarm auth enroll — the device instruction leads with the zero-depe
 		expect(out.indexOf("refarm ask")).toBeGreaterThan(pathAt);
 	});
 
-	it("both forms carry the real token, so either is copyable as-is", () => {
+	it("the persistent journey keeps the token out of argv, with an explicit temporary override", () => {
 		const out = deviceInstructionLines("TOK");
 
+		expect(out).toContain("farm-auth set");
+		expect(out).toContain("input is masked");
 		expect(out).toContain('FARM_TOKEN=TOK farm-ask "olá"');
-		expect(out).toContain('FARM_TOKEN=TOK node ~/.refarm/kit/farm-client/bin/farm-ask.mjs "olá"');
 		expect(out).toContain('FARM_TOKEN=TOK refarm ask "olá"');
 		// Never elides the token behind `FARM_TOKEN=…` the way the old alternative did.
 		expect(out).not.toContain("FARM_TOKEN=…");
@@ -1780,10 +1781,12 @@ describe("refarm auth enroll — the device instruction leads with the zero-depe
 			expect(token).toBeTruthy();
 			expect(out).toContain("node ~/.refarm/kit/farm-client/bin/farm-ask.mjs");
 			// The printed token is the RAW one; the file stores only its digest. The
-			// instruction lines must carry the raw token, both of them.
-			const printed = /FARM_TOKEN=(\S+) node/.exec(out)?.[1];
+			// The persistent kit journey does not repeat it in argv. The explicit
+			// temporary override remains copyable for recovery and full-CLI use.
+			const printed = /FARM_TOKEN=(\S+) farm-ask/.exec(out)?.[1];
 			expect(printed).toBeTruthy();
 			expect(sha256Hex(printed as string)).toBe(token);
+			expect(out).toContain("farm-auth set");
 			expect(out).toContain(`FARM_TOKEN=${printed} farm-ask "olá"`);
 			expect(out).toContain("refarm runtime restart --wait --json");
 		} finally {

@@ -19,6 +19,7 @@
 		"farm-announce": "./bin/farm-announce.mjs",
 		"farm-ask": "./bin/farm-ask.mjs",
 		"farm-attend": "./bin/farm-attend.mjs",
+		"farm-auth": "./bin/farm-auth.mjs",
 		"farm-start": "./bin/farm-start.mjs",
 		"farm-update": "./bin/farm-update.mjs"
 	},

@@ -31,7 +31,15 @@ export {
 	tailnetShortName,
 	tailnetStatusReport,
 } from "./tailnet.mjs";
-export { farmAuthHeaders } from "./auth.mjs";
+export {
+	farmAuthHeaders,
+	farmCredentialStatus,
+	farmSyncWsProtocols,
+	farmToken,
+	farmTokenFile,
+	removeFarmToken,
+	saveFarmToken,
+} from "./auth.mjs";
 export { buildRespondEffort } from "./effort.mjs";
 export { extractAnswer, humanizeAgentError, isSuccessEffort, isTerminalEffort } from "./effort-result.mjs";
 export { compactTokens, formatUsage, formatUsd, parseUsage } from "./usage.mjs";
