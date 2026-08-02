@@ -1695,7 +1695,7 @@ impl AuthGate {
     /// exercised by every pre-existing test in this module, one level down at
     /// [`AuthPolicy::verify`] — which is where the regression proof belongs, because that is
     /// the pure function the old tests were written against.
-
+    ///
     /// The same verification with the REASON kept — the middleware's real entry point, and the
     /// only place in the running daemon that asks the finer question. Everything downstream of
     /// it (the response bytes) is identical for all three refusals; everything beside it (the

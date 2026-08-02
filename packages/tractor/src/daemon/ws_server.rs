@@ -714,6 +714,9 @@ impl HandshakeRecord {
 /// calls `decide_ws_handshake`, deposits whatever is to be recorded, then either echoes
 /// `WS_SYNC_PROTOCOL` (accept) or writes a `401` (reject) — all logging happens here, at the
 /// boundary, never inside the decision.
+// The tungstenite Callback trait fixes this exact `Result<Response, ErrorResponse>` shape;
+// boxing its error would stop the closure from implementing that upstream trait.
+#[allow(clippy::result_large_err)]
 fn ws_handshake_callback(
     gate: Option<AuthGate>,
     recorded: HandshakeRecord,
