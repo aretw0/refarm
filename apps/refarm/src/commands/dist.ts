@@ -2,12 +2,20 @@ import { createHash } from "node:crypto";
 import type { Dirent } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { createProcessHandoffDisplay, runProcessHandoffSync } from "@refarm.dev/cli/process-handoff";
 import { Command } from "commander";
 
 import { refarmCommand } from "../brand.js";
 import { guardedAction, type RefusalHandoff } from "./action-boundary.js";
+
+/** Resolve the declared package dependency, independent of the operator's current directory. */
+export function defaultFarmClientKitDir(
+	entrypoint = import.meta.resolve("@refarm.dev/farm-client"),
+): string {
+	return path.dirname(path.dirname(fileURLToPath(entrypoint)));
+}
 
 /**
  * `refarm dist publish` — the PC side of mesh artifact distribution.
@@ -161,7 +169,7 @@ const DIST_PUBLISH_REFUSAL_HANDOFF: RefusalHandoff = {
 export function createDistPublishCommand(): Command {
 	return new Command("publish")
 		.description("Assemble the farm-client kit + a hash-verified manifest into a served dir")
-		.option("--kit <dir>", "Kit package dir to publish", "packages/farm-client")
+		.option("--kit <dir>", "Kit package dir to publish", defaultFarmClientKitDir())
 		.option("--out <dir>", "Output root (served over the mesh)", ".refarm/dist")
 		.option(
 			"--host <name>",
@@ -176,7 +184,7 @@ export function createDistPublishCommand(): Command {
 					...DIST_PUBLISH_REFUSAL_HANDOFF,
 				}),
 				async (options: DistPublishOptions) => {
-					const kitDir = path.resolve(options.kit ?? "packages/farm-client");
+					const kitDir = path.resolve(options.kit ?? defaultFarmClientKitDir());
 					const pkg = JSON.parse(await readFile(path.join(kitDir, "package.json"), "utf8")) as {
 						version?: string;
 					};

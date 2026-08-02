@@ -7,6 +7,7 @@ import {
 	bakeInstaller,
 	buildKitManifest,
 	collectKitFiles,
+	defaultFarmClientKitDir,
 	integrityOf,
 	tailnetSelfHost,
 } from "./dist.js";
@@ -17,6 +18,12 @@ const KIT_DIR = path.resolve(
 );
 
 describe("refarm dist — the kit manifest", () => {
+	it("resolves the installed kit independently of the operator's cwd", () => {
+		expect(defaultFarmClientKitDir(new URL("src/index.mjs", `file://${KIT_DIR}/`).href)).toBe(
+			KIT_DIR,
+		);
+	});
+
 	it("prefers the canonical MagicDNS FQDN and removes only its terminal root dot", () => {
 		expect(
 			tailnetSelfHost({
