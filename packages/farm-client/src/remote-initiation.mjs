@@ -53,6 +53,20 @@ export function operationCancelPath(runId) {
 	return `${operationStatusPath(runId)}/cancel`;
 }
 
+export function parseOperationResult(value) {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+	const keys = Object.keys(value).sort();
+	if (keys.join("|") !== "findings|metrics|redactionCount|status|summary|truncated|wire") return null;
+	if (value.wire !== "operation-result.v1" || !["succeeded", "issues", "failed"].includes(value.status)) return null;
+	if (typeof value.summary !== "string" || value.summary.length > 512) return null;
+	if (!Array.isArray(value.metrics) || value.metrics.length > 32) return null;
+	if (!Array.isArray(value.findings) || value.findings.length > 50) return null;
+	if (typeof value.truncated !== "boolean" || !Number.isInteger(value.redactionCount) || value.redactionCount < 0) return null;
+	if (value.metrics.some((metric) => !metric || typeof metric !== "object" || typeof metric.name !== "string" || !Number.isFinite(metric.value))) return null;
+	if (value.findings.some((finding) => !finding || typeof finding !== "object" || typeof finding.code !== "string" || typeof finding.summary !== "string")) return null;
+	return value;
+}
+
 /** Lifecycle, without pretending that command output is part of this wire. */
 export function classifyOperationStatus(status, body) {
 	if (status === 200 && typeof body?.runId === "string") {
@@ -64,13 +78,28 @@ export function classifyOperationStatus(status, body) {
 			const symbols = { running: "⏳", succeeded: "✓", failed: "✗", cancelled: "■" };
 			const labels = { running: "rodando", succeeded: "concluída", failed: "falhou", cancelled: "abandonada" };
 			const suffix = Number.isInteger(body?.exitCode) ? ` (exit ${body.exitCode})` : "";
+			const result = parseOperationResult(body?.result);
+			const resultLines = result
+				? [
+					"",
+					`   ${result.summary}`,
+					...result.metrics.map((metric) => `   · ${metric.name}: ${metric.value}${metric.unit ? ` ${metric.unit}` : ""}`),
+					...result.findings.map((finding) => `   ! ${finding.code}: ${finding.summary}${finding.location ? ` — ${finding.location}` : ""}`),
+					...(result.truncated ? ["   … resultado truncado pelo contrato"] : []),
+				]
+				: [];
 			return {
 				outcome: state,
 				exitCode: state === "failed" ? 1 : 0,
 				lines: [
 					`${symbols[state]} ${operation}: ${labels[state]}${suffix}`,
 					`   run: ${body.runId}`,
+					...resultLines,
+					...(body?.resultError === "invalid-or-missing-operation-result"
+						? ["   ✗ a operação prometeu operation-result.v1, mas não entregou um envelope válido"]
+						: []),
 				],
+				result,
 			};
 		}
 	}

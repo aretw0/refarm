@@ -185,6 +185,8 @@ pub(crate) const MAX_VERDICT_BYTES: usize = 16 * 1024;
 /// Ceiling on the catalog document. `refarm auth remote --json` prints a small envelope;
 /// anything past this is not that.
 pub(crate) const MAX_CATALOG_BYTES: usize = 256 * 1024;
+pub(crate) const MAX_OPERATION_RESULT_BYTES: usize = 16 * 1024;
+const OPERATION_RESULT_WIRE: &str = "operation-result.v1";
 
 // ── the invocation: the one place an argv is produced ───────────────────────────────────
 
@@ -308,6 +310,9 @@ struct OperationRun {
     operation: String,
     state: &'static str,
     exit_code: Option<i32>,
+    expects_result: bool,
+    result: Option<Value>,
+    result_error: Option<&'static str>,
 }
 
 /// The spawn ceiling for this surface, shared by every request. Cloned with `SidecarState`;
@@ -381,7 +386,7 @@ impl RemoteInitiations {
 
     /// Record that the running operation is a DECLARED one, by the name the entrypoint
     /// itself confirmed. Only after this can a competing caller be told what is running.
-    fn confirm_started(&self, operation: &str) {
+    fn confirm_started(&self, operation: &str, expects_result: bool) {
         let mut slots = self.inner.lock().expect("remote initiation slots poisoned");
         if let Some(started) = slots.started.as_mut() {
             started.operation = Some(operation.to_string());
@@ -390,15 +395,27 @@ impl RemoteInitiations {
                 operation: operation.to_string(),
                 state: "running",
                 exit_code: None,
+                expects_result,
+                result: None,
+                result_error: None,
             });
         }
     }
 
-    fn complete(&self, run_id: &str, exit_code: Option<i32>) {
+    fn complete(&self, run_id: &str, exit_code: Option<i32>, captured: Option<&str>) {
         let mut slots = self.inner.lock().expect("remote initiation slots poisoned");
         if let Some(run) = slots.latest.as_mut().filter(|run| run.run_id == run_id) {
             run.state = if exit_code == Some(0) { "succeeded" } else { "failed" };
             run.exit_code = exit_code;
+            if run.expects_result {
+                match captured.and_then(parse_operation_result) {
+                    Some(result) => run.result = Some(result),
+                    None => {
+                        run.state = "failed";
+                        run.result_error = Some("invalid-or-missing-operation-result");
+                    }
+                }
+            }
         }
     }
 
@@ -505,7 +522,7 @@ impl Drop for CatalogSlot {
 /// What the entrypoint said. Rust does not decide any of this; it relays it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Verdict {
-    Started { operation: String },
+    Started { operation: String, expects_result: bool },
     UnknownOperation { detail: String },
     NotRemotelyInvocable { detail: String },
 }
@@ -529,6 +546,8 @@ pub(crate) fn parse_verdict(line: &str) -> Option<Verdict> {
     match object.get("ok").and_then(Value::as_bool)? {
         true => Some(Verdict::Started {
             operation: object.get("operation").and_then(Value::as_str)?.to_string(),
+            expects_result: object.get("result").and_then(Value::as_str)
+                == Some(OPERATION_RESULT_WIRE),
         }),
         false => {
             let detail = object
@@ -628,6 +647,68 @@ async fn read_capped<R: tokio::io::AsyncRead + Unpin>(reader: &mut R, cap: usize
     String::from_utf8_lossy(&buffer).to_string()
 }
 
+async fn read_result_and_drain<R: tokio::io::AsyncRead + Unpin>(reader: &mut R) -> Vec<u8> {
+    let mut retained = Vec::new();
+    let mut chunk = [0u8; 4096];
+    loop {
+        match reader.read(&mut chunk).await {
+            Ok(0) | Err(_) => break,
+            Ok(n) => {
+                let remaining = (MAX_OPERATION_RESULT_BYTES + 1).saturating_sub(retained.len());
+                retained.extend_from_slice(&chunk[..n.min(remaining)]);
+            }
+        }
+    }
+    retained
+}
+
+fn exact_keys(object: &serde_json::Map<String, Value>, allowed: &[&str]) -> bool {
+    object.len() == allowed.len() && allowed.iter().all(|key| object.contains_key(*key))
+}
+
+pub(crate) fn parse_operation_result(bytes: &str) -> Option<Value> {
+    let trimmed = bytes.trim();
+    if trimmed.len() > MAX_OPERATION_RESULT_BYTES {
+        return None;
+    }
+    let value: Value = serde_json::from_str(trimmed).ok()?;
+    let object = value.as_object()?;
+    if !exact_keys(
+        object,
+        &["wire", "status", "summary", "metrics", "findings", "truncated", "redactionCount"],
+    ) || object.get("wire")?.as_str()? != OPERATION_RESULT_WIRE
+        || !matches!(object.get("status")?.as_str()?, "succeeded" | "issues" | "failed")
+        || object.get("summary")?.as_str()?.chars().count() > 512
+        || !object.get("truncated")?.is_boolean()
+        || object.get("redactionCount")?.as_u64().is_none()
+    {
+        return None;
+    }
+    let metrics = object.get("metrics")?.as_array()?;
+    if metrics.len() > 32 || metrics.iter().any(|metric| {
+        let Some(metric) = metric.as_object() else { return true; };
+        ![2, 3].contains(&metric.len())
+            || !metric.keys().all(|key| matches!(key.as_str(), "name" | "value" | "unit"))
+            || metric.get("name").and_then(Value::as_str).is_none_or(|v| v.chars().count() > 512)
+            || metric.get("value").and_then(Value::as_f64).is_none()
+            || metric.get("unit").is_some_and(|v| v.as_str().is_none_or(|s| s.chars().count() > 64))
+    }) {
+        return None;
+    }
+    let findings = object.get("findings")?.as_array()?;
+    if findings.len() > 50 || findings.iter().any(|finding| {
+        let Some(finding) = finding.as_object() else { return true; };
+        ![2, 3].contains(&finding.len())
+            || !finding.keys().all(|key| matches!(key.as_str(), "code" | "summary" | "location"))
+            || finding.get("code").and_then(Value::as_str).is_none_or(|v| v.chars().count() > 128)
+            || finding.get("summary").and_then(Value::as_str).is_none_or(|v| v.chars().count() > 512)
+            || finding.get("location").is_some_and(|v| v.as_str().is_none_or(|s| s.chars().count() > 512))
+    }) {
+        return None;
+    }
+    Some(value)
+}
+
 // ── HTTP surface ───────────────────────────────────────────────────────────────────────
 
 fn json_error(status: StatusCode, body: Value) -> axum::response::Response {
@@ -719,8 +800,8 @@ pub(crate) async fn post_operations(
     .await;
 
     match verdict {
-        Ok(Some(Verdict::Started { operation: named })) => {
-            state.remote_initiations.confirm_started(&named);
+        Ok(Some(Verdict::Started { operation: named, expects_result })) => {
+            state.remote_initiations.confirm_started(&named, expects_result);
             let run_id = slot.run_id().to_string();
             let background_run_id = run_id.clone();
             let cancellation = slot.cancellation();
@@ -739,13 +820,15 @@ pub(crate) async fn post_operations(
                     // Drained and DISCARDED: output does not travel (see the header), and a
                     // log line here would be the smuggling route.
                     let mut sink = reader;
-                    let _ = read_capped(&mut sink, usize::MAX / 2).await;
-                    child.wait().await.ok().and_then(|status| status.code())
+                    let captured = read_result_and_drain(&mut sink).await;
+                    let exit_code = child.wait().await.ok().and_then(|status| status.code());
+                    (exit_code, captured)
                 };
                 tokio::pin!(completion);
                 tokio::select! {
-                    exit_code = &mut completion => {
-                        _slot.registry.complete(&background_run_id, exit_code);
+                    (exit_code, captured) = &mut completion => {
+                        let captured = String::from_utf8(captured).ok();
+                        _slot.registry.complete(&background_run_id, exit_code, captured.as_deref());
                     }
                     () = cancellation.notified() => {
                         if let Some(pid) = pid {
@@ -871,6 +954,8 @@ pub(crate) async fn get_operation(
             "operation": run.operation,
             "state": run.state,
             "exitCode": run.exit_code,
+            "result": run.result,
+            "resultError": run.result_error,
         })),
     )
         .into_response()

@@ -12,6 +12,18 @@ export interface OperationRun {
 	readonly operation: string;
 	readonly state: "running" | "succeeded" | "failed" | "cancelled";
 	readonly exitCode: number | null;
+	readonly result: OperationResult | null;
+	readonly resultError: string | null;
+}
+
+export interface OperationResult {
+	readonly wire: "operation-result.v1";
+	readonly status: "succeeded" | "issues" | "failed";
+	readonly summary: string;
+	readonly metrics: readonly { readonly name: string; readonly value: number; readonly unit?: string }[];
+	readonly findings: readonly { readonly code: string; readonly summary: string; readonly location?: string }[];
+	readonly truncated: boolean;
+	readonly redactionCount: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -37,7 +49,20 @@ export function readOperationCatalog(value: unknown): readonly AdmittedOperation
 export function readStartedRun(value: unknown): OperationRun | null {
 	if (!isRecord(value) || value.started !== true) return null;
 	if (typeof value.runId !== "string" || typeof value.operation !== "string") return null;
-	return { runId: value.runId, operation: value.operation, state: "running", exitCode: null };
+	return { runId: value.runId, operation: value.operation, state: "running", exitCode: null, result: null, resultError: null };
+}
+
+export function readOperationResult(value: unknown): OperationResult | null {
+	if (!isRecord(value)) return null;
+	if (Object.keys(value).sort().join("|") !== "findings|metrics|redactionCount|status|summary|truncated|wire") return null;
+	if (value.wire !== "operation-result.v1" || !["succeeded", "issues", "failed"].includes(String(value.status))) return null;
+	if (typeof value.summary !== "string" || value.summary.length > 512) return null;
+	if (!Array.isArray(value.metrics) || value.metrics.length > 32) return null;
+	if (!Array.isArray(value.findings) || value.findings.length > 50) return null;
+	if (typeof value.truncated !== "boolean" || !Number.isInteger(value.redactionCount)) return null;
+	if (value.metrics.some((metric) => !isRecord(metric) || typeof metric.name !== "string" || typeof metric.value !== "number" || !Number.isFinite(metric.value))) return null;
+	if (value.findings.some((finding) => !isRecord(finding) || typeof finding.code !== "string" || typeof finding.summary !== "string")) return null;
+	return value as unknown as OperationResult;
 }
 
 export function readOperationRun(value: unknown): OperationRun | null {
@@ -53,7 +78,14 @@ export function readOperationRun(value: unknown): OperationRun | null {
 	}
 	const exitCode =
 		typeof value.exitCode === "number" && Number.isInteger(value.exitCode) ? value.exitCode : null;
-	return { runId: value.runId, operation: value.operation, state: value.state, exitCode };
+	return {
+		runId: value.runId,
+		operation: value.operation,
+		state: value.state,
+		exitCode,
+		result: readOperationResult(value.result),
+		resultError: typeof value.resultError === "string" ? value.resultError : null,
+	};
 }
 
 export function operationRunPath(runId: string): string {

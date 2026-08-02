@@ -1,0 +1,18 @@
+{
+  "wire": "operation-result.v1",
+  "status": "issues",
+  "summary": "One package needs an explicit boundary.",
+  "metrics": [
+    { "name": "packagesScanned", "value": 10 },
+    { "name": "issueCount", "value": 1, "unit": "finding" }
+  ],
+  "findings": [
+    {
+      "code": "missing-boundary-rule",
+      "summary": "Package has no explicit boundary rule.",
+      "location": "packages/ovpn-serpro/package.json"
+    }
+  ],
+  "truncated": false,
+  "redactionCount": 0
+}

@@ -32,11 +32,26 @@ describe("operation web wire", () => {
 			operation: "delivery add",
 			state: "running",
 			exitCode: null,
+			result: null,
+			resultError: null,
 		});
 		expect(
 			readOperationRun({ runId: "r-1", operation: "delivery add", state: "failed", exitCode: 7 }),
 		).toMatchObject({ state: "failed", exitCode: 7 });
 		expect(readOperationRun({ runId: "r-1", operation: "x", state: "paused" })).toBeNull();
+		const result = {
+			wire: "operation-result.v1",
+			status: "issues",
+			summary: "One issue.",
+			metrics: [{ name: "issueCount", value: 1 }],
+			findings: [{ code: "missing", summary: "Rule missing." }],
+			truncated: false,
+			redactionCount: 0,
+		};
+		expect(readOperationRun({ runId: "r-2", operation: "check", state: "failed", result }))
+			.toMatchObject({ result });
+		expect(readOperationRun({ runId: "r-2", operation: "check", state: "failed", result: { ...result, stdout: "secret" } }))
+			.toMatchObject({ result: null });
 	});
 
 	it("encodes a run id as one path segment", () => {

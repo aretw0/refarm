@@ -94,5 +94,17 @@ export function describeOperationRefusal(
 
 export function describeOperationRun(messages: MessageTranslator, run: OperationRun): string {
 	const suffix = run.exitCode === null ? "" : ` (exit ${run.exitCode})`;
-	return `${messages.t(run.state)}${suffix}`;
+	const lifecycle = `${messages.t(run.state)}${suffix}`;
+	if (run.result) {
+		const metrics = run.result.metrics.map(
+			(metric) => `${metric.name}: ${metric.value}${metric.unit ? ` ${metric.unit}` : ""}`,
+		);
+		const findings = run.result.findings.map(
+			(finding) => `• ${finding.summary}${finding.location ? ` — ${finding.location}` : ""}`,
+		);
+		return [lifecycle, run.result.summary, ...metrics, ...findings].join("\n");
+	}
+	return run.resultError
+		? `${lifecycle}\noperation-result.v1: ${run.resultError}`
+		: lifecycle;
 }

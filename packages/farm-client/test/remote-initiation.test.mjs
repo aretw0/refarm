@@ -11,6 +11,7 @@ import {
 	classifyStartResponse,
 	OPERATIONS_PATH,
 	operationStatusPath,
+	parseOperationResult,
 	operationCancelPath,
 	parseOperationCatalog,
 	REMOTE_INITIATION_WIRE,
@@ -150,6 +151,29 @@ test("operation lifecycle keeps running, success, failure, and expiry distinct",
 		assert.match(verdict.lines.join("\n"), /r-one/);
 	}
 	assert.equal(classifyOperationStatus(404, { error: "unknown-run" }).outcome, "unknown-run");
+});
+
+test("a bounded structured result is shown without opening stdout", () => {
+	const result = {
+		wire: "operation-result.v1",
+		status: "issues",
+		summary: "One boundary is missing.",
+		metrics: [{ name: "issueCount", value: 1 }],
+		findings: [{ code: "missing-boundary", summary: "Package needs a rule.", location: "package.json" }],
+		truncated: false,
+		redactionCount: 0,
+	};
+	assert.equal(parseOperationResult(result), result);
+	const verdict = classifyOperationStatus(200, {
+		runId: "r-one",
+		operation: "workspace:home:check",
+		state: "failed",
+		exitCode: 1,
+		result,
+	});
+	assert.match(verdict.lines.join("\n"), /One boundary is missing/);
+	assert.match(verdict.lines.join("\n"), /missing-boundary/);
+	assert.equal(parseOperationResult({ ...result, stdout: "secret" }), null);
 });
 
 test("cancellation keeps requested, finished, unknown and unauthorized distinct", () => {

@@ -180,7 +180,8 @@ fn a_verdict_is_relayed_and_never_reinterpreted() {
     assert_eq!(
         parse_verdict(r#"{"wire":"remote-initiation.v1","ok":true,"operation":"delivery add"}"#),
         Some(Verdict::Started {
-            operation: "delivery add".to_string()
+            operation: "delivery add".to_string(),
+            expects_result: false,
         })
     );
     assert_eq!(
@@ -246,9 +247,44 @@ async fn the_verdict_read_is_bounded_by_lines_and_by_bytes() {
     assert_eq!(
         read_verdict(&mut reader).await,
         Some(Verdict::Started {
-            operation: "delivery add".to_string()
+            operation: "delivery add".to_string(),
+            expects_result: false,
         })
     );
+}
+
+#[test]
+fn operation_result_matches_the_shared_contract_fixture_and_rejects_open_output() {
+    let fixture = include_str!("../../../operation-result-v1/operation-result.fixture.json");
+    let parsed = parse_operation_result(fixture).expect("shared operation-result fixture");
+    assert_eq!(parsed["wire"], "operation-result.v1");
+
+    let mut open = parsed.as_object().unwrap().clone();
+    open.insert("stdout".to_string(), Value::String("secret".to_string()));
+    assert!(parse_operation_result(&Value::Object(open).to_string()).is_none());
+    assert!(parse_operation_result(&"x".repeat(MAX_OPERATION_RESULT_BYTES + 1)).is_none());
+}
+
+#[test]
+fn lifecycle_retains_only_a_declared_valid_result() {
+    let fixture = include_str!("../../../operation-result-v1/operation-result.fixture.json");
+    let registry = RemoteInitiations::new();
+    let slot = registry.claim_start().expect("start");
+    let run_id = slot.run_id().to_string();
+    registry.confirm_started("workspace:home:check", true);
+    registry.complete(&run_id, Some(1), Some(fixture));
+    let run = registry.run(&run_id).unwrap();
+    assert_eq!(run.result.unwrap()["status"], "issues");
+    assert!(run.result_error.is_none());
+    drop(slot);
+
+    let _slot = registry.claim_start().expect("next start");
+    let run_id = _slot.run_id().to_string();
+    registry.confirm_started("workspace:home:broken", true);
+    registry.complete(&run_id, Some(0), Some("not the promised wire"));
+    let run = registry.run(&run_id).unwrap();
+    assert_eq!(run.state, "failed");
+    assert_eq!(run.result_error, Some("invalid-or-missing-operation-result"));
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════
@@ -273,7 +309,7 @@ fn the_ceiling_holds() {
         "the second is refused"
     );
 
-    registry.confirm_started("delivery add");
+    registry.confirm_started("delivery add", false);
     assert_eq!(
         registry.claim_start().err(),
         Some(StartedConflict {
@@ -295,19 +331,19 @@ fn lifecycle_retains_only_the_latest_confirmed_run() {
     let first_id = first.run_id().to_string();
     assert!(registry.run(&first_id).is_none(), "raw input is not a run");
 
-    registry.confirm_started("workspace:home:refresh");
+    registry.confirm_started("workspace:home:refresh", false);
     let running = registry.run(&first_id).expect("confirmed run is visible");
     assert_eq!(running.state, "running");
     assert_eq!(running.operation, "workspace:home:refresh");
-    registry.complete(&first_id, Some(0));
+    registry.complete(&first_id, Some(0), None);
     assert_eq!(registry.run(&first_id).unwrap().state, "succeeded");
     assert!(matches!(registry.request_cancel(&first_id), CancelRequest::Finished(_)));
     drop(first);
 
     let second = registry.claim_start().expect("second run");
     let second_id = second.run_id().to_string();
-    registry.confirm_started("workspace:work:sync");
-    registry.complete(&second_id, Some(7));
+    registry.confirm_started("workspace:work:sync", false);
+    registry.complete(&second_id, Some(7), None);
     let failed = registry.run(&second_id).expect("latest retained");
     assert_eq!(failed.state, "failed");
     assert_eq!(failed.exit_code, Some(7));
@@ -319,7 +355,7 @@ fn cancellation_targets_only_the_current_running_id() {
     let registry = RemoteInitiations::new();
     let slot = registry.claim_start().expect("start");
     let run_id = slot.run_id().to_string();
-    registry.confirm_started("delivery add");
+    registry.confirm_started("delivery add", false);
 
     assert!(matches!(registry.request_cancel("r-other"), CancelRequest::Unknown));
     assert!(matches!(registry.request_cancel(&run_id), CancelRequest::Requested(_)));

@@ -62,11 +62,25 @@ describe("operation web client", () => {
 		const client = createOperationClient({ fetch, token: () => "token" });
 		expect(await client.start("delivery add")).toEqual({
 			ok: true,
-			run: { operation: "delivery add", runId: "r-1", state: "running", exitCode: null },
+			run: {
+				operation: "delivery add",
+				runId: "r-1",
+				state: "running",
+				exitCode: null,
+				result: null,
+				resultError: null,
+			},
 		});
 		expect(await client.status("r-1")).toEqual({
 			ok: true,
-			run: { operation: "delivery add", runId: "r-1", state: "succeeded", exitCode: 0 },
+			run: {
+				operation: "delivery add",
+				runId: "r-1",
+				state: "succeeded",
+				exitCode: 0,
+				result: null,
+				resultError: null,
+			},
 		});
 	});
 

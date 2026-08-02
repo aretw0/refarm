@@ -123,6 +123,12 @@ export function createOperationResult(
 export function verifyOperationResult(value: unknown): value is OperationResultV1 {
 	if (typeof value !== "object" || value === null) return false;
 	const result = value as Partial<OperationResultV1>;
+	const resultKeys = Object.keys(value).sort();
+	if (
+		JSON.stringify(resultKeys) !==
+		JSON.stringify(["findings", "metrics", "redactionCount", "status", "summary", "truncated", "wire"])
+	)
+		return false;
 	if (result.wire !== OPERATION_RESULT_WIRE) return false;
 	if (!(["succeeded", "issues", "failed"] as unknown[]).includes(result.status)) return false;
 	if (typeof result.summary !== "string" || result.summary.length > MAX_OPERATION_SUMMARY_CHARS) return false;
@@ -132,8 +138,9 @@ export function verifyOperationResult(value: unknown): value is OperationResultV
 	if (
 		!result.metrics.every(
 			(metric) =>
-				typeof metric === "object" &&
+					typeof metric === "object" &&
 				metric !== null &&
+				Object.keys(metric).every((key) => ["name", "value", "unit"].includes(key)) &&
 				typeof metric.name === "string" &&
 				metric.name.length <= MAX_OPERATION_FIELD_CHARS &&
 				typeof metric.value === "number" &&
@@ -145,8 +152,9 @@ export function verifyOperationResult(value: unknown): value is OperationResultV
 	if (
 		!result.findings.every(
 			(finding) =>
-				typeof finding === "object" &&
+					typeof finding === "object" &&
 				finding !== null &&
+				Object.keys(finding).every((key) => ["code", "summary", "location"].includes(key)) &&
 				typeof finding.code === "string" &&
 				finding.code.length <= 128 &&
 				typeof finding.summary === "string" &&

@@ -118,6 +118,7 @@ function attendPage(): string {
   .ds-operation-details { margin-block: .5rem; }
   .ds-operation-details summary { cursor: pointer; color: var(--muted-foreground); }
   .ds-operation-command { display: block; margin-top: .4rem; overflow-wrap: anywhere; }
+  [data-operation-state] { white-space: pre-line; }
   .ds-grid { grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr)); }
   .asker { font-size: .8rem; opacity: .75; font-family: ui-monospace, monospace;
            word-break: break-all; }

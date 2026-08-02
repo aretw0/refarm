@@ -98,5 +98,11 @@ describe("operation-result.v1", () => {
 				redactionCount: 0,
 			}),
 		).toBe(false);
+		expect(
+			verifyOperationResult({
+				...createOperationResult({ status: "succeeded", summary: "ok" }),
+				stdout: "must never cross this contract",
+			}),
+		).toBe(false);
 	});
 });
