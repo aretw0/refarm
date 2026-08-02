@@ -69,4 +69,33 @@ describe("operation web client", () => {
 			run: { operation: "delivery add", runId: "r-1", state: "succeeded", exitCode: 0 },
 		});
 	});
+
+	it("cancels only by encoded run id and keeps the bearer in the header", async () => {
+		const fetch = vi.fn().mockResolvedValue(
+			response(202, { runId: "r/a b", operation: "delivery add", state: "cancelling" }),
+		);
+		const client = createOperationClient({ fetch, token: () => "token" });
+		expect(await client.cancel("r/a b")).toEqual({
+			ok: true,
+			runId: "r/a b",
+			operation: "delivery add",
+		});
+		expect(fetch.mock.calls[0]?.[0]).toBe("/operations/r%2Fa%20b/cancel");
+		expect(fetch.mock.calls[0]?.[1]).toMatchObject({
+			method: "POST",
+			headers: { authorization: "Bearer token" },
+		});
+	});
+
+	it("carries the conflicting run id into the actionable refusal", async () => {
+		const client = createOperationClient({
+			fetch: async () => response(409, { error: "already-running", runId: "r-live" }),
+			token: () => "token",
+		});
+		const outcome = await client.start("delivery add");
+		expect(outcome).toEqual({
+			ok: false,
+			refusal: { kind: "already-running", status: 409, detail: "", runId: "r-live" },
+		});
+	});
 });

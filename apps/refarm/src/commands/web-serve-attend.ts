@@ -322,15 +322,35 @@ function bindOperationActions() {
     const operationId = start.getAttribute("data-operation-start");
     const state = start.closest(".ds-card")?.querySelector("[data-operation-state]");
     if (!operationId || !state) continue;
+    let activeRunId = null;
     start.addEventListener("click", async () => {
       start.disabled = true;
+      if (activeRunId) {
+        state.textContent = operationMessages.t("cancelling");
+        const cancellation = await operationClient.cancel(activeRunId);
+        if (!cancellation.ok) {
+          state.textContent = describeOperationRefusal(operationMessages, cancellation.refusal);
+          start.disabled = false;
+          return;
+        }
+        return;
+      }
       state.textContent = operationMessages.t("starting");
       const outcome = await operationClient.start(operationId);
       if (!outcome.ok) {
         state.textContent = describeOperationRefusal(operationMessages, outcome.refusal);
+        if (outcome.refusal.kind === "already-running" && outcome.refusal.runId) {
+          activeRunId = outcome.refusal.runId;
+          start.textContent = operationMessages.t("cancel");
+          start.dataset.variant = "danger";
+        }
         start.disabled = false;
         return;
       }
+      activeRunId = outcome.run.runId;
+      start.textContent = operationMessages.t("cancel");
+      start.dataset.variant = "danger";
+      start.disabled = false;
       void watchOperation(outcome.run, state);
     });
   }

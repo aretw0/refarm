@@ -1,5 +1,6 @@
 import {
 	OPERATIONS_PATH,
+	operationCancelPath,
 	operationRunPath,
 	readOperationCatalog,
 	readOperationRun,
@@ -21,6 +22,7 @@ export interface OperationRefusal {
 	readonly kind: OperationRefusalKind;
 	readonly status: number | null;
 	readonly detail: string;
+	readonly runId: string | null;
 }
 
 export type OperationCatalogOutcome =
@@ -31,12 +33,17 @@ export type OperationRunOutcome =
 	| { readonly ok: true; readonly run: OperationRun }
 	| { readonly ok: false; readonly refusal: OperationRefusal };
 
+export type OperationCancelOutcome =
+	| { readonly ok: true; readonly runId: string; readonly operation: string | null }
+	| { readonly ok: false; readonly refusal: OperationRefusal };
+
 export type OperationFetch = (input: string, init?: RequestInit) => Promise<Response>;
 
 export interface OperationClient {
 	list(signal?: AbortSignal): Promise<OperationCatalogOutcome>;
 	start(operation: string, signal?: AbortSignal): Promise<OperationRunOutcome>;
 	status(runId: string, signal?: AbortSignal): Promise<OperationRunOutcome>;
+	cancel(runId: string, signal?: AbortSignal): Promise<OperationCancelOutcome>;
 }
 
 function detailOf(body: unknown): string {
@@ -71,7 +78,11 @@ function refusal(status: number, body: unknown): OperationRefusal {
 	else if (status === 409) kind = "already-running";
 	else if (status === 404) kind = error === "unknown-run" ? "unknown-run" : "unknown-operation";
 	else if (status === 502 || status === 503) kind = "unavailable";
-	return { kind, status, detail: detailOf(body) };
+	const runId =
+		typeof body === "object" && body !== null && typeof (body as { runId?: unknown }).runId === "string"
+			? (body as { runId: string }).runId
+			: null;
+	return { kind, status, detail: detailOf(body), runId };
 }
 
 function unreachable(error: unknown): OperationRefusal {
@@ -79,6 +90,7 @@ function unreachable(error: unknown): OperationRefusal {
 		kind: "unavailable",
 		status: null,
 		detail: error instanceof Error ? error.message : String(error),
+		runId: null,
 	};
 }
 
@@ -137,6 +149,34 @@ export function createOperationClient(options: {
 				if (!response.ok) return { ok: false, refusal: refusal(response.status, body) };
 				const run = readOperationRun(body);
 				return run ? { ok: true, run } : { ok: false, refusal: refusal(response.status, body) };
+			} catch (error) {
+				return { ok: false, refusal: unreachable(error) };
+			}
+		},
+		async cancel(runId, signal) {
+			try {
+				const response = await doFetch(`${base}${operationCancelPath(runId)}`, {
+					method: "POST",
+					headers: { accept: "application/json", ...headers() },
+					...(signal ? { signal } : {}),
+				});
+				const body = await readJson(response);
+				if (!response.ok) return { ok: false, refusal: refusal(response.status, body) };
+				if (
+					typeof body === "object" &&
+					body !== null &&
+					typeof (body as { runId?: unknown }).runId === "string"
+				) {
+					return {
+						ok: true,
+						runId: (body as { runId: string }).runId,
+						operation:
+							typeof (body as { operation?: unknown }).operation === "string"
+								? (body as { operation: string }).operation
+								: null,
+					};
+				}
+				return { ok: false, refusal: refusal(response.status, body) };
 			} catch (error) {
 				return { ok: false, refusal: unreachable(error) };
 			}

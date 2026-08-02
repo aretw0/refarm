@@ -18,6 +18,9 @@ const catalogs = {
 		running: "Running",
 		succeeded: "Completed",
 		failed: "Failed",
+		cancelled: "Abandoned",
+		cancel: "Abandon",
+		cancelling: "Abandoning…",
 		unauthorized: "This session is not authorised for operations. Verify it again at the node.",
 		"already-running":
 			"Another remotely started operation is still running. Attend it before starting another.",
@@ -38,6 +41,9 @@ const catalogs = {
 		running: "Em execução",
 		succeeded: "Concluída",
 		failed: "Falhou",
+		cancelled: "Abandonada",
+		cancel: "Abandonar",
+		cancelling: "Abandonando…",
 		unauthorized: "Esta sessão não está autorizada para operações. Verifique-a novamente no nó.",
 		"already-running":
 			"Outra operação iniciada remotamente ainda está em execução. Atenda-a antes de iniciar outra.",
@@ -58,6 +64,9 @@ const catalogs = {
 		running: "En ejecución",
 		succeeded: "Completada",
 		failed: "Falló",
+		cancelled: "Abandonada",
+		cancel: "Abandonar",
+		cancelling: "Abandonando…",
 		unauthorized:
 			"Esta sesión no está autorizada para operaciones. Verifíquela de nuevo en el nodo.",
 		"already-running":

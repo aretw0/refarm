@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	operationCancelPath,
 	operationRunPath,
 	readOperationCatalog,
 	readOperationRun,
@@ -40,5 +41,6 @@ describe("operation web wire", () => {
 
 	it("encodes a run id as one path segment", () => {
 		expect(operationRunPath("r/a b")).toBe("/operations/r%2Fa%20b");
+		expect(operationCancelPath("r/a b")).toBe("/operations/r%2Fa%20b/cancel");
 	});
 });

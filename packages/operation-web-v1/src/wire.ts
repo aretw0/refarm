@@ -10,7 +10,7 @@ export interface AdmittedOperation {
 export interface OperationRun {
 	readonly runId: string;
 	readonly operation: string;
-	readonly state: "running" | "succeeded" | "failed";
+	readonly state: "running" | "succeeded" | "failed" | "cancelled";
 	readonly exitCode: number | null;
 }
 
@@ -43,7 +43,12 @@ export function readStartedRun(value: unknown): OperationRun | null {
 export function readOperationRun(value: unknown): OperationRun | null {
 	if (!isRecord(value)) return null;
 	if (typeof value.runId !== "string" || typeof value.operation !== "string") return null;
-	if (value.state !== "running" && value.state !== "succeeded" && value.state !== "failed") {
+	if (
+		value.state !== "running" &&
+		value.state !== "succeeded" &&
+		value.state !== "failed" &&
+		value.state !== "cancelled"
+	) {
 		return null;
 	}
 	const exitCode =
@@ -53,4 +58,8 @@ export function readOperationRun(value: unknown): OperationRun | null {
 
 export function operationRunPath(runId: string): string {
 	return `${OPERATIONS_PATH}/${encodeURIComponent(runId)}`;
+}
+
+export function operationCancelPath(runId: string): string {
+	return `${operationRunPath(runId)}/cancel`;
 }
