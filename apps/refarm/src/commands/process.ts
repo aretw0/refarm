@@ -522,13 +522,17 @@ export async function runProcessLinger(
 		...(options.revisit ? { revisit: true } : {}),
 		announce: (line) => say(line),
 	});
+	// Consent applies the machine change before returning. Report the observation
+	// after that boundary, not the snapshot used to build the proposal.
+	const observed =
+		outcome.status === "authorized" ? await readLingerState(runner, user) : { state, detail };
 
 	return {
 		ok: outcome.status !== "declined",
 		status: outcome.status,
 		user,
-		current: state,
-		detail,
+		current: observed.state,
+		detail: observed.detail,
 		recordId: outcome.record?.id ?? null,
 		nextCommand: PROCESS_STATUS_COMMAND,
 		nextCommands: [PROCESS_STATUS_COMMAND],

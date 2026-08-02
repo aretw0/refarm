@@ -343,6 +343,33 @@ describe("lingering is a separate operation, and cannot be reached through insta
 		expect(runner.calls).toContain("loginctl enable-linger op");
 	});
 
+	it("re-observes lingering after an authorised machine change", async () => {
+		let enabled = false;
+		const calls: string[] = [];
+		const runner: CommandRunner = {
+			async run(command, args) {
+				const key = [command, ...args].join(" ");
+				calls.push(key);
+				if (key === "loginctl enable-linger op") {
+					enabled = true;
+					return ok("");
+				}
+				if (key === "loginctl show-user op --property=Linger") {
+					return ok(`Linger=${enabled ? "yes" : "no"}\n`);
+				}
+				return { spawned: true, code: 1, stdout: "", stderr: `unscripted: ${key}` };
+			},
+		};
+
+		const result = await runProcessLinger(
+			{},
+			deps(runner, { trail: createMemoryOperationTrail(), operator: answering("authorize") }),
+		);
+		expect(result.current).toBe("enabled");
+		expect(result.detail).toContain("enabled");
+		expect(calls.filter((call) => call.includes("show-user"))).toHaveLength(2);
+	});
+
 	it("does not ask at all when lingering is already on", async () => {
 		const result = await runProcessLinger(
 			{},
