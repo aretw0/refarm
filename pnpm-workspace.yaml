@@ -85,11 +85,14 @@ overrides:
   # packages/ds design-token build — verified: forcing 5.x fails ds/platforms.test.ts). Forcing 5.x is
   # a net regression, so those ranges are ACCEPTED instead — see `auditConfig.ignoreGhsas` above
   # (GHSA-mh99-v99m-4gvg). js-yaml keeps a blanket pin (4.2.0 → 4.3.0, off the vulnerable line).
+  # Changesets still reaches read-yaml-file@1, whose API requires js-yaml 3; keep that legacy
+  # edge on the last 3.x release instead of forcing the incompatible safeLoad removal from 4.x.
   # astro is intentionally EXCLUDED: its patch (>=7.0.10 = 7.1.x) breaks the apps' build (issue #56).
   brace-expansion@<1.1.16: ^1.1.16
   brace-expansion@>=2.0.0 <2.1.2: ^2.1.2
   fast-uri@>=3.0.0 <=3.1.3: ^3.1.4
   js-yaml: 4.3.0
+  read-yaml-file>js-yaml: 3.14.2
   postcss@<=8.5.17: ^8.5.18
   sharp@<0.35.0: ^0.35.0
   svgo@>=4.0.0 <4.0.2: ^4.0.2
