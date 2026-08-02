@@ -37,6 +37,7 @@ import {
 	operationStatusPath,
 	operationCancelPath,
 	parseOperationCatalog,
+	parseStartArgs,
 	startRequestBody,
 } from "../src/remote-initiation.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
@@ -48,15 +49,11 @@ const HTTP_PORT = Number(process.env.FARM_HTTP_PORT ?? 42001);
 // tudo. `farm-start "delivery add"` manda `delivery add`, uma string, um campo.
 // Nada aqui monta uma linha de comando, e o nó também não: ele passa esses bytes
 // como UM argumento para um ponto de entrada fixo.
-const args = process.argv.slice(2);
-const statusAt = args.indexOf("--status");
-const cancelAt = args.indexOf("--cancel");
-const STATUS_RUN_ID = statusAt >= 0 ? (args[statusAt + 1] ?? null) : null;
-const CANCEL_RUN_ID = cancelAt >= 0 ? (args[cancelAt + 1] ?? null) : null;
-const rest = args.filter(
-	(arg, index) => arg !== "--list" && arg !== "-l" && index !== statusAt && index !== statusAt + 1 && index !== cancelAt && index !== cancelAt + 1,
-);
-const OPERATION = rest.length > 0 ? rest.join(" ") : null;
+const {
+	operation: OPERATION,
+	statusRunId: STATUS_RUN_ID,
+	cancelRunId: CANCEL_RUN_ID,
+} = parseStartArgs(process.argv.slice(2));
 
 /** O sidecar responde? Mesmo probe do farm-attend — um kit, um jeito de alcançar. */
 async function sidecarUp(host) {

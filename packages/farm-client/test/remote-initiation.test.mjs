@@ -15,6 +15,7 @@ import {
 	operationCancelPath,
 	parseOperationCatalog,
 	REMOTE_INITIATION_WIRE,
+	parseStartArgs,
 	startRequestBody,
 } from "../src/remote-initiation.mjs";
 
@@ -253,4 +254,43 @@ test("could-not-start repeats the node's own detail, because the fix is there", 
 	const bare = classifyStartResponse(500, {});
 	assert.equal(bare.outcome, "could-not-start");
 	assert.match(bare.lines.join("\n"), /500/);
+});
+
+test("um id de operação sozinho é o id, não uma listagem", () => {
+	// O operador digitou isto no Termux e o comando só listou o catálogo: o id
+	// nunca chegou ao corpo do POST. Uma operação nomeada precisa sobreviver ao
+	// parsing quando NENHUMA opção acompanha ela.
+	assert.deepEqual(parseStartArgs(["workspace:rcdc5:code-boundaries"]), {
+		operation: "workspace:rcdc5:code-boundaries",
+		statusRunId: null,
+		cancelRunId: null,
+		list: false,
+	});
+});
+
+test("um id com espaços continua sendo UM id, e sem opção nenhuma se perde", () => {
+	assert.equal(parseStartArgs(["delivery add"]).operation, "delivery add");
+	// Solto na linha de comando, o id é a junção — nunca só a última palavra.
+	assert.equal(parseStartArgs(["delivery", "add"]).operation, "delivery add");
+});
+
+test("--status e --cancel consomem o próprio valor e não sobra operação", () => {
+	assert.deepEqual(parseStartArgs(["--status", "run-7"]), {
+		operation: null,
+		statusRunId: "run-7",
+		cancelRunId: null,
+		list: false,
+	});
+	assert.deepEqual(parseStartArgs(["--cancel", "run-9"]), {
+		operation: null,
+		statusRunId: null,
+		cancelRunId: "run-9",
+		list: false,
+	});
+});
+
+test("--list pede o catálogo sem virar operação", () => {
+	const parsed = parseStartArgs(["--list"]);
+	assert.equal(parsed.list, true);
+	assert.equal(parsed.operation, null);
 });

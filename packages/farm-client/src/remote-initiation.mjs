@@ -279,3 +279,40 @@ export function classifyStartResponse(
 export function startRequestBody(operation) {
 	return { operation };
 }
+
+/**
+ * A linha de comando do `farm-start`, lida como dado. PURO.
+ *
+ * Tudo que não é opção é o identificador da operação, INTEIRO. As opções
+ * `--status`/`--cancel` consomem o próprio valor; o que sobra é o id.
+ *
+ * O cuidado que dá nome a esta função: uma opção AUSENTE não pode consumir
+ * nada. `indexOf` devolve -1 quando não acha, e um índice derivado de -1 aponta
+ * para o primeiro posicional — que é justamente o id da operação. Por isso o
+ * consumo só acontece quando a opção está de fato presente.
+ */
+export function parseStartArgs(args) {
+	const statusAt = args.indexOf("--status");
+	const cancelAt = args.indexOf("--cancel");
+	const consumed = new Set();
+	if (statusAt >= 0) consumed.add(statusAt).add(statusAt + 1);
+	if (cancelAt >= 0) consumed.add(cancelAt).add(cancelAt + 1);
+
+	let list = false;
+	const rest = [];
+	for (const [index, arg] of args.entries()) {
+		if (consumed.has(index)) continue;
+		if (arg === "--list" || arg === "-l") {
+			list = true;
+			continue;
+		}
+		rest.push(arg);
+	}
+
+	return {
+		operation: rest.length > 0 ? rest.join(" ") : null,
+		statusRunId: statusAt >= 0 ? (args[statusAt + 1] ?? null) : null,
+		cancelRunId: cancelAt >= 0 ? (args[cancelAt + 1] ?? null) : null,
+		list,
+	};
+}
