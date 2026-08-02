@@ -1,13 +1,13 @@
 {
-  "context": "Checkpoint 2026-08-02. Remote workspace control is shipped through Termux and browser/PWA: named allowlisted starts, bounded lifecycle, cancellation, and operation-result.v1 summaries/metrics/findings without transporting stdout. Refarm commits d298f6d3 and d08134bf are validated; rcdc5 commit 66f8d91 consumes the official contract and code-boundaries passes across 10 packages with zero findings. The fail-closed spawn migration now has a dedicated, recorded authoring surface: refarm config spawn-env set <absolute-bin-dir>... --home <absolute-home-dir>, with strict host-parity validation and history undo. Runtime and systemd-user web-serve are live; only galaxy-a55-5g remains enrolled.",
+  "context": "Checkpoint 2026-08-02. Remote workspace control is proven end to end: named allowlisted start, bounded lifecycle, cancellation, and operation-result.v1 summaries/metrics/findings without stdout. Refarm commit 1f1776ba adds recorded refarm config spawn-env authorship with strict host-parity validation and history undo; the HOME scope now declares its ordered PATH/HOME. Through authenticated POST/GET /operations, rcdc5 code-boundaries (consumer commit 66f8d91) returned succeeded, packagesScanned=10, issueCount=0, resultError=null. Runtime and systemd-user web-serve are live. The temporary proof identity was revoked; only galaxy-a55-5g remains enrolled.",
   "timestamp": "2026-08-02T17:57:35.000Z",
   "current_phase": "12",
   "current_tasks": [],
   "blockers": [],
   "next_actions": [
-    "Build/install the CLI containing config spawn-env, then use that surface in /home/s095407044 (not a manual JSON edit) and restart the runtime.",
-    "Repeat workspace:rcdc5:code-boundaries through authenticated POST/GET /operations. Expected terminal result: succeeded with operation-result.v1, packagesScanned=10, issueCount=0.",
-    "Republish the home farm-client kit after client changes. Once Termux and PWA both show the structured result, the next channel may be Telegram over the same catalog/lifecycle/result contracts."
+    "On galaxy-a55-5g, run farm-update, then farm-start workspace:rcdc5:code-boundaries and inspect the returned status/result; this is operator-visible projection confirmation, not a substrate blocker.",
+    "Confirm the same catalog/start/status result in the browser/PWA. If visual friction remains, improve the shared operation-web-v1/ds projection rather than app-local HTML.",
+    "Then compose Telegram as another surface over the existing catalog, lifecycle, consent, status, and operation-result contracts; do not create a generic chat shell or a Telegram-specific executor."
   ],
   "open_questions": [],
   "key_decisions_active": [
