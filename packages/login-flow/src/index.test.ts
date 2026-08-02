@@ -3,7 +3,6 @@ import {
 	runLoginFlow,
 	spawnLoginProcess,
 	superviseConnection,
-	type ConnectionSupervisor,
 	type LoginFlowEvent,
 	type LoginFlowProcess,
 	type SuperviseEvent,
@@ -204,8 +203,9 @@ describe("superviseConnection — keep it up, feel the drop early", () => {
 		const events: SuperviseEvent["kind"][] = [];
 		const health = [true, true, false]; // healthy twice, then the tunnel drops
 		let i = 0;
-		let sup!: ConnectionSupervisor;
-		sup = superviseConnection({
+		// `onEvent` closes over `sup`, but it can only fire after the first `await` inside
+		// `run()` — never during construction — so `const` is safe here.
+		const sup = superviseConnection({
 			flow: { spawn: () => autoProcess("Conectado\n"), ready: /Conectado/ },
 			isHealthy: () => health[i++] ?? true,
 			healthIntervalMs: 0,
