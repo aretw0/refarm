@@ -115,7 +115,9 @@ function attendPage(): string {
   #banner.ok { color: #1a7f37; }
   .card { border: 1px solid; border-radius: .5rem; padding: .9rem; margin: .9rem 0; }
   .ds-operation-toolbar { display: flex; justify-content: flex-end; margin-block: .5rem; }
-  .ds-operation-command { overflow-wrap: anywhere; }
+  .ds-operation-details { margin-block: .5rem; }
+  .ds-operation-details summary { cursor: pointer; color: var(--muted-foreground); }
+  .ds-operation-command { display: block; margin-top: .4rem; overflow-wrap: anywhere; }
   .ds-grid { grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr)); }
   .asker { font-size: .8rem; opacity: .75; font-family: ui-monospace, monospace;
            word-break: break-all; }
@@ -144,7 +146,7 @@ function attendPage(): string {
 </head>
 <body data-ds-theme="verde-jardim">
 <header>
-  <h1>Pending questions</h1>
+  <h1>refarm</h1>
   <div class="muted" id="credential">no credential yet</div>
 </header>
 <div id="banner"></div>

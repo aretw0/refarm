@@ -3,6 +3,15 @@
 		margin-block: 1.5rem;
 	}
 
+	/* `gridHtml` is part of the dependency-light HTML contract, so its layout
+	   belongs in the component sheet that `documentHtml` and embedded surfaces
+	   actually load. Keeping this only in the optional utility sheet made cards
+	   collapse into one unspaced flow on mobile. */
+	.ds-grid {
+		display: grid;
+		gap: 1rem;
+	}
+
 	.ds-card {
 		background: var(--card);
 		color: var(--card-foreground);

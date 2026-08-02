@@ -149,6 +149,8 @@ describe("the page lives on the listener, not in the cold-bootstrap kit", () => 
 		expect(html).toContain("createAttendClient");
 		expect(html).toContain("renderAttendPromptHtml");
 		expect(html).toContain("createOperationClient");
+		expect(html).toContain("<h1>refarm</h1>");
+		expect(html.match(/<h1>Pending questions<\/h1>/g)).toBeNull();
 	});
 
 	it("serves the reusable operation and localization blocks beside the prompt block", async () => {

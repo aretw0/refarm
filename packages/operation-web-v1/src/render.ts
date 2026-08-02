@@ -36,8 +36,8 @@ export function renderOperationSurfaceHtml(input: {
 						cardHtml({
 							title: operation.id,
 							rows: [
-								`<p class="ds-operation-command"><code>${escapeHtml(operation.command)}</code></p>`,
 								...(operation.why ? [`<p>${escapeHtml(operation.why)}</p>`] : []),
+								`<details class="ds-operation-details"><summary>${escapeHtml(input.messages.t("details"))}</summary><code class="ds-operation-command">${escapeHtml(operation.command)}</code></details>`,
 								`<div class="ds-feedback" role="status" aria-live="polite" data-operation-state></div>`,
 							],
 							actionsHtml: buttonHtml({

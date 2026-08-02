@@ -12,6 +12,8 @@ describe("DS-backed operation projection", () => {
 		expect(html).toContain('class="ds-card"');
 		expect(html).toContain('class="ds-btn"');
 		expect(html).toContain("Operações");
+		expect(html).toContain("<summary>Detalhes</summary>");
+		expect(html).toContain("<code class=\"ds-operation-command\">run &lt;script&gt;</code>");
 		expect(html).toContain("workspace:x:&lt;bad&gt;");
 		expect(html).not.toContain("<script>");
 	});
