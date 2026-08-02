@@ -117,7 +117,6 @@ function attendPage(): string {
   .ds-operation-toolbar { display: flex; justify-content: flex-end; margin-block: .5rem; }
   .ds-operation-command { overflow-wrap: anywhere; }
   .ds-grid { grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr)); }
-  .card.settled { opacity: .65; }
   .asker { font-size: .8rem; opacity: .75; font-family: ui-monospace, monospace;
            word-break: break-all; }
   .question { font-size: 1.05rem; margin: .4rem 0 .7rem; }
@@ -174,6 +173,7 @@ import {
   loadAttendCredential,
   nextAttendPollDelayMs,
   nextAttendRetryDelayMs,
+  renderAttendPromptHtml,
   refusalIsTerminal,
   refusalNeedsNewCredential,
   saveAttendCredential,
@@ -364,90 +364,19 @@ async function reauthenticate() {
 
 // ── Rendering one prompt ─────────────────────────────────────────────────────────
 //
-// A switch over \`view.control\` and nothing more. Every decision it renders was made by
-// \`attendPromptView\`, in a module with tests.
-
-function buildControl(view, submit) {
-  const control = view.control;
-  const box = el("div");
-
-  if (control.control === "confirm") {
-    const yes = el("button", null, control.affirm);
-    const no = el("button", null, control.deny);
-    // The shape's default is shown as emphasis, never as a pre-submitted answer.
-    (control.default ? yes : no).style.fontWeight = "700";
-    yes.addEventListener("click", () => submit(true));
-    no.addEventListener("click", () => submit(false));
-    box.append(yes, no);
-    return box;
-  }
-
-  if (control.control === "select") {
-    const name = "opt-" + view.id;
-    for (const choice of control.choices) {
-      const label = el("label", "choice");
-      const input = document.createElement("input");
-      input.type = "radio";
-      input.name = name;
-      input.value = choice.value;
-      input.checked = choice.selected;
-      label.append(input, document.createTextNode(" " + choice.label));
-      if (choice.description) label.append(el("span", "muted", " — " + choice.description));
-      box.append(label);
-    }
-    const send = el("button", null, "Answer");
-    send.addEventListener("click", () => {
-      const picked = box.querySelector("input[name='" + name + "']:checked");
-      submit(picked ? picked.value : null);
-    });
-    box.append(send);
-    return box;
-  }
-
-  if (control.control === "text" || control.control === "secret") {
-    const input = document.createElement("input");
-    // A secret is masked and never autofilled, autocompleted or spellchecked — three
-    // separate ways a browser would otherwise keep a copy of it.
-    input.type = control.control === "secret" ? "password" : "text";
-    input.autocomplete = "off";
-    input.spellcheck = false;
-    if (control.control === "text") {
-      if (control.default !== null) input.value = control.default;
-      if (control.placeholder !== null) input.placeholder = control.placeholder;
-    }
-    const send = el("button", null, "Answer");
-    const go = () => submit(input.value);
-    send.addEventListener("click", go);
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") go();
-    });
-    box.append(input, send);
-    return box;
-  }
-
-  box.append(
-    el("p", "muted",
-      "This node asked a kind of question this page does not know how to draw (" +
-      control.type + "). Answer it at the terminal that asked."),
-  );
-  return box;
-}
+// The shared block projects the view through the design system. This app binds the
+// browser behaviour only; it does not carry a second prompt renderer.
 
 function renderCard(pending) {
   const view = attendPromptView(pending, Date.now());
-  const card = el("article", "card");
-  card.append(el("div", "asker", view.asker + (view.deadline ? " · " + view.deadline : "")));
-  card.append(el("div", "question", view.question));
-
-  // P4 — BEFORE the field, never after. An operator who would rather walk to the desk
-  // deserves to know before they type.
-  if (view.travelNotice) card.append(el("div", "travels", "🔐 " + view.travelNotice));
-
-  const verdict = el("div", "verdict");
-  let controlBox;
+  const template = document.createElement("template");
+  template.innerHTML = renderAttendPromptHtml(view);
+  const card = template.content.firstElementChild;
+  const verdict = card.querySelector("[data-attend-verdict]");
+  const controlBox = card.querySelector("[data-attend-control]");
 
   const settle = (text) => {
-    card.classList.add("settled");
+    card.dataset.state = "settled";
     controlBox.replaceChildren();
     verdict.textContent = text;
   };
@@ -487,8 +416,21 @@ function renderCard(pending) {
     for (const button of controlBox.querySelectorAll("button")) button.disabled = false;
   }
 
-  controlBox = buildControl(view, submit);
-  card.append(controlBox, verdict);
+  for (const answer of controlBox.querySelectorAll("[data-attend-answer]")) {
+    answer.addEventListener("click", () => submit(answer.getAttribute("data-attend-answer") === "true"));
+  }
+  const select = controlBox.querySelector("[data-attend-submit-select]");
+  select?.addEventListener("click", () => {
+    const picked = controlBox.querySelector("input[type=radio]:checked");
+    void submit(picked ? picked.value : null);
+  });
+  const input = controlBox.querySelector("[data-attend-input]");
+  const sendInput = controlBox.querySelector("[data-attend-submit-input]");
+  const submitInput = () => void submit(input.value);
+  sendInput?.addEventListener("click", submitInput);
+  input?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") submitInput();
+  });
   return { node: card, settle, settled: false };
 }
 

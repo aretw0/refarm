@@ -9,11 +9,10 @@
  * Design: `docs/superpowers/specs/2026-07-30-pending-prompt-wire-design.md` (P1–P6) and
  * `docs/superpowers/specs/2026-07-31-emoji-sas-scoped-credential-design.md` (S3).
  *
- * ZERO DEPENDENCIES, and browser-first: the emitted JavaScript imports nothing at all, so
- * it can be served straight to a page from the node's own listener. The types come from
- * `@refarm.dev/prompt-contract-v1` through `import type`, which erases — see `wire.ts`
- * for why the block's runtime code cannot be loaded in a browser and what keeps this copy
- * from drifting from it.
+ * Browser-first: its only runtime dependency is the runtime-neutral HTML projection from
+ * `@refarm.dev/ds`; both can be served straight from the node's own listener. Contract
+ * types still erase at build time — see `wire.ts` for what keeps the browser wire copy
+ * from drifting from the canonical prompt block.
  *
  * The four things worth not getting wrong, each in its own file:
  *   - `refusal.ts` — 401, 409 and unreachable are three different things.
@@ -23,11 +22,13 @@
  *     faster one.
  *   - `view.ts` — P4 and P6. Each kind as data, so rendering is testable without a
  *     browser.
+ *   - `render.ts` — the shared DS projection; consuming apps bind behaviour only.
  */
 
 export * from "./client.js";
 export * from "./credential.js";
 export * from "./poll.js";
 export * from "./refusal.js";
+export * from "./render.js";
 export * from "./view.js";
 export * from "./wire.js";

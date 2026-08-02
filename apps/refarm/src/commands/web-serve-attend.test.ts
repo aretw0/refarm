@@ -46,10 +46,12 @@ beforeEach(() => {
 
 afterEach(async () => {
 	if (server) {
+		server.closeAllConnections();
 		await new Promise<void>((resolve) => server?.close(() => resolve()));
 		server = undefined;
 	}
 	if (upstream) {
+		upstream.closeAllConnections();
 		await new Promise<void>((resolve) => upstream?.close(() => resolve()));
 		upstream = undefined;
 	}
@@ -145,6 +147,7 @@ describe("the page lives on the listener, not in the cold-bootstrap kit", () => 
 		// It reimplements neither half.
 		expect(html).toContain("startSasVerification");
 		expect(html).toContain("createAttendClient");
+		expect(html).toContain("renderAttendPromptHtml");
 		expect(html).toContain("createOperationClient");
 	});
 
@@ -213,7 +216,7 @@ describe("the page lives on the listener, not in the cold-bootstrap kit", () => 
 		}
 	});
 
-	it("the WHOLE module graph the page loads resolves in a browser", async () => {
+	it("the WHOLE attend module graph resolves through relatives or declared import-map blocks", async () => {
 		const url = await serve();
 		// Walked, not assumed: a single bare or `node:` specifier anywhere in the graph is
 		// a blank screen on a phone with nothing but a console error to explain it, and it
@@ -222,6 +225,7 @@ describe("the page lives on the listener, not in the cold-bootstrap kit", () => 
 		// required to name a relative sibling.
 		const seen = new Set<string>();
 		const queue = ["index.js"];
+		const mapped = new Set(["@refarm.dev/ds/html"]);
 		while (queue.length > 0) {
 			const name = queue.shift()!;
 			if (seen.has(name)) continue;
@@ -234,8 +238,8 @@ describe("the page lives on the listener, not in the cold-bootstrap kit", () => 
 			// why the thing it warns about is not there.
 			for (const match of source.matchAll(/^\s*(?:import|export)\b[^;]*?from\s+"([^"]+)"/gm)) {
 				const specifier = match[1]!;
-				expect(specifier, `${name} imports ${specifier}`).toMatch(/^\.\/[a-z0-9-]+\.js$/);
-				queue.push(specifier.slice(2));
+				if (specifier.startsWith("./")) queue.push(specifier.slice(2));
+				else expect(mapped.has(specifier), `${name} imports unmapped ${specifier}`).toBe(true);
 			}
 		}
 		// The graph is the block, whole — not just its entry point.

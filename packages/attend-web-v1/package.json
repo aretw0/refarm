@@ -2,7 +2,7 @@
 	"name": "@refarm.dev/attend-web-v1",
 	"version": "0.1.0",
 	"private": true,
-	"description": "The browser's half of a pending prompt — read the questions, render each kind, answer one, and tell the three refusals apart. Zero dependencies, browser-first",
+	"description": "The browser's half of a pending prompt — read, render through the shared design system, answer, and tell refusals apart",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -21,6 +21,9 @@
 		"test:unit": "vitest run",
 		"clean": "rm -rf dist",
 		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/ds": "workspace:*"
 	},
 	"devDependencies": {
 		"@refarm.dev/eslint-config": "workspace:*",

@@ -12,6 +12,23 @@
 		padding: 1rem;
 	}
 
+	.ds-card[data-state="settled"] {
+		opacity: 0.65;
+	}
+
+	.ds-card__title {
+		font-size: 1.05rem;
+		font-weight: 700;
+	}
+
+	.ds-card__actions,
+	.ds-control-group {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-block-start: 0.75rem;
+	}
+
 	.ds-btn {
 		background: var(--primary);
 		color: var(--primary-foreground);
@@ -25,6 +42,23 @@
 	.ds-btn:focus-visible {
 		outline: 2px solid var(--ring);
 		outline-offset: 2px;
+	}
+
+	.ds-btn[data-default="1"] {
+		font-weight: 700;
+	}
+
+	.ds-choice {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 0.25rem 0.5rem;
+		align-items: start;
+		margin-block: 0.4rem;
+	}
+
+	.ds-choice small {
+		grid-column: 2;
+		color: var(--muted-foreground);
 	}
 
 	.ds-field label {
