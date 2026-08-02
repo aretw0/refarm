@@ -1,0 +1,35 @@
+{
+	"name": "@refarm.dev/surface-quality-v1",
+	"version": "0.1.0",
+	"description": "Cross-modal quality profiles and evidence aggregation for web, terminal, and chat surfaces",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"files": ["dist", "README.md"],
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run",
+		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/quality-contract-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"typescript": "catalog:"
+	},
+	"license": "MIT",
+	"publishConfig": {
+		"access": "public"
+	}
+}
