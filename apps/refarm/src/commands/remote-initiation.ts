@@ -1,5 +1,5 @@
 /**
- * WHICH OF REFARM'S OWN OPERATIONS AN ENROLLED DEVICE MAY START — AND THE SILENCE THAT
+ * WHICH OF REFARM'S OWN OPERATIONS AN AUTHORISED REMOTE SURFACE MAY START — AND THE SILENCE THAT
  * CLOSES EVERYTHING ELSE.
  *
  * R5 of `docs/superpowers/specs/2026-07-31-composable-onboarding-and-remote-initiation-design.md`.
@@ -81,7 +81,7 @@
  * and this comment records the reasoning so the next reader does not have to re-derive it.
  */
 
-/** One operation the operator has declared an enrolled device may start. */
+/** One operation the operator has declared an authorised remote surface may start. */
 export interface RemotelyInitiableOperation {
 	/**
 	 * The id a device sends. Matched EXACTLY — no trimming, no case folding, no prefix. It is
@@ -97,7 +97,7 @@ export interface RemotelyInitiableOperation {
 }
 
 /**
- * THE TABLE. Adding a line here is the whole act of opening an operation to devices, and it is
+ * THE TABLE. Adding a line here is the whole act of opening an operation to remote surfaces, and it is
  * meant to be small enough that a reviewer reads all of it.
  */
 export const REMOTELY_INITIABLE_OPERATIONS: readonly RemotelyInitiableOperation[] = Object.freeze([
@@ -157,27 +157,11 @@ export function workspaceInitiationOperations(
 	return operations.sort((left, right) => left.id.localeCompare(right.id));
 }
 
-/**
- * What the caller authenticated as. Initiation is DEVICE-ONLY: a scoped credential — the one a
- * browser holds to answer questions — must never be able to start anything, whatever its scope.
- *
- * Modelled as a closed union rather than a boolean so "we did not check" cannot be spelled as
- * `false` and read as "checked, and it was fine".
- */
-export type RemoteInitiationCredential =
-	| { readonly kind: "device" }
-	| { readonly kind: "scoped"; readonly scope: readonly string[] };
-
 /** Why an initiation was refused. Never carries what the caller sent back to them verbatim. */
-export type RemoteInitiationRefusal =
-	| {
-			readonly reason: "not-a-device";
-			readonly detail: string;
-	  }
-	| {
-			readonly reason: "undeclared";
-			readonly detail: string;
-	  };
+export type RemoteInitiationRefusal = {
+	readonly reason: "undeclared";
+	readonly detail: string;
+};
 
 /** The verdict. `ok: true` carries an argv and nothing else — see the header. */
 export type RemoteInitiationDecision =
@@ -188,40 +172,18 @@ export type RemoteInitiationDecision =
 	  }
 	| { readonly ok: false; readonly refusal: RemoteInitiationRefusal };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null;
-}
-
 /**
- * THE GATE. PURE: an id and a credential in, a verdict out. No filesystem, no config, no clock,
- * nothing a request can influence beyond the two values it passes.
- *
- * The credential is judged FIRST, deliberately. A caller that is not a device learns only that it
- * is not a device — never whether the id it named exists, which would make this a catalog anyone
- * could enumerate by guessing.
+ * THE DECLARATION GATE. PURE: an id in, a verdict out. Authentication and scope are
+ * deliberately absent: the sidecar listener has already required `operation:start`
+ * before it spawns this process. Rechecking credentials here would create a second
+ * authority model that can drift from the route table.
  */
-export function resolveRemoteInitiation(request: {
-	readonly operation: unknown;
-	readonly credential: unknown;
-}, operations: readonly RemotelyInitiableOperation[] = REMOTELY_INITIABLE_OPERATIONS): RemoteInitiationDecision {
-	const credential = request.credential;
-	if (!isRecord(credential) || credential.kind !== "device") {
-		// Everything that is not exactly a device credential lands here: a scoped credential
-		// (whatever its scope), an unrecognised shape, and silence. Fail-closed, one branch.
-		const scoped =
-			isRecord(credential) && credential.kind === "scoped"
-				? " A scoped credential may answer the farm's questions; it may not start work."
-				: "";
-		return {
-			ok: false,
-			refusal: {
-				reason: "not-a-device",
-				detail:
-					"Starting an operation on this node requires an enrolled device credential." + scoped,
-			},
-		};
-	}
-
+export function resolveRemoteInitiation(
+	request: {
+		readonly operation: unknown;
+	},
+	operations: readonly RemotelyInitiableOperation[] = REMOTELY_INITIABLE_OPERATIONS,
+): RemoteInitiationDecision {
 	if (typeof request.operation !== "string") {
 		return {
 			ok: false,

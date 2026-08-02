@@ -20,11 +20,11 @@
  * de recitar uma lista de memória. A lista é sempre a do nó com quem se está
  * falando.
  *
- * ── Credencial de APARELHO, não a do navegador ───────────────────────────────
- * `POST /operations` é device-only, como `POST /prompts`. A credencial estreita
- * que o navegador ganha em `refarm auth verify` serve para RESPONDER pergunta;
- * ela nunca começa trabalho. Um `401` aqui quase sempre é isso — e a mensagem
- * diz isso, em vez de mandar "tente de novo".
+ * ── Autoridade estreita, não terminal remoto ─────────────────────────────────
+ * `GET /operations` exige `operation:read`; `POST /operations`, `operation:start`.
+ * Uma credencial de aparelho carrega autoridade completa, enquanto uma superfície
+ * verificada recebe somente os escopos que o operador confirmou. Um `401` significa
+ * que a credencial está ausente, expirou ou não recebeu a autoridade desta rota.
  *
  * ── Cinco respostas, nunca uma ───────────────────────────────────────────────
  * O nó distingue, e o aparelho não pode colapsar de volta:
@@ -170,12 +170,12 @@ export function classifyStartResponse(
 			};
 		}
 		return {
-			outcome: "not-a-device",
+			outcome: "not-authorized",
 			exitCode: 1,
 			lines: [
-				"🔒 começar trabalho exige a credencial de APARELHO deste nó.",
-				"   A credencial estreita do navegador responde pergunta; ela não começa nada.",
-				"   Exporte a do aparelho em FARM_TOKEN e tente de novo.",
+				"🔒 esta credencial não pode começar operações neste nó.",
+				"   Use uma credencial de aparelho em FARM_TOKEN ou autorize uma superfície",
+				"   estreita com o escopo operation:start.",
 			],
 		};
 	}

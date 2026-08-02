@@ -1,7 +1,4 @@
-import {
-	createProcessHandoffDisplay,
-	runProcessHandoff,
-} from "@refarm.dev/cli/process-handoff";
+import { createProcessHandoffDisplay, runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { loadConfig } from "@refarm.dev/config";
@@ -18,7 +15,7 @@ import {
 } from "./remote-initiation.js";
 
 /**
- * `refarm auth remote` — WHAT AN ENROLLED DEVICE MAY START, asked and answered.
+ * `refarm auth remote` — WHAT AN AUTHORISED REMOTE SURFACE MAY START, asked and answered.
  *
  * The declaration in `remote-initiation.ts` would be worth much less if reading it meant reading
  * a source file: a rule the operator cannot inspect from the outside is a rule they have to trust
@@ -116,10 +113,7 @@ export function remoteInitiationVerdict(
 	operations = REMOTELY_INITIABLE_OPERATIONS,
 ): RemoteInitiationVerdict {
 	// The gate, first and unchanged. Its `ok: true` is the only way past this line.
-	const decision = resolveRemoteInitiation(
-		{ operation: requested, credential: { kind: "device" } },
-		operations,
-	);
+	const decision = resolveRemoteInitiation({ operation: requested }, operations);
 	if (decision.ok) {
 		return { wire: REMOTE_INITIATION_WIRE, ok: true, operation: decision.operation.id };
 	}
@@ -130,7 +124,7 @@ export function remoteInitiationVerdict(
 		reason: known ? "not-remotely-invocable" : "unknown-operation",
 		detail: known
 			? "That is a real command on this node, and it has not declared itself startable " +
-				"from a device. An operation that says nothing may not be started remotely — " +
+				"from a remote surface. An operation that says nothing may not be started remotely — " +
 				"silence is closed, including for an operation added tomorrow."
 			: "This node has no such operation. " + decision.refusal.detail,
 	};
@@ -177,10 +171,7 @@ function createAuthRemoteRunCommand(): Command {
 				process.exitCode = 1;
 				return;
 			}
-			const decision = resolveRemoteInitiation(
-				{ operation: requested, credential: { kind: "device" } },
-				operations,
-			);
+			const decision = resolveRemoteInitiation({ operation: requested }, operations);
 			// Unreachable: `verdict.ok` is exactly `decision.ok`. Spelled out rather than
 			// asserted so a future edit that breaks the correspondence fails closed.
 			if (!decision.ok) {
@@ -207,9 +198,7 @@ function createAuthRemoteRunCommand(): Command {
 			// would refuse for want of a TTY or wait forever on a human who is not there.
 			const argv = [
 				...reinvocationArgv(decision.argv),
-				...(remoteInitiationNeedsAttendance(decision.operation.id)
-					? ["--attended-elsewhere"]
-					: []),
+				...(remoteInitiationNeedsAttendance(decision.operation.id) ? ["--attended-elsewhere"] : []),
 			];
 			const result = await runProcessHandoff(
 				{
@@ -227,7 +216,7 @@ function createAuthRemoteRunCommand(): Command {
 
 export function createAuthRemoteCommand(): Command {
 	return new Command("remote")
-		.description("List the operations an enrolled device may start on this node")
+		.description("List the operations an authorised remote surface may start on this node")
 		.addCommand(createAuthRemoteRunCommand())
 		.option("--json", "Print the result as JSON")
 		.action((options: { json?: boolean }) => {
@@ -260,7 +249,7 @@ export function createAuthRemoteCommand(): Command {
 				return;
 			}
 			process.stdout.write(
-				`Operations an enrolled device may start (${operations.length}):\n` +
+				`Operations an authorised remote surface may start (${operations.length}):\n` +
 					operations.map(({ command, why }) => `  • ${command}\n      ${why}\n`).join("") +
 					"\n" +
 					"  Everything else is closed. An operation that does not declare itself remotely\n" +

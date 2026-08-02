@@ -7,9 +7,7 @@
  *
  *   1. `silence_is_closed` — deleting the `!operation` refusal (falling through to a permissive
  *      default) makes an undeclared id resolve.
- *   2. `device-only` — removing the credential check makes a scoped credential start work.
- *
- * The third pillar is not a rule but a SHAPE: the `ok: true` decision carries an argv and nothing
+ * The second pillar is not a rule but a SHAPE: the `ok: true` decision carries an argv and nothing
  * else, so there is nothing a wizard could read to learn where it was started from.
  */
 
@@ -23,8 +21,6 @@ import {
 	resolveRemoteInitiation,
 	workspaceInitiationOperations,
 } from "./remote-initiation.js";
-
-const DEVICE = { kind: "device" } as const;
 
 describe("the remote-initiation declaration", () => {
 	it("declares nothing by accident — every entry is a constant argv with a stated reason", () => {
@@ -86,22 +82,14 @@ describe("resolveRemoteInitiation", () => {
 				why: "Connect VPN",
 			},
 		]);
-		expect(
-			resolveRemoteInitiation(
-				{ operation: "workspace:rcdc5:vpn", credential: DEVICE },
-				remote,
-			).ok,
-		).toBe(true);
-		expect(
-			resolveRemoteInitiation(
-				{ operation: "workspace:rcdc5:secrets", credential: DEVICE },
-				remote,
-			).ok,
-		).toBe(false);
+		expect(resolveRemoteInitiation({ operation: "workspace:rcdc5:vpn" }, remote).ok).toBe(true);
+		expect(resolveRemoteInitiation({ operation: "workspace:rcdc5:secrets" }, remote).ok).toBe(
+			false,
+		);
 	});
 
 	it("starts a declared operation, and hands back the table's own argv", () => {
-		const decision = resolveRemoteInitiation({ operation: "delivery add", credential: DEVICE });
+		const decision = resolveRemoteInitiation({ operation: "delivery add" });
 		expect(decision.ok).toBe(true);
 		if (!decision.ok) return;
 		expect(decision.argv).toEqual(["delivery", "add"]);
@@ -125,8 +113,8 @@ describe("resolveRemoteInitiation", () => {
 			"sow",
 			"workspace run",
 		]) {
-			const decision = resolveRemoteInitiation({ operation: undeclared, credential: DEVICE });
-			expect(decision.ok, `${undeclared} must not be startable from a device`).toBe(false);
+			const decision = resolveRemoteInitiation({ operation: undeclared });
+			expect(decision.ok, `${undeclared} must not be remotely startable`).toBe(false);
 			if (decision.ok) continue;
 			expect(decision.refusal.reason).toBe("undeclared");
 		}
@@ -140,7 +128,7 @@ describe("resolveRemoteInitiation", () => {
 		expect(paths.length).toBeGreaterThan(50);
 		for (const path of paths) {
 			if (declared.has(path)) continue;
-			const decision = resolveRemoteInitiation({ operation: path, credential: DEVICE });
+			const decision = resolveRemoteInitiation({ operation: path });
 			expect(decision.ok, `${path} is not declared and must be refused`).toBe(false);
 		}
 	});
@@ -155,57 +143,17 @@ describe("resolveRemoteInitiation", () => {
 			"delivery add; refarm auth revoke my-phone",
 			"delivery/add",
 		]) {
-			expect(resolveRemoteInitiation({ operation: near, credential: DEVICE }).ok).toBe(false);
+			expect(resolveRemoteInitiation({ operation: near }).ok).toBe(false);
 		}
 	});
 
 	it("refuses an id that is not a string at all", () => {
 		for (const junk of [undefined, null, 42, ["delivery", "add"], { id: "delivery add" }]) {
-			const decision = resolveRemoteInitiation({ operation: junk, credential: DEVICE });
+			const decision = resolveRemoteInitiation({ operation: junk });
 			expect(decision.ok).toBe(false);
 			if (decision.ok) continue;
 			expect(decision.refusal.reason).toBe("undeclared");
 		}
-	});
-
-	/**
-	 * MUTATION-VERIFIED. Delete the credential branch and this test fails: a scoped credential
-	 * would start `delivery add`.
-	 *
-	 * This mirrors the sidecar gate's own split (`8dd1ce5e`): `GET /prompts` is reachable with a
-	 * scoped `prompt:answer` credential; publishing and — when it exists — initiating are not.
-	 */
-	it("refuses a scoped credential whatever its scope — initiation is device-only", () => {
-		for (const scope of [["prompt:answer"], [], ["prompt:answer", "operation:initiate"], ["*"]]) {
-			const decision = resolveRemoteInitiation({
-				operation: "delivery add",
-				credential: { kind: "scoped", scope },
-			});
-			expect(decision.ok, `scope ${JSON.stringify(scope)} must not initiate`).toBe(false);
-			if (decision.ok) continue;
-			expect(decision.refusal.reason).toBe("not-a-device");
-		}
-	});
-
-	it("refuses a credential it does not recognise, and silence", () => {
-		for (const credential of [undefined, null, {}, { kind: "Device" }, "device", true]) {
-			const decision = resolveRemoteInitiation({ operation: "delivery add", credential });
-			expect(decision.ok).toBe(false);
-			if (decision.ok) continue;
-			expect(decision.refusal.reason).toBe("not-a-device");
-		}
-	});
-
-	it("judges the credential before the id, so a non-device cannot enumerate the catalog", () => {
-		const declared = resolveRemoteInitiation({
-			operation: "delivery add",
-			credential: { kind: "scoped", scope: ["prompt:answer"] },
-		});
-		const invented = resolveRemoteInitiation({
-			operation: "definitely not an operation",
-			credential: { kind: "scoped", scope: ["prompt:answer"] },
-		});
-		expect(declared).toEqual(invented);
 	});
 
 	it("never lets the operator's own argv through this door", () => {
@@ -218,8 +166,8 @@ describe("resolveRemoteInitiation", () => {
 			"pnpm --filter @rcdcp/serpro-vpn run vpn connect",
 			"/bin/sh",
 		]) {
-			const decision = resolveRemoteInitiation({ operation: operatorArgv, credential: DEVICE });
-			expect(decision.ok, `${operatorArgv} must not be startable from a device`).toBe(false);
+			const decision = resolveRemoteInitiation({ operation: operatorArgv });
+			expect(decision.ok, `${operatorArgv} must not be remotely startable`).toBe(false);
 		}
 	});
 });
@@ -231,7 +179,7 @@ describe("what a started wizard can see", () => {
 	 * stronger than a rule saying not to leak it.
 	 */
 	it("hands back an argv and nothing a wizard could read", () => {
-		const decision = resolveRemoteInitiation({ operation: "delivery add", credential: DEVICE });
+		const decision = resolveRemoteInitiation({ operation: "delivery add" });
 		expect(decision.ok).toBe(true);
 		if (!decision.ok) return;
 		expect(Object.keys(decision).sort()).toEqual(["argv", "ok", "operation"]);
@@ -240,7 +188,7 @@ describe("what a started wizard can see", () => {
 
 	it("starts the wizard with the argv an operator would type at the node", () => {
 		for (const operation of REMOTELY_INITIABLE_OPERATIONS) {
-			const decision = resolveRemoteInitiation({ operation: operation.id, credential: DEVICE });
+			const decision = resolveRemoteInitiation({ operation: operation.id });
 			expect(decision.ok).toBe(true);
 			if (!decision.ok) continue;
 			// Byte-identical to the local invocation: no extra flag, and nothing that reads as a
@@ -255,7 +203,7 @@ describe("what a started wizard can see", () => {
 	});
 
 	it("cannot be handed an environment — the type has nowhere to put one", () => {
-		const decision = resolveRemoteInitiation({ operation: "delivery add", credential: DEVICE });
+		const decision = resolveRemoteInitiation({ operation: "delivery add" });
 		if (!decision.ok) throw new Error("expected the declared operation to resolve");
 		expect(decision).not.toHaveProperty("env");
 		expect(decision).not.toHaveProperty("initiatedBy");

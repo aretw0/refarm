@@ -155,7 +155,7 @@ test("the five answers are five, and none of them is 'tente de novo'", () => {
 		[202, { started: true, operation: "delivery add" }, "started"],
 		[404, { error: "unknown-operation", detail: "não tem" }, "unknown-operation"],
 		[403, { error: "not-remotely-invocable", detail: "fechada" }, "not-remotely-invocable"],
-		[401, {}, "not-a-device"],
+		[401, {}, "not-authorized"],
 		[409, { error: "already-running", running: "delivery add" }, "already-running"],
 		[503, { error: "could-not-start", detail: "sem refarm no spawnEnv.path" }, "could-not-start"],
 	];
@@ -169,15 +169,12 @@ test("the five answers are five, and none of them is 'tente de novo'", () => {
 	assert.equal(seen.size, cases.length, "no two statuses collapse into one answer");
 });
 
-test("a scoped browser credential is told WHAT it is missing, not that it failed", () => {
+test("an insufficient credential is told WHAT authority it is missing", () => {
 	const verdict = classifyStartResponse(401, {});
-	assert.equal(verdict.outcome, "not-a-device");
+	assert.equal(verdict.outcome, "not-authorized");
 	const text = verdict.lines.join("\n");
-	assert.match(text, /APARELHO/);
+	assert.match(text, /operation:start/);
 	assert.match(text, /FARM_TOKEN/);
-	// Responder pergunta continua sendo o que a credencial estreita faz — dizer isso
-	// é o que impede o operador de achar que o navegador está quebrado.
-	assert.match(text, /responde pergunta/);
 });
 
 test("a 403 that names not-remotely-invocable is a shut door, not a typo", () => {

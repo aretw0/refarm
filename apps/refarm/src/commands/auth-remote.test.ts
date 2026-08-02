@@ -1,8 +1,8 @@
 /**
  * THE ENTRYPOINT THE NODE SPAWNS — and the three answers it can give.
  *
- * `remote-initiation.test.ts` pins the DECLARATION (silence is closed, device-only, the argv
- * is a constant). This file pins the one thing built on top of it: the verdict a device
+ * `remote-initiation.test.ts` pins the DECLARATION (silence is closed and argv is constant).
+ * This file pins the one thing built on top of it: the verdict a remote surface
  * actually receives, and the fact that it distinguishes "I do not know that command" from "I
  * know it and it is shut" from "I could not" — the last of which is the node's answer, never
  * this command's, because a process that never started cannot print a line.
@@ -98,7 +98,7 @@ describe("remoteInitiationVerdict", () => {
 
 	it("judges nothing by the caller's credential, because it holds none", () => {
 		// The signature is the assertion: an id and what the CLI has. Authority is the NODE's
-		// question (`/operations` declares no scope ⇒ device-only), settled before this process
+		// question (`/operations` declares its narrow scope), settled before this process
 		// exists. A credential parameter here would be a second authentication path reachable by
 		// anyone already able to run this command locally.
 		expect(remoteInitiationVerdict.length).toBe(2);
