@@ -113,6 +113,35 @@ The maintainer sharpened the North Star: the goal is not "rcdc5 imports `@refarm
 - **Idle-quota worker — the refarm agent on GitHub Copilot** (raised 2026-07-28, next after the effect): the operator has OpenAI and **corporate SERPRO GitHub Copilot** quota sitting idle while all heavy work lands on one vendor. `docs/model-provider-strata.md` already classifies `github-copilot` as a subscription provider and documents the mechanism (GitHub device OAuth → `api.github.com/copilot_internal/v2/token` → the endpoint the token advertises); `GITHUB_COPILOT_ACCESS_TOKEN` already satisfies its credential check. refarm does not lack knowledge of it — it **blocks it honestly**: `refarm ask` refuses subscription routes without a runtime adapter, and only `openai-codex` is in `RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS`. Two halves: (1) TS — `apps/refarm/src/credentials/oauth/github-copilot.ts` mirroring `openai-codex.ts` (PKCE + callback-server + tests already sit beside it); (2) Rust — the `wasi_bridge` runtime adapter that lifts the block.
   - **Unblocked 2026-07-28 — the daily-driver bug that hid the operator's quota is FIXED.** Dogfooding found it: with the runtime up and `doctor` green, `refarm model current` reported `credential.state: "silo-oauth"` while `refarm ask` refused with "No usable model credentials configured", and re-running `refarm sow` never helped. The first diagnosis ("two parts of the binary disagree") was **wrong** — `hasUsableModelCredential` IS `modelCredentialStatus` (`packages/config/src/model-routing.js:132`), so they agree; what differed was the *data* each received. Root cause, verified: Silo writes the credential to `identity.json` under `resolveSiloHome()` = `SILO_HOME || REFARM_HOME || ~/.silo`, while the readiness gate searched only `resolveRefarmHome()` and `<cwd>/.refarm` (`apps/refarm/src/commands/session-launch.ts`). With `REFARM_HOME` unset the store lands in `~/.silo`, which the gate never looked at — so `sow` wrote exactly where the gate was not looking. Environment-dependent, which is why it survived: with `REFARM_HOME` set the two homes are the same directory and the gate happens to work. Fix: `refarmSearchDirs()` now includes Silo's home (the `Set` dedupes when they coincide). `modelCredentialSource` already unwrapped the nested `tokens` shape, so nothing else changed. **Proven live:** `refarm ask` now answers through the operator's OpenAI subscription. The Copilot adapter can proceed on a working rail.
 
+- **2026-08-02 — the first push in six days, and what silence had accumulated.** `develop` had run
+  306 commits ahead of `origin` since 07-27, so no CI had judged any of the interfaces/devices work.
+  Pushing it surfaced **twelve defects, in four classes** — and the cheap hypothesis (*"the 07-30 HOME
+  sandbox made assertions stale"*) would have buried three of them under a test edit:
+  - **Real product defects.** `refarm config spawn-env set/unset --local` was silently ignored —
+    Commander files an option on the nearest ancestor declaring the same long name, so the flag landed
+    on `spawn-env` while `set` read its own `opts()`, and the write went to the HOME scope. This is the
+    **fourth** instance of the class `test/architecture/ancestor-option-conformance.test.ts` exists to
+    prevent, on the very command the remote-operation handoff tells operators to use. `refarm hardening`
+    threw a bare Error out of `parseAsync` instead of refusing (now `guardedAction` + `CommandRefusal`).
+    The hardening collector reported the vendored `farm-client` capsule as unhardened debt because
+    `moduleFor` anchored the `src/`→`dist/` convention at the package root and could not see a
+    capsule's own `dist/` — phantom debt from a mapping gap, not from drift.
+  - **`farm-start "<id>"` never worked from the kit.** The operator hit it first try on Termux: with no
+    `--status`/`--cancel` on the line, `indexOf` returned `-1` and `index !== statusAt + 1` became
+    `index !== 0`, dropping the operation id itself; unquoted, `farm-start delivery add` started `"add"`,
+    a *different* operation, silently. The end-to-end proof had gone through `POST /operations`
+    directly, so the kit's own path was never exercised. **Proving a contract does not prove a surface.**
+    Parsing now lives in `remote-initiation.mjs` as `parseStartArgs`, where the suite reaches it.
+  - **Two hand-maintained registries had gone unfed** by a week of new packages: the scaffold contract
+    (two public packages shipping `dist/**/*.tsbuildinfo`) and `TASK_SMOKE_TS_BUILD_ORDER` (thirteen
+    missing entries, which broke the Windows/macOS jobs before they built anything).
+  - **A floor that measured the runner, not the repo.** Hardening's `conformant >= 20` read 19 in CI and
+    24 locally, because Verify's build is filtered to the changed set; the quality job now builds the
+    workspace the collector imports, the same guarantee the Tractor smoke already carried.
+  - **The lane's own lesson:** `refarm agent finish --lane before-push` does NOT run the scaffold
+    validator, the build-order integrity check, or `pnpm audit` — all three are CI-only, all three are
+    seconds of local cost. Extending the lane would retire this whole class before a push.
+
 **Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.
 
 ## How to resume

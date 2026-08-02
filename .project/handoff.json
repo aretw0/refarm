@@ -1,23 +1,26 @@
 {
-  "context": "Checkpoint 2026-08-02. Remote workspace control is proven end to end: named allowlisted start, bounded lifecycle, cancellation, and operation-result.v1 summaries/metrics/findings without stdout. Refarm commit 1f1776ba adds recorded refarm config spawn-env authorship with strict host-parity validation and history undo; the HOME scope now declares its ordered PATH/HOME. Through authenticated POST/GET /operations, rcdc5 code-boundaries (consumer commit 66f8d91) returned succeeded, packagesScanned=10, issueCount=0, resultError=null. Runtime and systemd-user web-serve are live. The temporary proof identity was revoked; only galaxy-a55-5g remains enrolled.",
-  "timestamp": "2026-08-02T17:57:35.000Z",
-  "current_phase": "12",
-  "current_tasks": [],
-  "blockers": [],
-  "next_actions": [
-    "On galaxy-a55-5g, run farm-update, then farm-start workspace:rcdc5:code-boundaries and inspect the returned status/result; this is operator-visible projection confirmation, not a substrate blocker.",
-    "Confirm the same catalog/start/status result in the browser/PWA. If visual friction remains, improve the shared operation-web-v1/ds projection rather than app-local HTML.",
-    "Then compose Telegram as another surface over the existing catalog, lifecycle, consent, status, and operation-result contracts; do not create a generic chat shell or a Telegram-specific executor."
-  ],
-  "open_questions": [],
-  "key_decisions_active": [
-    "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
-    "DEC-032: produto CLI/host em apps/; packages/ guardam blocos reutilizáveis.",
-    "DEC-034: artefatos WASM Rust devem ser copiados para dist/ durante build.",
-    "DEC-035: provision para, configure ainda não existe — silo é o ponto de integração.",
-    "DEC-036 [DECIDED]: refarm chat é cliente HTTP do sidecar farmhand em :42001. Não embeda farmhand.",
-    "ADR-064 [ACCEPTED]: TokenAuthError com provider + reason + rotationUrl — produzido na camada de credenciais, renderizado por qualquer superfície.",
-    "ADR-065 [ACCEPTED]: Farmhand transparent lifecycle — refarm é o single entry point. Auto-start com Y/n confirm, detached spawn, 300ms poll. LaunchDeps interface para testabilidade."
-  ],
-  "files_in_flux": []
+	"context": "Checkpoint 2026-08-02 (late). develop was pushed for the first time since 07-27 — 306 commits with no CI verdict on any of the interfaces/devices work. Judging them surfaced twelve defects in four classes, all fixed: three real product defects (spawn-env --local silently ignored via Commander ancestor filing — the 4th instance of the ancestor-option class, on the command this handoff tells operators to use; refarm hardening throwing instead of refusing; the hardening collector reporting a vendored capsule as phantom debt), two unfed CI registries (scaffold contract, TASK_SMOKE build order), two security highs (js-yaml pin, style-dictionary v5 — which also corrected double-quoted SCSS font tokens), and four stale or brittle assertions. Separately, the operator hit a real field bug on Termux: farm-start \"<id>\" only listed the catalog, because an absent --status/--cancel made indexOf return -1 and the filter dropped the first positional — the operation id. Parsing moved to remote-initiation.mjs as parseStartArgs (4 new tests, farm-client 200/200) and the kit was republished to ~/.refarm/dist/farm-client. The end-to-end proof had used POST /operations directly, so the kit's own path had never been exercised: proving a contract does not prove a surface. apps/refarm is 2715/2715 green in CI.",
+	"timestamp": "2026-08-02T21:20:00.000Z",
+	"current_phase": "12",
+	"current_tasks": [],
+	"blockers": [],
+	"next_actions": [
+		"On galaxy-a55-5g, run farm-update FIRST (the kit downloaded before 16:39 carries the farm-start bug), then farm-start workspace:rcdc5:code-boundaries and inspect the returned status/result.",
+		"Confirm the same catalog/start/status result in the browser/PWA. The scoped credential sas-7a2e201f39cd expired, so re-pair through emoji-SAS first. If visual friction remains, improve the shared operation-web-v1/ds projection rather than app-local HTML.",
+		"Decide whether to extend `refarm agent finish --lane before-push` with the three CI-only gates it does not run: scripts/validate-packages.mjs, assertTaskSmokeBuildOrderIntegrity, and pnpm audit --audit-level=high. All three cost seconds and would have caught four of today's twelve.",
+		"Then compose Telegram over the existing catalog/lifecycle/consent/status/operation-result contracts. Note `delivery add` is already in THE TABLE of remotely-initiable operations, so the Telegram channel can be declared FROM the phone via farm-start \"delivery add\" + farm-attend — no terminal on the node."
+	],
+	"open_questions": [
+		"apps/refarm test/commands/tidy.test.ts fails locally (3) but passes in CI: the product resolves the workspace root to \".\" at action time while the test computes an absolute path at module load. Pre-existing and environment-dependent — worth a look, not a blocker."
+	],
+	"key_decisions_active": [
+		"DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
+		"DEC-032: produto CLI/host em apps/; packages/ guardam blocos reutilizáveis.",
+		"DEC-034: artefatos WASM Rust devem ser copiados para dist/ durante build.",
+		"DEC-035: provision para, configure ainda não existe — silo é o ponto de integração.",
+		"DEC-036 [DECIDED]: refarm chat é cliente HTTP do sidecar farmhand em :42001. Não embeda farmhand.",
+		"ADR-064 [ACCEPTED]: TokenAuthError com provider + reason + rotationUrl — produzido na camada de credenciais, renderizado por qualquer superfície.",
+		"ADR-065 [ACCEPTED]: Farmhand transparent lifecycle — refarm é o single entry point. Auto-start com Y/n confirm, detached spawn, 300ms poll. LaunchDeps interface para testabilidade."
+	],
+	"files_in_flux": []
 }
