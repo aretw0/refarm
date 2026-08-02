@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { runWorkspaceCommandAdd } from "./workspace-command-add.js";
+import { runWorkspaceCommandAdd, runWorkspaceCommandRemove } from "./workspace-command-add.js";
 
 const roots: string[] = [];
 
@@ -56,5 +56,32 @@ describe("workspace command add", () => {
 				{ root, env: { SOVEREIGN_DIR: ".refarm" }, interactive: true },
 			),
 		).rejects.toMatchObject({ code: "workspace-command-workspace-not-declared" });
+	});
+
+	it("removes only the authorized command and preserves sibling workspace data", async () => {
+		const root = fixture();
+		const configPath = path.join(root, ".refarm", "config.json");
+		const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+		config.workspaces.app.commands = {
+			stale: { run: ["old-bin"] },
+			keep: { run: ["pnpm", "test"] },
+		};
+		fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
+
+		const result = await runWorkspaceCommandRemove(
+			{ workspace: "app", name: "stale" },
+			{
+				root,
+				env: { SOVEREIGN_DIR: ".refarm" },
+				interactive: true,
+				operator: createScriptedOperatorChannel(["authorize"]),
+				announce: () => {},
+			},
+		);
+
+		expect(result.status).toBe("declared");
+		const after = JSON.parse(fs.readFileSync(configPath, "utf8"));
+		expect(after.workspaces.app.commands).toEqual({ keep: { run: ["pnpm", "test"] } });
+		expect(after.workspaces.app).toMatchObject({ path: "/work/app", kind: "project" });
 	});
 });

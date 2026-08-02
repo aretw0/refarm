@@ -46,6 +46,7 @@ import {
 } from "./workspace-add.js";
 import {
 	runWorkspaceCommandAdd,
+	runWorkspaceCommandRemove,
 	WorkspaceCommandAddRefusal,
 } from "./workspace-command-add.js";
 import {
@@ -1053,6 +1054,40 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 					return;
 				}
 				failWorkspace("command-add", options, error);
+			}
+		});
+
+	workspaceOperationCommand
+		.command("remove <workspace> <name>")
+		.description("Remove a named operation through reviewed consent")
+		.option("--local", "Write this workspace's local .refarm/config.json")
+		.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
+		.option("--json", "Output the declaration result as JSON")
+		.action(async (workspace: string, name: string, options: { local?: boolean; attendedElsewhere?: boolean; json?: boolean }) => {
+			try {
+				const result = await runWorkspaceCommandRemove({ workspace, name, ...options });
+				if (options.json) {
+					printJson(buildJsonSuccessEnvelope({ command: "workspace", operation: "command-remove", extra: result }));
+					return;
+				}
+				if (result.status === "declared") {
+					console.log(chalk.green(`✓  removed "${workspace}:${name}"`));
+					console.log(chalk.dim(`   undo: ${result.undoCommand}`));
+				} else console.log(chalk.dim(`workspace command ${result.status}`));
+			} catch (error) {
+				if (error instanceof WorkspaceCommandAddRefusal && options.json) {
+					printJson(buildJsonErrorEnvelope({
+						command: "workspace",
+						operation: "command-remove",
+						error: error.code,
+						message: error.message,
+						nextAction: `Run \`${refarmCommand(["workspace", "command", "--help"])}\` from an attended surface.`,
+						nextCommand: refarmCommand(["workspace", "command", "--help"]),
+					}));
+					process.exitCode = 1;
+					return;
+				}
+				failWorkspace("command-remove", options, error);
 			}
 		});
 

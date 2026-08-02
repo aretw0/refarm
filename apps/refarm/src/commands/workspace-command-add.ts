@@ -60,6 +60,8 @@ export type WorkspaceCommandAddResult =
 	| { status: "declined" | "deferred"; workspace: string; command: string }
 	| { status: "cancelled"; workspace: string; command: string };
 
+export type WorkspaceCommandRemoveResult = WorkspaceCommandAddResult;
+
 export class WorkspaceCommandAddRefusal extends Error {
 	constructor(readonly code: string, message: string) {
 		super(message);
@@ -166,6 +168,97 @@ export async function runWorkspaceCommandAdd(
 	} catch (error) {
 		if (error instanceof OperatorPromptCancelledError) {
 			return { status: "cancelled", workspace: options.workspace, command: proposal.name };
+		}
+		throw error;
+	}
+}
+
+/** Remove one named operation through the same reviewed trail used to add it. */
+export async function runWorkspaceCommandRemove(
+	options: Pick<WorkspaceCommandAddOptions, "workspace" | "name" | "local" | "attendedElsewhere">,
+	deps: WorkspaceCommandAddDeps = {},
+): Promise<WorkspaceCommandRemoveResult> {
+	const env = deps.env ?? process.env;
+	const cwd = deps.cwd ?? process.cwd();
+	const operatorHome = path.resolve(resolveRefarmHome(env));
+	const root = deps.root ?? (options.local ? cwd : path.dirname(operatorHome));
+	const catalogEnv = deps.root || options.local ? env : { ...env, SOVEREIGN_DIR: path.basename(operatorHome) };
+	const configPath = catalogConfigPath(root, catalogEnv);
+	let config: Record<string, unknown>;
+	try {
+		config = JSON.parse(fs.readFileSync(configPath, "utf8")) as Record<string, unknown>;
+	} catch {
+		throw new WorkspaceCommandAddRefusal("workspace-command-config-unreadable", `Cannot read ${configPath}.`);
+	}
+	const workspaces = isRecord(config.workspaces) ? config.workspaces : {};
+	const existingWorkspace = workspaces[options.workspace];
+	if (!isRecord(existingWorkspace)) {
+		throw new WorkspaceCommandAddRefusal(
+			"workspace-command-workspace-not-declared",
+			`Workspace ${JSON.stringify(options.workspace)} is not declared.`,
+		);
+	}
+	const existingCommands = isRecord(existingWorkspace.commands) ? existingWorkspace.commands : {};
+	if (!(options.name in existingCommands)) {
+		throw new WorkspaceCommandAddRefusal(
+			"workspace-command-not-declared",
+			`Operation ${JSON.stringify(options.name)} is not declared for workspace ${JSON.stringify(options.workspace)}.`,
+		);
+	}
+	const interactive = deps.interactive ?? Boolean((process.stdin.isTTY && process.stdout.isTTY) || options.attendedElsewhere);
+	if (!interactive) {
+		throw new WorkspaceCommandAddRefusal(
+			"workspace-command-not-interactive",
+			"Removing an operation requires an attended consent surface.",
+		);
+	}
+	const commands = { ...existingCommands };
+	delete commands[options.name];
+	const entry = {
+		...existingWorkspace,
+		...(Object.keys(commands).length > 0 ? { commands } : {}),
+	};
+	if (Object.keys(commands).length === 0) delete entry.commands;
+	const operationId = `remove:workspace-command:${options.workspace}:${options.name}`;
+	const trail = deps.trail ?? createFileOperationTrail(catalogTrailPath(configPath), deps.fs ?? createNodeOperationFileSystem());
+	const prior = standingDecision(await trail.read(), operationId);
+	const plan = planCatalogDeclaration({ block: "workspaces", name: options.workspace, entry, root, env: catalogEnv });
+	const request = buildCatalogOperationRequest({
+		plan,
+		operationId,
+		operationKind: "remove-workspace-command",
+		title: `${refarmCommand(["workspace", "command", "remove"])} ${options.workspace} ${options.name}`,
+		purpose: `Remover a operação nomeada "${options.name}" do workspace "${options.workspace}".`,
+		requester: refarmCommand(["workspace", "command", "remove"]),
+		requestedAt: (deps.now ?? (() => new Date().toISOString()))(),
+		notes: ["O workspace e todas as suas outras declarações permanecem intactos."],
+	});
+	const say = deps.announce ?? ((line: string) => console.log(line));
+	for (const line of renderCatalogProposal(request)) say(line);
+	try {
+		const outcome = await authorCatalogDeclaration({
+			request,
+			channel: deps.operator ?? createStdioOperatorChannel(),
+			trail,
+			...(deps.fs ? { fs: deps.fs } : {}),
+			...(deps.now ? { now: deps.now } : {}),
+			...(deps.decidedBy ? { decidedBy: deps.decidedBy } : {}),
+			host: deps.host ?? os.hostname(),
+			...(prior ? { revisit: true } : {}),
+		});
+		if (outcome.status === "declined") return { status: "declined", workspace: options.workspace, command: options.name };
+		if (outcome.status !== "authorized") return { status: "deferred", workspace: options.workspace, command: options.name };
+		return {
+			status: "declared",
+			workspace: options.workspace,
+			command: options.name,
+			configPath,
+			recordId: outcome.record.id,
+			undoCommand: refarmCommand(["config", "history", "undo", outcome.record.id, ...(options.local ? ["--local"] : [])]),
+		};
+	} catch (error) {
+		if (error instanceof OperatorPromptCancelledError) {
+			return { status: "cancelled", workspace: options.workspace, command: options.name };
 		}
 		throw error;
 	}
