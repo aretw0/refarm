@@ -311,7 +311,12 @@ export function parseStartArgs(args) {
 
 	return {
 		operation: rest.length > 0 ? rest.join(" ") : null,
+		// PEDIR e INFORMAR O VALOR são perguntas separadas de propósito. `--cancel` sem id
+		// precisa recusar dizendo qual id falta; se só o valor viajasse, "não pediu" e "pediu
+		// sem valor" ficariam iguais, e a segunda cairia calada no caminho da primeira.
+		statusRequested: statusAt >= 0,
 		statusRunId: statusAt >= 0 ? (args[statusAt + 1] ?? null) : null,
+		cancelRequested: cancelAt >= 0,
 		cancelRunId: cancelAt >= 0 ? (args[cancelAt + 1] ?? null) : null,
 		list,
 	};

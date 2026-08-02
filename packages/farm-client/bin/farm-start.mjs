@@ -51,7 +51,9 @@ const HTTP_PORT = Number(process.env.FARM_HTTP_PORT ?? 42001);
 // como UM argumento para um ponto de entrada fixo.
 const {
 	operation: OPERATION,
+	statusRequested: STATUS_REQUESTED,
 	statusRunId: STATUS_RUN_ID,
+	cancelRequested: CANCEL_REQUESTED,
 	cancelRunId: CANCEL_RUN_ID,
 } = parseStartArgs(process.argv.slice(2));
 
@@ -94,7 +96,7 @@ if (!(await sidecarUp(host))) {
 	process.exit(1);
 }
 
-if (cancelAt >= 0) {
+if (CANCEL_REQUESTED) {
 	if (CANCEL_RUN_ID === null) {
 		console.error("❌ --cancel precisa do run id mostrado por farm-start.");
 		process.exit(1);
@@ -124,7 +126,7 @@ async function readJson(res) {
 	}
 }
 
-if (statusAt >= 0) {
+if (STATUS_REQUESTED) {
 	if (STATUS_RUN_ID === null) {
 		console.error("❌ --status precisa do id mostrado por farm-start.");
 		process.exit(1);

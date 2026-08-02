@@ -262,7 +262,9 @@ test("um id de operação sozinho é o id, não uma listagem", () => {
 	// parsing quando NENHUMA opção acompanha ela.
 	assert.deepEqual(parseStartArgs(["workspace:rcdc5:code-boundaries"]), {
 		operation: "workspace:rcdc5:code-boundaries",
+		statusRequested: false,
 		statusRunId: null,
+		cancelRequested: false,
 		cancelRunId: null,
 		list: false,
 	});
@@ -277,13 +279,17 @@ test("um id com espaços continua sendo UM id, e sem opção nenhuma se perde", 
 test("--status e --cancel consomem o próprio valor e não sobra operação", () => {
 	assert.deepEqual(parseStartArgs(["--status", "run-7"]), {
 		operation: null,
+		statusRequested: true,
 		statusRunId: "run-7",
+		cancelRequested: false,
 		cancelRunId: null,
 		list: false,
 	});
 	assert.deepEqual(parseStartArgs(["--cancel", "run-9"]), {
 		operation: null,
+		statusRequested: false,
 		statusRunId: null,
+		cancelRequested: true,
 		cancelRunId: "run-9",
 		list: false,
 	});
@@ -293,4 +299,21 @@ test("--list pede o catálogo sem virar operação", () => {
 	const parsed = parseStartArgs(["--list"]);
 	assert.equal(parsed.list, true);
 	assert.equal(parsed.operation, null);
+});
+
+test("pedir uma flag e informar o valor dela são perguntas diferentes", () => {
+	// `--cancel` sem id precisa RECUSAR com "informe o run id", não virar uma listagem de
+	// catálogo. Se o parsing só devolvesse o valor, as duas situações — não pediu, e pediu
+	// sem valor — ficariam indistinguíveis, e a segunda cairia calada no caminho da primeira.
+	const asked = parseStartArgs(["--cancel"]);
+	assert.equal(asked.cancelRequested, true);
+	assert.equal(asked.cancelRunId, null);
+
+	const notAsked = parseStartArgs(["workspace:rcdc5:code-boundaries"]);
+	assert.equal(notAsked.cancelRequested, false);
+	assert.equal(notAsked.statusRequested, false);
+
+	const withValue = parseStartArgs(["--status", "run-7"]);
+	assert.equal(withValue.statusRequested, true);
+	assert.equal(withValue.statusRunId, "run-7");
 });

@@ -1415,7 +1415,11 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
-  packages/farm-client: {}
+  packages/farm-client:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
 
   packages/fence:
     devDependencies:

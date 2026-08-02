@@ -162,7 +162,8 @@ test("lists a pending question without answering it", async () => {
 	// --list looks; it does not answer.
 	assert.equal(node.hub.list().length, 1);
 
-	node.hub.list()[0] && node.hub.answer(node.hub.list()[0].id, "cleanup", "pixel-7");
+	const pending = node.hub.list()[0];
+	if (pending) node.hub.answer(pending.id, "cleanup", "pixel-7");
 	await asking;
 });
 
