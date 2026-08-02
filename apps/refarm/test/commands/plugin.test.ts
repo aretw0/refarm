@@ -309,10 +309,17 @@ describe("plugin install", () => {
 
 	it("prints install results as JSON without operator log lines", async () => {
 		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/agent/package.json");
-		mockReadFileSync
-			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" }))
-			.mockReturnValueOnce(Buffer.from("wasm-bytes"))
-			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/agent", version: "0.4.1" }));
+		// Keyed by PATH, not by call order: the install path now reads refarm's own config
+		// before it reads anything of the plugin's, and a queue of `mockReturnValueOnce`
+		// hands those reads the plugin's bytes — leaving the real reads with `undefined`.
+		// Answering per path is order-proof and says what each read is actually for.
+		mockReadFileSync.mockImplementation((target: unknown) => {
+			const file = String(target);
+			if (file.endsWith(".wasm")) return Buffer.from("wasm-bytes");
+			if (file.endsWith("/package.json")) return JSON.stringify({ version: "0.4.1" });
+			if (file.endsWith(".json")) return JSON.stringify({ id: "@refarm/agent", version: "0.4.1" });
+			return "{}";
+		});
 		mockReadFile.mockRejectedValue(new Error("ENOENT"));
 		mockExistsSync.mockReturnValue(true);
 		mockDigest.mockReturnValue("deadbeef");

@@ -11,6 +11,7 @@ import {
 	resolveRuntimeTaskResultsDir,
 } from "../../src/commands/ask.js";
 import type { LaunchDeps } from "../../src/commands/session-launch.js";
+import { SESSION_LOCK_PATH } from "../../src/commands/session-lock.js";
 
 function makeChunk(
 	content: string,
@@ -349,7 +350,7 @@ describe("refarm ask", () => {
 			}),
 		);
 		expect(writeSpy).toHaveBeenCalledWith(
-			expect.stringContaining(".refarm/session.lock"),
+			SESSION_LOCK_PATH,
 			"urn:sovereign:session:v1:active123",
 			"utf-8",
 		);

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SESSION_LOCK_PATH } from "../../src/commands/session-lock.js";
 import { createSessionsCommand } from "../../src/commands/sessions.js";
 
 describe("refarm sessions", () => {
@@ -79,7 +80,7 @@ describe("refarm sessions", () => {
 		expect(init.body).toBe(JSON.stringify({ name: "auth-refactor" }));
 		expect(mkdirSpy).toHaveBeenCalled();
 		expect(writeSpy).toHaveBeenCalledWith(
-			expect.stringContaining(".refarm/session.lock"),
+			SESSION_LOCK_PATH,
 			"urn:sovereign:session:v1:abc123def456",
 			"utf-8",
 		);
@@ -426,7 +427,7 @@ describe("refarm sessions", () => {
 			.parseAsync(["abc123"], { from: "user" });
 
 		expect(writeSpy).toHaveBeenCalledWith(
-			expect.stringContaining(".refarm/session.lock"),
+			SESSION_LOCK_PATH,
 			"urn:sovereign:session:v1:abc123def456",
 			"utf-8",
 		);

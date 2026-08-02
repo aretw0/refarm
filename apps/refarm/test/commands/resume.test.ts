@@ -627,9 +627,13 @@ describe("resume command", () => {
 		};
 		expect(payload.command).toBe("resume");
 		expect(payload.nextCommand).toBe("refarm model current --json");
-		expect(payload.nextActions).toContain("refarm model current --json");
 		expect(payload.nextCommands?.[0]).toBe("refarm model current --json");
-		expect(payload.nextAction).toBe("refarm model current --json");
+		// `nextActions` stopped mirroring `nextCommands` in e49e4220: an action says WHAT to
+		// do in a sentence, a command says HOW to do it. Assert the split rather than either
+		// list's contents, so re-conflating them fails here instead of shipping a JSON
+		// consumer a sentence where it expected an argv.
+		expect(payload.nextActions?.every((action) => !action.startsWith("refarm "))).toBe(true);
+		expect(payload.nextAction).toBe(payload.nextActions?.[0] ?? null);
 		expect(Array.isArray(payload.nextProcesses)).toBe(true);
 		expect(
 			(payload.nextProcesses ?? []).some(
