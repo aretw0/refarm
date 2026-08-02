@@ -353,6 +353,8 @@ export interface RecipeContext {
 	invocation: RefarmInvocation;
 	/** Injected so a test never needs a published dist tree. */
 	exists(target: string): boolean;
+	/** Names in a directory, injected so recipes can discover existing sovereign material. */
+	listDirectory?(target: string): string[];
 	/** Operator-supplied narrowings, when they passed a flag instead of adjusting at the prompt. */
 	overrides: { port?: number; directory?: string };
 }
@@ -411,7 +413,25 @@ export const WEB_SERVE_RECIPE: ProcessRecipe = {
 		// A future path is still the exact path the publisher will create, never a nearby one.
 		const directory = context.overrides.directory ?? kitDir;
 		const port = context.overrides.port ?? DEFAULT_WEB_SERVE_PORT;
-		const command = [...context.invocation.argv, "web", "serve", directory, "--port", String(port)];
+		const tlsDir = path.join(context.root, ".refarm", "tls");
+		const certificatePairs = (context.listDirectory?.(tlsDir) ?? [])
+			.filter((name) => name.endsWith(".crt") && name !== "ca.crt")
+			.map((name) => ({
+				certFile: path.join(tlsDir, name),
+				keyFile: path.join(tlsDir, `${name.slice(0, -4)}.key`),
+			}))
+			.filter((pair) => context.exists(pair.keyFile))
+			.sort((left, right) => left.certFile.localeCompare(right.certFile));
+		const tls = certificatePairs.length === 1 ? certificatePairs[0]! : null;
+		const command = [
+			...context.invocation.argv,
+			"web",
+			"serve",
+			directory,
+			"--port",
+			String(port),
+			...(tls ? ["--tls-cert", tls.certFile, "--tls-key", tls.keyFile] : []),
+		];
 		const published = context.exists(directory);
 		return {
 			name: "web-serve",
@@ -440,21 +460,38 @@ export const WEB_SERVE_RECIPE: ProcessRecipe = {
 						? "--port, o que você passou"
 						: "DEFAULT_WEB_SERVE_PORT — a mesma porta assada em todo installer já entregue a um aparelho",
 				},
+				...(tls
+					? [
+							{
+								key: "tls",
+								value: `${tls.certFile} + ${tls.keyFile}`,
+								source:
+									"o único par folha .crt/.key já emitido em .refarm/tls; HTTP permanece disponível ao lado do HTTPS",
+							},
+						]
+					: []),
 				{
 					key: "workingDirectory",
 					value: context.root,
 					source: "a raiz soberana — o diretório cujo .refarm/config.json recebe esta declaração",
 				},
 			],
-			preflight: published
-				? [
+			preflight: [
+				...(published
+					? [
 						`${directory} existe — \`${refarmCommand(["dist", "publish"])}\` já rodou aqui.`,
 						"Trocar a porta quebra os aparelhos já bootstrapados: eles consultam a porta assada no installer.",
-					]
-				: [
+						]
+					: [
 						`${directory} ainda não existe. Rode \`${refarmCommand(["dist", "publish"])}\` antes de ligar ` +
 							"o serviço — a declaração pode ser escrita agora, o diretório só precisa existir na hora de servir.",
-					],
+						]),
+				...(certificatePairs.length > 1
+					? [
+							`${certificatePairs.length} pares TLS existem em ${tlsDir}; nenhum foi escolhido sem uma declaração inequívoca.`,
+						]
+					: []),
+			],
 			adjustable: [
 				{
 					key: "directory",
@@ -576,6 +613,8 @@ export interface ProcessAddDeps {
 	announce?: (line: string) => void;
 	/** Seamed so a test never needs a published dist tree. */
 	exists?: (target: string) => boolean;
+	/** Seamed directory discovery for recipe-owned material such as certificates. */
+	listDirectory?: (target: string) => string[];
 	/** Seamed so a test never needs the operator's real launcher on PATH. */
 	invocation?: RefarmInvocation | null;
 	/** How a `PATH` entry is judged runnable. Seamed for the same reason. */
@@ -619,6 +658,15 @@ export async function runProcessAdd(
 	const root = deps.root ?? process.cwd();
 	const say = deps.announce ?? ((line: string) => console.log(line));
 	const exists = deps.exists ?? ((target: string) => fs.existsSync(target));
+	const listDirectory =
+		deps.listDirectory ??
+		((target: string) => {
+			try {
+				return fs.readdirSync(target);
+			} catch {
+				return [];
+			}
+		});
 
 	// Answerable from the ARGUMENTS ALONE — refused before anybody is disturbed. Walking an
 	// operator (or a device that had to be attended for the questions to arrive at all) through a
@@ -719,6 +767,7 @@ export async function runProcessAdd(
 				env,
 				invocation,
 				exists,
+				listDirectory,
 				overrides: {
 					...(portFromFlag === null ? {} : { port: portFromFlag }),
 					...(options.dir ? { directory: expandHome(options.dir.trim(), env) } : {}),
@@ -774,7 +823,7 @@ export async function runProcessAdd(
 						overrides.directory = requireAbsoluteDirectory(expandHome(value, env));
 					}
 				}
-				adjusted = recipe.propose({ root, env, invocation, exists, overrides });
+				adjusted = recipe.propose({ root, env, invocation, exists, listDirectory, overrides });
 			}
 
 			description = adjusted.description;

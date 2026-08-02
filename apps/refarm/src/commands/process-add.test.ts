@@ -845,6 +845,36 @@ describe("the web-serve recipe", () => {
 		expect(proposed.derived.map((field) => field.key)).not.toContain("restart");
 		expect(JSON.stringify(proposed)).not.toContain('"restart"');
 	});
+
+	it("adds the one existing sovereign TLS pair to the supervised web server", () => {
+		const tlsDir = path.join("/farm", ".refarm", "tls");
+		const proposed = WEB_SERVE_RECIPE.propose({
+			root: "/farm",
+			env: {},
+			invocation: INVOCATION,
+			exists: (target) => target === path.join(tlsDir, "node.example.key"),
+			listDirectory: (target) =>
+				target === tlsDir ? ["ca.crt", "ca.key", "node.example.crt", "node.example.key"] : [],
+			overrides: {},
+		});
+		expect(proposed.command).toContain("--tls-cert");
+		expect(proposed.command).toContain(path.join(tlsDir, "node.example.crt"));
+		expect(proposed.command).toContain(path.join(tlsDir, "node.example.key"));
+		expect(proposed.derived.map((field) => field.key)).toContain("tls");
+	});
+
+	it("does not guess when more than one TLS leaf pair exists", () => {
+		const proposed = WEB_SERVE_RECIPE.propose({
+			root: "/farm",
+			env: {},
+			invocation: INVOCATION,
+			exists: (target) => target.endsWith(".key"),
+			listDirectory: () => ["one.crt", "one.key", "two.crt", "two.key"],
+			overrides: {},
+		});
+		expect(proposed.command).not.toContain("--tls-cert");
+		expect(proposed.preflight.join("\n")).toContain("nenhum foi escolhido");
+	});
 });
 
 // ── The CLI surface ───────────────────────────────────────────────────────────
