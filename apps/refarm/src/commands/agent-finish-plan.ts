@@ -232,6 +232,48 @@ function handoffContractStep(): CommandPlanStep {
 	);
 }
 
+/**
+ * THE GATES THAT USED TO EXIST ONLY IN CI.
+ *
+ * Three repo-wide contracts are enforced by the pipeline and by nothing local: the package
+ * scaffold (`validate-packages`), the task-smoke build order, and the high-severity audit. Both
+ * registries are maintained BY HAND, so a new package satisfies them only if its author
+ * remembered — and on 2026-08-02 a week of new packages had fed neither, which broke the Windows
+ * and macOS jobs before they built anything.
+ *
+ * They belong in `before-push` specifically, and in no earlier lane. Each is repo-wide rather
+ * than change-scoped, so running them after every edit would charge a whole-repo question to a
+ * one-file answer; a push is the first moment the question is actually being asked. None of the
+ * three compiles anything, so the whole addition is seconds.
+ *
+ * The audit is deliberately blocking here, matching CI rather than softening it: this lane's
+ * contract is "say what the pipeline will say" (CLAUDE.md §6, local reproduction first). An
+ * advisory published overnight will therefore stop a push — which is the same stop CI would
+ * make, arriving earlier and cheaper. `pnpm-workspace.yaml`'s `auditConfig.ignoreGhsas` is the
+ * documented escape hatch, and it asks for a written reason, which is the right price.
+ */
+function repoContractGateSteps(): CommandPlanStep[] {
+	return [
+		packageScriptStep(
+			".",
+			"validate-packages",
+			"Check every package against its scaffold type before the push.",
+			"gate",
+		),
+		packageScriptStep(
+			".",
+			"task:build-order:check",
+			"Check the task-smoke build order still names every TypeScript dependency.",
+			"gate",
+		),
+		scriptTestStep({
+			id: "gate-security-audit",
+			args: ["node", "scripts/security/audit.mjs", "--audit-level=high"],
+			description: "Check for high-severity advisories, at CI's blocking level.",
+		}),
+	];
+}
+
 function scriptTestStep(input: {
 	id: string;
 	args: string[];
@@ -671,6 +713,8 @@ function selectedFinishSteps(
 			...steps,
 			...affectedScriptFinishSteps(options.affectedScriptChecks),
 			...affectedPackageFinishSteps(options.includeTests, options.affectedWorkspaces),
+			// Repo-wide contracts, asked at the one moment the repo is about to become public.
+			...(options.lane === "before-push" ? repoContractGateSteps() : []),
 		];
 	}
 	return steps;

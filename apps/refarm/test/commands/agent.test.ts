@@ -1203,6 +1203,29 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("before-push runs the repo-contract gates the local lane used to leave to CI", async () => {
+		// Three gates existed ONLY in CI: the scaffold contract, the task-smoke build order, and
+		// the high-severity audit. None compiles anything, all three cost seconds — and on
+		// 2026-08-02 four of twelve defects reached `develop` through exactly that gap, invisible
+		// until a push six days later. `before-push` is the lane whose job is to say what CI will.
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["finish", "--lane", "before-push", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			steps: { id: string; command: string }[];
+		};
+
+		expect(payload.ok).toBe(true);
+		const ids = payload.steps.map((step) => step.id);
+		expect(ids).toContain("gate-validate-packages");
+		expect(ids).toContain("gate-task-build-order-check");
+		expect(ids).toContain("gate-security-audit");
+		logSpy.mockRestore();
+	});
+
 	it("adds package validation steps from workspace scripts", async () => {
 		const agentCommand = createAgentCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
