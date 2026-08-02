@@ -46,6 +46,7 @@ import {
 } from "./workspace-add.js";
 import {
 	runWorkspaceCommandAdd,
+	runWorkspaceCommandRemote,
 	runWorkspaceCommandRemove,
 	WorkspaceCommandAddRefusal,
 } from "./workspace-command-add.js";
@@ -1058,6 +1059,76 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 				failWorkspace("command-add", options, error);
 			}
 		});
+
+	const workspaceRemoteCommand = workspaceOperationCommand
+		.command("remote")
+		.description("Expose or recollect an existing operation without changing its argv");
+
+	for (const mode of ["enable", "disable"] as const) {
+		workspaceRemoteCommand
+			.command(`${mode} <workspace> <name>`)
+			.description(
+				mode === "enable"
+					? "Allow enrolled devices to start an existing named operation"
+					: "Return an existing named operation to local-only use",
+			)
+			.option("--local", "Write this workspace's local .refarm/config.json")
+			.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
+			.option("--json", "Output the declaration result as JSON")
+			.action(
+				async (
+					workspace: string,
+					name: string,
+					options: { local?: boolean; attendedElsewhere?: boolean; json?: boolean },
+				) => {
+					try {
+						const result = await runWorkspaceCommandRemote({
+							workspace,
+							name,
+							remote: mode === "enable",
+							...options,
+						});
+						if (options.json) {
+							printJson(
+								buildJsonSuccessEnvelope({
+									command: "workspace",
+									operation: `command-remote-${mode}`,
+									extra: result,
+									nextCommands:
+										result.status === "declared"
+											? [refarmCommand(["auth", "remote", "--json"])]
+											: [],
+								}),
+							);
+							return;
+						}
+						if (result.status === "declared") {
+							console.log(
+								chalk.green(
+									`✓  "${workspace}:${name}" is ${mode === "enable" ? "remote" : "local-only"}`,
+								),
+							);
+							console.log(chalk.dim(`   undo: ${result.undoCommand}`));
+						} else console.log(chalk.dim(`workspace command remote ${result.status}`));
+					} catch (error) {
+						if (error instanceof WorkspaceCommandAddRefusal && options.json) {
+							printJson(
+								buildJsonErrorEnvelope({
+									command: "workspace",
+									operation: `command-remote-${mode}`,
+									error: error.code,
+									message: error.message,
+									nextAction: "Inspect the named operation, then retry from an attended surface.",
+								}),
+							);
+							process.exitCode = 1;
+							return;
+						}
+						failWorkspace(`command-remote-${mode}`, options, error);
+					}
+				},
+			);
+	}
 
 	workspaceOperationCommand
 		.command("remove <workspace> <name>")

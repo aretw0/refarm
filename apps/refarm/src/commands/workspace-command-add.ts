@@ -29,6 +29,7 @@ import {
 } from "./catalog-authoring.js";
 
 const COMMAND = refarmCommand(["workspace", "command", "add"]);
+const REMOTE_COMMAND = refarmCommand(["workspace", "command", "remote"]);
 
 export interface WorkspaceCommandAddOptions {
 	workspace: string;
@@ -63,10 +64,151 @@ export type WorkspaceCommandAddResult =
 
 export type WorkspaceCommandRemoveResult = WorkspaceCommandAddResult;
 
+export interface WorkspaceCommandRemoteOptions {
+	workspace: string;
+	name: string;
+	remote: boolean;
+	local?: boolean;
+	attendedElsewhere?: boolean;
+}
+
 export class WorkspaceCommandAddRefusal extends Error {
 	constructor(readonly code: string, message: string) {
 		super(message);
 		this.name = "WorkspaceCommandAddRefusal";
+	}
+}
+
+/** Expose or recollect an existing operation without asking the operator to restate its argv. */
+export async function runWorkspaceCommandRemote(
+	options: WorkspaceCommandRemoteOptions,
+	deps: WorkspaceCommandAddDeps = {},
+): Promise<WorkspaceCommandAddResult> {
+	const env = deps.env ?? process.env;
+	const cwd = deps.cwd ?? process.cwd();
+	const operatorHome = path.resolve(resolveRefarmHome(env));
+	const root = deps.root ?? (options.local ? cwd : path.dirname(operatorHome));
+	const catalogEnv =
+		deps.root || options.local ? env : { ...env, SOVEREIGN_DIR: path.basename(operatorHome) };
+	const configPath = catalogConfigPath(root, catalogEnv);
+	let config: Record<string, unknown>;
+	try {
+		config = JSON.parse(fs.readFileSync(configPath, "utf8")) as Record<string, unknown>;
+	} catch {
+		throw new WorkspaceCommandAddRefusal(
+			"workspace-command-config-unreadable",
+			`Cannot read ${configPath}.`,
+		);
+	}
+	const workspaces = isRecord(config.workspaces) ? config.workspaces : {};
+	const existingWorkspace = workspaces[options.workspace];
+	if (!isRecord(existingWorkspace)) {
+		throw new WorkspaceCommandAddRefusal(
+			"workspace-command-workspace-not-declared",
+			`Workspace ${JSON.stringify(options.workspace)} is not declared.`,
+		);
+	}
+	const existingCommands = isRecord(existingWorkspace.commands) ? existingWorkspace.commands : {};
+	const existingCommand = existingCommands[options.name];
+	if (!isRecord(existingCommand)) {
+		throw new WorkspaceCommandAddRefusal(
+			"workspace-command-not-declared",
+			`Operation ${JSON.stringify(options.name)} is not declared for workspace ${JSON.stringify(options.workspace)}.`,
+		);
+	}
+	const isRemote = existingCommand.remote === true;
+	if (isRemote === options.remote) {
+		throw new WorkspaceCommandAddRefusal(
+			"workspace-command-remote-unchanged",
+			`Operation ${JSON.stringify(options.name)} is already ${options.remote ? "remote" : "local-only"}.`,
+		);
+	}
+	const interactive =
+		deps.interactive ??
+		Boolean((process.stdin.isTTY && process.stdout.isTTY) || options.attendedElsewhere);
+	if (!interactive) {
+		throw new WorkspaceCommandAddRefusal(
+			"workspace-command-not-interactive",
+			"Changing remote admission requires an attended consent surface.",
+		);
+	}
+	const { remote: _remote, ...commandWithoutRemote } = existingCommand;
+	const updatedCommand = options.remote
+		? { ...commandWithoutRemote, remote: true }
+		: commandWithoutRemote;
+	const entry = {
+		...existingWorkspace,
+		commands: { ...existingCommands, [options.name]: updatedCommand },
+	};
+	const mode = options.remote ? "enable" : "disable";
+	const operationId = `declare:workspace-command-remote:${mode}:${options.workspace}:${options.name}`;
+	const trail =
+		deps.trail ??
+		createFileOperationTrail(
+			catalogTrailPath(configPath),
+			deps.fs ?? createNodeOperationFileSystem(),
+		);
+	const prior = standingDecision(await trail.read(), operationId);
+	const plan = planCatalogDeclaration({
+		block: "workspaces",
+		name: options.workspace,
+		entry,
+		root,
+		env: catalogEnv,
+	});
+	const request = buildCatalogOperationRequest({
+		plan,
+		operationId,
+		operationKind: "declare-workspace-command-remote",
+		title: `${REMOTE_COMMAND} ${mode} ${options.workspace} ${options.name}`,
+		purpose: options.remote
+			? `Permitir que aparelhos enrolados iniciem "${options.workspace}:${options.name}".`
+			: `Recolher "${options.workspace}:${options.name}" para uso somente local.`,
+		requester: REMOTE_COMMAND,
+		requestedAt: (deps.now ?? (() => new Date().toISOString()))(),
+		notes: [
+			"run, cwd e description são preservados byte a byte; somente a admissão remota muda.",
+			"O aparelho envia um id opaco; nunca envia argv ou argumentos extras.",
+		],
+	});
+	const say = deps.announce ?? ((line: string) => console.log(line));
+	for (const line of renderCatalogProposal(request)) say(line);
+	try {
+		const outcome = await authorCatalogDeclaration({
+			request,
+			channel: deps.operator ?? createStdioOperatorChannel(),
+			trail,
+			...(deps.fs ? { fs: deps.fs } : {}),
+			...(deps.now ? { now: deps.now } : {}),
+			...(deps.decidedBy ? { decidedBy: deps.decidedBy } : {}),
+			host: deps.host ?? os.hostname(),
+			...(prior ? { revisit: true } : {}),
+		});
+		if (outcome.status === "declined") {
+			return { status: "declined", workspace: options.workspace, command: options.name };
+		}
+		if (outcome.status !== "authorized") {
+			return { status: "deferred", workspace: options.workspace, command: options.name };
+		}
+		return {
+			status: "declared",
+			workspace: options.workspace,
+			command: options.name,
+			configPath,
+			recordId: outcome.record.id,
+			undoCommand: refarmCommand([
+				"config",
+				"history",
+				"undo",
+				outcome.record.id,
+				...(options.local ? ["--local"] : []),
+			]),
+		};
+	} catch (error) {
+		if (error instanceof OperatorPromptCancelledError) {
+			return { status: "cancelled", workspace: options.workspace, command: options.name };
+		}
+		throw error;
 	}
 }
 

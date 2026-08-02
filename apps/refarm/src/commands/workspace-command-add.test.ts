@@ -3,7 +3,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { runWorkspaceCommandAdd, runWorkspaceCommandRemove } from "./workspace-command-add.js";
+import {
+	runWorkspaceCommandAdd,
+	runWorkspaceCommandRemote,
+	runWorkspaceCommandRemove,
+} from "./workspace-command-add.js";
 
 const roots: string[] = [];
 
@@ -105,5 +109,77 @@ describe("workspace command add", () => {
 		const after = JSON.parse(fs.readFileSync(configPath, "utf8"));
 		expect(after.workspaces.app.commands).toEqual({ keep: { run: ["pnpm", "test"] } });
 		expect(after.workspaces.app).toMatchObject({ path: "/work/app", kind: "project" });
+	});
+});
+
+describe("workspace command remote admission", () => {
+	it("enables remote access without changing any existing operation field", async () => {
+		const root = fixture();
+		const configPath = path.join(root, ".refarm", "config.json");
+		const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+		config.workspaces.app.commands = {
+			status: {
+				run: ["app", "status", "value with spaces"],
+				cwd: "packages/app",
+				description: "Current status",
+			},
+		};
+		fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
+
+		await runWorkspaceCommandRemote(
+			{ workspace: "app", name: "status", remote: true },
+			{
+				root,
+				env: { SOVEREIGN_DIR: ".refarm" },
+				interactive: true,
+				operator: createScriptedOperatorChannel(["authorize"]),
+				announce: () => {},
+			},
+		);
+
+		const after = JSON.parse(fs.readFileSync(configPath, "utf8"));
+		expect(after.workspaces.app.commands.status).toEqual({
+			run: ["app", "status", "value with spaces"],
+			cwd: "packages/app",
+			description: "Current status",
+			remote: true,
+		});
+	});
+
+	it("disables remote access by removing only the admission marker", async () => {
+		const root = fixture();
+		const configPath = path.join(root, ".refarm", "config.json");
+		const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+		config.workspaces.app.commands = {
+			status: { run: ["app", "status"], description: "Current status", remote: true },
+		};
+		fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
+
+		await runWorkspaceCommandRemote(
+			{ workspace: "app", name: "status", remote: false },
+			{
+				root,
+				env: { SOVEREIGN_DIR: ".refarm" },
+				interactive: true,
+				operator: createScriptedOperatorChannel(["authorize"]),
+				announce: () => {},
+			},
+		);
+
+		const after = JSON.parse(fs.readFileSync(configPath, "utf8"));
+		expect(after.workspaces.app.commands.status).toEqual({
+			run: ["app", "status"],
+			description: "Current status",
+		});
+	});
+
+	it("refuses missing and already-matching operations without writing", async () => {
+		const root = fixture();
+		await expect(
+			runWorkspaceCommandRemote(
+				{ workspace: "app", name: "missing", remote: true },
+				{ root, env: { SOVEREIGN_DIR: ".refarm" }, interactive: true },
+			),
+		).rejects.toMatchObject({ code: "workspace-command-not-declared" });
 	});
 });

@@ -116,6 +116,10 @@ pretending otherwise would smuggle a terminal multiplexer into this design.
 # Reviewed authoring; omit --remote to keep the operation local-only.
 refarm workspace command add <workspace> <operation> --remote -- <exact argv...>
 
+# Promote/recollect an existing operation without restating or changing its argv.
+refarm workspace command remote enable <workspace> <operation>
+refarm workspace command remote disable <workspace> <operation>
+
 # What an enrolled device will see through GET /operations / farm-start.
 refarm auth remote --json
 ```
