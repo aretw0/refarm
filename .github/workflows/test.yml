@@ -576,6 +576,15 @@ jobs:
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit == 'true'
         run: echo "::notice::Reusing previous successful Tractor benchmark/coverage validation for unchanged heavy inputs."
 
+      # The hardening collector proves a suite conformant by IMPORTING each package's built artifact,
+      # so its floors read low whenever Verify's FILTERED build leaves the workspace partly unbuilt —
+      # 24 conformant on a built tree against 19 here. Same shape as the Tractor release-path smoke
+      # below: a narrow, explicit guarantee that is a warm cache-hit in the normal case rather than a
+      # cold build.
+      - name: Build the workspace for the hardening collector
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
+        run: pnpm turbo run build --cache-dir=.turbo --output-logs=errors-only --ui=stream
+
       # --continue: run ALL tasks even after one fails, so a cache-invalidation that surfaces several
       # latent failures reports them in ONE run instead of one-per-push (the "cache roulette"). The gate
       # still fails if any task fails; it just no longer stops at the first.
