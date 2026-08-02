@@ -88,6 +88,10 @@ describe("refarm delivery list", () => {
 		expect(json?.ok).toBe(true);
 		expect(json?.declared).toBe(false);
 		expect(json?.channels).toEqual([]);
+		expect(json?.nextAction).toBe(
+			"Declare a delivery channel through the guided authoring journey.",
+		);
+		expect(json?.nextCommand).toBe("refarm delivery add");
 	});
 
 	it("names the token SOURCE and never its value", async () => {

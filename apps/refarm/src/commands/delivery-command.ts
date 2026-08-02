@@ -47,6 +47,7 @@ import {
 
 const DELIVERY_HELP_COMMAND = "refarm delivery --help";
 const DELIVERY_LIST_COMMAND = "refarm delivery list --json";
+const DELIVERY_ADD_COMMAND = "refarm delivery add";
 
 interface DeliveryCommandOptions {
 	json?: boolean;
@@ -288,7 +289,7 @@ export function createDeliveryCommand(): Command {
 					token: describeTokenSource(channel.declaration),
 				}));
 				const nextCommand =
-					declared.length > 0 ? "refarm delivery route --json" : DELIVERY_LIST_COMMAND;
+					declared.length > 0 ? "refarm delivery route --json" : DELIVERY_ADD_COMMAND;
 				if (options.json) {
 					printJson(
 						buildJsonSuccessEnvelope({
@@ -297,7 +298,7 @@ export function createDeliveryCommand(): Command {
 							nextAction:
 								declared.length > 0
 									? "Check how a decision would be routed before relying on it."
-									: "Declare a delivery channel in .refarm/config.json to be notified.",
+									: "Declare a delivery channel through the guided authoring journey.",
 							nextCommand,
 							extra: {
 								declared: declared.length > 0,
@@ -311,6 +312,7 @@ export function createDeliveryCommand(): Command {
 				}
 				if (declared.length === 0) {
 					console.log(chalk.dim("No delivery channel is declared — refarm will not notify you."));
+					console.log(chalk.dim(`   ${DELIVERY_ADD_COMMAND}`));
 				}
 				for (const entry of declared) {
 					console.log(
