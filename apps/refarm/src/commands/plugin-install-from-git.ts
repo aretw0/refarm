@@ -1,7 +1,7 @@
 import { buildJsonErrorEnvelope } from "@refarm.dev/capabilities/envelope";
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import type { PluginPolicyMode } from "@refarm.dev/plugin-manifest";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -12,7 +12,8 @@ import {
 
 /**
  * Install a plugin from a `git` reference (ADR-086 Fase 7c) — `plugin install
- * git+https://host/repo.git` (optionally `…#<ref>` for a branch/tag/commit). A git
+ * git+https://host/repo.git` (optionally `…#<ref>` for a branch/tag/commit, and
+ * `--subdir packages/my-plugin` for a monorepo). A git
  * repo is just a directory, so — with the multi-kind installer — a git install is:
  * shallow-clone the repo to a temp dir, locate its manifest (root or `dist/`), then
  * run the SAME review-first local installer. git gains the local installer's exact
@@ -56,8 +57,26 @@ export interface GitInstallInput {
 	ref: string;
 	grantedCapabilities: string[];
 	policyMode: PluginPolicyMode;
+	/** Optional plugin package directory inside a monorepo checkout. */
+	subdir?: string;
 	/** Injected clone (default: shallow `git clone`). */
 	cloneRepo?: CloneRepo;
+}
+
+function resolvePluginRoot(cloneDir: string, subdir: string | undefined): string | null {
+	const requested = subdir?.trim();
+	if (!requested || requested === ".") return cloneDir;
+	const normalized = path.normalize(requested);
+	if (path.isAbsolute(requested) || normalized === ".." || normalized.startsWith(`..${path.sep}`)) {
+		return null;
+	}
+	const candidate = path.join(cloneDir, normalized);
+	if (!existsSync(candidate)) return null;
+	const realClone = realpathSync(cloneDir);
+	const realCandidate = realpathSync(candidate);
+	const relative = path.relative(realClone, realCandidate);
+	if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return null;
+	return realCandidate;
 }
 
 /** Split a git ref into its remote URL and optional `#<ref>` (branch/tag/commit),
@@ -107,16 +126,28 @@ export async function buildGitInstallReport(
 			});
 		}
 
-		// 2) Locate the plugin manifest in the clone (root or dist/).
-		const manifestDir = findManifestDir(cloneDir);
+		// 2) Select an optional monorepo package, then locate its manifest (root or dist/).
+		// realpath containment rejects both `..` traversal and a symlink escaping the clone.
+		const pluginRoot = resolvePluginRoot(cloneDir, input.subdir);
+		if (!pluginRoot) {
+			return buildJsonErrorEnvelope({
+				command: "plugin",
+				operation: "install",
+				error: "git_subdir_invalid",
+				message: `Plugin subdirectory ${JSON.stringify(input.subdir)} is missing or escapes the cloned repository.`,
+				nextAction: "Choose a package directory inside the repository checkout.",
+				extra: { ref: input.ref, remote, subdir: input.subdir },
+			});
+		}
+		const manifestDir = findManifestDir(pluginRoot);
 		if (!manifestDir) {
 			return buildJsonErrorEnvelope({
 				command: "plugin",
 				operation: "install",
 				error: "git_manifest_not_found",
-				message: `The repository ${remote} does not ship a plugin.json (looked at the repo root and dist/). Build and commit the plugin artifacts, or publish it via npm.`,
+				message: `The repository ${remote}${input.subdir ? ` at ${input.subdir}` : ""} does not ship a plugin.json (looked at the selected root and dist/). Build and commit the plugin artifacts, or publish it via npm.`,
 				nextAction: "Ensure the repo ships a built plugin.json + entry, or install from npm.",
-				extra: { ref: input.ref, remote },
+				extra: { ref: input.ref, remote, ...(input.subdir ? { subdir: input.subdir } : {}) },
 			});
 		}
 

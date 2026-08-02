@@ -405,6 +405,17 @@ describe("plugin capability group", () => {
 			expect((env as { error?: string }).error).toBe("git_clone_failed");
 		});
 
+		it("refuses --subdir for a non-git origin", async () => {
+			const group = createPluginCapabilityGroup(makeDeps());
+			const env = await action(group, "install").run({
+				args: { ref: "@scope/pkg" },
+				options: { subdir: "packages/plugin" },
+				json: true,
+			});
+			expect(env.ok).toBe(false);
+			expect((env as { error?: string }).error).toBe("install-subdir-origin");
+		});
+
 		it("rejects --bundled together with a positional ref (ambiguous)", async () => {
 			const group = createPluginCapabilityGroup(makeDeps());
 			const env = await action(group, "install").run({

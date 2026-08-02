@@ -283,6 +283,11 @@ export function createPluginCapabilityGroup(
 				summary: "Policy mode: fail-fast or warn+continue",
 				defaultValue: "fail-fast",
 			},
+			{
+				name: "subdir",
+				kind: "string",
+				summary: "For a git <ref>: plugin package directory inside a monorepo",
+			},
 		],
 		run(input) {
 			const policy = input.options.policy;
@@ -437,6 +442,16 @@ export function createPluginCapabilityGroup(
 			// resolved package), `git` (a cloned repo), and `url` (a content-addressed
 			// descriptor) are all materializable — every origin is now wired.
 			const origin = detectPluginOrigin(ref);
+			const subdir = input.options.subdir as string | undefined;
+			if (subdir && origin !== "git") {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "install",
+					error: "install-subdir-origin",
+					message: "--subdir is supported only for git plugin references.",
+					nextAction: "Remove --subdir or use a git reference.",
+				});
+			}
 
 			// local + npm + git all run the review-first path installer, so all honor
 			// --policy / --grant. Validate the shared policy option once.
@@ -487,6 +502,7 @@ export function createPluginCapabilityGroup(
 					ref,
 					grantedCapabilities,
 					policyMode,
+					...(subdir ? { subdir } : {}),
 				})) as CapabilityEnvelope;
 			}
 
