@@ -279,7 +279,10 @@ export function createAuthRemoteCommand(): Command {
 					"  Everything else is closed. An operation that does not declare itself remotely\n" +
 					"  initiable may not be started remotely, including one added tomorrow.\n" +
 					"  Workspace operations appear only when their own declaration says remote: true;\n" +
-					"  every other named operation remains local-only.\n",
+					"  every other named operation remains local-only — those stay the operator's own\n" +
+					"  argv, run from this node with `refarm workspace run <workspace> <command>`\n" +
+					"  against the allowlist in .refarm/config.json. Reading this list must not leave\n" +
+					"  anyone thinking a local-only command became startable from a phone.\n",
 			);
 		});
 }
