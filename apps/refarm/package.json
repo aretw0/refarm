@@ -40,6 +40,7 @@
 		"@refarm.dev/context-provider-v1": "workspace:*",
 		"@refarm.dev/delivery-contract-v1": "workspace:*",
 		"@refarm.dev/delivery-telegram": "workspace:*",
+		"@refarm.dev/diagnostic-bundle-v1": "workspace:*",
 		"@refarm.dev/dispatch-surface": "workspace:*",
 		"@refarm.dev/ds": "workspace:*",
 		"@refarm.dev/effort-contract-v1": "workspace:*",

@@ -375,6 +375,9 @@ importers:
       '@refarm.dev/delivery-telegram':
         specifier: workspace:*
         version: link:../../packages/delivery-telegram
+      '@refarm.dev/diagnostic-bundle-v1':
+        specifier: workspace:*
+        version: link:../../packages/diagnostic-bundle-v1
       '@refarm.dev/dispatch-surface':
         specifier: workspace:*
         version: link:../../packages/dispatch-surface

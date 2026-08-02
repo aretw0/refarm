@@ -19,6 +19,7 @@ import { doctorCommand } from "./commands/doctor.js";
 import { guideCommand } from "./commands/guide.js";
 import { hardeningCommand } from "./commands/hardening.js";
 import { headlessCommand } from "./commands/headless.js";
+import { inspectCommand } from "./commands/inspect.js";
 import { intentionCommand } from "./commands/intention.js";
 import { lintCommand } from "./commands/lint.js";
 import { openUrlCommand } from "./commands/open-url.js";
@@ -290,6 +291,7 @@ program.addCommand(createSurfaceCommand());
 // rebooted, it went away, and nothing said so.
 program.addCommand(createProcessCommand());
 program.addCommand(intentionCommand);
+program.addCommand(inspectCommand);
 program.addCommand(tuiCommand);
 program.addCommand(headlessCommand);
 program.addCommand(
