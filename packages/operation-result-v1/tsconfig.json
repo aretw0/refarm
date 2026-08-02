@@ -1,8 +1,14 @@
 {
-	"extends": "../tsconfig/base.json",
+	"extends": ["../../tsconfig.json", "@refarm.dev/tsconfig/buildable.json"],
 	"compilerOptions": {
 		"outDir": "dist",
-		"rootDir": "src"
+		"rootDir": "src",
+		"baseUrl": "../..",
+		"paths": {
+			"@refarm.dev/diagnostic-bundle-v1": [
+				"packages/diagnostic-bundle-v1/dist/index.d.ts"
+			]
+		}
 	},
 	"include": ["src/**/*.ts"]
 }
