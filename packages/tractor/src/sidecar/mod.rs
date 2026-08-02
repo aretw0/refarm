@@ -1637,20 +1637,24 @@ fn connection_operator_state_json(state: &crate::host::ConnectionOperatorState) 
 /// sidecar, or a boot ordering issue. Reported honestly as 503, matching the other
 /// `state.reload`-gated routes (`post_plugins_reload`, `post_plugins_load_by_hash`)
 /// rather than pretending the call happened.
-fn require_live_host(state: &SidecarState) -> Result<&std::sync::Arc<crate::TractorNative>, axum::response::Response> {
+fn require_live_host(
+    state: &SidecarState,
+) -> Result<&std::sync::Arc<crate::TractorNative>, Box<axum::response::Response>> {
     state.reload.as_ref().ok_or_else(|| {
-        err(
-            StatusCode::SERVICE_UNAVAILABLE,
-            "no live host wired; connections are unavailable",
+        Box::new(
+            err(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "no live host wired; connections are unavailable",
+            )
+            .into_response(),
         )
-        .into_response()
     })
 }
 
 async fn get_connections(State(state): State<SidecarState>) -> impl IntoResponse {
     let host = match require_live_host(&state) {
         Ok(host) => host,
-        Err(response) => return response,
+        Err(response) => return *response,
     };
     match host.plugins.list_declared_connections(&host.sync) {
         Ok(list) => {
@@ -1667,7 +1671,7 @@ async fn post_connection_up(
 ) -> impl IntoResponse {
     let host = match require_live_host(&state) {
         Ok(host) => host,
-        Err(response) => return response,
+        Err(response) => return *response,
     };
     match host.plugins.ensure_connection_as_operator(&host.sync, &name).await {
         Ok(conn_state) => {
@@ -1688,7 +1692,7 @@ async fn post_connection_down(
 ) -> impl IntoResponse {
     let host = match require_live_host(&state) {
         Ok(host) => host,
-        Err(response) => return response,
+        Err(response) => return *response,
     };
     match host.plugins.stop_connection_as_operator(&name) {
         Ok((conn_state, claims_active)) => {
