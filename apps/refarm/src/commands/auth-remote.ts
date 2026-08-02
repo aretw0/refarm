@@ -4,14 +4,17 @@ import {
 } from "@refarm.dev/cli/process-handoff";
 
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import { loadConfig } from "@refarm.dev/config";
 import { Command } from "commander";
 
 import { refarmCommand } from "../brand.js";
 import {
 	everyCommandPath,
 	remoteInitiationCommandLine,
+	remoteInitiationNeedsAttendance,
 	REMOTELY_INITIABLE_OPERATIONS,
 	resolveRemoteInitiation,
+	workspaceInitiationOperations,
 } from "./remote-initiation.js";
 
 /**
@@ -110,12 +113,13 @@ export type RemoteInitiationVerdict =
 export function remoteInitiationVerdict(
 	requested: string,
 	knownCommandPaths: readonly string[],
+	operations = REMOTELY_INITIABLE_OPERATIONS,
 ): RemoteInitiationVerdict {
 	// The gate, first and unchanged. Its `ok: true` is the only way past this line.
-	const decision = resolveRemoteInitiation({
-		operation: requested,
-		credential: { kind: "device" },
-	});
+	const decision = resolveRemoteInitiation(
+		{ operation: requested, credential: { kind: "device" } },
+		operations,
+	);
 	if (decision.ok) {
 		return { wire: REMOTE_INITIATION_WIRE, ok: true, operation: decision.operation.id };
 	}
@@ -156,17 +160,27 @@ function createAuthRemoteRunCommand(): Command {
 			// module, so a top-level import would be a cycle. By the time an action runs, the
 			// module graph is settled and this is a cache hit.
 			const { program } = await import("../program.js");
-			const verdict = remoteInitiationVerdict(requested, everyCommandPath(program));
+			const config = loadConfig(process.cwd());
+			const allWorkspaceOperations = workspaceInitiationOperations(config);
+			const operations = [
+				...REMOTELY_INITIABLE_OPERATIONS,
+				...workspaceInitiationOperations(config, { remoteOnly: true }),
+			];
+			const knownOperationIds = [
+				...everyCommandPath(program),
+				...allWorkspaceOperations.map((operation) => operation.id),
+			];
+			const verdict = remoteInitiationVerdict(requested, knownOperationIds, operations);
 			// ONE line, and it is the first thing on stdout. The node reads exactly this.
 			process.stdout.write(`${JSON.stringify(verdict)}\n`);
 			if (!verdict.ok) {
 				process.exitCode = 1;
 				return;
 			}
-			const decision = resolveRemoteInitiation({
-				operation: requested,
-				credential: { kind: "device" },
-			});
+			const decision = resolveRemoteInitiation(
+				{ operation: requested, credential: { kind: "device" } },
+				operations,
+			);
 			// Unreachable: `verdict.ok` is exactly `decision.ok`. Spelled out rather than
 			// asserted so a future edit that breaks the correspondence fails closed.
 			if (!decision.ok) {
@@ -191,7 +205,12 @@ function createAuthRemoteRunCommand(): Command {
 			// know a device is attending — a prompt publisher exists on every node since the
 			// pending-prompt bridge, so its presence proves nothing, and without this the wizard
 			// would refuse for want of a TTY or wait forever on a human who is not there.
-			const argv = [...reinvocationArgv(decision.argv), "--attended-elsewhere"];
+			const argv = [
+				...reinvocationArgv(decision.argv),
+				...(remoteInitiationNeedsAttendance(decision.operation.id)
+					? ["--attended-elsewhere"]
+					: []),
+			];
 			const result = await runProcessHandoff(
 				{
 					command: process.execPath,
@@ -212,7 +231,10 @@ export function createAuthRemoteCommand(): Command {
 		.addCommand(createAuthRemoteRunCommand())
 		.option("--json", "Print the result as JSON")
 		.action((options: { json?: boolean }) => {
-			const operations = REMOTELY_INITIABLE_OPERATIONS.map((operation) => ({
+			const operations = [
+				...REMOTELY_INITIABLE_OPERATIONS,
+				...workspaceInitiationOperations(loadConfig(process.cwd()), { remoteOnly: true }),
+			].map((operation) => ({
 				id: operation.id,
 				command: remoteInitiationCommandLine(operation),
 				why: operation.why,
@@ -243,13 +265,8 @@ export function createAuthRemoteCommand(): Command {
 					"\n" +
 					"  Everything else is closed. An operation that does not declare itself remotely\n" +
 					"  initiable may not be started remotely, including one added tomorrow.\n" +
-					"  Your OWN commands are a different door: they stay allowlisted per workspace in\n" +
-					`  .refarm/config.json and run through ${refarmCommand([
-						"workspace",
-						"run",
-						"<workspace>",
-						"<command>",
-					])}.\n`,
+					"  Workspace operations appear only when their own declaration says remote: true;\n" +
+					"  every other named operation remains local-only.\n",
 			);
 		});
 }

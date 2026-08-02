@@ -1,7 +1,7 @@
 # Composable onboarding — and operating the node without being at it
 
 Date: 2026-07-31
-Status: Designed, not implemented
+Status: Implemented incrementally — Refarm wizard initiation and workspace-operation projection shipped
 Lane: [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md) — interfaces, devices and nodes
 Builds on: [`2026-07-31-declaring-is-authoring-design.md`](2026-07-31-declaring-is-authoring-design.md)
 
@@ -64,7 +64,7 @@ For a wizard to run from Termux and configure the node:
 | :-- | :-- |
 | declared command catalog (`workspaces.*.commands`) | **exists** — `bfd3cc92`, "operation catalog, not shell" |
 | prompts reaching the phone | **exists** — the hub plus `farm-attend`, verified live |
-| **initiating** a command remotely | **missing** — no sidecar route, CLI only |
+| **initiating** a command remotely | **exists** — device-only `/operations`, opaque ids, one active initiation ceiling |
 
 The security boundary is therefore already declared by the operator: a device could only invoke what
 they allowed. This is not a new trust decision; it is connecting two things that already exist with
@@ -82,8 +82,11 @@ The knot dissolves once two things stop being conflated:
 - **A refarm wizard is a known operation** — `delivery add`, `auth enroll`, `intention arm` — defined
   by refarm, with a known surface. It is not argv anyone supplied.
 
-So an enrolled device may initiate refarm's own wizards; the operator's argv still requires the
-allowlist. That was the operator's decision.
+So an enrolled device may initiate Refarm's explicitly admitted wizards. The operator's argv still
+requires two declarations: it must be a named workspace command, and that command must say
+`remote: true`. The device sees an opaque `workspace:<workspace>:<operation>` id and never sends
+argv; the node maps it to `refarm workspace run <workspace> <operation>`, which re-reads the local
+allowlist before execution. Local-only is the default.
 
 **The caveat, and its fix.** Some refarm operations should not be remotely invocable — revocation
 being the obvious one. A deny-list is the tempting answer and the wrong one: it is correct only until
@@ -106,3 +109,17 @@ a terminal on the node.
 Streaming a command's output to the initiating device. The wizard's *questions* are its interface,
 and they already flow through the pending-prompt hub. Output beyond prompts is a separate problem and
 pretending otherwise would smuggle a terminal multiplexer into this design.
+
+## Landed shape
+
+```bash
+# Reviewed authoring; omit --remote to keep the operation local-only.
+refarm workspace command add <workspace> <operation> --remote -- <exact argv...>
+
+# What an enrolled device will see through GET /operations / farm-start.
+refarm auth remote --json
+```
+
+The remote request contains only the opaque id. It cannot add arguments, select a cwd, or inject
+environment. Refarm-owned wizards may receive the transport-only `--attended-elsewhere` adaptation;
+workspace operations receive no synthetic argument and keep their declared argv exact.

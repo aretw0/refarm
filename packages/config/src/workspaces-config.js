@@ -87,6 +87,10 @@ function normalizeWorkspaceCommands(value) {
 			if (typeof entry.description === "string" && entry.description.trim()) {
 				command.description = entry.description.trim();
 			}
+			// Remote admission is exact and fail-closed. Truthy strings/numbers do not open
+			// an operation accidentally; only the literal boolean written through reviewed
+			// authoring survives normalization.
+			if (entry.remote === true) command.remote = true;
 		}
 		commands[name.trim()] = command;
 	}

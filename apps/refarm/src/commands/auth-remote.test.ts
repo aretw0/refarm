@@ -24,6 +24,22 @@ import { everyCommandPath, REMOTELY_INITIABLE_OPERATIONS } from "./remote-initia
 const KNOWN = everyCommandPath(program);
 
 describe("remoteInitiationVerdict", () => {
+	it("distinguishes a local-only workspace operation from an unknown id", () => {
+		const remote = {
+			id: "workspace:rcdc5:vpn",
+			argv: ["workspace", "run", "rcdc5", "vpn"],
+			why: "Connect VPN",
+		};
+		expect(remoteInitiationVerdict(remote.id, [remote.id], [remote]).ok).toBe(true);
+		const localOnly = remoteInitiationVerdict(
+			"workspace:rcdc5:secrets",
+			["workspace:rcdc5:secrets"],
+			[remote],
+		);
+		expect(localOnly.ok).toBe(false);
+		if (!localOnly.ok) expect(localOnly.reason).toBe("not-remotely-invocable");
+	});
+
 	it("starts exactly what the table declares, and names it back", () => {
 		for (const operation of REMOTELY_INITIABLE_OPERATIONS) {
 			const verdict = remoteInitiationVerdict(operation.id, KNOWN);

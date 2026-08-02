@@ -21,6 +21,7 @@ import {
 	remoteInitiationCommandLine,
 	REMOTELY_INITIABLE_OPERATIONS,
 	resolveRemoteInitiation,
+	workspaceInitiationOperations,
 } from "./remote-initiation.js";
 
 const DEVICE = { kind: "device" } as const;
@@ -59,6 +60,46 @@ describe("the remote-initiation declaration", () => {
 });
 
 describe("resolveRemoteInitiation", () => {
+	it("projects only explicitly remote workspace operations and invokes the named allowlist", () => {
+		const config = {
+			workspaces: {
+				rcdc5: {
+					path: "/work/rcdc5",
+					commands: {
+						vpn: { run: ["rcdc5-vpn", "connect"], description: "Connect VPN", remote: true },
+						secrets: { run: ["rcdc5", "dump-secrets"], remote: false },
+					},
+				},
+			},
+		};
+		const all = workspaceInitiationOperations(config, { baseDir: "/work" });
+		const remote = workspaceInitiationOperations(config, { baseDir: "/work", remoteOnly: true });
+
+		expect(all.map((operation) => operation.id)).toEqual([
+			"workspace:rcdc5:secrets",
+			"workspace:rcdc5:vpn",
+		]);
+		expect(remote).toEqual([
+			{
+				id: "workspace:rcdc5:vpn",
+				argv: ["workspace", "run", "rcdc5", "vpn"],
+				why: "Connect VPN",
+			},
+		]);
+		expect(
+			resolveRemoteInitiation(
+				{ operation: "workspace:rcdc5:vpn", credential: DEVICE },
+				remote,
+			).ok,
+		).toBe(true);
+		expect(
+			resolveRemoteInitiation(
+				{ operation: "workspace:rcdc5:secrets", credential: DEVICE },
+				remote,
+			).ok,
+		).toBe(false);
+	});
+
 	it("starts a declared operation, and hands back the table's own argv", () => {
 		const decision = resolveRemoteInitiation({ operation: "delivery add", credential: DEVICE });
 		expect(decision.ok).toBe(true);

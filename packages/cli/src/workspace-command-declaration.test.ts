@@ -34,4 +34,14 @@ describe("deriveWorkspaceCommandDeclaration", () => {
 			/at least one/,
 		);
 	});
+
+	it("keeps operations local unless remote admission is explicit", () => {
+		expect(deriveWorkspaceCommandDeclaration({ name: "status", argv: ["tool", "status"] }).entry).toEqual({
+			run: ["tool", "status"],
+		});
+		expect(
+			deriveWorkspaceCommandDeclaration({ name: "status", argv: ["tool", "status"], remote: true })
+				.entry,
+		).toEqual({ run: ["tool", "status"], remote: true });
+	});
 });

@@ -36,6 +36,7 @@ export interface WorkspaceCommandAddOptions {
 	argv: string[];
 	cwd?: string;
 	description?: string;
+	remote?: boolean;
 	replace?: boolean;
 	local?: boolean;
 	attendedElsewhere?: boolean;
@@ -139,6 +140,9 @@ export async function runWorkspaceCommandAdd(
 		requestedAt: (deps.now ?? (() => new Date().toISOString()))(),
 		notes: [
 			"O comando é argv exato, executado sem shell; argumentos extras só entram quando uma superfície os fornece explicitamente.",
+			proposal.entry.remote === true
+				? "A operação será visível a aparelhos enrolados; o aparelho envia somente seu nome, nunca argv."
+				: "A operação permanece local; silêncio não abre acesso remoto.",
 			"Esta mudança preserva o restante da declaração do workspace.",
 		],
 	});

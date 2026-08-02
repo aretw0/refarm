@@ -5,6 +5,8 @@ export interface WorkspaceCommandDeclarationInput {
 	argv: string[];
 	cwd?: string;
 	description?: string;
+	/** Explicitly admit this named operation to enrolled-device surfaces. Default: local only. */
+	remote?: boolean;
 }
 
 export interface WorkspaceCommandDeclarationProposal {
@@ -13,6 +15,7 @@ export interface WorkspaceCommandDeclarationProposal {
 		run: string[];
 		cwd?: string;
 		description?: string;
+		remote?: true;
 	};
 }
 
@@ -65,6 +68,7 @@ export function deriveWorkspaceCommandDeclaration(
 			run: [...argv],
 			...(cwd ? { cwd: path.normalize(cwd) } : {}),
 			...(description ? { description } : {}),
+			...(input.remote === true ? { remote: true as const } : {}),
 		},
 	};
 }

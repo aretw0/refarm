@@ -58,6 +58,28 @@ describe("workspace command add", () => {
 		).rejects.toMatchObject({ code: "workspace-command-workspace-not-declared" });
 	});
 
+	it("persists remote admission only when explicitly reviewed", async () => {
+		const root = fixture();
+		await runWorkspaceCommandAdd(
+			{ workspace: "app", name: "status", argv: ["app", "status"], remote: true },
+			{
+				root,
+				env: { SOVEREIGN_DIR: ".refarm" },
+				interactive: true,
+				operator: createScriptedOperatorChannel(["authorize"]),
+				announce: () => {},
+			},
+		);
+
+		const config = JSON.parse(
+			fs.readFileSync(path.join(root, ".refarm", "config.json"), "utf8"),
+		);
+		expect(config.workspaces.app.commands.status).toEqual({
+			run: ["app", "status"],
+			remote: true,
+		});
+	});
+
 	it("removes only the authorized command and preserves sibling workspace data", async () => {
 		const root = fixture();
 		const configPath = path.join(root, ".refarm", "config.json");

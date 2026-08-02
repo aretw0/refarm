@@ -113,6 +113,50 @@ export const REMOTELY_INITIABLE_OPERATIONS: readonly RemotelyInitiableOperation[
 	}),
 ]);
 
+/** Transport adaptation for Refarm's own question-only wizards; never part of the decision. */
+export function remoteInitiationNeedsAttendance(operationId: string): boolean {
+	return operationId === "delivery add";
+}
+
+interface WorkspaceOperationEntry {
+	run: string[];
+	description?: string;
+	remote?: true;
+}
+
+/** Stable opaque id for a workspace operation. It is never parsed back into argv. */
+export function workspaceRemoteOperationId(workspace: string, command: string): string {
+	return `workspace:${workspace}:${command}`;
+}
+
+/** Project host-owned workspace allowlists into remotely inspectable operations. */
+export function workspaceInitiationOperations(
+	config: unknown,
+	options: { baseDir?: string; remoteOnly?: boolean } = {},
+): RemotelyInitiableOperation[] {
+	const operations: RemotelyInitiableOperation[] = [];
+	for (const workspace of declaredWorkspacesFromConfig(config, {
+		baseDir: options.baseDir ?? process.cwd(),
+	})) {
+		if (!workspace) continue;
+		const commands =
+			(workspace as { commands?: Record<string, WorkspaceOperationEntry> }).commands ?? {};
+		for (const [name, command] of Object.entries(commands)) {
+			if (options.remoteOnly && command.remote !== true) continue;
+			operations.push({
+				id: workspaceRemoteOperationId(workspace.id, name),
+				// Invoke the existing allowlist boundary by name. The device never supplies argv,
+				// and execution re-reads the declaration instead of trusting this projection.
+				argv: Object.freeze(["workspace", "run", workspace.id, name]),
+				why:
+					command.description ??
+					`Named operation "${name}" declared by workspace "${workspace.id}".`,
+			});
+		}
+	}
+	return operations.sort((left, right) => left.id.localeCompare(right.id));
+}
+
 /**
  * What the caller authenticated as. Initiation is DEVICE-ONLY: a scoped credential — the one a
  * browser holds to answer questions — must never be able to start anything, whatever its scope.
@@ -159,7 +203,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function resolveRemoteInitiation(request: {
 	readonly operation: unknown;
 	readonly credential: unknown;
-}): RemoteInitiationDecision {
+}, operations: readonly RemotelyInitiableOperation[] = REMOTELY_INITIABLE_OPERATIONS): RemoteInitiationDecision {
 	const credential = request.credential;
 	if (!isRecord(credential) || credential.kind !== "device") {
 		// Everything that is not exactly a device credential lands here: a scoped credential
@@ -188,7 +232,7 @@ export function resolveRemoteInitiation(request: {
 		};
 	}
 	const requested = request.operation;
-	const operation = REMOTELY_INITIABLE_OPERATIONS.find((entry) => entry.id === requested);
+	const operation = operations.find((entry) => entry.id === requested);
 	if (!operation) {
 		// The one closed branch, and the reason there is no other: an id that is not in the table
 		// is refused whether it names a real refarm command, a workspace command from the
@@ -199,7 +243,7 @@ export function resolveRemoteInitiation(request: {
 				reason: "undeclared",
 				detail:
 					"That operation is not declared as remotely initiable on this node. " +
-					`Declared: ${REMOTELY_INITIABLE_OPERATIONS.map((entry) => entry.id).join(", ") || "(none)"}.`,
+					`Declared: ${operations.map((entry) => entry.id).join(", ") || "(none)"}.`,
 			},
 		};
 	}
@@ -245,3 +289,4 @@ export function everyCommandPath(root: CommandLike): string[] {
 	walk(root, []);
 	return paths;
 }
+import { declaredWorkspacesFromConfig } from "@refarm.dev/config";

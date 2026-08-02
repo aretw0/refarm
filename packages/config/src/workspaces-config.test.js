@@ -95,7 +95,9 @@ describe("workspace config declarations", () => {
 								run: ["node", "src/index.js", "scrape"],
 								cwd: "packages/scraper-playwright",
 								description: "Raspagem de requisitos",
+								remote: true,
 							},
+							local: { run: ["node", "local.js"], remote: "true" },
 							"": "ignored — blank name",
 							bad: { run: 42 },
 						},
@@ -112,7 +114,9 @@ describe("workspace config declarations", () => {
 				run: ["node", "src/index.js", "scrape"],
 				cwd: "packages/scraper-playwright",
 				description: "Raspagem de requisitos",
+				remote: true,
 			},
+			local: { run: ["node", "local.js"] },
 		});
 	});
 
