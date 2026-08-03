@@ -55,10 +55,18 @@ export function isOperatorCancellation(error) {
  * despejar pilha na cara de quem apertou Ctrl+C é o oposto de perguntar com
  * educação. Retorna o código de saída (130, a convenção de SIGINT) ou null
  * quando o erro não é uma cancelação (aí quem chamou relança).
+ *
+ * `nothingHappened` é o que NÃO aconteceu, na voz do comando que chamou: quem
+ * envia diz "nada foi enviado", quem grava diz "nada foi guardado". Quem acabou
+ * de cancelar é exatamente quem precisa saber se algo escapou, e a frase errada
+ * aí é uma dúvida a mais, não uma a menos.
  */
-export function cancellationExit(error, { write = (s) => process.stderr.write(s) } = {}) {
+export function cancellationExit(
+	error,
+	{ write = (s) => process.stderr.write(s), nothingHappened = "nada foi enviado" } = {},
+) {
 	if (!isOperatorCancellation(error)) return null;
-	write("\n✋ cancelado — nada foi enviado.\n");
+	write(`\n✋ cancelado — ${nothingHappened}.\n`);
 	return 130;
 }
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -241,4 +241,42 @@ test("the question names the farm and offers a concrete example", () => {
 	assert.equal(ASK_HOST_QUESTION, "Como se chama a sua fazenda?");
 	assert.equal(ASK_HOST_PLACEHOLDER, "nome MagicDNS, ex.: serpro-1577853");
 	assert.ok(ASK_HOST_QUESTION.endsWith("?"), "it must be a question");
+});
+
+test("a cancelação diz o que NÃO aconteceu, e cada comando sabe o quê", () => {
+	// "nada foi enviado" é verdade para quem envia; para `farm-auth set`, que só
+	// grava um arquivo local, seria uma pequena mentira — e a pessoa que acabou de
+	// cancelar é justamente quem precisa saber se algo escapou.
+	const enviado = [];
+	assert.equal(cancellationExit(new OperatorPromptCancelledError(), { write: (s) => enviado.push(s) }), 130);
+	assert.match(enviado.join(""), /nada foi enviado/);
+
+	const guardado = [];
+	assert.equal(
+		cancellationExit(new OperatorPromptCancelledError(), {
+			write: (s) => guardado.push(s),
+			nothingHappened: "nada foi guardado",
+		}),
+		130,
+	);
+	assert.match(guardado.join(""), /nada foi guardado/);
+	assert.doesNotMatch(guardado.join(""), /enviado/);
+});
+
+test("todo bin que pergunta também trata o Ctrl+C", async () => {
+	// `farm-auth` perguntava duas coisas e não tratava nenhuma: em raw mode o Ctrl+C
+	// chega como tecla, o canal rejeita, e a rejeição subia como não-tratada — pilha
+	// na cara de quem só desistiu. Os outros seis bins já faziam certo; nada garantia
+	// que o sétimo faria. Agora garante.
+	const binDir = new URL("../bin/", import.meta.url);
+	const names = (await readdir(binDir)).filter((name) => name.endsWith(".mjs"));
+	assert.ok(names.length >= 7, `esperava os bins do kit, achei ${names.length}`);
+
+	const offenders = [];
+	for (const name of names) {
+		const source = await readFile(new URL(name, binDir), "utf8");
+		const asks = /\.ask\(/.test(source);
+		if (asks && !source.includes("cancellationExit")) offenders.push(name);
+	}
+	assert.deepEqual(offenders, [], `bins que perguntam sem tratar cancelamento: ${offenders.join(", ")}`);
 });
