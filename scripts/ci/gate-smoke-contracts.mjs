@@ -9,6 +9,8 @@ const plan = process.argv.includes("--plan");
 const STEPS = [
 	["packages/effort-contract-v1", "build"],
 	["packages/effort-contract-v1", "test:unit"],
+	["packages/budget-contract-v1", "build"],
+	["packages/budget-contract-v1", "test:unit"],
 	["packages/artifact-contract-v1", "build"],
 	["packages/artifact-contract-v1", "test:unit"],
 	["packages/channel-policy-v1", "build"],

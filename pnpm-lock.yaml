@@ -884,6 +884,18 @@ importers:
         specifier: 'catalog:'
         version: 24.43.1
 
+  packages/budget-contract-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
   packages/capabilities:
     dependencies:
       ajv:

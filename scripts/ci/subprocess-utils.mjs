@@ -8,6 +8,7 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/std",
 	"packages/capabilities",
 	"packages/effort-contract-v1",
+	"packages/budget-contract-v1",
 	"packages/dispatch-surface",
 	"packages/artifact-contract-v1",
 	"packages/automation-contract-v1",
