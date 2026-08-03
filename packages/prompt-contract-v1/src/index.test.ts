@@ -1595,3 +1595,61 @@ describe("the operator notice shape (D3/D4)", () => {
 		expect(list[0]?.message).toBe("ok");
 	});
 });
+
+describe("say() — the second verb (D1/D8)", () => {
+	function capture(): { output: NodeJS.WriteStream; written: () => string } {
+		const stream = new PassThrough() as PassThrough & NodeJS.WriteStream;
+		let text = "";
+		stream.write = ((chunk: string) => {
+			text += chunk;
+			return true;
+		}) as never;
+		return { output: stream, written: () => text };
+	}
+
+	it("the terminal channel writes the message to its output", () => {
+		const { output, written } = capture();
+		createTerminalOperatorChannel({ output }).say?.("o bot é seu");
+		expect(written()).toContain("o bot é seu");
+	});
+
+	it("the scripted channel records instead of printing, so a test can assert on it", () => {
+		const channel = createScriptedOperatorChannel(["x"]);
+		channel.say?.("primeira");
+		channel.say?.({ message: "segunda", kind: "decision" });
+		expect(channel.notices()).toEqual([
+			{ message: "primeira", kind: "context" },
+			{ message: "segunda", kind: "decision" },
+		]);
+	});
+
+	it("the auto channel does not go mute in CI", () => {
+		const { output, written } = capture();
+		createAutoOperatorChannel({ output }).say?.("dito em CI");
+		expect(written()).toContain("dito em CI");
+	});
+
+	it("conformance reports whether a channel announces, without failing the mute ones", async () => {
+		// The queue conformance actually consumes: confirm, select, text, secret,
+		// cancel — and the first must be a boolean or check 1 fails on its own.
+		const speaking = await runOperatorChannelConformance(
+			createScriptedOperatorChannel([true, "a", "hello", "secret", "n/a"]),
+		);
+		expect(speaking.announces).toBe(true);
+		expect(speaking.pass).toBe(true);
+
+		// `say` is OPTIONAL (D1), so a channel without it is REPORTED, not failed.
+		// Built by stripping `say` off an otherwise identical channel, so the only
+		// difference under test is the absence of the verb.
+		const { say: _mute, ...withoutSay } = createScriptedOperatorChannel([
+			true,
+			"a",
+			"hello",
+			"secret",
+			"n/a",
+		]);
+		const mute = await runOperatorChannelConformance(withoutSay as OperatorChannel);
+		expect(mute.announces).toBe(false);
+		expect(mute.pass).toBe(true);
+	});
+});

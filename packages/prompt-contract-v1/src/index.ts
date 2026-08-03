@@ -58,6 +58,21 @@ export interface OperatorChannel {
 	ask(prompt: TextPrompt): Promise<string>;
 	ask(prompt: SecretPrompt): Promise<string>;
 	ask(prompt: OperatorPrompt): Promise<boolean | string>;
+	/**
+	 * State a fact (D1) — the verb this interface spent its whole life without,
+	 * which is why every wizard's framing ended up in `console.log`, on the node,
+	 * while only its questions travelled to the operator.
+	 *
+	 * Returns nothing, awaits nothing, THROWS NOTHING: an announcement that could
+	 * fail or block would be worse than the silence it replaces.
+	 *
+	 * OPTIONAL, and that is a versioning decision rather than a convenience.
+	 * `prompt:v1` is a published contract, and a new REQUIRED method breaks
+	 * implementors we cannot enumerate — so a channel without it stays valid and
+	 * behaves exactly as it did. `runOperatorChannelConformance` reports which
+	 * channels are mute, so the silence is observed rather than assumed.
+	 */
+	say?(notice: string | OperatorNoticeInput): void;
 }
 
 export interface StdioOperatorChannelOptions {
@@ -101,7 +116,10 @@ function onAbortOnce(signal: AbortSignal | undefined, onAbort: () => void): () =
 // Returns the `default` value for every prompt without prompting.
 // Use in non-interactive environments (CI, automated scripts).
 
-export function createAutoOperatorChannel(): OperatorChannel {
+export function createAutoOperatorChannel(
+	options: { output?: NodeJS.WriteStream } = {},
+): OperatorChannel {
+	const output = options.output ?? process.stdout;
 	function ask(prompt: ConfirmPrompt): Promise<boolean>;
 	function ask(prompt: SelectPrompt): Promise<string>;
 	function ask(prompt: TextPrompt): Promise<string>;
@@ -112,15 +130,36 @@ export function createAutoOperatorChannel(): OperatorChannel {
 		if (prompt.type === "secret") return "";
 		return prompt.default ?? "";
 	}
-	return { ask };
+	/** Answering without a human does not mean SAYING without one — a wizard run
+	 *  in CI still explains itself into the log. */
+	function say(notice: string | OperatorNoticeInput): void {
+		output.write(`${normalizeNoticeInput(notice).message}\n`);
+	}
+	return { ask, say };
 }
 
 // ── createScriptedOperatorChannel ────────────────────────────────────────────
 // Returns predefined answers in sequence. Throws RangeError if exhausted.
 // Use in tests to drive an OperatorChannel without stdin.
 
-export function createScriptedOperatorChannel(answers: Array<boolean | string>): OperatorChannel {
+/**
+ * A scripted channel, plus the notices it recorded.
+ *
+ * The accessor is the point: a test asserting that a wizard's framing REACHED THE
+ * CHANNEL is asserting the thing that was false — the framing used to go to the
+ * node's stdout while only the questions travelled. Asserting "something was
+ * printed" was always true and proved nothing.
+ */
+export interface ScriptedOperatorChannel extends OperatorChannel {
+	/** Every notice said through this channel, in order. */
+	notices(): readonly Required<OperatorNoticeInput>[];
+}
+
+export function createScriptedOperatorChannel(
+	answers: Array<boolean | string>,
+): ScriptedOperatorChannel {
 	const queue = [...answers];
+	const said: Required<OperatorNoticeInput>[] = [];
 	function ask(prompt: ConfirmPrompt): Promise<boolean>;
 	function ask(prompt: SelectPrompt): Promise<string>;
 	function ask(prompt: TextPrompt): Promise<string>;
@@ -131,7 +170,11 @@ export function createScriptedOperatorChannel(answers: Array<boolean | string>):
 		}
 		return queue.shift()!;
 	}
-	return { ask };
+	/** Recorded, never printed: a test suite must not spit a wizard's prose. */
+	function say(notice: string | OperatorNoticeInput): void {
+		said.push(normalizeNoticeInput(notice));
+	}
+	return { ask, say, notices: () => said };
 }
 
 // ── createStdioOperatorChannel ────────────────────────────────────────────────
@@ -164,7 +207,15 @@ export function createTerminalOperatorChannel(
 		if (prompt.type === "secret") return askSecret(prompt, input, output, signal);
 		return askText(prompt, input, output, signal);
 	}
-	return { ask };
+	/**
+	 * THE INVARIANT (D8): byte-for-byte what `console.log(line)` did before this
+	 * existed. A channel with no publisher declared must be indistinguishable from
+	 * the one that shipped yesterday, or "silence is closed" stops being true.
+	 */
+	function say(notice: string | OperatorNoticeInput): void {
+		output.write(`${normalizeNoticeInput(notice).message}\n`);
+	}
+	return { ask, say };
 }
 
 function writePromptTransition(
@@ -681,6 +732,15 @@ export interface OperatorChannelConformanceResult {
 	total: number;
 	failed: number;
 	failures: string[];
+	/**
+	 * Does this channel implement `say`?
+	 *
+	 * NOT pass/fail — `say` is optional (D1), so a mute channel is conformant. But
+	 * it is REPORTED, which is what compensates for the type no longer forcing a new
+	 * channel author to consider the verb: "this channel cannot announce" becomes an
+	 * observed fact instead of a silence nobody looked for.
+	 */
+	announces: boolean;
 }
 
 export interface OperatorChannelConformanceOptions {
@@ -795,8 +855,25 @@ export async function runOperatorChannelConformance(
 		}
 	}
 
+	// 6 — say, when implemented, must be TOTAL: no throw, no return value.
+	//
+	// Deliberately asserts the contract rather than the output. The auto channel
+	// writes to stdout, so a check that asserted on printed text would make every
+	// suite running conformance spit "_conformance_" into its own log — the same
+	// reason the checks above pass canned answers instead of touching a terminal.
+	const announces = typeof channel.say === "function";
+	if (announces) {
+		checksRun++;
+		try {
+			const returned = channel.say!({ message: "_conformance_", kind: "context" }) as unknown;
+			if (returned !== undefined) failures.push("say: returned a value; it must return void");
+		} catch (e) {
+			failures.push(`say threw: ${String(e)}`);
+		}
+	}
+
 	const failed = failures.length;
-	return { pass: failed === 0, total: checksRun, failed, failures };
+	return { pass: failed === 0, total: checksRun, failed, failures, announces };
 }
 
 // ── The pending prompt on the wire ────────────────────────────────────────────
