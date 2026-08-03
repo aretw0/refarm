@@ -1,7 +1,8 @@
 # The budget belongs to whoever spawns, and the evidence outlives the run
 
 Date: 2026-08-03
-Status: DESIGN — approved by the operator through brainstorming; awaits the implementation plan.
+Status: DESIGN — approved by the operator through brainstorming, then revised the same day when the
+operator widened D1 to three axes and settled the nesting as D9. Awaits the implementation plan.
 Touches `packages/tractor/**` (protected, CLAUDE.md §8) and `packages/agent/**`. The maintainer
 authorised the protected surface explicitly when choosing this slice.
 Lane: [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md) — interfaces, devices and nodes
@@ -123,6 +124,24 @@ This is the strongest argument for the laboratory. Budget policy was about to be
 numbers, and nothing would have objected, because **no bench asserts cost accounting**. `agent-bench`
 asserts token *counts* against a mock with known counts, never the *price* derived from them.
 
+### F6 — The token axis already exists, and is already wrong the same way
+
+`agent/src/runtime/policy.rs:10` reads `MODEL_MAX_CONTEXT_TOKENS` from the environment and blocks a
+run that exceeds it. It is the deadline's defect in a second body: read from a process global, not
+declarable per dispatch, and measured on *estimated prompt size* (`prompt.len() / 4`) **before** the
+run rather than on cumulative usage **across** it. A run that starts under the ceiling and then burns
+ten times it in tool loops is never stopped.
+
+So the token budget is not a new axis this design invents. It is an axis that already exists,
+already governs real runs, and already has the shape this document is correcting.
+
+The same file's tests pin the defect of F5 as intended behaviour.
+`tests/runtime_cost_guard_tests.rs::estimate_usd_sonnet_with_cache_discount` asserts that 1000 input
+with 200 cached bills 800 at full rate — the OpenAI subset model, asserted as a universal rule
+against a Claude model id. **The test is not wrong about the code; the code is wrong and the test
+agrees with it.** Fixing F5 means changing that test, and the change is the point rather than
+collateral.
+
 ## Prior art — what the field already settled, and where it is silent
 
 Curated at the operator's instruction ("consolidar e curar pesquisa sobre o assunto, fora e dentro
@@ -152,6 +171,20 @@ budget.* This changes the design: "whoever spawns declares" is necessary but **n
 because when the spawner is an agent it will lowball. The **default and the ceiling must come from
 history**, not from the declarer's opinion. The operator's instinct, that a knob without data is
 worthless, has third-party measurement behind it.
+
+**Nested resource governance is a solved problem, and the solution is not from this field.** The
+operator asked whether someone had already built what ought to be canonical. Kubernetes did, a decade
+ago, and it uses **two objects rather than one**:
+[ResourceQuota](https://kubernetes.io/docs/concepts/policy/resource-quotas/) constrains *aggregate*
+consumption per namespace, and [LimitRange](https://www.kubernetes.io/docs/concepts/policy/limit-range/)
+sets per-object minimum, maximum and **default**, injected by an admission controller when the object
+declares nothing. The documented best practice is the pairing itself: quotas for namespace budgeting,
+limit ranges so objects without explicit resources get defaults.
+
+That is the operator's own sentence in someone else's vocabulary — the node limits to what it can
+serve, the workspace limits other things within that, and everyone has to be a good citizen. "Good
+citizen" is called *admission control* there. D9 adopts the two-level structure and the defaulting
+rule; it does not adopt the YAML, the object model, or the controller.
 
 **Benchmark reproducibility ≠ workflow reproducibility.** The
 [LLM-agent evaluation survey](https://arxiv.org/html/2507.21504v1) draws the distinction: a
@@ -186,16 +219,30 @@ not reproducible; without 4 nobody but the operator can reproduce it.
 ```ts
 type BudgetDeclaration = {
   deadlineMs?: number;
+  maxTokens?: number;
+  maxUsd?: number;
 };
 ```
 
-The dispatch request carries an optional budget. The node resolves it exactly as the prompt path
-already does: `declared.unwrap_or(DEFAULT).min(MAX)`. The environment variables survive **in the
-role they already play for prompts**: default and ceiling, never the value.
+The dispatch request carries an optional budget. The node resolves each axis exactly as the prompt
+path already does: `declared.unwrap_or(DEFAULT).min(MAX)`. The environment variables survive **in
+the role they already play for prompts**: default and ceiling, never the value.
 
-Only `deadlineMs` ships. Token and currency budgets are deliberately out of scope until the record
-says what they should be. Declaring them now would be inventing numbers, which is the failure this
-design exists to prevent.
+**All three axes ship in the declaration; they do not all enforce the same way**, and the record must
+say which was which, or an unenforced ceiling reads as a satisfied one.
+
+| Axis | Enforcement point | This program |
+| --- | --- | --- |
+| `deadlineMs` | the terminal-result watcher (`dispatch.rs:701`) already polls to a deadline | **enforced** |
+| `maxTokens` | `runtime/policy.rs:10` already blocks on a token ceiling, but on estimated *prompt size* before the run rather than cumulative usage across it (F6) | **enforced**, after moving the check to cumulative |
+| `maxUsd` | derives from tokens times a rate table, at the same point as `maxTokens` | **enforced only in `api` pricing mode** |
+
+The `maxUsd` restriction is not timidity. `pricing_mode_for_provider` (`agent/src/utils.rs:12`) returns
+`subscription` for `openai-codex` and `github-copilot` and `local` for `ollama`, and
+`estimate_billable_usd` returns `0.0` for all of them. A currency ceiling over a structural zero is a
+ceiling that can never bind, and enforcing one would teach the operator to trust a guard that is not
+guarding. In those modes `maxUsd` is recorded as declared, reported as `not-applicable`, and the
+token ceiling is what actually holds the line.
 
 ### D2 — One record shape for field use and for the bench
 
@@ -209,6 +256,9 @@ the standard speaks; `refarm.*` only where it is silent.
 | `gen_ai.usage.{input,output}_tokens`, `gen_ai.usage.reasoning.output_tokens` | OTel |
 | `gen_ai.usage.cache_read.input_tokens`, `gen_ai.usage.cache_creation.input_tokens` | OTel; the two fields split in slice 1 |
 | `refarm.budget.deadline_ms.declared` / `.effective` | ours; OTel has no deadline |
+| `refarm.budget.max_tokens.declared` / `.effective` | ours; the axis F6 shows already exists |
+| `refarm.budget.max_usd.declared` / `.effective` | ours; `not-applicable` outside `api` pricing mode (D1) |
+| `refarm.budget.bound_by` | `node` \| `workspace` \| `declared` \| `default` — which level bound the run (D9) |
 | `refarm.budget.source` | `declared` \| `default` \| `ceiling` |
 | `refarm.budget.spawner` | reuses `Effort.source` (`sidecar/mod.rs:133`) |
 | `refarm.workspace.id` | the label the operator asked for, from the declared operation's own id when the effort is an operation, omitted otherwise (D6) |
@@ -276,16 +326,46 @@ The new metric family is not token count but **completion rate under budget**: t
 across a sweep of deadlines, reporting where completion collapses. That is the AlloBench-shaped
 question asked of refarm's own agent.
 
+### D9 — Ceilings nest: the node bounds what it can serve, the workspace bounds within that
+
+The operator's decision, and the resolution of what this design had left open:
+
+> "o teto pertence ao nó e workspace, faz sentido o nó limitar para o que ele consegue atender e o
+> workspace outras coisas dentro disso... todos precisam ser sensatos e serem bons cidadãos."
+
+Three levels, resolved outward to inward, adopting the Kubernetes structure named in *Prior art*:
+
+| Level | Question it answers | Analogue |
+| --- | --- | --- |
+| **Node** | what this machine can serve at all | cluster capacity |
+| **Workspace** | what this workspace may consume within that | ResourceQuota |
+| **Dispatch** | what this spawner asked for, defaulted and clamped | LimitRange + admission |
+
+Resolution is a fold, per axis: `effective = min(node_ceiling, workspace_ceiling, declared ?? workspace_default ?? node_default)`.
+
+Two rules keep it honest. A workspace ceiling **above** the node's is not an error and not silently
+obeyed — it is clamped to the node's, because a workspace cannot grant capacity the machine does not
+have. And the observation records **which level bound the run** (`refarm.budget.bound_by`:
+`node` | `workspace` | `declared` | `default`), because "it was cut" without "by whom" sends the
+operator to raise the wrong ceiling.
+
+This is where the personal-versus-professional boundary the operator already maintains becomes
+enforceable rather than merely intended: a professional workspace may be allowed to run longer than a
+personal one, declared per workspace, and neither can exceed what the node can serve.
+
 ## Slices
 
 Each slice is atomic, independently verifiable, and leaves the tree green.
 
 1. **Split the cache accounting.** `cache_read` and `cache_creation` become distinct fields from
    ingestion to estimate; the estimator honours each provider's model. Vendor-documented test
-   vectors. *No new capability. It makes every number after it true.*
-2. **`packages/budget-contract-v1`.** Types + conformance suite, the house pattern. No wiring yet.
-3. **The knob.** Dispatch accepts a declared budget; the node clamps; env becomes default+ceiling.
-   Protected surface: `packages/tractor/**`.
+   vectors, including the correction of the test that pinned the defect (F6). *No new capability. It
+   makes every number after it true.*
+2. **`packages/budget-contract-v1`.** The three-axis declaration, the three-level resolution fold of
+   D9, and the conformance suite, in the house pattern. Pure functions, no wiring yet.
+3. **The knob.** Dispatch accepts a declared budget and resolves it through D9; env becomes
+   default+ceiling at the node level; `MODEL_MAX_CONTEXT_TOKENS` moves from prompt-size gate to
+   cumulative token ceiling (F6). Protected surface: `packages/tractor/**`.
 4. **The record.** `BudgetObservation` written on every terminal effort, with the labels of D2 and
    the guarantees of D4/D5/D6.
 5. **Read it back.** A command that reports observations, the operator's own first consumer, and
@@ -306,9 +386,11 @@ evidence. Slices 6–8 are what let anyone else reproduce it.
   without a plan record `steps_completed` and omit the total, per D6. Whether the agent should
   always declare an intended step count is a question for the record to answer, not for this design
   to assume.
-- **Does the ceiling belong to the node or to the workspace?** D1 keeps it on the node, matching the
-  prompt path. A workspace-scoped ceiling ("professional operations may run longer than personal
-  ones") is plausible and deliberately deferred until the record shows it is needed.
+- **Where does a workspace declare its ceiling?** D9 settles that the workspace *has* one; it does
+  not settle the file. `.refarm/config.json` already carries workspace declarations
+  (`refarm workspace list`), which makes it the obvious home, but a budget is a policy rather than a
+  capability and may belong beside the auth policy instead. Slice 2 can define the resolution fold
+  without answering this; slice 3 must answer it.
 - **Cost of the record at high frequency.** One node per terminal effort is cheap; one per LLM call
   would not be. This design writes at effort granularity and joins to the existing per-call
   `UsageRecord` rather than duplicating it.
