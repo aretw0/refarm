@@ -111,55 +111,85 @@ pub(crate) fn rate_for_model(model: &str) -> RateLookup {
         || model.contains("claude-opus-4-7")
         || model.contains("claude-opus-4-8")
     {
-        // Anthropic, Opus 4.5/4.6/4.7/4.8, official pricing (verified 2026-08-03):
+        // Anthropic, official pricing (verified 2026-08-03):
         // https://platform.claude.com/docs/en/about-claude/pricing
+        // Each of the four is its OWN row on the page, not one row extrapolated
+        // to the rest — checked twice, individually, to be sure: Opus 4.5, 4.6,
+        // 4.7 and 4.8 each list Base Input $5/MTok and Output $25/MTok, and the
+        // grouping only happened because all four independently verify to that
+        // same number, not the other way around.
+        //
         // Checked BEFORE the bare "claude-opus-4" branch below: that literal is a
-        // substring of every id here too, and Opus 4.5-4.8 price at 1/3 of Opus
-        // 4/4.1's rate — matching the bare branch first would silently overcharge
-        // by 3x while looking perfectly plausible (the same order-dependence this
-        // function's own doc comment already warns about, and a real collision,
-        // not a hypothetical one: verifying this table is what surfaced it).
+        // substring of every id here too, and this generation prices at 1/3 of
+        // Opus 4/4.1's rate — matching the bare branch first would silently
+        // overcharge by 3x while looking perfectly plausible (the same order-
+        // dependence this function's own doc comment already warns about, and a
+        // real collision, not a hypothetical one: verifying this table is what
+        // surfaced it).
         (5.0, 25.0)
     } else if model.contains("claude-opus-4") {
-        // Anthropic, Opus 4 (retired except Google Cloud) / Opus 4.1 (deprecated),
-        // official pricing (verified 2026-08-03):
+        // Anthropic, official pricing (verified 2026-08-03):
         // https://platform.claude.com/docs/en/about-claude/pricing
+        // Covers exactly "claude-opus-4" (bare, Opus 4, retired except Google
+        // Cloud) and "claude-opus-4-1" (Opus 4.1, deprecated) — both individually
+        // listed at Base Input $15/MTok, Output $75/MTok. Any FUTURE opus-4.x
+        // point release not already carved out above would also match this bare
+        // prefix; that is the file's known, general substring-matching limitation
+        // (see this function's own doc comment on ordering), not something this
+        // task's verification pass can close for ids that don't exist yet.
         (15.0, 75.0)
-    } else if model.contains("claude-sonnet-4") || model.contains("claude-sonnet-3-7") {
-        // Anthropic, Sonnet 4 / 4.5 / 4.6 (all three share this rate on the
-        // official page — no split needed, unlike Opus above), official pricing
-        // (verified 2026-08-03): https://platform.claude.com/docs/en/about-claude/pricing
-        // claude-sonnet-3-7 predates the current pricing page (fully retired, not
-        // listed) and could not be re-verified; left unchanged.
+    } else if model.contains("claude-sonnet-4") {
+        // Anthropic, official pricing (verified 2026-08-03):
+        // https://platform.claude.com/docs/en/about-claude/pricing
+        // Sonnet 4, 4.5 and 4.6 are each their own row and each independently
+        // verify to Base Input $3/MTok, Output $15/MTok — no split needed here,
+        // unlike Opus above. "claude-sonnet-3-7" USED to be grouped into this
+        // same branch (pre-dating this task); it is not on the current pricing
+        // page at all (fully retired, unlisted) and its rate could not be
+        // re-verified, so per this table's own rule — only verified rates ship —
+        // it was dropped from this branch and now resolves `Unknown` instead of
+        // silently inheriting the 4/4.5/4.6 rate on an unverified assumption.
         (3.0, 15.0)
     } else if model.contains("claude-haiku-4-5") {
-        // Anthropic, Haiku 4.5, official pricing (verified 2026-08-03):
+        // Anthropic, official pricing (verified 2026-08-03):
         // https://platform.claude.com/docs/en/about-claude/pricing
+        // Base Input $1/MTok, Output $5/MTok — its own row on the page.
         // Checked BEFORE the bare "claude-haiku" branch below, same reason as
         // Opus above: Haiku 4.5 is priced differently from the 3.5 generation
         // that branch actually covers, and "claude-haiku" is a substring of
         // "claude-haiku-4-5" too.
         (1.0, 5.0)
     } else if model.contains("claude-haiku") {
-        // Anthropic, Haiku 3.5 (retired except Bedrock/Google Cloud), official
-        // pricing (verified 2026-08-03 — this is the rate this task corrected FROM
-        // being applied to Haiku 4.5 as well; Haiku 4.5 now has its own branch
-        // above): https://platform.claude.com/docs/en/about-claude/pricing
+        // Anthropic, official pricing (verified 2026-08-03):
+        // https://platform.claude.com/docs/en/about-claude/pricing
+        // Covers "claude-haiku-3-5" (Haiku 3.5, retired except Bedrock/Google
+        // Cloud) and bare "claude-haiku" — Base Input $0.80/MTok, Output
+        // $4/MTok, its own row on the page. This is the rate this task corrected
+        // FROM being applied to Haiku 4.5 as well; Haiku 4.5 now has its own
+        // branch above.
         (0.8, 4.0)
     } else if model.contains("gpt-5.5") {
         // OpenAI, official pricing (verified 2026-08-03): https://developers.openai.com/api/docs/pricing
         (5.0, 30.0)
-    } else if model.contains("gpt-5-mini") || model.contains("gpt-5.1-codex-mini") {
-        // OpenAI, official pricing (verified 2026-08-03 for gpt-5-mini; gpt-5.1-codex-mini
-        // is not listed on the page as its own line item and could not be independently
-        // re-verified, so it stays grouped with gpt-5-mini's rate, unchanged):
-        // https://developers.openai.com/api/docs/pricing
+    } else if model.contains("gpt-5-mini") {
+        // OpenAI, official pricing (verified 2026-08-03): https://developers.openai.com/api/docs/pricing
+        // "gpt-5.1-codex-mini" USED to be grouped into this branch (pre-dating
+        // this task); it is not listed on the page as its own line item and its
+        // rate could not be independently verified, so — same rule as
+        // claude-sonnet-3-7 above — it was dropped and now resolves `Unknown`
+        // rather than silently inheriting gpt-5-mini's verified rate on an
+        // unverified assumption.
         (0.25, 2.0)
     } else if model.contains("gpt-5-nano") {
         // OpenAI, official pricing (verified 2026-08-03): https://developers.openai.com/api/docs/pricing
         (0.05, 0.4)
-    } else if model.contains("gpt-5") {
+    } else if model.contains("gpt-5") && !model.contains("gpt-5.1-codex-mini") {
         // OpenAI, official pricing (verified 2026-08-03): https://developers.openai.com/api/docs/pricing
+        // "gpt-5.1-codex-mini" is explicitly excluded here too — dropping it
+        // from the gpt-5-mini branch above (unverified rate) is worthless if it
+        // just falls through and silently inherits THIS family rate instead;
+        // either way is a confident lie about a number nobody checked. Only
+        // Unknown is honest for an id nobody has verified.
         (1.25, 10.0)
     } else if model.contains("gpt-4o") && !model.contains("mini") {
         // OpenAI, official pricing (verified 2026-08-03): https://developers.openai.com/api/docs/pricing

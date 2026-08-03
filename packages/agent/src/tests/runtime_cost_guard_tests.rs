@@ -221,3 +221,21 @@ fn an_opus_generation_that_regrouped_at_a_new_price_does_not_inherit_the_old_one
     assert_eq!((opus_41, opus_41_out), (15.0, 75.0));
     assert_ne!(opus_47, opus_41, "the current generation must not inherit the deprecated one's rate");
 }
+
+#[test]
+fn an_id_dropped_from_a_branch_for_lacking_verification_is_unknown_not_grouped() {
+    // Both of these used to ride a verified sibling's rate on an UNVERIFIED
+    // assumption: claude-sonnet-3-7 was grouped with claude-sonnet-4 (not on
+    // Anthropic's current pricing page at all — fully retired, unverifiable),
+    // and gpt-5.1-codex-mini was grouped with gpt-5-mini (not listed on
+    // OpenAI's page as its own line item either). This table's own rule is
+    // that only verified rates ship — an id nobody could re-verify is now
+    // Unknown, not silently priced by association with a neighbour that DOES
+    // verify.
+    assert!(matches!(rate_for_model("claude-sonnet-3-7"), RateLookup::Unknown));
+    assert!(matches!(rate_for_model("gpt-5.1-codex-mini"), RateLookup::Unknown));
+    // Their former group-mates still price correctly — dropping the
+    // unverified sibling must not have broken the verified one.
+    assert!(matches!(rate_for_model("claude-sonnet-4-6"), RateLookup::Priced { .. }));
+    assert!(matches!(rate_for_model("gpt-5-mini"), RateLookup::Priced { .. }));
+}
