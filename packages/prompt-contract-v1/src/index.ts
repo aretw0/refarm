@@ -543,10 +543,31 @@ async function askText(
 	return answer.trim() || prompt.default || "";
 }
 
-function maskSecret(value: string, visibleTail: number): string {
-	if (visibleTail <= 0) return "*".repeat(value.length);
-	if (value.length <= visibleTail) return "*".repeat(value.length);
-	return "*".repeat(value.length - visibleTail) + value.slice(-visibleTail);
+/**
+ * The mask, BOUNDED BY THE ROW.
+ *
+ * A secret prompt redraws in place — `clearLine` then `cursorTo(0)` — and that erases
+ * exactly one physical row. A frame wider than the row wraps, so the redraw erases only
+ * its last row and every earlier one survives, each still carrying its own `visibleTail`.
+ * On a phone, pasting a token that way leaves a SLIDING WINDOW of the secret on screen,
+ * and a sliding window of the last N characters reconstructs the whole string.
+ *
+ * So the row is the budget. The mask stops growing at it: the operator still sees input
+ * arriving and still gets the tail to check their paste against, and every frame the
+ * next one has to erase is one the next one CAN erase.
+ *
+ * `room` absent (a stream with no width) keeps the unbounded mask — there is no row to
+ * overflow, and truncating against a guessed width would hide characters for no reason.
+ */
+function maskSecret(value: string, visibleTail: number, room?: number): string {
+	const tail = visibleTail > 0 && value.length > visibleTail ? value.slice(-visibleTail) : "";
+	const stars = value.length - tail.length;
+	if (room === undefined || !Number.isFinite(room)) return "*".repeat(stars) + tail;
+
+	const available = Math.max(0, Math.floor(room));
+	const shownTail = tail.slice(Math.max(0, tail.length - available));
+	const budget = Math.max(0, available - shownTail.length);
+	return "*".repeat(Math.min(stars, budget)) + shownTail;
 }
 
 function askSecret(
@@ -570,7 +591,15 @@ function askSecret(
 		const render = () => {
 			readline.clearLine(output, 0);
 			readline.cursorTo(output, 0);
-			output.write(`${prompt.question}: ${maskSecret(value, visibleTail)}`);
+			const label = `${prompt.question}: `;
+			// Re-read the width per frame: a terminal can be resized mid-paste, and the
+			// budget must follow the row that `clearLine` will actually erase.
+			const columns = output.columns;
+			const room =
+				typeof columns === "number" && Number.isFinite(columns) && columns > 0
+					? columns - label.length
+					: undefined;
+			output.write(`${label}${maskSecret(value, visibleTail, room)}`);
 		};
 
 		const cleanup = () => {

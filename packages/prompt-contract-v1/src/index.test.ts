@@ -229,6 +229,39 @@ describe("createStdioOperatorChannel", () => {
 		expect(cleared.state.outputText).toContain("Fresh: ");
 	});
 
+	it("keeps every secret frame inside the row, so a narrow terminal cannot keep its tail", async () => {
+		// The operator pasted a device token into Termux and the prompt reprinted itself
+		// once per character: on a phone the line is wider than the row, so `clearLine` +
+		// `cursorTo(0)` only erased the LAST wrapped row and every earlier one survived —
+		// each carrying its own `visibleTail`. What stayed on screen was a sliding window
+		// of the secret, which reconstructs the whole of it.
+		//
+		// A frame that fits the row is erased by the next one. That is the property.
+		const { input, output, state } = makeTtyIo();
+		output.columns = 40;
+		const channel = createStdioOperatorChannel({ input, output });
+		const secret = "sk-live-abcdefghijklmnopqrstuvwxyz012345";
+		const result = channel.ask({
+			type: "secret",
+			question: "Cole a credencial deste aparelho",
+			visibleTail: 4,
+		});
+
+		for (const character of secret) input.emit("keypress", character, { name: character });
+		input.emit("keypress", "", { name: "return" });
+		await expect(result).resolves.toBe(secret);
+
+		// Strip the control sequences; what remains is what the row had to hold.
+		const frames = state.outputText
+			.split(/\u001b\[[0-9;]*[A-Za-z]/)
+			.map((frame) => frame.replace(/\n/g, ""))
+			.filter((frame) => frame.length > 0);
+		expect(frames.length).toBeGreaterThan(0);
+		for (const frame of frames) {
+			expect(frame.length).toBeLessThanOrEqual(40);
+		}
+	});
+
 	it("restores paused stdin after a raw-mode secret prompt", async () => {
 		const { input, output, state } = makeTtyIo();
 		const channel = createStdioOperatorChannel({ input, output });
