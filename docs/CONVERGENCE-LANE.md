@@ -160,6 +160,28 @@ The maintainer sharpened the North Star: the goal is not "rcdc5 imports `@refarm
     (`5eb8382d`), proven by reproducing the exact regression and watching `node --check` pass while
     the lint names both lines. Corollary worth keeping: a kit fix is not delivered until
     `refarm dist publish` runs — committed code is not code on the phone.
+  - **2026-08-03 — the operator journey CLOSED, from the phone.** `farm-start
+    "workspace:rcdc5:code-boundaries"` started the declared operation, `farm-attend --watch`
+    waited and left cleanly, and `farm-start --status` returned `succeeded (exit 0)` carrying the
+    bounded `operation-result.v1` — *Code boundaries valid across 10 packages*, `packagesScanned: 10`,
+    `issueCount: 0`, stdout never travelling. The contract had been proven a day earlier through
+    `POST /operations`; this is the first run through the surface an operator actually types.
+    Three field bugs stood between the two, and each was found by using it rather than by testing it:
+    the argv parse that dropped the operation id, the extraction that left two references without
+    their declarations (`farm-client` had no lint at all — the only plain-JS package here, so
+    `no-undef` was off and the artifact that ships to a phone had no static check), and the secret
+    mask that grew past the row so every redraw left its own `visibleTail` behind. `farm-auth` also
+    met Ctrl+C with a stack trace: the one bin that asks the operator anything was the only one of
+    seven with no cancellation handling, and a conformance test now fails if a bin that asks lacks it.
+  - **The node resolves its declarations from where it was started, and it should not.** Restarting
+    the runtime from the repository instead of `~` made a declared operation fail with a message
+    about a missing envelope — the spawned `refarm` had read the REPOSITORY's config, where that
+    workspace declares something else. The node already receives `--refarm-dir` and threads it to
+    the auth policy and Scarecrow; declaration resolution asks `current_dir()` instead. Ten
+    production sites mapped into three groups (five are the node's declarations, two derive from
+    them, three legitimately mean "the current project"); the seven move together or none do.
+    Design: [`2026-08-03-declared-node-base-design.md`](./superpowers/specs/2026-08-03-declared-node-base-design.md).
+    `packages/tractor/**` is protected (§8), so it waits on the maintainer.
   - **The thirteenth was not a defect at all.** `tidy.test.ts` pinned one of the two spellings
     `createPackageScriptCommand` produces (relative when it can reach the target downward, absolute
     otherwise), so its verdict depended on the directory vitest was launched from: green under turbo,
