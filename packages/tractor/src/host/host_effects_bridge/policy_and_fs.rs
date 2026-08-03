@@ -89,7 +89,13 @@ fn is_safe_plugin_id_token(value: &str) -> bool {
 /// cap, symlink/regular-file check, dev+ino TOCTOU guard). Returns None when the file is
 /// absent. Both the trusted-plugins allowlist and the approved-permissions map ride this
 /// one hardened read so neither re-implements the fs safety.
-fn read_refarm_config_value_at(base: &Path) -> Result<Option<serde_json::Value>, String> {
+///
+/// `pub(crate)` (re-exported at `host/mod.rs`) rather than the module-private `fn` this
+/// stayed while it had only in-module callers: `sidecar::budget` needs the SAME hardened
+/// read every other sovereign-config consumer here already uses (`spawn_env.rs`,
+/// `surfaces_decl.rs`, `connection_decl.rs`), not a second, unhardened one guessing at the
+/// same file.
+pub(crate) fn read_refarm_config_value_at(base: &Path) -> Result<Option<serde_json::Value>, String> {
     // The sovereign dir is injected (SOVEREIGN_DIR); no selector → no sovereign
     // config path → behave as if the file is absent (never a brand-dir fallback).
     let Some(path) = crate::host::plugin_host::config_node::sovereign_config_path(base) else {

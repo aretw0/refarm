@@ -221,22 +221,20 @@ pub(crate) fn resolve_budget(
 //
 // `resolve_budget` has folded a workspace ceiling since it was written; nothing ever read
 // one off disk to hand it in. This is that read: the top-level `budget` section of the
-// sovereign config, resolved from `node_base` — the SAME "base" `declared_base()` returns
-// and `sovereign_config_path(base)` joins the config dir onto (`crate::host`, re-exported
-// from `host::plugin_host::config_node` for this reason) — never a hand-joined
-// `node_base.join("config.json")`. `sovereign_config_path` is the substrate's own answer to
-// "where is the file", including its own rule for absence: an unset `SOVEREIGN_DIR` selector
-// means NO sovereign config path, not a silent fallback to a guessed directory name. Using
-// it here rather than reproducing its five lines is what keeps this read agreeing with every
-// other reader of the same file (surfaces, connections, spawnEnv, plugin grants) instead of
-// becoming a second, driftable answer to one question.
+// sovereign config, resolved from `node_base` — the SAME "base" `declared_base()` returns —
+// through `read_refarm_config_value_at` (`crate::host`, re-exported from
+// `host_effects_bridge` for this reason), the ONE hardened reader `spawn_env.rs`,
+// `surfaces_decl.rs` and `connection_decl.rs` already use for this exact file: size cap,
+// symlink/regular-file check, dev+ino TOCTOU guard. A budget section read with anything
+// weaker would be the one sovereign-config read on this node that trusts what the others
+// refuse to — so this is a consumer of that reader, not a second one.
 //
 // Every key optional, and every failure mode — no selector, no file, unreadable bytes,
-// invalid JSON, no `budget` key, a `budget` value that doesn't parse into this shape, no
-// entry for the workspace asked about — resolves to `None`/the fallback rather than an
-// `Err`. A budget read must never be the thing that stops a dispatch; a malformed config is
-// a different problem with a different owner (see the module-level rule this mirrors for the
-// fold itself).
+// invalid JSON (the hardened reader's `Err`, mapped to `None` at this boundary), no
+// `budget` key, a `budget` value that doesn't parse into this shape, no entry for the
+// workspace asked about — resolves to `None`/the fallback rather than stopping a dispatch.
+// A malformed config is a different problem with a different owner (see the module-level
+// rule this mirrors for the fold itself).
 
 /// The top-level `budget` section, deserialised straight off the wire shape the maintainer
 /// settled: `{ "node": { "default": {...}, "ceiling": {...} }, "workspaces": { "<id>": {
@@ -265,16 +263,20 @@ struct NodeBudgetSection {
 }
 
 /// Resolve the sovereign config's `budget` section from `node_base` — the base
-/// `declared_base()` returns, joined onto the config dir by `sovereign_config_path`
-/// exactly the way every other reader of this file joins it. `None` for any reason at
-/// all (see the section doc above). PURE fs read + parse — no caching, no state: called
-/// once per dispatch, which is what lets a config edit take effect on the very next
-/// effort without a restart, the same immediacy `sidecar::auth`'s policy watcher gives
-/// the credential gate.
+/// `declared_base()` returns, read through the crate's one hardened sovereign-config
+/// reader (see the section doc above). `None` for any reason at all: no sovereign config
+/// path, no file, or the hardened reader's `Err` (oversized, not a regular file, fails its
+/// TOCTOU check, or isn't valid JSON) — logged and swallowed here, exactly as absence is,
+/// because a malformed config must fail shut into "no budget declared", never into a
+/// stopped dispatch. No caching, no state: called once per dispatch, which is what lets a
+/// config edit take effect on the very next effort without a restart, the same immediacy
+/// `sidecar::auth`'s policy watcher gives the credential gate.
 fn read_budget_section(node_base: &Path) -> Option<BudgetSection> {
-    let path = crate::host::sovereign_config_path(node_base)?;
-    let bytes = std::fs::read(path).ok()?;
-    let config: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    let config = crate::host::read_refarm_config_value_at(node_base)
+        .inspect_err(|error| {
+            tracing::warn!(%error, "sidecar: sovereign config unreadable for budget — treating as absent");
+        })
+        .ok()??;
     let budget = config.get("budget")?;
     serde_json::from_value(budget.clone()).ok()
 }

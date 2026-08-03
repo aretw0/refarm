@@ -35,14 +35,15 @@ pub use host_effects_bridge::{
 // `sidecar::remote_initiation` starts a wizard with the very same environment a `connections`
 // establish gets: one declaration, one search order, so a wizard started from a phone finds
 // exactly what a local one finds.
-pub(crate) use host_effects_bridge::{spawn_env_from_config_at, SpawnEnvDecl};
+// `read_refarm_config_value_at` joins this same re-export for the same reason:
+// `sidecar::budget` must read the sovereign config through the ONE hardened reader every
+// other consumer here uses (size cap, symlink/regular-file check, TOCTOU guard), not a
+// second, unhardened read of the same file.
+pub(crate) use host_effects_bridge::{read_refarm_config_value_at, spawn_env_from_config_at, SpawnEnvDecl};
 /// The base this node's declarations resolve against — re-exported here so the sidecar
 /// reads the SAME answer the host bridges do, rather than each asking the OS.
-/// `sovereign_config_path` joins this same re-export for the same reason: `sidecar::budget`
-/// must resolve the config FILE the same way the host bridges resolve it, not through a
-/// second, hand-maintained copy of that join.
 pub(crate) use plugin_host::config_node::{
-    declared_base, sovereign_config_path, SOVEREIGN_BASE_KEY, SOVEREIGN_DIR_SELECTOR_KEY,
+    declared_base, SOVEREIGN_BASE_KEY, SOVEREIGN_DIR_SELECTOR_KEY,
 };
 // `SurfaceExpose`/`SurfaceGate` never appear in a signature main.rs has to name (they are
 // only reachable through `SurfaceDeclaration`'s `pub(crate)` fields), but `bind_guard`
