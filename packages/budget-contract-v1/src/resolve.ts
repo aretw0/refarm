@@ -10,9 +10,9 @@ import {
  * Resolve one value across three nested levels (D9). Outward to inward: the node
  * bounds what it can serve, the scope bounds within that, and the request declares
  * within both. A scope ceiling above the node's is clamped rather than obeyed — a
- * scope cannot grant capacity the machine lacks. Kept generic on purpose: budget is
- * this fold's first consumer, and a later policy (e.g. per-workspace auth) resolves
- * through the same three levels.
+ * scope cannot grant capacity the machine lacks. Kept deliberately generic: this
+ * fold is not specific to any one kind of value, and a later policy resolving
+ * across the same three levels should inherit it rather than copy it.
  */
 function resolveAxis(
 	axis: BudgetAxis,
@@ -55,7 +55,8 @@ function resolveAxis(
  * ceiling/default and an optional workspace ceiling/default — one axis
  * (`deadlineMs`, `maxTokens`, `maxUsd`) at a time. The node bounds what the machine
  * can serve, the workspace bounds within that, and the dispatch declares within
- * both (D9).
+ * both (D9). Budget is this fold's first consumer; a later per-workspace auth
+ * policy is expected to resolve through the same three levels.
  */
 export function resolveBudget(input: BudgetResolutionInput): ResolvedBudget {
 	return Object.fromEntries(
