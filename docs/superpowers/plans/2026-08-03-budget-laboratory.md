@@ -19,8 +19,21 @@ corrected, because a laboratory built on a wrong estimator measures wrong from d
 
 ## Scope
 
-This plan covers **spec slices 1–5**. After Task 8, every real run the operator makes from any
-surface is evidence, which is working software on its own.
+This plan covers **spec slices 1–5**, in eleven tasks. After Task 11, every real run the operator
+makes from any surface is evidence, which is working software on its own.
+
+**Tasks 7, 8 and 9 were added on 2026-08-03, mid-execution**, and the reasons are recorded because
+they change what the plan is:
+
+- The maintainer asked how cost accounting stays current with a moving market. Measuring the answer
+  found the drift had **already happened**: the rate table's Claude branches stop at the 4 family, so
+  every Claude 5 model falls through to the return value meaning "local model, genuinely free".
+  Tasks 7 and 8 separate *unknown* from *free*, name the rate table with a version, and teach the
+  existing model-drift gate to require a price. Task 10 stamps that version on every observation and
+  Task 11 counts the records a later correction would need to revisit — because **tokens do not
+  drift and prices do**, so the record stores what is stable and lets the volatile part be recomputed.
+- Task 9 closes an omission in this plan: Task 5 built the three-level fold and its only production
+  caller passes `None` for the workspace level, so D9's middle level was unreachable outside tests.
 
 **Spec slices 6–8 (the sweep, the gallery, closing the loop) get their own plan.** The spec draws
 that seam itself: 1–5 make the instrument record; 6–8 make it reproducible by third parties. Writing
@@ -919,8 +932,9 @@ refarm agent finish --lane after-commit --run --json
   plus `Effort.budget: Option<BudgetDeclaration>` and `Effort.workspace_id: Option<String>`.
 
 **The effort must carry its workspace identity explicitly** (`workspaceId` on the wire), not leave it
-to be parsed back out of an operation id. Two consumers need it and only one exists today: Task 7's
-`refarm.workspace.id` label needs it now, and the credential scope that the next spec will widen from
+to be parsed back out of an operation id. Three consumers need it and none exists today: Task 9 keys
+the workspace ceiling on it, Task 10's `refarm.workspace.id` label records it, and the credential
+scope that the next spec will widen from
 verb to verb×object needs the same object. Inferring it from a string at two call sites is how the
 two drift apart. A dispatch with no workspace sends `None`, and D6 applies: absent, never `""`.
 
@@ -1320,7 +1334,299 @@ refarm agent finish --lane after-commit --run --json
 
 ---
 
-### Task 7: The BudgetObservation record
+### Task 7: The estimator stops conflating "unknown" with "free", and names its rate table
+
+**Why this exists** (added 2026-08-03 after the maintainer asked how cost accounting stays current
+with a moving market): `estimate_usd` matches model ids by substring and its Claude branches stop at
+`claude-opus-4` / `claude-sonnet-4` / `claude-sonnet-3-7`. `"claude-opus-5".contains("claude-opus-4")`
+is false, so **every Claude 5 model falls through to `return 0.0` today** — the same value that means
+"local model, genuinely free". The drift is not a future risk; it has already happened and nothing
+reported it.
+
+The root defect is that one return value carries two meanings. Until they are separable, no gate can
+tell a free model from an unrecognised one.
+
+**Files:**
+- Modify: `packages/agent/src/utils.rs` (the `estimate_usd` rate table and its fall-through)
+- Test: `packages/agent/src/tests/runtime_cost_guard_tests.rs`
+
+**Interfaces:**
+- Produces: `pub(crate) const RATE_TABLE_VERSION: &str` (bump this string whenever a rate or a branch
+  changes — Task 10 stamps it onto every observation so historical records can be recomputed);
+  `pub(crate) enum RateLookup { Priced { rate_in: f64, rate_out: f64 }, Free, Unknown }` and
+  `pub(crate) fn rate_for_model(model: &str) -> RateLookup`.
+
+- [ ] **Step 1: Write the failing tests**
+
+```rust
+#[test]
+fn a_known_free_model_and_an_unrecognised_one_are_not_the_same_answer() {
+    // Both cost $0 to estimate. Only one of them costs $0 to RUN. Collapsing
+    // them is how a new model id silently prices itself at nothing.
+    assert!(matches!(rate_for_model("llama3.2"), RateLookup::Free));
+    assert!(matches!(rate_for_model("mistral"), RateLookup::Free));
+    assert!(matches!(rate_for_model("some-model-nobody-priced"), RateLookup::Unknown));
+}
+
+#[test]
+fn the_claude_five_family_is_priced_rather_than_falling_through() {
+    // The drift this task exists to close: these matched nothing before.
+    for model in ["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5-20251001"] {
+        assert!(
+            matches!(rate_for_model(model), RateLookup::Priced { .. }),
+            "{model} must resolve to a rate, not fall through"
+        );
+    }
+}
+
+#[test]
+fn a_more_specific_model_id_wins_over_its_family_prefix() {
+    // Substring matching is order-dependent: "gpt-5.5" must be tested before
+    // the generic "gpt-5", or a point release lands on the wrong rate while
+    // looking perfectly plausible.
+    let RateLookup::Priced { rate_in: specific, .. } = rate_for_model("gpt-5.5") else {
+        panic!("gpt-5.5 must be priced");
+    };
+    let RateLookup::Priced { rate_in: family, .. } = rate_for_model("gpt-5") else {
+        panic!("gpt-5 must be priced");
+    };
+    assert_ne!(specific, family, "the point release must not inherit the family rate");
+}
+
+#[test]
+fn the_rate_table_names_a_version() {
+    assert!(!RATE_TABLE_VERSION.is_empty());
+}
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `cargo test --lib runtime_cost_guard --quiet`
+Expected: FAIL — `rate_for_model` not found.
+
+- [ ] **Step 3: Extract the table behind a three-way lookup**
+
+Move the existing `if / else if` chain out of `estimate_usd` into `rate_for_model`, returning
+`RateLookup::Priced` for every branch it already has, plus new branches for the Claude 5 family
+(`claude-opus-5`, `claude-sonnet-5`) at the same rates their 4-family predecessors carry until the
+maintainer supplies current ones — a documented placeholder is a number someone can correct, where a
+silent zero is not. Return `RateLookup::Free` for an explicit known-free list (`llama`, `mistral`,
+`qwen`, `gemma`, `phi`, `deepseek-r1` and anything ollama serves), and `RateLookup::Unknown`
+otherwise.
+
+`estimate_usd` then maps `Free` and `Unknown` both to `0.0` **for now** — the value does not change,
+only its recoverability. Add a `tracing::warn!` on `Unknown` naming the model id, so an unpriced
+model announces itself once per run instead of never.
+
+Declare `RATE_TABLE_VERSION` beside the table, with a comment stating the rule: bump it whenever a
+rate or a branch changes, because Task 10 stamps it onto every observation and Task 11 uses it to
+decide which historical records predate a correction.
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `cargo test --lib runtime_cost_guard --quiet && cargo test --lib --quiet`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+refarm agent finish --lane after-edit --run --json
+git add packages/agent/src
+git commit -m "fix(agent): an unpriced model is unknown, not free
+
+The rate table's Claude branches stopped at the 4 family, so every Claude 5
+model matched nothing and fell through to the return value that means 'local
+model, genuinely free'. One value carried two meanings and no gate could tell
+them apart, which is why the drift went unreported.
+
+The lookup now answers Priced, Free or Unknown. Both still estimate zero dollars
+today — what changed is that the zero is now recoverable, and an unknown model
+says its own name in the log instead of costing nothing in silence."
+refarm agent finish --lane after-commit --run --json
+```
+
+---
+
+### Task 8: The drift gate requires a rate for every default model
+
+`scripts/ci/check-model-defaults-drift.mjs` already cross-checks the default model ids in
+`packages/config/src/model-routing.js` against the Rust constants in
+`packages/agent/src/provider_config.rs`. It knows which models are canonical. It has never asked
+whether they have a price. Extending it is how Task 7's fix stays fixed.
+
+**Files:**
+- Modify: `scripts/ci/check-model-defaults-drift.mjs`
+- Test: the script's existing test harness if it has one; otherwise assert by running it
+
+**Interfaces:**
+- Consumes: Task 7's `rate_for_model` branch list, read from `packages/agent/src/utils.rs` as text
+  (the script already reads `provider_config.rs` as text — follow that established pattern rather
+  than introducing a build step to call into Rust).
+
+- [ ] **Step 1: Write the failing check**
+
+Add a case to the script that collects every default model id it already knows about, and for each
+one asserts that `utils.rs` contains a matching branch. Prove it fails first by temporarily removing
+one branch, running the script, and confirming it exits non-zero naming that model.
+
+- [ ] **Step 2: Implement the check**
+
+For each default model id, find whether any `model.contains("...")` literal in `rate_for_model` is a
+substring of it, or whether it appears on the known-free list. Exit non-zero listing every default
+model with no rate and no free-list entry, with a message that says what to do: add a branch to
+`rate_for_model` and bump `RATE_TABLE_VERSION`.
+
+- [ ] **Step 3: Run it**
+
+Run: `pnpm run models:defaults:check`
+Expected: exit 0 after Task 7's branches exist.
+
+- [ ] **Step 4: Commit**
+
+```bash
+refarm agent finish --lane after-edit --run --json
+git add scripts/ci
+git commit -m "feat(ci): the model drift gate asks whether a default model has a price
+
+It already knew which models are canonical and cross-checked their ids across
+two sources. It never asked the question that actually rots: whether the
+estimator can price them. A default model with no rate now fails the gate
+instead of quietly estimating zero."
+refarm agent finish --lane after-commit --run --json
+```
+
+---
+
+### Task 9: The workspace budget comes from the sovereign config
+
+**Why this exists:** Task 5 built the three-level fold and `dispatch.rs` calls it with `None` for the
+workspace level. The fold handles a workspace ceiling and its tests cover one, but **no caller ever
+supplies it**, so D9's middle level is unreachable in production. This was an omission in the plan,
+not in Task 5 — the earlier steps described where the ceiling lives and never assigned reading it.
+
+**Files:**
+- Modify: `packages/tractor/src/sidecar/budget.rs` (config deserialisation)
+- Modify: `packages/tractor/src/sidecar/dispatch.rs` (pass the resolved workspace budget)
+- Test: `packages/tractor/src/sidecar/tests/budget.rs`
+
+**Protected surface.** Only these files.
+
+**Interfaces:**
+- Consumes: `Effort.workspace_id` (added by Task 5), and the node's base directory, which the daemon
+  already receives as `--refarm-dir` and threads to the auth policy — declaration resolution must ask
+  for it, never `current_dir()`. That rule is settled repo policy; see
+  `docs/superpowers/specs/2026-08-03-declared-node-base-design.md`.
+- Produces: `fn workspace_budget_for(refarm_dir: &Path, workspace_id: Option<&str>) -> Option<WorkspaceBudget>`
+  and `fn node_budget_from_config(refarm_dir: &Path, fallback: NodeBudget) -> NodeBudget`.
+
+**Both halves of the section must be read, not just the workspace one.** The settled config shape
+declares `budget.node.default` and `budget.node.ceiling` as well, and a plan that reads only
+`budget.workspaces` would leave the node half **declared and ignored** — the same defect this task
+exists to close, reintroduced one level up. `node_budget_from_config` layers over the environment
+values rather than replacing them: config wins where present, `from_respond_watch` fills the rest, so
+an installation with no `budget` section is untouched.
+
+This also resolves a dead-code finding from Task 5's review: `NodeBudget::from_env()` currently has
+zero callers, because `dispatch_effort` uses `from_respond_watch` to keep a test override working.
+Either give it its caller here or fold it into `node_budget_from_config` and delete it. Do not leave
+a constructor in the tree whose only justification is that a brief once named it.
+
+The config shape, settled by the maintainer, is a TOP-LEVEL `budget` section:
+
+```json
+{
+  "budget": {
+    "node": {
+      "default": { "deadlineMs": 45000, "maxTokens": 100000, "maxUsd": 1 },
+      "ceiling": { "deadlineMs": 600000, "maxTokens": 500000, "maxUsd": 10 }
+    },
+    "workspaces": {
+      "rcdc5": { "ceiling": { "deadlineMs": 300000 } }
+    }
+  }
+}
+```
+
+- [ ] **Step 1: Write the failing tests**
+
+```rust
+#[test]
+fn a_config_with_no_budget_section_changes_nothing() {
+    // Backward compatibility is not negotiable: every existing installation has
+    // no budget section, and must resolve exactly as it did before this task.
+    let dir = tempdir_with_config(r#"{ "workspaces": {} }"#);
+    assert!(workspace_budget_for(dir.path(), Some("rcdc5")).is_none());
+}
+
+#[test]
+fn a_workspace_ceiling_is_read_for_that_workspace_only() {
+    let dir = tempdir_with_config(
+        r#"{ "budget": { "workspaces": { "rcdc5": { "ceiling": { "deadlineMs": 300000 } } } } }"#,
+    );
+    let ws = workspace_budget_for(dir.path(), Some("rcdc5")).expect("declared");
+    assert_eq!(ws.ceiling.and_then(|c| c.deadline_ms), Some(300_000));
+    assert!(
+        workspace_budget_for(dir.path(), Some("other")).is_none(),
+        "one workspace's ceiling must not bind another"
+    );
+    assert!(
+        workspace_budget_for(dir.path(), None).is_none(),
+        "a dispatch with no workspace has no workspace ceiling"
+    );
+}
+
+#[test]
+fn max_usd_crosses_the_boundary_as_a_decimal_and_lands_as_millis() {
+    let dir = tempdir_with_config(
+        r#"{ "budget": { "workspaces": { "w": { "ceiling": { "maxUsd": 2.5 } } } } }"#,
+    );
+    let ws = workspace_budget_for(dir.path(), Some("w")).expect("declared");
+    assert_eq!(ws.ceiling.and_then(|c| c.max_usd_millis), Some(2_500));
+}
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `cargo test --lib sidecar::tests::budget --quiet`
+Expected: FAIL — `workspace_budget_for` not found.
+
+- [ ] **Step 3: Implement the read**
+
+Deserialise the top-level `budget` section from `<refarm_dir>/.refarm/config.json` using the same
+loader the sidecar already uses for its other declarations. Every key optional; a missing file, a
+missing section, or a missing workspace all return `None` rather than erroring — a malformed config
+is a different problem with a different owner, and a budget read must never be the thing that stops a
+dispatch.
+
+- [ ] **Step 4: Pass it at the call site**
+
+In `dispatch.rs`, replace the `None` at the workspace position of `resolve_budget` with
+`workspace_budget_for(&state.refarm_dir, effort.workspace_id.as_deref()).as_ref()`.
+
+- [ ] **Step 5: Run tests to verify they pass**
+
+Run: `cargo test --lib sidecar::tests::budget --quiet && cargo test --lib sidecar --quiet -- --test-threads=1`
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+refarm agent finish --lane after-edit --run --json
+git add packages/tractor/src
+git commit -m "feat(tractor): the workspace level of the budget fold becomes reachable
+
+The fold has handled three levels since it was written and its tests covered a
+workspace ceiling, but the one production caller passed None, so the middle
+level existed only in tests. It now reads the sovereign config's top-level
+budget section, keyed by the workspace the effort carries.
+
+A config with no budget section resolves exactly as before."
+refarm agent finish --lane after-commit --run --json
+```
+
+---
+
+### Task 10: The BudgetObservation record
 
 **Protected surface.**
 
@@ -1596,6 +1902,15 @@ pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json:
         map.insert("refarm.budget.max_usd.enforced".into(), enforced.into());
     }
 
+    // Which rate table priced this run. Without it, a later correction to the
+    // table cannot tell which historical records predate it, and recomputing
+    // becomes guesswork. Tokens do not drift; prices do — so the record stamps
+    // the thing that drifts and keeps the thing that does not.
+    map.insert(
+        "refarm.cost.rate_table_version".into(),
+        crate::RATE_TABLE_VERSION.into(),
+    );
+
     map.insert("timestamp_ns".into(), crate::now_ns().into());
     serde_json::Value::Object(map)
 }
@@ -1640,7 +1955,7 @@ refarm agent finish --lane after-commit --run --json
 
 ---
 
-### Task 8: Read it back
+### Task 11: Read it back
 
 The operator is the record's first consumer, and this is the check that the join actually joins.
 
@@ -1651,7 +1966,8 @@ The operator is the record's first consumer, and this is the check that the join
 - Test: `apps/refarm/src/commands/budget.test.ts`
 
 **Interfaces:**
-- Consumes: `BudgetObservation` nodes written by Task 7.
+- Consumes: `BudgetObservation` nodes written by Task 10, including the
+  `refarm.cost.rate_table_version` stamp Task 7 introduced.
 - Produces: `refarm budget observations --json` returning
   `{ observations: [...], summary: { total, timedOut, boundByNode, boundByWorkspace }, ok, nextCommand, nextCommands }`.
 
@@ -1687,6 +2003,22 @@ describe("summariseObservations", () => {
 			boundByWorkspace: 0,
 		});
 	});
+
+	it("counts observations priced by a rate table that is no longer current", () => {
+		// Tokens do not drift; prices do. An observation stamped with a
+		// superseded rate table still holds true token counts, so its cost is
+		// recomputable — but only if the reader can find it.
+		const summary = summariseObservations(
+			[
+				{ "refarm.cost.rate_table_version": "2026-08-03" },
+				{ "refarm.cost.rate_table_version": "2026-01-01" },
+				{},
+			],
+			"2026-08-03",
+		);
+		expect(summary.stalePricing).toBe(1);
+		expect(summary.unstampedPricing).toBe(1);
+	});
 });
 ```
 
@@ -1705,23 +2037,42 @@ export type ObservationSummary = {
 	timedOut: number;
 	boundByNode: number;
 	boundByWorkspace: number;
+	/** Observations priced by a rate table that has since been superseded. */
+	stalePricing: number;
+	/** Observations written before the rate table was stamped at all. */
+	unstampedPricing: number;
 };
 
 /** Pure reducer over the record. Kept separate from the command so the counting
  *  rule is testable without a running node. */
 export function summariseObservations(
 	nodes: readonly ObservationNode[],
+	currentRateTable?: string,
 ): ObservationSummary {
 	let timedOut = 0;
 	let boundByNode = 0;
 	let boundByWorkspace = 0;
+	let stalePricing = 0;
+	let unstampedPricing = 0;
 	for (const node of nodes) {
 		if (node["refarm.outcome"] === "timed-out") timedOut += 1;
 		const boundBy = node["refarm.budget.bound_by"];
 		if (boundBy === "node") boundByNode += 1;
 		if (boundBy === "workspace") boundByWorkspace += 1;
+		const stamped = node["refarm.cost.rate_table_version"];
+		if (stamped === undefined) unstampedPricing += 1;
+		else if (currentRateTable !== undefined && stamped !== currentRateTable) {
+			stalePricing += 1;
+		}
 	}
-	return { total: nodes.length, timedOut, boundByNode, boundByWorkspace };
+	return {
+		total: nodes.length,
+		timedOut,
+		boundByNode,
+		boundByWorkspace,
+		stalePricing,
+		unstampedPricing,
+	};
 }
 ```
 
