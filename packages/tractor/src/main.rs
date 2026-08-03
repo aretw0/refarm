@@ -446,6 +446,17 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         }
     }
 
+    // The node says what it is, where whoever can read the node can read it. Published
+    // AFTER the base is settled and BEFORE any declaration is read, so a reader that finds
+    // a descriptor finds the base the node actually went on to use. Best effort: a node
+    // that cannot describe itself still works, and absence reads as "this node does not
+    // say" rather than as a wrong answer.
+    tractor::node_descriptor::publish_for_this_process(
+        &refarm_dir,
+        &std::path::PathBuf::from(std::env::var("SOVEREIGN_BASE").unwrap_or_default()),
+        &std::env::var("SOVEREIGN_DIR").unwrap_or_default(),
+    );
+
     // Resolve the `surfaces` declaration ONCE, fs-only, BEFORE any boot work — a
     // malformed declaration, or one that names a gate a surface cannot enforce (S3, e.g.
     // `daemon-ws` declaring anything but `"loopback"`), must fail at LOAD, not partway

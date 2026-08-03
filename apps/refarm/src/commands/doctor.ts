@@ -9,6 +9,7 @@ import path from "node:path";
 import { declaredBase, loadConfig, sovereignDir } from "@refarm.dev/config";
 
 import { Command } from "commander";
+import { readNodeDescriptor } from "../utils/node-descriptor.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { buildConnectionDoctorRecommendations } from "./connection-doctor.js";
 import {
@@ -245,6 +246,9 @@ export interface RefarmDoctorCommandDeps {
 	 * `.refarm/config.json`. */
 	cwd?: () => string;
 	loadConfig?: (root?: string) => Record<string, unknown>;
+	/** What the running node says about itself — injected so a test can state "a node is
+	 *  running and answers from there" without one. */
+	readNodeDescriptor?: (refarmHome: string) => { declarationBase: string; sovereignDir: string } | null;
 }
 
 /**
@@ -268,13 +272,22 @@ function resolveScopeComparison(
 	try {
 		const operatorBase = path.resolve(deps?.cwd?.() ?? declaredBase());
 		const nodeHome = path.resolve(resolveRefarmHome());
-		const dir = sovereignDir();
+		// What the RUNNING node says about itself, when it is running and says it. Absent,
+		// stale or unreadable falls back to this home — the same inference as before, which
+		// is right whenever the node was started with the home it lives in, and only wrong
+		// in the case the descriptor exists to catch.
+		const running = deps?.readNodeDescriptor?.(nodeHome) ?? readNodeDescriptor(nodeHome);
+		const dir = running?.sovereignDir ?? sovereignDir();
+		// `resolveRefarmHome()` IS the sovereign dir; a descriptor's `declarationBase` is its
+		// PARENT, because that is what the config path convention joins the dir name onto.
+		// Naming the final directory once keeps the two from being confused.
+		const nodeDir = running ? path.join(path.resolve(running.declarationBase), dir) : nodeHome;
 		return {
 			comparison: {
 				operatorConfigPath: path.join(operatorBase, dir, "config.json"),
-				nodeConfigPath: path.join(nodeHome, "config.json"),
+				nodeConfigPath: path.join(nodeDir, "config.json"),
 				operatorPolicyPath: path.join(operatorBase, dir, "auth-policy.json"),
-				nodePolicyPath: path.join(nodeHome, "auth-policy.json"),
+				nodePolicyPath: path.join(nodeDir, "auth-policy.json"),
 			},
 			exists: (filePath) => fs.existsSync(filePath),
 		};
