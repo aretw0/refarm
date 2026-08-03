@@ -63,25 +63,35 @@ pub(crate) fn estimate_billable_usd(
 /// bump will be a real one, carrying a price someone confirmed. Task 10 stamps
 /// the current value onto every cost observation; Task 11 uses it to tell which
 /// historical records predate a correction.
+///
+/// Sources: every priced branch in `rate_for_model` below cites the vendor's
+/// own OFFICIAL pricing page inline — never a third-party aggregator, which is
+/// convenient but not authoritative; an unverified number presented as fact is
+/// the exact failure this table exists to prevent.
+///
+/// One MACHINE-READABLE source is also on record: `https://openrouter.ai/api/
+/// v1/models` returns per-model prompt/completion pricing as JSON across many
+/// providers, and a future task can poll it as a DRIFT DETECTOR against the
+/// rates below. It is not itself a source of truth for anything but
+/// OpenRouter's own resale prices — it can legitimately disagree with a
+/// vendor's first-party rate and be right about OpenRouter's markup, so it
+/// verifies "did our number move", never "is our number correct".
 pub(crate) const RATE_TABLE_VERSION: &str = "2026-08-03.1";
-
-/// Model ids known to run locally at zero cost, matched as substrings of the
-/// MODEL id — not the provider. `pricing_mode_for_provider` already owns the
-/// provider axis (subscription/local/api); duplicating that here would give one
-/// decision two sources of truth. This list exists only to tell a genuinely free
-/// model apart from one this table has simply never priced.
-const KNOWN_FREE_MODEL_SUBSTRINGS: &[&str] =
-    &["llama", "mistral", "qwen", "gemma", "phi", "deepseek-r1"];
 
 /// The outcome of looking up a per-token rate for a model id.
 pub(crate) enum RateLookup {
     /// A rate is on file: dollars per million input/output tokens.
     Priced { rate_in: f64, rate_out: f64 },
-    /// Matched the known-free list (ollama and friends) — genuinely $0 to run.
-    Free,
-    /// No rate on file and not on the known-free list either. Distinct from
-    /// `Free` so a model nobody has priced yet can be reported instead of
-    /// silently costing nothing — see `estimate_usd`.
+    /// No rate on file. This used to also mean "known-free" for a model whose
+    /// NAME matched a locally-run family (llama/mistral/...) — that concept
+    /// was deleted. Whether a model is free depends on WHO SERVES IT, not what
+    /// it is called: Groq and Together SELL the exact Llama ids that Ollama
+    /// runs for free, and `pricing_mode_for_provider` already answers that,
+    /// earlier, on the provider axis — `estimate_billable_usd` short-circuits
+    /// `local` and `subscription` providers to $0.00 before this lookup ever
+    /// runs, so nothing genuinely free reaches `rate_for_model` at all.
+    /// Anything that does reach it is being sold by an `api`-mode provider;
+    /// without a rate it is simply unpriced.
     Unknown,
 }
 
@@ -91,28 +101,32 @@ pub(crate) enum RateLookup {
 /// inherit the family's rate while looking perfectly plausible.
 pub(crate) fn rate_for_model(model: &str) -> RateLookup {
     let (rate_in, rate_out): (f64, f64) = if model.contains("claude-opus-4") {
+        // Anthropic, official pricing: https://platform.claude.com/docs/en/about-claude/pricing
         (15.0, 75.0)
     } else if model.contains("claude-sonnet-4") || model.contains("claude-sonnet-3-7") {
+        // Anthropic, official pricing: https://platform.claude.com/docs/en/about-claude/pricing
         (3.0, 15.0)
     } else if model.contains("claude-haiku") {
+        // Anthropic, official pricing: https://platform.claude.com/docs/en/about-claude/pricing
         (0.8, 4.0)
     } else if model.contains("gpt-5.5") {
+        // OpenAI, official pricing: https://developers.openai.com/api/docs/pricing
         (5.0, 30.0)
     } else if model.contains("gpt-5-mini") || model.contains("gpt-5.1-codex-mini") {
+        // OpenAI, official pricing: https://developers.openai.com/api/docs/pricing
         (0.25, 2.0)
     } else if model.contains("gpt-5-nano") {
+        // OpenAI, official pricing: https://developers.openai.com/api/docs/pricing
         (0.05, 0.4)
     } else if model.contains("gpt-5") {
+        // OpenAI, official pricing: https://developers.openai.com/api/docs/pricing
         (1.25, 10.0)
     } else if model.contains("gpt-4o") && !model.contains("mini") {
+        // OpenAI, official pricing: https://developers.openai.com/api/docs/pricing
         (2.5, 10.0)
     } else if model.contains("gpt-4o-mini") {
+        // OpenAI, official pricing: https://developers.openai.com/api/docs/pricing
         (0.15, 0.6)
-    } else if KNOWN_FREE_MODEL_SUBSTRINGS
-        .iter()
-        .any(|needle| model.contains(needle))
-    {
-        return RateLookup::Free;
     } else {
         return RateLookup::Unknown;
     };
@@ -120,13 +134,14 @@ pub(crate) fn rate_for_model(model: &str) -> RateLookup {
     RateLookup::Priced { rate_in, rate_out }
 }
 
-/// Estimate API cost in USD using public per-million-token rates.
+/// Estimate API cost in USD using public per-million-token rates, each cited
+/// at its source in `rate_for_model`.
 ///
-/// `rate_for_model` answers `Priced`, `Free` or `Unknown`; both `Free` (a known
-/// local model, e.g. ollama-served llama/mistral/...) and `Unknown` (no rate on
-/// file) still estimate $0.00 here today — that value has not changed, only its
-/// recoverability has: an `Unknown` model now names itself once so it can be
-/// priced instead of costing nothing in silence forever.
+/// `rate_for_model` answers `Priced` or `Unknown`; an `Unknown` model (no rate
+/// on file — see `RateLookup::Unknown` for why there is no third "Free"
+/// answer) still estimates $0.00 here today — that value has not changed,
+/// only its recoverability has: it now names itself once so it can be priced
+/// instead of costing nothing in silence forever.
 pub(crate) fn estimate_usd(
     provider: &str,
     model: &str,
@@ -137,7 +152,6 @@ pub(crate) fn estimate_usd(
 ) -> f64 {
     let (rate_in, rate_out) = match rate_for_model(model) {
         RateLookup::Priced { rate_in, rate_out } => (rate_in, rate_out),
-        RateLookup::Free => return 0.0,
         RateLookup::Unknown => {
             // This crate has no `tracing` dependency (not in Cargo.toml/Cargo.lock)
             // and no existing logging convention in this module, so this warns via

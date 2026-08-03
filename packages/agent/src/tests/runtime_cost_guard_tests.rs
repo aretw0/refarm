@@ -133,12 +133,17 @@ fn a_currency_ceiling_never_binds_under_a_subscription() {
 }
 
 #[test]
-fn a_known_free_model_and_an_unrecognised_one_are_not_the_same_answer() {
-    // Both cost $0 to estimate. Only one of them costs $0 to RUN. Collapsing
-    // them is how a new model id silently prices itself at nothing.
-    assert!(matches!(rate_for_model("llama3.2"), RateLookup::Free));
-    assert!(matches!(rate_for_model("mistral"), RateLookup::Free));
-    assert!(matches!(rate_for_model("some-model-nobody-priced"), RateLookup::Unknown));
+fn a_paid_provider_serving_an_open_weight_model_is_not_free() {
+    // Groq and Together SELL Llama. Ollama serves it free, and never reaches
+    // this table: estimate_billable_usd short-circuits on `local` pricing mode
+    // before the lookup runs. A model id cannot tell you who is charging.
+    assert!(matches!(rate_for_model("llama-3.3-70b-versatile"), RateLookup::Unknown));
+    assert!(matches!(rate_for_model("mistral-medium-3-5"), RateLookup::Unknown));
+    assert_eq!(
+        estimate_billable_usd("ollama", "llama3.2", 10_000, 5_000, 0, 0),
+        0.0,
+        "local pricing mode still costs nothing, decided before the table"
+    );
 }
 
 #[test]
