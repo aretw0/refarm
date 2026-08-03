@@ -1493,16 +1493,82 @@ substring of it, or whether it appears on the known-free list. Exit non-zero lis
 model with no rate and no free-list entry, with a message that says what to do: add a branch to
 `rate_for_model` and bump `RATE_TABLE_VERSION`.
 
-- [ ] **Step 3: Run it**
+- [ ] **Step 3: Delete `RateLookup::Free` — the model name cannot answer that question**
 
-Run: `pnpm run models:defaults:check`
-Expected: exit 0 after Task 7's branches exist.
+Task 8's own audit turned a hypothetical into three live defects, and they invalidate the concept
+rather than the entries. Measured on the current tree:
 
-- [ ] **Step 4: Commit**
+| Provider | Default model | Classified | Reality |
+| --- | --- | --- | --- |
+| `groq` | `llama-3.3-70b-versatile` | **Free** → $0.00 | a paid API |
+| `together` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` | **Free** → $0.00 | a paid API |
+| `mistral` | `mistral-medium-3-5` | **Free** → $0.00 | a paid API |
+
+And the branch that justified the list is unreachable: `estimate_usd` is only called in production
+through `estimate_billable_usd` (`utils.rs:55`), which already returns `0.0` for `subscription` and
+`local` pricing modes. **Ollama never reaches the table at all.** So the free list is unreachable for
+the case it was written for and wrong for every case it does reach.
+
+The error in one sentence: **whether a model is free depends on who serves it, not on what it is
+called.** Llama is free on your own hardware and sold by Groq and Together. The model name cannot
+answer that question, and the provider axis, which can, already answers it earlier.
+
+Remove `RateLookup::Free` and `KNOWN_FREE_MODEL_SUBSTRINGS` entirely. Anything reaching
+`rate_for_model` is being sold by an `api`-mode provider; without a rate it is `Unknown`. This also
+dissolves the narrow-the-substrings problem completely — no list, no collision.
+
+```rust
+#[test]
+fn a_paid_provider_serving_an_open_weight_model_is_not_free() {
+    // Groq and Together SELL Llama. Ollama serves it free, and never reaches
+    // this table: estimate_billable_usd short-circuits on `local` pricing mode
+    // before the lookup runs. A model id cannot tell you who is charging.
+    assert!(matches!(rate_for_model("llama-3.3-70b-versatile"), RateLookup::Unknown));
+    assert!(matches!(rate_for_model("mistral-medium-3-5"), RateLookup::Unknown));
+    assert_eq!(
+        estimate_billable_usd("ollama", "llama3.2", 10_000, 5_000, 0, 0),
+        0.0,
+        "local pricing mode still costs nothing, decided before the table"
+    );
+}
+```
+
+- [ ] **Step 4: Every rate cites where it was consulted**
+
+The maintainer's ruling: a rate carries the source it came from, so the table is auditable now and
+automatable later. Each priced branch gains a comment naming the vendor's **official** pricing page,
+and the table header records the one machine-readable source found:
+`https://openrouter.ai/api/v1/models` returns per-model prompt and completion pricing as JSON across
+many providers, which a future task can consult as a **drift detector** — never as the source of
+truth, since it is authoritative only for OpenRouter's own resale prices.
+
+Do not transcribe rates from third-party aggregators. Several exist and are convenient; none is the
+vendor. An unverified number presented as fact is the failure this whole task exists to prevent.
+
+- [ ] **Step 5: The baseline shrinks, it never grows**
+
+Six default models have no rate: `grok-4.3`, `deepseek-v4-flash`, `gemini-3-flash-preview`, and — once
+`Free` is gone — `llama-3.3-70b-versatile`, `meta-llama/Llama-3.3-70B-Instruct-Turbo` and
+`mistral-medium-3-5`. The maintainer ruled that rates are not to be invented, so the gate ships with
+an explicit, dated baseline of exactly those six, each carrying the official pricing URL where its
+rate can be found.
+
+The gate passes while the set is a subset of the baseline and **fails on anything new**, and it fails
+if an entry is still listed after a rate exists for it. This is the shape `refarm hardening` already
+uses in this repository: a baseline that only shrinks. Chronic red CI is CI nobody reads; an
+enumerated debt is one somebody can close.
+
+- [ ] **Step 6: Run it**
+
+Run: `pnpm run models:defaults:check && cargo test --lib runtime_cost_guard --quiet`
+Expected: exit 0 with the six baselined models reported as known debt, and the agent's guard tests
+still pass.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 refarm agent finish --lane after-edit --run --json
-git add scripts/ci
+git add scripts/ci packages/agent/src
 git commit -m "feat(ci): the model drift gate asks whether a default model has a price
 
 It already knew which models are canonical and cross-checked their ids across
