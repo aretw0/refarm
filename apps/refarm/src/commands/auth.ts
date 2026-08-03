@@ -17,6 +17,7 @@ import {
 import { Command } from "commander";
 
 import { refarmCommand } from "../brand.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import {
 	readPolicy,
 	sha256Hex,
@@ -60,6 +61,26 @@ export type { AuthCredential, AuthPolicyFile } from "./auth-policy-file.js";
  */
 
 const DEFAULT_POLICY_PATH = ".refarm/auth-policy.json";
+
+/**
+ * THE NODE'S policy file, which is an address rather than a preference.
+ *
+ * A node reads exactly one of these, at its own home. A credential written anywhere else
+ * authorises nothing: the device it was meant for stops working with nothing naming the
+ * cause, the obvious remedy reproduces the problem, and the credential the operator
+ * believes they replaced stays live in the file that IS read. Before this the default
+ * followed the process directory, and this repository's own node ended up holding two
+ * `auth-policy.json` files that disagreed.
+ *
+ * Standing somewhere is not a way to choose a different file. `--policy` is, and it says
+ * so out loud — that is where a second node, a test, or another machine's policy belongs.
+ *
+ * `resolveRefarmHome` reads `REFARM_HOME` or the OS home and NO declaration, so enrolment
+ * still asks the world because the operator invoked it, never because a file said so.
+ */
+function defaultPolicyPath(): string {
+	return path.join(resolveRefarmHome(), "auth-policy.json");
+}
 
 /** The handoffs a refused credential command carries. `auth list` names identities and never
  *  tokens, so it is always safe to send an operator (or an agent) there. */
@@ -398,7 +419,10 @@ async function runAuthEnroll(
 	identityArg: string | undefined,
 	options: EnrollOptions,
 ): Promise<void> {
-	const policyPath = path.resolve(options.policy ?? DEFAULT_POLICY_PATH);
+	const policyPath =
+		options.policy && options.policy !== DEFAULT_POLICY_PATH
+			? path.resolve(options.policy)
+			: defaultPolicyPath();
 	let identity = identityArg;
 	let rotate = Boolean(options.rotate);
 
@@ -646,7 +670,10 @@ export function createAuthListCommand(deps: { now?: () => number } = {}): Comman
 		.option("--json", "Print the result as JSON")
 		.action(async (options: ListOptions) => {
 			const now = (deps.now ?? (() => Date.now()))();
-			const policyPath = path.resolve(options.policy ?? DEFAULT_POLICY_PATH);
+			const policyPath =
+		options.policy && options.policy !== DEFAULT_POLICY_PATH
+			? path.resolve(options.policy)
+			: defaultPolicyPath();
 			const policy = await readPolicy(policyPath);
 			const identities = (policy.credentials ?? []).map((c) => c.identity);
 			const scoped = readScopedCredentials(policy);
@@ -781,7 +808,10 @@ async function runAuthRevoke(
 	identityArg: string | undefined,
 	options: RevokeOptions,
 ): Promise<void> {
-	const policyPath = path.resolve(options.policy ?? DEFAULT_POLICY_PATH);
+	const policyPath =
+		options.policy && options.policy !== DEFAULT_POLICY_PATH
+			? path.resolve(options.policy)
+			: defaultPolicyPath();
 	const input = deps.input ?? process.stdin;
 	const output = deps.output ?? process.stdout;
 	const interactive = Boolean(input.isTTY && output.isTTY);

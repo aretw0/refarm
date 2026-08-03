@@ -11,6 +11,7 @@ import {
 } from "@refarm.dev/prompt-contract-v1";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import type { AuthPolicyFile } from "./auth.js";
 import {
 	createAuthCommand,
@@ -1631,14 +1632,18 @@ describe("refarm auth enroll — the gate instruction follows the daemon's deriv
 	const tempDirs: string[] = [];
 	let stdoutSpy: ReturnType<typeof vi.spyOn>;
 	let cwdBefore: string;
+	let homeBefore: string | undefined;
 
 	beforeEach(() => {
 		cwdBefore = process.cwd();
+		homeBefore = process.env.REFARM_HOME;
 		stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 	});
 
 	afterEach(() => {
 		process.chdir(cwdBefore);
+		if (homeBefore === undefined) delete process.env.REFARM_HOME;
+		else process.env.REFARM_HOME = homeBefore;
 		stdoutSpy.mockRestore();
 		process.exitCode = undefined;
 		for (const dir of tempDirs.splice(0)) {
@@ -1646,12 +1651,18 @@ describe("refarm auth enroll — the gate instruction follows the daemon's deriv
 		}
 	});
 
-	/** The DEFAULT path resolves against cwd, so the only safe way to exercise it
-	 * is from a throwaway cwd — otherwise the test writes the repo's real policy. */
+	/** The DEFAULT path is the NODE's, so the throwaway that makes these tests safe is a
+	 * throwaway NODE HOME — isolating cwd alone stopped being enough the moment the policy
+	 * stopped following the process directory. It also has to be per-test: one policy shared
+	 * across tests means the second enrolment of the same identity is refused as already
+	 * enrolled, which is correct behaviour and a useless test failure. */
 	function tempCwd(): string {
 		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-auth-hint-test-"));
 		tempDirs.push(dir);
 		process.chdir(dir);
+		const home = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-auth-hint-home-"));
+		tempDirs.push(home);
+		process.env.REFARM_HOME = home;
 		return dir;
 	}
 
@@ -1671,7 +1682,15 @@ describe("refarm auth enroll — the gate instruction follows the daemon's deriv
 		expect(out).toContain("no environment variable needed");
 		expect(out).toContain('"gate": "device-token"');
 		// It really did enrol, at the derived location — the hint is not the only claim.
-		expect(fs.existsSync(path.join(dir, ".refarm", "auth-policy.json"))).toBe(true);
+		//
+		// THE NODE'S policy, not this directory's. A node reads exactly one policy file, so
+		// which one is THE one is an address, not a preference: a credential written anywhere
+		// else authorises nothing, and the device it was meant for fails with nothing naming
+		// the cause. Standing somewhere is not a way to choose a different file — `--policy`
+		// is, and it is explicit. Before this, the default followed the process directory and
+		// this node ended up with two `auth-policy.json` files that disagreed.
+		expect(fs.existsSync(path.join(resolveRefarmHome(), "auth-policy.json"))).toBe(true);
+		expect(fs.existsSync(path.join(dir, ".refarm", "auth-policy.json"))).toBe(false);
 	});
 
 	it("custom path: names the override and says why it is required", async () => {
