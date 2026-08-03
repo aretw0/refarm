@@ -55,7 +55,9 @@ pub(crate) fn react_with_prompt_ref_and_route(
     if let Some(err) = cumulative_limit_error(spent_tokens, None) {
         return err;
     }
-    let provider_name = crate::provider_name_from_env();
+    let provider_name = provider
+        .map(str::to_owned)
+        .unwrap_or_else(crate::provider_name_from_env);
     let spent_usd = crate::estimate_billable_usd(
         &provider_name,
         &model_id,
