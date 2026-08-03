@@ -295,6 +295,42 @@ pub(crate) fn dispatch_event_effort(
     }
 }
 
+/// The `ResolvedBudget` `dispatch_effort` computes exactly once, keyed by
+/// effort_id, for `record_budget_observation` to read back verbatim at
+/// finalisation — the dispatch→finalisation hand-off `SidecarState.efforts_input`
+/// performs for the `Effort` itself, but private to this module rather than a
+/// `SidecarState` field: Task 10's protected-surface authorisation permits
+/// touching `sidecar/mod.rs` only to add the single `mod observation;` line, and
+/// a widened `SidecarState` (new field + constructor plumbing) would exceed
+/// that. This value's whole life is dispatch→finalisation and needs no
+/// visibility outside `dispatch.rs`, so a module-private store is not a
+/// workaround — it is the right shape for something nothing else should touch.
+///
+/// Read fresh vs. read back is a real distinction, not a style choice: the fold
+/// (`node_budget_from_config` / `workspace_budget_for`) re-reads
+/// `.refarm/config.json` from disk on every call, which is correct when code is
+/// DECIDING what policy applies now (dispatch time). It is wrong when code is
+/// RECORDING what governed a decision already made (finalisation time) — that
+/// decision happened once, here, and rode literally into
+/// `spawn_terminal_result_watcher`'s `deadline_ms`, the same number that decides
+/// `timed-out`. Recomputing at finalisation answers "what would policy say now",
+/// which can diverge from "what did policy say then" if a config edit lands
+/// mid-run — exactly the scenario D4 exists to enable (an operator raising a
+/// ceiling because the evidence shows it binding constantly).
+///
+/// Taken (removed on read), not merely read: a terminal effort's resolved
+/// budget is consumed exactly once, by `record_budget_observation`, so removal
+/// there IS its cleanup — no second reap lifetime to invent alongside
+/// `efforts_input`'s 24h TTL. A retry re-dispatches through `dispatch_effort`,
+/// which repopulates the entry before the retry's own finalisation reads it.
+fn dispatched_budgets() -> &'static std::sync::RwLock<std::collections::HashMap<String, super::budget::ResolvedBudget>>
+{
+    static STORE: std::sync::OnceLock<
+        std::sync::RwLock<std::collections::HashMap<String, super::budget::ResolvedBudget>>,
+    > = std::sync::OnceLock::new();
+    STORE.get_or_init(|| std::sync::RwLock::new(std::collections::HashMap::new()))
+}
+
 pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
     // Retain the original Effort (tasks/args) so retry can re-dispatch it — the
     // efforts result store keeps only EffortResult, which has no tasks. In-process
@@ -328,6 +364,15 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
     let resolved_budget =
         super::budget::resolve_budget(effort.budget.as_ref(), workspace_budget.as_ref(), &node_budget);
     let deadline_ms = resolved_budget.deadline_ms.effective;
+
+    // Stash the SAME fold `deadline_ms` above was just read from, so
+    // `record_budget_observation` reads back exactly what governed this run
+    // instead of re-resolving it against whatever `.refarm/config.json` says by
+    // the time the effort finalises. See `dispatched_budgets`'s doc for why
+    // that distinction is load-bearing, not stylistic.
+    if let Ok(mut store) = dispatched_budgets().write() {
+        store.insert(effort.id.clone(), resolved_budget);
+    }
 
     tokio::spawn(async move {
         let effort_id = effort.id.clone();
@@ -575,23 +620,28 @@ pub(crate) fn finalise_effort(
     }
 }
 
-/// Resolve the budget that governed this effort and hand it, with the effort's
-/// elapsed time, to `observation::write_budget_observation` — the call that
-/// actually builds and stores the `BudgetObservation` node. See that function's
-/// doc for the D5 guarantee this whole path upholds: a lost observation must
-/// never touch the run it observed.
+/// Read back the budget `dispatch_effort` resolved for this effort, with its
+/// elapsed time, and hand both to `observation::write_budget_observation` —
+/// the call that actually builds and stores the `BudgetObservation` node. See
+/// that function's doc for the D5 guarantee this whole path upholds: a lost
+/// observation must never touch the run it observed.
 ///
-/// The resolution is read fresh here rather than threaded through from
-/// `dispatch_effort`'s own resolve at dispatch time — no new state carried
-/// across the whole dispatch path for a value only this one caller reads back,
-/// matching this crate's established "no cache, read fresh" stance on the
-/// sovereign config (see `budget::read_budget_section`'s doc for the same
-/// argument one level down). The rare case of a config edit landing mid-run is
-/// an acceptable divergence for evidence, not for enforcement.
+/// The resolved budget is TAKEN from `dispatched_budgets()`, never
+/// re-resolved: see that function's doc for why recomputing the fold here
+/// would answer "what would policy say now" instead of "what did policy say
+/// then". If the entry is missing — a restart mid-run, or (in principle) a
+/// process that outlives this in-memory store some other way — the budget
+/// fields are OMITTED from the observation rather than reconstructed by
+/// re-resolving: D6 governs (absent is honest, fabricated is not), and a
+/// "resolve it again" fallback would silently reintroduce the exact defect
+/// this function exists to close.
 ///
 /// Elapsed time is derived from `EffortResult.submitted_at` / `completed_at`
 /// (both already stamped by the caller) rather than threading new state, per
-/// the controller's resolution #5.
+/// the controller's resolution #5. A parse failure there costs only the
+/// `elapsed_ms` field (via `put_opt` inside `build_observation_node`) — not
+/// the outcome, the budget, or the workspace, which is why this function no
+/// longer returns early on it.
 fn record_budget_observation(
     state: &SidecarState,
     effort_id: &str,
@@ -605,42 +655,28 @@ fn record_budget_observation(
             .as_deref()
             .and_then(crate::timefmt::iso_to_epoch_secs),
     ) {
-        (Some(start), Some(end)) => end.saturating_sub(start).saturating_mul(1000),
+        (Some(start), Some(end)) => Some(end.saturating_sub(start).saturating_mul(1000)),
         _ => {
             tracing::warn!(
                 effort_id,
-                "sidecar: could not derive elapsed_ms for budget observation — skipping"
+                "sidecar: could not derive elapsed_ms for budget observation — recording without it"
             );
-            return;
+            None
         }
     };
 
-    // The declared budget + workspace id ride the ORIGINAL Effort (efforts_input),
-    // the same input `dispatch_effort` retained for retry. A poisoned lock or an
-    // effort_id never retained (submitted before a restart) both degrade to "no
-    // declaration, no workspace" — the node/env fallback `resolve_budget` already
-    // handles for a dispatch with nothing declared — never a panic (D5).
-    let (declared, workspace_id) = state
-        .efforts_input
-        .read()
+    let resolved = dispatched_budgets()
+        .write()
         .ok()
-        .and_then(|inputs| {
-            inputs
-                .get(effort_id)
-                .map(|effort| (effort.budget, effort.workspace_id.clone()))
-        })
-        .unwrap_or((None, None));
+        .and_then(|mut store| store.remove(effort_id));
+    if resolved.is_none() {
+        tracing::warn!(
+            effort_id,
+            "sidecar: no dispatch-time budget resolution found for this effort — recording without budget fields"
+        );
+    }
 
-    let node_base = crate::host::declared_base();
-    let node_budget = super::budget::node_budget_from_config(
-        &node_base,
-        super::budget::NodeBudget::from_respond_watch(state.respond_watch.timeout_ms),
-    );
-    let workspace_budget = super::budget::workspace_budget_for(&node_base, workspace_id.as_deref());
-    let resolved =
-        super::budget::resolve_budget(declared.as_ref(), workspace_budget.as_ref(), &node_budget);
-
-    super::observation::write_budget_observation(state, effort_id, &resolved, status, elapsed_ms);
+    super::observation::write_budget_observation(state, effort_id, resolved, status, elapsed_ms);
 }
 
 /// Finalise an effort ONLY if it has not already reached a terminal state.

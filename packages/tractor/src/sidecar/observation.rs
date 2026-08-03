@@ -21,10 +21,18 @@ pub(crate) struct ObservationInput<'a> {
     pub workspace_id: Option<&'a str>,
     pub spawner: Option<&'a str>,
     pub outcome: &'a str,
-    pub elapsed_ms: u64,
+    /// `None` when `EffortResult.submitted_at`/`completed_at` could not both be
+    /// parsed — omitted via `put_opt`, never a fabricated elapsed time (D6). A
+    /// timestamp-parse failure costs only this field, not the rest of the
+    /// record (round-1 fix: it used to drop the whole observation).
+    pub elapsed_ms: Option<u64>,
     pub steps_completed: Option<u32>,
     pub steps_planned: Option<u32>,
-    pub resolved: super::budget::ResolvedBudget,
+    /// `None` when no dispatch-time resolution was found for this effort (a
+    /// restart mid-run). The budget family is then OMITTED from the node
+    /// entirely, never re-resolved — D6, and see `dispatch::dispatched_budgets`'s
+    /// doc for why re-resolving here would reintroduce round-1's Critical defect.
+    pub resolved: Option<super::budget::ResolvedBudget>,
     /// The usage view from `find_usage_for`, already joined on prompt_ref.
     /// FLATTENED onto the node under OTel names — never nested (D2).
     pub usage: Option<serde_json::Value>,
@@ -114,47 +122,53 @@ fn put_opt(map: &mut serde_json::Map<String, serde_json::Value>, key: &str, valu
 }
 
 pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json::Value {
-    let b = &input.resolved;
     let mut map = serde_json::Map::new();
     map.insert("@type".into(), "BudgetObservation".into());
     map.insert("@id".into(), mint_observation_id().into());
     map.insert("effort_id".into(), input.effort_id.into());
     map.insert("refarm.outcome".into(), input.outcome.into());
-    map.insert("refarm.elapsed_ms".into(), input.elapsed_ms.into());
+    put_opt(&mut map, "refarm.elapsed_ms", input.elapsed_ms.map(Into::into));
 
-    map.insert("refarm.budget.deadline_ms.effective".into(), b.deadline_ms.effective.into());
-    map.insert("refarm.budget.max_tokens.effective".into(), b.max_tokens.effective.into());
-    // Millis back to a decimal at the record boundary, where a human reads it.
-    map.insert(
-        "refarm.budget.max_usd.effective".into(),
-        serde_json::json!(b.max_usd_millis.effective as f64 / 1000.0),
-    );
-    map.insert(
-        "refarm.budget.deadline_ms.declared".into(),
-        b.deadline_ms.declared.map(Into::into).unwrap_or(serde_json::Value::Null),
-    );
-    map.insert(
-        "refarm.budget.max_tokens.declared".into(),
-        b.max_tokens.declared.map(Into::into).unwrap_or(serde_json::Value::Null),
-    );
-    map.insert(
-        "refarm.budget.max_usd.declared".into(),
-        b.max_usd_millis
-            .declared
-            .map(|m| serde_json::json!(m as f64 / 1000.0))
-            .unwrap_or(serde_json::Value::Null),
-    );
-    // The deadline is the axis that stops a run in practice, so its level is the
-    // headline one. Per-axis levels ride beside it.
-    map.insert("refarm.budget.bound_by".into(), axis_level_str(b.deadline_ms.bound_by).into());
-    map.insert(
-        "refarm.budget.bound_by.max_tokens".into(),
-        axis_level_str(b.max_tokens.bound_by).into(),
-    );
-    map.insert(
-        "refarm.budget.bound_by.max_usd".into(),
-        axis_level_str(b.max_usd_millis.bound_by).into(),
-    );
+    // The whole `refarm.budget.*` family rides together, or not at all: a
+    // dispatch-time resolution that was never found (round-1 fix) must not
+    // read as "this axis resolved to nothing declared" (`.declared: null`
+    // below already means that for a DIFFERENT reason — nobody asked for a
+    // ceiling on that axis). Omitted, per D6, rather than reconstructed.
+    if let Some(b) = input.resolved {
+        map.insert("refarm.budget.deadline_ms.effective".into(), b.deadline_ms.effective.into());
+        map.insert("refarm.budget.max_tokens.effective".into(), b.max_tokens.effective.into());
+        // Millis back to a decimal at the record boundary, where a human reads it.
+        map.insert(
+            "refarm.budget.max_usd.effective".into(),
+            serde_json::json!(b.max_usd_millis.effective as f64 / 1000.0),
+        );
+        map.insert(
+            "refarm.budget.deadline_ms.declared".into(),
+            b.deadline_ms.declared.map(Into::into).unwrap_or(serde_json::Value::Null),
+        );
+        map.insert(
+            "refarm.budget.max_tokens.declared".into(),
+            b.max_tokens.declared.map(Into::into).unwrap_or(serde_json::Value::Null),
+        );
+        map.insert(
+            "refarm.budget.max_usd.declared".into(),
+            b.max_usd_millis
+                .declared
+                .map(|m| serde_json::json!(m as f64 / 1000.0))
+                .unwrap_or(serde_json::Value::Null),
+        );
+        // The deadline is the axis that stops a run in practice, so its level is
+        // the headline one. Per-axis levels ride beside it.
+        map.insert("refarm.budget.bound_by".into(), axis_level_str(b.deadline_ms.bound_by).into());
+        map.insert(
+            "refarm.budget.bound_by.max_tokens".into(),
+            axis_level_str(b.max_tokens.bound_by).into(),
+        );
+        map.insert(
+            "refarm.budget.bound_by.max_usd".into(),
+            axis_level_str(b.max_usd_millis.bound_by).into(),
+        );
+    }
 
     // Field use has no scenario. The bench (spec slices 6-8) sets these.
     map.insert("refarm.scenario.id".into(), serde_json::Value::Null);
@@ -192,12 +206,20 @@ pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json:
 /// that can escape this function, no `unwrap`, no panic: every fallible step
 /// degrades to "skip the record" and logs at `warn`. The instrument may lose a
 /// data point; it may not cost an operation.
+///
+/// `resolved` and `elapsed_ms` arrive as `Option` from the caller
+/// (`record_budget_observation`): `resolved` is the dispatch-time fold taken
+/// from `dispatch::dispatched_budgets()` (never re-resolved here — see that
+/// function's doc), `None` only when no entry was found; `elapsed_ms` is
+/// `None` only when the effort's timestamps failed to parse. Either absence
+/// degrades gracefully via `put_opt`/the `if let` in `build_observation_node`
+/// — the rest of the record is written regardless (D6).
 pub(crate) fn write_budget_observation(
     state: &SidecarState,
     effort_id: &str,
-    resolved: &super::budget::ResolvedBudget,
+    resolved: Option<super::budget::ResolvedBudget>,
     outcome: &str,
-    elapsed_ms: u64,
+    elapsed_ms: Option<u64>,
 ) {
     // workspace_id / spawner ride the ORIGINAL Effort (efforts_input), the same
     // input `dispatch_effort` retained for retry. A poisoned lock or an
@@ -228,7 +250,7 @@ pub(crate) fn write_budget_observation(
         // (D6). A later caller with a real step count passes it through here.
         steps_completed: None,
         steps_planned: None,
-        resolved: *resolved,
+        resolved,
         usage,
     });
 
