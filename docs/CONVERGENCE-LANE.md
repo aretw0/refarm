@@ -147,6 +147,19 @@ The maintainer sharpened the North Star: the goal is not "rcdc5 imports `@refarm
     moment the question is really being asked. The audit BLOCKS rather than warns, matching CI instead
     of softening it — this lane's contract is to say what the pipeline will say (CLAUDE.md §6), and
     `auditConfig.ignoreGhsas` is the escape hatch that charges a written reason.
+  - **The fix for the field bug produced a second field bug, and the anatomy is the lesson.**
+    Extracting `farm-start`'s parsing into `parseStartArgs` removed two `const` declarations and
+    left both references behind; the operator got `ReferenceError: cancelAt is not defined` on
+    their phone, from a kit the node had already published. Three checks had agreed and all three
+    were looking elsewhere: `node --check` only parses, so a runtime reference is invisible to it;
+    the grep that followed searched the names the author remembered deleting; and the 200-test
+    suite covers `src/`, which a bin is not. **The extraction that made the parsing testable left
+    the bin less covered, because it added a seam.** `farm-client` is the only plain-JavaScript
+    package here, so the shared preset's `no-undef` — off because TypeScript already refuses one —
+    left the artifact that ships to a phone with no static check at all. It now lints
+    (`5eb8382d`), proven by reproducing the exact regression and watching `node --check` pass while
+    the lint names both lines. Corollary worth keeping: a kit fix is not delivered until
+    `refarm dist publish` runs — committed code is not code on the phone.
   - **The thirteenth was not a defect at all.** `tidy.test.ts` pinned one of the two spellings
     `createPackageScriptCommand` produces (relative when it can reach the target downward, absolute
     otherwise), so its verdict depended on the directory vitest was launched from: green under turbo,
