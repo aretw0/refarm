@@ -257,15 +257,27 @@ the standard speaks; `refarm.*` only where it is silent.
 | `gen_ai.usage.cache_read.input_tokens`, `gen_ai.usage.cache_creation.input_tokens` | OTel; the two fields split in slice 1 |
 | `refarm.budget.deadline_ms.declared` / `.effective` | ours; OTel has no deadline |
 | `refarm.budget.max_tokens.declared` / `.effective` | ours; the axis F6 shows already exists |
-| `refarm.budget.max_usd.declared` / `.effective` | ours; `not-applicable` outside `api` pricing mode (D1) |
+| `refarm.budget.max_usd.declared` / `.effective` | ours; the value resolved, whether or not it can bind |
+| `refarm.budget.max_usd.enforced` | ours; `false` outside `api` pricing mode, where the estimate is a structural zero (D1) |
+| `refarm.pricing_mode` | `api` \| `subscription` \| `local` — the fact `max_usd.enforced` derives from |
 | `refarm.budget.bound_by` | `node` \| `workspace` \| `declared` \| `default` — which level bound the run (D9) |
-| `refarm.budget.source` | `declared` \| `default` \| `ceiling` |
 | `refarm.budget.spawner` | reuses `Effort.source` (`sidecar/mod.rs:133`) |
 | `refarm.workspace.id` | the label the operator asked for, from the declared operation's own id when the effort is an operation, omitted otherwise (D6) |
 | `refarm.outcome` | `done` \| `failed` \| `timed-out` \| `cancelled` |
 | `refarm.outcome.steps_completed` / `.steps_planned` | ours; this is how "4/25" becomes data |
 | `refarm.elapsed_ms`, `refarm.cost.estimated_usd` | derived |
 | `refarm.scenario.id` / `.hash` | **null in field use**, set on the bench |
+
+**Every field above is a top-level key on the node, flat.** The `gen_ai.*` values are joined in from
+the run's `UsageRecord` and written out beside the budget fields, not nested under an opaque `usage`
+object. A dataset consumer reading `gen_ai.usage.input_tokens` is reading the standard's own name at
+the path the standard implies, which is the entire point of adopting the vocabulary. A nested blob
+would make the OTel alignment decorative.
+
+**`refarm.budget.source` was removed on 2026-08-03.** It predated D9 and answered the same question
+`bound_by` now answers, with a vocabulary (`declared | default | ceiling`) that no longer matches
+reality: after D9 there is no single "ceiling", there is a node one and a workspace one, and saying
+which is the whole value of the field. Two fields answering one question is how they drift apart.
 
 **The property that makes the laboratory permanent rather than a study:** the node has the *same
 shape* whether it came from Termux at 7am or from a synthetic sweep. Both land in one table,

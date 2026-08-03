@@ -1156,12 +1156,25 @@ In `dispatch.rs`, `dispatch_effort` resolves the budget once and passes it to
 with the resolved effective deadline. `state.respond_watch.interval_ms` stays as it is — the poll
 cadence is not a budget.
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [ ] **Step 6: Close the coverage gap Task 3 left in this same file**
 
-Run: `cargo test --lib sidecar::tests::budget --quiet && cargo test --lib sidecar --quiet`
+Task 3 added `cache_read_input_tokens` and `cache_creation_input_tokens` to `usage_view_from_record`,
+but the only test of that function, `usage_view_maps_record_to_the_device_wire_contract`
+(`dispatch.rs`, test module), exercises a **legacy pre-split record** where both keys default to `0`
+through the `count` helper. Nothing asserts the two keys on a record that actually carries them, so a
+regression that dropped either line would pass. You are editing this file already; close it.
+
+Add a second case to that test (or a sibling test beside it) that feeds a record carrying
+`"cache_read_input_tokens": 100_000` and `"cache_creation_input_tokens": 2_048` and asserts both
+surface on the view with those distinct values. Keep the existing legacy case as it is — it pins the
+back-compat default, which is a separate and still-true rule.
+
+- [ ] **Step 7: Run tests to verify they pass**
+
+Run: `cargo test --lib sidecar::tests::budget --quiet && cargo test --lib sidecar --quiet -- --test-threads=1`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 refarm agent finish --lane after-edit --run --json
@@ -1387,6 +1400,58 @@ fn an_undeterminable_field_is_omitted_rather_than_zeroed() {
         "a run with no plan has no planned total, which is not the same as zero"
     );
 }
+
+#[test]
+fn the_joined_usage_lands_flat_under_otel_names() {
+    // D2: a dataset consumer reads gen_ai.usage.input_tokens at THAT key. A
+    // nested blob would make the vocabulary decorative.
+    let node = build_observation_node(ObservationInput {
+        usage: Some(serde_json::json!({
+            "provider": "anthropic",
+            "model": "claude-sonnet-4-6",
+            "usage": {
+                "tokens_in": 50,
+                "tokens_out": 10,
+                "cache_read_input_tokens": 100_000,
+                "cache_creation_input_tokens": 2_048,
+                "pricing_mode": "api",
+                "estimated_usd": 0.0301,
+            }
+        })),
+        ..base_input()
+    });
+    assert_eq!(node["gen_ai.usage.input_tokens"], 50);
+    assert_eq!(node["gen_ai.usage.cache_read.input_tokens"], 100_000);
+    assert_eq!(node["gen_ai.usage.cache_creation.input_tokens"], 2_048);
+    assert_eq!(node["gen_ai.provider.name"], "anthropic");
+    assert_eq!(node["refarm.cost.estimated_usd"], 0.0301);
+    assert!(
+        node.get("refarm.usage").is_none(),
+        "usage must be flattened, never nested under an opaque key"
+    );
+}
+
+#[test]
+fn a_currency_ceiling_records_that_it_could_not_bind() {
+    // D1: under a subscription the estimate is a structural zero, so a USD
+    // ceiling can never bind. Recording it without saying so would let an
+    // aggregate read an unenforced ceiling as a satisfied one.
+    let subscription = build_observation_node(ObservationInput {
+        usage: Some(serde_json::json!({ "usage": { "pricing_mode": "subscription" } })),
+        ..base_input()
+    });
+    assert_eq!(subscription["refarm.budget.max_usd.enforced"], false);
+
+    let api = build_observation_node(ObservationInput {
+        usage: Some(serde_json::json!({ "usage": { "pricing_mode": "api" } })),
+        ..base_input()
+    });
+    assert_eq!(api["refarm.budget.max_usd.enforced"], true);
+
+    // Unknown pricing mode is absent, never a default true (D6).
+    let unknown = build_observation_node(base_input());
+    assert!(unknown.get("refarm.budget.max_usd.enforced").is_none());
+}
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1408,7 +1473,44 @@ pub(crate) struct ObservationInput<'a> {
     pub steps_planned: Option<u32>,
     pub resolved: super::budget::ResolvedBudget,
     /// The usage view from `find_usage_for`, already joined on prompt_ref.
+    /// FLATTENED onto the node under OTel names — never nested (D2).
     pub usage: Option<serde_json::Value>,
+}
+
+/// Copy the joined UsageRecord onto the node under the OTel names D2 promises.
+/// Flat, never nested: a dataset consumer reading `gen_ai.usage.input_tokens`
+/// must find it at that key, or adopting the vocabulary was decorative.
+/// A field the joined record does not carry is OMITTED, per D6 — a run whose
+/// usage never landed is not a run that used zero tokens.
+fn put_usage(
+    map: &mut serde_json::Map<String, serde_json::Value>,
+    usage: Option<&serde_json::Value>,
+) {
+    let Some(usage) = usage else { return };
+    let u = usage.get("usage").unwrap_or(usage);
+    let mut copy = |from: &str, to: &str| {
+        if let Some(v) = u.get(from) {
+            map.insert(to.to_string(), v.clone());
+        }
+    };
+    copy("tokens_in", "gen_ai.usage.input_tokens");
+    copy("tokens_out", "gen_ai.usage.output_tokens");
+    copy("tokens_reasoning", "gen_ai.usage.reasoning.output_tokens");
+    copy("cache_read_input_tokens", "gen_ai.usage.cache_read.input_tokens");
+    copy(
+        "cache_creation_input_tokens",
+        "gen_ai.usage.cache_creation.input_tokens",
+    );
+    copy("estimated_usd", "refarm.cost.estimated_usd");
+    if let Some(v) = usage.get("provider") {
+        map.insert("gen_ai.provider.name".into(), v.clone());
+    }
+    if let Some(v) = usage.get("model") {
+        map.insert("gen_ai.request.model".into(), v.clone());
+    }
+    if let Some(v) = u.get("pricing_mode") {
+        map.insert("refarm.pricing_mode".into(), v.clone());
+    }
 }
 
 fn axis_level_str(level: super::budget::BudgetLevel) -> &'static str {
@@ -1481,7 +1583,18 @@ pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json:
     put_opt(&mut map, "refarm.budget.spawner", input.spawner.map(Into::into));
     put_opt(&mut map, "refarm.outcome.steps_completed", input.steps_completed.map(Into::into));
     put_opt(&mut map, "refarm.outcome.steps_planned", input.steps_planned.map(Into::into));
-    put_opt(&mut map, "refarm.usage", input.usage);
+
+    put_usage(&mut map, input.usage.as_ref());
+
+    // A currency ceiling cannot bind where the estimate is a structural zero
+    // (D1). Recorded explicitly rather than inferred by every future reader:
+    // an unenforced ceiling that reads as a satisfied one is the exact failure
+    // D1 exists to prevent. Absent pricing mode means unknown, so absent here
+    // too, per D6 — never a default `true`.
+    if let Some(mode) = map.get("refarm.pricing_mode").and_then(|v| v.as_str()) {
+        let enforced = mode == "api";
+        map.insert("refarm.budget.max_usd.enforced".into(), enforced.into());
+    }
 
     map.insert("timestamp_ns".into(), crate::now_ns().into());
     serde_json::Value::Object(map)
