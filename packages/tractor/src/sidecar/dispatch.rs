@@ -305,6 +305,18 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
         .expect("efforts_input poisoned")
         .insert(effort.id.clone(), effort.clone());
 
+    // Resolve the effort's budget ONCE, up front — the same declared/node fold
+    // budget-contract-v1 proves in TS, ported to integer arithmetic. No workspace
+    // ceiling is threaded in yet (that source is a later task); an effort with no
+    // declared budget resolves entirely from the node's defaults, so every
+    // existing installation behaves exactly as it does today. The deadline
+    // default is threaded from `state.respond_watch.timeout_ms` (already resolved
+    // from env ONCE at boot) rather than re-read from env here — see
+    // `NodeBudget::from_respond_watch` for why that's the one that must be used.
+    let node_budget = super::budget::NodeBudget::from_respond_watch(state.respond_watch.timeout_ms);
+    let resolved_budget = super::budget::resolve_budget(effort.budget.as_ref(), None, &node_budget);
+    let deadline_ms = resolved_budget.deadline_ms.effective;
+
     tokio::spawn(async move {
         let effort_id = effort.id.clone();
         let submitted_at = effort.submitted_at.clone();
@@ -499,6 +511,7 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
                     state.clone(),
                     effort_id.clone(),
                     TerminalResultSpec::agent_response(prompt_ref.clone()),
+                    deadline_ms,
                 );
             }
         }
@@ -698,11 +711,19 @@ fn find_usage_for(namespace: &str, prompt_ref: &str) -> Option<serde_json::Value
 /// Generic over the result node — the agent's AgentResponse is just the default
 /// spec. Uses `finalise_effort_if_active` so a concurrent cancel/error that
 /// already made the effort terminal wins (the watcher never walks the machine
-/// backward out of a terminal state). Bounded by a deadline so a silent producer
-/// never leaks the task.
-fn spawn_terminal_result_watcher(state: SidecarState, effort_id: String, spec: TerminalResultSpec) {
+/// backward out of a terminal state). Bounded by `deadline_ms` — the effort's
+/// resolved budget deadline (`dispatch_effort` resolves it once, up front; it
+/// falls back to the node's default when nothing is declared) — so a silent
+/// producer never leaks the task. `state.respond_watch.interval_ms` is the poll
+/// cadence, not a budget, so it stays sourced from state.
+fn spawn_terminal_result_watcher(
+    state: SidecarState,
+    effort_id: String,
+    spec: TerminalResultSpec,
+    deadline_ms: u64,
+) {
     tokio::spawn(async move {
-        let timeout = std::time::Duration::from_millis(state.respond_watch.timeout_ms);
+        let timeout = std::time::Duration::from_millis(deadline_ms);
         let interval = std::time::Duration::from_millis(state.respond_watch.interval_ms);
         let deadline = std::time::Instant::now() + timeout;
 
@@ -768,7 +789,7 @@ fn spawn_terminal_result_watcher(state: SidecarState, effort_id: String, spec: T
                         result: None,
                         error: Some(format!(
                             "no terminal {} within {}ms",
-                            spec.node_type, state.respond_watch.timeout_ms
+                            spec.node_type, deadline_ms
                         )),
                     }],
                 );
@@ -819,6 +840,8 @@ mod tests {
             tasks,
             source: None,
             submitted_at: "2026-01-01T00:00:00Z".to_string(),
+            budget: None,
+            workspace_id: None,
         }
     }
 
@@ -1087,6 +1110,36 @@ mod tests {
         // usage_raw is re-parsed into a nested object, never left as a string.
         assert_eq!(view["usage"]["raw"]["input_tokens"], 1359);
         assert_eq!(view["usage"]["raw"]["input_tokens_details"]["cached_tokens"], 0);
+        // Legacy pre-split record: neither cache key is present, so both default
+        // to 0 through the `count` helper. Pins the back-compat default — a
+        // separate, still-true rule from the split-record case below.
+        assert_eq!(view["usage"]["cache_read_input_tokens"], 0);
+        assert_eq!(view["usage"]["cache_creation_input_tokens"], 0);
+    }
+
+    #[test]
+    fn usage_view_surfaces_the_split_cache_keys_when_the_record_carries_them() {
+        // A record that actually carries the two cache-split keys Task 3 added.
+        // The legacy test above proves the 0-default; this proves the two keys
+        // surface with their OWN distinct values rather than defaulting.
+        let node = json!({
+            "@type": "UsageRecord",
+            "prompt_ref": "p-1",
+            "provider": "anthropic",
+            "model": "claude-5.5-sonnet",
+            "tokens_in": 1359,
+            "tokens_out": 5,
+            "tokens_cached": 0,
+            "cache_read_input_tokens": 100_000,
+            "cache_creation_input_tokens": 2_048,
+            "tokens_reasoning": 0,
+            "pricing_mode": "subscription",
+            "estimated_usd": 0.0,
+            "usage_raw": "{}"
+        });
+        let view = usage_view_from_record(&node);
+        assert_eq!(view["usage"]["cache_read_input_tokens"], 100_000);
+        assert_eq!(view["usage"]["cache_creation_input_tokens"], 2_048);
     }
 
     #[test]

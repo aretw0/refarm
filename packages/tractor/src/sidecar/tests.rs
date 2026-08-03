@@ -200,6 +200,8 @@ fn storage_path() -> String {
 // Each child is body-only and pulls the shared helpers above via `use super::*;`.
 #[path = "tests/auth_limits.rs"]
 mod auth_limits;
+#[path = "tests/budget.rs"]
+mod budget;
 #[path = "tests/connection.rs"]
 mod connection;
 #[path = "tests/effort.rs"]

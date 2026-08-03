@@ -132,6 +132,26 @@ pub struct Effort {
     pub tasks: Vec<EffortTask>,
     pub source: Option<String>,
     pub submitted_at: String,
+    /// The spawner's declared budget for this dispatch, resolved against the
+    /// node's (and eventually a workspace's) ceiling via `budget::resolve_budget`.
+    /// Absent when the caller declares nothing — resolution then falls back to
+    /// the node's env-backed defaults, unchanged from today's behaviour.
+    /// `BudgetDeclaration` stays `pub(crate)` (it is a wire-boundary type shared
+    /// with `budget::resolve_budget`, never constructed by an external crate) —
+    /// `Effort`'s OWN fields are `pub` for uniformity with its siblings, which is
+    /// what clippy's `private_interfaces` is flagging here; the field is still
+    /// only reachable within this crate via `Effort`, matching the type it holds.
+    #[allow(private_interfaces)]
+    #[serde(default)]
+    pub budget: Option<crate::sidecar::budget::BudgetDeclaration>,
+    /// The workspace this effort was dispatched from, carried explicitly rather
+    /// than parsed back out of the effort/operation id at a second call site —
+    /// two consumers need it (Task 7's `refarm.workspace.id` label, and a later
+    /// per-workspace auth policy resolving through the same fold), and inferring
+    /// it twice is how they would drift apart. A dispatch with no workspace sends
+    /// `None`, never `""`.
+    #[serde(default)]
+    pub workspace_id: Option<String>,
 }
 
 type EffortStore = Arc<RwLock<HashMap<String, EffortResult>>>;
@@ -730,6 +750,10 @@ pub(crate) mod pending_prompt;
 // here: it knows no operation, holds no table, and hands an opaque id to one fixed
 // entrypoint as one argv element. The decision lives in TypeScript, where R5 put it.
 pub(crate) mod remote_initiation;
+// Nested budget resolution (node/workspace/declared) — the Rust port of
+// @refarm.dev/budget-contract-v1's fold. `dispatch` is its first consumer
+// (the respond-watcher deadline); `Effort.budget` above is the wire boundary.
+mod budget;
 mod cors;
 mod dispatch;
 pub(crate) use dispatch::*;
