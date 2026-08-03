@@ -262,6 +262,37 @@ describe("createStdioOperatorChannel", () => {
 		}
 	});
 
+
+	it("counts the rows a select actually occupies, not the lines it meant to write", async () => {
+		// The operator navigated a select in Termux and the whole prompt reprinted on every
+		// keypress. `renderedLines` counted LOGICAL lines while `moveCursor` moves PHYSICAL
+		// rows: on a narrow terminal a long option wraps, so the cursor rose fewer rows than
+		// the render had consumed, `clearScreenDown` erased from the middle, and everything
+		// above survived — once per keystroke.
+		//
+		// Same family as the secret mask: a redraw that assumes one row per line.
+		const { input, output, state } = makeTtyIo();
+		output.columns = 20;
+		const channel = createStdioOperatorChannel({ input, output });
+		const answer = channel.ask({
+			type: "select",
+			question: "Por onde?",
+			options: [
+				{ value: "a", label: "uma opcao bem longa que nao cabe numa fileira so" },
+				{ value: "b", label: "outra opcao igualmente longa para forcar a quebra" },
+			],
+		});
+
+		input.emit("keypress", "", { name: "down" });
+		input.emit("keypress", "", { name: "return" });
+		await expect(answer).resolves.toBe("b");
+
+		// The redraw must climb at least as many rows as the first render occupied.
+		const climbs = [...state.outputText.matchAll(/\[(\d+)A/g)].map((m) => Number(m[1]));
+		expect(climbs.length).toBeGreaterThan(0);
+		expect(Math.max(...climbs)).toBeGreaterThanOrEqual(6);
+	});
+
 	it("restores paused stdin after a raw-mode secret prompt", async () => {
 		const { input, output, state } = makeTtyIo();
 		const channel = createStdioOperatorChannel({ input, output });

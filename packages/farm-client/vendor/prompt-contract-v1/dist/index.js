@@ -279,7 +279,11 @@ function askSelectTui(prompt, input, output, signal) {
                 "  Use Up/Down and Enter.",
             ];
             output.write(lines.join("\n"));
-            renderedLines = lines.length - 1;
+            // Rows, not lines. `moveCursor` climbs PHYSICAL rows, and on a narrow terminal a
+            // long option wraps into several — so counting the lines we MEANT to write made
+            // the next redraw rise short, erase from the middle, and leave everything above
+            // it on screen. Once per keystroke, that is the whole prompt reprinting itself.
+            renderedLines = lines.reduce((rows, line) => rows + renderedRowsFor(line, output), 0) - 1;
         };
         const cleanup = () => {
             input.off("keypress", onKeypress);
@@ -376,6 +380,16 @@ async function askText(prompt, input, output, signal) {
  * `room` absent (a stream with no width) keeps the unbounded mask — there is no row to
  * overflow, and truncating against a guessed width would hide characters for no reason.
  */
+/** How many physical rows a rendered line occupies, ANSI colour excluded from the width.
+ *  A stream with no width is one row per line — there is nothing to wrap against. */
+function renderedRowsFor(line, output) {
+    const columns = output.columns;
+    if (typeof columns !== "number" || !Number.isFinite(columns) || columns <= 0)
+        return 1;
+    // eslint-disable-next-line no-control-regex
+    const visible = line.replace(/\u001b\[[0-9;]*m/g, "");
+    return Math.max(1, Math.ceil(visible.length / columns));
+}
 function maskSecret(value, visibleTail, room) {
     const tail = visibleTail > 0 && value.length > visibleTail ? value.slice(-visibleTail) : "";
     const stars = value.length - tail.length;
