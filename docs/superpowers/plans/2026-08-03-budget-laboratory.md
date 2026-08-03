@@ -19,8 +19,9 @@ corrected, because a laboratory built on a wrong estimator measures wrong from d
 
 ## Scope
 
-This plan covers **spec slices 1–5**, in eleven tasks. After Task 11, every real run the operator
-makes from any surface is evidence, which is working software on its own.
+This plan covers **spec slices 1–5**, in twelve tasks. After Task 12, every real run the operator
+makes from any surface is evidence AND the declared ceilings actually bind, which is working
+software on its own.
 
 **Tasks 7, 8 and 9 were added on 2026-08-03, mid-execution**, and the reasons are recorded because
 they change what the plan is:
@@ -34,6 +35,10 @@ they change what the plan is:
   drift and prices do**, so the record stores what is stable and lets the volatile part be recomputed.
 - Task 9 closes an omission in this plan: Task 5 built the three-level fold and its only production
   caller passes `None` for the workspace level, so D9's middle level was unreachable outside tests.
+- Task 12 was added after Task 6 reported its own guards inert: nothing carries the resolved ceiling
+  from the node to the WASM guest, and the total at the call site is per-turn rather than cumulative,
+  so F6's actual finding stays open. Declarable-but-unenforced is the shape D1 refused for `maxUsd`;
+  the same rule has to hold for the two axes that CAN bind.
 
 **Spec slices 6–8 (the sweep, the gallery, closing the loop) get their own plan.** The spec draws
 that seam itself: 1–5 make the instrument record; 6–8 make it reproducible by third parties. Writing
@@ -2115,6 +2120,116 @@ refarm agent finish --lane handoffs --run --json
 
 The `handoffs` lane is required here and not in earlier tasks: this is the task that changes public
 JSON output (CLAUDE.md §4).
+
+---
+
+### Task 12: The resolved ceiling reaches the agent, and the counter is genuinely cumulative
+
+**Why this exists** (added 2026-08-03, from Task 6's own report): Task 6 built `cumulative_limit_error`
+and `spend_limit_error` correctly, and both are **inert**. Two things are missing and neither had an
+owner:
+
+1. **Nothing carries the resolved ceiling from the sidecar to the agent.** Task 5 resolves a
+   `ResolvedBudget` per dispatch; the agent runs as a WASM guest and never sees it. The call site
+   passes `None`, which is why nothing changed for existing runs.
+2. **The total at the call site is per-turn, not cumulative.** No cross-turn counter exists reachable
+   without restructuring the react loop, which Task 6 was explicitly forbidden from doing. A per-turn
+   check does not close F6: the whole finding was that a run which starts under the ceiling and burns
+   ten times it across tool loops is never stopped, and a per-turn check would not stop it either.
+
+Until both land, the token and cost axes are **declarable but unenforced** — the shape D1 named as a
+failure and refused for `maxUsd` under subscription pricing. The same rule applies here: what is not
+enforced must not read as enforced.
+
+**Files:**
+- Modify: `packages/tractor/src/sidecar/dispatch.rs` (pass the resolved ceilings into the spawn
+  environment) — protected surface, this file only
+- Modify: `packages/agent/src/runtime/react_loop.rs` (the cumulative counter and the guard call site)
+- Modify: `packages/agent/src/runtime/policy.rs` if the guards need a shared accumulator type
+- Test: `packages/agent/src/tests/runtime_cost_guard_tests.rs`, plus a sidecar test that the
+  environment carries the resolved values
+
+**Interfaces:**
+- Consumes: Task 5's `ResolvedBudget`, Task 6's `cumulative_limit_error` and `spend_limit_error`.
+- Produces: a cumulative `UsageTotals`-shaped accumulator that survives across turns within one run,
+  and two environment keys the agent reads its ceilings from.
+
+**Design note before writing code.** The repo already declares a `spawnEnv` section in
+`.refarm/config.json` and the sidecar already builds a fail-closed spawn environment for declared
+operations. Carry the ceilings there rather than inventing a second channel — the announcement
+contract's D2 recorded that fragmentation across `stream:v1`, `connection_frames` and `login-flow`
+was a real cost, and a fourth road for one more value would repeat it.
+
+- [ ] **Step 1: Write the failing tests**
+
+```rust
+#[test]
+fn spend_accumulates_across_turns_rather_than_resetting_each_one() {
+    // F6's actual finding: a run that starts under the ceiling and burns ten
+    // times it across tool loops. A per-turn check never sees it.
+    let mut run = RunTotals::default();
+    run.add_turn(4_000, 1_000);   // turn 1: 5k, under a 10k ceiling
+    assert!(cumulative_limit_error(run.total(), Some(10_000)).is_none());
+    run.add_turn(4_000, 1_000);   // turn 2: 10k cumulative, exactly at it
+    assert!(cumulative_limit_error(run.total(), Some(10_000)).is_none());
+    run.add_turn(1, 0);           // turn 3: past it
+    assert!(
+        cumulative_limit_error(run.total(), Some(10_000)).is_some(),
+        "three small turns that together exceed the ceiling must stop the run"
+    );
+}
+
+#[test]
+fn a_ceiling_that_never_arrives_leaves_the_run_unbounded() {
+    // Backward compatibility: an installation that declares nothing behaves
+    // exactly as it did before this task.
+    let mut run = RunTotals::default();
+    run.add_turn(u32::MAX / 2, u32::MAX / 2);
+    assert!(cumulative_limit_error(run.total(), None).is_none());
+}
+```
+
+Add a sidecar-side test asserting that a dispatch carrying a declared budget puts the resolved
+`max_tokens` and `max_usd` into the spawn environment, and that a dispatch with no budget puts
+nothing there rather than a zero.
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `cargo test --lib runtime_cost_guard --quiet`
+Expected: FAIL — `RunTotals` not found.
+
+- [ ] **Step 3: Implement the accumulator and the plumbing**
+
+Keep `RunTotals` minimal: the sum of `tokens_in + tokens_out` across turns, plus the accumulated
+estimated spend. It lives for one run. Do not reuse `UsageTotals`, which is per-call and already has
+a different job.
+
+On the sidecar side, add the resolved ceilings to the spawn environment beside the values it already
+sets. A dispatch with no resolved ceiling for an axis sets **no key**, not a zero — a zero ceiling
+would stop every run instantly, which is the worst possible reading of "absent".
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `cargo test --lib runtime_cost_guard --quiet && cargo test --lib --quiet && cargo test --lib sidecar --quiet -- --test-threads=1`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+refarm agent finish --lane after-edit --run --json
+git add packages/agent/src packages/tractor/src
+git commit -m "feat(agent): the token and cost ceilings finally bind
+
+Task 6 built both guards and left them inert: nothing carried the resolved
+ceiling from the node to the guest, and the total at the call site was per-turn.
+A per-turn check does not close the finding that produced this work — a run that
+starts under the ceiling and burns ten times it across tool loops passes every
+individual turn.
+
+The ceilings now ride the spawn environment the sidecar already builds, rather
+than a fourth road of their own, and the counter survives the loop."
+refarm agent finish --lane after-commit --run --json
+```
 
 ---
 
