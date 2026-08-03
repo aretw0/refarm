@@ -75,6 +75,8 @@ mod utils;
 pub(crate) use compress::{compress_tool_output, dedup_lines, strip_ansi};
 #[allow(unused_imports)]
 pub(crate) use runtime::react;
+#[allow(unused_imports)]
+pub(crate) use runtime::{cumulative_limit_error, spend_limit_error};
 #[cfg(target_arch = "wasm32")]
 pub(crate) use session::{
     append_to_session, budget_exceeded_for_provider, get_or_create_session, query_history,

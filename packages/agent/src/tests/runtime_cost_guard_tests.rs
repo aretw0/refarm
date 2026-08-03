@@ -106,3 +106,28 @@ fn estimate_usd_ollama_is_zero() {
     assert_eq!(estimate_usd("ollama", "llama3.2", 10000, 5000, 0, 0), 0.0);
     assert_eq!(estimate_usd("ollama", "mistral", 1000, 1000, 0, 0), 0.0);
 }
+
+#[test]
+fn a_run_that_starts_small_and_grows_is_stopped_at_the_ceiling() {
+    // The old guard only measured the FIRST prompt. A run that begins under the
+    // ceiling and then burns ten times it across tool loops was never stopped.
+    assert!(cumulative_limit_error(9_999, Some(10_000)).is_none());
+    let stopped = cumulative_limit_error(10_001, Some(10_000));
+    assert!(stopped.is_some(), "cumulative spend past the ceiling must stop the run");
+    let (content, _, _, _, _, _, _, model, _) = stopped.unwrap();
+    assert!(content.contains("10000"), "the message must name the ceiling: {content}");
+    assert_eq!(model, "blocked");
+}
+
+#[test]
+fn no_ceiling_means_no_stop() {
+    assert!(cumulative_limit_error(u32::MAX, None).is_none());
+}
+
+#[test]
+fn a_currency_ceiling_never_binds_under_a_subscription() {
+    // openai-codex bills a subscription; estimate_billable_usd returns 0.0 there
+    // by design, so a USD ceiling would be theatre.
+    assert!(spend_limit_error("openai-codex", 999.0, Some(0.01)).is_none());
+    assert!(spend_limit_error("anthropic", 999.0, Some(0.01)).is_some());
+}

@@ -23,6 +23,41 @@ pub(crate) fn context_limit_error(prompt: &str) -> Option<ReactResult> {
     None
 }
 
+/// Stop a run whose CUMULATIVE token spend has passed its declared ceiling.
+/// Distinct from `context_limit_error`, which refuses a single prompt too large
+/// for the context window. This one is the budget; that one is the container.
+pub(crate) fn cumulative_limit_error(spent: u32, limit: Option<u32>) -> Option<ReactResult> {
+    let limit = limit?;
+    if spent <= limit {
+        return None;
+    }
+    Some(blocked_result(format!(
+        "[runtime-agent] orçamento de tokens esgotado ({spent} > {limit} tokens acumulados)"
+    )))
+}
+
+/// Stop a run whose estimated spend has passed its declared ceiling. Returns
+/// None outside `api` pricing mode: under a subscription or a local model the
+/// estimate is a structural zero, and a ceiling that can never bind would teach
+/// the operator to trust a guard that is not guarding. The token ceiling is what
+/// holds the line there.
+pub(crate) fn spend_limit_error(
+    provider: &str,
+    spent_usd: f64,
+    limit_usd: Option<f64>,
+) -> Option<ReactResult> {
+    if crate::pricing_mode_for_provider(provider) != "api" {
+        return None;
+    }
+    let limit = limit_usd?;
+    if spent_usd <= limit {
+        return None;
+    }
+    Some(blocked_result(format!(
+        "[runtime-agent] orçamento estimado esgotado (US$ {spent_usd:.4} > US$ {limit:.4})"
+    )))
+}
+
 #[cfg(target_arch = "wasm32")]
 fn task_context_for_prompt() -> Option<String> {
     let n = std::env::var("MODEL_TASK_CONTEXT_TURNS")

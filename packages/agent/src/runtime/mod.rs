@@ -20,6 +20,11 @@ pub(crate) use react_loop::react_with_prompt_ref;
 // opening the whole (otherwise-private) `policy` module.
 #[cfg(target_arch = "wasm32")]
 pub(crate) use policy::resolve_skill_body;
+// The cumulative token/spend guards (F6): pure over (spent, limit), so re-exported
+// un-gated (native tests exercise them directly) up to crate root, the same path
+// `react` takes, so the test module's `use super::*` chain resolves them.
+#[allow(unused_imports)]
+pub(crate) use policy::{cumulative_limit_error, spend_limit_error};
 #[allow(unused_imports)]
 pub(crate) use types::ReactResult;
 
