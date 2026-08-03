@@ -10,6 +10,9 @@
 //! free of budget-specific language so a later per-workspace policy (auth) can
 //! resolve through the same fold instead of copying it.
 
+use std::collections::HashMap;
+use std::path::Path;
+
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,11 +63,12 @@ pub(crate) struct NodeBudget {
 }
 
 /// The node's `max_tokens` / `max_usd_millis` default and ceiling when nothing
-/// else declares them. No env var carries these today — only the dispatch
-/// deadline is env-tunable (`REFARM_RESPOND_WATCH_TIMEOUT_MS` /
+/// else declares them — including when `budget.node` is absent from config
+/// (`node_budget_from_config` below layers a declared value over these; it never
+/// replaces them wholesale). No env var carries these directly — only the
+/// dispatch deadline is env-tunable (`REFARM_RESPOND_WATCH_TIMEOUT_MS` /
 /// `_CEILING_MS`) — so these mirror the sample node section of the spec's
-/// `.refarm/config.json` shape, ready for a config-driven override to land on
-/// the same numbers.
+/// `.refarm/config.json` shape.
 const NODE_DEFAULT_MAX_TOKENS: u64 = 100_000;
 const NODE_DEFAULT_MAX_USD_MILLIS: u64 = 1_000;
 const NODE_CEILING_MAX_TOKENS: u64 = 500_000;
@@ -94,17 +98,6 @@ impl NodeBudget {
             },
         }
     }
-
-    /// Standalone resolution straight from env — both the default and the
-    /// ceiling read fresh. Calls `respond_watch_timeout_ms_from_env` verbatim,
-    /// the SAME function `RespondWatchConfig::from_env` calls at boot, so a
-    /// freshly-booted node's `NodeBudget` and its `state.respond_watch.timeout_ms`
-    /// agree. `dispatch_effort` prefers `from_respond_watch` (above) so a test
-    /// overriding the state field is honoured without a second env read.
-    #[allow(dead_code)] // symmetry with RespondWatchConfig::from_env; not yet dispatch_effort's path
-    pub(crate) fn from_env() -> Self {
-        Self::from_respond_watch(super::dispatch::respond_watch_timeout_ms_from_env())
-    }
 }
 
 /// Parse `REFARM_RESPOND_WATCH_CEILING_MS` from env — the new counterpart to
@@ -118,9 +111,12 @@ fn respond_watch_ceiling_ms_from_env() -> u64 {
         .unwrap_or(600_000)
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct WorkspaceBudget {
+    #[serde(default)]
     pub ceiling: Option<BudgetDeclaration>,
+    #[serde(default)]
     pub default: Option<BudgetDeclaration>,
 }
 
@@ -218,5 +214,117 @@ pub(crate) fn resolve_budget(
             node.ceiling.max_usd_millis,
             node.default.max_usd_millis,
         ),
+    }
+}
+
+// ── the sovereign config's `budget` section — D9's middle level, made reachable ──────────
+//
+// `resolve_budget` has folded a workspace ceiling since it was written; nothing ever read
+// one off disk to hand it in. This is that read: the top-level `budget` section of the
+// sovereign config, resolved from `node_base` — the SAME "base" `declared_base()` returns
+// and `sovereign_config_path(base)` joins the config dir onto (`crate::host`, re-exported
+// from `host::plugin_host::config_node` for this reason) — never a hand-joined
+// `node_base.join("config.json")`. `sovereign_config_path` is the substrate's own answer to
+// "where is the file", including its own rule for absence: an unset `SOVEREIGN_DIR` selector
+// means NO sovereign config path, not a silent fallback to a guessed directory name. Using
+// it here rather than reproducing its five lines is what keeps this read agreeing with every
+// other reader of the same file (surfaces, connections, spawnEnv, plugin grants) instead of
+// becoming a second, driftable answer to one question.
+//
+// Every key optional, and every failure mode — no selector, no file, unreadable bytes,
+// invalid JSON, no `budget` key, a `budget` value that doesn't parse into this shape, no
+// entry for the workspace asked about — resolves to `None`/the fallback rather than an
+// `Err`. A budget read must never be the thing that stops a dispatch; a malformed config is
+// a different problem with a different owner (see the module-level rule this mirrors for the
+// fold itself).
+
+/// The top-level `budget` section, deserialised straight off the wire shape the maintainer
+/// settled: `{ "node": { "default": {...}, "ceiling": {...} }, "workspaces": { "<id>": {
+/// "ceiling": {...}, "default": {...} } } }`. Both halves are read here — `node` as well as
+/// `workspaces` — so a config that declares `budget.node` is never declared-and-ignored,
+/// which is the exact defect this task exists to close, one level up.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BudgetSection {
+    #[serde(default)]
+    node: Option<NodeBudgetSection>,
+    #[serde(default)]
+    workspaces: HashMap<String, WorkspaceBudget>,
+}
+
+/// `budget.node` — each half optional, exactly like a workspace's. Absent entirely, or with
+/// either half absent, is not an error: `node_budget_from_config` layers whatever IS declared
+/// over the env-resolved fallback rather than requiring the whole shape.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NodeBudgetSection {
+    #[serde(default)]
+    default: Option<BudgetDeclaration>,
+    #[serde(default)]
+    ceiling: Option<BudgetDeclaration>,
+}
+
+/// Resolve the sovereign config's `budget` section from `node_base` — the base
+/// `declared_base()` returns, joined onto the config dir by `sovereign_config_path`
+/// exactly the way every other reader of this file joins it. `None` for any reason at
+/// all (see the section doc above). PURE fs read + parse — no caching, no state: called
+/// once per dispatch, which is what lets a config edit take effect on the very next
+/// effort without a restart, the same immediacy `sidecar::auth`'s policy watcher gives
+/// the credential gate.
+fn read_budget_section(node_base: &Path) -> Option<BudgetSection> {
+    let path = crate::host::sovereign_config_path(node_base)?;
+    let bytes = std::fs::read(path).ok()?;
+    let config: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    let budget = config.get("budget")?;
+    serde_json::from_value(budget.clone()).ok()
+}
+
+/// The declared ceiling/default for ONE workspace, or `None` when there is nothing to
+/// declare it: no workspace id on the effort (`workspace_id`), no sovereign config path
+/// (`SOVEREIGN_DIR` unset), no config file, no `budget` section, or no entry under this
+/// workspace's id. A workspace's ceiling never binds another's — `resolve_budget`'s caller
+/// passes exactly the entry keyed to the effort's own `workspace_id`, nothing broader.
+///
+/// `node_base`, not `refarm_dir`: this is `declared_base()`'s BASE (the directory that
+/// CONTAINS the sovereign dir), the value `dispatch_effort` passes at its call site —
+/// taken as a parameter, rather than resolved internally, so this stays directly testable
+/// against a tempdir without touching env or cwd for the base half of the resolution.
+pub(crate) fn workspace_budget_for(
+    node_base: &Path,
+    workspace_id: Option<&str>,
+) -> Option<WorkspaceBudget> {
+    let workspace_id = workspace_id?;
+    let section = read_budget_section(node_base)?;
+    section.workspaces.get(workspace_id).copied()
+}
+
+/// Layer `budget.node` over the env-resolved `fallback` — config wins where it declares a
+/// value, `fallback` (already `NodeBudget::from_respond_watch`'d by the caller) fills the
+/// rest. An installation with no sovereign config path, no `budget` section, or no
+/// `budget.node`, gets back `fallback` untouched: byte-identical to today's behaviour.
+///
+/// `node_base` — see `workspace_budget_for`'s doc for why this is the base, not the
+/// `.refarm` dir itself, and why it's a parameter rather than resolved internally.
+pub(crate) fn node_budget_from_config(node_base: &Path, fallback: NodeBudget) -> NodeBudget {
+    let Some(node) = read_budget_section(node_base).and_then(|section| section.node) else {
+        return fallback;
+    };
+    NodeBudget {
+        default: layer_triple_over(fallback.default, node.default),
+        ceiling: layer_triple_over(fallback.ceiling, node.ceiling),
+    }
+}
+
+/// One `BudgetTriple`, axis by axis: a declared axis wins, an undeclared one keeps the
+/// fallback's value. Mirrors `resolve_axis`'s "declared wins, fallback fills" shape one level
+/// up — this layers CONFIG over ENV, `resolve_axis` layers a DECLARATION over a CEILING/DEFAULT.
+fn layer_triple_over(fallback: BudgetTriple, declared: Option<BudgetDeclaration>) -> BudgetTriple {
+    let Some(declared) = declared else {
+        return fallback;
+    };
+    BudgetTriple {
+        deadline_ms: declared.deadline_ms.unwrap_or(fallback.deadline_ms),
+        max_tokens: declared.max_tokens.unwrap_or(fallback.max_tokens),
+        max_usd_millis: declared.max_usd_millis.unwrap_or(fallback.max_usd_millis),
     }
 }

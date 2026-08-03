@@ -305,16 +305,28 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
         .expect("efforts_input poisoned")
         .insert(effort.id.clone(), effort.clone());
 
-    // Resolve the effort's budget ONCE, up front — the same declared/node fold
-    // budget-contract-v1 proves in TS, ported to integer arithmetic. No workspace
-    // ceiling is threaded in yet (that source is a later task); an effort with no
-    // declared budget resolves entirely from the node's defaults, so every
-    // existing installation behaves exactly as it does today. The deadline
-    // default is threaded from `state.respond_watch.timeout_ms` (already resolved
-    // from env ONCE at boot) rather than re-read from env here — see
-    // `NodeBudget::from_respond_watch` for why that's the one that must be used.
-    let node_budget = super::budget::NodeBudget::from_respond_watch(state.respond_watch.timeout_ms);
-    let resolved_budget = super::budget::resolve_budget(effort.budget.as_ref(), None, &node_budget);
+    // Resolve the effort's budget ONCE, up front — the same declared/workspace/node fold
+    // budget-contract-v1 proves in TS, ported to integer arithmetic. The workspace ceiling
+    // and the node's own config-declared override both read the sovereign config, keyed by
+    // `node_base` — `declared_base()`, the SAME "declared, not detected" base every other
+    // subsystem in this crate resolves its declarations against (`sidecar::remote_initiation`
+    // is the precedent for a sidecar file reaching for it), never `current_dir()` here. An
+    // effort with no declared budget, on a node with no `budget` section in its config,
+    // resolves entirely from the node's env-backed defaults, so every existing installation
+    // behaves exactly as it does today. The node deadline default is threaded from
+    // `state.respond_watch.timeout_ms` (already resolved from env ONCE at boot) rather than
+    // re-read from env here — see `NodeBudget::from_respond_watch` for why that's the one
+    // that must be used; `node_budget_from_config` then layers any `budget.node` declaration
+    // over it, config winning where present.
+    let node_base = crate::host::declared_base();
+    let node_budget = super::budget::node_budget_from_config(
+        &node_base,
+        super::budget::NodeBudget::from_respond_watch(state.respond_watch.timeout_ms),
+    );
+    let workspace_budget =
+        super::budget::workspace_budget_for(&node_base, effort.workspace_id.as_deref());
+    let resolved_budget =
+        super::budget::resolve_budget(effort.budget.as_ref(), workspace_budget.as_ref(), &node_budget);
     let deadline_ms = resolved_budget.deadline_ms.effective;
 
     tokio::spawn(async move {
