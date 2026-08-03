@@ -1632,11 +1632,14 @@ describe("say() — the second verb (D1/D8)", () => {
 	it("conformance reports whether a channel announces, without failing the mute ones", async () => {
 		// The queue conformance actually consumes: confirm, select, text, secret,
 		// cancel — and the first must be a boolean or check 1 fails on its own.
-		const speaking = await runOperatorChannelConformance(
-			createScriptedOperatorChannel([true, "a", "hello", "secret", "n/a"]),
-		);
+		const scripted = createScriptedOperatorChannel([true, "a", "hello", "secret", "n/a"]);
+		const speaking = await runOperatorChannelConformance(scripted, {
+			// The sink is what makes exercising `say` safe here — see `captureSay`.
+			captureSay: () => scripted.notices(),
+		});
 		expect(speaking.announces).toBe(true);
 		expect(speaking.pass).toBe(true);
+		expect(scripted.notices().some((n) => n.message === "_conformance_")).toBe(true);
 
 		// `say` is OPTIONAL (D1), so a channel without it is REPORTED, not failed.
 		// Built by stripping `say` off an otherwise identical channel, so the only
@@ -1773,5 +1776,25 @@ describe("say() reaches the elsewhere (D7)", () => {
 			}).say?.("ainda assim aparece aqui"),
 		).not.toThrow();
 		expect(written).toContain("ainda assim aparece aqui");
+	});
+});
+
+describe("conformance does not pollute its host's output", () => {
+	it("never calls say() when the caller cannot see where it lands", async () => {
+		// The hardening collector runs this against real channels, and the auto
+		// channel writes to stdout — so an unconditional `say` printed
+		// `_conformance_` into the collector's own report. A suite that dirties its
+		// host's output to prove a property has made that output less trustworthy.
+		const output = new PassThrough() as PassThrough & NodeJS.WriteStream;
+		let written = "";
+		output.write = ((chunk: string) => {
+			written += chunk;
+			return true;
+		}) as never;
+
+		const result = await runOperatorChannelConformance(createAutoOperatorChannel({ output }));
+
+		expect(result.announces).toBe(true); // still REPORTED…
+		expect(written).toBe(""); // …and never exercised.
 	});
 });

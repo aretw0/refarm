@@ -776,6 +776,22 @@ export interface OperatorChannelConformanceOptions {
 	 * than requiring a cancellation rejection those channels have no way to produce.
 	 */
 	triggerCancel?: () => void;
+	/**
+	 * Where this channel's `say` lands, when the caller can see it.
+	 *
+	 * Present ⇒ conformance EXERCISES `say` and checks it is total (no throw, no
+	 * return value). Absent ⇒ it only REPORTS `announces` and never calls it.
+	 *
+	 * The asymmetry is deliberate, and it was earned: exercising `say` on a channel
+	 * that writes to stdout puts `_conformance_` into whatever is running the suite —
+	 * which is exactly what the hardening collector printed the first time this ran.
+	 * A conformance suite that pollutes its host's output has made the host's output
+	 * less trustworthy to prove a property, which is a bad trade.
+	 *
+	 * Same shape as `triggerCancel` above and for the same reason: a check that
+	 * cannot be run safely is skipped and said to be skipped, not faked.
+	 */
+	captureSay?: () => readonly unknown[];
 }
 
 /** How long a channel gets to settle after `triggerCancel` fires before conformance
@@ -879,11 +895,12 @@ export async function runOperatorChannelConformance(
 	// suite running conformance spit "_conformance_" into its own log — the same
 	// reason the checks above pass canned answers instead of touching a terminal.
 	const announces = typeof channel.say === "function";
-	if (announces) {
+	if (announces && options.captureSay) {
 		checksRun++;
 		try {
 			const returned = channel.say!({ message: "_conformance_", kind: "context" }) as unknown;
 			if (returned !== undefined) failures.push("say: returned a value; it must return void");
+			if (options.captureSay().length === 0) failures.push("say: nothing reached the sink");
 		} catch (e) {
 			failures.push(`say threw: ${String(e)}`);
 		}

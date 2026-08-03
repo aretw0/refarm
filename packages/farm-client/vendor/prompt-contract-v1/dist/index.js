@@ -588,12 +588,14 @@ export async function runOperatorChannelConformance(channel, options = {}) {
     // suite running conformance spit "_conformance_" into its own log — the same
     // reason the checks above pass canned answers instead of touching a terminal.
     const announces = typeof channel.say === "function";
-    if (announces) {
+    if (announces && options.captureSay) {
         checksRun++;
         try {
             const returned = channel.say({ message: "_conformance_", kind: "context" });
             if (returned !== undefined)
                 failures.push("say: returned a value; it must return void");
+            if (options.captureSay().length === 0)
+                failures.push("say: nothing reached the sink");
         }
         catch (e) {
             failures.push(`say threw: ${String(e)}`);
