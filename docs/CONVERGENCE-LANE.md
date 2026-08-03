@@ -189,6 +189,34 @@ The maintainer sharpened the North Star: the goal is not "rcdc5 imports `@refarm
     either (`e1acd409`). A test whose answer depends on your working directory is worse than a failing
     one — it teaches you to distrust the signal, and it cost this session a false open question.
 
+- **2026-08-03 — the muteness under the coupling, and the operator's own measure of convergence.**
+  Real Termux use returned two defects. The select prompt reprinted itself on every keypress:
+  `renderedLines` counted LOGICAL lines while `moveCursor` climbs PHYSICAL rows, so a wrapped option
+  made the redraw rise short and leave everything above it — the same family as the secret mask, and
+  wrong only where the rows are narrow, which is where an operator stands. Fixed and republished.
+  The second was reported as "the flow seems coupled to Telegram" and is not a text problem: with one
+  registered adapter the wizard selects it in SILENCE, never saying it is a registry — and, deeper,
+  **the operator channel can only ASK**. There is no notice/announce, so `delivery add`'s preflight
+  ("the bot is yours; refarm does not talk to BotFather for you") never left the node while the
+  questions travelled. A remote wizard today cannot contextualise, only interrogate, and every future
+  surface inherits that. The announcement contract therefore precedes Telegram-as-surface and the PWA
+  rather than following them.
+  - **The ocamento, reframed by the operator and better for it:** not "declare operations" but
+    position rcdc5 and vault-seed as CONSUMERS of refarm-as-framework — each gets its own CLI and
+    compatibility, declares installable operations, and reports DX pain back. The direction inverts:
+    the repo adopts refarm and complains, rather than refarm reaching into the repo, and the
+    complaint is the instrument.
+  - **And the measure of the convergence itself, in the operator's words:** the moment meta-work
+    separates from work is not a state of refarm but a COST CURVE. Declaring the first operation cost
+    ~15 refarm fixes. When the Nth costs zero, it has arrived — countable, not felt. The discipline
+    that follows: when the work lane hits a wall, RECORD it and declare the next operation; batch the
+    meta afterwards. Today did the opposite, correctly, because the first walls were broken ropes.
+  - **What `/attend` already is**, measured rather than assumed: complete for catalog + start +
+    status + prompts, over HTTPS at `<tailnet>:4322/attend` (the plain listener on 4321 is by design;
+    TLS is ADDED beside it on `port + 1`). The installable-PWA gap is home screen, offline and push —
+    not capability. The PWA companion deserves a design pass for what is of ITS OWN nature before it
+    is built as `/attend` with an icon.
+
 **Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.
 
 ## How to resume
