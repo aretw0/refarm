@@ -22,6 +22,10 @@ import {
 	PENDING_PROMPT_WIRE,
 	PROMPT_CAPABILITY,
 	readDeclaredPendingPromptWire,
+	normalizeNoticeInput,
+	OPERATOR_NOTICE_WIRE,
+	parseOperatorNotice,
+	parseOperatorNoticeList,
 	RESERVED_PROMPT_DEVICES,
 	resolveAnsweringDevice,
 	runOperatorChannelConformance,
@@ -29,6 +33,7 @@ import {
 	TERMINAL_PROMPT_DEVICE,
 	toPendingPrompt,
 	type OperatorChannel,
+	type OperatorNotice,
 	type OperatorPrompt,
 	type PendingPromptHub,
 	type PromptPublisher,
@@ -1518,5 +1523,75 @@ describe("setPromptPublisher", () => {
 		} finally {
 			off();
 		}
+	});
+});
+
+describe("the operator notice shape (D3/D4)", () => {
+	const asker = { command: "refarm delivery add", pid: 42, host: "farm" };
+
+	it("normalizes a bare string to a context notice", () => {
+		expect(normalizeNoticeInput("o bot é seu")).toEqual({
+			message: "o bot é seu",
+			kind: "context",
+		});
+	});
+
+	it("keeps an explicit kind", () => {
+		expect(normalizeNoticeInput({ message: "sai desta máquina", kind: "caution" })).toEqual({
+			message: "sai desta máquina",
+			kind: "caution",
+		});
+	});
+
+	it("round-trips a stamped notice through the parser", () => {
+		const stamped: OperatorNotice = {
+			wire: OPERATOR_NOTICE_WIRE,
+			ordinal: 7,
+			message: "um adaptador registrado: telegram",
+			kind: "decision",
+			asker,
+			at: 1_700_000_000_000,
+		};
+		expect(parseOperatorNotice(JSON.parse(JSON.stringify(stamped)))).toEqual(stamped);
+	});
+
+	it("refuses a notice whose wire is not ours, and one with no message", () => {
+		expect(
+			parseOperatorNotice({ wire: "other", ordinal: 1, message: "x", kind: "context", asker, at: 1 }),
+		).toBeNull();
+		expect(
+			parseOperatorNotice({
+				wire: OPERATOR_NOTICE_WIRE,
+				ordinal: 1,
+				message: "",
+				kind: "context",
+				asker,
+				at: 1,
+			}),
+		).toBeNull();
+	});
+
+	it("falls back to context for a kind it does not know, rather than dropping the notice", () => {
+		const parsed = parseOperatorNotice({
+			wire: OPERATOR_NOTICE_WIRE,
+			ordinal: 1,
+			message: "from a newer node",
+			kind: "urgent",
+			asker,
+			at: 1,
+		});
+		expect(parsed?.kind).toBe("context");
+		expect(parsed?.message).toBe("from a newer node");
+	});
+
+	it("drops only the entries that do not parse", () => {
+		const list = parseOperatorNoticeList({
+			notices: [
+				{ wire: OPERATOR_NOTICE_WIRE, ordinal: 1, message: "ok", kind: "context", asker, at: 1 },
+				{ wire: "wrong", ordinal: 2, message: "no", kind: "context", asker, at: 2 },
+			],
+		});
+		expect(list).toHaveLength(1);
+		expect(list[0]?.message).toBe("ok");
 	});
 });

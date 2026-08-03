@@ -1007,6 +1007,113 @@ export interface PendingPromptSettlement {
 	at: number;
 }
 
+// ── The notice: what a wizard STATES, as opposed to what it asks ──────────────
+//
+// D1 of the announcement-contract design. An `OperatorChannel` could only ask, so
+// a wizard's framing had nowhere to go but `console.log` — which stays on the node
+// while the questions travel. This is the shape that travels WITH them.
+
+export const OPERATOR_NOTICE_WIRE = "operator-notice.v1" as const;
+
+/**
+ * D4 — derived from the eight `say()` call sites that already existed, not
+ * invented. The test applied to each candidate: does this distinction change what
+ * the operator should DO? Five framing lines collapsed into one kind; two others
+ * earned their place.
+ */
+export type OperatorNoticeKind =
+	/** Framing, prerequisites, what will be written. Missing it costs understanding. */
+	| "context"
+	/** refarm chose or narrowed something on the operator's behalf. Missing it means
+	 *  BELIEVING YOU CHOSE — which is the defect this contract exists to fix. */
+	| "decision"
+	/** The next answer causes an outward or irreversible effect. Sibling of
+	 *  `answerTravels`, which marks the same doctrine on the prompt side. */
+	| "caution";
+
+const NOTICE_KINDS: readonly OperatorNoticeKind[] = ["context", "decision", "caution"];
+
+/** What a CALLER passes. The hub stamps the rest. */
+export interface OperatorNoticeInput {
+	message: string;
+	/** Defaults to `context`, so `say("…")` stays cheap at the call site. */
+	kind?: OperatorNoticeKind;
+}
+
+/** A statement addressed to the operator, as it crosses the wire. */
+export interface OperatorNotice {
+	wire: typeof OPERATOR_NOTICE_WIRE;
+	/**
+	 * Monotonic across the hub. THE log-ready field: a durable transport resumes
+	 * from it, a poller dedupes on it, and D9's delivery watermark is one. Hub-global
+	 * rather than per-asker because a resume cursor wants to be a number, not a map.
+	 */
+	ordinal: number;
+	message: string;
+	kind: OperatorNoticeKind;
+	asker: PendingPromptAsker;
+	/** Epoch ms. */
+	at: number;
+}
+
+/** A bare string is a `context` notice. PURE. */
+export function normalizeNoticeInput(
+	input: string | OperatorNoticeInput,
+): Required<OperatorNoticeInput> {
+	if (typeof input === "string") return { message: input, kind: "context" };
+	return { message: input.message, kind: input.kind ?? "context" };
+}
+
+/**
+ * A kind this side does not know degrades to `context` rather than dropping the
+ * notice. The MESSAGE is the part the operator needs, and a newer node talking to a
+ * frozen kit is the normal direction of skew here — the same judgement
+ * `checkPendingPromptWire` makes when it admits `unknown` instead of refusing.
+ */
+function asNoticeKind(value: unknown): OperatorNoticeKind {
+	return NOTICE_KINDS.includes(value as OperatorNoticeKind)
+		? (value as OperatorNoticeKind)
+		: "context";
+}
+
+/** Validate an `OperatorNotice` off the wire, or null. Round-trips a stamped one. */
+export function parseOperatorNotice(value: unknown): OperatorNotice | null {
+	if (!isRecord(value)) return null;
+	if (value.wire !== OPERATOR_NOTICE_WIRE) return null;
+	const message = asString(value.message);
+	if (message === null || message === "") return null;
+	if (typeof value.ordinal !== "number" || !Number.isFinite(value.ordinal)) return null;
+	if (typeof value.at !== "number" || !Number.isFinite(value.at)) return null;
+	if (!isRecord(value.asker)) return null;
+	const command = asString(value.asker.command);
+	if (command === null) return null;
+	const asker: PendingPromptAsker = { command };
+	if (typeof value.asker.pid === "number" && Number.isFinite(value.asker.pid)) {
+		asker.pid = value.asker.pid;
+	}
+	const host = asString(value.asker.host);
+	if (host !== null) asker.host = host;
+	return {
+		wire: OPERATOR_NOTICE_WIRE,
+		ordinal: value.ordinal,
+		message,
+		kind: asNoticeKind(value.kind),
+		asker,
+		at: value.at,
+	};
+}
+
+/** Validate a list payload, dropping entries that do not parse. */
+export function parseOperatorNoticeList(value: unknown): OperatorNotice[] {
+	const raw = isRecord(value) && Array.isArray(value.notices) ? value.notices : [];
+	const parsed: OperatorNotice[] = [];
+	for (const entry of raw) {
+		const notice = parseOperatorNotice(entry);
+		if (notice !== null) parsed.push(notice);
+	}
+	return parsed;
+}
+
 /** True when answering this prompt would put its value on the wire (P4). */
 export function promptAnswerTravels(prompt: OperatorPrompt): boolean {
 	return prompt.type === "secret";
