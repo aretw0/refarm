@@ -210,6 +210,8 @@ mod effort;
 mod node;
 #[path = "tests/node_local.rs"]
 mod node_local;
+#[path = "tests/observation.rs"]
+mod observation;
 #[path = "tests/plugin.rs"]
 mod plugin;
 #[path = "tests/provider_liveness.rs"]

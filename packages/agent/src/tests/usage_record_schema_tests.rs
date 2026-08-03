@@ -17,6 +17,7 @@ fn usage_record_schema_has_required_fields() {
         "tokens_reasoning": tokens_reasoning,
         "pricing_mode":     pricing_mode_for_provider("stub"),
         "estimated_usd":    estimate_billable_usd("stub", &model, tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens),
+        "rate_table_version": RATE_TABLE_VERSION,
         "usage_raw":        usage_raw,
         "duration_ms":      0u64,
         "timestamp_ns":     now_ns(),
@@ -33,6 +34,7 @@ fn usage_record_schema_has_required_fields() {
         "tokens_reasoning",
         "pricing_mode",
         "estimated_usd",
+        "rate_table_version",
         "usage_raw",
         "duration_ms",
         "timestamp_ns",
@@ -64,5 +66,9 @@ fn usage_record_carries_both_cache_buckets_and_their_sum() {
     assert_eq!(
         node["tokens_cached"], 102_048,
         "the sum stays for readers that predate the split"
+    );
+    assert_eq!(
+        node["rate_table_version"], RATE_TABLE_VERSION,
+        "the rate table that priced this run travels with the price, not the tokens"
     );
 }

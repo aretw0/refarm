@@ -559,6 +559,11 @@ pub(crate) fn finalise_effort(
         // (done) vs a failure/timeout, so a surface can show ✓ vs ✗.
         if super::is_terminal_effort_status(status) {
             emit_effort_finished(state, effort_id, status);
+            // Every terminal path — done, failed, timed-out, cancelled — passes
+            // through this one call site, which is why it is the single place
+            // Task 10's BudgetObservation record is written from. Best-effort:
+            // see `record_budget_observation`'s doc for the guarantee it upholds.
+            record_budget_observation(state, effort_id, status, &result);
         }
         if let Err(error) = persist_effort_result(&state.results_dir, &result) {
             tracing::warn!(
@@ -568,6 +573,74 @@ pub(crate) fn finalise_effort(
             );
         }
     }
+}
+
+/// Resolve the budget that governed this effort and hand it, with the effort's
+/// elapsed time, to `observation::write_budget_observation` — the call that
+/// actually builds and stores the `BudgetObservation` node. See that function's
+/// doc for the D5 guarantee this whole path upholds: a lost observation must
+/// never touch the run it observed.
+///
+/// The resolution is read fresh here rather than threaded through from
+/// `dispatch_effort`'s own resolve at dispatch time — no new state carried
+/// across the whole dispatch path for a value only this one caller reads back,
+/// matching this crate's established "no cache, read fresh" stance on the
+/// sovereign config (see `budget::read_budget_section`'s doc for the same
+/// argument one level down). The rare case of a config edit landing mid-run is
+/// an acceptable divergence for evidence, not for enforcement.
+///
+/// Elapsed time is derived from `EffortResult.submitted_at` / `completed_at`
+/// (both already stamped by the caller) rather than threading new state, per
+/// the controller's resolution #5.
+fn record_budget_observation(
+    state: &SidecarState,
+    effort_id: &str,
+    status: &str,
+    result: &EffortResult,
+) {
+    let elapsed_ms = match (
+        crate::timefmt::iso_to_epoch_secs(&result.submitted_at),
+        result
+            .completed_at
+            .as_deref()
+            .and_then(crate::timefmt::iso_to_epoch_secs),
+    ) {
+        (Some(start), Some(end)) => end.saturating_sub(start).saturating_mul(1000),
+        _ => {
+            tracing::warn!(
+                effort_id,
+                "sidecar: could not derive elapsed_ms for budget observation — skipping"
+            );
+            return;
+        }
+    };
+
+    // The declared budget + workspace id ride the ORIGINAL Effort (efforts_input),
+    // the same input `dispatch_effort` retained for retry. A poisoned lock or an
+    // effort_id never retained (submitted before a restart) both degrade to "no
+    // declaration, no workspace" — the node/env fallback `resolve_budget` already
+    // handles for a dispatch with nothing declared — never a panic (D5).
+    let (declared, workspace_id) = state
+        .efforts_input
+        .read()
+        .ok()
+        .and_then(|inputs| {
+            inputs
+                .get(effort_id)
+                .map(|effort| (effort.budget, effort.workspace_id.clone()))
+        })
+        .unwrap_or((None, None));
+
+    let node_base = crate::host::declared_base();
+    let node_budget = super::budget::node_budget_from_config(
+        &node_base,
+        super::budget::NodeBudget::from_respond_watch(state.respond_watch.timeout_ms),
+    );
+    let workspace_budget = super::budget::workspace_budget_for(&node_base, workspace_id.as_deref());
+    let resolved =
+        super::budget::resolve_budget(declared.as_ref(), workspace_budget.as_ref(), &node_budget);
+
+    super::observation::write_budget_observation(state, effort_id, &resolved, status, elapsed_ms);
 }
 
 /// Finalise an effort ONLY if it has not already reached a terminal state.
@@ -678,20 +751,29 @@ fn usage_view_from_record(node: &serde_json::Value) -> serde_json::Value {
         .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
         .unwrap_or_else(|| serde_json::json!({}));
     let count = |key: &str| node.get(key).cloned().unwrap_or_else(|| serde_json::json!(0));
+    let mut usage = serde_json::json!({
+        "tokens_in": count("tokens_in"),
+        "tokens_out": count("tokens_out"),
+        "tokens_cached": count("tokens_cached"),
+        "cache_read_input_tokens": count("cache_read_input_tokens"),
+        "cache_creation_input_tokens": count("cache_creation_input_tokens"),
+        "tokens_reasoning": count("tokens_reasoning"),
+        "pricing_mode": node.get("pricing_mode").cloned().unwrap_or(serde_json::Value::Null),
+        "estimated_usd": node.get("estimated_usd").cloned().unwrap_or_else(|| serde_json::json!(0)),
+        "raw": raw,
+    });
+    // The rate table that priced this run, joined in ONLY when the source UsageRecord
+    // carries it. Omitted (never defaulted to null) for a record written before this
+    // field existed — Task 10's BudgetObservation depends on that distinction (D6: an
+    // undeterminable field is absent, not a manufactured zero/null) to tell a genuinely
+    // unpriced run apart from one this crate simply cannot speak to yet.
+    if let Some(v) = node.get("rate_table_version") {
+        usage["rate_table_version"] = v.clone();
+    }
     serde_json::json!({
         "model": node.get("model").cloned().unwrap_or(serde_json::Value::Null),
         "provider": node.get("provider").cloned().unwrap_or(serde_json::Value::Null),
-        "usage": {
-            "tokens_in": count("tokens_in"),
-            "tokens_out": count("tokens_out"),
-            "tokens_cached": count("tokens_cached"),
-            "cache_read_input_tokens": count("cache_read_input_tokens"),
-            "cache_creation_input_tokens": count("cache_creation_input_tokens"),
-            "tokens_reasoning": count("tokens_reasoning"),
-            "pricing_mode": node.get("pricing_mode").cloned().unwrap_or(serde_json::Value::Null),
-            "estimated_usd": node.get("estimated_usd").cloned().unwrap_or_else(|| serde_json::json!(0)),
-            "raw": raw,
-        }
+        "usage": usage,
     })
 }
 
@@ -700,7 +782,12 @@ fn usage_view_from_record(node: &serde_json::Value) -> serde_json::Value {
 /// Response node carries, so `correlation_value` (the effort's prompt_ref) finds
 /// it. Returns None for a workload that wrote no UsageRecord — the result then
 /// stays content-only, unchanged. Additive and backward-compatible by design.
-fn find_usage_for(namespace: &str, prompt_ref: &str) -> Option<serde_json::Value> {
+///
+/// `pub(crate)`, not module-private: `sidecar::observation::write_budget_observation`
+/// (a sibling module under `sidecar`) joins the SAME UsageRecord onto a
+/// `BudgetObservation` node via this exact function, reused rather than
+/// re-queried, per Task 10's brief ("do not write a second joiner").
+pub(crate) fn find_usage_for(namespace: &str, prompt_ref: &str) -> Option<serde_json::Value> {
     let storage = crate::storage::NativeStorage::open(namespace).ok()?;
     let rows = storage.query_nodes("UsageRecord").ok()?;
     for row in rows {

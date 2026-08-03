@@ -762,6 +762,9 @@ pub(crate) use dispatch::*;
 pub use dispatch::{
     AGENT_RESPONSE_CORRELATION_KEY, AGENT_RESPONSE_NODE_TYPE, AGENT_RESPONSE_TERMINAL_FIELD,
 };
+// The BudgetObservation record (Task 10 of the budget laboratory) — written from
+// `dispatch::finalise_effort`, the single place every terminal effort passes through.
+mod observation;
 mod reap;
 async fn post_efforts(
     State(state): State<SidecarState>,

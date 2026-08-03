@@ -62,6 +62,12 @@ pub(crate) fn usage_record_node(payload: UsageRecordPayload<'_>) -> serde_json::
         "tokens_out":    payload.tokens_out,
         "pricing_mode":  crate::pricing_mode_for_provider(payload.provider),
         "estimated_usd": crate::estimate_billable_usd(payload.provider, payload.model, payload.tokens_in, payload.tokens_out, payload.cache_read_tokens, payload.cache_creation_tokens),
+        // Which rate table priced this run. `packages/tractor` has no Cargo dependency
+        // on this crate (the agent is a WASM guest loaded at runtime, not linked), so
+        // the sidecar cannot read RATE_TABLE_VERSION directly — it joins this field in
+        // from the UsageRecord instead, like every other usage field. The version
+        // belongs to whoever computed the price, so it travels WITH the price.
+        "rate_table_version": crate::RATE_TABLE_VERSION,
         // OTel gen_ai.usage.cache_read.input_tokens / cache_creation.input_tokens,
         // spelled flat because this node is not an OTel span.
         "cache_read_input_tokens":     payload.cache_read_tokens,
