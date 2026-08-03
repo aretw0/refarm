@@ -16,8 +16,13 @@ O kit fala **apenas o contrato de wire** de uma fazenda — nada mais:
 Por isso é um **bloco reutilizável e desacoplado**: não importa `apps/refarm` nem nenhum
 pacote de workspace — só builtins do Node e seus próprios irmãos em `./lib`. Qualquer
 projeto refarm-like (ou qualquer um montando o seu) pode usar, copiar, ou reimplementar a
-partir daqui. O invariante é guardado por `scripts/ci/test-farm-client-decoupled.mjs`:
-se alguém acoplar o kit ao monorepo, o teste falha.
+partir daqui. O invariante é guardado por `test/decoupled.test.mjs` — que recusa qualquer
+import fora dos builtins do Node e dos irmãos em `./lib`, e qualquer alcance a `apps/`,
+`packages/` ou `@refarm.dev/*`. E as cópias vendoradas são guardadas por
+`test/vendor.test.mjs`, byte a byte contra a fonte buildada; quando derivam, o conserto é
+`node scripts/vendor.mjs` (nunca um `cp` à mão — o vendoring carrega `dist/index.js`, o
+`.map` e o `src/index.ts` de cada bloco, e um `cp` parcial deixa o kit consistente por
+fora e derivado por dentro).
 
 > **Workloads, não só IA.** Um `effort` é um workload qualquer — um verb de plugin,
 > computação determinística, orquestração. O `farm-ask` dirige o agente

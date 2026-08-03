@@ -25,7 +25,8 @@ function onAbortOnce(signal, onAbort) {
 // ── createAutoOperatorChannel ─────────────────────────────────────────────────
 // Returns the `default` value for every prompt without prompting.
 // Use in non-interactive environments (CI, automated scripts).
-export function createAutoOperatorChannel() {
+export function createAutoOperatorChannel(options = {}) {
+    const output = options.output ?? process.stdout;
     async function ask(prompt) {
         if (prompt.type === "confirm")
             return prompt.default ?? true;
@@ -35,20 +36,27 @@ export function createAutoOperatorChannel() {
             return "";
         return prompt.default ?? "";
     }
-    return { ask };
+    /** Answering without a human does not mean SAYING without one — a wizard run
+     *  in CI still explains itself into the log. */
+    function say(notice) {
+        output.write(`${normalizeNoticeInput(notice).message}\n`);
+    }
+    return { ask, say };
 }
-// ── createScriptedOperatorChannel ────────────────────────────────────────────
-// Returns predefined answers in sequence. Throws RangeError if exhausted.
-// Use in tests to drive an OperatorChannel without stdin.
 export function createScriptedOperatorChannel(answers) {
     const queue = [...answers];
+    const said = [];
     async function ask(_prompt) {
         if (queue.length === 0) {
             throw new RangeError("createScriptedOperatorChannel: answer queue exhausted");
         }
         return queue.shift();
     }
-    return { ask };
+    /** Recorded, never printed: a test suite must not spit a wizard's prose. */
+    function say(notice) {
+        said.push(normalizeNoticeInput(notice));
+    }
+    return { ask, say, notices: () => said };
 }
 // ── createStdioOperatorChannel ────────────────────────────────────────────────
 // Interactive readline implementation. No external dependencies.
@@ -76,7 +84,15 @@ export function createTerminalOperatorChannel(options = {}) {
             return askSecret(prompt, input, output, signal);
         return askText(prompt, input, output, signal);
     }
-    return { ask };
+    /**
+     * THE INVARIANT (D8): byte-for-byte what `console.log(line)` did before this
+     * existed. A channel with no publisher declared must be indistinguishable from
+     * the one that shipped yesterday, or "silence is closed" stops being true.
+     */
+    function say(notice) {
+        output.write(`${normalizeNoticeInput(notice).message}\n`);
+    }
+    return { ask, say };
 }
 function writePromptTransition(output, transition) {
     if (transition === "preserve")
@@ -162,6 +178,9 @@ export function createStdioOperatorChannel(options = {}) {
     return createPeeredOperatorChannel({
         local: (signal) => createTerminalOperatorChannel({ ...options, signal: anySignal(options.signal, signal) }),
         remote: (signal) => publisher.remote(signal),
+        ...(publisher.announce
+            ? { announce: (notice) => publisher.announce(notice) }
+            : {}),
     });
 }
 /**
@@ -562,8 +581,26 @@ export async function runOperatorChannelConformance(channel, options = {}) {
             failures.push(`cancellation: expected rejection with OperatorPromptCancelledError, got "${settled}"`);
         }
     }
+    // 6 — say, when implemented, must be TOTAL: no throw, no return value.
+    //
+    // Deliberately asserts the contract rather than the output. The auto channel
+    // writes to stdout, so a check that asserted on printed text would make every
+    // suite running conformance spit "_conformance_" into its own log — the same
+    // reason the checks above pass canned answers instead of touching a terminal.
+    const announces = typeof channel.say === "function";
+    if (announces) {
+        checksRun++;
+        try {
+            const returned = channel.say({ message: "_conformance_", kind: "context" });
+            if (returned !== undefined)
+                failures.push("say: returned a value; it must return void");
+        }
+        catch (e) {
+            failures.push(`say threw: ${String(e)}`);
+        }
+    }
     const failed = failures.length;
-    return { pass: failed === 0, total: checksRun, failed, failures };
+    return { pass: failed === 0, total: checksRun, failed, failures, announces };
 }
 // ── The pending prompt on the wire ────────────────────────────────────────────
 //
@@ -654,6 +691,75 @@ export const RESERVED_PROMPT_DEVICES = [
     TERMINAL_PROMPT_DEVICE,
     NODE_LOCAL_PROMPT_DEVICE,
 ];
+// ── The notice: what a wizard STATES, as opposed to what it asks ──────────────
+//
+// D1 of the announcement-contract design. An `OperatorChannel` could only ask, so
+// a wizard's framing had nowhere to go but `console.log` — which stays on the node
+// while the questions travel. This is the shape that travels WITH them.
+export const OPERATOR_NOTICE_WIRE = "operator-notice.v1";
+const NOTICE_KINDS = ["context", "decision", "caution"];
+/** A bare string is a `context` notice. PURE. */
+export function normalizeNoticeInput(input) {
+    if (typeof input === "string")
+        return { message: input, kind: "context" };
+    return { message: input.message, kind: input.kind ?? "context" };
+}
+/**
+ * A kind this side does not know degrades to `context` rather than dropping the
+ * notice. The MESSAGE is the part the operator needs, and a newer node talking to a
+ * frozen kit is the normal direction of skew here — the same judgement
+ * `checkPendingPromptWire` makes when it admits `unknown` instead of refusing.
+ */
+function asNoticeKind(value) {
+    return NOTICE_KINDS.includes(value)
+        ? value
+        : "context";
+}
+/** Validate an `OperatorNotice` off the wire, or null. Round-trips a stamped one. */
+export function parseOperatorNotice(value) {
+    if (!isRecord(value))
+        return null;
+    if (value.wire !== OPERATOR_NOTICE_WIRE)
+        return null;
+    const message = asString(value.message);
+    if (message === null || message === "")
+        return null;
+    if (typeof value.ordinal !== "number" || !Number.isFinite(value.ordinal))
+        return null;
+    if (typeof value.at !== "number" || !Number.isFinite(value.at))
+        return null;
+    if (!isRecord(value.asker))
+        return null;
+    const command = asString(value.asker.command);
+    if (command === null)
+        return null;
+    const asker = { command };
+    if (typeof value.asker.pid === "number" && Number.isFinite(value.asker.pid)) {
+        asker.pid = value.asker.pid;
+    }
+    const host = asString(value.asker.host);
+    if (host !== null)
+        asker.host = host;
+    return {
+        wire: OPERATOR_NOTICE_WIRE,
+        ordinal: value.ordinal,
+        message,
+        kind: asNoticeKind(value.kind),
+        asker,
+        at: value.at,
+    };
+}
+/** Validate a list payload, dropping entries that do not parse. */
+export function parseOperatorNoticeList(value) {
+    const raw = isRecord(value) && Array.isArray(value.notices) ? value.notices : [];
+    const parsed = [];
+    for (const entry of raw) {
+        const notice = parseOperatorNotice(entry);
+        if (notice !== null)
+            parsed.push(notice);
+    }
+    return parsed;
+}
 /** True when answering this prompt would put its value on the wire (P4). */
 export function promptAnswerTravels(prompt) {
     return prompt.type === "secret";
@@ -850,6 +956,9 @@ export function createPendingPromptHub(options = {}) {
     const entries = new Map();
     const recent = [];
     const listeners = new Set();
+    const noticeCapacity = options.recentNotices ?? 32;
+    const notices = [];
+    let noticeOrdinal = 0;
     function remember(settlement) {
         recent.push(settlement);
         while (recent.length > recentCapacity)
@@ -936,6 +1045,29 @@ export function createPendingPromptHub(options = {}) {
             listeners.add(listener);
             return () => listeners.delete(listener);
         },
+        announce(asker, notice) {
+            const normalized = normalizeNoticeInput(notice);
+            noticeOrdinal += 1;
+            const stamped = {
+                wire: OPERATOR_NOTICE_WIRE,
+                ordinal: noticeOrdinal,
+                message: normalized.message,
+                kind: normalized.kind,
+                asker,
+                at: now(),
+            };
+            notices.push(stamped);
+            while (notices.length > noticeCapacity)
+                notices.shift();
+            // NOT notifying `listeners`, and that omission is the whole of D9. That
+            // set is what `attachDeliveryToHub` subscribes to, so notifying here
+            // would push a wizard's preflight to the operator's phone one line at a
+            // time. Framing reaches a push surface by riding the question instead —
+            // see `takeNoticesFor`.
+            return stamped;
+        },
+        notices: () => [...notices],
+        noticesFor: (askerCommand, since = 0) => notices.filter((notice) => notice.asker.command === askerCommand && notice.ordinal > since),
     };
 }
 // ── The remote channel ────────────────────────────────────────────────────────
@@ -1007,7 +1139,10 @@ export function createRemoteOperatorChannel(options) {
                 clearTimeout(timer);
         }
     }
-    return { ask, lastSettlement: () => last };
+    function say(notice) {
+        hub.announce(asker, notice);
+    }
+    return { ask, say, lastSettlement: () => last };
 }
 function defaultNotify(message) {
     process.stderr.write(`${message}\n`);
@@ -1078,7 +1213,20 @@ export function createPeeredOperatorChannel(options) {
             localAbort.abort();
         }
     }
-    return { ask };
+    function say(notice) {
+        // The TERMINAL first: it is the surface someone may be looking at right now,
+        // and a broken elsewhere must never be the reason they did not see this.
+        options.local(new AbortController().signal).say?.(notice);
+        try {
+            options.announce?.(notice);
+        }
+        catch {
+            // `say` is TOTAL. A publisher that throws is a broken notification
+            // arrangement, and that must not become the wizard's problem — the same
+            // judgement `currentPromptPublisher` already makes for a throwing source.
+        }
+    }
+    return { ask, say };
 }
 const ANSWER_PATH = /^\/prompts\/([^/]+)\/answer$/;
 /**

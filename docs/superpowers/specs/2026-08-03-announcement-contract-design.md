@@ -348,13 +348,23 @@ from, which is a second reason the ordinal is hub-global.
 parse the wire from a bare `git pull`, with nothing installed. So it is not five implementations of
 `say`, it is **ten**: five in the package, five in the vendored copy.
 
-> **A loose end found while measuring this, and NOT part of this slice.**
-> `packages/farm-client/README.md:19` states the decoupling invariant "é guardado por
-> `scripts/ci/test-farm-client-decoupled.mjs`". **That file does not exist.** So the vendored copy
-> currently has no guard keeping it in sync with its source, and no guard keeping the kit decoupled
-> from the monorepo — a documented invariant with nothing enforcing it. This slice will be the first
-> to edit both copies in one change, which makes the gap concrete rather than theoretical. It should
-> be its own commit, before or after, not folded in here.
+> **CORRECTED 2026-08-03 — this paragraph was wrong, and the correction is the useful part.**
+>
+> It read: `packages/farm-client/README.md:19` names a guard, `scripts/ci/test-farm-client-decoupled.mjs`,
+> that does not exist — therefore nothing keeps the vendored copy honest. The first half is true;
+> **the conclusion is false.** Both invariants are guarded, from inside the kit's own suite:
+> `packages/farm-client/test/decoupled.test.mjs` refuses any import outside Node builtins and
+> `./lib` siblings, and `packages/farm-client/test/vendor.test.mjs` checks every vendored copy
+> byte-for-byte against its BUILT source — building the block when its gitignored `dist` is absent,
+> because "a check that quietly passes when it cannot look is not a check".
+>
+> Only the README's pointer was stale. It now names the real files.
+>
+> The error was expensive enough to record: acting on it, this slice `cp`-ed `src/index.ts` into the
+> vendor tree and turned the kit red. `scripts/vendor.mjs` carries THREE assets per block
+> (`dist/index.js`, its `.map`, and `src/index.ts`), so a partial `cp` leaves the kit consistent on
+> the surface and drifted underneath — which is precisely the failure the real guard exists to catch,
+> and it caught it. **The fix for drift is `node scripts/vendor.mjs`, never a hand copy.**
 
 So: one optional method across ten implementations, one hub verb plus a bounded ring and a per-asker
 watermark, one field on an existing wire envelope, one sibling on `PromptPublisher`, the delivery

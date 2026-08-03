@@ -58,6 +58,21 @@ export interface OperatorChannel {
 	ask(prompt: TextPrompt): Promise<string>;
 	ask(prompt: SecretPrompt): Promise<string>;
 	ask(prompt: OperatorPrompt): Promise<boolean | string>;
+	/**
+	 * State a fact (D1) — the verb this interface spent its whole life without,
+	 * which is why every wizard's framing ended up in `console.log`, on the node,
+	 * while only its questions travelled to the operator.
+	 *
+	 * Returns nothing, awaits nothing, THROWS NOTHING: an announcement that could
+	 * fail or block would be worse than the silence it replaces.
+	 *
+	 * OPTIONAL, and that is a versioning decision rather than a convenience.
+	 * `prompt:v1` is a published contract, and a new REQUIRED method breaks
+	 * implementors we cannot enumerate — so a channel without it stays valid and
+	 * behaves exactly as it did. `runOperatorChannelConformance` reports which
+	 * channels are mute, so the silence is observed rather than assumed.
+	 */
+	say?(notice: string | OperatorNoticeInput): void;
 }
 
 export interface StdioOperatorChannelOptions {
@@ -101,7 +116,10 @@ function onAbortOnce(signal: AbortSignal | undefined, onAbort: () => void): () =
 // Returns the `default` value for every prompt without prompting.
 // Use in non-interactive environments (CI, automated scripts).
 
-export function createAutoOperatorChannel(): OperatorChannel {
+export function createAutoOperatorChannel(
+	options: { output?: NodeJS.WriteStream } = {},
+): OperatorChannel {
+	const output = options.output ?? process.stdout;
 	function ask(prompt: ConfirmPrompt): Promise<boolean>;
 	function ask(prompt: SelectPrompt): Promise<string>;
 	function ask(prompt: TextPrompt): Promise<string>;
@@ -112,15 +130,36 @@ export function createAutoOperatorChannel(): OperatorChannel {
 		if (prompt.type === "secret") return "";
 		return prompt.default ?? "";
 	}
-	return { ask };
+	/** Answering without a human does not mean SAYING without one — a wizard run
+	 *  in CI still explains itself into the log. */
+	function say(notice: string | OperatorNoticeInput): void {
+		output.write(`${normalizeNoticeInput(notice).message}\n`);
+	}
+	return { ask, say };
 }
 
 // ── createScriptedOperatorChannel ────────────────────────────────────────────
 // Returns predefined answers in sequence. Throws RangeError if exhausted.
 // Use in tests to drive an OperatorChannel without stdin.
 
-export function createScriptedOperatorChannel(answers: Array<boolean | string>): OperatorChannel {
+/**
+ * A scripted channel, plus the notices it recorded.
+ *
+ * The accessor is the point: a test asserting that a wizard's framing REACHED THE
+ * CHANNEL is asserting the thing that was false — the framing used to go to the
+ * node's stdout while only the questions travelled. Asserting "something was
+ * printed" was always true and proved nothing.
+ */
+export interface ScriptedOperatorChannel extends OperatorChannel {
+	/** Every notice said through this channel, in order. */
+	notices(): readonly Required<OperatorNoticeInput>[];
+}
+
+export function createScriptedOperatorChannel(
+	answers: Array<boolean | string>,
+): ScriptedOperatorChannel {
 	const queue = [...answers];
+	const said: Required<OperatorNoticeInput>[] = [];
 	function ask(prompt: ConfirmPrompt): Promise<boolean>;
 	function ask(prompt: SelectPrompt): Promise<string>;
 	function ask(prompt: TextPrompt): Promise<string>;
@@ -131,7 +170,11 @@ export function createScriptedOperatorChannel(answers: Array<boolean | string>):
 		}
 		return queue.shift()!;
 	}
-	return { ask };
+	/** Recorded, never printed: a test suite must not spit a wizard's prose. */
+	function say(notice: string | OperatorNoticeInput): void {
+		said.push(normalizeNoticeInput(notice));
+	}
+	return { ask, say, notices: () => said };
 }
 
 // ── createStdioOperatorChannel ────────────────────────────────────────────────
@@ -164,7 +207,15 @@ export function createTerminalOperatorChannel(
 		if (prompt.type === "secret") return askSecret(prompt, input, output, signal);
 		return askText(prompt, input, output, signal);
 	}
-	return { ask };
+	/**
+	 * THE INVARIANT (D8): byte-for-byte what `console.log(line)` did before this
+	 * existed. A channel with no publisher declared must be indistinguishable from
+	 * the one that shipped yesterday, or "silence is closed" stops being true.
+	 */
+	function say(notice: string | OperatorNoticeInput): void {
+		output.write(`${normalizeNoticeInput(notice).message}\n`);
+	}
+	return { ask, say };
 }
 
 function writePromptTransition(
@@ -204,6 +255,20 @@ function writePromptTransition(
 export interface PromptPublisher {
 	/** Build the elsewhere-side channel for ONE ask, interruptible by `signal`. */
 	remote(signal: AbortSignal): RemoteOperatorChannel;
+	/**
+	 * Publish a STATEMENT to the elsewhere.
+	 *
+	 * A sibling of `remote` rather than something built through it, because
+	 * ANNOUNCEMENT HAS NO LIFECYCLE. `remote` is a factory called per ask, and it
+	 * takes a signal, because a question can be withdrawn, expire, or lose a race to
+	 * another device. A notice can do none of those — routing it through `remote`
+	 * would mean constructing a whole channel around a signal that never fires, to
+	 * state one sentence.
+	 *
+	 * Optional: a publisher that cannot announce simply does not, and the terminal
+	 * still says it.
+	 */
+	announce?(notice: string | OperatorNoticeInput): void;
 }
 
 /**
@@ -294,6 +359,9 @@ export function createStdioOperatorChannel(
 		local: (signal) =>
 			createTerminalOperatorChannel({ ...options, signal: anySignal(options.signal, signal) }),
 		remote: (signal) => publisher.remote(signal),
+		...(publisher.announce
+			? { announce: (notice: string | OperatorNoticeInput) => publisher.announce!(notice) }
+			: {}),
 	});
 }
 
@@ -681,6 +749,15 @@ export interface OperatorChannelConformanceResult {
 	total: number;
 	failed: number;
 	failures: string[];
+	/**
+	 * Does this channel implement `say`?
+	 *
+	 * NOT pass/fail — `say` is optional (D1), so a mute channel is conformant. But
+	 * it is REPORTED, which is what compensates for the type no longer forcing a new
+	 * channel author to consider the verb: "this channel cannot announce" becomes an
+	 * observed fact instead of a silence nobody looked for.
+	 */
+	announces: boolean;
 }
 
 export interface OperatorChannelConformanceOptions {
@@ -795,8 +872,25 @@ export async function runOperatorChannelConformance(
 		}
 	}
 
+	// 6 — say, when implemented, must be TOTAL: no throw, no return value.
+	//
+	// Deliberately asserts the contract rather than the output. The auto channel
+	// writes to stdout, so a check that asserted on printed text would make every
+	// suite running conformance spit "_conformance_" into its own log — the same
+	// reason the checks above pass canned answers instead of touching a terminal.
+	const announces = typeof channel.say === "function";
+	if (announces) {
+		checksRun++;
+		try {
+			const returned = channel.say!({ message: "_conformance_", kind: "context" }) as unknown;
+			if (returned !== undefined) failures.push("say: returned a value; it must return void");
+		} catch (e) {
+			failures.push(`say threw: ${String(e)}`);
+		}
+	}
+
 	const failed = failures.length;
-	return { pass: failed === 0, total: checksRun, failed, failures };
+	return { pass: failed === 0, total: checksRun, failed, failures, announces };
 }
 
 // ── The pending prompt on the wire ────────────────────────────────────────────
@@ -1005,6 +1099,113 @@ export interface PendingPromptSettlement {
 	reason?: PendingPromptAbandonReason;
 	/** Epoch ms. */
 	at: number;
+}
+
+// ── The notice: what a wizard STATES, as opposed to what it asks ──────────────
+//
+// D1 of the announcement-contract design. An `OperatorChannel` could only ask, so
+// a wizard's framing had nowhere to go but `console.log` — which stays on the node
+// while the questions travel. This is the shape that travels WITH them.
+
+export const OPERATOR_NOTICE_WIRE = "operator-notice.v1" as const;
+
+/**
+ * D4 — derived from the eight `say()` call sites that already existed, not
+ * invented. The test applied to each candidate: does this distinction change what
+ * the operator should DO? Five framing lines collapsed into one kind; two others
+ * earned their place.
+ */
+export type OperatorNoticeKind =
+	/** Framing, prerequisites, what will be written. Missing it costs understanding. */
+	| "context"
+	/** refarm chose or narrowed something on the operator's behalf. Missing it means
+	 *  BELIEVING YOU CHOSE — which is the defect this contract exists to fix. */
+	| "decision"
+	/** The next answer causes an outward or irreversible effect. Sibling of
+	 *  `answerTravels`, which marks the same doctrine on the prompt side. */
+	| "caution";
+
+const NOTICE_KINDS: readonly OperatorNoticeKind[] = ["context", "decision", "caution"];
+
+/** What a CALLER passes. The hub stamps the rest. */
+export interface OperatorNoticeInput {
+	message: string;
+	/** Defaults to `context`, so `say("…")` stays cheap at the call site. */
+	kind?: OperatorNoticeKind;
+}
+
+/** A statement addressed to the operator, as it crosses the wire. */
+export interface OperatorNotice {
+	wire: typeof OPERATOR_NOTICE_WIRE;
+	/**
+	 * Monotonic across the hub. THE log-ready field: a durable transport resumes
+	 * from it, a poller dedupes on it, and D9's delivery watermark is one. Hub-global
+	 * rather than per-asker because a resume cursor wants to be a number, not a map.
+	 */
+	ordinal: number;
+	message: string;
+	kind: OperatorNoticeKind;
+	asker: PendingPromptAsker;
+	/** Epoch ms. */
+	at: number;
+}
+
+/** A bare string is a `context` notice. PURE. */
+export function normalizeNoticeInput(
+	input: string | OperatorNoticeInput,
+): Required<OperatorNoticeInput> {
+	if (typeof input === "string") return { message: input, kind: "context" };
+	return { message: input.message, kind: input.kind ?? "context" };
+}
+
+/**
+ * A kind this side does not know degrades to `context` rather than dropping the
+ * notice. The MESSAGE is the part the operator needs, and a newer node talking to a
+ * frozen kit is the normal direction of skew here — the same judgement
+ * `checkPendingPromptWire` makes when it admits `unknown` instead of refusing.
+ */
+function asNoticeKind(value: unknown): OperatorNoticeKind {
+	return NOTICE_KINDS.includes(value as OperatorNoticeKind)
+		? (value as OperatorNoticeKind)
+		: "context";
+}
+
+/** Validate an `OperatorNotice` off the wire, or null. Round-trips a stamped one. */
+export function parseOperatorNotice(value: unknown): OperatorNotice | null {
+	if (!isRecord(value)) return null;
+	if (value.wire !== OPERATOR_NOTICE_WIRE) return null;
+	const message = asString(value.message);
+	if (message === null || message === "") return null;
+	if (typeof value.ordinal !== "number" || !Number.isFinite(value.ordinal)) return null;
+	if (typeof value.at !== "number" || !Number.isFinite(value.at)) return null;
+	if (!isRecord(value.asker)) return null;
+	const command = asString(value.asker.command);
+	if (command === null) return null;
+	const asker: PendingPromptAsker = { command };
+	if (typeof value.asker.pid === "number" && Number.isFinite(value.asker.pid)) {
+		asker.pid = value.asker.pid;
+	}
+	const host = asString(value.asker.host);
+	if (host !== null) asker.host = host;
+	return {
+		wire: OPERATOR_NOTICE_WIRE,
+		ordinal: value.ordinal,
+		message,
+		kind: asNoticeKind(value.kind),
+		asker,
+		at: value.at,
+	};
+}
+
+/** Validate a list payload, dropping entries that do not parse. */
+export function parseOperatorNoticeList(value: unknown): OperatorNotice[] {
+	const raw = isRecord(value) && Array.isArray(value.notices) ? value.notices : [];
+	const parsed: OperatorNotice[] = [];
+	for (const entry of raw) {
+		const notice = parseOperatorNotice(entry);
+		if (notice !== null) parsed.push(notice);
+	}
+	return parsed;
 }
 
 /** True when answering this prompt would put its value on the wire (P4). */
@@ -1249,6 +1450,17 @@ export interface PendingPromptHubOptions {
 	 * bounded by construction, never grown.
 	 */
 	recentSettlements?: number;
+	/**
+	 * How many notices stay recallable. Same mechanism and same default as
+	 * `recentSettlements`, for the same reason: a device that arrives AFTER the
+	 * question was asked still reads the framing that explains it.
+	 *
+	 * Deliberately NOT the P1 lifetime rule. P1 drops a pending prompt with its
+	 * asker because once the asker is gone nobody is waiting for the answer — and
+	 * a notice has nobody waiting on it BY DEFINITION. Its whole value is being
+	 * readable afterwards, so copying P1 here would kill it for the wrong reason.
+	 */
+	recentNotices?: number;
 	now?: () => number;
 }
 
@@ -1265,6 +1477,40 @@ export interface PendingPromptHub {
 	/** Called on every publish — what a push transport would hook, and what a
 	 *  test attendant uses instead of polling. Returns an unsubscribe. */
 	subscribe(listener: (pending: PendingPrompt) => void): () => void;
+	/**
+	 * State a fact. Stamps the ordinal and returns what was recorded.
+	 *
+	 * Does NOT notify `subscribe` listeners — that set is the delivery push path,
+	 * and a notice that pushed on its own would turn a three-line preflight into
+	 * three messages, times every declared channel (D9).
+	 */
+	announce(asker: PendingPromptAsker, notice: string | OperatorNoticeInput): OperatorNotice;
+	/** Every notice still in the ring, oldest first. */
+	notices(): OperatorNotice[];
+	/**
+	 * This asker's notices after `since`, oldest first. PURE — the hub keeps no
+	 * cursor, and calling this twice returns the same thing.
+	 *
+	 * ── WHY THE CURSOR BELONGS TO THE CALLER ─────────────────────────────────
+	 *
+	 * This began as `takeNoticesFor`, which marked what it returned as attached so
+	 * a second question would not repeat framing the operator had already read —
+	 * a watermark, kept here, on behalf of whoever read.
+	 *
+	 * A hub that keeps its readers' state can only ever serve the reader it was
+	 * written for. Batching is one consumer's strategy (the delivery mount carries
+	 * framing with the question, per D9); a poller's is another; a durable
+	 * transport resuming after a restart is a third. Encoding the first one's
+	 * bookkeeping in here makes the other two either wrong or impossible, and
+	 * silently — a starved reader gets an empty list, not an error.
+	 *
+	 * So the hub keeps nothing. `noticesFor` is a pure query, each consumer
+	 * remembers the last `ordinal` it carried, and that is what makes the ordinal
+	 * an actual cursor rather than a number with hidden bookkeeping behind it —
+	 * which is what D3 claimed it was for: "a durable transport resumes from it; a
+	 * poller dedupes on it."
+	 */
+	noticesFor(askerCommand: string, since?: number): OperatorNotice[];
 }
 
 interface HubEntry {
@@ -1281,6 +1527,10 @@ export function createPendingPromptHub(options: PendingPromptHubOptions = {}): P
 	const entries = new Map<string, HubEntry>();
 	const recent: PendingPromptSettlement[] = [];
 	const listeners = new Set<(pending: PendingPrompt) => void>();
+
+	const noticeCapacity = options.recentNotices ?? 32;
+	const notices: OperatorNotice[] = [];
+	let noticeOrdinal = 0;
 
 	function remember(settlement: PendingPromptSettlement): void {
 		recent.push(settlement);
@@ -1383,6 +1633,31 @@ export function createPendingPromptHub(options: PendingPromptHubOptions = {}): P
 			listeners.add(listener);
 			return () => listeners.delete(listener);
 		},
+		announce(asker, notice) {
+			const normalized = normalizeNoticeInput(notice);
+			noticeOrdinal += 1;
+			const stamped: OperatorNotice = {
+				wire: OPERATOR_NOTICE_WIRE,
+				ordinal: noticeOrdinal,
+				message: normalized.message,
+				kind: normalized.kind,
+				asker,
+				at: now(),
+			};
+			notices.push(stamped);
+			while (notices.length > noticeCapacity) notices.shift();
+			// NOT notifying `listeners`, and that omission is the whole of D9. That
+			// set is what `attachDeliveryToHub` subscribes to, so notifying here
+			// would push a wizard's preflight to the operator's phone one line at a
+			// time. Framing reaches a push surface by riding the question instead —
+			// see `takeNoticesFor`.
+			return stamped;
+		},
+		notices: () => [...notices],
+		noticesFor: (askerCommand, since = 0) =>
+			notices.filter(
+				(notice) => notice.asker.command === askerCommand && notice.ordinal > since,
+			),
 	};
 }
 
@@ -1486,7 +1761,11 @@ export function createRemoteOperatorChannel(
 		}
 	}
 
-	return { ask, lastSettlement: () => last };
+	function say(notice: string | OperatorNoticeInput): void {
+		hub.announce(asker, notice);
+	}
+
+	return { ask, say, lastSettlement: () => last };
 }
 
 // ── The peered channel: local and remote are peers (P2) ───────────────────────
@@ -1499,6 +1778,8 @@ export interface PeeredOperatorChannelOptions {
 	/** Where the loser is told. Defaults to stderr — never stdout, which is the
 	 *  asker's own output. Receives a message only; never an answer value. */
 	notify?(message: string): void;
+	/** Publish a statement to the elsewhere. Optional — see `PromptPublisher.announce`. */
+	announce?(notice: string | OperatorNoticeInput): void;
 }
 
 function defaultNotify(message: string): void {
@@ -1590,7 +1871,20 @@ export function createPeeredOperatorChannel(
 		}
 	}
 
-	return { ask };
+	function say(notice: string | OperatorNoticeInput): void {
+		// The TERMINAL first: it is the surface someone may be looking at right now,
+		// and a broken elsewhere must never be the reason they did not see this.
+		options.local(new AbortController().signal).say?.(notice);
+		try {
+			options.announce?.(notice);
+		} catch {
+			// `say` is TOTAL. A publisher that throws is a broken notification
+			// arrangement, and that must not become the wizard's problem — the same
+			// judgement `currentPromptPublisher` already makes for a throwing source.
+		}
+	}
+
+	return { ask, say };
 }
 
 // ── The HTTP surface, as a pure function ──────────────────────────────────────
