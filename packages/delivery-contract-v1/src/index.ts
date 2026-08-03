@@ -150,6 +150,19 @@ export interface DeliveryRequest {
 	 * up"), which any announce-only adapter may carry.
 	 */
 	needsDecision: boolean;
+	/**
+	 * What was STATED before this question and has not been carried yet (D9).
+	 *
+	 * A wizard's framing reaches a PUSH surface only by riding the question it
+	 * frames: an adapter sends ONE message carrying both, rather than one message
+	 * per sentence. Three preflight lines and a question are one Telegram message,
+	 * not four — times every declared channel.
+	 *
+	 * DISTINCT from the standalone status notice `needsDecision` describes above
+	 * ("the VPN is up"), which is its own genre with its own producer and answers
+	 * nothing. This field is framing, and framing belongs to what it frames.
+	 */
+	framing?: readonly { readonly message: string; readonly kind: string }[];
 	/** Offered values, when the decision is a choice. */
 	choices?: readonly DeliveryChoice[];
 	/**

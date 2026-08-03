@@ -665,3 +665,96 @@ describe("D4 — the outcome is recorded on the prompt", () => {
 		attachment.detach();
 	});
 });
+
+describe("framing travels with the question, never alone (D9)", () => {
+	const asker = { command: "refarm delivery add" };
+
+	function attachSpy(hub: PendingPromptHub) {
+		const spy = spyAdapter();
+		const { channels } = resolveDeliveryChannels(catalogFor("telegram"), {
+			factories: [spy.factory],
+		});
+		return { spy, attachment: attachDeliveryToHub(hub, { channels, attending: () => true }) };
+	}
+
+	/**
+	 * A wizard's question. `text` on purpose — it is what `delivery add` actually
+	 * asks, and a free-text answer cannot be carried back by an adapter's choice
+	 * mechanism, so the route DEGRADES TO ANNOUNCE. That is the common case, which
+	 * makes it the one framing has to survive: an announce-mode request still has to
+	 * carry the sentences that explain the question it announces.
+	 */
+	function ask(hub: PendingPromptHub, question: string): void {
+		void createRemoteOperatorChannel({ hub, asker, timeoutMs: null }).ask({
+			type: "text",
+			question,
+		});
+	}
+
+	/** Two turns: publish → subscribe → async deliver() → the adapter records. */
+	async function drain(): Promise<void> {
+		await Promise.resolve();
+		await Promise.resolve();
+	}
+
+	it("announcing without asking drives the delivery subscriber zero times", async () => {
+		const hub = createPendingPromptHub();
+		const { spy, attachment } = attachSpy(hub);
+
+		hub.announce(asker, "o bot é seu");
+		await drain();
+
+		// Nothing pushed: nothing is blocked, so nobody needs waking. Three preflight
+		// lines must never become three Telegram messages.
+		expect(spy.offered).toHaveLength(0);
+		expect(spy.announced).toHaveLength(0);
+		attachment.detach();
+	});
+
+	it("three framing lines then a question is ONE request carrying all three", async () => {
+		const hub = createPendingPromptHub();
+		const { spy, attachment } = attachSpy(hub);
+
+		hub.announce(asker, "precisa de um bot SEU");
+		hub.announce(asker, "e do chatId");
+		hub.announce(asker, { message: "refarm não fala com o BotFather por você", kind: "context" });
+		ask(hub, "Qual o chatId?");
+		await drain();
+
+		expect(spy.announced).toHaveLength(1);
+		expect(spy.announced[0]!.framing?.map((f) => f.message)).toEqual([
+			"precisa de um bot SEU",
+			"e do chatId",
+			"refarm não fala com o BotFather por você",
+		]);
+		attachment.detach();
+	});
+
+	it("a second question does not repeat framing already carried", async () => {
+		const hub = createPendingPromptHub();
+		const { spy, attachment } = attachSpy(hub);
+
+		hub.announce(asker, "dito uma vez");
+		ask(hub, "primeira?");
+		await drain();
+		ask(hub, "segunda?");
+		await drain();
+
+		expect(spy.announced[0]!.framing?.map((f) => f.message)).toEqual(["dito uma vez"]);
+		expect(spy.announced[1]!.framing ?? []).toEqual([]);
+		attachment.detach();
+	});
+
+	it("another wizard's framing never rides this wizard's question", async () => {
+		const hub = createPendingPromptHub();
+		const { spy, attachment } = attachSpy(hub);
+
+		hub.announce({ command: "refarm auth enrol" }, "de outro wizard");
+		hub.announce(asker, "deste wizard");
+		ask(hub, "q?");
+		await drain();
+
+		expect(spy.announced[0]!.framing?.map((f) => f.message)).toEqual(["deste wizard"]);
+		attachment.detach();
+	});
+});

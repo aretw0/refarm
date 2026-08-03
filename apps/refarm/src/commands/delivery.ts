@@ -256,7 +256,10 @@ export function deliveryChoicesFor(pending: PendingPrompt): DeliveryChoice[] | u
  * carry a choice back, and nothing more. It never receives the prompt object,
  * the hub, or any way to reach another prompt.
  */
-export function deliveryRequestFromPendingPrompt(pending: PendingPrompt): DeliveryRequest {
+export function deliveryRequestFromPendingPrompt(
+	pending: PendingPrompt,
+	framing: readonly { message: string; kind: string }[] = [],
+): DeliveryRequest {
 	const choices = deliveryChoicesFor(pending);
 	const request: DeliveryRequest = {
 		promptId: pending.id,
@@ -266,7 +269,8 @@ export function deliveryRequestFromPendingPrompt(pending: PendingPrompt): Delive
 		answerTravels: pending.answerTravels,
 		expiresAt: pending.expiresAt,
 	};
-	return choices === undefined ? request : { ...request, choices };
+	const withFraming = framing.length > 0 ? { ...request, framing } : request;
+	return choices === undefined ? withFraming : { ...withFraming, choices };
 }
 
 // ── The attachment: where a wizard gains delivery without knowing ─────────────
@@ -331,11 +335,27 @@ export function attachDeliveryToHub(
 		while (records.length > maxRecords) records.shift();
 	}
 
+	// THIS consumer's cursor into the notice log (D9). Per asker, because framing
+	// belongs to the wizard that said it, and held HERE rather than in the hub
+	// because a hub that keeps its readers' state can only serve one reader — the
+	// node hop and any future poller carry their own.
+	const framingCarried = new Map<string, number>();
+
 	const unsubscribe = hub.subscribe((pending) => {
 		// No channel declared is not a failure — it is silence by consent (D1).
 		if (options.channels.length === 0) return;
 
-		const request = deliveryRequestFromPendingPrompt(pending);
+		// Take what this wizard said since the last question we carried, so framing
+		// and question arrive as ONE message per channel — and a second question
+		// does not repeat sentences the operator already read.
+		const command = pending.asker.command;
+		const fresh = hub.noticesFor(command, framingCarried.get(command) ?? 0);
+		if (fresh.length > 0) {
+			framingCarried.set(command, fresh[fresh.length - 1]!.ordinal);
+		}
+		const framing = fresh.map((notice) => ({ message: notice.message, kind: notice.kind }));
+
+		const request = deliveryRequestFromPendingPrompt(pending, framing);
 		const plan = routeDelivery({ request, channels: options.channels, attending: attending() });
 
 		void deliver({
