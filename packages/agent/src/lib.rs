@@ -368,7 +368,8 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
         &outcome.model,
         outcome.tokens_in,
         outcome.tokens_out,
-        outcome.cache_read_tokens + outcome.cache_creation_tokens,
+        outcome.cache_read_tokens,
+        outcome.cache_creation_tokens,
     );
     Ok(build_respond_json(
         outcome.content,
@@ -408,7 +409,8 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
         &model,
         tokens_in,
         tokens_out,
-        cache_read_tokens + cache_creation_tokens,
+        cache_read_tokens,
+        cache_creation_tokens,
     );
     Ok(build_respond_json(
         content,

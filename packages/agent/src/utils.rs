@@ -17,27 +17,53 @@ pub(crate) fn pricing_mode_for_provider(provider: &str) -> &'static str {
     }
 }
 
+/// Anthropic bills a 5-minute cache write at 1.25x base input and a 1-hour write
+/// at 2x. The usage payload does not say which TTL was used, so this is the
+/// documented FLOOR: a 1-hour write is under-counted, never over-counted.
+const CACHE_WRITE_MULTIPLIER: f64 = 1.25;
+/// Cache reads bill at 10% of base input on both providers.
+const CACHE_READ_MULTIPLIER: f64 = 0.1;
+
+/// How a provider reports input tokens relative to its cache buckets.
+pub(crate) enum InputAccounting {
+    /// `input_tokens` EXCLUDES the cache buckets; total input is the sum of all
+    /// three. (Anthropic)
+    Disjoint,
+    /// `prompt_tokens` INCLUDES cache reads; subtract them to get full-rate
+    /// input. (OpenAI and every openai-compatible provider)
+    Subset,
+}
+
+pub(crate) fn input_accounting_for_provider(provider: &str) -> InputAccounting {
+    match provider.trim().to_ascii_lowercase().as_str() {
+        "anthropic" => InputAccounting::Disjoint,
+        _ => InputAccounting::Subset,
+    }
+}
+
 pub(crate) fn estimate_billable_usd(
     provider: &str,
     model: &str,
     tokens_in: u32,
     tokens_out: u32,
-    tokens_cached: u32,
+    cache_read: u32,
+    cache_creation: u32,
 ) -> f64 {
     if pricing_mode_for_provider(provider) != "api" {
         return 0.0;
     }
-    estimate_usd(model, tokens_in, tokens_out, tokens_cached)
+    estimate_usd(provider, model, tokens_in, tokens_out, cache_read, cache_creation)
 }
 
 /// Estimate API cost in USD using public per-million-token rates.
-/// Cached tokens are billed at ~10% of normal input rate (Anthropic/OpenAI prompt caching).
 /// Returns 0.0 for local/unknown models — sovereign infra is free.
 pub(crate) fn estimate_usd(
+    provider: &str,
     model: &str,
     tokens_in: u32,
     tokens_out: u32,
-    tokens_cached: u32,
+    cache_read: u32,
+    cache_creation: u32,
 ) -> f64 {
     let (rate_in, rate_out): (f64, f64) = if model.contains("claude-opus-4") {
         (15.0, 75.0)
@@ -60,10 +86,17 @@ pub(crate) fn estimate_usd(
     } else {
         return 0.0; // ollama, llama*, local models — free
     };
-    let uncached = tokens_in.saturating_sub(tokens_cached) as f64;
-    let cached = tokens_cached as f64;
-    (uncached / 1_000_000.0) * rate_in
-        + (cached / 1_000_000.0) * rate_in * 0.1   // cache hit discount
+
+    // The full-rate share depends on whether the provider counts cache reads
+    // inside tokens_in or beside it. Getting this backwards is the F5 defect.
+    let full_rate_input = match input_accounting_for_provider(provider) {
+        InputAccounting::Disjoint => tokens_in as f64,
+        InputAccounting::Subset => tokens_in.saturating_sub(cache_read) as f64,
+    };
+
+    (full_rate_input / 1_000_000.0) * rate_in
+        + (cache_read as f64 / 1_000_000.0) * rate_in * CACHE_READ_MULTIPLIER
+        + (cache_creation as f64 / 1_000_000.0) * rate_in * CACHE_WRITE_MULTIPLIER
         + (tokens_out as f64 / 1_000_000.0) * rate_out
 }
 

@@ -16,7 +16,7 @@ fn usage_record_schema_has_required_fields() {
         "tokens_cached":    tokens_cached,
         "tokens_reasoning": tokens_reasoning,
         "pricing_mode":     pricing_mode_for_provider("stub"),
-        "estimated_usd":    estimate_billable_usd("stub", &model, tokens_in, tokens_out, tokens_cached),
+        "estimated_usd":    estimate_billable_usd("stub", &model, tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens),
         "usage_raw":        usage_raw,
         "duration_ms":      0u64,
         "timestamp_ns":     now_ns(),

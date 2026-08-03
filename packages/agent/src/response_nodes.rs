@@ -64,7 +64,7 @@ pub(crate) fn usage_record_node(payload: UsageRecordPayload<'_>) -> serde_json::
         "tokens_in":     payload.tokens_in,
         "tokens_out":    payload.tokens_out,
         "pricing_mode":  crate::pricing_mode_for_provider(payload.provider),
-        "estimated_usd": crate::estimate_billable_usd(payload.provider, payload.model, payload.tokens_in, payload.tokens_out, tokens_cached),
+        "estimated_usd": crate::estimate_billable_usd(payload.provider, payload.model, payload.tokens_in, payload.tokens_out, payload.cache_read_tokens, payload.cache_creation_tokens),
         "tokens_cached": tokens_cached,
         "tokens_reasoning": payload.tokens_reasoning,
         "usage_raw":        payload.usage_raw,

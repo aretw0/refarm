@@ -30,7 +30,8 @@ pub(crate) fn final_stream_chunk_ndjson(input: FinalStreamChunkInput<'_>) -> Str
         input.model,
         input.tokens_in,
         input.tokens_out,
-        input.cache_read_tokens + input.cache_creation_tokens,
+        input.cache_read_tokens,
+        input.cache_creation_tokens,
     );
     let content = if input.partials_present { "" } else { input.content };
     format!(
