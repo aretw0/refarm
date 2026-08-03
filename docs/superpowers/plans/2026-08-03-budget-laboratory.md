@@ -1545,6 +1545,32 @@ truth, since it is authoritative only for OpenRouter's own resale prices.
 Do not transcribe rates from third-party aggregators. Several exist and are convenient; none is the
 vendor. An unverified number presented as fact is the failure this whole task exists to prevent.
 
+**Correct what the citation exposes, before v1 closes.** Fetching the sources to cite them is itself
+an audit, and it found two rates that were wrong rather than merely unverified:
+
+| Branch | Was | Verified | Direction |
+| --- | --- | --- | --- |
+| `claude-haiku-4-5` | $0.80 / $4.00 (Haiku 3.5's retired rate) | $1.00 / $5.00 | under by 25% |
+| `claude-opus-4-5` and later | $15.00 / $75.00 (matched `claude-opus-4`) | $5.00 / $25.00 | **over by 3×** |
+
+Both are substring-order defects: `"claude-opus-4-5".contains("claude-opus-4")` is true, so the newer
+generation inherited the older one's price. The fix is a more specific branch placed **before** the
+family prefix, the same idiom the file already used for `gpt-5.5` before `gpt-5`. A specific branch
+placed after its prefix is dead code that looks like a fix.
+
+The two errors point in **opposite directions**, which is the argument against any heuristic: there is
+no bias to correct for and no sanity check that would have caught them. Only the vendor's page
+answers, one branch at a time.
+
+Correcting here is free because nothing has been stamped yet — the task that writes observations has
+not landed. `RATE_TABLE_VERSION` is therefore NOT bumped: v1 is still being assembled, and it closes
+containing what someone opened and read.
+
+**And only what someone read.** A branch that matches several model ids while its citation covers one
+of them is the placeholder problem in a new costume. Narrow each branch to the ids the page actually
+listed; the rest resolve to `Unknown`, say so in the log, and are caught by the gate if they ever
+become a default.
+
 - [ ] **Step 5: The baseline shrinks, it never grows**
 
 Six default models have no rate: `grok-4.3`, `deepseek-v4-flash`, `gemini-3-flash-preview`, and — once
