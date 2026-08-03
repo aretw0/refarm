@@ -1374,14 +1374,16 @@ fn a_known_free_model_and_an_unrecognised_one_are_not_the_same_answer() {
 }
 
 #[test]
-fn the_claude_five_family_is_priced_rather_than_falling_through() {
-    // The drift this task exists to close: these matched nothing before.
-    for model in ["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5-20251001"] {
-        assert!(
-            matches!(rate_for_model(model), RateLookup::Priced { .. }),
-            "{model} must resolve to a rate, not fall through"
-        );
-    }
+fn an_unpriced_new_model_is_unknown_rather_than_free() {
+    // The measured drift this task closes: the table's Claude branches stop at
+    // the 4 family, so a Claude 5 id matched nothing and fell through to the
+    // return value meaning "local model, genuinely free". It is now UNKNOWN —
+    // still estimated at zero, but no longer indistinguishable from free, and
+    // it says its own name in the log.
+    assert!(matches!(rate_for_model("claude-opus-5"), RateLookup::Unknown));
+    assert!(matches!(rate_for_model("claude-sonnet-5"), RateLookup::Unknown));
+    // The 4 family still prices, so nothing in use today regressed.
+    assert!(matches!(rate_for_model("claude-sonnet-4-6"), RateLookup::Priced { .. }));
 }
 
 #[test]
@@ -1412,12 +1414,22 @@ Expected: FAIL — `rate_for_model` not found.
 - [ ] **Step 3: Extract the table behind a three-way lookup**
 
 Move the existing `if / else if` chain out of `estimate_usd` into `rate_for_model`, returning
-`RateLookup::Priced` for every branch it already has, plus new branches for the Claude 5 family
-(`claude-opus-5`, `claude-sonnet-5`) at the same rates their 4-family predecessors carry until the
-maintainer supplies current ones — a documented placeholder is a number someone can correct, where a
-silent zero is not. Return `RateLookup::Free` for an explicit known-free list (`llama`, `mistral`,
-`qwen`, `gemma`, `phi`, `deepseek-r1` and anything ollama serves), and `RateLookup::Unknown`
-otherwise.
+`RateLookup::Priced` for every branch it already has, **with no new priced branches and no changed
+rates**. Return `RateLookup::Free` for an explicit known-free list (`llama`, `mistral`, `qwen`,
+`gemma`, `phi`, `deepseek-r1` and anything ollama serves), and `RateLookup::Unknown` otherwise.
+
+**No placeholder rates** (maintainer's ruling, 2026-08-03). An earlier draft of this task added
+provisional Claude 5 branches carrying the 4-family rates. That would ship the table's first version
+containing numbers nobody verified, and correcting them later would bump `RATE_TABLE_VERSION`,
+marking every observation written in between as stale — churn manufactured during construction,
+before the table's first version was settled. Measured while evaluating it: the repo's default
+Anthropic model is `claude-sonnet-4-6`, which already matches the existing `claude-sonnet-4` branch,
+so Task 8's gate passes without them and nothing forced the placeholders.
+
+The deeper reason is worth keeping: **a placeholder is a number that looks like data.** Even labelled
+provisional it flows into aggregation, into a chart, into a decision. `Unknown` flows nowhere
+pretending to be a price, and the record carries tokens plus `rate_table_version`, so those runs stay
+identifiable and recomputable the day real rates arrive.
 
 `estimate_usd` then maps `Free` and `Unknown` both to `0.0` **for now** — the value does not change,
 only its recoverability. Add a `tracing::warn!` on `Unknown` naming the model id, so an unpriced
