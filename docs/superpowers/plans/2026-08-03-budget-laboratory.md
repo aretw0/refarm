@@ -1,0 +1,1632 @@
+# Budget Laboratory Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Make every dispatch declare its own budget, resolved through nested node and workspace
+ceilings, and make every run leave a durable record of the budget that governed it and the outcome
+it reached.
+
+**Architecture:** Three axes (deadline, tokens, cost) declared per dispatch and resolved by a fold
+over three levels (node ⊇ workspace ⊇ declared), adopting Kubernetes' ResourceQuota/LimitRange
+structure. Every terminal effort writes a `BudgetObservation` node into the CRDT store beside the
+`UsageRecord` it joins to, with no TTL. Before any of that, the cost accounting underneath is
+corrected, because a laboratory built on a wrong estimator measures wrong from day one.
+
+**Tech Stack:** Rust (`packages/tractor`, `packages/agent`), TypeScript (`packages/budget-contract-v1`,
+`apps/refarm`), vitest for TS, `cargo test --lib` for Rust, SQLite-backed CRDT node store.
+
+**Spec:** [`docs/superpowers/specs/2026-08-03-budget-laboratory-design.md`](../specs/2026-08-03-budget-laboratory-design.md)
+
+## Scope
+
+This plan covers **spec slices 1–5**. After Task 8, every real run the operator makes from any
+surface is evidence, which is working software on its own.
+
+**Spec slices 6–8 (the sweep, the gallery, closing the loop) get their own plan.** The spec draws
+that seam itself: 1–5 make the instrument record; 6–8 make it reproducible by third parties. Writing
+them as one document would produce a plan too large to execute or review, and each half is
+independently valuable. This is a decomposition of the approved order, not a reduction of it.
+
+## Global Constraints
+
+- **Source sovereignty**: edit `src/` only. Never `dist/`, `target/`, `.turbo/` (CLAUDE.md §1).
+- **Rust build discipline**: this host has ~8GB RAM. Use `cargo test --lib <filter> --quiet` or
+  `cargo test --test <suite>`. **Never bare `cargo test`** — it compiles all test binaries at once
+  and OOMs the container (CLAUDE.md §7).
+- **Protected surface**: `packages/tractor/**` follows serialized lock/handoff policy (CLAUDE.md §8).
+  The maintainer authorised it for this program. Do not widen beyond the files named per task.
+- **Known flaky**: `observer::tests::rotate_seals_the_full_file_and_starts_fresh` fails ~2 of 4 under
+  parallel `cargo test --lib` and never under `--test-threads=1`. It is unrelated to this work. If it
+  fails, re-run with `--test-threads=1` before investigating.
+- **Scoped commands**: `pnpm --filter @refarm.dev/<pkg> run <script>`, never `cd` into packages.
+- **After source edits, before committing**: `refarm agent finish --lane after-edit --run --json`.
+- **After each commit**: `refarm agent finish --lane after-commit --run --json`.
+- **Cache write multiplier**: `1.25` (Anthropic 5-minute cache, the API default). The 1-hour cache is
+  `2.0`, but the TTL is not recoverable from the usage payload alone, so `1.25` is the documented
+  floor and the comment must say so.
+- **Cache read multiplier**: `0.1`.
+
+## File Structure
+
+**Task 1–3 (the accounting correction), `packages/agent/src/`:**
+
+| File | Responsibility after the change |
+| --- | --- |
+| `provider_runtime/usage_totals.rs` | Parses each provider's accounting model into two distinct cache fields |
+| `provider.rs` | `CompletionResult` carries `cache_read_tokens` and `cache_creation_tokens` |
+| `runtime/types.rs` | `ReactResult` tuple gains one element |
+| `utils.rs` | The estimator applies each provider's input-accounting rule |
+| `response_nodes.rs` | `UsageRecord` node emits both fields under OTel-aligned names |
+
+**Task 4 (the contract), `packages/budget-contract-v1/src/`:**
+
+| File | Responsibility |
+| --- | --- |
+| `types.ts` | The three-axis declaration, the ceiling, the resolved shape |
+| `resolve.ts` | The D9 fold — pure, no IO, the single source of resolution truth |
+| `conformance.ts` | The suite any implementation must pass |
+| `index.ts` | Public surface |
+
+**Task 5–8 (the wiring), `packages/tractor/src/sidecar/`:**
+
+| File | Responsibility |
+| --- | --- |
+| `budget.rs` (new) | Rust mirror of the D9 fold, and the resolved budget carried per effort |
+| `dispatch.rs` | Reads the declared budget off the effort; the watcher uses the resolved deadline |
+| `observation.rs` (new) | Builds and writes the `BudgetObservation` node |
+
+`dispatch.rs` is already 800+ lines. New behaviour goes in `budget.rs` and `observation.rs`, and
+`dispatch.rs` gains call sites only.
+
+---
+
+### Task 1: Split cache accounting through the agent type chain
+
+Pure plumbing. **No behaviour change** — the estimator keeps receiving the same total, passed as
+`cache_read + cache_creation`, so every existing test still passes. Task 2 changes behaviour.
+
+**Files:**
+- Modify: `packages/agent/src/provider_runtime/usage_totals.rs:1-32`
+- Modify: `packages/agent/src/provider.rs:6-15`
+- Modify: `packages/agent/src/provider_runtime/usage_finalize.rs:11-19`
+- Modify: `packages/agent/src/runtime/types.rs:1-10`
+- Modify: `packages/agent/src/response_nodes.rs:13-23`
+- Test: `packages/agent/src/tests/provider_runtime_tests/usage_phase.rs`
+
+**Interfaces:**
+- Produces: `UsageTotals { tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens, tokens_reasoning }`;
+  `CompletionResult` with the same two cache fields; `ReactResult` as a 9-element tuple ordered
+  `(content, tool_calls, tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens, tokens_reasoning, model_id, usage_raw)`.
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `packages/agent/src/tests/provider_runtime_tests/usage_phase.rs`:
+
+```rust
+#[test]
+fn anthropic_usage_keeps_reads_and_writes_apart() {
+    let mut totals = UsageTotals::default();
+    totals.ingest_anthropic_usage(&serde_json::json!({
+        "input_tokens": 50,
+        "output_tokens": 10,
+        "cache_read_input_tokens": 100_000,
+        "cache_creation_input_tokens": 2_048,
+    }));
+    assert_eq!(totals.tokens_in, 50, "input_tokens excludes both cache buckets");
+    assert_eq!(totals.cache_read_tokens, 100_000);
+    assert_eq!(totals.cache_creation_tokens, 2_048);
+}
+
+#[test]
+fn openai_usage_reports_reads_only_and_never_invents_writes() {
+    let mut totals = UsageTotals::default();
+    totals.ingest_openai_usage(&serde_json::json!({
+        "prompt_tokens": 1_000,
+        "completion_tokens": 200,
+        "prompt_tokens_details": { "cached_tokens": 800 },
+    }));
+    assert_eq!(totals.tokens_in, 1_000, "prompt_tokens INCLUDES cached reads");
+    assert_eq!(totals.cache_read_tokens, 800);
+    assert_eq!(
+        totals.cache_creation_tokens, 0,
+        "OpenAI reports no cache-write token count; inventing one would bill a surcharge that does not exist"
+    );
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cargo test --lib usage_phase --quiet`
+Expected: FAIL — `no field cache_read_tokens on type UsageTotals`
+
+- [ ] **Step 3: Rewrite `UsageTotals`**
+
+Replace `packages/agent/src/provider_runtime/usage_totals.rs:1-32` with:
+
+```rust
+#[derive(Default)]
+pub(crate) struct UsageTotals {
+    pub tokens_in: u32,
+    pub tokens_out: u32,
+    /// Input tokens served FROM the provider's cache. Billed at a discount.
+    /// OTel: gen_ai.usage.cache_read.input_tokens
+    pub cache_read_tokens: u32,
+    /// Input tokens WRITTEN INTO the provider's cache. Billed at a SURCHARGE.
+    /// Kept apart from reads because the two are priced in opposite directions;
+    /// summing them made every cache write look like a discount.
+    /// OTel: gen_ai.usage.cache_creation.input_tokens
+    pub cache_creation_tokens: u32,
+    pub tokens_reasoning: u32,
+}
+
+impl UsageTotals {
+    /// Anthropic's accounting model: `input_tokens` EXCLUDES both cache buckets
+    /// (it is the tokens after the last cache breakpoint). Total input processed
+    /// is the sum of all three.
+    pub(crate) fn ingest_anthropic_usage(&mut self, usage: &serde_json::Value) {
+        self.tokens_in += usage["input_tokens"].as_u64().unwrap_or(0) as u32;
+        self.tokens_out += usage["output_tokens"].as_u64().unwrap_or(0) as u32;
+        self.cache_read_tokens += usage["cache_read_input_tokens"].as_u64().unwrap_or(0) as u32;
+        self.cache_creation_tokens +=
+            usage["cache_creation_input_tokens"].as_u64().unwrap_or(0) as u32;
+    }
+
+    /// OpenAI's accounting model: `prompt_tokens` INCLUDES cached reads, and there
+    /// is no cache-write token count because caching is automatic and carries no
+    /// write surcharge. `cache_creation_tokens` stays zero here BY DESIGN.
+    pub(crate) fn ingest_openai_usage(&mut self, usage: &serde_json::Value) {
+        self.tokens_in += usage_u32(usage, &["prompt_tokens", "input_tokens"]);
+        self.tokens_out += usage_u32(usage, &["completion_tokens", "output_tokens"]);
+        self.cache_read_tokens += nested_usage_u32(
+            usage,
+            &["prompt_tokens_details", "input_tokens_details"],
+            "cached_tokens",
+        );
+        self.tokens_reasoning += nested_usage_u32(
+            usage,
+            &["completion_tokens_details", "output_tokens_details"],
+            "reasoning_tokens",
+        );
+    }
+}
+```
+
+Leave `usage_u32` and `nested_usage_u32` below it untouched.
+
+- [ ] **Step 4: Widen `CompletionResult`**
+
+In `packages/agent/src/provider.rs:6-15`, replace the `tokens_cached: u32,` field with:
+
+```rust
+    pub cache_read_tokens: u32,
+    pub cache_creation_tokens: u32,
+```
+
+- [ ] **Step 5: Widen `ReactResult`**
+
+In `packages/agent/src/runtime/types.rs:1-10`, the tuple gains one `u32`:
+
+```rust
+/// (content, tool_calls, tokens_in, tokens_out, cache_read_tokens,
+///  cache_creation_tokens, tokens_reasoning, model_id, usage_raw)
+pub(crate) type ReactResult = (
+    String,
+    serde_json::Value,
+    u32,
+    u32,
+    u32,
+    u32,
+    u32,
+    String,
+    String,
+);
+```
+
+`blocked_result` and `error_result` in the same file each gain one more `0,` in their tuple
+literal, in the same position.
+
+- [ ] **Step 6: Let the compiler name every remaining site**
+
+Run: `cargo check --lib --quiet 2>&1 | grep -E "^error" | head -40`
+
+Fix each named site by the mechanical rule: **one `tokens_cached` becomes two fields, and every
+destructuring of `ReactResult` gains one `_` or binding in position 6.** These sites are known in
+advance — the compiler is the checklist, not the discovery mechanism:
+
+| File | What changes |
+| --- | --- |
+| `provider_runtime/usage_finalize.rs:16` | `tokens_cached: totals.tokens_cached` → the two fields from `totals` |
+| `runtime/streaming_metadata.rs:8,32` | field and forwarding call |
+| `runtime/prompt_persistence.rs:38,285` | `UsageRecordInput` field and its construction |
+| `runtime/prompt_handler.rs:22` | local field |
+| `runtime/react_loop.rs:7` | the doc comment above `react` must state the new 9-element order |
+| `lib.rs:371,399,406` | destructuring and the `estimate_billable_usd` call — pass `cache_read + cache_creation` for now, Task 2 changes the signature |
+| `response_nodes.rs:19` | `UsageRecordPayload` gains both fields; Task 3 changes what the node emits |
+| `extensibility_contract.rs:37` | add one `_` |
+| `tests/runtime_response_schema_tests.rs:14,37` | add one binding each |
+| `tests/runtime_cost_guard_tests.rs:6` | add one `_` |
+| `tests/usage_record_schema_tests.rs:6` | add one binding |
+| `tests/system_prompt_tests.rs:15` | add one `_` |
+
+- [ ] **Step 7: Run the tests**
+
+Run: `cargo test --lib usage_phase --quiet && cargo test --lib --quiet`
+Expected: PASS. If `observer::tests::rotate_seals_the_full_file_and_starts_fresh` fails, re-run with
+`--test-threads=1` (see Global Constraints).
+
+- [ ] **Step 8: Commit**
+
+```bash
+refarm agent finish --lane after-edit --run --json
+git add packages/agent/src
+git commit -m "refactor(agent): cache reads and cache writes stop sharing one number
+
+Anthropic reports them separately and prices them in opposite directions.
+Plumbing only: the estimator still receives the sum, so behaviour is unchanged
+and every existing assertion still holds. The pricing fix follows."
+refarm agent finish --lane after-commit --run --json
+```
+
+---
+
+### Task 2: Honour each provider's accounting model in the estimate
+
+This is the F5 fix. **It changes an existing test on purpose** — `estimate_usd_sonnet_with_cache_discount`
+currently asserts OpenAI's subset model against a Claude model id, which is the defect.
+
+**Files:**
+- Modify: `packages/agent/src/utils.rs:12-68`
+- Modify: `packages/agent/src/lib.rs:406`
+- Test: `packages/agent/src/tests/runtime_cost_guard_tests.rs:17-35`
+
+**Interfaces:**
+- Consumes: Task 1's `cache_read_tokens` / `cache_creation_tokens`.
+- Produces: `estimate_billable_usd(provider, model, tokens_in, tokens_out, cache_read, cache_creation) -> f64`
+  and `estimate_usd(provider, model, tokens_in, tokens_out, cache_read, cache_creation) -> f64`.
+  Both gain `provider` as the first parameter — `estimate_usd` needs it to pick the accounting model.
+
+- [ ] **Step 1: Write the failing tests**
+
+Replace `estimate_usd_sonnet_with_cache_discount` in
+`packages/agent/src/tests/runtime_cost_guard_tests.rs` with these four. The vector in the first is
+copied verbatim from Anthropic's prompt-caching documentation.
+
+```rust
+#[test]
+fn anthropic_uncached_input_is_not_swallowed_by_a_large_cache_read() {
+    // Anthropic's own documented example: 100k read, 0 written, 50 after the
+    // breakpoint. The 50 are genuinely uncached and must be billed at full rate.
+    // The old code did tokens_in.saturating_sub(cached) = 50 - 100_000 = 0 and
+    // billed them at nothing.
+    let cost = estimate_usd("anthropic", "claude-sonnet-4-6", 50, 0, 100_000, 0);
+    let expected = (50.0 / 1_000_000.0) * 3.0 + (100_000.0 / 1_000_000.0) * 3.0 * 0.1;
+    assert!(
+        (cost - expected).abs() < 1e-12,
+        "expected {expected}, got {cost}"
+    );
+}
+
+#[test]
+fn anthropic_cache_writes_cost_more_than_input_not_less() {
+    // A cache write is billed at 1.25x base input on the 5-minute cache, not at
+    // the 0.1x read discount. Same token count, opposite direction.
+    let write_cost = estimate_usd("anthropic", "claude-sonnet-4-6", 0, 0, 0, 10_000);
+    let read_cost = estimate_usd("anthropic", "claude-sonnet-4-6", 0, 0, 10_000, 0);
+    assert!(
+        write_cost > read_cost * 12.0,
+        "a write must not be priced like a read: write={write_cost} read={read_cost}"
+    );
+    let expected = (10_000.0 / 1_000_000.0) * 3.0 * 1.25;
+    assert!((write_cost - expected).abs() < 1e-12);
+}
+
+#[test]
+fn openai_cached_tokens_remain_a_subset_of_prompt_tokens() {
+    // Unchanged behaviour for the subset model: 1000 prompt tokens of which 200
+    // were cache reads bills 800 at full rate.
+    let cost = estimate_usd("openai", "gpt-5.5", 1_000, 500, 200, 0);
+    let expected = (800.0 / 1_000_000.0) * 5.0
+        + (200.0 / 1_000_000.0) * 5.0 * 0.1
+        + (500.0 / 1_000_000.0) * 30.0;
+    assert!((cost - expected).abs() < 1e-12, "expected {expected}, got {cost}");
+}
+
+#[test]
+fn subscription_and_local_pricing_modes_stay_at_zero() {
+    // openai-codex is a subscription; ollama is local. A currency figure over
+    // either is meaningless, and D1 depends on this staying true.
+    assert_eq!(
+        estimate_billable_usd("openai-codex", "gpt-5.5", 10_000, 5_000, 1_000, 500),
+        0.0
+    );
+    assert_eq!(
+        estimate_billable_usd("ollama", "llama3", 10_000, 5_000, 0, 0),
+        0.0
+    );
+}
+```
+
+Also update `estimate_usd_sonnet_no_cache` in the same file to the new signature:
+
+```rust
+    let cost = estimate_usd("anthropic", "claude-sonnet-4-6", 1000, 500, 0, 0);
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `cargo test --lib runtime_cost_guard --quiet`
+Expected: FAIL — `estimate_usd` takes 4 arguments but 6 were supplied.
+
+- [ ] **Step 3: Implement the accounting split**
+
+In `packages/agent/src/utils.rs`, add above `estimate_billable_usd`:
+
+```rust
+/// Anthropic bills a 5-minute cache write at 1.25x base input and a 1-hour write
+/// at 2x. The usage payload does not say which TTL was used, so this is the
+/// documented FLOOR: a 1-hour write is under-counted, never over-counted.
+const CACHE_WRITE_MULTIPLIER: f64 = 1.25;
+/// Cache reads bill at 10% of base input on both providers.
+const CACHE_READ_MULTIPLIER: f64 = 0.1;
+
+/// How a provider reports input tokens relative to its cache buckets.
+pub(crate) enum InputAccounting {
+    /// `input_tokens` EXCLUDES the cache buckets; total input is the sum of all
+    /// three. (Anthropic)
+    Disjoint,
+    /// `prompt_tokens` INCLUDES cache reads; subtract them to get full-rate
+    /// input. (OpenAI and every openai-compatible provider)
+    Subset,
+}
+
+pub(crate) fn input_accounting_for_provider(provider: &str) -> InputAccounting {
+    match provider.trim().to_ascii_lowercase().as_str() {
+        "anthropic" => InputAccounting::Disjoint,
+        _ => InputAccounting::Subset,
+    }
+}
+```
+
+Then replace the two estimator functions:
+
+```rust
+pub(crate) fn estimate_billable_usd(
+    provider: &str,
+    model: &str,
+    tokens_in: u32,
+    tokens_out: u32,
+    cache_read: u32,
+    cache_creation: u32,
+) -> f64 {
+    if pricing_mode_for_provider(provider) != "api" {
+        return 0.0;
+    }
+    estimate_usd(provider, model, tokens_in, tokens_out, cache_read, cache_creation)
+}
+
+/// Estimate API cost in USD using public per-million-token rates.
+/// Returns 0.0 for local/unknown models — sovereign infra is free.
+pub(crate) fn estimate_usd(
+    provider: &str,
+    model: &str,
+    tokens_in: u32,
+    tokens_out: u32,
+    cache_read: u32,
+    cache_creation: u32,
+) -> f64 {
+    let (rate_in, rate_out): (f64, f64) = if model.contains("claude-opus-4") {
+        (15.0, 75.0)
+    } else if model.contains("claude-sonnet-4") || model.contains("claude-sonnet-3-7") {
+        (3.0, 15.0)
+    } else if model.contains("claude-haiku") {
+        (0.8, 4.0)
+    } else if model.contains("gpt-5.5") {
+        (5.0, 30.0)
+    } else if model.contains("gpt-5-mini") || model.contains("gpt-5.1-codex-mini") {
+        (0.25, 2.0)
+    } else if model.contains("gpt-5-nano") {
+        (0.05, 0.4)
+    } else if model.contains("gpt-5") {
+        (1.25, 10.0)
+    } else if model.contains("gpt-4o") && !model.contains("mini") {
+        (2.5, 10.0)
+    } else if model.contains("gpt-4o-mini") {
+        (0.15, 0.6)
+    } else {
+        return 0.0; // ollama, llama*, local models — free
+    };
+
+    // The full-rate share depends on whether the provider counts cache reads
+    // inside tokens_in or beside it. Getting this backwards is the F5 defect.
+    let full_rate_input = match input_accounting_for_provider(provider) {
+        InputAccounting::Disjoint => tokens_in as f64,
+        InputAccounting::Subset => tokens_in.saturating_sub(cache_read) as f64,
+    };
+
+    (full_rate_input / 1_000_000.0) * rate_in
+        + (cache_read as f64 / 1_000_000.0) * rate_in * CACHE_READ_MULTIPLIER
+        + (cache_creation as f64 / 1_000_000.0) * rate_in * CACHE_WRITE_MULTIPLIER
+        + (tokens_out as f64 / 1_000_000.0) * rate_out
+}
+```
+
+- [ ] **Step 4: Update the one production call site**
+
+`packages/agent/src/lib.rs:406` and `packages/agent/src/response_nodes.rs:63` both call
+`estimate_billable_usd`. Pass `cache_read` and `cache_creation` separately instead of the sum Task 1
+left there.
+
+- [ ] **Step 5: Run tests to verify they pass**
+
+Run: `cargo test --lib runtime_cost_guard --quiet && cargo test --lib --quiet`
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+refarm agent finish --lane after-edit --run --json
+git add packages/agent/src
+git commit -m "fix(agent): price each provider's accounting model, not one of them twice
+
+Anthropic's input_tokens excludes the cache buckets, so subtracting the cache
+from it billed genuinely uncached input at zero whenever the cache was large —
+which is the normal case. And a cache write was priced at the 0.1x read discount
+when it costs 1.25x base input.
+
+The test that asserted 1000 input with 200 cached bills 800 at full rate was
+pinning the subset model against a Claude id. It now pins the rule per provider,
+with vectors taken from the vendors' own documentation."
+refarm agent finish --lane after-commit --run --json
+```
+
+---
+
+### Task 3: Emit the split on the UsageRecord node and its reader
+
+**Files:**
+- Modify: `packages/agent/src/response_nodes.rs:53-70`
+- Modify: `packages/tractor/src/sidecar/dispatch.rs:649-669` (protected surface)
+- Test: `packages/agent/src/tests/usage_record_schema_tests.rs`
+
+**Interfaces:**
+- Produces: `UsageRecord` nodes carrying `cache_read_input_tokens` and `cache_creation_input_tokens`
+  alongside the retained `tokens_cached` sum.
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `packages/agent/src/tests/usage_record_schema_tests.rs`:
+
+```rust
+#[test]
+fn usage_record_carries_both_cache_buckets_and_their_sum() {
+    let node = usage_record_node(UsageRecordPayload {
+        prompt_ref: "urn:sovereign:prompt-test",
+        provider: "anthropic",
+        model: "claude-sonnet-4-6",
+        tokens_in: 50,
+        tokens_out: 10,
+        cache_read_tokens: 100_000,
+        cache_creation_tokens: 2_048,
+        tokens_reasoning: 0,
+        usage_raw: "{}",
+        duration_ms: 0,
+    });
+    assert_eq!(node["cache_read_input_tokens"], 100_000);
+    assert_eq!(node["cache_creation_input_tokens"], 2_048);
+    assert_eq!(
+        node["tokens_cached"], 102_048,
+        "the sum stays for readers that predate the split"
+    );
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cargo test --lib usage_record_schema --quiet`
+Expected: FAIL — `node["cache_read_input_tokens"]` is `Null`.
+
+- [ ] **Step 3: Emit both fields**
+
+In `packages/agent/src/response_nodes.rs`, inside `usage_record_node`, replace the
+`"tokens_cached": payload.tokens_cached,` line with:
+
+```rust
+        // OTel gen_ai.usage.cache_read.input_tokens / cache_creation.input_tokens,
+        // spelled flat because this node is not an OTel span.
+        "cache_read_input_tokens":     payload.cache_read_tokens,
+        "cache_creation_input_tokens": payload.cache_creation_tokens,
+        // Retained for readers written before the split. Derived, never authoritative.
+        "tokens_cached": payload.cache_read_tokens + payload.cache_creation_tokens,
+```
+
+and pass both fields to `estimate_billable_usd` on the line above.
+
+- [ ] **Step 4: Surface the split in the sidecar's usage view**
+
+In `packages/tractor/src/sidecar/dispatch.rs`, inside `usage_view_from_record`, add to the `"usage"`
+object after `"tokens_cached": count("tokens_cached"),`:
+
+```rust
+            "cache_read_input_tokens": count("cache_read_input_tokens"),
+            "cache_creation_input_tokens": count("cache_creation_input_tokens"),
+```
+
+`count` already defaults a missing key to `0`, which is correct here: a record written before this
+change genuinely had no split to report, and D6's "absent is not zero" applies to the observation
+node of Task 7, not to a back-compat view.
+
+- [ ] **Step 5: Run tests to verify they pass**
+
+Run: `cargo test --lib usage_record_schema --quiet && cargo test --lib --quiet`
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+refarm agent finish --lane after-edit --run --json
+git add packages/agent/src packages/tractor/src
+git commit -m "feat(agent): the usage record states both cache buckets, in OTel's vocabulary
+
+tokens_cached stays as their sum so readers that predate the split keep working,
+but it is derived now and never the source."
+refarm agent finish --lane after-commit --run --json
+```
+
+---
+
+### Task 4: `packages/budget-contract-v1` — three axes and the nested fold
+
+**Files:**
+- Create: `packages/budget-contract-v1/package.json`, `tsconfig.json`, `tsconfig.build.json`,
+  `vitest.config.ts`, `README.md`, `eslint.config.js`
+- Create: `packages/budget-contract-v1/src/{types.ts,resolve.ts,resolve.test.ts,conformance.ts,conformance.test.ts,index.ts}`
+- Modify: `scripts/ci/subprocess-utils.mjs:6` (TASK_SMOKE_TS_BUILD_ORDER)
+- Modify: `scripts/ci/gate-smoke-contracts.mjs:10`
+
+**Interfaces:**
+- Produces: `resolveBudget(input: BudgetResolutionInput): ResolvedBudget`, and the types below.
+  Task 5's Rust mirror must agree with this function's behaviour exactly.
+
+Copy the scaffold from `packages/effort-contract-v1` — same `package.json` script set, same
+`devDependencies` (`@refarm.dev/eslint-config`, `@refarm.dev/tsconfig`, `@refarm.dev/vtconfig`), same
+`files`/`exports` block, with name `@refarm.dev/budget-contract-v1` and description
+`Versioned budget capability contract (budget:v1) and conformance suite`.
+
+- [ ] **Step 1: Write `types.ts`**
+
+```ts
+/** The contract version this package implements. */
+export const BUDGET_CONTRACT_VERSION = "budget:v1";
+
+/** The three axes a spawner may declare. Every field is optional; an omitted
+ *  axis falls back to the workspace default, then the node default. */
+export type BudgetDeclaration = {
+	/** Wall-clock deadline for the whole dispatch. */
+	deadlineMs?: number;
+	/** Cumulative tokens across the dispatch, not per call. */
+	maxTokens?: number;
+	/** Estimated spend. Only binds under `api` pricing mode. */
+	maxUsd?: number;
+};
+
+/** A ceiling has the same shape as a declaration; it is read as a maximum. */
+export type BudgetCeiling = BudgetDeclaration;
+
+export type BudgetAxis = "deadlineMs" | "maxTokens" | "maxUsd";
+
+export const BUDGET_AXES: readonly BudgetAxis[] = [
+	"deadlineMs",
+	"maxTokens",
+	"maxUsd",
+];
+
+/** Which level produced the effective value. */
+export type BudgetLevel = "node" | "workspace" | "declared" | "default";
+
+export type ResolvedAxis = {
+	/** The value that will actually govern the run. */
+	effective: number;
+	/** What the spawner asked for, or null if it asked for nothing. */
+	declared: number | null;
+	/** Which level produced `effective`. Never inferred by the reader. */
+	boundBy: BudgetLevel;
+};
+
+export type ResolvedBudget = Record<BudgetAxis, ResolvedAxis>;
+
+/** The node always has a complete default and a complete ceiling: it is the
+ *  machine, and it always knows what it can serve. A workspace may declare
+ *  either, both, or neither. */
+export type BudgetResolutionInput = {
+	declared?: BudgetDeclaration;
+	workspace?: { ceiling?: BudgetCeiling; default?: BudgetDeclaration };
+	node: { ceiling: Required<BudgetCeiling>; default: Required<BudgetDeclaration> };
+};
+```
+
+- [ ] **Step 2: Write the failing resolution tests**
+
+`packages/budget-contract-v1/src/resolve.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { resolveBudget } from "./resolve.js";
+
+const node = {
+	ceiling: { deadlineMs: 600_000, maxTokens: 500_000, maxUsd: 10 },
+	default: { deadlineMs: 45_000, maxTokens: 100_000, maxUsd: 1 },
+};
+
+describe("resolveBudget", () => {
+	it("uses the node default when nobody declares anything", () => {
+		const resolved = resolveBudget({ node });
+		expect(resolved.deadlineMs).toEqual({
+			effective: 45_000,
+			declared: null,
+			boundBy: "default",
+		});
+	});
+
+	it("lets the spawner declare above the default and below the ceiling", () => {
+		const resolved = resolveBudget({ node, declared: { deadlineMs: 300_000 } });
+		expect(resolved.deadlineMs).toEqual({
+			effective: 300_000,
+			declared: 300_000,
+			boundBy: "declared",
+		});
+	});
+
+	it("clamps to the node ceiling and says the node did it", () => {
+		const resolved = resolveBudget({ node, declared: { deadlineMs: 9_000_000 } });
+		expect(resolved.deadlineMs).toEqual({
+			effective: 600_000,
+			declared: 9_000_000,
+			boundBy: "node",
+		});
+	});
+
+	it("clamps to a tighter workspace ceiling and says the workspace did it", () => {
+		const resolved = resolveBudget({
+			node,
+			workspace: { ceiling: { deadlineMs: 120_000 } },
+			declared: { deadlineMs: 300_000 },
+		});
+		expect(resolved.deadlineMs).toEqual({
+			effective: 120_000,
+			declared: 300_000,
+			boundBy: "workspace",
+		});
+	});
+
+	it("refuses to let a workspace grant capacity the node does not have", () => {
+		const resolved = resolveBudget({
+			node,
+			workspace: { ceiling: { deadlineMs: 9_000_000 } },
+			declared: { deadlineMs: 9_000_000 },
+		});
+		expect(resolved.deadlineMs.effective).toBe(600_000);
+		expect(resolved.deadlineMs.boundBy).toBe("node");
+	});
+
+	it("prefers a workspace default over the node default", () => {
+		const resolved = resolveBudget({
+			node,
+			workspace: { default: { deadlineMs: 90_000 } },
+		});
+		expect(resolved.deadlineMs).toEqual({
+			effective: 90_000,
+			declared: null,
+			boundBy: "default",
+		});
+	});
+
+	it("resolves each axis independently", () => {
+		const resolved = resolveBudget({
+			node,
+			declared: { deadlineMs: 9_000_000, maxTokens: 1_000 },
+		});
+		expect(resolved.deadlineMs.boundBy).toBe("node");
+		expect(resolved.maxTokens).toEqual({
+			effective: 1_000,
+			declared: 1_000,
+			boundBy: "declared",
+		});
+		expect(resolved.maxUsd.boundBy).toBe("default");
+	});
+});
+```
+
+- [ ] **Step 3: Run tests to verify they fail**
+
+Run: `pnpm --filter @refarm.dev/budget-contract-v1 run test`
+Expected: FAIL — cannot resolve `./resolve.js`.
+
+- [ ] **Step 4: Write `resolve.ts`**
+
+```ts
+import {
+	BUDGET_AXES,
+	type BudgetAxis,
+	type BudgetResolutionInput,
+	type ResolvedAxis,
+	type ResolvedBudget,
+} from "./types.js";
+
+/**
+ * Resolve one axis across the three levels (D9). Outward to inward:
+ * the node bounds what it can serve, the workspace bounds within that, and the
+ * dispatch declares within both. A workspace ceiling above the node's is clamped
+ * rather than obeyed — a workspace cannot grant capacity the machine lacks.
+ */
+function resolveAxis(
+	axis: BudgetAxis,
+	input: BudgetResolutionInput,
+): ResolvedAxis {
+	const nodeCeiling = input.node.ceiling[axis];
+	const workspaceCeiling = input.workspace?.ceiling?.[axis];
+	const declared = input.declared?.[axis];
+	const fallback = input.workspace?.default?.[axis] ?? input.node.default[axis];
+
+	const ceiling =
+		workspaceCeiling === undefined
+			? nodeCeiling
+			: Math.min(workspaceCeiling, nodeCeiling);
+
+	const requested = declared ?? fallback;
+
+	// Within the ceiling: whoever supplied the number gets the credit.
+	if (requested <= ceiling) {
+		return {
+			effective: requested,
+			declared: declared ?? null,
+			boundBy: declared === undefined ? "default" : "declared",
+		};
+	}
+
+	// Clamped: name the level that actually cut it, so raising the wrong ceiling
+	// is not the operator's next move.
+	const cutByWorkspace =
+		workspaceCeiling !== undefined && workspaceCeiling <= nodeCeiling;
+	return {
+		effective: ceiling,
+		declared: declared ?? null,
+		boundBy: cutByWorkspace ? "workspace" : "node",
+	};
+}
+
+export function resolveBudget(input: BudgetResolutionInput): ResolvedBudget {
+	return Object.fromEntries(
+		BUDGET_AXES.map((axis) => [axis, resolveAxis(axis, input)]),
+	) as ResolvedBudget;
+}
+```
+
+- [ ] **Step 5: Run tests to verify they pass**
+
+Run: `pnpm --filter @refarm.dev/budget-contract-v1 run test`
+Expected: PASS, 7 tests.
+
+- [ ] **Step 6: Write the conformance suite**
+
+`conformance.ts` re-runs the seven behaviours above against an *injected* implementation, so Task 5's
+Rust mirror can be checked against the same list rather than a re-worded one:
+
+```ts
+import { resolveBudget } from "./resolve.js";
+import type { BudgetResolutionInput, ResolvedBudget } from "./types.js";
+
+export type BudgetResolver = (input: BudgetResolutionInput) => ResolvedBudget;
+
+export type ConformanceCheck = {
+	name: string;
+	input: BudgetResolutionInput;
+	axis: "deadlineMs" | "maxTokens" | "maxUsd";
+	expect: { effective: number; declared: number | null; boundBy: string };
+};
+
+export type ConformanceReport = {
+	total: number;
+	passed: number;
+	failures: { name: string; expected: unknown; actual: unknown }[];
+};
+
+/** The checks, as data. A Rust or WASM implementation runs the same list. */
+export const BUDGET_CONFORMANCE_CHECKS: readonly ConformanceCheck[] = [
+	/* one entry per behaviour asserted in resolve.test.ts, same numbers */
+];
+
+export function runBudgetConformance(
+	resolve: BudgetResolver = resolveBudget,
+): ConformanceReport {
+	const failures: ConformanceReport["failures"] = [];
+	for (const check of BUDGET_CONFORMANCE_CHECKS) {
+		const actual = resolve(check.input)[check.axis];
+		if (
+			actual.effective !== check.expect.effective ||
+			actual.declared !== check.expect.declared ||
+			actual.boundBy !== check.expect.boundBy
+		) {
+			failures.push({ name: check.name, expected: check.expect, actual });
+		}
+	}
+	return {
+		total: BUDGET_CONFORMANCE_CHECKS.length,
+		passed: BUDGET_CONFORMANCE_CHECKS.length - failures.length,
+		failures,
+	};
+}
+```
+
+Fill `BUDGET_CONFORMANCE_CHECKS` with one entry per behaviour from Step 2, reusing the exact `node`
+fixture and numbers. `conformance.test.ts` asserts `runBudgetConformance().failures` is empty and
+that `total` is 7 — a check list that silently shrinks is worse than a failing one.
+
+`index.ts` re-exports everything from `types.ts`, `resolve.ts` and `conformance.ts`.
+
+- [ ] **Step 7: Feed the two hand-maintained registries**
+
+The `before-push` lane detects a missing registration but does not supply it.
+
+In `scripts/ci/subprocess-utils.mjs`, add `"packages/budget-contract-v1",` to
+`TASK_SMOKE_TS_BUILD_ORDER` immediately after `"packages/effort-contract-v1",`. It has no workspace
+dependencies beyond the shared configs, so that position is safe.
+
+In `scripts/ci/gate-smoke-contracts.mjs`, add beside the `effort-contract-v1` pair:
+
+```js
+	["packages/budget-contract-v1", "build"],
+	["packages/budget-contract-v1", "test:unit"],
+```
+
+- [ ] **Step 8: Verify the package satisfies the scaffold contract**
+
+Run: `pnpm run validate-packages && pnpm --filter @refarm.dev/budget-contract-v1 run build && pnpm --filter @refarm.dev/budget-contract-v1 run type-check && pnpm --filter @refarm.dev/budget-contract-v1 run lint`
+Expected: all pass.
+
+- [ ] **Step 9: Commit**
+
+```bash
+refarm agent finish --lane after-edit --run --json
+git add packages/budget-contract-v1 scripts/ci
+git commit -m "feat(budget): declare three axes, resolve them through three levels
+
+The node bounds what it can serve, the workspace bounds within that, and the
+dispatch declares within both — Kubernetes' ResourceQuota/LimitRange split,
+without the YAML. A clamped run names the level that cut it, because 'it was
+cut' without 'by whom' sends you to raise the wrong ceiling."
+refarm agent finish --lane after-commit --run --json
+```
+
+---
+
+### Task 5: The knob — dispatch resolves a declared budget
+
+**Protected surface** (`packages/tractor/**`). Do not touch files beyond those named.
+
+**Files:**
+- Create: `packages/tractor/src/sidecar/budget.rs`
+- Modify: `packages/tractor/src/sidecar/mod.rs:127-135` (the `Effort` struct), `mod.rs` module list
+- Modify: `packages/tractor/src/sidecar/dispatch.rs:298-310, 701-705`
+
+**Interfaces:**
+- Consumes: the resolution behaviour proven by Task 4's conformance list.
+- Produces: `ResolvedBudget { deadline_ms: ResolvedAxis, max_tokens: ResolvedAxis, max_usd: ResolvedAxis }`
+  and `resolve_budget(declared: Option<&BudgetDeclaration>, workspace: Option<&WorkspaceBudget>, node: &NodeBudget) -> ResolvedBudget`,
+  plus `Effort.budget: Option<BudgetDeclaration>`.
+
+**Open question this task must answer** (spec, Open Questions): where a workspace declares its
+ceiling. Recommended answer, to be confirmed with the maintainer before writing code: a `budget` key
+inside the existing workspace entry in `.refarm/config.json`, beside `commands`, because
+`refarm workspace list` already reads it and a second file would be a fourth road for the same kind
+of declaration.
+
+- [ ] **Step 1: Write the failing test**
+
+In `packages/tractor/src/sidecar/tests/` add `budget.rs` with the same seven behaviours the TS
+conformance list names, against the Rust `resolve_budget`. Start with the two that matter most:
+
+```rust
+#[test]
+fn declared_deadline_below_the_ceiling_is_honoured() {
+    let node = NodeBudget {
+        ceiling: BudgetTriple { deadline_ms: 600_000, max_tokens: 500_000, max_usd_millis: 10_000 },
+        default: BudgetTriple { deadline_ms: 45_000, max_tokens: 100_000, max_usd_millis: 1_000 },
+    };
+    let declared = BudgetDeclaration { deadline_ms: Some(300_000), ..Default::default() };
+    let resolved = resolve_budget(Some(&declared), None, &node);
+    assert_eq!(resolved.deadline_ms.effective, 300_000);
+    assert_eq!(resolved.deadline_ms.bound_by, BudgetLevel::Declared);
+}
+
+#[test]
+fn a_workspace_cannot_grant_what_the_node_cannot_serve() {
+    let node = NodeBudget {
+        ceiling: BudgetTriple { deadline_ms: 600_000, max_tokens: 500_000, max_usd_millis: 10_000 },
+        default: BudgetTriple { deadline_ms: 45_000, max_tokens: 100_000, max_usd_millis: 1_000 },
+    };
+    let workspace = WorkspaceBudget {
+        ceiling: Some(BudgetDeclaration { deadline_ms: Some(9_000_000), ..Default::default() }),
+        default: None,
+    };
+    let declared = BudgetDeclaration { deadline_ms: Some(9_000_000), ..Default::default() };
+    let resolved = resolve_budget(Some(&declared), Some(&workspace), &node);
+    assert_eq!(resolved.deadline_ms.effective, 600_000);
+    assert_eq!(resolved.deadline_ms.bound_by, BudgetLevel::Node);
+}
+```
+
+USD is carried as `max_usd_millis: u64` (thousandths of a dollar) so the fold stays in integer
+arithmetic and the three axes share one code path. The TS side keeps `maxUsd` as a decimal at the
+contract boundary; the conversion happens where the declaration is deserialised.
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cargo test --lib sidecar::tests::budget --quiet`
+Expected: FAIL — module `budget` not found.
+
+- [ ] **Step 3: Write `budget.rs`**
+
+Same clamp order and same `bound_by` rule as Task 4, in integer arithmetic. Declare `mod budget;` in
+`sidecar/mod.rs` beside the other submodules.
+
+```rust
+use serde::Deserialize;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BudgetLevel {
+    Node,
+    Workspace,
+    Declared,
+    Default,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BudgetDeclaration {
+    pub deadline_ms: Option<u64>,
+    pub max_tokens: Option<u64>,
+    /// Thousandths of a dollar. The wire carries `maxUsd` as a decimal; the
+    /// deserialiser multiplies by 1000 so all three axes fold in integers.
+    pub max_usd_millis: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct BudgetTriple {
+    pub deadline_ms: u64,
+    pub max_tokens: u64,
+    pub max_usd_millis: u64,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct NodeBudget {
+    pub ceiling: BudgetTriple,
+    pub default: BudgetTriple,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct WorkspaceBudget {
+    pub ceiling: Option<BudgetDeclaration>,
+    pub default: Option<BudgetDeclaration>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ResolvedAxis {
+    pub effective: u64,
+    pub declared: Option<u64>,
+    pub bound_by: BudgetLevel,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ResolvedBudget {
+    pub deadline_ms: ResolvedAxis,
+    pub max_tokens: ResolvedAxis,
+    pub max_usd_millis: ResolvedAxis,
+}
+
+/// One axis, three levels, resolved outward to inward (D9). A workspace ceiling
+/// above the node's is clamped rather than obeyed: a workspace cannot grant
+/// capacity the machine does not have.
+fn resolve_axis(
+    declared: Option<u64>,
+    workspace_ceiling: Option<u64>,
+    workspace_default: Option<u64>,
+    node_ceiling: u64,
+    node_default: u64,
+) -> ResolvedAxis {
+    let ceiling = match workspace_ceiling {
+        Some(w) => w.min(node_ceiling),
+        None => node_ceiling,
+    };
+    let fallback = workspace_default.unwrap_or(node_default);
+    let requested = declared.unwrap_or(fallback);
+
+    if requested <= ceiling {
+        return ResolvedAxis {
+            effective: requested,
+            declared,
+            bound_by: if declared.is_some() {
+                BudgetLevel::Declared
+            } else {
+                BudgetLevel::Default
+            },
+        };
+    }
+
+    let cut_by_workspace = matches!(workspace_ceiling, Some(w) if w <= node_ceiling);
+    ResolvedAxis {
+        effective: ceiling,
+        declared,
+        bound_by: if cut_by_workspace {
+            BudgetLevel::Workspace
+        } else {
+            BudgetLevel::Node
+        },
+    }
+}
+
+pub(crate) fn resolve_budget(
+    declared: Option<&BudgetDeclaration>,
+    workspace: Option<&WorkspaceBudget>,
+    node: &NodeBudget,
+) -> ResolvedBudget {
+    let ws_ceiling = workspace.and_then(|w| w.ceiling);
+    let ws_default = workspace.and_then(|w| w.default);
+    ResolvedBudget {
+        deadline_ms: resolve_axis(
+            declared.and_then(|d| d.deadline_ms),
+            ws_ceiling.and_then(|c| c.deadline_ms),
+            ws_default.and_then(|d| d.deadline_ms),
+            node.ceiling.deadline_ms,
+            node.default.deadline_ms,
+        ),
+        max_tokens: resolve_axis(
+            declared.and_then(|d| d.max_tokens),
+            ws_ceiling.and_then(|c| c.max_tokens),
+            ws_default.and_then(|d| d.max_tokens),
+            node.ceiling.max_tokens,
+            node.default.max_tokens,
+        ),
+        max_usd_millis: resolve_axis(
+            declared.and_then(|d| d.max_usd_millis),
+            ws_ceiling.and_then(|c| c.max_usd_millis),
+            ws_default.and_then(|d| d.max_usd_millis),
+            node.ceiling.max_usd_millis,
+            node.default.max_usd_millis,
+        ),
+    }
+}
+```
+
+`NodeBudget::from_env()` reads the existing variables as the node's default and ceiling:
+`REFARM_RESPOND_WATCH_TIMEOUT_MS` (default 45_000) and a new
+`REFARM_RESPOND_WATCH_CEILING_MS` (default 600_000). Keep `respond_watch_timeout_ms_from_env`
+exactly as it is and call it — that function's tests at `dispatch.rs:986-999` must stay green.
+
+- [ ] **Step 4: Carry the declaration on the effort**
+
+In `packages/tractor/src/sidecar/mod.rs:127-135`, add to `Effort`:
+
+```rust
+    #[serde(default)]
+    pub budget: Option<crate::sidecar::budget::BudgetDeclaration>,
+```
+
+`Effort` already derives `Deserialize` with `rename_all = "camelCase"`, so the wire field is
+`budget` with camelCase axis names, matching Task 4's TS type.
+
+- [ ] **Step 5: Use the resolved deadline in the watcher**
+
+In `dispatch.rs`, `dispatch_effort` resolves the budget once and passes it to
+`spawn_terminal_result_watcher`, which replaces:
+
+```rust
+        let timeout = std::time::Duration::from_millis(state.respond_watch.timeout_ms);
+```
+
+with the resolved effective deadline. `state.respond_watch.interval_ms` stays as it is — the poll
+cadence is not a budget.
+
+- [ ] **Step 6: Run tests to verify they pass**
+
+Run: `cargo test --lib sidecar::tests::budget --quiet && cargo test --lib sidecar --quiet`
+Expected: PASS.
+
+- [ ] **Step 7: Commit**
+
+```bash
+refarm agent finish --lane after-edit --run --json
+git add packages/tractor/src
+git commit -m "feat(tractor): the dispatch deadline is declared by whoever spawns it
+
+The prompt path has let the asker declare and the node clamp since it was
+written; the dispatch path read a boot global. Same decision, same file family,
+finally the same answer. The agent that died at 4/25 of an investigation on a
+45s ceiling can now be given the budget the investigation needs."
+refarm agent finish --lane after-commit --run --json
+```
+
+---
+
+### Task 6: The cumulative token ceiling
+
+Moves `MODEL_MAX_CONTEXT_TOKENS` from a prompt-size gate to a cumulative-usage ceiling (F6).
+
+**Files:**
+- Modify: `packages/agent/src/runtime/policy.rs:10-24`
+- Test: `packages/agent/src/tests/runtime_cost_guard_tests.rs`
+
+**Interfaces:**
+- Consumes: Task 5's resolved `max_tokens`, threaded to the agent as an environment value on the
+  dispatch (the agent runs as a WASM guest and reads its budget the way it reads its other limits).
+- Produces: `cumulative_limit_error(spent: u32, limit: Option<u32>) -> Option<ReactResult>`, called
+  after each turn's usage is known.
+
+- [ ] **Step 1: Write the failing test**
+
+```rust
+#[test]
+fn a_run_that_starts_small_and_grows_is_stopped_at_the_ceiling() {
+    // The old guard only measured the FIRST prompt. A run that begins under the
+    // ceiling and then burns ten times it across tool loops was never stopped.
+    assert!(cumulative_limit_error(9_999, Some(10_000)).is_none());
+    let stopped = cumulative_limit_error(10_001, Some(10_000));
+    assert!(stopped.is_some(), "cumulative spend past the ceiling must stop the run");
+    let (content, _, _, _, _, _, _, model, _) = stopped.unwrap();
+    assert!(content.contains("10000"), "the message must name the ceiling: {content}");
+    assert_eq!(model, "blocked");
+}
+
+#[test]
+fn no_ceiling_means_no_stop() {
+    assert!(cumulative_limit_error(u32::MAX, None).is_none());
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cargo test --lib runtime_cost_guard --quiet`
+Expected: FAIL — `cumulative_limit_error` not found.
+
+- [ ] **Step 3: Implement it**
+
+Add to `packages/agent/src/runtime/policy.rs`, keeping `context_limit_error` untouched (it guards a
+different thing — a single prompt that cannot fit the context window at all):
+
+```rust
+/// Stop a run whose CUMULATIVE token spend has passed its declared ceiling.
+/// Distinct from `context_limit_error`, which refuses a single prompt too large
+/// for the context window. This one is the budget; that one is the container.
+pub(crate) fn cumulative_limit_error(spent: u32, limit: Option<u32>) -> Option<ReactResult> {
+    let limit = limit?;
+    if spent <= limit {
+        return None;
+    }
+    Some(blocked_result(format!(
+        "[runtime-agent] orçamento de tokens esgotado ({spent} > {limit} tokens acumulados)"
+    )))
+}
+```
+
+- [ ] **Step 4: Add the currency ceiling beside it**
+
+D1 enforces `maxUsd` **only** in `api` pricing mode, because `estimate_billable_usd` returns a
+structural `0.0` under `subscription` and `local` and a ceiling over a structural zero can never
+bind. Add to the same file:
+
+```rust
+/// Stop a run whose estimated spend has passed its declared ceiling. Returns
+/// None outside `api` pricing mode: under a subscription or a local model the
+/// estimate is a structural zero, and a ceiling that can never bind would teach
+/// the operator to trust a guard that is not guarding. The token ceiling is what
+/// holds the line there.
+pub(crate) fn spend_limit_error(
+    provider: &str,
+    spent_usd: f64,
+    limit_usd: Option<f64>,
+) -> Option<ReactResult> {
+    if crate::pricing_mode_for_provider(provider) != "api" {
+        return None;
+    }
+    let limit = limit_usd?;
+    if spent_usd <= limit {
+        return None;
+    }
+    Some(blocked_result(format!(
+        "[runtime-agent] orçamento estimado esgotado (US$ {spent_usd:.4} > US$ {limit:.4})"
+    )))
+}
+```
+
+And the test that pins the mode rule:
+
+```rust
+#[test]
+fn a_currency_ceiling_never_binds_under_a_subscription() {
+    // openai-codex bills a subscription; estimate_billable_usd returns 0.0 there
+    // by design, so a USD ceiling would be theatre.
+    assert!(spend_limit_error("openai-codex", 999.0, Some(0.01)).is_none());
+    assert!(spend_limit_error("anthropic", 999.0, Some(0.01)).is_some());
+}
+```
+
+- [ ] **Step 5: Call both after each turn**
+
+In `packages/agent/src/runtime/react_loop.rs`, inside the agentic loop, after the turn's
+`UsageTotals` are folded into the running total, call `cumulative_limit_error` and then
+`spend_limit_error` with the resolved ceilings and return early if either fires. The token check runs
+first: it is exact where the spend check is an estimate, so the more reliable guard reports the stop.
+
+- [ ] **Step 6: Run tests to verify they pass**
+
+Run: `cargo test --lib runtime_cost_guard --quiet && cargo test --lib --quiet`
+Expected: PASS.
+
+- [ ] **Step 7: Commit**
+
+```bash
+refarm agent finish --lane after-edit --run --json
+git add packages/agent/src
+git commit -m "feat(agent): the token ceiling counts what was spent, not what was asked
+
+MODEL_MAX_CONTEXT_TOKENS measured the first prompt's estimated size and never
+looked again, so a run that started under it and burned ten times it across tool
+loops was never stopped. The context guard stays — a prompt too big for the
+window is a different refusal from a budget that ran out."
+refarm agent finish --lane after-commit --run --json
+```
+
+---
+
+### Task 7: The BudgetObservation record
+
+**Protected surface.**
+
+**Files:**
+- Create: `packages/tractor/src/sidecar/observation.rs`
+- Modify: `packages/tractor/src/sidecar/dispatch.rs` — one call from `finalise_effort` (`:508`)
+- Modify: `packages/tractor/src/sidecar/mod.rs` module list
+- Test: `packages/tractor/src/sidecar/tests/observation.rs`
+
+**Interfaces:**
+- Consumes: Task 5's `ResolvedBudget`, Task 3's split usage fields, the existing
+  `find_usage_for(namespace, prompt_ref)` (`dispatch.rs:676`).
+- Produces: `write_budget_observation(state: &SidecarState, effort_id: &str, resolved: &ResolvedBudget, outcome: &str, elapsed_ms: u64)`.
+
+- [ ] **Step 1: Write the failing test**
+
+```rust
+use super::budget::{BudgetLevel, BudgetTriple, NodeBudget, resolve_budget, BudgetDeclaration};
+
+/// The run that started this whole design: a declared 300s cut to the node's 45s,
+/// which then timed out at step 4 of a 25-step plan.
+fn base_input() -> ObservationInput<'static> {
+    let node = NodeBudget {
+        ceiling: BudgetTriple { deadline_ms: 45_000, max_tokens: 500_000, max_usd_millis: 10_000 },
+        default: BudgetTriple { deadline_ms: 45_000, max_tokens: 100_000, max_usd_millis: 1_000 },
+    };
+    let declared = BudgetDeclaration { deadline_ms: Some(300_000), ..Default::default() };
+    ObservationInput {
+        effort_id: "eff-1",
+        prompt_ref: Some("urn:sovereign:prompt-1"),
+        workspace_id: Some("rcdc5"),
+        spawner: Some("termux"),
+        outcome: "timed-out",
+        elapsed_ms: 45_000,
+        steps_completed: Some(4),
+        steps_planned: Some(25),
+        resolved: resolve_budget(Some(&declared), None, &node),
+        usage: None,
+    }
+}
+
+#[test]
+fn the_observation_records_all_three_axes_asked_and_ruling() {
+    let node = build_observation_node(base_input());
+    assert_eq!(node["@type"], "BudgetObservation");
+    assert_eq!(node["refarm.budget.deadline_ms.declared"], 300_000);
+    assert_eq!(node["refarm.budget.deadline_ms.effective"], 45_000);
+    assert_eq!(node["refarm.budget.bound_by"], "node");
+    // The axes nobody declared are still recorded: an aggregate that only sees
+    // the axis someone happened to set cannot say what the others cost.
+    assert_eq!(node["refarm.budget.max_tokens.effective"], 100_000);
+    assert_eq!(node["refarm.budget.max_usd.effective"], 1.0);
+    assert_eq!(node["refarm.budget.max_tokens.declared"], serde_json::Value::Null);
+    assert_eq!(node["refarm.outcome"], "timed-out");
+    assert_eq!(node["refarm.outcome.steps_completed"], 4);
+    assert_eq!(node["refarm.outcome.steps_planned"], 25);
+    assert_eq!(node["refarm.workspace.id"], "rcdc5");
+    assert_eq!(node["refarm.scenario.id"], serde_json::Value::Null);
+}
+
+#[test]
+fn an_undeterminable_field_is_omitted_rather_than_zeroed() {
+    // D6: absent is not zero. A run with no workspace must not read as
+    // workspace "" or 0 once someone aggregates a thousand of these. Same for a
+    // run with no plan, where a planned step count does not exist at all.
+    let node = build_observation_node(ObservationInput {
+        workspace_id: None,
+        steps_planned: None,
+        ..base_input()
+    });
+    assert!(
+        node.get("refarm.workspace.id").is_none(),
+        "an unknown workspace is absent, not empty"
+    );
+    assert!(
+        node.get("refarm.outcome.steps_planned").is_none(),
+        "a run with no plan has no planned total, which is not the same as zero"
+    );
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cargo test --lib sidecar::tests::observation --quiet`
+Expected: FAIL — module not found.
+
+- [ ] **Step 3: Write `observation.rs`**
+
+```rust
+pub(crate) struct ObservationInput<'a> {
+    pub effort_id: &'a str,
+    pub prompt_ref: Option<&'a str>,
+    pub workspace_id: Option<&'a str>,
+    pub spawner: Option<&'a str>,
+    pub outcome: &'a str,
+    pub elapsed_ms: u64,
+    pub steps_completed: Option<u32>,
+    pub steps_planned: Option<u32>,
+    pub resolved: super::budget::ResolvedBudget,
+    /// The usage view from `find_usage_for`, already joined on prompt_ref.
+    pub usage: Option<serde_json::Value>,
+}
+
+fn axis_level_str(level: super::budget::BudgetLevel) -> &'static str {
+    match level {
+        super::budget::BudgetLevel::Node => "node",
+        super::budget::BudgetLevel::Workspace => "workspace",
+        super::budget::BudgetLevel::Declared => "declared",
+        super::budget::BudgetLevel::Default => "default",
+    }
+}
+
+/// Insert only when the value exists. D6: an omitted field means "not
+/// determined"; a zero means "determined to be zero". Aggregating a mixture of
+/// the two silently averages a lie.
+fn put_opt(map: &mut serde_json::Map<String, serde_json::Value>, key: &str, value: Option<serde_json::Value>) {
+    if let Some(v) = value {
+        map.insert(key.to_string(), v);
+    }
+}
+
+pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json::Value {
+    let b = &input.resolved;
+    let mut map = serde_json::Map::new();
+    map.insert("@type".into(), "BudgetObservation".into());
+    map.insert("@id".into(), crate::mint_urn("budget-observation").into());
+    map.insert("effort_id".into(), input.effort_id.into());
+    map.insert("refarm.outcome".into(), input.outcome.into());
+    map.insert("refarm.elapsed_ms".into(), input.elapsed_ms.into());
+
+    map.insert("refarm.budget.deadline_ms.effective".into(), b.deadline_ms.effective.into());
+    map.insert("refarm.budget.max_tokens.effective".into(), b.max_tokens.effective.into());
+    // Millis back to a decimal at the record boundary, where a human reads it.
+    map.insert(
+        "refarm.budget.max_usd.effective".into(),
+        serde_json::json!(b.max_usd_millis.effective as f64 / 1000.0),
+    );
+    map.insert(
+        "refarm.budget.deadline_ms.declared".into(),
+        b.deadline_ms.declared.map(Into::into).unwrap_or(serde_json::Value::Null),
+    );
+    map.insert(
+        "refarm.budget.max_tokens.declared".into(),
+        b.max_tokens.declared.map(Into::into).unwrap_or(serde_json::Value::Null),
+    );
+    map.insert(
+        "refarm.budget.max_usd.declared".into(),
+        b.max_usd_millis
+            .declared
+            .map(|m| serde_json::json!(m as f64 / 1000.0))
+            .unwrap_or(serde_json::Value::Null),
+    );
+    // The deadline is the axis that stops a run in practice, so its level is the
+    // headline one. Per-axis levels ride beside it.
+    map.insert("refarm.budget.bound_by".into(), axis_level_str(b.deadline_ms.bound_by).into());
+    map.insert(
+        "refarm.budget.bound_by.max_tokens".into(),
+        axis_level_str(b.max_tokens.bound_by).into(),
+    );
+    map.insert(
+        "refarm.budget.bound_by.max_usd".into(),
+        axis_level_str(b.max_usd_millis.bound_by).into(),
+    );
+
+    // Field use has no scenario. The bench (spec slices 6-8) sets these.
+    map.insert("refarm.scenario.id".into(), serde_json::Value::Null);
+    map.insert("refarm.scenario.hash".into(), serde_json::Value::Null);
+
+    put_opt(&mut map, "prompt_ref", input.prompt_ref.map(Into::into));
+    put_opt(&mut map, "refarm.workspace.id", input.workspace_id.map(Into::into));
+    put_opt(&mut map, "refarm.budget.spawner", input.spawner.map(Into::into));
+    put_opt(&mut map, "refarm.outcome.steps_completed", input.steps_completed.map(Into::into));
+    put_opt(&mut map, "refarm.outcome.steps_planned", input.steps_planned.map(Into::into));
+    put_opt(&mut map, "refarm.usage", input.usage);
+
+    map.insert("timestamp_ns".into(), crate::now_ns().into());
+    serde_json::Value::Object(map)
+}
+```
+
+`write_budget_observation` opens `NativeStorage::open(&state.namespace)`, calls
+`find_usage_for(&state.namespace, prompt_ref)` to fill `usage`, builds the node and calls
+`store_node(&id, "BudgetObservation", None, &payload, Some("sidecar"))`. **Every failure path logs at
+`warn` and returns** — D5: the instrument may lose a data point, it may not cost an operation. Write
+it with no `?` that can escape and no `unwrap`.
+
+`write_budget_observation` opens `NativeStorage::open(&state.namespace)`, calls
+`find_usage_for(&state.namespace, prompt_ref)` to fold in the token counts, builds the node and calls
+`store_node`. **Every failure path logs at `warn` and returns** — D5: the instrument may lose a data
+point, it may not cost an operation.
+
+- [ ] **Step 4: Call it from the terminal transition**
+
+In `finalise_effort` (`dispatch.rs:508`), after the effort reaches a terminal status, call
+`write_budget_observation`. It is the single place every terminal path passes through, which is why
+the record cannot miss a `cancelled` or a `failed`.
+
+- [ ] **Step 5: Run tests to verify they pass**
+
+Run: `cargo test --lib sidecar::tests::observation --quiet && cargo test --lib sidecar --quiet`
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+refarm agent finish --lane after-edit --run --json
+git add packages/tractor/src
+git commit -m "feat(tractor): every terminal effort leaves the budget that governed it
+
+Written into the CRDT node store beside the UsageRecord it joins to, which has
+no TTL — unlike the effort results, which are reaped at 24h under a premise that
+was right for operational state and wrong for evidence.
+
+Losing an observation never fails the run it observed."
+refarm agent finish --lane after-commit --run --json
+```
+
+---
+
+### Task 8: Read it back
+
+The operator is the record's first consumer, and this is the check that the join actually joins.
+
+**Files:**
+- Create: `apps/refarm/src/commands/budget.ts`
+- Modify: the command registry in `apps/refarm/src/` that mounts sibling commands (follow
+  `commands/workspace.ts` for the registration pattern)
+- Test: `apps/refarm/src/commands/budget.test.ts`
+
+**Interfaces:**
+- Consumes: `BudgetObservation` nodes written by Task 7.
+- Produces: `refarm budget observations --json` returning
+  `{ observations: [...], summary: { total, timedOut, boundByNode, boundByWorkspace }, ok, nextCommand, nextCommands }`.
+
+Every JSON command in this repo exposes `ok`, `nextCommand` and `nextCommands` (CLAUDE.md §4). Follow
+`refarm delivery list --json` for the exact envelope.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+import { describe, expect, it } from "vitest";
+import { summariseObservations } from "./budget.js";
+
+describe("summariseObservations", () => {
+	it("counts the runs the node cut, so a hit ceiling is visible", () => {
+		const summary = summariseObservations([
+			{ "refarm.outcome": "done", "refarm.budget.bound_by": "declared" },
+			{ "refarm.outcome": "timed-out", "refarm.budget.bound_by": "node" },
+			{ "refarm.outcome": "timed-out", "refarm.budget.bound_by": "node" },
+		]);
+		expect(summary).toEqual({
+			total: 3,
+			timedOut: 2,
+			boundByNode: 2,
+			boundByWorkspace: 0,
+		});
+	});
+
+	it("reports zeroes rather than throwing on an empty record", () => {
+		expect(summariseObservations([])).toEqual({
+			total: 0,
+			timedOut: 0,
+			boundByNode: 0,
+			boundByWorkspace: 0,
+		});
+	});
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pnpm --filter refarm run test -- budget`
+Expected: FAIL — cannot resolve `./budget.js`.
+
+- [ ] **Step 3: Implement `summariseObservations` and the command**
+
+```ts
+export type ObservationNode = Record<string, unknown>;
+
+export type ObservationSummary = {
+	total: number;
+	timedOut: number;
+	boundByNode: number;
+	boundByWorkspace: number;
+};
+
+/** Pure reducer over the record. Kept separate from the command so the counting
+ *  rule is testable without a running node. */
+export function summariseObservations(
+	nodes: readonly ObservationNode[],
+): ObservationSummary {
+	let timedOut = 0;
+	let boundByNode = 0;
+	let boundByWorkspace = 0;
+	for (const node of nodes) {
+		if (node["refarm.outcome"] === "timed-out") timedOut += 1;
+		const boundBy = node["refarm.budget.bound_by"];
+		if (boundBy === "node") boundByNode += 1;
+		if (boundBy === "workspace") boundByWorkspace += 1;
+	}
+	return { total: nodes.length, timedOut, boundByNode, boundByWorkspace };
+}
+```
+
+The command reads the nodes through the existing sidecar client, applies the reducer, and prints the
+envelope. When `total` is 0 the `nextAction` must say the record is empty rather than reporting an
+all-clear — the repository has already been bitten once by a gate that reported success for work it
+never ran.
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `pnpm --filter refarm run test -- budget && pnpm --filter refarm run type-check`
+Expected: PASS.
+
+- [ ] **Step 5: Prove it end to end from the surface, not only over HTTP**
+
+A prior slice in this repository was reported as end-to-end when it had only been proven by HTTP, and
+the operator's own `farm-start` had never carried an id. Do not repeat it. Run a real dispatch with a
+declared budget, let it finish, and read the observation back:
+
+```bash
+refarm dispatch <plugin> <verb> --budget-deadline-ms 120000
+refarm budget observations --json
+```
+
+Expected: one observation whose `refarm.budget.deadline_ms.declared` is `120000` and whose
+`refarm.budget.bound_by` is `declared`.
+
+- [ ] **Step 6: Commit and run the handoff lanes**
+
+```bash
+refarm agent finish --lane after-edit --run --json
+git add apps/refarm/src
+git commit -m "feat(refarm): read the budget record back, and say which ceiling cut what
+
+The operator is the record's first consumer. A hit ceiling that nobody can see
+is a ceiling nobody will raise."
+refarm agent finish --lane after-commit --run --json
+refarm agent finish --lane handoffs --run --json
+```
+
+The `handoffs` lane is required here and not in earlier tasks: this is the task that changes public
+JSON output (CLAUDE.md §4).
+
+---
+
+## After this plan
+
+Update [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md) and `.project/handoff.json`, then
+write the plan for spec slices 6–8 (the sweep, the gallery, closing the loop). By then the record
+will hold real observations, which is what slice 8 needs in order to derive a default and a ceiling
+from evidence instead of from a constant.
