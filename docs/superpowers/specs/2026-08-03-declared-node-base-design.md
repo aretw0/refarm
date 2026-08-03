@@ -86,6 +86,29 @@ it just picked the wrong one.
 | `host/lsp_bridge.rs:761` | same |
 | `host/host_effects_bridge/policy_and_fs.rs:756` | a fallback when resolving a relative path the CALLER supplied; the caller's frame of reference is the process, not the node |
 
+## D2b — The same defect crosses into TypeScript, in the credential path
+
+Found while measuring how hard credential rotation is, which is the sharpest place this could
+land. `refarm auth` resolves `--policy` from `.refarm/auth-policy.json` RELATIVE TO CWD, while the
+daemon reads `<refarm-dir>/auth-policy.json`. This node has two of them and they differ:
+
+```
+$ refarm auth list --json          # from the repository
+{"identities":["galaxy-a55-5g"],"scoped":[]}
+$ cd ~ && refarm auth list --json  # from the operator's home
+{"identities":["galaxy-a55-5g"],"scoped":[{"id":"sas-7a2e201f39cd", …}]}
+```
+
+Rotating from the wrong directory writes the new token into a policy the node never reads. The
+device then fails to authenticate with nothing pointing at the cause, and the obvious remedy —
+rotate again — reproduces it. Meanwhile the credential the operator believes they replaced is
+still live in the policy that IS read.
+
+So the group-A rule is not "the Rust daemon should use `refarm_dir`". It is: **anything that
+resolves this node's declarations or its credentials resolves them from the node's base**, whichever
+language it is written in. The TypeScript side already has `resolveRefarmHome()`; `auth` does not
+use it for the policy default.
+
 ## D3 — Fixing one site is worse than fixing none
 
 Today all ten agree: they all detect. That is wrong but coherent. Changing only
@@ -122,6 +145,43 @@ This is the half that turns the next occurrence from a two-hour hunt into a line
    threaded rather than detected.
 3. `refarm runtime status --json` reports the declaration base, and a doctor finding fires when it
    differs from the scope the operator is asking from.
+
+## Implementation record — 2026-08-03, Rust half done
+
+`SOVEREIGN_BASE` joins `SOVEREIGN_DIR` as an injected selector, which is the mechanism this
+repository already uses to keep the Rust host and the TS stack agreeing on a path without either
+hardcoding a brand dir. `main()` sets it from `--refarm-dir`'s parent, before the first declaration
+is read — which meant moving the `refarm_dir` resolution ABOVE `surfaces_from_config()`, since
+surfaces was the first reader and had been running twelve lines too early to know the answer.
+`declared_base()` returns the injected value or, unset, the process cwd: today's behaviour for an
+embedded or test use, and the declared one for a node that was told.
+
+All seven Group A+B sites moved. `cargo check` is clean, and `connection` (92), `host_effects`
+(398), `remote_initiation` (21) and `surfaces` (46) all pass. The regression test that named the
+defect — declarations resolved against a base while the process stands somewhere else — now exists
+and passes.
+
+### What the implementation revealed, and what it means for the rest
+
+The module doc for remote initiation says of the spawned wizard: *"the cwd is the daemon's own."*
+That is still true, and it matters more than it looks. **The operator's actual failure was in the
+CHILD, not the host**: the message was `Command "code-boundaries" is not declared for workspace
+"rcdc5"`, which the TypeScript `refarm` printed after resolving ITS config from ITS cwd — inherited
+from the daemon.
+
+So the Rust half closes the host's own declarations, and the reported failure mode is only half
+closed with it. It is fully closed today only because the daemon now runs from the operator's home.
+The remaining work, precisely:
+
+1. **Inject `SOVEREIGN_BASE` into the spawned child's environment.** The spawn is already
+   `env_clear` + declared vars, so this is one entry — and it is inert until (2).
+2. **The TS workspace catalog honours it.** `configPath` is already home-based and fine;
+   `workspaceInitiationOperations` resolves against `process.cwd()`. That is the one that refused.
+3. **`refarm auth --policy`'s cwd-relative default** (D2b), which is the same defect in the
+   credential path and the sharpest of the three.
+
+Until (1) and (2) land, a node started from an unexpected directory has coherent HOST declarations
+and an incoherent child — better than before, and not yet right.
 
 ## Cost
 

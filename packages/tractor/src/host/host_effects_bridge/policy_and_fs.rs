@@ -507,7 +507,7 @@ impl HostEffectPolicy {
             shell_allowlist: shell_allowlist_from_env(),
             fs_root: configured_fs_root(),
             lsp_cmd: crate::host::lsp_bridge::configured_lsp_command(),
-            spawn_env: spawn_env_from_config(),
+            spawn_env: spawn_env_from_declared_base(),
         }
     }
 

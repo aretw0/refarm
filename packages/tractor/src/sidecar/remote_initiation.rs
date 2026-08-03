@@ -139,7 +139,7 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::sync::Notify;
 
 use super::SidecarState;
-use crate::host::{spawn_env_from_config_at, SpawnEnvDecl};
+use crate::host::{declared_base, spawn_env_from_config_at, SpawnEnvDecl};
 
 // ── wire constants ─────────────────────────────────────────────────────────────────────
 
@@ -259,7 +259,7 @@ fn is_executable_file(path: &Path) -> bool {
 /// their node to find out whether it worked. The cost is one small file read, bounded by the
 /// same ceiling that bounds the spawns themselves.
 fn resolve_entrypoint() -> Result<(SpawnEnvDecl, PathBuf), String> {
-    let base = std::env::current_dir().unwrap_or_default();
+    let base = declared_base();
     let spawn_env = spawn_env_from_config_at(&base)?;
     if spawn_env.path.is_empty() {
         return Err(format!(

@@ -1336,7 +1336,7 @@ impl PluginHost {
         // trusted allowlist + the approved-permissions map, each fs ∩ node
         // (deny-dominates). Resolved ONCE per load and threaded into the trust gate,
         // the approval scoping, AND the shell-effect bindings — one source of truth.
-        let grant_base = std::env::current_dir().unwrap_or_default();
+        let grant_base = crate::host::plugin_host::config_node::declared_base();
         let trusted_at_load = self.resolve_trusted_at_load(&grant_base, sync);
         let approved_at_load = self.resolve_approved_at_load(&grant_base, sync);
         // G: the revocation tombstones for this load. Denies a revoked id at the trust
@@ -1397,7 +1397,7 @@ impl PluginHost {
             );
         }
 
-        let base = std::env::current_dir().unwrap_or_default();
+        let base = crate::host::plugin_host::config_node::declared_base();
         let env_vars = plugin_env_vars_from(&base, Some(sync));
         let config_json = refarm_config_json_from(&base);
         let mut wasi_builder = WasiCtxBuilder::new();
@@ -1562,7 +1562,7 @@ impl PluginHost {
             );
         }
 
-        let base = std::env::current_dir().unwrap_or_default();
+        let base = crate::host::plugin_host::config_node::declared_base();
         let env_vars = plugin_env_vars_from(&base, Some(sync));
         let config_json = refarm_config_json_from(&base);
 

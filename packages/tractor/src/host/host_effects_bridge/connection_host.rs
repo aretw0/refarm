@@ -115,7 +115,7 @@ fn connection_state(
 /// be honoured here.
 // `pub(crate)` for the same reason as `now_ns`/`read_connection_session_cursor` above.
 pub(crate) fn connections_catalog() -> Result<HashMap<String, ConnectionDeclaration>, String> {
-    resolve_connections(&std::env::current_dir().unwrap_or_default())
+    resolve_connections(&crate::host::plugin_host::config_node::declared_base())
 }
 
 pub(crate) fn undeclared_connection_error(name: &str) -> String {

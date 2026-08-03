@@ -425,6 +425,27 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         )
         .init();
 
+    // The refarm dir the daemon was GIVEN, resolved before ANY declaration is read —
+    // because the base those declarations resolve against is derived from it, and
+    // `surfaces` (immediately below) is the first read.
+    let refarm_dir = args.refarm_dir.clone().unwrap_or_else(dirs_sovereign_base);
+
+    // WHERE this node's declarations live, injected the same way and for the same reason
+    // as SOVEREIGN_DIR above: told once, read identically by every subsystem. Without it
+    // each resolver asked the OS where the process was standing, so restarting the daemon
+    // from a different directory silently changed which `.refarm/config.json` the node
+    // answered from — a remotely-initiated operation then resolved against a config that
+    // declared something else, refused, and reported only a missing result envelope.
+    //
+    // The base is the PARENT of the sovereign dir, because that is what
+    // `sovereign_config_path` joins the dir name onto. An operator env override wins, so a
+    // project scope stays available — declared, rather than inherited from a `cd`.
+    if std::env::var("SOVEREIGN_BASE").map(|v| v.trim().is_empty()).unwrap_or(true) {
+        if let Some(base) = refarm_dir.parent() {
+            std::env::set_var("SOVEREIGN_BASE", base);
+        }
+    }
+
     // Resolve the `surfaces` declaration ONCE, fs-only, BEFORE any boot work — a
     // malformed declaration, or one that names a gate a surface cannot enforce (S3, e.g.
     // `daemon-ws` declaring anything but `"loopback"`), must fail at LOAD, not partway
@@ -436,11 +457,9 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     // themselves (same pattern as `declared_surface` for the HTTP sidecar further down).
     let declared_ws_surface = surfaces.get(tractor::host::SURFACE_DAEMON_WS).cloned();
 
-    // The refarm dir the daemon was GIVEN. Resolved ONCE here, before any boot work,
-    // because the auth policy path is derived from it (below) and the WS preflight needs
-    // that answer before anything starts. Reused verbatim by the sidecar's dirs and the
-    // Scarecrow audit base further down — one dir, decided once, never re-derived.
-    let refarm_dir = args.refarm_dir.clone().unwrap_or_else(dirs_sovereign_base);
+    // `refarm_dir` was resolved above, before the first declaration read — the auth policy
+    // path below, the sidecar's dirs and the Scarecrow audit base all reuse that one
+    // answer. One dir, decided once, never re-derived.
 
     // WHERE the per-device auth policy comes from — the declaration first, the env only as
     // an override. A `surfaces` entry with `"gate": "device-token"` IS the opt-in: it

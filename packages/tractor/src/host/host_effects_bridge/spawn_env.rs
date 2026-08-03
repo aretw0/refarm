@@ -161,9 +161,10 @@ pub(crate) fn spawn_env_from_config_at(base: &Path) -> Result<SpawnEnvDecl, Stri
 }
 
 /// Boot-time entry point, called once from `HostEffectPolicy::from_env` — resolves
-/// against the process cwd, the SAME base the production `connections_catalog()`
-/// wiring uses. Resolved ONCE at host boot and cloned into every plugin's
-/// bindings (see `HostEffectPolicy`), so a spawn never re-reads config from disk.
-fn spawn_env_from_config() -> Result<SpawnEnvDecl, String> {
-    spawn_env_from_config_at(&std::env::current_dir().unwrap_or_default())
+/// against the base the node was DECLARED with, the SAME base the production
+/// `connections_catalog()` wiring uses. Resolved ONCE at host boot and cloned into
+/// every plugin's bindings (see `HostEffectPolicy`), so a spawn never re-reads config
+/// from disk.
+pub(crate) fn spawn_env_from_declared_base() -> Result<SpawnEnvDecl, String> {
+    spawn_env_from_config_at(&crate::host::plugin_host::config_node::declared_base())
 }

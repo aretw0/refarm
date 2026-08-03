@@ -36,6 +36,9 @@ pub use host_effects_bridge::{
 // establish gets: one declaration, one search order, so a wizard started from a phone finds
 // exactly what a local one finds.
 pub(crate) use host_effects_bridge::{spawn_env_from_config_at, SpawnEnvDecl};
+/// The base this node's declarations resolve against — re-exported here so the sidecar
+/// reads the SAME answer the host bridges do, rather than each asking the OS.
+pub(crate) use plugin_host::config_node::declared_base;
 // `SurfaceExpose`/`SurfaceGate` never appear in a signature main.rs has to name (they are
 // only reachable through `SurfaceDeclaration`'s `pub(crate)` fields), but `bind_guard`
 // (same crate, different module) still needs to match on them.

@@ -22,6 +22,17 @@ use std::path::{Path, PathBuf};
 /// Rust host and the TS stack read it, so they agree on the config path without
 /// either hardcoding a brand dir (the RS↔TS lockstep, now via injection).
 pub(crate) const SOVEREIGN_DIR_SELECTOR_KEY: &str = "SOVEREIGN_DIR";
+/// Where this node's declarations live — the DIRECTORY THAT CONTAINS the sovereign dir.
+///
+/// Injected the same way and for the same reason as `SOVEREIGN_DIR`: the node is told,
+/// once, and every subsystem reads the same answer instead of each asking the OS where
+/// the process happens to be standing. `main()` sets it from `--refarm-dir`, which the
+/// node already carries and already threads to its auth policy and Scarecrow.
+///
+/// Unset means "nobody told me", and the caller falls back to the process cwd — which is
+/// today's behaviour, and is what an embedded or test use still wants. Setting it is what
+/// turns a scope inherited from someone's last `cd` into one the node was given.
+pub(crate) const SOVEREIGN_BASE_KEY: &str = "SOVEREIGN_BASE";
 /// The config file name inside the sovereign config dir (fixed substrate convention,
 /// matches TS `CONFIG_FILE_NAME`).
 pub(crate) const CONFIG_FILE_NAME: &str = "config.json";
@@ -31,6 +42,19 @@ pub(crate) const CONFIG_FILE_NAME: &str = "config.json";
 /// default, so an unset selector means "no sovereign config path" (the caller then
 /// behaves as if the file is absent), never a silent brand-dir fallback. Mirrors the
 /// TS `sovereignConfigRelativePath`, kept in lockstep.
+/// The base this node's declarations resolve against: what it was TOLD, or — when nobody
+/// told it — where the process is standing. One place decides, so `spawnEnv`, connections,
+/// surfaces and plugin grants cannot answer from different directories on the same node.
+pub(crate) fn declared_base() -> PathBuf {
+    if let Ok(base) = std::env::var(SOVEREIGN_BASE_KEY) {
+        let trimmed = base.trim();
+        if !trimmed.is_empty() {
+            return PathBuf::from(trimmed);
+        }
+    }
+    std::env::current_dir().unwrap_or_default()
+}
+
 pub(crate) fn sovereign_config_path(base: &Path) -> Option<PathBuf> {
     let dir = std::env::var(SOVEREIGN_DIR_SELECTOR_KEY).ok()?;
     let dir = dir.trim();

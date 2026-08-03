@@ -402,7 +402,7 @@ pub(crate) fn resolve_surfaces(base: &Path) -> Result<HashMap<String, SurfaceDec
 /// `resolve_connections`'s production wiring uses (`connection_host.rs`), so `surfaces` and
 /// `connections` always agree on which `.refarm/config.json` they are reading.
 pub fn surfaces_from_config() -> Result<HashMap<String, SurfaceDeclaration>, String> {
-    resolve_surfaces(&std::env::current_dir().unwrap_or_default())
+    resolve_surfaces(&crate::host::plugin_host::config_node::declared_base())
 }
 
 /// `true` when ANY declared surface names `"gate": "device-token"` — the node-wide fact

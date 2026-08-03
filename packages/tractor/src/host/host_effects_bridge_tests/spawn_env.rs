@@ -372,3 +372,41 @@ async fn spawn_env_undeclared_blocks_and_declared_unblocks_a_shebang_that_needs_
         String::from_utf8_lossy(&stderr)
     );
 }
+
+/// THE DEFECT THE OPERATOR MET, AS A TEST.
+///
+/// The node is TOLD where its declarations live — `--refarm-dir` is on its argv and
+/// `main()` already threads it to the auth policy and Scarecrow. Declaration resolution
+/// asked the filesystem where the process was standing instead, so restarting the runtime
+/// from a repository made a declared operation resolve against the REPOSITORY's config:
+/// the workspace declared something else there, the spawned entrypoint refused, and the
+/// phone got `exit 1` with no envelope and no hint.
+///
+/// A node whose answer to "what may I do" depends on someone's last `cd` is detecting, in
+/// the one place where being wrong is silent and remote.
+#[test]
+fn declarations_follow_the_declared_base_not_the_process_cwd() {
+    let _env = crate::test_support::env_lock();
+    ensure_sovereign_dir_env();
+
+    let declared = tempfile::tempdir().unwrap();
+    let elsewhere = tempfile::tempdir().unwrap();
+    write_spawn_env_config(declared.path(), r#"{"path":["/declared/bin"],"home":"/declared"}"#);
+    write_spawn_env_config(elsewhere.path(), r#"{"path":["/cwd/bin"],"home":"/cwd"}"#);
+
+    let restore = std::env::current_dir().unwrap();
+    std::env::set_current_dir(elsewhere.path()).unwrap();
+    let previous = std::env::var(crate::host::plugin_host::config_node::SOVEREIGN_BASE_KEY).ok();
+    std::env::set_var(crate::host::plugin_host::config_node::SOVEREIGN_BASE_KEY, declared.path());
+
+    let decl = crate::host::host_effects_bridge::spawn_env_from_declared_base().unwrap();
+
+    match previous {
+        Some(value) => std::env::set_var(crate::host::plugin_host::config_node::SOVEREIGN_BASE_KEY, value),
+        None => std::env::remove_var(crate::host::plugin_host::config_node::SOVEREIGN_BASE_KEY),
+    }
+    std::env::set_current_dir(restore).unwrap();
+
+    assert_eq!(decl.path, vec!["/declared/bin"], "the node read the cwd, not what it was told");
+    assert_eq!(decl.home.as_deref(), Some("/declared"));
+}
