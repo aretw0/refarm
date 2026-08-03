@@ -56,13 +56,19 @@ pub(crate) fn estimate_billable_usd(
 }
 
 /// Rate table identity. This is the FIRST version of the table: every rate
-/// below is one that shipped in `estimate_usd` before this table was named, not
-/// a provisional number — no placeholder rates are carried here (see
-/// `rate_for_model`: an unpriced model resolves to `Unknown`, never a guess).
-/// Bump this string whenever a rate changes or a branch is added — the first
-/// bump will be a real one, carrying a price someone confirmed. Task 10 stamps
-/// the current value onto every cost observation; Task 11 uses it to tell which
-/// historical records predate a correction.
+/// below is one that shipped in `estimate_usd` before this table was named, or
+/// was corrected while v1 was still being assembled, against a source cited
+/// inline — no placeholder rates are carried here (see `rate_for_model`: an
+/// unpriced model resolves to `Unknown`, never a guess). "First version" means
+/// assembled and checked against the vendor sources below as they stood on
+/// 2026-08-03; it is not a claim that nothing here will ever need correcting.
+/// Bump this string whenever a rate changes or a branch is added AFTER this
+/// version ships — the first bump will be a real one, carrying a price someone
+/// confirmed after the fact. Task 10 stamps the current value onto every cost
+/// observation; Task 11 uses it to tell which historical records predate a
+/// correction. Correcting a rate before anything has been stamped is free;
+/// correcting it after is a version bump that marks every prior observation as
+/// stale — which is why verification happens now, not as follow-up.
 ///
 /// Sources: every priced branch in `rate_for_model` below cites the vendor's
 /// own OFFICIAL pricing page inline — never a third-party aggregator, which is
@@ -100,32 +106,66 @@ pub(crate) enum RateLookup {
 /// before its family prefix ("gpt-5"), or a point release would silently
 /// inherit the family's rate while looking perfectly plausible.
 pub(crate) fn rate_for_model(model: &str) -> RateLookup {
-    let (rate_in, rate_out): (f64, f64) = if model.contains("claude-opus-4") {
-        // Anthropic, official pricing: https://platform.claude.com/docs/en/about-claude/pricing
+    let (rate_in, rate_out): (f64, f64) = if model.contains("claude-opus-4-5")
+        || model.contains("claude-opus-4-6")
+        || model.contains("claude-opus-4-7")
+        || model.contains("claude-opus-4-8")
+    {
+        // Anthropic, Opus 4.5/4.6/4.7/4.8, official pricing (verified 2026-08-03):
+        // https://platform.claude.com/docs/en/about-claude/pricing
+        // Checked BEFORE the bare "claude-opus-4" branch below: that literal is a
+        // substring of every id here too, and Opus 4.5-4.8 price at 1/3 of Opus
+        // 4/4.1's rate — matching the bare branch first would silently overcharge
+        // by 3x while looking perfectly plausible (the same order-dependence this
+        // function's own doc comment already warns about, and a real collision,
+        // not a hypothetical one: verifying this table is what surfaced it).
+        (5.0, 25.0)
+    } else if model.contains("claude-opus-4") {
+        // Anthropic, Opus 4 (retired except Google Cloud) / Opus 4.1 (deprecated),
+        // official pricing (verified 2026-08-03):
+        // https://platform.claude.com/docs/en/about-claude/pricing
         (15.0, 75.0)
     } else if model.contains("claude-sonnet-4") || model.contains("claude-sonnet-3-7") {
-        // Anthropic, official pricing: https://platform.claude.com/docs/en/about-claude/pricing
+        // Anthropic, Sonnet 4 / 4.5 / 4.6 (all three share this rate on the
+        // official page — no split needed, unlike Opus above), official pricing
+        // (verified 2026-08-03): https://platform.claude.com/docs/en/about-claude/pricing
+        // claude-sonnet-3-7 predates the current pricing page (fully retired, not
+        // listed) and could not be re-verified; left unchanged.
         (3.0, 15.0)
+    } else if model.contains("claude-haiku-4-5") {
+        // Anthropic, Haiku 4.5, official pricing (verified 2026-08-03):
+        // https://platform.claude.com/docs/en/about-claude/pricing
+        // Checked BEFORE the bare "claude-haiku" branch below, same reason as
+        // Opus above: Haiku 4.5 is priced differently from the 3.5 generation
+        // that branch actually covers, and "claude-haiku" is a substring of
+        // "claude-haiku-4-5" too.
+        (1.0, 5.0)
     } else if model.contains("claude-haiku") {
-        // Anthropic, official pricing: https://platform.claude.com/docs/en/about-claude/pricing
+        // Anthropic, Haiku 3.5 (retired except Bedrock/Google Cloud), official
+        // pricing (verified 2026-08-03 — this is the rate this task corrected FROM
+        // being applied to Haiku 4.5 as well; Haiku 4.5 now has its own branch
+        // above): https://platform.claude.com/docs/en/about-claude/pricing
         (0.8, 4.0)
     } else if model.contains("gpt-5.5") {
-        // OpenAI, official pricing: https://developers.openai.com/api/docs/pricing
+        // OpenAI, official pricing (verified 2026-08-03): https://developers.openai.com/api/docs/pricing
         (5.0, 30.0)
     } else if model.contains("gpt-5-mini") || model.contains("gpt-5.1-codex-mini") {
-        // OpenAI, official pricing: https://developers.openai.com/api/docs/pricing
+        // OpenAI, official pricing (verified 2026-08-03 for gpt-5-mini; gpt-5.1-codex-mini
+        // is not listed on the page as its own line item and could not be independently
+        // re-verified, so it stays grouped with gpt-5-mini's rate, unchanged):
+        // https://developers.openai.com/api/docs/pricing
         (0.25, 2.0)
     } else if model.contains("gpt-5-nano") {
-        // OpenAI, official pricing: https://developers.openai.com/api/docs/pricing
+        // OpenAI, official pricing (verified 2026-08-03): https://developers.openai.com/api/docs/pricing
         (0.05, 0.4)
     } else if model.contains("gpt-5") {
-        // OpenAI, official pricing: https://developers.openai.com/api/docs/pricing
+        // OpenAI, official pricing (verified 2026-08-03): https://developers.openai.com/api/docs/pricing
         (1.25, 10.0)
     } else if model.contains("gpt-4o") && !model.contains("mini") {
-        // OpenAI, official pricing: https://developers.openai.com/api/docs/pricing
+        // OpenAI, official pricing (verified 2026-08-03): https://developers.openai.com/api/docs/pricing
         (2.5, 10.0)
     } else if model.contains("gpt-4o-mini") {
-        // OpenAI, official pricing: https://developers.openai.com/api/docs/pricing
+        // OpenAI, official pricing (verified 2026-08-03): https://developers.openai.com/api/docs/pricing
         (0.15, 0.6)
     } else {
         return RateLookup::Unknown;

@@ -177,3 +177,47 @@ fn a_more_specific_model_id_wins_over_its_family_prefix() {
 fn the_rate_table_names_a_version() {
     assert!(!RATE_TABLE_VERSION.is_empty());
 }
+
+#[test]
+fn a_haiku_generation_that_regrouped_at_a_new_price_does_not_inherit_the_old_one() {
+    // Verified against Anthropic's official pricing page while assembling v1
+    // of this table: Haiku 4.5 ($1/$5) and Haiku 3.5 ($0.80/$4, retired except
+    // on Bedrock/Google Cloud) share the "claude-haiku" prefix but NOT a rate.
+    // Before this test existed, the bare "claude-haiku" branch would have
+    // caught 4.5 too and silently billed it at 3.5's lower, wrong rate — a
+    // confident lie, not an absent one.
+    let RateLookup::Priced { rate_in: haiku_45, rate_out: haiku_45_out } =
+        rate_for_model("claude-haiku-4-5")
+    else {
+        panic!("claude-haiku-4-5 must be priced");
+    };
+    let RateLookup::Priced { rate_in: haiku_35, rate_out: haiku_35_out } =
+        rate_for_model("claude-haiku-3-5")
+    else {
+        panic!("claude-haiku-3-5 must be priced");
+    };
+    assert_eq!((haiku_45, haiku_45_out), (1.0, 5.0));
+    assert_eq!((haiku_35, haiku_35_out), (0.8, 4.0));
+    assert_ne!(haiku_45, haiku_35, "the current generation must not inherit the retired one's rate");
+}
+
+#[test]
+fn an_opus_generation_that_regrouped_at_a_new_price_does_not_inherit_the_old_one() {
+    // Same shape as the Haiku test above, found while checking the rest of the
+    // table for the same defect after the Haiku correction: Opus 4.5-4.8 price
+    // at 1/3 of Opus 4 / 4.1's rate on Anthropic's official page, but all share
+    // the "claude-opus-4" prefix.
+    let RateLookup::Priced { rate_in: opus_47, rate_out: opus_47_out } =
+        rate_for_model("claude-opus-4-7")
+    else {
+        panic!("claude-opus-4-7 must be priced");
+    };
+    let RateLookup::Priced { rate_in: opus_41, rate_out: opus_41_out } =
+        rate_for_model("claude-opus-4-1")
+    else {
+        panic!("claude-opus-4-1 must be priced");
+    };
+    assert_eq!((opus_47, opus_47_out), (5.0, 25.0));
+    assert_eq!((opus_41, opus_41_out), (15.0, 75.0));
+    assert_ne!(opus_47, opus_41, "the current generation must not inherit the deprecated one's rate");
+}
