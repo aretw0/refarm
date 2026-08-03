@@ -95,7 +95,7 @@ pub(crate) use structured_io::{
 #[allow(unused_imports)]
 pub(crate) use utils::{
     estimate_billable_usd, estimate_usd, fnv1a_hash, new_id, mint_urn, now_ns,
-    pricing_mode_for_provider,
+    pricing_mode_for_provider, rate_for_model, RateLookup, RATE_TABLE_VERSION,
 };
 
 #[cfg(test)]

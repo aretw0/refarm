@@ -131,3 +131,44 @@ fn a_currency_ceiling_never_binds_under_a_subscription() {
     assert!(spend_limit_error("openai-codex", 999.0, Some(0.01)).is_none());
     assert!(spend_limit_error("anthropic", 999.0, Some(0.01)).is_some());
 }
+
+#[test]
+fn a_known_free_model_and_an_unrecognised_one_are_not_the_same_answer() {
+    // Both cost $0 to estimate. Only one of them costs $0 to RUN. Collapsing
+    // them is how a new model id silently prices itself at nothing.
+    assert!(matches!(rate_for_model("llama3.2"), RateLookup::Free));
+    assert!(matches!(rate_for_model("mistral"), RateLookup::Free));
+    assert!(matches!(rate_for_model("some-model-nobody-priced"), RateLookup::Unknown));
+}
+
+#[test]
+fn an_unpriced_new_model_is_unknown_rather_than_free() {
+    // The measured drift this task closes: the table's Claude branches stop at
+    // the 4 family, so a Claude 5 id matched nothing and fell through to the
+    // return value meaning "local model, genuinely free". It is now UNKNOWN —
+    // still estimated at zero, but no longer indistinguishable from free, and
+    // it says its own name in the log.
+    assert!(matches!(rate_for_model("claude-opus-5"), RateLookup::Unknown));
+    assert!(matches!(rate_for_model("claude-sonnet-5"), RateLookup::Unknown));
+    // The 4 family still prices, so nothing in use today regressed.
+    assert!(matches!(rate_for_model("claude-sonnet-4-6"), RateLookup::Priced { .. }));
+}
+
+#[test]
+fn a_more_specific_model_id_wins_over_its_family_prefix() {
+    // Substring matching is order-dependent: "gpt-5.5" must be tested before
+    // the generic "gpt-5", or a point release lands on the wrong rate while
+    // looking perfectly plausible.
+    let RateLookup::Priced { rate_in: specific, .. } = rate_for_model("gpt-5.5") else {
+        panic!("gpt-5.5 must be priced");
+    };
+    let RateLookup::Priced { rate_in: family, .. } = rate_for_model("gpt-5") else {
+        panic!("gpt-5 must be priced");
+    };
+    assert_ne!(specific, family, "the point release must not inherit the family rate");
+}
+
+#[test]
+fn the_rate_table_names_a_version() {
+    assert!(!RATE_TABLE_VERSION.is_empty());
+}
