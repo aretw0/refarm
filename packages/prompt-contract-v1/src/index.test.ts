@@ -1721,3 +1721,57 @@ describe("the hub announces (D5/D9)", () => {
 		expect(seen).toEqual(["p9"]);
 	});
 });
+
+describe("say() reaches the elsewhere (D7)", () => {
+	const asker = { command: "refarm delivery add" };
+
+	it("the remote channel announces into the hub", () => {
+		const hub = createPendingPromptHub();
+		createRemoteOperatorChannel({ hub, asker }).say?.({
+			message: "o bot é seu",
+			kind: "context",
+		});
+		expect(hub.notices().map((n) => n.message)).toEqual(["o bot é seu"]);
+	});
+
+	it("the peered channel says it at the terminal AND publishes it", () => {
+		const hub = createPendingPromptHub();
+		const output = new PassThrough() as PassThrough & NodeJS.WriteStream;
+		let written = "";
+		output.write = ((chunk: string) => {
+			written += chunk;
+			return true;
+		}) as never;
+
+		createPeeredOperatorChannel({
+			local: () => createTerminalOperatorChannel({ output }),
+			remote: () => createRemoteOperatorChannel({ hub, asker }),
+			announce: (notice) => void hub.announce(asker, notice),
+		}).say?.("dito nos dois lados");
+
+		expect(written).toContain("dito nos dois lados");
+		expect(hub.notices().map((n) => n.message)).toEqual(["dito nos dois lados"]);
+	});
+
+	it("a publisher that throws does not stop the terminal from saying it", () => {
+		const output = new PassThrough() as PassThrough & NodeJS.WriteStream;
+		let written = "";
+		output.write = ((chunk: string) => {
+			written += chunk;
+			return true;
+		}) as never;
+
+		// `say` is TOTAL: a broken notification arrangement must not become the
+		// wizard's problem.
+		expect(() =>
+			createPeeredOperatorChannel({
+				local: () => createTerminalOperatorChannel({ output }),
+				remote: () => createRemoteOperatorChannel({ hub: createPendingPromptHub(), asker }),
+				announce: () => {
+					throw new Error("transport down");
+				},
+			}).say?.("ainda assim aparece aqui"),
+		).not.toThrow();
+		expect(written).toContain("ainda assim aparece aqui");
+	});
+});

@@ -255,6 +255,20 @@ function writePromptTransition(
 export interface PromptPublisher {
 	/** Build the elsewhere-side channel for ONE ask, interruptible by `signal`. */
 	remote(signal: AbortSignal): RemoteOperatorChannel;
+	/**
+	 * Publish a STATEMENT to the elsewhere.
+	 *
+	 * A sibling of `remote` rather than something built through it, because
+	 * ANNOUNCEMENT HAS NO LIFECYCLE. `remote` is a factory called per ask, and it
+	 * takes a signal, because a question can be withdrawn, expire, or lose a race to
+	 * another device. A notice can do none of those — routing it through `remote`
+	 * would mean constructing a whole channel around a signal that never fires, to
+	 * state one sentence.
+	 *
+	 * Optional: a publisher that cannot announce simply does not, and the terminal
+	 * still says it.
+	 */
+	announce?(notice: string | OperatorNoticeInput): void;
 }
 
 /**
@@ -345,6 +359,9 @@ export function createStdioOperatorChannel(
 		local: (signal) =>
 			createTerminalOperatorChannel({ ...options, signal: anySignal(options.signal, signal) }),
 		remote: (signal) => publisher.remote(signal),
+		...(publisher.announce
+			? { announce: (notice: string | OperatorNoticeInput) => publisher.announce!(notice) }
+			: {}),
 	});
 }
 
@@ -1744,7 +1761,11 @@ export function createRemoteOperatorChannel(
 		}
 	}
 
-	return { ask, lastSettlement: () => last };
+	function say(notice: string | OperatorNoticeInput): void {
+		hub.announce(asker, notice);
+	}
+
+	return { ask, say, lastSettlement: () => last };
 }
 
 // ── The peered channel: local and remote are peers (P2) ───────────────────────
@@ -1757,6 +1778,8 @@ export interface PeeredOperatorChannelOptions {
 	/** Where the loser is told. Defaults to stderr — never stdout, which is the
 	 *  asker's own output. Receives a message only; never an answer value. */
 	notify?(message: string): void;
+	/** Publish a statement to the elsewhere. Optional — see `PromptPublisher.announce`. */
+	announce?(notice: string | OperatorNoticeInput): void;
 }
 
 function defaultNotify(message: string): void {
@@ -1848,7 +1871,20 @@ export function createPeeredOperatorChannel(
 		}
 	}
 
-	return { ask };
+	function say(notice: string | OperatorNoticeInput): void {
+		// The TERMINAL first: it is the surface someone may be looking at right now,
+		// and a broken elsewhere must never be the reason they did not see this.
+		options.local(new AbortController().signal).say?.(notice);
+		try {
+			options.announce?.(notice);
+		} catch {
+			// `say` is TOTAL. A publisher that throws is a broken notification
+			// arrangement, and that must not become the wizard's problem — the same
+			// judgement `currentPromptPublisher` already makes for a throwing source.
+		}
+	}
+
+	return { ask, say };
 }
 
 // ── The HTTP surface, as a pure function ──────────────────────────────────────

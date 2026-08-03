@@ -222,6 +222,18 @@ export async function installDeclaredDelivery(
 	}
 
 	const publisher: PromptPublisher = {
+		/**
+		 * A STATEMENT reaches the same hub the questions do.
+		 *
+		 * Separate from `remote` because announcement has no lifecycle: `remote` is a
+		 * factory called per ask, taking a signal, because a question can be
+		 * withdrawn, expire or lose a race. A notice can do none of those, so it
+		 * would only be borrowing a lifecycle it has no use for.
+		 *
+		 * Without this the verb reached the terminal and stopped there — which is the
+		 * defect the whole slice exists to remove, reproduced one layer up.
+		 */
+		announce: (notice) => void hub.announce(options.asker, notice),
 		remote: (signal) =>
 			createRemoteOperatorChannel({
 				hub,

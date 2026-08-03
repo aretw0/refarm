@@ -4,9 +4,11 @@ import {
 	type OperationRecord,
 } from "@refarm.dev/operation-consent-v1";
 import {
+	normalizeNoticeInput,
 	OperatorPromptCancelledError,
 	setPromptPublisher,
 	type OperatorChannel,
+	type OperatorNoticeInput,
 	type OperatorPrompt,
 } from "@refarm.dev/prompt-contract-v1";
 import fs from "node:fs";
@@ -82,9 +84,11 @@ function writeConfig(contents: string): void {
 function recordingChannel(answers: Array<boolean | string>): {
 	channel: OperatorChannel;
 	asked: OperatorPrompt[];
+	said: Required<OperatorNoticeInput>[];
 } {
 	const queue = [...answers];
 	const asked: OperatorPrompt[] = [];
+	const said: Required<OperatorNoticeInput>[] = [];
 	const ask = async (prompt: OperatorPrompt): Promise<boolean | string> => {
 		asked.push(prompt);
 		if (queue.length === 0) {
@@ -92,7 +96,13 @@ function recordingChannel(answers: Array<boolean | string>): {
 		}
 		return queue.shift()!;
 	};
-	return { channel: { ask } as OperatorChannel, asked };
+	// Recorded, not printed — this is the seam that proves a wizard's framing
+	// reaches the CHANNEL (and therefore the operator's other surfaces) rather
+	// than the node's stdout.
+	const say = (notice: string | OperatorNoticeInput): void => {
+		said.push(normalizeNoticeInput(notice));
+	};
+	return { channel: { ask, say } as OperatorChannel, asked, said };
 }
 
 /** A channel that cancels — exactly what Ctrl+C / EOF produces at a terminal prompt. */
@@ -148,10 +158,10 @@ function fullRun(
 async function declareOnce(
 	options: DeliveryAddOptions = {},
 	answers: string[] = fullRun(),
-): Promise<{ result: DeliveryAddResult; asked: OperatorPrompt[] }> {
-	const { channel, asked } = recordingChannel(answers);
+): Promise<{ result: DeliveryAddResult; asked: OperatorPrompt[]; said: Required<OperatorNoticeInput>[] }> {
+	const { channel, asked, said } = recordingChannel(answers);
 	const result = await runDeliveryAdd(options, deps(channel));
-	return { result, asked };
+	return { result, asked, said };
 }
 
 beforeEach(() => {
@@ -659,5 +669,58 @@ describe("refarm delivery add — the command", () => {
 		expect(envelope.error).toBe("delivery-test-unknown-channel");
 		expect(process.exitCode).toBe(1);
 		vi.unstubAllGlobals();
+	});
+});
+
+describe("the wizard's framing reaches the CHANNEL, not the node's stdout", () => {
+	it("says the summary and all three preflight lines through the channel", async () => {
+		const { said } = await declareOnce();
+		const messages = said.map((n) => n.message);
+
+		expect(messages).toContain("Telegram — o bot fala com você no app que já está no seu bolso.");
+		expect(messages.some((m) => m.includes("@BotFather"))).toBe(true);
+		expect(messages.some((m) => m.includes("chatId"))).toBe(true);
+		// The sentence the operator never saw, and whose absence made the whole
+		// command read as coupled to Telegram.
+		expect(messages.some((m) => m.includes("não cria bot"))).toBe(true);
+	});
+
+	it("announces the single-adapter choice as a DECISION instead of making it in silence", async () => {
+		const { said, asked } = await declareOnce();
+
+		// With one adapter registered the select is skipped — that part is unchanged
+		// and is fine. What was missing is refarm SAYING it chose.
+		expect(asked.some((prompt) => prompt.question.includes("Por onde o refarm"))).toBe(false);
+
+		const decisions = said.filter((n) => n.kind === "decision");
+		expect(decisions.some((n) => n.message.includes("telegram"))).toBe(true);
+		expect(decisions.some((n) => /registrad/i.test(n.message))).toBe(true);
+	});
+
+	it("every notice carries a kind the contract knows", async () => {
+		const { said } = await declareOnce();
+		expect(said.length).toBeGreaterThan(0);
+		expect(said.every((n) => ["context", "decision", "caution"].includes(n.kind))).toBe(true);
+	});
+
+	// ── The security boundary (the two-sink split) ────────────────────────────
+	it("NEVER puts the config file on the channel — a dump is a local review", async () => {
+		const { said } = await declareOnce();
+		const onChannel = said.map((n) => n.message).join("\n");
+
+		// `renderCatalogProposal` renders the WHOLE config: surfaces, workspaces,
+		// token references, connections. The channel can reach a third party
+		// (Telegram sees message content), and no question ever carries that — so
+		// pushing a machine's topology into a chat app would be a widening nobody
+		// asked for. It stays on the local review sink.
+		expect(onChannel).not.toContain('"autostart"');
+		expect(onChannel).not.toContain(configPath());
+		// …and it IS still shown locally, so the operator can review before writing.
+		expect(announced.join("\n")).toContain(configPath());
+	});
+
+	it("NEVER puts the secret on the channel", async () => {
+		const { said } = await declareOnce();
+		expect(said.map((n) => n.message).join("\n")).not.toContain(SECRET);
 	});
 });

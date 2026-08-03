@@ -21,6 +21,7 @@ import {
 	createStdioOperatorChannel,
 	OperatorPromptCancelledError,
 	type OperatorChannel,
+	type OperatorNoticeInput,
 	type SelectPrompt,
 	type TextPrompt,
 } from "@refarm.dev/prompt-contract-v1";
@@ -487,8 +488,27 @@ export async function runDeliveryAdd(
 ): Promise<DeliveryAddResult> {
 	const env = deps.env ?? process.env;
 	const root = deps.root ?? process.cwd();
-	const say = deps.announce ?? ((line: string) => console.log(line));
 	const factories = deps.factories ?? defaultDeliveryAdapterFactories();
+
+	// ── TWO SINKS, and the split is a SECURITY boundary, not a style choice ──────
+	//
+	// `say` goes through the OperatorChannel, which means it can now leave this
+	// machine: to the node's notice ring, and — riding the next question — to a
+	// declared delivery channel, which is a third party (Telegram sees message
+	// content). That is correct for FRAMING: the sentences exist to explain a
+	// question that already travels, and framing is strictly less sensitive than
+	// the question it frames.
+	//
+	// It is NOT correct for everything this command prints. `renderCatalogProposal`
+	// renders the config file with WHOLE_FILE context — the entire
+	// `.refarm/config.json`: surfaces, workspaces, token references, connections.
+	// No question ever carries that, and pushing a machine's whole topology into a
+	// chat app is a widening nobody asked for. It is a LOCAL REVIEW ARTIFACT — shown
+	// so the operator can check a file before it is written, at the terminal where
+	// they are running the wizard — so it stays here.
+	//
+	// The line: framing explains a question; a config dump is a local review.
+	const review = deps.announce ?? ((line: string) => console.log(line));
 
 	// NOWHERE TO ASK ⇒ NO PROMPT, and no hang either. A declaration is the operator's; with
 	// nobody to ask there is nobody to author it. The honest answer is to refuse and name the
@@ -556,6 +576,17 @@ export async function runDeliveryAdd(
 	}
 	const operator = deps.operator ?? createStdioOperatorChannel();
 
+	/**
+	 * Framing, through the CHANNEL.
+	 *
+	 * `console.log` is what left every wizard's explanation on the node while only
+	 * its questions travelled — the defect this whole slice exists to remove. A
+	 * channel that cannot say (`say` is optional) simply does not, and behaves
+	 * exactly as it did before. See the two-sink note above for what does NOT come
+	 * through here.
+	 */
+	const say = (notice: string | OperatorNoticeInput): void => operator.say?.(notice);
+
 	let channelName: string | null = null;
 	try {
 		// ── 1. Which adapter ──────────────────────────────────────────────────────
@@ -568,15 +599,26 @@ export async function runDeliveryAdd(
 					"No delivery adapter is registered, so there is nothing to declare.",
 				);
 			}
-			adapterId =
-				available.length === 1
-					? available[0]!
-					: await operator.ask({
-							type: "select",
-							question: "Por onde o refarm deve te alcançar?",
-							options: available.map((id) => ({ value: id, label: id })),
-							default: available[0]!,
-						});
+			if (available.length === 1) {
+				adapterId = available[0]!;
+				// THE SILENCE THIS SLICE EXISTS TO REMOVE. Skipping the select made the
+				// choice invisible, so the operator read `delivery add` as "the Telegram
+				// command" rather than as a wizard over a registry that happens to hold
+				// one adapter today. refarm chose; refarm says so.
+				say({
+					kind: "decision",
+					message:
+						`Um adaptador registrado: ${adapterId}. Escolhi ele — ` +
+						`este comando serve qualquer adaptador registrado, não só este.`,
+				});
+			} else {
+				adapterId = await operator.ask({
+					type: "select",
+					question: "Por onde o refarm deve te alcançar?",
+					options: available.map((id) => ({ value: id, label: id })),
+					default: available[0]!,
+				});
+			}
 		}
 		const factory = factories.find((entry) => entry.id === adapterId);
 		if (!factory) {
@@ -671,7 +713,10 @@ export async function runDeliveryAdd(
 			const prompt = deliveryCapabilityPrompt({ channel: channelName, adapterCanAnswer });
 			if (prompt.options.length === 1) {
 				capability = prompt.options[0]!.value as "announce" | "answer";
-				say(`  · "${factory.id}" só sabe avisar — este canal fica como "announce".`);
+				say({
+					kind: "decision",
+					message: `"${factory.id}" só sabe avisar — este canal fica como "announce".`,
+				});
 			} else {
 				capability = (await operator.ask(prompt)) as "announce" | "answer";
 			}
@@ -691,9 +736,10 @@ export async function runDeliveryAdd(
 			const prompt = deliveryUnattendedPrompt({ channel: channelName, adapterIsUnattended });
 			if (prompt.options.length === 1) {
 				unattended = prompt.options[0]!.value === "true";
-				say(
-					`  · "${factory.id}" só te alcança enquanto você está atendendo — este canal fica "attended-only".`,
-				);
+				say({
+					kind: "decision",
+					message: `"${factory.id}" só te alcança enquanto você está atendendo — este canal fica "attended-only".`,
+				});
 			} else {
 				unattended = (await operator.ask(prompt)) === "true";
 			}
@@ -788,7 +834,8 @@ export async function runDeliveryAdd(
 		// R2 — the operator authorises a SPECIFIC diff, so they get to see all of it. Rendered
 		// here rather than through the consent journey's own `announce`, which shows three lines
 		// of context: a diff you can only see three lines of is a category, not a change.
-		for (const line of renderCatalogProposal(request)) say(line);
+		// LOCAL, not `say`: this is the whole config file. See the two-sink note.
+		for (const line of renderCatalogProposal(request)) review(line);
 
 		const outcome = await authorCatalogDeclaration({
 			request,
@@ -888,7 +935,6 @@ export async function runDeliveryTest(
 	deps: DeliveryTestDeps = {},
 ): Promise<DeliveryTestResult> {
 	const root = deps.root ?? process.cwd();
-	const say = deps.announce ?? ((line: string) => console.log(line));
 	const { channels } = loadDeclaredDelivery({ root });
 	const channel: ResolvedDeliveryChannel | undefined = channels.find(
 		(entry) => entry.declaration.name === channelName,
@@ -911,10 +957,24 @@ export async function runDeliveryTest(
 		);
 	}
 	const operator = deps.operator ?? createStdioOperatorChannel();
+	// Through the CHANNEL: a warning that stays on the node warns nobody who is
+	// answering from a phone. `deps.announce` still overrides, for tests that read
+	// lines directly.
+	const say = (notice: string | OperatorNoticeInput): void => {
+		if (deps.announce) {
+			deps.announce(typeof notice === "string" ? notice : notice.message);
+			return;
+		}
+		operator.say?.(notice);
+	};
 
-	say(
-		`Isto envia uma mensagem REAL por "${channelName}" agora — sai desta máquina e chega no seu aparelho.`,
-	);
+	// CAUTION: the next answer has an outward, irreversible effect. Sibling of
+	// `answerTravels` on the prompt side — the doctrine that a surface must say so
+	// BEFORE the operator commits, not after.
+	say({
+		kind: "caution",
+		message: `Isto envia uma mensagem REAL por "${channelName}" agora — sai desta máquina e chega no seu aparelho.`,
+	});
 	const go = await operator.ask({
 		type: "confirm",
 		question: `Envio a mensagem de teste por "${channelName}"?`,
