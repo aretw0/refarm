@@ -215,6 +215,27 @@ the one the running node reads. D4 is the better answer anyway: it needs no chan
 boundary, and it is what would have surfaced the divergence in the first place, on this node, where
 two `auth-policy.json` files already disagree.
 
+### D4 — done 2026-08-03 (`scope-doctor.ts`)
+
+`refarm doctor` now names the directory. Two findings, both warnings, both silent unless this
+directory has the file AND it differs from the node's:
+
+- **`scope:auth-policy-divergence`**, reported first because its failure is silent on ANOTHER
+  device — a rotation from the wrong directory writes a token the node never reads, the device
+  stops authenticating with nothing naming the cause, rotating again reproduces it, and the
+  credential the operator believes they replaced stays live in the policy that IS read.
+- **`scope:config-divergence`** — commands run here answer from this directory's declarations.
+
+Proven both ways on this node: two findings from the repository, none from the operator's home.
+
+This also settles (3) for now. With the divergence visible, moving the enrolment default is no
+longer the only thing standing between the operator and a silent wrong-file write — so the boundary
+in `no enrolment module so much as names the declaration file` stays intact, and the choice can be
+made on its own merits rather than under pressure from a bug that is now surfaced. What remains
+genuinely open is only whether `refarm runtime status` should report the RUNNING node's base, which
+needs a value the daemon holds and the CLI cannot compute; the divergence a doctor can see locally
+is the part that costs an evening, and that part is closed.
+
 ## Cost
 
 Ten call sites, of which seven move. `packages/tractor/**` is protected under CLAUDE.md §8, so this
