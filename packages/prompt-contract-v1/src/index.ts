@@ -1477,17 +1477,21 @@ export interface PendingPromptHub {
 	 * ── WHY THE CURSOR BELONGS TO THE CALLER ─────────────────────────────────
 	 *
 	 * This began as `takeNoticesFor`, which marked what it returned as attached so
-	 * a second question would not repeat framing the operator had already read.
-	 * That works for ONE consumer and quietly breaks for two — and there are two:
-	 * the delivery mount (which pushes framing to Telegram with the question) and
-	 * the hop that carries it to the node for the pull surfaces. With one shared
-	 * watermark they STARVE EACH OTHER: whoever asks first marks, and the other
-	 * gets an empty list. The operator would get framing on the phone or in the
-	 * browser depending on which raced first.
+	 * a second question would not repeat framing the operator had already read —
+	 * a watermark, kept here, on behalf of whoever read.
 	 *
-	 * So the hub keeps no watermark. Each consumer remembers the last `ordinal` it
-	 * carried and asks for what came after — which is what D3 said the ordinal was
-	 * for: "a durable transport resumes from it; a poller dedupes on it."
+	 * A hub that keeps its readers' state can only ever serve the reader it was
+	 * written for. Batching is one consumer's strategy (the delivery mount carries
+	 * framing with the question, per D9); a poller's is another; a durable
+	 * transport resuming after a restart is a third. Encoding the first one's
+	 * bookkeeping in here makes the other two either wrong or impossible, and
+	 * silently — a starved reader gets an empty list, not an error.
+	 *
+	 * So the hub keeps nothing. `noticesFor` is a pure query, each consumer
+	 * remembers the last `ordinal` it carried, and that is what makes the ordinal
+	 * an actual cursor rather than a number with hidden bookkeeping behind it —
+	 * which is what D3 claimed it was for: "a durable transport resumes from it; a
+	 * poller dedupes on it."
 	 */
 	noticesFor(askerCommand: string, since?: number): OperatorNotice[];
 }

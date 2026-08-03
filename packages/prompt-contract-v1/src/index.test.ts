@@ -1698,17 +1698,17 @@ describe("the hub announces (D5/D9)", () => {
 		expect(hub.noticesFor(asker.command, third.ordinal).map((n) => n.message)).toEqual(["três"]);
 	});
 
-	it("two consumers do not starve each other — the defect a shared watermark had", () => {
+	it("serves two readers with different strategies without either starving", () => {
 		const hub = createPendingPromptHub();
 		hub.announce(asker, "o enquadramento");
 
-		// Delivery carries it…
-		const forDelivery = hub.noticesFor(asker.command, 0);
-		// …and the hop to the node carries the SAME framing, independently.
-		const forNode = hub.noticesFor(asker.command, 0);
+		// A batching reader (the delivery mount, D9) and a polling one hold their
+		// own cursors, so neither can consume the other's view.
+		const batching = hub.noticesFor(asker.command, 0);
+		const polling = hub.noticesFor(asker.command, 0);
 
-		expect(forDelivery.map((n) => n.message)).toEqual(["o enquadramento"]);
-		expect(forNode.map((n) => n.message)).toEqual(["o enquadramento"]);
+		expect(batching.map((n) => n.message)).toEqual(["o enquadramento"]);
+		expect(polling.map((n) => n.message)).toEqual(["o enquadramento"]);
 	});
 
 	it("announcing does NOT notify the prompt subscribers (D9 — no notice pushes alone)", () => {
