@@ -411,6 +411,25 @@ evidence. Slices 6–8 are what let anyone else reproduce it.
   describes *capacity* (where the workspace is, what commands it exposes, how it executes), so a
   ceiling filed there reads as something the workspace *does* rather than what it may *spend*.
   `surfaces` already demonstrates the right shape.
+- **The fourth axis, and the consumer that will demand it.** D1 declares three axes: wall-clock
+  deadline, cumulative tokens, estimated spend. GitHub Copilot is already known to this repository
+  (`SUBSCRIPTION_MODEL_PROVIDERS` lists it, it has an env key and a default model) and deliberately
+  blocked from running: `RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS` contains only `openai-codex`, and
+  `provider_config.rs` gives it no base URL. What is missing is a Rust route and a GitHub OAuth device
+  flow.
+
+  When it lands, it will not fit any of the three axes. Its binding constraint is neither time nor
+  tokens nor dollars but **requests per billing period, a quota that refills**, and the whole point
+  of running work there is to spend quota that would otherwise idle. So the laboratory cannot today
+  express the budget that matters for its most likely second consumer.
+
+  This is recorded rather than built, on the repository's own discipline: assimilate a generic
+  capability under real second-consumer pressure, not before. Inventing a quota axis now would be the
+  placeholder problem inside a versioned contract, which is the more expensive place to be wrong.
+  `BudgetDeclaration`'s fields are all optional, so a fourth axis is additive when the pressure is
+  real. Settled with the maintainer on 2026-08-03: Copilot gets its own spec after this program, and
+  the fourth axis is designed from its pain rather than ahead of it.
+
 - **Cost of the record at high frequency.** One node per terminal effort is cheap; one per LLM call
   would not be. This design writes at effort granularity and joins to the existing per-call
   `UsageRecord` rather than duplicating it.
