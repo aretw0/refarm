@@ -131,6 +131,27 @@ export {
  * the app sets it to ".refarm"). No default in the substrate — the app owns the name. */
 export const SOVEREIGN_DIR_SELECTOR_KEY = "SOVEREIGN_DIR";
 
+/** The neutral env var that names WHERE this node's declarations live — the directory
+ * that contains the sovereign dir. Sibling of {@link SOVEREIGN_DIR_SELECTOR_KEY}, injected
+ * the same way and read identically by the Rust host and this stack, so the two cannot
+ * answer from different directories on the same node. */
+export const SOVEREIGN_BASE_KEY = "SOVEREIGN_BASE";
+
+/**
+ * The base declarations resolve against: what the node was TOLD, or — when nobody told it
+ * — where the process is standing.
+ *
+ * The fallback is deliberate and is what keeps project scoping working: a developer
+ * running a command inside a repository still gets that repository's declarations. What
+ * the injection removes is a NODE inheriting its scope from whoever last typed `cd`,
+ * which is how one process came to admit an operation (resolved from the operator's home)
+ * and then refuse it (resolved from the daemon's directory) in the same breath.
+ */
+export function declaredBase(env = process.env, cwd = process.cwd()) {
+	const base = env[SOVEREIGN_BASE_KEY]?.trim();
+	return base ? base : cwd;
+}
+
 /** The config file name inside the sovereign config dir. This IS a fixed substrate
  * convention (the file, not the branded dir), and matches the Rust host. */
 export const CONFIG_FILE_NAME = "config.json";

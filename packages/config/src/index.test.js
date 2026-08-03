@@ -3,8 +3,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+	SOVEREIGN_BASE_KEY,
 	SOVEREIGN_DIR_SELECTOR_KEY,
 	DEFAULT_ENV_PREFIX,
+	declaredBase,
 	ENV_PREFIX_SELECTOR_KEY,
 	defaultSovereignConfigPath,
 	envPrefixFromBrand,
@@ -205,5 +207,21 @@ describe("env-var prefix is parameterizable (white-label seam, ADR-087 phase 4)"
 		vi.stubEnv("REFARM_GIT_HOST", "gitlab");
 		const config = loadConfig(root);
 		expect(config.infrastructure.gitHost).toBe("gitlab");
+	});
+});
+
+describe("declaredBase", () => {
+	// The node is TOLD where its declarations live and every reader must give the SAME
+	// answer. Without this, a command executing a declared operation resolved the catalog
+	// from wherever the daemon happened to be standing, while the admission check beside it
+	// resolved from the operator's home — one process, two answers, and the operation was
+	// admitted and then refused.
+	it("prefers what the node was told over where the process is standing", () => {
+		expect(declaredBase({ [SOVEREIGN_BASE_KEY]: "/declared" }, "/cwd")).toBe("/declared");
+	});
+
+	it("falls back to the process directory when nobody told it", () => {
+		expect(declaredBase({}, "/cwd")).toBe("/cwd");
+		expect(declaredBase({ [SOVEREIGN_BASE_KEY]: "   " }, "/cwd")).toBe("/cwd");
 	});
 });

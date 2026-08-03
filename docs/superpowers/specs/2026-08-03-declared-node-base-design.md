@@ -180,8 +180,40 @@ The remaining work, precisely:
 3. **`refarm auth --policy`'s cwd-relative default** (D2b), which is the same defect in the
    credential path and the sharpest of the three.
 
-Until (1) and (2) land, a node started from an unexpected directory has coherent HOST declarations
-and an incoherent child — better than before, and not yet right.
+### 2026-08-03, second pass — (1) and (2) done, (3) blocked on a boundary that is not mine
+
+(1) and (2) landed and are proven together from the wrong directory: same invocation, same cwd, same
+environment, the declared base the only difference.
+
+```
+$ refarm auth remote run workspace:rcdc5:code-boundaries        # no base
+{"wire":"remote-initiation.v1","ok":true, …}                    #   admitted
+Command "code-boundaries" is not declared for workspace "rcdc5"  #   then refused. exit 1
+
+$ SOVEREIGN_BASE=/home/op … same command                        # base declared
+{"wire":"operation-result.v1","status":"succeeded", …}          #   10 packages, 0 issues. exit 0
+```
+
+Two existing tests corrected the approach on the way, and both were right:
+
+- `spawn_env_undeclared_injects_nothing_undeclared_means_absent_not_inherited` refused the first
+  attempt, which put the selectors in `SpawnEnvDecl::injected_vars`. That is the OPERATOR's declared
+  spawn environment, and forwarding ambient variables through it is the inheritance P10 exists to
+  refuse. The selectors now travel at the remote-initiation spawn only — a child that IS refarm,
+  re-entered — while a connection's establish process, an arbitrary operator command, still receives
+  nothing it was not declared.
+- `no enrolment module so much as names the declaration file` refused (3). Enrolment may not import
+  `@refarm.dev/config` at all, by an explicit file list, because *"enrolment asks the world because
+  the operator invoked it, never because a file said so."* `declaredBase()` reads an env var and not
+  the declaration, so it honours the rule's intent while tripping its letter — and the letter is
+  deliberately broad.
+
+**(3) therefore needs a decision this implementation should not make alone:** either the base reaches
+enrolment through something it is allowed to know, or the auth policy default stays cwd-resolved and
+**D4 carries the weight instead** — a doctor finding that the policy `refarm auth` would write is not
+the one the running node reads. D4 is the better answer anyway: it needs no change to enrolment's
+boundary, and it is what would have surfaced the divergence in the first place, on this node, where
+two `auth-policy.json` files already disagree.
 
 ## Cost
 

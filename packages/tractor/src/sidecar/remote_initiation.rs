@@ -94,10 +94,16 @@
 //!
 //! Nothing distinguishing travels: the argv is the table's own constant, the environment is
 //! the SAME derived spawn environment `connections` uses ([`SpawnEnvDecl::injected_vars`] over
-//! `env_clear`), the cwd is the daemon's own, and there is no marker option and no marker
-//! variable. There is nothing here to leak, which is stronger than a rule saying not to leak
-//! it. The wizard's questions reach the operator through the pending-prompt hub because the
-//! CLI already publishes there — that path is untouched.
+//! `env_clear`) plus the two selectors that say WHERE THIS NODE'S DECLARATIONS LIVE, the cwd
+//! is the daemon's own, and there is no marker option and no marker variable.
+//!
+//! Those two selectors are the node's address, not the request's: a LOCAL wizard reads the
+//! same answer from the same node, so nothing here tells a wizard how it was started. They
+//! are forwarded because without them the child resolved the operation catalog from the
+//! operator's home and the workspace from the daemon's directory — admitting an operation and
+//! refusing it one line later. There is still nothing here to leak, which is stronger than a
+//! rule saying not to leak it. The wizard's questions reach the operator through the
+//! pending-prompt hub because the CLI already publishes there — that path is untouched.
 //!
 //! ## The held-open stdin, which is this module's `PromptTicket::Drop`
 //!
@@ -575,12 +581,39 @@ pub(crate) fn parse_verdict(line: &str) -> Option<Verdict> {
 /// `process_group(0)` so a kill reaches the whole tree: the entrypoint spawns the wizard
 /// itself (that is how the wizard's process is indistinguishable from a local one), and an
 /// orphaned grandchild is exactly what the ceiling exists to prevent.
+/// The two selectors that tell a refarm process where this node's declarations live,
+/// forwarded only when this node was itself told. Undeclared stays undeclared downstream:
+/// nothing here invents a scope, it only refuses to lose one.
+fn node_base_vars() -> Vec<(String, String)> {
+    [
+        crate::host::SOVEREIGN_BASE_KEY,
+        crate::host::SOVEREIGN_DIR_SELECTOR_KEY,
+    ]
+    .into_iter()
+    .filter_map(|key| {
+        let value = std::env::var(key).ok()?;
+        (!value.trim().is_empty()).then(|| (key.to_string(), value))
+    })
+    .collect()
+}
+
 fn spawn(invocation: &Invocation, spawn_env: &SpawnEnvDecl) -> std::io::Result<tokio::process::Child> {
     let mut command = tokio::process::Command::new(&invocation.program);
     command
         .args(&invocation.args)
         .env_clear()
         .envs(spawn_env.injected_vars())
+        // WHERE this node's declarations live, so the child answers from the same ones the
+        // host does. It is NOT in `injected_vars`: that is the operator's declared spawn
+        // environment, and `spawn_env_undeclared_injects_nothing` states the rule it keeps —
+        // undeclared means absent, never inherited. A connection's establish process is an
+        // arbitrary operator command and has no business receiving refarm's own selectors.
+        //
+        // This child is different in kind: it IS refarm, re-entered to run a declared
+        // operation, and without these it read the catalog from the operator's home (it
+        // admitted the operation) and then the workspace from the daemon's directory (it
+        // refused the same operation, one line later).
+        .envs(node_base_vars())
         // Held open by the daemon, never written to — see the module header. This is the
         // wizard's lifeline and its leash at once.
         .stdin(std::process::Stdio::piped())

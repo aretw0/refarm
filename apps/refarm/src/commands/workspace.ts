@@ -30,6 +30,7 @@ import {
 	type WorkspaceSweepSummary,
 } from "@refarm.dev/cli/workspace-sweep";
 import {
+	declaredBase,
 	declaredWorkspaceFromConfig,
 	declaredWorkspacesFromConfig,
 	loadConfig,
@@ -353,7 +354,7 @@ export async function runDeclaredWorkspaceCommand(
 	deps: WorkspaceCommandDeps | undefined,
 	runner: WorkspaceRunner = defaultWorkspaceRunner,
 ): Promise<WorkspaceRunResult> {
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	const config = (deps?.loadConfig ?? loadConfig)(baseDir);
 	const workspace = declaredWorkspaceFromConfig(config, input.workspace, { baseDir });
 	if (!workspace) {
@@ -385,7 +386,7 @@ function resolveWorkspaceExecutionCwd(
 	pathResolution: WorkspacePathResolution | null;
 } {
 	if (options.cwd) return { cwd: options.cwd, declaredWorkspace: null, pathResolution: null };
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	if (!options.workspace) return { cwd: baseDir, declaredWorkspace: null, pathResolution: null };
 	const config = (deps?.loadConfig ?? loadConfig)(baseDir);
 	const declaredWorkspace = declaredWorkspaceFromConfig(config, options.workspace, { baseDir });
@@ -501,7 +502,7 @@ function printWorkspaceStatus(
 	deps: WorkspaceCommandDeps | undefined,
 	operation: "execution" | "status" = "status",
 ): void {
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	const observations = observeDeclaredWorkspacesExecution(
 		loadDeclaredWorkspaces(deps, baseDir),
 		deps,
@@ -525,7 +526,7 @@ function printWorkspaceMounts(
 	options: WorkspaceMountsCommandOptions,
 	deps: WorkspaceCommandDeps | undefined,
 ): void {
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	const observations = observeDeclaredWorkspacesExecution(
 		loadDeclaredWorkspaces(deps, baseDir),
 		deps,
@@ -561,7 +562,7 @@ function printWorkspaceSources(
 	options: WorkspaceSourcesCommandOptions,
 	deps: WorkspaceCommandDeps | undefined,
 ): void {
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	const plan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), { baseDir });
 	if (options.json) {
 		printJson(
@@ -660,7 +661,7 @@ function printWorkspaceSourceDeclarations(
 	options: WorkspaceSourceDeclarationsCommandOptions,
 	deps: WorkspaceCommandDeps | undefined,
 ): void {
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	const sourcePlan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), {
 		baseDir,
 	});
@@ -727,7 +728,7 @@ function printWorkspaceSourceMaterialize(
 		}
 		throw new Error("workspace sources materialize currently requires --dry-run or --run");
 	}
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	const plan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), { baseDir });
 	const processes = plan.items.flatMap((item) => (item.process ? [item.process] : []));
 	const steps = workspaceSourceProcessSteps(processes, {
@@ -852,7 +853,7 @@ function printWorkspaceSourceRefresh(
 		}
 		throw new Error("workspace sources refresh currently requires --dry-run or --run");
 	}
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	const plan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), { baseDir });
 	const processes = plan.items.flatMap((item) =>
 		item.refreshProcess ? [item.refreshProcess] : [],
@@ -1289,7 +1290,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.description("List workspaces declared in Refarm config")
 		.option("--json", "Output machine-readable configured workspaces")
 		.action((options: WorkspaceListCommandOptions) => {
-			const baseDir = deps?.cwd?.() ?? process.cwd();
+			const baseDir = deps?.cwd?.() ?? declaredBase();
 			const workspaces = loadDeclaredWorkspaces(deps, baseDir);
 			if (options.json) {
 				printJson(
