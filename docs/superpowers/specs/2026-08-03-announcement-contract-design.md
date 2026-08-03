@@ -1,7 +1,13 @@
 # An operator channel that can only ask has no way to say why
 
 Date: 2026-08-03
-Status: DESIGNED — approved by the maintainer before code.
+Status: DESIGNED — awaiting the maintainer's approval of this revision, before code.
+Revised 2026-08-03 after an adversarial review of the first draft, which found six defects: the
+peered channel had nowhere to put the verb (D7), the contract exists in two copies rather than one
+(Cost), a required method would break `prompt:v1` implementors (D1), the scripted channel could not
+be asserted on and conformance would print (D8), and — the substantive one, from the maintainer's
+own constraint about being reached on two surfaces — announcements did not reach the PUSH surfaces
+at all, and the naive repair would have multiplied the noise there (D9).
 Lane: [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md) — interfaces, devices and nodes
 Phase: 13, opening slice.
 
@@ -56,8 +62,9 @@ export interface OperatorChannel {
 	ask(prompt: TextPrompt): Promise<string>;
 	ask(prompt: SecretPrompt): Promise<string>;
 	ask(prompt: OperatorPrompt): Promise<boolean | string>;
-	/** State a fact. Returns nothing, awaits nothing, throws nothing. */
-	say(notice: string | OperatorNoticeInput): void;
+	/** State a fact. Returns nothing, awaits nothing, throws nothing.
+	 *  OPTIONAL — see below. */
+	say?(notice: string | OperatorNoticeInput): void;
 }
 ```
 
@@ -65,6 +72,20 @@ export interface OperatorChannel {
 silence it replaces — a broken remote transport must never be the reason a wizard stops working.
 This is the same reasoning `currentPromptPublisher` already applies at line 247: a broken
 notification arrangement must not prevent a question being asked.
+
+**`say` is OPTIONAL, and that is a versioning decision, not a convenience.** `prompt:v1` is a
+versioned capability contract. A new REQUIRED method on `OperatorChannel` is breaking for anyone
+implementing it — and the point of publishing a contract is that we cannot enumerate its
+implementors. In-repo the cost is visible and small (three object literals in `auth.test.ts` at
+lines 1366, 2135 and 2157 implement `ask` alone); out of repo it is unknowable.
+
+So: `say?`, every call site goes through `channel.say?.(…)`, and a channel that does not implement it
+degrades to exactly today's behaviour. `PROMPT_CAPABILITY` stays `prompt:v1`, and the frozen kit on
+the phone stays valid.
+
+The cost is real and accepted: the type no longer forces a NEW channel author to consider the verb.
+`runOperatorChannelConformance` compensates — it reports whether a channel announces, so "this
+channel is mute" becomes an observed fact rather than a silent one.
 
 ## D2 — `stream:v1` is not the substrate, and the survey that said it was conflated two things
 
@@ -199,7 +220,32 @@ makes when it admits `unknown` rather than locking the operator out of a device 
 the ring is 32 entries. A device filters on `ordinal` client-side for free. `?since=` becomes natural
 when a durable transport arrives — which is what the ordinal exists for.
 
-## D7 — Five implementations, one invariant
+## D7 — Announcement has no lifecycle, so the publisher must not demand one
+
+`PeeredOperatorChannelOptions.remote(signal)` is a FACTORY CALLED PER ASK (line 1498, used at 1535):
+each question gets its own `RemoteOperatorChannel` and its own `AbortSignal`, because a question has
+a lifetime — it can be withdrawn, expire, or lose a race.
+
+`say()` happens outside any ask. Routing it through that factory would mean constructing a whole
+remote channel, with a signal that never fires, to state one sentence — bending a per-question
+lifecycle around something that has none.
+
+So `PromptPublisher` gains a sibling to `remote`:
+
+```ts
+export interface PromptPublisher {
+	/** Build the elsewhere-side channel for ONE ask, interruptible by `signal`. */
+	remote(signal: AbortSignal): RemoteOperatorChannel;
+	/** Publish a statement. No lifecycle, so no signal. Optional: a publisher that
+	 *  cannot announce simply does not, and the terminal still says it. */
+	announce?(notice: OperatorNoticeInput): void;
+}
+```
+
+`createStdioOperatorChannel`'s peered path then calls `publisher.announce?.()` for `say` and
+`publisher.remote(signal)` for `ask`, and the two verbs stop sharing machinery neither needed.
+
+## D8 — Five channels (ten implementations — see Cost), one invariant
 
 | Channel | `say()` does |
 |---|---|
@@ -207,7 +253,20 @@ when a durable transport arrives — which is what the ordinal exists for.
 | `createAutoOperatorChannel` | writes to stdout; a wizard in CI does not go mute |
 | `createScriptedOperatorChannel` | **records into a list** the test can assert on |
 | `createRemoteOperatorChannel` | `hub.announce()` |
-| `createPeeredOperatorChannel` | both, in the order they were said |
+| `createPeeredOperatorChannel` | terminal + `publisher.announce?.()` (D7), in the order said |
+
+Two consequences of that table that are easy to get wrong:
+
+**`createScriptedOperatorChannel` needs a wider return type.** It records notices, but
+`OperatorChannel` exposes no way to read them, so a test could not assert what was recorded. It
+returns `ScriptedOperatorChannel extends OperatorChannel` with a `notices(): readonly
+OperatorNoticeInput[]` accessor. Without this, verification 3 below cannot be written — which is the
+whole point of the scripted channel recording rather than printing.
+
+**Conformance must not print.** `runOperatorChannelConformance` runs against the auto and scripted
+channels, and the auto channel writes to stdout — so a naive `say("_conformance_")` check would spit
+text into every suite that runs conformance. The check passes a sink (`output`) it can read instead,
+the way the existing checks pass canned answers rather than touching a real terminal.
 
 **The invariant: with no publisher declared, `say()` is indistinguishable from today's
 `console.log`.** This is the property `createStdioOperatorChannel` already protects for `ask` (line
@@ -216,6 +275,40 @@ when a durable transport arrives — which is what the ordinal exists for.
 The scripted channel recording rather than printing is what makes the regression test possible — the
 assertion becomes "the preflight reached the channel", which is the thing that was false, rather than
 "something was printed", which was always true.
+
+## D9 — A notice never pushes on its own; it travels attached to the next question
+
+The maintainer's constraint, and the finding it forced: **Telegram and the PWA reach the operator by
+opposite mechanisms.** The PWA and `farm-attend` PULL — they poll `GET /prompts`. Telegram PUSHES —
+it is a delivery adapter, driven at `delivery.ts:334` by `hub.subscribe((pending) => …)`, which
+builds a message with `deliveryRequestFromPendingPrompt(pending)` and sends it.
+
+D6 alone therefore fixes the bug only on the pull surfaces. On Telegram — the surface the operator
+actually carries — questions would keep arriving stripped of their framing, which is the original
+defect, unfixed, on the channel that matters most.
+
+And the naive repair is worse. If `announce()` notified the prompt subscribers the way `publish()`
+does, `delivery add`'s preflight would become **three Telegram messages before the question**. With
+both Telegram and the PWA declared — which is the maintainer's own test configuration — that is
+noise on two channels at once, for one wizard.
+
+**The rule:** `hub.announce()` does NOT notify the prompt subscribers. Notices accumulate in the
+ring (D5). When a prompt IS published, the delivery request carries the notices from the SAME asker
+since that asker's previous prompt, so framing and question arrive as ONE message per channel.
+
+Consequences, all of them intended:
+
+- **One message per channel, never N+1.** Declaring two surfaces costs two messages, not two times
+  the number of framing lines.
+- **A notice with no question after it never pushes.** Correct: nothing is blocked, so nobody needs
+  waking. It stays visible on the pull surfaces, which is where a reader who came looking will see it.
+- **`caution` lands with the confirm it precedes** — "Isto envia uma mensagem REAL agora" arrives in
+  the same message as "Envio a mensagem de teste?", which is the only arrangement in which the
+  warning can do its job.
+
+The hub tracks a per-asker watermark (the ordinal of the last notice already attached) so a notice is
+never sent twice and never skipped. That watermark is also what a durable transport (D3) would resume
+from, which is a second reason the ordinal is hub-global.
 
 ## What this is not
 
@@ -240,12 +333,33 @@ assertion becomes "the preflight reached the channel", which is the thing that w
    through the unchanged `parsePendingPromptList`.
 5. **The invariant** — a terminal channel with no publisher declared produces byte-identical stdout
    to `console.log` for the same lines.
+6. **A notice never pushes alone (D9)** — announcing without a following prompt drives the delivery
+   subscriber at `delivery.ts:334` **zero** times; announcing three lines and then asking drives it
+   **once**, with all three carried in that one request. This is the assertion that keeps the
+   two-channel test configuration from becoming two-channel noise.
+7. **Both copies agree** — the vendored `farm-client` copy is byte-identical to the source after the
+   change, asserted rather than assumed (see the loose end under Cost).
 
 ## Cost
 
-One method on an interface with five implementations, one hub verb plus a bounded ring, one field on
-an existing wire envelope, and one call-site change in `delivery-add.ts` that deletes a silence.
-Roughly a day.
+**The contract exists in two copies, and both must move.**
+`packages/farm-client/vendor/prompt-contract-v1/src/index.ts` is byte-identical to the source
+(verified with `diff`). That duplication is deliberate and load-bearing — it is what lets a phone
+parse the wire from a bare `git pull`, with nothing installed. So it is not five implementations of
+`say`, it is **ten**: five in the package, five in the vendored copy.
+
+> **A loose end found while measuring this, and NOT part of this slice.**
+> `packages/farm-client/README.md:19` states the decoupling invariant "é guardado por
+> `scripts/ci/test-farm-client-decoupled.mjs`". **That file does not exist.** So the vendored copy
+> currently has no guard keeping it in sync with its source, and no guard keeping the kit decoupled
+> from the monorepo — a documented invariant with nothing enforcing it. This slice will be the first
+> to edit both copies in one change, which makes the gap concrete rather than theoretical. It should
+> be its own commit, before or after, not folded in here.
+
+So: one optional method across ten implementations, one hub verb plus a bounded ring and a per-asker
+watermark, one field on an existing wire envelope, one sibling on `PromptPublisher`, the delivery
+attachment rule at `delivery.ts:334`, and one call-site change in `delivery-add.ts` that deletes a
+silence. Roughly a day and a half, most of it in the two copies staying honest.
 
 The alternative measured in D2 — making `stream:v1` the operator log — requires a per-operator
 `stream_ref`, abandoning `is_final`, lifting the resume cursor out of Rust into the TS contract, and
