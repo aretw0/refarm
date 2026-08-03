@@ -660,6 +660,8 @@ fn usage_view_from_record(node: &serde_json::Value) -> serde_json::Value {
             "tokens_in": count("tokens_in"),
             "tokens_out": count("tokens_out"),
             "tokens_cached": count("tokens_cached"),
+            "cache_read_input_tokens": count("cache_read_input_tokens"),
+            "cache_creation_input_tokens": count("cache_creation_input_tokens"),
             "tokens_reasoning": count("tokens_reasoning"),
             "pricing_mode": node.get("pricing_mode").cloned().unwrap_or(serde_json::Value::Null),
             "estimated_usd": node.get("estimated_usd").cloned().unwrap_or_else(|| serde_json::json!(0)),

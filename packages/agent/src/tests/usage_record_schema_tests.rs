@@ -44,3 +44,25 @@ fn usage_record_schema_has_required_fields() {
     }
     assert_eq!(node["@type"], "UsageRecord");
 }
+
+#[test]
+fn usage_record_carries_both_cache_buckets_and_their_sum() {
+    let node = usage_record_node(UsageRecordPayload {
+        prompt_ref: "urn:sovereign:prompt-test",
+        provider: "anthropic",
+        model: "claude-sonnet-4-6",
+        tokens_in: 50,
+        tokens_out: 10,
+        cache_read_tokens: 100_000,
+        cache_creation_tokens: 2_048,
+        tokens_reasoning: 0,
+        usage_raw: "{}",
+        duration_ms: 0,
+    });
+    assert_eq!(node["cache_read_input_tokens"], 100_000);
+    assert_eq!(node["cache_creation_input_tokens"], 2_048);
+    assert_eq!(
+        node["tokens_cached"], 102_048,
+        "the sum stays for readers that predate the split"
+    );
+}
