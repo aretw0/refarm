@@ -1,8 +1,8 @@
 # The node's declarations come from what it was told, not from where it was started
 
 Date: 2026-08-03
-Status: Design — not implemented. Touches `packages/tractor/**` (CLAUDE.md §8 protected surface),
-so it needs the maintainer's approval before code.
+Status: IMPLEMENTED 2026-08-03, both open decisions taken — see the implementation records below.
+Approved by the maintainer before code, as `packages/tractor/**` requires (CLAUDE.md §8).
 Lane: [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md) — interfaces, devices and nodes
 
 ## What forced this
@@ -231,10 +231,33 @@ Proven both ways on this node: two findings from the repository, none from the o
 This also settles (3) for now. With the divergence visible, moving the enrolment default is no
 longer the only thing standing between the operator and a silent wrong-file write — so the boundary
 in `no enrolment module so much as names the declaration file` stays intact, and the choice can be
-made on its own merits rather than under pressure from a bug that is now surfaced. What remains
-genuinely open is only whether `refarm runtime status` should report the RUNNING node's base, which
-needs a value the daemon holds and the CLI cannot compute; the divergence a doctor can see locally
-is the part that costs an evening, and that part is closed.
+made on its own merits rather than under pressure from a bug that is now surfaced. ### Both decisions taken, 2026-08-03
+
+**The node's policy is the default; `--policy` is how to differ.** A node reads exactly one policy
+file, so which one is THE one is an address rather than a preference — and the old default followed
+the process directory, which is not composition but ambiguity: nobody CHOOSES to write a policy by
+standing somewhere. `resolveRefarmHome` reads `REFARM_HOME` or the OS home and no declaration, so
+`no enrolment module so much as names the declaration file` keeps holding. The earlier attempt went
+through `@refarm.dev/config` and that guard was right to refuse it; the route that works honours
+both the letter and the intent. The tests isolated cwd but not the node's home, which stopped being
+enough the moment the policy stopped following the directory.
+
+**The node publishes what it is, in a file, and the pid answers staleness.** `refarm runtime status`
+exposing the running base turned out to need a mechanism the approval did not imply: every sidecar
+route is `DeviceOnly` unless it says otherwise, and there is no loopback exemption — so a route
+would demand a device credential from the operator asking their own node about itself, inverting the
+authority, since whoever can read `<refarm-dir>` already holds more than any enrolled device. The
+node therefore publishes `<refarm-dir>/node.json` (`node-descriptor.v1`) at boot and the filesystem
+is the gate.
+
+The pid travels with it because a file outlives its writer, and a descriptor from a dead node is
+history presented as fact — the same shape of lie this whole change removes. `kill(pid, 0)` asks the
+exact question without a timestamp threshold, a lock file, or a cleanup a crash would skip. Absent,
+stale, malformed and unknown-wire are one answer — "this node does not say" — and the reader falls
+back to the inference it used before, so an old node and a new reader still work.
+
+`refarm doctor` now compares against the RUNNING node. Proven live both ways: a descriptor pointing
+elsewhere with a live pid is believed; the same descriptor with a dead pid is ignored.
 
 ## Cost
 

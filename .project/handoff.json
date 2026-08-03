@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint 2026-08-03. The declared-node-base slice is implemented and proven. The node resolved declarations from wherever it was started while already carrying --refarm-dir; SOVEREIGN_BASE now joins SOVEREIGN_DIR as an injected selector, all seven Group A+B sites read it, and the selectors travel to the operation child so it stops admitting an operation from one directory and refusing it from another. Proven in the exact broken scenario: daemon restarted from the repository, authenticated POST /operations returned exitCode 0, succeeded, 10 packages, 0 issues, where the same directory previously gave exit 1 and invalid-or-missing-operation-result. D4 landed too — `refarm doctor` now names the directory, reporting auth-policy and config divergence as warnings, silent when there is nothing local to diverge; this node shows two findings from the repository and none from home. Three existing guards corrected the implementation along the way and each was right: injected_vars must carry only what the operator declared, enrolment may not import the config package, and a JS package's hand-written .d.ts must declare a new export or only type-check sees it.",
-	"timestamp": "2026-08-03T02:30:00.000Z",
+	"context": "Checkpoint 2026-08-03 (late). The declared-node-base work is COMPLETE, both open decisions taken. The node resolves declarations from what it was told (SOVEREIGN_BASE, injected like SOVEREIGN_DIR) across all seven Group A+B sites and forwards them to the operation child, so it no longer admits an operation from one directory and refuses it from another — proven with the daemon deliberately started from the repository: exitCode 0, succeeded, 10 packages, 0 issues. `refarm auth`'s default policy is now the NODE's, at resolveRefarmHome, with --policy the explicit way to differ; the enrolment boundary held because resolveRefarmHome reads no declaration. And the node publishes <refarm-dir>/node.json (node-descriptor.v1) at boot carrying its declaration base and pid, so `refarm doctor` compares against the RUNNING node instead of inferring — a file rather than a route, because every sidecar route is DeviceOnly and asking your own node about itself must not need a device credential. Staleness is answered by kill(pid, 0), never a timestamp. Four existing guards corrected the implementation along the way and each was right.",
+	"timestamp": "2026-08-03T03:00:00.000Z",
 	"current_phase": "12",
 	"current_tasks": [],
 	"blockers": [],
@@ -9,10 +9,7 @@
 		"Rotate the device credential if not already done: `cd ~ && refarm auth enroll galaxy-a55-5g --rotate`, then `farm-auth set` on the phone. It was exposed in the Termux scrollback before dc4dee82 bounded the secret mask.",
 		"Then compose Telegram over the existing catalog/lifecycle/consent/status/operation-result contracts. `delivery add` is already in THE TABLE, so the channel can be declared FROM the phone via farm-start \"delivery add\" + farm-attend."
 	],
-	"open_questions": [
-		"Whether the auth policy default should follow the node's base (spec item 3). Blocked by a deliberate boundary — `no enrolment module so much as names the declaration file` forbids enrolment from importing @refarm.dev/config at all. Now lower-stakes: D4 makes the divergence visible, so the choice can be made on its own merits.",
-		"Whether `refarm runtime status` should report the RUNNING node's declaration base. Needs a value the daemon holds and the CLI cannot compute; the locally-visible half is already covered by the doctor findings."
-	],
+	"open_questions": [],
 	"key_decisions_active": [
 		"DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
 		"DEC-032: produto CLI/host em apps/; packages/ guardam blocos reutilizáveis.",
