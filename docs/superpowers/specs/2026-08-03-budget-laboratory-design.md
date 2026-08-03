@@ -386,11 +386,19 @@ evidence. Slices 6–8 are what let anyone else reproduce it.
   without a plan record `steps_completed` and omit the total, per D6. Whether the agent should
   always declare an intended step count is a question for the record to answer, not for this design
   to assume.
-- **Where does a workspace declare its ceiling?** D9 settles that the workspace *has* one; it does
-  not settle the file. `.refarm/config.json` already carries workspace declarations
-  (`refarm workspace list`), which makes it the obvious home, but a budget is a policy rather than a
-  capability and may belong beside the auth policy instead. Slice 2 can define the resolution fold
-  without answering this; slice 3 must answer it.
+- ~~**Where does a workspace declare its ceiling?**~~ **Settled 2026-08-03 by the operator: a budget
+  is policy, and policy sits beside policy.** The framing that produced this question was wrong: it
+  offered two homes where the sovereign config is the only one. Measured: `.refarm/config.json`
+  carries `tractor`, `processes`, `surfaces`, `workspaces`, `spawnEnv` and `delivery` at the top
+  level, and the auth gate lives at `surfaces.<name>.gate` — **keyed by the thing it governs, not by
+  the workspace**. A workspace cannot declare its own auth policy today; that is a limitation of the
+  present shape, not a principle.
+
+  So `budget` becomes a **top-level section** carrying `node` (the machine's default and ceiling) and
+  a `workspaces` map for those needing their own. Not `workspaces.<id>.budget`: that section
+  describes *capacity* (where the workspace is, what commands it exposes, how it executes), so a
+  ceiling filed there reads as something the workspace *does* rather than what it may *spend*.
+  `surfaces` already demonstrates the right shape.
 - **Cost of the record at high frequency.** One node per terminal effort is cheap; one per LLM call
   would not be. This design writes at effort granularity and joins to the existing per-call
   `UsageRecord` rather than duplicating it.

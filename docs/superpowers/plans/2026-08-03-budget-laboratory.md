@@ -38,6 +38,10 @@ independently valuable. This is a decomposition of the approved order, not a red
 - **Known flaky**: `observer::tests::rotate_seals_the_full_file_and_starts_fresh` fails ~2 of 4 under
   parallel `cargo test --lib` and never under `--test-threads=1`. It is unrelated to this work. If it
   fails, re-run with `--test-threads=1` before investigating.
+- **`cargo check --lib` does not compile `#[cfg(test)]` code.** Found the hard way in Task 1: a type
+  change that `cargo check` calls clean can still break test modules the change never named. When a
+  task widens a type, the site list is a starting point and `cargo test --lib --quiet` is the only
+  command that proves it complete.
 - **Scoped commands**: `pnpm --filter @refarm.dev/<pkg> run <script>`, never `cd` into packages.
 - **After source edits, before committing**: `refarm agent finish --lane after-edit --run --json`.
 - **After each commit**: `refarm agent finish --lane after-commit --run --json`.
@@ -912,13 +916,39 @@ refarm agent finish --lane after-commit --run --json
 - Consumes: the resolution behaviour proven by Task 4's conformance list.
 - Produces: `ResolvedBudget { deadline_ms: ResolvedAxis, max_tokens: ResolvedAxis, max_usd: ResolvedAxis }`
   and `resolve_budget(declared: Option<&BudgetDeclaration>, workspace: Option<&WorkspaceBudget>, node: &NodeBudget) -> ResolvedBudget`,
-  plus `Effort.budget: Option<BudgetDeclaration>`.
+  plus `Effort.budget: Option<BudgetDeclaration>` and `Effort.workspace_id: Option<String>`.
 
-**Open question this task must answer** (spec, Open Questions): where a workspace declares its
-ceiling. Recommended answer, to be confirmed with the maintainer before writing code: a `budget` key
-inside the existing workspace entry in `.refarm/config.json`, beside `commands`, because
-`refarm workspace list` already reads it and a second file would be a fourth road for the same kind
-of declaration.
+**The effort must carry its workspace identity explicitly** (`workspaceId` on the wire), not leave it
+to be parsed back out of an operation id. Two consumers need it and only one exists today: Task 7's
+`refarm.workspace.id` label needs it now, and the credential scope that the next spec will widen from
+verb to verb×object needs the same object. Inferring it from a string at two call sites is how the
+two drift apart. A dispatch with no workspace sends `None`, and D6 applies: absent, never `""`.
+
+**Name the fold for what it is.** `resolve_axis` implements *nested policy resolution* — a value
+resolved outward to inward across node, scope and request, reporting which level bound it. Budget is
+its first consumer, not its definition. Keep the function and its doc comment free of budget-specific
+language so the next consumer inherits it instead of copying it.
+
+**Settled by the maintainer before this task (spec, Open Questions):** the workspace ceiling is
+**policy**, so it lives in a **top-level `budget` section** of `.refarm/config.json`, beside
+`surfaces` and `delivery` — not at `workspaces.<id>.budget`, which describes capacity. Shape:
+
+```json
+{
+  "budget": {
+    "node": {
+      "default": { "deadlineMs": 45000, "maxTokens": 100000, "maxUsd": 1 },
+      "ceiling": { "deadlineMs": 600000, "maxTokens": 500000, "maxUsd": 10 }
+    },
+    "workspaces": {
+      "rcdc5": { "ceiling": { "deadlineMs": 300000 } }
+    }
+  }
+}
+```
+
+Every key is optional: a config with no `budget` section resolves entirely from the node defaults in
+`NodeBudget::from_env()`, which is what every existing installation will do.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1626,7 +1656,18 @@ JSON output (CLAUDE.md §4).
 
 ## After this plan
 
-Update [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md) and `.project/handoff.json`, then
-write the plan for spec slices 6–8 (the sweep, the gallery, closing the loop). By then the record
-will hold real observations, which is what slice 8 needs in order to derive a default and a ceiling
-from evidence instead of from a constant.
+Update [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md) and `.project/handoff.json`.
+
+**Then the credential scope, before slices 6–8.** The maintainer decided on 2026-08-03 that the next
+spec widens the credential scope from a verb to verb×object — `start-operations` to
+`start-operations@<workspace>` — so a workspace can declare its own auth the way D9 lets it declare
+its own budget. The reason it goes next rather than later is arithmetic: `Scope` is a closed enum of
+three variants and `scoped-credential.v1` is a versioned wire contract with almost nothing issued
+against it. Widening it now is a toy migration; widening it after credentials are spread across
+devices is a v2 and a coexistence window. It inherits this plan's two prerequisites: the workspace
+identity Task 5 puts on the effort, and the nested resolution fold Task 5 keeps free of
+budget-specific language.
+
+**Then spec slices 6–8** (the sweep, the gallery, closing the loop). By then the record will hold
+real observations, which is what slice 8 needs in order to derive a default and a ceiling from
+evidence instead of from a constant.
