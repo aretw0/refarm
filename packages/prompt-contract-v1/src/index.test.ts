@@ -1684,18 +1684,31 @@ describe("the hub announces (D5/D9)", () => {
 		expect(hub.notices().map((n) => n.message)).toEqual(["o enquadramento"]);
 	});
 
-	it("takeNoticesFor returns one asker's unattached notices and never repeats them (D9)", () => {
+	it("noticesFor filters by asker, and the cursor belongs to the caller", () => {
 		const hub = createPendingPromptHub();
 		hub.announce(asker, "uma");
 		hub.announce(other, "de outro");
-		hub.announce(asker, "duas");
+		const third = hub.announce(asker, "duas");
 
-		expect(hub.takeNoticesFor(asker.command).map((n) => n.message)).toEqual(["uma", "duas"]);
-		// Taken once. A second question from the same asker carries nothing stale.
-		expect(hub.takeNoticesFor(asker.command)).toEqual([]);
+		expect(hub.noticesFor(asker.command).map((n) => n.message)).toEqual(["uma", "duas"]);
+		// PURE: asking twice returns the same thing. The hub keeps no watermark.
+		expect(hub.noticesFor(asker.command).map((n) => n.message)).toEqual(["uma", "duas"]);
 
 		hub.announce(asker, "três");
-		expect(hub.takeNoticesFor(asker.command).map((n) => n.message)).toEqual(["três"]);
+		expect(hub.noticesFor(asker.command, third.ordinal).map((n) => n.message)).toEqual(["três"]);
+	});
+
+	it("two consumers do not starve each other — the defect a shared watermark had", () => {
+		const hub = createPendingPromptHub();
+		hub.announce(asker, "o enquadramento");
+
+		// Delivery carries it…
+		const forDelivery = hub.noticesFor(asker.command, 0);
+		// …and the hop to the node carries the SAME framing, independently.
+		const forNode = hub.noticesFor(asker.command, 0);
+
+		expect(forDelivery.map((n) => n.message)).toEqual(["o enquadramento"]);
+		expect(forNode.map((n) => n.message)).toEqual(["o enquadramento"]);
 	});
 
 	it("announcing does NOT notify the prompt subscribers (D9 — no notice pushes alone)", () => {

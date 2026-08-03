@@ -1471,12 +1471,25 @@ export interface PendingPromptHub {
 	/** Every notice still in the ring, oldest first. */
 	notices(): OperatorNotice[];
 	/**
-	 * This asker's notices not yet attached to a delivered question, MARKING THEM
-	 * ATTACHED (D9). Called when a prompt is published, so framing and question
-	 * travel as one message per channel and a second question does not repeat
-	 * framing the operator already read.
+	 * This asker's notices after `since`, oldest first. PURE — the hub keeps no
+	 * cursor, and calling this twice returns the same thing.
+	 *
+	 * ── WHY THE CURSOR BELONGS TO THE CALLER ─────────────────────────────────
+	 *
+	 * This began as `takeNoticesFor`, which marked what it returned as attached so
+	 * a second question would not repeat framing the operator had already read.
+	 * That works for ONE consumer and quietly breaks for two — and there are two:
+	 * the delivery mount (which pushes framing to Telegram with the question) and
+	 * the hop that carries it to the node for the pull surfaces. With one shared
+	 * watermark they STARVE EACH OTHER: whoever asks first marks, and the other
+	 * gets an empty list. The operator would get framing on the phone or in the
+	 * browser depending on which raced first.
+	 *
+	 * So the hub keeps no watermark. Each consumer remembers the last `ordinal` it
+	 * carried and asks for what came after — which is what D3 said the ordinal was
+	 * for: "a durable transport resumes from it; a poller dedupes on it."
 	 */
-	takeNoticesFor(askerCommand: string): OperatorNotice[];
+	noticesFor(askerCommand: string, since?: number): OperatorNotice[];
 }
 
 interface HubEntry {
@@ -1496,8 +1509,6 @@ export function createPendingPromptHub(options: PendingPromptHubOptions = {}): P
 
 	const noticeCapacity = options.recentNotices ?? 32;
 	const notices: OperatorNotice[] = [];
-	/** Highest ordinal already attached to a delivered question, per asker command. */
-	const attachedThrough = new Map<string, number>();
 	let noticeOrdinal = 0;
 
 	function remember(settlement: PendingPromptSettlement): void {
@@ -1622,16 +1633,10 @@ export function createPendingPromptHub(options: PendingPromptHubOptions = {}): P
 			return stamped;
 		},
 		notices: () => [...notices],
-		takeNoticesFor(askerCommand) {
-			const through = attachedThrough.get(askerCommand) ?? 0;
-			const fresh = notices.filter(
-				(notice) => notice.asker.command === askerCommand && notice.ordinal > through,
-			);
-			if (fresh.length > 0) {
-				attachedThrough.set(askerCommand, fresh[fresh.length - 1]!.ordinal);
-			}
-			return fresh;
-		},
+		noticesFor: (askerCommand, since = 0) =>
+			notices.filter(
+				(notice) => notice.asker.command === askerCommand && notice.ordinal > since,
+			),
 	};
 }
 

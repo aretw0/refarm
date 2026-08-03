@@ -315,11 +315,11 @@ export function createSidecarPromptHub(options: SidecarPromptHubOptions): Pendin
 		//
 		// What that means in practice, stated rather than discovered later: framing
 		// reaches the TERMINAL and any DELIVERY channel (`attachDeliveryToHub`
-		// subscribes to this hub in-process, and `takeNoticesFor` is served from
+		// subscribes to this hub in-process, and `noticesFor` is served from
 		// here), but NOT a device attending through the node. Extending it is a
 		// protected-surface change under CLAUDE.md §8.
 		announce: (asker, notice) => local.announce(asker, notice),
 		notices: () => local.notices(),
-		takeNoticesFor: (askerCommand) => local.takeNoticesFor(askerCommand),
+		noticesFor: (askerCommand, since) => local.noticesFor(askerCommand, since),
 	};
 }
