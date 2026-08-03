@@ -9,7 +9,8 @@ pub struct CompletionResult {
     pub tool_calls: serde_json::Value,
     pub tokens_in: u32,
     pub tokens_out: u32,
-    pub tokens_cached: u32,
+    pub cache_read_tokens: u32,
+    pub cache_creation_tokens: u32,
     pub tokens_reasoning: u32,
     pub usage_raw: String,
 }

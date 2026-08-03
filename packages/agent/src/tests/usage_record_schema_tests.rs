@@ -2,8 +2,9 @@ use super::*;
 
 #[test]
 fn usage_record_schema_has_required_fields() {
-    let (_, _, tokens_in, tokens_out, tokens_cached, tokens_reasoning, model, usage_raw) =
+    let (_, _, tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens, tokens_reasoning, model, usage_raw) =
         react("hello");
+    let tokens_cached = cache_read_tokens + cache_creation_tokens;
     let node = serde_json::json!({
         "@type":            "UsageRecord",
         "@id":              "urn:sovereign:usage-test",

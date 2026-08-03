@@ -11,7 +11,8 @@ fn provider_runtime_usage_totals_ingest_anthropic_fields() {
 
     assert_eq!(totals.tokens_in, 10);
     assert_eq!(totals.tokens_out, 4);
-    assert_eq!(totals.tokens_cached, 5);
+    assert_eq!(totals.cache_read_tokens, 3);
+    assert_eq!(totals.cache_creation_tokens, 2);
     assert_eq!(totals.tokens_reasoning, 0);
 }
 
@@ -28,7 +29,7 @@ fn provider_runtime_usage_totals_ingest_openai_fields() {
 
     assert_eq!(totals.tokens_in, 12);
     assert_eq!(totals.tokens_out, 6);
-    assert_eq!(totals.tokens_cached, 7);
+    assert_eq!(totals.cache_read_tokens, 7);
     assert_eq!(totals.tokens_reasoning, 2);
 }
 
@@ -45,7 +46,7 @@ fn provider_runtime_usage_totals_ingest_openai_responses_fields() {
 
     assert_eq!(totals.tokens_in, 12);
     assert_eq!(totals.tokens_out, 6);
-    assert_eq!(totals.tokens_cached, 7);
+    assert_eq!(totals.cache_read_tokens, 7);
     assert_eq!(totals.tokens_reasoning, 2);
 }
 
@@ -78,7 +79,7 @@ fn provider_runtime_ingest_usage_from_response_with_uses_usage_payload() {
 
     assert_eq!(totals.tokens_in, 4);
     assert_eq!(totals.tokens_out, 3);
-    assert_eq!(totals.tokens_cached, 1);
+    assert_eq!(totals.cache_read_tokens, 1);
     assert_eq!(totals.tokens_reasoning, 2);
 }
 
@@ -139,7 +140,8 @@ fn provider_runtime_ingest_anthropic_usage_from_response() {
 
     assert_eq!(totals.tokens_in, 3);
     assert_eq!(totals.tokens_out, 2);
-    assert_eq!(totals.tokens_cached, 5);
+    assert_eq!(totals.cache_read_tokens, 1);
+    assert_eq!(totals.cache_creation_tokens, 4);
 }
 
 #[test]
@@ -157,7 +159,7 @@ fn provider_runtime_ingest_openai_usage_from_response() {
 
     assert_eq!(totals.tokens_in, 5);
     assert_eq!(totals.tokens_out, 7);
-    assert_eq!(totals.tokens_cached, 2);
+    assert_eq!(totals.cache_read_tokens, 2);
     assert_eq!(totals.tokens_reasoning, 1);
 }
 
@@ -205,4 +207,34 @@ fn provider_runtime_openai_phase_after_usage_updates_totals_and_extracts_phase()
 
     assert_eq!(totals.tokens_in, 5);
     assert_eq!(phase.parsed_calls.len(), 1);
+}
+
+#[test]
+fn anthropic_usage_keeps_reads_and_writes_apart() {
+    let mut totals = crate::provider_runtime::UsageTotals::default();
+    totals.ingest_anthropic_usage(&serde_json::json!({
+        "input_tokens": 50,
+        "output_tokens": 10,
+        "cache_read_input_tokens": 100_000,
+        "cache_creation_input_tokens": 2_048,
+    }));
+    assert_eq!(totals.tokens_in, 50, "input_tokens excludes both cache buckets");
+    assert_eq!(totals.cache_read_tokens, 100_000);
+    assert_eq!(totals.cache_creation_tokens, 2_048);
+}
+
+#[test]
+fn openai_usage_reports_reads_only_and_never_invents_writes() {
+    let mut totals = crate::provider_runtime::UsageTotals::default();
+    totals.ingest_openai_usage(&serde_json::json!({
+        "prompt_tokens": 1_000,
+        "completion_tokens": 200,
+        "prompt_tokens_details": { "cached_tokens": 800 },
+    }));
+    assert_eq!(totals.tokens_in, 1_000, "prompt_tokens INCLUDES cached reads");
+    assert_eq!(totals.cache_read_tokens, 800);
+    assert_eq!(
+        totals.cache_creation_tokens, 0,
+        "OpenAI reports no cache-write token count; inventing one would bill a surcharge that does not exist"
+    );
 }

@@ -368,7 +368,7 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
         &outcome.model,
         outcome.tokens_in,
         outcome.tokens_out,
-        outcome.tokens_cached,
+        outcome.cache_read_tokens + outcome.cache_creation_tokens,
     );
     Ok(build_respond_json(
         outcome.content,
@@ -396,14 +396,20 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
         _tool_calls,
         tokens_in,
         tokens_out,
-        tokens_cached,
+        cache_read_tokens,
+        cache_creation_tokens,
         tokens_reasoning,
         model,
         usage_raw,
     ) = runtime::react_with_prompt_ref(&req.prompt, None);
     let provider = provider_name_from_env().to_string();
-    let estimated_usd =
-        estimate_billable_usd(&provider, &model, tokens_in, tokens_out, tokens_cached);
+    let estimated_usd = estimate_billable_usd(
+        &provider,
+        &model,
+        tokens_in,
+        tokens_out,
+        cache_read_tokens + cache_creation_tokens,
+    );
     Ok(build_respond_json(
         content,
         model,

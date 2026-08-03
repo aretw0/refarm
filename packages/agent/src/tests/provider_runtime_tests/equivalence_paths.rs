@@ -93,7 +93,7 @@ fn provider_runtime_contract_and_state_primitives_non_dispatch_paths_are_equival
             assert_eq!(*ctx, "ctx-eq-no-dispatch");
             assert_eq!(model, "model-eq-no-dispatch");
             assert_eq!(wire_msgs.len(), 0);
-            usage_totals.tokens_cached += 9;
+            usage_totals.cache_read_tokens += 9;
             Ok((serde_json::json!({"ok": "eq-no-dispatch"}), 51_u8))
         },
         |state, phase, iter_idx, max_iter, response| {
@@ -114,7 +114,7 @@ fn provider_runtime_contract_and_state_primitives_non_dispatch_paths_are_equival
             assert_eq!(*ctx, "ctx-eq-no-dispatch");
             assert_eq!(model, "model-eq-no-dispatch");
             assert_eq!(state.wire_msgs.len(), 0);
-            state.usage_totals.tokens_cached += 9;
+            state.usage_totals.cache_read_tokens += 9;
             Ok(crate::provider_runtime::provider_response_phase_contract(
                 serde_json::json!({"ok": "eq-no-dispatch"}),
                 51_u8,
@@ -133,10 +133,10 @@ fn provider_runtime_contract_and_state_primitives_non_dispatch_paths_are_equival
 
     assert_eq!(state_out.text, contract_out.text);
     assert_eq!(state_out.response, contract_out.response);
-    assert_eq!(state_out.state.usage_totals.tokens_cached, 9);
+    assert_eq!(state_out.state.usage_totals.cache_read_tokens, 9);
     assert_eq!(
-        state_out.state.usage_totals.tokens_cached,
-        contract_out.state.usage_totals.tokens_cached
+        state_out.state.usage_totals.cache_read_tokens,
+        contract_out.state.usage_totals.cache_read_tokens
     );
     assert_eq!(state_out.state.wire_msgs, contract_out.state.wire_msgs);
 }

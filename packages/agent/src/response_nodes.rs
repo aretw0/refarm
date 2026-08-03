@@ -16,7 +16,8 @@ pub(crate) struct UsageRecordPayload<'a> {
     pub model: &'a str,
     pub tokens_in: u32,
     pub tokens_out: u32,
-    pub tokens_cached: u32,
+    pub cache_read_tokens: u32,
+    pub cache_creation_tokens: u32,
     pub tokens_reasoning: u32,
     pub usage_raw: &'a str,
     pub duration_ms: u64,
@@ -51,6 +52,9 @@ pub(crate) fn agent_response_node(payload: AgentResponsePayload<'_>) -> serde_js
 }
 
 pub(crate) fn usage_record_node(payload: UsageRecordPayload<'_>) -> serde_json::Value {
+    // Task 1 is plumbing only: the node still emits a single `tokens_cached` (the
+    // sum) so the JSON shape stays byte-identical. Task 3 changes what this emits.
+    let tokens_cached = payload.cache_read_tokens + payload.cache_creation_tokens;
     serde_json::json!({
         "@type":         "UsageRecord",
         "@id":           crate::mint_urn("usage"),
@@ -60,8 +64,8 @@ pub(crate) fn usage_record_node(payload: UsageRecordPayload<'_>) -> serde_json::
         "tokens_in":     payload.tokens_in,
         "tokens_out":    payload.tokens_out,
         "pricing_mode":  crate::pricing_mode_for_provider(payload.provider),
-        "estimated_usd": crate::estimate_billable_usd(payload.provider, payload.model, payload.tokens_in, payload.tokens_out, payload.tokens_cached),
-        "tokens_cached": payload.tokens_cached,
+        "estimated_usd": crate::estimate_billable_usd(payload.provider, payload.model, payload.tokens_in, payload.tokens_out, tokens_cached),
+        "tokens_cached": tokens_cached,
         "tokens_reasoning": payload.tokens_reasoning,
         "usage_raw":        payload.usage_raw,
         "duration_ms":      payload.duration_ms,

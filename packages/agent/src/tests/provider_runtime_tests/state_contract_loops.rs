@@ -119,7 +119,7 @@ fn provider_runtime_run_completion_loop_from_common_config_with_state_primitives
             assert_eq!(model, "model-sp3");
             assert_eq!(headers[0].1, "v3");
             assert_eq!(wire_msgs.len(), 0);
-            usage_totals.tokens_cached += 4;
+            usage_totals.cache_read_tokens += 4;
             Ok((serde_json::json!({"ok": true}), 11_u8))
         },
         |state, phase, iter_idx, max_iter, response, dispatch| {
@@ -136,7 +136,7 @@ fn provider_runtime_run_completion_loop_from_common_config_with_state_primitives
     .unwrap();
 
     assert_eq!(out.text, "done-dispatch-1");
-    assert_eq!(out.state.usage_totals.tokens_cached, 4);
+    assert_eq!(out.state.usage_totals.cache_read_tokens, 4);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }
 #[test]
@@ -273,7 +273,7 @@ fn provider_runtime_run_completion_loop_from_common_config_and_context_with_cont
             assert_eq!(*ctx, "ctx-contract-no-dispatch");
             assert_eq!(model, "model-contract-ctx-no-dispatch");
             assert_eq!(headers[0].0, "hctx2");
-            state.usage_totals.tokens_cached += 7;
+            state.usage_totals.cache_read_tokens += 7;
             Ok(crate::provider_runtime::provider_response_phase_contract(
                 serde_json::json!({"ok": "ctx-contract-no-dispatch"}),
                 31_u8,
@@ -291,6 +291,6 @@ fn provider_runtime_run_completion_loop_from_common_config_and_context_with_cont
     .unwrap();
 
     assert_eq!(out.text, "ctx-contract-no-dispatch-done");
-    assert_eq!(out.state.usage_totals.tokens_cached, 7);
+    assert_eq!(out.state.usage_totals.cache_read_tokens, 7);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }

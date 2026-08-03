@@ -4,7 +4,7 @@ use super::native_stub::run_native_stub;
 use super::wasm_flow::{run_wasm_react_with_prompt_ref, run_wasm_react_with_prompt_ref_and_route};
 use super::{policy::context_limit_error, types::ReactResult};
 
-/// Returns: (content, tool_calls, tokens_in, tokens_out, tokens_cached, tokens_reasoning, model_id, usage_raw)
+/// Returns: (content, tool_calls, tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens, tokens_reasoning, model_id, usage_raw)
 #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 pub(crate) fn react(prompt: &str) -> ReactResult {
     react_with_prompt_ref(prompt, None)

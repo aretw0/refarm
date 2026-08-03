@@ -8,7 +8,7 @@ use super::{prompt_persistence, react_loop::react_with_prompt_ref_and_route, str
 /// Only active in the WASM build — native builds (unit tests) are a no-op.
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(clippy::too_many_arguments)]
-fn write_final_stream_chunk(_: &str, _: &str, _: &str, _: &str, _: u32, _: u32, _: u32, _: bool, _: u32) {}
+fn write_final_stream_chunk(_: &str, _: &str, _: &str, _: &str, _: u32, _: u32, _: u32, _: u32, _: bool, _: u32) {}
 
 #[cfg(target_arch = "wasm32")]
 #[allow(clippy::too_many_arguments)]
@@ -19,7 +19,8 @@ fn write_final_stream_chunk(
     provider: &str,
     tokens_in: u32,
     tokens_out: u32,
-    tokens_cached: u32,
+    cache_read_tokens: u32,
+    cache_creation_tokens: u32,
     partials_present: bool,
     sequence: u32,
 ) {
@@ -62,7 +63,8 @@ fn write_final_stream_chunk(
             provider,
             tokens_in,
             tokens_out,
-            tokens_cached,
+            cache_read_tokens,
+            cache_creation_tokens,
             partials_present,
             sequence,
         },
@@ -84,7 +86,8 @@ pub(crate) struct PromptExecutionOutcome {
     pub provider: String,
     pub tokens_in: u32,
     pub tokens_out: u32,
-    pub tokens_cached: u32,
+    pub cache_read_tokens: u32,
+    pub cache_creation_tokens: u32,
     pub tokens_reasoning: u32,
     pub usage_raw: String,
 }
@@ -127,7 +130,8 @@ pub(crate) fn execute_prompt_with_route(
         tool_calls,
         tokens_in,
         tokens_out,
-        tokens_cached,
+        cache_read_tokens,
+        cache_creation_tokens,
         tokens_reasoning,
         model,
         usage_raw,
@@ -186,7 +190,8 @@ pub(crate) fn execute_prompt_with_route(
             model: model.clone(),
             tokens_in,
             tokens_out,
-            tokens_cached,
+            cache_read_tokens,
+            cache_creation_tokens,
             tokens_reasoning,
             usage_raw: usage_raw.clone(),
             duration_ms,
@@ -209,7 +214,8 @@ pub(crate) fn execute_prompt_with_route(
         &provider_name,
         tokens_in,
         tokens_out,
-        tokens_cached,
+        cache_read_tokens,
+        cache_creation_tokens,
         last_partial_sequence.is_some(),
         response_sequence,
     );
@@ -220,7 +226,8 @@ pub(crate) fn execute_prompt_with_route(
         provider: provider_name,
         tokens_in,
         tokens_out,
-        tokens_cached,
+        cache_read_tokens,
+        cache_creation_tokens,
         tokens_reasoning,
         usage_raw,
     })

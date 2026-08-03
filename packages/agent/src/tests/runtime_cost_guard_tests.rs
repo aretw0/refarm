@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn react_blocks_prompt_over_context_limit() {
     std::env::set_var("MODEL_MAX_CONTEXT_TOKENS", "1");
-    let (content, _, tokens_in, _, _, _, model, _) = react("este prompt tem muitos tokens");
+    let (content, _, tokens_in, _, _, _, _, model, _) = react("este prompt tem muitos tokens");
     assert!(
         content.contains("MODEL_MAX_CONTEXT_TOKENS"),
         "deve mencionar o guard: {content}"
