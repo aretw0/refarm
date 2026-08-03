@@ -129,7 +129,22 @@ describe("the CA's subject is built from a label openssl will accept", () => {
 	});
 });
 
-describe.skipIf(!opensslAvailable)("issuing for real — the output parses, and is bounded", () => {
+// THE BUDGET IS SIZED FOR A VARIABLE-COST OPERATION, not for the median.
+//
+// Every test below shells out to `openssl`, and one to three of those spawns are
+// `genrsa 2048` — a PRIME SEARCH, whose duration is inherently non-deterministic. Measured
+// on an idle machine, 20 consecutive runs spanned 49ms to 532ms: a 10.8x spread with no
+// competing load at all. Under CI, where this job runs beside seven others contending for
+// CPU, that tail stretches further.
+//
+// Vitest's 5000ms default is calibrated on the median of that distribution, so it passes
+// locally (~95-355ms per test) and fails intermittently in CI — which is exactly what it
+// did, at "the leaf key is 0600 too", in run 30808370996.
+//
+// A retry would have hidden the one thing the failure had to say. The budget is what was
+// wrong, so the budget is what changes — and only HERE: the pure-function suites above run
+// in 0-2ms and keep the tight default, where a slow test is real news.
+describe.skipIf(!opensslAvailable)("issuing for real — the output parses, and is bounded", { timeout: 30_000 }, () => {
 	let dir: string;
 	let logged: string[];
 
