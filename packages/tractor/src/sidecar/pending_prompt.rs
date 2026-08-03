@@ -202,6 +202,61 @@ pub(crate) struct PendingPrompt {
     pub(crate) expires_at: Option<u64>,
 }
 
+// ── The notice: what a wizard STATES, as opposed to what it asks ─────────────
+//
+// The node's half of `operator-notice.v1` (see
+// docs/superpowers/specs/2026-08-03-announcement-contract-node-half-design.md).
+// An `OperatorChannel` could only ask, so a wizard's framing stayed on the node
+// that ran it while only the questions travelled. This is where the framing lives
+// for every surface that PULLS — the PWA and `farm-attend` read it from here.
+
+/// Wire discriminator. `OPERATOR_NOTICE_WIRE` in `prompt-contract-v1`.
+pub(crate) const OPERATOR_NOTICE_WIRE: &str = "operator-notice.v1";
+
+/// How many notices stay recallable. Beside `DEFAULT_RECENT_SETTLEMENTS`, and for the
+/// reason D5 gives: a device that opens `/attend` AFTER the question was asked still
+/// reads the framing that explains it. Not the P1 lifetime rule — a notice has nobody
+/// waiting on it by definition, so "the asker is gone" is not a reason to drop it.
+pub(crate) const DEFAULT_RECENT_NOTICES: usize = 32;
+
+/// What kind of statement this is. Mirrors `OperatorNoticeKind` in `prompt-contract-v1`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum NoticeKind {
+    /// refarm chose or narrowed something on the operator's behalf. Missing it means
+    /// BELIEVING YOU CHOSE — the defect this contract exists to remove.
+    Decision,
+    /// The next answer causes an outward or irreversible effect. Sibling of
+    /// `answer_travels`, which marks the same doctrine on the prompt side.
+    Caution,
+    /// Framing, prerequisites, what will be written. Missing it costs understanding.
+    ///
+    /// LAST because `#[serde(other)]` requires it, and `other` is what makes this the
+    /// landing place for a kind this build does not know: a NEWER peer may name one,
+    /// and the MESSAGE is the part the operator needs — dropping a notice to protect a
+    /// taxonomy would be the wrong trade. Same judgement `checkPendingPromptWire` makes
+    /// when it admits `unknown` rather than refusing an older peer.
+    #[serde(other)]
+    Context,
+}
+
+/// A statement addressed to the operator, as it crosses the wire.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct OperatorNotice {
+    pub(crate) wire: &'static str,
+    /// Monotonic within THIS node (N2). The node stamps it rather than trusting the
+    /// caller's, because several CLI processes announce into one node and a
+    /// caller-assigned ordinal would collide across them — and this number is what an
+    /// attending device dedupes against.
+    pub(crate) ordinal: u64,
+    pub(crate) message: String,
+    pub(crate) kind: NoticeKind,
+    pub(crate) asker: PendingPromptAsker,
+    /// Epoch ms.
+    pub(crate) at: u64,
+}
+
 /// Why a prompt ended without an answer (P5).
 ///
 /// Two members, not the contract's three: `cancelled` is what an operator does at the
@@ -355,9 +410,15 @@ struct HubEntry {
 struct HubInner {
     entries: HashMap<String, HubEntry>,
     recent: Vec<PendingPromptSettlement>,
+    /// What was STATED, bounded (N3). No watermark here: a watermark belongs to a
+    /// consumer that batches, and this node's readers poll and dedupe on `ordinal`
+    /// themselves. Nothing on this side mutates on read.
+    notices: Vec<OperatorNotice>,
+    notice_seq: u64,
     seq: u64,
     max_pending: usize,
     recent_capacity: usize,
+    notice_capacity: usize,
 }
 
 impl HubInner {
@@ -437,15 +498,62 @@ impl PromptHub {
     }
 
     pub(crate) fn with_limits(max_pending: usize, recent_capacity: usize) -> Self {
+        Self::with_all_limits(max_pending, recent_capacity, DEFAULT_RECENT_NOTICES)
+    }
+
+    /// A hub whose NOTICE ring is small enough for a test to overflow it deliberately.
+    #[cfg(test)]
+    pub(crate) fn with_notice_capacity(notice_capacity: usize) -> Self {
+        Self::with_all_limits(DEFAULT_MAX_PENDING_PROMPTS, DEFAULT_RECENT_SETTLEMENTS, notice_capacity)
+    }
+
+    fn with_all_limits(max_pending: usize, recent_capacity: usize, notice_capacity: usize) -> Self {
         Self {
             inner: Arc::new(Mutex::new(HubInner {
                 entries: HashMap::new(),
                 recent: Vec::new(),
+                notices: Vec::new(),
+                notice_seq: 0,
                 seq: 0,
                 max_pending,
                 recent_capacity,
+                notice_capacity,
             })),
         }
+    }
+
+    /// State a fact. Stamps the ordinal and returns what was recorded.
+    ///
+    /// Does NOT wake anything waiting on a prompt: a notice is not a question, nothing
+    /// is blocked on it, and nobody needs to be woken for it (D9). It sits in the ring
+    /// until a device comes to read it.
+    pub(crate) fn announce(
+        &self,
+        asker: &PendingPromptAsker,
+        message: &str,
+        kind: NoticeKind,
+    ) -> OperatorNotice {
+        let mut inner = self.inner.lock().expect("prompt hub poisoned");
+        inner.notice_seq += 1;
+        let notice = OperatorNotice {
+            wire: OPERATOR_NOTICE_WIRE,
+            ordinal: inner.notice_seq,
+            message: message.to_string(),
+            kind,
+            asker: asker.clone(),
+            at: now_epoch_millis(),
+        };
+        inner.notices.push(notice.clone());
+        // Bounded by construction, never grown — the same shape as `recent`.
+        while inner.notices.len() > inner.notice_capacity {
+            inner.notices.remove(0);
+        }
+        notice
+    }
+
+    /// Everything still in the notice ring, oldest first.
+    pub(crate) fn notices(&self) -> Vec<OperatorNotice> {
+        self.inner.lock().expect("prompt hub poisoned").notices.clone()
     }
 
     /// Publish a question and take a ticket for it. The ticket is the ASKER's handle: hold
@@ -628,7 +736,62 @@ pub(crate) async fn get_prompts(State(state): State<SidecarState>) -> impl IntoR
         // is welcome to ask.
         "pollIntervalMs": PENDING_PROMPT_POLL_INTERVAL_MS,
         "prompts": state.prompts.list(),
+        // ADDITIVE, and `wire` does NOT bump. `parsePendingPromptList` reads `prompts`
+        // and ignores what it does not know, so a kit frozen at whatever `farm-update`
+        // last fetched shows no framing and is otherwise unchanged — the correct
+        // degradation, and the same judgement `checkPendingPromptWire` makes when it
+        // admits `unknown` rather than locking the operator out of a working device.
+        "notices": state.prompts.notices(),
     }))
+}
+
+/// `POST /notices` — state a fact (N1).
+///
+/// Its OWN route rather than a field on `POST /prompts`, because those two are
+/// different concerns that merely coincide today. Riding the publish would make
+/// TRANSPORT (how the node's ring learns what was said) inherit a DELIVERY rule (D9:
+/// framing rides the question so a three-line preflight is not three Telegram
+/// messages) — a coincidence that holds only while the sole producer is a wizard that
+/// always asks next, and that would leave every future statement the node makes ("the
+/// VPN is up", an automation's result, an operation's progress) needing a road of its
+/// own. That is the fragmentation already spread across `stream:v1`,
+/// `connection_frames` and `login-flow`; this would have been the fourth.
+///
+/// AUTH is not a new decision: publishing is the ASKER's side, exactly like
+/// `POST /prompts`, so this route declares no scope in `auth::route_requirement` and is
+/// therefore reachable by device credentials only — never by the `prompt:answer`
+/// credential, which belongs to whoever ANSWERS.
+///
+/// Returns immediately. There is nothing to wait for: a notice has no settlement.
+pub(crate) async fn post_notices(
+    State(state): State<SidecarState>,
+    Json(request): Json<PublishNoticeRequest>,
+) -> impl IntoResponse {
+    if request.message.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "empty-notice" })),
+        );
+    }
+    let notice = state
+        .prompts
+        .announce(&request.asker, &request.message, request.kind);
+    (StatusCode::OK, Json(serde_json::json!({ "ordinal": notice.ordinal })))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PublishNoticeRequest {
+    pub(crate) asker: PendingPromptAsker,
+    pub(crate) message: String,
+    /// Absent ⇒ `context`, matching the contract's default so a caller that says only
+    /// a sentence gets the same kind on both sides of the wire.
+    #[serde(default = "default_notice_kind")]
+    pub(crate) kind: NoticeKind,
+}
+
+fn default_notice_kind() -> NoticeKind {
+    NoticeKind::Context
 }
 
 #[derive(Debug, Deserialize)]

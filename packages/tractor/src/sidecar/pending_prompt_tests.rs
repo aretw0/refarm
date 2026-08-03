@@ -997,3 +997,79 @@ async fn no_log_line_anywhere_on_this_path_carries_the_answer_value() {
     );
     assert!(logs.contains("pending prompt settled"), "the settlement is observable: {logs}");
 }
+
+// ── The node's half of the announcement contract (N1-N3) ─────────────────────
+//
+// The framing a wizard states has to reach the surfaces that PULL — the PWA and
+// `farm-attend` read this node's `GET /prompts`, not the TypeScript reference
+// handler. Without these, a question arrives on a phone stripped of the sentences
+// that explain it.
+
+#[tokio::test]
+async fn announce_stamps_a_monotonic_ordinal_across_askers() {
+    let hub = PromptHub::new();
+    let wizard = PendingPromptAsker { command: "refarm delivery add".into(), pid: Some(7), host: None };
+    let other = PendingPromptAsker { command: "refarm auth enrol".into(), pid: Some(8), host: None };
+
+    let a = hub.announce(&wizard, "precisa de um bot SEU", NoticeKind::Context);
+    let b = hub.announce(&other, "de outro asker", NoticeKind::Context);
+    let c = hub.announce(&wizard, "e do chatId", NoticeKind::Context);
+
+    assert_eq!([a.ordinal, b.ordinal, c.ordinal], [1, 2, 3]);
+    assert_eq!(a.wire, OPERATOR_NOTICE_WIRE);
+    // N2 — the NODE stamps it. Several CLI processes announce into one node, so a
+    // CLI-assigned ordinal would collide across processes and mean nothing to a poller.
+    assert_eq!(hub.notices().len(), 3);
+}
+
+#[tokio::test]
+async fn the_notice_ring_is_bounded() {
+    let hub = PromptHub::with_notice_capacity(3);
+    let asker = PendingPromptAsker { command: "refarm delivery add".into(), pid: None, host: None };
+    for i in 0..10 {
+        hub.announce(&asker, &format!("n{i}"), NoticeKind::Context);
+    }
+    let kept = hub.notices();
+    assert_eq!(kept.len(), 3);
+    assert_eq!(
+        kept.iter().map(|n| n.message.as_str()).collect::<Vec<_>>(),
+        ["n7", "n8", "n9"],
+        "the ring keeps the LAST n, so the framing nearest the question survives"
+    );
+}
+
+#[tokio::test]
+async fn a_notice_outlives_the_prompt_it_framed() {
+    let hub = PromptHub::new();
+    let asker = PendingPromptAsker { command: "refarm delivery add".into(), pid: None, host: None };
+    hub.announce(&asker, "o enquadramento", NoticeKind::Context);
+
+    let ticket = hub
+        .publish(
+            OperatorPrompt::Text { question: "Qual o chatId?".into(), default: None, placeholder: None },
+            asker.clone(),
+            60_000,
+        )
+        .expect("publish");
+    let id = hub.list()[0].id.clone();
+    hub.answer(&id, &serde_json::json!("123"), "my-phone");
+    drop(ticket);
+
+    // D5: a notice has nobody waiting on it BY DEFINITION, so the P1 lifetime rule
+    // does not transfer. A device that opens /attend after the question was settled
+    // still reads what framed it.
+    assert_eq!(hub.notices().len(), 1);
+    assert_eq!(hub.notices()[0].message, "o enquadramento");
+}
+
+#[test]
+fn an_unknown_kind_degrades_to_context_instead_of_dropping_the_message() {
+    // A NEWER node (or a newer CLI) may name a kind this build does not have. The
+    // MESSAGE is the part the operator needs, so it must survive — the same judgement
+    // `checkPendingPromptWire` makes when it admits `unknown` rather than refusing.
+    let parsed: NoticeKind = serde_json::from_value(serde_json::json!("urgent")).unwrap();
+    assert_eq!(parsed, NoticeKind::Context);
+
+    let known: NoticeKind = serde_json::from_value(serde_json::json!("decision")).unwrap();
+    assert_eq!(known, NoticeKind::Decision);
+}

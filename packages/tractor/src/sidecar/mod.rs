@@ -1748,6 +1748,11 @@ fn sidecar_routes(state: SidecarState) -> Router {
             auth::ROUTE_PROMPT_ANSWER,
             post(pending_prompt::post_prompt_answer),
         )
+        // Stating a fact (N1). NOT named in `auth::route_requirement`, and that omission
+        // is the decision — the same one `POST /prompts` makes: publishing is the ASKER's
+        // side, so this admits device credentials only. A `prompt:answer` credential
+        // answers questions; it never puts words in the node's mouth.
+        .route("/notices", post(pending_prompt::post_notices))
         // Remote initiation (R4). NOT named in `auth::route_requirement`, and that omission
         // is the decision: a route declaring no scope admits device credentials only. A
         // browser's `prompt:answer` credential answers questions; it never starts work.
