@@ -1433,6 +1433,17 @@ export interface PendingPromptHubOptions {
 	 * bounded by construction, never grown.
 	 */
 	recentSettlements?: number;
+	/**
+	 * How many notices stay recallable. Same mechanism and same default as
+	 * `recentSettlements`, for the same reason: a device that arrives AFTER the
+	 * question was asked still reads the framing that explains it.
+	 *
+	 * Deliberately NOT the P1 lifetime rule. P1 drops a pending prompt with its
+	 * asker because once the asker is gone nobody is waiting for the answer — and
+	 * a notice has nobody waiting on it BY DEFINITION. Its whole value is being
+	 * readable afterwards, so copying P1 here would kill it for the wrong reason.
+	 */
+	recentNotices?: number;
 	now?: () => number;
 }
 
@@ -1449,6 +1460,23 @@ export interface PendingPromptHub {
 	/** Called on every publish — what a push transport would hook, and what a
 	 *  test attendant uses instead of polling. Returns an unsubscribe. */
 	subscribe(listener: (pending: PendingPrompt) => void): () => void;
+	/**
+	 * State a fact. Stamps the ordinal and returns what was recorded.
+	 *
+	 * Does NOT notify `subscribe` listeners — that set is the delivery push path,
+	 * and a notice that pushed on its own would turn a three-line preflight into
+	 * three messages, times every declared channel (D9).
+	 */
+	announce(asker: PendingPromptAsker, notice: string | OperatorNoticeInput): OperatorNotice;
+	/** Every notice still in the ring, oldest first. */
+	notices(): OperatorNotice[];
+	/**
+	 * This asker's notices not yet attached to a delivered question, MARKING THEM
+	 * ATTACHED (D9). Called when a prompt is published, so framing and question
+	 * travel as one message per channel and a second question does not repeat
+	 * framing the operator already read.
+	 */
+	takeNoticesFor(askerCommand: string): OperatorNotice[];
 }
 
 interface HubEntry {
@@ -1465,6 +1493,12 @@ export function createPendingPromptHub(options: PendingPromptHubOptions = {}): P
 	const entries = new Map<string, HubEntry>();
 	const recent: PendingPromptSettlement[] = [];
 	const listeners = new Set<(pending: PendingPrompt) => void>();
+
+	const noticeCapacity = options.recentNotices ?? 32;
+	const notices: OperatorNotice[] = [];
+	/** Highest ordinal already attached to a delivered question, per asker command. */
+	const attachedThrough = new Map<string, number>();
+	let noticeOrdinal = 0;
 
 	function remember(settlement: PendingPromptSettlement): void {
 		recent.push(settlement);
@@ -1566,6 +1600,37 @@ export function createPendingPromptHub(options: PendingPromptHubOptions = {}): P
 		subscribe(listener) {
 			listeners.add(listener);
 			return () => listeners.delete(listener);
+		},
+		announce(asker, notice) {
+			const normalized = normalizeNoticeInput(notice);
+			noticeOrdinal += 1;
+			const stamped: OperatorNotice = {
+				wire: OPERATOR_NOTICE_WIRE,
+				ordinal: noticeOrdinal,
+				message: normalized.message,
+				kind: normalized.kind,
+				asker,
+				at: now(),
+			};
+			notices.push(stamped);
+			while (notices.length > noticeCapacity) notices.shift();
+			// NOT notifying `listeners`, and that omission is the whole of D9. That
+			// set is what `attachDeliveryToHub` subscribes to, so notifying here
+			// would push a wizard's preflight to the operator's phone one line at a
+			// time. Framing reaches a push surface by riding the question instead —
+			// see `takeNoticesFor`.
+			return stamped;
+		},
+		notices: () => [...notices],
+		takeNoticesFor(askerCommand) {
+			const through = attachedThrough.get(askerCommand) ?? 0;
+			const fresh = notices.filter(
+				(notice) => notice.asker.command === askerCommand && notice.ordinal > through,
+			);
+			if (fresh.length > 0) {
+				attachedThrough.set(askerCommand, fresh[fresh.length - 1]!.ordinal);
+			}
+			return fresh;
 		},
 	};
 }

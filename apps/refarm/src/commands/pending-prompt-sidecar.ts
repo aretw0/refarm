@@ -305,5 +305,21 @@ export function createSidecarPromptHub(options: SidecarPromptHubOptions): Pendin
 			local.answer(promptId, value, device),
 		settlementOf: (promptId): PendingPromptSettlement | null => local.settlementOf(promptId),
 		subscribe: (listener) => local.subscribe(listener),
+		// ── Notices: LOCAL ONLY, and that boundary is deliberate ─────────────────
+		//
+		// `publish` above is overridden to also `hold` the question on the node, so
+		// a device polling the node's `GET /prompts` sees it. These three do NOT do
+		// the equivalent, because the node's half of the announcement contract is
+		// Rust (`packages/tractor/src/sidecar/pending_prompt.rs`) and does not exist
+		// yet.
+		//
+		// What that means in practice, stated rather than discovered later: framing
+		// reaches the TERMINAL and any DELIVERY channel (`attachDeliveryToHub`
+		// subscribes to this hub in-process, and `takeNoticesFor` is served from
+		// here), but NOT a device attending through the node. Extending it is a
+		// protected-surface change under CLAUDE.md §8.
+		announce: (asker, notice) => local.announce(asker, notice),
+		notices: () => local.notices(),
+		takeNoticesFor: (askerCommand) => local.takeNoticesFor(askerCommand),
 	};
 }

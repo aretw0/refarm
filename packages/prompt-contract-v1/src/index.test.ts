@@ -1653,3 +1653,58 @@ describe("say() — the second verb (D1/D8)", () => {
 		expect(mute.pass).toBe(true);
 	});
 });
+
+describe("the hub announces (D5/D9)", () => {
+	const asker = { command: "refarm delivery add", pid: 7 };
+	const other = { command: "refarm auth enrol", pid: 8 };
+
+	it("stamps a hub-global monotonic ordinal, across askers", () => {
+		const hub = createPendingPromptHub();
+		const a = hub.announce(asker, "primeira");
+		const b = hub.announce(other, "de outro asker");
+		const c = hub.announce(asker, "terceira");
+		expect([a.ordinal, b.ordinal, c.ordinal]).toEqual([1, 2, 3]);
+		expect(a.wire).toBe(OPERATOR_NOTICE_WIRE);
+		expect(a.kind).toBe("context");
+	});
+
+	it("keeps a bounded ring — notices do not accumulate", () => {
+		const hub = createPendingPromptHub({ recentNotices: 3 });
+		for (let i = 0; i < 10; i += 1) hub.announce(asker, `n${i}`);
+		const kept = hub.notices();
+		expect(kept).toHaveLength(3);
+		expect(kept.map((n) => n.message)).toEqual(["n7", "n8", "n9"]);
+	});
+
+	it("outlives its asker's prompts — the P1 lifetime rule does not transfer", () => {
+		const hub = createPendingPromptHub();
+		hub.announce(asker, "o enquadramento");
+		hub.publish(toPendingPrompt({ type: "text", question: "q" }, { id: "p1", asker }));
+		hub.answer("p1", "resposta", "phone");
+		expect(hub.notices().map((n) => n.message)).toEqual(["o enquadramento"]);
+	});
+
+	it("takeNoticesFor returns one asker's unattached notices and never repeats them (D9)", () => {
+		const hub = createPendingPromptHub();
+		hub.announce(asker, "uma");
+		hub.announce(other, "de outro");
+		hub.announce(asker, "duas");
+
+		expect(hub.takeNoticesFor(asker.command).map((n) => n.message)).toEqual(["uma", "duas"]);
+		// Taken once. A second question from the same asker carries nothing stale.
+		expect(hub.takeNoticesFor(asker.command)).toEqual([]);
+
+		hub.announce(asker, "três");
+		expect(hub.takeNoticesFor(asker.command).map((n) => n.message)).toEqual(["três"]);
+	});
+
+	it("announcing does NOT notify the prompt subscribers (D9 — no notice pushes alone)", () => {
+		const hub = createPendingPromptHub();
+		const seen: string[] = [];
+		hub.subscribe((pending) => seen.push(pending.id));
+		hub.announce(asker, "isto não deve empurrar nada");
+		expect(seen).toEqual([]);
+		hub.publish(toPendingPrompt({ type: "text", question: "q" }, { id: "p9", asker }));
+		expect(seen).toEqual(["p9"]);
+	});
+});
