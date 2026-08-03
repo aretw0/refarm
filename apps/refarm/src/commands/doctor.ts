@@ -3,8 +3,13 @@ import {
 	STATUS_DIAGNOSTICS,
 	type StatusJson,
 } from "@refarm.dev/cli/status";
-import { loadConfig } from "@refarm.dev/config";
+import fs from "node:fs";
+import path from "node:path";
+
+import { declaredBase, loadConfig, sovereignDir } from "@refarm.dev/config";
+
 import { Command } from "commander";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { buildConnectionDoctorRecommendations } from "./connection-doctor.js";
 import {
 	diagnosticNextActions,
@@ -19,6 +24,7 @@ import {
 	RUNTIME_NOT_READY_RECOVERY_ACTION,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
+import { buildScopeDoctorRecommendations, type ScopeComparison } from "./scope-doctor.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { resolveStatusPayload } from "./status.js";
 
@@ -68,6 +74,10 @@ export function buildRefarmDoctorReport(
 		 * function pure and every caller that does not pass it (including every existing
 		 * test) unaffected. */
 		connectionConfig?: Record<string, unknown>;
+		/** Where the operator is standing beside where the node lives (see
+		 * `scope-doctor.ts`). Omitted means "not compared", which produces no findings —
+		 * same purity rule as `connectionConfig`, and every existing caller is unaffected. */
+		scope?: { comparison: ScopeComparison; exists: (filePath: string) => boolean };
 	} = {},
 ): RefarmDoctorReport {
 	const { failures, warnings: statusWarnings, informational } = classifyStatusDiagnostics(status);
@@ -78,7 +88,16 @@ export function buildRefarmDoctorReport(
 	const connectionRecommendations = buildConnectionDoctorRecommendations(
 		options.connectionConfig ?? {},
 	);
-	const warnings = [...statusWarnings, ...connectionRecommendations.map((r) => r.diagnostic)];
+	// The node answering from one directory while the operator edits another is the same
+	// KIND of thing: a truth nothing else states, folded into the same buckets.
+	const scopeRecommendations = options.scope
+		? buildScopeDoctorRecommendations(options.scope.comparison, options.scope.exists)
+		: [];
+	const warnings = [
+		...statusWarnings,
+		...connectionRecommendations.map((r) => r.diagnostic),
+		...scopeRecommendations.map((r) => r.diagnostic),
+	];
 
 	const failOnWarnings = options.failOnWarnings === true;
 	const ok = failures.length === 0 && (!failOnWarnings || warnings.length === 0);
@@ -89,6 +108,7 @@ export function buildRefarmDoctorReport(
 			informational,
 		}),
 		...connectionRecommendations,
+		...scopeRecommendations,
 	];
 	const nextActions = diagnosticNextActions(recommendations);
 	const nextCommands = diagnosticNextCommands(recommendations);
@@ -234,6 +254,35 @@ export interface RefarmDoctorCommandDeps {
  * must not crash the WHOLE report over it. It just has nothing to check for connection
  * findings this run, same "report, never fail shut" posture as `readConnectionCatalog`.
  */
+/**
+ * Where the operator is standing, beside where a node started with this home would look.
+ *
+ * Resolved here rather than inside the finding so `scope-doctor.ts` stays pure and every
+ * test drives it with literals. Never throws: a scope comparison is a courtesy, and a
+ * doctor that crashes because a path could not be resolved is worse than one that stays
+ * quiet about it.
+ */
+function resolveScopeComparison(
+	deps: RefarmDoctorCommandDeps | undefined,
+): { comparison: ScopeComparison; exists: (filePath: string) => boolean } | undefined {
+	try {
+		const operatorBase = path.resolve(deps?.cwd?.() ?? declaredBase());
+		const nodeHome = path.resolve(resolveRefarmHome());
+		const dir = sovereignDir();
+		return {
+			comparison: {
+				operatorConfigPath: path.join(operatorBase, dir, "config.json"),
+				nodeConfigPath: path.join(nodeHome, "config.json"),
+				operatorPolicyPath: path.join(operatorBase, dir, "auth-policy.json"),
+				nodePolicyPath: path.join(nodeHome, "auth-policy.json"),
+			},
+			exists: (filePath) => fs.existsSync(filePath),
+		};
+	} catch {
+		return undefined;
+	}
+}
+
 function resolveConnectionConfig(deps: RefarmDoctorCommandDeps | undefined): Record<string, unknown> {
 	const baseDir = deps?.cwd?.() ?? process.cwd();
 	try {
@@ -286,6 +335,7 @@ Notes:
 					const report = buildRefarmDoctorReport(status, {
 						failOnWarnings: options.failOnWarnings,
 						connectionConfig: resolveConnectionConfig(deps),
+						scope: resolveScopeComparison(deps),
 					});
 					const outputMode = resolveDoctorOutputMode(options);
 					emitRefarmDoctorOutput({ report, mode: outputMode });
