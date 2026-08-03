@@ -1,5 +1,6 @@
 import {
 	createPendingPromptHub,
+	type OperatorNotice,
 	type PendingPrompt,
 	type PendingPromptAnswerResult,
 	type PendingPromptHub,
@@ -62,6 +63,13 @@ import {
 
 /** The publish/list route on the node's sidecar. */
 export const SIDECAR_PROMPTS_PATH = "/prompts";
+
+/**
+ * Where a STATEMENT goes (N1). Its own route, not a field on `/prompts`: framing
+ * riding the question is a DELIVERY rule (D9), and making transport inherit it
+ * would leave every future statement the node makes without a road.
+ */
+export const SIDECAR_NOTICES_PATH = "/notices";
 
 /**
  * The longest the node will hold a publisher's request open —
@@ -172,6 +180,57 @@ export function createSidecarPromptHub(options: SidecarPromptHubOptions): Pendin
 	// asker that is waiting here. Entries are removed the moment they settle, so this
 	// is bounded by the number of questions actually in flight.
 	const tickets = new Map<string, PendingPromptTicket>();
+
+	// ── The notice queue: ORDER IS THE WHOLE REASON IT EXISTS (N4) ───────────────
+	//
+	// `say()` is synchronous and cannot await, so three notices said in a row would
+	// otherwise become three concurrent POSTs — and the node stamps `ordinal` ON
+	// ARRIVAL. Under any jitter at all the operator's phone would show a wizard's
+	// preflight shuffled, which reads as incoherence rather than as omission: worse
+	// than the framing simply being absent, because the operator cannot tell that
+	// anything went wrong.
+	//
+	// One promise chain, so each POST starts only after the previous one settled.
+	// The chain never rejects — a link that throws is absorbed here so the NEXT
+	// notice still goes; a broken notification arrangement must not be why a wizard
+	// stops explaining itself, the same judgement `currentPromptPublisher` makes.
+	let noticeQueue: Promise<void> = Promise.resolve();
+
+	function enqueueNotice(notice: OperatorNotice): void {
+		noticeQueue = noticeQueue.then(() => postNotice(notice));
+	}
+
+	async function postNotice(notice: OperatorNotice): Promise<void> {
+		try {
+			const response = await doFetch(`${base}${SIDECAR_NOTICES_PATH}`, {
+				method: "POST",
+				headers: headers(),
+				body: JSON.stringify({
+					asker: notice.asker,
+					message: notice.message,
+					kind: notice.kind,
+				}),
+			});
+			if (!response.ok) {
+				degradeNotices(`the node answered ${response.status}`);
+			}
+		} catch (error) {
+			degradeNotices(error instanceof Error ? error.message : String(error));
+		}
+	}
+
+	// Once per mount, like `degrade` above and for the same reason: an operator whose
+	// node is down needs to hear it once, not once per sentence a wizard says.
+	let noticesDegraded = false;
+	function degradeNotices(detail: string): void {
+		if (noticesDegraded) return;
+		noticesDegraded = true;
+		warn(
+			`refarm: could not publish this wizard's framing to the node at ${base} — ${detail}. ` +
+				`The questions still travel; attending devices will see them without the ` +
+				`sentences that explain them.`,
+		);
+	}
 
 	/**
 	 * Hold one question open on the node until something settles it.
@@ -315,10 +374,16 @@ export function createSidecarPromptHub(options: SidecarPromptHubOptions): Pendin
 		//
 		// What that means in practice, stated rather than discovered later: framing
 		// reaches the TERMINAL and any DELIVERY channel (`attachDeliveryToHub`
-		// subscribes to this hub in-process, and `noticesFor` is served from
-		// here), but NOT a device attending through the node. Extending it is a
-		// protected-surface change under CLAUDE.md §8.
-		announce: (asker, notice) => local.announce(asker, notice),
+		// subscribes to this hub in-process, and `noticesFor` is served from here),
+		// AND now also the node, so the surfaces that poll it — the PWA, farm-attend
+		// — stop receiving questions stripped of the sentences that explain them.
+		announce(asker, notice) {
+			const recorded = local.announce(asker, notice);
+			// Fire into the queue and return. `say()` is synchronous and total (D1):
+			// a wizard must never wait on, or fail because of, a notification hop.
+			enqueueNotice(recorded);
+			return recorded;
+		},
 		notices: () => local.notices(),
 		noticesFor: (askerCommand, since) => local.noticesFor(askerCommand, since),
 	};
