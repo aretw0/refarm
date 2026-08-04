@@ -417,7 +417,7 @@ pnpm run farm:status        # check ARTIFACTS section
   tractor.log      # tractor stdout/stderr (background mode)
   farmhand.pid     # farmhand background PID
   farmhand.log     # farmhand stdout/stderr (background mode)
-  .env             # MODEL credentials (refarm sow)
+  .env             # runtime env read by launcher; may differ from Silo identity store
   config.json      # model provider, model, budgets, FS restrictions
   .repl_history    # REPL command history
   tasks/           # FileTransport input queue (farmhand)
@@ -447,8 +447,9 @@ When something is wrong, work top-down:
 3. **Stale PID file?** — process dead but PID file exists → `refarm runtime stop` then retry.
 4. **Binary missing?** — ARTIFACTS section in farm:status will tell you what to build.
 5. **No credentials?** — `refarm model doctor --json` or `refarm sow`.
-6. **Disk full?** — `pnpm run disk:check` → `pnpm run clean:light` or `pnpm run clean:heavy`.
-7. **WASM/harness fails?** — ensure `$CARGO_TARGET_DIR` is set and agent.wasm is at
+6. **Context/store mismatch?** — compare `refarm model current --json` with `refarm runtime status --json` and verify `SILO_HOME` / `REFARM_HOME` alignment.
+7. **Disk full?** — `pnpm run disk:check` → `pnpm run clean:light` or `pnpm run clean:heavy`.
+8. **WASM/harness fails?** — ensure `$CARGO_TARGET_DIR` is set and agent.wasm is at
    `$CARGO_TARGET_DIR/wasm32-wasip1/release/agent.wasm`.
 
 ---
