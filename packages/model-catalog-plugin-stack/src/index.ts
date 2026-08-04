@@ -1,10 +1,10 @@
-import type {
-  ModelTariffCatalog,
-  ModelTariffEntry,
-  ModelRateCatalog,
-} from "../../model-catalog-v1/src/index.js";
 import { createAnthropicModelRatePlugin } from "../../model-catalog-plugin-anthropic/src/index.js";
 import { createOpenaiModelRatePlugin } from "../../model-catalog-plugin-openai/src/index.js";
+import type {
+	ModelRateCatalog,
+	ModelTariffCatalog,
+	ModelTariffEntry,
+} from "../../model-catalog-v1/src/index.js";
 
 export const MODEL_RATE_CATALOG_PLUGIN_CAPABILITY = "model-rate-catalog-plugin:v1" as const;
 export const MODEL_RATE_CATALOG_COMPOSER_CAPABILITY = "model-rate-catalog-composer:v1" as const;
