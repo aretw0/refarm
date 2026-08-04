@@ -181,7 +181,16 @@ deferral, not a silent gap.
 
 ---
 
-## 3. `vault-contract-v1:VaultSearchHit.score` (corrects the triage's own worst case)
+## 3. `vault-contract-v1:VaultSearchHit.score` — CLOSED 2026-08-04, no work needed
+
+**Status: closed by fixing the instrument, not the code.** This entry was never a promise to keep;
+it was the gate looking in too few places. The gate's scan was widened to `examples/` and
+`validations/` (commit `345d1ea7`), it now sees the consumer described below, and the baseline entry
+is gone. Nothing in `vault-contract-v1` changed, because nothing needed to.
+
+It was also the only false positive the widening found: the other twenty-three baseline entries were
+re-verified under the larger scan and every one held. Left here in full because the anatomy is worth
+keeping — see the header note on how the tool and the question shared one blind spot.
 
 **The promise.** "Higher = more relevant" (`packages/vault-contract-v1/src/types.ts:93`) on a search
 hit.
