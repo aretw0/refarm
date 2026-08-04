@@ -237,7 +237,7 @@ describe("refarm.me runtime", () => {
 				scheduledWorkSummary: {
 					total: 1,
 					due: 0,
-					scheduled: 1,
+					declared: 1,
 					unsupported: 0,
 				},
 			},
@@ -249,7 +249,7 @@ describe("refarm.me runtime", () => {
 			scheduledWorkSummary: {
 				total: 1,
 				due: 0,
-				scheduled: 1,
+				declared: 1,
 				unsupported: 0,
 			},
 		});
@@ -274,7 +274,7 @@ describe("refarm.me runtime", () => {
 				scheduledWorkSummary: {
 					total: 1,
 					due: 0,
-					scheduled: 1,
+					declared: 1,
 					unsupported: 0,
 				},
 			},
@@ -495,7 +495,7 @@ describe("buildRefarmMePersonalStatus", () => {
 			pluginRegistryCount: 3,
 			discoveredContentPluginCount: 2,
 			referenceDriverCapabilityIds: ["records:v1", "source:v1"],
-			scheduledWorkSummary: { total: 1, due: 0, scheduled: 1, unsupported: 0 },
+			scheduledWorkSummary: { total: 1, due: 0, declared: 1, unsupported: 0 },
 		})();
 		expect(status).toMatchObject({
 			syncStatus: "synced",
@@ -503,7 +503,7 @@ describe("buildRefarmMePersonalStatus", () => {
 			pluginRegistryCount: 3,
 			discoveredContentPluginCount: 2,
 			referenceDriverCapabilityIds: ["records:v1", "source:v1"],
-			scheduledWorkSummary: { total: 1, due: 0, scheduled: 1, unsupported: 0 },
+			scheduledWorkSummary: { total: 1, due: 0, declared: 1, unsupported: 0 },
 		});
 		expect(status.identityStatus).toBe(REFARM_ME_IDENTITY_STATUS);
 		expect(status.profileName.length).toBeGreaterThan(0);

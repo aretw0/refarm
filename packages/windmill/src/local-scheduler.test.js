@@ -149,7 +149,7 @@ describe("local scheduled work", () => {
 				now: "2026-06-27T09:00:00.000Z",
 			}),
 		).resolves.toMatchObject({
-			summary: { total: 0, due: 0, scheduled: 0, unsupported: 0 },
+			summary: { total: 0, due: 0, declared: 0, unsupported: 0 },
 			jobs: [],
 		});
 	});

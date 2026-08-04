@@ -3,7 +3,7 @@ export const LOCAL_SCHEDULED_WORK_SCHEMA_VERSION = 1;
 const SUPPORTED_SCHEDULE_TRIGGERS = new Set(["once", "cron"]);
 
 /**
- * @typedef {"due" | "scheduled" | "unsupported"} LocalScheduledJobStatus
+ * @typedef {"due" | "declared" | "unsupported"} LocalScheduledJobStatus
  * @typedef {"one-shot" | "recurring"} LocalScheduledJobKind
  * @typedef {{ type: "once", at: string } | { type: "cron", schedule: string, timezone: string }} LocalScheduledJobSchedule
  * @typedef {{ visible: true, summary: string }} LocalScheduledJobResume
@@ -24,7 +24,7 @@ const SUPPORTED_SCHEDULE_TRIGGERS = new Set(["once", "cron"]);
  *
  * @typedef {{ owner: string, now?: string | Date }} LocalScheduledWorkOptions
  * @typedef {{ owner: string, now?: string | Date, ledger?: LocalScheduledWorkFiredLedger }} LocalScheduledWorkExecutionOptions
- * @typedef {{ total: number, due: number, scheduled: number, unsupported: number }} LocalScheduledWorkSummary
+ * @typedef {{ total: number, due: number, declared: number, unsupported: number }} LocalScheduledWorkSummary
  * @typedef {{ schemaVersion: 1, id: string, automationId: string, name: string, description?: string, owner: string, kind: LocalScheduledJobKind, status: LocalScheduledJobStatus, schedule: LocalScheduledJobSchedule, fireKey: string, unsupportedReason?: string, modelRoute: "none", tokenUse: "none", resume: LocalScheduledJobResume }} LocalScheduledJob
  * @typedef {{ schemaVersion: 1, owner: string, generatedAt: string, summary: LocalScheduledWorkSummary, jobs: LocalScheduledJob[] }} LocalScheduledWorkInspection
  * @typedef {"submitted" | "skipped" | "already-fired" | "failed"} LocalScheduledWorkExecutionStatus
@@ -142,13 +142,20 @@ function inspectCronDue(schedule, now) {
 	};
 }
 
+// This module only ever computes whether a trigger's condition holds RIGHT NOW
+// ("due") or not yet ("declared"). It has no autonomous loop — nothing in here,
+// or anywhere upstream of it, watches the clock and calls executeDueLocalScheduledWork
+// on its own; that only happens when a host explicitly ticks (e.g. `refarm project
+// automations tick`). So a not-yet-due trigger is never "scheduled" in the sense
+// that word implies (an agent guarantees it will run later) - it is merely
+// declared: recorded, valid, and waiting for a tick that may or may not come.
 function describeTrigger(trigger, now) {
 	if (trigger.type === "once") {
 		const at = parseDate(trigger.at);
 		return {
 			kind: "one-shot",
 			schedule: { type: "once", at: trigger.at },
-			status: at && at.getTime() <= now.getTime() ? "due" : "scheduled",
+			status: at && at.getTime() <= now.getTime() ? "due" : "declared",
 			unsupportedReason: at ? undefined : "invalid once.at timestamp",
 		};
 	}
@@ -161,7 +168,7 @@ function describeTrigger(trigger, now) {
 			schedule: trigger.schedule,
 			timezone: trigger.timezone ?? "UTC",
 		},
-		status: cron.supported ? (cron.due ? "due" : "scheduled") : "unsupported",
+		status: cron.supported ? (cron.due ? "due" : "declared") : "unsupported",
 		unsupportedReason: cron.supported ? undefined : "unsupported cron expression",
 	};
 }
@@ -259,7 +266,7 @@ export async function inspectLocalScheduledWork(adapter, options = {}) {
 	const summary = {
 		total: jobs.length,
 		due: jobs.filter((job) => job.status === "due").length,
-		scheduled: jobs.filter((job) => job.status === "scheduled").length,
+		declared: jobs.filter((job) => job.status === "declared").length,
 		unsupported: jobs.filter((job) => job.status === "unsupported").length,
 	};
 

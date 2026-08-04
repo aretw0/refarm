@@ -91,7 +91,10 @@ export interface OperatorResumeFinishRecord {
 export interface OperatorResumeScheduledWorkSummary {
 	total: number;
 	due: number;
-	scheduled: number;
+	/** Trigger condition not yet met: the declaration exists and is valid, but
+	 *  nothing has fired it. Not "scheduled" — this codebase has no autonomous
+	 *  loop that watches the clock and fires it; only an explicit tick does. */
+	declared: number;
 	unsupported: number;
 }
 
@@ -101,7 +104,7 @@ export interface OperatorResumeScheduledWorkJob {
 	name: string;
 	owner: string;
 	kind: "one-shot" | "recurring";
-	status: "due" | "scheduled" | "unsupported";
+	status: "due" | "declared" | "unsupported";
 	schedule: {
 		type: string;
 		at?: string;
@@ -689,7 +692,7 @@ export function formatOperatorResumeSummary(summary: OperatorResumeSummary): str
 	if (summary.scheduledWork) {
 		const { summary: scheduledSummary } = summary.scheduledWork;
 		lines.push(
-			`Scheduled work: ${scheduledSummary.total} local job${scheduledSummary.total === 1 ? "" : "s"} due=${scheduledSummary.due} scheduled=${scheduledSummary.scheduled} unsupported=${scheduledSummary.unsupported}`,
+			`Scheduled work: ${scheduledSummary.total} local job${scheduledSummary.total === 1 ? "" : "s"} due=${scheduledSummary.due} declared=${scheduledSummary.declared} unsupported=${scheduledSummary.unsupported}`,
 		);
 		lines.push(`  owner: ${summary.scheduledWork.owner}`);
 		for (const job of summary.scheduledWork.jobs.slice(0, 10)) {

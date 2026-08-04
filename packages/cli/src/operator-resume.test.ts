@@ -258,7 +258,7 @@ describe("operator resume", () => {
 			schemaVersion: 1,
 			owner: "refarm-main",
 			generatedAt: "2026-06-27T10:00:00.000Z",
-			summary: { total: 2, due: 1, scheduled: 1, unsupported: 0 },
+			summary: { total: 2, due: 1, declared: 1, unsupported: 0 },
 			jobs: [
 				{
 					id: "automation-1:0",
@@ -281,7 +281,7 @@ describe("operator resume", () => {
 					name: "hourly cache refresh",
 					owner: "refarm-main",
 					kind: "recurring" as const,
-					status: "scheduled" as const,
+					status: "declared" as const,
 					schedule: { type: "cron", schedule: "@hourly", timezone: "UTC" },
 					modelRoute: "none" as const,
 					tokenUse: "none" as const,
@@ -297,7 +297,7 @@ describe("operator resume", () => {
 		expect(envelope).toMatchObject({
 			scheduledWork: {
 				owner: "refarm-main",
-				summary: { total: 2, due: 1, scheduled: 1, unsupported: 0 },
+				summary: { total: 2, due: 1, declared: 1, unsupported: 0 },
 				jobs: expect.arrayContaining([
 					expect.objectContaining({
 						id: "automation-1:0",
@@ -312,12 +312,12 @@ describe("operator resume", () => {
 		const formatted = formatOperatorResumeSummary(
 			buildOperatorResumeSummary({ handoffs: HANDOFFS, status: readyStatus, scheduledWork }),
 		);
-		expect(formatted).toContain("Scheduled work: 2 local jobs due=1 scheduled=1 unsupported=0");
+		expect(formatted).toContain("Scheduled work: 2 local jobs due=1 declared=1 unsupported=0");
 		expect(formatted).toContain(
 			"automation-1:0 due one-shot daily handoff at=2026-06-27T09:00:00.000Z",
 		);
 		expect(formatted).toContain(
-			"automation-2:0 scheduled recurring hourly cache refresh cron=@hourly timezone=UTC",
+			"automation-2:0 declared recurring hourly cache refresh cron=@hourly timezone=UTC",
 		);
 	});
 

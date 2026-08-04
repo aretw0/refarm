@@ -153,7 +153,7 @@ describe("resume command", () => {
 			).resolves.toMatchObject({
 				owner: "refarm-main",
 				generatedAt: "2026-06-27T10:15:00.000Z",
-				summary: { total: 2, due: 1, scheduled: 1, unsupported: 0 },
+				summary: { total: 2, due: 1, declared: 1, unsupported: 0 },
 				jobs: [
 					{
 						automationId: "automation-1",
@@ -166,7 +166,7 @@ describe("resume command", () => {
 					{
 						automationId: "automation-3",
 						name: "hourly cache refresh",
-						status: "scheduled",
+						status: "declared",
 						schedule: { type: "cron", schedule: "@hourly", timezone: "UTC" },
 						modelRoute: "none",
 						tokenUse: "none",
@@ -385,7 +385,7 @@ describe("resume command", () => {
 				schemaVersion: 1,
 				owner: "refarm-main",
 				generatedAt: "2026-06-27T10:00:00.000Z",
-				summary: { total: 1, due: 1, scheduled: 0, unsupported: 0 },
+				summary: { total: 1, due: 1, declared: 0, unsupported: 0 },
 				jobs: [
 					{
 						id: "automation-1:0",

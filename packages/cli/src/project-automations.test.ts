@@ -189,14 +189,14 @@ describe("project automations", () => {
 			summary: {
 				total: 1,
 				due: 0,
-				scheduled: 1,
+				declared: 1,
 				unsupported: 0,
 			},
 			jobs: [
 				{
 					id: "daily-handoff:0",
 					automationId: "daily-handoff",
-					status: "scheduled",
+					status: "declared",
 					modelRoute: "none",
 					tokenUse: "none",
 				},
