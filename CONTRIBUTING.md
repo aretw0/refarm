@@ -36,6 +36,12 @@ pnpm run onboarding:doctor -- --package packages/<new-package>
 
 This checks substrate health and verifies that the target package's `tsconfig.build.json` can be expanded by the workspace TypeScript compiler.
 
+If you want `factory:preflight` to also run a targeted onboarding check, set:
+
+```bash
+REFARM_ONBOARDING_DOCTOR_PACKAGE=packages/<new-package> pnpm run factory:preflight
+```
+
 ### 2. Making Changes
 
 - Create a feature branch from `develop`

@@ -229,15 +229,25 @@ function checkOnboardingDoctor() {
     return;
   }
 
-  const result = run('node', ['scripts/ci/onboarding-doctor.mjs']);
+  const targetPackage = process.env.REFARM_ONBOARDING_DOCTOR_PACKAGE?.trim();
+  const args = ['scripts/ci/onboarding-doctor.mjs'];
+  if (targetPackage) {
+    args.push('--package', targetPackage);
+  }
+
+  const result = run('node', args);
   if (result.status === 0) {
-    ok('Onboarding doctor baseline check');
+    if (targetPackage) {
+      ok('Onboarding doctor targeted check', targetPackage);
+    } else {
+      ok('Onboarding doctor baseline check');
+    }
     return;
   }
 
   warn(
     'Onboarding doctor reported issues',
-    `${commandFailureDetail(result)}\nTry: ${scriptCommand('onboarding:doctor')} -- --package packages/<new-package>`
+    `${commandFailureDetail(result)}\nTry: ${scriptCommand('onboarding:doctor')} -- --package packages/<new-package>\nOptional preflight target: REFARM_ONBOARDING_DOCTOR_PACKAGE=packages/<new-package> ${scriptCommand('factory:preflight')}`
   );
 }
 
