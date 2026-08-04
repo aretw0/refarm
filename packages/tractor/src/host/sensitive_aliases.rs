@@ -370,6 +370,29 @@ mod tests {
     }
 
     #[test]
+    fn rate_catalog_forwards_as_text_content() {
+        // The verified rate catalog is a JSON document of PUBLIC vendor prices with
+        // their citations — prose-shaped, not credential-shaped. It carries whitespace
+        // and is far past the 4 KiB credential cap (the shipped catalog is ~8 KiB
+        // compact), so only the text-content rule can carry it.
+        let catalog = r#"{"schemaVersion":"model-rate-catalog.v1","catalogVersion":"x",
+          "entries":[{"provider":"anthropic","match":{"mode":"contains","value":"claude-sonnet-5"},
+          "rate":{"inputPerMTokenUsd":2,"outputPerMTokenUsd":10},
+          "pricingUrl":"https://example.invalid","verifiedAt":"2026-08-04"}]}"#;
+        assert!(
+            is_forwardable_model_env_pair("MODEL_RATE_CATALOG", catalog),
+            "the rate catalog must reach the guest so it can price a run from data"
+        );
+        // The default (credential) rule would block it — newlines and spaces.
+        assert!(!is_forwardable_model_env_value(catalog));
+        // A realistic 8 KiB payload is fine as text content, blocked as a credential.
+        let big = format!("{{\"pad\":\"{}\"}}", "x".repeat(8_000));
+        assert!(is_forwardable_model_env_pair("MODEL_RATE_CATALOG", &big));
+        // No NUL/C0 smuggling even under the text key.
+        assert!(!is_forwardable_model_env_pair("MODEL_RATE_CATALOG", "{\"a\":\"\0\"}"));
+    }
+
+    #[test]
     fn spawn_sensitive_env_key_helper_matches_expected_cases() {
         let blocked = [
             "AWS_SECRET_ACCESS_KEY",

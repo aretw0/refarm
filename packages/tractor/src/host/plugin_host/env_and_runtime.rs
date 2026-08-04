@@ -3,7 +3,50 @@
 fn plugin_env_vars_from(base: &std::path::Path, sync: Option<&NativeSync>) -> Vec<(String, String)> {
     let mut vars = forwarded_model_env_vars();
     vars.extend(plugin_runtime_env_vars());
-    merge_plugin_env_vars(vars, refarm_config_env_vars_from(base, sync))
+    let mut config_vars = refarm_config_env_vars_from(base, sync);
+    push_model_rate_catalog(&mut vars, &mut config_vars, base);
+    merge_plugin_env_vars(vars, config_vars)
+}
+
+/// Put the model rate catalog on the guest's env — or, when the host refused one,
+/// make sure NOTHING carrying that name reaches the guest.
+///
+/// The catalog the guest sees is the one THIS host resolved (see
+/// `model_rate_catalog::resolve_injected_catalog` — the single seam that decides where
+/// it comes from). An inherited process-env value is stripped first, because the key is
+/// now in the closed text-content forward allowlist and would otherwise ride through
+/// `forwarded_model_env_vars` unvalidated — turning the refuse-loudly rule into a
+/// suggestion. It goes on the CONFIG side of the merge so the host's answer wins.
+///
+/// `None` injects nothing at all: the guest reads that as "I do not know prices" and
+/// falls back to its built-in table, which is never the same as "everything is free".
+fn push_model_rate_catalog(
+    model_vars: &mut Vec<(String, String)>,
+    config_vars: &mut Vec<(String, String)>,
+    base: &std::path::Path,
+) {
+    use crate::host::plugin_host::model_rate_catalog::{
+        resolve_injected_catalog, MODEL_RATE_CATALOG_ENV_KEY,
+    };
+
+    model_vars.retain(|(k, _)| k != MODEL_RATE_CATALOG_ENV_KEY);
+    config_vars.retain(|(k, _)| k != MODEL_RATE_CATALOG_ENV_KEY);
+
+    let Some(catalog) = resolve_injected_catalog(base) else {
+        return;
+    };
+    // Belt and braces: the host built this string itself, but it still answers to the
+    // same closed pair policy every other forwarded MODEL_* value does.
+    if crate::host::sensitive_aliases::is_forwardable_model_env_pair(
+        MODEL_RATE_CATALOG_ENV_KEY,
+        &catalog,
+    ) {
+        config_vars.push((MODEL_RATE_CATALOG_ENV_KEY.to_string(), catalog));
+    } else {
+        tracing::error!(
+            "resolved model rate catalog failed the MODEL_* forward policy — injecting none"
+        );
+    }
 }
 
 fn plugin_runtime_env_vars() -> Vec<(String, String)> {

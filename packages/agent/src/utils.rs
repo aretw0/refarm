@@ -87,8 +87,8 @@ pub(crate) fn estimate_billable_usd(
 /// correcting it after is a version bump that marks every prior observation as
 /// stale — which is why verification happens now, not as follow-up.
 ///
-/// Sources: every priced branch in `rate_for_model` below cites the vendor's
-/// own OFFICIAL pricing page inline — never a third-party aggregator, which is
+/// Sources: every priced branch in `rate_from_builtin_table` below cites the
+/// vendor's own OFFICIAL pricing page inline — never a third-party aggregator, which is
 /// convenient but not authoritative; an unverified number presented as fact is
 /// the exact failure this table exists to prevent.
 ///
@@ -118,11 +118,136 @@ pub(crate) enum RateLookup {
     Unknown,
 }
 
+/// One entry of the host-injected catalog, reduced to what a rate lookup needs.
+///
+/// The host sends the FULL entry shape (citations, verification dates, context
+/// windows) because a narrow projection would be a second schema and therefore a
+/// second source. This struct keeps only the fields THIS lookup reads; the rest
+/// travels and is ignored here rather than being stripped upstream.
+pub(crate) struct CatalogEntry {
+    /// `true` for `mode: "exact"`, `false` for `mode: "contains"`.
+    exact: bool,
+    value: String,
+    rate_in: f64,
+    rate_out: f64,
+}
+
+/// The env key the host injects the catalog under. The guest reads a STRING and
+/// must never learn who produced it — an embedded default, a file in the sovereign
+/// dir, or (later) a loaded plugin are all the same fact from here.
+const RATE_CATALOG_ENV_KEY: &str = "MODEL_RATE_CATALOG";
+
+/// Parse the host-injected catalog. `None` means "no usable catalog", which the
+/// caller must read as "I do not know prices" — never as "everything is free".
+///
+/// A single malformed entry rejects the WHOLE catalog rather than being skipped.
+/// Half-trusting a price list is worse than not trusting it: a skipped entry
+/// silently changes which rule wins under first-match-wins, and the result still
+/// looks like a plausible price. The host validates before injecting, so a
+/// rejection here means the two sides disagree about the schema — which is exactly
+/// when falling back to the built-in table is the honest answer.
+pub(crate) fn parse_rate_catalog(raw: &str) -> Option<Vec<CatalogEntry>> {
+    let value: serde_json::Value = serde_json::from_str(raw).ok()?;
+    let entries = value.get("entries")?.as_array()?;
+    let mut out = Vec::with_capacity(entries.len());
+    for entry in entries {
+        let rule = entry.get("match")?;
+        let exact = match rule.get("mode")?.as_str()? {
+            "exact" => true,
+            "contains" => false,
+            _ => return None,
+        };
+        let value = rule.get("value")?.as_str()?;
+        if value.is_empty() {
+            return None;
+        }
+        let rate = entry.get("rate")?;
+        let rate_in = rate.get("inputPerMTokenUsd")?.as_f64()?;
+        let rate_out = rate.get("outputPerMTokenUsd")?.as_f64()?;
+        if !rate_in.is_finite() || !rate_out.is_finite() || rate_in < 0.0 || rate_out < 0.0 {
+            return None;
+        }
+        out.push(CatalogEntry { exact, value: value.to_string(), rate_in, rate_out });
+    }
+    Some(out)
+}
+
+/// Resolve a model id against the catalog. ENTRY ORDER IS PRECEDENCE — first match
+/// wins, exactly like the built-in chain below, and for the same reason: the
+/// catalog is authored so that specific rules precede general ones ("claude-opus-4-5"
+/// before "claude-opus-4"), and a validator on both sides refuses an entry a
+/// preceding, less specific rule has made unreachable. Preserve the order received;
+/// never sort.
+pub(crate) fn rate_from_catalog(entries: &[CatalogEntry], model: &str) -> Option<(f64, f64)> {
+    entries
+        .iter()
+        .find(|entry| {
+            if entry.exact {
+                model == entry.value
+            } else {
+                model.contains(&entry.value)
+            }
+        })
+        .map(|entry| (entry.rate_in, entry.rate_out))
+}
+
+/// The catalog this guest was given, parsed once.
+///
+/// Read once and cached so `rate_for_model` stays cheap on a hot path and so the
+/// process cannot observe two different catalogs within one run. Absent env, empty
+/// env, or an unparseable value all resolve to `None` — the "I do not know prices"
+/// answer, which falls back rather than zeroing.
+pub(crate) fn injected_rate_catalog() -> Option<&'static [CatalogEntry]> {
+    static CATALOG: std::sync::OnceLock<Option<Vec<CatalogEntry>>> = std::sync::OnceLock::new();
+    CATALOG
+        .get_or_init(|| {
+            let raw = std::env::var(RATE_CATALOG_ENV_KEY).ok()?;
+            if raw.trim().is_empty() {
+                return None;
+            }
+            match parse_rate_catalog(&raw) {
+                Some(entries) => Some(entries),
+                None => {
+                    // Same std-only, both-targets channel `estimate_usd` uses below.
+                    eprintln!(
+                        "cost estimator: {RATE_CATALOG_ENV_KEY} could not be parsed — falling \
+                         back to the built-in rate table. This means prices are unknown from \
+                         the catalog, NOT that anything is free."
+                    );
+                    None
+                }
+            }
+        })
+        .as_deref()
+}
+
+/// Look up the per-million-token rate for a model id.
+///
+/// CATALOG FIRST, with the built-in table as the fallback. The catalog is the
+/// verified artifact (`packages/model-catalog-v1/catalog/model-rates.v1.json`),
+/// resolved to the window in force by the host and injected as a string; the chain
+/// below is what shipped before it existed. Consulting the catalog first means the
+/// new path is exercised from day one rather than sitting written-and-unreachable,
+/// and retiring the chain later is just deleting the fallback.
+///
+/// An absent, empty or unparseable catalog, or one with no entry for this model,
+/// falls through to the chain. It never returns a zero rate: "I do not know prices"
+/// and "this is free" are different answers, and only `pricing_mode_for_provider`
+/// (checked earlier, on the provider axis) may say the second one.
+pub(crate) fn rate_for_model(model: &str) -> RateLookup {
+    if let Some(entries) = injected_rate_catalog() {
+        if let Some((rate_in, rate_out)) = rate_from_catalog(entries, model) {
+            return RateLookup::Priced { rate_in, rate_out };
+        }
+    }
+    rate_from_builtin_table(model)
+}
+
 /// Look up the per-million-token rate for a model id by substring match.
 /// Order matters within a family: a more specific id ("gpt-5.5") is tested
 /// before its family prefix ("gpt-5"), or a point release would silently
 /// inherit the family's rate while looking perfectly plausible.
-pub(crate) fn rate_for_model(model: &str) -> RateLookup {
+pub(crate) fn rate_from_builtin_table(model: &str) -> RateLookup {
     let (rate_in, rate_out): (f64, f64) = if model.contains("claude-fable-5")
         || model.contains("claude-mythos-5")
     {

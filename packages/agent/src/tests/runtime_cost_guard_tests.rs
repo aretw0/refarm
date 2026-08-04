@@ -379,3 +379,268 @@ fn price_is_known_true_under_a_structural_zero_pricing_mode() {
     assert!(price_is_known("openai-codex", "gpt-5.5"));
     assert!(price_is_known("ollama", "llama3.2"));
 }
+
+// ── the host-injected rate catalog (D1) ───────────────────────────────────
+//
+// The catalog reaches this guest as a STRING on the env, resolved to the window in
+// force by the host. Nothing here may branch on WHERE it came from — an embedded
+// default, a node's file, or (later) a loaded plugin are the same fact from inside.
+
+/// Every model id the built-in table has an opinion about, priced or not. Used to
+/// pin that an absent catalog changes nothing.
+const EVERY_MODEL_THE_TABLE_KNOWS: &[&str] = &[
+    "claude-fable-5",
+    "claude-mythos-5",
+    "claude-opus-5",
+    "claude-sonnet-5",
+    "claude-opus-4-5",
+    "claude-opus-4-6",
+    "claude-opus-4-7",
+    "claude-opus-4-8",
+    "claude-opus-4",
+    "claude-opus-4-1",
+    "claude-sonnet-4",
+    "claude-sonnet-4-6",
+    "claude-haiku-4-5",
+    "claude-haiku-3-5",
+    "claude-haiku",
+    "grok-4.3",
+    "deepseek-v4-flash",
+    "gemini-3-flash-preview",
+    "llama-3.3-70b-versatile",
+    "mistral-medium-3-5",
+    "gpt-5.6-sol",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna",
+    "gpt-5.5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "gpt-5",
+    "gpt-4o",
+    "gpt-4o-mini",
+    // Deliberately unpriced.
+    "claude-sonnet-3-7",
+    "claude-opus-6",
+    "gpt-5.1-codex-mini",
+    "some-future-model-nobody-priced-yet",
+];
+
+#[test]
+fn an_absent_catalog_leaves_rate_for_model_byte_identical_to_the_built_in_table() {
+    // The whole point of catalog-FIRST-with-fallback: with nothing injected, this
+    // guest must answer exactly what it answered before the catalog existed. This
+    // test process sets no MODEL_RATE_CATALOG, so the lookup is pure fallback.
+    assert!(
+        injected_rate_catalog().is_none(),
+        "this suite runs with no catalog injected — that is what makes the comparison meaningful"
+    );
+    for model in EVERY_MODEL_THE_TABLE_KNOWS {
+        let via_lookup = rate_for_model(model);
+        let via_table = rate_from_builtin_table(model);
+        match (via_lookup, via_table) {
+            (
+                RateLookup::Priced { rate_in: a_in, rate_out: a_out },
+                RateLookup::Priced { rate_in: b_in, rate_out: b_out },
+            ) => {
+                assert_eq!(a_in, b_in, "{model}: input rate drifted from the built-in table");
+                assert_eq!(a_out, b_out, "{model}: output rate drifted from the built-in table");
+            }
+            (RateLookup::Unknown, RateLookup::Unknown) => {}
+            _ => panic!("{model}: rate_for_model disagrees with the built-in table"),
+        }
+    }
+}
+
+#[test]
+fn a_catalog_entry_wins_over_the_built_in_table() {
+    // The Sonnet 5 post-intro rate: the host injects THIS row on 2026-09-01, while
+    // the built-in table still carries the introductory $2/$10 inline.
+    let catalog = parse_rate_catalog(
+        r#"{"schemaVersion":"model-rate-catalog.v1","catalogVersion":"t","entries":[
+          {"provider":"anthropic","match":{"mode":"contains","value":"claude-sonnet-5"},
+           "rate":{"inputPerMTokenUsd":3,"outputPerMTokenUsd":15},
+           "pricingUrl":"https://example.invalid","verifiedAt":"2026-08-04"}]}"#,
+    )
+    .expect("valid catalog");
+    assert_eq!(rate_from_catalog(&catalog, "claude-sonnet-5"), Some((3.0, 15.0)));
+    // …and the built-in table is still the pre-switch number, so this is a real override.
+    let RateLookup::Priced { rate_in, rate_out } = rate_from_builtin_table("claude-sonnet-5") else {
+        panic!("built-in table prices claude-sonnet-5");
+    };
+    assert_eq!((rate_in, rate_out), (2.0, 10.0));
+}
+
+#[test]
+fn entry_order_is_precedence_first_match_wins_and_nothing_is_sorted() {
+    // The authored order is the contract. A general rule placed first WINS over the
+    // specific rule after it — which is why both sides refuse that arrangement at
+    // validation time rather than quietly re-sorting it here.
+    let general_first = parse_rate_catalog(
+        r#"{"entries":[
+          {"match":{"mode":"contains","value":"claude-opus-4"},
+           "rate":{"inputPerMTokenUsd":15,"outputPerMTokenUsd":75}},
+          {"match":{"mode":"contains","value":"claude-opus-4-5"},
+           "rate":{"inputPerMTokenUsd":5,"outputPerMTokenUsd":25}}]}"#,
+    )
+    .expect("valid");
+    assert_eq!(
+        rate_from_catalog(&general_first, "claude-opus-4-5"),
+        Some((15.0, 75.0)),
+        "first match wins — the order received is the order used"
+    );
+
+    // The correctly authored order (specific first) reaches the specific rate.
+    let specific_first = parse_rate_catalog(
+        r#"{"entries":[
+          {"match":{"mode":"contains","value":"claude-opus-4-5"},
+           "rate":{"inputPerMTokenUsd":5,"outputPerMTokenUsd":25}},
+          {"match":{"mode":"contains","value":"claude-opus-4"},
+           "rate":{"inputPerMTokenUsd":15,"outputPerMTokenUsd":75}}]}"#,
+    )
+    .expect("valid");
+    assert_eq!(rate_from_catalog(&specific_first, "claude-opus-4-5"), Some((5.0, 25.0)));
+    assert_eq!(rate_from_catalog(&specific_first, "claude-opus-4-1"), Some((15.0, 75.0)));
+}
+
+#[test]
+fn an_exact_rule_matches_only_itself() {
+    let catalog = parse_rate_catalog(
+        r#"{"entries":[{"match":{"mode":"exact","value":"gpt-5"},
+          "rate":{"inputPerMTokenUsd":1.25,"outputPerMTokenUsd":10}}]}"#,
+    )
+    .expect("valid");
+    assert_eq!(rate_from_catalog(&catalog, "gpt-5"), Some((1.25, 10.0)));
+    assert_eq!(rate_from_catalog(&catalog, "gpt-5-nano"), None);
+}
+
+#[test]
+fn a_catalog_without_this_model_falls_back_instead_of_answering_zero() {
+    let catalog = parse_rate_catalog(
+        r#"{"entries":[{"match":{"mode":"contains","value":"claude-sonnet-5"},
+          "rate":{"inputPerMTokenUsd":3,"outputPerMTokenUsd":15}}]}"#,
+    )
+    .expect("valid");
+    assert_eq!(
+        rate_from_catalog(&catalog, "grok-4.3"),
+        None,
+        "no entry for this model is a MISS, and a miss must reach the fallback"
+    );
+    // And the fallback still prices it — the miss did not become a free run.
+    let RateLookup::Priced { rate_in, rate_out } = rate_from_builtin_table("grok-4.3") else {
+        panic!("built-in table prices grok-4.3");
+    };
+    assert_eq!((rate_in, rate_out), (1.25, 2.5));
+}
+
+#[test]
+fn an_unusable_catalog_means_prices_unknown_never_prices_zero() {
+    // Not JSON.
+    assert!(parse_rate_catalog("{ not json").is_none());
+    // JSON, but not a catalog.
+    assert!(parse_rate_catalog(r#"{"schemaVersion":"model-rate-catalog.v1"}"#).is_none());
+    assert!(parse_rate_catalog("[]").is_none());
+    // One malformed entry rejects the whole list: half-trusting a price list silently
+    // changes which rule wins under first-match-wins.
+    assert!(parse_rate_catalog(
+        r#"{"entries":[
+          {"match":{"mode":"contains","value":"claude-sonnet-5"},
+           "rate":{"inputPerMTokenUsd":3,"outputPerMTokenUsd":15}},
+          {"match":{"mode":"contains","value":"gpt-5"}}]}"#
+    )
+    .is_none());
+    // A negative rate is not a discount.
+    assert!(parse_rate_catalog(
+        r#"{"entries":[{"match":{"mode":"contains","value":"gpt-5"},
+          "rate":{"inputPerMTokenUsd":-1,"outputPerMTokenUsd":10}}]}"#
+    )
+    .is_none());
+    // An unknown match mode is not "contains by default".
+    assert!(parse_rate_catalog(
+        r#"{"entries":[{"match":{"mode":"regex","value":"gpt-.*"},
+          "rate":{"inputPerMTokenUsd":1,"outputPerMTokenUsd":2}}]}"#
+    )
+    .is_none());
+
+    // An EMPTY catalog is well-formed and means "this catalog prices nothing" — every
+    // lookup misses and reaches the fallback. It is not "everything is free".
+    let empty = parse_rate_catalog(r#"{"entries":[]}"#).expect("an empty catalog is valid");
+    assert_eq!(rate_from_catalog(&empty, "claude-sonnet-5"), None);
+    assert!(matches!(rate_for_model("claude-sonnet-5"), RateLookup::Priced { .. }));
+}
+
+#[test]
+fn a_full_entry_shape_parses_with_its_citations_ignored_not_rejected() {
+    // The host sends the full entry (pricingUrl, verifiedAt, contextWindow) because a
+    // narrow projection would be a second schema. Fields this lookup does not read
+    // must travel harmlessly.
+    let catalog = parse_rate_catalog(
+        r#"{"schemaVersion":"model-rate-catalog.v1","catalogVersion":"2026-08-04.5","entries":[
+          {"provider":"anthropic","match":{"mode":"contains","value":"claude-opus-5"},
+           "rate":{"inputPerMTokenUsd":5,"outputPerMTokenUsd":25},
+           "pricingUrl":"https://platform.claude.com/docs/en/about-claude/pricing",
+           "verifiedAt":"2026-08-04",
+           "contextWindow":{"tokens":1000000,"sourceUrl":"https://example.invalid","verifiedAt":"2026-08-04"}}]}"#,
+    )
+    .expect("the full entry shape parses");
+    assert_eq!(rate_from_catalog(&catalog, "claude-opus-5"), Some((5.0, 25.0)));
+}
+
+/// The artifact the host embeds, read here at TEST time only (no bytes reach the
+/// shipped `.wasm`). Parsing the real 27 entries is the only way this side can prove
+/// it agrees with what the host will actually send.
+const REAL_ARTIFACT: &str =
+    include_str!("../../../model-catalog-v1/catalog/model-rates.v1.json");
+
+#[test]
+fn the_real_artifact_prices_what_the_built_in_table_prices_and_agrees_on_the_number() {
+    let catalog = parse_rate_catalog(REAL_ARTIFACT).expect("the shipped artifact parses");
+
+    // The superset condition for retiring the built-in chain: every id the table
+    // prices, the catalog prices — at the same number.
+    let mut disagreements: Vec<String> = Vec::new();
+    for model in EVERY_MODEL_THE_TABLE_KNOWS {
+        let from_catalog = rate_from_catalog(&catalog, model);
+        let from_table = match rate_from_builtin_table(model) {
+            RateLookup::Priced { rate_in, rate_out } => Some((rate_in, rate_out)),
+            RateLookup::Unknown => None,
+        };
+        if from_catalog != from_table {
+            disagreements.push(format!("{model}: catalog={from_catalog:?} table={from_table:?}"));
+        }
+    }
+
+    assert_eq!(
+        disagreements,
+        vec![
+            // The ONE divergence, recorded rather than papered over. The built-in chain
+            // carves "gpt-5.1-codex-mini" out of the "gpt-5" family branch on purpose:
+            // it is not listed on OpenAI's page as its own line item, so its rate could
+            // not be verified, and this table's rule is that only verified rates ship.
+            // The catalog has no such carve-out — "gpt-5.1-codex-mini".contains("gpt-5")
+            // is true, so under first-match-wins it inherits the family rate.
+            //
+            // Catalog-first therefore turns a deliberate Unknown into a confident
+            // $1.25/$10. The TypeScript resolver ALREADY answers that way for the same
+            // id, so this is the two sides converging on the catalog's answer rather
+            // than a new opinion — but it is a behaviour change, and the fix belongs in
+            // the artifact (an `exact`-mode carve-out, or a narrower family rule), not
+            // in a second exclusion list here. Pinned so it cannot drift unnoticed.
+            "gpt-5.1-codex-mini: catalog=Some((1.25, 10.0)) table=None".to_string(),
+        ],
+        "the catalog and the built-in table must agree except where it is recorded here"
+    );
+}
+
+#[test]
+fn the_real_artifacts_order_reaches_the_specific_rule_before_its_family() {
+    // The order-dependence that once billed Opus 4.5 at Opus 4's rate, checked against
+    // the shipped ordering rather than a fixture that could drift from it.
+    let catalog = parse_rate_catalog(REAL_ARTIFACT).expect("the shipped artifact parses");
+    assert_eq!(rate_from_catalog(&catalog, "claude-opus-4-5"), Some((5.0, 25.0)));
+    assert_eq!(rate_from_catalog(&catalog, "claude-opus-4-1"), Some((15.0, 75.0)));
+    assert_eq!(rate_from_catalog(&catalog, "claude-haiku-4-5"), Some((1.0, 5.0)));
+    assert_eq!(rate_from_catalog(&catalog, "claude-haiku-3-5"), Some((0.8, 4.0)));
+    assert_eq!(rate_from_catalog(&catalog, "gpt-5-nano"), Some((0.05, 0.4)));
+    assert_eq!(rate_from_catalog(&catalog, "gpt-4o-mini"), Some((0.15, 0.6)));
+    assert_eq!(rate_from_catalog(&catalog, "gpt-4o"), Some((2.5, 10.0)));
+}

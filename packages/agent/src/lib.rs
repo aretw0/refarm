@@ -105,6 +105,11 @@ pub(crate) use utils::{
 };
 
 #[cfg(test)]
+pub(crate) use utils::{
+    injected_rate_catalog, parse_rate_catalog, rate_from_builtin_table, rate_from_catalog,
+};
+
+#[cfg(test)]
 pub(crate) use provider_config::{
     choose_model, configured_providers, openai_compat_defaults, profile_candidates,
     profile_capability_requirement, provider_capabilities, resolve_profile, CostTier,
