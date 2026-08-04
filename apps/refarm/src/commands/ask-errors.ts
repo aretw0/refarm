@@ -37,6 +37,10 @@ import {
 	isSidecarUnavailable,
 	printSidecarUnavailable,
 } from "./sidecar-error.js";
+import {
+	MODEL_CREDENTIALS_MISSING_MESSAGE,
+	missingModelCredentialActionLines,
+} from "./model-credential-guidance.js";
 
 const OLLAMA_SERVE_COMMAND = "ollama serve";
 const OLLAMA_DOCKER_BASE_URL_COMMAND = refarmCommand([
@@ -314,7 +318,7 @@ export function printMissingModelCredentials(json: boolean): void {
 				command: "ask",
 				operation: "credentials",
 				error: "model-credentials-missing",
-				message: "No usable model credentials configured.",
+				message: MODEL_CREDENTIALS_MISSING_MESSAGE,
 				nextAction: SOW_INTERACTIVE_COMMAND,
 				nextActions: [
 					SOW_INTERACTIVE_COMMAND,
@@ -347,9 +351,8 @@ export function printMissingModelCredentials(json: boolean): void {
 		);
 		return;
 	}
-	console.error(chalk.red("\n✗  No usable model credentials configured."));
-	console.error(chalk.dim("   Set up credentials: refarm sow"));
-	console.error(chalk.dim("   Inspect route:      refarm model current"));
-	console.error(chalk.dim("   List providers:     refarm model providers"));
-	console.error(chalk.dim("   Or use Ollama:      ollama serve  (then refarm sow)"));
+	console.error(chalk.red(`\n✗  ${MODEL_CREDENTIALS_MISSING_MESSAGE}`));
+	for (const line of missingModelCredentialActionLines({ includeOllama: true })) {
+		console.error(chalk.dim(`   ${line}`));
+	}
 }

@@ -51,6 +51,14 @@ import {
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 	RUNTIME_START_COMMAND,
 } from "./runtime-recovery.js";
+import {
+	MODEL_CREDENTIALS_INSPECT_ROUTE_COMMAND,
+	MODEL_CREDENTIALS_LIST_PROVIDERS_COMMAND,
+	MODEL_CREDENTIALS_MISSING_MESSAGE,
+	MODEL_CREDENTIALS_OLLAMA_SERVE_COMMAND,
+	MODEL_CREDENTIALS_SETUP_COMMAND,
+	missingModelCredentialDeferredLines,
+} from "./model-credential-guidance.js";
 
 export type { AutostartMode, TractorEngineMode } from "../utils/runtime-config.js";
 
@@ -378,16 +386,16 @@ export function defaultLaunchDeps(): LaunchDeps {
 		},
 
 		async recoverProvider() {
-			process.stderr.write(chalk.red("✗  No usable model credentials configured.\n\n"));
+			process.stderr.write(chalk.red(`✗  ${MODEL_CREDENTIALS_MISSING_MESSAGE}\n\n`));
 			const go = await deps.operator.ask({
 				type: "confirm",
 				question: "   Configure now?",
 				default: true,
 			});
 			if (!go) {
-				console.error(chalk.dim("   Run `refarm sow` when ready."));
-				console.error(chalk.dim("   Inspect route: `refarm model current`."));
-				console.error(chalk.dim("   List providers: `refarm model providers`."));
+				for (const line of missingModelCredentialDeferredLines()) {
+					console.error(chalk.dim(`   ${line}`));
+				}
 				return false;
 			}
 			// Re-invoke the same CLI binary with the `sow` subcommand.
@@ -494,32 +502,35 @@ export function printSessionGuide(r: SessionReadiness): void {
 	if (!r.providerConfigured && !isRuntimeRunning(r)) {
 		console.error(chalk.red("✗  refarm is not configured yet.\n"));
 		console.error(
-			chalk.dim("   Configure model credentials:    ") + chalk.cyan(refarmCommand(["sow"])),
+			chalk.dim("   Configure model credentials:    ") +
+				chalk.cyan(MODEL_CREDENTIALS_SETUP_COMMAND),
 		);
 		console.error(
 			chalk.dim("   Inspect current model route:     ") +
-				chalk.cyan(refarmCommand(["model", "current"])),
+				chalk.cyan(MODEL_CREDENTIALS_INSPECT_ROUTE_COMMAND),
 		);
 		console.error(
 			chalk.dim("   List provider defaults:         ") +
-				chalk.cyan(refarmCommand(["model", "providers"])),
+				chalk.cyan(MODEL_CREDENTIALS_LIST_PROVIDERS_COMMAND),
 		);
 		return;
 	}
 
 	if (!r.providerConfigured) {
-		console.error(chalk.red("✗  No usable model credentials configured.\n"));
-		console.error(chalk.dim("   Set up credentials: ") + chalk.cyan(refarmCommand(["sow"])));
+		console.error(chalk.red(`✗  ${MODEL_CREDENTIALS_MISSING_MESSAGE}\n`));
 		console.error(
-			chalk.dim("   Inspect route:      ") + chalk.cyan(refarmCommand(["model", "current"])),
+			chalk.dim("   Set up credentials: ") + chalk.cyan(MODEL_CREDENTIALS_SETUP_COMMAND),
 		);
 		console.error(
-			chalk.dim("   List providers:     ") + chalk.cyan(refarmCommand(["model", "providers"])),
+			chalk.dim("   Inspect route:      ") + chalk.cyan(MODEL_CREDENTIALS_INSPECT_ROUTE_COMMAND),
+		);
+		console.error(
+			chalk.dim("   List providers:     ") + chalk.cyan(MODEL_CREDENTIALS_LIST_PROVIDERS_COMMAND),
 		);
 		console.error(
 			chalk.dim("   Use Ollama:         ") +
-				chalk.cyan("ollama serve") +
-				chalk.dim("  (then refarm sow)"),
+				chalk.cyan(MODEL_CREDENTIALS_OLLAMA_SERVE_COMMAND) +
+				chalk.dim(`  (then ${MODEL_CREDENTIALS_SETUP_COMMAND})`),
 		);
 		return;
 	}
