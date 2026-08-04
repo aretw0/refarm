@@ -128,9 +128,27 @@ environment value the host constructs directly. **Send the full entry shape**, n
 projection: a second shape is a second source, and this repository has now catalogued six instances
 of what that costs.
 
-Measured payload: the full catalog is 7,951 bytes compact; the projection a router actually needs,
-provider plus match value plus the two rates, is 1,453 bytes. Neither is a size problem for an
-environment value the host constructs directly.
+**Found during implementation, and it breaks this section as written.** `include_str!` reaching
+outside the crate makes `refarm-tractor` unpublishable. It is a real published crate —
+`.github/workflows/publish-crates.yml` fires on a `refarm-tractor@*` tag — and `cargo package
+--list` returns 155 files with the catalog not among them, so the verify build cannot resolve the
+path. Tractor's three existing cross-package `include_str!` calls are all `#[cfg(test)]`-gated;
+this slice's is the first on a production path. **"One artifact" and "a publishable host crate"
+cannot both hold the way this section writes them.**
+
+Nothing is broken today: the release is held and `RELEASE_AUTOMATION` is false, so no tag is
+imminent. The exits, none chosen yet because this is an ownership decision rather than a technical
+one:
+
+1. **Vendor with a guard.** A build step copies the catalog into the crate and a gate fails when
+   the copy and the source differ. Restores publishability at the cost of a second file, which is
+   tolerable only because the guard makes divergence loud rather than silent.
+2. **Stop publishing `refarm-tractor`.** The cleanest if the crate is not actually consumed from
+   crates.io by anyone, and that is a question about consumers rather than about code.
+3. **Land the plugin-loaded catalog first.** If the host resolves the catalog through the plugin
+   registry rather than an embedded string, the path leaves the crate entirely and the problem
+   dissolves instead of being managed. This is the direction D1 already points at, so the landmine
+   is an argument for bringing that slice forward rather than a new problem.
 
 The guest must treat an absent or malformed catalog as absent, never as empty. A catalog that fails
 to parse means the router does not know prices, which is not the same as everything being free, and
