@@ -263,7 +263,7 @@ the standard speaks; `refarm.*` only where it is silent.
 | `refarm.budget.bound_by` | `node` \| `workspace` \| `declared` \| `default` — which level bound the run (D9) |
 | `refarm.budget.spawner` | reuses `Effort.source` (`sidecar/mod.rs:133`) |
 | `refarm.workspace.id` | the label the operator asked for, from the declared operation's own id when the effort is an operation, omitted otherwise (D6) |
-| `refarm.outcome` | `done` \| `failed` \| `timed-out` \| `cancelled` |
+| `refarm.outcome` | `done` \| `failed` \| `timed-out` \| `cancelled` \| `delivered` \| `partial` |
 | `refarm.outcome.steps_completed` / `.steps_planned` | ours; this is how "4/25" becomes data |
 | `refarm.elapsed_ms`, `refarm.cost.estimated_usd` | derived |
 | `refarm.scenario.id` / `.hash` | **null in field use**, set on the bench |
@@ -273,6 +273,14 @@ the run's `UsageRecord` and written out beside the budget fields, not nested und
 object. A dataset consumer reading `gen_ai.usage.input_tokens` is reading the standard's own name at
 the path the standard implies, which is the entire point of adopting the vocabulary. A nested blob
 would make the OTel alignment decorative.
+
+**`refarm.outcome` widened to include `delivered` and `partial` on 2026-08-03**, found during the
+whole-branch review (F2). `Effort.status` (`sidecar/mod.rs`'s `is_terminal_effort_status`) already
+treats both as terminal — `delivered` closes a router-dispatched (non-`respond`) effort honestly (the
+verb result lands as an out-of-band node, not `done`'s completed task result), and `partial` closes
+one whose task only partly completed. Both pass through the SAME `finalise_effort` call site every
+other terminal status does, so both land in `refarm.outcome` on a real node today; the vocabulary
+above was silently narrower than the record it was documenting.
 
 **`refarm.budget.source` was removed on 2026-08-03.** It predated D9 and answered the same question
 `bound_by` now answers, with a vocabulary (`declared | default | ceiling`) that no longer matches
