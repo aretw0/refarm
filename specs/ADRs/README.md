@@ -108,6 +108,7 @@ story its ADRs tell together and points at the entry to read first. Saga-index A
 | [090](ADR-090-stream-transport-saga.md)                        | Streaming & Stream Transport (saga index over 053-055)                            | Accepted   | 2026-07-12 |
 | [091](ADR-091-tractor-runtime-saga.md)                         | Tractor Runtime (saga index over 047/048/059/060)                                 | Accepted   | 2026-07-12 |
 | [092](ADR-092-sovereign-identity-saga.md)                      | Sovereign Identity Continuity (saga index over 032/034/035)                       | Proposed   | 2026-07-12 |
+| [094](ADR-094-node-context-workspace-hatch-and-sovereign-home-resolution.md) | Node Context, Workspace Hatch, and Sovereign Home Resolution | Proposed | 2026-08-04 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 
