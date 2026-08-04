@@ -40,6 +40,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import path from "node:path";
 import { refarmCommand } from "../brand.js";
+import { emitCommandRefusal } from "./command-refusal.js";
 import {
 	runWorkspaceAdd,
 	WorkspaceAddRefusal,
@@ -72,22 +73,16 @@ const WORKSPACE_ADD_COMMAND = refarmCommand(["workspace", "add"]);
  */
 function failWorkspace(operation: string, options: { json?: boolean }, error: unknown): void {
 	const message = error instanceof Error ? error.message : String(error);
-	if (options.json) {
-		printJson(
-			buildJsonErrorEnvelope({
-				command: "workspace",
-				operation,
-				error: "workspace-invalid-request",
-				message,
-				nextAction: `Run \`${WORKSPACE_HELP_COMMAND}\` to see the accepted options.`,
-				nextCommand: WORKSPACE_HELP_COMMAND,
-			}),
-		);
-	} else {
-		console.error(chalk.red(`✗  ${message}`));
-		console.error(chalk.dim(`   ${WORKSPACE_HELP_COMMAND}`));
-	}
-	process.exitCode = 1;
+	emitCommandRefusal({
+		command: "workspace",
+		operation,
+		options,
+		error: "workspace-invalid-request",
+		message,
+		nextAction: `Run \`${WORKSPACE_HELP_COMMAND}\` to see the accepted options.`,
+		nextCommands: [WORKSPACE_HELP_COMMAND],
+		humanHints: [WORKSPACE_HELP_COMMAND],
+	});
 }
 
 /** Wrap an action so a thrown validation error becomes the repo's refusal shape

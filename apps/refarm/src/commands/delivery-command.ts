@@ -1,5 +1,4 @@
 import {
-	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
@@ -23,6 +22,7 @@ import {
 	operatorIsAttending,
 	type DeliveryChannelIssue,
 } from "./delivery.js";
+import { emitCommandRefusal } from "./command-refusal.js";
 
 /**
  * `refarm delivery` — look at the declaration WITHOUT being interrupted by it.
@@ -73,22 +73,16 @@ function describeTokenSource(declaration: ResolvedDeliveryChannel["declaration"]
 }
 
 function failDelivery(operation: string, options: DeliveryCommandOptions, message: string): void {
-	if (options.json) {
-		printJson(
-			buildJsonErrorEnvelope({
-				command: "delivery",
-				operation,
-				error: "delivery-invalid-request",
-				message,
-				nextAction: `Run \`${DELIVERY_HELP_COMMAND}\` to see the accepted options.`,
-				nextCommand: DELIVERY_HELP_COMMAND,
-			}),
-		);
-	} else {
-		console.error(chalk.red(`✗  ${message}`));
-		console.error(chalk.dim(`   ${DELIVERY_HELP_COMMAND}`));
-	}
-	process.exitCode = 1;
+	emitCommandRefusal({
+		command: "delivery",
+		operation,
+		options,
+		error: "delivery-invalid-request",
+		message,
+		nextAction: `Run \`${DELIVERY_HELP_COMMAND}\` to see the accepted options.`,
+		nextCommands: [DELIVERY_HELP_COMMAND],
+		humanHints: [DELIVERY_HELP_COMMAND],
+	});
 }
 
 /**
@@ -103,22 +97,15 @@ function failAuthoring(operation: string, options: DeliveryCommandOptions, error
 	const message = error instanceof Error ? error.message : String(error);
 	const code = refusal?.code ?? "delivery-invalid-request";
 	const nextCommands = refusal?.nextCommands ?? [DELIVERY_HELP_COMMAND];
-	if (options.json) {
-		printJson(
-			buildJsonErrorEnvelope({
-				command: "delivery",
-				operation,
-				error: code,
-				message,
-				nextAction: `Run \`${nextCommands[0] ?? DELIVERY_HELP_COMMAND}\`.`,
-				nextCommands,
-			}),
-		);
-	} else {
-		console.error(chalk.red(`✗  ${message}`));
-		for (const next of nextCommands) console.error(chalk.dim(`   ${next}`));
-	}
-	process.exitCode = 1;
+	emitCommandRefusal({
+		command: "delivery",
+		operation,
+		options,
+		error: code,
+		message,
+		nextAction: `Run \`${nextCommands[0] ?? DELIVERY_HELP_COMMAND}\`.`,
+		nextCommands,
+	});
 }
 
 /** Wrap an async action so any failure becomes a refusal rather than an escaped exception. */
