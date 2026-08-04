@@ -94,10 +94,25 @@ The two reasons that do:
    The host has a clock; `rate_for_model` is pure and its purity is load bearing for testing. So
    the host resolves the effective window and injects only the entries in force, which is the same
    entry shape with fewer rows, not a second schema.
-2. **A node can correct a rate without a build.** The host reads `model-rates.v1.json` from the
-   sovereign dir when it is present and falls back to the embedded default otherwise. A wrong rate
-   can then be fixed on the node that noticed it, which is what the whole provenance apparatus is
-   for, while a zero-config install still prices correctly out of the box.
+2. **A node can correct a rate without a build.** The extensible surface for this already exists
+   and was found while writing this section: `model-catalog-plugin-stack` composes
+   `model-rate-catalog-plugin:v1` plugins, each supplying `entries()`, with a
+   `model-rate-catalog-composer:v1` capability above it. Composition concatenates in plugin order
+   and resolution is first-match-wins, so **plugin order is precedence** and a node's own plugin
+   placed first overrides the defaults. An on-disk file is the simplest instance of that surface,
+   not a parallel mechanism, and the host should reach the catalog through the stack rather than
+   inventing a second path to it.
+
+   Finding it also found what it was hiding. The two default provider plugins were not serving the
+   audited catalog; they carried their own hand-written entries, and by 2026-08-04 those had
+   drifted into a second, wrong catalog: `claude-opus` at $8/$40, a figure the vendor lists for no
+   model at all, and `gpt-5` at $1.25/$5 against a verified $1.25/$10. Both were stamped
+   `verifiedAt: 2026-08-04`, a date nobody had earned. Worse, both were coarse family rules, so
+   under first-match-wins `gpt-5.6-sol` would have matched `gpt-5` and priced at a sixth of its
+   real output rate. Nothing consumed the composed catalog, so no run was ever mispriced — that is
+   luck rather than design. The plugins now serve the shipped file and author nothing, and
+   `composeModelRateCatalog` validates its result, because each plugin can be valid alone while the
+   concatenation is not.
 
 Measured payload: the full catalog is 7,951 bytes compact; the projection a router actually needs,
 provider plus match value plus the two rates, is 1,453 bytes. Neither is a size problem for an

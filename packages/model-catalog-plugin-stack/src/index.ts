@@ -1,9 +1,10 @@
 import { createAnthropicModelRatePlugin } from "../../model-catalog-plugin-anthropic/src/index.js";
 import { createOpenaiModelRatePlugin } from "../../model-catalog-plugin-openai/src/index.js";
-import type {
-	ModelRateCatalog,
-	ModelTariffCatalog,
-	ModelTariffEntry,
+import {
+	assertValidModelRateCatalog,
+	type ModelRateCatalog,
+	type ModelTariffCatalog,
+	type ModelTariffEntry,
 } from "../../model-catalog-v1/src/index.js";
 
 export const MODEL_RATE_CATALOG_PLUGIN_CAPABILITY = "model-rate-catalog-plugin:v1" as const;
@@ -51,14 +52,27 @@ export function composeModelTariffCatalog(input: ComposeModelTariffCatalogInput)
   };
 }
 
+/**
+ * Composition CONCATENATES plugin entries in plugin order, and resolution is first-match-wins, so
+ * plugin order is precedence: a node's own plugin placed first overrides the defaults, which is the
+ * intended way to correct a rate without a build.
+ *
+ * That same property is why the result is validated rather than merely built. Each plugin can be
+ * valid on its own while the concatenation is not: a later plugin's specific rule becomes
+ * unreachable behind an earlier plugin's family rule, and the catalog answers with a plausible
+ * wrong price instead of failing. The guard on the shipped file protected the file; this protects
+ * the catalog that is actually used.
+ */
 export function composeModelRateCatalog(input: ComposeModelCatalogInput): ModelRateCatalog {
   const tariffCatalog = composeModelTariffCatalog(input);
 
-  return {
+  const composed: ModelRateCatalog = {
     schemaVersion: "model-rate-catalog.v1",
     catalogVersion: tariffCatalog.catalogVersion,
     entries: tariffCatalog.entries,
   };
+  assertValidModelRateCatalog(composed);
+  return composed;
 }
 
 export function createDefaultModelTariffPluginStack(): readonly ModelCatalogTariffPlugin[] {
