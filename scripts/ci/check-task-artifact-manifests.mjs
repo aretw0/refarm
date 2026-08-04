@@ -285,8 +285,28 @@ export function validateTaskArtifactManifestFile(manifestPath) {
 	return issues;
 }
 
+// A `validations/` rename, an empty checkout slice, or a walk that silently
+// found the wrong directory must not read the same as "scanned every manifest
+// and they are all valid" — zero manifests found is not evidence of zero
+// problems, it is evidence this gate never ran. `walkForManifests` already
+// swallows a missing rootDir into `[]`; this floor is what keeps that `[]`
+// from reading as a clean pass.
+export const MINIMUM_PLAUSIBLE_TASK_ARTIFACT_MANIFEST_COUNT = 1;
+
 export function checkTaskArtifactManifests(rootDir = process.cwd()) {
 	const manifestPaths = walkForManifests(path.join(rootDir, "validations"));
+	if (manifestPaths.length < MINIMUM_PLAUSIBLE_TASK_ARTIFACT_MANIFEST_COUNT) {
+		return {
+			ok: false,
+			manifestCount: manifestPaths.length,
+			manifestPaths,
+			issues: [],
+			coverageError:
+				`found ${manifestPaths.length} task-artifacts.json manifest(s) under validations/ ` +
+				`(expected at least ${MINIMUM_PLAUSIBLE_TASK_ARTIFACT_MANIFEST_COUNT}) — this gate cannot tell ` +
+				'"nothing to check" from "checked nothing", so it refuses to pass on zero coverage.',
+		};
+	}
 	const issues = manifestPaths.flatMap((manifestPath) =>
 		validateTaskArtifactManifestFile(manifestPath),
 	);
@@ -295,6 +315,7 @@ export function checkTaskArtifactManifests(rootDir = process.cwd()) {
 		manifestCount: manifestPaths.length,
 		manifestPaths,
 		issues,
+		coverageError: null,
 	};
 }
 
@@ -306,6 +327,10 @@ function formatIssue(issue, rootDir) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	const rootDir = process.cwd();
 	const result = checkTaskArtifactManifests(rootDir);
+	if (result.coverageError) {
+		console.error(result.coverageError);
+		process.exit(1);
+	}
 	if (!result.ok) {
 		console.error(
 			result.issues.map((issue) => formatIssue(issue, rootDir)).join("\n"),

@@ -6,6 +6,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { createHash } from "node:crypto";
 import {
+	MINIMUM_PLAUSIBLE_TASK_ARTIFACT_MANIFEST_COUNT,
 	checkTaskArtifactManifests,
 	validateTaskArtifactManifestFile,
 } from "./check-task-artifact-manifests.mjs";
@@ -65,6 +66,23 @@ describe("check-task-artifact-manifests", () => {
 		assert.equal(result.ok, true);
 		assert.equal(result.manifestCount, 1);
 		assert.deepEqual(result.issues, []);
+	});
+
+	it("reports a coverage error instead of a silent clean pass when no manifests are found", async () => {
+		// A bare tmpdir with no validations/ tree at all: walkForManifests already
+		// swallows the missing rootDir into [], and the pre-fix gate reported
+		// "Validated 0 task artifact manifest(s)." with exit 0 — indistinguishable
+		// from a real scan that found nothing wrong.
+		const root = await mkdtemp(path.join(os.tmpdir(), "refarm-artifacts-empty-"));
+		const result = checkTaskArtifactManifests(root);
+
+		assert.equal(result.ok, false);
+		assert.equal(result.manifestCount, 0);
+		assert.ok(
+			result.manifestCount < MINIMUM_PLAUSIBLE_TASK_ARTIFACT_MANIFEST_COUNT,
+			"fixture must exercise the below-floor path",
+		);
+		assert.match(result.coverageError, /found 0 task-artifacts\.json manifest/);
 	});
 
 	it("reports stale hashes", async () => {
