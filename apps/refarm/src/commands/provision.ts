@@ -15,11 +15,14 @@ import { turboCacheManifest } from "@refarm.dev/infra-turbo-cache";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
-import { refarmCommand } from "../brand.js";
 import {
+	PROVISION_CLOUDFLARE_TURBO_CACHE_DRY_RUN_COMMAND,
+	PROVISION_CLOUDFLARE_TURBO_CACHE_DRY_RUN_JSON_COMMAND,
+	PROVISION_CLOUDFLARE_TURBO_CACHE_GITHUB_SECRETS_COMMAND,
+	PROVISION_CLOUDFLARE_TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND,
 	SOW_CLOUDFLARE_COMMAND,
 	SOW_CLOUDFLARE_JSON_COMMAND,
-} from "./credential-handoffs.js";
+} from "./provision-handoffs.js";
 
 interface TurboCacheCommandOptions {
 	dryRun?: boolean;
@@ -42,20 +45,6 @@ interface ProvisionCommandOptions {
 const PROVISION_SCHEMA_VERSION = 1;
 const DEFAULT_TURBO_CACHE_BUCKET = "refarm-turbo-cache";
 const DEFAULT_TURBO_CACHE_TEAM = "refarm";
-const TURBO_CACHE_DRY_RUN_JSON_COMMAND = refarmCommand([
-	"provision",
-	"cloudflare",
-	"turbo-cache",
-	"--dry-run",
-	"--json",
-]);
-const TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND = refarmCommand([
-	"provision",
-	"cloudflare",
-	"turbo-cache",
-	"--github-secrets",
-	"--json",
-]);
 
 function optionIsEnabled(command: Command, name: string): boolean {
 	const opts = command.optsWithGlobals<Record<string, unknown>>();
@@ -65,13 +54,16 @@ function optionIsEnabled(command: Command, name: string): boolean {
 function provisionNextActions(): string[] {
 	return [
 		SOW_CLOUDFLARE_JSON_COMMAND,
-		TURBO_CACHE_DRY_RUN_JSON_COMMAND,
-		TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND,
+		PROVISION_CLOUDFLARE_TURBO_CACHE_DRY_RUN_JSON_COMMAND,
+		PROVISION_CLOUDFLARE_TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND,
 	];
 }
 
 function provisionNextCommands(): string[] {
-	return [TURBO_CACHE_DRY_RUN_JSON_COMMAND, TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND];
+	return [
+		PROVISION_CLOUDFLARE_TURBO_CACHE_DRY_RUN_JSON_COMMAND,
+		PROVISION_CLOUDFLARE_TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND,
+	];
 }
 
 function cloudflareTurboCachePlan(input: {
@@ -141,8 +133,14 @@ function buildCloudflareCatalogPayload(options: { dryRun?: boolean } = {}) {
 }
 
 function buildTurboCacheDryRunPayload(input: TurboCacheCommandOptions) {
-	const nextActions = [SOW_CLOUDFLARE_JSON_COMMAND, TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND];
-	const nextCommands = [SOW_CLOUDFLARE_JSON_COMMAND, TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND];
+	const nextActions = [
+		SOW_CLOUDFLARE_JSON_COMMAND,
+		PROVISION_CLOUDFLARE_TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND,
+	];
+	const nextCommands = [
+		SOW_CLOUDFLARE_JSON_COMMAND,
+		PROVISION_CLOUDFLARE_TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND,
+	];
 	return {
 		schemaVersion: PROVISION_SCHEMA_VERSION,
 		command: "provision",
@@ -171,9 +169,15 @@ function buildTurboCacheMissingCredentialsPayload(input: TurboCacheCommandOption
 		error: "missing-cloudflare-token",
 		message: "No Cloudflare token found.",
 		nextAction: SOW_CLOUDFLARE_JSON_COMMAND,
-		nextActions: [SOW_CLOUDFLARE_JSON_COMMAND, TURBO_CACHE_DRY_RUN_JSON_COMMAND],
+		nextActions: [
+			SOW_CLOUDFLARE_JSON_COMMAND,
+			PROVISION_CLOUDFLARE_TURBO_CACHE_DRY_RUN_JSON_COMMAND,
+		],
 		nextCommand: SOW_CLOUDFLARE_JSON_COMMAND,
-		nextCommands: [SOW_CLOUDFLARE_JSON_COMMAND, TURBO_CACHE_DRY_RUN_JSON_COMMAND],
+		nextCommands: [
+			SOW_CLOUDFLARE_JSON_COMMAND,
+			PROVISION_CLOUDFLARE_TURBO_CACHE_DRY_RUN_JSON_COMMAND,
+		],
 		extra: {
 			schemaVersion: PROVISION_SCHEMA_VERSION,
 			provider: "cloudflare",
@@ -198,14 +202,17 @@ function buildTurboCacheFailurePayload(input: {
 	const nextAction = input.nextAction.startsWith(SOW_CLOUDFLARE_COMMAND)
 		? SOW_CLOUDFLARE_JSON_COMMAND
 		: input.nextAction;
-	const nextCommands = normalizeHandoffValues([nextCommand, TURBO_CACHE_DRY_RUN_JSON_COMMAND]);
+	const nextCommands = normalizeHandoffValues([
+		nextCommand,
+		PROVISION_CLOUDFLARE_TURBO_CACHE_DRY_RUN_JSON_COMMAND,
+	]);
 	return buildJsonErrorEnvelope({
 		command: "provision",
 		operation: "apply",
 		error: input.error,
 		message: input.message,
 		nextAction,
-		nextActions: [nextAction, TURBO_CACHE_DRY_RUN_JSON_COMMAND],
+		nextActions: [nextAction, PROVISION_CLOUDFLARE_TURBO_CACHE_DRY_RUN_JSON_COMMAND],
 		nextCommand,
 		nextCommands,
 		extra: {
@@ -228,11 +235,11 @@ function buildTurboCacheApplyPayload(input: {
 }) {
 	const nextCommands = input.githubSecretsWritten
 		? ["gh secret list"]
-		: [TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND];
+		: [PROVISION_CLOUDFLARE_TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND];
 	const nextActions = input.githubSecretsWritten
 		? ["gh secret list", "push a commit and watch GitHub Actions"]
 		: [
-				TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND,
+				PROVISION_CLOUDFLARE_TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND,
 				"copy TURBO_CACHE_API_URL and TURBO_CACHE_TOKEN into GitHub Actions secrets",
 			];
 	return buildJsonSuccessEnvelope({
@@ -276,12 +283,8 @@ function renderCloudflareCatalog(): void {
 function renderProvisionNextSteps(): void {
 	console.log(chalk.bold("Next steps:"));
 	console.log(`  ${chalk.cyan(SOW_CLOUDFLARE_COMMAND)} ${chalk.gray("# configure Cloudflare token")}`);
-	console.log(
-		`  ${chalk.cyan(refarmCommand(["provision", "cloudflare", "turbo-cache", "--dry-run"]))}`,
-	);
-	console.log(
-		`  ${chalk.cyan(refarmCommand(["provision", "cloudflare", "turbo-cache", "--github-secrets"]))}`,
-	);
+	console.log(`  ${chalk.cyan(PROVISION_CLOUDFLARE_TURBO_CACHE_DRY_RUN_COMMAND)}`);
+	console.log(`  ${chalk.cyan(PROVISION_CLOUDFLARE_TURBO_CACHE_GITHUB_SECRETS_COMMAND)}`);
 }
 
 function renderCloudflarePlan(input: TurboCacheCommandOptions): void {
@@ -452,7 +455,7 @@ const cloudflareCommand = new Command("cloudflare")
 								options: opts,
 								error: "cloudflare-provision-failed",
 								message: enriched.message,
-								nextAction: TURBO_CACHE_DRY_RUN_JSON_COMMAND,
+								nextAction: PROVISION_CLOUDFLARE_TURBO_CACHE_DRY_RUN_JSON_COMMAND,
 							}),
 						);
 						process.exitCode = 1;

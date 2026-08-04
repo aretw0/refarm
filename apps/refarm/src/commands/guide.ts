@@ -11,6 +11,10 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { writeFileSync } from "node:fs";
 import { refarmCommand } from "../brand.js";
+import {
+	PROVISION_CLOUDFLARE_TURBO_CACHE_DRY_RUN_JSON_COMMAND,
+	SOW_CLOUDFLARE_COMMAND,
+} from "./provision-handoffs.js";
 
 interface GuideOptions {
 	json?: boolean;
@@ -101,7 +105,7 @@ export function createGuideCommand(deps: GuideDeps = defaultGuideDeps()): Comman
 				"  $ refarm guide",
 				"  $ refarm guide --json",
 				"  $ refarm sow",
-				"  $ refarm sow --cloudflare",
+				`  $ ${SOW_CLOUDFLARE_COMMAND}`,
 				"  $ refarm model current",
 				"  $ refarm health",
 				"",
@@ -160,13 +164,7 @@ export function createGuideCommand(deps: GuideDeps = defaultGuideDeps()): Comman
 					ok: Boolean(infraTokens.CLOUDFLARE_API_TOKEN),
 					status: infraTokens.CLOUDFLARE_API_TOKEN ? "ready" : "missing",
 					action: "Configure Cloudflare credentials interactively.",
-					actionCommand: refarmCommand([
-						"provision",
-						"cloudflare",
-						"turbo-cache",
-						"--dry-run",
-						"--json",
-					]),
+					actionCommand: PROVISION_CLOUDFLARE_TURBO_CACHE_DRY_RUN_JSON_COMMAND,
 				},
 				{
 					id: "brand-config",
