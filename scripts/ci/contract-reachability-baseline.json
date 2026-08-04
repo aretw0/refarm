@@ -1,0 +1,131 @@
+{
+	"note": "The reachability ratchet (D1, docs/superpowers/specs/2026-08-04-instruments-for-the-four-shapes-design.md). Mirrors the shape scripts/ci/model-defaults-price-baseline.json already uses in this repo: a baseline that may only shrink. `pnpm run contracts:reachability:check` goes red if a non-reachable declared field is NOT listed here (growth), red if a listed entry has since become reachable and was not deleted (undeleted progress), and red if a listed entry's state no longer matches reality, including a renamed/removed field (stale cover). It is green only while every non-reachable declared field of a packages/*-contract-v1 package is accounted for here. Every entry cites where it looked and what it found, not just a state label — an unverified claim presented as fact is exactly the failure this gate exists to prevent. Edited BY HAND: no command writes this file. First populated 2026-08-04, from the gate's own first run against develop.",
+	"entries": [
+		{
+			"id": "artifact-contract-v1:ArtifactProvenance.inputHashes",
+			"state": "unreachable",
+			"date": "2026-08-04",
+			"reason": "Declared optional on ArtifactProvenance and read by the type's own runtime validator in the same file (`value.inputHashes.forEach(...)`); nothing in packages/ or apps/ constructs a value for it — no ArtifactProvenance literal anywhere sets `inputHashes`."
+		},
+		{
+			"id": "credentials-contract-v1:VerifiableCredential.validFrom",
+			"state": "unreachable",
+			"date": "2026-08-04",
+			"reason": "Read by reference.ts's own expiry/validity checks (`credential.validFrom`), but no VerifiableCredential construction anywhere in packages/ or apps/ sets `validFrom` — every issued credential in this tree is built without it."
+		},
+		{
+			"id": "credentials-contract-v1:VerifiableCredential.validUntil",
+			"state": "unreachable",
+			"date": "2026-08-04",
+			"reason": "Same shape as validFrom on the same type: read by reference.ts (`credential.validUntil ?? credential.expirationDate` — note the fallback to a sibling field, itself a sign nothing sets this one), never set."
+		},
+		{
+			"id": "skill-contract-v1:SkillSurfaceDeclarationOptions.includeOptionalCapabilities",
+			"state": "unreachable",
+			"date": "2026-08-04",
+			"reason": "Read once, in skill-activation.ts (`options.includeOptionalCapabilities ? ... : []`); no caller in packages/ or apps/ ever passes `{ includeOptionalCapabilities: true }` (or any value) when building the options object, so the read always sees `undefined`."
+		},
+		{
+			"id": "storage-contract-v1:StorageQuery.createdBefore",
+			"state": "unreachable",
+			"date": "2026-08-04",
+			"reason": "Read by both storage-fs and storage-memory query filtering (`query.createdBefore`), and storage-fs even has a test NAMED after it (\"filters query by type and createdAfter/createdBefore\"), but no code anywhere in packages/ or apps/ constructs a StorageQuery with `createdBefore` set — the described behaviour is exercised through some other path the field's own name doesn't appear in, or not exercised at all."
+		},
+		{
+			"id": "task-contract-v1:TaskFilter.created_after_ns",
+			"state": "unreachable",
+			"date": "2026-08-04",
+			"reason": "Read by in-memory.ts's filter implementation (`filter.created_after_ns`); no caller in packages/ or apps/ builds a TaskFilter with `created_after_ns` set."
+		},
+		{
+			"id": "task-contract-v1:TaskFilter.created_before_ns",
+			"state": "unreachable",
+			"date": "2026-08-04",
+			"reason": "Same shape as created_after_ns on the same type: read by in-memory.ts, never set anywhere."
+		},
+		{
+			"id": "task-contract-v1:TaskFilter.due_before_ns",
+			"state": "unreachable",
+			"date": "2026-08-04",
+			"reason": "Same shape again: read by in-memory.ts (`filter.due_before_ns`), never set anywhere in packages/ or apps/."
+		},
+		{
+			"id": "authorization-contract-v1:SelectivePresentation.presentedAt",
+			"state": "unread",
+			"date": "2026-08-04",
+			"reason": "Set by the reference implementation (`presentedAt: this.now().toISOString()` in reference.ts); nothing in packages/ or apps/ reads `.presentedAt` back — the reference implementation stamps a timestamp no consumer has landed for yet."
+		},
+		{
+			"id": "credentials-contract-v1:CredentialProof.verificationMethod",
+			"state": "unread",
+			"date": "2026-08-04",
+			"reason": "Set three times in reference.ts (issuer, holder, and a fallback path) and named in apps/site's JSON-LD context; nothing reads `.verificationMethod` back — no verification step consumes what the issuer/holder paths produce yet."
+		},
+		{
+			"id": "credentials-contract-v1:CredentialVerificationPolicy.trustRegistry",
+			"state": "unread",
+			"date": "2026-08-04",
+			"reason": "Only appears as a type declaration and in apps/site's JSON-LD vocabulary mapping (`trustRegistry: \"credentials:trustRegistry\"`, itself a schema description rather than a policy construction); no CredentialVerificationPolicy is ever built with it set, and nothing reads it."
+		},
+		{
+			"id": "provenance-contract-v1:NoteProvenance.license",
+			"state": "unread",
+			"date": "2026-08-04",
+			"reason": "Set in the package's own conformance fixture (`license: \"verificar\"`); no code in packages/ or apps/ reads `.license` off a NoteProvenance."
+		},
+		{
+			"id": "provenance-contract-v1:NoteProvenance.privacy",
+			"state": "unread",
+			"date": "2026-08-04",
+			"reason": "Same shape as license on the same type: set in the conformance fixture (`privacy: \"private-until-published\"`), never read."
+		},
+		{
+			"id": "source-contract-v1:SourceStatus.lastFetchedAt",
+			"state": "unread",
+			"date": "2026-08-04",
+			"reason": "Set by source-web's provider (`lastFetchedAt: provenance?.cache.capturedAt ?? mtime.toISOString()`); nothing in packages/ or apps/ reads `.lastFetchedAt` back."
+		},
+		{
+			"id": "vault-contract-v1:VaultSearchHit.score",
+			"state": "unread",
+			"date": "2026-08-04",
+			"reason": "Set by the reference implementation (`score: 1`); nothing in packages/ or apps/ reads `.score` off a VaultSearchHit (a similarly-named relevance score exists in examples/reqbench-t3, out of this gate's scanned scope, and is a different field on a different type regardless)."
+		},
+		{
+			"id": "authorization-contract-v1:ServiceRequest.justification",
+			"state": "dormant",
+			"date": "2026-08-04",
+			"reason": "Declared optional on ServiceRequest; no construction sets it and nothing reads it anywhere in packages/ or apps/ — pure scaffolding today."
+		},
+		{
+			"id": "enrichment-contract-v1:EnrichmentTelemetryEvent.traceId",
+			"state": "dormant",
+			"date": "2026-08-04",
+			"reason": "The whole `EnrichmentTelemetryEvent` type is named nowhere outside its own declaration in packages/ or apps/. Its OTHER fields (pluginId, durationMs, ok, ...) share names common enough to match unrelated code and read as accidentally reachable through this gate's text scan — traceId is the one distinctively-named field honest enough to surface that the type itself is unused. See the sibling entries below for source/identity/storage/sync: this is the same telemetry-event shape, declared five times, wired zero times."
+		},
+		{
+			"id": "identity-contract-v1:IdentityTelemetryEvent.traceId",
+			"state": "dormant",
+			"date": "2026-08-04",
+			"reason": "Same finding as enrichment-contract-v1's EnrichmentTelemetryEvent: the whole IdentityTelemetryEvent type is named nowhere outside its own declaration."
+		},
+		{
+			"id": "source-contract-v1:SourceTelemetryEvent.traceId",
+			"state": "dormant",
+			"date": "2026-08-04",
+			"reason": "Same finding again: the whole SourceTelemetryEvent type is named nowhere outside its own declaration."
+		},
+		{
+			"id": "storage-contract-v1:StorageTelemetryEvent.traceId",
+			"state": "dormant",
+			"date": "2026-08-04",
+			"reason": "Same finding again: the whole StorageTelemetryEvent type is named nowhere outside its own declaration."
+		},
+		{
+			"id": "sync-contract-v1:SyncTelemetryEvent.traceId",
+			"state": "dormant",
+			"date": "2026-08-04",
+			"reason": "Same finding again: the whole SyncTelemetryEvent type is named nowhere outside its own declaration. Five contract packages declare an identically-shaped telemetry-event type that not one of them, nor any consumer, ever constructs or reads."
+		}
+	]
+}
