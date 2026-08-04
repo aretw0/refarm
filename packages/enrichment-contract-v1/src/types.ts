@@ -66,6 +66,17 @@ export interface EnrichmentOptions {
 	signal?: AbortSignal;
 }
 
+/** Proven (./telemetry-shape-proof.ts, `tsc`-enforced) structurally identical to
+ * an instantiation of `CapabilityTelemetryEvent<typeof ENRICHMENT_CAPABILITY,
+ * "describe"|"select"|"enrich", EnrichmentErrorCode>` from
+ * `@refarm.dev/capability-telemetry-v1` — the shared skeleton every
+ * `*TelemetryEvent` across enrichment/identity/source/storage/sync-contract-v1
+ * specializes. Kept as a literal interface here (not a `type X = Generic<...>`
+ * alias) so this contract's declared-field surface stays visible to
+ * `scripts/ci/check-contract-reachability.mjs`, which only recognizes a plain
+ * `interface X { ... }` / `type X = { ... }` block — an alias or an `extends`
+ * clause is invisible to its parser, which would silently drop this type from
+ * the gate's tracked field universe. */
 export interface EnrichmentTelemetryEvent {
 	traceId: string;
 	pluginId: string;

@@ -1013,6 +1013,18 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/capability-telemetry-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
   packages/certificate-contract-v1:
     devDependencies:
       '@refarm.dev/eslint-config':
@@ -1366,6 +1378,10 @@ importers:
         version: 6.0.3
 
   packages/enrichment-contract-v1:
+    dependencies:
+      '@refarm.dev/capability-telemetry-v1':
+        specifier: workspace:*
+        version: link:../capability-telemetry-v1
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
@@ -1576,6 +1592,10 @@ importers:
         version: link:../vtconfig
 
   packages/identity-contract-v1:
+    dependencies:
+      '@refarm.dev/capability-telemetry-v1':
+        specifier: workspace:*
+        version: link:../capability-telemetry-v1
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
@@ -2332,6 +2352,10 @@ importers:
         version: link:../vtconfig
 
   packages/source-contract-v1:
+    dependencies:
+      '@refarm.dev/capability-telemetry-v1':
+        specifier: workspace:*
+        version: link:../capability-telemetry-v1
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
@@ -2497,6 +2521,10 @@ importers:
         version: 6.0.3
 
   packages/storage-contract-v1:
+    dependencies:
+      '@refarm.dev/capability-telemetry-v1':
+        specifier: workspace:*
+        version: link:../capability-telemetry-v1
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
@@ -2706,6 +2734,10 @@ importers:
         version: 6.0.3
 
   packages/sync-contract-v1:
+    dependencies:
+      '@refarm.dev/capability-telemetry-v1':
+        specifier: workspace:*
+        version: link:../capability-telemetry-v1
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*

@@ -46,6 +46,9 @@
       "@refarm.dev/automation-contract-v1": [
         "./packages/automation-contract-v1/src/index"
       ],
+      "@refarm.dev/capability-telemetry-v1": [
+        "./packages/capability-telemetry-v1/src/index"
+      ],
       "@refarm.dev/identity-contract-v1": [
         "./packages/identity-contract-v1/src/index"
       ],
