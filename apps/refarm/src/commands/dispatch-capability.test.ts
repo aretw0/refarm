@@ -6,6 +6,7 @@ import {
 	createDispatchCapability,
 	parseBudgetOptions,
 	parseDispatchArgs,
+	parseWorkspaceOption,
 	type BudgetDeclaration,
 	type DispatchCommandDeps,
 } from "./dispatch-capability.js";
@@ -92,6 +93,44 @@ describe("parseBudgetOptions", () => {
 	});
 });
 
+describe("parseWorkspaceOption", () => {
+	it("parses a bare workspace id", () => {
+		expect(parseWorkspaceOption({ workspace: "rcdc5" })).toEqual({ workspaceId: "rcdc5" });
+	});
+
+	it("absent flag ⇒ no workspaceId key at all — not '', not null", () => {
+		const r = parseWorkspaceOption({});
+		expect(r).toEqual({});
+		expect("workspaceId" in r).toBe(false);
+	});
+
+	it("also treats the flag absent from a larger options bag as absent", () => {
+		expect(parseWorkspaceOption({ json: true, "budget-max-tokens": "5" })).toEqual({});
+	});
+
+	it("trims surrounding whitespace", () => {
+		expect(parseWorkspaceOption({ workspace: "  rcdc5  " })).toEqual({ workspaceId: "rcdc5" });
+	});
+
+	it("rejects an empty (or all-whitespace) id, naming the flag", () => {
+		expect(parseWorkspaceOption({ workspace: "" })).toEqual({
+			error: "--workspace must not be empty",
+		});
+		expect(parseWorkspaceOption({ workspace: "   " })).toEqual({
+			error: "--workspace must not be empty",
+		});
+	});
+
+	it("rejects an id containing whitespace or a colon, naming the flag", () => {
+		expect(parseWorkspaceOption({ workspace: "rcdc5 vpn" })).toEqual({
+			error: '--workspace must not contain whitespace or a colon, got "rcdc5 vpn"',
+		});
+		expect(parseWorkspaceOption({ workspace: "workspace:rcdc5:vpn" })).toEqual({
+			error: '--workspace must not contain whitespace or a colon, got "workspace:rcdc5:vpn"',
+		});
+	});
+});
+
 describe("dispatch capability", () => {
 	it("declares plugin + verb + variadic args and projects to surfaces", () => {
 		const cap = createDispatchCapability(makeDeps());
@@ -143,12 +182,13 @@ describe("dispatch capability", () => {
 		expect((env as { error?: string }).error).toBe("dispatch-failed");
 	});
 
-	it("declares the three budget flags as options", () => {
+	it("declares the three budget flags and --workspace as options", () => {
 		const cap = createDispatchCapability(makeDeps());
 		expect(cap.options?.map((o) => o.name)).toEqual([
 			"budget-deadline-ms",
 			"budget-max-tokens",
 			"budget-max-usd",
+			"workspace",
 		]);
 	});
 
@@ -220,6 +260,75 @@ describe("dispatch capability", () => {
 		const env = await cap.run!(input);
 		expect(env.ok).toBe(false);
 		expect((env as { error?: string }).error).toBe("invalid-args");
+		expect(d.submitted).toHaveLength(0);
+	});
+
+	it("--workspace rides the effort as Effort.workspaceId, from real argv", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check", "--workspace", "rcdc5"]);
+		const env = await cap.run!(input);
+		expect(env.ok).toBe(true);
+		expect(d.submitted).toHaveLength(1);
+		expect((d.submitted[0] as Effort & { workspaceId?: string }).workspaceId).toBe("rcdc5");
+	});
+
+	it("no --workspace flag ⇒ the submitted effort carries no workspaceId key at all (byte-identical to today)", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check"]);
+		await cap.run!(input);
+		const submitted = d.submitted[0] as Effort & { workspaceId?: string };
+		expect("workspaceId" in submitted).toBe(false);
+		expect(JSON.stringify(submitted).includes("workspaceId")).toBe(false);
+	});
+
+	it("--workspace and --budget-* ride the same effort together", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, [
+			"quality",
+			"check",
+			"--workspace",
+			"rcdc5",
+			"--budget-max-tokens",
+			"50000",
+		]);
+		await cap.run!(input);
+		const submitted = d.submitted[0] as Effort & {
+			workspaceId?: string;
+			budget?: BudgetDeclaration;
+		};
+		expect(submitted.workspaceId).toBe("rcdc5");
+		expect(submitted.budget).toEqual({ maxTokens: 50000 });
+	});
+
+	it("rejects an empty --workspace before dispatching anything, naming the flag", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check", "--workspace", ""]);
+		const env = await cap.run!(input);
+		expect(env.ok).toBe(false);
+		expect((env as { error?: string }).error).toBe("invalid-args");
+		expect((env as { message?: string }).message).toBe("--workspace must not be empty");
+		expect(d.submitted).toHaveLength(0);
+	});
+
+	it("rejects a malformed --workspace (containing a colon) before dispatching anything", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, [
+			"quality",
+			"check",
+			"--workspace",
+			"workspace:rcdc5:vpn",
+		]);
+		const env = await cap.run!(input);
+		expect(env.ok).toBe(false);
+		expect((env as { error?: string }).error).toBe("invalid-args");
+		expect((env as { message?: string }).message).toBe(
+			'--workspace must not contain whitespace or a colon, got "workspace:rcdc5:vpn"',
+		);
 		expect(d.submitted).toHaveLength(0);
 	});
 });

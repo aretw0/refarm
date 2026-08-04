@@ -30,6 +30,12 @@ import { submitEffortViaSidecar } from "./dispatch-submit.js";
  * "whoever spawns declares," finally reachable from the surface an operator
  * actually types instead of only by hand-crafting HTTP. All three are optional;
  * omitting all three sends no `budget` field at all. See `parseBudgetOptions`.
+ *
+ * `--workspace <id>` binds this dispatch to a declared workspace — the missing half of D9's
+ * middle level (`budget.workspaces.<id>` in the sovereign config), which `resolve_budget` has
+ * always been able to fold but nothing ever set `Effort.workspaceId` to make reachable. Declared,
+ * never detected: there is no cwd fallback, on purpose (see `parseWorkspaceOption`). Omitting the
+ * flag sends no `workspaceId` field at all, so the wire stays byte-identical to today's dispatch.
  */
 export interface DispatchCommandDeps {
 	submitEffort: SubmitEffort;
@@ -62,9 +68,11 @@ export type BudgetDeclaration = {
 	maxUsd?: number;
 };
 
-/** An Effort carrying the optional budget a spawner declared — a local augmentation of
- *  the shared `Effort` type (which does not itself declare the field), never a change to it. */
-type DispatchEffort = Effort & { budget?: BudgetDeclaration };
+/** An Effort carrying the optional budget a spawner declared, and/or the workspace it was
+ *  dispatched from — a local augmentation of the shared `Effort` type (which declares neither
+ *  field), never a change to it. `workspaceId` mirrors the sidecar's own `Effort.workspace_id`
+ *  (`packages/tractor/src/sidecar/mod.rs`), the wire's camelCase spelling of the same field. */
+type DispatchEffort = Effort & { budget?: BudgetDeclaration; workspaceId?: string };
 
 const BUDGET_OPTION_FIELDS: ReadonlyArray<{ flag: string; key: keyof BudgetDeclaration }> = [
 	{ flag: "budget-deadline-ms", key: "deadlineMs" },
@@ -112,6 +120,44 @@ export function parseBudgetOptions(
 	return Object.keys(budget).length > 0 ? { budget } : {};
 }
 
+/**
+ * Parse `--workspace` into the wire's `workspaceId` — source #2 of the maintainer's ruling on
+ * binding a budget to a workspace: "declared, never detected. No cwd fallback." `refarm dispatch`
+ * never infers a workspace from the operator's current directory (the field failure that ruling
+ * exists to prevent — `docs/superpowers/specs/2026-08-03-declared-node-base-design.md`); it binds
+ * ONLY what this flag names. Source #1 of the same ruling is operation-id extraction
+ * (`workspaceIdFromOperationId` in `./remote-initiation.js`), for surfaces that address a
+ * dispatch by a declared operation id rather than by plugin+verb; this flag is the other source,
+ * for this one.
+ *
+ * Same "parse once, reuse, absent means absent" shape as {@link parseBudgetOptions}: a flag never
+ * passed produces no key at all (never `""`, never a guess), so `run()` below can skip attaching
+ * `workspaceId` entirely and the wire stays byte-identical to a dispatch that declares no
+ * workspace. A present value must be non-empty after trimming and free of whitespace/colons — not
+ * because either is unsafe on the wire, but because no id `workspaceRemoteOperationId` ever
+ * builds contains either, so accepting one here would let the two declared sources describe two
+ * different notions of "a workspace id."
+ */
+export function parseWorkspaceOption(
+	options: Record<string, string | string[] | boolean>,
+): { workspaceId?: string } | { error: string } {
+	const raw = options.workspace;
+	if (raw === undefined) return {};
+	if (typeof raw !== "string") {
+		return { error: `--workspace must be a workspace id, got ${JSON.stringify(raw)}` };
+	}
+	const trimmed = raw.trim();
+	if (trimmed.length === 0) {
+		return { error: "--workspace must not be empty" };
+	}
+	if (/[\s:]/.test(trimmed)) {
+		return {
+			error: `--workspace must not contain whitespace or a colon, got ${JSON.stringify(raw)}`,
+		};
+	}
+	return { workspaceId: trimmed };
+}
+
 export function createDispatchCapability(
 	deps: DispatchCommandDeps = defaultDispatchDeps(),
 ): CapabilityDescriptor {
@@ -140,6 +186,12 @@ export function createDispatchCapability(
 				kind: "number",
 				summary:
 					"Estimated spend ceiling in dollars (decimal; only binds under api pricing mode)",
+			},
+			{
+				name: "workspace",
+				kind: "string",
+				summary:
+					"Bind this dispatch to a declared workspace id, for budget.workspaces ceilings (omit for no workspace binding)",
 			},
 		],
 		async run(input) {
@@ -170,6 +222,17 @@ export function createDispatchCapability(
 				});
 			}
 
+			const parsedWorkspace = parseWorkspaceOption(input.options);
+			if ("error" in parsedWorkspace) {
+				return buildJsonErrorEnvelope({
+					command: "dispatch",
+					operation: "dispatch",
+					error: "invalid-args",
+					message: parsedWorkspace.error,
+					nextAction: "Pass a bare workspace id, e.g. `--workspace rcdc5`. Omit the flag for no workspace binding.",
+				});
+			}
+
 			const effort: DispatchEffort = buildDispatchEffort(
 				{ pluginId, verb, args: parsed.args },
 				deps.newId,
@@ -177,6 +240,9 @@ export function createDispatchCapability(
 			);
 			if (parsedBudget.budget) {
 				effort.budget = parsedBudget.budget;
+			}
+			if (parsedWorkspace.workspaceId) {
+				effort.workspaceId = parsedWorkspace.workspaceId;
 			}
 
 			try {
