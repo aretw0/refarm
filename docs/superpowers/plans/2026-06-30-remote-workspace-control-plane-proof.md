@@ -49,7 +49,9 @@
 - [x] Update roadmap/readiness when the proof exists.
 - [x] Keep tests guarding that Telegram, Matrix, Tailscale, PWA, Android, and
   `apps/refarm` are adapters/surfaces, not canonical protocol owners.
-- [ ] Revisit package extraction only after a promotion signal appears.
+> **Deferred, conditional — not a step.** Revisit package extraction only after a
+> promotion signal appears. Written as a checkbox until 2026-08-04, which made a
+> finished plan read as one step short forever.
 
 ## Non-Goals
 
