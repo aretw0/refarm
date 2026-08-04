@@ -311,17 +311,50 @@ fn validation_issues(catalog: &Value) -> Vec<String> {
             }
         }
 
-        match entry.get("rate").and_then(Value::as_object) {
-            None => issues.push(format!("{prefix}.rate: must be an object")),
-            Some(rate) => {
-                for field in ["inputPerMTokenUsd", "outputPerMTokenUsd"] {
-                    match rate.get(field).and_then(Value::as_f64) {
-                        Some(value) if value >= 0.0 && value.is_finite() => {}
-                        _ => issues
-                            .push(format!("{prefix}.rate.{field}: must be a non-negative number")),
+        // A rate, or a stated reason for having none — exactly one, never both and never
+        // neither. This mirrors the package validator's rule rather than inventing a second
+        // opinion about it. An entry with neither says nothing at all; an entry with both leaves
+        // a reader unable to tell which one the catalog means.
+        //
+        // `unpriced` exists because resolution is first-match-wins over `contains` rules, so an
+        // id nobody could verify would otherwise match its family's rule and come back with a
+        // plausible number that looks exactly like a checked fact. gpt-5.1-codex-mini is that id.
+        let rate = entry.get("rate");
+        let unpriced = entry.get("unpriced");
+        match (rate, unpriced) {
+            (Some(_), Some(_)) => issues.push(format!(
+                "{prefix}.unpriced: must not be set when rate carries a verified price"
+            )),
+            (None, None) => issues.push(format!(
+                "{prefix}.rate: must be an object, or unpriced must say why there is none"
+            )),
+            (Some(rate), None) => match rate.as_object() {
+                None => issues.push(format!("{prefix}.rate: must be an object")),
+                Some(rate) => {
+                    for field in ["inputPerMTokenUsd", "outputPerMTokenUsd"] {
+                        match rate.get(field).and_then(Value::as_f64) {
+                            Some(value) if value >= 0.0 && value.is_finite() => {}
+                            _ => issues.push(format!(
+                                "{prefix}.rate.{field}: must be a non-negative number"
+                            )),
+                        }
                     }
                 }
-            }
+            },
+            (None, Some(unpriced)) => match unpriced.as_object() {
+                None => issues.push(format!("{prefix}.unpriced: must be an object when present")),
+                Some(unpriced) => {
+                    if !has_non_empty_str(unpriced, "reason") {
+                        issues
+                            .push(format!("{prefix}.unpriced.reason: must be a non-empty string"));
+                    }
+                    if !has_non_empty_str(unpriced, "checkedAt") {
+                        issues.push(format!(
+                            "{prefix}.unpriced.checkedAt: must be a non-empty date string"
+                        ));
+                    }
+                }
+            },
         }
 
         if !has_non_empty_str(entry, "pricingUrl") {
@@ -474,8 +507,11 @@ mod tests {
         );
         assert_eq!(
             catalog["entries"].as_array().map(Vec::len),
-            Some(27),
-            "the artifact ships 27 authored entries"
+            Some(28),
+            "the artifact ships 28 authored entries: 27 priced, plus gpt-5.1-codex-mini, which \
+             carries `unpriced` rather than a rate because OpenAI does not list it as its own \
+             line item. That entry exists precisely so the id stops matching the family rule \
+             below it and coming back with a price nobody verified."
         );
     }
 
@@ -503,8 +539,8 @@ mod tests {
         assert_eq!(sonnet_5_rates(&prepare_catalog(EMBEDDED_CATALOG, "2026-09-01").unwrap()), vec![(3.0, 15.0)]);
 
         // 27 authored, 26 in force on any given day — one row fewer, same shape.
-        assert_eq!(entries_of(&before).len(), 26);
-        assert_eq!(entries_of(&after).len(), 26);
+        assert_eq!(entries_of(&before).len(), 27);
+        assert_eq!(entries_of(&after).len(), 27);
     }
 
     #[test]
@@ -550,7 +586,8 @@ mod tests {
         let path = dir.path().join(CATALOG_OVERRIDE_FILE_NAME);
         let resolved =
             resolve_injected_catalog_in(Some(&path), "2026-08-04").expect("embedded default");
-        assert_eq!(entries_of(&resolved).len(), 26);
+        // 28 authored minus the one Sonnet 5 row whose effective window excludes today.
+        assert_eq!(entries_of(&resolved).len(), 27);
     }
 
     #[test]
