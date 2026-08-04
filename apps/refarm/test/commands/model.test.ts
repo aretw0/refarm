@@ -107,6 +107,10 @@ describe("modelCommand", () => {
 		expect(output).toContain("key env:  OPENAI_API_KEY");
 		expect(output).toContain("key:      missing (run refarm sow)");
 		expect(output).toContain("context:  node");
+		expect(output).toContain("binding:  detached (explicit)");
+		expect(output).toContain("state:    node-owned");
+		expect(output).toContain("creds:    node");
+		expect(output).toContain("runtime:  node");
 		expect(output).toContain("home:     ");
 		expect(output).toContain("store:    ");
 		expect(output).toContain("openai/gpt-5.3-codex-spark");
@@ -347,6 +351,10 @@ describe("modelCommand", () => {
 			current: { ref: string };
 			context: {
 				mode: string;
+				binding: { kind: string; origin: string };
+				state: { policy: string; homeRef: string };
+				credentials: { policy: string; storeRef: string };
+				runtime: { policy: string };
 				sovereignHome: string;
 				credentialStoreHome: string;
 				homesAligned: boolean;
@@ -380,6 +388,10 @@ describe("modelCommand", () => {
 		expect(payload.operation).toBe("current");
 		expect(payload.current.ref).toBe("openai/gpt-5.5");
 		expect(payload.context.mode).toBe("node");
+		expect(payload.context.binding.kind).toBe("detached");
+		expect(payload.context.state.policy).toBe("node-owned");
+		expect(payload.context.credentials.policy).toBe("node");
+		expect(payload.context.runtime.policy).toBe("node");
 		expect(payload.context.sovereignHome.length).toBeGreaterThan(0);
 		expect(payload.context.credentialStoreHome.length).toBeGreaterThan(0);
 		expect(typeof payload.context.homesAligned).toBe("boolean");

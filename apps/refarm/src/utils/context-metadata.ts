@@ -12,6 +12,13 @@ export interface NodeContextMetadata {
 		policy: "node-owned" | "workspace-owned";
 		homeRef: string;
 	};
+	credentials: {
+		policy: "node" | "workspace";
+		storeRef: string;
+	};
+	runtime: {
+		policy: "node" | "workspace";
+	};
 	sovereignHome: string;
 	credentialStoreHome: string;
 	homesAligned: boolean;
@@ -39,6 +46,13 @@ export function resolveNodeContextMetadata(
 		state: {
 			policy: isWorkspaceScoped ? "workspace-owned" : "node-owned",
 			homeRef: sovereignHome,
+		},
+		credentials: {
+			policy: isWorkspaceScoped ? "workspace" : "node",
+			storeRef: credentialStoreHome,
+		},
+		runtime: {
+			policy: isWorkspaceScoped ? "workspace" : "node",
 		},
 		sovereignHome,
 		credentialStoreHome,

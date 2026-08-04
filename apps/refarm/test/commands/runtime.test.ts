@@ -53,6 +53,10 @@ describe("runtime command", () => {
 		expect(output).toContain("autostart:  always");
 		expect(output).toContain("sidecar:    http://127.0.0.1:42001");
 		expect(output).toContain("context:    node");
+		expect(output).toContain("binding:    detached (explicit)");
+		expect(output).toContain("state:      node-owned");
+		expect(output).toContain("creds:      node");
+		expect(output).toContain("runtime:    node");
 		expect(output).toContain("home:       ");
 		expect(output).toContain("store:      ");
 		expect(output).toContain("start:      tractor");
@@ -133,6 +137,10 @@ describe("runtime command", () => {
 			ok: true,
 			context: {
 				mode: "node",
+				binding: { kind: "detached", origin: "explicit" },
+				state: { policy: "node-owned" },
+				credentials: { policy: "node" },
+				runtime: { policy: "node" },
 				homesAligned: true,
 			},
 			configuredEngine: "ts",
@@ -310,6 +318,10 @@ describe("runtime command", () => {
 			reason: "configured-ts",
 			context: {
 				mode: "node",
+				binding: { kind: "detached", origin: "explicit" },
+				state: { policy: "node-owned" },
+				credentials: { policy: "node" },
+				runtime: { policy: "node" },
 				homesAligned: true,
 			},
 			sidecarUrl: "http://127.0.0.1:42001",

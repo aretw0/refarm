@@ -708,6 +708,12 @@ export function formatCurrentModelFromStatus(status: CurrentModelStatus): string
 	if (status.credential.envKey) lines.push(`  key env:  ${status.credential.envKey}`);
 	if (status.credential.status) lines.push(`  key:      ${status.credential.status}`);
 	lines.push(`  context:  ${status.context.mode}`);
+	lines.push(
+		`  binding:  ${status.context.binding.kind} (${status.context.binding.origin})`,
+	);
+	lines.push(`  state:    ${status.context.state.policy}`);
+	lines.push(`  creds:    ${status.context.credentials.policy}`);
+	lines.push(`  runtime:  ${status.context.runtime.policy}`);
 	lines.push(`  home:     ${status.context.sovereignHome}`);
 	lines.push(`  store:    ${status.context.credentialStoreHome}`);
 	if (!status.context.homesAligned) {

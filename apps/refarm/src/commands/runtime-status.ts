@@ -301,6 +301,12 @@ export function printRuntimeStatus(payload: RuntimeStatusPayload): void {
 		console.log(`  sidecar:    ${payload.sidecarUrl}`);
 	}
 	console.log(`  context:    ${payload.context.mode}`);
+	console.log(
+		`  binding:    ${payload.context.binding.kind} (${payload.context.binding.origin})`,
+	);
+	console.log(`  state:      ${payload.context.state.policy}`);
+	console.log(`  creds:      ${payload.context.credentials.policy}`);
+	console.log(`  runtime:    ${payload.context.runtime.policy}`);
 	console.log(`  home:       ${payload.context.sovereignHome}`);
 	console.log(`  store:      ${payload.context.credentialStoreHome}`);
 	if (!payload.context.homesAligned) {

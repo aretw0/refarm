@@ -16,6 +16,9 @@ describe("resolveNodeContextMetadata", () => {
 		expect(metadata.binding.kind).toBe("attached");
 		expect(metadata.binding.origin).toBe("explicit");
 		expect(metadata.state.policy).toBe("workspace-owned");
+		expect(metadata.credentials.policy).toBe("workspace");
+		expect(metadata.credentials.storeRef).toBe("/tmp/refarm-workspace/.refarm");
+		expect(metadata.runtime.policy).toBe("workspace");
 		expect(metadata.homesAligned).toBe(true);
 	});
 
@@ -33,6 +36,9 @@ describe("resolveNodeContextMetadata", () => {
 		expect(metadata.binding.kind).toBe("detached");
 		expect(metadata.binding.origin).toBe("explicit");
 		expect(metadata.state.policy).toBe("node-owned");
+		expect(metadata.credentials.policy).toBe("node");
+		expect(metadata.credentials.storeRef).toBe("/tmp/operator-home/.refarm");
+		expect(metadata.runtime.policy).toBe("node");
 		expect(metadata.homesAligned).toBe(true);
 	});
 
