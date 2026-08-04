@@ -4,16 +4,25 @@ import test from "node:test";
 import {
 	MINIMUM_PLAUSIBLE_CONTRACT_PACKAGE_COUNT,
 	MINIMUM_PLAUSIBLE_FIELD_COUNT,
+	MINIMUM_PLAUSIBLE_TRACTOR_WIRE_FIELD_COUNT,
+	MINIMUM_PLAUSIBLE_TRACTOR_WIRE_TYPE_COUNT,
 	assertExtractionIsPlausible,
+	assertTractorExtractionIsPlausible,
 	blankDeclarationBodies,
+	blankTypeNameSelfReferences,
 	camelToSnake,
 	classifyField,
 	evaluateReachabilityBaseline,
 	extractContractFields,
+	extractSerdeDerivedRustTypeGroups,
+	extractTypeGroups,
 	hasConsumerEvidence,
 	hasProducerEvidence,
+	hasSerdeDerive,
+	hasTypeNameEvidence,
 	main,
 	parseReachabilityBaseline,
+	snakeToCamel,
 	stripComments,
 } from "./check-contract-reachability.mjs";
 
@@ -188,6 +197,170 @@ test("classifyField finds a Rust-side producer for a TS-declared camelCase field
 	assert.equal(classifyField({ fieldName: "workspaceId" }, corpus), "reachable");
 });
 
+test("snakeToCamel is camelToSnake's mirror — needed once declared fields can start as Rust identifiers", () => {
+	assert.equal(snakeToCamel("workspace_id"), "workspaceId");
+	assert.equal(snakeToCamel("scoped_credentials"), "scopedCredentials");
+	assert.equal(snakeToCamel("deadlineMs"), "deadlineMs");
+});
+
+test("classifyField finds a TS-side producer for a Rust-declared snake_case field via the camelCase guess (provides_api / providesApi shape)", () => {
+	// Before the reverse guess existed, a Rust-native field name (e.g.
+	// `provides_api`) only ever searched for its OWN spelling and the
+	// (no-op) camelToSnake of itself — never the camelCase wire spelling its
+	// real TS producer actually used. That made every such field read
+	// falsely `unreachable` the moment Rust structs entered scope.
+	const corpus = ["return { providesApi: [] };", "caps.provides_api.iter()"];
+	assert.equal(classifyField({ fieldName: "provides_api" }, corpus), "reachable");
+});
+
+// ── The TYPE question: is this type's NAME used anywhere outside its own declaration? ──
+
+test("blankTypeNameSelfReferences blanks only the type's own name token at its signature, leaving other references and field bodies alone", () => {
+	const source = stripComments(`
+export interface Widget {
+	id: string;
+}
+function build(): Widget {
+	return { id: "x" };
+}
+`);
+	const blanked = blankTypeNameSelfReferences(source, "ts");
+	assert.ok(!/export interface Widget/.test(blanked), "the declaration's own name must be blanked");
+	assert.ok(blanked.includes("id: string"), "field bodies are untouched by this pass");
+	assert.ok(/function build\(\): Widget/.test(blanked), "a real usage elsewhere must survive");
+});
+
+test("blankTypeNameSelfReferences blanks a Rust struct's own name at its signature the same way", () => {
+	const source = stripComments(`
+pub struct Effort {
+    pub id: String,
+}
+fn store(e: Effort) {}
+`);
+	const blanked = blankTypeNameSelfReferences(source, "rs");
+	assert.ok(!/pub struct Effort/.test(blanked));
+	assert.ok(/fn store\(e: Effort\)/.test(blanked));
+});
+
+test("hasTypeNameEvidence: a type named nowhere but its own declaration is NOT evidence of itself", () => {
+	const source = stripComments(`
+export interface DeadType {
+	traceId: string;
+}
+`);
+	const corpus = [blankTypeNameSelfReferences(source, "ts")];
+	assert.ok(!hasTypeNameEvidence("DeadType", corpus));
+});
+
+test("hasTypeNameEvidence: a type referenced by ANOTHER declaration (composition) counts as named", () => {
+	const source = stripComments(`
+export interface Inner {
+	traceId: string;
+}
+export interface Envelope {
+	event: Inner;
+}
+`);
+	const corpus = [blankTypeNameSelfReferences(source, "ts")];
+	assert.ok(
+		hasTypeNameEvidence("Inner", corpus),
+		"a sibling type composing this one by name is real usage, not self-declaration",
+	);
+});
+
+test("hasTypeNameEvidence: a traceId read elsewhere does NOT resurrect an unnamed type (the bug this change fixes)", () => {
+	// The gate's own first real finding: five *TelemetryEvent types shared a
+	// `traceId` field. One capability wiring ITS telemetry for real made
+	// every sibling's `traceId` read as field-reachable by text — but the
+	// TYPE name itself, `DeadTelemetryEvent`, is still named nowhere.
+	const source = stripComments(`
+export interface DeadTelemetryEvent {
+	traceId: string;
+}
+`);
+	const corpus = [
+		blankTypeNameSelfReferences(source, "ts"),
+		"const wired = { traceId: id() }; console.log(wired.traceId);",
+	];
+	assert.ok(!hasTypeNameEvidence("DeadTelemetryEvent", corpus));
+});
+
+// ── Rust wire structs outside contract packages (packages/tractor/src/) ────
+
+test("hasSerdeDerive matches Serialize or Deserialize inside a #[derive(...)] attribute, plain or path-qualified", () => {
+	assert.ok(hasSerdeDerive("#[derive(Debug, Clone, Serialize, Deserialize)]\n"));
+	assert.ok(hasSerdeDerive("#[derive(Debug, serde::Deserialize)]\n"));
+	assert.ok(!hasSerdeDerive("#[derive(Debug, Clone)]\n"));
+	assert.ok(!hasSerdeDerive("#[serde(rename_all = \"camelCase\")]\n"));
+});
+
+test("extractSerdeDerivedRustTypeGroups includes a struct with #[derive(Serialize)]/#[derive(Deserialize)], skips one without", () => {
+	const source = `
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Wired {
+    pub id: String,
+}
+
+pub struct NotWire {
+    pub id: String,
+}
+`;
+	const groups = extractSerdeDerivedRustTypeGroups(source, "tractor");
+	const names = groups.map((g) => g.typeName);
+	assert.ok(names.includes("Wired"));
+	assert.ok(!names.includes("NotWire"), "a struct never annotated with a serde derive is out of scope");
+});
+
+test("extractSerdeDerivedRustTypeGroups still finds the derive through an intervening #[serde(...)] attribute line (the Effort shape)", () => {
+	const source = `
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Effort {
+    pub workspace_id: Option<String>,
+}
+`;
+	const groups = extractSerdeDerivedRustTypeGroups(source, "tractor");
+	assert.deepEqual(
+		groups.map((g) => g.id),
+		["tractor:Effort"],
+	);
+	assert.deepEqual(
+		groups[0].fields.map((f) => f.fieldName),
+		["workspace_id"],
+	);
+});
+
+test("extractSerdeDerivedRustTypeGroups covers enums too", () => {
+	const source = `
+#[derive(Debug, Serialize, Deserialize)]
+pub enum NoticeKind {
+    Info,
+    Warning,
+}
+`;
+	const groups = extractSerdeDerivedRustTypeGroups(source, "tractor");
+	assert.deepEqual(
+		groups.map((g) => g.typeName),
+		["NoticeKind"],
+	);
+});
+
+test("extractTypeGroups: each group carries id/package/typeName plus a fields array shaped like extractContractFields's entries", () => {
+	const stripped = stripComments("export interface Alpha {\n\ta: string;\n\tb: number;\n}\n");
+	const groups = extractTypeGroups(stripped, "pkg", "ts");
+	assert.deepEqual(groups, [
+		{
+			id: "pkg:Alpha",
+			package: "pkg",
+			typeName: "Alpha",
+			fields: [
+				{ id: "pkg:Alpha.a", fieldName: "a" },
+				{ id: "pkg:Alpha.b", fieldName: "b" },
+			],
+		},
+	]);
+});
+
 // ── Parse-sanity floor: a scan that finds almost nothing must scream ───────
 
 test("assertExtractionIsPlausible throws when the package count is implausibly low", () => {
@@ -209,6 +382,29 @@ test("assertExtractionIsPlausible does not throw right at the floor", () => {
 		assertExtractionIsPlausible(
 			MINIMUM_PLAUSIBLE_CONTRACT_PACKAGE_COUNT,
 			MINIMUM_PLAUSIBLE_FIELD_COUNT,
+		),
+	);
+});
+
+test("assertTractorExtractionIsPlausible throws when the tractor wire type count is implausibly low", () => {
+	assert.throws(
+		() => assertTractorExtractionIsPlausible(1, MINIMUM_PLAUSIBLE_TRACTOR_WIRE_FIELD_COUNT),
+		/only found 1 #\[derive/,
+	);
+});
+
+test("assertTractorExtractionIsPlausible throws when the tractor wire field count is implausibly low", () => {
+	assert.throws(
+		() => assertTractorExtractionIsPlausible(MINIMUM_PLAUSIBLE_TRACTOR_WIRE_TYPE_COUNT, 3),
+		/only extracted 3 declared field/,
+	);
+});
+
+test("assertTractorExtractionIsPlausible does not throw right at the floor", () => {
+	assert.doesNotThrow(() =>
+		assertTractorExtractionIsPlausible(
+			MINIMUM_PLAUSIBLE_TRACTOR_WIRE_TYPE_COUNT,
+			MINIMUM_PLAUSIBLE_TRACTOR_WIRE_FIELD_COUNT,
 		),
 	);
 });
@@ -309,32 +505,55 @@ test("parseReachabilityBaseline throws when `entries` is missing", () => {
 	assert.throws(() => parseReachabilityBaseline("{}"), /no `entries` array/);
 });
 
-// ── End-to-end fixture: reachable/unreachable/unread/dormant fields wired through main() ──
+// ── End-to-end fixture: reachable/unreachable/unread/dormant/unnamed wired through main() ──
 
-// Pad past the plausibility floor with synthetic packages, all declaring the
-// SAME field name (`value`) on many distinct types so the padding contributes
-// distinct `pkg:Type.value` ids without each needing its own baseline entry —
-// one shared producer+consumer pair in the evidence corpus makes every
-// padding field `reachable`, leaving the fixture's own four fields
-// (reachable/unreachable/unread/dormant) as the only classifications under
-// test. Those floors have their own dedicated tests above; this helper exists
-// only so the end-to-end tests don't also have to hand-satisfy them.
+// Pad past BOTH plausibility floors (the TS contract one and the tractor
+// wire one) with synthetic packages/structs, all declaring the SAME field
+// name (`value`) on many distinct types so the padding contributes distinct
+// `pkg:Type.value` ids without each needing its own baseline entry — one
+// shared producer+consumer pair in the evidence corpus makes every padding
+// field `reachable`, and one line naming every padding TYPE makes every
+// padding type `named`, leaving the fixture's own declared type(s) as the
+// only classifications under test. Those floors, and the type-name question,
+// have their own dedicated tests above; this helper exists only so the
+// end-to-end tests don't also have to hand-satisfy them. `tractorRustSources`
+// must be built here too (not left to fall back to the real filesystem) —
+// omitting it would silently mix real-repo Rust findings into what is meant
+// to be an isolated fixture.
 function buildFloorClearingPadding() {
 	const contractTypesSources = new Map();
+	const typeNames = [];
 	let padding = "";
 	for (let i = 0; i < MINIMUM_PLAUSIBLE_FIELD_COUNT; i++) {
 		padding += `export interface Padding${i} {\n\tvalue: string;\n}\n`;
+		typeNames.push(`Padding${i}`);
 	}
 	contractTypesSources.set("padding-pkg", padding);
 	for (let i = 0; i < MINIMUM_PLAUSIBLE_CONTRACT_PACKAGE_COUNT - 1; i++) {
 		contractTypesSources.set(`extra-pkg-${i}`, "export interface Extra {\n\tvalue: string;\n}\n");
 	}
-	const evidenceCorpus = ["const p = { value: 1 };", "console.log(p.value);"];
-	return { contractTypesSources, evidenceCorpus };
+	typeNames.push("Extra");
+
+	const tractorRustSources = new Map();
+	const tractorPaddingCount = Math.max(
+		MINIMUM_PLAUSIBLE_TRACTOR_WIRE_TYPE_COUNT,
+		MINIMUM_PLAUSIBLE_TRACTOR_WIRE_FIELD_COUNT,
+	);
+	let tractorPadding = "";
+	for (let i = 0; i < tractorPaddingCount; i++) {
+		tractorPadding +=
+			`#[derive(Debug, Clone, Serialize, Deserialize)]\n` +
+			`pub struct PaddingRust${i} {\n    pub value: String,\n}\n`;
+		typeNames.push(`PaddingRust${i}`);
+	}
+	tractorRustSources.set("padding.rs", tractorPadding);
+
+	const evidenceCorpus = ["const p = { value: 1 };", "console.log(p.value);", typeNames.join(" ")];
+	return { contractTypesSources, tractorRustSources, evidenceCorpus };
 }
 
 test("main() end-to-end: a clean baseline against a small fixture tree passes", async () => {
-	const { contractTypesSources, evidenceCorpus } = buildFloorClearingPadding();
+	const { contractTypesSources, tractorRustSources, evidenceCorpus } = buildFloorClearingPadding();
 	contractTypesSources.set(
 		"fixture-contract-v1",
 		`
@@ -347,6 +566,7 @@ export interface Fixture {
 `,
 	);
 	evidenceCorpus.push(
+		"const f: Fixture = load();", // names the type, so field-level classification even applies
 		"const x = { reachableField: 1 };",
 		"console.log(x.reachableField);",
 		"console.log(x.unreachableField);", // consumer, no producer
@@ -376,12 +596,12 @@ export interface Fixture {
 		],
 	});
 
-	const code = await main({ contractTypesSources, evidenceCorpus, baselineRaw });
+	const code = await main({ contractTypesSources, tractorRustSources, evidenceCorpus, baselineRaw });
 	assert.equal(code, 0);
 });
 
 test("main() end-to-end: a NEW unreachable field not in the baseline fails the gate", async () => {
-	const { contractTypesSources, evidenceCorpus } = buildFloorClearingPadding();
+	const { contractTypesSources, tractorRustSources, evidenceCorpus } = buildFloorClearingPadding();
 	contractTypesSources.set(
 		"fixture-contract-v1",
 		`
@@ -390,23 +610,80 @@ export interface Fixture {
 }
 `,
 	);
-	evidenceCorpus.push("console.log(effort.workspaceId);"); // consumer, no producer — Shape 2
+	evidenceCorpus.push(
+		"const f: Fixture = load();", // names the type — the field, not the type, is under test here
+		"console.log(effort.workspaceId);", // consumer, no producer — Shape 2
+	);
 
 	const code = await main({
 		contractTypesSources,
+		tractorRustSources,
 		evidenceCorpus,
 		baselineRaw: '{"entries":[]}',
 	});
 	assert.equal(code, 1);
 });
 
+test("main() end-to-end: an unnamed type with several fields is ONE baseline-worthy finding, not one per field", async () => {
+	// The gate's own history, reproduced as a fixture: a dead type whose
+	// fields share names common enough to look field-reachable on their own
+	// (a shared `traceId`/`pluginId`/`durationMs` producer+consumer exists
+	// elsewhere in the corpus) — CHANGE ONE's whole point is that none of
+	// that field-level noise matters once the TYPE itself is named nowhere.
+	const { contractTypesSources, tractorRustSources, evidenceCorpus } = buildFloorClearingPadding();
+	contractTypesSources.set(
+		"dead-contract-v1",
+		`
+export interface DeadType {
+	traceId: string;
+	pluginId: string;
+	durationMs: number;
+}
+`,
+	);
+	evidenceCorpus.push(
+		"const t = { traceId: id(), pluginId: p, durationMs: 5 };",
+		"console.log(t.traceId, t.pluginId, t.durationMs);",
+		// "DeadType" itself: named nowhere.
+	);
+
+	const withoutBaseline = await main({
+		contractTypesSources,
+		tractorRustSources,
+		evidenceCorpus,
+		baselineRaw: '{"entries":[]}',
+	});
+	assert.equal(withoutBaseline, 1);
+
+	// If the type's three fields were STILL being reported individually
+	// (the pre-fix behaviour), this single type-level entry would leave two
+	// of them uncovered and the gate would stay red.
+	const withBaseline = await main({
+		contractTypesSources,
+		tractorRustSources,
+		evidenceCorpus,
+		baselineRaw: JSON.stringify({
+			entries: [
+				{
+					id: "dead-contract-v1:DeadType",
+					state: "unnamed",
+					date: "2026-08-04",
+					reason: "test fixture — type named nowhere outside its own declaration",
+				},
+			],
+		}),
+	});
+	assert.equal(withBaseline, 0, "one type-level entry must cover ALL of the dead type's fields");
+});
+
 // ── Regression guard: the real repo, end to end, unmodified ────────────────
 //
 // Same convention as check-model-defaults-drift.mjs's own final test: this
-// exercises the real filesystem walk (packages/*-contract-v1/src/types.ts +
-// the packages/ and apps/ evidence corpus) and the real, hand-edited
-// baseline. If this fails, either a field genuinely regressed, or the
-// baseline needs an update — never silence it by weakening the assertion.
+// exercises the real filesystem walk (packages/*-contract-v1/src/types.ts,
+// packages/tractor/src/**/*.rs's serde-deriving structs/enums, and the
+// packages/ and apps/ evidence corpus) and the real, hand-edited baseline. If
+// this fails, either a type/field genuinely regressed, or the baseline needs
+// an update — never silence it by weakening the assertion.
 test("main() exits 0 against the real repo files (regression guard)", async () => {
 	const code = await main();
 	assert.equal(code, 0);
