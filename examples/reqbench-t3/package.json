@@ -44,6 +44,7 @@
 	"devDependencies": {
 		"@astrojs/check": "^0.9.9",
 		"@refarm.dev/config": "workspace:*",
+		"@refarm.dev/storage-sqlite": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*",
 		"@types/jsonld": "^1.5.15",

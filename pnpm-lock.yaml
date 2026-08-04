@@ -691,6 +691,9 @@ importers:
       '@refarm.dev/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@refarm.dev/storage-sqlite':
+        specifier: workspace:*
+        version: link:../../packages/storage-sqlite
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
