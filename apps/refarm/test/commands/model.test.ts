@@ -114,7 +114,7 @@ describe("modelCommand", () => {
 		expect(output).toContain("home:     ");
 		expect(output).toContain("store:    ");
 		expect(output).toContain("openai/gpt-5.3-codex-spark");
-		expect(output).toContain("monitor:  openai/gpt-5.5");
+		expect(output).toContain("monitor:  openai/gpt-5.6-sol");
 
 		logSpy.mockRestore();
 	});
@@ -397,7 +397,7 @@ describe("modelCommand", () => {
 		expect(typeof payload.context.homesAligned).toBe("boolean");
 		expect(payload.routes.default).toBe("openai/gpt-5.5");
 		expect(payload.routes.worker).toBe("openai/gpt-5.3-codex-spark");
-		expect(payload.routes.monitor).toBe("openai/gpt-5.5");
+		expect(payload.routes.monitor).toBe("openai/gpt-5.6-sol");
 		expect(payload.credential.envKey).toBe("OPENAI_API_KEY");
 		expect(payload.credential.state).toBe("missing");
 		expect(payload.credential.status).toBe("missing (run refarm sow)");
@@ -425,7 +425,7 @@ describe("modelCommand", () => {
 			setWorkerModel:
 				"refarm model set --scope worker 'openai/gpt-5.3-codex-spark' --json",
 			setMonitorModel:
-				"refarm model set --scope monitor 'openai/gpt-5.5' --json",
+				"refarm model set --scope monitor 'openai/gpt-5.6-sol' --json",
 		});
 
 		logSpy.mockRestore();
@@ -788,7 +788,7 @@ describe("modelCommand", () => {
 		expect(output).toContain("provider: ollama");
 		expect(output).toContain("worker:   ollama/llama3.2");
 		expect(output).toContain("monitor:  ollama/llama3.2");
-		expect(output).toContain("openai default: openai/gpt-5.5");
+		expect(output).toContain("openai default: openai/gpt-5.6-sol");
 
 		logSpy.mockRestore();
 	});
@@ -913,7 +913,7 @@ describe("modelCommand", () => {
 		await command.parseAsync(["current"], { from: "user" });
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("current: openai/gpt-5.5");
+		expect(output).toContain("current: openai/gpt-5.6-sol");
 		expect(output).not.toContain("base url: http://127.0.0.1:8000");
 
 		logSpy.mockRestore();
@@ -967,7 +967,7 @@ describe("modelCommand", () => {
 		await command.parseAsync(["current"], { from: "user" });
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("fallback: anthropic/claude-sonnet-4-6");
+		expect(output).toContain("fallback: anthropic/claude-sonnet-5");
 		expect(output).not.toContain("anthropic/qwen2.5-coder");
 
 		logSpy.mockRestore();
@@ -1063,9 +1063,9 @@ describe("modelCommand", () => {
 		expect(payload.operation).toBe("providers");
 		expect(payload.providers).toContainEqual({
 			provider: "openai",
-			defaultModel: "gpt-5.5",
+			defaultModel: "gpt-5.6-sol",
 			workerModel: "gpt-5.3-codex-spark",
-			monitorModel: "gpt-5.5",
+			monitorModel: "gpt-5.6-sol",
 			credentialEnv: "OPENAI_API_KEY",
 		});
 		expect(payload.providers).toContainEqual({

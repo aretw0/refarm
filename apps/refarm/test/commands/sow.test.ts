@@ -467,8 +467,8 @@ describe("sowCommand — default (no flags)", () => {
 		sowCommand.outputHelp();
 
 		expect(help).toContain("The Refarm runtime reloads Silo credentials");
-		expect(help).toContain("refarm sow --model openai/gpt-5.5");
-		expect(help).toContain("refarm sow --model openai/gpt-5.5 --json");
+		expect(help).toContain("refarm sow --model openai/gpt-5.6-sol");
+		expect(help).toContain("refarm sow --model openai/gpt-5.6-sol --json");
 		expect(help).toContain("--json is non-interactive");
 		expect(help).toContain(
 			"nextAction describes any manual login/configuration",

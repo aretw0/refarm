@@ -55,7 +55,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm sow --json");
 		expect(help).toContain("refarm model current");
 		expect(help).toContain("refarm model providers");
-		expect(help).toContain("refarm model openai/gpt-5.5");
+		expect(help).toContain("refarm model openai/gpt-5.6-sol");
 		expect(help).toContain("refarm model base-url");
 		expect(help).toContain("refarm model fallback");
 		expect(help).toContain("refarm task list --json");
@@ -221,9 +221,9 @@ describe("agent command", () => {
 				inspectProviders: "refarm model providers --json",
 				localNoKeyModel: "refarm sow --model ollama/llama3.2 --json",
 				openExternalLinks: "refarm config get operator.openExternalLinks --json",
-				setModel: "refarm model openai/gpt-5.5 --json",
+				setModel: "refarm model openai/gpt-5.6-sol --json",
 				setWorkerModel: "refarm model set --scope worker openai/gpt-5.3-codex-spark --json",
-				setMonitorModel: "refarm model set --scope monitor openai/gpt-5.5 --json",
+				setMonitorModel: "refarm model set --scope monitor openai/gpt-5.6-sol --json",
 			},
 			plugins: { install: "refarm plugin install --json" },
 			workers: {

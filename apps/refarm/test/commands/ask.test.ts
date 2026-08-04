@@ -160,7 +160,7 @@ describe("refarm ask", () => {
 		expect(help).toContain("refarm model current");
 		expect(help).toContain("refarm model providers");
 		expect(help).toContain('refarm ask "hello" --scope worker');
-		expect(help).toContain("refarm model openai/gpt-5.5");
+		expect(help).toContain("refarm model openai/gpt-5.6-sol");
 	});
 
 	it("resolves runtime stream and result directories from env overrides", () => {
@@ -989,13 +989,13 @@ describe("refarm ask", () => {
 			nextActions: [
 				"refarm model current --json",
 				"refarm model providers --json",
-				"refarm model openai/gpt-5.5 --json",
+				"refarm model openai/gpt-5.6-sol --json",
 				"refarm sow --json",
 			],
 			nextCommands: [
 				"refarm model current --json",
 				"refarm model providers --json",
-				"refarm model openai/gpt-5.5 --json",
+				"refarm model openai/gpt-5.6-sol --json",
 			],
 		});
 		expect(process.exitCode).toBe(1);
@@ -1431,7 +1431,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 				"refarm model current --json",
 				"refarm sow --json",
 				"refarm model providers --json",
-				"refarm model openai/gpt-5.5 --json",
+				"refarm model openai/gpt-5.6-sol --json",
 			],
 		});
 		expect(process.exitCode).toBe(1);

@@ -36,7 +36,7 @@ describe("model current output", () => {
 		expect(output).toContain("provider: ollama");
 		expect(output).toContain("model:    llama3.2");
 		expect(output).toContain("source:   built-in defaults");
-		expect(output).toContain("openai default: openai/gpt-5.5");
+		expect(output).toContain("openai default: openai/gpt-5.6-sol");
 	});
 
 	it("needs no credential recovery in JSON for the keyless ollama floor", () => {
