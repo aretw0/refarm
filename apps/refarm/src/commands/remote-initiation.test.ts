@@ -19,7 +19,9 @@ import {
 	remoteInitiationCommandLine,
 	REMOTELY_INITIABLE_OPERATIONS,
 	resolveRemoteInitiation,
+	workspaceIdFromOperationId,
 	workspaceInitiationOperations,
+	workspaceRemoteOperationId,
 } from "./remote-initiation.js";
 
 describe("the remote-initiation declaration", () => {
@@ -51,6 +53,50 @@ describe("the remote-initiation declaration", () => {
 				expect(token.startsWith("-")).toBe(false);
 				expect(token).toMatch(/^[a-z][a-z0-9-]*$/);
 			}
+		}
+	});
+});
+
+describe("workspaceIdFromOperationId", () => {
+	it("round-trips against the builder for a plain workspace/command pair", () => {
+		for (const [workspace, command] of [
+			["rcdc5", "vpn"],
+			["rcdc5", "code-boundaries"],
+			["a", "b"],
+			["my-app", "test"],
+		] as const) {
+			const id = workspaceRemoteOperationId(workspace, command);
+			expect(workspaceIdFromOperationId(id)).toBe(workspace);
+		}
+	});
+
+	it("a command containing a colon still round-trips to the right workspace", () => {
+		const id = workspaceRemoteOperationId("rcdc5", "delivery:test");
+		expect(id).toBe("workspace:rcdc5:delivery:test");
+		expect(workspaceIdFromOperationId(id)).toBe("rcdc5");
+	});
+
+	it("a command containing several colons still round-trips", () => {
+		const id = workspaceRemoteOperationId("rcdc5", "a:b:c:d");
+		expect(workspaceIdFromOperationId(id)).toBe("rcdc5");
+	});
+
+	it("refuses ids that are not workspace-operation-shaped", () => {
+		for (const notWorkspaceShaped of [
+			"delivery add",
+			"auth revoke",
+			"workspace run",
+			"workspace run rcdc5 vpn",
+			"workspace",
+			"workspace:",
+			"workspace:rcdc5",
+			"workspace::vpn",
+			"workspace:rcdc5:",
+			"Workspace:rcdc5:vpn",
+			" workspace:rcdc5:vpn",
+			"",
+		]) {
+			expect(workspaceIdFromOperationId(notWorkspaceShaped)).toBeUndefined();
 		}
 	});
 });

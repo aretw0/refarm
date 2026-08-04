@@ -132,6 +132,31 @@ export function workspaceRemoteOperationId(workspace: string, command: string): 
 	return `workspace:${workspace}:${command}`;
 }
 
+/**
+ * The inverse of {@link workspaceRemoteOperationId}: the workspace id an operation id names, or
+ * `undefined` when the id is not of that shape — a bare refarm command id like `"delivery add"`,
+ * one with too few segments, or one with an empty workspace/command segment.
+ *
+ * STRICT, not "split on the first colon and hope": a workspace COMMAND NAME
+ * (`workspace command add <workspace> <name> [argv...]`) has no character restriction of its
+ * own, so it may legally contain a colon (e.g. a command named `delivery:test`). Splitting the
+ * whole id on every colon, or taking only the substring between the first two, would let such a
+ * command's own colon be misread as an extra id segment. This anchors on the literal
+ * `workspace:` prefix, captures the workspace id as everything up to the NEXT colon (workspace
+ * ids are never built with one — see {@link workspaceRemoteOperationId}, which never escapes
+ * one), and takes the command as everything after that colon, to the end, colons and all —
+ * exactly the reverse of how the builder concatenates the three parts. Round-tripped against the
+ * builder in remote-initiation.test.ts, including a command containing a colon.
+ *
+ * `undefined`, never `""`: the same "absent means absent" contract `Effort.workspaceId` and the
+ * sidecar's own `workspace_id: Option<String>` (`packages/tractor/src/sidecar/mod.rs`) already
+ * carry, so a caller can assign this straight into an optional field without a second check.
+ */
+export function workspaceIdFromOperationId(operationId: string): string | undefined {
+	const match = /^workspace:([^:]+):(.+)$/.exec(operationId);
+	return match?.[1];
+}
+
 /** Project host-owned workspace allowlists into remotely inspectable operations. */
 export function workspaceInitiationOperations(
 	config: unknown,
