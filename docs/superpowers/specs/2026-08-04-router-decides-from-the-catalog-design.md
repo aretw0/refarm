@@ -78,12 +78,32 @@ The host already forwards a screened set of `MODEL_*` environment values to the 
 `MODEL_CONFIGURED_PROVIDERS` already travels that way, carrying a non-secret list the guest could
 not otherwise learn. The catalog is the same shape of fact.
 
-**Decision: the host injects the catalog through that existing seam.** The alternative, embedding
-the JSON with `include_str!`, is simpler and was rejected for one reason: a rate correction would
-then require rebuilding and redeploying a WASM component. The entire provenance apparatus built on
-2026-08-03 and 2026-08-04 exists so that a wrong rate can be found and fixed; making the fix cost a
-component rebuild would put the slowest possible step in the path of the thing most likely to need
-changing.
+**Decision: the host injects the catalog through that existing seam, sourced from an embedded
+default that a node may override on disk.**
+
+An earlier draft of this section argued that embedding with `include_str!` was rejected because a
+rate correction would then require rebuilding a WASM component. That reasoning does not survive
+inspection and is recorded here rather than quietly replaced: the host is Rust from this same
+repository, so embedding in the host costs exactly the same rebuild. The rebuild argument does not
+distinguish the two options at all.
+
+The two reasons that do:
+
+1. **The guest stays clock-free.** Rates already vary over time in the shipped catalog, and the
+   Sonnet 5 introductory window expires on 2026-08-31. Somebody has to decide what "now" means.
+   The host has a clock; `rate_for_model` is pure and its purity is load bearing for testing. So
+   the host resolves the effective window and injects only the entries in force, which is the same
+   entry shape with fewer rows, not a second schema.
+2. **A node can correct a rate without a build.** The host reads `model-rates.v1.json` from the
+   sovereign dir when it is present and falls back to the embedded default otherwise. A wrong rate
+   can then be fixed on the node that noticed it, which is what the whole provenance apparatus is
+   for, while a zero-config install still prices correctly out of the box.
+
+Measured payload: the full catalog is 7,951 bytes compact; the projection a router actually needs,
+provider plus match value plus the two rates, is 1,453 bytes. Neither is a size problem for an
+environment value the host constructs directly. **Send the full entry shape**, not the narrow
+projection: a second shape is a second source, and this repository has now catalogued six instances
+of what that costs.
 
 Measured payload: the full catalog is 7,951 bytes compact; the projection a router actually needs,
 provider plus match value plus the two rates, is 1,453 bytes. Neither is a size problem for an
@@ -150,13 +170,19 @@ read the catalog. Doing both at once would leave no green state in between.
 
 ## Open questions
 
-- **Which projection does the guest receive?** The full catalog carries context windows and
-  effective windows the router may not need on day one. Sending everything is simpler and 8 KB;
-  sending a projection is 1.5 KB and creates a second shape to keep in step with the first.
-- **How does an effective window resolve inside the guest?** `resolveModelTariffEntry` takes an
-  `at` date and defaults to today. The guest's access to a clock is through WASI, and
-  `rate_for_model` is pure today. Making pricing time dependent changes that, and the introductory
-  Sonnet 5 window expiring on 2026-08-31 is a real case, not a hypothetical.
 - **Does a derived tier keep four names?** Local, Cheap, Mid and Premium are boundaries someone
   chose. Derived from a continuous price they become thresholds, and thresholds want a stated
-  reason the same way the rates do.
+  reason the same way the rates do. This is D2's question, not D1's.
+- **Where in the sovereign dir does an override live, and who validates it?** D1 says a node may
+  override the catalog on disk. An unvalidated override is a way to inject wrong prices into every
+  cost estimate the node makes, so the host must run the same validation the package does, and the
+  answer to "what happens when the override is invalid" must be refuse-and-say-so rather than
+  silently fall back. The fallback direction is the dangerous one: quietly reverting to the
+  embedded default would let a node believe it had corrected a rate when it had not.
+- **Does the guest need the context windows at all?** D1 sends the full entry shape, which carries
+  them. Nothing routes on a context window yet. The field travelling before it has a consumer is
+  the written-correct-and-unreachable shape, mitigated only by the fact that it costs nothing to
+  carry and the alternative is a second schema.
+
+Two questions from the first draft are answered above rather than left open: the guest receives the
+full entry shape, and the effective window is resolved by the host before injection.
