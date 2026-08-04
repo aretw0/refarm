@@ -16,6 +16,10 @@ import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
 import { refarmCommand } from "../brand.js";
+import {
+	SOW_CLOUDFLARE_COMMAND,
+	SOW_CLOUDFLARE_JSON_COMMAND,
+} from "./credential-handoffs.js";
 
 interface TurboCacheCommandOptions {
 	dryRun?: boolean;
@@ -38,8 +42,6 @@ interface ProvisionCommandOptions {
 const PROVISION_SCHEMA_VERSION = 1;
 const DEFAULT_TURBO_CACHE_BUCKET = "refarm-turbo-cache";
 const DEFAULT_TURBO_CACHE_TEAM = "refarm";
-const SOW_CLOUDFLARE_COMMAND = refarmCommand(["sow", "--cloudflare"]);
-const SOW_CLOUDFLARE_JSON_COMMAND = refarmCommand(["sow", "--cloudflare", "--json"]);
 const TURBO_CACHE_DRY_RUN_JSON_COMMAND = refarmCommand([
 	"provision",
 	"cloudflare",
@@ -190,10 +192,10 @@ function buildTurboCacheFailurePayload(input: {
 	message: string;
 	nextAction: string;
 }) {
-	const nextCommand = input.nextAction.startsWith("refarm sow")
+	const nextCommand = input.nextAction.startsWith(SOW_CLOUDFLARE_COMMAND)
 		? SOW_CLOUDFLARE_JSON_COMMAND
 		: input.nextAction;
-	const nextAction = input.nextAction.startsWith("refarm sow")
+	const nextAction = input.nextAction.startsWith(SOW_CLOUDFLARE_COMMAND)
 		? SOW_CLOUDFLARE_JSON_COMMAND
 		: input.nextAction;
 	const nextCommands = normalizeHandoffValues([nextCommand, TURBO_CACHE_DRY_RUN_JSON_COMMAND]);
@@ -273,9 +275,7 @@ function renderCloudflareCatalog(): void {
 
 function renderProvisionNextSteps(): void {
 	console.log(chalk.bold("Next steps:"));
-	console.log(
-		`  ${chalk.cyan(refarmCommand(["sow", "--cloudflare"]))} ${chalk.gray("# configure Cloudflare token")}`,
-	);
+	console.log(`  ${chalk.cyan(SOW_CLOUDFLARE_COMMAND)} ${chalk.gray("# configure Cloudflare token")}`);
 	console.log(
 		`  ${chalk.cyan(refarmCommand(["provision", "cloudflare", "turbo-cache", "--dry-run"]))}`,
 	);
@@ -309,7 +309,7 @@ const cloudflareCommand = new Command("cloudflare")
 		[
 			"",
 			"Examples:",
-			"  $ refarm sow --cloudflare",
+			`  $ ${SOW_CLOUDFLARE_COMMAND}`,
 			"  $ refarm provision cloudflare --dry-run",
 			"  $ refarm provision cloudflare --dry-run --json",
 			"  $ refarm provision cloudflare turbo-cache --dry-run",
@@ -353,14 +353,14 @@ const cloudflareCommand = new Command("cloudflare")
 				[
 					"",
 					"Examples:",
-					"  $ refarm sow --cloudflare",
+					`  $ ${SOW_CLOUDFLARE_COMMAND}`,
 					"  $ refarm provision cloudflare turbo-cache --dry-run",
 					"  $ refarm provision cloudflare turbo-cache --dry-run --json",
 					"  $ refarm provision cloudflare turbo-cache --github-secrets",
 					"  $ refarm provision cloudflare turbo-cache --bucket refarm-turbo-cache --team refarm",
 					"",
 					"Notes:",
-					"  Requires a Cloudflare token saved by refarm sow --cloudflare before applying.",
+					`  Requires a Cloudflare token saved by ${SOW_CLOUDFLARE_COMMAND} before applying.`,
 					"  --dry-run does not require credentials and prints the Worker/R2/secret plan.",
 					"  --github-secrets writes TURBO_CACHE_* via gh; run gh auth status if it fails.",
 					"  Rebuilding the devcontainer does not clear saved ~/.refarm credentials by default.",
@@ -403,7 +403,7 @@ const cloudflareCommand = new Command("cloudflare")
 						return;
 					}
 					console.error(
-						chalk.red("No Cloudflare token found. Run `refarm sow --cloudflare` first."),
+						chalk.red(`No Cloudflare token found. Run \`${SOW_CLOUDFLARE_COMMAND}\` first.`),
 					);
 					console.error(
 						chalk.dim("Then apply: refarm provision cloudflare turbo-cache --github-secrets"),
@@ -543,14 +543,14 @@ export const provisionCommand = new Command("provision")
 			"Examples:",
 			"  $ refarm provision list",
 			"  $ refarm provision list --json",
-			"  $ refarm sow --cloudflare",
+			`  $ ${SOW_CLOUDFLARE_COMMAND}`,
 			"  $ refarm provision cloudflare",
 			"  $ refarm provision cloudflare turbo-cache --dry-run",
 			"  $ refarm provision cloudflare turbo-cache --github-secrets",
 			"",
 			"Notes:",
 			"  Running a provider without a service prints guidance only; it does not create resources.",
-			"  Cloudflare turbo-cache provisioning uses the token saved by refarm sow --cloudflare.",
+			`  Cloudflare turbo-cache provisioning uses the token saved by ${SOW_CLOUDFLARE_COMMAND}.`,
 			"  Rebuilding the devcontainer does not clear saved ~/.refarm credentials by default.",
 		].join("\n"),
 	)

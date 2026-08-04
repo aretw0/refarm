@@ -35,11 +35,19 @@ import {
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
+	modelBaseUrlJsonCommand,
 	MODEL_DOCTOR_JSON_COMMAND,
 	MODEL_PROVIDERS_JSON_COMMAND,
+	modelRefJsonCommand,
+	OLLAMA_DEFAULT_REF,
 	OPERATOR_LINKS_CONFIG_COMMAND,
+	OPENAI_DEFAULT_REF,
+	OPENAI_MONITOR_REF,
+	OPENAI_WORKER_REF,
+	setScopedModelJsonCommand,
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
+	sowModelJsonCommand,
 } from "./credential-handoffs.js";
 import {
 	providerDoctorProfile,
@@ -55,10 +63,6 @@ export {
 	buildSetModelEnvelope,
 } from "./model-mutators.js";
 
-const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
-const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
-const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
-const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434";
 const OLLAMA_DOCKER_BASE_URL = "http://host.docker.internal:11434";
 const MODEL_PROVIDER_PROBE_TIMEOUT_MS = 2_000;
@@ -404,7 +408,7 @@ function modelDoctorHandoffs(
 		// table; the field name stays `startOllama` (the wire) until the shape is
 		// generalized. For ollama this is "ollama serve", byte-identical to before.
 		startOllama: profile.startCommand ?? "ollama serve",
-		setDockerOllamaBaseUrl: refarmCommand(["model", "base-url", OLLAMA_DOCKER_BASE_URL, "--json"]),
+		setDockerOllamaBaseUrl: modelBaseUrlJsonCommand(OLLAMA_DOCKER_BASE_URL),
 	};
 }
 
@@ -770,7 +774,7 @@ function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 			commands.push(
 				SOW_JSON_COMMAND,
 				MODEL_PROVIDERS_JSON_COMMAND,
-				refarmCommand(["sow", "--model", quoteCommandArg(status.current.ref), "--json"]),
+				sowModelJsonCommand(status.current.ref),
 				LOCAL_MODEL_JSON_COMMAND,
 			);
 			continue;
@@ -778,14 +782,7 @@ function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 		commands.push(
 			SOW_JSON_COMMAND,
 			MODEL_PROVIDERS_JSON_COMMAND,
-			refarmCommand([
-				"model",
-				"set",
-				"--scope",
-				scope,
-				quoteCommandArg(OLLAMA_DEFAULT_REF),
-				"--json",
-			]),
+			setScopedModelJsonCommand(scope, OLLAMA_DEFAULT_REF),
 		);
 	}
 	return Array.from(new Set(commands));
@@ -820,14 +817,7 @@ function currentModelMissingRecommendations(
 				command:
 					scope === "default"
 						? SOW_JSON_COMMAND
-						: refarmCommand([
-								"model",
-								"set",
-								"--scope",
-								scope,
-								quoteCommandArg(OLLAMA_DEFAULT_REF),
-								"--json",
-							]),
+						: setScopedModelJsonCommand(scope, OLLAMA_DEFAULT_REF),
 			});
 			continue;
 		}
@@ -850,14 +840,7 @@ function currentModelMissingRecommendations(
 			severity: "failure",
 			summary: `The ${scope} model route requires credentials that are not available.`,
 			action: "Configure credentials or switch the scoped route to a no-key local model.",
-			command: refarmCommand([
-				"model",
-				"set",
-				"--scope",
-				scope,
-				quoteCommandArg(OLLAMA_DEFAULT_REF),
-				"--json",
-			]),
+			command: setScopedModelJsonCommand(scope, OLLAMA_DEFAULT_REF),
 		});
 	}
 	return recommendations;
@@ -871,23 +854,9 @@ function currentModelHandoffs(
 		inspectProviders: MODEL_PROVIDERS_JSON_COMMAND,
 		localNoKeyModel: LOCAL_MODEL_JSON_COMMAND,
 		openExternalLinks: OPERATOR_LINKS_CONFIG_COMMAND,
-		setModel: refarmCommand(["model", quoteCommandArg(status.current.ref), "--json"]),
-		setWorkerModel: refarmCommand([
-			"model",
-			"set",
-			"--scope",
-			"worker",
-			quoteCommandArg(status.routes.worker),
-			"--json",
-		]),
-		setMonitorModel: refarmCommand([
-			"model",
-			"set",
-			"--scope",
-			"monitor",
-			quoteCommandArg(status.routes.monitor),
-			"--json",
-		]),
+		setModel: modelRefJsonCommand(status.current.ref),
+		setWorkerModel: setScopedModelJsonCommand("worker", status.routes.worker),
+		setMonitorModel: setScopedModelJsonCommand("monitor", status.routes.monitor),
 	};
 }
 
