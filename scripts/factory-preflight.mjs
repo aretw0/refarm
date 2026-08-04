@@ -223,6 +223,24 @@ function checkReso() {
   }
 }
 
+function checkOnboardingDoctor() {
+  if (!existsSync('scripts/ci/onboarding-doctor.mjs')) {
+    warn('Onboarding doctor script not found', 'Expected: scripts/ci/onboarding-doctor.mjs');
+    return;
+  }
+
+  const result = run('node', ['scripts/ci/onboarding-doctor.mjs']);
+  if (result.status === 0) {
+    ok('Onboarding doctor baseline check');
+    return;
+  }
+
+  warn(
+    'Onboarding doctor reported issues',
+    `${commandFailureDetail(result)}\nTry: ${scriptCommand('onboarding:doctor')} -- --package packages/<new-package>`
+  );
+}
+
 function checkGitHubAutomationPermissions() {
   if (!commandExists('gh')) {
     warn('GitHub CLI not installed', 'Skipping automation permission checks');
@@ -300,6 +318,7 @@ checkHooks();
 checkRustToolchain();
 checkWasmTooling();
 checkReso();
+checkOnboardingDoctor();
 checkGitHubAutomationPermissions();
 
 console.log('\n' + `${colors.cyan}Summary${colors.reset}`);
