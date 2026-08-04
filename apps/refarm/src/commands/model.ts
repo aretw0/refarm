@@ -9,6 +9,7 @@ import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { refarmCommand } from "../brand.js";
+import { resolveNodeContextMetadata, type NodeContextMetadata } from "../utils/context-metadata.js";
 import {
 	DEFAULT_MODEL_PROVIDER,
 	defaultModelForProvider,
@@ -120,6 +121,7 @@ export interface CurrentModelStatus {
 		kind: "environment" | "identity" | "built-in";
 		envOverrides: string[];
 	};
+	context: NodeContextMetadata;
 	recommendations?: {
 		diagnostic: string;
 		severity: "failure" | "warning" | "info";
@@ -963,6 +965,7 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 			kind: sourceKind,
 			envOverrides,
 		},
+		context: resolveNodeContextMetadata(process.env),
 	};
 	return {
 		...status,

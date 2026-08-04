@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toCommanderGroup } from "../../src/commands/capability-commander.js";
 import {
-	createModelCapabilityGroup,
-	modelCapabilityHooks,
+    createModelCapabilityGroup,
+    modelCapabilityHooks,
 } from "../../src/commands/model-capability.js";
 import {
-	buildCurrentModelStatus,
-	buildModelDoctorStatus,
-	resolveRuntimeModelRoute,
-	type ModelCommandDeps,
+    buildCurrentModelStatus,
+    buildModelDoctorStatus,
+    resolveRuntimeModelRoute,
+    type ModelCommandDeps,
 } from "../../src/commands/model.js";
 
 /**
@@ -342,6 +342,12 @@ describe("modelCommand", () => {
 			command: string;
 			operation: string;
 			current: { ref: string };
+			context: {
+				mode: string;
+				sovereignHome: string;
+				credentialStoreHome: string;
+				homesAligned: boolean;
+			};
 			routes: { default: string; worker: string; monitor: string };
 			routeCredentials: {
 				default: { state: string };
@@ -370,6 +376,10 @@ describe("modelCommand", () => {
 		expect(payload.command).toBe("model");
 		expect(payload.operation).toBe("current");
 		expect(payload.current.ref).toBe("openai/gpt-5.5");
+		expect(payload.context.mode).toBe("node-global");
+		expect(payload.context.sovereignHome.length).toBeGreaterThan(0);
+		expect(payload.context.credentialStoreHome.length).toBeGreaterThan(0);
+		expect(typeof payload.context.homesAligned).toBe("boolean");
 		expect(payload.routes.default).toBe("openai/gpt-5.5");
 		expect(payload.routes.worker).toBe("openai/gpt-5.3-codex-spark");
 		expect(payload.routes.monitor).toBe("openai/gpt-5.5");

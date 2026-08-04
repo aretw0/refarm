@@ -2,6 +2,7 @@ import { type RuntimeSidecarProbeSummary, type RuntimeStatusSummary } from "@ref
 import chalk from "chalk";
 import { existsSync, readFileSync } from "node:fs";
 
+import { resolveNodeContextMetadata, type NodeContextMetadata } from "../utils/context-metadata.js";
 import { resolveRuntimeSidecarUrl } from "../utils/runtime-config.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
@@ -34,7 +35,9 @@ import type { RuntimeCommandDeps } from "./runtime.js";
  * so no runtime cycle).
  */
 
-export type RuntimeStatusPayload = RuntimeStatusSummary;
+export type RuntimeStatusPayload = RuntimeStatusSummary & {
+	context: NodeContextMetadata;
+};
 
 const START_LOG_TAIL_LINES = 40;
 
@@ -102,6 +105,7 @@ export async function runtimeStatusPayload(
 			sidecarUrl: sidecar.value,
 			sidecarUrlSource: sidecar.source,
 			...(sidecarProbe ? { sidecarProbe } : {}),
+			context: resolveNodeContextMetadata(process.env),
 			ready,
 			startCommand: resolveRuntimeLaunchCommand(repoRoot, selection.activeEngine).display,
 		};
@@ -115,6 +119,7 @@ export async function runtimeStatusPayload(
 			sidecarUrl: sidecar.value,
 			sidecarUrlSource: sidecar.source,
 			...(sidecarProbe ? { sidecarProbe } : {}),
+			context: resolveNodeContextMetadata(process.env),
 			ready,
 			issue: message,
 		};

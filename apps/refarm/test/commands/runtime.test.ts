@@ -128,6 +128,10 @@ describe("runtime command", () => {
 			command: "runtime",
 			operation: "status",
 			ok: true,
+			context: {
+				mode: "node-global",
+				homesAligned: true,
+			},
 			configuredEngine: "ts",
 			activeEngine: "ts",
 			ready: false,
@@ -294,13 +298,17 @@ describe("runtime command", () => {
 
 		await command.parseAsync(["--json"], { from: "user" });
 
-		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toEqual({
+		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
 			command: "runtime",
 			operation: "status",
 			configuredEngine: "ts",
 			activeEngine: "ts",
 			autostart: "never",
 			reason: "configured-ts",
+			context: {
+				mode: "node-global",
+				homesAligned: true,
+			},
 			sidecarUrl: "http://127.0.0.1:42001",
 			sidecarUrlSource: "default",
 			ready: false,
