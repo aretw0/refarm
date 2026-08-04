@@ -371,7 +371,7 @@ export function printRefarmCheckNextActionJson(report: RefarmCheckReport): void 
 
 function compactActionableRecommendations(
 	recommendations: DiagnosticRecommendation[],
- 	warningsAsBlocking = false,
+	warningsAsBlocking = false,
 ): DiagnosticRecommendation[] {
 	const seen = new Set<string>();
 	const compact: DiagnosticRecommendation[] = [];
