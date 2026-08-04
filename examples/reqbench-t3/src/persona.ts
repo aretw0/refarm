@@ -149,6 +149,13 @@ export const parseRequirementsFromHtml: SourceRecordParser = (body, context) => 
 					...(context.mediaType ? { mediaType: context.mediaType } : {}),
 					collectedAt,
 					contentSha256,
+					// The ALM does not publish a license for pulled requirements — "unknown" per the
+					// field's own doc comment, not a guess at a real one. Pulled over an authenticated
+					// corporate session (see .dgk/sources.json's `session.kind: "authenticated"`), not a
+					// public source, so "internal" — an analyst reviewing a hit before promoting it sees
+					// under what terms it may be used, instead of no signal at all.
+					license: "unknown",
+					privacy: "internal",
 				},
 			),
 			sections: [{ key: "conteudo", content: text }],

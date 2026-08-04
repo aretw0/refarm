@@ -101,6 +101,10 @@ function ccmWorkItemToProvenance(wi: Rcdc5CcmWorkItem, rawBody: string): NotePro
 		originLink: wi.ccm_source_url,
 		collectedAt: wi.ccm_last_sync_at,
 		contentSha256: createHash("sha256").update(rawBody).digest("hex"),
+		// A CCM ticket carries no publishable license (it is a corporate work-item, not a licensed
+		// content artifact) — "unknown" is the honest value, not a guess. Scraped from an internal,
+		// authenticated ALM session → "internal".
+		license: "unknown",
 		privacy: "internal",
 		// open extras — the domain's own origin facts, kept without forking the contract
 		ccm_work_item_uri: wi.ccm_work_item_uri,
@@ -161,6 +165,11 @@ describe("CCM work-item → task:v1 + provenance:v1 (ocamento step A)", () => {
 		expect(result.failures).toEqual([]);
 		expect(provenance?.channel).toBe("ccm-scrape");
 		expect(provenance?.originLink).toContain("id=84172");
+		// license/privacy round-trip through stampProvenance/readProvenance the same way channel
+		// does — the promise a CCM-sourced note carries under what terms it may be used, and its
+		// publication posture (task-contract-v1/provenance-contract-v1 lane, entry 8).
+		expect(provenance?.license).toBe("unknown");
+		expect(provenance?.privacy).toBe("internal");
 		// the source locators survive in the open extras — no contract fork needed
 		expect((provenance as Record<string, unknown>).ccm_project_area).toBe("EFD Contribuições");
 	});

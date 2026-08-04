@@ -113,6 +113,11 @@ export const parseRequirementsFromRdf: SourceRecordParser = (body, context) => {
 						...(context.mediaType ? { mediaType: context.mediaType } : {}),
 						collectedAt,
 						contentSha256,
+						// Same posture as the HTML-pull path (persona.ts): the ALM does not publish a
+						// license, and an OSLC RM resource is only reachable over an authenticated stream
+						// session — not a public source.
+						license: "unknown",
+						privacy: "internal",
 					},
 				),
 				sections: [{ key: "conteudo", content: text }],
