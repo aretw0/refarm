@@ -634,6 +634,15 @@ describe("sowCommand — --cloudflare flag", () => {
 		});
 	});
 
+	it("does not print model skipped banner when explicit cloudflare setup is requested", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await sowCommand.parseAsync(["--cloudflare"], { from: "user" });
+
+		const joinedOutput = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(joinedOutput).not.toContain("Model: already configured");
+	});
+
 	it("prompts for Cloudflare when --cloudflare is passed", async () => {
 		await sowCommand.parseAsync(["--cloudflare"], { from: "user" });
 		expect(mockCloudflareCollect).toHaveBeenCalledOnce();
