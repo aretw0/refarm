@@ -1,6 +1,6 @@
 {
   "schemaVersion": "model-rate-catalog.v1",
-  "catalogVersion": "2026-08-04.5",
+  "catalogVersion": "2026-08-04.6",
   "entries": [
     {
       "provider": "anthropic",
@@ -404,6 +404,20 @@
       "rate": {
         "inputPerMTokenUsd": 2.5,
         "outputPerMTokenUsd": 10.0
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-5.1-codex-mini"
+      },
+      "unpriced": {
+        "reason": "not listed on OpenAI's pricing page as its own line item, so no rate could be verified",
+        "checkedAt": "2026-08-03",
+        "note": "Must stay AHEAD of the gpt-5 family rule below: \"gpt-5.1-codex-mini\" contains \"gpt-5\", so first-match-wins would otherwise price it at $1.25/$10 by association. The built-in Rust table carves the same id out of the same family branch for the same reason."
       },
       "pricingUrl": "https://developers.openai.com/api/docs/pricing",
       "verifiedAt": "2026-08-03"

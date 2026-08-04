@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  assertValidModelTariffCatalog,
-  resolveModelTariff,
-  assertValidModelRateCatalog,
-  resolveModelRate,
-  type ModelTariffCatalog,
-  type ModelRateCatalog,
+	assertValidModelRateCatalog,
+	assertValidModelTariffCatalog,
+	resolveModelRate,
+	resolveModelTariff,
+	type ModelRateCatalog,
+	type ModelTariffCatalog,
 } from "./index.js";
 
 const fixture: ModelRateCatalog = {
@@ -97,6 +97,93 @@ describe("model-catalog-v1", () => {
     });
 
     expect(resolved?.tariff).toEqual({ inputPerMTokenUsd: 5, outputPerMTokenUsd: 30 });
+  });
+});
+
+describe("a rate the catalog deliberately does not carry", () => {
+  const entry = (patch: Record<string, unknown>): unknown => ({
+    schemaVersion: "model-rate-catalog.v1",
+    catalogVersion: "2026-08-04.6",
+    entries: [
+      {
+        provider: "openai",
+        match: { mode: "contains", value: "gpt-5.1-codex-mini" },
+        pricingUrl: "https://developers.openai.com/api/docs/pricing",
+        verifiedAt: "2026-08-03",
+        ...patch,
+      },
+    ],
+  });
+
+  const unpriced = { reason: "not listed as its own line item", checkedAt: "2026-08-03" };
+  const rate = { inputPerMTokenUsd: 1.25, outputPerMTokenUsd: 10 };
+
+  it("accepts an entry whose absent rate carries a reason and a date", () => {
+    expect(() => assertValidModelRateCatalog(entry({ unpriced }))).not.toThrow();
+    expect(() =>
+      assertValidModelRateCatalog(entry({ unpriced: { ...unpriced, note: "checked the pricing table" } })),
+    ).not.toThrow();
+  });
+
+  it("refuses a rate and a reason-for-no-rate at the same time", () => {
+    // The same rule contextWindow/contextWindowUnknown enforce: a figure and a reason for
+    // having no figure cannot both be true, and a reader would have no way to tell which
+    // one the entry means.
+    expect(() => assertValidModelRateCatalog(entry({ rate, unpriced }))).toThrow(/\.unpriced/);
+  });
+
+  it("refuses an entry that carries neither", () => {
+    // Silence is the state this whole field exists to remove. An entry with no rate and no
+    // reason still MATCHES under first-match-wins and then answers nothing, which reads
+    // downstream as "never heard of it" and sends the caller to a fallback that guesses.
+    expect(() => assertValidModelRateCatalog(entry({}))).toThrow(/\.rate/);
+  });
+
+  it("refuses an unexplained or undated absence", () => {
+    expect(() => assertValidModelRateCatalog(entry({ unpriced: { checkedAt: "2026-08-03" } }))).toThrow(
+      /\.unpriced\.reason/,
+    );
+    expect(() =>
+      assertValidModelRateCatalog(entry({ unpriced: { reason: "not listed" } })),
+    ).toThrow(/\.unpriced\.checkedAt/);
+    expect(() => assertValidModelRateCatalog(entry({ unpriced: "not listed" }))).toThrow(
+      /\.unpriced/,
+    );
+  });
+
+  it("tells an unpriced MATCH apart from no match at all", () => {
+    // The three-state answer, checked at the resolver rather than only in the schema:
+    // undefined means nothing matched; an entry with no tariff means the catalog looked and
+    // there is no published rate. A caller that cannot tell them apart will fall back and
+    // guess in the second case, which is exactly the failure being fixed.
+    const catalog = entry({ unpriced }) as ModelRateCatalog;
+
+    const matched = resolveModelRate(catalog, {
+      provider: "openai",
+      modelId: "gpt-5.1-codex-mini",
+      at: "2026-08-04",
+    });
+    expect(matched).toBeDefined();
+    expect(matched?.rate).toBeUndefined();
+    expect(matched?.entry.unpriced?.reason).toBe("not listed as its own line item");
+    expect(matched?.entry.unpriced?.checkedAt).toBe("2026-08-03");
+
+    const missed = resolveModelRate(catalog, {
+      provider: "openai",
+      modelId: "gpt-4o",
+      at: "2026-08-04",
+    });
+    expect(missed).toBeUndefined();
+
+    // Same three answers under the tariff-first name.
+    const tariffCatalog = { ...catalog, schemaVersion: "model-tariff-catalog.v1" } as ModelTariffCatalog;
+    const tariffMatch = resolveModelTariff(tariffCatalog, {
+      provider: "openai",
+      modelId: "gpt-5.1-codex-mini",
+      at: "2026-08-04",
+    });
+    expect(tariffMatch?.entry.match.value).toBe("gpt-5.1-codex-mini");
+    expect(tariffMatch?.tariff).toBeUndefined();
   });
 });
 
@@ -237,6 +324,32 @@ describe("the shipped catalog", () => {
         ).toBe(false);
       }
     }
+  });
+
+  it("refuses to price gpt-5.1-codex-mini by association with the gpt-5 family", () => {
+    // OpenAI does not list this id as its own line item, so the built-in Rust table answers
+    // Unknown for it (checked 2026-08-03) — and once the guest consulted the catalog FIRST,
+    // the catalog's "gpt-5" rule turned that deliberate refusal into a confident $1.25/$10.
+    // The fix is in the artifact, not a second exclusion list in the guest: the id has its own
+    // entry, ahead of the family rule, carrying `unpriced`.
+    const resolved = resolveModelRate(shipped as ModelRateCatalog, {
+      provider: "openai",
+      modelId: "gpt-5.1-codex-mini",
+      at: "2026-08-04",
+    });
+
+    expect(resolved?.entry.match.value).toBe("gpt-5.1-codex-mini");
+    expect(resolved?.rate).toBeUndefined();
+    expect(resolved?.entry.unpriced?.checkedAt).toBe("2026-08-03");
+
+    // The family rule it sits in front of still prices its own members.
+    expect(
+      resolveModelRate(shipped as ModelRateCatalog, {
+        provider: "openai",
+        modelId: "gpt-5",
+        at: "2026-08-04",
+      })?.rate,
+    ).toEqual({ inputPerMTokenUsd: 1.25, outputPerMTokenUsd: 10 });
   });
 
   it("prices every model id the Rust rate table prices", () => {

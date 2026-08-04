@@ -128,8 +128,28 @@ pub(crate) struct CatalogEntry {
     /// `true` for `mode: "exact"`, `false` for `mode: "contains"`.
     exact: bool,
     value: String,
-    rate_in: f64,
-    rate_out: f64,
+    /// `None` when the entry carries `unpriced` instead of `rate`: a model the catalog
+    /// KNOWS ABOUT whose price the vendor does not publish. That is an answer, not a
+    /// gap — see [`CatalogLookup::Unpriced`].
+    rate: Option<(f64, f64)>,
+}
+
+/// What the catalog says about a model id — THREE answers, because two were not enough.
+///
+/// A miss and a deliberate refusal look identical if both are `None`, and they must not be
+/// treated identically: a miss falls back to the built-in table, while a refusal is the
+/// catalog stating that no verified price exists for this id. Falling back on a refusal
+/// would let the fallback's guess overrule a checked fact — the exact defect the catalog's
+/// `unpriced` state exists to remove.
+#[derive(Debug, PartialEq)]
+pub(crate) enum CatalogLookup {
+    /// An entry matched and carries a verified rate: dollars per million in/out tokens.
+    Priced { rate_in: f64, rate_out: f64 },
+    /// An entry matched and DELIBERATELY carries no rate (`unpriced` in the artifact,
+    /// with a reason and the date it was checked). The honest answer is "price unknown".
+    Unpriced,
+    /// No entry matched. The catalog has nothing to say; the caller falls back.
+    Miss,
 }
 
 /// The env key the host injects the catalog under. The guest reads a STRING and
@@ -161,13 +181,30 @@ pub(crate) fn parse_rate_catalog(raw: &str) -> Option<Vec<CatalogEntry>> {
         if value.is_empty() {
             return None;
         }
-        let rate = entry.get("rate")?;
-        let rate_in = rate.get("inputPerMTokenUsd")?.as_f64()?;
-        let rate_out = rate.get("outputPerMTokenUsd")?.as_f64()?;
-        if !rate_in.is_finite() || !rate_out.is_finite() || rate_in < 0.0 || rate_out < 0.0 {
-            return None;
-        }
-        out.push(CatalogEntry { exact, value: value.to_string(), rate_in, rate_out });
+        // EXACTLY one of `rate` and `unpriced`, the same rule the host validates before
+        // injecting. Both is a contradiction (a price and a reason for having no price);
+        // neither is an entry that matches an id and then says nothing, which would read
+        // here as a miss and send the lookup to a fallback the catalog meant to stop.
+        let rate = match (entry.get("rate"), entry.get("unpriced")) {
+            (Some(_), Some(_)) | (None, None) => return None,
+            (None, Some(unpriced)) => {
+                // The reason and date are provenance for a human reader; this guest reads
+                // only that the field IS an object, so a stray `"unpriced": true` cannot
+                // pass for a deliberate refusal.
+                unpriced.as_object()?;
+                None
+            }
+            (Some(rate), None) => {
+                let rate_in = rate.get("inputPerMTokenUsd")?.as_f64()?;
+                let rate_out = rate.get("outputPerMTokenUsd")?.as_f64()?;
+                if !rate_in.is_finite() || !rate_out.is_finite() || rate_in < 0.0 || rate_out < 0.0
+                {
+                    return None;
+                }
+                Some((rate_in, rate_out))
+            }
+        };
+        out.push(CatalogEntry { exact, value: value.to_string(), rate });
     }
     Some(out)
 }
@@ -178,17 +215,25 @@ pub(crate) fn parse_rate_catalog(raw: &str) -> Option<Vec<CatalogEntry>> {
 /// before "claude-opus-4"), and a validator on both sides refuses an entry a
 /// preceding, less specific rule has made unreachable. Preserve the order received;
 /// never sort.
-pub(crate) fn rate_from_catalog(entries: &[CatalogEntry], model: &str) -> Option<(f64, f64)> {
-    entries
-        .iter()
-        .find(|entry| {
-            if entry.exact {
-                model == entry.value
-            } else {
-                model.contains(&entry.value)
-            }
-        })
-        .map(|entry| (entry.rate_in, entry.rate_out))
+///
+/// The FIRST match answers, priced or not. An `unpriced` entry placed ahead of a family rule
+/// is how the artifact says "this id is not the family's price, and nobody could verify its
+/// own" — reading past it to a later rule would undo exactly that.
+pub(crate) fn rate_from_catalog(entries: &[CatalogEntry], model: &str) -> CatalogLookup {
+    let matched = entries.iter().find(|entry| {
+        if entry.exact {
+            model == entry.value
+        } else {
+            model.contains(&entry.value)
+        }
+    });
+    match matched {
+        Some(entry) => match entry.rate {
+            Some((rate_in, rate_out)) => CatalogLookup::Priced { rate_in, rate_out },
+            None => CatalogLookup::Unpriced,
+        },
+        None => CatalogLookup::Miss,
+    }
 }
 
 /// The catalog this guest was given, parsed once.
@@ -235,9 +280,28 @@ pub(crate) fn injected_rate_catalog() -> Option<&'static [CatalogEntry]> {
 /// and "this is free" are different answers, and only `pricing_mode_for_provider`
 /// (checked earlier, on the provider axis) may say the second one.
 pub(crate) fn rate_for_model(model: &str) -> RateLookup {
-    if let Some(entries) = injected_rate_catalog() {
-        if let Some((rate_in, rate_out)) = rate_from_catalog(entries, model) {
-            return RateLookup::Priced { rate_in, rate_out };
+    rate_for_model_in(injected_rate_catalog(), model)
+}
+
+/// The env-free half of [`rate_for_model`]: an explicit catalog (or `None` for "none
+/// injected"). Pure over its inputs, so the catalog-first behaviour is testable without
+/// steering process env from a parallel test thread — the same split the host uses for
+/// `resolve_injected_catalog_in`.
+///
+/// A MATCHED-BUT-UNPRICED entry resolves to `RateLookup::Unknown` and stops there. It does
+/// not fall through: the catalog matched this id and said no verified rate exists for it,
+/// and continuing to the built-in chain would let a fallback answer overrule that. No new
+/// `RateLookup` variant is needed for it — "no rate on file" is what `Unknown` already
+/// means — and, deliberately, no list of excluded ids lives in this guest: the artifact
+/// names them, the guest reads them.
+pub(crate) fn rate_for_model_in(catalog: Option<&[CatalogEntry]>, model: &str) -> RateLookup {
+    if let Some(entries) = catalog {
+        match rate_from_catalog(entries, model) {
+            CatalogLookup::Priced { rate_in, rate_out } => {
+                return RateLookup::Priced { rate_in, rate_out }
+            }
+            CatalogLookup::Unpriced => return RateLookup::Unknown,
+            CatalogLookup::Miss => {}
         }
     }
     rate_from_builtin_table(model)

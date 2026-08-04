@@ -349,6 +349,8 @@ fn an_id_dropped_from_a_branch_for_lacking_verification_is_unknown_not_grouped()
     // that only verified rates ship — an id nobody could re-verify is now
     // Unknown, not silently priced by association with a neighbour that DOES
     // verify.
+    // The catalog now says the same thing for gpt-5.1-codex-mini rather than pricing it by
+    // association — see `the_real_artifact_refuses_to_price_gpt_5_1_codex_mini_and_says_so`.
     assert!(matches!(rate_for_model("claude-sonnet-3-7"), RateLookup::Unknown));
     assert!(matches!(rate_for_model("gpt-5.1-codex-mini"), RateLookup::Unknown));
     // Their former group-mates still price correctly — dropping the
@@ -451,6 +453,17 @@ fn an_absent_catalog_leaves_rate_for_model_byte_identical_to_the_built_in_table(
     }
 }
 
+/// The priced answer only, for assertions where the NUMBER is the point. Where the KIND of
+/// answer is what is being asserted — a miss that must fall back, a deliberate refusal that
+/// must not — the tests match on `CatalogLookup` itself, because those two must never again
+/// be the same value.
+fn priced(entries: &[CatalogEntry], model: &str) -> Option<(f64, f64)> {
+    match rate_from_catalog(entries, model) {
+        CatalogLookup::Priced { rate_in, rate_out } => Some((rate_in, rate_out)),
+        CatalogLookup::Unpriced | CatalogLookup::Miss => None,
+    }
+}
+
 #[test]
 fn a_catalog_entry_wins_over_the_built_in_table() {
     // The Sonnet 5 post-intro rate: the host injects THIS row on 2026-09-01, while
@@ -462,7 +475,7 @@ fn a_catalog_entry_wins_over_the_built_in_table() {
            "pricingUrl":"https://example.invalid","verifiedAt":"2026-08-04"}]}"#,
     )
     .expect("valid catalog");
-    assert_eq!(rate_from_catalog(&catalog, "claude-sonnet-5"), Some((3.0, 15.0)));
+    assert_eq!(priced(&catalog, "claude-sonnet-5"), Some((3.0, 15.0)));
     // …and the built-in table is still the pre-switch number, so this is a real override.
     let RateLookup::Priced { rate_in, rate_out } = rate_from_builtin_table("claude-sonnet-5") else {
         panic!("built-in table prices claude-sonnet-5");
@@ -484,7 +497,7 @@ fn entry_order_is_precedence_first_match_wins_and_nothing_is_sorted() {
     )
     .expect("valid");
     assert_eq!(
-        rate_from_catalog(&general_first, "claude-opus-4-5"),
+        priced(&general_first, "claude-opus-4-5"),
         Some((15.0, 75.0)),
         "first match wins — the order received is the order used"
     );
@@ -498,8 +511,8 @@ fn entry_order_is_precedence_first_match_wins_and_nothing_is_sorted() {
            "rate":{"inputPerMTokenUsd":15,"outputPerMTokenUsd":75}}]}"#,
     )
     .expect("valid");
-    assert_eq!(rate_from_catalog(&specific_first, "claude-opus-4-5"), Some((5.0, 25.0)));
-    assert_eq!(rate_from_catalog(&specific_first, "claude-opus-4-1"), Some((15.0, 75.0)));
+    assert_eq!(priced(&specific_first, "claude-opus-4-5"), Some((5.0, 25.0)));
+    assert_eq!(priced(&specific_first, "claude-opus-4-1"), Some((15.0, 75.0)));
 }
 
 #[test]
@@ -509,8 +522,12 @@ fn an_exact_rule_matches_only_itself() {
           "rate":{"inputPerMTokenUsd":1.25,"outputPerMTokenUsd":10}}]}"#,
     )
     .expect("valid");
-    assert_eq!(rate_from_catalog(&catalog, "gpt-5"), Some((1.25, 10.0)));
-    assert_eq!(rate_from_catalog(&catalog, "gpt-5-nano"), None);
+    assert_eq!(priced(&catalog, "gpt-5"), Some((1.25, 10.0)));
+    assert_eq!(
+        rate_from_catalog(&catalog, "gpt-5-nano"),
+        CatalogLookup::Miss,
+        "an exact rule that does not match is a MISS, not a refusal to price"
+    );
 }
 
 #[test]
@@ -522,7 +539,7 @@ fn a_catalog_without_this_model_falls_back_instead_of_answering_zero() {
     .expect("valid");
     assert_eq!(
         rate_from_catalog(&catalog, "grok-4.3"),
-        None,
+        CatalogLookup::Miss,
         "no entry for this model is a MISS, and a miss must reach the fallback"
     );
     // And the fallback still prices it — the miss did not become a free run.
@@ -564,7 +581,7 @@ fn an_unusable_catalog_means_prices_unknown_never_prices_zero() {
     // An EMPTY catalog is well-formed and means "this catalog prices nothing" — every
     // lookup misses and reaches the fallback. It is not "everything is free".
     let empty = parse_rate_catalog(r#"{"entries":[]}"#).expect("an empty catalog is valid");
-    assert_eq!(rate_from_catalog(&empty, "claude-sonnet-5"), None);
+    assert_eq!(rate_from_catalog(&empty, "claude-sonnet-5"), CatalogLookup::Miss);
     assert!(matches!(rate_for_model("claude-sonnet-5"), RateLookup::Priced { .. }));
 }
 
@@ -582,11 +599,11 @@ fn a_full_entry_shape_parses_with_its_citations_ignored_not_rejected() {
            "contextWindow":{"tokens":1000000,"sourceUrl":"https://example.invalid","verifiedAt":"2026-08-04"}}]}"#,
     )
     .expect("the full entry shape parses");
-    assert_eq!(rate_from_catalog(&catalog, "claude-opus-5"), Some((5.0, 25.0)));
+    assert_eq!(priced(&catalog, "claude-opus-5"), Some((5.0, 25.0)));
 }
 
 /// The artifact the host embeds, read here at TEST time only (no bytes reach the
-/// shipped `.wasm`). Parsing the real 27 entries is the only way this side can prove
+/// shipped `.wasm`). Parsing the real 28 entries is the only way this side can prove
 /// it agrees with what the host will actually send.
 const REAL_ARTIFACT: &str =
     include_str!("../../../model-catalog-v1/catalog/model-rates.v1.json");
@@ -599,7 +616,7 @@ fn the_real_artifact_prices_what_the_built_in_table_prices_and_agrees_on_the_num
     // prices, the catalog prices — at the same number.
     let mut disagreements: Vec<String> = Vec::new();
     for model in EVERY_MODEL_THE_TABLE_KNOWS {
-        let from_catalog = rate_from_catalog(&catalog, model);
+        let from_catalog = priced(&catalog, model);
         let from_table = match rate_from_builtin_table(model) {
             RateLookup::Priced { rate_in, rate_out } => Some((rate_in, rate_out)),
             RateLookup::Unknown => None,
@@ -609,26 +626,107 @@ fn the_real_artifact_prices_what_the_built_in_table_prices_and_agrees_on_the_num
         }
     }
 
+    // This list used to carry ONE recorded divergence, and it was the regression itself:
+    // the built-in chain carves "gpt-5.1-codex-mini" out of the "gpt-5" family branch on
+    // purpose (not a line item on OpenAI's page, so the rate could not be verified, and
+    // only verified rates ship), while the catalog's family rule priced it at $1.25/$10 by
+    // association. Catalog-first turned a deliberate Unknown into a confident number.
+    //
+    // The fix landed where the pin said it belonged — in the artifact, not as a second
+    // exclusion list in this guest. The id now has its own entry, ahead of the family rule,
+    // carrying `unpriced` with the reason and the date it was checked. The pin is therefore
+    // an AGREEMENT now: no divergence at all.
     assert_eq!(
         disagreements,
-        vec![
-            // The ONE divergence, recorded rather than papered over. The built-in chain
-            // carves "gpt-5.1-codex-mini" out of the "gpt-5" family branch on purpose:
-            // it is not listed on OpenAI's page as its own line item, so its rate could
-            // not be verified, and this table's rule is that only verified rates ship.
-            // The catalog has no such carve-out — "gpt-5.1-codex-mini".contains("gpt-5")
-            // is true, so under first-match-wins it inherits the family rate.
-            //
-            // Catalog-first therefore turns a deliberate Unknown into a confident
-            // $1.25/$10. The TypeScript resolver ALREADY answers that way for the same
-            // id, so this is the two sides converging on the catalog's answer rather
-            // than a new opinion — but it is a behaviour change, and the fix belongs in
-            // the artifact (an `exact`-mode carve-out, or a narrower family rule), not
-            // in a second exclusion list here. Pinned so it cannot drift unnoticed.
-            "gpt-5.1-codex-mini: catalog=Some((1.25, 10.0)) table=None".to_string(),
-        ],
-        "the catalog and the built-in table must agree except where it is recorded here"
+        Vec::<String>::new(),
+        "the catalog and the built-in table must agree everywhere"
     );
+}
+
+#[test]
+fn the_real_artifact_refuses_to_price_gpt_5_1_codex_mini_and_says_so() {
+    // Three answers, and this id needs the third one. A MISS would be wrong (the catalog
+    // knows this id and has looked), and a price would be wrong (nobody could verify one).
+    let catalog = parse_rate_catalog(REAL_ARTIFACT).expect("the shipped artifact parses");
+    assert_eq!(
+        rate_from_catalog(&catalog, "gpt-5.1-codex-mini"),
+        CatalogLookup::Unpriced,
+        "the artifact must answer 'known, deliberately unpriced' — not a family price, and \
+         not silence"
+    );
+    // The family rule it sits in front of is untouched: dropping the unverified id must not
+    // have cost the verified ones their rate.
+    assert_eq!(priced(&catalog, "gpt-5"), Some((1.25, 10.0)));
+    assert_eq!(priced(&catalog, "gpt-5.3-codex-spark"), Some((1.25, 10.0)));
+}
+
+#[test]
+fn an_unpriced_catalog_entry_resolves_unknown_with_the_catalog_injected() {
+    // The regression in one assertion. Everything else in this section proves the guest
+    // behaves with NO catalog injected; this proves the answer the operator actually gets,
+    // with the real artifact in force — which is the configuration the host ships.
+    let catalog = parse_rate_catalog(REAL_ARTIFACT).expect("the shipped artifact parses");
+    assert!(matches!(
+        rate_for_model_in(Some(&catalog), "gpt-5.1-codex-mini"),
+        RateLookup::Unknown
+    ));
+    // With no catalog at all it was already Unknown; the point is that injecting the
+    // catalog does not change that answer into a price.
+    assert!(matches!(rate_for_model_in(None, "gpt-5.1-codex-mini"), RateLookup::Unknown));
+    // And the neighbours the catalog DOES price still come back priced through the same path.
+    assert!(matches!(
+        rate_for_model_in(Some(&catalog), "gpt-5-mini"),
+        RateLookup::Priced { rate_in: 0.25, rate_out: 2.0 }
+    ));
+}
+
+#[test]
+fn an_unpriced_match_stops_at_unknown_instead_of_falling_back_to_the_table() {
+    // A miss falls back; a refusal does not. If an unpriced match fell through, the
+    // built-in table's guess would overrule the catalog's checked "no published rate" —
+    // which is the same defect in the other direction. Asserted with an id the table DOES
+    // price, so a fall-through would be visible as a number.
+    let refuses_sonnet_5 = parse_rate_catalog(
+        r#"{"entries":[{"match":{"mode":"contains","value":"claude-sonnet-5"},
+          "unpriced":{"reason":"withdrawn from the vendor's page","checkedAt":"2026-08-04"}}]}"#,
+    )
+    .expect("an unpriced entry is a valid entry");
+    assert_eq!(rate_from_catalog(&refuses_sonnet_5, "claude-sonnet-5"), CatalogLookup::Unpriced);
+    assert!(matches!(rate_from_builtin_table("claude-sonnet-5"), RateLookup::Priced { .. }));
+    assert!(matches!(
+        rate_for_model_in(Some(&refuses_sonnet_5), "claude-sonnet-5"),
+        RateLookup::Unknown
+    ));
+    // An id this catalog says nothing about is still a miss, and a miss still falls back.
+    assert_eq!(rate_from_catalog(&refuses_sonnet_5, "grok-4.3"), CatalogLookup::Miss);
+    assert!(matches!(
+        rate_for_model_in(Some(&refuses_sonnet_5), "grok-4.3"),
+        RateLookup::Priced { rate_in: 1.25, rate_out: 2.5 }
+    ));
+}
+
+#[test]
+fn an_entry_with_both_a_rate_and_a_refusal_or_with_neither_rejects_the_catalog() {
+    // Exactly one of the two, the same rule the host and the TypeScript validator enforce.
+    // Both is a contradiction; neither is an entry that matches an id and then says nothing,
+    // which would read here as a miss and quietly reach the fallback the entry was authored
+    // to stop. A malformed entry rejects the WHOLE catalog — half-trusting a price list
+    // silently changes which rule wins under first-match-wins.
+    assert!(parse_rate_catalog(
+        r#"{"entries":[{"match":{"mode":"contains","value":"gpt-5"},
+          "rate":{"inputPerMTokenUsd":1.25,"outputPerMTokenUsd":10},
+          "unpriced":{"reason":"not listed","checkedAt":"2026-08-03"}}]}"#
+    )
+    .is_none());
+    assert!(parse_rate_catalog(
+        r#"{"entries":[{"match":{"mode":"contains","value":"gpt-5"}}]}"#
+    )
+    .is_none());
+    // A refusal must be the documented object, not a bare flag standing in for one.
+    assert!(parse_rate_catalog(
+        r#"{"entries":[{"match":{"mode":"contains","value":"gpt-5"},"unpriced":true}]}"#
+    )
+    .is_none());
 }
 
 #[test]
@@ -636,11 +734,11 @@ fn the_real_artifacts_order_reaches_the_specific_rule_before_its_family() {
     // The order-dependence that once billed Opus 4.5 at Opus 4's rate, checked against
     // the shipped ordering rather than a fixture that could drift from it.
     let catalog = parse_rate_catalog(REAL_ARTIFACT).expect("the shipped artifact parses");
-    assert_eq!(rate_from_catalog(&catalog, "claude-opus-4-5"), Some((5.0, 25.0)));
-    assert_eq!(rate_from_catalog(&catalog, "claude-opus-4-1"), Some((15.0, 75.0)));
-    assert_eq!(rate_from_catalog(&catalog, "claude-haiku-4-5"), Some((1.0, 5.0)));
-    assert_eq!(rate_from_catalog(&catalog, "claude-haiku-3-5"), Some((0.8, 4.0)));
-    assert_eq!(rate_from_catalog(&catalog, "gpt-5-nano"), Some((0.05, 0.4)));
-    assert_eq!(rate_from_catalog(&catalog, "gpt-4o-mini"), Some((0.15, 0.6)));
-    assert_eq!(rate_from_catalog(&catalog, "gpt-4o"), Some((2.5, 10.0)));
+    assert_eq!(priced(&catalog, "claude-opus-4-5"), Some((5.0, 25.0)));
+    assert_eq!(priced(&catalog, "claude-opus-4-1"), Some((15.0, 75.0)));
+    assert_eq!(priced(&catalog, "claude-haiku-4-5"), Some((1.0, 5.0)));
+    assert_eq!(priced(&catalog, "claude-haiku-3-5"), Some((0.8, 4.0)));
+    assert_eq!(priced(&catalog, "gpt-5-nano"), Some((0.05, 0.4)));
+    assert_eq!(priced(&catalog, "gpt-4o-mini"), Some((0.15, 0.6)));
+    assert_eq!(priced(&catalog, "gpt-4o"), Some((2.5, 10.0)));
 }

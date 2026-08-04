@@ -106,7 +106,8 @@ pub(crate) use utils::{
 
 #[cfg(test)]
 pub(crate) use utils::{
-    injected_rate_catalog, parse_rate_catalog, rate_from_builtin_table, rate_from_catalog,
+    injected_rate_catalog, parse_rate_catalog, rate_for_model_in, rate_from_builtin_table,
+    rate_from_catalog, CatalogEntry, CatalogLookup,
 };
 
 #[cfg(test)]

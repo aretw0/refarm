@@ -80,14 +80,50 @@ for (let i = 0; i < catalog.entries.length; i += 1) {
     fail(`entries[${i}].match.value must be a non-empty string`);
   }
 
-  if (!entry.rate || typeof entry.rate !== "object") {
-    fail(`entries[${i}].rate must be an object`);
+  // Exactly one of `rate` and `unpriced`, mirroring validateModelRateCatalog in
+  // packages/model-catalog-v1/src/index.ts. This script cannot import that package without
+  // adding a build-order dependency to CI (the seam is documented in that package's
+  // index.test.ts, which runs the real validator against this same file), so the shape rules
+  // are restated here and must be kept in step with it.
+  //
+  // An entry may deliberately carry NO rate: a model the catalog knows about whose price the
+  // vendor does not publish says so, with a reason and a date, instead of being priced by a
+  // family rule it happens to be a substring of.
+  const hasRate = entry.rate !== undefined;
+  const hasUnpriced = entry.unpriced !== undefined;
+  if (hasRate && hasUnpriced) {
+    fail(`entries[${i}].unpriced must not be set when rate carries a verified figure`);
   }
-  if (typeof entry.rate.inputPerMTokenUsd !== "number" || entry.rate.inputPerMTokenUsd < 0) {
-    fail(`entries[${i}].rate.inputPerMTokenUsd must be a non-negative number`);
+  if (!hasRate && !hasUnpriced) {
+    fail(`entries[${i}].rate must be an object, or unpriced must say why no rate is carried`);
   }
-  if (typeof entry.rate.outputPerMTokenUsd !== "number" || entry.rate.outputPerMTokenUsd < 0) {
-    fail(`entries[${i}].rate.outputPerMTokenUsd must be a non-negative number`);
+
+  if (hasRate) {
+    if (!entry.rate || typeof entry.rate !== "object") {
+      fail(`entries[${i}].rate must be an object`);
+    }
+    if (typeof entry.rate.inputPerMTokenUsd !== "number" || entry.rate.inputPerMTokenUsd < 0) {
+      fail(`entries[${i}].rate.inputPerMTokenUsd must be a non-negative number`);
+    }
+    if (typeof entry.rate.outputPerMTokenUsd !== "number" || entry.rate.outputPerMTokenUsd < 0) {
+      fail(`entries[${i}].rate.outputPerMTokenUsd must be a non-negative number`);
+    }
+  }
+
+  if (hasUnpriced) {
+    if (!entry.unpriced || typeof entry.unpriced !== "object") {
+      fail(`entries[${i}].unpriced must be an object`);
+    }
+    if (!entry.unpriced.reason || typeof entry.unpriced.reason !== "string") {
+      fail(`entries[${i}].unpriced.reason must be a non-empty string`);
+    }
+    if (
+      !entry.unpriced.checkedAt ||
+      typeof entry.unpriced.checkedAt !== "string" ||
+      !Number.isFinite(parseDate(entry.unpriced.checkedAt))
+    ) {
+      fail(`entries[${i}].unpriced.checkedAt must be a valid date`);
+    }
   }
 
   if (!entry.pricingUrl || typeof entry.pricingUrl !== "string") {

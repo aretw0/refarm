@@ -19,9 +19,21 @@ Objetivo: separar dado mutavel de precificacao da logica de runtime, reduzindo d
   - `match.value`
   - `rate.inputPerMTokenUsd`
   - `rate.outputPerMTokenUsd`
+  - `unpriced.reason` / `unpriced.checkedAt` / `unpriced.note` (opcional)
   - `pricingUrl`
   - `verifiedAt`
   - `effectiveFrom`/`effectiveTo` (opcional)
+
+Exatamente um entre `rate` e `unpriced` deve estar presente. `unpriced` e o terceiro estado do
+catalogo: modelo conhecido cuja tarifa o fornecedor nao publica, registrada com motivo e data em
+vez de silencio. Sem esse estado, um id nao verificado ainda casa com a regra `contains` da sua
+familia e recebe um preco plausivel por associacao (foi o caso de `gpt-5.1-codex-mini` sob a regra
+`gpt-5`). Regras mais especificas vem ANTES da regra de familia, porque a resolucao e
+first-match-wins.
+
+`resolveModelTariff`/`resolveModelRate` respondem tres coisas: `undefined` (nenhuma entrada casou),
+resultado com `tariff`/`rate` (tarifa verificada) e resultado sem ela (entrada casou e nao carrega
+tarifa de proposito).
 
 ## Nota de compatibilidade
 

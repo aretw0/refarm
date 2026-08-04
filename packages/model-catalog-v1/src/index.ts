@@ -13,6 +13,38 @@ export interface ModelTariff {
 export type ModelRate = ModelTariff;
 
 /**
+ * Why an entry carries NO `rate`, so that a model the catalog KNOWS ABOUT can say "no verified
+ * price" out loud instead of being priced by association with its family.
+ *
+ * The catalog used to have two states — a verified rate, or no entry at all — and "no entry at
+ * all" is indistinguishable from "never heard of this id". That gap is not neutral: resolution is
+ * first-match-wins over `contains` rules, so an id nobody could verify still matches its family's
+ * rule and comes back with a plausible number that looks exactly like a checked fact.
+ *
+ * That is not hypothetical either. `gpt-5.1-codex-mini` is not listed on OpenAI's pricing page as
+ * its own line item, so the Rust rate table deliberately answers Unknown for it (checked
+ * 2026-08-03) — while the catalog's `contains: "gpt-5"` rule answered $1.25/$10. Once the guest
+ * consulted the catalog first, the deliberate refusal became a confident price.
+ *
+ * This is `ModelContextWindowUnknown`'s discipline applied to the price: absence carries a reason
+ * and the date it was established, so the next reader knows whether the question is closed or
+ * merely unanswered.
+ *
+ * The entry still carries `pricingUrl`/`verifiedAt` — the page that was read, and when the entry
+ * as a whole was checked against it — while `checkedAt` dates THIS fact, exactly as
+ * `contextWindow` dates its own figure rather than borrowing the entry's.
+ */
+export interface ModelTariffUnpriced {
+  /** Why no rate is carried — what was looked for on the vendor's page and not found. */
+  reason: string;
+  checkedAt: string;
+  /** What was looked at, so the next attempt starts further along than the last one. */
+  note?: string;
+}
+
+export type ModelRateUnpriced = ModelTariffUnpriced;
+
+/**
  * A model's maximum context window, in tokens, carrying its OWN source and verification date
  * rather than borrowing the entry's `pricingUrl`/`verifiedAt`.
  *
@@ -56,7 +88,15 @@ export interface ModelContextWindowUnknown {
 export interface ModelTariffEntry {
   provider: string;
   match: ModelMatchRule;
-  rate: ModelTariff;
+  /**
+   * The verified rate. Absent EXACTLY when `unpriced` says why it is absent: the validator refuses
+   * an entry carrying both, and an entry carrying neither. Same rule, same reason as
+   * `contextWindow`/`contextWindowUnknown` below — a figure and a reason for having no figure
+   * cannot both be true, and an entry that states neither says nothing at all.
+   */
+  rate?: ModelTariff;
+  /** Present only when `rate` is not. See {@link ModelTariffUnpriced}. */
+  unpriced?: ModelTariffUnpriced;
   pricingUrl: string;
   verifiedAt: string;
   effectiveFrom?: string;
@@ -87,14 +127,24 @@ export interface ResolveModelTariffRequest {
 
 export type ResolveModelRateRequest = ResolveModelTariffRequest;
 
+/**
+ * THREE answers, not two. `undefined` from the resolver means no entry matched; a result carrying
+ * `tariff` is a verified price; a result WITHOUT one is an entry that matched and deliberately
+ * carries no rate (see {@link ModelTariffUnpriced}).
+ *
+ * Collapsing the last two into `undefined` would rebuild the defect `unpriced` exists to remove:
+ * a caller that cannot tell "this catalog has never heard of the id" from "this catalog checked
+ * and there is no published rate" will reach for a fallback that guesses, and the guess is
+ * indistinguishable from a checked fact once it is a number.
+ */
 export interface ResolvedModelTariff {
   entry: ModelTariffEntry;
-  tariff: ModelTariff;
+  tariff?: ModelTariff;
 }
 
 export interface ResolvedModelRate {
   entry: ModelRateEntry;
-  rate: ModelRate;
+  rate?: ModelRate;
 }
 
 export interface ValidationIssue {
@@ -185,21 +235,65 @@ function validateModelTariffShape(
       }
     }
 
-    if (!entry.rate || typeof entry.rate !== "object") {
-      issues.push({ path: `${prefix}.rate`, message: "must be an object" });
-    } else {
-      if (typeof entry.rate.inputPerMTokenUsd !== "number" || entry.rate.inputPerMTokenUsd < 0) {
-        issues.push({
-          path: `${prefix}.rate.inputPerMTokenUsd`,
-          message: "must be a non-negative number",
-        });
+    if (entry.rate !== undefined) {
+      if (!entry.rate || typeof entry.rate !== "object") {
+        issues.push({ path: `${prefix}.rate`, message: "must be an object when present" });
+      } else {
+        if (typeof entry.rate.inputPerMTokenUsd !== "number" || entry.rate.inputPerMTokenUsd < 0) {
+          issues.push({
+            path: `${prefix}.rate.inputPerMTokenUsd`,
+            message: "must be a non-negative number",
+          });
+        }
+        if (
+          typeof entry.rate.outputPerMTokenUsd !== "number" ||
+          entry.rate.outputPerMTokenUsd < 0
+        ) {
+          issues.push({
+            path: `${prefix}.rate.outputPerMTokenUsd`,
+            message: "must be a non-negative number",
+          });
+        }
       }
-      if (typeof entry.rate.outputPerMTokenUsd !== "number" || entry.rate.outputPerMTokenUsd < 0) {
-        issues.push({
-          path: `${prefix}.rate.outputPerMTokenUsd`,
-          message: "must be a non-negative number",
-        });
+    }
+
+    if (entry.unpriced !== undefined) {
+      const gap = entry.unpriced as Partial<ModelTariffUnpriced>;
+      if (!gap || typeof gap !== "object") {
+        issues.push({ path: `${prefix}.unpriced`, message: "must be an object when present" });
+      } else {
+        if (!gap.reason || typeof gap.reason !== "string") {
+          issues.push({ path: `${prefix}.unpriced.reason`, message: "must be a non-empty string" });
+        }
+        if (!gap.checkedAt || typeof gap.checkedAt !== "string") {
+          issues.push({
+            path: `${prefix}.unpriced.checkedAt`,
+            message: "must be a non-empty date string",
+          });
+        }
+        if (gap.note !== undefined && typeof gap.note !== "string") {
+          issues.push({ path: `${prefix}.unpriced.note`, message: "must be a string when present" });
+        }
       }
+    }
+
+    // A rate and a reason for having no rate cannot both be true, and an entry that states
+    // NEITHER says nothing at all — it would match a model id under first-match-wins and then
+    // answer with no answer, which reads downstream as a miss and sends the caller to whatever
+    // fallback it has. Exactly one, always. (Same rule as contextWindow/contextWindowUnknown
+    // below, and for the same reason; only the direction of the damage differs, because a
+    // missing price is a number somebody else will supply.)
+    if (entry.rate !== undefined && entry.unpriced !== undefined) {
+      issues.push({
+        path: `${prefix}.unpriced`,
+        message: "must not be set when rate carries a verified figure",
+      });
+    }
+    if (entry.rate === undefined && entry.unpriced === undefined) {
+      issues.push({
+        path: `${prefix}.rate`,
+        message: "must be an object, or unpriced must say why no rate is carried",
+      });
     }
 
     if (!entry.pricingUrl || typeof entry.pricingUrl !== "string") {
@@ -338,6 +432,14 @@ function shadowedEntryIssues(entries: readonly ModelTariffEntry[]): ValidationIs
   return issues;
 }
 
+/**
+ * The matched entry, or `undefined` when nothing matched.
+ *
+ * The signature does not need a third case: since `rate` is optional and mutually exclusive with
+ * `unpriced`, the returned ENTRY already distinguishes "matched, priced" from "matched, and the
+ * catalog says there is no verified price". Wrapping it in a second discriminated union would
+ * encode the same fact twice, and two encodings of one fact drift.
+ */
 function resolveModelTariffEntry(
   entries: readonly ModelTariffEntry[],
   request: ResolveModelTariffRequest,
@@ -355,20 +457,25 @@ function resolveModelTariffEntry(
   return undefined;
 }
 
+/**
+ * `undefined` means NO ENTRY MATCHED. A matched entry that deliberately carries no rate comes
+ * back with its `entry` and no `tariff` — see {@link ResolvedModelTariff}.
+ */
 export function resolveModelTariff(
   catalog: ModelTariffCatalog,
   request: ResolveModelTariffRequest,
 ): ResolvedModelTariff | undefined {
   const entry = resolveModelTariffEntry(catalog.entries, request);
   if (!entry) return undefined;
-  return { entry, tariff: entry.rate };
+  return entry.rate ? { entry, tariff: entry.rate } : { entry };
 }
 
+/** Same three answers as {@link resolveModelTariff}, under the compatibility name. */
 export function resolveModelRate(
   catalog: ModelRateCatalog,
   request: ResolveModelRateRequest,
 ): ResolvedModelRate | undefined {
   const entry = resolveModelTariffEntry(catalog.entries, request);
   if (!entry) return undefined;
-  return { entry, rate: entry.rate };
+  return entry.rate ? { entry, rate: entry.rate } : { entry };
 }
