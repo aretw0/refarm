@@ -185,7 +185,7 @@ export class HealthCore {
     audit(
         requestedAuditors?: string[] | null,
         policyId?: string | null,
-        options?: { rootDir?: string },
+        options?: { rootDir?: string; configBase?: string },
     ): Promise<unknown>;
     checkResolutionStatus(rootDir?: string): Promise<ResolutionStatus[]>;
 }
@@ -221,7 +221,14 @@ export class ConfigNodeAuditor {
     constructor(options?: ConfigNodeAuditorOptions);
     readonly id: "config-node";
     readonly title: string;
-    audit(context?: { rootDir?: string }): Promise<ConfigNodeAuditResult>;
+    /**
+     * `configBase` — the scope the graph node's OWNING DAEMON used, resolved by
+     * the caller (see `resolveConfigNodeBase` in apps/refarm/src/commands/health.ts)
+     * — takes priority over `rootDir` for the local `.refarm/config.json` half of
+     * the comparison. `rootDir` remains a fallback for callers with no node-scope
+     * concept of their own (e.g. a direct, single-root unit test).
+     */
+    audit(context?: { rootDir?: string; configBase?: string }): Promise<ConfigNodeAuditResult>;
 }
 
 export class ToolchainAuditor {

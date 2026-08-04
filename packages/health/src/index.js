@@ -55,6 +55,15 @@ export class HealthCore {
 
 		const context = {
 			rootDir: options.rootDir || process.cwd(),
+			// The base ConfigNodeAuditor reads the local .refarm/config.json from —
+			// the scope the graph node's OWNING DAEMON used, which is not always
+			// `rootDir` (a bare `process.cwd()`/project root, e.g. a repository
+			// checkout, is very often NOT where the running node was started).
+			// Callers that know the node's declared base (see
+			// apps/refarm/src/commands/health.ts) pass it explicitly; when they
+			// don't, ConfigNodeAuditor falls back to `rootDir` itself so a direct,
+			// single-root unit test keeps working unchanged.
+			configBase: options.configBase,
 			timestamp: new Date().toISOString(),
 			policy: policy || {}, // Inject policy into the context
 		};

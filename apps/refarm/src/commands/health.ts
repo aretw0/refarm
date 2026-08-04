@@ -10,6 +10,8 @@ import {
 import type { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
+import { readNodeDescriptor } from "../utils/node-descriptor.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { openTractorGraph } from "../utils/tractor-store.js";
 import { toCommanderGroup } from "./capability-commander.js";
 import {
@@ -315,6 +317,34 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
 	];
 }
 
+/**
+ * The base `ConfigNodeAuditor` must read the local `.refarm/config.json` from —
+ * the scope the graph node's OWNING DAEMON actually used, not `rootDir` (which
+ * is very often a `process.cwd()`-derived project checkout, a different
+ * `.refarm/config.json` entirely from whatever the running daemon was started
+ * with). Comparing the graph node against the wrong scope's file is not a
+ * cross-device drift check, it is diffing two unrelated configs and reporting
+ * the difference as if it meant something.
+ *
+ * Mirrors `resolveScopeComparison` in `doctor.ts` (the declared-node-base
+ * design, docs/superpowers/specs/2026-08-03-declared-node-base-design.md),
+ * which solves this exact problem for the sibling `scope:config-divergence`
+ * finding: a live node descriptor (`<refarmHome>/node.json`) names the ACTUAL
+ * base the running daemon declared itself with — it can differ from what this
+ * process would infer locally (a daemon started with an explicit
+ * `--refarm-dir`). Absent a live descriptor, `resolveRefarmHome()` IS the
+ * sovereign dir (e.g. `~/.refarm`), so its parent is the base
+ * `loadRawSovereignConfig` needs (it joins `<base>/<SOVEREIGN_DIR>/config.json`).
+ *
+ * Deliberately reuses the SAME two primitives `doctor.ts` already combined for
+ * this — not a second, bespoke resolution rule.
+ */
+export function resolveConfigNodeBase(env = process.env): string {
+	const nodeHome = path.resolve(resolveRefarmHome(env));
+	const running = readNodeDescriptor(nodeHome);
+	return running ? path.resolve(running.declarationBase) : path.dirname(nodeHome);
+}
+
 export async function runHealthAudit(
 	rootDir = process.cwd(),
 	options: HealthAuditOptions = {},
@@ -350,7 +380,11 @@ export async function runHealthAudit(
 	// No-ops informatively when the graph store is absent (graphContext null).
 	health.register(new ConfigNodeAuditor({ graphContext }));
 
-	const results = (await health.audit(null, null, { rootDir })) as HealthResults;
+	const results = (await health.audit(null, null, {
+		rootDir,
+		// The node's declared scope, NOT rootDir — see resolveConfigNodeBase.
+		configBase: resolveConfigNodeBase(),
+	})) as HealthResults;
 	// Lift the config-node auditor's issues out of the orchestrator bag so the
 	// report surfaces cross-device config drift alongside the fs/build findings.
 	results.configNode = results._orchestrator?.["config-node"]?.issues ?? [];

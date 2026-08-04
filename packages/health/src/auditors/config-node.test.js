@@ -122,6 +122,78 @@ describe("ConfigNodeAuditor", () => {
 		expect(result.issues[0].path).toBe("urn:sovereign:config:workspace");
 	});
 
+	describe("scope parity: configBase vs. an unrelated rootDir (two roots, one node)", () => {
+		// Regression coverage for the real defect: the graph half always answers from
+		// whichever daemon actually owns the node — a fixed scope, NOT `rootDir`/cwd.
+		// `context.rootDir` here stands in for "wherever the CLI happens to be invoked
+		// from" (e.g. a repository checkout with its own leftover project-local sandbox
+		// `.refarm/config.json`); `context.configBase` stands in for the SEPARATE,
+		// correctly-resolved scope the graph node's owning daemon actually used (e.g.
+		// the operator's home). The two roots carry DIFFERENT config on purpose, so a
+		// regression that makes the auditor read the local half from `rootDir` (or
+		// `process.cwd()`) instead of `configBase` fails these tests immediately —
+		// it would pick up the wrong root's config and get the wrong answer.
+		let nodeRoot;
+		let unrelatedRoot;
+
+		beforeEach(() => {
+			nodeRoot = mkdtempSync(path.join(tmpdir(), "config-node-audit-node-"));
+			mkdirSync(path.join(nodeRoot, ".refarm"), { recursive: true });
+			unrelatedRoot = mkdtempSync(path.join(tmpdir(), "config-node-audit-unrelated-"));
+			mkdirSync(path.join(unrelatedRoot, ".refarm"), { recursive: true });
+		});
+		afterEach(() => {
+			rmSync(nodeRoot, { recursive: true, force: true });
+			rmSync(unrelatedRoot, { recursive: true, force: true });
+		});
+
+		function writeConfigAt(base, config) {
+			writeFileSync(path.join(base, ".refarm", "config.json"), JSON.stringify(config));
+		}
+
+		it("reports NO drift when configBase matches the node, even though rootDir carries a wholly different config", async () => {
+			const nodeConfig = { provider: "ollama", budgets: { anthropic: 5 } };
+			writeConfigAt(nodeRoot, nodeConfig);
+			// A genuinely different config at the unrelated root — mirrors a repo-local
+			// sandbox `.refarm/config.json` left over from dev/testing (VPN connections,
+			// trusted_plugins, no delivery/processes — the exact shape of the diagnosed
+			// false positive).
+			writeConfigAt(unrelatedRoot, {
+				provider: "anthropic",
+				connections: { "ovpn-serpro": { type: "vpn" } },
+				trusted_plugins: ["some-plugin"],
+			});
+			// The node as the OWNING daemon (rooted at nodeRoot) actually published it.
+			const node = createConfigNode(nodeConfig);
+
+			const result = await new ConfigNodeAuditor({ graphContext: fakeGraph(node) }).audit({
+				rootDir: unrelatedRoot,
+				configBase: nodeRoot,
+			});
+
+			expect(result.issues).toEqual([]);
+			expect(result.note).toContain("in sync");
+		});
+
+		it("still fires config_node_drift on a genuine mismatch at configBase, not masked by rootDir happening to agree", async () => {
+			// rootDir's file is IDENTICAL to the node on purpose — proves a clean
+			// result can only come from configBase agreeing, never from rootDir.
+			const sharedConfig = { provider: "ollama" };
+			writeConfigAt(unrelatedRoot, sharedConfig);
+			// configBase's own file genuinely diverges from what the node holds.
+			writeConfigAt(nodeRoot, { provider: "ollama", model: "local-only-edit" });
+			const node = createConfigNode(sharedConfig);
+
+			const result = await new ConfigNodeAuditor({ graphContext: fakeGraph(node) }).audit({
+				rootDir: unrelatedRoot,
+				configBase: nodeRoot,
+			});
+
+			expect(result.issues).toHaveLength(1);
+			expect(result.issues[0].type).toBe("config_node_drift");
+		});
+	});
+
 	it("reports a real issue — not a skipped note — when the graph read throws", async () => {
 		// This is the state that used to disappear: a graphContext EXISTS (the
 		// substrate is present), but reading through it fails (e.g. the

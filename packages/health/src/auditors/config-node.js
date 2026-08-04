@@ -31,6 +31,21 @@ import {
  * specific fields recompute to the SAME revision — a healthy per-device difference no
  * longer reads as drift.
  *
+ * SCOPE PARITY — the other half of "equal configs -> equal revisions": the local file this
+ * auditor reads MUST be the SAME config the graph node's OWNING DAEMON read, or the
+ * comparison is comparing two unrelated scopes and "drift" is meaningless noise. The graph
+ * half always answers from whichever daemon the runtime graph client is actually talking
+ * to (over HTTP, via the sidecar) — NOT from `rootDir`. A bare `context.rootDir` (typically
+ * `process.cwd()`, e.g. a repository checkout) is very often a DIFFERENT `.refarm/config.json`
+ * than the one the running daemon declared itself with (its own project-local sandbox config,
+ * left over from dev/testing, or simply "wherever this command happened to be invoked from").
+ * `context.configBase` is that declared scope — resolved by the caller the same way
+ * `apps/refarm/src/commands/doctor.ts`'s `resolveScopeComparison` already does for the sibling
+ * `scope:config-divergence` finding (a live node descriptor's `declarationBase`, else the
+ * parent of `resolveRefarmHome()`) — and takes priority over `rootDir` here. `rootDir` remains
+ * the fallback only so a direct, single-root caller (a unit test, or an embedded use with no
+ * node-scope concept) keeps working unchanged.
+ *
  * Three honest outcomes, not two: checked-and-clean, checked-and-found-a-problem,
  * and could-not-check. Only the first two used to reach `issues` — a thrown read
  * (runtime unreachable mid-request, malformed response, …) fell into a THIRD,
@@ -66,7 +81,12 @@ export class ConfigNodeAuditor {
 	}
 
 	async audit(context = {}) {
-		const rootDir = context.rootDir || process.cwd();
+		// SCOPE PARITY (see class doc): the local half must come from the SAME base
+		// the graph node's owning daemon used, not wherever this command happens to
+		// run from. `configBase` is that declared scope; `rootDir` is only a fallback
+		// for callers with no node-scope concept of their own (e.g. a direct,
+		// single-root unit test).
+		const configBase = context.configBase || context.rootDir || process.cwd();
 
 		if (!this.#graphContext) {
 			return {
@@ -121,7 +141,7 @@ export class ConfigNodeAuditor {
 		}
 
 		// Recompute the revision from the SAME raw source the host hashed.
-		const localConfig = loadRawSovereignConfig(rootDir);
+		const localConfig = loadRawSovereignConfig(configBase);
 		if (localConfig == null) {
 			return {
 				issues: [],
