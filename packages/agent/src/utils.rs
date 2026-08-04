@@ -99,7 +99,7 @@ pub(crate) fn estimate_billable_usd(
 /// OpenRouter's own resale prices — it can legitimately disagree with a
 /// vendor's first-party rate and be right about OpenRouter's markup, so it
 /// verifies "did our number move", never "is our number correct".
-pub(crate) const RATE_TABLE_VERSION: &str = "2026-08-03.1";
+pub(crate) const RATE_TABLE_VERSION: &str = "2026-08-04.1";
 
 /// The outcome of looking up a per-token rate for a model id.
 pub(crate) enum RateLookup {
@@ -185,8 +185,33 @@ pub(crate) fn rate_for_model(model: &str) -> RateLookup {
         // FROM being applied to Haiku 4.5 as well; Haiku 4.5 now has its own
         // branch above.
         (0.8, 4.0)
+    } else if model.contains("grok-4.3") {
+        // xAI, official pricing (verified 2026-08-04): https://docs.x.ai/docs/models
+        // The page lists two prompt-size tiers for this SAME model id. This
+        // table carries one input/output pair, so it uses the <200k prompt tier
+        // values; long-context requests are billed higher on xAI.
+        (1.25, 2.5)
+    } else if model.contains("deepseek-v4-flash") {
+        // DeepSeek, official pricing (verified 2026-08-04): https://api-docs.deepseek.com/quick_start/pricing
+        // Input here uses the listed cache-miss input rate; cache-hit pricing is
+        // provider-specific and lower than this table's generic cache discount.
+        (0.14, 0.28)
+    } else if model.contains("gemini-3-flash-preview") {
+        // Google Gemini API, official pricing (verified 2026-08-04): https://ai.google.dev/gemini-api/docs/pricing
+        // This model has modality-specific input pricing on the same row; this
+        // branch uses the text/image/video input price.
+        (0.5, 3.0)
+    } else if model.contains("llama-3.3-70b-versatile") {
+        // Groq, official pricing (verified 2026-08-04): https://groq.com/pricing
+        (0.59, 0.79)
+    } else if model.contains("mistral-medium-3-5") {
+        // Mistral, official pricing (verified 2026-08-04): https://mistral.ai/pricing/api
+        // Pricing card lists Mistral Medium 3.5 with input/output per million
+        // tokens; API aliases point to this model generation.
+        (1.5, 7.5)
     } else if model.contains("gpt-5.5") {
-        // OpenAI, official pricing (verified 2026-08-03): https://developers.openai.com/api/docs/pricing
+        // OpenAI, official pricing (verified 2026-08-03): http
+40   setup.replace(/^Set up credentials:/, "Run") + " when ready.",s://developers.openai.com/api/docs/pricing
         (5.0, 30.0)
     } else if model.contains("gpt-5-mini") {
         // OpenAI, official pricing (verified 2026-08-03): https://developers.openai.com/api/docs/pricing

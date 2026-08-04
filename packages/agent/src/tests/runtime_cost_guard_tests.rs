@@ -92,6 +92,46 @@ fn estimate_usd_openai_worker_codex_uses_gpt_5_family_rate() {
 }
 
 #[test]
+fn rate_table_prices_xai_grok_4_3() {
+    let RateLookup::Priced { rate_in, rate_out } = rate_for_model("grok-4.3") else {
+        panic!("grok-4.3 must be priced");
+    };
+    assert_eq!((rate_in, rate_out), (1.25, 2.5));
+}
+
+#[test]
+fn rate_table_prices_deepseek_v4_flash() {
+    let RateLookup::Priced { rate_in, rate_out } = rate_for_model("deepseek-v4-flash") else {
+        panic!("deepseek-v4-flash must be priced");
+    };
+    assert_eq!((rate_in, rate_out), (0.14, 0.28));
+}
+
+#[test]
+fn rate_table_prices_gemini_3_flash_preview() {
+    let RateLookup::Priced { rate_in, rate_out } = rate_for_model("gemini-3-flash-preview") else {
+        panic!("gemini-3-flash-preview must be priced");
+    };
+    assert_eq!((rate_in, rate_out), (0.5, 3.0));
+}
+
+#[test]
+fn rate_table_prices_groq_llama_3_3_70b_versatile() {
+    let RateLookup::Priced { rate_in, rate_out } = rate_for_model("llama-3.3-70b-versatile") else {
+        panic!("llama-3.3-70b-versatile must be priced");
+    };
+    assert_eq!((rate_in, rate_out), (0.59, 0.79));
+}
+
+#[test]
+fn rate_table_prices_mistral_medium_3_5() {
+    let RateLookup::Priced { rate_in, rate_out } = rate_for_model("mistral-medium-3-5") else {
+        panic!("mistral-medium-3-5 must be priced");
+    };
+    assert_eq!((rate_in, rate_out), (1.5, 7.5));
+}
+
+#[test]
 fn estimate_billable_usd_subscription_providers_are_not_api_billed() {
     assert_eq!(pricing_mode_for_provider("openai-codex"), "subscription");
     assert_eq!(
@@ -159,11 +199,17 @@ fn a_currency_ceiling_never_binds_under_a_subscription() {
 
 #[test]
 fn a_paid_provider_serving_an_open_weight_model_is_not_free() {
-    // Groq and Together SELL Llama. Ollama serves it free, and never reaches
-    // this table: estimate_billable_usd short-circuits on `local` pricing mode
-    // before the lookup runs. A model id cannot tell you who is charging.
-    assert!(matches!(rate_for_model("llama-3.3-70b-versatile"), RateLookup::Unknown));
-    assert!(matches!(rate_for_model("mistral-medium-3-5"), RateLookup::Unknown));
+    // Groq and Mistral SELL these model ids; they are now explicitly priced.
+    // Ollama serves local models for free and still bypasses the table entirely
+    // through `pricing_mode_for_provider`.
+    assert!(matches!(
+        rate_for_model("llama-3.3-70b-versatile"),
+        RateLookup::Priced { .. }
+    ));
+    assert!(matches!(
+        rate_for_model("mistral-medium-3-5"),
+        RateLookup::Priced { .. }
+    ));
     assert_eq!(
         estimate_billable_usd("ollama", "llama3.2", 10_000, 5_000, 0, 0),
         0.0,

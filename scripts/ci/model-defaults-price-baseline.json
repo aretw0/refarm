@@ -2,34 +2,9 @@
 	"note": "The unpriced-default-model ratchet (Task 8, docs/superpowers/plans/2026-08-03-budget-laboratory.md). Mirrors the shape hardening-baseline.json / packages/hardening/src/baseline.ts already use in this repo: a baseline that may only shrink. `pnpm run models:defaults:check` goes red if a default model with no `rate_for_model` branch is NOT listed here (growth), red if a listed entry now HAS a rate and the entry was not deleted (undeleted progress), and red if a listed entry no longer matches any current default model (stale cover). It is green while every unpriced default is accounted for here — the debt is enumerated, not hidden. Every entry names the vendor's OFFICIAL pricing page — never a third-party aggregator: an unverified number presented as fact is exactly the failure this task exists to prevent. Edited BY HAND: no command writes this file.",
 	"entries": [
 		{
-			"id": "xai:grok-4.3",
-			"pricingUrl": "https://docs.x.ai/docs/models",
-			"note": "2026-08-03: xai's default is grok-4.3; rate_for_model has no grok/xai branch at all. Verify a rate against the official page above (never a third-party aggregator), add a `model.contains(\"...\")` branch, bump RATE_TABLE_VERSION, and delete this entry."
-		},
-		{
-			"id": "deepseek:deepseek-v4-flash",
-			"pricingUrl": "https://api-docs.deepseek.com/quick_start/pricing",
-			"note": "2026-08-03: deepseek's default is deepseek-v4-flash; rate_for_model has never had a branch for it (the deleted free-list only ever named deepseek-r1, a different model). Verify a rate against the official page above and delete this entry once priced."
-		},
-		{
-			"id": "gemini:gemini-3-flash-preview",
-			"pricingUrl": "https://ai.google.dev/gemini-api/docs/pricing",
-			"note": "2026-08-03: gemini's default is gemini-3-flash-preview; rate_for_model has no gemini branch at all. Verify a rate against the official page above and delete this entry once priced."
-		},
-		{
-			"id": "groq:llama-3.3-70b-versatile",
-			"pricingUrl": "https://groq.com/pricing",
-			"note": "2026-08-03: Groq SELLS this Llama id over its own API — it is not the free, locally-run Ollama model despite the shared name. It was misclassified `RateLookup::Free` by the now-deleted `KNOWN_FREE_MODEL_SUBSTRINGS` substring match (\"llama\") until Task 8 removed that concept; honestly `Unknown` until priced from the page above."
-		},
-		{
 			"id": "together:meta-llama/Llama-3.3-70B-Instruct-Turbo",
 			"pricingUrl": "https://www.together.ai/pricing",
-			"note": "2026-08-03: Together SELLS this Llama id over its own API — same misclassification as the groq entry above: the model name matched the deleted free-list substring \"llama\" even though Together bills for the tokens. Honestly `Unknown` until priced from the page above."
-		},
-		{
-			"id": "mistral:mistral-medium-3-5",
-			"pricingUrl": "https://mistral.ai/pricing/api",
-			"note": "2026-08-03: Mistral's own hosted API sells this model — the deleted free-list substring \"mistral\" matched the vendor's own name, which was always going to be wrong the moment mistral.ai itself started billing for it. Honestly `Unknown` until priced from the page above."
+			"note": "2026-08-04: checked the official Together pricing page and searched for the exact default id `meta-llama/Llama-3.3-70B-Instruct-Turbo`; it is not listed literally on that page. The page lists `Llama 3.3 70B` pricing, but this baseline keeps `Unknown` until the exact configured id (or an explicit alias mapping for it) is confirmed on the official page."
 		}
 	]
 }
