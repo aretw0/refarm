@@ -134,6 +134,11 @@ function buildReport(options) {
 	const nodeSubstrate = checkNodeSubstrate();
 	const packageDir = resolvePackageDir(ROOT, options.packageRef);
 	const packageTsconfig = checkPackageTsconfig(packageDir);
+	const editorNoiseLikely = Boolean(
+		packageDir
+		&& packageTsconfig.skipped === false
+		&& packageTsconfig.showConfigExitCode === 0,
+	);
 	const checks = [
 		{ id: "node-substrate", ok: nodeSubstrate.ok },
 		{ id: "package-tsconfig", ok: packageTsconfig.ok },
@@ -148,6 +153,13 @@ function buildReport(options) {
 		checks,
 		nodeSubstrate,
 		packageTsconfig,
+		editorNoiseLikely,
+		editorNoiseAdvice: editorNoiseLikely
+			? [
+				"If VS Code still reports tsconfig parse errors, treat workspace tsc as source of truth.",
+				"In VS Code, switch to TypeScript: Use Workspace Version and restart TS Server.",
+			]
+			: [],
 		nextAction: ok
 			? null
 			: "Run node-substrate check first, then materialize workspace links for the target package and re-run onboarding doctor.",
@@ -160,6 +172,12 @@ function printHuman(report) {
 		console.log("onboarding-doctor: OK");
 		if (report.packageDir) {
 			console.log(`  package tsconfig: OK (${report.packageDir})`);
+		}
+		if (report.editorNoiseLikely) {
+			console.log("  note: editor noise may still happen even when workspace tsc is healthy");
+			for (const advice of report.editorNoiseAdvice) {
+				console.log(`    - ${advice}`);
+			}
 		}
 		return;
 	}
