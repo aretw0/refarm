@@ -132,6 +132,54 @@ fn rate_table_prices_mistral_medium_3_5() {
 }
 
 #[test]
+fn rate_table_prices_claude_fable_5() {
+    let RateLookup::Priced { rate_in, rate_out } = rate_for_model("claude-fable-5") else {
+        panic!("claude-fable-5 must be priced");
+    };
+    assert_eq!((rate_in, rate_out), (10.0, 50.0));
+}
+
+#[test]
+fn rate_table_prices_claude_opus_5() {
+    let RateLookup::Priced { rate_in, rate_out } = rate_for_model("claude-opus-5") else {
+        panic!("claude-opus-5 must be priced");
+    };
+    assert_eq!((rate_in, rate_out), (5.0, 25.0));
+}
+
+#[test]
+fn rate_table_prices_claude_sonnet_5_introductory_rate() {
+    let RateLookup::Priced { rate_in, rate_out } = rate_for_model("claude-sonnet-5") else {
+        panic!("claude-sonnet-5 must be priced");
+    };
+    assert_eq!((rate_in, rate_out), (2.0, 10.0));
+}
+
+#[test]
+fn rate_table_prices_openai_gpt_5_6_sol() {
+    let RateLookup::Priced { rate_in, rate_out } = rate_for_model("gpt-5.6-sol") else {
+        panic!("gpt-5.6-sol must be priced");
+    };
+    assert_eq!((rate_in, rate_out), (5.0, 30.0));
+}
+
+#[test]
+fn rate_table_prices_openai_gpt_5_6_terra() {
+    let RateLookup::Priced { rate_in, rate_out } = rate_for_model("gpt-5.6-terra") else {
+        panic!("gpt-5.6-terra must be priced");
+    };
+    assert_eq!((rate_in, rate_out), (2.0, 12.0));
+}
+
+#[test]
+fn rate_table_prices_openai_gpt_5_6_luna() {
+    let RateLookup::Priced { rate_in, rate_out } = rate_for_model("gpt-5.6-luna") else {
+        panic!("gpt-5.6-luna must be priced");
+    };
+    assert_eq!((rate_in, rate_out), (0.2, 1.2));
+}
+
+#[test]
 fn estimate_billable_usd_subscription_providers_are_not_api_billed() {
     assert_eq!(pricing_mode_for_provider("openai-codex"), "subscription");
     assert_eq!(
@@ -219,15 +267,13 @@ fn a_paid_provider_serving_an_open_weight_model_is_not_free() {
 
 #[test]
 fn an_unpriced_new_model_is_unknown_rather_than_free() {
-    // The measured drift this task closes: the table's Claude branches stop at
-    // the 4 family, so a Claude 5 id matched nothing and fell through to the
-    // return value meaning "local model, genuinely free". It is now UNKNOWN —
-    // still estimated at zero, but no longer indistinguishable from free, and
-    // it says its own name in the log.
-    assert!(matches!(rate_for_model("claude-opus-5"), RateLookup::Unknown));
-    assert!(matches!(rate_for_model("claude-sonnet-5"), RateLookup::Unknown));
-    // The 4 family still prices, so nothing in use today regressed.
+    // Future families that are not on file should remain UNKNOWN instead of
+    // being interpreted as genuinely free.
+    assert!(matches!(rate_for_model("claude-opus-6"), RateLookup::Unknown));
+    assert!(matches!(rate_for_model("claude-sonnet-6"), RateLookup::Unknown));
+    // Current families still price.
     assert!(matches!(rate_for_model("claude-sonnet-4-6"), RateLookup::Priced { .. }));
+    assert!(matches!(rate_for_model("claude-sonnet-5"), RateLookup::Priced { .. }));
 }
 
 #[test]

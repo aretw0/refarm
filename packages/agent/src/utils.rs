@@ -99,7 +99,7 @@ pub(crate) fn estimate_billable_usd(
 /// OpenRouter's own resale prices — it can legitimately disagree with a
 /// vendor's first-party rate and be right about OpenRouter's markup, so it
 /// verifies "did our number move", never "is our number correct".
-pub(crate) const RATE_TABLE_VERSION: &str = "2026-08-04.1";
+pub(crate) const RATE_TABLE_VERSION: &str = "2026-08-04.2";
 
 /// The outcome of looking up a per-token rate for a model id.
 pub(crate) enum RateLookup {
@@ -123,7 +123,25 @@ pub(crate) enum RateLookup {
 /// before its family prefix ("gpt-5"), or a point release would silently
 /// inherit the family's rate while looking perfectly plausible.
 pub(crate) fn rate_for_model(model: &str) -> RateLookup {
-    let (rate_in, rate_out): (f64, f64) = if model.contains("claude-opus-4-5")
+    let (rate_in, rate_out): (f64, f64) = if model.contains("claude-fable-5")
+        || model.contains("claude-mythos-5")
+    {
+        // Anthropic, official pricing (verified 2026-08-04):
+        // https://platform.claude.com/docs/en/about-claude/pricing
+        // Fable 5 and Mythos 5 are listed as separate rows at the same
+        // input/output rates.
+        (10.0, 50.0)
+    } else if model.contains("claude-opus-5") {
+        // Anthropic, official pricing (verified 2026-08-04):
+        // https://platform.claude.com/docs/en/about-claude/pricing
+        (5.0, 25.0)
+    } else if model.contains("claude-sonnet-5") {
+        // Anthropic, official pricing (verified 2026-08-04):
+        // https://platform.claude.com/docs/en/about-claude/pricing
+        // This is the documented introductory API rate through 2026-08-31.
+        // A documented post-intro rate takes effect on 2026-09-01.
+        (2.0, 10.0)
+    } else if model.contains("claude-opus-4-5")
         || model.contains("claude-opus-4-6")
         || model.contains("claude-opus-4-7")
         || model.contains("claude-opus-4-8")
@@ -209,9 +227,23 @@ pub(crate) fn rate_for_model(model: &str) -> RateLookup {
         // Pricing card lists Mistral Medium 3.5 with input/output per million
         // tokens; API aliases point to this model generation.
         (1.5, 7.5)
+    } else if model.contains("gpt-5.6-sol") {
+        // OpenAI, official pricing (verified 2026-08-04): https://developers.openai.com/api/docs/pricing
+        // The page also lists higher long-context rates; this branch uses the
+        // standard short-context input/output row.
+        (5.0, 30.0)
+    } else if model.contains("gpt-5.6-terra") {
+        // OpenAI, official pricing (verified 2026-08-04): https://developers.openai.com/api/docs/pricing
+        // The page also lists higher long-context rates; this branch uses the
+        // standard short-context input/output row.
+        (2.0, 12.0)
+    } else if model.contains("gpt-5.6-luna") {
+        // OpenAI, official pricing (verified 2026-08-04): https://developers.openai.com/api/docs/pricing
+        // The page also lists higher long-context rates; this branch uses the
+        // standard short-context input/output row.
+        (0.2, 1.2)
     } else if model.contains("gpt-5.5") {
-        // OpenAI, official pricing (verified 2026-08-03): http
-40   setup.replace(/^Set up credentials:/, "Run") + " when ready.",s://developers.openai.com/api/docs/pricing
+        // OpenAI, official pricing (verified 2026-08-03): https://developers.openai.com/api/docs/pricing
         (5.0, 30.0)
     } else if model.contains("gpt-5-mini") {
         // OpenAI, official pricing (verified 2026-08-03): https://developers.openai.com/api/docs/pricing
