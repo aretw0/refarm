@@ -1,6 +1,6 @@
+import type { DeliveryRequest } from "@refarm.dev/delivery-contract-v1";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import type { DeliveryRequest } from "@refarm.dev/delivery-contract-v1";
 import { afterEach, describe, expect, it } from "vitest";
 import { createTelegramDeliveryAdapter } from "./index.js";
 
@@ -125,9 +125,17 @@ describe("end to end against a local Bot API stub", () => {
 		expect(outcome.status).toBe("delivered");
 		expect(outcome.mode).toBe("answer");
 
-		// The watch runs detached; give its first real HTTP poll time to land.
+		// The watch runs detached: sink.answer() settles `settled` synchronously,
+		// then acknowledge() fires a SEPARATE, still-in-flight answerCallbackQuery
+		// request. Wait for both signals this test asserts on below, not just the
+		// first one to land — or the acknowledgement can still be in flight when
+		// the assertion checks for it.
 		const deadline = Date.now() + 2_000;
-		while (settled.length === 0 && Date.now() < deadline) {
+		while (
+			(settled.length === 0 ||
+				!received.some((r) => r.path.endsWith("/answerCallbackQuery"))) &&
+			Date.now() < deadline
+		) {
 			await new Promise((r) => setTimeout(r, 10));
 		}
 
