@@ -117,7 +117,11 @@ refarm agent finish --lane before-push --run --json
 
 ## 7. Build Resource Discipline
 
-The host machine has **~8GB RAM and 16 cores**. Default Rust toolchain settings (`jobs=16`, `codegen-units=16`) will exhaust available memory and crash the container. `.cargo/config.toml` at the repo root enforces safe defaults — do not override them without reason.
+Rust parallelism defaults are intentionally conservative in this repo because broad builds can saturate memory on constrained environments (especially shared devcontainers) and fail before producing useful signal.
+
+Host capacities vary across operators. When numbers are mentioned, they are observations from a specific environment and date, not a universal host fact. Example: on 2026-08-04, one host measured ~31GB RAM (about 17GB available) and 8 cores.
+
+`.cargo/config.toml` at the repo root defines safe baseline defaults for shared usage. These defaults are adjustable per host/workload when capacity allows (for example via `cargo --jobs`, environment variables, or `CARGO_TARGET_DIR` placement) while keeping release WASM size guarantees intact.
 
 > For artifact locations, cleanup tiers (light/medium/heavy), CARGO_TARGET_DIR volume layout, and disk compaction guidance: see [`docs/local-disk-hygiene.md`](docs/local-disk-hygiene.md).
 
@@ -158,8 +162,9 @@ cargo test   # compiles ALL test binaries simultaneously → OOM risk
 
 | Setting                         | Default | This repo | Reason                               |
 | ------------------------------- | ------- | --------- | ------------------------------------ |
-| `build.jobs`                    | 16      | 4         | Limits parallel crate compilation    |
-| `profile.dev.codegen-units`     | 16      | 4         | Limits LLVM threads per crate        |
+| `build.jobs`                    | host CPU count | 6         | Conservative shared-host parallelism |
+| `profile.dev.codegen-units`     | 16      | 6         | Balanced dev/test throughput vs RAM  |
+| `profile.test.codegen-units`    | inherits dev (16 baseline) | 6         | Keep test compiles aligned with dev  |
 | `profile.release.codegen-units` | 16      | 1         | Smaller WASM binary + lower peak RAM |
 
 > _Active Inference_: a build that crashes the container produces zero information. Constraining parallelism is not slower — crashing and restarting is slower.
