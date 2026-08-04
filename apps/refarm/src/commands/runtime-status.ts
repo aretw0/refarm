@@ -300,6 +300,12 @@ export function printRuntimeStatus(payload: RuntimeStatusPayload): void {
 	if (payload.sidecarUrl) {
 		console.log(`  sidecar:    ${payload.sidecarUrl}`);
 	}
+	console.log(`  context:    ${payload.context.mode}`);
+	console.log(`  home:       ${payload.context.sovereignHome}`);
+	console.log(`  store:      ${payload.context.credentialStoreHome}`);
+	if (!payload.context.homesAligned) {
+		console.log(chalk.yellow("  warning:    REFARM_HOME and SILO_HOME resolve to different homes"));
+	}
 	console.log(`  reason:     ${payload.reason}`);
 	if (payload.startCommand) {
 		console.log(`  start:      ${payload.startCommand}`);

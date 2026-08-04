@@ -52,6 +52,9 @@ describe("runtime command", () => {
 		expect(output).toContain("ready:      yes");
 		expect(output).toContain("autostart:  always");
 		expect(output).toContain("sidecar:    http://127.0.0.1:42001");
+		expect(output).toContain("context:    node-global");
+		expect(output).toContain("home:       ");
+		expect(output).toContain("store:      ");
 		expect(output).toContain("start:      tractor");
 		expect(output).toContain("refarm config set tractor.engine auto");
 		expect(output).toContain("refarm config set runtime.autostart always");

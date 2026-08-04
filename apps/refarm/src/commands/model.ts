@@ -707,6 +707,12 @@ export function formatCurrentModelFromStatus(status: CurrentModelStatus): string
 	if (resolvedModel) lines.push(`  model:    ${resolvedModel}`);
 	if (status.credential.envKey) lines.push(`  key env:  ${status.credential.envKey}`);
 	if (status.credential.status) lines.push(`  key:      ${status.credential.status}`);
+	lines.push(`  context:  ${status.context.mode}`);
+	lines.push(`  home:     ${status.context.sovereignHome}`);
+	lines.push(`  store:    ${status.context.credentialStoreHome}`);
+	if (!status.context.homesAligned) {
+		lines.push(chalk.yellow("  warning: REFARM_HOME and SILO_HOME resolve to different homes"));
+	}
 	if (status.baseUrl) lines.push(`  base url: ${status.baseUrl}`);
 	if (status.fallback) lines.push(`  fallback: ${status.fallback}`);
 	if (provider === "ollama") lines.push(chalk.dim(`  doctor:   ${MODEL_DOCTOR_JSON_COMMAND}`));

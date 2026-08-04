@@ -106,6 +106,9 @@ describe("modelCommand", () => {
 		expect(output).toContain("openai/gpt-5.5");
 		expect(output).toContain("key env:  OPENAI_API_KEY");
 		expect(output).toContain("key:      missing (run refarm sow)");
+		expect(output).toContain("context:  node-global");
+		expect(output).toContain("home:     ");
+		expect(output).toContain("store:    ");
 		expect(output).toContain("openai/gpt-5.3-codex-spark");
 		expect(output).toContain("monitor:  openai/gpt-5.5");
 
