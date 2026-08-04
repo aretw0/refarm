@@ -61,15 +61,15 @@ impl CostTier {
 }
 
 /// The declared capabilities of a `(provider, model)` route — the metadata a profile
-/// routes BY. Kept deliberately small: the axes the ADR named (tool-call, structured
-/// JSON, a cost tier, a rough context window). Extend here as routing needs grow.
+/// routes BY. Kept deliberately small: the axes the ADR named that a ROUTER actually
+/// decides on (tool-call, structured JSON, a cost tier). Per-model facts about the
+/// vendor's product — window sizes, prices — belong in the model catalog, where the
+/// schema makes them carry a source and a date; see `provider_capabilities` below.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ModelCapabilities {
     pub tool_call: bool,
     pub structured_json: bool,
     pub cost_tier: CostTier,
-    /// Rough max context window in tokens (0 = unknown/unbounded floor).
-    pub context_window: u32,
 }
 
 /// The capability map: what a provider's DEFAULT model is known to support. Keyed by
@@ -79,57 +79,64 @@ pub(crate) struct ModelCapabilities {
 /// usable as a route, but tagged `Local` so cost-ordered profiles rank it last... or
 /// first, for `cheap`). PURE.
 ///
-/// PROVENANCE GAP, recorded rather than papered over (2026-08-04, budget-laboratory D3): the
-/// `context_window` figures below carry no vendor citation. They were added whole with ADR-012
-/// (`d5584e74`/`48583032`) without a source link, and neither that commit nor anything findable
-/// in this repo's history names where they came from — source unknown. Unlike `rate_for_model`
-/// in `utils.rs` (this table's sibling and the pattern it should eventually match), these are
-/// NOT verified against an official vendor page as of this date; treat them as rough defaults
-/// only, per the field's own doc comment, until someone cites each one.
+/// `context_window` USED TO LIVE HERE and was removed on 2026-08-04. It is recorded rather than
+/// silently dropped, because the reason generalises to anything else that might be added here.
+///
+/// It had no vendor citation, and the reason it had none was structural, not sloppy: five
+/// providers with five different default models shared two match arms and two numbers, so the
+/// figures were assigned by COST TIER, never looked up per model. Checking them against the
+/// vendors confirmed it — Sonnet 4.6 is 1M, not the 200_000 recorded; grok-4.3 is 1M and
+/// deepseek-v4-flash is 1M, not 128_000; llama-3.3-70b-versatile is 131_072, not 128_000. Every
+/// verifiable figure was wrong, all in the same direction: the round numbers of an earlier era,
+/// frozen while the market moved.
+///
+/// Nothing ever read the field — `tool_call` and `structured_json` are read by
+/// `profile_requirement`, `cost_tier` by profile ordering, and `context_window` by nobody — which
+/// is exactly why it could rot undisturbed. A wrong number nobody reads is worse than no number:
+/// it is correct-looking until the day something reads it.
+///
+/// Its home is `packages/model-catalog-v1`, whose schema REQUIRES a source and a verification
+/// date per fact (`contextWindow: { tokens, sourceUrl, verifiedAt }`) and where the verified
+/// windows now live, with the two the vendors do not publish left honestly absent. Wiring this
+/// crate to read that catalog is real, unstarted work; until it happens, a routing decision that
+/// needs a context window must go and get it from there, not from a constant here.
 pub(crate) fn provider_capabilities(provider: &str) -> ModelCapabilities {
     match provider {
         "anthropic" => ModelCapabilities {
             tool_call: true,
             structured_json: true,
             cost_tier: CostTier::Premium,
-            context_window: 200_000,
         },
         "openai" | "openai-codex" => ModelCapabilities {
             tool_call: true,
             structured_json: true,
             cost_tier: CostTier::Premium,
-            context_window: 128_000,
         },
         "openrouter" => ModelCapabilities {
             tool_call: true,
             structured_json: true,
             cost_tier: CostTier::Mid,
-            context_window: 200_000,
         },
         "mistral" | "xai" => ModelCapabilities {
             tool_call: true,
             structured_json: true,
             cost_tier: CostTier::Mid,
-            context_window: 128_000,
         },
         "groq" | "deepseek" | "together" => ModelCapabilities {
             tool_call: true,
             structured_json: true,
             cost_tier: CostTier::Cheap,
-            context_window: 128_000,
         },
         "gemini" => ModelCapabilities {
             tool_call: true,
             structured_json: true,
             cost_tier: CostTier::Cheap,
-            context_window: 1_000_000,
         },
         // ollama + any unknown provider: the keyless local floor.
         _ => ModelCapabilities {
             tool_call: true,
             structured_json: false,
             cost_tier: CostTier::Local,
-            context_window: 8_192,
         },
     }
 }

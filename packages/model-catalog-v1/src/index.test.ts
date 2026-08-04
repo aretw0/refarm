@@ -98,3 +98,68 @@ describe("model-catalog-v1", () => {
     expect(resolved?.tariff).toEqual({ inputPerMTokenUsd: 5, outputPerMTokenUsd: 30 });
   });
 });
+
+describe("contextWindow provenance", () => {
+  const withWindow = (contextWindow: unknown): unknown => ({
+    schemaVersion: "model-rate-catalog.v1",
+    catalogVersion: "2026-08-04.1",
+    entries: [
+      {
+        provider: "xai",
+        match: { mode: "contains", value: "grok-4.3" },
+        rate: { inputPerMTokenUsd: 1, outputPerMTokenUsd: 2 },
+        pricingUrl: "https://docs.x.ai/docs/models",
+        verifiedAt: "2026-08-04",
+        contextWindow,
+      },
+    ],
+  });
+
+  it("accepts a window that names its own source and date", () => {
+    expect(() =>
+      assertValidModelRateCatalog(
+        withWindow({
+          tokens: 1_000_000,
+          sourceUrl: "https://docs.x.ai/docs/models",
+          verifiedAt: "2026-08-04",
+        }),
+      ),
+    ).not.toThrow();
+  });
+
+  it("stays absent without complaint when the vendor publishes no figure", () => {
+    // gemini-3-flash-preview and mistral-medium-3-5 are exactly this case in the real
+    // catalog: their overview pages carry no context-window figure, so they carry no
+    // entry. Absent must remain cheaper than guessing.
+    const noWindow = withWindow(undefined) as { entries: Array<Record<string, unknown>> };
+    delete noWindow.entries[0].contextWindow;
+    expect(() => assertValidModelRateCatalog(noWindow)).not.toThrow();
+  });
+
+  it("rejects a window that borrows the entry's citation instead of carrying its own", () => {
+    // The failure this field exists to prevent: a number present, a source missing, and
+    // the reader assuming the neighbouring pricingUrl covers it.
+    expect(() => assertValidModelRateCatalog(withWindow({ tokens: 1_000_000 }))).toThrow(
+      /contextWindow\.sourceUrl/,
+    );
+    expect(() =>
+      assertValidModelRateCatalog(
+        withWindow({ tokens: 1_000_000, sourceUrl: "https://docs.x.ai/docs/models" }),
+      ),
+    ).toThrow(/contextWindow\.verifiedAt/);
+  });
+
+  it("rejects a window that is not a positive whole number of tokens", () => {
+    for (const tokens of [0, -1, 1.5, "1000000"]) {
+      expect(() =>
+        assertValidModelRateCatalog(
+          withWindow({
+            tokens,
+            sourceUrl: "https://docs.x.ai/docs/models",
+            verifiedAt: "2026-08-04",
+          }),
+        ),
+      ).toThrow(/contextWindow\.tokens/);
+    }
+  });
+});

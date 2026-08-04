@@ -12,6 +12,25 @@ export interface ModelTariff {
 
 export type ModelRate = ModelTariff;
 
+/**
+ * A model's maximum context window, in tokens, carrying its OWN source and verification date
+ * rather than borrowing the entry's `pricingUrl`/`verifiedAt`.
+ *
+ * Two facts about the same model can come from two different vendor pages — the price often
+ * lives on a pricing page and the window on a models/specs page — and a citation must cover
+ * exactly what it claims. Sharing one date between them would let a re-verified price silently
+ * re-date an unchecked window.
+ *
+ * Optional by design: a vendor that does not publish the figure leaves it ABSENT. A guessed
+ * window is worse than no window, because a number that looks like data flows into routing
+ * decisions.
+ */
+export interface ModelContextWindow {
+  tokens: number;
+  sourceUrl: string;
+  verifiedAt: string;
+}
+
 export interface ModelTariffEntry {
   provider: string;
   match: ModelMatchRule;
@@ -20,6 +39,7 @@ export interface ModelTariffEntry {
   verifiedAt: string;
   effectiveFrom?: string;
   effectiveTo?: string;
+  contextWindow?: ModelContextWindow;
 }
 
 export type ModelRateEntry = ModelTariffEntry;
@@ -165,6 +185,34 @@ function validateModelTariffShape(
 
     if (!entry.verifiedAt || typeof entry.verifiedAt !== "string") {
       issues.push({ path: `${prefix}.verifiedAt`, message: "must be a non-empty date string" });
+    }
+
+    // Absent is fine — a vendor that does not publish the figure gets no entry. But PRESENT
+    // and unsourced is not: the same discipline pricingUrl/verifiedAt enforce above.
+    if (entry.contextWindow !== undefined) {
+      const cw = entry.contextWindow as Partial<ModelContextWindow>;
+      if (!cw || typeof cw !== "object") {
+        issues.push({ path: `${prefix}.contextWindow`, message: "must be an object when present" });
+      } else {
+        if (typeof cw.tokens !== "number" || !Number.isInteger(cw.tokens) || cw.tokens <= 0) {
+          issues.push({
+            path: `${prefix}.contextWindow.tokens`,
+            message: "must be a positive integer",
+          });
+        }
+        if (!cw.sourceUrl || typeof cw.sourceUrl !== "string") {
+          issues.push({
+            path: `${prefix}.contextWindow.sourceUrl`,
+            message: "must be a non-empty string",
+          });
+        }
+        if (!cw.verifiedAt || typeof cw.verifiedAt !== "string") {
+          issues.push({
+            path: `${prefix}.contextWindow.verifiedAt`,
+            message: "must be a non-empty date string",
+          });
+        }
+      }
     }
   }
 
