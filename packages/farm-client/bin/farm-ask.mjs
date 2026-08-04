@@ -13,6 +13,10 @@
  * farm's default route:
  *   FARM_PROVIDER=openai-codex FARM_MODEL=gpt-5.3-codex-spark farm-ask "tarefa"
  *
+ * Declare this dispatch's own budget — all optional, omit any/all to leave the
+ * farm's own default/ceiling in charge:
+ *   FARM_BUDGET_DEADLINE_MS=120000 FARM_BUDGET_MAX_TOKENS=50000 farm-ask "tarefa"
+ *
  * It submits an effort to the farm's sidecar (POST /efforts) and polls the
  * result (GET /efforts/:id) until the agent answers.
  */
@@ -79,6 +83,17 @@ const route = {
   ...(process.env.FARM_MODEL ? { model: process.env.FARM_MODEL } : {}),
 };
 
+// Optional budget declaration via env, same absent-means-absent contract as the
+// route above. Raw env strings ride straight into buildRespondEffort, which
+// calls the kit's ONE budget validator (parseBudgetDeclaration, src/effort.mjs)
+// — this file never re-checks the numbers itself, so the CLI and any other
+// caller can never drift on what counts as a valid ceiling.
+const budgetEnv = {
+  deadlineMs: process.env.FARM_BUDGET_DEADLINE_MS,
+  maxTokens: process.env.FARM_BUDGET_MAX_TOKENS,
+  maxUsd: process.env.FARM_BUDGET_MAX_USD,
+};
+
 // Um Ctrl+C na pergunta é uma REJEIÇÃO do bloco de prompt, não um crash: sai
 // com uma linha e o código de SIGINT, nunca com um stack trace na cara.
 let host;
@@ -105,12 +120,23 @@ if (!sidecar.usable) {
 const routeLabel = route.model ? ` [${route.provider ?? "?"}/${route.model}]` : "";
 console.log(`\n🌱 farm-ask → ${host}${routeLabel}\n▸ ${prompt}\n`);
 
+// Build (and validate) the effort BEFORE any network call, so an invalid
+// FARM_BUDGET_* value fails at the surface with a message naming the field,
+// never as a mysterious node-side rejection after a request already left.
+let effort;
+try {
+  effort = buildRespondEffort(prompt, { ...route, ...budgetEnv });
+} catch (err) {
+  console.error(`❌ ${err.message}`);
+  process.exit(2);
+}
+
 let effortId;
 try {
   const res = await fetch(`${base}/efforts`, {
     method: "POST",
     headers: { "content-type": "application/json", ...farmAuthHeaders() },
-    body: JSON.stringify(buildRespondEffort(prompt, route)),
+    body: JSON.stringify(effort),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   effortId = (await res.json()).effortId;

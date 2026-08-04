@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 
 import {
 	createDispatchCapability,
+	parseBudgetOptions,
 	parseDispatchArgs,
+	type BudgetDeclaration,
 	type DispatchCommandDeps,
 } from "./dispatch-capability.js";
 
@@ -34,6 +36,59 @@ describe("parseDispatchArgs", () => {
 
 	it("errors on a malformed pair", () => {
 		expect(parseDispatchArgs(["nokey"])).toEqual({ error: 'arg "nokey" must be key=value' });
+	});
+});
+
+describe("parseBudgetOptions", () => {
+	it("parses all three flags into the wire's camelCase shape", () => {
+		const r = parseBudgetOptions({
+			"budget-deadline-ms": "120000",
+			"budget-max-tokens": "50000",
+			"budget-max-usd": "2.5",
+		});
+		expect("budget" in r && r.budget).toEqual({
+			deadlineMs: 120000,
+			maxTokens: 50000,
+			maxUsd: 2.5,
+		} satisfies BudgetDeclaration);
+	});
+
+	it("omitting a flag omits that field entirely — not 0, not null", () => {
+		const r = parseBudgetOptions({ "budget-deadline-ms": "120000" });
+		expect("budget" in r && r.budget).toEqual({ deadlineMs: 120000 });
+		expect("budget" in r && r.budget && "maxTokens" in r.budget).toBe(false);
+		expect("budget" in r && r.budget && "maxUsd" in r.budget).toBe(false);
+	});
+
+	it("omitting all three sends no budget object at all", () => {
+		const r = parseBudgetOptions({});
+		expect(r).toEqual({});
+		expect("budget" in r).toBe(false);
+	});
+
+	it("also treats an option absent from a larger options bag as absent", () => {
+		const r = parseBudgetOptions({ json: true, limit: "5" });
+		expect(r).toEqual({});
+	});
+
+	it("accepts an explicit zero as a real declared ceiling", () => {
+		const r = parseBudgetOptions({ "budget-max-tokens": "0" });
+		expect("budget" in r && r.budget).toEqual({ maxTokens: 0 });
+	});
+
+	it("rejects a negative value, naming the flag", () => {
+		const r = parseBudgetOptions({ "budget-deadline-ms": "-1" });
+		expect(r).toEqual({ error: '--budget-deadline-ms must not be negative, got "-1"' });
+	});
+
+	it("rejects a non-numeric value, naming the flag", () => {
+		const r = parseBudgetOptions({ "budget-max-usd": "soon" });
+		expect(r).toEqual({ error: '--budget-max-usd must be a number, got "soon"' });
+	});
+
+	it("rejects an empty-string value rather than reading it as zero", () => {
+		const r = parseBudgetOptions({ "budget-max-tokens": "  " });
+		expect(r).toEqual({ error: '--budget-max-tokens must be a number, got "  "' });
 	});
 });
 
@@ -86,5 +141,85 @@ describe("dispatch capability", () => {
 		const env = await cap.run!(input);
 		expect(env.ok).toBe(false);
 		expect((env as { error?: string }).error).toBe("dispatch-failed");
+	});
+
+	it("declares the three budget flags as options", () => {
+		const cap = createDispatchCapability(makeDeps());
+		expect(cap.options?.map((o) => o.name)).toEqual([
+			"budget-deadline-ms",
+			"budget-max-tokens",
+			"budget-max-usd",
+		]);
+	});
+
+	it("--budget-deadline-ms rides the effort as Effort.budget.deadlineMs, from real argv", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, [
+			"quality",
+			"check",
+			"--budget-deadline-ms",
+			"120000",
+		]);
+		const env = await cap.run!(input);
+		expect(env.ok).toBe(true);
+		expect(d.submitted).toHaveLength(1);
+		expect((d.submitted[0] as Effort & { budget?: BudgetDeclaration }).budget).toEqual({
+			deadlineMs: 120000,
+		});
+	});
+
+	it("all three budget flags together ride as one Effort.budget object", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, [
+			"quality",
+			"check",
+			"--budget-deadline-ms",
+			"120000",
+			"--budget-max-tokens",
+			"50000",
+			"--budget-max-usd",
+			"2.5",
+		]);
+		await cap.run!(input);
+		expect((d.submitted[0] as Effort & { budget?: BudgetDeclaration }).budget).toEqual({
+			deadlineMs: 120000,
+			maxTokens: 50000,
+			maxUsd: 2.5,
+		});
+	});
+
+	it("no --budget-* flag ⇒ the submitted effort carries no budget key at all (byte-identical to today)", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check"]);
+		await cap.run!(input);
+		const submitted = d.submitted[0] as Effort & { budget?: BudgetDeclaration };
+		expect("budget" in submitted).toBe(false);
+		expect(JSON.stringify(submitted).includes("budget")).toBe(false);
+	});
+
+	it("rejects an invalid --budget-max-usd before dispatching anything", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check", "--budget-max-usd", "not-a-number"]);
+		const env = await cap.run!(input);
+		expect(env.ok).toBe(false);
+		expect((env as { error?: string }).error).toBe("invalid-args");
+		expect((env as { message?: string }).message).toBe(
+			'--budget-max-usd must be a number, got "not-a-number"',
+		);
+		expect(d.submitted).toHaveLength(0);
+	});
+
+	it("rejects a negative --budget-deadline-ms before dispatching anything", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check", "--budget-deadline-ms", "-5"]);
+		const env = await cap.run!(input);
+		expect(env.ok).toBe(false);
+		expect((env as { error?: string }).error).toBe("invalid-args");
+		expect(d.submitted).toHaveLength(0);
 	});
 });

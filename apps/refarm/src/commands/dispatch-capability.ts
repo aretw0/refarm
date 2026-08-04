@@ -9,6 +9,7 @@ import {
 	parseDispatchArgs,
 	type SubmitEffort,
 } from "@refarm.dev/capability-host";
+import type { Effort } from "@refarm.dev/effort-contract-v1";
 import { submitEffortViaSidecar } from "./dispatch-submit.js";
 
 /**
@@ -22,6 +23,13 @@ import { submitEffortViaSidecar } from "./dispatch-submit.js";
  * Args are `key=value` pairs, each value parsed as JSON when it parses (so
  * `note={"path":"x"}` and `limit=5` become structured), else kept as a string.
  * Deps (submit, id, clock) are injected so run() is testable without a daemon.
+ *
+ * `--budget-deadline-ms` / `--budget-max-tokens` / `--budget-max-usd` let the
+ * spawner declare this dispatch's own budget (Task 5's `Effort.budget`, resolved
+ * against the workspace/node ceilings by `resolve_budget` on the node side) —
+ * "whoever spawns declares," finally reachable from the surface an operator
+ * actually types instead of only by hand-crafting HTTP. All three are optional;
+ * omitting all three sends no `budget` field at all. See `parseBudgetOptions`.
  */
 export interface DispatchCommandDeps {
 	submitEffort: SubmitEffort;
@@ -41,6 +49,69 @@ export function defaultDispatchDeps(): DispatchCommandDeps {
 // re-exported here so existing app consumers import it from this module unchanged.
 export { parseDispatchArgs };
 
+/**
+ * The wire shape Task 5 put on `Effort.budget` — `{deadlineMs?, maxTokens?, maxUsd?}`,
+ * camelCase, every axis optional. Redeclared locally instead of importing
+ * `@refarm.dev/budget-contract-v1`: this file's dependency footprint stays exactly what
+ * dispatch already needed (`@refarm.dev/effort-contract-v1`), since this is a stable wire
+ * boundary, not a resolution detail that package owns.
+ */
+export type BudgetDeclaration = {
+	deadlineMs?: number;
+	maxTokens?: number;
+	maxUsd?: number;
+};
+
+/** An Effort carrying the optional budget a spawner declared — a local augmentation of
+ *  the shared `Effort` type (which does not itself declare the field), never a change to it. */
+type DispatchEffort = Effort & { budget?: BudgetDeclaration };
+
+const BUDGET_OPTION_FIELDS: ReadonlyArray<{ flag: string; key: keyof BudgetDeclaration }> = [
+	{ flag: "budget-deadline-ms", key: "deadlineMs" },
+	{ flag: "budget-max-tokens", key: "maxTokens" },
+	{ flag: "budget-max-usd", key: "maxUsd" },
+];
+
+/**
+ * Parse the three `--budget-*` flags into the wire's `BudgetDeclaration` shape. PURE —
+ * reads only the already-parsed `CapabilityInput.options`, the ONE place this repo's CLI
+ * surface validates a declared budget, so a later second call site (the REPL, an agent
+ * tool) reuses this instead of re-implementing the same numeric check with different rules.
+ *
+ * Absent means absent: a flag the operator never passed produces no key at all (never `0`,
+ * never `null`) — `budget` itself comes back `undefined` when all three are absent, so the
+ * caller can skip attaching the field entirely and the wire stays byte-identical to a
+ * dispatch that declares nothing.
+ *
+ * A present value must be a finite, non-negative number; **zero is accepted** as a
+ * legitimate declaration — the node's own resolution (`resolve_budget`) treats a present
+ * zero as a real ceiling, never as "nothing declared," so rejecting it here would make the
+ * surface lie about what the node can express. Only a non-numeric or negative value is
+ * rejected, named by its flag, before anything is built or dispatched.
+ */
+export function parseBudgetOptions(
+	options: Record<string, string | string[] | boolean>,
+): { budget?: BudgetDeclaration } | { error: string } {
+	const budget: BudgetDeclaration = {};
+	for (const { flag, key } of BUDGET_OPTION_FIELDS) {
+		const raw = options[flag];
+		if (raw === undefined) continue;
+		if (typeof raw !== "string") {
+			return { error: `--${flag} must be a number, got ${JSON.stringify(raw)}` };
+		}
+		const trimmed = raw.trim();
+		const value = Number(trimmed);
+		if (trimmed.length === 0 || !Number.isFinite(value)) {
+			return { error: `--${flag} must be a number, got "${raw}"` };
+		}
+		if (value < 0) {
+			return { error: `--${flag} must not be negative, got "${raw}"` };
+		}
+		budget[key] = value;
+	}
+	return Object.keys(budget).length > 0 ? { budget } : {};
+}
+
 export function createDispatchCapability(
 	deps: DispatchCommandDeps = defaultDispatchDeps(),
 ): CapabilityDescriptor {
@@ -51,6 +122,25 @@ export function createDispatchCapability(
 			{ name: "plugin", required: true },
 			{ name: "verb", required: true },
 			{ name: "args", variadic: true },
+		],
+		options: [
+			{
+				name: "budget-deadline-ms",
+				kind: "integer",
+				summary:
+					"Wall-clock deadline for the whole dispatch, in milliseconds (omit for the node default)",
+			},
+			{
+				name: "budget-max-tokens",
+				kind: "integer",
+				summary: "Cumulative token ceiling across the dispatch (omit for the node default)",
+			},
+			{
+				name: "budget-max-usd",
+				kind: "number",
+				summary:
+					"Estimated spend ceiling in dollars (decimal; only binds under api pricing mode)",
+			},
 		],
 		async run(input) {
 			const pluginId = input.args.plugin as string;
@@ -68,11 +158,26 @@ export function createDispatchCapability(
 				});
 			}
 
-			const effort = buildDispatchEffort(
+			const parsedBudget = parseBudgetOptions(input.options);
+			if ("error" in parsedBudget) {
+				return buildJsonErrorEnvelope({
+					command: "dispatch",
+					operation: "dispatch",
+					error: "invalid-args",
+					message: parsedBudget.error,
+					nextAction:
+						"Pass a non-negative number, e.g. `--budget-deadline-ms 120000`. Omit a flag to leave that axis unset.",
+				});
+			}
+
+			const effort: DispatchEffort = buildDispatchEffort(
 				{ pluginId, verb, args: parsed.args },
 				deps.newId,
 				deps.nowIso,
 			);
+			if (parsedBudget.budget) {
+				effort.budget = parsedBudget.budget;
+			}
 
 			try {
 				const effortId = await deps.submitEffort(effort);
