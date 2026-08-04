@@ -61,11 +61,48 @@ import {
  * Graceful no-op (informational, never a failure — these ARE "checked, nothing
  * to find" states, not failures to check): no graphContext (store never ran /
  * db absent — nothing exists yet to have drifted), no RefarmConfig node yet
- * (fresh store — the read succeeded and definitively found nothing), or no
- * local `.refarm/config.json` to compare (the node read succeeded; there is
- * simply nothing local to diff it against — the documented node-fallback case
- * in `resolveSovereignConfig`).
+ * (fresh store — the read succeeded and definitively found nothing), the
+ * graph runtime itself is unreachable (see `isGraphSubstrateUnreachable` —
+ * `openTractorGraph`'s default HTTP path hands this auditor a client
+ * regardless of whether any daemon is listening behind it, so a non-null
+ * `graphContext` is not proof the substrate exists), or no local
+ * `.refarm/config.json` to compare (the node read succeeded; there is simply
+ * nothing local to diff it against — the documented node-fallback case in
+ * `resolveSovereignConfig`).
  */
+
+/**
+ * Is `error` a TRANSPORT failure — no daemon listening at all — rather than a
+ * response this auditor actually received and could not use?
+ *
+ * The distinction is the whole point of the `config_node_unreachable` issue
+ * this file emits: a daemon that answered with something malformed (the
+ * `@context`-less nodes `c0dbbc92` fixed) is a real bug worth a health
+ * finding. A daemon that was never started — the ordinary state of CI, a
+ * fresh checkout, or any dev machine before `refarm runtime start` — is not:
+ * it is indistinguishable in effect from "no graphContext" and must fold
+ * into the same soft note, or `refarm health` fails everywhere nothing is
+ * running yet.
+ *
+ * Matches this repo's existing, deliberately per-call-site convention for
+ * this exact check (`apps/refarm/src/commands/sidecar-error.ts`'s
+ * `isSidecarUnavailable`, `chat-runtime-recovery.ts`'s
+ * `isRuntimeConnectionUnavailable`) rather than a shared import: `packages/health`
+ * sits below `apps/refarm` and cannot depend on it, and each existing copy is
+ * already this small on purpose.
+ */
+function isGraphSubstrateUnreachable(error) {
+	const message = error?.message ?? String(error);
+	return (
+		message.includes("ECONNREFUSED") ||
+		// PREFIX, not substring — see the sibling copies above for why: Node/undici's
+		// own transport failure is always exactly "fetch failed" or "fetch failed:
+		// <cause>", and a `.includes` would also match an unrelated message that
+		// merely contains the phrase later on.
+		message.startsWith("fetch failed")
+	);
+}
+
 export class ConfigNodeAuditor {
 	#graphContext;
 
@@ -99,14 +136,26 @@ export class ConfigNodeAuditor {
 		try {
 			node = await this.#graphContext.getNode(CONFIG_NODE_DEFAULT_ID);
 		} catch (e) {
-			// A graphContext exists — the substrate this auditor depends on is
-			// present — so a thrown read is not "nothing to audit yet", it is this
-			// auditor FAILING at the one thing it exists to do. Reporting that as a
-			// note (as this used to) is indistinguishable, to every consumer that
-			// only counts `issues.length`, from "checked, found nothing wrong" — the
-			// exact shape of the gap that let a real @context contract break upstream
-			// (the sidecar never setting @context) go undetected here. This is a
-			// real, distinct finding — "could not check" — not a clean pass.
+			if (isGraphSubstrateUnreachable(e)) {
+				// A graphContext OBJECT exists, but nothing answered it: the default
+				// HTTP path (`openTractorGraph`) hands out a client unconditionally,
+				// so its presence never meant "a daemon is running" in the first
+				// place. Same fact as `!this.#graphContext` below, reached by a
+				// different route — nothing exists yet to have drifted.
+				return {
+					issues: [],
+					note: "config-node audit skipped: the graph runtime is not reachable (no daemon listening)",
+				};
+			}
+			// A graphContext exists AND something answered — the substrate this
+			// auditor depends on is present — so a thrown read is not "nothing to
+			// audit yet", it is this auditor FAILING at the one thing it exists to
+			// do. Reporting that as a note (as this used to) is indistinguishable,
+			// to every consumer that only counts `issues.length`, from "checked,
+			// found nothing wrong" — the exact shape of the gap that let a real
+			// @context contract break upstream (the sidecar never setting @context)
+			// go undetected here. This is a real, distinct finding — "could not
+			// check" — not a clean pass.
 			return {
 				issues: [
 					{
