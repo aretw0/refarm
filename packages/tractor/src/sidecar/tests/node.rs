@@ -64,6 +64,106 @@ async fn sidecar_get_node_returns_graph_node() {
 }
 
 #[tokio::test]
+async fn sidecar_get_node_stamps_default_context_when_absent() {
+    // Every store_node call site in this Rust host passes context: None today
+    // (grep '@context' packages/tractor/src returns nothing) — this is the
+    // realistic shape of a node this host itself wrote: no `@context` in the
+    // stored payload and no `context` column value either.
+    let ns = storage_path();
+    write_node(
+        &ns,
+        "urn:tractor:budget-observation:one",
+        "BudgetObservation",
+        serde_json::json!({
+            "@id": "urn:tractor:budget-observation:one",
+            "@type": "BudgetObservation",
+            "refarm.outcome": "done",
+        }),
+    );
+    let (_state, port) = start_nodes_sidecar(&ns).await;
+
+    let body: serde_json::Value = reqwest::get(format!(
+        "{}/nodes/urn:tractor:budget-observation:one",
+        base(port)
+    ))
+    .await
+    .unwrap()
+    .json()
+    .await
+    .unwrap();
+
+    let node = &body["node"];
+    assert_eq!(
+        node["@context"].as_str().unwrap(),
+        "urn:sovereign:schema:v1",
+        "a node with no @context anywhere (payload or context column) must be \
+         stamped with the sovereign-runtime default at the serving boundary",
+    );
+}
+
+#[tokio::test]
+async fn sidecar_get_node_preserves_existing_context() {
+    // A node replicated in from a TS producer (or any writer) that already
+    // embedded @context directly in its JSON payload must keep that value —
+    // the serving boundary must never clobber a producer's own choice.
+    let ns = storage_path();
+    write_node(
+        &ns,
+        "urn:test:help-page",
+        "HelpPage",
+        serde_json::json!({
+            "@id": "urn:test:help-page",
+            "@type": "HelpPage",
+            "@context": "https://schema.org/",
+        }),
+    );
+    let (_state, port) = start_nodes_sidecar(&ns).await;
+
+    let body: serde_json::Value = reqwest::get(format!("{}/nodes/urn:test:help-page", base(port)))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    let node = &body["node"];
+    assert_eq!(
+        node["@context"].as_str().unwrap(),
+        "https://schema.org/",
+        "an already-present @context in the stored payload must win over the default",
+    );
+}
+
+#[tokio::test]
+async fn sidecar_query_nodes_stamps_context_on_every_row() {
+    // GET /nodes (queryNodes) must apply the same stamping as GET /nodes/:id
+    // (getNode) — both route through node_value_from_row, but this pins that
+    // the list endpoint is not a second, divergent code path.
+    let ns = storage_path();
+    write_node(
+        &ns,
+        "urn:tractor:session:one",
+        "Session",
+        serde_json::json!({ "@id": "urn:tractor:session:one", "@type": "Session" }),
+    );
+    let (_state, port) = start_nodes_sidecar(&ns).await;
+
+    let body: serde_json::Value = reqwest::get(format!("{}/nodes?type=Session&limit=10", base(port)))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    let nodes = body["nodes"].as_array().unwrap();
+    assert_eq!(nodes.len(), 1);
+    assert_eq!(
+        nodes[0]["@context"].as_str().unwrap(),
+        "urn:sovereign:schema:v1",
+    );
+}
+
+#[tokio::test]
 async fn sidecar_query_nodes_filters_by_type_and_limit() {
     let ns = storage_path();
     write_node(

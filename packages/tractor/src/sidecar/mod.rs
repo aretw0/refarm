@@ -1396,6 +1396,31 @@ fn default_nodes_limit() -> usize {
     20
 }
 
+/// JSON-LD `@context` for the sovereign-runtime node family this Rust host
+/// exclusively writes — Session, RefarmConfig, UsageRecord, BudgetObservation,
+/// AgentResponse, and the rest of the internal bookkeeping types under
+/// `store_node`. Mirrors the TS host's own choice for that family
+/// (`packages/tractor-ts/src/index.ts`, `IdentityConversion`'s
+/// `"urn:sovereign:schema:v1"`) rather than the `"https://schema.org/"`
+/// default TS uses for content-shaped nodes (`HelpPage`) — this host never
+/// emits those, so one default covers every `@type` it produces.
+const DEFAULT_SOVEREIGN_CONTEXT: &str = "urn:sovereign:schema:v1";
+
+/// Build the JSON-LD node returned to callers from a stored row, filling in
+/// the transport envelope fields a bare `payload` may be missing.
+///
+/// `@context` is the JSON-LD envelope field every OTHER producer in this repo
+/// stamps (vault-contract-v1, tractor-ts, barn…) but this Rust write path
+/// never has — every `store_node` call site passes `context: None` today.
+/// Stamped HERE, at the single function both `GET /nodes` and
+/// `GET /nodes/:id` route through, rather than at each of the ~15 write call
+/// sites: that covers every node already on disk (nothing to backfill) as
+/// well as every future one, through one seam instead of many. A node that
+/// already carries its own `@context` — in `payload` (e.g. replicated in from
+/// a TS producer that embeds the full envelope) or in the `context` column
+/// (should a future write path choose to populate it) — keeps that value;
+/// `entry().or_insert_with()` never overwrites, mirroring the `@id`/`@type`
+/// precedent immediately above.
 fn node_value_from_row(row: crate::storage::NodeRow) -> Result<Value, String> {
     let mut node: Value =
         serde_json::from_str(&row.payload).map_err(|e| format!("parse node: {e}"))?;
@@ -1408,6 +1433,13 @@ fn node_value_from_row(row: crate::storage::NodeRow) -> Result<Value, String> {
     object
         .entry("@type".to_string())
         .or_insert_with(|| Value::String(row.type_));
+    object.entry("@context".to_string()).or_insert_with(|| {
+        Value::String(
+            row.context
+                .filter(|c| !c.is_empty())
+                .unwrap_or_else(|| DEFAULT_SOVEREIGN_CONTEXT.to_string()),
+        )
+    });
     Ok(node)
 }
 
