@@ -76,7 +76,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 // comment must never count as evidence — the exact lesson that script's own
 // history records), then look for the textual SHAPE of "something sets this
 // key", "something reads this key", and "something names this type" across
-// packages/ and apps/.
+// packages/, apps/, examples/, and validations/ (EVIDENCE_SCAN_DIR_NAMES
+// below) — comment-stripping and declaration-body/name blanking apply
+// uniformly to every file in every scanned directory; the pass is keyed off
+// file extension (.ts/.tsx/.rs), never off which of the four trees a file
+// lives in, so widening the directory list required no change to how any one
+// file gets read.
 //
 // It is IMPERFECT BY CONSTRUCTION, and that must be visible in every run, not
 // buried in a doc comment — see COVERAGE_LIMITS_NOTE below, printed
@@ -93,13 +98,26 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 //     packages/tractor/src/sidecar/tailnet_resolve.rs — the wire names there
 //     are the Tailscale CLI's own JSON, not this repo's naming convention, so
 //     no mechanical guess in either direction finds them;
-//   - a producer or consumer living outside packages/ and apps/ (examples/,
-//     scripts/, docs/) is out of scope and will be missed;
+//   - a producer or consumer living outside packages/, apps/, examples/, and
+//     validations/ (scripts/, docs/, templates/ — templates/ EXCLUDED on
+//     purpose, see EVIDENCE_SCAN_DIR_NAMES's own comment) is out of scope and
+//     will be missed;
 //   - a short or common field name (`id`, `status`, `source`) can look
 //     falsely REACHABLE through unrelated code that merely shares its shape —
 //     this scan matches text, not types. That risk runs the OPPOSITE
 //     direction from the others (it hides defects rather than inventing them),
-//     and is exactly as real;
+//     and is exactly as real, and now runs across FOUR trees instead of two:
+//     widening the scan surface to examples/ and validations/ gives a common
+//     name strictly more unrelated code to accidentally match, so this risk
+//     is now materially larger than it was under the original packages/+apps/
+//     scope, not just theoretically present;
+//   - this scan also cannot cheaply tell "a running example genuinely depends
+//     on this field" apart from "a test file under examples/ or validations/
+//     merely asserts against it" — the same limitation the pre-widening scan
+//     already had for a test under packages/ or apps/ (see
+//     storage-contract-v1:StorageQuery.createdBefore's own baseline reason,
+//     which names a test by its title), now extended to two more trees rather
+//     than newly introduced by them;
 //   - a Rust struct/enum that is a wire shape in fact but is never annotated
 //     with `#[derive(Serialize)]` / `#[derive(Deserialize)]` (constructed by
 //     hand into a `serde_json::Value`, say) is invisible to the widened scope
@@ -125,23 +143,52 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(scriptDir, "../..");
 const packagesDir = resolve(rootDir, "packages");
-const appsDir = resolve(rootDir, "apps");
 const baselinePath = resolve(rootDir, "scripts/ci/contract-reachability-baseline.json");
+
+// ── Evidence scan surface ───────────────────────────────────────────────────
+//
+// packages/ and apps/ are where a wire contract gets consumed by the running
+// system. This repo ALSO keeps real consumers in examples/ and validations/
+// BY DESIGN — that is what those trees are for (see
+// examples/reqbench-t3/src/search.ts's `hit.score` read off a real
+// `VaultSearchHit`, the false positive that first exposed this gate's
+// directory-only scope). templates/ is deliberately EXCLUDED, on evidence,
+// not by default: read directly (2026-08-04), templates/ holds zero .ts/.tsx
+// files, and its only .rs content is templates/rust-plugin/src/lib.rs (a
+// scaffold body naming no declared contract field) plus bindings.rs
+// (wit_bindgen-GENERATED bindings, `#[derive(Clone)]` only, no
+// Serialize/Deserialize, no declared contract field name either) — so
+// widening to templates/ would change NOTHING today, but the principle holds
+// regardless of what templates/ happens to contain this week: a name in a
+// scaffold template is a starting point someone copies and edits into a NEW
+// package, not this repo's own code exercising a contract. Counting it as a
+// consumer would let a template field resurrect a genuinely dead one the
+// moment anybody instantiates the template, without anything in THIS repo
+// ever having run that code.
+export const EVIDENCE_SCAN_DIR_NAMES = ["packages", "apps", "examples", "validations"];
 
 export const VALID_STATES = new Set(["unreachable", "unread", "dormant", "unnamed"]);
 
+const EVIDENCE_SCAN_DIRS_TEXT = EVIDENCE_SCAN_DIR_NAMES.map((d) => `${d}/`).join(", ");
+
 export const COVERAGE_LIMITS_NOTE =
 	"This gate finds producers, consumers, and type-name usages by scanning identifiers as text " +
-	"across packages/ and apps/ (TypeScript and Rust) after stripping comments and blanking " +
+	`across ${EVIDENCE_SCAN_DIRS_TEXT} (TypeScript and Rust) after stripping comments and blanking ` +
 	"declaration bodies (fields) or declaration name tokens (types); declared fields come from " +
 	"packages/*-contract-v1/src/types.ts AND every Rust struct/enum under packages/tractor/src/ that " +
 	"derives Serialize or Deserialize. It is imperfect by construction — a field set through a " +
 	'dynamically built key, a Rust field renamed via #[serde(rename = "...")] to something neither ' +
 	"the camelCase→snake_case nor the snake_case→camelCase mechanical guess produces (Tailscale's own " +
 	'"TailscaleIPs"/"Self" JSON field names, e.g.), a producer/consumer/type-usage living outside ' +
-	"packages/ and apps/, or a Rust wire struct/enum that is never annotated with " +
-	"#[derive(Serialize)]/#[derive(Deserialize)] will be missed, and a short or common field or type " +
-	"name can look falsely reachable/named through unrelated code that merely happens to share its text.";
+	`${EVIDENCE_SCAN_DIRS_TEXT} (templates/ deliberately excluded — see EVIDENCE_SCAN_DIR_NAMES's own ` +
+	"comment for why), or a Rust wire struct/enum that is never annotated with " +
+	"#[derive(Serialize)]/#[derive(Deserialize)] will be missed. A short or common field or type name can " +
+	"look falsely reachable/named through unrelated code that merely happens to share its text — widening " +
+	"this scan to examples/ and validations/ makes that risk materially larger than it was under the " +
+	"original packages/+apps/ scope, since two more trees of code can now supply an accidental match. This " +
+	"scan also cannot cheaply distinguish a running example's genuine dependency on a field from a test " +
+	"file (in any of the four scanned trees) merely asserting against it — both read as consumer evidence " +
+	"identically.";
 
 // ── Comment stripping (TS + Rust share // and /* */; TS also has ' and ` strings) ──
 //
@@ -628,8 +675,9 @@ const EVIDENCE_EXTENSIONS = [".ts", ".tsx", ".rs"];
 
 async function collectRealEvidenceCorpora() {
 	const files = [];
-	await walkSourceFiles(packagesDir, files, EVIDENCE_EXTENSIONS);
-	await walkSourceFiles(appsDir, files, EVIDENCE_EXTENSIONS);
+	for (const dirName of EVIDENCE_SCAN_DIR_NAMES) {
+		await walkSourceFiles(resolve(rootDir, dirName), files, EVIDENCE_EXTENSIONS);
+	}
 	const fieldsCorpus = [];
 	const typesCorpus = [];
 	for (const file of files) {
@@ -887,7 +935,7 @@ export async function main({
 				"#[derive(Deserialize)] struct/enum blocks (declared types/fields)",
 		);
 		console.error(
-			`  - ${relative(rootDir, packagesDir)}/**, ${relative(rootDir, appsDir)}/** (evidence)`,
+			`  - ${EVIDENCE_SCAN_DIR_NAMES.map((d) => `${d}/**`).join(", ")} (evidence)`,
 		);
 		console.error(`  - ${relative(rootDir, baselinePath)}`);
 		console.log(COVERAGE_LIMITS_NOTE);

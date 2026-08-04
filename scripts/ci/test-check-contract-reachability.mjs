@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+	COVERAGE_LIMITS_NOTE,
+	EVIDENCE_SCAN_DIR_NAMES,
 	MINIMUM_PLAUSIBLE_CONTRACT_PACKAGE_COUNT,
 	MINIMUM_PLAUSIBLE_FIELD_COUNT,
 	MINIMUM_PLAUSIBLE_TRACTOR_WIRE_FIELD_COUNT,
@@ -674,6 +676,49 @@ export interface DeadType {
 		}),
 	});
 	assert.equal(withBaseline, 0, "one type-level entry must cover ALL of the dead type's fields");
+});
+
+// ── Evidence scan surface: widened to examples/ and validations/, NOT templates/ ──
+//
+// The gate's own coverage sentence used to say "packages/ and apps/" while
+// this repo keeps real contract consumers in examples/ and validations/ BY
+// DESIGN — the false positive that proved it: vault-contract-v1's
+// VaultSearchHit.score was baselined as `unread` because the scan couldn't
+// see examples/reqbench-t3/src/search.ts reading `hit.score` off a
+// RecordSearchHit (extends VaultSearchHit) and sorting by it. These tests
+// pin the widened directory list itself (not just the real-repo regression
+// guard below, which would only fail LOUDLY if the widening broke, not
+// explain WHY) and the templates/ exclusion decision it documents.
+
+test("EVIDENCE_SCAN_DIR_NAMES includes examples/ and validations/ alongside packages/ and apps/", () => {
+	assert.deepEqual([...EVIDENCE_SCAN_DIR_NAMES].sort(), ["apps", "examples", "packages", "validations"]);
+});
+
+test("EVIDENCE_SCAN_DIR_NAMES deliberately excludes templates/ — a scaffold a user copies out, not this repo's own running code", () => {
+	assert.ok(
+		!EVIDENCE_SCAN_DIR_NAMES.includes("templates"),
+		"templates/ holds no .ts/.tsx files and its only .rs content derives no Serialize/Deserialize " +
+			"struct and names no declared contract field (verified 2026-08-04) — including it would change " +
+			"nothing today, but a name in a scaffold template is a starting point someone copies into a NEW " +
+			"package, not evidence this repo's own code exercises a contract",
+	);
+});
+
+test("COVERAGE_LIMITS_NOTE names every scanned directory, including the widened examples/ and validations/", () => {
+	for (const dirName of EVIDENCE_SCAN_DIR_NAMES) {
+		assert.ok(
+			COVERAGE_LIMITS_NOTE.includes(`${dirName}/`),
+			`COVERAGE_LIMITS_NOTE must name ${dirName}/ as scanned`,
+		);
+	}
+	assert.ok(
+		!/scanning identifiers as text across packages\/ and apps\/(?! )/.test(COVERAGE_LIMITS_NOTE),
+		"the coverage sentence must not still claim the pre-widening two-directory scope",
+	);
+});
+
+test("COVERAGE_LIMITS_NOTE names the short-or-common-name risk growing with the widened scan surface", () => {
+	assert.match(COVERAGE_LIMITS_NOTE, /materially larger/);
 });
 
 // ── Regression guard: the real repo, end to end, unmodified ────────────────
