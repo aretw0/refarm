@@ -25,6 +25,17 @@ pnpm install
 pnpm run dev      # Start all apps in watch mode
 ```
 
+### 1.1 Onboarding Doctor (recommended after scaffold/new package)
+
+Before trusting editor diagnostics on a fresh package, run onboarding checks from the repo root:
+
+```bash
+pnpm run onboarding:doctor
+pnpm run onboarding:doctor -- --package packages/<new-package>
+```
+
+This checks substrate health and verifies that the target package's `tsconfig.build.json` can be expanded by the workspace TypeScript compiler.
+
 ### 2. Making Changes
 
 - Create a feature branch from `develop`
