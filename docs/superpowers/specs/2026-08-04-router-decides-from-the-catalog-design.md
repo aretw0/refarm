@@ -100,8 +100,16 @@ The two reasons that do:
    `model-rate-catalog-composer:v1` capability above it. Composition concatenates in plugin order
    and resolution is first-match-wins, so **plugin order is precedence** and a node's own plugin
    placed first overrides the defaults. An on-disk file is the simplest instance of that surface,
-   not a parallel mechanism, and the host should reach the catalog through the stack rather than
-   inventing a second path to it.
+   not a parallel mechanism.
+
+   One correction, made on contact with the code rather than left to be discovered during
+   implementation: an earlier line here said the host should reach the catalog *through the stack*.
+   It cannot. The stack is TypeScript and the host that instantiates the guest is Rust. The honest
+   arrangement is that `model-rates.v1.json` is the single ARTIFACT and both sides are readers of
+   it — the TypeScript plugin stack serving SDK consumers, the Rust host reading it directly for
+   the guest. Two readers of one artifact is not the two-sources shape this repository keeps
+   finding; two *authors* would be, which is exactly what the provider plugins had become and no
+   longer are.
 
    Finding it also found what it was hiding. The two default provider plugins were not serving the
    audited catalog; they carried their own hand-written entries, and by 2026-08-04 those had
