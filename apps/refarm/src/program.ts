@@ -3,6 +3,7 @@ import { actionsCommand } from "./commands/actions.js";
 import { agentCommand } from "./commands/agent.js";
 import { askCommand } from "./commands/ask.js";
 import { authCommand } from "./commands/auth.js";
+import { budgetCommand } from "./commands/budget.js";
 import { capabilitiesCommand } from "./commands/capabilities.js";
 import { capabilityCliCommands } from "./commands/capability-registry.js";
 import { createCertCommand } from "./commands/cert.js";
@@ -285,6 +286,7 @@ program.addCommand(serveCommand);
 program.addCommand(workspaceCommand);
 program.addCommand(connectionCommand);
 program.addCommand(deliveryCommand);
+program.addCommand(budgetCommand);
 program.addCommand(createSurfaceCommand());
 // The long-running processes refarm OWNS: declared in `.refarm/config.json`, supervised by the
 // host's own supervisor. Before this, `refarm web serve` ran under a nohup'd shell — the operator
