@@ -151,6 +151,43 @@ export function buildHealthReport(
 	};
 }
 
+/**
+ * Presentation for each `configNode` issue type the ConfigNodeAuditor emits.
+ * Three distinct findings, not two — `config_node_drift` and
+ * `config_node_invalid` are "checked, found a problem"; `config_node_unreachable`
+ * is "could not check" (the graph read itself threw). Collapsing the third into
+ * the second's wording ("malformed") would tell the operator to reconcile a
+ * config that was never successfully read — a different, misleading action.
+ * Keyed by the auditor's own `issue.type` string so a new type added there
+ * degrades to the `config_node_invalid` wording (still visible as an issue,
+ * just under-described) rather than silently vanishing from the report.
+ */
+interface ConfigNodeIssuePresentation {
+	summary: string;
+	action: string;
+}
+
+const DEFAULT_CONFIG_NODE_ISSUE_PRESENTATION: ConfigNodeIssuePresentation = {
+	summary: "The stored config graph node is malformed.",
+	action:
+		"Reconcile the config: another device changed it, or the local file drifted. Re-run the runtime to re-sync the RefarmConfig node.",
+};
+
+const CONFIG_NODE_ISSUE_PRESENTATION: Record<string, ConfigNodeIssuePresentation> = {
+	config_node_drift: {
+		summary: "The replicated config graph node differs from the local .refarm/config.json.",
+		action:
+			"Reconcile the config: another device changed it, or the local file drifted. Re-run the runtime to re-sync the RefarmConfig node.",
+	},
+	config_node_invalid: DEFAULT_CONFIG_NODE_ISSUE_PRESENTATION,
+	config_node_unreachable: {
+		summary:
+			"The config graph node could not be read — the audit could not run, not that it ran clean.",
+		action:
+			"Confirm the runtime sidecar is reachable and the graph store is healthy (refarm check --next-action --json), then re-run refarm health.",
+	},
+};
+
 export function buildHealthRecommendations(results: HealthResults): HealthRecommendation[] {
 	return [
 		...results.git.map((issue) => ({
@@ -208,17 +245,17 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
 				"Split the file or add a documented health.complexity allowed pattern for generated/vendor content.",
 			command: HEALTH_SUGGEST_POLICY_COMMAND,
 		})),
-		...(results.configNode ?? []).map((issue) => ({
-			issueType: issue.type,
-			diagnostic: issue.type,
-			target: issue.path,
-			summary:
-				issue.type === "config_node_drift"
-					? "The replicated config graph node differs from the local .refarm/config.json."
-					: "The stored config graph node is malformed.",
-			action:
-				"Reconcile the config: another device changed it, or the local file drifted. Re-run the runtime to re-sync the RefarmConfig node.",
-		})),
+		...(results.configNode ?? []).map((issue) => {
+			const presentation =
+				CONFIG_NODE_ISSUE_PRESENTATION[issue.type] ?? DEFAULT_CONFIG_NODE_ISSUE_PRESENTATION;
+			return {
+				issueType: issue.type,
+				diagnostic: issue.type,
+				target: issue.path,
+				summary: presentation.summary,
+				action: presentation.action,
+			};
+		}),
 	];
 }
 

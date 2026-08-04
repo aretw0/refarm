@@ -122,6 +122,32 @@ describe("ConfigNodeAuditor", () => {
 		expect(result.issues[0].path).toBe("urn:sovereign:config:workspace");
 	});
 
+	it("reports a real issue — not a skipped note — when the graph read throws", async () => {
+		// This is the state that used to disappear: a graphContext EXISTS (the
+		// substrate is present), but reading through it fails (e.g. the
+		// sidecar-client rejecting a real node for missing @context, the exact
+		// live defect this test guards against regressing). The old behaviour
+		// returned `{ issues: [], note: "…skipped…" }` — byte-identical to a
+		// clean pass to anything that only counts `issues.length`.
+		writeLocalConfig({ provider: "ollama" });
+		const throwingGraph = {
+			async getNode() {
+				throw new Error("sidecar graph response includes malformed node");
+			},
+		};
+
+		const result = await new ConfigNodeAuditor({ graphContext: throwingGraph }).audit({
+			rootDir: root,
+		});
+
+		expect(result.issues).toHaveLength(1);
+		expect(result.issues[0].type).toBe("config_node_unreachable");
+		expect(result.issues[0].path).toBe("urn:sovereign:config:workspace");
+		expect(result.issues[0].note).toContain("sidecar graph response includes malformed node");
+		// No lingering top-level `note` masquerading as a clean-pass shape.
+		expect(result.note).toBeUndefined();
+	});
+
 	it("no-ops informatively when there is no graphContext", async () => {
 		writeLocalConfig({ provider: "ollama" });
 		const result = await new ConfigNodeAuditor({}).audit({ rootDir: root });

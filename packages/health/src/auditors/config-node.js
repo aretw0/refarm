@@ -31,9 +31,25 @@ import {
  * specific fields recompute to the SAME revision — a healthy per-device difference no
  * longer reads as drift.
  *
- * Graceful no-op (informational, never a failure): no graphContext (store never
- * ran / db absent), or no RefarmConfig node yet (fresh store — which the recent
- * de-agent rename requires).
+ * Three honest outcomes, not two: checked-and-clean, checked-and-found-a-problem,
+ * and could-not-check. Only the first two used to reach `issues` — a thrown read
+ * (runtime unreachable mid-request, malformed response, …) fell into a THIRD,
+ * unmarked bucket: `{ issues: [], note: "…skipped…" }`, which is byte-identical
+ * to the clean-pass shape every consumer (`buildHealthReport`'s `issueCount`,
+ * `refarm health`'s exit code) actually reads. That is how this auditor's whole
+ * purpose — cross-device config-drift detection — passed for as long as the
+ * sidecar-client's `@context` requirement made every real read throw (see the
+ * Task history this file's own tests predate). A caught read failure now
+ * returns a real `issues` entry (`config_node_unreachable`) instead of a note,
+ * so "I could not check" can never again render as "I checked, it is fine".
+ *
+ * Graceful no-op (informational, never a failure — these ARE "checked, nothing
+ * to find" states, not failures to check): no graphContext (store never ran /
+ * db absent — nothing exists yet to have drifted), no RefarmConfig node yet
+ * (fresh store — the read succeeded and definitively found nothing), or no
+ * local `.refarm/config.json` to compare (the node read succeeded; there is
+ * simply nothing local to diff it against — the documented node-fallback case
+ * in `resolveSovereignConfig`).
  */
 export class ConfigNodeAuditor {
 	#graphContext;
@@ -63,9 +79,22 @@ export class ConfigNodeAuditor {
 		try {
 			node = await this.#graphContext.getNode(CONFIG_NODE_DEFAULT_ID);
 		} catch (e) {
+			// A graphContext exists — the substrate this auditor depends on is
+			// present — so a thrown read is not "nothing to audit yet", it is this
+			// auditor FAILING at the one thing it exists to do. Reporting that as a
+			// note (as this used to) is indistinguishable, to every consumer that
+			// only counts `issues.length`, from "checked, found nothing wrong" — the
+			// exact shape of the gap that let a real @context contract break upstream
+			// (the sidecar never setting @context) go undetected here. This is a
+			// real, distinct finding — "could not check" — not a clean pass.
 			return {
-				issues: [],
-				note: `config-node audit skipped: graph read failed (${e?.message ?? e})`,
+				issues: [
+					{
+						type: "config_node_unreachable",
+						path: CONFIG_NODE_DEFAULT_ID,
+						note: `could not read the config graph node: ${e?.message ?? e}`,
+					},
+				],
 			};
 		}
 
