@@ -576,6 +576,17 @@ test("turbo generators expose model catalog plugin package scaffold", async () =
 	assert.match(indexSource, /composeModelRateCatalog/);
 	assert.match(indexSource, /ModelCatalogComposerPlugin/);
 	assert.match(indexSource, /createLlmPricingPluginComposerPlugin/);
+
+	const tsconfigTemplate = readFileSync(
+		join(ROOT, "turbo/generators/templates/model-catalog-plugin/tsconfig.json.hbs"),
+		"utf8",
+	);
+	const tsconfigBuildTemplate = readFileSync(
+		join(ROOT, "turbo/generators/templates/model-catalog-plugin/tsconfig.build.json.hbs"),
+		"utf8",
+	);
+	assert.match(tsconfigTemplate, /"@refarm\.dev\/tsconfig\/buildable\.json"/);
+	assert.match(tsconfigBuildTemplate, /"@refarm\.dev\/tsconfig\/build\.json"/);
 });
 
 test("turbo generators create inventory-covered app, example, and validation workspaces", async () => {
