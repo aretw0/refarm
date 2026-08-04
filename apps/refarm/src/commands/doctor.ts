@@ -19,6 +19,10 @@ import {
 	type DiagnosticRecommendationSeverity,
 } from "./diagnostic-recommendations.js";
 import { emitRefarmDoctorOutput, resolveDoctorOutputMode } from "./doctor-output.js";
+import {
+	buildNodeNameDoctorRecommendations,
+	type NodeIdentitySnapshot,
+} from "./node-name-doctor.js";
 import { resolveRefarmRuntimeMetadata, type RefarmRuntimeMetadata } from "./runtime-metadata.js";
 import {
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
@@ -79,6 +83,10 @@ export function buildRefarmDoctorReport(
 		 * `scope-doctor.ts`). Omitted means "not compared", which produces no findings —
 		 * same purity rule as `connectionConfig`, and every existing caller is unaffected. */
 		scope?: { comparison: ScopeComparison; exists: (filePath: string) => boolean };
+		/** What the RUNNING node currently knows about its own identity (see
+		 * `node-name-doctor.ts`). `null`/omitted means "no live node to ask", which
+		 * produces no finding — same purity rule as `connectionConfig` and `scope`. */
+		nodeIdentity?: NodeIdentitySnapshot | null;
 	} = {},
 ): RefarmDoctorReport {
 	const { failures, warnings: statusWarnings, informational } = classifyStatusDiagnostics(status);
@@ -94,10 +102,17 @@ export function buildRefarmDoctorReport(
 	const scopeRecommendations = options.scope
 		? buildScopeDoctorRecommendations(options.scope.comparison, options.scope.exists)
 		: [];
+	// A live node with an id and no declared name is a courtesy TELL of the same shape —
+	// folded in alongside the scope divergence it sits next to in `node-name-doctor.ts`'s
+	// own module doc.
+	const nodeNameRecommendations = buildNodeNameDoctorRecommendations(
+		options.nodeIdentity ?? null,
+	);
 	const warnings = [
 		...statusWarnings,
 		...connectionRecommendations.map((r) => r.diagnostic),
 		...scopeRecommendations.map((r) => r.diagnostic),
+		...nodeNameRecommendations.map((r) => r.diagnostic),
 	];
 
 	const failOnWarnings = options.failOnWarnings === true;
@@ -110,6 +125,7 @@ export function buildRefarmDoctorReport(
 		}),
 		...connectionRecommendations,
 		...scopeRecommendations,
+		...nodeNameRecommendations,
 	];
 	const nextActions = diagnosticNextActions(recommendations);
 	const nextCommands = diagnosticNextCommands(recommendations);
@@ -248,7 +264,9 @@ export interface RefarmDoctorCommandDeps {
 	loadConfig?: (root?: string) => Record<string, unknown>;
 	/** What the running node says about itself — injected so a test can state "a node is
 	 *  running and answers from there" without one. */
-	readNodeDescriptor?: (refarmHome: string) => { declarationBase: string; sovereignDir: string } | null;
+	readNodeDescriptor?: (
+		refarmHome: string,
+	) => ({ declarationBase: string; sovereignDir: string } & NodeIdentitySnapshot) | null;
 }
 
 /**
@@ -293,6 +311,23 @@ function resolveScopeComparison(
 		};
 	} catch {
 		return undefined;
+	}
+}
+
+/**
+ * What the RUNNING node currently knows about its own identity — the same descriptor
+ * `resolveScopeComparison` reads, refetched here rather than threaded through it so this
+ * stays a small, local addition and `resolveScopeComparison`'s existing contract (and its
+ * own fallback-to-`undefined`-on-any-error posture) is untouched. Never throws, for the
+ * same reason: a node-name suggestion is a courtesy, and a doctor that crashes because a
+ * descriptor could not be read is worse than one that stays quiet about it.
+ */
+function resolveNodeDescriptor(deps: RefarmDoctorCommandDeps | undefined): NodeIdentitySnapshot | null {
+	try {
+		const nodeHome = path.resolve(resolveRefarmHome());
+		return deps?.readNodeDescriptor?.(nodeHome) ?? readNodeDescriptor(nodeHome);
+	} catch {
+		return null;
 	}
 }
 
@@ -349,6 +384,7 @@ Notes:
 						failOnWarnings: options.failOnWarnings,
 						connectionConfig: resolveConnectionConfig(deps),
 						scope: resolveScopeComparison(deps),
+						nodeIdentity: resolveNodeDescriptor(deps),
 					});
 					const outputMode = resolveDoctorOutputMode(options);
 					emitRefarmDoctorOutput({ report, mode: outputMode });

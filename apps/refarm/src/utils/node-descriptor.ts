@@ -24,6 +24,15 @@ export interface NodeDescriptor {
 	sovereignDir: string;
 	pid: number;
 	startedAt: string;
+	/** This node's declared, human-chosen name (`config.json`'s `node.name`) — absent when
+	 *  the node has not declared one. Mirrors `node_descriptor.rs`'s `nodeName`: a missing
+	 *  key, never an empty string, so "no name" cannot be confused with a name that happens
+	 *  to be `""` (D6). See `packages/tractor/src/node_identity.rs`. */
+	nodeName?: string;
+	/** This node's opaque, per-installation id — absent only if the daemon could not mint
+	 *  or persist one (disk full, permissions). Mirrors `node_descriptor.rs`'s `nodeId`;
+	 *  never travels, never repeats across machines. */
+	nodeId?: string;
 }
 
 /** Is the process that wrote this descriptor still there? Signal 0 asks without sending
@@ -72,10 +81,21 @@ export function readNodeDescriptor(
 	// The descriptor describes a node, or it describes one that used to be here.
 	if (!processIsAlive(pid, kill)) return null;
 
+	// Absent, not empty (D6) — an empty string is not a declared name any more than it is
+	// anywhere else in this record.
+	const nodeName = typeof record.nodeName === "string" && record.nodeName.length > 0
+		? record.nodeName
+		: undefined;
+	const nodeId = typeof record.nodeId === "string" && record.nodeId.length > 0
+		? record.nodeId
+		: undefined;
+
 	return {
 		declarationBase,
 		sovereignDir,
 		pid,
 		startedAt: typeof record.startedAt === "string" ? record.startedAt : "",
+		...(nodeName !== undefined ? { nodeName } : {}),
+		...(nodeId !== undefined ? { nodeId } : {}),
 	};
 }

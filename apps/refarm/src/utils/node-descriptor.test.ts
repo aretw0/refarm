@@ -61,4 +61,51 @@ describe("readNodeDescriptor", () => {
 			).toBeNull();
 		}
 	});
+
+	describe("nodeName / nodeId", () => {
+		it("reads both identifiers when the node declared a name and has an id", () => {
+			const read = readNodeDescriptor("/home/op/.refarm", {
+				readFile: () => descriptor({ nodeName: "galaxy-a55-5g-desktop", nodeId: "f17151b4-…" }),
+				kill: LIVE,
+			});
+			expect(read?.nodeName).toBe("galaxy-a55-5g-desktop");
+			expect(read?.nodeId).toBe("f17151b4-…");
+		});
+
+		it("leaves nodeName absent — not empty — when the node has not declared one", () => {
+			// Mirrors node_descriptor.rs: an undeclared name is a MISSING key, never null or "".
+			const read = readNodeDescriptor("/home/op/.refarm", {
+				readFile: () => descriptor({ nodeId: "f17151b4-…" }),
+				kill: LIVE,
+			});
+			expect(read?.nodeName).toBeUndefined();
+			expect(read?.nodeId).toBe("f17151b4-…");
+		});
+
+		it("leaves both absent on a descriptor written before node identity shipped", () => {
+			const read = readNodeDescriptor("/home/op/.refarm", {
+				readFile: () => descriptor(),
+				kill: LIVE,
+			});
+			expect(read?.nodeName).toBeUndefined();
+			expect(read?.nodeId).toBeUndefined();
+		});
+
+		it("treats an empty declared name the same as no name at all (D6)", () => {
+			const read = readNodeDescriptor("/home/op/.refarm", {
+				readFile: () => descriptor({ nodeName: "" }),
+				kill: LIVE,
+			});
+			expect(read?.nodeName).toBeUndefined();
+		});
+
+		it("does not trust a non-string nodeName/nodeId as a real value", () => {
+			const read = readNodeDescriptor("/home/op/.refarm", {
+				readFile: () => descriptor({ nodeName: 42, nodeId: false }),
+				kill: LIVE,
+			});
+			expect(read?.nodeName).toBeUndefined();
+			expect(read?.nodeId).toBeUndefined();
+		});
+	});
 });
