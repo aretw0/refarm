@@ -41,12 +41,32 @@ pub(crate) struct BudgetDeclaration {
 /// Read the wire's `maxUsd` (decimal dollars) and convert to thousandths of a
 /// dollar at the deserialisation boundary — the one place the decimal/integer
 /// seam is crossed, so every downstream fold stays integer arithmetic.
+///
+/// A declared `0` is accepted deliberately (both surface parsers — this one
+/// and the CLI's `parseBudgetOptions` — treat a present zero as a REAL
+/// ceiling, never as "nothing declared"). What this rounding can ALSO produce,
+/// silently, is a zero nobody asked for: `0.0004 * 1000 = 0.4`, which rounds
+/// down to `0` — a real declared-zero ceiling that blocks the very first
+/// dollar of spend (F8). The rounding itself is unchanged; a nonzero input
+/// that rounds to zero millis only gets a warning at the one place both facts
+/// (the original decimal and the rounded integer) are in scope together.
 fn deserialize_max_usd_millis<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
     let dollars: Option<f64> = Option::deserialize(deserializer)?;
-    Ok(dollars.map(|usd| (usd * 1000.0).round() as u64))
+    let millis = dollars.map(|usd| (usd * 1000.0).round() as u64);
+    if let (Some(usd), Some(0)) = (dollars, millis) {
+        if usd > 0.0 {
+            tracing::warn!(
+                declared_usd = usd,
+                "sidecar: declared max_usd rounds to a $0 ceiling in thousandths-of-a-dollar — \
+                 this blocks the run's very first dollar of spend; declare at least $0.001 for a \
+                 real nonzero ceiling"
+            );
+        }
+    }
+    Ok(millis)
 }
 
 #[derive(Debug, Clone, Copy)]

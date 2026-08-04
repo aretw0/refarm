@@ -303,6 +303,75 @@ fn a_config_with_no_budget_node_leaves_the_fallback_untouched() {
     assert_eq!(resolved.ceiling.deadline_ms, fallback.ceiling.deadline_ms);
 }
 
+// ── F8: a nonzero declared max_usd that rounds to a $0 ceiling warns, an
+// intentional zero does not — the rounding itself never changes ─────────────
+
+type LogBuffer = std::sync::Arc<std::sync::Mutex<Vec<u8>>>;
+
+struct LogSink(LogBuffer);
+impl std::io::Write for LogSink {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().unwrap().extend_from_slice(buf);
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Capture everything `tracing` emits while `f` runs — same minimal shape as
+/// `sidecar::auth`'s own test-only `captured_logs`, kept local rather than
+/// shared per this file's own convention (see `SovereignDirGuard`'s doc).
+fn captured_logs(f: impl FnOnce()) -> String {
+    let buffer: LogBuffer = Default::default();
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::TRACE)
+        .with_ansi(false)
+        .with_writer({
+            let buffer = buffer.clone();
+            move || LogSink(buffer.clone())
+        })
+        .finish();
+    tracing::subscriber::with_default(subscriber, f);
+    let bytes = buffer.lock().unwrap().clone();
+    String::from_utf8_lossy(&bytes).to_string()
+}
+
+#[test]
+fn a_nonzero_declared_max_usd_that_rounds_to_zero_millis_is_still_accepted() {
+    // 0.0004 * 1000 = 0.4, which rounds DOWN to 0 — still `Some(0)`, exactly
+    // like an intentional zero. The rounding itself must not change.
+    let declared: BudgetDeclaration =
+        serde_json::from_str(r#"{ "maxUsd": 0.0004 }"#).expect("valid declaration");
+    assert_eq!(declared.max_usd_millis, Some(0));
+}
+
+#[test]
+fn an_intentional_zero_max_usd_does_not_warn() {
+    let logs = captured_logs(|| {
+        let declared: BudgetDeclaration =
+            serde_json::from_str(r#"{ "maxUsd": 0 }"#).expect("valid declaration");
+        assert_eq!(declared.max_usd_millis, Some(0));
+    });
+    assert!(
+        !logs.contains("rounds to a $0 ceiling"),
+        "an operator who typed exactly 0 declared it on purpose — nothing to warn about: {logs}"
+    );
+}
+
+#[test]
+fn a_nonzero_max_usd_that_rounds_to_zero_millis_warns_at_the_surface() {
+    let logs = captured_logs(|| {
+        let declared: BudgetDeclaration =
+            serde_json::from_str(r#"{ "maxUsd": 0.0004 }"#).expect("valid declaration");
+        assert_eq!(declared.max_usd_millis, Some(0));
+    });
+    assert!(
+        logs.contains("rounds to a $0 ceiling"),
+        "a nonzero declaration that silently becomes a real zero ceiling must warn: {logs}"
+    );
+}
+
 #[test]
 fn a_declared_node_axis_wins_and_an_undeclared_one_keeps_the_fallback() {
     let _env = crate::test_support::env_lock();

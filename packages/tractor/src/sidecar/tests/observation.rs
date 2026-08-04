@@ -110,11 +110,34 @@ fn a_currency_ceiling_records_that_it_could_not_bind() {
     });
     assert_eq!(subscription["refarm.budget.max_usd.enforced"], false);
 
-    let api = build_observation_node(ObservationInput {
+    // F1, round-2 Critical: `api` pricing mode ALONE is not enough. `base_input()`
+    // declares only `deadline_ms` — nothing on the max_usd axis was ever
+    // forwarded to the guest (`dispatch.rs`'s `ceilings_for_payload` gates on
+    // `declared.is_some()`, and an undeclared axis still resolves to a concrete
+    // `.effective` default that nothing enforces). Recording `enforced: true`
+    // here — pricing mode alone, nothing declared — is exactly the failure D1
+    // invented this field to prevent, inverted into the field itself.
+    let api_undeclared = build_observation_node(ObservationInput {
         usage: Some(serde_json::json!({ "usage": { "pricing_mode": "api" } })),
         ..base_input()
     });
-    assert_eq!(api["refarm.budget.max_usd.enforced"], true);
+    assert_eq!(
+        api_undeclared["refarm.budget.max_usd.enforced"], false,
+        "api pricing mode with an UNDECLARED max_usd axis enforces nothing — nothing was ever sent to the guest"
+    );
+
+    // Only api pricing mode AND a DECLARED max_usd together enforce.
+    let node = NodeBudget {
+        ceiling: BudgetTriple { deadline_ms: 45_000, max_tokens: 500_000, max_usd_millis: 10_000 },
+        default: BudgetTriple { deadline_ms: 45_000, max_tokens: 100_000, max_usd_millis: 1_000 },
+    };
+    let declared = BudgetDeclaration { max_usd_millis: Some(500), ..Default::default() };
+    let api_declared = build_observation_node(ObservationInput {
+        usage: Some(serde_json::json!({ "usage": { "pricing_mode": "api" } })),
+        resolved: Some(resolve_budget(Some(&declared), None, &node)),
+        ..base_input()
+    });
+    assert_eq!(api_declared["refarm.budget.max_usd.enforced"], true);
 
     // Unknown pricing mode is absent, never a default true (D6).
     let unknown = build_observation_node(base_input());
@@ -290,4 +313,84 @@ async fn a_config_change_after_dispatch_does_not_leak_into_the_observation() {
         node["refarm.budget.max_tokens.effective"], 111_111,
         "the observation must report the budget dispatch actually resolved, not what the config resolves to NOW"
     );
+}
+
+// ── F2, round-2 Critical: the event-dispatch path never stashes a resolution,
+// so its observation omits the whole budget family rather than fabricating one ──
+
+#[tokio::test]
+async fn an_event_dispatch_efforts_observation_carries_no_budget_family() {
+    // `fn != "respond"` routes to `dispatch_event_effort` (`dispatch.rs`), which
+    // never spawns the deadline watcher and never forwards a ceiling to any
+    // guest — no budget governs this path at all. Before the fix,
+    // `dispatch_effort` still resolved and stashed a budget for EVERY effort
+    // up front regardless of its verb, so `record_budget_observation` read it
+    // back at finalisation and wrote a full three-axis `refarm.budget.*`
+    // family onto an effort nothing ever enforced. D6 says absent is honest —
+    // this proves the whole family is absent, not partially reconstructed.
+    let _env = crate::test_support::env_lock();
+    let _sovereign_dir = EnvGuard::set("SOVEREIGN_DIR", ".refarm");
+    let node_base = tempfile::tempdir().expect("tempdir");
+    let _sovereign_base = EnvGuard::set("SOVEREIGN_BASE", node_base.path().to_str().expect("utf8 path"));
+
+    let tmp = std::env::temp_dir().join(format!("tractor-observation-event-test-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp).expect("create tmp");
+    let namespace = std::env::temp_dir()
+        .join(format!("tractor-observation-event-ns-{}.db", uuid::Uuid::new_v4()))
+        .to_str()
+        .expect("utf8 path")
+        .to_owned();
+    let state = SidecarState::for_test(&tmp, &namespace).expect("state");
+
+    let effort_id = format!("obs-event-{}", uuid::Uuid::new_v4());
+    let effort = Effort {
+        id: effort_id.clone(),
+        direction: Some("dispatch".to_string()),
+        tasks: vec![EffortTask {
+            id: uuid::Uuid::new_v4().to_string(),
+            plugin_id: "vault".to_string(),
+            fn_name: Some("extract".to_string()),
+            args: serde_json::json!({}),
+        }],
+        source: Some("test".to_string()),
+        submitted_at: "2026-01-01T00:00:00Z".to_string(),
+        budget: None,
+        workspace_id: None,
+    };
+
+    // `SidecarState::for_test` registers no plugin channel, so the router
+    // delivers to nobody and this finalises `failed` — still a TERMINAL
+    // status, which is all `finalise_effort`'s observation call site requires.
+    dispatch_effort(state.clone(), effort);
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+    let storage = crate::storage::NativeStorage::open(&namespace).expect("open storage");
+    let rows = storage.query_nodes("BudgetObservation").expect("query nodes");
+    let node = rows
+        .iter()
+        .find_map(|row| {
+            let value: serde_json::Value = serde_json::from_str(&row.payload).ok()?;
+            (value.get("effort_id").and_then(|v| v.as_str()) == Some(effort_id.as_str())).then_some(value)
+        })
+        .expect("a BudgetObservation node for this event-dispatch effort");
+
+    assert_eq!(node["refarm.outcome"], "failed");
+    for key in [
+        "refarm.budget.deadline_ms.effective",
+        "refarm.budget.deadline_ms.declared",
+        "refarm.budget.max_tokens.effective",
+        "refarm.budget.max_tokens.declared",
+        "refarm.budget.max_usd.effective",
+        "refarm.budget.max_usd.declared",
+        "refarm.budget.max_usd.enforced",
+        "refarm.budget.bound_by",
+        "refarm.budget.bound_by.max_tokens",
+        "refarm.budget.bound_by.max_usd",
+    ] {
+        assert!(
+            node.get(key).is_none(),
+            "{key} must be absent on an event-dispatch effort's observation — no budget governed it"
+        );
+    }
 }

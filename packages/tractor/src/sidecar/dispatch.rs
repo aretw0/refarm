@@ -393,13 +393,31 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
     // road for one more value). See `ceilings_for_payload`'s doc for the gate.
     let (declared_max_tokens, declared_max_usd) = ceilings_for_payload(&resolved_budget);
 
-    // Stash the SAME fold `deadline_ms` above was just read from, so
-    // `record_budget_observation` reads back exactly what governed this run
-    // instead of re-resolving it against whatever `.refarm/config.json` says by
-    // the time the effort finalises. See `dispatched_budgets`'s doc for why
-    // that distinction is load-bearing, not stylistic.
-    if let Ok(mut store) = dispatched_budgets().write() {
-        store.insert(effort.id.clone(), resolved_budget);
+    // Only a `respond` effort is ever GOVERNED by this resolution: it is the
+    // only path that spawns the deadline watcher (`spawn_terminal_result_watcher`,
+    // below) or forwards `declared_max_tokens`/`declared_max_usd` to the guest.
+    // An event-dispatch effort (`effort_activity_kind` == "dispatch", routed to
+    // `dispatch_event_effort`) never sees this value or the watcher at all — it
+    // resolves synchronously to `EFFORT_DELIVERED`/`failed`, nothing enforces
+    // any axis, and no `UsageRecord` exists to join. Stashing the resolution
+    // anyway used to let `record_budget_observation` read it back at
+    // finalisation and fabricate a full `refarm.budget.*` family on an effort
+    // no budget ever governed (F2, round-2 Critical) — the whole family rides
+    // together (see the module doc), so recording it here was recording a lie
+    // three axes wide, not one field wrong.
+    //
+    // Determined synchronously here, not inside the spawned task: `effort.tasks`
+    // needs no `.await` to read, and the stash must happen before finalisation
+    // can possibly race it — the same reason the fold itself resolves up front.
+    if effort_activity_kind(&effort) == "agent" {
+        // Stash the SAME fold `deadline_ms` above was just read from, so
+        // `record_budget_observation` reads back exactly what governed this run
+        // instead of re-resolving it against whatever `.refarm/config.json` says by
+        // the time the effort finalises. See `dispatched_budgets`'s doc for why
+        // that distinction is load-bearing, not stylistic.
+        if let Ok(mut store) = dispatched_budgets().write() {
+            store.insert(effort.id.clone(), resolved_budget);
+        }
     }
 
     tokio::spawn(async move {
@@ -852,17 +870,22 @@ fn usage_view_from_record(node: &serde_json::Value) -> serde_json::Value {
     })
 }
 
-/// The usage view for a respond effort, read from the correlated `UsageRecord`
-/// node. The agent persists one per turn keyed by the same `prompt_ref` the
-/// Response node carries, so `correlation_value` (the effort's prompt_ref) finds
-/// it. Returns None for a workload that wrote no UsageRecord — the result then
-/// stays content-only, unchanged. Additive and backward-compatible by design.
-///
-/// `pub(crate)`, not module-private: `sidecar::observation::write_budget_observation`
-/// (a sibling module under `sidecar`) joins the SAME UsageRecord onto a
-/// `BudgetObservation` node via this exact function, reused rather than
-/// re-queried, per Task 10's brief ("do not write a second joiner").
-pub(crate) fn find_usage_for(namespace: &str, prompt_ref: &str) -> Option<serde_json::Value> {
+/// Find the RAW `UsageRecord` CRDT node correlated to `prompt_ref` — no mapping
+/// through `usage_view_from_record`. Extracted so there is exactly ONE row-scan
+/// (`find_usage_for` below is now a thin wrapper over this), and so a caller
+/// that needs to tell "the source record does not carry this field" apart from
+/// "the field is zero" has somewhere to read from: `usage_view_from_record`'s
+/// `count` helper (see its doc) defaults several fields to `0` on purpose, for
+/// the device wire contract's back-compat guarantee — a guarantee that is
+/// wrong for a DURABLE record (D6/F4). `sidecar::observation::write_budget_observation`
+/// joins through THIS function rather than `find_usage_for`, so a pre-split
+/// `UsageRecord` (no `cache_read_input_tokens`/`cache_creation_input_tokens`
+/// key at all — Task 3 added the split; an unpriced-but-known run predates F5's
+/// `price_known`) lands on the observation as ABSENT, never a manufactured
+/// zero. `usage_view_from_record`'s existing keys/defaults are UNCHANGED — a
+/// device-wire-contract test depends on them (`usage_view_maps_record_to_the_
+/// device_wire_contract`).
+pub(crate) fn find_usage_record_for(namespace: &str, prompt_ref: &str) -> Option<serde_json::Value> {
     let storage = crate::storage::NativeStorage::open(namespace).ok()?;
     let rows = storage.query_nodes("UsageRecord").ok()?;
     for row in rows {
@@ -870,10 +893,24 @@ pub(crate) fn find_usage_for(namespace: &str, prompt_ref: &str) -> Option<serde_
             continue;
         };
         if node.get("prompt_ref").and_then(|v| v.as_str()) == Some(prompt_ref) {
-            return Some(usage_view_from_record(&node));
+            return Some(node);
         }
     }
     None
+}
+
+/// The usage view for a respond effort, read from the correlated `UsageRecord`
+/// node. The agent persists one per turn keyed by the same `prompt_ref` the
+/// Response node carries, so `correlation_value` (the effort's prompt_ref) finds
+/// it. Returns None for a workload that wrote no UsageRecord — the result then
+/// stays content-only, unchanged. Additive and backward-compatible by design.
+///
+/// Device-facing ONLY: `sidecar::observation::write_budget_observation` joins
+/// the raw node via `find_usage_record_for` instead (see that function's doc
+/// for why) — this wrapper stays `pub(crate)` for the device-result call site
+/// below, not for the observation.
+pub(crate) fn find_usage_for(namespace: &str, prompt_ref: &str) -> Option<serde_json::Value> {
+    find_usage_record_for(namespace, prompt_ref).map(|node| usage_view_from_record(&node))
 }
 
 /// Watch for the terminal RESULT node an effort awaits (described by `spec`) and

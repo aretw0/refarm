@@ -33,8 +33,13 @@ pub(crate) struct ObservationInput<'a> {
     /// entirely, never re-resolved — D6, and see `dispatch::dispatched_budgets`'s
     /// doc for why re-resolving here would reintroduce round-1's Critical defect.
     pub resolved: Option<super::budget::ResolvedBudget>,
-    /// The usage view from `find_usage_for`, already joined on prompt_ref.
-    /// FLATTENED onto the node under OTel names — never nested (D2).
+    /// The RAW `UsageRecord` node from `dispatch::find_usage_record_for`,
+    /// already joined on prompt_ref — NOT `dispatch::find_usage_for`'s device
+    /// wire view, whose back-compat `count` helper defaults absent cache/price
+    /// fields to `0` (correct for a device client, wrong for a durable record;
+    /// see that function's doc — F4). `put_usage` below reads presence
+    /// straight off this node. FLATTENED onto the observation under OTel names
+    /// — never nested (D2).
     pub usage: Option<serde_json::Value>,
 }
 
@@ -63,6 +68,18 @@ fn now_ns() -> u64 {
 /// must find it at that key, or adopting the vocabulary was decorative.
 /// A field the joined record does not carry is OMITTED, per D6 — a run whose
 /// usage never landed is not a run that used zero tokens.
+///
+/// `usage` is the RAW `UsageRecord` node (`dispatch::find_usage_record_for`) —
+/// every field this function copies lives at ITS top level, so `u = usage`
+/// falls out of the `unwrap_or` below unchanged; the `usage.get("usage")`
+/// branch only ever matched a test fixture shaped like the device wire view
+/// and is kept so those fixtures (`sidecar/tests/observation.rs`) still pass
+/// unmodified. Reading the raw node rather than `find_usage_for`'s view is
+/// F4's fix: that view's `count` helper defaults an absent cache/price field
+/// to `0` for the device wire contract's back-compat guarantee, which is
+/// wrong for a durable record — a pre-split `UsageRecord` genuinely lacks
+/// `cache_read_input_tokens`/`cache_creation_input_tokens`, and copying from
+/// the raw node lets that absence read as absence here too.
 fn put_usage(
     map: &mut serde_json::Map<String, serde_json::Value>,
     usage: Option<&serde_json::Value>,
@@ -83,6 +100,10 @@ fn put_usage(
         "gen_ai.usage.cache_creation.input_tokens",
     );
     copy("estimated_usd", "refarm.cost.estimated_usd");
+    // Whether `estimated_usd` above is a real price or a structural/unpriced
+    // zero (F5) — "I could not price this" must not read as "this was cheap".
+    // Absent on a record written before this field existed, per D6.
+    copy("price_known", "refarm.cost.price_known");
     // Which rate table priced this run. Joined from the UsageRecord rather than
     // read locally, because `packages/tractor` does NOT depend on the agent
     // crate — the agent is a WASM guest loaded at runtime, and RATE_TABLE_VERSION
@@ -187,8 +208,23 @@ pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json:
     // an unenforced ceiling that reads as a satisfied one is the exact failure
     // D1 exists to prevent. Absent pricing mode means unknown, so absent here
     // too, per D6 — never a default `true`.
+    //
+    // `api` pricing mode alone is NOT enough (F1, round-2 Critical): the guest
+    // only receives a `max_usd` ceiling to enforce when `ceilings_for_payload`
+    // (`dispatch.rs`) forwards one, which happens ONLY when this axis was
+    // actually DECLARED (`resolved.max_usd_millis.declared.is_some()`) — an
+    // undeclared axis still resolves to a concrete `.effective` default
+    // (`ceilings_for_payload`'s own doc explains why), but nothing carries
+    // that default to the guest to enforce. Recording `enforced: true` on
+    // pricing mode alone was exactly the failure D1 invented this field to
+    // prevent, inverted into the field itself: a plain `refarm ask` against an
+    // api-mode provider recorded `enforced: true` with `bound_by.max_usd:
+    // "default"` and nothing enforcing anything.
     if let Some(mode) = map.get("refarm.pricing_mode").and_then(|v| v.as_str()) {
-        let enforced = mode == "api";
+        let declared_max_usd = input
+            .resolved
+            .is_some_and(|b| b.max_usd_millis.declared.is_some());
+        let enforced = mode == "api" && declared_max_usd;
         map.insert("refarm.budget.max_usd.enforced".into(), enforced.into());
     }
 
@@ -237,7 +273,9 @@ pub(crate) fn write_budget_observation(
         .unwrap_or((None, None));
 
     let prompt_ref = super::prompt_ref_from_effort(effort_id);
-    let usage = super::dispatch::find_usage_for(&state.namespace, &prompt_ref);
+    // The RAW record, not `find_usage_for`'s device wire view — see
+    // `find_usage_record_for`'s doc and `put_usage`'s doc for why (F4).
+    let usage = super::dispatch::find_usage_record_for(&state.namespace, &prompt_ref);
 
     let node = build_observation_node(ObservationInput {
         effort_id,
