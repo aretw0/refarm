@@ -302,6 +302,8 @@ Notes:
 						health,
 						doctor,
 						model,
+					}, {
+						warningsAsBlocking: options.failOnWarnings === true,
 					});
 
 					if (options.nextCommand && options.json) {

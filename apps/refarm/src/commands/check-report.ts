@@ -23,6 +23,7 @@ import {
 export interface RefarmCheckReport {
 	command: "check";
 	operation: "readiness";
+	warningsAsBlocking: boolean;
 	ok: boolean;
 	failureCount: number;
 	warningCount: number;
@@ -134,7 +135,8 @@ export function buildRefarmCheckReport(checks: {
 	workspaceExecution?: WorkspaceExecutionStatus;
 	workspaceSweep?: WorkspaceSweepCheck;
 	releasePolicy?: ReleasePolicyCheck;
-}): RefarmCheckReport {
+}, options: { warningsAsBlocking?: boolean } = {}): RefarmCheckReport {
+	const warningsAsBlocking = options.warningsAsBlocking === true;
 	const recommendations: DiagnosticRecommendation[] = [
 		...(checks.nodeSubstrate?.recommendations ?? []),
 		...(checks.rustSubstrate?.recommendations ?? []),
@@ -146,7 +148,9 @@ export function buildRefarmCheckReport(checks: {
 		...checks.doctor.recommendations,
 		...modelDoctorCheckRecommendations(checks.model),
 	];
-	const blockingRecommendations = recommendations.filter(isBlockingRecommendation);
+	const blockingRecommendations = recommendations.filter((recommendation) =>
+		isBlockingRecommendation(recommendation, warningsAsBlocking),
+	);
 	const failureCount =
 		(checks.nodeSubstrate?.ok === false ? 1 : 0) +
 		(checks.rustSubstrate?.ok === false ? 1 : 0) +
@@ -159,6 +163,7 @@ export function buildRefarmCheckReport(checks: {
 	return {
 		command: "check",
 		operation: "readiness",
+		warningsAsBlocking,
 		ok:
 			(checks.nodeSubstrate?.ok ?? true) &&
 			(checks.rustSubstrate?.ok ?? true) &&
@@ -282,8 +287,13 @@ function modelDoctorCheckRecommendations(
 	}));
 }
 
-function isBlockingRecommendation(recommendation: DiagnosticRecommendation): boolean {
-	return recommendation.severity !== "warning" && recommendation.severity !== "info";
+function isBlockingRecommendation(
+	recommendation: DiagnosticRecommendation,
+	warningsAsBlocking = false,
+): boolean {
+	if (recommendation.severity === "info") return false;
+	if (recommendation.severity === "warning") return warningsAsBlocking;
+	return true;
 }
 
 export function printRefarmCheckSummary(report: RefarmCheckReport): void {
@@ -351,18 +361,22 @@ export function printRefarmCheckNextActionJson(report: RefarmCheckReport): void 
 		ok: report.ok,
 		nextActions: report.nextActions,
 		nextCommands: report.nextCommands,
-		recommendations: compactActionableRecommendations(report.recommendations),
+		recommendations: compactActionableRecommendations(
+			report.recommendations,
+			report.warningsAsBlocking,
+		),
 	});
 	printJson(output);
 }
 
 function compactActionableRecommendations(
 	recommendations: DiagnosticRecommendation[],
+ 	warningsAsBlocking = false,
 ): DiagnosticRecommendation[] {
 	const seen = new Set<string>();
 	const compact: DiagnosticRecommendation[] = [];
 	for (const recommendation of recommendations) {
-		if (!isBlockingRecommendation(recommendation)) continue;
+		if (!isBlockingRecommendation(recommendation, warningsAsBlocking)) continue;
 		const key = `${recommendation.action}\n${recommendation.command ?? ""}`;
 		if (seen.has(key)) continue;
 		seen.add(key);

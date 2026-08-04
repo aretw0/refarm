@@ -1574,4 +1574,48 @@ describe("checkCommand", () => {
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 	});
+
+	it("promotes doctor warnings to next-action guidance when fail-on-warnings is enabled", async () => {
+		const deps = makeDeps({
+			doctor: {
+				ok: false,
+				failureCount: 0,
+				warningCount: 1,
+				warnings: ["context:home-divergence"],
+				recommendations: [
+					{
+						diagnostic: "context:home-divergence",
+						severity: "warning",
+						summary: "REFARM_HOME and SILO_HOME resolve to different homes.",
+						action: "Align SILO_HOME and REFARM_HOME, then re-check.",
+						command: "refarm model current --json",
+					},
+				],
+			},
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json", "--next-action", "--fail-on-warnings"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: false,
+			nextAction: "Align SILO_HOME and REFARM_HOME, then re-check.",
+			nextActions: ["Align SILO_HOME and REFARM_HOME, then re-check."],
+			nextCommand: "refarm model current --json",
+			nextCommands: ["refarm model current --json"],
+			recommendations: [
+				{
+					diagnostic: "context:home-divergence",
+					severity: "warning",
+					summary: "REFARM_HOME and SILO_HOME resolve to different homes.",
+					action: "Align SILO_HOME and REFARM_HOME, then re-check.",
+					command: "refarm model current --json",
+				},
+			],
+		});
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+	});
 });
