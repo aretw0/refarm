@@ -1794,6 +1794,18 @@ importers:
         specifier: workspace:*
         version: link:../plugin-manifest
 
+  packages/model-catalog-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
   packages/model-mock:
     devDependencies:
       '@refarm.dev/eslint-config':
