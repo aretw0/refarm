@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveNodeContextMetadata } from "../../src/utils/context-metadata.js";
 
 describe("resolveNodeContextMetadata", () => {
-	it("uses workspace-hatch when REFARM_HOME is the workspace .refarm", () => {
+	it("uses workspace mode when REFARM_HOME is the workspace .refarm", () => {
 		const cwd = "/tmp/refarm-workspace";
 		const metadata = resolveNodeContextMetadata(
 			{
@@ -12,11 +12,14 @@ describe("resolveNodeContextMetadata", () => {
 			cwd,
 		);
 
-		expect(metadata.mode).toBe("workspace-hatch");
+		expect(metadata.mode).toBe("workspace");
+		expect(metadata.binding.kind).toBe("attached");
+		expect(metadata.binding.origin).toBe("explicit");
+		expect(metadata.state.policy).toBe("workspace-owned");
 		expect(metadata.homesAligned).toBe(true);
 	});
 
-	it("uses node-global when REFARM_HOME points outside workspace scope", () => {
+	it("uses node mode when REFARM_HOME points outside workspace scope", () => {
 		const cwd = "/tmp/refarm-workspace";
 		const metadata = resolveNodeContextMetadata(
 			{
@@ -26,7 +29,10 @@ describe("resolveNodeContextMetadata", () => {
 			cwd,
 		);
 
-		expect(metadata.mode).toBe("node-global");
+		expect(metadata.mode).toBe("node");
+		expect(metadata.binding.kind).toBe("detached");
+		expect(metadata.binding.origin).toBe("explicit");
+		expect(metadata.state.policy).toBe("node-owned");
 		expect(metadata.homesAligned).toBe(true);
 	});
 
@@ -40,7 +46,14 @@ describe("resolveNodeContextMetadata", () => {
 			cwd,
 		);
 
-		expect(metadata.mode).toBe("node-global");
+		expect(metadata.mode).toBe("node");
 		expect(metadata.homesAligned).toBe(false);
+	});
+
+	it("marks origin as default when REFARM_HOME is not explicitly set", () => {
+		const cwd = "/tmp/refarm-workspace";
+		const metadata = resolveNodeContextMetadata({} as NodeJS.ProcessEnv, cwd);
+
+		expect(metadata.binding.origin).toBe("default");
 	});
 });

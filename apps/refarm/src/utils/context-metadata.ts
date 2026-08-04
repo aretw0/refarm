@@ -3,7 +3,15 @@ import path from "node:path";
 import { resolveRefarmHome } from "./refarm-home.js";
 
 export interface NodeContextMetadata {
-	mode: "node-global" | "workspace-hatch";
+	mode: "node" | "workspace";
+	binding: {
+		kind: "attached" | "detached";
+		origin: "explicit" | "default";
+	};
+	state: {
+		policy: "node-owned" | "workspace-owned";
+		homeRef: string;
+	};
 	sovereignHome: string;
 	credentialStoreHome: string;
 	homesAligned: boolean;
@@ -16,13 +24,22 @@ export function resolveNodeContextMetadata(
 	const sovereignHome = resolveRefarmHome(env);
 	const credentialStoreHome = resolveSiloHome(env);
 	const workspaceHome = path.join(cwd, ".refarm");
-	const mode =
+	const isWorkspaceScoped =
 		path.resolve(sovereignHome) === path.resolve(workspaceHome)
-			? "workspace-hatch"
-			: "node-global";
+			? true
+			: false;
+	const mode = isWorkspaceScoped ? "workspace" : "node";
 	const homesAligned = path.resolve(sovereignHome) === path.resolve(credentialStoreHome);
 	return {
 		mode,
+		binding: {
+			kind: isWorkspaceScoped ? "attached" : "detached",
+			origin: env.REFARM_HOME?.trim() ? "explicit" : "default",
+		},
+		state: {
+			policy: isWorkspaceScoped ? "workspace-owned" : "node-owned",
+			homeRef: sovereignHome,
+		},
 		sovereignHome,
 		credentialStoreHome,
 		homesAligned,

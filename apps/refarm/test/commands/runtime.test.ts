@@ -52,7 +52,7 @@ describe("runtime command", () => {
 		expect(output).toContain("ready:      yes");
 		expect(output).toContain("autostart:  always");
 		expect(output).toContain("sidecar:    http://127.0.0.1:42001");
-		expect(output).toContain("context:    node-global");
+		expect(output).toContain("context:    node");
 		expect(output).toContain("home:       ");
 		expect(output).toContain("store:      ");
 		expect(output).toContain("start:      tractor");
@@ -132,7 +132,7 @@ describe("runtime command", () => {
 			operation: "status",
 			ok: true,
 			context: {
-				mode: "node-global",
+				mode: "node",
 				homesAligned: true,
 			},
 			configuredEngine: "ts",
@@ -309,7 +309,7 @@ describe("runtime command", () => {
 			autostart: "never",
 			reason: "configured-ts",
 			context: {
-				mode: "node-global",
+				mode: "node",
 				homesAligned: true,
 			},
 			sidecarUrl: "http://127.0.0.1:42001",

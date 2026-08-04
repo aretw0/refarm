@@ -193,7 +193,9 @@ describe("buildRefarmDoctorReport", () => {
 	it("adds a warning when REFARM_HOME and SILO_HOME point to different homes", () => {
 		const report = buildRefarmDoctorReport(makeStatus([]), {
 			context: {
-				mode: "node-global",
+				mode: "node",
+				binding: { kind: "detached", origin: "explicit" },
+				state: { policy: "node-owned", homeRef: "/tmp/refarm-home" },
 				sovereignHome: "/tmp/refarm-home",
 				credentialStoreHome: "/tmp/silo-home",
 				homesAligned: false,
@@ -217,7 +219,9 @@ describe("buildRefarmDoctorReport", () => {
 		const report = buildRefarmDoctorReport(makeStatus([]), {
 			failOnWarnings: true,
 			context: {
-				mode: "node-global",
+				mode: "node",
+				binding: { kind: "detached", origin: "explicit" },
+				state: { policy: "node-owned", homeRef: "/tmp/refarm-home" },
 				sovereignHome: "/tmp/refarm-home",
 				credentialStoreHome: "/tmp/silo-home",
 				homesAligned: false,

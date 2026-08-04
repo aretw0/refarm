@@ -106,7 +106,7 @@ describe("modelCommand", () => {
 		expect(output).toContain("openai/gpt-5.5");
 		expect(output).toContain("key env:  OPENAI_API_KEY");
 		expect(output).toContain("key:      missing (run refarm sow)");
-		expect(output).toContain("context:  node-global");
+		expect(output).toContain("context:  node");
 		expect(output).toContain("home:     ");
 		expect(output).toContain("store:    ");
 		expect(output).toContain("openai/gpt-5.3-codex-spark");
@@ -379,7 +379,7 @@ describe("modelCommand", () => {
 		expect(payload.command).toBe("model");
 		expect(payload.operation).toBe("current");
 		expect(payload.current.ref).toBe("openai/gpt-5.5");
-		expect(payload.context.mode).toBe("node-global");
+		expect(payload.context.mode).toBe("node");
 		expect(payload.context.sovereignHome.length).toBeGreaterThan(0);
 		expect(payload.context.credentialStoreHome.length).toBeGreaterThan(0);
 		expect(typeof payload.context.homesAligned).toBe("boolean");
