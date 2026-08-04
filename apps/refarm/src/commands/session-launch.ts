@@ -6,15 +6,15 @@
 import { ambientActivitySink, newActivityRef } from "@refarm.dev/capabilities";
 import { executeProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
-	hasUsableModelCredential,
-	hasUsableModelCredentialSource,
-	modelCredentialSource,
+    hasUsableModelCredential,
+    hasUsableModelCredentialSource,
+    modelCredentialSource,
 } from "@refarm.dev/config";
 import { createStdioOperatorChannel, type OperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import {
-	autoStartRuntime as operatorAutoStartRuntime,
-	type AutostartActivityReporter,
-	type AutostartVocabulary,
+    autoStartRuntime as operatorAutoStartRuntime,
+    type AutostartActivityReporter,
+    type AutostartVocabulary,
 } from "@refarm.dev/runtime-operator";
 import { resolveSiloHome } from "@refarm.dev/silo";
 import chalk from "chalk";
@@ -23,42 +23,42 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { refarmCommand } from "../brand.js";
 import {
-	DEFAULT_MODEL_PROVIDER,
-	MODEL_DEFAULT_PROVIDER_ENV_VAR,
-	MODEL_PROVIDER_ENV_VAR,
+    DEFAULT_MODEL_PROVIDER,
+    MODEL_DEFAULT_PROVIDER_ENV_VAR,
+    MODEL_PROVIDER_ENV_VAR,
 } from "../model-routing.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import {
-	resolveAutostartMode,
-	resolveAutostartModeAsync,
-	resolveTractorEngineMode,
-	resolveTractorEngineModeAsync,
-	type AutostartMode,
-	type TractorEngineMode,
+    resolveAutostartMode,
+    resolveAutostartModeAsync,
+    resolveTractorEngineMode,
+    resolveTractorEngineModeAsync,
+    type AutostartMode,
+    type TractorEngineMode,
 } from "../utils/runtime-config.js";
 import { resolveSovereignConfig } from "../utils/sovereign-config.js";
+import {
+    MODEL_CREDENTIALS_INSPECT_ROUTE_COMMAND,
+    MODEL_CREDENTIALS_LIST_PROVIDERS_COMMAND,
+    MODEL_CREDENTIALS_MISSING_MESSAGE,
+    MODEL_CREDENTIALS_OLLAMA_SERVE_COMMAND,
+    MODEL_CREDENTIALS_SETUP_COMMAND,
+    missingModelCredentialDeferredLines,
+} from "./model-credential-guidance.js";
 import { createPackageScriptCommand } from "./package-manager.js";
 import { resolveRuntimeLaunchCommand, startRuntimeProcess } from "./runtime-launcher.js";
 import {
-	probeRuntimeReady,
-	waitForRuntimeOutcome,
-	waitForRuntimeReady,
-	type RuntimeWaitOutcome,
+    probeRuntimeReady,
+    waitForRuntimeOutcome,
+    waitForRuntimeReady,
+    type RuntimeWaitOutcome,
 } from "./runtime-readiness.js";
 import {
-	RUNTIME_DOCTOR_COMMAND,
-	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-	RUNTIME_START_COMMAND,
+    RUNTIME_DOCTOR_COMMAND,
+    RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+    RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+    RUNTIME_START_COMMAND,
 } from "./runtime-recovery.js";
-import {
-	MODEL_CREDENTIALS_INSPECT_ROUTE_COMMAND,
-	MODEL_CREDENTIALS_LIST_PROVIDERS_COMMAND,
-	MODEL_CREDENTIALS_MISSING_MESSAGE,
-	MODEL_CREDENTIALS_OLLAMA_SERVE_COMMAND,
-	MODEL_CREDENTIALS_SETUP_COMMAND,
-	missingModelCredentialDeferredLines,
-} from "./model-credential-guidance.js";
 
 export type { AutostartMode, TractorEngineMode } from "../utils/runtime-config.js";
 

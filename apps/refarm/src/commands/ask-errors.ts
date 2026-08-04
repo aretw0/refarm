@@ -1,46 +1,46 @@
 import {
-	buildJsonErrorEnvelope,
-	buildJsonSuccessEnvelope,
-	printJson,
+    buildJsonErrorEnvelope,
+    buildJsonSuccessEnvelope,
+    printJson,
 } from "@refarm.dev/capabilities/envelope";
 import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import chalk from "chalk";
 import { refarmCommand } from "../brand.js";
 import type { AskJsonResult } from "./ask.js";
 import {
-	AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND,
-	LOCAL_MODEL_JSON_COMMAND,
-	MODEL_CURRENT_JSON_COMMAND,
-	MODEL_DOCTOR_JSON_COMMAND,
-	MODEL_PROVIDERS_JSON_COMMAND,
-	OPENAI_DEFAULT_REF,
-	OPENAI_MODEL_JSON_COMMAND,
-	OPERATOR_LINKS_CONFIG_COMMAND,
-	RESUME_JSON_COMMAND,
-	SOW_INTERACTIVE_COMMAND,
-	SOW_JSON_COMMAND,
+    AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND,
+    LOCAL_MODEL_JSON_COMMAND,
+    MODEL_CURRENT_JSON_COMMAND,
+    MODEL_DOCTOR_JSON_COMMAND,
+    MODEL_PROVIDERS_JSON_COMMAND,
+    OPENAI_DEFAULT_REF,
+    OPENAI_MODEL_JSON_COMMAND,
+    OPERATOR_LINKS_CONFIG_COMMAND,
+    RESUME_JSON_COMMAND,
+    SOW_INTERACTIVE_COMMAND,
+    SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
 import {
-	PLUGIN_INSTALL_COMMAND,
-	PLUGIN_INSTALL_JSON_COMMAND,
-	RUNTIME_AGENT_RELOAD_JSON_COMMAND,
+    MODEL_CREDENTIALS_MISSING_MESSAGE,
+    missingModelCredentialActionLines,
+} from "./model-credential-guidance.js";
+import {
+    PLUGIN_INSTALL_COMMAND,
+    PLUGIN_INSTALL_JSON_COMMAND,
+    RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 } from "./plugin-handoffs.js";
 import {
-	RUNTIME_DOCTOR_COMMAND,
-	RUNTIME_DOCTOR_NEXT_COMMAND,
-	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-	RUNTIME_START_COMMAND,
-	RUNTIME_START_WAIT_COMMAND,
+    RUNTIME_DOCTOR_COMMAND,
+    RUNTIME_DOCTOR_NEXT_COMMAND,
+    RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+    RUNTIME_START_COMMAND,
+    RUNTIME_START_WAIT_COMMAND,
 } from "./runtime-recovery.js";
 import {
-	buildRuntimeUnavailableRecommendation,
-	isSidecarUnavailable,
-	printSidecarUnavailable,
+    buildRuntimeUnavailableRecommendation,
+    isSidecarUnavailable,
+    printSidecarUnavailable,
 } from "./sidecar-error.js";
-import {
-	MODEL_CREDENTIALS_MISSING_MESSAGE,
-	missingModelCredentialActionLines,
-} from "./model-credential-guidance.js";
 
 const OLLAMA_SERVE_COMMAND = "ollama serve";
 const OLLAMA_DOCKER_BASE_URL_COMMAND = refarmCommand([
