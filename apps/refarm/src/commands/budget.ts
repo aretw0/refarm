@@ -52,6 +52,26 @@ const DEFAULT_LIMIT = 100;
 
 export type ObservationNode = Record<string, unknown>;
 
+/**
+ * One distinct machine, per the record — keyed on `host.id` (opaque, per-installation,
+ * never shared between two real nodes), never on `host.name`. Name collision cannot be
+ * PREVENTED in a coordinator-less mesh (two nodes started offline can always choose the
+ * same name), so it is made HARMLESS here instead: two nodes named `sede` with different
+ * ids are two `RepresentedNode` entries, not one that silently absorbed the second
+ * machine's work into the first's count.
+ */
+export interface RepresentedNode {
+	/** `host.id` — the identity this entry is keyed on. */
+	id: string;
+	/** `host.name`, the declared, human-chosen, MUTABLE label — `null` when this node has
+	 *  an id but has not declared a name. That is still a real, distinct node (it has its
+	 *  own entry, keyed on its own id) — not folded into a shared nameless bucket with
+	 *  every other unnamed node, the way a `Set<string>` keyed on the label used to. */
+	name: string | null;
+	/** How many observations in this batch this node produced. */
+	observations: number;
+}
+
 export type ObservationSummary = {
 	total: number;
 	timedOut: number;
@@ -67,17 +87,30 @@ export type ObservationSummary = {
 	 *  stamp and still be `price_known: false` (the table was consulted and
 	 *  came back empty for that model). */
 	priceUnknown: number;
-	/** Distinct declared node names (`host.name`, OTel's resource semantic
-	 *  convention) seen across these observations, sorted. Node identity landed
-	 *  after months of this record already existing, so an empty array here is
-	 *  informative on its own — not "no nodes exist", but "nothing observed
-	 *  since node identity shipped, or no node here has declared a name". */
-	nodesRepresented: string[];
-	/** Observations that carry no `host.name` at all — not a name that happens
-	 *  to be `""` (D6: absent is not zero, applied to WHO ran this, not just
-	 *  what it spent). The honest measure of how much of the record predates
-	 *  node identity, or was written by a node that never declared a name. */
+	/** Distinct IDENTIFIED nodes (`host.id` present) seen across these observations, one
+	 *  entry per id — not per declared name, because two real machines can legitimately
+	 *  share a name (see `RepresentedNode`'s doc). Sorted by (name, id) so identically
+	 *  labelled nodes sort predictably next to each other rather than colliding in the
+	 *  list. An observation with no `host.id` at all contributes to `unidentifiedRecords`
+	 *  instead — see that field's doc for why it cannot be merged in here. An empty array
+	 *  is informative on its own: not "no nodes exist", but "nothing observed since node
+	 *  identity shipped, or every observation since predates it". */
+	nodesRepresented: RepresentedNode[];
+	/** Observations from an IDENTIFIED node (`host.id` present) that has not declared a
+	 *  name — not a name that happens to be `""` (D6: absent is not zero, applied to WHO
+	 *  ran this, not just what it spent). Counted per OBSERVATION, same as before this
+	 *  field existed; `nodesRepresented` is where each such node gets its own entry
+	 *  (`name: null`). Distinct from `unidentifiedRecords`: this node IS identified, it
+	 *  simply has not been named. */
 	unnamedNode: number;
+	/** Observations with NO `host.id` at all — every record written before node identity
+	 *  shipped. These are counted here rather than folded into `nodesRepresented`: there is
+	 *  no stable identity to key them on, so merging them would either fabricate one shared
+	 *  "phantom node" out of possibly many real machines, or silently drop them from the
+	 *  count. "A node that has not been named" (`unnamedNode`) and "a record that predates
+	 *  node identity" (this field) are different facts, and D6 says they must not collapse
+	 *  into the same number. */
+	unidentifiedRecords: number;
 };
 
 /** Pure reducer over the record. Kept separate from the command so the counting
@@ -93,7 +126,8 @@ export function summariseObservations(
 	let unstampedPricing = 0;
 	let priceUnknown = 0;
 	let unnamedNode = 0;
-	const nodeNames = new Set<string>();
+	let unidentifiedRecords = 0;
+	const nodesById = new Map<string, { name: string | null; observations: number }>();
 	for (const node of nodes) {
 		if (node["refarm.outcome"] === "timed-out") timedOut += 1;
 		const boundBy = node["refarm.budget.bound_by"];
@@ -105,13 +139,36 @@ export function summariseObservations(
 			stalePricing += 1;
 		}
 		if (node["refarm.cost.price_known"] === false) priceUnknown += 1;
-		const hostName = node["host.name"];
-		if (typeof hostName === "string" && hostName.length > 0) {
-			nodeNames.add(hostName);
+
+		const rawId = node["host.id"];
+		const id = typeof rawId === "string" && rawId.length > 0 ? rawId : undefined;
+		const rawName = node["host.name"];
+		const name = typeof rawName === "string" && rawName.length > 0 ? rawName : null;
+
+		// No `host.id` at all: this record predates node identity. It cannot be keyed on
+		// anything stable, so it must not be merged into `nodesRepresented` — see that
+		// field's doc — but it must still be counted (D6).
+		if (id === undefined) {
+			unidentifiedRecords += 1;
+			continue;
+		}
+
+		if (name === null) unnamedNode += 1;
+		const existing = nodesById.get(id);
+		if (existing) {
+			existing.observations += 1;
+			// The declared name is mutable and read live (node_identity.rs's
+			// `declared_node_name`), so a node can rename itself between two
+			// observations in the same batch — keep the newest non-null name seen
+			// rather than freezing whichever observation happened to arrive first.
+			if (name !== null) existing.name = name;
 		} else {
-			unnamedNode += 1;
+			nodesById.set(id, { name, observations: 1 });
 		}
 	}
+	const nodesRepresented: RepresentedNode[] = [...nodesById.entries()]
+		.map(([id, entry]) => ({ id, name: entry.name, observations: entry.observations }))
+		.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "") || a.id.localeCompare(b.id));
 	return {
 		total: nodes.length,
 		timedOut,
@@ -120,8 +177,9 @@ export function summariseObservations(
 		stalePricing,
 		unstampedPricing,
 		priceUnknown,
-		nodesRepresented: [...nodeNames].sort(),
+		nodesRepresented,
 		unnamedNode,
+		unidentifiedRecords,
 	};
 }
 
@@ -245,18 +303,38 @@ function printObservationsHuman(
 				`price-unknown: ${summary.priceUnknown}\n`,
 		),
 	);
+	// One entry per IDENTIFIED node (host.id), name as a display label — never one entry
+	// per label, so two nodes that happen to share a declared name still render as two.
+	const nodeLabel = (node: RepresentedNode): string => {
+		const label = node.name ?? "(unnamed)";
+		const idSlice = node.id.slice(0, 8);
+		const suffix = node.observations > 1 ? ` x${node.observations}` : "";
+		return `${label} [${idSlice}]${suffix}`;
+	};
 	const nodesLabel =
-		summary.nodesRepresented.length > 0 ? summary.nodesRepresented.join(", ") : "(none declared)";
-	console.log(chalk.dim(`  nodes: ${nodesLabel}   unnamed-node: ${summary.unnamedNode}\n`));
+		summary.nodesRepresented.length > 0
+			? summary.nodesRepresented.map(nodeLabel).join(", ")
+			: "(none declared)";
+	console.log(
+		chalk.dim(
+			`  nodes: ${nodesLabel}   unnamed-node: ${summary.unnamedNode}   ` +
+				`unidentified-records: ${summary.unidentifiedRecords}\n`,
+		),
+	);
 	for (const node of observations) {
 		const outcome = typeof node["refarm.outcome"] === "string" ? node["refarm.outcome"] : "?";
 		const boundBy =
 			typeof node["refarm.budget.bound_by"] === "string" ? node["refarm.budget.bound_by"] : "?";
 		const effortId = typeof node.effort_id === "string" ? node.effort_id : "?";
 		const hostName = typeof node["host.name"] === "string" ? (node["host.name"] as string) : "?";
+		// The short id slice rides every row too, not only the summary line: two rows both
+		// printing "node:sede" would otherwise look like the same machine ran both, which is
+		// the exact lie this change removes from the summary above.
+		const hostId = typeof node["host.id"] === "string" ? (node["host.id"] as string).slice(0, 8) : undefined;
+		const nodeColumn = hostId ? `${hostName}[${hostId}]` : hostName;
 		console.log(
 			`  ${outcomeMark(outcome as string)} ${(outcome as string).padEnd(10)} ` +
-				`bound-by:${(boundBy as string).padEnd(10)} node:${hostName.padEnd(12)} ${chalk.dim(effortId as string)}`,
+				`bound-by:${(boundBy as string).padEnd(10)} node:${nodeColumn.padEnd(21)} ${chalk.dim(effortId as string)}`,
 		);
 	}
 	console.log(chalk.dim(`\n  ${BUDGET_OBSERVATIONS_JSON_COMMAND}\n`));

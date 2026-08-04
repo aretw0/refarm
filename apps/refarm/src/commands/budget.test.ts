@@ -19,10 +19,11 @@ describe("summariseObservations", () => {
 			stalePricing: 0,
 			unstampedPricing: 3,
 			priceUnknown: 0,
-			// None of these three carry `host.name` either — pre-node-identity fixtures,
-			// so all three count as unnamed and no node name is represented.
+			// None of these three carry `host.id` either — pre-node-identity fixtures, so
+			// all three are unidentified records, not nodes.
 			nodesRepresented: [],
-			unnamedNode: 3,
+			unnamedNode: 0,
+			unidentifiedRecords: 3,
 		});
 	});
 
@@ -37,6 +38,7 @@ describe("summariseObservations", () => {
 			priceUnknown: 0,
 			nodesRepresented: [],
 			unnamedNode: 0,
+			unidentifiedRecords: 0,
 		});
 	});
 
@@ -69,26 +71,88 @@ describe("summariseObservations", () => {
 		expect(summary.priceUnknown).toBe(1);
 	});
 
-	it("names which nodes are represented and counts how many observations name none", () => {
+	// ── The collision contract — this is the point of the reducer ──────────────────
+
+	it("gives two nodes the same declared name and distinct ids two separate entries", () => {
+		// This is the whole reason nodesRepresented keys on host.id: no coordinator can
+		// forbid two offline nodes from choosing the same name, so the reader must not be
+		// the thing that silently merges them into one machine's worth of work.
 		const summary = summariseObservations([
-			{ "host.name": "galaxy-a55-5g-desktop" },
-			{ "host.name": "galaxy-a55-5g-desktop" },
-			{ "host.name": "arthur-laptop" },
-			// Pre-node-identity record: no host.name at all.
-			{},
-			// A malformed/non-string value must not be trusted as a name either.
-			{ "host.name": 42 },
+			{ "host.id": "node-a", "host.name": "sede" },
+			{ "host.id": "node-b", "host.name": "sede" },
 		]);
-		expect(summary.nodesRepresented).toEqual(["arthur-laptop", "galaxy-a55-5g-desktop"]);
-		// Only the two nodeless fixtures ({} and the non-string 42) are unnamed — the
-		// three carrying a real string name (two of them the same node) are not.
+		expect(summary.nodesRepresented).toHaveLength(2);
+		expect(summary.nodesRepresented.map((n) => n.id).sort()).toEqual(["node-a", "node-b"]);
+		expect(summary.nodesRepresented.every((n) => n.name === "sede")).toBe(true);
+		expect(summary.nodesRepresented.every((n) => n.observations === 1)).toBe(true);
+	});
+
+	it("collapses many observations from one node, by id, into a single entry", () => {
+		const summary = summariseObservations([
+			{ "host.id": "node-a", "host.name": "sede" },
+			{ "host.id": "node-a", "host.name": "sede" },
+			{ "host.id": "node-a", "host.name": "sede" },
+		]);
+		expect(summary.nodesRepresented).toEqual([{ id: "node-a", name: "sede", observations: 3 }]);
+	});
+
+	it("counts an observation with an id and no name as a real node, labelled unnamed", () => {
+		const summary = summariseObservations([{ "host.id": "node-a" }]);
+		expect(summary.nodesRepresented).toEqual([{ id: "node-a", name: null, observations: 1 }]);
+		expect(summary.unnamedNode).toBe(1);
+		expect(summary.unidentifiedRecords).toBe(0);
+	});
+
+	it("gives two DIFFERENT unnamed nodes two entries, not one shared nameless bucket", () => {
+		const summary = summariseObservations([{ "host.id": "node-a" }, { "host.id": "node-b" }]);
+		expect(summary.nodesRepresented).toHaveLength(2);
+		expect(summary.nodesRepresented.every((n) => n.name === null)).toBe(true);
 		expect(summary.unnamedNode).toBe(2);
 	});
 
-	it("treats an empty declared name the same as no name at all (D6)", () => {
-		const summary = summariseObservations([{ "host.name": "" }]);
-		expect(summary.nodesRepresented).toEqual([]);
+	it("treats an empty declared name on an identified node the same as no name (D6)", () => {
+		const summary = summariseObservations([{ "host.id": "node-a", "host.name": "" }]);
+		expect(summary.nodesRepresented).toEqual([{ id: "node-a", name: null, observations: 1 }]);
 		expect(summary.unnamedNode).toBe(1);
+	});
+
+	it("does not trust a non-string host.id or host.name as real values", () => {
+		const summary = summariseObservations([{ "host.id": 42, "host.name": 7 }]);
+		expect(summary.nodesRepresented).toEqual([]);
+		expect(summary.unidentifiedRecords).toBe(1);
+		expect(summary.unnamedNode).toBe(0);
+	});
+
+	it("keeps a record with no host.id at all out of nodesRepresented, but still countable", () => {
+		// Every record written before node identity shipped is this case. It must not be
+		// merged with any identified node — there is nothing stable to key it on — and it
+		// must not vanish either (D6: absent is not zero).
+		const summary = summariseObservations([
+			{ "host.id": "node-a", "host.name": "sede" },
+			{}, // no host.id, no host.name — pre-identity record
+			{}, // a second one, from a possibly different machine — must not collapse into node-a
+		]);
+		expect(summary.nodesRepresented).toEqual([{ id: "node-a", name: "sede", observations: 1 }]);
+		expect(summary.unidentifiedRecords).toBe(2);
+	});
+
+	it("keeps the newest non-null name when the same node renamed itself mid-batch", () => {
+		// host.name is read live and is documented as mutable — a rename must not corrupt
+		// the count, and the entry stays exactly one node throughout.
+		const summary = summariseObservations([
+			{ "host.id": "node-a", "host.name": "old-name" },
+			{ "host.id": "node-a", "host.name": "new-name" },
+		]);
+		expect(summary.nodesRepresented).toEqual([{ id: "node-a", name: "new-name", observations: 2 }]);
+	});
+
+	it("sorts nodesRepresented by name, then by id, for a predictable listing", () => {
+		const summary = summariseObservations([
+			{ "host.id": "node-z", "host.name": "beta" },
+			{ "host.id": "node-a", "host.name": "alpha" },
+			{ "host.id": "node-b" }, // unnamed sorts before any declared name
+		]);
+		expect(summary.nodesRepresented.map((n) => n.id)).toEqual(["node-b", "node-a", "node-z"]);
 	});
 });
 
