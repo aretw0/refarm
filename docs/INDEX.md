@@ -59,6 +59,7 @@
 - **[Package Registry](../packages/README.md)** — Catalog of all monorepo components.
 - **[Plugin Developer Playbook](PLUGIN_DEVELOPER_PLAYBOOK.md)** — Guide for building sovereign extensions.
 - **[Plugin Authoring Tracks](PLUGIN_AUTHORING_TRACKS.md)** — Rust vs TS plugin paths, complexity tiers.
+- **[Model-catalog Plugin Onboarding](MODEL_CATALOG_PLUGIN_ONBOARDING.md)** — Operational onboarding and phased adoption plan for provider/composer catalog plugins.
 - **[Extensibility Model](EXTENSIBILITY_MODEL.md)** — Multi-surface plugin model.
 - **[WASM & JCO](WASM_JCO_ARCHITECTURE.md)** — Plugin sandbox: transpilation flow, runtime vs build-time table.
 - **[Courier Plugin](COURIER.md)** — `@refarm.dev/plugin-courier`: dynamic routing and protocol agnosticism.

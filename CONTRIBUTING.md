@@ -42,6 +42,28 @@ If you want `factory:preflight` to also run a targeted onboarding check, set:
 REFARM_ONBOARDING_DOCTOR_PACKAGE=packages/<new-package> pnpm run factory:preflight
 ```
 
+### 1.2 Model-catalog plugins (0.1.x lane)
+
+The model-catalog plugin family is now available:
+
+- `@refarm.dev/model-catalog-plugin-openai`
+- `@refarm.dev/model-catalog-plugin-anthropic`
+- `@refarm.dev/model-catalog-plugin-stack`
+
+Recommended onboarding after pulling changes:
+
+```bash
+pnpm run onboarding:doctor -- --package packages/model-catalog-plugin-openai
+pnpm run onboarding:doctor -- --package packages/model-catalog-plugin-anthropic
+pnpm run onboarding:doctor -- --package packages/model-catalog-plugin-stack
+pnpm --filter "@refarm.dev/model-catalog-plugin-*" test
+pnpm run models:catalog:check
+```
+
+Adoption playbook and phased rollout guidance live in:
+
+- `docs/MODEL_CATALOG_PLUGIN_ONBOARDING.md`
+
 ### 2. Making Changes
 
 - Create a feature branch from `develop`
