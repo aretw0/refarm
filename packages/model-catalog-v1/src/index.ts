@@ -272,6 +272,8 @@ function validateModelTariffShape(
     }
   }
 
+  issues.push(...shadowedEntryIssues(value.entries as ModelTariffEntry[]));
+
   return { valid: issues.length === 0, issues };
 }
 
@@ -297,6 +299,43 @@ export function assertValidModelTariffCatalog(catalog: unknown): asserts catalog
     const details = result.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ");
     throw new Error(`Invalid model tariff catalog: ${details}`);
   }
+}
+
+/**
+ * Entries resolve FIRST-MATCH-WINS in array order, so a general `contains` rule placed ahead of a
+ * more specific one makes the specific rule unreachable — permanently, and silently, because the
+ * general rule answers with a plausible price instead of failing.
+ *
+ * This is not a hypothetical. The Rust rate table this catalog is replacing shipped exactly that
+ * bug: `"claude-opus-4-5".contains("claude-opus-4")` is true, so Opus 4.5 was billed at Opus 4's
+ * rate — three times the real price — until somebody read the vendor page. Carrying the data over
+ * without carrying a guard would carry the hazard over with it.
+ *
+ * The invariant, checked per provider: if entry A's `contains` value is a substring of entry B's,
+ * A must come AFTER B. Anything else means B can never be reached.
+ *
+ * `exact` rules cannot shadow and cannot be shadowed, so they are exempt.
+ */
+function shadowedEntryIssues(entries: readonly ModelTariffEntry[]): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  for (let i = 0; i < entries.length; i += 1) {
+    const earlier = entries[i];
+    if (earlier?.match?.mode !== "contains" || typeof earlier.match.value !== "string") continue;
+    for (let j = i + 1; j < entries.length; j += 1) {
+      const later = entries[j];
+      if (later?.match?.mode !== "contains" || typeof later.match.value !== "string") continue;
+      if (earlier.provider?.trim().toLowerCase() !== later.provider?.trim().toLowerCase()) continue;
+      if (earlier.match.value === later.match.value) continue;
+      if (!later.match.value.includes(earlier.match.value)) continue;
+      issues.push({
+        path: `entries[${j}].match.value`,
+        message:
+          `"${later.match.value}" can never be reached: entries[${i}] matches "${earlier.match.value}", ` +
+          `a substring of it, and resolution is first-match-wins. Move the more specific rule first.`,
+      });
+    }
+  }
+  return issues;
 }
 
 function resolveModelTariffEntry(

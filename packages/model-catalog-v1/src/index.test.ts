@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   assertValidModelTariffCatalog,
@@ -202,5 +203,57 @@ describe("contextWindow provenance", () => {
         ),
       ).toThrow(/contextWindow\.tokens/);
     }
+  });
+});
+
+describe("the shipped catalog", () => {
+  // The package validator and scripts/ci/check-model-catalog.mjs are TWO checkers for one file,
+  // and each has holes the other covers: the script validates date parseability, effective-window
+  // ordering and same-value overlap; the validator owns contextWindow provenance and shadowing.
+  // The script cannot import this package without adding a build-order dependency to CI, so the
+  // seam stays — but it stops being silent: this test runs the validator against the real file,
+  // so anything the validator knows is enforced on the shipped data too.
+  const shipped = JSON.parse(
+    readFileSync(new URL("../catalog/model-rates.v1.json", import.meta.url), "utf8"),
+  ) as unknown;
+
+  it("validates against its own schema", () => {
+    expect(() => assertValidModelRateCatalog(shipped)).not.toThrow();
+  });
+
+  it("has no rule that shadows a more specific one", () => {
+    // The bug this guards is not hypothetical: the Rust table this catalog replaces billed
+    // Opus 4.5 at Opus 4's rate -- three times over -- because "claude-opus-4-5" contains
+    // "claude-opus-4" and the general rule came first.
+    const { entries } = shipped as { entries: Array<{ provider: string; match: { mode: string; value: string } }> };
+    for (let i = 0; i < entries.length; i += 1) {
+      for (let j = i + 1; j < entries.length; j += 1) {
+        if (entries[i].provider !== entries[j].provider) continue;
+        if (entries[i].match.mode !== "contains" || entries[j].match.mode !== "contains") continue;
+        if (entries[i].match.value === entries[j].match.value) continue;
+        expect(
+          entries[j].match.value.includes(entries[i].match.value),
+          `entries[${j}] "${entries[j].match.value}" is unreachable behind entries[${i}] "${entries[i].match.value}"`,
+        ).toBe(false);
+      }
+    }
+  });
+
+  it("prices every model id the Rust rate table prices", () => {
+    // The migration's own completion check. The agent's rate_for_model cannot be retired until
+    // the catalog is a SUPERSET of it, or retiring it would silently drop rates. Listed
+    // explicitly rather than parsed out of Rust, so this test states a target rather than
+    // agreeing with whatever the source happens to say today.
+    const rustPrices = [
+      "claude-fable-5", "claude-mythos-5", "claude-opus-5", "claude-sonnet-5",
+      "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-opus-4-5",
+      "claude-opus-4", "claude-sonnet-4", "claude-haiku-4-5", "claude-haiku",
+      "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5",
+      "gpt-5-mini", "gpt-5-nano", "gpt-5", "gpt-4o-mini", "gpt-4o",
+    ];
+    const { entries } = shipped as { entries: Array<{ match: { value: string } }> };
+    const covered = new Set(entries.map((e) => e.match.value));
+    const missing = rustPrices.filter((id) => !covered.has(id));
+    expect(missing, `still only in Rust: ${missing.join(", ")}`).toEqual([]);
   });
 });

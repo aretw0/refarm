@@ -1,6 +1,6 @@
 {
   "schemaVersion": "model-rate-catalog.v1",
-  "catalogVersion": "2026-08-04.3",
+  "catalogVersion": "2026-08-04.5",
   "entries": [
     {
       "provider": "anthropic",
@@ -238,6 +238,188 @@
         "sourceUrl": "https://docs.mistral.ai/models/model-cards/mistral-medium-3-5-26-04",
         "verifiedAt": "2026-08-04"
       }
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-opus-4-5"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 5.0,
+        "outputPerMTokenUsd": 25.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-opus-4-6"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 5.0,
+        "outputPerMTokenUsd": 25.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-opus-4-7"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 5.0,
+        "outputPerMTokenUsd": 25.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-opus-4-8"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 5.0,
+        "outputPerMTokenUsd": 25.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-sonnet-4"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 3.0,
+        "outputPerMTokenUsd": 15.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-haiku-4-5"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 1.0,
+        "outputPerMTokenUsd": 5.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-opus-4"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 15.0,
+        "outputPerMTokenUsd": 75.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-haiku"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 0.8,
+        "outputPerMTokenUsd": 4.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-5.5"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 5.0,
+        "outputPerMTokenUsd": 30.0
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-5-mini"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 0.25,
+        "outputPerMTokenUsd": 2.0
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-5-nano"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 0.05,
+        "outputPerMTokenUsd": 0.4
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-4o-mini"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 0.15,
+        "outputPerMTokenUsd": 0.6
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-4o"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 2.5,
+        "outputPerMTokenUsd": 10.0
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-5"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 1.25,
+        "outputPerMTokenUsd": 10.0
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-03"
     }
   ]
 }
