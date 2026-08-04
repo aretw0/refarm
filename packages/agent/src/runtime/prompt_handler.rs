@@ -273,10 +273,23 @@ pub(crate) fn handle_prompt(payload: String) {
                 .get("profile")
                 .and_then(|s| s.as_str())
                 .map(|s| s.to_owned());
+            // Task 12: the resolved token/spend ceilings dispatch.rs folded into
+            // this same payload (absent unless the dispatch declared a budget for
+            // that axis — see dispatch.rs's `declared_max_tokens`/`declared_max_usd`).
+            // Scoped for this call only, same EnvGuard shape as MODEL_PROFILE below;
+            // `react_loop.rs`'s call site reads them fresh each turn.
+            let max_tokens_str = v
+                .get("max_tokens")
+                .and_then(|n| n.as_u64())
+                .map(|n| n.to_string());
+            let max_usd_str = v.get("max_usd").and_then(|n| n.as_f64()).map(|n| n.to_string());
             let turns_str = history_turns.map(|n| n.to_string());
             let _session = crate::EnvGuard::maybe_set("MODEL_SESSION_ID", session_id.as_deref());
             let _turns = crate::EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
             let _profile = crate::EnvGuard::maybe_set("MODEL_PROFILE", profile.as_deref());
+            let _max_tokens =
+                crate::EnvGuard::maybe_set("MODEL_RUN_MAX_TOKENS", max_tokens_str.as_deref());
+            let _max_usd = crate::EnvGuard::maybe_set("MODEL_RUN_MAX_USD", max_usd_str.as_deref());
             let _ = execute_prompt_with_route(
                 prompt,
                 system,

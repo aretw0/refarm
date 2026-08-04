@@ -331,6 +331,29 @@ fn dispatched_budgets() -> &'static std::sync::RwLock<std::collections::HashMap<
     STORE.get_or_init(|| std::sync::RwLock::new(std::collections::HashMap::new()))
 }
 
+/// Task 12: the (max_tokens, max_usd) pair to fold into the per-effort payload
+/// the agent reads its ceilings from — `None` for either axis the fold's own
+/// DECLARATION never touched (`ResolvedAxis::declared`), not the axis whose
+/// `effective` value is merely the node's structural default. `effective` is
+/// ALWAYS some concrete number (100_000 tokens / $1 today, even when nothing
+/// anywhere declared a thing), so gating on it instead of `declared` would hand
+/// every nothing-declared installation a live ceiling out of nowhere — the
+/// exact "zero ceiling" failure mode ruled out for an absent declaration.
+/// `max_usd` converts back from the fold's integer thousandths-of-a-dollar to
+/// the decimal dollars the wire (and MODEL_RUN_MAX_USD) uses.
+///
+/// PURE over an already-resolved `ResolvedBudget` — extracted so this rule is
+/// unit-testable without standing up the full async dispatch/channel/
+/// SidecarState machinery `dispatch_effort` itself requires.
+fn ceilings_for_payload(resolved: &super::budget::ResolvedBudget) -> (Option<u64>, Option<f64>) {
+    let max_tokens = resolved.max_tokens.declared.map(|_| resolved.max_tokens.effective);
+    let max_usd = resolved
+        .max_usd_millis
+        .declared
+        .map(|_| resolved.max_usd_millis.effective as f64 / 1000.0);
+    (max_tokens, max_usd)
+}
+
 pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
     // Retain the original Effort (tasks/args) so retry can re-dispatch it — the
     // efforts result store keeps only EffortResult, which has no tasks. In-process
@@ -364,6 +387,11 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
     let resolved_budget =
         super::budget::resolve_budget(effort.budget.as_ref(), workspace_budget.as_ref(), &node_budget);
     let deadline_ms = resolved_budget.deadline_ms.effective;
+
+    // Task 12: the two other axes, carried into the per-effort payload below
+    // (the same channel `provider`/`model`/`profile` already ride — no second
+    // road for one more value). See `ceilings_for_payload`'s doc for the gate.
+    let (declared_max_tokens, declared_max_usd) = ceilings_for_payload(&resolved_budget);
 
     // Stash the SAME fold `deadline_ms` above was just read from, so
     // `record_budget_observation` reads back exactly what governed this run
@@ -481,6 +509,17 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
         }
         if let Some(profile) = args.profile {
             payload_obj["profile"] = Value::String(profile);
+        }
+        // Task 12: the resolved token/spend ceilings, beside the values above —
+        // absent (no key) when nothing declared either axis, per the gate
+        // computed alongside `deadline_ms` before this closure captured it.
+        if let Some(max_tokens) = declared_max_tokens {
+            payload_obj["max_tokens"] = Value::Number(max_tokens.into());
+        }
+        if let Some(max_usd) = declared_max_usd {
+            if let Some(num) = serde_json::Number::from_f64(max_usd) {
+                payload_obj["max_usd"] = Value::Number(num);
+            }
         }
         let payload = payload_obj.to_string();
 
@@ -956,8 +995,22 @@ mod tests {
     use super::*;
     use crate::test_support::env_lock;
     use serde_json::json;
+    use super::super::budget::{resolve_budget, BudgetDeclaration, BudgetTriple, NodeBudget};
 
     // ── input builders ────────────────────────────────────────────────────────
+
+    // Same node fixture `sidecar::tests::budget` uses (mirrors the TS
+    // conformance list's fixture): 100_000 tokens / $1 default, 500_000 / $10
+    // ceiling. Duplicated rather than shared because that module's own `node()`
+    // is private to it, and this file's protected-surface authorisation (Task
+    // 12) is `dispatch.rs` only — reaching into `budget.rs` to make it `pub`
+    // would be an out-of-scope edit for one shared test helper.
+    fn node() -> NodeBudget {
+        NodeBudget {
+            ceiling: BudgetTriple { deadline_ms: 600_000, max_tokens: 500_000, max_usd_millis: 10_000 },
+            default: BudgetTriple { deadline_ms: 45_000, max_tokens: 100_000, max_usd_millis: 1_000 },
+        }
+    }
 
     fn task(plugin_id: &str, fn_name: Option<&str>, args: Value) -> EffortTask {
         EffortTask {
@@ -1136,6 +1189,50 @@ mod tests {
     fn extract_args_errors_when_prompt_blank() {
         let t = task("@refarm/agent", Some("respond"), json!({ "prompt": "   " }));
         assert!(extract_task_args(&t).is_err());
+    }
+
+    // ── ceilings_for_payload (Task 12: the ceiling reaches the agent) ────────────
+
+    #[test]
+    fn a_dispatch_with_no_declared_budget_puts_nothing_in_the_payload() {
+        // Backward compatibility (D2 / controller resolution #2): an effort that
+        // never declares a budget must not suddenly inherit the node's own
+        // structural default (100_000 tokens / $1 today) as a live ceiling — an
+        // absent declaration must read as an absent key, never a value (and
+        // certainly never a zero).
+        let resolved = resolve_budget(None, None, &node());
+        assert_eq!(ceilings_for_payload(&resolved), (None, None));
+    }
+
+    #[test]
+    fn a_declared_budget_puts_the_resolved_ceilings_in_the_payload() {
+        let declared = BudgetDeclaration {
+            max_tokens: Some(1_000),
+            max_usd_millis: Some(2_500),
+            ..Default::default()
+        };
+        let resolved = resolve_budget(Some(&declared), None, &node());
+        assert_eq!(
+            ceilings_for_payload(&resolved),
+            (Some(1_000), Some(2.5)),
+            "max_usd converts back from millis to decimal dollars"
+        );
+    }
+
+    #[test]
+    fn a_declared_budget_clamped_by_the_node_ceiling_forwards_the_clamped_value() {
+        // The payload must carry what actually governs the run (the clamped
+        // `effective`), not the raw over-ceiling ask — and each axis is gated
+        // independently: only max_tokens was declared here, so max_usd stays
+        // absent even though max_tokens got clamped.
+        let declared = BudgetDeclaration {
+            max_tokens: Some(9_000_000),
+            ..Default::default()
+        };
+        let resolved = resolve_budget(Some(&declared), None, &node());
+        let (max_tokens, max_usd) = ceilings_for_payload(&resolved);
+        assert_eq!(max_tokens, Some(500_000), "clamped to the node ceiling, not the raw ask");
+        assert_eq!(max_usd, None, "the usd axis was never declared");
     }
 
     // ── respond_watch_*_from_env ──────────────────────────────────────────────

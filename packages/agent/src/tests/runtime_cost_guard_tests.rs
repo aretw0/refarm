@@ -125,6 +125,31 @@ fn no_ceiling_means_no_stop() {
 }
 
 #[test]
+fn spend_accumulates_across_turns_rather_than_resetting_each_one() {
+    // F6's actual finding: a run that starts under the ceiling and burns ten
+    // times it across tool loops. A per-turn check never sees it.
+    let mut run = RunTotals::default();
+    run.add_turn(4_000, 1_000); // turn 1: 5k, under a 10k ceiling
+    assert!(cumulative_limit_error(run.total(), Some(10_000)).is_none());
+    run.add_turn(4_000, 1_000); // turn 2: 10k cumulative, exactly at it
+    assert!(cumulative_limit_error(run.total(), Some(10_000)).is_none());
+    run.add_turn(1, 0); // turn 3: past it
+    assert!(
+        cumulative_limit_error(run.total(), Some(10_000)).is_some(),
+        "three small turns that together exceed the ceiling must stop the run"
+    );
+}
+
+#[test]
+fn a_ceiling_that_never_arrives_leaves_the_run_unbounded() {
+    // Backward compatibility: an installation that declares nothing behaves
+    // exactly as it did before this task.
+    let mut run = RunTotals::default();
+    run.add_turn(u32::MAX / 2, u32::MAX / 2);
+    assert!(cumulative_limit_error(run.total(), None).is_none());
+}
+
+#[test]
 fn a_currency_ceiling_never_binds_under_a_subscription() {
     // openai-codex bills a subscription; estimate_billable_usd returns 0.0 there
     // by design, so a USD ceiling would be theatre.

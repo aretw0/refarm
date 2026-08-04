@@ -58,6 +58,47 @@ pub(crate) fn spend_limit_error(
     )))
 }
 
+/// Cumulative usage across every turn the CURRENTLY LOADED agent instance has
+/// processed — the counter F6 found missing. Distinct from `UsageTotals`
+/// (`provider_runtime`), which folds usage WITHIN one completion's own
+/// tool-call round trips and answers "what did THIS turn cost"; `RunTotals`
+/// answers "what has this run cost so far", across SEPARATE turns (separate
+/// calls into the react loop). Merging the two would put two different
+/// lifetimes behind one shape — the exact "two things sharing one shape"
+/// defect this program has already found repeatedly. Kept minimal on purpose:
+/// only what `cumulative_limit_error`/`spend_limit_error` need to check —
+/// a running token sum and a running estimated-USD sum.
+#[derive(Default)]
+pub(crate) struct RunTotals {
+    tokens: u32,
+    spend_usd: f64,
+}
+
+impl RunTotals {
+    /// Fold one turn's token usage into the running total. Saturating: a run
+    /// that would overflow `u32` stays pinned at `u32::MAX` (still safely past
+    /// any real ceiling) rather than wrapping back under one it already blew
+    /// past.
+    pub(crate) fn add_turn(&mut self, tokens_in: u32, tokens_out: u32) {
+        self.tokens = self.tokens.saturating_add(tokens_in).saturating_add(tokens_out);
+    }
+
+    /// The cumulative token total across every turn folded in so far.
+    pub(crate) fn total(&self) -> u32 {
+        self.tokens
+    }
+
+    /// Fold one turn's estimated USD spend into the running total.
+    pub(crate) fn add_spend_usd(&mut self, usd: f64) {
+        self.spend_usd += usd;
+    }
+
+    /// The cumulative estimated USD spend across every turn folded in so far.
+    pub(crate) fn total_usd(&self) -> f64 {
+        self.spend_usd
+    }
+}
+
 #[cfg(target_arch = "wasm32")]
 fn task_context_for_prompt() -> Option<String> {
     let n = std::env::var("MODEL_TASK_CONTEXT_TURNS")

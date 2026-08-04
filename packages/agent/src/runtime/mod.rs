@@ -23,8 +23,12 @@ pub(crate) use policy::resolve_skill_body;
 // The cumulative token/spend guards (F6): pure over (spent, limit), so re-exported
 // un-gated (native tests exercise them directly) up to crate root, the same path
 // `react` takes, so the test module's `use super::*` chain resolves them.
+// `RunTotals` (Task 12) rides the same re-export for the same reason: the test
+// file's glob-import needs it, even though production code (`react_loop.rs`)
+// reaches it directly via `super::policy::RunTotals`, a sibling path this
+// re-export is not.
 #[allow(unused_imports)]
-pub(crate) use policy::{cumulative_limit_error, spend_limit_error};
+pub(crate) use policy::{cumulative_limit_error, spend_limit_error, RunTotals};
 #[allow(unused_imports)]
 pub(crate) use types::ReactResult;
 

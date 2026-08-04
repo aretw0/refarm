@@ -20,6 +20,11 @@
 //!   MODEL_FALLBACK_PROVIDER=<name>           (retried once on primary provider error/budget block)
 //!   MODEL_FALLBACK_MODEL_ID=<model-id>       (optional model override for MODEL_FALLBACK_PROVIDER)
 //!   MODEL_BUDGET_<PROVIDER>_USD=<f64>        (rolling 30-day spend cap per provider, e.g. MODEL_BUDGET_ANTHROPIC_USD=5.0)
+//!   MODEL_RUN_MAX_TOKENS=<u32>               (cumulative token ceiling across every turn of this run; set by
+//!                                             handle_prompt from Task 5's resolved per-effort budget — absent
+//!                                             unless the dispatch declared one)
+//!   MODEL_RUN_MAX_USD=<f64>                  (cumulative estimated-USD ceiling across every turn of this run,
+//!                                             same source as MODEL_RUN_MAX_TOKENS; inert outside `api` pricing mode)
 //!   MODEL_HISTORY_TURNS=<usize>              (conversational memory depth, default 0 = disabled)
 //!   MODEL_TOOL_CALL_MAX_ITER=<u32>           (max agentic tool loop iterations, default 5)
 //!   MODEL_TOOL_OUTPUT_MAX_LINES=<usize>      (truncate tool output fed back to LLM, default unlimited)
@@ -34,6 +39,7 @@
 //!     → guard: MODEL_MAX_CONTEXT_TOKENS
 //!     → guard: MODEL_BUDGET_<PROVIDER>_USD (reads UsageRecord CRDT nodes)
 //!     → provider::complete()  — dispatches to Anthropic or OpenAI-compat wire format
+//!     → guard: MODEL_RUN_MAX_TOKENS / MODEL_RUN_MAX_USD (cumulative across every turn of this run)
 //!     → on error/budget block: retry via MODEL_FALLBACK_PROVIDER
 //!     → store AgentResponse + UsageRecord nodes (triggers reactive CRDT push)
 
@@ -76,7 +82,7 @@ pub(crate) use compress::{compress_tool_output, dedup_lines, strip_ansi};
 #[allow(unused_imports)]
 pub(crate) use runtime::react;
 #[allow(unused_imports)]
-pub(crate) use runtime::{cumulative_limit_error, spend_limit_error};
+pub(crate) use runtime::{cumulative_limit_error, spend_limit_error, RunTotals};
 #[cfg(target_arch = "wasm32")]
 pub(crate) use session::{
     append_to_session, budget_exceeded_for_provider, get_or_create_session, query_history,
