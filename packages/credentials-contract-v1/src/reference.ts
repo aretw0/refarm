@@ -191,6 +191,7 @@ export class ReferenceCredentialsProvider implements CredentialsProvider {
 		}
 
 		const statusListed = await this.ensureCredentialStatus(credential, issuer.id);
+		const issuanceDate = statusListed.issuanceDate ?? nowIso();
 		const unsigned: VerifiableCredential = {
 			...statusListed,
 			"@context": statusListed["@context"] ?? DEFAULT_CONTEXT,
@@ -198,7 +199,13 @@ export class ReferenceCredentialsProvider implements CredentialsProvider {
 				? statusListed.type
 				: [VC_TYPE, ...statusListed.type],
 			issuer: issuer.id,
-			issuanceDate: statusListed.issuanceDate ?? nowIso(),
+			issuanceDate,
+			// `withinValidity` (used below in verifyCredential) is DEFAULT-ON in the wallet's own
+			// verify policy (packages/wallet/src/credentials.ts's DEFAULT_WALLET_VERIFY_POLICY), so a
+			// credential with no validity window vacuously passes it forever. Default `validFrom` to
+			// the same instant as `issuanceDate` — the credential is valid from the moment it exists
+			// unless the caller says otherwise — so the check has something real to check.
+			validFrom: statusListed.validFrom ?? issuanceDate,
 		};
 
 		const signature = await this.identity.sign(issuer.id, credentialPayload(unsigned));
