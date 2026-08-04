@@ -94,7 +94,11 @@ afternoon by any honest accounting.
 
 ---
 
-## 1. `credentials-contract-v1:VerifiableCredential.validFrom` / `.validUntil`
+## 1. `VerifiableCredential.validFrom` / `.validUntil` — DONE 2026-08-04 (`5dc2d5f7`)
+
+> `issue()` defaults `validFrom` to the resolved `issuanceDate`; `examples/wallet-t2/src/validity.test.ts`
+> proves a past `validUntil` is now rejected by the wallet's already-default policy. Two baseline ids closed.
+
 
 **The promise.** The credential's validity window. Today: `isExpired`/`isNotYetValid`
 (`packages/credentials-contract-v1/src/reference.ts:92-98`) read `validFrom`/`validUntil` and are
@@ -125,7 +129,13 @@ forever, regardless of age. After this, `issue()` stamps a real `validFrom`, and
 
 ---
 
-## 2. `credentials-contract-v1:CredentialProof.verificationMethod` (a trust-model decision, not a routine entry)
+## 2. `CredentialProof.verificationMethod` — DONE 2026-08-04 (`825c4a18`), deferral dated
+
+> The local self-check landed in both `verifyCredential` and `verifyPresentation`, gated behind the
+> existing `checks.signature.ok` so it can only tighten. Third-party DID resolution is deferred in a
+> dated code comment citing `sovereign-signer.ts:22-24`, as this entry required. Proven by a tampered-key
+> test in `examples/wallet-t2/src/verification-method.test.ts`. One baseline id closed.
+
 
 This field is required (not optional) on `CredentialProof`, and three real write paths populate it
 honestly: `issue()`'s issuer proof (`reference.ts:210`), its holder proof (`reference.ts:247`), and a
@@ -181,7 +191,7 @@ deferral, not a silent gap.
 
 ---
 
-## 3. `vault-contract-v1:VaultSearchHit.score` — CLOSED 2026-08-04, no work needed
+## 3. `VaultSearchHit.score` — CLOSED 2026-08-04, no work needed
 
 **Status: closed by fixing the instrument, not the code.** This entry was never a promise to keep;
 it was the gate looking in too few places. The gate's scan was widened to `examples/` and
@@ -262,7 +272,13 @@ manifest artifact's `provenance.inputHashes` matches a direct hash of the source
 
 ---
 
-## 5. `task-contract-v1:TaskFilter.created_after_ns` / `.created_before_ns` / `.due_before_ns`
+## 5. `TaskFilter.created_after_ns` / `.created_before_ns` / `.due_before_ns` — DONE 2026-08-04 (`dfc7dd1d`)
+
+> The three `if` blocks are mirrored into `applyTaskFilter`, and
+> `examples/reqbench-t3/src/task-filter.parity.test.ts` runs identical filters through both adapters.
+> The test was proven load-bearing by reverting the fix: all four cases failed, then passed once restored.
+> Three baseline ids closed.
+
 
 **The promise.** Time-window task filtering. The in-memory adapter
 (`packages/task-contract-v1/src/in-memory.ts:136-155`) filters on all three; the SQLite adapter's
@@ -336,7 +352,11 @@ yet returns an explicit empty state, not silence.
 
 ---
 
-## 7. `authorization-contract-v1:ServiceRequest.justification`
+## 7. `ServiceRequest.justification` — DONE 2026-08-04 (`53e9d158`)
+
+> `--justification` mirrors `--purpose` on the `request` verb, and `renderConsentPrompt` renders the
+> paragraph only when present. Proven at both layers, render and e2e. One baseline id closed.
+
 
 **The promise.** A longer human-readable justification beyond the required `purpose`. Genuinely
 dormant today: no CLI flag sets it, nothing reads it.
@@ -366,7 +386,11 @@ case with `justification` set (text present) and one without (section absent, no
 
 ---
 
-## 8. `provenance-contract-v1:NoteProvenance.license` / `.privacy`
+## 8. `NoteProvenance.license` / `.privacy` — DONE 2026-08-04 (`faccbfb9`)
+
+> Both real ingestion sites stamp them; `search.ts` surfaces them beside the tipo/sistema facets.
+> `verifyProvenance` deliberately untouched, per this entry's own out-of-scope note. Two baseline ids closed.
+
 
 **The promise.** Under what license and what publication-privacy posture a note's content may be
 used.
