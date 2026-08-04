@@ -115,3 +115,4 @@ overrides:
   undici: 7.29.0
   ws: 8.21.0
   yaml: 2.9.0
+storeDir: .pnpm-store
