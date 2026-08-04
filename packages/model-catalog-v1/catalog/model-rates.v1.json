@@ -1,6 +1,6 @@
 {
   "schemaVersion": "model-rate-catalog.v1",
-  "catalogVersion": "2026-08-04.1",
+  "catalogVersion": "2026-08-04.2",
   "entries": [
     {
       "provider": "anthropic",
@@ -196,7 +196,12 @@
         "outputPerMTokenUsd": 3.0
       },
       "pricingUrl": "https://ai.google.dev/gemini-api/docs/pricing",
-      "verifiedAt": "2026-08-04"
+      "verifiedAt": "2026-08-04",
+      "contextWindow": {
+        "tokens": 1048576,
+        "sourceUrl": "https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview",
+        "verifiedAt": "2026-08-04"
+      }
     },
     {
       "provider": "groq",
@@ -227,7 +232,12 @@
         "outputPerMTokenUsd": 7.5
       },
       "pricingUrl": "https://mistral.ai/pricing/api",
-      "verifiedAt": "2026-08-04"
+      "verifiedAt": "2026-08-04",
+      "contextWindowUnknown": {
+        "reason": "source-not-found",
+        "checkedAt": "2026-08-04",
+        "note": "docs.mistral.ai/getting-started/models/models_overview/ states no figure and points at /models/model-cards/mistral-medium-3-5-26-04; that path and /getting-started/models/model-cards/ both returned 404. The model card was never reached, so whether Mistral publishes the figure is unknown."
+      }
     }
   ]
 }

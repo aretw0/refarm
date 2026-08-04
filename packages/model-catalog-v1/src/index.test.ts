@@ -127,13 +127,54 @@ describe("contextWindow provenance", () => {
     ).not.toThrow();
   });
 
-  it("stays absent without complaint when the vendor publishes no figure", () => {
-    // gemini-3-flash-preview and mistral-medium-3-5 are exactly this case in the real
-    // catalog: their overview pages carry no context-window figure, so they carry no
-    // entry. Absent must remain cheaper than guessing.
+  it("stays absent without complaint when there is no verified figure", () => {
     const noWindow = withWindow(undefined) as { entries: Array<Record<string, unknown>> };
     delete noWindow.entries[0].contextWindow;
     expect(() => assertValidModelRateCatalog(noWindow)).not.toThrow();
+  });
+
+  it("lets absence carry its reason, and tells the two reasons apart", () => {
+    // The distinction that matters: "the vendor publishes nothing" is a fact about the
+    // vendor; "we could not reach the page" is a fact about our own checking, and only
+    // the second is somebody's next task. Recording the first for the second closes a
+    // question that was never actually answered.
+    for (const reason of ["not-published", "source-not-found"]) {
+      const gap = withWindow(undefined) as { entries: Array<Record<string, unknown>> };
+      delete gap.entries[0].contextWindow;
+      gap.entries[0].contextWindowUnknown = { reason, checkedAt: "2026-08-04" };
+      expect(() => assertValidModelRateCatalog(gap)).not.toThrow();
+    }
+  });
+
+  it("rejects an unexplained or undated gap, and any reason outside the two", () => {
+    const gapWith = (contextWindowUnknown: unknown): unknown => {
+      const c = withWindow(undefined) as { entries: Array<Record<string, unknown>> };
+      delete c.entries[0].contextWindow;
+      c.entries[0].contextWindowUnknown = contextWindowUnknown;
+      return c;
+    };
+    expect(() => assertValidModelRateCatalog(gapWith({ checkedAt: "2026-08-04" }))).toThrow(
+      /contextWindowUnknown\.reason/,
+    );
+    expect(() => assertValidModelRateCatalog(gapWith({ reason: "not-published" }))).toThrow(
+      /contextWindowUnknown\.checkedAt/,
+    );
+    expect(() =>
+      assertValidModelRateCatalog(gapWith({ reason: "dunno", checkedAt: "2026-08-04" })),
+    ).toThrow(/contextWindowUnknown\.reason/);
+  });
+
+  it("refuses a figure and a reason-for-no-figure at the same time", () => {
+    const both = withWindow({
+      tokens: 1_000_000,
+      sourceUrl: "https://docs.x.ai/docs/models",
+      verifiedAt: "2026-08-04",
+    }) as { entries: Array<Record<string, unknown>> };
+    both.entries[0].contextWindowUnknown = {
+      reason: "source-not-found",
+      checkedAt: "2026-08-04",
+    };
+    expect(() => assertValidModelRateCatalog(both)).toThrow(/contextWindowUnknown/);
   });
 
   it("rejects a window that borrows the entry's citation instead of carrying its own", () => {

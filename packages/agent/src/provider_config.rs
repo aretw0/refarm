@@ -97,9 +97,11 @@ pub(crate) struct ModelCapabilities {
 ///
 /// Its home is `packages/model-catalog-v1`, whose schema REQUIRES a source and a verification
 /// date per fact (`contextWindow: { tokens, sourceUrl, verifiedAt }`) and where the verified
-/// windows now live, with the two the vendors do not publish left honestly absent. Wiring this
-/// crate to read that catalog is real, unstarted work; until it happens, a routing decision that
-/// needs a context window must go and get it from there, not from a constant here.
+/// windows now live. Where a figure is missing, the catalog records WHY — `not-published` (the
+/// vendor's page was read and states none) or `source-not-found` (the page was never reached, so
+/// nothing is known about the vendor either way). Wiring this crate to read that catalog is real,
+/// unstarted work; until it happens, a routing decision that needs a context window must go and
+/// get it from there, not from a constant here.
 pub(crate) fn provider_capabilities(provider: &str) -> ModelCapabilities {
     match provider {
         "anthropic" => ModelCapabilities {

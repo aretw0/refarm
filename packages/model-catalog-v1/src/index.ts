@@ -31,6 +31,28 @@ export interface ModelContextWindow {
   verifiedAt: string;
 }
 
+/**
+ * Why an entry has no verified `contextWindow`, so that absence carries a reason instead of a
+ * shrug. A missing figure has at least two very different causes and they must not look alike:
+ *
+ * - `not-published` — the vendor's own model page was found and read, and it states no figure.
+ *   Nothing more to do until the vendor publishes one.
+ * - `source-not-found` — the vendor's page could not be located or did not load. This is a gap in
+ *   OUR checking, not a fact about the vendor, and it is someone's next task.
+ *
+ * The distinction is not pedantry. Recording `not-published` for what was really
+ * `source-not-found` states something about a third party that was never verified, and it closes
+ * the question so nobody looks again. That mistake was made in this very catalog on 2026-08-04:
+ * gemini-3-flash-preview was recorded as unpublished when the real cause was a 404 on a guessed
+ * URL, and the vendor did publish the figure — 1,048,576 — on the page that was never reached.
+ */
+export interface ModelContextWindowUnknown {
+  reason: "not-published" | "source-not-found";
+  checkedAt: string;
+  /** What was looked at, so the next attempt starts further along than the last one. */
+  note?: string;
+}
+
 export interface ModelTariffEntry {
   provider: string;
   match: ModelMatchRule;
@@ -40,6 +62,7 @@ export interface ModelTariffEntry {
   effectiveFrom?: string;
   effectiveTo?: string;
   contextWindow?: ModelContextWindow;
+  contextWindowUnknown?: ModelContextWindowUnknown;
 }
 
 export type ModelRateEntry = ModelTariffEntry;
@@ -213,6 +236,39 @@ function validateModelTariffShape(
           });
         }
       }
+    }
+
+    if (entry.contextWindowUnknown !== undefined) {
+      const gap = entry.contextWindowUnknown as Partial<ModelContextWindowUnknown>;
+      if (!gap || typeof gap !== "object") {
+        issues.push({
+          path: `${prefix}.contextWindowUnknown`,
+          message: "must be an object when present",
+        });
+      } else {
+        if (gap.reason !== "not-published" && gap.reason !== "source-not-found") {
+          issues.push({
+            path: `${prefix}.contextWindowUnknown.reason`,
+            message: "must be not-published or source-not-found",
+          });
+        }
+        if (!gap.checkedAt || typeof gap.checkedAt !== "string") {
+          issues.push({
+            path: `${prefix}.contextWindowUnknown.checkedAt`,
+            message: "must be a non-empty date string",
+          });
+        }
+      }
+    }
+
+    // A figure and a reason for having no figure cannot both be true. Allowing both would let a
+    // stale "we could not check" survive beside a value someone later verified, and a reader
+    // would have no way to tell which one the entry means.
+    if (entry.contextWindow !== undefined && entry.contextWindowUnknown !== undefined) {
+      issues.push({
+        path: `${prefix}.contextWindowUnknown`,
+        message: "must not be set when contextWindow carries a verified figure",
+      });
     }
   }
 
