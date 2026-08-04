@@ -28,6 +28,7 @@ pub mod capabilities;
 pub mod daemon;
 pub mod host;
 pub mod node_descriptor;
+pub mod node_identity;
 pub mod node_reap;
 pub mod observer;
 pub(crate) mod respawn;
