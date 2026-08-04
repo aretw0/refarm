@@ -11,7 +11,10 @@ import { declaredBase, loadConfig, sovereignDir } from "@refarm.dev/config";
 import { Command } from "commander";
 import { readNodeDescriptor } from "../utils/node-descriptor.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
+import type { NodeContextMetadata } from "../utils/context-metadata.js";
+import { resolveNodeContextMetadata } from "../utils/context-metadata.js";
 import { buildConnectionDoctorRecommendations } from "./connection-doctor.js";
+import { buildContextDoctorRecommendations } from "./context-doctor.js";
 import {
 	diagnosticNextActions,
 	diagnosticNextCommands,
@@ -87,6 +90,9 @@ export function buildRefarmDoctorReport(
 		 * `node-name-doctor.ts`). `null`/omitted means "no live node to ask", which
 		 * produces no finding — same purity rule as `connectionConfig` and `scope`. */
 		nodeIdentity?: NodeIdentitySnapshot | null;
+		/** Context metadata resolved by the caller (home/store alignment, mode). Omitted
+		 * means "not inspected", which produces no findings. */
+		context?: NodeContextMetadata;
 	} = {},
 ): RefarmDoctorReport {
 	const { failures, warnings: statusWarnings, informational } = classifyStatusDiagnostics(status);
@@ -108,11 +114,13 @@ export function buildRefarmDoctorReport(
 	const nodeNameRecommendations = buildNodeNameDoctorRecommendations(
 		options.nodeIdentity ?? null,
 	);
+	const contextRecommendations = buildContextDoctorRecommendations(options.context);
 	const warnings = [
 		...statusWarnings,
 		...connectionRecommendations.map((r) => r.diagnostic),
 		...scopeRecommendations.map((r) => r.diagnostic),
 		...nodeNameRecommendations.map((r) => r.diagnostic),
+		...contextRecommendations.map((r) => r.diagnostic),
 	];
 
 	const failOnWarnings = options.failOnWarnings === true;
@@ -126,6 +134,7 @@ export function buildRefarmDoctorReport(
 		...connectionRecommendations,
 		...scopeRecommendations,
 		...nodeNameRecommendations,
+		...contextRecommendations,
 	];
 	const nextActions = diagnosticNextActions(recommendations);
 	const nextCommands = diagnosticNextCommands(recommendations);
@@ -385,6 +394,7 @@ Notes:
 						connectionConfig: resolveConnectionConfig(deps),
 						scope: resolveScopeComparison(deps),
 						nodeIdentity: resolveNodeDescriptor(deps),
+						context: resolveNodeContextMetadata(process.env),
 					});
 					const outputMode = resolveDoctorOutputMode(options);
 					emitRefarmDoctorOutput({ report, mode: outputMode });

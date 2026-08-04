@@ -62,6 +62,7 @@ async function runDefaultDoctor(options: {
 		import("./doctor.js"),
 		import("./status.js"),
 	]);
+	const { resolveNodeContextMetadata } = await import("../utils/context-metadata.js");
 	const statusPayload = await resolveStatusPayload({ renderer: "headless" });
 	try {
 		// `connectionConfig` is DELIBERATELY not passed, so `refarm check` stays silent about
@@ -81,6 +82,7 @@ async function runDefaultDoctor(options: {
 		// Changing this changes GATING behaviour — do not wire it in silently.
 		return buildRefarmDoctorReport(statusPayload.json, {
 			failOnWarnings: options.failOnWarnings,
+			context: resolveNodeContextMetadata(process.env),
 		});
 	} finally {
 		await statusPayload.shutdown?.();

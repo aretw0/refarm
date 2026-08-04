@@ -189,6 +189,44 @@ describe("buildRefarmDoctorReport", () => {
 		expect(report.warnings).toEqual([]);
 		expect(report.recommendations).toEqual([]);
 	});
+
+	it("adds a warning when REFARM_HOME and SILO_HOME point to different homes", () => {
+		const report = buildRefarmDoctorReport(makeStatus([]), {
+			context: {
+				mode: "node-global",
+				sovereignHome: "/tmp/refarm-home",
+				credentialStoreHome: "/tmp/silo-home",
+				homesAligned: false,
+			},
+		});
+
+		expect(report.warningCount).toBe(1);
+		expect(report.warnings).toContain("context:home-divergence");
+		expect(report.recommendations).toContainEqual(
+			expect.objectContaining({
+				diagnostic: "context:home-divergence",
+				severity: "warning",
+				command: "refarm model current --json",
+			}),
+		);
+		expect(report.nextCommands).toContain("refarm model current --json");
+		expect(report.ok).toBe(true);
+	});
+
+	it("treats home divergence as blocking only when failOnWarnings is enabled", () => {
+		const report = buildRefarmDoctorReport(makeStatus([]), {
+			failOnWarnings: true,
+			context: {
+				mode: "node-global",
+				sovereignHome: "/tmp/refarm-home",
+				credentialStoreHome: "/tmp/silo-home",
+				homesAligned: false,
+			},
+		});
+
+		expect(report.ok).toBe(false);
+		expect(report.warningCount).toBe(1);
+	});
 });
 
 describe("buildRefarmDoctorRecommendations", () => {
