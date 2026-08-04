@@ -2,6 +2,25 @@
 
 Central register for high-impact technical decisions that are pending or recently accepted.
 
+## Node context, workspace hatch, and sovereign home resolution
+
+**Date**: 2026-08-04
+**Status**: Proposed
+**ADR**: [ADR-094](../specs/ADRs/ADR-094-node-context-workspace-hatch-and-sovereign-home-resolution.md)
+**References**: [Workspace Namespace Policy (ADR-071)](../specs/ADRs/ADR-071-workspace-namespace-policy.md),
+[Silo storage and identity separation (ADR-076)](../specs/ADRs/ADR-076-silo-storage-identity-closure-separation.md),
+[Brand-agnostic packages (ADR-087)](../specs/ADRs/ADR-087-brand-agnostic-packages.md),
+[Node context and workspace hatch design](../docs/superpowers/specs/2026-08-04-node-context-workspace-hatch-design.md),
+[Declared node base design](../docs/superpowers/specs/2026-08-03-declared-node-base-design.md)
+
+**Decision**: Refarm must model operator context explicitly. `workspaceId` is target identity, not
+implicit authority over sovereign home, credential store, or runtime namespace. The system introduces
+an explicit node-context descriptor and a declarative workspace hatch bridge. Runtime and model flows
+must report effective context and surface divergence diagnostics instead of silently guessing from cwd.
+
+**Origin**: repeated operational mismatch where credential setup and runtime startup observed different
+homes/stores, creating "configured" versus "not usable" outcomes for the same operator workflow.
+
 ## Work 3 requirements supply activation
 
 **Date**: 2026-06-30

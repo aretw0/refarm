@@ -289,7 +289,11 @@ Inspect the current route before changing it:
 ```bash
 refarm model current --json
 refarm model providers --json
+refarm runtime status --json
 ```
+
+If `model current` and `runtime status` point to different effective homes or stores,
+align `SILO_HOME` and `REFARM_HOME` before running `sow` again.
 
 Configure only what is needed:
 
