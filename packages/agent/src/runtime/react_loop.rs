@@ -7,21 +7,56 @@ use super::{
     types::ReactResult,
 };
 
+/// The accumulator plus the run identity it currently belongs to. A "run" is
+/// ONE effort/ONE dispatch (Task 5 resolves and clamps a budget per effort;
+/// F6's burn-across-turns finding is about turns WITHIN one dispatch, not
+/// across unrelated ones) — NOT the life of the loaded plugin instance. The
+/// wasmtime `Store` this thread-local's substrate depends on (see below) does
+/// live for the whole plugin instance, so without `last_prompt_ref` the totals
+/// would silently span every dispatch the daemon ever serves.
+#[derive(Default)]
+struct RunState {
+    totals: RunTotals,
+    last_prompt_ref: Option<String>,
+}
+
 std::thread_local! {
-    // Cumulative usage across every turn THIS LOADED AGENT INSTANCE has
-    // processed. `PluginInstanceHandle::call_on_event` (the tractor host) drives
-    // one already-loaded plugin's on_event calls through the SAME wasmtime
-    // `Store` — and therefore the same guest linear memory — across every event
-    // it ever receives (the agent's `concurrentSafe` manifest flag defaults
-    // false: one Store serially processes every turn, never a pool of N). So
-    // this thread-local persists across separate calls into this function, the
-    // same substrate `agent_events`'s `ACTIVE_PROMPT_REF` and
-    // `streaming_sink`'s `ACTIVE_STREAM_RESPONSE_SINK` already rely on. Unlike
-    // those two, which are OVERWRITTEN every call (they carry "the current
-    // one"), this one is deliberately never reset — accumulating across turns
-    // is the entire point of F6.
-    static RUN_TOTALS: std::cell::RefCell<RunTotals> =
-        std::cell::RefCell::new(RunTotals::default());
+    // Cumulative usage across every turn of ONE RUN (see `RunState`'s doc for
+    // what bounds a run). `PluginInstanceHandle::call_on_event` (the tractor
+    // host) drives one already-loaded plugin's on_event calls through the SAME
+    // wasmtime `Store` — and therefore the same guest linear memory — across
+    // every event it ever receives (the agent's `concurrentSafe` manifest flag
+    // defaults false: one Store serially processes every turn, never a pool of
+    // N). So this thread-local persists across separate calls into this
+    // function, the same substrate `agent_events`'s `ACTIVE_PROMPT_REF` and
+    // `streaming_sink`'s `ACTIVE_STREAM_RESPONSE_SINK` already rely on — but
+    // unlike those two (which carry "the current one" and are simply
+    // overwritten), this one must be explicitly RESET at a run boundary
+    // (`starts_a_new_run`, below) rather than left to grow across the whole
+    // plugin instance's lifetime.
+    static RUN_TOTALS: std::cell::RefCell<RunState> =
+        std::cell::RefCell::new(RunState { totals: RunTotals::default(), last_prompt_ref: None });
+}
+
+/// Whether the totals belong to a different run than `incoming` and must be
+/// reset before this turn is folded in. `prompt_ref_from_effort` derives the
+/// ref 1:1 from `effort.id` (`dispatch.rs`), so equal refs mean the same
+/// effort/dispatch — the run boundary this program uses everywhere else.
+///
+/// `None` (no run identity — e.g. the native stub, or the sync `respond` verb
+/// in `lib.rs`, which never threads a ref) is deliberately its OWN case,
+/// always `true`: plain `Option` equality would make `None == None` (Rust's
+/// default), so two back-to-back calls carrying no identity at all would
+/// silently be treated as the same run and merge their spend — exactly the
+/// unrelated-contamination bug this function exists to prevent, just between
+/// two anonymous callers instead of two named ones. Refusing to correlate
+/// anything with no identity degrades a `None` call to a plain per-turn check
+/// (its own single-turn "run"), never grouping it with whatever ran last.
+fn starts_a_new_run(last: &Option<String>, incoming: Option<&str>) -> bool {
+    match incoming {
+        None => true,
+        Some(id) => last.as_deref() != Some(id),
+    }
 }
 
 /// Returns: (content, tool_calls, tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens, tokens_reasoning, model_id, usage_raw)
@@ -75,8 +110,17 @@ pub(crate) fn react_with_prompt_ref_and_route(
         .and_then(|v| v.parse::<u32>().ok());
     let cumulative_tokens = RUN_TOTALS.with(|run| {
         let mut run = run.borrow_mut();
-        run.add_turn(tokens_in, tokens_out);
-        run.total()
+        // Reset BEFORE folding, not after: the first turn of a brand new run
+        // must start from zero, not land on top of the previous run's leftover
+        // total. The reset decision (and the `last_prompt_ref` update) happens
+        // exactly once per turn, here — the spend fold below shares the same
+        // already-current-for-this-turn state.
+        if starts_a_new_run(&run.last_prompt_ref, prompt_ref) {
+            run.totals = RunTotals::default();
+            run.last_prompt_ref = prompt_ref.map(str::to_owned);
+        }
+        run.totals.add_turn(tokens_in, tokens_out);
+        run.totals.total()
     });
     if let Some(err) = cumulative_limit_error(cumulative_tokens, token_limit) {
         return err;
@@ -97,8 +141,12 @@ pub(crate) fn react_with_prompt_ref_and_route(
         .and_then(|v| v.parse::<f64>().ok());
     let cumulative_usd = RUN_TOTALS.with(|run| {
         let mut run = run.borrow_mut();
-        run.add_spend_usd(turn_spend_usd);
-        run.total_usd()
+        // No reset check here: the token fold above already decided the run
+        // boundary for THIS turn (same call, same prompt_ref) — re-checking
+        // would be redundant at best and, if it somehow disagreed, a second
+        // silent reset that discards the token fold just applied.
+        run.totals.add_spend_usd(turn_spend_usd);
+        run.totals.total_usd()
     });
     if let Some(err) = spend_limit_error(&provider_name, cumulative_usd, usd_limit) {
         return err;
@@ -115,4 +163,71 @@ pub(crate) fn react_with_prompt_ref_and_route(
         model_id,
         usage_raw,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── starts_a_new_run (pure) ───────────────────────────────────────────────
+
+    #[test]
+    fn same_prompt_ref_is_not_a_new_run() {
+        assert!(!starts_a_new_run(&Some("run-a".to_string()), Some("run-a")));
+    }
+
+    #[test]
+    fn a_different_prompt_ref_is_a_new_run() {
+        assert!(starts_a_new_run(&Some("run-a".to_string()), Some("run-b")));
+    }
+
+    #[test]
+    fn no_prior_run_is_a_new_run() {
+        assert!(starts_a_new_run(&None, Some("run-a")));
+    }
+
+    #[test]
+    fn an_absent_prompt_ref_is_always_its_own_new_run() {
+        // Two calls that BOTH carry no run identity must never be treated as
+        // the same run just because `None == None` under plain Option
+        // equality — see `starts_a_new_run`'s doc for why that default would
+        // silently merge two unrelated anonymous callers.
+        assert!(starts_a_new_run(&None, None));
+        assert!(starts_a_new_run(&Some("run-a".to_string()), None));
+    }
+
+    // ── the real call site: RUN_TOTALS must not span two different runs ──────
+
+    #[test]
+    fn a_new_prompt_ref_resets_the_running_totals_rather_than_inheriting_the_previous_runs_spend() {
+        // Regression for fix round 1's Critical finding: RUN_TOTALS must be
+        // scoped to ONE run (one prompt_ref), not the life of the loaded
+        // plugin instance. Seed the thread-local as if a PREVIOUS run
+        // ("run-a") already burned well past a ceiling that would trip a
+        // fresh run's very first turn, then drive the REAL call site
+        // (`react_with_prompt_ref`, not a hand-built `RunTotals`) with a
+        // DIFFERENT prompt_ref ("run-b"). Before the fix this test fails:
+        // run-b's first turn inherits run-a's 50_000 and
+        // MODEL_RUN_MAX_TOKENS=10 blocks it immediately — observed below.
+        RUN_TOTALS.with(|run| {
+            let mut run = run.borrow_mut();
+            run.totals.add_turn(50_000, 0);
+            run.last_prompt_ref = Some("run-a".to_string());
+        });
+        std::env::set_var("MODEL_RUN_MAX_TOKENS", "10");
+        let result = react_with_prompt_ref("hello", Some("run-b"));
+        std::env::remove_var("MODEL_RUN_MAX_TOKENS");
+        assert_eq!(
+            result.7, "stub",
+            "run-b must start clean, not inherit run-a's leftover spend and block on its first turn"
+        );
+        RUN_TOTALS.with(|run| {
+            assert_eq!(
+                run.borrow().totals.total(),
+                0,
+                "run-b's own turn (native stub) contributes 0 tokens — the total must be \
+                 exactly that, not 50_000 + 0, once the reset has run"
+            );
+        });
+    }
 }
