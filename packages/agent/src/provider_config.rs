@@ -1,4 +1,4 @@
-pub(crate) const ANTHROPIC_DEFAULT_MODEL: &str = "claude-sonnet-4-6";
+pub(crate) const ANTHROPIC_DEFAULT_MODEL: &str = "claude-sonnet-5";
 
 pub(crate) fn choose_model(explicit_model: &str, default_model: &'static str) -> String {
     if explicit_model.is_empty() {
@@ -10,7 +10,14 @@ pub(crate) fn choose_model(explicit_model: &str, default_model: &'static str) ->
 
 pub(crate) fn openai_compat_defaults(provider: &str) -> (&'static str, &'static str) {
     match provider {
-        "openai" => ("https://api.openai.com", "gpt-5.5"),
+        "openai" => ("https://api.openai.com", "gpt-5.6-sol"),
+        // Still gpt-5.5, and deliberately so. This route does not talk to api.openai.com; it
+        // talks to the ChatGPT backend, whose model list is behind an account and cannot be
+        // read from any public page. gpt-5.6-sol is verified to exist on the API — that says
+        // nothing about what THIS endpoint serves, and swapping in an id this backend may not
+        // accept would break a working route to fix a suspected one. The API's own gpt-5.5 is
+        // gone (2026-08-04), so this id is probably stale here too; confirming it needs a live
+        // call from an account that has the entitlement, which is the operator's to make.
         "openai-codex" => ("https://chatgpt.com", "gpt-5.5"),
         "groq" => ("https://api.groq.com", "llama-3.3-70b-versatile"),
         "mistral" => ("https://api.mistral.ai", "mistral-medium-3-5"),
@@ -20,7 +27,7 @@ pub(crate) fn openai_compat_defaults(provider: &str) -> (&'static str, &'static 
             "https://api.together.xyz",
             "meta-llama/Llama-3.3-70B-Instruct-Turbo",
         ),
-        "openrouter" => ("https://openrouter.ai", "anthropic/claude-sonnet-4.6"),
+        "openrouter" => ("https://openrouter.ai", "anthropic/claude-sonnet-5"),
         "gemini" => (
             "https://generativelanguage.googleapis.com",
             "gemini-3-flash-preview",

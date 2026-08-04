@@ -155,13 +155,13 @@ export function inferProviderFromModelId(modelId) {
 export function defaultModelForProvider(provider) {
 	switch (provider?.trim().toLowerCase()) {
 		case "openai":
-			return "gpt-5.5";
+			return "gpt-5.6-sol";
 		case "openai-codex":
 			return "gpt-5.5";
 		case "github-copilot":
 			return "gpt-4o";
 		case "anthropic":
-			return "claude-sonnet-4-6";
+			return "claude-sonnet-5";
 		case "groq":
 			return "llama-3.3-70b-versatile";
 		case "ollama":
@@ -177,7 +177,7 @@ export function defaultModelForProvider(provider) {
 		case "together":
 			return "meta-llama/Llama-3.3-70B-Instruct-Turbo";
 		case "openrouter":
-			return "anthropic/claude-sonnet-4.6";
+			return "anthropic/claude-sonnet-5";
 		default:
 			return undefined;
 	}
