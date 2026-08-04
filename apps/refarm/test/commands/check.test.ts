@@ -29,6 +29,7 @@ function makeHealthReport(overrides: Partial<HealthReport> = {}): HealthReport {
 		},
 		resolution: [],
 		recommendations: [],
+		skippedAuditors: [],
 		nextAction: null,
 		nextActions: [],
 		nextCommand: null,

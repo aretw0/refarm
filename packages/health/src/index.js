@@ -100,6 +100,7 @@ import { ProjectAuditor, RefarmProjectAuditor } from "./auditors/project.js";
 import { ComplexityAuditor } from "./auditors/complexity.js";
 import { ToolchainAuditor } from "./auditors/toolchain.js";
 import { ConfigNodeAuditor } from "./auditors/config-node.js";
+export { detectProjectBase } from "./project-base.js";
 export {
 	buildSessionPressureBudget,
 	buildEnvironmentPressureReport,

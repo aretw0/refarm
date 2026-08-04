@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FileSystemAuditor } from "./generic.js";
 
@@ -28,7 +29,10 @@ describe("FileSystemAuditor", () => {
 
 	beforeEach(() => {
 		rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-health-fs-"));
-		fs.mkdirSync(path.join(rootDir, ".git"));
+		// A real `git init`, not a bare `.git` directory: audit()'s project-base
+		// gate below shells out to `git rev-parse`, which (correctly) does not
+		// treat an empty `.git` folder as a repository.
+		execFileSync("git", ["init", "--quiet"], { cwd: rootDir });
 	});
 
 	afterEach(() => {
@@ -64,5 +68,47 @@ describe("FileSystemAuditor", () => {
 		});
 
 		await expect(auditor.checkGitVisibility(rootDir, rootDir)).resolves.toEqual([]);
+	});
+
+	describe("audit() — project-base applicability", () => {
+		it("runs the git-visibility check normally when rootDir is a project (has .git)", async () => {
+			// beforeEach already created rootDir/.git.
+			writeFile(".gitignore", "src/generated.generated.ts\n");
+			writeFile("src/generated.generated.ts");
+
+			const auditor = new FileSystemAuditor();
+			const result = await auditor.audit({ rootDir });
+
+			expect(result.applicable).toBe(true);
+			expect(result.reason).toBeUndefined();
+			expect(result.git).toEqual([
+				{
+					file: "src/generated.generated.ts",
+					type: "git_ignored",
+					path: path.join(rootDir, "src/generated.generated.ts"),
+				},
+			]);
+		});
+
+		it("does NOT run the git-visibility check, and says why, when rootDir is not a project", async () => {
+			// This is the measured defect this test guards against regressing: a
+			// node base (no .git, no package.json) that happens to contain
+			// unrelated git repositories as siblings must not have their ignored
+			// files reported as findings against a repository it does not own.
+			fs.rmSync(path.join(rootDir, ".git"), { recursive: true, force: true });
+			const nestedRepoFile = path.join("git", "some-other-repo", "src", "generated.generated.ts");
+			writeFile(nestedRepoFile);
+			fs.mkdirSync(path.join(rootDir, "git", "some-other-repo", ".git"), { recursive: true });
+			writeFile(path.join("git", "some-other-repo", ".gitignore"), "*.generated.ts\n");
+
+			const auditor = new FileSystemAuditor();
+			const result = await auditor.audit({ rootDir });
+
+			expect(result.applicable).toBe(false);
+			expect(result.reason).toContain(rootDir);
+			expect(result.git).toEqual([]);
+			// structure is still generic filesystem metadata, unaffected by applicability.
+			expect(result.structure.isDirectory).toBe(true);
+		});
 	});
 });

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { detectProjectBase } from "../project-base.js";
 
 /**
  * FileSystemAuditor: Generic primitives for filesystem and Git visibility.
@@ -28,9 +29,21 @@ export class FileSystemAuditor {
 			return { error: `Path not found: ${absolutePath}` };
 		}
 
+		// Git-visibility auditing only means something inside a project (see
+		// project-base.js). At a node base, checkGitVisibility would otherwise
+		// walk every sibling directory it can find — including unrelated git
+		// repositories nested under the same home directory — and report their
+		// files as "git_ignored" against a repository it does not own. That is
+		// neither a clean pass nor a real finding, so it must not silently
+		// become one.
+		const projectBase = detectProjectBase(rootDir);
+		const git = projectBase.isProject ? await this.checkGitVisibility(rootDir, absolutePath) : [];
+
 		return {
-			git: await this.checkGitVisibility(rootDir, absolutePath),
+			git,
 			structure: await this.analyzeStructure(absolutePath),
+			applicable: projectBase.isProject,
+			...(projectBase.isProject ? {} : { reason: projectBase.reason }),
 		};
 	}
 

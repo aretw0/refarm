@@ -19,11 +19,18 @@ export interface ResolutionStatus {
 export interface ProjectAuditResult {
     git: HealthIssue[];
     builds: HealthIssue[];
+    staleBuilds?: HealthIssue[];
     alignment: HealthIssue[];
     automations?: HealthIssue[];
     namespaceWarnings?: HealthIssue[];
     complexity?: HealthIssue[];
     complexitySummary?: ComplexityAuditResult;
+    /** False when `rootDir` is not a project (see ProjectBaseResult) — builds,
+     *  alignment, automations, and namespaceWarnings are all `[]` in that case,
+     *  not "checked and clean". `git` still forwards generic_fs's own result. */
+    applicable: boolean;
+    /** Present only when `applicable` is false. */
+    reason?: string;
 }
 
 export interface FileSystemAuditResult {
@@ -33,6 +40,16 @@ export interface FileSystemAuditResult {
         modifiedAt: string;
         size: number;
     };
+    /** False when `rootDir` is not a project (see ProjectBaseResult) — `git` is
+     *  `[]` in that case because the check never ran, not because it ran clean. */
+    applicable: boolean;
+    /** Present only when `applicable` is false. */
+    reason?: string;
+}
+
+export interface ProjectBaseResult {
+    isProject: boolean;
+    reason: string | null;
 }
 
 export interface FileSystemAuditorOptions {
@@ -151,6 +168,15 @@ export interface ToolchainAuditResult {
         target?: string;
     }>;
 }
+
+/**
+ * Distinguishes a PROJECT base (a git repository, or a directory with its own
+ * package.json) from a NODE base (e.g. the operator's `~/.refarm` sovereign
+ * root) — see src/project-base.js for the full rationale. FileSystemAuditor
+ * and ProjectAuditor call this internally; it is exported for direct testing
+ * and reuse by future project-shaped auditors.
+ */
+export function detectProjectBase(rootDir: string): ProjectBaseResult;
 
 export class HealthCore {
     constructor(graphContext?: unknown);

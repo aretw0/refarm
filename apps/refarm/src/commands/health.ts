@@ -65,8 +65,39 @@ export interface HealthResults {
 	complexity?: HealthIssue[];
 	complexitySummary?: unknown;
 	configNode?: HealthIssue[];
-	/** The orchestrator's per-auditor results (config-node lives here). */
-	_orchestrator?: Record<string, { issues?: HealthIssue[]; note?: string }>;
+	/**
+	 * The orchestrator's per-auditor results (config-node lives here).
+	 * `applicable`/`reason` are set by project-shaped auditors (generic_fs,
+	 * project) — see SkippedAuditor: `applicable === false` means the auditor
+	 * did not run because `rootDir` is not a project (a node base like `~`),
+	 * not that it ran and found nothing.
+	 */
+	_orchestrator?: Record<
+		string,
+		{
+			issues?: HealthIssue[];
+			note?: string;
+			applicable?: boolean;
+			reason?: string;
+			// Auditors carry other fields too (generic_fs's `git`/`structure`,
+			// project's `builds`/`alignment`/…) that this bag does not otherwise
+			// model — only applicability is read generically here.
+			[key: string]: unknown;
+		}
+	>;
+}
+
+/**
+ * An auditor that did not run because it does not apply to this `rootDir` —
+ * distinct from an auditor that ran and found zero issues. Surfaced at the
+ * envelope's top level so `ok: true` / `issueCount: 0` at a node base (e.g.
+ * the operator's `~`) reads as "nothing HERE was checkable and found dirty",
+ * not "everything was checked and is clean".
+ */
+export interface SkippedAuditor {
+	id: string;
+	title: string;
+	reason: string;
 }
 
 export interface ResolutionStatus {
@@ -82,6 +113,8 @@ export interface HealthReport {
 	results: HealthResults;
 	resolution: ResolutionStatus[];
 	recommendations: HealthRecommendation[];
+	/** Auditors that did not apply to this base and therefore did not run. */
+	skippedAuditors: SkippedAuditor[];
 	nextAction: string | null;
 	nextActions: string[];
 	nextCommand: string | null;
@@ -125,6 +158,7 @@ const RESOLUTION_ALIGNMENT_COMMAND = "node packages/toolbox/src/cli.mjs reso dis
 export function buildHealthReport(
 	results: HealthResults,
 	resolution: ResolutionStatus[],
+	skippedAuditors: SkippedAuditor[] = [],
 ): HealthReport {
 	const issueCount =
 		results.git.length +
@@ -144,11 +178,33 @@ export function buildHealthReport(
 		results,
 		resolution,
 		recommendations,
+		skippedAuditors,
 		nextAction: nextActions[0] ?? null,
 		nextActions,
 		nextCommand: nextCommands[0] ?? null,
 		nextCommands,
 	};
+}
+
+/**
+ * Reads applicability off the orchestrator's per-auditor results (set by
+ * project-shaped auditors — see project-base.js in @refarm.dev/health) and
+ * turns it into the envelope's `skippedAuditors` list. `titles` maps an
+ * auditor id to the human-readable title of the concrete instance
+ * `runHealthAudit` registered, so the report names the SAME auditor an
+ * operator would see if it had run.
+ */
+export function collectSkippedAuditors(
+	orchestrator: HealthResults["_orchestrator"],
+	titles: Record<string, string>,
+): SkippedAuditor[] {
+	if (!orchestrator) return [];
+	const skipped: SkippedAuditor[] = [];
+	for (const [id, result] of Object.entries(orchestrator)) {
+		if (result?.applicable !== false || !result.reason) continue;
+		skipped.push({ id, title: titles[id] ?? id, reason: result.reason });
+	}
+	return skipped;
 }
 
 /**
@@ -273,14 +329,13 @@ export async function runHealthAudit(
 
 	const graphContext = await openTractorGraph();
 	const health = new HealthCore(graphContext);
-	health.register(
-		new FileSystemAuditor({
-			ignoredGitVisibilityPatterns: policy.ignoredGitVisibilityPatterns,
-		}),
-	);
-	health.register(
-		policy.preset === "refarm" ? new RefarmProjectAuditor(policy) : new ProjectAuditor(policy),
-	);
+	const fileSystemAuditor = new FileSystemAuditor({
+		ignoredGitVisibilityPatterns: policy.ignoredGitVisibilityPatterns,
+	});
+	health.register(fileSystemAuditor);
+	const projectAuditor =
+		policy.preset === "refarm" ? new RefarmProjectAuditor(policy) : new ProjectAuditor(policy);
+	health.register(projectAuditor);
 	if (policy.complexity?.enabled) {
 		health.register(
 			new ComplexityAuditor({
@@ -299,8 +354,16 @@ export async function runHealthAudit(
 	// Lift the config-node auditor's issues out of the orchestrator bag so the
 	// report surfaces cross-device config drift alongside the fs/build findings.
 	results.configNode = results._orchestrator?.["config-node"]?.issues ?? [];
+	// generic_fs and project self-report `applicable: false` when `rootDir` is
+	// not a project (a node base like `~`) — surface that at the envelope's
+	// top level instead of letting their resulting empty arrays read as a
+	// clean pass over something that was never actually checked.
+	const skippedAuditors = collectSkippedAuditors(results._orchestrator, {
+		generic_fs: fileSystemAuditor.title,
+		project: projectAuditor.title,
+	});
 	const resolution = (await health.checkResolutionStatus(rootDir)) as ResolutionStatus[];
-	const report = buildHealthReport(results, resolution);
+	const report = buildHealthReport(results, resolution, skippedAuditors);
 	writeHealthAuditCache(rootDir, fingerprint, report);
 	return report;
 }
