@@ -9,12 +9,20 @@ export interface NodeContextMetadata {
 	homesAligned: boolean;
 }
 
-export function resolveNodeContextMetadata(env = process.env): NodeContextMetadata {
+export function resolveNodeContextMetadata(
+	env = process.env,
+	cwd = process.cwd(),
+): NodeContextMetadata {
 	const sovereignHome = resolveRefarmHome(env);
 	const credentialStoreHome = resolveSiloHome(env);
+	const workspaceHome = path.join(cwd, ".refarm");
+	const mode =
+		path.resolve(sovereignHome) === path.resolve(workspaceHome)
+			? "workspace-hatch"
+			: "node-global";
 	const homesAligned = path.resolve(sovereignHome) === path.resolve(credentialStoreHome);
 	return {
-		mode: "node-global",
+		mode,
 		sovereignHome,
 		credentialStoreHome,
 		homesAligned,
