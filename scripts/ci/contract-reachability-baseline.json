@@ -1,5 +1,5 @@
 {
-	"note": "The reachability ratchet (D1, docs/superpowers/specs/2026-08-04-instruments-for-the-four-shapes-design.md). Mirrors the shape scripts/ci/model-defaults-price-baseline.json already uses in this repo: a baseline that may only shrink. `pnpm run contracts:reachability:check` goes red if a non-reachable declared field is NOT listed here (growth), red if a listed entry has since become reachable and was not deleted (undeleted progress), and red if a listed entry's state no longer matches reality, including a renamed/removed field (stale cover). It is green only while every non-reachable declared field of a packages/*-contract-v1 package is accounted for here. Every entry cites where it looked and what it found, not just a state label — an unverified claim presented as fact is exactly the failure this gate exists to prevent. Edited BY HAND: no command writes this file. First populated 2026-08-04, from the gate's own first run against develop.",
+	"note": "The reachability ratchet (D1, docs/superpowers/specs/2026-08-04-instruments-for-the-four-shapes-design.md). Mirrors the shape scripts/ci/model-defaults-price-baseline.json already uses in this repo: a baseline that may only shrink. `pnpm run contracts:reachability:check` goes red if a non-reachable declared field is NOT listed here (growth), red if a listed entry has since become reachable and was not deleted (undeleted progress), and red if a listed entry's state no longer matches reality, including a renamed/removed field (stale cover). It is green only while every non-reachable declared field of a packages/*-contract-v1 package is accounted for here. Every entry cites where it looked and what it found, not just a state label — an unverified claim presented as fact is exactly the failure this gate exists to prevent. Edited BY HAND: no command writes this file. First populated 2026-08-04, from the gate's own first run against develop. UPDATE 2026-08-04 (same day): enrichment:v1's telemetry event is now genuinely wired — packages/capabilities-v1/src/records-capability.ts's `enrich` action constructs a real EnrichmentTelemetryEvent (traceId/pluginId/capability/operation/durationMs/ok) around every deps.enrichmentProvider.enrich() call and returns it in the envelope `refarm records enrich --json` (and the records_enrich agent tool, and `POST /records`) actually prints; packages/capabilities-v1/src/records-capability.test.ts reads `.traceId` back to prove it. That single, real `.traceId` read/write pair made ALL FIVE `*TelemetryEvent.traceId` baseline entries below read as `reachable` and required their deletion (see git history of this file for their prior text) — NOT because identity/source/storage/sync-contract-v1's telemetry events became wired too. This gate matches by FIELD NAME AS TEXT, not by type (COVERAGE_LIMITS_NOTE says so explicitly): once ANY code anywhere writes `traceId:` and reads `.traceId`, every field literally named `traceId` on every type reads as produced-and-consumed, regardless of which interface it actually belongs to. Verified directly: `grep -rn '\\.traceId\\b' packages apps` before this change matched nothing; after, it matches only records-capability.test.ts, which is enrichment-only. identity-contract-v1, source-contract-v1, storage-contract-v1, and sync-contract-v1's telemetry events remain exactly as unwired as the original 2026-08-04 finding describes — no construction, no consumption, still `dormant` in truth — this gate's mechanism simply cannot express that fact anymore now that a sibling type's identically-named field is real. A second capability getting wired next would hide a THIRD sibling's field the same way, silently, with nothing here to catch it; that is a real, disclosed gap in this gate's design (field-name-only matching), not new debt from this change.",
 	"entries": [
 		{
 			"id": "artifact-contract-v1:ArtifactProvenance.inputHashes",
@@ -96,36 +96,6 @@
 			"state": "dormant",
 			"date": "2026-08-04",
 			"reason": "Declared optional on ServiceRequest; no construction sets it and nothing reads it anywhere in packages/ or apps/ — pure scaffolding today."
-		},
-		{
-			"id": "enrichment-contract-v1:EnrichmentTelemetryEvent.traceId",
-			"state": "dormant",
-			"date": "2026-08-04",
-			"reason": "The whole `EnrichmentTelemetryEvent` type is named nowhere outside its own declaration in packages/ or apps/. Its OTHER fields (pluginId, durationMs, ok, ...) share names common enough to match unrelated code and read as accidentally reachable through this gate's text scan — traceId is the one distinctively-named field honest enough to surface that the type itself is unused. See the sibling entries below for source/identity/storage/sync: this is the same telemetry-event shape, declared five times, wired zero times."
-		},
-		{
-			"id": "identity-contract-v1:IdentityTelemetryEvent.traceId",
-			"state": "dormant",
-			"date": "2026-08-04",
-			"reason": "Same finding as enrichment-contract-v1's EnrichmentTelemetryEvent: the whole IdentityTelemetryEvent type is named nowhere outside its own declaration."
-		},
-		{
-			"id": "source-contract-v1:SourceTelemetryEvent.traceId",
-			"state": "dormant",
-			"date": "2026-08-04",
-			"reason": "Same finding again: the whole SourceTelemetryEvent type is named nowhere outside its own declaration."
-		},
-		{
-			"id": "storage-contract-v1:StorageTelemetryEvent.traceId",
-			"state": "dormant",
-			"date": "2026-08-04",
-			"reason": "Same finding again: the whole StorageTelemetryEvent type is named nowhere outside its own declaration."
-		},
-		{
-			"id": "sync-contract-v1:SyncTelemetryEvent.traceId",
-			"state": "dormant",
-			"date": "2026-08-04",
-			"reason": "Same finding again: the whole SyncTelemetryEvent type is named nowhere outside its own declaration. Five contract packages declare an identically-shaped telemetry-event type that not one of them, nor any consumer, ever constructs or reads."
 		}
 	]
 }
