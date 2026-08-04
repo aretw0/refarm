@@ -27,6 +27,9 @@ linkWorkspacePackages: true
 # reaches us only through the build-time WASM toolchain (@bytecodealliance/jco >
 # componentize-js > weval > decompress, a devDependency). It never touches shipped runtime
 # code or untrusted archives. Re-evaluate when jco/weval drop the decompress transitive.
+# Source: https://github.com/advisories/GHSA-mp2f-45pm-3cg9. Written 2026-07-14 (bf92b96d);
+# still the confirmed disposition as of the 2026-08-03 security pass (4e8ac38e) that touched
+# the rest of this file — re-checked as unpatched then, not re-verified since.
 #
 # GHSA-mh99-v99m-4gvg (brace-expansion <=5.0.7, DoS via unbounded expansion, patched at 5.0.8) used to
 # live here too: forcing brace-expansion to 5.x was rejected because 5.x is ESM-only (named `expand`,
@@ -95,14 +98,22 @@ overrides:
   # keep that legacy edge on the last 3.x release instead of forcing the incompatible safeLoad removal
   # from 4.x. astro is intentionally EXCLUDED: its patch (>=7.0.10 = 7.1.x) breaks the apps' build
   # (issue #56).
+  # Source: https://github.com/advisories/GHSA-rgw5-rvv9-x895. Verified 2026-08-03 (commit 4e8ac38e) —
+  # the three re-verification steps described above (pnpm why, minimatch/glob source inspection, the
+  # @refarm.dev/ds test run) all happened that day.
   brace-expansion@<1.1.18: ^1.1.18
   brace-expansion@>=2.0.0 <2.1.4: ^2.1.4
   brace-expansion@>=4.0.0 <5.0.9: ^5.0.9
+  # GHSA-7p8r-x3mc-p8w7: fast-uri, patched at 3.1.5 (advisory text not transcribed here —
+  # see the source link for what it covers). Source:
+  # https://github.com/advisories/GHSA-7p8r-x3mc-p8w7. Verified 2026-08-03 (commit 4e8ac38e),
+  # same pass as the brace-expansion re-pin above.
   fast-uri@>=3.0.0 <3.1.5: ^3.1.5
   # GHSA-mwp4-54f8-5fhr: Address4 leading-zero octet decoding mismatch (SSRF / trust-boundary bypass
   # potential). Dev-only path (puppeteer-core > @puppeteer/browsers > proxy-agent > ... > socks >
   # ip-address, via the optional live-source browser driver). Range-scoped like the other transitive
   # pins above; ^10.3.1 stays on the same major.
+  # Source: https://github.com/advisories/GHSA-mwp4-54f8-5fhr. Verified 2026-08-03 (commit 4e8ac38e).
   ip-address@<=10.3.0: ^10.3.1
   js-yaml: 4.3.0
   read-yaml-file>js-yaml: 3.15.1
@@ -112,6 +123,7 @@ overrides:
   # GHSA-4cwx-7wf7-3272: undici cross-user information disclosure, patched at 7.29.0. Dev-only path
   # (jsdom > undici, via @vitest/coverage-v8 and @vitest/ui). Blanket pin (not range-scoped) because the
   # prior entry already was — undici has no legacy-API constraint pulling it back to an older line.
+  # Source: https://github.com/advisories/GHSA-4cwx-7wf7-3272. Verified 2026-08-03 (commit 4e8ac38e).
   undici: 7.29.0
   ws: 8.21.0
   yaml: 2.9.0

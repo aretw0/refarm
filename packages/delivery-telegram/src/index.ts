@@ -47,9 +47,14 @@ export const TELEGRAM_USER_AGENT = "refarm-delivery-telegram/0.1 (+https://refar
 
 export const TELEGRAM_API_BASE = "https://api.telegram.org";
 
-/** Telegram's own limits. Exceeding them is a 400, so we stay inside them. */
+/**
+ * Telegram's own limits. Exceeding them is a 400, so we stay inside them.
+ * Source: the Bot API docs, https://core.telegram.org/bots/api (sendMessage's `text` and
+ * InlineKeyboardButton's `callback_data`). Recorded 2026-07-30 (commit 3899ab63) — a link, not
+ * an independent re-check; not re-verified since.
+ */
 const MAX_MESSAGE_LEN = 4096;
-/** `callback_data` is capped at 64 BYTES by the Bot API. */
+/** `callback_data` is capped at 64 BYTES by the Bot API. Same source and date as above. */
 const MAX_CALLBACK_DATA_BYTES = 64;
 
 /** Bounded by construction — an adapter that retries forever is not a guest. */
@@ -85,6 +90,10 @@ const REQUEST_TIMEOUT_MS = 15_000;
  * and having vault-seed consume refarm — the direction the operator has already
  * chosen — which is larger than this slice. Until then: same numbers, same
  * reasoning, no second implementation of the pacing itself.
+ *
+ * Provenance: source is `@aretw0/dgk-channels` in the vault-seed repo (external to this
+ * repo, not independently re-checked against Telegram's own docs here). Recorded 2026-07-30
+ * (commit 3899ab63) — not re-verified since.
  */
 
 /**

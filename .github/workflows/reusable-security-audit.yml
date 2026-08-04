@@ -60,6 +60,8 @@ jobs:
       # GHSA-48c2-rrv3-qjmp (yaml <2.8.3): ignored — exact version pin in
       # yaml-language-server@1.20.0 (dev tooling, @astrojs/check) that pnpm
       # overrides cannot reach. Track: @astrojs/language-server → volar-service-yaml@0.0.71.
+      # Source: https://github.com/advisories/GHSA-48c2-rrv3-qjmp. Recorded 2026-05-20
+      # (commit 06845fe6) — not re-verified since; the tracking link above is the re-check.
       - name: Security gate (moderate, prod deps only — non-blocking)
         id: audit_gate_moderate
         if: always()

@@ -78,6 +78,14 @@ pub(crate) struct ModelCapabilities {
 /// fall to the conservative local floor (tool-call/JSON true so a local model is still
 /// usable as a route, but tagged `Local` so cost-ordered profiles rank it last... or
 /// first, for `cheap`). PURE.
+///
+/// PROVENANCE GAP, recorded rather than papered over (2026-08-04, budget-laboratory D3): the
+/// `context_window` figures below carry no vendor citation. They were added whole with ADR-012
+/// (`d5584e74`/`48583032`) without a source link, and neither that commit nor anything findable
+/// in this repo's history names where they came from — source unknown. Unlike `rate_for_model`
+/// in `utils.rs` (this table's sibling and the pattern it should eventually match), these are
+/// NOT verified against an official vendor page as of this date; treat them as rough defaults
+/// only, per the field's own doc comment, until someone cites each one.
 pub(crate) fn provider_capabilities(provider: &str) -> ModelCapabilities {
     match provider {
         "anthropic" => ModelCapabilities {

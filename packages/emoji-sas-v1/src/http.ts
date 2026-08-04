@@ -26,8 +26,8 @@
  */
 
 import {
-	generateSasKeyPair,
 	exportSasPrivateKey,
+	generateSasKeyPair,
 	importSasPublicKey,
 	newSasSessionId,
 	SAS_WIRE,
@@ -58,7 +58,12 @@ export interface SasHttpRequest {
 export interface SasHttpResponse {
 	readonly status: number;
 	readonly body: Record<string, unknown>;
-	/** Set on a rate-limited refusal, in seconds, as RFC 9110 spells it. */
+	/**
+	 * Set on a rate-limited refusal, in seconds, as RFC 9110 spells it (the
+	 * `Retry-After` field). Source: https://www.rfc-editor.org/rfc/rfc9110.html.
+	 * Recorded 2026-07-31 (commit 8175ae5d) — a stable, ratified IETF spec, low
+	 * rot-risk relative to a vendor price page, but undated until now.
+	 */
 	readonly retryAfterSeconds?: number;
 }
 
