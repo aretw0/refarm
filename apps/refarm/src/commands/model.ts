@@ -1,5 +1,4 @@
 import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
-import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	modelCredentialEnvKey,
 	modelCredentialStatus as resolveModelCredentialStatus,
@@ -8,14 +7,11 @@ import { isContainer as detectContainerRuntime, fetchWithTimeout } from "@refarm
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
-import { refarmCommand } from "../brand.js";
 import { resolveNodeContextMetadata, type NodeContextMetadata } from "../utils/context-metadata.js";
 import {
 	DEFAULT_MODEL_PROVIDER,
 	defaultModelForProvider,
 	defaultModelForScope,
-	defaultProviderModelRef,
-	defaultScopedModelRef,
 	effectiveModelRouteForScope,
 	formatModelRef,
 	isRuntimeSubscriptionModelProvider,
