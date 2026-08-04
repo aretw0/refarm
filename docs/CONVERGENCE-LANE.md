@@ -217,6 +217,45 @@ The maintainer sharpened the North Star: the goal is not "rcdc5 imports `@refarm
     not capability. The PWA companion deserves a design pass for what is of ITS OWN nature before it
     is built as `/attend` with an icon.
 
+- **2026-08-03 (late) — the budget laboratory, and what auditing a number found.**
+  A three-line symmetry fix was refused, and the refusal is the whole story. The dispatch deadline was
+  a boot-read global while the sibling prompt path had always let the asker declare and the node clamp;
+  the operator would not take the fix alone, because *"a knob without a record manufactures the debt it
+  was meant to remove."* Thirteen tasks later: three axes declared per dispatch, resolved across three
+  nested levels (node ⊇ workspace ⊇ dispatch, the ResourceQuota/LimitRange pairing Kubernetes settled a
+  decade ago, with the record naming WHICH level bound the run); a durable `BudgetObservation` per
+  terminal effort under OpenTelemetry's `gen_ai.*` names; `refarm budget observations` to read it back;
+  `refarm dispatch --budget-*` to declare it. Proven end to end against the live daemon from the CLI.
+  Design: [`2026-08-03-budget-laboratory-design.md`](./superpowers/specs/2026-08-03-budget-laboratory-design.md).
+  - **The audit underneath found six live defects, none of them new and none catchable by a test.**
+    Cache reads and writes were summed despite being priced in opposite directions; Anthropic's
+    uncached input was billed at **zero** under any real cache rate; every Claude 5 model fell through
+    to the value meaning "local, free"; Groq's, Together's and Mistral's defaults — paid APIs — were
+    classified free; Haiku 4.5 carried Haiku 3.5's retired rate; and Opus 4.5 and later inherited Opus
+    4's price, **over by three times**. The two rate errors point in opposite directions, which is the
+    argument against any heuristic: no bias to correct, no sanity check that would fire. Only the
+    vendor's page answers, one branch at a time — which is why every rate now cites where it was read,
+    and why fetching those citations *was* the audit that found two of the six.
+  - **Nothing would have objected.** The tests assert the formula uses the rate correctly, never that
+    the rate matches the world. `agent-bench` asserts token counts against a mock with known counts,
+    never the price derived from them. The gate that now fails when a default model has no rate is the
+    instrument that closes it, with a shrinking baseline of six known-unpriced defaults and a
+    parse-sanity floor so a broken parse screams instead of passing clean.
+  - **The recurring shape, five times in one program: written, correct, and unreachable.** A
+    three-level fold whose caller passed `None`; two guards nothing carried a ceiling to; an
+    accumulator that never reset between runs; a whole budget system no surface could set; and — found
+    by the final review, still open — **nothing anywhere sets `workspaceId`**, so D9's middle level and
+    `budget.workspaces` in the config remain theory. Every task review passed, because each looks at
+    its own diff and the defect lives in the absence of something outside it. Four of the five were
+    caught only while preparing the *next* task, the one moment anyone looks at two layers at once.
+  - **Still open, and named rather than buried:** "died at 4/25" — the measurement that originated the
+    entire design — is *still* not recoverable from the record, because `steps_completed`/`steps_planned`
+    are hardcoded `None` at the only production caller. And `packages/health`'s `ConfigNodeAuditor` has
+    never audited a real replicated node: the graph client requires `@context`, the Rust sidecar never
+    sets it, and a `try/catch` turns the throw into a soft "skipped" note. **`refarm health` contains a
+    check that has always passed by never running.** Pre-existing, unrelated to this work, and it
+    deserves its own spec.
+
 **Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.
 
 ## How to resume
