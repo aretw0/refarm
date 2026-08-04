@@ -5,19 +5,29 @@ export interface ModelMatchRule {
   value: string;
 }
 
-export interface ModelRate {
+export interface ModelTariff {
   inputPerMTokenUsd: number;
   outputPerMTokenUsd: number;
 }
 
-export interface ModelRateEntry {
+export type ModelRate = ModelTariff;
+
+export interface ModelTariffEntry {
   provider: string;
   match: ModelMatchRule;
-  rate: ModelRate;
+  rate: ModelTariff;
   pricingUrl: string;
   verifiedAt: string;
   effectiveFrom?: string;
   effectiveTo?: string;
+}
+
+export type ModelRateEntry = ModelTariffEntry;
+
+export interface ModelTariffCatalog {
+  schemaVersion: "model-tariff-catalog.v1";
+  catalogVersion: string;
+  entries: ModelTariffEntry[];
 }
 
 export interface ModelRateCatalog {
@@ -26,10 +36,17 @@ export interface ModelRateCatalog {
   entries: ModelRateEntry[];
 }
 
-export interface ResolveModelRateRequest {
+export interface ResolveModelTariffRequest {
   provider: string;
   modelId: string;
   at?: string;
+}
+
+export type ResolveModelRateRequest = ResolveModelTariffRequest;
+
+export interface ResolvedModelTariff {
+  entry: ModelTariffEntry;
+  tariff: ModelTariff;
 }
 
 export interface ResolvedModelRate {
@@ -57,7 +74,7 @@ function matchesRule(rule: ModelMatchRule, modelId: string): boolean {
   return modelId.includes(rule.value);
 }
 
-function matchesEffectiveWindow(entry: ModelRateEntry, at: string): boolean {
+function matchesEffectiveWindow(entry: ModelTariffEntry, at: string): boolean {
   const when = asDate(at);
   if (!Number.isFinite(when)) return false;
 
@@ -74,9 +91,12 @@ function matchesEffectiveWindow(entry: ModelRateEntry, at: string): boolean {
   return true;
 }
 
-export function validateModelRateCatalog(catalog: unknown): ValidationResult {
+function validateModelTariffShape(
+  catalog: unknown,
+  schemaVersion: "model-rate-catalog.v1" | "model-tariff-catalog.v1",
+): ValidationResult {
   const issues: ValidationIssue[] = [];
-  const value = catalog as Partial<ModelRateCatalog>;
+  const value = catalog as Partial<ModelRateCatalog> & Partial<ModelTariffCatalog>;
 
   if (!value || typeof value !== "object") {
     return {
@@ -85,8 +105,8 @@ export function validateModelRateCatalog(catalog: unknown): ValidationResult {
     };
   }
 
-  if (value.schemaVersion !== "model-rate-catalog.v1") {
-    issues.push({ path: "schemaVersion", message: "must equal model-rate-catalog.v1" });
+  if (value.schemaVersion !== schemaVersion) {
+    issues.push({ path: "schemaVersion", message: `must equal ${schemaVersion}` });
   }
 
   if (!value.catalogVersion || typeof value.catalogVersion !== "string") {
@@ -151,6 +171,14 @@ export function validateModelRateCatalog(catalog: unknown): ValidationResult {
   return { valid: issues.length === 0, issues };
 }
 
+export function validateModelRateCatalog(catalog: unknown): ValidationResult {
+  return validateModelTariffShape(catalog, "model-rate-catalog.v1");
+}
+
+export function validateModelTariffCatalog(catalog: unknown): ValidationResult {
+  return validateModelTariffShape(catalog, "model-tariff-catalog.v1");
+}
+
 export function assertValidModelRateCatalog(catalog: unknown): asserts catalog is ModelRateCatalog {
   const result = validateModelRateCatalog(catalog);
   if (!result.valid) {
@@ -159,19 +187,45 @@ export function assertValidModelRateCatalog(catalog: unknown): asserts catalog i
   }
 }
 
+export function assertValidModelTariffCatalog(catalog: unknown): asserts catalog is ModelTariffCatalog {
+  const result = validateModelTariffCatalog(catalog);
+  if (!result.valid) {
+    const details = result.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ");
+    throw new Error(`Invalid model tariff catalog: ${details}`);
+  }
+}
+
+function resolveModelTariffEntry(
+  entries: readonly ModelTariffEntry[],
+  request: ResolveModelTariffRequest,
+): ModelTariffEntry | undefined {
+  const provider = request.provider.trim().toLowerCase();
+  const at = request.at ?? new Date().toISOString().slice(0, 10);
+
+  for (const entry of entries) {
+    if (entry.provider.trim().toLowerCase() !== provider) continue;
+    if (!matchesRule(entry.match, request.modelId)) continue;
+    if (!matchesEffectiveWindow(entry, at)) continue;
+    return entry;
+  }
+
+  return undefined;
+}
+
+export function resolveModelTariff(
+  catalog: ModelTariffCatalog,
+  request: ResolveModelTariffRequest,
+): ResolvedModelTariff | undefined {
+  const entry = resolveModelTariffEntry(catalog.entries, request);
+  if (!entry) return undefined;
+  return { entry, tariff: entry.rate };
+}
+
 export function resolveModelRate(
   catalog: ModelRateCatalog,
   request: ResolveModelRateRequest,
 ): ResolvedModelRate | undefined {
-  const provider = request.provider.trim().toLowerCase();
-  const at = request.at ?? new Date().toISOString().slice(0, 10);
-
-  for (const entry of catalog.entries) {
-    if (entry.provider.trim().toLowerCase() !== provider) continue;
-    if (!matchesRule(entry.match, request.modelId)) continue;
-    if (!matchesEffectiveWindow(entry, at)) continue;
-    return { entry, rate: entry.rate };
-  }
-
-  return undefined;
+  const entry = resolveModelTariffEntry(catalog.entries, request);
+  if (!entry) return undefined;
+  return { entry, rate: entry.rate };
 }

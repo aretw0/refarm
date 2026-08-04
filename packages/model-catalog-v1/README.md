@@ -1,6 +1,6 @@
 # @refarm.dev/model-catalog-v1
 
-Pacote canonico para catalogo de precificacao de modelos (provider, regra de match, janela temporal e fonte oficial).
+Pacote canonico para catalogo de tarifacao de modelos (provider, regra de match, janela temporal e fonte oficial).
 
 Objetivo: separar dado mutavel de precificacao da logica de runtime, reduzindo drift entre Rust, TypeScript e CI.
 
@@ -11,7 +11,7 @@ Objetivo: separar dado mutavel de precificacao da logica de runtime, reduzindo d
 
 ## Contrato
 
-- `schemaVersion`: `model-rate-catalog.v1`
+- `schemaVersion`: `model-rate-catalog.v1` (compatibilidade) ou `model-tariff-catalog.v1` (nomenclatura desacoplada)
 - `catalogVersion`: versao do snapshot
 - `entries[]`:
   - `provider`
@@ -22,3 +22,8 @@ Objetivo: separar dado mutavel de precificacao da logica de runtime, reduzindo d
   - `pricingUrl`
   - `verifiedAt`
   - `effectiveFrom`/`effectiveTo` (opcional)
+
+## Nota de compatibilidade
+
+Para nao quebrar consumidores existentes, a API antiga baseada em `rate` permanece disponivel.
+Novos consumidores devem preferir as APIs de `tariff` (`ModelTariffCatalog`, `resolveModelTariff`, `validateModelTariffCatalog`).

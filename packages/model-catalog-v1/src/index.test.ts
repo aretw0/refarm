@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertValidModelTariffCatalog,
+  resolveModelTariff,
   assertValidModelRateCatalog,
   resolveModelRate,
+  type ModelTariffCatalog,
   type ModelRateCatalog,
 } from "./index.js";
 
@@ -34,6 +37,11 @@ const fixture: ModelRateCatalog = {
       verifiedAt: "2026-08-04",
     },
   ],
+};
+
+const tariffFixture: ModelTariffCatalog = {
+  ...fixture,
+  schemaVersion: "model-tariff-catalog.v1",
 };
 
 describe("model-catalog-v1", () => {
@@ -76,5 +84,17 @@ describe("model-catalog-v1", () => {
     });
 
     expect(resolved).toBeUndefined();
+  });
+
+  it("validates tariff-first schema and resolves tariff aliases", () => {
+    expect(() => assertValidModelTariffCatalog(tariffFixture)).not.toThrow();
+
+    const resolved = resolveModelTariff(tariffFixture, {
+      provider: "openai",
+      modelId: "gpt-5.6-sol",
+      at: "2026-08-04",
+    });
+
+    expect(resolved?.tariff).toEqual({ inputPerMTokenUsd: 5, outputPerMTokenUsd: 30 });
   });
 });
