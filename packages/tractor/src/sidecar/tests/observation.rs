@@ -27,6 +27,11 @@ fn base_input() -> ObservationInput<'static> {
         steps_planned: Some(25),
         resolved: Some(resolve_budget(Some(&declared), None, &node)),
         usage: None,
+        // The identity fields default absent here — every existing test below spreads
+        // `..base_input()` and asserts on unrelated fields, so this keeps them
+        // untouched. The dedicated identity tests further down override these.
+        node_name: None,
+        node_id: None,
     }
 }
 
@@ -67,6 +72,27 @@ fn an_undeterminable_field_is_omitted_rather_than_zeroed() {
         node.get("refarm.outcome.steps_planned").is_none(),
         "a run with no plan has no planned total, which is not the same as zero"
     );
+}
+
+#[test]
+fn the_observation_carries_the_declared_name_and_opaque_id_when_both_are_known() {
+    let node = build_observation_node(ObservationInput {
+        node_name: Some("galaxy-a55-5g-desktop"),
+        node_id: Some("b6e9c9c0-1e2f-4a3b-9c1d-0e5f6a7b8c9d"),
+        ..base_input()
+    });
+    assert_eq!(node["host.name"], "galaxy-a55-5g-desktop");
+    assert_eq!(node["host.id"], "b6e9c9c0-1e2f-4a3b-9c1d-0e5f6a7b8c9d");
+}
+
+#[test]
+fn an_unnamed_or_unidentified_node_omits_the_keys_rather_than_an_empty_string() {
+    // D6 applied to WHO ran this, not just what it spent: a node with no declared
+    // name records no `host.name` key at all — never `""`, which an aggregate could
+    // mistake for a legitimately-named (if oddly blank) node.
+    let node = build_observation_node(ObservationInput { node_name: None, node_id: None, ..base_input() });
+    assert!(node.get("host.name").is_none(), "an undeclared node name is absent, not empty");
+    assert!(node.get("host.id").is_none(), "an unestablished node id is absent, not empty");
 }
 
 #[test]
@@ -454,6 +480,59 @@ fn write_budget_observation_reads_the_real_step_count_off_the_joined_usage_recor
     assert_eq!(
         node["refarm.outcome.steps_completed"], 4,
         "the step the run reached must be readable from the record — F1's other missing half"
+    );
+}
+
+// ── the node-identity wiring: host.name/host.id resolve live from the SAME
+// declared base / refarm dir every other fact on this node already uses ────────
+
+#[test]
+fn write_budget_observation_records_the_declared_name_and_a_freshly_minted_id() {
+    let _env = crate::test_support::env_lock();
+    let _sovereign_dir = EnvGuard::set("SOVEREIGN_DIR", ".refarm");
+
+    let node_base = tempfile::tempdir().expect("tempdir");
+    let _sovereign_base = EnvGuard::set("SOVEREIGN_BASE", node_base.path().to_str().expect("utf8 path"));
+    write_sovereign_config(node_base.path(), r#"{ "node": { "name": "galaxy-a55-5g-desktop" } }"#);
+
+    // `state.refarm_dir` is where the opaque id (`node-id`) is minted and persisted — a
+    // fresh tempdir here proves first-boot minting, not a read of a pre-existing file.
+    let refarm_dir =
+        std::env::temp_dir().join(format!("tractor-observation-identity-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&refarm_dir).expect("create refarm dir");
+    let namespace = std::env::temp_dir()
+        .join(format!("tractor-observation-identity-ns-{}.db", uuid::Uuid::new_v4()))
+        .to_str()
+        .expect("utf8 path")
+        .to_owned();
+    let state = SidecarState::for_test(&refarm_dir, &namespace).expect("state");
+
+    let effort_id = format!("obs-identity-{}", uuid::Uuid::new_v4());
+    write_budget_observation(&state, &effort_id, None, "failed", None);
+
+    let storage = crate::storage::NativeStorage::open(&namespace).expect("open storage");
+    let rows = storage.query_nodes("BudgetObservation").expect("query nodes");
+    let node = rows
+        .iter()
+        .find_map(|row| {
+            let value: serde_json::Value = serde_json::from_str(&row.payload).ok()?;
+            (value.get("effort_id").and_then(|v| v.as_str()) == Some(effort_id.as_str())).then_some(value)
+        })
+        .expect("a BudgetObservation node for this effort");
+
+    assert_eq!(
+        node["host.name"], "galaxy-a55-5g-desktop",
+        "the declared name in config.json's node.name must ride the record"
+    );
+    let node_id = node["host.id"].as_str().expect("a minted node id on the record");
+    uuid::Uuid::parse_str(node_id).expect("host.id is a valid uuid");
+
+    let persisted = std::fs::read_to_string(crate::node_identity::node_id_path(&refarm_dir))
+        .expect("the id was persisted beside the data, not just recorded on this one node");
+    assert_eq!(
+        persisted.trim(),
+        node_id,
+        "the id on the record is the one actually persisted to disk, not a second, throwaway mint"
     );
 }
 

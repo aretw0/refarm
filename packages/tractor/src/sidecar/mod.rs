@@ -190,6 +190,14 @@ pub struct SidecarState {
     pub telemetry: crate::TelemetryBus,
     pub streams_dir: PathBuf,
     pub results_dir: PathBuf,
+    /// The sovereign dir this state was built from (`base_dir` at construction — the SAME
+    /// directory `node_descriptor::publish_for_this_process` publishes `node.json` into).
+    /// Kept verbatim, not re-derived from env at read time: `observation::write_budget_observation`
+    /// needs the EXACT directory the node's opaque id (`node_identity::load_or_create_node_id`)
+    /// lives beside, and re-deriving it from `SOVEREIGN_BASE`/`SOVEREIGN_DIR` could disagree with
+    /// this value in the one case where `--refarm-dir`'s basename differs from `SOVEREIGN_DIR` —
+    /// this field never can, because it IS what `main()` handed the descriptor publisher.
+    pub refarm_dir: PathBuf,
     pub namespace: String,
     /// Respond-watcher timeout + poll cadence, resolved from env ONCE at boot
     /// (see RespondWatchConfig). The watcher reads these off the state, not env —
@@ -276,6 +284,7 @@ impl SidecarState {
             telemetry,
             streams_dir,
             results_dir,
+            refarm_dir: base_dir.to_path_buf(),
             namespace,
             respond_watch: RespondWatchConfig::from_env(),
             reload: None,

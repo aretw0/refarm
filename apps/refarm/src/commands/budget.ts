@@ -67,6 +67,17 @@ export type ObservationSummary = {
 	 *  stamp and still be `price_known: false` (the table was consulted and
 	 *  came back empty for that model). */
 	priceUnknown: number;
+	/** Distinct declared node names (`host.name`, OTel's resource semantic
+	 *  convention) seen across these observations, sorted. Node identity landed
+	 *  after months of this record already existing, so an empty array here is
+	 *  informative on its own — not "no nodes exist", but "nothing observed
+	 *  since node identity shipped, or no node here has declared a name". */
+	nodesRepresented: string[];
+	/** Observations that carry no `host.name` at all — not a name that happens
+	 *  to be `""` (D6: absent is not zero, applied to WHO ran this, not just
+	 *  what it spent). The honest measure of how much of the record predates
+	 *  node identity, or was written by a node that never declared a name. */
+	unnamedNode: number;
 };
 
 /** Pure reducer over the record. Kept separate from the command so the counting
@@ -81,6 +92,8 @@ export function summariseObservations(
 	let stalePricing = 0;
 	let unstampedPricing = 0;
 	let priceUnknown = 0;
+	let unnamedNode = 0;
+	const nodeNames = new Set<string>();
 	for (const node of nodes) {
 		if (node["refarm.outcome"] === "timed-out") timedOut += 1;
 		const boundBy = node["refarm.budget.bound_by"];
@@ -92,6 +105,12 @@ export function summariseObservations(
 			stalePricing += 1;
 		}
 		if (node["refarm.cost.price_known"] === false) priceUnknown += 1;
+		const hostName = node["host.name"];
+		if (typeof hostName === "string" && hostName.length > 0) {
+			nodeNames.add(hostName);
+		} else {
+			unnamedNode += 1;
+		}
 	}
 	return {
 		total: nodes.length,
@@ -101,6 +120,8 @@ export function summariseObservations(
 		stalePricing,
 		unstampedPricing,
 		priceUnknown,
+		nodesRepresented: [...nodeNames].sort(),
+		unnamedNode,
 	};
 }
 
@@ -224,14 +245,18 @@ function printObservationsHuman(
 				`price-unknown: ${summary.priceUnknown}\n`,
 		),
 	);
+	const nodesLabel =
+		summary.nodesRepresented.length > 0 ? summary.nodesRepresented.join(", ") : "(none declared)";
+	console.log(chalk.dim(`  nodes: ${nodesLabel}   unnamed-node: ${summary.unnamedNode}\n`));
 	for (const node of observations) {
 		const outcome = typeof node["refarm.outcome"] === "string" ? node["refarm.outcome"] : "?";
 		const boundBy =
 			typeof node["refarm.budget.bound_by"] === "string" ? node["refarm.budget.bound_by"] : "?";
 		const effortId = typeof node.effort_id === "string" ? node.effort_id : "?";
+		const hostName = typeof node["host.name"] === "string" ? (node["host.name"] as string) : "?";
 		console.log(
 			`  ${outcomeMark(outcome as string)} ${(outcome as string).padEnd(10)} ` +
-				`bound-by:${(boundBy as string).padEnd(10)} ${chalk.dim(effortId as string)}`,
+				`bound-by:${(boundBy as string).padEnd(10)} node:${hostName.padEnd(12)} ${chalk.dim(effortId as string)}`,
 		);
 	}
 	console.log(chalk.dim(`\n  ${BUDGET_OBSERVATIONS_JSON_COMMAND}\n`));
@@ -307,6 +332,9 @@ export function createBudgetCommand(): Command {
 			"  A BudgetObservation is written for every terminal effort — this command only reads it.",
 			"  Each --json observation carries refarm.outcome, refarm.budget.bound_by, and the",
 			"  flattened gen_ai.usage.* / refarm.cost.* fields, per the Task 10 record shape.",
+			"  host.name / host.id (OTel's resource vocabulary) name which node ran it — a declared,",
+			"  mutable name and an opaque, per-installation id; either may be absent on a node that",
+			"  has not declared a name, or on a record written before node identity shipped.",
 			"  refarm dispatch --budget-deadline-ms / --budget-max-tokens / --budget-max-usd declares a",
 			"  budget; omit them and the record fills from whichever level (node/workspace/declared/",
 			"  default) resolved for the run instead.",

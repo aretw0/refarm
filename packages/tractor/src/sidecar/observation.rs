@@ -12,6 +12,11 @@
 //! effort's label fields, joining usage, and storing the node — called from
 //! `dispatch::finalise_effort`, the single place every terminal path passes
 //! through.
+//!
+//! Records WHICH NODE ran the effort as of the node-identity work: `host.name`
+//! (declared, mutable) and `host.id` (opaque, per-installation, never replicated) —
+//! see `node_identity.rs` for the two identifiers and why they resolve so
+//! differently, and `node_descriptor.rs` for the OTHER place they are published.
 
 use super::SidecarState;
 
@@ -41,6 +46,16 @@ pub(crate) struct ObservationInput<'a> {
     /// straight off this node. FLATTENED onto the observation under OTel names
     /// — never nested (D2).
     pub usage: Option<serde_json::Value>,
+    /// This node's DECLARED name (`config.json`'s `node.name`), resolved live by the one
+    /// impure call site (`write_budget_observation`) via `node_identity::declared_node_name`
+    /// — `None` when nobody has declared one yet. See `node_identity.rs` for why this
+    /// identifier is mutable/portable while `node_id` below is neither.
+    pub node_name: Option<&'a str>,
+    /// This node's opaque, per-installation id (`node_identity::load_or_create_node_id`) —
+    /// `None` only when this boot could not establish one (a corrupt file, or a failed
+    /// first-boot persist — see that function's doc). Never derived from anything that
+    /// could be shared across machines.
+    pub node_id: Option<&'a str>,
 }
 
 /// Mint the `@id` for a new `BudgetObservation` node. Local to this module
@@ -213,6 +228,17 @@ pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json:
     put_opt(&mut map, "prompt_ref", input.prompt_ref.map(Into::into));
     put_opt(&mut map, "refarm.workspace.id", input.workspace_id.map(Into::into));
     put_opt(&mut map, "refarm.budget.spawner", input.spawner.map(Into::into));
+    // WHICH NODE ran this — OTel's resource semantic conventions already speak here
+    // (`host.name`/`host.id`, https://opentelemetry.io/docs/specs/semconv/resource/host/),
+    // so this is `gen_ai.*`'s sibling rather than a `refarm.*` invention, per D2's rule.
+    // `host.name` is the operator's declared, mutable label; `host.id` is the opaque,
+    // stable, per-installation one — see `node_identity.rs` for why they resolve so
+    // differently. Both OMITTED, never an empty string or a fabricated placeholder, when
+    // this boot has nothing to report (D6): a node with no declared name records no
+    // `host.name` key at all, which is also the honest measure of how much of the record
+    // predates this change — every observation before today omits both.
+    put_opt(&mut map, "host.name", input.node_name.map(Into::into));
+    put_opt(&mut map, "host.id", input.node_id.map(Into::into));
     put_opt(&mut map, "refarm.outcome.steps_completed", input.steps_completed.map(Into::into));
     put_opt(&mut map, "refarm.outcome.steps_planned", input.steps_planned.map(Into::into));
 
@@ -292,6 +318,17 @@ pub(crate) fn write_budget_observation(
     // `find_usage_record_for`'s doc and `put_usage`'s doc for why (F4).
     let usage = super::dispatch::find_usage_record_for(&state.namespace, &prompt_ref);
 
+    // WHO ran this — resolved live, every call, deliberately not cached on `state`:
+    // `node_name` is a mutable declaration (a node can be renamed, and a rename must be
+    // visible on the very next observation, not after a restart — the same "no caching"
+    // doctrine `sidecar::budget::read_budget_section` already applies to `budget.node`).
+    // `node_id` is resolved off `state.refarm_dir`, the exact directory
+    // `node_descriptor::publish_for_this_process` published `node.json` into at boot — see
+    // that field's doc on `SidecarState` for why this is not re-derived from env here.
+    let node_base = crate::host::declared_base();
+    let node_name = crate::node_identity::declared_node_name(&node_base);
+    let node_id = crate::node_identity::load_or_create_node_id(&state.refarm_dir);
+
     let node = build_observation_node(ObservationInput {
         effort_id,
         prompt_ref: Some(&prompt_ref),
@@ -299,6 +336,8 @@ pub(crate) fn write_budget_observation(
         spawner: spawner.as_deref(),
         outcome,
         elapsed_ms,
+        node_name: node_name.as_deref(),
+        node_id: node_id.as_deref(),
         // F1's other missing half, closed: the joined UsageRecord carries the
         // turn count RUN_TOTALS (`agent/src/runtime/react_loop.rs`)
         // accumulated across this run — see `steps_completed_from_usage`'s

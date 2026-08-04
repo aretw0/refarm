@@ -19,6 +19,10 @@ describe("summariseObservations", () => {
 			stalePricing: 0,
 			unstampedPricing: 3,
 			priceUnknown: 0,
+			// None of these three carry `host.name` either — pre-node-identity fixtures,
+			// so all three count as unnamed and no node name is represented.
+			nodesRepresented: [],
+			unnamedNode: 3,
 		});
 	});
 
@@ -31,6 +35,8 @@ describe("summariseObservations", () => {
 			stalePricing: 0,
 			unstampedPricing: 0,
 			priceUnknown: 0,
+			nodesRepresented: [],
+			unnamedNode: 0,
 		});
 	});
 
@@ -61,6 +67,28 @@ describe("summariseObservations", () => {
 			{},
 		]);
 		expect(summary.priceUnknown).toBe(1);
+	});
+
+	it("names which nodes are represented and counts how many observations name none", () => {
+		const summary = summariseObservations([
+			{ "host.name": "galaxy-a55-5g-desktop" },
+			{ "host.name": "galaxy-a55-5g-desktop" },
+			{ "host.name": "arthur-laptop" },
+			// Pre-node-identity record: no host.name at all.
+			{},
+			// A malformed/non-string value must not be trusted as a name either.
+			{ "host.name": 42 },
+		]);
+		expect(summary.nodesRepresented).toEqual(["arthur-laptop", "galaxy-a55-5g-desktop"]);
+		// Only the two nodeless fixtures ({} and the non-string 42) are unnamed — the
+		// three carrying a real string name (two of them the same node) are not.
+		expect(summary.unnamedNode).toBe(2);
+	});
+
+	it("treats an empty declared name the same as no name at all (D6)", () => {
+		const summary = summariseObservations([{ "host.name": "" }]);
+		expect(summary.nodesRepresented).toEqual([]);
+		expect(summary.unnamedNode).toBe(1);
 	});
 });
 
