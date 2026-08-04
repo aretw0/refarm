@@ -91,8 +91,8 @@ pub(crate) use session::{
 #[allow(unused_imports)]
 pub(crate) use session::{
     compact_history, compact_history_detailed, history_from_nodes, history_from_tree,
-    provider_name_from_env, session_entry_node, session_node, session_participant_from_agent_id,
-    sum_provider_spend_usd,
+    provider_name_from_env, resolved_provider_name, session_entry_node, session_node,
+    session_participant_from_agent_id, sum_provider_spend_usd,
 };
 #[allow(unused_imports)]
 pub(crate) use structured_io::{
@@ -101,7 +101,7 @@ pub(crate) use structured_io::{
 #[allow(unused_imports)]
 pub(crate) use utils::{
     estimate_billable_usd, estimate_usd, fnv1a_hash, new_id, mint_urn, now_ns,
-    pricing_mode_for_provider, rate_for_model, RateLookup, RATE_TABLE_VERSION,
+    price_is_known, pricing_mode_for_provider, rate_for_model, RateLookup, RATE_TABLE_VERSION,
 };
 
 #[cfg(test)]

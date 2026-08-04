@@ -182,7 +182,14 @@ pub(crate) fn execute_prompt_with_route(
         duration_ms,
     );
 
-    let provider_name = crate::provider_name_from_env();
+    // F3, whole-branch review: prefer the in-scope route override over the
+    // ambient env default — `provider_override` may have picked a DIFFERENT
+    // provider than env for the completion this function just ran
+    // (`react_with_prompt_ref_and_route`, above). This value decides
+    // `pricing_mode` and `estimated_usd` downstream (`store_usage_record` →
+    // `usage_record_node`), so re-deriving from env unconditionally recorded
+    // the wrong provider's pricing on the run an override actually served.
+    let provider_name = crate::resolved_provider_name(provider_override);
     prompt_persistence::store_usage_record(
         &ctx.prompt_ref,
         prompt_persistence::UsageRecordInput {

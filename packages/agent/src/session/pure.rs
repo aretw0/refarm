@@ -13,6 +13,25 @@ pub(crate) fn provider_name_from_env() -> String {
         .unwrap_or_else(|_| "ollama".into())
 }
 
+/// Prefer an in-scope route override over the ambient env default — the SAME
+/// precedence the completion path itself already applies (`wasm_flow.rs`'s
+/// `explicit_provider` beats env/profile; `react_loop.rs`'s own post-completion
+/// `provider_name` already reads it this way). `prompt_handler.rs`'s
+/// `execute_prompt_with_route` used to re-derive the provider from env
+/// UNCONDITIONALLY, even when `provider_override` was in scope and had picked
+/// a DIFFERENT provider for the actual completion (F3, whole-branch review):
+/// the record this value feeds — `pricing_mode`, `estimated_usd`, and the
+/// `provider` label itself, via `store_usage_record` — silently disagreed with
+/// the provider that served the run. "Descriptive telemetry label" was the
+/// ruling that parked this; a later task made the value DECIDE
+/// (`pricing_mode`/`estimated_usd`), which is the case that ruling itself
+/// names as unacceptable.
+pub(crate) fn resolved_provider_name(provider_override: Option<&str>) -> String {
+    provider_override
+        .map(str::to_owned)
+        .unwrap_or_else(provider_name_from_env)
+}
+
 /// Sum `estimated_usd` from UsageRecord JSON payloads for `provider`
 /// within a rolling window ending at `now_ns`. Records older than the window are excluded.
 pub(crate) fn sum_provider_spend_usd(

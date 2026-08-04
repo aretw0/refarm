@@ -62,6 +62,10 @@ pub(crate) fn usage_record_node(payload: UsageRecordPayload<'_>) -> serde_json::
         "tokens_out":    payload.tokens_out,
         "pricing_mode":  crate::pricing_mode_for_provider(payload.provider),
         "estimated_usd": crate::estimate_billable_usd(payload.provider, payload.model, payload.tokens_in, payload.tokens_out, payload.cache_read_tokens, payload.cache_creation_tokens),
+        // Whether the estimate above is a REAL price or a structural/unpriced
+        // zero (F5) — "I could not price this" must not read as "this was
+        // cheap". See `price_is_known`'s doc for the exact rule.
+        "price_known":   crate::price_is_known(payload.provider, payload.model),
         // Which rate table priced this run. `packages/tractor` has no Cargo dependency
         // on this crate (the agent is a WASM guest loaded at runtime, not linked), so
         // the sidecar cannot read RATE_TABLE_VERSION directly — it joins this field in

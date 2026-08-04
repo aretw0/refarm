@@ -44,3 +44,23 @@ fn unknown_provider_passes_through_to_compat_path() {
     assert_eq!(provider_name_from_env(), "groq");
     std::env::remove_var("MODEL_PROVIDER");
 }
+
+// ── resolved_provider_name (F3, whole-branch review) ─────────────────────────
+
+#[test]
+fn resolved_provider_name_prefers_an_in_scope_override_over_the_env_default() {
+    // The completion path itself gives an explicit override top precedence
+    // (`wasm_flow.rs`'s `explicit_provider`) — the post-completion bookkeeping
+    // (pricing_mode, estimated_usd, the provider label on the UsageRecord)
+    // must agree, or the record disagrees with the provider that served it.
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    assert_eq!(resolved_provider_name(Some("anthropic")), "anthropic");
+    std::env::remove_var("MODEL_PROVIDER");
+}
+
+#[test]
+fn resolved_provider_name_falls_back_to_the_env_default_when_nothing_is_in_scope() {
+    std::env::set_var("MODEL_PROVIDER", "openai-codex");
+    assert_eq!(resolved_provider_name(None), "openai-codex");
+    std::env::remove_var("MODEL_PROVIDER");
+}

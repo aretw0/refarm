@@ -264,3 +264,26 @@ fn an_id_dropped_from_a_branch_for_lacking_verification_is_unknown_not_grouped()
     assert!(matches!(rate_for_model("claude-sonnet-4-6"), RateLookup::Priced { .. }));
     assert!(matches!(rate_for_model("gpt-5-mini"), RateLookup::Priced { .. }));
 }
+
+// ── price_is_known (F5, whole-branch review) ──────────────────────────────
+
+#[test]
+fn price_is_known_true_for_a_priced_api_model() {
+    assert!(price_is_known("anthropic", "claude-sonnet-4-6"));
+}
+
+#[test]
+fn price_is_known_false_for_an_unrated_api_model() {
+    // api pricing mode, no rate on file — the estimate is $0.00 but the price
+    // was never actually known.
+    assert!(!price_is_known("openai", "some-future-model-nobody-priced-yet"));
+}
+
+#[test]
+fn price_is_known_true_under_a_structural_zero_pricing_mode() {
+    // subscription/local: the zero is deliberate, never "could not price" —
+    // rate_for_model is never even consulted (estimate_billable_usd
+    // short-circuits before it).
+    assert!(price_is_known("openai-codex", "gpt-5.5"));
+    assert!(price_is_known("ollama", "llama3.2"));
+}

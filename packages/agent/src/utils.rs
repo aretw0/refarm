@@ -41,6 +41,23 @@ pub(crate) fn input_accounting_for_provider(provider: &str) -> InputAccounting {
     }
 }
 
+/// Whether `estimate_billable_usd`'s `0.0` (when it IS zero) means "genuinely
+/// free/not billed" or "could not find a rate" — F5, whole-branch review.
+/// `RateLookup::Unknown` still estimates $0.00 (unchanged; see `estimate_usd`'s
+/// own doc), and that $0.00 was indistinguishable on the record from a cheap
+/// run. `false` in EXACTLY the case `RateLookup::Unknown` fires: `api` pricing
+/// mode with no rate on file for `model`. `subscription`/`local` pricing modes
+/// report `true` — their zero is a deliberate STRUCTURAL fact (`estimate_
+/// billable_usd` short-circuits before `rate_for_model` ever runs), never
+/// "could not price," so it must never be confused with the api-mode Unknown
+/// case this field exists to name.
+pub(crate) fn price_is_known(provider: &str, model: &str) -> bool {
+    if pricing_mode_for_provider(provider) != "api" {
+        return true;
+    }
+    matches!(rate_for_model(model), RateLookup::Priced { .. })
+}
+
 pub(crate) fn estimate_billable_usd(
     provider: &str,
     model: &str,
