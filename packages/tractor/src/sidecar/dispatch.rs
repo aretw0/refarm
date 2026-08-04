@@ -699,6 +699,15 @@ pub(crate) fn finalise_effort(
 /// `elapsed_ms` field (via `put_opt` inside `build_observation_node`) — not
 /// the outcome, the budget, or the workspace, which is why this function no
 /// longer returns early on it.
+///
+/// Both ends parse through `iso_to_epoch_millis`, and BOTH must carry
+/// millisecond precision or the subtraction is a lie in a field named `_ms`.
+/// `submitted_at` always did (every client stamps it with
+/// `new Date().toISOString()`); `completed_at` did not until `chrono_now_iso`
+/// was moved to `now_iso_millis`. Mixing the two resolutions is worse than
+/// having neither: a start of `…:00.900Z` against a second-truncated end of
+/// `…:01Z` measures 100ms for an effort that took over a second, and any
+/// effort finishing inside the second it started measured zero.
 fn record_budget_observation(
     state: &SidecarState,
     effort_id: &str,
@@ -706,13 +715,13 @@ fn record_budget_observation(
     result: &EffortResult,
 ) {
     let elapsed_ms = match (
-        crate::timefmt::iso_to_epoch_secs(&result.submitted_at),
+        crate::timefmt::iso_to_epoch_millis(&result.submitted_at),
         result
             .completed_at
             .as_deref()
-            .and_then(crate::timefmt::iso_to_epoch_secs),
+            .and_then(crate::timefmt::iso_to_epoch_millis),
     ) {
-        (Some(start), Some(end)) => Some(end.saturating_sub(start).saturating_mul(1000)),
+        (Some(start), Some(end)) => Some(end.saturating_sub(start)),
         _ => {
             tracing::warn!(
                 effort_id,
@@ -1019,10 +1028,17 @@ fn spawn_terminal_result_watcher(
     });
 }
 
-/// Current time as an ISO-8601 `YYYY-MM-DDTHH:MM:SSZ` string, via the shared `time`-backed `timefmt`
-/// module (the hand-rolled proleptic-Gregorian math — with its documented leap-year bug — was retired).
+/// Current time as an ISO-8601 `YYYY-MM-DDTHH:MM:SS.sssZ` string, via the shared `time`-backed
+/// `timefmt` module (the hand-rolled proleptic-Gregorian math — with its documented leap-year bug —
+/// was retired).
+///
+/// Millisecond precision, matching what every client already stamps `submittedAt` with. The
+/// seconds-only form this used to emit made `refarm.elapsed_ms` unusable for anything faster than a
+/// second (see `record_budget_observation`), and left this the only timestamp in the system coarser
+/// than its own siblings. Readers parse through `timefmt`, which accepts both shapes, so stamps
+/// written before this change still reap and still sort.
 pub(crate) fn chrono_now_iso() -> String {
-    crate::timefmt::now_iso_seconds()
+    crate::timefmt::now_iso_millis()
 }
 
 // ── route handlers ────────────────────────────────────────────────────────────

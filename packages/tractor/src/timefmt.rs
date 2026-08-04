@@ -41,12 +41,31 @@ pub(crate) fn now_iso_millis() -> String {
         .unwrap_or_default()
 }
 
-/// Parse `YYYY-MM-DDThh:mm:ssZ` (as `epoch_secs_to_iso` emits) back to unix seconds. `None` on any
-/// malformed or pre-1970 input, so the caller treats it as "keep".
-pub(crate) fn iso_to_epoch_secs(iso: &str) -> Option<u64> {
-    let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
-    let ts = PrimitiveDateTime::parse(iso, &fmt).ok()?.assume_utc().unix_timestamp();
+/// Parse an ISO-8601 UTC instant back to unix MILLISECONDS, accepting BOTH shapes this system
+/// produces: the seconds shape `YYYY-MM-DDThh:mm:ssZ` (`epoch_secs_to_iso`, `now_iso_seconds`) and
+/// the millisecond shape `YYYY-MM-DDThh:mm:ss.sssZ` (`now_iso_millis`, and every JavaScript client,
+/// since `Date.prototype.toISOString` has no seconds-only form).
+///
+/// Accepting both is not leniency for its own sake — it closes a real production hole. A
+/// seconds-only parser silently rejected every wire timestamp this repo receives: `submittedAt` is
+/// stamped by `farm-client`'s `effort.mjs`, the CLI's `task.ts`, and `automation-contract-v1`'s
+/// `nowIso()`, all three via `new Date().toISOString()`, all three with `.sss`. The unit tests never
+/// caught it because their fixtures used the seconds shape no client emits.
+pub(crate) fn iso_to_epoch_millis(iso: &str) -> Option<u64> {
+    let with_millis =
+        format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z");
+    let with_secs = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
+    let parsed = PrimitiveDateTime::parse(iso, &with_millis)
+        .or_else(|_| PrimitiveDateTime::parse(iso, &with_secs))
+        .ok()?;
+    let ts = parsed.assume_utc().unix_timestamp_nanos() / 1_000_000;
     (ts >= 0).then_some(ts as u64)
+}
+
+/// Parse the same instants back to unix seconds, truncating any sub-second part. `None` on any
+/// malformed or pre-1970 input, so the reapers treat it as "keep".
+pub(crate) fn iso_to_epoch_secs(iso: &str) -> Option<u64> {
+    iso_to_epoch_millis(iso).map(|ms| ms / 1_000)
 }
 
 /// Parse a SQLite `datetime('now')` string — `YYYY-MM-DD HH:MM:SS` (space, no T/Z, UTC) — to unix
@@ -105,6 +124,41 @@ mod tests {
             "not-a-date",
         ] {
             assert_eq!(sql_datetime_to_epoch_secs(bad), None, "{bad}");
+        }
+    }
+
+    /// The regression this file's `iso_to_epoch_millis` doc describes: EVERY client stamps
+    /// `submittedAt` with `new Date().toISOString()`, which always carries `.sss`. A seconds-only
+    /// parser returned `None` for all of them, so `refarm.elapsed_ms` was omitted from every real
+    /// observation while the fixtures — written in the seconds shape — reported a passing parse.
+    #[test]
+    fn parses_the_millisecond_shape_every_client_actually_sends() {
+        assert_eq!(iso_to_epoch_millis("2033-05-18T03:33:20.123Z"), Some(2_000_000_000_123));
+        assert_eq!(iso_to_epoch_secs("2033-05-18T03:33:20.123Z"), Some(2_000_000_000));
+        // …without losing the seconds shape the reapers and `epoch_secs_to_iso` still emit.
+        assert_eq!(iso_to_epoch_millis("2033-05-18T03:33:20Z"), Some(2_000_000_000_000));
+        // Sub-second differences survive as sub-second differences, which is the whole point:
+        // an effort faster than a second must not measure as zero.
+        let start = iso_to_epoch_millis("2026-08-04T12:00:00.100Z").expect("start");
+        let end = iso_to_epoch_millis("2026-08-04T12:00:00.440Z").expect("end");
+        assert_eq!(end - start, 340, "a 340ms effort must measure 340ms, not 0");
+    }
+
+    #[test]
+    fn millis_parser_rejects_what_the_seconds_parser_rejects() {
+        for bad in [
+            "",
+            "not-a-date",
+            "2033-05-18T03:33:00.123",   // missing Z
+            "2033-13-18T03:33:00.123Z",  // month 13
+            "2033-05-18 03:33:00.123Z",  // space, not T
+            "2033-05-18T03:33:60.123Z",  // leap second :60
+            "2033-02-31T00:00:00.123Z",  // Feb 31
+            "1969-12-31T23:59:59.999Z",  // pre-1970 → keep
+            "2033-05-18T03:33:20.1234Z", // four subsecond digits, not three
+        ] {
+            assert_eq!(iso_to_epoch_millis(bad), None, "{bad}");
+            assert_eq!(iso_to_epoch_secs(bad), None, "{bad}");
         }
     }
 

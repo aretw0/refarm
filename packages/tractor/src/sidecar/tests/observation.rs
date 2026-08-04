@@ -302,7 +302,12 @@ async fn a_config_change_after_dispatch_does_not_leak_into_the_observation() {
             args: serde_json::json!({ "prompt": "ping" }),
         }],
         source: Some("test".to_string()),
-        submitted_at: "2026-01-01T00:00:00Z".to_string(),
+        // Millisecond shape ON PURPOSE. Every real client stamps `submittedAt` with
+        // `new Date().toISOString()`, which always carries `.sss`; the seconds shape this
+        // fixture used to carry is one NOTHING in production emits, and using it here is
+        // what let a seconds-only parser drop `refarm.elapsed_ms` from every real
+        // observation while these tests reported a clean path.
+        submitted_at: "2026-01-01T00:00:00.123Z".to_string(),
         // Undeclared on purpose: an undeclared axis falls back to the CONFIG's
         // node default, which is exactly the value this test moves out from
         // under the effort between dispatch and finalisation.
@@ -338,6 +343,15 @@ async fn a_config_change_after_dispatch_does_not_leak_into_the_observation() {
     assert_eq!(
         node["refarm.budget.max_tokens.effective"], 111_111,
         "the observation must report the budget dispatch actually resolved, not what the config resolves to NOW"
+    );
+
+    // The elapsed regression, caught end to end: with a client-shaped `submittedAt`, the
+    // derivation must produce a number. It was absent from EVERY real observation until
+    // `timefmt` learned the millisecond shape, and no test noticed because no fixture
+    // used it.
+    assert!(
+        node.get("refarm.elapsed_ms").and_then(|v| v.as_u64()).is_some(),
+        "elapsed_ms must be derivable from the timestamp shape real clients send: {node}"
     );
 }
 
