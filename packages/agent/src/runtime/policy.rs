@@ -72,20 +72,35 @@ pub(crate) fn spend_limit_error(
 pub(crate) struct RunTotals {
     tokens: u32,
     spend_usd: f64,
+    /// How many turns this run has folded in so far — F1's OTHER missing half
+    /// (`docs/superpowers/specs/2026-08-03-budget-laboratory-design.md`):
+    /// "died at 4/25 under a 45s ceiling" named the ceiling AND the step
+    /// reached; only the ceiling got recorded. Counted here, not somewhere
+    /// new, because `add_turn` is already the one place a turn's usage is
+    /// known to have completed and folded — the step and its cost are the
+    /// same event.
+    turns: u32,
 }
 
 impl RunTotals {
-    /// Fold one turn's token usage into the running total. Saturating: a run
-    /// that would overflow `u32` stays pinned at `u32::MAX` (still safely past
-    /// any real ceiling) rather than wrapping back under one it already blew
-    /// past.
+    /// Fold one turn's token usage into the running total, and count the turn
+    /// itself. Saturating: a run that would overflow `u32` stays pinned at
+    /// `u32::MAX` (still safely past any real ceiling) rather than wrapping
+    /// back under one it already blew past.
     pub(crate) fn add_turn(&mut self, tokens_in: u32, tokens_out: u32) {
         self.tokens = self.tokens.saturating_add(tokens_in).saturating_add(tokens_out);
+        self.turns = self.turns.saturating_add(1);
     }
 
     /// The cumulative token total across every turn folded in so far.
     pub(crate) fn total(&self) -> u32 {
         self.tokens
+    }
+
+    /// How many turns this run has completed as of the last fold — "the step
+    /// the run reached", F1's other missing half.
+    pub(crate) fn turns(&self) -> u32 {
+        self.turns
     }
 
     /// Fold one turn's estimated USD spend into the running total.

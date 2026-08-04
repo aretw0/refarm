@@ -40,6 +40,10 @@ pub(crate) struct UsageRecordInput {
     pub tokens_reasoning: u32,
     pub usage_raw: String,
     pub duration_ms: u64,
+    /// See `UsageRecordPayload::steps_completed`'s doc — read by the caller
+    /// via `react_loop::current_run_turns()` right after the turn that
+    /// produced this usage returned.
+    pub steps_completed: u32,
 }
 
 /// Metadata defaults applied to partial response chunk drafts before storage.
@@ -288,6 +292,7 @@ pub(crate) fn store_usage_record(prompt_ref: &str, usage_input: UsageRecordInput
         tokens_reasoning: usage_input.tokens_reasoning,
         usage_raw: &usage_input.usage_raw,
         duration_ms: usage_input.duration_ms,
+        steps_completed: usage_input.steps_completed,
     });
     let _ = store_node(&usage);
 }

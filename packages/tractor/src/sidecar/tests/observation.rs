@@ -5,7 +5,7 @@
 //! (see the `#[path]` decl in tests.rs).
 
 use super::super::budget::{resolve_budget, BudgetDeclaration, BudgetTriple, NodeBudget};
-use super::super::observation::{build_observation_node, ObservationInput};
+use super::super::observation::{build_observation_node, write_budget_observation, ObservationInput};
 use super::super::{dispatch_effort, Effort, EffortTask, SidecarState};
 
 /// The run that started this whole design: a declared 300s cut to the node's 45s,
@@ -393,4 +393,98 @@ async fn an_event_dispatch_efforts_observation_carries_no_budget_family() {
             "{key} must be absent on an event-dispatch effort's observation — no budget governed it"
         );
     }
+}
+
+// ── F1's other missing half: `write_budget_observation` (the ONE production
+// call site) must read a real step count off the joined UsageRecord, not the
+// hardcoded `None` it shipped with. `build_observation_node`'s tests above
+// (`the_observation_records_all_three_axes_asked_and_ruling`) already proved
+// the node SHAPE with `Some(4)`/`Some(25)` — that coverage never exercised
+// this call site, which is exactly how the hardcoded `None` shipped green.
+// This drives `write_budget_observation` itself, storing a `UsageRecord` the
+// way `usage_record_node` (agent crate) actually shapes one and reading the
+// `BudgetObservation` back out of the same storage. ─────────────────────────
+
+#[test]
+fn write_budget_observation_reads_the_real_step_count_off_the_joined_usage_record() {
+    let tmp = std::env::temp_dir().join(format!("tractor-observation-steps-test-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp).expect("create tmp");
+    let namespace = std::env::temp_dir()
+        .join(format!("tractor-observation-steps-ns-{}.db", uuid::Uuid::new_v4()))
+        .to_str()
+        .expect("utf8 path")
+        .to_owned();
+    let state = SidecarState::for_test(&tmp, &namespace).expect("state");
+
+    let effort_id = format!("obs-steps-{}", uuid::Uuid::new_v4());
+    let prompt_ref = super::super::prompt_ref_from_effort(&effort_id);
+
+    let storage = crate::storage::NativeStorage::open(&namespace).expect("open storage");
+    storage
+        .store_node(
+            &format!("urn:tractor:usage:{}", uuid::Uuid::new_v4()),
+            "UsageRecord",
+            None,
+            &serde_json::json!({
+                "prompt_ref": prompt_ref,
+                "provider": "anthropic",
+                "model": "claude-sonnet-4-6",
+                "tokens_in": 50,
+                "tokens_out": 10,
+                // Exactly the shape `usage_record_node` stamps in production —
+                // top-level, beside rate_table_version.
+                "steps_completed": 4,
+            })
+            .to_string(),
+            Some("agent"),
+        )
+        .expect("store usage record");
+
+    write_budget_observation(&state, &effort_id, None, "timed-out", Some(45_000));
+
+    let rows = storage.query_nodes("BudgetObservation").expect("query nodes");
+    let node = rows
+        .iter()
+        .find_map(|row| {
+            let value: serde_json::Value = serde_json::from_str(&row.payload).ok()?;
+            (value.get("effort_id").and_then(|v| v.as_str()) == Some(effort_id.as_str())).then_some(value)
+        })
+        .expect("a BudgetObservation node for this effort");
+
+    assert_eq!(
+        node["refarm.outcome.steps_completed"], 4,
+        "the step the run reached must be readable from the record — F1's other missing half"
+    );
+}
+
+#[test]
+fn write_budget_observation_omits_steps_completed_when_no_usage_joined() {
+    // D6: no UsageRecord ever landed for this effort (e.g. a restart before
+    // the agent's turn completed) — absent, never a fabricated zero.
+    let tmp = std::env::temp_dir().join(format!("tractor-observation-nosteps-test-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp).expect("create tmp");
+    let namespace = std::env::temp_dir()
+        .join(format!("tractor-observation-nosteps-ns-{}.db", uuid::Uuid::new_v4()))
+        .to_str()
+        .expect("utf8 path")
+        .to_owned();
+    let state = SidecarState::for_test(&tmp, &namespace).expect("state");
+    let effort_id = format!("obs-nosteps-{}", uuid::Uuid::new_v4());
+
+    write_budget_observation(&state, &effort_id, None, "failed", None);
+
+    let storage = crate::storage::NativeStorage::open(&namespace).expect("open storage");
+    let rows = storage.query_nodes("BudgetObservation").expect("query nodes");
+    let node = rows
+        .iter()
+        .find_map(|row| {
+            let value: serde_json::Value = serde_json::from_str(&row.payload).ok()?;
+            (value.get("effort_id").and_then(|v| v.as_str()) == Some(effort_id.as_str())).then_some(value)
+        })
+        .expect("a BudgetObservation node for this effort");
+
+    assert!(
+        node.get("refarm.outcome.steps_completed").is_none(),
+        "no joined usage means no known step count, not a manufactured zero"
+    );
 }

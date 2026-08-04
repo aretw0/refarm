@@ -1,4 +1,8 @@
-use super::{prompt_persistence, react_loop::react_with_prompt_ref_and_route, streaming_sink};
+use super::{
+    prompt_persistence,
+    react_loop::{current_run_turns, react_with_prompt_ref_and_route},
+    streaming_sink,
+};
 
 /// Write the final is_final=true StreamChunk to the NDJSON stream file.
 ///
@@ -190,6 +194,12 @@ pub(crate) fn execute_prompt_with_route(
     // `usage_record_node`), so re-deriving from env unconditionally recorded
     // the wrong provider's pricing on the run an override actually served.
     let provider_name = crate::resolved_provider_name(provider_override);
+    // F1's other missing half ("died at 4/25 under a 45s ceiling") — how many
+    // turns THIS run has completed as of now. RUN_TOTALS (`react_loop.rs`)
+    // already folded this turn's usage in during the call above; read it
+    // immediately after, the same read-the-accumulator-after-the-call pattern
+    // `streaming_sink::take_active_stream_last_sequence` uses a few lines up.
+    let steps_completed = current_run_turns();
     prompt_persistence::store_usage_record(
         &ctx.prompt_ref,
         prompt_persistence::UsageRecordInput {
@@ -202,6 +212,7 @@ pub(crate) fn execute_prompt_with_route(
             tokens_reasoning,
             usage_raw: usage_raw.clone(),
             duration_ms,
+            steps_completed,
         },
     );
 

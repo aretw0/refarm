@@ -21,6 +21,13 @@ pub(crate) struct UsageRecordPayload<'a> {
     pub tokens_reasoning: u32,
     pub usage_raw: &'a str,
     pub duration_ms: u64,
+    /// How many turns THIS run had completed as of this record — F1's other
+    /// missing half (`docs/superpowers/specs/2026-08-03-budget-laboratory-
+    /// design.md`): "died at 4/25" named the ceiling AND the step reached.
+    /// Sourced from `RunTotals::turns` (`runtime/policy.rs`) via
+    /// `runtime::react_loop::current_run_turns`, the same accumulator that
+    /// already tracks cumulative tokens/spend across every turn of one run.
+    pub steps_completed: u32,
 }
 
 pub(crate) fn user_prompt_node(prompt_ref: &str, prompt: &str) -> serde_json::Value {
@@ -72,6 +79,14 @@ pub(crate) fn usage_record_node(payload: UsageRecordPayload<'_>) -> serde_json::
         // from the UsageRecord instead, like every other usage field. The version
         // belongs to whoever computed the price, so it travels WITH the price.
         "rate_table_version": crate::RATE_TABLE_VERSION,
+        // "The step the run reached" — F1's other missing half, beside
+        // `rate_table_version` for the identical reason: `packages/tractor`
+        // has no Cargo dependency on this crate (the agent is a WASM guest
+        // loaded at runtime, not linked), so the sidecar cannot count a run's
+        // turns itself. The count belongs to whoever ran the turns, so it
+        // travels WITH the record, exactly like the rate table travels with
+        // the price it computed.
+        "steps_completed": payload.steps_completed,
         // OTel gen_ai.usage.cache_read.input_tokens / cache_creation.input_tokens,
         // spelled flat because this node is not an OTel span.
         "cache_read_input_tokens":     payload.cache_read_tokens,

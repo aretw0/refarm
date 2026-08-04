@@ -124,6 +124,21 @@ fn put_usage(
     }
 }
 
+/// Read the turn count `usage_record_node` (agent crate,
+/// `packages/agent/src/response_nodes.rs`) stamps beside `rate_table_version`
+/// on the raw `UsageRecord` — F1's other missing half
+/// (`docs/superpowers/specs/2026-08-03-budget-laboratory-design.md`): "died
+/// at 4/25 under a 45s ceiling" named the ceiling (already recorded, D1-D9)
+/// AND the step the run reached. `None` when the joined record does not
+/// carry the field — a record written before this field existed, or no usage
+/// joined at all for this run — per D6, absent rather than a fabricated
+/// zero. Always TOP-LEVEL on the raw node (never nested under a legacy
+/// `usage.usage` shape — see `put_usage`'s doc): the field did not exist
+/// before this change, so no fixture predates it in that shape.
+fn steps_completed_from_usage(usage: Option<&serde_json::Value>) -> Option<u32> {
+    usage?.get("steps_completed")?.as_u64().map(|v| v as u32)
+}
+
 fn axis_level_str(level: super::budget::BudgetLevel) -> &'static str {
     match level {
         super::budget::BudgetLevel::Node => "node",
@@ -284,9 +299,16 @@ pub(crate) fn write_budget_observation(
         spawner: spawner.as_deref(),
         outcome,
         elapsed_ms,
-        // No plan/step tracking reaches the sidecar today — absent, not zero
-        // (D6). A later caller with a real step count passes it through here.
-        steps_completed: None,
+        // F1's other missing half, closed: the joined UsageRecord carries the
+        // turn count RUN_TOTALS (`agent/src/runtime/react_loop.rs`)
+        // accumulated across this run — see `steps_completed_from_usage`'s
+        // doc. `steps_planned` stays absent: a run only has a planned total
+        // when the agent declared one (`agent/src/plan.rs`'s `AgentPlan`
+        // node), which lives in a DIFFERENT node keyed by session_id, not on
+        // this effort's UsageRecord/prompt_ref join key — nothing on this
+        // path resolves a session's plan today, so a fabricated denominator
+        // here would be worse than none (D6).
+        steps_completed: steps_completed_from_usage(usage.as_ref()),
         steps_planned: None,
         resolved,
         usage,

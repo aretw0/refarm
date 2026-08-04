@@ -165,6 +165,19 @@ pub(crate) fn react_with_prompt_ref_and_route(
     )
 }
 
+/// How many turns the CURRENT run (the same `RUN_TOTALS` scope `RunState`'s
+/// doc describes) has completed as of the last fold — "the step the run
+/// reached", F1's other missing half alongside the ceiling that already
+/// travels on `BudgetObservation`. Read right after a turn's call into
+/// `react_with_prompt_ref_and_route` returns (`prompt_handler.rs`), the same
+/// read-the-accumulator-after-the-call pattern `streaming_sink::
+/// take_active_stream_last_sequence` already uses two lines up from that call
+/// site — not threaded through `ReactResult`, whose every caller already
+/// destructures it by fixed position.
+pub(crate) fn current_run_turns() -> u32 {
+    RUN_TOTALS.with(|run| run.borrow().totals.turns())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -229,5 +242,32 @@ mod tests {
                  exactly that, not 50_000 + 0, once the reset has run"
             );
         });
+    }
+
+    // ── current_run_turns (F1's other missing half) ───────────────────────────
+
+    #[test]
+    fn current_run_turns_counts_within_a_run_and_resets_across_one() {
+        // Distinct literals from the fixtures above so this test is correct
+        // regardless of thread-local leftovers from a prior test sharing this
+        // thread (the existing regression test above relies on the same
+        // property — a fresh prompt_ref always trips `starts_a_new_run`).
+        let _ = react_with_prompt_ref("hello", Some("turns-run-a"));
+        assert_eq!(current_run_turns(), 1, "the first turn of a run is step 1");
+
+        let _ = react_with_prompt_ref("hello again", Some("turns-run-a"));
+        assert_eq!(
+            current_run_turns(),
+            2,
+            "a second turn of the SAME run accumulates onto the first"
+        );
+
+        let _ = react_with_prompt_ref("a new run entirely", Some("turns-run-b"));
+        assert_eq!(
+            current_run_turns(),
+            1,
+            "a different prompt_ref starts a NEW run — the turn count resets to 1, \
+             not 3, exactly like the token/spend totals it rides beside"
+        );
     }
 }
