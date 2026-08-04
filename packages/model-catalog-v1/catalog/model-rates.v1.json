@@ -1,6 +1,6 @@
 {
   "schemaVersion": "model-rate-catalog.v1",
-  "catalogVersion": "2026-08-04.2",
+  "catalogVersion": "2026-08-04.3",
   "entries": [
     {
       "provider": "anthropic",
@@ -233,10 +233,10 @@
       },
       "pricingUrl": "https://mistral.ai/pricing/api",
       "verifiedAt": "2026-08-04",
-      "contextWindowUnknown": {
-        "reason": "source-not-found",
-        "checkedAt": "2026-08-04",
-        "note": "docs.mistral.ai/getting-started/models/models_overview/ states no figure and points at /models/model-cards/mistral-medium-3-5-26-04; that path and /getting-started/models/model-cards/ both returned 404. The model card was never reached, so whether Mistral publishes the figure is unknown."
+      "contextWindow": {
+        "tokens": 256000,
+        "sourceUrl": "https://docs.mistral.ai/models/model-cards/mistral-medium-3-5-26-04",
+        "verifiedAt": "2026-08-04"
       }
     }
   ]

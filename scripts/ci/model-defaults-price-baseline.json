@@ -1,10 +1,11 @@
 {
-	"note": "The unpriced-default-model ratchet (Task 8, docs/superpowers/plans/2026-08-03-budget-laboratory.md). Mirrors the shape hardening-baseline.json / packages/hardening/src/baseline.ts already use in this repo: a baseline that may only shrink. `pnpm run models:defaults:check` goes red if a default model with no `rate_for_model` branch is NOT listed here (growth), red if a listed entry now HAS a rate and the entry was not deleted (undeleted progress), and red if a listed entry no longer matches any current default model (stale cover). It is green while every unpriced default is accounted for here — the debt is enumerated, not hidden. Every entry names the vendor's OFFICIAL pricing page — never a third-party aggregator: an unverified number presented as fact is exactly the failure this task exists to prevent. Edited BY HAND: no command writes this file.",
-	"entries": [
-		{
-			"id": "together:meta-llama/Llama-3.3-70B-Instruct-Turbo",
-			"pricingUrl": "https://www.together.ai/pricing",
-			"note": "2026-08-04: checked the official Together pricing page and searched for the exact default id `meta-llama/Llama-3.3-70B-Instruct-Turbo`; it is not listed literally on that page. The page lists `Llama 3.3 70B` pricing, but this baseline keeps `Unknown` until the exact configured id (or an explicit alias mapping for it) is confirmed on the official page."
-		}
-	]
+  "note": "The unpriced-default-model ratchet (Task 8, docs/superpowers/plans/2026-08-03-budget-laboratory.md). Mirrors the shape hardening-baseline.json / packages/hardening/src/baseline.ts already use in this repo: a baseline that may only shrink. `pnpm run models:defaults:check` goes red if a default model with no `rate_for_model` branch is NOT listed here (growth), red if a listed entry now HAS a rate and the entry was not deleted (undeleted progress), and red if a listed entry no longer matches any current default model (stale cover). It is green while every unpriced default is accounted for here — the debt is enumerated, not hidden. Every entry names the vendor's OFFICIAL pricing page — never a third-party aggregator: an unverified number presented as fact is exactly the failure this task exists to prevent. Edited BY HAND: no command writes this file.",
+  "entries": [
+    {
+      "id": "together:meta-llama/Llama-3.3-70B-Instruct-Turbo",
+      "pricingUrl": "https://www.together.ai/pricing",
+      "note": "2026-08-04: checked the official Together pricing page and searched for the exact default id `meta-llama/Llama-3.3-70B-Instruct-Turbo`; it is not listed literally on that page. The page lists `Llama 3.3 70B` pricing, but this baseline keeps `Unknown` until the exact configured id (or an explicit alias mapping for it) is confirmed on the official page.",
+      "reason": "Together's pricing page lists \"Llama 3.3 70B\" at $1.04 per 1M tokens for both input and output, but never names the Instruct-Turbo variant this id asks for. Checked 2026-08-04. The sibling's price is not extrapolated onto it: a rate that merely looks right flows into aggregation and decisions, and Unknown does not."
+    }
+  ]
 }
