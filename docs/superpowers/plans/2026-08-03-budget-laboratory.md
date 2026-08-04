@@ -19,9 +19,9 @@ corrected, because a laboratory built on a wrong estimator measures wrong from d
 
 ## Scope
 
-This plan covers **spec slices 1–5**, in twelve tasks. After Task 12, every real run the operator
-makes from any surface is evidence AND the declared ceilings actually bind, which is working
-software on its own.
+This plan covers **spec slices 1–5**, in thirteen tasks. After Task 13, every real run the operator
+makes from any surface is evidence, the declared ceilings actually bind, and a spawner can declare
+them from the surface the operator actually types.
 
 **Tasks 7, 8 and 9 were added on 2026-08-03, mid-execution**, and the reasons are recorded because
 they change what the plan is:
@@ -1739,7 +1739,15 @@ refarm agent finish --lane after-commit --run --json
 
 **Protected surface.**
 
+**Prerequisite in the agent crate.** `usage_record_node` in `packages/agent/src/response_nodes.rs`
+must emit `"rate_table_version": crate::RATE_TABLE_VERSION` alongside the token counts. The sidecar
+cannot read that constant: `packages/tractor` has no dependency on the agent crate, because the agent
+is a WASM guest loaded at runtime rather than linked. Stamping it where the price is computed and
+joining it like every other usage field is both the only route and the right one — the version
+belongs to whoever priced the run.
+
 **Files:**
+- Modify: `packages/agent/src/response_nodes.rs` (the prerequisite above) and its schema test
 - Create: `packages/tractor/src/sidecar/observation.rs`
 - Modify: `packages/tractor/src/sidecar/dispatch.rs` — one call from `finalise_effort` (`:508`)
 - Modify: `packages/tractor/src/sidecar/mod.rs` module list
@@ -1917,6 +1925,15 @@ fn put_usage(
         "gen_ai.usage.cache_creation.input_tokens",
     );
     copy("estimated_usd", "refarm.cost.estimated_usd");
+    // Which rate table priced this run. Joined from the UsageRecord rather than
+    // read locally, because `packages/tractor` does NOT depend on the agent
+    // crate — the agent is a WASM guest loaded at runtime, and RATE_TABLE_VERSION
+    // lives there. The version belongs to whoever computed the price, so it
+    // travels WITH the price. Without it, a later correction to the table cannot
+    // tell which historical records predate it and recomputing becomes guesswork:
+    // tokens do not drift, prices do, so the record stamps the thing that drifts
+    // and keeps the thing that does not.
+    copy("rate_table_version", "refarm.cost.rate_table_version");
     if let Some(v) = usage.get("provider") {
         map.insert("gen_ai.provider.name".into(), v.clone());
     }
@@ -2011,14 +2028,6 @@ pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json:
         map.insert("refarm.budget.max_usd.enforced".into(), enforced.into());
     }
 
-    // Which rate table priced this run. Without it, a later correction to the
-    // table cannot tell which historical records predate it, and recomputing
-    // becomes guesswork. Tokens do not drift; prices do — so the record stamps
-    // the thing that drifts and keeps the thing that does not.
-    map.insert(
-        "refarm.cost.rate_table_version".into(),
-        crate::RATE_TABLE_VERSION.into(),
-    );
 
     map.insert("timestamp_ns".into(), crate::now_ns().into());
     serde_json::Value::Object(map)
@@ -2195,19 +2204,23 @@ never ran.
 Run: `pnpm --filter refarm run test -- budget && pnpm --filter refarm run type-check`
 Expected: PASS.
 
-- [ ] **Step 5: Prove it end to end from the surface, not only over HTTP**
+- [ ] **Step 5: Verify against the record, not against a fixture**
 
-A prior slice in this repository was reported as end-to-end when it had only been proven by HTTP, and
-the operator's own `farm-start` had never carried an id. Do not repeat it. Run a real dispatch with a
-declared budget, let it finish, and read the observation back:
+Run the command against the real node and confirm it reads back the observations Task 10 has been
+writing since it landed:
 
 ```bash
-refarm dispatch <plugin> <verb> --budget-deadline-ms 120000
 refarm budget observations --json
 ```
 
-Expected: one observation whose `refarm.budget.deadline_ms.declared` is `120000` and whose
-`refarm.budget.bound_by` is `declared`.
+Expected: the envelope parses, `summary.total` matches the number of terminal efforts since Task 10,
+and `stalePricing`/`unstampedPricing` count correctly against the current `RATE_TABLE_VERSION`.
+
+**The end-to-end proof moved to Task 13** and the reason is a gap this task surfaced: no spawner
+surface can declare a budget today. `Effort.budget` exists on the wire, the node resolves it, the
+record captures it — and `refarm dispatch` has no `--budget-*` flag, `farm-client` has no option, so
+the program's own thesis is unreachable from anywhere the operator stands. A proof step here would
+have had to invoke a command that does not exist.
 
 - [ ] **Step 6: Commit and run the handoff lanes**
 
@@ -2333,6 +2346,72 @@ individual turn.
 The ceilings now ride the spawn environment the sidecar already builds, rather
 than a fourth road of their own, and the counter survives the loop."
 refarm agent finish --lane after-commit --run --json
+```
+
+---
+
+### Task 13: A spawner can actually declare, and the loop closes end to end
+
+**Why this exists** (found while preparing Task 11): every layer of this program is in place except
+the first one. `Effort.budget` is on the wire, `resolve_budget` folds it, `BudgetObservation` records
+it — and **nothing the operator uses can set it**. `refarm dispatch` has no budget flag, `farm-client`
+has no option. "Whoever spawns declares" is, today, reachable only by hand-crafting HTTP.
+
+That is the shape this repository has been bitten by before, and it has a memory of its own: a slice
+reported as end-to-end when it had only been proven over HTTP, while the operator's own `farm-start`
+never carried an id. Written, correct, and unreachable.
+
+**Files:**
+- Modify: `apps/refarm/src/commands/dispatch.ts` (the three budget flags)
+- Modify: `packages/farm-client/src/index.js` (the same declaration from the phone kit)
+- Test: the command's own test file, plus `farm-client`'s
+
+**Interfaces:**
+- Consumes: `Effort.budget`'s wire shape from Task 5 (`{deadlineMs?, maxTokens?, maxUsd?}`, camelCase).
+- Produces: `--budget-deadline-ms`, `--budget-max-tokens`, `--budget-max-usd` on the dispatch surface,
+  each optional, absent meaning absent rather than zero.
+
+- [ ] **Step 1: Write the failing test**
+
+Assert that the flags parse into the wire shape, that omitting a flag omits the field entirely rather
+than sending `0` or `null`, and that omitting all three sends no `budget` object at all — a dispatch
+that declares nothing must be byte-identical to today's.
+
+- [ ] **Step 2: Implement the flags**
+
+`farm-client` is plain JavaScript and is the only package here with no TypeScript to refuse a typo, so
+it lints with `no-undef` for exactly this reason. Keep the parsing in one place and reuse it.
+
+- [ ] **Step 3: The end-to-end proof, from the surface the operator actually types**
+
+This is the step the whole plan has been building toward. Run it against the real node:
+
+```bash
+refarm dispatch <plugin> <verb> --budget-deadline-ms 120000
+refarm budget observations --json
+```
+
+Expected: an observation whose `refarm.budget.deadline_ms.declared` is `120000`, whose
+`refarm.budget.bound_by` is `declared`, and whose `refarm.budget.max_tokens.effective` came from the
+node default rather than from nowhere.
+
+**If the runtime is not available, say so plainly and report exactly what was and was not proven.**
+Do not describe an HTTP-level check as an end-to-end proof. That specific substitution is the one this
+repository has already paid for once.
+
+- [ ] **Step 4: Commit**
+
+```bash
+refarm agent finish --lane after-edit --run --json
+git add apps/refarm/src packages/farm-client
+git commit -m "feat(refarm): a spawner can finally declare its own budget
+
+Every layer of the budget program was in place except the first: the wire
+carried it, the node resolved it, the record captured it, and nothing the
+operator uses could set it. Whoever spawns declares was reachable only by
+hand-crafting HTTP."
+refarm agent finish --lane after-commit --run --json
+refarm agent finish --lane handoffs --run --json
 ```
 
 ---
