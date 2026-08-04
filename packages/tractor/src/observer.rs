@@ -241,6 +241,27 @@ pub(crate) async fn append_line(path: &Path, line: &str, config: AuditConfig) {
             // lost is exactly what an operator must be able to see.
             if let Err(e) = file.write_all(terminated.as_bytes()).await {
                 tracing::warn!(path = %path.display(), error = %e, "scarecrow: audit line write failed — security trail has a gap");
+            } else if let Err(e) = file.flush().await {
+                // `tokio::fs::File::poll_write` hands the write off to a blocking-pool
+                // thread and reports `Ready` as soon as it is SPAWNED, not once it has
+                // landed — `write_all().await` resolving is not the same fact as "the
+                // bytes are in the file". `flush().await` is what actually waits for
+                // that background write to finish (see `tokio::fs::File`'s own doc: "you
+                // should call flush before dropping it"). Without this, a caller that
+                // awaits `append_line` and then immediately reads the file back — every
+                // caller does, because that is the entire point of an audit trail — can
+                // observe a file missing the line it was just told had been written, with
+                // NO error anywhere: under ordinary load the background write finishes in
+                // microseconds and the gap is invisible; under CPU contention (the
+                // blocking-pool thread waiting its turn behind everything else) the gap
+                // widens enough to be observed. This is not the documented best-effort
+                // "warn and drop on a real I/O failure" path — confirmed empirically by
+                // capturing `tracing` output across a reproduced failure under load: the
+                // line went missing with no warning at all, because nothing had failed —
+                // the write just had not happened yet. `auth.rs`'s own module doc already
+                // claims this file is "flushed per line"; this call is what makes that
+                // claim true instead of aspirational.
+                tracing::warn!(path = %path.display(), error = %e, "scarecrow: audit line flush failed — security trail has a gap");
             }
         }
         Err(e) => {
