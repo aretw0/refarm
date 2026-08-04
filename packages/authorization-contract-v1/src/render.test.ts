@@ -65,6 +65,23 @@ describe("renderConsentPrompt", () => {
 		expect(html).toContain("Recusar");
 		expect(html).toContain("faixa_etaria");
 	});
+
+	it("renders an extra paragraph with the justification when the request carries one", () => {
+		const html = renderConsentPrompt({
+			...request,
+			justification:
+				"Exigido por regulação setorial para liberar o benefício sem visita presencial.",
+		});
+		expect(html).toContain("refarm-consent-justification");
+		expect(html).toContain(
+			"Exigido por regulação setorial para liberar o benefício sem visita presencial.",
+		);
+	});
+
+	it("omits the justification paragraph entirely when the request carries none (no regression)", () => {
+		const html = renderConsentPrompt(request);
+		expect(html).not.toContain("refarm-consent-justification");
+	});
 });
 
 describe("renderAuthorizationList", () => {
