@@ -281,7 +281,7 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 						await silo.saveTokens(tokenUpdate);
 						currentTokens = { ...currentTokens, ...tokenUpdate };
 					}
-				} else if (!configureModelRef) {
+				} else if (!configureModelRef && !configureGithub && !configureCloudflare) {
 					console.log(
 						chalk.dim(
 							`  Model: already configured (${stringValue(stored.modelProvider)}) — skipped`,
