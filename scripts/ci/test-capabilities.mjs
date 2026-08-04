@@ -19,6 +19,7 @@ const STEPS = [
 	["packages/pressure-contract-v1", "test:unit"],
 	["packages/plugin-manifest", "test:conformance"],
 	["packages/storage-sqlite", "test:conformance"],
+	["packages/model-catalog-v1", "test:unit"],
 	["packages/storage-memory", "test:conformance"],
 	["packages/storage-rest", "test:conformance"],
 	["packages/sync-loro", "test:conformance"],
