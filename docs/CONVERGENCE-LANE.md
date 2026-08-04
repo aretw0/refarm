@@ -38,8 +38,20 @@ pressure (avoid premature generalization).
 
 - **vault-seed (DGK)** — the reference vault (`~/github/vault-seed`). Ocamento largely done: consumes
   ~12 `@refarm.dev/*` SDK blocks, all consumer-proven (43/43). Remaining = product-layer polish.
+  **Loose end measured 2026-08-04: one commit sits unpushed since 2026-07-26** (`2f87b46`, the
+  re-assimilation that moved `.npmrc` to public npm, added the `@refarm.dev/config` override closing
+  the health→config leak, and took the ADR-087 schema ids). Its own message says all 43 consumer
+  contracts were green. Finished work that never left the machine — re-run the suite before pushing,
+  since the claim is nine days old.
 - **Private professional vault** (`~/git`, started from an earlier vault-seed phase, based on it) —
-  not yet on the current refarm; a future ocamento consumer.
+  not yet on the current refarm; a future ocamento consumer. **Loose end measured 2026-08-04:**
+  `~/git/vault-seed` was initialised that day at 19:02 against `git@git.serpro:09540704456/vault-seed.git`
+  and **has no commits at all**. It is fully furnished — `.gitignore`, `.gitattributes`, `.gitmessage`,
+  `.github/`, and a secrets apparatus (clean/smudge filters, `check_secrets_staged.sh`,
+  `tests/secrets.test.js`) — with 90 files and 676K ready to go in, `node_modules` correctly excluded,
+  and exactly one real note (`00 - Inbox/TODO - Documentar Plugins.md`) among the `.gitkeep` skeleton.
+  A whole repository configured and never born. Both of these are the creator's to push; recorded here
+  rather than acted on, because both end at a remote and one of them is corporate.
 - **rcdc5** (`~/git/rcdc5`) — a vault centralizing work-related things; assimilate its solved patterns
   (SSO, corporate CA, app session) rather than rediscover ([[assimilate-rcdc5-before-solving-alm-problems]]).
 - **coop-vault** (GitHub, collective with a partner) — the personal+collective workspace test case
