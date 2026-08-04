@@ -346,9 +346,24 @@ export class ProjectAuditor {
 		const declaredPaths = new Set(
 			declarations.map((namespace) => normalizeNamespacePath(namespace?.path)).filter(Boolean),
 		);
-		const warnings = [];
 
-		for (const namespacePath of versionedRootDotDirectories(rootDir)) {
+		const scan = versionedRootDotDirectories(rootDir);
+		if (!scan.ok) {
+			// `git ls-files` failing here is not "nothing to warn about" — it is
+			// this check never running. Reported as a note-in-console before,
+			// that read identically to a clean scan to every caller that only
+			// counts findings; a typed issue makes "could not check" visible.
+			return [
+				workspaceNamespaceIssue(
+					rootDir,
+					"workspace_namespace_scan_unreachable",
+					`could not list git-tracked files to audit workspace namespaces: ${scan.error}`,
+				),
+			];
+		}
+
+		const warnings = [];
+		for (const namespacePath of scan.namespaces) {
 			if (BUILTIN_INFRASTRUCTURE_NAMESPACES.has(namespacePath)) continue;
 			if (declaredPaths.has(namespacePath)) continue;
 			warnings.push(
@@ -520,8 +535,8 @@ function versionedRootDotDirectories(rootDir) {
 			encoding: "utf-8",
 			stdio: ["ignore", "pipe", "ignore"],
 		});
-	} catch {
-		return [];
+	} catch (e) {
+		return { ok: false, error: e?.message ?? String(e), namespaces: [] };
 	}
 
 	const namespaces = new Set();
@@ -537,7 +552,7 @@ function versionedRootDotDirectories(rootDir) {
 		}
 		namespaces.add(namespacePath);
 	}
-	return [...namespaces].sort();
+	return { ok: true, error: null, namespaces: [...namespaces].sort() };
 }
 
 function normalizeNamespacePath(value) {

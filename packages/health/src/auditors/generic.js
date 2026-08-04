@@ -93,7 +93,18 @@ export class FileSystemAuditor {
 				}
 			}
 		} catch (e) {
-			console.error(`[Health:Generic] Git visibility check failed: ${e.message}`);
+			// Three honest outcomes, not two (see ConfigNodeAuditor): a thrown
+			// read partway through the walk used to be logged to stderr only and
+			// then folded into whatever `issues` had collected so far — often
+			// `[]`, byte-identical to "scanned everything, found nothing". A
+			// caller that only counts `issues.length` cannot tell "clean" from
+			// "gave up". Push a real, typed issue instead so "could not check"
+			// survives into the report.
+			issues.push({
+				type: "git_visibility_unreachable",
+				path: targetPath,
+				note: `git-visibility scan did not complete: ${e?.message ?? e}`,
+			});
 		}
 		return issues;
 	}

@@ -59,6 +59,28 @@ describe("FileSystemAuditor", () => {
 		await expect(policyAuditor.checkGitVisibility(rootDir, rootDir)).resolves.toEqual([]);
 	});
 
+	it("reports a typed issue instead of a silent empty pass when the scan cannot complete", async () => {
+		// isomorphic-git's isIgnored throws a RangeError when the filepath it is
+		// given escapes `dir` (a path.relative(rootDir, file) starting with
+		// "..") — the real condition that used to be caught, logged to
+		// console.error only, and folded into whatever `issues` had collected
+		// so far. Passing a targetPath NOT nested under rootDir reproduces that
+		// throw without any mocking.
+		const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-health-outside-"));
+		try {
+			fs.writeFileSync(path.join(outsideDir, "sibling.ts"), "", "utf-8");
+
+			const auditor = new FileSystemAuditor();
+			const issues = await auditor.checkGitVisibility(rootDir, outsideDir);
+
+			expect(issues).toEqual([
+				expect.objectContaining({ type: "git_visibility_unreachable", path: outsideDir }),
+			]);
+		} finally {
+			fs.rmSync(outsideDir, { recursive: true, force: true });
+		}
+	});
+
 	it("supports exact ignored git visibility paths", async () => {
 		writeFile(".gitignore", "src/bindings.rs\n");
 		writeFile("src/bindings.rs");

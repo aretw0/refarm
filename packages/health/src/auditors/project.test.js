@@ -266,6 +266,20 @@ describe("ProjectAuditor", () => {
 		]);
 	});
 
+	it("reports a typed issue instead of a silent empty pass when git ls-files cannot run", () => {
+		// rootDir here (from beforeEach) has no .git at all, so `git ls-files -z`
+		// fails with a real, non-mocked "not a git repository" error. Calling
+		// checkWorkspaceNamespaces directly (bypassing the applicable() gate that
+		// audit() enforces) proves this specific function's own honesty: the old
+		// code caught this and returned [], indistinguishable from "scanned, found
+		// nothing to warn about".
+		const auditor = new ProjectAuditor();
+
+		expect(auditor.checkWorkspaceNamespaces(rootDir)).toEqual([
+			expect.objectContaining({ type: "workspace_namespace_scan_unreachable" }),
+		]);
+	});
+
 	it("accepts declared versioned root namespaces", () => {
 		const auditor = new ProjectAuditor({
 			workspaceNamespaces: [{ path: ".project", owner: "pi-project-workflows" }],
