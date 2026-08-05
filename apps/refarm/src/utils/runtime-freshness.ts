@@ -155,6 +155,7 @@ export function resolveRuntimeFreshness(
 	descriptor: { pid: number; startedAt: string; sovereignDir?: string } | null,
 	agentPluginPath: string | null,
 	deps?: FreshnessDeps,
+	rateCatalogPath?: string | null,
 ): RuntimeFreshness {
 	if (!descriptor) {
 		return {
@@ -215,6 +216,19 @@ export function resolveRuntimeFreshness(
 		),
 	];
 
+	// The rate catalog earns a place here for a reason found the hard way on 2026-08-04: the
+	// host reads it ONCE at boot, and the materialiser that writes it runs as its own pass.
+	// On this operator's machine the daemon started at 01:49Z and the catalog was written at
+	// 01:50Z — one minute later — so the node was pricing from no catalog at all while a
+	// correct one sat beside it. Watching only the binary and the plugin left exactly the
+	// gap the catalog work existed to close, reopened one level up. Absent is NOT a finding
+	// here: a node with no catalog is a node whose guest falls back to its built-in table,
+	// which is a supported state, so only a catalog NEWER than the running node is reported.
+	if (rateCatalogPath) {
+		const catalog = compare("rate catalog", rateCatalogPath, startedAtMs, "", deps);
+		if (catalog.state === "stale") artifacts.push(catalog);
+	}
+
 	// Worst state wins. A stale artifact is the finding; an unknown one is a gap in our
 	// checking and must not be averaged away by a fresh sibling.
 	const state: FreshnessState = artifacts.some((a) => a.state === "stale")
@@ -224,6 +238,14 @@ export function resolveRuntimeFreshness(
 			: "fresh";
 
 	return { state, startedAt: descriptor.startedAt, artifacts };
+}
+
+/** Where a node keeps the rate catalog the host reads at boot. `null` without a sovereign
+ *  dir. The basename matches `CATALOG_OVERRIDE_FILE_NAME` in
+ *  `packages/tractor/src/host/plugin_host/model_rate_catalog.rs`. */
+export function defaultRateCatalogPath(sovereignDir: string | undefined): string | null {
+	if (!sovereignDir) return null;
+	return path.join(sovereignDir, "model-rates.v1.json");
 }
 
 /** Where a node keeps the agent plugin it loads. `null` when no sovereign dir is known. */

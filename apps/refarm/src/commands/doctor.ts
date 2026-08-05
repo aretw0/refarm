@@ -12,6 +12,7 @@ import { Command } from "commander";
 import { readNodeDescriptor } from "../utils/node-descriptor.js";
 import {
 	defaultAgentPluginPath,
+	defaultRateCatalogPath,
 	resolveRuntimeFreshness,
 	type RuntimeFreshness,
 } from "../utils/runtime-freshness.js";
@@ -376,6 +377,8 @@ function resolveFreshness(): RuntimeFreshness | null {
 		return resolveRuntimeFreshness(
 			{ pid: descriptor.pid, startedAt: descriptor.startedAt },
 			defaultAgentPluginPath(nodeHome),
+			undefined,
+			defaultRateCatalogPath(nodeHome),
 		);
 	} catch {
 		return null;

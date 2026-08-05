@@ -113,3 +113,45 @@ describe("a running image that no longer exists", () => {
 		expect(result.artifacts[0]?.state).toBe("unknown");
 	});
 });
+
+describe("the rate catalog the host reads at boot", () => {
+	it("is reported when it was written after the node started — the 2026-08-04 minute", () => {
+		// The daemon started 01:49Z and the materialiser wrote the catalog at 01:50Z, so the
+		// node priced from no catalog while a correct one sat beside it. Watching only the
+		// binary and the plugin missed it entirely.
+		const result = resolveRuntimeFreshness(
+			descriptor,
+			PLUGIN,
+			{
+				readlink: () => "/opt/refarm/tractor",
+				statMtimeMs: (t: string) => (t === "/cat/model-rates.v1.json" ? startedMs + 60_000 : startedMs - 1000),
+			},
+			"/cat/model-rates.v1.json",
+		);
+		expect(result.state).toBe("stale");
+		expect(result.artifacts.find((a) => a.artifact === "/cat/model-rates.v1.json")?.state).toBe("stale");
+	});
+
+	it("is silent when absent, because a node with no catalog is a supported state", () => {
+		// The guest falls back to its built-in table. Reporting that as a finding would cry
+		// wolf on every zero-config install.
+		const result = resolveRuntimeFreshness(
+			descriptor,
+			PLUGIN,
+			{ readlink: () => "/opt/refarm/tractor", statMtimeMs: (t: string) => (t.includes("model-rates") ? null : startedMs - 1000) },
+			"/cat/model-rates.v1.json",
+		);
+		expect(result.state).toBe("fresh");
+		expect(result.artifacts.some((a) => a.artifact.includes("model-rates"))).toBe(false);
+	});
+
+	it("is silent when older than the node, because the node loaded it", () => {
+		const result = resolveRuntimeFreshness(
+			descriptor,
+			PLUGIN,
+			{ readlink: () => "/opt/refarm/tractor", statMtimeMs: () => startedMs - 1000 },
+			"/cat/model-rates.v1.json",
+		);
+		expect(result.state).toBe("fresh");
+	});
+});
