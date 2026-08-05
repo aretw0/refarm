@@ -108,6 +108,14 @@ pub(crate) struct TaskArgs {
     /// the responder's payload so the guest resolves the route by profile. The host
     /// does not interpret it — it is a neutral field forwarded like provider/model.
     pub(crate) profile: Option<String>,
+    /// Which workspace the CALLER declared this run belongs to, and how it arrived at
+    /// that. Forwarded verbatim, exactly like `profile`: the host never derives a
+    /// workspace (it has no directory worth consulting on the caller's behalf), and the
+    /// guest stamps it onto the Session node it creates so LATER turns in the same
+    /// session inherit the attribution instead of re-seeding from whatever directory
+    /// the operator happens to be standing in.
+    pub(crate) workspace_id: Option<String>,
+    pub(crate) workspace_source: Option<String>,
 }
 
 /// Describes the terminal RESULT node a dispatch awaits, so the watcher is
@@ -194,7 +202,76 @@ pub(crate) fn extract_task_args(task: &EffortTask) -> Result<TaskArgs, String> {
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string()),
+        workspace_id: args
+            .get("workspace_id")
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string()),
+        workspace_source: args
+            .get("workspace_source")
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string()),
     })
+}
+
+/// The `user:prompt` payload handed to the responder for a `respond` effort.
+///
+/// PURE over already-extracted args + the resolved ceilings — extracted for the same
+/// reason `ceilings_for_payload` was: every field the guest can only learn from this
+/// payload is now assertable without standing up the async dispatch/channel/SidecarState
+/// machinery. A field silently dropped here is invisible to the guest and to every
+/// unit test that stops at `extract_task_args`, which is exactly how `workspace_id`
+/// reached the sidecar and never reached the Session node.
+///
+/// Absent-not-null throughout: a key the caller did not declare carries no key at all.
+fn respond_payload_json(
+    args: &TaskArgs,
+    prompt_ref: &str,
+    declared_max_tokens: Option<u64>,
+    declared_max_usd: Option<f64>,
+) -> Value {
+    let mut payload_obj = serde_json::json!({
+        "prompt": args.prompt,
+        "prompt_ref": prompt_ref,
+    });
+    fn put_str(target: &mut Value, key: &str, value: Option<&String>) {
+        if let Some(v) = value {
+            target[key] = Value::String(v.clone());
+        }
+    }
+    put_str(&mut payload_obj, "system", args.system.as_ref());
+    put_str(&mut payload_obj, "session_id", args.session_id.as_ref());
+    if let Some(turns) = args.history_turns {
+        payload_obj["history_turns"] = Value::Number(turns.into());
+    }
+    put_str(&mut payload_obj, "provider", args.provider.as_ref());
+    put_str(&mut payload_obj, "model", args.model.as_ref());
+    put_str(&mut payload_obj, "profile", args.profile.as_ref());
+    // The declared workspace rides the same channel as `profile` — no second road for
+    // one more value. The guest reads it only where it CREATES a Session node, so a
+    // dispatch carrying a workspace can never re-attribute a conversation already
+    // under way.
+    put_str(&mut payload_obj, "workspace_id", args.workspace_id.as_ref());
+    put_str(
+        &mut payload_obj,
+        "workspace_source",
+        args.workspace_source.as_ref(),
+    );
+    // Task 12: the resolved token/spend ceilings, beside the values above —
+    // absent (no key) when nothing declared either axis, per the gate computed
+    // by `ceilings_for_payload`.
+    if let Some(max_tokens) = declared_max_tokens {
+        payload_obj["max_tokens"] = Value::Number(max_tokens.into());
+    }
+    if let Some(max_usd) = declared_max_usd {
+        if let Some(num) = serde_json::Number::from_f64(max_usd) {
+            payload_obj["max_usd"] = Value::Number(num);
+        }
+    }
+    payload_obj
 }
 
 // ── effort dispatch ──────────────────────────────────────────────────────────
@@ -575,40 +652,10 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
 
         // Build the structured payload for agent's handle_prompt.
         // Includes all session context so agent maintains conversation history.
-        let mut payload_obj = serde_json::json!({
-            "prompt": args.prompt,
-            "prompt_ref": prompt_ref,
-        });
-        if let Some(sys) = args.system {
-            payload_obj["system"] = Value::String(sys);
-        }
-        if let Some(sid) = args.session_id {
-            payload_obj["session_id"] = Value::String(sid);
-        }
-        if let Some(turns) = args.history_turns {
-            payload_obj["history_turns"] = Value::Number(turns.into());
-        }
-        if let Some(provider) = args.provider {
-            payload_obj["provider"] = Value::String(provider);
-        }
-        if let Some(model) = args.model {
-            payload_obj["model"] = Value::String(model);
-        }
-        if let Some(profile) = args.profile {
-            payload_obj["profile"] = Value::String(profile);
-        }
-        // Task 12: the resolved token/spend ceilings, beside the values above —
-        // absent (no key) when nothing declared either axis, per the gate
-        // computed alongside `deadline_ms` before this closure captured it.
-        if let Some(max_tokens) = declared_max_tokens {
-            payload_obj["max_tokens"] = Value::Number(max_tokens.into());
-        }
-        if let Some(max_usd) = declared_max_usd {
-            if let Some(num) = serde_json::Number::from_f64(max_usd) {
-                payload_obj["max_usd"] = Value::Number(num);
-            }
-        }
-        let payload = payload_obj.to_string();
+        // PURE and unit-tested — see `respond_payload_json`.
+        let payload =
+            respond_payload_json(&args, &prompt_ref, declared_max_tokens, declared_max_usd)
+                .to_string();
 
         // Dispatch to the active agent channel.
         // Prefer the plugin registered via the "integration:respond" capability.
@@ -1324,6 +1371,103 @@ mod tests {
         assert_eq!(args.provider, None);
         assert_eq!(args.model, None);
         assert_eq!(args.profile, None);
+    }
+
+    #[test]
+    fn extract_args_reads_the_declared_workspace() {
+        let t = task(
+            "@refarm/agent",
+            Some("respond"),
+            json!({
+                "prompt": "hi",
+                "workspace_id": "  rcdc5  ",
+                "workspace_source": " declared "
+            }),
+        );
+        let args = extract_task_args(&t).unwrap();
+        assert_eq!(args.workspace_id.as_deref(), Some("rcdc5"));
+        assert_eq!(args.workspace_source.as_deref(), Some("declared"));
+    }
+
+    #[test]
+    fn extract_args_leaves_an_undeclared_workspace_absent() {
+        let t = task(
+            "@refarm/agent",
+            Some("respond"),
+            json!({ "prompt": "hi", "workspace_id": "   " }),
+        );
+        let args = extract_task_args(&t).unwrap();
+        assert_eq!(args.workspace_id, None);
+        assert_eq!(args.workspace_source, None);
+    }
+
+    // ── respond_payload_json (the guest can only learn what this forwards) ──────
+
+    fn args_with_workspace(id: Option<&str>, source: Option<&str>) -> TaskArgs {
+        TaskArgs {
+            prompt: "hi".to_string(),
+            system: None,
+            session_id: Some("urn:sovereign:session:v1:abc".to_string()),
+            history_turns: Some(10),
+            provider: None,
+            model: None,
+            profile: None,
+            workspace_id: id.map(|s| s.to_string()),
+            workspace_source: source.map(|s| s.to_string()),
+        }
+    }
+
+    /// The regression this whole task exists for. The CLI put `workspace_id` in the
+    /// task args and the sidecar dropped it on the floor building this payload, so the
+    /// guest's `handle_prompt` never saw it, never set MODEL_WORKSPACE_ID, and every
+    /// Session node was created unattributed — which made a later turn in the same
+    /// session silently re-seed from the operator's cwd.
+    #[test]
+    fn respond_payload_forwards_the_declared_workspace_to_the_guest() {
+        let payload = respond_payload_json(
+            &args_with_workspace(Some("rcdc5"), Some("declared")),
+            "prompt-ref-1",
+            None,
+            None,
+        );
+        assert_eq!(
+            payload["workspace_id"], "rcdc5",
+            "the guest stamps the Session node from this field; dropping it breaks \
+             same-session inheritance with no error anywhere"
+        );
+        assert_eq!(payload["workspace_source"], "declared");
+        // The fields that already worked must keep working.
+        assert_eq!(payload["prompt"], "hi");
+        assert_eq!(payload["prompt_ref"], "prompt-ref-1");
+        assert_eq!(payload["session_id"], "urn:sovereign:session:v1:abc");
+        assert_eq!(payload["history_turns"], 10);
+    }
+
+    #[test]
+    fn respond_payload_omits_an_undeclared_workspace_entirely() {
+        let payload = respond_payload_json(&args_with_workspace(None, None), "pr", None, None);
+        assert!(
+            payload.get("workspace_id").is_none(),
+            "absent, not null: a null would read as a declaration of nothing"
+        );
+        assert!(payload.get("workspace_source").is_none());
+    }
+
+    #[test]
+    fn respond_payload_still_carries_route_and_ceilings() {
+        let mut args = args_with_workspace(Some("refarm"), Some("seeded-from-cwd"));
+        args.system = Some("be terse".to_string());
+        args.provider = Some("anthropic".to_string());
+        args.model = Some("claude-opus-5".to_string());
+        args.profile = Some("cheap".to_string());
+        let payload = respond_payload_json(&args, "pr", Some(4096), Some(0.25));
+        assert_eq!(payload["system"], "be terse");
+        assert_eq!(payload["provider"], "anthropic");
+        assert_eq!(payload["model"], "claude-opus-5");
+        assert_eq!(payload["profile"], "cheap");
+        assert_eq!(payload["max_tokens"], 4096);
+        assert_eq!(payload["max_usd"], 0.25);
+        assert_eq!(payload["workspace_source"], "seeded-from-cwd");
     }
 
     #[test]

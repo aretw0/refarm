@@ -308,8 +308,28 @@ pub(crate) fn handle_prompt(payload: String) {
                 .and_then(|n| n.as_u64())
                 .map(|n| n.to_string());
             let max_usd_str = v.get("max_usd").and_then(|n| n.as_f64()).map(|n| n.to_string());
+            // The workspace the CALLER declared for this run. THIS handler — not
+            // `respond` — is the path a `refarm ask` actually takes: the sidecar fires
+            // `user:prompt` as a reply-less envelope, so the runner calls `on_event`
+            // and `execute_respond`'s guards are never reached. Set here, scoped like
+            // MODEL_SESSION_ID, because `get_or_create_session` reads MODEL_WORKSPACE_ID
+            // downstream of this call and stamps it onto the Session node it creates —
+            // that stamp is the whole inheritance mechanism, and without these two
+            // lines it never happens for the one path that matters.
+            let workspace_id = v
+                .get("workspace_id")
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_owned());
+            let workspace_source = v
+                .get("workspace_source")
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_owned());
             let turns_str = history_turns.map(|n| n.to_string());
             let _session = crate::EnvGuard::maybe_set("MODEL_SESSION_ID", session_id.as_deref());
+            let _workspace =
+                crate::EnvGuard::maybe_set("MODEL_WORKSPACE_ID", workspace_id.as_deref());
+            let _workspace_source =
+                crate::EnvGuard::maybe_set("MODEL_WORKSPACE_SOURCE", workspace_source.as_deref());
             let _turns = crate::EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
             let _profile = crate::EnvGuard::maybe_set("MODEL_PROFILE", profile.as_deref());
             let _max_tokens =
