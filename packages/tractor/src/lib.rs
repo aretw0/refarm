@@ -41,6 +41,11 @@ pub mod telemetry;
 mod timefmt;
 pub mod trust;
 
+/// The publishability guard: no production `include_str!` may reach outside this crate,
+/// because `cargo package` does not copy what it cannot see. Test-only.
+#[cfg(test)]
+mod crate_boundary;
+
 /// Shared test-only helpers for the whole crate. Kept behind `#[cfg(test)]` so it
 /// never ships in the daemon binary.
 #[cfg(test)]

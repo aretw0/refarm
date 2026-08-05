@@ -13,9 +13,23 @@
 //!    load bearing for testing. So the host resolves the effective window and
 //!    injects only the entries in force — the same entry shape with fewer rows,
 //!    never a second schema.
-//! 2. **A node can correct a rate without a build.** The embedded default is the
-//!    audited artifact; a node may place its own `model-rates.v1.json` in the
-//!    sovereign dir and the host reads that instead.
+//! 2. **The catalog is a FILE this node owns, never a string compiled into the host.**
+//!    A node corrects a rate by editing `model-rates.v1.json` in its sovereign dir —
+//!    no build, no release. The host reads that file and nothing else.
+//!
+//! There used to be a third fact: an `include_str!` default embedded at compile time
+//! from `packages/model-catalog-v1/catalog/model-rates.v1.json`. It was deleted on
+//! 2026-08-04 because it made `refarm-tractor` unpublishable — the path climbs out of
+//! the crate, `cargo package` never copies it, and the verify build could not resolve
+//! it. `crate::crate_boundary` is the test that stops it coming back.
+//!
+//! What replaced it: the TypeScript side MATERIALISES the shipped artifact into the
+//! sovereign dir (`refarm plugin install --bundled` / `plugin update`, the pass
+//! `scripts/tractor-start.sh` already runs before every daemon start). It writes the
+//! file only when it is absent, so a node's correction survives every restart. If
+//! nothing materialised it, this host injects NOTHING and the guest falls back to its
+//! built-in table — see `packages/agent/src/utils.rs`. That fallback is the reason
+//! "no catalog" is a safe answer and "everything is free" is never one.
 
 use std::path::{Path, PathBuf};
 
@@ -29,34 +43,24 @@ use super::config_node::SOVEREIGN_DIR_SELECTOR_KEY;
 /// not a credential.
 pub(crate) const MODEL_RATE_CATALOG_ENV_KEY: &str = "MODEL_RATE_CATALOG";
 
-/// The file a node may drop in its sovereign dir to override the embedded default.
-/// Deliberately the SAME basename as the artifact it replaces, so an operator who
-/// copies the shipped file and edits one rate is doing the obvious thing.
-pub(crate) const CATALOG_OVERRIDE_FILE_NAME: &str = "model-rates.v1.json";
-
-/// The audited artifact, embedded at compile time.
-///
-/// `packages/model-catalog-v1/catalog/model-rates.v1.json` is the SINGLE artifact.
-/// Both sides are READERS of it — the TypeScript plugin stack for SDK consumers,
-/// this host for the guest. Two readers of one artifact is not the two-sources
-/// shape; two AUTHORS would be, which is exactly what the provider plugins had
-/// become before they were pointed back at this file.
-const EMBEDDED_CATALOG: &str =
-    include_str!("../../../../model-catalog-v1/catalog/model-rates.v1.json");
+/// The file this node's catalog lives in, a sibling of `config.json` in the sovereign
+/// dir. Deliberately the SAME basename as the artifact
+/// (`packages/model-catalog-v1/catalog/model-rates.v1.json`) the TypeScript side copies
+/// there, so an operator who opens it and edits one rate is doing the obvious thing.
+pub(crate) const CATALOG_FILE_NAME: &str = "model-rates.v1.json";
 
 const SCHEMA_VERSION: &str = "model-rate-catalog.v1";
 
-/// Ceiling on a sovereign override, mirroring `read_refarm_config_bytes`. The
-/// shipped catalog is ~11 KiB pretty-printed; 256 KiB is generous for a node that
-/// adds entries and still refuses a file that is obviously not a catalog.
+/// Ceiling on the catalog file, mirroring `read_refarm_config_bytes`. The shipped
+/// catalog is ~11 KiB pretty-printed; 256 KiB is generous for a node that adds entries
+/// and still refuses a file that is obviously not a catalog.
 const MAX_CATALOG_BYTES: u64 = 256 * 1024;
 
 /// The single place this host decides where the catalog comes from.
 ///
-/// Today: an embedded default (the audited artifact) that a node may override with
-/// a file in its sovereign dir. The resolved value is validated with the same rules
-/// the `@refarm.dev/model-catalog-v1` package enforces, then filtered to the entries
-/// in force at the host's current date, then serialized compact.
+/// Today: one file in the sovereign dir, and nothing else. The bytes are validated with
+/// the same rules the `@refarm.dev/model-catalog-v1` package enforces, then filtered to
+/// the entries in force at the host's current date, then serialized compact.
 ///
 /// A later slice is expected to make the catalog a LOADED PLUGIN instead — this repo
 /// already has a plugin registry with `get_plugin_api`, an `api:<name>` convention in
@@ -71,102 +75,91 @@ const MAX_CATALOG_BYTES: u64 = 256 * 1024;
 ///
 /// `None` means INJECT NOTHING, which the guest reads as "I do not know prices" and
 /// answers by falling back to its built-in table — never by pricing anything at zero.
+/// That is also the answer when no file is there at all: this host has no compiled-in
+/// default to reach for, and inventing one would be the only way to get a price nobody
+/// on this node ever put on disk.
 pub(crate) fn resolve_injected_catalog(base: &Path) -> Option<String> {
-    resolve_injected_catalog_in(override_path(base).as_deref(), &today_utc())
+    resolve_injected_catalog_in(catalog_path(base).as_deref(), &today_utc())
 }
 
-/// The env-free half of [`resolve_injected_catalog`]: an explicit override path (or
+/// The env-free half of [`resolve_injected_catalog`]: an explicit catalog path (or
 /// `None` for "this node has no sovereign dir") and an explicit date. Pure over its
 /// inputs so the refusal rule and the window filter are testable without steering
 /// process env from a parallel test thread.
-fn resolve_injected_catalog_in(override_file: Option<&Path>, today: &str) -> Option<String> {
-    if let Some(path) = override_file {
-        match read_override(path) {
-            OverrideRead::Absent => {} // fall through to the embedded default
-            OverrideRead::Unreadable(reason) => {
-                refuse(path, &[reason]);
-                return None;
-            }
-            OverrideRead::Text(raw) => {
-                return match prepare_catalog(&raw, today) {
-                    Ok(json) => Some(json),
-                    Err(issues) => {
-                        refuse(path, &issues);
-                        None
-                    }
-                };
-            }
-        }
-    }
-
-    match prepare_catalog(EMBEDDED_CATALOG, today) {
-        Ok(json) => Some(json),
-        Err(issues) => {
-            // Unreachable in a healthy build — the embedded artifact is validated by
-            // this module's own tests. If it ever fires, injecting nothing is still
-            // the honest answer: the guest falls back rather than pricing from a
-            // catalog nobody could check.
-            tracing::error!(
-                issues = %issues.join("; "),
-                "embedded model rate catalog failed validation — injecting NO catalog"
-            );
+fn resolve_injected_catalog_in(catalog_file: Option<&Path>, today: &str) -> Option<String> {
+    // No sovereign dir selector means no catalog path, which means no catalog. Same
+    // rule `sovereign_config_path` applies — the substrate has no default.
+    let path = catalog_file?;
+    match read_catalog_file(path) {
+        // Nothing there. Not a refusal and not an error: a node whose sovereign dir
+        // carries no catalog has not claimed to know any prices, and the guest's
+        // built-in table answers instead.
+        CatalogRead::Absent => None,
+        CatalogRead::Unreadable(reason) => {
+            refuse(path, &[reason]);
             None
         }
+        CatalogRead::Text(raw) => match prepare_catalog(&raw, today) {
+            Ok(json) => Some(json),
+            Err(issues) => {
+                refuse(path, &issues);
+                None
+            }
+        },
     }
 }
 
-/// Refuse loudly. A node that placed an override BELIEVES it corrected a rate; if we
-/// quietly reverted to the embedded default it would keep believing that while being
-/// charged the old number. So an override that cannot be read, parsed or validated
-/// takes the whole catalog down with it — no catalog at all, and a log line naming
-/// the file and every issue.
+/// Refuse loudly. A node that placed this file BELIEVES it states the prices it will be
+/// charged; a file that cannot be read, parsed or validated takes the whole catalog down
+/// with it — no catalog at all, and a log line naming the file and every issue. Anything
+/// quieter would let the node keep believing a correction it never actually made.
 fn refuse(path: &Path, issues: &[String]) {
     tracing::error!(
         path = %path.display(),
         issues = %issues.join("; "),
-        "sovereign model rate catalog override is INVALID — refusing it AND injecting no \
-         catalog at all (a silent fall back to the embedded default would let this node \
-         believe it had corrected a rate when it had not). Fix or remove the file."
+        "sovereign model rate catalog is INVALID — refusing it AND injecting no catalog at \
+         all, so the guest falls back to its built-in table rather than pricing from a file \
+         nobody could check. Fix or remove the file."
     );
 }
 
-enum OverrideRead {
+enum CatalogRead {
     Absent,
     Text(String),
     Unreadable(String),
 }
 
-/// Where a node's override lives: a sibling of `config.json` inside the sovereign dir.
+/// Where this node's catalog lives: a sibling of `config.json` inside the sovereign dir.
 /// `None` when no sovereign dir selector is set — the same rule `sovereign_config_path`
-/// applies, so "no config path" and "no catalog override path" mean the same thing.
-fn override_path(base: &Path) -> Option<PathBuf> {
+/// applies, so "no config path" and "no catalog path" mean the same thing.
+fn catalog_path(base: &Path) -> Option<PathBuf> {
     let dir = std::env::var(SOVEREIGN_DIR_SELECTOR_KEY).ok()?;
     let dir = dir.trim();
     if dir.is_empty() {
         return None;
     }
-    Some(base.join(dir).join(CATALOG_OVERRIDE_FILE_NAME))
+    Some(base.join(dir).join(CATALOG_FILE_NAME))
 }
 
-fn read_override(path: &Path) -> OverrideRead {
+fn read_catalog_file(path: &Path) -> CatalogRead {
     let metadata = match std::fs::symlink_metadata(path) {
         Ok(metadata) => metadata,
-        // Not there at all — the ordinary case, and NOT a refusal: a node with no
-        // override is a node that never claimed to have corrected anything.
-        Err(_) => return OverrideRead::Absent,
+        // Not there at all — the ordinary case on a node nothing has materialised a
+        // catalog onto, and NOT a refusal.
+        Err(_) => return CatalogRead::Absent,
     };
     if !metadata.is_file() {
-        return OverrideRead::Unreadable("not a regular file".to_string());
+        return CatalogRead::Unreadable("not a regular file".to_string());
     }
     if metadata.len() > MAX_CATALOG_BYTES {
-        return OverrideRead::Unreadable(format!(
+        return CatalogRead::Unreadable(format!(
             "{} bytes exceeds the {MAX_CATALOG_BYTES}-byte ceiling",
             metadata.len()
         ));
     }
     match std::fs::read_to_string(path) {
-        Ok(text) => OverrideRead::Text(text),
-        Err(err) => OverrideRead::Unreadable(format!("unreadable: {err}")),
+        Ok(text) => CatalogRead::Text(text),
+        Err(err) => CatalogRead::Unreadable(format!("unreadable: {err}")),
     }
 }
 
@@ -475,6 +468,24 @@ fn shadowed_entry_issues(entries: &[Value]) -> Vec<String> {
 mod tests {
     use super::*;
 
+    /// The audited artifact, read at TEST time only.
+    ///
+    /// `packages/model-catalog-v1/catalog/model-rates.v1.json` is the SINGLE artifact.
+    /// Both sides are READERS of it — the TypeScript plugin stack for SDK consumers, and
+    /// (once the TS side has materialised it into the sovereign dir) this host for the
+    /// guest. Two readers of one artifact is not the two-sources shape; two AUTHORS would
+    /// be, which is exactly what the provider plugins had become before they were pointed
+    /// back at this file.
+    ///
+    /// The path climbs out of the crate, which is why it lives HERE and not on a
+    /// production path: `cargo package` copies only files inside `packages/tractor`, so a
+    /// production `include_str!` reaching this far makes `refarm-tractor` unpublishable.
+    /// `#[cfg(test)]` code is not compiled by the verify build, so this include is free —
+    /// the same pattern tractor's other cross-package fixtures already use. See
+    /// `crate::crate_boundary`, the test that keeps it that way.
+    const EMBEDDED_CATALOG: &str =
+        include_str!("../../../../model-catalog-v1/catalog/model-rates.v1.json");
+
     fn entries_of(json: &str) -> Vec<Value> {
         serde_json::from_str::<Value>(json)
             .expect("prepared catalog is JSON")
@@ -498,11 +509,11 @@ mod tests {
     }
 
     #[test]
-    fn the_embedded_artifact_is_the_audited_one_and_it_validates() {
-        let catalog: Value = serde_json::from_str(EMBEDDED_CATALOG).expect("embedded is JSON");
+    fn the_shipped_artifact_is_the_audited_one_and_it_validates() {
+        let catalog: Value = serde_json::from_str(EMBEDDED_CATALOG).expect("artifact is JSON");
         assert!(
             validation_issues(&catalog).is_empty(),
-            "embedded catalog must pass the same validation the package enforces: {:?}",
+            "the shipped catalog must pass the same validation the package enforces: {:?}",
             validation_issues(&catalog)
         );
         assert_eq!(
@@ -581,19 +592,38 @@ mod tests {
     }
 
     #[test]
-    fn an_absent_override_uses_the_embedded_default() {
+    fn an_absent_catalog_file_injects_nothing_and_the_guest_falls_back() {
         let dir = tempfile::tempdir().expect("tempdir");
-        let path = dir.path().join(CATALOG_OVERRIDE_FILE_NAME);
+        let path = dir.path().join(CATALOG_FILE_NAME);
+        assert!(
+            resolve_injected_catalog_in(Some(&path), "2026-08-04").is_none(),
+            "no file means NO catalog. There is no compiled-in default to fall back to — \
+             the host would have to invent a price nobody on this node put on disk. The \
+             guest reads the absence as 'I do not know prices' and uses its built-in table."
+        );
+        assert!(
+            resolve_injected_catalog_in(None, "2026-08-04").is_none(),
+            "no sovereign dir means no catalog path, and no catalog path means no catalog"
+        );
+    }
+
+    #[test]
+    fn the_materialised_artifact_resolves_to_the_window_in_force() {
+        // What the TypeScript side copies into the sovereign dir is the audited artifact
+        // verbatim; reading it back through the real file path is the end of that journey.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join(CATALOG_FILE_NAME);
+        std::fs::write(&path, EMBEDDED_CATALOG).expect("materialise the shipped artifact");
         let resolved =
-            resolve_injected_catalog_in(Some(&path), "2026-08-04").expect("embedded default");
+            resolve_injected_catalog_in(Some(&path), "2026-08-04").expect("shipped artifact");
         // 28 authored minus the one Sonnet 5 row whose effective window excludes today.
         assert_eq!(entries_of(&resolved).len(), 27);
     }
 
     #[test]
-    fn a_valid_override_replaces_the_embedded_default_entirely() {
+    fn a_valid_file_is_the_whole_catalog() {
         let dir = tempfile::tempdir().expect("tempdir");
-        let path = dir.path().join(CATALOG_OVERRIDE_FILE_NAME);
+        let path = dir.path().join(CATALOG_FILE_NAME);
         std::fs::write(
             &path,
             r#"{
@@ -608,15 +638,16 @@ mod tests {
               }]
             }"#,
         )
-        .expect("write override");
+        .expect("write the node's catalog");
 
-        let resolved = resolve_injected_catalog_in(Some(&path), "2026-08-04").expect("override");
+        let resolved =
+            resolve_injected_catalog_in(Some(&path), "2026-08-04").expect("node-local catalog");
         assert_eq!(entries_of(&resolved).len(), 1);
         assert_eq!(sonnet_5_rates(&resolved), vec![(1.5, 7.0)]);
     }
 
     #[test]
-    fn an_invalid_override_refuses_rather_than_falling_back_to_the_default() {
+    fn an_invalid_catalog_refuses_loudly_and_injects_nothing() {
         let dir = tempfile::tempdir().expect("tempdir");
 
         // Not JSON at all.
@@ -624,8 +655,8 @@ mod tests {
         std::fs::write(&broken, "{ this is not json").unwrap();
         assert!(
             resolve_injected_catalog_in(Some(&broken), "2026-08-04").is_none(),
-            "an unparseable override must inject NO catalog — falling back would let this \
-             node believe it had corrected a rate when it had not"
+            "an unparseable catalog must inject NO catalog — quietly serving something else \
+             would let this node believe it had corrected a rate when it had not"
         );
 
         // Parses, but fails validation (negative rate).
