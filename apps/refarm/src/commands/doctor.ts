@@ -6,7 +6,7 @@ import {
 import fs from "node:fs";
 import path from "node:path";
 
-import { declaredBase, loadConfig, sovereignDir } from "@refarm.dev/config";
+import { declaredBase, effectiveModelRouteForScope, loadConfig, sovereignDir } from "@refarm.dev/config";
 
 import { Command } from "commander";
 import { readNodeDescriptor } from "../utils/node-descriptor.js";
@@ -17,6 +17,11 @@ import {
 	type RuntimeFreshness,
 } from "../utils/runtime-freshness.js";
 import { buildRuntimeFreshnessDoctorRecommendations } from "./runtime-freshness-doctor.js";
+import { buildRuntimeEnvironmentDoctorRecommendations } from "./runtime-environment-doctor.js";
+import {
+	resolveRuntimeEnvironment,
+	type RuntimeEnvironment,
+} from "../utils/runtime-environment.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import type { NodeContextMetadata } from "../utils/context-metadata.js";
 import { resolveNodeContextMetadata } from "../utils/context-metadata.js";
@@ -100,6 +105,9 @@ export function buildRefarmDoctorReport(
 		/** Whether the running node predates the artifacts beside it. `null` when the
 		 *  caller did not resolve it — silence, not an assumption that it is fine. */
 		runtimeFreshness?: RuntimeFreshness | null;
+		/** Whether the running node carries the model environment its config declares. `null`
+		 *  when the caller did not resolve it — silence, not an assumption that it is fine. */
+		runtimeEnvironment?: RuntimeEnvironment | null;
 		/** Context metadata resolved by the caller (home/store alignment, mode). Omitted
 		 * means "not inspected", which produces no findings. */
 		context?: NodeContextMetadata;
@@ -130,6 +138,11 @@ export function buildRefarmDoctorReport(
 	const runtimeFreshnessRecommendations = buildRuntimeFreshnessDoctorRecommendations(
 		options.runtimeFreshness ?? null,
 	);
+	// A node up and healthy that cannot reach its declared provider is the same KIND of truth,
+	// and the one nothing stated until it broke on 2026-08-05.
+	const runtimeEnvironmentRecommendations = buildRuntimeEnvironmentDoctorRecommendations(
+		options.runtimeEnvironment ?? null,
+	);
 	const contextRecommendations = buildContextDoctorRecommendations(options.context);
 	const warnings = [
 		...statusWarnings,
@@ -137,6 +150,7 @@ export function buildRefarmDoctorReport(
 		...scopeRecommendations.map((r) => r.diagnostic),
 		...nodeNameRecommendations.map((r) => r.diagnostic),
 		...runtimeFreshnessRecommendations.map((r) => r.diagnostic),
+		...runtimeEnvironmentRecommendations.map((r) => r.diagnostic),
 		...contextRecommendations.map((r) => r.diagnostic),
 	];
 
@@ -152,6 +166,7 @@ export function buildRefarmDoctorReport(
 		...scopeRecommendations,
 		...nodeNameRecommendations,
 		...runtimeFreshnessRecommendations,
+		...runtimeEnvironmentRecommendations,
 		...contextRecommendations,
 	];
 	const nextActions = diagnosticNextActions(recommendations);
@@ -385,6 +400,27 @@ function resolveFreshness(): RuntimeFreshness | null {
 	}
 }
 
+/** Same posture as the two resolvers above: never throws, `null` on any failure rather than a
+ *  guess. The declared provider comes from the sovereign config the operator writes. */
+function resolveEnvironment(deps: RefarmDoctorCommandDeps | undefined): RuntimeEnvironment | null {
+	try {
+		const nodeHome = path.resolve(resolveRefarmHome());
+		const descriptor = readNodeDescriptor(nodeHome);
+		if (!descriptor || typeof descriptor.pid !== "number") return null;
+		// The DECLARED provider, resolved exactly as `refarm model current` resolves it — the
+		// operator's stored tokens plus their env. Deliberately NOT this CLI process's
+		// MODEL_PROVIDER alone: that is a different process's environment, and reading it as if
+		// it were the declaration would compare the daemon against whatever shell happened to
+		// invoke the doctor.
+		const baseDir = deps?.cwd?.() ?? process.cwd();
+		const tokens = (deps?.loadConfig ?? loadConfig)(baseDir) as Record<string, unknown>;
+		const route = effectiveModelRouteForScope(tokens, "default", { env: process.env });
+		return resolveRuntimeEnvironment({ pid: descriptor.pid }, route?.provider);
+	} catch {
+		return null;
+	}
+}
+
 function resolveConnectionConfig(deps: RefarmDoctorCommandDeps | undefined): Record<string, unknown> {
 	const baseDir = deps?.cwd?.() ?? process.cwd();
 	try {
@@ -440,6 +476,7 @@ Notes:
 						scope: resolveScopeComparison(deps),
 						nodeIdentity: resolveNodeDescriptor(deps),
 						runtimeFreshness: resolveFreshness(),
+						runtimeEnvironment: resolveEnvironment(deps),
 						context: resolveNodeContextMetadata(process.env),
 					});
 					const outputMode = resolveDoctorOutputMode(options);
