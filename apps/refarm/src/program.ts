@@ -12,6 +12,7 @@ import { checkCommand } from "./commands/check.js";
 import { configCommand } from "./commands/config.js";
 import { configureCommand } from "./commands/configure.js";
 import { connectionCommand } from "./commands/connection.js";
+import { contextCommand } from "./commands/context.js";
 import { deliveryCommand } from "./commands/delivery-command.js";
 import { deployCommand } from "./commands/deploy.js";
 import { discoverCommand } from "./commands/discover.js";
@@ -333,6 +334,7 @@ Notes:
 );
 program.addCommand(deployCommand);
 program.addCommand(doctorCommand);
+program.addCommand(contextCommand);
 program.addCommand(packageManagerCommand);
 program.addCommand(capabilitiesCommand);
 program.addCommand(projectCommand);
