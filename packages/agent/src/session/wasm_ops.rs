@@ -157,14 +157,20 @@ pub(crate) fn get_or_create_session() -> String {
 /// Read only where a Session node is CREATED. An existing session keeps whatever it was
 /// created with: the declaration is the session's, not the dispatch's, so a later run from
 /// another directory cannot silently re-attribute a conversation already under way.
+///
+/// Both or neither: `workspace_id` and `workspace_source` are a pair, exactly like the two
+/// keys `session_node` inserts together (see `pure.rs`). An id arriving with no provenance
+/// is not defaulted to `"declared"` — that would fail toward the STRONGER claim on a
+/// distinction the design treats as load-bearing (ADR-094 H2: cwd-seeded is not policy
+/// truth). The CLI always sends both, so this changes no working path; it only closes a
+/// way for a non-CLI caller to get a mislabelled human declaration.
 fn declared_workspace() -> Option<(String, String)> {
     let id = std::env::var("MODEL_WORKSPACE_ID")
         .ok()
         .filter(|v| !v.trim().is_empty())?;
     let source = std::env::var("MODEL_WORKSPACE_SOURCE")
         .ok()
-        .filter(|v| !v.trim().is_empty())
-        .unwrap_or_else(|| "declared".to_string());
+        .filter(|v| !v.trim().is_empty())?;
     Some((id, source))
 }
 
