@@ -16,6 +16,14 @@ may know whether a declaration arrived from a file, from the graph, or by inject
 `DECLARE_ONCE_INVARIANT` mirrored — that invariant says one declaration projects to every output
 surface; this says every input source converges on one declaration.
 
+**The other direction, and it is the same decision**: every declaration must EJECT back to a file.
+Import without export is lock-in wearing another name, and the two halves are only sound together.
+Refarm is to be radically extensible and ejectable: anything the system holds can be written out as a
+file the operator keeps, which makes the graph a CACHE rather than a destination — always
+reconstitutable, never a place work goes in and cannot come out of. This is the sovereignty claim in
+its checkable form. An implementation that adds an input producer without the matching export is
+incomplete, not merely unfinished.
+
 **Consequences**: an operator who keeps local files and has assimilated nothing into the graph stays
 supported, and compatibility with pi's on-disk structure remains possible, without either becoming a
 runtime dependency. The `.pi/agents/**` and `.pi/monitors/**` files in this repository are residue
