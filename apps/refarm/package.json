@@ -54,6 +54,7 @@
 		"@refarm.dev/infra-cloudflare": "workspace:*",
 		"@refarm.dev/infra-turbo-cache": "workspace:*",
 		"@refarm.dev/localization-v1": "workspace:*",
+		"@refarm.dev/model-catalog-v1": "workspace:*",
 		"@refarm.dev/operation-consent-v1": "workspace:*",
 		"@refarm.dev/operation-web-v1": "workspace:*",
 		"@refarm.dev/operator-state": "workspace:*",

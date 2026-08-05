@@ -343,6 +343,10 @@ describe("plugin install", () => {
 					integrity: "sha256-deadbeef",
 				},
 			],
+			// The same pass materialises the runtime's rate catalog into the sovereign dir.
+			// `existsSync` is mocked true here, so the file "already exists" and is KEPT —
+			// which is the whole point: this step never overwrites a node's own catalog.
+			modelRateCatalog: { status: "kept", path: expect.any(String) },
 			command: "plugin",
 			operation: "install",
 			ok: true,
@@ -358,6 +362,9 @@ describe("plugin install", () => {
 		mockRequireResolve.mockImplementation(() => {
 			throw new Error("MODULE_NOT_FOUND");
 		});
+		// Nothing is on disk in this fixture — stated rather than inherited, so the
+		// catalog step's answer below is the one this test means.
+		mockExistsSync.mockReturnValue(false);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -375,6 +382,15 @@ describe("plugin install", () => {
 					message: "package @refarm.dev/agent not found in node_modules or workspace",
 				},
 			],
+			// Nothing resolves in this fixture, the catalog package included. It reports the
+			// miss instead of failing the install: a node without a catalog still runs, and
+			// prices from the agent's built-in table.
+			modelRateCatalog: {
+				status: "unresolved",
+				path: expect.any(String),
+				message:
+					"package @refarm.dev/model-catalog-v1 not found in node_modules or workspace",
+			},
 			command: "plugin",
 			operation: "install",
 			ok: false,
@@ -427,6 +443,7 @@ describe("plugin install", () => {
 					message: "already up-to-date",
 				},
 			],
+			modelRateCatalog: { status: "kept", path: expect.any(String) },
 			command: "plugin",
 			operation: "install",
 			ok: true,

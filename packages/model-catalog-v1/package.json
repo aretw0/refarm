@@ -10,7 +10,9 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
-    }
+    },
+    "./package.json": "./package.json",
+    "./catalog/model-rates.v1.json": "./catalog/model-rates.v1.json"
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",

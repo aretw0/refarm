@@ -11,6 +11,10 @@ import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import {
+	describeModelRateCatalog,
+	materializeDefaultModelRateCatalog,
+} from "./model-rate-catalog.js";
 import { createPackageScriptCommand } from "./package-manager.js";
 import {
 	PLUGIN_INSTALL_COMMAND,
@@ -235,6 +239,12 @@ export async function buildInstallReport(options: {
 		results.push(await installPlugin(plugin, options.force === true, { quiet: true }));
 	}
 
+	// The runtime's rate catalog rides the same pass, for the same reason the plugins do:
+	// it is a shipped npm artifact the sovereign dir must carry before the daemon starts.
+	// It is NOT a plugin and never fails the install — a node without one still runs,
+	// pricing from the agent's built-in table. See ./model-rate-catalog.ts.
+	const modelRateCatalog = materializeDefaultModelRateCatalog();
+
 	const failed = results.filter((result) => result.status === "failed").length;
 	const failedResult = results.find((result) => result.status === "failed");
 	return failedResult
@@ -250,14 +260,14 @@ export async function buildInstallReport(options: {
 					PLUGIN_INSTALL_JSON_COMMAND,
 					PLUGIN_STATUS_JSON_COMMAND,
 				],
-				extra: { failed, plugins: results },
+				extra: { failed, plugins: results, modelRateCatalog },
 			})
 		: buildJsonSuccessEnvelope({
 				command: "plugin",
 				operation: "install",
 				nextCommand: PLUGIN_STATUS_JSON_COMMAND,
 				nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
-				extra: { failed, plugins: results },
+				extra: { failed, plugins: results, modelRateCatalog },
 			});
 }
 
@@ -283,6 +293,10 @@ export async function installBundledPlugins(options: {
 	for (const plugin of BUNDLED_PLUGINS) {
 		results.push(await installPlugin(plugin, options.force === true, { quiet: false }));
 	}
+	// Same step the JSON path takes inside buildInstallReport — said out loud here, because
+	// the human path narrates each artifact it puts in the sovereign dir.
+	const catalogLine = describeModelRateCatalog(materializeDefaultModelRateCatalog());
+	if (catalogLine) console.log(catalogLine);
 	const failed = results.filter((result) => result.status === "failed").length;
 	if (failed > 0) process.exitCode = 1;
 }

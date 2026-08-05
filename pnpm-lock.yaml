@@ -420,6 +420,9 @@ importers:
       '@refarm.dev/localization-v1':
         specifier: workspace:*
         version: link:../../packages/localization-v1
+      '@refarm.dev/model-catalog-v1':
+        specifier: workspace:*
+        version: link:../../packages/model-catalog-v1
       '@refarm.dev/operation-consent-v1':
         specifier: workspace:*
         version: link:../../packages/operation-consent-v1
