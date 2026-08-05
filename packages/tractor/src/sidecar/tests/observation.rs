@@ -32,6 +32,10 @@ fn base_input() -> ObservationInput<'static> {
         // untouched. The dedicated identity tests further down override these.
         node_name: None,
         node_id: None,
+        // Same for the scenario pair: undeclared and underived by default, which
+        // is also what most of field use looks like.
+        scenario_id: None,
+        scenario_hash: None,
     }
 }
 
@@ -51,7 +55,48 @@ fn the_observation_records_all_three_axes_asked_and_ruling() {
     assert_eq!(node["refarm.outcome.steps_completed"], 4);
     assert_eq!(node["refarm.outcome.steps_planned"], 25);
     assert_eq!(node["refarm.workspace.id"], "rcdc5");
-    assert_eq!(node["refarm.scenario.id"], serde_json::Value::Null);
+}
+
+#[test]
+fn an_undeclared_scenario_is_absent_from_the_record_not_null() {
+    // This field used to be written as an explicit `null` on every observation,
+    // on the premise that only a bench declares a scenario. D6 governs it like
+    // every other undeterminable field now: nobody declared one, so there is no
+    // key — a null here would be indistinguishable from the "we could not tell"
+    // a restart mid-run leaves behind.
+    let node = build_observation_node(base_input());
+    assert!(
+        node.get("refarm.scenario.id").is_none(),
+        "an undeclared scenario is absent, not null: {node}"
+    );
+    assert!(
+        node.get("refarm.scenario.hash").is_none(),
+        "an unresolvable request shape is absent, not null: {node}"
+    );
+}
+
+#[test]
+fn a_declared_scenario_and_a_derived_hash_land_as_flat_top_level_keys() {
+    let node = build_observation_node(ObservationInput {
+        scenario_id: Some("summarise-v1"),
+        scenario_hash: Some("sha256:deadbeef"),
+        ..base_input()
+    });
+    assert_eq!(node["refarm.scenario.id"], "summarise-v1");
+    assert_eq!(node["refarm.scenario.hash"], "sha256:deadbeef");
+}
+
+#[test]
+fn a_hash_without_a_declared_id_still_makes_undeclared_field_use_comparable() {
+    // The ordinary case: the operator labels nothing, but two runs of literally
+    // the same request still join on the hash. The id staying absent is the
+    // point, not a gap.
+    let node = build_observation_node(ObservationInput {
+        scenario_hash: Some("sha256:deadbeef"),
+        ..base_input()
+    });
+    assert!(node.get("refarm.scenario.id").is_none());
+    assert_eq!(node["refarm.scenario.hash"], "sha256:deadbeef");
 }
 
 #[test]
@@ -313,6 +358,7 @@ async fn a_config_change_after_dispatch_does_not_leak_into_the_observation() {
         // under the effort between dispatch and finalisation.
         budget: None,
         workspace_id: None,
+        scenario_id: None,
     };
 
     // Dispatch: this SYNCHRONOUSLY resolves the budget against config A (the
@@ -396,6 +442,7 @@ async fn an_event_dispatch_efforts_observation_carries_no_budget_family() {
         submitted_at: "2026-01-01T00:00:00Z".to_string(),
         budget: None,
         workspace_id: None,
+        scenario_id: None,
     };
 
     // `SidecarState::for_test` registers no plugin channel, so the router
@@ -480,7 +527,7 @@ fn write_budget_observation_reads_the_real_step_count_off_the_joined_usage_recor
         )
         .expect("store usage record");
 
-    write_budget_observation(&state, &effort_id, None, "timed-out", Some(45_000));
+    write_budget_observation(&state, &effort_id, None, None, "timed-out", Some(45_000));
 
     let rows = storage.query_nodes("BudgetObservation").expect("query nodes");
     let node = rows
@@ -522,7 +569,7 @@ fn write_budget_observation_records_the_declared_name_and_a_freshly_minted_id() 
     let state = SidecarState::for_test(&refarm_dir, &namespace).expect("state");
 
     let effort_id = format!("obs-identity-{}", uuid::Uuid::new_v4());
-    write_budget_observation(&state, &effort_id, None, "failed", None);
+    write_budget_observation(&state, &effort_id, None, None, "failed", None);
 
     let storage = crate::storage::NativeStorage::open(&namespace).expect("open storage");
     let rows = storage.query_nodes("BudgetObservation").expect("query nodes");
@@ -564,7 +611,7 @@ fn write_budget_observation_omits_steps_completed_when_no_usage_joined() {
     let state = SidecarState::for_test(&tmp, &namespace).expect("state");
     let effort_id = format!("obs-nosteps-{}", uuid::Uuid::new_v4());
 
-    write_budget_observation(&state, &effort_id, None, "failed", None);
+    write_budget_observation(&state, &effort_id, None, None, "failed", None);
 
     let storage = crate::storage::NativeStorage::open(&namespace).expect("open storage");
     let rows = storage.query_nodes("BudgetObservation").expect("query nodes");
@@ -580,4 +627,192 @@ fn write_budget_observation_omits_steps_completed_when_no_usage_joined() {
         node.get("refarm.outcome.steps_completed").is_none(),
         "no joined usage means no known step count, not a manufactured zero"
     );
+}
+
+// ── WHICH WORK this was: `refarm.scenario.id` / `.hash`, resolved at dispatch
+// and read back at finalisation. The pure hashing rules live in
+// `sidecar::scenario`'s own unit tests; these prove the WIRING — that a
+// declared id survives the whole dispatch→finalisation hand-off, that the
+// derived hash is stable across the conditions a run happened to run under, and
+// that an effort with no dispatch-time resolution records neither field. ──────
+
+/// Dispatch one effort and read its `BudgetObservation` back out of storage.
+/// `SidecarState::for_test` registers no plugin channel, so every effort here
+/// finalises `failed` — still terminal, which is all the observation call site
+/// needs.
+async fn observation_for_dispatched(effort: Effort) -> serde_json::Value {
+    let effort_id = effort.id.clone();
+    let tmp = std::env::temp_dir().join(format!("tractor-observation-scenario-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp).expect("create tmp");
+    let namespace = std::env::temp_dir()
+        .join(format!("tractor-observation-scenario-ns-{}.db", uuid::Uuid::new_v4()))
+        .to_str()
+        .expect("utf8 path")
+        .to_owned();
+    let state = SidecarState::for_test(&tmp, &namespace).expect("state");
+
+    dispatch_effort(state.clone(), effort);
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+    let storage = crate::storage::NativeStorage::open(&namespace).expect("open storage");
+    let rows = storage.query_nodes("BudgetObservation").expect("query nodes");
+    rows.iter()
+        .find_map(|row| {
+            let value: serde_json::Value = serde_json::from_str(&row.payload).ok()?;
+            (value.get("effort_id").and_then(|v| v.as_str()) == Some(effort_id.as_str())).then_some(value)
+        })
+        .expect("a BudgetObservation node for this effort")
+}
+
+/// One `vault:extract` dispatch, varying only the CONDITIONS it ran under.
+fn scenario_effort(
+    scenario_id: Option<&str>,
+    workspace_id: Option<&str>,
+    budget: Option<crate::sidecar::budget::BudgetDeclaration>,
+    args: serde_json::Value,
+) -> Effort {
+    let effort_id = format!("obs-scenario-{}", uuid::Uuid::new_v4());
+    // Shaped exactly as `buildDispatchEffort` shapes a real `refarm dispatch`:
+    // `args.replyRef` is the effort's own id, fresh on every submission. It must
+    // not reach the hash, or no two dispatches would ever compare.
+    let mut args = args;
+    if let Some(map) = args.as_object_mut() {
+        map.insert("replyRef".to_string(), effort_id.clone().into());
+    }
+    Effort {
+        id: effort_id,
+        direction: Some("dispatch".to_string()),
+        tasks: vec![EffortTask {
+            // A fresh uuid per submission, deliberately: it must not reach the hash.
+            id: uuid::Uuid::new_v4().to_string(),
+            plugin_id: "vault".to_string(),
+            fn_name: Some("extract".to_string()),
+            args,
+        }],
+        source: Some("test".to_string()),
+        submitted_at: "2026-01-01T00:00:00.123Z".to_string(),
+        budget,
+        workspace_id: workspace_id.map(str::to_string),
+        scenario_id: scenario_id.map(str::to_string),
+    }
+}
+
+#[tokio::test]
+async fn a_declared_scenario_id_survives_dispatch_and_lands_on_the_observation() {
+    let node = observation_for_dispatched(scenario_effort(
+        Some("summarise-v1"),
+        None,
+        None,
+        serde_json::json!({ "path": "note.md" }),
+    ))
+    .await;
+
+    assert_eq!(
+        node["refarm.scenario.id"], "summarise-v1",
+        "the caller's declaration must reach the record it makes comparable: {node}"
+    );
+    assert!(
+        node.get("refarm.scenario.hash").and_then(|v| v.as_str()).is_some(),
+        "the derived hash rides beside the declared id, not instead of it: {node}"
+    );
+}
+
+#[tokio::test]
+async fn an_undeclared_scenario_leaves_the_id_off_the_record_but_still_hashes_the_request() {
+    let node = observation_for_dispatched(scenario_effort(
+        None,
+        None,
+        None,
+        serde_json::json!({ "path": "note.md" }),
+    ))
+    .await;
+
+    assert!(
+        node.get("refarm.scenario.id").is_none(),
+        "nobody declared a scenario, so there is no id — not null, not invented: {node}"
+    );
+    assert!(
+        node.get("refarm.scenario.hash").and_then(|v| v.as_str()).is_some(),
+        "undeclared field use is still comparable, which is what the hash is for: {node}"
+    );
+}
+
+#[tokio::test]
+async fn the_same_request_hashes_the_same_under_a_different_budget_workspace_and_key_order() {
+    // The conditions a run ran under are not part of what the work IS. If any of
+    // them reached the hash, comparing the same question across two budgets —
+    // the entire question this record exists to answer — would file the two runs
+    // as two unrelated scenarios.
+    let plain = observation_for_dispatched(scenario_effort(
+        None,
+        None,
+        None,
+        serde_json::json!({ "path": "note.md", "depth": 2 }),
+    ))
+    .await;
+    let governed = observation_for_dispatched(scenario_effort(
+        Some("declared-here-only"),
+        Some("rcdc5"),
+        Some(crate::sidecar::budget::BudgetDeclaration {
+            deadline_ms: Some(300_000),
+            ..Default::default()
+        }),
+        // Same args, written in the other order — the classic JSON key-ordering trap.
+        serde_json::json!({ "depth": 2, "path": "note.md" }),
+    ))
+    .await;
+
+    assert_eq!(
+        plain["refarm.scenario.hash"], governed["refarm.scenario.hash"],
+        "budget, workspace, scenario id, effort id, task id, args.replyRef and key order are all excluded from the hash"
+    );
+
+    let different_work = observation_for_dispatched(scenario_effort(
+        None,
+        None,
+        None,
+        serde_json::json!({ "path": "other.md", "depth": 2 }),
+    ))
+    .await;
+    assert_ne!(
+        plain["refarm.scenario.hash"], different_work["refarm.scenario.hash"],
+        "a different request is a different scenario"
+    );
+}
+
+#[test]
+fn an_effort_with_no_dispatch_time_resolution_records_neither_scenario_field() {
+    // The restart-mid-run case the budget stash already handles: this process
+    // finalises an effort it never dispatched, so `dispatched_scenarios` holds
+    // nothing for it. Both fields are omitted rather than reconstructed — the
+    // tasks are gone and the declared id never had another home, so anything
+    // written here would be a guess.
+    let tmp = std::env::temp_dir().join(format!("tractor-observation-noscenario-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp).expect("create tmp");
+    let namespace = std::env::temp_dir()
+        .join(format!("tractor-observation-noscenario-ns-{}.db", uuid::Uuid::new_v4()))
+        .to_str()
+        .expect("utf8 path")
+        .to_owned();
+    let state = SidecarState::for_test(&tmp, &namespace).expect("state");
+    let effort_id = format!("obs-noscenario-{}", uuid::Uuid::new_v4());
+
+    write_budget_observation(&state, &effort_id, None, None, "failed", None);
+
+    let storage = crate::storage::NativeStorage::open(&namespace).expect("open storage");
+    let rows = storage.query_nodes("BudgetObservation").expect("query nodes");
+    let node = rows
+        .iter()
+        .find_map(|row| {
+            let value: serde_json::Value = serde_json::from_str(&row.payload).ok()?;
+            (value.get("effort_id").and_then(|v| v.as_str()) == Some(effort_id.as_str())).then_some(value)
+        })
+        .expect("a BudgetObservation node for this effort");
+
+    for key in ["refarm.scenario.id", "refarm.scenario.hash"] {
+        assert!(
+            node.get(key).is_none(),
+            "{key} must be absent when dispatch left no resolution to read back: {node}"
+        );
+    }
 }

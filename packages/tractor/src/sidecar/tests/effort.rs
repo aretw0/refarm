@@ -1341,6 +1341,7 @@ async fn sidecar_in_flight_carries_the_deadline_dispatch_resolved() {
                 max_usd_millis: None,
             }),
             workspace_id: None,
+            scenario_id: None,
         },
     );
 

@@ -331,6 +331,33 @@ fn dispatched_budgets() -> &'static std::sync::RwLock<std::collections::HashMap<
     STORE.get_or_init(|| std::sync::RwLock::new(std::collections::HashMap::new()))
 }
 
+/// WHICH WORK each in-flight effort is, keyed by effort id, for
+/// `record_budget_observation` to read back at finalisation. The same
+/// dispatch→finalisation hand-off `dispatched_budgets` above performs, with the
+/// same lifetime, the same single consumer, and the same "removal there IS its
+/// cleanup" rule — read that function's doc first; this is that pattern applied,
+/// not a second one invented.
+///
+/// Re-deriving at finalisation is not merely wasteful here, it is impossible:
+/// `Effort.tasks` survives only in `SidecarState.efforts_input` (in-process,
+/// reaped at 24h) and the DECLARED id has no other home at all. So absence is
+/// honest and permanent, exactly as it is for the budget — an effort finalised
+/// by a process that did not dispatch it (a restart mid-run) records no
+/// scenario, the same way it records no budget family.
+///
+/// Stashed for EVERY effort, not only the `agent` ones the budget stash gates
+/// on: a budget governs only a `respond`, but "which work was this" is a
+/// property of the REQUEST, and a router-dispatched `vault:extract` is work
+/// whose repeats are just as comparable as an agent turn's.
+fn dispatched_scenarios(
+) -> &'static std::sync::RwLock<std::collections::HashMap<String, super::scenario::DispatchedScenario>>
+{
+    static STORE: std::sync::OnceLock<
+        std::sync::RwLock<std::collections::HashMap<String, super::scenario::DispatchedScenario>>,
+    > = std::sync::OnceLock::new();
+    STORE.get_or_init(|| std::sync::RwLock::new(std::collections::HashMap::new()))
+}
+
 /// Every dispatch-time resolved `deadline_ms`, keyed by effort id — a SNAPSHOT.
 /// Reads without taking: `record_budget_observation` is still the one and only
 /// consumer entitled to remove an entry, and a reader that removed one would
@@ -444,6 +471,22 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
         if let Ok(mut store) = dispatched_budgets().write() {
             store.insert(effort.id.clone(), resolved_budget);
         }
+    }
+
+    // WHICH WORK this is — the declared scenario id the caller carried, and the
+    // hash derived from the request shape that exists HERE and nowhere at
+    // finalisation. Ungated by activity kind (see `dispatched_scenarios`'s doc):
+    // unlike a budget, a scenario describes the request, and every effort has
+    // one. Resolved synchronously, before the spawn below, for the same reason
+    // the budget fold is — finalisation could otherwise race the stash.
+    if let Ok(mut store) = dispatched_scenarios().write() {
+        store.insert(
+            effort.id.clone(),
+            super::scenario::DispatchedScenario {
+                id: super::scenario::declared_scenario_id(effort.scenario_id.as_deref()),
+                hash: super::scenario::scenario_hash(&effort.tasks),
+            },
+        );
     }
 
     tokio::spawn(async move {
@@ -768,7 +811,21 @@ fn record_budget_observation(
         );
     }
 
-    super::observation::write_budget_observation(state, effort_id, resolved, status, elapsed_ms);
+    // WHICH WORK this was — taken (not merely read) the same way the budget is,
+    // and for the same reason: one terminal effort, one consumer, so removal
+    // here is the whole of its cleanup. No `warn` on absence, unlike the budget
+    // above: an effort that declared no scenario and carried no hashable request
+    // is an ordinary, expected state of field use, not a signal that something
+    // went wrong. Both halves ride together — a missing entry omits both fields
+    // rather than reconstructing either (D6).
+    let scenario = dispatched_scenarios()
+        .write()
+        .ok()
+        .and_then(|mut store| store.remove(effort_id));
+
+    super::observation::write_budget_observation(
+        state, effort_id, resolved, scenario, status, elapsed_ms,
+    );
 }
 
 /// Finalise an effort ONLY if it has not already reached a terminal state.
@@ -1109,6 +1166,7 @@ mod tests {
             submitted_at: "2026-01-01T00:00:00Z".to_string(),
             budget: None,
             workspace_id: None,
+            scenario_id: None,
         }
     }
 

@@ -231,7 +231,14 @@ fn json_leaf(value: &Value) -> String {
 /// key-sorted objects, arrays in order, leaves via `json_leaf`. This is the ONLY
 /// correct digest input — `serde_json::to_string` would differ in number
 /// formatting and diverge from the TS revision.
-fn canonical_json(value: &Value) -> String {
+///
+/// `pub(crate)` (re-exported as `crate::host::canonical_json`) because the config
+/// node's revision is no longer the only digest this crate takes over arbitrary
+/// JSON: `sidecar::scenario` hashes a dispatch's request shape, and it must sort
+/// keys the same way, format numbers the same way, and stay reproducible from the
+/// TS side the same way. A second canonicaliser is exactly how two digests over
+/// "the same" JSON drift apart.
+pub(crate) fn canonical_json(value: &Value) -> String {
     match value {
         Value::Array(items) => {
             let inner: Vec<String> = items.iter().map(canonical_json).collect();

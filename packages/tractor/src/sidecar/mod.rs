@@ -152,6 +152,15 @@ pub struct Effort {
     /// `None`, never `""`.
     #[serde(default)]
     pub workspace_id: Option<String>,
+    /// The scenario this dispatch DECLARES itself to be an instance of — the
+    /// caller's claim that this run and other runs bearing the same id are the
+    /// same task and may be compared (`refarm dispatch --scenario <id>`).
+    /// Declared, never invented: a dispatch that names none sends no field at
+    /// all and the observation records no `refarm.scenario.id`, rather than a
+    /// null or an id derived from something else. See `sidecar::scenario` for
+    /// why this is a different kind of thing from the hash that rides beside it.
+    #[serde(default)]
+    pub scenario_id: Option<String>,
 }
 
 type EffortStore = Arc<RwLock<HashMap<String, EffortResult>>>;
@@ -782,6 +791,9 @@ pub use dispatch::{
 // The BudgetObservation record (Task 10 of the budget laboratory) — written from
 // `dispatch::finalise_effort`, the single place every terminal effort passes through.
 mod observation;
+// WHICH WORK a run was (`refarm.scenario.id` / `.hash`) — resolved at dispatch,
+// where the request shape exists, and read back onto the observation above.
+mod scenario;
 mod reap;
 // Safe restart: what is in flight right now (`GET /efforts/in-flight`) and the
 // bounded drain a shutdown runs over it. `pub(crate)` because `daemon::shutdown`

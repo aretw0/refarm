@@ -45,6 +45,11 @@ pub(crate) use host_effects_bridge::{read_refarm_config_value_at, spawn_env_from
 pub(crate) use plugin_host::config_node::{
     declared_base, SOVEREIGN_BASE_KEY, SOVEREIGN_DIR_SELECTOR_KEY,
 };
+/// Recursive key-sorted JSON canonicalisation — the ONE canonical form this crate
+/// digests arbitrary JSON through. Re-exported for `sidecar::scenario`, which hashes
+/// a dispatch's request shape and must agree with the config node's revision digest
+/// on what "the same JSON" means. See that function's doc for why there is only one.
+pub(crate) use plugin_host::config_node::canonical_json;
 // `SurfaceExpose`/`SurfaceGate` never appear in a signature main.rs has to name (they are
 // only reachable through `SurfaceDeclaration`'s `pub(crate)` fields), but `bind_guard`
 // (same crate, different module) still needs to match on them.

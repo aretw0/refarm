@@ -17,6 +17,12 @@
 //! (declared, mutable) and `host.id` (opaque, per-installation, never replicated) —
 //! see `node_identity.rs` for the two identifiers and why they resolve so
 //! differently, and `node_descriptor.rs` for the OTHER place they are published.
+//!
+//! Records WHICH WORK the effort was as of the scenario work: `refarm.scenario.id`
+//! (declared by a caller) and `refarm.scenario.hash` (derived from the request
+//! shape) — see `scenario.rs` for why those two are different in kind, what the
+//! hash covers, and what it deliberately excludes. Both are resolved at DISPATCH
+//! and read back here, the same hand-off the resolved budget uses.
 
 use super::SidecarState;
 
@@ -56,6 +62,19 @@ pub(crate) struct ObservationInput<'a> {
     /// first-boot persist — see that function's doc). Never derived from anything that
     /// could be shared across machines.
     pub node_id: Option<&'a str>,
+    /// The scenario a caller DECLARED this run to be an instance of. `None` —
+    /// and therefore the field absent — for the whole of undeclared field use,
+    /// which is most of it. Never invented and never back-filled from the hash
+    /// below: an id is a claim of equivalence between runs, and only the caller
+    /// can make it. See `sidecar::scenario` for the full distinction.
+    pub scenario_id: Option<&'a str>,
+    /// The hash DERIVED from this run's request shape (plugin, verb, args),
+    /// which is what makes undeclared field use comparable at all. `None` when
+    /// no dispatch-time resolution was stashed for this effort (a restart
+    /// mid-run) or when there was no request to hash — omitted, per D6, rather
+    /// than reconstructed here. Arrives together with `scenario_id` from the one
+    /// `DispatchedScenario` `record_budget_observation` took.
+    pub scenario_hash: Option<&'a str>,
 }
 
 /// Mint the `@id` for a new `BudgetObservation` node. Local to this module
@@ -221,9 +240,20 @@ pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json:
         );
     }
 
-    // Field use has no scenario. The bench (spec slices 6-8) sets these.
-    map.insert("refarm.scenario.id".into(), serde_json::Value::Null);
-    map.insert("refarm.scenario.hash".into(), serde_json::Value::Null);
+    // WHICH WORK this was, so two runs can be compared — the one thing this
+    // record lacked, and the premise ("field use has no scenario") that used to
+    // write both of these as an explicit null. Two fields, different in kind:
+    // `.id` is DECLARED by a caller, `.hash` is DERIVED from the request shape.
+    // See `sidecar::scenario` for what goes into the hash and what is
+    // deliberately excluded from it.
+    //
+    // OMITTED rather than null, per D6. The null they replace was on every
+    // observation ever written, and a null meaning "nobody declared a scenario"
+    // is indistinguishable, once a thousand rows are aggregated, from a null
+    // meaning "we could not tell" — which is exactly the state a restart
+    // mid-run leaves behind.
+    put_opt(&mut map, "refarm.scenario.id", input.scenario_id.map(Into::into));
+    put_opt(&mut map, "refarm.scenario.hash", input.scenario_hash.map(Into::into));
 
     put_opt(&mut map, "prompt_ref", input.prompt_ref.map(Into::into));
     put_opt(&mut map, "refarm.workspace.id", input.workspace_id.map(Into::into));
@@ -284,17 +314,22 @@ pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json:
 /// degrades to "skip the record" and logs at `warn`. The instrument may lose a
 /// data point; it may not cost an operation.
 ///
-/// `resolved` and `elapsed_ms` arrive as `Option` from the caller
+/// `resolved`, `scenario` and `elapsed_ms` arrive as `Option` from the caller
 /// (`record_budget_observation`): `resolved` is the dispatch-time fold taken
 /// from `dispatch::dispatched_budgets()` (never re-resolved here — see that
-/// function's doc), `None` only when no entry was found; `elapsed_ms` is
-/// `None` only when the effort's timestamps failed to parse. Either absence
-/// degrades gracefully via `put_opt`/the `if let` in `build_observation_node`
-/// — the rest of the record is written regardless (D6).
+/// function's doc), `None` only when no entry was found; `scenario` is the
+/// dispatch-time resolution of WHICH WORK this was, taken from
+/// `dispatch::dispatched_scenarios()` and likewise never re-derived here (the
+/// tasks it derives from are not in hand at this point, and the declared id
+/// never was); `elapsed_ms` is `None` only when the effort's timestamps failed
+/// to parse. Any of those absences degrades gracefully via `put_opt`/the
+/// `if let` in `build_observation_node` — the rest of the record is written
+/// regardless (D6).
 pub(crate) fn write_budget_observation(
     state: &SidecarState,
     effort_id: &str,
     resolved: Option<super::budget::ResolvedBudget>,
+    scenario: Option<super::scenario::DispatchedScenario>,
     outcome: &str,
     elapsed_ms: Option<u64>,
 ) {
@@ -350,6 +385,11 @@ pub(crate) fn write_budget_observation(
         steps_completed: steps_completed_from_usage(usage.as_ref()),
         steps_planned: None,
         resolved,
+        // Split here, at the record boundary, from the ONE `DispatchedScenario`
+        // the caller took — the two halves live together in the stash precisely
+        // so that "no resolution" cannot yield half a scenario.
+        scenario_id: scenario.as_ref().and_then(|s| s.id.as_deref()),
+        scenario_hash: scenario.as_ref().and_then(|s| s.hash.as_deref()),
         usage,
     });
 
