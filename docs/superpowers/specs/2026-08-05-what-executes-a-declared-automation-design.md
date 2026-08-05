@@ -139,6 +139,60 @@ automation is written. `.project/automations.json` is a project file, and the go
 home — most plausibly beside the sovereign config the node already reads — and the writer needs to
 know which one it is addressing.
 
+### D9. The workspace scope starts in refarm, because rcdc5's preconditions are not satisfiable yet
+
+The operator proposed starting the workspace scope in either refarm itself or rcdc5, and was
+sceptical, in his words, because rcdc5's operations need a VPN and sometimes a
+user-plus-password-plus-MFA or a QR code — and "ephemeral automations are hard when control and
+sovereignty are the long-term goal."
+
+The scepticism is correct, and measurement makes it sharper than the intuition. **An automation is
+only automatic if its preconditions can be satisfied without a human**, and rcdc5's cannot.
+
+What already exists, measured:
+
+- rcdc5's VPN is **already a declared, shell-free workspace command** (`vpn` in its commands
+  allowlist), so invoking it is not the problem.
+- The node can **already ask a human a question on whichever device they are holding** — the
+  pending-prompt system works today, and its own test output shows answers arriving from
+  `my-phone` and `delivery:pocket`.
+- A non-terminal effort **already survives the process that created it**: `load_persisted_efforts`
+  restores it at boot.
+
+What does not exist, and these are the named prerequisites for rcdc5:
+
+1. **A question that outlives its asker.** `packages/tractor/src/sidecar/pending_prompt.rs` states
+   it as principle P1: *a pending prompt's lifetime is its asker's lifetime, nothing persists*.
+   That is not an oversight to patch; it is a decision, and it is exactly what a nightly job
+   blocked on an MFA push needs to be different. Either P1 is revisited or a second kind of prompt
+   exists — durable, addressed to the operator rather than to a session. Without it, an automation
+   that asks for MFA dies at the first restart between the push and the answer.
+2. **Something that resumes a persisted non-terminal effort.** The state survives and nothing
+   picks it up — the "ghosts" the safe-restart work reported are precisely this half-built. Until
+   something resumes them, "waiting for a human" and "dead" are indistinguishable from outside.
+
+So the workspace scope's first consumer is **refarm's own workspace**, whose automations —
+verifying the rate catalog, checking runtime freshness, running `refarm health` — have
+preconditions the node satisfies alone. Zero VPN, zero interactive auth, a real consumer, and the
+executor proven before the hard case is attempted.
+
+With both prerequisites in place, an rcdc5 automation becomes ordinary: run, call the already
+declared `vpn` verb, suspend on the phone push, resume whenever the operator answers. That is not a
+second path — it is what happens when the ephemeral parts are made durable, which is the operator's
+stated requirement rather than a new mechanism.
+
+### D10. An automation declares its preconditions, and the scheduler refuses what it cannot satisfy
+
+The same rule D2 sets for a restart on a node with no supervisor, generalised, and it is what keeps
+D9's honesty from depending on discipline.
+
+An automation that needs something the node cannot provide unattended is **refused at scheduling
+time, with the reason**, rather than accepted and left to fail at three in the morning into a log
+nobody reads. A refusal an operator sees while declaring is worth more than a failure they discover
+a week later, and it is the same three-state discipline everything else here follows: schedulable,
+refused-with-reason, and undecidable — never a silent fourth state where it was accepted and simply
+never worked.
+
 ## Open questions
 - **Which cron parser?** No evaluator exists, and this repository is deliberately dependency-light. A standard cron expression is small to parse and easy to get subtly wrong (day-of-week versus day-of-month interaction is the classic). Vendoring a well-tested crate or package is likely better than hand-rolling, and the choice deserves the same source-and-date discipline every other external dependency here now carries.
 **`daily-handoff` is settled, and it costs nothing.** The operator confirms the declaration is
