@@ -44,7 +44,7 @@ describe("runtime freshness", () => {
 		// node does not say. Answering `fresh` there would be the defect this file removes.
 		const result = resolveRuntimeFreshness(null, PLUGIN);
 		expect(result.state).toBe("unknown");
-		expect(result.artifacts[0].reason).toMatch(/does not say/);
+		expect(result.artifacts[0]?.reason).toMatch(/does not say/);
 	});
 
 	it("says unknown when startedAt cannot be parsed", () => {
