@@ -42,6 +42,29 @@ export interface RuntimeAgentRespondEffortOptions {
 	 * no verdict rather than a null that would read as "checked and inconclusive".
 	 */
 	expectation?: string;
+	/**
+	 * WHICH WORKSPACE this run belongs to — the axis that separates one project's cost
+	 * from another's, measured blank on 16 of 16 `refarm ask` runs before this existed.
+	 *
+	 * Travels TWICE, to two consumers, from one resolved value: at the Effort root for
+	 * the sidecar, which writes `refarm.workspace.id` onto the BudgetObservation, and in
+	 * `args` for the agent, which stamps it on the Session node so later runs in the same
+	 * session inherit it instead of re-deriving.
+	 *
+	 * Absent when nobody declared one, exactly like `scenarioId` and `expectation`.
+	 */
+	workspaceId?: string;
+	/**
+	 * HOW the workspace above was arrived at: `declared` when a human typed
+	 * `--workspace`, `seeded-from-cwd` when it was inferred at session creation from the
+	 * directory the operator stood in.
+	 *
+	 * Not decoration. `workspaceId` selects budget folds and, later, per-workspace policy,
+	 * and ADR-094's H2 permits cwd as authoring convenience but not as policy truth. A
+	 * seed that could not be told apart from a declaration would honour that rule in form
+	 * while breaking it in substance.
+	 */
+	workspaceSource?: "declared" | "seeded-from-cwd";
 	now?: () => Date;
 	randomUUID?: () => string;
 }
@@ -57,6 +80,8 @@ export function createRuntimeAgentRespondEffort({
 	profile,
 	scenarioId,
 	expectation,
+	workspaceId,
+	workspaceSource,
 	now = () => new Date(),
 	randomUUID = () => crypto.randomUUID(),
 }: RuntimeAgentRespondEffortOptions): Effort {
@@ -72,6 +97,12 @@ export function createRuntimeAgentRespondEffort({
 
 	const declaredScenario = scenarioId?.trim();
 	const declaredExpectation = expectation?.trim();
+	const declaredWorkspace = workspaceId?.trim();
+
+	if (declaredWorkspace) {
+		args.workspace_id = declaredWorkspace;
+		if (workspaceSource) args.workspace_source = workspaceSource;
+	}
 
 	return {
 		id: randomUUID(),
@@ -85,6 +116,10 @@ export function createRuntimeAgentRespondEffort({
 		// declaration either — it is a substring of every answer, so it would record a
 		// meaningless `passed: true` on every run that answered anything.
 		...(declaredExpectation ? { expectation: declaredExpectation } : {}),
+		// Same spread-or-nothing rule as the two above. The root field is what the sidecar
+		// reads onto the observation; `args.workspace_id` above is what the agent reads onto
+		// the Session node. One value, two readers, no null between them.
+		...(declaredWorkspace ? { workspaceId: declaredWorkspace } : {}),
 		tasks: [
 			{
 				id: randomUUID(),
