@@ -48,18 +48,30 @@ export function parsePluginArgFromCommandLine(commandLine: string[]): string | u
 	return undefined;
 }
 
+/**
+ * Parse the NUL-separated command line from /proc/<pid>/cmdline.
+ * Splits on NUL bytes and removes only the trailing empty string produced by the terminating NUL,
+ * preserving any interior empty arguments as they appear in the actual argv.
+ */
+export function parseProcCommandLine(raw: string): string[] | null {
+	const parts = raw.split("\0");
+	// Remove only the trailing empty string produced by the terminating NUL
+	if (parts.length > 0 && parts[parts.length - 1] === "") {
+		parts.pop();
+	}
+	return parts.length > 0 ? parts : null;
+}
+
 function defaultReadCommandLine(pid: number): string[] | null {
 	try {
-		// NUL-separated, with a trailing NUL — the empty tail is dropped, not kept as an arg.
 		const raw = readFileSync(`/proc/${pid}/cmdline`, "utf8");
-		const parts = raw.split("\0").filter((p) => p.length > 0);
-		return parts.length > 0 ? parts : null;
+		return parseProcCommandLine(raw);
 	} catch {
 		return null;
 	}
 }
 
-function defaultHashFile(target: string): string | null {
+export function defaultHashFile(target: string): string | null {
 	try {
 		return createHash("sha256").update(readFileSync(target)).digest("hex");
 	} catch {
