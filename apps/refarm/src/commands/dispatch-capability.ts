@@ -36,6 +36,14 @@ import { submitEffortViaSidecar } from "./dispatch-submit.js";
  * always been able to fold but nothing ever set `Effort.workspaceId` to make reachable. Declared,
  * never detected: there is no cwd fallback, on purpose (see `parseWorkspaceOption`). Omitting the
  * flag sends no `workspaceId` field at all, so the wire stays byte-identical to today's dispatch.
+ *
+ * `--scenario <id>` declares WHICH WORK this run is an instance of, so two runs become
+ * comparable (`Effort.scenarioId` → `refarm.scenario.id` on the node's `BudgetObservation`).
+ * A scenario id is a claim of equivalence between runs — "these are the same task, compare
+ * them" — and only the caller who knows that may make it, which is why it is declared and
+ * never inferred. Omitting the flag sends no `scenarioId` field and the observation records
+ * no id; the node still derives `refarm.scenario.hash` from the request shape on its own, so
+ * undeclared work stays comparable to identical undeclared work. See `parseScenarioOption`.
  */
 export interface DispatchCommandDeps {
 	submitEffort: SubmitEffort;
@@ -68,11 +76,16 @@ export type BudgetDeclaration = {
 	maxUsd?: number;
 };
 
-/** An Effort carrying the optional budget a spawner declared, and/or the workspace it was
- *  dispatched from — a local augmentation of the shared `Effort` type (which declares neither
- *  field), never a change to it. `workspaceId` mirrors the sidecar's own `Effort.workspace_id`
- *  (`packages/tractor/src/sidecar/mod.rs`), the wire's camelCase spelling of the same field. */
-type DispatchEffort = Effort & { budget?: BudgetDeclaration; workspaceId?: string };
+/** An Effort carrying the optional budget a spawner declared, the workspace it was dispatched
+ *  from, and/or the scenario it declares itself an instance of — a local augmentation of the
+ *  shared `Effort` type (which declares none of them), never a change to it. `workspaceId` and
+ *  `scenarioId` mirror the sidecar's own `Effort.workspace_id` / `Effort.scenario_id`
+ *  (`packages/tractor/src/sidecar/mod.rs`), the wire's camelCase spelling of the same fields. */
+type DispatchEffort = Effort & {
+	budget?: BudgetDeclaration;
+	workspaceId?: string;
+	scenarioId?: string;
+};
 
 const BUDGET_OPTION_FIELDS: ReadonlyArray<{ flag: string; key: keyof BudgetDeclaration }> = [
 	{ flag: "budget-deadline-ms", key: "deadlineMs" },
@@ -158,6 +171,42 @@ export function parseWorkspaceOption(
 	return { workspaceId: trimmed };
 }
 
+/**
+ * Parse `--scenario` into the wire's `scenarioId` — the caller's declaration of WHICH WORK this
+ * run is, the field that lets two `BudgetObservation` records be compared as runs of one task.
+ *
+ * Same "parse once, reuse, absent means absent" shape as {@link parseWorkspaceOption}, and the
+ * same reason it is a declaration rather than a derivation: the node ALREADY derives what it can
+ * on its own (`refarm.scenario.hash`, over the request shape). What it cannot derive is the claim
+ * that two DIFFERENT requests — a prompt reworded, the same task asked of two models — are the
+ * same task and belong in one comparison. Only the caller knows that, so only the caller declares
+ * it, and a flag never passed produces no key at all rather than an id guessed from the request.
+ *
+ * A present value must be non-empty after trimming and free of whitespace. Colons are ALLOWED,
+ * unlike `--workspace`: that flag forbids them because `workspaceRemoteOperationId` builds ids
+ * containing colons and two spellings of "a workspace id" would drift apart, a constraint no
+ * scenario id has — `bench:summarise-v1` is a perfectly good name for a scenario.
+ */
+export function parseScenarioOption(
+	options: Record<string, string | string[] | boolean>,
+): { scenarioId?: string } | { error: string } {
+	const raw = options.scenario;
+	if (raw === undefined) return {};
+	if (typeof raw !== "string") {
+		return { error: `--scenario must be a scenario id, got ${JSON.stringify(raw)}` };
+	}
+	const trimmed = raw.trim();
+	if (trimmed.length === 0) {
+		return { error: "--scenario must not be empty" };
+	}
+	if (/\s/.test(trimmed)) {
+		return {
+			error: `--scenario must not contain whitespace, got ${JSON.stringify(raw)}`,
+		};
+	}
+	return { scenarioId: trimmed };
+}
+
 export function createDispatchCapability(
 	deps: DispatchCommandDeps = defaultDispatchDeps(),
 ): CapabilityDescriptor {
@@ -192,6 +241,12 @@ export function createDispatchCapability(
 				kind: "string",
 				summary:
 					"Bind this dispatch to a declared workspace id, for budget.workspaces ceilings (omit for no workspace binding)",
+			},
+			{
+				name: "scenario",
+				kind: "string",
+				summary:
+					"Declare which work this run is, so runs of the same task can be compared (omit to record no scenario id)",
 			},
 		],
 		async run(input) {
@@ -233,6 +288,18 @@ export function createDispatchCapability(
 				});
 			}
 
+			const parsedScenario = parseScenarioOption(input.options);
+			if ("error" in parsedScenario) {
+				return buildJsonErrorEnvelope({
+					command: "dispatch",
+					operation: "dispatch",
+					error: "invalid-args",
+					message: parsedScenario.error,
+					nextAction:
+						"Pass a bare scenario id, e.g. `--scenario summarise-v1`. Omit the flag to record no scenario id (the node still hashes the request).",
+				});
+			}
+
 			const effort: DispatchEffort = buildDispatchEffort(
 				{ pluginId, verb, args: parsed.args },
 				deps.newId,
@@ -243,6 +310,9 @@ export function createDispatchCapability(
 			}
 			if (parsedWorkspace.workspaceId) {
 				effort.workspaceId = parsedWorkspace.workspaceId;
+			}
+			if (parsedScenario.scenarioId) {
+				effort.scenarioId = parsedScenario.scenarioId;
 			}
 
 			try {

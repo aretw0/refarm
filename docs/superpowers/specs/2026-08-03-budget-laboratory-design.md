@@ -266,7 +266,8 @@ the standard speaks; `refarm.*` only where it is silent.
 | `refarm.outcome` | `done` \| `failed` \| `timed-out` \| `cancelled` \| `delivered` \| `partial` |
 | `refarm.outcome.steps_completed` / `.steps_planned` | ours; this is how "4/25" becomes data |
 | `refarm.elapsed_ms`, `refarm.cost.estimated_usd` | derived |
-| `refarm.scenario.id` / `.hash` | **null in field use**, set on the bench |
+| `refarm.scenario.id` | ours; **declared** by the caller (`refarm dispatch --scenario`), **absent** — never null — when nobody declared one |
+| `refarm.scenario.hash` | ours; **derived** at dispatch from the request shape (plugin + verb + args), absent when there is no request to hash |
 
 **Every field above is a top-level key on the node, flat.** The `gen_ai.*` values are joined in from
 the run's `UsageRecord` and written out beside the budget fields, not nested under an opaque `usage`
@@ -287,9 +288,28 @@ above was silently narrower than the record it was documenting.
 reality: after D9 there is no single "ceiling", there is a node one and a workspace one, and saying
 which is the whole value of the field. Two fields answering one question is how they drift apart.
 
+**`refarm.scenario.*` reached field use on 2026-08-05.** The row above used to read "null in field
+use, set on the bench", on the premise that only a synthetic sweep names what it is running. That
+premise is what the operator reversed — *cultivate and harvest at the same time*: daily work itself
+should answer which models are better, which requires the daily work to be identifiable, not a
+separate benchmark to be built first. The two fields are now different in kind and resolved at
+DISPATCH (`sidecar/scenario.rs`), then read back at finalisation through the same stash the resolved
+budget uses:
+
+- **`.id` is declared.** A scenario id is a claim of equivalence between runs — "these are the same
+  task, compare them" — so only a caller can make it (`refarm dispatch --scenario <id>` →
+  `Effort.scenarioId`). Undeclared means the key is **absent**, never null and never invented.
+- **`.hash` is derived** from the request shape alone (each task's `pluginId`, effective verb and
+  `args`, canonicalised key-sorted before the digest), which is what makes *undeclared* field use
+  comparable at all. It deliberately excludes everything that is a condition rather than the work:
+  budget, deadline, workspace, spawner, the effort/task ids and the per-submission `args.replyRef`.
+  A run that reaches finalisation with no dispatch-time resolution (a restart mid-run) records
+  **neither** field rather than reconstructing either.
+
 **The property that makes the laboratory permanent rather than a study:** the node has the *same
 shape* whether it came from Termux at 7am or from a synthetic sweep. Both land in one table,
-distinguished only by `scenario.id`. Real life never stops feeding the instrument.
+distinguished by `scenario.id` where one was declared and joinable by `scenario.hash` where none
+was. Real life never stops feeding the instrument.
 
 ### D3 — Record everything, labelled; publish the bench, aggregated
 
