@@ -25,11 +25,22 @@
 //!
 //! What replaced it: the TypeScript side MATERIALISES the shipped artifact into the
 //! sovereign dir (`refarm plugin install --bundled` / `plugin update`, the pass
-//! `scripts/tractor-start.sh` already runs before every daemon start). It writes the
-//! file only when it is absent, so a node's correction survives every restart. If
-//! nothing materialised it, this host injects NOTHING and the guest falls back to its
-//! built-in table — see `packages/agent/src/utils.rs`. That fallback is the reason
-//! "no catalog" is a safe answer and "everything is free" is never one.
+//! `scripts/tractor-start.sh` already runs before every daemon start).
+//!
+//! That writer used to be create-if-absent, which meant a node kept its first copy
+//! forever and a corrected rate could never reach it. It now keeps a record of what it
+//! wrote — hash and `catalogVersion` — so it can tell an untouched copy from an edited
+//! one: an untouched copy is UPDATED when a newer catalog ships, an edited one is KEPT
+//! and the operator is told a newer version exists, and a copy with no record is kept
+//! and reported as unverifiable rather than guessed either way. A node's correction
+//! still survives every restart; what changed is that an uncorrected node stops being
+//! frozen at whatever it first received.
+//!
+//! None of that is this host's business. It reads one file at one path, and everything
+//! above is why that file may change between two starts. If nothing materialised it,
+//! this host injects NOTHING and the guest falls back to its built-in table — see
+//! `packages/agent/src/utils.rs`. That fallback is the reason "no catalog" is a safe
+//! answer and "everything is free" is never one.
 
 use std::path::{Path, PathBuf};
 
