@@ -343,7 +343,7 @@
 		"farmhand:start": "bash scripts/farmhand-start.sh",
 		"farmhand:daemon": "bash scripts/farmhand-start.sh --background",
 		"farmhand:stop": "node scripts/farmhand-stop.mjs",
-		"agent:install": "node scripts/agent-install.mjs",
+		"agent:install": "node scripts/install-refarm-cli.mjs --build && node apps/refarm/dist/index.js plugin install --bundled --force",
 		"agent:start": "bash scripts/tractor-start.sh",
 		"agent:daemon": "bash scripts/tractor-start.sh --background",
 		"agent:stop": "node scripts/agent-stop.mjs",

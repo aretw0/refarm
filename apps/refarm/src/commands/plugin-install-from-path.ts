@@ -18,7 +18,7 @@ import {
 	loadReviewableManifest,
 	type ExtensionReviewReport,
 } from "./plugin-review-capability.js";
-import { pluginIdToFsToken, pluginsBaseDir, sentinelPath } from "./plugin-shared.js";
+import { installedPluginDir, sentinelPath } from "./plugin-shared.js";
 
 /**
  * Install a PREPARED, REVIEWED extension from a path — the missing link that
@@ -196,7 +196,7 @@ export async function buildExtensionInstallReport(
 		});
 	}
 
-	const destDir = path.join(pluginsBaseDir(), pluginIdToFsToken(pluginId));
+	const destDir = installedPluginDir(pluginId);
 	await mkdir(destDir, { recursive: true });
 	const destEntry = path.join(destDir, resolvedEntry.destName);
 	copyFileSync(resolvedEntry.src, destEntry);

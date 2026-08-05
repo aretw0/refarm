@@ -18,7 +18,7 @@ const prompt = String(
 mkdirSync(outDir, { recursive: true });
 
 assert(existsSync(REFARM_CLI), `refarm CLI missing: ${relative(REFARM_CLI)}. Run: pnpm -C apps/refarm run build`);
-assert(existsSync(refarmHome), `REFARM_HOME missing: ${relative(refarmHome)}. Run: REFARM_HOME=$PWD/.refarm node scripts/agent-install.mjs`);
+assert(existsSync(refarmHome), `REFARM_HOME missing: ${relative(refarmHome)}. Run: REFARM_HOME=$PWD/.refarm node apps/refarm/dist/index.js plugin install --bundled`);
 
 const baseEnv = {
 	...process.env,

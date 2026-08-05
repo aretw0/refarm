@@ -24,10 +24,10 @@ import {
 import {
 	BUNDLED_PLUGINS,
 	type BundledPlugin,
-	pluginIdToFsToken,
+	installedPluginDir,
+	installedPluginWasmPath,
 	type PluginInstallReport,
 	type PluginInstallResult,
-	pluginsBaseDir,
 	readInstalledVersion,
 	readPackageVersion,
 	sentinelPath,
@@ -50,7 +50,7 @@ export async function installedBundleIsCurrent(
 	if (installed !== version) return false;
 
 	try {
-		const manifestPath = path.join(pluginsBaseDir(), pluginIdToFsToken(plugin.id), "plugin.json");
+		const manifestPath = path.join(installedPluginDir(plugin.id), "plugin.json");
 		const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as {
 			integrity?: unknown;
 			capabilities?: { provides?: unknown };
@@ -142,10 +142,13 @@ export async function installPlugin(
 			};
 		}
 
-		const destDir = path.join(pluginsBaseDir(), pluginIdToFsToken(plugin.id));
+		// The one function that names an install directory — the same one
+		// scripts/tractor-start.sh asks (through scripts/installed-plugin-path.mjs) for the
+		// path it loads. Two spellings of this is exactly the defect this converged.
+		const destDir = installedPluginDir(plugin.id);
 		await mkdir(destDir, { recursive: true });
 
-		copyFileSync(wasmSrc, path.join(destDir, "plugin.wasm"));
+		copyFileSync(wasmSrc, installedPluginWasmPath(plugin.id));
 
 		// E2: also store the .wasm in the content-addressed store keyed by its hash
 		// (<user>/.refarm/assets/<sha256>), mirroring how skills persist their bytes.
@@ -172,7 +175,7 @@ export async function installPlugin(
 		) as Record<string, unknown>;
 		const manifest = {
 			...template,
-			entry: `file://${path.join(destDir, "plugin.wasm")}`,
+			entry: `file://${installedPluginWasmPath(plugin.id)}`,
 			integrity,
 		};
 		await writeFile(

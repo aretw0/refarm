@@ -35,6 +35,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MODEL_PROVIDER_HELPER="$ROOT/scripts/model-provider.sh"
+AGENT_PLUGIN_PATH_HELPER="$ROOT/scripts/agent-plugin-path.sh"
 ENV_FILE="$ROOT/.refarm/.env"
 PID_FILE="$ROOT/.refarm/tractor.pid"
 LOG_FILE="$ROOT/.refarm/tractor.log"
@@ -71,7 +72,15 @@ REFARM_CLI="$ROOT/apps/refarm/dist/index.js"
 REFARM_HOME="${REFARM_HOME:-${HOME:?HOME must be set}/.refarm}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$REFARM_HOME/data}"
 REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}"
-INSTALLED_AGENT_PLUGIN="$REFARM_HOME/plugins/@refarm/agent/plugin.wasm"
+# The npm-shaped install directory the deleted scripts/agent-install.mjs used to write.
+# FROZEN, and READ-ONLY from here: this script only falls back to it so a node installed
+# before the one-installer convergence still boots (loudly — see agent-plugin-path.sh).
+# The path the daemon normally loads is NOT spelled in this file at all; it is asked of
+# the CLI installer's own path function below.
+LEGACY_AGENT_PLUGIN="$REFARM_HOME/plugins/@refarm/agent/plugin.wasm"
+# What the CLI installer reads FROM. `refarm plugin update` installs the agent out of the
+# npm package, not out of the cargo target — see the compiled-vs-packaged notice below.
+PACKAGED_AGENT_WASM="$ROOT/packages/agent/dist/agent.wasm"
 
 # Bind hosts are resolved LATER (after .refarm/.env is sourced), because the decision
 # depends on REFARM_AUTH_POLICY and that may be set in the env file. Only the operator's
@@ -84,8 +93,15 @@ if [ ! -f "$MODEL_PROVIDER_HELPER" ]; then
   exit 1
 fi
 
+if [ ! -f "$AGENT_PLUGIN_PATH_HELPER" ]; then
+  echo "❌  agent plugin path helper not found: $AGENT_PLUGIN_PATH_HELPER"
+  exit 1
+fi
+
 # shellcheck disable=SC1090
 source "$MODEL_PROVIDER_HELPER"
+# shellcheck disable=SC1090
+source "$AGENT_PLUGIN_PATH_HELPER"
 
 # ── parse --background flag (strip before forwarding to tractor) ──────────────
 
@@ -143,23 +159,40 @@ if [ -f "$REFARM_CLI" ]; then
   [ -n "$_catalog_notice" ] && printf '%s\n' "$_catalog_notice"
 fi
 
-# Prefer the INSTALLED agent (in $REFARM_HOME/plugins) over the raw compiled artifact —
-# but only if it is not STALE. A freshly-compiled agent (e.g. after a WIT rename) whose
-# import names moved will not match the daemon's linker, and the daemon would load the old
-# installed copy and fail (`component imports instance ... not found in the linker`). So if
-# the compiled build is newer than the installed copy, reinstall it first. This is the
-# dist-stale guard: source (the compiled wasm) is truth; the install is a derived snapshot.
-if [ -f "$INSTALLED_AGENT_PLUGIN" ]; then
-  if [ -f "$AGENT_PLUGIN" ] && [ "$AGENT_PLUGIN" -nt "$INSTALLED_AGENT_PLUGIN" ]; then
-    echo "   ↻ Installed agent is older than the compiled build — reinstalling…"
-    if [ -f "$REFARM_CLI" ]; then
-      REFARM_HOME="$REFARM_HOME" CARGO_TARGET_DIR="$_CARGO_TARGET" \
-        node "$ROOT/scripts/agent-install.mjs" >/dev/null 2>&1 || true
-    fi
-  fi
-  # Use the installed copy if it (still) exists after the optional reinstall.
-  [ -f "$INSTALLED_AGENT_PLUGIN" ] && AGENT_PLUGIN="$INSTALLED_AGENT_PLUGIN"
+# The dist-stale guard used to live here as a SECOND installer: when the compiled wasm was
+# newer than the installed copy it ran `scripts/agent-install.mjs`, which read the cargo
+# target and wrote `plugins/@refarm/agent/` — a different directory from the one the CLI
+# installer writes. That is how this node ended up with two install directories and a
+# daemon loading the stale one while `refarm plugin install` truthfully reported "already
+# up-to-date" about the other. There is ONE installer now: the `refarm plugin update` pass
+# above, which compares the recorded version AND the manifest integrity against the freshly
+# hashed source — a strictly better staleness test than the mtime check this replaced,
+# because it catches a rebuild at the same version.
+#
+# The one staleness that pass cannot see is a bare `cargo component build`: it leaves the
+# npm package's copy (which is what the installer reads) behind. That is a message to the
+# human who can fix it — never a second install path from a second source.
+if [ -f "$AGENT_PLUGIN" ] && [ -f "$PACKAGED_AGENT_WASM" ] && [ "$AGENT_PLUGIN" -nt "$PACKAGED_AGENT_WASM" ]; then
+  echo "   ⚠  The compiled agent is newer than the copy 'refarm plugin install' reads:"
+  echo "        compiled: $AGENT_PLUGIN"
+  echo "        packaged: $PACKAGED_AGENT_WASM"
+  echo "      Publish the build into the package, then start again:"
+  echo "        pnpm --filter @refarm.dev/agent run build"
 fi
+
+# Prefer the INSTALLED agent (in $REFARM_HOME/plugins) over the raw compiled artifact.
+# WHERE that is comes from the CLI installer's own path function — asked, never re-spelled
+# here (scripts/installed-plugin-path.mjs → apps/refarm/src/commands/plugin-install-path.ts).
+# A bridge that answers nothing (CLI not built yet) leaves the compiled build in place.
+INSTALLED_AGENT_PLUGIN=""
+if [ -f "$REFARM_CLI" ]; then
+  INSTALLED_AGENT_PLUGIN="$(
+    REFARM_HOME="$REFARM_HOME" node "$ROOT/scripts/installed-plugin-path.mjs" 2>/dev/null || true
+  )"
+fi
+
+_resolved_agent_plugin="$(resolve_installed_agent_plugin "$INSTALLED_AGENT_PLUGIN" "$LEGACY_AGENT_PLUGIN")"
+[ -n "$_resolved_agent_plugin" ] && AGENT_PLUGIN="$_resolved_agent_plugin"
 
 if [ ! -f "$AGENT_PLUGIN" ]; then
   echo "❌  agent plugin wasm not found at $AGENT_PLUGIN"

@@ -34,7 +34,6 @@ import { setTrustedPlugin, trustConfigPath, type TrustResult } from "./plugin-tr
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import { normalizePluginId } from "@refarm.dev/config/plugin-identity";
 import os from "node:os";
-import { pluginsBaseDir } from "../utils/refarm-home.js";
 import { buildBundleReport, type RunBundleProcess } from "./plugin-bundle.js";
 import { PLUGIN_INSTALL_JSON_COMMAND, PLUGIN_STATUS_JSON_COMMAND, RUNTIME_RESTART_JSON_COMMAND } from "./plugin-handoffs.js";
 import { buildGitInstallReport } from "./plugin-install-from-git.js";
@@ -63,7 +62,7 @@ import {
 import { buildCreatedPluginReport, type CreatedExtensionReport } from "./plugin-scaffold.js";
 import {
 	detectPluginOrigin,
-	pluginIdToFsToken,
+	installedPluginDir,
 	type BundledPlugin,
 	type PluginOrigin,
 } from "./plugin-shared.js";
@@ -170,7 +169,7 @@ export function defaultPluginDeps(): PluginCommandDeps {
 	return {
 		buildListReport: buildPluginListReport,
 		readManifest: async (id) => {
-			const manifestPath = path.join(pluginsBaseDir(), pluginIdToFsToken(id), "plugin.json");
+			const manifestPath = path.join(installedPluginDir(id), "plugin.json");
 			return JSON.parse(await readFile(manifestPath, "utf-8")) as unknown;
 		},
 		readRuntimePluginState,

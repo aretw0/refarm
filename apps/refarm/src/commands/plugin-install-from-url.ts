@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { pluginIdToFsToken, pluginsBaseDir, sentinelPath } from "./plugin-shared.js";
+import { installedPluginDir, sentinelPath } from "./plugin-shared.js";
 
 /**
  * Install a plugin from a `url` reference (ADR-086 Fase 7) — the REMOTE sibling of
@@ -303,7 +303,7 @@ export async function buildUrlInstallReport(
 	}
 	const sha256 = declaredHex; // verified equal above
 	const integrity = `sha256-${sha256}`;
-	const destDir = path.join(pluginsBaseDir(), pluginIdToFsToken(descriptor.id));
+	const destDir = installedPluginDir(descriptor.id);
 	await mkdir(destDir, { recursive: true });
 	const entryDest = path.join(destDir, `plugin.${entryFormat}`);
 	await writeFile(entryDest, wasmBytes);

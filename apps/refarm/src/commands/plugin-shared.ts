@@ -8,7 +8,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { resolveRefarmHome } from "../utils/refarm-home.js";
+import { pluginsBaseDir } from "../utils/refarm-home.js";
 import type { ModelRateCatalogMaterialization } from "./model-rate-catalog.js";
 import { RUNTIME_AGENT_RELOAD_JSON_COMMAND } from "./plugin-handoffs.js";
 
@@ -155,16 +155,24 @@ export interface PluginInstallReport {
 	nextCommands?: string[];
 }
 
-export function pluginsBaseDir(): string {
-	return path.join(resolveRefarmHome(), "plugins");
-}
-
 // The filesystem-safe plugin-id projection lives with the rest of plugin
 // identity in @refarm.dev/config (neutral, shared by the CLI, the Barn, and any
 // storage backend) — never reimplemented per consumer. Re-exported so the
 // existing plugin-* command imports keep one import site, and used by
 // sentinelPath below.
 export { pluginIdToFsToken };
+
+// WHERE an installed plugin lives is one function, in one module (./plugin-install-path.ts)
+// — see its header for why. `pluginsBaseDir` used to be defined twice (here, and in
+// ../utils/refarm-home.ts) with a subtly different answer for a relative REFARM_HOME; both
+// import sites now resolve to the single sovereign-directories definition.
+export {
+	INSTALLED_PLUGIN_WASM_FILENAME,
+	installedPluginDir,
+	installedPluginWasmPath,
+	legacyScopedPluginWasmPath,
+} from "./plugin-install-path.js";
+export { pluginsBaseDir };
 
 export function readPackageVersion(pkgDir: string): string | null {
 	try {
