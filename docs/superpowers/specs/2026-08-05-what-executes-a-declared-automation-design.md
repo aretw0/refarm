@@ -111,8 +111,43 @@ with the verb×object credential scope already queued ahead of the budget spec's
 
 **No new scheduling vocabulary.** The contract already has more trigger kinds than this slice will implement. Implementing `CronTrigger` and `OneShotTrigger` covers all three customers; `EventTrigger` waits for a customer, and adding an executor for a trigger nobody fires is the written-correct-and-unreachable shape this repository has now catalogued seven times in two days.
 
-## Open questions
+### D8. Both scopes exist, and the split is the one the workspace model already describes
 
-- **Are automations node-scoped or project-scoped?** The writer produces `.project/automations.json`, which is project-scoped, and `refarm project automations` says so in its name. But two of the three customers are node concerns: restarting THIS node, and verifying rates for THIS node's catalog. A project-scoped file cannot express "this node restarts nightly" without the project being pinned to a node. This needs settling before implementation and it overlaps the workspace question the hatch spec owns.
+Settled by the operator: there will be node automations and workspace automations, and neither is
+a degenerate case of the other. The three known customers split cleanly — restarting THIS node and
+verifying THIS node's rate catalog are node concerns; anything about the contents of a vault or a
+repository is a workspace concern.
+
+This is not a new axis. It is the adoption path the workspace taxonomy already records: a project
+that carries no refarm config of its own is declared IN THE NODE's config so it can be operated at
+all, and a project that has adopted refarm carries its own declaration. An automation follows its
+subject. A nightly job about a vault that does not know refarm exists is declared on the node,
+beside the workspace declaration that makes that vault reachable in the first place.
+
+**The executor does not fork.** D1 stands: the node's loop runs everything, because the node is
+the only thing running. What the scope changes is not who fires it but what governs it — and that
+already exists. A workspace automation resolves its budget through the workspace level of D9's
+three-level fold, which is the middle level that took until 2026-08-04 to bind anything at all.
+Recurring workspace work is the consumer that makes that level earn its place: a vault sync that
+runs every night is exactly the thing an operator wants to cap per workspace rather than per run.
+
+A node automation resolves against the node level, as it does today.
+
+**What still needs deciding, and it is smaller than the scope question was:** where a node
+automation is written. `.project/automations.json` is a project file, and the governed writer
+(`refarm project automations`) says so in its name. A node-scoped automation needs a node-scoped
+home — most plausibly beside the sovereign config the node already reads — and the writer needs to
+know which one it is addressing.
+
+## Open questions
 - **Which cron parser?** No evaluator exists, and this repository is deliberately dependency-light. A standard cron expression is small to parse and easy to get subtly wrong (day-of-week versus day-of-month interaction is the classic). Vendoring a well-tested crate or package is likely better than hand-rolling, and the choice deserves the same source-and-date discipline every other external dependency here now carries.
-- **What does `daily-handoff` want to be?** It is the oldest customer and the operator does not recognise it. It may be vestigial, in which case deleting the declaration is the honest close, and this spec should not carry a customer nobody claims.
+**`daily-handoff` is settled, and it costs nothing.** The operator confirms the declaration is
+vestigial. It is also already gone: `.project/automations.json` does not exist, so there is nothing
+to delete — only test fixtures still name it. What survives is the IDEA, and it has a home: a daily
+handoff makes sense in a private or collective vault workspace operated through refarm, which is a
+workspace automation under D8 and a customer that does not exist yet.
+
+So this spec carries **two** customers, not three. The rate verifier and the scheduled restart are
+both node-scoped, which means the first implementation slice needs only the node scope — and the
+workspace scope, whose only known customer is hypothetical, waits for a real one rather than being
+built alongside.
