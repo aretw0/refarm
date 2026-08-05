@@ -12,6 +12,7 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/dispatch-surface",
 	"packages/artifact-contract-v1",
 	"packages/automation-contract-v1",
+	"packages/model-catalog-v1",
 	"packages/identity-contract-v1",
 	"packages/node-contract-v1",
 	"packages/pressure-contract-v1",
