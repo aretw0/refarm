@@ -110,6 +110,46 @@ hatch lands, it enters the order between degrees 1 and 2 — above the session's
 below the explicit selector — and the provenance marker is what lets an implementer merge the two
 without guessing which values were ever authored by a human.
 
+## Reconciliation with the "declared, never detected" ruling
+
+`parseWorkspaceOption` (`apps/refarm/src/commands/dispatch-capability.ts:136-153`) records a
+maintainer's ruling on binding a budget to a workspace: *"declared, never detected. No cwd
+fallback."* It cites a field failure, narrated in the 2026-08-03 declared-node-base design.
+
+The failure was not that cwd is untrustworthy in general. It was that **`process.cwd()` was read
+ambiently, deep inside resolution, by a process whose cwd was inherited from the daemon**. The
+operator saw `Command "code-boundaries" is not declared for workspace "rcdc5"` — a refusal produced
+by resolving declarations against a base the operator never chose. The fix that landed replaced
+ambient reads with an injected declared value.
+
+Seeding an attribution from cwd can recreate that failure, and in a worse form: the original was
+loud (exit 1, a refusal the operator saw), whereas a wrongly-seeded workspace is silent and lands on
+a cost record nobody re-reads.
+
+Two structural constraints therefore bind the implementation:
+
+1. **The resolution function never reads ambient state.** It takes an absolute path and the declared
+   roots as parameters, and reads no `process.cwd()`, no environment, no config of its own. This is
+   the same shape the field fix took.
+2. **Only the interactive CLI entry supplies the path.** That layer is the one that knows a human
+   typed a command while standing in a directory. The node — creating a session for a Telegram
+   thread or the PWA — supplies nothing, so such a session is born with no workspace. "Undeclared
+   stays undeclared downstream" is the rule `node_base_vars()`
+   (`packages/tractor/src/sidecar/remote_initiation.rs`) already applies to the base selectors:
+   nothing invents a scope, it only refuses to lose one.
+
+Environment sniffing was considered and rejected as a guard. `declaredBase(env, cwd)` returns
+`env.SOVEREIGN_BASE || cwd`, and `node_base_vars()` forwards `SOVEREIGN_BASE` to a spawned child
+*only when the node itself was told*. So the variable is absent in an ordinary operator invocation
+and may equally be absent in a spawned child: its presence distinguishes nothing. A guard built on it
+would be a guess wearing a check's clothing.
+
+**Residual risk, stated rather than hidden:** a `refarm ask` invoked by a daemon-spawned child, whose
+inherited cwd happens to fall inside a declared root, would seed from that cwd. Constraint 2 makes
+this reachable only through the interactive entry, and no current spawn path invokes `ask` — remote
+initiation spawns `workspace run <ws> <cmd>`. The mitigation is `workspace_source`: a seed is always
+legible as a seed, never as something a human declared, and one `--workspace` corrects the session.
+
 ## Components
 
 | Piece | Location | Status |
