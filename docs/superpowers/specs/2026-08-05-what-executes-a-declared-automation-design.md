@@ -63,6 +63,48 @@ When a node was off while an automation was due, the run is skipped rather than 
 
 Skipping is only acceptable because it is REPORTED. A skipped window is recorded with its due time, so an operator can see that the node did not keep a commitment rather than assume it did.
 
+### D6. Automations become a capability, so every surface reaches them the same way
+
+Added after the operator asked whether the architecture supports automations being reachable
+from the agent, the TUI and other surfaces. Checking rather than answering found a gap in
+everything above: **this spec designed the EXECUTOR and said nothing about REACH, and they are
+orthogonal axes.**
+
+Measured today: an automation is an `AutomationAdapter` (a TypeScript interface), a CLI command,
+and a JSON file. It is not a verb. The agent reaches other functionality through the
+`capability-tools` seam, where tools are named `<plugin>_<verb>` — so with no verb, the agent
+cannot list, inspect or trigger any automation, a TUI would need bespoke wiring, and every new
+surface would re-wire from scratch.
+
+The repository already has one answer for "reachable from every surface", and it is not a new
+one: be a capability with verbs, and let surfaces render verbs. `refarm dispatch <plugin> <verb>`,
+the homestead and terminal surfaces, and the agent's own tool list all consume that same shape.
+
+So automations get verbs — list, inspect, trigger, and the lifecycle transitions the
+`ManagedArtifact` status already defines — and executor and reach stop being the same question.
+The node's loop fires a due automation; a surface fires the same one on request; both dispatch the
+same effort, and D3 means both are governed and recorded identically.
+
+### D7. An agent that can trigger automations can restart the node it is running on
+
+This falls directly out of D6 and must be designed in rather than discovered later.
+
+Once automations are verbs and the agent can invoke verbs, the set of things a model can decide to
+do includes "restart this node" — the automation D2 makes possible. That is not a reason to
+withhold the reach; an operational agent that cannot operate is not the goal. It is a reason for
+the trigger verb to be permissioned rather than ambient.
+
+The machinery exists: `plugin.json` already declares `permissions` and a `trust.profile`, and
+`packages/scarecrow-plugin` is the policy surface. What this design must not do is expose a
+trigger verb that inherits whatever permission the caller happens to have, because the honest
+question is not "may this plugin act" but "may this caller cause THIS automation to run" — and a
+restart, a spend, and a read are not the same answer.
+
+The narrow rule this spec commits to: **an automation declares what triggering it requires, and a
+surface that cannot satisfy that requirement is told so rather than silently offered a button that
+fails.** Which requirements exist, and whether they are per-automation or per-body-kind, belongs
+with the verb×object credential scope already queued ahead of the budget spec's later slices.
+
 ## What this deliberately does not do
 
 **No catch-up policy per automation.** D5 picks one behaviour for every automation. A `catchUp: true` option is easy to add and impossible to remove, and none of the three known customers wants it. If a fourth arrives that genuinely does, its need will describe the option better than a guess can.
