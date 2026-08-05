@@ -933,6 +933,43 @@ async fn no_log_line_anywhere_on_this_path_carries_the_answer_value() {
     // while WHO answered does, because that is the part a settlement is allowed to carry.
     const SECRET: &str = "correct-horse-battery-staple-42";
 
+    // CAPTURING is best-effort by construction, and that is a property of `tracing`, not of
+    // this path. `set_default` installs a THREAD-LOCAL subscriber, while each callsite's
+    // `Interest` is cached in a PROCESS-GLOBAL: any other test in this binary emitting a
+    // first-time callsite on another thread re-evaluates that cache with no scoped
+    // subscriber in view, and a callsite this test has not reached yet can come back
+    // "never" — costing the buffer a line that WAS emitted. (Reproducible: run this
+    // alongside any test that logs from a callsite the binary has never hit.)
+    //
+    // So drive the whole scenario until a capture actually lands, bounded. Nothing is
+    // weakened: the SECRET assertion is made on EVERY attempt — a secret leaking on the
+    // first attempt is a leak — and only the "the settlement is observable" half needs a
+    // capture that arrived to judge. The next attempt's `set_default` rebuilds the interest
+    // cache with this subscriber live, which is what makes retrying work at all.
+    let mut captured = None;
+    for _ in 0..5 {
+        let logs = drive_a_secret_prompt(SECRET).await;
+        assert!(
+            !logs.contains(SECRET),
+            "a secret prompt must be handleable without its value ever reaching a log line: {logs}"
+        );
+        if logs.contains("pending prompt settled") {
+            captured = Some(logs);
+            break;
+        }
+    }
+    let logs = captured.expect("the settlement line must reach the buffer on some attempt");
+    assert!(
+        logs.contains("id-arthur-phone"),
+        "and WHO answered is exactly what a settlement is allowed to say: {logs}"
+    );
+    assert!(logs.contains("pending prompt settled"), "the settlement is observable: {logs}");
+}
+
+/// One full publish → answer → settle cycle over the real routes, with `tracing`
+/// captured at TRACE for its whole duration. Returns everything that reached the
+/// buffer. Split out of the test above only so that test can run it more than once.
+async fn drive_a_secret_prompt(secret: &str) -> String {
     let buffer: LogBuffer = Default::default();
     let subscriber = tracing_subscriber::fmt()
         .with_max_level(tracing::Level::TRACE)
@@ -977,25 +1014,17 @@ async fn no_log_line_anywhere_on_this_path_carries_the_answer_value() {
     let answered = client
         .post(url(port, &format!("/prompts/{id}/answer")))
         .bearer_auth("phone-token")
-        .json(&serde_json::json!({ "value": SECRET }))
+        .json(&serde_json::json!({ "value": secret }))
         .send()
         .await
         .unwrap();
     assert_eq!(answered.status(), 200);
     let settled = asking.await.unwrap();
-    assert_eq!(settled["value"], SECRET, "the asker still receives it — that is the point");
+    assert_eq!(settled["value"], secret, "the asker still receives it — that is the point");
 
     drop(guard);
-    let logs = String::from_utf8_lossy(&buffer.lock().unwrap().clone()).to_string();
-    assert!(
-        !logs.contains(SECRET),
-        "a secret prompt must be handleable without its value ever reaching a log line: {logs}"
-    );
-    assert!(
-        logs.contains("id-arthur-phone"),
-        "and WHO answered is exactly what a settlement is allowed to say: {logs}"
-    );
-    assert!(logs.contains("pending prompt settled"), "the settlement is observable: {logs}");
+    let logs = buffer.lock().unwrap().clone();
+    String::from_utf8_lossy(&logs).to_string()
 }
 
 // ── The node's half of the announcement contract (N1-N3) ─────────────────────
