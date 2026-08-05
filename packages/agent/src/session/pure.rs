@@ -139,14 +139,19 @@ fn default_session_participant() -> String {
     session_participant_from_agent_id(std::env::var("MODEL_AGENT_ID").ok().as_deref())
 }
 
+/// `workspace`: `(workspace_id, workspace_source)` when this session is attributed to a
+/// workspace, `None` when it is not. Absent means absent — an unattributed session carries
+/// NEITHER key rather than a null, because a null here would read as "attributed to
+/// nothing in particular" where the truth is "nobody has said yet."
 pub(crate) fn session_node(
     id: &str,
     name: Option<&str>,
     leaf_entry_id: Option<&str>,
     parent_session_id: Option<&str>,
     created_at_ns: u64,
+    workspace: Option<(&str, &str)>,
 ) -> serde_json::Value {
-    serde_json::json!({
+    let mut node = serde_json::json!({
         "@type":             "Session",
         "@id":               id,
         "participants":      [default_session_participant()],
@@ -155,7 +160,13 @@ pub(crate) fn session_node(
         "leaf_entry_id":     leaf_entry_id,
         "parent_session_id": parent_session_id,
         "created_at_ns":     created_at_ns,
-    })
+    });
+    if let Some((workspace_id, workspace_source)) = workspace {
+        let map = node.as_object_mut().expect("session_node builds an object");
+        map.insert("workspace_id".into(), workspace_id.into());
+        map.insert("workspace_source".into(), workspace_source.into());
+    }
+    node
 }
 
 /// Build a SessionEntry node JSON payload.

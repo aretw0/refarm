@@ -52,7 +52,7 @@ fn latest_session_id_with_v1_preference(limit: u32) -> Option<String> {
 /// Create and persist a new Session. Returns the session `@id`.
 fn store_new_session(name: Option<&str>) -> Option<String> {
     let session_id = new_session_id();
-    let node = session_node(&session_id, name, None, None, now_ns());
+    let node = session_node(&session_id, name, None, None, now_ns(), None);
     tractor_bridge::store_node(&node.to_string()).ok()?;
     Some(session_id)
 }
@@ -131,7 +131,7 @@ pub(crate) fn get_or_create_session() -> String {
     if let Ok(id) = std::env::var("MODEL_SESSION_ID") {
         if !id.is_empty() {
             if tractor_bridge::get_node(&id).is_err() {
-                let node = session_node(&id, None, None, None, now_ns());
+                let node = session_node(&id, None, None, None, now_ns(), None);
                 let _ = tractor_bridge::store_node(&node.to_string());
             }
             return id;
