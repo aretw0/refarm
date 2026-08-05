@@ -48,7 +48,8 @@ export interface RuntimeFreshness {
 
 interface FreshnessDeps {
 	statMtimeMs?: (target: string) => number | null;
-	realpath?: (target: string) => string | null;
+	readlink?: (target: string) => string | null;
+	readArgv0?: (pid: number) => string | null;
 }
 
 function defaultStat(target: string): number | null {
@@ -59,27 +60,59 @@ function defaultStat(target: string): number | null {
 	}
 }
 
-function defaultRealpath(target: string): string | null {
+function defaultReadlink(target: string): string | null {
 	try {
-		return fs.realpathSync(target);
+		return fs.readlinkSync(target);
+	} catch {
+		return null;
+	}
+}
+
+function defaultArgv0(pid: number): string | null {
+	try {
+		const argv0 = fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0")[0];
+		return argv0 && argv0.length > 0 ? argv0 : null;
 	} catch {
 		return null;
 	}
 }
 
 /**
- * The binary the process is actually executing, via `/proc/<pid>/exe`.
+ * What `/proc/<pid>/exe` says about the binary a process is executing.
  *
- * Linux only, and deliberately not emulated elsewhere: on a platform where this cannot be
- * resolved the answer is `unknown`, not an assumption. `realpath` on a replaced binary
- * still resolves to the path, and its mtime is then NEWER than the process start — which is
- * precisely the condition worth reporting.
+ * Linux only, and deliberately not emulated elsewhere: on another platform the answer is
+ * `unknown`, never an assumption.
+ *
+ * Three outcomes, and the middle one is the case that actually occurs. Verified on the
+ * operator's machine 2026-08-04: cargo had REPLACED the daemon's binary, so the kernel's
+ * link read `<path> (deleted)` and `realpath` failed with ENOENT on that literal. An
+ * earlier draft treated that as "could not check", which is exactly backwards — a running
+ * image that no longer exists on disk is the STRONGEST form of stale there is, not the
+ * weakest form of knowledge. Nothing about the file's timestamp is needed to say so.
  */
-function runningBinaryPath(pid: number, deps?: FreshnessDeps): string | null {
-	if (process.platform !== "linux") return null;
-	const realpath = deps?.realpath ?? defaultRealpath;
-	return realpath(`/proc/${pid}/exe`);
+type RunningBinary =
+	| { kind: "path"; path: string }
+	| { kind: "deleted"; path: string }
+	| { kind: "unresolvable" };
+
+function runningBinary(pid: number, deps?: FreshnessDeps): RunningBinary {
+	if (process.platform !== "linux") return { kind: "unresolvable" };
+	const readlink = deps?.readlink ?? defaultReadlink;
+	const link = readlink(`/proc/${pid}/exe`);
+	if (link) {
+		const deleted = link.endsWith(DELETED_SUFFIX);
+		return deleted
+			? { kind: "deleted", path: link.slice(0, -DELETED_SUFFIX.length) }
+			: { kind: "path", path: link };
+	}
+	// The link itself was unreadable. argv[0] is the next best thing a process publishes
+	// about what it is running — less precise, since it can be relative, but it is a fact
+	// the process itself stated rather than a guess about it.
+	const argv0 = (deps?.readArgv0 ?? defaultArgv0)(pid);
+	return argv0 ? { kind: "path", path: argv0 } : { kind: "unresolvable" };
 }
+
+const DELETED_SUFFIX = " (deleted)";
 
 function compare(
 	artifact: string,
@@ -151,16 +184,28 @@ export function resolveRuntimeFreshness(
 		};
 	}
 
+	const binary = runningBinary(descriptor.pid, deps);
+	const binaryFreshness: ArtifactFreshness =
+		binary.kind === "deleted"
+			? {
+					artifact: binary.path,
+					state: "stale",
+					reason:
+						"the running image no longer exists on disk — it was replaced after this node " +
+						"started, so the node is executing a build you can no longer inspect",
+				}
+			: compare(
+					"daemon binary",
+					binary.kind === "path" ? binary.path : null,
+					startedAtMs,
+					process.platform === "linux"
+						? "the running binary could not be resolved from /proc"
+						: "resolving a running process's binary is not implemented on this platform",
+					deps,
+				);
+
 	const artifacts: ArtifactFreshness[] = [
-		compare(
-			"daemon binary",
-			runningBinaryPath(descriptor.pid, deps),
-			startedAtMs,
-			process.platform === "linux"
-				? "the running binary could not be resolved from /proc"
-				: "resolving a running process's binary is not implemented on this platform",
-			deps,
-		),
+		binaryFreshness,
 		compare(
 			"agent plugin",
 			agentPluginPath,

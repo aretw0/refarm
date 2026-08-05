@@ -10,6 +10,12 @@ import { declaredBase, loadConfig, sovereignDir } from "@refarm.dev/config";
 
 import { Command } from "commander";
 import { readNodeDescriptor } from "../utils/node-descriptor.js";
+import {
+	defaultAgentPluginPath,
+	resolveRuntimeFreshness,
+	type RuntimeFreshness,
+} from "../utils/runtime-freshness.js";
+import { buildRuntimeFreshnessDoctorRecommendations } from "./runtime-freshness-doctor.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import type { NodeContextMetadata } from "../utils/context-metadata.js";
 import { resolveNodeContextMetadata } from "../utils/context-metadata.js";
@@ -90,6 +96,9 @@ export function buildRefarmDoctorReport(
 		 * `node-name-doctor.ts`). `null`/omitted means "no live node to ask", which
 		 * produces no finding — same purity rule as `connectionConfig` and `scope`. */
 		nodeIdentity?: NodeIdentitySnapshot | null;
+		/** Whether the running node predates the artifacts beside it. `null` when the
+		 *  caller did not resolve it — silence, not an assumption that it is fine. */
+		runtimeFreshness?: RuntimeFreshness | null;
 		/** Context metadata resolved by the caller (home/store alignment, mode). Omitted
 		 * means "not inspected", which produces no findings. */
 		context?: NodeContextMetadata;
@@ -114,12 +123,19 @@ export function buildRefarmDoctorReport(
 	const nodeNameRecommendations = buildNodeNameDoctorRecommendations(
 		options.nodeIdentity ?? null,
 	);
+	// The node running an older build than the one on disk is the same KIND of truth as
+	// the two above: something nothing else states, folded into the same buckets. It is
+	// a TELL, never a restart performed for the operator.
+	const runtimeFreshnessRecommendations = buildRuntimeFreshnessDoctorRecommendations(
+		options.runtimeFreshness ?? null,
+	);
 	const contextRecommendations = buildContextDoctorRecommendations(options.context);
 	const warnings = [
 		...statusWarnings,
 		...connectionRecommendations.map((r) => r.diagnostic),
 		...scopeRecommendations.map((r) => r.diagnostic),
 		...nodeNameRecommendations.map((r) => r.diagnostic),
+		...runtimeFreshnessRecommendations.map((r) => r.diagnostic),
 		...contextRecommendations.map((r) => r.diagnostic),
 	];
 
@@ -134,6 +150,7 @@ export function buildRefarmDoctorReport(
 		...connectionRecommendations,
 		...scopeRecommendations,
 		...nodeNameRecommendations,
+		...runtimeFreshnessRecommendations,
 		...contextRecommendations,
 	];
 	const nextActions = diagnosticNextActions(recommendations);
@@ -340,6 +357,31 @@ function resolveNodeDescriptor(deps: RefarmDoctorCommandDeps | undefined): NodeI
 	}
 }
 
+/**
+ * Whether the running node predates what is on disk. Same posture as
+ * `resolveNodeDescriptor` above and for the same reason: never throws, and any failure is
+ * `null` rather than a guess. `resolveRuntimeFreshness` itself answers `unknown` for the
+ * cases it CAN see — a dead pid, an unfindable artifact — so `null` here means only that
+ * this resolver could not run at all.
+ */
+function resolveFreshness(): RuntimeFreshness | null {
+	try {
+		const nodeHome = path.resolve(resolveRefarmHome());
+		// Deliberately the real reader, not `deps.readNodeDescriptor`: the injectable
+		// override is typed without `pid`/`startedAt`, and this comparison needs both.
+		// The test weight sits on the pure `resolveRuntimeFreshness` and the finding
+		// builder, which is where every other doctor finding keeps it too.
+		const descriptor = readNodeDescriptor(nodeHome);
+		if (!descriptor) return null;
+		return resolveRuntimeFreshness(
+			{ pid: descriptor.pid, startedAt: descriptor.startedAt },
+			defaultAgentPluginPath(nodeHome),
+		);
+	} catch {
+		return null;
+	}
+}
+
 function resolveConnectionConfig(deps: RefarmDoctorCommandDeps | undefined): Record<string, unknown> {
 	const baseDir = deps?.cwd?.() ?? process.cwd();
 	try {
@@ -394,6 +436,7 @@ Notes:
 						connectionConfig: resolveConnectionConfig(deps),
 						scope: resolveScopeComparison(deps),
 						nodeIdentity: resolveNodeDescriptor(deps),
+						runtimeFreshness: resolveFreshness(),
 						context: resolveNodeContextMetadata(process.env),
 					});
 					const outputMode = resolveDoctorOutputMode(options);

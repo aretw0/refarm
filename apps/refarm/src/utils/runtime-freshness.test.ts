@@ -8,7 +8,7 @@ const descriptor = { pid: 768958, startedAt: STARTED, sovereignDir: "/home/op/.r
 /** Both artifacts resolvable, with mtimes the test chooses. */
 function deps(binaryMs: number | null, pluginMs: number | null) {
 	return {
-		realpath: (target: string) => (target.startsWith("/proc/") ? "/opt/refarm/tractor" : target),
+		readlink: (target: string) => (target.startsWith("/proc/") ? "/opt/refarm/tractor" : null),
 		statMtimeMs: (target: string) => (target === "/opt/refarm/tractor" ? binaryMs : pluginMs),
 	};
 }
@@ -71,5 +71,45 @@ describe("runtime freshness", () => {
 	it("derives the agent plugin path from the sovereign dir, and refuses without one", () => {
 		expect(defaultAgentPluginPath("/home/op/.refarm")).toBe(PLUGIN);
 		expect(defaultAgentPluginPath(undefined)).toBeNull();
+	});
+});
+
+describe("a running image that no longer exists", () => {
+	it("is stale with certainty, not unknown — the case that actually happened", () => {
+		// Verified on the operator's machine 2026-08-04: cargo replaced the daemon's binary,
+		// so /proc/<pid>/exe read "<path> (deleted)". An earlier draft called that "could not
+		// check", which is backwards: a process executing an image nobody can inspect is the
+		// strongest evidence of staleness available, and no timestamp is needed to say so.
+		const result = resolveRuntimeFreshness(descriptor, PLUGIN, {
+			readlink: () => "/home/op/refarm/.cache/cargo-target/release/tractor (deleted)",
+			statMtimeMs: () => startedMs - 1000,
+		});
+		expect(result.state).toBe("stale");
+		const binary = result.artifacts[0];
+		expect(binary?.state).toBe("stale");
+		expect(binary?.artifact).toBe("/home/op/refarm/.cache/cargo-target/release/tractor");
+		expect(binary?.artifact).not.toMatch(/deleted/);
+		expect(binary?.reason).toMatch(/no longer exists on disk/);
+	});
+
+	it("falls back to what the process itself says when the link is unreadable", () => {
+		// argv[0] is a fact the process published, not a guess about it.
+		const result = resolveRuntimeFreshness(descriptor, PLUGIN, {
+			readlink: () => null,
+			readArgv0: () => "/opt/refarm/tractor",
+			statMtimeMs: (t: string) => (t === "/opt/refarm/tractor" ? startedMs + 1000 : startedMs - 1000),
+		});
+		expect(result.state).toBe("stale");
+		expect(result.artifacts[0]?.artifact).toBe("/opt/refarm/tractor");
+	});
+
+	it("stays unknown when neither the link nor argv[0] can be read", () => {
+		const result = resolveRuntimeFreshness(descriptor, PLUGIN, {
+			readlink: () => null,
+			readArgv0: () => null,
+			statMtimeMs: () => startedMs - 1000,
+		});
+		expect(result.state).toBe("unknown");
+		expect(result.artifacts[0]?.state).toBe("unknown");
 	});
 });
