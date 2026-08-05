@@ -15,18 +15,37 @@
 // (`binding.origin: "explicit" | "default"`) — those values are carried here verbatim
 // under `metadata`, not renamed or re-derived. Only what it does NOT carry is added: the
 // running node's own identity, the loaded plugin and its hash, the plugin a fresh build
-// would produce, and other sovereign directories sitting unloaded on disk.
+// would produce, the storage namespace (`resolveTractorNamespace`), the runtime endpoint
+// (`resolveRuntimeSidecarUrl`), and other sovereign directories sitting unloaded on disk.
 //
-// THREE STATES, never two, for the plugin comparison — the same rule `../utils/
-// runtime-freshness.ts` and `../utils/loaded-plugin.ts` already state: an unhashable
-// loaded plugin is `plugin-hash-unknown`, never folded into a match or a mismatch. A node
-// that is not running at all is `node-not-running` and yields NO plugin verdict — not a
-// false "clean" produced by comparing two nulls into silence.
+// THREE STATES, never two, for BOTH halves of the plugin comparison — a review round
+// found the builder applied this correctly to the loaded side (`sha256 === null` →
+// `plugin-hash-unknown`) but silently dropped the comparison whenever the BUILT side could
+// not be resolved (`input.builtPluginSha &&` guard), which is the same two-states-where-
+// three-belong mistake this whole plan exists to undo, just on the other side of the
+// comparison. An unresolvable or unreadable built plugin is `built-plugin-unknown` — never
+// silence, never counted as a match. A node that is not running at all is
+// `node-not-running` and yields NO plugin verdict — not a false "clean" from comparing two
+// nulls into silence.
+//
+// NEVER FABRICATES A PATH. `findWorkspaceRoot` (`@refarm.dev/config`) falls back to `cwd`
+// when it climbs to the filesystem root without finding a real monorepo marker — for a
+// `mode: node` install, standing outside the repository is the NORMAL case, so that
+// fallback fires on every ordinary operator machine. `resolveBuiltPluginPath` below checks
+// for a real marker before trusting that root; without one, `builtPluginPath` is `null`,
+// not a path assembled under a directory that was never actually the monorepo.
 //
 // NEVER RESTARTS, NEVER WRITES. This command reads and reports; restarting a node so it
 // picks up a different plugin is the operator's decision, exactly as `runtime-freshness-
 // doctor.ts` says of the freshness check it renders. No divergence here carries an
 // `action` that performs anything.
+//
+// ONE NAME PER FACT. The sovereign home disagreeing with the credential home is the exact
+// same predicate `context-doctor.ts` already reports as `context:home-divergence` — this
+// module derives its divergence kind from that exported constant rather than keeping the
+// second name (`credential-home-divergence`) an earlier draft invented for the identical
+// check. The report-vs-diagnostic split stays legitimate (doctor's finding carries
+// `action`/`command`; this one carries neither), only the NAME is now shared.
 //
 // PURE CORE, IMPURE EDGE — the established shape of every doctor finding in this
 // codebase (`scope-doctor.ts`, `node-name-doctor.ts`, `runtime-freshness-doctor.ts`):
@@ -34,11 +53,7 @@
 // process reads live in `resolveContextInput` below, exercised only by running the command.
 
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
-import {
-	declaredBase,
-	findWorkspaceRoot,
-	SOVEREIGN_BASE_KEY,
-} from "@refarm.dev/config";
+import { declaredBase, findWorkspaceRoot, SOVEREIGN_BASE_KEY } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
@@ -48,6 +63,10 @@ import type { NodeContextMetadata } from "../utils/context-metadata.js";
 import { resolveNodeContextMetadata } from "../utils/context-metadata.js";
 import { defaultHashFile, resolveLoadedPlugin, type LoadedPlugin } from "../utils/loaded-plugin.js";
 import { readNodeDescriptor } from "../utils/node-descriptor.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
+import { resolveRuntimeSidecarUrl } from "../utils/runtime-config.js";
+import { resolveTractorNamespace } from "../utils/tractor-store.js";
+import { CONTEXT_HOME_DIVERGENCE_DIAGNOSTIC } from "./context-doctor.js";
 
 /** The running node's own identity, as `node.json` states it — a narrow projection of
  *  `NodeDescriptor` (`../utils/node-descriptor.ts`), kept small so a test can express "a
@@ -64,9 +83,10 @@ export interface ContextNode {
 export type DivergenceKind =
 	| "plugin-hash-mismatch"
 	| "plugin-hash-unknown"
+	| "built-plugin-unknown"
 	| "unloaded-sovereign-dir"
 	| "node-not-running"
-	| "credential-home-divergence";
+	| typeof CONTEXT_HOME_DIVERGENCE_DIAGNOSTIC;
 
 export interface Divergence {
 	kind: DivergenceKind;
@@ -85,6 +105,17 @@ export interface ContextInput {
 	base: string;
 	/** Whether `base` came from the explicit `SOVEREIGN_BASE` env var or fell back to cwd. */
 	baseOrigin: "SOVEREIGN_BASE" | "cwd";
+	/** The storage namespace the daemon opens — `resolveTractorNamespace`
+	 *  (`../utils/tractor-store.ts`): `REFARM_NAMESPACE` else `"default"`, "the same value
+	 *  health and status must agree on". Surfaced here as-is; this command does not attempt
+	 *  to read the DAEMON's own environment (no witness for that exists), only the value
+	 *  this CLI invocation resolves — a shell/daemon split in REFARM_NAMESPACE is real but
+	 *  out of this command's reach without a new instrument. */
+	namespace: string;
+	/** The runtime sidecar URL this CLI would reach for this node —
+	 *  `resolveRuntimeSidecarUrl` (`../utils/runtime-config.ts`). Cheap, real, and part of
+	 *  "which state is active"; optional in spirit, included because it costs nothing. */
+	runtimeEndpoint: string;
 	/** `null` when no running node was found — see `ContextNode`'s doc. */
 	node: ContextNode | null;
 	/** The plugin the running node's own argv names, hashed — Task 1's witness.
@@ -92,14 +123,17 @@ export interface ContextInput {
 	 *  `resolveLoadedPlugin`'s contract for the null/unreadable distinction. */
 	loadedPlugin: LoadedPlugin | null;
 	/** Where a fresh build of the agent plugin would land, for comparison. `null` when it
-	 *  could not be located (not running inside the monorepo). */
+	 *  could not be located — either no running-node witness to compare against, or (see
+	 *  `resolveBuiltPluginPath`) this process is not standing inside a real monorepo
+	 *  checkout. Never a fabricated path under a directory that was never verified. */
 	builtPluginPath: string | null;
-	/** The hash a fresh build currently produces. `null` when it could not be read — a
-	 *  missing dist artifact is a build that has not happened yet, not a finding this
-	 *  command invents a divergence for. */
+	/** The hash a fresh build currently produces. `null` when it could not be read — either
+	 *  `builtPluginPath` is `null`, or the file at that path could not be hashed. */
 	builtPluginSha: string | null;
 	/** Sovereign directories that exist on disk but are not `metadata.sovereignHome` —
-	 *  candidates nothing currently loads. */
+	 *  candidates nothing currently loads. Checked on BOTH sides of the mode split (the
+	 *  workspace-scoped `<cwd>/.refarm` and the node-global default home) so a `workspace`
+	 *  node does not go blind to an abandoned node-global home, or vice versa. */
 	otherSovereignDirs: string[];
 }
 
@@ -115,8 +149,8 @@ function shortHash(sha: string): string {
 /**
  * Compare an already-resolved `ContextInput` and report where the pieces disagree. PURE —
  * every filesystem or process read happens before this is called (see
- * `resolveContextInput`). The five kinds above are the whole vocabulary; nothing here
- * invents a sixth without a test that demands it.
+ * `resolveContextInput`). The vocabulary above is the whole vocabulary; nothing here
+ * invents another kind without a test that demands it.
  */
 export function buildContextReport(input: ContextInput): ContextReport {
 	const divergences: Divergence[] = [];
@@ -141,7 +175,19 @@ export function buildContextReport(input: ContextInput): ContextReport {
 				`(${input.loadedPlugin.unreadableReason ?? "unknown reason"}) — ` +
 				"neither a match nor a mismatch can be claimed.",
 		});
-	} else if (input.builtPluginSha && input.loadedPlugin.sha256 !== input.builtPluginSha) {
+	} else if (input.builtPluginSha === null) {
+		// The mirror of the arm above: the loaded side is known, but there is nothing to
+		// compare it TO. Silence here would read as "matches", which is exactly the false
+		// clean a reviewer reproduced live against this same daemon from outside the repo.
+		divergences.push({
+			kind: "built-plugin-unknown",
+			summary: input.builtPluginPath
+				? `The built plugin ${input.builtPluginPath} could not be hashed — the loaded plugin ` +
+					`(${shortHash(input.loadedPlugin.sha256)}) cannot be verified against a fresh build.`
+				: "No monorepo build of the agent plugin could be located from here — the loaded " +
+					`plugin (${shortHash(input.loadedPlugin.sha256)}) cannot be verified against a fresh build.`,
+		});
+	} else if (input.loadedPlugin.sha256 !== input.builtPluginSha) {
 		divergences.push({
 			kind: "plugin-hash-mismatch",
 			summary:
@@ -162,7 +208,7 @@ export function buildContextReport(input: ContextInput): ContextReport {
 
 	if (!input.metadata.homesAligned) {
 		divergences.push({
-			kind: "credential-home-divergence",
+			kind: CONTEXT_HOME_DIVERGENCE_DIAGNOSTIC,
 			summary:
 				`Sovereign home (${input.metadata.sovereignHome}) and credential store home ` +
 				`(${input.metadata.credentialStoreHome}) resolve to different directories — ` +
@@ -179,10 +225,71 @@ export function buildContextReport(input: ContextInput): ContextReport {
  *  `packages/agent/dist/agent.wasm` (confirmed on disk; see `packages/agent/dist/`). */
 const BUILT_AGENT_PLUGIN_RELATIVE_PATH = ["packages", "agent", "dist", "agent.wasm"];
 
-function resolveOtherSovereignDirs(repoRoot: string, sovereignHome: string): string[] {
-	const candidate = path.join(repoRoot, ".refarm");
-	if (path.resolve(candidate) === path.resolve(sovereignHome)) return [];
-	return fs.existsSync(candidate) ? [candidate] : [];
+/** Same three markers `@refarm.dev/config`'s (private) `hasWorkspaceRootMarker` checks —
+ *  duplicated rather than imported because that predicate is not part of the package's
+ *  public surface. Exists so `resolveBuiltPluginPath` can tell "climbed to a real monorepo
+ *  root" apart from "`findWorkspaceRoot` fell back to `cwd` because it found nothing". */
+function defaultHasMonorepoMarker(dir: string): boolean {
+	if (fs.existsSync(path.join(dir, ".git"))) return true;
+	if (fs.existsSync(path.join(dir, "pnpm-workspace.yaml"))) return true;
+	try {
+		const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8")) as {
+			workspaces?: unknown;
+		};
+		return (
+			Array.isArray(pkg.workspaces) ||
+			(typeof pkg.workspaces === "object" &&
+				pkg.workspaces !== null &&
+				Array.isArray((pkg.workspaces as { packages?: unknown }).packages))
+		);
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Where a fresh build of the agent plugin would land, given what `findWorkspaceRoot`
+ * returned — `null` when that root is not a real monorepo checkout.
+ *
+ * `findWorkspaceRoot` (`@refarm.dev/config`) falls back to returning `cwd` UNCHANGED when it
+ * climbs to the filesystem root without ever finding `.git` / `pnpm-workspace.yaml` / a
+ * `package.json` declaring workspaces. For a `mode: node` install — the NORMAL case for an
+ * operator who only uses Refarm and never clones it — that fallback fires on every run.
+ * Trusting it unconditionally fabricates a path like `<cwd>/packages/agent/dist/agent.wasm`
+ * that never existed, which then hashes to `null` and the caller's `&&` guard used to read
+ * that as "nothing to compare, so say nothing" — the exact silent false-clean this command
+ * exists to end. Checking for a real marker FIRST is what makes `null` here mean "this
+ * process is not standing inside the monorepo", not "the file happens to be missing".
+ */
+export function resolveBuiltPluginPath(
+	repoRoot: string,
+	hasMonorepoMarker: (dir: string) => boolean = defaultHasMonorepoMarker,
+): string | null {
+	return hasMonorepoMarker(repoRoot)
+		? path.join(repoRoot, ...BUILT_AGENT_PLUGIN_RELATIVE_PATH)
+		: null;
+}
+
+/**
+ * Which of `candidates` are real, unloaded sovereign directories: on disk, and not the
+ * active `sovereignHome`. Injectable `exists` so this is testable without touching a real
+ * filesystem. Order-preserving, de-duplicated by resolved path.
+ */
+export function resolveOtherSovereignDirs(
+	sovereignHome: string,
+	candidates: string[],
+	exists: (candidate: string) => boolean = fs.existsSync,
+): string[] {
+	const active = path.resolve(sovereignHome);
+	const seen = new Set<string>();
+	const result: string[] = [];
+	for (const candidate of candidates) {
+		const resolved = path.resolve(candidate);
+		if (resolved === active || seen.has(resolved)) continue;
+		seen.add(resolved);
+		if (exists(candidate)) result.push(candidate);
+	}
+	return result;
 }
 
 export function resolveContextInput(env = process.env, cwd = process.cwd()): ContextInput {
@@ -201,20 +308,34 @@ export function resolveContextInput(env = process.env, cwd = process.cwd()): Con
 	const loadedPlugin = descriptor ? resolveLoadedPlugin(descriptor.pid) : null;
 
 	const repoRoot = findWorkspaceRoot(cwd);
-	const builtPluginPath = path.join(repoRoot, ...BUILT_AGENT_PLUGIN_RELATIVE_PATH);
-	const builtPluginSha = defaultHashFile(builtPluginPath);
+	const builtPluginPath = resolveBuiltPluginPath(repoRoot);
+	const builtPluginSha = builtPluginPath ? defaultHashFile(builtPluginPath) : null;
 
 	const explicitBase = env[SOVEREIGN_BASE_KEY]?.trim();
+
+	// Both sides of the mode split (see `ContextInput.otherSovereignDirs`'s doc): the
+	// workspace-scoped home — the exact formula `context-metadata.ts` itself joins,
+	// duplicated rather than imported because that module does not export it standalone —
+	// and the node-global default, resolved through the REAL adapter (`resolveRefarmHome`,
+	// with no env override) rather than a hand-reconstructed guess at the OS home
+	// directory's physical default, which is the class of drift this whole plan exists to
+	// remove.
+	const otherSovereignDirs = resolveOtherSovereignDirs(metadata.sovereignHome, [
+		path.join(cwd, ".refarm"),
+		resolveRefarmHome({}),
+	]);
 
 	return {
 		metadata,
 		base: declaredBase(env, cwd),
 		baseOrigin: explicitBase ? "SOVEREIGN_BASE" : "cwd",
+		namespace: resolveTractorNamespace(env),
+		runtimeEndpoint: resolveRuntimeSidecarUrl({ cwd, env }).value,
 		node,
 		loadedPlugin,
 		builtPluginPath,
 		builtPluginSha,
-		otherSovereignDirs: resolveOtherSovereignDirs(repoRoot, metadata.sovereignHome),
+		otherSovereignDirs,
 	};
 }
 
@@ -232,7 +353,9 @@ function printContextHuman(report: ContextReport): void {
 			`  credential home: ${report.metadata.credentialStoreHome}` +
 			(report.metadata.homesAligned ? "" : chalk.yellow("  (diverged from sovereign home)")) +
 			"\n" +
-			`  base: ${report.base}  (from ${report.baseOrigin})\n`,
+			`  base: ${report.base}  (from ${report.baseOrigin})\n` +
+			`  namespace: ${report.namespace}\n` +
+			`  runtime endpoint: ${report.runtimeEndpoint}\n`,
 	);
 	if (report.node) {
 		const label = report.node.name ?? "(unnamed)";
@@ -277,7 +400,8 @@ Examples:
 Notes:
   Read-only — this command never restarts a node and never writes anything.
   A path alone is never proof: the loaded and built plugin are both reported with a hash.
-  An unhashable loaded plugin is reported as plugin-hash-unknown — never a false match.
+  An unhashable or unresolvable plugin (loaded OR built) is reported as *-unknown — never a
+  false match, and never silently dropped from the comparison.
 `,
 		)
 		.action((options: ContextCommandOptions) => {
