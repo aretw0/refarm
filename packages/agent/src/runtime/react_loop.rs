@@ -75,6 +75,13 @@ pub(crate) fn react_with_prompt_ref_and_route(
     provider: Option<&str>,
     model: Option<&str>,
 ) -> ReactResult {
+    // This dispatch's step pair belongs to THIS dispatch's completion loop and no
+    // other. Cleared before anything runs so a dispatch that never reaches the
+    // loop — the context-limit refusal immediately below, or the native stub —
+    // records no pair at all rather than inheriting the previous dispatch's. D6:
+    // absent, never fabricated, and that applies to the numerator too.
+    crate::provider_runtime::clear_loop_progress();
+
     if let Some(err) = context_limit_error(prompt) {
         return err;
     }
@@ -165,15 +172,23 @@ pub(crate) fn react_with_prompt_ref_and_route(
     )
 }
 
-/// How many turns the CURRENT run (the same `RUN_TOTALS` scope `RunState`'s
-/// doc describes) has completed as of the last fold — "the step the run
-/// reached", F1's other missing half alongside the ceiling that already
-/// travels on `BudgetObservation`. Read right after a turn's call into
-/// `react_with_prompt_ref_and_route` returns (`prompt_handler.rs`), the same
-/// read-the-accumulator-after-the-call pattern `streaming_sink::
-/// take_active_stream_last_sequence` already uses two lines up from that call
-/// site — not threaded through `ReactResult`, whose every caller already
-/// destructures it by fixed position.
+/// How many TURNS the current run (the same `RUN_TOTALS` scope `RunState`'s doc
+/// describes) has completed as of the last fold — how many separate dispatches
+/// folded into this run's cumulative spend.
+///
+/// This is NOT "the step the run reached", which it was briefly mistaken for.
+/// One `refarm ask` is ONE turn however many steps it takes: the completion loop
+/// that prints `step 1/25`, `step 2/25` runs entirely INSIDE a single call to
+/// `react_with_prompt_ref_and_route`, so a run that an operator watched reach
+/// step 2 reports exactly `1` here — correctly, for the thing this actually
+/// counts. The step pair lives in `provider_runtime::loop_progress`, and no turn
+/// ceiling exists anywhere, so this count is never half of a fraction.
+///
+/// Read right after a turn's call into `react_with_prompt_ref_and_route` returns
+/// (`prompt_handler.rs`), the same read-the-accumulator-after-the-call pattern
+/// `streaming_sink::take_active_stream_last_sequence` already uses two lines up
+/// from that call site — not threaded through `ReactResult`, whose every caller
+/// already destructures it by fixed position.
 pub(crate) fn current_run_turns() -> u32 {
     RUN_TOTALS.with(|run| run.borrow().totals.turns())
 }

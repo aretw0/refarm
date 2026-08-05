@@ -179,6 +179,22 @@ mod tests {
     }
 
     #[test]
+    fn the_last_step_of_a_run_renders_as_n_of_n_never_n_plus_one_of_n() {
+        // The display half of the off-by-one. `agent:iteration` carried a 0-based
+        // index against `max_iter`, which the agent's loop read as a maximum
+        // INDEX and not a count: a 25-step ceiling ran 26 iterations, and this
+        // renderer printed the last one as `step 26/25` with a progress fraction
+        // of 1.04. The agent now emits a COUNT (`loop_core.rs`), so the highest
+        // index this can ever receive for a 25-step run is 24.
+        let mut payload = p("urn:p-1");
+        payload["iteration"] = json!(24);
+        payload["max"] = json!(25);
+        let a = agent_event_to_activity("agent:iteration", &payload).unwrap();
+        assert_eq!(a["note"], "step 25/25");
+        assert_eq!(a["fraction"], json!(1.0), "a full run is 100% done, never 104%");
+    }
+
+    #[test]
     fn tool_call_marks_failures() {
         let mut ok = p("urn:p-1");
         ok["tool"] = json!("read_file");

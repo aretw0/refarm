@@ -65,7 +65,9 @@ fn response_nodes_usage_builder_shape() {
         tokens_reasoning: 0,
         usage_raw: "{}",
         duration_ms: 5,
-        steps_completed: 1,
+        steps_completed: Some(1),
+        steps_planned: Some(25),
+        turns_completed: 1,
     });
     assert_eq!(node["@type"], "UsageRecord");
     assert_eq!(node["prompt_ref"], "urn:sovereign:prompt-test");
@@ -90,7 +92,9 @@ fn response_nodes_usage_builder_marks_price_known_for_a_priced_api_model() {
         tokens_reasoning: 0,
         usage_raw: "{}",
         duration_ms: 5,
-        steps_completed: 1,
+        steps_completed: Some(1),
+        steps_planned: Some(25),
+        turns_completed: 1,
     });
     assert_eq!(node["price_known"], true);
 }
@@ -112,7 +116,9 @@ fn response_nodes_usage_builder_marks_price_unknown_for_an_unrated_api_model() {
         tokens_reasoning: 0,
         usage_raw: "{}",
         duration_ms: 5,
-        steps_completed: 1,
+        steps_completed: Some(1),
+        steps_planned: Some(25),
+        turns_completed: 1,
     });
     assert_eq!(node["estimated_usd"], 0.0);
     assert_eq!(
@@ -137,7 +143,9 @@ fn response_nodes_usage_builder_marks_price_known_true_under_a_structural_zero()
         tokens_reasoning: 0,
         usage_raw: "{}",
         duration_ms: 5,
-        steps_completed: 1,
+        steps_completed: Some(1),
+        steps_planned: Some(25),
+        turns_completed: 1,
     });
     assert_eq!(node["estimated_usd"], 0.0);
     assert_eq!(node["price_known"], true);

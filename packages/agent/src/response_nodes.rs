@@ -21,13 +21,30 @@ pub(crate) struct UsageRecordPayload<'a> {
     pub tokens_reasoning: u32,
     pub usage_raw: &'a str,
     pub duration_ms: u64,
-    /// How many turns THIS run had completed as of this record — F1's other
-    /// missing half (`docs/superpowers/specs/2026-08-03-budget-laboratory-
-    /// design.md`): "died at 4/25" named the ceiling AND the step reached.
-    /// Sourced from `RunTotals::turns` (`runtime/policy.rs`) via
+    /// The "4" of *"died at 4/25"* — how many completion-loop STEPS this
+    /// dispatch ran (`provider_runtime::loop_progress`). 1-based, so it equals
+    /// the `step N/…` the sidecar printed for the last iteration the operator
+    /// saw. `None` when no completion loop ran in this dispatch (a context-limit
+    /// refusal, the native stub): D6, absent rather than a fabricated `0`.
+    pub steps_completed: Option<u32>,
+    /// The "25" of *"died at 4/25"* — the step ceiling that governed THIS
+    /// dispatch's loop, taken from the same `for` statement as the numerator
+    /// above so the two can only ever count the same notion. `None` whenever the
+    /// numerator is `None`; NEVER re-derived from `tool_loop_max_iter()` at
+    /// record time, which would stamp the default `25` onto a run that no
+    /// ceiling of 25 ever governed.
+    pub steps_planned: Option<u32>,
+    /// How many TURNS (whole dispatches) this run had folded in as of this
+    /// record — `RunTotals::turns` (`runtime/policy.rs`) via
     /// `runtime::react_loop::current_run_turns`, the same accumulator that
-    /// already tracks cumulative tokens/spend across every turn of one run.
-    pub steps_completed: u32,
+    /// tracks cumulative tokens/spend across a run.
+    ///
+    /// A different notion from `steps_*` above and deliberately not spelled as
+    /// half of a fraction: one `refarm ask` is one turn however many steps it
+    /// takes, and nothing anywhere declares a maximum number of turns. This
+    /// field used to be called `steps_completed`, which put a turn count beside
+    /// a step ceiling — a fraction whose halves counted different things.
+    pub turns_completed: u32,
 }
 
 pub(crate) fn user_prompt_node(prompt_ref: &str, prompt: &str) -> serde_json::Value {
@@ -59,7 +76,7 @@ pub(crate) fn agent_response_node(payload: AgentResponsePayload<'_>) -> serde_js
 }
 
 pub(crate) fn usage_record_node(payload: UsageRecordPayload<'_>) -> serde_json::Value {
-    serde_json::json!({
+    let mut node = serde_json::json!({
         "@type":         "UsageRecord",
         "@id":           crate::mint_urn("usage"),
         "prompt_ref":    payload.prompt_ref,
@@ -79,14 +96,15 @@ pub(crate) fn usage_record_node(payload: UsageRecordPayload<'_>) -> serde_json::
         // from the UsageRecord instead, like every other usage field. The version
         // belongs to whoever computed the price, so it travels WITH the price.
         "rate_table_version": crate::RATE_TABLE_VERSION,
-        // "The step the run reached" — F1's other missing half, beside
-        // `rate_table_version` for the identical reason: `packages/tractor`
-        // has no Cargo dependency on this crate (the agent is a WASM guest
-        // loaded at runtime, not linked), so the sidecar cannot count a run's
-        // turns itself. The count belongs to whoever ran the turns, so it
-        // travels WITH the record, exactly like the rate table travels with
-        // the price it computed.
-        "steps_completed": payload.steps_completed,
+        // How many DISPATCHES this run folded in, beside `rate_table_version`
+        // for the identical reason: `packages/tractor` has no Cargo dependency
+        // on this crate (the agent is a WASM guest loaded at runtime, not
+        // linked), so the sidecar cannot count a run's turns itself. The count
+        // belongs to whoever ran the turns, so it travels WITH the record,
+        // exactly like the rate table travels with the price it computed. The
+        // step pair `steps_completed`/`steps_planned` is inserted below, and
+        // only when a loop actually established one.
+        "turns_completed": payload.turns_completed,
         // OTel gen_ai.usage.cache_read.input_tokens / cache_creation.input_tokens,
         // spelled flat because this node is not an OTel span.
         "cache_read_input_tokens":     payload.cache_read_tokens,
@@ -97,5 +115,20 @@ pub(crate) fn usage_record_node(payload: UsageRecordPayload<'_>) -> serde_json::
         "usage_raw":        payload.usage_raw,
         "duration_ms":      payload.duration_ms,
         "timestamp_ns":     crate::now_ns(),
-    })
+    });
+
+    // *"died at 4/25"*, made recoverable. Inserted rather than spelled inline
+    // above because an absent half must leave NO KEY — a `null`, a `0` or a
+    // defaulted `25` all read to a downstream reader as a measurement that was
+    // taken. `put_opt` on the sidecar side (`tractor/src/sidecar/observation.rs`)
+    // applies the same rule to the same pair one join later.
+    if let Some(map) = node.as_object_mut() {
+        if let Some(steps_completed) = payload.steps_completed {
+            map.insert("steps_completed".into(), steps_completed.into());
+        }
+        if let Some(steps_planned) = payload.steps_planned {
+            map.insert("steps_planned".into(), steps_planned.into());
+        }
+    }
+    node
 }

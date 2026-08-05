@@ -26,6 +26,10 @@ fn base_input() -> ObservationInput<'static> {
         elapsed_ms: Some(45_000),
         steps_completed: Some(4),
         steps_planned: Some(25),
+        // One dispatch that ran four of its twenty-five steps — the shape of the
+        // measurement that started all of this, and a standing reminder that the
+        // turn count is not the numerator.
+        turns_completed: Some(1),
         resolved: Some(resolve_budget(Some(&declared), None, &node)),
         usage: None,
         // The identity fields default absent here — every existing test below spreads
@@ -615,8 +619,9 @@ async fn an_event_dispatch_efforts_observation_carries_no_budget_family() {
 }
 
 // ── F1's other missing half: `write_budget_observation` (the ONE production
-// call site) must read a real step count off the joined UsageRecord, not the
-// hardcoded `None` it shipped with. `build_observation_node`'s tests above
+// call site) must read BOTH halves of the step fraction off the joined
+// UsageRecord — the numerator it shipped reading, and the denominator it
+// shipped hardcoding to `None`. `build_observation_node`'s tests above
 // (`the_observation_records_all_three_axes_asked_and_ruling`) already proved
 // the node SHAPE with `Some(4)`/`Some(25)` — that coverage never exercised
 // this call site, which is exactly how the hardcoded `None` shipped green.
@@ -651,8 +656,13 @@ fn write_budget_observation_reads_the_real_step_count_off_the_joined_usage_recor
                 "tokens_in": 50,
                 "tokens_out": 10,
                 // Exactly the shape `usage_record_node` stamps in production —
-                // top-level, beside rate_table_version.
+                // top-level, beside rate_table_version. The step pair travels
+                // together because one loop counted both; `turns_completed` is
+                // the SEPARATE dispatch count that used to masquerade as the
+                // numerator here.
                 "steps_completed": 4,
+                "steps_planned": 25,
+                "turns_completed": 1,
             })
             .to_string(),
             Some("agent"),
@@ -673,6 +683,78 @@ fn write_budget_observation_reads_the_real_step_count_off_the_joined_usage_recor
     assert_eq!(
         node["refarm.outcome.steps_completed"], 4,
         "the step the run reached must be readable from the record — F1's other missing half"
+    );
+    assert_eq!(
+        node["refarm.outcome.steps_planned"], 25,
+        "and the ceiling it was reached against, off the SAME record and the SAME \
+         prompt_ref join — not hardcoded `None` on the theory that only an \
+         `AgentPlan` could supply it"
+    );
+    assert_eq!(
+        node["refarm.outcome.turns_completed"], 1,
+        "the dispatch count still travels, under a name that cannot be read as \
+         the numerator of a step fraction"
+    );
+}
+
+#[test]
+fn write_budget_observation_records_the_numerator_without_inventing_a_denominator() {
+    // A `UsageRecord` written by an agent that predates `steps_planned` (or by a
+    // dispatch whose ceiling could not be established) carries a numerator and
+    // nothing else. The honest observation is that numerator plus NO
+    // `steps_planned` key — never the `25` that happens to be today's
+    // `DEFAULT_TOOL_CALL_MAX_ITER`.
+    let tmp = std::env::temp_dir().join(format!("tractor-observation-halfsteps-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp).expect("create tmp");
+    let namespace = std::env::temp_dir()
+        .join(format!("tractor-observation-halfsteps-ns-{}.db", uuid::Uuid::new_v4()))
+        .to_str()
+        .expect("utf8 path")
+        .to_owned();
+    let state = SidecarState::for_test(&tmp, &namespace).expect("state");
+
+    let effort_id = format!("obs-halfsteps-{}", uuid::Uuid::new_v4());
+    let prompt_ref = super::super::prompt_ref_from_effort(&effort_id);
+
+    let storage = crate::storage::NativeStorage::open(&namespace).expect("open storage");
+    storage
+        .store_node(
+            &format!("urn:tractor:usage:{}", uuid::Uuid::new_v4()),
+            "UsageRecord",
+            None,
+            &serde_json::json!({
+                "prompt_ref": prompt_ref,
+                "provider": "anthropic",
+                "model": "claude-sonnet-4-6",
+                "tokens_in": 50,
+                "tokens_out": 10,
+                "steps_completed": 4,
+            })
+            .to_string(),
+            Some("agent"),
+        )
+        .expect("store usage record");
+
+    write_budget_observation(&state, &effort_id, None, None, "timed-out", Some(45_000), &[]);
+
+    let rows = storage.query_nodes("BudgetObservation").expect("query nodes");
+    let node = rows
+        .iter()
+        .find_map(|row| {
+            let value: serde_json::Value = serde_json::from_str(&row.payload).ok()?;
+            (value.get("effort_id").and_then(|v| v.as_str()) == Some(effort_id.as_str())).then_some(value)
+        })
+        .expect("a BudgetObservation node for this effort");
+
+    assert_eq!(node["refarm.outcome.steps_completed"], 4);
+    assert!(
+        node.get("refarm.outcome.steps_planned").is_none(),
+        "an unestablished ceiling leaves NO key: a defaulted 25 would read to \
+         every later aggregate as a budget somebody actually enforced"
+    );
+    assert!(
+        node.get("refarm.outcome.turns_completed").is_none(),
+        "and a record that never carried a turn count does not gain one here"
     );
 }
 

@@ -421,11 +421,21 @@ evidence. Slices 6–8 are what let anyone else reproduce it.
 
 ## Open questions
 
-- **Where does `steps_planned` come from?** `steps_completed` is observable from the agent's own
-  loop, but a planned total exists only when the agent declared a plan (`agent/src/plan.rs`). Runs
-  without a plan record `steps_completed` and omit the total, per D6. Whether the agent should
-  always declare an intended step count is a question for the record to answer, not for this design
-  to assume.
+- ~~**Where does `steps_planned` come from?**~~ **Settled 2026-08-05 by measurement: from the same
+  loop as `steps_completed`.** The framing that produced this question was wrong. It looked for a
+  *declared plan* (`agent/src/plan.rs`'s `AgentPlan`, keyed by `session_id`) when the "25" of
+  "4/25" was never a plan — it is the completion loop's own iteration ceiling
+  (`MODEL_TOOL_CALL_MAX_ITER`, default 25), and it was already travelling on `prompt_ref`, the very
+  join key the observation uses, inside every `agent:iteration` event the sidecar renders as
+  `step N/25`. Both halves are now counted by `provider_runtime/loop_progress.rs` and stamped on the
+  `UsageRecord` together.
+
+  The same measurement found the numerator wrong for a subtler reason: it was sourced from
+  `RunTotals::turns`, which counts whole DISPATCHES. One `refarm ask` is one turn however many steps
+  it takes, so a run watched reaching `step 2/25` recorded `1`. A numerator counting turns beside a
+  denominator counting steps is worse than no fraction at all. The turn count still travels, as
+  `turns_completed` / `refarm.outcome.turns_completed`, alone — nothing declares a maximum number of
+  turns, so it is never half of a fraction.
 - ~~**Where does a workspace declare its ceiling?**~~ **Settled 2026-08-03 by the operator: a budget
   is policy, and policy sits beside policy.** The framing that produced this question was wrong: it
   offered two homes where the sovereign config is the only one. Measured: `.refarm/config.json`

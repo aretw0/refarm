@@ -44,8 +44,15 @@ pub(crate) struct ObservationInput<'a> {
     /// timestamp-parse failure costs only this field, not the rest of the
     /// record (round-1 fix: it used to drop the whole observation).
     pub elapsed_ms: Option<u64>,
+    /// The `N` and the `M` of *"died at N/M"*, both counting completion-loop
+    /// steps, both absent together when the joined record established neither.
+    /// See `steps_from_usage` for why a numerator may nonetheless arrive without
+    /// its denominator, and why that records exactly one of the two.
     pub steps_completed: Option<u32>,
     pub steps_planned: Option<u32>,
+    /// How many whole dispatches this run folded in — a different notion from
+    /// the step pair above, with no ceiling anywhere to pair it against.
+    pub turns_completed: Option<u32>,
     /// `None` when no dispatch-time resolution was found for this effort (a
     /// restart mid-run). The budget family is then OMITTED from the node
     /// entirely, never re-resolved — D6, and see `dispatch::dispatched_budgets`'s
@@ -176,19 +183,36 @@ fn put_usage(
     }
 }
 
-/// Read the turn count `usage_record_node` (agent crate,
-/// `packages/agent/src/response_nodes.rs`) stamps beside `rate_table_version`
-/// on the raw `UsageRecord` — F1's other missing half
-/// (`docs/superpowers/specs/2026-08-03-budget-laboratory-design.md`): "died
-/// at 4/25 under a 45s ceiling" named the ceiling (already recorded, D1-D9)
-/// AND the step the run reached. `None` when the joined record does not
-/// carry the field — a record written before this field existed, or no usage
-/// joined at all for this run — per D6, absent rather than a fabricated
-/// zero. Always TOP-LEVEL on the raw node (never nested under a legacy
-/// `usage.usage` shape — see `put_usage`'s doc): the field did not exist
-/// before this change, so no fixture predates it in that shape.
-fn steps_completed_from_usage(usage: Option<&serde_json::Value>) -> Option<u32> {
-    usage?.get("steps_completed")?.as_u64().map(|v| v as u32)
+/// Read one `u32` counter off the raw `UsageRecord` the agent crate stamped
+/// (`packages/agent/src/response_nodes.rs`). `None` when the joined record does
+/// not carry that key — a record written before the field existed, or no usage
+/// joined at all for this run — per D6, absent rather than a fabricated zero.
+/// Always TOP-LEVEL on the raw node (never nested under a legacy `usage.usage`
+/// shape — see `put_usage`'s doc).
+fn usage_count(usage: Option<&serde_json::Value>, key: &str) -> Option<u32> {
+    usage?.get(key)?.as_u64().map(|v| v as u32)
+}
+
+/// The two halves of *"died at 4/25"*
+/// (`docs/superpowers/specs/2026-08-03-budget-laboratory-design.md`, F1), read
+/// as ONE value from the ONE record that carries both. The agent writes them
+/// together or not at all (`provider_runtime::loop_progress`), and this reads
+/// them the same way, so an observation can never pair a numerator with a
+/// denominator that measured something else.
+///
+/// Both count completion-loop STEPS: `steps_completed` is the `N` and
+/// `steps_planned` the `M` of the `step N/M` the sidecar rendered live from
+/// `agent:iteration` (`agent_activity.rs`), on this very same `prompt_ref`.
+///
+/// Reading them independently is deliberate all the same: a `UsageRecord` from
+/// an older agent carries a numerator with no denominator, and the honest record
+/// of that run is the numerator plus NO `steps_planned` key — never a `25`
+/// invented here from the current default.
+fn steps_from_usage(usage: Option<&serde_json::Value>) -> (Option<u32>, Option<u32>) {
+    (
+        usage_count(usage, "steps_completed"),
+        usage_count(usage, "steps_planned"),
+    )
 }
 
 fn axis_level_str(level: super::budget::BudgetLevel) -> &'static str {
@@ -309,8 +333,16 @@ pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json:
     // predates this change — every observation before today omits both.
     put_opt(&mut map, "host.name", input.node_name.map(Into::into));
     put_opt(&mut map, "host.id", input.node_id.map(Into::into));
+    // *"died at 4/25"*, recoverable. Both keys omitted, never zeroed or
+    // defaulted, when the run established no such measurement (D6) — a `0` or a
+    // `25` here would read to every future analysis as a step budget that was
+    // actually observed.
     put_opt(&mut map, "refarm.outcome.steps_completed", input.steps_completed.map(Into::into));
     put_opt(&mut map, "refarm.outcome.steps_planned", input.steps_planned.map(Into::into));
+    // Spelled `turns`, not `steps`, because it counts dispatches — the two used
+    // to share the `steps_completed` name, which made a `1` from this counter
+    // read as the numerator of a step fraction it had nothing to do with.
+    put_opt(&mut map, "refarm.outcome.turns_completed", input.turns_completed.map(Into::into));
 
     put_usage(&mut map, input.usage.as_ref());
 
@@ -437,6 +469,9 @@ pub(crate) fn write_budget_observation(
     let node_name = crate::node_identity::declared_node_name(&node_base);
     let node_id = crate::node_identity::load_or_create_node_id(&state.refarm_dir);
 
+    // Both halves of the step fraction, taken as one read from one record.
+    let (steps_completed, steps_planned) = steps_from_usage(usage.as_ref());
+
     let node = build_observation_node(ObservationInput {
         effort_id,
         prompt_ref: Some(&prompt_ref),
@@ -446,17 +481,25 @@ pub(crate) fn write_budget_observation(
         elapsed_ms,
         node_name: node_name.as_deref(),
         node_id: node_id.as_deref(),
-        // F1's other missing half, closed: the joined UsageRecord carries the
-        // turn count RUN_TOTALS (`agent/src/runtime/react_loop.rs`)
-        // accumulated across this run — see `steps_completed_from_usage`'s
-        // doc. `steps_planned` stays absent: a run only has a planned total
-        // when the agent declared one (`agent/src/plan.rs`'s `AgentPlan`
-        // node), which lives in a DIFFERENT node keyed by session_id, not on
-        // this effort's UsageRecord/prompt_ref join key — nothing on this
-        // path resolves a session's plan today, so a fabricated denominator
-        // here would be worse than none (D6).
-        steps_completed: steps_completed_from_usage(usage.as_ref()),
-        steps_planned: None,
+        // F1's other missing half, closed on BOTH halves: the joined
+        // UsageRecord carries the step pair the completion loop counted
+        // (`agent/src/provider_runtime/loop_progress.rs`), and it travels on
+        // this effort's prompt_ref — the same join key this observation
+        // already uses for every other usage field.
+        //
+        // The denominator was previously hardcoded `None` on the grounds that a
+        // planned total exists only when the agent declared an `AgentPlan`
+        // (`agent/src/plan.rs`), a node keyed by session_id rather than
+        // prompt_ref. That was true of `AgentPlan` and irrelevant here: the "25"
+        // of "4/25" was never a declared plan, it is the completion loop's own
+        // iteration ceiling, and it was already travelling on prompt_ref in
+        // every `agent:iteration` event this node renders as `step N/25`.
+        steps_completed,
+        steps_planned,
+        // A DIFFERENT notion, kept under a name that says so — see
+        // `UsageRecordPayload::turns_completed` in the agent crate. No ceiling
+        // on turns exists anywhere, so this count is never half of a fraction.
+        turns_completed: usage_count(usage.as_ref(), "turns_completed"),
         resolved,
         // Split here, at the record boundary, from the ONE `DispatchedScenario`
         // the caller took — the two halves live together in the stash precisely
