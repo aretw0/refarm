@@ -48,6 +48,13 @@ function makeDeps(overrides: Partial<AskDeps> = {}): AskDeps {
 		clearActiveSessionId: vi.fn().mockReturnValue(true),
 		persistActiveSessionId: vi.fn(),
 		collectSystemPrompt: vi.fn().mockResolvedValue("test system prompt"),
+		// Fix round 1: these two used to run for real in every test that reached
+		// this point — reading the operator's actual .refarm/config.json and
+		// making a live network call to the sidecar. Stubbed here so the suite
+		// touches neither; tests that care about workspace attribution override
+		// them explicitly.
+		declaredWorkspaceRoots: vi.fn().mockReturnValue([]),
+		readSessionWorkspace: vi.fn().mockResolvedValue(undefined),
 		...overrides,
 	};
 }
@@ -319,6 +326,65 @@ describe("refarm ask", () => {
 		outSpy.mockRestore();
 	});
 
+	it("--workspace declares which workspace this run belongs to, and it rides the effort", async () => {
+		process.env.MODEL_PROVIDER = "openai-codex";
+		const deps = makeDeps({
+			declaredWorkspaceRoots: vi
+				.fn()
+				.mockReturnValue([
+					{ id: "rcdc5", absolutePath: "/home/op/git/rcdc5" },
+					{ id: "refarm", absolutePath: "/home/op/github/refarm" },
+				]),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+		await command.parseAsync(["hello", "--workspace", "rcdc5"], { from: "user" });
+
+		const effort = (deps.submitEffort as ReturnType<typeof vi.fn>).mock.calls[0]![0];
+		const args = effort.tasks[0].args as Record<string, unknown>;
+		// The wire fields: `Effort.workspaceId` (root, for the sidecar's BudgetObservation)
+		// and `args.workspace_id` (for the agent, which stamps it on the Session node).
+		expect(effort.workspaceId).toBe("rcdc5");
+		expect(args.workspace_id).toBe("rcdc5");
+		expect(args.workspace_source).toBe("declared");
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
+	it("rejects an undeclared --workspace, naming the declared ones, and never dispatches", async () => {
+		const deps = makeDeps({
+			declaredWorkspaceRoots: vi
+				.fn()
+				.mockReturnValue([
+					{ id: "rcdc5", absolutePath: "/home/op/git/rcdc5" },
+					{ id: "refarm", absolutePath: "/home/op/github/refarm" },
+				]),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--workspace", "rcdc", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(payload).toMatchObject({
+			ok: false,
+			command: "ask",
+			operation: "options",
+			error: "invalid-workspace",
+		});
+		expect(payload.message).toContain("rcdc5");
+		expect(payload.message).toContain("refarm");
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+	});
+
 	it("rejects invalid ask model scopes as JSON", async () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);
@@ -356,6 +422,10 @@ describe("refarm ask", () => {
 					},
 			),
 			collectSystemPrompt: vi.fn().mockResolvedValue("test system prompt"),
+			// Not the fallback under test here — stubbed so this test doesn't read
+			// the real config or hit the real sidecar over the network either.
+			declaredWorkspaceRoots: vi.fn().mockReturnValue([]),
+			readSessionWorkspace: vi.fn().mockResolvedValue(undefined),
 		};
 		const command = createAskCommand(deps);
 		const readSpy = vi

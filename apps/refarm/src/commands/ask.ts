@@ -90,6 +90,7 @@ import { resolveSidecarUrlAsync, sidecarUrlAsync } from "./sidecar-url.js";
 import { type DeclaredRoot, resolveWorkspaceFromPath } from "./workspace-from-path.js";
 
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
+const WORKSPACE_LIST_JSON_COMMAND = refarmCommand(["workspace", "list", "--json"]);
 
 export {
 	followStreamFile,
@@ -124,6 +125,12 @@ export {
 	readPluginState?(): Promise<RuntimePluginState | null>;
 	reloadPlugins?(pluginIds: string[]): Promise<RuntimePluginReloadResult | null>;
 	collectSystemPrompt?(request: { cwd: string; query: string; files: string[] }): Promise<string>;
+	/** `DeclaredRoot[]` from the config catalog. Injectable so tests never read the real
+	 * `.refarm/config.json` — see `declaredWorkspaceRoots` for the production default. */
+	declaredWorkspaceRoots?(): DeclaredRoot[];
+	/** What the Session node already carries. Injectable so tests never hit the real sidecar
+	 * over the network — see `readSessionWorkspace` for the production default. */
+	readSessionWorkspace?(sessionId: string): Promise<SessionWorkspaceLookup | undefined>;
 	}
 
 	interface SessionNode {
@@ -225,17 +232,38 @@ export {
 	}
 
 	/**
-	 * What the Session node already carries, when it carries anything. `workspace_id` /
-	 * `workspace_source` are ABSENT (not null) on an unattributed session, so a missing key
-	 * reads the same as "not declared" — and so does any failure reading it: this must never
-	 * throw and never block the dispatch.
+	 * What `readSessionWorkspace` found, reduced to what the ladder needs to tell apart:
+	 * a declaration (`{ id, source }`), or `"unknown"` — the sidecar could not be asked, so
+	 * NOTHING may be inferred, least of all a cwd seed standing in for a fact that might
+	 * already be settled. `undefined` (the third, implicit state — see below) means the
+	 * query succeeded and genuinely found no declaration, which is a different fact from
+	 * `"unknown"` and must be told apart from it: collapsing "asked and got nothing" into
+	 * "could not ask" is exactly the silent re-attribution this ladder exists to prevent.
 	 */
-	async function readSessionWorkspace(
-	sessionId: string,
-	): Promise<{ id: string; source: string } | undefined> {
+	export type SessionWorkspaceLookup = { id: string; source: string } | "unknown";
+
+	/**
+	 * What the Session node already carries, when it carries anything — or `"unknown"` when
+	 * the sidecar could not be asked at all (non-2xx, a thrown network/timeout error, or a
+	 * response body that did not parse). Those three failure shapes are NOT "not declared":
+	 * a session that already exists but whose stored declaration could not be READ must read
+	 * as unknown, never as absent, or a transient sidecar hiccup would silently re-attribute
+	 * an already-settled session to wherever the operator happens to be standing today.
+	 *
+	 * `undefined` is reserved for a genuinely successful read that found no declaration — the
+	 * ordinary case for a session newly minted this run, which has nothing to read yet and is
+	 * expected to seed from cwd. `workspace_id`/`workspace_source` being ABSENT (not null) on
+	 * the node is what that successful-but-empty read looks like on the wire.
+	 */
+	async function readSessionWorkspace(sessionId: string): Promise<SessionWorkspaceLookup | undefined> {
+	let response: Response;
 	try {
-		const response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/sessions"));
-		if (!response.ok) return undefined;
+		response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/sessions"));
+	} catch {
+		return "unknown";
+	}
+	if (!response.ok) return "unknown";
+	try {
 		const body = (await response.json()) as { sessions?: SessionNode[] };
 		const node = (body.sessions ?? []).find((session) => session["@id"] === sessionId);
 		if (!node?.workspace_id) return undefined;
@@ -245,15 +273,21 @@ export {
 				typeof node.workspace_source === "string" ? node.workspace_source : "seeded-from-cwd",
 		};
 	} catch {
-		return undefined;
+		return "unknown";
 	}
 	}
 
 	export interface DispatchWorkspaceInput {
 	/** `--workspace <id>`, already validated. */
 	flag?: string;
-	/** What the Session node already carries, when it carries anything. */
-	sessionWorkspace?: { id: string; source: string };
+	/**
+	 * What the Session node already carries, when it carries anything — three states, not
+	 * two: `{ id, source }` (a stored declaration, inherited), `"unknown"` (the sidecar could
+	 * not be asked — read failure falls through to NO attribution, never to the cwd seed),
+	 * or `undefined` (successfully asked, genuinely nothing declared — the normal case for a
+	 * session newly minted this run, which still seeds from cwd exactly as before).
+	 */
+	sessionWorkspace?: SessionWorkspaceLookup;
 	/**
 	 * The directory a HUMAN was standing in, supplied only by the interactive CLI entry.
 	 * Undefined for every other caller — a node opening a session for a Telegram thread has
@@ -269,6 +303,12 @@ export {
 	 * a session's first dispatch, then nothing. cwd is absent from degrees 1 and 2 on purpose —
 	 * ADR-094's D2 keeps it out of the resolution order, and it enters here only as the
 	 * authoring convenience H2 permits, stamped so it can never be mistaken for a declaration.
+	 *
+	 * `sessionWorkspace: "unknown"` (a read failure, not a lookup) short-circuits to NO
+	 * attribution — it must NEVER fall through to the cwd seed, or a transient sidecar hiccup
+	 * on an already-attributed session would silently re-attribute it to wherever the operator
+	 * happens to be standing today. Only a confirmed empty read (`undefined`) — the ordinary
+	 * shape of a session that has nothing stored yet — reaches degree 3.
 	 */
 	export function resolveDispatchWorkspace(input: DispatchWorkspaceInput): {
 	workspaceId?: string;
@@ -278,6 +318,7 @@ export {
 	if (flag) return { workspaceId: flag, workspaceSource: "declared" };
 
 	const inherited = input.sessionWorkspace;
+	if (inherited === "unknown") return {};
 	if (inherited?.id) {
 		return {
 			workspaceId: inherited.id,
@@ -291,6 +332,39 @@ export {
 	}
 
 	return {};
+	}
+
+	/**
+	 * Validate `--workspace <id>` against the DECLARED catalog before it ever reaches
+	 * `resolveDispatchWorkspace` — an unchecked flag lets a typo (`--workspace rcdc`) land as
+	 * `workspaceSource: "declared"` on a phantom id that matches nothing, which is exactly the
+	 * silent wrong-attribution failure mode this whole feature exists to prevent.
+	 *
+	 * Same "absent means absent, parse once and reuse" contract and syntax rules as
+	 * `parseWorkspaceOption` (`./dispatch-capability.ts`) — trimmed, non-empty, no whitespace
+	 * or colon — plus the one check that command cannot make without a resolved catalog in
+	 * hand: the id must actually be declared, and the error names the ones that are.
+	 */
+	export function validateWorkspaceFlag(
+	flag: string | undefined,
+	roots: DeclaredRoot[],
+	): { workspaceId?: string } | { error: string } {
+	if (flag === undefined) return {};
+	const trimmed = flag.trim();
+	if (trimmed.length === 0) {
+		return { error: "--workspace must not be empty" };
+	}
+	if (/[\s:]/.test(trimmed)) {
+		return {
+			error: `--workspace must not contain whitespace or a colon, got ${JSON.stringify(flag)}`,
+		};
+	}
+	if (!roots.some((root) => root.id === trimmed)) {
+		const known = roots.map((root) => root.id).sort();
+		const knownList = known.length > 0 ? known.join(", ") : "(none declared)";
+		return { error: `--workspace "${trimmed}" is not declared. Declared workspaces: ${knownList}` };
+	}
+	return { workspaceId: trimmed };
 	}
 
 	function defaultDeps(): AskDeps {
@@ -626,6 +700,35 @@ export {
 					process.exitCode = 1;
 					return;
 				}
+
+				// Resolved once, validated once, reused both for the flag check below and for
+				// the ladder at dispatch time — never re-read from config mid-command.
+				const declaredRoots = (resolved.declaredWorkspaceRoots ?? declaredWorkspaceRoots)();
+				const workspaceValidation = validateWorkspaceFlag(opts.workspace, declaredRoots);
+				if ("error" in workspaceValidation) {
+					if (opts.json) {
+						printJson(
+							buildJsonErrorEnvelope({
+								command: "ask",
+								operation: "options",
+								error: "invalid-workspace",
+								message: workspaceValidation.error,
+								nextAction: WORKSPACE_LIST_JSON_COMMAND,
+								nextActions: [WORKSPACE_LIST_JSON_COMMAND],
+								nextCommand: WORKSPACE_LIST_JSON_COMMAND,
+								nextCommands: [WORKSPACE_LIST_JSON_COMMAND],
+								extra: { action: "ask" },
+							}),
+						);
+						process.exitCode = 1;
+						return;
+					}
+					console.error(chalk.red(`\n✗  ${workspaceValidation.error}`));
+					console.error(chalk.dim(`   Inspect declared workspaces: ${WORKSPACE_LIST_JSON_COMMAND}`));
+					process.exitCode = 1;
+					return;
+				}
+
 				const askScope = modelScope ?? "default";
 				const routeStatus = buildCurrentModelStatus(await defaultModelDeps().loadTokens());
 				const selectedRoute = resolveRuntimeModelRoute(routeStatus, askScope);
@@ -699,8 +802,9 @@ export {
 					files,
 				});
 
-				const declaredRoots = declaredWorkspaceRoots();
-				const sessionWorkspace = await readSessionWorkspace(sessionId);
+				const sessionWorkspace = await (resolved.readSessionWorkspace ?? readSessionWorkspace)(
+					sessionId,
+				);
 				const workspace = resolveDispatchWorkspace({
 					flag: opts.workspace,
 					sessionWorkspace,
