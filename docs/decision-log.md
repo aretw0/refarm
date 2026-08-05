@@ -2,6 +2,31 @@
 
 Central register for high-impact technical decisions that are pending or recently accepted.
 
+## Every input source converges on one declaration
+
+**Date**: 2026-08-05
+**Status**: Accepted (operator, 2026-08-05)
+**Spec**: [Which sovereign state is active](superpowers/specs/2026-08-05-which-sovereign-state-is-active-design.md)
+**References**: [`DECLARE_ONCE_INVARIANT.md`](DECLARE_ONCE_INVARIANT.md),
+[Router decides from the catalog](superpowers/specs/2026-08-04-router-decides-from-the-catalog-design.md) D1
+
+**Decision**: Data reaches the agent at runtime — by injection or from the graph — never by the agent
+reading disk. A file is a legitimate PRODUCER of a declaration, never a coupling: nothing downstream
+may know whether a declaration arrived from a file, from the graph, or by injection. This is
+`DECLARE_ONCE_INVARIANT` mirrored — that invariant says one declaration projects to every output
+surface; this says every input source converges on one declaration.
+
+**Consequences**: an operator who keeps local files and has assimilated nothing into the graph stays
+supported, and compatibility with pi's on-disk structure remains possible, without either becoming a
+runtime dependency. The `.pi/agents/**` and `.pi/monitors/**` files in this repository are residue
+from working here through pi; they stay for compatibility and Refarm does not couple to them. The
+open question "where does a node-scoped automation live?" resolves to the graph, with
+`.project/automations.json` as a project-scoped producer rather than the home of node-scoped state.
+
+**Origin**: the operator stated the grain directly — "temos essa teimosia de sempre buscar fazer
+coisas em runtime sem precisar ler do disco" — then corrected an over-reading of it, declining to
+trade file support away for purity.
+
 ## Node context, workspace hatch, and sovereign home resolution
 
 **Date**: 2026-08-04

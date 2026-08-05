@@ -1,0 +1,175 @@
+# Which Sovereign State Is Active
+
+Date: 2026-08-05
+Status: proposed
+Implements: ADR-094 (Proposed) D1, D4, D5 — the parts that answer the operator's question
+Related: 2026-08-04 node-context-workspace-hatch design, 2026-08-03 declared-node-base design,
+2026-08-04 router-decides-from-the-catalog design, `docs/DECLARE_ONCE_INVARIANT.md`
+
+## Why this exists
+
+The decision log's entry for ADR-094 states its origin as "repeated operational mismatch where
+credential setup and runtime startup observed different homes/stores, creating 'configured' versus
+'not usable' outcomes for the same operator workflow."
+
+On 2026-08-05 that mismatch cost real work. During a plan that touched the agent component, three
+separate agents and the controller each formed a wrong picture of which artifact the node was
+running, because nothing in the system will say.
+
+### What was measured, not argued
+
+| Path | SHA-256 | Modified | Loaded? |
+| --- | --- | --- | --- |
+| `~/.refarm/plugins/refarm_agent/plugin.wasm` | `22dbabbd…` | 2026-08-05 17:27 | **yes** — the running `--plugin` argument |
+| `packages/agent/dist/agent.wasm` | `22dbabbd…` | 2026-08-05 17:31 | no, but it is what `plugin install` copies |
+| `<repo>/.refarm/plugins/refarm_agent/plugin.wasm` | `321c6625…` | 2026-07-30 | no |
+| `<repo>/.refarm/plugins/@refarm/agent/plugin.wasm` | `68af329e…` | 2026-07-21 | no |
+
+Four locations, three distinct binaries, two of them six and fifteen days stale. `refarm doctor
+--json` answered `ok: true` with zero findings at every point. Two agents independently reported
+`doctor` clean while the daemon ran nine-hour-stale code, verified by hand with sha256; the
+`runtime:stale` finding the project handoff records as SHIPPED did not fire.
+
+Nothing here was a wrong belief that a careful operator could have avoided by looking harder. There
+is no command to look at. `refarm context` does not exist.
+
+## What the operator already solved elsewhere
+
+`~/github/agents-lab/scripts/pi-isolated.mjs` isolates a development install of `pi` from the
+operator's personal one. Its stated purpose: "avoid hidden drift from `~/.pi/agent` in curation/dev
+sessions; keep settings/sessions/runtime artifacts scoped to this repository; preserve
+reproducibility when debugging monitor/runtime behavior."
+
+Three properties are worth taking, and one is worth taking deliberately:
+
+1. **One variable relocates everything.** `PI_CODING_AGENT_DIR` points at `<repo>/.sandbox/pi-agent`
+   instead of `~/.pi/agent`. There is no partial isolation to reason about.
+2. **Credentials are inherited, not isolated.** `auth.json` is copied from the global directory into
+   the local one. Isolation that forced re-authentication would not get used.
+3. **Isolation ships with parity.** `pi-parity.mjs` compares what is configured against declared
+   profiles, scoped `user | project | both`. Isolation without a parity check trades one silent
+   drift for another.
+
+## What Refarm already has, and what is missing
+
+The mechanism exists. `packages/config/src/index.js:132-142` declares both selectors, and the
+comment states the guarantee this work makes checkable:
+
+> the neutral env var that names WHERE this node's declarations live … injected the same way and
+> read identically by the Rust host and this stack, **so the two cannot answer from different
+> directories on the same node**.
+
+| | agents-lab (pi) | Refarm today |
+| --- | --- | --- |
+| Variable that relocates state | `PI_CODING_AGENT_DIR` | `SOVEREIGN_BASE` + `SOVEREIGN_DIR` ✅ |
+| Isolated launcher | `pnpm pi:isolated` | missing |
+| Command naming the active state | `pi:isolated:status` | missing |
+| Parity checker | `pi-parity.mjs` | missing |
+| Selective credential inheritance | `auth.json` copied | missing |
+| Covered by a CI gate | `test:pi:isolated` | missing |
+
+Refarm has the selectors and no cockpit. This design builds the cockpit.
+
+## Design
+
+Two of these four are CLI subcommands and one is a repository script, deliberately. `refarm context`
+and `refarm parity` **inspect a node** and are useful on any machine running Refarm, including one
+that never clones this repository — they belong to the product. The isolated launcher **builds a
+development sandbox out of this working tree** and is meaningless without it, exactly as
+`pi-isolated.mjs` is a script in agents-lab rather than a `pi` subcommand. Divergence detection is
+not a surface of its own; it is output of the first two plus `refarm doctor`.
+
+### D1. `refarm context` — one command, one resolved answer
+
+ADR-094's D1 requires any command touching credentials, runtime, provider routing or node-owned
+policy to resolve a single effective context, and its D4 requires a success answer to name *where*.
+`refarm context` is that answer made inspectable on its own.
+
+It reports, as JSON and as text: the mode (`node-global` or `workspace-sandbox`), the sovereign home
+and how it was chosen (declared via `SOVEREIGN_BASE`, or fallen back to cwd), the runtime namespace,
+the credential source, the running node's identity, port and pid, and the plugin artifact actually
+loaded **with its hash**.
+
+The hash is the part that would have prevented today. A path proves nothing; two paths can hold
+different bytes, and did.
+
+### D2. Divergence is reported, never resolved silently
+
+ADR-094's D5: when components disagree, surface a divergence finding rather than picking one and
+pretending the answer is obvious. Concretely, `refarm context` and `refarm doctor` report when the
+loaded artifact's hash differs from the built artifact, when a sovereign directory exists at a path
+nothing loads, and when the TypeScript stack and the Rust host would resolve different homes.
+
+`runtime:stale` exists and did not fire. This design treats that as a defect to be diagnosed by the
+implementation, not routed around: whatever replaces it must be proven to fire by deliberately
+staling an artifact, not by inspection.
+
+### D3. The isolated launcher
+
+`pnpm refarm:isolated` declares `SOVEREIGN_BASE` and `SOVEREIGN_DIR` at `<repo>/.sandbox/refarm`,
+inherits credentials from the operator's home the way `pi-isolated` inherits `auth.json`, and starts
+a node on its own port and namespace.
+
+Its own graph store comes with it, which is the property the operator asked for and which pi does not
+need: **an experiment's cost lands in the sandbox's `BudgetObservation` record, not in the operator's
+real ledger.** This is not hypothetical — the live proofs for the workspace-attribution plan on
+2026-08-05 wrote test dispatches into the operator's real cost record, and there was no other place
+for them to go.
+
+`status` and `--reset` follow `pi-isolated`'s surface. `--reset` deletes the sandbox and nothing else.
+
+### D4. Parity
+
+`refarm parity` compares the sandbox against the operator's node on declared axes — configured
+providers and routes, installed plugins and their hashes, engine and namespace — and reports where
+they differ. Divergence is normal in a lab; **undeclared** divergence is what makes a lab lie.
+
+## The intake principle, which governs beyond this slice
+
+Recorded here because it was settled while designing this and has no other home yet.
+
+Refarm's grain is that data reaches the agent **at runtime, by injection or from the graph, without
+reading disk**. The router design already states this as its D1: the catalog "reaches the guest by
+injection, not by embedding", travelling the `MODEL_*` seam the host already screens, exactly as
+`MODEL_CONFIGURED_PROVIDERS` does.
+
+That does **not** mean files are unsupported. A user who keeps local files and has assimilated
+nothing into the graph is a user Refarm should serve, and compatibility with pi's on-disk structure
+is worth having. The resolution is a boundary, not a prohibition:
+
+> **The runtime contract is the truth; a file is one producer of it.** Nothing downstream knows
+> whether a declaration arrived from a file, from the graph, or by injection.
+
+This is `DECLARE_ONCE_INVARIANT` mirrored. That invariant says one declaration projects to every
+output surface; this says every input source converges on one declaration. Same discipline, opposite
+direction.
+
+Two consequences worth stating now, because both are live questions elsewhere:
+
+- The `.pi/agents/*.agent.yaml` and `.pi/monitors/**` files in this repository are residue from
+  working here through pi. They stay for compatibility. **Refarm does not couple to them** — nothing
+  in Refarm may require them to exist or read them as a runtime source.
+- The handoff's open question "where does a node-scoped automation live?" is answered by this
+  principle: the graph, with `.project/automations.json` as a project-scoped producer rather than the
+  home of node-scoped state.
+
+## Verification
+
+- `refarm context --json` names the loaded artifact's hash, and a test proves the reported hash
+  matches the file the running process was started with.
+- Divergence detection is proven by **deliberately staling an artifact** and asserting the finding
+  fires. Inspection is not proof; `runtime:stale` passed inspection and did not fire.
+- The isolated launcher is proven by starting a sandbox node, dispatching one ask, and asserting the
+  observation landed in the sandbox's record and **not** in the operator's.
+- Parity is proven by declaring a divergence and asserting it is reported.
+- A CI gate covers the launcher, mirroring `test:pi:isolated`.
+
+## Non-goals
+
+- **The workspace hatch is not built here.** ADR-094's hatch (`homeMode`, `credentialMode`,
+  `runtimeNamespaceMode`) is a richer binding than this slice needs. `refarm context` reports
+  `mode: node-global | workspace-sandbox`; the hatch adds modes later without changing the command.
+- **No agent-knowledge intake is built here.** The intake principle above is recorded, not
+  implemented. Making curated declarations reach the agent at runtime is separate work.
+- **The router is not built here.** It is separately designed and awaits its own plan.
+- **`refarm dispatch` and the workspace attribution ladder are untouched.**
