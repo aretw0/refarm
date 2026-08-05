@@ -10,6 +10,7 @@ import { declaredBase, effectiveModelRouteForScope, loadConfig, sovereignDir } f
 
 import { Command } from "commander";
 import { readNodeDescriptor } from "../utils/node-descriptor.js";
+import { resolveLoadedPlugin } from "../utils/loaded-plugin.js";
 import {
 	defaultAgentPluginPath,
 	defaultRateCatalogPath,
@@ -389,9 +390,10 @@ function resolveFreshness(): RuntimeFreshness | null {
 		// builder, which is where every other doctor finding keeps it too.
 		const descriptor = readNodeDescriptor(nodeHome);
 		if (!descriptor) return null;
+		const loaded = resolveLoadedPlugin(descriptor.pid);
 		return resolveRuntimeFreshness(
 			{ pid: descriptor.pid, startedAt: descriptor.startedAt },
-			defaultAgentPluginPath(nodeHome),
+			defaultAgentPluginPath(nodeHome, loaded?.path),
 			undefined,
 			defaultRateCatalogPath(nodeHome),
 		);

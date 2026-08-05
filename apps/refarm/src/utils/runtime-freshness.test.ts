@@ -69,8 +69,28 @@ describe("runtime freshness", () => {
 	});
 
 	it("derives the agent plugin path from the sovereign dir, and refuses without one", () => {
-		expect(defaultAgentPluginPath("/home/op/.refarm")).toBe(PLUGIN);
-		expect(defaultAgentPluginPath(undefined)).toBeNull();
+		expect(defaultAgentPluginPath("/home/op/.refarm", undefined)).toBe(PLUGIN);
+		expect(defaultAgentPluginPath(undefined, undefined)).toBeNull();
+	});
+});
+
+describe("defaultAgentPluginPath", () => {
+	it("prefers the path the process actually loaded over any reconstruction", () => {
+		expect(
+			defaultAgentPluginPath("/home/op/.refarm", "/home/op/.refarm/plugins/refarm_agent/plugin.wasm"),
+		).toBe("/home/op/.refarm/plugins/refarm_agent/plugin.wasm");
+	});
+
+	it("falls back to the conventional path only when the loaded one is unknown", () => {
+		expect(defaultAgentPluginPath("/home/op/.refarm", undefined)).toContain("plugins");
+	});
+
+	it("returns null without a sovereign dir and without a loaded path", () => {
+		expect(defaultAgentPluginPath(undefined, undefined)).toBeNull();
+	});
+
+	it("returns the loaded path even without a sovereign dir — the process is the better witness", () => {
+		expect(defaultAgentPluginPath(undefined, "/somewhere/plugin.wasm")).toBe("/somewhere/plugin.wasm");
 	});
 });
 

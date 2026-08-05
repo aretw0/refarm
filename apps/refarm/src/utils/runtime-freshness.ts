@@ -248,8 +248,24 @@ export function defaultRateCatalogPath(sovereignDir: string | undefined): string
 	return path.join(sovereignDir, "model-rates.v1.json");
 }
 
-/** Where a node keeps the agent plugin it loads. `null` when no sovereign dir is known. */
-export function defaultAgentPluginPath(sovereignDir: string | undefined): string | null {
+/**
+ * Which agent plugin file to compare against the running process.
+ *
+ * `loadedPath` WINS when known, and the reason is a defect measured on 2026-08-05: this
+ * function returned `plugins/@refarm/agent/plugin.wasm` while the daemon had been started
+ * with `plugins/refarm_agent/plugin.wasm`. Both existed in the same sovereign dir, written
+ * the same day, 477,924 bytes against 476,441 — different builds. The installer converged on
+ * one directory and this watcher stayed pointed at the other, so a node running a stale build
+ * was reported fresh — twice, to two different agents.
+ *
+ * The conventional path survives ONLY as the fallback for a node whose argv cannot be read.
+ * It is a guess, it is labelled as one here, and it is never preferred over the witness.
+ */
+export function defaultAgentPluginPath(
+	sovereignDir: string | undefined,
+	loadedPath: string | undefined,
+): string | null {
+	if (loadedPath) return loadedPath;
 	if (!sovereignDir) return null;
 	return path.join(sovereignDir, "plugins", "@refarm", "agent", "plugin.wasm");
 }
