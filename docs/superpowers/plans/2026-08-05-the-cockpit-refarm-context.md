@@ -322,15 +322,27 @@ Inspection is not proof. `runtime:stale` passed inspection and did not fire. Del
 refarm doctor --json | python3 -c "import sys,json; d=json.load(sys.stdin); print('before:', d.get('ok'), len(d.get('findings') or []))"
 LOADED=$(tr '\0' '\n' < /proc/$(pgrep -f 'tractor --plugin' | head -1)/cmdline | grep -A1 -x -- --plugin | tail -1)
 echo "loaded: $LOADED"
-cp "$LOADED" /tmp/plugin-backup.wasm
-touch "$LOADED"                       # newer than the process, without changing a byte
+ORIGINAL_MTIME=$(stat -c %y "$LOADED")        # capture BEFORE touching anything
+echo "original mtime: $ORIGINAL_MTIME"
+touch "$LOADED"                                # newer than the process, not one byte changed
 refarm doctor --json | python3 -c "import sys,json; d=json.load(sys.stdin); print('after:', [f.get('diagnostic') for f in (d.get('findings') or [])])"
-cp /tmp/plugin-backup.wasm "$LOADED"  # restore
+touch -d "$ORIGINAL_MTIME" "$LOADED"           # put the clock back exactly
+stat -c %y "$LOADED"                           # must equal ORIGINAL_MTIME
+refarm doctor --json | python3 -c "import sys,json; d=json.load(sys.stdin); print('restored:', d.get('ok'), len(d.get('findings') or []))"
 ```
 
-Expected: `before` clean; `after` contains `runtime:stale`. If it does not, STOP — the fix is incomplete and the finding is still blind. Record the raw output either way.
+Expected: `before` clean; `after` contains `runtime:stale`; `restored` back to clean with the mtime
+identical to the captured one. If `after` does not contain the finding, STOP — the fix is incomplete
+and the check is still blind. Record the raw output at all three points.
 
-`touch` rather than a rebuild on purpose: it changes the mtime the check reads without altering the bytes the node is running, so the operator's node keeps serving correctly throughout and the restore is exact.
+Two deliberate choices here, and the second was a defect in an earlier draft of this plan:
+
+- **`touch`, not a rebuild.** It changes the mtime the check reads without altering the bytes the
+  node is executing, so the operator's node keeps serving correctly throughout.
+- **`touch -d`, never `cp` from a backup.** A copy rewrites the file *now*, so the restored mtime
+  would be newer than the process start and the node would report stale permanently, until the
+  operator restarted it — the proof would leave behind the exact condition it was testing for. Since
+  `touch` never touches content, no backup is needed at all; only the clock has to be put back.
 
 - [ ] **Step 7: Commit with the evidence**
 
