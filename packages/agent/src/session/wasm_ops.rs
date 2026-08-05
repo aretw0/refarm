@@ -131,7 +131,14 @@ pub(crate) fn get_or_create_session() -> String {
     if let Ok(id) = std::env::var("MODEL_SESSION_ID") {
         if !id.is_empty() {
             if tractor_bridge::get_node(&id).is_err() {
-                let node = session_node(&id, None, None, None, now_ns(), None);
+                // Bound first: `declared_workspace()` returns owned Strings, and
+                // `session_node` borrows. Inlining the call would drop the temporary
+                // while the borrow is still live.
+                let declared = declared_workspace();
+                let workspace = declared
+                    .as_ref()
+                    .map(|(id, source)| (id.as_str(), source.as_str()));
+                let node = session_node(&id, None, None, None, now_ns(), workspace);
                 let _ = tractor_bridge::store_node(&node.to_string());
             }
             return id;
@@ -143,6 +150,22 @@ pub(crate) fn get_or_create_session() -> String {
     }
 
     store_new_session(None).unwrap_or_else(new_session_id)
+}
+
+/// The workspace attribution declared for THIS call, or `None`.
+///
+/// Read only where a Session node is CREATED. An existing session keeps whatever it was
+/// created with: the declaration is the session's, not the dispatch's, so a later run from
+/// another directory cannot silently re-attribute a conversation already under way.
+fn declared_workspace() -> Option<(String, String)> {
+    let id = std::env::var("MODEL_WORKSPACE_ID")
+        .ok()
+        .filter(|v| !v.trim().is_empty())?;
+    let source = std::env::var("MODEL_WORKSPACE_SOURCE")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| "declared".to_string());
+    Some((id, source))
 }
 
 /// Try to build history by walking the active Session's entry tree.

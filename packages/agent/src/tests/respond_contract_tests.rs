@@ -15,6 +15,28 @@ fn parse_respond_payload_parses_session_fields() {
 }
 
 #[test]
+fn parse_respond_payload_parses_workspace_fields() {
+    let payload = serde_json::json!({
+        "prompt": "p",
+        "session_id": "urn:sovereign:session:v1:abc",
+        "workspace_id": "rcdc5",
+        "workspace_source": "declared",
+    })
+    .to_string();
+    let req = parse_respond_payload(&payload).expect("valid payload must parse");
+    assert_eq!(req.workspace_id.as_deref(), Some("rcdc5"));
+    assert_eq!(req.workspace_source.as_deref(), Some("declared"));
+}
+
+#[test]
+fn parse_respond_payload_without_workspace_leaves_it_absent() {
+    let payload = serde_json::json!({ "prompt": "p" }).to_string();
+    let req = parse_respond_payload(&payload).expect("prompt-only payload must still parse");
+    assert!(req.workspace_id.is_none());
+    assert!(req.workspace_source.is_none());
+}
+
+#[test]
 fn parse_respond_payload_parses_model_route_fields() {
     let payload = serde_json::json!({
         "prompt": "hello",

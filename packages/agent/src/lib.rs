@@ -235,6 +235,12 @@ struct RespondPayload {
     /// ADR-012 routing profile (cheap|balanced|reliable). When set (and no explicit
     /// provider/model pin), the guest resolves the route by profile.
     profile: Option<String>,
+    /// Which workspace this run belongs to, and how that was arrived at. Declared by the
+    /// caller, never derived here: the guest has no directory of its own worth consulting,
+    /// and a workspace guessed inside the WASM would be exactly the ambient read the
+    /// 2026-08-03 field failure was about.
+    workspace_id: Option<String>,
+    workspace_source: Option<String>,
 }
 
 /// RAII guard: sets an env var for the duration of a call, restores on drop.
@@ -316,6 +322,16 @@ fn parse_respond_payload(payload: &str) -> Result<RespondPayload, PluginError> {
         .map(|value| value.trim())
         .filter(|value| !value.is_empty())
         .map(|value| value.to_string());
+    let workspace_id = parsed
+        .get("workspace_id")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+    let workspace_source = parsed
+        .get("workspace_source")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
     Ok(RespondPayload {
         prompt,
         system,
@@ -324,6 +340,8 @@ fn parse_respond_payload(payload: &str) -> Result<RespondPayload, PluginError> {
         provider,
         model,
         profile,
+        workspace_id,
+        workspace_source,
     })
 }
 
@@ -366,6 +384,9 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
     // which reads MODEL_PROFILE) honors it. An explicit provider/model pin below still
     // wins; the guard restores any daemon-global MODEL_PROFILE after the turn.
     let _profile = EnvGuard::maybe_set("MODEL_PROFILE", req.profile.as_deref());
+    let _workspace = EnvGuard::maybe_set("MODEL_WORKSPACE_ID", req.workspace_id.as_deref());
+    let _workspace_source =
+        EnvGuard::maybe_set("MODEL_WORKSPACE_SOURCE", req.workspace_source.as_deref());
 
     let outcome = runtime::execute_prompt_with_route(
         &req.prompt,
@@ -405,6 +426,9 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
     let _system = EnvGuard::maybe_set("MODEL_SYSTEM", req.system.as_deref());
     let _session = EnvGuard::maybe_set("MODEL_SESSION_ID", req.session_id.as_deref());
     let _turns = EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
+    let _workspace = EnvGuard::maybe_set("MODEL_WORKSPACE_ID", req.workspace_id.as_deref());
+    let _workspace_source =
+        EnvGuard::maybe_set("MODEL_WORKSPACE_SOURCE", req.workspace_source.as_deref());
 
     let (
         content,
