@@ -131,6 +131,23 @@ export interface PluginInstallResult {
 	version: string | null;
 	packageSource: PluginPackageSource;
 	packageDir?: string;
+	/**
+	 * WHERE this plugin was installed — the directory the daemon will load it from.
+	 *
+	 * Added 2026-08-05 because its absence made a whole class of confusion undiagnosable. Two
+	 * installers were writing the agent to two directories and the daemon loaded only one, so
+	 * `refarm plugin install` truthfully answered `already up-to-date` about ITS directory while
+	 * a stale plugin kept being loaded from the other. The operator, and the assistant helping
+	 * him, mis-diagnosed that three times in a row from the symptom.
+	 *
+	 * One installer owns the path now, so the ambiguity is gone — but a report that says WHERE
+	 * turns "it says up-to-date and it is not" from an investigation into a glance, and the next
+	 * layout question will not be the last.
+	 *
+	 * Present on every outcome including `cached`: a cached result is exactly the case where
+	 * knowing which directory was consulted matters most.
+	 */
+	installedPath?: string;
 	message?: string;
 	buildCommand?: string;
 	bytes?: number;

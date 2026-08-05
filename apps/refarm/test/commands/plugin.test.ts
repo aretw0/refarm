@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { installedPluginWasmPath } from "../../src/commands/plugin-install-path.js";
 
 // Hoisted mocks — must be defined before any imports that use these modules
 const {
@@ -339,6 +340,11 @@ describe("plugin install", () => {
 					version: "0.4.1",
 					packageSource: "node_modules",
 					packageDir: "/fake/node_modules/@refarm.dev/agent",
+					// WHERE it landed — the directory the daemon loads from. Present on every
+					// outcome, including `cached`, because a cached result is exactly the case
+					// where knowing which directory was consulted matters most: two installers
+					// once wrote two directories and this report could not tell them apart.
+					installedPath: installedPluginWasmPath("@refarm/agent"),
 					bytes: 10,
 					integrity: "sha256-deadbeef",
 				},
@@ -450,6 +456,10 @@ describe("plugin install", () => {
 					version: "0.4.1",
 					packageSource: "node_modules",
 					packageDir: "/fake/node_modules/@refarm.dev/agent",
+					// The cached case is the one this field exists for. "already up-to-date" was
+					// TRUE about a directory nobody loaded, and without a path beside it there was
+					// no way to see that from the report.
+					installedPath: installedPluginWasmPath("@refarm/agent"),
 					message: "already up-to-date",
 				},
 			],
