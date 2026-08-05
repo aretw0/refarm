@@ -99,6 +99,27 @@ const DEFAULT_FN: &str = "respond";
 /// would be that operator's data.
 const RUN_CORRELATION_ARG: &str = "replyRef";
 
+/// The second per-run identifier, found by MEASURING the first version of this
+/// file rather than by reading it.
+///
+/// `runtime-agent-effort.ts` writes `args.session_id` on every `refarm ask`, and
+/// `ask` mints a fresh session whenever the operator has no active one — so two
+/// runs of the identical question produced two different hashes. Verified live:
+/// the same prompt asked twice landed as `sha256:c7b41dab…` and
+/// `sha256:44a21c00…`, grouping nothing.
+///
+/// It was left in on the reasoning that stripping identifiers over-groups and
+/// manufactures false equivalences. That reasoning is right about `model` and
+/// `provider` — two models asked the same question ARE two different requests,
+/// and grouping them is what a DECLARED id is for. It is wrong about a session:
+/// a session is the container the work happened in, never any part of what the
+/// work IS, which is the same category as `replyRef` above.
+///
+/// The consequence of the earlier choice was not subtle: the derived half of
+/// this record was inert on `refarm ask`, which is the one surface where model
+/// comparison actually lives.
+const SESSION_CONTAINER_ARG: &str = "session_id";
+
 /// Normalise a declared scenario id: trimmed, and an empty declaration read as
 /// no declaration at all.
 ///
@@ -128,6 +149,7 @@ fn task_shape(task: &EffortTask) -> serde_json::Value {
     };
     if let Some(map) = args.as_object_mut() {
         map.remove(RUN_CORRELATION_ARG);
+        map.remove(SESSION_CONTAINER_ARG);
     }
     serde_json::json!({
         "pluginId": task.plugin_id,
@@ -373,5 +395,41 @@ mod tests {
         assert_eq!(declared_scenario_id(Some("")), None);
         assert_eq!(declared_scenario_id(Some("   ")), None);
         assert_eq!(declared_scenario_id(None), None);
+    }
+
+    #[test]
+    fn the_same_question_in_two_sessions_is_one_scenario() {
+        // Measured live on 2026-08-05, before this exclusion existed: `refarm ask` mints a
+        // fresh session whenever the operator has no active one, so the identical prompt
+        // asked twice landed as sha256:c7b41dab… and sha256:44a21c00…. The derived half of
+        // this record was inert on the one surface where model comparison actually lives.
+        let shape = |session: &str| {
+            hash_of(vec![task(
+                "@refarm/agent",
+                Some("respond"),
+                serde_json::json!({ "prompt": "responda apenas: ok", "session_id": session }),
+            )])
+        };
+        assert_eq!(
+            shape("urn:sovereign:session:v1:aaa"),
+            shape("urn:sovereign:session:v1:bbb"),
+            "a session is the container the work happened in, never part of what the work IS"
+        );
+    }
+
+    #[test]
+    fn two_models_asked_the_same_question_stay_two_scenarios() {
+        // The other half of the same judgement, and it must NOT collapse. Two models asked
+        // one question are two different requests; grouping them is what a DECLARED id is
+        // for, and doing it here would manufacture a false equivalence the record could
+        // never take back.
+        let shape = |model: &str| {
+            hash_of(vec![task(
+                "@refarm/agent",
+                Some("respond"),
+                serde_json::json!({ "prompt": "same", "model": model }),
+            )])
+        };
+        assert_ne!(shape("gpt-5.5"), shape("claude-sonnet-5"));
     }
 }

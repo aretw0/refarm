@@ -385,6 +385,10 @@ export {
 			"--profile <profile>",
 			"Route by a named model profile (cheap|balanced|reliable) instead of the pinned provider; the agent picks a configured provider for that intent",
 		)
+		.option(
+			"--scenario <id>",
+			"Declare which work this run is, so runs of the same work group in the record even across models (the derived hash keeps two models apart on purpose)",
+		)
 		.option("--json", "Output machine-readable ask result")
 		.addHelpText(
 			"after",
@@ -422,6 +426,7 @@ export {
 					session?: string;
 					scope?: string;
 					profile?: string;
+					scenario?: string;
 					json?: boolean;
 				},
 			) => {
@@ -602,6 +607,8 @@ export {
 					modelProvider: activeProfile ? undefined : selectedRoute.modelProvider,
 					modelId: activeProfile ? undefined : selectedRoute.modelId,
 					profile: activeProfile,
+					// Declared, never invented: absent when the operator names none.
+					scenarioId: opts.scenario,
 				});
 
 				if (!opts.json) {

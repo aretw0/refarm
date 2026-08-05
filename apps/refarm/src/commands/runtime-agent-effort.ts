@@ -16,6 +16,16 @@ export interface RuntimeAgentRespondEffortOptions {
 	 * profile INSTEAD of a pinned route — not alongside one.
 	 */
 	profile?: string;
+	/**
+	 * A DECLARED scenario id, so two runs of the same work can be grouped even when the
+	 * request differs — most concretely the same question put to two models, which the
+	 * derived `scenario.hash` deliberately keeps apart because two models asked one
+	 * question ARE two different requests.
+	 *
+	 * Absent when the operator declares none: `refarm ask` without `--scenario` sends no
+	 * field, and the observation records no id rather than an invented one.
+	 */
+	scenarioId?: string;
 	now?: () => Date;
 	randomUUID?: () => string;
 }
@@ -29,6 +39,7 @@ export function createRuntimeAgentRespondEffort({
 	modelProvider,
 	modelId,
 	profile,
+	scenarioId,
 	now = () => new Date(),
 	randomUUID = () => crypto.randomUUID(),
 }: RuntimeAgentRespondEffortOptions): Effort {
@@ -42,9 +53,15 @@ export function createRuntimeAgentRespondEffort({
 	if (modelId) args.model = modelId;
 	if (profile) args.profile = profile;
 
+	const declaredScenario = scenarioId?.trim();
+
 	return {
 		id: randomUUID(),
 		direction: "ask",
+		// Spread, not a key set to undefined: the wire field is `#[serde(default)]` and the
+		// node must record no id at all rather than a null, which would be
+		// indistinguishable from the "could not tell" a restart mid-run leaves behind.
+		...(declaredScenario ? { scenarioId: declaredScenario } : {}),
 		tasks: [
 			{
 				id: randomUUID(),
