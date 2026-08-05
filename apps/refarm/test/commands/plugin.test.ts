@@ -344,9 +344,17 @@ describe("plugin install", () => {
 				},
 			],
 			// The same pass materialises the runtime's rate catalog into the sovereign dir.
-			// `existsSync` is mocked true here, so the file "already exists" and is KEPT —
-			// which is the whole point: this step never overwrites a node's own catalog.
-			modelRateCatalog: { status: "kept", path: expect.any(String) },
+			// `existsSync` is mocked true here, so a catalog "already exists" — and this
+			// fixture never wrote a provenance record for it, so the pass refuses to guess
+			// whether the file is its own or a node's correction. It KEEPS the file and says
+			// so, which is the whole point: this step never overwrites what it did not write.
+			modelRateCatalog: {
+				status: "unknown",
+				path: expect.any(String),
+				localCatalogVersion: null,
+				shippedCatalogVersion: null,
+				message: expect.stringContaining("no provenance record"),
+			},
 			command: "plugin",
 			operation: "install",
 			ok: true,
@@ -388,6 +396,8 @@ describe("plugin install", () => {
 			modelRateCatalog: {
 				status: "unresolved",
 				path: expect.any(String),
+				localCatalogVersion: null,
+				shippedCatalogVersion: null,
 				message:
 					"package @refarm.dev/model-catalog-v1 not found in node_modules or workspace",
 			},
@@ -443,7 +453,16 @@ describe("plugin install", () => {
 					message: "already up-to-date",
 				},
 			],
-			modelRateCatalog: { status: "kept", path: expect.any(String) },
+			// Same fixture, same answer as `install`: a catalog is on disk with nothing
+			// recording who wrote it, so `update` keeps it and reports the ambiguity rather
+			// than resolving it in either direction.
+			modelRateCatalog: {
+				status: "unknown",
+				path: expect.any(String),
+				localCatalogVersion: null,
+				shippedCatalogVersion: null,
+				message: expect.stringContaining("no provenance record"),
+			},
 			command: "plugin",
 			operation: "install",
 			ok: true,

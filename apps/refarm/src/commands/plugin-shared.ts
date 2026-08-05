@@ -9,6 +9,7 @@ import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
+import type { ModelRateCatalogMaterialization } from "./model-rate-catalog.js";
 import { RUNTIME_AGENT_RELOAD_JSON_COMMAND } from "./plugin-handoffs.js";
 
 // Plugins bundled with the refarm npm package — auto-installed and updated by farmhand on
@@ -139,6 +140,13 @@ export interface PluginInstallResult {
 export interface PluginInstallReport {
 	failed: number;
 	plugins: PluginInstallResult[];
+	/**
+	 * The runtime's rate catalog rides the same pass (see ./model-rate-catalog.ts). It is
+	 * NOT a plugin and never fails the install, but it IS part of what this pass put — or
+	 * declined to put — in the sovereign dir, so it belongs in the report a human reads,
+	 * not only in the JSON a tool parses.
+	 */
+	modelRateCatalog?: ModelRateCatalogMaterialization;
 	ok?: boolean;
 	error?: string;
 	nextAction?: string | null;

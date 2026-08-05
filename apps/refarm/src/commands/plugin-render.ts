@@ -13,6 +13,7 @@ import chalk from "chalk";
 import type { CapabilityEnvelope, CapabilityInput } from "@refarm.dev/capabilities";
 import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config/plugin-identity";
 import { renderCapabilityError } from "./capability-commander.js";
+import { describeModelRateCatalog } from "./model-rate-catalog.js";
 import { PACKAGE_MANAGER_OVERRIDE, PACKAGE_MANAGERS } from "./package-manager.js";
 import { PLUGIN_INSTALL_COMMAND } from "./plugin-handoffs.js";
 import {
@@ -136,20 +137,44 @@ export function formatInstallFromEnvelope(envelope: CapabilityEnvelope): string 
 		);
 	}
 	const report = envelope as unknown as PluginInstallReport;
-	return (report.plugins ?? [])
-		.map((p) => {
-			switch (p.status) {
-				case "installed":
-					return chalk.green(
-						`  ✓ ${p.id} v${p.version} installed from ${p.packageSource} (${p.bytes} bytes)`,
-					);
-				case "cached":
-					return chalk.green(`  ✓ ${p.id} v${p.version} already up-to-date`);
-				default:
-					return chalk.red(`  ✗ ${p.id}: ${p.message}`);
-			}
-		})
-		.join("\n");
+	const lines = (report.plugins ?? []).map((p) => {
+		switch (p.status) {
+			case "installed":
+				return chalk.green(
+					`  ✓ ${p.id} v${p.version} installed from ${p.packageSource} (${p.bytes} bytes)`,
+				);
+			case "cached":
+				return chalk.green(`  ✓ ${p.id} v${p.version} already up-to-date`);
+			default:
+				return chalk.red(`  ✗ ${p.id}: ${p.message}`);
+		}
+	});
+	// The same pass materialises the runtime's rate catalog. It used to be reported ONLY
+	// in `--json`, so a node running last month's prices — or holding back an update
+	// because someone edited the catalog — was invisible to the human who ran the command.
+	const catalog = formatModelRateCatalogLine(report.modelRateCatalog);
+	if (catalog) lines.push(catalog);
+	return lines.join("\n");
+}
+
+/** Colour the one catalog line by what it means: taken, held back, or missing. `kept`
+ *  renders nothing, so the ordinary start stays quiet. */
+function formatModelRateCatalogLine(
+	result: PluginInstallReport["modelRateCatalog"],
+): string | null {
+	if (!result) return null;
+	const line = describeModelRateCatalog(result);
+	if (!line) return null;
+	switch (result.status) {
+		case "materialized":
+		case "updated":
+			return chalk.green(line);
+		case "edited":
+		case "unknown":
+			return chalk.yellow(line);
+		default:
+			return chalk.red(line);
+	}
 }
 
 // ── bundle ──────────────────────────────────────────────────────────────────

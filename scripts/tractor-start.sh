@@ -126,8 +126,21 @@ if [ ! -f "$TRACTOR" ]; then
   exit 1
 fi
 
+# Sync the bundled artifacts before the daemon reads them. This pass also materialises
+# the runtime's model rate catalog into $REFARM_HOME (see
+# apps/refarm/src/commands/model-rate-catalog.ts), and its outcome used to go straight to
+# /dev/null with everything else — so a node with NO catalog (pricing from the agent's
+# built-in table instead of the audited artifact), or one holding back a newer catalog
+# because the local copy was edited, was visible only to whoever ran `refarm plugin
+# update --json` by hand. The human starting the node is the one who can act on it, so
+# they are told. Silent on the ordinary case; never fatal.
 if [ -f "$REFARM_CLI" ]; then
-  node "$REFARM_CLI" plugin update --json >/dev/null 2>&1 || true
+  _plugin_update_json="$(node "$REFARM_CLI" plugin update --json 2>/dev/null || true)"
+  _catalog_notice="$(
+    printf '%s' "$_plugin_update_json" \
+      | node "$ROOT/scripts/report-catalog-pass.mjs" 2>/dev/null || true
+  )"
+  [ -n "$_catalog_notice" ] && printf '%s\n' "$_catalog_notice"
 fi
 
 # Prefer the INSTALLED agent (in $REFARM_HOME/plugins) over the raw compiled artifact —
