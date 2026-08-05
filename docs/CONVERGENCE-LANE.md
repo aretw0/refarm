@@ -58,6 +58,16 @@ pressure (avoid premature generalization).
   ([[sovereign-auth-workspaces]], `workspace-access-contract-v1`).
 - **Friends' workspaces** — e.g. the doceria (commerce, [[refarm-shop-fourth-domain]]). **Deferred**
   until refarm+vault-seed are complete for the creator (it must work for him before others).
+- **`plugin-tem` — parked, and the operator wants it used.** The TEM Reasoning Engine
+  (`plugin:tem`, providing `TemApi`/`CodegenApi`, `TemMemory`/`NoveltyScore`) has not been touched
+  since 2026-07-11 and nothing depends on it. Recorded 2026-08-04 because it caused a real wrong
+  inference that day: it is the ONLY plugin in the tree with a JavaScript `entry`
+  (`./dist/worker.js`) and a worker/main-thread/service-worker execution context, so sampling it
+  produced the conclusion that refarm has a live non-WASM plugin path. It does not. The two plugins
+  actually in use, `agent` and `lsp-code-ops`, are both WASM components with no `entry` at all.
+  A parked package that answers a question differently from every live one is a measurement trap,
+  not just idle code. The operator has said it should be used at some point and relocated first;
+  where it goes is undecided.
 - **Surfaces** — per-device executable, PWA, Termux, and the service that abstracts underneath
   ([[current-phase-interfaces-and-nodes]], [[mesh-binary-distribution-vision]]).
 - **Plugins → apps** — arbitrary workflows via plugin extensibility, optionally published as apps.
