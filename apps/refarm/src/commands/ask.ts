@@ -1,6 +1,12 @@
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
-import { isRuntimeAgentPluginId, RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config";
+import {
+	declaredBase,
+	declaredWorkspacesFromConfig,
+	isRuntimeAgentPluginId,
+	loadConfig,
+	RUNTIME_AGENT_PLUGIN_ID,
+} from "@refarm.dev/config";
 import {
 	buildSystemPrompt,
 	ContextRegistry,
@@ -81,6 +87,7 @@ import {
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
 import { resolveSidecarUrlAsync, sidecarUrlAsync } from "./sidecar-url.js";
+import { type DeclaredRoot, resolveWorkspaceFromPath } from "./workspace-from-path.js";
 
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
 
@@ -121,6 +128,9 @@ export {
 
 	interface SessionNode {
 	"@id": string;
+	/** Absent (not null) on a session with no workspace attribution yet. */
+	workspace_id?: string;
+	workspace_source?: string;
 	}
 
 	export interface AskJsonResult {
@@ -197,6 +207,90 @@ export {
 	}
 	const body = (await response.json()) as { sessions?: SessionNode[] };
 	return resolveSessionIdPrefix(prefix, body.sessions ?? []);
+	}
+
+	/** `DeclaredRoot[]` built from the config catalog — the same `id`/`absolutePath` pair
+	 * `refarm workspace list --json` prints, reduced to what `resolveWorkspaceFromPath` needs.
+	 * Uses `declaredBase()` (SOVEREIGN_BASE || cwd), the established way this CLI finds
+	 * declarations — a different value, and a different job, from the interactive cwd seed
+	 * below. */
+	function declaredWorkspaceRoots(): DeclaredRoot[] {
+	const baseDir = declaredBase();
+	return declaredWorkspacesFromConfig(loadConfig(baseDir), { baseDir })
+		.filter((workspace): workspace is NonNullable<typeof workspace> => workspace != null)
+		.map((workspace) => ({
+			id: workspace.id,
+			absolutePath: workspace.absolutePath,
+		}));
+	}
+
+	/**
+	 * What the Session node already carries, when it carries anything. `workspace_id` /
+	 * `workspace_source` are ABSENT (not null) on an unattributed session, so a missing key
+	 * reads the same as "not declared" — and so does any failure reading it: this must never
+	 * throw and never block the dispatch.
+	 */
+	async function readSessionWorkspace(
+	sessionId: string,
+	): Promise<{ id: string; source: string } | undefined> {
+	try {
+		const response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/sessions"));
+		if (!response.ok) return undefined;
+		const body = (await response.json()) as { sessions?: SessionNode[] };
+		const node = (body.sessions ?? []).find((session) => session["@id"] === sessionId);
+		if (!node?.workspace_id) return undefined;
+		return {
+			id: node.workspace_id,
+			source:
+				typeof node.workspace_source === "string" ? node.workspace_source : "seeded-from-cwd",
+		};
+	} catch {
+		return undefined;
+	}
+	}
+
+	export interface DispatchWorkspaceInput {
+	/** `--workspace <id>`, already validated. */
+	flag?: string;
+	/** What the Session node already carries, when it carries anything. */
+	sessionWorkspace?: { id: string; source: string };
+	/**
+	 * The directory a HUMAN was standing in, supplied only by the interactive CLI entry.
+	 * Undefined for every other caller — a node opening a session for a Telegram thread has
+	 * no directory worth consulting, and passing `process.cwd()` there would be the
+	 * daemon-inherited read the 2026-08-03 field failure was made of.
+	 */
+	interactiveCwd?: string;
+	roots: DeclaredRoot[];
+	}
+
+	/**
+	 * The four degrees, in order: explicit flag, the session's own declaration, a cwd seed at
+	 * a session's first dispatch, then nothing. cwd is absent from degrees 1 and 2 on purpose —
+	 * ADR-094's D2 keeps it out of the resolution order, and it enters here only as the
+	 * authoring convenience H2 permits, stamped so it can never be mistaken for a declaration.
+	 */
+	export function resolveDispatchWorkspace(input: DispatchWorkspaceInput): {
+	workspaceId?: string;
+	workspaceSource?: "declared" | "seeded-from-cwd";
+	} {
+	const flag = input.flag?.trim();
+	if (flag) return { workspaceId: flag, workspaceSource: "declared" };
+
+	const inherited = input.sessionWorkspace;
+	if (inherited?.id) {
+		return {
+			workspaceId: inherited.id,
+			workspaceSource: inherited.source === "declared" ? "declared" : "seeded-from-cwd",
+		};
+	}
+
+	if (input.interactiveCwd) {
+		const seeded = resolveWorkspaceFromPath(input.interactiveCwd, input.roots);
+		if (seeded) return { workspaceId: seeded, workspaceSource: "seeded-from-cwd" };
+	}
+
+	return {};
 	}
 
 	function defaultDeps(): AskDeps {
@@ -393,6 +487,10 @@ export {
 			"--expect <text>",
 			"Declare what the answer must contain, so the record can say the run was WRONG (substring match); the effort's outcome still reports only that it completed",
 		)
+		.option(
+			"--workspace <id>",
+			"Declare which workspace this run belongs to, so its cost separates from other projects'",
+		)
 		.option("--json", "Output machine-readable ask result")
 		.addHelpText(
 			"after",
@@ -432,6 +530,7 @@ export {
 					profile?: string;
 					scenario?: string;
 					expect?: string;
+					workspace?: string;
 					json?: boolean;
 				},
 			) => {
@@ -600,6 +699,16 @@ export {
 					files,
 				});
 
+				const declaredRoots = declaredWorkspaceRoots();
+				const sessionWorkspace = await readSessionWorkspace(sessionId);
+				const workspace = resolveDispatchWorkspace({
+					flag: opts.workspace,
+					sessionWorkspace,
+					// The interactive entry, and only here, knows a human chose this directory.
+					interactiveCwd: process.cwd(),
+					roots: declaredRoots,
+				});
+
 				const effort = createRuntimeAgentRespondEffort({
 					prompt: query,
 					system,
@@ -618,6 +727,11 @@ export {
 					// could not state at all until now, and one `refarm.outcome` was never
 					// making: `done` means the run completed, not that it was correct.
 					expectation: opts.expect,
+					// The four-degree ladder: explicit flag, inherited session declaration, a
+					// cwd seed, or nothing — never invented, never overridden by standing
+					// somewhere else once a session already has one.
+					workspaceId: workspace.workspaceId,
+					workspaceSource: workspace.workspaceSource,
 				});
 
 				if (!opts.json) {
