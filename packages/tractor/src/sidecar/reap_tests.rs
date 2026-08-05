@@ -190,6 +190,7 @@ fn execute_reap_deletes_files_and_evicts_map() {
             budget: None,
             workspace_id: None,
             scenario_id: None,
+            expectation: None,
         },
     );
     super::super::persist_effort_result(&state.results_dir, &old).unwrap();

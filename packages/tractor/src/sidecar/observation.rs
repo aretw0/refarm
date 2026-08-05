@@ -23,6 +23,13 @@
 //! shape) — see `scenario.rs` for why those two are different in kind, what the
 //! hash covers, and what it deliberately excludes. Both are resolved at DISPATCH
 //! and read back here, the same hand-off the resolved budget uses.
+//!
+//! Records WHETHER THE RUN WAS RIGHT as of the verification work:
+//! `refarm.verification.expected` / `.passed` / `.method` / `.unknown` — a
+//! SEPARATE fact from `refarm.outcome`, which continues to mean only that the
+//! effort reached that terminal status. See `verification.rs` for the three
+//! states, why a declared-but-uncomparable expectation is not `false`, and what
+//! a substring matcher cannot grade.
 
 use super::SidecarState;
 
@@ -75,6 +82,17 @@ pub(crate) struct ObservationInput<'a> {
     /// than reconstructed here. Arrives together with `scenario_id` from the one
     /// `DispatchedScenario` `record_budget_observation` took.
     pub scenario_hash: Option<&'a str>,
+    /// What the caller declared this run's answer must contain, and what
+    /// comparing it produced. `None` — and therefore NO verification key at all
+    /// on the node — for the whole of undeclared field use, which is nearly all
+    /// of it, and that stays the default.
+    ///
+    /// The expectation and the verdict ride as ONE value on purpose: a verdict
+    /// with no expectation beside it cannot be re-read ("false against what?"),
+    /// and an expectation with no verdict slot would have nowhere to say it was
+    /// unverifiable. See `sidecar::verification` for the three states and why a
+    /// declared-but-uncomparable expectation is emphatically not `false`.
+    pub verification: Option<super::verification::DeclaredVerification<'a>>,
 }
 
 /// Mint the `@id` for a new `BudgetObservation` node. Local to this module
@@ -255,6 +273,28 @@ pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json:
     put_opt(&mut map, "refarm.scenario.id", input.scenario_id.map(Into::into));
     put_opt(&mut map, "refarm.scenario.hash", input.scenario_hash.map(Into::into));
 
+    // WHETHER THE RUN WAS RIGHT — the other thing this record could not say, and
+    // the reason every reader was inferring correctness from `refarm.outcome`
+    // above. These keys are written BESIDE that one and never into it:
+    // `refarm.outcome` keeps meaning "the run completed", and a completed run
+    // that answered wrongly is `outcome: "done"` + `verification.passed: false`.
+    // Conflating them would destroy the distinction (2026-08-05: an agent
+    // answered 58 where the answer was 59, and `done` was not the wrong word —
+    // it was the only word).
+    //
+    // Absent when nobody declared an expectation, which is most of field use, so
+    // every observation ever written stays valid unchanged. When one WAS
+    // declared, `.expected` is always recorded (a verdict must be re-readable by
+    // a human) and then exactly one of `.passed`+`.method` or `.unknown` — the
+    // three-state rule, made structural by `Verification` rather than trusted to
+    // the call sites here.
+    if let Some(v) = input.verification {
+        map.insert("refarm.verification.expected".into(), v.expected.into());
+        put_opt(&mut map, "refarm.verification.passed", v.verdict.passed().map(Into::into));
+        put_opt(&mut map, "refarm.verification.method", v.verdict.method().map(Into::into));
+        put_opt(&mut map, "refarm.verification.unknown", v.verdict.unknown().map(Into::into));
+    }
+
     put_opt(&mut map, "prompt_ref", input.prompt_ref.map(Into::into));
     put_opt(&mut map, "refarm.workspace.id", input.workspace_id.map(Into::into));
     put_opt(&mut map, "refarm.budget.spawner", input.spawner.map(Into::into));
@@ -325,6 +365,12 @@ pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json:
 /// to parse. Any of those absences degrades gracefully via `put_opt`/the
 /// `if let` in `build_observation_node` — the rest of the record is written
 /// regardless (D6).
+///
+/// `results` is the terminal `EffortResult.results` the caller just stamped —
+/// the ONLY thing on this path that carries what the run actually answered, and
+/// therefore the only thing a declared expectation can be compared against. It
+/// is passed rather than re-read because `finalise_effort` has it in hand and
+/// the effort store's copy could already have moved on.
 pub(crate) fn write_budget_observation(
     state: &SidecarState,
     effort_id: &str,
@@ -332,21 +378,48 @@ pub(crate) fn write_budget_observation(
     scenario: Option<super::scenario::DispatchedScenario>,
     outcome: &str,
     elapsed_ms: Option<u64>,
+    results: &[super::TaskResult],
 ) {
-    // workspace_id / spawner ride the ORIGINAL Effort (efforts_input), the same
-    // input `dispatch_effort` retained for retry. A poisoned lock or an
-    // effort_id never retained (submitted before a restart) both degrade to
-    // "unknown" — omitted on the node per D6 — never a panic.
-    let (workspace_id, spawner) = state
+    // workspace_id / spawner / expectation ride the ORIGINAL Effort
+    // (efforts_input), the same input `dispatch_effort` retained for retry. A
+    // poisoned lock or an effort_id never retained (submitted before a restart)
+    // all degrade to "unknown" — omitted on the node per D6 — never a panic.
+    //
+    // The expectation comes from HERE and not from a dispatch-time stash of its
+    // own, deliberately. `dispatched_budgets` and `dispatched_scenarios` exist
+    // because what they carry is DERIVED at dispatch and cannot be recovered
+    // afterwards (a fold that must not be recomputed against a since-edited
+    // config; a hash over tasks). An expectation is neither: it is a verbatim
+    // caller declaration on the `Effort`, exactly like `workspace_id` two lines
+    // up, which has always reached this record through this same read. A third
+    // parallel store would be a third road to the same doorstep — and a store
+    // whose entries are TAKEN would also have to be reasoned about across
+    // retry, which this needs not be.
+    let (workspace_id, spawner, expectation) = state
         .efforts_input
         .read()
         .ok()
         .and_then(|inputs| {
-            inputs
-                .get(effort_id)
-                .map(|effort| (effort.workspace_id.clone(), effort.source.clone()))
+            inputs.get(effort_id).map(|effort| {
+                (
+                    effort.workspace_id.clone(),
+                    effort.source.clone(),
+                    super::verification::declared_expectation(effort.expectation.as_deref()),
+                )
+            })
         })
-        .unwrap_or((None, None));
+        .unwrap_or((None, None, None));
+
+    // The comparison itself — run here, once, at the only point where both the
+    // declaration and the answer exist. No expectation means no comparison and
+    // no key on the node: "nobody checked" is the ordinary state and must never
+    // be spelled `false`.
+    let verification = expectation
+        .as_deref()
+        .map(|expected| super::verification::DeclaredVerification {
+            expected,
+            verdict: super::verification::verify(expected, results),
+        });
 
     let prompt_ref = super::prompt_ref_from_effort(effort_id);
     // The RAW record, not `find_usage_for`'s device wire view — see
@@ -390,6 +463,7 @@ pub(crate) fn write_budget_observation(
         // so that "no resolution" cannot yield half a scenario.
         scenario_id: scenario.as_ref().and_then(|s| s.id.as_deref()),
         scenario_hash: scenario.as_ref().and_then(|s| s.hash.as_deref()),
+        verification,
         usage,
     });
 

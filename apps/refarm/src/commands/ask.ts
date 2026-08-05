@@ -389,6 +389,10 @@ export {
 			"--scenario <id>",
 			"Declare which work this run is, so runs of the same work group in the record even across models (the derived hash keeps two models apart on purpose)",
 		)
+		.option(
+			"--expect <text>",
+			"Declare what the answer must contain, so the record can say the run was WRONG (substring match); the effort's outcome still reports only that it completed",
+		)
 		.option("--json", "Output machine-readable ask result")
 		.addHelpText(
 			"after",
@@ -427,6 +431,7 @@ export {
 					scope?: string;
 					profile?: string;
 					scenario?: string;
+					expect?: string;
 					json?: boolean;
 				},
 			) => {
@@ -609,6 +614,10 @@ export {
 					profile: activeProfile,
 					// Declared, never invented: absent when the operator names none.
 					scenarioId: opts.scenario,
+					// Same discipline for WHETHER the answer was right — a fact the record
+					// could not state at all until now, and one `refarm.outcome` was never
+					// making: `done` means the run completed, not that it was correct.
+					expectation: opts.expect,
 				});
 
 				if (!opts.json) {

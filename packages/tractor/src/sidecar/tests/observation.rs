@@ -6,7 +6,8 @@
 
 use super::super::budget::{resolve_budget, BudgetDeclaration, BudgetTriple, NodeBudget};
 use super::super::observation::{build_observation_node, write_budget_observation, ObservationInput};
-use super::super::{dispatch_effort, Effort, EffortTask, SidecarState};
+use super::super::verification::{verify, DeclaredVerification, Verification};
+use super::super::{dispatch_effort, Effort, EffortTask, SidecarState, TaskResult};
 
 /// The run that started this whole design: a declared 300s cut to the node's 45s,
 /// which then timed out at step 4 of a 25-step plan.
@@ -36,6 +37,9 @@ fn base_input() -> ObservationInput<'static> {
         // is also what most of field use looks like.
         scenario_id: None,
         scenario_hash: None,
+        // And for the verdict: nobody declared an expectation, which is what
+        // nearly every run looks like and must stay the zero-key default.
+        verification: None,
     }
 }
 
@@ -97,6 +101,132 @@ fn a_hash_without_a_declared_id_still_makes_undeclared_field_use_comparable() {
     });
     assert!(node.get("refarm.scenario.id").is_none());
     assert_eq!(node["refarm.scenario.hash"], "sha256:deadbeef");
+}
+
+// ── whether the run was RIGHT (`refarm.verification.*`) ───────────────────────
+//
+// The verdicts below are produced by the REAL matcher (`verification::verify`)
+// over REAL `TaskResult`s rather than hand-written enum variants, so these tests
+// pin the whole judgement — read the answer, compare it, shape the node — and
+// not merely the last third of it.
+
+/// One `TaskResult` shaped exactly as the respond path finalises a completed
+/// agent turn: `{"content": …}` plus whatever usage joined.
+fn answered(content: &str) -> Vec<TaskResult> {
+    vec![TaskResult {
+        status: "ok".to_string(),
+        result: Some(serde_json::json!({ "content": content })),
+        error: None,
+    }]
+}
+
+fn verdict_for(expected: &str, results: &[TaskResult]) -> Verification {
+    verify(expected, results)
+}
+
+#[test]
+fn a_run_nobody_checked_carries_no_verification_key_at_all() {
+    // The ordinary case, and the one that must stay free: no expectation was
+    // declared, so there is no verdict — not `null`, not `true`, no key. Every
+    // observation ever written before this change is still a valid one.
+    let node = build_observation_node(base_input());
+    for key in [
+        "refarm.verification.expected",
+        "refarm.verification.passed",
+        "refarm.verification.method",
+        "refarm.verification.unknown",
+    ] {
+        assert!(node.get(key).is_none(), "{key} must be absent when nobody checked: {node}");
+    }
+}
+
+#[test]
+fn a_matching_answer_is_true_and_leaves_the_outcome_exactly_as_it_was() {
+    let results = answered("There are 59 .md files.");
+    let node = build_observation_node(ObservationInput {
+        outcome: super::super::EFFORT_DONE,
+        verification: Some(DeclaredVerification { expected: "59", verdict: verdict_for("59", &results) }),
+        ..base_input()
+    });
+    assert_eq!(node["refarm.verification.expected"], "59");
+    assert_eq!(node["refarm.verification.passed"], true);
+    assert_eq!(node["refarm.verification.method"], "substring");
+    assert!(node.get("refarm.verification.unknown").is_none());
+    // The point of the whole slice: `refarm.outcome` is untouched either way.
+    assert_eq!(node["refarm.outcome"], "done");
+}
+
+#[test]
+fn the_2026_08_05_run_records_false_while_the_outcome_still_says_done() {
+    // The regression this exists for. The operator asked for a count of `.md`
+    // files; the agent answered 58 and the answer is 59. The effort COMPLETED,
+    // so `refarm.outcome` was — and remains — "done". What was missing is the
+    // separate fact beside it, and conflating the two would destroy exactly the
+    // distinction this record now draws.
+    let results = answered("58");
+    let node = build_observation_node(ObservationInput {
+        outcome: super::super::EFFORT_DONE,
+        verification: Some(DeclaredVerification { expected: "59", verdict: verdict_for("59", &results) }),
+        ..base_input()
+    });
+    assert_eq!(node["refarm.verification.passed"], false, "the run was wrong: {node}");
+    assert_eq!(node["refarm.verification.expected"], "59");
+    assert_eq!(node["refarm.verification.method"], "substring");
+    assert_eq!(
+        node["refarm.outcome"], "done",
+        "a wrong answer is not a failed effort — `done` was never the wrong word: {node}"
+    );
+}
+
+#[test]
+fn an_expectation_with_nothing_comparable_leaves_the_verdict_absent_and_records_why() {
+    // NOT `false`. A `failed` effort carries an error, not an answer, and
+    // recording a failed verification here would accuse a model of being wrong
+    // when nobody looked at anything.
+    let results = vec![TaskResult {
+        status: "error".to_string(),
+        result: None,
+        error: Some("@refarm/agent not loaded".to_string()),
+    }];
+    let node = build_observation_node(ObservationInput {
+        outcome: "failed",
+        verification: Some(DeclaredVerification { expected: "59", verdict: verdict_for("59", &results) }),
+        ..base_input()
+    });
+    assert_eq!(node["refarm.verification.expected"], "59");
+    assert!(
+        node.get("refarm.verification.passed").is_none(),
+        "declared-but-uncomparable is a third state, never false: {node}"
+    );
+    assert!(
+        node.get("refarm.verification.method").is_none(),
+        "no comparison ran, so no method may be claimed: {node}"
+    );
+    assert_eq!(node["refarm.verification.unknown"], "no-result");
+    assert_eq!(node["refarm.outcome"], "failed");
+}
+
+#[test]
+fn an_unreadable_result_is_reported_as_a_gap_in_the_checking_not_as_a_wrong_answer() {
+    // The other reason, kept separate the way `contextWindowUnknown` keeps
+    // `not-published` apart from `source-not-found`: a delivery receipt IS a
+    // result, it just is not an answer this matcher can read — a fact about this
+    // file, not about the run.
+    let results = vec![TaskResult {
+        status: "ok".to_string(),
+        result: Some(serde_json::json!({ "dispatched": "user:prompt", "sent": 1 })),
+        error: None,
+    }];
+    let node = build_observation_node(ObservationInput {
+        outcome: super::super::EFFORT_DELIVERED,
+        verification: Some(DeclaredVerification {
+            expected: "user:prompt",
+            verdict: verdict_for("user:prompt", &results),
+        }),
+        ..base_input()
+    });
+    assert!(node.get("refarm.verification.passed").is_none());
+    assert_eq!(node["refarm.verification.unknown"], "result-not-readable");
 }
 
 #[test]
@@ -359,6 +489,7 @@ async fn a_config_change_after_dispatch_does_not_leak_into_the_observation() {
         budget: None,
         workspace_id: None,
         scenario_id: None,
+        expectation: None,
     };
 
     // Dispatch: this SYNCHRONOUSLY resolves the budget against config A (the
@@ -443,6 +574,7 @@ async fn an_event_dispatch_efforts_observation_carries_no_budget_family() {
         budget: None,
         workspace_id: None,
         scenario_id: None,
+        expectation: None,
     };
 
     // `SidecarState::for_test` registers no plugin channel, so the router
@@ -527,7 +659,7 @@ fn write_budget_observation_reads_the_real_step_count_off_the_joined_usage_recor
         )
         .expect("store usage record");
 
-    write_budget_observation(&state, &effort_id, None, None, "timed-out", Some(45_000));
+    write_budget_observation(&state, &effort_id, None, None, "timed-out", Some(45_000), &[]);
 
     let rows = storage.query_nodes("BudgetObservation").expect("query nodes");
     let node = rows
@@ -569,7 +701,7 @@ fn write_budget_observation_records_the_declared_name_and_a_freshly_minted_id() 
     let state = SidecarState::for_test(&refarm_dir, &namespace).expect("state");
 
     let effort_id = format!("obs-identity-{}", uuid::Uuid::new_v4());
-    write_budget_observation(&state, &effort_id, None, None, "failed", None);
+    write_budget_observation(&state, &effort_id, None, None, "failed", None, &[]);
 
     let storage = crate::storage::NativeStorage::open(&namespace).expect("open storage");
     let rows = storage.query_nodes("BudgetObservation").expect("query nodes");
@@ -611,7 +743,7 @@ fn write_budget_observation_omits_steps_completed_when_no_usage_joined() {
     let state = SidecarState::for_test(&tmp, &namespace).expect("state");
     let effort_id = format!("obs-nosteps-{}", uuid::Uuid::new_v4());
 
-    write_budget_observation(&state, &effort_id, None, None, "failed", None);
+    write_budget_observation(&state, &effort_id, None, None, "failed", None, &[]);
 
     let storage = crate::storage::NativeStorage::open(&namespace).expect("open storage");
     let rows = storage.query_nodes("BudgetObservation").expect("query nodes");
@@ -694,6 +826,7 @@ fn scenario_effort(
         budget,
         workspace_id: workspace_id.map(str::to_string),
         scenario_id: scenario_id.map(str::to_string),
+        expectation: None,
     }
 }
 
@@ -735,6 +868,53 @@ async fn an_undeclared_scenario_leaves_the_id_off_the_record_but_still_hashes_th
         node.get("refarm.scenario.hash").and_then(|v| v.as_str()).is_some(),
         "undeclared field use is still comparable, which is what the hash is for: {node}"
     );
+}
+
+#[tokio::test]
+async fn a_declared_expectation_crosses_the_wire_and_reaches_the_record() {
+    // The full path, not the pure builder: `Effort.expectation` off the wire →
+    // retained input → finalisation → stored node. `SidecarState::for_test`
+    // registers no plugin channel, so this effort finalises `failed` with an
+    // error and no answer — which is precisely the case that must NOT read as a
+    // wrong answer.
+    let effort = Effort {
+        expectation: Some("  59  ".to_string()),
+        ..scenario_effort(None, None, None, serde_json::json!({ "path": "note.md" }))
+    };
+    let node = observation_for_dispatched(effort).await;
+
+    assert_eq!(
+        node["refarm.verification.expected"], "59",
+        "the declaration is normalised once and recorded verbatim: {node}"
+    );
+    assert!(
+        node.get("refarm.verification.passed").is_none(),
+        "no answer to compare is not a failed comparison: {node}"
+    );
+    assert_eq!(node["refarm.verification.unknown"], "no-result");
+    assert_eq!(
+        node["refarm.outcome"], "failed",
+        "the terminal status is the terminal status, untouched by any verdict: {node}"
+    );
+}
+
+#[tokio::test]
+async fn an_effort_that_expects_nothing_records_no_verification_keys_at_all() {
+    let node =
+        observation_for_dispatched(scenario_effort(None, None, None, serde_json::json!({ "path": "note.md" })))
+            .await;
+
+    for key in [
+        "refarm.verification.expected",
+        "refarm.verification.passed",
+        "refarm.verification.method",
+        "refarm.verification.unknown",
+    ] {
+        assert!(
+            node.get(key).is_none(),
+            "{key} must be absent on the ordinary undeclared run: {node}"
+        );
+    }
 }
 
 #[tokio::test]
@@ -797,7 +977,7 @@ fn an_effort_with_no_dispatch_time_resolution_records_neither_scenario_field() {
     let state = SidecarState::for_test(&tmp, &namespace).expect("state");
     let effort_id = format!("obs-noscenario-{}", uuid::Uuid::new_v4());
 
-    write_budget_observation(&state, &effort_id, None, None, "failed", None);
+    write_budget_observation(&state, &effort_id, None, None, "failed", None, &[]);
 
     let storage = crate::storage::NativeStorage::open(&namespace).expect("open storage");
     let rows = storage.query_nodes("BudgetObservation").expect("query nodes");

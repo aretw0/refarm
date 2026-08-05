@@ -823,8 +823,18 @@ fn record_budget_observation(
         .ok()
         .and_then(|mut store| store.remove(effort_id));
 
+    // `result.results` rides along because it is the only thing here that
+    // carries what the run ANSWERED — what a declared `Effort.expectation` gets
+    // compared against, so the record can say the run was wrong without touching
+    // `status`, which keeps meaning exactly what it always did.
     super::observation::write_budget_observation(
-        state, effort_id, resolved, scenario, status, elapsed_ms,
+        state,
+        effort_id,
+        resolved,
+        scenario,
+        status,
+        elapsed_ms,
+        &result.results,
     );
 }
 
@@ -1167,6 +1177,7 @@ mod tests {
             budget: None,
             workspace_id: None,
             scenario_id: None,
+            expectation: None,
         }
     }
 

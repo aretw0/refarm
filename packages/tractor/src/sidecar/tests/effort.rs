@@ -1342,6 +1342,7 @@ async fn sidecar_in_flight_carries_the_deadline_dispatch_resolved() {
             }),
             workspace_id: None,
             scenario_id: None,
+            expectation: None,
         },
     );
 

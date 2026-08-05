@@ -279,6 +279,46 @@ describe("refarm ask", () => {
 		outSpy.mockRestore();
 	});
 
+	it("--expect declares what the answer must contain, and it rides the effort", async () => {
+		process.env.MODEL_PROVIDER = "openai-codex";
+		const deps = makeDeps();
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+		await command.parseAsync(["how many .md files?", "--expect", "59"], {
+			from: "user",
+		});
+
+		const effort = (deps.submitEffort as ReturnType<typeof vi.fn>).mock.calls[0]![0];
+		// The wire field the sidecar reads (`Effort.expectation`) — the record can
+		// only say a run was WRONG if the declaration reaches it.
+		expect(effort.expectation).toBe("59");
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
+	it("no --expect flag ⇒ the submitted effort carries no expectation key at all", async () => {
+		// Nobody checked is the ordinary case and must stay the default: no key,
+		// not a null, so the observation records no verdict rather than one that
+		// reads as "checked and inconclusive".
+		process.env.MODEL_PROVIDER = "openai-codex";
+		const deps = makeDeps();
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+		await command.parseAsync(["how many .md files?"], { from: "user" });
+
+		const effort = (deps.submitEffort as ReturnType<typeof vi.fn>).mock.calls[0]![0];
+		expect("expectation" in effort).toBe(false);
+		expect(JSON.stringify(effort).includes("expectation")).toBe(false);
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
 	it("rejects invalid ask model scopes as JSON", async () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);

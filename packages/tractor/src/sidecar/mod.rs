@@ -161,6 +161,18 @@ pub struct Effort {
     /// why this is a different kind of thing from the hash that rides beside it.
     #[serde(default)]
     pub scenario_id: Option<String>,
+    /// What the caller DECLARES this run's answer must contain, so the record
+    /// can say the run was WRONG (`refarm ask --expect <text>`) — a question
+    /// `refarm.outcome` does not answer and was never asking: `done` means the
+    /// effort COMPLETED, and on 2026-08-05 a run that answered 58 where the
+    /// answer was 59 recorded exactly that, correctly, with nothing beside it.
+    /// Declared, never invented, exactly like `scenario_id` above: a dispatch
+    /// that expects nothing sends no field at all and the observation records no
+    /// verdict, which is the ordinary case and stays the default. See
+    /// `sidecar::verification` for the three states, the one matcher, and what
+    /// a substring match cannot grade.
+    #[serde(default)]
+    pub expectation: Option<String>,
 }
 
 type EffortStore = Arc<RwLock<HashMap<String, EffortResult>>>;
@@ -794,6 +806,10 @@ mod observation;
 // WHICH WORK a run was (`refarm.scenario.id` / `.hash`) — resolved at dispatch,
 // where the request shape exists, and read back onto the observation above.
 mod scenario;
+// WHETHER the run was right (`refarm.verification.*`) — a SEPARATE fact from
+// `refarm.outcome`, which says only that the run completed. `Effort.expectation`
+// above is its wire boundary; the verdict lands on the observation.
+mod verification;
 mod reap;
 // Safe restart: what is in flight right now (`GET /efforts/in-flight`) and the
 // bounded drain a shutdown runs over it. `pub(crate)` because `daemon::shutdown`
