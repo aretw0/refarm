@@ -98,9 +98,9 @@ export {
 	readLatestAgentEntryFromSession,
 	resolveRuntimeStreamsDir,
 	resolveRuntimeTaskResultsDir,
-	};
+};
 
-	export interface AskDeps {
+export interface AskDeps {
 	submitEffort(effort: Effort): Promise<string>;
 	followStream(
 		effortId: string,
@@ -131,23 +131,23 @@ export {
 	/** What the Session node already carries. Injectable so tests never hit the real sidecar
 	 * over the network — see `readSessionWorkspace` for the production default. */
 	readSessionWorkspace?(sessionId: string): Promise<SessionWorkspaceLookup | undefined>;
-	}
+}
 
-	interface SessionNode {
+interface SessionNode {
 	"@id": string;
 	/** Absent (not null) on a session with no workspace attribution yet. */
 	workspace_id?: string;
 	workspace_source?: string;
-	}
+}
 
-	export interface AskJsonResult {
+export interface AskJsonResult {
 	effortId: string;
 	sessionId: string;
 	content: string;
 	metadata?: Record<string, unknown>;
-	}
+}
 
-	async function submitViaHttp(effort: Effort): Promise<string> {
+async function submitViaHttp(effort: Effort): Promise<string> {
 	const response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/efforts"), {
 		method: "POST",
 		headers: { "content-type": "application/json" },
@@ -158,15 +158,15 @@ export {
 	}
 	const payload = (await response.json()) as { effortId: string };
 	return payload.effortId;
-	}
+}
 
-	function newSessionId(): string {
+function newSessionId(): string {
 	return `urn:sovereign:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
-	}
+}
 
-	function sourceForAskScope(
+function sourceForAskScope(
 	scope: ModelScope,
-	): "refarm-ask" | "refarm-ask:worker" | "refarm-ask:monitor" {
+): "refarm-ask" | "refarm-ask:worker" | "refarm-ask:monitor" {
 	switch (scope) {
 		case "default":
 			return "refarm-ask";
@@ -175,13 +175,13 @@ export {
 		case "monitor":
 			return "refarm-ask:monitor";
 	}
-	}
+}
 
-	async function collectDefaultSystemPrompt(request: {
+async function collectDefaultSystemPrompt(request: {
 	cwd: string;
 	query: string;
 	files: string[];
-	}): Promise<string> {
+}): Promise<string> {
 	const providers: ContextProvider[] = [
 		// Feed the resolved sidecar URL (env REFARM_SIDECAR_URL → home/cwd .refarm
 		// config → replicated config graph node → default) instead of the provider's
@@ -203,9 +203,9 @@ export {
 		query: request.query,
 	});
 	return buildSystemPrompt(entries, { productName: REFARM_PRODUCT_NAME, binary: REFARM_BINARY });
-	}
+}
 
-	async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
+async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 
 	const response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/sessions"));
@@ -214,14 +214,14 @@ export {
 	}
 	const body = (await response.json()) as { sessions?: SessionNode[] };
 	return resolveSessionIdPrefix(prefix, body.sessions ?? []);
-	}
+}
 
-	/** `DeclaredRoot[]` built from the config catalog — the same `id`/`absolutePath` pair
-	 * `refarm workspace list --json` prints, reduced to what `resolveWorkspaceFromPath` needs.
-	 * Uses `declaredBase()` (SOVEREIGN_BASE || cwd), the established way this CLI finds
-	 * declarations — a different value, and a different job, from the interactive cwd seed
-	 * below. */
-	function declaredWorkspaceRoots(): DeclaredRoot[] {
+/** `DeclaredRoot[]` built from the config catalog — the same `id`/`absolutePath` pair
+ * `refarm workspace list --json` prints, reduced to what `resolveWorkspaceFromPath` needs.
+ * Uses `declaredBase()` (SOVEREIGN_BASE || cwd), the established way this CLI finds
+ * declarations — a different value, and a different job, from the interactive cwd seed
+ * below. */
+function declaredWorkspaceRoots(): DeclaredRoot[] {
 	const baseDir = declaredBase();
 	return declaredWorkspacesFromConfig(loadConfig(baseDir), { baseDir })
 		.filter((workspace): workspace is NonNullable<typeof workspace> => workspace != null)
@@ -229,33 +229,36 @@ export {
 			id: workspace.id,
 			absolutePath: workspace.absolutePath,
 		}));
-	}
+}
 
-	/**
-	 * What `readSessionWorkspace` found, reduced to what the ladder needs to tell apart:
-	 * a declaration (`{ id, source }`), or `"unknown"` — the sidecar could not be asked, so
-	 * NOTHING may be inferred, least of all a cwd seed standing in for a fact that might
-	 * already be settled. `undefined` (the third, implicit state — see below) means the
-	 * query succeeded and genuinely found no declaration, which is a different fact from
-	 * `"unknown"` and must be told apart from it: collapsing "asked and got nothing" into
-	 * "could not ask" is exactly the silent re-attribution this ladder exists to prevent.
-	 */
-	export type SessionWorkspaceLookup = { id: string; source: string } | "unknown";
+/**
+ * What `readSessionWorkspace` found, reduced to what the ladder needs to tell apart:
+ * a declaration (`{ id, source }`), or `"unknown"` — the sidecar could not be asked, so
+ * NOTHING may be inferred, least of all a cwd seed standing in for a fact that might
+ * already be settled. `undefined` (the third, implicit state — see below) means the
+ * query succeeded and genuinely found no declaration, which is a different fact from
+ * `"unknown"` and must be told apart from it: collapsing "asked and got nothing" into
+ * "could not ask" is exactly the silent re-attribution this ladder exists to prevent.
+ */
+export type SessionWorkspaceLookup = { id: string; source: string } | "unknown";
 
-	/**
-	 * What the Session node already carries, when it carries anything — or `"unknown"` when
-	 * the sidecar could not be asked at all (non-2xx, a thrown network/timeout error, or a
-	 * response body that did not parse). Those three failure shapes are NOT "not declared":
-	 * a session that already exists but whose stored declaration could not be READ must read
-	 * as unknown, never as absent, or a transient sidecar hiccup would silently re-attribute
-	 * an already-settled session to wherever the operator happens to be standing today.
-	 *
-	 * `undefined` is reserved for a genuinely successful read that found no declaration — the
-	 * ordinary case for a session newly minted this run, which has nothing to read yet and is
-	 * expected to seed from cwd. `workspace_id`/`workspace_source` being ABSENT (not null) on
-	 * the node is what that successful-but-empty read looks like on the wire.
-	 */
-	async function readSessionWorkspace(sessionId: string): Promise<SessionWorkspaceLookup | undefined> {
+/**
+ * What the Session node already carries, when it carries anything — or `"unknown"` when
+ * the sidecar could not be asked at all (non-2xx, a thrown network/timeout error, a
+ * response body that did not parse, or a body that parsed but carried no `sessions`
+ * array). None of those failure shapes is "not declared": a session that already exists
+ * but whose stored declaration could not be READ must read as unknown, never as absent,
+ * or a transient sidecar hiccup would silently re-attribute an already-settled session
+ * to wherever the operator happens to be standing today.
+ *
+ * `undefined` is reserved for a genuinely successful read that found no declaration — the
+ * ordinary case for a session newly minted this run, which has nothing to read yet and is
+ * expected to seed from cwd. `workspace_id`/`workspace_source` being ABSENT (not null) on
+ * the node is what that successful-but-empty read looks like on the wire.
+ */
+async function readSessionWorkspace(
+	sessionId: string,
+): Promise<SessionWorkspaceLookup | undefined> {
 	let response: Response;
 	try {
 		response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/sessions"));
@@ -265,19 +268,22 @@ export {
 	if (!response.ok) return "unknown";
 	try {
 		const body = (await response.json()) as { sessions?: SessionNode[] };
-		const node = (body.sessions ?? []).find((session) => session["@id"] === sessionId);
+		// A body that parses but carries no `sessions` array is a failed read, not an
+		// empty answer: collapsing it to "absent" would let the cwd seed fire and
+		// silently re-attribute a session whose declaration simply couldn't be read.
+		if (!Array.isArray(body.sessions)) return "unknown";
+		const node = body.sessions.find((session) => session["@id"] === sessionId);
 		if (!node?.workspace_id) return undefined;
 		return {
 			id: node.workspace_id,
-			source:
-				typeof node.workspace_source === "string" ? node.workspace_source : "seeded-from-cwd",
+			source: typeof node.workspace_source === "string" ? node.workspace_source : "seeded-from-cwd",
 		};
 	} catch {
 		return "unknown";
 	}
-	}
+}
 
-	export interface DispatchWorkspaceInput {
+export interface DispatchWorkspaceInput {
 	/** `--workspace <id>`, already validated. */
 	flag?: string;
 	/**
@@ -296,24 +302,24 @@ export {
 	 */
 	interactiveCwd?: string;
 	roots: DeclaredRoot[];
-	}
+}
 
-	/**
-	 * The four degrees, in order: explicit flag, the session's own declaration, a cwd seed at
-	 * a session's first dispatch, then nothing. cwd is absent from degrees 1 and 2 on purpose —
-	 * ADR-094's D2 keeps it out of the resolution order, and it enters here only as the
-	 * authoring convenience H2 permits, stamped so it can never be mistaken for a declaration.
-	 *
-	 * `sessionWorkspace: "unknown"` (a read failure, not a lookup) short-circuits to NO
-	 * attribution — it must NEVER fall through to the cwd seed, or a transient sidecar hiccup
-	 * on an already-attributed session would silently re-attribute it to wherever the operator
-	 * happens to be standing today. Only a confirmed empty read (`undefined`) — the ordinary
-	 * shape of a session that has nothing stored yet — reaches degree 3.
-	 */
-	export function resolveDispatchWorkspace(input: DispatchWorkspaceInput): {
+/**
+ * The four degrees, in order: explicit flag, the session's own declaration, a cwd seed at
+ * a session's first dispatch, then nothing. cwd is absent from degrees 1 and 2 on purpose —
+ * ADR-094's D2 keeps it out of the resolution order, and it enters here only as the
+ * authoring convenience H2 permits, stamped so it can never be mistaken for a declaration.
+ *
+ * `sessionWorkspace: "unknown"` (a read failure, not a lookup) short-circuits to NO
+ * attribution — it must NEVER fall through to the cwd seed, or a transient sidecar hiccup
+ * on an already-attributed session would silently re-attribute it to wherever the operator
+ * happens to be standing today. Only a confirmed empty read (`undefined`) — the ordinary
+ * shape of a session that has nothing stored yet — reaches degree 3.
+ */
+export function resolveDispatchWorkspace(input: DispatchWorkspaceInput): {
 	workspaceId?: string;
 	workspaceSource?: "declared" | "seeded-from-cwd";
-	} {
+} {
 	const flag = input.flag?.trim();
 	if (flag) return { workspaceId: flag, workspaceSource: "declared" };
 
@@ -332,23 +338,23 @@ export {
 	}
 
 	return {};
-	}
+}
 
-	/**
-	 * Validate `--workspace <id>` against the DECLARED catalog before it ever reaches
-	 * `resolveDispatchWorkspace` — an unchecked flag lets a typo (`--workspace rcdc`) land as
-	 * `workspaceSource: "declared"` on a phantom id that matches nothing, which is exactly the
-	 * silent wrong-attribution failure mode this whole feature exists to prevent.
-	 *
-	 * Same "absent means absent, parse once and reuse" contract and syntax rules as
-	 * `parseWorkspaceOption` (`./dispatch-capability.ts`) — trimmed, non-empty, no whitespace
-	 * or colon — plus the one check that command cannot make without a resolved catalog in
-	 * hand: the id must actually be declared, and the error names the ones that are.
-	 */
-	export function validateWorkspaceFlag(
+/**
+ * Validate `--workspace <id>` against the DECLARED catalog before it ever reaches
+ * `resolveDispatchWorkspace` — an unchecked flag lets a typo (`--workspace rcdc`) land as
+ * `workspaceSource: "declared"` on a phantom id that matches nothing, which is exactly the
+ * silent wrong-attribution failure mode this whole feature exists to prevent.
+ *
+ * Same "absent means absent, parse once and reuse" contract and syntax rules as
+ * `parseWorkspaceOption` (`./dispatch-capability.ts`) — trimmed, non-empty, no whitespace
+ * or colon — plus the one check that command cannot make without a resolved catalog in
+ * hand: the id must actually be declared, and the error names the ones that are.
+ */
+export function validateWorkspaceFlag(
 	flag: string | undefined,
 	roots: DeclaredRoot[],
-	): { workspaceId?: string } | { error: string } {
+): { workspaceId?: string } | { error: string } {
 	if (flag === undefined) return {};
 	const trimmed = flag.trim();
 	if (trimmed.length === 0) {
@@ -365,9 +371,9 @@ export {
 		return { error: `--workspace "${trimmed}" is not declared. Declared workspaces: ${knownList}` };
 	}
 	return { workspaceId: trimmed };
-	}
+}
 
-	function defaultDeps(): AskDeps {
+function defaultDeps(): AskDeps {
 	const streamsDir = resolveRuntimeStreamsDir();
 	const resultsDir = resolveRuntimeTaskResultsDir();
 	return {
@@ -389,12 +395,12 @@ export {
 		readPluginState: readRuntimePluginState,
 		reloadPlugins: reloadRuntimePlugins,
 	};
-	}
+}
 
-	const DEFAULT_HISTORY_TURNS = 10;
-	const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
+const DEFAULT_HISTORY_TURNS = 10;
+const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
 
-	async function ensureAskRuntimeReady(launch: LaunchDeps, json = false): Promise<boolean> {
+async function ensureAskRuntimeReady(launch: LaunchDeps, json = false): Promise<boolean> {
 	let readiness = await checkSessionReadiness();
 
 	const canPrompt = Boolean(process.stdin.isTTY && process.stdout.isTTY);
@@ -413,13 +419,13 @@ export {
 	}
 
 	return true;
-	}
+}
 
-	async function ensureAgentReady(
+async function ensureAgentReady(
 	readPluginState: (() => Promise<RuntimePluginState | null>) | undefined,
 	reloadPlugins: ((pluginIds: string[]) => Promise<RuntimePluginReloadResult | null>) | undefined,
 	json = false,
-	): Promise<boolean> {
+): Promise<boolean> {
 	if (!readPluginState) return true;
 	const state = await readPluginState();
 	if (!state) return true;
@@ -534,9 +540,9 @@ export {
 	);
 	console.error(chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`));
 	return false;
-	}
+}
 
-	export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Command {
+export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Command {
 	const resolved = deps ?? defaultDeps();
 	const readActiveSession = resolved.readActiveSessionId ?? readActiveSessionId;
 	const clearActiveSession = resolved.clearActiveSessionId ?? clearActiveSessionId;
@@ -724,7 +730,9 @@ export {
 						return;
 					}
 					console.error(chalk.red(`\n✗  ${workspaceValidation.error}`));
-					console.error(chalk.dim(`   Inspect declared workspaces: ${WORKSPACE_LIST_JSON_COMMAND}`));
+					console.error(
+						chalk.dim(`   Inspect declared workspaces: ${WORKSPACE_LIST_JSON_COMMAND}`),
+					);
 					process.exitCode = 1;
 					return;
 				}
@@ -871,11 +879,7 @@ export {
 							},
 							{ submittedAtMs },
 						);
-						metadata = await reconcileStreamMetadata(
-							effortId,
-							metadata,
-							resolved.readEffortResult,
-						);
+						metadata = await reconcileStreamMetadata(effortId, metadata, resolved.readEffortResult);
 						if (metadata && !opts.json) {
 							console.log(chalk.gray(`\n${"─".repeat(41)}`));
 							console.log(chalk.gray(usageLine(metadata)));
@@ -945,6 +949,6 @@ export {
 				}
 			},
 		);
-	}
+}
 
-	export const askCommand = createAskCommand();
+export const askCommand = createAskCommand();

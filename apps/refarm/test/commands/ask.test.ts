@@ -25,24 +25,20 @@ function makeChunk(
 function makeDeps(overrides: Partial<AskDeps> = {}): AskDeps {
 	return {
 		submitEffort: vi.fn().mockResolvedValue("eff-1"),
-		resolveSessionIdPrefix: vi
-			.fn()
-			.mockImplementation(async (prefix: string) => prefix),
+		resolveSessionIdPrefix: vi.fn().mockImplementation(async (prefix: string) => prefix),
 		followStream: vi
 			.fn()
-			.mockImplementation(
-				async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
-					onChunk(makeChunk("hello ", 0, false));
-					onChunk(
-						makeChunk("world", 1, true, {
-							model: "claude-sonnet-4-6",
-							tokens_in: 50,
-							tokens_out: 100,
-							estimated_usd: 0.0005,
-						}),
-					);
-				},
-			),
+			.mockImplementation(async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+				onChunk(makeChunk("hello ", 0, false));
+				onChunk(
+					makeChunk("world", 1, true, {
+						model: "claude-sonnet-4-6",
+						tokens_in: 50,
+						tokens_out: 100,
+						estimated_usd: 0.0005,
+					}),
+				);
+			}),
 		readEffortResult: vi.fn().mockResolvedValue(null),
 		readActiveSessionId: vi.fn().mockReturnValue(null),
 		clearActiveSessionId: vi.fn().mockReturnValue(true),
@@ -171,9 +167,9 @@ describe("refarm ask", () => {
 	});
 
 	it("resolves runtime stream and result directories from env overrides", () => {
-		expect(
-			resolveRuntimeStreamsDir({ REFARM_STREAMS_DIR: "/tmp/refarm-streams" }),
-		).toBe("/tmp/refarm-streams");
+		expect(resolveRuntimeStreamsDir({ REFARM_STREAMS_DIR: "/tmp/refarm-streams" })).toBe(
+			"/tmp/refarm-streams",
+		);
 		expect(
 			resolveRuntimeTaskResultsDir({
 				REFARM_TASK_RESULTS_DIR: "/tmp/refarm-results",
@@ -185,9 +181,7 @@ describe("refarm ask", () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
 		await command.parseAsync(["what is CRDT?"], { from: "user" });
 
@@ -220,9 +214,7 @@ describe("refarm ask", () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
 		await command.parseAsync(["hello", "--scope", "worker"], { from: "user" });
 
@@ -329,12 +321,10 @@ describe("refarm ask", () => {
 	it("--workspace declares which workspace this run belongs to, and it rides the effort", async () => {
 		process.env.MODEL_PROVIDER = "openai-codex";
 		const deps = makeDeps({
-			declaredWorkspaceRoots: vi
-				.fn()
-				.mockReturnValue([
-					{ id: "rcdc5", absolutePath: "/home/op/git/rcdc5" },
-					{ id: "refarm", absolutePath: "/home/op/github/refarm" },
-				]),
+			declaredWorkspaceRoots: vi.fn().mockReturnValue([
+				{ id: "rcdc5", absolutePath: "/home/op/git/rcdc5" },
+				{ id: "refarm", absolutePath: "/home/op/github/refarm" },
+			]),
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -356,12 +346,10 @@ describe("refarm ask", () => {
 
 	it("rejects an undeclared --workspace, naming the declared ones, and never dispatches", async () => {
 		const deps = makeDeps({
-			declaredWorkspaceRoots: vi
-				.fn()
-				.mockReturnValue([
-					{ id: "rcdc5", absolutePath: "/home/op/git/rcdc5" },
-					{ id: "refarm", absolutePath: "/home/op/github/refarm" },
-				]),
+			declaredWorkspaceRoots: vi.fn().mockReturnValue([
+				{ id: "rcdc5", absolutePath: "/home/op/git/rcdc5" },
+				{ id: "refarm", absolutePath: "/home/op/github/refarm" },
+			]),
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -383,6 +371,35 @@ describe("refarm ask", () => {
 		expect(process.exitCode).toBe(1);
 
 		logSpy.mockRestore();
+	});
+
+	it("a /sessions body that parses but carries no `sessions` array reads as unknown, not absent — no cwd seed fires", async () => {
+		const deps = makeDeps({
+			// Exercise the REAL readSessionWorkspace (not the suite-wide stub) so the
+			// sidecar response shape actually reaches the tri-state collapse under test.
+			readSessionWorkspace: undefined,
+			// A declared root that matches cwd exactly: if the fix regressed and this
+			// read fell through to "absent" (undefined) instead of "unknown", the ladder
+			// would wrongly seed workspaceId from cwd right here.
+			declaredWorkspaceRoots: vi
+				.fn()
+				.mockReturnValue([{ id: "here", absolutePath: process.cwd() }]),
+		});
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+		await command.parseAsync(["hello"], { from: "user" });
+
+		const effort = (deps.submitEffort as ReturnType<typeof vi.fn>).mock.calls[0]![0];
+		const args = effort.tasks[0].args as Record<string, unknown> | null | undefined;
+		expect("workspaceId" in effort).toBe(false);
+		expect(args != null ? "workspace_id" in args : false).toBe(false);
+		expect(args != null ? "workspace_source" in args : false).toBe(false);
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
 	});
 
 	it("rejects invalid ask model scopes as JSON", async () => {
@@ -416,11 +433,9 @@ describe("refarm ask", () => {
 			submitEffort: vi.fn().mockResolvedValue("eff-1"),
 			followStream: vi
 				.fn()
-				.mockImplementation(
-					async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
-						onChunk(makeChunk("ok", 0, true));
-					},
-			),
+				.mockImplementation(async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+					onChunk(makeChunk("ok", 0, true));
+				}),
 			collectSystemPrompt: vi.fn().mockResolvedValue("test system prompt"),
 			// Not the fallback under test here — stubbed so this test doesn't read
 			// the real config or hit the real sidecar over the network either.
@@ -439,12 +454,8 @@ describe("refarm ask", () => {
 		// stubbed too, or the write path resolves to "none available" instead of the
 		// production fallback this test exercises.
 		vi.spyOn(fs, "accessSync").mockImplementation(() => undefined);
-		const writeSpy = vi
-			.spyOn(fs, "writeFileSync")
-			.mockImplementation(() => undefined);
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
 		await command.parseAsync(["hello"], { from: "user" });
 
@@ -473,9 +484,7 @@ describe("refarm ask", () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
 		await command.parseAsync(["hello"], { from: "user" });
 
@@ -490,15 +499,17 @@ describe("refarm ask", () => {
 
 	it("replaces the stream's zero placeholders with usage from the terminal effort", async () => {
 		const deps = makeDeps({
-			followStream: vi.fn().mockImplementation(
-				async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
-					onChunk(makeChunk("measured answer", 0, true, {
-						model: "gpt-5.5",
-						tokens_in: 0,
-						tokens_out: 0,
-					}));
-				},
-			),
+			followStream: vi
+				.fn()
+				.mockImplementation(async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+					onChunk(
+						makeChunk("measured answer", 0, true, {
+							model: "gpt-5.5",
+							tokens_in: 0,
+							tokens_out: 0,
+						}),
+					);
+				}),
 			readEffortResult: vi.fn().mockResolvedValue({
 				status: "ok",
 				content: "measured answer",
@@ -531,20 +542,18 @@ describe("refarm ask", () => {
 		const deps = makeDeps({
 			followStream: vi
 				.fn()
-				.mockImplementation(
-					async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
-						onChunk(makeChunk("Hel", 0, false));
-						onChunk(makeChunk("lo, ", 1, false));
-						onChunk(makeChunk("world", 2, false));
-						onChunk(
-							makeChunk("", 3, true, {
-								model: "gpt-5.5",
-								tokens_in: 10,
-								tokens_out: 5,
-							}),
-						);
-					},
-				),
+				.mockImplementation(async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+					onChunk(makeChunk("Hel", 0, false));
+					onChunk(makeChunk("lo, ", 1, false));
+					onChunk(makeChunk("world", 2, false));
+					onChunk(
+						makeChunk("", 3, true, {
+							model: "gpt-5.5",
+							tokens_in: 10,
+							tokens_out: 5,
+						}),
+					);
+				}),
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -571,24 +580,22 @@ describe("refarm ask", () => {
 		const deps = makeDeps({
 			followStream: vi
 				.fn()
-				.mockImplementation(
-					async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
-						onChunk(makeChunk("ok", 0, true, {
+				.mockImplementation(async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+					onChunk(
+						makeChunk("ok", 0, true, {
 							model: "gpt-5.5",
 							provider: "openai-codex",
 							tokens_in: 50,
 							tokens_out: 2,
 							pricing_mode: "subscription",
 							estimated_usd: 0,
-						}));
-					},
-				),
+						}),
+					);
+				}),
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
 		await command.parseAsync(["hello"], { from: "user" });
 
@@ -605,15 +612,11 @@ describe("refarm ask", () => {
 
 	it("prints ask result as JSON without streaming text", async () => {
 		const deps = makeDeps({
-			readActiveSessionId: vi
-				.fn()
-				.mockReturnValue("urn:sovereign:session:v1:jsonactive"),
+			readActiveSessionId: vi.fn().mockReturnValue("urn:sovereign:session:v1:jsonactive"),
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
 		await command.parseAsync(["hello", "--json"], { from: "user" });
 
@@ -627,10 +630,7 @@ describe("refarm ask", () => {
 			operation: "submit",
 			ok: true,
 			nextAction: "refarm resume --json",
-			nextActions: [
-				"refarm resume --json",
-				"refarm agent finish --lane after-edit --run --json",
-			],
+			nextActions: ["refarm resume --json", "refarm agent finish --lane after-edit --run --json"],
 			nextCommand: "refarm resume --json",
 			nextCommands: [
 				"refarm resume --json",
@@ -644,9 +644,7 @@ describe("refarm ask", () => {
 				estimated_usd: 0.0005,
 			},
 		});
-		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
-			"urn:sovereign:session:v1:jsonactive",
-		);
+		expect(deps.persistActiveSessionId).toHaveBeenCalledWith("urn:sovereign:session:v1:jsonactive");
 
 		logSpy.mockRestore();
 		outSpy.mockRestore();
@@ -683,9 +681,7 @@ describe("refarm ask", () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
 		await command.parseAsync(["explain", "--files", "README.md,package.json"], {
 			from: "user",
@@ -715,9 +711,7 @@ describe("refarm ask", () => {
 		};
 		const command = createAskCommand(deps, launchDeps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
 		await command.parseAsync(["hello"], { from: "user" });
 
@@ -809,9 +803,7 @@ describe("refarm ask", () => {
 		expect(payload.nextActions).toContain("refarm sow --json");
 		expect(payload.nextActions).toContain("refarm model current --json");
 		expect(payload.nextCommands).toContain("refarm sow");
-		expect(payload.nextCommands).toContain(
-			"refarm sow --model ollama/llama3.2 --json",
-		);
+		expect(payload.nextCommands).toContain("refarm sow --model ollama/llama3.2 --json");
 		expect(payload.nextCommands).toContain("refarm sow --json");
 		expect(payload.nextCommands).toContain("refarm model providers --json");
 		expect(payload.nextCommands).toContain("refarm model current --json");
@@ -935,18 +927,10 @@ describe("refarm ask", () => {
 		await command.parseAsync(["hello"], { from: "user" });
 
 		expect(deps.submitEffort).not.toHaveBeenCalled();
-		expect(errSpy).toHaveBeenCalledWith(
-			expect.stringContaining("No agent is loaded"),
-		);
-		expect(errSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Reload runtime plugins"),
-		);
-		expect(errSpy).toHaveBeenCalledWith(
-			expect.stringContaining("/reload agent"),
-		);
-		expect(errSpy).toHaveBeenCalledWith(
-			expect.stringContaining("/r agent"),
-		);
+		expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("No agent is loaded"));
+		expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("Reload runtime plugins"));
+		expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("/reload agent"));
+		expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("/r agent"));
 		expect(process.exitCode).toBe(1);
 
 		errSpy.mockRestore();
@@ -1073,9 +1057,7 @@ describe("refarm ask", () => {
 		const deps = makeDeps({
 			submitEffort: vi
 				.fn()
-				.mockRejectedValue(
-					new Error('model-bridge request failed for provider "openai"'),
-				),
+				.mockRejectedValue(new Error('model-bridge request failed for provider "openai"')),
 		});
 		const launchDeps: LaunchDeps = {
 			autostartMode: "always",
@@ -1157,7 +1139,7 @@ describe("refarm ask", () => {
 		errSpy.mockRestore();
 	});
 
-it("classifies runtime submit errors for configured runtime agent id as agent-not-loaded", async () => {
+	it("classifies runtime submit errors for configured runtime agent id as agent-not-loaded", async () => {
 		process.env.MODEL_PROVIDER = "openai";
 		process.env.OPENAI_API_KEY = "sk-test";
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
@@ -1185,9 +1167,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
 			ok: false,
 			error: "agent-not-loaded",
-			nextActions: expect.arrayContaining([
-				"refarm plugin reload agent --json",
-			]),
+			nextActions: expect.arrayContaining(["refarm plugin reload agent --json"]),
 		});
 		expect(process.exitCode).toBe(1);
 
@@ -1206,9 +1186,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 				loaded: [],
 				known: [RUNTIME_AGENT_PLUGIN_ID],
 			}),
-			submitEffort: vi
-				.fn()
-				.mockRejectedValue(new Error(`${runtimeAgentShortId} not loaded`)),
+			submitEffort: vi.fn().mockRejectedValue(new Error(`${runtimeAgentShortId} not loaded`)),
 		});
 		const launchDeps: LaunchDeps = {
 			autostartMode: "always",
@@ -1226,9 +1204,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
 			ok: false,
 			error: "agent-not-loaded",
-			nextActions: expect.arrayContaining([
-				"refarm plugin reload agent --json",
-			]),
+			nextActions: expect.arrayContaining(["refarm plugin reload agent --json"]),
 		});
 		expect(process.exitCode).toBe(1);
 
@@ -1246,11 +1222,13 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 				loaded: [],
 				known: [RUNTIME_AGENT_PLUGIN_ID],
 			}),
-			submitEffort: vi.fn().mockRejectedValue(
-				new Error(
-					`[agent not loaded (${RUNTIME_AGENT_PLUGIN_ID}) - run refarm plugin status, then refarm plugin install or reload]`,
+			submitEffort: vi
+				.fn()
+				.mockRejectedValue(
+					new Error(
+						`[agent not loaded (${RUNTIME_AGENT_PLUGIN_ID}) - run refarm plugin status, then refarm plugin install or reload]`,
+					),
 				),
-			),
 		});
 		const launchDeps: LaunchDeps = {
 			autostartMode: "always",
@@ -1268,9 +1246,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
 			ok: false,
 			error: "agent-not-loaded",
-			nextActions: expect.arrayContaining([
-				"refarm plugin reload agent --json",
-			]),
+			nextActions: expect.arrayContaining(["refarm plugin reload agent --json"]),
 		});
 		expect(process.exitCode).toBe(1);
 
@@ -1309,9 +1285,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		};
 		const command = createAskCommand(deps, launchDeps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
 		await command.parseAsync(["hello"], { from: "user" });
 
@@ -1384,15 +1358,11 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 
 	it("starts a fresh session for --new even when an old active pointer exists", async () => {
 		const deps = makeDeps({
-			readActiveSessionId: vi
-				.fn()
-				.mockReturnValue("urn:sovereign:session:v1:oldactive"),
+			readActiveSessionId: vi.fn().mockReturnValue("urn:sovereign:session:v1:oldactive"),
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
 		await command.parseAsync(["fresh please", "--new"], { from: "user" });
 
@@ -1423,9 +1393,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 			tasks: Array<{ args: { session_id: string } }>;
 		};
 		const submittedSessionId = effort.tasks[0]!.args.session_id;
-		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
-			submittedSessionId,
-		);
+		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(submittedSessionId);
 		expect(submittedSessionId).not.toBe("urn:sovereign:session:v1:oldactive");
 
 		logSpy.mockRestore();
@@ -1434,9 +1402,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 
 	it("falls back to effort result file payload when stream times out", async () => {
 		const deps = makeDeps({
-			readActiveSessionId: vi
-				.fn()
-				.mockReturnValue("urn:sovereign:session:v1:activefallback"),
+			readActiveSessionId: vi.fn().mockReturnValue("urn:sovereign:session:v1:activefallback"),
 			followStream: vi.fn().mockRejectedValue(new Error("stream timeout")),
 			readEffortResult: vi.fn().mockResolvedValue({
 				status: "ok",
@@ -1446,9 +1412,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
 		await command.parseAsync(["fallback please"], { from: "user" });
 
@@ -1469,9 +1433,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 
 	it("prints fallback ask result as JSON when stream times out", async () => {
 		const deps = makeDeps({
-			readActiveSessionId: vi
-				.fn()
-				.mockReturnValue("urn:sovereign:session:v1:jsonfallback"),
+			readActiveSessionId: vi.fn().mockReturnValue("urn:sovereign:session:v1:jsonfallback"),
 			followStream: vi.fn().mockRejectedValue(new Error("stream timeout")),
 			readEffortResult: vi.fn().mockResolvedValue({
 				status: "ok",
@@ -1481,9 +1443,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
 		await command.parseAsync(["fallback please", "--json"], { from: "user" });
 
@@ -1496,10 +1456,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 			operation: "submit",
 			ok: true,
 			nextAction: "refarm resume --json",
-			nextActions: [
-				"refarm resume --json",
-				"refarm agent finish --lane after-edit --run --json",
-			],
+			nextActions: ["refarm resume --json", "refarm agent finish --lane after-edit --run --json"],
 			nextCommand: "refarm resume --json",
 			nextCommands: [
 				"refarm resume --json",
@@ -1515,9 +1472,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 
 	it("reports quota fallback errors as JSON recovery handoffs", async () => {
 		const deps = makeDeps({
-			readActiveSessionId: vi
-				.fn()
-				.mockReturnValue("urn:sovereign:session:v1:quota"),
+			readActiveSessionId: vi.fn().mockReturnValue("urn:sovereign:session:v1:quota"),
 			followStream: vi.fn().mockRejectedValue(new Error("stream timeout")),
 			readEffortResult: vi.fn().mockResolvedValue({
 				status: "error",
@@ -1552,23 +1507,19 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 
 	it("reports runtime-agent final provider errors as JSON recovery handoffs", async () => {
 		const deps = makeDeps({
-			readActiveSessionId: vi
-				.fn()
-				.mockReturnValue("urn:sovereign:session:v1:providerdown"),
+			readActiveSessionId: vi.fn().mockReturnValue("urn:sovereign:session:v1:providerdown"),
 			followStream: vi
 				.fn()
-				.mockImplementation(
-					async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
-						onChunk(
-							makeChunk(
-								"[runtime-agent error] http error: http://localhost:11434/v1/chat/completions: Connection Failed: Connect error: Connection refused (os error 111)",
-								0,
-								true,
-								{ model: "llama3.2" },
-							),
-						);
-					},
-				),
+				.mockImplementation(async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+					onChunk(
+						makeChunk(
+							"[runtime-agent error] http error: http://localhost:11434/v1/chat/completions: Connection Failed: Connect error: Connection refused (os error 111)",
+							0,
+							true,
+							{ model: "llama3.2" },
+						),
+					);
+				}),
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -1602,16 +1553,11 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		const deps = makeDeps();
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
-		await command.parseAsync(
-			["hello", "--session", "urn:sovereign:session:v1:test123"],
-			{
-				from: "user",
-			},
-		);
+		await command.parseAsync(["hello", "--session", "urn:sovereign:session:v1:test123"], {
+			from: "user",
+		});
 
 		expect(deps.submitEffort).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -1631,15 +1577,11 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 
 	it("resolves --session prefix before submitting effort", async () => {
 		const deps = makeDeps({
-			resolveSessionIdPrefix: vi
-				.fn()
-				.mockResolvedValue("urn:sovereign:session:v1:resolved123"),
+			resolveSessionIdPrefix: vi.fn().mockResolvedValue("urn:sovereign:session:v1:resolved123"),
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
 		await command.parseAsync(["hello", "--session", "resolved123"], {
 			from: "user",
@@ -1672,22 +1614,15 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const outSpy = vi
-			.spyOn(process.stdout, "write")
-			.mockImplementation(() => true);
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		await command.parseAsync(
-			["hello", "--session", "urn:sovereign:session:v1:target"],
-			{
-				from: "user",
-			},
-		);
+		await command.parseAsync(["hello", "--session", "urn:sovereign:session:v1:target"], {
+			from: "user",
+		});
 
 		expect(deps.submitEffort).toHaveBeenCalledOnce();
-		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
-			"urn:sovereign:session:v1:target",
-		);
+		expect(deps.persistActiveSessionId).toHaveBeenCalledWith("urn:sovereign:session:v1:target");
 		expect(errSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Session switch expected active session"),
 		);
@@ -1702,9 +1637,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		const deps = makeDeps({
 			resolveSessionIdPrefix: vi
 				.fn()
-				.mockRejectedValue(
-					new Error('Ambiguous session prefix "abc" (2 matches)'),
-				),
+				.mockRejectedValue(new Error('Ambiguous session prefix "abc" (2 matches)')),
 		});
 		const command = createAskCommand(deps);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -1714,9 +1647,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		});
 
 		expect(deps.submitEffort).not.toHaveBeenCalled();
-		expect(errSpy).toHaveBeenCalledWith(
-			expect.stringContaining('Ambiguous session prefix "abc"'),
-		);
+		expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Ambiguous session prefix "abc"'));
 		expect(process.exitCode).toBe(1);
 
 		errSpy.mockRestore();
@@ -1726,9 +1657,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		const deps = makeDeps({
 			resolveSessionIdPrefix: vi
 				.fn()
-				.mockRejectedValue(
-					new Error('Ambiguous session prefix "abc" (2 matches)'),
-				),
+				.mockRejectedValue(new Error('Ambiguous session prefix "abc" (2 matches)')),
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -1758,12 +1687,9 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		const command = createAskCommand(deps);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		await command.parseAsync(
-			["hello", "--new", "--session", "urn:sovereign:session:v1:test123"],
-			{
-				from: "user",
-			},
-		);
+		await command.parseAsync(["hello", "--new", "--session", "urn:sovereign:session:v1:test123"], {
+			from: "user",
+		});
 
 		expect(deps.submitEffort).not.toHaveBeenCalled();
 		expect(errSpy).toHaveBeenCalledWith(

@@ -48,4 +48,15 @@ describe("createRuntimeAgentRespondEffort workspace attribution", () => {
 		const args = effort.tasks[0]!.args as unknown as Record<string, unknown> | null | undefined;
 		expect(args != null ? "workspace_id" in args : false).toBe(false);
 	});
+
+	it("stamps the id with no workspace_source key when the caller declares no source", () => {
+		// This branch is unlocked by fix 1 on the Rust side (declared_workspace() no
+		// longer defaults an unaccompanied id to "declared"): the CLI is the only
+		// caller left free to send an id without a source, so it must not either.
+		const effort = createRuntimeAgentRespondEffort({ ...BASE, workspaceId: "rcdc5" });
+		expect((effort as unknown as Record<string, unknown>).workspaceId).toBe("rcdc5");
+		const args = effort.tasks[0]!.args as unknown as Record<string, unknown> | null | undefined;
+		expect(args != null ? args.workspace_id : undefined).toBe("rcdc5");
+		expect(args != null ? "workspace_source" in args : false).toBe(false);
+	});
 });
