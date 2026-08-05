@@ -226,6 +226,13 @@ pub struct SidecarState {
     /// from outside the crate would be a second way to spawn that bypasses the routes, which
     /// is exactly where the bound lives.
     pub(crate) remote_initiations: remote_initiation::RemoteInitiations,
+    /// Whether this node still accepts NEW efforts. Open for the whole of a
+    /// normal life and closed exactly once, by the shutdown drain, so a restart
+    /// stops admitting work before it starts waiting for the work already
+    /// admitted. `pub(crate)` for the same reason `prompts` is: a gate reachable
+    /// from outside the crate would be a second way to stop this node accepting
+    /// work, bypassing the drain that is the only thing entitled to close it.
+    pub(crate) drain_gate: drain::DrainGate,
 }
 
 /// Timeout + poll cadence (ms) for the respond watcher. Resolved from env ONCE
@@ -291,6 +298,7 @@ impl SidecarState {
             plugin_registry: None,
             prompts: pending_prompt::PromptHub::new(),
             remote_initiations: remote_initiation::RemoteInitiations::new(),
+            drain_gate: drain::DrainGate::default(),
         })
     }
 
@@ -775,16 +783,80 @@ pub use dispatch::{
 // `dispatch::finalise_effort`, the single place every terminal effort passes through.
 mod observation;
 mod reap;
+// Safe restart: what is in flight right now (`GET /efforts/in-flight`) and the
+// bounded drain a shutdown runs over it. `pub(crate)` because `daemon::shutdown`
+// owns the drain — the signal arrives at the WS server, the efforts live here.
+pub(crate) mod drain;
 async fn post_efforts(
     State(state): State<SidecarState>,
     Json(effort): Json<Effort>,
 ) -> impl IntoResponse {
+    // A draining node takes no new work. Refused with 503, not accepted-and-lost:
+    // the drain's bound was computed from what was in flight when the signal
+    // arrived, and an effort admitted after that would either extend it or be
+    // abandoned unfinished. A caller that gets this can retry the OTHER node, or
+    // this one after the restart.
+    if !state.drain_gate.accepting() {
+        return err(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "node is draining for shutdown — not accepting new efforts",
+        )
+        .into_response();
+    }
     let effort_id = effort.id.clone();
     dispatch_effort(state, effort);
     (
         StatusCode::OK,
         Json(serde_json::json!({ "effortId": effort_id })),
     )
+        .into_response()
+}
+
+/// `GET /efforts/in-flight` — the fact an operator (or a scheduler) reads BEFORE
+/// deciding to restart this node: what is running, and how long each of those
+/// runs could still legitimately take.
+///
+/// `drainBoundMs` is the answer to "can I restart now?" — the longest a correct
+/// shutdown drain could need, which is the longest deadline anything in flight
+/// declared (see `drain::drain_bound_ms`). It is 0 both when nothing is in flight
+/// and when nothing in flight has a resolved deadline; `deadlineUnknown` tells
+/// those two apart, because "instant" and "unknowable" are not the same answer.
+///
+/// A store that cannot be read answers 503, never `{"count": 0}`: "nothing is
+/// running" is a claim, and this endpoint does not make claims it cannot support.
+async fn get_efforts_in_flight(State(state): State<SidecarState>) -> impl IntoResponse {
+    let Some(in_flight) = drain::in_flight_now(&state) else {
+        return err(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "could not read the effort store — cannot tell what is in flight",
+        )
+        .into_response();
+    };
+    let deadline_unknown = in_flight
+        .iter()
+        .filter(|effort| effort.deadline_ms.is_none())
+        .count();
+    let listed: Vec<Value> = in_flight
+        .iter()
+        .map(|effort| {
+            serde_json::json!({
+                "effortId": effort.effort_id,
+                "status": effort.status,
+                "deadlineMs": effort.deadline_ms,
+            })
+        })
+        .collect();
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "draining": state.drain_gate.is_draining(),
+            "count": in_flight.len(),
+            "drainBoundMs": drain::drain_bound_ms(&in_flight),
+            "deadlineUnknown": deadline_unknown,
+            "inFlight": listed,
+        })),
+    )
+        .into_response()
 }
 
 async fn get_efforts(State(state): State<SidecarState>) -> impl IntoResponse {
@@ -888,6 +960,15 @@ async fn post_effort_retry(
         let store = state.efforts.read().expect("effort store poisoned");
         store.get(&id).map(|e| e.status.clone())
     };
+    // A retry is a NEW dispatch, so it is refused on the same grounds as a fresh
+    // submit — see `post_efforts`.
+    if !state.drain_gate.accepting() {
+        return err(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "node is draining for shutdown — not accepting new efforts",
+        )
+        .into_response();
+    }
     match status {
         None => err(StatusCode::NOT_FOUND, "not found").into_response(),
         Some(status) if !is_terminal_effort_status(&status) => err(
@@ -1788,6 +1869,9 @@ fn sidecar_routes(state: SidecarState) -> Router {
     Router::new()
         .route("/efforts", post(post_efforts).get(get_efforts))
         .route("/efforts/summary", get(get_efforts_summary))
+        // Static, so it wins over `/efforts/:id` — an effort may not be named
+        // "in-flight", and the router prefers the literal segment either way.
+        .route("/efforts/in-flight", get(get_efforts_in_flight))
         .route("/efforts/:id", get(get_effort))
         .route("/efforts/:id/logs", get(get_effort_logs))
         .route("/efforts/:id/retry", post(post_effort_retry))

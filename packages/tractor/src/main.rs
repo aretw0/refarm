@@ -655,6 +655,10 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     }
 
     // ── HTTP sidecar (ADR-060) ────────────────────────────────────────────────
+    // Retained past the spawn below so the WS server's shutdown can drain the SAME
+    // effort store the sidecar dispatches into (`with_shutdown_drain`). `None` when
+    // no sidecar runs — there is then nothing that could be in flight.
+    let mut sidecar_state: Option<tractor::sidecar::SidecarState> = None;
     if args.http_port > 0 {
         let base_dir = refarm_dir.clone();
         match tractor::sidecar::SidecarState::new(
@@ -684,6 +688,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
                 // below gets the very same value, so both gates enforce one policy read
                 // once, and the enable/deny-all line was logged exactly once, at boot.
                 let sidecar_auth_policy = auth_policy.clone();
+                sidecar_state = Some(state.clone());
                 tokio::spawn(async move {
                     if let Err(e) = tractor::sidecar::start(
                         state,
@@ -726,7 +731,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     // so any WS start failure (bind refused, port taken) leaked a fully booted runtime —
     // plugin instances, supervisor, audit subscriber, open storage — instead of shutting
     // it down. Shut down first, then report whichever failure happened.
-    let ws_result = daemon::WsServer::new(
+    let ws_server = daemon::WsServer::new(
         std::sync::Arc::new(tractor.sync.clone()),
         resolved_ws_host.clone(),
         config.port,
@@ -735,9 +740,16 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         tractor.event_router.clone(),
         declared_ws_surface,
         auth_policy,
-    )
-    .start()
-    .await;
+    );
+    // A shutdown signal (SIGINT or SIGTERM) now drains the efforts already in
+    // flight — bounded by the deadline those efforts themselves declared — before
+    // the runtime below is torn down. Without a sidecar there is no effort store,
+    // so there is nothing to drain and the shutdown is the one it always was.
+    let ws_server = match sidecar_state.as_ref() {
+        Some(state) => ws_server.with_shutdown_drain(state),
+        None => ws_server,
+    };
+    let ws_result = ws_server.start().await;
 
     let shutdown_result = tractor.shutdown().await;
     ws_result?;

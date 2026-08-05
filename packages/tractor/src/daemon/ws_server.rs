@@ -182,6 +182,11 @@ pub struct WsServer {
     // doubling the derived-but-ABSENT warning on every boot and making two independent reads
     // of one file possible. See `sidecar::auth::ResolvedAuthPolicy`.
     auth_policy: crate::sidecar::ResolvedAuthPolicy,
+    // The bounded shutdown drain, attached by the daemon when it also runs an HTTP
+    // sidecar (`with_shutdown_drain`). `None` for a WS-only daemon and for every
+    // test that starts a bare server: with no effort store there is nothing that
+    // could be in flight, and shutdown is the one it always was.
+    drain: Option<crate::sidecar::drain::ShutdownDrain>,
 }
 
 impl WsServer {
@@ -205,7 +210,20 @@ impl WsServer {
             event_router,
             declared_surface,
             auth_policy,
+            drain: None,
         }
+    }
+
+    /// Attach the sidecar's effort store to this server's shutdown, so a signal
+    /// drains what is in flight before the runtime is torn down. Takes the
+    /// `SidecarState` rather than a drain handle so no new type crosses the
+    /// library/binary crate boundary — the daemon already holds the state.
+    ///
+    /// A daemon that never calls this shuts down exactly as it did before: the
+    /// drain is `None`, and `drain_for_shutdown` says so instead of pretending.
+    pub fn with_shutdown_drain(mut self, state: &crate::sidecar::SidecarState) -> Self {
+        self.drain = Some(crate::sidecar::drain::ShutdownDrain::for_state(state));
+        self
     }
 
     /// Every address `start()` binds, in order. PURE — no socket, no I/O — and derived
@@ -373,10 +391,15 @@ impl WsServer {
             },
         ));
 
+        // SIGINT *and* SIGTERM, into one path — `super::shutdown` owns the choice
+        // and the drain, so which signal arrived only ever names itself in the log.
+        // Handling SIGINT alone (what this was) made Ctrl-C graceful and every
+        // scheduled `systemctl stop` a hard kill; see that module's doc.
         tokio::select! {
             _ = accept_loops => {},
-            _ = tokio::signal::ctrl_c() => {
-                tracing::info!("Shutdown signal received");
+            signal = super::shutdown::wait() => {
+                tracing::info!(signal = signal.label(), "Shutdown signal received");
+                super::shutdown::drain_for_shutdown(signal, self.drain.as_ref()).await;
             }
         }
         Ok(())
@@ -840,6 +863,48 @@ mod tests {
             let _ = server.run_gated(listener, auth_policy).await;
         });
         format!("ws://{addr}")
+    }
+
+    /// The shutdown drain is OPTIONAL and attached, not assumed: a bare server has none
+    /// and says so, and one handed a sidecar state drains that sidecar's effort store.
+    /// Both signals reach it through the same call, which is the whole point of
+    /// `daemon::shutdown` owning the choice.
+    #[tokio::test]
+    async fn a_server_given_a_sidecar_state_drains_it_on_either_signal() {
+        use crate::daemon::shutdown::{drain_for_shutdown, ShutdownSignal};
+
+        let bare = WsServer::new(
+            make_sync(),
+            "127.0.0.1".to_string(),
+            0,
+            TelemetryBus::new(10),
+            Arc::new(RwLock::new(HashMap::new())),
+            crate::EventRouter::default(),
+            None,
+            no_auth_policy(),
+        );
+        assert!(
+            drain_for_shutdown(ShutdownSignal::Terminate, bare.drain.as_ref())
+                .await
+                .is_none(),
+            "no sidecar ⇒ nothing to drain, and the shutdown is the one it always was"
+        );
+
+        let tmp = tempfile::tempdir().unwrap();
+        let state = crate::sidecar::SidecarState::for_test(tmp.path(), ":memory:").unwrap();
+        let with_drain = bare.with_shutdown_drain(&state);
+
+        for signal in [ShutdownSignal::Interrupt, ShutdownSignal::Terminate] {
+            let report = drain_for_shutdown(signal, with_drain.drain.as_ref())
+                .await
+                .expect("a sidecar-backed server drains");
+            assert_eq!(report.verdict(), "drained");
+            assert_eq!(report.bound_ms, 0, "nothing in flight ⇒ nothing to wait for");
+        }
+        assert!(
+            !state.drain_gate.accepting(),
+            "and the sidecar's OWN gate is what the drain closed"
+        );
     }
 
     /// A client handshake request offering the given `Sec-WebSocket-Protocol` tokens

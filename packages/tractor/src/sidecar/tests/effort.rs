@@ -1256,3 +1256,164 @@ async fn sidecar_effort_logs_read_the_activity_stream() {
         .unwrap();
     assert_eq!(empty.as_array().unwrap().len(), 0);
 }
+
+// ── safe restart: what is in flight, and a node that is draining ─────────────
+
+/// The question an operator (or a scheduler) asks BEFORE restarting: is anything
+/// running? A non-terminal effort with no dispatch-time deadline is reported as
+/// in flight with `deadlineMs: null` and counted in `deadlineUnknown` — the
+/// could-not-tell state, kept distinct from the zero bound it shares a number with.
+#[tokio::test]
+async fn sidecar_in_flight_reports_a_running_effort_and_says_when_it_cannot_tell_the_deadline() {
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+
+    let empty: serde_json::Value = client
+        .get(format!("{}/efforts/in-flight", base(port)))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(empty["count"], 0);
+    assert_eq!(empty["drainBoundMs"], 0, "nothing running ⇒ nothing to wait for");
+    assert_eq!(empty["draining"], false);
+
+    // An effort with no `completed_at` and a non-terminal status — the exact shape
+    // a process that died mid-run leaves behind in `task-results/`, whose
+    // dispatch-time budget did NOT survive with it.
+    let id = uuid::Uuid::new_v4().to_string();
+    state.efforts.write().unwrap().insert(
+        id.clone(),
+        EffortResult {
+            effort_id: id.clone(),
+            status: EFFORT_IN_PROGRESS.to_string(),
+            results: vec![],
+            submitted_at: "2026-08-04T00:00:00.000Z".to_string(),
+            completed_at: None,
+        },
+    );
+
+    let body: serde_json::Value = client
+        .get(format!("{}/efforts/in-flight", base(port)))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(body["count"], 1);
+    assert_eq!(body["inFlight"][0]["effortId"].as_str().unwrap(), id);
+    assert_eq!(body["inFlight"][0]["status"], EFFORT_IN_PROGRESS);
+    assert!(
+        body["inFlight"][0]["deadlineMs"].is_null(),
+        "no resolution survived, so no deadline is claimed"
+    );
+    assert_eq!(body["deadlineUnknown"], 1);
+    assert_eq!(
+        body["drainBoundMs"], 0,
+        "a drain does not wait out a budget nobody declared"
+    );
+}
+
+/// The deadline the in-flight surface reports is the SAME one `dispatch_effort`
+/// resolved and stashed — the join between the effort store and the dispatch-time
+/// budget store, which is what makes "3 in flight, longest 45s" answerable at all.
+#[tokio::test]
+async fn sidecar_in_flight_carries_the_deadline_dispatch_resolved() {
+    let tmp = std::env::temp_dir().join(format!("tractor-in-flight-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp).unwrap();
+    let state = SidecarState::for_test(&tmp, ":memory:").unwrap();
+
+    let id = format!("in-flight-{}", uuid::Uuid::new_v4());
+    dispatch_effort(
+        state.clone(),
+        Effort {
+            id: id.clone(),
+            direction: Some("ask".to_string()),
+            tasks: vec![test_task(serde_json::json!({ "prompt": "ping" }))],
+            source: Some("test".to_string()),
+            submitted_at: "2026-08-04T00:00:00.000Z".to_string(),
+            budget: Some(super::super::budget::BudgetDeclaration {
+                deadline_ms: Some(7_500),
+                max_tokens: None,
+                max_usd_millis: None,
+            }),
+            workspace_id: None,
+        },
+    );
+
+    // `dispatch_effort` resolves and stashes the budget SYNCHRONOUSLY, before the
+    // task it spawns is ever polled (`#[tokio::test]` is current-thread, and this
+    // test has not awaited since). Recording the in-progress row here is the row
+    // that task would write; what is under test is the join, not the runner.
+    state.efforts.write().unwrap().insert(
+        id.clone(),
+        EffortResult {
+            effort_id: id.clone(),
+            status: EFFORT_IN_PROGRESS.to_string(),
+            results: vec![],
+            submitted_at: "2026-08-04T00:00:00.000Z".to_string(),
+            completed_at: None,
+        },
+    );
+
+    let in_flight = drain::in_flight_now(&state).expect("the effort store is readable");
+    let mine = in_flight
+        .iter()
+        .find(|effort| effort.effort_id == id)
+        .expect("the effort is in flight");
+    assert_eq!(mine.deadline_ms, Some(7_500), "the deadline dispatch resolved");
+    assert_eq!(
+        drain::drain_bound_ms(&in_flight),
+        7_500,
+        "and that is exactly how long a correct drain could need"
+    );
+}
+
+/// A node that has begun draining takes no new work: submit and retry are refused
+/// with 503, and the in-flight surface says so, so a scheduler polling it is never
+/// left guessing why its effort bounced.
+#[tokio::test]
+async fn sidecar_a_draining_node_refuses_new_efforts_and_says_it_is_draining() {
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+    let id = uuid::Uuid::new_v4().to_string();
+
+    state.drain_gate.close();
+
+    let refused = client
+        .post(format!("{}/efforts", base(port)))
+        .json(&test_effort(&id))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), 503);
+    let body: serde_json::Value = refused.json().await.unwrap();
+    assert!(
+        body["error"].as_str().unwrap().contains("draining"),
+        "the refusal says why: {body}"
+    );
+
+    let retry = client
+        .post(format!("{}/efforts/{id}/retry", base(port)))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(retry.status(), 503, "a retry is a new dispatch too");
+
+    let in_flight: serde_json::Value = client
+        .get(format!("{}/efforts/in-flight", base(port)))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(in_flight["draining"], true);
+    assert_eq!(
+        in_flight["count"], 0,
+        "and the refused effort never entered the store"
+    );
+}

@@ -32,6 +32,10 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
             axum::routing::post(post_efforts).get(get_efforts),
         )
         .route("/efforts/summary", axum::routing::get(get_efforts_summary))
+        .route(
+            "/efforts/in-flight",
+            axum::routing::get(get_efforts_in_flight),
+        )
         .route("/efforts/:id", axum::routing::get(get_effort))
         .route("/efforts/:id/logs", axum::routing::get(get_effort_logs))
         .route("/efforts/:id/retry", axum::routing::post(post_effort_retry))

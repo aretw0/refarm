@@ -331,6 +331,32 @@ fn dispatched_budgets() -> &'static std::sync::RwLock<std::collections::HashMap<
     STORE.get_or_init(|| std::sync::RwLock::new(std::collections::HashMap::new()))
 }
 
+/// Every dispatch-time resolved `deadline_ms`, keyed by effort id — a SNAPSHOT.
+/// Reads without taking: `record_budget_observation` is still the one and only
+/// consumer entitled to remove an entry, and a reader that removed one would
+/// destroy the observation it was trying to describe.
+///
+/// An effort absent from this map has no knowable deadline, which is a real and
+/// permanent state, not a transient one: an event-dispatch effort never stashes a
+/// resolution (nothing governs it — see `dispatch_effort`), and an effort loaded
+/// back from `task-results/` after a previous process died left its resolution in
+/// that process's memory. Callers must treat absence as "could not tell", never
+/// as a zero or a default.
+pub(crate) fn dispatched_deadlines_ms() -> std::collections::HashMap<String, u64> {
+    match dispatched_budgets().read() {
+        Ok(store) => store
+            .iter()
+            .map(|(effort_id, budget)| (effort_id.clone(), budget.deadline_ms.effective))
+            .collect(),
+        Err(_) => {
+            tracing::warn!(
+                "sidecar: the dispatch-time budget store could not be read — no deadline is knowable for any in-flight effort"
+            );
+            std::collections::HashMap::new()
+        }
+    }
+}
+
 /// Task 12: the (max_tokens, max_usd) pair to fold into the per-effort payload
 /// the agent reads its ceilings from — `None` for either axis the fold's own
 /// DECLARATION never touched (`ResolvedAxis::declared`), not the axis whose
