@@ -43,8 +43,10 @@ while the newest observation in the same store was timestamped `2026-08-05T17:29
 returned the exact opposite. Not a degradation, not an edge case at some limit boundary —
 the flag's basic meaning was inverted on every call.
 
-The cause generalised past this one command. Five call sites took from the **front** of
-an unordered `Vec<NodeRow>`, each meaning "the most recent N":
+The cause generalised past this one command. **Nine** call sites took from the **front** of
+an unordered `Vec<NodeRow>`, each meaning "the most recent N" — five identified when this
+was first traced, plus four more found on review that reach the same WASM bridge call from
+`packages/agent/src` and `packages/delegate/src` and were missing from the first count:
 
 | Caller | File | What it meant to read |
 | --- | --- | --- |
@@ -53,6 +55,10 @@ an unordered `Vec<NodeRow>`, each meaning "the most recent N":
 | `latest_session_id_with_v1_preference` | `packages/agent/src/session/wasm_ops.rs:17-50` | the current session |
 | `latest_session_leaf_id` | `packages/agent/src/session/wasm_ops.rs:64-76` | the session's most recent leaf entry |
 | (transitively) conversation history fallback | `packages/agent/src/session/wasm_ops.rs:210-231` | recent turns |
+| `list_tasks` | `packages/agent/src/tool_dispatch/task_tools.rs:8` | the newest N tasks |
+| `task_status`'s `TaskEvent` lookup | `packages/agent/src/tool_dispatch/task_tools.rs:44` | this task's recent events |
+| `task_context_for_prompt` | `packages/agent/src/runtime/policy.rs:128` | the newest N tasks for prompt context |
+| `load_personas` | `packages/delegate/src/lib.rs:230` | the available personas |
 
 The sidecar reader made the ceiling worse than a wrong first page: it capped the response
 at `.take(limit.min(100))` **after** materialising the unordered rows. Past 100 stored
@@ -147,10 +153,30 @@ minted, and this repository does it two different ways:
   }
   ```
 
-  A nanosecond timestamp plus an `AtomicU64` counter, zero-padded into a fixed-width hex
-  string. A later-written row always sorts numerically larger, so `id DESC` reproduces
-  insertion recency exactly, including on same-second ties. Every id minted this way is
-  safe for a reader to index positionally after a `query_nodes*` call.
+  A nanosecond timestamp plus an `AtomicU64` counter, zero-padded into hex. `{:04x}` is a
+  **minimum** width, not a fixed one — it pads short values up to 4 digits, it does not cap
+  long ones. Past 65,535 ids minted in one process, the counter portion widens past 4
+  characters, so "fixed-width hex" stops holding; the *sort order* survives that (a wider
+  numeral still compares correctly against a narrower one under lexicographic `id DESC`,
+  because both are left-padded onto the same 16-hex-digit timestamp prefix), but the
+  width itself is not fixed.
+
+  That numeric-sort guarantee also does not survive a varying **prefix**. With
+  `MODEL_AGENT_ID` set, `new_id()` returns `urn:farmhand:<agent_id>:<hex>` instead of bare
+  hex — `id DESC` across two different agent ids then sorts by `agent_id` first, and the
+  timestamp only breaks ties *within* one agent. `Session` ids are a live example of the
+  same problem: `packages/agent/src/session/wasm_ops.rs` mints
+  `urn:sovereign:session:v1:<hex>` (`SESSION_PREFIX_V1`), but legacy unprefixed session ids
+  are also present in the same table today — `latest_session_id_with_v1_preference`
+  (`wasm_ops.rs:17-50`) exists precisely *because* both shapes are live, and it falls back to
+  its own `max_by_key(created_at_ns)` scan rather than trust `id DESC`, since comparing a
+  `urn:sovereign:session:v1:…` id against a legacy unprefixed one is a plain lexicographic
+  string comparison, not a recency comparison.
+
+  So the guarantee is narrower than "every id minted this way": a reader may index a
+  `query_nodes*` result positionally only where every id sharing a same-second tie was
+  minted through `new_id()` under the SAME prefix — no `MODEL_AGENT_ID` variance, no mixture
+  of a current and a legacy id scheme for that type.
 
 - **Random.** `packages/tractor/src/streaming/observations.rs:26` and
   `packages/tractor/src/host/wasi_bridge/model_stream_events.rs:635` both mint ids as
@@ -210,10 +236,10 @@ site, right up until the moment "unknown" needs to be told apart from "no."
 ## What the fix cost, deliberately not disguised
 
 `query_nodes` still returns `Vec<NodeRow>` — a caller cloning the whole type into memory
-before discarding most of it is unchanged where it wasn't rewritten (the 3-of-5 originally
-affected callers in `packages/agent/src` / `packages/delegate/src` were left untouched;
-see "Known follow-up" below). The fix is the ordering and the two new entry points, not a
-rewrite of every reader.
+before discarding most of it is unchanged where it wasn't rewritten (7 of the 9 affected
+callers in the table above — every one in `packages/agent/src` and `packages/delegate/src` —
+were left untouched; see "Known follow-up" below). The fix is the ordering and the two new
+entry points, not a rewrite of every reader.
 
 ## Verification — what actually ran, and what only got read
 
@@ -248,9 +274,14 @@ key their multi-row results by `replyRef` content, never by position;
 `vault_plugin_harness.rs`'s two positional `results[0]` sites each follow exactly one
 dispatch call in a freshly-created store (structurally one row); `agent_harness.rs`'s
 positional sites either follow a `rows.len() == 1` guard, query a session node upserted
-onto one stable id, or — where genuinely multi-row — read against ids minted by
-`new_id()` (the monotonic scheme above), not the random-UUID scheme that caused the
-regression.
+onto one stable id, or — where genuinely multi-row (`agent_harness.rs:722-759`, the
+streaming test's `Response` and `StreamChunk` rows) — are safe for a reason that has
+nothing to do with the id scheme: those two node types are minted with the RANDOM-UUID
+scheme (`streaming/observations.rs`, `model_stream_events.rs`), the very family that caused
+the regression this document names below, and the test does not lean on `id DESC` for them
+at all. It sorts both result sets by the payload's own `sequence` field
+(`agent_harness.rs:728` and `:747`) before indexing positionally, so a same-second tie in
+the underlying id order cannot reach the assertions.
 
 **One correction to the record, so it is not repeated**: an earlier draft of this sweep
 claimed all four of those harnesses lacked their WASM artifact in this environment. That
