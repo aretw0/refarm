@@ -15,55 +15,76 @@ All SVG generation runs through `scripts/check-diagrams.mjs`, which applies the 
 | Command | Script | Theme | Status |
 |---------|--------|-------|--------|
 | `npm run diagrams:fix` | `scripts/check-diagrams.mjs` | `mermaid.config.json` (branded) | **Regenerate — use this after editing a `.mermaid`** |
-| `npm run diagrams:check` | `REFARM_DIAGRAM_SYNC_STRICT=0 scripts/check-diagrams.mjs --ci` | `mermaid.config.json` (branded) | Regenerate + report drift loudly; does not exit non-zero locally (see "Known gap" below) |
+| `npm run diagrams:check` | `scripts/check-diagrams.mjs --ci` | `mermaid.config.json` (branded) | Regenerate + fail on drift. Strict by default — will FAIL on this machine until the browser is pinned locally (see "Known gap" below). Local escape: `REFARM_DIAGRAM_SYNC_STRICT=0 pnpm run diagrams:check`. |
 
 Both scan `docs/`, `specs/diagrams/`, and `examples/` (each example ships its own diagram set
 next to its code). The old neutral-theme `diagrams:generate` / `diagrams:watch` scripts were
 removed — they predated the design system and applied the wrong theme.
 
-## Known gap: diagram drift is currently ungated on every surface
+## Known gap: local strictness will fail here until the browser is pinned
 
-Neither the local `diagrams:check` command nor CI can currently fail a build because a
-`.svg` has drifted from its `.mermaid` source. Before 2026-08-06 the local script ran
-with no flags at all (an unconditional regenerate, always exit 0). CI does pass `--ci`
-(`.github/workflows/validate-diagrams.yml`), which is the only mode that compares
-against git status — but CI also sets `REFARM_DIAGRAM_SYNC_STRICT=0` explicitly on that
-same invocation, and `scripts/check-diagrams.mjs`'s `--ci` path prints the drifted-file
-list and then *returns* instead of reaching `process.exit(1)` whenever that variable is
-`"0"` (see the script, `STRICT_SVG_SYNC` / the `if (!STRICT_SVG_SYNC)` branch around the
-git-status check). So a genuine drift — someone edits a `.mermaid` and forgets to commit
-the regenerated `.svg` — is reported as a warning and passes both locally and in CI
-today. `diagrams:check` now (as of this session) also sets
-`REFARM_DIAGRAM_SYNC_STRICT=0`, for the reason below, so it is honest about this: it
-reports, it does not gate.
+`npm run diagrams:check` runs `scripts/check-diagrams.mjs --ci` with **no baked env
+override** — strictness is decided entirely by whoever calls it, as the script was
+designed. That means:
+
+- **Drift is computed everywhere.** Both the local script and CI run the same `--ci`
+  path: regenerate every SVG, then compare against `git status`. Neither surface skips
+  the comparison; there is exactly one code path (`STRICT_SVG_SYNC` in
+  `scripts/check-diagrams.mjs`) that decides only what happens *after* drift is found.
+- **CI chooses advisory, explicitly, and that is a decision, not an accident.**
+  `.github/workflows/validate-diagrams.yml` invokes
+  `REFARM_DIAGRAM_SYNC_STRICT=0 pnpm run diagrams:check` — the workflow sets the
+  variable itself, on the command line, every run. When `STRICT_SVG_SYNC` is false,
+  `scripts/check-diagrams.mjs` prints the full drifted-file list and then *returns*
+  instead of reaching `process.exit(1)`. CI can, today, observe real drift and pass
+  anyway. That is CI's own choice, made in its own workflow file, not a side effect of
+  the local command's default.
+- **Local is strict by default, and it WILL fail on this machine.** With no env
+  override, `STRICT_SVG_SYNC` is true, so any drift the comparison finds fails the
+  command. On an unpinned-browser checkout that means `pnpm run diagrams:check` fails
+  today — measured here at 35 of this repo's diagrams differing from their committed
+  `.svg` by rendering-only bytes, with no `.mermaid` source having changed. That is the
+  honest result: the check reports drift it genuinely observes, and this environment
+  genuinely produces drift. There is no configuration that is both strict-by-default
+  and quiet on an unpinned browser — accepting the failure is the correct state, not a
+  bug to route around.
+- **The local escape hatch, named rather than hidden**: `REFARM_DIAGRAM_SYNC_STRICT=0
+  pnpm run diagrams:check` reports the same drift list without failing, for a
+  developer who has verified by hand that what's listed is rendering noise, not a real
+  source change. This is a manual, per-invocation opt-out — it is not, and must not
+  become, the command's baked-in default; an npm-script env prefix would shadow any
+  value a caller (including CI) tries to set, which is exactly the mistake this section
+  exists to record.
 
 **Root cause**: SVG rendering is not reproducible across `mmdc`/puppeteer/Chrome
-versions. CI pins one via `node scripts/ci/install-puppeteer-browser.mjs` before running
-the check; a local checkout has no equivalent step and renders with whatever Chrome
-`puppeteer` resolves on that machine. The practical effect, measured on one such
-machine: about 35 of this repo's diagrams differ from their committed `.svg` by
-rendering-only bytes on every single run, with no `.mermaid` source having changed —
-noise indistinguishable, to the script, from a real drift.
+versions. CI pins one via `node scripts/ci/install-puppeteer-browser.mjs` before
+running the check; a local checkout has no equivalent step and renders with whatever
+Chrome `puppeteer` resolves on that machine.
 
-**Why `REFARM_DIAGRAM_SYNC_STRICT=0` is set locally too, deliberately, rather than left
-strict by default**: making the local script strict without also pinning the same
-browser CI pins would make `diagrams:check` fail on every run regardless of whether
-anything real drifted — training whoever runs it to ignore its exit code, which is the
-same defect as never being able to fail at all, just inverted. The command now reports
-loudly (drift is printed and named) without crying wolf (exit 0), which is the most
-honest state achievable without addressing the root cause.
+**The fix path, in order, not done here**: **first**, pin the same browser locally that
+CI pins (extend `scripts/ci/install-puppeteer-browser.mjs`, or an equivalent, into the
+local dev setup so `diagrams:fix`/`diagrams:check` render byte-identically to CI).
+**Only after** that holds and has been verified to actually produce byte-stable output
+run over run, reconsider `REFARM_DIAGRAM_SYNC_STRICT=0` in
+`.github/workflows/validate-diagrams.yml` — whether CI's current advisory choice should
+become strict is the operator's call, not something to flip as a side effect of a local
+convenience fix. Until browser pinning happens, a `.mermaid` source can drift from its
+committed `.svg` and CI will not say so with a failing exit code; locally, the command
+will now say so reliably, at the cost of also flagging this environment's own
+rendering noise until it's pinned.
 
-**The fix path, not done here**: make local runs pin the same browser CI does (extend
-`scripts/ci/install-puppeteer-browser.mjs` or equivalent to local `pnpm run
-diagrams:fix`/`diagrams:check`), and only once that holds, consider removing
-`REFARM_DIAGRAM_SYNC_STRICT=0` from the CI workflow so a real drift can fail a build.
-Flipping CI to strict before local rendering is pinned, or without independently
-verifying CI's pinned browser actually produces byte-stable output run over run, is
-**not done here** — that determination needs evidence this environment cannot produce,
-and is left to whoever owns the CI runner's browser pin. Until both hold, a `.mermaid`
-source can drift from its committed `.svg` and nothing in this repository's tooling
-will say so with a failing exit code — only a human reading the warning text will
-notice.
+**This is the sixth instrument in this line of work found reporting a result it had
+not earned — and this one was introduced by the fix for the fifth.** The fifth was
+`diagrams:check` itself running with no flags, unable to fail by construction. The fix
+for it first added `--ci` (correct), then, under pressure to keep the local command
+"usable," baked `REFARM_DIAGRAM_SYNC_STRICT=0` into the npm script to silence this
+machine's noise — which made the check unconditionally unable to fail again, through a
+different mechanism, and as a second-order effect made the workflow's own
+`REFARM_DIAGRAM_SYNC_STRICT=0` a dead no-op (an inline `VAR=val` prefix in an npm
+script always wins over anything a caller exports). The lesson worth keeping: a
+convenience edit made to stop a check from being noisy is exactly as capable of making
+it unable to fail as never wiring the check up at all, and it is *more* dangerous,
+because it looks like a fix instead of an omission.
 
 This is recorded here — the diagram tooling's own source-of-truth doc — rather than in
 `docs/SOVEREIGN_RECORD_ORDERING.md`: that document is specifically about the

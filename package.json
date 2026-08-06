@@ -324,7 +324,7 @@
 		"release:vault-seed:handoff:test": "node --test scripts/ci/test-vault-seed-ready-handoff.mjs",
 		"i18n:check": "node scripts/check-locales.mjs",
 		"i18n:check:test": "node --test scripts/ci/test-check-locales-lib.mjs",
-		"diagrams:check": "REFARM_DIAGRAM_SYNC_STRICT=0 node scripts/check-diagrams.mjs --ci",
+		"diagrams:check": "node scripts/check-diagrams.mjs --ci",
 		"diagrams:fix": "node scripts/check-diagrams.mjs --fix",
 		"factory:preflight": "node scripts/factory-preflight.mjs",
 		"ci:local": "bash scripts/ci-local.sh",
