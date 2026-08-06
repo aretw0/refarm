@@ -4,7 +4,7 @@
 
 Refarm is a Personal Operating System for centralising and "reforming" data from fragmented sources. Its direction is **local/offline-first and sovereign**, but the repository is hybrid today: native always-on execution is centred on the Rust Tractor, product composition is mainly TypeScript, browser storage can use OPFS, and network/discovery mechanisms are adapters rather than universal requirements.
 
-This document records architectural intent and authority. For measured topology — current workspace counts, implementation languages, dependency direction and cycle status — see the generated [Architecture Inventory](./ARCHITECTURE_INVENTORY.md). Keeping measured facts out of hand-maintained prose prevents the map from silently becoming a historical snapshot.
+This document records architectural intent and authority. For measured topology — current workspace counts, implementation languages, dependency direction and cycle status — see the generated [Architecture Inventory](./ARCHITECTURE_INVENTORY.md). For provisional strategic ownership and integration seams, see the generated [Architecture Context Map](./ARCHITECTURE_CONTEXT_MAP.md). Keeping measured facts out of hand-maintained prose prevents the map from silently becoming a historical snapshot.
 
 ---
 
