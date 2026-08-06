@@ -164,6 +164,7 @@ export {
     changedFilePathsFromGitStatus,
     findWorkspacePackageForPath,
     findWorkspaceRoot,
+    hasWorkspaceRootMarker,
 } from "./workspace.js";
 
 export function findSovereignRoot(startDir?: string): string;

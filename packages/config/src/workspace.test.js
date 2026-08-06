@@ -9,6 +9,7 @@ import {
 	changedFilePathsFromGitStatus,
 	findWorkspacePackageForPath,
 	findWorkspaceRoot,
+	hasWorkspaceRootMarker,
 } from "./workspace.js";
 
 describe("workspace package detection", () => {
@@ -101,5 +102,83 @@ describe("workspace package detection", () => {
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
+	});
+
+	// Pins the exported predicate `apps/refarm/src/commands/context.ts`'s
+	// `resolveBuiltPluginPath` now takes as its default `hasMonorepoMarker` — so the
+	// package.json-in-a-JSON-parse-failure case, and every marker kind, stay verified here
+	// rather than only in the hand-copied duplicate this replaced.
+	describe("hasWorkspaceRootMarker", () => {
+		it("is true for a directory with a .git marker", () => {
+			const root = mkdtempSync(join(tmpdir(), "refarm-config-marker-git-"));
+			try {
+				mkdirSync(join(root, ".git"));
+				expect(hasWorkspaceRootMarker(root)).toBe(true);
+			} finally {
+				rmSync(root, { recursive: true, force: true });
+			}
+		});
+
+		it("is true for a directory with a pnpm-workspace.yaml marker", () => {
+			const root = mkdtempSync(join(tmpdir(), "refarm-config-marker-pnpm-"));
+			try {
+				writeFileSync(join(root, "pnpm-workspace.yaml"), "packages:\n  - 'packages/*'\n");
+				expect(hasWorkspaceRootMarker(root)).toBe(true);
+			} finally {
+				rmSync(root, { recursive: true, force: true });
+			}
+		});
+
+		it("is true for a package.json with a workspaces array", () => {
+			const root = mkdtempSync(join(tmpdir(), "refarm-config-marker-array-"));
+			try {
+				writeFileSync(join(root, "package.json"), JSON.stringify({ workspaces: ["apps/*"] }));
+				expect(hasWorkspaceRootMarker(root)).toBe(true);
+			} finally {
+				rmSync(root, { recursive: true, force: true });
+			}
+		});
+
+		it("is true for a package.json with a workspaces.packages list", () => {
+			const root = mkdtempSync(join(tmpdir(), "refarm-config-marker-packages-"));
+			try {
+				writeFileSync(
+					join(root, "package.json"),
+					JSON.stringify({ workspaces: { packages: ["packages/*"] } }),
+				);
+				expect(hasWorkspaceRootMarker(root)).toBe(true);
+			} finally {
+				rmSync(root, { recursive: true, force: true });
+			}
+		});
+
+		it("is false for a directory with no marker at all", () => {
+			const root = mkdtempSync(join(tmpdir(), "refarm-config-marker-none-"));
+			try {
+				expect(hasWorkspaceRootMarker(root)).toBe(false);
+			} finally {
+				rmSync(root, { recursive: true, force: true });
+			}
+		});
+
+		it("is false — not thrown — for an unparseable package.json", () => {
+			const root = mkdtempSync(join(tmpdir(), "refarm-config-marker-bad-json-"));
+			try {
+				writeFileSync(join(root, "package.json"), "{ not valid json");
+				expect(hasWorkspaceRootMarker(root)).toBe(false);
+			} finally {
+				rmSync(root, { recursive: true, force: true });
+			}
+		});
+
+		it("is false for a package.json with no workspaces field", () => {
+			const root = mkdtempSync(join(tmpdir(), "refarm-config-marker-plain-"));
+			try {
+				writeFileSync(join(root, "package.json"), JSON.stringify({ name: "leaf" }));
+				expect(hasWorkspaceRootMarker(root)).toBe(false);
+			} finally {
+				rmSync(root, { recursive: true, force: true });
+			}
+		});
 	});
 });

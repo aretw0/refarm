@@ -108,6 +108,7 @@ export {
 	changedFilePathsFromGitStatus,
 	findWorkspacePackageForPath,
 	findWorkspaceRoot,
+	hasWorkspaceRootMarker,
 } from "./workspace.js";
 
 /**

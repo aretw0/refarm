@@ -66,7 +66,12 @@
 // reporting agreement, and never a `base-divergence` (nothing is actually known to differ).
 
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
-import { declaredBase, findWorkspaceRoot, SOVEREIGN_BASE_KEY } from "@refarm.dev/config";
+import {
+	declaredBase,
+	findWorkspaceRoot,
+	hasWorkspaceRootMarker,
+	SOVEREIGN_BASE_KEY,
+} from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
@@ -317,28 +322,6 @@ export function buildContextReport(input: ContextInput): ContextReport {
  *  `packages/agent/dist/agent.wasm` (confirmed on disk; see `packages/agent/dist/`). */
 const BUILT_AGENT_PLUGIN_RELATIVE_PATH = ["packages", "agent", "dist", "agent.wasm"];
 
-/** Same three markers `@refarm.dev/config`'s (private) `hasWorkspaceRootMarker` checks —
- *  duplicated rather than imported because that predicate is not part of the package's
- *  public surface. Exists so `resolveBuiltPluginPath` can tell "climbed to a real monorepo
- *  root" apart from "`findWorkspaceRoot` fell back to `cwd` because it found nothing". */
-function defaultHasMonorepoMarker(dir: string): boolean {
-	if (fs.existsSync(path.join(dir, ".git"))) return true;
-	if (fs.existsSync(path.join(dir, "pnpm-workspace.yaml"))) return true;
-	try {
-		const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8")) as {
-			workspaces?: unknown;
-		};
-		return (
-			Array.isArray(pkg.workspaces) ||
-			(typeof pkg.workspaces === "object" &&
-				pkg.workspaces !== null &&
-				Array.isArray((pkg.workspaces as { packages?: unknown }).packages))
-		);
-	} catch {
-		return false;
-	}
-}
-
 /**
  * Where a fresh build of the agent plugin would land, given what `findWorkspaceRoot`
  * returned — `null` when that root is not a real monorepo checkout.
@@ -355,7 +338,7 @@ function defaultHasMonorepoMarker(dir: string): boolean {
  */
 export function resolveBuiltPluginPath(
 	repoRoot: string,
-	hasMonorepoMarker: (dir: string) => boolean = defaultHasMonorepoMarker,
+	hasMonorepoMarker: (dir: string) => boolean = hasWorkspaceRootMarker,
 ): string | null {
 	return hasMonorepoMarker(repoRoot)
 		? path.join(repoRoot, ...BUILT_AGENT_PLUGIN_RELATIVE_PATH)
