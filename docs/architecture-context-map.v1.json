@@ -10,7 +10,6 @@
       "maturity": "established-boundary",
       "anchors": [
         "packages/config",
-        "packages/context-provider-v1",
         "packages/node-contract-v1",
         "packages/operator-state",
         "packages/workspace-access-contract-v1"
@@ -23,8 +22,6 @@
       "maturity": "established-boundary",
       "anchors": [
         "packages/barn",
-        "packages/capabilities-v1",
-        "packages/capability-host",
         "packages/plugin-manifest",
         "packages/plugin-wit",
         "packages/tractor",
@@ -51,6 +48,7 @@
       "maturity": "candidate-boundary",
       "anchors": [
         "packages/agent",
+        "packages/context-provider-v1",
         "packages/delegate",
         "packages/model-catalog-v1",
         "packages/model-catalog-plugin-stack",
@@ -105,6 +103,7 @@
       "purpose": "Expose operations through replaceable surfaces and deliver outcomes over operator channels.",
       "maturity": "candidate-boundary",
       "anchors": [
+        "packages/capability-host",
         "packages/channel-policy-v1",
         "packages/delivery-contract-v1",
         "packages/delivery-telegram",
@@ -135,6 +134,12 @@
     },
     {
       "from": "sovereign-context",
+      "to": "agency-models",
+      "kind": "configuration-supplier",
+      "seams": ["packages/config"]
+    },
+    {
+      "from": "sovereign-context",
       "to": "platform-operations",
       "kind": "context-supplier",
       "seams": ["packages/node-contract-v1"]
@@ -152,10 +157,22 @@
       "seams": ["packages/storage-contract-v1", "packages/sync-contract-v1"]
     },
     {
+      "from": "data-substrate",
+      "to": "identity-trust",
+      "kind": "persistence-supplier",
+      "seams": ["packages/storage-contract-v1"]
+    },
+    {
       "from": "work-control",
       "to": "agency-models",
       "kind": "work-supplier",
       "seams": ["packages/effort-contract-v1", "packages/task-contract-v1"]
+    },
+    {
+      "from": "work-control",
+      "to": "data-substrate",
+      "kind": "adapter-contract",
+      "seams": ["packages/task-contract-v1"]
     },
     {
       "from": "identity-trust",
@@ -167,7 +184,19 @@
       "from": "execution-kernel",
       "to": "agency-models",
       "kind": "execution-host",
-      "seams": ["packages/plugin-wit", "packages/capabilities-v1"]
+      "seams": ["packages/plugin-wit"]
+    },
+    {
+      "from": "agency-models",
+      "to": "data-substrate",
+      "kind": "adapter-contract",
+      "seams": ["packages/session-contract-v1"]
+    },
+    {
+      "from": "agency-models",
+      "to": "platform-operations",
+      "kind": "operator-prompt-supplier",
+      "seams": ["packages/prompt-contract-v1"]
     },
     {
       "from": "data-substrate",
@@ -182,6 +211,12 @@
       "seams": ["packages/records-contract-v1", "packages/source-contract-v1"]
     },
     {
+      "from": "records-knowledge",
+      "to": "interaction-delivery",
+      "kind": "capability-supplier",
+      "seams": ["packages/records-contract-v1"]
+    },
+    {
       "from": "interaction-delivery",
       "to": "work-control",
       "kind": "operation-ingress",
@@ -192,6 +227,30 @@
       "to": "execution-kernel",
       "kind": "lifecycle-host",
       "seams": ["packages/process-contract-v1", "packages/diagnostic-bundle-v1"]
+    },
+    {
+      "from": "execution-kernel",
+      "to": "platform-operations",
+      "kind": "runtime-metadata-supplier",
+      "seams": ["packages/plugin-manifest"]
+    },
+    {
+      "from": "platform-operations",
+      "to": "interaction-delivery",
+      "kind": "operation-status-supplier",
+      "seams": ["packages/diagnostic-bundle-v1", "packages/runtime-operator"]
+    },
+    {
+      "from": "sovereign-context",
+      "to": "execution-kernel",
+      "kind": "node-schema-supplier",
+      "seams": ["packages/node-contract-v1"]
+    },
+    {
+      "from": "sovereign-context",
+      "to": "records-knowledge",
+      "kind": "node-schema-supplier",
+      "seams": ["packages/node-contract-v1"]
     }
   ]
 }
