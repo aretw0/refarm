@@ -47,6 +47,7 @@ fn prompt_ref(payload: &Value) -> Option<&str> {
 /// - `agent:iteration`      → `process:progress` note "step N/max" + fraction
 /// - `agent:tool:call`      → `process:progress` note "tool <name>" (or "tool <name> ✗")
 /// - `agent:budget:blocked` → `process:progress` note "budget blocked: <provider>"
+/// - `agent:budget:unknown` → `process:progress` note "budget unknown: <provider> (<reason>)"
 /// - `agent:response:done`  → `process:finished` ok=true
 /// - `agent:error`          → `process:finished` ok=false
 pub(crate) fn agent_event_to_activity(event: &str, payload: &Value) -> Option<Value> {
@@ -111,6 +112,18 @@ pub(crate) fn agent_event_to_activity(event: &str, payload: &Value) -> Option<Va
         crate::agent_event_names::BUDGET_BLOCKED => {
             let provider = payload.get("provider").and_then(Value::as_str).unwrap_or("?");
             let note = format!("budget blocked: {provider}");
+            Some(process_activity::progress_payload(
+                reference,
+                AGENT_ACTIVITY_LABEL,
+                AGENT_ACTIVITY_KIND,
+                Some(&note),
+                None,
+            ))
+        }
+        crate::agent_event_names::BUDGET_UNKNOWN => {
+            let provider = payload.get("provider").and_then(Value::as_str).unwrap_or("?");
+            let reason = payload.get("reason").and_then(Value::as_str).unwrap_or("?");
+            let note = format!("budget unknown: {provider} ({reason})");
             Some(process_activity::progress_payload(
                 reference,
                 AGENT_ACTIVITY_LABEL,
@@ -225,6 +238,25 @@ mod tests {
         let a = agent_event_to_activity("agent:budget:blocked", &payload).unwrap();
         assert_eq!(a["phase"], "progress");
         assert_eq!(a["note"], "budget blocked: anthropic");
+    }
+
+    #[test]
+    fn budget_unknown_is_a_progress_note_naming_the_reason() {
+        // The "loud" half of the agent's FAIL-OPEN-BUT-LOUD budget policy must reach
+        // the same operator-facing surface `budget:blocked` does — the CLI tails
+        // `activity.ndjson`, not the audit log or an opt-in observer plugin.
+        let mut payload = p("urn:p-1");
+        payload["provider"] = json!("anthropic");
+        payload["reason"] = json!("truncated");
+        let a = agent_event_to_activity("agent:budget:unknown", &payload).unwrap();
+        assert_eq!(a["phase"], "progress");
+        assert_eq!(a["note"], "budget unknown: anthropic (truncated)");
+
+        let mut qerr = p("urn:p-1");
+        qerr["provider"] = json!("anthropic");
+        qerr["reason"] = json!("query_error");
+        let b = agent_event_to_activity("agent:budget:unknown", &qerr).unwrap();
+        assert_eq!(b["note"], "budget unknown: anthropic (query_error)");
     }
 
     #[test]

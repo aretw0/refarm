@@ -329,17 +329,22 @@ pub(crate) fn record_context_fold(
 /// spend for `provider_name` (read from CRDT UsageRecord nodes) meets or exceeds it.
 ///
 /// FAIL OPEN BUT LOUD (the policy is decided and justified in
-/// `session::pure::budget_exceeded` — read it before touching this function): when
-/// the true spend cannot be established — `query_nodes` truncated the UsageRecord
-/// page (more rows exist than the 10,000-row query returned), or the query itself
-/// errored — this still returns `false` (the run proceeds, exactly as it did before
-/// this guard could tell "unknown" from "checked and it's fine"). What changed is
-/// that the unknown case is no longer silently summed as zero spend: it is built as
-/// its own `BudgetCheck::Unknown` variant by `resolve_budget_check` below, and BEFORE
-/// `budget_exceeded` maps it to `false`, this function emits `agent:budget:unknown`
-/// naming which of the two happened — the "loud" half of the policy, so the blind
-/// spot is on the record rather than indistinguishable from a genuine under-budget
-/// read.
+/// `session::pure::budget_exceeded` — read it before touching this function, it
+/// states the REAL pre-fix baseline per unknown reason, not an "unchanged"
+/// simplification): when the true spend cannot be established — `query_nodes`
+/// truncated the UsageRecord page (more rows exist than the 10,000-row query
+/// returned), or the query itself errored — this returns `false` (the run
+/// proceeds). This is NOT identical to the pre-fix behaviour for every cause: a
+/// truncated read used to block whenever its visible partial sum already met
+/// budget, and a query error used to block outright when `budget_usd <= 0.0` (the
+/// `MODEL_BUDGET_<PROVIDER>_USD=0` hard-stop case) — both of those now proceed
+/// instead. What DID change for the better is that the unknown case is no longer
+/// silently summed as zero spend: it is built as its own `BudgetCheck::Unknown`
+/// variant by `resolve_budget_check` below, and BEFORE `budget_exceeded` maps it to
+/// `false`, this function emits `agent:budget:unknown` naming which of the two
+/// happened — the "loud" half of the policy, so the blind spot (which past ~10,000
+/// stored `UsageRecord` rows means the cap stops enforcing entirely) is on the
+/// record rather than indistinguishable from a genuine under-budget read.
 ///
 /// A query error must not become a sum of zero (an error is not evidence of zero
 /// spend), so the `Err` branch of `query_nodes` is threaded through to

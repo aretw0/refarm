@@ -133,9 +133,28 @@ pub(crate) fn resolve_budget_check(
 
 /// THE POLICY DECISION, and the one place `Unknown` is mapped to a proceed/block
 /// answer: **FAIL OPEN BUT LOUD**. `Known` compares spend to budget normally.
-/// `Unknown` — either reason — returns `false` (not blocked): the guard proceeds
-/// exactly as it did before `BudgetCheck` existed, when a truncated or failed read
-/// silently summed to zero.
+/// `Unknown` — either reason — returns `false` (not blocked).
+///
+/// THIS IS NOT BEHAVIOUR-PRESERVING, and the previous wording here claimed
+/// otherwise — that was false and it hid a real loosening. State the real baseline
+/// plainly: NEW-BLOCKS is a strict subset of OLD-BLOCKS.
+///   - `QueryError`: before this type existed, `query_nodes`'s `Err` was defaulted
+///     to an empty `Vec` via `.unwrap_or_default()` and summed to `spend_usd = 0.0`.
+///     That only ever blocked when `budget_usd <= 0.0` — `0.0 >= 0.0` is true — which
+///     is how `MODEL_BUDGET_<PROVIDER>_USD=0` works as a hard stop. That hard stop no
+///     longer fires on a query error: it now always proceeds.
+///   - `Truncated`: before this type existed, a truncated page did NOT sum to zero —
+///     `page.truncated` was read and discarded, and whatever subset `page.nodes`
+///     held was summed and compared to budget like any other read. So a truncated
+///     read blocked whenever that PARTIAL sum already met budget, undercounting the
+///     true total but still enforcing on what it could see. That is gone: a
+///     truncated read now always proceeds, no matter how high the visible partial
+///     sum already is.
+///   - Practical consequence: once a provider's `UsageRecord` history exceeds the
+///     10,000-row query limit, `MODEL_BUDGET_<PROVIDER>_USD` stops enforcing for
+///     that provider ENTIRELY, rather than enforcing against an undercount. This is
+///     FAIL OPEN working exactly as chosen below — the problem this note corrects
+///     is only that the code used to claim the baseline was unchanged.
 ///
 /// This mapping IS the policy, chosen deliberately over the alternatives the task
 /// considered:
@@ -149,8 +168,10 @@ pub(crate) fn resolve_budget_check(
 ///     have nothing beyond the provider name; they would just re-collapse `Unknown`
 ///     to a bool one frame later, with strictly less information than this function
 ///     has right here.
-/// FAIL OPEN keeps the operator's spending behaviour unchanged without his explicit
-/// say-so; "LOUD" is what makes leaving it open safe rather than silent — the wasm
+/// FAIL OPEN avoids INTRODUCING a new block the operator never asked for on an
+/// uncertain read — it does not claim to preserve every prior block; see the
+/// baseline note above for exactly what changed. "LOUD" is what makes leaving it
+/// open safe rather than silent — the wasm
 /// boundary (`wasm_ops::budget_exceeded_for_provider`) emits `agent:budget:unknown`
 /// naming the reason whenever this function is fed an `Unknown` check, so the blind
 /// spot is visible on the record instead of indistinguishable from "all clear".
