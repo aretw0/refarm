@@ -29,8 +29,8 @@ flowchart TB
   CN --> SIDECAR
   SIDECAR -.->|applies to this response| CEIL
 
-  QN --> BRIDGE
-  QN --> SESSION
+  QNL --> BRIDGE
+  BRIDGE --> SESSION
 
   SIDECAR --> CLI
 
