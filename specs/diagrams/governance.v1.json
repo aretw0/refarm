@@ -1,0 +1,32 @@
+{
+	"version": 1,
+	"families": [
+		{
+			"id": "system-architecture-target",
+			"topic": "system-architecture",
+			"state": "consolidation-target",
+			"guide": "specs/diagrams/ARCH_GUIDE.md",
+			"sourcePrefix": "specs/diagrams/architecture-layers",
+			"sources": [
+				"specs/diagrams/architecture-layers--adapters.mermaid",
+				"specs/diagrams/architecture-layers--apps-runtime.mermaid",
+				"specs/diagrams/architecture-layers--contracts.mermaid",
+				"specs/diagrams/architecture-layers.mermaid"
+			]
+		},
+		{
+			"id": "system-architecture-legacy",
+			"topic": "system-architecture",
+			"state": "legacy-frozen",
+			"guide": "docs/diagrams/LAYERS.md",
+			"sourcePrefix": "docs/diagrams/layer-diagram",
+			"sources": [
+				"docs/diagrams/layer-diagram--data.mermaid",
+				"docs/diagrams/layer-diagram--distros.mermaid",
+				"docs/diagrams/layer-diagram--runtime.mermaid",
+				"docs/diagrams/layer-diagram--streams.mermaid",
+				"docs/diagrams/layer-diagram.mermaid"
+			]
+		}
+	]
+}

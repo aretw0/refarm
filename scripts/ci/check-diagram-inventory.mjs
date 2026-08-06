@@ -49,9 +49,11 @@ if (options.json) console.log(JSON.stringify(output, null, 2));
 else {
 	console.log(`diagram-inventory: ${report.summary.sources} sources, ${report.summary.rendered} rendered SVGs`);
 	console.log(`  missing SVGs: ${report.summary.missing}`);
+	console.log(`  governance violations: ${report.governance.violations.length}`);
 	console.log(`  generated document: ${documentCurrent ? "current" : "stale"}`);
 	if (!documentCurrent) console.log("  run: pnpm run diagrams:inventory:write");
 	for (const missing of report.missingRenderings) console.log(`  missing: ${missing}`);
+	for (const violation of report.governance.violations) console.log(`  governance: ${JSON.stringify(violation)}`);
 }
 
 if (!output.ok) process.exit(1);

@@ -10,50 +10,52 @@ It checks source-to-SVG coverage without launching a browser. Semantic authority
 - Rendered SVGs: 42
 - Missing SVGs: 0
 - By area: docs 22, specs 14, examples 6
+- Governed families: consolidation target 4, legacy frozen 5
+- Governance violations: 0
 
 ## Source Coverage
 
-| Mermaid source | Expected SVG | Present |
-|---|---|---|
-| `docs/diagrams/bootstrap-sovereign-lifecycle.mermaid` | `docs/diagrams/bootstrap-sovereign-lifecycle.svg` | yes |
-| `docs/diagrams/gate3-integration-sequence.mermaid` | `docs/diagrams/gate3-integration-sequence.svg` | yes |
-| `docs/diagrams/layer-diagram--data.mermaid` | `docs/diagrams/layer-diagram--data.svg` | yes |
-| `docs/diagrams/layer-diagram--distros.mermaid` | `docs/diagrams/layer-diagram--distros.svg` | yes |
-| `docs/diagrams/layer-diagram--runtime.mermaid` | `docs/diagrams/layer-diagram--runtime.svg` | yes |
-| `docs/diagrams/layer-diagram--streams.mermaid` | `docs/diagrams/layer-diagram--streams.svg` | yes |
-| `docs/diagrams/layer-diagram.mermaid` | `docs/diagrams/layer-diagram.svg` | yes |
-| `docs/diagrams/plugin-execution-context.mermaid` | `docs/diagrams/plugin-execution-context.svg` | yes |
-| `docs/diagrams/sovereignty-l0.mermaid` | `docs/diagrams/sovereignty-l0.svg` | yes |
-| `docs/diagrams/sovereignty-l1.mermaid` | `docs/diagrams/sovereignty-l1.svg` | yes |
-| `docs/diagrams/sovereignty-l2.mermaid` | `docs/diagrams/sovereignty-l2.svg` | yes |
-| `docs/diagrams/sovereignty-l3.mermaid` | `docs/diagrams/sovereignty-l3.svg` | yes |
-| `docs/diagrams/sovereignty-l4.mermaid` | `docs/diagrams/sovereignty-l4.svg` | yes |
-| `docs/diagrams/sovereignty-l5.mermaid` | `docs/diagrams/sovereignty-l5.svg` | yes |
-| `docs/diagrams/tem-architecture.mermaid` | `docs/diagrams/tem-architecture.svg` | yes |
-| `docs/diagrams/tem-codegen-pipeline.mermaid` | `docs/diagrams/tem-codegen-pipeline.svg` | yes |
-| `docs/diagrams/user-journey.mermaid` | `docs/diagrams/user-journey.svg` | yes |
-| `docs/diagrams/workflow-diagram--bdd.mermaid` | `docs/diagrams/workflow-diagram--bdd.svg` | yes |
-| `docs/diagrams/workflow-diagram--ddd.mermaid` | `docs/diagrams/workflow-diagram--ddd.svg` | yes |
-| `docs/diagrams/workflow-diagram--sdd.mermaid` | `docs/diagrams/workflow-diagram--sdd.svg` | yes |
-| `docs/diagrams/workflow-diagram--tdd.mermaid` | `docs/diagrams/workflow-diagram--tdd.svg` | yes |
-| `docs/diagrams/workflow-diagram.mermaid` | `docs/diagrams/workflow-diagram.svg` | yes |
-| `examples/devbench-t1/diagrams/composition.mermaid` | `examples/devbench-t1/diagrams/composition.svg` | yes |
-| `examples/devbench-t1/diagrams/flow.mermaid` | `examples/devbench-t1/diagrams/flow.svg` | yes |
-| `examples/reqbench-t3/diagrams/composition.mermaid` | `examples/reqbench-t3/diagrams/composition.svg` | yes |
-| `examples/reqbench-t3/diagrams/flow.mermaid` | `examples/reqbench-t3/diagrams/flow.svg` | yes |
-| `examples/wallet-t2/diagrams/composition.mermaid` | `examples/wallet-t2/diagrams/composition.svg` | yes |
-| `examples/wallet-t2/diagrams/flow.mermaid` | `examples/wallet-t2/diagrams/flow.svg` | yes |
-| `specs/diagrams/architecture-layers--adapters.mermaid` | `specs/diagrams/architecture-layers--adapters.svg` | yes |
-| `specs/diagrams/architecture-layers--apps-runtime.mermaid` | `specs/diagrams/architecture-layers--apps-runtime.svg` | yes |
-| `specs/diagrams/architecture-layers--contracts.mermaid` | `specs/diagrams/architecture-layers--contracts.svg` | yes |
-| `specs/diagrams/architecture-layers.mermaid` | `specs/diagrams/architecture-layers.svg` | yes |
-| `specs/diagrams/ci-pipeline--changes.mermaid` | `specs/diagrams/ci-pipeline--changes.svg` | yes |
-| `specs/diagrams/ci-pipeline--phase-gates.mermaid` | `specs/diagrams/ci-pipeline--phase-gates.svg` | yes |
-| `specs/diagrams/ci-pipeline--quality.mermaid` | `specs/diagrams/ci-pipeline--quality.svg` | yes |
-| `specs/diagrams/ci-pipeline.mermaid` | `specs/diagrams/ci-pipeline.svg` | yes |
-| `specs/diagrams/data-flow.mermaid` | `specs/diagrams/data-flow.svg` | yes |
-| `specs/diagrams/identity-nostr.mermaid` | `specs/diagrams/identity-nostr.svg` | yes |
-| `specs/diagrams/plugin-lifecycle.mermaid` | `specs/diagrams/plugin-lifecycle.svg` | yes |
-| `specs/diagrams/record-read-path.mermaid` | `specs/diagrams/record-read-path.svg` | yes |
-| `specs/diagrams/storage-sqlite.mermaid` | `specs/diagrams/storage-sqlite.svg` | yes |
-| `specs/diagrams/sync-crdt.mermaid` | `specs/diagrams/sync-crdt.svg` | yes |
+| Mermaid source | Lifecycle | Expected SVG | Present |
+|---|---|---|---|
+| `docs/diagrams/bootstrap-sovereign-lifecycle.mermaid` | unclassified | `docs/diagrams/bootstrap-sovereign-lifecycle.svg` | yes |
+| `docs/diagrams/gate3-integration-sequence.mermaid` | unclassified | `docs/diagrams/gate3-integration-sequence.svg` | yes |
+| `docs/diagrams/layer-diagram--data.mermaid` | legacy-frozen | `docs/diagrams/layer-diagram--data.svg` | yes |
+| `docs/diagrams/layer-diagram--distros.mermaid` | legacy-frozen | `docs/diagrams/layer-diagram--distros.svg` | yes |
+| `docs/diagrams/layer-diagram--runtime.mermaid` | legacy-frozen | `docs/diagrams/layer-diagram--runtime.svg` | yes |
+| `docs/diagrams/layer-diagram--streams.mermaid` | legacy-frozen | `docs/diagrams/layer-diagram--streams.svg` | yes |
+| `docs/diagrams/layer-diagram.mermaid` | legacy-frozen | `docs/diagrams/layer-diagram.svg` | yes |
+| `docs/diagrams/plugin-execution-context.mermaid` | unclassified | `docs/diagrams/plugin-execution-context.svg` | yes |
+| `docs/diagrams/sovereignty-l0.mermaid` | unclassified | `docs/diagrams/sovereignty-l0.svg` | yes |
+| `docs/diagrams/sovereignty-l1.mermaid` | unclassified | `docs/diagrams/sovereignty-l1.svg` | yes |
+| `docs/diagrams/sovereignty-l2.mermaid` | unclassified | `docs/diagrams/sovereignty-l2.svg` | yes |
+| `docs/diagrams/sovereignty-l3.mermaid` | unclassified | `docs/diagrams/sovereignty-l3.svg` | yes |
+| `docs/diagrams/sovereignty-l4.mermaid` | unclassified | `docs/diagrams/sovereignty-l4.svg` | yes |
+| `docs/diagrams/sovereignty-l5.mermaid` | unclassified | `docs/diagrams/sovereignty-l5.svg` | yes |
+| `docs/diagrams/tem-architecture.mermaid` | unclassified | `docs/diagrams/tem-architecture.svg` | yes |
+| `docs/diagrams/tem-codegen-pipeline.mermaid` | unclassified | `docs/diagrams/tem-codegen-pipeline.svg` | yes |
+| `docs/diagrams/user-journey.mermaid` | unclassified | `docs/diagrams/user-journey.svg` | yes |
+| `docs/diagrams/workflow-diagram--bdd.mermaid` | unclassified | `docs/diagrams/workflow-diagram--bdd.svg` | yes |
+| `docs/diagrams/workflow-diagram--ddd.mermaid` | unclassified | `docs/diagrams/workflow-diagram--ddd.svg` | yes |
+| `docs/diagrams/workflow-diagram--sdd.mermaid` | unclassified | `docs/diagrams/workflow-diagram--sdd.svg` | yes |
+| `docs/diagrams/workflow-diagram--tdd.mermaid` | unclassified | `docs/diagrams/workflow-diagram--tdd.svg` | yes |
+| `docs/diagrams/workflow-diagram.mermaid` | unclassified | `docs/diagrams/workflow-diagram.svg` | yes |
+| `examples/devbench-t1/diagrams/composition.mermaid` | unclassified | `examples/devbench-t1/diagrams/composition.svg` | yes |
+| `examples/devbench-t1/diagrams/flow.mermaid` | unclassified | `examples/devbench-t1/diagrams/flow.svg` | yes |
+| `examples/reqbench-t3/diagrams/composition.mermaid` | unclassified | `examples/reqbench-t3/diagrams/composition.svg` | yes |
+| `examples/reqbench-t3/diagrams/flow.mermaid` | unclassified | `examples/reqbench-t3/diagrams/flow.svg` | yes |
+| `examples/wallet-t2/diagrams/composition.mermaid` | unclassified | `examples/wallet-t2/diagrams/composition.svg` | yes |
+| `examples/wallet-t2/diagrams/flow.mermaid` | unclassified | `examples/wallet-t2/diagrams/flow.svg` | yes |
+| `specs/diagrams/architecture-layers--adapters.mermaid` | consolidation-target | `specs/diagrams/architecture-layers--adapters.svg` | yes |
+| `specs/diagrams/architecture-layers--apps-runtime.mermaid` | consolidation-target | `specs/diagrams/architecture-layers--apps-runtime.svg` | yes |
+| `specs/diagrams/architecture-layers--contracts.mermaid` | consolidation-target | `specs/diagrams/architecture-layers--contracts.svg` | yes |
+| `specs/diagrams/architecture-layers.mermaid` | consolidation-target | `specs/diagrams/architecture-layers.svg` | yes |
+| `specs/diagrams/ci-pipeline--changes.mermaid` | unclassified | `specs/diagrams/ci-pipeline--changes.svg` | yes |
+| `specs/diagrams/ci-pipeline--phase-gates.mermaid` | unclassified | `specs/diagrams/ci-pipeline--phase-gates.svg` | yes |
+| `specs/diagrams/ci-pipeline--quality.mermaid` | unclassified | `specs/diagrams/ci-pipeline--quality.svg` | yes |
+| `specs/diagrams/ci-pipeline.mermaid` | unclassified | `specs/diagrams/ci-pipeline.svg` | yes |
+| `specs/diagrams/data-flow.mermaid` | unclassified | `specs/diagrams/data-flow.svg` | yes |
+| `specs/diagrams/identity-nostr.mermaid` | unclassified | `specs/diagrams/identity-nostr.svg` | yes |
+| `specs/diagrams/plugin-lifecycle.mermaid` | unclassified | `specs/diagrams/plugin-lifecycle.svg` | yes |
+| `specs/diagrams/record-read-path.mermaid` | unclassified | `specs/diagrams/record-read-path.svg` | yes |
+| `specs/diagrams/storage-sqlite.mermaid` | unclassified | `specs/diagrams/storage-sqlite.svg` | yes |
+| `specs/diagrams/sync-crdt.mermaid` | unclassified | `specs/diagrams/sync-crdt.svg` | yes |
