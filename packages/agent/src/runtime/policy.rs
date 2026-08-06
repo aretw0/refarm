@@ -127,6 +127,7 @@ fn task_context_for_prompt() -> Option<String> {
     }
     let raw = crate::plugin::host::tractor_bridge::query_nodes("Task", n as u32).ok()?;
     let tasks: Vec<serde_json::Value> = raw
+        .nodes
         .iter()
         .filter_map(|r| serde_json::from_str(r).ok())
         .collect();

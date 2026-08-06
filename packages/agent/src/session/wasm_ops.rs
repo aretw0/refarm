@@ -45,6 +45,7 @@ fn new_entry_id_for_session(_session_id: &str) -> String {
 fn latest_session_id_with_v1_preference(limit: u32) -> Option<String> {
     let sessions: Vec<serde_json::Value> = tractor_bridge::query_nodes("Session", limit)
         .ok()?
+        .nodes
         .iter()
         .filter_map(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
         .collect();
@@ -87,6 +88,7 @@ fn latest_session_id(limit: u32) -> Option<String> {
 fn latest_session_leaf_id(limit: u32) -> Option<String> {
     let sessions: Vec<serde_json::Value> = tractor_bridge::query_nodes("Session", limit)
         .ok()?
+        .nodes
         .iter()
         .filter_map(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
         .collect();
@@ -245,8 +247,14 @@ pub(crate) fn query_history() -> Vec<(String, String)> {
 
     // Legacy fallback: timestamp-sort for pre-session UserPrompt/AgentResponse nodes.
     let limit = (max_turns * 2) as u32;
-    let mut nodes = tractor_bridge::query_nodes("UserPrompt", limit).unwrap_or_default();
-    nodes.extend(tractor_bridge::query_nodes("Response", limit).unwrap_or_default());
+    let mut nodes = tractor_bridge::query_nodes("UserPrompt", limit)
+        .map(|page| page.nodes)
+        .unwrap_or_default();
+    nodes.extend(
+        tractor_bridge::query_nodes("Response", limit)
+            .map(|page| page.nodes)
+            .unwrap_or_default(),
+    );
     history_from_nodes(&nodes, max_turns)
 }
 
@@ -327,7 +335,9 @@ pub(crate) fn budget_exceeded_for_provider(provider_name: &str) -> bool {
     let Ok(budget) = budget_str.parse::<f64>() else {
         return false;
     };
-    let records = tractor_bridge::query_nodes("UsageRecord", 10_000).unwrap_or_default();
+    let records = tractor_bridge::query_nodes("UsageRecord", 10_000)
+        .map(|page| page.nodes)
+        .unwrap_or_default();
     const WINDOW_30D_NS: u64 = 30 * 24 * 3600 * 1_000_000_000;
     sum_provider_spend_usd(&records, provider_name, now_ns(), WINDOW_30D_NS) >= budget
 }

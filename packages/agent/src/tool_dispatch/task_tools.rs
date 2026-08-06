@@ -5,7 +5,9 @@ pub(crate) fn list_tasks(input: &serde_json::Value) -> String {
     let status_filter = input["status"].as_str();
     let context_filter = input["context_id"].as_str();
 
-    let nodes = tractor_bridge::query_nodes("Task", limit).unwrap_or_default();
+    let nodes = tractor_bridge::query_nodes("Task", limit)
+        .map(|page| page.nodes)
+        .unwrap_or_default();
     let items: Vec<serde_json::Value> = nodes
         .iter()
         .filter_map(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
@@ -42,6 +44,7 @@ pub(crate) fn task_status(input: &serde_json::Value) -> String {
 
     // Fetch TaskEvents for this task.
     let events: Vec<serde_json::Value> = tractor_bridge::query_nodes("TaskEvent", 50)
+        .map(|page| page.nodes)
         .unwrap_or_default()
         .iter()
         .filter_map(|r| serde_json::from_str::<serde_json::Value>(r).ok())
