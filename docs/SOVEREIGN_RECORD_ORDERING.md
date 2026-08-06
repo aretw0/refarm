@@ -56,7 +56,11 @@ the flag's basic meaning was inverted on every call.
 The cause generalised past this one command. **Nine** call sites took from the **front** of
 an unordered `Vec<NodeRow>`, each meaning "the most recent N" — five identified when this
 was first traced, plus four more found on review that reach the same WASM bridge call from
-`packages/agent/src` and `packages/delegate/src` and were missing from the first count:
+`packages/agent/src` and `packages/delegate/src` and were missing from the first count. A
+tenth row, `GET /tasks`, is added below: it does not share the original nine's
+plain-`.take(n)` shape (it materialises unlimited, re-sorts, then truncates — worse, not
+the same bug), and it is included because it demonstrably disagrees with its guest sibling
+`list_tasks` today, not because it fits the original count:
 
 | Caller | File | What it meant to read | Fixed |
 | --- | --- | --- | --- |
@@ -69,6 +73,27 @@ was first traced, plus four more found on review that reach the same WASM bridge
 | `task_status`'s `TaskEvent` lookup | `packages/agent/src/tool_dispatch/task_tools.rs:44` | this task's recent events | No |
 | `task_context_for_prompt` | `packages/agent/src/runtime/policy.rs:128` | the newest N tasks for prompt context | No |
 | `load_personas` | `packages/delegate/src/lib.rs:230` | the available personas | No |
+| `GET /tasks` (→ `refarm tasks`) | `packages/tractor/src/sidecar/mod.rs:1703-1758` (`get_tasks`) | the newest N tasks | No — and unlike the four rows above, this one is a live bug today, not a deferred cost. See below. |
+
+**`GET /tasks` is the sharpest of the rows still marked "No," and it disagrees with its
+own guest sibling today.** `get_tasks` (`packages/tractor/src/sidecar/mod.rs:1718,1747,1752`)
+still holds all three shapes this document's fixes removed elsewhere: an unlimited
+`storage.query_nodes("Task")` with no `LIMIT` pushed into SQL (line 1718, never
+`query_nodes_limited`), a second, re-derived sort order —
+`tasks.sort_by(|a, b| b["created_at_ns"]...cmp(&a["created_at_ns"]...))` (line 1747), the
+exact "second sort order" shape "What a caller must do" forbids — and a silent
+`tasks.truncate(params.limit.min(100))` (line 1752) returning `{tasks, total}` with no
+`stored`/`truncated`, the same shape `GET /nodes` had before its fix. Its guest sibling,
+`list_tasks` (`packages/agent/src/tool_dispatch/task_tools.rs:3-27`), calls
+`tractor_bridge::query_nodes("Task", limit)` — the fixed WASM bridge — which now takes the
+front N in the storage layer's `updated_at DESC, id DESC` order. `GET /tasks` orders by
+`created_at_ns` instead. For any Task whose status has changed since it was created (the
+ordinary case — a Task is created `active` and later updated to `done`/`failed`/`blocked`),
+`created_at_ns` and `updated_at` diverge, so the two surfaces can, and do, return a
+different "newest N tasks" for the identical underlying data — the same
+created-versus-touched divergence just fixed for Session (see above), live in the same
+file as the `get_nodes` handler that was fixed. The two surfaces disagree today; this row
+is named here so the next reader does not have to rediscover it.
 
 **How the two 2026-08-06 fixes worked, and why 4 rows above stayed "No" without being
 wrong.** The bridge fix (`8bf5d345`) was a cost fix, not a correctness fix: the
@@ -137,15 +162,42 @@ found this either — nothing was there to grep for.
   in the `LIMIT ?2` clause, not in a `.take(n)` after the fact (`sidecar/mod.rs`'s
   `get_nodes` handler is the reference: `storage.query_nodes_limited(type_, effective_limit)`,
   never `query_nodes(...).take(n)`).
-- **Never re-sort in the caller.** The ordering guarantee is established once, in
-  `query_nodes_inner`. A caller that re-derives "newest" by its own comparison (a second
-  `max_by_key` on a timestamp field, a second sort by a different key) creates a **second
-  sort order** next to the first one. Two sort orders over the same data are exactly how
-  two answers drift apart — the moment their tiebreak rules diverge (as `updated_at`
-  second-resolution and a raw `created_at_ns` field already can), the two paths can
-  legitimately disagree about which row is "the latest," and nothing will flag it because
-  both answers are locally correct by their own rule. One ordering, established in one
-  place, is what keeps that from happening.
+- **Never re-sort in the caller to re-answer the question the storage layer already
+  answered.** The ordering guarantee is established once, in `query_nodes_inner`, and it
+  answers one specific question — which row was touched most recently
+  (`updated_at DESC, id DESC`). A caller that re-derives *that same* answer by its own
+  comparison (a second `max_by_key` on a timestamp field, a second sort by a different
+  recency key such as a raw `created_at_ns`) creates a **second sort order** next to the
+  first one, over the same data, purporting to answer the same question. Two sort orders
+  over the same data are exactly how two answers drift apart — the moment their tiebreak
+  rules diverge (as `updated_at` second-resolution and a raw `created_at_ns` field already
+  can), the two paths can legitimately disagree about which row is "the latest," and
+  nothing will flag it because both answers are locally correct by their own rule. This is
+  what `latest_session_id_with_v1_preference` and `latest_session_leaf_id` did before their
+  2026-08-06 fix (see the affected-reader table above), and it is what `GET /tasks`'s
+  `get_tasks` (`packages/tractor/src/sidecar/mod.rs:1747`) still does today against its
+  guest sibling `list_tasks` (see the affected-reader table above) — both re-derive
+  "newest" from `created_at_ns`,
+  disagreeing with `updated_at DESC` the moment a row's status changes after it was
+  created. One ordering, established in one place, is what keeps *that* question from ever
+  having two competing answers.
+
+  That is narrower than "never sort in a caller," and two call sites in this codebase
+  legitimately do sort after fetching without violating it, because each is answering a
+  **different** question than "which row is most recently touched" — one the storage
+  layer's recency order was never asked and does not claim to answer.
+  `packages/agent/src/session/pure.rs:77`'s `history_from_nodes` sorts UserPrompt/Response
+  rows by each payload's own `timestamp_ns` field, ascending, to reconstruct
+  **conversation order** — a question about content sequence, not about which row was
+  touched last. `packages/tractor/src/readers.rs:67-92`'s `cli_node_order`/
+  `cli_node_time_key` sort CLI output by a timestamp read from the payload (`timestamp_ns`,
+  or `updated_at_ns`, or `started_at_ns`, whichever the node type carries), with
+  `sequence` as a tiebreak — a **domain display order** across heterogeneous node types
+  that the storage layer's single `updated_at` column cannot express by itself. Neither
+  site re-derives "the newest N rows of this type" as a substitute for
+  `query_nodes_limited`'s `LIMIT`; both consume payload fields, after the storage layer has
+  already done its own job, to answer a question specific to what they are building — not
+  to second-guess which row the storage layer considers most recent.
 - **A count is not a scan.** If a caller needs "how many rows of this type exist" alongside
   a limited page, call `count_nodes(type_)` (`SELECT COUNT(*)`) rather than
   `query_nodes(type_).len()` — the latter is exactly the materialise-everything cost
