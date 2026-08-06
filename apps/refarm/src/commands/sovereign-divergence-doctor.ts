@@ -27,11 +27,29 @@
 // `buildRuntimeFreshnessDoctorRecommendations` draws for its own `unknown` state, applied to
 // the other comparison.
 //
-// A node simply not running (`node-not-running`) and a sovereign directory nothing loads
-// (`unloaded-sovereign-dir`) are read here from the same list but are not turned into a
-// `refarm doctor` recommendation: neither is the plugin-verification gap this finding
-// exists for, and doctor already has its own signals for "is a node up" elsewhere. Silence
-// on those two kinds is deliberate, not an oversight — see the tests.
+// D2 IS NOT ONLY THE PLUGIN HASH. The governing design doc
+// (`docs/superpowers/specs/2026-08-05-which-sovereign-state-is-active-design.md`) commits
+// BOTH `refarm context` and `refarm doctor` to report "a sovereign directory exists at a
+// path nothing loads" — the exact fact pattern of the incident this whole plan answers
+// (four sovereign-dir locations, two stale and loaded by nothing, doctor clean the whole
+// time). `unloaded-sovereign-dir` gets its own diagnostic (`sovereign:unloaded-dir`) here,
+// phrased as what it is: confusing, not broken. The operator may be keeping an old
+// directory deliberately; this never implies the node is misbehaving and never decides for
+// them.
+//
+// A node simply not running (`node-not-running`) is read here from the same list but is
+// not turned into a `refarm doctor` recommendation. `runtime:not-ready`
+// (`STATUS_DIAGNOSTICS.runtimeNotReady`, wired in `doctor.ts` from the status contract)
+// already answers "is the runtime up and ready" for the operator-facing question that
+// matters — reporting `node-not-running` too would be a second name for the same "the node
+// is not up" fact in the case both actually co-occur, the exact double-naming this plan
+// exists to end for `context:home-divergence`, just on a different pair of findings.
+// (Checked, not assumed: the two signals are technically independent — `runtime:not-ready`
+// is a sidecar HTTP probe, `node-not-running` here is a `node.json`/pid read — so a node
+// with a stale/absent descriptor but a reachable sidecar, or vice versa, is a real gap this
+// silence does not cover. `node-name-doctor.ts` and `runtime-freshness-doctor.ts` already
+// make the identical silence call for a `null` descriptor, for the same reason, so this
+// follows established precedent rather than inventing a new one.)
 //
 // NEVER RESTARTS, NEVER WRITES. Same posture as `context.ts` itself and as
 // `runtime-freshness-doctor.ts` before it: this states the fact and names the command an
@@ -89,9 +107,21 @@ export function buildSovereignDivergenceDoctorRecommendations(
 			case "node-not-running":
 				break;
 
-			// An abandoned sovereign directory is real, but it is not the plugin-verification gap
-			// this finding exists for, and `refarm context` already names it for anyone who runs it.
+			// D2 ("which sovereign state is active" design doc) names this exact fact pattern —
+			// a sovereign directory nothing loads — as the one BOTH `refarm context` and
+			// `refarm doctor` must report. It is confusing, not broken: the operator may be
+			// keeping it deliberately (a backup, a prior install) or may want it gone. Either
+			// way, nothing here decides for them.
 			case "unloaded-sovereign-dir":
+				recommendations.push({
+					diagnostic: "sovereign:unloaded-dir",
+					severity: "warning",
+					summary: divergence.summary,
+					action:
+						"Run `refarm context --json` to see it named alongside the active home, then " +
+						"decide, as the operator, whether to remove it or keep it. This is not a sign " +
+						"anything is misbehaving, and nothing here removes or alters the directory.",
+				});
 				break;
 
 			// `context-doctor.ts` already reports this fact under this exact diagnostic name — see
@@ -99,8 +129,22 @@ export function buildSovereignDivergenceDoctorRecommendations(
 			// one-fact mistake `context.ts` was written to end, moved rather than avoided.
 			case CONTEXT_HOME_DIVERGENCE_DIAGNOSTIC:
 				break;
+
+			default:
+				// Exhaustiveness guard: a future `DivergenceKind` member reaches here only if this
+				// switch was not updated for it. That is exactly how `unloaded-sovereign-dir`
+				// slipped through in the first pass of this file — a case existed, decided
+				// silence, and nobody was forced to revisit that decision when D2's requirement
+				// came into view. This throws at compile time instead: the type below is `never`
+				// only when every literal in `DivergenceKind` has its own case above, so adding a
+				// new kind without a case here is a build failure, not a silent gap.
+				assertNeverDivergenceKind(divergence.kind);
 		}
 	}
 
 	return recommendations;
+}
+
+function assertNeverDivergenceKind(kind: never): never {
+	throw new Error(`sovereign-divergence-doctor: unhandled Divergence kind ${JSON.stringify(kind)}`);
 }

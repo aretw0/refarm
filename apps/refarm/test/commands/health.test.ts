@@ -11,6 +11,8 @@ const {
   mockExistsSync,
   mockReadFileSync,
   mockWriteFileSync,
+  mockMkdirSync,
+  mockRenameSync,
 } = vi.hoisted(() => ({
   mockAudit: vi.fn().mockResolvedValue({ git: [], builds: [], alignment: [] }),
   mockCheckResolutionStatus: vi.fn().mockResolvedValue([]),
@@ -22,6 +24,19 @@ const {
   mockExistsSync: vi.fn().mockReturnValue(false),
   mockReadFileSync: vi.fn(),
   mockWriteFileSync: vi.fn(),
+  // `health-audit-cache.ts`'s `writeHealthAuditCache` (real, unmocked) calls
+  // `fs.mkdirSync`/`fs.renameSync` with `rootDir` defaulting to the REAL `process.cwd()`
+  // (`apps/refarm` while this suite runs) whenever a test's mocked `audit()` reports a
+  // clean result. Left un-stubbed, those two calls fell through `...actual` below to the
+  // REAL, unguarded fs (this file's own local `node:fs` mock replaces the suite-wide
+  // write-guard from vitest.setup.ts, not just adds to it) and created a real
+  // `apps/refarm/.refarm/cache/` directory on disk — discovered because Task 4's new
+  // `sovereign:unloaded-dir` doctor finding started reading exactly that directory's
+  // presence and made the leak visible as flaky, order-dependent test failures elsewhere
+  // in this same suite. Stubbed here, not left to `actual`, for the same reason
+  // `writeFileSync` already was.
+  mockMkdirSync: vi.fn(),
+  mockRenameSync: vi.fn(),
 }));
 
 vi.mock("@refarm.dev/health", () => ({
@@ -41,11 +56,15 @@ vi.mock("node:fs", async (importOriginal) => {
     ...actual,
     existsSync: mockExistsSync,
     readFileSync: mockReadFileSync,
+    mkdirSync: mockMkdirSync,
+    renameSync: mockRenameSync,
     default: {
       ...actual,
       existsSync: mockExistsSync,
       readFileSync: mockReadFileSync,
       writeFileSync: mockWriteFileSync,
+      mkdirSync: mockMkdirSync,
+      renameSync: mockRenameSync,
     },
   };
 });

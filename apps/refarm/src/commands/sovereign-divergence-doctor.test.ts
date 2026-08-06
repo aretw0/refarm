@@ -64,11 +64,28 @@ describe("buildSovereignDivergenceDoctorRecommendations", () => {
 		expect(out).toEqual([]);
 	});
 
-	it("says nothing for an unloaded sovereign directory — refarm context already names it", () => {
+	it("reports an unloaded sovereign directory — D2 commits doctor to this, not just context", () => {
+		const out = buildSovereignDivergenceDoctorRecommendations([
+			{
+				kind: "unloaded-sovereign-dir",
+				summary: "/home/op/.refarm is a sovereign directory that exists on disk but is not " +
+					"the active home (/home/op/.refarm-active) — nothing loads it.",
+			},
+		]);
+		expect(out).toHaveLength(1);
+		expect(out[0]?.diagnostic).toBe("sovereign:unloaded-dir");
+		expect(out[0]?.severity).toBe("warning");
+		expect(out[0]?.summary).toContain("/home/op/.refarm");
+		// It must read as confusing, not as proof the node is misbehaving.
+		expect(out[0]?.summary).not.toMatch(/broken|misbehav|error/i);
+	});
+
+	it("never proposes removing the unloaded directory on the operator's behalf", () => {
 		const out = buildSovereignDivergenceDoctorRecommendations([
 			{ kind: "unloaded-sovereign-dir", summary: "/home/op/.refarm-old is unloaded." },
 		]);
-		expect(out).toEqual([]);
+		expect(out[0]?.action).toMatch(/decide|operator/i);
+		expect(out[0]?.action).not.toMatch(/^(delete|remove|rm )/i);
 	});
 
 	it("does not re-report the home divergence context-doctor.ts already covers", () => {
@@ -81,7 +98,7 @@ describe("buildSovereignDivergenceDoctorRecommendations", () => {
 		expect(out).toEqual([]);
 	});
 
-	it("reports only the divergences that matter, from a mixed list", () => {
+	it("reports the plugin mismatch and the unloaded dir, but stays silent on node-not-running, from a mixed list", () => {
 		const divergences: Divergence[] = [
 			{ kind: "node-not-running", summary: "No running node was found." },
 			{
@@ -91,7 +108,10 @@ describe("buildSovereignDivergenceDoctorRecommendations", () => {
 			{ kind: "unloaded-sovereign-dir", summary: "/home/op/.refarm-old is unloaded." },
 		];
 		const out = buildSovereignDivergenceDoctorRecommendations(divergences);
-		expect(out).toHaveLength(1);
-		expect(out[0]?.diagnostic).toBe("sovereign:plugin-divergence");
+		expect(out).toHaveLength(2);
+		expect(out.map((r) => r.diagnostic)).toEqual([
+			"sovereign:plugin-divergence",
+			"sovereign:unloaded-dir",
+		]);
 	});
 });
