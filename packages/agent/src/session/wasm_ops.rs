@@ -331,22 +331,27 @@ pub(crate) fn record_context_fold(
 /// FAIL OPEN BUT LOUD (the policy is decided and justified in
 /// `session::pure::budget_exceeded` — read its HISTORY note before touching this
 /// function; it is now on its third telling and the earlier two were each wrong in
-/// a different way). As of round 2, a truncated first read no longer means
-/// `false` by default: `resolve_budget_check` either proves "over" arithmetically
+/// a different way). `resolve_budget_check` decides everything below this point:
+/// a `budget_usd <= 0.0` blocks before either `query_nodes` call is even made
+/// (case 0); otherwise a truncated first read either proves "over" arithmetically
 /// from the visible rows alone, or issues a SECOND `query_nodes` call — this
 /// function's `requery_all` closure below — for the complete set, using `stored`
 /// (the true row count the first page already reported) as the limit. Only when a
-/// `query_nodes` call fails outright — the first one, or this follow-up — does
-/// `resolve_budget_check` return `Unknown`, and only then does this function
-/// return `false` without a definite answer. Before returning it, this function
-/// emits `agent:budget:unknown` naming the query error — the "loud" half of the
-/// policy — so even that remaining blind spot is on the record rather than
-/// indistinguishable from a genuine under-budget read.
+/// POSITIVE-budget `query_nodes` call fails outright — the first one, or the
+/// follow-up — does `resolve_budget_check` return `Unknown`, and only then does
+/// this function return `false` without a definite answer. Before returning it,
+/// this function emits `agent:budget:unknown` naming the query error — the "loud"
+/// half of the policy — so even that remaining blind spot is on the record rather
+/// than indistinguishable from a genuine under-budget read.
 ///
 /// A query error must not become a sum of zero (an error is not evidence of zero
 /// spend), so the `Err` branch of `query_nodes` is threaded through to
 /// `resolve_budget_check` as `Err(())` rather than defaulted away with
 /// `.unwrap_or_default()`, which is what silently disabled this guard before.
+///
+/// Both `query_nodes` calls are wrapped in closures — `query_first` is not called
+/// eagerly — so the `budget_usd <= 0.0` short-circuit in `resolve_budget_check`
+/// can genuinely skip the first query, not just ignore an already-fetched result.
 pub(crate) fn budget_exceeded_for_provider(provider_name: &str) -> bool {
     let budget_key = format!("MODEL_BUDGET_{}_USD", provider_name.to_uppercase());
     let Ok(budget_str) = std::env::var(&budget_key) else {
@@ -356,13 +361,12 @@ pub(crate) fn budget_exceeded_for_provider(provider_name: &str) -> bool {
         return false;
     };
 
-    let page_result = tractor_bridge::query_nodes("UsageRecord", 10_000);
-    let query_result: Result<(&[String], bool, u32), ()> = match &page_result {
-        Ok(page) => Ok((page.nodes.as_slice(), page.truncated, page.stored)),
-        Err(_) => Err(()),
-    };
-
     const WINDOW_30D_NS: u64 = 30 * 24 * 3600 * 1_000_000_000;
+    let query_first = || -> Result<(Vec<String>, bool, u32), ()> {
+        tractor_bridge::query_nodes("UsageRecord", 10_000)
+            .map(|page| (page.nodes, page.truncated, page.stored))
+            .map_err(|_| ())
+    };
     // Only invoked when the first read is truncated AND still under budget —
     // `resolve_budget_check` decides that, this closure just performs the ask.
     // `stored` is the first page's own count of what exists, so `limit: stored`
@@ -374,11 +378,11 @@ pub(crate) fn budget_exceeded_for_provider(provider_name: &str) -> bool {
             .map_err(|_| ())
     };
     let check = resolve_budget_check(
-        query_result,
         provider_name,
         budget,
         now_ns(),
         WINDOW_30D_NS,
+        query_first,
         requery_all,
     );
     if let BudgetCheck::Unknown(reason) = &check {
