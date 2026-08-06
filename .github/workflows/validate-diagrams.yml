@@ -31,7 +31,7 @@ jobs:
   validate:
     uses: ./.github/workflows/reusable-validate-docs.yml
     with:
-      validation-command: node scripts/ci/install-puppeteer-browser.mjs && REFARM_DIAGRAM_SYNC_STRICT=0 pnpm run diagrams:check -- --ci
+      validation-command: node scripts/ci/install-puppeteer-browser.mjs && REFARM_DIAGRAM_SYNC_STRICT=0 pnpm run diagrams:check
       validation-name: Diagrams
       validation-cache-files: |
         docs/**/*.mermaid
