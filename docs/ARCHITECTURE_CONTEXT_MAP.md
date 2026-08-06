@@ -47,7 +47,7 @@ Read relationships from upstream supplier to downstream consumer. `established-b
 
 ## Dependency pressure (observational)
 
-This compares manifest-level dependencies among authority anchors with the strategic relationships above. It includes development and peer dependencies, so an undeclared pair is a question to investigate, not an architecture violation.
+This compares manifest-level dependencies among authority anchors with the strategic relationships above. An undeclared non-development pair fails the architecture fitness check; development-only pairs remain observations because test composition is not automatically a domain relationship.
 
 Observed 27 cross-context edges across 20 pairs. Of the undeclared pressure, 0 non-dev edges across 0 pairs need architectural explanation; 4 edges across 4 pairs are development-only observations.
 
@@ -79,4 +79,5 @@ Observed 27 cross-context edges across 20 pairs. Of the undeclared pressure, 0 n
 - An anchor has one strategic owner in this map. Other packages may depend on it without acquiring its authority.
 - A seam is a contract or ABI through which two contexts integrate; direct imports may exist during migration, but they are not the desired source of shared meaning.
 - Unlisted packages are intentionally unclassified. Add them only when ownership or language ambiguity is causing real coordination cost.
+- A new non-dev dependency between anchors must use a declared relationship or update the map in the same atomic change.
 - Update the JSON source and run `pnpm run architecture:context-map:write`; CI verifies anchors and seams against the repository inventory.

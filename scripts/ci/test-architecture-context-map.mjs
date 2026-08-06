@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
 	analyzeContextDependencyPressure,
+	contextDependencyPressurePasses,
 	renderArchitectureContextMapMarkdown,
 	validateArchitectureContextMap,
 } from "./lib/architecture-context-map.mjs";
@@ -39,6 +40,7 @@ test("accepts explicit anchors and seams that exist in the inventory", () => {
 		undeclaredRuntimePairs: 0,
 		undeclaredDevOnlyPairs: 0,
 	});
+	assert.equal(contextDependencyPressurePasses(pressure), true);
 	assert.match(renderArchitectureContextMapMarkdown(validMap, pressure), /Dependency pressure \(observational\)/);
 });
 
@@ -61,4 +63,5 @@ test("reports undeclared dependency pressure without turning it into a structura
 	const pressure = analyzeContextDependencyPressure(provisional, inventory);
 	assert.equal(pressure.summary.undeclaredEdges, 1);
 	assert.equal(pressure.summary.undeclaredPairs, 1);
+	assert.equal(contextDependencyPressurePasses(pressure), false);
 });

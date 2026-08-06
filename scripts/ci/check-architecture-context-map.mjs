@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { buildArchitectureInventory } from "./lib/architecture-inventory.mjs";
 import {
 	analyzeContextDependencyPressure,
+	contextDependencyPressurePasses,
 	renderArchitectureContextMapMarkdown,
 	validateArchitectureContextMap,
 } from "./lib/architecture-context-map.mjs";
@@ -20,6 +21,7 @@ const map = JSON.parse(readFileSync(sourcePath, "utf8"));
 const inventory = buildArchitectureInventory({ root });
 const validation = validateArchitectureContextMap(map, inventory);
 const dependencyPressure = analyzeContextDependencyPressure(map, inventory);
+const dependencyCoverageOk = contextDependencyPressurePasses(dependencyPressure);
 const markdown = renderArchitectureContextMapMarkdown(map, dependencyPressure);
 let current = false;
 try {
@@ -33,10 +35,11 @@ if (args.has("--write")) {
 }
 const output = {
 	command: "architecture-context-map",
-	ok: validation.ok && current,
+	ok: validation.ok && dependencyCoverageOk && current,
 	contexts: map.contexts.length,
 	relationships: map.relationships.length,
 	violations: validation.violations,
+	fitness: { dependencyCoverageOk },
 	observations: { dependencyPressure },
 	document: { path: "docs/ARCHITECTURE_CONTEXT_MAP.md", current },
 };
