@@ -11,11 +11,11 @@ flowchart TB
 
   subgraph Readers["Readers — each takes the front N, meaning the N most recent"]
     SIDECAR["GET /nodes?type=…\nsidecar/mod.rs :: get_nodes"]
-    BRIDGE["WASM bridge query-nodes host call\nhost/wasi_bridge/core.rs\nTractorBridgeHost::query_nodes"]
+    BRIDGE["WASM bridge query-nodes host call\nhost/wasi_bridge/core.rs\nTractorBridgeHost::query_nodes\nreturns node-page: nodes + stored + truncated"]
     SESSION["Agent session helpers\nlatest_session_id_with_v1_preference · latest_session_leaf_id\nagent/src/session/wasm_ops.rs"]
   end
 
-  CEIL["TRUNCATION CEILING APPLIES HERE\nMAX_NODES_PER_RESPONSE = 100\nresponse reports stored + truncated — never silent"]
+  CEIL["TRUNCATION IS REPORTED, NEVER SILENT\nstored + truncated travel with the response\nsidecar ceiling: MAX_NODES_PER_RESPONSE = 100\nbridge ceiling: the guest's own limit — no fixed cap"]
 
   CLI["refarm budget observations\napps/refarm/src/commands/budget.ts"]
 
@@ -27,10 +27,12 @@ flowchart TB
 
   QNL --> SIDECAR
   CN --> SIDECAR
-  SIDECAR -.->|applies to this response| CEIL
+  SIDECAR -.->|reports| CEIL
 
   QNL --> BRIDGE
-  BRIDGE --> SESSION
+  CN --> BRIDGE
+  BRIDGE -.->|reports| CEIL
+  BRIDGE -->|"tractor_bridge::query_nodes — guest stub, not a direct storage read"| SESSION
 
   SIDECAR --> CLI
 
