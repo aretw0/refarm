@@ -56,6 +56,11 @@ pub(crate) const EVENT_TOOL_CALL: &str = "agent:tool:call";
 pub(crate) const EVENT_RESPONSE_DONE: &str = "agent:response:done";
 pub(crate) const EVENT_ERROR: &str = "agent:error";
 pub(crate) const EVENT_BUDGET_BLOCKED: &str = "agent:budget:blocked";
+/// The budget guard could not establish the total spend (truncated page or a failed
+/// query) and — per the FAIL-OPEN-BUT-LOUD policy in `session::pure::budget_exceeded`
+/// — proceeded anyway. Distinct from `agent:budget:blocked`: this run was NOT halted,
+/// but the guard's "not over budget" answer here is not backed by a complete read.
+pub(crate) const EVENT_BUDGET_UNKNOWN: &str = "agent:budget:unknown";
 /// ADR-012 audit trail: the router chose a `(provider, model)` route, and WHY.
 pub(crate) const EVENT_ROUTE_SELECTED: &str = "agent:route:selected";
 
@@ -134,6 +139,20 @@ pub(crate) fn error_payload(prompt_ref: &str, message: &str) -> serde_json::Valu
 /// guard tripped. Distinct from a generic error so an observer can act on cost. PURE.
 pub(crate) fn budget_blocked_payload(prompt_ref: &str, provider: &str) -> serde_json::Value {
     serde_json::json!({ "prompt_ref": prompt_ref, "provider": provider })
+}
+
+/// `agent:budget:unknown` — the run's spend guard for `provider` could not establish
+/// the true rolling-window total (`reason` is `"truncated"` or `"query_error"`, see
+/// `session::pure::BudgetUnknownReason::as_str`) and proceeded anyway per the
+/// FAIL-OPEN-BUT-LOUD policy. This event IS the "loud" half of that policy: the run
+/// was not blocked, but this record makes the blind spot visible on the wire instead
+/// of indistinguishable from a genuinely-checked "under budget". PURE.
+pub(crate) fn budget_unknown_payload(
+    prompt_ref: &str,
+    provider: &str,
+    reason: &str,
+) -> serde_json::Value {
+    serde_json::json!({ "prompt_ref": prompt_ref, "provider": provider, "reason": reason })
 }
 
 /// `agent:route:selected` — the ADR-012 audit trail. Records which `provider`/`model`
@@ -215,6 +234,11 @@ mod emit {
         emit(EVENT_BUDGET_BLOCKED, budget_blocked_payload(&prompt_ref, provider));
     }
 
+    pub(crate) fn budget_unknown(provider: &str, reason: &str) {
+        let prompt_ref = super::run_context::current();
+        emit(EVENT_BUDGET_UNKNOWN, budget_unknown_payload(&prompt_ref, provider, reason));
+    }
+
     pub(crate) fn route_selected(provider: &str, model: &str, source: &str, cost_tier: &str) {
         let prompt_ref = super::run_context::current();
         emit(
@@ -242,6 +266,7 @@ mod emit {
     }
     pub(crate) fn error(_message: &str) {}
     pub(crate) fn budget_blocked(_provider: &str) {}
+    pub(crate) fn budget_unknown(_provider: &str, _reason: &str) {}
     pub(crate) fn route_selected(
         _provider: &str,
         _model: &str,
@@ -259,7 +284,8 @@ pub(crate) fn enter_run(_prompt_ref: &str) {}
 // payloads they wrap are still covered by the native tests below.
 #[allow(unused_imports)]
 pub(crate) use emit::{
-    budget_blocked, error, iteration, prompt_start, response_done, route_selected, tool_call,
+    budget_blocked, budget_unknown, error, iteration, prompt_start, response_done,
+    route_selected, tool_call,
 };
 
 #[cfg(test)]

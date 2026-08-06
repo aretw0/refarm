@@ -2,8 +2,8 @@ use crate::now_ns;
 use crate::plugin::host::tractor_bridge;
 
 use super::{
-    history_from_nodes, pick_latest_session_id, pick_latest_session_leaf_id, session_entry_node,
-    session_node, sum_provider_spend_usd,
+    budget_exceeded, history_from_nodes, pick_latest_session_id, pick_latest_session_leaf_id,
+    resolve_budget_check, session_entry_node, session_node, BudgetCheck,
 };
 
 const SESSION_PREFIX_V1: &str = "urn:sovereign:session:v1:";
@@ -327,6 +327,24 @@ pub(crate) fn record_context_fold(
 
 /// Returns true when `MODEL_BUDGET_<PROVIDER>_USD` is set and the rolling 30-day
 /// spend for `provider_name` (read from CRDT UsageRecord nodes) meets or exceeds it.
+///
+/// FAIL OPEN BUT LOUD (the policy is decided and justified in
+/// `session::pure::budget_exceeded` — read it before touching this function): when
+/// the true spend cannot be established — `query_nodes` truncated the UsageRecord
+/// page (more rows exist than the 10,000-row query returned), or the query itself
+/// errored — this still returns `false` (the run proceeds, exactly as it did before
+/// this guard could tell "unknown" from "checked and it's fine"). What changed is
+/// that the unknown case is no longer silently summed as zero spend: it is built as
+/// its own `BudgetCheck::Unknown` variant by `resolve_budget_check` below, and BEFORE
+/// `budget_exceeded` maps it to `false`, this function emits `agent:budget:unknown`
+/// naming which of the two happened — the "loud" half of the policy, so the blind
+/// spot is on the record rather than indistinguishable from a genuine under-budget
+/// read.
+///
+/// A query error must not become a sum of zero (an error is not evidence of zero
+/// spend), so the `Err` branch of `query_nodes` is threaded through to
+/// `resolve_budget_check` as `Err(())` rather than defaulted away with
+/// `.unwrap_or_default()`, which is what silently disabled this guard before.
 pub(crate) fn budget_exceeded_for_provider(provider_name: &str) -> bool {
     let budget_key = format!("MODEL_BUDGET_{}_USD", provider_name.to_uppercase());
     let Ok(budget_str) = std::env::var(&budget_key) else {
@@ -335,9 +353,17 @@ pub(crate) fn budget_exceeded_for_provider(provider_name: &str) -> bool {
     let Ok(budget) = budget_str.parse::<f64>() else {
         return false;
     };
-    let records = tractor_bridge::query_nodes("UsageRecord", 10_000)
-        .map(|page| page.nodes)
-        .unwrap_or_default();
+
+    let page_result = tractor_bridge::query_nodes("UsageRecord", 10_000);
+    let query_result: Result<(&[String], bool), ()> = match &page_result {
+        Ok(page) => Ok((page.nodes.as_slice(), page.truncated)),
+        Err(_) => Err(()),
+    };
+
     const WINDOW_30D_NS: u64 = 30 * 24 * 3600 * 1_000_000_000;
-    sum_provider_spend_usd(&records, provider_name, now_ns(), WINDOW_30D_NS) >= budget
+    let check = resolve_budget_check(query_result, provider_name, budget, now_ns(), WINDOW_30D_NS);
+    if let BudgetCheck::Unknown(reason) = &check {
+        crate::agent_events::budget_unknown(provider_name, reason.as_str());
+    }
+    budget_exceeded(&check)
 }
