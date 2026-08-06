@@ -137,7 +137,10 @@ moves, which is the defect this spec exists to end.
    copied into `refarm` on 2026-08-06 are removed — they are the workspace's offer, not the node's
    declaration.
 2. `<repo>/.refarm/config.json` loses its `workspaces` map entirely. It stops declaring itself and
-   stops declaring rcdc5. What remains is the refarm workspace's own offer: those same five commands.
+   stops declaring rcdc5. What remains is node state that was never part of the abolished shape:
+   `trusted_plugins`, `approvedPermissions`, `connections`, `spawnEnv`, and `surfaces`. The five VPN
+   commands live in `<repo>/refarm.workspace.json` at the repository root — the refarm workspace's own
+   offer, brought into the node's catalog only via `refarm workspace sync refarm`.
 3. **`rcdc5` is not migrated.** Its command stays in the node catalog, by the operator's decision, as
    R1's living example.
 4. **`--local` now refuses rather than redirects.** `workspace add --local` and `workspace command

@@ -56,7 +56,7 @@ That is the decision-log principle already accepted in this repository: *every i
 | `apps/refarm/src/commands/workspace-declaration.test.ts` | **New.** | 1 |
 | `apps/refarm/src/commands/workspace-sync.ts` | **New.** Read an offer, diff it against the catalog, write on acceptance. | 2 |
 | `apps/refarm/src/commands/workspace-sync.test.ts` | **New.** | 2 |
-| `apps/refarm/src/commands/workspace.ts` | Register `sync`; `--local` writes the new shape. | 2 |
+| `apps/refarm/src/commands/workspace.ts` | Register `sync`; `--local` refuses, in all four call sites, rather than writing the new shape. | 2 |
 | `~/.refarm/config.json`, `<repo>/.refarm/config.json`, `<repo>/refarm.workspace.json` | This machine's migration. | 3 |
 | `docs/superpowers/specs/2026-08-06-a-workspace-is-not-a-node-design.md` | Record the filename decision. | 5 |
 
