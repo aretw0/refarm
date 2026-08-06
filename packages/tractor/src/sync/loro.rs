@@ -154,6 +154,14 @@ impl NativeSync {
         self.storage.query_nodes_limited(type_, limit)
     }
 
+    /// True count of nodes of `type_`, independent of any limit a caller applies via
+    /// [`Self::query_nodes_limited`]. Passthrough to `NativeStorage::count_nodes` — a
+    /// `SELECT COUNT(*)` that never materialises the rows it counts; see
+    /// `docs/SOVEREIGN_RECORD_ORDERING.md`.
+    pub fn count_nodes(&self, type_: &str) -> Result<usize> {
+        self.storage.count_nodes(type_)
+    }
+
     /// Rebuild SQLite read model from current LoroDoc state.
     /// Called after apply_update() or import_snapshot() to sync the read model.
     /// Mirrors Projector.rebuildAll() from packages/sync-loro/src/projector.ts.

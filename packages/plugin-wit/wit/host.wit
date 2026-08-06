@@ -14,7 +14,22 @@ interface tractor-bridge {
 
     store-node:         func(node: json-ld-node) -> result<node-id, plugin-error>;
     get-node:           func(id: node-id) -> result<json-ld-node, plugin-error>;
-    query-nodes:        func(node-type: string, limit: u32) -> result<list<json-ld-node>, plugin-error>;
+
+    /// A page of nodes with the facts a caller needs to know whether it saw all of them.
+    ///
+    /// `query-nodes` returned a bare list until 2026-08-06, so a guest receiving exactly
+    /// `limit` rows could not tell a complete answer from a cut one. The budget guard in the
+    /// agent was summing a possibly-truncated set of UsageRecords and concluding "under
+    /// budget" either way.
+    record node-page {
+        nodes: list<json-ld-node>,
+        /// How many nodes of this type exist, independent of `limit`.
+        stored: u32,
+        /// True when `stored` exceeds what `nodes` carries.
+        truncated: bool,
+    }
+
+    query-nodes: func(node-type: string, limit: u32) -> result<node-page, plugin-error>;
     request-permission: func(capability: string, reason: string) -> bool;
     get-identity:       func() -> result<identity-info, plugin-error>;
     get-plugin-api:     func(api-name: string) -> result<node-id, plugin-error>;

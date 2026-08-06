@@ -11,7 +11,7 @@
 
 use crate::host::plugin_host::plugin::host::{
     model_bridge::{Host as ModelBridgeHost, StreamResponseMetadata, StreamResponseResult},
-    tractor_bridge::Host as TractorBridgeHost,
+    tractor_bridge::{Host as TractorBridgeHost, NodePage},
     types::{Host as TypesHost, IdentityInfo, PluginError},
 };
 use crate::host::plugin_registry::PluginRegistry;
@@ -369,26 +369,41 @@ impl TractorBridgeHost for TractorNativeBindings {
         }
     }
 
-    /// Query nodes by @type, returning up to `limit` results, NEWEST FIRST.
+    /// Query nodes by @type, returning up to `limit` results, NEWEST FIRST, plus the
+    /// facts a guest needs to know whether that was everything.
     ///
     /// The limit is applied in SQL rather than by slicing here. Before 2026-08-06 this
     /// loaded every row of the type and dropped all but `limit`, which was affordable at
     /// 29 records and is not at 29,000. The ordering guarantee it relies on is documented
     /// in `docs/SOVEREIGN_RECORD_ORDERING.md`.
     ///
-    /// KNOWN GAP, deliberately not closed here: the WIT signature returns a bare
-    /// `list<json-ld-node>`, so a guest receiving exactly `limit` rows cannot tell whether
-    /// more exist. Giving it that signal is a contract change affecting every plugin and
-    /// belongs to its own design.
+    /// `stored` (via `count_nodes`, a `SELECT COUNT(*)` that never materialises the rows
+    /// it counts) is the true total of this `@type`, independent of `limit`. `truncated`
+    /// is derived from `stored` versus how many rows `nodes` actually carries — NOT from
+    /// `limit` — so a caller passing a limit larger than the total still gets
+    /// `truncated: false`. Before 2026-08-06 the WIT signature returned a bare
+    /// `list<json-ld-node>`, so a guest receiving exactly `limit` rows had no way to tell
+    /// a complete answer from a cut one.
     async fn query_nodes(
         &mut self,
         node_type: String,
         limit: u32,
-    ) -> Result<Vec<String>, PluginError> {
-        self.sync
+    ) -> Result<NodePage, PluginError> {
+        let rows = self
+            .sync
             .query_nodes_limited(&node_type, limit as usize)
-            .map_err(|e| PluginError::Internal(e.to_string()))
-            .map(|rows| rows.into_iter().map(|r| r.payload).collect())
+            .map_err(|e| PluginError::Internal(e.to_string()))?;
+        let stored = self
+            .sync
+            .count_nodes(&node_type)
+            .map_err(|e| PluginError::Internal(e.to_string()))?;
+        let nodes: Vec<String> = rows.into_iter().map(|r| r.payload).collect();
+        let truncated = stored > nodes.len();
+        Ok(NodePage {
+            nodes,
+            stored: stored as u32,
+            truncated,
+        })
     }
 
     /// Decide whether the plugin may use `capability`. The WIT names this a
