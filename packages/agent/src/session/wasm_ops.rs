@@ -330,24 +330,33 @@ pub(crate) fn record_context_fold(
 ///
 /// FAIL OPEN BUT LOUD (the policy is decided and justified in
 /// `session::pure::budget_exceeded` — read its HISTORY note before touching this
-/// function; it is now on its third telling and the earlier two were each wrong in
-/// a different way). `resolve_budget_check` decides everything below this point:
-/// a `budget_usd <= 0.0` blocks before either `query_nodes` call is even made
-/// (case 0); otherwise a truncated first read either proves "over" arithmetically
-/// from the visible rows alone, or issues a SECOND `query_nodes` call — this
-/// function's `requery_all` closure below — for the complete set, using `stored`
-/// (the true row count the first page already reported) as the limit. Only when a
-/// POSITIVE-budget `query_nodes` call fails outright — the first one, or the
-/// follow-up — does `resolve_budget_check` return `Unknown`, and only then does
-/// this function return `false` without a definite answer. Before returning it,
-/// this function emits `agent:budget:unknown` naming the query error — the "loud"
-/// half of the policy — so even that remaining blind spot is on the record rather
-/// than indistinguishable from a genuine under-budget read.
+/// function; it is now on its fourth telling and the earlier ones were each wrong
+/// in a different way). `resolve_budget_check` decides everything below this
+/// point: a `budget_usd <= 0.0` blocks before either `query_nodes` call is even
+/// made (case 0); otherwise a truncated first read either proves "over"
+/// arithmetically from the visible rows alone, or issues a SECOND `query_nodes`
+/// call — this function's `requery_all` closure below — for what SHOULD be the
+/// complete set, using `stored` (the true row count the first page already
+/// reported) as the limit. That follow-up carries its own `truncated` flag too
+/// (rows can be written between the two reads), and `resolve_budget_check`
+/// checks it the same way: `Unknown` unless the follow-up is complete or its
+/// own visible sum already proves "over". `resolve_budget_check` returns
+/// `Unknown` — and this function returns `false` without a definite answer —
+/// either when a POSITIVE-budget `query_nodes` call fails outright (first read
+/// or follow-up), or when the follow-up is itself truncated and still under
+/// budget. Before returning it, this function emits `agent:budget:unknown`
+/// naming the reason — the "loud" half of the policy — so even that remaining
+/// blind spot is on the record rather than indistinguishable from a genuine
+/// under-budget read.
 ///
 /// A query error must not become a sum of zero (an error is not evidence of zero
 /// spend), so the `Err` branch of `query_nodes` is threaded through to
 /// `resolve_budget_check` as `Err(())` rather than defaulted away with
 /// `.unwrap_or_default()`, which is what silently disabled this guard before.
+/// The same discipline applies to the follow-up's `truncated` flag: it is
+/// threaded through rather than discarded, which is what let a re-query that
+/// raced fresh writes report a false `Known` before this function's fourth
+/// telling.
 ///
 /// Both `query_nodes` calls are wrapped in closures — `query_first` is not called
 /// eagerly — so the `budget_usd <= 0.0` short-circuit in `resolve_budget_check`
@@ -370,11 +379,14 @@ pub(crate) fn budget_exceeded_for_provider(provider_name: &str) -> bool {
     // Only invoked when the first read is truncated AND still under budget —
     // `resolve_budget_check` decides that, this closure just performs the ask.
     // `stored` is the first page's own count of what exists, so `limit: stored`
-    // asks for everything as of a moment ago (the residual race is documented in
-    // `resolve_budget_check`'s doc comment, not handled here).
-    let requery_all = |stored: u32| -> Result<Vec<String>, ()> {
+    // asks for everything as of a moment ago. That "as of a moment ago" is the
+    // residual race: `page.truncated` is threaded through (not dropped, as it
+    // was before this function's fourth telling) so `resolve_budget_check` can
+    // tell a follow-up that raced fresh writes from one that genuinely saw
+    // everything — the race is documented there, not resolved here.
+    let requery_all = |stored: u32| -> Result<(Vec<String>, bool), ()> {
         tractor_bridge::query_nodes("UsageRecord", stored)
-            .map(|page| page.nodes)
+            .map(|page| (page.nodes, page.truncated))
             .map_err(|_| ())
     };
     let check = resolve_budget_check(
