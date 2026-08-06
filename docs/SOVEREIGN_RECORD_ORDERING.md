@@ -4,6 +4,16 @@
 > `query_nodes_limited` / `count_nodes`). Plan:
 > `.superpowers/sdd/2026-08-06-the-record-reader-goes-blind/`. Diagram:
 > [`specs/diagrams/record-read-path.mermaid`](../specs/diagrams/record-read-path.svg).
+>
+> Two more consumers fixed 2026-08-06, later the same day, in a follow-on plan: the
+> WASM bridge's `query-nodes` host call
+> (`packages/tractor/src/host/wasi_bridge/core.rs`, commit `8bf5d345`) and the
+> agent's two session helpers (`packages/agent/src/session/wasm_ops.rs`, commits
+> `54642ffb` and `1ca1f08f`). Plan:
+> `.superpowers/sdd/2026-08-06-the-contract-reaches-every-consumer/`. Proven on node
+> `sede`: loaded/built plugin hash moved `544ef5b4` → `cff89975`, harness session
+> tests 3/3, `refarm budget observations --limit 1` unregressed at `stored: 29,
+> truncated: true`.
 
 ## The invariant
 
@@ -48,17 +58,55 @@ an unordered `Vec<NodeRow>`, each meaning "the most recent N" — five identifie
 was first traced, plus four more found on review that reach the same WASM bridge call from
 `packages/agent/src` and `packages/delegate/src` and were missing from the first count:
 
-| Caller | File | What it meant to read |
-| --- | --- | --- |
-| `GET /nodes?type=…` (→ `refarm budget observations`) | `packages/tractor/src/sidecar/mod.rs` | the newest page of a type |
-| The WASM bridge's `query-nodes` host call | `packages/tractor/src/host/wasi_bridge/core.rs` | the newest N a plugin asked for |
-| `latest_session_id_with_v1_preference` | `packages/agent/src/session/wasm_ops.rs:17-50` | the current session |
-| `latest_session_leaf_id` | `packages/agent/src/session/wasm_ops.rs:64-76` | the session's most recent leaf entry |
-| (transitively) conversation history fallback | `packages/agent/src/session/wasm_ops.rs:210-231` | recent turns |
-| `list_tasks` | `packages/agent/src/tool_dispatch/task_tools.rs:8` | the newest N tasks |
-| `task_status`'s `TaskEvent` lookup | `packages/agent/src/tool_dispatch/task_tools.rs:44` | this task's recent events |
-| `task_context_for_prompt` | `packages/agent/src/runtime/policy.rs:128` | the newest N tasks for prompt context |
-| `load_personas` | `packages/delegate/src/lib.rs:230` | the available personas |
+| Caller | File | What it meant to read | Fixed |
+| --- | --- | --- | --- |
+| `GET /nodes?type=…` (→ `refarm budget observations`) | `packages/tractor/src/sidecar/mod.rs` | the newest page of a type | Yes — 2026-08-06, predecessor plan |
+| The WASM bridge's `query-nodes` host call | `packages/tractor/src/host/wasi_bridge/core.rs` | the newest N a plugin asked for | Yes — 2026-08-06, this plan (`8bf5d345`) |
+| `latest_session_id_with_v1_preference` | `packages/agent/src/session/wasm_ops.rs:45-53` | the current session | Yes — 2026-08-06, this plan (`54642ffb`) |
+| `latest_session_leaf_id` | `packages/agent/src/session/wasm_ops.rs:87-95` | the session's most recent leaf entry | Yes — 2026-08-06, this plan (`1ca1f08f`) |
+| (transitively) conversation history fallback | `packages/agent/src/session/wasm_ops.rs:198-251` | recent turns | Yes, transitively, for its preferred path — see below |
+| `list_tasks` | `packages/agent/src/tool_dispatch/task_tools.rs:8` | the newest N tasks | No |
+| `task_status`'s `TaskEvent` lookup | `packages/agent/src/tool_dispatch/task_tools.rs:44` | this task's recent events | No |
+| `task_context_for_prompt` | `packages/agent/src/runtime/policy.rs:128` | the newest N tasks for prompt context | No |
+| `load_personas` | `packages/delegate/src/lib.rs:230` | the available personas | No |
+
+**How the two 2026-08-06 fixes worked, and why 4 rows above stayed "No" without being
+wrong.** The bridge fix (`8bf5d345`) was a cost fix, not a correctness fix: the
+predecessor plan's `ORDER BY` already made `sync.query_nodes(&node_type)`'s result
+newest-first, so the old `.take(limit as usize)` after it was already selecting the
+right N rows — just after loading every row of the type to get them.
+`TractorBridgeHost::query_nodes` now calls `self.sync.query_nodes_limited(&node_type,
+limit as usize)` instead, pushing `LIMIT` into SQL. `NativeSync`
+(`packages/tractor/src/sync/loro.rs`) had a `query_nodes` passthrough to
+`NativeStorage` but no `query_nodes_limited` one, despite `NativeStorage` already
+having both from the predecessor plan; the passthrough was added. `host.wit`'s
+`query-nodes` signature did not change. `list_tasks`, `task_status`'s `TaskEvent`
+lookup, `task_context_for_prompt`, and `load_personas` all call this same host
+function (`tractor_bridge::query_nodes`) and inherited the lower cost the moment the
+host was rebuilt, with no guest-side code of their own changing — they stayed "No"
+above because none of them had ever re-sorted; there was no correctness bug in them to
+fix, only a cost fix upstream of them to inherit.
+
+The two session-helper fixes (`54642ffb`, `1ca1f08f`) were correctness fixes, and a
+different kind of bug from the bridge's: `latest_session_id_with_v1_preference` and
+`latest_session_leaf_id` each re-derived "newest" with their own
+`max_by_key(created_at_ns)` scan over rows the storage layer had already ordered by
+`updated_at DESC, id DESC` — the second, disagreeing sort order "What a caller must
+do" above forbids, and one answering a different question besides (newest-*created*,
+not newest-*touched*; Session rows are UPSERTED on append, so those diverge). Both
+re-sorts are gone; both functions now trust the storage layer's order outright. Because
+`wasm_ops.rs` is `#[cfg(target_arch = "wasm32")]` and not natively testable, the pure
+selection logic was extracted to `session::pure::pick_latest_session_id` and
+`pick_latest_session_leaf_id` (a `cfg`-unconditional module) and unit-tested there,
+with fixtures that deliberately make newest-touched and newest-created disagree so the
+tests can only pass by trusting the storage layer's order, not by coincidence.
+
+The "(transitively)" row: `query_history_from_session` — the *preferred* path
+`query_history` takes when a Session exists — calls `latest_session_leaf_id(10)`
+directly (`wasm_ops.rs:199`) and inherits its fix with no code change of its own.
+`query_history`'s legacy fallback (`wasm_ops.rs:246-250`, timestamp-sorting
+pre-session `UserPrompt`/`Response` nodes for the case no Session exists yet) is a
+different code path that this plan did not examine and makes no claim about here.
 
 The sidecar reader made the ceiling worse than a wrong first page: it capped the response
 at `.take(limit.min(100))` **after** materialising the unordered rows. Past 100 stored
@@ -131,6 +179,43 @@ caller must handle three states — truncated, confirmed complete, and *unknown*
 two. See the next section for why collapsing that third state was the recurring bug in
 this same session.
 
+The TS graph client (`packages/sidecar-client/src/index.ts`, fixed 2026-08-06, commit
+`d732a4f4`) carries this same discipline into `SidecarGraphClient.queryNodes`:
+`QueryGraphNodesResult { nodes, stored?, truncated? }`, populated only by `typeof
+body?.stored === "number"` / `typeof body?.truncated === "boolean"` checks — no `??`
+fallback anywhere on the sidecar-HTTP path. Before this fix `queryNodes` returned a
+bare `SidecarGraphNode[]` and threw the sidecar's `stored`/`truncated` away entirely,
+so every TS consumer of the graph client was back to a truncated answer
+indistinguishable from a whole one, one layer above the fix "What a response means
+now" describes.
+
+### A defaulting that looks like the defect this document exists to prevent, and is not
+
+`apps/refarm/src/utils/tractor-store.ts`'s direct-sqlite adapter
+(`tractorGraphFromNodeView`, added in the same 2026-08-06 fix) reports `stored:
+nodes.length, truncated: false` for every query. Read out of context, that is exactly
+the invented-default shape the paragraph above forbids — a `stored`/`truncated` pair
+the client made up rather than one the server said. It is not that defect here, and
+the distinction was established by reading the SQL rather than assumed:
+`TractorNodesReadProvider.query`
+(`packages/storage-sqlite/src/tractor-nodes-read.provider.ts:47-55`) builds its
+statement as `SELECT id, type, payload, updated_at FROM nodes [...] ORDER BY
+updated_at ASC` — no `LIMIT` clause, ever. That code path reads every stored row of
+the requested `@type` in one pass, so `stored: nodes.length` is the true count and
+`truncated: false` is true, both **by construction** rather than by assumption — the
+same distinction `apps/refarm/src/commands/budget.ts` draws against the sidecar's `GET
+/nodes`, which does apply a limit and the `MAX_NODES_PER_RESPONSE` ceiling below. The
+two code paths return the identically-shaped `{ nodes, stored, truncated }` at the TS
+call site and are not identical underneath.
+
+That correctness rests on an invariant, not a guarantee: nothing stops
+`TractorNodesReadProvider.query` from gaining a `LIMIT` in the future. The invariant is
+documented inline (in `tractor-store.ts`'s `tractorGraphFromNodeView` doc comment) and
+enforced by nothing — no test fails if `query` grows a limit tomorrow, and `stored:
+nodes.length, truncated: false` would then silently become exactly the invented
+default this whole document exists to eliminate, one layer downstream of where anyone
+would think to look for it.
+
 ## The tiebreak is load bearing — and it is not uniform across the codebase
 
 `updated_at` has **second** resolution (`datetime('now')` in SQLite). Two rows written in
@@ -167,11 +252,18 @@ minted, and this repository does it two different ways:
   timestamp only breaks ties *within* one agent. `Session` ids are a live example of the
   same problem: `packages/agent/src/session/wasm_ops.rs` mints
   `urn:sovereign:session:v1:<hex>` (`SESSION_PREFIX_V1`), but legacy unprefixed session ids
-  are also present in the same table today — `latest_session_id_with_v1_preference`
-  (`wasm_ops.rs:17-50`) exists precisely *because* both shapes are live, and it falls back to
-  its own `max_by_key(created_at_ns)` scan rather than trust `id DESC`, since comparing a
-  `urn:sovereign:session:v1:…` id against a legacy unprefixed one is a plain lexicographic
-  string comparison, not a recency comparison.
+  are also present in the same table today, and comparing a `urn:sovereign:session:v1:…`
+  id against a legacy unprefixed one by `id DESC` is a plain lexicographic string
+  comparison, not a recency comparison — exactly why a reader cannot pick "the current
+  session" by id shape alone. `latest_session_id_with_v1_preference` exists precisely
+  *because* both shapes are live: it does not index by `id DESC` at all. As of 2026-08-06
+  it also no longer re-derives its own order — its selection rule
+  (`packages/agent/src/session/pure.rs::pick_latest_session_id`) scans the storage
+  layer's already-newest-first result for the first v1-prefixed row, falling back to the
+  first row of any shape. Before 2026-08-06 it instead ran its own
+  `max_by_key(created_at_ns)` scan over that same result — the second, disagreeing sort
+  order "What a caller must do" above forbids; see the affected-reader table for the
+  fix.
 
   So the guarantee is narrower than "every id minted this way": a reader may index a
   `query_nodes*` result positionally only where every id sharing a same-second tie was
@@ -236,10 +328,16 @@ site, right up until the moment "unknown" needs to be told apart from "no."
 ## What the fix cost, deliberately not disguised
 
 `query_nodes` still returns `Vec<NodeRow>` — a caller cloning the whole type into memory
-before discarding most of it is unchanged where it wasn't rewritten (7 of the 9 affected
-callers in the table above — every one in `packages/agent/src` and `packages/delegate/src` —
-were left untouched; see "Known follow-up" below). The fix is the ordering and the two new
-entry points, not a rewrite of every reader.
+before discarding most of it is unchanged where it wasn't rewritten. At the time this
+fix landed, that was true of 7 of the 9 affected callers in the table above — every one
+in `packages/agent/src` and `packages/delegate/src` — left untouched (see "Known
+follow-up" below, as it read then). The fix was the ordering and the two new entry
+points, not a rewrite of every reader.
+
+**Updated 2026-08-06, follow-on plan:** the WASM bridge's `query-nodes` host call
+stopped materialising whole tables too (commit `8bf5d345`) — see the affected-reader
+table above and the paragraph beneath it for how, and for why the 4 callers that still
+read "No" there were never wrong to begin with.
 
 ## Verification — what actually ran, and what only got read
 
@@ -292,20 +390,68 @@ gap, not a missing-build gap. The conclusion about its code (keyed on `replyRef`
 position) still holds on independent reading; the reason given for not running it does
 not.
 
-## Known follow-up, out of scope here
+## Known follow-up, out of scope here — one item resolved, one still open
 
 `latest_session_id_with_v1_preference(20)` and `latest_session_leaf_id(10)`
-(`packages/agent/src/session/wasm_ops.rs`) become correct as a **consequence** of this
-fix, since taking the first N of a now-newest-first result is now the newest N — they were
-not modified, and no task in this plan rebuilds the `agent` WASM component. The ordering
-fix lives entirely in the host (`packages/tractor`); the guest-side callers inherit it for
-free the next time `agent.wasm` is rebuilt against a host running the fixed query.
+(`packages/agent/src/session/wasm_ops.rs`) were expected here, when this predecessor
+fix landed, to become correct as a mere **consequence** of it — "taking the first N of
+a now-newest-first result is now the newest N" — with no code change of their own and
+no rebuild required beyond the next ordinary one. That expectation was wrong in one
+detail: neither function simply took the first N. Both re-derived "newest" with their
+own `max_by_key(created_at_ns)` scan on top of the storage layer's order, which is a
+second, disagreeing sort order and would have kept producing wrong answers regardless
+of how correctly `query_nodes` was ordered upstream. Fixed 2026-08-06, in a follow-on
+plan (`.superpowers/sdd/2026-08-06-the-contract-reaches-every-consumer/`, commits
+`54642ffb` and `1ca1f08f`) — see the affected-reader table above for how, and that
+plan's Task 4 for the harness run (`agent_harness session`, 3/3 pass) and node proof
+(`refarm sessions list --json` resolving an active session among 9) that exercised the
+guest-side call this document could not natively test.
+
+**The two session helpers do not mirror each other, and that was checked rather than
+assumed.** `latest_session_id_with_v1_preference` prefers a
+`urn:sovereign:session:v1:`-prefixed id over a legacy unprefixed one when both are
+present in the result — its rule is "the first v1-prefixed row in the storage layer's
+order, else the first row of any shape." `latest_session_leaf_id` reads a
+`leaf_entry_id` field off whichever row is first in that same order and never compares
+id shapes at all — no v1 branch belongs in it, because it is not choosing between two
+id-shape candidates, it is skipping a leading row that has no leaf yet (a freshly
+created session with no entries). This was confirmed by reading what each function
+actually returns — a session id vs. a field value — before applying the fix, rather
+than reflexively mirroring the sibling's v1-preference branch into the leaf lookup;
+doing so would have been a wrong consistency fix, changing correct behaviour to match
+an unrelated sibling's shape.
 
 `currentRateTableFrom` (`apps/refarm/src/commands/budget.ts`) was deliberately left
-untouched by this whole plan. It takes the maximum timestamp across whatever nodes it is
+untouched by both plans. It takes the maximum timestamp across whatever nodes it is
 handed and is correct given that input — the defect was entirely upstream of it (the input
 used to be the oldest N, not "the oldest," so its output used to be "the newest of the
 oldest N" — a correct function fed a wrong slice, not a wrong function).
+
+## What is still deferred, named rather than left silent
+
+Three gaps remain after both plans. None is a regression — each is a boundary neither
+plan crossed, named here so the next reader does not have to rediscover it.
+
+- **The guest has no truncation signal.** `packages/plugin-wit/wit/host.wit`'s
+  `query-nodes` returns a bare `list<json-ld-node>` (`query-nodes: func(node-type:
+  string, limit: u32) -> result<list<json-ld-node>, plugin-error>;`, line 17). A
+  plugin that receives exactly `limit` rows has no way to tell whether that is
+  everything of that `@type` or the front of a longer list — the HTTP sidecar's
+  `stored`/`truncated` fields (see "What a response means now" above) have no
+  WASM-bridge equivalent. Closing this means changing a contract every plugin
+  implements, which is a design of its own, not a follow-on task.
+- **There is no paging past `MAX_NODES_PER_RESPONSE`.** The ceiling (100,
+  `packages/tractor/src/sidecar/mod.rs:1521`) is now honestly reported —
+  `truncated: true` says rows were left out — but honesty is not access. A caller
+  that needs row 101 of a type has no `--limit`, no cursor, no offset that reaches
+  it; the response can only say truthfully that more exists, not hand it over.
+- **The graph client throws against the real daemon.** `SidecarGraphClient.queryNodes`
+  and `.getNode` (`packages/sidecar-client/src/index.ts`) reject any node lacking
+  `@context`, and the Rust sidecar's `GET /nodes` does not set `@context` on any node
+  type today — a pre-existing condition, already noted in
+  `apps/refarm/src/commands/budget.ts`'s own doc comment, not introduced or fixed by
+  either plan. It means the client this plan improved is not yet usable against a
+  live node.
 
 ## Where this lives
 
@@ -313,13 +459,16 @@ oldest N" — a correct function fed a wrong slice, not a wrong function).
 | --- | --- |
 | The ordering guarantee (`query_nodes` / `query_nodes_limited` / `count_nodes`) | `packages/tractor/src/storage/sqlite.rs` |
 | The HTTP reader, its ceiling, `stored`/`truncated` | `packages/tractor/src/sidecar/mod.rs` (`get_nodes`, `MAX_NODES_PER_RESPONSE`) |
-| The WASM bridge's `query-nodes` host call | `packages/tractor/src/host/wasi_bridge/core.rs` (`TractorBridgeHost::query_nodes`) |
-| The agent's session helpers that ride on the guarantee without modification | `packages/agent/src/session/wasm_ops.rs` |
+| The WASM bridge's `query-nodes` host call, fixed 2026-08-06 to apply `LIMIT` in SQL | `packages/tractor/src/host/wasi_bridge/core.rs` (`TractorBridgeHost::query_nodes`), passthrough in `packages/tractor/src/sync/loro.rs` (`NativeSync::query_nodes_limited`) |
+| The agent's session helpers, fixed 2026-08-06 to stop re-sorting | `packages/agent/src/session/wasm_ops.rs` (call sites), `packages/agent/src/session/pure.rs` (`pick_latest_session_id`, `pick_latest_session_leaf_id` — the tested decision logic) |
+| The TS graph client's `stored`/`truncated` propagation, fixed 2026-08-06 | `packages/sidecar-client/src/index.ts` (`QueryGraphNodesResult`), `apps/refarm/src/utils/tractor-store.ts` (`tractorGraphFromNodeView`) |
+| The guest-side contract gap this document does not close (no truncation signal) | `packages/plugin-wit/wit/host.wit` (`query-nodes`) |
 | The CLI command that made the defect visible | `apps/refarm/src/commands/budget.ts` (`refarm budget observations`) |
 | The monotonic id scheme | `packages/agent/src/utils.rs:516-523` (`new_id`) |
 | The two random id schemes | `packages/tractor/src/streaming/observations.rs:26`, `packages/tractor/src/host/wasi_bridge/model_stream_events.rs:635` |
 | The read path, drawn | [`specs/diagrams/record-read-path.mermaid`](../specs/diagrams/record-read-path.svg) |
-| The plan and its task-by-task record | `.superpowers/sdd/2026-08-06-the-record-reader-goes-blind/` |
+| The plan and its task-by-task record (storage-layer ordering fix) | `.superpowers/sdd/2026-08-06-the-record-reader-goes-blind/` |
+| The follow-on plan and its task-by-task record (bridge cost, session correctness, TS client) | `.superpowers/sdd/2026-08-06-the-contract-reaches-every-consumer/` |
 
 > _Active Inference framing:_ an unordered read is not wrong the way a bad computation is
 > wrong — it is a query that never asked reality a precise enough question to reduce
