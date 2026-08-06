@@ -104,6 +104,71 @@ nothing loads, and when the TypeScript stack and the Rust host would resolve dif
 implementation, not routed around: whatever replaces it must be proven to fire by deliberately
 staling an artifact, not by inspection.
 
+**The third clause — "when the TypeScript stack and the Rust host would resolve different homes" —
+was undelivered when this spec was written, and is delivered as of
+`docs/superpowers/plans/2026-08-06-the-node-answers-for-itself.md`.**
+
+The measurement that opened it: `refarm context`, run as `cd ~/git/rcdc5 && refarm context`,
+printed a `base:` line reading `/home/s095407044/git/rcdc5 (from cwd)` directly above the `node:
+sede […]` line — positioned and phrased as though it answered for the running node. `readlink
+/proc/<pid>/cwd` on that daemon read `/home/s095407044/github/refarm`. The command built to say
+which sovereign state is active was reporting the CLI's own resolved base as the node's. At that
+time the daemon declared no `SOVEREIGN_BASE` at all (confirmed by reading its own
+`/proc/<pid>/environ`, which carried `REFARM_HOME` and `SOVEREIGN_DIR` and nothing else), so it had
+fallen back to `declaredBase()`'s own cwd fallback (`packages/config/src/index.js:151-154`) — the
+TypeScript stack and the Rust host were each resolving a home no one had declared, and `refarm
+context` reported one of the two as if it settled the question.
+
+Delivered as:
+
+- **The witness.** `apps/refarm/src/utils/node-environment.ts` (`resolveNodeEnvironment`, commit
+  `3ed54a44`) reads the running node's own `/proc/<pid>/environ` and `/proc/<pid>/cwd` instead of
+  reconstructing a value from the CLI process's `process.env`. A field is `null` when the node
+  declares that variable nowhere — the node fell back rather than being told, itself a finding —
+  and the function itself returns `null` only when the process could not be read at all; the two
+  never collapse into each other.
+- **`refarm context` answers for the node.** `apps/refarm/src/commands/context.ts` (commit
+  `5f777ef7`) reports `base`/`namespace` from `nodeEnvironment`, not from the CLI invocation's own
+  `declaredBase()`; the CLI's own values stay in the report as a second, clearly labelled fact
+  (`cliBase`/`cliBaseOrigin`/`cliNamespace`). Three `DivergenceKind`s were added: `base-divergence`,
+  `namespace-divergence`, and `node-environment-unknown` for a running node whose environ could not
+  be read — a gap in the checking, never silently read as agreement or as a divergence.
+- **`refarm doctor` sees it.** `apps/refarm/src/commands/sovereign-divergence-doctor.ts` (commit
+  `93f3c5e9`) surfaces `sovereign:base-divergence`, `sovereign:namespace-divergence`, and
+  `sovereign:environment-unknown`. A fourth finding, `sovereign:stale-descriptor`, closes a
+  cross-signal gap the 2026-08-06 plan named separately (a stale `node.json` descriptor beside a
+  **reachable** runtime sidecar) that neither `node-not-running` nor `runtime:not-ready` reported on
+  its own — not one of the three D2 clauses above, but folded into the same commit because it is
+  the same subject (divergence reported, never resolved silently).
+
+**Live, now: the divergence fires from both directions, not only the one this plan predicted.**
+`scripts/tractor-start.sh` (commit `a37419e0`, 2026-08-06) now derives the daemon's
+`SOVEREIGN_BASE` from `REFARM_HOME`, so the running node declares
+`SOVEREIGN_BASE=/home/s095407044` — the parent directory of both `~/github/refarm` and
+`~/git/rcdc5`. The operator's shell declares no `SOVEREIGN_BASE`, so the CLI's base is wherever it
+is invoked from. `base-divergence` therefore fires running `refarm context` from **either**
+checkout, not only from `~/git/rcdc5` as originally predicted — the two agree only if the operator
+stands in `$HOME` itself. That is a correct report of a real, current disagreement, not a defect in
+the comparison.
+
+What remains open:
+
+- **The platform limit.** The comparison reads the daemon's `/proc/<pid>/environ` and
+  `/proc/<pid>/cwd` — a Linux `/proc` fact. On a platform without `/proc`, the witness is
+  unavailable and `resolveNodeEnvironment` cannot read the process; the answer is
+  `node-environment-unknown`, not a wrong comparison, but the check itself does not run there. This
+  design does not claim portability beyond that.
+- **`declaredBase()`'s own fallback is still positional, and this plan leaves it that way on
+  purpose.** `declaredBase()` (`packages/config/src/index.js:151-154`) falls back to
+  `process.cwd()` when `SOVEREIGN_BASE` is unexported — the same fallback the daemon used to take,
+  and the CLI still does. Commit `a37419e0`'s own message records the choice as open ("exporting
+  the variable, or changing `declaredBase`'s fallback from positional to stable — is the operator's
+  decision, not a side effect of this fix"); the operator has since decided the direction — change
+  the CLI's fallback to a stable value (e.g. `$HOME`) rather than a positional one, on the grounds
+  that the 2026-08-03 field failure this line of work traces to was about inferring scope from
+  *where a process stands*, and `$HOME` is not positional in that sense. That change is **not**
+  built by this plan; it is recorded here so it is not re-litigated as new information later.
+
 ### D3. The isolated launcher
 
 `pnpm refarm:isolated` declares `SOVEREIGN_BASE` and `SOVEREIGN_DIR` at `<repo>/.sandbox/refarm`,
