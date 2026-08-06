@@ -11,6 +11,7 @@ import type { PressureSnapshot, PressureWindow } from "@refarm.dev/pressure-cont
 import fs from "node:fs";
 import path from "node:path";
 import type { EffortOperations } from "../effort-operations.js";
+import { FileEffortRepository } from "./file-effort-repository.js";
 
 export type TaskExecutorFn = (
 	task: Task,
@@ -59,10 +60,7 @@ function parseEffortMaxAttempts(effort: Effort): number {
 }
 
 export class FileTransportAdapter implements EffortOperations {
-	private readonly tasksDir: string;
-	private readonly resultsDir: string;
-	private readonly logsDir: string;
-	private readonly controlDir: string;
+	private readonly repository: FileEffortRepository;
 
 	private readonly inFlightEfforts = new Set<string>();
 	private readonly cancelRequests = new Set<string>();
@@ -75,20 +73,13 @@ export class FileTransportAdapter implements EffortOperations {
 		private readonly executor: TaskExecutorFn,
 		private readonly options: FileTransportOptions = {},
 	) {
-		this.tasksDir = path.join(baseDir, "tasks");
-		this.resultsDir = path.join(baseDir, "task-results");
-		this.logsDir = path.join(baseDir, "task-logs");
-		this.controlDir = path.join(baseDir, "task-control");
-		fs.mkdirSync(this.tasksDir, { recursive: true });
-		fs.mkdirSync(this.resultsDir, { recursive: true });
-		fs.mkdirSync(this.logsDir, { recursive: true });
-		fs.mkdirSync(this.controlDir, { recursive: true });
+		this.repository = new FileEffortRepository(baseDir);
 	}
 
 	async submit(effort: Effort): Promise<string> {
-		fs.writeFileSync(this.effortPath(effort.id), JSON.stringify(effort, null, 2), "utf-8");
+		this.repository.writeEffort(effort);
 
-		const existing = this.readEffortResult(effort.id);
+		const existing = this.repository.readResult(effort.id);
 		if (!existing) {
 			const pendingResult: EffortResult = {
 				effortId: effort.id,
@@ -97,10 +88,10 @@ export class FileTransportAdapter implements EffortOperations {
 				submittedAt: effort.submittedAt,
 				lastUpdatedAt: nowIso(),
 			};
-			this.writeEffortResult(pendingResult);
+			this.repository.writeResult(pendingResult);
 		}
 
-		this.appendLog(effort.id, {
+		this.repository.appendLog(effort.id, {
 			effortId: effort.id,
 			timestamp: nowIso(),
 			level: "info",
@@ -116,40 +107,27 @@ export class FileTransportAdapter implements EffortOperations {
 	}
 
 	async query(effortId: string): Promise<EffortResult | null> {
-		return this.readEffortResult(effortId);
+		return this.repository.readResult(effortId);
 	}
 
 	async list(): Promise<EffortResult[]> {
-		const results: EffortResult[] = [];
-		for (const filename of fs.readdirSync(this.resultsDir)) {
-			if (!filename.endsWith(".json")) continue;
-			const effortId = filename.replace(/\.json$/, "");
-			const parsed = this.readEffortResult(effortId);
-			if (parsed) results.push(parsed);
-		}
-
-		results.sort((a, b) => {
-			const aStamp = a.completedAt ?? a.startedAt ?? a.submittedAt ?? "";
-			const bStamp = b.completedAt ?? b.startedAt ?? b.submittedAt ?? "";
-			return bStamp.localeCompare(aStamp);
-		});
-		return results;
+		return this.repository.listResults();
 	}
 
 	async logs(effortId: string): Promise<EffortLogEntry[] | null> {
-		return this.readEffortLogs(effortId);
+		return this.repository.readLogs(effortId);
 	}
 
 	async retry(effortId: string): Promise<boolean> {
-		if (!fs.existsSync(this.effortPath(effortId))) return false;
+		if (!this.repository.hasEffort(effortId)) return false;
 
-		const current = this.readEffortResult(effortId);
+		const current = this.repository.readResult(effortId);
 		if (!current) return false;
 		if (current.status === "in-progress") return false;
 		if (current.status === "pending") return true;
 
 		this.cancelRequests.delete(effortId);
-		this.appendLog(effortId, {
+		this.repository.appendLog(effortId, {
 			effortId,
 			timestamp: nowIso(),
 			level: "info",
@@ -162,13 +140,13 @@ export class FileTransportAdapter implements EffortOperations {
 	}
 
 	async cancel(effortId: string): Promise<boolean> {
-		if (!fs.existsSync(this.effortPath(effortId))) return false;
+		if (!this.repository.hasEffort(effortId)) return false;
 
-		const current = this.readEffortResult(effortId);
+		const current = this.repository.readResult(effortId);
 		if (current && TERMINAL_STATUSES.has(current.status)) return false;
 
 		this.cancelRequests.add(effortId);
-		this.appendLog(effortId, {
+		this.repository.appendLog(effortId, {
 			effortId,
 			timestamp: nowIso(),
 			level: "warn",
@@ -187,7 +165,7 @@ export class FileTransportAdapter implements EffortOperations {
 				lastUpdatedAt: nowIso(),
 				completedAt: nowIso(),
 			};
-			this.writeEffortResult(cancelled);
+			this.repository.writeResult(cancelled);
 		}
 
 		return true;
@@ -334,7 +312,7 @@ export class FileTransportAdapter implements EffortOperations {
 
 		const processControlFile = (filename: string): void => {
 			if (!filename.endsWith(".json")) return;
-			const filePath = path.join(this.controlDir, filename);
+			const filePath = path.join(this.repository.controlDir, filename);
 			if (!fs.existsSync(filePath)) return;
 
 			const retryMatch = filename.match(/^(.+)\.retry\.json$/);
@@ -357,30 +335,30 @@ export class FileTransportAdapter implements EffortOperations {
 			}
 		};
 
-		for (const filename of fs.readdirSync(this.tasksDir)) {
+		for (const filename of fs.readdirSync(this.repository.tasksDir)) {
 			processTaskFile(filename);
 		}
 
-		for (const filename of fs.readdirSync(this.resultsDir)) {
+		for (const filename of fs.readdirSync(this.repository.resultsDir)) {
 			if (!filename.endsWith(".json")) continue;
 			const effortId = filename.replace(/\.json$/, "");
-			const result = this.readEffortResult(effortId);
+			const result = this.repository.readResult(effortId);
 			if (!result) continue;
 			if (result.status === "pending" || result.status === "in-progress") {
 				this.enqueue(effortId);
 			}
 		}
 
-		for (const filename of fs.readdirSync(this.controlDir)) {
+		for (const filename of fs.readdirSync(this.repository.controlDir)) {
 			processControlFile(filename);
 		}
 
-		const tasksWatcher = fs.watch(this.tasksDir, (event, filename) => {
+		const tasksWatcher = fs.watch(this.repository.tasksDir, (event, filename) => {
 			if (!filename || (event !== "rename" && event !== "change")) return;
 			processTaskFile(filename.toString());
 		});
 
-		const controlWatcher = fs.watch(this.controlDir, (event, filename) => {
+		const controlWatcher = fs.watch(this.repository.controlDir, (event, filename) => {
 			if (!filename || (event !== "rename" && event !== "change")) return;
 			processControlFile(filename.toString());
 		});
@@ -389,18 +367,6 @@ export class FileTransportAdapter implements EffortOperations {
 			tasksWatcher.close();
 			controlWatcher.close();
 		};
-	}
-
-	private effortPath(effortId: string): string {
-		return path.join(this.tasksDir, `${effortId}.json`);
-	}
-
-	private resultPath(effortId: string): string {
-		return path.join(this.resultsDir, `${effortId}.json`);
-	}
-
-	private logsPath(effortId: string): string {
-		return path.join(this.logsDir, `${effortId}.ndjson`);
 	}
 
 	private enqueue(effortId: string, options: { force?: boolean } = {}): void {
@@ -429,7 +395,7 @@ export class FileTransportAdapter implements EffortOperations {
 				const options = this.queueOptions.get(effortId) ?? { force: false };
 				this.queueOptions.delete(effortId);
 
-				const effort = this.readEffortDefinition(effortId);
+				const effort = this.repository.readEffort(effortId);
 				if (!effort) continue;
 
 				await this.processEffort(effort, { force: options.force });
@@ -442,7 +408,7 @@ export class FileTransportAdapter implements EffortOperations {
 	private async processEffort(effort: Effort, options: { force: boolean }): Promise<void> {
 		if (this.inFlightEfforts.has(effort.id)) return;
 
-		const current = this.readEffortResult(effort.id);
+		const current = this.repository.readResult(effort.id);
 		if (current && !options.force && TERMINAL_STATUSES.has(current.status)) {
 			return;
 		}
@@ -458,7 +424,7 @@ export class FileTransportAdapter implements EffortOperations {
 		this.inFlightEfforts.add(effort.id);
 		const pluginIds = effort.tasks.map((t) => t.pluginId);
 		this.options.onEffortStart?.(effort.id, pluginIds);
-		this.writeEffortResult({
+		this.repository.writeResult({
 			effortId: effort.id,
 			status: cancelled ? "cancelled" : "in-progress",
 			results: options.force ? [] : baseResults,
@@ -469,7 +435,7 @@ export class FileTransportAdapter implements EffortOperations {
 			completedAt: cancelled ? startTime : undefined,
 		});
 
-		this.appendLog(effort.id, {
+		this.repository.appendLog(effort.id, {
 			effortId: effort.id,
 			timestamp: startTime,
 			level: "info",
@@ -505,7 +471,7 @@ export class FileTransportAdapter implements EffortOperations {
 
 				for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
 					attemptCount += 1;
-					this.appendLog(effort.id, {
+					this.repository.appendLog(effort.id, {
 						effortId: effort.id,
 						timestamp: nowIso(),
 						level: "info",
@@ -527,7 +493,7 @@ export class FileTransportAdapter implements EffortOperations {
 								startedAt: taskStart,
 								completedAt: nowIso(),
 							};
-							this.appendLog(effort.id, {
+							this.repository.appendLog(effort.id, {
 								effortId: effort.id,
 								timestamp: nowIso(),
 								level: "info",
@@ -550,7 +516,7 @@ export class FileTransportAdapter implements EffortOperations {
 							startedAt: taskStart,
 							completedAt: nowIso(),
 						};
-						this.appendLog(effort.id, {
+						this.repository.appendLog(effort.id, {
 							effortId: effort.id,
 							timestamp: nowIso(),
 							level: "warn",
@@ -571,7 +537,7 @@ export class FileTransportAdapter implements EffortOperations {
 							startedAt: taskStart,
 							completedAt: nowIso(),
 						};
-						this.appendLog(effort.id, {
+						this.repository.appendLog(effort.id, {
 							effortId: effort.id,
 							timestamp: nowIso(),
 							level: "error",
@@ -649,8 +615,8 @@ export class FileTransportAdapter implements EffortOperations {
 				lastUpdatedAt: completedAt,
 				completedAt,
 			};
-			this.writeEffortResult(finalResult);
-			this.appendLog(effort.id, {
+			this.repository.writeResult(finalResult);
+			this.repository.appendLog(effort.id, {
 				effortId: effort.id,
 				timestamp: completedAt,
 				level: status === "done" ? "info" : status === "failed" ? "error" : "warn",
@@ -664,59 +630,10 @@ export class FileTransportAdapter implements EffortOperations {
 		} finally {
 			this.inFlightEfforts.delete(effort.id);
 			this.options.onEffortEnd?.(effort.id);
-			if (TERMINAL_STATUSES.has(this.readEffortResult(effort.id)?.status ?? "pending")) {
+			if (TERMINAL_STATUSES.has(this.repository.readResult(effort.id)?.status ?? "pending")) {
 				this.cancelRequests.delete(effort.id);
 			}
 		}
 	}
 
-	private readEffortDefinition(effortId: string): Effort | null {
-		const effortPath = this.effortPath(effortId);
-		if (!fs.existsSync(effortPath)) return null;
-		try {
-			const parsed = JSON.parse(fs.readFileSync(effortPath, "utf-8")) as Effort;
-			if (!parsed.id || !Array.isArray(parsed.tasks)) return null;
-			return parsed;
-		} catch {
-			return null;
-		}
-	}
-
-	private readEffortResult(effortId: string): EffortResult | null {
-		const resultPath = this.resultPath(effortId);
-		if (!fs.existsSync(resultPath)) return null;
-		try {
-			return JSON.parse(fs.readFileSync(resultPath, "utf-8")) as EffortResult;
-		} catch {
-			return null;
-		}
-	}
-
-	private writeEffortResult(result: EffortResult): void {
-		fs.writeFileSync(this.resultPath(result.effortId), JSON.stringify(result, null, 2), "utf-8");
-	}
-
-	private readEffortLogs(effortId: string): EffortLogEntry[] | null {
-		const logPath = this.logsPath(effortId);
-		if (!fs.existsSync(logPath)) return null;
-		const lines = fs
-			.readFileSync(logPath, "utf-8")
-			.split("\n")
-			.map((line) => line.trim())
-			.filter(Boolean);
-		const entries: EffortLogEntry[] = [];
-		for (const line of lines) {
-			try {
-				entries.push(JSON.parse(line) as EffortLogEntry);
-			} catch {
-				// ignore malformed entries
-			}
-		}
-		return entries;
-	}
-
-	private appendLog(effortId: string, entry: EffortLogEntry): void {
-		const line = `${JSON.stringify(entry)}\n`;
-		fs.appendFileSync(this.logsPath(effortId), line, "utf-8");
-	}
 }
