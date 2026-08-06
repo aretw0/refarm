@@ -156,8 +156,17 @@ export function buildRefarmDoctorReport(
 	// resolves is the same KIND of truth as the recommendations above: something nothing
 	// else in `doctor` states, folded into the same buckets. Never a restart, never a write
 	// — see `sovereign-divergence-doctor.ts`'s own header.
+	//
+	// `status.runtime.ready` is threaded straight through as the second, non-`Divergence`
+	// signal `sovereign-divergence-doctor.ts` needs to report a stale descriptor beside a
+	// reachable sidecar (its header explains why that combination is not the ordinary
+	// `runtime:not-ready` case). `status` is already this function's own parameter — read
+	// from the SAME probe `classifyStatusDiagnostics` used above, not a second HTTP call —
+	// so `check.ts`'s `runDefaultDoctor` gets this for free through its existing
+	// `buildRefarmDoctorReport(statusPayload.json, …)` call, with no wiring of its own.
 	const sovereignDivergenceRecommendations = buildSovereignDivergenceDoctorRecommendations(
 		options.sovereignDivergences ?? [],
+		status.runtime.ready === true,
 	);
 	const warnings = [
 		...statusWarnings,

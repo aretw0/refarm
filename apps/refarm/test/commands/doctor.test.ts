@@ -544,7 +544,16 @@ describe("doctorCommand", () => {
 
 			const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
 			expect(output.ok).toBe(true);
-			expect(output.warnings).toEqual([]);
+			// Scoped to "connection:" — not a strict `[]` — because `sovereignDivergences` is
+			// resolved from the REAL, unmockable filesystem/process state here (no `deps`
+			// override exists for it, unlike `loadConfig`/`readNodeDescriptor`), so whatever this
+			// host's own sovereign state genuinely is (e.g. `sovereign:stale-descriptor` when the
+			// workspace-scoped `.refarm` this test resolves against has no live node while the
+			// mocked `status` above claims the runtime is ready) is real signal, not a false
+			// positive this test's job is to suppress. What THIS test verifies is narrower: a
+			// throwing `loadConfig` produces no `connection:*` finding, and does not fail the
+			// whole report.
+			expect(output.warnings.filter((w: string) => w.startsWith("connection:"))).toEqual([]);
 		} finally {
 			logSpy.mockRestore();
 		}

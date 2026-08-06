@@ -38,18 +38,46 @@
 // them.
 //
 // A node simply not running (`node-not-running`) is read here from the same list but is
-// not turned into a `refarm doctor` recommendation. `runtime:not-ready`
+// NOT, on its own, turned into a `refarm doctor` recommendation. `runtime:not-ready`
 // (`STATUS_DIAGNOSTICS.runtimeNotReady`, wired in `doctor.ts` from the status contract)
 // already answers "is the runtime up and ready" for the operator-facing question that
 // matters — reporting `node-not-running` too would be a second name for the same "the node
-// is not up" fact in the case both actually co-occur, the exact double-naming this plan
+// is not up" fact in the ORDINARY case both co-occur, the exact double-naming this plan
 // exists to end for `context:home-divergence`, just on a different pair of findings.
-// (Checked, not assumed: the two signals are technically independent — `runtime:not-ready`
-// is a sidecar HTTP probe, `node-not-running` here is a `node.json`/pid read — so a node
-// with a stale/absent descriptor but a reachable sidecar, or vice versa, is a real gap this
-// silence does not cover. `node-name-doctor.ts` and `runtime-freshness-doctor.ts` already
-// make the identical silence call for a `null` descriptor, for the same reason, so this
-// follows established precedent rather than inventing a new one.)
+//
+// BUT the two signals are genuinely independent — `runtime:not-ready` is a sidecar HTTP
+// probe, `node-not-running` here is a `node.json`/pid read — and they can DISAGREE: a
+// descriptor that says nothing is running, beside a sidecar that answered this very doctor
+// run's status probe as ready. Neither signal alone reports that: `runtime:not-ready`
+// never fires (the probe succeeded), and `node-not-running` alone was just ruled silent
+// above. `sidecarReachable` below is that second signal, threaded in from `doctor.ts`'s
+// own `status: StatusJson` (`status.runtime.ready`) — the SAME probe result
+// `classifyStatusDiagnostics` already reads to decide `runtime:not-ready`, not a second
+// HTTP call — and the one case where both are true gets its own finding
+// (`sovereign:stale-descriptor`) below the loop. `node-name-doctor.ts` and
+// `runtime-freshness-doctor.ts` still make the identical silence call for a bare `null`
+// descriptor with no second signal to correlate against, so this does not abandon that
+// precedent — it extends it for the one case a second, independent witness exists.
+//
+// THE BASE/NAMESPACE DIVERGENCE IS LIVE ON THIS MACHINE, right now: the tractor daemon
+// (started by `scripts/tractor-start.sh`, which derives `SOVEREIGN_BASE` from
+// `REFARM_HOME`) declares `SOVEREIGN_BASE=/home/s095407044`, while a shell with no
+// `SOVEREIGN_BASE` set falls back this CLI's own cwd — so `base-divergence` fires for a
+// real, present reason, not a hypothetical. `sovereign:base-divergence` and
+// `sovereign:namespace-divergence` below reuse `Divergence.summary` verbatim: `context.ts`
+// already phrases it as "the node declares X, but this CLI resolves Y" — naming the node's
+// side explicitly rather than leaving the operator to guess which value is whose — and this
+// module only adds the `action`, which states that closing the gap (aligning this CLI's env
+// to the node's, or leaving them apart because standing outside the node's directory was
+// the point) is the operator's call, never performed here.
+//
+// `node-environment-unknown` is a GAP IN THE CHECKING, not a finding about the node — the
+// same distinction `runtime-freshness-doctor.ts` draws for its own `unknown` state ("This is
+// a gap in the checking, not a finding about the node — it may be current or it may be hours
+// behind, and this cannot tell you which."). `context.ts`'s own summary for this case already
+// carries that same "gap in the checking, not agreement" phrasing, so `sovereign:environment-
+// unknown` below reuses it rather than inventing new wording that would read as an accusation
+// nothing here actually established.
 //
 // NEVER RESTARTS, NEVER WRITES. Same posture as `context.ts` itself and as
 // `runtime-freshness-doctor.ts` before it: this states the fact and names the command an
@@ -69,11 +97,23 @@ import type { RefarmDoctorRecommendation } from "./doctor.js";
  * already resolves. PURE — every divergence here was already computed by
  * `buildContextReport` (`./context.ts`); this only decides which ones become a doctor
  * recommendation and how each is phrased.
+ *
+ * `sidecarReachable` is the one input here that is not itself a `Divergence` —
+ * `status.runtime.ready` from the SAME `refarm doctor` run's status probe (see
+ * `doctor.ts`'s call site), passed in rather than re-probed, so this stays pure over an
+ * already-resolved input exactly like every other doctor finding builder in this codebase.
+ * Defaults to `false` — never claim a reachability that was not established — so every call
+ * site written before this parameter existed keeps its prior behaviour unchanged.
  */
 export function buildSovereignDivergenceDoctorRecommendations(
 	divergences: Divergence[],
+	sidecarReachable = false,
 ): RefarmDoctorRecommendation[] {
 	const recommendations: RefarmDoctorRecommendation[] = [];
+	// Set inside the `node-not-running` case below; read after the loop to correlate against
+	// `sidecarReachable` — see this module's header for why that correlation, not
+	// `node-not-running` alone, is what earns a finding.
+	let nodeNotRunning = false;
 
 	for (const divergence of divergences) {
 		switch (divergence.kind) {
@@ -103,8 +143,13 @@ export function buildSovereignDivergenceDoctorRecommendations(
 				break;
 
 			// A node not running is a normal state with nothing to compare, not a divergence to
-			// warn about — doctor's other checks already speak to whether a node should be up.
+			// warn about ON ITS OWN — doctor's other checks (`runtime:not-ready`) already speak
+			// to whether a node should be up. Recorded here and correlated with
+			// `sidecarReachable` AFTER the loop (see below) for the one combination neither
+			// signal alone reports — this module's header explains why that is not the same as
+			// `runtime:not-ready`'s ordinary case.
 			case "node-not-running":
+				nodeNotRunning = true;
 				break;
 
 			// D2 ("which sovereign state is active" design doc) names this exact fact pattern —
@@ -130,17 +175,51 @@ export function buildSovereignDivergenceDoctorRecommendations(
 			case CONTEXT_HOME_DIVERGENCE_DIAGNOSTIC:
 				break;
 
-			// `refarm context` (`./context.ts`, 2026-08-06 "the node answers for itself") can now
-			// find the running node's own declared base/namespace disagreeing with this CLI's, or
-			// find the node up but its environ unreadable. Deliberately silent here for now —
-			// the MINIMUM needed to keep this switch exhaustive (see `assertNeverDivergenceKind`
-			// below) without pre-empting how `refarm doctor` should phrase these. That decision —
-			// diagnostic name, severity, whether `node-environment-unknown` reads like
-			// `*-plugin-unknown`'s "gap in the checking" — belongs to whichever task next wires
-			// `refarm doctor` to this comparison, not to this task.
+			// `refarm context` (`./context.ts`, 2026-08-06 "the node answers for itself") finds
+			// the running node's own declared base/namespace disagreeing with this CLI's — see
+			// this module's header for why the summary is reused verbatim and the `action`
+			// never picks a side.
 			case "base-divergence":
+				recommendations.push({
+					diagnostic: "sovereign:base-divergence",
+					severity: "warning",
+					summary: divergence.summary,
+					action:
+						"Run `refarm context --json` to see the node's declared base and this CLI's " +
+						"side by side, then decide, as the operator, whether to set this CLI's " +
+						"SOVEREIGN_BASE to match the node's or leave them apart — standing outside " +
+						"the node's own directory while pointing at it can be intentional, and " +
+						"nothing here changes either value.",
+				});
+				break;
+
 			case "namespace-divergence":
+				recommendations.push({
+					diagnostic: "sovereign:namespace-divergence",
+					severity: "warning",
+					summary: divergence.summary,
+					action:
+						"Run `refarm context --json` to see the node's declared namespace and this " +
+						"CLI's side by side, then decide, as the operator, whether to set this CLI's " +
+						"REFARM_NAMESPACE to match the node's or leave them apart — this may be " +
+						"intentional, and nothing here changes either value.",
+				});
+				break;
+
+			// A running node whose environ could not be read — a GAP in the checking, not a
+			// claim the node and CLI disagree. See this module's header for why the summary
+			// (already phrased by `context.ts` as "a gap in the checking, not agreement") is
+			// reused rather than rewritten.
 			case "node-environment-unknown":
+				recommendations.push({
+					diagnostic: "sovereign:environment-unknown",
+					severity: "warning",
+					summary: divergence.summary,
+					action:
+						"Run `refarm context --json` for the detail behind this gap. Treat the node's " +
+						"base and namespace as unverified rather than matching until its environment " +
+						"can actually be read.",
+				});
 				break;
 
 			default:
@@ -153,6 +232,30 @@ export function buildSovereignDivergenceDoctorRecommendations(
 				// new kind without a case here is a build failure, not a silent gap.
 				assertNeverDivergenceKind(divergence.kind);
 		}
+	}
+
+	// The fourth follow-up this plan named (see this module's header): `node-not-running`
+	// and `runtime:not-ready` agree in the ordinary case, which is why `node-not-running`
+	// alone stayed silent above. The one case that ordinary silence does NOT cover is this
+	// correlation — a descriptor saying nothing is running, beside a sidecar that answered
+	// THIS SAME doctor run's status probe as ready. Checked here, once, after the loop,
+	// rather than inside the `node-not-running` case, because it depends on a second signal
+	// the loop over `divergences` alone does not carry.
+	if (nodeNotRunning && sidecarReachable) {
+		recommendations.push({
+			diagnostic: "sovereign:stale-descriptor",
+			severity: "warning",
+			summary:
+				"The node descriptor (node.json / pid) says no node is running, but the runtime " +
+				"sidecar answered this doctor run's status probe as ready — the two signals " +
+				"disagree. Either a node exited without cleaning up its own descriptor, or a " +
+				"different process is now answering at the same runtime endpoint.",
+			action:
+				"Run `refarm context --json` to see the descriptor and the runtime endpoint " +
+				"together, then decide, as the operator, whether to restart the node cleanly or " +
+				"investigate what is actually answering there. Nothing here restarts anything or " +
+				"removes the descriptor for you.",
+		});
 	}
 
 	return recommendations;

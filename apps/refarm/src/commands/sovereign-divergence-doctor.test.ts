@@ -114,4 +114,99 @@ describe("buildSovereignDivergenceDoctorRecommendations", () => {
 			"sovereign:unloaded-dir",
 		]);
 	});
+
+	it("reports a base divergence and names the node's side", () => {
+		const out = buildSovereignDivergenceDoctorRecommendations([
+			{
+				kind: "base-divergence",
+				summary:
+					"The node declares SOVEREIGN_BASE=/home/s095407044, but this CLI resolves base to " +
+					"/home/s095407044/git/rcdc5 (from cwd) — they disagree.",
+			},
+		]);
+		expect(out).toHaveLength(1);
+		expect(out[0]?.diagnostic).toBe("sovereign:base-divergence");
+		expect(out[0]?.severity).toBe("warning");
+		expect(out[0]?.summary).toContain("SOVEREIGN_BASE=/home/s095407044");
+		expect(out[0]?.summary).toContain("The node declares");
+	});
+
+	it("never proposes changing either base value on the operator's behalf", () => {
+		const out = buildSovereignDivergenceDoctorRecommendations([
+			{ kind: "base-divergence", summary: "The node declares X, but this CLI resolves Y." },
+		]);
+		expect(out[0]?.action).toMatch(/operator|decide/i);
+		expect(out[0]?.action).not.toMatch(/^(set|export|change)/i);
+	});
+
+	it("reports a namespace divergence and names the node's side", () => {
+		const out = buildSovereignDivergenceDoctorRecommendations([
+			{
+				kind: "namespace-divergence",
+				summary:
+					"The node declares REFARM_NAMESPACE=prod, but this CLI resolves namespace to default — they disagree.",
+			},
+		]);
+		expect(out).toHaveLength(1);
+		expect(out[0]?.diagnostic).toBe("sovereign:namespace-divergence");
+		expect(out[0]?.severity).toBe("warning");
+		expect(out[0]?.summary).toContain("REFARM_NAMESPACE=prod");
+	});
+
+	it("reports node-environment-unknown as a gap in the checking, never as a divergence", () => {
+		const out = buildSovereignDivergenceDoctorRecommendations([
+			{
+				kind: "node-environment-unknown",
+				summary:
+					"The running node (pid 123) is up, but its own environment (/proc/123/environ) " +
+					"could not be read — its declared base and namespace cannot be compared to this " +
+					"CLI's at all. This is a gap in the checking, not agreement.",
+			},
+		]);
+		expect(out).toHaveLength(1);
+		expect(out[0]?.diagnostic).toBe("sovereign:environment-unknown");
+		expect(out[0]?.diagnostic).not.toMatch(/divergence/);
+		expect(out[0]?.summary).toMatch(/gap in the checking/);
+		expect(out[0]?.summary).not.toMatch(/mismatch|diverge/i);
+	});
+
+	it("stays silent on node-not-running even when the sidecar is reachable is unspecified (default false)", () => {
+		const out = buildSovereignDivergenceDoctorRecommendations([
+			{ kind: "node-not-running", summary: "No running node was found." },
+		]);
+		expect(out).toEqual([]);
+	});
+
+	it("stays silent on node-not-running when the sidecar is explicitly not reachable — the common case runtime:not-ready already names", () => {
+		const out = buildSovereignDivergenceDoctorRecommendations(
+			[{ kind: "node-not-running", summary: "No running node was found." }],
+			false,
+		);
+		expect(out).toEqual([]);
+	});
+
+	it("reports the stale-descriptor/reachable-sidecar combination that neither signal alone covers", () => {
+		const out = buildSovereignDivergenceDoctorRecommendations(
+			[{ kind: "node-not-running", summary: "No running node was found." }],
+			true,
+		);
+		expect(out).toHaveLength(1);
+		expect(out[0]?.diagnostic).toBe("sovereign:stale-descriptor");
+		expect(out[0]?.severity).toBe("warning");
+		expect(out[0]?.summary).toMatch(/disagree/i);
+	});
+
+	it("never proposes restarting or deleting the descriptor on the operator's behalf for the stale-descriptor finding", () => {
+		const out = buildSovereignDivergenceDoctorRecommendations(
+			[{ kind: "node-not-running", summary: "No running node was found." }],
+			true,
+		);
+		expect(out[0]?.action).toMatch(/operator|decide/i);
+		expect(out[0]?.action).not.toMatch(/^(restart|delete|remove|rm )/i);
+	});
+
+	it("does not report the stale-descriptor combination when nothing diverged (sidecar reachable but node genuinely running)", () => {
+		const out = buildSovereignDivergenceDoctorRecommendations([], true);
+		expect(out).toEqual([]);
+	});
 });
