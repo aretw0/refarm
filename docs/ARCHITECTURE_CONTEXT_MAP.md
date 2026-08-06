@@ -35,6 +35,37 @@ Read relationships from upstream supplier to downstream consumer. `established-b
 | `sovereign-context` | `work-control` | context-supplier | `packages/workspace-access-contract-v1` |
 | `work-control` | `agency-models` | work-supplier | `packages/effort-contract-v1`<br>`packages/task-contract-v1` |
 
+## Dependency pressure (observational)
+
+This compares manifest-level dependencies among authority anchors with the strategic relationships above. It includes development and peer dependencies, so an undeclared pair is a question to investigate, not an architecture violation.
+
+Observed 33 cross-context edges across 22 pairs; 20 edges across 15 pairs are not yet explained by a declared relationship.
+
+| Supplier context | Consumer context | Manifest edges | Declared relationship |
+|---|---|---:|---|
+| `agency-models` | `data-substrate` | 1 | no — investigate |
+| `agency-models` | `execution-kernel` | 1 | no — investigate |
+| `agency-models` | `identity-trust` | 1 | no — investigate |
+| `agency-models` | `platform-operations` | 1 | no — investigate |
+| `agency-models` | `sovereign-context` | 1 | no — investigate |
+| `data-substrate` | `execution-kernel` | 3 | yes |
+| `data-substrate` | `identity-trust` | 1 | no — investigate |
+| `data-substrate` | `records-knowledge` | 2 | yes |
+| `execution-kernel` | `agency-models` | 3 | yes |
+| `execution-kernel` | `platform-operations` | 1 | no — investigate |
+| `identity-trust` | `execution-kernel` | 1 | yes |
+| `interaction-delivery` | `execution-kernel` | 1 | no — investigate |
+| `platform-operations` | `execution-kernel` | 1 | yes |
+| `platform-operations` | `interaction-delivery` | 1 | no — investigate |
+| `records-knowledge` | `execution-kernel` | 5 | no — investigate |
+| `sovereign-context` | `execution-kernel` | 2 | no — investigate |
+| `sovereign-context` | `interaction-delivery` | 1 | no — investigate |
+| `sovereign-context` | `platform-operations` | 2 | yes |
+| `sovereign-context` | `records-knowledge` | 1 | no — investigate |
+| `sovereign-context` | `work-control` | 1 | yes |
+| `work-control` | `data-substrate` | 1 | no — investigate |
+| `work-control` | `execution-kernel` | 1 | no — investigate |
+
 ## Reading rules
 
 - An anchor has one strategic owner in this map. Other packages may depend on it without acquiring its authority.

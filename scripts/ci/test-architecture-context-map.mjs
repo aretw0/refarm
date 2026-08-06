@@ -1,8 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderArchitectureContextMapMarkdown, validateArchitectureContextMap } from "./lib/architecture-context-map.mjs";
+import {
+	analyzeContextDependencyPressure,
+	renderArchitectureContextMapMarkdown,
+	validateArchitectureContextMap,
+} from "./lib/architecture-context-map.mjs";
 
-const inventory = { workspaces: [{ path: "packages/a" }, { path: "packages/b" }, { path: "packages/seam" }] };
+const inventory = {
+	workspaces: [
+		{ name: "a", path: "packages/a", internalDependencies: [] },
+		{ name: "b", path: "packages/b", internalDependencies: ["a"] },
+		{ name: "seam", path: "packages/seam", internalDependencies: [] },
+	],
+};
 const validMap = {
 	schemaVersion: 1,
 	status: "provisional",
@@ -16,7 +26,15 @@ const validMap = {
 
 test("accepts explicit anchors and seams that exist in the inventory", () => {
 	assert.deepEqual(validateArchitectureContextMap(validMap, inventory), { ok: true, violations: [] });
-	assert.match(renderArchitectureContextMapMarkdown(validMap), /upstream supplier to downstream consumer/);
+	const pressure = analyzeContextDependencyPressure(validMap, inventory);
+	assert.deepEqual(pressure.summary, {
+		edges: 1,
+		declaredEdges: 1,
+		undeclaredEdges: 0,
+		pairs: 1,
+		undeclaredPairs: 0,
+	});
+	assert.match(renderArchitectureContextMapMarkdown(validMap, pressure), /Dependency pressure \(observational\)/);
 });
 
 test("rejects ambiguous ownership and unknown relationship seams", () => {
@@ -29,4 +47,13 @@ test("rejects ambiguous ownership and unknown relationship seams", () => {
 		"ambiguous-anchor-owner",
 		"unknown-relationship-seam",
 	]);
+});
+
+test("reports undeclared dependency pressure without turning it into a structural violation", () => {
+	const provisional = structuredClone(validMap);
+	provisional.relationships = [];
+	assert.deepEqual(validateArchitectureContextMap(provisional, inventory), { ok: true, violations: [] });
+	const pressure = analyzeContextDependencyPressure(provisional, inventory);
+	assert.equal(pressure.summary.undeclaredEdges, 1);
+	assert.equal(pressure.summary.undeclaredPairs, 1);
 });

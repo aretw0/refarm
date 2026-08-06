@@ -49,15 +49,69 @@ export function validateArchitectureContextMap(map, inventory) {
 	return { ok: violations.length === 0, violations };
 }
 
+export function analyzeContextDependencyPressure(map, inventory) {
+	const contextByPath = new Map();
+	for (const context of map.contexts) {
+		for (const path of context.anchors) contextByPath.set(path, context.id);
+	}
+	const workspaceByName = new Map(inventory.workspaces.map((workspace) => [workspace.name, workspace]));
+	const declared = new Set(map.relationships.map((relationship) => `${relationship.from}\0${relationship.to}`));
+	const edges = [];
+	for (const consumerWorkspace of inventory.workspaces) {
+		const consumer = contextByPath.get(consumerWorkspace.path);
+		if (!consumer) continue;
+		for (const dependencyName of consumerWorkspace.internalDependencies ?? []) {
+			const supplierWorkspace = workspaceByName.get(dependencyName);
+			const supplier = supplierWorkspace && contextByPath.get(supplierWorkspace.path);
+			if (!supplier || supplier === consumer) continue;
+			edges.push({
+				supplier,
+				consumer,
+				from: supplierWorkspace.path,
+				to: consumerWorkspace.path,
+				declared: declared.has(`${supplier}\0${consumer}`),
+			});
+		}
+	}
+	edges.sort((left, right) =>
+		`${left.supplier}\0${left.consumer}\0${left.from}\0${left.to}`
+			.localeCompare(`${right.supplier}\0${right.consumer}\0${right.from}\0${right.to}`));
+	const byPair = new Map();
+	for (const edge of edges) {
+		const key = `${edge.supplier}\0${edge.consumer}`;
+		const pair = byPair.get(key) ?? {
+			supplier: edge.supplier,
+			consumer: edge.consumer,
+			declared: edge.declared,
+			edges: 0,
+		};
+		pair.edges += 1;
+		byPair.set(key, pair);
+	}
+	const pairs = [...byPair.values()].sort((left, right) =>
+		`${left.supplier}\0${left.consumer}`.localeCompare(`${right.supplier}\0${right.consumer}`));
+	return {
+		summary: {
+			edges: edges.length,
+			declaredEdges: edges.filter((edge) => edge.declared).length,
+			undeclaredEdges: edges.filter((edge) => !edge.declared).length,
+			pairs: pairs.length,
+			undeclaredPairs: pairs.filter((pair) => !pair.declared).length,
+		},
+		pairs,
+		edges,
+	};
+}
+
 function codeList(paths) {
 	return paths.map((path) => `\`${path}\``).join("<br>");
 }
 
-export function renderArchitectureContextMapMarkdown(map) {
+export function renderArchitectureContextMapMarkdown(map, pressure = null) {
 	const contexts = [...map.contexts].sort((left, right) => left.id.localeCompare(right.id));
 	const relationships = [...map.relationships].sort((left, right) =>
 		`${left.from}\0${left.to}`.localeCompare(`${right.from}\0${right.to}`));
-	return [
+	const lines = [
 		"# Architecture Context Map",
 		"",
 		"> Provisional strategic map generated from `architecture-context-map.v1.json`.",
@@ -77,6 +131,22 @@ export function renderArchitectureContextMapMarkdown(map) {
 		"|---|---|---|---|",
 		...relationships.map((relationship) => `| \`${relationship.from}\` | \`${relationship.to}\` | ${relationship.kind} | ${codeList(relationship.seams)} |`),
 		"",
+	];
+	if (pressure) {
+		lines.push(
+			"## Dependency pressure (observational)",
+			"",
+			"This compares manifest-level dependencies among authority anchors with the strategic relationships above. It includes development and peer dependencies, so an undeclared pair is a question to investigate, not an architecture violation.",
+			"",
+			`Observed ${pressure.summary.edges} cross-context edges across ${pressure.summary.pairs} pairs; ${pressure.summary.undeclaredEdges} edges across ${pressure.summary.undeclaredPairs} pairs are not yet explained by a declared relationship.`,
+			"",
+			"| Supplier context | Consumer context | Manifest edges | Declared relationship |",
+			"|---|---|---:|---|",
+			...pressure.pairs.map((pair) => `| \`${pair.supplier}\` | \`${pair.consumer}\` | ${pair.edges} | ${pair.declared ? "yes" : "no — investigate"} |`),
+			"",
+		);
+	}
+	lines.push(
 		"## Reading rules",
 		"",
 		"- An anchor has one strategic owner in this map. Other packages may depend on it without acquiring its authority.",
@@ -84,5 +154,6 @@ export function renderArchitectureContextMapMarkdown(map) {
 		"- Unlisted packages are intentionally unclassified. Add them only when ownership or language ambiguity is causing real coordination cost.",
 		"- Update the JSON source and run `pnpm run architecture:context-map:write`; CI verifies anchors and seams against the repository inventory.",
 		"",
-	].join("\n");
+	);
+	return lines.join("\n");
 }
