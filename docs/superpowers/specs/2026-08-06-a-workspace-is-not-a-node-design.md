@@ -58,7 +58,7 @@ field, so neither could be stated without the other.
 
 | | Node catalog | Workspace self-declaration |
 | --- | --- | --- |
-| Lives in | `~/.refarm/config.json` (the sovereign dir) | `<workspace>/.refarm/` |
+| Lives in | `~/.refarm/config.json` (the sovereign dir) | `<workspace>/refarm.workspace.json` (repository root, tracked — corrected in Task 3's fix round 1; `.refarm/` is node state and is gitignored, so a declaration placed there could never arrive by `git pull`) |
 | Declares which workspaces exist and where | **yes — only here** | **never** |
 | May declare commands | yes | yes |
 | Nature | **authority** | **offer** |

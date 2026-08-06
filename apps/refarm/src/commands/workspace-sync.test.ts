@@ -153,7 +153,7 @@ function fixture(options?: { workspaceJson?: unknown }): string {
 	);
 	if (options?.workspaceJson !== undefined) {
 		fs.writeFileSync(
-			path.join(root, ".refarm", "workspace.json"),
+			path.join(root, "refarm.workspace.json"),
 			`${JSON.stringify(options.workspaceJson, null, 2)}\n`,
 		);
 	}
@@ -192,7 +192,7 @@ describe("runWorkspaceSync — the command", () => {
 
 	it("refuses invalid JSON in workspace.json rather than guessing", async () => {
 		const root = fixture();
-		fs.writeFileSync(path.join(root, ".refarm", "workspace.json"), "{ not json");
+		fs.writeFileSync(path.join(root, "refarm.workspace.json"), "{ not json");
 		await expect(
 			runWorkspaceSync({ workspace: "app", json: true }, { cwd: () => root, env: { SOVEREIGN_DIR: ".refarm" } }),
 		).rejects.toMatchObject({ code: "workspace-sync-offer-unreadable" });

@@ -127,9 +127,11 @@ describe("parseWorkspaceOffer — command shape validation", () => {
 });
 
 describe("workspaceOfferPath", () => {
-	it("is workspace.json inside the workspace's sovereign dir, never config.json", () => {
+	it("is refarm.workspace.json at the workspace's repository root, never config.json, never inside .refarm/", () => {
 		const p = workspaceOfferPath("/home/op/github/refarm");
+		expect(p).toBe("/home/op/github/refarm/refarm.workspace.json");
 		expect(p).toContain("workspace.json");
 		expect(p).not.toContain("config.json");
+		expect(p).not.toContain(".refarm");
 	});
 });

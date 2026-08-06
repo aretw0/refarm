@@ -4,7 +4,7 @@
 
 **Goal:** Give a workspace a grammar for describing itself that cannot describe a node, and make the node's catalog the single runtime source of truth.
 
-**Architecture:** A workspace declares an OFFER in `<workspace>/.refarm/workspace.json` — commands it provides, no catalog. `refarm workspace sync` brings an offer into the node's catalog, showing what changes, with the node's own declarations winning any collision. At runtime nothing merges: the catalog IS the answer, and the offer was a producer of it.
+**Architecture:** A workspace declares an OFFER in `<workspace>/refarm.workspace.json` (repository root, tracked — see Task 3 fix round below) — commands it provides, no catalog. `refarm workspace sync` brings an offer into the node's catalog, showing what changes, with the node's own declarations winning any collision. At runtime nothing merges: the catalog IS the answer, and the offer was a producer of it.
 
 **Tech Stack:** TypeScript (`apps/refarm`, `packages/config`, vitest). No Rust, no WASM rebuild.
 
@@ -12,9 +12,21 @@
 
 ## The open question, decided
 
-The spec deliberately left one thing open: where the workspace's declaration lives. **A distinct filename, `<workspace>/.refarm/workspace.json`** — not the existing `config.json`.
+The spec deliberately left one thing open: where the workspace's declaration lives. **A distinct filename, `refarm.workspace.json`** — not the existing `config.json`.
 
 Reusing `config.json` would leave the trap armed. The spec's whole thesis is that one name serving two roles is the defect; a workspace file called `config.json` reads as "this workspace's refarm configuration" and invites node-shaped content back into it. A distinct name makes the wrong thing hard to write by accident, and makes the migration greppable rather than invisible.
+
+> **Amended in Task 3's fix round 1:** the first implementation placed this file at
+> `<workspace>/.refarm/workspace.json`. That was wrong on a second axis the plan missed:
+> `.refarm/` is wholesale-gitignored ("Test byproducts and Local Identity"), so a file
+> placed there can never travel by `git pull` — which breaks R2's own premise ("an offer
+> is not live until accepted... because the declaration arrives by git pull"). `.refarm/`
+> is also where a NODE's own state lives, so putting a workspace's offer inside it
+> re-entangles what this plan separates. Corrected location: **`refarm.workspace.json` at
+> the workspace's repository root, tracked, not hidden** — visible the way `package.json`
+> is. `workspaceOfferPath` and its test, `catalog-authoring.ts`'s `--local` refusal
+> message, and `workspace-sync.test.ts`'s fixtures were all updated to match. See
+> `.superpowers/sdd/2026-08-06-a-workspace-is-not-a-node/task-3-report.md`.
 
 ## Why acceptance writes rather than merges
 
@@ -45,7 +57,7 @@ That is the decision-log principle already accepted in this repository: *every i
 | `apps/refarm/src/commands/workspace-sync.ts` | **New.** Read an offer, diff it against the catalog, write on acceptance. | 2 |
 | `apps/refarm/src/commands/workspace-sync.test.ts` | **New.** | 2 |
 | `apps/refarm/src/commands/workspace.ts` | Register `sync`; `--local` writes the new shape. | 2 |
-| `~/.refarm/config.json`, `<repo>/.refarm/config.json`, `<repo>/.refarm/workspace.json` | This machine's migration. | 3 |
+| `~/.refarm/config.json`, `<repo>/.refarm/config.json`, `<repo>/refarm.workspace.json` | This machine's migration. | 3 |
 | `docs/superpowers/specs/2026-08-06-a-workspace-is-not-a-node-design.md` | Record the filename decision. | 5 |
 
 ---
@@ -160,12 +172,12 @@ The collision case is the one that matters. Assert the plan keeps the node's def
 
 ### Task 3: Migrate this machine
 
-**Files:** `~/.refarm/config.json`, `<repo>/.refarm/config.json`, `<repo>/.refarm/workspace.json`
+**Files:** `~/.refarm/config.json`, `<repo>/.refarm/config.json`, `<repo>/refarm.workspace.json` (corrected from `<repo>/.refarm/workspace.json` in fix round 1 — see the amendment above)
 
 Back up every file before touching it, as `~/.refarm/config.json.bak-antes-da-base-declarada` already demonstrates the house does.
 
 1. `~/.refarm/config.json`: `refarm` keeps `path` (absolute), `kind`, `execution`. **Remove its five VPN commands** — they were copied there on 2026-08-06 and belong to the workspace.
-2. `<repo>/.refarm/workspace.json`: **new**, carrying those five commands as the refarm workspace's offer.
+2. `<repo>/refarm.workspace.json`: **new**, at the repository root, tracked, carrying those five commands as the refarm workspace's offer.
 3. `<repo>/.refarm/config.json`: **remove the `workspaces` map entirely.** If nothing else remains in the file, say so and leave the decision about deleting it to the report rather than removing a file that might carry other keys.
 4. **`rcdc5`: untouched.** Its `code-boundaries` command stays in the node catalog; nothing is written into that repository. Verify at the end that it still resolves.
 

@@ -380,9 +380,9 @@ export function catalogConfigPath(root: string, env: NodeJS.ProcessEnv = process
  * redirected: the meaning it used to carry does not exist in this model.
  *
  * What replaces it: a workspace states what it OFFERS in
- * `<workspace>/.refarm/workspace.json` (`commands`, `execution` —
- * `parseWorkspaceOffer`), and a node brings that offer into ITS OWN catalog
- * with `refarm workspace sync <id>`.
+ * `<workspace>/refarm.workspace.json`, at the repository root, tracked, not inside
+ * `.refarm/` (`commands`, `execution` — `parseWorkspaceOffer`), and a node brings that
+ * offer into ITS OWN catalog with `refarm workspace sync <id>`.
  */
 export function localWorkspaceDeclarationAbolishedMessage(command: string): string {
 	const syncCommand = refarmCommand(["workspace", "sync", "<id>"]);
@@ -390,8 +390,8 @@ export function localWorkspaceDeclarationAbolishedMessage(command: string): stri
 		`--local used to write this into the workspace's OWN .refarm/config.json, in the node ` +
 		`catalog's "workspaces" map shape. That shape is abolished: a workspace never declares ` +
 		`itself or another workspace, in any file — only a node does, in its own catalog. A ` +
-		`workspace instead states what it OFFERS in <workspace>/.refarm/workspace.json ` +
-		`("commands", "execution"), and a node brings that offer into ITS OWN catalog with ` +
-		`\`${syncCommand}\`. Run \`${command}\` from the node, without --local.`
+		`workspace instead states what it OFFERS in <workspace>/refarm.workspace.json, at the ` +
+		`repository root ("commands", "execution"), and a node brings that offer into ITS OWN ` +
+		`catalog with \`${syncCommand}\`. Run \`${command}\` from the node, without --local.`
 	);
 }

@@ -248,12 +248,26 @@ export function parseWorkspaceOffer(raw: unknown): ParsedOffer {
 }
 
 /**
- * The on-disk path for a workspace's own declaration: `workspace.json`, inside that
- * workspace's sovereign dir — never `config.json`. `config.json` is the node catalog's
- * file name; reusing it for a workspace's offer would let the node-shape and the
- * offer-shape collide on the same filename the way `.refarm/config.json` already
- * collided on disk before this file existed.
+ * The on-disk path for a workspace's own declaration: `refarm.workspace.json`, at the
+ * workspace's REPOSITORY ROOT — never `config.json`, and never inside `.refarm/`.
+ *
+ * Two separate reasons, not one:
+ *
+ * `config.json` is the node catalog's file name; reusing it for a workspace's offer
+ * would let the node-shape and the offer-shape collide on the same filename the way
+ * `.refarm/config.json` already collided on disk before this file existed.
+ *
+ * `.refarm/` is where a NODE's own state lives — identity, plugins, tls, sessions,
+ * cache. It is also, not incidentally, wholesale-gitignored (`.gitignore`: "Test
+ * byproducts and Local Identity") — a workspace's declaration placed there could
+ * never travel by `git pull`, which is the one premise R2 depends on ("an offer is
+ * not live until accepted... because the declaration arrives by git pull"). Ignored,
+ * it never arrives at all: a fresh clone would carry no offer, and the file would be
+ * one `git clean -fdx` from gone. Putting the offer inside the node-state directory
+ * also re-entangles exactly what this file exists to separate. `refarm.workspace.json`
+ * is tracked, at the root, visible the way `package.json` is — not hidden, because a
+ * repository's offer is part of what it publishes about itself.
  */
 export function workspaceOfferPath(workspaceAbsolutePath: string): string {
-	return path.join(workspaceAbsolutePath, ".refarm", "workspace.json");
+	return path.join(workspaceAbsolutePath, "refarm.workspace.json");
 }
