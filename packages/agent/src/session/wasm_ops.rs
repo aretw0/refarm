@@ -2,8 +2,8 @@ use crate::now_ns;
 use crate::plugin::host::tractor_bridge;
 
 use super::{
-    history_from_nodes, pick_latest_session_id, session_entry_node, session_node,
-    sum_provider_spend_usd,
+    history_from_nodes, pick_latest_session_id, pick_latest_session_leaf_id, session_entry_node,
+    session_node, sum_provider_spend_usd,
 };
 
 const SESSION_PREFIX_V1: &str = "urn:sovereign:session:v1:";
@@ -64,18 +64,34 @@ fn latest_session_id(limit: u32) -> Option<String> {
     latest_session_id_with_v1_preference(limit)
 }
 
+/// Select the current session's leaf entry id from the Session rows the storage
+/// layer returned.
+///
+/// NO SORT HERE, DELIBERATELY, for the same reason as
+/// `latest_session_id_with_v1_preference` above: `sessions` already arrives
+/// newest-TOUCHED-first (`ORDER BY updated_at DESC, id DESC`,
+/// `docs/SOVEREIGN_RECORD_ORDERING.md`), and the previous shape of this function
+/// re-derived "newest" via `max_by_key(created_at_ns)` — a second, disagreeing sort
+/// order over the same rows this sibling function reads. Two functions answering
+/// adjacent questions about the same table must not each invent their own notion
+/// of "latest"; both now trust the one order SQL already gave.
+///
+/// `pick_latest_session_leaf_id` implements the corrected shape: the
+/// `leaf_entry_id` of the FIRST row in that order that actually has one (a
+/// freshly-created session with no entries yet is skipped in favour of the next
+/// most-recently-touched session that has a leaf — unchanged from before). Unlike
+/// `pick_latest_session_id`, there is no v1-prefix preference to apply here: this
+/// never compares session ids, it only reads a field off whichever row is first
+/// among the ones that have it. Lives in `pure.rs` for the same native-testability
+/// reason as its sibling.
 fn latest_session_leaf_id(limit: u32) -> Option<String> {
-    tractor_bridge::query_nodes("Session", limit)
+    let sessions: Vec<serde_json::Value> = tractor_bridge::query_nodes("Session", limit)
         .ok()?
         .iter()
         .filter_map(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
-        .filter_map(|v| {
-            let ts = v["created_at_ns"].as_u64().unwrap_or(0);
-            let leaf_id = v["leaf_entry_id"].as_str()?.to_owned();
-            Some((ts, leaf_id))
-        })
-        .max_by_key(|(ts, _)| *ts)
-        .map(|(_, leaf_id)| leaf_id)
+        .collect();
+
+    pick_latest_session_leaf_id(&sessions)
 }
 
 /// Append a SessionEntry under `session_id`, wiring `parent_entry_id` from the

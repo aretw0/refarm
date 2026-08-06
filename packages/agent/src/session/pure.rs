@@ -151,6 +151,27 @@ pub(crate) fn pick_latest_session_id(
         .map(str::to_owned)
 }
 
+/// Pick "the leaf entry id of the current session" from Session-node JSON payloads
+/// already returned newest-touched-first by the storage layer (`ORDER BY updated_at
+/// DESC, id DESC` — see `docs/SOVEREIGN_RECORD_ORDERING.md`). Pure, no re-sort: this
+/// is the `leaf_entry_id` of the FIRST row in the given order that actually carries
+/// one — never the leaf of whichever row has the largest `created_at_ns` among rows
+/// that carry one, which would be a second, disagreeing sort order over the same
+/// data. A session with no entries yet (freshly created, `leaf_entry_id`
+/// absent/null) is skipped in favour of the next-most-recently-touched session that
+/// has one — the same skip behaviour this function always had; only the re-sort is
+/// removed.
+///
+/// Unlike `pick_latest_session_id`, there is no id-shape preference to apply here:
+/// this never compares or ranks session ids by string, it only reads a field off
+/// whichever row SQL already put first among the ones that have it.
+pub(crate) fn pick_latest_session_leaf_id(sessions: &[serde_json::Value]) -> Option<String> {
+    sessions
+        .iter()
+        .find_map(|v| v["leaf_entry_id"].as_str())
+        .map(str::to_owned)
+}
+
 /// Build a Session node JSON payload.
 /// `leaf_entry_id`: current tip of the conversation tree (None for empty session).
 /// `parent_session_id`: set when this session is a fork of another (None for root).
@@ -455,5 +476,58 @@ mod tests {
     #[test]
     fn empty_input_returns_none() {
         assert_eq!(pick_latest_session_id(&[], V1), None);
+    }
+
+    /// The whole point, mirroring the sibling function's discriminating fixture:
+    /// the row FIRST in SQL's newest-touched-first order has an OLDER
+    /// `created_at_ns` than the row second in order. The old
+    /// `max_by_key(created_at_ns)` re-sort would return the second row's leaf; the
+    /// storage layer's order says the first row is the current session, so its
+    /// leaf is the answer.
+    #[test]
+    fn returns_the_leaf_of_the_first_row_sql_gave_not_the_one_with_the_newest_created_at() {
+        let sessions = vec![
+            serde_json::json!({
+                "leaf_entry_id": "leaf-of-newest-touched-but-older-created",
+                "created_at_ns": 100_u64,
+            }),
+            serde_json::json!({
+                "leaf_entry_id": "leaf-of-older-touched-but-newer-created",
+                "created_at_ns": 999_u64,
+            }),
+        ];
+
+        let picked = pick_latest_session_leaf_id(&sessions);
+
+        assert_eq!(
+            picked.as_deref(),
+            Some("leaf-of-newest-touched-but-older-created"),
+            "must trust SQL's newest-touched-first order, not re-sort by created_at_ns"
+        );
+    }
+
+    /// A freshly-created session (no entries yet, so no `leaf_entry_id`) sits first
+    /// in SQL's order — it was touched most recently by virtue of just being
+    /// created, but it has nothing to hand back. The next-most-recently-touched
+    /// session that DOES have a leaf must be returned instead. This skip behaviour
+    /// is preserved from before the fix; only the re-sort is removed.
+    #[test]
+    fn skips_a_leading_row_with_no_leaf_entry_id() {
+        let sessions = vec![
+            serde_json::json!({ "created_at_ns": 500_u64 }), // no leaf_entry_id at all
+            serde_json::json!({
+                "leaf_entry_id": "leaf-of-second-row",
+                "created_at_ns": 1_u64,
+            }),
+        ];
+
+        let picked = pick_latest_session_leaf_id(&sessions);
+
+        assert_eq!(picked.as_deref(), Some("leaf-of-second-row"));
+    }
+
+    #[test]
+    fn leaf_id_empty_input_returns_none() {
+        assert_eq!(pick_latest_session_leaf_id(&[]), None);
     }
 }
