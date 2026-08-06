@@ -1,6 +1,6 @@
 # Feature: Farmhand Task Execution — effort-contract-v1
 
-**Status**: Implemented with a known transport-boundary debt
+**Status**: Implemented with a known coordination-boundary debt
 **Version**: v0.1.0
 **Owner**: Arthur Silva
 
@@ -19,20 +19,24 @@ Completes the `FarmhandTask` execution pipeline and establishes `effort-contract
 | HTTP client | Private `HttpTransportClient` in the same app file; it implements `TaskOperationsAdapter` and calls `/efforts`. |
 | Channel client | Private `HttpChannelTransportClient`; `dispatch-surface` supplies channel capabilities and path construction. |
 | HTTP server ingress | `HttpSidecar` in `apps/farmhand/src/transports/http.ts`. |
-| Shared server operations | The sidecar delegates to `FileTransportAdapter`, which owns file-backed state, processing, status, logs, retry, and cancellation. |
+| Neutral server boundary | `EffortOperations` in `apps/farmhand/src/effort-operations.ts`; HTTP and channel ingress depend on it. |
+| Shared server operations | The current composition supplies `FileTransportAdapter` as the `EffortOperations` implementation; it still owns file-backed state, processing, status, logs, retry, and cancellation. |
 
 The HTTP path therefore **exists end to end**, but the reusable `HttpTransportAdapter`
 described by the original design was not delivered as a block. Its role was split
-between an app-private HTTP client and an app-private server ingress. Meanwhile,
-`FileTransportAdapter` became both a file ingress and the shared application backend.
-Diagrams must show this coupling rather than presenting file and HTTP as symmetric adapters.
+between an app-private HTTP client and an app-private server ingress. The server-side
+dependency is now expressed through the neutral `EffortOperations` boundary, but its
+only implementation remains `FileTransportAdapter`, which is both a file ingress and
+the shared application backend. Diagrams must show this composition rather than
+presenting file and HTTP as symmetric implementations.
 
 The safe refactoring order is:
 
-1. Extract neutral effort coordination from `FileTransportAdapter` without changing behavior.
-2. Make file watching and `HttpSidecar` separate ingress adapters over that coordinator.
-3. Extract the HTTP client into a reusable package only when a second consumer needs it.
-4. Prove file/HTTP behavioral parity against the same conformance cases before changing defaults.
+1. [Done] Name the transport-neutral server operations required by ingress adapters.
+2. Extract the implementation of those operations from `FileTransportAdapter` without changing behavior.
+3. Make file watching and `HttpSidecar` separate ingress adapters over that coordinator.
+4. Extract the HTTP client into a reusable package only when a second consumer needs it.
+5. Prove file/HTTP behavioral parity against the same conformance cases before changing defaults.
 
 Do not implement a second server-side execution path merely to satisfy the old name;
 that would duplicate lifecycle, persistence, and control semantics instead of fixing the boundary.
@@ -95,6 +99,7 @@ packages/effort-contract-v1          → Effort, Task, TaskResult, EffortResult
                                        EffortSourceAdapter, EffortTransportAdapter
 
 apps/farmhand
+  ├── src/effort-operations.ts         → neutral server operations boundary
   ├── src/task-executor.ts            → completes handleFarmhandTask (CRDT path)
   ├── src/transports/file.ts          → FileTransportAdapter (fs.watch on ~/.refarm/tasks/)
   └── src/transports/http.ts          → HTTP sidecar on port 42001
@@ -118,7 +123,7 @@ Effort (context + direction — only the user knows why)
 
 - **File transport**: writes/watches `~/.refarm/tasks/` and `~/.refarm/task-results/`
 - **HTTP client**: app-private `HttpTransportClient` calls the sidecar
-- **HTTP sidecar**: `POST /efforts` + `GET /efforts/:id` on port 42001, delegating to `FileTransportAdapter`
+- **HTTP sidecar**: `POST /efforts` + `GET /efforts/:id` on port 42001, depending on `EffortOperations`; boot currently supplies `FileTransportAdapter`
 - **CRDT path** (existing): `tractor.onNode("FarmhandTask")` → `tractor.storeNode(FarmhandTaskResult)`
 
 **Key decisions:**
@@ -217,6 +222,7 @@ export const EFFORT_CAPABILITY = Symbol("EffortTransportAdapter");
 - [x] Implement HTTP sidecar in Farmhand
 - [x] Add `refarm task` command to `apps/refarm`
 - [x] Wire file and HTTP paths on Farmhand boot
+- [x] Name the transport-neutral `EffortOperations` boundary used by HTTP and channel ingress
 - [ ] Extract transport-neutral effort coordination from `FileTransportAdapter`
 - [ ] Demonstrate a second consumer before extracting the app-private HTTP client
 

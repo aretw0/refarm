@@ -10,7 +10,12 @@
 
 `refarm ask` submits efforts to a local HTTP sidecar on `:42001`. Today that sidecar is implemented in farmhand (Node.js). Per ADR-059, tractor Rust becomes the authoritative runtime and must implement the same protocol so clients (`refarm ask`, future UIs) are runtime-agnostic.
 
-The canonical protocol definition is extracted from `apps/farmhand/src/transports/http.ts` (`SidecarAdapter` interface + `HttpSidecar` route table) and mirrored as OpenAPI in `specs/protocols/http/farmhand-sidecar.openapi.v1.json`.
+The canonical protocol definition is represented by the `HttpSidecar` route table in
+`apps/farmhand/src/transports/http.ts` and mirrored as OpenAPI in
+`specs/protocols/http/farmhand-sidecar.openapi.v1.json`. The sidecar depends on the
+transport-neutral `EffortOperations` application boundary in
+`apps/farmhand/src/effort-operations.ts`; the current composition supplies a
+`FileTransportAdapter` implementation of that boundary.
 
 ## Protocol
 
@@ -122,4 +127,5 @@ Any runtime claiming to implement this protocol must pass:
 - ADR-059: Tractor Rust as Authoritative Runtime
 - ADR-058: Context Injection Doctrine
 - `apps/farmhand/src/transports/http.ts` — canonical TypeScript reference implementation
+- `apps/farmhand/src/effort-operations.ts` — transport-neutral server operations boundary
 - `apps/farmhand/src/transports/file.ts` — stream file transport reference
