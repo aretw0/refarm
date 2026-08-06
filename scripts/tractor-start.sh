@@ -70,6 +70,18 @@ REFARM_CLI="$ROOT/apps/refarm/dist/index.js"
 # Operator state is host-scoped by default, matching the Refarm CLI. Development
 # containers and other isolated deployments remain sovereign by setting REFARM_HOME.
 REFARM_HOME="${REFARM_HOME:-${HOME:?HOME must be set}/.refarm}"
+# The node's declaration base, DERIVED from REFARM_HOME rather than fixed, so one
+# declaration determines both and they cannot drift: base + SOVEREIGN_DIR reconstitutes
+# REFARM_HOME exactly. A container declaring REFARM_HOME=/srv/node/.refarm gets
+# SOVEREIGN_BASE=/srv/node for free.
+#
+# Measured on 2026-08-06, before this line existed: the daemon declared no SOVEREIGN_BASE,
+# so the Rust host's declared_base() fell back to whatever directory tractor-start.sh ran
+# from — the refarm repository. The node was treating the PROJECT as its own home, and
+# `refarm context` reported the CLI's base beside the node's identity as if it were the
+# node's. Two processes answering from two directories on one node is exactly what the
+# SOVEREIGN_BASE comment in packages/config swears cannot happen.
+export SOVEREIGN_BASE="${SOVEREIGN_BASE:-$(dirname "$REFARM_HOME")}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$REFARM_HOME/data}"
 REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}"
 # The npm-shaped install directory the deleted scripts/agent-install.mjs used to write.
