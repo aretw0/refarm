@@ -182,29 +182,69 @@ impl NativeStorage {
         }
     }
 
-    /// Query nodes by `@type`.
+    /// Query nodes by `@type`, NEWEST FIRST.
+    ///
+    /// The ordering is not a nicety. Before 2026-08-06 this statement had no `ORDER BY` at
+    /// all, so it returned rows in whatever order SQLite chose — in practice insertion
+    /// order, oldest first. Every caller in this repository then took from the FRONT:
+    /// `refarm budget observations` (`sidecar/mod.rs`), the WASM bridge
+    /// (`host/wasi_bridge/core.rs`), `latest_session_id` and `latest_session_leaf_id`
+    /// (`agent/src/session/wasm_ops.rs`). All of them meant "the most recent N" and all of
+    /// them got the oldest N. Measured on the operator's node: `--limit 1` over 29
+    /// observations returned the one from 2026-08-03, when the newest was from 2026-08-05.
+    ///
+    /// `id DESC` is the tiebreak, and it is load bearing: `updated_at` has second or
+    /// millisecond granularity, so rows written in one tick would otherwise come back in an
+    /// arbitrary order that could differ between two identical reads. A total order means a
+    /// reader can page without records shifting underneath it.
     ///
     /// Mirrors `queryNodes(type)` from OPFSSQLiteAdapter (TypeScript).
     pub fn query_nodes(&self, type_: &str) -> Result<Vec<NodeRow>> {
-        let conn = self.conn.lock().unwrap();
-        let mut stmt = conn
-            .prepare("SELECT id, type, context, payload, source_plugin, updated_at FROM nodes WHERE type = ?1")
-            .context("prepare query_nodes")?;
+        self.query_nodes_inner(type_, None)
+    }
 
-        let rows = stmt
-            .query_map(params![type_], |row| {
-                Ok(NodeRow {
-                    id: row.get(0)?,
-                    type_: row.get(1)?,
-                    context: row.get(2)?,
-                    payload: row.get(3)?,
-                    source_plugin: row.get(4)?,
-                    updated_at: row.get(5)?,
-                })
+    /// Same order as [`Self::query_nodes`], with the limit applied IN SQL.
+    ///
+    /// Prefer this wherever a caller only wants the newest few: `query_nodes` materialises
+    /// every row of that type before the caller discards most of them, which is affordable
+    /// at 29 observations and is not at 29,000.
+    pub fn query_nodes_limited(&self, type_: &str, limit: usize) -> Result<Vec<NodeRow>> {
+        self.query_nodes_inner(type_, Some(limit))
+    }
+
+    fn query_nodes_inner(&self, type_: &str, limit: Option<usize>) -> Result<Vec<NodeRow>> {
+        let conn = self.conn.lock().unwrap();
+        let sql = match limit {
+            Some(_) => "SELECT id, type, context, payload, source_plugin, updated_at \
+                        FROM nodes WHERE type = ?1 ORDER BY updated_at DESC, id DESC LIMIT ?2",
+            None => "SELECT id, type, context, payload, source_plugin, updated_at \
+                     FROM nodes WHERE type = ?1 ORDER BY updated_at DESC, id DESC",
+        };
+        let mut stmt = conn.prepare(sql).context("prepare query_nodes")?;
+
+        let map_row = |row: &rusqlite::Row<'_>| {
+            Ok(NodeRow {
+                id: row.get(0)?,
+                type_: row.get(1)?,
+                context: row.get(2)?,
+                payload: row.get(3)?,
+                source_plugin: row.get(4)?,
+                updated_at: row.get(5)?,
             })
-            .context("query_nodes")?
-            .collect::<Result<Vec<_>, _>>()
-            .context("collect nodes")?;
+        };
+
+        let rows = match limit {
+            Some(n) => stmt
+                .query_map(params![type_, n as i64], map_row)
+                .context("query_nodes")?
+                .collect::<Result<Vec<_>, _>>()
+                .context("collect nodes")?,
+            None => stmt
+                .query_map(params![type_], map_row)
+                .context("query_nodes")?
+                .collect::<Result<Vec<_>, _>>()
+                .context("collect nodes")?,
+        };
 
         Ok(rows)
     }
@@ -448,6 +488,56 @@ mod tests {
         assert_eq!(s.query_nodes("A").unwrap().len(), 1);
         assert_eq!(s.query_nodes("B").unwrap().len(), 1);
         assert_eq!(s.query_nodes("C").unwrap().len(), 0);
+    }
+
+    #[test]
+    fn query_nodes_returns_newest_first() {
+        let storage = memory_storage();
+        // Insert oldest first, so insertion order is the WRONG answer.
+        storage.store_node("a", "Thing", None, r#"{"n":1}"#, None).unwrap();
+        storage.store_node("b", "Thing", None, r#"{"n":2}"#, None).unwrap();
+        storage.store_node("c", "Thing", None, r#"{"n":3}"#, None).unwrap();
+
+        let rows = storage.query_nodes("Thing").unwrap();
+        let ids: Vec<&str> = rows.iter().map(|r| r.id.as_str()).collect();
+        assert_eq!(
+            ids[0], "c",
+            "the newest row must come first: a reader taking N wants the N most recent, \
+             and every caller in this repo does exactly that"
+        );
+    }
+
+    #[test]
+    fn query_nodes_limited_takes_the_newest_n_not_the_oldest() {
+        let storage = memory_storage();
+        storage.store_node("a", "Thing", None, r#"{"n":1}"#, None).unwrap();
+        storage.store_node("b", "Thing", None, r#"{"n":2}"#, None).unwrap();
+        storage.store_node("c", "Thing", None, r#"{"n":3}"#, None).unwrap();
+
+        let rows = storage.query_nodes_limited("Thing", 1).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(
+            rows[0].id, "c",
+            "limit 1 must be the NEWEST record. On the operator's own machine this returned the \
+             oldest of 29 observations, so an audit with --limit 1 read the wrong record entirely."
+        );
+    }
+
+    #[test]
+    fn query_nodes_order_is_total_so_equal_timestamps_do_not_shuffle() {
+        let storage = memory_storage();
+        storage.store_node("a", "Thing", None, r#"{}"#, None).unwrap();
+        storage.store_node("b", "Thing", None, r#"{}"#, None).unwrap();
+
+        let first = storage.query_nodes("Thing").unwrap();
+        let second = storage.query_nodes("Thing").unwrap();
+        let ids = |rows: &Vec<NodeRow>| rows.iter().map(|r| r.id.clone()).collect::<Vec<_>>();
+        assert_eq!(
+            ids(&first),
+            ids(&second),
+            "rows written in the same clock tick must still come back in a stable order; \
+             a partial order lets the answer change between two identical reads"
+        );
     }
 
     #[test]
