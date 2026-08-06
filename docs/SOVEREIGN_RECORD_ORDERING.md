@@ -518,7 +518,7 @@ for no consumer that needed it. `TractorBridgeHost::query_nodes`
 `node-page`, mirroring `sidecar/mod.rs`'s `get_nodes` handler exactly instead of
 re-deriving the rule.
 
-Nine `query-nodes` call expressions, across four functions in
+Nine `query-nodes` call expressions, across seven functions in
 `packages/agent/src` and one in `packages/delegate/src` (`query_history` makes two,
 one for `UserPrompt` and one for `Response`), broke on the signature change and were
 repaired mechanically — `.nodes` off the new record, no reordering, no new logic,
@@ -693,7 +693,7 @@ next reader does not have to rediscover it.
 | The CLI command that made the original defect visible | `apps/refarm/src/commands/budget.ts` (`refarm budget observations`) |
 | The monotonic id scheme | `packages/agent/src/utils.rs:516-523` (`new_id`) |
 | The two random id schemes | `packages/tractor/src/streaming/observations.rs:26`, `packages/tractor/src/host/wasi_bridge/model_stream_events.rs:635` |
-| The read path, drawn — predates the guest-contract change; the WASM bridge box does not yet show the `node-page`/`stored`/`truncated` shape it now returns | [`specs/diagrams/record-read-path.mermaid`](../specs/diagrams/record-read-path.svg) |
+| The read path, drawn — updated 2026-08-06 for the guest-contract change; the WASM bridge box shows it returning `node-page`: `nodes` + `stored` + `truncated` | [`specs/diagrams/record-read-path.mermaid`](../specs/diagrams/record-read-path.svg) |
 | The plan and its task-by-task record (storage-layer ordering fix) | `.superpowers/sdd/2026-08-06-the-record-reader-goes-blind/` |
 | The follow-on plan and its task-by-task record (bridge cost, session correctness, TS client) | `.superpowers/sdd/2026-08-06-the-contract-reaches-every-consumer/` |
 | The third plan and its task-by-task record (guest contract, budget guard) | `.superpowers/sdd/2026-08-06-the-guest-can-tell/` |
