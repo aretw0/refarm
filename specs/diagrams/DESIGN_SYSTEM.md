@@ -16,6 +16,8 @@ All SVG generation runs through `scripts/check-diagrams.mjs`, which applies the 
 |---------|--------|-------|--------|
 | `npm run diagrams:fix` | `scripts/check-diagrams.mjs` | `mermaid.config.json` (branded) | **Regenerate — use this after editing a `.mermaid`** |
 | `npm run diagrams:check` | `scripts/check-diagrams.mjs --ci` | `mermaid.config.json` (branded) | Regenerate + fail on drift. Strict by default — will FAIL on this machine until the browser is pinned locally (see "Known gap" below). Local escape: `REFARM_DIAGRAM_SYNC_STRICT=0 pnpm run diagrams:check`. |
+| `pnpm run diagrams:browser:plan` | `install-puppeteer-browser.mjs --dry-run` | — | Show Mermaid CLI's exact browser revision without downloading it. |
+| `pnpm run diagrams:browser:install` | `install-puppeteer-browser.mjs` | — | Install that revision into the Puppeteer cache. |
 
 Both scan `docs/`, `specs/diagrams/`, and `examples/` (each example ships its own diagram set
 next to its code). The old neutral-theme `diagrams:generate` / `diagrams:watch` scripts were
@@ -57,15 +59,15 @@ designed. That means:
   exists to record.
 
 **Root cause**: SVG rendering is not reproducible across `mmdc`/puppeteer/Chrome
-versions. CI pins one via `node scripts/ci/install-puppeteer-browser.mjs` before
-running the check; a local checkout has no equivalent step and renders with whatever
-Chrome `puppeteer` resolves on that machine.
+versions. CI installs a browser before running the check. Local checkouts now expose
+the same explicit operation through `pnpm run diagrams:browser:install`; checks do not
+download implicitly.
 
-**The fix path, in order, not done here**: **first**, pin the same browser locally that
-CI pins (extend `scripts/ci/install-puppeteer-browser.mjs`, or an equivalent, into the
-local dev setup so `diagrams:fix`/`diagrams:check` render byte-identically to CI).
-**Only after** that holds and has been verified to actually produce byte-stable output
-run over run, reconsider `REFARM_DIAGRAM_SYNC_STRICT=0` in
+**The fix path, in order**: **first**, inspect with `pnpm run diagrams:browser:plan`,
+then install with `pnpm run diagrams:browser:install`. The installer resolves Puppeteer
+from Mermaid CLI itself instead of choosing an unrelated installed `puppeteer-core` by
+directory ordering. **Only after** repeated renders with that browser are verified as
+byte-stable should we reconsider `REFARM_DIAGRAM_SYNC_STRICT=0` in
 `.github/workflows/validate-diagrams.yml` — whether CI's current advisory choice should
 become strict is the operator's call, not something to flip as a side effect of a local
 convenience fix. Until browser pinning happens, a `.mermaid` source can drift from its
