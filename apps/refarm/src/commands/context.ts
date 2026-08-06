@@ -51,6 +51,19 @@
 // codebase (`scope-doctor.ts`, `node-name-doctor.ts`, `runtime-freshness-doctor.ts`):
 // `buildContextReport` is pure and every test drives it with literals; the filesystem and
 // process reads live in `resolveContextInput` below, exercised only by running the command.
+//
+// THE `base:`/`namespace:` DEFECT (a second, later plan — 2026-08-06, "the node answers
+// for itself"): reproduced live — `refarm context` invoked from `~/git/rcdc5` printed a
+// `base:` line sitting directly above the `node:` line, reading as the RUNNING NODE's, but
+// it was this CLI INVOCATION's own `declaredBase()` result the whole time. Same idiom as the
+// plugin-hash fix above, one level up: `resolveNodeEnvironment` (`../utils/node-environment
+// .ts`) reads the node's OWN `/proc/<pid>/environ` instead of reconstructing a value from
+// this CLI's `process.env`, and the report's `base`/`namespace` lines now show what THAT
+// reads, not `cliBase`/`cliNamespace` — which stay in the report as a second, clearly
+// labelled fact, never presented as the node's. Same three-states discipline as the plugin
+// comparison: a running node whose environ could not be read is `node-environment-unknown`,
+// never silently collapsed into comparing the CLI's own values against themselves and
+// reporting agreement, and never a `base-divergence` (nothing is actually known to differ).
 
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { declaredBase, findWorkspaceRoot, SOVEREIGN_BASE_KEY } from "@refarm.dev/config";
@@ -63,6 +76,7 @@ import type { NodeContextMetadata } from "../utils/context-metadata.js";
 import { resolveNodeContextMetadata } from "../utils/context-metadata.js";
 import { defaultHashFile, resolveLoadedPlugin, type LoadedPlugin } from "../utils/loaded-plugin.js";
 import { readNodeDescriptor } from "../utils/node-descriptor.js";
+import { resolveNodeEnvironment, type NodeEnvironment } from "../utils/node-environment.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { resolveRuntimeSidecarUrl } from "../utils/runtime-config.js";
 import { resolveTractorNamespace } from "../utils/tractor-store.js";
@@ -86,6 +100,16 @@ export type DivergenceKind =
 	| "built-plugin-unknown"
 	| "unloaded-sovereign-dir"
 	| "node-not-running"
+	// The defect this task closes: `base:`/`namespace:` used to report the CLI's OWN
+	// resolved values as if they were the running node's. These three name what a direct
+	// comparison against the node's own witness (`resolveNodeEnvironment`, Task 1) can now
+	// find: the node's declared (or fallen-back) base disagreeing with the CLI's, the same
+	// for namespace, and the node being up but its environ unreadable — a GAP in the
+	// checking, never silently read as either agreement or a base divergence (see
+	// `buildContextReport`'s node-environment block).
+	| "base-divergence"
+	| "namespace-divergence"
+	| "node-environment-unknown"
 	| typeof CONTEXT_HOME_DIVERGENCE_DIAGNOSTIC;
 
 export interface Divergence {
@@ -100,24 +124,37 @@ export interface ContextInput {
 	/** Reused verbatim from `resolveNodeContextMetadata` — mode, how the home was chosen,
 	 *  the sovereign/credential homes, and whether they align. Not re-derived here. */
 	metadata: NodeContextMetadata;
-	/** What `declaredBase()` (`@refarm.dev/config`) resolves — where declarations are read
-	 *  against, independent of where credentials/plugins live. */
-	base: string;
-	/** Whether `base` came from the explicit `SOVEREIGN_BASE` env var or fell back to cwd. */
-	baseOrigin: "SOVEREIGN_BASE" | "cwd";
-	/** The storage namespace the daemon opens — `resolveTractorNamespace`
-	 *  (`../utils/tractor-store.ts`): `REFARM_NAMESPACE` else `"default"`, "the same value
-	 *  health and status must agree on". Surfaced here as-is; this command does not attempt
-	 *  to read the DAEMON's own environment (no witness for that exists), only the value
-	 *  this CLI invocation resolves — a shell/daemon split in REFARM_NAMESPACE is real but
-	 *  out of this command's reach without a new instrument. */
-	namespace: string;
+	/** What `declaredBase()` (`@refarm.dev/config`) resolves for THIS CLI INVOCATION — where
+	 *  declarations are read against, independent of where credentials/plugins live. This is
+	 *  NOT the running node's own base; it is kept as a clearly labelled second fact,
+	 *  precisely because it used to be reported as if it were the node's (the defect this
+	 *  task closes — see `nodeEnvironment.base` and `base-divergence` below). */
+	cliBase: string;
+	/** Whether `cliBase` came from the explicit `SOVEREIGN_BASE` env var this CLI process
+	 *  sees, or fell back to this CLI's own cwd. Same CLI/node split as `cliBase` itself. */
+	cliBaseOrigin: "SOVEREIGN_BASE" | "cwd";
+	/** The storage namespace THIS CLI INVOCATION resolves — `resolveTractorNamespace`
+	 *  (`../utils/tractor-store.ts`): `REFARM_NAMESPACE` else `"default"`. Surfaced here as a
+	 *  clearly labelled CLI-side fact; `nodeEnvironment.namespace` is what the running node
+	 *  itself declares, and the two disagreeing is `namespace-divergence` below. Previously
+	 *  this was the only namespace value this command had a witness for at all — Task 1's
+	 *  `resolveNodeEnvironment` is what makes the daemon's own value reachable now. */
+	cliNamespace: string;
 	/** The runtime sidecar URL this CLI would reach for this node —
 	 *  `resolveRuntimeSidecarUrl` (`../utils/runtime-config.ts`). Cheap, real, and part of
 	 *  "which state is active"; optional in spirit, included because it costs nothing. */
 	runtimeEndpoint: string;
 	/** `null` when no running node was found — see `ContextNode`'s doc. */
 	node: ContextNode | null;
+	/** What the RUNNING node itself declares, read from its own `/proc/<pid>/environ` —
+	 *  Task 1's witness (`resolveNodeEnvironment`, `../utils/node-environment.ts`), reused
+	 *  verbatim (not renamed/re-derived — same rule this file already applies to `metadata`
+	 *  and `loadedPlugin`). Two DIFFERENT things collapse to `null` here, and only `node`
+	 *  above tells them apart: no running node at all (then this is trivially `null` too and
+	 *  `node-not-running` already covers it), versus a running node whose environ could not
+	 *  be read (`node-environment-unknown` — a gap in the checking, never agreement and
+	 *  never a base/namespace divergence, since nothing was actually compared). */
+	nodeEnvironment: NodeEnvironment | null;
 	/** The plugin the running node's own argv names, hashed — Task 1's witness.
 	 *  `null` only when there is no running node, or it names none; see
 	 *  `resolveLoadedPlugin`'s contract for the null/unreadable distinction. */
@@ -195,6 +232,61 @@ export function buildContextReport(input: ContextInput): ContextReport {
 				`does not match the built plugin ${input.builtPluginPath ?? "?"} ` +
 				`(${shortHash(input.builtPluginSha)}).`,
 		});
+	}
+
+	// The defect this task closes: `base:`/`namespace:` used to be the CLI's own resolved
+	// values, reported where the NODE's belonged. This block is deliberately a SEPARATE,
+	// independent chain from the plugin comparison above rather than another branch fused
+	// into it — `node-not-running` must stay the whole story when there is no node (the
+	// brief's fifth case), not doubled up with a second finding about environment.
+	//
+	// THREE STATES, never two, same posture as every other comparison in this file: a running
+	// node whose environ could not be read is `node-environment-unknown` — a GAP in the
+	// checking. Falling through to compare `input.cliBase`/`cliNamespace` against themselves
+	// here would silently manufacture "agreement" out of a comparison that never happened —
+	// the exact failure shape this task exists to prevent, one level up from where
+	// `built-plugin-unknown` already prevents it for the plugin hash.
+	if (input.node) {
+		if (!input.nodeEnvironment) {
+			divergences.push({
+				kind: "node-environment-unknown",
+				summary:
+					`The running node (pid ${input.node.pid}) is up, but its own environment ` +
+					`(/proc/${input.node.pid}/environ) could not be read — its declared base and ` +
+					"namespace cannot be compared to this CLI's at all. This is a gap in the " +
+					"checking, not agreement.",
+			});
+		} else {
+			// The node's EFFECTIVE base: what it declared, or — when it declared nothing — the
+			// cwd it fell back to (Task 1's contract: a null `base` field means "fell back",
+			// itself worth reporting, and `/proc/<pid>/cwd` is what it fell back TO).
+			const nodeBase = input.nodeEnvironment.base ?? input.nodeEnvironment.cwd;
+			if (nodeBase !== null && nodeBase !== input.cliBase) {
+				divergences.push({
+					kind: "base-divergence",
+					summary: input.nodeEnvironment.base
+						? `The node declares SOVEREIGN_BASE=${input.nodeEnvironment.base}, but this CLI ` +
+							`resolves base to ${input.cliBase} (from ${input.cliBaseOrigin}) — they disagree.`
+						: `The node declares no SOVEREIGN_BASE — not declared, it fell back to its own ` +
+							`working directory (${input.nodeEnvironment.cwd}) — which disagrees with this ` +
+							`CLI's base ${input.cliBase} (from ${input.cliBaseOrigin}).`,
+				});
+			}
+
+			// Same shape for namespace: the node's effective value is what it declared, or the
+			// "default" `resolveTractorNamespace` itself falls back to when undeclared.
+			const nodeNamespace = input.nodeEnvironment.namespace ?? "default";
+			if (nodeNamespace !== input.cliNamespace) {
+				divergences.push({
+					kind: "namespace-divergence",
+					summary: input.nodeEnvironment.namespace
+						? `The node declares REFARM_NAMESPACE=${input.nodeEnvironment.namespace}, but this ` +
+							`CLI resolves namespace to ${input.cliNamespace} — they disagree.`
+						: `The node declares no REFARM_NAMESPACE — not declared, it fell back to ` +
+							`"default" — which disagrees with this CLI's namespace ${input.cliNamespace}.`,
+				});
+			}
+		}
 	}
 
 	for (const dir of input.otherSovereignDirs) {
@@ -306,6 +398,13 @@ export function resolveContextInput(env = process.env, cwd = process.cwd()): Con
 			}
 		: null;
 	const loadedPlugin = descriptor ? resolveLoadedPlugin(descriptor.pid) : null;
+	// Task 1's witness, read fresh here rather than reconstructed from this CLI's own
+	// `process.env` — the whole point (see `NodeEnvironment`'s doc and this file's header on
+	// the CLI/node split). `null` when no descriptor exists at all; when one does,
+	// `resolveNodeEnvironment` itself distinguishes "the node declares nothing" (a field is
+	// `null`) from "the node's environ could not be read at all" (the function returns
+	// `null`) — `buildContextReport` relies on that distinction surviving to here unflattened.
+	const nodeEnvironment = descriptor ? resolveNodeEnvironment(descriptor.pid) : null;
 
 	const repoRoot = findWorkspaceRoot(cwd);
 	const builtPluginPath = resolveBuiltPluginPath(repoRoot);
@@ -327,11 +426,12 @@ export function resolveContextInput(env = process.env, cwd = process.cwd()): Con
 
 	return {
 		metadata,
-		base: declaredBase(env, cwd),
-		baseOrigin: explicitBase ? "SOVEREIGN_BASE" : "cwd",
-		namespace: resolveTractorNamespace(env),
+		cliBase: declaredBase(env, cwd),
+		cliBaseOrigin: explicitBase ? "SOVEREIGN_BASE" : "cwd",
+		cliNamespace: resolveTractorNamespace(env),
 		runtimeEndpoint: resolveRuntimeSidecarUrl({ cwd, env }).value,
 		node,
+		nodeEnvironment,
 		loadedPlugin,
 		builtPluginPath,
 		builtPluginSha,
@@ -345,6 +445,27 @@ function pluginLine(label: string, path_: string | null, sha: string | null): st
 	return `  ${label}: ${path_}  (${hash})`;
 }
 
+/** What the report shows as the node's own base — declared, honestly phrased as a fallback
+ *  when undeclared, or plainly unknown when the node's environ could not be read at all.
+ *  This is the fix itself: the `base:` line used to be the CLI's value; this is the NODE's. */
+function nodeBaseLine(report: ContextReport): string {
+	if (!report.node) return "  node base: (node not running)";
+	if (!report.nodeEnvironment) return "  node base: (unknown — the node's environment could not be read)";
+	if (report.nodeEnvironment.base) return `  node base: ${report.nodeEnvironment.base}`;
+	return report.nodeEnvironment.cwd
+		? `  node base: (not declared; the node fell back to its own working directory: ${report.nodeEnvironment.cwd})`
+		: "  node base: (not declared; the node's own working directory could not be read either)";
+}
+
+/** Same idea as `nodeBaseLine`, for namespace — the fallback here is the literal `"default"`
+ *  `resolveTractorNamespace` itself falls back to, not a read value. */
+function nodeNamespaceLine(report: ContextReport): string {
+	if (!report.node) return "  node namespace: (node not running)";
+	if (!report.nodeEnvironment) return "  node namespace: (unknown — the node's environment could not be read)";
+	if (report.nodeEnvironment.namespace) return `  node namespace: ${report.nodeEnvironment.namespace}`;
+	return '  node namespace: (not declared; the node fell back to "default")';
+}
+
 function printContextHuman(report: ContextReport): void {
 	console.log(chalk.bold("\n  Refarm context\n"));
 	console.log(
@@ -353,8 +474,10 @@ function printContextHuman(report: ContextReport): void {
 			`  credential home: ${report.metadata.credentialStoreHome}` +
 			(report.metadata.homesAligned ? "" : chalk.yellow("  (diverged from sovereign home)")) +
 			"\n" +
-			`  base: ${report.base}  (from ${report.baseOrigin})\n` +
-			`  namespace: ${report.namespace}\n` +
+			`${nodeBaseLine(report)}\n` +
+			`  cli base: ${report.cliBase}  (from ${report.cliBaseOrigin})\n` +
+			`${nodeNamespaceLine(report)}\n` +
+			`  cli namespace: ${report.cliNamespace}\n` +
 			`  runtime endpoint: ${report.runtimeEndpoint}\n`,
 	);
 	if (report.node) {
@@ -371,7 +494,7 @@ function printContextHuman(report: ContextReport): void {
 
 	console.log();
 	if (report.divergences.length === 0) {
-		console.log(chalk.green("  No divergences — the loaded plugin matches what a fresh build produces.\n"));
+		console.log(chalk.green("  No divergences — the node and this CLI agree on everything checked.\n"));
 		return;
 	}
 	console.log(chalk.yellow(`  ${report.divergences.length} divergence(s):\n`));

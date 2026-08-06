@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NodeContextMetadata } from "../utils/context-metadata.js";
+import type { NodeEnvironment } from "../utils/node-environment.js";
 import { CONTEXT_HOME_DIVERGENCE_DIAGNOSTIC } from "./context-doctor.js";
 import {
 	buildContextReport,
@@ -25,13 +26,27 @@ const METADATA: NodeContextMetadata = {
 	homesAligned: true,
 };
 
+// The node's own witness (Task 1, `../utils/node-environment.ts`) — what a running node
+// declares in its OWN `/proc/<pid>/environ`, not reconstructed from the CLI's `process.env`.
+// The `BASE` fixture below puts this in agreement with the CLI's own resolved values
+// (`cliBase`/`cliNamespace`) so the "no divergence" tests stay a true baseline; individual
+// tests override `nodeEnvironment` (or set it `null`) to construct a disagreement.
+const NODE_ENVIRONMENT_AGREEING: NodeEnvironment = {
+	base: "/home/op",
+	sovereignDir: null,
+	home: null,
+	namespace: "default",
+	cwd: "/home/op",
+};
+
 const BASE: ContextInput = {
 	metadata: METADATA,
-	base: "/home/op",
-	baseOrigin: "SOVEREIGN_BASE",
-	namespace: "default",
+	cliBase: "/home/op",
+	cliBaseOrigin: "SOVEREIGN_BASE",
+	cliNamespace: "default",
 	runtimeEndpoint: "http://127.0.0.1:42001",
 	node: { name: "sede", id: "abc123def456", pid: 2025451, startedAt: "2026-08-05T17:28:00Z" },
+	nodeEnvironment: NODE_ENVIRONMENT_AGREEING,
 	loadedPlugin: { path: "/home/op/.refarm/plugins/refarm_agent/plugin.wasm", sha256: "22dbabbd" },
 	builtPluginPath: "/repo/packages/agent/dist/agent.wasm",
 	builtPluginSha: "22dbabbd",
@@ -46,9 +61,9 @@ describe("buildContextReport", () => {
 		expect(r.metadata.binding.origin).toBe("explicit");
 	});
 
-	it("carries the namespace and runtime endpoint through untouched", () => {
+	it("carries the CLI's own namespace and the runtime endpoint through untouched", () => {
 		const r = buildContextReport(BASE);
-		expect(r.namespace).toBe("default");
+		expect(r.cliNamespace).toBe("default");
 		expect(r.runtimeEndpoint).toBe("http://127.0.0.1:42001");
 	});
 
@@ -76,10 +91,23 @@ describe("buildContextReport", () => {
 	});
 
 	it("a node that is not running yields no plugin divergence at all, not a false clean", () => {
-		const r = buildContextReport({ ...BASE, node: null, loadedPlugin: null });
+		const r = buildContextReport({ ...BASE, node: null, loadedPlugin: null, nodeEnvironment: null });
 		expect(r.divergences.map((d) => d.kind)).toContain("node-not-running");
 		expect(r.divergences.map((d) => d.kind)).not.toContain("plugin-hash-unknown");
 		expect(r.divergences.map((d) => d.kind)).not.toContain("plugin-hash-mismatch");
+	});
+
+	// Unchanged behavior, made explicit for the environment comparison too (brief step 1,
+	// 5th case): no running node means nothing to compare base/namespace against, so this
+	// must stay silent on base-divergence/namespace-divergence/node-environment-unknown —
+	// `node-not-running` is the whole story, not a second finding layered on top of it.
+	it("a node that is not running yields no environment divergence either — node-not-running is the whole story", () => {
+		const r = buildContextReport({ ...BASE, node: null, loadedPlugin: null, nodeEnvironment: null });
+		const kinds = r.divergences.map((d) => d.kind);
+		expect(kinds).toContain("node-not-running");
+		expect(kinds).not.toContain("base-divergence");
+		expect(kinds).not.toContain("namespace-divergence");
+		expect(kinds).not.toContain("node-environment-unknown");
 	});
 
 	it("a running node that names no plugin at all is UNKNOWN too — not silently clean", () => {
@@ -125,6 +153,82 @@ describe("buildContextReport", () => {
 	it("is silent about credential homes when they align", () => {
 		const r = buildContextReport(BASE);
 		expect(r.divergences.map((d) => d.kind)).not.toContain(CONTEXT_HOME_DIVERGENCE_DIAGNOSTIC);
+	});
+
+	// The defect this task exists to close: `refarm context`'s `base:` line read as the
+	// node's but was the CLI's. `BASE` puts the node and the CLI in agreement; each test
+	// below moves exactly one side to construct a real disagreement.
+	describe("node vs CLI: base and namespace", () => {
+		it("is silent when the node and the CLI agree on both base and namespace", () => {
+			const r = buildContextReport(BASE);
+			const kinds = r.divergences.map((d) => d.kind);
+			expect(kinds).not.toContain("base-divergence");
+			expect(kinds).not.toContain("namespace-divergence");
+			expect(kinds).not.toContain("node-environment-unknown");
+		});
+
+		// The live defect, reproduced: the node declares one SOVEREIGN_BASE, the CLI resolves
+		// another. The summary must name BOTH values — an operator staring at one path alone
+		// cannot tell which side is which.
+		it("reports base-divergence naming BOTH the node's declared base and the CLI's own base", () => {
+			const r = buildContextReport({
+				...BASE,
+				cliBase: "/home/op/git/rcdc5",
+				cliBaseOrigin: "cwd",
+				nodeEnvironment: { ...NODE_ENVIRONMENT_AGREEING, base: "/home/op" },
+			});
+			const divergence = r.divergences.find((d) => d.kind === "base-divergence");
+			expect(divergence).toBeDefined();
+			expect(divergence?.summary).toContain("/home/op/git/rcdc5");
+			expect(divergence?.summary).toContain("/home/op");
+		});
+
+		// The node declares NO base at all — it falls back to its own cwd. That fallback is
+		// itself worth reporting (Task 1's contract: a null FIELD means "fell back", not
+		// "nothing to say"), and when the fallback value still disagrees with the CLI, this is
+		// still a base-divergence, honestly phrased as a fallback rather than a declaration.
+		it("a node that declares no base at all still diverges on its cwd fallback, phrased honestly", () => {
+			const r = buildContextReport({
+				...BASE,
+				cliBase: "/home/op/git/rcdc5",
+				cliBaseOrigin: "cwd",
+				nodeEnvironment: { ...NODE_ENVIRONMENT_AGREEING, base: null, cwd: "/home/op" },
+			});
+			const divergence = r.divergences.find((d) => d.kind === "base-divergence");
+			expect(divergence).toBeDefined();
+			expect(divergence?.summary).toContain("not declared");
+			expect(divergence?.summary).toContain("/home/op");
+			expect(divergence?.summary).toContain("/home/op/git/rcdc5");
+		});
+
+		it("reports namespace-divergence when the node's own namespace differs from the CLI's", () => {
+			const r = buildContextReport({
+				...BASE,
+				cliNamespace: "default",
+				nodeEnvironment: { ...NODE_ENVIRONMENT_AGREEING, namespace: "prod" },
+			});
+			const divergence = r.divergences.find((d) => d.kind === "namespace-divergence");
+			expect(divergence).toBeDefined();
+			expect(divergence?.summary).toContain("prod");
+			expect(divergence?.summary).toContain("default");
+		});
+
+		// THE case most likely to be got wrong (brief + task instructions, twice): the node IS
+		// running but its environ could NOT be read. A silent fallback to comparing the CLI's
+		// own values against themselves would find nothing to disagree about and report
+		// agreement — a false "clean" manufactured from a comparison that never happened. This
+		// must be `node-environment-unknown`, and specifically NOT `base-divergence` (nothing
+		// is actually known to differ) and NOT silence (agreement was never established).
+		it("an unreadable node environment is node-environment-unknown — NOT agreement, NOT a base divergence", () => {
+			const r = buildContextReport({ ...BASE, nodeEnvironment: null });
+			const kinds = r.divergences.map((d) => d.kind);
+			expect(kinds).toContain("node-environment-unknown");
+			expect(kinds).not.toContain("base-divergence");
+			expect(kinds).not.toContain("namespace-divergence");
+			// And it must name the node that IS running — this is not the node-not-running case.
+			const divergence = r.divergences.find((d) => d.kind === "node-environment-unknown");
+			expect(divergence?.summary).toContain(String(BASE.node?.pid));
+		});
 	});
 });
 

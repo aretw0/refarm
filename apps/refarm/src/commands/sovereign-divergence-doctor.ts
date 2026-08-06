@@ -130,6 +130,19 @@ export function buildSovereignDivergenceDoctorRecommendations(
 			case CONTEXT_HOME_DIVERGENCE_DIAGNOSTIC:
 				break;
 
+			// `refarm context` (`./context.ts`, 2026-08-06 "the node answers for itself") can now
+			// find the running node's own declared base/namespace disagreeing with this CLI's, or
+			// find the node up but its environ unreadable. Deliberately silent here for now —
+			// the MINIMUM needed to keep this switch exhaustive (see `assertNeverDivergenceKind`
+			// below) without pre-empting how `refarm doctor` should phrase these. That decision —
+			// diagnostic name, severity, whether `node-environment-unknown` reads like
+			// `*-plugin-unknown`'s "gap in the checking" — belongs to whichever task next wires
+			// `refarm doctor` to this comparison, not to this task.
+			case "base-divergence":
+			case "namespace-divergence":
+			case "node-environment-unknown":
+				break;
+
 			default:
 				// Exhaustiveness guard: a future `DivergenceKind` member reaches here only if this
 				// switch was not updated for it. That is exactly how `unloaded-sovereign-dir`
