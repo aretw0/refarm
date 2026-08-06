@@ -153,10 +153,92 @@ describe("sidecar-client", () => {
 			fetch: fetchImpl as unknown as typeof fetch,
 		});
 
-		await expect(graph.queryNodes("Config", { limit: 2 })).resolves.toEqual(nodes);
+		// This mocked response (like `total` above) carries no `stored`/`truncated` —
+		// the live shape of a sidecar built before those fields shipped. They must
+		// come back `undefined`, not defaulted; see the dedicated block below.
+		await expect(graph.queryNodes("Config", { limit: 2 })).resolves.toEqual({
+			nodes,
+			stored: undefined,
+			truncated: undefined,
+		});
 		expect(String(fetchImpl.mock.calls[0]?.[0])).toBe(
 			"http://sidecar.test/nodes?type=Config&limit=2",
 		);
+	});
+
+	// ── queryNodes: stored/truncated, three states not two ──────────────────────
+	//
+	// `GET /nodes` now reports `stored` (the true count of this @type in storage)
+	// and `truncated` (whether this page left rows out) alongside `nodes`
+	// (docs/SOVEREIGN_RECORD_ORDERING.md). A sidecar built before that shipped
+	// omits both keys — a live case, not a hypothetical one — and a caller
+	// talking to that node has no basis to say the page is complete. The
+	// defect this guards against already happened once this session
+	// (`apps/refarm/src/commands/budget.ts` briefly defaulted `truncated` to
+	// `false` and `stored` to `nodes.length` in exactly this gap): absent must
+	// stay absent, never rounded to a boolean or derived from the page size.
+	describe("queryNodes reports stored/truncated without defaulting", () => {
+		const oneNode = {
+			"@context": "https://schema.org/",
+			"@id": "urn:graph:one",
+			"@type": "Config",
+		};
+
+		function fetchReturning(body: Record<string, unknown>) {
+			return vi.fn(
+				async (
+					_input: Parameters<typeof fetch>[0],
+					_init?: Parameters<typeof fetch>[1],
+				) =>
+					new Response(JSON.stringify(body), {
+						status: 200,
+						headers: { "content-type": "application/json" },
+					}),
+			);
+		}
+
+		it("carries stored and truncated through when the sidecar reports both", async () => {
+			const graph = createSidecarGraphClient("http://sidecar.test", {
+				fetch: fetchReturning({
+					nodes: [oneNode],
+					stored: 5,
+					truncated: true,
+				}) as unknown as typeof fetch,
+			});
+
+			await expect(graph.queryNodes("Config")).resolves.toEqual({
+				nodes: [oneNode],
+				stored: 5,
+				truncated: true,
+			});
+		});
+
+		it("reports stored and truncated as undefined — never defaulted — when an older sidecar omits both", async () => {
+			const graph = createSidecarGraphClient("http://sidecar.test", {
+				fetch: fetchReturning({ nodes: [oneNode] }) as unknown as typeof fetch,
+			});
+
+			const result = await graph.queryNodes("Config");
+			expect(result.nodes).toEqual([oneNode]);
+			// The trap: a defaulting implementation would report `truncated: false`
+			// and/or `stored: result.nodes.length` here. Neither is correct — nobody
+			// said either thing, so the answer is "unknown", not "no".
+			expect(result.stored).toBeUndefined();
+			expect(result.truncated).toBeUndefined();
+		});
+
+		it("keeps truncated as reported even when stored is absent", async () => {
+			const graph = createSidecarGraphClient("http://sidecar.test", {
+				fetch: fetchReturning({
+					nodes: [oneNode],
+					truncated: true,
+				}) as unknown as typeof fetch,
+			});
+
+			const result = await graph.queryNodes("Config");
+			expect(result.truncated).toBe(true);
+			expect(result.stored).toBeUndefined();
+		});
 	});
 
 	it("rejects malformed graph node responses with a useful message", async () => {

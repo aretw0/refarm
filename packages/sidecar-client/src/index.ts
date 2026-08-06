@@ -9,7 +9,7 @@ export type SidecarGraphNode = NormalisedNode;
 
 export interface SidecarGraphClient {
 	getNode(id: string): Promise<SidecarGraphNode | null>;
-	queryNodes(type: string, options?: QueryGraphNodesOptions): Promise<SidecarGraphNode[]>;
+	queryNodes(type: string, options?: QueryGraphNodesOptions): Promise<QueryGraphNodesResult>;
 }
 
 export interface PressureClient {
@@ -19,6 +19,34 @@ export interface PressureClient {
 
 export interface QueryGraphNodesOptions {
 	limit?: number;
+}
+
+/**
+ * `GET /nodes?type=…`'s page-level facts, alongside the rows themselves —
+ * see docs/SOVEREIGN_RECORD_ORDERING.md ("What a response means now").
+ *
+ * THREE STATES, not two: `stored`/`truncated` are `undefined` TOGETHER when
+ * the sidecar's response omitted them — a live case, not a hypothetical one.
+ * Any node running a build from before these fields shipped omits both keys
+ * from `GET /nodes`'s JSON body today, and a caller talking to that node has
+ * no basis to say the page is complete. A caller MUST NOT default `truncated`
+ * to `false` or derive `stored` from `nodes.length` in that gap — that is
+ * exactly the silent-false-clean shape `apps/refarm/src/commands/budget.ts`
+ * briefly reintroduced one layer up and was fixed for. Absent means absent;
+ * it must propagate as `undefined`, never rounded to a boolean or a count.
+ */
+export interface QueryGraphNodesResult {
+	nodes: SidecarGraphNode[];
+	/** How many nodes of this `@type` exist right now — the true count, not this
+	 *  page's size. `undefined` when the sidecar did not say (see the interface
+	 *  doc) — NOT defaulted to `nodes.length`. */
+	stored?: number;
+	/** Whether this page left rows out. `true`/`false` only when the sidecar's
+	 *  response said so; `undefined` when it didn't. The database is the only
+	 *  side that can see what was NOT returned, so this is never computed here
+	 *  from `stored` and the page size — an absent `stored` does not imply
+	 *  `truncated: false`. */
+	truncated?: boolean;
 }
 
 export interface SidecarRequestOptions {
@@ -91,7 +119,7 @@ export function createSidecarGraphClient(
 		async queryNodes(
 			type: string,
 			queryOptions: QueryGraphNodesOptions = {},
-		): Promise<SidecarGraphNode[]> {
+		): Promise<QueryGraphNodesResult> {
 			const limit = queryOptions.limit ?? 100;
 			const body = asObject(
 				await fetchSidecarJson(
@@ -100,15 +128,23 @@ export function createSidecarGraphClient(
 					{ ...options, errorLabel: "sidecar graph HTTP" },
 				),
 			);
-			const nodes = Array.isArray(body?.nodes) ? body.nodes : null;
-			if (!nodes) throw new Error("sidecar graph response missing nodes");
-			return nodes.map((node) => {
+			const rawNodes = Array.isArray(body?.nodes) ? body.nodes : null;
+			if (!rawNodes) throw new Error("sidecar graph response missing nodes");
+			const nodes = rawNodes.map((node) => {
 				const graphNode = asSidecarGraphNode(node);
 				if (!graphNode) {
 					throw new Error("sidecar graph response includes malformed node");
 				}
 				return graphNode;
 			});
+			return {
+				nodes,
+				// Absent means absent: no fallback to `nodes.length` / `false`. See
+				// `QueryGraphNodesResult`'s doc for why a guess here is worse than
+				// saying "unknown".
+				stored: typeof body?.stored === "number" ? body.stored : undefined,
+				truncated: typeof body?.truncated === "boolean" ? body.truncated : undefined,
+			};
 		},
 	};
 }
