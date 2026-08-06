@@ -58,10 +58,36 @@ field, so neither could be stated without the other.
 
 | | Node catalog | Workspace self-declaration |
 | --- | --- | --- |
-| Lives in | `~/.refarm/config.json` (the sovereign dir) | `<workspace>/refarm.workspace.json` (repository root, tracked — corrected in Task 3's fix round 1; `.refarm/` is node state and is gitignored, so a declaration placed there could never arrive by `git pull`) |
+| Lives in | `~/.refarm/config.json` (the sovereign dir) | `refarm.workspace.json` (repository root, tracked) |
 | Declares which workspaces exist and where | **yes — only here** | **never** |
 | May declare commands | yes | yes |
 | Nature | **authority** | **offer** |
+
+### The filename is decided: `refarm.workspace.json`, not `config.json`, not `.refarm/`
+
+One name for two roles was the defect this spec exists to end — `~/.refarm/config.json` and
+`<repo>/.refarm/config.json` shared a filename (`config.json`) and, worse, a *shape* (a `workspaces`
+map), which is what let the refarm repository declare itself and rcdc5 in the first place. The
+workspace's own declaration therefore needed a name that could not be confused with the node's.
+
+The first attempt was `<workspace>/.refarm/workspace.json`, and it was wrong on two independent axes,
+both caught before Task 1 shipped:
+
+1. **It could never arrive by `git pull`.** `.refarm/` is wholesale-gitignored (`.gitignore`: "Test
+   byproducts and Local Identity"). A declaration placed there would never travel with the repository
+   — a fresh clone would carry no offer, and the file would be one `git clean -fdx` from gone. That
+   directly breaks R2's own premise below: R2 depends on the offer arriving by `git pull` so a node can
+   review it before it takes effect. An offer that cannot arrive that way isn't an offer, it's local
+   scratch state that happens to look like one.
+2. **It re-entangles what this spec separates.** `.refarm/` is where a NODE's own state lives —
+   identity, plugins, tls, sessions, cache. Putting a workspace's declaration inside the node-state
+   directory reintroduces exactly the two-roles-in-one-place collapse the spec exists to end, just one
+   level down: instead of one *file* meaning two things, one *directory* would.
+
+The settled answer is `refarm.workspace.json` at the workspace's repository root: tracked, visible the
+way `package.json` is (not hidden), and sharing no name or directory with either `config.json`. This is
+implemented in `workspaceOfferPath` (`apps/refarm/src/commands/workspace-declaration.ts`), which
+documents both axes at the point where a future edit would otherwise reintroduce them.
 
 Three rules follow, and each answers a question the operator raised.
 
@@ -114,11 +140,33 @@ moves, which is the defect this spec exists to end.
    stops declaring rcdc5. What remains is the refarm workspace's own offer: those same five commands.
 3. **`rcdc5` is not migrated.** Its command stays in the node catalog, by the operator's decision, as
    R1's living example.
+4. **`--local` now refuses rather than redirects.** `workspace add --local` and `workspace command
+   add/remove/remote --local` used to write into `<repo>/.refarm/config.json`'s `workspaces` map —
+   exactly the shape this spec abolishes. Task 3's migration deletes that map; leaving `--local`
+   pointed at it would have let one flag silently re-create the measured defect (a workspace declaring
+   itself and others, readable only from the directory you happen to stand in). Redirecting `--local`
+   to write `refarm.workspace.json` instead was considered and rejected: `--local` named a *place*
+   (write to the workspace's own tree instead of the operator's home), and the new grammar draws the
+   line on *shape*, not place — a workspace's declaration is never something a command on the node
+   writes on its behalf, it is something the workspace repository states about itself and a node
+   later chooses to accept via `workspace sync <id>`. The flag's original meaning — "same catalog
+   shape, different location" — has no referent left in the new model, so it refuses rather than being
+   quietly repointed at a different file. Every call site now throws before touching env, fs, or the
+   operator channel, via one shared message
+   (`localWorkspaceDeclarationAbolishedMessage`, `apps/refarm/src/commands/catalog-authoring.ts`):
 
-Consequence worth naming: once `<repo>/.refarm/` stops being a catalog, it stops colliding with a
-node rooted there. That is precisely the directory the isolated launcher (D3 of the
-which-sovereign-state-is-active design) needs. Ending this confusion and enabling that sandbox are
-one movement, not two.
+   > "--local used to write this into the workspace's OWN .refarm/config.json, in the node catalog's
+   > "workspaces" map shape. That shape is abolished: a workspace never declares itself or another
+   > workspace, in any file — only a node does, in its own catalog. A workspace instead states what it
+   > OFFERS in <workspace>/refarm.workspace.json, at the repository root ("commands", "execution"), and
+   > a node brings that offer into ITS OWN catalog with `refarm workspace sync <id>`. Run `<command>`
+   > from the node, without --local."
+
+Consequence worth naming, and it is an **unblock, not a completion**: once `<repo>/.refarm/` stops
+being a catalog, it stops colliding with a node rooted there. That is precisely the directory the
+isolated launcher (D3 of the which-sovereign-state-is-active design) needs — the collision that made a
+node-rooted-at-the-repo sandbox unsafe is gone. Nothing here builds that launcher; this spec only
+removes the reason it was blocked.
 
 ## Verification
 
@@ -132,13 +180,53 @@ one movement, not two.
 - A name collision resolves to the node's definition AND produces a reported divergence.
 - `rcdc5` continues to work end to end with no file written into its repository.
 
+### Measured on the node, 2026-08-06 (Task 4)
+
+Full raw output in `.superpowers/sdd/2026-08-06-a-workspace-is-not-a-node/task-4-report.md`.
+
+With `SOVEREIGN_BASE="$HOME"` exported, `refarm workspace list --json` from `~/github/refarm`,
+`~/git/rcdc5`, and `/tmp` all returned the identical `['rcdc5', 'refarm']` — the claim above, proven.
+
+Without `SOVEREIGN_BASE` exported, the same three directories also agreed with each other — but on
+`[]`, not on the node's real catalog. This is **not** the pre-fix baseline recorded earlier in this
+document (`refarm`/`rcdc5` from the repo, empty from the other two): that asymmetry existed only while
+`<repo>/.refarm/config.json` still carried a `workspaces` map. Once that map was removed (`What changes
+on this machine`, item 2), the repository directory lost its accidental answer along with it.
+`declaredBase()`'s cwd fallback is unchanged; what changed is that the file it falls back to reading no
+longer has anything to answer with. See the CLI-base non-goal below — this is that gap, measured after
+the fix rather than before it.
+
+A `workspaces` map written into a scratch offer (never the real `refarm.workspace.json`) was refused
+with `workspace-sync-offer-invalid`, naming the key found (`"workspaces"`), where it belongs
+(`~/.refarm/config.json`, the node's catalog), and the command that puts it there (`refarm workspace
+add`) — full message in the Task 4 report.
+
+`rcdc5`'s catalog entry resolved both `code-boundaries` and `vpn` with `SOVEREIGN_BASE="$HOME"` set,
+and `~/git/rcdc5/rcdc5/.refarm` does not exist.
+
 ## Non-goals
 
-- **No migration of rcdc5.** Stated above, and it is the operator's call rather than an oversight.
+- **No migration of rcdc5.** Stated above, and it is the operator's call rather than an oversight —
+  R1's living example: `code-boundaries` and `vpn` stay declared in the node catalog, nothing is
+  written into the rcdc5 repository, deliberately.
 - **The CLI's own base is not changed here.** An operator shell without `SOVEREIGN_BASE` still
-  resolves from the current directory, so the CLI and the node can still disagree. Whether to close
-  that by exporting the variable or by changing `declaredBase`'s fallback from positional to stable
-  is the operator's decision; reporting the disagreement belongs to the cockpit work.
+  resolves from the current directory (`declaredBase()`'s positional fallback), so the CLI and the node
+  can still disagree. Measured 2026-08-06 (Task 4):
+
+  | Run from | With `SOVEREIGN_BASE=$HOME` | Without `SOVEREIGN_BASE` |
+  | --- | --- | --- |
+  | `~/github/refarm` | `rcdc5`, `refarm` | *(empty)* |
+  | `~/git/rcdc5` | `rcdc5`, `refarm` | *(empty)* |
+  | `/tmp` | `rcdc5`, `refarm` | *(empty)* |
+
+  The three directories now agree with each other even without the variable — but they agree on
+  nothing, because `<repo>/.refarm/config.json` no longer carries a `workspaces` map for the repo
+  directory to fall back to. Before this spec's changes, the repo directory answered `refarm`,
+  `rcdc5` while the other two answered empty: an asymmetric wrong answer. After: a symmetric empty
+  one. Neither is the node's real catalog. Whether to close that gap by exporting the variable (making
+  the operator's shell agree with the node explicitly) or by changing `declaredBase`'s fallback from
+  positional to stable (making the CLI agree with the node even when unset) is the operator's decision;
+  reporting the disagreement belongs to the cockpit work.
 - **No workspace hatch.** ADR-094's richer binding (`homeMode`, `credentialMode`,
   `runtimeNamespaceMode`) is not built here.
 - **No sandbox launcher.** This spec removes the collision that blocks it; building it is separate.
