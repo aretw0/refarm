@@ -50,16 +50,13 @@ conformance surfaces.
 
 Workflow phase sub-views → **[docs/diagrams/WORKFLOW_GUIDE.md](../../docs/diagrams/WORKFLOW_GUIDE.md)**
 
-Legacy architecture layer sub-views (frozen) → **[docs/diagrams/LAYERS.md](../../docs/diagrams/LAYERS.md)**
-
 Architecture layer consolidation target → **[ARCH_GUIDE.md](./ARCH_GUIDE.md)**
 
 | View | Diagram | What it shows |
 |---|---|---|
-| Distros | [layer-diagram--distros.svg](../../docs/diagrams/layer-diagram--distros.svg) | 4 apps and their Tractor connection |
-| Runtime | [layer-diagram--runtime.svg](../../docs/diagrams/layer-diagram--runtime.svg) | Dual-runtime core + WIT + plugin sandbox |
-| Data | [layer-diagram--data.svg](../../docs/diagrams/layer-diagram--data.svg) | Capability contracts → storage/sync/identity adapters |
-| Streams | [layer-diagram--streams.svg](../../docs/diagrams/layer-diagram--streams.svg) | Effort + Stream contracts → transport adapters |
+| Apps and runtime | [architecture-layers--apps-runtime.svg](./architecture-layers--apps-runtime.svg) | 5 apps, native runtime authority, compatibility, WIT, and plugin sandbox |
+| Contracts | [architecture-layers--contracts.svg](./architecture-layers--contracts.svg) | Execution and work dispatch through capability contracts |
+| Adapters | [architecture-layers--adapters.svg](./architecture-layers--adapters.svg) | Transport, storage, sync, and identity implementations |
 
 CI pipeline sub-views → **[CI_GUIDE.md](./CI_GUIDE.md)**
 
@@ -127,7 +124,6 @@ the docs that use them.
 
 | Domain | Diagram | Used in |
 |---|---|---|
-| Architecture | [Layer Diagram](../../docs/diagrams/layer-diagram.svg) | `docs/ARCHITECTURE.md` |
 | Sovereignty | [Sovereignty L0 — Persistence](../../docs/diagrams/sovereignty-l0.svg) | `docs/ARCHITECTURE.md` |
 | Sovereignty | [Sovereignty L1 — Self-Healing](../../docs/diagrams/sovereignty-l1.svg) | `docs/ARCHITECTURE.md` |
 | Sovereignty | [Sovereignty L2 — Pluggable Storage](../../docs/diagrams/sovereignty-l2.svg) | `docs/ARCHITECTURE.md` |
