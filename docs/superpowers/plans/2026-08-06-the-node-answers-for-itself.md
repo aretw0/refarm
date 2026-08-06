@@ -240,6 +240,33 @@ Record what remains: the comparison reads the daemon's environ, which is a Linux
 
 ---
 
+### Task 6: One command, one base — `workspace sync` agrees with its siblings
+
+**Files:**
+- Modify: `apps/refarm/src/commands/workspace-sync.ts` (around line 251)
+- Test: `apps/refarm/src/commands/workspace-sync.test.ts`
+
+Folded in from the loose-ends queue because it is the same subject as this plan: which base a command is answering from.
+
+`workspace sync` is the FIRST catalog **writer** rooted at the current directory — `deps.cwd?.() ?? declaredBase()`. Every sibling that writes the catalog (`workspace add`, `workspace command add`, `remove`, `remote`) roots at `REFARM_HOME`. Two consequences, both measured:
+
+- In the operator's default shell, with `SOVEREIGN_BASE` unexported, `refarm workspace sync refarm` refuses with `workspace-sync-not-declared` and advises "Run `refarm workspace add` first". That advice is **false** — the workspace IS declared — and the suggested command writes to a file `sync` is not reading.
+- In any workspace whose `.refarm/config.json` still carries a `workspaces` map, `sync` would write into it. That is the door `--local` was closed for, reopened by inherited base.
+
+This does NOT depend on the operator's open decision about `declaredBase`'s fallback. Whatever he decides there, `sync` must agree with the other catalog writers today.
+
+- [ ] **Step 1: Write the failing test** — assert `sync` resolves the same catalog as `workspace add` does when the current directory is not the sovereign base. Make the fixture put a DIFFERENT catalog at the cwd than at the home root, so a test that passed under either rooting would be impossible.
+
+- [ ] **Step 2: Run it to verify it fails.**
+
+- [ ] **Step 3: Root it where its siblings root.** Read how `workspace add` and `workspace-command-add` resolve their root and use the same path — do not invent a third way. If they disagree with each other, STOP and report that instead of picking one.
+
+- [ ] **Step 4: Verify** — `pnpm --filter @refarm.dev/refarm exec vitest run src/commands/workspace-sync.test.ts`, then the full package suite, then run `refarm workspace sync refarm --json` from the repository WITHOUT `SOVEREIGN_BASE` set and confirm it now finds the workspace instead of advising a false fix.
+
+- [ ] **Step 5: Commit.**
+
+---
+
 ## Self-Review
 
 | Requirement | Task |
@@ -254,5 +281,6 @@ Record what remains: the comparison reads the daemon's environ, which is a Linux
 | The `node-not-running` cross-signal gap closed without double-naming | 3 |
 | The marker predicate has one definition | 4 |
 | ADR-094 D2's third clause recorded as delivered, with its platform limit | 5 |
+| `workspace sync` roots where its sibling catalog writers root | 6 |
 
 **Known follow-up, out of scope:** the loose-ends queue in `.project/handoff.json` carries ten items from earlier plans; none is touched here.
