@@ -1,7 +1,10 @@
 # Model Provider Strata
 
 Refarm separates model providers by billing and credential semantics. This is a
-runtime contract, not only a CLI presentation detail.
+runtime contract, not only a CLI presentation detail. Provider, credential, and
+workspace-binding resolution happens below conversational and automation
+surfaces: `refarm ask`, `refarm chat`, sessions, workers, monitors, and future
+Telegram/PWA adapters are consumers of the same dispatch decision.
 
 ## API-key providers
 
@@ -36,9 +39,11 @@ Examples:
   using GitHub device OAuth, exchanging that OAuth token for a Copilot internal
   token at `https://api.github.com/copilot_internal/v2/token`, and then using
   the Copilot API endpoint advertised by the returned token. That undocumented
-  transport is a research reference, not Refarm's production contract. GitHub
-  now provides an official Copilot SDK, whose compatibility with Refarm's own
-  agent loop must be proven before activation.
+  transport is a research reference, not Refarm's production contract. Pi's
+  provider calls the model protocols directly and does not use Copilot CLI.
+  GitHub's official Copilot SDK is a separate agent-runtime path over Copilot
+  CLI and JSON-RPC; it is not a replacement implementation of the same raw
+  provider adapter. Refarm evaluates both layers independently.
 
 Subscription does not imply zero marginal cost. Current Copilot plans use AI
 credits, included allowance, usage-based billing, and budgets; some legacy
@@ -76,11 +81,11 @@ References:
   for `openai-codex`; it is not exported as `OPENAI_API_KEY`.
 - `GITHUB_COPILOT_ACCESS_TOKEN` satisfies only the subscription credential check
   for `github-copilot`.
-- `refarm ask` blocks subscription-backed routes only while no runtime adapter
-  exists for the provider. `openai-codex` now has a runtime subscription adapter
+- Refarm's model dispatch blocks subscription-backed routes while no runtime
+  adapter exists for the provider. `openai-codex` now has a runtime subscription adapter
   (Tractor `wasi_bridge` routes `/backend-api/codex/responses` with
   `OPENAI_CODEX_ACCESS_TOKEN`; it is listed in
-  `RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS`, so `ask` exempts it from the block).
+  `RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS`, so consumers may dispatch it).
   `github-copilot` remains blocked until its adapter exists.
 
 This keeps quota failures legible. A 429 from `api.openai.com` means API billing

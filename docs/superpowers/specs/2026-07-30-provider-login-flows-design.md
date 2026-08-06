@@ -60,8 +60,8 @@ resolution do not learn a new concept — only a second way to obtain the same c
 ## D2 — Copilot was originally designed as two halves
 
 The implementation shape below is retained as historical evidence. The 2026-08-06 account-aware
-design replaces the proposed private-endpoint runtime adapter with an official Copilot SDK boundary
-spike before a production transport is chosen.
+design replaces the single proposed adapter with two separately evaluated tracks: a pi-informed
+direct model provider and an official Copilot SDK/CLI external agent runtime.
 
 Already mapped, and worth restating so the halves are not conflated:
 

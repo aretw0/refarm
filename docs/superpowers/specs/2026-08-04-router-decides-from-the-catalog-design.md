@@ -172,7 +172,7 @@ does read. The remedy is identical: the fact belongs where the schema forces a s
 What changes observably: a `cheap` profile can select `gpt-5-nano`, and the audit event
 `agent:route:selected` can record the rate that justified the choice instead of a tier name.
 
-### D3. Copilot becomes a real route, with personal and corporate as distinct credentials
+### D3. Copilot becomes a real route, with multiple credentials for one provider
 
 Two concrete pieces are missing and they are separable:
 
@@ -180,9 +180,12 @@ Two concrete pieces are missing and they are separable:
    `RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS`, which is what makes the route exist at all.
 2. A GitHub OAuth device flow, which is what makes it usable without pasting a token.
 
-The operator holds two accounts, personal and corporate, and refarm sits at the intersection of
-both. They are two credentials for one provider, not two providers, which is a distinction the
-credential layer must carry rather than the routing layer.
+The original operator scenario held personal and corporate accounts, but those meanings are aliases
+chosen by that operator, not account types in the contract. Refarm supports zero or more credential
+identities for one provider and keeps their meaning opaque to routing. They are credentials for one
+provider, not new providers, which is a distinction the credential layer must carry rather than the
+routing layer. The current generic contract and selection rules live in the 2026-08-06 account-aware
+provider design linked in the authority note above.
 
 ### D4. Quota is the fourth budget axis, and it refills
 
