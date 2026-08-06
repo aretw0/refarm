@@ -1,16 +1,16 @@
-import fs from "node:fs";
-import path from "node:path";
 import type {
 	Effort,
 	EffortLogEntry,
 	EffortResult,
 	EffortStatus,
 	EffortSummary,
-	EffortTransportAdapter,
 	Task,
 	TaskResult,
 } from "@refarm.dev/effort-contract-v1";
 import type { PressureSnapshot, PressureWindow } from "@refarm.dev/pressure-contract-v1";
+import fs from "node:fs";
+import path from "node:path";
+import type { EffortOperations } from "../effort-operations.js";
 
 export type TaskExecutorFn = (
 	task: Task,
@@ -58,7 +58,7 @@ function parseEffortMaxAttempts(effort: Effort): number {
 	return DEFAULT_MAX_ATTEMPTS;
 }
 
-export class FileTransportAdapter implements EffortTransportAdapter {
+export class FileTransportAdapter implements EffortOperations {
 	private readonly tasksDir: string;
 	private readonly resultsDir: string;
 	private readonly logsDir: string;

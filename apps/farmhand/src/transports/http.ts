@@ -1,23 +1,6 @@
+import type { Effort } from "@refarm.dev/effort-contract-v1";
 import http from "node:http";
-import type {
-	Effort,
-	EffortLogEntry,
-	EffortResult,
-	EffortSummary,
-} from "@refarm.dev/effort-contract-v1";
-
-export interface SidecarAdapter {
-	submit(effort: Effort): Promise<string>;
-	query(effortId: string): Promise<EffortResult | null>;
-	list(): Promise<EffortResult[]>;
-	logs(effortId: string): Promise<EffortLogEntry[] | null>;
-	retry(effortId: string): Promise<boolean>;
-	cancel(effortId: string): Promise<boolean>;
-	summary(): Promise<EffortSummary>;
-	process(effort: Effort): Promise<void>;
-	telemetry?(): Promise<unknown>;
-	telemetryWindow?(minutes: number): Promise<unknown>;
-}
+import type { EffortOperations } from "../effort-operations.js";
 
 export class HttpSidecar {
 	private readonly server: http.Server;
@@ -27,7 +10,7 @@ export class HttpSidecar {
 
 	constructor(
 		private readonly port: number,
-		private readonly adapter: SidecarAdapter,
+		private readonly operations: EffortOperations,
 		/** Bind address. Loopback by default; 0.0.0.0 exposes the sidecar to other
 		 *  devices — an explicit operator decision, mirroring the Rust daemon's
 		 *  `--http-host` (and the OPERATOR_PRIMITIVES Docker guidance). */
@@ -69,44 +52,44 @@ export class HttpSidecar {
 
 			if (req.method === "POST" && pathname === "/efforts") {
 				const effort = await readJson<Effort>(req);
-				const effortId = await this.adapter.submit(effort);
-				void this.adapter.process(effort);
+				const effortId = await this.operations.submit(effort);
+				void this.operations.process(effort);
 				json(res, 200, { effortId });
 				return;
 			}
 
 			if (req.method === "GET" && pathname === "/efforts") {
-				json(res, 200, await this.adapter.list());
+				json(res, 200, await this.operations.list());
 				return;
 			}
 
 			if (req.method === "GET" && pathname === "/efforts/summary") {
-				json(res, 200, await this.adapter.summary());
+				json(res, 200, await this.operations.summary());
 				return;
 			}
 
 			if (req.method === "GET" && pathname === "/telemetry") {
-				if (!this.adapter.telemetry) {
+				if (!this.operations.telemetry) {
 					json(res, 404, { error: "not found" });
 					return;
 				}
-				json(res, 200, await this.adapter.telemetry());
+				json(res, 200, await this.operations.telemetry());
 				return;
 			}
 
 			if (req.method === "GET" && pathname === "/telemetry/window") {
-				if (!this.adapter.telemetryWindow) {
+				if (!this.operations.telemetryWindow) {
 					json(res, 404, { error: "not found" });
 					return;
 				}
 				const minutes = normalizePositiveInt(requestUrl.searchParams.get("minutes"), 60);
-				json(res, 200, await this.adapter.telemetryWindow(minutes));
+				json(res, 200, await this.operations.telemetryWindow(minutes));
 				return;
 			}
 
 			const logsMatch = pathname.match(/^\/efforts\/([^/]+)\/logs$/);
 			if (req.method === "GET" && logsMatch) {
-				const logs = await this.adapter.logs(logsMatch[1]!);
+				const logs = await this.operations.logs(logsMatch[1]!);
 				if (!logs) {
 					json(res, 404, { error: "not found" });
 					return;
@@ -117,7 +100,7 @@ export class HttpSidecar {
 
 			const retryMatch = pathname.match(/^\/efforts\/([^/]+)\/retry$/);
 			if (req.method === "POST" && retryMatch) {
-				const accepted = await this.adapter.retry(retryMatch[1]!);
+				const accepted = await this.operations.retry(retryMatch[1]!);
 				if (!accepted) {
 					json(res, 409, { error: "retry not allowed" });
 					return;
@@ -128,7 +111,7 @@ export class HttpSidecar {
 
 			const cancelMatch = pathname.match(/^\/efforts\/([^/]+)\/cancel$/);
 			if (req.method === "POST" && cancelMatch) {
-				const accepted = await this.adapter.cancel(cancelMatch[1]!);
+				const accepted = await this.operations.cancel(cancelMatch[1]!);
 				if (!accepted) {
 					json(res, 409, { error: "cancel not allowed" });
 					return;
@@ -139,7 +122,7 @@ export class HttpSidecar {
 
 			const getMatch = pathname.match(/^\/efforts\/([^/]+)$/);
 			if (req.method === "GET" && getMatch) {
-				const result = await this.adapter.query(getMatch[1]!);
+				const result = await this.operations.query(getMatch[1]!);
 				if (!result) {
 					json(res, 404, { error: "not found" });
 					return;
