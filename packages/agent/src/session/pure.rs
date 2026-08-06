@@ -56,21 +56,25 @@ pub(crate) fn sum_provider_spend_usd(
     })
 }
 
-/// Why the budget guard could not establish the true 30-day spend total. The two
-/// causes are kept apart in the payload (not folded into one "unknown" string)
-/// because an operator debugging this needs different next actions for each: a
-/// `Truncated` node has more `UsageRecord` history than the 10,000-row query window
-/// covers (raise the query limit or prune old records); a `QueryError` node has a
-/// storage problem unrelated to record volume.
+/// Why the budget guard could not establish the true 30-day spend total.
+///
+/// ROUND 2 removed the other reason this enum used to carry (`Truncated`): see
+/// `resolve_budget_check` below, a truncated `query-nodes` page is no longer a
+/// reason to be unknown at all — it either proves "over" by arithmetic on the
+/// visible rows, or triggers a follow-up read for the complete set. A variant
+/// that can never be constructed is worse than no variant: it looks live and
+/// isn't, so it was removed rather than kept and marked dead. `QueryError` is
+/// the only reason left standing today. The type stays an enum (not a bool or a
+/// unit struct) because it names WHY, and a genuinely new failure mode of the
+/// host bridge should get its own reason rather than being folded into
+/// `QueryError`'s meaning — the shape is ready for that; nothing today needs it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BudgetUnknownReason {
-    /// `query-nodes` reported `truncated: true` on its `node-page` result
-    /// (`packages/plugin-wit/wit/host.wit`): the table holds more rows of this type
-    /// than the `limit` returned, so the page in hand is a SUBSET, not the total.
-    Truncated,
-    /// The `query-nodes` call itself returned `Err` (host/storage failure). Zero
-    /// rows were seen — not "zero rows exist" — so summing an empty set here would
-    /// be reading a failure as evidence of no spend.
+    /// A `query-nodes` call returned `Err` (host/storage failure) — either the
+    /// FIRST read, or the follow-up read `resolve_budget_check` issues when the
+    /// first read was truncated and still under budget (see below). Zero rows
+    /// were SEEN, not "zero rows exist", so summing an empty set here would be
+    /// reading a failure as evidence of no spend.
     QueryError,
 }
 
@@ -78,7 +82,6 @@ impl BudgetUnknownReason {
     /// Stable string for telemetry payloads — see `wasm_ops::budget_exceeded_for_provider`.
     pub(crate) fn as_str(self) -> &'static str {
         match self {
-            BudgetUnknownReason::Truncated => "truncated",
             BudgetUnknownReason::QueryError => "query_error",
         }
     }
@@ -86,95 +89,150 @@ impl BudgetUnknownReason {
 
 /// The outcome of trying to establish a provider's rolling spend against its budget.
 ///
-/// This is the THIRD STATE the budget guard was missing: before, a truncated page
-/// and a failed query both silently became `spend = 0.0`, indistinguishable from a
-/// genuinely quiet provider, inside one boolean return. `Unknown` is a structurally
-/// separate variant — not a bool plus a log line — so a caller (and a test) can tell
-/// "the guard does not know" from "the guard checked and it is fine", even on runs
-/// where both currently lead to the same proceed decision (see `budget_exceeded`).
+/// `Unknown` is a structurally separate variant from `Known` — not a bool plus a
+/// log line — so a caller (and a test) can tell "the guard does not know" from
+/// "the guard checked and it is fine". As of round 2, `Unknown` is the rare case:
+/// `Known` is reached even from a truncated read, either by an arithmetic lower
+/// bound that already clears the budget or by a complete follow-up read — see
+/// `resolve_budget_check`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum BudgetCheck {
-    /// A COMPLETE read: `spend_usd` is the true rolling-window sum, comparable
-    /// directly against `budget_usd`.
+    /// A definite answer: `spend_usd` is either the true rolling-window sum (a
+    /// complete or completed-by-follow-up read) or a lower bound on it that
+    /// already meets `budget_usd` on its own — both are `Known` because neither
+    /// needs more data to be trusted for the comparison against `budget_usd`.
     Known { spend_usd: f64, budget_usd: f64 },
-    /// The total could not be established; `0` carries which of the two ways.
+    /// The total could not be established; carries why (see `BudgetUnknownReason`).
     Unknown(BudgetUnknownReason),
 }
 
-/// Build the `BudgetCheck` from a `query-nodes` result over `UsageRecord` rows.
+/// Build the `BudgetCheck` from a `query-nodes` result over `UsageRecord` rows,
+/// RESOLVING truncation instead of just naming it (the round-1 shape of this
+/// function).
 ///
-/// `query_result` is `Err(())` when the query itself failed — the caller only needs
-/// to signal failure, not carry the host's error value into this pure layer — or
-/// `Ok((nodes, truncated))`, the page's rows and the `node-page` record's
-/// `truncated` flag.
+/// `query_result` is `Err(())` when the first query failed outright, or
+/// `Ok((nodes, truncated, stored))` — the page's rows, the `node-page` record's
+/// `truncated` flag, and `stored` (the true row count as of this read,
+/// independent of the query's `limit`; see `packages/plugin-wit/wit/host.wit`).
+/// `requery_all(stored)` is a caller-supplied second `query-nodes` call, taken as
+/// a closure so this stays natively testable — the wasm caller passes a real
+/// `tractor_bridge::query_nodes` call, a test passes a fixture or an `Err(())`.
 ///
-/// A truncated page short-circuits to `Unknown` WITHOUT summing `nodes`: the
-/// visible rows do have a real (partial) sum, but that sum is a LOWER BOUND on the
-/// true total, not the total itself, and returning it as `Known` would silently
-/// reintroduce the undercount this type exists to close — even when the partial sum
-/// happens to land under budget.
-pub(crate) fn resolve_budget_check(
-    query_result: Result<(&[String], bool), ()>,
+/// Every `UsageRecord.estimated_usd` is non-negative, so a SUBSET's sum is always
+/// a valid LOWER BOUND on the true total. Two consequences, in order:
+///
+///   1. If the (possibly partial) visible sum ALREADY meets or exceeds
+///      `budget_usd`, the true total does too — no further data can change that
+///      answer, so it is `Known`, not `Unknown`, even when `truncated` is `true`.
+///      This is arithmetic, not extra strictness, and it is exactly the block the
+///      pre-Task-3 code used to perform on a truncated-but-over page (see the
+///      history note on `budget_exceeded`) — round 2 restores it on purpose.
+///   2. Only when the visible sum is UNDER budget does truncation matter: the
+///      missing rows could be anything, so nothing can be concluded from a
+///      partial sum alone. Rather than report `Unknown`, ask again —
+///      `requery_all(stored)` fetches the complete set the first read's own
+///      `stored` count said exists, and THAT sum decides it.
+///
+/// A record written to the CRDT between the two reads is a real but BOUNDED,
+/// NAMEABLE race, not a silent gap: the follow-up read targets `stored`-many rows
+/// as of a moment ago, so at most the handful of records written in that narrow
+/// window could be missing from it, and no unresolved `Unknown` is invented to
+/// cover that residual — it is accepted and reported `Known` on the follow-up
+/// sum. Only an outright failure of EITHER read still lands in
+/// `Unknown(QueryError)`; truncation itself is no longer a state this function
+/// has to reason about — it resolves itself using data that was already there.
+///
+/// Cost note: `requery_all` loads every `UsageRecord` of this provider into guest
+/// memory when it fires (truncated AND still under budget). Fine at today's
+/// volumes; a provider whose full history is both very large and genuinely under
+/// budget would eventually want host-side summing instead of a guest-side full
+/// fetch. That is a follow-up, not this function.
+pub(crate) fn resolve_budget_check<F>(
+    query_result: Result<(&[String], bool, u32), ()>,
     provider: &str,
     budget_usd: f64,
     now_ns: u64,
     window_ns: u64,
-) -> BudgetCheck {
-    let (nodes, truncated) = match query_result {
+    requery_all: F,
+) -> BudgetCheck
+where
+    F: FnOnce(u32) -> Result<Vec<String>, ()>,
+{
+    let (nodes, truncated, stored) = match query_result {
         Err(()) => return BudgetCheck::Unknown(BudgetUnknownReason::QueryError),
-        Ok(pair) => pair,
+        Ok(triplet) => triplet,
     };
-    if truncated {
-        return BudgetCheck::Unknown(BudgetUnknownReason::Truncated);
+
+    let visible_spend_usd = sum_provider_spend_usd(nodes, provider, now_ns, window_ns);
+
+    if !truncated {
+        // A complete read: the visible sum IS the total.
+        return BudgetCheck::Known { spend_usd: visible_spend_usd, budget_usd };
     }
-    let spend_usd = sum_provider_spend_usd(nodes, provider, now_ns, window_ns);
-    BudgetCheck::Known { spend_usd, budget_usd }
+    if visible_spend_usd >= budget_usd {
+        // Lower bound alone already crosses the ceiling — arithmetic proof, no
+        // re-query needed or performed.
+        return BudgetCheck::Known { spend_usd: visible_spend_usd, budget_usd };
+    }
+
+    // Under budget on a partial view proves nothing about the total — ask again.
+    match requery_all(stored) {
+        Err(()) => BudgetCheck::Unknown(BudgetUnknownReason::QueryError),
+        Ok(all_nodes) => {
+            let full_spend_usd = sum_provider_spend_usd(&all_nodes, provider, now_ns, window_ns);
+            BudgetCheck::Known { spend_usd: full_spend_usd, budget_usd }
+        }
+    }
 }
 
 /// THE POLICY DECISION, and the one place `Unknown` is mapped to a proceed/block
 /// answer: **FAIL OPEN BUT LOUD**. `Known` compares spend to budget normally.
-/// `Unknown` — either reason — returns `false` (not blocked).
+/// `Unknown` returns `false` (not blocked) — and as of round 2, `Unknown` only
+/// happens when a `query-nodes` call fails outright (see `resolve_budget_check`);
+/// a truncated read is always resolved to `Known` first, by arithmetic proof or by
+/// a complete follow-up read.
 ///
-/// THIS IS NOT BEHAVIOUR-PRESERVING, and the previous wording here claimed
-/// otherwise — that was false and it hid a real loosening. State the real baseline
-/// plainly: NEW-BLOCKS is a strict subset of OLD-BLOCKS.
-///   - `QueryError`: before this type existed, `query_nodes`'s `Err` was defaulted
-///     to an empty `Vec` via `.unwrap_or_default()` and summed to `spend_usd = 0.0`.
-///     That only ever blocked when `budget_usd <= 0.0` — `0.0 >= 0.0` is true — which
-///     is how `MODEL_BUDGET_<PROVIDER>_USD=0` works as a hard stop. That hard stop no
-///     longer fires on a query error: it now always proceeds.
-///   - `Truncated`: before this type existed, a truncated page did NOT sum to zero —
-///     `page.truncated` was read and discarded, and whatever subset `page.nodes`
-///     held was summed and compared to budget like any other read. So a truncated
-///     read blocked whenever that PARTIAL sum already met budget, undercounting the
-///     true total but still enforcing on what it could see. That is gone: a
-///     truncated read now always proceeds, no matter how high the visible partial
-///     sum already is.
-///   - Practical consequence: once a provider's `UsageRecord` history exceeds the
-///     10,000-row query limit, `MODEL_BUDGET_<PROVIDER>_USD` stops enforcing for
-///     that provider ENTIRELY, rather than enforcing against an undercount. This is
-///     FAIL OPEN working exactly as chosen below — the problem this note corrects
-///     is only that the code used to claim the baseline was unchanged.
+/// HISTORY — corrected twice now; read this before touching the claim again:
+///   - The FIRST cut of this guard (before `BudgetCheck` existed) summed whatever
+///     page it got, ignoring `truncated` entirely. A truncated-but-over-budget
+///     page STILL blocked (undercounting the true total, but enforcing on what it
+///     could see); a query error defaulted to an empty sum and only blocked when
+///     `budget_usd <= 0.0` (the `MODEL_BUDGET_<PROVIDER>_USD=0` hard-stop case).
+///   - ROUND 1 modelled `Unknown` but mapped BOTH truncated and query-error to
+///     `Unknown` -> proceed, unconditionally, and its doc comment wrongly claimed
+///     that was behaviour-preserving. It was a real loosening: a
+///     truncated-but-over-budget page used to block and stopped blocking, and
+///     past the query's 10,000-row limit the cap stopped enforcing entirely.
+///   - ROUND 2 (this version) closes that gap instead of just documenting it —
+///     see `resolve_budget_check`. The ceiling enforces above the query's
+///     10,000-row limit again, exactly as it did before Task 3 touched this
+///     guard, so no block the operator had is lost — and it does so WITHOUT
+///     claiming certainty it does not have: the cases that return `Known` really
+///     are known (an arithmetic lower bound, or a complete second read), and the
+///     one case left in `Unknown` (a query failing outright) really is unknown.
+///     There is no "past ~10,000 rows the cap stops enforcing" consequence
+///     anymore — leaving that claim in this comment after round 2 would itself be
+///     a new false claim, in the opposite direction from round 1's.
 ///
 /// This mapping IS the policy, chosen deliberately over the alternatives the task
 /// considered:
 ///   - Fail CLOSED (`Unknown` -> over-budget) protects the wallet, but can block a
-///     run the operator would have allowed on nothing more than a large
-///     `UsageRecord` history or a transient storage hiccup — a false positive with
-///     no mid-run escape hatch, decided on the operator's behalf without his say-so.
+///     run the operator would have allowed on nothing more than a transient
+///     storage hiccup — a false positive with no mid-run escape hatch, decided on
+///     the operator's behalf without his say-so. (A large `UsageRecord` history is
+///     no longer a reason to fail closed at all — round 2 resolves it instead of
+///     needing to choose a side on it.)
 ///   - A third state in the RETURN TYPE (push the decision to the caller) may be
 ///     right if the caller has context this function lacks — but today's callers
 ///     (`run_primary_completion` / `try_fallback_completion` in `runtime/wasm_flow.rs`)
 ///     have nothing beyond the provider name; they would just re-collapse `Unknown`
 ///     to a bool one frame later, with strictly less information than this function
 ///     has right here.
-/// FAIL OPEN avoids INTRODUCING a new block the operator never asked for on an
-/// uncertain read — it does not claim to preserve every prior block; see the
-/// baseline note above for exactly what changed. "LOUD" is what makes leaving it
-/// open safe rather than silent — the wasm
-/// boundary (`wasm_ops::budget_exceeded_for_provider`) emits `agent:budget:unknown`
-/// naming the reason whenever this function is fed an `Unknown` check, so the blind
-/// spot is visible on the record instead of indistinguishable from "all clear".
+/// "LOUD" is what makes leaving a genuine `Unknown` open safe rather than silent —
+/// the wasm boundary (`wasm_ops::budget_exceeded_for_provider`) emits
+/// `agent:budget:unknown` naming the reason whenever this function is fed an
+/// `Unknown` check, so a query failure is visible on the record instead of
+/// indistinguishable from "all clear".
 pub(crate) fn budget_exceeded(check: &BudgetCheck) -> bool {
     match check {
         BudgetCheck::Known { spend_usd, budget_usd } => spend_usd >= budget_usd,
@@ -659,15 +717,15 @@ mod tests {
 
     // ── budget guard: resolve_budget_check / budget_exceeded ───────────────────
     //
-    // Four cases, per the task brief: known-under, known-over, truncated,
-    // query-error. The truncated fixture is deliberately built so the VISIBLE
-    // rows sum BELOW budget — a guard that ignored `truncated` and just summed
-    // the page would answer "under budget" here, the same wrong permissive
-    // answer a truncated read gave before this type existed. The assertion
-    // below does not stop at the boolean `budget_exceeded` returns (which IS
-    // `false` either way, by policy): it pins that `resolve_budget_check`
-    // produced `Unknown`, not `Known`, proving the two are structurally
-    // distinguishable rather than merely differently logged.
+    // Six cases. The original four (known-under, known-over, truncated,
+    // query-error) plus the two round-2 added: truncated-but-already-over (the
+    // arithmetic-proof case — this is the one that would wrongly regress to
+    // `Unknown` under round 1's code) and a re-query that itself fails.
+    //
+    // Every truncated-path test supplies a `requery_all` closure; the ones that
+    // must NOT trigger a re-query pass a closure that panics if called, so the
+    // test fails loudly (not just by returning a wrong-but-plausible value) if
+    // the arithmetic short-circuit stops firing.
 
     fn usage_record(provider: &str, timestamp_ns: u64, estimated_usd: f64) -> String {
         serde_json::json!({
@@ -682,6 +740,11 @@ mod tests {
     const DAY_NS: u64 = 24 * 3600 * 1_000_000_000;
     const WINDOW_30D_NS: u64 = 30 * DAY_NS;
 
+    fn never_requeried(_limit: u32) -> Result<Vec<String>, ()> {
+        panic!("requery_all must not be called: an untruncated read or an arithmetic \
+                 proof from the visible sum alone must decide this case");
+    }
+
     #[test]
     fn budget_known_under_is_not_exceeded() {
         let records = vec![
@@ -689,9 +752,10 @@ mod tests {
             usage_record("anthropic", 20 * DAY_NS, 2.0),
         ];
         let now = 30 * DAY_NS;
-        let query_result: Result<(&[String], bool), ()> = Ok((&records, false));
+        let query_result: Result<(&[String], bool, u32), ()> = Ok((&records, false, 2));
 
-        let check = resolve_budget_check(query_result, "anthropic", 5.0, now, WINDOW_30D_NS);
+        let check =
+            resolve_budget_check(query_result, "anthropic", 5.0, now, WINDOW_30D_NS, never_requeried);
 
         assert_eq!(
             check,
@@ -711,9 +775,10 @@ mod tests {
             usage_record("anthropic", 20 * DAY_NS, 3.0),
         ];
         let now = 30 * DAY_NS;
-        let query_result: Result<(&[String], bool), ()> = Ok((&records, false));
+        let query_result: Result<(&[String], bool, u32), ()> = Ok((&records, false, 2));
 
-        let check = resolve_budget_check(query_result, "anthropic", 5.0, now, WINDOW_30D_NS);
+        let check =
+            resolve_budget_check(query_result, "anthropic", 5.0, now, WINDOW_30D_NS, never_requeried);
 
         assert_eq!(
             check,
@@ -727,21 +792,83 @@ mod tests {
     }
 
     #[test]
-    fn budget_truncated_page_is_unknown_not_known_under_even_though_visible_sum_is_low() {
-        // Visible rows sum to 1.0 — well under the 5.0 budget. A guard that summed
-        // the page without checking `truncated` would call this "under budget",
-        // identical to the known-under case above. The fix must NOT do that.
-        let records = vec![usage_record("anthropic", 10 * DAY_NS, 1.0)];
+    fn budget_truncated_and_already_over_is_known_by_arithmetic_not_unknown() {
+        // THE REGRESSION GUARD for round 1's loosening: the visible rows alone
+        // already sum to 9.0, over the 5.0 budget, even though `truncated: true`
+        // says more rows exist. A subset's sum is a valid lower bound (every
+        // `estimated_usd` is non-negative), so the true total is provably >= 9.0
+        // too — this MUST be `Known`, and MUST block, without needing the rest of
+        // the rows. Round 1's code would have returned `Unknown(Truncated)` here
+        // and silently stopped enforcing; this is exactly the case that regression
+        // would fail on.
+        let records = vec![usage_record("anthropic", 10 * DAY_NS, 9.0)];
         let now = 30 * DAY_NS;
-        let query_result: Result<(&[String], bool), ()> = Ok((&records, true /* truncated */));
+        let query_result: Result<(&[String], bool, u32), ()> = Ok((&records, true /* truncated */, 500));
 
-        let check = resolve_budget_check(query_result, "anthropic", 5.0, now, WINDOW_30D_NS);
+        let check =
+            resolve_budget_check(query_result, "anthropic", 5.0, now, WINDOW_30D_NS, never_requeried);
 
         assert_eq!(
             check,
-            BudgetCheck::Unknown(BudgetUnknownReason::Truncated),
-            "a truncated page must resolve to Unknown, never to Known{{spend_usd: 1.0, ..}} \
-             even though the visible partial sum is under budget"
+            BudgetCheck::Known { spend_usd: 9.0, budget_usd: 5.0 },
+            "a truncated page whose visible sum already meets budget must be Known, \
+             proved by arithmetic, without consulting the rest of the rows"
+        );
+        assert!(budget_exceeded(&check), "9.0 visible against a 5.0 budget must block");
+    }
+
+    #[test]
+    fn budget_truncated_and_still_under_requeries_and_decides_on_the_complete_set() {
+        // Visible rows sum to 1.0 — under the 5.0 budget — so the arithmetic
+        // shortcut above cannot fire; the partial sum proves nothing about the
+        // total. `stored` (500) must be threaded to `requery_all` as the limit for
+        // the follow-up read, and the FINAL answer must come from the complete
+        // set the follow-up returns (8.0, over budget) — not from the partial
+        // sum (1.0, under budget). A guard that decided on the partial sum here
+        // would answer "under"; the correct answer, once the full history is
+        // read, is "over".
+        let records = vec![usage_record("anthropic", 10 * DAY_NS, 1.0)];
+        let now = 30 * DAY_NS;
+        let query_result: Result<(&[String], bool, u32), ()> = Ok((&records, true, 500));
+
+        let seen_limit = std::cell::Cell::new(0u32);
+        let full_records = vec![
+            usage_record("anthropic", 5 * DAY_NS, 1.0),
+            usage_record("anthropic", 10 * DAY_NS, 1.0),
+            usage_record("anthropic", 15 * DAY_NS, 6.0),
+        ];
+        let check = resolve_budget_check(query_result, "anthropic", 5.0, now, WINDOW_30D_NS, |limit| {
+            seen_limit.set(limit);
+            Ok(full_records.clone())
+        });
+
+        assert_eq!(seen_limit.get(), 500, "the follow-up query must use `stored` as its limit");
+        assert_eq!(
+            check,
+            BudgetCheck::Known { spend_usd: 8.0, budget_usd: 5.0 },
+            "the decision must come from the COMPLETE set the follow-up read returns, \
+             not from the under-budget partial sum of the first read"
+        );
+        assert!(budget_exceeded(&check), "8.0 from the complete set is over a 5.0 budget");
+    }
+
+    #[test]
+    fn budget_requery_failure_is_unknown_query_error() {
+        // The re-query is itself a `query-nodes` call and can fail like any other.
+        // A failed follow-up is not evidence of zero (or any) spend, same as a
+        // failed first read — it must land in `Unknown(QueryError)`, not invent a
+        // third meaning for "the second read didn't work either".
+        let records = vec![usage_record("anthropic", 10 * DAY_NS, 1.0)];
+        let now = 30 * DAY_NS;
+        let query_result: Result<(&[String], bool, u32), ()> = Ok((&records, true, 500));
+
+        let check =
+            resolve_budget_check(query_result, "anthropic", 5.0, now, WINDOW_30D_NS, |_limit| Err(()));
+
+        assert_eq!(
+            check,
+            BudgetCheck::Unknown(BudgetUnknownReason::QueryError),
+            "a follow-up query that fails outright must resolve to Unknown(QueryError)"
         );
         assert!(
             !budget_exceeded(&check),
@@ -750,15 +877,22 @@ mod tests {
     }
 
     #[test]
-    fn budget_query_error_is_unknown_not_known_zero() {
-        let query_result: Result<(&[String], bool), ()> = Err(());
+    fn budget_first_query_error_is_unknown_query_error() {
+        let query_result: Result<(&[String], bool, u32), ()> = Err(());
 
-        let check = resolve_budget_check(query_result, "anthropic", 5.0, 30 * DAY_NS, WINDOW_30D_NS);
+        let check = resolve_budget_check(
+            query_result,
+            "anthropic",
+            5.0,
+            30 * DAY_NS,
+            WINDOW_30D_NS,
+            never_requeried,
+        );
 
         assert_eq!(
             check,
             BudgetCheck::Unknown(BudgetUnknownReason::QueryError),
-            "a failed query is not evidence of zero spend — must resolve to Unknown, \
+            "a failed first query is not evidence of zero spend — must resolve to Unknown, \
              never to Known{{spend_usd: 0.0, ..}}"
         );
         assert!(

@@ -56,10 +56,13 @@ pub(crate) const EVENT_TOOL_CALL: &str = "agent:tool:call";
 pub(crate) const EVENT_RESPONSE_DONE: &str = "agent:response:done";
 pub(crate) const EVENT_ERROR: &str = "agent:error";
 pub(crate) const EVENT_BUDGET_BLOCKED: &str = "agent:budget:blocked";
-/// The budget guard could not establish the total spend (truncated page or a failed
-/// query) and — per the FAIL-OPEN-BUT-LOUD policy in `session::pure::budget_exceeded`
-/// — proceeded anyway. Distinct from `agent:budget:blocked`: this run was NOT halted,
-/// but the guard's "not over budget" answer here is not backed by a complete read.
+/// The budget guard could not establish the total spend — as of round 2 of the
+/// fix, this means a `query-nodes` call failed outright; a truncated page is no
+/// longer by itself a reason (see `session::pure::resolve_budget_check`) — and,
+/// per the FAIL-OPEN-BUT-LOUD policy in `session::pure::budget_exceeded`,
+/// proceeded anyway. Distinct from `agent:budget:blocked`: this run was NOT
+/// halted, but the guard's "not over budget" answer here is not backed by a
+/// definite read.
 pub(crate) const EVENT_BUDGET_UNKNOWN: &str = "agent:budget:unknown";
 /// ADR-012 audit trail: the router chose a `(provider, model)` route, and WHY.
 pub(crate) const EVENT_ROUTE_SELECTED: &str = "agent:route:selected";
@@ -142,11 +145,14 @@ pub(crate) fn budget_blocked_payload(prompt_ref: &str, provider: &str) -> serde_
 }
 
 /// `agent:budget:unknown` — the run's spend guard for `provider` could not establish
-/// the true rolling-window total (`reason` is `"truncated"` or `"query_error"`, see
-/// `session::pure::BudgetUnknownReason::as_str`) and proceeded anyway per the
-/// FAIL-OPEN-BUT-LOUD policy. This event IS the "loud" half of that policy: the run
-/// was not blocked, but this record makes the blind spot visible on the wire instead
-/// of indistinguishable from a genuinely-checked "under budget". PURE.
+/// the true rolling-window total and proceeded anyway per the FAIL-OPEN-BUT-LOUD
+/// policy. `reason` is a stable string named by `session::pure::BudgetUnknownReason`
+/// (currently always `"query_error"` — a truncated page no longer reaches this event
+/// at all, `resolve_budget_check` resolves it into a definite answer instead; the
+/// shaper takes a plain `&str` rather than the enum so it stays open for a future
+/// reason without a new payload shape). This event IS the "loud" half of that
+/// policy: the run was not blocked, but this record makes the blind spot visible on
+/// the wire instead of indistinguishable from a genuinely-checked "under budget". PURE.
 pub(crate) fn budget_unknown_payload(
     prompt_ref: &str,
     provider: &str,

@@ -329,22 +329,19 @@ pub(crate) fn record_context_fold(
 /// spend for `provider_name` (read from CRDT UsageRecord nodes) meets or exceeds it.
 ///
 /// FAIL OPEN BUT LOUD (the policy is decided and justified in
-/// `session::pure::budget_exceeded` — read it before touching this function, it
-/// states the REAL pre-fix baseline per unknown reason, not an "unchanged"
-/// simplification): when the true spend cannot be established — `query_nodes`
-/// truncated the UsageRecord page (more rows exist than the 10,000-row query
-/// returned), or the query itself errored — this returns `false` (the run
-/// proceeds). This is NOT identical to the pre-fix behaviour for every cause: a
-/// truncated read used to block whenever its visible partial sum already met
-/// budget, and a query error used to block outright when `budget_usd <= 0.0` (the
-/// `MODEL_BUDGET_<PROVIDER>_USD=0` hard-stop case) — both of those now proceed
-/// instead. What DID change for the better is that the unknown case is no longer
-/// silently summed as zero spend: it is built as its own `BudgetCheck::Unknown`
-/// variant by `resolve_budget_check` below, and BEFORE `budget_exceeded` maps it to
-/// `false`, this function emits `agent:budget:unknown` naming which of the two
-/// happened — the "loud" half of the policy, so the blind spot (which past ~10,000
-/// stored `UsageRecord` rows means the cap stops enforcing entirely) is on the
-/// record rather than indistinguishable from a genuine under-budget read.
+/// `session::pure::budget_exceeded` — read its HISTORY note before touching this
+/// function; it is now on its third telling and the earlier two were each wrong in
+/// a different way). As of round 2, a truncated first read no longer means
+/// `false` by default: `resolve_budget_check` either proves "over" arithmetically
+/// from the visible rows alone, or issues a SECOND `query_nodes` call — this
+/// function's `requery_all` closure below — for the complete set, using `stored`
+/// (the true row count the first page already reported) as the limit. Only when a
+/// `query_nodes` call fails outright — the first one, or this follow-up — does
+/// `resolve_budget_check` return `Unknown`, and only then does this function
+/// return `false` without a definite answer. Before returning it, this function
+/// emits `agent:budget:unknown` naming the query error — the "loud" half of the
+/// policy — so even that remaining blind spot is on the record rather than
+/// indistinguishable from a genuine under-budget read.
 ///
 /// A query error must not become a sum of zero (an error is not evidence of zero
 /// spend), so the `Err` branch of `query_nodes` is threaded through to
@@ -360,13 +357,30 @@ pub(crate) fn budget_exceeded_for_provider(provider_name: &str) -> bool {
     };
 
     let page_result = tractor_bridge::query_nodes("UsageRecord", 10_000);
-    let query_result: Result<(&[String], bool), ()> = match &page_result {
-        Ok(page) => Ok((page.nodes.as_slice(), page.truncated)),
+    let query_result: Result<(&[String], bool, u32), ()> = match &page_result {
+        Ok(page) => Ok((page.nodes.as_slice(), page.truncated, page.stored)),
         Err(_) => Err(()),
     };
 
     const WINDOW_30D_NS: u64 = 30 * 24 * 3600 * 1_000_000_000;
-    let check = resolve_budget_check(query_result, provider_name, budget, now_ns(), WINDOW_30D_NS);
+    // Only invoked when the first read is truncated AND still under budget —
+    // `resolve_budget_check` decides that, this closure just performs the ask.
+    // `stored` is the first page's own count of what exists, so `limit: stored`
+    // asks for everything as of a moment ago (the residual race is documented in
+    // `resolve_budget_check`'s doc comment, not handled here).
+    let requery_all = |stored: u32| -> Result<Vec<String>, ()> {
+        tractor_bridge::query_nodes("UsageRecord", stored)
+            .map(|page| page.nodes)
+            .map_err(|_| ())
+    };
+    let check = resolve_budget_check(
+        query_result,
+        provider_name,
+        budget,
+        now_ns(),
+        WINDOW_30D_NS,
+        requery_all,
+    );
     if let BudgetCheck::Unknown(reason) = &check {
         crate::agent_events::budget_unknown(provider_name, reason.as_str());
     }

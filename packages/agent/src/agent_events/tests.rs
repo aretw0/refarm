@@ -89,8 +89,13 @@ fn error_and_budget_blocked_are_distinct_terminal_signals() {
 
 #[test]
 fn budget_unknown_names_the_reason_and_is_distinct_from_blocked() {
-    // truncated vs query_error must be visibly different reasons in the payload —
-    // not one undifferentiated "unknown".
+    // The shaper carries whatever reason string it's given rather than hardcoding
+    // one — this exercises that with two DIFFERENT strings to pin the field isn't
+    // dropped or overwritten, not to claim both are currently reachable from the
+    // runtime. As of round 2, `BudgetUnknownReason::as_str` only ever produces
+    // "query_error"; "truncated" here is a stand-in second value proving the
+    // payload shape stays generic, not a live reason (see `budget_unknown_payload`'s
+    // doc comment).
     let truncated = budget_unknown_payload("r-1", "anthropic", "truncated");
     assert_eq!(truncated["provider"], "anthropic");
     assert_eq!(truncated["reason"], "truncated");

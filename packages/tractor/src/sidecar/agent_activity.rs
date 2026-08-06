@@ -244,7 +244,10 @@ mod tests {
     fn budget_unknown_is_a_progress_note_naming_the_reason() {
         // The "loud" half of the agent's FAIL-OPEN-BUT-LOUD budget policy must reach
         // the same operator-facing surface `budget:blocked` does — the CLI tails
-        // `activity.ndjson`, not the audit log or an opt-in observer plugin.
+        // `activity.ndjson`, not the audit log or an opt-in observer plugin. Two
+        // DIFFERENT reason strings here exercise that the note is not hardcoded to
+        // one value, not that both are currently reachable: as of the agent's
+        // round-2 budget-guard fix, only "query_error" is ever actually emitted.
         let mut payload = p("urn:p-1");
         payload["provider"] = json!("anthropic");
         payload["reason"] = json!("truncated");
