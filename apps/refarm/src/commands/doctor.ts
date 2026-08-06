@@ -9,25 +9,24 @@ import path from "node:path";
 import { declaredBase, effectiveModelRouteForScope, loadConfig, sovereignDir } from "@refarm.dev/config";
 
 import { Command } from "commander";
-import { readNodeDescriptor } from "../utils/node-descriptor.js";
+import type { NodeContextMetadata } from "../utils/context-metadata.js";
+import { resolveNodeContextMetadata } from "../utils/context-metadata.js";
 import { resolveLoadedPlugin } from "../utils/loaded-plugin.js";
+import { readNodeDescriptor } from "../utils/node-descriptor.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
+import {
+	resolveRuntimeEnvironment,
+	type RuntimeEnvironment,
+} from "../utils/runtime-environment.js";
 import {
 	defaultAgentPluginPath,
 	defaultRateCatalogPath,
 	resolveRuntimeFreshness,
 	type RuntimeFreshness,
 } from "../utils/runtime-freshness.js";
-import { buildRuntimeFreshnessDoctorRecommendations } from "./runtime-freshness-doctor.js";
-import { buildRuntimeEnvironmentDoctorRecommendations } from "./runtime-environment-doctor.js";
-import {
-	resolveRuntimeEnvironment,
-	type RuntimeEnvironment,
-} from "../utils/runtime-environment.js";
-import { resolveRefarmHome } from "../utils/refarm-home.js";
-import type { NodeContextMetadata } from "../utils/context-metadata.js";
-import { resolveNodeContextMetadata } from "../utils/context-metadata.js";
 import { buildConnectionDoctorRecommendations } from "./connection-doctor.js";
 import { buildContextDoctorRecommendations } from "./context-doctor.js";
+import { buildContextReport, resolveContextInput, type Divergence } from "./context.js";
 import {
 	diagnosticNextActions,
 	diagnosticNextCommands,
@@ -39,6 +38,8 @@ import {
 	buildNodeNameDoctorRecommendations,
 	type NodeIdentitySnapshot,
 } from "./node-name-doctor.js";
+import { buildRuntimeEnvironmentDoctorRecommendations } from "./runtime-environment-doctor.js";
+import { buildRuntimeFreshnessDoctorRecommendations } from "./runtime-freshness-doctor.js";
 import { resolveRefarmRuntimeMetadata, type RefarmRuntimeMetadata } from "./runtime-metadata.js";
 import {
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
@@ -46,6 +47,7 @@ import {
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 import { buildScopeDoctorRecommendations, type ScopeComparison } from "./scope-doctor.js";
+import { buildSovereignDivergenceDoctorRecommendations } from "./sovereign-divergence-doctor.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { resolveStatusPayload } from "./status.js";
 
@@ -112,6 +114,11 @@ export function buildRefarmDoctorReport(
 		/** Context metadata resolved by the caller (home/store alignment, mode). Omitted
 		 * means "not inspected", which produces no findings. */
 		context?: NodeContextMetadata;
+		/** The sovereign-state divergences `refarm context` already resolves (see
+		 *  `buildContextReport` in `./context.ts`) — reused here rather than re-derived so
+		 *  this command does not invent a second comparison. `null`/omitted means "not
+		 *  inspected", which produces no findings, same purity rule as `context` above. */
+		sovereignDivergences?: Divergence[] | null;
 	} = {},
 ): RefarmDoctorReport {
 	const { failures, warnings: statusWarnings, informational } = classifyStatusDiagnostics(status);
@@ -145,6 +152,13 @@ export function buildRefarmDoctorReport(
 		options.runtimeEnvironment ?? null,
 	);
 	const contextRecommendations = buildContextDoctorRecommendations(options.context);
+	// The plugin-hash mismatch (and its unknown-gap siblings) `refarm context` already
+	// resolves is the same KIND of truth as the recommendations above: something nothing
+	// else in `doctor` states, folded into the same buckets. Never a restart, never a write
+	// — see `sovereign-divergence-doctor.ts`'s own header.
+	const sovereignDivergenceRecommendations = buildSovereignDivergenceDoctorRecommendations(
+		options.sovereignDivergences ?? [],
+	);
 	const warnings = [
 		...statusWarnings,
 		...connectionRecommendations.map((r) => r.diagnostic),
@@ -153,6 +167,7 @@ export function buildRefarmDoctorReport(
 		...runtimeFreshnessRecommendations.map((r) => r.diagnostic),
 		...runtimeEnvironmentRecommendations.map((r) => r.diagnostic),
 		...contextRecommendations.map((r) => r.diagnostic),
+		...sovereignDivergenceRecommendations.map((r) => r.diagnostic),
 	];
 
 	const failOnWarnings = options.failOnWarnings === true;
@@ -169,6 +184,7 @@ export function buildRefarmDoctorReport(
 		...runtimeFreshnessRecommendations,
 		...runtimeEnvironmentRecommendations,
 		...contextRecommendations,
+		...sovereignDivergenceRecommendations,
 	];
 	const nextActions = diagnosticNextActions(recommendations);
 	const nextCommands = diagnosticNextCommands(recommendations);
@@ -423,6 +439,20 @@ function resolveEnvironment(deps: RefarmDoctorCommandDeps | undefined): RuntimeE
 	}
 }
 
+/**
+ * The sovereign-state divergences `refarm context` already resolves — reused here rather
+ * than re-derived (see `sovereign-divergence-doctor.ts`'s header). Same posture as the
+ * resolvers above: never throws, `null` on any failure rather than a guess, so a doctor
+ * run does not crash because a divergence comparison could not be made.
+ */
+function resolveSovereignDivergences(): Divergence[] | null {
+	try {
+		return buildContextReport(resolveContextInput()).divergences;
+	} catch {
+		return null;
+	}
+}
+
 function resolveConnectionConfig(deps: RefarmDoctorCommandDeps | undefined): Record<string, unknown> {
 	const baseDir = deps?.cwd?.() ?? process.cwd();
 	try {
@@ -480,6 +510,7 @@ Notes:
 						runtimeFreshness: resolveFreshness(),
 						runtimeEnvironment: resolveEnvironment(deps),
 						context: resolveNodeContextMetadata(process.env),
+						sovereignDivergences: resolveSovereignDivergences(),
 					});
 					const outputMode = resolveDoctorOutputMode(options);
 					emitRefarmDoctorOutput({ report, mode: outputMode });
