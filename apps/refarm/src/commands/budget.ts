@@ -350,9 +350,26 @@ export function printObservationsHuman(
 		// `summary.total` (shown above) and `page.stored` (here) are deliberately printed
 		// side by side with different words, not both called "total" — see
 		// `BudgetObservationsPage`'s doc for why that collision must not happen.
+		//
+		// This used to end with "raise --limit to see the rest" — advice that cannot work.
+		// The sidecar clamps every `GET /nodes` response at `MAX_NODES_PER_RESPONSE`
+		// (`packages/tractor/src/sidecar/mod.rs`) regardless of the requested `--limit`,
+		// there is no offset/paging parameter to reach the rows past that cap, and
+		// `DEFAULT_LIMIT` above is already 100 — equal to the ceiling. So on a record of
+		// more than 100 rows, the very first default run printed an instruction that does
+		// nothing. Say what is true instead: this is the newest page a single response can
+		// carry, and rows beyond the cap are not reachable through this command today.
+		//
+		// `page.stored` can be absent even when `truncated` is `true` — Task 2's contract
+		// (`BudgetObservationsPage`'s doc above) allows either field to be missing
+		// independently, so this must not print "of undefined" when the sidecar reports
+		// truncation without also reporting the true count.
+		const storedNote = typeof page.stored === "number" ? ` of ${page.stored} stored` : "";
 		console.log(
 			chalk.yellow(
-				`  ⚠  Showing ${summary.total} of ${page.stored} stored — raise --limit to see the rest.\n`,
+				`  ⚠  Showing the newest ${summary.total}${storedNote} — this command's response ` +
+					`is capped at a single page, so records beyond that cap are not reachable ` +
+					"through `refarm budget observations` today.\n",
 			),
 		);
 	} else if (page.truncated === undefined) {

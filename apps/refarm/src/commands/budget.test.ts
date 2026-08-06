@@ -208,6 +208,19 @@ describe("printObservationsHuman — truncation notice", () => {
 		expect(text.toLowerCase()).toContain("stored");
 	});
 
+	it("never prints 'of undefined' when truncated: true arrives without stored", () => {
+		// Task 2's own contract (`BudgetObservationsPage`'s doc) allows `stored` and
+		// `truncated` to be absent INDEPENDENTLY — a body can report truncation without
+		// also reporting the true count. `page.stored` must not be interpolated blind.
+		const observations = [{ "refarm.outcome": "done" }];
+		const summary = summariseObservations(observations);
+
+		printObservationsHuman(observations, summary, { stored: undefined, truncated: true });
+
+		const text = stdout.join("\n");
+		expect(text.toLowerCase()).not.toContain("undefined");
+	});
+
 	it("prints nothing about storage when the payload says truncated: false", () => {
 		const observations = [{ "refarm.outcome": "done" }];
 		const summary = summariseObservations(observations);
