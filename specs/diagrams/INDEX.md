@@ -2,6 +2,28 @@
 
 This file is the Map of Content for architecture-grade diagrams in Refarm.
 
+## Architecture Authority
+
+Diagrams compress the architecture for navigation; they do not define package
+ownership or dependency truth. Resolve disagreements in this order:
+
+1. [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) for normative responsibilities.
+2. Generated [`ARCHITECTURE_INVENTORY.md`](../../docs/ARCHITECTURE_INVENTORY.md) and
+   [`ARCHITECTURE_CONTEXT_MAP.md`](../../docs/ARCHITECTURE_CONTEXT_MAP.md) for measured topology.
+3. [`DIAGRAM_INVENTORY.md`](../../docs/DIAGRAM_INVENTORY.md) for Mermaid-to-SVG coverage.
+4. Visual diagrams as explanatory snapshots.
+
+There are currently two overlapping system-layer visual families:
+
+- `specs/diagrams/architecture-layers*` is the consolidation target.
+- `docs/diagrams/layer-diagram*` is legacy and frozen; do not add new views to it.
+
+Neither family is authoritative until the consolidation target is aligned with
+the measured architecture and the legacy family is retired. In particular,
+the older “dual runtime” wording must not be used to infer equal authority:
+Rust owns native execution; TypeScript provides browser compatibility and
+conformance surfaces.
+
 ## Design System Backbone
 
 - Global style config: [mermaid.config.json](./mermaid.config.json)
@@ -28,9 +50,9 @@ This file is the Map of Content for architecture-grade diagrams in Refarm.
 
 Workflow phase sub-views → **[docs/diagrams/WORKFLOW_GUIDE.md](../../docs/diagrams/WORKFLOW_GUIDE.md)**
 
-Architecture layer sub-views (docs) → **[docs/diagrams/LAYERS.md](../../docs/diagrams/LAYERS.md)**
+Legacy architecture layer sub-views (frozen) → **[docs/diagrams/LAYERS.md](../../docs/diagrams/LAYERS.md)**
 
-Architecture layer sub-views (spec-focused) → **[ARCH_GUIDE.md](./ARCH_GUIDE.md)**
+Architecture layer consolidation target → **[ARCH_GUIDE.md](./ARCH_GUIDE.md)**
 
 | View | Diagram | What it shows |
 |---|---|---|

@@ -145,6 +145,13 @@ refarm/
 
 ## Layer Diagram
 
+This page is the normative narrative for package responsibilities. The generated
+[architecture inventory](./ARCHITECTURE_INVENTORY.md) and
+[context map](./ARCHITECTURE_CONTEXT_MAP.md) are the measured structural views.
+The diagram below is a visual snapshot and must not override those sources when
+they disagree. Its `layer-diagram` family is frozen while the competing visual
+families are reconciled; see the [diagram catalog](../specs/diagrams/INDEX.md).
+
 ![Layer Diagram](./diagrams/layer-diagram.svg)
 [View source](./diagrams/layer-diagram.mermaid)
 

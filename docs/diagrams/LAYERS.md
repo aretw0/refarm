@@ -1,5 +1,10 @@
 # Refarm Layer Guide
 
+> **Legacy snapshot — frozen.** Do not add or update views in the
+> `layer-diagram*` family. Use the
+> [architecture authority order](../../specs/diagrams/INDEX.md#architecture-authority)
+> while `specs/diagrams/architecture-layers*` is aligned and consolidated.
+
 > Focused sub-views of the full architecture. Each section is an independent diagram
 > you can share or embed without the cognitive load of the full picture.
 >
