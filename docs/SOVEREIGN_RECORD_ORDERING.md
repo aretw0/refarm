@@ -14,6 +14,20 @@
 > `sede`: loaded/built plugin hash moved `544ef5b4` → `cff89975`, harness session
 > tests 3/3, `refarm budget observations --limit 1` unregressed at `stored: 29,
 > truncated: true`.
+>
+> The guest-side gap named below ("the guest has no truncation signal") was closed
+> 2026-08-06, later the same day, in a third plan: `query-nodes`'s WIT signature
+> changed in place — a breaking change to the versioned package `plugin:host@0.1.0`
+> — to return a `node-page` record (`nodes`, `stored`, `truncated`) instead of a bare
+> `list<json-ld-node>` (`packages/plugin-wit/wit/host.wit`, commit `89332598`), and
+> the agent's budget guard was rewritten to use the new signal instead of discarding
+> it (`packages/agent/src/session/pure.rs`, `packages/agent/src/session/wasm_ops.rs`,
+> commits `5a9bd759`, `65e38f10`, `576cfc02`, `d77a614c`). See "The guest gets a
+> truncation signal" below. Plan:
+> `.superpowers/sdd/2026-08-06-the-guest-can-tell/`. Proven on node `sede`:
+> loaded/built plugin hash moved `cff89975` → `50483c6c`, harness session tests 3/3,
+> `refarm sessions list --json` resolving, `refarm budget observations --limit 1`
+> unregressed at `stored: 29, truncated: true`.
 
 ## The invariant
 
@@ -479,19 +493,178 @@ handed and is correct given that input — the defect was entirely upstream of i
 used to be the oldest N, not "the oldest," so its output used to be "the newest of the
 oldest N" — a correct function fed a wrong slice, not a wrong function).
 
+## The guest gets a truncation signal — closing the gap this document used to defer
+
+Fixed 2026-08-06, in a third plan (`.superpowers/sdd/2026-08-06-the-guest-can-tell/`),
+the same day as the follow-on plan above. "The guest has no truncation signal" — listed
+in "What is still deferred" below as one of three remaining gaps until this plan landed
+— is closed.
+
+**How.** `packages/plugin-wit/wit/host.wit`'s `query-nodes` (line 32) changed in place,
+in the versioned package `plugin:host@0.1.0`, from `func(node-type: string, limit: u32)
+-> result<list<json-ld-node>, plugin-error>` to `-> result<node-page, plugin-error>`,
+where `node-page` is a new record — `nodes: list<json-ld-node>`, `stored: u32`,
+`truncated: bool` — with `truncated` derived the same way the sidecar handler derives it
+(`stored > nodes.len()`, never from `limit`; commit `89332598`). This is a **breaking**
+change to an already-published WIT interface, chosen over adding a second, longer-named
+function that returned the new shape: the plan's own blast-radius check found every
+plugin installed on the operator's node has in-repo source (`git ls-files` returns
+nothing for any crate's generated `bindings.rs`, confirming no compiled artifact depends
+on the old shape) and no third-party compiled plugin exists against `plugin:host@0.1.0`
+today — so a second function would have left a shorter-named, blind alternative alive
+for no consumer that needed it. `TractorBridgeHost::query_nodes`
+(`packages/tractor/src/host/wasi_bridge/core.rs:387-406`) now calls both
+`query_nodes_limited` (the rows) and `count_nodes` (the total) and constructs the
+`node-page`, mirroring `sidecar/mod.rs`'s `get_nodes` handler exactly instead of
+re-deriving the rule.
+
+Nine `query-nodes` call expressions, across four functions in
+`packages/agent/src` and one in `packages/delegate/src` (`query_history` makes two,
+one for `UserPrompt` and one for `Response`), broke on the signature change and were
+repaired mechanically — `.nodes` off the new record, no reordering, no new logic,
+`truncated` read nowhere in this pass (commit `639c9558`). One of the nine —
+`budget_exceeded_for_provider` — is the site Task 3 went on to rewrite for behaviour,
+covered on its own below; the other eight are still `.nodes`-only today, listed in the
+table below. Four crates that import `tractor-bridge` but never call `query-nodes` —
+`lsp-code-ops`, `pi-agent`, `scarecrow-plugin`, `identity-provider-ref` — regenerated
+against the new contract for free, with no code change, because their `bindings.rs` is
+gitignored and rebuilt from the WIT on every compile.
+
+### The budget guard — the concrete harm the missing signal was causing
+
+`packages/agent/src/session/wasm_ops.rs`'s `budget_exceeded_for_provider` sums 30 days
+of `UsageRecord` spend against `MODEL_BUDGET_<PROVIDER>_USD` and decides whether a
+completion is allowed to proceed. Before this plan, it called
+`query_nodes("UsageRecord", 10_000).unwrap_or_default()` and summed whatever came back:
+a truncated read summed a partial set with no signal it was partial, and
+`.unwrap_or_default()` turned a host query error into an empty list — both resolving to
+"spend is whatever I could see," which for a truncated or failed read reads as **under
+budget** in a guard whose whole job is to block spend. Before the predecessor plan fixed
+`query_nodes`'s ordering, this was worse still: the un-ordered read handed back the
+**oldest** 10,000 rows, which against a rolling 30-day window are mostly outside it, so
+the guard was effectively disabled by an ordering bug nobody had connected to budget
+until this plan traced it.
+
+The fix is not "read `truncated` and refuse to decide" — the controller's ruling
+(`progress.md`) was FAIL OPEN BUT LOUD when the total genuinely cannot be established,
+but three sessions of review found that the *previous* design was offering the guard
+fewer options than it actually had. `resolve_budget_check`
+(`packages/agent/src/session/pure.rs:183-226`) rests on one idea, applied twice: **a
+bound provable without complete data is not uncertainty.**
+
+1. **A budget of zero or less blocks before any query runs at all.** Every real
+   `estimated_usd` is non-negative, so `0.0 >= budget_usd` holds unconditionally when
+   `budget_usd <= 0.0` — provable with no `UsageRecord` read. `resolve_budget_check`
+   checks this first (`pure.rs:195-199`) and the closures for both the first query and
+   the re-query are never invoked; a unit test (`budget_zero_or_negative_blocks_without_any_query`)
+   pins this by passing panicking stubs in their place.
+2. **A partial sum that already meets the budget blocks, without waiting for the rest.**
+   Every row's `estimated_usd` is non-negative, so a subset's sum is a valid lower bound
+   on the true total — if that lower bound already meets or exceeds `budget_usd`, no
+   further data can change the answer, and the check is `Known`, not `Unknown`, even
+   though `truncated` is `true` (`pure.rs:212-216`).
+3. **Truncated and still under budget re-queries with `limit = stored`.** Only when the
+   visible sum is under budget does the missing data actually matter; `stored` — the
+   `node-page`'s own true row count, independent of `limit` — becomes the new query's
+   limit, and the guard decides on that complete set (`pure.rs:219-225`).
+
+Only a genuine query error — the first read or the follow-up read returning `Err`
+— remains `Unknown`, and only then does `wasm_ops::budget_exceeded_for_provider` emit
+`agent:budget:unknown` (naming the reason) before collapsing it to "proceed"
+(`agent_events.rs`'s `EVENT_BUDGET_UNKNOWN`, mirrored into `activity.ndjson` via
+`agent_event_to_activity` in `packages/tractor/src/sidecar/agent_activity.rs`, so the
+"loud" half is actually visible on the surface the CLI tails, not just emitted into the
+void). `BudgetUnknownReason`'s `Truncated` variant — live in round 1 (`5a9bd759`,
+`65e38f10`) — was deleted in round 2 rather than left unreachable, once truncation
+stopped being a reason to be unknown at all — the doc comment on the enum states
+directly that "a variant that can never be constructed is worse than no variant: it
+looks live and isn't."
+
+This went through three implementation rounds inside the same plan, each caught by
+review, not shipped and left wrong: round 1 (`5a9bd759`) modelled `Unknown` but mapped
+both truncation and query error to it unconditionally, and its own doc comment falsely
+claimed this was behaviour-preserving — it was a real loosening, dropping a block a
+truncated-but-over-budget page used to produce. Round 1's correction (`65e38f10`) fixed
+the false claim and mirrored the telemetry into `activity.ndjson`, but left the
+truncated case genuinely unknown rather than resolving it. Round 2 (`576cfc02`) is the
+arithmetic resolution described above for truncation. Round 3 (`d77a614c`) closed the
+one path round 2 had still left open: a query error under `MODEL_BUDGET_<PROVIDER>_USD=0`
+used to block by *accident* (`0.0 >= 0.0`, unconditionally true regardless of query
+success), and round 2's `Unknown` → proceed mapping had silently dropped that hard stop.
+Case 0 above restores it deliberately.
+
+**Verified case by case against the pre-plan baseline** (documented in
+`budget_exceeded`'s doc comment, `pure.rs:236-263`): every block the operator previously
+had is still produced — the `budget_usd <= 0.0` hard stop, and a truncated-but-over-budget
+page — and one block he never had is gained: a total that is over budget but whose
+visible page (under the old 10,000-row cap) was under. No path decreases blocking
+relative to the pre-plan baseline.
+
+**Cost, stated rather than hidden.** The re-query in case 3 above is unbounded and lands
+on a hot path. `query-nodes` filters by node **type**, not by provider, so
+`truncated`/`stored` are driven by system-wide `UsageRecord` volume across every
+provider, not the one provider being checked. `packages/tractor/src/node_reap.rs`'s
+`REAPABLE_TYPES` (line 35) lists only the agent-response node type, `StreamChunk`, and
+`StreamSession` — `UsageRecord` is not in it and is never pruned. Once total stored
+`UsageRecord` rows cross the query's row ceiling for any provider, the truncated branch
+stops being an edge case: it fires on every call this guard makes from then on, and
+`budget_exceeded_for_provider` runs on every primary **and** fallback completion
+(`runtime/wasm_flow.rs`). Past that point the full re-query becomes a permanent per-call
+cost, growing roughly linearly with total stored records. Two ways out, neither chosen
+here: sum on the host side instead of fetching every row into the guest, or make the
+query filterable by provider so truncation tracks one provider's history instead of the
+system's.
+
+**A NaN budget silently disables the guard, with no telemetry — pre-existing, not
+introduced or fixed here.** `"nan".parse::<f64>()` succeeds in Rust and produces
+`f64::NAN`. `NaN <= 0.0` is `false`, so case 0's zero-or-negative short-circuit does not
+fire, and every subsequent `>=` comparison against `NaN` is also `false`, so the guard
+never blocks. Because this lands in `Known` (case 0 was simply never reached) rather
+than `Unknown`, no `agent:budget:unknown` telemetry fires either — a
+`MODEL_BUDGET_<PROVIDER>_USD=nan` misconfiguration is indistinguishable from a provider
+legitimately under budget, on the record or in the logs. This behaviour is identical
+before and after this plan; it is recorded here because it sits one line away from the
+fix and deserves its own follow-up (rejecting non-finite budgets at parse time), not
+because this plan changed it.
+
+**Eight call sites still discard `truncated`** — every guest call site this plan
+touched except the budget guard itself:
+
+| Call site | File | Query |
+| --- | --- | --- |
+| `latest_session_id_with_v1_preference` | `packages/agent/src/session/wasm_ops.rs:~46-50` | `Session` |
+| `latest_session_leaf_id` | `packages/agent/src/session/wasm_ops.rs:~88-92` | `Session` |
+| `query_history` (`UserPrompt` branch) | `packages/agent/src/session/wasm_ops.rs:~248` | `UserPrompt` |
+| `query_history` (`Response` branch) | `packages/agent/src/session/wasm_ops.rs:~249-253` | `Response` |
+| `task_context_for_prompt` | `packages/agent/src/runtime/policy.rs:128` | `Task` |
+| `list_tasks` | `packages/agent/src/tool_dispatch/task_tools.rs:8` | `Task` |
+| `task_status` (`TaskEvent` lookup) | `packages/agent/src/tool_dispatch/task_tools.rs:44-46` | `TaskEvent` |
+| `load_personas` | `packages/delegate/src/lib.rs:230` | persona nodes |
+
+None of these is a correctness bug the way the budget guard was — each caller already
+took the front `N` rows of an already-ordered result and used them, same as before the
+contract change — but each can now no longer tell a complete answer from a cut one
+either, because none of them looks at the field that would tell it. That is what this
+plan left on the table; the next reader should not assume the propagation of
+`truncated`, as opposed to `.nodes`, was total.
+
+**Proven live, on node `sede`.** The agent component was rebuilt
+(`pnpm --filter @refarm.dev/agent run build`), installed, and the runtime restarted;
+loaded and built plugin hashes moved together from `cff89975` to `50483c6c`. Filtered
+harness session tests: `cargo test --test agent_harness session -- --ignored
+--test-threads=1` → 3/3 pass — a guest built against a stale `query-nodes` shape would
+fail here, and did not. `refarm sessions list --json` resolved the active session.
+`refarm budget observations --limit 1 --json` — the same predecessor-plan proof point —
+stayed unregressed: newest observation `2026-08-05T17:29:36`, `stored: 29, truncated:
+true`.
+
 ## What is still deferred, named rather than left silent
 
-Three gaps remain after both plans. None is a regression — each is a boundary neither
-plan crossed, named here so the next reader does not have to rediscover it.
+Two gaps remain — the guest-truncation-signal gap named here in earlier drafts of this
+document is closed (see "The guest gets a truncation signal" above). Neither remaining
+gap is a regression — each is a boundary no plan to date has crossed, named here so the
+next reader does not have to rediscover it.
 
-- **The guest has no truncation signal.** `packages/plugin-wit/wit/host.wit`'s
-  `query-nodes` returns a bare `list<json-ld-node>` (`query-nodes: func(node-type:
-  string, limit: u32) -> result<list<json-ld-node>, plugin-error>;`, line 17). A
-  plugin that receives exactly `limit` rows has no way to tell whether that is
-  everything of that `@type` or the front of a longer list — the HTTP sidecar's
-  `stored`/`truncated` fields (see "What a response means now" above) have no
-  WASM-bridge equivalent. Closing this means changing a contract every plugin
-  implements, which is a design of its own, not a follow-on task.
 - **There is no paging past `MAX_NODES_PER_RESPONSE`.** The ceiling (100,
   `packages/tractor/src/sidecar/mod.rs:1521`) is now honestly reported —
   `truncated: true` says rows were left out — but honesty is not access. A caller
@@ -514,13 +687,16 @@ plan crossed, named here so the next reader does not have to rediscover it.
 | The WASM bridge's `query-nodes` host call, fixed 2026-08-06 to apply `LIMIT` in SQL | `packages/tractor/src/host/wasi_bridge/core.rs` (`TractorBridgeHost::query_nodes`), passthrough in `packages/tractor/src/sync/loro.rs` (`NativeSync::query_nodes_limited`) |
 | The agent's session helpers, fixed 2026-08-06 to stop re-sorting | `packages/agent/src/session/wasm_ops.rs` (call sites), `packages/agent/src/session/pure.rs` (`pick_latest_session_id`, `pick_latest_session_leaf_id` — the tested decision logic) |
 | The TS graph client's `stored`/`truncated` propagation, fixed 2026-08-06 | `packages/sidecar-client/src/index.ts` (`QueryGraphNodesResult`), `apps/refarm/src/utils/tractor-store.ts` (`tractorGraphFromNodeView`) |
-| The guest-side contract gap this document does not close (no truncation signal) | `packages/plugin-wit/wit/host.wit` (`query-nodes`) |
-| The CLI command that made the defect visible | `apps/refarm/src/commands/budget.ts` (`refarm budget observations`) |
+| The guest-side contract, fixed 2026-08-06 to carry `stored`/`truncated` (breaking change to `plugin:host@0.1.0`) | `packages/plugin-wit/wit/host.wit` (`query-nodes`, `node-page`) |
+| The budget guard, fixed 2026-08-06 to resolve truncation and query error into a real third state instead of discarding them | `packages/agent/src/session/wasm_ops.rs` (`budget_exceeded_for_provider`), `packages/agent/src/session/pure.rs` (`resolve_budget_check`, `budget_exceeded`, `BudgetCheck`, `BudgetUnknownReason`) |
+| The 8 guest call sites still discarding `truncated` after the contract change | see the table in "The guest gets a truncation signal" above |
+| The CLI command that made the original defect visible | `apps/refarm/src/commands/budget.ts` (`refarm budget observations`) |
 | The monotonic id scheme | `packages/agent/src/utils.rs:516-523` (`new_id`) |
 | The two random id schemes | `packages/tractor/src/streaming/observations.rs:26`, `packages/tractor/src/host/wasi_bridge/model_stream_events.rs:635` |
-| The read path, drawn | [`specs/diagrams/record-read-path.mermaid`](../specs/diagrams/record-read-path.svg) |
+| The read path, drawn — predates the guest-contract change; the WASM bridge box does not yet show the `node-page`/`stored`/`truncated` shape it now returns | [`specs/diagrams/record-read-path.mermaid`](../specs/diagrams/record-read-path.svg) |
 | The plan and its task-by-task record (storage-layer ordering fix) | `.superpowers/sdd/2026-08-06-the-record-reader-goes-blind/` |
 | The follow-on plan and its task-by-task record (bridge cost, session correctness, TS client) | `.superpowers/sdd/2026-08-06-the-contract-reaches-every-consumer/` |
+| The third plan and its task-by-task record (guest contract, budget guard) | `.superpowers/sdd/2026-08-06-the-guest-can-tell/` |
 
 > _Active Inference framing:_ an unordered read is not wrong the way a bad computation is
 > wrong — it is a query that never asked reality a precise enough question to reduce
