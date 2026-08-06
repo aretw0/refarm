@@ -63,10 +63,16 @@ function detectLanguages(directory) {
 	return [...languages].sort();
 }
 
-function declaredDependencies(pkg) {
-	return new Set(
-		DEPENDENCY_FIELDS.flatMap((field) => Object.keys(pkg?.[field] ?? {})),
-	);
+function declaredDependencyScopes(pkg) {
+	const scopes = new Map();
+	for (const field of DEPENDENCY_FIELDS) {
+		for (const name of Object.keys(pkg?.[field] ?? {})) {
+			const current = scopes.get(name) ?? [];
+			current.push(field);
+			scopes.set(name, current);
+		}
+	}
+	return scopes;
 }
 
 function cargoMetadata(directory) {
@@ -155,7 +161,7 @@ export function buildArchitectureInventory(options = {}) {
 			path: relative(root, directory),
 			kind: relative(root, directory).startsWith("apps/") ? "app" : "package",
 			languages: detectLanguages(directory),
-			declaredDependencies: declaredDependencies(pkg),
+			declaredDependencyScopes: declaredDependencyScopes(pkg),
 			cargoPaths: cargo.paths,
 			directory,
 		};
@@ -166,15 +172,24 @@ export function buildArchitectureInventory(options = {}) {
 			.map((target) => owningWorkspace(target, raw))
 			.filter((owner) => owner && owner !== workspace)
 			.map((owner) => owner.name);
+		const internalDependencyScopes = new Map(
+			[...workspace.declaredDependencyScopes.entries()]
+				.filter(([name]) => names.has(name))
+				.map(([name, scopes]) => [name, [...scopes].sort()]),
+		);
+		for (const dependency of cargoDependencies) {
+			internalDependencyScopes.set(dependency, [
+				...new Set([...(internalDependencyScopes.get(dependency) ?? []), "cargo-path"]),
+			].sort());
+		}
+		const sortedScopes = [...internalDependencyScopes.entries()].sort(([left], [right]) => left.localeCompare(right));
 		return {
 			name: workspace.name,
 			path: workspace.path,
 			kind: workspace.kind,
 			languages: workspace.languages,
-			internalDependencies: [...new Set([
-				...[...workspace.declaredDependencies].filter((name) => names.has(name)),
-				...cargoDependencies,
-			])].sort(),
+			internalDependencies: sortedScopes.map(([name]) => name),
+			internalDependencyScopes: Object.fromEntries(sortedScopes),
 		};
 	}).sort((left, right) => left.path.localeCompare(right.path));
 	const apps = new Set(workspaces.filter((workspace) => workspace.kind === "app").map((workspace) => workspace.name));

@@ -8,8 +8,8 @@ import {
 
 const inventory = {
 	workspaces: [
-		{ name: "a", path: "packages/a", internalDependencies: [] },
-		{ name: "b", path: "packages/b", internalDependencies: ["a"] },
+		{ name: "a", path: "packages/a", internalDependencies: [], internalDependencyScopes: {} },
+		{ name: "b", path: "packages/b", internalDependencies: ["a"], internalDependencyScopes: { a: ["dependencies"] } },
 		{ name: "seam", path: "packages/seam", internalDependencies: [] },
 	],
 };
@@ -31,8 +31,13 @@ test("accepts explicit anchors and seams that exist in the inventory", () => {
 		edges: 1,
 		declaredEdges: 1,
 		undeclaredEdges: 0,
+		undeclaredRuntimeEdges: 0,
+		devOnlyEdges: 0,
+		undeclaredDevOnlyEdges: 0,
 		pairs: 1,
 		undeclaredPairs: 0,
+		undeclaredRuntimePairs: 0,
+		undeclaredDevOnlyPairs: 0,
 	});
 	assert.match(renderArchitectureContextMapMarkdown(validMap, pressure), /Dependency pressure \(observational\)/);
 });

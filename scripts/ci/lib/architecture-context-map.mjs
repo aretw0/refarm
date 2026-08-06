@@ -64,11 +64,14 @@ export function analyzeContextDependencyPressure(map, inventory) {
 			const supplierWorkspace = workspaceByName.get(dependencyName);
 			const supplier = supplierWorkspace && contextByPath.get(supplierWorkspace.path);
 			if (!supplier || supplier === consumer) continue;
+			const scopes = consumerWorkspace.internalDependencyScopes?.[dependencyName] ?? ["unknown"];
 			edges.push({
 				supplier,
 				consumer,
 				from: supplierWorkspace.path,
 				to: consumerWorkspace.path,
+				scopes,
+				devOnly: scopes.every((scope) => scope === "devDependencies"),
 				declared: declared.has(`${supplier}\0${consumer}`),
 			});
 		}
@@ -84,19 +87,32 @@ export function analyzeContextDependencyPressure(map, inventory) {
 			consumer: edge.consumer,
 			declared: edge.declared,
 			edges: 0,
+			devOnlyEdges: 0,
+			scopes: new Set(),
 		};
 		pair.edges += 1;
+		if (edge.devOnly) pair.devOnlyEdges += 1;
+		for (const scope of edge.scopes) pair.scopes.add(scope);
 		byPair.set(key, pair);
 	}
-	const pairs = [...byPair.values()].sort((left, right) =>
+	const pairs = [...byPair.values()].map((pair) => ({
+		...pair,
+		devOnly: pair.devOnlyEdges === pair.edges,
+		scopes: [...pair.scopes].sort(),
+	})).sort((left, right) =>
 		`${left.supplier}\0${left.consumer}`.localeCompare(`${right.supplier}\0${right.consumer}`));
 	return {
 		summary: {
 			edges: edges.length,
 			declaredEdges: edges.filter((edge) => edge.declared).length,
 			undeclaredEdges: edges.filter((edge) => !edge.declared).length,
+			undeclaredRuntimeEdges: edges.filter((edge) => !edge.declared && !edge.devOnly).length,
+			devOnlyEdges: edges.filter((edge) => edge.devOnly).length,
+			undeclaredDevOnlyEdges: edges.filter((edge) => !edge.declared && edge.devOnly).length,
 			pairs: pairs.length,
 			undeclaredPairs: pairs.filter((pair) => !pair.declared).length,
+			undeclaredRuntimePairs: pairs.filter((pair) => !pair.declared && !pair.devOnly).length,
+			undeclaredDevOnlyPairs: pairs.filter((pair) => !pair.declared && pair.devOnly).length,
 		},
 		pairs,
 		edges,
@@ -138,11 +154,11 @@ export function renderArchitectureContextMapMarkdown(map, pressure = null) {
 			"",
 			"This compares manifest-level dependencies among authority anchors with the strategic relationships above. It includes development and peer dependencies, so an undeclared pair is a question to investigate, not an architecture violation.",
 			"",
-			`Observed ${pressure.summary.edges} cross-context edges across ${pressure.summary.pairs} pairs; ${pressure.summary.undeclaredEdges} edges across ${pressure.summary.undeclaredPairs} pairs are not yet explained by a declared relationship.`,
+			`Observed ${pressure.summary.edges} cross-context edges across ${pressure.summary.pairs} pairs. Of the undeclared pressure, ${pressure.summary.undeclaredRuntimeEdges} non-dev edges across ${pressure.summary.undeclaredRuntimePairs} pairs need architectural explanation; ${pressure.summary.undeclaredDevOnlyEdges} edges across ${pressure.summary.undeclaredDevOnlyPairs} pairs are development-only observations.`,
 			"",
-			"| Supplier context | Consumer context | Manifest edges | Declared relationship |",
-			"|---|---|---:|---|",
-			...pressure.pairs.map((pair) => `| \`${pair.supplier}\` | \`${pair.consumer}\` | ${pair.edges} | ${pair.declared ? "yes" : "no — investigate"} |`),
+			"| Supplier context | Consumer context | Manifest edges | Scopes | Declared relationship |",
+			"|---|---|---:|---|---|",
+			...pressure.pairs.map((pair) => `| \`${pair.supplier}\` | \`${pair.consumer}\` | ${pair.edges} | ${pair.scopes.join(", ")} | ${pair.declared ? "yes" : pair.devOnly ? "no — dev-only observation" : "no — investigate"} |`),
 			"",
 		);
 	}

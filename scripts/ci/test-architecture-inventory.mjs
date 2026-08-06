@@ -57,6 +57,10 @@ test("inventory derives languages, counts, and an acyclic app-to-package graph",
 			report.workspaces.find((workspace) => workspace.name === "@example/kernel")?.internalDependencies,
 			["plugin-wit"],
 		);
+		assert.deepEqual(
+			report.workspaces.find((workspace) => workspace.name === "@example/kernel")?.internalDependencyScopes,
+			{ "plugin-wit": ["cargo-path"] },
+		);
 		assert.deepEqual(report.invariants.cycles, []);
 		assert.deepEqual(report.invariants.packageToApp, []);
 		assert.match(renderArchitectureInventoryMarkdown(report), /Internal dependency graph is acyclic: pass/);

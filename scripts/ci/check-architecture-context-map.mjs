@@ -44,7 +44,7 @@ if (args.has("--json")) console.log(JSON.stringify(output, null, 2));
 else {
 	console.log(`architecture-context-map: ${output.contexts} contexts, ${output.relationships} relationships`);
 	console.log(`  structural violations: ${output.violations.length}`);
-	console.log(`  undeclared dependency pairs: ${dependencyPressure.summary.undeclaredPairs}`);
+	console.log(`  undeclared non-dev dependency pairs: ${dependencyPressure.summary.undeclaredRuntimePairs}`);
 	console.log(`  generated document: ${current ? "current" : "stale"}`);
 	if (!current) console.log("  run: pnpm run architecture:context-map:write");
 	for (const violation of output.violations) console.log(`  violation: ${JSON.stringify(violation)}`);
