@@ -540,20 +540,19 @@ describe("doctorCommand", () => {
 				loadConfig: () => {
 					throw new Error("config is malformed");
 				},
+				// Without this override, `sovereignDivergences` would resolve from the REAL,
+				// unmockable filesystem/process state (no other `deps` override reaches it), so
+				// whatever this host's own sovereign state genuinely is (e.g.
+				// `sovereign:stale-descriptor`) would leak into `warnings` as real signal this
+				// test cannot control. Pinning it to `[]` keeps this a deterministic assertion
+				// on the ONE thing this test verifies: a throwing `loadConfig` produces no
+				// `connection:*` finding, and does not fail the whole report.
+				sovereignDivergences: () => [],
 			}).parseAsync(["--json"], { from: "user" });
 
 			const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
 			expect(output.ok).toBe(true);
-			// Scoped to "connection:" — not a strict `[]` — because `sovereignDivergences` is
-			// resolved from the REAL, unmockable filesystem/process state here (no `deps`
-			// override exists for it, unlike `loadConfig`/`readNodeDescriptor`), so whatever this
-			// host's own sovereign state genuinely is (e.g. `sovereign:stale-descriptor` when the
-			// workspace-scoped `.refarm` this test resolves against has no live node while the
-			// mocked `status` above claims the runtime is ready) is real signal, not a false
-			// positive this test's job is to suppress. What THIS test verifies is narrower: a
-			// throwing `loadConfig` produces no `connection:*` finding, and does not fail the
-			// whole report.
-			expect(output.warnings.filter((w: string) => w.startsWith("connection:"))).toEqual([]);
+			expect(output.warnings).toEqual([]);
 		} finally {
 			logSpy.mockRestore();
 		}

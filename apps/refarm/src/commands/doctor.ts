@@ -335,6 +335,11 @@ export interface RefarmDoctorCommandDeps {
 	readNodeDescriptor?: (
 		refarmHome: string,
 	) => ({ declarationBase: string; sovereignDir: string } & NodeIdentitySnapshot) | null;
+	/** Overrides `resolveSovereignDivergences()` — injected so a test can assert on the
+	 *  FULL `warnings`/`recommendations` output without also reading this host's real
+	 *  sovereign state (config paths, node descriptor). Same purity rule as `loadConfig`
+	 *  and `readNodeDescriptor` above: omitted means "use the real resolver". */
+	sovereignDivergences?: () => Divergence[] | null;
 }
 
 /**
@@ -526,7 +531,7 @@ Notes:
 						runtimeFreshness: resolveFreshness(),
 						runtimeEnvironment: resolveEnvironment(deps),
 						context: resolveNodeContextMetadata(process.env),
-						sovereignDivergences: resolveSovereignDivergences(),
+						sovereignDivergences: deps?.sovereignDivergences?.() ?? resolveSovereignDivergences(),
 					});
 					const outputMode = resolveDoctorOutputMode(options);
 					emitRefarmDoctorOutput({ report, mode: outputMode });
