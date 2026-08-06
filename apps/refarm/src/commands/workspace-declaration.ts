@@ -59,6 +59,15 @@ const NODE_ONLY_KEYS = [
 
 const ALLOWED_OFFER_KEYS = new Set(["commands", "execution"]);
 
+/** The exact field set `WorkspaceDeclaredCommand` (`./workspace.ts`) carries — checked
+ *  here so an unrecognised key inside ONE command entry is refused rather than silently
+ *  dropped, the same discipline applied at the top level. */
+const ALLOWED_COMMAND_KEYS = new Set(["run", "cwd", "description", "remote", "result"]);
+
+/** `WorkspaceOffer["execution"]` carries exactly one field today. Refusing anything else
+ *  keeps a future field from arriving unreviewed through this same seam. */
+const ALLOWED_EXECUTION_KEYS = new Set(["preferredAdapter"]);
+
 function describeValue(value: unknown): string {
 	if (value === undefined) return "undefined";
 	try {
@@ -80,6 +89,100 @@ function nodeCatalogRefusal(keys: string[]): string {
 		`own catalog at ${NODE_CATALOG_PATH}. Run \`${WORKSPACE_ADD_COMMAND}\` from the node to ` +
 		`declare this there instead.`
 	);
+}
+
+/**
+ * Validate ONE `commands.<name>` entry against the real `WorkspaceDeclaredCommand`
+ * shape (`./workspace.ts`) — not a cast. This is the boundary a malformed declaration
+ * must clear BEFORE Task 2 can write it into the node's own catalog by acceptance; a
+ * shape unchecked here is a shape reviewed only by accident, the moment it fails to run.
+ *
+ * `run` is the field that becomes an executed process, so it is held to the tightest
+ * rule: present, an array, non-empty, and every element a string. The optional fields
+ * mirror `normalizeWorkspaceCommands` (`@refarm.dev/config`): `remote` accepted only as
+ * exactly `true` and `result` only as exactly `"operation-result.v1"` — fail-closed, no
+ * truthy coercion — so this parser and the node's own normalizer never diverge on what
+ * counts as "set."
+ */
+function parseCommandEntry(
+	name: string,
+	raw: unknown,
+): { command: WorkspaceDeclaredCommand } | { error: string } {
+	if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+		return { error: `command "${name}": must be an object, found ${describeValue(raw)}.` };
+	}
+	const record = raw as Record<string, unknown>;
+
+	const unknownKeys = Object.keys(record).filter((key) => !ALLOWED_COMMAND_KEYS.has(key));
+	if (unknownKeys.length > 0) {
+		return {
+			error:
+				`command "${name}": unrecognized ${quoteAll(unknownKeys)}. Only "run", "cwd", ` +
+				`"description", "remote", and "result" are accepted.`,
+		};
+	}
+
+	const run = record.run;
+	if (!Array.isArray(run) || run.length === 0 || !run.every((item) => typeof item === "string")) {
+		return {
+			error: `command "${name}": "run" must be a non-empty array of strings, found ${describeValue(run)}.`,
+		};
+	}
+	const command: WorkspaceDeclaredCommand = { run: run as string[] };
+
+	if (record.cwd !== undefined) {
+		if (typeof record.cwd !== "string") {
+			return { error: `command "${name}": "cwd" must be a string, found ${describeValue(record.cwd)}.` };
+		}
+		command.cwd = record.cwd;
+	}
+	if (record.description !== undefined) {
+		if (typeof record.description !== "string") {
+			return {
+				error: `command "${name}": "description" must be a string, found ${describeValue(record.description)}.`,
+			};
+		}
+		command.description = record.description;
+	}
+	if (record.remote !== undefined) {
+		if (record.remote !== true) {
+			return {
+				error: `command "${name}": "remote" must be exactly true when present, found ${describeValue(record.remote)}.`,
+			};
+		}
+		command.remote = true;
+	}
+	if (record.result !== undefined) {
+		if (record.result !== "operation-result.v1") {
+			return {
+				error: `command "${name}": "result" must be exactly "operation-result.v1" when present, found ${describeValue(record.result)}.`,
+			};
+		}
+		command.result = "operation-result.v1";
+	}
+
+	return { command };
+}
+
+/** Validate `execution` against its one known field, refusing unknown nested keys
+ *  rather than passing the object through — the same discipline `parseCommandEntry`
+ *  applies to a command entry, one level down from the top-level grammar. */
+function parseExecutionOffer(
+	raw: Record<string, unknown>,
+): { execution: { preferredAdapter?: string } } | { error: string } {
+	const unknownKeys = Object.keys(raw).filter((key) => !ALLOWED_EXECUTION_KEYS.has(key));
+	if (unknownKeys.length > 0) {
+		return {
+			error: `"execution": unrecognized ${quoteAll(unknownKeys)}. Only "preferredAdapter" is accepted.`,
+		};
+	}
+	if (raw.preferredAdapter === undefined) return { execution: {} };
+	if (typeof raw.preferredAdapter !== "string") {
+		return {
+			error: `"execution.preferredAdapter" must be a string, found ${describeValue(raw.preferredAdapter)}.`,
+		};
+	}
+	return { execution: { preferredAdapter: raw.preferredAdapter } };
 }
 
 /**
@@ -118,7 +221,14 @@ export function parseWorkspaceOffer(raw: unknown): ParsedOffer {
 				error: `"commands" must be an object mapping command names to declarations, got ${describeValue(record.commands)}.`,
 			};
 		}
-		commands = record.commands as Record<string, WorkspaceDeclaredCommand>;
+		const rawCommands = record.commands as Record<string, unknown>;
+		const validated: Record<string, WorkspaceDeclaredCommand> = {};
+		for (const [name, value] of Object.entries(rawCommands)) {
+			const parsed = parseCommandEntry(name, value);
+			if ("error" in parsed) return parsed;
+			validated[name] = parsed.command;
+		}
+		commands = validated;
 	}
 
 	if (record.execution !== undefined) {
@@ -129,7 +239,9 @@ export function parseWorkspaceOffer(raw: unknown): ParsedOffer {
 		) {
 			return { error: `"execution" must be an object, got ${describeValue(record.execution)}.` };
 		}
-		return { offer: { commands, execution: record.execution as { preferredAdapter?: string } } };
+		const parsedExecution = parseExecutionOffer(record.execution as Record<string, unknown>);
+		if ("error" in parsedExecution) return parsedExecution;
+		return { offer: { commands, execution: parsedExecution.execution } };
 	}
 
 	return { offer: { commands } };
