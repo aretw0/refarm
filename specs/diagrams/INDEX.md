@@ -21,6 +21,7 @@ This file is the Map of Content for architecture-grade diagrams in Refarm.
 | Sync | [Sync CRDT Sequence](./sync-crdt.svg) | Peer operation flow and merge semantics | — |
 | Identity | [Identity Nostr Sequence](./identity-nostr.svg) | Identity, signing, relay verification | — |
 | Persistence | [Storage SQLite / OPFS](./storage-sqlite.svg) | Adapter, migrations, and browser storage runtime | — |
+| Persistence | [Record Read Path](./record-read-path.svg) | Newest-first ordering guarantee + truncation ceiling from `nodes` table to `refarm budget observations` | [SOVEREIGN_RECORD_ORDERING.md](../../docs/SOVEREIGN_RECORD_ORDERING.md) |
 | Delivery | [CI Pipeline](./ci-pipeline.svg) | Quality/build/e2e/audit orchestration | [CI_GUIDE.md](./CI_GUIDE.md) |
 
 ### Sub-diagrams (focused views via mdt)
@@ -83,6 +84,12 @@ Source: [identity-nostr.mermaid](./identity-nostr.mermaid)
 Source: [storage-sqlite.mermaid](./storage-sqlite.mermaid)
 
 ![Storage SQLite / OPFS](./storage-sqlite.svg)
+
+### Record Read Path
+
+Source: [record-read-path.mermaid](./record-read-path.mermaid)
+
+![Record Read Path](./record-read-path.svg)
 
 ### CI Pipeline
 
