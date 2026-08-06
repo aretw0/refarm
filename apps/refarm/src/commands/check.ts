@@ -55,13 +55,14 @@ async function runDefaultEnvironmentPressure(): Promise<EnvironmentPressureCheck
 	});
 }
 
-async function runDefaultDoctor(options: {
+// Exported (not just used as the default `deps.runDoctor`) so a test can call this exact
+// function directly and prove `runtimeFreshness`/`sovereignDivergences` reach
+// `buildRefarmDoctorReport` from here — see `check-doctor-wiring.test.ts`.
+export async function runDefaultDoctor(options: {
 	failOnWarnings?: boolean;
 }): Promise<RefarmDoctorReport> {
-	const [{ buildRefarmDoctorReport }, { resolveStatusPayload }] = await Promise.all([
-		import("./doctor.js"),
-		import("./status.js"),
-	]);
+	const [{ buildRefarmDoctorReport, resolveFreshness, resolveSovereignDivergences }, { resolveStatusPayload }] =
+		await Promise.all([import("./doctor.js"), import("./status.js")]);
 	const { resolveNodeContextMetadata } = await import("../utils/context-metadata.js");
 	const statusPayload = await resolveStatusPayload({ renderer: "headless" });
 	try {
@@ -80,9 +81,19 @@ async function runDefaultDoctor(options: {
 		// (which the operator runs when they want to know) are the right places for it.
 		//
 		// Changing this changes GATING behaviour — do not wire it in silently.
+		//
+		// `runtimeFreshness` and `sovereignDivergences` are the OPPOSITE case and MUST be
+		// passed: they are not omitted deliberately, they were simply never wired, and their
+		// absence here is the reason `refarm check --next-action --json` — the "all clear"
+		// signal CLAUDE.md §4 tells every agent to trust — could answer clean while `refarm
+		// doctor --json` (fed by the SAME resolvers, in doctor.ts's own action) already listed
+		// `sovereign:plugin-divergence`. Resolved exactly the way `doctor.ts` resolves them at
+		// its own edge, so `check` and bare `doctor` see the identical comparison.
 		return buildRefarmDoctorReport(statusPayload.json, {
 			failOnWarnings: options.failOnWarnings,
 			context: resolveNodeContextMetadata(process.env),
+			runtimeFreshness: resolveFreshness(),
+			sovereignDivergences: resolveSovereignDivergences(),
 		});
 	} finally {
 		await statusPayload.shutdown?.();

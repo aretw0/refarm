@@ -396,8 +396,12 @@ function resolveNodeDescriptor(deps: RefarmDoctorCommandDeps | undefined): NodeI
  * `null` rather than a guess. `resolveRuntimeFreshness` itself answers `unknown` for the
  * cases it CAN see — a dead pid, an unfindable artifact — so `null` here means only that
  * this resolver could not run at all.
+ *
+ * Exported so `check.ts` can resolve the SAME freshness comparison for its own
+ * `buildRefarmDoctorReport` call, rather than re-deriving it — see that module's
+ * `runDefaultDoctor` for why the composite gate needs this too.
  */
-function resolveFreshness(): RuntimeFreshness | null {
+export function resolveFreshness(): RuntimeFreshness | null {
 	try {
 		const nodeHome = path.resolve(resolveRefarmHome());
 		// Deliberately the real reader, not `deps.readNodeDescriptor`: the injectable
@@ -444,8 +448,11 @@ function resolveEnvironment(deps: RefarmDoctorCommandDeps | undefined): RuntimeE
  * than re-derived (see `sovereign-divergence-doctor.ts`'s header). Same posture as the
  * resolvers above: never throws, `null` on any failure rather than a guess, so a doctor
  * run does not crash because a divergence comparison could not be made.
+ *
+ * Exported for the same reason as `resolveFreshness` above: `check.ts` needs the identical
+ * comparison for its own `buildRefarmDoctorReport` call.
  */
-function resolveSovereignDivergences(): Divergence[] | null {
+export function resolveSovereignDivergences(): Divergence[] | null {
 	try {
 		return buildContextReport(resolveContextInput()).divergences;
 	} catch {
