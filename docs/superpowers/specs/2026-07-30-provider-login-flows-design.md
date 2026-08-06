@@ -4,6 +4,11 @@ Date: 2026-07-30
 Status: Designed, not implemented
 Lane: [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md) — idle quota / machine empowerment
 
+Authority note (2026-08-06): the generic device-code experience and branded callback remain current.
+Model-account storage, workspace binding, Copilot's production transport, and Kimi are superseded or
+refined by
+[`2026-08-06-account-aware-copilot-kimi-providers-design.md`](./2026-08-06-account-aware-copilot-kimi-providers-design.md).
+
 ## What was asked, and what it actually is
 
 The operator asked for four things: GitHub Copilot as a model provider (as pi.dev does it), reuse of
@@ -52,7 +57,11 @@ Implementation shape: a device-code flow beside the PKCE one in `credentials/oau
 provider interface the two existing providers already satisfy, so `refarm sow` and the credential
 resolution do not learn a new concept — only a second way to obtain the same credential.
 
-## D2 — Copilot is the second consumer, and it has two halves
+## D2 — Copilot was originally designed as two halves
+
+The implementation shape below is retained as historical evidence. The 2026-08-06 account-aware
+design replaces the proposed private-endpoint runtime adapter with an official Copilot SDK boundary
+spike before a production transport is chosen.
 
 Already mapped, and worth restating so the halves are not conflated:
 

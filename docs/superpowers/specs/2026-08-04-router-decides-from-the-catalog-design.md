@@ -6,6 +6,10 @@ Awaits an implementation plan.
 Touches `packages/agent/**`, `packages/model-catalog-v1/**`, `packages/config/**`, `packages/tractor/src/host/**`.
 Lane: [`docs/CONVERGENCE-LANE.md`](../../CONVERGENCE-LANE.md)
 
+Authority note (2026-08-06): D3 and the subscription-account portion of D4 are refined by
+[`2026-08-06-account-aware-copilot-kimi-providers-design.md`](./2026-08-06-account-aware-copilot-kimi-providers-design.md).
+Catalog ownership and catalog-driven route selection in this document remain authoritative.
+
 ## What forced this
 
 The operator named three things he wants: an orchestrator that picks the right model, idle
