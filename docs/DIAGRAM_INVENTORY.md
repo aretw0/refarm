@@ -6,10 +6,10 @@ It checks source-to-SVG coverage without launching a browser. Semantic authority
 
 ## Summary
 
-- Mermaid sources: 42
-- Rendered SVGs: 42
+- Mermaid sources: 43
+- Rendered SVGs: 43
 - Missing SVGs: 0
-- By area: docs 22, specs 14, examples 6
+- By area: docs 22, specs 15, examples 6
 - Governed families: consolidation target 4, legacy frozen 5
 - Governance violations: 0
 
@@ -21,7 +21,7 @@ It checks source-to-SVG coverage without launching a browser. Semantic authority
 | `docs/diagrams/layer-diagram--distros.mermaid` | Which product apps enter through which runtime surface? | replace-covered | `specs/diagrams/architecture-layers--apps-runtime.mermaid` |
 | `docs/diagrams/layer-diagram--runtime.mermaid` | How do Tractor, WIT, and plugin execution relate? | replace-covered | `specs/diagrams/architecture-layers--apps-runtime.mermaid` |
 | `docs/diagrams/layer-diagram--data.mermaid` | How do data contracts connect to storage, sync, and identity adapters? | review-overlap | `specs/diagrams/architecture-layers--contracts.mermaid`<br>`specs/diagrams/architecture-layers--adapters.mermaid` |
-| `docs/diagrams/layer-diagram--streams.mermaid` | How do effort dispatch and stream events traverse transport adapters? | preserve-perspective | — |
+| `docs/diagrams/layer-diagram--streams.mermaid` | How do effort dispatch and stream events traverse transport adapters? | replace-covered | `specs/diagrams/work-dispatch-streaming.mermaid` |
 
 ## Source Coverage
 
@@ -69,3 +69,4 @@ It checks source-to-SVG coverage without launching a browser. Semantic authority
 | `specs/diagrams/record-read-path.mermaid` | unclassified | `specs/diagrams/record-read-path.svg` | yes |
 | `specs/diagrams/storage-sqlite.mermaid` | unclassified | `specs/diagrams/storage-sqlite.svg` | yes |
 | `specs/diagrams/sync-crdt.mermaid` | unclassified | `specs/diagrams/sync-crdt.svg` | yes |
+| `specs/diagrams/work-dispatch-streaming.mermaid` | focused-active | `specs/diagrams/work-dispatch-streaming.svg` | yes |

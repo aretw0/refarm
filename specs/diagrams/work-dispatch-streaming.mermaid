@@ -1,0 +1,74 @@
+flowchart LR
+  subgraph Surfaces["Operator Surfaces"]
+    CLI["refarm CLI"]
+    Channels["channel integrations"]
+    Clients["SDK / PWA clients"]
+  end
+
+  Effort["effort-contract-v1\nEffort · Task · TaskResult"]
+
+  subgraph CliAdapters["apps/refarm — private client adapters"]
+    Dispatch["dispatch-surface\nselection · paths · channel capability"]
+    FileClient["FileTransportClient"]
+    HttpClient["HttpTransportClient"]
+    ChannelClient["HttpChannelTransportClient"]
+  end
+
+  subgraph Ingress["Farmhand Ingress"]
+    TaskFiles["tasks/*.json\nnode-local queue"]
+    Http["HttpSidecar :42001\n/efforts · /channels/:id/efforts"]
+    FileAdapter["FileTransportAdapter\nshared file-backed operations"]
+  end
+
+  Coupling["current coupling\nHTTP delegates to FileTransportAdapter"]
+
+  Executor["Farmhand task executor\npolicy · model route · plugin call"]
+  Runtime["runtime host → agent plugin"]
+  Chunk["stream-contract-v1\nStreamChunk"]
+  Registry["StreamRegistry\nproject and dispatch"]
+
+  subgraph StreamTransports["Stream Transports"]
+    FileStream["FileStreamTransport\nstreams/*.ndjson · replay"]
+    SSE["SseStreamTransport\nGET /stream/:ref"]
+    WS["WsStreamTransport\nWS /ws/stream"]
+  end
+
+  Follower["stream-follower\nfile poll or SSE source"]
+  WsConsumer["WebSocket consumer"]
+
+  CLI --> Dispatch
+  Channels --> Dispatch
+  Clients --> Dispatch
+  Dispatch --> Effort
+  Effort -->|"file"| FileClient
+  Effort -->|"http"| HttpClient
+  Effort -->|"channel:*"| ChannelClient
+  FileClient -->|"writes"| TaskFiles
+  HttpClient -->|"HTTP /efforts"| Http
+  ChannelClient -->|"HTTP /channels/:id/efforts"| Http
+  TaskFiles -->|"watched by"| FileAdapter
+  Http -->|"delegates operations"| FileAdapter
+  Coupling -.-> Http
+  Coupling -.-> FileAdapter
+  FileAdapter --> Executor
+  Executor --> Runtime
+  Runtime -->|"StreamChunk node"| Chunk
+  Chunk --> Registry
+  Registry --> FileStream
+  Registry --> SSE
+  Registry --> WS
+  FileStream --> Follower
+  SSE --> Follower
+  WS --> WsConsumer
+  Follower --> CLI
+  Follower --> Clients
+
+  classDef surface fill:#dbeafe,stroke:#1d4ed8,stroke-width:1px;
+  classDef contract fill:#ede9fe,stroke:#5b21b6,stroke-width:1px;
+  classDef runtime fill:#dcfce7,stroke:#166534,stroke-width:1px;
+  classDef transport fill:#e0f2fe,stroke:#075985,stroke-width:1px;
+
+  class CLI,Channels,Clients,Follower,WsConsumer surface;
+  class Effort,Chunk contract;
+  class Executor,Runtime,Registry runtime;
+  class Dispatch,FileClient,HttpClient,ChannelClient,TaskFiles,Http,FileAdapter,FileStream,SSE,WS,Coupling transport;

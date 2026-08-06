@@ -45,6 +45,7 @@ conformance surfaces.
 | Persistence | [Storage SQLite / OPFS](./storage-sqlite.svg) | Adapter, migrations, and browser storage runtime | — |
 | Persistence | [Record Read Path](./record-read-path.svg) | Newest-first ordering guarantee + truncation ceiling from `nodes` table to `refarm budget observations` | [SOVEREIGN_RECORD_ORDERING.md](../../docs/SOVEREIGN_RECORD_ORDERING.md) |
 | Delivery | [CI Pipeline](./ci-pipeline.svg) | Quality/build/e2e/audit orchestration | [CI_GUIDE.md](./CI_GUIDE.md) |
+| Work control | [Work Dispatch and Streaming](./work-dispatch-streaming.svg) | Current client adapters, HTTP/file ingress coupling, execution, stream projection, transports, and followers | — |
 
 ### Sub-diagrams (focused views via mdt)
 
@@ -115,6 +116,12 @@ Source: [record-read-path.mermaid](./record-read-path.mermaid)
 Source: [ci-pipeline.mermaid](./ci-pipeline.mermaid)
 
 ![CI Pipeline](./ci-pipeline.svg)
+
+### Work Dispatch and Streaming
+
+Source: [work-dispatch-streaming.mermaid](./work-dispatch-streaming.mermaid)
+
+![Work Dispatch and Streaming](./work-dispatch-streaming.svg)
 
 ## Diagrams Used in docs/
 

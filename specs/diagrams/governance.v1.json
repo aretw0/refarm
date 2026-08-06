@@ -58,10 +58,18 @@
 				{
 					"source": "docs/diagrams/layer-diagram--streams.mermaid",
 					"question": "How do effort dispatch and stream events traverse transport adapters?",
-					"decision": "preserve-perspective",
-					"replacements": []
+					"decision": "replace-covered",
+					"replacements": ["specs/diagrams/work-dispatch-streaming.mermaid"]
 				}
 			]
+		},
+		{
+			"id": "work-dispatch-streaming",
+			"topic": "work-dispatch-and-streaming",
+			"state": "focused-active",
+			"guide": "specs/diagrams/INDEX.md",
+			"sourcePrefix": "specs/diagrams/work-dispatch-streaming",
+			"sources": ["specs/diagrams/work-dispatch-streaming.mermaid"]
 		}
 	]
 }
