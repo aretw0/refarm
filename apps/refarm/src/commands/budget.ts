@@ -221,13 +221,35 @@ function parseLimitOption(value: string): number {
 	return parsed;
 }
 
-async function fetchBudgetObservations(limit: number): Promise<ObservationNode[]> {
-	const body = await fetchSidecarJson<{ nodes?: unknown[] }>(
+/**
+ * The sidecar's `/nodes` page-level facts, deliberately NOT folded into `ObservationSummary`.
+ * `summary.total` already means "how many observations this call returned" (`nodes.length`
+ * inside `summariseObservations`); `stored` here means something else entirely — how many
+ * `BudgetObservation` nodes exist in storage, independent of `--limit` or the server's own
+ * 100-row cap. Naming both "total" would put two different facts under one word in the same
+ * command's output — the collision this shape exists to avoid.
+ */
+export interface BudgetObservationsPage {
+	observations: ObservationNode[];
+	/** How many `BudgetObservation` nodes exist right now — the true count, not a page size. */
+	stored: number;
+	/** Whether this page left rows out. The server computes this (`stored > returned`), not
+	 *  the client — the database is the only side that can see what was NOT returned. */
+	truncated: boolean;
+}
+
+async function fetchBudgetObservations(limit: number): Promise<BudgetObservationsPage> {
+	const body = await fetchSidecarJson<{ nodes?: unknown[]; stored?: number; truncated?: boolean }>(
 		sidecarUrl(
 			`/nodes?type=${encodeURIComponent(BUDGET_OBSERVATION_NODE_TYPE)}&limit=${limit}`,
 		),
 	);
-	return Array.isArray(body.nodes) ? (body.nodes as ObservationNode[]) : [];
+	const observations = Array.isArray(body.nodes) ? (body.nodes as ObservationNode[]) : [];
+	return {
+		observations,
+		stored: typeof body.stored === "number" ? body.stored : observations.length,
+		truncated: body.truncated === true,
+	};
 }
 
 /**
@@ -286,11 +308,24 @@ export function outcomeMark(outcome: string): string {
 	}
 }
 
-function printObservationsHuman(
+/** Exported for `budget.test.ts` — drives the truncation notice with a literal payload,
+ *  no network, per the same pattern the rest of this file's pure functions already use. */
+export function printObservationsHuman(
 	observations: readonly ObservationNode[],
 	summary: ObservationSummary,
+	page: Pick<BudgetObservationsPage, "stored" | "truncated">,
 ): void {
 	console.log(chalk.bold(`\n  Budget observations  (${summary.total} shown)\n`));
+	if (page.truncated) {
+		// `summary.total` (shown above) and `page.stored` (here) are deliberately printed
+		// side by side with different words, not both called "total" — see
+		// `BudgetObservationsPage`'s doc for why that collision must not happen.
+		console.log(
+			chalk.yellow(
+				`  ⚠  Showing ${summary.total} of ${page.stored} stored — raise --limit to see the rest.\n`,
+			),
+		);
+	}
 	if (summary.total === 0) {
 		console.log(chalk.dim(`  ${observationsNextAction(summary) ?? ""}`));
 		return;
@@ -362,9 +397,9 @@ export function createBudgetCommand(): Command {
 		)
 		.option("--json", "Output machine-readable JSON")
 		.action(async (options: BudgetObservationsCommandOptions) => {
-			let observations: ObservationNode[];
+			let page: BudgetObservationsPage;
 			try {
-				observations = await fetchBudgetObservations(options.limit);
+				page = await fetchBudgetObservations(options.limit);
 			} catch (err) {
 				reportSidecarError(err, {
 					json: options.json,
@@ -373,6 +408,7 @@ export function createBudgetCommand(): Command {
 				});
 				return;
 			}
+			const { observations, stored, truncated } = page;
 			// An explicit --current-rate-table still wins (e.g. checking against a
 			// version not yet seen in any observation); omitted, it is derived from
 			// the newest observation read back rather than left undetermined.
@@ -387,13 +423,18 @@ export function createBudgetCommand(): Command {
 						extra: {
 							observations,
 							summary,
+							// Carried through verbatim from the sidecar — see
+							// `BudgetObservationsPage`'s doc for why these are not folded
+							// into `summary`.
+							stored,
+							truncated,
 						},
 						nextAction,
 					}),
 				);
 				return;
 			}
-			printObservationsHuman(observations, summary);
+			printObservationsHuman(observations, summary, { stored, truncated });
 		});
 
 	command.addHelpText(

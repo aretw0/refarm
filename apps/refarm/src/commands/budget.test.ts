@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { currentRateTableFrom, outcomeMark, summariseObservations } from "./budget.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+	currentRateTableFrom,
+	outcomeMark,
+	printObservationsHuman,
+	summariseObservations,
+} from "./budget.js";
 
 describe("summariseObservations", () => {
 	it("counts the runs the node cut, so a hit ceiling is visible", () => {
@@ -170,6 +175,46 @@ describe("currentRateTableFrom", () => {
 		expect(currentRateTableFrom([])).toBeUndefined();
 		expect(currentRateTableFrom([{ "refarm.cost.rate_table_version": "2026-08-03.1" }])).toBeUndefined();
 		expect(currentRateTableFrom([{ timestamp_ns: 100 }])).toBeUndefined();
+	});
+});
+
+describe("printObservationsHuman — truncation notice", () => {
+	// `summary.total` already means "how many observations this call returned" (the array
+	// length `summariseObservations` counted) — that meaning is pinned by the header line
+	// below (`(${summary.total} shown)`). The server's new fact, "how many
+	// BudgetObservation nodes actually exist", is a DIFFERENT number and must never be
+	// read through that same field name, so the page-level info travels in its own
+	// `{ stored, truncated }` argument instead of being folded into `ObservationSummary`.
+	let stdout: string[];
+
+	beforeEach(() => {
+		stdout = [];
+		vi.spyOn(console, "log").mockImplementation((...args) => void stdout.push(args.join(" ")));
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("prints a notice naming both counts when the payload says truncated: true", () => {
+		const observations = [{ "refarm.outcome": "done" }];
+		const summary = summariseObservations(observations);
+
+		printObservationsHuman(observations, summary, { stored: 42, truncated: true });
+
+		const text = stdout.join("\n");
+		expect(text).toContain("42");
+		expect(text.toLowerCase()).toContain("stored");
+	});
+
+	it("prints nothing about storage when the payload says truncated: false", () => {
+		const observations = [{ "refarm.outcome": "done" }];
+		const summary = summariseObservations(observations);
+
+		printObservationsHuman(observations, summary, { stored: 1, truncated: false });
+
+		const text = stdout.join("\n");
+		expect(text.toLowerCase()).not.toContain("stored");
 	});
 });
 

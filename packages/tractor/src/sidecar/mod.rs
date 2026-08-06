@@ -1514,6 +1514,12 @@ fn default_nodes_limit() -> usize {
     20
 }
 
+/// The most nodes one response will carry. A ceiling is right; a SILENT ceiling is not,
+/// which is why `total` and `truncated` travel beside the rows. Before 2026-08-06 this cap
+/// was applied to an unordered query, so past 100 records of a type the API could never
+/// surface a recent one at any `limit` the caller asked for.
+const MAX_NODES_PER_RESPONSE: usize = 100;
+
 /// JSON-LD `@context` for the sovereign-runtime node family this Rust host
 /// exclusively writes — Session, RefarmConfig, UsageRecord, BudgetObservation,
 /// AgentResponse, and the rest of the internal bookkeeping types under
@@ -1585,24 +1591,13 @@ async fn get_nodes(
         }
     };
 
-    let nodes: Vec<Value> = match storage.query_nodes(type_) {
-        Ok(rows) => {
-            let mut nodes = Vec::new();
-            for row in rows.into_iter().take(params.limit.min(100)) {
-                let node = match node_value_from_row(row) {
-                    Ok(node) => node,
-                    Err(e) => {
-                        return (
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            Json(serde_json::json!({ "error": e })),
-                        )
-                            .into_response();
-                    }
-                };
-                nodes.push(node);
-            }
-            nodes
-        }
+    // The ceiling stays — an unbounded response is its own hazard — but it is applied IN
+    // SQL via `query_nodes_limited`, not by materialising every row and discarding most of
+    // them (`query_nodes(...).take(n)`, the pre-2026-08-06 shape this replaces).
+    let effective_limit = params.limit.min(MAX_NODES_PER_RESPONSE);
+
+    let rows = match storage.query_nodes_limited(type_, effective_limit) {
+        Ok(rows) => rows,
         Err(e) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -1612,7 +1607,50 @@ async fn get_nodes(
         }
     };
 
-    Json(serde_json::json!({ "nodes": nodes, "total": nodes.len() })).into_response()
+    // `count_nodes` is a `SELECT COUNT(*)` — it never materialises the rows it counts, so
+    // stating the true total costs nothing close to what re-running `query_nodes` (every
+    // row of the type) would cost.
+    let stored = match storage.count_nodes(type_) {
+        Ok(n) => n,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("count: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let mut nodes: Vec<Value> = Vec::new();
+    for row in rows {
+        let node = match node_value_from_row(row) {
+            Ok(node) => node,
+            Err(e) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "error": e })),
+                )
+                    .into_response();
+            }
+        };
+        nodes.push(node);
+    }
+
+    // `total` keeps its pre-existing meaning — "rows in THIS response" — pinned by
+    // `sidecar_query_nodes_filters_by_type_and_limit`. Reusing that name for `stored` would
+    // put two different meanings under one word across this same JSON body, and the same
+    // word again in `apps/refarm/src/commands/budget.ts`'s `summary.total` (observations
+    // returned, not observations stored) — exactly the collision this shape avoids by
+    // giving the new fact ("how many exist") its own name instead.
+    let truncated = stored > nodes.len();
+
+    Json(serde_json::json!({
+        "nodes": nodes,
+        "total": nodes.len(),
+        "stored": stored,
+        "truncated": truncated,
+    }))
+    .into_response()
 }
 
 async fn get_node_by_id(

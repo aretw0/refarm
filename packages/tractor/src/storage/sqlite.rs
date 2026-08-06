@@ -212,6 +212,24 @@ impl NativeStorage {
         self.query_nodes_inner(type_, Some(limit))
     }
 
+    /// True count of nodes of `type_`, independent of any limit a caller might apply
+    /// elsewhere. Exists so a capped response (`query_nodes_limited` plus
+    /// `sidecar/mod.rs`'s `MAX_NODES_PER_RESPONSE`) can state how many rows exist WITHOUT
+    /// materialising every row just to count them — `SELECT COUNT(*)` never leaves SQLite,
+    /// unlike `query_nodes(type_).len()`, which is exactly the cost `query_nodes_limited`
+    /// exists to avoid reintroducing one line below the fix.
+    pub fn count_nodes(&self, type_: &str) -> Result<usize> {
+        let conn = self.conn.lock().unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM nodes WHERE type = ?1",
+                params![type_],
+                |row| row.get(0),
+            )
+            .context("count_nodes")?;
+        Ok(count as usize)
+    }
+
     fn query_nodes_inner(&self, type_: &str, limit: Option<usize>) -> Result<Vec<NodeRow>> {
         let conn = self.conn.lock().unwrap();
         let sql = match limit {
@@ -548,6 +566,36 @@ mod tests {
              — a test that only checks two reads agree with each other would pass even \
              without a secondary sort key, since SQLite is deterministic on unchanged data \
              regardless of whether a tiebreak column exists."
+        );
+    }
+
+    #[test]
+    fn count_nodes_counts_the_true_total_not_a_capped_page() {
+        let storage = memory_storage();
+        for i in 0..5 {
+            storage
+                .store_node(&format!("thing-{i}"), "Thing", None, "{}", None)
+                .unwrap();
+        }
+        storage
+            .store_node("other-1", "Other", None, "{}", None)
+            .unwrap();
+
+        assert_eq!(
+            storage.count_nodes("Thing").unwrap(),
+            5,
+            "count_nodes must report every stored row of the type, independent of any \
+             limit a caller separately applies to query_nodes_limited"
+        );
+        assert_eq!(
+            storage.count_nodes("Other").unwrap(),
+            1,
+            "count_nodes must filter by type, same as query_nodes"
+        );
+        assert_eq!(
+            storage.count_nodes("__nonexistent__").unwrap(),
+            0,
+            "a type with no rows counts as zero, not an error"
         );
     }
 
