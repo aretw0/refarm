@@ -128,4 +128,5 @@ Any runtime claiming to implement this protocol must pass:
 - ADR-058: Context Injection Doctrine
 - `apps/farmhand/src/transports/http.ts` — canonical TypeScript reference implementation
 - `apps/farmhand/src/effort-operations.ts` — transport-neutral server operations boundary
-- `apps/farmhand/src/transports/file.ts` — stream file transport reference
+- `apps/farmhand/src/transports/file-effort-repository.ts` — current JSON/NDJSON persistence
+- `apps/farmhand/src/transports/file.ts` — current file ingress and lifecycle implementation
