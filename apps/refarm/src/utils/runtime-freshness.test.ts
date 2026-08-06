@@ -68,9 +68,25 @@ describe("runtime freshness", () => {
 		expect(plugin?.reason).toMatch(/could not be located/);
 	});
 
-	it("derives the agent plugin path from the sovereign dir, and refuses without one", () => {
-		expect(defaultAgentPluginPath("/home/op/.refarm", undefined)).toBe(PLUGIN);
+	it("refuses to guess the agent plugin path when the witness is absent", () => {
+		expect(defaultAgentPluginPath("/home/op/.refarm", undefined)).toBeNull();
 		expect(defaultAgentPluginPath(undefined, undefined)).toBeNull();
+	});
+
+	it("reports unknown, not fresh, when the descriptor exists but the plugin witness does not — the reinstated 2026-08-05 defect", () => {
+		// Before this fix, a witness-less run reconstructed the conventional path
+		// (`plugins/@refarm/agent/plugin.wasm`), and when that conventional file happened to
+		// exist and predate the node's start, `resolveRuntimeFreshness` reported the WHOLE
+		// node `fresh` about a build nothing loads — the exact defect this file exists to
+		// remove, reinstated through the fallback. `null` must flow through instead, so the
+		// comparison answers `unknown`.
+		const agentPluginPath = defaultAgentPluginPath("/home/op/.refarm", undefined);
+		expect(agentPluginPath).toBeNull();
+		const result = resolveRuntimeFreshness(descriptor, agentPluginPath, deps(startedMs - 1000, startedMs - 1000));
+		expect(result.state).toBe("unknown");
+		const plugin = result.artifacts.find((a) => a.artifact === "agent plugin");
+		expect(plugin?.state).toBe("unknown");
+		expect(plugin?.reason).toMatch(/could not be located/);
 	});
 });
 
@@ -81,8 +97,8 @@ describe("defaultAgentPluginPath", () => {
 		).toBe("/home/op/.refarm/plugins/refarm_agent/plugin.wasm");
 	});
 
-	it("falls back to the conventional path only when the loaded one is unknown", () => {
-		expect(defaultAgentPluginPath("/home/op/.refarm", undefined)).toContain("plugins");
+	it("returns null, never a reconstructed conventional path, when the witness cannot be read", () => {
+		expect(defaultAgentPluginPath("/home/op/.refarm", undefined)).toBeNull();
 	});
 
 	it("returns null without a sovereign dir and without a loaded path", () => {

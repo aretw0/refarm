@@ -251,21 +251,27 @@ export function defaultRateCatalogPath(sovereignDir: string | undefined): string
 /**
  * Which agent plugin file to compare against the running process.
  *
- * `loadedPath` WINS when known, and the reason is a defect measured on 2026-08-05: this
- * function returned `plugins/@refarm/agent/plugin.wasm` while the daemon had been started
- * with `plugins/refarm_agent/plugin.wasm`. Both existed in the same sovereign dir, written
- * the same day, 477,924 bytes against 476,441 — different builds. The installer converged on
- * one directory and this watcher stayed pointed at the other, so a node running a stale build
- * was reported fresh — twice, to two different agents.
+ * `loadedPath` is the process's own witness — its `--plugin` argument, read in
+ * `../utils/loaded-plugin.ts`. It WINS when known, and the reason is a defect measured on
+ * 2026-08-05: this function used to reconstruct `plugins/@refarm/agent/plugin.wasm` from
+ * the conventional layout while the daemon had actually been started with
+ * `plugins/refarm_agent/plugin.wasm`. Both existed in the same sovereign dir, written the
+ * same day, 477,924 bytes against 476,441 — different builds. The installer converged on
+ * one directory and this watcher stayed pointed at the other, so a node running a stale
+ * build was reported fresh — twice, to two different agents.
  *
- * The conventional path survives ONLY as the fallback for a node whose argv cannot be read.
- * It is a guess, it is labelled as one here, and it is never preferred over the witness.
+ * When the witness is unreadable, this returns `null` rather than reconstructing that
+ * conventional path — the SAME move `runningBinary` above already makes for the daemon
+ * binary on a non-Linux host: a real gap in what can be checked, not an assumption dressed
+ * up as one. `null` reaches `compare()` as a missing target, which answers `unknown` ("the
+ * installed agent plugin could not be located") — carrying the "this is a guess" label in
+ * the emitted STATE, not only in this comment, which is where it used to live alone while a
+ * conventional file that happened to exist and predate the node was reported `fresh` about
+ * a build nothing loads.
  */
 export function defaultAgentPluginPath(
-	sovereignDir: string | undefined,
+	_sovereignDir: string | undefined,
 	loadedPath: string | undefined,
 ): string | null {
-	if (loadedPath) return loadedPath;
-	if (!sovereignDir) return null;
-	return path.join(sovereignDir, "plugins", "@refarm", "agent", "plugin.wasm");
+	return loadedPath ?? null;
 }

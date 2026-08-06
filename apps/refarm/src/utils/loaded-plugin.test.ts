@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
 import { createHash } from "node:crypto";
-import { parsePluginArgFromCommandLine, parseProcCommandLine, resolveLoadedPlugin, defaultHashFile } from "./loaded-plugin.js";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { defaultHashFile, parsePluginArgFromCommandLine, parseProcCommandLine, resolveLoadedPlugin } from "./loaded-plugin.js";
 
 describe("parsePluginArgFromCommandLine", () => {
 	it("reads the separated form the daemon is actually started with", () => {
@@ -86,7 +87,7 @@ describe("resolveLoadedPlugin", () => {
 
 describe("defaultHashFile", () => {
 	it("hashes a file with known content to the correct SHA-256", () => {
-		const tmpDir = mkdtempSync("/tmp/loaded-plugin-");
+		const tmpDir = mkdtempSync(join(tmpdir(), "loaded-plugin-"));
 		try {
 			const testFile = join(tmpDir, "test.wasm");
 			const content = "test content";
@@ -105,7 +106,7 @@ describe("defaultHashFile", () => {
 
 describe("defaultHashFile through resolveLoadedPlugin", () => {
 	it("uses the real hasher when only readCommandLine is stubbed", () => {
-		const tmpDir = mkdtempSync("/tmp/loaded-plugin-");
+		const tmpDir = mkdtempSync(join(tmpdir(), "loaded-plugin-"));
 		try {
 			const testFile = join(tmpDir, "plugin.wasm");
 			const content = "plugin bytes";
