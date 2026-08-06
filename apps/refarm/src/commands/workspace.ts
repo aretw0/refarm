@@ -56,6 +56,11 @@ import {
 	buildWorkspaceExecutionStatus,
 	type WorkspaceExecutionStatus,
 } from "./workspace-execution.js";
+import {
+	runWorkspaceSync,
+	WorkspaceSyncRefusal,
+	type WorkspaceSyncOptions,
+} from "./workspace-sync.js";
 
 const WORKSPACE_HELP_COMMAND = refarmCommand(["workspace", "--help"]);
 const WORKSPACE_ADD_COMMAND = refarmCommand(["workspace", "add"]);
@@ -278,6 +283,13 @@ export interface WorkspaceDeclaredCommand {
 	description?: string;
 	remote?: true;
 	result?: "operation-result.v1";
+	/** PROVENANCE — absent means the operator authored this command directly
+	 *  (`refarm workspace command add`); `"workspace-offer"` means it was accepted
+	 *  from the workspace's own declaration (`refarm workspace sync`). The same
+	 *  distinction `workspace_source` draws for a session's attribution
+	 *  (`./ask.ts`), one layer down. Never set by a workspace's own offer — see
+	 *  `parseWorkspaceOffer`'s `ALLOWED_COMMAND_KEYS`, which does not include it. */
+	source?: "workspace-offer";
 }
 
 /** How a resolved declared command is actually executed — injected so the resolver is testable
@@ -935,6 +947,8 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 				"  $ refarm workspace sources materialize --dry-run --json",
 				"  $ refarm workspace sources refresh --dry-run --json",
 				"  $ refarm workspace list --json",
+				"  $ refarm workspace sync my-app --json",
+				"  $ refarm workspace sync my-app",
 				"",
 				"Notes:",
 				"  Refarm detects execution adapters such as Turbo, then reports local and remote cache readiness.",
@@ -997,6 +1011,73 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 					options,
 					error,
 				);
+			}
+		});
+
+	command
+		.command("sync <id>")
+		.description("Review a workspace's own offer and accept it into this node's catalog")
+		.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
+		.option("--json", "Print the sync plan as JSON — inspection only, never writes")
+		.action(async (id: string, options: Pick<WorkspaceSyncOptions, "attendedElsewhere" | "json">) => {
+			try {
+				const result = await runWorkspaceSync({ workspace: id, ...options }, deps);
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "workspace",
+							operation: "sync",
+							extra: {
+								workspace: result.workspace,
+								plan: result.plan,
+								configPath: result.configPath,
+								offerPath: result.offerPath,
+							},
+							nextAction:
+								result.plan.additions.length > 0
+									? `Run \`${refarmCommand(["workspace", "sync", id])}\` (without --json) to review and accept.`
+									: null,
+							nextCommands:
+								result.plan.additions.length > 0 ? [refarmCommand(["workspace", "sync", id])] : [],
+						}),
+					);
+					return;
+				}
+				switch (result.status) {
+					case "declared":
+						console.log(chalk.green(`✓  synced "${id}"`));
+						console.log(chalk.dim(`   ${result.configPath}`));
+						console.log(chalk.dim(`   undo: ${result.undoCommand}`));
+						break;
+					case "nothing-to-sync":
+						console.log(chalk.dim("nothing to sync"));
+						break;
+					case "declined":
+						console.log(chalk.dim("declined — nothing written"));
+						break;
+					case "deferred":
+						console.log(chalk.dim("deferred — nothing written"));
+						break;
+					case "cancelled":
+						console.log(chalk.dim("cancelled — nothing written"));
+						break;
+				}
+			} catch (error) {
+				if (error instanceof WorkspaceSyncRefusal && options.json) {
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "workspace",
+							operation: "sync",
+							error: error.code,
+							message: error.message,
+							nextAction: `Run \`${refarmCommand(["workspace", "sync", "--help"])}\` for accepted options.`,
+							nextCommand: refarmCommand(["workspace", "sync", "--help"]),
+						}),
+					);
+					process.exitCode = 1;
+					return;
+				}
+				failWorkspace("sync", options, error);
 			}
 		});
 

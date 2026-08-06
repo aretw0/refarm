@@ -122,6 +122,34 @@ describe("workspace config declarations", () => {
 		});
 	});
 
+	it("carries a command's provenance when it names the workspace-offer source, and drops any other value", () => {
+		const workspace = declaredWorkspaceFromConfig(
+			{
+				workspaces: {
+					app: {
+						path: ".",
+						commands: {
+							// accepted from the workspace's own offer via `refarm workspace sync`
+							build: { run: ["pnpm", "build"], source: "workspace-offer" },
+							// authored directly via `refarm workspace command add` — no provenance tag
+							test: { run: ["pnpm", "test"] },
+							// an unrecognized value is not a fact anyone authored — dropped, fail-closed
+							deploy: { run: ["pnpm", "deploy"], source: "operator" },
+						},
+					},
+				},
+			},
+			"app",
+			{ baseDir: "/workspaces/refarm" },
+		);
+
+		expect(workspace?.commands).toEqual({
+			build: { run: ["pnpm", "build"], source: "workspace-offer" },
+			test: { run: ["pnpm", "test"] },
+			deploy: { run: ["pnpm", "deploy"] },
+		});
+	});
+
 	it("uses conservative defaults for partial declarations", () => {
 		expect(
 			declaredWorkspaceFromConfig(

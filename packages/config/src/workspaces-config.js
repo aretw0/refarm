@@ -94,6 +94,13 @@ function normalizeWorkspaceCommands(value) {
 			// Result projection is closed just like remote admission: arbitrary format names
 			// disappear rather than becoming an accidental promise to parse stdout.
 			if (entry.result === "operation-result.v1") command.result = "operation-result.v1";
+			// PROVENANCE — the same distinction `workspace_source` draws for a session's
+			// attribution (apps/refarm/src/commands/ask.ts), one layer down: absence means
+			// the operator authored this command directly (`refarm workspace command add`);
+			// `"workspace-offer"` means it was accepted from that workspace's own declaration
+			// (`refarm workspace sync`). Closed exactly like `remote`/`result` above — an
+			// unrecognized value disappears rather than being trusted as a fact nobody wrote.
+			if (entry.source === "workspace-offer") command.source = "workspace-offer";
 		}
 		commands[name.trim()] = command;
 	}
