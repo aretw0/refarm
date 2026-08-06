@@ -522,10 +522,22 @@ Follow `runtime-freshness-doctor.ts` exactly: a module header stating the measur
 pnpm --filter @refarm.dev/refarm exec vitest run src/commands/sovereign-divergence-doctor.test.ts
 pnpm --filter @refarm.dev/refarm run test
 pnpm --filter @refarm.dev/refarm run build
-refarm doctor --json | python3 -c "import sys,json; d=json.load(sys.stdin); print([f.get('diagnostic') for f in (d.get('findings') or [])])"
+refarm doctor --json | python3 -c "import sys,json; d=json.load(sys.stdin); print([r.get('diagnostic') for r in (d.get('recommendations') or [])])"
 ```
 
-Expected: `sovereign:plugin-divergence` does NOT appear (the loaded and built hashes match on this machine today), and an `unloaded-sovereign-dir` finding DOES, naming the repo's abandoned `.refarm`. Record the raw output.
+**The `refarm doctor --json` shape, measured 2026-08-05 rather than assumed** — an earlier draft of
+this plan read a `findings` key that does not exist, and Task 2's implementer had to discover that:
+top-level keys include `ok`, `failures`, `warnings`, `informational`, `recommendations`.
+`recommendations` holds the objects, each with `diagnostic` / `severity` / `summary` / `action`;
+`warnings` holds bare diagnostic strings.
+
+Expected: `sovereign:plugin-divergence` does NOT appear (the loaded and built hashes match on this
+machine today), and an `unloaded-sovereign-dir` finding DOES, naming the repo's abandoned `.refarm`.
+Record the raw output.
+
+**Naming precedent, follow it:** `scope:auth-policy-divergence` already exists in this node's
+warnings. A divergence diagnostic in this codebase is `<domain>:<thing>-divergence`, so
+`sovereign:plugin-divergence` fits the family rather than inventing a scheme.
 
 - [ ] **Step 5: Run the repo's own gate and commit**
 
