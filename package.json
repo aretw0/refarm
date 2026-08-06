@@ -381,7 +381,7 @@
 	"homepage": "https://refarm.dev",
 	"devDependencies": {
 		"@changesets/cli": "^2.31.1",
-		"@mermaid-js/mermaid-cli": "^11.14.0",
+		"@mermaid-js/mermaid-cli": "11.15.0",
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/fence": "workspace:*",

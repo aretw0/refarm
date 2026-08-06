@@ -9,6 +9,7 @@ This file defines how diagram styling is centralized in Refarm.
 - Rendered artifacts: `*.svg`
 
 All SVG generation runs through `scripts/check-diagrams.mjs`, which applies the global config automatically.
+The renderer is pinned to `@mermaid-js/mermaid-cli@11.15.0`; its own Puppeteer dependency selects the matching browser revision.
 
 ## Scripts
 

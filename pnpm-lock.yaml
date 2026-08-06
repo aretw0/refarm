@@ -61,7 +61,7 @@ importers:
         specifier: ^2.31.1
         version: 2.31.1(@types/node@25.9.4)
       '@mermaid-js/mermaid-cli':
-        specifier: ^11.14.0
+        specifier: 11.15.0
         version: 11.15.0(@babel/core@7.29.6)(@babel/template@7.29.7)(puppeteer@24.43.1(typescript@6.0.3))(tailwindcss@3.4.19(tsx@4.23.0)(yaml@2.9.0))
       '@refarm.dev/config':
         specifier: workspace:*

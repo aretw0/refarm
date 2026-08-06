@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
@@ -11,6 +12,7 @@ const CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || path.join(os.homedir(), ".c
 export function resolveDiagramBrowserPlan({ root = ROOT, cacheDir = CACHE_DIR } = {}) {
 	const rootRequire = createRequire(path.join(root, "package.json"));
 	const mermaidCliEntry = rootRequire.resolve("@mermaid-js/mermaid-cli");
+	const mermaidCliPackage = JSON.parse(readFileSync(path.join(path.dirname(path.dirname(mermaidCliEntry)), "package.json"), "utf8"));
 	const mermaidRequire = createRequire(mermaidCliEntry);
 	const puppeteerCoreEntry = mermaidRequire.resolve("puppeteer-core");
 	const revisions = mermaidRequire("puppeteer-core/internal/revisions.js");
@@ -22,6 +24,7 @@ export function resolveDiagramBrowserPlan({ root = ROOT, cacheDir = CACHE_DIR } 
 		browserSpec: `chrome-headless-shell@${chromeRevision}`,
 		cacheDir,
 		mermaidCliEntry,
+		mermaidCliVersion: mermaidCliPackage.version,
 		puppeteerCoreEntry,
 	};
 }
