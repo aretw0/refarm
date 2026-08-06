@@ -169,7 +169,7 @@ describe("runWorkspaceSync — the command", () => {
 		const root = fixture();
 		const result = await runWorkspaceSync(
 			{ workspace: "app", json: true },
-			{ cwd: () => root, env: { SOVEREIGN_DIR: ".refarm" } },
+			{ root, env: { SOVEREIGN_DIR: ".refarm" } },
 		);
 
 		expect(result.status).toBe("inspected");
@@ -179,14 +179,14 @@ describe("runWorkspaceSync — the command", () => {
 	it("refuses a workspace id the node catalog does not declare", async () => {
 		const root = fixture();
 		await expect(
-			runWorkspaceSync({ workspace: "ghost", json: true }, { cwd: () => root, env: { SOVEREIGN_DIR: ".refarm" } }),
+			runWorkspaceSync({ workspace: "ghost", json: true }, { root, env: { SOVEREIGN_DIR: ".refarm" } }),
 		).rejects.toMatchObject({ code: "workspace-sync-not-declared" });
 	});
 
 	it("surfaces parseWorkspaceOffer's own refusal for a malformed offer rather than re-validating", async () => {
 		const root = fixture({ workspaceJson: { workspaces: { other: { path: "/x" } } } });
 		await expect(
-			runWorkspaceSync({ workspace: "app", json: true }, { cwd: () => root, env: { SOVEREIGN_DIR: ".refarm" } }),
+			runWorkspaceSync({ workspace: "app", json: true }, { root, env: { SOVEREIGN_DIR: ".refarm" } }),
 		).rejects.toMatchObject({ code: "workspace-sync-offer-invalid" });
 	});
 
@@ -194,7 +194,7 @@ describe("runWorkspaceSync — the command", () => {
 		const root = fixture();
 		fs.writeFileSync(path.join(root, "refarm.workspace.json"), "{ not json");
 		await expect(
-			runWorkspaceSync({ workspace: "app", json: true }, { cwd: () => root, env: { SOVEREIGN_DIR: ".refarm" } }),
+			runWorkspaceSync({ workspace: "app", json: true }, { root, env: { SOVEREIGN_DIR: ".refarm" } }),
 		).rejects.toMatchObject({ code: "workspace-sync-offer-unreadable" });
 	});
 
@@ -204,7 +204,7 @@ describe("runWorkspaceSync — the command", () => {
 
 		const result = await runWorkspaceSync(
 			{ workspace: "app", json: true },
-			{ cwd: () => root, env: { SOVEREIGN_DIR: ".refarm" } },
+			{ root, env: { SOVEREIGN_DIR: ".refarm" } },
 		);
 
 		expect(result.status).toBe("inspected");
@@ -212,28 +212,66 @@ describe("runWorkspaceSync — the command", () => {
 		expect(fs.readFileSync(path.join(root, ".refarm", "config.json"), "utf8")).toBe(before);
 	});
 
-	it("resolves the SAME root a caller's injected `cwd` gives `workspace list` — the exact divergence a `root` field would silently reintroduce", async () => {
-		// A decoy directory that also declares "app" but with a DIFFERENT command, so
-		// a wrong root produces a visibly wrong plan instead of failing to compile.
-		const decoy = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-workspace-sync-decoy-"));
-		roots.push(decoy);
-		fs.mkdirSync(path.join(decoy, ".refarm"), { recursive: true });
+	it("roots at REFARM_HOME's catalog — the same base `workspace add`/`workspace command add` write to — never a different catalog sitting at the current directory", async () => {
+		// The REAL catalog: exactly where `workspace add` (`workspace-add.ts`) and
+		// `workspace command add` (`workspace-command-add.ts`) resolve their root —
+		// `path.dirname(path.resolve(resolveRefarmHome(env)))` — and would have written.
+		const home = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-workspace-sync-home-"));
+		roots.push(home);
+		const refarmHome = path.join(home, ".refarm");
+		const homeAppPath = path.join(home, "app");
+		fs.mkdirSync(refarmHome, { recursive: true });
+		fs.mkdirSync(homeAppPath, { recursive: true });
 		fs.writeFileSync(
-			path.join(decoy, ".refarm", "config.json"),
-			`${JSON.stringify({ workspaces: { app: { path: ".", commands: {} } } }, null, 2)}\n`,
+			path.join(refarmHome, "config.json"),
+			`${JSON.stringify(
+				{
+					workspaces: {
+						app: {
+							path: homeAppPath,
+							kind: "project",
+							execution: { preferredAdapter: "auto" },
+							commands: { deploy: { run: ["node", "home-deploy.mjs"] } },
+						},
+					},
+				},
+				null,
+				2,
+			)}\n`,
 		);
 
-		const root = fixture({ workspaceJson: { commands: { build: { run: ["pnpm", "build"] } } } });
-
-		const result = await runWorkspaceSync(
-			{ workspace: "app", json: true },
-			// The same `deps` shape `createWorkspaceCommand`/`workspace list` accept
-			// (`WorkspaceCommandDeps`: `cwd?: () => string`) — proves `sync` reads it.
-			{ cwd: () => root, env: { SOVEREIGN_DIR: ".refarm" } },
+		// A DIFFERENT catalog, declaring the SAME id "app" with DIFFERENT content, sitting
+		// at the process's current directory — the exact shape of the reported bug (the
+		// operator's default shell is not their sovereign base). A wrong (cwd-rooted)
+		// resolution finds THIS catalog instead and produces a visibly different,
+		// wrong result — a test that passed under either rooting is impossible.
+		const decoyCwd = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-workspace-sync-decoy-cwd-"));
+		roots.push(decoyCwd);
+		fs.mkdirSync(path.join(decoyCwd, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(decoyCwd, ".refarm", "config.json"),
+			`${JSON.stringify(
+				{ workspaces: { app: { path: ".", commands: { deploy: { run: ["decoy-deploy"] } } } } },
+				null,
+				2,
+			)}\n`,
 		);
 
-		expect(result.configPath).toBe(path.join(root, ".refarm", "config.json"));
-		expect(result.plan.additions).toEqual([{ name: "build", command: { run: ["pnpm", "build"] } }]);
+		const originalCwd = process.cwd();
+		process.chdir(decoyCwd);
+		try {
+			const result = await runWorkspaceSync(
+				{ workspace: "app", json: true },
+				// No `root` override, no `cwd` field (it no longer exists on `WorkspaceSyncDeps`) —
+				// only `REFARM_HOME`, exactly what `workspace add`/`workspace command add` read.
+				{ env: { REFARM_HOME: refarmHome, SOVEREIGN_DIR: ".refarm" } },
+			);
+
+			expect(result.configPath).toBe(path.join(refarmHome, "config.json"));
+			expect(result.offerPath).toBe(path.join(homeAppPath, "refarm.workspace.json"));
+		} finally {
+			process.chdir(originalCwd);
+		}
 	});
 
 	it("reports nothing-to-sync for an empty offer without prompting the operator", async () => {
@@ -241,7 +279,7 @@ describe("runWorkspaceSync — the command", () => {
 		const result = await runWorkspaceSync(
 			{ workspace: "app" },
 			{
-				cwd: () => root,
+				root,
 				env: { SOVEREIGN_DIR: ".refarm" },
 				interactive: true,
 				operator: createScriptedOperatorChannel([]),
@@ -265,7 +303,7 @@ describe("runWorkspaceSync — the command", () => {
 		const result = await runWorkspaceSync(
 			{ workspace: "app" },
 			{
-				cwd: () => root,
+				root,
 				env: { SOVEREIGN_DIR: ".refarm" },
 				interactive: true,
 				operator: createScriptedOperatorChannel(["authorize"]),
@@ -307,7 +345,7 @@ describe("runWorkspaceSync — the command", () => {
 		const result = await runWorkspaceSync(
 			{ workspace: "app" },
 			{
-				cwd: () => root,
+				root,
 				env: { SOVEREIGN_DIR: ".refarm" },
 				interactive: true,
 				operator: createScriptedOperatorChannel(["decline"]),

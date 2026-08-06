@@ -17,7 +17,7 @@
  * something a test can assert on literals, not something that only shows up when
  * a real file happens to collide.
  */
-import { declaredBase, declaredWorkspaceFromConfig, loadConfig, type DeclaredWorkspaceConfig } from "@refarm.dev/config";
+import { declaredWorkspaceFromConfig, loadConfig, type DeclaredWorkspaceConfig } from "@refarm.dev/config";
 import {
 	createFileOperationTrail,
 	createNodeOperationFileSystem,
@@ -32,7 +32,9 @@ import {
 } from "@refarm.dev/prompt-contract-v1";
 import fs from "node:fs";
 import os from "node:os";
+import path from "node:path";
 import { refarmCommand } from "../brand.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import {
 	authorCatalogDeclaration,
 	buildCatalogOperationRequest,
@@ -200,13 +202,13 @@ export interface WorkspaceSyncOptions {
 }
 
 export interface WorkspaceSyncDeps {
-	/** Same field, same fallback as `WorkspaceCommandDeps.cwd` (`./workspace.ts`,
-	 *  used by `workspace list`/`workspace status`: `deps?.cwd?.() ?? declaredBase()`).
-	 *  `createWorkspaceCommand` passes ONE `deps` object to every subcommand's
-	 *  action, `sync` included — a `root?: string` field here would silently
-	 *  ignore whatever `cwd` a caller injected, so `sync <id>` could resolve a
-	 *  different catalog than the `list` that just showed `<id>`. */
-	cwd?: () => string;
+	/** Same field, same fallback as `WorkspaceAddDeps.root` / `WorkspaceCommandAddDeps.root`
+	 *  (`./workspace-add.ts`, `./workspace-command-add.ts`): `deps.root ?? path.dirname(path.resolve(resolveRefarmHome(env)))`.
+	 *  `sync` is a catalog WRITER, same as `add`/`command add`/`remove`/`remote` — it must
+	 *  root where THEY root, not where the read-only `list`/`status` do (those stay on
+	 *  `cwd`/`declaredBase()` on purpose; a writer inheriting scope from whoever last typed
+	 *  `cd` is exactly the divergence this field exists to prevent). */
+	root?: string;
 	env?: NodeJS.ProcessEnv;
 	loadConfig?: (root?: string) => unknown;
 	interactive?: boolean;
@@ -248,7 +250,11 @@ export async function runWorkspaceSync(
 	deps: WorkspaceSyncDeps = {},
 ): Promise<WorkspaceSyncResult> {
 	const env = deps.env ?? process.env;
-	const root = deps.cwd?.() ?? declaredBase();
+	// Rooted exactly where the other catalog WRITERS root — `workspace-add.ts` and
+	// `workspace-command-add.ts` — not at `cwd`/`declaredBase()`: see `WorkspaceSyncDeps.root`.
+	const operatorHome = path.resolve(resolveRefarmHome(env));
+	const root = deps.root ?? path.dirname(operatorHome);
+	const catalogEnv = deps.root ? env : { ...env, SOVEREIGN_DIR: path.basename(operatorHome) };
 	const exists = deps.exists ?? fs.existsSync;
 	const readFile = deps.readFile ?? ((candidate: string) => fs.readFileSync(candidate, "utf8"));
 
@@ -283,7 +289,7 @@ export async function runWorkspaceSync(
 	}
 
 	const plan = planWorkspaceSync({ offer, catalogEntry });
-	const configPath = catalogConfigPath(root, env);
+	const configPath = catalogConfigPath(root, catalogEnv);
 	const workspaceId = (catalogEntry as { id: string }).id;
 
 	if (options.json) {
@@ -331,7 +337,7 @@ export async function runWorkspaceSync(
 	const trail =
 		deps.trail ?? createFileOperationTrail(catalogTrailPath(configPath), deps.fs ?? createNodeOperationFileSystem());
 	const prior = standingDecision(await trail.read(), operationId);
-	const catalogPlan = planCatalogDeclaration({ block: "workspaces", name: workspaceId, entry, root, env });
+	const catalogPlan = planCatalogDeclaration({ block: "workspaces", name: workspaceId, entry, root, env: catalogEnv });
 	const request = buildCatalogOperationRequest({
 		plan: catalogPlan,
 		operationId,
