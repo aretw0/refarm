@@ -142,6 +142,18 @@ impl NativeSync {
         self.storage.query_nodes(type_)
     }
 
+    /// Same order as [`Self::query_nodes`] (newest first), with the limit applied IN
+    /// SQL rather than by the caller slicing an unlimited result. Passthrough to
+    /// `NativeStorage::query_nodes_limited` — prefer this wherever only the newest
+    /// few rows of a type are wanted; see `docs/SOVEREIGN_RECORD_ORDERING.md`.
+    pub fn query_nodes_limited(
+        &self,
+        type_: &str,
+        limit: usize,
+    ) -> Result<Vec<crate::storage::NodeRow>> {
+        self.storage.query_nodes_limited(type_, limit)
+    }
+
     /// Rebuild SQLite read model from current LoroDoc state.
     /// Called after apply_update() or import_snapshot() to sync the read model.
     /// Mirrors Projector.rebuildAll() from packages/sync-loro/src/projector.ts.

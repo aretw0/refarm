@@ -369,21 +369,26 @@ impl TractorBridgeHost for TractorNativeBindings {
         }
     }
 
-    /// Query nodes by @type, returning up to `limit` results.
+    /// Query nodes by @type, returning up to `limit` results, NEWEST FIRST.
+    ///
+    /// The limit is applied in SQL rather than by slicing here. Before 2026-08-06 this
+    /// loaded every row of the type and dropped all but `limit`, which was affordable at
+    /// 29 records and is not at 29,000. The ordering guarantee it relies on is documented
+    /// in `docs/SOVEREIGN_RECORD_ORDERING.md`.
+    ///
+    /// KNOWN GAP, deliberately not closed here: the WIT signature returns a bare
+    /// `list<json-ld-node>`, so a guest receiving exactly `limit` rows cannot tell whether
+    /// more exist. Giving it that signal is a contract change affecting every plugin and
+    /// belongs to its own design.
     async fn query_nodes(
         &mut self,
         node_type: String,
         limit: u32,
     ) -> Result<Vec<String>, PluginError> {
         self.sync
-            .query_nodes(&node_type)
+            .query_nodes_limited(&node_type, limit as usize)
             .map_err(|e| PluginError::Internal(e.to_string()))
-            .map(|rows| {
-                rows.into_iter()
-                    .take(limit as usize)
-                    .map(|r| r.payload)
-                    .collect()
-            })
+            .map(|rows| rows.into_iter().map(|r| r.payload).collect())
     }
 
     /// Decide whether the plugin may use `capability`. The WIT names this a
