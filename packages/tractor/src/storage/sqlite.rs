@@ -529,14 +529,25 @@ mod tests {
         storage.store_node("a", "Thing", None, r#"{}"#, None).unwrap();
         storage.store_node("b", "Thing", None, r#"{}"#, None).unwrap();
 
-        let first = storage.query_nodes("Thing").unwrap();
-        let second = storage.query_nodes("Thing").unwrap();
-        let ids = |rows: &Vec<NodeRow>| rows.iter().map(|r| r.id.clone()).collect::<Vec<_>>();
+        // `store_node` derives `updated_at` internally via `datetime('now')` — it cannot be
+        // passed a fixed value. Force both rows to the SAME `updated_at` deterministically,
+        // through the same connection, rather than hoping two inserts land in the same clock
+        // tick: a test whose outcome depends on timing is flaky, and a flaky test guarding a
+        // correctness invariant is the same false-confidence problem in a slower form.
+        storage
+            .execute("UPDATE nodes SET updated_at = '2026-01-01T00:00:00Z'", &[])
+            .unwrap();
+
+        let rows = storage.query_nodes("Thing").unwrap();
+        let ids: Vec<&str> = rows.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(
-            ids(&first),
-            ids(&second),
-            "rows written in the same clock tick must still come back in a stable order; \
-             a partial order lets the answer change between two identical reads"
+            ids,
+            vec!["b", "a"],
+            "with equal updated_at, id DESC is the tiebreak that decides order: 'b' must \
+             sort before 'a'. Deleting or reversing that tiebreak must fail this assertion \
+             — a test that only checks two reads agree with each other would pass even \
+             without a secondary sort key, since SQLite is deterministic on unchanged data \
+             regardless of whether a tiebreak column exists."
         );
     }
 
