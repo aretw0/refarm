@@ -86,4 +86,24 @@ describe("workspace add", () => {
 		).rejects.toMatchObject({ code: "workspace-add-not-interactive" });
 		expect(fs.existsSync(path.join(operatorRoot, ".refarm"))).toBe(false);
 	});
+
+	it("refuses --local before touching env, fs, or the operator — that shape is abolished, not redirected", async () => {
+		const workspace = tempRoot("refarm-workspace-local-abolished-");
+		await expect(
+			runWorkspaceAdd(
+				{ path: workspace, local: true },
+				// No root/operator/interactive injected: a refusal this early needs none of
+				// them. If the guard moved past the top of the function, this would throw a
+				// DIFFERENT error (or hang on a real stdio prompt) instead of this one.
+				{},
+			),
+		).rejects.toMatchObject({ code: "workspace-add-local-abolished" });
+		expect(fs.existsSync(path.join(workspace, ".refarm"))).toBe(false);
+	});
+
+	it("the --local refusal names what it used to write and what replaces it", async () => {
+		await expect(runWorkspaceAdd({ path: ".", local: true }, {})).rejects.toThrow(
+			/workspace\.json.*workspace sync/s,
+		);
+	});
 });

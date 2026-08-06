@@ -14,6 +14,7 @@ import {
 } from "@refarm.dev/operation-consent-v1";
 import fs from "node:fs";
 import path from "node:path";
+import { refarmCommand } from "../brand.js";
 import { configTrailPath, defaultDecidedBy } from "./config-record.js";
 
 /**
@@ -355,4 +356,42 @@ export function sovereignDirRelative(env: NodeJS.ProcessEnv = process.env): stri
 /** The config file a catalog declaration is written to, absolute. */
 export function catalogConfigPath(root: string, env: NodeJS.ProcessEnv = process.env): string {
 	return defaultSovereignConfigPath(root, env);
+}
+
+/**
+ * The ONE explanation `--local` gives everywhere it used to write, so
+ * `workspace add --local` and `workspace command add/remove/remote --local`
+ * read as one voice rather than four independent refusals that happen to agree.
+ *
+ * Design: `docs/superpowers/specs/2026-08-06-a-workspace-is-not-a-node-design.md`.
+ * `--local` used to write directly into a workspace's OWN `.refarm/config.json`,
+ * in the node catalog's `workspaces` map shape — declaring that workspace's
+ * existence (`workspace add --local`) or one of its named commands
+ * (`workspace command add/remove/remote --local`) from inside the workspace
+ * itself. That is precisely the two-roles-in-one-field collapse the design
+ * exists to end: a workspace declaring itself, and — once it holds a map — any
+ * other workspace too, which is the measured defect (`refarm`'s own
+ * `.refarm/config.json` once declared both itself and `rcdc5`). There is no
+ * redirection that preserves what `--local` meant: `workspace add` proposes
+ * `path`/`kind`/`repository`, every one of which `parseWorkspaceOffer` refuses
+ * by name; `workspace command …` targets an arbitrary `<workspace>` id, and the
+ * offer shape has no id slot to target with — it describes exactly one
+ * workspace, whichever lives at that location. So the flag is refused, not
+ * redirected: the meaning it used to carry does not exist in this model.
+ *
+ * What replaces it: a workspace states what it OFFERS in
+ * `<workspace>/.refarm/workspace.json` (`commands`, `execution` —
+ * `parseWorkspaceOffer`), and a node brings that offer into ITS OWN catalog
+ * with `refarm workspace sync <id>`.
+ */
+export function localWorkspaceDeclarationAbolishedMessage(command: string): string {
+	const syncCommand = refarmCommand(["workspace", "sync", "<id>"]);
+	return (
+		`--local used to write this into the workspace's OWN .refarm/config.json, in the node ` +
+		`catalog's "workspaces" map shape. That shape is abolished: a workspace never declares ` +
+		`itself or another workspace, in any file — only a node does, in its own catalog. A ` +
+		`workspace instead states what it OFFERS in <workspace>/.refarm/workspace.json ` +
+		`("commands", "execution"), and a node brings that offer into ITS OWN catalog with ` +
+		`\`${syncCommand}\`. Run \`${command}\` from the node, without --local.`
+	);
 }

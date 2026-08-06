@@ -57,6 +57,7 @@ import {
 	type WorkspaceExecutionStatus,
 } from "./workspace-execution.js";
 import {
+	describeNothingToSync,
 	runWorkspaceSync,
 	WorkspaceSyncRefusal,
 	type WorkspaceSyncOptions,
@@ -963,7 +964,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.option("--kind <kind>", "refarm | consumer | lab | vault | project")
 		.option("--repository <url>", "Portable repository URL; otherwise derive origin when present")
 		.option("--replace", "Re-open an existing declaration or prior decision")
-		.option("--local", "Write this workspace's local .refarm/config.json instead of operator home")
+		.option("--local", "Refused — that shape is abolished; see `workspace sync`")
 		.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
 		.option("--json", "Output the declaration result as JSON")
 		.action(async (workspacePath: string | undefined, options: WorkspaceAddOptions) => {
@@ -1050,7 +1051,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 						console.log(chalk.dim(`   undo: ${result.undoCommand}`));
 						break;
 					case "nothing-to-sync":
-						console.log(chalk.dim("nothing to sync"));
+						console.log(chalk.dim(describeNothingToSync(result.plan)));
 						break;
 					case "declined":
 						console.log(chalk.dim("declined — nothing written"));
@@ -1093,7 +1094,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.option("--remote", "Allow enrolled devices to start this named operation (default: local only)")
 		.option("--result <wire>", 'Structured result contract (supported: "operation-result.v1")')
 		.option("--replace", "Review and replace an existing operation")
-		.option("--local", "Write this workspace's local .refarm/config.json")
+		.option("--local", "Refused — that shape is abolished; see `workspace sync`")
 		.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
 		.option("--json", "Output the declaration result as JSON")
 		.addHelpText(
@@ -1151,7 +1152,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 					? "Allow enrolled devices to start an existing named operation"
 					: "Return an existing named operation to local-only use",
 			)
-			.option("--local", "Write this workspace's local .refarm/config.json")
+			.option("--local", "Refused — that shape is abolished; see `workspace sync`")
 			.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
 			.option("--json", "Output the declaration result as JSON")
 			.action(
@@ -1212,7 +1213,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 	workspaceOperationCommand
 		.command("remove <workspace> <name>")
 		.description("Remove a named operation through reviewed consent")
-		.option("--local", "Write this workspace's local .refarm/config.json")
+		.option("--local", "Refused — that shape is abolished; see `workspace sync`")
 		.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
 		.option("--json", "Output the declaration result as JSON")
 		.action(async (workspace: string, name: string, options: { local?: boolean; attendedElsewhere?: boolean; json?: boolean }) => {

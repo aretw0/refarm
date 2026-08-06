@@ -25,6 +25,7 @@ import {
 	buildCatalogOperationRequest,
 	catalogConfigPath,
 	catalogTrailPath,
+	localWorkspaceDeclarationAbolishedMessage,
 	planCatalogDeclaration,
 	renderCatalogProposal,
 	standingCatalogDecision,
@@ -101,14 +102,21 @@ export async function runWorkspaceAdd(
 	options: WorkspaceAddOptions,
 	deps: WorkspaceAddDeps = {},
 ): Promise<WorkspaceAddResult> {
+	// R2/R1 (docs/superpowers/specs/2026-08-06-a-workspace-is-not-a-node-design.md):
+	// --local used to declare a workspace's EXISTENCE — path/kind/repository — inside
+	// that workspace's own .refarm/config.json. That shape is abolished; refused before
+	// any env/fs work happens, not redirected. See localWorkspaceDeclarationAbolishedMessage.
+	if (options.local) {
+		throw new WorkspaceAddRefusal(
+			"workspace-add-local-abolished",
+			localWorkspaceDeclarationAbolishedMessage(WORKSPACE_ADD_COMMAND),
+		);
+	}
 	const env = deps.env ?? process.env;
 	const cwd = deps.cwd ?? process.cwd();
 	const operatorHome = path.resolve(resolveRefarmHome(env));
-	const root = deps.root ?? (options.local ? cwd : path.dirname(operatorHome));
-	const catalogEnv =
-		deps.root || options.local
-			? env
-			: { ...env, SOVEREIGN_DIR: path.basename(operatorHome) };
+	const root = deps.root ?? path.dirname(operatorHome);
+	const catalogEnv = deps.root ? env : { ...env, SOVEREIGN_DIR: path.basename(operatorHome) };
 	const exists = deps.exists ?? fs.existsSync;
 	const isDirectory =
 		deps.isDirectory ??
@@ -236,9 +244,7 @@ export async function runWorkspaceAdd(
 			requestedAt: (deps.now ?? (() => new Date().toISOString()))(),
 			notes: [
 				"O path é autoridade local deste host e é removido de qualquer config node replicável.",
-				options.local
-					? "Esta declaração pertence somente ao workspace atual (--local)."
-					: "Esta declaração pertence ao catálogo do operador e fica disponível fora de checkouts.",
+				"Esta declaração pertence ao catálogo do operador e fica disponível fora de checkouts.",
 			],
 		});
 		for (const line of renderCatalogProposal(request)) say(line);
@@ -262,13 +268,7 @@ export async function runWorkspaceAdd(
 			entry: proposal.entry,
 			configPath: plan.configPath,
 			recordId: outcome.record.id,
-			undoCommand: refarmCommand([
-				"config",
-				"history",
-				"undo",
-				outcome.record.id,
-				...(options.local ? ["--local"] : []),
-			]),
+			undoCommand: refarmCommand(["config", "history", "undo", outcome.record.id]),
 			replaced: plan.replaced,
 		};
 	} catch (error) {

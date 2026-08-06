@@ -24,12 +24,14 @@ import {
 	buildCatalogOperationRequest,
 	catalogConfigPath,
 	catalogTrailPath,
+	localWorkspaceDeclarationAbolishedMessage,
 	planCatalogDeclaration,
 	renderCatalogProposal,
 } from "./catalog-authoring.js";
 
 const COMMAND = refarmCommand(["workspace", "command", "add"]);
 const REMOTE_COMMAND = refarmCommand(["workspace", "command", "remote"]);
+const REMOVE_COMMAND = refarmCommand(["workspace", "command", "remove"]);
 
 export interface WorkspaceCommandAddOptions {
 	workspace: string;
@@ -46,7 +48,6 @@ export interface WorkspaceCommandAddOptions {
 
 export interface WorkspaceCommandAddDeps {
 	root?: string;
-	cwd?: string;
 	env?: NodeJS.ProcessEnv;
 	interactive?: boolean;
 	operator?: OperatorChannel;
@@ -85,12 +86,20 @@ export async function runWorkspaceCommandRemote(
 	options: WorkspaceCommandRemoteOptions,
 	deps: WorkspaceCommandAddDeps = {},
 ): Promise<WorkspaceCommandAddResult> {
+	// R2/R1 (docs/superpowers/specs/2026-08-06-a-workspace-is-not-a-node-design.md):
+	// --local used to mutate a named command inside the workspace's OWN
+	// .refarm/config.json. Refused, not redirected — see
+	// localWorkspaceDeclarationAbolishedMessage.
+	if (options.local) {
+		throw new WorkspaceCommandAddRefusal(
+			"workspace-command-local-abolished",
+			localWorkspaceDeclarationAbolishedMessage(`${REMOTE_COMMAND} ${options.workspace} ${options.name}`),
+		);
+	}
 	const env = deps.env ?? process.env;
-	const cwd = deps.cwd ?? process.cwd();
 	const operatorHome = path.resolve(resolveRefarmHome(env));
-	const root = deps.root ?? (options.local ? cwd : path.dirname(operatorHome));
-	const catalogEnv =
-		deps.root || options.local ? env : { ...env, SOVEREIGN_DIR: path.basename(operatorHome) };
+	const root = deps.root ?? path.dirname(operatorHome);
+	const catalogEnv = deps.root ? env : { ...env, SOVEREIGN_DIR: path.basename(operatorHome) };
 	const configPath = catalogConfigPath(root, catalogEnv);
 	let config: Record<string, unknown>;
 	try {
@@ -197,13 +206,7 @@ export async function runWorkspaceCommandRemote(
 			command: options.name,
 			configPath,
 			recordId: outcome.record.id,
-			undoCommand: refarmCommand([
-				"config",
-				"history",
-				"undo",
-				outcome.record.id,
-				...(options.local ? ["--local"] : []),
-			]),
+			undoCommand: refarmCommand(["config", "history", "undo", outcome.record.id]),
 		};
 	} catch (error) {
 		if (error instanceof OperatorPromptCancelledError) {
@@ -221,11 +224,20 @@ export async function runWorkspaceCommandAdd(
 	options: WorkspaceCommandAddOptions,
 	deps: WorkspaceCommandAddDeps = {},
 ): Promise<WorkspaceCommandAddResult> {
+	// R2/R1 (docs/superpowers/specs/2026-08-06-a-workspace-is-not-a-node-design.md):
+	// --local used to write a named command into the workspace's OWN
+	// .refarm/config.json. Refused, not redirected — see
+	// localWorkspaceDeclarationAbolishedMessage.
+	if (options.local) {
+		throw new WorkspaceCommandAddRefusal(
+			"workspace-command-local-abolished",
+			localWorkspaceDeclarationAbolishedMessage(`${COMMAND} ${options.workspace} ${options.name}`),
+		);
+	}
 	const env = deps.env ?? process.env;
-	const cwd = deps.cwd ?? process.cwd();
 	const operatorHome = path.resolve(resolveRefarmHome(env));
-	const root = deps.root ?? (options.local ? cwd : path.dirname(operatorHome));
-	const catalogEnv = deps.root || options.local ? env : { ...env, SOVEREIGN_DIR: path.basename(operatorHome) };
+	const root = deps.root ?? path.dirname(operatorHome);
+	const catalogEnv = deps.root ? env : { ...env, SOVEREIGN_DIR: path.basename(operatorHome) };
 	const configPath = catalogConfigPath(root, catalogEnv);
 	let config: Record<string, unknown>;
 	try {
@@ -310,7 +322,7 @@ export async function runWorkspaceCommandAdd(
 			command: proposal.name,
 			configPath,
 			recordId: outcome.record.id,
-			undoCommand: refarmCommand(["config", "history", "undo", outcome.record.id, ...(options.local ? ["--local"] : [])]),
+			undoCommand: refarmCommand(["config", "history", "undo", outcome.record.id]),
 		};
 	} catch (error) {
 		if (error instanceof OperatorPromptCancelledError) {
@@ -325,11 +337,20 @@ export async function runWorkspaceCommandRemove(
 	options: Pick<WorkspaceCommandAddOptions, "workspace" | "name" | "local" | "attendedElsewhere">,
 	deps: WorkspaceCommandAddDeps = {},
 ): Promise<WorkspaceCommandRemoveResult> {
+	// R2/R1 (docs/superpowers/specs/2026-08-06-a-workspace-is-not-a-node-design.md):
+	// --local used to remove a named command from the workspace's OWN
+	// .refarm/config.json. Refused, not redirected — see
+	// localWorkspaceDeclarationAbolishedMessage.
+	if (options.local) {
+		throw new WorkspaceCommandAddRefusal(
+			"workspace-command-local-abolished",
+			localWorkspaceDeclarationAbolishedMessage(`${REMOVE_COMMAND} ${options.workspace} ${options.name}`),
+		);
+	}
 	const env = deps.env ?? process.env;
-	const cwd = deps.cwd ?? process.cwd();
 	const operatorHome = path.resolve(resolveRefarmHome(env));
-	const root = deps.root ?? (options.local ? cwd : path.dirname(operatorHome));
-	const catalogEnv = deps.root || options.local ? env : { ...env, SOVEREIGN_DIR: path.basename(operatorHome) };
+	const root = deps.root ?? path.dirname(operatorHome);
+	const catalogEnv = deps.root ? env : { ...env, SOVEREIGN_DIR: path.basename(operatorHome) };
 	const configPath = catalogConfigPath(root, catalogEnv);
 	let config: Record<string, unknown>;
 	try {
@@ -401,7 +422,7 @@ export async function runWorkspaceCommandRemove(
 			command: options.name,
 			configPath,
 			recordId: outcome.record.id,
-			undoCommand: refarmCommand(["config", "history", "undo", outcome.record.id, ...(options.local ? ["--local"] : [])]),
+			undoCommand: refarmCommand(["config", "history", "undo", outcome.record.id]),
 		};
 	} catch (error) {
 		if (error instanceof OperatorPromptCancelledError) {

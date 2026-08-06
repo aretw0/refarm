@@ -52,6 +52,22 @@ describe("workspace command add", () => {
 		});
 	});
 
+	it("refuses --local before reading any config — that shape is abolished, not redirected", async () => {
+		await expect(
+			runWorkspaceCommandAdd(
+				{ workspace: "app", name: "test", argv: ["pnpm", "test"], local: true },
+				// No root/env injected: a refusal this early needs none of them.
+				{},
+			),
+		).rejects.toMatchObject({ code: "workspace-command-local-abolished" });
+	});
+
+	it("the --local refusal names what it used to write and what replaces it", async () => {
+		await expect(
+			runWorkspaceCommandAdd({ workspace: "app", name: "test", argv: ["pnpm", "test"], local: true }, {}),
+		).rejects.toThrow(/workspace\.json.*workspace sync/s);
+	});
+
 	it("refuses an unknown workspace without writing", async () => {
 		const root = fixture();
 		await expect(
@@ -136,6 +152,12 @@ describe("workspace command add", () => {
 		expect(after.workspaces.app.commands).toEqual({ keep: { run: ["pnpm", "test"] } });
 		expect(after.workspaces.app).toMatchObject({ path: "/work/app", kind: "project" });
 	});
+
+	it("refuses --local without reading any config — that shape is abolished, not redirected", async () => {
+		await expect(
+			runWorkspaceCommandRemove({ workspace: "app", name: "stale", local: true }, {}),
+		).rejects.toMatchObject({ code: "workspace-command-local-abolished" });
+	});
 });
 
 describe("workspace command remote admission", () => {
@@ -207,5 +229,17 @@ describe("workspace command remote admission", () => {
 				{ root, env: { SOVEREIGN_DIR: ".refarm" }, interactive: true },
 			),
 		).rejects.toMatchObject({ code: "workspace-command-not-declared" });
+	});
+
+	it("refuses --local before reading any config — that shape is abolished, not redirected", async () => {
+		await expect(
+			runWorkspaceCommandRemote({ workspace: "app", name: "status", remote: true, local: true }, {}),
+		).rejects.toMatchObject({ code: "workspace-command-local-abolished" });
+	});
+
+	it("the --local refusal names what it used to write and what replaces it", async () => {
+		await expect(
+			runWorkspaceCommandRemote({ workspace: "app", name: "status", remote: true, local: true }, {}),
+		).rejects.toThrow(/workspace\.json.*workspace sync/s);
 	});
 });

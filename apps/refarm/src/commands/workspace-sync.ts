@@ -176,6 +176,23 @@ export function formatWorkspaceSyncPlanLines(workspace: string, plan: WorkspaceS
 	return lines;
 }
 
+/**
+ * The one-line summary for a "nothing accepted" outcome (`additions.length === 0`).
+ * "nothing to sync" alone reads as "nothing to see" directly under the
+ * collisions `formatWorkspaceSyncPlanLines` just printed on purpose — this
+ * names WHY there is nothing to accept instead of leaving that to be inferred.
+ */
+export function describeNothingToSync(plan: WorkspaceSyncPlan): string {
+	if (plan.collisions.length > 0) {
+		const count = plan.collisions.length;
+		return `nothing to accept — ${count} collision${count === 1 ? "" : "s"} reported`;
+	}
+	if (plan.unchanged.length > 0) {
+		return "nothing to accept — already up to date";
+	}
+	return "nothing to accept — the workspace offers nothing";
+}
+
 export interface WorkspaceSyncOptions {
 	workspace: string;
 	json?: boolean;
@@ -183,10 +200,13 @@ export interface WorkspaceSyncOptions {
 }
 
 export interface WorkspaceSyncDeps {
-	/** Node catalog root — same resolution `workspace list`/`workspace status` use
-	 *  (`declaredBase()`), so `sync <id>` resolves exactly the workspace `list`
-	 *  showed. Injected directly in tests, bypassing env/cwd resolution. */
-	root?: string;
+	/** Same field, same fallback as `WorkspaceCommandDeps.cwd` (`./workspace.ts`,
+	 *  used by `workspace list`/`workspace status`: `deps?.cwd?.() ?? declaredBase()`).
+	 *  `createWorkspaceCommand` passes ONE `deps` object to every subcommand's
+	 *  action, `sync` included — a `root?: string` field here would silently
+	 *  ignore whatever `cwd` a caller injected, so `sync <id>` could resolve a
+	 *  different catalog than the `list` that just showed `<id>`. */
+	cwd?: () => string;
 	env?: NodeJS.ProcessEnv;
 	loadConfig?: (root?: string) => unknown;
 	interactive?: boolean;
@@ -228,7 +248,7 @@ export async function runWorkspaceSync(
 	deps: WorkspaceSyncDeps = {},
 ): Promise<WorkspaceSyncResult> {
 	const env = deps.env ?? process.env;
-	const root = deps.root ?? declaredBase(env);
+	const root = deps.cwd?.() ?? declaredBase();
 	const exists = deps.exists ?? fs.existsSync;
 	const readFile = deps.readFile ?? ((candidate: string) => fs.readFileSync(candidate, "utf8"));
 
