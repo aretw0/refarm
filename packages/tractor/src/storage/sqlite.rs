@@ -511,33 +511,66 @@ mod tests {
     #[test]
     fn query_nodes_returns_newest_first() {
         let storage = memory_storage();
-        // Insert oldest first, so insertion order is the WRONG answer.
+        // Insert in an order that, if left alone, would make `id DESC` ALONE produce
+        // the right-looking answer ("c" is both last-inserted and highest id) — exactly
+        // the shape that let the old version of this test pass without `updated_at DESC`
+        // doing any work. Stamp DISTINCT `updated_at` values, deliberately INVERTED
+        // against id order (lowest id "a" gets the newest timestamp), through the
+        // storage type's own public `execute` — `store_node` derives `updated_at`
+        // internally via `datetime('now')` and cannot be handed a fixed value. If the
+        // primary sort key were dropped, `id DESC` alone would return "c" first instead.
         storage.store_node("a", "Thing", None, r#"{"n":1}"#, None).unwrap();
         storage.store_node("b", "Thing", None, r#"{"n":2}"#, None).unwrap();
         storage.store_node("c", "Thing", None, r#"{"n":3}"#, None).unwrap();
+        storage
+            .execute("UPDATE nodes SET updated_at = '2026-01-01T00:00:03Z' WHERE id = 'a'", &[])
+            .unwrap();
+        storage
+            .execute("UPDATE nodes SET updated_at = '2026-01-01T00:00:02Z' WHERE id = 'b'", &[])
+            .unwrap();
+        storage
+            .execute("UPDATE nodes SET updated_at = '2026-01-01T00:00:01Z' WHERE id = 'c'", &[])
+            .unwrap();
 
         let rows = storage.query_nodes("Thing").unwrap();
         let ids: Vec<&str> = rows.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(
-            ids[0], "c",
-            "the newest row must come first: a reader taking N wants the N most recent, \
-             and every caller in this repo does exactly that"
+            ids,
+            vec!["a", "b", "c"],
+            "the newest row BY updated_at must come first — 'a' — even though 'c' has the \
+             highest id and was inserted last: a reader taking N wants the N most recent, \
+             and every caller in this repo does exactly that. If `id DESC` alone decided \
+             this (updated_at dropped from the ORDER BY), 'c' would sort first instead."
         );
     }
 
     #[test]
     fn query_nodes_limited_takes_the_newest_n_not_the_oldest() {
         let storage = memory_storage();
+        // Same id-inverted stamping as `query_nodes_returns_newest_first`: 'a' has the
+        // lowest id but the newest `updated_at`, so a `LIMIT 1` that silently fell back
+        // to `id DESC` alone (updated_at dropped from THIS statement's own ORDER BY —
+        // it is a separate SQL string from the unlimited query) would return 'c' instead.
         storage.store_node("a", "Thing", None, r#"{"n":1}"#, None).unwrap();
         storage.store_node("b", "Thing", None, r#"{"n":2}"#, None).unwrap();
         storage.store_node("c", "Thing", None, r#"{"n":3}"#, None).unwrap();
+        storage
+            .execute("UPDATE nodes SET updated_at = '2026-01-01T00:00:03Z' WHERE id = 'a'", &[])
+            .unwrap();
+        storage
+            .execute("UPDATE nodes SET updated_at = '2026-01-01T00:00:02Z' WHERE id = 'b'", &[])
+            .unwrap();
+        storage
+            .execute("UPDATE nodes SET updated_at = '2026-01-01T00:00:01Z' WHERE id = 'c'", &[])
+            .unwrap();
 
         let rows = storage.query_nodes_limited("Thing", 1).unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(
-            rows[0].id, "c",
-            "limit 1 must be the NEWEST record. On the operator's own machine this returned the \
-             oldest of 29 observations, so an audit with --limit 1 read the wrong record entirely."
+            rows[0].id, "a",
+            "limit 1 must be the NEWEST record BY updated_at, not the row with the highest \
+             id. On the operator's own machine this returned the oldest of 29 observations, \
+             so an audit with --limit 1 read the wrong record entirely."
         );
     }
 
@@ -566,6 +599,19 @@ mod tests {
              — a test that only checks two reads agree with each other would pass even \
              without a secondary sort key, since SQLite is deterministic on unchanged data \
              regardless of whether a tiebreak column exists."
+        );
+
+        // Repeat through `query_nodes_limited`'s OWN SQL statement (a separate string
+        // literal in `query_nodes_inner`, not merely the unlimited query plus a `.take`).
+        // Without this, a tiebreak regression scoped to only the `LIMIT` arm would pass
+        // the assertion above and go uncaught.
+        let limited_rows = storage.query_nodes_limited("Thing", 2).unwrap();
+        let limited_ids: Vec<&str> = limited_rows.iter().map(|r| r.id.as_str()).collect();
+        assert_eq!(
+            limited_ids,
+            vec!["b", "a"],
+            "the same id DESC tiebreak must hold through query_nodes_limited's SQL, not \
+             just query_nodes's — the two are separate ORDER BY clauses in query_nodes_inner"
         );
     }
 
