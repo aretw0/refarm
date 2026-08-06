@@ -38,6 +38,12 @@ test("diagram inventory reports deterministic source-to-SVG coverage", () => {
 					guide: "docs/diagrams/GUIDE.md",
 					sourcePrefix: "docs/diagrams/a",
 					sources: ["docs/diagrams/a.mermaid"],
+					assessments: [{
+						source: "docs/diagrams/a.mermaid",
+						question: "What is legacy?",
+						decision: "replace-covered",
+						replacements: ["specs/diagrams/b.mermaid"],
+					}],
 				},
 			],
 		}, null, 2)}\n`);
@@ -53,6 +59,7 @@ test("diagram inventory reports deterministic source-to-SVG coverage", () => {
 		});
 		assert.deepEqual(report.missingRenderings, ["specs/diagrams/b.svg"]);
 		assert.deepEqual(report.governance.violations, []);
+		assert.equal(report.governance.assessments[0]?.decision, "replace-covered");
 		assert.equal(report.diagrams.find((diagram) => diagram.source === "docs/diagrams/a.mermaid")?.lifecycle, "legacy-frozen");
 		assert.match(renderDiagramInventoryMarkdown(report), /specs\/diagrams\/b\.svg.*\*\*no\*\*/);
 		assert.deepEqual(buildDiagramInventory({ root }), report);

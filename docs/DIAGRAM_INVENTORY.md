@@ -13,6 +13,16 @@ It checks source-to-SVG coverage without launching a browser. Semantic authority
 - Governed families: consolidation target 4, legacy frozen 5
 - Governance violations: 0
 
+## Legacy Perspective Assessment
+
+| Source | Question answered | Decision | Replacement coverage |
+|---|---|---|---|
+| `docs/diagrams/layer-diagram.mermaid` | What is the complete system architecture? | replace-covered | `specs/diagrams/architecture-layers.mermaid` |
+| `docs/diagrams/layer-diagram--distros.mermaid` | Which product apps enter through which runtime surface? | replace-covered | `specs/diagrams/architecture-layers--apps-runtime.mermaid` |
+| `docs/diagrams/layer-diagram--runtime.mermaid` | How do Tractor, WIT, and plugin execution relate? | replace-covered | `specs/diagrams/architecture-layers--apps-runtime.mermaid` |
+| `docs/diagrams/layer-diagram--data.mermaid` | How do data contracts connect to storage, sync, and identity adapters? | review-overlap | `specs/diagrams/architecture-layers--contracts.mermaid`<br>`specs/diagrams/architecture-layers--adapters.mermaid` |
+| `docs/diagrams/layer-diagram--streams.mermaid` | How do effort dispatch and stream events traverse transport adapters? | preserve-perspective | — |
+
 ## Source Coverage
 
 | Mermaid source | Lifecycle | Expected SVG | Present |
