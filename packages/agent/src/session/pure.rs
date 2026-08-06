@@ -125,6 +125,32 @@ pub(crate) fn history_from_tree(
     chain
 }
 
+/// Pick "the current session id" from Session-node JSON payloads that the storage
+/// layer already returned newest-first (`updated_at DESC, id DESC` — see
+/// `docs/SOVEREIGN_RECORD_ORDERING.md`). Pure and total-order-preserving: it does
+/// NOT re-sort `sessions` by any field of its own. Session rows are UPSERTED on
+/// append, so `updated_at` (newest-TOUCHED) and any `created_at_ns` payload field
+/// (newest-CREATED) are different facts; re-deriving "newest" from the latter would
+/// be exactly the second, disagreeing sort order that document forbids.
+///
+/// The `v1_prefix` preference IS deliberate and must survive the fix: both
+/// `urn:sovereign:session:v1:`-prefixed and legacy unprefixed session ids live in
+/// the same table, and a v1 id is preferred when the input contains one. The rule
+/// is "the FIRST v1-prefixed row in the given order, else the FIRST row of any
+/// shape" — not "the first row" outright, and not a fold/max over the whole list.
+pub(crate) fn pick_latest_session_id(
+    sessions: &[serde_json::Value],
+    v1_prefix: &str,
+) -> Option<String> {
+    // First-match scans over `sessions` AS GIVEN — no sort, no max_by_key on any
+    // timestamp field. `sessions` is trusted to already be newest-first.
+    let ids = || sessions.iter().filter_map(|v| v["@id"].as_str());
+    ids()
+        .find(|id| id.starts_with(v1_prefix))
+        .or_else(|| ids().next())
+        .map(str::to_owned)
+}
+
 /// Build a Session node JSON payload.
 /// `leaf_entry_id`: current tip of the conversation tree (None for empty session).
 /// `parent_session_id`: set when this session is a fork of another (None for root).
@@ -336,5 +362,98 @@ fn truncate_line(text: &str, max_chars: usize) -> String {
         let mut s: String = flat.chars().take(max_chars).collect();
         s.push('…');
         s
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const V1: &str = "urn:sovereign:session:v1:";
+
+    /// The whole point: SQL already ordered these newest-TOUCHED-first. The row at
+    /// index 0 has an OLDER `created_at_ns` than the row at index 1 — a session
+    /// that was created earlier but touched (appended to) most recently. The old
+    /// `max_by_key(created_at_ns)` re-sort would return index 1; the storage
+    /// layer's order says index 0 is the answer to "which session was I last in."
+    /// If this fixture didn't disagree on the two fields, it couldn't tell the two
+    /// behaviours apart.
+    #[test]
+    fn returns_the_first_row_sql_gave_not_the_one_with_the_newest_created_at() {
+        let sessions = vec![
+            serde_json::json!({
+                "@id": format!("{V1}newest-touched-but-older-created"),
+                "created_at_ns": 100_u64,
+            }),
+            serde_json::json!({
+                "@id": format!("{V1}older-touched-but-newer-created"),
+                "created_at_ns": 999_u64,
+            }),
+        ];
+
+        let picked = pick_latest_session_id(&sessions, V1);
+
+        assert_eq!(
+            picked.as_deref(),
+            Some(format!("{V1}newest-touched-but-older-created").as_str()),
+            "must trust SQL's newest-touched-first order, not re-sort by created_at_ns"
+        );
+    }
+
+    /// The v1 preference survives: a legacy (unprefixed) row sits ahead of a v1 row
+    /// in SQL's order (it was touched more recently) AND has a newer `created_at_ns`
+    /// — two reasons a naive "just take the first row" or a naive max_by_key would
+    /// both pick the legacy row. The v1 row must still win.
+    #[test]
+    fn v1_prefixed_row_wins_over_a_legacy_row_that_is_both_earlier_in_order_and_newer_by_created_at(
+    ) {
+        let sessions = vec![
+            serde_json::json!({
+                "@id": "legacy-unprefixed-newest-touched-and-newest-created",
+                "created_at_ns": 999_u64,
+            }),
+            serde_json::json!({
+                "@id": format!("{V1}older-touched-and-older-created"),
+                "created_at_ns": 1_u64,
+            }),
+        ];
+
+        let picked = pick_latest_session_id(&sessions, V1);
+
+        assert_eq!(
+            picked.as_deref(),
+            Some(format!("{V1}older-touched-and-older-created").as_str()),
+            "the v1-prefixed row must be preferred even though it is neither first \
+             in SQL's order nor newest by created_at_ns"
+        );
+    }
+
+    /// No v1 row present at all: falls back to the first row of any shape (SQL's
+    /// order), not a max_by_key over created_at_ns.
+    #[test]
+    fn falls_back_to_first_row_of_any_shape_when_no_v1_row_exists() {
+        let sessions = vec![
+            serde_json::json!({
+                "@id": "legacy-first-in-order-but-older-created",
+                "created_at_ns": 1_u64,
+            }),
+            serde_json::json!({
+                "@id": "legacy-second-in-order-but-newer-created",
+                "created_at_ns": 999_u64,
+            }),
+        ];
+
+        let picked = pick_latest_session_id(&sessions, V1);
+
+        assert_eq!(
+            picked.as_deref(),
+            Some("legacy-first-in-order-but-older-created"),
+            "with no v1 row, the first row in SQL's order wins — not the newest by created_at_ns"
+        );
+    }
+
+    #[test]
+    fn empty_input_returns_none() {
+        assert_eq!(pick_latest_session_id(&[], V1), None);
     }
 }

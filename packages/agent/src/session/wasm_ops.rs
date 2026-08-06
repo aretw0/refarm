@@ -1,7 +1,10 @@
 use crate::now_ns;
 use crate::plugin::host::tractor_bridge;
 
-use super::{history_from_nodes, session_entry_node, session_node, sum_provider_spend_usd};
+use super::{
+    history_from_nodes, pick_latest_session_id, session_entry_node, session_node,
+    sum_provider_spend_usd,
+};
 
 const SESSION_PREFIX_V1: &str = "urn:sovereign:session:v1:";
 const ENTRY_PREFIX_V1: &str = "urn:sovereign:session-entry:v1:";
@@ -14,6 +17,31 @@ fn new_entry_id_for_session(_session_id: &str) -> String {
     format!("{ENTRY_PREFIX_V1}{}", crate::new_id())
 }
 
+/// Select the current session id from the Session rows the storage layer returned.
+///
+/// NO SORT HERE, DELIBERATELY: `tractor_bridge::query_nodes` rides on
+/// `NativeStorage::query_nodes`'s `ORDER BY updated_at DESC, id DESC` guarantee
+/// (`docs/SOVEREIGN_RECORD_ORDERING.md`) — `sessions` below already arrives
+/// newest-TOUCHED-first. Session rows are UPSERTED on append, so `updated_at`
+/// (newest-touched) and a row's own `created_at_ns` field (newest-created) are
+/// different facts; "which session was I last in" wants the former, and SQL
+/// already gave it. Re-deriving "newest" here via a `max_by_key` on
+/// `created_at_ns` — the previous shape of this function — would be exactly the
+/// SECOND, disagreeing sort order that document forbids: it both duplicates the
+/// ordering work and answers a different question, and its top-N window could
+/// exclude a session that was created recently but never touched again. Do not
+/// add a sort/max_by_key back; if a future reader needs different semantics,
+/// change the storage layer's ORDER BY, not this caller.
+///
+/// The v1-id preference below is a SELECTION, not a re-sort: both
+/// `urn:sovereign:session:v1:`-prefixed and legacy unprefixed session ids are
+/// live in the same table, and a v1 id is preferred over a legacy one when both
+/// are present. `pick_latest_session_id` implements this as first-match scans
+/// over the order already given (first v1-prefixed row, else the first row of
+/// any shape) — never "take the first row" outright, and never a fold/max over
+/// the whole list. It lives in `pure.rs` so it is natively unit-tested; this
+/// module is wasm32-only and cannot host a `#[cfg(test)]` that runs on `cargo
+/// test --lib`.
 fn latest_session_id_with_v1_preference(limit: u32) -> Option<String> {
     let sessions: Vec<serde_json::Value> = tractor_bridge::query_nodes("Session", limit)
         .ok()?
@@ -21,32 +49,7 @@ fn latest_session_id_with_v1_preference(limit: u32) -> Option<String> {
         .filter_map(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
         .collect();
 
-    let newest_v1 = sessions
-        .iter()
-        .filter_map(|v| {
-            let id = v["@id"].as_str()?;
-            if !id.starts_with(SESSION_PREFIX_V1) {
-                return None;
-            }
-            Some((v["created_at_ns"].as_u64().unwrap_or(0), id.to_owned()))
-        })
-        .max_by_key(|(ts, _)| *ts)
-        .map(|(_, id)| id);
-
-    if newest_v1.is_some() {
-        return newest_v1;
-    }
-
-    sessions
-        .iter()
-        .filter_map(|v| {
-            Some((
-                v["created_at_ns"].as_u64().unwrap_or(0),
-                v["@id"].as_str()?.to_owned(),
-            ))
-        })
-        .max_by_key(|(ts, _)| *ts)
-        .map(|(_, id)| id)
+    pick_latest_session_id(&sessions, SESSION_PREFIX_V1)
 }
 
 /// Create and persist a new Session. Returns the session `@id`.
