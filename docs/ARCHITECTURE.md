@@ -2,7 +2,9 @@
 
 > **"Solo Fértil" — Fertile Soil for Sovereign Data"**
 
-Refarm is a Personal Operating System for centralising and "reforming" data from multiple fragmented sources. It operates **offline-first**, stores everything in **SQLite/OPFS** in the user's browser, and uses **Nostr** as its decentralised plugin marketplace and sync backbone.
+Refarm is a Personal Operating System for centralising and "reforming" data from fragmented sources. Its direction is **local/offline-first and sovereign**, but the repository is hybrid today: native always-on execution is centred on the Rust Tractor, product composition is mainly TypeScript, browser storage can use OPFS, and network/discovery mechanisms are adapters rather than universal requirements.
+
+This document records architectural intent and authority. For measured topology — current workspace counts, implementation languages, dependency direction and cycle status — see the generated [Architecture Inventory](./ARCHITECTURE_INVENTORY.md). Keeping measured facts out of hand-maintained prose prevents the map from silently becoming a historical snapshot.
 
 ---
 
@@ -15,10 +17,10 @@ reading the rest of this document.
 architecture preferences — can use these to build centralized, hybrid, or sovereign applications.
 A block has no opinion about offline-first, P2P, or sovereignty. It implements one contract.
 
-**Distros** (`apps/`): Opinionated assemblies of blocks. `refarm.me`, `refarm.dev`, and
-`refarm.social` are Refarm's own distros. They represent the sovereign, local-first, P2P
-philosophy — but they are **examples**, not requirements. You can compose Refarm blocks into
-a traditional centralized web app without adopting any of it.
+**Distros** (`apps/`): Opinionated assemblies of blocks. The CLI/host, daemons and web apps in
+`apps/` apply Refarm product policy. They represent the sovereign, local-first direction, but
+that direction is **not a requirement** for consumers of individual blocks. You can compose
+Refarm blocks into a traditional centralized application.
 
 **Dogfood rule**: Every Refarm distro is built entirely from Refarm blocks. This validates
 the blocks and demonstrates composability. See [ADR-046](../specs/ADRs/ADR-046-refarm-composition-model.md).
@@ -27,11 +29,13 @@ the blocks and demonstrates composability. See [ADR-046](../specs/ADRs/ADR-046-r
 `apps/`, while reusable runtime, renderer, plugin, trust, and design primitives
 remain blocks under `packages/`. See [Refarm Host Model](./REFARM_HOST_MODEL.md).
 
+The dependency direction is executable policy: packages may compose other packages, and apps may compose packages, but a package must not depend on an app. `pnpm run architecture:check` also rejects internal workspace dependency cycles and a stale generated inventory.
+
 ```text
 ┌─────────────────────────────────────────────────────────┐
 │                      DISTROS (apps/)                    │
-│  refarm.me  ·  refarm.dev  ·  refarm.social             │
-│  opinionated: sovereign, local-first, P2P               │
+│  CLI/host · daemons · web apps                           │
+│  opinionated: sovereign and local-first                  │
 └──────────────────────┬──────────────────────────────────┘
                        │ assembled from
 ┌──────────────────────▼──────────────────────────────────┐
@@ -42,17 +46,29 @@ remain blocks under `packages/`. See [Refarm Host Model](./REFARM_HOST_MODEL.md)
 └─────────────────────────────────────────────────────────┘
 ```
 
+### Language and contract authority
+
+| Boundary | Authority | Role of the other stack |
+|---|---|---|
+| Native runtime and production WASM execution | `packages/tractor` (Rust) | TypeScript clients and hosts integrate through explicit protocols; they do not redefine native runtime semantics. See [ADR-059](../specs/ADRs/ADR-059-tractor-rust-authoritative-runtime.md). |
+| Browser/runtime compatibility | `packages/tractor-ts` (TypeScript) | Compatibility, browser support and conformance surface. It is not a second authority for native execution. |
+| Plugin ABI | `packages/plugin-wit/wit/` (WIT) | Rust and TypeScript bindings/adapters must conform to the same WIT contract. See [ADR-083](../specs/ADRs/ADR-083-canonical-plugin-wit-contract.md). |
+| Reusable application contracts | Versioned contract packages, primarily TypeScript | Adapters implement the contracts; apps select and compose adapters without owning the contracts. |
+| Product composition | `apps/` (primarily TypeScript/Astro) | Product policy stays out of reusable packages. |
+
+DDD applies selectively here. Contract packages, ports/adapters and explicit authority boundaries are useful domain-modelling tools, but a workspace is not automatically a bounded context. Context meaning must be documented deliberately; the generated inventory reports only facts derivable from manifests and source trees.
+
 ---
 
 ## Design Principles
 
 | Principle | Meaning | Foundational ADR |
 |---|---|---|
-| **Offline-First** | All data lives in the browser (SQLite via OPFS). Network is optional. | [ADR-002](../specs/ADRs/ADR-002-offline-first-architecture.md) |
+| **Offline-First** | Local state remains useful without the network; storage adapters cover native and browser environments. | [ADR-002](../specs/ADRs/ADR-002-offline-first-architecture.md) |
 | **Sovereign Bootloader** | The UI (Homestead) is a pure SSG/SPA "empty shell". It boots the graph. | [ADR-036](../specs/ADRs/ADR-036-sovereign-bootloader-and-strict-ssg.md) |
-| **Edge Connectivity** | Cloudflare Workers/Edge deployed *only* as async mailboxes/KV relays. | [ADR-036](../specs/ADRs/ADR-036-sovereign-bootloader-and-strict-ssg.md) |
+| **Edge Connectivity** | Remote infrastructure is an adapter/relay, not the authority over sovereign local state. | [ADR-036](../specs/ADRs/ADR-036-sovereign-bootloader-and-strict-ssg.md) |
 | **Radical Ejection Right** | Every primitive can be taken out and used in another project. | [ADR-046](../specs/ADRs/ADR-046-refarm-composition-model.md) |
-| **Sandboxed Plugins** | Plugins run as WASM components via WIT-defined interfaces. In the browser, WASM is loaded via OPFS-cached ES modules (install-time transpilation). In Node.js, JCO transpiles at plugin load time. | [ADR-017](../specs/ADRs/ADR-017-studio-micro-kernel-and-plugin-boundary.md), [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md) |
+| **Sandboxed Plugins** | Plugins cross WIT-defined WASM boundaries. Rust is the native runtime authority; browser compatibility uses the TypeScript/JCO path. | [ADR-017](../specs/ADRs/ADR-017-studio-micro-kernel-and-plugin-boundary.md), [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md), [ADR-059](../specs/ADRs/ADR-059-tractor-rust-authoritative-runtime.md) |
 | **Sovereign Graph** | Data is normalised to JSON-LD (semantic portability). | [ADR-010](../specs/ADRs/ADR-010-schema-evolution.md) |
 | **Decentralised Discovery** | Pluggable architecture; designed for P2P protocols (e.g. Nostr) for future plugin marketplaces. | [ADR-011](../specs/ADRs/README.md#planned-future-adrs) *(planned)* |
 
@@ -87,10 +103,10 @@ refarm/
 │   ├── farmhand/                     # Task execution daemon (Node.js)
 │   └── refarm/                       # Core runtime · CLI entry point
 │
-├── packages/                         # 📦 Independent Blocks (44 packages)
+├── packages/                         # 📦 Independent Blocks (count is generated)
 │   │
 │   ├── tractor/                      # 🚜 Tractor — Rust host (wasmtime + Loro)
-│   ├── tractor-ts/                   # 🚜 Tractor TS — Browser/Node host (JCO)
+│   ├── tractor-ts/                   # Browser/compatibility + conformance (JCO)
 │   │
 │   ├── [contracts]                   # Capability contracts (v1 interfaces)
 │   │   ├── storage-contract-v1/
@@ -130,7 +146,7 @@ refarm/
 ## Layer Diagram
 
 ![Layer Diagram](./diagrams/layer-diagram.svg)
-[View source](file:///workspaces/refarm/docs/diagrams/layer-diagram.mermaid)
+[View source](./diagrams/layer-diagram.mermaid)
 
 ---
 
