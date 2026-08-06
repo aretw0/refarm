@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	budgetObservationsPageFromBody,
 	currentRateTableFrom,
 	outcomeMark,
 	printObservationsHuman,
@@ -215,6 +216,51 @@ describe("printObservationsHuman — truncation notice", () => {
 
 		const text = stdout.join("\n");
 		expect(text.toLowerCase()).not.toContain("stored");
+	});
+
+	// The live path today: the operator's own node is running a sidecar built before
+	// `stored`/`truncated` shipped, so `GET /nodes` omits both keys right now. A fallback
+	// that rounds that gap to "complete" (`truncated: false`) would print a confident
+	// answer nobody gave — this must render as its own third state instead.
+	it("prints an unknown-completeness notice when the payload omits stored/truncated — NEVER the truncation warning or silence", () => {
+		const observations = [{ "refarm.outcome": "done" }];
+		const summary = summariseObservations(observations);
+
+		printObservationsHuman(observations, summary, { stored: undefined, truncated: undefined });
+
+		const text = stdout.join("\n");
+		expect(text.toLowerCase()).toContain("unknown");
+		// Must not read as either "the record is definitely complete" (silence) or "the
+		// record is definitely truncated" (the --limit warning) — an unstated fact must not
+		// be dressed up as either resolved state.
+		expect(text.toLowerCase()).not.toContain("raise --limit");
+	});
+});
+
+describe("budgetObservationsPageFromBody — absent means absent", () => {
+	it("carries stored/truncated through when the sidecar reports them", () => {
+		const page = budgetObservationsPageFromBody({ nodes: [{ a: 1 }], stored: 42, truncated: true });
+		expect(page).toEqual({ observations: [{ a: 1 }], stored: 42, truncated: true });
+	});
+
+	it("leaves stored/truncated undefined — NOT defaulted — when the sidecar omits them", () => {
+		// This is the exact shape an older sidecar build returns today: `{ nodes, total }`,
+		// no `stored`, no `truncated`. `observations.length`/`false` would be a guess
+		// dressed up as a fact.
+		const page = budgetObservationsPageFromBody({ nodes: [{ a: 1 }, { b: 2 }], total: 2 } as never);
+		expect(page.observations).toEqual([{ a: 1 }, { b: 2 }]);
+		expect(page.stored).toBeUndefined();
+		expect(page.truncated).toBeUndefined();
+	});
+
+	it("leaves stored/truncated undefined when the fields are present but the wrong type", () => {
+		const page = budgetObservationsPageFromBody({
+			nodes: [],
+			stored: "42" as unknown as number,
+			truncated: "true" as unknown as boolean,
+		});
+		expect(page.stored).toBeUndefined();
+		expect(page.truncated).toBeUndefined();
 	});
 });
 

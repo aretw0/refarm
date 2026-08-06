@@ -228,14 +228,49 @@ function parseLimitOption(value: string): number {
  * `BudgetObservation` nodes exist in storage, independent of `--limit` or the server's own
  * 100-row cap. Naming both "total" would put two different facts under one word in the same
  * command's output — the collision this shape exists to avoid.
+ *
+ * THREE STATES, not two, same discipline as `runtime-freshness-doctor.ts`'s
+ * fresh/stale/unknown: `stored`/`truncated` are `undefined` together when the sidecar did
+ * not report them at all — a real, live case, not a hypothetical one. A sidecar built
+ * before this field shipped omits both keys from `GET /nodes`'s JSON, and a caller talking
+ * to that node has NO basis to say the record is complete. Defaulting `truncated` to
+ * `false` in that gap would assert "nothing was truncated" precisely when nobody said so —
+ * the exact silent-false-clean shape this whole task exists to remove, reintroduced one
+ * layer up. `undefined` here must propagate as `undefined`, never rounded to a boolean.
  */
 export interface BudgetObservationsPage {
 	observations: ObservationNode[];
-	/** How many `BudgetObservation` nodes exist right now — the true count, not a page size. */
-	stored: number;
-	/** Whether this page left rows out. The server computes this (`stored > returned`), not
-	 *  the client — the database is the only side that can see what was NOT returned. */
-	truncated: boolean;
+	/** How many `BudgetObservation` nodes exist right now — the true count, not a page size.
+	 *  `undefined` when the sidecar did not say (see the interface doc) — NOT defaulted to
+	 *  `observations.length`, which would silently claim the page is the whole record. */
+	stored: number | undefined;
+	/** Whether this page left rows out. `true`/`false` only when the sidecar's response said
+	 *  so; `undefined` when it didn't. The database is the only side that can see what was
+	 *  NOT returned, so this is never computed on the client from `stored` and the page size
+	 *  — an `undefined` `stored` must produce an `undefined` `truncated`, not a guess. */
+	truncated: boolean | undefined;
+}
+
+/**
+ * Pure translation from the sidecar's raw `/nodes` JSON body to `BudgetObservationsPage`.
+ * Split out from `fetchBudgetObservations` so the omitted-fields case is directly testable
+ * with a literal payload, no network — and it is not a hypothetical case: any sidecar
+ * built before `stored`/`truncated` shipped omits both keys, and that is the LIVE path for
+ * a node still running an older build.
+ */
+export function budgetObservationsPageFromBody(body: {
+	nodes?: unknown[];
+	stored?: number;
+	truncated?: boolean;
+}): BudgetObservationsPage {
+	const observations = Array.isArray(body.nodes) ? (body.nodes as ObservationNode[]) : [];
+	return {
+		observations,
+		// Absent means absent: no fallback to `observations.length` / `false`. See
+		// `BudgetObservationsPage`'s doc for why a guess here is worse than saying "unknown".
+		stored: typeof body.stored === "number" ? body.stored : undefined,
+		truncated: typeof body.truncated === "boolean" ? body.truncated : undefined,
+	};
 }
 
 async function fetchBudgetObservations(limit: number): Promise<BudgetObservationsPage> {
@@ -244,12 +279,7 @@ async function fetchBudgetObservations(limit: number): Promise<BudgetObservation
 			`/nodes?type=${encodeURIComponent(BUDGET_OBSERVATION_NODE_TYPE)}&limit=${limit}`,
 		),
 	);
-	const observations = Array.isArray(body.nodes) ? (body.nodes as ObservationNode[]) : [];
-	return {
-		observations,
-		stored: typeof body.stored === "number" ? body.stored : observations.length,
-		truncated: body.truncated === true,
-	};
+	return budgetObservationsPageFromBody(body);
 }
 
 /**
@@ -316,13 +346,25 @@ export function printObservationsHuman(
 	page: Pick<BudgetObservationsPage, "stored" | "truncated">,
 ): void {
 	console.log(chalk.bold(`\n  Budget observations  (${summary.total} shown)\n`));
-	if (page.truncated) {
+	if (page.truncated === true) {
 		// `summary.total` (shown above) and `page.stored` (here) are deliberately printed
 		// side by side with different words, not both called "total" — see
 		// `BudgetObservationsPage`'s doc for why that collision must not happen.
 		console.log(
 			chalk.yellow(
 				`  ⚠  Showing ${summary.total} of ${page.stored} stored — raise --limit to see the rest.\n`,
+			),
+		);
+	} else if (page.truncated === undefined) {
+		// This is a gap in what the node could report, not a finding about the record — it
+		// may be all of them or it may not, and this cannot tell you which. Same phrasing
+		// discipline as `runtime-freshness-doctor.ts`'s `unknown` state: reported plainly,
+		// never rounded to "nothing was truncated".
+		console.log(
+			chalk.dim(
+				`  ?  Completeness unknown — this node did not report how many BudgetObservation ` +
+					`records exist (an older sidecar build). Whether ${summary.total} shown is all ` +
+					`of them cannot be determined from this response.\n`,
 			),
 		);
 	}
@@ -425,7 +467,10 @@ export function createBudgetCommand(): Command {
 							summary,
 							// Carried through verbatim from the sidecar — see
 							// `BudgetObservationsPage`'s doc for why these are not folded
-							// into `summary`.
+							// into `summary`. When the sidecar didn't report them, both are
+							// `undefined` here, and `JSON.stringify` (via `printJson`) drops
+							// an `undefined`-valued key entirely — absent means absent on
+							// the wire too, never an invented `false`/count.
 							stored,
 							truncated,
 						},
