@@ -21,6 +21,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import {
+	assertInstallEnvShape,
 	assertNoReservedFlags,
 	assertPathInsideSandboxRoot,
 	classifySandboxLiveness,
@@ -232,6 +233,29 @@ test("sandboxEnvironment declares HOME, a sibling of the other five axes, matchi
 test("sandboxEnvironment: HOME never equals the real OS home directory, for any repoRoot", () => {
 	const { env } = sandboxEnvironment(REPO_ROOT);
 	assert.notEqual(env.HOME, os.homedir());
+});
+
+// ---- Code review follow-up: the agent's OWN compiled-to-WASM runtime
+// (prompt_handler.rs's write_final_stream_chunk) reads REFARM_STREAMS_DIR directly, and
+// falls back through HOME (which never reaches the guest — the guest env is a curated
+// allowlist, not a passthrough) all the way to a hardcoded /tmp when unset — writing the
+// agent's actual response content outside .sandbox/ entirely. ----
+
+test("sandboxEnvironment declares REFARM_STREAMS_DIR, NESTED under REFARM_HOME (unlike the sibling axes)", () => {
+	const { env } = sandboxEnvironment(REPO_ROOT);
+	assert.equal(env.REFARM_STREAMS_DIR, path.join(env.REFARM_HOME, "streams"));
+	assert.ok(
+		env.REFARM_STREAMS_DIR.startsWith(env.REFARM_HOME + path.sep),
+		"must be NESTED under REFARM_HOME — mirrors scripts/tractor-start.sh's own " +
+			'REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}", unlike XDG_DATA_HOME/SILO_HOME/HOME which are siblings',
+	);
+});
+
+test("sandboxEnvironment: REFARM_STREAMS_DIR never equals /tmp/streams or any operator-real path", () => {
+	const { env } = sandboxEnvironment(REPO_ROOT);
+	assert.notEqual(env.REFARM_STREAMS_DIR, "/tmp/streams");
+	assert.notEqual(env.REFARM_STREAMS_DIR, path.join(os.homedir(), "streams"));
+	assert.notEqual(env.REFARM_STREAMS_DIR, path.join(os.homedir(), ".refarm", "streams"));
 });
 
 test("OPERATOR_SILO_IDENTITY_PATH points at ~/.silo/identity.json — the durable source, read-only", () => {
@@ -1609,7 +1633,59 @@ test("interpretPluginInstallEnvelope: envelope.ok:false does NOT fail the agent 
 	});
 });
 
-// ---- installSandboxAgentPlugin: env is required — no fallback to bare process.env ----
+// ---- assertInstallEnvShape / installSandboxAgentPlugin: env is required AND shaped right
+// — a review found the original guard checked only PRESENCE ("is env truthy"), not SHAPE,
+// so a correct-looking PARTIAL env (e.g. REFARM_HOME set, HOME forgotten — exactly what
+// someone would write from memory) passed the old guard and would have silently
+// reintroduced the Critical this file exists to close. ----
+
+test("assertInstallEnvShape throws when env is entirely omitted/falsy", () => {
+	assert.throws(() => assertInstallEnvShape(undefined), /env is required/);
+	assert.throws(() => assertInstallEnvShape(null), /env is required/);
+	assert.throws(() => assertInstallEnvShape(""), /env is required/);
+});
+
+test("assertInstallEnvShape throws NAMING the missing key for a partial env missing HOME", () => {
+	// The exact scenario the review described: correct-looking, REFARM_HOME set, HOME
+	// forgotten.
+	assert.throws(
+		() => assertInstallEnvShape({ REFARM_HOME: "/repo/.sandbox/refarm" }),
+		/missing HOME/,
+	);
+});
+
+test("assertInstallEnvShape throws NAMING the missing key for a partial env missing REFARM_HOME", () => {
+	assert.throws(
+		() => assertInstallEnvShape({ HOME: "/repo/.sandbox/home" }),
+		/missing REFARM_HOME/,
+	);
+});
+
+test("assertInstallEnvShape throws when a required key is present but empty/whitespace", () => {
+	assert.throws(
+		() => assertInstallEnvShape({ REFARM_HOME: "/repo/.sandbox/refarm", HOME: "" }),
+		/missing HOME/,
+	);
+	assert.throws(
+		() => assertInstallEnvShape({ REFARM_HOME: "   ", HOME: "/repo/.sandbox/home" }),
+		/missing REFARM_HOME/,
+	);
+});
+
+test("assertInstallEnvShape does NOT throw for a full sandbox env (both required keys present)", () => {
+	assert.doesNotThrow(() =>
+		assertInstallEnvShape({ REFARM_HOME: "/repo/.sandbox/refarm", HOME: "/repo/.sandbox/home" }),
+	);
+});
+
+test("assertInstallEnvShape does NOT require the other declared axes — only what THIS function's writes depend on", () => {
+	// SOVEREIGN_BASE/SOVEREIGN_DIR/XDG_DATA_HOME/SILO_HOME/REFARM_STREAMS_DIR don't
+	// determine where `refarm plugin install --bundled` writes — requiring them here would
+	// be a stricter contract than this function's actual dependency.
+	assert.doesNotThrow(() =>
+		assertInstallEnvShape({ REFARM_HOME: "/repo/.sandbox/refarm", HOME: "/repo/.sandbox/home" }),
+	);
+});
 
 test("installSandboxAgentPlugin throws when env is omitted — never silently falls back to process.env", () => {
 	assert.throws(() => installSandboxAgentPlugin("/repo", {}), /env is required/);
@@ -1618,6 +1694,16 @@ test("installSandboxAgentPlugin throws when env is omitted — never silently fa
 test("installSandboxAgentPlugin throws when env is explicitly falsy (null/undefined/empty string)", () => {
 	assert.throws(() => installSandboxAgentPlugin("/repo", { env: null }), /env is required/);
 	assert.throws(() => installSandboxAgentPlugin("/repo", { env: undefined }), /env is required/);
+});
+
+test("installSandboxAgentPlugin throws on a PARTIAL env, not just an absent one — the exact gap the review found", () => {
+	// A LITERAL object, deliberately NOT spread from process.env — spreading process.env
+	// would always carry a real HOME (any shell has one set), silently defeating the
+	// exact scenario under test: a hand-written env that forgot HOME.
+	assert.throws(
+		() => installSandboxAgentPlugin("/repo", { env: { REFARM_HOME: "/repo/.sandbox/refarm" } }),
+		/missing HOME/,
+	);
 });
 
 // ---- shouldInstallSandboxPlugin — the exact decision startSandbox uses ----

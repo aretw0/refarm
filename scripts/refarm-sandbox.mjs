@@ -271,6 +271,7 @@ export function sandboxEnvironment(repoRoot, overrides = {}) {
 	const xdgDataHome = path.join(sandboxBase, "share");
 	const siloHome = path.join(sandboxBase, SANDBOX_SILO_DIR_NAME);
 	const homeDir = path.join(sandboxBase, SANDBOX_HOME_DIR_NAME);
+	const streamsDir = path.join(refarmHome, "streams");
 
 	return {
 		env: {
@@ -331,12 +332,52 @@ export function sandboxEnvironment(repoRoot, overrides = {}) {
 			//     anything this launcher does today. Named here because it is the SAME
 			//     "deliberately ignores the declared home" shape as the asset-store defect,
 			//     for whoever picks up that queue item next.
-			// No other `os.homedir()`/`$HOME` call site found reachable from either
-			// subprocess command (searched every package on their import graph: silo, config,
-			// root, storage-fs, storage-node-view, barn, and apps/refarm/src/commands/
-			// {plugin-install,plugin-shared,plugin-install-path,model}.ts and
-			// apps/refarm/src/utils/refarm-home.ts).
+			// No other `os.homedir()`/`$HOME` call site was found on the LOGICAL call graph
+			// this file's two subprocess commands actually execute (traced from
+			// `plugin-install.ts`/`plugin-shared.ts`/`plugin-install-path.ts`/`model.ts`
+			// through `silo`, `config`, `root`, `storage-fs`, `storage-node-view`, `barn`, and
+			// `apps/refarm/src/utils/refarm-home.ts`). This is narrower than what actually
+			// LOADS into the process: a review found `apps/refarm/src/program.ts` imports
+			// every command module eagerly, so a module-level initializer anywhere in the CLI
+			// runs on every invocation regardless of subcommand — `session-lock.ts`'s
+			// module-level `SESSION_LOCK_PATH = path.join(resolveRefarmHome(), "session.lock")`
+			// is exactly that shape, and exactly the class of defect
+			// `apps/refarm/vitest.setup.ts` documents as a previously-confirmed on-disk
+			// incident (a test run rewriting the operator's real `~/.refarm/session.lock`).
+			// Checked specifically: that one call is a pure `path.join`, no I/O at import
+			// time — the actual read/write only happens if something later CALLS a
+			// lock-acquire function, which neither `plugin install --bundled` nor `model env
+			// --shell` does — so it is not a live bug for either command. Recorded here as a
+			// narrower, more honest claim than "audited every package on the import graph",
+			// which this file's own comment previously overstated.
 			HOME: homeDir,
+			// REFARM_STREAMS_DIR — the SEVENTH declaration, and the one axis in this list that
+			// is NOT about the host/CLI at all: it is read by the AGENT'S OWN COMPILED-TO-WASM
+			// RUNTIME (`packages/agent/src/runtime/prompt_handler.rs`'s
+			// `write_final_stream_chunk`, `#[cfg(target_arch = "wasm32")]` — the code that
+			// actually runs as the loaded plugin), which writes the agent's FINAL RESPONSE
+			// CONTENT to `<REFARM_STREAMS_DIR>/<stream_ref>.ndjson` on the non-streaming
+			// completion path. Unset, it falls back to `$HOME/streams` (or `$SOVEREIGN_DIR`
+			// under that), and — since the guest's env is a CURATED ALLOWLIST, not a
+			// passthrough (`packages/tractor/src/host/plugin_host/env_and_runtime.rs`'s
+			// `plugin_env_vars_from`/`forwarded_model_env_vars` forward only `MODEL_*`, the
+			// model rate catalog, and `REFARM_STREAMS_DIR` itself — `HOME` is NEVER forwarded
+			// to the guest, confirmed by reading that allowlist, not assumed) — the guest's OWN
+			// `$HOME` read always fails inside the sandbox regardless of the `HOME` axis above,
+			// so the fallback falls all the way through to a HARDCODED `/tmp`, writing the
+			// agent's actual response content to `/tmp/streams/`: outside `.sandbox/`, not one
+			// of the declared axes, and not cleaned by `--reset`. Pre-existing (not introduced
+			// by this file), found auditing the HOME fix, and closed the same way: declare the
+			// var the actual reader checks, on the HOST process, so it flows into the guest
+			// through the ONE mechanism that does reach it —
+			// `plugin_runtime_env_vars()`'s `std::env::var("REFARM_STREAMS_DIR")` read against
+			// the host's OWN env, confirmed live (this task's report) via `/proc/<pid>/environ`
+			// on the running sandbox daemon AND a real dispatch through it. Nested under
+			// REFARM_HOME (`<refarmHome>/streams`), mirroring `scripts/tractor-start.sh:86`'s
+			// own `REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}"` — a
+			// sibling of nothing else in this list, but the SAME relationship the operator's
+			// own node already has between the two.
+			REFARM_STREAMS_DIR: streamsDir,
 		},
 		port: overrides.port ?? SANDBOX_PORT,
 		httpPort: overrides.httpPort ?? SANDBOX_HTTP_PORT,
@@ -1026,26 +1067,49 @@ export function copySandboxCredentials(repoRoot, { sourcePath = OPERATOR_SILO_ID
  * IMPURE. Resolves the sandbox's model-runtime env entries by shelling out to the
  * ALREADY-COMPILED `refarm model env --shell --include-secrets` — the exact command
  * `scripts/tractor-start.sh` uses for the operator's own node (its "provider selection"
- * block) — with `SILO_HOME` overridden to `siloHome` so it reads the SANDBOX's copied
- * credential store, never the operator's. Reusing this command (rather than re-deriving
- * "which vars, from which Silo fields" here) is deliberate: that resolution already has one
- * implementation (`apps/refarm/src/commands/model.ts`'s `buildModelEnvEntries`), and this
- * codebase has repeatedly paid for a second one drifting from the first (see
- * scripts/tractor-start.sh's "ONE installer now" comment for the plugin-side instance of
- * the same defect).
+ * block). Reusing this command (rather than re-deriving "which vars, from which Silo
+ * fields" here) is deliberate: that resolution already has one implementation
+ * (`apps/refarm/src/commands/model.ts`'s `buildModelEnvEntries`), and this codebase has
+ * repeatedly paid for a second one drifting from the first (see scripts/tractor-start.sh's
+ * "ONE installer now" comment for the plugin-side instance of the same defect).
  *
- * Never throws: a missing/unbuilt CLI or a failing subprocess returns `{ entries: {},
- * reason }` so a caller degrades gracefully (same "keyless floor, not a crash" contract as
- * `copySandboxCredentials`).
+ * `env` is the SAME merged env `startSandbox` passes to `installSandboxAgentPlugin` and to
+ * the daemon itself (`{ ...process.env, ...sandboxEnv }`) — a review found this call used
+ * to pass a NARROWER one (`{ ...process.env, SILO_HOME: siloHome }`, nothing else
+ * overridden), which happened to be harmless only because `buildModelEnvEntries` never
+ * reads anything this function's `env` would otherwise be missing — but an asymmetric
+ * contract ("this call gets the full env, that one gets a hand-picked subset") is exactly
+ * the shape that stops being harmless the moment either command's own logic changes what
+ * it reads, silently. Uniform now: whatever env a caller passes IS what both subprocess
+ * calls in this file receive, no per-call narrowing.
+ *
+ * Never throws: a missing/unbuilt CLI, an omitted `env`, or a failing subprocess all
+ * return `{ entries: {}, reason }` so a caller degrades gracefully (same "keyless floor,
+ * not a crash" contract as `copySandboxCredentials`) — deliberately NOT the throwing
+ * contract `installSandboxAgentPlugin`/`assertInstallEnvShape` use, because this function
+ * never WRITES anything; a missing/wrong env here fails safe on its own (Silo simply
+ * resolves nothing, `refarm model current` reports the keyless floor), so there is no
+ * Critical-shaped failure mode to guard against with a throw.
  */
-export function resolveSandboxModelEnv(repoRoot, { siloHome } = {}) {
+export function resolveSandboxModelEnv(repoRoot, { env } = {}) {
+	if (!env) {
+		return {
+			entries: {},
+			reason:
+				"resolveSandboxModelEnv: env is required — pass the sandbox's OWN declared axes " +
+				"(e.g. { ...process.env, ...sandboxEnvironment(repoRoot).env }); omitting it would " +
+				"otherwise silently resolve credentials against whatever the ambient shell happens " +
+				"to have.",
+		};
+	}
+
 	const cli = path.join(repoRoot, "apps", "refarm", "dist", "index.js");
 	if (!fs.existsSync(cli)) {
 		return { entries: {}, reason: `refarm CLI not built at ${cli} — run: pnpm --filter @refarm.dev/refarm run build` };
 	}
 
 	const result = spawnSync(process.execPath, [cli, "model", "env", "--shell", "--include-secrets"], {
-		env: { ...process.env, SILO_HOME: siloHome },
+		env,
 		encoding: "utf8",
 		timeout: 10_000,
 	});
@@ -1064,6 +1128,50 @@ export function resolveSandboxModelEnv(repoRoot, { siloHome } = {}) {
 		// value — this function's own contract is "never throws, degrade instead", so that
 		// refusal becomes a reason here, same as every other failure mode above.
 		return { entries: {}, reason: err.message };
+	}
+}
+
+/**
+ * PURE. Throws unless `env` carries every axis `installSandboxAgentPlugin`'s writes
+ * actually depend on: `REFARM_HOME` (where `resolveRefarmHome`/`pluginsBaseDir` land the
+ * plugin dir, its version sentinel, and the model-rate-catalog materialization) and `HOME`
+ * (where the content-store write falls back to — see `sandboxEnvironment`'s `env.HOME`
+ * doc). A review found the original guard checked only that `env` was TRUTHY, not its
+ * SHAPE — `installSandboxAgentPlugin(repoRoot, { env: { ...process.env, REFARM_HOME:
+ * sandboxRefarmHome } })` is a correct-looking, easy-to-write-from-memory PARTIAL env
+ * (missing `HOME`) that would have passed that guard and silently reintroduced the exact
+ * Critical this file exists to close. Named after `assertNoReservedFlags`/
+ * `assertPathInsideSandboxRoot` — the same "guard what should never happen anyway"
+ * discipline this file already established, applied to a shape instead of a value.
+ *
+ * Deliberately does NOT require `SOVEREIGN_BASE`/`SOVEREIGN_DIR`/`XDG_DATA_HOME`/
+ * `SILO_HOME`/`REFARM_STREAMS_DIR` — none of THOSE determine where `refarm plugin install
+ * --bundled`'s writes land; requiring them here would be a stricter contract than this
+ * function's actual dependency, not a safer one. (Every production caller happens to pass
+ * the FULL sandbox env anyway, which is a superset — this only requires the subset this
+ * function's own writes are actually sensitive to.)
+ */
+export function assertInstallEnvShape(env) {
+	if (!env || typeof env !== "object") {
+		throw new Error(
+			"installSandboxAgentPlugin: env is required — pass the sandbox's OWN declared axes " +
+				"(e.g. { ...process.env, ...sandboxEnvironment(repoRoot).env }), never omit it. " +
+				"There is deliberately no fallback to bare process.env: that would install into " +
+				"the OPERATOR's real ~/.refarm/plugins/ (and, via the storage-fs asset store, " +
+				"~/.refarm/assets/) — see installSandboxAgentPlugin's own doc.",
+		);
+	}
+	for (const key of ["REFARM_HOME", "HOME"]) {
+		if (typeof env[key] !== "string" || env[key].trim().length === 0) {
+			throw new Error(
+				`installSandboxAgentPlugin: env is missing ${key} — a PARTIAL env (present, but ` +
+					"shaped wrong) reintroduces this function's own Critical just as surely as an " +
+					"omitted one: checking only that env is truthy is not the same as checking that " +
+					"it carries what this function's writes actually depend on. Pass the sandbox's " +
+					"FULL declared axes (e.g. { ...process.env, ...sandboxEnvironment(repoRoot).env " +
+					"}), not a hand-picked subset.",
+			);
+		}
 	}
 }
 
@@ -1103,18 +1211,11 @@ export function resolveSandboxModelEnv(repoRoot, { siloHome } = {}) {
  * `sandboxAgentPluginPath`'s raw build output, which is now KNOWN to fail at boot —
  * falling back to a manifest already proven broken would just reintroduce the Task 4
  * defect under a different trigger). DOES throw — a programmer error, not a degraded
- * outcome — when `env` itself is omitted; see above.
+ * outcome — when `env` is missing OR shaped wrong; see `assertInstallEnvShape`, the very
+ * first thing this function calls.
  */
 export function installSandboxAgentPlugin(repoRoot, { env }) {
-	if (!env) {
-		throw new Error(
-			"installSandboxAgentPlugin: env is required — pass the sandbox's OWN declared axes " +
-				"(e.g. { ...process.env, ...sandboxEnvironment(repoRoot).env }), never omit it. " +
-				"There is deliberately no fallback to bare process.env: that would install into " +
-				"the OPERATOR's real ~/.refarm/plugins/ (and, via the storage-fs asset store, " +
-				"~/.refarm/assets/) — see this function's own doc.",
-		);
-	}
+	assertInstallEnvShape(env);
 
 	const cli = path.join(repoRoot, "apps", "refarm", "dist", "index.js");
 	if (!fs.existsSync(cli)) {
@@ -1273,6 +1374,10 @@ export async function startSandbox({
 	// `mkdir({recursive:true})` under it — HOME has no single owner the way REFARM_HOME/
 	// XDG_DATA_HOME do; several unrelated things could be the first to write under it.
 	fs.mkdirSync(sandboxEnv.HOME, { recursive: true });
+	// The guest's write_final_stream_chunk also calls create_dir_all itself, but pre-created
+	// here for the same reason scripts/tractor-start.sh does: consistent with every other
+	// declared axis, not left to whichever writer happens to run first.
+	fs.mkdirSync(sandboxEnv.REFARM_STREAMS_DIR, { recursive: true });
 
 	const notices = [];
 
@@ -1332,7 +1437,7 @@ export async function startSandbox({
 		if (!copyResult.copied) {
 			credentialNotice = `no credentials copied — ${copyResult.reason}. Model routes fall back to the keyless default.`;
 		} else {
-			const modelEnv = resolveSandboxModelEnv(repoRoot, { siloHome: sandboxEnv.SILO_HOME });
+			const modelEnv = resolveSandboxModelEnv(repoRoot, { env: childEnv });
 			if (Object.keys(modelEnv.entries).length === 0 && modelEnv.reason) {
 				credentialNotice = `credentials copied but env resolution failed — ${modelEnv.reason}`;
 			} else {
