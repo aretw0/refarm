@@ -18,13 +18,15 @@ flowchart LR
     TaskFiles["tasks/*.json\nnode-local queue"]
     Http["HttpSidecar :42001\n/efforts · /channels/:id/efforts"]
     Operations["EffortOperations\ntransport-neutral boundary"]
-    FileAdapter["FileTransportAdapter\nqueue + lifecycle coordination\n+ file watcher"]
+    FileAdapter["FileTransportAdapter\nfile watcher + composition"]
     FileRepository["FileEffortRepository\nJSON / NDJSON wire formats"]
     FileState["task-results/*.json\ntask-logs/*.ndjson"]
   end
 
+  Queue["EffortQueue\nserial · de-duplicate · force promotion"]
+  Lifecycle["FileTransportAdapter.processEffort\nprocessing + cancellation state"]
   SummaryPolicy["effort-summary\npure status + window policy"]
-  Coupling["remaining coupling\nqueue + lifecycle still live\nin FileTransportAdapter"]
+  Coupling["remaining coupling\nprocessing + cancellation still live\nin FileTransportAdapter"]
 
   Executor["Farmhand task executor\npolicy · model route · plugin call"]
   Runtime["runtime host → agent plugin"]
@@ -58,7 +60,9 @@ flowchart LR
   FileRepository -->|"reads definitions"| TaskFiles
   FileRepository -->|"writes state"| FileState
   FileAdapter -->|"aggregates through"| SummaryPolicy
-  FileAdapter --> Executor
+  FileAdapter -->|"schedules through"| Queue
+  Queue -->|"serial callback"| Lifecycle
+  Lifecycle --> Executor
   Executor --> Runtime
   Runtime -->|"StreamChunk node"| Chunk
   Chunk --> Registry
@@ -78,5 +82,5 @@ flowchart LR
 
   class CLI,Channels,Clients,Follower,WsConsumer surface;
   class Effort,Operations,SummaryPolicy,Chunk contract;
-  class Executor,Runtime,Registry runtime;
+  class Queue,Lifecycle,Executor,Runtime,Registry runtime;
   class Dispatch,FileClient,HttpClient,ChannelClient,TaskFiles,Http,FileAdapter,FileRepository,FileState,FileStream,SSE,WS,Coupling transport;
