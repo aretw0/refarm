@@ -176,8 +176,10 @@ export const SOVEREIGN_DIR_SELECTOR_KEY: "SOVEREIGN_DIR";
 /** Names WHERE this node's declarations live — the directory containing the sovereign dir. */
 export const SOVEREIGN_BASE_KEY: "SOVEREIGN_BASE";
 /** The base declarations resolve against: `SOVEREIGN_BASE`, else `dirname(REFARM_HOME)`,
- * else the OS home directory. Mirrors `dirs_sovereign_base` in
- * `packages/tractor/src/main.rs`; the two change together. Never reads `process.cwd()`. */
+ * else the OS home directory. The Rust counterpart is `run_daemon` in
+ * `packages/tractor/src/main.rs` (NOT `dirs_sovereign_base`, which never reads
+ * `SOVEREIGN_BASE`); the two change together. This function never reads `process.cwd()` —
+ * Rust's `config_node.rs::declared_base()` still can; see the `.js` doc comment. */
 export function declaredBase(env?: Record<string, string | undefined>): string;
 /** The config file name inside the sovereign config dir (fixed substrate convention). */
 export const CONFIG_FILE_NAME: "config.json";

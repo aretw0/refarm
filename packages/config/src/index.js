@@ -141,11 +141,16 @@ export const SOVEREIGN_BASE_KEY = "SOVEREIGN_BASE";
 
 /**
  * The base declarations resolve against: what the node was TOLD, or — absent that — the
- * OS home directory. Mirrors `dirs_sovereign_base` in `packages/tractor/src/main.rs`
- * precedence step for step; the two functions change together. That lockstep is what
- * makes the promise in {@link SOVEREIGN_BASE_KEY}'s doc comment — that the Rust host and
- * this stack "read identically" — actually true, rather than true only when a caller
- * happens to export SOVEREIGN_BASE.
+ * OS home directory. The Rust counterpart is NOT `dirs_sovereign_base` (`main.rs:760-776`)
+ * — that function returns the sovereign DIR (`REFARM_HOME`, else `home/SOVEREIGN_DIR`,
+ * else bare home) and never reads `SOVEREIGN_BASE` at all. It is `run_daemon`
+ * (`main.rs:431-446`): it computes `(--refarm-dir ?? dirs_sovereign_base()).parent()` and
+ * sets `SOVEREIGN_BASE` from that unless the env var already won outright. This function's
+ * `dirname(REFARM_HOME)` step below is what keeps that arithmetic aligned with Rust's —
+ * drop the `dirname` and the two diverge by one path segment. That lockstep is what makes
+ * the promise in {@link SOVEREIGN_BASE_KEY}'s doc comment — that the Rust host and this
+ * stack "read identically" — actually true, rather than true only when a caller happens to
+ * export SOVEREIGN_BASE.
  *
  * Precedence:
  *   1. `SOVEREIGN_BASE` (this env var) — an explicit declaration always wins.
@@ -153,11 +158,18 @@ export const SOVEREIGN_BASE_KEY = "SOVEREIGN_BASE";
  *      resolves `/srv/node`, matching the Rust host reading the same variable.
  *   3. The bare OS home directory.
  *
- * `process.cwd()` is deliberately NOT a fallback, at any step: the Rust host never reads
- * cwd, and a TS-side cwd fallback was the actual defect this replaces — a node's answer
- * changed depending on which directory the process happened to be started from, so one
- * process could admit an operation resolved from the operator's home and then refuse it
- * resolved from the daemon's directory, in the same breath.
+ * `process.cwd()` is deliberately NOT a fallback, at any step, in this function: a TS-side
+ * cwd fallback was the actual defect this replaces — a node's answer changed depending on
+ * which directory the process happened to be started from, so one process could admit an
+ * operation resolved from the operator's home and then refuse it resolved from the
+ * daemon's directory, in the same breath.
+ *
+ * That is not the same claim as "the Rust host never reads cwd" — it does, in one place:
+ * `config_node.rs`'s `declared_base()` still falls back to `current_dir()` (its own doc
+ * comment says so) when `SOVEREIGN_BASE` is unset. That fallback stays unreached in
+ * practice only because `run_daemon` (`main.rs:431-446`) sets `SOVEREIGN_BASE` in-process
+ * before any config-node code runs — except when `refarm_dir.parent()` is `None`, which it
+ * then skips setting, and `declared_base()`'s cwd fallback is what actually answers.
  *
  * Step 3 lands on the BARE home directory, not `<home>/<SOVEREIGN_DIR>`, because
  * {@link sovereignDir} THROWS when the selector is unset (deliberately, so no brand name

@@ -9,9 +9,18 @@
 // reached the phone was `exit 1` and "the operation promised a result and delivered none".
 // Nothing in that message, or in any status output, named a directory.
 //
-// `SOVEREIGN_BASE` closed the node's half: told once, read identically everywhere. What it
-// cannot close is the OPERATOR's half — a terminal has no injected base, so `refarm`
-// commands still resolve where the operator is standing. That is correct (a developer
+// `SOVEREIGN_BASE` closed the node's half: told once, read identically everywhere. The
+// OPERATOR's half is narrower than it used to be: since 2026-08-06 ("two halves, one
+// node") `declaredBase()` (`@refarm.dev/config`) no longer falls back to cwd either, so
+// the general run of `refarm` commands no longer resolve declarations from wherever the
+// operator happens to be standing. What still does, deliberately: `doctor.ts`'s own
+// `resolveScopeComparison`, which is what actually builds `operatorConfigPath` and
+// `operatorPolicyPath` below — it resolves from a bare `process.cwd()` on purpose, because
+// routing it through `declaredBase()` would collapse the operator's half onto the node's
+// and hide the exact divergence this file exists to report — and the three
+// `resolveRefarmScopeRoot` consumers (operator-attention state,
+// `apps/refarm/src/utils/refarm-home.ts`), which try `<cwd>/.refarm` before falling back
+// to the OS home. That cwd-rooted answer is still correct where it happens (a developer
 // inside a project wants that project's declarations) and it is exactly why the divergence
 // must be VISIBLE: this node carries two `auth-policy.json` files that disagree, and the
 // only reason anyone knows is that somebody went looking.
@@ -38,7 +47,10 @@ import type { RefarmDoctorRecommendation } from "./doctor.js";
 /** What the operator would read or write from where they are standing, beside what the
  *  running node actually uses. Both absolute, both already resolved by the caller. */
 export interface ScopeComparison {
-	/** `<declaredBase()>/<sovereignDir>/config.json` — the operator's scope. */
+	/** `<process.cwd()>/<sovereignDir>/config.json` — the operator's literal standing
+	 *  directory, resolved in `doctor.ts`'s `resolveScopeComparison` (deliberately NOT
+	 *  `declaredBase()`, which no longer reads cwd and would collapse this onto
+	 *  `nodeConfigPath`, hiding the divergence this file exists to report). */
 	operatorConfigPath: string;
 	/** `<refarmHome>/config.json` — what a node started with this home reads. */
 	nodeConfigPath: string;
