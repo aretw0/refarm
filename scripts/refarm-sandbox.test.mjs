@@ -27,7 +27,8 @@ import {
 	minimalCredentialTokens,
 	OPERATOR_SILO_IDENTITY_PATH,
 	parseShellExports,
-	pluginPathsIn,
+	PLUGIN_LOADING_FLAGS,
+	pluginLoadersIn,
 	resolveDefaultPluginArgs,
 	RESERVED_FLAGS,
 	SANDBOX_HTTP_PORT,
@@ -510,61 +511,86 @@ test("copySandboxCredentials re-syncs (overwrites) an existing destination rathe
 	});
 });
 
-// ---- Code review follow-up: --plugin is Vec<PathBuf> in main.rs ("may be repeated"), so
-// clap APPENDS every occurrence — it does NOT let a later one win over an earlier one, the
-// way the four RESERVED_FLAGS (all scalar) do. Appending the default AND a caller-supplied
-// --plugin would load BOTH, not let the caller's override. ----
+// ---- Code review follow-up: every flag in PLUGIN_LOADING_FLAGS is a repeatable Vec on the
+// Rust side, so clap APPENDS every occurrence — it does NOT let a later one win over an
+// earlier one, the way the four RESERVED_FLAGS (all scalar) do. Appending the default AND a
+// caller-supplied plugin loader would load BOTH, not let the caller's override.
+//
+// A second review found --plugin-by-hash was missing from the FIRST version of this guard
+// entirely (recognized only "--plugin", nothing else) — reopening the exact defect just
+// fixed, wearing a different flag. The tests below are GENERATED from
+// `Object.keys(PLUGIN_LOADING_FLAGS)` (mirroring the RESERVED_FLAGS test loop) so a THIRD
+// loader flag added to that set later is covered automatically, by construction, rather
+// than by a human remembering to add a matching test. ----
 
-test("pluginPathsIn reads every --plugin value from an assembled argv, both forms, in order", () => {
-	const args = ["--port", "43000", "--plugin", "/a.wasm", "--namespace", "sandbox", "--plugin=/b.wasm"];
-	assert.deepEqual(pluginPathsIn(args), ["/a.wasm", "/b.wasm"]);
-});
+for (const flag of Object.keys(PLUGIN_LOADING_FLAGS)) {
+	test(`extraArgsSuppliesPlugin recognizes ${flag} (two-token form)`, () => {
+		assert.equal(extraArgsSuppliesPlugin([flag, "some-value"]), true);
+	});
 
-test("pluginPathsIn returns [] when no --plugin is present", () => {
-	assert.deepEqual(pluginPathsIn(["--port", "43000"]), []);
-});
+	test(`extraArgsSuppliesPlugin recognizes ${flag}=<value> (the = form)`, () => {
+		assert.equal(extraArgsSuppliesPlugin([`${flag}=some-value`]), true);
+	});
 
-test("pluginPathsIn ignores a trailing --plugin with no value rather than throwing", () => {
-	assert.deepEqual(pluginPathsIn(["--port", "43000", "--plugin"]), []);
-});
+	test(`resolveDefaultPluginArgs skips the default when the caller supplies ${flag}`, () => {
+		const result = resolveDefaultPluginArgs("/repo/packages/agent/dist/agent.wasm", [flag, "some-value"], {
+			existsSync: () => true,
+		});
+		assert.deepEqual(result.pluginArgs, []);
+		assert.equal(result.notice, undefined);
+	});
 
-test("extraArgsSuppliesPlugin detects --plugin in either form", () => {
-	assert.equal(extraArgsSuppliesPlugin(["--plugin", "/x.wasm"]), true);
-	assert.equal(extraArgsSuppliesPlugin(["--plugin=/x.wasm"]), true);
-	assert.equal(extraArgsSuppliesPlugin(["--port", "43000", "--plugin", "/x.wasm"]), true);
-});
+	test(`pluginLoadersIn reports exactly one loader for a bare ${flag} occurrence`, () => {
+		assert.equal(pluginLoadersIn([flag, "some-value"]).length, 1);
+	});
+}
 
-test("extraArgsSuppliesPlugin is false when the caller names no --plugin", () => {
+test("extraArgsSuppliesPlugin is false when the caller names no plugin-loading flag at all", () => {
 	assert.equal(extraArgsSuppliesPlugin([]), false);
 	assert.equal(extraArgsSuppliesPlugin(["--refarm-dir", "/x"]), false);
+});
+
+test("pluginLoadersIn returns [] when no plugin-loading flag is present", () => {
+	assert.deepEqual(pluginLoadersIn(["--port", "43000"]), []);
+});
+
+test("pluginLoadersIn ignores a trailing plugin-loading flag with no value rather than throwing", () => {
+	assert.deepEqual(pluginLoadersIn(["--port", "43000", "--plugin"]), []);
+});
+
+test("pluginLoadersIn reads every occurrence across BOTH forms, in order", () => {
+	const args = ["--port", "43000", "--plugin", "/a.wasm", "--namespace", "sandbox", "--plugin=/b.wasm"];
+	assert.deepEqual(pluginLoadersIn(args), ["/a.wasm", "/b.wasm"]);
+});
+
+test("pluginLoadersIn reports --plugin's value as the bare path, unchanged", () => {
+	assert.deepEqual(pluginLoadersIn(["--plugin", "/a.wasm"]), ["/a.wasm"]);
+});
+
+test("pluginLoadersIn reports --plugin-by-hash's value TAGGED as by-hash, never as if it were a plain path", () => {
+	// <assetsDir>:<hash>:<manifestPath> is not a path — reporting it bare would be its own
+	// small lie about what was loaded.
+	const spec = "/assets:deadbeef:/manifest.json";
+	assert.deepEqual(pluginLoadersIn(["--plugin-by-hash", spec]), [`[by-hash] ${spec}`]);
+	assert.deepEqual(pluginLoadersIn([`--plugin-by-hash=${spec}`]), [`[by-hash] ${spec}`]);
+});
+
+test("pluginLoadersIn reports BOTH loader kinds together, each in its own form", () => {
+	const args = ["--plugin", "/a.wasm", "--plugin-by-hash", "/assets:h:m.json"];
+	assert.deepEqual(pluginLoadersIn(args), ["/a.wasm", "[by-hash] /assets:h:m.json"]);
 });
 
 // resolveDefaultPluginArgs is the EXACT function startSandbox calls (not a re-implementation
 // tests exercise standalone while startSandbox does something subtly different) — its
 // `existsSync` is injectable so these tests never touch the real filesystem.
 
-test("resolveDefaultPluginArgs: a caller-supplied --plugin means the default is NOT appended", () => {
-	const result = resolveDefaultPluginArgs("/repo/packages/agent/dist/agent.wasm", ["--plugin", "/caller.wasm"], {
-		existsSync: () => true,
-	});
-	assert.deepEqual(result.pluginArgs, []);
-	assert.equal(result.notice, undefined);
-});
-
-test("resolveDefaultPluginArgs: the caller's --plugin=path (= form) also suppresses the default", () => {
-	const result = resolveDefaultPluginArgs("/repo/packages/agent/dist/agent.wasm", ["--plugin=/caller.wasm"], {
-		existsSync: () => true,
-	});
-	assert.deepEqual(result.pluginArgs, []);
-});
-
-test("resolveDefaultPluginArgs: no caller --plugin and the default file exists → appends the default", () => {
+test("resolveDefaultPluginArgs: no caller plugin loader and the default file exists → appends the default", () => {
 	const result = resolveDefaultPluginArgs("/repo/packages/agent/dist/agent.wasm", [], { existsSync: () => true });
 	assert.deepEqual(result.pluginArgs, ["--plugin", "/repo/packages/agent/dist/agent.wasm"]);
 	assert.equal(result.notice, undefined);
 });
 
-test("resolveDefaultPluginArgs: no caller --plugin and the default file is MISSING → no args, a notice instead", () => {
+test("resolveDefaultPluginArgs: no caller plugin loader and the default file is MISSING → no args, a notice instead", () => {
 	const result = resolveDefaultPluginArgs("/repo/packages/agent/dist/agent.wasm", [], { existsSync: () => false });
 	assert.deepEqual(result.pluginArgs, []);
 	assert.match(result.notice, /agent plugin not found/);
@@ -578,10 +604,10 @@ test("resolveDefaultPluginArgs: plugin: null means no default, regardless of ext
 
 test("startSandbox produces exactly ONE loaded plugin end-to-end when the caller supplies --plugin, never the default too", async () => {
 	// Assembles the SAME args shape startSandbox builds (fixed flags, then
-	// resolveDefaultPluginArgs's output, then extraArgs) and confirms pluginPathsIn — the
+	// resolveDefaultPluginArgs's output, then extraArgs) and confirms pluginLoadersIn — the
 	// function startSandbox itself uses to compute the `plugins` it returns/prints — sees
-	// only the caller's path. This chains the three real, exported pieces together
-	// (resolveDefaultPluginArgs → pluginPathsIn) rather than re-asserting each in
+	// only the caller's path. This chains the two real, exported pieces together
+	// (resolveDefaultPluginArgs → pluginLoadersIn) rather than re-asserting each in
 	// isolation, so a future edit that reconnects them differently cannot pass by
 	// accident. The live daemon-spawn edge itself is proven in task-2-report.md via
 	// /proc/<pid>/cmdline against a real running sandbox, per this file's existing
@@ -590,5 +616,15 @@ test("startSandbox produces exactly ONE loaded plugin end-to-end when the caller
 	const extraArgs = ["--plugin", "/caller-chosen.wasm"];
 	const { pluginArgs } = resolveDefaultPluginArgs(defaultPlugin, extraArgs, { existsSync: () => true });
 	const finalArgs = ["--port", "43000", "--refarm-dir", "/r", ...pluginArgs, ...extraArgs];
-	assert.deepEqual(pluginPathsIn(finalArgs), ["/caller-chosen.wasm"]);
+	assert.deepEqual(pluginLoadersIn(finalArgs), ["/caller-chosen.wasm"]);
+});
+
+test("startSandbox produces exactly ONE loaded plugin end-to-end when the caller supplies --plugin-by-hash — the finding that reopened this", async () => {
+	// The precise scenario the second review described: a caller means --plugin-by-hash to
+	// be their ONLY plugin. Must not ALSO get the default --plugin agent.wasm.
+	const defaultPlugin = "/repo/packages/agent/dist/agent.wasm";
+	const extraArgs = ["--plugin-by-hash", "/assets:deadbeef:/manifest.json"];
+	const { pluginArgs } = resolveDefaultPluginArgs(defaultPlugin, extraArgs, { existsSync: () => true });
+	const finalArgs = ["--port", "43000", "--refarm-dir", "/r", ...pluginArgs, ...extraArgs];
+	assert.deepEqual(pluginLoadersIn(finalArgs), ["[by-hash] /assets:deadbeef:/manifest.json"]);
 });

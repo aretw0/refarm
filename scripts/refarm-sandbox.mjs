@@ -62,15 +62,18 @@
  *     no behavioral effect yet, but will the moment `packages/agent/src` is edited and
  *     rebuilt without a matching `refarm plugin install`. A caller may still override via
  *     `startSandbox({ plugin })` or CLI `--plugin <path>` in `extraArgs` — but NOT by
- *     "last occurrence wins": `--plugin` is `Vec<PathBuf>` in `packages/tractor/src/main.rs`
- *     (`may be repeated`), so clap-derive APPENDS every occurrence rather than letting a
- *     later one replace an earlier one — two `--plugin` flags load TWO plugins, both
- *     registered for events (`main.rs`'s boot loop, `for path in &args.plugin`), not one
- *     overriding the other. That is exactly why `--plugin` is deliberately left out of
- *     `RESERVED_FLAGS` (see `assertNoReservedFlags`'s note) rather than handled the same
- *     way as the four scalar flags: `startSandbox` detects a caller-supplied `--plugin` in
- *     `extraArgs` itself and, when present, does NOT also append the default — the
- *     caller's choice is the ONLY plugin loaded, not one of two.
+ *     "last occurrence wins": every flag in `PLUGIN_LOADING_FLAGS` (`--plugin`, and
+ *     `--plugin-by-hash` — main.rs's orphan-grant content-store loader) is a repeatable
+ *     `Vec` on the Rust side, so clap-derive APPENDS every occurrence rather than letting a
+ *     later one replace an earlier one — two loader flags load TWO plugins, both registered
+ *     for events by their own INDEPENDENT boot loops, not one overriding the other. (A
+ *     review missed `--plugin-by-hash` here once — see `PLUGIN_LOADING_FLAGS`'s doc for the
+ *     fix and where the authoritative Rust-side list lives.) That is exactly why none of
+ *     `PLUGIN_LOADING_FLAGS` is in `RESERVED_FLAGS` (see `assertNoReservedFlags`'s note)
+ *     rather than handled the same way as the four scalar flags: `startSandbox` detects a
+ *     caller-supplied plugin loader in `extraArgs` itself (`extraArgsSuppliesPlugin`) and,
+ *     when present, does NOT also append the default — the caller's choice is the ONLY
+ *     plugin loaded, not one of two.
  *
  *   - does NOT implement `status` or `--reset` (Task 3) or `refarm parity` (Task 5).
  *
@@ -251,22 +254,48 @@ export function sandboxAgentPluginPath(repoRoot) {
 	return path.join(repoRoot, "packages", "agent", "dist", "agent.wasm");
 }
 
-/** PURE. Every `--plugin` value present in an already-assembled tractor argv array (both
- * `--plugin path` and `--plugin=path` forms), in the order they appear. `--plugin` is
- * `Vec<PathBuf>` on the Rust side (`packages/tractor/src/main.rs`, "may be repeated") — this
- * is the launcher-side mirror of that: reads the SAME array passed to `spawn()`, so what a
- * caller is told was loaded can never drift from what actually was (see `startSandbox`'s
- * `loadedPlugins`). */
 /**
- * PURE. True when `extraArgs` already names a `--plugin` flag (either `--plugin path` or
- * `--plugin=path`) — the signal `startSandbox` uses to skip appending its OWN default
- * plugin. Appending both would load TWO plugins, not let the caller's override one: unlike
- * the four `RESERVED_FLAGS`, `--plugin` is `Vec<PathBuf>` on the Rust side
- * (`packages/tractor/src/main.rs`, "may be repeated"), so clap-derive APPENDS every
- * occurrence instead of a later one replacing an earlier one.
+ * THE authoritative set of CLI flags that cause `packages/tractor`'s `main.rs` to load AND
+ * register a plugin at boot — ONE named thing, read by BOTH `extraArgsSuppliesPlugin`
+ * (skip the default when the caller already named one of these) and `pluginLoadersIn`
+ * (report what was actually loaded). A future third loader flag must be added HERE, or it
+ * is honoured by neither — the exact shape `--plugin-by-hash` slipped through in: it was
+ * missed from the allowlist entirely, not deliberately scoped out, because the set lived
+ * as two separate hardcoded checks instead of one.
+ *
+ * Verified against `packages/tractor/src/main.rs` (2026-08-07) — that file is the
+ * authoritative source, not this comment; re-check it before trusting this list:
+ *   - the `#[arg(long, ...)]` declarations: `plugin: Vec<PathBuf>` (`:82`, "may be
+ *     repeated") and `plugin_by_hash: Vec<String>` (`:88`, "(repeatable)").
+ *   - the two INDEPENDENT boot-time loops in `run_daemon`, each calling `.load_plugin*()` +
+ *     `.register_for_events()` on EVERY entry, neither gated on the other running:
+ *     `for path in &args.plugin` (~`:582`) and `for spec in &args.plugin_by_hash`
+ *     (~`:612`).
+ *   - confirmed exhaustive by grepping the crate for every `register_for_events` call
+ *     site: the only other three are the respawn supervisor (reloading a CRASHED plugin,
+ *     not a new one from a flag), the sidecar's runtime plugin-install HTTP endpoint (not
+ *     a boot CLI flag), and `tractor-bench` (a different binary this launcher never
+ *     spawns) — none of them read a `--plugin*` flag.
+ *
+ * `--plugin`'s value is a real path; `--plugin-by-hash`'s is
+ * `<assetsDir>:<hash>:<manifestPath>` — NOT a path. Each entry's `describeValue` says
+ * which, so `pluginLoadersIn` never reports a hash-spec as if it were a plain plugin path.
+ */
+export const PLUGIN_LOADING_FLAGS = {
+	"--plugin": { describeValue: (value) => value },
+	"--plugin-by-hash": { describeValue: (value) => `[by-hash] ${value}` },
+};
+
+/**
+ * PURE. True when `extraArgs` already names ANY flag in `PLUGIN_LOADING_FLAGS` (either
+ * `--flag value` or `--flag=value`) — the signal `startSandbox` uses to skip appending its
+ * OWN default plugin. Appending both would load TWO plugins, not let the caller's override
+ * one: unlike the four `RESERVED_FLAGS`, every flag in `PLUGIN_LOADING_FLAGS` is a
+ * repeatable `Vec` on the Rust side, so clap-derive APPENDS every occurrence instead of a
+ * later one replacing an earlier one.
  */
 export function extraArgsSuppliesPlugin(extraArgs) {
-	return extraArgs.some((arg) => flagNameOf(arg) === "--plugin");
+	return extraArgs.some((arg) => Object.hasOwn(PLUGIN_LOADING_FLAGS, flagNameOf(arg)));
 }
 
 /**
@@ -278,9 +307,10 @@ export function extraArgsSuppliesPlugin(extraArgs) {
  * test coverage. `existsSync` is injectable so tests can drive both branches (plugin file
  * present/absent) without touching the real filesystem.
  *
- * Returns `{ pluginArgs: [], notice: undefined }` when a caller already supplied their own
- * `--plugin` — see `extraArgsSuppliesPlugin`'s doc for why appending the default on top
- * would load TWO plugins instead of letting the caller's win.
+ * Returns `{ pluginArgs: [], notice: undefined }` when a caller already supplied a plugin
+ * through ANY `PLUGIN_LOADING_FLAGS` member — see `extraArgsSuppliesPlugin`'s doc for why
+ * appending the default on top would load a SECOND plugin instead of letting the caller's
+ * be the only one.
  */
 export function resolveDefaultPluginArgs(plugin, extraArgs, { existsSync = fs.existsSync } = {}) {
 	if (!plugin || extraArgsSuppliesPlugin(extraArgs)) {
@@ -297,20 +327,32 @@ export function resolveDefaultPluginArgs(plugin, extraArgs, { existsSync = fs.ex
 	return { pluginArgs: ["--plugin", plugin], notice: undefined };
 }
 
-export function pluginPathsIn(args) {
-	const paths = [];
+/**
+ * PURE. Every plugin-loading value present in an already-assembled tractor argv array —
+ * i.e. every occurrence of any flag in `PLUGIN_LOADING_FLAGS` (both `--flag value` and
+ * `--flag=value` forms), in the order they appear, each rendered through that flag's own
+ * `describeValue` so a `--plugin-by-hash` spec is never printed/reported as if it were a
+ * plain `--plugin` path. This is the launcher-side mirror of `main.rs`'s two boot loops:
+ * reads the SAME array passed to `spawn()`, so what a caller is told was loaded (see
+ * `startSandbox`'s `plugins`) can never drift from what the daemon actually loads.
+ */
+export function pluginLoadersIn(args) {
+	const loaders = [];
 	for (let i = 0; i < args.length; i += 1) {
 		const arg = args[i];
-		if (arg === "--plugin") {
-			if (i + 1 < args.length) paths.push(args[i + 1]);
-			i += 1;
+		const name = flagNameOf(arg);
+		const descriptor = PLUGIN_LOADING_FLAGS[name];
+		if (!descriptor) continue;
+		if (arg.includes("=")) {
+			loaders.push(descriptor.describeValue(arg.slice(arg.indexOf("=") + 1)));
 			continue;
 		}
-		if (arg.startsWith("--plugin=")) {
-			paths.push(arg.slice("--plugin=".length));
+		if (i + 1 < args.length) {
+			loaders.push(descriptor.describeValue(args[i + 1]));
+			i += 1;
 		}
 	}
-	return paths;
+	return loaders;
 }
 
 /**
@@ -694,7 +736,7 @@ export async function startSandbox({
 	// added above — so what this function REPORTS loading can never drift from what it
 	// actually passes to spawn() (the exact gap that let a caller-supplied --plugin load
 	// silently alongside the default: the printed line only ever showed the default).
-	const loadedPlugins = pluginPathsIn(args);
+	const loadedPlugins = pluginLoadersIn(args);
 
 	// Every axis, in the child's own environment too — so anything the daemon itself reads
 	// from env (and any tool later invoked against this same env) resolves identically to
