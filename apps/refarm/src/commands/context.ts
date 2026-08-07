@@ -60,10 +60,36 @@
 // .ts`) reads the node's OWN `/proc/<pid>/environ` instead of reconstructing a value from
 // this CLI's `process.env`, and the report's `base`/`namespace` lines now show what THAT
 // reads, not `cliBase`/`cliNamespace` — which stay in the report as a second, clearly
-// labelled fact, never presented as the node's. Same three-states discipline as the plugin
-// comparison: a running node whose environ could not be read is `node-environment-unknown`,
-// never silently collapsed into comparing the CLI's own values against themselves and
-// reporting agreement, and never a `base-divergence` (nothing is actually known to differ).
+// labelled fact, never presented as the node's.
+//
+// THAT FIX WAS ITSELF WRONG ABOUT BASE (final fix wave, 2026-08-06 — a whole-plan review of
+// the same day's plan): `/proc/<pid>/environ` is a snapshot of what the process was EXECVE'd
+// with. It cannot see `std::env::set_var("SOVEREIGN_BASE", …)` calls `main.rs` makes to
+// ITSELF after exec, when the var arrives empty (`packages/tractor/src/main.rs`, right
+// before it calls `node_descriptor::publish_for_this_process`). So `nodeEnvironment.base` is
+// `null` whenever the daemon was not EXPLICITLY told a base — regardless of what it went on
+// to settle and actually use — and the code here used to fill that gap with
+// `nodeEnvironment.cwd`, RE-DERIVING the daemon's own fallback rule (the parent of
+// `--refarm-dir`, computed from `REFARM_HOME` or the OS home dir — never cwd; see
+// `dirs_sovereign_base` in `main.rs`) instead of reading it. Wrong rule, and a witness that
+// states the settled base directly already existed and was being read and thrown away:
+// `node.json`'s `declarationBase`, published by `main.rs` AFTER the base is settled and
+// BEFORE any declaration is read (`../utils/node-descriptor.ts`). THAT is now the PRIMARY
+// witness for the node's base (`ContextNode.declarationBase` below) — first-party, no
+// `/proc` dependency, and always present whenever a node descriptor was read at all
+// (`readNodeDescriptor` refuses one with an empty `declarationBase`), so this half of the
+// comparison is genuinely two states, not three: the node's base either matches the CLI's or
+// it does not.
+//
+// The environ read is NOT discarded — it still answers a DIFFERENT question `declarationBase`
+// alone cannot: was the node TOLD its base (`SOVEREIGN_BASE` present in its own environ) or
+// did it DERIVE the base itself (env absent, so `main.rs` computed the fallback)? That stays
+// three states in the divergence summary — told / derived / unknown (environ unreadable, a
+// GAP, not evidence either way) — never collapsed into two. Namespace has no descriptor-level
+// witness the way base now does, so `namespace-divergence` still depends entirely on the
+// environ read, same three-states discipline as the plugin comparison above: a running node
+// whose environ could not be read is `node-environment-unknown`, never silently collapsed
+// into comparing the CLI's own values against themselves and reporting agreement.
 
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
@@ -97,6 +123,14 @@ export interface ContextNode {
 	id?: string;
 	pid: number;
 	startedAt: string;
+	/** THE PRIMARY WITNESS for the node's base (final fix wave, 2026-08-06 — see this file's
+	 *  header). Where the node ACTUALLY resolves declarations against, published into
+	 *  `node.json` by `main.rs` after `SOVEREIGN_BASE` is settled and before any declaration
+	 *  is read (`../utils/node-descriptor.ts`). Required, not optional: `readNodeDescriptor`
+	 *  refuses a descriptor whose `declarationBase` is empty, so whenever `ContextNode`
+	 *  exists at all, this is a real, known value — never a third "unknown" state to guard
+	 *  against here. */
+	declarationBase: string;
 }
 
 export type DivergenceKind =
@@ -106,12 +140,15 @@ export type DivergenceKind =
 	| "unloaded-sovereign-dir"
 	| "node-not-running"
 	// The defect this task closes: `base:`/`namespace:` used to report the CLI's OWN
-	// resolved values as if they were the running node's. These three name what a direct
-	// comparison against the node's own witness (`resolveNodeEnvironment`, Task 1) can now
-	// find: the node's declared (or fallen-back) base disagreeing with the CLI's, the same
-	// for namespace, and the node being up but its environ unreadable — a GAP in the
-	// checking, never silently read as either agreement or a base divergence (see
-	// `buildContextReport`'s node-environment block).
+	// resolved values as if they were the running node's. `base-divergence` now compares the
+	// CLI's base against `ContextNode.declarationBase` — the node's own descriptor, always
+	// known when a node is running (final fix wave, 2026-08-06; see this file's header) —
+	// while `namespace-divergence` and `node-environment-unknown` still depend on the node's
+	// own `/proc/<pid>/environ` (`resolveNodeEnvironment`, Task 1), since the descriptor
+	// carries no namespace field. An unreadable environ is a GAP in the checking for
+	// namespace (and for whether the node's base was TOLD or DERIVED), never silently read
+	// as either agreement or a base divergence (see `buildContextReport`'s node-environment
+	// block).
 	| "base-divergence"
 	| "namespace-divergence"
 	| "node-environment-unknown"
@@ -133,7 +170,7 @@ export interface ContextInput {
 	 *  declarations are read against, independent of where credentials/plugins live. This is
 	 *  NOT the running node's own base; it is kept as a clearly labelled second fact,
 	 *  precisely because it used to be reported as if it were the node's (the defect this
-	 *  task closes — see `nodeEnvironment.base` and `base-divergence` below). */
+	 *  task closes — see `ContextNode.declarationBase` and `base-divergence` below). */
 	cliBase: string;
 	/** Whether `cliBase` came from the explicit `SOVEREIGN_BASE` env var this CLI process
 	 *  sees, or fell back to this CLI's own cwd. Same CLI/node split as `cliBase` itself. */
@@ -154,11 +191,15 @@ export interface ContextInput {
 	/** What the RUNNING node itself declares, read from its own `/proc/<pid>/environ` —
 	 *  Task 1's witness (`resolveNodeEnvironment`, `../utils/node-environment.ts`), reused
 	 *  verbatim (not renamed/re-derived — same rule this file already applies to `metadata`
-	 *  and `loadedPlugin`). Two DIFFERENT things collapse to `null` here, and only `node`
-	 *  above tells them apart: no running node at all (then this is trivially `null` too and
-	 *  `node-not-running` already covers it), versus a running node whose environ could not
-	 *  be read (`node-environment-unknown` — a gap in the checking, never agreement and
-	 *  never a base/namespace divergence, since nothing was actually compared). */
+	 *  and `loadedPlugin`). SECONDARY witness since the final fix wave (2026-08-06): no
+	 *  longer the source of the node's base VALUE (`ContextNode.declarationBase` is — see
+	 *  this file's header for why), but still the only witness for whether that base was
+	 *  TOLD or DERIVED, and the only witness for namespace at all. Two DIFFERENT things
+	 *  collapse to `null` here, and only `node` above tells them apart: no running node at
+	 *  all (then this is trivially `null` too and `node-not-running` already covers it),
+	 *  versus a running node whose environ could not be read (`node-environment-unknown` —
+	 *  a gap in the checking, never agreement and never a namespace divergence, since
+	 *  nothing was actually compared). */
 	nodeEnvironment: NodeEnvironment | null;
 	/** The plugin the running node's own argv names, hashed — Task 1's witness.
 	 *  `null` only when there is no running node, or it names none; see
@@ -244,42 +285,51 @@ export function buildContextReport(input: ContextInput): ContextReport {
 	// independent chain from the plugin comparison above rather than another branch fused
 	// into it — `node-not-running` must stay the whole story when there is no node (the
 	// brief's fifth case), not doubled up with a second finding about environment.
-	//
-	// THREE STATES, never two, same posture as every other comparison in this file: a running
-	// node whose environ could not be read is `node-environment-unknown` — a GAP in the
-	// checking. Falling through to compare `input.cliBase`/`cliNamespace` against themselves
-	// here would silently manufacture "agreement" out of a comparison that never happened —
-	// the exact failure shape this task exists to prevent, one level up from where
-	// `built-plugin-unknown` already prevents it for the plugin hash.
 	if (input.node) {
+		// BASE: the PRIMARY witness is `node.declarationBase` (final fix wave, 2026-08-06 —
+		// see this file's header for why `nodeEnvironment.base ?? nodeEnvironment.cwd` was
+		// wrong). It is REQUIRED on `ContextNode`, so this is genuinely two states — matches
+		// or does not — never a third "unknown" to guard against here.
+		if (input.node.declarationBase !== input.cliBase) {
+			// The environ witness answers a DIFFERENT question `declarationBase` cannot: was
+			// the node TOLD this base, or did it DERIVE the base itself? Three states, never
+			// two: told / derived / unknown (environ unreadable — a GAP, not evidence either
+			// way that it was told or that it derived).
+			const origin = !input.nodeEnvironment
+				? "whether the node was told this base or derived it itself is unknown — its " +
+					`environment (/proc/${input.node.pid}/environ) could not be read`
+				: input.nodeEnvironment.base
+					? `the node was told SOVEREIGN_BASE=${input.nodeEnvironment.base}`
+					: "the node was not told a base at all — it derived this itself";
+			divergences.push({
+				kind: "base-divergence",
+				summary:
+					`The node's base is ${input.node.declarationBase} (${origin}), but this CLI ` +
+					`resolves base to ${input.cliBase} (from ${input.cliBaseOrigin}) — they disagree.`,
+			});
+		}
+
+		// NAMESPACE: no descriptor-level witness exists for this the way `declarationBase`
+		// now exists for base, so this stays entirely dependent on the environ read — same
+		// THREE STATES, never two, posture as every other comparison in this file: a running
+		// node whose environ could not be read is `node-environment-unknown` — a GAP in the
+		// checking. Falling through to compare `input.cliNamespace` against itself here would
+		// silently manufacture "agreement" out of a comparison that never happened — the
+		// exact failure shape this task exists to prevent, one level up from where
+		// `built-plugin-unknown` already prevents it for the plugin hash.
 		if (!input.nodeEnvironment) {
 			divergences.push({
 				kind: "node-environment-unknown",
 				summary:
 					`The running node (pid ${input.node.pid}) is up, but its own environment ` +
-					`(/proc/${input.node.pid}/environ) could not be read — its declared base and ` +
-					"namespace cannot be compared to this CLI's at all. This is a gap in the " +
-					"checking, not agreement.",
+					`(/proc/${input.node.pid}/environ) could not be read — its declared namespace ` +
+					"cannot be compared to this CLI's at all (its base is compared separately, via " +
+					"the node's own descriptor, and is unaffected). This is a gap in the checking, " +
+					"not agreement.",
 			});
 		} else {
-			// The node's EFFECTIVE base: what it declared, or — when it declared nothing — the
-			// cwd it fell back to (Task 1's contract: a null `base` field means "fell back",
-			// itself worth reporting, and `/proc/<pid>/cwd` is what it fell back TO).
-			const nodeBase = input.nodeEnvironment.base ?? input.nodeEnvironment.cwd;
-			if (nodeBase !== null && nodeBase !== input.cliBase) {
-				divergences.push({
-					kind: "base-divergence",
-					summary: input.nodeEnvironment.base
-						? `The node declares SOVEREIGN_BASE=${input.nodeEnvironment.base}, but this CLI ` +
-							`resolves base to ${input.cliBase} (from ${input.cliBaseOrigin}) — they disagree.`
-						: `The node declares no SOVEREIGN_BASE — not declared, it fell back to its own ` +
-							`working directory (${input.nodeEnvironment.cwd}) — which disagrees with this ` +
-							`CLI's base ${input.cliBase} (from ${input.cliBaseOrigin}).`,
-				});
-			}
-
-			// Same shape for namespace: the node's effective value is what it declared, or the
-			// "default" `resolveTractorNamespace` itself falls back to when undeclared.
+			// The node's effective namespace is what it declared, or the "default"
+			// `resolveTractorNamespace` itself falls back to when undeclared.
 			const nodeNamespace = input.nodeEnvironment.namespace ?? "default";
 			if (nodeNamespace !== input.cliNamespace) {
 				divergences.push({
@@ -376,6 +426,7 @@ export function resolveContextInput(env = process.env, cwd = process.cwd()): Con
 		? {
 				pid: descriptor.pid,
 				startedAt: descriptor.startedAt,
+				declarationBase: descriptor.declarationBase,
 				...(descriptor.nodeName ? { name: descriptor.nodeName } : {}),
 				...(descriptor.nodeId ? { id: descriptor.nodeId } : {}),
 			}
@@ -428,16 +479,23 @@ function pluginLine(label: string, path_: string | null, sha: string | null): st
 	return `  ${label}: ${path_}  (${hash})`;
 }
 
-/** What the report shows as the node's own base — declared, honestly phrased as a fallback
- *  when undeclared, or plainly unknown when the node's environ could not be read at all.
- *  This is the fix itself: the `base:` line used to be the CLI's value; this is the NODE's. */
+/** What the report shows as the node's own base — `declarationBase` from its own descriptor,
+ *  annotated with whether it was told or derived when that can be known, or "node not
+ *  running" when there is no descriptor at all. This is the fix itself: the `base:` line
+ *  used to be the CLI's value; this is the NODE's, from the node's own first-party witness. */
 function nodeBaseLine(report: ContextReport): string {
+	// The descriptor is absent (no running node) → say so, never fall back to a
+	// reconstruction — the CRITICAL defect this task closes (see this file's header).
 	if (!report.node) return "  node base: (node not running)";
-	if (!report.nodeEnvironment) return "  node base: (unknown — the node's environment could not be read)";
-	if (report.nodeEnvironment.base) return `  node base: ${report.nodeEnvironment.base}`;
-	return report.nodeEnvironment.cwd
-		? `  node base: (not declared; the node fell back to its own working directory: ${report.nodeEnvironment.cwd})`
-		: "  node base: (not declared; the node's own working directory could not be read either)";
+	// `declarationBase` is the PRIMARY witness and is always known once a node descriptor
+	// exists. The environ read only annotates WHETHER it was told or derived — unknown when
+	// unreadable, never withheld from the base value itself.
+	const origin = !report.nodeEnvironment
+		? "  (whether it was told this or derived it itself is unknown — its environment could not be read)"
+		: report.nodeEnvironment.base
+			? ""
+			: "  (derived by the node itself — it declares no SOVEREIGN_BASE)";
+	return `  node base: ${report.node.declarationBase}${origin}`;
 }
 
 /** Same idea as `nodeBaseLine`, for namespace — the fallback here is the literal `"default"`

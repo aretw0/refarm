@@ -26,11 +26,14 @@ const METADATA: NodeContextMetadata = {
 	homesAligned: true,
 };
 
-// The node's own witness (Task 1, `../utils/node-environment.ts`) — what a running node
-// declares in its OWN `/proc/<pid>/environ`, not reconstructed from the CLI's `process.env`.
-// The `BASE` fixture below puts this in agreement with the CLI's own resolved values
-// (`cliBase`/`cliNamespace`) so the "no divergence" tests stay a true baseline; individual
-// tests override `nodeEnvironment` (or set it `null`) to construct a disagreement.
+// The node's SECONDARY witness (Task 1, `../utils/node-environment.ts`) — what a running
+// node declares in its OWN `/proc/<pid>/environ`, not reconstructed from the CLI's
+// `process.env`. Since the final fix wave (2026-08-06) this no longer supplies the base
+// VALUE (`ContextNode.declarationBase` does — see below); it only answers whether that base
+// was TOLD (`base` non-null here) or DERIVED (`base: null`) and is the sole witness for
+// namespace. The `BASE` fixture below puts this in agreement with the CLI's own resolved
+// values (`cliBase`/`cliNamespace`) so the "no divergence" tests stay a true baseline;
+// individual tests override `nodeEnvironment` (or set it `null`) to construct a disagreement.
 const NODE_ENVIRONMENT_AGREEING: NodeEnvironment = {
 	base: "/home/op",
 	sovereignDir: null,
@@ -45,7 +48,16 @@ const BASE: ContextInput = {
 	cliBaseOrigin: "SOVEREIGN_BASE",
 	cliNamespace: "default",
 	runtimeEndpoint: "http://127.0.0.1:42001",
-	node: { name: "sede", id: "abc123def456", pid: 2025451, startedAt: "2026-08-05T17:28:00Z" },
+	// `declarationBase` is the PRIMARY witness for the node's base since the final fix wave
+	// (2026-08-06) — `node.json`, published by `main.rs` after the base is settled. Set here
+	// to agree with `cliBase` for the same reason `NODE_ENVIRONMENT_AGREEING` does.
+	node: {
+		name: "sede",
+		id: "abc123def456",
+		pid: 2025451,
+		startedAt: "2026-08-05T17:28:00Z",
+		declarationBase: "/home/op",
+	},
 	nodeEnvironment: NODE_ENVIRONMENT_AGREEING,
 	loadedPlugin: { path: "/home/op/.refarm/plugins/refarm_agent/plugin.wasm", sha256: "22dbabbd" },
 	builtPluginPath: "/repo/packages/agent/dist/agent.wasm",
@@ -167,9 +179,10 @@ describe("buildContextReport", () => {
 			expect(kinds).not.toContain("node-environment-unknown");
 		});
 
-		// The live defect, reproduced: the node declares one SOVEREIGN_BASE, the CLI resolves
+		// The live defect, reproduced: the node's descriptor names one base, the CLI resolves
 		// another. The summary must name BOTH values — an operator staring at one path alone
-		// cannot tell which side is which.
+		// cannot tell which side is which. `nodeEnvironment.base` here is the "told" case —
+		// present only to prove the origin annotation reads it, not the comparison itself.
 		it("reports base-divergence naming BOTH the node's declared base and the CLI's own base", () => {
 			const r = buildContextReport({
 				...BASE,
@@ -181,22 +194,57 @@ describe("buildContextReport", () => {
 			expect(divergence).toBeDefined();
 			expect(divergence?.summary).toContain("/home/op/git/rcdc5");
 			expect(divergence?.summary).toContain("/home/op");
+			expect(divergence?.summary).toContain("told");
 		});
 
-		// The node declares NO base at all — it falls back to its own cwd. That fallback is
-		// itself worth reporting (Task 1's contract: a null FIELD means "fell back", not
-		// "nothing to say"), and when the fallback value still disagrees with the CLI, this is
-		// still a base-divergence, honestly phrased as a fallback rather than a declaration.
-		it("a node that declares no base at all still diverges on its cwd fallback, phrased honestly", () => {
+		// THE CRITICAL fix (final fix wave, 2026-08-06): the node's base comes from
+		// `node.declarationBase` — its own descriptor, published AFTER `main.rs` settles
+		// `SOVEREIGN_BASE` — NEVER reconstructed from `nodeEnvironment.cwd`. This test sets
+		// `cwd` to a value that is NEITHER `declarationBase` NOR `cliBase`: if the comparison
+		// ever again used `cwd` (the exact old bug), it would either report the wrong pair of
+		// values or miss the divergence entirely. The node declares no `SOVEREIGN_BASE` in
+		// its environ (`base: null`) — the "derived" case — and still correctly diverges on
+		// its REAL, settled base.
+		it("diverges on the node's REAL settled base (declarationBase), never on its /proc/<pid>/cwd", () => {
 			const r = buildContextReport({
 				...BASE,
+				node: { ...BASE.node!, declarationBase: "/home/op" },
 				cliBase: "/home/op/git/rcdc5",
 				cliBaseOrigin: "cwd",
-				nodeEnvironment: { ...NODE_ENVIRONMENT_AGREEING, base: null, cwd: "/home/op" },
+				nodeEnvironment: {
+					...NODE_ENVIRONMENT_AGREEING,
+					base: null,
+					cwd: "/somewhere/else/entirely",
+				},
 			});
 			const divergence = r.divergences.find((d) => d.kind === "base-divergence");
 			expect(divergence).toBeDefined();
-			expect(divergence?.summary).toContain("not declared");
+			expect(divergence?.summary).toContain("/home/op");
+			expect(divergence?.summary).toContain("/home/op/git/rcdc5");
+			expect(divergence?.summary).toContain("derived");
+			expect(divergence?.summary).not.toContain("/somewhere/else/entirely");
+		});
+
+		// SECOND fix (final fix wave, 2026-08-06): the OLD guard reconstructed the node's base
+		// as `nodeEnvironment.base ?? nodeEnvironment.cwd` and only compared when the RESULT
+		// was non-null. So when the environ read succeeded, declared no base, AND
+		// `/proc/<pid>/cwd` was itself unreadable — a state `NodeEnvironment` explicitly
+		// supports (`cwd: string | null`, independent of the environ read succeeding) — the
+		// reconstruction came out `null` and the comparison was silently skipped: two states
+		// where three belonged, inside the guard built to prevent exactly that. Using
+		// `declarationBase` removes `cwd` from the base comparison entirely, so this exact
+		// combination must still correctly compare and diverge.
+		it("still compares and diverges even when the environ declares no base AND /proc/<pid>/cwd is unreadable — the old guard silently skipped exactly this", () => {
+			const r = buildContextReport({
+				...BASE,
+				node: { ...BASE.node!, declarationBase: "/home/op" },
+				cliBase: "/home/op/git/rcdc5",
+				cliBaseOrigin: "cwd",
+				nodeEnvironment: { ...NODE_ENVIRONMENT_AGREEING, base: null, cwd: null },
+			});
+			const kinds = r.divergences.map((d) => d.kind);
+			expect(kinds).toContain("base-divergence");
+			const divergence = r.divergences.find((d) => d.kind === "base-divergence");
 			expect(divergence?.summary).toContain("/home/op");
 			expect(divergence?.summary).toContain("/home/op/git/rcdc5");
 		});
@@ -213,13 +261,17 @@ describe("buildContextReport", () => {
 			expect(divergence?.summary).toContain("default");
 		});
 
-		// THE case most likely to be got wrong (brief + task instructions, twice): the node IS
-		// running but its environ could NOT be read. A silent fallback to comparing the CLI's
-		// own values against themselves would find nothing to disagree about and report
-		// agreement — a false "clean" manufactured from a comparison that never happened. This
-		// must be `node-environment-unknown`, and specifically NOT `base-divergence` (nothing
-		// is actually known to differ) and NOT silence (agreement was never established).
-		it("an unreadable node environment is node-environment-unknown — NOT agreement, NOT a base divergence", () => {
+		// THE case most likely to be got wrong (brief + task instructions, three times now):
+		// the node IS running but its environ could NOT be read. A silent fallback to
+		// comparing the CLI's own namespace against itself would find nothing to disagree
+		// about and report agreement — a false "clean" manufactured from a comparison that
+		// never happened. This must be `node-environment-unknown`, and specifically NOT
+		// `namespace-divergence` and NOT silence (agreement was never established). Base is
+		// NOT affected (final fix wave, 2026-08-06): `declarationBase` is a separate witness
+		// from the descriptor, so it stays known and silent here (`BASE.node.declarationBase`
+		// agrees with `BASE.cliBase` by fixture construction) even though the environ read
+		// failed — proving the two questions are genuinely independent now.
+		it("an unreadable node environment is node-environment-unknown for namespace — base is UNAFFECTED, since it has its own witness", () => {
 			const r = buildContextReport({ ...BASE, nodeEnvironment: null });
 			const kinds = r.divergences.map((d) => d.kind);
 			expect(kinds).toContain("node-environment-unknown");

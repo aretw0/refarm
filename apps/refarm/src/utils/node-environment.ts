@@ -23,7 +23,15 @@ import { SOVEREIGN_BASE_KEY, SOVEREIGN_DIR_SELECTOR_KEY } from "@refarm.dev/conf
  */
 export interface NodeEnvironment {
 	/** What `SOVEREIGN_BASE_KEY` (`@refarm.dev/config`) resolves to in the node's own
-	 *  environment. `null` means the node declares no base — it falls back to its own cwd. */
+	 *  environment — i.e. whether the node was TOLD its base. `null` means the node declares
+	 *  no base in its environ; it does NOT mean the node falls back to its own cwd — the
+	 *  Rust host never derives its base from cwd (see `dirs_sovereign_base` in
+	 *  `packages/tractor/src/main.rs`: `REFARM_HOME` or the OS home dir, never
+	 *  `/proc/<pid>/cwd`), and settles the actual value with `std::env::set_var` AFTER this
+	 *  process was exec'd — invisible to a later read of this same environ. The node's
+	 *  actual, settled base is `node.json`'s `declarationBase` (`./node-descriptor.ts`), not
+	 *  this field; this field only answers whether the node was told or had to derive it
+	 *  (see `../commands/context.ts`'s header, final fix wave 2026-08-06). */
 	base: string | null;
 	/** What `SOVEREIGN_DIR_SELECTOR_KEY` (`@refarm.dev/config`) resolves to. `null` means the
 	 *  node declares no sovereign dir selector at all. */
