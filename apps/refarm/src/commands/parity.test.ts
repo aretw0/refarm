@@ -1,12 +1,18 @@
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ModelTokens } from "./model.js";
 import {
 	buildParityReport,
+	gatherNodeFacts,
 	normalizeIsolatingOverrides,
 	PARITY_AXES,
 	readTractorEngineMode,
 	resolveModelRouteFromTokens,
+	safeEngine,
+	safeModelRoute,
 	type NodeParitySnapshot,
 	type ParityInput,
+	type ParityNodeAddress,
 } from "./parity.js";
 
 // Everything a real `refarm parity` run would see when the sandbox is healthy and
@@ -419,5 +425,229 @@ describe("checkPlugin wording (Minor 6): 'different' is never described as 'disa
 		const finding = findingFor(buildParityReport(input), "plugin");
 		expect(finding.verdict).toBe("different");
 		expect(finding.summary.toLowerCase()).toContain("disagree");
+	});
+});
+
+describe("checkPlugin remedies (Minor, second review round): hash-mismatch and loaded-mismatch now name a command", () => {
+	it("neither loaded — names a concrete reinstall command", () => {
+		const input: ParityInput = {
+			operator: { ...OPERATOR, plugin: { reachable: true, loaded: false, hash: null } },
+			sandbox: { ...SANDBOX, plugin: { reachable: true, loaded: false, hash: null } },
+		};
+		const finding = findingFor(buildParityReport(input), "plugin");
+		expect(finding.summary).toContain("refarm plugin install --bundled");
+		expect(finding.summary).toContain("scripts/refarm-sandbox.mjs start");
+	});
+
+	it("one side not loaded — names the remedy for the SPECIFIC lagging side, not a generic one", () => {
+		const sandboxLagging = findingFor(
+			buildParityReport({ ...BASE, sandbox: { ...SANDBOX, plugin: { reachable: true, loaded: false, hash: null } } }),
+			"plugin",
+		);
+		expect(sandboxLagging.summary).toContain("scripts/refarm-sandbox.mjs start");
+
+		const operatorLagging = findingFor(
+			buildParityReport({ ...BASE, operator: { ...OPERATOR, plugin: { reachable: true, loaded: false, hash: null } } }),
+			"plugin",
+		);
+		expect(operatorLagging.summary).toContain("refarm plugin install --bundled");
+	});
+
+	it("hash mismatch — names a rebuild-then-reinstall command", () => {
+		const input: ParityInput = {
+			...BASE,
+			sandbox: { ...SANDBOX, plugin: { reachable: true, loaded: true, hash: "deadbeef".repeat(8) } },
+		};
+		const finding = findingFor(buildParityReport(input), "plugin");
+		expect(finding.summary).toContain("pnpm --filter @refarm.dev/agent run build");
+		expect(finding.summary).toContain("refarm plugin install --bundled");
+	});
+});
+
+// ---------------------------------------------------------------------------------------
+// blindTo (Important 1 + 2, second review round): the engine and model-route axes answer
+// with full confidence from a source known to be PARTIAL, and the prior fix documented that
+// only in JSDoc — invisible to a human reading output or a script gating on `.healthy`.
+// `blindTo` makes it a value on every finding instead.
+// ---------------------------------------------------------------------------------------
+
+describe("ParityFinding.blindTo — the partial-observation gaps are DATA, not prose", () => {
+	it("engine is blind to env, cwd-config and graph-config — the three layers that outrank the home file it reads", () => {
+		const finding = findingFor(buildParityReport(BASE), "engine");
+		expect(finding.blindTo).toEqual(["env", "cwd-config", "graph-config"]);
+	});
+
+	it("model-route is blind to env — the daemon's own live launch environment", () => {
+		const finding = findingFor(buildParityReport(BASE), "model-route");
+		expect(finding.blindTo).toEqual(["env"]);
+	});
+
+	it("plugin and namespace have no known blind spot — plugin asks the live daemon, namespace is declared, not layered", () => {
+		const report = buildParityReport(BASE);
+		expect(findingFor(report, "plugin").blindTo).toEqual([]);
+		expect(findingFor(report, "namespace").blindTo).toEqual([]);
+	});
+
+	it("blindTo is present regardless of verdict — a property of the AXIS, not of one comparison's outcome", () => {
+		const divergent = findingFor(
+			buildParityReport({ ...BASE, sandbox: { ...SANDBOX, engine: "ts" } }),
+			"engine",
+		);
+		expect(divergent.blindTo).toEqual(["env", "cwd-config", "graph-config"]);
+	});
+
+	it("a same verdict on a partially-observed axis says so in its own summary, not just via the blindTo field", () => {
+		const finding = findingFor(buildParityReport(BASE), "engine");
+		expect(finding.verdict).toBe("same");
+		expect(finding.blindTo.length).toBeGreaterThan(0);
+		expect(finding.summary.toLowerCase()).toContain("not proof");
+	});
+
+	it("healthy's formula is UNCHANGED by blindTo — a caller wanting full confidence must additionally check blindTo.length===0 itself", () => {
+		const finding = findingFor(buildParityReport(BASE), "engine");
+		expect(finding.verdict).toBe("same");
+		expect(finding.healthy).toBe(true);
+		expect(finding.blindTo).not.toEqual([]);
+		// healthy is true DESPITE a non-empty blindTo — this file does not silently downgrade
+		// a mirrored-axis match just because its source is partial; it hands the caller the
+		// datum to decide with, per the review's own instruction not to invent a threshold.
+	});
+});
+
+// ---------------------------------------------------------------------------------------
+// Important 3 (second review round): coverage at the WIRING seam, one layer below the pure
+// core — where both Criticals actually lived. `gatherNodeFacts`/`safeEngine`/`safeModelRoute`
+// are exported specifically so this is provable with two literal `ParityNodeAddress`es and
+// injected readers keyed by path, never a live filesystem, daemon, or two live processes.
+// ---------------------------------------------------------------------------------------
+
+const OPERATOR_ADDRESS: ParityNodeAddress = {
+	label: "operator",
+	refarmHome: "/home/op/.refarm",
+	siloIdentityPath: "/home/op/.silo/identity.json",
+	namespace: "default",
+	sidecarUrl: "http://127.0.0.1:42001",
+};
+
+const SANDBOX_ADDRESS: ParityNodeAddress = {
+	label: "sandbox",
+	refarmHome: "/repo/.sandbox/refarm",
+	siloIdentityPath: "/repo/.sandbox/silo/identity.json",
+	namespace: "sandbox",
+	sidecarUrl: "http://127.0.0.1:43001",
+};
+
+describe("safeEngine — the address's OWN refarmHome, never a shared path (wiring seam)", () => {
+	it("two DIFFERENT addresses with an injected readFile keyed by path resolve DIFFERENT engines", () => {
+		const files = new Map<string, string>([
+			[path.join(OPERATOR_ADDRESS.refarmHome, "config.json"), JSON.stringify({ tractor: { engine: "rust" } })],
+			[path.join(SANDBOX_ADDRESS.refarmHome, "config.json"), JSON.stringify({ tractor: { engine: "ts" } })],
+		]);
+		const readFile = (p: string) => {
+			const content = files.get(p);
+			if (content === undefined) throw new Error(`ENOENT: ${p}`);
+			return content;
+		};
+		expect(safeEngine(OPERATOR_ADDRESS, readFile)).toBe("rust");
+		expect(safeEngine(SANDBOX_ADDRESS, readFile)).toBe("ts");
+	});
+});
+
+describe("safeModelRoute — the address's OWN siloIdentityPath, never a shared path (wiring seam)", () => {
+	it("two DIFFERENT addresses with an injected loadTokens keyed by path resolve DIFFERENT routes", async () => {
+		const tokensByPath = new Map<string, ModelTokens>([
+			[OPERATOR_ADDRESS.siloIdentityPath, { modelProvider: "openai-codex", modelId: "gpt-5.5" }],
+			[SANDBOX_ADDRESS.siloIdentityPath, { modelProvider: "anthropic", modelId: "claude-sonnet-5" }],
+		]);
+		const loadTokens = async (p: string): Promise<ModelTokens> => tokensByPath.get(p) ?? {};
+		const operatorRoute = await safeModelRoute(OPERATOR_ADDRESS, loadTokens);
+		const sandboxRoute = await safeModelRoute(SANDBOX_ADDRESS, loadTokens);
+		expect(operatorRoute?.ref).toBe("openai-codex/gpt-5.5");
+		expect(sandboxRoute?.ref).toBe("anthropic/claude-sonnet-5");
+	});
+});
+
+describe("gatherNodeFacts — THE layer where both Criticals lived: proven fixed with literal addresses and injected readers", () => {
+	it("engine: two literal addresses, one injected readEngineConfig keyed by path, produce DIFFERENT snapshots", async () => {
+		const files = new Map<string, string>([
+			[path.join(OPERATOR_ADDRESS.refarmHome, "config.json"), JSON.stringify({ tractor: { engine: "rust" } })],
+			[path.join(SANDBOX_ADDRESS.refarmHome, "config.json"), JSON.stringify({ tractor: { engine: "ts" } })],
+		]);
+		const readEngineConfig = (p: string) => {
+			const content = files.get(p);
+			if (content === undefined) throw new Error(`ENOENT: ${p}`);
+			return content;
+		};
+		const deps = {
+			readEngineConfig,
+			loadTokens: async (): Promise<ModelTokens> => ({}),
+			fetchPluginState: async () => ({ reachable: false as const }),
+		};
+		const operatorFacts = await gatherNodeFacts("operator", OPERATOR_ADDRESS, deps);
+		const sandboxFacts = await gatherNodeFacts("sandbox", SANDBOX_ADDRESS, deps);
+		expect(operatorFacts.engine).toBe("rust");
+		expect(sandboxFacts.engine).toBe("ts");
+	});
+
+	it("model-route: two literal addresses, one injected loadTokens keyed by path, produce DIFFERENT snapshots", async () => {
+		const tokensByPath = new Map<string, ModelTokens>([
+			[OPERATOR_ADDRESS.siloIdentityPath, { modelProvider: "openai-codex", modelId: "gpt-5.5" }],
+			[SANDBOX_ADDRESS.siloIdentityPath, { modelProvider: "anthropic", modelId: "claude-sonnet-5" }],
+		]);
+		const deps = {
+			readEngineConfig: () => {
+				throw new Error("ENOENT");
+			},
+			loadTokens: async (p: string): Promise<ModelTokens> => tokensByPath.get(p) ?? {},
+			fetchPluginState: async () => ({ reachable: false as const }),
+		};
+		const operatorFacts = await gatherNodeFacts("operator", OPERATOR_ADDRESS, deps);
+		const sandboxFacts = await gatherNodeFacts("sandbox", SANDBOX_ADDRESS, deps);
+		expect(operatorFacts.modelRoute?.ref).toBe("openai-codex/gpt-5.5");
+		expect(sandboxFacts.modelRoute?.ref).toBe("anthropic/claude-sonnet-5");
+	});
+
+	it("plugin: a per-call fetchPluginState receives the address it was called for, not a shared one", async () => {
+		const seen: string[] = [];
+		const deps = {
+			readEngineConfig: () => {
+				throw new Error("ENOENT");
+			},
+			loadTokens: async (): Promise<ModelTokens> => ({}),
+			fetchPluginState: async (address: ParityNodeAddress) => {
+				seen.push(address.sidecarUrl);
+				return { reachable: false as const };
+			},
+		};
+		await gatherNodeFacts("operator", OPERATOR_ADDRESS, deps);
+		await gatherNodeFacts("sandbox", SANDBOX_ADDRESS, deps);
+		expect(seen).toEqual([OPERATOR_ADDRESS.sidecarUrl, SANDBOX_ADDRESS.sidecarUrl]);
+	});
+
+	it("an address of null (no node found) never reaches any injected reader — no facts to gather", async () => {
+		const readEngineConfig = vi.fn(() => {
+			throw new Error("should never be called");
+		});
+		const facts = await gatherNodeFacts("sandbox", null, { readEngineConfig });
+		expect(readEngineConfig).not.toHaveBeenCalled();
+		expect(facts).toEqual({ label: "sandbox", namespace: null, engine: null, modelRoute: null, plugin: { reachable: false } });
+	});
+
+	it("with readEngineConfig/loadTokens omitted, gatherNodeFacts falls back to the real readers — proves the injection is purely additive", async () => {
+		// Genuinely exercises the real fs (readTractorEngineMode's default readFile) and the
+		// real SiloCore against a path that does not exist — both degrade gracefully rather
+		// than throwing, matching their own documented contracts. `fetchPluginState` is still
+		// injected here so this test performs no real network I/O at all.
+		const facts = await gatherNodeFacts(
+			"operator",
+			{
+				...OPERATOR_ADDRESS,
+				refarmHome: "/nonexistent/path/for/this/test/only",
+				siloIdentityPath: "/nonexistent/path/for/this/test/only/identity.json",
+			},
+			{ fetchPluginState: async () => ({ reachable: false as const }) },
+		);
+		expect(facts.engine).toBe("auto");
+		expect(facts.plugin).toEqual({ reachable: false });
 	});
 });

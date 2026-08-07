@@ -100,12 +100,58 @@
 //    daemon's own launch, without ALSO being reflected in its copied token file, is invisible
 //    to this axis. See `resolveModelRouteFromTokens`'s own doc for the same point in place.
 //
+// A SECOND REVIEW ROUND FOUND A DIFFERENT DEFECT IN THE SAME TWO AXES, one layer up from the
+// Criticals: `readTractorEngineMode` and `resolveModelRouteFromTokens` are each a DELIBERATE,
+// KNOWN-PARTIAL observation (see their own doc comments for why), and that partiality was
+// documented richly in JSDoc and NOWHERE a human or script reading `--json`/human output would
+// ever see it — a `same` verdict produced from a partial source looked byte-for-byte identical
+// to a `same` produced from a complete one. `ParityFinding.blindTo` (and the static
+// `OBSERVATION_BLIND_SPOTS` table below) closes that: every finding now carries, as data, what
+// its own axis's observation CANNOT see, so a caller can tell a fully-observed `same` from a
+// partially-observed one without reading this file's comments at all. Traced against the REAL
+// resolution chain, not assumed:
+//
+// - ENGINE: `session-launch.ts`'s `readTractorEngineModeAsync` → `resolveTractorEngineModeAsync`
+//   (`../utils/runtime-config.ts`) → `resolveRuntimeConfigValueAsync`
+//   (`packages/runtime/src/config.ts:72-97`) resolves, in STRICT priority order: (1) the
+//   `REFARM_TRACTOR_ENGINE` env probe (`:76-77`, checked and returned FIRST, before anything
+//   else is even read); (2) `options.resolveConfig()` — `resolveSovereignConfig`
+//   (`../utils/sovereign-config.ts:6-26`), which ITSELF checks cwd `.refarm/config.json` before
+//   the replicated `RefarmConfig` graph node; (3) `options.fallbackConfigs` — the home
+//   `config.json` (`homeConfigFallback`, `runtime-config.ts`) — THE ONE LAYER
+//   `readTractorEngineMode` reads; (4) `spec.default` (`"auto"`). So this axis's `blindTo` is
+//   `["env", "cwd-config", "graph-config"]` — three layers that all OUTRANK the one file this
+//   axis actually reads, any of which can carry the daemon's REAL launched engine while the
+//   home file stays silent (or stale) and this axis still reports a confident `same`.
+// - MODEL-ROUTE: `resolveModelRouteFromTokens` reads only the copied Silo token FILE — never
+//   either daemon's own live process environment (`MODEL_PROVIDER`, `MODEL_ID`, …, which CAN
+//   be exported directly into a daemon's launch without ever being written back into that
+//   file). `blindTo` is `["env"]`.
+// - PLUGIN and NAMESPACE keep `blindTo: []` — plugin's signal IS the live daemon itself (no
+//   layer above a direct query), and namespace is DECLARED by this command from the launch
+//   recipe rather than read from a layered resolver at all (see the `/proc/<pid>/environ` note
+//   below) — there is no known higher-priority source it silently defers to.
+//
+// This does NOT change `healthy`'s formula — `blindTo` is orthogonal to whether a verdict is
+// the healthy one for its axis, deliberately: a caller that wants ONLY fully-observed
+// comparisons can additionally require `blindTo.length === 0` on top of `.healthy`, without
+// this file guessing what threshold of confidence that caller needs.
+//
 // Neither Critical was caught by the original 20 tests because they drove `buildParityReport`
-// directly with literal snapshots — bypassing `safeEngine`/`safeModelRoute`/`resolveParityInput`
-// entirely, so a shared-input bug in THOSE functions had nothing that could catch it.
-// `readTractorEngineMode` and `resolveModelRouteFromTokens` are now exported specifically so a
-// test can drive THEM with literals (an injectable `readFile` for the former, a stubbed
-// `process.env` for the latter) and prove the sharing is gone — see `parity.test.ts`.
+// directly with literal snapshots — bypassing `safeEngine`/`safeModelRoute`/`gatherNodeFacts`/
+// `resolveParityInput` entirely, so a shared-input bug in THOSE functions had nothing that
+// could catch it. `readTractorEngineMode` and `resolveModelRouteFromTokens` are exported so a
+// test can drive THEM with literals (an injectable `readFile`, a stubbed `process.env`) and
+// prove the sharing is gone at the PURE level — see `parity.test.ts`. A later review round
+// asked for coverage one layer further out too: `gatherNodeFacts` and its per-axis helpers
+// (`safeEngine`, `safeModelRoute`) now take an OPTIONAL, injectable `deps` argument
+// (`ParityGatherDeps`) and are exported, so a test can prove "each node's facts come from that
+// node's OWN address" directly — two literal `ParityNodeAddress`es, two fake readers keyed by
+// path, asserting the results differ — without a live filesystem, a live daemon, or two live
+// processes. `resolveOperatorAddress`/`resolveSandboxAddress` (the layer that BUILDS an
+// address from env/cwd/the sandbox launch recipe) stay unexported and untested directly — the
+// same accepted split `resolveContextInput` documents for itself, and neither of the two
+// Criticals lived there: both lived in what happened AFTER an address existed.
 //
 // OBSERVATION SOURCE, named per axis (`OBSERVATION_SOURCE`, and carried on every
 // `ParityFinding` as `observedVia`). Only `plugin` asks either daemon anything at all (`GET
@@ -201,6 +247,14 @@ export type ParityVerdict = "same" | "different" | "unreadable";
  *  (`namespace` only — see the header's `/proc/<pid>/environ` note). */
 export type ParityObservationSource = "daemon" | "config" | "declared";
 
+/** A named layer or live signal a `ParityObservationSource` of `"config"`/`"declared"` does
+ *  NOT consult, ranked ABOVE the source it does read in the real resolution chain — see this
+ *  file's header, "A SECOND REVIEW ROUND", for the trace behind each entry. `"env"`: neither
+ *  daemon's own live process environment. `"cwd-config"` / `"graph-config"`: the two layers
+ *  `resolveSovereignConfig`/`session-launch.ts` check before the home `config.json` this file
+ *  reads for `engine`. */
+export type ParityBlindSpot = "env" | "cwd-config" | "graph-config";
+
 /** THE DEFAULT declaration of which axes the sandbox is SUPPOSED to isolate. `true` means
  *  "different" is the healthy verdict for this axis; everything else means "same" is. See
  *  this file's header for why only `namespace` is `true` by default, and "THE ESCAPE HATCH"
@@ -217,6 +271,17 @@ const OBSERVATION_SOURCE: Record<ParityAxis, ParityObservationSource> = {
 	plugin: "daemon",
 	engine: "config",
 	namespace: "declared",
+};
+
+/** THE machine-readable declaration of what each axis's observation CANNOT see — see this
+ *  file's header, "A SECOND REVIEW ROUND", for the traced resolution chain behind each entry.
+ *  Static, like `OBSERVATION_SOURCE` — a property of the AXIS, not of any one comparison's
+ *  outcome, so it appears on every finding for that axis regardless of verdict. */
+const OBSERVATION_BLIND_SPOTS: Record<ParityAxis, ParityBlindSpot[]> = {
+	"model-route": ["env"],
+	plugin: [],
+	engine: ["env", "cwd-config", "graph-config"],
+	namespace: [],
 };
 
 /** Per-axis policy for one `buildParityReport` call — `isolating`'s resolved value (default
@@ -248,6 +313,12 @@ export interface ParityFinding {
 	isolatingSource: "default" | "override";
 	/** How this axis's facts were obtained — see `ParityObservationSource`'s own doc. */
 	observedVia: ParityObservationSource;
+	/** What this axis's observation CANNOT see — empty when nothing is known to be missing.
+	 *  See `ParityBlindSpot`'s own doc. A `same` verdict with a non-empty `blindTo` is a
+	 *  `same` from a PARTIAL source — never presented with the same confidence as one with
+	 *  `blindTo: []`. A caller that wants only fully-observed comparisons can additionally
+	 *  require `blindTo.length === 0` on top of `.healthy`. */
+	blindTo: ParityBlindSpot[];
 	verdict: ParityVerdict;
 	/** The one field a caller who only wants the bottom line needs: "same" for a mirrored
 	 *  axis, "different" for an isolating one, and NEVER true for "unreadable" — an axis
@@ -321,6 +392,7 @@ function finding(
 		isolating: policy.isolating,
 		isolatingSource: policy.isolatingSource,
 		observedVia: OBSERVATION_SOURCE[axis],
+		blindTo: OBSERVATION_BLIND_SPOTS[axis],
 		verdict,
 		healthy,
 		operator,
@@ -384,7 +456,9 @@ function checkEngine(input: ParityInput, policy: AxisPolicy): ParityFinding {
 	const verdict: ParityVerdict = operator.engine === sandbox.engine ? "same" : "different";
 	const summary =
 		verdict === "same"
-			? `Both nodes resolve tractor engine mode to "${operator.engine}".`
+			? `Both nodes' home config.json agree on tractor engine mode "${operator.engine}" — but this ` +
+				"reads only the home file (see blindTo: env/cwd-config/graph-config all outrank it on a " +
+				"real daemon), so this is NOT proof the two daemons actually launched with the same engine."
 			: `Tractor engine mode differs (operator "${operator.engine}" vs sandbox "${sandbox.engine}") — ` +
 				"UNDECLARED: engine mode is not one of the sandbox's isolating axes, so this was not supposed to " +
 				"differ. To close the gap deliberately, set it on the lagging side (`refarm config set " +
@@ -410,8 +484,10 @@ function checkModelRoute(input: ParityInput, policy: AxisPolicy): ParityFinding 
 	const opLabel = `${operator.modelRoute.ref} (${operator.modelRoute.credentialState})`;
 	const sbLabel = `${sandbox.modelRoute.ref} (${sandbox.modelRoute.credentialState})`;
 	const summary = same
-		? `Both nodes resolve the same model route (${operator.modelRoute.ref}) with the same credential ` +
-			"state — the sandbox is inheriting the operator's credentials as designed (Task 2)."
+		? `Both nodes' copied credential FILES resolve the same model route (${operator.modelRoute.ref}) ` +
+			"with the same credential state — the sandbox is inheriting the operator's credentials as " +
+			"designed (Task 2). This reads only the file (blindTo: env) — an override exported directly " +
+			"into either daemon's own launch, without being reflected in that file, would not show here."
 		: `Configured model route differs (operator ${opLabel} vs sandbox ${sbLabel}) — UNDECLARED: the ` +
 			"sandbox is supposed to inherit the SAME provider by copying credentials, so this was not supposed " +
 			"to differ. Re-run `node scripts/refarm-sandbox.mjs start` to re-sync the sandbox's copied " +
@@ -462,12 +538,18 @@ function checkPlugin(input: ParityInput, policy: AxisPolicy): ParityFinding {
 			describePluginFact(operator.plugin),
 			describePluginFact(sandbox.plugin),
 			"Neither node has the agent plugin loaded (both report loaded:false from their own sidecar) — " +
-				"this is not one of the isolating axes: both nodes are expected to actually serve requests.",
+				"this is not one of the isolating axes: both nodes are expected to actually serve requests. " +
+				"Reinstall on each side (`refarm plugin install --bundled --json`, run with that node's " +
+				"REFARM_HOME — restarting the sandbox via `node scripts/refarm-sandbox.mjs start` reinstalls " +
+				"it there automatically) and re-run this comparison.",
 			policy,
 		);
 	}
 	if (!operator.plugin.loaded || !sandbox.plugin.loaded) {
 		const who = !operator.plugin.loaded ? "the operator's node" : "the sandbox";
+		const remedy = !operator.plugin.loaded
+			? "`refarm plugin install --bundled --json`, run with the operator's REFARM_HOME"
+			: "`node scripts/refarm-sandbox.mjs start` (reinstalls the sandbox's plugin on every start)";
 		return finding(
 			"plugin",
 			"different",
@@ -475,7 +557,8 @@ function checkPlugin(input: ParityInput, policy: AxisPolicy): ParityFinding {
 			describePluginFact(sandbox.plugin),
 			`The running daemons disagree on whether the agent is loaded — ${who} does not have it loaded. ` +
 				"This is not one of the isolating axes: both nodes are expected to actually serve requests, and a " +
-				"plugin FILE sitting in the right place is not the same claim as the daemon reporting it loaded.",
+				`plugin FILE sitting in the right place is not the same claim as the daemon reporting it loaded. ` +
+				`Reinstall on the lagging side: ${remedy}.`,
 			policy,
 		);
 	}
@@ -495,7 +578,10 @@ function checkPlugin(input: ParityInput, policy: AxisPolicy): ParityFinding {
 		? `Both nodes have the agent plugin loaded with the same hash (${shortHash(operator.plugin.hash)}).`
 		: `Both nodes have the agent plugin loaded, but the bytes differ (operator ${shortHash(operator.plugin.hash)} ` +
 			`vs sandbox ${shortHash(sandbox.plugin.hash)}) — UNDECLARED: the sandbox is supposed to run the same ` +
-			"build (Task 2's decision — the working tree's build), so this is worth reinstalling for.";
+			"build (Task 2's decision — the working tree's build), so this is worth reinstalling for. Rebuild " +
+			"the agent (`pnpm --filter @refarm.dev/agent run build`) then reinstall on the lagging side: " +
+			"`refarm plugin install --bundled --json` for the operator, or `node scripts/refarm-sandbox.mjs " +
+			"start` for the sandbox (reinstalls on every start).";
 	return finding(
 		"plugin",
 		same ? "same" : "different",
@@ -618,7 +704,11 @@ export function normalizeIsolatingOverrides(
 
 const PARITY_SIDECAR_TIMEOUT_MS = 3_000;
 
-interface ParityNodeAddress {
+/** What this file needs to REACH one node — never a credential, never a live process
+ *  handle. Exported (Important 3, second review round) so `gatherNodeFacts` can be tested
+ *  directly with two literal addresses rather than only through the real, impure
+ *  `resolveOperatorAddress`/`resolveSandboxAddress`. */
+export interface ParityNodeAddress {
 	label: "operator" | "sandbox";
 	refarmHome: string;
 	siloIdentityPath: string;
@@ -699,24 +789,46 @@ function resolveOperatorAddress(env: NodeJS.ProcessEnv, cwd: string): ParityNode
 	}
 }
 
-function safeEngine(address: ParityNodeAddress): string | null {
+/**
+ * PURE. Reads `<refarmHome>/config.json` via `readFile` (default: real fs). Exported
+ * (Important 3, second review round) so a test can pass `address.refarmHome` from TWO
+ * literal `ParityNodeAddress`es into this SAME function with a `readFile` keyed by path, and
+ * prove the result differs per-node — the exact property "each node's facts come from that
+ * node's own address" that the two Criticals broke and the first round of regression tests
+ * (on `readTractorEngineMode` alone) could not, by construction, exercise.
+ */
+export function safeEngine(
+	address: ParityNodeAddress,
+	readFile?: (filePath: string) => string,
+): string | null {
 	try {
-		return readTractorEngineMode(address.refarmHome);
+		return readTractorEngineMode(address.refarmHome, readFile);
 	} catch {
 		return null;
 	}
 }
 
-async function safeModelRoute(
+/**
+ * PURE (given `loadTokens`; the default constructs a real `SiloCore` keyed by
+ * `address.siloIdentityPath`, the one piece of real I/O this function performs). `loadTokens`
+ * is injectable for the identical reason `readFile` is on `safeEngine` — see that function's
+ * doc.
+ */
+export async function safeModelRoute(
 	address: ParityNodeAddress,
+	loadTokens: (siloIdentityPath: string) => Promise<ModelTokens> = defaultLoadTokens,
 ): Promise<{ ref: string; credentialState: string } | null> {
 	try {
-		const silo = new SiloCore({ storagePath: address.siloIdentityPath });
-		const tokens = (await silo.loadTokens()) as ModelTokens;
+		const tokens = await loadTokens(address.siloIdentityPath);
 		return resolveModelRouteFromTokens(tokens);
 	} catch {
 		return null;
 	}
+}
+
+async function defaultLoadTokens(siloIdentityPath: string): Promise<ModelTokens> {
+	const silo = new SiloCore({ storagePath: siloIdentityPath });
+	return (await silo.loadTokens()) as ModelTokens;
 }
 
 async function safePluginFact(address: ParityNodeAddress): Promise<PluginRuntimeFact> {
@@ -737,17 +849,36 @@ async function safePluginFact(address: ParityNodeAddress): Promise<PluginRuntime
 	}
 }
 
-async function gatherNodeFacts(
+/** Injectable seams for `gatherNodeFacts`/`resolveParityInput` — each defaults to the real
+ *  I/O (`safeEngine`'s real `readFile`, `safeModelRoute`'s real `SiloCore`, the real sidecar
+ *  fetch) so ordinary callers (the CLI action) see no behavior change at all; a test supplies
+ *  fakes keyed by `address.refarmHome`/`address.siloIdentityPath` to prove the wiring below
+ *  threads each node's OWN address through, never a shared value. */
+export interface ParityGatherDeps {
+	readEngineConfig?: (filePath: string) => string;
+	loadTokens?: (siloIdentityPath: string) => Promise<ModelTokens>;
+	fetchPluginState?: (address: ParityNodeAddress) => Promise<PluginRuntimeFact>;
+}
+
+/**
+ * Combines one node's `ParityNodeAddress` with the (optionally injected) readers above into
+ * its `NodeParitySnapshot`. Exported (Important 3, second review round) — THIS is the layer
+ * where both Criticals actually lived: the property under test is "each node's facts come
+ * from that node's own address", provable here with two literal addresses and injected
+ * readers, without a live filesystem, a live daemon, or two live processes.
+ */
+export async function gatherNodeFacts(
 	label: "operator" | "sandbox",
 	address: ParityNodeAddress | null,
+	deps: ParityGatherDeps = {},
 ): Promise<NodeParitySnapshot> {
 	if (!address) {
 		return { label, namespace: null, engine: null, modelRoute: null, plugin: { reachable: false } };
 	}
 	const [engine, modelRoute, plugin] = await Promise.all([
-		Promise.resolve(safeEngine(address)),
-		safeModelRoute(address),
-		safePluginFact(address),
+		Promise.resolve(safeEngine(address, deps.readEngineConfig)),
+		safeModelRoute(address, deps.loadTokens),
+		deps.fetchPluginState ? deps.fetchPluginState(address) : safePluginFact(address),
 	]);
 	return { label, namespace: address.namespace, engine, modelRoute, plugin };
 }
@@ -755,12 +886,13 @@ async function gatherNodeFacts(
 export async function resolveParityInput(
 	cwd: string = process.cwd(),
 	env: NodeJS.ProcessEnv = process.env,
+	deps: ParityGatherDeps = {},
 ): Promise<ParityInput> {
 	const operatorAddress = resolveOperatorAddress(env, cwd);
 	const sandboxAddress = await resolveSandboxAddress(cwd);
 	const [operator, sandbox] = await Promise.all([
-		gatherNodeFacts("operator", operatorAddress),
-		gatherNodeFacts("sandbox", sandboxAddress),
+		gatherNodeFacts("operator", operatorAddress, deps),
+		gatherNodeFacts("sandbox", sandboxAddress, deps),
 	]);
 	return { operator, sandbox };
 }
@@ -777,8 +909,9 @@ function printParityHuman(report: ParityReport): void {
 	for (const f of report.findings) {
 		const tag = f.isolating ? "isolating" : "mirrored";
 		const declared = f.isolatingSource === "override" ? ", declared this run" : "";
+		const blind = f.blindTo.length > 0 ? `, blind to: ${f.blindTo.join("/")}` : "";
 		console.log(
-			`  ${verdictColor(f)(f.verdict.padEnd(11))} [${tag}${declared}] ${f.axis}  (observed via ${f.observedVia})`,
+			`  ${verdictColor(f)(f.verdict.padEnd(11))} [${tag}${declared}] ${f.axis}  (observed via ${f.observedVia}${blind})`,
 		);
 		console.log(`    operator: ${f.operator}`);
 		console.log(`    sandbox : ${f.sandbox}`);
