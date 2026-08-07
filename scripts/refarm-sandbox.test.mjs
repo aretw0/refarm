@@ -27,6 +27,7 @@ import {
 	copySandboxCredentials,
 	extraArgsSuppliesPlugin,
 	forbiddenResetTargets,
+	installSandboxAgentPlugin,
 	interpretPluginInstallEnvelope,
 	minimalCredentialTokens,
 	OPERATOR_SILO_IDENTITY_PATH,
@@ -36,7 +37,9 @@ import {
 	pluginLoadersIn,
 	resetSandbox,
 	resolveDefaultPluginArgs,
+	resolveEffectivePlugin,
 	RESERVED_FLAGS,
+	SANDBOX_HOME_DIR_NAME,
 	SANDBOX_HTTP_PORT,
 	SANDBOX_LOG_FILE_NAME,
 	SANDBOX_NAMESPACE,
@@ -208,6 +211,27 @@ test("sandboxEnvironment declares SILO_HOME, a sibling of REFARM_HOME/XDG_DATA_H
 		!env.SILO_HOME.startsWith(env.REFARM_HOME + path.sep),
 		"must not be nested inside REFARM_HOME — a sibling, like XDG_DATA_HOME",
 	);
+});
+
+// ---- Code review follow-up: a live check found `refarm plugin install --bundled`'s
+// content-store write (`scopedAssetsDir("user")`, packages/storage-fs/src/scope.ts) reads
+// ONLY `os.homedir()` — none of the other five declared axes — and lands in the OPERATOR's
+// real ~/.refarm/assets/. HOME is the sixth declaration that closes it. ----
+
+test("sandboxEnvironment declares HOME, a sibling of the other five axes, matching SANDBOX_HOME_DIR_NAME", () => {
+	const { env } = sandboxEnvironment(REPO_ROOT);
+	assert.equal(env.HOME, path.join(REPO_ROOT, ".sandbox", SANDBOX_HOME_DIR_NAME));
+	assert.notEqual(env.HOME, env.REFARM_HOME);
+	assert.notEqual(env.HOME, env.SILO_HOME);
+	assert.ok(
+		!env.HOME.startsWith(env.REFARM_HOME + path.sep),
+		"must not be nested inside REFARM_HOME — a sibling, like the other declared axes",
+	);
+});
+
+test("sandboxEnvironment: HOME never equals the real OS home directory, for any repoRoot", () => {
+	const { env } = sandboxEnvironment(REPO_ROOT);
+	assert.notEqual(env.HOME, os.homedir());
 });
 
 test("OPERATOR_SILO_IDENTITY_PATH points at ~/.silo/identity.json — the durable source, read-only", () => {
@@ -1562,6 +1586,40 @@ test("interpretPluginInstallEnvelope: picks the AGENT's result specifically, not
 	assert.equal(result.wasmPath, "/right.wasm");
 });
 
+test("interpretPluginInstallEnvelope: envelope.ok:false does NOT fail the agent when the agent's OWN status is installed", () => {
+	// The exact scenario a code review found uncovered: buildInstallReport sets the
+	// envelope's global `ok:false` the moment ANY bundled plugin fails — BUNDLED_PLUGINS is
+	// one member (the agent) today but is a LIST, and this function must gate on the
+	// AGENT's own result, not the envelope's aggregate `ok`, or a second bundled plugin
+	// failing degrades the sandbox to no-plugin for a reason unrelated to the agent.
+	const envelope = {
+		ok: false,
+		message: "plugin-install-failed",
+		plugins: [
+			{ id: "@refarm/agent", status: "installed", installedPath: "/repo/.sandbox/refarm/plugins/refarm_agent/plugin.wasm" },
+			{ id: "@refarm/some-other-plugin", status: "failed", message: "some other plugin's own problem" },
+		],
+	};
+	const result = interpretPluginInstallEnvelope(envelope, 1);
+	assert.deepEqual(result, {
+		installed: true,
+		wasmPath: "/repo/.sandbox/refarm/plugins/refarm_agent/plugin.wasm",
+		status: "installed",
+		version: undefined,
+	});
+});
+
+// ---- installSandboxAgentPlugin: env is required — no fallback to bare process.env ----
+
+test("installSandboxAgentPlugin throws when env is omitted — never silently falls back to process.env", () => {
+	assert.throws(() => installSandboxAgentPlugin("/repo", {}), /env is required/);
+});
+
+test("installSandboxAgentPlugin throws when env is explicitly falsy (null/undefined/empty string)", () => {
+	assert.throws(() => installSandboxAgentPlugin("/repo", { env: null }), /env is required/);
+	assert.throws(() => installSandboxAgentPlugin("/repo", { env: undefined }), /env is required/);
+});
+
 // ---- shouldInstallSandboxPlugin — the exact decision startSandbox uses ----
 
 test("shouldInstallSandboxPlugin: true when plugin is unspecified and extraArgs supplies none", () => {
@@ -1580,4 +1638,72 @@ test("shouldInstallSandboxPlugin: false when the caller passed an explicit plugi
 
 test("shouldInstallSandboxPlugin: false when the caller explicitly asked for no plugin at all", () => {
 	assert.equal(shouldInstallSandboxPlugin(null, []), false);
+});
+
+// ---- resolveEffectivePlugin — the wiring startSandbox uses, made independently testable
+// via an injected `installPlugin` (this file's established convention for every other
+// impure dependency: existsSync in resolveDefaultPluginArgs, probeLiveness/readCmdline in
+// sandboxStatus). Drives BOTH the "install succeeded" and "install failed" branches without
+// a live port check or a spawned tractor process — a review found this wiring had NO
+// automated coverage at all before this. ----
+
+const FIXTURE_SANDBOX_ENV = { REFARM_HOME: "/repo/.sandbox/refarm", HOME: "/repo/.sandbox/home" };
+
+test("resolveEffectivePlugin: install succeeds → effectivePlugin is the installed wasm path, no notice", () => {
+	const result = resolveEffectivePlugin("/repo", undefined, [], FIXTURE_SANDBOX_ENV, {
+		installPlugin: () => ({ installed: true, wasmPath: "/repo/.sandbox/refarm/plugins/refarm_agent/plugin.wasm" }),
+	});
+	assert.deepEqual(result, {
+		effectivePlugin: "/repo/.sandbox/refarm/plugins/refarm_agent/plugin.wasm",
+		notice: undefined,
+	});
+});
+
+test("resolveEffectivePlugin: install FAILS → effectivePlugin is null, NEVER the raw build path — with a notice explaining why", () => {
+	// This is the exact property that makes Task 4's defect non-recurring: a failed install
+	// must never fall back to sandboxAgentPluginPath's raw build output, which is now known
+	// to fail to load at boot.
+	const result = resolveEffectivePlugin("/repo", undefined, [], FIXTURE_SANDBOX_ENV, {
+		installPlugin: () => ({ installed: false, reason: "refarm CLI not built at /repo/apps/refarm/dist/index.js" }),
+	});
+	assert.equal(result.effectivePlugin, null);
+	assert.match(result.notice, /agent plugin not installed/);
+	assert.match(result.notice, /refarm CLI not built/);
+	assert.notEqual(result.effectivePlugin, sandboxAgentPluginPath("/repo"), "must never silently fall back to the raw build path");
+});
+
+test("resolveEffectivePlugin: an explicit plugin string skips the install entirely — installPlugin is never called", () => {
+	let called = false;
+	const result = resolveEffectivePlugin("/repo", "/explicit/path.wasm", [], FIXTURE_SANDBOX_ENV, {
+		installPlugin: () => {
+			called = true;
+			return { installed: true, wasmPath: "/should-not-be-used.wasm" };
+		},
+	});
+	assert.equal(called, false, "installPlugin must not run when the caller already gave an explicit path");
+	assert.deepEqual(result, { effectivePlugin: "/explicit/path.wasm", notice: undefined });
+});
+
+test("resolveEffectivePlugin: explicit null skips the install entirely — installPlugin is never called", () => {
+	let called = false;
+	const result = resolveEffectivePlugin("/repo", null, [], FIXTURE_SANDBOX_ENV, {
+		installPlugin: () => {
+			called = true;
+			return { installed: true, wasmPath: "/should-not-be-used.wasm" };
+		},
+	});
+	assert.equal(called, false);
+	assert.deepEqual(result, { effectivePlugin: null, notice: undefined });
+});
+
+test("resolveEffectivePlugin: a caller-supplied plugin loader in extraArgs skips the install entirely", () => {
+	let called = false;
+	const result = resolveEffectivePlugin("/repo", undefined, ["--plugin", "/caller.wasm"], FIXTURE_SANDBOX_ENV, {
+		installPlugin: () => {
+			called = true;
+			return { installed: true, wasmPath: "/should-not-be-used.wasm" };
+		},
+	});
+	assert.equal(called, false);
+	assert.equal(result.notice, undefined);
 });

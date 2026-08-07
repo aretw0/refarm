@@ -206,6 +206,13 @@ export const SANDBOX_NAMESPACE = "sandbox";
  *  declared — see the header comment for the measured defect this closes. */
 export const SANDBOX_SILO_DIR_NAME = "silo";
 
+/** `HOME` value for the sandbox — sibling of REFARM_HOME/XDG_DATA_HOME/SILO_HOME under
+ *  SANDBOX_DIR_NAME, EMPTY by default (nothing writes into it deliberately; it exists so
+ *  `os.homedir()` in a child process resolves somewhere inside the sandbox rather than the
+ *  operator's real home). See `sandboxEnvironment`'s `env.HOME` for the defect this closes
+ *  and the audit of what else declaring it changes. */
+export const SANDBOX_HOME_DIR_NAME = "home";
+
 /** The durable credential source this task copies FROM. Read-only, always — nothing in
  *  this file ever calls a write API against a path built from this constant. Hardcoded to
  *  `~/.silo/identity.json` (not derived via `resolveSiloHome()`) so the source is stable
@@ -263,6 +270,7 @@ export function sandboxEnvironment(repoRoot, overrides = {}) {
 	const refarmHome = path.join(sandboxBase, SANDBOX_SOVEREIGN_DIR);
 	const xdgDataHome = path.join(sandboxBase, "share");
 	const siloHome = path.join(sandboxBase, SANDBOX_SILO_DIR_NAME);
+	const homeDir = path.join(sandboxBase, SANDBOX_HOME_DIR_NAME);
 
 	return {
 		env: {
@@ -280,6 +288,55 @@ export function sandboxEnvironment(repoRoot, overrides = {}) {
 			// an empty store instead of ~/.silo — the same "three states treated as complete"
 			// shape the four-axes defect was.
 			SILO_HOME: siloHome,
+			// HOME — the SIXTH declaration, added after a review CONFIRMED (on disk, in the
+			// operator's real ~/.refarm/assets/) that `refarm plugin install --bundled`'s
+			// content-store write (`installPlugin`, plugin-install.ts:162) calls
+			// `scopedAssetsDir("user")` with NO options, which resolves via
+			// `packages/storage-fs/src/scope.ts`'s `options.userHome ?? homedir()` — a
+			// resolver that consults NONE of the other five axes, only the OS's own
+			// `os.homedir()`. Every OTHER declared-home consumer in this flow (`REFARM_HOME`
+			// for `resolveRefarmHome`/`declaredBase`, `SILO_HOME` for `resolveSiloHome`,
+			// `XDG_DATA_HOME` for the Rust host's `db_dir()`) checks a declared env var FIRST
+			// and only reaches `os.homedir()`/`$HOME` when that var is unset — none of those
+			// are ever unset here, so none of them were ever actually at risk. This resolver
+			// is the ONE consumer in the whole flow that skips the declared-axis convention
+			// entirely, so it is the one this HOME declaration exists to close — same shape as
+			// `declaredBase`'s own historical defect (a resolver asking the OS where it is
+			// standing instead of reading what was declared), confirmed to still exist in
+			// `storage-fs` and recorded for that package's own queue, NOT fixed here (out of
+			// scope: shared storage, used by nodes far outside this plan).
+			//
+			// Node's `os.homedir()` reads `process.env.HOME` first on POSIX before falling
+			// back to `getpwuid` — so setting this env var redirects EVERY callee that calls
+			// `os.homedir()` in the child, not just the one this was written for. Audited
+			// (2026-08-07) for what else that reaches in this file's own two subprocess calls
+			// (`refarm plugin install --bundled --json`, `refarm model env --shell
+			// --include-secrets`) and the daemon's own boot:
+			//   - `resolveSiloHome()` (`packages/silo/src/index.js`) checks `SILO_HOME` before
+			//     `REFARM_HOME` before `os.homedir()` — SILO_HOME is always set above, so this
+			//     never reaches the homedir() fallback regardless of HOME. Verified live, not
+			//     just traced (task-2-report.md).
+			//   - `declaredBase()` (`packages/config/src/index.js`) checks `SOVEREIGN_BASE`
+			//     then `REFARM_HOME` before `os.homedir()` — both always set above.
+			//   - the Rust host's `db_dir()` (`storage/sqlite.rs`) checks `XDG_DATA_HOME`
+			//     before `$HOME` — always set above. Its `dirs_sovereign_base()` (`main.rs`)
+			//     reads `$HOME` too, but is a DIFFERENT function only reached when
+			//     `--refarm-dir` is ABSENT — this launcher always passes it.
+			//   - `apps/refarm/src/utils/composition-resolver.ts`'s 3-tier plugin-composition
+			//     resolver ALSO deliberately ignores REFARM_HOME for its "user" tier (its own
+			//     comment names this as intentional co-habitation with `config.ts`'s
+			//     `os.homedir()`-based config path) — but it is not on the call path of
+			//     either subprocess command this file runs (only `refarm plugin
+			//     trust/approval/revocation/config` reach it), so it is unaffected by
+			//     anything this launcher does today. Named here because it is the SAME
+			//     "deliberately ignores the declared home" shape as the asset-store defect,
+			//     for whoever picks up that queue item next.
+			// No other `os.homedir()`/`$HOME` call site found reachable from either
+			// subprocess command (searched every package on their import graph: silo, config,
+			// root, storage-fs, storage-node-view, barn, and apps/refarm/src/commands/
+			// {plugin-install,plugin-shared,plugin-install-path,model}.ts and
+			// apps/refarm/src/utils/refarm-home.ts).
+			HOME: homeDir,
 		},
 		port: overrides.port ?? SANDBOX_PORT,
 		httpPort: overrides.httpPort ?? SANDBOX_HTTP_PORT,
@@ -365,15 +422,24 @@ export function sandboxAgentPluginPath(repoRoot) {
  * this file's `parseShellExports`/`resolveSandboxModelEnv` split for the same reason).
  *
  * Looks up the result by `RUNTIME_AGENT_PLUGIN_ID` (`@refarm/agent`) rather than assuming
- * index `0` — `BUNDLED_PLUGINS` is `[RUNTIME_AGENT_PLUGIN_DESCRIPTOR]` today
- * (`packages/config/src/plugin-identity.js`) but is a LIST, and this file cares about one
- * specific member of it, not "whatever happens to install first".
+ * index `0` — `BUNDLED_PLUGINS` (`apps/refarm/src/commands/plugin-shared.ts:18`, an
+ * app-level alias for `packages/config/src/plugin-identity.js`'s
+ * `BUNDLED_PLUGIN_DESCRIPTORS`) is `[RUNTIME_AGENT_PLUGIN_DESCRIPTOR]` today but is a LIST,
+ * and this file cares about one specific member of it, not "whatever happens to install
+ * first" — and, for the SAME reason, gates success/failure on that ONE member's own
+ * `status`, never the envelope's global `ok` (see below).
  */
 export function interpretPluginInstallEnvelope(envelope, exitCode) {
 	const plugins = Array.isArray(envelope?.plugins) ? envelope.plugins : [];
 	const agentResult = plugins.find((entry) => entry?.id === RUNTIME_AGENT_PLUGIN_ID);
 
-	if (!envelope?.ok || !agentResult || agentResult.status === "failed") {
+	// Gated on the AGENT's OWN result — deliberately NEVER the envelope's global `ok`.
+	// buildInstallReport (plugin-install.ts) sets ok:false the moment ANY bundled plugin
+	// fails, and BUNDLED_PLUGINS is a LIST (one member — the agent — today, but this
+	// function must not assume it stays that way): a second bundled plugin failing while
+	// the agent installs FINE must not degrade the sandbox to no-plugin for a reason that
+	// has nothing to do with the agent.
+	if (!agentResult || agentResult.status === "failed") {
 		return {
 			installed: false,
 			reason:
@@ -1007,12 +1073,19 @@ export function resolveSandboxModelEnv(repoRoot, { siloHome } = {}) {
  * copy of `sandboxAgentPluginPath`'s raw build output, which is exactly what Task 4's
  * cost-proof dispatch found broken (`missing field 'entry'` — see this file's header).
  *
- * `env` is REQUIRED to be the sandbox's OWN declared axes (never bare `process.env` alone)
- * — `apps/refarm/src/utils/refarm-home.ts`'s `resolveRefarmHome(env)` is what the installer
- * ultimately derives its target directory from, reading `env.REFARM_HOME` before falling
- * back to the OS home. Passing the ambient `process.env` unmodified here would install into
- * the OPERATOR's real `~/.refarm/plugins/` — the one thing this whole plan exists to never
- * do. `startSandbox` always calls this with `{ ...process.env, ...sandboxEnv }`, the SAME
+ * `env` is REQUIRED — there is deliberately NO fallback to bare `process.env` here, and
+ * omitting it THROWS rather than silently installing somewhere unintended. A review found
+ * exactly this gap once already (a `?? process.env` default that only the one production
+ * call site avoided by luck, not by contract) and confirmed live that a related resolver
+ * (`packages/storage-fs`'s asset store, see `sandboxEnvironment`'s `env.HOME` doc) writes
+ * into the OPERATOR's real `~/.refarm/assets/` when the ambient environment leaks through
+ * unmodified — this function refuses to be the second place that can happen. Callers pass
+ * the sandbox's OWN declared axes merged onto `process.env` (`{ ...process.env,
+ * ...sandboxEnv }`, `sandboxEnv` spread LAST so it wins over anything an operator's own
+ * shell happens to export) — `apps/refarm/src/utils/refarm-home.ts`'s
+ * `resolveRefarmHome(env)` is what the installer ultimately derives its target directory
+ * from, reading `env.REFARM_HOME` before falling back to the OS home; `env.HOME` is what
+ * the content-store write falls back to. `startSandbox` always calls this with the SAME
  * env the daemon itself receives.
  *
  * Shells out to the ALREADY-COMPILED CLI (`refarm plugin install --bundled --json`) rather
@@ -1024,20 +1097,32 @@ export function resolveSandboxModelEnv(repoRoot, { siloHome } = {}) {
  * (`interpretPluginInstallEnvelope`) rather than asking a SECOND time via a separate
  * path-resolution call.
  *
- * Never throws: a missing/unbuilt CLI, a failing subprocess, unparseable output, or a
- * genuine install failure all return `{ installed: false, reason }` — the caller degrades
- * to NO plugin loaded (never falls back to `sandboxAgentPluginPath`'s raw build output,
- * which is now KNOWN to fail at boot — falling back to a manifest already proven broken
- * would just reintroduce the Task 4 defect under a different trigger).
+ * Never throws for a DEGRADED outcome: a missing/unbuilt CLI, a failing subprocess,
+ * unparseable output, or a genuine install failure all return `{ installed: false, reason
+ * }` — the caller degrades to NO plugin loaded (never falls back to
+ * `sandboxAgentPluginPath`'s raw build output, which is now KNOWN to fail at boot —
+ * falling back to a manifest already proven broken would just reintroduce the Task 4
+ * defect under a different trigger). DOES throw — a programmer error, not a degraded
+ * outcome — when `env` itself is omitted; see above.
  */
-export function installSandboxAgentPlugin(repoRoot, { env } = {}) {
+export function installSandboxAgentPlugin(repoRoot, { env }) {
+	if (!env) {
+		throw new Error(
+			"installSandboxAgentPlugin: env is required — pass the sandbox's OWN declared axes " +
+				"(e.g. { ...process.env, ...sandboxEnvironment(repoRoot).env }), never omit it. " +
+				"There is deliberately no fallback to bare process.env: that would install into " +
+				"the OPERATOR's real ~/.refarm/plugins/ (and, via the storage-fs asset store, " +
+				"~/.refarm/assets/) — see this function's own doc.",
+		);
+	}
+
 	const cli = path.join(repoRoot, "apps", "refarm", "dist", "index.js");
 	if (!fs.existsSync(cli)) {
 		return { installed: false, reason: `refarm CLI not built at ${cli} — run: pnpm --filter @refarm.dev/refarm run build` };
 	}
 
 	const result = spawnSync(process.execPath, [cli, "plugin", "install", "--bundled", "--json"], {
-		env: env ?? process.env,
+		env,
 		encoding: "utf8",
 		timeout: 60_000,
 	});
@@ -1060,6 +1145,48 @@ export function installSandboxAgentPlugin(repoRoot, { env } = {}) {
 }
 
 /**
+ * Decides the EFFECTIVE plugin path (and any notice) `startSandbox` uses, given the
+ * caller's `plugin`/`extraArgs`, the sandbox's own declared `sandboxEnv`, and whether to
+ * run the sandbox's own install (`shouldInstallSandboxPlugin`). Exported and called BY
+ * `startSandbox` — never re-implemented inline there — specifically so a test can drive
+ * BOTH the "install succeeded" and "install failed" branches without a live port check or
+ * a spawned tractor process standing in the way. `installPlugin` is injectable (defaults
+ * to the real `installSandboxAgentPlugin`) for exactly that reason — this file's
+ * established convention for every other impure dependency this file threads through a
+ * caller (`existsSync` in `resolveDefaultPluginArgs`, `probeLiveness`/`readCmdline` in
+ * `sandboxStatus`).
+ *
+ * On a failed install, `effectivePlugin` is `null` — NEVER a fallback to
+ * `sandboxAgentPluginPath`'s raw build output, which is now known to fail at boot (see
+ * `installSandboxAgentPlugin`'s doc). This is the exact property that makes Task 4's
+ * defect non-recurring, and it is what this function's own tests pin directly, rather than
+ * leaving it asserted only by a doc comment and a manual run.
+ */
+export function resolveEffectivePlugin(
+	repoRoot,
+	plugin,
+	extraArgs,
+	sandboxEnv,
+	{ installPlugin = installSandboxAgentPlugin } = {},
+) {
+	if (!shouldInstallSandboxPlugin(plugin, extraArgs)) {
+		return { effectivePlugin: plugin, notice: undefined };
+	}
+	const installResult = installPlugin(repoRoot, { env: { ...process.env, ...sandboxEnv } });
+	if (installResult.installed) {
+		return { effectivePlugin: installResult.wasmPath, notice: undefined };
+	}
+	return {
+		effectivePlugin: null,
+		notice:
+			`agent plugin not installed — ${installResult.reason}. Starting with NO plugin ` +
+			`(the raw build at ${sandboxAgentPluginPath(repoRoot)} is known to fail to load ` +
+			"directly — its plugin.json is missing 'entry'/'integrity', which only the " +
+			"installer writes; see this file's header for the Task 4 finding).",
+	};
+}
+
+/**
  * Start the sandbox daemon.
  *
  * `plugin` has THREE meanings (see this file's header for the Task 4 finding that made a
@@ -1075,7 +1202,12 @@ export function installSandboxAgentPlugin(repoRoot, { env } = {}) {
  * A failed install (CLI not built, subprocess error, genuine install failure) degrades to
  * NO plugin with a notice — never to `sandboxAgentPluginPath`'s raw build output, which is
  * now KNOWN to fail at boot (`missing field 'entry'`); falling back to it would just
- * reintroduce the exact defect this revision closes, under a different trigger.
+ * reintroduce the exact defect this revision closes, under a different trigger. The whole
+ * decision (`plugin`/`extraArgs`/whether to install → the effective path used) lives in
+ * `resolveEffectivePlugin`, called here rather than inlined, so a test can drive both the
+ * "install succeeded" and "install failed" branches via the injectable `installPlugin`
+ * (defaults to the real `installSandboxAgentPlugin`) without a live port check or a
+ * spawned tractor process in the way.
  *
  * `credentials` defaults to `true` (copy the minimum credential set and resolve it into
  * the child's env before spawning); `credentials: false` skips that (e.g. a caller that
@@ -1103,6 +1235,7 @@ export async function startSandbox({
 	extraArgs = [],
 	plugin,
 	credentials = true,
+	installPlugin = installSandboxAgentPlugin,
 } = {}) {
 	// Checked FIRST, before any port check/mkdir/spawn — a caller trying to override a
 	// safety-critical flag must be refused before this function does anything observable,
@@ -1136,6 +1269,10 @@ export async function startSandbox({
 
 	fs.mkdirSync(sandboxEnv.REFARM_HOME, { recursive: true });
 	fs.mkdirSync(sandboxEnv.XDG_DATA_HOME, { recursive: true });
+	// Pre-created (like the two above) rather than left for the first callee that happens to
+	// `mkdir({recursive:true})` under it — HOME has no single owner the way REFARM_HOME/
+	// XDG_DATA_HOME do; several unrelated things could be the first to write under it.
+	fs.mkdirSync(sandboxEnv.HOME, { recursive: true });
 
 	const notices = [];
 
@@ -1144,25 +1281,17 @@ export async function startSandbox({
 	// process.env alone: the sandbox's full declared env, so the installer's own
 	// REFARM_HOME resolution lands under <repoRoot>/.sandbox, not ~/.refarm — see
 	// installSandboxAgentPlugin's doc). Skipped when extraArgs already supplies a plugin
-	// loader of its own (extraArgsSuppliesPlugin) — installing a default nothing will load
-	// is wasted work, and second-guesses a caller who already made a decision. An explicit
-	// string/`null` `plugin` is likewise left untouched — see startSandbox's own doc for
-	// what each of the three `plugin` shapes means.
-	let effectivePlugin = plugin;
-	if (shouldInstallSandboxPlugin(plugin, extraArgs)) {
-		const installResult = installSandboxAgentPlugin(repoRoot, { env: { ...process.env, ...sandboxEnv } });
-		if (installResult.installed) {
-			effectivePlugin = installResult.wasmPath;
-		} else {
-			effectivePlugin = null;
-			notices.push(
-				`agent plugin not installed — ${installResult.reason}. Starting with NO plugin ` +
-					`(the raw build at ${sandboxAgentPluginPath(repoRoot)} is known to fail to load ` +
-					"directly — its plugin.json is missing 'entry'/'integrity', which only the " +
-					"installer writes; see this file's header for the Task 4 finding).",
-			);
-		}
-	}
+	// loader of its own, or when the caller already gave an explicit string/`null` — see
+	// resolveEffectivePlugin's own doc for the full decision and why it is a separate,
+	// independently-testable function rather than inlined here.
+	const { effectivePlugin, notice: installNotice } = resolveEffectivePlugin(
+		repoRoot,
+		plugin,
+		extraArgs,
+		sandboxEnv,
+		{ installPlugin },
+	);
+	if (installNotice) notices.push(installNotice);
 
 	// `--plugin` is Vec<PathBuf> in packages/tractor/src/main.rs ("may be repeated"), so
 	// clap-derive APPENDS every occurrence rather than letting a later one replace an
