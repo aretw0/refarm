@@ -187,7 +187,7 @@ describe("buildContextReport", () => {
 			const r = buildContextReport({
 				...BASE,
 				cliBase: "/home/op/git/rcdc5",
-				cliBaseOrigin: "cwd",
+				cliBaseOrigin: "home",
 				nodeEnvironment: { ...NODE_ENVIRONMENT_AGREEING, base: "/home/op" },
 			});
 			const divergence = r.divergences.find((d) => d.kind === "base-divergence");
@@ -210,7 +210,7 @@ describe("buildContextReport", () => {
 				...BASE,
 				node: { ...BASE.node!, declarationBase: "/home/op" },
 				cliBase: "/home/op/git/rcdc5",
-				cliBaseOrigin: "cwd",
+				cliBaseOrigin: "home",
 				nodeEnvironment: {
 					...NODE_ENVIRONMENT_AGREEING,
 					base: null,
@@ -239,7 +239,7 @@ describe("buildContextReport", () => {
 				...BASE,
 				node: { ...BASE.node!, declarationBase: "/home/op" },
 				cliBase: "/home/op/git/rcdc5",
-				cliBaseOrigin: "cwd",
+				cliBaseOrigin: "home",
 				nodeEnvironment: { ...NODE_ENVIRONMENT_AGREEING, base: null, cwd: null },
 			});
 			const kinds = r.divergences.map((d) => d.kind);

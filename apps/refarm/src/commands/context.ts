@@ -172,9 +172,15 @@ export interface ContextInput {
 	 *  precisely because it used to be reported as if it were the node's (the defect this
 	 *  task closes — see `ContextNode.declarationBase` and `base-divergence` below). */
 	cliBase: string;
-	/** Whether `cliBase` came from the explicit `SOVEREIGN_BASE` env var this CLI process
-	 *  sees, or fell back to this CLI's own cwd. Same CLI/node split as `cliBase` itself. */
-	cliBaseOrigin: "SOVEREIGN_BASE" | "cwd";
+	/** Which of `declaredBase()`'s three precedence steps (`@refarm.dev/config`) actually
+	 *  produced `cliBase`: `"SOVEREIGN_BASE"` (the env var, set explicitly — always wins),
+	 *  `"REFARM_HOME"` (no `SOVEREIGN_BASE`, but `REFARM_HOME` set — `cliBase` is its
+	 *  dirname), or `"home"` (neither set — `cliBase` is the bare OS home directory). THREE
+	 *  states, not two: this used to be `"SOVEREIGN_BASE" | "cwd"`, a label that went false
+	 *  the moment Task 2 removed `cwd` as a fallback candidate anywhere in `declaredBase` —
+	 *  the non-explicit branch had stopped coming from cwd, but the field kept saying it did.
+	 *  Same CLI/node split as `cliBase` itself. */
+	cliBaseOrigin: "SOVEREIGN_BASE" | "REFARM_HOME" | "home";
 	/** The storage namespace THIS CLI INVOCATION resolves — `resolveTractorNamespace`
 	 *  (`../utils/tractor-store.ts`): `REFARM_NAMESPACE` else `"default"`. Surfaced here as a
 	 *  clearly labelled CLI-side fact; `nodeEnvironment.namespace` is what the running node
@@ -444,7 +450,17 @@ export function resolveContextInput(env = process.env, cwd = process.cwd()): Con
 	const builtPluginPath = resolveBuiltPluginPath(repoRoot);
 	const builtPluginSha = builtPluginPath ? defaultHashFile(builtPluginPath) : null;
 
+	// Mirrors `declaredBase()`'s own precedence (`@refarm.dev/config`) step for step, so
+	// `cliBaseOrigin` below can never name a step `declaredBase` itself did not take: (1)
+	// `SOVEREIGN_BASE` wins outright; (2) absent that, `REFARM_HOME` set means `cliBase` is
+	// its dirname; (3) absent both, `cliBase` is the bare OS home directory. `cwd` is not a
+	// candidate at any step — Task 2 (2026-08-06, "two halves, one node") removed it as a
+	// fallback entirely, which is what made the OLD two-state `"SOVEREIGN_BASE" | "cwd"`
+	// label here false the moment that removal shipped: the non-explicit branch stopped
+	// coming from cwd, but the label kept calling it that — a lie in a `--json` field, the
+	// exact class of small untruth this whole plan exists to remove.
 	const explicitBase = env[SOVEREIGN_BASE_KEY]?.trim();
+	const refarmHomeEnv = env.REFARM_HOME?.trim();
 
 	// Both sides of the mode split (see `ContextInput.otherSovereignDirs`'s doc): the
 	// workspace-scoped home — the exact formula `context-metadata.ts` itself joins,
@@ -461,7 +477,7 @@ export function resolveContextInput(env = process.env, cwd = process.cwd()): Con
 	return {
 		metadata,
 		cliBase: declaredBase(env),
-		cliBaseOrigin: explicitBase ? "SOVEREIGN_BASE" : "cwd",
+		cliBaseOrigin: explicitBase ? "SOVEREIGN_BASE" : refarmHomeEnv ? "REFARM_HOME" : "home",
 		cliNamespace: resolveTractorNamespace(env),
 		runtimeEndpoint: resolveRuntimeSidecarUrl({ cwd, env }).value,
 		node,
