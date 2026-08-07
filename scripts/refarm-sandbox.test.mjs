@@ -518,12 +518,34 @@ test("copySandboxCredentials re-syncs (overwrites) an existing destination rathe
 //
 // A second review found --plugin-by-hash was missing from the FIRST version of this guard
 // entirely (recognized only "--plugin", nothing else) — reopening the exact defect just
-// fixed, wearing a different flag. The tests below are GENERATED from
-// `Object.keys(PLUGIN_LOADING_FLAGS)` (mirroring the RESERVED_FLAGS test loop) so a THIRD
-// loader flag added to that set later is covered automatically, by construction, rather
-// than by a human remembering to add a matching test. ----
+// fixed, wearing a different flag.
+//
+// WHAT IS GENERATED, and what is not — stated precisely because a third review found the
+// first version of this loop overstated its own coverage (recognition was generated;
+// REPORTING CONTENT was not — a `.length === 1` check would pass even if a future flag's
+// `describeValue` were silently ignored or mislabeled). The loop below, driven by
+// `Object.keys(PLUGIN_LOADING_FLAGS)`, now generates for EVERY member: recognition (both
+// argv forms), the skip-default decision, AND a check that `pluginLoadersIn` routes that
+// flag's value through THAT flag's OWN `describeValue` (both argv forms) — so a future
+// flag added to the set that `pluginLoadersIn` dispatches to the WRONG descriptor, or
+// doesn't dispatch at all, fails here automatically, with no test to remember to write.
+//
+// What remains, unavoidably, human-authored: the CONTENT of a brand-new flag's own
+// `describeValue` function. The generated check above computes its expected value by
+// calling that SAME function, so it proves dispatch/wiring, not semantics — a typo inside
+// a NEW flag's own `describeValue` (e.g. tagging the wrong label, or truncating the value)
+// calls the identical buggy function on both sides of the assertion and would not be
+// caught by the generated loop. Only a literal, hand-written expected string catches that,
+// same as any other "does this specific transformation do what I meant" check always
+// requires a human who knows what was meant. The explicit tests further below pin exactly
+// that for TODAY's two members (`--plugin`'s bare-path passthrough, `--plugin-by-hash`'s
+// `[by-hash] ` tag) — adding a third flag means adding one matching literal test for IT,
+// same discipline as writing the flag's `describeValue` in the first place, not zero
+// discipline. ----
 
 for (const flag of Object.keys(PLUGIN_LOADING_FLAGS)) {
+	const descriptor = PLUGIN_LOADING_FLAGS[flag];
+
 	test(`extraArgsSuppliesPlugin recognizes ${flag} (two-token form)`, () => {
 		assert.equal(extraArgsSuppliesPlugin([flag, "some-value"]), true);
 	});
@@ -540,8 +562,14 @@ for (const flag of Object.keys(PLUGIN_LOADING_FLAGS)) {
 		assert.equal(result.notice, undefined);
 	});
 
-	test(`pluginLoadersIn reports exactly one loader for a bare ${flag} occurrence`, () => {
-		assert.equal(pluginLoadersIn([flag, "some-value"]).length, 1);
+	// WIRING, not semantics — see the block comment above for exactly what this does and
+	// does not prove. Covers both argv forms so neither is only proven for today's members.
+	test(`pluginLoadersIn routes ${flag}'s value through its OWN describeValue (two-token form)`, () => {
+		assert.deepEqual(pluginLoadersIn([flag, "some-value"]), [descriptor.describeValue("some-value")]);
+	});
+
+	test(`pluginLoadersIn routes ${flag}'s value through its OWN describeValue (the = form)`, () => {
+		assert.deepEqual(pluginLoadersIn([`${flag}=some-value`]), [descriptor.describeValue("some-value")]);
 	});
 }
 

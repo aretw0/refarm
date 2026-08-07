@@ -265,17 +265,29 @@ export function sandboxAgentPluginPath(repoRoot) {
  *
  * Verified against `packages/tractor/src/main.rs` (2026-08-07) — that file is the
  * authoritative source, not this comment; re-check it before trusting this list:
- *   - the `#[arg(long, ...)]` declarations: `plugin: Vec<PathBuf>` (`:82`, "may be
- *     repeated") and `plugin_by_hash: Vec<String>` (`:88`, "(repeatable)").
+ *   - the field declarations: `plugin: Vec<PathBuf>` (`:83`, doc comment "may be repeated"
+ *     at `:81`) and `plugin_by_hash: Vec<String>` (`:89`, doc comment "(repeatable)" at
+ *     `:87`) — NOT their `#[arg(long, ...)]` attributes one line above each (`:82`, `:88`).
  *   - the two INDEPENDENT boot-time loops in `run_daemon`, each calling `.load_plugin*()` +
  *     `.register_for_events()` on EVERY entry, neither gated on the other running:
  *     `for path in &args.plugin` (~`:582`) and `for spec in &args.plugin_by_hash`
  *     (~`:612`).
  *   - confirmed exhaustive by grepping the crate for every `register_for_events` call
- *     site: the only other three are the respawn supervisor (reloading a CRASHED plugin,
- *     not a new one from a flag), the sidecar's runtime plugin-install HTTP endpoint (not
- *     a boot CLI flag), and `tractor-bench` (a different binary this launcher never
- *     spawns) — none of them read a `--plugin*` flag.
+ *     site — SIX total, not just these two:
+ *       1-2. the two above (CLI flags — what this set covers)
+ *       3. the respawn supervisor (`lib.rs:878`) — reloads a CRASHED plugin under a
+ *          `plugin_id` already in `plugin_paths`; cannot introduce a NEW one
+ *       4. `POST /plugins/reload` (`sidecar/mod.rs:565`), via `TractorNative::reload_plugin`
+ *          (`lib.rs:961`, the call at `:980`) — same restriction: only a `plugin_id`
+ *          already recorded, never a new one
+ *       5. `POST /plugins/load-by-hash` (`sidecar/mod.rs:627`, the call at `:645`) — the
+ *          RUNTIME counterpart of `--plugin-by-hash`, and it CAN introduce a new plugin,
+ *          but it is an HTTP endpoint, not a CLI flag reachable through this launcher's
+ *          `extraArgs` — out of scope for this set, not overlooked
+ *       6. `tractor-bench.rs` — a different binary this launcher never spawns
+ *     Sites 3-4 are excluded because they cannot name a NEW plugin; site 5 is excluded
+ *     because nothing in this file's `extraArgs` surface can reach it; site 6 is a
+ *     different program. That leaves exactly the two flags below.
  *
  * `--plugin`'s value is a real path; `--plugin-by-hash`'s is
  * `<assetsDir>:<hash>:<manifestPath>` — NOT a path. Each entry's `describeValue` says
