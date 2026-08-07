@@ -25,21 +25,55 @@
  * exists AT ALL, which is the regression this file exists to close (the plan's first
  * draft had three axes and called it "everything").
  *
- * SCOPE — Task 1 only (.superpowers/sdd/2026-08-06-the-sandbox-node/task-1-brief.md):
+ * SCOPE — Tasks 1 and 2 (.superpowers/sdd/2026-08-06-the-sandbox-node/task-{1,2}-brief.md):
  *   - declares the four axes + both ports (`sandboxEnvironment`, PURE)
- *   - starts the sandbox daemon with NO `--plugin` — Task 2 decides, deliberately, which
- *     plugin/credentials the sandbox loads; that choice is not made here.
+ *   - Task 1 started the sandbox daemon with NO `--plugin` and no credentials.
+ *   - Task 2 (this revision) wires both, DELIBERATELY, not by default:
+ *
+ *     CREDENTIALS — inherited, never re-authenticated, but COPIED rather than shared by
+ *     reference (Global Constraints: "a sandbox that can write the operator's credential
+ *     store is not isolated"). The durable half is `~/.silo/identity.json`, read-only from
+ *     here; `copySandboxCredentials` copies the MINIMUM subset the model-routing layer
+ *     actually reads (`minimalCredentialTokens`) into `<repo>/.sandbox/silo/identity.json`
+ *     — never the whole file, which also carries `githubToken`/`cloudflareToken`/the
+ *     device identity block, none of which model routing touches. `SILO_HOME` (declared in
+ *     `sandboxEnvironment`'s `env`, alongside — but NOT one of — the four isolation axes)
+ *     points `@refarm.dev/silo`'s `resolveSiloHome()` at that copy instead of its default
+ *     fallback chain (`SILO_HOME` → `REFARM_HOME` → `~/.silo`), which would otherwise
+ *     silently resolve to the SANDBOX's own empty `REFARM_HOME` the moment that axis is
+ *     declared (measured 2026-08-06: without `SILO_HOME`, `refarm model current --json`
+ *     against the sandbox's other three axes alone falls all the way back to the keyless
+ *     `ollama/llama3.2` floor — a plausible-looking wrong answer, not a crash). The
+ *     env-var half (`OPENAI_CODEX_ACCESS_TOKEN`, `MODEL_PROVIDER`, …) is resolved by
+ *     shelling out to the ALREADY-COMPILED `refarm model env --shell --include-secrets` —
+ *     the exact command `scripts/tractor-start.sh` uses for the operator's own node —
+ *     scoped to the sandbox's `SILO_HOME`, so this file never re-implements that
+ *     resolution a second time (`resolveSandboxModelEnv`).
+ *
+ *     PLUGIN — the sandbox loads the WORKING TREE's freshly-built
+ *     `packages/agent/dist/agent.wasm` (`sandboxAgentPluginPath`), not the operator's
+ *     INSTALLED `~/.refarm/plugins/refarm_agent/plugin.wasm`. Both are defensible; this
+ *     file picks "the lab runs what you are building" because the sandbox's entire reason
+ *     to exist (see this file's opening paragraph) is testing refarm changes in progress —
+ *     mirroring the operator's installed copy would mean every sandbox run needs a prior
+ *     `refarm plugin install` into the SAME directory the operator's daemon also reads,
+ *     reintroducing exactly the shared-surface risk this plan removes. Measured
+ *     2026-08-06: their SHA-256 is IDENTICAL today (`6d78b1c15…5ae3eca`) — this choice has
+ *     no behavioral effect yet, but will the moment `packages/agent/src` is edited and
+ *     rebuilt without a matching `refarm plugin install`. A caller may still override via
+ *     `startSandbox({ plugin })` or CLI `--plugin <path>` (the last occurrence wins; see
+ *     `assertNoReservedFlags`'s note on why `--plugin` is deliberately unreserved).
+ *
  *   - does NOT implement `status` or `--reset` (Task 3) or `refarm parity` (Task 5).
  *
- * Does NOT read or modify scripts/tractor-start.sh — the operator's launcher — in any way.
- * This is a separate, independent script for a separate, independent node, deliberately
- * simpler than tractor-start.sh: no model-provider resolution, no plugin-catalog sync, no
- * `.refarm/.env` loading — none of that is reachable from a daemon with no loaded plugin.
+ * Does NOT read or modify scripts/tractor-start.sh — the operator's launcher — in any way,
+ * and NEVER writes to `~/.silo` or `~/.refarm` — both are read-only sources here.
  */
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -59,6 +93,21 @@ export const SANDBOX_SOVEREIGN_DIR = "refarm";
 /** Names the db file the sandbox opens: `<XDG_DATA_HOME>/refarm/sandbox.db`. Deliberately
  *  never "default" — that name is the operator's, inside his real `~/.local/share/refarm/`. */
 export const SANDBOX_NAMESPACE = "sandbox";
+
+/** SILO_HOME value for the sandbox — sibling of REFARM_HOME/XDG_DATA_HOME under
+ *  SANDBOX_DIR_NAME. NOT one of "the four axes" (see this file's header): the axes
+ *  ISOLATE state; this INHERITS it, by copy (`copySandboxCredentials`). Its only job is to
+ *  stop `@refarm.dev/silo`'s `resolveSiloHome()` fallback chain (SILO_HOME → REFARM_HOME →
+ *  ~/.silo) from resolving to the sandbox's own (empty) REFARM_HOME once that axis is
+ *  declared — see the header comment for the measured defect this closes. */
+export const SANDBOX_SILO_DIR_NAME = "silo";
+
+/** The durable credential source this task copies FROM. Read-only, always — nothing in
+ *  this file ever calls a write API against a path built from this constant. Hardcoded to
+ *  `~/.silo/identity.json` (not derived via `resolveSiloHome()`) so the source is stable
+ *  and legible regardless of what env vars happen to be set in the shell that launches the
+ *  sandbox — the exact file named in task-2-brief.md as "the durable source". */
+export const OPERATOR_SILO_IDENTITY_PATH = path.join(os.homedir(), ".silo", "identity.json");
 
 /**
  * Chosen 2026-08-06 by checking `ss -ltn` against every listener on this host at the time,
@@ -103,6 +152,7 @@ export function sandboxEnvironment(repoRoot, overrides = {}) {
 	const sandboxBase = path.join(repoRoot, SANDBOX_DIR_NAME);
 	const refarmHome = path.join(sandboxBase, SANDBOX_SOVEREIGN_DIR);
 	const xdgDataHome = path.join(sandboxBase, "share");
+	const siloHome = path.join(sandboxBase, SANDBOX_SILO_DIR_NAME);
 
 	return {
 		env: {
@@ -113,6 +163,13 @@ export function sandboxEnvironment(repoRoot, overrides = {}) {
 			// XDG_DATA_HOME directly; main.rs never threads REFARM_HOME through to it. Omitting
 			// this key is the exact defect this task was written to close.
 			XDG_DATA_HOME: xdgDataHome,
+			// CREDENTIALS (Task 2) — the fifth declaration, deliberately NOT one of "the four
+			// axes" above (see this file's header): it INHERITS state by copy rather than
+			// isolating it. Without this, @refarm.dev/silo's resolveSiloHome() falls back to
+			// REFARM_HOME (declared right above) the instant that axis exists, silently reading
+			// an empty store instead of ~/.silo — the same "three states treated as complete"
+			// shape the four-axes defect was.
+			SILO_HOME: siloHome,
 		},
 		port: overrides.port ?? SANDBOX_PORT,
 		httpPort: overrides.httpPort ?? SANDBOX_HTTP_PORT,
@@ -163,6 +220,112 @@ export function assertNoReservedFlags(extraArgs) {
 	}
 }
 
+/**
+ * PURE. Path the sandbox loads its agent plugin from — the WORKING TREE's freshly-built
+ * `packages/agent/dist/agent.wasm`, deliberately NOT the operator's INSTALLED
+ * `~/.refarm/plugins/refarm_agent/plugin.wasm`. See this file's header for the recorded
+ * decision (both are defensible; this one because the sandbox exists to test refarm
+ * changes in progress). `packages/agent/dist/` is the same "packaged" location
+ * scripts/tractor-start.sh's PACKAGED_AGENT_WASM names and `refarm plugin install` reads
+ * FROM — so this is the artifact one build (`pnpm --filter @refarm.dev/agent run build` /
+ * `cargo component build --release -p agent` + publish) away from any edit, with no
+ * install step into a shared directory required in between.
+ */
+export function sandboxAgentPluginPath(repoRoot) {
+	return path.join(repoRoot, "packages", "agent", "dist", "agent.wasm");
+}
+
+/**
+ * PURE. Given a parsed Silo `tokens` object (the shape `SiloCore#loadTokens()` returns —
+ * i.e. `JSON.parse(readFileSync(identity.json)).tokens`), return ONLY the fields
+ * `packages/config/src/model-routing.js` (`modelCredentialStatus`/`modelOAuthCredential`)
+ * and `apps/refarm/src/commands/model.ts` (`buildModelEnvEntries`/`runtimeOAuthCredential`)
+ * actually read to resolve and export a model route: `modelProvider`, `modelId`,
+ * `modelApiKey` (the API-key tier — unused by this operator's openai-codex/oauth setup
+ * today, kept for whichever provider a future sandbox run might be configured for), and —
+ * for the OAuth tier — `oauthProvider` plus JUST that one provider's `{access, accountId,
+ * expires}`.
+ *
+ * Deliberately DROPS:
+ *   - `refresh` — the OAuth refresh token. Verified 2026-08-06 by a repo-wide grep for
+ *     `.refreshToken(`: nothing in this codebase calls `OAuthProviderInterface#refreshToken`
+ *     today, so a sandbox copy missing it loses no CURRENTLY working capability — and a
+ *     refresh token can mint new access tokens indefinitely, a strictly more powerful
+ *     credential than the access token it would sit next to for a capability nothing
+ *     exercises. Copying it would violate "minimum set" for zero functional gain.
+ *   - `githubToken`, `githubOwner`, `cloudflareToken` — unrelated integrations. Not read by
+ *     `SiloCore#loadTokens()`'s only model-routing consumer, and copying them would hand
+ *     the sandbox two MORE live credentials than the one thing this task needs to prove.
+ *   - any OTHER oauth providers' entries in `oauthCredentials` (only `tokens.oauthProvider`'s
+ *     own entry survives) — `modelOAuthCredential()` only ever reads the ACTIVE provider's
+ *     entry, so copying the rest is dead weight with the same over-copy problem.
+ *   - the identity block (`masterPublicKey`, `bootstrappedAt`) — device identity, not part
+ *     of `.tokens` at all, so `loadTokens()` never even returns it to a caller.
+ *
+ * Returns `{}` for input that names no usable credential (e.g. an oauth provider whose
+ * entry is missing `access`), so a caller can tell "nothing to copy" from "copied nothing
+ * on purpose" without a try/catch.
+ */
+export function minimalCredentialTokens(tokens = {}) {
+	const result = {};
+	if (typeof tokens.modelProvider === "string" && tokens.modelProvider.trim()) {
+		result.modelProvider = tokens.modelProvider;
+	}
+	if (typeof tokens.modelId === "string" && tokens.modelId.trim()) {
+		result.modelId = tokens.modelId;
+	}
+	if (typeof tokens.modelApiKey === "string" && tokens.modelApiKey.trim()) {
+		result.modelApiKey = tokens.modelApiKey;
+	}
+
+	const oauthProvider = typeof tokens.oauthProvider === "string" ? tokens.oauthProvider : undefined;
+	const oauthCredentials =
+		tokens.oauthCredentials && typeof tokens.oauthCredentials === "object" ? tokens.oauthCredentials : undefined;
+	const activeCredential = oauthProvider && oauthCredentials ? oauthCredentials[oauthProvider] : undefined;
+
+	if (activeCredential && typeof activeCredential === "object" && typeof activeCredential.access === "string" && activeCredential.access.trim()) {
+		const minimalCredential = { access: activeCredential.access };
+		if (typeof activeCredential.accountId === "string" && activeCredential.accountId.trim()) {
+			minimalCredential.accountId = activeCredential.accountId;
+		}
+		if (typeof activeCredential.expires === "number") {
+			minimalCredential.expires = activeCredential.expires;
+		}
+		result.oauthProvider = oauthProvider;
+		result.oauthCredentials = { [oauthProvider]: minimalCredential };
+	}
+
+	return result;
+}
+
+/**
+ * PURE. Inverse of `apps/refarm/src/commands/model.ts`'s `shellQuote`/`formatModelEnvShell`
+ * — parses the `export KEY='value'` lines `refarm model env --shell` prints back into a
+ * plain object, so `resolveSandboxModelEnv` never has to `eval` untrusted-shaped shell text
+ * the way `scripts/tractor-start.sh` does. Ignores lines that are not `export NAME=...`
+ * (blank lines, anything else). Unescapes the single-quote-wrapped form `shellQuote`
+ * produces (`'\''` inside the quotes → a literal `'`); a value that arrives unquoted is
+ * used as-is.
+ */
+export function parseShellExports(text) {
+	const entries = {};
+	for (const line of text.split("\n")) {
+		const match = /^export\s+([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line.trim());
+		if (!match) continue;
+		const [, key, rawValue] = match;
+		entries[key] = unquoteShellValue(rawValue);
+	}
+	return entries;
+}
+
+function unquoteShellValue(raw) {
+	const trimmed = raw.trim();
+	if (trimmed.length >= 2 && trimmed.startsWith("'") && trimmed.endsWith("'")) {
+		return trimmed.slice(1, -1).replace(/'\\''/g, "'");
+	}
+	return trimmed;
+}
+
 // ---- Impure edge: everything below touches the filesystem, the network, or a process. ----
 
 /**
@@ -183,12 +346,116 @@ function isPortFree(port) {
 }
 
 /**
- * Start the sandbox daemon. Deliberately loads NO `--plugin` (Task 2 decides which
- * plugin/credentials the sandbox uses) and reads no `.refarm/.env` (nothing here calls a
- * model, so there is nothing to authenticate). Mirrors scripts/tractor-start.sh's
- * directory-prep + `--refarm-dir` shape, without its model-provider/plugin-install/catalog
- * machinery — none of that is reachable from a daemon with no loaded plugin, and none of
- * it is in this task's scope.
+ * Copy the MINIMUM credential set (`minimalCredentialTokens`) from `sourcePath` (default
+ * `OPERATOR_SILO_IDENTITY_PATH`, i.e. `~/.silo/identity.json`) into
+ * `<repoRoot>/.sandbox/silo/identity.json` — the file `SILO_HOME` (declared in
+ * `sandboxEnvironment`) points `@refarm.dev/silo`'s `resolveSiloHome()` at.
+ *
+ * READS `sourcePath`, never writes it — the operator's real store is a read-only input
+ * here, always. Overwrites the destination on every call (re-running `start` re-syncs a
+ * rotated token automatically; nothing here reads the OLD destination content first).
+ *
+ * Refuses to throw: a missing/unreadable/malformed source degrades the sandbox to the
+ * keyless `ollama` floor (proven live in task-2-report.md) rather than blocking it from
+ * starting at all — this mirrors scripts/tractor-start.sh's own "⚠ No .refarm/.env found"
+ * non-fatal warning for the same class of problem. Returns `{ copied: false, reason }` in
+ * every such case instead, so the caller can print exactly why.
+ */
+export function copySandboxCredentials(repoRoot, { sourcePath = OPERATOR_SILO_IDENTITY_PATH } = {}) {
+	const destPath = path.join(sandboxEnvironment(repoRoot).env.SILO_HOME, "identity.json");
+
+	if (!fs.existsSync(sourcePath)) {
+		return { copied: false, reason: `no credential source at ${sourcePath}`, destPath };
+	}
+
+	let parsedSource;
+	try {
+		parsedSource = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
+	} catch (err) {
+		return { copied: false, reason: `source is not valid JSON (${sourcePath}): ${err.message}`, destPath };
+	}
+
+	const tokens = minimalCredentialTokens(parsedSource?.tokens ?? {});
+	if (Object.keys(tokens).length === 0) {
+		return { copied: false, reason: `source names no usable credential (${sourcePath})`, destPath };
+	}
+
+	const destDir = path.dirname(destPath);
+	fs.mkdirSync(destDir, { recursive: true, mode: 0o700 });
+	const store = {
+		schemaVersion: typeof parsedSource?.schemaVersion === "number" ? parsedSource.schemaVersion : 1,
+		tokens,
+		updatedAt: new Date().toISOString(),
+	};
+	fs.writeFileSync(destPath, JSON.stringify(store, null, 2), { mode: 0o600 });
+	// writeFileSync's `mode` option only applies when the file is CREATED — an existing
+	// destination (a re-sync) keeps whatever mode it already had unless set explicitly here.
+	fs.chmodSync(destPath, 0o600);
+	fs.chmodSync(destDir, 0o700);
+
+	return {
+		copied: true,
+		destPath,
+		provider: tokens.modelProvider,
+		hasOAuth: Boolean(tokens.oauthProvider),
+	};
+}
+
+/**
+ * IMPURE. Resolves the sandbox's model-runtime env entries by shelling out to the
+ * ALREADY-COMPILED `refarm model env --shell --include-secrets` — the exact command
+ * `scripts/tractor-start.sh` uses for the operator's own node (its "provider selection"
+ * block) — with `SILO_HOME` overridden to `siloHome` so it reads the SANDBOX's copied
+ * credential store, never the operator's. Reusing this command (rather than re-deriving
+ * "which vars, from which Silo fields" here) is deliberate: that resolution already has one
+ * implementation (`apps/refarm/src/commands/model.ts`'s `buildModelEnvEntries`), and this
+ * codebase has repeatedly paid for a second one drifting from the first (see
+ * scripts/tractor-start.sh's "ONE installer now" comment for the plugin-side instance of
+ * the same defect).
+ *
+ * Never throws: a missing/unbuilt CLI or a failing subprocess returns `{ entries: {},
+ * reason }` so a caller degrades gracefully (same "keyless floor, not a crash" contract as
+ * `copySandboxCredentials`).
+ */
+export function resolveSandboxModelEnv(repoRoot, { siloHome } = {}) {
+	const cli = path.join(repoRoot, "apps", "refarm", "dist", "index.js");
+	if (!fs.existsSync(cli)) {
+		return { entries: {}, reason: `refarm CLI not built at ${cli} — run: pnpm --filter @refarm.dev/refarm run build` };
+	}
+
+	const result = spawnSync(process.execPath, [cli, "model", "env", "--shell", "--include-secrets"], {
+		env: { ...process.env, SILO_HOME: siloHome },
+		encoding: "utf8",
+		timeout: 10_000,
+	});
+
+	if (result.error) {
+		return { entries: {}, reason: `refarm model env --shell failed to run: ${result.error.message}` };
+	}
+	if (result.status !== 0) {
+		return { entries: {}, reason: `refarm model env --shell exited ${result.status}: ${result.stderr?.trim()}` };
+	}
+
+	return { entries: parseShellExports(result.stdout) };
+}
+
+/**
+ * Start the sandbox daemon.
+ *
+ * Task 2 defaults: `plugin` defaults to `sandboxAgentPluginPath(repoRoot)` (the working
+ * tree's freshly-built agent — see this file's header for why), and `credentials`
+ * defaults to `true` (copy the minimum credential set and resolve it into the child's env
+ * before spawning). Pass `plugin: null` for no plugin (Task 1's original behavior) or
+ * `credentials: false` to skip credential resolution (e.g. a caller that only needs the
+ * graph axis, or a test that must not touch `~/.silo`). Neither degrades to a thrown error
+ * on its own missing prerequisite (no source identity.json, no built CLI) — see
+ * `copySandboxCredentials`/`resolveSandboxModelEnv`'s own contracts — because a sandbox
+ * with no model access is still useful for non-model work; it is reported, not hidden.
+ *
+ * Mirrors scripts/tractor-start.sh's directory-prep + `--refarm-dir` shape and its
+ * `model env --shell --include-secrets` credential step, without its plugin-catalog/
+ * trusted-plugins composition machinery — out of scope here (this launcher loads exactly
+ * one plugin, chosen above, not a resolved set).
  *
  * Refuses (throws) rather than starting if EITHER declared port is occupied — relocating
  * one port while colliding on the other is not isolation (the plan's Global Constraints).
@@ -196,7 +463,13 @@ function isPortFree(port) {
  * Returns the metadata a caller needs to observe/stop what was started; never resolves
  * silently past a state the caller cannot act on.
  */
-export async function startSandbox({ repoRoot = REPO_ROOT, background = false, extraArgs = [] } = {}) {
+export async function startSandbox({
+	repoRoot = REPO_ROOT,
+	background = false,
+	extraArgs = [],
+	plugin = sandboxAgentPluginPath(repoRoot),
+	credentials = true,
+} = {}) {
 	// Checked FIRST, before any port check/mkdir/spawn — a caller trying to override a
 	// safety-critical flag must be refused before this function does anything observable,
 	// not after it has already probed ports or touched the filesystem.
@@ -230,6 +503,19 @@ export async function startSandbox({ repoRoot = REPO_ROOT, background = false, e
 	fs.mkdirSync(sandboxEnv.REFARM_HOME, { recursive: true });
 	fs.mkdirSync(sandboxEnv.XDG_DATA_HOME, { recursive: true });
 
+	const pluginArgs = [];
+	const notices = [];
+	if (plugin) {
+		if (fs.existsSync(plugin)) {
+			pluginArgs.push("--plugin", plugin);
+		} else {
+			notices.push(
+				`agent plugin not found at ${plugin} — starting with NO plugin. Build it: ` +
+					"pnpm --filter @refarm.dev/agent run build",
+			);
+		}
+	}
+
 	const args = [
 		"--port",
 		String(port),
@@ -239,6 +525,11 @@ export async function startSandbox({ repoRoot = REPO_ROOT, background = false, e
 		namespace,
 		"--refarm-dir",
 		sandboxEnv.REFARM_HOME,
+		...pluginArgs,
+		// extraArgs LAST: a caller's own --plugin (or anything else not in RESERVED_FLAGS)
+		// wins over this function's default, matching how clap already resolves a repeated
+		// scalar flag — see assertNoReservedFlags's note on why --plugin is deliberately
+		// left unreserved.
 		...extraArgs,
 	];
 
@@ -246,6 +537,22 @@ export async function startSandbox({ repoRoot = REPO_ROOT, background = false, e
 	// from env (and any tool later invoked against this same env) resolves identically to
 	// what was just declared, never a partial subset of it.
 	const childEnv = { ...process.env, ...sandboxEnv };
+
+	let credentialNotice;
+	if (credentials) {
+		const copyResult = copySandboxCredentials(repoRoot);
+		if (!copyResult.copied) {
+			credentialNotice = `no credentials copied — ${copyResult.reason}. Model routes fall back to the keyless default.`;
+		} else {
+			const modelEnv = resolveSandboxModelEnv(repoRoot, { siloHome: sandboxEnv.SILO_HOME });
+			if (Object.keys(modelEnv.entries).length === 0 && modelEnv.reason) {
+				credentialNotice = `credentials copied but env resolution failed — ${modelEnv.reason}`;
+			} else {
+				Object.assign(childEnv, modelEnv.entries);
+			}
+		}
+	}
+	if (credentialNotice) notices.push(credentialNotice);
 
 	if (background) {
 		const logFile = path.join(sandboxBase, "tractor-sandbox.log");
@@ -284,6 +591,8 @@ export async function startSandbox({ repoRoot = REPO_ROOT, background = false, e
 			xdgDataHome: sandboxEnv.XDG_DATA_HOME,
 			pidFile,
 			logFile,
+			plugin: pluginArgs.length > 0 ? plugin : null,
+			notices,
 		};
 	}
 
@@ -299,6 +608,8 @@ export async function startSandbox({ repoRoot = REPO_ROOT, background = false, e
 				namespace,
 				refarmHome: sandboxEnv.REFARM_HOME,
 				xdgDataHome: sandboxEnv.XDG_DATA_HOME,
+				plugin: pluginArgs.length > 0 ? plugin : null,
+				notices,
 			});
 		});
 	});
@@ -330,9 +641,13 @@ async function main() {
 		console.log(`   namespace : ${result.namespace}`);
 		console.log(`   refarm-dir: ${result.refarmHome}`);
 		console.log(`   graph dir : ${result.xdgDataHome}`);
+		console.log(`   plugin    : ${result.plugin ?? "<none>"}`);
 		if (background) {
 			console.log(`   log       : ${result.logFile}`);
 			console.log(`   pid file  : ${result.pidFile}`);
+		}
+		for (const notice of result.notices ?? []) {
+			console.log(`   ⚠  ${notice}`);
 		}
 	} catch (err) {
 		console.error(`   refarm-sandbox: ${err.message}`);

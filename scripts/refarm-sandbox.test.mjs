@@ -6,17 +6,31 @@
  * Driven entirely by literals (per the task-1 brief's interface note: "Test it with
  * literals") — no filesystem, no network, no process. The impure edge (finding an
  * actually-free port, spawning tractor) is exercised live in Task 1's Step 4, not here.
+ *
+ * Task 2 adds `copySandboxCredentials`, which DOES touch the filesystem — its tests use a
+ * `node:fs.mkdtempSync` scratch directory as both a fake `~/.silo/identity.json` source and
+ * a fake `<repo>/.sandbox`, with entirely SYNTHETIC token values (never anything from this
+ * machine's real `~/.silo`). That lets the plan's Task 2 requirement — "verify the copies
+ * are independent by checking that writing in the sandbox leaves the operator's file
+ * unchanged" — be an automated, repeatable assertion instead of a one-time manual check.
  */
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
 import {
 	assertNoReservedFlags,
+	copySandboxCredentials,
+	minimalCredentialTokens,
+	OPERATOR_SILO_IDENTITY_PATH,
+	parseShellExports,
 	RESERVED_FLAGS,
 	SANDBOX_HTTP_PORT,
 	SANDBOX_NAMESPACE,
 	SANDBOX_PORT,
+	sandboxAgentPluginPath,
 	sandboxEnvironment,
 	startSandbox,
 } from "./refarm-sandbox.mjs";
@@ -167,4 +181,264 @@ test("startSandbox rejects the = form the same way", async () => {
 		() => startSandbox({ repoRoot: REPO_ROOT, extraArgs: ["--port=9999"] }),
 		/--port/,
 	);
+});
+
+// ---- Task 2: credentials — the fifth declaration (SILO_HOME), NOT one of the four axes ----
+
+test("sandboxEnvironment declares SILO_HOME, a sibling of REFARM_HOME/XDG_DATA_HOME", () => {
+	const { env } = sandboxEnvironment(REPO_ROOT);
+	assert.equal(env.SILO_HOME, path.join(REPO_ROOT, ".sandbox", "silo"));
+	assert.notEqual(env.SILO_HOME, env.REFARM_HOME, "must not collide with the sovereign dir");
+	assert.ok(
+		!env.SILO_HOME.startsWith(env.REFARM_HOME + path.sep),
+		"must not be nested inside REFARM_HOME — a sibling, like XDG_DATA_HOME",
+	);
+});
+
+test("OPERATOR_SILO_IDENTITY_PATH points at ~/.silo/identity.json — the durable source, read-only", () => {
+	assert.equal(OPERATOR_SILO_IDENTITY_PATH, path.join(os.homedir(), ".silo", "identity.json"));
+});
+
+// ---- sandboxAgentPluginPath — the recorded plugin decision ----
+
+test("sandboxAgentPluginPath resolves to the working tree's freshly-built agent, not an installed copy", () => {
+	assert.equal(
+		sandboxAgentPluginPath(REPO_ROOT),
+		path.join(REPO_ROOT, "packages", "agent", "dist", "agent.wasm"),
+	);
+});
+
+// ---- minimalCredentialTokens — the "minimum set" contract, pinned by test rather than only
+// documented. Every literal below is SYNTHETIC — none of it is a real credential. ----
+
+test("minimalCredentialTokens keeps modelProvider, modelId, modelApiKey when present", () => {
+	const result = minimalCredentialTokens({
+		modelProvider: "openai",
+		modelId: "gpt-5.6-sol",
+		modelApiKey: "sk-test-fixture-not-real",
+	});
+	assert.equal(result.modelProvider, "openai");
+	assert.equal(result.modelId, "gpt-5.6-sol");
+	assert.equal(result.modelApiKey, "sk-test-fixture-not-real");
+	assert.equal(result.oauthProvider, undefined);
+});
+
+test("minimalCredentialTokens keeps ONLY the active oauth provider's {access, accountId, expires}", () => {
+	const result = minimalCredentialTokens({
+		modelProvider: "openai-codex",
+		modelId: "gpt-5.5",
+		oauthProvider: "openai-codex",
+		oauthCredentials: {
+			"openai-codex": {
+				access: "fixture-access-token",
+				refresh: "fixture-refresh-token",
+				expires: 1234567890,
+				accountId: "fixture-account-id",
+			},
+			// A second, inactive provider entry — must NOT survive.
+			anthropic: { access: "should-never-appear" },
+		},
+	});
+	assert.deepEqual(result.oauthCredentials, {
+		"openai-codex": {
+			access: "fixture-access-token",
+			accountId: "fixture-account-id",
+			expires: 1234567890,
+		},
+	});
+	assert.equal(result.oauthProvider, "openai-codex");
+});
+
+test("minimalCredentialTokens drops the refresh token — nothing in this repo calls refreshToken() today", () => {
+	const result = minimalCredentialTokens({
+		oauthProvider: "openai-codex",
+		oauthCredentials: { "openai-codex": { access: "a", refresh: "must-not-survive" } },
+	});
+	assert.equal(result.oauthCredentials["openai-codex"].refresh, undefined);
+	assert.ok(!("refresh" in result.oauthCredentials["openai-codex"]));
+});
+
+test("minimalCredentialTokens drops githubToken/githubOwner/cloudflareToken — unrelated to model routing", () => {
+	const result = minimalCredentialTokens({
+		modelProvider: "openai-codex",
+		githubToken: "must-not-survive",
+		githubOwner: "must-not-survive",
+		cloudflareToken: "must-not-survive",
+	});
+	assert.deepEqual(Object.keys(result), ["modelProvider"]);
+});
+
+test("minimalCredentialTokens returns {} for empty input, and for an oauth entry missing access", () => {
+	assert.deepEqual(minimalCredentialTokens({}), {});
+	assert.deepEqual(minimalCredentialTokens(undefined), {});
+	assert.deepEqual(
+		minimalCredentialTokens({ oauthProvider: "openai-codex", oauthCredentials: { "openai-codex": {} } }),
+		{},
+	);
+});
+
+test("minimalCredentialTokens does not mutate its input", () => {
+	const input = Object.freeze({
+		modelProvider: "openai-codex",
+		oauthProvider: "openai-codex",
+		oauthCredentials: Object.freeze({ "openai-codex": Object.freeze({ access: "a" }) }),
+	});
+	assert.doesNotThrow(() => minimalCredentialTokens(input));
+});
+
+// ---- parseShellExports — the inverse of model.ts's shellQuote/formatModelEnvShell ----
+
+test("parseShellExports parses simple export lines", () => {
+	const entries = parseShellExports("export MODEL_PROVIDER='openai-codex'\nexport MODEL_ID='gpt-5.5'");
+	assert.deepEqual(entries, { MODEL_PROVIDER: "openai-codex", MODEL_ID: "gpt-5.5" });
+});
+
+test("parseShellExports unescapes shellQuote's single-quote escaping", () => {
+	// shellQuote(`it's a value=with=equals`) === `'it'\''s a value=with=equals'`
+	const entries = parseShellExports(`export TOKEN='it'\\''s a value=with=equals'`);
+	assert.equal(entries.TOKEN, "it's a value=with=equals");
+});
+
+test("parseShellExports ignores blank lines and non-export lines", () => {
+	const entries = parseShellExports("\n# a comment\nexport A='1'\n\nnot an export\nexport B='2'\n");
+	assert.deepEqual(entries, { A: "1", B: "2" });
+});
+
+test("parseShellExports round-trips values containing '='", () => {
+	const entries = parseShellExports("export OPENAI_CODEX_ACCESS_TOKEN='header.payload=.sig'");
+	assert.equal(entries.OPENAI_CODEX_ACCESS_TOKEN, "header.payload=.sig");
+});
+
+test("parseShellExports returns {} for empty input", () => {
+	assert.deepEqual(parseShellExports(""), {});
+});
+
+// ---- copySandboxCredentials — filesystem-scoped to a mkdtempSync sandbox, entirely
+// synthetic content. Proves the plan's Task 2 independence requirement by test, not just
+// by one-time manual observation. ----
+
+function withTmpRepoRoot(fn) {
+	const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-sandbox-creds-"));
+	try {
+		return fn(repoRoot);
+	} finally {
+		fs.rmSync(repoRoot, { recursive: true, force: true });
+	}
+}
+
+function writeFixtureSource(dir, tokens) {
+	const sourcePath = path.join(dir, "fixture-identity.json");
+	fs.writeFileSync(sourcePath, JSON.stringify({ schemaVersion: 1, tokens }, null, 2));
+	return sourcePath;
+}
+
+const FIXTURE_TOKENS = {
+	modelProvider: "openai-codex",
+	modelId: "gpt-5.5",
+	oauthProvider: "openai-codex",
+	oauthCredentials: {
+		"openai-codex": { access: "fixture-access", accountId: "fixture-account", expires: 1, refresh: "fixture-refresh" },
+	},
+	githubToken: "fixture-github-token",
+	githubOwner: "fixture-owner",
+	cloudflareToken: "fixture-cf-token",
+};
+
+test("copySandboxCredentials copies the minimum set into <repo>/.sandbox/silo/identity.json", () => {
+	withTmpRepoRoot((repoRoot) => {
+		const sourcePath = writeFixtureSource(repoRoot, FIXTURE_TOKENS);
+		const result = copySandboxCredentials(repoRoot, { sourcePath });
+
+		assert.equal(result.copied, true);
+		assert.equal(result.destPath, path.join(repoRoot, ".sandbox", "silo", "identity.json"));
+		assert.equal(result.provider, "openai-codex");
+		assert.equal(result.hasOAuth, true);
+
+		const written = JSON.parse(fs.readFileSync(result.destPath, "utf8"));
+		assert.equal(written.tokens.modelProvider, "openai-codex");
+		assert.equal(written.tokens.oauthCredentials["openai-codex"].access, "fixture-access");
+		// The over-copy this task exists to avoid — must be ABSENT from the written file.
+		assert.equal(written.tokens.githubToken, undefined);
+		assert.equal(written.tokens.cloudflareToken, undefined);
+		assert.equal(written.tokens.oauthCredentials["openai-codex"].refresh, undefined);
+	});
+});
+
+test("copySandboxCredentials writes the destination file and directory with restrictive permissions", () => {
+	withTmpRepoRoot((repoRoot) => {
+		const sourcePath = writeFixtureSource(repoRoot, FIXTURE_TOKENS);
+		const result = copySandboxCredentials(repoRoot, { sourcePath });
+
+		const fileMode = fs.statSync(result.destPath).mode & 0o777;
+		const dirMode = fs.statSync(path.dirname(result.destPath)).mode & 0o777;
+		assert.equal(fileMode, 0o600, `expected file mode 600, got ${fileMode.toString(8)}`);
+		assert.equal(dirMode, 0o700, `expected dir mode 700, got ${dirMode.toString(8)}`);
+	});
+});
+
+test("copySandboxCredentials NEVER writes the source — writing the sandbox copy leaves it byte-identical", () => {
+	withTmpRepoRoot((repoRoot) => {
+		const sourcePath = writeFixtureSource(repoRoot, FIXTURE_TOKENS);
+		const before = fs.readFileSync(sourcePath, "utf8");
+		const beforeMtime = fs.statSync(sourcePath).mtimeMs;
+
+		copySandboxCredentials(repoRoot, { sourcePath });
+		// Copy again — a second sync must still never touch the source.
+		copySandboxCredentials(repoRoot, { sourcePath });
+
+		const after = fs.readFileSync(sourcePath, "utf8");
+		assert.equal(after, before, "source content must be byte-identical after the sandbox copy exists");
+		assert.equal(fs.statSync(sourcePath).mtimeMs, beforeMtime, "source must not even be touched/rewritten");
+	});
+});
+
+test("copySandboxCredentials refuses gracefully (never throws) when the source does not exist", () => {
+	withTmpRepoRoot((repoRoot) => {
+		const missingSource = path.join(repoRoot, "does-not-exist.json");
+		const result = copySandboxCredentials(repoRoot, { sourcePath: missingSource });
+		assert.equal(result.copied, false);
+		assert.match(result.reason, /no credential source/);
+		assert.equal(fs.existsSync(result.destPath), false);
+	});
+});
+
+test("copySandboxCredentials refuses gracefully when the source is not valid JSON", () => {
+	withTmpRepoRoot((repoRoot) => {
+		const sourcePath = path.join(repoRoot, "broken.json");
+		fs.writeFileSync(sourcePath, "{ not json");
+		const result = copySandboxCredentials(repoRoot, { sourcePath });
+		assert.equal(result.copied, false);
+		assert.match(result.reason, /not valid JSON/);
+	});
+});
+
+test("copySandboxCredentials refuses gracefully when the source names no usable credential", () => {
+	withTmpRepoRoot((repoRoot) => {
+		const sourcePath = writeFixtureSource(repoRoot, { githubToken: "irrelevant-to-model-routing" });
+		const result = copySandboxCredentials(repoRoot, { sourcePath });
+		assert.equal(result.copied, false);
+		assert.match(result.reason, /no usable credential/);
+	});
+});
+
+test("copySandboxCredentials re-syncs (overwrites) an existing destination rather than merging stale content", () => {
+	withTmpRepoRoot((repoRoot) => {
+		const sourcePath = writeFixtureSource(repoRoot, FIXTURE_TOKENS);
+		copySandboxCredentials(repoRoot, { sourcePath });
+
+		// Simulate a token rotation on the operator's side.
+		fs.writeFileSync(
+			sourcePath,
+			JSON.stringify({
+				schemaVersion: 1,
+				tokens: {
+					...FIXTURE_TOKENS,
+					oauthCredentials: { "openai-codex": { access: "rotated-access", accountId: "fixture-account" } },
+				},
+			}),
+		);
+		const result = copySandboxCredentials(repoRoot, { sourcePath });
+		const written = JSON.parse(fs.readFileSync(result.destPath, "utf8"));
+		assert.equal(written.tokens.oauthCredentials["openai-codex"].access, "rotated-access");
+	});
 });
