@@ -61,8 +61,16 @@
  *     2026-08-06: their SHA-256 is IDENTICAL today (`6d78b1c15…5ae3eca`) — this choice has
  *     no behavioral effect yet, but will the moment `packages/agent/src` is edited and
  *     rebuilt without a matching `refarm plugin install`. A caller may still override via
- *     `startSandbox({ plugin })` or CLI `--plugin <path>` (the last occurrence wins; see
- *     `assertNoReservedFlags`'s note on why `--plugin` is deliberately unreserved).
+ *     `startSandbox({ plugin })` or CLI `--plugin <path>` in `extraArgs` — but NOT by
+ *     "last occurrence wins": `--plugin` is `Vec<PathBuf>` in `packages/tractor/src/main.rs`
+ *     (`may be repeated`), so clap-derive APPENDS every occurrence rather than letting a
+ *     later one replace an earlier one — two `--plugin` flags load TWO plugins, both
+ *     registered for events (`main.rs`'s boot loop, `for path in &args.plugin`), not one
+ *     overriding the other. That is exactly why `--plugin` is deliberately left out of
+ *     `RESERVED_FLAGS` (see `assertNoReservedFlags`'s note) rather than handled the same
+ *     way as the four scalar flags: `startSandbox` detects a caller-supplied `--plugin` in
+ *     `extraArgs` itself and, when present, does NOT also append the default — the
+ *     caller's choice is the ONLY plugin loaded, not one of two.
  *
  *   - does NOT implement `status` or `--reset` (Task 3) or `refarm parity` (Task 5).
  *
@@ -183,6 +191,14 @@ export function sandboxEnvironment(repoRoot, overrides = {}) {
  */
 export const RESERVED_FLAGS = ["--port", "--http-port", "--namespace", "--refarm-dir"];
 
+/** PURE. The `--flag` portion of a single argv token, whether it arrived as `--flag value`
+ * (the token itself IS the name) or `--flag=value` (split on the first `=`). Shared by
+ * `assertNoReservedFlags` and `startSandbox`'s `--plugin` detection below, so "how do we
+ * recognize a flag's name in extraArgs" has exactly one implementation. */
+function flagNameOf(arg) {
+	return arg.includes("=") ? arg.slice(0, arg.indexOf("=")) : arg;
+}
+
 /**
  * PURE. Throws if `extraArgs` names any flag `startSandbox` already sets itself.
  *
@@ -207,7 +223,7 @@ export const RESERVED_FLAGS = ["--port", "--http-port", "--namespace", "--refarm
  */
 export function assertNoReservedFlags(extraArgs) {
 	for (const arg of extraArgs) {
-		const name = arg.includes("=") ? arg.slice(0, arg.indexOf("=")) : arg;
+		const name = flagNameOf(arg);
 		if (RESERVED_FLAGS.includes(name)) {
 			throw new Error(
 				`refarm-sandbox: extraArgs may not pass ${name} — startSandbox() already sets it ` +
@@ -235,6 +251,68 @@ export function sandboxAgentPluginPath(repoRoot) {
 	return path.join(repoRoot, "packages", "agent", "dist", "agent.wasm");
 }
 
+/** PURE. Every `--plugin` value present in an already-assembled tractor argv array (both
+ * `--plugin path` and `--plugin=path` forms), in the order they appear. `--plugin` is
+ * `Vec<PathBuf>` on the Rust side (`packages/tractor/src/main.rs`, "may be repeated") — this
+ * is the launcher-side mirror of that: reads the SAME array passed to `spawn()`, so what a
+ * caller is told was loaded can never drift from what actually was (see `startSandbox`'s
+ * `loadedPlugins`). */
+/**
+ * PURE. True when `extraArgs` already names a `--plugin` flag (either `--plugin path` or
+ * `--plugin=path`) — the signal `startSandbox` uses to skip appending its OWN default
+ * plugin. Appending both would load TWO plugins, not let the caller's override one: unlike
+ * the four `RESERVED_FLAGS`, `--plugin` is `Vec<PathBuf>` on the Rust side
+ * (`packages/tractor/src/main.rs`, "may be repeated"), so clap-derive APPENDS every
+ * occurrence instead of a later one replacing an earlier one.
+ */
+export function extraArgsSuppliesPlugin(extraArgs) {
+	return extraArgs.some((arg) => flagNameOf(arg) === "--plugin");
+}
+
+/**
+ * Decide the `--plugin <path>` args (and any notice) `startSandbox` should add for its
+ * OWN default plugin, given the resolved `plugin` path and the caller's `extraArgs`.
+ * Exported and called BY `startSandbox` (never re-implemented inline there) so a test can
+ * exercise the actual decision `startSandbox` runs — not a hand-copied second version that
+ * can silently drift from it, the exact gap a prior review found in `RESERVED_FLAGS`'s
+ * test coverage. `existsSync` is injectable so tests can drive both branches (plugin file
+ * present/absent) without touching the real filesystem.
+ *
+ * Returns `{ pluginArgs: [], notice: undefined }` when a caller already supplied their own
+ * `--plugin` — see `extraArgsSuppliesPlugin`'s doc for why appending the default on top
+ * would load TWO plugins instead of letting the caller's win.
+ */
+export function resolveDefaultPluginArgs(plugin, extraArgs, { existsSync = fs.existsSync } = {}) {
+	if (!plugin || extraArgsSuppliesPlugin(extraArgs)) {
+		return { pluginArgs: [], notice: undefined };
+	}
+	if (!existsSync(plugin)) {
+		return {
+			pluginArgs: [],
+			notice:
+				`agent plugin not found at ${plugin} — starting with NO plugin. Build it: ` +
+				"pnpm --filter @refarm.dev/agent run build",
+		};
+	}
+	return { pluginArgs: ["--plugin", plugin], notice: undefined };
+}
+
+export function pluginPathsIn(args) {
+	const paths = [];
+	for (let i = 0; i < args.length; i += 1) {
+		const arg = args[i];
+		if (arg === "--plugin") {
+			if (i + 1 < args.length) paths.push(args[i + 1]);
+			i += 1;
+			continue;
+		}
+		if (arg.startsWith("--plugin=")) {
+			paths.push(arg.slice("--plugin=".length));
+		}
+	}
+	return paths;
+}
+
 /**
  * PURE. Given a parsed Silo `tokens` object (the shape `SiloCore#loadTokens()` returns —
  * i.e. `JSON.parse(readFileSync(identity.json)).tokens`), return ONLY the fields
@@ -245,6 +323,18 @@ export function sandboxAgentPluginPath(repoRoot) {
  * today, kept for whichever provider a future sandbox run might be configured for), and —
  * for the OAuth tier — `oauthProvider` plus JUST that one provider's `{access, accountId,
  * expires}`.
+ *
+ * SOURCE OF TRUTH FOR "WHICH FIELDS": every `tokens.<field>` access in
+ * `apps/refarm/src/commands/model.ts` and `packages/config/src/model-routing.js`,
+ * enumerated 2026-08-07 (not "the fields I happened to trace" — a review caught exactly
+ * that gap once already, see below). `buildCurrentModelStatus` (`model.ts:897-…`, the
+ * single implementation `buildModelEnvEntries` AND `formatCurrentModel` both go through)
+ * reads: `modelProvider`, `modelId`, `model` (a legacy alias for `modelId`, read directly
+ * by `effectiveModelRouteForScope` at `model-routing.js:260` — `stringValue(tokens.modelId)
+ * ?? stringValue(tokens.model)`), `modelBaseUrl` (`model.ts:915`), `modelFallbackProvider`
+ * (`:917`), `modelFallbackModelId` (`:922`), `modelApiKey` (the API-key tier,
+ * `model-routing.js:119`), and — oauth tier — `oauthProvider`/`oauthCredentials`
+ * (`model-routing.js:101-105`). Every one of those is kept below.
  *
  * Deliberately DROPS:
  *   - `refresh` — the OAuth refresh token. Verified 2026-08-06 by a repo-wide grep for
@@ -261,6 +351,17 @@ export function sandboxAgentPluginPath(repoRoot) {
  *     entry, so copying the rest is dead weight with the same over-copy problem.
  *   - the identity block (`masterPublicKey`, `bootstrappedAt`) — device identity, not part
  *     of `.tokens` at all, so `loadTokens()` never even returns it to a caller.
+ *   - `modelRoutes` — EXCLUDED DELIBERATELY, not an oversight: `effectiveModelRouteForScope`
+ *     only ever consults it for the `worker`/`monitor` SCOPES (`model-routing.js:277`,
+ *     `routes[scope]`), and `buildModelEnvEntries` (the function that decides what actually
+ *     gets exported as an env var) never exports a worker/monitor-scoped variable at all —
+ *     `MODEL_RUNTIME_ENV_VARS` (`model-routing.js:20-28`) only ever carries the DEFAULT
+ *     scope's provider/id/base-url/fallback. A sandbox missing `modelRoutes` therefore
+ *     resolves the identical env-var set a copy WITH it would — it only changes what
+ *     `refarm model current`'s TEXT DISPLAY shows for the worker/monitor rows, which this
+ *     task's proof (`refarm model current --json`'s `credential`/`current` fields) never
+ *     depends on. Dormant today either way: the operator's live identity carries no
+ *     `modelRoutes` entry.
  *
  * Returns `{}` for input that names no usable credential (e.g. an oauth provider whose
  * entry is missing `access`), so a caller can tell "nothing to copy" from "copied nothing
@@ -273,6 +374,21 @@ export function minimalCredentialTokens(tokens = {}) {
 	}
 	if (typeof tokens.modelId === "string" && tokens.modelId.trim()) {
 		result.modelId = tokens.modelId;
+	}
+	// Legacy alias for modelId — effectiveModelRouteForScope() falls back to THIS field
+	// when modelId is absent (model-routing.js:260). Keeping modelId alone would silently
+	// drop a route an operator set through the legacy field.
+	if (typeof tokens.model === "string" && tokens.model.trim()) {
+		result.model = tokens.model;
+	}
+	if (typeof tokens.modelBaseUrl === "string" && tokens.modelBaseUrl.trim()) {
+		result.modelBaseUrl = tokens.modelBaseUrl;
+	}
+	if (typeof tokens.modelFallbackProvider === "string" && tokens.modelFallbackProvider.trim()) {
+		result.modelFallbackProvider = tokens.modelFallbackProvider;
+	}
+	if (typeof tokens.modelFallbackModelId === "string" && tokens.modelFallbackModelId.trim()) {
+		result.modelFallbackModelId = tokens.modelFallbackModelId;
 	}
 	if (typeof tokens.modelApiKey === "string" && tokens.modelApiKey.trim()) {
 		result.modelApiKey = tokens.modelApiKey;
@@ -306,24 +422,65 @@ export function minimalCredentialTokens(tokens = {}) {
  * (blank lines, anything else). Unescapes the single-quote-wrapped form `shellQuote`
  * produces (`'\''` inside the quotes → a literal `'`); a value that arrives unquoted is
  * used as-is.
+ *
+ * REFUSES (throws) rather than silently truncating a value that looks like the START of a
+ * single-quoted token whose closing quote never arrives on the SAME physical line.
+ * `shellQuote` (`model.ts:259-261`) escapes `'` but never a raw `\n`, and this parser reads
+ * line-by-line — so a value containing an embedded newline would otherwise split across
+ * two "lines", the first parsed as a (wrongly) complete export with everything after the
+ * newline silently dropped, the second silently skipped as "not an export line". Not
+ * reachable with today's JWT-shaped credential values, but a silently truncated credential
+ * is the worst failure mode available here — refuse rather than guess.
  */
 export function parseShellExports(text) {
 	const entries = {};
-	for (const line of text.split("\n")) {
-		const match = /^export\s+([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line.trim());
+	for (const rawLine of text.split("\n")) {
+		const line = rawLine.trim();
+		if (!line) continue;
+		const match = /^export\s+([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line);
 		if (!match) continue;
 		const [, key, rawValue] = match;
-		entries[key] = unquoteShellValue(rawValue);
+		entries[key] = unquoteShellValue(key, rawValue);
 	}
 	return entries;
 }
 
-function unquoteShellValue(raw) {
+function unquoteShellValue(key, raw) {
 	const trimmed = raw.trim();
-	if (trimmed.length >= 2 && trimmed.startsWith("'") && trimmed.endsWith("'")) {
-		return trimmed.slice(1, -1).replace(/'\\''/g, "'");
+	if (!trimmed.startsWith("'")) return trimmed;
+	const closed = closedSingleQuotedValue(trimmed);
+	if (closed === null) {
+		throw new Error(
+			`parseShellExports: the value for ${key} looks like an UNCLOSED single-quoted ` +
+				"shell token on this line — refusing rather than silently truncating it. The " +
+				"most likely cause is a raw, unescaped newline inside the value (shellQuote " +
+				"escapes ' but not \\n, and this parser reads line-by-line).",
+		);
 	}
-	return trimmed;
+	return closed;
+}
+
+/**
+ * PURE. `value` is assumed to already start with `'` (checked by the caller). Returns the
+ * unescaped content if `value` is a COMPLETE, single-line `shellQuote()`-shaped token —
+ * `'`, then any run of (non-quote characters | the 4-char escape `'\''`), then a closing
+ * `'` with NOTHING trailing after it. Returns `null` if the scan runs off the end of
+ * `value` without ever finding that closing quote — i.e. the token never closes on this
+ * line — or if there is leftover content after a quote that did close.
+ */
+function closedSingleQuotedValue(value) {
+	let i = 1;
+	while (i < value.length) {
+		if (value.startsWith("'\\''", i)) {
+			i += 4;
+			continue;
+		}
+		if (value[i] === "'") {
+			return i === value.length - 1 ? value.slice(1, i).replace(/'\\''/g, "'") : null;
+		}
+		i += 1;
+	}
+	return null;
 }
 
 // ---- Impure edge: everything below touches the filesystem, the network, or a process. ----
@@ -436,7 +593,14 @@ export function resolveSandboxModelEnv(repoRoot, { siloHome } = {}) {
 		return { entries: {}, reason: `refarm model env --shell exited ${result.status}: ${result.stderr?.trim()}` };
 	}
 
-	return { entries: parseShellExports(result.stdout) };
+	try {
+		return { entries: parseShellExports(result.stdout) };
+	} catch (err) {
+		// parseShellExports refuses (throws) rather than silently truncating a malformed
+		// value — this function's own contract is "never throws, degrade instead", so that
+		// refusal becomes a reason here, same as every other failure mode above.
+		return { entries: {}, reason: err.message };
+	}
 }
 
 /**
@@ -503,18 +667,15 @@ export async function startSandbox({
 	fs.mkdirSync(sandboxEnv.REFARM_HOME, { recursive: true });
 	fs.mkdirSync(sandboxEnv.XDG_DATA_HOME, { recursive: true });
 
-	const pluginArgs = [];
+	// `--plugin` is Vec<PathBuf> in packages/tractor/src/main.rs ("may be repeated"), so
+	// clap-derive APPENDS every occurrence rather than letting a later one replace an
+	// earlier one — appending the default AND a caller-supplied --plugin would load BOTH
+	// (and register both for events), not let the caller's win. resolveDefaultPluginArgs
+	// skips the default entirely when extraArgs already names one, so the caller's choice
+	// is the ONLY plugin loaded.
+	const { pluginArgs, notice: pluginNotice } = resolveDefaultPluginArgs(plugin, extraArgs);
 	const notices = [];
-	if (plugin) {
-		if (fs.existsSync(plugin)) {
-			pluginArgs.push("--plugin", plugin);
-		} else {
-			notices.push(
-				`agent plugin not found at ${plugin} — starting with NO plugin. Build it: ` +
-					"pnpm --filter @refarm.dev/agent run build",
-			);
-		}
-	}
+	if (pluginNotice) notices.push(pluginNotice);
 
 	const args = [
 		"--port",
@@ -526,12 +687,14 @@ export async function startSandbox({
 		"--refarm-dir",
 		sandboxEnv.REFARM_HOME,
 		...pluginArgs,
-		// extraArgs LAST: a caller's own --plugin (or anything else not in RESERVED_FLAGS)
-		// wins over this function's default, matching how clap already resolves a repeated
-		// scalar flag — see assertNoReservedFlags's note on why --plugin is deliberately
-		// left unreserved.
 		...extraArgs,
 	];
+
+	// Computed from the FINAL assembled `args`, not from a separate belief about what was
+	// added above — so what this function REPORTS loading can never drift from what it
+	// actually passes to spawn() (the exact gap that let a caller-supplied --plugin load
+	// silently alongside the default: the printed line only ever showed the default).
+	const loadedPlugins = pluginPathsIn(args);
 
 	// Every axis, in the child's own environment too — so anything the daemon itself reads
 	// from env (and any tool later invoked against this same env) resolves identically to
@@ -591,7 +754,7 @@ export async function startSandbox({
 			xdgDataHome: sandboxEnv.XDG_DATA_HOME,
 			pidFile,
 			logFile,
-			plugin: pluginArgs.length > 0 ? plugin : null,
+			plugins: loadedPlugins,
 			notices,
 		};
 	}
@@ -608,7 +771,7 @@ export async function startSandbox({
 				namespace,
 				refarmHome: sandboxEnv.REFARM_HOME,
 				xdgDataHome: sandboxEnv.XDG_DATA_HOME,
-				plugin: pluginArgs.length > 0 ? plugin : null,
+				plugins: loadedPlugins,
 				notices,
 			});
 		});
@@ -641,13 +804,29 @@ async function main() {
 		console.log(`   namespace : ${result.namespace}`);
 		console.log(`   refarm-dir: ${result.refarmHome}`);
 		console.log(`   graph dir : ${result.xdgDataHome}`);
-		console.log(`   plugin    : ${result.plugin ?? "<none>"}`);
+		if (result.plugins.length === 0) {
+			console.log("   plugin    : <none>");
+		} else {
+			console.log(`   plugin    : ${result.plugins[0]}`);
+			for (const extra of result.plugins.slice(1)) {
+				console.log(`             + ${extra}`);
+			}
+		}
 		if (background) {
 			console.log(`   log       : ${result.logFile}`);
 			console.log(`   pid file  : ${result.pidFile}`);
 		}
-		for (const notice of result.notices ?? []) {
-			console.log(`   ⚠  ${notice}`);
+		// Degraded-start notices (no credentials copied, no plugin found, …) go to STDERR,
+		// never stdout — and flip the exit code, so a caller checking `$?` alone (not
+		// parsing `notices`) can still tell "started, but not what you asked for" apart
+		// from a clean start. A lab that silently comes up without its credentials is the
+		// thing this whole plan exists to prevent; an exit code that hides that is the same
+		// failure mode as the SILO_HOME/plugin-append gaps this task closed.
+		if ((result.notices ?? []).length > 0) {
+			for (const notice of result.notices) {
+				console.error(`   ⚠  ${notice}`);
+			}
+			process.exitCode = 2;
 		}
 	} catch (err) {
 		console.error(`   refarm-sandbox: ${err.message}`);

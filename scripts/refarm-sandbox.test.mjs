@@ -23,9 +23,12 @@ import { test } from "node:test";
 import {
 	assertNoReservedFlags,
 	copySandboxCredentials,
+	extraArgsSuppliesPlugin,
 	minimalCredentialTokens,
 	OPERATOR_SILO_IDENTITY_PATH,
 	parseShellExports,
+	pluginPathsIn,
+	resolveDefaultPluginArgs,
 	RESERVED_FLAGS,
 	SANDBOX_HTTP_PORT,
 	SANDBOX_NAMESPACE,
@@ -223,6 +226,49 @@ test("minimalCredentialTokens keeps modelProvider, modelId, modelApiKey when pre
 	assert.equal(result.oauthProvider, undefined);
 });
 
+// ---- Code review follow-up: the allowlist was missing members buildCurrentModelStatus
+// (model.ts) and effectiveModelRouteForScope (model-routing.js) also read. One test per
+// newly-included field, so a future trim can't silently drop one and still pass. ----
+
+test("minimalCredentialTokens keeps the legacy `model` alias for modelId", () => {
+	// effectiveModelRouteForScope (model-routing.js:260) falls back to tokens.model when
+	// tokens.modelId is absent — dropping it would silently lose a route set through the
+	// legacy field.
+	const result = minimalCredentialTokens({ modelProvider: "openai", model: "gpt-5.6-sol" });
+	assert.equal(result.model, "gpt-5.6-sol");
+});
+
+test("minimalCredentialTokens keeps modelBaseUrl — read by buildCurrentModelStatus (model.ts:915)", () => {
+	const result = minimalCredentialTokens({
+		modelProvider: "openai",
+		modelBaseUrl: "https://fixture.example/v1",
+	});
+	assert.equal(result.modelBaseUrl, "https://fixture.example/v1");
+});
+
+test("minimalCredentialTokens keeps modelFallbackProvider/modelFallbackModelId (model.ts:917,922)", () => {
+	const result = minimalCredentialTokens({
+		modelProvider: "openai-codex",
+		modelFallbackProvider: "anthropic",
+		modelFallbackModelId: "claude-sonnet-5",
+	});
+	assert.equal(result.modelFallbackProvider, "anthropic");
+	assert.equal(result.modelFallbackModelId, "claude-sonnet-5");
+});
+
+test("minimalCredentialTokens drops modelRoutes — excluded deliberately, not an oversight", () => {
+	// buildModelEnvEntries never exports a worker/monitor-scoped env var (MODEL_RUNTIME_ENV_VARS
+	// only carries the default scope), so a sandbox missing modelRoutes resolves the identical
+	// env-var set a copy WITH it would. Only refarm model current's TEXT display of the
+	// worker/monitor rows would differ — not anything this task's proof depends on.
+	const result = minimalCredentialTokens({
+		modelProvider: "openai-codex",
+		modelRoutes: { worker: "openai-codex/gpt-5.3-codex-spark", monitor: "openai-codex/gpt-5.5" },
+	});
+	assert.equal(result.modelRoutes, undefined);
+	assert.deepEqual(Object.keys(result), ["modelProvider"]);
+});
+
 test("minimalCredentialTokens keeps ONLY the active oauth provider's {access, accountId, expires}", () => {
 	const result = minimalCredentialTokens({
 		modelProvider: "openai-codex",
@@ -311,6 +357,27 @@ test("parseShellExports round-trips values containing '='", () => {
 
 test("parseShellExports returns {} for empty input", () => {
 	assert.deepEqual(parseShellExports(""), {});
+});
+
+// ---- Code review follow-up: refuse an unclosed single-quoted value (embedded raw newline)
+// rather than silently truncating it. shellQuote() escapes ' but never \n. ----
+
+test("parseShellExports THROWS rather than silently truncating a value containing a raw newline", () => {
+	// shellQuote("line1\nline2") === "'line1\nline2'" — a literal newline INSIDE the quotes,
+	// which this line-oriented parser would otherwise split into "export TOKEN='line1"
+	// (looks complete if unterminated-detection is missing) and "line2'" (silently dropped
+	// as "not an export line") — a truncated credential with no error.
+	const maliciousExport = "export TOKEN='line1\nline2'";
+	assert.throws(() => parseShellExports(maliciousExport), /TOKEN/);
+});
+
+test("parseShellExports THROWS naming the exact key whose value is unclosed, not a neighbor", () => {
+	const text = "export GOOD='fine'\nexport BAD='unterminated\nexport ALSO_GOOD='fine2'";
+	assert.throws(() => parseShellExports(text), /BAD/);
+});
+
+test("parseShellExports THROWS on trailing content after a quote that DID close", () => {
+	assert.throws(() => parseShellExports("export KEY='closed' trailing-garbage"), /KEY/);
 });
 
 // ---- copySandboxCredentials — filesystem-scoped to a mkdtempSync sandbox, entirely
@@ -441,4 +508,87 @@ test("copySandboxCredentials re-syncs (overwrites) an existing destination rathe
 		const written = JSON.parse(fs.readFileSync(result.destPath, "utf8"));
 		assert.equal(written.tokens.oauthCredentials["openai-codex"].access, "rotated-access");
 	});
+});
+
+// ---- Code review follow-up: --plugin is Vec<PathBuf> in main.rs ("may be repeated"), so
+// clap APPENDS every occurrence — it does NOT let a later one win over an earlier one, the
+// way the four RESERVED_FLAGS (all scalar) do. Appending the default AND a caller-supplied
+// --plugin would load BOTH, not let the caller's override. ----
+
+test("pluginPathsIn reads every --plugin value from an assembled argv, both forms, in order", () => {
+	const args = ["--port", "43000", "--plugin", "/a.wasm", "--namespace", "sandbox", "--plugin=/b.wasm"];
+	assert.deepEqual(pluginPathsIn(args), ["/a.wasm", "/b.wasm"]);
+});
+
+test("pluginPathsIn returns [] when no --plugin is present", () => {
+	assert.deepEqual(pluginPathsIn(["--port", "43000"]), []);
+});
+
+test("pluginPathsIn ignores a trailing --plugin with no value rather than throwing", () => {
+	assert.deepEqual(pluginPathsIn(["--port", "43000", "--plugin"]), []);
+});
+
+test("extraArgsSuppliesPlugin detects --plugin in either form", () => {
+	assert.equal(extraArgsSuppliesPlugin(["--plugin", "/x.wasm"]), true);
+	assert.equal(extraArgsSuppliesPlugin(["--plugin=/x.wasm"]), true);
+	assert.equal(extraArgsSuppliesPlugin(["--port", "43000", "--plugin", "/x.wasm"]), true);
+});
+
+test("extraArgsSuppliesPlugin is false when the caller names no --plugin", () => {
+	assert.equal(extraArgsSuppliesPlugin([]), false);
+	assert.equal(extraArgsSuppliesPlugin(["--refarm-dir", "/x"]), false);
+});
+
+// resolveDefaultPluginArgs is the EXACT function startSandbox calls (not a re-implementation
+// tests exercise standalone while startSandbox does something subtly different) — its
+// `existsSync` is injectable so these tests never touch the real filesystem.
+
+test("resolveDefaultPluginArgs: a caller-supplied --plugin means the default is NOT appended", () => {
+	const result = resolveDefaultPluginArgs("/repo/packages/agent/dist/agent.wasm", ["--plugin", "/caller.wasm"], {
+		existsSync: () => true,
+	});
+	assert.deepEqual(result.pluginArgs, []);
+	assert.equal(result.notice, undefined);
+});
+
+test("resolveDefaultPluginArgs: the caller's --plugin=path (= form) also suppresses the default", () => {
+	const result = resolveDefaultPluginArgs("/repo/packages/agent/dist/agent.wasm", ["--plugin=/caller.wasm"], {
+		existsSync: () => true,
+	});
+	assert.deepEqual(result.pluginArgs, []);
+});
+
+test("resolveDefaultPluginArgs: no caller --plugin and the default file exists → appends the default", () => {
+	const result = resolveDefaultPluginArgs("/repo/packages/agent/dist/agent.wasm", [], { existsSync: () => true });
+	assert.deepEqual(result.pluginArgs, ["--plugin", "/repo/packages/agent/dist/agent.wasm"]);
+	assert.equal(result.notice, undefined);
+});
+
+test("resolveDefaultPluginArgs: no caller --plugin and the default file is MISSING → no args, a notice instead", () => {
+	const result = resolveDefaultPluginArgs("/repo/packages/agent/dist/agent.wasm", [], { existsSync: () => false });
+	assert.deepEqual(result.pluginArgs, []);
+	assert.match(result.notice, /agent plugin not found/);
+});
+
+test("resolveDefaultPluginArgs: plugin: null means no default, regardless of extraArgs", () => {
+	const result = resolveDefaultPluginArgs(null, [], { existsSync: () => true });
+	assert.deepEqual(result.pluginArgs, []);
+	assert.equal(result.notice, undefined);
+});
+
+test("startSandbox produces exactly ONE loaded plugin end-to-end when the caller supplies --plugin, never the default too", async () => {
+	// Assembles the SAME args shape startSandbox builds (fixed flags, then
+	// resolveDefaultPluginArgs's output, then extraArgs) and confirms pluginPathsIn — the
+	// function startSandbox itself uses to compute the `plugins` it returns/prints — sees
+	// only the caller's path. This chains the three real, exported pieces together
+	// (resolveDefaultPluginArgs → pluginPathsIn) rather than re-asserting each in
+	// isolation, so a future edit that reconnects them differently cannot pass by
+	// accident. The live daemon-spawn edge itself is proven in task-2-report.md via
+	// /proc/<pid>/cmdline against a real running sandbox, per this file's existing
+	// convention of keeping that edge out of node:test (see the file header).
+	const defaultPlugin = "/repo/packages/agent/dist/agent.wasm";
+	const extraArgs = ["--plugin", "/caller-chosen.wasm"];
+	const { pluginArgs } = resolveDefaultPluginArgs(defaultPlugin, extraArgs, { existsSync: () => true });
+	const finalArgs = ["--port", "43000", "--refarm-dir", "/r", ...pluginArgs, ...extraArgs];
+	assert.deepEqual(pluginPathsIn(finalArgs), ["/caller-chosen.wasm"]);
 });
