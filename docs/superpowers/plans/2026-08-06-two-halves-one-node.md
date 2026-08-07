@@ -18,7 +18,7 @@ For the fallback case that sentence is false, and has been. Measured 2026-08-06:
 
 | | Resolves the base as |
 | --- | --- |
-| Rust host (`main.rs:760-776`, `dirs_sovereign_base`) | `REFARM_HOME`, else the OS home dir — **never cwd** |
+| Rust host (`main.rs:431-446`, `run_daemon`, via `dirs_sovereign_base().parent()` at `main.rs:760-776`) | `dirname(REFARM_HOME)`, else the OS home dir — **never cwd** |
 | TypeScript (`packages/config/src/index.js:150-153`, `declaredBase`) | `SOVEREIGN_BASE`, else **`process.cwd()`** |
 
 So the two halves disagree whenever `SOVEREIGN_BASE` is unexported in a shell, which is the ordinary case. This is the root cause of the divergence the cockpit spent a day learning to report: `refarm context` on this machine reports `sovereign:base-divergence` from every directory, and it is right to — the disagreement is real, and it is built in rather than configured.
