@@ -1036,7 +1036,11 @@ jobs:
     # Verify or rides a stale cache), the face-smoke-coverage checker (every example page has a
     # web-face smoke entry, so a new face can't silently go un-browser-tested), and the phantom-dep /
     # test-runner-contract checkers that until now lived only in the never-invoked gate:full:colony
-    # bundle + a bypassable pre-push hook.
+    # bundle + a bypassable pre-push hook. Also home for the no-os-resolution ratchet (a resolver
+    # must take its base explicitly, never default to process.cwd()/homedir() — see
+    # docs/NO_OS_RESOLUTION.md): its co-located scripts/*.test.mjs siblings (refarm-sandbox,
+    # scaffold-capability, verify-changed, ...) are NOT run anywhere in this workflow today, so this
+    # one is deliberately placed here rather than left to the same fate — see task-1-report.md.
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: changes
@@ -1068,6 +1072,9 @@ jobs:
 
       - name: Test-runner contracts
         run: pnpm run test-runner:contracts
+
+      - name: No-OS-resolution ratchet (a resolver must not silently default to the OS)
+        run: pnpm run no-os-resolution:test
 
   web-face-smoke:
     runs-on: ubuntu-latest
