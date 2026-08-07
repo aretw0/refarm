@@ -23,6 +23,7 @@ flowchart LR
     FileState["task-results/*.json\ntask-logs/*.ndjson"]
   end
 
+  SummaryPolicy["effort-summary\npure status + window policy"]
   Coupling["remaining coupling\nqueue + lifecycle still live\nin FileTransportAdapter"]
 
   Executor["Farmhand task executor\npolicy · model route · plugin call"]
@@ -56,6 +57,7 @@ flowchart LR
   FileAdapter -->|"persists through"| FileRepository
   FileRepository -->|"reads definitions"| TaskFiles
   FileRepository -->|"writes state"| FileState
+  FileAdapter -->|"aggregates through"| SummaryPolicy
   FileAdapter --> Executor
   Executor --> Runtime
   Runtime -->|"StreamChunk node"| Chunk
@@ -75,6 +77,6 @@ flowchart LR
   classDef transport fill:#e0f2fe,stroke:#075985,stroke-width:1px;
 
   class CLI,Channels,Clients,Follower,WsConsumer surface;
-  class Effort,Operations,Chunk contract;
+  class Effort,Operations,SummaryPolicy,Chunk contract;
   class Executor,Runtime,Registry runtime;
   class Dispatch,FileClient,HttpClient,ChannelClient,TaskFiles,Http,FileAdapter,FileRepository,FileState,FileStream,SSE,WS,Coupling transport;
