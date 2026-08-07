@@ -13,6 +13,7 @@ import { test } from "node:test";
 
 import {
 	assertNoReservedFlags,
+	RESERVED_FLAGS,
 	SANDBOX_HTTP_PORT,
 	SANDBOX_NAMESPACE,
 	SANDBOX_PORT,
@@ -124,8 +125,8 @@ test("is pure: repeated calls with the same repoRoot return equal (deep) results
 // appended last) would silently repoint the "sandbox" at the operator's real --refarm-dir,
 // concurrently with his running node. Refuse instead of letting it win. ----
 
-const RESERVED_FLAGS = ["--port", "--http-port", "--namespace", "--refarm-dir"];
-
+// Imported from the guard itself (not redeclared) — a fifth flag added to the source set
+// grows this loop automatically instead of leaving a hand-copied list silently behind it.
 for (const flag of RESERVED_FLAGS) {
 	test(`assertNoReservedFlags refuses ${flag} (two-token form)`, () => {
 		assert.throws(() => assertNoReservedFlags([flag, "some-value"]), new RegExp(`\\${flag}\\b`));

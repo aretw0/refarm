@@ -124,7 +124,7 @@ export function sandboxEnvironment(repoRoot, overrides = {}) {
  * Flags this launcher already owns and sets itself (see `startSandbox`'s `args` below).
  * A caller's `extraArgs` may never name one of these — see `assertNoReservedFlags`.
  */
-const RESERVED_FLAGS = ["--port", "--http-port", "--namespace", "--refarm-dir"];
+export const RESERVED_FLAGS = ["--port", "--http-port", "--namespace", "--refarm-dir"];
 
 /**
  * PURE. Throws if `extraArgs` names any flag `startSandbox` already sets itself.
