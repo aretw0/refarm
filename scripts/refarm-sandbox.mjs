@@ -75,7 +75,46 @@
  *     when present, does NOT also append the default — the caller's choice is the ONLY
  *     plugin loaded, not one of two.
  *
- *   - does NOT implement `status` or `--reset` (Task 3) or `refarm parity` (Task 5).
+ *   - Task 3 (this revision) adds `status` and `--reset`. Does NOT yet implement
+ *     `refarm parity` (Task 5) or a `stop` subcommand (see `--reset`'s note below).
+ *
+ *     STATUS answers two DIFFERENT questions — which sandbox exists on disk, and whether its
+ *     node is running — and never collapses either into a boolean. Liveness itself
+ *     (`classifySandboxLiveness`) is THREE states, not two: `"running"` (a pid file names a
+ *     pid that is ALIVE and whose `/proc/<pid>/cmdline` is confirmed — via `--refarm-dir` —
+ *     to be THIS sandbox's own tractor, not some other one, e.g. the operator's real node,
+ *     that happened to reuse the pid), `"not-running"` (no pid file at all, OR the pid is
+ *     confirmed dead, OR the pid is alive but confirmed to be a DIFFERENT process), and
+ *     `"unknown"` (a pid file exists but is malformed/unreadable, the liveness probe itself
+ *     was inconclusive, or a process IS alive at that pid but its identity could not be
+ *     confirmed either way). A STALE pid file after a crash or reboot is the ORDINARY case
+ *     here, not an error condition — it resolves cleanly to `"not-running"`, never
+ *     `"unknown"`. `status` never reads `.sandbox/silo/identity.json`'s CONTENTS — only
+ *     `existsSync`/`statSync` touch it, reporting presence and octal permission mode only,
+ *     structurally (not just by convention) incapable of leaking a credential value.
+ *
+ *     `--RESET` deletes `<repoRoot>/.sandbox` and NOTHING else — made IMPOSSIBLE, not merely
+ *     unlikely, to reach anything outside it: `assertPathInsideSandboxRoot` (closes `..`
+ *     segments and cwd-dependent relative paths — `path.resolve` collapses/anchors both
+ *     before the check runs), `forbiddenResetTargets` (an explicit, independent check
+ *     against the operator's three named real paths — `~/.refarm`, `~/.silo`,
+ *     `~/.local/share/refarm` — so this does not rely SOLELY on the path check above), an
+ *     `lstatSync` refusal if the sandbox root itself is a SYMLINK rather than a plain
+ *     directory, and `firstSymlinkIn`'s recursive refusal if a symlink exists ANYWHERE
+ *     nested inside the tree — a legitimate sandbox never creates one (only
+ *     `mkdirSync`/`writeFileSync` are ever called against it), so finding one refuses the
+ *     WHOLE operation rather than reasoning about where it points. None of this relies on
+ *     `fs.rmSync`'s own (correct, but implementation-detail) refusal to descend into a
+ *     symlinked directory during recursive removal.
+ *
+ *     `--reset` also REFUSES when the sandbox's node is `"running"` OR `"unknown"` —
+ *     deleting a live node's sovereign dir and graph out from under it (open file handles
+ *     into a suddenly-missing sqlite file and config directory) is its own defect, and an
+ *     INDETERMINATE liveness is not evidence it is safe to delete; proceeding anyway would be
+ *     the exact "guessed instead of measured" shape this whole task exists to close, wearing
+ *     a different costume. There is deliberately no `--force` override yet: the only way past
+ *     this refusal is to stop the node externally (no `stop` subcommand exists in this file
+ *     yet) and re-run `--reset`.
  *
  * Does NOT read or modify scripts/tractor-start.sh — the operator's launcher — in any way,
  * and NEVER writes to `~/.silo` or `~/.refarm` — both are read-only sources here.
@@ -133,6 +172,12 @@ export const OPERATOR_SILO_IDENTITY_PATH = path.join(os.homedir(), ".silo", "ide
  */
 export const SANDBOX_PORT = 43000;
 export const SANDBOX_HTTP_PORT = 43001;
+
+/** Filenames `startSandbox` writes under SOVEREIGN_BASE in `--background` mode — named
+ *  constants (not inline literals) because Task 3's `status`/`--reset` need to name the
+ *  EXACT SAME files, and a hand-copied second literal is how these two silently drift. */
+export const SANDBOX_PID_FILE_NAME = "tractor-sandbox.pid";
+export const SANDBOX_LOG_FILE_NAME = "tractor-sandbox.log";
 
 /**
  * PURE. The declarations a sandbox node rooted at `repoRoot` needs — all four axes, every
@@ -537,6 +582,178 @@ function closedSingleQuotedValue(value) {
 	return null;
 }
 
+/**
+ * PURE. What does the sandbox's pid FILE ITSELF say, before any liveness probe runs?
+ * `read` is a pre-classified description of the attempt to read it — never collapsed into
+ * "present or not": a file that exists but could not be read (permission, a race with
+ * something else deleting it) is neither "missing" nor "a pid", and reporting one of those
+ * two would be a guess.
+ *
+ *   - `{ kind: "missing" }` → the file does not exist at all. This is a CONFIDENT negative,
+ *     not a guess: no pid was ever recorded, so there is nothing to be running. Returned as
+ *     a resolved verdict (`state: "not-running"`).
+ *   - `{ kind: "unreadable", reason }` → the file exists but reading it failed. Returned as
+ *     `state: "unknown"` — refusing to guess "probably not running" from a read failure that
+ *     could just as easily be a permissions hiccup while the node IS alive.
+ *   - `{ kind: "text", value }` → the file was read. If `value` does not trim to a positive
+ *     integer, this is `state: "unknown"` (a corrupted pid file is not evidence of either
+ *     state). Otherwise returns `{ pid }` with NO `state` — this is not a third verdict, it
+ *     is a signal to the caller: "a plausible pid was found, go probe whether it is alive".
+ */
+export function parseSandboxPidFile(read) {
+	if (read.kind === "missing") {
+		return {
+			pid: null,
+			state: "not-running",
+			detail: "no pid file recorded — the sandbox has not been started (in the background), or its record was already cleaned up",
+		};
+	}
+	if (read.kind === "unreadable") {
+		return { pid: null, state: "unknown", detail: `pid file exists but could not be read: ${read.reason}` };
+	}
+	const trimmed = read.value.trim();
+	// A strict digits-only match, not a bare `Number.parseInt` + finiteness check — parseInt
+	// is lenient (`parseInt("12abc", 10) === 12`, `parseInt("3.5", 10) === 3`) and would
+	// silently accept a truncated/corrupted pid file as a plausible pid. A pid file this
+	// launcher itself writes (`String(child.pid)`) is ALWAYS clean digits; anything else is
+	// corruption, and corruption is reported as unknown, never a guessed pid.
+	if (!/^[0-9]+$/.test(trimmed)) {
+		return { pid: null, state: "unknown", detail: `pid file content is not a valid pid: ${JSON.stringify(trimmed)}` };
+	}
+	const pid = Number.parseInt(trimmed, 10);
+	if (!Number.isFinite(pid) || pid <= 0) {
+		return { pid: null, state: "unknown", detail: `pid file content is not a valid pid: ${JSON.stringify(trimmed)}` };
+	}
+	return { pid };
+}
+
+/**
+ * PURE. Does this `/proc/<pid>/cmdline`-shaped argv array look like THIS sandbox's own
+ * tractor process — not just "some tractor process", and not just "something alive at this
+ * pid"? Requires BOTH: the binary is named `tractor` (bare or a full path ending in
+ * `/tractor` — mirrors `apps/refarm/src/commands/runtime-stop.ts`'s own `isTractorArg`
+ * convention, so this file's identity check agrees with the one the CLI's own `runtime stop`
+ * already uses) AND `--refarm-dir`'s value is EXACTLY `refarmHome`.
+ *
+ * The `--refarm-dir` check is not optional decoration: a pid can be reused by ANY unrelated
+ * process after this sandbox's own process exits, including — concretely, not
+ * hypothetically — the OPERATOR'S OWN tractor node, which is also named `tractor` and is
+ * also frequently alive on this machine. Checking only "is this a tractor process" would
+ * report the operator's real node as "the sandbox is running" the moment a pid happened to
+ * be reused for it. `--refarm-dir` is the one flag that is different between every tractor
+ * invocation on this machine (the sandbox's, the operator's, and any other project's), so it
+ * is what this check pins on.
+ */
+export function sandboxCmdlineMatches(args, { refarmHome }) {
+	if (!Array.isArray(args) || args.length === 0) return false;
+	const binary = String(args[0]).replace(/\\/g, "/");
+	const looksLikeTractor = binary === "tractor" || binary.endsWith("/tractor");
+	if (!looksLikeTractor) return false;
+	const index = args.indexOf("--refarm-dir");
+	if (index === -1 || index + 1 >= args.length) return false;
+	return args[index + 1] === refarmHome;
+}
+
+/**
+ * PURE. Combines an already-parsed pid-file result (`parseSandboxPidFile`'s output) with the
+ * raw signals gathered by probing that pid into exactly ONE of three states — `"running"`,
+ * `"not-running"`, or `"unknown"`. Never a boolean: see this file's header (Task 3) for why
+ * collapsing "a pid file exists" and "a node is running" into one boolean is exactly the
+ * defect this function exists to not repeat.
+ *
+ * `killOutcome` is the impure edge's classification of trying to signal the pid (see
+ * `defaultProbeSandboxLiveness`): `"alive"` (a process exists there), `"dead"` (confirmed no
+ * such process — `ESRCH`), or `"unknown"` (the probe itself could not produce a confident
+ * answer). `cmdlineArgs` is `null` when the process's identity could not be read/confirmed,
+ * or the array read from its cmdline otherwise.
+ *
+ * If `parsedPid` already carries a `state` (missing or unreadable/malformed pid file), that
+ * verdict is returned AS-IS — `killOutcome`/`cmdlineArgs` are never consulted, because there
+ * was no pid to probe in the first place.
+ */
+export function classifySandboxLiveness(parsedPid, { killOutcome, cmdlineArgs, refarmHome }) {
+	if (parsedPid.state) return parsedPid;
+
+	const pid = parsedPid.pid;
+	if (killOutcome === "dead") {
+		return {
+			pid,
+			state: "not-running",
+			detail: `no process with pid ${pid} is alive — a stale pid file after a crash or reboot is the ORDINARY case here, not an error`,
+		};
+	}
+	if (killOutcome !== "alive") {
+		return {
+			pid,
+			state: "unknown",
+			detail: `could not determine whether pid ${pid} is alive — the liveness probe itself was inconclusive`,
+		};
+	}
+	// killOutcome === "alive": something is running at this pid. Confirm it is actually THIS
+	// sandbox's tractor process before calling it "running" — a pid can be reused.
+	if (cmdlineArgs === null) {
+		return {
+			pid,
+			state: "unknown",
+			detail: `pid ${pid} is alive but its identity could not be confirmed — its cmdline could not be read`,
+		};
+	}
+	if (!sandboxCmdlineMatches(cmdlineArgs, { refarmHome })) {
+		return {
+			pid,
+			state: "not-running",
+			detail: `pid ${pid} is alive but belongs to a DIFFERENT process, not this sandbox's tractor — the pid was reused`,
+		};
+	}
+	return { pid, state: "running", detail: `pid ${pid} confirmed as this sandbox's tractor process (--refarm-dir matches)` };
+}
+
+/**
+ * PURE. Throws unless `candidate`, once resolved to an absolute path, IS `sandboxRoot`
+ * (also resolved) or is nested inside it — checked with a trailing path separator, never a
+ * bare `String#startsWith`, so a sibling that merely SHARES A STRING PREFIX with the sandbox
+ * root (e.g. `.sandboxes/evil` against `.sandbox` — the naive-startsWith trap named in
+ * task-3-brief.md) is correctly refused rather than accepted by accident.
+ *
+ * `path.resolve` collapses any `..` segments and anchors a relative `candidate` against
+ * `process.cwd()` before the comparison ever runs — so a candidate built with embedded `..`,
+ * or one that is relative and would only "look" safe from a DIFFERENT working directory,
+ * cannot slip past this check by the string alone. (A SYMLINK achieving the same escape at
+ * the filesystem level is a separate concern this function cannot and does not cover — it
+ * never touches the filesystem; see `resetSandbox`'s `lstatSync`-based checks for that.)
+ *
+ * Called by `resetSandbox` on the target IT computes (always `<repoRoot>/.sandbox`, never
+ * from external input) as a defense-in-depth self-check — the same "guard what should never
+ * happen anyway" discipline `assertNoReservedFlags` already established in this file — and
+ * exported so it can also be pinned directly, adversarially, independent of whether
+ * `resetSandbox`'s own normal call path could ever produce a mismatched pair.
+ */
+export function assertPathInsideSandboxRoot(candidate, sandboxRoot) {
+	const resolvedCandidate = path.resolve(candidate);
+	const resolvedRoot = path.resolve(sandboxRoot);
+	const isRootItself = resolvedCandidate === resolvedRoot;
+	const isNested = resolvedCandidate.startsWith(resolvedRoot + path.sep);
+	if (!isRootItself && !isNested) {
+		throw new Error(
+			`refarm-sandbox: refusing to operate on ${candidate} — resolved to ${resolvedCandidate}, ` +
+				`which is not inside the sandbox root ${resolvedRoot}.`,
+		);
+	}
+	return resolvedCandidate;
+}
+
+/**
+ * PURE (given `home`; defaults to the live `os.homedir()` at call time, matching this file's
+ * other home-derived constants such as `OPERATOR_SILO_IDENTITY_PATH`). The operator's real,
+ * well-known paths — named explicitly in this task's Global Constraints as things `--reset`
+ * must never be able to touch. Checked by `resetSandbox` IN ADDITION TO (never instead of)
+ * `assertPathInsideSandboxRoot` and the symlink refusals: a check that does not depend on any
+ * OTHER guard staying correct forever, for the three paths this task names by name.
+ */
+export function forbiddenResetTargets(home = os.homedir()) {
+	return [path.join(home, ".refarm"), path.join(home, ".silo"), path.join(home, ".local", "share", "refarm")];
+}
+
 // ---- Impure edge: everything below touches the filesystem, the network, or a process. ----
 
 /**
@@ -772,8 +989,8 @@ export async function startSandbox({
 	if (credentialNotice) notices.push(credentialNotice);
 
 	if (background) {
-		const logFile = path.join(sandboxBase, "tractor-sandbox.log");
-		const pidFile = path.join(sandboxBase, "tractor-sandbox.pid");
+		const logFile = path.join(sandboxBase, SANDBOX_LOG_FILE_NAME);
+		const pidFile = path.join(sandboxBase, SANDBOX_PID_FILE_NAME);
 		const logFd = fs.openSync(logFile, "a");
 		const child = spawn(tractor, args, {
 			env: childEnv,
@@ -832,19 +1049,332 @@ export async function startSandbox({
 	});
 }
 
+/**
+ * IMPURE. Real liveness probe for `sandboxStatus`'s `probeLiveness` dependency: signal 0
+ * against `pid` and classify the result per POSIX `kill(2)` semantics precisely, rather than
+ * collapsing "exists but I lack permission" into "does not exist":
+ *   - no throw → `"alive"`.
+ *   - `ESRCH` → `"dead"` — the kernel confirms no such process exists. This is the ONLY
+ *     outcome that counts as a confident negative.
+ *   - `EPERM` → `"alive"` — per `kill(2)`, EPERM is returned ONLY when the target process
+ *     exists but signal delivery is not permitted; a nonexistent pid always yields ESRCH
+ *     regardless of privilege. So EPERM still confirms existence; it is `sandboxCmdlineMatches`
+ *     (fed by `defaultReadSandboxCmdline` below) that then decides identity, not this probe.
+ *   - anything else → `"unknown"` — an unexpected errno is not treated as either verdict.
+ */
+function defaultProbeSandboxLiveness(pid) {
+	try {
+		process.kill(pid, 0);
+		return "alive";
+	} catch (err) {
+		if (err && err.code === "ESRCH") return "dead";
+		if (err && err.code === "EPERM") return "alive";
+		return "unknown";
+	}
+}
+
+/**
+ * IMPURE. Real cmdline reader for `sandboxStatus`'s `readCmdline` dependency: reads and
+ * NUL-splits `/proc/<pid>/cmdline`, mirroring `apps/refarm/src/commands/runtime-stop.ts`'s
+ * own `parseProcCmdline`. Returns `null` — never a guessed/partial array — whenever this
+ * cannot be read with confidence: not Linux (`/proc` does not exist), the process exited in
+ * the gap between the liveness probe and this read (ENOENT), or a permission error.
+ */
+function defaultReadSandboxCmdline(pid) {
+	if (process.platform !== "linux") return null;
+	try {
+		const raw = fs.readFileSync(`/proc/${pid}/cmdline`, "utf8");
+		const args = raw.split("\0").filter((part) => part.length > 0);
+		return args.length > 0 ? args : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Reports which sandbox exists ON DISK, and whether its node is RUNNING — two different
+ * questions (see this file's header, Task 3), never folded into one. Filesystem/process
+ * dependencies are injectable (`existsSync`/`statSync`/`readFileSync`/`probeLiveness`/
+ * `readCmdline`) so tests can drive every one of the three liveness states deterministically,
+ * per this file's established convention (`resolveDefaultPluginArgs`'s injectable
+ * `existsSync`) — never a real spawned process required to exercise this.
+ *
+ * `credential` reports PRESENCE and PERMISSION MODE only — `statSync`, never `readFileSync`,
+ * touches `identity.json` here, so this function is structurally incapable of returning its
+ * contents, not merely documented not to.
+ */
+export function sandboxStatus(repoRoot = REPO_ROOT, deps = {}) {
+	const {
+		existsSync = fs.existsSync,
+		statSync = fs.statSync,
+		readFileSync = fs.readFileSync,
+		probeLiveness = defaultProbeSandboxLiveness,
+		readCmdline = defaultReadSandboxCmdline,
+	} = deps;
+
+	const { env } = sandboxEnvironment(repoRoot);
+	const sandboxRoot = env.SOVEREIGN_BASE;
+	const pidFile = path.join(sandboxRoot, SANDBOX_PID_FILE_NAME);
+	const logFile = path.join(sandboxRoot, SANDBOX_LOG_FILE_NAME);
+	const credentialPath = path.join(env.SILO_HOME, "identity.json");
+
+	const describeExistence = (target) => ({ path: target, exists: existsSync(target) });
+
+	let credential;
+	if (!existsSync(credentialPath)) {
+		credential = { path: credentialPath, exists: false };
+	} else {
+		try {
+			const mode = statSync(credentialPath).mode & 0o777;
+			credential = { path: credentialPath, exists: true, mode: mode.toString(8).padStart(3, "0") };
+		} catch (err) {
+			credential = { path: credentialPath, exists: true, mode: null, reason: `could not stat: ${err.message}` };
+		}
+	}
+
+	let pidFileRead;
+	if (!existsSync(pidFile)) {
+		pidFileRead = { kind: "missing" };
+	} else {
+		try {
+			pidFileRead = { kind: "text", value: readFileSync(pidFile, "utf8") };
+		} catch (err) {
+			pidFileRead = { kind: "unreadable", reason: err.message };
+		}
+	}
+
+	const parsedPid = parseSandboxPidFile(pidFileRead);
+	// A resolved verdict (missing/unreadable/malformed) short-circuits — no probe is run at
+	// all, so a malformed pid file can never accidentally reach a real liveness check.
+	let node;
+	if (parsedPid.state) {
+		node = parsedPid;
+	} else {
+		const killOutcome = probeLiveness(parsedPid.pid);
+		// cmdline is only ever relevant (and only ever read) when something is actually alive
+		// at this pid — a "dead"/"unknown" probe outcome never pays for, or can fail on, a
+		// cmdline read whose result classifySandboxLiveness would not consult anyway.
+		const cmdlineArgs = killOutcome === "alive" ? readCmdline(parsedPid.pid) : null;
+		node = classifySandboxLiveness(parsedPid, { killOutcome, cmdlineArgs, refarmHome: env.REFARM_HOME });
+	}
+
+	return {
+		sandboxRoot,
+		exists: existsSync(sandboxRoot),
+		refarmHome: describeExistence(env.REFARM_HOME),
+		graphDir: describeExistence(env.XDG_DATA_HOME),
+		logFile: describeExistence(logFile),
+		credential,
+		pidFile,
+		node,
+	};
+}
+
+/**
+ * IMPURE. Walks `dir` recursively using `lstatSync` (never `statSync` — a symlink must be
+ * recognized AS a symlink, never silently followed and inspected as whatever it points to)
+ * and returns the path of the FIRST symlink found anywhere inside, or `null` if there is
+ * none. `resetSandbox` uses this as a pre-flight refusal check: a legitimately created
+ * sandbox is built exclusively from `fs.mkdirSync`/`fs.writeFileSync` calls (`startSandbox`,
+ * `copySandboxCredentials`) and never creates a symlink anywhere in its own tree, so finding
+ * one at ANY depth is treated as an anomaly worth refusing the WHOLE operation over, rather
+ * than reasoning about where it points and trying to delete "around" it.
+ *
+ * This is a structural guarantee independent of `fs.rmSync`'s own (correct, but
+ * implementation-detail) refusal to descend into a symlinked directory during recursive
+ * removal — this function does not rely on that behavior continuing to hold; it refuses
+ * BEFORE any deletion is attempted at all.
+ */
+function firstSymlinkIn(dir) {
+	const entries = fs.readdirSync(dir, { withFileTypes: true });
+	for (const entry of entries) {
+		const full = path.join(dir, entry.name);
+		if (entry.isSymbolicLink()) return full;
+		if (entry.isDirectory()) {
+			const nested = firstSymlinkIn(full);
+			if (nested) return nested;
+		}
+	}
+	return null;
+}
+
+/**
+ * Delete the ENTIRE sandbox tree (`<repoRoot>/.sandbox`) and NOTHING else.
+ *
+ * Structured to make an escape IMPOSSIBLE, not merely unlikely — each check below closes one
+ * specific way a path could look like it is inside the sandbox and not be (task-3-brief.md
+ * names all four; each has a dedicated automated test in this file's test module, not just
+ * this comment):
+ *
+ *   1. `assertPathInsideSandboxRoot` on the computed target — defense in depth even though
+ *      `target` is ALWAYS built here from `repoRoot` + `SANDBOX_DIR_NAME`, never from
+ *      external input (the same "guard what should never happen anyway" discipline as
+ *      `assertNoReservedFlags`). Closes `..`-segment escapes and cwd-dependent relative
+ *      paths by construction (`path.resolve` collapses/anchors both before comparing).
+ *   2. `forbiddenResetTargets` — an explicit, independent check against the operator's three
+ *      named real paths, so this does not rely SOLELY on check #1 or on `SANDBOX_DIR_NAME`
+ *      never being renamed to collide with one of them.
+ *   3. `lstatSync` (never `statSync`) on the target ITSELF — refuses outright if it is a
+ *      SYMLINK (a legitimate sandbox root is always a plain directory `mkdirSync` created) or
+ *      anything other than a directory. This is the "symlink whose target is elsewhere" case
+ *      applied to the sandbox root itself.
+ *   4. `firstSymlinkIn` — refuses outright if a symlink exists ANYWHERE nested inside the
+ *      tree. This is the same case applied at every depth below the root.
+ *   5. A sibling that merely SHARES A STRING PREFIX with `.sandbox` (e.g. `.sandboxes/evil`)
+ *      is never at risk in the first place: `target` is built by joining `SANDBOX_DIR_NAME`
+ *      as a single path SEGMENT (`path.join`/`path.resolve`, not string concatenation), so it
+ *      can never resolve to a sibling's path — pinned by an end-to-end test with a real
+ *      `.sandboxes` decoy on disk, not just an assertion about how `path.join` works.
+ *
+ * What happens if the sandbox's node is still RUNNING: refuses, rather than deleting a live
+ * node's sovereign dir and graph out from under it — the resulting corruption (a daemon with
+ * open file handles into a suddenly-missing sqlite file and config directory) is its own
+ * defect, arguably worse than the stale-pid-file problem `status` exists to diagnose. The
+ * SAME refusal applies when liveness is `"unknown"`: "might be running" is not evidence it
+ * is safe to delete, and this task's brief is explicit that an indeterminate state must never
+ * be guessed into a default — proceeding with a delete IS such a guess, wearing a different
+ * shape. There is deliberately no `--force` override in this task: the only way past this
+ * refusal today is to stop the node externally (there is no `stop` subcommand yet — see this
+ * file's header) and re-run `--reset`, keeping the destructive step's blast radius to exactly
+ * one confirmed-safe case rather than adding a bypass this early.
+ *
+ * Never throws for "there is nothing to reset" — a missing sandbox root is success, not an
+ * error, mirroring `copySandboxCredentials`'s "an ordinary absence is not a failure" contract.
+ *
+ * `deps` overrides (`existsSync`, `lstatSync`, `rmSync`, `getStatus`, `forbiddenTargets`) let
+ * tests drive every refusal branch — including the running/unknown-node branch — without a
+ * real spawned process, per this file's established injectable-dependency convention.
+ */
+export function resetSandbox(repoRoot = REPO_ROOT, deps = {}) {
+	const {
+		existsSync = fs.existsSync,
+		lstatSync = fs.lstatSync,
+		rmSync = fs.rmSync,
+		getStatus = sandboxStatus,
+		forbiddenTargets = forbiddenResetTargets(),
+	} = deps;
+
+	const absoluteRepoRoot = path.resolve(repoRoot);
+	const expectedTarget = path.join(absoluteRepoRoot, SANDBOX_DIR_NAME);
+	const target = assertPathInsideSandboxRoot(path.resolve(absoluteRepoRoot, SANDBOX_DIR_NAME), expectedTarget);
+
+	for (const forbidden of forbiddenTargets) {
+		const resolvedForbidden = path.resolve(forbidden);
+		const collides =
+			target === resolvedForbidden ||
+			target.startsWith(resolvedForbidden + path.sep) ||
+			resolvedForbidden.startsWith(target + path.sep);
+		if (collides) {
+			throw new Error(
+				`refarm-sandbox: refusing to reset ${target} — it collides with the operator's real ${resolvedForbidden}. ` +
+					"This must never happen by construction; refusing rather than trusting that it didn't.",
+			);
+		}
+	}
+
+	if (!existsSync(target)) {
+		return { deleted: false, reason: `nothing to reset — ${target} does not exist`, target };
+	}
+
+	const topStat = lstatSync(target);
+	if (topStat.isSymbolicLink()) {
+		throw new Error(
+			`refarm-sandbox: refusing to reset ${target} — it is a SYMLINK, not a plain directory. ` +
+				"A legitimately created sandbox is always a real directory; refusing rather than " +
+				"guessing where the link points or what deleting it would actually remove.",
+		);
+	}
+	if (!topStat.isDirectory()) {
+		throw new Error(`refarm-sandbox: refusing to reset ${target} — it is not a directory.`);
+	}
+
+	const nestedSymlink = firstSymlinkIn(target);
+	if (nestedSymlink) {
+		throw new Error(
+			`refarm-sandbox: refusing to reset ${target} — found a symlink inside the sandbox tree ` +
+				`at ${nestedSymlink}. A legitimate sandbox never contains one; refusing the WHOLE ` +
+				"operation rather than deleting around it.",
+		);
+	}
+
+	const status = getStatus(repoRoot, deps);
+	if (status.node.state === "running") {
+		throw new Error(
+			`refarm-sandbox: refusing to reset — the sandbox node is RUNNING (pid ${status.node.pid}). ` +
+				"Stop it first — there is no `stop` subcommand yet, so send it SIGTERM directly, e.g. " +
+				`\`kill ${status.node.pid}\` — then re-run --reset. Deleting a live node's sovereign ` +
+				"dir and graph out from under it is its own defect, not isolation.",
+		);
+	}
+	if (status.node.state === "unknown") {
+		throw new Error(
+			"refarm-sandbox: refusing to reset — could not confidently determine whether the " +
+				`sandbox node is running (${status.node.detail}). Refusing rather than guessing: an ` +
+				"indeterminate liveness is not evidence it is safe to delete.",
+		);
+	}
+
+	rmSync(target, { recursive: true, force: true });
+	return { deleted: true, target };
+}
+
 // ---- CLI entry point ----
+
+function printSandboxStatus(result) {
+	const existsLabel = (entry) => (entry.exists ? "exists" : "missing");
+	console.log("   Sandbox status");
+	console.log(`   sandbox dir : ${result.sandboxRoot} (${existsLabel(result)})`);
+	console.log(`   refarm-dir  : ${result.refarmHome.path} (${existsLabel(result.refarmHome)})`);
+	console.log(`   graph dir   : ${result.graphDir.path} (${existsLabel(result.graphDir)})`);
+	console.log(`   log file    : ${result.logFile.path} (${existsLabel(result.logFile)})`);
+	if (result.credential.exists) {
+		const modeLabel = result.credential.mode ? `mode ${result.credential.mode}` : "mode unknown";
+		console.log(`   credential  : ${result.credential.path} (exists, ${modeLabel})`);
+	} else {
+		console.log(`   credential  : ${result.credential.path} (missing)`);
+	}
+	const pidLabel = result.node.pid === null ? "no pid" : `pid ${result.node.pid}`;
+	console.log(`   node        : ${result.node.state.toUpperCase()} (${pidLabel})`);
+	console.log(`               ${result.node.detail}`);
+}
 
 async function main() {
 	const argv = process.argv.slice(2);
+
+	// --reset is checked BEFORE any other flag/positional parsing — its own action, not a
+	// modifier on "start". Deliberately independent of `background`/`--json` below.
+	if (argv.includes("--reset")) {
+		try {
+			const result = resetSandbox();
+			if (result.deleted) {
+				console.log(`   Sandbox reset — deleted ${result.target}`);
+			} else {
+				console.log(`   ${result.reason}`);
+			}
+		} catch (err) {
+			console.error(`   refarm-sandbox: ${err.message}`);
+			process.exitCode = 1;
+		}
+		return;
+	}
+
 	const background = argv.includes("--background");
-	const positional = argv.filter((a) => a !== "--background");
+	const asJson = argv.includes("--json");
+	const positional = argv.filter((a) => a !== "--background" && a !== "--json" && a !== "--reset");
 	const command = positional[0] ?? "start";
 
+	if (command === "status") {
+		const result = sandboxStatus();
+		if (asJson) {
+			console.log(JSON.stringify(result, null, 2));
+		} else {
+			printSandboxStatus(result);
+		}
+		return;
+	}
+
 	if (command !== "start") {
-		console.error(
-			`refarm-sandbox: unknown command "${command}". Only "start" is implemented ` +
-				"(Task 1) — status/--reset land in Task 3.",
-		);
+		console.error(`refarm-sandbox: unknown command "${command}". Try "start", "status", or "--reset".`);
 		process.exitCode = 1;
 		return;
 	}

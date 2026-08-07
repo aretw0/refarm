@@ -22,20 +22,29 @@ import { test } from "node:test";
 
 import {
 	assertNoReservedFlags,
+	assertPathInsideSandboxRoot,
+	classifySandboxLiveness,
 	copySandboxCredentials,
 	extraArgsSuppliesPlugin,
+	forbiddenResetTargets,
 	minimalCredentialTokens,
 	OPERATOR_SILO_IDENTITY_PATH,
+	parseSandboxPidFile,
 	parseShellExports,
 	PLUGIN_LOADING_FLAGS,
 	pluginLoadersIn,
+	resetSandbox,
 	resolveDefaultPluginArgs,
 	RESERVED_FLAGS,
 	SANDBOX_HTTP_PORT,
+	SANDBOX_LOG_FILE_NAME,
 	SANDBOX_NAMESPACE,
+	SANDBOX_PID_FILE_NAME,
 	SANDBOX_PORT,
 	sandboxAgentPluginPath,
+	sandboxCmdlineMatches,
 	sandboxEnvironment,
+	sandboxStatus,
 	startSandbox,
 } from "./refarm-sandbox.mjs";
 
@@ -655,4 +664,529 @@ test("startSandbox produces exactly ONE loaded plugin end-to-end when the caller
 	const { pluginArgs } = resolveDefaultPluginArgs(defaultPlugin, extraArgs, { existsSync: () => true });
 	const finalArgs = ["--port", "43000", "--refarm-dir", "/r", ...pluginArgs, ...extraArgs];
 	assert.deepEqual(pluginLoadersIn(finalArgs), ["[by-hash] /assets:deadbeef:/manifest.json"]);
+});
+
+// =====================================================================================
+// Task 3: `status` and `--reset`
+//
+// "status answers which sandbox exists and whether its node is running" — TWO different
+// questions (disk state, and liveness), and liveness itself is THREE states, never two:
+// a stale pid file after a crash/reboot is the ORDINARY case (not an error), and a pid can
+// be reused by an unrelated process — so "a process with this pid exists" is not the same
+// question as "this sandbox's tractor process is running". Collapsing either pair into one
+// boolean is the exact shape this line of work has hit fourteen times before.
+//
+// "--reset deletes the sandbox and NOTHING else" — bounded so it is IMPOSSIBLE (not just
+// unlikely) to reach anything outside <repo>/.sandbox: a `..`-laden path, a symlink whose
+// target is elsewhere, a sibling that merely SHARES A STRING PREFIX (`.sandboxes/` against
+// `.sandbox`), and a relative path resolved against the wrong cwd are each tested below as
+// their own scenario, not folded into one generic "is it safe" assertion.
+// =====================================================================================
+
+// ---- parseSandboxPidFile — PURE. What does the pid FILE ITSELF say, before any liveness
+// probe runs at all? Three admissible outcomes for the READ, and two of its own three
+// possible verdicts (the third, "found a plausible pid, go probe it", is not a verdict —
+// it is a signal to keep going, returned as a bare `{ pid }` with no `state`). ----
+
+test("parseSandboxPidFile: no pid file at all → confidently not-running (never started, or cleaned up)", () => {
+	const result = parseSandboxPidFile({ kind: "missing" });
+	assert.equal(result.state, "not-running");
+	assert.equal(result.pid, null);
+	assert.match(result.detail, /no pid file/i);
+});
+
+test("parseSandboxPidFile: pid file exists but could not be read → unknown, never guessed as either", () => {
+	const result = parseSandboxPidFile({ kind: "unreadable", reason: "EACCES: permission denied" });
+	assert.equal(result.state, "unknown");
+	assert.equal(result.pid, null);
+	assert.match(result.detail, /could not be read/);
+	assert.match(result.detail, /EACCES/, "the underlying reason must be surfaced, not swallowed");
+});
+
+for (const malformed of ["", "not-a-pid", "-5", "0", "3.5", "12abc"]) {
+	test(`parseSandboxPidFile: malformed content ${JSON.stringify(malformed)} → unknown, not a guessed pid`, () => {
+		const result = parseSandboxPidFile({ kind: "text", value: malformed });
+		assert.equal(result.state, "unknown");
+		assert.equal(result.pid, null);
+	});
+}
+
+test("parseSandboxPidFile: a valid pid (with surrounding whitespace/newline, as fs.writeFileSync(pidFile, String(pid)) plus a shell echo might produce) → no state yet, just the pid to probe", () => {
+	const result = parseSandboxPidFile({ kind: "text", value: "  12345\n" });
+	assert.deepEqual(result, { pid: 12345 });
+});
+
+// ---- sandboxCmdlineMatches — PURE. The identity check that makes RUNNING mean "this
+// sandbox's tractor, confirmed", not "a process with this pid happens to be alive". A pid
+// can be reused by ANY unrelated process — including the OPERATOR'S OWN tractor node, whose
+// --refarm-dir is a real, specific, different path, not a hypothetical. ----
+
+test("sandboxCmdlineMatches: true for the bare 'tractor' binary name with a matching --refarm-dir", () => {
+	assert.equal(
+		sandboxCmdlineMatches(["tractor", "--port", "43000", "--refarm-dir", "/repo/.sandbox/refarm"], {
+			refarmHome: "/repo/.sandbox/refarm",
+		}),
+		true,
+	);
+});
+
+test("sandboxCmdlineMatches: true for a full binary path ending in /tractor", () => {
+	assert.equal(
+		sandboxCmdlineMatches(["/repo/.cache/cargo-target/release/tractor", "--refarm-dir", "/repo/.sandbox/refarm"], {
+			refarmHome: "/repo/.sandbox/refarm",
+		}),
+		true,
+	);
+});
+
+test("sandboxCmdlineMatches: false when the binary is not tractor at all", () => {
+	assert.equal(
+		sandboxCmdlineMatches(["/usr/bin/some-other-app", "--refarm-dir", "/repo/.sandbox/refarm"], {
+			refarmHome: "/repo/.sandbox/refarm",
+		}),
+		false,
+	);
+});
+
+test("sandboxCmdlineMatches: false when it IS a tractor process but --refarm-dir names a DIFFERENT dir — the operator's own node reusing this pid must never be reported as the sandbox", () => {
+	assert.equal(
+		sandboxCmdlineMatches(["tractor", "--refarm-dir", "/home/operator/.refarm"], {
+			refarmHome: "/repo/.sandbox/refarm",
+		}),
+		false,
+	);
+});
+
+test("sandboxCmdlineMatches: false when --refarm-dir is absent entirely", () => {
+	assert.equal(sandboxCmdlineMatches(["tractor", "--port", "43000"], { refarmHome: "/repo/.sandbox/refarm" }), false);
+});
+
+test("sandboxCmdlineMatches: false for an empty or non-array cmdline", () => {
+	assert.equal(sandboxCmdlineMatches([], { refarmHome: "/repo/.sandbox/refarm" }), false);
+	assert.equal(sandboxCmdlineMatches(null, { refarmHome: "/repo/.sandbox/refarm" }), false);
+});
+
+// ---- classifySandboxLiveness — PURE. Combines an already-parsed pid result with the raw
+// liveness-probe outcome into exactly one of THREE states. Every branch is driven by
+// literals, per this file's own convention (see header). ----
+
+test("classifySandboxLiveness: an already-resolved parsedPid (missing/malformed pid file) short-circuits — the probe/cmdline inputs are never consulted", () => {
+	const resolved = { pid: null, state: "unknown", detail: "pid file content is not a valid pid" };
+	const result = classifySandboxLiveness(resolved, {
+		killOutcome: "alive",
+		cmdlineArgs: ["tractor"],
+		refarmHome: "/repo/.sandbox/refarm",
+	});
+	assert.deepEqual(result, resolved);
+});
+
+test("classifySandboxLiveness: killOutcome 'dead' → not-running — the ordinary stale-pid-file case, not an error", () => {
+	const result = classifySandboxLiveness(
+		{ pid: 99999 },
+		{ killOutcome: "dead", cmdlineArgs: null, refarmHome: "/repo/.sandbox/refarm" },
+	);
+	assert.equal(result.state, "not-running");
+	assert.equal(result.pid, 99999);
+	assert.match(result.detail, /stale/i);
+});
+
+test("classifySandboxLiveness: killOutcome 'unknown' (the probe itself was inconclusive) → unknown, never defaulted to either", () => {
+	const result = classifySandboxLiveness(
+		{ pid: 99999 },
+		{ killOutcome: "unknown", cmdlineArgs: null, refarmHome: "/repo/.sandbox/refarm" },
+	);
+	assert.equal(result.state, "unknown");
+});
+
+test("classifySandboxLiveness: killOutcome 'alive' but cmdline could not be read → unknown, NOT running — identity was never confirmed", () => {
+	const result = classifySandboxLiveness(
+		{ pid: 99999 },
+		{ killOutcome: "alive", cmdlineArgs: null, refarmHome: "/repo/.sandbox/refarm" },
+	);
+	assert.equal(result.state, "unknown");
+	assert.match(result.detail, /identity/);
+});
+
+test("classifySandboxLiveness: killOutcome 'alive' but cmdline belongs to a DIFFERENT process → not-running, the pid-reuse case named in the brief", () => {
+	const result = classifySandboxLiveness(
+		{ pid: 99999 },
+		{ killOutcome: "alive", cmdlineArgs: ["/usr/bin/firefox"], refarmHome: "/repo/.sandbox/refarm" },
+	);
+	assert.equal(result.state, "not-running");
+	assert.match(result.detail, /different process|reused/i);
+});
+
+test("classifySandboxLiveness: killOutcome 'alive' with a matching cmdline → running, the only path that produces it", () => {
+	const result = classifySandboxLiveness(
+		{ pid: 99999 },
+		{
+			killOutcome: "alive",
+			cmdlineArgs: ["tractor", "--refarm-dir", "/repo/.sandbox/refarm"],
+			refarmHome: "/repo/.sandbox/refarm",
+		},
+	);
+	assert.deepEqual(result, { pid: 99999, state: "running", detail: result.detail });
+	assert.match(result.detail, /confirmed/);
+});
+
+// ---- sandboxStatus — the impure edge. Filesystem-scoped to mkdtempSync fixtures; the
+// liveness probe/cmdline reader are injected so every one of the three states is exercised
+// deterministically, without touching a real process. ----
+
+function withStatusFixture(fn) {
+	const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-sandbox-status-"));
+	try {
+		return fn(repoRoot);
+	} finally {
+		fs.rmSync(repoRoot, { recursive: true, force: true });
+	}
+}
+
+test("sandboxStatus: nothing on disk at all → every path reports exists:false, node is not-running", () => {
+	withStatusFixture((repoRoot) => {
+		const result = sandboxStatus(repoRoot);
+		assert.equal(result.exists, false);
+		assert.equal(result.refarmHome.exists, false);
+		assert.equal(result.graphDir.exists, false);
+		assert.equal(result.credential.exists, false);
+		assert.equal(result.node.state, "not-running");
+		assert.equal(result.node.pid, null);
+	});
+}
+);
+
+test("sandboxStatus: reports disk existence for each axis independently once created", () => {
+	withStatusFixture((repoRoot) => {
+		const { env } = sandboxEnvironment(repoRoot);
+		fs.mkdirSync(env.REFARM_HOME, { recursive: true });
+		fs.mkdirSync(env.XDG_DATA_HOME, { recursive: true });
+
+		const result = sandboxStatus(repoRoot);
+		assert.equal(result.exists, true);
+		assert.equal(result.refarmHome.exists, true);
+		assert.equal(result.graphDir.exists, true);
+		// Nothing wrote silo/identity.json — must still be false, not inferred from the siblings.
+		assert.equal(result.credential.exists, false);
+	});
+});
+
+test("sandboxStatus: credential reports presence + octal mode, NEVER contents — even when the fixture holds a synthetic 'secret'", () => {
+	withStatusFixture((repoRoot) => {
+		const { env } = sandboxEnvironment(repoRoot);
+		fs.mkdirSync(env.SILO_HOME, { recursive: true, mode: 0o700 });
+		const identityPath = path.join(env.SILO_HOME, "identity.json");
+		const secretMarker = "SECRET-MARKER-MUST-NEVER-LEAK-abc123";
+		fs.writeFileSync(identityPath, JSON.stringify({ tokens: { modelApiKey: secretMarker } }), { mode: 0o600 });
+
+		const result = sandboxStatus(repoRoot);
+		assert.equal(result.credential.exists, true);
+		assert.equal(result.credential.mode, "600");
+		const serialized = JSON.stringify(result);
+		assert.ok(!serialized.includes(secretMarker), "sandboxStatus's own return value must never carry credential content");
+	});
+});
+
+test("sandboxStatus: RUNNING — pid alive, cmdline confirmed as this sandbox's own tractor", () => {
+	withStatusFixture((repoRoot) => {
+		const { env } = sandboxEnvironment(repoRoot);
+		fs.mkdirSync(env.SOVEREIGN_BASE, { recursive: true });
+		fs.writeFileSync(path.join(env.SOVEREIGN_BASE, SANDBOX_PID_FILE_NAME), "424242");
+
+		const result = sandboxStatus(repoRoot, {
+			probeLiveness: (pid) => (pid === 424242 ? "alive" : "unknown"),
+			readCmdline: () => ["tractor", "--refarm-dir", env.REFARM_HOME],
+		});
+		assert.equal(result.node.state, "running");
+		assert.equal(result.node.pid, 424242);
+	});
+});
+
+test("sandboxStatus: NOT RUNNING — stale pid file, the ordinary case after a crash/reboot", () => {
+	withStatusFixture((repoRoot) => {
+		const { env } = sandboxEnvironment(repoRoot);
+		fs.mkdirSync(env.SOVEREIGN_BASE, { recursive: true });
+		fs.writeFileSync(path.join(env.SOVEREIGN_BASE, SANDBOX_PID_FILE_NAME), "424242");
+
+		const result = sandboxStatus(repoRoot, {
+			probeLiveness: () => "dead",
+			readCmdline: () => {
+				throw new Error("must not be called when the probe already says dead");
+			},
+		});
+		assert.equal(result.node.state, "not-running");
+		assert.equal(result.node.pid, 424242);
+	});
+});
+
+test("sandboxStatus: NOT RUNNING — the pid is alive but belongs to an unrelated process (pid reuse)", () => {
+	withStatusFixture((repoRoot) => {
+		const { env } = sandboxEnvironment(repoRoot);
+		fs.mkdirSync(env.SOVEREIGN_BASE, { recursive: true });
+		fs.writeFileSync(path.join(env.SOVEREIGN_BASE, SANDBOX_PID_FILE_NAME), "424242");
+
+		const result = sandboxStatus(repoRoot, {
+			probeLiveness: () => "alive",
+			readCmdline: () => ["/usr/bin/unrelated-process"],
+		});
+		assert.equal(result.node.state, "not-running");
+		assert.match(result.node.detail, /different process|reused/i);
+	});
+});
+
+test("sandboxStatus: UNKNOWN — pid alive but identity could not be confirmed (cmdline unreadable)", () => {
+	withStatusFixture((repoRoot) => {
+		const { env } = sandboxEnvironment(repoRoot);
+		fs.mkdirSync(env.SOVEREIGN_BASE, { recursive: true });
+		fs.writeFileSync(path.join(env.SOVEREIGN_BASE, SANDBOX_PID_FILE_NAME), "424242");
+
+		const result = sandboxStatus(repoRoot, {
+			probeLiveness: () => "alive",
+			readCmdline: () => null,
+		});
+		assert.equal(result.node.state, "unknown");
+	});
+});
+
+test("sandboxStatus: UNKNOWN — the liveness probe itself was inconclusive", () => {
+	withStatusFixture((repoRoot) => {
+		const { env } = sandboxEnvironment(repoRoot);
+		fs.mkdirSync(env.SOVEREIGN_BASE, { recursive: true });
+		fs.writeFileSync(path.join(env.SOVEREIGN_BASE, SANDBOX_PID_FILE_NAME), "424242");
+
+		const result = sandboxStatus(repoRoot, { probeLiveness: () => "unknown" });
+		assert.equal(result.node.state, "unknown");
+	});
+});
+
+test("sandboxStatus: UNKNOWN — malformed pid file content, and the probe is never even invoked (short-circuit proven, not just claimed)", () => {
+	withStatusFixture((repoRoot) => {
+		const { env } = sandboxEnvironment(repoRoot);
+		fs.mkdirSync(env.SOVEREIGN_BASE, { recursive: true });
+		fs.writeFileSync(path.join(env.SOVEREIGN_BASE, SANDBOX_PID_FILE_NAME), "not-a-pid");
+
+		let probeCalls = 0;
+		const result = sandboxStatus(repoRoot, {
+			probeLiveness: () => {
+				probeCalls += 1;
+				return "alive";
+			},
+		});
+		assert.equal(result.node.state, "unknown");
+		assert.equal(probeCalls, 0, "a malformed pid file must never reach the liveness probe");
+	});
+});
+
+// ---- assertPathInsideSandboxRoot — PURE. The guard `resetSandbox` calls before it will ever
+// consider a path a valid deletion target. Pinned directly and adversarially, independent of
+// whether resetSandbox's own normal call path could produce these inputs (the same
+// defense-in-depth discipline assertNoReservedFlags already established in this file). ----
+
+test("assertPathInsideSandboxRoot: the sandbox root itself is always a valid target", () => {
+	assert.doesNotThrow(() => assertPathInsideSandboxRoot("/repo/.sandbox", "/repo/.sandbox"));
+});
+
+test("assertPathInsideSandboxRoot: a path nested inside the sandbox root is valid", () => {
+	assert.doesNotThrow(() => assertPathInsideSandboxRoot("/repo/.sandbox/refarm/node.json", "/repo/.sandbox"));
+});
+
+test("assertPathInsideSandboxRoot: refuses a sibling that merely SHARES A STRING PREFIX (.sandboxes vs .sandbox) — the naive startsWith() trap", () => {
+	assert.throws(
+		() => assertPathInsideSandboxRoot("/repo/.sandboxes/evil", "/repo/.sandbox"),
+		/not inside the sandbox root/,
+	);
+});
+
+test("assertPathInsideSandboxRoot: refuses a path that walks outside via .. segments", () => {
+	assert.throws(
+		() => assertPathInsideSandboxRoot("/repo/.sandbox/../../etc/passwd", "/repo/.sandbox"),
+		/not inside the sandbox root/,
+	);
+});
+
+test("assertPathInsideSandboxRoot: refuses a relative candidate that resolves outside sandboxRoot from the current cwd", () => {
+	assert.throws(
+		() => assertPathInsideSandboxRoot("../definitely-outside", "/repo/.sandbox"),
+		/not inside the sandbox root/,
+	);
+});
+
+test("assertPathInsideSandboxRoot: returns the resolved absolute path on success", () => {
+	assert.equal(assertPathInsideSandboxRoot("/repo/.sandbox", "/repo/.sandbox"), "/repo/.sandbox");
+});
+
+// ---- forbiddenResetTargets — PURE. The operator's real, well-known paths, named explicitly
+// in this task's Global Constraints — checked independently of assertPathInsideSandboxRoot,
+// not in place of it. ----
+
+test("forbiddenResetTargets: names exactly ~/.refarm, ~/.silo, ~/.local/share/refarm under a given home", () => {
+	assert.deepEqual(forbiddenResetTargets("/home/fixture"), [
+		path.join("/home/fixture", ".refarm"),
+		path.join("/home/fixture", ".silo"),
+		path.join("/home/fixture", ".local", "share", "refarm"),
+	]);
+});
+
+// ---- resetSandbox — the impure edge. Filesystem-scoped to mkdtempSync fixtures throughout;
+// no test in this section ever touches the real ~/.refarm, ~/.silo, or ~/.local/share/refarm. ----
+
+function withResetFixture(fn) {
+	const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-sandbox-reset-"));
+	try {
+		return fn(repoRoot);
+	} finally {
+		fs.rmSync(repoRoot, { recursive: true, force: true });
+	}
+}
+
+function buildFullSandboxFixture(repoRoot) {
+	const { env } = sandboxEnvironment(repoRoot);
+	fs.mkdirSync(env.REFARM_HOME, { recursive: true });
+	fs.mkdirSync(env.XDG_DATA_HOME, { recursive: true });
+	fs.mkdirSync(env.SILO_HOME, { recursive: true, mode: 0o700 });
+	fs.writeFileSync(path.join(env.SILO_HOME, "identity.json"), JSON.stringify({ tokens: {} }), { mode: 0o600 });
+	fs.writeFileSync(path.join(env.SOVEREIGN_BASE, SANDBOX_LOG_FILE_NAME), "fixture log content\n");
+	return env;
+}
+
+test("resetSandbox: nothing on disk → succeeds as a no-op, never throws", () => {
+	withResetFixture((repoRoot) => {
+		const result = resetSandbox(repoRoot);
+		assert.equal(result.deleted, false);
+		assert.match(result.reason, /nothing to reset/);
+	});
+});
+
+test("resetSandbox: deletes a full, realistic sandbox tree entirely (not-running node)", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		const result = resetSandbox(repoRoot, { getStatus: () => ({ node: { state: "not-running", pid: null } }) });
+		assert.equal(result.deleted, true);
+		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), false);
+	});
+});
+
+test("resetSandbox: refuses when the sandbox node is RUNNING — deletes nothing", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		assert.throws(
+			() => resetSandbox(repoRoot, { getStatus: () => ({ node: { state: "running", pid: 555 } }) }),
+			/RUNNING/,
+		);
+		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), true, "a refused reset must not delete anything");
+	});
+});
+
+test("resetSandbox: refuses when the sandbox node's liveness is UNKNOWN — deletes nothing, does not guess", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		assert.throws(
+			() => resetSandbox(repoRoot, { getStatus: () => ({ node: { state: "unknown", pid: 555 } }) }),
+			/could not confidently determine|unknown/i,
+		);
+		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), true);
+	});
+});
+
+test("resetSandbox: refuses when the computed target collides with an (injected) forbidden path — proves the wiring, not just the pure function", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		assert.throws(
+			() =>
+				resetSandbox(repoRoot, {
+					forbiddenTargets: [env.SOVEREIGN_BASE],
+					getStatus: () => ({ node: { state: "not-running", pid: null } }),
+				}),
+			/collides with the operator's real/,
+		);
+		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), true);
+	});
+});
+
+test("resetSandbox: refuses a sibling directory that merely shares a string prefix (.sandboxes) — that decoy, and its canary file, survive untouched", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		const decoyDir = path.join(repoRoot, ".sandboxes");
+		fs.mkdirSync(decoyDir, { recursive: true });
+		const canary = path.join(decoyDir, "canary.txt");
+		fs.writeFileSync(canary, "must survive");
+
+		const result = resetSandbox(repoRoot, { getStatus: () => ({ node: { state: "not-running", pid: null } }) });
+
+		assert.equal(result.deleted, true);
+		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), false, "the real .sandbox must still be deleted");
+		assert.equal(fs.existsSync(decoyDir), true, "the .sandboxes decoy must survive");
+		assert.equal(fs.readFileSync(canary, "utf8"), "must survive");
+	});
+});
+
+test("resetSandbox: refuses outright when the sandbox root ITSELF is a symlink to somewhere else — the decoy target is never touched, and nothing is deleted", () => {
+	withResetFixture((repoRoot) => {
+		const decoyRoot = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-sandbox-reset-decoy-"));
+		try {
+			const canary = path.join(decoyRoot, "canary.txt");
+			fs.writeFileSync(canary, "must survive");
+			const sandboxPath = path.join(repoRoot, ".sandbox");
+			fs.symlinkSync(decoyRoot, sandboxPath, "dir");
+
+			assert.throws(
+				() => resetSandbox(repoRoot, { getStatus: () => ({ node: { state: "not-running", pid: null } }) }),
+				/symlink/i,
+			);
+
+			assert.equal(fs.existsSync(canary), true, "the decoy target must never be touched");
+			assert.equal(fs.readFileSync(canary, "utf8"), "must survive");
+			assert.equal(fs.existsSync(sandboxPath), true, "a refused reset must not even remove the symlink itself");
+		} finally {
+			fs.rmSync(decoyRoot, { recursive: true, force: true });
+		}
+	});
+});
+
+test("resetSandbox: refuses outright when a symlink exists ANYWHERE nested inside the sandbox tree — the decoy target is never touched", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		const decoyRoot = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-sandbox-reset-nested-decoy-"));
+		try {
+			const canary = path.join(decoyRoot, "canary.txt");
+			fs.writeFileSync(canary, "must survive");
+			// Nested arbitrarily deep, to prove the scan is recursive, not just one level.
+			const nestedLinkDir = path.join(env.REFARM_HOME, "nested", "deeper");
+			fs.mkdirSync(nestedLinkDir, { recursive: true });
+			fs.symlinkSync(decoyRoot, path.join(nestedLinkDir, "escape-link"), "dir");
+
+			assert.throws(
+				() => resetSandbox(repoRoot, { getStatus: () => ({ node: { state: "not-running", pid: null } }) }),
+				/symlink/i,
+			);
+
+			assert.equal(fs.existsSync(canary), true, "the decoy target must never be touched");
+			assert.equal(fs.existsSync(env.SOVEREIGN_BASE), true, "a refused reset must not delete anything, even partially");
+		} finally {
+			fs.rmSync(decoyRoot, { recursive: true, force: true });
+		}
+	});
+});
+
+test("resetSandbox: is independent of process.cwd() — a decoy .sandbox sitting under the CURRENT working directory must never be touched when repoRoot is an unrelated absolute path", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		const decoyCwdRoot = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-sandbox-reset-decoy-cwd-"));
+		const decoySandbox = path.join(decoyCwdRoot, ".sandbox");
+		fs.mkdirSync(decoySandbox, { recursive: true });
+		const canary = path.join(decoySandbox, "canary.txt");
+		fs.writeFileSync(canary, "must survive");
+
+		const originalCwd = process.cwd();
+		try {
+			process.chdir(decoyCwdRoot);
+			const result = resetSandbox(repoRoot, { getStatus: () => ({ node: { state: "not-running", pid: null } }) });
+			assert.equal(result.deleted, true);
+			assert.equal(fs.existsSync(env.SOVEREIGN_BASE), false, "the REAL repoRoot's sandbox must still be deleted");
+			assert.equal(fs.existsSync(decoySandbox), true, "the decoy .sandbox under cwd must survive");
+			assert.equal(fs.readFileSync(canary, "utf8"), "must survive");
+		} finally {
+			process.chdir(originalCwd);
+			fs.rmSync(decoyCwdRoot, { recursive: true, force: true });
+		}
+	});
 });
