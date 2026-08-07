@@ -26,6 +26,7 @@ import { intentionCommand } from "./commands/intention.js";
 import { lintCommand } from "./commands/lint.js";
 import { openUrlCommand } from "./commands/open-url.js";
 import { packageManagerCommand } from "./commands/package-manager.js";
+import { parityCommand } from "./commands/parity.js";
 import { extensionCommand } from "./commands/plugin-local.js";
 import { createProcessCommand } from "./commands/process.js";
 import { projectCommand } from "./commands/project.js";
@@ -335,6 +336,7 @@ Notes:
 program.addCommand(deployCommand);
 program.addCommand(doctorCommand);
 program.addCommand(contextCommand);
+program.addCommand(parityCommand);
 program.addCommand(packageManagerCommand);
 program.addCommand(capabilitiesCommand);
 program.addCommand(projectCommand);
