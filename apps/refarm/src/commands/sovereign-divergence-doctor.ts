@@ -59,17 +59,30 @@
 // descriptor with no second signal to correlate against, so this does not abandon that
 // precedent — it extends it for the one case a second, independent witness exists.
 //
-// THE BASE/NAMESPACE DIVERGENCE IS LIVE ON THIS MACHINE, right now: the tractor daemon
-// (started by `scripts/tractor-start.sh`, which derives `SOVEREIGN_BASE` from
-// `REFARM_HOME`) declares `SOVEREIGN_BASE=/home/s095407044`, while a shell with no
-// `SOVEREIGN_BASE` set falls back this CLI's own cwd — so `base-divergence` fires for a
-// real, present reason, not a hypothetical. `sovereign:base-divergence` and
-// `sovereign:namespace-divergence` below reuse `Divergence.summary` verbatim: `context.ts`
-// already phrases it as "the node declares X, but this CLI resolves Y" — naming the node's
-// side explicitly rather than leaving the operator to guess which value is whose — and this
-// module only adds the `action`, which states that closing the gap (aligning this CLI's env
-// to the node's, or leaving them apart because standing outside the node's directory was
-// the point) is the operator's call, never performed here.
+// THE BASE/NAMESPACE DIVERGENCE WAS LIVE ON THIS MACHINE when this file was written
+// (2026-08-05): the tractor daemon (started by `scripts/tractor-start.sh`, which derives
+// `SOVEREIGN_BASE` from `REFARM_HOME`) declared `SOVEREIGN_BASE=/home/s095407044`, while a
+// shell with no `SOVEREIGN_BASE` set fell back to this CLI's own cwd — so `base-divergence`
+// fired for a real, present reason, not a hypothetical.
+//
+// ERRATUM (2026-08-06, `docs/superpowers/plans/2026-08-06-two-halves-one-node.md`): the cwd
+// fallback described above is gone. `declaredBase()` (`packages/config/src/index.js`) now
+// falls back to `dirname(REFARM_HOME)`, then the bare OS home — never `process.cwd()` — so on
+// THIS SAME MACHINE, with nothing declared, the CLI and the node now resolve the same base
+// (`refarm context` reports `cli base: … (from home)` matching `node base: …`) and this
+// specific divergence no longer fires by default. The comparison itself is unchanged and still
+// able to fire on demand — `SOVEREIGN_BASE=/tmp/deliberately-wrong refarm context` still
+// reports `base-divergence`, naming both sides (see that plan's task-4 report for the
+// transcript) — this erratum corrects what was true of this machine's default state, not the
+// check having been weakened.
+//
+// `sovereign:base-divergence` and `sovereign:namespace-divergence` below reuse
+// `Divergence.summary` verbatim: `context.ts` already phrases it as "the node declares X, but
+// this CLI resolves Y" — naming the node's side explicitly rather than leaving the operator to
+// guess which value is whose — and this module only adds the `action`, which states that
+// closing the gap (aligning this CLI's env to the node's, or leaving them apart because an
+// explicit, deliberate declaration was the point) is the operator's call, never performed
+// here.
 //
 // `node-environment-unknown` is a GAP IN THE CHECKING, not a finding about the node — the
 // same distinction `runtime-freshness-doctor.ts` draws for its own `unknown` state ("This is
