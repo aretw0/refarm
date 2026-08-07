@@ -394,8 +394,19 @@ function resolveWorkspaceExecutionCwd(
 	pathResolution: WorkspacePathResolution | null;
 } {
 	if (options.cwd) return { cwd: options.cwd, declaredWorkspace: null, pathResolution: null };
+	// Two different wants behind one variable, split here rather than reusing a single
+	// `baseDir`: with no `--workspace`, the caller wants the PROJECT directory this process
+	// is standing in (fed straight to `buildWorkspaceExecutionStatus`, whose own default is
+	// `process.cwd()` — inspecting package manager/turbo/cache state HERE). With
+	// `--workspace`, it wants the NODE's base, to look the id up in the declared-workspace
+	// catalog, same as every other call site in this file. `declaredBase()` no longer
+	// defaults to cwd, so collapsing this into one resolution would make the flagless path
+	// silently inspect the node's OS home instead of the operator's actual project.
+	if (!options.workspace) {
+		const cwd = deps?.cwd?.() ?? process.cwd();
+		return { cwd, declaredWorkspace: null, pathResolution: null };
+	}
 	const baseDir = deps?.cwd?.() ?? declaredBase();
-	if (!options.workspace) return { cwd: baseDir, declaredWorkspace: null, pathResolution: null };
 	const config = (deps?.loadConfig ?? loadConfig)(baseDir);
 	const declaredWorkspace = declaredWorkspaceFromConfig(config, options.workspace, { baseDir });
 	if (!declaredWorkspace) {

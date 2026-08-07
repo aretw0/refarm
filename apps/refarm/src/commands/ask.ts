@@ -218,9 +218,9 @@ async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string
 
 /** `DeclaredRoot[]` built from the config catalog — the same `id`/`absolutePath` pair
  * `refarm workspace list --json` prints, reduced to what `resolveWorkspaceFromPath` needs.
- * Uses `declaredBase()` (SOVEREIGN_BASE || cwd), the established way this CLI finds
- * declarations — a different value, and a different job, from the interactive cwd seed
- * below. */
+ * Uses `declaredBase()` — the node's base (SOVEREIGN_BASE, else REFARM_HOME's parent, else
+ * the OS home; never cwd) — the established way this CLI finds declarations. A different
+ * value, and a different job, from the interactive cwd seed below. */
 function declaredWorkspaceRoots(): DeclaredRoot[] {
 	const baseDir = declaredBase();
 	return declaredWorkspacesFromConfig(loadConfig(baseDir), { baseDir })

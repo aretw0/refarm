@@ -460,7 +460,7 @@ export function resolveContextInput(env = process.env, cwd = process.cwd()): Con
 
 	return {
 		metadata,
-		cliBase: declaredBase(env, cwd),
+		cliBase: declaredBase(env),
 		cliBaseOrigin: explicitBase ? "SOVEREIGN_BASE" : "cwd",
 		cliNamespace: resolveTractorNamespace(env),
 		runtimeEndpoint: resolveRuntimeSidecarUrl({ cwd, env }).value,

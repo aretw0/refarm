@@ -6,7 +6,7 @@ import {
 import fs from "node:fs";
 import path from "node:path";
 
-import { declaredBase, effectiveModelRouteForScope, loadConfig, sovereignDir } from "@refarm.dev/config";
+import { effectiveModelRouteForScope, loadConfig, sovereignDir } from "@refarm.dev/config";
 
 import { Command } from "commander";
 import type { NodeContextMetadata } from "../utils/context-metadata.js";
@@ -361,7 +361,13 @@ function resolveScopeComparison(
 	deps: RefarmDoctorCommandDeps | undefined,
 ): { comparison: ScopeComparison; exists: (filePath: string) => boolean } | undefined {
 	try {
-		const operatorBase = path.resolve(deps?.cwd?.() ?? declaredBase());
+		// `declaredBase()` no longer falls back to cwd (it now mirrors the Rust host's
+		// REFARM_HOME/OS-home fallback) — using it here would collapse `operatorBase` onto
+		// the same value `nodeHome` resolves to on every ordinary machine, silently disabling
+		// the exact divergence this comparison exists to report. This value must stay the
+		// operator's literal standing directory, so the fallback is a bare `process.cwd()`,
+		// not a "smart" resolver.
+		const operatorBase = path.resolve(deps?.cwd?.() ?? process.cwd());
 		const nodeHome = path.resolve(resolveRefarmHome());
 		// What the RUNNING node says about itself, when it is running and says it. Absent,
 		// stale or unreadable falls back to this home — the same inference as before, which
