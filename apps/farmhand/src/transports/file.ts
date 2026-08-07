@@ -10,6 +10,7 @@ import type {
 import type { PressureSnapshot, PressureWindow } from "@refarm.dev/pressure-contract-v1";
 import fs from "node:fs";
 import path from "node:path";
+import { EffortExecutionState } from "../effort-execution-state.js";
 import type { EffortOperations } from "../effort-operations.js";
 import { EffortQueue } from "../effort-queue.js";
 import { summarizeEfforts, summarizeEffortWindow } from "../effort-summary.js";
@@ -64,8 +65,7 @@ function parseEffortMaxAttempts(effort: Effort): number {
 export class FileTransportAdapter implements EffortOperations {
 	private readonly repository: FileEffortRepository;
 
-	private readonly inFlightEfforts = new Set<string>();
-	private readonly cancelRequests = new Set<string>();
+	private readonly executionState = new EffortExecutionState();
 	private readonly queue: EffortQueue;
 
 	constructor(
@@ -131,7 +131,7 @@ export class FileTransportAdapter implements EffortOperations {
 		if (current.status === "in-progress") return false;
 		if (current.status === "pending") return true;
 
-		this.cancelRequests.delete(effortId);
+		this.executionState.clearCancellation(effortId);
 		this.repository.appendLog(effortId, {
 			effortId,
 			timestamp: nowIso(),
@@ -150,7 +150,7 @@ export class FileTransportAdapter implements EffortOperations {
 		const current = this.repository.readResult(effortId);
 		if (current && TERMINAL_STATUSES.has(current.status)) return false;
 
-		this.cancelRequests.add(effortId);
+		this.executionState.requestCancellation(effortId);
 		this.repository.appendLog(effortId, {
 			effortId,
 			timestamp: nowIso(),
@@ -159,7 +159,7 @@ export class FileTransportAdapter implements EffortOperations {
 			message: "Cancellation requested",
 		});
 
-		if (!this.inFlightEfforts.has(effortId)) {
+		if (!this.executionState.isInFlight(effortId)) {
 			const cancelled: EffortResult = {
 				effortId,
 				status: "cancelled",
@@ -185,8 +185,8 @@ export class FileTransportAdapter implements EffortOperations {
 		return {
 			...summary,
 			queueDepth: this.queue.depth,
-			inFlight: this.inFlightEfforts.size,
-			cancelRequests: this.cancelRequests.size,
+			inFlight: this.executionState.inFlightCount,
+			cancelRequests: this.executionState.cancellationCount,
 			generatedAt: nowIso(),
 		};
 	}
@@ -267,7 +267,7 @@ export class FileTransportAdapter implements EffortOperations {
 	}
 
 	private async processEffort(effort: Effort, options: { force: boolean }): Promise<void> {
-		if (this.inFlightEfforts.has(effort.id)) return;
+		if (this.executionState.isInFlight(effort.id)) return;
 
 		const current = this.repository.readResult(effort.id);
 		if (current && !options.force && TERMINAL_STATUSES.has(current.status)) {
@@ -280,9 +280,9 @@ export class FileTransportAdapter implements EffortOperations {
 		const resultByTaskId = new Map(baseResults.map((result) => [result.taskId, result]));
 		const finalResults: TaskResult[] = [];
 		let attemptCount = options.force ? 0 : Number(current?.attemptCount ?? 0);
-		let cancelled = this.cancelRequests.has(effort.id);
+		let cancelled = this.executionState.isCancellationRequested(effort.id);
 
-		this.inFlightEfforts.add(effort.id);
+		this.executionState.begin(effort.id);
 		const pluginIds = effort.tasks.map((t) => t.pluginId);
 		this.options.onEffortStart?.(effort.id, pluginIds);
 		this.repository.writeResult({
@@ -312,7 +312,7 @@ export class FileTransportAdapter implements EffortOperations {
 					continue;
 				}
 
-				if (this.cancelRequests.has(effort.id)) {
+				if (this.executionState.isCancellationRequested(effort.id)) {
 					cancelled = true;
 					finalResults.push({
 						taskId: task.id,
@@ -410,7 +410,7 @@ export class FileTransportAdapter implements EffortOperations {
 					}
 
 					if (successResult) break;
-					if (this.cancelRequests.has(effort.id)) {
+					if (this.executionState.isCancellationRequested(effort.id)) {
 						cancelled = true;
 						break;
 					}
@@ -489,10 +489,10 @@ export class FileTransportAdapter implements EffortOperations {
 				},
 			});
 		} finally {
-			this.inFlightEfforts.delete(effort.id);
+			this.executionState.finish(effort.id);
 			this.options.onEffortEnd?.(effort.id);
 			if (TERMINAL_STATUSES.has(this.repository.readResult(effort.id)?.status ?? "pending")) {
-				this.cancelRequests.delete(effort.id);
+				this.executionState.clearCancellation(effort.id);
 			}
 		}
 	}
