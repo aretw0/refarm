@@ -50,25 +50,54 @@
  *     scoped to the sandbox's `SILO_HOME`, so this file never re-implements that
  *     resolution a second time (`resolveSandboxModelEnv`).
  *
- *     PLUGIN — the sandbox loads the WORKING TREE's freshly-built
- *     `packages/agent/dist/agent.wasm` (`sandboxAgentPluginPath`), not the operator's
- *     INSTALLED `~/.refarm/plugins/refarm_agent/plugin.wasm`. Both are defensible; this
- *     file picks "the lab runs what you are building" because the sandbox's entire reason
- *     to exist (see this file's opening paragraph) is testing refarm changes in progress —
- *     mirroring the operator's installed copy would mean every sandbox run needs a prior
- *     `refarm plugin install` into the SAME directory the operator's daemon also reads,
- *     reintroducing exactly the shared-surface risk this plan removes. Measured
- *     2026-08-06: their SHA-256 is IDENTICAL today (`6d78b1c15…5ae3eca`) — this choice has
- *     no behavioral effect yet, but will the moment `packages/agent/src` is edited and
- *     rebuilt without a matching `refarm plugin install`. A caller may still override via
- *     `startSandbox({ plugin })` or CLI `--plugin <path>` in `extraArgs` — but NOT by
- *     "last occurrence wins": every flag in `PLUGIN_LOADING_FLAGS` (`--plugin`, and
- *     `--plugin-by-hash` — main.rs's orphan-grant content-store loader) is a repeatable
- *     `Vec` on the Rust side, so clap-derive APPENDS every occurrence rather than letting a
- *     later one replace an earlier one — two loader flags load TWO plugins, both registered
- *     for events by their own INDEPENDENT boot loops, not one overriding the other. (A
- *     review missed `--plugin-by-hash` here once — see `PLUGIN_LOADING_FLAGS`'s doc for the
- *     fix and where the authoritative Rust-side list lives.) That is exactly why none of
+ *     PLUGIN — the sandbox loads the WORKING TREE's freshly-built agent
+ *     (`packages/agent/dist/agent.wasm`), not the operator's installed copy of it. THIS
+ *     DECISION IS UNCHANGED from the first version of this file — but HOW it is reached
+ *     changed after Task 4's live cost-proof dispatch found the first version broken: the
+ *     sandbox loaded `packages/agent/dist/plugin.json` DIRECTLY (`sandboxAgentPluginPath`),
+ *     and the daemon refused it at boot with `missing field 'entry'`. `entry` (a `file://`
+ *     URL) and `integrity` (a `sha256-` digest) are written by the INSTALLER
+ *     (`apps/refarm/src/commands/plugin-install.ts`'s `installPlugin`) — never present in
+ *     the raw build output a package ships. The Task 2 proof (`refarm model current --json`
+ *     resolving `silo-oauth`) never exercised the daemon LOADING the plugin at all — a
+ *     config-side read standing in for a runtime one — so this passed three code reviews
+ *     before a REAL dispatch against a REAL running sandbox caught it.
+ *
+ *     The fix keeps "the lab runs what you are building" and makes it survive contact with
+ *     the daemon: `installSandboxAgentPlugin` runs the REAL installer
+ *     (`refarm plugin install --bundled`) with the SANDBOX's OWN declared env
+ *     (`REFARM_HOME`/`SOVEREIGN_BASE`/`SOVEREIGN_DIR`/`XDG_DATA_HOME`/`SILO_HOME` — never
+ *     bare `process.env`), so it installs into `<repo>/.sandbox/refarm/plugins/`, never
+ *     `~/.refarm/plugins/` — VERIFIED, not assumed: `apps/refarm/src/utils/refarm-home.ts`'s
+ *     `resolveRefarmHome(env)` reads `env.REFARM_HOME` before falling back to the OS home,
+ *     and `installedPluginDir()` (`apps/refarm/src/commands/plugin-install-path.ts`) derives
+ *     its target entirely from that — confirmed live with a THROWAWAY `REFARM_HOME` before
+ *     this was ever run against the real sandbox: everything landed under the throwaway
+ *     dir, and `~/.refarm/plugins/refarm_agent/{plugin.json,plugin.wasm}` were byte-for-byte
+ *     unchanged (same mtime) before and after. `startSandbox` then loads whatever the
+ *     installer WROTE (with `entry`/`integrity` present), not the raw build output. The
+ *     installer's own source resolution (`@refarm.dev/barn`'s `resolvePluginPackage`, via
+ *     the workspace fallback for `@refarm.dev/agent`) still reads `packages/agent/dist/
+ *     agent.wasm` — the SAME working-tree bytes as before, hash-verified live: the
+ *     installed manifest's `integrity` matched this file's own SHA-256 measurement of that
+ *     wasm exactly. `installedBundleIsCurrent` re-installs on a rebuild EVEN AT THE SAME
+ *     package version (it compares content hash, not just the version file), so a sandbox
+ *     re-started after an edit picks up the change without a stale cache.
+ *
+ *     `plugin` (the `startSandbox` option) now has THREE meanings, not two: `undefined`
+ *     (the ordinary default — omit it) triggers the install-then-load flow above;
+ *     an explicit STRING is used AS-IS, no install (the caller already decided); explicit
+ *     `null` means no plugin at all. A caller-supplied `--plugin`/`--plugin-by-hash` in
+ *     `extraArgs` also skips the install — there is no point installing a default the
+ *     caller is not going to load. A caller may still override via `startSandbox({ plugin })`
+ *     or CLI `--plugin <path>` in `extraArgs` — but NOT by "last occurrence wins": every
+ *     flag in `PLUGIN_LOADING_FLAGS` (`--plugin`, and `--plugin-by-hash` — main.rs's
+ *     orphan-grant content-store loader) is a repeatable `Vec` on the Rust side, so
+ *     clap-derive APPENDS every occurrence rather than letting a later one replace an
+ *     earlier one — two loader flags load TWO plugins, both registered for events by their
+ *     own INDEPENDENT boot loops, not one overriding the other. (A review missed
+ *     `--plugin-by-hash` here once — see `PLUGIN_LOADING_FLAGS`'s doc for the fix and where
+ *     the authoritative Rust-side list lives.) That is exactly why none of
  *     `PLUGIN_LOADING_FLAGS` is in `RESERVED_FLAGS` (see `assertNoReservedFlags`'s note)
  *     rather than handled the same way as the four scalar flags: `startSandbox` detects a
  *     caller-supplied plugin loader in `extraArgs` itself (`extraArgsSuppliesPlugin`) and,
@@ -77,6 +106,11 @@
  *
  *   - Task 3 (this revision) adds `status` and `--reset`. Does NOT yet implement
  *     `refarm parity` (Task 5) or a `stop` subcommand (see `--reset`'s note below).
+ *
+ *   - Task 2's PLUGIN mechanism (only) was revised after Task 4's cost-proof dispatch failed
+ *     live against this file's original approach — see the PLUGIN paragraph above for what
+ *     changed and why. Task 4 itself (the actual cost-proof dispatch) remains a separate,
+ *     later step this file does not perform.
  *
  *     STATUS answers two DIFFERENT questions — which sandbox exists on disk, and whether its
  *     node is running — and never collapses either into a boolean. Liveness itself
@@ -144,6 +178,8 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config/plugin-identity";
 
 import { tractorBinaryPath } from "./lib/cargo-target.mjs";
 
@@ -303,18 +339,61 @@ export function assertNoReservedFlags(extraArgs) {
 }
 
 /**
- * PURE. Path the sandbox loads its agent plugin from — the WORKING TREE's freshly-built
- * `packages/agent/dist/agent.wasm`, deliberately NOT the operator's INSTALLED
- * `~/.refarm/plugins/refarm_agent/plugin.wasm`. See this file's header for the recorded
- * decision (both are defensible; this one because the sandbox exists to test refarm
- * changes in progress). `packages/agent/dist/` is the same "packaged" location
- * scripts/tractor-start.sh's PACKAGED_AGENT_WASM names and `refarm plugin install` reads
- * FROM — so this is the artifact one build (`pnpm --filter @refarm.dev/agent run build` /
- * `cargo component build --release -p agent` + publish) away from any edit, with no
- * install step into a shared directory required in between.
+ * PURE. The RAW build output the working tree ships — `packages/agent/dist/agent.wasm` —
+ * NOT what the sandbox actually loads. `refarm plugin install` reads FROM this exact path
+ * (it is the same "packaged" location `scripts/tractor-start.sh`'s `PACKAGED_AGENT_WASM`
+ * names), but this file no longer loads it DIRECTLY: `packages/agent/dist/plugin.json`
+ * (the manifest sitting beside it) is missing `entry`/`integrity` — fields only the
+ * installer writes — and the daemon refuses it at boot with `missing field 'entry'`,
+ * found live by Task 4's cost-proof dispatch. See `installSandboxAgentPlugin` for what
+ * `startSandbox` actually uses by default now. Kept as its own function (rather than
+ * deleted) because it still names the SOURCE of what gets installed, and because a
+ * degraded start's notice names it as a diagnostic reference for a human reading the log —
+ * never as a path this file itself passes to `--plugin` anymore.
  */
 export function sandboxAgentPluginPath(repoRoot) {
 	return path.join(repoRoot, "packages", "agent", "dist", "agent.wasm");
+}
+
+/**
+ * PURE. Interprets an already-parsed `refarm plugin install --bundled --json` envelope
+ * (plus the subprocess's exit code, used only for a message when the envelope itself
+ * carries nothing useful) into `installSandboxAgentPlugin`'s own `{ installed, wasmPath,
+ * reason }` contract. Split out from that function's subprocess call specifically so THIS
+ * interpretation — which field means the install actually produced a loadable wasm — is
+ * testable with a literal envelope, not only by running a real CLI subprocess (mirrors
+ * this file's `parseShellExports`/`resolveSandboxModelEnv` split for the same reason).
+ *
+ * Looks up the result by `RUNTIME_AGENT_PLUGIN_ID` (`@refarm/agent`) rather than assuming
+ * index `0` — `BUNDLED_PLUGINS` is `[RUNTIME_AGENT_PLUGIN_DESCRIPTOR]` today
+ * (`packages/config/src/plugin-identity.js`) but is a LIST, and this file cares about one
+ * specific member of it, not "whatever happens to install first".
+ */
+export function interpretPluginInstallEnvelope(envelope, exitCode) {
+	const plugins = Array.isArray(envelope?.plugins) ? envelope.plugins : [];
+	const agentResult = plugins.find((entry) => entry?.id === RUNTIME_AGENT_PLUGIN_ID);
+
+	if (!envelope?.ok || !agentResult || agentResult.status === "failed") {
+		return {
+			installed: false,
+			reason:
+				agentResult?.message ??
+				envelope?.message ??
+				`refarm plugin install --bundled --json exited ${exitCode} with no usable result for ${RUNTIME_AGENT_PLUGIN_ID}`,
+		};
+	}
+	if (typeof agentResult.installedPath !== "string" || !agentResult.installedPath) {
+		return {
+			installed: false,
+			reason: "refarm plugin install --bundled reported success but named no installedPath",
+		};
+	}
+	return {
+		installed: true,
+		wasmPath: agentResult.installedPath,
+		status: agentResult.status,
+		version: agentResult.version,
+	};
 }
 
 /**
@@ -371,6 +450,21 @@ export const PLUGIN_LOADING_FLAGS = {
  */
 export function extraArgsSuppliesPlugin(extraArgs) {
 	return extraArgs.some((arg) => Object.hasOwn(PLUGIN_LOADING_FLAGS, flagNameOf(arg)));
+}
+
+/**
+ * PURE. Should `startSandbox` run its OWN install of the working tree's build
+ * (`installSandboxAgentPlugin`) rather than using `plugin` as-is or skipping it entirely?
+ * Only when the caller left `plugin` genuinely UNSPECIFIED (`undefined` — omitted the
+ * option) AND did not already supply a plugin loader of their own through `extraArgs`:
+ * installing a default nothing will load is wasted work, and an explicit `plugin` (a
+ * string path, or `null`) means the caller already decided — this function does not
+ * second-guess either. Exported and called BY `startSandbox` so a test can pin the actual
+ * decision, not a hand-copied re-statement of it (the same discipline
+ * `resolveDefaultPluginArgs` already established for the flag-append decision it makes).
+ */
+export function shouldInstallSandboxPlugin(plugin, extraArgs) {
+	return plugin === undefined && !extraArgsSuppliesPlugin(extraArgs);
 }
 
 /**
@@ -908,17 +1002,89 @@ export function resolveSandboxModelEnv(repoRoot, { siloHome } = {}) {
 }
 
 /**
+ * IMPURE. Installs the WORKING TREE's freshly-built agent into the SANDBOX's OWN sovereign
+ * dir, using the REAL installer (`refarm plugin install --bundled`) — not a hand-rolled
+ * copy of `sandboxAgentPluginPath`'s raw build output, which is exactly what Task 4's
+ * cost-proof dispatch found broken (`missing field 'entry'` — see this file's header).
+ *
+ * `env` is REQUIRED to be the sandbox's OWN declared axes (never bare `process.env` alone)
+ * — `apps/refarm/src/utils/refarm-home.ts`'s `resolveRefarmHome(env)` is what the installer
+ * ultimately derives its target directory from, reading `env.REFARM_HOME` before falling
+ * back to the OS home. Passing the ambient `process.env` unmodified here would install into
+ * the OPERATOR's real `~/.refarm/plugins/` — the one thing this whole plan exists to never
+ * do. `startSandbox` always calls this with `{ ...process.env, ...sandboxEnv }`, the SAME
+ * env the daemon itself receives.
+ *
+ * Shells out to the ALREADY-COMPILED CLI (`refarm plugin install --bundled --json`) rather
+ * than re-implementing the install layout here — this codebase has repeatedly paid for a
+ * second implementation of "where does an installed plugin live" drifting from the first
+ * (see `apps/refarm/src/commands/plugin-install-path.ts`'s own header for the historical
+ * instance, and `resolveSandboxModelEnv`'s doc for this file's own precedent of the same
+ * discipline). Reads the result straight out of that command's own JSON response
+ * (`interpretPluginInstallEnvelope`) rather than asking a SECOND time via a separate
+ * path-resolution call.
+ *
+ * Never throws: a missing/unbuilt CLI, a failing subprocess, unparseable output, or a
+ * genuine install failure all return `{ installed: false, reason }` — the caller degrades
+ * to NO plugin loaded (never falls back to `sandboxAgentPluginPath`'s raw build output,
+ * which is now KNOWN to fail at boot — falling back to a manifest already proven broken
+ * would just reintroduce the Task 4 defect under a different trigger).
+ */
+export function installSandboxAgentPlugin(repoRoot, { env } = {}) {
+	const cli = path.join(repoRoot, "apps", "refarm", "dist", "index.js");
+	if (!fs.existsSync(cli)) {
+		return { installed: false, reason: `refarm CLI not built at ${cli} — run: pnpm --filter @refarm.dev/refarm run build` };
+	}
+
+	const result = spawnSync(process.execPath, [cli, "plugin", "install", "--bundled", "--json"], {
+		env: env ?? process.env,
+		encoding: "utf8",
+		timeout: 60_000,
+	});
+
+	if (result.error) {
+		return { installed: false, reason: `refarm plugin install --bundled failed to run: ${result.error.message}` };
+	}
+
+	let envelope;
+	try {
+		envelope = JSON.parse(result.stdout);
+	} catch (err) {
+		return {
+			installed: false,
+			reason: `refarm plugin install --bundled --json produced unparseable output (exit ${result.status}): ${err.message}`,
+		};
+	}
+
+	return interpretPluginInstallEnvelope(envelope, result.status);
+}
+
+/**
  * Start the sandbox daemon.
  *
- * Task 2 defaults: `plugin` defaults to `sandboxAgentPluginPath(repoRoot)` (the working
- * tree's freshly-built agent — see this file's header for why), and `credentials`
- * defaults to `true` (copy the minimum credential set and resolve it into the child's env
- * before spawning). Pass `plugin: null` for no plugin (Task 1's original behavior) or
- * `credentials: false` to skip credential resolution (e.g. a caller that only needs the
- * graph axis, or a test that must not touch `~/.silo`). Neither degrades to a thrown error
- * on its own missing prerequisite (no source identity.json, no built CLI) — see
+ * `plugin` has THREE meanings (see this file's header for the Task 4 finding that made a
+ * plain default insufficient):
+ *   - `undefined` (omitted — the ordinary default): install the working tree's build
+ *     through the REAL installer, into the sandbox's OWN sovereign dir, then load whatever
+ *     the installer wrote (`installSandboxAgentPlugin`). Skipped entirely — no install
+ *     attempted — when `extraArgs` already supplies a plugin loader of its own
+ *     (`extraArgsSuppliesPlugin`): there is no point installing a default nothing will load.
+ *   - an explicit STRING: used AS-IS, no install — the caller already made a decision, and
+ *     this function does not second-guess it.
+ *   - explicit `null`: no plugin at all (this file's original, Task 1 behavior).
+ * A failed install (CLI not built, subprocess error, genuine install failure) degrades to
+ * NO plugin with a notice — never to `sandboxAgentPluginPath`'s raw build output, which is
+ * now KNOWN to fail at boot (`missing field 'entry'`); falling back to it would just
+ * reintroduce the exact defect this revision closes, under a different trigger.
+ *
+ * `credentials` defaults to `true` (copy the minimum credential set and resolve it into
+ * the child's env before spawning); `credentials: false` skips that (e.g. a caller that
+ * only needs the graph axis, or a test that must not touch `~/.silo`). Neither the install
+ * nor the credential step degrades to a thrown error on its own missing prerequisite (no
+ * source identity.json, no built CLI) — see `installSandboxAgentPlugin`/
  * `copySandboxCredentials`/`resolveSandboxModelEnv`'s own contracts — because a sandbox
- * with no model access is still useful for non-model work; it is reported, not hidden.
+ * with no model access, or no plugin, is still useful for other work; it is reported, not
+ * hidden.
  *
  * Mirrors scripts/tractor-start.sh's directory-prep + `--refarm-dir` shape and its
  * `model env --shell --include-secrets` credential step, without its plugin-catalog/
@@ -935,7 +1101,7 @@ export async function startSandbox({
 	repoRoot = REPO_ROOT,
 	background = false,
 	extraArgs = [],
-	plugin = sandboxAgentPluginPath(repoRoot),
+	plugin,
 	credentials = true,
 } = {}) {
 	// Checked FIRST, before any port check/mkdir/spawn — a caller trying to override a
@@ -971,14 +1137,40 @@ export async function startSandbox({
 	fs.mkdirSync(sandboxEnv.REFARM_HOME, { recursive: true });
 	fs.mkdirSync(sandboxEnv.XDG_DATA_HOME, { recursive: true });
 
+	const notices = [];
+
+	// `plugin === undefined` means the caller did not decide — install the working tree's
+	// build through the REAL installer, into THIS sandbox's own sovereign dir (never
+	// process.env alone: the sandbox's full declared env, so the installer's own
+	// REFARM_HOME resolution lands under <repoRoot>/.sandbox, not ~/.refarm — see
+	// installSandboxAgentPlugin's doc). Skipped when extraArgs already supplies a plugin
+	// loader of its own (extraArgsSuppliesPlugin) — installing a default nothing will load
+	// is wasted work, and second-guesses a caller who already made a decision. An explicit
+	// string/`null` `plugin` is likewise left untouched — see startSandbox's own doc for
+	// what each of the three `plugin` shapes means.
+	let effectivePlugin = plugin;
+	if (shouldInstallSandboxPlugin(plugin, extraArgs)) {
+		const installResult = installSandboxAgentPlugin(repoRoot, { env: { ...process.env, ...sandboxEnv } });
+		if (installResult.installed) {
+			effectivePlugin = installResult.wasmPath;
+		} else {
+			effectivePlugin = null;
+			notices.push(
+				`agent plugin not installed — ${installResult.reason}. Starting with NO plugin ` +
+					`(the raw build at ${sandboxAgentPluginPath(repoRoot)} is known to fail to load ` +
+					"directly — its plugin.json is missing 'entry'/'integrity', which only the " +
+					"installer writes; see this file's header for the Task 4 finding).",
+			);
+		}
+	}
+
 	// `--plugin` is Vec<PathBuf> in packages/tractor/src/main.rs ("may be repeated"), so
 	// clap-derive APPENDS every occurrence rather than letting a later one replace an
 	// earlier one — appending the default AND a caller-supplied --plugin would load BOTH
 	// (and register both for events), not let the caller's win. resolveDefaultPluginArgs
 	// skips the default entirely when extraArgs already names one, so the caller's choice
 	// is the ONLY plugin loaded.
-	const { pluginArgs, notice: pluginNotice } = resolveDefaultPluginArgs(plugin, extraArgs);
-	const notices = [];
+	const { pluginArgs, notice: pluginNotice } = resolveDefaultPluginArgs(effectivePlugin, extraArgs);
 	if (pluginNotice) notices.push(pluginNotice);
 
 	const args = [

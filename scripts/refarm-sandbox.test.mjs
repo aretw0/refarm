@@ -27,6 +27,7 @@ import {
 	copySandboxCredentials,
 	extraArgsSuppliesPlugin,
 	forbiddenResetTargets,
+	interpretPluginInstallEnvelope,
 	minimalCredentialTokens,
 	OPERATOR_SILO_IDENTITY_PATH,
 	parseSandboxPidFile,
@@ -45,6 +46,7 @@ import {
 	sandboxCmdlineMatches,
 	sandboxEnvironment,
 	sandboxStatus,
+	shouldInstallSandboxPlugin,
 	startSandbox,
 } from "./refarm-sandbox.mjs";
 
@@ -1424,4 +1426,158 @@ test("resetSandbox: is independent of process.cwd() — a decoy .sandbox sitting
 			fs.rmSync(decoyCwdRoot, { recursive: true, force: true });
 		}
 	});
+});
+
+// ---- Task 4 follow-up: installSandboxAgentPlugin / interpretPluginInstallEnvelope.
+//
+// Task 4's live cost-proof dispatch found the sandbox's ORIGINAL plugin mechanism broken:
+// loading packages/agent/dist/plugin.json DIRECTLY fails at boot with `missing field
+// 'entry'` — `entry`/`integrity` are written by the REAL installer, never present in the
+// raw build output. The fix installs through that installer (`refarm plugin install
+// --bundled`) into the sandbox's OWN sovereign dir, then loads what it wrote.
+// interpretPluginInstallEnvelope is the pure interpretation of that command's --json
+// output, testable with literal envelopes — including a REAL one, captured live against a
+// THROWAWAY REFARM_HOME (never the operator's), before this was ever run against the real
+// sandbox. `installSandboxAgentPlugin`'s own subprocess call is not independently unit
+// tested (it needs a built CLI and a real install to run against) — same accepted gap as
+// `resolveSandboxModelEnv`'s, and proven live instead (see task-2-report.md). ----
+
+// Captured verbatim (structure) from a REAL `refarm plugin install --bundled --json` run
+// against a throwaway REFARM_HOME on 2026-08-07 — paths/hash reproduced exactly as
+// observed, nothing here is a credential (a wasm's content hash and install metadata are
+// not secrets).
+const REAL_INSTALL_SUCCESS_ENVELOPE = {
+	failed: 0,
+	plugins: [
+		{
+			id: "@refarm/agent",
+			packageName: "@refarm.dev/agent",
+			status: "installed",
+			installedPath: "/repo/.sandbox/refarm/plugins/refarm_agent/plugin.wasm",
+			version: "0.1.0",
+			packageSource: "workspace",
+			packageDir: "/repo/packages/agent",
+			bytes: 478129,
+			integrity: "sha256-6d78b1c152ecba006f53bf2a07fa4544faef98f23144f8153a0baa8235ae3eca",
+		},
+	],
+	modelRateCatalog: { status: "materialized" },
+	command: "plugin",
+	operation: "install",
+	ok: true,
+	nextAction: null,
+	nextActions: [],
+	nextCommand: "refarm plugin status --json",
+	nextCommands: ["refarm plugin status --json"],
+};
+
+test("interpretPluginInstallEnvelope: a REAL freshly-installed envelope (captured live) resolves the wasm path", () => {
+	const result = interpretPluginInstallEnvelope(REAL_INSTALL_SUCCESS_ENVELOPE, 0);
+	assert.deepEqual(result, {
+		installed: true,
+		wasmPath: "/repo/.sandbox/refarm/plugins/refarm_agent/plugin.wasm",
+		status: "installed",
+		version: "0.1.0",
+	});
+});
+
+test("interpretPluginInstallEnvelope: a CACHED (already up-to-date) result is still installed:true", () => {
+	const envelope = {
+		...REAL_INSTALL_SUCCESS_ENVELOPE,
+		plugins: [
+			{
+				id: "@refarm/agent",
+				packageName: "@refarm.dev/agent",
+				status: "cached",
+				installedPath: "/repo/.sandbox/refarm/plugins/refarm_agent/plugin.wasm",
+				version: "0.1.0",
+				packageSource: "workspace",
+				packageDir: "/repo/packages/agent",
+				message: "already up-to-date",
+			},
+		],
+	};
+	const result = interpretPluginInstallEnvelope(envelope, 0);
+	assert.equal(result.installed, true);
+	assert.equal(result.wasmPath, "/repo/.sandbox/refarm/plugins/refarm_agent/plugin.wasm");
+});
+
+test("interpretPluginInstallEnvelope: a FAILED result is installed:false, with the failure's own message", () => {
+	const envelope = {
+		failed: 1,
+		plugins: [
+			{
+				id: "@refarm/agent",
+				packageName: "@refarm.dev/agent",
+				status: "failed",
+				version: "0.1.0",
+				packageSource: "workspace",
+				packageDir: "/repo/packages/agent",
+				message: "WASM not found at /repo/packages/agent/dist/agent.wasm",
+			},
+		],
+		ok: false,
+		message: "plugin-install-failed",
+	};
+	const result = interpretPluginInstallEnvelope(envelope, 1);
+	assert.equal(result.installed, false);
+	assert.match(result.reason, /WASM not found/);
+});
+
+test("interpretPluginInstallEnvelope: no result at all for the agent id", () => {
+	const result = interpretPluginInstallEnvelope({ ok: true, plugins: [] }, 0);
+	assert.equal(result.installed, false);
+	assert.match(result.reason, /no usable result/);
+	assert.match(result.reason, /@refarm\/agent/);
+});
+
+test("interpretPluginInstallEnvelope: ok:true but the agent's own installedPath is missing", () => {
+	const envelope = {
+		ok: true,
+		plugins: [{ id: "@refarm/agent", status: "installed" }],
+	};
+	const result = interpretPluginInstallEnvelope(envelope, 0);
+	assert.equal(result.installed, false);
+	assert.match(result.reason, /installedPath/);
+});
+
+test("interpretPluginInstallEnvelope: completely malformed/empty input degrades gracefully, never throws", () => {
+	assert.doesNotThrow(() => interpretPluginInstallEnvelope(null, 1));
+	assert.doesNotThrow(() => interpretPluginInstallEnvelope(undefined, 1));
+	assert.doesNotThrow(() => interpretPluginInstallEnvelope({}, 1));
+	assert.equal(interpretPluginInstallEnvelope(null, 1).installed, false);
+});
+
+test("interpretPluginInstallEnvelope: picks the AGENT's result specifically, not just plugins[0]", () => {
+	// BUNDLED_PLUGINS is [RUNTIME_AGENT_PLUGIN_DESCRIPTOR] today, but this function must not
+	// assume that stays true — it looks the agent up BY ID.
+	const envelope = {
+		ok: true,
+		plugins: [
+			{ id: "@refarm/some-other-plugin", status: "installed", installedPath: "/wrong.wasm" },
+			{ id: "@refarm/agent", status: "installed", installedPath: "/right.wasm" },
+		],
+	};
+	const result = interpretPluginInstallEnvelope(envelope, 0);
+	assert.equal(result.wasmPath, "/right.wasm");
+});
+
+// ---- shouldInstallSandboxPlugin — the exact decision startSandbox uses ----
+
+test("shouldInstallSandboxPlugin: true when plugin is unspecified and extraArgs supplies none", () => {
+	assert.equal(shouldInstallSandboxPlugin(undefined, []), true);
+	assert.equal(shouldInstallSandboxPlugin(undefined, ["--namespace", "sandbox"]), true);
+});
+
+test("shouldInstallSandboxPlugin: false when the caller already supplied a plugin loader in extraArgs", () => {
+	assert.equal(shouldInstallSandboxPlugin(undefined, ["--plugin", "/caller.wasm"]), false);
+	assert.equal(shouldInstallSandboxPlugin(undefined, ["--plugin-by-hash", "/a:b:c"]), false);
+});
+
+test("shouldInstallSandboxPlugin: false when the caller passed an explicit plugin path", () => {
+	assert.equal(shouldInstallSandboxPlugin("/explicit/path.wasm", []), false);
+});
+
+test("shouldInstallSandboxPlugin: false when the caller explicitly asked for no plugin at all", () => {
+	assert.equal(shouldInstallSandboxPlugin(null, []), false);
 });
