@@ -190,6 +190,88 @@ What remains open:
   that the 2026-08-03 field failure this line of work traces to was about inferring scope from
   *where a process stands*, and `$HOME` is not positional in that sense. That change is **not**
   built by this plan; it is recorded here so it is not re-litigated as new information later.
+  **Built 2026-08-06 — see the section immediately below. This bullet is left standing, unedited,
+  as the record of the decision; it is no longer the current state of the code.**
+
+**Delivered 2026-08-06, as `docs/superpowers/plans/2026-08-06-two-halves-one-node.md`: the
+positional fallback above is gone, and `SOVEREIGN_BASE_KEY`'s own doc comment — "read identically
+by the Rust host and this stack, so the two cannot answer from different directories on the same
+node" — is true for the first time.**
+
+The measurement that showed it was not: with `SOVEREIGN_BASE`/`REFARM_HOME` both unset,
+`declaredBase()` (`packages/config/src/index.js`) resolved `process.cwd()` while
+`dirs_sovereign_base` in `packages/tractor/src/main.rs:760-776` never reads cwd at all (it resolves
+`REFARM_HOME`, else the OS home) — the exact asymmetry the doc comment already claimed did not
+exist. `refarm workspace list --json`, the plan's own worked example, returned the repository's own
+(wrong) catalog when run from the repository and an **empty** catalog from `~/git/rcdc5` and
+`/tmp`, purely because of which directory the CLI process happened to be started from.
+
+Delivered as:
+
+- **`declaredBase(env = process.env)`** now mirrors `dirs_sovereign_base` step for step:
+  `SOVEREIGN_BASE` (trimmed) wins outright; else `dirname(REFARM_HOME)` (a container declaring
+  `REFARM_HOME=/srv/node/.refarm` resolves `/srv/node`, matching the Rust host reading the same
+  variable); else `os.homedir()`. `process.cwd()` is never read, at any step. Its `cwd` parameter
+  is **removed, not defaulted** — the fallback signature stayed `declaredBase(env, cwd =
+  process.cwd())` in early drafts of this line of work, and a default is exactly as load-bearing as
+  a fallback: any caller that did not pass `env` explicitly, or that relied on the old default,
+  would keep resolving cwd silently. Removing the parameter makes every call site that needs the
+  operator's actual directory say so at the call site, in code a reviewer can see, rather than in a
+  default a reviewer has to already know to distrust. Commit `56738ec1`.
+- **The call-site audit that made this safe.** Before changing the signature, every real
+  `declaredBase(...)` invocation in the repo was traced to what it feeds (twelve production call
+  sites across four files, per `.superpowers/sdd/2026-08-06-two-halves-one-node/task-1-report.md`).
+  Ten wanted the node's base cleanly (catalog reads — `workspace.ts`'s `list`/`status`/`mounts`/
+  `sources`/`materialize`/`refresh` actions, `context.ts`'s own comparison, `ask.ts`'s
+  `declaredWorkspaceRoots`). Nine of the ten already called `declaredBase()` with zero explicit
+  arguments and needed no code change beyond the signature itself; the tenth, `context.ts:463`,
+  passed `cwd` as an explicit second positional argument and needed only that argument dropped —
+  the single compile error the signature change produced across the whole repo
+  (`context.ts(463,30): error TS2554: Expected 0-1 arguments, but got 2`), per `task-3-report.md`.
+  **Two sites genuinely wanted the current project's directory** and were given an explicit
+  `process.cwd()` fallback rather than being collapsed onto the node's base:
+  - `doctor.ts:370`'s `operatorBase` (`resolveScopeComparison`), which exists specifically to be
+    compared against the node's home so `scope-doctor` can report when they disagree. Collapsing it
+    onto `declaredBase()` would have made both sides of that comparison identical by construction
+    and silently disabled the divergence this doctor finding exists to report — the audit's own
+    words: "the clearest, least-ambiguous 'wanted the project's directory' site."
+  - `workspace.ts`'s `resolveWorkspaceExecutionCwd` (defined at line 388; the flagless branch is at
+    line 405 as of this writing), split into two branches rather than one resolution: with
+    `--workspace`, it still wants the node's base (a catalog lookup by id); without it, it wants the
+    directory the operator is standing in, fed to `buildWorkspaceExecutionStatus` (whose own default
+    is `process.cwd()`) to inspect *this* directory's package manager/turbo/cache state. One
+    `baseDir` variable had served both wants before; it could not any longer. Commit `3f93e955`.
+- **`refarm context`'s `cliBaseOrigin` label, corrected to match.** The field had labelled the
+  non-`SOVEREIGN_BASE` branch `"cwd"` — accurate before this change, false the moment the fallback
+  stopped reading cwd. It now names three states read off the same two checks `declaredBase()`
+  itself performs: `"SOVEREIGN_BASE"`, `"REFARM_HOME"`, `"home"`. Commit `805c8fed`. This changes
+  `refarm context --json`'s output shape, so `refarm agent finish --lane handoffs --run --json` was
+  run before it landed, per this repo's own CLAUDE.md.
+
+Proven live (`.superpowers/sdd/2026-08-06-two-halves-one-node/task-4-report.md`), with
+`SOVEREIGN_BASE`/`REFARM_HOME` both unset:
+
+- `refarm workspace list --json` returns `['rcdc5', 'refarm']` from the repository, from
+  `~/git/rcdc5`, and from `/tmp` alike. Three states this design's own history has now passed
+  through, in order: the repository's own wrong catalog from the repository and empty elsewhere
+  (before the workspace-is-not-a-node plan); empty everywhere (after it, before this plan); correct
+  and identical everywhere (now).
+- `sovereign:base-divergence` is gone from both `refarm context` and `refarm doctor --json`:
+  `cli base: /home/s095407044 (from home)` now matches `node base: /home/s095407044`.
+- **The check can still fail, and that is what distinguishes "fixed" from "no longer able to
+  notice."** `SOVEREIGN_BASE=/tmp/deliberately-wrong refarm context` still reports
+  `base-divergence`, naming both sides: *"The node's base is /home/s095407044 (the node was told
+  SOVEREIGN_BASE=/home/s095407044), but this CLI resolves base to /tmp/deliberately-wrong (from
+  SOVEREIGN_BASE) — they disagree."* `sovereign:base-divergence` reappears in `refarm doctor --json`
+  under the same override. A divergence report that could no longer fire would be indistinguishable
+  from a comparison that had been quietly deleted; this is the test that rules that out.
+- `scope-doctor`'s comparison (the one call site above that deliberately kept `process.cwd()`) still
+  differs between directories, as designed: `scope:auth-policy-divergence` and
+  `scope:config-divergence` fire from the repository checkout (which carries its own stray
+  `.refarm/config.json` and `.refarm/auth-policy.json`) and do not fire from `~/git/rcdc5` (which
+  has no `.refarm` directory at all). Its survival through this plan is the negative control —
+  proof that "the two halves agree" was scoped to the base *resolver*, not applied by reflex to
+  every comparison that happens to involve a directory.
 
 ### D3. The isolated launcher
 
