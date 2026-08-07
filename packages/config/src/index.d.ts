@@ -175,8 +175,10 @@ export const REFARM_CONFIG_LEGACY_FILE_NAME: string;
 export const SOVEREIGN_DIR_SELECTOR_KEY: "SOVEREIGN_DIR";
 /** Names WHERE this node's declarations live — the directory containing the sovereign dir. */
 export const SOVEREIGN_BASE_KEY: "SOVEREIGN_BASE";
-/** The base declarations resolve against: what the node was told, else the process directory. */
-export function declaredBase(env?: Record<string, string | undefined>, cwd?: string): string;
+/** The base declarations resolve against: `SOVEREIGN_BASE`, else `dirname(REFARM_HOME)`,
+ * else the OS home directory. Mirrors `dirs_sovereign_base` in
+ * `packages/tractor/src/main.rs`; the two change together. Never reads `process.cwd()`. */
+export function declaredBase(env?: Record<string, string | undefined>): string;
 /** The config file name inside the sovereign config dir (fixed substrate convention). */
 export const CONFIG_FILE_NAME: "config.json";
 /** Thrown when the sovereign config dir selector is unset (no substrate default). */

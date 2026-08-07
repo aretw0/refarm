@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import os, { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
 	SOVEREIGN_BASE_KEY,
@@ -215,13 +215,48 @@ describe("declaredBase", () => {
 	// answer. Without this, a command executing a declared operation resolved the catalog
 	// from wherever the daemon happened to be standing, while the admission check beside it
 	// resolved from the operator's home — one process, two answers, and the operation was
-	// admitted and then refused.
-	it("prefers what the node was told over where the process is standing", () => {
-		expect(declaredBase({ [SOVEREIGN_BASE_KEY]: "/declared" }, "/cwd")).toBe("/declared");
+	// admitted and then refused. This mirrors `dirs_sovereign_base` in
+	// `packages/tractor/src/main.rs` step for step.
+
+	it("SOVEREIGN_BASE wins outright, even over REFARM_HOME", () => {
+		expect(
+			declaredBase({ [SOVEREIGN_BASE_KEY]: "/declared", REFARM_HOME: "/other/.refarm" }),
+		).toBe("/declared");
 	});
 
-	it("falls back to the process directory when nobody told it", () => {
-		expect(declaredBase({}, "/cwd")).toBe("/cwd");
-		expect(declaredBase({ [SOVEREIGN_BASE_KEY]: "   " }, "/cwd")).toBe("/cwd");
+	it("falls back to dirname(REFARM_HOME) when SOVEREIGN_BASE is unset", () => {
+		// A container declaring REFARM_HOME=/srv/node/.refarm resolves /srv/node —
+		// the same parent the Rust host resolves from the same variable.
+		expect(declaredBase({ REFARM_HOME: "/srv/node/.refarm" })).toBe("/srv/node");
+	});
+
+	it("falls back to the OS home directory when neither is declared", () => {
+		expect(declaredBase({})).toBe(os.homedir());
+	});
+
+	it("does not treat whitespace as a declaration, for either variable", () => {
+		expect(
+			declaredBase({ [SOVEREIGN_BASE_KEY]: "   ", REFARM_HOME: "/srv/node/.refarm" }),
+		).toBe("/srv/node");
+	});
+
+	// Regression guard for the defect being removed: the old implementation defaulted its
+	// (now-deleted) `cwd` parameter to `process.cwd()`, so a daemon started from inside a
+	// project directory and an operator's shell standing in their home directory disagreed
+	// about the node's base. Mocking process.cwd() — rather than asserting a fixed string —
+	// is what makes this discriminate: the old code read process.cwd() lazily as a default
+	// parameter at call time, so it would echo back whatever this mock returns; the fixed
+	// implementation never reads process.cwd() at all, so it must return the OS home
+	// regardless of what this mock says.
+	it("never resolves to process.cwd(), even when the process is standing outside the home directory", () => {
+		const elsewhere = "/not-the-home-directory/some/project";
+		expect(elsewhere).not.toBe(os.homedir()); // sanity: the scenario must actually differ
+		const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(elsewhere);
+		try {
+			expect(declaredBase({})).not.toBe(elsewhere);
+			expect(declaredBase({})).toBe(os.homedir());
+		} finally {
+			cwdSpy.mockRestore();
+		}
 	});
 });

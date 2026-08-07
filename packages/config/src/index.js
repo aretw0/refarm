@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 export {
 	DEFAULT_MODEL_PROVIDER,
@@ -139,18 +140,35 @@ export const SOVEREIGN_DIR_SELECTOR_KEY = "SOVEREIGN_DIR";
 export const SOVEREIGN_BASE_KEY = "SOVEREIGN_BASE";
 
 /**
- * The base declarations resolve against: what the node was TOLD, or — when nobody told it
- * — where the process is standing.
+ * The base declarations resolve against: what the node was TOLD, or — absent that — the
+ * OS home directory. Mirrors `dirs_sovereign_base` in `packages/tractor/src/main.rs`
+ * precedence step for step; the two functions change together. That lockstep is what
+ * makes the promise in {@link SOVEREIGN_BASE_KEY}'s doc comment — that the Rust host and
+ * this stack "read identically" — actually true, rather than true only when a caller
+ * happens to export SOVEREIGN_BASE.
  *
- * The fallback is deliberate and is what keeps project scoping working: a developer
- * running a command inside a repository still gets that repository's declarations. What
- * the injection removes is a NODE inheriting its scope from whoever last typed `cd`,
- * which is how one process came to admit an operation (resolved from the operator's home)
- * and then refuse it (resolved from the daemon's directory) in the same breath.
+ * Precedence:
+ *   1. `SOVEREIGN_BASE` (this env var) — an explicit declaration always wins.
+ *   2. `dirname(REFARM_HOME)` — a container declaring `REFARM_HOME=/srv/node/.refarm`
+ *      resolves `/srv/node`, matching the Rust host reading the same variable.
+ *   3. The bare OS home directory.
+ *
+ * `process.cwd()` is deliberately NOT a fallback, at any step: the Rust host never reads
+ * cwd, and a TS-side cwd fallback was the actual defect this replaces — a node's answer
+ * changed depending on which directory the process happened to be started from, so one
+ * process could admit an operation resolved from the operator's home and then refuse it
+ * resolved from the daemon's directory, in the same breath.
+ *
+ * Step 3 lands on the BARE home directory, not `<home>/<SOVEREIGN_DIR>`, because
+ * {@link sovereignDir} THROWS when the selector is unset (deliberately, so no brand name
+ * is ever assumed) — a base resolver must not throw.
  */
-export function declaredBase(env = process.env, cwd = process.cwd()) {
+export function declaredBase(env = process.env) {
 	const base = env[SOVEREIGN_BASE_KEY]?.trim();
-	return base ? base : cwd;
+	if (base) return base;
+	const refarmHome = env.REFARM_HOME?.trim();
+	if (refarmHome) return path.dirname(refarmHome);
+	return os.homedir();
 }
 
 /** The config file name inside the sovereign config dir. This IS a fixed substrate
