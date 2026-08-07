@@ -110,14 +110,31 @@ was undelivered when this spec was written, and is delivered as of
 
 The measurement that opened it: `refarm context`, run as `cd ~/git/rcdc5 && refarm context`,
 printed a `base:` line reading `/home/s095407044/git/rcdc5 (from cwd)` directly above the `node:
-sede […]` line — positioned and phrased as though it answered for the running node. `readlink
-/proc/<pid>/cwd` on that daemon read `/home/s095407044/github/refarm`. The command built to say
-which sovereign state is active was reporting the CLI's own resolved base as the node's. At that
-time the daemon declared no `SOVEREIGN_BASE` at all (confirmed by reading its own
-`/proc/<pid>/environ`, which carried `REFARM_HOME` and `SOVEREIGN_DIR` and nothing else), so it had
-fallen back to `declaredBase()`'s own cwd fallback (`packages/config/src/index.js:151-154`) — the
-TypeScript stack and the Rust host were each resolving a home no one had declared, and `refarm
-context` reported one of the two as if it settled the question.
+sede […]` line — positioned and phrased as though it answered for the running node. It did not:
+that was `declaredBase()`'s result for THIS CLI INVOCATION (`packages/config/src/index.js:151-154`),
+never the running node's. `refarm context` reported one of the two as if it settled the question.
+That reproduction stands, unaltered by the correction below.
+
+**Correction (final fix wave, 2026-08-06 — the same day, a later review of the plan this
+correction is delivered as):** this section originally went on to explain the daemon's side as
+`readlink /proc/<pid>/cwd` reading `/home/s095407044/github/refarm`, called that "the daemon's
+actual base", and said the daemon had "fallen back to `declaredBase()`'s own cwd fallback… the
+TypeScript stack and the Rust host were each resolving a home no one had declared." That
+explanation was false on two counts. First, the Rust host never calls the TypeScript
+`declaredBase()` — it is a different runtime; nothing in `main.rs` invokes JavaScript. Second,
+and independent of that, the daemon does not resolve its base from its own cwd at all, and has
+not since `f67f9273` (2026-08-02, four days before this measurement): `main.rs` settles
+`SOVEREIGN_BASE` itself — `REFARM_HOME`'s parent when that env var is set (as it was here), else
+the OS home directory itself (`dirs_sovereign_base`'s other branch joins `SOVEREIGN_DIR` onto the
+home dir and the base is THAT join's parent — the home dir either way; never `/proc/<pid>/cwd`) —
+and publishes the settled value into `~/.refarm/node.json`'s `declarationBase` before any
+declaration is read. That file said `/home/s095407044/.refarm`'s parent, `/home/s095407044`,
+throughout this incident — not the repository directory `readlink` happened to report; the two
+were simply uncorrelated facts, not the daemon's base and its fallback. The witness that states
+this directly (`declarationBase`) already existed at the time of this measurement
+(`node_descriptor.rs`, commit `8e0dba23`, landed the same day as `f67f9273`) and went unread —
+which is itself the subject of a further correction below (`apps/refarm/src/commands/context.ts`,
+commit `48f96ac6`).
 
 Delivered as:
 
@@ -133,6 +150,11 @@ Delivered as:
   (`cliBase`/`cliBaseOrigin`/`cliNamespace`). Three `DivergenceKind`s were added: `base-divergence`,
   `namespace-divergence`, and `node-environment-unknown` for a running node whose environ could not
   be read — a gap in the checking, never silently read as agreement or as a divergence.
+  **Corrected same-day (final fix wave, commit `48f96ac6`): `base-divergence` now compares against
+  `node.json`'s `declarationBase`, not `nodeEnvironment.base` — see the correction above this list
+  for why the environ-only witness was wrong for base specifically. `nodeEnvironment` remains the
+  witness for `namespace-divergence` and for whether the node's base was told or derived, folded
+  into the `base-divergence` summary as a third fact rather than dropped.**
 - **`refarm doctor` sees it.** `apps/refarm/src/commands/sovereign-divergence-doctor.ts` (commit
   `93f3c5e9`) surfaces `sovereign:base-divergence`, `sovereign:namespace-divergence`, and
   `sovereign:environment-unknown`. A fourth finding, `sovereign:stale-descriptor`, closes a

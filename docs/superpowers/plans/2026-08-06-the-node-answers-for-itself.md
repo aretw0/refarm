@@ -21,14 +21,32 @@ $ cd ~/git/rcdc5 && refarm context
   node: sede [f17151b4]  pid 2948186  started …          ← the daemon
 
 $ readlink /proc/2948186/cwd
-/home/s095407044/github/refarm                            ← the daemon's actual base
+/home/s095407044/github/refarm
 ```
 
-The `base:` line sits directly above the `node:` line and reads as the node's. It is not. The daemon declares no `SOVEREIGN_BASE` at all — verified from its own environ — so it falls back to the directory `tractor-start.sh` ran from, while the CLI falls back to wherever the operator is standing.
+The `base:` line sits directly above the `node:` line and reads as the node's. It is not — it is
+`declaredBase()`'s result for this CLI invocation. That much still stands.
 
-They agree on this machine right now only because the daemon happens to have been started from the repository. That coincidence is the whole problem: the answer looks stable and is not.
+**Correction (final fix wave, 2026-08-06, later the same day):** this section originally annotated
+the `readlink` line above as "← the daemon's actual base" and went on to say the daemon "falls back
+to the directory `tractor-start.sh` ran from". Both are false. `readlink /proc/<pid>/cwd` reads the
+daemon's *working directory*, which `main.rs` does not use to resolve `SOVEREIGN_BASE` — and has not
+since `f67f9273` (2026-08-02, four days before this measurement): the daemon settles its base from
+`REFARM_HOME` (when set, as it was here) or the OS home directory, never from its own cwd (see
+`dirs_sovereign_base` in `main.rs`), and publishes the settled value into `~/.refarm/node.json`'s
+`declarationBase` before any declaration is read (`node_descriptor.rs`, commit `8e0dba23`, landed
+the same day as `f67f9273` — so this witness already existed when this reproduction was measured,
+four days earlier). The daemon's real
+base at the time was `/home/s095407044` — the parent of `REFARM_HOME` — not the repository
+directory `readlink` happened to report; cwd and base were simply two uncorrelated facts about the
+same process, not "the answer" and "where it fell back to". Task 1 below still builds a real and
+useful witness (whether the node was TOLD its base), but it is not, and was never, primary evidence
+of what the daemon's base actually settled to — a correction the same-day final fix wave applied to
+`apps/refarm/src/commands/context.ts` (commit `48f96ac6`): `node.json`'s `declarationBase` is now
+the primary witness for the node's base, and the environ read is kept only for the told/derived
+distinction.
 
-This is the same class as the defect the cockpit plan fixed — a reconstruction where a witness exists — appearing inside the instrument built to end that class. It is also precisely the 2026-08-03 field failure's shape: a base resolved against where a process stands rather than what it was told.
+This is the same class as the defect the cockpit plan fixed — a reconstruction where a witness exists — appearing inside the instrument built to end that class, and this correction is one further instance of the identical class: the FIX for that defect went on to reconstruct the same value from a second, worse witness (`/proc/<pid>/environ` + `/proc/<pid>/cwd`) instead of reading the first-party one (`node.json`) that was already being read a few lines above it in `resolveContextInput` and thrown away. It is also precisely the 2026-08-03 field failure's shape: a base resolved against where a process stands rather than what it was told.
 
 The witness is readable. `/proc/<pid>/environ` is mode `0400`, same uid, and on this node it carries:
 
@@ -179,7 +197,15 @@ The `node-environment-unknown` case is the one most likely to be got wrong: an u
 
 - [ ] **Step 3: Implement**
 
-The reported `base` and `namespace` become the NODE's. Where the node declares nothing, say so — "not declared; the node fell back to its own working directory" is the honest phrasing, and `/proc/<pid>/cwd` is what it fell back TO, so report that too.
+The reported `base` and `namespace` become the NODE's. Where the node declares nothing, say so.
+
+**Correction (final fix wave, 2026-08-06): the sentence this replaced instructed "'not declared;
+the node fell back to its own working directory' is the honest phrasing, and `/proc/<pid>/cwd` is
+what it fell back TO, so report that too" — that instruction is what the implementation followed,
+and it was wrong: the daemon does not fall back to its own working directory (see the correction
+in "The defect, reproduced" above). `base` comes from `node.json`'s `declarationBase` instead
+(`apps/refarm/src/commands/context.ts`, commit `48f96ac6`); the environ read (`nodeEnvironment.base`)
+is kept only to say whether that base was told or derived, never to supply the value itself.**
 
 Keep the CLI's own values in the report as a second, clearly labelled fact. The operator needs both to understand a divergence; what he must not get is one presented as the other.
 
@@ -232,7 +258,9 @@ Export the predicate from `@refarm.dev/config`, have `context.ts` import it, and
 
 **Files:** Modify `docs/superpowers/specs/2026-08-05-which-sovereign-state-is-active-design.md`
 
-D2's third clause — "when the TypeScript stack and the Rust host would resolve different homes" — was named as undelivered in that spec. Record that it is delivered, how, and with the measurement: the daemon declares no `SOVEREIGN_BASE`, so it falls back to its own working directory, and before this plan `refarm context` reported the CLI's instead.
+D2's third clause — "when the TypeScript stack and the Rust host would resolve different homes" — was named as undelivered in that spec. Record that it is delivered, how, and with the measurement: before this plan `refarm context` reported the CLI's base as the node's.
+
+**Correction (final fix wave, 2026-08-06): the clause AS ORIGINALLY RECORDED here also said "the daemon declares no `SOVEREIGN_BASE`, so it falls back to its own working directory" — false, and the same false claim this task's own instruction (Step 3 above) baked into the implementation it asked for. The daemon does not fall back to its own working directory; it falls back to `REFARM_HOME` or the OS home directory (`dirs_sovereign_base` in `main.rs`), never cwd. The record in the spec has been corrected accordingly, and the implementation corrected in the same fix wave (`apps/refarm/src/commands/context.ts`, commit `48f96ac6`) to read `node.json`'s `declarationBase` — the node's own settled value — instead of reconstructing one.**
 
 Record what remains: the comparison reads the daemon's environ, which is a Linux `/proc` fact — on a platform without `/proc` the witness is unavailable and the answer is `node-environment-unknown` rather than wrong. Say that plainly rather than letting a reader assume portability.
 
