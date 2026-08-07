@@ -11,6 +11,7 @@ import type { PressureSnapshot, PressureWindow } from "@refarm.dev/pressure-cont
 import fs from "node:fs";
 import path from "node:path";
 import type { EffortOperations } from "../effort-operations.js";
+import { summarizeEfforts, summarizeEffortWindow } from "../effort-summary.js";
 import { FileEffortRepository } from "./file-effort-repository.js";
 
 export type TaskExecutorFn = (
@@ -172,49 +173,7 @@ export class FileTransportAdapter implements EffortOperations {
 	}
 
 	async summary(): Promise<EffortSummary> {
-		const results = await this.list();
-		const summary: EffortSummary = {
-			total: results.length,
-			pending: 0,
-			inProgress: 0,
-			done: 0,
-			delivered: 0,
-			partial: 0,
-			failed: 0,
-			timedOut: 0,
-			cancelled: 0,
-		};
-
-		for (const result of results) {
-			switch (result.status) {
-				case "pending":
-					summary.pending += 1;
-					break;
-				case "in-progress":
-					summary.inProgress += 1;
-					break;
-				case "done":
-					summary.done += 1;
-					break;
-				case "delivered":
-					summary.delivered += 1;
-					break;
-				case "partial":
-					summary.partial += 1;
-					break;
-				case "failed":
-					summary.failed += 1;
-					break;
-				case "timed-out":
-					summary.timedOut += 1;
-					break;
-				case "cancelled":
-					summary.cancelled += 1;
-					break;
-			}
-		}
-
-		return summary;
+		return summarizeEfforts(await this.list());
 	}
 
 	async telemetry(): Promise<RuntimeTelemetrySnapshot> {
@@ -229,73 +188,7 @@ export class FileTransportAdapter implements EffortOperations {
 	}
 
 	async telemetryWindow(minutes: number): Promise<RuntimeTelemetryWindow> {
-		const windowMinutes = Number.isFinite(minutes) && minutes > 0 ? Math.floor(minutes) : 60;
-		const cutoffMs = Date.now() - windowMinutes * 60_000;
-		const windowSummary: EffortSummary = {
-			total: 0,
-			pending: 0,
-			inProgress: 0,
-			done: 0,
-			delivered: 0,
-			partial: 0,
-			failed: 0,
-			timedOut: 0,
-			cancelled: 0,
-		};
-
-		const results = await this.list();
-		for (const result of results) {
-			const stamp = result.completedAt ?? result.startedAt ?? result.submittedAt;
-			const stampMs = stamp ? Date.parse(stamp) : Number.NaN;
-			if (!Number.isFinite(stampMs) || stampMs < cutoffMs) continue;
-
-			windowSummary.total += 1;
-			switch (result.status) {
-				case "pending":
-					windowSummary.pending += 1;
-					break;
-				case "in-progress":
-					windowSummary.inProgress += 1;
-					break;
-				case "done":
-					windowSummary.done += 1;
-					break;
-				case "delivered":
-					windowSummary.delivered += 1;
-					break;
-				case "partial":
-					windowSummary.partial += 1;
-					break;
-				case "failed":
-					windowSummary.failed += 1;
-					break;
-				case "timed-out":
-					windowSummary.timedOut += 1;
-					break;
-				case "cancelled":
-					windowSummary.cancelled += 1;
-					break;
-			}
-		}
-
-		const terminal =
-			windowSummary.done +
-			windowSummary.delivered +
-			windowSummary.partial +
-			windowSummary.failed +
-			windowSummary.timedOut +
-			windowSummary.cancelled;
-		const failureRatePct =
-			terminal > 0 ? Number(((windowSummary.failed / terminal) * 100).toFixed(2)) : null;
-
-		return {
-			...windowSummary,
-			windowMinutes,
-			since: new Date(cutoffMs).toISOString(),
-			terminal,
-			failureRatePct,
-			generatedAt: nowIso(),
-		};
+		return summarizeEffortWindow(await this.list(), minutes, Date.now());
 	}
 
 	async process(effort: Effort): Promise<void> {
