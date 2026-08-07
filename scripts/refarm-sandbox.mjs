@@ -107,18 +107,26 @@
  *     `fs.rmSync`'s own (correct, but implementation-detail) refusal to descend into a
  *     symlinked directory during recursive removal.
  *
- *     `--reset` also REFUSES when the sandbox's node is `"running"` OR `"unknown"` —
- *     deleting a live node's sovereign dir and graph out from under it (open file handles
- *     into a suddenly-missing sqlite file and config directory) is its own defect, and an
- *     INDETERMINATE liveness is not evidence it is safe to delete; proceeding anyway would be
- *     the exact "guessed instead of measured" shape this whole task exists to close, wearing
- *     a different costume. There is deliberately no `--force` override yet: the only way past
- *     this refusal is to stop the node externally (no `stop` subcommand exists in this file
- *     yet) and re-run `--reset`. The delete guard checks liveness as a WHITELIST — proceed
- *     only on a CONFIRMED `"not-running"`, refuse for everything else, named or not — not a
- *     blacklist of the two currently-known non-safe states, so a future fourth liveness state
- *     this file has not been taught about yet still refuses rather than falling through to
- *     delete (see `resetSandbox`'s own doc for the failure mode this replaced).
+ *     `--reset` also REFUSES when the sandbox's node is `"running"` OR anything other than a
+ *     CONFIRMED `"not-running"` — deleting a live node's sovereign dir and graph out from
+ *     under it (open file handles into a suddenly-missing sqlite file and config directory)
+ *     is its own defect, and an INDETERMINATE liveness is not evidence it is safe to delete
+ *     either. The delete guard checks liveness as a WHITELIST — proceed only on
+ *     `"not-running"`, refuse for everything else, named or not — not a blacklist of the two
+ *     currently-known non-safe states, so a future fourth liveness state this file has not
+ *     been taught about yet still refuses rather than falling through to delete (see
+ *     `resetSandbox`'s own doc for the failure mode this replaced).
+ *
+ *     `--force` overrides the non-`"running"` refusal SPECIFICALLY — added because the
+ *     unconditional version of that refusal turned "deletes too readily" into "refuses
+ *     forever": a pid file corrupted by a crash, `kill -9`, or a disk-full write resolves to
+ *     `"unknown"` with NO live process behind it at all, and with no `--force` and no `stop`
+ *     subcommand, the operator's only way out was `rm -rf .sandbox` by hand — bypassing every
+ *     one of the five containment checks above. `--force` is read ONLY after all five
+ *     containment checks and the unconditional `"running"` check have already run, so it can
+ *     never be the reason a boundary is skipped, and it never overrides `"running"` at all
+ *     (an operator with a live node has a real remedy already — stop it). See `resetSandbox`'s
+ *     own doc for the full reasoning and exactly what the returned `forced: true` means.
  *
  *     KNOWN LIMITATION, recorded rather than left silent: `resetSandbox`'s `getStatus` call
  *     and its `rmSync` call are not protected by any lock, so a `start --background` and a
@@ -1251,17 +1259,40 @@ function firstSymlinkIn(dir) {
  *      can never resolve to a sibling's path — pinned by an end-to-end test with a real
  *      `.sandboxes` decoy on disk, not just an assertion about how `path.join` works.
  *
- * What happens if the sandbox's node is still RUNNING: refuses, rather than deleting a live
- * node's sovereign dir and graph out from under it — the resulting corruption (a daemon with
- * open file handles into a suddenly-missing sqlite file and config directory) is its own
- * defect, arguably worse than the stale-pid-file problem `status` exists to diagnose. The
- * SAME refusal applies when liveness is `"unknown"`: "might be running" is not evidence it
- * is safe to delete, and this task's brief is explicit that an indeterminate state must never
- * be guessed into a default — proceeding with a delete IS such a guess, wearing a different
- * shape. There is deliberately no `--force` override in this task: the only way past this
- * refusal today is to stop the node externally (there is no `stop` subcommand yet — see this
- * file's header) and re-run `--reset`, keeping the destructive step's blast radius to exactly
- * one confirmed-safe case rather than adding a bypass this early.
+ * What happens if the sandbox's node is still RUNNING: refuses UNCONDITIONALLY, rather than
+ * deleting a live node's sovereign dir and graph out from under it — the resulting corruption
+ * (a daemon with open file handles into a suddenly-missing sqlite file and config directory)
+ * is its own defect, arguably worse than the stale-pid-file problem `status` exists to
+ * diagnose. `deps.force` does NOT override this branch, ever: an operator with a running node
+ * has a real remedy already (stop it), so there is nothing here that needs bypassing.
+ *
+ * What happens when liveness is `"unknown"` (or any OTHER state that is not the confirmed
+ * `"not-running"`): refuses BY DEFAULT, but `deps.force` (CLI: `--force`) overrides
+ * SPECIFICALLY this refusal. This is deliberately different from the `"running"` case above,
+ * and the difference is load-bearing, not cosmetic — a first version of this guard refused
+ * `"unknown"` unconditionally, with no `--force` and no `stop` subcommand, which turned
+ * "deletes too readily" into "refuses forever": a pid file corrupted by a process killed
+ * mid-write, `kill -9`, a disk-full write, or a crash resolves to `"unknown"` and has NO live
+ * process behind it at all — there is nothing to stop. The refusal's only remedy inside this
+ * tool was none, so the operator's actual escape hatch became `rm -rf .sandbox` by hand,
+ * which bypasses every one of the five containment checks above. A refusal that cannot be
+ * satisfied does not prevent the dangerous action; it relocates it outside the tool, where
+ * nothing checks the path is really the sandbox — which makes the unconditional refusal
+ * ACTIVELY WORSE than a bounded override. `--force`:
+ *   - overrides ONLY this liveness check. Checks #1–#5 above run BEFORE `deps.force` is ever
+ *     read (this function does not even destructure it until after all five), so `--force`
+ *     can never be the reason a containment check is skipped — pinned by tests combining
+ *     `force: true` with a forbidden-target collision and with a symlinked sandbox root,
+ *     both of which still refuse.
+ *   - never applies to `"running"` (see above) — checked as its own unconditional branch,
+ *     not folded into the same `if` as the overridable one.
+ *   - is named IN the refusal message when omitted, along with what it would override — an
+ *     instrument that blocks a real recovery path without naming the remedy is what sends an
+ *     operator to `rm -rf` in the first place.
+ * The returned result carries `forced: true` when the override was actually exercised (never
+ * present on the ordinary `"not-running"` path, whether or not `force` was passed), so a
+ * caller can tell "the safe path" from "an operator explicitly overrode a liveness refusal"
+ * after the fact.
  *
  * Never throws for "there is nothing to reset" — a missing sandbox root is success, not an
  * error, mirroring `copySandboxCredentials`'s "an ordinary absence is not a failure" contract.
@@ -1300,6 +1331,7 @@ export function resetSandbox(repoRoot = REPO_ROOT, deps = {}) {
 		rmSync = fs.rmSync,
 		getStatus = sandboxStatus,
 		forbiddenTargets = forbiddenResetTargets(),
+		force = false,
 	} = deps;
 
 	const absoluteRepoRoot = path.resolve(repoRoot);
@@ -1348,7 +1380,7 @@ export function resetSandbox(repoRoot = REPO_ROOT, deps = {}) {
 	const status = getStatus(repoRoot, deps);
 
 	// WHITELIST, not a blacklist — proceed ONLY on the single state confirmed safe
-	// ("not-running"); throw for every other value, named or not. This was originally two
+	// ("not-running"); refuse for every other value, named or not. This was originally two
 	// `if (state === "running")` / `if (state === "unknown")` checks that fell through to
 	// `rmSync` for anything else — a blacklist that only stays complete while the states
 	// `classifySandboxLiveness` can produce never change. The plan's own roadmap (a `stop`
@@ -1356,30 +1388,47 @@ export function resetSandbox(repoRoot = REPO_ROOT, deps = {}) {
 	// window between the pid file being written and the port being bound) plausible; JS gives
 	// no exhaustiveness error when that state is added to the producer and this consumer is
 	// not updated to match. A whitelist degrades safely in that scenario — an unrecognized
-	// state refuses, exactly like "unknown" — where the blacklist would have silently deleted.
-	// Mirrors `classifySandboxLiveness` itself (`if (killOutcome !== "alive") return
-	// "unknown"`), which already gets this right two functions earlier in this same file.
-	if (status.node.state !== "not-running") {
-		if (status.node.state === "running") {
-			throw new Error(
-				`refarm-sandbox: refusing to reset — the sandbox node is RUNNING (pid ${status.node.pid}). ` +
-					"Stop it first — there is no `stop` subcommand yet, so send it SIGTERM directly, e.g. " +
-					`\`kill ${status.node.pid}\` — then re-run --reset. Deleting a live node's sovereign ` +
-					"dir and graph out from under it is its own defect, not isolation.",
-			);
-		}
-		// Covers "unknown" AND any state this function does not specifically recognize —
-		// deliberately the SAME refusal for both, since neither is evidence deletion is safe.
+	// state refuses by default, exactly like "unknown" — where the blacklist would have
+	// silently deleted. Mirrors `classifySandboxLiveness` itself (`if (killOutcome !== "alive")
+	// return "unknown"`), which already gets this right two functions earlier in this file.
+	const confirmedNotRunning = status.node.state === "not-running";
+
+	// "running" is an UNCONDITIONAL hard stop — `force` is not even consulted for this
+	// branch. See this function's own doc for why this one is never overridable.
+	if (status.node.state === "running") {
+		throw new Error(
+			`refarm-sandbox: refusing to reset — the sandbox node is RUNNING (pid ${status.node.pid}). ` +
+				"--force does NOT override this — a live daemon's sovereign dir and graph deleted " +
+				"out from under it is exactly the corruption this refusal exists to prevent, and " +
+				"stopping it is a real remedy, not a dead end. Stop it first — there is no `stop` " +
+				`subcommand yet, so send it SIGTERM directly, e.g. \`kill ${status.node.pid}\` — then ` +
+				"re-run --reset.",
+		);
+	}
+
+	// Every OTHER non-safe state ("unknown", or anything this function does not specifically
+	// recognize) is a SOFT stop: refuses by default, but `--force` overrides SPECIFICALLY
+	// this check — never the five containment checks above, which have already run by this
+	// point regardless of `force`'s value.
+	if (!confirmedNotRunning && !force) {
 		throw new Error(
 			`refarm-sandbox: refusing to reset — the sandbox node's liveness is "${status.node.state}", ` +
 				'not a confirmed "not-running". ' +
 				(status.node.detail ? `${status.node.detail} ` : "") +
-				"Refusing rather than guessing: only a CONFIRMED not-running state is treated as safe to delete.",
+				"This is not evidence a node IS running — a pid file corrupted by a crash, `kill -9`, " +
+				"a disk-full write, or a process killed mid-write can all leave exactly this state with " +
+				"nothing alive behind it at all. Re-run with --force to override THIS check and delete " +
+				"anyway: every containment check (path boundaries, both symlink refusals, the " +
+				"forbidden-targets list) still runs unconditionally — --force only overrides the " +
+				"liveness refusal, never the boundary the sandbox is deleted within. If you know or " +
+				"suspect a node IS actually running, do not use --force — stop it first.",
 		);
 	}
 
 	rmSync(target, { recursive: true, force: true });
-	return { deleted: true, target };
+	return confirmedNotRunning
+		? { deleted: true, target }
+		: { deleted: true, target, forced: true, forcedOverState: status.node.state };
 }
 
 // ---- CLI entry point ----
@@ -1406,12 +1455,15 @@ async function main() {
 	const argv = process.argv.slice(2);
 
 	// --reset is checked BEFORE any other flag/positional parsing — its own action, not a
-	// modifier on "start". Deliberately independent of `background`/`--json` below.
+	// modifier on "start". Deliberately independent of `background`/`--json` below. --force
+	// only ever reaches resetSandbox's OWN liveness override (see its doc for exactly what it
+	// does and does not bypass) — it is never threaded into anything else this CLI does.
 	if (argv.includes("--reset")) {
 		try {
-			const result = resetSandbox();
+			const result = resetSandbox(REPO_ROOT, { force: argv.includes("--force") });
 			if (result.deleted) {
-				console.log(`   Sandbox reset — deleted ${result.target}`);
+				const forcedNote = result.forced ? ` (forced past liveness "${result.forcedOverState}")` : "";
+				console.log(`   Sandbox reset — deleted ${result.target}${forcedNote}`);
 			} else {
 				console.log(`   ${result.reason}`);
 			}

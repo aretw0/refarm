@@ -1162,6 +1162,16 @@ test("resetSandbox: refuses when the sandbox node's liveness is UNKNOWN — dele
 	});
 });
 
+test("resetSandbox: the UNKNOWN refusal message names --force and says what it overrides — an instrument that blocks without naming the remedy sends someone to rm -rf", () => {
+	withResetFixture((repoRoot) => {
+		buildFullSandboxFixture(repoRoot);
+		assert.throws(
+			() => resetSandbox(repoRoot, { getStatus: () => ({ node: { state: "unknown", pid: 555 } }) }),
+			/--force/,
+		);
+	});
+});
+
 // ---- Code review follow-up (Critical, "the fifteenth instance"): the delete guard was a
 // BLACKLIST ("running" and "unknown" refuse, everything ELSE proceeds), not a WHITELIST
 // ("not-running" proceeds, everything else refuses). A blacklist is only complete while the
@@ -1195,6 +1205,120 @@ test("resetSandbox: refuses on a PLAUSIBLE future state ('starting') exactly lik
 			/starting/,
 		);
 		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), true);
+	});
+});
+
+// =====================================================================================
+// Code review follow-up (second pass): the whitelist fix turned "deletes too readily" into
+// "refuses forever" for a corrupted/unreadable pid file (killed mid-write, kill -9, disk
+// full, power loss) — UNKNOWN, with no --force and no `stop` subcommand, had no remedy
+// inside this tool at all. The operator's only way out was `rm -rf .sandbox` by hand,
+// bypassing every containment fence this file builds — a refusal that cannot be satisfied is
+// not safer than a bounded override. --force is added with three properties, each pinned by
+// its own test below:
+//   1. Overrides ONLY the liveness refusal — every containment fence (path-inside-root,
+//      forbidden-targets, both symlink checks) still runs UNCONDITIONALLY, before --force is
+//      ever consulted. A test proves --force against an out-of-sandbox target still refuses.
+//   2. Does NOT override a "running" node — a live daemon's sovereign dir and graph deleted
+//      out from under it is exactly the corruption this guard exists to prevent, and an
+//      operator with a running node has a real remedy already (stop it).
+//   3. The refusal message for "unknown" (and any other non-"not-running", non-"running"
+//      state) names --force and says what it overrides — pinned above.
+// =====================================================================================
+
+test("resetSandbox: --force overrides the UNKNOWN liveness refusal and deletes — the case that matters, closing the 'refuses forever' trap", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		const result = resetSandbox(repoRoot, {
+			force: true,
+			getStatus: () => ({ node: { state: "unknown", pid: null, detail: "corrupted pid file" } }),
+		});
+		assert.equal(result.deleted, true);
+		assert.equal(result.forced, true, "the result must say the delete happened via the override, not the ordinary safe path");
+		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), false);
+	});
+});
+
+test("resetSandbox: --force also overrides an UNRECOGNIZED/future liveness state, not just the literal string 'unknown' — the whole non-running-non-not-running bucket is overridable", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		const result = resetSandbox(repoRoot, {
+			force: true,
+			getStatus: () => ({ node: { state: "starting", pid: 555 } }),
+		});
+		assert.equal(result.deleted, true);
+		assert.equal(result.forced, true);
+		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), false);
+	});
+});
+
+test("resetSandbox: --force does NOT override a RUNNING node — still refuses, deletes nothing, no bypass", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		assert.throws(
+			() =>
+				resetSandbox(repoRoot, {
+					force: true,
+					getStatus: () => ({ node: { state: "running", pid: 555 } }),
+				}),
+			/RUNNING/,
+		);
+		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), true, "a live node's tree must survive --force too");
+	});
+});
+
+test("resetSandbox: a normal, ordinary not-running delete does NOT report forced:true — --force changes nothing on the already-safe path", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		const result = resetSandbox(repoRoot, {
+			force: true, // present, but irrelevant — state is already confirmed not-running
+			getStatus: () => ({ node: { state: "not-running", pid: null } }),
+		});
+		assert.equal(result.deleted, true);
+		assert.equal(result.forced, undefined, "forced must only appear when it was actually needed");
+		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), false);
+	});
+});
+
+test("resetSandbox: --force NEVER weakens containment — an out-of-sandbox target (forbidden-targets collision) still refuses even with force:true", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		assert.throws(
+			() =>
+				resetSandbox(repoRoot, {
+					force: true,
+					forbiddenTargets: [env.SOVEREIGN_BASE],
+					getStatus: () => ({ node: { state: "unknown", pid: null } }),
+				}),
+			/collides with the operator's real/,
+		);
+		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), true, "--force must never bypass the forbidden-targets check");
+	});
+});
+
+test("resetSandbox: --force NEVER weakens containment — a top-level symlink sandbox root still refuses even with force:true, decoy untouched", () => {
+	withResetFixture((repoRoot) => {
+		const decoyRoot = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-sandbox-reset-force-decoy-"));
+		try {
+			const canary = path.join(decoyRoot, "canary.txt");
+			fs.writeFileSync(canary, "must survive");
+			const sandboxPath = path.join(repoRoot, ".sandbox");
+			fs.symlinkSync(decoyRoot, sandboxPath, "dir");
+
+			assert.throws(
+				() =>
+					resetSandbox(repoRoot, {
+						force: true,
+						getStatus: () => ({ node: { state: "unknown", pid: null } }),
+					}),
+				/symlink/i,
+			);
+
+			assert.equal(fs.existsSync(canary), true, "--force must never let the symlink refusal be bypassed");
+			assert.equal(fs.readFileSync(canary, "utf8"), "must survive");
+		} finally {
+			fs.rmSync(decoyRoot, { recursive: true, force: true });
+		}
 	});
 });
 
