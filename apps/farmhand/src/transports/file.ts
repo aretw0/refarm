@@ -11,6 +11,7 @@ import type { PressureSnapshot, PressureWindow } from "@refarm.dev/pressure-cont
 import fs from "node:fs";
 import path from "node:path";
 import type { EffortOperations } from "../effort-operations.js";
+import { EffortQueue } from "../effort-queue.js";
 import { summarizeEfforts, summarizeEffortWindow } from "../effort-summary.js";
 import { FileEffortRepository } from "./file-effort-repository.js";
 
@@ -65,9 +66,7 @@ export class FileTransportAdapter implements EffortOperations {
 
 	private readonly inFlightEfforts = new Set<string>();
 	private readonly cancelRequests = new Set<string>();
-	private readonly queue: string[] = [];
-	private readonly queueOptions = new Map<string, { force: boolean }>();
-	private drainingQueue = false;
+	private readonly queue: EffortQueue;
 
 	constructor(
 		baseDir: string,
@@ -75,6 +74,11 @@ export class FileTransportAdapter implements EffortOperations {
 		private readonly options: FileTransportOptions = {},
 	) {
 		this.repository = new FileEffortRepository(baseDir);
+		this.queue = new EffortQueue(async (effortId, options) => {
+			const effort = this.repository.readEffort(effortId);
+			if (!effort) return;
+			await this.processEffort(effort, options);
+		});
 	}
 
 	async submit(effort: Effort): Promise<string> {
@@ -136,7 +140,7 @@ export class FileTransportAdapter implements EffortOperations {
 			message: "Retry requested",
 		});
 
-		this.enqueue(effortId, { force: true });
+		this.queue.enqueue(effortId, { force: true });
 		return true;
 	}
 
@@ -180,7 +184,7 @@ export class FileTransportAdapter implements EffortOperations {
 		const summary = await this.summary();
 		return {
 			...summary,
-			queueDepth: this.queue.length,
+			queueDepth: this.queue.depth,
 			inFlight: this.inFlightEfforts.size,
 			cancelRequests: this.cancelRequests.size,
 			generatedAt: nowIso(),
@@ -200,7 +204,7 @@ export class FileTransportAdapter implements EffortOperations {
 			if (!filename.endsWith(".json")) return;
 			const effortId = filename.replace(/\.json$/, "");
 			if (!effortId) return;
-			this.enqueue(effortId);
+			this.queue.enqueue(effortId);
 		};
 
 		const processControlFile = (filename: string): void => {
@@ -238,7 +242,7 @@ export class FileTransportAdapter implements EffortOperations {
 			const result = this.repository.readResult(effortId);
 			if (!result) continue;
 			if (result.status === "pending" || result.status === "in-progress") {
-				this.enqueue(effortId);
+				this.queue.enqueue(effortId);
 			}
 		}
 
@@ -260,42 +264,6 @@ export class FileTransportAdapter implements EffortOperations {
 			tasksWatcher.close();
 			controlWatcher.close();
 		};
-	}
-
-	private enqueue(effortId: string, options: { force?: boolean } = {}): void {
-		const force = options.force ?? false;
-		const existing = this.queueOptions.get(effortId);
-		if (existing) {
-			if (force && !existing.force) {
-				this.queueOptions.set(effortId, { force: true });
-			}
-			return;
-		}
-
-		this.queueOptions.set(effortId, { force });
-		this.queue.push(effortId);
-		void this.drainQueue();
-	}
-
-	private async drainQueue(): Promise<void> {
-		if (this.drainingQueue) return;
-		this.drainingQueue = true;
-		try {
-			while (this.queue.length > 0) {
-				const effortId = this.queue.shift();
-				if (!effortId) continue;
-
-				const options = this.queueOptions.get(effortId) ?? { force: false };
-				this.queueOptions.delete(effortId);
-
-				const effort = this.repository.readEffort(effortId);
-				if (!effort) continue;
-
-				await this.processEffort(effort, { force: options.force });
-			}
-		} finally {
-			this.drainingQueue = false;
-		}
 	}
 
 	private async processEffort(effort: Effort, options: { force: boolean }): Promise<void> {
