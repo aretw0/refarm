@@ -12,10 +12,12 @@ import path from "node:path";
 import { test } from "node:test";
 
 import {
+	assertNoReservedFlags,
 	SANDBOX_HTTP_PORT,
 	SANDBOX_NAMESPACE,
 	SANDBOX_PORT,
 	sandboxEnvironment,
+	startSandbox,
 } from "./refarm-sandbox.mjs";
 
 // A literal, not this checkout's real path — sandboxEnvironment must not assume anything
@@ -112,4 +114,56 @@ test("is pure: repeated calls with the same repoRoot return equal (deep) results
 	const a = sandboxEnvironment(REPO_ROOT);
 	const b = sandboxEnvironment(REPO_ROOT);
 	assert.deepEqual(a, b);
+});
+
+// ---- assertNoReservedFlags — a caller's extraArgs must never be able to override the
+// launcher's own safety-critical flags. clap takes the LAST occurrence of a scalar flag
+// without erroring, and extraArgs is spread AFTER --refarm-dir/--port/--http-port/
+// --namespace in startSandbox's argv — so a caller passing one of those through extraArgs
+// (exactly the shape scripts/tractor-start.sh itself uses: fixed flags first, caller args
+// appended last) would silently repoint the "sandbox" at the operator's real --refarm-dir,
+// concurrently with his running node. Refuse instead of letting it win. ----
+
+const RESERVED_FLAGS = ["--port", "--http-port", "--namespace", "--refarm-dir"];
+
+for (const flag of RESERVED_FLAGS) {
+	test(`assertNoReservedFlags refuses ${flag} (two-token form)`, () => {
+		assert.throws(() => assertNoReservedFlags([flag, "some-value"]), new RegExp(`\\${flag}\\b`));
+	});
+
+	test(`assertNoReservedFlags refuses ${flag}=<value> (the = form)`, () => {
+		assert.throws(() => assertNoReservedFlags([`${flag}=some-value`]), new RegExp(`\\${flag}\\b`));
+	});
+}
+
+test("assertNoReservedFlags refuses a reserved flag anywhere in the list, not just first", () => {
+	assert.throws(
+		() => assertNoReservedFlags(["--plugin", "/some/plugin.wasm", "--refarm-dir", "/home/x/.refarm"]),
+		/--refarm-dir/,
+	);
+});
+
+test("assertNoReservedFlags allows flags it does not own, e.g. --plugin", () => {
+	assert.doesNotThrow(() => assertNoReservedFlags(["--plugin", "/some/plugin.wasm"]));
+});
+
+test("assertNoReservedFlags allows an empty extraArgs", () => {
+	assert.doesNotThrow(() => assertNoReservedFlags([]));
+});
+
+test("startSandbox rejects before doing any I/O when extraArgs names a reserved flag (two-token form)", async () => {
+	// A caller passing the operator's real --refarm-dir must never reach the port-check or
+	// spawn — this exercises startSandbox itself, not just the standalone guard, so a future
+	// edit cannot forget to wire the guard in and still pass the unit test above.
+	await assert.rejects(
+		() => startSandbox({ repoRoot: REPO_ROOT, extraArgs: ["--refarm-dir", "/home/operator/.refarm"] }),
+		/--refarm-dir/,
+	);
+});
+
+test("startSandbox rejects the = form the same way", async () => {
+	await assert.rejects(
+		() => startSandbox({ repoRoot: REPO_ROOT, extraArgs: ["--port=9999"] }),
+		/--port/,
+	);
 });

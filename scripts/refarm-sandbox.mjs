@@ -85,8 +85,10 @@ export const SANDBOX_HTTP_PORT = 43001;
  * resolves to: `declaredBase()` (`@refarm.dev/config`) derives the base from
  * `dirname(REFARM_HOME)`, so declaring both keeps the TypeScript stack and the Rust host
  * agreeing about the sandbox exactly as they already agree about the operator's node
- * (`packages/tractor/src/main.rs:773` derives `SOVEREIGN_BASE` from `refarm_dir.parent()`
- * whenever it is left unset).
+ * (`packages/tractor/src/main.rs:443-446`, inside `run_daemon`, derives `SOVEREIGN_BASE`
+ * from `refarm_dir.parent()` whenever it is left unset — NOT `dirs_sovereign_base()` at
+ * `:773`, a different function that only supplies the fallback when `--refarm-dir` itself
+ * is absent).
  *
  * `XDG_DATA_HOME` is a SIBLING of REFARM_HOME (`<repoRoot>/.sandbox/share`, never
  * `<repoRoot>/.sandbox/refarm/share`) — asserted as a sibling by this file's test, not
@@ -116,6 +118,49 @@ export function sandboxEnvironment(repoRoot, overrides = {}) {
 		httpPort: overrides.httpPort ?? SANDBOX_HTTP_PORT,
 		namespace: overrides.namespace ?? SANDBOX_NAMESPACE,
 	};
+}
+
+/**
+ * Flags this launcher already owns and sets itself (see `startSandbox`'s `args` below).
+ * A caller's `extraArgs` may never name one of these — see `assertNoReservedFlags`.
+ */
+const RESERVED_FLAGS = ["--port", "--http-port", "--namespace", "--refarm-dir"];
+
+/**
+ * PURE. Throws if `extraArgs` names any flag `startSandbox` already sets itself.
+ *
+ * WHY THIS EXISTS: `startSandbox`'s argv is built as `[--port, ..., --refarm-dir, ...,
+ * ...extraArgs]` — the caller's args spread LAST. clap takes the LAST occurrence of a
+ * scalar flag without erroring, so a caller passing `--refarm-dir` (or `--port`,
+ * `--http-port`, `--namespace`) through `extraArgs` would silently WIN over this launcher's
+ * own value and repoint the "sandbox" at whatever it names — this is not hypothetical:
+ * scripts/tractor-start.sh builds its own args in exactly this shape (fixed flags first,
+ * e.g. `--plugin`, then `--refarm-dir` added later), and Task 2 of this plan passes
+ * `--plugin` through `extraArgs` next. A caller mirroring that shape and reusing an
+ * operator value would start a SECOND tractor pointed at the operator's live `~/.refarm`,
+ * concurrently with his running node, both writing `node.json`/`node-id`/`streams/`/
+ * `task-results/` into the same directory — the graph would stay isolated; the other three
+ * axes would not.
+ *
+ * Refuses rather than silently correcting (e.g. spreading extraArgs first instead): a
+ * caller that passes one of these flags has a WRONG BELIEF about who owns it, and a silent
+ * correction leaves that belief in place for the next call site. Catches the `--flag=value`
+ * form as well as the two-token `--flag value` form — clap accepts both, so a check that
+ * only caught one would be a gap dressed as a guard.
+ */
+export function assertNoReservedFlags(extraArgs) {
+	for (const arg of extraArgs) {
+		const name = arg.includes("=") ? arg.slice(0, arg.indexOf("=")) : arg;
+		if (RESERVED_FLAGS.includes(name)) {
+			throw new Error(
+				`refarm-sandbox: extraArgs may not pass ${name} — startSandbox() already sets it ` +
+					"from sandboxEnvironment(). A caller naming it here has a wrong belief about who " +
+					"owns that flag: the last occurrence would silently win (clap takes the last " +
+					"value for a scalar flag without erroring) and could repoint the sandbox at the " +
+					"operator's real --refarm-dir/ports. Remove it from extraArgs.",
+			);
+		}
+	}
 }
 
 // ---- Impure edge: everything below touches the filesystem, the network, or a process. ----
@@ -152,6 +197,11 @@ function isPortFree(port) {
  * silently past a state the caller cannot act on.
  */
 export async function startSandbox({ repoRoot = REPO_ROOT, background = false, extraArgs = [] } = {}) {
+	// Checked FIRST, before any port check/mkdir/spawn — a caller trying to override a
+	// safety-critical flag must be refused before this function does anything observable,
+	// not after it has already probed ports or touched the filesystem.
+	assertNoReservedFlags(extraArgs);
+
 	const { env: sandboxEnv, port, httpPort, namespace } = sandboxEnvironment(repoRoot);
 	const sandboxBase = sandboxEnv.SOVEREIGN_BASE;
 
@@ -206,6 +256,23 @@ export async function startSandbox({ repoRoot = REPO_ROOT, background = false, e
 			detached: true,
 			stdio: ["ignore", logFd, logFd],
 		});
+
+		// Wait for confirmation the process actually spawned before writing the pid file or
+		// reporting success. Without this, a spawn failure AFTER the existsSync precheck above
+		// (permission denied, ENOEXEC, the binary rebuilt in the gap between check and exec)
+		// surfaces only as an unhandled 'error' event — and with no listener attached,
+		// `child.pid` is `undefined`, which `String(undefined)` would have written into the pid
+		// file as the literal text "undefined" while the CLI printed a success block for a
+		// daemon that never started. `'spawn'` (Node >=15.1.0) and `'error'` are mutually
+		// exclusive for a given child, so racing them here is exhaustive, not a heuristic.
+		const spawnFailure = await new Promise((resolveOutcome) => {
+			child.once("spawn", () => resolveOutcome(null));
+			child.once("error", (err) => resolveOutcome(err));
+		});
+		if (spawnFailure) {
+			throw new Error(`sandbox daemon failed to start: ${spawnFailure.message}`);
+		}
+
 		child.unref();
 		fs.writeFileSync(pidFile, String(child.pid));
 		return {
