@@ -24,9 +24,10 @@ flowchart LR
   end
 
   Queue["EffortQueue\nserial · de-duplicate · force promotion"]
-  Lifecycle["FileTransportAdapter.processEffort\nprocessing + cancellation state"]
+  ExecutionState["EffortExecutionState\nin-flight + cancellation requests"]
+  Lifecycle["FileTransportAdapter.processEffort\nprocessing policy"]
   SummaryPolicy["effort-summary\npure status + window policy"]
-  Coupling["remaining coupling\nprocessing + cancellation still live\nin FileTransportAdapter"]
+  Coupling["remaining coupling\nprocessing policy still lives\nin FileTransportAdapter"]
 
   Executor["Farmhand task executor\npolicy · model route · plugin call"]
   Runtime["runtime host → agent plugin"]
@@ -62,6 +63,8 @@ flowchart LR
   FileAdapter -->|"aggregates through"| SummaryPolicy
   FileAdapter -->|"schedules through"| Queue
   Queue -->|"serial callback"| Lifecycle
+  FileAdapter -->|"controls"| ExecutionState
+  Lifecycle -->|"reads / updates"| ExecutionState
   Lifecycle --> Executor
   Executor --> Runtime
   Runtime -->|"StreamChunk node"| Chunk
@@ -82,5 +85,5 @@ flowchart LR
 
   class CLI,Channels,Clients,Follower,WsConsumer surface;
   class Effort,Operations,SummaryPolicy,Chunk contract;
-  class Queue,Lifecycle,Executor,Runtime,Registry runtime;
+  class Queue,ExecutionState,Lifecycle,Executor,Runtime,Registry runtime;
   class Dispatch,FileClient,HttpClient,ChannelClient,TaskFiles,Http,FileAdapter,FileRepository,FileState,FileStream,SSE,WS,Coupling transport;
