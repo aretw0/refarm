@@ -716,6 +716,21 @@ test("parseSandboxPidFile: a valid pid (with surrounding whitespace/newline, as 
 	assert.deepEqual(result, { pid: 12345 });
 });
 
+// ---- Code review follow-up (Minor, "the same shape as the Critical"): a THIRD branch was
+// checked ("missing", "unreadable") and everything else was ASSUMED to be `{kind:"text",
+// value}` — an unrecognized `read.kind` would have thrown a bare TypeError from
+// `.trim()` rather than degrading to "unknown" like every other unrecognized input in this
+// function. Unreachable today (no real caller constructs a fourth shape), but made explicit
+// rather than assumed. ----
+
+test("parseSandboxPidFile: an unrecognized read.kind → unknown, not a thrown TypeError", () => {
+	assert.doesNotThrow(() => parseSandboxPidFile({ kind: "bogus" }));
+	const result = parseSandboxPidFile({ kind: "bogus" });
+	assert.equal(result.state, "unknown");
+	assert.equal(result.pid, null);
+	assert.match(result.detail, /unrecognized read kind/);
+});
+
 // ---- sandboxCmdlineMatches — PURE. The identity check that makes RUNNING mean "this
 // sandbox's tractor, confirmed", not "a process with this pid happens to be alive". A pid
 // can be reused by ANY unrelated process — including the OPERATOR'S OWN tractor node, whose
@@ -883,6 +898,48 @@ test("sandboxStatus: credential reports presence + octal mode, NEVER contents �
 		assert.equal(result.credential.mode, "600");
 		const serialized = JSON.stringify(result);
 		assert.ok(!serialized.includes(secretMarker), "sandboxStatus's own return value must never carry credential content");
+	});
+});
+
+// ---- Code review follow-up (Important): two conversion branches inside sandboxStatus had no
+// test exercising the ACTUAL conversion — only parseSandboxPidFile's own literal-driven tests
+// proved the "unreadable" shape behaves correctly, and nothing proved sandboxStatus itself
+// ever PRODUCES that shape from a real read failure, or that the credential statSync failure
+// path actually reaches the `mode: null` branch rather than throwing. ----
+
+test("sandboxStatus: the pid file exists but reading it throws → node state unknown, the underlying reason surfaced — proves sandboxStatus itself performs the {kind:'unreadable'} conversion, not just parseSandboxPidFile in isolation", () => {
+	withStatusFixture((repoRoot) => {
+		const { env } = sandboxEnvironment(repoRoot);
+		fs.mkdirSync(env.SOVEREIGN_BASE, { recursive: true });
+		fs.writeFileSync(path.join(env.SOVEREIGN_BASE, SANDBOX_PID_FILE_NAME), "424242");
+
+		const result = sandboxStatus(repoRoot, {
+			readFileSync: () => {
+				throw new Error("EACCES: permission denied, fixture-read");
+			},
+		});
+		assert.equal(result.node.state, "unknown");
+		assert.equal(result.node.pid, null);
+		assert.match(result.node.detail, /could not be read/);
+		assert.match(result.node.detail, /EACCES/, "the underlying reason must be surfaced, not swallowed");
+	});
+});
+
+test("sandboxStatus: the credential file exists but statSync throws → mode:null with the reason surfaced, not a crash — proves the actual conversion, not just the documented contract", () => {
+	withStatusFixture((repoRoot) => {
+		const { env } = sandboxEnvironment(repoRoot);
+		fs.mkdirSync(env.SILO_HOME, { recursive: true, mode: 0o700 });
+		fs.writeFileSync(path.join(env.SILO_HOME, "identity.json"), "{}", { mode: 0o600 });
+
+		const result = sandboxStatus(repoRoot, {
+			statSync: () => {
+				throw new Error("EACCES: permission denied, fixture-stat");
+			},
+		});
+		assert.equal(result.credential.exists, true);
+		assert.equal(result.credential.mode, null);
+		assert.match(result.credential.reason, /could not stat/);
+		assert.match(result.credential.reason, /EACCES/);
 	});
 });
 
@@ -1065,6 +1122,24 @@ test("resetSandbox: deletes a full, realistic sandbox tree entirely (not-running
 	});
 });
 
+// ---- Code review follow-up (Important): every OTHER resetSandbox test above/below injects
+// `getStatus`, so each LAYER (resetSandbox's own guards, sandboxStatus, parseSandboxPidFile)
+// was tested, but never the SEAM between resetSandbox and the real sandboxStatus it defaults
+// to. This test omits `getStatus` entirely — the default `getStatus = sandboxStatus` runs
+// for real against the fixture — proving resetSandbox → sandboxStatus → parseSandboxPidFile
+// actually compose, not just that each piece behaves correctly in isolation. ----
+
+test("resetSandbox: composes with the REAL default sandboxStatus (no getStatus override) — no pid file on disk, so it resolves not-running and deletes", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		// No pid file written — the real sandboxStatus sees {kind:"missing"}, which
+		// parseSandboxPidFile resolves to "not-running" without any liveness probe running.
+		const result = resetSandbox(repoRoot);
+		assert.equal(result.deleted, true);
+		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), false);
+	});
+});
+
 test("resetSandbox: refuses when the sandbox node is RUNNING — deletes nothing", () => {
 	withResetFixture((repoRoot) => {
 		const env = buildFullSandboxFixture(repoRoot);
@@ -1082,6 +1157,42 @@ test("resetSandbox: refuses when the sandbox node's liveness is UNKNOWN — dele
 		assert.throws(
 			() => resetSandbox(repoRoot, { getStatus: () => ({ node: { state: "unknown", pid: 555 } }) }),
 			/could not confidently determine|unknown/i,
+		);
+		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), true);
+	});
+});
+
+// ---- Code review follow-up (Critical, "the fifteenth instance"): the delete guard was a
+// BLACKLIST ("running" and "unknown" refuse, everything ELSE proceeds), not a WHITELIST
+// ("not-running" proceeds, everything else refuses). A blacklist is only complete while the
+// set of states classifySandboxLiveness can produce never changes — this plan's own roadmap
+// (a `stop` subcommand, a future "starting" state) makes a fourth state plausible, and JS
+// gives no exhaustiveness error when the producer changes and this consumer is not updated
+// to match. This test pins the exact scenario the reviewer demonstrated: an UNRECOGNIZED
+// state string (not "running", not "unknown", not "not-running") must refuse, not delete —
+// proving the guard degrades to "refuse" on the unknown case, mirroring
+// classifySandboxLiveness's own `if (killOutcome !== "alive") return "unknown"` shape. ----
+
+test("resetSandbox: refuses on an UNRECOGNIZED liveness state (not 'running', 'unknown', or 'not-running') — the whitelist, not a blacklist, is what makes this safe", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		assert.throws(
+			() =>
+				resetSandbox(repoRoot, {
+					getStatus: () => ({ node: { state: "not-running-typo", pid: 555 } }),
+				}),
+			/not-running-typo/,
+		);
+		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), true, "an unrecognized state must never be treated as safe to delete");
+	});
+});
+
+test("resetSandbox: refuses on a PLAUSIBLE future state ('starting') exactly like 'unknown' — a fourth state added to the producer and never taught to this guard still refuses", () => {
+	withResetFixture((repoRoot) => {
+		const env = buildFullSandboxFixture(repoRoot);
+		assert.throws(
+			() => resetSandbox(repoRoot, { getStatus: () => ({ node: { state: "starting", pid: 555 } }) }),
+			/starting/,
 		);
 		assert.equal(fs.existsSync(env.SOVEREIGN_BASE), true);
 	});

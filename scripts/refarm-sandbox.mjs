@@ -114,7 +114,17 @@
  *     the exact "guessed instead of measured" shape this whole task exists to close, wearing
  *     a different costume. There is deliberately no `--force` override yet: the only way past
  *     this refusal is to stop the node externally (no `stop` subcommand exists in this file
- *     yet) and re-run `--reset`.
+ *     yet) and re-run `--reset`. The delete guard checks liveness as a WHITELIST — proceed
+ *     only on a CONFIRMED `"not-running"`, refuse for everything else, named or not — not a
+ *     blacklist of the two currently-known non-safe states, so a future fourth liveness state
+ *     this file has not been taught about yet still refuses rather than falling through to
+ *     delete (see `resetSandbox`'s own doc for the failure mode this replaced).
+ *
+ *     KNOWN LIMITATION, recorded rather than left silent: `resetSandbox`'s `getStatus` call
+ *     and its `rmSync` call are not protected by any lock, so a `start --background` and a
+ *     `--reset` racing in two terminals could observe `"not-running"` a moment before the
+ *     former's pid file exists. See `resetSandbox`'s own doc for why this is accepted rather
+ *     than closed in this task.
  *
  * Does NOT read or modify scripts/tractor-start.sh — the operator's launcher — in any way,
  * and NEVER writes to `~/.silo` or `~/.refarm` — both are read-only sources here.
@@ -599,6 +609,14 @@ function closedSingleQuotedValue(value) {
  *     integer, this is `state: "unknown"` (a corrupted pid file is not evidence of either
  *     state). Otherwise returns `{ pid }` with NO `state` — this is not a third verdict, it
  *     is a signal to the caller: "a plausible pid was found, go probe whether it is alive".
+ *   - anything else (an unrecognized `read.kind`) → `state: "unknown"`, EXPLICITLY checked
+ *     rather than assumed. The first version of this function checked `"missing"` and
+ *     `"unreadable"` and then read `read.value` unconditionally, assuming a third case meant
+ *     `{ kind: "text", value }` — a real caller can only ever construct one of the three
+ *     documented shapes today, so this is unreachable in practice, but an assumption is not a
+ *     structure: a future fourth `read.kind` without a `.value` would have thrown a bare
+ *     `TypeError` from `.trim()` instead of degrading to the same "cannot determine" answer
+ *     every other unrecognized input in this function produces.
  */
 export function parseSandboxPidFile(read) {
 	if (read.kind === "missing") {
@@ -610,6 +628,13 @@ export function parseSandboxPidFile(read) {
 	}
 	if (read.kind === "unreadable") {
 		return { pid: null, state: "unknown", detail: `pid file exists but could not be read: ${read.reason}` };
+	}
+	if (read.kind !== "text") {
+		return {
+			pid: null,
+			state: "unknown",
+			detail: `parseSandboxPidFile: unrecognized read kind ${JSON.stringify(read.kind)} — refusing to guess`,
+		};
 	}
 	const trimmed = read.value.trim();
 	// A strict digits-only match, not a bare `Number.parseInt` + finiteness check — parseInt
@@ -1244,6 +1269,29 @@ function firstSymlinkIn(dir) {
  * `deps` overrides (`existsSync`, `lstatSync`, `rmSync`, `getStatus`, `forbiddenTargets`) let
  * tests drive every refusal branch — including the running/unknown-node branch — without a
  * real spawned process, per this file's established injectable-dependency convention.
+ *
+ * KNOWN, ACCEPTED LIMITATION — a TOCTOU race between `getStatus` (above) and `rmSync`
+ * (below), with no lock held across the gap: `start --background` writing a fresh pid file
+ * in one terminal, interleaved with `--reset` running in another, can observe `"not-running"`
+ * (the pid file does not exist yet) and then delete the tree a moment after the daemon
+ * commits to writing into it. Recorded here explicitly, not left silent, because
+ * task-3-brief.md names this race directly and a reader of this file finding no mention of it
+ * would reasonably conclude it was never considered.
+ *
+ * Deliberately NOT closed with a lock in this task: this is a single-operator local
+ * development tool, invoked interactively from a shell the operator is watching — the window
+ * is the few milliseconds between `startSandbox`'s pid-file write and this function's
+ * `getStatus` call, which requires the operator to deliberately run `start` and `--reset`
+ * concurrently in two terminals to hit at all. Closing it correctly would mean adding a
+ * cross-process advisory lock (a `mkdirSync`-as-mutex or similar) to BOTH `startSandbox` and
+ * `resetSandbox` — not just the one this task touches — including stale-lock recovery for a
+ * lock-holder that crashed mid-critical-section, which is materially more surface than this
+ * task's stated scope (`status` and `--reset`) and risks regressing the already-reviewed
+ * `startSandbox` path for a race an interactive single-operator tool is unlikely to ever hit
+ * in practice. If a `stop` subcommand or `refarm parity` (both already on this plan's
+ * roadmap) later make concurrent sandbox-lifecycle commands a real workflow rather than a
+ * hypothetical, that is the point to add the lock across all three, not to patch it into only
+ * one.
  */
 export function resetSandbox(repoRoot = REPO_ROOT, deps = {}) {
 	const {
@@ -1298,19 +1346,35 @@ export function resetSandbox(repoRoot = REPO_ROOT, deps = {}) {
 	}
 
 	const status = getStatus(repoRoot, deps);
-	if (status.node.state === "running") {
+
+	// WHITELIST, not a blacklist — proceed ONLY on the single state confirmed safe
+	// ("not-running"); throw for every other value, named or not. This was originally two
+	// `if (state === "running")` / `if (state === "unknown")` checks that fell through to
+	// `rmSync` for anything else — a blacklist that only stays complete while the states
+	// `classifySandboxLiveness` can produce never change. The plan's own roadmap (a `stop`
+	// subcommand, `refarm parity`) makes a future fourth state ("starting", say, for the
+	// window between the pid file being written and the port being bound) plausible; JS gives
+	// no exhaustiveness error when that state is added to the producer and this consumer is
+	// not updated to match. A whitelist degrades safely in that scenario — an unrecognized
+	// state refuses, exactly like "unknown" — where the blacklist would have silently deleted.
+	// Mirrors `classifySandboxLiveness` itself (`if (killOutcome !== "alive") return
+	// "unknown"`), which already gets this right two functions earlier in this same file.
+	if (status.node.state !== "not-running") {
+		if (status.node.state === "running") {
+			throw new Error(
+				`refarm-sandbox: refusing to reset — the sandbox node is RUNNING (pid ${status.node.pid}). ` +
+					"Stop it first — there is no `stop` subcommand yet, so send it SIGTERM directly, e.g. " +
+					`\`kill ${status.node.pid}\` — then re-run --reset. Deleting a live node's sovereign ` +
+					"dir and graph out from under it is its own defect, not isolation.",
+			);
+		}
+		// Covers "unknown" AND any state this function does not specifically recognize —
+		// deliberately the SAME refusal for both, since neither is evidence deletion is safe.
 		throw new Error(
-			`refarm-sandbox: refusing to reset — the sandbox node is RUNNING (pid ${status.node.pid}). ` +
-				"Stop it first — there is no `stop` subcommand yet, so send it SIGTERM directly, e.g. " +
-				`\`kill ${status.node.pid}\` — then re-run --reset. Deleting a live node's sovereign ` +
-				"dir and graph out from under it is its own defect, not isolation.",
-		);
-	}
-	if (status.node.state === "unknown") {
-		throw new Error(
-			"refarm-sandbox: refusing to reset — could not confidently determine whether the " +
-				`sandbox node is running (${status.node.detail}). Refusing rather than guessing: an ` +
-				"indeterminate liveness is not evidence it is safe to delete.",
+			`refarm-sandbox: refusing to reset — the sandbox node's liveness is "${status.node.state}", ` +
+				'not a confirmed "not-running". ' +
+				(status.node.detail ? `${status.node.detail} ` : "") +
+				"Refusing rather than guessing: only a CONFIRMED not-running state is treated as safe to delete.",
 		);
 	}
 
@@ -1364,11 +1428,22 @@ async function main() {
 	const command = positional[0] ?? "start";
 
 	if (command === "status") {
-		const result = sandboxStatus();
-		if (asJson) {
-			console.log(JSON.stringify(result, null, 2));
-		} else {
-			printSandboxStatus(result);
+		// Wrapped exactly like the "start" and "--reset" branches below — an unanticipated
+		// failure (e.g. a permission error reading a path this function does not already
+		// degrade gracefully) surfaces as a clean one-line message and exit 1, never a raw
+		// stack trace. Read-only, so the blast radius of a bug here was always "a bad
+		// message", never data loss — but the CLI's own error-handling shape should not
+		// depend on which subcommand a caller happened to run.
+		try {
+			const result = sandboxStatus();
+			if (asJson) {
+				console.log(JSON.stringify(result, null, 2));
+			} else {
+				printSandboxStatus(result);
+			}
+		} catch (err) {
+			console.error(`   refarm-sandbox: ${err.message}`);
+			process.exitCode = 1;
 		}
 		return;
 	}
