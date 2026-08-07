@@ -1,7 +1,9 @@
 # Which Sovereign State Is Active
 
 Date: 2026-08-05
-Status: proposed
+Status: delivered — D1 (`refarm context`), D2 (divergence detection, all three clauses), D3 (the
+isolated launcher), and D4 (`refarm parity`) all shipped; see each section below for its own
+"Delivered" note and commit range.
 Implements: ADR-094 (Proposed) D1, D4, D5 — the parts that answer the operator's question
 Related: 2026-08-04 node-context-workspace-hatch design, 2026-08-03 declared-node-base design,
 2026-08-04 router-decides-from-the-catalog design, `docs/DECLARE_ONCE_INVARIANT.md`
@@ -287,11 +289,152 @@ for them to go.
 
 `status` and `--reset` follow `pi-isolated`'s surface. `--reset` deletes the sandbox and nothing else.
 
+**Delivered 2026-08-06/07, as `docs/superpowers/plans/2026-08-06-the-sandbox-node.md`** (16 commits,
+`ecc128f6..a39af0d0`; `scripts/refarm-sandbox.mjs` + `scripts/refarm-sandbox.test.mjs`, 161/161
+tests).
+
+The paragraph above — "declares `SOVEREIGN_BASE` and `SOVEREIGN_DIR`" — undercounted by five. The
+plan's own ledger records the correction as its first entry, before Task 1 even started: **seven**
+declared axes, not one pair, each closing a distinct measured failure —
+
+| Axis | Purpose | Follows `REFARM_HOME`? |
+| --- | --- | --- |
+| `SOVEREIGN_BASE` | the node's base directory | — it IS this |
+| `SOVEREIGN_DIR` | the sovereign dir name (`refarm`) | — it IS this |
+| `REFARM_HOME` | declarations, plugins, streams, task-results | — it IS this |
+| `XDG_DATA_HOME` | **the graph** (`storage/sqlite.rs:433-438`) | NO — a sibling, `<repo>/.sandbox/share` |
+| `SILO_HOME` | credential store — deliberately NON-isolating, see below | NO — a sibling, `<repo>/.sandbox/silo` |
+| `HOME` | added after `refarm plugin install` wrote the working-tree wasm into the operator's real `~/.refarm/assets/` (`packages/storage-fs/src/scope.ts:60-63` ignoring the declared home) | NO — a sibling, `<repo>/.sandbox/home` |
+| `REFARM_STREAMS_DIR` | added after the WASM guest (`packages/agent/src/runtime/prompt_handler.rs:47`, wasm32-only) was found writing response content to `/tmp/streams/`, because the host never forwards `HOME` into the plugin | nested under `REFARM_HOME`: `<REFARM_HOME>/streams` |
+
+Ports **43000** (WS) / **43001** (HTTP) — checked against every live listener on the host at plan
+time (`ss -ltn`) and declared as constants, not re-probed on every run, so the address stays stable
+across restarts — versus the operator's 42000/42001. Namespace `sandbox`, versus the operator's
+`default`.
+
+Subcommands: `start [--background] [--json]`, `status [--json]`, `--reset [--force]`. There is **no
+`stop` subcommand** — the only way to end a `--background` run today is `kill <pid>` after confirming
+the pid's own `/proc/<pid>/cmdline` names this sandbox (`--refarm-dir` matching this sandbox's
+`REFARM_HOME`, never the operator's). `--reset` deletes `<repo>/.sandbox` and nothing else, behind
+five independent containment checks (path containment, three explicitly named forbidden real paths,
+a symlink refusal at the root and recursively inside the tree); it refuses unless the sandbox's own
+liveness check reads `"not-running"` — a whitelist, not a blacklist of the then-two known unsafe
+states — with `--force` overriding only that refusal, read after all five containment checks and
+never able to override `"running"` itself.
+
+**Credentials are inherited by COPY, never by reference or re-authentication.**
+`copySandboxCredentials` reads `~/.silo/identity.json` read-only and writes an independent file at
+`.sandbox/silo/identity.json` (mode 600, dir mode 700), carrying only the minimum set
+`minimalCredentialTokens` extracts: `modelProvider`, `modelId`, `oauthProvider`, the legacy `model`
+alias, `modelBaseUrl`, `modelFallbackProvider`, `modelFallbackModelId`, and the ACTIVE oauth
+provider's `{access, accountId, expires}` only. Deliberately excluded: the `refresh` token (no call
+site anywhere in the repo invokes `OAuthProviderInterface#refreshToken` — not even the operator's
+own node auto-refreshes today, so copying it would hand the sandbox a strictly more powerful
+credential for a capability nothing exercises), `githubToken`/`githubOwner`/`cloudflareToken`
+(unrelated integrations), any dormant non-active provider's credentials, and the `identity` block
+(device identity — not part of `.tokens` at all). `SILO_HOME` is declared alongside the seven axes
+but is deliberately **not** one of them: it points `resolveSiloHome()`'s fallback chain at the copy
+instead of letting it silently resolve against the sandbox's own empty `REFARM_HOME` — measured
+before the fix, that silent fallback degraded to the keyless `ollama/llama3.2` floor with no error
+at all.
+
+**The plugin is installed, not loaded directly.** `startSandbox` runs `refarm plugin install
+--bundled` with the sandbox's own declared environment (never bare `process.env` — verified with a
+throwaway `REFARM_HOME` before ever touching the real one) before starting the daemon, installing
+into `<repo>/.sandbox/refarm/plugins/refarm_agent/` and loading what the installer wrote — never the
+raw `packages/agent/dist/agent.wasm` build output directly, which lacks the `entry`/`integrity`
+fields only the installer adds and which the daemon refuses to load at boot (`missing field
+'entry'` — Task 4's first-attempt failure, fixed by commit `8e7c88a2`). "The lab runs what you are
+building" is kept: the installer's own source resolution still reads the working tree's
+`packages/agent/dist/agent.wasm`, hash-verified identical to the installed copy on every proof run.
+
+#### The cost proof
+
+The measurement this whole slice exists to produce, from
+`.superpowers/sdd/2026-08-06-the-sandbox-node/task-4-report.md` (a re-run after the plugin-install
+fix — the first attempt failed at an `agent-not-loaded` pre-check before any provider call and
+proved nothing):
+
+```
+operator BudgetObservation: 29 → 29
+sandbox  BudgetObservation:  0 → 1
+```
+
+One `refarm ask "reply with just: ok" --new --json` dispatched against the sandbox
+(`REFARM_SIDECAR_URL=http://127.0.0.1:43001`), exit 0, `gpt-5.5` via `openai-codex`, 1590 input / 5
+output tokens, `pricing_mode: "subscription"`. The sandbox's new `BudgetObservation` carried
+`refarm.pricing_mode: "subscription"`, `refarm.cost.estimated_usd: 0.0`,
+`refarm.cost.price_known: true`, `refarm.budget.spawner: "refarm-ask"` — `price_known: true` beside
+`estimated_usd: 0.0` together mean "priced in the wrong currency" (a subscription has no per-call
+dollar cost), not missing data. The operator's own record, independently re-checked before and
+after, did not move: pid 3093335 unchanged, cmdline unchanged, plugin hash unchanged,
+`~/.silo/identity.json` unchanged (content never read), `default.db` size/mtime unchanged.
+
+**This proof did not survive on disk.** The sandbox's graph was recreated when `HOME` became the
+sixth declared axis (a fresh `.sandbox` tree after a `--reset`), and by 2026-08-07 09:40 the sandbox
+held exactly one `BudgetObservation`, timestamped 09:33:45 — from a later verification dispatch, not
+this one. The numbers above are real and were independently witnessed at the time, but nothing on
+disk attests to them now. The full, runnable reproduction procedure — start the sandbox, count both
+graphs read-only, dispatch one ask, count again, with the exact read-only SQL — is recorded durably
+in [`docs/SANDBOX_NODE.md`](../../SANDBOX_NODE.md) rather than left as a session memory a second
+time.
+
+#### What is NOT isolated
+
+- **`SILO_HOME` isolates the credential STORE, not the credential.** The identity is inherited by
+  copy on purpose — an isolation that forced re-authentication would not get used (the design's own
+  stated principle, taken from `pi-isolated.mjs`). The sandbox and the operator's node share the
+  same underlying access token today.
+- **The `openai-codex` token expires, and nothing in the repo auto-refreshes it — on either node.**
+  The sandbox's copy goes stale exactly when the operator's own does; re-running `refarm sow`
+  followed by a fresh `start` (which re-syncs the copy every time) is the recovery.
+- **There is no `stop` subcommand.** `--reset` has a documented, unclosed TOCTOU race with `start`:
+  its own liveness read and its delete call are not protected by any lock, so a `start --background`
+  and a `--reset` racing in two terminals could observe `"not-running"` a moment before the former's
+  pid file exists. Recorded in `resetSandbox`'s own JSDoc as accepted, not closed, in this slice.
+- **The engine mode is not one of the isolating axes, and it drifted anyway** — caught live by
+  `refarm parity`: the operator's `~/.refarm/config.json` pins `tractor.engine: "rust"`; the sandbox
+  has no `config.json` at all and falls back to `"auto"`. Not fixed by this slice (D4 is the
+  instrument, not the fix).
+
 ### D4. Parity
 
 `refarm parity` compares the sandbox against the operator's node on declared axes — configured
 providers and routes, installed plugins and their hashes, engine and namespace — and reports where
 they differ. Divergence is normal in a lab; **undeclared** divergence is what makes a lab lie.
+
+**Delivered 2026-08-06/07** as `refarm parity` (`apps/refarm/src/commands/parity.ts` +
+`parity.test.ts`, 55/55 tests, part of the same 16-commit range above, landing across `ccba05eb`,
+`5fb83cb6`, `a39af0d0`).
+
+Four axes, exactly the ones named above, each compared against the RUNNING node, never a file check:
+`model-route` (provider/model ref plus credential state), `plugin` (queried live from each node's
+own `GET /plugins` sidecar — loaded state AND file hash), `engine`, `namespace`. One static table,
+`ISOLATING_AXES`, is the single place "namespace is allowed — expected — to differ" is declared;
+every comparison crosses that fact against the observed verdict (`same | different | unreadable`) to
+produce `healthy`, so a namespace that stopped differing (isolation silently broken) is reported
+**unhealthy** rather than accepted because "same" sounds fine — the inverse check, pinned by its own
+test.
+
+Three verdict states everywhere, `unreadable` checked first: stopping the sandbox mid-run flips only
+the `plugin` axis to `unreadable` (the one live network probe) while the other three stay
+determinate (file/declared-based) — proven live, not just designed, by stopping the sandbox and
+confirming the report degrades exactly one axis, never silently reading a dead node as matching or
+as diverging.
+
+Explicitly out of scope, stated in the command's own header rather than left unmentioned: parity
+compares CONFIGURATION, not graph CONTENT — the sandbox `BudgetObservation`'s missing
+`refarm.workspace.id`/`host.name` (the sandbox graph has no `SovereignConfig` node) is a
+graph-content gap, not something this axis set checks.
+
+**One caveat found live, not yet fixed:** `refarm parity` reports a real engine-mode divergence (see
+"What is NOT isolated" above) on its very first live run. Separately, `refarm context` (a related
+but different command) reports a spurious `namespace-divergence` for the sandbox: `--namespace
+sandbox` is passed to the daemon as a bare CLI argument, never as a `REFARM_NAMESPACE` env var, so
+the environ-based witness (`resolveNodeEnvironment`, which reads only `/proc/<pid>/environ`) reports
+the node "declares no `REFARM_NAMESPACE`" and falls back to describing it as `"default"`. The
+on-disk artifact settles the question independent of that report: the daemon opens
+`.sandbox/share/refarm/sandbox.db`, never `default.db`.
 
 ## The intake principle, which governs beyond this slice
 
