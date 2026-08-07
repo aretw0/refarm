@@ -103,6 +103,11 @@ playwright/.cache/
 .refarm/
 .dgk/
 
+# The sandbox node (scripts/refarm-sandbox.mjs) — a second, isolated refarm node out of
+# this working tree: its own sovereign dir, its own graph (db file), pid/log files. Local
+# lab state; never committed, exactly like .refarm/ above.
+.sandbox/
+
 # Standard: All compiled outputs go to dist/
 # Use a more targeted approach for packages
 packages/**/dist/
