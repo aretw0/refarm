@@ -762,6 +762,65 @@ describe("usageByPeriod — three states, never two: in period / out of period /
 		expect(usage.inPeriod.observations).toBe(0);
 		expect(usage.outOfPeriod.observations).toBe(0);
 		expect(usage.unknownTimestamp.observations).toBe(0);
+		expect(usage.inPeriod.noUsageRecord).toBe(0);
+		expect(usage.outOfPeriod.noUsageRecord).toBe(0);
+		expect(usage.unknownTimestamp.noUsageRecord).toBe(0);
+	});
+
+	// ── noUsageRecord: same field name, same meaning as GroupTotals.noUsageRecord ──
+	// (code review, follow-up to Task 1's fix, fc53a9c3) — a terminal effort with no
+	// UsageRecord at all (find_usage_record_for returns None) has NO refarm.pricing_mode
+	// field whatsoever, and put_usage returns before writing ANY gen_ai.usage.* field
+	// either. Without this count, a bucket of five such records reports output: 0 —
+	// indistinguishable from five records that ran and genuinely produced nothing.
+
+	it("counts a member with no refarm.pricing_mode as noUsageRecord — the 'nothing was recorded' case", () => {
+		const usage = usageByPeriod(
+			[{ timestamp_ns: 1785888000000000000 }], // inside WINDOW, no refarm.pricing_mode at all
+			{ period: WINDOW },
+		);
+		expect(usage.inPeriod.noUsageRecord).toBe(1);
+	});
+
+	it("does NOT count a member that carries refarm.pricing_mode as noUsageRecord, even subscription — its tokens are real", () => {
+		const usage = usageByPeriod(
+			[
+				{
+					timestamp_ns: 1785888000000000000,
+					"refarm.pricing_mode": "subscription",
+					"gen_ai.usage.output_tokens": 5,
+				},
+			],
+			{ period: WINDOW },
+		);
+		expect(usage.inPeriod.noUsageRecord).toBe(0);
+		expect(usage.inPeriod.tokens.output).toBe(5);
+	});
+
+	it("tracks noUsageRecord independently per bucket — an in-period gap does not inflate out-of-period's count", () => {
+		const usage = usageByPeriod(
+			[
+				{ timestamp_ns: 1785888000000000000 }, // inside, no pricing_mode
+				{ timestamp_ns: 1785758400000000000 }, // before (out of period), no pricing_mode
+			],
+			{ period: WINDOW },
+		);
+		expect(usage.inPeriod.noUsageRecord).toBe(1);
+		expect(usage.outOfPeriod.noUsageRecord).toBe(1);
+	});
+
+	it("the exact defect this fix closes: a bucket of failed-before-model-call efforts reports output:0 AND names how many of that 0 is unmeasured", () => {
+		// Five efforts that failed before ever calling a model — no UsageRecord, so no
+		// refarm.pricing_mode and no gen_ai.usage.* fields at all on any of them.
+		const failedBeforeModelCall = Array.from({ length: 5 }, () => ({
+			timestamp_ns: 1785888000000000000,
+		}));
+		const usage = usageByPeriod(failedBeforeModelCall, { period: WINDOW });
+		expect(usage.inPeriod.tokens.output).toBe(0);
+		// Before this fix, this was the ONLY fact available — indistinguishable from five
+		// real, successful, zero-output runs. Now the reader can tell:
+		expect(usage.inPeriod.noUsageRecord).toBe(5);
+		expect(usage.inPeriod.observations).toBe(5);
 	});
 
 	// ── The exact scenario Step 4's live verification proves against the real graph ──
@@ -802,7 +861,7 @@ describe("printUsageByPeriodHuman — states what it cannot answer, unconditiona
 		const usage = usageByPeriod([], {
 			period: { kind: "rolling-days", startMs: 0, endMs: 1, spec: "30d", label: "last 30 days" },
 		});
-		printUsageByPeriodHuman(usage);
+		printUsageByPeriodHuman(usage, { stored: 0, truncated: false });
 		const text = stdout.join("\n");
 		expect(text).toContain(USAGE_CANNOT_ANSWER);
 	});
@@ -811,7 +870,7 @@ describe("printUsageByPeriodHuman — states what it cannot answer, unconditiona
 		const usage = usageByPeriod([{ timestamp_ns: 500 }, {}], {
 			period: { kind: "rolling-days", startMs: 0, endMs: 1000, spec: "30d", label: "last 30 days" },
 		});
-		printUsageByPeriodHuman(usage);
+		printUsageByPeriodHuman(usage, { stored: 2, truncated: false });
 		const text = stdout.join("\n").toLowerCase();
 		expect(text).toContain("in period");
 		expect(text).toContain("out of period");
@@ -822,8 +881,50 @@ describe("printUsageByPeriodHuman — states what it cannot answer, unconditiona
 		const usage = usageByPeriod([{ timestamp_ns: 500 }], {
 			period: { kind: "rolling-days", startMs: 0, endMs: 1000, spec: "30d", label: "last 30 days" },
 		});
-		printUsageByPeriodHuman(usage);
+		printUsageByPeriodHuman(usage, { stored: 1, truncated: false });
 		expect(stdout.join("\n")).toContain(USAGE_CANNOT_ANSWER);
+	});
+
+	// ── Same gap Task 1's Critical 3 closed for the grouped commands: the human
+	// surface must carry the SAME completeness signal --json always carried. This
+	// command never wired printPageCompletenessNotice in at all until now.
+
+	it("prints the truncation notice (naming both counts) when the page reports truncated: true", () => {
+		const usage = usageByPeriod([{ timestamp_ns: 500 }], {
+			period: { kind: "rolling-days", startMs: 0, endMs: 1000, spec: "30d", label: "last 30 days" },
+		});
+		printUsageByPeriodHuman(usage, { stored: 42, truncated: true });
+		const text = stdout.join("\n");
+		expect(text).toContain("42");
+		expect(text.toLowerCase()).toContain("stored");
+	});
+
+	it("prints an unknown-completeness notice when the page omits stored/truncated", () => {
+		const usage = usageByPeriod([{ timestamp_ns: 500 }], {
+			period: { kind: "rolling-days", startMs: 0, endMs: 1000, spec: "30d", label: "last 30 days" },
+		});
+		printUsageByPeriodHuman(usage, { stored: undefined, truncated: undefined });
+		expect(stdout.join("\n").toLowerCase()).toContain("unknown");
+	});
+
+	it("prints nothing about storage when the page reports truncated: false", () => {
+		const usage = usageByPeriod([{ timestamp_ns: 500 }], {
+			period: { kind: "rolling-days", startMs: 0, endMs: 1000, spec: "30d", label: "last 30 days" },
+		});
+		printUsageByPeriodHuman(usage, { stored: 1, truncated: false });
+		expect(stdout.join("\n").toLowerCase()).not.toContain("stored");
+	});
+
+	// ── noUsageRecord must reach the human surface too, not only the JSON/type layer ──
+
+	it("flags a bucket's no-usage-record count so 0 tokens can be told apart from 'nothing recorded'", () => {
+		const usage = usageByPeriod(
+			[{ timestamp_ns: 500 }, { timestamp_ns: 500 }], // both inside, neither carries refarm.pricing_mode
+			{ period: { kind: "rolling-days", startMs: 0, endMs: 1000, spec: "30d", label: "last 30 days" } },
+		);
+		printUsageByPeriodHuman(usage, { stored: 2, truncated: false });
+		const text = stdout.join("\n");
+		expect(text).toContain("no-usage-record:2");
 	});
 });
 

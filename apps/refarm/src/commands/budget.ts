@@ -366,13 +366,41 @@ function numericField(node: ObservationNode, field: string): number {
 	return typeof raw === "number" && Number.isFinite(raw) ? raw : 0;
 }
 
+/** Sums the five `gen_ai.usage.*` fields into `tokens`, in place — the ONE place both
+ *  the dollar-axis reducer (`absorbIntoGroupBucket`) and the period-axis reducer
+ *  (`absorbIntoPeriodBucket`) accumulate tokens, so the two surfaces can never drift
+ *  into summing (or missing) a field differently. Extracted from what used to be two
+ *  near-identical five-line blocks (code review, follow-up to fc53a9c3) — the same
+ *  "two functions counting the same thing under different code" shape the review
+ *  called out for the unknown-tracking fields below, here for the accumulation
+ *  itself. Absent counters on a member contribute 0, same discipline as
+ *  `GroupTokenTotals`'s own doc — this is a TOTAL, not a per-record unknown-tracking
+ *  field; `noUsageRecord` below is where that distinction actually lives. */
+function accumulateTokens(tokens: GroupTokenTotals, node: ObservationNode): void {
+	tokens.input += numericField(node, "gen_ai.usage.input_tokens");
+	tokens.output += numericField(node, "gen_ai.usage.output_tokens");
+	tokens.cacheCreation += numericField(node, "gen_ai.usage.cache_creation.input_tokens");
+	tokens.cacheRead += numericField(node, "gen_ai.usage.cache_read.input_tokens");
+	tokens.reasoning += numericField(node, "gen_ai.usage.reasoning.output_tokens");
+}
+
+/** Whether `refarm.pricing_mode` is present on this record AT ALL — the ONE
+ *  underlying fact both the dollar axis and the token/period axis need from the
+ *  SAME Rust condition: `find_usage_record_for` (`packages/tractor/src/sidecar/
+ *  dispatch.rs`) returned `None` for this terminal effort, so `put_usage`
+ *  (`observation.rs`) returned before writing `pricing_mode`, `price_known`,
+ *  `estimated_usd`, OR any `gen_ai.usage.*` field — nothing, not a manufactured
+ *  zero. Named ONCE so the dollar-axis reducer and the period-axis reducer cannot
+ *  count "no UsageRecord at all" under two different tests that quietly drift
+ *  apart (the exact defect class code review flagged: the same unknown counted
+ *  under different names/logic in two functions in this file). */
+function hasUsageRecord(node: ObservationNode): boolean {
+	return node["refarm.pricing_mode"] !== undefined;
+}
+
 function absorbIntoGroupBucket(bucket: MutableGroupBucket, node: ObservationNode, by: GroupByAxis): void {
 	bucket.observations += 1;
-	bucket.tokens.input += numericField(node, "gen_ai.usage.input_tokens");
-	bucket.tokens.output += numericField(node, "gen_ai.usage.output_tokens");
-	bucket.tokens.cacheCreation += numericField(node, "gen_ai.usage.cache_creation.input_tokens");
-	bucket.tokens.cacheRead += numericField(node, "gen_ai.usage.cache_read.input_tokens");
-	bucket.tokens.reasoning += numericField(node, "gen_ai.usage.reasoning.output_tokens");
+	accumulateTokens(bucket.tokens, node);
 
 	if (by === "host") {
 		// Same "keep the newest non-null name seen" rule as `summariseObservations`'
@@ -388,10 +416,12 @@ function absorbIntoGroupBucket(bucket: MutableGroupBucket, node: ObservationNode
 	// first: nothing falls through to "billable" by default.
 	//
 	// 1. No `pricing_mode` at all → no `UsageRecord` was ever written for this
-	//    terminal effort (see `noUsageRecord`'s doc) — checked FIRST because an
-	//    absent value must never be tested against a `Set`/`===` and silently
-	//    read as "not a recognised mode, so try to price it anyway".
-	if (pricingMode === undefined) {
+	//    terminal effort (see `noUsageRecord`'s doc, and `hasUsageRecord`'s doc for
+	//    why this exact check is shared with the period-axis reducer below) —
+	//    checked FIRST because an absent value must never be tested against a
+	//    `Set`/`===` and silently read as "not a recognised mode, so try to price
+	//    it anyway".
+	if (!hasUsageRecord(node)) {
 		bucket.noUsageRecord += 1;
 		return;
 	}
@@ -982,23 +1012,45 @@ function parsePeriodOption(value: string): string {
 /** One bucket's worth of requests and tokens — same token vocabulary as
  *  `GroupTokenTotals`, no dollar field: `usageByPeriod` answers "how many
  *  requests", not "how much did they cost" (that remains `groupObservations`'
- *  job). */
+ *  job) — so `structuralZeroMembers`/`priceUnknown` are NOT mirrored here:
+ *  both exist solely to explain gaps in a DOLLAR figure this bucket never
+ *  computes. `noUsageRecord` IS mirrored — same field name, same meaning as
+ *  `GroupTotals.noUsageRecord` — because it explains a gap in `tokens` itself
+ *  (code review, follow-up to Task 1's fc53a9c3): a terminal effort with no
+ *  `UsageRecord` at all contributes a real 0 to every field in `tokens` below
+ *  because it has none to contribute — not because it ran and used nothing.
+ *  Without this count, a bucket of five efforts that failed before ever
+ *  calling a model reports `output: 0`, indistinguishable from five efforts
+ *  that ran and genuinely produced nothing. */
 export interface PeriodBucket {
 	observations: number;
 	tokens: GroupTokenTotals;
+	/** Members with NO `refarm.pricing_mode` at all (`hasUsageRecord(node) ===
+	 *  false`) — see that function's doc for the exact Rust condition this
+	 *  reads. `tokens` above still accumulates unconditionally for every
+	 *  member, same discipline `GroupTokenTotals`'s doc already states (this is
+	 *  a TOTAL, not a per-record unknown-tracking field) — this count is what
+	 *  lets a reader tell HOW MUCH of that total's `0` is "nothing was
+	 *  recorded" rather than "nothing was spent". */
+	noUsageRecord: number;
 }
 
 function newPeriodBucket(): PeriodBucket {
-	return { observations: 0, tokens: { input: 0, output: 0, cacheCreation: 0, cacheRead: 0, reasoning: 0 } };
+	return {
+		observations: 0,
+		tokens: { input: 0, output: 0, cacheCreation: 0, cacheRead: 0, reasoning: 0 },
+		noUsageRecord: 0,
+	};
 }
 
 function absorbIntoPeriodBucket(bucket: PeriodBucket, node: ObservationNode): void {
 	bucket.observations += 1;
-	bucket.tokens.input += numericField(node, "gen_ai.usage.input_tokens");
-	bucket.tokens.output += numericField(node, "gen_ai.usage.output_tokens");
-	bucket.tokens.cacheCreation += numericField(node, "gen_ai.usage.cache_creation.input_tokens");
-	bucket.tokens.cacheRead += numericField(node, "gen_ai.usage.cache_read.input_tokens");
-	bucket.tokens.reasoning += numericField(node, "gen_ai.usage.reasoning.output_tokens");
+	accumulateTokens(bucket.tokens, node);
+	// Checked, not returned early on — unlike the dollar axis, there is no further
+	// branch to short-circuit here: every member's tokens are already accumulated
+	// above regardless of this fact (see `PeriodBucket`'s doc for why that stays
+	// unconditional), so this is purely an ADDITIONAL count, never a gate.
+	if (!hasUsageRecord(node)) bucket.noUsageRecord += 1;
 }
 
 /** `timestamp_ns` (nanoseconds since epoch, per `now_ns()` in the WASM guest)
@@ -1095,14 +1147,23 @@ export const USAGE_CANNOT_ANSWER =
 	"know either today.";
 
 /** Same discipline as `observationsNextAction`/`groupedNextAction`: informational, not
- *  always a literal command. Names whichever of the two facts is actionable — an empty
- *  in-period bucket the reader might otherwise mistake for "nothing has been read", or an
- *  unknown-timestamp bucket the reader might otherwise not notice was excluded. */
+ *  always a literal command. Names whichever fact is actionable — an empty in-period
+ *  bucket the reader might otherwise mistake for "nothing has been read", an
+ *  unknown-timestamp bucket the reader might otherwise not notice was excluded, or an
+ *  in-period `noUsageRecord` count that explains why the in-period token totals above
+ *  may read lower than the in-period observation count would suggest. */
 function usageNextAction(usage: UsageByPeriod): string | null {
 	if (usage.total === 0) return NO_OBSERVATIONS_MESSAGE;
 	const notes: string[] = [];
 	if (usage.inPeriod.observations === 0) {
 		notes.push(`No observations fall inside ${usage.period.label} (--period ${usage.period.spec}).`);
+	}
+	if (usage.inPeriod.noUsageRecord > 0) {
+		notes.push(
+			`${usage.inPeriod.noUsageRecord} of ${usage.inPeriod.observations} in-period observation(s) have ` +
+				"no UsageRecord at all — their token contribution above is \"nothing recorded,\" not \"nothing " +
+				`spent\" — see ${BUDGET_OBSERVATIONS_JSON_COMMAND} for the individual records.`,
+		);
 	}
 	if (usage.unknownTimestamp.observations > 0) {
 		notes.push(
@@ -1115,13 +1176,22 @@ function usageNextAction(usage: UsageByPeriod): string | null {
 }
 
 /** Exported for `budget.test.ts` — drives the report with a literal `UsageByPeriod`, no
- *  network, same pattern as `printGroupedObservationsHuman`. */
-export function printUsageByPeriodHuman(usage: UsageByPeriod): void {
+ *  network, same pattern as `printGroupedObservationsHuman`. Takes `page` for the same
+ *  reason `printGroupedObservationsHuman` does (Task 1 review, Critical 3): this command
+ *  never wired the truncation/completeness signal into its human output at all until
+ *  now — `--json` always carried `stored`/`truncated`, the human reader never saw
+ *  either, and a record past a single page's cap looked complete over partial data. */
+export function printUsageByPeriodHuman(
+	usage: UsageByPeriod,
+	page: Pick<BudgetObservationsPage, "stored" | "truncated">,
+): void {
 	console.log(chalk.bold(`\n  Budget usage — ${usage.period.label}  (--period ${usage.period.spec})\n`));
+	printPageCompletenessNotice(usage.total, page, "refarm budget usage");
 	const printBucket = (label: string, bucket: PeriodBucket): void => {
+		const flagsText = bucket.noUsageRecord > 0 ? `   (no-usage-record:${bucket.noUsageRecord})` : "";
 		console.log(
 			`  ${label.padEnd(16)} obs:${String(bucket.observations).padEnd(5)} ` +
-				`in:${String(bucket.tokens.input).padEnd(8)} out:${String(bucket.tokens.output).padEnd(8)}`,
+				`in:${String(bucket.tokens.input).padEnd(8)} out:${String(bucket.tokens.output).padEnd(8)}${flagsText}`,
 		);
 	};
 	if (usage.total === 0) {
@@ -1343,13 +1413,20 @@ export function createBudgetCommand(): Command {
 							truncated: page.truncated,
 						},
 						nextAction,
+						// Read-only drill-down, offered whenever there is a gap the summary itself
+						// cannot fully explain: an unusable timestamp, or a member with no
+						// UsageRecord at all (in either the in-period or out-of-period bucket).
 						nextCommand:
-							usage.unknownTimestamp.observations > 0 ? BUDGET_OBSERVATIONS_JSON_COMMAND : undefined,
+							usage.unknownTimestamp.observations > 0 ||
+							usage.inPeriod.noUsageRecord > 0 ||
+							usage.outOfPeriod.noUsageRecord > 0
+								? BUDGET_OBSERVATIONS_JSON_COMMAND
+								: undefined,
 					}),
 				);
 				return;
 			}
-			printUsageByPeriodHuman(usage);
+			printUsageByPeriodHuman(usage, { stored: page.stored, truncated: page.truncated });
 		});
 
 	command.addHelpText(
