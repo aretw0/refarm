@@ -87,6 +87,8 @@
 		"scaffold:capability:test": "node --test scripts/scaffold-capability.test.mjs",
 		"no-os-resolution": "node scripts/no-os-resolution.mjs",
 		"no-os-resolution:test": "node --test scripts/no-os-resolution.test.mjs",
+		"directory-independence": "node scripts/directory-independence.mjs",
+		"directory-independence:test": "node --test scripts/directory-independence.test.mjs",
 		"type-check:dist": "turbo type-check:dist --output-logs=new-only --ui=stream",
 		"tsconfig:guard": "node scripts/ci/tsconfig-guard.mjs",
 		"tsconfig:guard:test": "node --test scripts/ci/test-tsconfig-guard.mjs",
