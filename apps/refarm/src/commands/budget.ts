@@ -707,6 +707,310 @@ export function printGroupedObservationsHuman(grouped: GroupedObservations): voi
 	console.log(chalk.dim(`\n  ${BUDGET_OBSERVATIONS_JSON_COMMAND}\n`));
 }
 
+/**
+ * Requests-per-billing-period — the axis `groupObservations` cannot answer. The
+ * operator's daily route is `openai-codex`, a SUBSCRIPTION: `refarm.pricing_mode`
+ * is `"subscription"` in 29 of 29 live records and `refarm.cost.estimated_usd`
+ * sums to 0.0 across all of them (measured 2026-08-08). Every existing budget
+ * bound — `refarm.budget.max_usd`, `max_tokens` — measures consumption WITHIN a
+ * single dispatch. A subscription quota is a different kind of constraint: it
+ * REFILLS on a billing date, across runs, rather than being drawn down within
+ * one. No new counter is written for this — `timestamp_ns` already rides every
+ * observation — this section only reads it differently.
+ *
+ * THE DESIGN DECISION, MADE EXPLICIT: a subscription quota refills on a billing
+ * DATE, and no `BudgetObservation` field names that date — nothing has ever been
+ * asked to write it. Two different readings of "usage this period" are both
+ * defensible from `timestamp_ns` alone, and they disagree:
+ *
+ *   - ROLLING: the last N days, counted back from now.
+ *   - CALENDAR: the 1st of the current month through today.
+ *
+ * ROLLING is the default (`DEFAULT_PERIOD_SPEC = "30d"`) because a calendar
+ * month is confidently WRONG for every billing anchor except "signs up on the
+ * 1st" — it resets the window on a day chosen by the calendar, not by the
+ * vendor, and the operator's actual anchor date is not recorded anywhere this
+ * command can read. A rolling window makes no claim about which day of the
+ * month the quota refills; "usage in the last 30 days" is true regardless of
+ * where in a billing cycle today happens to fall, which is the only property a
+ * default can honestly promise without the anchor date. CALENDAR remains
+ * REACHABLE, not deleted, via `--period month` (this month) or `--period
+ * YYYY-MM` (a named month) — a reader who DOES know their billing anchor is
+ * the calendar month can ask for exactly that.
+ */
+export type PeriodKind = "rolling-days" | "calendar-month";
+
+/**
+ * A period spec resolved to concrete millisecond bounds — half-open,
+ * `[startMs, endMs)`: inclusive start, exclusive end. Half-open so that two
+ * adjacent periods (this month and next month; today's rolling window and
+ * tomorrow's) partition every possible timestamp without either double-
+ * counting or dropping the exact instant at the boundary.
+ */
+export interface ResolvedPeriod {
+	kind: PeriodKind;
+	/** Milliseconds since epoch — the domain `Date.now()` and `Date.UTC()` both
+	 *  use, converted down from the record's `timestamp_ns` (nanoseconds) at
+	 *  read time rather than carried in nanoseconds: a day/month boundary needs
+	 *  only millisecond precision, and staying in that unit keeps every
+	 *  comparison here exact instead of routing through a magnitude where a JS
+	 *  `number`'s 53-bit mantissa is already lossy below the microsecond (true
+	 *  of `timestamp_ns` itself at today's epoch scale — a pre-existing
+	 *  property of this record, not something introduced here; see
+	 *  `currentRateTableFrom` above, which already treats it as a plain
+	 *  `number`). */
+	startMs: number;
+	endMs: number;
+	/** The spec string this was parsed from (e.g. `"30d"`, `"month"`,
+	 *  `"2026-08"`) — echoed back so a `--json` reader sees exactly what was
+	 *  asked for, not just the bounds it resolved to. */
+	spec: string;
+	/** Human label, e.g. `"last 30 days"` or `"August 2026"`. */
+	label: string;
+}
+
+/** Rolling is the default — see this section's design-decision doc above. */
+export const DEFAULT_PERIOD_SPEC = "30d";
+
+const ROLLING_DAYS_PATTERN = /^([1-9]\d*)d$/;
+const EXPLICIT_CALENDAR_MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MONTH_NAMES = [
+	"January", "February", "March", "April", "May", "June",
+	"July", "August", "September", "October", "November", "December",
+];
+
+function calendarMonthPeriod(year: number, monthIndex: number, spec: string): ResolvedPeriod {
+	return {
+		kind: "calendar-month",
+		startMs: Date.UTC(year, monthIndex, 1),
+		endMs: Date.UTC(year, monthIndex + 1, 1),
+		spec,
+		label: `${MONTH_NAMES[monthIndex]} ${year}`,
+	};
+}
+
+/**
+ * Pure: resolves a `--period` spec string to concrete bounds against a
+ * caller-supplied `nowMs` — never reads the clock itself, so it is testable
+ * against a fixed instant instead of whatever moment the test happens to run
+ * (the CLI wiring below is the only caller that passes a real `Date.now()`).
+ *
+ * Accepts:
+ *   `"<N>d"`    — a rolling N-day window ending at `nowMs` (the default).
+ *   `"month"`   — the calendar month containing `nowMs`, UTC.
+ *   `"YYYY-MM"` — a specific calendar month, independent of `nowMs`.
+ *
+ * Throws a plain `Error` (not `InvalidArgumentError` — that's commander's
+ * vocabulary, wrapped on at the CLI boundary by `parsePeriodOption` below, not
+ * here, so this function stays usable from a plain unit test) on anything else.
+ */
+export function parsePeriodSpec(spec: string, nowMs: number): ResolvedPeriod {
+	const rolling = ROLLING_DAYS_PATTERN.exec(spec);
+	if (rolling) {
+		const days = Number(rolling[1]);
+		return {
+			kind: "rolling-days",
+			startMs: nowMs - days * MS_PER_DAY,
+			endMs: nowMs,
+			spec,
+			label: `last ${days} day${days === 1 ? "" : "s"}`,
+		};
+	}
+	if (spec === "month") {
+		const now = new Date(nowMs);
+		return calendarMonthPeriod(now.getUTCFullYear(), now.getUTCMonth(), spec);
+	}
+	const explicitMonth = EXPLICIT_CALENDAR_MONTH_PATTERN.exec(spec);
+	if (explicitMonth) {
+		const year = Number(explicitMonth[1]);
+		const monthIndex = Number(explicitMonth[2]) - 1;
+		return calendarMonthPeriod(year, monthIndex, spec);
+	}
+	throw new Error(
+		`Unrecognised --period "${spec}". Use "<N>d" for a rolling window (e.g. "30d", the ` +
+			'default), "month" for the current calendar month, or "YYYY-MM" for a specific ' +
+			'calendar month (e.g. "2026-08").',
+	);
+}
+
+/** Commander's option-parser boundary for `--period` — validates eagerly (at
+ *  argument-parsing time, before the action runs) by delegating to
+ *  `parsePeriodSpec` and discarding the result; only the format is checked
+ *  here — the `nowMs` actually used to resolve bounds is read fresh inside the
+ *  action below, a few milliseconds later, which is immaterial at day
+ *  granularity. Wraps the plain `Error` `parsePeriodSpec` throws into
+ *  commander's `InvalidArgumentError`, same pattern `task-support.ts`'s own
+ *  option parsers already use. */
+function parsePeriodOption(value: string): string {
+	try {
+		parsePeriodSpec(value, Date.now());
+	} catch (err) {
+		throw new InvalidArgumentError(err instanceof Error ? err.message : String(err));
+	}
+	return value;
+}
+
+/** One bucket's worth of requests and tokens — same token vocabulary as
+ *  `GroupTokenTotals`, no dollar field: `usageByPeriod` answers "how many
+ *  requests", not "how much did they cost" (that remains `groupObservations`'
+ *  job). */
+export interface PeriodBucket {
+	observations: number;
+	tokens: GroupTokenTotals;
+}
+
+function newPeriodBucket(): PeriodBucket {
+	return { observations: 0, tokens: { input: 0, output: 0, cacheCreation: 0, cacheRead: 0, reasoning: 0 } };
+}
+
+function absorbIntoPeriodBucket(bucket: PeriodBucket, node: ObservationNode): void {
+	bucket.observations += 1;
+	bucket.tokens.input += numericField(node, "gen_ai.usage.input_tokens");
+	bucket.tokens.output += numericField(node, "gen_ai.usage.output_tokens");
+	bucket.tokens.cacheCreation += numericField(node, "gen_ai.usage.cache_creation.input_tokens");
+	bucket.tokens.cacheRead += numericField(node, "gen_ai.usage.cache_read.input_tokens");
+	bucket.tokens.reasoning += numericField(node, "gen_ai.usage.reasoning.output_tokens");
+}
+
+/** `timestamp_ns` (nanoseconds since epoch, per `now_ns()` in the WASM guest)
+ *  converted to milliseconds — the domain `ResolvedPeriod` bounds live in.
+ *  Deliberately its OWN small function, not shared with `currentRateTableFrom`
+ *  above: that function is Task 1 territory under active review right now, and
+ *  this task must not restructure anything it touches (this task's own brief) —
+ *  a few duplicated lines here is the cheaper, zero-collision choice over
+ *  extracting a shared helper mid-review. Returns `undefined` for anything that
+ *  is not a finite number once coerced — a missing field, a non-numeric string,
+ *  `NaN`, `Infinity` — so the caller can tell "no usable timestamp" apart from
+ *  a real one, rather than defaulting to 0 (1970) or to "now" (which would
+ *  silently place an unreadable record in the CURRENT period — exactly what
+ *  this task's three-states requirement forbids). */
+function parseObservationTimestampMs(node: ObservationNode): number | undefined {
+	const raw = node.timestamp_ns;
+	const ns = typeof raw === "number" ? raw : Number(raw);
+	if (!Number.isFinite(ns)) return undefined;
+	return ns / 1_000_000;
+}
+
+export interface UsageByPeriod {
+	/** Echoes back exactly which window was queried, so a `--json` reader never
+	 *  has to re-derive "what did 30d mean today" from a timestamp comparison
+	 *  of its own. */
+	period: ResolvedPeriod;
+	/** `nodes.length` — every member read, regardless of which bucket it landed
+	 *  in. Same total-equals-the-sum-of-every-bucket discipline as
+	 *  `GroupedObservations.total`. */
+	total: number;
+	/** Records whose `timestamp_ns` falls inside `[period.startMs, period.endMs)`. */
+	inPeriod: PeriodBucket;
+	/** Records with a real, parseable timestamp OUTSIDE the queried window —
+	 *  distinct from `inPeriod` and from `unknownTimestamp`: this usage
+	 *  genuinely happened, just not during the period being asked about. */
+	outOfPeriod: PeriodBucket;
+	/** THREE STATES, NEVER TWO: records with no `timestamp_ns` at all, or one
+	 *  that cannot be parsed as a finite number. This bucket exists so such a
+	 *  record is neither silently dropped from the count nor silently folded
+	 *  into `inPeriod` just because it could not be proven to belong outside
+	 *  it — the exact failure mode this line of work keeps re-finding: a
+	 *  missing/unparseable member treated as though the set were complete
+	 *  without it, or worse, defaulted into the very bucket a reader is most
+	 *  likely to act on. */
+	unknownTimestamp: PeriodBucket;
+}
+
+/**
+ * Pure: buckets the same record `groupObservations` reads into three states —
+ * never two — against a caller-supplied, already-resolved `period`. Answers
+ * "how many requests, and how many tokens, did I use in this window" — the
+ * subscription request-quota axis, not the dollar axis.
+ */
+export function usageByPeriod(
+	nodes: readonly ObservationNode[],
+	options: { period: ResolvedPeriod },
+): UsageByPeriod {
+	const { period } = options;
+	const inPeriod = newPeriodBucket();
+	const outOfPeriod = newPeriodBucket();
+	const unknownTimestamp = newPeriodBucket();
+
+	for (const node of nodes) {
+		const tsMs = parseObservationTimestampMs(node);
+		if (tsMs === undefined) {
+			absorbIntoPeriodBucket(unknownTimestamp, node);
+			continue;
+		}
+		if (tsMs >= period.startMs && tsMs < period.endMs) {
+			absorbIntoPeriodBucket(inPeriod, node);
+		} else {
+			absorbIntoPeriodBucket(outOfPeriod, node);
+		}
+	}
+
+	return { period, total: nodes.length, inPeriod, outOfPeriod, unknownTimestamp };
+}
+
+/**
+ * What a `usage` reading can NEVER answer, regardless of which period was
+ * asked for — printed UNCONDITIONALLY (not only when something looks wrong),
+ * in both JSON and human output. No `BudgetObservation` field names the
+ * operator's actual billing anchor date (the rolling-vs-calendar choice above
+ * approximates it, it does not read it), and none names his plan's quota
+ * ceiling — that number lives with the subscription vendor, not on this
+ * record. A command that prints a usage count next to no denominator invites
+ * the reader to assume one exists; this says outright that it does not, rather
+ * than let the gap be read as "that's the whole limit" by silence.
+ */
+export const USAGE_CANNOT_ANSWER =
+	"This counts requests and tokens in the window; it cannot say how many requests remain. " +
+	"No BudgetObservation field records the operator's actual billing anchor date (the period " +
+	"above approximates it, it does not read it) or the plan's quota size — refarm does not " +
+	"know either today.";
+
+/** Same discipline as `observationsNextAction`/`groupedNextAction`: informational, not
+ *  always a literal command. Names whichever of the two facts is actionable — an empty
+ *  in-period bucket the reader might otherwise mistake for "nothing has been read", or an
+ *  unknown-timestamp bucket the reader might otherwise not notice was excluded. */
+function usageNextAction(usage: UsageByPeriod): string | null {
+	if (usage.total === 0) return NO_OBSERVATIONS_MESSAGE;
+	const notes: string[] = [];
+	if (usage.inPeriod.observations === 0) {
+		notes.push(`No observations fall inside ${usage.period.label} (--period ${usage.period.spec}).`);
+	}
+	if (usage.unknownTimestamp.observations > 0) {
+		notes.push(
+			`${usage.unknownTimestamp.observations} of ${usage.total} observation(s) have no usable ` +
+				"timestamp_ns and are excluded from both in- and out-of-period counts — see " +
+				`${BUDGET_OBSERVATIONS_JSON_COMMAND} for the individual records.`,
+		);
+	}
+	return notes.length > 0 ? notes.join(" ") : null;
+}
+
+/** Exported for `budget.test.ts` — drives the report with a literal `UsageByPeriod`, no
+ *  network, same pattern as `printGroupedObservationsHuman`. */
+export function printUsageByPeriodHuman(usage: UsageByPeriod): void {
+	console.log(chalk.bold(`\n  Budget usage — ${usage.period.label}  (--period ${usage.period.spec})\n`));
+	const printBucket = (label: string, bucket: PeriodBucket): void => {
+		console.log(
+			`  ${label.padEnd(16)} obs:${String(bucket.observations).padEnd(5)} ` +
+				`in:${String(bucket.tokens.input).padEnd(8)} out:${String(bucket.tokens.output).padEnd(8)}`,
+		);
+	};
+	if (usage.total === 0) {
+		console.log(chalk.dim(`  ${usageNextAction(usage) ?? ""}`));
+	} else {
+		printBucket("in period", usage.inPeriod);
+		printBucket("out of period", usage.outOfPeriod);
+		printBucket("no timestamp", usage.unknownTimestamp);
+		const note = usageNextAction(usage);
+		if (note) console.log(chalk.dim(`\n  ${note}`));
+	}
+	// Printed unconditionally, empty record or not — see USAGE_CANNOT_ANSWER's doc for why
+	// this must never depend on whether anything else looked wrong first.
+	console.log(chalk.yellow(`\n  ⚠  ${USAGE_CANNOT_ANSWER}\n`));
+	console.log(chalk.dim(`  ${BUDGET_OBSERVATIONS_JSON_COMMAND}\n`));
+}
+
 interface BudgetObservationsCommandOptions {
 	limit: number;
 	currentRateTable?: string;
@@ -862,6 +1166,85 @@ export function createBudgetCommand(): Command {
 			"  honestly inapplicable there, not honestly zero.",
 			"  Records with no value for the grouping key land in their own (unattributed) bucket —",
 			"  never folded into a group total and never dropped from the count.",
+		].join("\n"),
+	);
+
+	command
+		.command("usage")
+		.description(
+			"Bucket BudgetObservation nodes into a request-per-period window — the subscription " +
+				"quota axis, not the dollar axis",
+		)
+		.option("-n, --limit <n>", "Max observations to read", parseLimitOption, DEFAULT_LIMIT)
+		.option(
+			"--period <spec>",
+			`Period to bucket by: "<N>d" for a rolling N-day window ending now (default ` +
+				`"${DEFAULT_PERIOD_SPEC}"), "month" for the current UTC calendar month, or "YYYY-MM" ` +
+				"for a specific calendar month",
+			parsePeriodOption,
+			DEFAULT_PERIOD_SPEC,
+		)
+		.option("--json", "Output machine-readable JSON")
+		.action(async (options: { limit: number; period: string; json?: boolean }) => {
+			let page: BudgetObservationsPage;
+			try {
+				page = await fetchBudgetObservations(options.limit);
+			} catch (err) {
+				reportSidecarError(err, { json: options.json, command: "budget", operation: "usage" });
+				return;
+			}
+			// Resolved against a real Date.now() here, at action time — parsePeriodOption above
+			// already validated the spec's FORMAT at argument-parsing time, a few milliseconds
+			// earlier; re-resolving here is immaterial at day granularity and keeps the bounds
+			// exactly what "now" meant when the read actually happened.
+			const period = parsePeriodSpec(options.period, Date.now());
+			const usage = usageByPeriod(page.observations, { period });
+			const nextAction = usageNextAction(usage);
+			if (options.json) {
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "budget",
+						operation: "usage",
+						extra: {
+							usage,
+							// Stated unconditionally on every response, JSON included — see
+							// USAGE_CANNOT_ANSWER's doc for why a usage count must never travel
+							// without this caveat riding next to it.
+							cannotAnswer: USAGE_CANNOT_ANSWER,
+							stored: page.stored,
+							truncated: page.truncated,
+						},
+						nextAction,
+						nextCommand:
+							usage.unknownTimestamp.observations > 0 ? BUDGET_OBSERVATIONS_JSON_COMMAND : undefined,
+					}),
+				);
+				return;
+			}
+			printUsageByPeriodHuman(usage);
+		});
+
+	command.addHelpText(
+		"after",
+		[
+			"",
+			"Examples:",
+			`  $ refarm budget usage --json                    (default: ${DEFAULT_PERIOD_SPEC}, rolling)`,
+			"  $ refarm budget usage --period 1d --json         (rolling 1-day window)",
+			"  $ refarm budget usage --period month --json      (current calendar month, UTC)",
+			"  $ refarm budget usage --period 2026-08 --json    (a specific calendar month)",
+			"",
+			"Notes:",
+			"  Requests refill on a billing DATE, which no BudgetObservation field records — so the",
+			"  default here is a rolling window (usage in the last N days), not a calendar month: a",
+			"  calendar month silently assumes the billing anchor is the 1st, which is true for",
+			"  almost no subscription. --period month/YYYY-MM remains available for a reader who DOES",
+			"  bill on the calendar boundary.",
+			"  Every response also states plainly what it cannot answer: a usage count, never a",
+			"  remaining-quota figure — this record has no field for the operator's billing anchor",
+			"  date or his plan's quota size.",
+			"  A record with no timestamp_ns, or an unparseable one, lands in its own bucket —",
+			"  neither dropped from the count nor silently placed in the current period.",
 		].join("\n"),
 	);
 

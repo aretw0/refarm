@@ -2,11 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	budgetObservationsPageFromBody,
 	currentRateTableFrom,
+	DEFAULT_PERIOD_SPEC,
 	groupObservations,
 	outcomeMark,
+	parsePeriodSpec,
 	printGroupedObservationsHuman,
 	printObservationsHuman,
+	printUsageByPeriodHuman,
 	summariseObservations,
+	USAGE_CANNOT_ANSWER,
+	usageByPeriod,
 } from "./budget.js";
 
 describe("summariseObservations", () => {
@@ -487,6 +492,224 @@ describe("budgetObservationsPageFromBody — absent means absent", () => {
 		});
 		expect(page.stored).toBeUndefined();
 		expect(page.truncated).toBeUndefined();
+	});
+});
+
+describe("parsePeriodSpec — the design decision: rolling window is the default, calendar month is reachable", () => {
+	// "Now" pinned to a literal instant — 2026-08-08T12:00:00Z, computed once by hand
+	// (Date.UTC(2026,7,8,12)) — never Date.now(). Every expectation below is computed from
+	// THIS fixed number, not from whenever the test happens to run, so it cannot rot.
+	const NOW_MS = 1786190400000; // 2026-08-08T12:00:00Z
+
+	it("DEFAULT_PERIOD_SPEC is a 30-day rolling window, not a calendar month", () => {
+		// The design decision itself, pinned: the default answer to "what have I used
+		// this period" is a rolling window — see the file's own doc for why (the
+		// operator's real billing anchor date is not on the record, and a calendar
+		// month silently assumes that anchor is the 1st, which is true for almost
+		// nobody).
+		expect(DEFAULT_PERIOD_SPEC).toBe("30d");
+	});
+
+	it("resolves a rolling '30d' window ending exactly at the given instant", () => {
+		const period = parsePeriodSpec("30d", NOW_MS);
+		expect(period.kind).toBe("rolling-days");
+		expect(period.endMs).toBe(NOW_MS);
+		expect(period.startMs).toBe(NOW_MS - 30 * 86_400_000);
+		expect(period.spec).toBe("30d");
+	});
+
+	it("resolves a rolling '1d' window — the narrow window the empty-result live case uses", () => {
+		const period = parsePeriodSpec("1d", NOW_MS);
+		expect(period.kind).toBe("rolling-days");
+		expect(period.endMs).toBe(NOW_MS);
+		expect(period.startMs).toBe(NOW_MS - 1 * 86_400_000);
+	});
+
+	it("resolves 'month' to the current UTC calendar month, half-open [1st, next 1st)", () => {
+		const period = parsePeriodSpec("month", NOW_MS); // NOW_MS falls in August 2026
+		expect(period.kind).toBe("calendar-month");
+		expect(period.startMs).toBe(1785542400000); // 2026-08-01T00:00:00Z
+		expect(period.endMs).toBe(1788220800000); // 2026-09-01T00:00:00Z
+	});
+
+	it("resolves an explicit 'YYYY-MM' to that calendar month regardless of 'now' — the reachable alternate", () => {
+		const period = parsePeriodSpec("2026-01", NOW_MS); // now is August; asking about January
+		expect(period.kind).toBe("calendar-month");
+		expect(period.startMs).toBe(1767225600000); // 2026-01-01T00:00:00Z
+		expect(period.endMs).toBe(1769904000000); // 2026-02-01T00:00:00Z
+	});
+
+	it("rejects a spec that is none of '<N>d', 'month', or 'YYYY-MM'", () => {
+		expect(() => parsePeriodSpec("thisweek", NOW_MS)).toThrow();
+		expect(() => parsePeriodSpec("30", NOW_MS)).toThrow();
+		expect(() => parsePeriodSpec("0d", NOW_MS)).toThrow();
+		expect(() => parsePeriodSpec("-5d", NOW_MS)).toThrow();
+		expect(() => parsePeriodSpec("2026-13", NOW_MS)).toThrow();
+	});
+});
+
+describe("usageByPeriod — three states, never two: in period / out of period / no usable timestamp", () => {
+	// A literal half-open window: 2026-08-04T00:00:00Z through 2026-08-06T00:00:00Z
+	// (exclusive). Computed once by hand (Date.UTC), never from Date.now().
+	const WINDOW = {
+		kind: "rolling-days" as const,
+		startMs: 1785801600000, // 2026-08-04T00:00:00Z
+		endMs: 1785974400000, // 2026-08-06T00:00:00Z (exclusive)
+		spec: "test-window",
+		label: "test window",
+	};
+
+	it("buckets a record inside the window into inPeriod", () => {
+		const usage = usageByPeriod([{ timestamp_ns: 1785888000000000000 }], { period: WINDOW }); // 08-05T00:00Z
+		expect(usage.inPeriod.observations).toBe(1);
+		expect(usage.outOfPeriod.observations).toBe(0);
+		expect(usage.unknownTimestamp.observations).toBe(0);
+	});
+
+	it("includes the exact start instant (inclusive start) but excludes the exact end instant (exclusive end)", () => {
+		const usage = usageByPeriod(
+			[
+				{ timestamp_ns: 1785801600000000000 }, // exactly startMs — IN
+				{ timestamp_ns: 1785974400000000000 }, // exactly endMs — OUT (next window's first instant)
+			],
+			{ period: WINDOW },
+		);
+		expect(usage.inPeriod.observations).toBe(1);
+		expect(usage.outOfPeriod.observations).toBe(1);
+	});
+
+	it("buckets a record before the window into outOfPeriod, not dropped", () => {
+		const usage = usageByPeriod([{ timestamp_ns: 1785758400000000000 }], { period: WINDOW }); // 08-03T12:00Z
+		expect(usage.outOfPeriod.observations).toBe(1);
+		expect(usage.inPeriod.observations).toBe(0);
+	});
+
+	it("buckets a record after the window into outOfPeriod, not dropped", () => {
+		const usage = usageByPeriod([{ timestamp_ns: 1786060800000000000 }], { period: WINDOW }); // 08-07T00:00Z
+		expect(usage.outOfPeriod.observations).toBe(1);
+	});
+
+	// ── The three-states discipline this task exists to enforce ───────────────────
+
+	it("puts a record with no timestamp_ns at all into unknownTimestamp — not dropped, not counted as this period", () => {
+		const usage = usageByPeriod([{}], { period: WINDOW });
+		expect(usage.unknownTimestamp.observations).toBe(1);
+		expect(usage.inPeriod.observations).toBe(0);
+		expect(usage.outOfPeriod.observations).toBe(0);
+		expect(usage.total).toBe(1);
+	});
+
+	it("puts a record with an unparseable timestamp_ns into unknownTimestamp, same as a missing one", () => {
+		const usage = usageByPeriod([{ timestamp_ns: "not-a-number" }], { period: WINDOW });
+		expect(usage.unknownTimestamp.observations).toBe(1);
+		expect(usage.inPeriod.observations).toBe(0);
+	});
+
+	it("every bucket's observation count sums to total — no member is double-counted or silently lost", () => {
+		const usage = usageByPeriod(
+			[
+				{ timestamp_ns: 1785888000000000000 }, // inside
+				{ timestamp_ns: 1785758400000000000 }, // before
+				{}, // no timestamp
+			],
+			{ period: WINDOW },
+		);
+		expect(usage.total).toBe(3);
+		const bucketSum =
+			usage.inPeriod.observations + usage.outOfPeriod.observations + usage.unknownTimestamp.observations;
+		expect(bucketSum).toBe(usage.total);
+	});
+
+	it("sums tokens per bucket independently — an out-of-period record's tokens never bleed into inPeriod", () => {
+		const usage = usageByPeriod(
+			[
+				{
+					timestamp_ns: 1785888000000000000, // inside
+					"gen_ai.usage.input_tokens": 10,
+					"gen_ai.usage.output_tokens": 20,
+				},
+				{
+					timestamp_ns: 1785758400000000000, // before — out of period
+					"gen_ai.usage.input_tokens": 100,
+					"gen_ai.usage.output_tokens": 200,
+				},
+			],
+			{ period: WINDOW },
+		);
+		expect(usage.inPeriod.tokens.input).toBe(10);
+		expect(usage.inPeriod.tokens.output).toBe(20);
+		expect(usage.outOfPeriod.tokens.input).toBe(100);
+		expect(usage.outOfPeriod.tokens.output).toBe(200);
+	});
+
+	it("reports zero everywhere on an empty record, without throwing", () => {
+		const usage = usageByPeriod([], { period: WINDOW });
+		expect(usage.total).toBe(0);
+		expect(usage.inPeriod.observations).toBe(0);
+		expect(usage.outOfPeriod.observations).toBe(0);
+		expect(usage.unknownTimestamp.observations).toBe(0);
+	});
+
+	// ── The exact scenario Step 4's live verification proves against the real graph ──
+
+	it("mirrors the live record: a 30-day rolling window (as of 2026-08-08) holds all of a 08/03-08/05 batch; a 1-day window holds none of it", () => {
+		const NOW_MS = 1786190400000; // 2026-08-08T12:00:00Z, pinned literal — not Date.now()
+		const liveLikeNodes = [
+			{ timestamp_ns: 1785792060000000000 }, // 2026-08-03T21:21:00Z
+			{ timestamp_ns: 1785837600000000000 }, // 2026-08-04T10:00:00Z
+			{ timestamp_ns: 1785950940000000000 }, // 2026-08-05T17:29:00Z
+		];
+
+		const period30 = parsePeriodSpec("30d", NOW_MS);
+		const usage30 = usageByPeriod(liveLikeNodes, { period: period30 });
+		expect(usage30.inPeriod.observations).toBe(liveLikeNodes.length);
+		expect(usage30.outOfPeriod.observations).toBe(0);
+
+		const period1 = parsePeriodSpec("1d", NOW_MS);
+		const usage1 = usageByPeriod(liveLikeNodes, { period: period1 });
+		expect(usage1.inPeriod.observations).toBe(0);
+		expect(usage1.outOfPeriod.observations).toBe(liveLikeNodes.length);
+	});
+});
+
+describe("printUsageByPeriodHuman — states what it cannot answer, unconditionally", () => {
+	let stdout: string[];
+
+	beforeEach(() => {
+		stdout = [];
+		vi.spyOn(console, "log").mockImplementation((...args) => void stdout.push(args.join(" ")));
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("always prints the cannot-answer note, even on an empty record", () => {
+		const usage = usageByPeriod([], {
+			period: { kind: "rolling-days", startMs: 0, endMs: 1, spec: "30d", label: "last 30 days" },
+		});
+		printUsageByPeriodHuman(usage);
+		const text = stdout.join("\n");
+		expect(text).toContain(USAGE_CANNOT_ANSWER);
+	});
+
+	it("prints all three bucket labels on a non-empty record", () => {
+		const usage = usageByPeriod([{ timestamp_ns: 500 }, {}], {
+			period: { kind: "rolling-days", startMs: 0, endMs: 1000, spec: "30d", label: "last 30 days" },
+		});
+		printUsageByPeriodHuman(usage);
+		const text = stdout.join("\n").toLowerCase();
+		expect(text).toContain("in period");
+		expect(text).toContain("out of period");
+		expect(text).toContain("no timestamp");
+	});
+
+	it("still prints the cannot-answer note when the record is non-empty — not only on the empty path", () => {
+		const usage = usageByPeriod([{ timestamp_ns: 500 }], {
+			period: { kind: "rolling-days", startMs: 0, endMs: 1000, spec: "30d", label: "last 30 days" },
+		});
+		printUsageByPeriodHuman(usage);
+		expect(stdout.join("\n")).toContain(USAGE_CANNOT_ANSWER);
 	});
 });
 
