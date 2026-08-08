@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	budgetObservationsPageFromBody,
 	currentRateTableFrom,
+	groupObservations,
 	outcomeMark,
+	printGroupedObservationsHuman,
 	printObservationsHuman,
 	summariseObservations,
 } from "./budget.js";
@@ -176,6 +178,217 @@ describe("currentRateTableFrom", () => {
 		expect(currentRateTableFrom([])).toBeUndefined();
 		expect(currentRateTableFrom([{ "refarm.cost.rate_table_version": "2026-08-03.1" }])).toBeUndefined();
 		expect(currentRateTableFrom([{ timestamp_ns: 100 }])).toBeUndefined();
+	});
+});
+
+describe("groupObservations", () => {
+	// ── The unattributed bucket is a row, never a dilution ────────────────────
+
+	it("keeps unattributed records in their own bucket, never folded into a workspace total", () => {
+		const grouped = groupObservations(
+			[
+				{ "refarm.workspace.id": "refarm" },
+				{ "refarm.workspace.id": "refarm" },
+				{ "refarm.workspace.id": "rcdc5" },
+				{}, // no refarm.workspace.id
+				{}, // no refarm.workspace.id
+			],
+			{ by: "workspace" },
+		);
+		expect(grouped.total).toBe(5);
+		expect(grouped.groups).toHaveLength(2);
+		const byKey = Object.fromEntries(grouped.groups.map((g) => [g.key, g.observations]));
+		expect(byKey).toEqual({ refarm: 2, rcdc5: 1 });
+		expect(grouped.unattributed.observations).toBe(2);
+		// The bug this test exists to catch: summing the two GROUPS alone must never be
+		// read as "the total" record count — 3 attributed + 2 unattributed is 5, not 3.
+		const groupTotal = grouped.groups.reduce((sum, g) => sum + g.observations, 0);
+		expect(groupTotal).toBe(3);
+		expect(groupTotal).not.toBe(grouped.total);
+	});
+
+	it("reports a zero unattributed bucket (still present, not omitted) when every record is attributed", () => {
+		const grouped = groupObservations([{ "refarm.workspace.id": "refarm" }], { by: "workspace" });
+		expect(grouped.unattributed.observations).toBe(0);
+	});
+
+	// ── The subscription axis — null, not 0 ───────────────────────────────────
+
+	it("reports usd: null, not 0, when every member of a group is subscription-priced", () => {
+		const grouped = groupObservations(
+			[
+				{
+					"refarm.workspace.id": "refarm",
+					"refarm.pricing_mode": "subscription",
+					"refarm.cost.estimated_usd": 0,
+				},
+				{
+					"refarm.workspace.id": "refarm",
+					"refarm.pricing_mode": "subscription",
+					"refarm.cost.estimated_usd": 0,
+				},
+			],
+			{ by: "workspace" },
+		);
+		const group = grouped.groups[0]!;
+		expect(group.usd).toBeNull();
+		expect(group.subscriptionMembers).toBe(2);
+	});
+
+	it("sums only the metered members of a mixed group and reports how many were excluded", () => {
+		const grouped = groupObservations(
+			[
+				{
+					"refarm.workspace.id": "rcdc5",
+					"refarm.pricing_mode": "subscription",
+					"refarm.cost.estimated_usd": 0,
+				},
+				{
+					"refarm.workspace.id": "rcdc5",
+					"refarm.pricing_mode": "subscription",
+					"refarm.cost.estimated_usd": 0,
+				},
+				{ "refarm.workspace.id": "rcdc5", "refarm.pricing_mode": "api", "refarm.cost.estimated_usd": 1.25 },
+			],
+			{ by: "workspace" },
+		);
+		const group = grouped.groups[0]!;
+		expect(group.usd).toBe(1.25);
+		expect(group.subscriptionMembers).toBe(2);
+	});
+
+	it("excludes a priced-but-unknown member from usd and counts it apart from subscription (extends summariseObservations' vocabulary)", () => {
+		// price_known: false is F5's "no rate on file" — distinct from a subscription
+		// member, which is honestly zero rather than unpriced. Conflating the two would
+		// undercount BOTH the operator's real spend and the record's own honesty.
+		const grouped = groupObservations(
+			[
+				{
+					"refarm.workspace.id": "rcdc5",
+					"refarm.pricing_mode": "api",
+					"refarm.cost.estimated_usd": 2,
+					"refarm.cost.price_known": true,
+				},
+				{ "refarm.workspace.id": "rcdc5", "refarm.pricing_mode": "api", "refarm.cost.price_known": false },
+			],
+			{ by: "workspace" },
+		);
+		const group = grouped.groups[0]!;
+		expect(group.usd).toBe(2);
+		expect(group.priceUnknown).toBe(1);
+		expect(group.subscriptionMembers).toBe(0);
+	});
+
+	// ── Token totals — the primary quantity ───────────────────────────────────
+
+	it("sums token totals — input, output, cache_creation, cache_read, reasoning — across a group", () => {
+		const grouped = groupObservations(
+			[
+				{
+					"refarm.workspace.id": "refarm",
+					"gen_ai.usage.input_tokens": 10,
+					"gen_ai.usage.output_tokens": 20,
+					"gen_ai.usage.cache_creation.input_tokens": 3,
+					"gen_ai.usage.cache_read.input_tokens": 4,
+					"gen_ai.usage.reasoning.output_tokens": 5,
+				},
+				{
+					"refarm.workspace.id": "refarm",
+					"gen_ai.usage.input_tokens": 1,
+					"gen_ai.usage.output_tokens": 2,
+				},
+			],
+			{ by: "workspace" },
+		);
+		expect(grouped.groups[0]!.tokens).toEqual({
+			input: 11,
+			output: 22,
+			cacheCreation: 3,
+			cacheRead: 4,
+			reasoning: 5,
+		});
+	});
+
+	// ── by: host / spawner ─────────────────────────────────────────────────────
+
+	it("groups by host.id, not host.name, so two nodes sharing a declared name stay two rows", () => {
+		const grouped = groupObservations(
+			[
+				{ "host.id": "node-a", "host.name": "sede" },
+				{ "host.id": "node-b", "host.name": "sede" },
+			],
+			{ by: "host" },
+		);
+		expect(grouped.groups).toHaveLength(2);
+		expect(grouped.groups.map((g) => g.key).sort()).toEqual(["node-a", "node-b"]);
+		expect(grouped.groups.every((g) => g.label === "sede")).toBe(true);
+	});
+
+	it("groups by refarm.budget.spawner", () => {
+		const grouped = groupObservations(
+			[
+				{ "refarm.budget.spawner": "refarm-ask" },
+				{ "refarm.budget.spawner": "refarm-ask" },
+				{ "refarm.budget.spawner": "capability-dispatch" },
+			],
+			{ by: "spawner" },
+		);
+		expect(grouped.groups.map((g) => ({ key: g.key, observations: g.observations }))).toEqual([
+			{ key: "refarm-ask", observations: 2 },
+			{ key: "capability-dispatch", observations: 1 },
+		]);
+	});
+
+	it("sorts groups by observation count descending, ties broken by key ascending", () => {
+		const grouped = groupObservations(
+			[{ "refarm.workspace.id": "b" }, { "refarm.workspace.id": "a" }],
+			{ by: "workspace" },
+		);
+		expect(grouped.groups.map((g) => g.key)).toEqual(["a", "b"]);
+	});
+
+	it("reports zero groups and a null-usd, zero unattributed bucket on an empty record, never throwing", () => {
+		const grouped = groupObservations([], { by: "workspace" });
+		expect(grouped.total).toBe(0);
+		expect(grouped.groups).toEqual([]);
+		expect(grouped.unattributed).toEqual({
+			observations: 0,
+			tokens: { input: 0, output: 0, cacheCreation: 0, cacheRead: 0, reasoning: 0 },
+			usd: null,
+			subscriptionMembers: 0,
+			priceUnknown: 0,
+		});
+	});
+});
+
+describe("printGroupedObservationsHuman — the subscription axis renders as —, never $0.00", () => {
+	let stdout: string[];
+
+	beforeEach(() => {
+		stdout = [];
+		vi.spyOn(console, "log").mockImplementation((...args) => void stdout.push(args.join(" ")));
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("prints — for a group whose members are all subscription-priced, never $0.00", () => {
+		const grouped = groupObservations(
+			[{ "refarm.workspace.id": "refarm", "refarm.pricing_mode": "subscription" }],
+			{ by: "workspace" },
+		);
+		printGroupedObservationsHuman(grouped);
+		const text = stdout.join("\n");
+		expect(text).toContain("—");
+		expect(text).not.toContain("$0.00");
+	});
+
+	it("always prints the (unattributed) row, even when its count is zero", () => {
+		const grouped = groupObservations([{ "refarm.workspace.id": "refarm" }], { by: "workspace" });
+		printGroupedObservationsHuman(grouped);
+		const text = stdout.join("\n");
+		expect(text).toContain("(unattributed)");
 	});
 });
 
