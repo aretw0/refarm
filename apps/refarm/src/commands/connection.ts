@@ -22,7 +22,7 @@ import {
 	runProcessHandoff,
 	type ProcessHandoffRunResult,
 } from "@refarm.dev/cli/process-handoff";
-import { loadConfig } from "@refarm.dev/config";
+import { declaredBase, loadConfig } from "@refarm.dev/config";
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -491,12 +491,21 @@ function operatorStateColor(status: string): (text: string) => string {
  * load `.refarm/config.json`, or `name` simply not being present in it, must never block
  * the `up` attempt itself — it falls back to `DEFAULT_READY_TIMEOUT_MS` (the same default
  * the Rust parser and this CLI's own catalog reader already use when a declaration omits
- * the field) plus the same headroom, so an operator running from a checkout with no local
- * catalog, or a stale one, still gets a timeout generous enough for a REAL establish.
+ * the field) plus the same headroom, so an operator invoking `up` from ANY directory — not
+ * just a checkout with a local catalog — still gets a timeout generous enough for a REAL
+ * establish.
+ *
+ * The catalog itself is read from `declaredBase()` (the node's declared base — same
+ * resolution `printConnectionStatus` uses below, and the same one `workspace.ts` already
+ * uses for its own declared-command catalog), NOT `process.cwd()`: this reads the SAME
+ * `connections` block `status` reports on, and a connection is a node-level fact, not a
+ * per-directory one — sizing `up`'s timeout off a DIFFERENT catalog than `status` just
+ * reported from would be its own, quieter version of the directory-dependence defect this
+ * file exists to fix.
  */
 function resolveConnectionUpTimeoutMs(name: string, deps: ConnectionCommandDeps | undefined): number {
 	try {
-		const baseDir = deps?.cwd?.() ?? process.cwd();
+		const baseDir = deps?.cwd?.() ?? declaredBase();
 		const config = (deps?.loadConfig ?? loadConfig)(baseDir) as Record<string, unknown>;
 		const { connections } = readConnectionCatalog(config);
 		const declared = connections.find((connection) => connection.name === name);
@@ -812,6 +821,14 @@ export interface ConnectionStatusCommandOptions {
 }
 
 export interface ConnectionCommandDeps {
+	/** Test seam ONLY — overrides the base directory `loadConfig` reads the declared
+	 * `connections` catalog from. The non-injected default is `declaredBase()`
+	 * (`@refarm.dev/config`), never `process.cwd()`: the catalog is a NODE-level
+	 * declaration, like the workspace catalog `workspace.ts` reads the same way, so the
+	 * operator's declared connections must answer identically regardless of which
+	 * directory `refarm connection status`/`up` happens to be invoked from. A real caller
+	 * has no reason to pass this — it exists so a test can point at a fixture directory
+	 * without touching `process.cwd()` or the operator's real declared base. */
 	cwd?: () => string;
 	loadConfig?: (root?: string) => Record<string, unknown>;
 	runProbe?: (connection: DeclaredConnection) => Promise<ProbeResult>;
@@ -827,7 +844,11 @@ async function printConnectionStatus(
 	options: ConnectionStatusCommandOptions,
 	deps: ConnectionCommandDeps | undefined,
 ): Promise<void> {
-	const baseDir = deps?.cwd?.() ?? process.cwd();
+	// The declared `connections` catalog is a NODE-level fact (like the workspace catalog
+	// `workspace.ts` reads via the same `declaredBase()`), not a per-directory one — see
+	// `ConnectionCommandDeps.cwd`'s doc for why `process.cwd()` must never be the fallback
+	// here.
+	const baseDir = deps?.cwd?.() ?? declaredBase();
 	let config: Record<string, unknown>;
 	try {
 		config = (deps?.loadConfig ?? loadConfig)(baseDir) as Record<string, unknown>;
