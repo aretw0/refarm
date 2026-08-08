@@ -1,5 +1,57 @@
 # No resolver defaults to the OS
 
+## Two instruments, and why one is not enough
+
+This repo runs **two** instruments against the same underlying failure — a
+resolver silently reading the OS instead of a declaration. They are not
+redundant, and conflating them cost a full plan restart mid-project (see the
+worked example below).
+
+- **`scripts/no-os-resolution.mjs`, most of this file, counts by CODE SHAPE.**
+  It scans source text for two textual shapes (`= process.cwd()`, `??
+  homedir()`, detailed below) and holds a ceiling so a **new** occurrence of
+  either shape fails CI. It is fast, dependency-free, and complete by
+  construction — a whitelist, not a blacklist, so a third resolving module is
+  caught automatically. But it has **no opinion on whether a matched site is a
+  bug**. Most matched sites are not: they are commands like `release`, `cert`,
+  or `scan` that correctly want wherever the operator is standing right now.
+- **`scripts/directory-independence.mjs`, the probe, measures by
+  CONSEQUENCE.** It runs real, read-only `--json` commands from several real
+  directories and diffs the parsed answers. It has no idea what shape of code
+  produced a divergence — it only knows whether the operator got a different,
+  undeclared answer depending on where he happened to stand. See "The
+  consequence instrument" near the end of this file for what it covers, its
+  current table, and why it lives in this file rather than its own document.
+
+**The worked example this repo now carries — the ratchet is not a map of what
+hurts.** The first version of `docs/superpowers/plans/2026-08-07-who-owns-this-work.md`
+selected its work by shape: it took ten sites out of this ratchet's own scan
+whose filenames sounded like attribution and treated that list as the fix
+target. An audit — that plan's own Task 1, written as a stop gate for exactly
+this possibility — proved:
+
+- `refarm.workspace.id` is decided by `resolveDispatchWorkspace`
+  (`apps/refarm/src/commands/ask.ts:820`), which was not one of the ten, and
+  whose `process.cwd()` there is deliberate and documented — the interactive
+  entry point is the one place a human's current directory should count.
+- `host.name` is decided in Rust (`packages/tractor/src/node_identity.rs:174`),
+  not TypeScript at all — outside this ratchet's scan scope by construction
+  (see "Scope is `apps/*/src` and `packages/*/src` only" below).
+- The live defect — the operator's own VPN connection disappearing depending
+  on which directory he ran `refarm connection status` from — was in
+  `apps/refarm/src/commands/connection.ts:830`, a file that was not on the
+  shape-selected list at all.
+- **Eight of the original ten sites were correct code.** Converting them would
+  have been churn on working behaviour, motivated by nothing but a filename
+  that sounded relevant.
+
+The plan was re-aimed before any of the eight were touched. Its second version
+built the probe described near the end of this file, which found the real
+defect (`connection.ts`) on its first run and flagged none of the eight. A
+scan by shape is a count of a pattern; most instances of a pattern are not a
+problem, and only running the thing and comparing answers tells you which
+ones are.
+
 ## The rule
 
 A function that resolves "where does this node's state live" must take that
@@ -87,10 +139,14 @@ see the CLI report without opening a test runner:
 
 ```bash
 node scripts/no-os-resolution.mjs
-# no-os-resolution: 119 offending site(s) across 918 scanned file(s) (default=61, fallback=58)
-#   ceiling: 119
+# no-os-resolution: 117 offending site(s) across 921 scanned file(s) (default=61, fallback=56)
+#   ceiling: 117
 #   delta:   0
 ```
+
+(117 as of 2026-08-08, `connection.ts`'s fix — see the worked example above.
+It started at 119; run the command yourself rather than trusting either
+number, since the whole point of a ratchet is that it moves.)
 
 Two shapes are matched:
 
@@ -190,3 +246,116 @@ for deterministic, UNGATED repo-invariant checks that run on **every**
 push/PR regardless of which files changed, specifically so a `--no-verify`
 push or a fresh clone cannot bypass it. See `task-1-report.md` for why this
 placement was chosen over the alternatives that exist in this repo today.
+
+## The consequence instrument: `scripts/directory-independence.mjs`
+
+This is the second instrument named in "Two instruments" above. It lives in
+this file rather than its own document on purpose: it targets the exact same
+underlying failure (a resolver reading the OS instead of a declaration) as
+the ratchet above, and a reader who learns about only one of the two is in
+exactly the position that produced the eight-of-ten miss — a plan that
+believes a shape-scan is a map of consequences. Splitting the two into
+separate documents would recreate the same split that caused that mistake;
+keeping them in one file forces the connection to stay visible. The probe's
+own source comment (`scripts/directory-independence.mjs`, top of file) makes
+the same argument independently, for the same reason.
+
+### What it measures
+
+`scripts/directory-independence.mjs` runs each of five real, read-only
+`--json` commands from three real directories — this repo checkout, the
+operator's actual work repository (`~/git/rcdc5`, falling back to `$HOME` if
+that path is unavailable), and `/tmp`, a directory with no relationship to
+refarm at all — against the **built** CLI (`apps/refarm/dist/index.js`), and
+diffs the parsed JSON answers field-path by field-path.
+
+Each probed command **declares** whether its answer must be identical from
+every directory (`allowedVaryingFieldPaths: []`) or which specific field
+paths may legitimately vary because they are facts about the working tree,
+not about the operator (e.g. "which `agent.wasm` did *this* checkout build").
+**Declaration is per FIELD PATH, never per command** — a blanket "this
+command is exempt" would hide a real defect inside a legitimate one, which is
+exactly the failure mode a coarser exemption would reintroduce.
+
+Four verdicts, not two: `same`, `differs-as-declared`, `differs-undeclared`,
+and `unrunnable`. The fourth is load-bearing: a command that crashes or times
+out in one directory produces no output, and comparing two absent results
+would read as agreement (`same`) rather than the "I don't know" it actually
+is — `unrunnable` always wins over any comparison, before one is even
+attempted.
+
+### The probe's table, measured 2026-08-08
+
+```bash
+$ pnpm run directory-independence
+```
+
+| Command | Verdict | Notes |
+| --- | --- | --- |
+| `workspace list` | same | |
+| `model current` | same | |
+| `plugin status` | same | |
+| `context` | differs-as-declared | `context.builtPluginPath`, `context.builtPluginSha`, `context.divergences`, `context.otherSovereignDirs` |
+| `connection status` | same | (was `differs-undeclared` before the `connection.ts` fix below) |
+
+Run it yourself before trusting this table for anything beyond "the shape of
+what this instrument reports" — the whole reason it exists is that a
+snapshot goes stale the moment new commands are added or code changes.
+`context`'s four varying fields are all, by investigation rather than
+assumption, facts about the working tree: `builtPluginPath`/`builtPluginSha`
+name which `agent.wasm` *this* checkout built, and `otherSovereignDirs`/
+`divergences` are derived from a plain `fs.existsSync(cwd/.refarm)` check —
+see `task-1-report.md` for the field-by-field trace that confirmed this
+rather than widening the declaration to make noise disappear.
+
+### The worked example: a fix that revealed the acceptance test was backwards
+
+`connection status` above used to read `differs-undeclared` — the operator's
+own `ovpn-serpro` VPN connection was visible from this repo checkout and
+invisible from `~/git/rcdc5` and `/tmp`, because `apps/refarm/src/commands/connection.ts`
+resolved its config directory as `deps?.cwd?.() ?? process.cwd()` at two
+sites. Fixing that (both sites now resolve `declaredBase()`, matching every
+other node-level declaration reader in the file) made the probe go green —
+and in doing so **revealed that the acceptance test the plan was written
+against was aimed backwards**.
+
+`ovpn-serpro` was never declared on the operator's real node. It lived only
+in this repo checkout's own gitignored `.refarm/config.json` — a development
+fixture created while building this very connection-status feature without
+`REFARM_HOME` set, so the CLI's cwd-based fallback (the bug being fixed) wrote
+and read its test declarations there instead of the real sovereign home. The
+operator's actual `~/.refarm/config.json` had no `connections` key at all, in
+its current state or any of its three historical backups. So "visible from
+the repo, invisible everywhere else" was never the feature working — it was
+the SYMPTOM, the CLI reading a fixture and presenting it as if it were the
+node's catalog. The intermediate state — an honest `connections: []` and
+`nextAction: null` from all three directories, once the fix landed and before
+the operator's node was updated — was the only state in which the empty node
+catalog was *legible*. A defect whose symptom looks like the feature working
+is the hardest class to catch, and the only reason this one surfaced is that
+the fix was not forced to match the acceptance wording by writing the
+operator's data to make it pass — see `task-2-report.md` for the full
+investigation, and the queue in `.project/handoff.json` for what changed on
+the operator's node afterward, with his explicit authorisation, once the
+underlying declaration gap was understood rather than papered over.
+
+### What the probe does NOT cover
+
+- **Only five commands are declared**: `workspace list`, `model current`,
+  `plugin status`, `context`, `connection status`. Every other `--json`
+  surface in the CLI (`resume`, `parity`, `budget observations`, `plugin
+  trust`/`approve`, and more) has not been probed and has no declaration —
+  absence from the table is not a claim of correctness, it is a claim of "not
+  yet measured."
+- **Read-only `--json` surfaces only.** `refarm ask` is explicitly excluded
+  (it spends model quota and may signal a process); nothing that writes state
+  is a candidate for this probe at all, by design — see the plan's own Global
+  Constraints ("Read-only commands only").
+- **Not wired into CI.** It requires the built CLI (`apps/refarm/dist/index.js`)
+  to already exist, so it cannot run in the fast, source-only "Test & Quality"
+  lane. `task-1-report.md` argues it belongs in the fuller Release Health gate,
+  after the build step, alongside other dist-dependent checks — it has not
+  been added there yet.
+- **It measures three directories, not every directory a node could run
+  from.** A command could still depend on cwd in a way none of `~/github/refarm`,
+  `~/git/rcdc5`, or `/tmp` happens to expose.
