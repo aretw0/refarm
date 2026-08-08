@@ -18,7 +18,7 @@ flowchart LR
     TaskFiles["tasks/*.json\nnode-local queue"]
     Http["HttpSidecar :42001\n/efforts · /channels/:id/efforts"]
     Operations["EffortOperations\ntransport-neutral boundary"]
-    FileAdapter["FileTransportAdapter\nfile watcher + composition"]
+    FileAdapter["FileTransportAdapter\nfile/control watcher + compatibility facade"]
     FileRepository["FileEffortRepository\nJSON / NDJSON wire formats"]
     FileState["task-results/*.json\ntask-logs/*.ndjson"]
   end
@@ -26,9 +26,10 @@ flowchart LR
   Queue["EffortQueue\nserial · de-duplicate · force promotion"]
   ExecutionState["EffortExecutionState\nin-flight + cancellation requests"]
   RepositoryPort["EffortRepository\ntransport-neutral persistence port"]
+  Coordinator["EffortCoordinator\nsubmit · retry · cancel · telemetry"]
   Processor["EffortProcessor\nattempts · transitions · lifecycle logs"]
   SummaryPolicy["effort-summary\npure status + window policy"]
-  Coupling["remaining coupling\nsubmit · retry · cancel coordination\nand composition live in FileTransportAdapter"]
+  Remaining["remaining work\nHTTP client stays app-private\nparity proof is pending"]
 
   Executor["Farmhand task executor\npolicy · model route · plugin call"]
   Runtime["runtime host → agent plugin"]
@@ -56,17 +57,18 @@ flowchart LR
   ChannelClient -->|"HTTP /channels/:id/efforts"| Http
   TaskFiles -->|"watched by"| FileAdapter
   Http -->|"depends on"| Operations
-  FileAdapter -.->|"implements"| Operations
-  Coupling -.-> FileAdapter
-  FileAdapter -->|"persists through"| FileRepository
+  Coordinator -.->|"implements"| Operations
+  FileAdapter -->|"constructs"| FileRepository
+  FileAdapter -->|"delegates to"| Coordinator
+  Remaining -.-> Coordinator
   FileRepository -.->|"implements"| RepositoryPort
   FileRepository -->|"reads definitions"| TaskFiles
   FileRepository -->|"writes state"| FileState
-  FileAdapter -->|"aggregates through"| SummaryPolicy
-  FileAdapter -->|"schedules through"| Queue
-  FileAdapter -->|"composes"| Processor
+  Coordinator -->|"aggregates through"| SummaryPolicy
+  Coordinator -->|"schedules through"| Queue
+  Coordinator -->|"composes"| Processor
   Queue -->|"serial callback"| Processor
-  FileAdapter -->|"controls"| ExecutionState
+  Coordinator -->|"controls"| ExecutionState
   Processor -->|"reads / updates"| ExecutionState
   Processor -->|"persists through"| RepositoryPort
   Processor --> Executor
@@ -89,5 +91,5 @@ flowchart LR
 
   class CLI,Channels,Clients,Follower,WsConsumer surface;
   class Effort,Operations,RepositoryPort,SummaryPolicy,Chunk contract;
-  class Queue,ExecutionState,Processor,Executor,Runtime,Registry runtime;
-  class Dispatch,FileClient,HttpClient,ChannelClient,TaskFiles,Http,FileAdapter,FileRepository,FileState,FileStream,SSE,WS,Coupling transport;
+  class Queue,ExecutionState,Coordinator,Processor,Executor,Runtime,Registry runtime;
+  class Dispatch,FileClient,HttpClient,ChannelClient,TaskFiles,Http,FileAdapter,FileRepository,FileState,FileStream,SSE,WS,Remaining transport;

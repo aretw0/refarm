@@ -26,20 +26,21 @@ Completes the `FarmhandTask` execution pipeline and establishes `effort-contract
 | Queue policy | `EffortQueue` owns serial scheduling, de-duplication, and promotion of queued retries to `force`. |
 | Execution state | `EffortExecutionState` owns in-flight admission, cancellation requests, and their telemetry counters. |
 | Processing policy | `EffortProcessor` owns task attempts, retry limits, result transitions, lifecycle logs, cancellation observation, and executor hooks; tests prove it against an in-memory repository. |
-| Shared server operations | The current composition supplies `FileTransportAdapter` as the `EffortOperations` implementation; it composes the extracted policies but still owns submit/retry/cancel orchestration, telemetry, queue wiring, and file watching. |
+| Shared server operations | `EffortCoordinator` implements `EffortOperations`, composing submit/retry/cancel, telemetry, queue wiring, state, processor, and persistence. HTTP receives it directly at boot. |
+| File ingress | `FileTransportAdapter` constructs the file repository, delegates compatibility calls to the coordinator, and owns only file/control watching. |
 
 The HTTP path therefore **exists end to end**, but the reusable `HttpTransportAdapter`
 described by the original design was not delivered as a block. Its role was split
 between an app-private HTTP client and an app-private server ingress. The server-side
-dependency is now expressed through the neutral `EffortOperations` boundary, but its
-only implementation remains `FileTransportAdapter`, which is both a file ingress and
-the shared operations facade. Filesystem wire formats live in `FileEffortRepository`
-behind the neutral `EffortRepository` port. Status aggregation, serial scheduling,
-mutable execution state, and task processing are separate policies. `EffortProcessor`
-does not depend on HTTP, file watching, or the filesystem implementation, but the
-adapter still coordinates submit/retry/cancel and wires queue, processor, telemetry,
-and watcher. Diagrams must show this composition rather than presenting file and HTTP
-as symmetric implementations.
+dependency is expressed through the neutral `EffortOperations` boundary, whose current
+implementation is `EffortCoordinator`. Filesystem wire formats live in
+`FileEffortRepository` behind the neutral `EffortRepository` port. Status aggregation,
+serial scheduling, mutable execution state, task processing, and operations coordination
+are separate policies. `EffortProcessor` and `EffortCoordinator` do not depend on HTTP,
+file watching, or the filesystem implementation. `HttpSidecar` receives the coordinator
+directly; `FileTransportAdapter` remains the file ingress and a compatibility facade.
+Diagrams must show this composition rather than presenting file and HTTP as symmetric
+implementations.
 
 The safe refactoring order is:
 
@@ -49,8 +50,8 @@ The safe refactoring order is:
 4. [Done] Extract serial queueing and retry promotion without changing behavior.
 5. [Done] Extract in-flight and cancellation-request state without changing behavior.
 6. [Done] Extract processing policy and task lifecycle orchestration without changing behavior.
-7. Extract submit/retry/cancel coordination into the neutral operations implementation.
-8. Make file watching and `HttpSidecar` separate ingress adapters over that coordinator.
+7. [Done] Extract submit/retry/cancel coordination into the neutral `EffortCoordinator` implementation.
+8. [Done] Make file watching and `HttpSidecar` separate ingress adapters over that coordinator.
 9. Extract the HTTP client into a reusable package only when a second consumer needs it.
 10. Prove file/HTTP behavioral parity against the same conformance cases before changing defaults.
 
@@ -116,6 +117,7 @@ packages/effort-contract-v1          → Effort, Task, TaskResult, EffortResult
 
 apps/farmhand
   ├── src/effort-execution-state.ts    → in-flight and cancellation-request state
+  ├── src/effort-coordinator.ts        → neutral operations coordination
   ├── src/effort-operations.ts         → neutral server operations boundary
   ├── src/effort-processor.ts          → task attempts and lifecycle transitions
   ├── src/effort-queue.ts              → serial scheduling and de-duplication
@@ -250,7 +252,7 @@ export const EFFORT_CAPABILITY = Symbol("EffortTransportAdapter");
 - [x] Extract serial effort scheduling into `EffortQueue`
 - [x] Extract mutable in-flight and cancellation state into `EffortExecutionState`
 - [x] Extract task processing into `EffortProcessor` over the neutral `EffortRepository` port
-- [ ] Extract transport-neutral effort coordination from `FileTransportAdapter`
+- [x] Extract transport-neutral `EffortCoordinator`; HTTP receives it directly at boot
 - [ ] Demonstrate a second consumer before extracting the app-private HTTP client
 
 ---
