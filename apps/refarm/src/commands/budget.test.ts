@@ -217,7 +217,14 @@ describe("groupObservations", () => {
 		expect(grouped.unattributed.observations).toBe(0);
 	});
 
-	// ── The subscription axis — null, not 0 ───────────────────────────────────
+	// ── The dollar axis: POSITIVE inclusion only ──────────────────────────────
+	// (Task 1 review, Criticals 1 & 2: "everything not explicitly excluded is
+	// billable" inverted the discipline the rest of the file follows. The fix
+	// is structural — a member contributes to `usd` only when it POSITIVELY
+	// establishes `pricing_mode === "api" && price_known === true`. Every one
+	// of these tests would have failed against the prior exclusion-based
+	// branch, which fell through to "billable, usd: 0" for `"local"` and for
+	// an entirely absent `pricing_mode`.)
 
 	it("reports usd: null, not 0, when every member of a group is subscription-priced", () => {
 		const grouped = groupObservations(
@@ -237,10 +244,64 @@ describe("groupObservations", () => {
 		);
 		const group = grouped.groups[0]!;
 		expect(group.usd).toBeNull();
-		expect(group.subscriptionMembers).toBe(2);
+		expect(group.structuralZeroMembers).toBe(2);
 	});
 
-	it("sums only the metered members of a mixed group and reports how many were excluded", () => {
+	it("reports usd: null, not 0, when every member is local-priced (Ollama) — Critical 1", () => {
+		// packages/agent/src/utils.rs's price_is_known/estimate_billable_usd treat
+		// "subscription" and "local" IDENTICALLY: both short-circuit to a real $0.00
+		// before any rate lookup runs. A workspace that ran entirely on Ollama must
+		// report the SAME null, not a confident $0.0000 that only "subscription" used
+		// to earn.
+		const grouped = groupObservations(
+			[
+				{ "refarm.workspace.id": "homelab", "refarm.pricing_mode": "local", "refarm.cost.estimated_usd": 0 },
+				{ "refarm.workspace.id": "homelab", "refarm.pricing_mode": "local", "refarm.cost.estimated_usd": 0 },
+			],
+			{ by: "workspace" },
+		);
+		const group = grouped.groups[0]!;
+		expect(group.usd).toBeNull();
+		expect(group.structuralZeroMembers).toBe(2);
+		expect(group.priceUnknown).toBe(0);
+		expect(group.noUsageRecord).toBe(0);
+	});
+
+	it("reports usd: null, not 0, when refarm.pricing_mode is entirely absent — Critical 2", () => {
+		// find_usage_record_for (packages/tractor/src/sidecar/dispatch.rs) returns None
+		// for a terminal effort with no UsageRecord at all (e.g. failed before any model
+		// call) — put_usage then never sets pricing_mode/price_known/estimated_usd.
+		// This member must land in its own noUsageRecord bucket, not fall through to
+		// "billable, usd: 0".
+		const grouped = groupObservations(
+			[
+				{ "refarm.workspace.id": "refarm", "refarm.outcome": "failed" }, // no pricing_mode at all
+			],
+			{ by: "workspace" },
+		);
+		const group = grouped.groups[0]!;
+		expect(group.usd).toBeNull();
+		expect(group.noUsageRecord).toBe(1);
+		expect(group.structuralZeroMembers).toBe(0);
+		expect(group.priceUnknown).toBe(0);
+	});
+
+	it("reports usd: null, not 0, for a pricing_mode string this reducer has never seen", () => {
+		// "a fourth pricing mode added in Rust tomorrow lands on the safe side by
+		// construction" — the positive-inclusion check requires === "api" exactly, so
+		// an unrecognised string cannot manufacture a zero either.
+		const grouped = groupObservations(
+			[{ "refarm.workspace.id": "refarm", "refarm.pricing_mode": "quantum-credits" }],
+			{ by: "workspace" },
+		);
+		const group = grouped.groups[0]!;
+		expect(group.usd).toBeNull();
+		expect(group.priceUnknown).toBe(1);
+		expect(group.structuralZeroMembers).toBe(0);
+		expect(group.noUsageRecord).toBe(0);
+	});
+
+	it("sums only the positively-priced api members of a mixed group and reports how many were excluded", () => {
 		const grouped = groupObservations(
 			[
 				{
@@ -253,19 +314,25 @@ describe("groupObservations", () => {
 					"refarm.pricing_mode": "subscription",
 					"refarm.cost.estimated_usd": 0,
 				},
-				{ "refarm.workspace.id": "rcdc5", "refarm.pricing_mode": "api", "refarm.cost.estimated_usd": 1.25 },
+				{
+					"refarm.workspace.id": "rcdc5",
+					"refarm.pricing_mode": "api",
+					"refarm.cost.estimated_usd": 1.25,
+					"refarm.cost.price_known": true,
+				},
 			],
 			{ by: "workspace" },
 		);
 		const group = grouped.groups[0]!;
 		expect(group.usd).toBe(1.25);
-		expect(group.subscriptionMembers).toBe(2);
+		expect(group.structuralZeroMembers).toBe(2);
 	});
 
-	it("excludes a priced-but-unknown member from usd and counts it apart from subscription (extends summariseObservations' vocabulary)", () => {
-		// price_known: false is F5's "no rate on file" — distinct from a subscription
-		// member, which is honestly zero rather than unpriced. Conflating the two would
-		// undercount BOTH the operator's real spend and the record's own honesty.
+	it("excludes an api member with price_known !== true from usd — false and absent BOTH count as unknown, not billable", () => {
+		// price_known: false is F5's "no rate on file". An api-mode member with no
+		// price_known field at all (a record predating that field) is the SAME fact
+		// from this reader's position: neither positively establishes a price, so
+		// neither may contribute a zero to `usd`.
 		const grouped = groupObservations(
 			[
 				{
@@ -275,13 +342,15 @@ describe("groupObservations", () => {
 					"refarm.cost.price_known": true,
 				},
 				{ "refarm.workspace.id": "rcdc5", "refarm.pricing_mode": "api", "refarm.cost.price_known": false },
+				{ "refarm.workspace.id": "rcdc5", "refarm.pricing_mode": "api", "refarm.cost.estimated_usd": 9 },
 			],
 			{ by: "workspace" },
 		);
 		const group = grouped.groups[0]!;
 		expect(group.usd).toBe(2);
-		expect(group.priceUnknown).toBe(1);
-		expect(group.subscriptionMembers).toBe(0);
+		expect(group.priceUnknown).toBe(2);
+		expect(group.structuralZeroMembers).toBe(0);
+		expect(group.noUsageRecord).toBe(0);
 	});
 
 	// ── Token totals — the primary quantity ───────────────────────────────────
@@ -360,8 +429,9 @@ describe("groupObservations", () => {
 			observations: 0,
 			tokens: { input: 0, output: 0, cacheCreation: 0, cacheRead: 0, reasoning: 0 },
 			usd: null,
-			subscriptionMembers: 0,
+			structuralZeroMembers: 0,
 			priceUnknown: 0,
+			noUsageRecord: 0,
 		});
 	});
 });
@@ -383,7 +453,7 @@ describe("printGroupedObservationsHuman — the subscription axis renders as —
 			[{ "refarm.workspace.id": "refarm", "refarm.pricing_mode": "subscription" }],
 			{ by: "workspace" },
 		);
-		printGroupedObservationsHuman(grouped);
+		printGroupedObservationsHuman(grouped, { stored: 1, truncated: false });
 		const text = stdout.join("\n");
 		expect(text).toContain("—");
 		expect(text).not.toContain("$0.00");
@@ -391,9 +461,53 @@ describe("printGroupedObservationsHuman — the subscription axis renders as —
 
 	it("always prints the (unattributed) row, even when its count is zero", () => {
 		const grouped = groupObservations([{ "refarm.workspace.id": "refarm" }], { by: "workspace" });
-		printGroupedObservationsHuman(grouped);
+		printGroupedObservationsHuman(grouped, { stored: 1, truncated: false });
 		const text = stdout.join("\n");
 		expect(text).toContain("(unattributed)");
+	});
+
+	// ── Critical 3: the human surface must carry the same completeness signal ──
+	// as printObservationsHuman — it used to be JSON-only for the grouped commands.
+
+	it("prints the truncation notice (naming both counts) when the page reports truncated: true", () => {
+		const grouped = groupObservations([{ "refarm.workspace.id": "refarm" }], { by: "workspace" });
+		printGroupedObservationsHuman(grouped, { stored: 42, truncated: true });
+		const text = stdout.join("\n");
+		expect(text).toContain("42");
+		expect(text.toLowerCase()).toContain("stored");
+	});
+
+	it("prints an unknown-completeness notice when the page omits stored/truncated", () => {
+		const grouped = groupObservations([{ "refarm.workspace.id": "refarm" }], { by: "workspace" });
+		printGroupedObservationsHuman(grouped, { stored: undefined, truncated: undefined });
+		const text = stdout.join("\n");
+		expect(text.toLowerCase()).toContain("unknown");
+	});
+
+	it("prints nothing about storage when the page reports truncated: false", () => {
+		const grouped = groupObservations([{ "refarm.workspace.id": "refarm" }], { by: "workspace" });
+		printGroupedObservationsHuman(grouped, { stored: 1, truncated: false });
+		const text = stdout.join("\n");
+		expect(text.toLowerCase()).not.toContain("stored");
+	});
+
+	// ── Minor: a real group key literally named "(unattributed)" must not collide ──
+	// visually with the sentinel bucket row.
+
+	it("disambiguates a real workspace literally named '(unattributed)' from the sentinel bucket", () => {
+		const grouped = groupObservations(
+			[
+				{ "refarm.workspace.id": "(unattributed)" },
+				{}, // a genuinely unattributed record too, so both rows are present
+			],
+			{ by: "workspace" },
+		);
+		printGroupedObservationsHuman(grouped, { stored: 2, truncated: false });
+		const lines = stdout.join("\n").split("\n").filter((l) => l.includes("(unattributed)"));
+		// Two DISTINCT lines must mention "(unattributed)" — the real workspace's row and
+		// the sentinel bucket's row — never one line standing in for both.
+		expect(lines.length).toBeGreaterThanOrEqual(2);
+		expect(new Set(lines).size).toBe(lines.length);
 	});
 });
 

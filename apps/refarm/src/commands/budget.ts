@@ -208,9 +208,22 @@ const GROUP_KEY_FIELD: Record<GroupByAxis, string> = {
 /** Requests and tokens are the primary quantity (Global Constraints) — every
  *  group carries these regardless of whether its dollar axis applies. Absent
  *  counters on a member contribute 0 to the sum: this is a TOTAL, not a
- *  per-record unknown-tracking field (that discipline belongs to `usd`,
- *  `subscriptionMembers`, and `priceUnknown` below, where a whole group's worth
- *  of members can share the same real unknown). */
+ *  per-record unknown-tracking field for most members — but see
+ *  `GroupTotals.noUsageRecord` for the one case where a 0 here is not a real
+ *  zero but a missing record entirely.
+ *
+ *  PROVIDER SEMANTICS DIFFER, undocumented until now: for Anthropic,
+ *  `input` EXCLUDES both cache buckets — total input processed is the sum of
+ *  all three fields — while for OpenAI-family providers, `input` (their
+ *  `prompt_tokens`) ALREADY INCLUDES `cacheRead`, and `reasoning` is a SUBSET
+ *  of `output`, not additional to it (`InputAccounting::Disjoint` vs
+ *  `::Subset`, `packages/agent/src/utils.rs`; `ingest_anthropic_usage` vs
+ *  `ingest_openai_usage`, `packages/agent/src/provider_runtime/
+ *  usage_totals.rs`). Nothing in this file combines these five fields into a
+ *  derived total today, so nothing here is wrong — but a group whose members
+ *  span both provider families means a different thing by `input` per member,
+ *  and a future reader who sums `input + cacheRead` to get "total processed"
+ *  would double-count every OpenAI-family member. */
 export interface GroupTokenTotals {
 	input: number;
 	output: number;
@@ -222,24 +235,59 @@ export interface GroupTokenTotals {
 export interface GroupTotals {
 	observations: number;
 	tokens: GroupTokenTotals;
-	/** Sum of `refarm.cost.estimated_usd` across members that are NEITHER
-	 *  subscription-priced NOR price-unknown. `null` — never `0` — when no member
-	 *  qualifies, which covers both "every member is subscription" (the operator's
-	 *  live record, 29/29) and the degenerate empty group. A `0` here would claim
-	 *  a real, priced, zero-cost run; `null` says the dollar axis does not apply,
-	 *  or could not be read, for this group at all (Global Constraints). */
+	/**
+	 * Sum of `refarm.cost.estimated_usd` across members that POSITIVELY
+	 * establish a real, known price: `refarm.pricing_mode === "api"` (the ONLY
+	 * mode `estimate_billable_usd`, `packages/agent/src/utils.rs`, ever prices —
+	 * every other mode short-circuits to a real `0.0` before any rate lookup
+	 * runs) AND `refarm.cost.price_known === true`.
+	 *
+	 * `null` — never `0` — when no member qualifies. The check is INVERTED on
+	 * purpose (include only what is positively billable, rather than exclude
+	 * what is recognisably not) so that `"subscription"`, `"local"`, a
+	 * `pricing_mode` this reducer has never seen, and a `pricing_mode` that is
+	 * entirely ABSENT all land on the safe, unbilled side by construction — a
+	 * fifth pricing mode invented in Rust tomorrow does not need this file
+	 * updated to stay honest. (Review finding, 2026-08-08: the prior exclusion-
+	 * based branch treated `"local"` — Ollama, first-class in this repo — and an
+	 * entirely absent `pricing_mode` — a terminal effort with no `UsageRecord`
+	 * at all, see `noUsageRecord` below — as billable, both reporting a
+	 * confident `usd: 0` where `null` was required.)
+	 */
 	usd: number | null;
-	/** How many members were excluded from `usd` because `refarm.pricing_mode`
-	 *  is exactly `"subscription"` — the operator's HONEST zero, not an unpriced
-	 *  one. Present (and countable) even when `usd` is a real number, so a mixed
-	 *  group's partial sum is legible as partial rather than looking complete. */
-	subscriptionMembers: number;
-	/** How many NON-subscription members were excluded from `usd` because
-	 *  `refarm.cost.price_known === false` (F5's genuine "no rate on file") —
-	 *  `summariseObservations`' own `priceUnknown` field, applied per group rather
-	 *  than parallelled. Distinct from `subscriptionMembers`: this member's cost
-	 *  is not honestly zero, it is UNKNOWN. */
+	/** Members whose `refarm.pricing_mode` is `"subscription"` OR `"local"` —
+	 *  structurally, deliberately zero-cost BY DESIGN, not merely unpriced.
+	 *  `price_is_known`/`estimate_billable_usd` (`packages/agent/src/utils.rs`)
+	 *  treat these two modes IDENTICALLY: both short-circuit to a real `$0.00`
+	 *  before `rate_for_model` ever runs. Present (and countable) even when
+	 *  `usd` is a real number, so a mixed group's partial sum stays legible as
+	 *  partial. Distinct from `priceUnknown`: this member's cost IS zero, on
+	 *  purpose, not unknown. */
+	structuralZeroMembers: number;
+	/** Members with a PRESENT `refarm.pricing_mode` that still could not
+	 *  positively establish a price: an `"api"` member whose
+	 *  `refarm.cost.price_known !== true` (F5's genuine "no rate on file", or a
+	 *  record predating that field), or a `pricing_mode` string this reducer
+	 *  does not recognise as `"subscription"`/`"local"`/`"api"` (a mode added in
+	 *  Rust after this file was last updated). Both are the SAME fact from this
+	 *  reader's position — "a usage record exists, but this axis cannot say
+	 *  what it cost" — extending `summariseObservations`' own `priceUnknown`
+	 *  field per group rather than paralleling it. Distinct from
+	 *  `noUsageRecord`: here, tokens are real and trustworthy; only the dollar
+	 *  reading is unknown. */
 	priceUnknown: number;
+	/** Members with NO `refarm.pricing_mode` at all — a terminal effort
+	 *  (`done`/`delivered`/`partial`/`failed`/`timed-out`/`cancelled`) for which
+	 *  `find_usage_record_for` (`packages/tractor/src/sidecar/dispatch.rs`)
+	 *  found no `UsageRecord`, so `put_usage` (`observation.rs`) returned before
+	 *  setting `pricing_mode`, `price_known`, OR `estimated_usd` — e.g. an
+	 *  effort that failed before ever calling a model. This is NOT the same gap
+	 *  as `priceUnknown`: there, a usage record exists and tokens are real; here,
+	 *  NONE of `tokens` above was recorded for these members either — their
+	 *  contribution to every `GroupTokenTotals` field is a real "nothing was
+	 *  written," not a real "zero tokens used." Counted so a reader can tell the
+	 *  two apart rather than reading an undercounted token total as complete. */
+	noUsageRecord: number;
 }
 
 export interface ObservationGroup extends GroupTotals {
@@ -271,9 +319,20 @@ export interface GroupedObservations {
 	 *  dropped. A `by-workspace` run against the operator's real record puts 21
 	 *  of 29 observations here, because attribution shipped after most of the
 	 *  record was written; reading `groups` alone as "the record" would silently
-	 *  understate every workspace by that same 21. */
+	 *  understate every workspace by that same 21.
+	 *
+	 *  For `by: "host"`, this is the SAME quantity `summariseObservations` calls
+	 *  `unidentifiedRecords` (no `host.id` at all) — one generic bucket name
+	 *  shared across all three axes here, by design, rather than a fourth vocabulary
+	 *  for the identical fact `ObservationSummary` already names. */
 	unattributed: GroupTotals;
 }
+
+/** The only two pricing modes that are structurally, deliberately zero-cost —
+ *  see `structuralZeroMembers`'s doc on `GroupTotals` for the Rust citation.
+ *  A `Set`, not a third `=== "local"` comparison bolted beside the existing
+ *  `=== "subscription"` one, so this stays the ONE place that names them. */
+const STRUCTURALLY_ZERO_PRICING_MODES = new Set(["subscription", "local"]);
 
 interface MutableGroupBucket {
 	observations: number;
@@ -283,8 +342,9 @@ interface MutableGroupBucket {
 	 *  `usdSum`. Distinguishes "usd is a real 0.0" from "usd does not apply" —
 	 *  the same distinction `usd: number | null` makes at the type level. */
 	hasBillableMember: boolean;
-	subscriptionMembers: number;
+	structuralZeroMembers: number;
 	priceUnknown: number;
+	noUsageRecord: number;
 	label: string | null;
 }
 
@@ -294,8 +354,9 @@ function newGroupBucket(): MutableGroupBucket {
 		tokens: { input: 0, output: 0, cacheCreation: 0, cacheRead: 0, reasoning: 0 },
 		usdSum: 0,
 		hasBillableMember: false,
-		subscriptionMembers: 0,
+		structuralZeroMembers: 0,
 		priceUnknown: 0,
+		noUsageRecord: 0,
 		label: null,
 	};
 }
@@ -321,20 +382,38 @@ function absorbIntoGroupBucket(bucket: MutableGroupBucket, node: ObservationNode
 		if (name !== null) bucket.label = name;
 	}
 
-	// Subscription is checked FIRST and unconditionally excludes: a member can carry
-	// both `refarm.pricing_mode: "subscription"` and `price_known: false` at once (the
-	// live record's own shape), and it must count once, as the honest-zero case, not
-	// twice or as the unpriced case.
-	if (node["refarm.pricing_mode"] === "subscription") {
-		bucket.subscriptionMembers += 1;
+	const pricingMode = node["refarm.pricing_mode"];
+
+	// THREE STATES for the dollar axis, checked in this order, POSITIVE-inclusion
+	// first: nothing falls through to "billable" by default.
+	//
+	// 1. No `pricing_mode` at all → no `UsageRecord` was ever written for this
+	//    terminal effort (see `noUsageRecord`'s doc) — checked FIRST because an
+	//    absent value must never be tested against a `Set`/`===` and silently
+	//    read as "not a recognised mode, so try to price it anyway".
+	if (pricingMode === undefined) {
+		bucket.noUsageRecord += 1;
 		return;
 	}
-	if (node["refarm.cost.price_known"] === false) {
-		bucket.priceUnknown += 1;
+	// 2. The ONLY positive path to a real dollar figure: mode is exactly "api"
+	//    AND the price is POSITIVELY known (`=== true`, not merely `!== false` —
+	//    an absent `price_known` on a stray "api" record must not default to
+	//    billable either).
+	if (pricingMode === "api" && node["refarm.cost.price_known"] === true) {
+		bucket.usdSum += numericField(node, "refarm.cost.estimated_usd");
+		bucket.hasBillableMember = true;
 		return;
 	}
-	bucket.usdSum += numericField(node, "refarm.cost.estimated_usd");
-	bucket.hasBillableMember = true;
+	// 3. A recognised, deliberate zero ("subscription"/"local") vs. everything
+	//    else that has a `pricing_mode` but still isn't billable (an unpriced
+	//    "api" member, or a mode string this file has never seen — the "fourth
+	//    mode added in Rust tomorrow" case, which lands HERE, safely excluded,
+	//    without this file needing to know its name).
+	if (typeof pricingMode === "string" && STRUCTURALLY_ZERO_PRICING_MODES.has(pricingMode)) {
+		bucket.structuralZeroMembers += 1;
+		return;
+	}
+	bucket.priceUnknown += 1;
 }
 
 function finalizeGroupBucket(bucket: MutableGroupBucket): GroupTotals {
@@ -342,8 +421,9 @@ function finalizeGroupBucket(bucket: MutableGroupBucket): GroupTotals {
 		observations: bucket.observations,
 		tokens: bucket.tokens,
 		usd: bucket.hasBillableMember ? bucket.usdSum : null,
-		subscriptionMembers: bucket.subscriptionMembers,
+		structuralZeroMembers: bucket.structuralZeroMembers,
 		priceUnknown: bucket.priceUnknown,
+		noUsageRecord: bucket.noUsageRecord,
 	};
 }
 
@@ -541,18 +621,27 @@ export function outcomeMark(outcome: string): string {
 	}
 }
 
-/** Exported for `budget.test.ts` — drives the truncation notice with a literal payload,
- *  no network, per the same pattern the rest of this file's pure functions already use. */
-export function printObservationsHuman(
-	observations: readonly ObservationNode[],
-	summary: ObservationSummary,
+/**
+ * The truncation/completeness notice — shared verbatim between `observations`
+ * and the grouped `by-*` commands (Task 1 review, Critical 3: the grouped
+ * commands' human output used to drop this signal entirely, so a record past
+ * `MAX_NODES_PER_RESPONSE`/`--limit` looked complete over partial data — the
+ * same "looks complete, isn't" failure the unattributed row exists to
+ * prevent, one layer up, and only on the human surface). `commandLabel` names
+ * the specific subcommand whose response is capped (`refarm budget
+ * observations`, `refarm budget by-workspace`, …) so the notice never claims
+ * a page limit for a command other than the one the operator just ran.
+ */
+function printPageCompletenessNotice(
+	shownCount: number,
 	page: Pick<BudgetObservationsPage, "stored" | "truncated">,
+	commandLabel: string,
 ): void {
-	console.log(chalk.bold(`\n  Budget observations  (${summary.total} shown)\n`));
 	if (page.truncated === true) {
-		// `summary.total` (shown above) and `page.stored` (here) are deliberately printed
-		// side by side with different words, not both called "total" — see
-		// `BudgetObservationsPage`'s doc for why that collision must not happen.
+		// `shownCount` (the caller's own header line) and `page.stored` (here) are
+		// deliberately printed side by side with different words, not both called
+		// "total" — see `BudgetObservationsPage`'s doc for why that collision must
+		// not happen.
 		//
 		// This used to end with "raise --limit to see the rest" — advice that cannot work.
 		// The sidecar clamps every `GET /nodes` response at `MAX_NODES_PER_RESPONSE`
@@ -563,16 +652,15 @@ export function printObservationsHuman(
 		// nothing. Say what is true instead: this is the newest page a single response can
 		// carry, and rows beyond the cap are not reachable through this command today.
 		//
-		// `page.stored` can be absent even when `truncated` is `true` — Task 2's contract
-		// (`BudgetObservationsPage`'s doc above) allows either field to be missing
-		// independently, so this must not print "of undefined" when the sidecar reports
-		// truncation without also reporting the true count.
+		// `page.stored` can be absent even when `truncated` is `true` — `BudgetObservationsPage`'s
+		// doc allows either field to be missing independently, so this must not print "of
+		// undefined" when the sidecar reports truncation without also reporting the true count.
 		const storedNote = typeof page.stored === "number" ? ` of ${page.stored} stored` : "";
 		console.log(
 			chalk.yellow(
-				`  ⚠  Showing the newest ${summary.total}${storedNote} — this command's response ` +
+				`  ⚠  Showing the newest ${shownCount}${storedNote} — this command's response ` +
 					`is capped at a single page, so records beyond that cap are not reachable ` +
-					"through `refarm budget observations` today.\n",
+					`through \`${commandLabel}\` today.\n`,
 			),
 		);
 	} else if (page.truncated === undefined) {
@@ -583,11 +671,22 @@ export function printObservationsHuman(
 		console.log(
 			chalk.dim(
 				`  ?  Completeness unknown — this node did not report how many BudgetObservation ` +
-					`records exist (an older sidecar build). Whether ${summary.total} shown is all ` +
+					`records exist (an older sidecar build). Whether ${shownCount} shown is all ` +
 					`of them cannot be determined from this response.\n`,
 			),
 		);
 	}
+}
+
+/** Exported for `budget.test.ts` — drives the truncation notice with a literal payload,
+ *  no network, per the same pattern the rest of this file's pure functions already use. */
+export function printObservationsHuman(
+	observations: readonly ObservationNode[],
+	summary: ObservationSummary,
+	page: Pick<BudgetObservationsPage, "stored" | "truncated">,
+): void {
+	console.log(chalk.bold(`\n  Budget observations  (${summary.total} shown)\n`));
+	printPageCompletenessNotice(summary.total, page, "refarm budget observations");
 	if (summary.total === 0) {
 		console.log(chalk.dim(`  ${observationsNextAction(summary) ?? ""}`));
 		return;
@@ -643,6 +742,24 @@ const GROUP_AXIS_LABEL: Record<GroupByAxis, string> = {
 	spawner: "spawner",
 };
 
+/** The subcommand name per axis — used both to build the `--json` example
+ *  string in help text and, here, to name the specific command a truncation
+ *  notice is about (`printPageCompletenessNotice`'s `commandLabel`). */
+const GROUP_SUBCOMMAND_NAME: Record<GroupByAxis, string> = {
+	workspace: "by-workspace",
+	host: "by-host",
+	spawner: "by-spawner",
+};
+
+/** The row label this file reserves for the unattributed bucket. A REAL
+ *  workspace/spawner could, in principle, be named exactly this string — JSON
+ *  is unaffected (the bucket lives in its own `unattributed` field, never in
+ *  `groups`), but the human table would otherwise print two adjacent,
+ *  visually identical rows with no way to tell which is which (Minor finding,
+ *  Task 1 review). `printGroupedObservationsHuman` disambiguates any real
+ *  group whose label collides with this sentinel before printing it. */
+const UNATTRIBUTED_ROW_LABEL = "(unattributed)";
+
 /**
  * `usd === null` renders as an em dash, never `$0.00` (Global Constraints: a
  * report that prints `$0.00` next to real work teaches the operator to ignore
@@ -671,18 +788,26 @@ function groupedNextAction(grouped: GroupedObservations): string | null {
 }
 
 /** Exported for `budget.test.ts` — drives the grouped report with a literal
- *  `GroupedObservations`, no network, same pattern as `printObservationsHuman`. */
-export function printGroupedObservationsHuman(grouped: GroupedObservations): void {
+ *  `GroupedObservations`, no network, same pattern as `printObservationsHuman`.
+ *  Takes `page` for the same reason `printObservationsHuman` does: the
+ *  truncation/completeness signal must reach the human surface here too
+ *  (Task 1 review, Critical 3) — it used to be JSON-only. */
+export function printGroupedObservationsHuman(
+	grouped: GroupedObservations,
+	page: Pick<BudgetObservationsPage, "stored" | "truncated">,
+): void {
 	const axis = GROUP_AXIS_LABEL[grouped.by];
 	console.log(chalk.bold(`\n  Budget by ${axis}  (${grouped.total} observation(s))\n`));
+	printPageCompletenessNotice(grouped.total, page, `refarm budget ${GROUP_SUBCOMMAND_NAME[grouped.by]}`);
 	if (grouped.total === 0) {
 		console.log(chalk.dim(`  ${groupedNextAction(grouped) ?? ""}`));
 		return;
 	}
 	const printRow = (label: string, totals: GroupTotals): void => {
 		const flags: string[] = [];
-		if (totals.subscriptionMembers > 0) flags.push(`subscription:${totals.subscriptionMembers}`);
+		if (totals.structuralZeroMembers > 0) flags.push(`non-billable:${totals.structuralZeroMembers}`);
 		if (totals.priceUnknown > 0) flags.push(`price-unknown:${totals.priceUnknown}`);
+		if (totals.noUsageRecord > 0) flags.push(`no-usage-record:${totals.noUsageRecord}`);
 		const flagsText = flags.length > 0 ? `   (${flags.join(", ")})` : "";
 		console.log(
 			`  ${label.padEnd(28)} obs:${String(totals.observations).padEnd(5)} ` +
@@ -693,17 +818,20 @@ export function printGroupedObservationsHuman(grouped: GroupedObservations): voi
 	for (const group of grouped.groups) {
 		// by:"host" carries a separate mutable label (host.name); workspace/spawner keys
 		// are already the human-facing string, so the key alone is the label there.
-		const rowLabel =
+		let rowLabel =
 			grouped.by === "host"
 				? `${group.label ?? "(unnamed)"} [${group.key.slice(0, 8)}]`
 				: group.key;
+		// A real workspace/spawner named exactly "(unattributed)" would otherwise print
+		// identically to the bucket below — see `UNATTRIBUTED_ROW_LABEL`'s doc.
+		if (rowLabel === UNATTRIBUTED_ROW_LABEL) rowLabel = `${UNATTRIBUTED_ROW_LABEL} [a real key, not the bucket]`;
 		printRow(rowLabel, group);
 	}
 	// The unattributed row — ALWAYS printed, even at zero, per Global Constraints: its
 	// presence at zero is itself informative (this axis is fully attributed), and its
 	// absence at any other value would be the exact silent dilution this row exists to
 	// prevent.
-	printRow("(unattributed)", grouped.unattributed);
+	printRow(UNATTRIBUTED_ROW_LABEL, grouped.unattributed);
 	console.log(chalk.dim(`\n  ${BUDGET_OBSERVATIONS_JSON_COMMAND}\n`));
 }
 
@@ -1146,7 +1274,7 @@ export function createBudgetCommand(): Command {
 					);
 					return;
 				}
-				printGroupedObservationsHuman(grouped);
+				printGroupedObservationsHuman(grouped, { stored: page.stored, truncated: page.truncated });
 			});
 	}
 
