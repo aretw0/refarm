@@ -1,175 +1,71 @@
-import type {
-	Effort,
-	EffortLogEntry,
-	EffortResult,
-	EffortSummary,
-} from "@refarm.dev/effort-contract-v1";
-import type { PressureSnapshot, PressureWindow } from "@refarm.dev/pressure-contract-v1";
+import type { Effort } from "@refarm.dev/effort-contract-v1";
 import fs from "node:fs";
 import path from "node:path";
-import { EffortExecutionState } from "../effort-execution-state.js";
-import type { EffortOperations } from "../effort-operations.js";
 import {
-	EffortProcessor,
-	isTerminalEffortStatus,
-	type EffortProcessorOptions,
-	type TaskExecutorFn,
-} from "../effort-processor.js";
-import { EffortQueue } from "../effort-queue.js";
-import { summarizeEfforts, summarizeEffortWindow } from "../effort-summary.js";
+	EffortCoordinator,
+	type EffortCoordinatorOptions,
+	type RuntimeTelemetrySnapshot,
+	type RuntimeTelemetryWindow,
+} from "../effort-coordinator.js";
+import type { EffortOperations } from "../effort-operations.js";
+import type { TaskExecutorFn } from "../effort-processor.js";
 import { FileEffortRepository } from "./file-effort-repository.js";
 
 export type { TaskExecutorFn };
-export type FileTransportOptions = EffortProcessorOptions;
+export type FileTransportOptions = EffortCoordinatorOptions;
+export type { RuntimeTelemetrySnapshot, RuntimeTelemetryWindow };
 
-// The telemetry endpoint's wire shapes ARE the pressure:v1 contract's — this producer emits the
-// exact PressureSnapshot / PressureWindow the operator's pressure client consumes (single source,
-// no more local redeclaration that could drift on the EffortSummary fields). Aliased to the local
-// names so the rest of this transport is untouched.
-export type RuntimeTelemetrySnapshot = PressureSnapshot;
-export type RuntimeTelemetryWindow = PressureWindow;
-
-function nowIso(): string {
-	return new Date().toISOString();
-}
-export class FileTransportAdapter implements EffortOperations {
+export class FileTransportAdapter {
 	private readonly repository: FileEffortRepository;
-
-	private readonly executionState = new EffortExecutionState();
-	private readonly processor: EffortProcessor;
-	private readonly queue: EffortQueue;
+	private readonly coordinator: EffortCoordinator;
 
 	constructor(baseDir: string, executor: TaskExecutorFn, options: FileTransportOptions = {}) {
 		this.repository = new FileEffortRepository(baseDir);
-		this.processor = new EffortProcessor(
-			this.repository,
-			this.executionState,
-			executor,
-			options,
-		);
-		this.queue = new EffortQueue(async (effortId, processOptions) => {
-			const effort = this.repository.readEffort(effortId);
-			if (!effort) return;
-			await this.processor.process(effort, processOptions);
-		});
+		this.coordinator = new EffortCoordinator(this.repository, executor, options);
+	}
+
+	get operations(): EffortOperations {
+		return this.coordinator;
 	}
 
 	async submit(effort: Effort): Promise<string> {
-		this.repository.writeEffort(effort);
-
-		const existing = this.repository.readResult(effort.id);
-		if (!existing) {
-			const pendingResult: EffortResult = {
-				effortId: effort.id,
-				status: "pending",
-				results: [],
-				submittedAt: effort.submittedAt,
-				lastUpdatedAt: nowIso(),
-			};
-			this.repository.writeResult(pendingResult);
-		}
-
-		this.repository.appendLog(effort.id, {
-			effortId: effort.id,
-			timestamp: nowIso(),
-			level: "info",
-			event: "submitted",
-			message: `Effort submitted with ${effort.tasks.length} task(s)`,
-			meta: {
-				direction: effort.direction,
-				source: effort.source,
-			},
-		});
-
-		return effort.id;
+		return this.coordinator.submit(effort);
 	}
 
-	async query(effortId: string): Promise<EffortResult | null> {
-		return this.repository.readResult(effortId);
+	async query(effortId: string) {
+		return this.coordinator.query(effortId);
 	}
 
-	async list(): Promise<EffortResult[]> {
-		return this.repository.listResults();
+	async list() {
+		return this.coordinator.list();
 	}
 
-	async logs(effortId: string): Promise<EffortLogEntry[] | null> {
-		return this.repository.readLogs(effortId);
+	async logs(effortId: string) {
+		return this.coordinator.logs(effortId);
 	}
 
 	async retry(effortId: string): Promise<boolean> {
-		if (!this.repository.hasEffort(effortId)) return false;
-
-		const current = this.repository.readResult(effortId);
-		if (!current) return false;
-		if (current.status === "in-progress") return false;
-		if (current.status === "pending") return true;
-
-		this.executionState.clearCancellation(effortId);
-		this.repository.appendLog(effortId, {
-			effortId,
-			timestamp: nowIso(),
-			level: "info",
-			event: "retry_requested",
-			message: "Retry requested",
-		});
-
-		this.queue.enqueue(effortId, { force: true });
-		return true;
+		return this.coordinator.retry(effortId);
 	}
 
 	async cancel(effortId: string): Promise<boolean> {
-		if (!this.repository.hasEffort(effortId)) return false;
-
-		const current = this.repository.readResult(effortId);
-		if (current && isTerminalEffortStatus(current.status)) return false;
-
-		this.executionState.requestCancellation(effortId);
-		this.repository.appendLog(effortId, {
-			effortId,
-			timestamp: nowIso(),
-			level: "warn",
-			event: "cancel_requested",
-			message: "Cancellation requested",
-		});
-
-		if (!this.executionState.isInFlight(effortId)) {
-			const cancelled: EffortResult = {
-				effortId,
-				status: "cancelled",
-				results: current?.results ?? [],
-				submittedAt: current?.submittedAt,
-				startedAt: current?.startedAt,
-				attemptCount: current?.attemptCount,
-				lastUpdatedAt: nowIso(),
-				completedAt: nowIso(),
-			};
-			this.repository.writeResult(cancelled);
-		}
-
-		return true;
+		return this.coordinator.cancel(effortId);
 	}
 
-	async summary(): Promise<EffortSummary> {
-		return summarizeEfforts(await this.list());
+	async summary() {
+		return this.coordinator.summary();
 	}
 
 	async telemetry(): Promise<RuntimeTelemetrySnapshot> {
-		const summary = await this.summary();
-		return {
-			...summary,
-			queueDepth: this.queue.depth,
-			inFlight: this.executionState.inFlightCount,
-			cancelRequests: this.executionState.cancellationCount,
-			generatedAt: nowIso(),
-		};
+		return this.coordinator.telemetry();
 	}
 
 	async telemetryWindow(minutes: number): Promise<RuntimeTelemetryWindow> {
-		return summarizeEffortWindow(await this.list(), minutes, Date.now());
+		return this.coordinator.telemetryWindow(minutes);
 	}
 
 	async process(effort: Effort): Promise<void> {
-		await this.processor.process(effort);
+		await this.coordinator.process(effort);
 	}
 
 	watch(): () => void {
@@ -177,7 +73,7 @@ export class FileTransportAdapter implements EffortOperations {
 			if (!filename.endsWith(".json")) return;
 			const effortId = filename.replace(/\.json$/, "");
 			if (!effortId) return;
-			this.queue.enqueue(effortId);
+			this.coordinator.enqueue(effortId);
 		};
 
 		const processControlFile = (filename: string): void => {
@@ -189,11 +85,11 @@ export class FileTransportAdapter implements EffortOperations {
 			const cancelMatch = filename.match(/^(.+)\.cancel\.json$/);
 			try {
 				if (retryMatch) {
-					void this.retry(retryMatch[1]!);
+					void this.coordinator.retry(retryMatch[1]!);
 					return;
 				}
 				if (cancelMatch) {
-					void this.cancel(cancelMatch[1]!);
+					void this.coordinator.cancel(cancelMatch[1]!);
 					return;
 				}
 			} finally {
@@ -215,7 +111,7 @@ export class FileTransportAdapter implements EffortOperations {
 			const result = this.repository.readResult(effortId);
 			if (!result) continue;
 			if (result.status === "pending" || result.status === "in-progress") {
-				this.queue.enqueue(effortId);
+				this.coordinator.enqueue(effortId);
 			}
 		}
 
@@ -238,5 +134,4 @@ export class FileTransportAdapter implements EffortOperations {
 			controlWatcher.close();
 		};
 	}
-
 }

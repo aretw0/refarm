@@ -462,7 +462,11 @@ async function main() {
 	const stopFileWatcher = fileTransport.watch();
 	console.log(`[farmhand] File transport watching ${farmhandBaseDir}/tasks/`);
 
-	const httpSidecar = new HttpSidecar(FARMHAND_HTTP_PORT, fileTransport, FARMHAND_HTTP_HOST);
+	const httpSidecar = new HttpSidecar(
+		FARMHAND_HTTP_PORT,
+		fileTransport.operations,
+		FARMHAND_HTTP_HOST,
+	);
 	httpSidecar.addRouteHandler(createSessionsRouteHandler(runtime));
 	httpSidecar.addRouteHandler(createTasksRouteHandler(taskMemoryAdapter));
 	httpSidecar.addRouteHandler(createControlSurfaceRouteHandler(fileTransport));
