@@ -20,6 +20,11 @@
 					"category": { "type": "string", "enum": ["primitive", "issue", "cleanup", "capability", "composition"] },
 					"priority": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
 					"package": { "type": "string", "description": "Which monorepo package this issue touches (e.g. pi-workflows, pi-project, pi-behavior-monitors)" },
+					"axis": {
+						"type": "string",
+						"enum": ["node-vs-directory", "cost", "sandbox", "durability", "other"],
+						"description": "Which axis of open work this item belongs to. Optional in the schema; required by the CI gate for status: open."
+					},
 					"source": {
 						"type": "string",
 						"enum": ["human", "agent", "monitor", "workflow"],
