@@ -47,6 +47,19 @@ describe("checkHandoffCitations", () => {
 		]);
 		assert.match(result.errors.join(" "), /ISS-002.*resolved_by/);
 	});
+
+	// Regression guard: main() also cross-references a VER- resolved_by against the verification
+	// block, but that is a DIFFERENT concern from "resolved_by is missing" — checkHandoffCitations
+	// is the sole owner of the missing-resolved_by message. If that responsibility is ever
+	// duplicated back into main()'s issue loop, this test alone can't see main()'s output, but it
+	// pins that THIS function reports the case exactly once — never twice for one root cause.
+	it("reports a missing resolved_by exactly once, not doubled", () => {
+		const result = checkHandoffCitations({ next_actions: ["ISS-001"], blockers: [] }, [
+			{ id: "ISS-001", status: "open", axis: "cost" },
+			{ id: "ISS-002", status: "resolved" },
+		]);
+		assert.equal(result.errors.length, 1);
+	});
 });
 
 describe("checkLedgerFreshness", () => {

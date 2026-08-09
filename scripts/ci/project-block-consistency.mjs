@@ -84,6 +84,10 @@ export function checkHandoffCitations(handoff, issues) {
 		if (issue.status === "open" && !issue.axis) {
 			errors.push(`[issues] ${issue.id} is open with no axis`);
 		}
+		// Sole owner of the "resolved with no resolved_by" message. main()'s issue loop has its
+		// own resolved_by check too (the VER- verification cross-reference), but that one only
+		// fires once resolved_by is non-empty — so a missing resolved_by is reported exactly
+		// once, here, never twice for the same root cause.
 		if (issue.status === "resolved" && !issue.resolved_by) {
 			errors.push(`[issues] ${issue.id} is resolved with no resolved_by`);
 		}
@@ -115,8 +119,9 @@ export function checkLedgerFreshness({ commitsSinceLedgerChange }) {
 
 // The git anchor itself — lives outside the pure functions above so they stay testable without
 // a filesystem or a git checkout. Returns null (UNKNOWN) rather than 0 on any failure; a shallow
-// clone is not a fresh ledger.
-function commitsSinceLedgerChange() {
+// clone is not a fresh ledger. Named `read...` (rather than reusing the domain name) so it reads
+// as an impure reader, not a recursive call on `checkLedgerFreshness`'s parameter of the same name.
+function readCommitsSinceLedgerChange() {
 	try {
 		const last = execFileSync("git", ["log", "-1", "--format=%H", "--", ".project/issues.json"], {
 			encoding: "utf8",
@@ -269,22 +274,23 @@ function main() {
 		}
 	}
 
+	// The "resolved with no resolved_by" case is NOT checked here — checkHandoffCitations owns
+	// that message (see its comment) so it is reported exactly once, not once per check. This
+	// loop keeps only its other responsibility: cross-referencing a VER- resolved_by against the
+	// verification block, which needs a non-empty resolved_by to even evaluate.
 	for (const issue of issues) {
 		if (!issue || typeof issue.id !== "string") continue;
 
-		if (issue.status === "resolved") {
-			if (!issue.resolved_by || String(issue.resolved_by).trim() === "") {
-				errors.push(
-					`[issues] ${issue.id} is resolved but resolved_by is empty`,
-				);
-			} else if (
-				String(issue.resolved_by).startsWith("VER-") &&
-				!verificationIds.has(issue.resolved_by)
-			) {
-				errors.push(
-					`[issues] ${issue.id} resolved_by references missing verification: ${issue.resolved_by}`,
-				);
-			}
+		if (
+			issue.status === "resolved" &&
+			issue.resolved_by &&
+			String(issue.resolved_by).trim() !== "" &&
+			String(issue.resolved_by).startsWith("VER-") &&
+			!verificationIds.has(issue.resolved_by)
+		) {
+			errors.push(
+				`[issues] ${issue.id} resolved_by references missing verification: ${issue.resolved_by}`,
+			);
 		}
 	}
 
@@ -292,7 +298,7 @@ function main() {
 	errors.push(...citations.errors);
 
 	const freshness = checkLedgerFreshness({
-		commitsSinceLedgerChange: commitsSinceLedgerChange(),
+		commitsSinceLedgerChange: readCommitsSinceLedgerChange(),
 	});
 	errors.push(...freshness.errors);
 	warnings.push(...freshness.warnings);
