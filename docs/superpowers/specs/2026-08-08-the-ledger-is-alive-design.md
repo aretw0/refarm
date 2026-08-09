@@ -7,6 +7,32 @@ Related: `.project/schemas/issues.schema.json`, `scripts/ci/project-block-consis
 `docs/NO_OS_RESOLUTION.md`, 2026-08-06 a-workspace-is-not-a-node design,
 2026-08-03 budget-laboratory design (the three-states precedent)
 
+## Erratum (2026-08-09)
+
+**What this spec said:** `LedgerResolution` reports one field, `resolvedFrom: "flag" | "cwd-match" |
+"convention"`, answering both "how was the workspace chosen" and "how was the provider chosen" —
+see "Workspace scope" and "Where the adapter is declared" below.
+
+**What was found:** Task 4's implementation and its review exposed that one field conflates two
+independent provenances. `--all-workspaces` resolves each declared workspace by id internally (it
+has to — there is no operator-typed flag to read), so every workspace it enumerates reported
+`resolvedFrom: "flag"` even though the operator passed no `--workspace` at all; and a workspace
+whose provider is found by convention always reported `resolvedFrom: "convention"` regardless of
+whether the WORKSPACE itself was chosen by flag or by cwd-match, silently discarding that half of
+the answer. Four real combinations (workspace chosen by {flag, cwd-match, enumerated} × provider
+found by {declared, convention}) do not fit into three field values.
+
+**Corrected shape:** `LedgerResolution`'s success branch reports two fields instead of one:
+
+```json
+{ "workspaceFrom": "flag" | "cwd-match" | "enumerated", "providerFrom": "declared" | "convention" }
+```
+
+`workspaceFrom` answers how the workspace was selected (`"enumerated"` is new — the
+`--all-workspaces` batch path); `providerFrom` answers how its work-item provider was found.
+Every other reference to `resolvedFrom` in this document is superseded by this split; left as
+written below for the historical record of what was designed, not as the current contract.
+
 ## Why this exists
 
 The operator asked on 2026-08-08 to close every remaining granularity hole across the node /

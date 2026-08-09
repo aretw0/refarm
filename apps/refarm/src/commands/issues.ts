@@ -8,10 +8,15 @@
  *
  * THE ONE DELIBERATE cwd READ. Every subcommand below reads `process.cwd()` exactly once, and
  * ONLY to match it against the declared catalog (`resolveWorkspaceLedger` reports the result as
- * `resolvedFrom: "cwd-match"`) — never as a fallback for where to look for a ledger. Wrapped in
- * `currentDirectoryForCatalogMatch()` rather than a bare `const cwd = process.cwd()`: the latter
- * is the exact silent-default shape `scripts/no-os-resolution.mjs` ratchets against, and this
- * read is not that — it is reported on every envelope, never assumed.
+ * `workspaceFrom: "cwd-match"`) — never as a fallback for where to look for a ledger. It is
+ * wrapped in `currentDirectoryForCatalogMatch()`, a named, documented function, rather than
+ * inlined at each call site, so every read is visibly the SAME one read with the SAME purpose —
+ * not because a bare `const cwd = process.cwd()` would trip `scripts/no-os-resolution.mjs`
+ * (measured: it would not — that script's own doc names exactly two shapes it counts, `??
+ * resolver()` and `= resolver()`, and a `return process.cwd();` inside a named function matches
+ * neither, by construction of its regex). The ratchet's scope is silent OS-defaulting; this read
+ * is neither silent (it is reported on every envelope) nor a default (there is no fallback
+ * behavior here to silently take) — the wrapper exists for that reason, not to dodge a counter.
  */
 import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
@@ -48,7 +53,17 @@ function defaultLoadWorkspaces(): LedgerWorkspace[] {
 	);
 }
 
-const io = {
+/** Every filesystem read/write this command performs, gathered behind one seam so a test can
+ *  inject a fake catalog and a fake ledger document without touching the operator's real
+ *  `~/.refarm/config.json` or any real `.project/issues.json`. */
+export interface IssuesIo {
+	loadWorkspaces: () => LedgerWorkspace[];
+	fileExists: (candidate: string) => boolean;
+	readDocument: (candidate: string) => string;
+	writeDocument: (candidate: string, contents: string) => void;
+}
+
+const defaultIo: IssuesIo = {
 	loadWorkspaces: defaultLoadWorkspaces,
 	fileExists: (candidate: string) => fs.existsSync(candidate),
 	readDocument: (candidate: string) => fs.readFileSync(candidate, "utf-8"),
@@ -58,7 +73,7 @@ const io = {
 type LedgerRefusal = Extract<LedgerResolution, { ok: false }>;
 
 /** A refusal is an envelope, never a throw — the shape every subcommand below shares for a
- *  resolution failure. */
+ *  resolution failure (the workspace itself could not be resolved). */
 function refuse(operation: string, resolution: LedgerRefusal, json?: boolean): void {
 	const message =
 		{
@@ -85,9 +100,9 @@ function refuse(operation: string, resolution: LedgerRefusal, json?: boolean): v
 	process.exitCode = 1;
 }
 
-/** A refusal reached AFTER the workspace resolved — input validation or an adapter write
- *  failure. The workspace is already known here, so the handoff points at a REAL, concrete
- *  `issues list` for that same workspace rather than a placeholder. */
+/** A refusal reached AFTER the workspace resolved — input validation, a ledger read failure, or
+ *  an adapter write failure. The workspace is already known here, so the handoff points at a
+ *  REAL, concrete `issues list` for that same workspace rather than a placeholder. */
 function refuseAfterResolution(
 	operation: string,
 	workspaceId: string,
@@ -126,7 +141,8 @@ type LedgerResolutionOk = Extract<LedgerResolution, { ok: true }>;
 
 interface ListedItemGroup {
 	provider: string;
-	resolvedFrom: LedgerResolutionOk["resolvedFrom"];
+	workspaceFrom: LedgerResolutionOk["workspaceFrom"];
+	providerFrom: LedgerResolutionOk["providerFrom"];
 	count: number;
 	unclassified: number;
 	extraFields: string[];
@@ -134,7 +150,86 @@ interface ListedItemGroup {
 	items: Array<WorkItem & { qualifiedId: string }>;
 }
 
-function buildListCommand(): Command {
+/**
+ * The pure(ish) core of `issues list` — given options and IO, decides what the command should
+ * report, but never prints or sets `process.exitCode` itself (that is the Commander action's
+ * job, below). Exported and unit-tested directly (fake IO, no Commander, no console) so the
+ * three states this function must never collapse — a clean group, a named `unreadable` entry
+ * under `--all-workspaces`, and an outright refusal for a single-workspace failure — are each
+ * provable without going through a real process.
+ *
+ * THREE STATES, NEVER TWO, on a single-workspace read failure: this used to `continue` past a
+ * failed `adapter.list()` exactly like the `--all-workspaces` branch does, which meant
+ * `refarm issues list --workspace x --json` against a malformed ledger returned `ok: true` with
+ * an EMPTY payload and exit 0 — a zero that was not a real zero, silently indistinguishable from
+ * a workspace with no open items. `kind: "read-failure"` exists so the caller refuses instead.
+ */
+export type IssuesListOutcome =
+	| { kind: "refusal"; resolution: LedgerRefusal }
+	| { kind: "read-failure"; workspaceId: string; reason: string; message: string }
+	| { kind: "ok"; groups: Record<string, ListedItemGroup>; unreadable: Record<string, { reason: string }> };
+
+export interface BuildIssuesListInput extends IssuesIo {
+	workspace?: string;
+	allWorkspaces?: boolean;
+	axis?: string;
+	status?: string;
+	cwd: string;
+}
+
+export function buildIssuesList(input: BuildIssuesListInput): IssuesListOutcome {
+	const groups: Record<string, ListedItemGroup> = {};
+	const unreadable: Record<string, { reason: string }> = {};
+	const targets = input.allWorkspaces ? input.loadWorkspaces().map((workspace) => workspace.id) : [input.workspace];
+
+	for (const target of targets) {
+		const resolution = resolveWorkspaceLedger({
+			workspace: target,
+			cwd: input.cwd,
+			enumerated: input.allWorkspaces,
+			loadWorkspaces: input.loadWorkspaces,
+			fileExists: input.fileExists,
+			readDocument: input.readDocument,
+			writeDocument: input.writeDocument,
+		});
+		if (!resolution.ok) {
+			if (!input.allWorkspaces) return { kind: "refusal", resolution };
+			unreadable[target ?? "(unresolved)"] = { reason: resolution.reason };
+			continue;
+		}
+		const read = resolution.adapter.list();
+		if (!read.ok) {
+			const reason = read.error?.reason ?? "document_unreadable";
+			if (!input.allWorkspaces) {
+				return {
+					kind: "read-failure",
+					workspaceId: resolution.workspaceId,
+					reason,
+					message: read.error?.message ?? "Could not read this workspace's ledger.",
+				};
+			}
+			unreadable[resolution.workspaceId] = { reason };
+			continue;
+		}
+		const items = read.items
+			.filter((item) => (input.status ? item.status === input.status : item.status === "open"))
+			.filter((item) => (input.axis ? item.axis === input.axis : true));
+		groups[resolution.workspaceId] = {
+			provider: resolution.provider,
+			workspaceFrom: resolution.workspaceFrom,
+			providerFrom: resolution.providerFrom,
+			count: items.length,
+			unclassified: items.filter((item) => !item.axis).length,
+			extraFields: read.extraFields,
+			capabilities: resolution.adapter.capabilities(),
+			items: items.map((item) => ({ ...item, qualifiedId: qualifyId(resolution.workspaceId, item.id) })),
+		};
+	}
+
+	return { kind: "ok", groups, unreadable };
+}
+
+function buildListCommand(io: IssuesIo): Command {
 	return new Command("list")
 		.description("List a workspace's work items")
 		.option("--workspace <id>", "Declared workspace id")
@@ -144,41 +239,18 @@ function buildListCommand(): Command {
 		.option("--json", "Output machine-readable list")
 		.action((options: IssuesListOptions) => {
 			const cwd = currentDirectoryForCatalogMatch();
-			const groups: Record<string, ListedItemGroup> = {};
-			const unreadable: Record<string, { reason: string }> = {};
-			const targets = options.allWorkspaces
-				? io.loadWorkspaces().map((workspace) => workspace.id)
-				: [options.workspace];
+			const outcome = buildIssuesList({ ...options, cwd, ...io });
 
-			for (const target of targets) {
-				const resolution = resolveWorkspaceLedger({ workspace: target, cwd, ...io });
-				if (!resolution.ok) {
-					if (!options.allWorkspaces) {
-						refuse("list", resolution, options.json);
-						return;
-					}
-					unreadable[target ?? "(unresolved)"] = { reason: resolution.reason };
-					continue;
-				}
-				const read = resolution.adapter.list();
-				if (!read.ok) {
-					unreadable[resolution.workspaceId] = { reason: read.error?.reason ?? "document_unreadable" };
-					continue;
-				}
-				const items = read.items
-					.filter((item) => (options.status ? item.status === options.status : item.status === "open"))
-					.filter((item) => (options.axis ? item.axis === options.axis : true));
-				groups[resolution.workspaceId] = {
-					provider: resolution.provider,
-					resolvedFrom: resolution.resolvedFrom,
-					count: items.length,
-					unclassified: items.filter((item) => !item.axis).length,
-					extraFields: read.extraFields,
-					capabilities: resolution.adapter.capabilities(),
-					items: items.map((item) => ({ ...item, qualifiedId: qualifyId(resolution.workspaceId, item.id) })),
-				};
+			if (outcome.kind === "refusal") {
+				refuse("list", outcome.resolution, options.json);
+				return;
+			}
+			if (outcome.kind === "read-failure") {
+				refuseAfterResolution("list", outcome.workspaceId, outcome.reason, outcome.message, options.json);
+				return;
 			}
 
+			const { groups, unreadable } = outcome;
 			if (options.json) {
 				printJson(
 					buildJsonSuccessEnvelope({
@@ -215,7 +287,7 @@ interface IssuesAddOptions {
 	json?: boolean;
 }
 
-function buildAddCommand(): Command {
+function buildAddCommand(io: IssuesIo): Command {
 	return new Command("add")
 		.description("Add a work item to a workspace's ledger")
 		.option("--workspace <id>", "Declared workspace id")
@@ -294,7 +366,8 @@ function buildAddCommand(): Command {
 							nextCommands: [],
 							extra: {
 								workspaceId: resolution.workspaceId,
-								resolvedFrom: resolution.resolvedFrom,
+								workspaceFrom: resolution.workspaceFrom,
+								providerFrom: resolution.providerFrom,
 								dryRun: true,
 								item: { ...item, qualifiedId },
 							},
@@ -307,7 +380,7 @@ function buildAddCommand(): Command {
 			}
 
 			const result = resolution.adapter.add(item);
-			if (!result.ok) {
+			if (!result.ok || !result.item) {
 				refuseAfterResolution(
 					"add",
 					resolution.workspaceId,
@@ -326,7 +399,8 @@ function buildAddCommand(): Command {
 						nextCommands: [],
 						extra: {
 							workspaceId: resolution.workspaceId,
-							resolvedFrom: resolution.resolvedFrom,
+							workspaceFrom: resolution.workspaceFrom,
+							providerFrom: resolution.providerFrom,
 							item: { ...result.item, qualifiedId },
 						},
 					}),
@@ -345,7 +419,7 @@ interface IssuesSetStatusOptions {
 	json?: boolean;
 }
 
-function buildSetStatusCommand(): Command {
+function buildSetStatusCommand(io: IssuesIo): Command {
 	return new Command("set-status")
 		.description("Set a work item's status")
 		.option("--workspace <id>", "Declared workspace id")
@@ -387,7 +461,7 @@ function buildSetStatusCommand(): Command {
 				options.status as WorkItemStatus,
 				options.resolvedBy,
 			);
-			if (!result.ok) {
+			if (!result.ok || !result.item) {
 				refuseAfterResolution(
 					"set-status",
 					resolution.workspaceId,
@@ -398,7 +472,7 @@ function buildSetStatusCommand(): Command {
 				return;
 			}
 
-			const qualifiedId = qualifyId(resolution.workspaceId, result.item!.id);
+			const qualifiedId = qualifyId(resolution.workspaceId, result.item.id);
 			if (options.json) {
 				printJson(
 					buildJsonSuccessEnvelope({
@@ -407,24 +481,25 @@ function buildSetStatusCommand(): Command {
 						nextCommands: [],
 						extra: {
 							workspaceId: resolution.workspaceId,
-							resolvedFrom: resolution.resolvedFrom,
+							workspaceFrom: resolution.workspaceFrom,
+							providerFrom: resolution.providerFrom,
 							item: { ...result.item, qualifiedId },
 						},
 					}),
 				);
 				return;
 			}
-			console.log(chalk.green(`Updated ${qualifiedId} → ${result.item!.status}.`));
+			console.log(chalk.green(`Updated ${qualifiedId} → ${result.item.status}.`));
 		});
 }
 
-export function createIssuesCommand(): Command {
+export function createIssuesCommand(io: IssuesIo = defaultIo): Command {
 	const command = new Command("issues").description(
 		"Work items for a declared workspace's ledger — resolved through the catalog, never the cwd",
 	);
-	command.addCommand(buildListCommand());
-	command.addCommand(buildAddCommand());
-	command.addCommand(buildSetStatusCommand());
+	command.addCommand(buildListCommand(io));
+	command.addCommand(buildAddCommand(io));
+	command.addCommand(buildSetStatusCommand(io));
 	return command;
 }
 

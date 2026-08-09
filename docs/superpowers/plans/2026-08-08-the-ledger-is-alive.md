@@ -10,6 +10,19 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-08-the-ledger-is-alive-design.md`
 
+## Erratum (2026-08-09)
+
+Task 4's `LedgerResolution.resolvedFrom: "flag" | "cwd-match" | "convention"` (named throughout
+Task 4's brief below, including its literal test/implementation snippets) conflated two
+independent facts in one field — how the WORKSPACE was chosen vs. how its PROVIDER was found —
+and could not represent `--all-workspaces`'s batch path at all (it silently reported `"flag"` for
+every enumerated workspace). Corrected, per the matching erratum in the spec: two fields,
+`workspaceFrom: "flag" | "cwd-match" | "enumerated"` and `providerFrom: "declared" | "convention"`.
+Every `resolvedFrom` reference below (Task 4's brief text, its illustrative code, its test
+snippets) is superseded by this split; left as originally written for the historical record of
+what was planned, not as the current contract — see `packages/cli/src/work-items/resolve.ts` for
+the implemented shape.
+
 ---
 
 ## FOOTGUNS — read before Task 1

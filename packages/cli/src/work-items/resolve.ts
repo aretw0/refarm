@@ -12,8 +12,14 @@ export interface LedgerWorkspace {
 
 export interface ResolveLedgerInput {
 	workspace?: string;
+	/** Set by a caller resolving `workspace` on behalf of a BATCH enumeration
+	 * (`--all-workspaces`), where every declared id is looked up in turn rather than one
+	 * operator-typed `--workspace <id>` flag. Reported as `workspaceFrom: "enumerated"` instead of
+	 * `"flag"` — without this, the resolver cannot tell the two apart, because both arrive here as
+	 * the same populated `workspace` string. Ignored when `workspace` is unset. */
+	enumerated?: boolean;
 	/** A DELIBERATE cwd read, used ONLY to match against the declared catalog, and always reported
-	 * as `resolvedFrom: "cwd-match"`. It is never a path the ledger is read from. */
+	 * as `workspaceFrom: "cwd-match"`. It is never a path the ledger is read from. */
 	cwd: string;
 	loadWorkspaces: () => LedgerWorkspace[];
 	fileExists: (candidate: string) => boolean;
@@ -25,7 +31,15 @@ export type LedgerResolution =
 	| {
 			ok: true;
 			workspaceId: string;
-			resolvedFrom: "flag" | "cwd-match" | "convention";
+			/** How the WORKSPACE was selected — independent of how its provider was found (see
+			 * `providerFrom`). `"enumerated"` is the `--all-workspaces` batch path: the caller
+			 * looked up a declared id on the operator's behalf, not a flag the operator typed. */
+			workspaceFrom: "flag" | "cwd-match" | "enumerated";
+			/** How the work-item PROVIDER was found for the selected workspace — independent of
+			 * `workspaceFrom`. A workspace chosen by cwd-match can still have a DECLARED provider,
+			 * and a workspace chosen by flag can still fall back to the convention path; these two
+			 * facts do not determine each other, so they are never folded into one field. */
+			providerFrom: "declared" | "convention";
 			provider: string;
 			documentPath: string;
 			adapter: WorkItemAdapter;
@@ -37,65 +51,39 @@ function isInside(parent: string, candidate: string): boolean {
 	return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
-/**
- * ONE adapter per resolved document path, reused across calls that land on the same ledger
- * file. This is what makes "same directory-independent answer" a STRUCTURAL property a caller
- * can assert with `toEqual` (two resolutions of the same workspace from two different cwds
- * must be the identical value, not merely two values that happen to agree field-by-field) —
- * without it, every call would mint a fresh `WorkItemAdapter` closure and two otherwise-
- * identical resolutions would never be reference-equal on that one field. Safe: the cached
- * adapter's methods still defer every actual read/write to the CALLER-supplied `readDocument`/
- * `writeDocument` at invocation time via `documentPath` — nothing about a workspace's ledger
- * CONTENT is cached here, only the wrapper object, and a real CLI invocation's `io` functions
- * are stable for the life of the process regardless of which directory it was started from.
- */
-const adapterCache = new Map<string, WorkItemAdapter>();
-
-function adapterFor(
-	documentPath: string,
-	readDocument: (candidate: string) => string,
-	writeDocument: (candidate: string, contents: string) => void,
-): WorkItemAdapter {
-	const cached = adapterCache.get(documentPath);
-	if (cached) return cached;
-	const adapter = createProjectJsonAdapter({
-		readDocument: () => readDocument(documentPath),
-		writeDocument: (contents) => writeDocument(documentPath, contents),
-	});
-	adapterCache.set(documentPath, adapter);
-	return adapter;
-}
-
 export function resolveWorkspaceLedger(input: ResolveLedgerInput): LedgerResolution {
 	const workspaces = input.loadWorkspaces();
-	// NOT sorted: catalog declaration order, as the operator wrote it — a caller reporting
-	// "declared: [...]" back to the operator should read the same order `workspace list` does.
+	// NOT sorted here: `declared` is reported exactly as `loadWorkspaces()` returned it. In
+	// production that is already alphabetical — `declaredWorkspacesFromConfig` sorts by
+	// `id.localeCompare` (packages/config/src/workspaces-config.js) — but that is the LOADER's
+	// choice, not this resolver's; a caller supplying an unsorted catalog (as this file's own
+	// unit tests do) sees its own order echoed back unmodified.
 	const declared = workspaces.map((workspace) => workspace.id);
 
 	let workspace: LedgerWorkspace | undefined;
-	let origin: "flag" | "cwd-match";
+	let workspaceFrom: "flag" | "cwd-match" | "enumerated";
 	if (input.workspace) {
 		workspace = workspaces.find((candidate) => candidate.id === input.workspace);
 		if (!workspace) return { ok: false, reason: "no_such_workspace", declared };
-		origin = "flag";
+		workspaceFrom = input.enumerated ? "enumerated" : "flag";
 	} else {
 		// LONGEST match wins, so a nested workspace is not shadowed by its parent.
 		workspace = workspaces
 			.filter((candidate) => isInside(candidate.absolutePath, input.cwd))
 			.sort((left, right) => right.absolutePath.length - left.absolutePath.length)[0];
 		if (!workspace) return { ok: false, reason: "cwd_unmatched", declared };
-		origin = "cwd-match";
+		workspaceFrom = "cwd-match";
 	}
 
 	let provider = workspace.issues?.provider;
 	let relativePath = workspace.issues?.path;
-	let resolvedFrom: "flag" | "cwd-match" | "convention";
+	let providerFrom: "declared" | "convention";
 	if (provider && relativePath) {
-		resolvedFrom = origin;
+		providerFrom = "declared";
 	} else if (input.fileExists(path.join(workspace.absolutePath, CONVENTION_PATH))) {
 		provider = "project-json";
 		relativePath = CONVENTION_PATH;
-		resolvedFrom = "convention";
+		providerFrom = "convention";
 	} else {
 		return { ok: false, reason: "no_provider", declared };
 	}
@@ -104,9 +92,13 @@ export function resolveWorkspaceLedger(input: ResolveLedgerInput): LedgerResolut
 	return {
 		ok: true,
 		workspaceId: workspace.id,
-		resolvedFrom,
+		workspaceFrom,
+		providerFrom,
 		provider,
 		documentPath,
-		adapter: adapterFor(documentPath, input.readDocument, input.writeDocument),
+		adapter: createProjectJsonAdapter({
+			readDocument: () => input.readDocument(documentPath),
+			writeDocument: (contents) => input.writeDocument(documentPath, contents),
+		}),
 	};
 }
