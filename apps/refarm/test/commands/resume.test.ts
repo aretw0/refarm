@@ -70,6 +70,10 @@ function createTestResumeCommand(
 ) {
 	return createResumeCommand({
 		loadEnvironmentPressure: vi.fn().mockReturnValue(undefined),
+		// Default to an empty ledger so these tests never depend on this machine's real
+		// declared workspaces (`~/.refarm/config.json`) — a test wanting ledger behavior
+		// overrides this explicitly, same as `loadEnvironmentPressure` above.
+		loadLedgerReads: vi.fn().mockReturnValue({}),
 		...deps,
 	});
 }

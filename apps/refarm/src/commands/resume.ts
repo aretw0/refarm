@@ -1,4 +1,5 @@
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import { resolveWorkspaceLedger, type LedgerWorkspace } from "@refarm.dev/cli";
 import { loadChatHistory } from "@refarm.dev/cli/chat-history";
 import {
 	buildOperatorResumeCommands,
@@ -19,10 +20,13 @@ import {
 	parseProjectHandoffSummary,
 	PROJECT_HANDOFF_RELATIVE_PATH,
 } from "@refarm.dev/cli/project-handoff";
+import { declaredBase, declaredWorkspacesFromConfig, loadConfig } from "@refarm.dev/config";
 import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
+
+import { refarmCommand } from "../brand.js";
 import {
 	agentFinishSessionFilePath,
 	createAgentFinishSessionRecorder,
@@ -55,6 +59,7 @@ export interface ResumeDeps {
 	loadProjectHandoff(): OperatorResumeProjectSummary | undefined;
 	loadScheduledWork(): Promise<ProjectScheduledWorkInspection | undefined>;
 	loadEnvironmentPressure(): OperatorResumeEnvironmentPressure | undefined;
+	loadLedgerReads(): Record<string, LedgerReadResult>;
 }
 
 interface LoadScheduledWorkOptions {
@@ -81,6 +86,7 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 		loadProjectHandoff,
 		loadScheduledWork,
 		loadEnvironmentPressure,
+		loadLedgerReads,
 		...deps,
 	};
 
@@ -120,6 +126,8 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 	const project = deps.loadProjectHandoff();
 	const scheduledWork = await deps.loadScheduledWork();
 	const environmentPressure = deps.loadEnvironmentPressure();
+	const ledger = buildLedgerSummary(deps.loadLedgerReads());
+	const ledgerNextCommands = buildLedgerNextCommands(ledger);
 	const model = await loadModelResumeSummary(deps);
 	const recentSessions = options.status === false ? [] : await deps.loadRecentSessions();
 	const statusResult =
@@ -142,6 +150,11 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			handoffs: RESUME_HANDOFFS,
 		});
 
+		// Appended AFTER the generic operator-resume handoffs, never ahead of them: a failed
+		// finish or a not-ready runtime stays the first, most urgent `nextCommand` — the ledger
+		// hint is "what else is left," not a replacement for active recovery.
+		const nextCommands = [...new Set([...envelope.nextCommands, ...ledgerNextCommands])];
+
 		const nextCommandMode = options.nextAction || options.nextCommand;
 		if (nextCommandMode && options.json) {
 			printJson(
@@ -150,7 +163,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 					operation: "operator",
 					nextAction: envelope.nextAction,
 					nextActions: envelope.nextActions,
-					nextCommands: envelope.nextCommands,
+					nextCommands,
 					extra: {
 						nextProcesses: envelope.nextProcesses,
 					},
@@ -159,7 +172,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			return;
 		}
 		if (nextCommandMode) {
-			const [command] = envelope.nextCommands;
+			const [command] = nextCommands;
 			if (command) {
 				console.log(command);
 			}
@@ -167,7 +180,12 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 		}
 
 		if (options.json) {
-			printJson(envelope);
+			printJson({
+				...envelope,
+				ledger,
+				nextCommand: nextCommands[0] ?? null,
+				nextCommands,
+			});
 			return;
 		}
 
@@ -185,7 +203,6 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			handoffs: RESUME_HANDOFFS,
 		});
 		console.log(formatOperatorResumeSummary(summary));
-		const nextCommands = envelope.nextCommands;
 		if (nextCommands.length > 0) {
 			console.log("");
 			console.log("Next commands:");
@@ -266,6 +283,175 @@ export async function loadScheduledWork(
 	options: LoadScheduledWorkOptions = {},
 ): Promise<OperatorResumeScheduledWorkInspection | undefined> {
 	return loadProjectScheduledWork({ cwd, ...options });
+}
+
+export interface LedgerReadResult {
+	ok: boolean;
+	items?: { id: string; status: string; axis?: string }[];
+	error?: { reason: string; message: string };
+}
+
+export interface LedgerSummary {
+	workspaces: Record<string, { open: number; unclassified: number; byAxis: Record<string, number> }>;
+	unreadable: Record<string, { reason: string; message?: string }>;
+}
+
+/** PURE. Takes already-read results so it is testable without a filesystem, and so a slow or
+ * failing workspace cannot change the shape of the answer. There is no `total` field, and
+ * adding one later would be a regression: summing open items across workspaces is exactly the
+ * mixing the operator ruled out when he said issues from different workspaces must never mix. */
+export function buildLedgerSummary(reads: Record<string, LedgerReadResult>): LedgerSummary {
+	const workspaces: LedgerSummary["workspaces"] = {};
+	const unreadable: LedgerSummary["unreadable"] = {};
+
+	for (const [id, read] of Object.entries(reads)) {
+		if (!read.ok) {
+			unreadable[id] = read.error ?? { reason: "unknown" };
+			continue; // NEVER `workspaces[id] = { open: 0 }` — unreadable is not empty.
+		}
+		const open = (read.items ?? []).filter((item) => item.status === "open");
+		const byAxis: Record<string, number> = {};
+		for (const item of open) {
+			if (!item.axis) continue; // unclassified is its own row, never an axis bucket
+			byAxis[item.axis] = (byAxis[item.axis] ?? 0) + 1;
+		}
+		workspaces[id] = {
+			open: open.length,
+			unclassified: open.filter((item) => !item.axis).length,
+			byAxis,
+		};
+	}
+
+	return { workspaces, unreadable };
+}
+
+/** The workspace with the most open items becomes `resume`'s ledger handoff — never a
+ *  cross-workspace sum (there is no `total` on `LedgerSummary`, see above). Ties keep the
+ *  first-encountered id, which is alphabetical in production
+ *  (`declaredWorkspacesFromConfig` sorts by `id.localeCompare`). Empty when no workspace has
+ *  any open item — `resume` must not invent a handoff for a clean ledger. */
+export function buildLedgerNextCommands(ledger: LedgerSummary): string[] {
+	let busiest: string | undefined;
+	let busiestOpen = 0;
+	for (const [id, workspace] of Object.entries(ledger.workspaces)) {
+		if (workspace.open > busiestOpen) {
+			busiest = id;
+			busiestOpen = workspace.open;
+		}
+	}
+	return busiest ? [refarmCommand(["issues", "list", "--workspace", busiest, "--json"])] : [];
+}
+
+/** Every filesystem read `loadLedgerReads` performs, gathered behind one seam so a test can
+ *  inject a fake catalog and fake ledger documents without touching the operator's real
+ *  `~/.refarm/config.json` or any real `.project/issues.json`. Mirrors `IssuesIo` in
+ *  `./issues.js` — kept as its own copy here rather than imported, because this command reads
+ *  EVERY declared workspace read-only, never one operator-chosen workspace with writes. */
+export interface LedgerIo {
+	loadWorkspaces: () => LedgerWorkspace[];
+	fileExists: (candidate: string) => boolean;
+	readDocument: (candidate: string) => string;
+	writeDocument: (candidate: string, contents: string) => void;
+}
+
+/** `declaredWorkspacesFromConfig` is JS-inferred as returning `(… | null)[]` because its
+ *  `.filter(Boolean)` does not narrow for TypeScript — filtered here, explicitly, rather than
+ *  widening `LedgerWorkspace` to tolerate `null` (same shape as `./issues.js`'s copy). */
+function defaultLoadWorkspaces(): LedgerWorkspace[] {
+	const baseDir = declaredBase();
+	return declaredWorkspacesFromConfig(loadConfig(baseDir), { baseDir }).filter(
+		(workspace): workspace is NonNullable<typeof workspace> => workspace !== null,
+	);
+}
+
+const defaultLedgerIo: LedgerIo = {
+	loadWorkspaces: defaultLoadWorkspaces,
+	fileExists: (candidate: string) => fs.existsSync(candidate),
+	readDocument: (candidate: string) => fs.readFileSync(candidate, "utf-8"),
+	writeDocument: (candidate: string, contents: string) => fs.writeFileSync(candidate, contents),
+};
+
+/** THE ONE DELIBERATE cwd READ in this module — satisfies `resolveWorkspaceLedger`'s required
+ *  `cwd` field and is never actually consulted: every call below passes an explicit `workspace`
+ *  id with `enumerated: true`, so the resolver's cwd-match branch never runs. Wrapped in a
+ *  named, documented function (a `return`, never a bare `= process.cwd()` default or `??`
+ *  fallback) so it reads as the same deliberate, reported, non-default read `./issues.js`
+ *  documents for the identical reason — not a silent OS fallback of the kind
+ *  `scripts/no-os-resolution.mjs` exists to catch. */
+function currentDirectoryForCatalogMatch(): string {
+	return process.cwd();
+}
+
+/** `resolveWorkspaceLedger`'s `ok: false` branch names a `reason` but not a message — mirrors
+ *  the wording `refuse()` in `./issues.js` uses for the same three reasons, so an operator
+ *  reading `resume`'s `unreadable` block and `issues list`'s refusal see the same sentence. */
+const RESOLUTION_FAILURE_MESSAGES: Record<string, string> = {
+	no_such_workspace: "No declared workspace with that id.",
+	cwd_unmatched: "This directory is inside no declared workspace.",
+	no_provider: "This workspace declares no work-item provider and has no .project/issues.json.",
+};
+
+/**
+ * Reads every declared workspace's ledger DEFENSIVELY, through `resolveWorkspaceLedger` (Task
+ * 4) — the same resolver `refarm issues` uses, so `resume`'s counts and `issues list`'s counts
+ * can never drift apart by walking two different paths to the same document. A throw anywhere
+ * in ONE workspace's read (a malformed document, an adapter bug, a filesystem error) lands
+ * THAT workspace's row in `unreadable` and never aborts the read for any other declared
+ * workspace, nor the `resume` envelope as a whole — `resume` is the first command an operator
+ * runs, and degrading it to a hard error because one ledger is malformed would be worse than
+ * the defect it exists to report.
+ */
+export function loadLedgerReads(io: LedgerIo = defaultLedgerIo): Record<string, LedgerReadResult> {
+	const reads: Record<string, LedgerReadResult> = {};
+	let workspaces: LedgerWorkspace[];
+	try {
+		workspaces = io.loadWorkspaces();
+	} catch {
+		return reads; // No declared catalog readable — an empty ledger, not a crashed resume.
+	}
+
+	for (const workspace of workspaces) {
+		try {
+			const resolution = resolveWorkspaceLedger({
+				workspace: workspace.id,
+				enumerated: true,
+				cwd: currentDirectoryForCatalogMatch(),
+				loadWorkspaces: io.loadWorkspaces,
+				fileExists: io.fileExists,
+				readDocument: io.readDocument,
+				writeDocument: io.writeDocument,
+			});
+			if (!resolution.ok) {
+				reads[workspace.id] = {
+					ok: false,
+					error: {
+						reason: resolution.reason,
+						message: RESOLUTION_FAILURE_MESSAGES[resolution.reason] ?? resolution.reason,
+					},
+				};
+				continue;
+			}
+			const read = resolution.adapter.list();
+			reads[workspace.id] = read.ok
+				? { ok: true, items: read.items }
+				: {
+						ok: false,
+						error: read.error ?? {
+							reason: "document_unreadable",
+							message: "Could not read this workspace's ledger.",
+						},
+					};
+		} catch (error) {
+			reads[workspace.id] = {
+				ok: false,
+				error: {
+					reason: "ledger_read_failed",
+					message: error instanceof Error ? error.message : String(error),
+				},
+			};
+		}
+	}
+	return reads;
 }
 
 async function loadModelResumeSummary(
