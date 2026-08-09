@@ -7,8 +7,8 @@ named debt. Design: [`docs/superpowers/specs/2026-08-08-the-ledger-is-alive-desi
 
 ```
 $ refarm issues list --workspace refarm --status open --json
-open: 53 | unclassified: 0
-  other: 18 · node-vs-directory: 16 · cost: 9 · durability: 5 · sandbox: 5
+open: 54 | unclassified: 0
+  node-vs-directory: 16 · other: 15 · cost: 11 · durability: 7 · sandbox: 5
 ```
 
 Those numbers were produced by counting, not asserted in advance. Rerun the command rather than
@@ -32,13 +32,13 @@ Three documents, three meanings:
 | `.project/handoff.json` | **Short narrative citing qualified ids.** Rewritten each slice. | ephemeral by design |
 
 **An item becomes a task when a plan adopts it.** Until then it sits in the ledger and costs nothing
-but a line. This is what lets the ledger hold 53 open items without becoming a to-do list nobody can
+but a line. This is what lets the ledger hold 54 open items without becoming a to-do list nobody can
 face: the handoff says what *this slice* is about, the ledger holds everything else.
 
 What a work item is **not**:
 
 - **Not a summary.** `body` carries the full original prose — measurements, rejected alternatives, the
-  "this did not survive contact with the code" findings. The migration that populated ISS-023…ISS-083
+  "this did not survive contact with the code" findings. The migration that populated ISS-023…ISS-082
   was relocation, not summarisation: shortening a body would have destroyed the only reason for moving
   it out of the handoff.
 - **Not a status report.** A resolved item is kept, never deleted, with `resolved_by` naming the commit
@@ -61,7 +61,7 @@ entries stay valid, and no new open item can be unclassified.
 | `other` | Everything that genuinely fits none of the four. |
 
 **`other` is a real answer, not a failure.** The record-reading family (discarded `truncated` flags,
-two sort orders for one fact, unpaged responses) is 18 of the 53 open items and belongs to no axis
+two sort orders for one fact, unpaged responses) is 15 of the 54 open items and belongs to no axis
 above; stretching one of them to cover it would have made the per-axis count a fiction. If an item
 fits nothing, `other` is correct and honest.
 
@@ -85,7 +85,7 @@ zero:
 
 ```bash
 refarm issues list --all-workspaces --json
-# → { "workspaces": { "refarm": { "provider": "project-json", "count": 53, … },
+# → { "workspaces": { "refarm": { "provider": "project-json", "count": 54, … },
 #                     "rcdc5":  { "provider": "project-json", "count": 20, … } },
 #     "unreadable": {} }
 ```
@@ -95,7 +95,7 @@ quotes, backticks and newlines, so a scripted migration passes an argv array (`e
 a shell string:
 
 ```bash
-refarm issues add --workspace refarm --id ISS-084 --axis cost \
+refarm issues add --workspace refarm --id ISS-085 --axis cost \
   --title "…" --body "…" --location apps/refarm/src/commands/budget.ts:118 \
   --category issue --priority high --package apps/refarm --json
 ```
@@ -217,7 +217,7 @@ to the question this plan closed as ISS-072: **block only what the agent can fix
 on a condition the loop may not remedy deadlocks it and creates an incentive to bypass the gate.
 
 **The reverse rule was deliberately rejected.** "Every open item must appear in the handoff" sounds
-symmetric and is not: with 53 open items it would force the handoff straight back into the 54,300
+symmetric and is not: with 54 open items it would force the handoff straight back into the 54,300
 characters of prose this whole line of work exists to end. **The handoff cites what this slice is
 about; the ledger holds everything.** The asymmetry is the design.
 
