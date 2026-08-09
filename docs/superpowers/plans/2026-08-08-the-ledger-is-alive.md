@@ -1405,16 +1405,34 @@ refarm agent finish --lane after-commit --run --json
 **Files:**
 - Modify: `scripts/ci/project-block-consistency.mjs`
 - Create: `scripts/ci/project-block-consistency.test.mjs`
+- Modify: `package.json` (register `project:validate:test`)
+- Modify: `.github/workflows/test.yml` (run the new test beside the existing gate)
 
 **Interfaces:** Consumes the migrated `.project/issues.json` and `.project/handoff.json` from Task 5.
 **Do not start this task until Task 5 is committed** (FOOTGUN 5).
 
+**RUNNER — this task does NOT use vitest.** Vitest's `include` is
+`["**/*.test.ts", "**/*.spec.ts", "**/*.test.js", "**/*.spec.js"]`
+(`packages/vtconfig/src/index.js:195`) — **`.mjs` is not in it**, so a vitest invocation would
+silently run nothing. Every `scripts/*.test.mjs` in this repo runs under `node --test` and is
+registered as a `package.json` script wired into CI (`no-os-resolution:test`, `.github/workflows/test.yml:1077`).
+Follow that convention exactly; a test that exists but never runs is the same silent-success defect
+this whole plan is about.
+
+**THE GATE IS ALREADY WIRED IN THREE PLACES** — `.github/workflows/test.yml:469`,
+`package.json`'s `gate:full:colony`, and `scripts/ci-local.sh:126`. `gate:full:colony` invokes it
+with `--silent`, so the new **warnings must respect `--silent`** exactly as the existing output does.
+Errors are never silenced.
+
 - [ ] **Step 1: Write the failing tests**
 
-Extract the two new checks as pure exported functions so they are testable without a filesystem:
+Extract the two new checks as pure exported functions so they are testable without a filesystem.
+Create `scripts/ci/project-block-consistency.test.mjs` using **`node:test`**, matching
+`scripts/no-os-resolution.test.mjs`:
 
 ```js
-import { describe, expect, it } from "vitest";
+import { strict as assert } from "node:assert";
+import { describe, it } from "node:test";
 import { checkHandoffCitations, checkLedgerFreshness } from "./project-block-consistency.mjs";
 
 describe("checkHandoffCitations", () => {
@@ -1422,31 +1440,37 @@ describe("checkHandoffCitations", () => {
 
 	it("errors when a cited id does not exist", () => {
 		const result = checkHandoffCitations({ next_actions: ["see ISS-404"], blockers: [] }, issues);
-		expect(result.errors).toContain("[handoff] cites unknown work item: ISS-404");
+		assert.ok(result.errors.includes("[handoff] cites unknown work item: ISS-404"));
 	});
 
 	it("errors when an entry cites nothing", () => {
-		const result = checkHandoffCitations({ next_actions: ["a loose end with no id"], blockers: [] }, issues);
-		expect(result.errors).toHaveLength(1);
-		expect(result.errors[0]).toMatch(/cites no work item/);
+		const result = checkHandoffCitations(
+			{ next_actions: ["a loose end with no id"], blockers: [] },
+			issues,
+		);
+		assert.equal(result.errors.length, 1);
+		assert.match(result.errors[0], /cites no work item/);
 	});
 
 	it("passes when every entry cites an existing id", () => {
 		const result = checkHandoffCitations({ next_actions: ["ISS-001 is next"], blockers: [] }, issues);
-		expect(result.errors).toEqual([]);
+		assert.deepEqual(result.errors, []);
 	});
 
 	it("does NOT require every open issue to appear in the handoff", () => {
-		const many = [{ id: "ISS-001", status: "open" }, { id: "ISS-002", status: "open" }];
+		const many = [
+			{ id: "ISS-001", status: "open", axis: "cost" },
+			{ id: "ISS-002", status: "open", axis: "cost" },
+		];
 		const result = checkHandoffCitations({ next_actions: ["ISS-001 only"], blockers: [] }, many);
-		expect(result.errors).toEqual([]);
+		assert.deepEqual(result.errors, []);
 	});
 
 	it("errors on an open issue with no axis", () => {
 		const result = checkHandoffCitations({ next_actions: ["ISS-001"], blockers: [] }, [
 			{ id: "ISS-001", status: "open" },
 		]);
-		expect(result.errors.join(" ")).toMatch(/ISS-001.*axis/);
+		assert.match(result.errors.join(" "), /ISS-001.*axis/);
 	});
 
 	it("errors on a resolved issue with no resolved_by", () => {
@@ -1454,36 +1478,40 @@ describe("checkHandoffCitations", () => {
 			{ id: "ISS-001", status: "open", axis: "cost" },
 			{ id: "ISS-002", status: "resolved" },
 		]);
-		expect(result.errors.join(" ")).toMatch(/ISS-002.*resolved_by/);
+		assert.match(result.errors.join(" "), /ISS-002.*resolved_by/);
 	});
 });
 
 describe("checkLedgerFreshness", () => {
 	it("warns, never errors, when commits landed and the ledger did not move", () => {
 		const result = checkLedgerFreshness({ commitsSinceLedgerChange: 12 });
-		expect(result.errors).toEqual([]);
-		expect(result.warnings).toHaveLength(1);
+		assert.deepEqual(result.errors, []);
+		assert.equal(result.warnings.length, 1);
 	});
 
 	it("is silent when the ledger moved recently", () => {
 		const result = checkLedgerFreshness({ commitsSinceLedgerChange: 0 });
-		expect(result.warnings).toEqual([]);
+		assert.deepEqual(result.warnings, []);
 	});
 
 	it("reports unknown rather than fresh when git cannot be read", () => {
 		const result = checkLedgerFreshness({ commitsSinceLedgerChange: null });
-		expect(result.warnings.join(" ")).toMatch(/unknown/);
-		expect(result.errors).toEqual([]);
+		assert.match(result.warnings.join(" "), /unknown/);
+		assert.deepEqual(result.errors, []);
 	});
 });
 ```
+
+Note the fourth citation test now gives both issues an `axis` — without it the test would pass for
+the wrong reason, tripping the open-issue-needs-axis rule instead of proving the reverse rule is
+absent.
 
 The fourth citation test and the third freshness test are the load-bearing ones: they pin the two
 decisions that are easiest to "improve" into a deadlock later.
 
 - [ ] **Step 2: Run to verify they fail**
 
-Run: `pnpm exec vitest run scripts/ci/project-block-consistency.test.mjs`
+Run: `node --test scripts/ci/project-block-consistency.test.mjs`
 Expected: FAIL — the functions are not exported.
 
 - [ ] **Step 3: Implement**
@@ -1560,22 +1588,54 @@ function commitsSinceLedgerChange() {
 }
 ```
 
-- [ ] **Step 4: Run to verify they pass, then run the gate for real**
+- [ ] **Step 4: Register the test in both places it must run**
+
+A test nobody runs is the defect this plan exists to end. In `package.json`, beside
+`"project:validate"` (line 95):
+
+```json
+		"project:validate:test": "node --test scripts/ci/project-block-consistency.test.mjs",
+```
+
+and in `.github/workflows/test.yml`, in the same step block as the existing
+`node scripts/ci/project-block-consistency.mjs` (line 469), add a step running
+`pnpm run project:validate:test`. Follow the shape of the `no-os-resolution:test` step
+(`test.yml:1077`) exactly — same runner, same registration pattern.
+
+- [ ] **Step 5: Run to verify they pass, then run the gate for real, both ways**
 
 ```bash
-pnpm exec vitest run scripts/ci/project-block-consistency.test.mjs
+node --test scripts/ci/project-block-consistency.test.mjs
 node scripts/ci/project-block-consistency.mjs
+node scripts/ci/project-block-consistency.mjs --silent   # warnings must be suppressed, errors never
+pnpm run project:validate:test
 ```
 
 Expected: tests PASS, and the real gate **passes** — because Task 5 migrated first. If it errors on
 uncited handoff entries, Task 5 is incomplete; finish it rather than weakening the check.
 
-- [ ] **Step 5: Commit**
+Then prove the gate actually bites — this is the one check that matters most:
 
 ```bash
+python3 - <<'PY'
+import json
+p=".project/handoff.json"
+d=json.load(open(p))
+d["next_actions"].append("a new loose end with no work item id")
+json.dump(d,open(p,"w"),indent="\t",ensure_ascii=False)
+PY
+node scripts/ci/project-block-consistency.mjs; echo "exit=$?"   # MUST be non-zero
+git checkout -- .project/handoff.json
+node scripts/ci/project-block-consistency.mjs; echo "exit=$?"   # MUST be zero again
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git status --short   # .project/handoff.json MUST NOT appear — the tripwire was reverted
 node scripts/no-os-resolution.mjs   # delta: 0
 refarm agent finish --lane after-edit --run --json
-git add scripts/ci/project-block-consistency.mjs scripts/ci/project-block-consistency.test.mjs
+git add scripts/ci/project-block-consistency.mjs scripts/ci/project-block-consistency.test.mjs package.json .github/workflows/test.yml
 git commit -m "feat(gate): the ledger gate gains an external anchor"
 refarm agent finish --lane after-commit --run --json
 ```
