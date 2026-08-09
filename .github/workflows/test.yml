@@ -468,6 +468,9 @@ jobs:
       - name: Validate .project cross-block consistency
         run: node scripts/ci/project-block-consistency.mjs
 
+      - name: Validate .project cross-block consistency (test)
+        run: pnpm run project:validate:test
+
       - name: Text quality verify
         if: needs.changes.outputs.text_quality_changes == 'true'
         run: |

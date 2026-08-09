@@ -93,6 +93,7 @@
 		"tsconfig:guard": "node scripts/ci/tsconfig-guard.mjs",
 		"tsconfig:guard:test": "node --test scripts/ci/test-tsconfig-guard.mjs",
 		"project:validate": "node scripts/ci/project-block-consistency.mjs",
+		"project:validate:test": "node --test scripts/ci/project-block-consistency.test.mjs",
 		"repo:complexity": "node scripts/repo-complexity-check.mjs --max-lines 1000",
 		"repo:complexity:changed": "node scripts/repo-complexity-check.mjs --changed --max-lines 1000",
 		"repo:complexity:changed:strict": "node scripts/repo-complexity-check.mjs --changed --max-lines 1000 --strict",

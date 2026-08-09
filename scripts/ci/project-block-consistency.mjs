@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -53,12 +54,88 @@ function ensureUniqueIds(items, label, errors) {
 	}
 }
 
+const CITATION = /\bISS-\d+\b/g;
+
+// External anchor #1 (deterministic — feeds `errors`): every handoff entry must cite a work
+// item that actually exists in the ledger, and every issue must carry the fields its status
+// demands. Pure and filesystem-free so it is testable without touching disk. Deliberately does
+// NOT require the reverse (every open issue appearing in the handoff) — with 54 open items that
+// would force the handoff back into the bloat this migration exists to end.
+export function checkHandoffCitations(handoff, issues) {
+	const errors = [];
+	const ids = new Set(issues.map((issue) => issue.id));
+	const entries = [
+		...asArray(handoff.next_actions).map((text) => ["next_actions", text]),
+		...asArray(handoff.blockers).map((text) => ["blockers", text]),
+	];
+
+	for (const [field, text] of entries) {
+		const cited = String(text).match(CITATION) ?? [];
+		if (cited.length === 0) {
+			errors.push(`[handoff] ${field} entry cites no work item: ${String(text).slice(0, 60)}…`);
+			continue;
+		}
+		for (const id of cited) {
+			if (!ids.has(id)) errors.push(`[handoff] cites unknown work item: ${id}`);
+		}
+	}
+
+	for (const issue of issues) {
+		if (issue.status === "open" && !issue.axis) {
+			errors.push(`[issues] ${issue.id} is open with no axis`);
+		}
+		if (issue.status === "resolved" && !issue.resolved_by) {
+			errors.push(`[issues] ${issue.id} is resolved with no resolved_by`);
+		}
+	}
+
+	return { errors };
+}
+
+// External anchor #2 (heuristic — feeds `warnings`, never `errors`): the ledger can be
+// internally perfect and still be stale. Staleness is a judgement call, not a verifiable defect
+// an agent can always remediate in one command, so it warns rather than blocks — blocking here
+// would deadlock the agent loop and create an incentive to bypass the gate. Three states, never
+// two: `null` means git could not be read (shallow clone, no `.git`) and reports "unknown",
+// never "fresh".
+export function checkLedgerFreshness({ commitsSinceLedgerChange }) {
+	if (commitsSinceLedgerChange === null) {
+		return { errors: [], warnings: ["[ledger] freshness unknown — git history unreadable"] };
+	}
+	if (commitsSinceLedgerChange > 0) {
+		return {
+			errors: [],
+			warnings: [
+				`[ledger] ${commitsSinceLedgerChange} commit(s) since .project/issues.json last changed`,
+			],
+		};
+	}
+	return { errors: [], warnings: [] };
+}
+
+// The git anchor itself — lives outside the pure functions above so they stay testable without
+// a filesystem or a git checkout. Returns null (UNKNOWN) rather than 0 on any failure; a shallow
+// clone is not a fresh ledger.
+function commitsSinceLedgerChange() {
+	try {
+		const last = execFileSync("git", ["log", "-1", "--format=%H", "--", ".project/issues.json"], {
+			encoding: "utf8",
+		}).trim();
+		if (!last) return null;
+		const count = execFileSync("git", ["rev-list", "--count", `${last}..HEAD`], { encoding: "utf8" });
+		return Number.parseInt(count.trim(), 10);
+	} catch {
+		return null; // UNKNOWN, never 0 — a shallow clone is not a fresh ledger.
+	}
+}
+
 function main() {
 	const requiredFiles = [
 		".project/requirements.json",
 		".project/tasks.json",
 		".project/verification.json",
 		".project/issues.json",
+		".project/handoff.json",
 	];
 
 	for (const path of requiredFiles) {
@@ -78,6 +155,7 @@ function main() {
 		readJson(".project/verification.json").verifications,
 	);
 	const issues = asArray(readJson(".project/issues.json").issues);
+	const handoff = readJson(".project/handoff.json");
 
 	const requirementIds = new Set(requirements.map((r) => r.id).filter(Boolean));
 	const taskIds = new Set(tasks.map((t) => t.id).filter(Boolean));
@@ -210,6 +288,20 @@ function main() {
 		}
 	}
 
+	const citations = checkHandoffCitations(handoff, issues);
+	errors.push(...citations.errors);
+
+	const freshness = checkLedgerFreshness({
+		commitsSinceLedgerChange: commitsSinceLedgerChange(),
+	});
+	errors.push(...freshness.errors);
+	warnings.push(...freshness.warnings);
+
+	// Errors are never silenced. Warnings are noise once a caller has already opted into a quiet
+	// aggregated gate (`gate:full:colony` runs this with `--silent`) — respected the same way for
+	// every warning in this file, old and new alike.
+	const silent = process.argv.includes("--silent");
+
 	if (errors.length > 0) {
 		console.error(
 			`${colors.red}✗ project block consistency failed${colors.reset}`,
@@ -217,7 +309,7 @@ function main() {
 		for (const message of errors) {
 			console.error(`  - ${message}`);
 		}
-		if (warnings.length > 0) {
+		if (warnings.length > 0 && !silent) {
 			console.error(`${colors.yellow}Warnings:${colors.reset}`);
 			for (const message of warnings) {
 				console.error(`  - ${message}`);
@@ -229,7 +321,7 @@ function main() {
 	console.log(
 		`${colors.green}✓ project block consistency passed${colors.reset}`,
 	);
-	if (warnings.length > 0) {
+	if (warnings.length > 0 && !silent) {
 		console.log(`${colors.yellow}Warnings:${colors.reset}`);
 		for (const message of warnings) {
 			console.log(`  - ${message}`);
