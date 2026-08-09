@@ -966,6 +966,39 @@
 			"priority": "high",
 			"package": "apps/refarm",
 			"axis": "durability"
+		},
+		{
+			"id": "ISS-086",
+			"title": "The postcss security pin is overtaken by a newer advisory, the same drift that hit js-yaml",
+			"body": "pnpm-workspace.yaml pins postcss@<=8.5.17: ^8.5.18 as a security bump. A newer advisory covers <=8.5.22, patched at 8.5.23, so the resolved postcss is inside the vulnerable range again and the pin no longer does what its position implies. Measured 2026-08-09: pnpm audit --audit-level=moderate --prod lists MODERATE postcss <=8.5.22 -> >=8.5.23. This is the SAME drift shape that had already swallowed the js-yaml pin (fixed in 7f1c61ee, GHSA-5p4m-2wfm-xmqj): a pin written against one advisory boundary, correct when written, silently overtaken when the boundary moved. The brace-expansion block in the same file is written as explicit version boundaries precisely to make this visible; the postcss entry is not. Two fixes are possible and they are different: bump the pin, or rewrite it in the boundary style so the next drift is legible. Not done in 7f1c61ee because that commit was scoped to the two HIGH advisories that block the gate, and postcss is MODERATE.",
+			"location": "pnpm-workspace.yaml",
+			"status": "open",
+			"category": "issue",
+			"priority": "medium",
+			"package": "refarm",
+			"axis": "durability"
+		},
+		{
+			"id": "ISS-087",
+			"title": "The decompress advisory is accepted on the grounds that it has no patch, and a patch now exists",
+			"body": "auditConfig.ignoreGhsas suppresses GHSA-mp2f-45pm-3cg9 (decompress <=4.2.1). The comment justifying it states the advisory has NO patched version and reaches the tree only through the build-time WASM toolchain. Measured 2026-08-09: pnpm audit reports decompress <=4.2.1 -> patched >=4.2.2, and pnpm run security:fix:dry proposes adding a workspace override decompress -> 4.2.2. The no-patch half of the recorded justification is now FALSE. The dev-only-reach half may still hold and was not re-verified here. The comment itself says it was re-checked as unpatched on 2026-08-03 and not re-verified since, so the record is honest about its own age; what it lacks is anything that would notice the change. An ignoreGhsas entry has no expiry and nothing re-reads its justification.",
+			"location": "pnpm-workspace.yaml",
+			"status": "open",
+			"category": "issue",
+			"priority": "medium",
+			"package": "refarm",
+			"axis": "durability"
+		},
+		{
+			"id": "ISS-088",
+			"title": "CI audits at three different scopes and the moderate-prod one is red",
+			"body": "Four audit invocations exist with three distinct scopes: test.yml:501 runs --audit-level=high with dev deps; reusable-security-audit.yml:57 runs --audit-level=high --prod; reusable-security-audit.yml:68 runs --audit-level=moderate --prod; reusable-release-health.yml:92 runs a configurable level with --prod. Measured 2026-08-09 after 7f1c61ee: the first two exit 0, the moderate-prod one exits 1 with five production-scope advisories -- astro x3 (deliberately excluded from overrides, issue #56, its patch breaks the apps build), decompress (see the sibling item on its stale justification) and postcss (see the sibling item on its stale pin). Green on one audit gate does not mean green on another, and nothing in the repo states which of the three is the one that must hold before a promotion.",
+			"location": ".github/workflows/reusable-security-audit.yml:68",
+			"status": "open",
+			"category": "issue",
+			"priority": "medium",
+			"package": "refarm",
+			"axis": "durability"
 		}
 	]
 }
