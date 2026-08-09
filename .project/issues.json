@@ -999,6 +999,28 @@
 			"priority": "medium",
 			"package": "refarm",
 			"axis": "durability"
+		},
+		{
+			"id": "ISS-089",
+			"title": "The operator requirements R1-R12 exist only in Markdown and are invisible to every instrument",
+			"body": "docs/OPERATOR_REQUIREMENTS.md carries the operator requirements from his 2026-08-06 interview: R1 through R12, each with need, acceptance criteria, maturity state and evidence. Eleven are Parcial and one (R12, the executive view) is Ausente. NONE of them exists in .project/requirements.json. Measured 2026-08-09: that file holds 31 entries, ALL status accepted, with prefixes REQ-ENV-, REQ-RESO-, REQ-PIPE-, REQ-WORK-, REQ-RUNTIME-, REQ-CONTRACT-, REQ-PLUGIN-, REQ-DOC-, REQ-GOV-, REQ-MIG-, REQ-AGENT- -- the May-era phase cohort -- whose traces_to point at T-ENV-/T-PIPE-/T-OPS- ids in the tasks ledger that died 2026-05-05. So there are TWO requirement records: one governed, complete and obsolete; one live, authoritative and ungovernable. This is the THIRD instance of the pattern the ledger slice named on 2026-08-08: a schema-governed .project document with no CLI writer stops receiving reality. tasks.json and issues.json were the first two and issues.json now has a writer. CONSEQUENCE the operator hit directly: with twelve requirements all reading Parcial and no link to work, there is no way to answer which requirement a given open item serves, or how many open items stand between him and any one of them -- so choosing what to build next is an impression rather than a number.",
+			"location": "docs/OPERATOR_REQUIREMENTS.md:115",
+			"status": "open",
+			"category": "capability",
+			"priority": "high",
+			"package": "refarm",
+			"axis": "durability"
+		},
+		{
+			"id": "ISS-090",
+			"title": "A work item cannot declare which operator requirement it serves",
+			"body": "issues.schema.json sets additionalProperties: false and models no requirement field, so an item cannot say which operator requirement it serves. The reverse direction does not work either: scripts/ci/project-block-consistency.mjs:192 validates requirements.traces_to against task ids and phase numbers ONLY, so a requirement cannot point at a work item. Neither direction of the link exists. SHAPE PROPOSED 2026-08-09, mirroring the axis field this slice already shipped: an OPTIONAL requirement field on the item, a set-requirement verb beside set-axis, and a gate check that a cited requirement id exists. Optional deliberately -- forcing every open item to name a requirement would manufacture false precision, because several are pure hygiene with no operator-facing requirement behind them. The measurement it unlocks is the point: R7 has N open items, R12 has M, and K items serve no requirement at all -- three states, the same discipline the rest of the ledger follows. Depends on ISS-089: there is nothing to point at until R1-R12 are first-class entries.",
+			"location": ".project/schemas/issues.schema.json",
+			"status": "open",
+			"category": "capability",
+			"priority": "high",
+			"package": "refarm",
+			"axis": "durability"
 		}
 	]
 }
