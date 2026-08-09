@@ -1,6 +1,10 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { checkHandoffCitations, checkLedgerFreshness } from "./project-block-consistency.mjs";
+import {
+	checkHandoffCitations,
+	checkLedgerFreshness,
+	parseCommitCount,
+} from "./project-block-consistency.mjs";
 
 describe("checkHandoffCitations", () => {
 	const issues = [{ id: "ISS-001", status: "open", axis: "cost" }];
@@ -76,6 +80,34 @@ describe("checkLedgerFreshness", () => {
 
 	it("reports unknown rather than fresh when git cannot be read", () => {
 		const result = checkLedgerFreshness({ commitsSinceLedgerChange: null });
+		assert.match(result.warnings.join(" "), /unknown/);
+		assert.deepEqual(result.errors, []);
+	});
+});
+
+describe("parseCommitCount", () => {
+	it("parses a valid git rev-list --count line", () => {
+		assert.equal(parseCommitCount("4\n"), 4);
+	});
+
+	it("parses zero", () => {
+		assert.equal(parseCommitCount("0\n"), 0);
+	});
+
+	// Regression for the finding: a non-numeric `git rev-list --count` result (empty stdout,
+	// truncated output, an unexpected shape) used to flow through as `NaN`, and `NaN > 0` is
+	// `false`, so `checkLedgerFreshness` reported FRESH for a count it never actually read.
+	it("returns null (UNKNOWN), never NaN, for non-numeric output", () => {
+		assert.equal(parseCommitCount(""), null);
+		assert.equal(parseCommitCount("not a number"), null);
+		assert.equal(parseCommitCount("\n"), null);
+	});
+
+	// The end-to-end proof that the guard actually protects `checkLedgerFreshness`: feeding its
+	// result straight through must land on the UNKNOWN branch, not the "0 commits, fresh" branch.
+	it("composes with checkLedgerFreshness to report UNKNOWN, not FRESH, for garbage git output", () => {
+		const commitsSinceLedgerChange = parseCommitCount("not a number");
+		const result = checkLedgerFreshness({ commitsSinceLedgerChange });
 		assert.match(result.warnings.join(" "), /unknown/);
 		assert.deepEqual(result.errors, []);
 	});

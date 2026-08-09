@@ -298,4 +298,32 @@ describe("declared workspace issues block", () => {
 		);
 		expect(Object.keys(workspace.commands)).toContain("vpn");
 	});
+
+	// Finding 2 — a declared provider nobody implemented must NOT collapse into the same `null`
+	// as "no issues block at all". `null` means undeclared; this is declared-but-unsupported, a
+	// third, distinct state that must survive normalisation and reach the resolver.
+	it("carries a declared-but-unsupported provider through normalisation, distinct from undeclared", () => {
+		const [workspace] = declaredWorkspacesFromConfig(
+			{ workspaces: { a: { path: "/w/a", issues: { provider: "github", path: ".project/issues.json" } } } },
+			{ baseDir: "/base" },
+		);
+		expect(workspace.issues).toEqual({
+			provider: "github",
+			path: ".project/issues.json",
+			unsupported: true,
+		});
+		expect(workspace.issues).not.toBeNull();
+	});
+
+	it("defaults an unsupported provider's path to the project-json convention path, same as a supported one", () => {
+		const [workspace] = declaredWorkspacesFromConfig(
+			{ workspaces: { a: { path: "/w/a", issues: { provider: "gitlab" } } } },
+			{ baseDir: "/base" },
+		);
+		expect(workspace.issues).toEqual({
+			provider: "gitlab",
+			path: ".project/issues.json",
+			unsupported: true,
+		});
+	});
 });

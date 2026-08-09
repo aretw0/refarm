@@ -4,10 +4,22 @@ import { createProjectJsonAdapter } from "./project-json-adapter.js";
 
 const CONVENTION_PATH = ".project/issues.json";
 
+/** Providers this resolver can actually build an adapter for — kept here, not imported from
+ *  `@refarm.dev/config`, because THIS module is the one that constructs adapters
+ *  (`createProjectJsonAdapter`) and is the authority on what "implemented" means. Mirrors
+ *  `WORK_ITEM_PROVIDERS` in `packages/config/src/workspaces-config.js`, which decides at
+ *  normalisation time whether a DECLARED provider is well-formed enough to reach here at all —
+ *  that module's list controls what survives normalisation, this one controls what can actually
+ *  be resolved into a live adapter. */
+const IMPLEMENTED_PROVIDERS = ["project-json"];
+
 export interface LedgerWorkspace {
 	id: string;
 	absolutePath: string;
-	issues: { provider: string; path: string } | null;
+	/** `unsupported: true` means the operator DECLARED a provider (e.g. `github`) that has no
+	 *  adapter yet — distinct from `null` (undeclared). See
+	 *  `packages/config/src/workspaces-config.js`'s `normalizeWorkspaceIssues`. */
+	issues: { provider: string; path: string; unsupported?: true } | null;
 }
 
 export interface ResolveLedgerInput {
@@ -44,7 +56,20 @@ export type LedgerResolution =
 			documentPath: string;
 			adapter: WorkItemAdapter;
 	  }
-	| { ok: false; reason: "no_such_workspace" | "cwd_unmatched" | "no_provider"; declared: string[] };
+	| { ok: false; reason: "no_such_workspace" | "cwd_unmatched" | "no_provider"; declared: string[] }
+	/** THE EIGHTH-INSTANCE cousin, Finding 2: the workspace declared a provider — the operator's
+	 * explicit intent — that has no adapter built yet. Distinct from `no_provider` (nothing
+	 * declared, nothing found by convention either): here something WAS named, so falling through
+	 * to the convention path would silently discard that declaration and report `providerFrom:
+	 * "convention"` for a provider the operator never asked for. Carries both the declared
+	 * provider and the providers that ARE implemented, so the refusal names both sides. */
+	| {
+			ok: false;
+			reason: "provider_unsupported";
+			declared: string[];
+			declaredProvider: string;
+			implementedProviders: string[];
+	  };
 
 function isInside(parent: string, candidate: string): boolean {
 	const relative = path.relative(parent, candidate);
@@ -73,6 +98,19 @@ export function resolveWorkspaceLedger(input: ResolveLedgerInput): LedgerResolut
 			.sort((left, right) => right.absolutePath.length - left.absolutePath.length)[0];
 		if (!workspace) return { ok: false, reason: "cwd_unmatched", declared };
 		workspaceFrom = "cwd-match";
+	}
+
+	// FINDING 2: a DECLARED-but-unsupported provider must refuse here, before the convention
+	// fallback below ever runs — never silently reported as `providerFrom: "convention"` for a
+	// provider the operator never asked for.
+	if (workspace.issues?.unsupported) {
+		return {
+			ok: false,
+			reason: "provider_unsupported",
+			declared,
+			declaredProvider: workspace.issues.provider,
+			implementedProviders: IMPLEMENTED_PROVIDERS,
+		};
 	}
 
 	let provider = workspace.issues?.provider;

@@ -397,13 +397,16 @@ function currentDirectoryForCatalogMatch(): string {
  *  passes an explicit `workspace` id drawn from the SAME catalog it just enumerated, so
  *  `no_such_workspace` and `cwd_unmatched` are unreachable in practice (kept only so this
  *  table stays exhaustive over `LedgerResolution`'s reason union) and `no_provider` is the
- *  only one that can really fire. A shared helper would have to take a "for a human CLI
- *  refusal, or for a JSON reason table" flag to serve both call sites correctly — more
- *  machinery than the ~3 lines of overlap it would save. Left duplicated for that reason. */
+ *  only one that can really fire in practice today — `provider_unsupported` joins it as
+ *  reachable the day any declared workspace names a provider with no adapter (`github`,
+ *  `gitlab`). A shared helper would have to take a "for a human CLI refusal, or for a JSON
+ *  reason table" flag to serve both call sites correctly — more machinery than the ~3 lines of
+ *  overlap it would save. Left duplicated for that reason. */
 const RESOLUTION_FAILURE_MESSAGES: Record<string, string> = {
 	no_such_workspace: "No declared workspace with that id.",
 	cwd_unmatched: "This directory is inside no declared workspace.",
 	no_provider: "This workspace declares no work-item provider and has no .project/issues.json.",
+	provider_unsupported: "This workspace declares a work-item provider with no adapter yet.",
 };
 
 /**

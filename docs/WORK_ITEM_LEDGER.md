@@ -122,6 +122,32 @@ adapter, so an unknown axis cannot reach the document from either door. Reclassi
 other key the record carries — including fields this contract does not model, such as rcdc5's
 `description` — and puts a newly-added `axis` in the same position `add` would have.
 
+**`workspaceFrom` and `providerFrom`** — every successful resolution reports two provenance fields,
+independent of each other:
+
+```json
+{ "workspaceFrom": "flag" | "cwd-match" | "enumerated", "providerFrom": "declared" | "convention" }
+```
+
+`workspaceFrom` answers *how the workspace was selected*: `"flag"` for an operator-typed
+`--workspace <id>`, `"cwd-match"` when the flag was omitted and the current directory matched the
+declared catalog, `"enumerated"` on the `--all-workspaces` batch path (the caller looked up the id
+itself — there is no flag to read). `providerFrom` answers, independently, *how that workspace's
+work-item provider was found*: `"declared"` when the catalog names one, `"convention"` when none is
+declared but `.project/issues.json` exists at the workspace root anyway. A workspace chosen by
+`cwd-match` can still have a `declared` provider, and one chosen by `flag` can still fall back to
+`convention` — the two facts do not determine each other, which is why they are two fields, not one
+(see the design spec's 2026-08-09 erratum for the collapsed single-field shape this replaced).
+
+A workspace that declares a provider with **no adapter built yet** (`github`, `gitlab` — mapped in
+section 5's table, not implemented) refuses distinctly, naming both the declared provider and the
+providers that are implemented, rather than silently falling through to the convention path:
+
+```json
+{ "ok": false, "error": "provider_unsupported",
+  "message": "This workspace declares provider \"github\", which has no adapter yet. Implemented: project-json." }
+```
+
 **`validate`** — reads the ledger through the adapter and checks exactly what the gate enforces:
 duplicate ids, open items with no `axis`, resolved items with no `resolved_by`. It refuses an
 unreadable document rather than reporting an empty clean ledger, and reports `extraFields` as
@@ -139,11 +165,47 @@ The cross-document check between the handoff and the ledger is a separate gate a
 node scripts/ci/project-block-consistency.mjs
 ```
 
+### `refarm resume --json` and the ledger
+
+`CLAUDE.md` §4 mandates `refarm resume --json` at the start of every slice, so its output is the
+first thing an agent reads — and it carries two blocks this document had never named.
+
+**`ledger`** — every declared workspace's ledger, read defensively through the same
+`resolveWorkspaceLedger` the `issues` command uses (so `resume`'s counts and `issues list`'s counts
+can never drift apart by walking two different paths to the same document):
+
+```json
+{ "ledger": {
+    "workspaces": { "refarm": { "open": 54, "unclassified": 0, "byAxis": { "cost": 11, "other": 15 } } },
+    "unreadable": {} } }
+```
+
+There is **no cross-workspace total** — summing open items across workspaces is exactly the mixing
+the workspace-granularity requirement (section 4) rules out. `nextCommands` gains one more entry: an
+`issues list --workspace <busiest> --json` pointing at whichever declared workspace has the most open
+items, so the ledger is one hop from the command an agent is told to run first — appended AFTER the
+generic recovery handoffs, never ahead of them, so a failed `finish` or a not-ready runtime stays the
+most urgent thing to do.
+
+**`truncation`** — `resume` reads `.project/handoff.json` through a 5-entry-per-field cap
+(`current_tasks`, `blockers`, `next_actions`, `open_questions`), and `truncation` is the field that
+makes a capped read distinguishable from a complete one:
+
+```json
+{ "truncation": { "currentTasks": { "returned": 5, "total": 24 }, "blockers": { "returned": 4, "total": 4 } } }
+```
+
+Section 7 names the shape of the defect this closes: `resume` used to return five entries per field
+with no signal that 19 more existed, so a 21%-complete read and a complete one were indistinguishable
+to the agent told to trust it.
+
 **The gap that remains**, named rather than left to be discovered: there is no editor for `title`,
 `body` or `location`. Correcting one is still a hand edit — the same shape of gap that killed the
 ledger the first time (section 7). `axis` used to be on that list; classifying the two legacy open
 items during the migration required writing the document directly, which is precisely why `set-axis`
-was built before the first reclassification was made.
+was built before the first reclassification was made. Tracked as its own addressable item, not left
+only in prose: `refarm#ISS-085`. This branch itself needed two hand edits for exactly this reason —
+ISS-033's proof restore and ISS-083's correction, both dated 2026-08-09.
 
 ## 4. Why ids are qualified
 
@@ -221,10 +283,11 @@ symmetric and is not: with 54 open items it would force the handoff straight bac
 characters of prose this whole line of work exists to end. **The handoff cites what this slice is
 about; the ledger holds everything.** The asymmetry is the design.
 
-> Status note: the cross-document check is added by the slice that follows this migration. The
-> migration is what makes it passable — as of the commit that created this document, the handoff cites
-> ids in every `next_actions`, `blockers` and `open_questions` entry, and `refarm project handoff
-> validate --json` reports `ok: true`.
+> Status note (corrected 2026-08-09 — Finding 6): the cross-document check shipped in **this**
+> branch, commit `07d3209d` (`feat(gate): the ledger gate gains an external anchor`) — not in a
+> slice that follows it. The migration is what makes it passable — as of the commit that created
+> this document, the handoff cites ids in every `next_actions`, `blockers` and `open_questions`
+> entry, and `refarm project handoff validate --json` reports `ok: true`.
 
 ## 7. How the ledger died the first time
 

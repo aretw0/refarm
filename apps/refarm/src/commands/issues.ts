@@ -72,15 +72,29 @@ const defaultIo: IssuesIo = {
 
 type LedgerRefusal = Extract<LedgerResolution, { ok: false }>;
 
+/** The human-readable message for a `LedgerResolution` refusal — a real `switch` (not an object
+ *  literal keyed by `reason`) so each branch narrows `resolution` and can reach the fields that
+ *  exist ONLY on that branch, such as `provider_unsupported`'s `declaredProvider` /
+ *  `implementedProviders`. Shared by `refuse()` (a single-workspace refusal, printed to the
+ *  operator) and the `--all-workspaces` `unreadable` bucket in `buildIssuesList` (Finding 7 — that
+ *  bucket used to carry only `reason`, discarding this exact text). */
+function resolutionFailureMessage(resolution: LedgerRefusal): string {
+	switch (resolution.reason) {
+		case "no_such_workspace":
+			return `No declared workspace with that id. Declared: ${resolution.declared.join(", ")}`;
+		case "cwd_unmatched":
+			return `This directory is inside no declared workspace. Declared: ${resolution.declared.join(", ")}. Pass --workspace <id>.`;
+		case "no_provider":
+			return "This workspace declares no work-item provider and has no .project/issues.json.";
+		case "provider_unsupported":
+			return `This workspace declares provider "${resolution.declaredProvider}", which has no adapter yet. Implemented: ${resolution.implementedProviders.join(", ")}.`;
+	}
+}
+
 /** A refusal is an envelope, never a throw — the shape every subcommand below shares for a
  *  resolution failure (the workspace itself could not be resolved). */
 function refuse(operation: string, resolution: LedgerRefusal, json?: boolean): void {
-	const message =
-		{
-			no_such_workspace: `No declared workspace with that id. Declared: ${resolution.declared.join(", ")}`,
-			cwd_unmatched: `This directory is inside no declared workspace. Declared: ${resolution.declared.join(", ")}. Pass --workspace <id>.`,
-			no_provider: "This workspace declares no work-item provider and has no .project/issues.json.",
-		}[resolution.reason] ?? resolution.reason;
+	const message = resolutionFailureMessage(resolution);
 	if (json) {
 		const nextAction = refarmCommand(["workspace", "list", "--json"]);
 		printJson(
@@ -129,6 +143,30 @@ function refuseAfterResolution(
 	process.exitCode = 1;
 }
 
+/** A refusal reached BEFORE any workspace resolution — `--axis`/`--status`/scope on `list` are
+ *  invalid regardless of which workspace would have answered, so there is no `workspaceId` to
+ *  point a handoff at yet (unlike `refuseAfterResolution`). Distinct from `refuse()` too, which
+ *  refuses a `LedgerResolution` rather than a raw CLI input. */
+function refuseInvalidListInput(reason: string, message: string, json?: boolean): void {
+	const nextAction = refarmCommand(["issues", "list", "--help"]);
+	if (json) {
+		printJson(
+			buildJsonErrorEnvelope({
+				command: "issues",
+				operation: "list",
+				error: reason,
+				message,
+				nextAction,
+				nextCommand: nextAction,
+				nextCommands: [nextAction],
+			}),
+		);
+	} else {
+		console.error(chalk.red(message));
+	}
+	process.exitCode = 1;
+}
+
 interface IssuesListOptions {
 	workspace?: string;
 	allWorkspaces?: boolean;
@@ -154,20 +192,33 @@ interface ListedItemGroup {
  * The pure(ish) core of `issues list` — given options and IO, decides what the command should
  * report, but never prints or sets `process.exitCode` itself (that is the Commander action's
  * job, below). Exported and unit-tested directly (fake IO, no Commander, no console) so the
- * three states this function must never collapse — a clean group, a named `unreadable` entry
- * under `--all-workspaces`, and an outright refusal for a single-workspace failure — are each
- * provable without going through a real process.
+ * states this function must never collapse — a clean group, a named `unreadable` entry
+ * under `--all-workspaces`, an outright refusal for a single-workspace failure, and an invalid
+ * `--axis`/`--status`/scope combination — are each provable without going through a real process.
  *
  * THREE STATES, NEVER TWO, on a single-workspace read failure: this used to `continue` past a
  * failed `adapter.list()` exactly like the `--all-workspaces` branch does, which meant
  * `refarm issues list --workspace x --json` against a malformed ledger returned `ok: true` with
  * an EMPTY payload and exit 0 — a zero that was not a real zero, silently indistinguishable from
  * a workspace with no open items. `kind: "read-failure"` exists so the caller refuses instead.
+ *
+ * THE EIGHTH INSTANCE, Finding 1: `--axis` and `--status` used to be filter predicates that
+ * simply matched nothing on a typo (`--axis costs`, `--status opne`), so `count: 0` was
+ * indistinguishable from a workspace that genuinely has nothing left on that axis. `add`,
+ * `set-status` and `set-axis` all validate this exact vocabulary and refuse; `list` did not, and
+ * `list` is the verb `refarm resume`'s `nextCommand` hands to an agent. `kind: "invalid_input"`
+ * exists so an unknown value refuses BEFORE any workspace is even resolved — the value is wrong
+ * regardless of which workspace would have answered.
  */
 export type IssuesListOutcome =
 	| { kind: "refusal"; resolution: LedgerRefusal }
+	| { kind: "invalid_input"; reason: string; message: string }
 	| { kind: "read-failure"; workspaceId: string; reason: string; message: string }
-	| { kind: "ok"; groups: Record<string, ListedItemGroup>; unreadable: Record<string, { reason: string }> };
+	| {
+			kind: "ok";
+			groups: Record<string, ListedItemGroup>;
+			unreadable: Record<string, { reason: string; message: string }>;
+	  };
 
 export interface BuildIssuesListInput extends IssuesIo {
 	workspace?: string;
@@ -178,8 +229,34 @@ export interface BuildIssuesListInput extends IssuesIo {
 }
 
 export function buildIssuesList(input: BuildIssuesListInput): IssuesListOutcome {
+	// FINDING 4: `--workspace` silently ignored when `--all-workspaces` is also passed. Refuse the
+	// combination rather than let one flag win invisibly.
+	if (input.workspace && input.allWorkspaces) {
+		return {
+			kind: "invalid_input",
+			reason: "conflicting_scope",
+			message: "--workspace and --all-workspaces are mutually exclusive; pass exactly one.",
+		};
+	}
+	// FINDING 1 (THE EIGHTH INSTANCE): validate against the same vocabulary `add`/`set-status`/
+	// `set-axis` already enforce, and name the bad value AND the legal ones.
+	if (input.axis !== undefined && !WORK_ITEM_AXES.includes(input.axis as WorkItemAxis)) {
+		return {
+			kind: "invalid_input",
+			reason: "invalid_axis",
+			message: `--axis "${input.axis}" is not valid. Legal axes: ${WORK_ITEM_AXES.join(", ")}.`,
+		};
+	}
+	if (input.status !== undefined && !WORK_ITEM_STATUSES.includes(input.status as WorkItemStatus)) {
+		return {
+			kind: "invalid_input",
+			reason: "invalid_status",
+			message: `--status "${input.status}" is not valid. Legal statuses: ${WORK_ITEM_STATUSES.join(", ")}.`,
+		};
+	}
+
 	const groups: Record<string, ListedItemGroup> = {};
-	const unreadable: Record<string, { reason: string }> = {};
+	const unreadable: Record<string, { reason: string; message: string }> = {};
 	const targets = input.allWorkspaces ? input.loadWorkspaces().map((workspace) => workspace.id) : [input.workspace];
 
 	for (const target of targets) {
@@ -194,21 +271,28 @@ export function buildIssuesList(input: BuildIssuesListInput): IssuesListOutcome 
 		});
 		if (!resolution.ok) {
 			if (!input.allWorkspaces) return { kind: "refusal", resolution };
-			unreadable[target ?? "(unresolved)"] = { reason: resolution.reason };
+			// FINDING 7: carry the message alongside the reason — the spec's shape and `resume`'s
+			// `LedgerSummary.unreadable` both carry it; this bucket used to drop it.
+			unreadable[target ?? "(unresolved)"] = {
+				reason: resolution.reason,
+				message: resolutionFailureMessage(resolution),
+			};
 			continue;
 		}
 		const read = resolution.adapter.list();
 		if (!read.ok) {
 			const reason = read.error?.reason ?? "document_unreadable";
+			const message = read.error?.message ?? "Could not read this workspace's ledger.";
 			if (!input.allWorkspaces) {
 				return {
 					kind: "read-failure",
 					workspaceId: resolution.workspaceId,
 					reason,
-					message: read.error?.message ?? "Could not read this workspace's ledger.",
+					message,
 				};
 			}
-			unreadable[resolution.workspaceId] = { reason };
+			// FINDING 7: same carry-through as above, for the read-failure branch of the bucket.
+			unreadable[resolution.workspaceId] = { reason, message };
 			continue;
 		}
 		const items = read.items
@@ -243,6 +327,10 @@ function buildListCommand(io: IssuesIo): Command {
 
 			if (outcome.kind === "refusal") {
 				refuse("list", outcome.resolution, options.json);
+				return;
+			}
+			if (outcome.kind === "invalid_input") {
+				refuseInvalidListInput(outcome.reason, outcome.message, options.json);
 				return;
 			}
 			if (outcome.kind === "read-failure") {

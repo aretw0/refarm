@@ -152,4 +152,16 @@ describe("project-json adapter specifics", () => {
 		expect(result.ok).toBe(false);
 		expect(result.error?.reason).toBe("document_unreadable");
 	});
+
+	// FINDING 8 — the fourth of the four writer catches (list/add/setStatus/setAxis) that reads a
+	// malformed document. The other three were covered; this one was not.
+	it("setAxis() reports document_unreadable for malformed JSON instead of throwing", () => {
+		const adapter = createProjectJsonAdapter({
+			readDocument: () => "{ not json",
+			writeDocument: () => {},
+		});
+		const result = adapter.setAxis("ISS-001", "cost");
+		expect(result.ok).toBe(false);
+		expect(result.error?.reason).toBe("document_unreadable");
+	});
 });

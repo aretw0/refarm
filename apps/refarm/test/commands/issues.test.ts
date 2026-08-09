@@ -98,6 +98,36 @@ describe("resolveWorkspaceLedger", () => {
 		});
 		expect(result).toMatchObject({ ok: false, reason: "no_provider" });
 	});
+
+	// Finding 2 — a declared provider nobody implemented must refuse distinctly, naming the
+	// declared provider AND the providers that ARE implemented, rather than falling through to
+	// `providerFrom: "convention"` and silently discarding the operator's explicit declaration.
+	it("refuses a declared-but-unsupported provider with provider_unsupported, never falling through to convention", () => {
+		const catalog = [
+			{
+				id: "future-gh",
+				absolutePath: "/ws/future-gh",
+				issues: { provider: "github", path: ".project/issues.json", unsupported: true as const },
+			},
+		];
+		const result = resolveWorkspaceLedger({
+			workspace: "future-gh",
+			cwd: "/tmp",
+			loadWorkspaces: () => catalog,
+			// Even though a `.project/issues.json` DOES exist by convention, the declared-but-
+			// unsupported provider must win — the convention path must never be reached.
+			fileExists: () => true,
+			readDocument: () => JSON.stringify({ issues: [] }),
+			writeDocument: () => {},
+		});
+		expect(result).toMatchObject({
+			ok: false,
+			reason: "provider_unsupported",
+			declaredProvider: "github",
+			implementedProviders: ["project-json"],
+			declared: ["future-gh"],
+		});
+	});
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -172,7 +202,12 @@ describe("buildIssuesList", () => {
 		if (outcome.kind !== "ok") throw new Error("expected ok");
 		expect(Object.keys(outcome.groups)).toEqual(["good"]);
 		expect(Object.keys(outcome.unreadable)).toEqual(["bad"]);
-		expect(outcome.unreadable.bad).toEqual({ reason: "document_unreadable" });
+		// FINDING 7: the message travels alongside the reason — this bucket used to drop it.
+		expect(outcome.unreadable.bad).toEqual({
+			reason: "document_unreadable",
+			message: expect.any(String),
+		});
+		expect(outcome.unreadable.bad?.message.length).toBeGreaterThan(0);
 		// Ids are qualified per workspace, and this workspace's items carry only its own ids —
 		// nothing merged from any other workspace's namespace.
 		expect(requireGroup(outcome.groups, "good").items.map((item) => item.qualifiedId)).toEqual([
@@ -197,6 +232,71 @@ describe("buildIssuesList", () => {
 		const good = requireGroup(outcome.groups, "good");
 		expect(good.workspaceFrom).toBe("enumerated");
 		expect(good.providerFrom).toBe("declared");
+	});
+
+	// ─────────────────────────────────────────────────────────────────────────────────────────
+	// FINDING 1 (THE EIGHTH INSTANCE) — `--axis`/`--status` used to be unvalidated filter
+	// predicates: a typo silently matched nothing, and `count: 0, ok: true` was indistinguishable
+	// from a workspace with genuinely nothing left on that axis. `add`/`set-status`/`set-axis` all
+	// validate this exact vocabulary; `list` must too, and refuse BEFORE resolving any workspace.
+	// ─────────────────────────────────────────────────────────────────────────────────────────
+
+	it("refuses an unknown --axis, naming the bad value AND the legal ones, before resolving any workspace", () => {
+		const outcome = buildIssuesList({
+			workspace: "good",
+			axis: "costs", // typo for "cost" — proven live in the review
+			cwd: "/tmp",
+			...fakeIo(),
+		});
+		expect(outcome.kind).toBe("invalid_input");
+		if (outcome.kind !== "invalid_input") throw new Error("expected invalid_input");
+		expect(outcome.reason).toBe("invalid_axis");
+		expect(outcome.message).toContain("costs");
+		expect(outcome.message).toContain("node-vs-directory");
+		expect(outcome.message).toContain("cost");
+		expect(outcome.message).toContain("other");
+	});
+
+	it("refuses an unknown --status, naming the bad value AND the legal ones, before resolving any workspace", () => {
+		const outcome = buildIssuesList({
+			workspace: "good",
+			status: "opne", // typo for "open" — proven live in the review
+			cwd: "/tmp",
+			...fakeIo(),
+		});
+		expect(outcome.kind).toBe("invalid_input");
+		if (outcome.kind !== "invalid_input") throw new Error("expected invalid_input");
+		expect(outcome.reason).toBe("invalid_status");
+		expect(outcome.message).toContain("opne");
+		expect(outcome.message).toContain("open");
+		expect(outcome.message).toContain("deferred");
+		expect(outcome.message).toContain("resolved");
+	});
+
+	it("accepts every declared axis and status without refusing", () => {
+		for (const axis of ["node-vs-directory", "cost", "sandbox", "durability", "other"]) {
+			const outcome = buildIssuesList({ workspace: "good", axis, cwd: "/tmp", ...fakeIo() });
+			expect(outcome.kind).toBe("ok");
+		}
+		for (const status of ["open", "deferred", "resolved"]) {
+			const outcome = buildIssuesList({ workspace: "good", status, cwd: "/tmp", ...fakeIo() });
+			expect(outcome.kind).toBe("ok");
+		}
+	});
+
+	// FINDING 4 — `--workspace` was silently ignored when `--all-workspaces` was also passed.
+	it("refuses --workspace combined with --all-workspaces rather than silently picking one", () => {
+		const outcome = buildIssuesList({
+			workspace: "good",
+			allWorkspaces: true,
+			cwd: "/tmp",
+			...fakeIo(),
+		});
+		expect(outcome.kind).toBe("invalid_input");
+		if (outcome.kind !== "invalid_input") throw new Error("expected invalid_input");
+		expect(outcome.reason).toBe("conflicting_scope");
+		expect(outcome.message).toContain("--workspace");
+		expect(outcome.message).toContain("--all-workspaces");
 	});
 });
 
@@ -252,6 +352,43 @@ describe("refarm issues list — command wiring", () => {
 		expect(Object.keys(envelope.workspaces ?? {})).toEqual(["good"]);
 		expect(Object.keys(envelope.unreadable ?? {})).toEqual(["bad"]);
 		expect(exitCode).toBeUndefined();
+	});
+
+	// FINDING 1 (THE EIGHTH INSTANCE) — proven live in the review: `refarm issues list --workspace
+	// refarm --axis costs --json` returned `ok: true, count: 0`, exit 0. Same for `--status opne`.
+	it("refuses an unknown --axis with a non-zero exit, naming the bad value and the legal ones", async () => {
+		const { envelope, exitCode } = await runIssuesList(
+			["--workspace", "good", "--axis", "costs", "--json"],
+			fakeIo(),
+		);
+		expect(envelope.ok).toBe(false);
+		expect(envelope.error).toBe("invalid_axis");
+		expect(envelope.message).toContain("costs");
+		expect(envelope.message).toContain("cost");
+		expect(exitCode).toBe(1);
+	});
+
+	it("refuses an unknown --status with a non-zero exit, naming the bad value and the legal ones", async () => {
+		const { envelope, exitCode } = await runIssuesList(
+			["--workspace", "good", "--status", "opne", "--json"],
+			fakeIo(),
+		);
+		expect(envelope.ok).toBe(false);
+		expect(envelope.error).toBe("invalid_status");
+		expect(envelope.message).toContain("opne");
+		expect(envelope.message).toContain("open");
+		expect(exitCode).toBe(1);
+	});
+
+	// FINDING 4 — `--workspace` was silently ignored when `--all-workspaces` was also passed.
+	it("refuses --workspace combined with --all-workspaces with a non-zero exit", async () => {
+		const { envelope, exitCode } = await runIssuesList(
+			["--workspace", "good", "--all-workspaces", "--json"],
+			fakeIo(),
+		);
+		expect(envelope.ok).toBe(false);
+		expect(envelope.error).toBe("conflicting_scope");
+		expect(exitCode).toBe(1);
 	});
 });
 

@@ -75,15 +75,30 @@ const WORK_ITEM_PROVIDERS = Object.freeze(["project-json"]);
 /**
  * A workspace's declared WORK ITEM SOURCE — where its issues/tickets live (e.g.
  * `{ provider: "project-json", path: ".project/issues.json" }`). Task 4 reads this to pick an
- * adapter. Three states, never two: a well-formed block, or `null` for undeclared/malformed —
- * never a half-built object, never a guess at a provider nobody named.
+ * adapter. THREE states, never two:
+ *
+ * - `null` — UNDECLARED: no `issues` block at all, or one naming no provider (malformed). Never a
+ *   guess at a provider nobody named.
+ * - `{ provider, path }` — declared, and a real adapter exists for `provider`.
+ * - `{ provider, path, unsupported: true }` — declared, but no adapter exists for `provider` yet
+ *   (e.g. `github`, `gitlab` — designed in the spec's mapping table, not built). This is NOT the
+ *   same as `null`: the operator named a provider on purpose, and that fact must survive
+ *   normalisation and reach `resolveWorkspaceLedger`, which refuses with `provider_unsupported`
+ *   rather than silently falling through to the `project-json` convention path — see
+ *   `packages/cli/src/work-items/resolve.ts`.
+ *
+ * @param {unknown} value
+ * @returns {{ provider: string, path: string, unsupported?: true } | null}
  */
 function normalizeWorkspaceIssues(value) {
 	if (!isRecord(value)) return null;
 	const provider = typeof value.provider === "string" ? value.provider.trim() : "";
-	if (!WORK_ITEM_PROVIDERS.includes(provider)) return null;
+	if (!provider) return null;
 	const declaredPath =
 		typeof value.path === "string" && value.path.trim() ? value.path.trim() : ".project/issues.json";
+	if (!WORK_ITEM_PROVIDERS.includes(provider)) {
+		return { provider, path: declaredPath, unsupported: true };
+	}
 	return { provider, path: declaredPath };
 }
 

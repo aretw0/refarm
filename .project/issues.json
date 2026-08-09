@@ -955,6 +955,17 @@
 			"priority": "high",
 			"package": "apps/refarm",
 			"axis": "durability"
+		},
+		{
+			"id": "ISS-085",
+			"title": "No CLI writer for title/body/location — two hand edits during this branch prove the gap",
+			"body": "There is no editor for a work item's title, body, or location once it exists — add (create), set-status and set-axis are the only writers the ledger has. Correcting an existing item's prose is still a hand edit of a governed document, the exact writer-gap shape that killed the ledger the first time (docs/WORK_ITEM_LEDGER.md section 7: tasks.json, issues.json and requirements.json had no writer, so nobody edited them, so every check on them stayed green over a record nobody was updating). axis used to be on this list too; set-axis was built during this branch specifically because reclassifying two legacy items required writing the document by hand otherwise. title/body/location remain unclosed. This branch itself needed two hand edits because no such writer exists: ISS-033's proof restore (RESTORED 2026-08-09, fix round 1 -- the commit range and the spec's dated section, two proof pointers the migration had dropped, were re-added to the body by editing the document directly) and ISS-083's correction (CORRECTED 2026-08-09, fix round 1 -- the precedence claim in the body was found wrong and rewritten by hand, because there is no refarm issues set-body or equivalent). Named as its own work item per this branch's own rule (docs/WORK_ITEM_LEDGER.md section 3): a named loose end must be addressable, not left only in prose.",
+			"location": "apps/refarm/src/commands/issues.ts",
+			"status": "open",
+			"category": "cleanup",
+			"priority": "high",
+			"package": "apps/refarm",
+			"axis": "durability"
 		}
 	]
 }

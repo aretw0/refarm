@@ -117,6 +117,17 @@ export function checkLedgerFreshness({ commitsSinceLedgerChange }) {
 	return { errors: [], warnings: [] };
 }
 
+// Pure: parses git's raw `rev-list --count` stdout into a validated integer, or `null` for
+// UNKNOWN. Split out of `readCommitsSinceLedgerChange` so the guard is provable without a git
+// checkout — the same "test the pure function, not the git call" split `checkHandoffCitations` /
+// `checkLedgerFreshness` already follow. A non-numeric result (unexpected stdout shape, truncated
+// output) must never flow through as `NaN` — `NaN > 0` is `false`, so `checkLedgerFreshness` would
+// have reported FRESH for a count it could not actually read. UNKNOWN, never fresh.
+export function parseCommitCount(rawOutput) {
+	const parsed = Number.parseInt(String(rawOutput).trim(), 10);
+	return Number.isInteger(parsed) ? parsed : null;
+}
+
 // The git anchor itself — lives outside the pure functions above so they stay testable without
 // a filesystem or a git checkout. Returns null (UNKNOWN) rather than 0 on any failure; a shallow
 // clone is not a fresh ledger. Named `read...` (rather than reusing the domain name) so it reads
@@ -128,7 +139,7 @@ function readCommitsSinceLedgerChange() {
 		}).trim();
 		if (!last) return null;
 		const count = execFileSync("git", ["rev-list", "--count", `${last}..HEAD`], { encoding: "utf8" });
-		return Number.parseInt(count.trim(), 10);
+		return parseCommitCount(count);
 	} catch {
 		return null; // UNKNOWN, never 0 — a shallow clone is not a fresh ledger.
 	}
@@ -335,4 +346,11 @@ function main() {
 	}
 }
 
-main();
+// GUARD: `scripts/ci/project-block-consistency.test.mjs` imports this module to unit-test the pure
+// functions above (`checkHandoffCitations`, `checkLedgerFreshness`). Without this guard, `main()`
+// ran at import time and called `process.exit(1)` the moment cwd was not the repo root (or the
+// real ledger had an error) — killing the whole test file, 0 tests run, exactly when the pure
+// functions' tests are most needed. Same idiom as `scripts/no-os-resolution.mjs`.
+if (import.meta.url === `file://${process.argv[1]}`) {
+	main();
+}
