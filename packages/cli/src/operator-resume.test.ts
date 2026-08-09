@@ -229,6 +229,12 @@ describe("operator resume", () => {
 				blockers: [],
 				nextActions: ["wire project handoff into app resume"],
 				openQuestions: ["when does .project become source of truth?"],
+				truncation: {
+					currentTasks: { returned: 1, total: 1 },
+					blockers: { returned: 0, total: 0 },
+					nextActions: { returned: 1, total: 1 },
+					openQuestions: { returned: 1, total: 1 },
+				},
 			},
 		});
 

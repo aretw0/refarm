@@ -7,7 +7,12 @@ import {
 	applicationProcess,
 	type ApplicationProcessSpec,
 } from "./command-handoff.js";
+import type { ProjectHandoffFieldCount, ProjectHandoffTruncation } from "./project-handoff.js";
 import type { StatusJson } from "./status.js";
+
+// Re-exported alongside `OperatorResumeProjectSummary` (below) so consumers of
+// this module's `truncation` field don't need a second import path.
+export type { ProjectHandoffFieldCount, ProjectHandoffTruncation };
 
 export interface OperatorResumeModelRoute {
 	scope?: string;
@@ -200,6 +205,10 @@ export interface OperatorResumeProjectSummary {
 	blockers: readonly string[];
 	nextActions: readonly string[];
 	openQuestions: readonly string[];
+	/** How much of each list was cut by the read limit, counted before blanks are
+	 *  dropped so whitespace is never reported as hidden content — a truncated
+	 *  read must declare itself instead of looking complete. */
+	truncation: ProjectHandoffTruncation;
 }
 
 export interface OperatorResumeSessionSummary {

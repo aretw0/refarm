@@ -102,6 +102,12 @@ describe("resume command", () => {
 				blockers: ["blocked A"],
 				nextActions: ["next A"],
 				openQuestions: ["question A"],
+				truncation: {
+					currentTasks: { returned: 2, total: 2 },
+					blockers: { returned: 1, total: 1 },
+					nextActions: { returned: 1, total: 1 },
+					openQuestions: { returned: 1, total: 1 },
+				},
 			});
 		} finally {
 			fs.rmSync(tempDir, { recursive: true, force: true });
@@ -345,6 +351,12 @@ describe("resume command", () => {
 				blockers: [],
 				nextActions: ["pick next slice"],
 				openQuestions: [],
+				truncation: {
+					currentTasks: { returned: 1, total: 1 },
+					blockers: { returned: 0, total: 0 },
+					nextActions: { returned: 1, total: 1 },
+					openQuestions: { returned: 0, total: 0 },
+				},
 			}),
 		});
 		const logs: string[] = [];
