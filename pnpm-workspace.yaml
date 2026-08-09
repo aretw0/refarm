@@ -123,8 +123,26 @@ overrides:
   # pins above; ^10.3.1 stays on the same major.
   # Source: https://github.com/advisories/GHSA-mwp4-54f8-5fhr. Verified 2026-08-03 (commit 4e8ac38e).
   ip-address@<=10.3.0: ^10.3.1
-  js-yaml: 4.3.0
+  # GHSA-5p4m-2wfm-xmqj: quadratic CPU consumption resolving `!!omap` (CWE-407), covering
+  # >=4.0.0 <4.3.1. This pin USED to read `4.3.0` and was correct then — the comment above still
+  # describes it as "off the vulnerable line", which a NEW advisory overtook: 4.3.0 is now inside
+  # the range. Same drift shape as the brace-expansion block, which is why that one is written as
+  # explicit boundaries. Blanket pin retained (js-yaml has no legacy-API constraint here) and the
+  # `read-yaml-file>js-yaml` 3.x edge below is untouched — changesets reaches read-yaml-file@1,
+  # whose API needs js-yaml 3's `safeLoad`, removed in 4.x.
+  # Source: https://github.com/advisories/GHSA-5p4m-2wfm-xmqj. Verified 2026-08-09 by reading the
+  # advisory range out of `pnpm audit --audit-level high --json` against the resolved tree.
+  js-yaml: 4.3.1
   read-yaml-file>js-yaml: 3.15.1
+  # GHSA-2v37-7h3g-55p8: a custom generator loops indefinitely when `size` is zero (CWE-835),
+  # patched at 3.3.17. Dev-only paths — vitest, vite, @vitest/coverage-v8, @vitest/ui,
+  # @storybook/html-vite, vite-plugin-wasm, @mermaid-js/mermaid-cli and astro's build tooling.
+  # Range-scoped rather than blanket, matching the ip-address/fast-uri entries above: the lockfile
+  # resolves nanoid at 3.3.16 and nothing else, so a future dependency dragging in a 4.x or 5.x
+  # would surface as a NEW `pnpm audit` failure instead of being silently pinned back to the 3.x
+  # line. ^3.3.17 stays on the same major.
+  # Source: https://github.com/advisories/GHSA-2v37-7h3g-55p8. Verified 2026-08-09 the same way.
+  nanoid@<3.3.17: ^3.3.17
   postcss@<=8.5.17: ^8.5.18
   sharp@<0.35.0: ^0.35.0
   svgo@>=4.0.0 <4.0.2: ^4.0.2
