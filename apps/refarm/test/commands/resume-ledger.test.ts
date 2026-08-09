@@ -1,5 +1,6 @@
+import type { LedgerWorkspace } from "@refarm.dev/cli";
 import { describe, expect, it } from "vitest";
-import { buildLedgerSummary } from "../../src/commands/resume.js";
+import { buildLedgerSummary, loadLedgerReads, type LedgerIo } from "../../src/commands/resume.js";
 
 /** `Record<string, T>` indexing is `T | undefined` under `noUncheckedIndexedAccess` — this
  *  asserts presence with a message, rather than sprinkling `!` through the assertions below.
@@ -43,5 +44,46 @@ describe("buildLedgerSummary", () => {
 			refarm: { ok: true, items: [{ id: "a", status: "resolved" }, { id: "b", status: "open", axis: "cost" }] },
 		});
 		expect(requireEntry(summary.workspaces, "refarm").open).toBe(1);
+	});
+});
+
+describe("loadLedgerReads", () => {
+	it("keeps reading every declared workspace after one throws — a per-iteration catch, not a catch around the whole loop", () => {
+		// "broken" is FIRST in catalog order on purpose: if a future edit widened the try/catch
+		// to wrap the whole `for` loop instead of one per iteration, the throw below would abort
+		// the loop right here and "good" would never be reached — this test would then fail on
+		// property (3), which is exactly the regression it exists to catch.
+		//
+		// The throw is forced through `fileExists` (uncaught anywhere between here and
+		// `resolveWorkspaceLedger`), not through `readDocument` — a `readDocument` throw is
+		// already caught INSIDE the project-json adapter's own `list()` and surfaces as an
+		// ordinary `{ ok: false }` read, which exercises a different, already-covered branch of
+		// `loadLedgerReads`, not the outer per-workspace catch this test targets.
+		const io: LedgerIo = {
+			loadWorkspaces: (): LedgerWorkspace[] => [
+				{ id: "broken", absolutePath: "/ws/broken", issues: null },
+				{
+					id: "good",
+					absolutePath: "/ws/good",
+					issues: { provider: "project-json", path: ".project/issues.json" },
+				},
+			],
+			fileExists: (candidate: string) => {
+				if (candidate.includes("/ws/broken/")) throw new Error("disk gremlin");
+				return true;
+			},
+			readDocument: () => JSON.stringify({ issues: [{ id: "a", status: "open", axis: "cost" }] }),
+			writeDocument: () => {},
+		};
+
+		const summary = buildLedgerSummary(loadLedgerReads(io));
+
+		// (1) the throwing workspace appears in `unreadable` with its reason.
+		expect(requireEntry(summary.unreadable, "broken").reason).toBe("ledger_read_failed");
+		// (2) the throwing workspace is ABSENT from `workspaces` — never `{ open: 0 }`.
+		expect(summary.workspaces).not.toHaveProperty("broken");
+		// (3) the SUCCEEDING workspace still appears with its real count — the one property that
+		// breaks under the exact widening this test is written to catch.
+		expect(requireEntry(summary.workspaces, "good").open).toBe(1);
 	});
 });

@@ -344,9 +344,15 @@ export function buildLedgerNextCommands(ledger: LedgerSummary): string[] {
 
 /** Every filesystem read `loadLedgerReads` performs, gathered behind one seam so a test can
  *  inject a fake catalog and fake ledger documents without touching the operator's real
- *  `~/.refarm/config.json` or any real `.project/issues.json`. Mirrors `IssuesIo` in
- *  `./issues.js` — kept as its own copy here rather than imported, because this command reads
- *  EVERY declared workspace read-only, never one operator-chosen workspace with writes. */
+ *  `~/.refarm/config.json` or any real `.project/issues.json`. Structurally identical to
+ *  `IssuesIo` in `./issues.js` (same four methods) — kept as its own copy here, NOT extracted
+ *  into `@refarm.dev/cli` alongside `resolveWorkspaceLedger`, on a judgement call: both copies
+ *  are pure interface shape with no behavior of their own, `resolveWorkspaceLedger`'s own
+ *  `ResolveLedgerInput` already names the same four fields as its parameter type (so a real
+ *  drift would surface as a type error at either call site, not silently), and hoisting a
+ *  fifth copy of this shape into a published, dist-mode package for two four-line interfaces
+ *  is not proportionate to the duplication it would remove. Revisit if a THIRD command needs
+ *  the same seam — that is the point at which one shared shape earns its keep. */
 export interface LedgerIo {
 	loadWorkspaces: () => LedgerWorkspace[];
 	fileExists: (candidate: string) => boolean;
@@ -382,9 +388,18 @@ function currentDirectoryForCatalogMatch(): string {
 	return process.cwd();
 }
 
-/** `resolveWorkspaceLedger`'s `ok: false` branch names a `reason` but not a message — mirrors
- *  the wording `refuse()` in `./issues.js` uses for the same three reasons, so an operator
- *  reading `resume`'s `unreadable` block and `issues list`'s refusal see the same sentence. */
+/** `resolveWorkspaceLedger`'s `ok: false` branch names a `reason` but not a message — this
+ *  echoes the BASE wording `refuse()` in `./issues.js` uses for the same three reasons, but
+ *  deliberately NOT the full strings: `refuse()`'s messages are CLI stderr guidance for a
+ *  human who typed `--workspace <id>` (they append `Declared: <list>` and, for
+ *  `cwd_unmatched`, `Pass --workspace <id>.`) — a suffix that does not belong in a JSON ledger
+ *  row's `error.message`, and would be actively misleading here besides: `resume` always
+ *  passes an explicit `workspace` id drawn from the SAME catalog it just enumerated, so
+ *  `no_such_workspace` and `cwd_unmatched` are unreachable in practice (kept only so this
+ *  table stays exhaustive over `LedgerResolution`'s reason union) and `no_provider` is the
+ *  only one that can really fire. A shared helper would have to take a "for a human CLI
+ *  refusal, or for a JSON reason table" flag to serve both call sites correctly — more
+ *  machinery than the ~3 lines of overlap it would save. Left duplicated for that reason. */
 const RESOLUTION_FAILURE_MESSAGES: Record<string, string> = {
 	no_such_workspace: "No declared workspace with that id.",
 	cwd_unmatched: "This directory is inside no declared workspace.",
