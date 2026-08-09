@@ -52,6 +52,7 @@ function normalizeDeclaredWorkspace(id, value, baseDir) {
 	const bridges = normalizeWorkspaceBridges(value.bridges);
 	const repository = normalizeWorkspaceRepository(value.repository);
 	const commands = normalizeWorkspaceCommands(value.commands);
+	const issues = normalizeWorkspaceIssues(value.issues);
 
 	return {
 		id,
@@ -63,7 +64,27 @@ function normalizeDeclaredWorkspace(id, value, baseDir) {
 		repository,
 		bridges,
 		commands,
+		issues,
 	};
+}
+
+/** Providers with a real adapter behind them. GitHub/GitLab are designed but not built — do not
+ * add their names here until an adapter exists to back them. */
+const WORK_ITEM_PROVIDERS = Object.freeze(["project-json"]);
+
+/**
+ * A workspace's declared WORK ITEM SOURCE — where its issues/tickets live (e.g.
+ * `{ provider: "project-json", path: ".project/issues.json" }`). Task 4 reads this to pick an
+ * adapter. Three states, never two: a well-formed block, or `null` for undeclared/malformed —
+ * never a half-built object, never a guess at a provider nobody named.
+ */
+function normalizeWorkspaceIssues(value) {
+	if (!isRecord(value)) return null;
+	const provider = typeof value.provider === "string" ? value.provider.trim() : "";
+	if (!WORK_ITEM_PROVIDERS.includes(provider)) return null;
+	const declaredPath =
+		typeof value.path === "string" && value.path.trim() ? value.path.trim() : ".project/issues.json";
+	return { provider, path: declaredPath };
 }
 
 /**

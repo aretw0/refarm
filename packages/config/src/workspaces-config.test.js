@@ -54,6 +54,7 @@ describe("workspace config declarations", () => {
 				repository: null,
 				bridges: [],
 				commands: {},
+				issues: null,
 			},
 			{
 				id: "refarm",
@@ -76,6 +77,7 @@ describe("workspace config declarations", () => {
 				repository: null,
 				bridges: [],
 				commands: {},
+				issues: null,
 			},
 		]);
 	});
@@ -261,5 +263,39 @@ describe("workspace config declarations", () => {
 		expect(parseWorkspaceKind("unknown")).toBeNull();
 		expect(parseWorkspaceRemoteCacheProvider("custom")).toBe("custom");
 		expect(parseWorkspaceRemoteCacheProvider("redis")).toBeNull();
+	});
+});
+
+describe("declared workspace issues block", () => {
+	it("carries a declared issues block through normalisation", () => {
+		const [workspace] = declaredWorkspacesFromConfig(
+			{ workspaces: { a: { path: "/w/a", issues: { provider: "project-json", path: ".project/issues.json" } } } },
+			{ baseDir: "/base" },
+		);
+		expect(workspace.issues).toEqual({ provider: "project-json", path: ".project/issues.json" });
+	});
+
+	it("is null when undeclared — never a guess", () => {
+		const [workspace] = declaredWorkspacesFromConfig(
+			{ workspaces: { a: { path: "/w/a" } } },
+			{ baseDir: "/base" },
+		);
+		expect(workspace.issues).toBeNull();
+	});
+
+	it("is null when the block is malformed rather than half-normalised", () => {
+		const [workspace] = declaredWorkspacesFromConfig(
+			{ workspaces: { a: { path: "/w/a", issues: { provider: 42 } } } },
+			{ baseDir: "/base" },
+		);
+		expect(workspace.issues).toBeNull();
+	});
+
+	it("does not drop the commands map when issues is present", () => {
+		const [workspace] = declaredWorkspacesFromConfig(
+			{ workspaces: { a: { path: "/w/a", commands: { vpn: { run: ["true"] } }, issues: { provider: "project-json", path: "p.json" } } } },
+			{ baseDir: "/base" },
+		);
+		expect(Object.keys(workspace.commands)).toContain("vpn");
 	});
 });
