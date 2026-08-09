@@ -1,0 +1,239 @@
+# The Work Item Ledger
+
+**What this is**: the contract for `refarm issues` — the workspace-scoped, provider-agnostic record of
+named debt. Design: [`docs/superpowers/specs/2026-08-08-the-ledger-is-alive-design.md`](superpowers/specs/2026-08-08-the-ledger-is-alive-design.md).
+
+**Measured on 2026-08-09, after the migration that created this document**:
+
+```
+$ refarm issues list --workspace refarm --status open --json
+open: 53 | unclassified: 0
+  other: 18 · node-vs-directory: 16 · cost: 9 · durability: 5 · sandbox: 5
+```
+
+Those numbers were produced by counting, not asserted in advance. Rerun the command rather than
+trusting this paragraph — the point of the ledger is that "what is left" is a number you can take
+again.
+
+---
+
+## 1. What a work item is, and what it is not
+
+A **work item is named debt that is not yet scheduled**. It has a title you can scan, a body that
+carries the full reasoning, and a `location` that says where in the tree it lives. It is *not* a plan,
+not a promise, and nothing about it says anyone is going to do it.
+
+Three documents, three meanings:
+
+| Document | Meaning | Lifecycle |
+| --- | --- | --- |
+| work items (`.project/issues.json` via any adapter) | **Named debt, not yet scheduled.** Every loose end lives here. | `open` → `deferred` → `resolved` |
+| `.project/tasks.json` | **Work scheduled inside a plan.** | a work item becomes a task when a plan adopts it |
+| `.project/handoff.json` | **Short narrative citing qualified ids.** Rewritten each slice. | ephemeral by design |
+
+**An item becomes a task when a plan adopts it.** Until then it sits in the ledger and costs nothing
+but a line. This is what lets the ledger hold 53 open items without becoming a to-do list nobody can
+face: the handoff says what *this slice* is about, the ledger holds everything else.
+
+What a work item is **not**:
+
+- **Not a summary.** `body` carries the full original prose — measurements, rejected alternatives, the
+  "this did not survive contact with the code" findings. The migration that populated ISS-023…ISS-083
+  was relocation, not summarisation: shortening a body would have destroyed the only reason for moving
+  it out of the handoff.
+- **Not a status report.** A resolved item is kept, never deleted, with `resolved_by` naming the commit
+  or reference that closed it. ISS-065 is a blocker that had been false for two days; it lives on as
+  `resolved`, because a stale record that vanishes teaches nothing.
+- **Not project-local.** The ledger is addressed by workspace through the node's declared catalog, so
+  the same command answers from `/tmp`, from the repository, or from another workspace's checkout.
+
+## 2. The four axes
+
+`axis` is **optional in the schema and required by the gate for `status: open`** — so the legacy
+entries stay valid, and no new open item can be unclassified.
+
+| Axis | What belongs in it |
+| --- | --- |
+| `node-vs-directory` | Anything that confuses *the node* with *the directory the operator is standing in* — resolvers that read `process.cwd()`, catalogs rooted at the wrong place, the two languages' base resolvers disagreeing. |
+| `cost` | The record of what work cost and who it was for: workspace attribution at the origin, the budget guard, the pricing modes, the quota denominator. |
+| `sandbox` | The isolated second node and the instruments that compare it to the operator's — the seven declared axes, `refarm parity`, what the lab does *not* isolate. |
+| `durability` | Whether the record survives: knowledge that lives only on one machine, gates that cannot fail, credentials that expire with nothing refreshing them, branch protection that was never applied. |
+| `other` | Everything that genuinely fits none of the four. |
+
+**`other` is a real answer, not a failure.** The record-reading family (discarded `truncated` flags,
+two sort orders for one fact, unpaged responses) is 18 of the 53 open items and belongs to no axis
+above; stretching one of them to cover it would have made the per-axis count a fiction. If an item
+fits nothing, `other` is correct and honest.
+
+## 3. The four commands
+
+The contract names four operations — `list · add · setStatus · validate`. **Three are built as CLI
+subcommands; `validate` is not**, and this document does not pretend otherwise. Schema validation runs
+today through the CI gate script.
+
+**`list`** — defaults to `--status open`; reports `count`, `unclassified`, the adapter's capability
+table, and `extraFields` (document keys the contract does not model):
+
+```bash
+refarm issues list --workspace refarm --status open --json
+refarm issues list --workspace refarm --axis node-vs-directory --json
+```
+
+**`list --all-workspaces`** — every declared workspace, **grouped and never merged**, with a named
+`unreadable` bucket for any adapter that fails. A failing workspace is never an omission and never a
+zero:
+
+```bash
+refarm issues list --all-workspaces --json
+# → { "workspaces": { "refarm": { "provider": "project-json", "count": 53, … },
+#                     "rcdc5":  { "provider": "project-json", "count": 20, … } },
+#     "unreadable": {} }
+```
+
+**`add`** — every required field explicit; `--dry-run` validates without writing. Bodies contain
+quotes, backticks and newlines, so a scripted migration passes an argv array (`execFileSync`) and never
+a shell string:
+
+```bash
+refarm issues add --workspace refarm --id ISS-084 --axis cost \
+  --title "…" --body "…" --location apps/refarm/src/commands/budget.ts:118 \
+  --category issue --priority high --package apps/refarm --json
+```
+
+**`set-status`** — refuses `--status resolved` without `--resolved-by`, because "resolved" without
+proof is an assertion:
+
+```bash
+refarm issues set-status --workspace refarm --id ISS-032 --status resolved --resolved-by f98a799a
+```
+
+**`validate` (contract operation, no subcommand today)** — the schema check that exists runs as:
+
+```bash
+node scripts/ci/project-block-consistency.mjs
+```
+
+Two further gaps in the writer, named rather than left to be discovered:
+
+- **There is no way to set `axis` on an existing item.** `set-status` writes `status` and
+  `resolved_by` only. Classifying the two legacy open items during the migration required writing the
+  document directly, in exactly the shape `project-json-adapter.ts` writes it.
+- **There is no `set-axis` and no edit command.** Correcting a title, body or location is a hand edit
+  today — the same shape of gap that killed the ledger the first time (section 7).
+
+## 4. Why ids are qualified
+
+Ids are qualified across workspaces — **`refarm#ISS-023`**, `rcdc5#issue-008`. Unqualified ids are
+legal only inside a single-workspace command.
+
+The reason is measured, not hypothetical. Two workspaces are declared on this node, both backed by
+`project-json`, and their id namespaces differ:
+
+| | refarm | rcdc5 |
+| --- | --- | --- |
+| id namespace | `ISS-NNN` | `issue-NNN` and `fragility-fragility-<hash>` |
+| extra document fields | none | `description` (reported as `extraFields`) |
+| `.project/schemas/` | its own | its own, and different |
+
+`issues.schema.json` in refarm sets `additionalProperties: false`, and rcdc5's records carry
+`description`: **the same backend, in two workspaces of the same node, already produces mutually
+invalid documents.** A contract designed from refarm alone would have been wrong on first contact with
+the second workspace.
+
+The ids do not collide today because someone chose `ISS-` and someone else chose `issue-`, at
+different times and for no shared reason. **That is naming luck, not design**, and an aggregate view
+cannot depend on it. Qualification makes non-collision a property of the addressing scheme instead.
+
+## 5. The capability table and its three states
+
+Each adapter declares, **per field**, one of three states — and the CLI reports the degradation rather
+than silently dropping a field:
+
+- **`native`** — the backend stores this field as itself.
+- **`emulated`** — the backend can carry it, but in another shape (a label, a fenced block, a closing
+  reference). Round-trips, with a caveat the operator gets told about.
+- **`unsupported`** — the backend cannot carry it at all. Writing it **refuses**, showing the
+  capability table, rather than writing a record the backend will silently truncate.
+
+This is the same rule the budget axis follows: a value that cannot be represented is not zero and not
+absent — it is *unsupported by this backend*, and that is a third state, not a missing one.
+
+`project-json` reports every field `native` (measured: `refarm issues list --json` → `capabilities`).
+The remote mappings below are **designed, not built** — there is no `github` or `gitlab` adapter in the
+tree. The table is part of the contract precisely so it was designed against real remote constraints
+instead of from `project-json` alone:
+
+| Field | `project-json` | `github` (mapped, not built) | `gitlab` (mapped, not built) |
+| --- | --- | --- | --- |
+| `id` | native | native (`number`), qualified as `<ws>#<n>` | native (`iid`) |
+| `title` / `body` | native | native | native |
+| `status` | native (`open`/`deferred`/`resolved`) | emulated — `open`/`closed` + label `status:deferred` | emulated, same shape |
+| `priority` / `category` / `axis` / `package` | native | emulated via labels (`axis:cost`) | emulated via labels |
+| `location` | native | **unsupported natively** — emulated in a fenced block in the body | same |
+| `resolved_by` | native | emulated — closing commit/PR reference | emulated |
+| `source` | native | unsupported | unsupported |
+
+## 6. What the gate enforces
+
+The cross-document check lives in `scripts/ci/project-block-consistency.mjs` and is **workspace-local
+by nature**: it runs inside one repository and checks that repository's handoff against that
+repository's ledger. It enforces two directions, both deterministic and neither requiring anyone to
+interpret prose:
+
+1. **Every `ISS-` id cited in `next_actions` or `blockers` exists in this workspace's ledger.** A
+   citation that names nothing is a dangling reference.
+2. **Every entry in `next_actions` and `blockers` cites at least one id.** This is the direction that
+   makes the migration load-bearing: a slice that writes a new prose loose end without creating its
+   work item breaks the build.
+
+A missing id is verifiable and always remediable by the agent — creating the item is one command — so
+it **blocks**. Ledger freshness, anchored in git, is a judgement, so it **warns**; and if git cannot be
+read (shallow clone, no `.git`) it reports `unknown`, never `fresh`. That split is the standing answer
+to the question this plan closed as ISS-072: **block only what the agent can fix.** A gate that blocks
+on a condition the loop may not remedy deadlocks it and creates an incentive to bypass the gate.
+
+**The reverse rule was deliberately rejected.** "Every open item must appear in the handoff" sounds
+symmetric and is not: with 53 open items it would force the handoff straight back into the 54,300
+characters of prose this whole line of work exists to end. **The handoff cites what this slice is
+about; the ledger holds everything.** The asymmetry is the design.
+
+> Status note: the cross-document check is added by the slice that follows this migration. The
+> migration is what makes it passable — as of the commit that created this document, the handoff cites
+> ids in every `next_actions`, `blockers` and `open_questions` entry, and `refarm project handoff
+> validate --json` reports `ok: true`.
+
+## 7. How the ledger died the first time
+
+It was not neglect, and it was not culture. It was structural, and it is measurable:
+
+```
+.project/tasks.json         373 entries · 100% completed · last touched 2026-05-05
+.project/issues.json         22 entries · 20 resolved, 2 open (both from May)
+.project/requirements.json   31 entries · dead
+.project/handoff.json        touched today
+```
+
+**Only the documents with a CLI writer survived.** `refarm project` governed exactly two:
+`handoff.json` (`validate|write`) and `automations.json` (`validate|list|add|set-status|tick`).
+`tasks.json`, `issues.json` and `requirements.json` had none — and a governed document with no writer
+can only be edited by hand, mid-slice, in a 373-entry JSON file. Nobody does that. So the record
+stopped receiving reality while every check on it stayed green: `project-block-consistency.mjs`
+verified unique ids and referential integrity, all of which remained perfectly intact in a document
+nobody was writing to. **Every check it performed was internal to the documents; none had an external
+anchor.**
+
+A 373-task ledger at 100% completion is not a finished project. It is the same two-states-where-three-
+belong collapse this repository has catalogued nine times: *no open tasks* and *nobody is recording
+tasks* produce the identical value.
+
+Meanwhile the surviving document decayed in the other direction. `CLAUDE.md` §4 mandates
+`refarm resume --json` at the start of every slice, and resume returned five entries per field out of
+24 — with no `truncated` field, so a complete read and a 21%-complete read were indistinguishable to
+the agent that was told to trust it. Nobody triages what they cannot see. Each slice appended to the
+head of a list whose tail was never read back, until two entries contradicted each other (ISS-032,
+ISS-033 — both resolved here by measuring the code, not by believing either paragraph) and one blocker
+had been false for two days (ISS-065).
+
+**So the gate is not bureaucracy.** It is the external anchor those checks never had: a writer so the
+ledger can receive work at all, and a rule that a loose end written as prose must also exist as an
+addressable item. That is the only part of this that would have fired in June.

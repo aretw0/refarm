@@ -44,6 +44,7 @@
 - **[Colony Playbook](COLONY_PLAYBOOK.md)** — Parallel agent batch execution guide.
 - **[Known Limitations](KNOWN_LIMITATIONS.md)** — Technical hurdles, resource quotas, expected build behavior.
 - **[PR Quality Governance](PR_QUALITY_GOVERNANCE.md)** — Guardrails and publishing hygiene.
+- **[Work Item Ledger](WORK_ITEM_LEDGER.md)** — `refarm issues`: the workspace-scoped, provider-agnostic record of named debt — the four axes, the capability table's three states, and what the handoff gate enforces.
 - **[Decision Log](decision-log.md)** — Record of high-impact architectural choices.
 - **[Stratification Policy](STRATIFICATION.md)** — TS-Strict vs JS-Atomic package classification.
 - **[Scaffolding Development Policy](SCAFFOLDING.md)** — Island Isolation Policy for `sower` scaffolding.
