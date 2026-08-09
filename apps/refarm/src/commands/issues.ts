@@ -493,6 +493,303 @@ function buildSetStatusCommand(io: IssuesIo): Command {
 		});
 }
 
+interface IssuesSetAxisOptions {
+	workspace?: string;
+	id?: string;
+	axis?: string;
+	json?: boolean;
+}
+
+/**
+ * `set-axis` is a SEPARATE verb rather than an `--axis` flag on `set-status`, because the two
+ * answer different questions: `set-status` moves an item through its lifecycle and refuses to
+ * resolve without proof, while classification says which axis of open work an item belongs to and
+ * is legal at any status. Folding it into `set-status` would have forced a caller reclassifying an
+ * open item to restate `--status open` — a write of a value it did not intend to change, in a
+ * command whose name would then be a small untruth about what it wrote.
+ */
+function buildSetAxisCommand(io: IssuesIo): Command {
+	return new Command("set-axis")
+		.description("Classify a work item that already exists")
+		.option("--workspace <id>", "Declared workspace id")
+		.option("--id <id>", "Work item id")
+		.option("--axis <axis>", `Axis: ${WORK_ITEM_AXES.join(", ")}`)
+		.option("--json", "Output machine-readable result")
+		.action((options: IssuesSetAxisOptions) => {
+			const cwd = currentDirectoryForCatalogMatch();
+			const resolution = resolveWorkspaceLedger({ workspace: options.workspace, cwd, ...io });
+			if (!resolution.ok) {
+				refuse("set-axis", resolution, options.json);
+				return;
+			}
+
+			if (!options.id?.trim()) {
+				refuseAfterResolution(
+					"set-axis",
+					resolution.workspaceId,
+					"missing_id",
+					"Missing required field: --id.",
+					options.json,
+				);
+				return;
+			}
+			// Validated HERE as well as in the adapter: the CLI refuses before any document is read,
+			// and the adapter refuses even when a caller reaches it directly. An unknown axis must
+			// never reach a write, from either door.
+			if (!options.axis || !WORK_ITEM_AXES.includes(options.axis as WorkItemAxis)) {
+				refuseAfterResolution(
+					"set-axis",
+					resolution.workspaceId,
+					"invalid_axis",
+					`--axis must be one of: ${WORK_ITEM_AXES.join(", ")}.`,
+					options.json,
+				);
+				return;
+			}
+
+			const result = resolution.adapter.setAxis(options.id.trim(), options.axis as WorkItemAxis);
+			if (!result.ok || !result.item) {
+				refuseAfterResolution(
+					"set-axis",
+					resolution.workspaceId,
+					result.error?.reason ?? "write_failed",
+					result.error?.message ?? "Could not classify the work item.",
+					options.json,
+				);
+				return;
+			}
+
+			const qualifiedId = qualifyId(resolution.workspaceId, result.item.id);
+			if (options.json) {
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "issues",
+						operation: "set-axis",
+						nextCommands: [],
+						extra: {
+							workspaceId: resolution.workspaceId,
+							workspaceFrom: resolution.workspaceFrom,
+							providerFrom: resolution.providerFrom,
+							item: { ...result.item, qualifiedId },
+						},
+					}),
+				);
+				return;
+			}
+			console.log(chalk.green(`Classified ${qualifiedId} → ${result.item.axis}.`));
+		});
+}
+
+export interface IssuesValidateFinding {
+	reason: "duplicate_id" | "open_without_axis" | "resolved_without_resolved_by";
+	ids: string[];
+	message: string;
+}
+
+export type IssuesValidateOutcome =
+	| { kind: "refusal"; resolution: LedgerRefusal }
+	| { kind: "read-failure"; workspaceId: string; reason: string; message: string }
+	| {
+			kind: "ok";
+			workspaceId: string;
+			provider: string;
+			workspaceFrom: LedgerResolutionOk["workspaceFrom"];
+			providerFrom: LedgerResolutionOk["providerFrom"];
+			valid: boolean;
+			counts: { total: number; open: number; deferred: number; resolved: number };
+			findings: IssuesValidateFinding[];
+			/** INFORMATION, never a finding. rcdc5's ledger legitimately carries `description` and
+			 *  refarm's schema forbids it — a contract that failed on the difference would be wrong
+			 *  about one of the two real workspaces on this node. */
+			extraFields: string[];
+	  };
+
+export interface BuildIssuesValidateInput extends IssuesIo {
+	workspace?: string;
+	cwd: string;
+}
+
+/**
+ * The pure core of `issues validate` — the same three-state posture as `buildIssuesList`: a
+ * refusal (the workspace did not resolve), a read failure (the document is unreadable, which is a
+ * distinct answer and NEVER an empty clean ledger), or a verdict. `valid: false` is a verdict, not
+ * an error: the document was read and understood, and it breaks a rule the gate enforces.
+ */
+export function buildIssuesValidate(input: BuildIssuesValidateInput): IssuesValidateOutcome {
+	const resolution = resolveWorkspaceLedger({
+		workspace: input.workspace,
+		cwd: input.cwd,
+		loadWorkspaces: input.loadWorkspaces,
+		fileExists: input.fileExists,
+		readDocument: input.readDocument,
+		writeDocument: input.writeDocument,
+	});
+	if (!resolution.ok) return { kind: "refusal", resolution };
+
+	const read = resolution.adapter.list();
+	if (!read.ok) {
+		return {
+			kind: "read-failure",
+			workspaceId: resolution.workspaceId,
+			reason: read.error?.reason ?? "document_unreadable",
+			message: read.error?.message ?? "Could not read this workspace's ledger.",
+		};
+	}
+
+	const seen = new Map<string, number>();
+	for (const item of read.items) seen.set(item.id, (seen.get(item.id) ?? 0) + 1);
+	const duplicates = [...seen.entries()].filter(([, count]) => count > 1).map(([id]) => id);
+	const openWithoutAxis = read.items.filter((item) => item.status === "open" && !item.axis).map((item) => item.id);
+	const resolvedWithoutRef = read.items
+		.filter((item) => item.status === "resolved" && !item.resolvedBy?.trim())
+		.map((item) => item.id);
+
+	const findings: IssuesValidateFinding[] = [];
+	if (duplicates.length > 0) {
+		findings.push({
+			reason: "duplicate_id",
+			ids: duplicates,
+			message: `${duplicates.length} id(s) appear more than once; ids must be unique within a workspace.`,
+		});
+	}
+	if (openWithoutAxis.length > 0) {
+		findings.push({
+			reason: "open_without_axis",
+			ids: openWithoutAxis,
+			message: `${openWithoutAxis.length} open item(s) carry no axis; the gate requires one for status: open.`,
+		});
+	}
+	if (resolvedWithoutRef.length > 0) {
+		findings.push({
+			reason: "resolved_without_resolved_by",
+			ids: resolvedWithoutRef,
+			message: `${resolvedWithoutRef.length} resolved item(s) name no resolved_by; "resolved" without proof is an assertion.`,
+		});
+	}
+
+	return {
+		kind: "ok",
+		workspaceId: resolution.workspaceId,
+		provider: resolution.provider,
+		workspaceFrom: resolution.workspaceFrom,
+		providerFrom: resolution.providerFrom,
+		valid: findings.length === 0,
+		counts: {
+			total: read.items.length,
+			open: read.items.filter((item) => item.status === "open").length,
+			deferred: read.items.filter((item) => item.status === "deferred").length,
+			resolved: read.items.filter((item) => item.status === "resolved").length,
+		},
+		findings,
+		extraFields: read.extraFields,
+	};
+}
+
+/** One remediation command per finding kind, named with the FIRST offending id so the handoff is
+ *  runnable rather than a category. A duplicate id has no writer that can fix it — `add` refuses to
+ *  create one, so a duplicate arrived by hand — and the honest handoff is to look at the document. */
+function validateNextCommands(workspaceId: string, findings: IssuesValidateFinding[]): string[] {
+	return findings.map((finding) => {
+		const id = finding.ids[0] ?? "<id>";
+		if (finding.reason === "open_without_axis") {
+			return refarmCommand(["issues", "set-axis", "--workspace", workspaceId, "--id", id, "--axis", "other", "--json"]);
+		}
+		if (finding.reason === "resolved_without_resolved_by") {
+			return refarmCommand([
+				"issues",
+				"set-status",
+				"--workspace",
+				workspaceId,
+				"--id",
+				id,
+				"--status",
+				"resolved",
+				"--resolved-by",
+				"<commit>",
+				"--json",
+			]);
+		}
+		return refarmCommand(["issues", "list", "--workspace", workspaceId, "--status", "open", "--json"]);
+	});
+}
+
+function buildValidateCommand(io: IssuesIo): Command {
+	return new Command("validate")
+		.description("Check a workspace's ledger against the rules the gate enforces")
+		.option("--workspace <id>", "Declared workspace id")
+		.option("--json", "Output machine-readable result")
+		.action((options: { workspace?: string; json?: boolean }) => {
+			const cwd = currentDirectoryForCatalogMatch();
+			const outcome = buildIssuesValidate({ workspace: options.workspace, cwd, ...io });
+
+			if (outcome.kind === "refusal") {
+				refuse("validate", outcome.resolution, options.json);
+				return;
+			}
+			if (outcome.kind === "read-failure") {
+				refuseAfterResolution("validate", outcome.workspaceId, outcome.reason, outcome.message, options.json);
+				return;
+			}
+
+			const nextCommands = validateNextCommands(outcome.workspaceId, outcome.findings);
+			const payload = {
+				workspaceId: outcome.workspaceId,
+				provider: outcome.provider,
+				workspaceFrom: outcome.workspaceFrom,
+				providerFrom: outcome.providerFrom,
+				valid: outcome.valid,
+				counts: outcome.counts,
+				findings: outcome.findings,
+				extraFields: outcome.extraFields,
+			};
+
+			if (!outcome.valid) {
+				const primaryCommand =
+					nextCommands[0] ?? refarmCommand(["issues", "list", "--workspace", outcome.workspaceId, "--json"]);
+				if (options.json) {
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "issues",
+							operation: "validate",
+							error: "invalid_ledger",
+							message: outcome.findings.map((finding) => finding.message).join(" "),
+							nextAction: "Fix each finding, then re-run validate — the commands below are runnable as printed.",
+							nextCommand: primaryCommand,
+							nextCommands,
+							extra: payload,
+						}),
+					);
+				} else {
+					for (const finding of outcome.findings) {
+						console.error(chalk.red(`${finding.reason}: ${finding.message} (${finding.ids.join(", ")})`));
+					}
+				}
+				process.exitCode = 1;
+				return;
+			}
+
+			if (options.json) {
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "issues",
+						operation: "validate",
+						nextCommands: [],
+						extra: payload,
+					}),
+				);
+				return;
+			}
+			console.log(
+				chalk.green(
+					`${outcome.workspaceId}: ${outcome.counts.total} item(s) valid — ${outcome.counts.open} open, ${outcome.counts.deferred} deferred, ${outcome.counts.resolved} resolved.`,
+				),
+			);
+			if (outcome.extraFields.length > 0) {
+				console.log(chalk.dim(`extra fields carried by this backend: ${outcome.extraFields.join(", ")}`));
+			}
+		});
+}
+
 export function createIssuesCommand(io: IssuesIo = defaultIo): Command {
 	const command = new Command("issues").description(
 		"Work items for a declared workspace's ledger — resolved through the catalog, never the cwd",
@@ -500,6 +797,8 @@ export function createIssuesCommand(io: IssuesIo = defaultIo): Command {
 	command.addCommand(buildListCommand(io));
 	command.addCommand(buildAddCommand(io));
 	command.addCommand(buildSetStatusCommand(io));
+	command.addCommand(buildSetAxisCommand(io));
+	command.addCommand(buildValidateCommand(io));
 	return command;
 }
 

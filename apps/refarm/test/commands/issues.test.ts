@@ -1,7 +1,12 @@
 import { resolveWorkspaceLedger, type LedgerResolution } from "@refarm.dev/cli";
 import { describe, expect, it, vi } from "vitest";
 
-import { buildIssuesList, createIssuesCommand, type IssuesIo } from "../../src/commands/issues.js";
+import {
+	buildIssuesList,
+	buildIssuesValidate,
+	createIssuesCommand,
+	type IssuesIo,
+} from "../../src/commands/issues.js";
 
 const CATALOG = [
 	{ id: "refarm", absolutePath: "/home/op/github/refarm", issues: { provider: "project-json", path: ".project/issues.json" } },
@@ -200,23 +205,36 @@ interface IssuesEnvelope {
 	error?: string;
 	message?: string;
 	nextCommand?: string | null;
+	nextCommands?: string[];
 	workspaces?: Record<string, unknown>;
 	unreadable?: Record<string, unknown>;
+	item?: { id: string; axis?: string; status?: string };
+	valid?: boolean;
+	counts?: { total: number; open: number; deferred: number; resolved: number };
+	findings?: Array<{ reason: string; ids: string[] }>;
+	extraFields?: string[];
+}
+
+async function runIssues(
+	argv: string[],
+	io: IssuesIo,
+): Promise<{ envelope: IssuesEnvelope; exitCode: number | string | undefined }> {
+	const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+	const previousExitCode = process.exitCode;
+	process.exitCode = undefined;
+	await createIssuesCommand(io).parseAsync(argv, { from: "user" });
+	const envelope = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as IssuesEnvelope;
+	const exitCode = process.exitCode;
+	process.exitCode = previousExitCode;
+	logSpy.mockRestore();
+	return { envelope, exitCode };
 }
 
 async function runIssuesList(
 	args: string[],
 	io: IssuesIo,
 ): Promise<{ envelope: IssuesEnvelope; exitCode: number | string | undefined }> {
-	const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-	const previousExitCode = process.exitCode;
-	process.exitCode = undefined;
-	await createIssuesCommand(io).parseAsync(["list", ...args], { from: "user" });
-	const envelope = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as IssuesEnvelope;
-	const exitCode = process.exitCode;
-	process.exitCode = previousExitCode;
-	logSpy.mockRestore();
-	return { envelope, exitCode };
+	return runIssues(["list", ...args], io);
 }
 
 describe("refarm issues list — command wiring", () => {
@@ -234,5 +252,220 @@ describe("refarm issues list — command wiring", () => {
 		expect(Object.keys(envelope.workspaces ?? {})).toEqual(["good"]);
 		expect(Object.keys(envelope.unreadable ?? {})).toEqual(["bad"]);
 		expect(exitCode).toBeUndefined();
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// `set-axis` — the writer that did NOT exist when the ledger was migrated, which is why two
+// legacy items had to be classified by editing the document by hand. A governed document whose
+// only editor is a text editor is the shape that left `tasks.json` and `issues.json` dead from
+// 2026-05-05; this closes it for `axis`.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/** A ledger with an extra field the contract does not model (rcdc5's shape), one resolved item
+ *  with its proof, and every open item classified — the CLEAN case validate must pass. */
+const CLEAN_LEDGER = JSON.stringify({
+	issues: [
+		{
+			id: "c1",
+			title: "classified",
+			body: "b",
+			location: "l",
+			status: "open",
+			priority: "p",
+			category: "c",
+			package: "pkg",
+			axis: "cost",
+			description: "a field refarm's schema forbids and rcdc5's carries",
+		},
+		{
+			id: "c2",
+			title: "resolved with proof",
+			body: "b",
+			location: "l",
+			status: "resolved",
+			priority: "p",
+			category: "c",
+			package: "pkg",
+			resolved_by: "deadbee",
+		},
+	],
+});
+
+/** Captures what the command actually WROTE, so a refusal can be proven to have written nothing
+ *  rather than merely to have printed an error. */
+function capturingIo(document: string): { io: IssuesIo; writes: string[] } {
+	const writes: string[] = [];
+	let current = document;
+	return {
+		writes,
+		io: {
+			loadWorkspaces: () => [
+				{ id: "good", absolutePath: "/ws/good", issues: { provider: "project-json", path: ".project/issues.json" } },
+			],
+			fileExists: () => true,
+			readDocument: () => current,
+			writeDocument: (_candidate: string, contents: string) => {
+				writes.push(contents);
+				current = contents;
+			},
+		},
+	};
+}
+
+describe("refarm issues set-axis", () => {
+	it("classifies an item that already exists and writes it through the adapter", async () => {
+		const { io, writes } = capturingIo(GOOD_LEDGER);
+		const { envelope, exitCode } = await runIssues(
+			["set-axis", "--workspace", "good", "--id", "a2", "--axis", "durability", "--json"],
+			io,
+		);
+		expect(envelope.ok).toBe(true);
+		expect(envelope.item).toMatchObject({ id: "a2", axis: "durability" });
+		expect(exitCode).toBeUndefined();
+		const written = JSON.parse(String(writes.at(-1))) as { issues: Array<{ id: string; axis?: string }> };
+		expect(written.issues.find((issue) => issue.id === "a2")?.axis).toBe("durability");
+		// The OTHER item is untouched — a reclassification is not a rewrite of the document.
+		expect(written.issues.find((issue) => issue.id === "a1")?.axis).toBe("cost");
+	});
+
+	it("refuses an axis outside the declared set and writes NOTHING", async () => {
+		const { io, writes } = capturingIo(GOOD_LEDGER);
+		const { envelope, exitCode } = await runIssues(
+			["set-axis", "--workspace", "good", "--id", "a2", "--axis", "invented", "--json"],
+			io,
+		);
+		expect(envelope.ok).toBe(false);
+		expect(envelope.error).toBe("invalid_axis");
+		expect(exitCode).toBe(1);
+		expect(writes).toEqual([]);
+	});
+
+	it("refuses a missing --id before touching the document", async () => {
+		const { io, writes } = capturingIo(GOOD_LEDGER);
+		const { envelope } = await runIssues(["set-axis", "--workspace", "good", "--axis", "cost", "--json"], io);
+		expect(envelope.ok).toBe(false);
+		expect(envelope.error).toBe("missing_id");
+		expect(writes).toEqual([]);
+	});
+
+	it("refuses an unknown id with the adapter's reason, not a silent no-op", async () => {
+		const { io, writes } = capturingIo(GOOD_LEDGER);
+		const { envelope, exitCode } = await runIssues(
+			["set-axis", "--workspace", "good", "--id", "nope", "--axis", "cost", "--json"],
+			io,
+		);
+		expect(envelope.ok).toBe(false);
+		expect(envelope.error).toBe("unknown_id");
+		expect(exitCode).toBe(1);
+		expect(writes).toEqual([]);
+	});
+
+	it("keeps a field the contract does not model when reclassifying", async () => {
+		const { io, writes } = capturingIo(CLEAN_LEDGER);
+		await runIssues(["set-axis", "--workspace", "good", "--id", "c1", "--axis", "sandbox", "--json"], io);
+		const written = JSON.parse(String(writes.at(-1))) as {
+			issues: Array<{ id: string; axis?: string; description?: string }>;
+		};
+		const item = written.issues.find((issue) => issue.id === "c1");
+		expect(item?.axis).toBe("sandbox");
+		expect(item?.description).toBe("a field refarm's schema forbids and rcdc5's carries");
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// `validate` — the fourth contract operation. Three states, never two: a refusal, an unreadable
+// document (NEVER a clean empty pass), and a verdict.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+describe("buildIssuesValidate", () => {
+	it("names every open item that carries no axis", () => {
+		const outcome = buildIssuesValidate({ workspace: "good", cwd: "/tmp", ...fakeIo() });
+		expect(outcome.kind).toBe("ok");
+		if (outcome.kind !== "ok") throw new Error("expected ok");
+		expect(outcome.valid).toBe(false);
+		expect(outcome.findings.map((finding) => finding.reason)).toEqual(["open_without_axis"]);
+		expect(outcome.findings[0]?.ids).toEqual(["a2"]);
+		expect(outcome.counts).toEqual({ total: 2, open: 2, deferred: 0, resolved: 0 });
+	});
+
+	it("names a resolved item with no proof, and a duplicate id", () => {
+		const document = JSON.stringify({
+			issues: [
+				{ id: "d1", title: "t", body: "b", location: "l", status: "resolved", priority: "p", category: "c", package: "k" },
+				{ id: "d1", title: "t", body: "b", location: "l", status: "open", priority: "p", category: "c", package: "k", axis: "cost" },
+			],
+		});
+		const outcome = buildIssuesValidate({
+			workspace: "good",
+			cwd: "/tmp",
+			...fakeIo({ readDocument: () => document }),
+		});
+		if (outcome.kind !== "ok") throw new Error("expected ok");
+		expect(outcome.valid).toBe(false);
+		expect(outcome.findings.map((finding) => finding.reason).sort()).toEqual([
+			"duplicate_id",
+			"resolved_without_resolved_by",
+		]);
+	});
+
+	it("passes a clean ledger and reports its extra fields as INFORMATION, never a finding", () => {
+		const outcome = buildIssuesValidate({
+			workspace: "good",
+			cwd: "/tmp",
+			...fakeIo({ readDocument: () => CLEAN_LEDGER }),
+		});
+		if (outcome.kind !== "ok") throw new Error("expected ok");
+		expect(outcome.valid).toBe(true);
+		expect(outcome.findings).toEqual([]);
+		// rcdc5's `description` is legitimate; a contract that failed on it would be wrong about one
+		// of the two real workspaces declared on this node.
+		expect(outcome.extraFields).toEqual(["description"]);
+		expect(outcome.counts).toEqual({ total: 2, open: 1, deferred: 0, resolved: 1 });
+	});
+
+	it("reports an unreadable document as a read failure, never as a clean empty ledger", () => {
+		const outcome = buildIssuesValidate({ workspace: "bad", cwd: "/tmp", ...fakeIo() });
+		expect(outcome.kind).toBe("read-failure");
+		if (outcome.kind !== "read-failure") throw new Error("expected read-failure");
+		expect(outcome.reason).toBe("document_unreadable");
+	});
+
+	it("refuses an unresolvable workspace rather than reading ./.project", () => {
+		const outcome = buildIssuesValidate({ cwd: "/tmp", ...fakeIo() });
+		expect(outcome.kind).toBe("refusal");
+	});
+});
+
+describe("refarm issues validate — command wiring", () => {
+	it("a ledger that breaks a gate rule exits non-zero and hands back a RUNNABLE remediation", async () => {
+		const { envelope, exitCode } = await runIssues(["validate", "--workspace", "good", "--json"], fakeIo());
+		expect(envelope.ok).toBe(false);
+		expect(envelope.error).toBe("invalid_ledger");
+		expect(envelope.valid).toBe(false);
+		expect(envelope.findings?.[0]?.reason).toBe("open_without_axis");
+		expect(envelope.nextCommand).toContain("issues set-axis");
+		expect(envelope.nextCommand).toContain("--id a2");
+		expect(exitCode).toBe(1);
+	});
+
+	it("a clean ledger succeeds with counts and extra fields, exit unset", async () => {
+		const { envelope, exitCode } = await runIssues(
+			["validate", "--workspace", "good", "--json"],
+			fakeIo({ readDocument: () => CLEAN_LEDGER }),
+		);
+		expect(envelope.ok).toBe(true);
+		expect(envelope.valid).toBe(true);
+		expect(envelope.counts).toEqual({ total: 2, open: 1, deferred: 0, resolved: 1 });
+		expect(envelope.extraFields).toEqual(["description"]);
+		expect(envelope.nextCommands).toEqual([]);
+		expect(exitCode).toBeUndefined();
+	});
+
+	it("an unreadable ledger refuses with document_unreadable rather than reporting it valid", async () => {
+		const { envelope, exitCode } = await runIssues(["validate", "--workspace", "bad", "--json"], fakeIo());
+		expect(envelope.ok).toBe(false);
+		expect(envelope.error).toBe("document_unreadable");
+		expect(exitCode).toBe(1);
 	});
 });

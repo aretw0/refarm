@@ -67,6 +67,13 @@ export interface WorkItemAdapter {
 	list(): WorkItemReadResult;
 	add(item: WorkItem): WorkItemWriteResult;
 	setStatus(id: string, status: WorkItemStatus, resolvedBy?: string): WorkItemWriteResult;
+	/** Classify an item that already exists. Without this, `axis` is writable only at `add` time
+	 * and a misfiled or legacy item can be reclassified ONLY by hand-editing the backing document
+	 * — which is exactly the writer-gap that left `tasks.json`/`issues.json` dead from 2026-05-05:
+	 * a governed document whose only editor is a text editor stops receiving reality. The gate
+	 * requires `axis` on every open item, so "reopen a resolved item" would otherwise force a hand
+	 * edit inside a gated document. */
+	setAxis(id: string, axis: WorkItemAxis): WorkItemWriteResult;
 }
 
 export function qualifyId(workspaceId: string, itemId: string): string {

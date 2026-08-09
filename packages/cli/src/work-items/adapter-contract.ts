@@ -78,5 +78,42 @@ export function describeAdapterContract(
 			expect(result.error?.reason).toBe("unknown_id");
 		});
 
+		it("classifies an item that already exists", () => {
+			const adapter = makeAdapter();
+			const result = adapter.setAxis(fixture.existingId, "durability");
+			expect(result.ok).toBe(true);
+			expect(result.item?.axis).toBe("durability");
+			expect(adapter.list().items.find((item) => item.id === fixture.existingId)?.axis).toBe(
+				"durability",
+			);
+		});
+
+		it("reclassifying keeps every other field, including the ones this contract does not model", () => {
+			const adapter = makeAdapter();
+			const before = adapter.list();
+			adapter.setAxis(fixture.existingId, "sandbox");
+			const after = adapter.list();
+			expect(after.items).toHaveLength(before.items.length);
+			expect(after.extraFields.sort()).toEqual([...fixture.expectedExtraFields].sort());
+			const beforeItem = before.items.find((item) => item.id === fixture.existingId);
+			const afterItem = after.items.find((item) => item.id === fixture.existingId);
+			expect({ ...afterItem, axis: undefined }).toEqual({ ...beforeItem, axis: undefined });
+		});
+
+		it("refuses an axis outside the declared set instead of writing it", () => {
+			const adapter = makeAdapter();
+			const result = adapter.setAxis(fixture.existingId, "not-an-axis" as never);
+			expect(result.ok).toBe(false);
+			expect(result.error?.reason).toBe("invalid_axis");
+			expect(adapter.list().items.find((item) => item.id === fixture.existingId)?.axis).not.toBe(
+				"not-an-axis",
+			);
+		});
+
+		it("refuses an unknown id on classify", () => {
+			const result = makeAdapter().setAxis("no-such-id-xyz", "cost");
+			expect(result.ok).toBe(false);
+			expect(result.error?.reason).toBe("unknown_id");
+		});
 	});
 }

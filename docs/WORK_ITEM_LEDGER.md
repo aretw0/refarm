@@ -67,9 +67,9 @@ fits nothing, `other` is correct and honest.
 
 ## 3. The four commands
 
-The contract names four operations — `list · add · setStatus · validate`. **Three are built as CLI
-subcommands; `validate` is not**, and this document does not pretend otherwise. Schema validation runs
-today through the CI gate script.
+The contract names four operations — `list · add · setStatus · validate` — and all four are built.
+A fifth subcommand, `set-axis`, exists because classification is a different question from lifecycle:
+see the note at the end of this section.
 
 **`list`** — defaults to `--status open`; reports `count`, `unclassified`, the adapter's capability
 table, and `extraFields` (document keys the contract does not model):
@@ -107,19 +107,43 @@ proof is an assertion:
 refarm issues set-status --workspace refarm --id ISS-032 --status resolved --resolved-by f98a799a
 ```
 
-**`validate` (contract operation, no subcommand today)** — the schema check that exists runs as:
+**`set-axis`** — classifies an item that already **exists**. It is a separate verb rather than an
+`--axis` flag on `set-status` because the two answer different questions: `set-status` moves an item
+through its lifecycle and refuses to resolve without proof, while classification is legal at any
+status. Folding them together would force a caller reclassifying an open item to restate
+`--status open` — a write of a value it did not intend to change:
+
+```bash
+refarm issues set-axis --workspace refarm --id ISS-083 --axis durability --json
+```
+
+An axis outside the declared set is refused **before any write**, in the CLI *and* again in the
+adapter, so an unknown axis cannot reach the document from either door. Reclassifying keeps every
+other key the record carries — including fields this contract does not model, such as rcdc5's
+`description` — and puts a newly-added `axis` in the same position `add` would have.
+
+**`validate`** — reads the ledger through the adapter and checks exactly what the gate enforces:
+duplicate ids, open items with no `axis`, resolved items with no `resolved_by`. It refuses an
+unreadable document rather than reporting an empty clean ledger, and reports `extraFields` as
+**information, never a finding** — rcdc5's `description` is legitimate. Each finding comes back with a
+runnable remediation in `nextCommands`:
+
+```bash
+refarm issues validate --workspace refarm --json
+# valid → ok: true with counts; invalid → ok: false, error "invalid_ledger", exit 1
+```
+
+The cross-document check between the handoff and the ledger is a separate gate and stays in CI:
 
 ```bash
 node scripts/ci/project-block-consistency.mjs
 ```
 
-Two further gaps in the writer, named rather than left to be discovered:
-
-- **There is no way to set `axis` on an existing item.** `set-status` writes `status` and
-  `resolved_by` only. Classifying the two legacy open items during the migration required writing the
-  document directly, in exactly the shape `project-json-adapter.ts` writes it.
-- **There is no `set-axis` and no edit command.** Correcting a title, body or location is a hand edit
-  today — the same shape of gap that killed the ledger the first time (section 7).
+**The gap that remains**, named rather than left to be discovered: there is no editor for `title`,
+`body` or `location`. Correcting one is still a hand edit — the same shape of gap that killed the
+ledger the first time (section 7). `axis` used to be on that list; classifying the two legacy open
+items during the migration required writing the document directly, which is precisely why `set-axis`
+was built before the first reclassification was made.
 
 ## 4. Why ids are qualified
 

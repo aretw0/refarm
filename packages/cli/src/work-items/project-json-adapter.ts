@@ -2,6 +2,7 @@ import type {
 	CapabilityTable,
 	WorkItem,
 	WorkItemAdapter,
+	WorkItemAxis,
 	WorkItemReadResult,
 	WorkItemStatus,
 	WorkItemWriteResult,
@@ -169,5 +170,49 @@ export function createProjectJsonAdapter(options: ProjectJsonAdapterOptions): Wo
 				return { ok: false, item: null, error: documentUnreadableError(error) };
 			}
 		},
+
+		setAxis(id: string, axis: WorkItemAxis): WorkItemWriteResult {
+			if (!WORK_ITEM_AXES.includes(axis)) {
+				return {
+					ok: false,
+					item: null,
+					error: { reason: "invalid_axis", message: `Axis must be one of: ${WORK_ITEM_AXES.join(", ")}.` },
+				};
+			}
+			try {
+				const { records } = readRecords();
+				const index = records.findIndex((record) => String(record.id) === id);
+				if (index === -1) {
+					return {
+						ok: false,
+						item: null,
+						error: { reason: "unknown_id", message: `No work item with id ${id}.` },
+					};
+				}
+				const next = [...records];
+				next[index] = withAxis(records[index] as Record<string, unknown>, axis);
+				write(next);
+				return { ok: true, item: toWorkItem(next[index] as Record<string, unknown>), error: null };
+			} catch (error) {
+				return { ok: false, item: null, error: documentUnreadableError(error) };
+			}
+		},
 	};
+}
+
+/** Rebuilds one record with `axis` set, keeping EVERY other key — including the ones this contract
+ * does not model, such as rcdc5's `description` — and keeping them in their original order. A
+ * record that had no `axis` gets it in `toDocumentRecord`'s canonical position (immediately after
+ * `package`), so a classified-later item is byte-shaped like a classified-at-add one and the
+ * document does not drift into two layouts. A plain `{ ...record, axis }` would append instead,
+ * and rebuilding from `toWorkItem` would silently DROP the extra fields. */
+function withAxis(record: Record<string, unknown>, axis: WorkItemAxis): Record<string, unknown> {
+	if ("axis" in record) return { ...record, axis };
+	const next: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(record)) {
+		next[key] = value;
+		if (key === "package") next.axis = axis;
+	}
+	if (!("axis" in next)) next.axis = axis;
+	return next;
 }
