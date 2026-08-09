@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { describeAdapterContract } from "./adapter-contract.js";
 import type { WorkItem } from "./contract.js";
 import { createProjectJsonAdapter } from "./project-json-adapter.js";
@@ -105,4 +106,50 @@ describeAdapterContract("project-json / rcdc5 shape", () => inMemoryAdapter(RCDC
 	count: 3,
 	newItem: newItem("issue-900"),
 	expectedExtraFields: ["description"],
+});
+
+// project-json specifics, not part of the shared adapter contract: the snake_case write mapping
+// and the document_unreadable failure mode are behaviours of THIS backend, not promises every
+// adapter must keep.
+describe("project-json adapter specifics", () => {
+	it("round-trips resolvedBy through the resolved_by write mapping", () => {
+		const adapter = inMemoryAdapter(REFARM_SHAPE);
+		const added = adapter.add({ ...newItem("ISS-901"), resolvedBy: "cafe123" });
+		expect(added.ok).toBe(true);
+
+		const read = adapter.list();
+		expect(read.items.find((item) => item.id === "ISS-901")?.resolvedBy).toBe("cafe123");
+	});
+
+	it("list() reports document_unreadable for malformed JSON instead of throwing", () => {
+		const adapter = createProjectJsonAdapter({
+			readDocument: () => "{ not json",
+			writeDocument: () => {},
+		});
+		const result = adapter.list();
+		expect(result.ok).toBe(false);
+		expect(result.items).toEqual([]);
+		expect(result.extraFields).toEqual([]);
+		expect(result.error?.reason).toBe("document_unreadable");
+	});
+
+	it("add() reports document_unreadable for malformed JSON instead of throwing", () => {
+		const adapter = createProjectJsonAdapter({
+			readDocument: () => "{ not json",
+			writeDocument: () => {},
+		});
+		const result = adapter.add(newItem("ISS-902"));
+		expect(result.ok).toBe(false);
+		expect(result.error?.reason).toBe("document_unreadable");
+	});
+
+	it("setStatus() reports document_unreadable for malformed JSON instead of throwing", () => {
+		const adapter = createProjectJsonAdapter({
+			readDocument: () => "{ not json",
+			writeDocument: () => {},
+		});
+		const result = adapter.setStatus("ISS-001", "deferred");
+		expect(result.ok).toBe(false);
+		expect(result.error?.reason).toBe("document_unreadable");
+	});
 });

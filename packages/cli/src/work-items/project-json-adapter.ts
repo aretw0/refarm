@@ -42,6 +42,16 @@ export interface ProjectJsonAdapterOptions {
 	writeDocument: (contents: string) => void;
 }
 
+/** Shared shape for the one failure mode `readRecords`/`write` can throw: the document could not
+ * be parsed or written. Extracted so `list`, `add` and `setStatus` derive the same error the same
+ * way instead of three copies drifting apart. */
+function documentUnreadableError(error: unknown): { reason: string; message: string } {
+	return {
+		reason: "document_unreadable",
+		message: error instanceof Error ? error.message : String(error),
+	};
+}
+
 function toWorkItem(record: Record<string, unknown>): WorkItem {
 	const status = WORK_ITEM_STATUSES.includes(record.status as WorkItemStatus)
 		? (record.status as WorkItemStatus)
@@ -107,15 +117,7 @@ export function createProjectJsonAdapter(options: ProjectJsonAdapterOptions): Wo
 				const { records, extraFields } = readRecords();
 				return { ok: true, items: records.map(toWorkItem), extraFields, error: null };
 			} catch (error) {
-				return {
-					ok: false,
-					items: [],
-					extraFields: [],
-					error: {
-						reason: "document_unreadable",
-						message: error instanceof Error ? error.message : String(error),
-					},
-				};
+				return { ok: false, items: [], extraFields: [], error: documentUnreadableError(error) };
 			}
 		},
 
@@ -132,14 +134,7 @@ export function createProjectJsonAdapter(options: ProjectJsonAdapterOptions): Wo
 				write([...records, toDocumentRecord(item)]);
 				return { ok: true, item, error: null };
 			} catch (error) {
-				return {
-					ok: false,
-					item: null,
-					error: {
-						reason: "document_unreadable",
-						message: error instanceof Error ? error.message : String(error),
-					},
-				};
+				return { ok: false, item: null, error: documentUnreadableError(error) };
 			}
 		},
 
@@ -171,14 +166,7 @@ export function createProjectJsonAdapter(options: ProjectJsonAdapterOptions): Wo
 				write(next);
 				return { ok: true, item: toWorkItem(updated), error: null };
 			} catch (error) {
-				return {
-					ok: false,
-					item: null,
-					error: {
-						reason: "document_unreadable",
-						message: error instanceof Error ? error.message : String(error),
-					},
-				};
+				return { ok: false, item: null, error: documentUnreadableError(error) };
 			}
 		},
 	};
