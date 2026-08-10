@@ -93,10 +93,9 @@
 
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
-	declaredBase,
+	declaredBaseWithOrigin,
 	findWorkspaceRoot,
-	hasWorkspaceRootMarker,
-	SOVEREIGN_BASE_KEY,
+	hasWorkspaceRootMarker
 } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -296,7 +295,12 @@ export function buildContextReport(input: ContextInput): ContextReport {
 		// see this file's header for why `nodeEnvironment.base ?? nodeEnvironment.cwd` was
 		// wrong). It is REQUIRED on `ContextNode`, so this is genuinely two states — matches
 		// or does not — never a third "unknown" to guard against here.
-		if (input.node.declarationBase !== input.cliBase) {
+		// ISS-029: BOTH sides resolved before comparing. Neither was, so `SOVEREIGN_BASE=/home/op/`
+		// and `SOVEREIGN_BASE=/home/op` reported a base-divergence against each other — a finding
+		// invented by a trailing slash, in the one report whose whole job is to say whether the two
+		// halves of a node agree. A false divergence costs more than a missed one here: it teaches
+		// the operator to discount the instrument.
+		if (path.resolve(input.node.declarationBase) !== path.resolve(input.cliBase)) {
 			// The environ witness answers a DIFFERENT question `declarationBase` cannot: was
 			// the node TOLD this base, or did it DERIVE the base itself? Three states, never
 			// two: told / derived / unknown (environ unreadable — a GAP, not evidence either
@@ -459,8 +463,11 @@ export function resolveContextInput(env = process.env, cwd = process.cwd()): Con
 	// label here false the moment that removal shipped: the non-explicit branch stopped
 	// coming from cwd, but the label kept calling it that — a lie in a `--json` field, the
 	// exact class of small untruth this whole plan exists to remove.
-	const explicitBase = env[SOVEREIGN_BASE_KEY]?.trim();
-	const refarmHomeEnv = env.REFARM_HOME?.trim();
+	// ISS-025: the witness, not a second derivation. This used to be a ternary mirroring
+	// `declaredBase()`'s precedence "step for step" — a promise that holds until one of the two
+	// changes, and it had already failed once: the label said "cwd" for months after the cwd
+	// fallback was removed. `declaredBaseWithOrigin` returns both, so they cannot drift.
+	const declared = declaredBaseWithOrigin(env);
 
 	// Both sides of the mode split (see `ContextInput.otherSovereignDirs`'s doc): the
 	// workspace-scoped home — the exact formula `context-metadata.ts` itself joins,
@@ -476,8 +483,11 @@ export function resolveContextInput(env = process.env, cwd = process.cwd()): Con
 
 	return {
 		metadata,
-		cliBase: declaredBase(env),
-		cliBaseOrigin: explicitBase ? "SOVEREIGN_BASE" : refarmHomeEnv ? "REFARM_HOME" : "home",
+		cliBase: declared.base,
+		// `env-home`/`os-home` both mean "no declaration, this is the home" — reported as `home` to
+		// keep the published `--json` vocabulary the three states it has always had, while the
+		// witness underneath distinguishes an injected home from the OS's.
+		cliBaseOrigin: declared.origin === "SOVEREIGN_BASE" || declared.origin === "REFARM_HOME" ? declared.origin : "home",
 		cliNamespace: resolveTractorNamespace(env),
 		runtimeEndpoint: resolveRuntimeSidecarUrl({ cwd, env }).value,
 		node,

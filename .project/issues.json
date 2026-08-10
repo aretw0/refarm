@@ -300,7 +300,7 @@
 		{
 			"id": "ISS-026",
 			"title": "--refarm-dir has no TypeScript counterpart, so the base guarantee is scoped to env-declared nodes",
-			"body": "LOOSE ENDS from the two-halves-one-node plan, from its only whole-plan review (the per-task gates were skipped on that plan and the review was scoped accordingly):\n\n(c) `--refarm-dir` has no TypeScript counterpart: a node started with `--refarm-dir /srv/x/.refarm` and no env exports settles /srv/x while the CLI answers $HOME, so the guarantee is scoped to env-declared nodes and is currently stated unconditionally.",
+			"body": "LOOSE ENDS from the two-halves-one-node plan:\n\n(c) `--refarm-dir` has no TypeScript counterpart: a node started with `--refarm-dir /srv/x/.refarm` and no env exports settles /srv/x, while the CLI answers $HOME, so the guarantee is scoped to env-declared nodes and is currently stated unconditionally.\n\nDECIDED 2026-08-10 — SCOPE THE CLAIM, DO NOT MIRROR THE FLAG. Two ways to close this and only one of them is honest at this size:\n\nMirroring the flag means every CLI command grows a `--refarm-dir` and threads it through every resolver, because a base passed to one command and not another is worse than no flag at all. That is the centralisation slice (one resolved node scope, injected end to end), not a patch — and until it exists, a half-mirrored flag would make the two halves disagree in a NEW way while appearing to fix the old one.\n\nWhat actually holds today, measured: `run_daemon` sets SOVEREIGN_BASE in-process from `--refarm-dir` before any config-node code runs, so the DAEMON and everything it spawns are consistent. A CLI invoked separately, in a shell without those exports, is a different process and cannot know what flag the daemon was started with. That is not a bug in the CLI; it is the boundary between two processes, and the honest form is to say so rather than to imply a guarantee that spans it.\n\nSo this item closes as a SCOPING correction: the guarantee is stated for env-declared nodes, and `refarm context` already reports which of SOVEREIGN_BASE / REFARM_HOME / home answered (cliBaseOrigin, now derived from declaredBaseWithOrigin rather than a mirrored ternary — ISS-025). An operator on a --refarm-dir node sees `home` there and can tell. The flag mirror is folded into the centralisation slice, where it costs one field instead of thirty.",
 			"location": "packages/config/src/index.js:178-184",
 			"status": "open",
 			"category": "issue",
@@ -406,11 +406,12 @@
 			"title": "A revised workspace offer is a permanent collision: no --replace on sync and source is never read",
 			"body": "LOOSE ENDS from the workspace-is-not-a-node plan, added 2026-08-06 after a whole-plan review found the queue had none of them. Each names its file:\n\n(3) A revised offer is a permanent collision: there is no `--replace` on sync, and `source` is written and displayed but never READ by the planner -- the one field that could say 'this was yours, here is your update'. The repo's five VPN commands are effectively frozen at the offer file.",
 			"location": "apps/refarm/src/commands/workspace-sync.ts:1",
-			"status": "open",
+			"status": "resolved",
 			"category": "capability",
 			"priority": "medium",
 			"package": "apps/refarm",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "7aa8047d"
 		},
 		{
 			"id": "ISS-036",

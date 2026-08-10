@@ -181,6 +181,12 @@ export const SOVEREIGN_BASE_KEY: "SOVEREIGN_BASE";
  * `SOVEREIGN_BASE`); the two change together. This function never reads `process.cwd()` —
  * Rust's `config_node.rs::declared_base()` still can; see the `.js` doc comment. */
 export function declaredBase(env?: Record<string, string | undefined>): string;
+/** The base AND which step produced it (ISS-025) — `declaredBase` is a projection of this, so a
+ *  caller can never label a step `declaredBase` did not take. */
+export function declaredBaseWithOrigin(env?: Record<string, string | undefined>): {
+	base: string;
+	origin: "SOVEREIGN_BASE" | "REFARM_HOME" | "env-home" | "os-home";
+};
 /** The config file name inside the sovereign config dir (fixed substrate convention). */
 export const CONFIG_FILE_NAME: "config.json";
 /** Thrown when the sovereign config dir selector is unset (no substrate default). */

@@ -1,3 +1,4 @@
+import { declaredBase, declaredBaseWithOrigin } from "@refarm.dev/config";
 import { describe, expect, it } from "vitest";
 import type { NodeContextMetadata } from "../utils/context-metadata.js";
 import type { NodeEnvironment } from "../utils/node-environment.js";
@@ -340,5 +341,44 @@ describe("resolveOtherSovereignDirs", () => {
 			() => true,
 		);
 		expect(dirs).toEqual(["/repo/.refarm"]);
+	});
+});
+
+// ISS-029 + ISS-031. Two small untruths in the same report, whose whole job is to say whether the
+// two halves of a node agree.
+describe("the base comparison and the shape it publishes", () => {
+	it("a trailing slash is not a divergence (ISS-029)", () => {
+		const report = buildContextReport({
+			...BASE,
+			cliBase: "/home/op",
+			node: { ...BASE.node!, declarationBase: "/home/op/" },
+		});
+		expect(report.divergences.map((d) => d.kind)).not.toContain("base-divergence");
+	});
+
+	it("a genuinely different base is still a divergence", () => {
+		const report = buildContextReport({
+			...BASE,
+			cliBase: "/home/op",
+			node: { ...BASE.node!, declarationBase: "/srv/other" },
+		});
+		expect(report.divergences.map((d) => d.kind)).toContain("base-divergence");
+	});
+
+	it("cliBaseOrigin keeps its three published values (ISS-031)", () => {
+		// The rename base/baseOrigin -> cliBase/cliBaseOrigin shipped with no consumer and no
+		// snapshot, so nothing would have noticed a second one. These are the values
+		// `refarm context --json` publishes about WHICH base answered, and they are now derived
+		// from `declaredBaseWithOrigin` rather than a mirrored ternary (ISS-025).
+		expect(declaredBaseWithOrigin({ SOVEREIGN_BASE: "/declared" }).origin).toBe("SOVEREIGN_BASE");
+		expect(declaredBaseWithOrigin({ REFARM_HOME: "/h/.refarm" }).origin).toBe("REFARM_HOME");
+		expect(declaredBaseWithOrigin({ HOME: "/h" }).origin).toBe("env-home");
+		expect(declaredBaseWithOrigin({}).origin).toBe("os-home");
+	});
+
+	it("the witness and the base agree by construction, not by comment", () => {
+		for (const env of [{ SOVEREIGN_BASE: "/a" }, { REFARM_HOME: "/b/.refarm" }, { HOME: "/c" }, {}]) {
+			expect(declaredBaseWithOrigin(env).base).toBe(declaredBase(env));
+		}
 	});
 });
