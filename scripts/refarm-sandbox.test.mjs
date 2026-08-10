@@ -55,6 +55,7 @@ import {
 	judgeSandboxLock,
 	stopSandbox,
 	withSandboxLock,
+	resolveSandboxEngine,
 } from "./refarm-sandbox.mjs";
 
 // A literal, not this checkout's real path — sandboxEnvironment must not assume anything
@@ -1894,4 +1895,31 @@ test("an overridden namespace reaches both channels together", () => {
 	const { env, namespace } = sandboxEnvironment("/repo", { namespace: "lab" });
 	assert.equal(namespace, "lab");
 	assert.equal(env.REFARM_NAMESPACE, "lab");
+});
+
+// ISS-080. `refarm parity` found this on its first live run and deliberately did not fix it: the
+// operator's config pins tractor.engine "rust", the sandbox had none and fell back to "auto". A lab
+// whose engine differs from the node does not predict the node — and the difference was an accident
+// of ABSENCE rather than a decision anyone made.
+test("the sandbox mirrors the engine the operator declared", () => {
+	assert.deepEqual(resolveSandboxEngine(() => ({ tractor: { engine: "rust" } })), {
+		engine: "rust",
+		state: "mirrored",
+	});
+});
+
+test("a flat `tractor.engine` key is read the same way", () => {
+	assert.equal(resolveSandboxEngine(() => ({ "tractor.engine": "wasm" })).engine, "wasm");
+});
+
+test("an operator who declares nothing leaves the sandbox declaring nothing — the same default, shared", () => {
+	assert.deepEqual(resolveSandboxEngine(() => ({})), { engine: null, state: "undeclared" });
+});
+
+test("a config that could not be READ is unreadable, never rendered as agreement", () => {
+	const result = resolveSandboxEngine(() => {
+		throw new Error("EACCES");
+	});
+	assert.equal(result.state, "unreadable");
+	assert.match(result.reason, /EACCES/);
 });

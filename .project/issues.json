@@ -603,11 +603,12 @@
 			"title": "refarm context reports a spurious namespace-divergence for the sandbox — --namespace never reaches the environ",
 			"body": "LOOSE ENDS opened by the sandbox-node session (D3/D4), 2026-08-07, each named with its own evidence:\n\n(3) `refarm context` reports a spurious namespace-divergence for the sandbox: --namespace reaches the daemon as a bare CLI argument, never REFARM_NAMESPACE, so the environ-based witness reports 'declares no REFARM_NAMESPACE' and falls back to describing it as 'default' -- the db file the daemon actually opens (sandbox.db, never default.db) settles the real namespace independent of that report.",
 			"location": "apps/refarm/src/commands/context.ts:320",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "medium",
 			"package": "apps/refarm",
-			"axis": "sandbox"
+			"axis": "sandbox",
+			"resolved_by": "615e2c3d"
 		},
 		{
 			"id": "ISS-053",

@@ -1440,6 +1440,36 @@ export async function startSandbox({
 	// what was just declared, never a partial subset of it.
 	const childEnv = { ...process.env, ...sandboxEnv };
 
+	// ISS-080: the sandbox declares the SAME engine the operator's node declares, so the lab
+	// predicts the node. `refarm parity` found them diverging on its first run — rust here, `auto`
+	// there — and the cause was that the sandbox had no config at all, which is a difference nobody
+	// chose. Unreadable is reported rather than silently treated as "he declares nothing": those are
+	// different facts and only one of them means the two agree.
+	const engineChoice = resolveSandboxEngine(() =>
+		JSON.parse(fs.readFileSync(path.join(os.homedir(), ".refarm", "config.json"), "utf-8")),
+	);
+	if (engineChoice.state === "mirrored") {
+		// The config the DAEMON reads is `<SOVEREIGN_BASE>/<SOVEREIGN_DIR>/config.json`, not the
+		// sandbox base itself — `sandboxBase` holds the pid file and the log, and the sovereign dir
+		// beside it holds the node's own declarations. Writing to the wrong one was silent: the file
+		// appeared, and the daemon kept falling back to the default this exists to stop.
+		const sandboxConfigPath = path.join(sandboxEnv.REFARM_HOME, "config.json");
+		let existing = {};
+		try {
+			existing = JSON.parse(fs.readFileSync(sandboxConfigPath, "utf-8"));
+		} catch {
+			existing = {};
+		}
+		fs.writeFileSync(
+			sandboxConfigPath,
+			`${JSON.stringify({ ...existing, tractor: { ...(existing.tractor ?? {}), engine: engineChoice.engine } }, null, 2)}\n`,
+		);
+	} else if (engineChoice.state === "unreadable") {
+		notices.push(
+			`could not read the operator's config to mirror tractor.engine (${engineChoice.reason}) — the sandbox falls back to the default, which may differ from this node`,
+		);
+	}
+
 	let credentialNotice;
 	if (credentials) {
 		const copyResult = copySandboxCredentials(repoRoot);
@@ -1884,6 +1914,35 @@ function printSandboxStatus(result) {
 	const pidLabel = result.node.pid === null ? "no pid" : `pid ${result.node.pid}`;
 	console.log(`   node        : ${result.node.state.toUpperCase()} (${pidLabel})`);
 	console.log(`               ${result.node.detail}`);
+}
+
+/**
+ * PURE. The sandbox's `tractor.engine`, mirrored from the operator's declared node.
+ *
+ * ISS-080: `refarm parity` found this on its very first live run and deliberately did not fix it —
+ * the operator's `~/.refarm/config.json` pins `tractor.engine: "rust"`, the sandbox had no config at
+ * all and fell back to `"auto"`. A lab whose engine differs from the node does not predict the node,
+ * and the divergence was an accident of ABSENCE rather than a decision anyone made.
+ *
+ * THREE STATES, and the third is why this returns a reason: mirrored (the operator declares one),
+ * undeclared (he does not — so the sandbox does not either, and both share the same default), and
+ * unreadable (his config could not be read, which is NOT the same as him declaring nothing and must
+ * not be silently rendered as agreement).
+ */
+export function resolveSandboxEngine(readOperatorConfig) {
+	let config;
+	try {
+		config = readOperatorConfig();
+	} catch (error) {
+		return { engine: null, state: "unreadable", reason: error?.message ?? String(error) };
+	}
+	const declared =
+		(typeof config?.tractor === "object" && config?.tractor !== null ? config.tractor.engine : undefined) ??
+		config?.["tractor.engine"];
+	if (typeof declared !== "string" || !declared.trim()) {
+		return { engine: null, state: "undeclared" };
+	}
+	return { engine: declared.trim(), state: "mirrored" };
 }
 
 /** The lock file both `start` and `--reset` hold. Its NAME is a sibling of the pid file so the two
