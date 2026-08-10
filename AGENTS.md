@@ -142,8 +142,16 @@ cargo test --test agent_harness -- --ignored --test-threads=1
 # ⚠️  Full test suite — only when preparing a push
 cargo test --lib && cargo test --test ws_integration
 
-# ⚠️  WASM component build — necessary before running harness, not before every unit slice
-cargo component build --release -p agent
+# ⚠️  WASM component build — necessary before running harness, not before every unit slice.
+# Use the PACKAGE script, not bare cargo: it also republishes packages/agent/dist/agent.wasm,
+# which is the file `refarm plugin install` reads. Bare `cargo component build` compiles and
+# leaves dist/ stale, so an install after it silently keeps the OLD code (ISS-069).
+pnpm --filter @refarm.dev/agent run build:wasm
+
+# After rebuilding, the installed plugin is still the old one until you say so:
+#   refarm plugin install && refarm runtime restart
+# `refarm context --json` compares builtPluginSha against the loaded plugin's sha256 and reports
+# a divergence when they differ — check it rather than assuming the install took.
 
 # 🚫 Never run without `--lib`, a specific `--test`, or a specific filter in this environment
 cargo test   # compiles ALL test binaries simultaneously → OOM risk
