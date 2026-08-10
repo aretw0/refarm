@@ -21,6 +21,7 @@ export const WORK_ITEM_FIELDS = [
 	"category",
 	"package",
 	"axis",
+	"requirement",
 	"source",
 	"resolvedBy",
 ] as const;
@@ -42,6 +43,13 @@ export interface WorkItem {
 	package: string;
 	/** Absent means UNCLASSIFIED, which is a reportable row — never folded into a total. */
 	axis?: WorkItemAxis;
+	/** Which operator requirement (R1-R12) this item serves. OPTIONAL by decision: several open
+	 *  items are pure hygiene with no operator-facing requirement behind them, and forcing every one
+	 *  to name a requirement would manufacture false precision. Absent means UNSERVED, which is a
+	 *  real answer and its own reportable bucket — never folded into a requirement's count.
+	 *  SINGULAR, not a list: overlapping links make per-requirement totals overlap, and "R7 has N
+	 *  open" stops being a decidable number. Overlap belongs in the body. */
+	requirement?: string;
 	source?: string;
 	resolvedBy?: string;
 }
@@ -74,6 +82,11 @@ export interface WorkItemAdapter {
 	 * requires `axis` on every open item, so "reopen a resolved item" would otherwise force a hand
 	 * edit inside a gated document. */
 	setAxis(id: string, axis: WorkItemAxis): WorkItemWriteResult;
+	/** Link (or unlink) an item to the operator requirement it serves. `null` CLEARS it — unlike
+	 *  `setAxis`, which has no clear because the gate requires an axis on every open item. A wrong
+	 *  link fabricates a false count in the exact number this field exists to produce, so the writer
+	 *  must be able to undo one. */
+	setRequirement(id: string, requirement: string | null): WorkItemWriteResult;
 	/** Correct what an item SAYS: its title, body or location. Without this the ledger had writers
 	 *  for creation, lifecycle and classification and none for its own prose, so fixing a sentence
 	 *  meant hand-editing a governed document — the exact writer-gap that killed `tasks.json` and

@@ -3,34 +3,101 @@
 	"title": "Issues",
 	"description": "Known bugs, missing capabilities, design debt, and open work items. Tracked with title/body (GitHub issue pattern), code location, package scope, priority, and resolution lifecycle.",
 	"type": "object",
-	"required": ["issues"],
+	"required": [
+		"issues"
+	],
 	"properties": {
 		"issues": {
 			"type": "array",
 			"items": {
 				"type": "object",
-				"required": ["id", "title", "body", "location", "status", "category", "priority", "package"],
+				"required": [
+					"id",
+					"title",
+					"body",
+					"location",
+					"status",
+					"category",
+					"priority",
+					"package"
+				],
 				"additionalProperties": false,
 				"properties": {
-					"id": { "type": "string" },
-					"title": { "type": "string", "description": "Scannable one-liner (GitHub issue title pattern)" },
-					"body": { "type": "string", "description": "Full detail and context for downstream composition" },
-					"location": { "type": "string", "description": "File path + line number, e.g. packages/pi-workflows/src/dag.ts:219" },
-					"status": { "type": "string", "enum": ["open", "resolved", "deferred"] },
-					"category": { "type": "string", "enum": ["primitive", "issue", "cleanup", "capability", "composition"] },
-					"priority": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
-					"package": { "type": "string", "description": "Which monorepo package this issue touches (e.g. pi-workflows, pi-project, pi-behavior-monitors)" },
+					"id": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string",
+						"description": "Scannable one-liner (GitHub issue title pattern)"
+					},
+					"body": {
+						"type": "string",
+						"description": "Full detail and context for downstream composition"
+					},
+					"location": {
+						"type": "string",
+						"description": "File path + line number, e.g. packages/pi-workflows/src/dag.ts:219"
+					},
+					"status": {
+						"type": "string",
+						"enum": [
+							"open",
+							"resolved",
+							"deferred"
+						]
+					},
+					"category": {
+						"type": "string",
+						"enum": [
+							"primitive",
+							"issue",
+							"cleanup",
+							"capability",
+							"composition"
+						]
+					},
+					"priority": {
+						"type": "string",
+						"enum": [
+							"low",
+							"medium",
+							"high",
+							"critical"
+						]
+					},
+					"package": {
+						"type": "string",
+						"description": "Which monorepo package this issue touches (e.g. pi-workflows, pi-project, pi-behavior-monitors)"
+					},
 					"axis": {
 						"type": "string",
-						"enum": ["node-vs-directory", "cost", "sandbox", "durability", "other"],
+						"enum": [
+							"node-vs-directory",
+							"cost",
+							"sandbox",
+							"durability",
+							"other"
+						],
 						"description": "Which axis of open work this item belongs to. Optional in the schema; required by the CI gate for status: open."
 					},
 					"source": {
 						"type": "string",
-						"enum": ["human", "agent", "monitor", "workflow"],
+						"enum": [
+							"human",
+							"agent",
+							"monitor",
+							"workflow"
+						],
 						"description": "How this issue was created"
 					},
-					"resolved_by": { "type": "string", "description": "Commit message or reference if resolved" }
+					"resolved_by": {
+						"type": "string",
+						"description": "Commit message or reference if resolved"
+					},
+					"requirement": {
+						"type": "string",
+						"description": "Which operator requirement (R1-R12, .project/requirements.json) this item serves. OPTIONAL by decision: several items are pure hygiene and serving no requirement is a real answer. The CI gate requires a cited id to EXIST; it never requires an item to cite one."
+					}
 				}
 			}
 		}

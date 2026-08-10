@@ -20,6 +20,7 @@ const KNOWN_DOCUMENT_FIELDS = new Set([
 	"category",
 	"package",
 	"axis",
+	"requirement",
 	"source",
 	"resolved_by",
 ]);
@@ -34,6 +35,7 @@ const PROJECT_JSON_CAPABILITIES: CapabilityTable = Object.freeze({
 	category: "native",
 	package: "native",
 	axis: "native",
+	requirement: "native",
 	source: "native",
 	resolvedBy: "native",
 });
@@ -68,6 +70,7 @@ function toWorkItem(record: Record<string, unknown>): WorkItem {
 		category: String(record.category ?? ""),
 		package: String(record.package ?? ""),
 		axis: WORK_ITEM_AXES.includes(axisValue as never) ? (axisValue as WorkItem["axis"]) : undefined,
+		requirement: typeof record.requirement === "string" ? record.requirement : undefined,
 		source: typeof record.source === "string" ? record.source : undefined,
 		resolvedBy: typeof record.resolved_by === "string" ? record.resolved_by : undefined,
 	};
@@ -85,6 +88,7 @@ function toDocumentRecord(item: WorkItem): Record<string, unknown> {
 		package: item.package,
 	};
 	if (item.axis) record.axis = item.axis;
+	if (item.requirement) record.requirement = item.requirement;
 	if (item.source) record.source = item.source;
 	if (item.resolvedBy) record.resolved_by = item.resolvedBy;
 	return record;
@@ -218,6 +222,30 @@ export function createProjectJsonAdapter(options: ProjectJsonAdapterOptions): Wo
 			}
 		},
 
+		setRequirement(id: string, requirement: string | null): WorkItemWriteResult {
+			try {
+				const { records } = readRecords();
+				const index = records.findIndex((record) => String(record.id) === id);
+				if (index === -1) {
+					return { ok: false, item: null, error: { reason: "unknown_id", message: `No work item with id ${id}.` } };
+				}
+				const next = [...records];
+				// Anchored after `axis`, falling back to `package` — `toDocumentRecord`'s canonical
+				// position — so an item linked later is byte-shaped like one linked at `add`. No
+				// requirement-id validation here: the adapter cannot see the catalog, the CLI checks
+				// before calling, and the gate checks the document. Two doors, neither pretending to
+				// be the other.
+				next[index] = withField(records[index] as Record<string, unknown>, "requirement", requirement, [
+					"axis",
+					"package",
+				]);
+				write(next);
+				return { ok: true, item: toWorkItem(next[index] as Record<string, unknown>), error: null };
+			} catch (error) {
+				return { ok: false, item: null, error: documentUnreadableError(error) };
+			}
+		},
+
 		setAxis(id: string, axis: WorkItemAxis): WorkItemWriteResult {
 			if (!WORK_ITEM_AXES.includes(axis)) {
 				return {
@@ -259,9 +287,16 @@ export function createProjectJsonAdapter(options: ProjectJsonAdapterOptions): Wo
 function withField(
 	record: Record<string, unknown>,
 	key: string,
-	value: string,
+	value: string | null,
 	anchors: string[],
 ): Record<string, unknown> {
+	// `null` REMOVES the key. A wrong link fabricates a false count in the very number the field
+	// exists to produce, so `--clear` has to be able to undo one — and clearing by writing an empty
+	// string would leave a record the reader has to interpret.
+	if (value === null) {
+		const { [key]: _removed, ...rest } = record;
+		return rest;
+	}
 	if (key in record) return { ...record, [key]: value };
 	const anchor = anchors.find((candidate) => candidate in record);
 	const next: Record<string, unknown> = {};

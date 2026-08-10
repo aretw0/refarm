@@ -12,6 +12,8 @@ const REMOTE_LIKE: CapabilityTable = {
 	category: "emulated",
 	package: "emulated",
 	axis: "emulated",
+	// A remote backend carries the requirement link as a label, the same way it carries the axis.
+	requirement: "emulated",
 	source: "unsupported",
 	resolvedBy: "emulated",
 };

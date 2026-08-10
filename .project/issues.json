@@ -284,7 +284,8 @@
 			"category": "cleanup",
 			"priority": "high",
 			"package": "apps/refarm",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"requirement": "R2"
 		},
 		{
 			"id": "ISS-025",

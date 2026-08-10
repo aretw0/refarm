@@ -36,6 +36,7 @@ import { declaredBase, declaredWorkspacesFromConfig, loadConfig } from "@refarm.
 import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
+import path from "node:path";
 
 import { refarmCommand } from "../brand.js";
 
@@ -167,11 +168,79 @@ function refuseInvalidListInput(reason: string, message: string, json?: boolean)
 	process.exitCode = 1;
 }
 
+/**
+ * The workspace's requirement catalog, read as the SIBLING of its work-item document.
+ *
+ * No second resolver: `resolveWorkspaceLedger` already answered "which workspace, and where does its
+ * `.project/` live" — and `requirements.json` sits beside `issues.json` by the same convention. A
+ * parallel resolution would be a second place for the answer to drift, which is the defect this
+ * whole line of work keeps closing.
+ *
+ * FOUR STATES, because the fixes differ: read (ids), the document is absent (this workspace has no
+ * requirement catalog), it is present and EMPTY (rcdc5, today — a real state, and not the same as
+ * absent), or it could not be parsed.
+ */
+export type RequirementCatalog =
+	| { state: "read"; ids: string[]; path: string }
+	| { state: "empty"; path: string }
+	| { state: "absent"; path: string }
+	| { state: "unreadable"; path: string; message: string };
+
+export function readRequirementCatalog(io: Pick<IssuesIo, "fileExists" | "readDocument">, issuesDocumentPath: string): RequirementCatalog {
+	const candidate = path.join(path.dirname(issuesDocumentPath), "requirements.json");
+	if (!io.fileExists(candidate)) return { state: "absent", path: candidate };
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(io.readDocument(candidate));
+	} catch (error) {
+		return { state: "unreadable", path: candidate, message: error instanceof Error ? error.message : String(error) };
+	}
+	const rows = Array.isArray((parsed as { requirements?: unknown } | null)?.requirements)
+		? ((parsed as { requirements: unknown[] }).requirements as Array<{ id?: unknown }>)
+		: [];
+	const ids = rows.map((row) => String(row?.id ?? "")).filter(Boolean);
+	return ids.length === 0 ? { state: "empty", path: candidate } : { state: "read", ids, path: candidate };
+}
+
+/** The refusal a bad `--requirement` earns, or `null` when the citation is good. Separate from the
+ *  CLI so both `set-requirement` and `list --requirement` refuse identically — a filter that matched
+ *  nothing on a typo is the eighth-instance defect, and this value cannot be validated by an enum
+ *  because it is DATA. */
+export function validateRequirementCitation(
+	catalog: RequirementCatalog,
+	requirement: string,
+): { reason: string; message: string } | null {
+	if (catalog.state === "absent") {
+		return {
+			reason: "no_requirement_catalog",
+			message: `This workspace declares no requirement catalog (${catalog.path} does not exist).`,
+		};
+	}
+	if (catalog.state === "unreadable") {
+		return { reason: "catalog_unreadable", message: `${catalog.path} could not be read: ${catalog.message}` };
+	}
+	if (catalog.state === "empty") {
+		return {
+			reason: "empty_catalog",
+			message: `This workspace's requirement catalog is empty (${catalog.path}), so no id can be cited yet.`,
+		};
+	}
+	if (!catalog.ids.includes(requirement)) {
+		return {
+			reason: "unknown_requirement",
+			message: `No requirement "${requirement}" in ${catalog.path}. Declared: ${catalog.ids.join(", ")}.`,
+		};
+	}
+	return null;
+}
+
 interface IssuesListOptions {
 	workspace?: string;
 	allWorkspaces?: boolean;
 	axis?: string;
 	status?: string;
+	requirement?: string;
+	unserved?: boolean;
 	json?: boolean;
 }
 
@@ -183,6 +252,9 @@ interface ListedItemGroup {
 	providerFrom: LedgerResolutionOk["providerFrom"];
 	count: number;
 	unclassified: number;
+	/** How many of the listed items serve NO operator requirement. A real answer, not a gap: the
+	 *  field is optional by decision because several items are pure hygiene. */
+	unserved: number;
 	extraFields: string[];
 	capabilities: CapabilityTable;
 	items: Array<WorkItem & { qualifiedId: string }>;
@@ -225,6 +297,8 @@ export interface BuildIssuesListInput extends IssuesIo {
 	allWorkspaces?: boolean;
 	axis?: string;
 	status?: string;
+	requirement?: string;
+	unserved?: boolean;
 	cwd: string;
 }
 
@@ -252,6 +326,15 @@ export function buildIssuesList(input: BuildIssuesListInput): IssuesListOutcome 
 			kind: "invalid_input",
 			reason: "invalid_status",
 			message: `--status "${input.status}" is not valid. Legal statuses: ${WORK_ITEM_STATUSES.join(", ")}.`,
+		};
+	}
+	// They are opposite questions; letting one win invisibly is the `--workspace`/`--all-workspaces`
+	// defect (Finding 4) again.
+	if (input.requirement !== undefined && input.unserved) {
+		return {
+			kind: "invalid_input",
+			reason: "conflicting_requirement_filter",
+			message: "--requirement and --unserved are opposite questions; pass at most one.",
 		};
 	}
 
@@ -295,15 +378,33 @@ export function buildIssuesList(input: BuildIssuesListInput): IssuesListOutcome 
 			unreadable[resolution.workspaceId] = { reason, message };
 			continue;
 		}
+		// A typo in `--requirement` must REFUSE, not match nothing: `--axis costs` returning
+		// `count: 0` was the eighth instance of this defect, and a requirement id cannot be validated
+		// by an enum because it is DATA — the catalog has to be read.
+		if (input.requirement !== undefined) {
+			const refusal = validateRequirementCitation(
+				readRequirementCatalog(input, resolution.documentPath),
+				input.requirement,
+			);
+			if (refusal) {
+				if (!input.allWorkspaces) return { kind: "invalid_input", ...refusal };
+				unreadable[resolution.workspaceId] = refusal;
+				continue;
+			}
+		}
 		const items = read.items
 			.filter((item) => (input.status ? item.status === input.status : item.status === "open"))
-			.filter((item) => (input.axis ? item.axis === input.axis : true));
+			.filter((item) => (input.axis ? item.axis === input.axis : true))
+			.filter((item) =>
+				input.unserved ? !item.requirement : input.requirement ? item.requirement === input.requirement : true,
+			);
 		groups[resolution.workspaceId] = {
 			provider: resolution.provider,
 			workspaceFrom: resolution.workspaceFrom,
 			providerFrom: resolution.providerFrom,
 			count: items.length,
 			unclassified: items.filter((item) => !item.axis).length,
+			unserved: items.filter((item) => !item.requirement).length,
 			extraFields: read.extraFields,
 			capabilities: resolution.adapter.capabilities(),
 			items: items.map((item) => ({ ...item, qualifiedId: qualifyId(resolution.workspaceId, item.id) })),
@@ -320,6 +421,8 @@ function buildListCommand(io: IssuesIo): Command {
 		.option("--all-workspaces", "Every declared workspace, grouped and never merged")
 		.option("--axis <axis>", `Filter by axis: ${WORK_ITEM_AXES.join(", ")}`)
 		.option("--status <status>", "Filter by status: open, deferred, or resolved (default: open)")
+		.option("--requirement <id>", "Only items serving this operator requirement (R1-R12)")
+		.option("--unserved", "Only items that serve no operator requirement")
 		.option("--json", "Output machine-readable list")
 		.action((options: IssuesListOptions) => {
 			const cwd = currentDirectoryForCatalogMatch();
@@ -959,6 +1062,114 @@ function buildEditCommand(io: IssuesIo): Command {
 		});
 }
 
+interface IssuesSetRequirementOptions {
+	workspace?: string;
+	id?: string;
+	requirement?: string;
+	clear?: boolean;
+	json?: boolean;
+}
+
+/**
+ * `set-requirement` mirrors `set-axis` — a field in the schema, a verb beside it, a check in the
+ * gate — with one difference the operator's decision forced: an axis is a closed enum in code, and a
+ * requirement id is DATA. So this reads the workspace's catalog and refuses a typo at the point of
+ * the write, rather than letting a citation that reads as truth sit in the ledger until CI notices.
+ *
+ * `--clear` exists because `set-axis` has no counterpart and needs none: the gate requires an axis on
+ * every open item, so there is nothing to clear it to. A requirement link is optional, and a WRONG
+ * link fabricates a false count in the very number this field exists to produce.
+ */
+function buildSetRequirementCommand(io: IssuesIo): Command {
+	return new Command("set-requirement")
+		.description("Say which operator requirement a work item serves")
+		.option("--workspace <id>", "Declared workspace id")
+		.option("--id <id>", "Work item id")
+		.option("--requirement <id>", "Operator requirement id (R1-R12)")
+		.option("--clear", "Remove the link — the item serves no requirement")
+		.option("--json", "Output machine-readable result")
+		.action((options: IssuesSetRequirementOptions) => {
+			const cwd = currentDirectoryForCatalogMatch();
+			const resolution = resolveWorkspaceLedger({ workspace: options.workspace, cwd, ...io });
+			if (!resolution.ok) {
+				refuse("set-requirement", resolution, options.json);
+				return;
+			}
+			if (!options.id?.trim()) {
+				refuseAfterResolution("set-requirement", resolution.workspaceId, "missing_id", "Missing required field: --id.", options.json);
+				return;
+			}
+			if (options.clear && options.requirement !== undefined) {
+				refuseAfterResolution(
+					"set-requirement",
+					resolution.workspaceId,
+					"conflicting_intent",
+					"--requirement and --clear are opposite intents; pass exactly one.",
+					options.json,
+				);
+				return;
+			}
+			if (!options.clear && !options.requirement?.trim()) {
+				refuseAfterResolution(
+					"set-requirement",
+					resolution.workspaceId,
+					"missing_requirement",
+					"Pass --requirement <id>, or --clear to remove the link.",
+					options.json,
+				);
+				return;
+			}
+			if (!options.clear && options.requirement) {
+				const refusal = validateRequirementCitation(
+					readRequirementCatalog(io, resolution.documentPath),
+					options.requirement.trim(),
+				);
+				if (refusal) {
+					refuseAfterResolution("set-requirement", resolution.workspaceId, refusal.reason, refusal.message, options.json);
+					return;
+				}
+			}
+
+			const result = resolution.adapter.setRequirement(
+				options.id.trim(),
+				options.clear ? null : options.requirement!.trim(),
+			);
+			if (!result.ok || !result.item) {
+				refuseAfterResolution(
+					"set-requirement",
+					resolution.workspaceId,
+					result.error?.reason ?? "write_failed",
+					result.error?.message ?? "Could not link the work item.",
+					options.json,
+				);
+				return;
+			}
+
+			const qualifiedId = qualifyId(resolution.workspaceId, result.item.id);
+			if (options.json) {
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "issues",
+						operation: "set-requirement",
+						nextCommands: [],
+						extra: {
+							workspaceId: resolution.workspaceId,
+							workspaceFrom: resolution.workspaceFrom,
+							providerFrom: resolution.providerFrom,
+							item: { ...result.item, qualifiedId },
+						},
+					}),
+				);
+				return;
+			}
+			console.log(
+				chalk.green(
+					options.clear ? `Cleared ${qualifiedId}'s requirement.` : `${qualifiedId} serves ${result.item.requirement}.`,
+				),
+			);
+		});
+}
+
 export function createIssuesCommand(io: IssuesIo = defaultIo): Command {
 	const command = new Command("issues").description(
 		"Work items for a declared workspace's ledger — resolved through the catalog, never the cwd",
@@ -968,6 +1179,7 @@ export function createIssuesCommand(io: IssuesIo = defaultIo): Command {
 	command.addCommand(buildSetStatusCommand(io));
 	command.addCommand(buildSetAxisCommand(io));
 	command.addCommand(buildEditCommand(io));
+	command.addCommand(buildSetRequirementCommand(io));
 	command.addCommand(buildValidateCommand(io));
 	return command;
 }

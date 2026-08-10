@@ -63,6 +63,7 @@ export const PROBE_EXCLUSIONS = Object.freeze([
 	{ argv: ["issues", "add"], category: "mutates" },
 	{ argv: ["issues", "set-axis"], category: "mutates" },
 	{ argv: ["issues", "edit"], category: "mutates" },
+	{ argv: ["issues", "set-requirement"], category: "mutates" },
 	{ argv: ["issues", "set-status"], category: "mutates" },
 	{ argv: ["migrate"], category: "mutates" },
 	{ argv: ["model", "reset"], category: "mutates" },
