@@ -180,7 +180,14 @@ export function declaredBase(env = process.env) {
 	if (base) return base;
 	const refarmHome = env.REFARM_HOME?.trim();
 	if (refarmHome) return path.dirname(refarmHome);
-	return os.homedir();
+	// ISS-027: step 3 honours the SAME `env` the first two steps honour. It used to call
+	// `os.homedir()` directly, which reads the process's real environment — so this function was
+	// injectable for two thirds of its own contract and silently uninjectable for the branch that
+	// answers on every ordinary machine. A test could state SOVEREIGN_BASE or REFARM_HOME and could
+	// not state "neither is declared, and the home is HERE". `os.homedir()` remains the last resort,
+	// for an env that declares no home at all — an explicit call, not a silent default.
+	const home = env.HOME?.trim() || env.USERPROFILE?.trim();
+	return home || os.homedir();
 }
 
 /** The config file name inside the sovereign config dir. This IS a fixed substrate

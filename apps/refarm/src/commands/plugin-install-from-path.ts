@@ -11,6 +11,8 @@ import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { resolveRefarmHome } from "../utils/refarm-home.js";
+
 import { detectEntryFormat, type PluginPolicyMode } from "@refarm.dev/plugin-manifest";
 import type { CapabilitySurfaceHooks } from "./capability-commander.js";
 import {
@@ -204,7 +206,12 @@ export async function buildExtensionInstallReport(
 	// Content-addressed store (E2) — best-effort, never fatal (the file:// entry works
 	// regardless), mirroring the bundled install path.
 	try {
-		const stored = await createFsAssetStore(scopedAssetsDir("user")).store(entryBytes);
+		// ISS-050: the DECLARED base, not the OS home. `scopedAssetsDir("user")` used to default its home
+		// to os.homedir(), and this is the call site that proved the cost — confirmed on disk, an install
+		// wrote the working tree's agent.wasm into the OPERATOR's real ~/.refarm/assets/ while a sandbox
+		// home was declared. That is why HOME became the sandbox launcher's sixth isolated axis.
+		const assetsHome = path.dirname(resolveRefarmHome());
+		const stored = await createFsAssetStore(scopedAssetsDir("user", { userHome: assetsHome })).store(entryBytes);
 		if (stored.hash !== sha256) {
 			throw new Error(`content-store hash ${stored.hash} != install hash ${sha256}`);
 		}

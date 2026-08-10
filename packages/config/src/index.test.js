@@ -260,3 +260,27 @@ describe("declaredBase", () => {
 		}
 	});
 });
+
+// ISS-027. `declaredBase(env)` honoured the injected `env` for its first two steps and then called
+// `os.homedir()` for the third, which reads the process's real environment — so the seam was
+// injectable for two thirds of its own contract and silently uninjectable for the rest. A test could
+// state SOVEREIGN_BASE or REFARM_HOME and could not state "neither is declared, and the home is
+// here", which is the branch that answers on every ordinary machine.
+describe("declaredBase honours the env it was given, all the way down (ISS-027)", () => {
+	it("takes HOME from the injected env when nothing else is declared", () => {
+		expect(declaredBase({ HOME: "/injected/home" })).toBe("/injected/home");
+	});
+
+	it("still prefers SOVEREIGN_BASE, then REFARM_HOME's parent, over that home", () => {
+		expect(declaredBase({ SOVEREIGN_BASE: "/a", REFARM_HOME: "/b/.refarm", HOME: "/c" })).toBe("/a");
+		expect(declaredBase({ REFARM_HOME: "/b/.refarm", HOME: "/c" })).toBe("/b");
+	});
+
+	it("falls back to the OS home only when the env declares no home at all", () => {
+		expect(declaredBase({})).toBe(os.homedir());
+	});
+
+	it("ignores an empty or whitespace HOME rather than resolving to nothing", () => {
+		expect(declaredBase({ HOME: "   " })).toBe(os.homedir());
+	});
+});

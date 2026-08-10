@@ -1151,6 +1151,17 @@
 			"priority": "medium",
 			"package": "scripts",
 			"axis": "durability"
+		},
+		{
+			"id": "ISS-102",
+			"title": "config.ts and the composition resolver anchor the user tier on the OS home, together",
+			"body": "FOUND 2026-08-10 while closing ISS-050, and it is the reason that fix stopped where it did.\n\napps/refarm/src/utils/composition-resolver.ts's user tier MUST land on the exact file config.ts writes -- os.homedir()/.refarm/config.json -- so scalars and plugins[] share one file at every tier. Its header comment says so and calls it the CO-HABITATION GUARANTEE. Passing the REFARM_HOME-aware dirname(resolveRefarmHome()) would split the two into different files under a custom REFARM_HOME.\n\nWHAT THAT ACTUALLY MEANS, said plainly: config.ts's user tier ALSO ignores REFARM_HOME. Under a declared home -- a sandbox node, a second device, anything the sovereign-state work exists to make possible -- both sides answer the operator's OS home. They are not correct; they are consistently WRONG TOGETHER, and the co-habitation guarantee is what keeps them consistent.\n\nSo the honest state after ISS-050 is: the silent default is gone (a caller that means the OS home now says so through a named cohabitationHome(), and the three plugin-install sites that were writing the working tree's agent.wasm into the operator's real ~/.refarm/assets/ now pass the DECLARED base), and this pair is left as it was, deliberately, because moving one without the other would split a file the composition layer depends on being single.\n\nTO CLOSE THIS: config.ts's user tier and the composition resolver's user tier move to the declared base TOGETHER, in one change, with a test that pins them to the same path under a custom REFARM_HOME. Anything less either splits the file or leaves the pair anchored to a home the node did not declare. It is a small change and a scary one, which is why it is filed rather than smuggled into a slice about something else.",
+			"location": "apps/refarm/src/utils/composition-resolver.ts:18",
+			"status": "open",
+			"category": "issue",
+			"priority": "high",
+			"package": "apps/refarm",
+			"axis": "node-vs-directory"
 		}
 	]
 }

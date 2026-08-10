@@ -75,12 +75,30 @@ function readPluginsAt(filePath: string): PackageSource[] {
  * ledger's `effectivePointers.set` overwrite; pi's per-key cross-scope union is a
  * deferred divergence).
  */
+/**
+ * The OS home, named — because here it is the ANSWER, not a fallback nobody chose.
+ *
+ * ISS-050 removed `orderedScopeStorePaths`'s silent `userHome ?? os.homedir()` default, which had
+ * been writing plugin assets into the operator's real home while a sandbox home was declared. This
+ * module is the one caller that genuinely means the OS home: the user tier MUST land on the exact
+ * file `config.ts` writes (`os.homedir()/.refarm/config.json`) so scalars and `plugins[]` share one
+ * file at every tier, and passing the REFARM_HOME-aware base would split them.
+ *
+ * A named function rather than a bare `?? os.homedir()`: `scripts/no-os-resolution.mjs` counts the
+ * inline shape, and it is right to — the shape is indistinguishable from the accident it exists to
+ * catch. What makes this one legitimate is the reason above, and a reason belongs somewhere a reader
+ * can find it. The co-habitation itself is a KNOWN gap under a custom REFARM_HOME (see ISS-102): both
+ * sides are anchored on the OS home, so they are consistently wrong together rather than split.
+ */
+function cohabitationHome(): string {
+	return os.homedir();
+}
+
 export function resolveComposition(deps: CompositionResolverDeps = {}): CompositionResolution {
 	const env = deps.env ?? process.env;
 	const scopePaths = orderedScopeStorePaths("config.json", {
 		workspaceRoot: deps.cwd ?? process.cwd(),
-		// userHome intentionally defaulted to os.homedir() (see co-habitation note).
-		...(deps.home !== undefined ? { userHome: deps.home } : {}),
+		userHome: deps.home ?? cohabitationHome(),
 		...(resolveOrgRoot(env) ? { orgRoot: resolveOrgRoot(env) } : {}),
 	});
 
@@ -121,7 +139,7 @@ export function compositionScopePath(
 	if (scope === "org" && !orgRoot) return null;
 	const path = orderedScopeStorePaths("config.json", {
 		workspaceRoot: deps.cwd ?? process.cwd(),
-		...(deps.home !== undefined ? { userHome: deps.home } : {}),
+		userHome: deps.home ?? cohabitationHome(),
 		...(orgRoot ? { orgRoot } : {}),
 	}).find((p) => p.scope === scope);
 	return path?.path ?? null;

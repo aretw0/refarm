@@ -11,6 +11,8 @@ import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import {
 	describeModelRateCatalog,
 	materializeDefaultModelRateCatalog,
@@ -159,7 +161,12 @@ export async function installPlugin(
 		// Idempotent (same content → same address); dedup for free. Never fatal to the
 		// install: the file:// entry still works even if the content-store write fails.
 		try {
-			const stored = await createFsAssetStore(scopedAssetsDir("user")).store(wasmBytes);
+			// ISS-050: the DECLARED base, not the OS home. `scopedAssetsDir("user")` used to default its home
+			// to os.homedir(), and this is the call site that proved the cost — confirmed on disk, an install
+			// wrote the working tree's agent.wasm into the OPERATOR's real ~/.refarm/assets/ while a sandbox
+			// home was declared. That is why HOME became the sandbox launcher's sixth isolated axis.
+			const assetsHome = path.dirname(resolveRefarmHome());
+			const stored = await createFsAssetStore(scopedAssetsDir("user", { userHome: assetsHome })).store(wasmBytes);
 			if (stored.hash !== sha256) {
 				// Defensive: the store re-hashes; a mismatch means something is very wrong.
 				throw new Error(`content-store hash ${stored.hash} != install hash ${sha256}`);
