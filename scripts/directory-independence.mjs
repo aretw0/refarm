@@ -134,11 +134,12 @@ function isDeclaredPath(fieldPath, declaredPaths) {
  * entry, arbitrary labels. `declaration` is `{ allowedVaryingFieldPaths: string[] }`; an empty
  * array means the command must answer identically from every directory.
  *
- * Returns `{ verdict, fieldPaths, unrunnableDirectories }`:
+ * Returns `{ verdict, fieldPaths, unrunnableDirectories }`. The verdict says only what was
+ * OBSERVED; what the observation MEANS is `judge(verdict, scope)`'s job, below.
  *   - `verdict` is exactly one of `"same" | "differs-as-declared" | "differs-undeclared" |
- *     "unrunnable"`.
- *   - `unrunnable` FIRST — before any comparison — whenever any directory's entry is
- *     `unrunnable(...)`. A command that crashed in one directory produced no answer to compare;
+ *     "unrunnable-somewhere" | "unproven"`.
+ *   - The unrunnable branches come FIRST — before any comparison — whenever any directory's entry
+ *     is `unrunnable(...)`. A command that crashed in one directory produced no answer to compare;
  *     treating the directories that DID run as sufficient (and agreeing) would silently read a
  *     failure as agreement, which is exactly the trap this plan calls out by name.
  *   - Otherwise every leaf field path reachable from ANY directory's value is compared across
@@ -153,8 +154,17 @@ function isDeclaredPath(fieldPath, declaredPaths) {
 export function compareAnswers(byDirectory, declaration) {
 	const labels = Object.keys(byDirectory);
 	const unrunnableDirectories = labels.filter((label) => byDirectory[label].status === "unrunnable").sort();
+	// THREE STATES where there were two. Failing in EVERY directory is the ENVIRONMENT — no daemon,
+	// no sandbox node, a fixture argument this probe does not have — and it proves nothing about
+	// directory independence. It must never be summed into `same`, which is precisely the defect
+	// that let a 5-of-64 surface read as measured. Failing in SOME directories is the FINDING
+	// itself: it is the shape of `ENOENT /tmp/.project/handoff.json`, a command that answers where
+	// the operator happens to stand and refuses everywhere else.
+	if (unrunnableDirectories.length === labels.length) {
+		return { verdict: "unproven", fieldPaths: [], unrunnableDirectories };
+	}
 	if (unrunnableDirectories.length > 0) {
-		return { verdict: "unrunnable", fieldPaths: [], unrunnableDirectories };
+		return { verdict: "unrunnable-somewhere", fieldPaths: [], unrunnableDirectories };
 	}
 
 	const allPaths = new Set();
@@ -186,6 +196,69 @@ export function compareAnswers(byDirectory, declaration) {
 	return { verdict: "differs-as-declared", fieldPaths: divergingPaths.sort(), unrunnableDirectories: [] };
 }
 
+/**
+ * PURE. The verdict says what was OBSERVED; the scope says what that observation MEANS.
+ *
+ * Holding both in one field is what confined this probe to commands that must be identical, and so
+ * to 5 of 64: a command that reads THIS project's documents diverges by design, and an instrument
+ * whose only vocabulary was "differs" would have convicted it. Two scopes, and the `project` row for
+ * `same` is an INVERSE check — a project-local command answering identically from `/tmp` has stopped
+ * reading the project and is answering from the node, which no per-field comparison can see. Same
+ * rule `refarm parity` applies to its `ISOLATING_AXES` table, where an axis that STOPPED diverging
+ * reports UNHEALTHY rather than passing quietly.
+ *
+ * `unproven` is never a conviction under either scope: nothing was measured, and this function's
+ * caller reports that as its own count rather than folding it into a pass.
+ */
+export function judge(verdict, scope) {
+	if (verdict === "unproven") return "pass";
+	if (scope === "project") return verdict === "same" ? "convicted" : "pass";
+	return verdict === "differs-undeclared" || verdict === "unrunnable-somewhere" ? "convicted" : "pass";
+}
+
+/**
+ * PURE. Every entry must declare its scope WITH a written reason, and every allowed varying field
+ * path must name why it varies. Returns one message per problem; an empty array means well-formed.
+ *
+ * This exists because the exit criterion for the burn-down is "zero convictions", and that is
+ * reachable two ways: by closing a divergence, or by declaring it. Without a required reason the
+ * second is free and invisible, and the resulting green would be indistinguishable from a fixed
+ * surface. A reason does not prevent a bad declaration — it makes one legible in review.
+ */
+export function validateDeclarations(commands) {
+	const errors = [];
+	for (const command of commands) {
+		if (command.scope !== "node" && command.scope !== "project") {
+			errors.push(`${command.name}: scope must be "node" or "project" — there is no default`);
+		}
+		if (!command.scopeReason || !String(command.scopeReason).trim()) {
+			errors.push(`${command.name}: scope needs a written reason`);
+		}
+		for (const fieldPath of command.allowedVaryingFieldPaths ?? []) {
+			if (!command.fieldReasons?.[fieldPath] || !String(command.fieldReasons[fieldPath]).trim()) {
+				errors.push(`${command.name}: declared varying path ${fieldPath} has no reason`);
+			}
+		}
+	}
+	return errors;
+}
+
+/**
+ * PURE. Four counts and a total, never one number. `declared` is NOT folded into `same`, and
+ * `unproven` is folded into neither: zero convictions over five reasoned declarations and zero
+ * convictions over forty are different states of the same surface, and so is zero convictions over
+ * a surface half of which was never measured.
+ */
+export function summarise(rows) {
+	return {
+		probed: rows.length,
+		same: rows.filter((row) => row.verdict === "same" && row.scope !== "project").length,
+		declared: rows.filter((row) => row.verdict === "differs-as-declared").length,
+		convicted: rows.filter((row) => judge(row.verdict, row.scope) === "convicted").length,
+		unproven: rows.filter((row) => row.verdict === "unproven").length,
+	};
+}
+
 // ---- The declaration table. ----
 //
 // Five commands, measured by hand by the operator (2026-08-07) and reproduced by this probe.
@@ -199,12 +272,44 @@ export function compareAnswers(byDirectory, declaration) {
 // with no VPN-style defect involved. See task-1-report.md for the full field-by-field diff
 // that surfaced this.
 export const PROBE_COMMANDS = [
-	{ name: "workspace list", argv: ["workspace", "list", "--json"], allowedVaryingFieldPaths: [] },
-	{ name: "model current", argv: ["model", "current", "--json"], allowedVaryingFieldPaths: [] },
-	{ name: "plugin status", argv: ["plugin", "status", "--json"], allowedVaryingFieldPaths: [] },
+	{
+		name: "workspace list",
+		argv: ["workspace", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"The workspace catalog is the NODE's, read from its declared base; which workspace the operator is standing in must not change which workspaces exist.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "model current",
+		argv: ["model", "current", "--json"],
+		scope: "node",
+		scopeReason: "The model route and its credential are resolved from the node's identity, never from a directory.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "plugin status",
+		argv: ["plugin", "status", "--json"],
+		scope: "node",
+		scopeReason: "Plugins are installed into the node's sovereign dir; the loaded set is a property of the node.",
+		allowedVaryingFieldPaths: [],
+	},
 	{
 		name: "context",
 		argv: ["context", "--json"],
+		scope: "node",
+		scopeReason:
+			"Reports the node's base, namespace and loaded artifact — with the CLI's own directory kept as a labelled second fact, which is why four of its fields legitimately vary.",
+		fieldReasons: {
+			"context.builtPluginPath":
+				"The built plugin is a fact about the WORKING TREE the CLI was invoked from, reported alongside the node's own loaded artifact rather than instead of it.",
+			"context.builtPluginSha":
+				"Same working-tree fact as builtPluginPath: its content hash, absent when the invocation directory has no build.",
+			"context.otherSovereignDirs":
+				"resolveOtherSovereignDirs checks fs.existsSync(path.join(cwd, '.refarm')), so this field is BY DESIGN a statement about the invocation directory; this repo's checkout has a gitignored .refarm/ that ~/git/rcdc5 does not.",
+			"context.divergences":
+				"Derived from otherSovereignDirs plus the built-plugin comparison, so it inherits their working-tree dependence; investigated 2026-08-07 and confirmed legitimate rather than a relaxation of the guard.",
+		},
 		allowedVaryingFieldPaths: [
 			"context.builtPluginPath",
 			"context.builtPluginSha",
@@ -212,7 +317,14 @@ export const PROBE_COMMANDS = [
 			"context.divergences",
 		],
 	},
-	{ name: "connection status", argv: ["connection", "status", "--json"], allowedVaryingFieldPaths: [] },
+	{
+		name: "connection status",
+		argv: ["connection", "status", "--json"],
+		scope: "node",
+		scopeReason:
+			"host.wit's own words: a connection is 'declared by the OPERATOR ... several plugins share ONE live connection'. It is node state, and the 2026-08-08 fix to connection.ts:499,830 is what made this row `same`; this entry is that fix's regression guard.",
+		allowedVaryingFieldPaths: [],
+	},
 ];
 
 // ---- Impure edge: everything below spawns a process or touches the filesystem. ----
@@ -293,27 +405,47 @@ export function runProbe(commands = PROBE_COMMANDS, directories = resolveProbeDi
 			byDirectory[label] = runCliFromDirectory(dir, command.argv, options);
 		}
 		const result = compareAnswers(byDirectory, command);
-		return { name: command.name, ...result, byDirectory };
+		// `scope` travels with the row because the row is what gets judged and summarised — a
+		// verdict without its scope is not enough to say whether it passed.
+		return { name: command.name, scope: command.scope, ...result, byDirectory };
 	});
 }
 
-/** Renders `runProbe`'s rows as the markdown table used in reports and printed by the CLI
- * entry point below. */
+/** Renders `runProbe`'s rows as the markdown table used in reports and printed by the CLI entry
+ * point below. Scope and judgement are their own columns rather than folded into the verdict: a
+ * reader must be able to see that a `differs-undeclared` row PASSED because the command is
+ * project-scoped, and disagree with the scope if they think it is wrong. */
 export function formatProbeTable(rows) {
-	const lines = ["| Command | Verdict | Notes |", "| --- | --- | --- |"];
+	const lines = ["| Command | Scope | Verdict | Judgement | Notes |", "| --- | --- | --- | --- | --- |"];
 	for (const row of rows) {
 		let notes = "";
-		if (row.verdict === "unrunnable") {
+		if (row.verdict === "unrunnable-somewhere") {
 			notes = `unrunnable in: ${row.unrunnableDirectories.join(", ")}`;
+		} else if (row.verdict === "unproven") {
+			notes = `never ran: ${row.unrunnableDirectories.join(", ")}`;
 		} else if (row.fieldPaths.length > 0) {
 			notes = row.fieldPaths.join(", ");
 		}
-		lines.push(`| \`${row.name}\` | ${row.verdict} | ${notes} |`);
+		const judgement = judge(row.verdict, row.scope);
+		lines.push(
+			`| \`${row.name}\` | ${row.scope ?? "?"} | ${row.verdict} | ${judgement === "convicted" ? "**CONVICTED**" : "pass"} | ${notes} |`,
+		);
 	}
 	return lines.join("\n");
 }
 
 function main() {
+	// The declaration guard runs BEFORE anything is probed. A malformed table would otherwise
+	// produce a full run of verdicts whose judgements cannot be trusted — and the expensive part
+	// (three spawns per command) would already have been paid.
+	const declarationErrors = validateDeclarations(PROBE_COMMANDS);
+	if (declarationErrors.length > 0) {
+		process.stderr.write(`directory-independence: ${declarationErrors.length} malformed declaration(s)\n`);
+		for (const message of declarationErrors) process.stderr.write(`  - ${message}\n`);
+		process.exitCode = 1;
+		return;
+	}
+
 	const directories = resolveProbeDirectories();
 	process.stdout.write(
 		`directory-independence: probing ${PROBE_COMMANDS.length} command(s) from ` +
@@ -324,12 +456,28 @@ function main() {
 	const rows = runProbe(PROBE_COMMANDS, directories);
 	process.stdout.write(`${formatProbeTable(rows)}\n`);
 
-	const bad = rows.filter((r) => r.verdict === "differs-undeclared" || r.verdict === "unrunnable");
-	if (bad.length > 0) {
-		process.stdout.write(
-			`\n${bad.length} command(s) failed the probe: ${bad.map((r) => r.name).join(", ")}\n`,
-		);
+	// FOUR COUNTS, never one. `declared` is not folded into `same` and `unproven` is folded into
+	// neither, so a green line cannot hide either a surface declared into compliance or a surface
+	// that was never measured.
+	const summary = summarise(rows);
+	process.stdout.write(
+		`\ndirectory-independence: ${summary.probed} probed · ${summary.same} same · ` +
+			`${summary.declared} declared · ${summary.convicted} convicted · ${summary.unproven} unproven\n`,
+	);
+
+	const convicted = rows.filter((row) => judge(row.verdict, row.scope) === "convicted");
+	if (convicted.length > 0) {
+		process.stdout.write(`\n${convicted.length} command(s) convicted: ${convicted.map((r) => r.name).join(", ")}\n`);
 		process.exitCode = 1;
+	}
+	// `unproven` does NOT fail the run — nothing was measured, which is not a defect — but it is
+	// stated, because a summary that stayed silent about it would let "green" be read as "the
+	// surface is directory-independent" when it means "the part that ran is".
+	if (summary.unproven > 0) {
+		const unproven = rows.filter((row) => row.verdict === "unproven");
+		process.stdout.write(
+			`\n${summary.unproven} command(s) unproven (never ran anywhere): ${unproven.map((r) => r.name).join(", ")}\n`,
+		);
 	}
 }
 
