@@ -155,6 +155,7 @@ entries stay valid without being touched:
 | `maturity` | enum, 6 states | The operator's vocabulary, verbatim tokens |
 | `maturity_note` | string | The justification paragraph that follows `**Estado: X.**`, verbatim |
 | `evidence` | string[] | The document links under **Evidência**, verbatim |
+| `acceptance_criteria_preamble` | string | The qualifier some requirements put between `**Critérios de aceitação.**` and the bullets — R3's *"Cada unidade de trabalho pode registrar, **quando conhecido**:"*, R8's *"Para cada integração:"*, R12's *"Uma visão diária/semanal deve responder:"*. Discovered while planning: dropping it would silently promote seven conditional criteria into unconditional ones, and folding it into the first bullet would corrupt a criterion. It is a distinct fact, so it gets a distinct field. |
 
 Existing fields are populated by relocation, not composition:
 
@@ -311,6 +312,15 @@ testable without a filesystem — the split the file already follows:
 2. **`checkProvedWithOpenWork(requirements, issues)` — WARNS.** A requirement whose `maturity` is
    `provado` with open items citing it is a contradiction worth surfacing — and a judgement, because
    an open item can legitimately sit beyond a proof that already landed.
+3. **`checkRequirementIndex(markdown, requirements)` — BLOCKS.** Every row of the Markdown index
+   table must match the record on `id`, `title` and `maturity`, and every `R*` entry in the record
+   must have a row. *Added while planning, not in the first draft of this spec:* turning the
+   Markdown into an index creates a second place where a requirement's title and maturity are
+   written, and an index free to drift from its record is precisely the two-records defect this
+   spec exists to close, re-created in miniature. It blocks because it is deterministic and the
+   agent fixes it by rewriting one table row. This is the only check in the gate that reads a file
+   outside `.project/`, which is the honest cost of keeping a readable document in front of the
+   record.
 
 **No freshness warning is added for `requirements.json`, deliberately.** A requirements record is not
 a queue; it legitimately sits still for hundreds of commits. A warning that fires on every run trains
