@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
 	checkHandoffCitations,
 	checkRequirementCitations,
+	checkRequirementIndex,
 	checkLedgerFreshness,
 	parseCommitCount,
 } from "./project-block-consistency.mjs";
@@ -143,5 +144,35 @@ describe("checkRequirementCitations", () => {
 			{ id: "ISS-2", requirement: "R99" },
 		]);
 		assert.equal(result.errors.length, 2);
+	});
+});
+
+describe("checkRequirementIndex", () => {
+	const requirements = [{ id: "R1", title: "Continuidade", maturity: "parcial" }];
+	const table = "| Id | Resultado | Maturidade |\n| --- | --- | --- |\n| R1 | Continuidade | parcial |";
+
+	it("passes when the index matches the record", () => {
+		assert.deepEqual(checkRequirementIndex(table, requirements).errors, []);
+	});
+
+	it("errors when a row's maturity drifts from the record", () => {
+		const drifted = table.replace("parcial", "provado");
+		assert.match(checkRequirementIndex(drifted, requirements).errors[0], /R1/);
+	});
+
+	it("errors when a requirement has no row at all", () => {
+		const result = checkRequirementIndex(table, [...requirements, { id: "R2", title: "x", maturity: "parcial" }]);
+		assert.match(result.errors[0], /R2/);
+	});
+
+	it("ignores the legacy REQ- cohort, which the index never claimed to cover", () => {
+		const result = checkRequirementIndex(table, [...requirements, { id: "REQ-ENV-001" }]);
+		assert.deepEqual(result.errors, []);
+	});
+
+	it("reports UNKNOWN rather than clean when the index cannot be read", () => {
+		const result = checkRequirementIndex(null, requirements);
+		assert.deepEqual(result.errors, []);
+		assert.match(result.warnings[0], /could not be read/i);
 	});
 });

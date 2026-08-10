@@ -112,233 +112,43 @@ paralelas sem autoridade explícita. Uma descoberta pode ser registrada sem ser 
 
 ## Resultados exigidos
 
-### R1. Continuidade operacional
+Os doze resultados exigidos vivem em `.project/requirements.json`, o registro governado — com a
+necessidade, os critérios de aceitação, o estado de maturidade e a evidência de cada um, **verbatim**
+como foram escritos nesta seção em 2026-08-06. A relocação foi provada, não confiada: 117 strings
+extraídas, todas encontradas na fonte depois de desfeita a quebra de linha.
 
-**Necessidade.** Retomar o trabalho sem reconstruir mentalmente sessões, tarefas, modelos, runtime,
-falhas e validações anteriores.
+Esta tabela é o **índice**, e a divergência entre ela e o registro é **bloqueada pelo gate**
+(`scripts/ci/project-block-consistency.mjs`). Ela existe para ser lida de relance; o registro existe
+para ser lido por instrumento.
 
-**Critérios de aceitação.**
+| Id | Resultado | Maturidade |
+| --- | --- | --- |
+| R1 | Continuidade operacional | parcial |
+| R2 | Estado soberano inequívoco | parcial |
+| R3 | Ledger universal de trabalho | parcial |
+| R4 | Orçamento sustentável e explicável | parcial |
+| R5 | Workspaces como unidades de contexto e responsabilidade | parcial |
+| R6 | Despacho governado e supervisão | parcial |
+| R7 | Operação por dispositivos e superfícies leves | parcial |
+| R8 | Integrações como conexões governadas | parcial |
+| R9 | Memória contextual e conhecimento durável | parcial |
+| R10 | Aprendizado e cultivo entre ecossistemas | parcial |
+| R11 | Segurança, privacidade e reversibilidade | parcial |
+| R12 | Visão executiva e prestação de contas | ausente |
 
-- `refarm resume --json` é sempre o ponto inicial e indica continuações executáveis;
-- sessão, tarefa, logs e gates permanecem inspecionáveis depois do estado terminal;
-- falha de runtime, credencial ou modelo aparece como unidade distinta;
-- o operador consegue responder “onde eu estava?” sem recorrer à memória de um agente anterior.
+Para ler um resultado por inteiro, para saber quantos itens abertos separam você de qualquer um
+deles, ou para mover uma maturidade:
 
-**Estado: Parcial.** O loop de resume, sessões, tarefas e finish está entregue e sustenta uso
-assistido. A readiness registrada é 83/100, abaixo do limiar de 85/100 definido para uso diário
-primário, e ainda requer intervenção especializada em algumas falhas.
+```bash
+refarm requirements list --workspace refarm --json
+refarm issues list --workspace refarm --requirement R7 --json
+refarm issues list --workspace refarm --unserved --json
+refarm requirements set-maturity --workspace refarm --id R7 --maturity provado --evidence <ref>
+```
 
-**Evidência.** [`REFARM_OPERATOR_DAILY_DRIVER.md`](./REFARM_OPERATOR_DAILY_DRIVER.md),
-[`daily-driver-readiness.md`](./daily-driver-readiness.md).
-
-### R2. Estado soberano inequívoco
-
-**Necessidade.** Saber qual nó, home, namespace, credencial, runtime, workspace e artefato carregado
-governam uma operação.
-
-**Critérios de aceitação.**
-
-- um comando relata o contexto resolvido e a origem de cada seleção;
-- o artefato carregado é identificado por conteúdo, não apenas por caminho;
-- divergências entre CLI, host, credenciais e disco são mostradas;
-- laboratório e nó real não misturam estado nem ledger;
-- o sistema diferencia nó ausente, leitura bloqueada e estado saudável.
-
-**Estado: Parcial.** `refarm context` e diagnósticos de divergência existem. O launcher isolado e a
-paridade do sandbox continuam projetados, e há divergências de home/visibilidade que ainda exigem
-interpretação do operador.
-
-**Evidência.**
-[`Which sovereign state is active`](./superpowers/specs/2026-08-05-which-sovereign-state-is-active-design.md).
-
-### R3. Ledger universal de trabalho
-
-**Necessidade.** Prestar contas de tudo em que esforço é gasto, inclusive trabalho realizado por
-ferramentas ou plataformas que o Refarm não despachou.
-
-**Critérios de aceitação.** Cada unidade de trabalho pode registrar, quando conhecido:
-
-- identificador e relação com tarefa, sessão, cenário e resultado;
-- workspace/projeto e proveniência da atribuição;
-- nó, superfície, spawner, agente/modelo e prestador;
-- início, fim, duração, estado terminal e progresso planejado/concluído;
-- tokens, custo monetário estimado ou medido, pricing mode e orçamento efetivo;
-- artefatos, verificações ou referências que sustentam o resultado;
-- lacunas de observação, truncamento e campos desconhecidos.
-
-**Estado: Parcial.** `BudgetObservation` registra esforços despachados pelo Refarm e a atribuição de
-workspace começou a chegar à origem. Não há ainda ingestão universal para trabalho externo; logo,
-o ledger atual não pode afirmar “tudo”. Consultas agregadas por workspace/nó/superfície/modelo e
-paginação completa também não estão concluídas.
-
-**Evidência.**
-[`The budget belongs to whoever spawns`](./superpowers/specs/2026-08-03-budget-laboratory-design.md),
-[`SOVEREIGN_RECORD_ORDERING.md`](./SOVEREIGN_RECORD_ORDERING.md).
-
-### R4. Orçamento sustentável e explicável
-
-**Necessidade.** Saber com o que o operador está gastando recursos, quem declarou o limite, quem o
-restringiu e se o trabalho entregue justificou o gasto.
-
-**Critérios de aceitação.**
-
-- limites de nó, workspace e dispatch são resolvidos separadamente;
-- declarado, efetivo e `bound_by` permanecem no registro;
-- custo por assinatura, API e modelo local não é misturado sob uma falsa equivalência;
-- limites atingidos e trabalho parcial ficam visíveis;
-- relatórios relacionam custo a resultado, não apenas a consumo;
-- experimentos escrevem em ledger isolado.
-
-**Estado: Parcial.** O contrato de orçamento e o registro por esforço existem; agregação operacional,
-cobertura externa e isolamento completo do laboratório permanecem lacunas.
-
-### R5. Workspaces como unidades de contexto e responsabilidade
-
-**Necessidade.** Operar Refarm, `agents-lab`, `rcdc5`, vaults pessoais/profissionais e futuros
-projetos sem confundir contexto, política, custo ou autoridade.
-
-**Critérios de aceitação.**
-
-- cada workspace tem identidade estável e declaração inspecionável;
-- sessão e esforço mantêm a atribuição mesmo quando o comando parte de outro diretório/dispositivo;
-- leitura, escrita e operação remota são capacidades distintas;
-- workspaces ausentes ou somente leitura geram observações, não mutações oportunistas;
-- detalhes corporativos ou de produto permanecem no workspace que os possui;
-- uma visão mostra saúde, trabalho ativo, bloqueios, custo e próxima ação por workspace.
-
-**Estado: Parcial.** Declaração, inspeção, execução nomeada e atribuição inicial existem. Correção de
-sessões antigas, proveniência completa da atribuição, visão agregada e migração real do vault
-profissional continuam abertas.
-
-### R6. Despacho governado e supervisão
-
-**Necessidade.** Despachar trabalho, deixá-lo progredir e intervir apenas quando necessário, sem
-perder controle sobre escopo ou impacto.
-
-**Critérios de aceitação.**
-
-- uma demanda vira esforço rastreável com orçamento, deadline e critérios de conclusão;
-- cancelamento, timeout, falha, parcial e entregue são estados explícitos;
-- o agente pode pausar para consentimento e continuar sem perder o contexto;
-- automações recorrentes usam o mesmo contrato de esforço das execuções manuais;
-- nenhum handoff depende de texto implícito ou de memória privada do agente;
-- qualidade do resultado pode ser verificada por evidência adequada ao cenário.
-
-**Estado: Parcial.** Esforços, tarefas, handoffs, cancelamento e consentimento possuem blocos úteis.
-Automação operada, localização de automações de nó, agendamento e avaliação rica de correção ainda
-não formam um caminho completo.
-
-### R7. Operação por dispositivos e superfícies leves
-
-**Necessidade.** Gerir o dia prioritariamente por Telegram, Termux e PWA, usando o computador e
-outros dispositivos como nós da mesma rede de trabalho.
-
-**Critérios de aceitação.**
-
-- cada dispositivo é admitido, identificado, revogável e limitado por capacidade;
-- as superfícies projetam o mesmo catálogo, estados, consentimentos e resultados;
-- o operador recebe atenção proativa quando uma condição exige decisão;
-- perda de conexão não duplica trabalho nem perde o cursor de acompanhamento;
-- resultado remoto é limitado e redigido; não vira shell remoto genérico;
-- uma operação iniciada em uma superfície pode ser acompanhada em outra.
-
-**Estado: Parcial.** O catálogo de operações e as projeções Termux/PWA estão documentados como
-entregues; confirmação continuada do operador e Telegram como projeção do mesmo contrato permanecem
-próximos. Entrega proativa, enrolment completo e política multi-dispositivo ainda não fecham o
-resultado cotidiano.
-
-### R8. Integrações como conexões governadas
-
-**Necessidade.** Reduzir a administração direta de Teams, Outlook, Gmail, WhatsApp, Telegram,
-navegadores e futuros serviços sem entregar autoridade ilimitada a uma automação.
-
-**Critérios de aceitação.** Para cada integração:
-
-- identidade/conta, credencial e escopo de autorização são declarados;
-- status de conexão distingue `up`, `down` e `unknown`;
-- leitura, busca, rascunho, envio, alteração e exclusão são capacidades separadas;
-- ações externas mantêm idempotência, consentimento e registro de resultado;
-- segredos não entram em prompts, logs, manifests ou bundles diagnósticos;
-- falha produz recuperação executável e não uma suposição de sucesso;
-- regras específicas do provedor ficam no adaptador, não no core.
-
-**Estado: Parcial/Ausente por provedor.** Há contratos e provas para conexões, login flows, delivery,
-Telegram e automação web. Isso não equivale a integrações operacionais completas com Teams,
-Outlook, Gmail ou WhatsApp; cada uma precisa de inventário de capacidades, ameaça, consentimento e
-prova real antes de ser declarada entregue.
-
-### R9. Memória contextual e conhecimento durável
-
-**Necessidade.** Usar repositórios, vaults Markdown/Obsidian, sessões e grafo como memória
-contextual recuperável, sem depender da memória privada de um modelo.
-
-**Critérios de aceitação.**
-
-- uma fonte pode ser arquivo, repositório, grafo ou injeção, mas converge para contrato comum;
-- proveniência, versão e autoridade acompanham o conteúdo;
-- leitura e indexação não implicam permissão de escrita;
-- contexto relevante é recuperável por workspace, tarefa e sessão;
-- decisões e requisitos duráveis vivem em fonte versionada;
-- conhecimento sensível respeita fronteiras pessoal, profissional e coletiva.
-
-**Estado: Parcial.** Há contratos para source, records, vault, provenance, sync e sessões, além de
-provas de convergência. A intake de conhecimento para o agente, a migração do vault profissional e
-a busca contextual integrada ao cotidiano ainda não estão provadas ponta a ponta.
-
-### R10. Aprendizado e cultivo entre ecossistemas
-
-**Necessidade.** Aprender com `pi.dev` via `agents-lab` e com consumidores reais sem copiar
-acidentalmente seus resíduos, acoplamentos ou políticas.
-
-**Critérios de aceitação.**
-
-- toda importação identifica a necessidade e a evidência externa;
-- o padrão é testado em isolamento antes de promoção;
-- um bloco sobe para Refarm apenas quando é genérico e tem pressão real;
-- o consumidor prova a compatibilidade por contrato, pacote ou adaptador;
-- a origem e alternativas rejeitadas ficam documentadas;
-- compatibilidade não transforma arquivos `.pi` em dependência do runtime Refarm.
-
-**Estado: Parcial.** O método de assimilação e várias provas de segundo consumidor existem. O
-launcher isolado/paridade inspirado pelo `agents-lab` e o intake de declarações curadas ainda estão
-incompletos.
-
-### R11. Segurança, privacidade e reversibilidade
-
-**Necessidade.** Poder ampliar autonomia sem ampliar silenciosamente o raio de dano.
-
-**Critérios de aceitação.**
-
-- autoridade é capability-scoped e revogável;
-- ações externas ou destrutivas têm preview/consentimento proporcional ao risco;
-- operações repetidas são idempotentes ou detectam duplicação;
-- dados sensíveis são minimizados, redigidos e separados por escopo;
-- bundles diagnósticos são locais, sanitizados e revisáveis antes de compartilhar;
-- toda mutação material informa alvo, resultado e possibilidade de recuperação;
-- workspaces profissionais e coletivos não herdam política pessoal por conveniência.
-
-**Estado: Parcial.** Existem contratos de autorização, consentimento, credenciais, trust, hardening e
-diagnóstico sanitizado. A segurança precisa ser provada por jornada de integração e nó, não pela
-presença desses pacotes.
-
-### R12. Visão executiva e prestação de contas
-
-**Necessidade.** Ver avanço real sem administrar manualmente vários pratos e sem confundir atividade
-com resultado.
-
-**Critérios de aceitação.** Uma visão diária/semanal deve responder:
-
-- o que avançou, ficou parcial, falhou ou está bloqueado;
-- quanto tempo, tokens e dinheiro foram consumidos, por workspace e finalidade;
-- quais compromissos, mensagens ou prazos exigem atenção;
-- quais automações estão ativas e qual foi sua última evidência;
-- quais divergências, dívidas e riscos estão acumulando custo;
-- qual é a próxima ação de maior valor e por que ela supera as alternativas;
-- quais dados são completos, truncados, estimados ou desconhecidos.
-
-**Estado: Ausente como visão integrada.** Há registros, handoffs, status e instrumentos parciais,
-mas não existe ainda uma prestação de contas única que cubra trabalho interno e externo. Construir
-a visualização antes de fechar as semânticas do ledger apenas apresentaria uma falsa precisão.
+`set-maturity` recusa elevar a `provado` sem `--evidence`, que é a regra 6 do protocolo desta própria
+página. A prosa não foi resumida ao mudar de arquivo — `refarm requirements list --json` devolve cada
+campo inteiro, e a seção original está em `git show a7d3f147:docs/OPERATOR_REQUIREMENTS.md`.
 
 ## Jornada mínima de confiança
 

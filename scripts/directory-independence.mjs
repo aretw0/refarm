@@ -491,6 +491,14 @@ export const PROBE_COMMANDS = [
 		allowedVaryingFieldPaths: [],
 	},
 	{
+		name: "requirements list",
+		argv: ["requirements", "list", "--workspace", SELF_WORKSPACE, "--json"],
+		scope: "node",
+		scopeReason:
+			"The requirement catalog is addressed through the node's declared catalog, the same way the ledger is — the counting surface must answer the same from a phone as from the checkout, which is the whole point of asking by workspace id.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
 		name: "issues validate",
 		argv: ["issues", "validate", "--workspace", SELF_WORKSPACE, "--json"],
 		scope: "node",

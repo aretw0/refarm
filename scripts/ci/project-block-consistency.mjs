@@ -114,6 +114,43 @@ export function checkRequirementCitations(requirements, issues) {
 	return { errors };
 }
 
+// External anchor #4 (deterministic — feeds `errors`): `docs/OPERATOR_REQUIREMENTS.md` is an INDEX
+// over this record, which means a requirement's title and maturity are written in two places. An
+// index free to drift from its record is the two-records defect ISS-089 named, rebuilt in miniature
+// — so drift BLOCKS, and the fix is one table row. Only `R*` ids are indexed; the May-era REQ-
+// cohort was never claimed by the table.
+//
+// The index is the ONLY file outside `.project/` this gate reads, which is the honest cost of
+// keeping a readable document in front of the record. An unreadable index WARNS rather than errors:
+// "I could not check" is not "they agree", and it is not the agent's to fix either.
+export function checkRequirementIndex(markdown, requirements) {
+	if (markdown === null) {
+		return { errors: [], warnings: ["[requirements] the docs index could not be read — drift unchecked, not clean"] };
+	}
+	const errors = [];
+	const rows = new Map(
+		markdown
+			.split("\n")
+			.map((line) => /^\| (R\d+) \| (.+?) \| ([a-z-]+) \|$/.exec(line.trim()))
+			.filter(Boolean)
+			.map(([, id, title, maturity]) => [id, { title, maturity }]),
+	);
+	for (const requirement of requirements) {
+		if (!/^R\d+$/.test(requirement?.id ?? "")) continue;
+		const row = rows.get(requirement.id);
+		if (!row) {
+			errors.push(`[requirements] ${requirement.id} has no row in the docs index`);
+			continue;
+		}
+		if (row.title !== requirement.title || row.maturity !== requirement.maturity) {
+			errors.push(
+				`[requirements] ${requirement.id} index row (${row.title} · ${row.maturity}) disagrees with the record (${requirement.title} · ${requirement.maturity})`,
+			);
+		}
+	}
+	return { errors, warnings: [] };
+}
+
 // External anchor #2 (heuristic — feeds `warnings`, never `errors`): the ledger can be
 // internally perfect and still be stale. Staleness is a judgement call, not a verifiable defect
 // an agent can always remediate in one command, so it warns rather than blocks — blocking here
@@ -328,6 +365,12 @@ function main() {
 
 	const requirementCitations = checkRequirementCitations(requirements, issues);
 	errors.push(...requirementCitations.errors);
+
+	const indexPath = "docs/OPERATOR_REQUIREMENTS.md";
+	const indexMarkdown = existsSync(indexPath) ? readFileSync(indexPath, "utf8") : null;
+	const requirementIndex = checkRequirementIndex(indexMarkdown, requirements);
+	errors.push(...requirementIndex.errors);
+	warnings.push(...requirementIndex.warnings);
 
 	const freshness = checkLedgerFreshness({
 		commitsSinceLedgerChange: readCommitsSinceLedgerChange(),

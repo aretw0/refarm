@@ -33,6 +33,7 @@ import { createProcessCommand } from "./commands/process.js";
 import { projectCommand } from "./commands/project.js";
 import { provisionCommand } from "./commands/provision.js";
 import { releaseCommand } from "./commands/release.js";
+import { requirementsCommand } from "./commands/requirements.js";
 import { resumeCommand } from "./commands/resume.js";
 import { resolveRefarmVersion } from "./commands/runtime-metadata.js";
 import {
@@ -342,6 +343,7 @@ program.addCommand(packageManagerCommand);
 program.addCommand(capabilitiesCommand);
 program.addCommand(projectCommand);
 program.addCommand(issuesCommand);
+program.addCommand(requirementsCommand);
 program.addCommand(extensionCommand);
 program.addCommand(agentCommand);
 program.addCommand(openUrlCommand);
