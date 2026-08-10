@@ -210,3 +210,29 @@ describe("buildSovereignDivergenceDoctorRecommendations", () => {
 		expect(out).toEqual([]);
 	});
 });
+
+// ISS-030. `resolveSovereignDivergences()` returns null when the comparison THROWS — a deliberate
+// "never crash the doctor" posture — and doctor.ts flattened that null to `[]` with `?? []`. So a
+// comparison that could not be made produced the same output as a comparison that found nothing:
+// the operator read "no sovereign divergences" from a doctor that had not looked. It is the
+// umbrella over every other sovereign finding, which is what makes it worth three states.
+describe("a comparison that could not be made is not a clean one (ISS-030)", () => {
+	it("reports unknown when the divergence resolution failed", () => {
+		const out = buildSovereignDivergenceDoctorRecommendations(null);
+		expect(out).toHaveLength(1);
+		expect(out[0]?.diagnostic).toBe("sovereign:divergence-unknown");
+		expect(out[0]?.severity).toBe("warning");
+		expect(out[0]?.summary).toMatch(/could not be/i);
+	});
+
+	it("stays silent when the comparison ran and found nothing", () => {
+		expect(buildSovereignDivergenceDoctorRecommendations([])).toEqual([]);
+	});
+
+	it("does not swallow real divergences when one is present", () => {
+		const out = buildSovereignDivergenceDoctorRecommendations([
+			{ kind: "unloaded-sovereign-dir", summary: "a real one", detail: "d" } as never,
+		]);
+		expect(out.map((r) => r.diagnostic)).not.toContain("sovereign:divergence-unknown");
+	});
+});

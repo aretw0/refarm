@@ -119,9 +119,28 @@ import type { RefarmDoctorRecommendation } from "./doctor.js";
  * site written before this parameter existed keeps its prior behaviour unchanged.
  */
 export function buildSovereignDivergenceDoctorRecommendations(
-	divergences: Divergence[],
+	divergences: Divergence[] | null,
 	sidecarReachable = false,
 ): RefarmDoctorRecommendation[] {
+	// ISS-030. THREE STATES, and the third is the one this used to lose. `null` means the
+	// comparison THREW — `resolveSovereignDivergences()` swallows the error deliberately so a
+	// doctor run never crashes over a comparison it could not make — and doctor.ts flattened that
+	// to `[]` with `?? []`, so "I could not look" and "I looked and found nothing" printed the same
+	// clean report. This is the umbrella over every other sovereign finding, which is exactly why
+	// it is worth saying out loud rather than defaulting to silence.
+	if (divergences === null) {
+		return [
+			{
+				diagnostic: "sovereign:divergence-unknown",
+				severity: "warning",
+				summary:
+					"The sovereign-state comparison could not be made, so no divergence was ruled in OR out.",
+				action:
+					"Run `refarm context --json` to see the comparison directly and what stopped it. This is not a report that the node is healthy — it is a report that the check did not run.",
+				command: "refarm context --json",
+			},
+		];
+	}
 	const recommendations: RefarmDoctorRecommendation[] = [];
 	// Set inside the `node-not-running` case below; read after the loop to correlate against
 	// `sidecarReachable` — see this module's header for why that correlation, not

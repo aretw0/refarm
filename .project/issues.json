@@ -313,11 +313,12 @@
 			"title": "declaredBase's last step calls os.homedir() and ignores the env argument the first two honour",
 			"body": "LOOSE ENDS from the two-halves-one-node plan, from its only whole-plan review (the per-task gates were skipped on that plan and the review was scoped accordingly):\n\n(d) declaredBase's final step calls os.homedir(), which ignores the `env` argument the first two steps honour -- an uninjectable seam.",
 			"location": "packages/config/src/index.js:183",
-			"status": "open",
+			"status": "resolved",
 			"category": "cleanup",
 			"priority": "medium",
 			"package": "packages/config",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "f6d0a761"
 		},
 		{
 			"id": "ISS-028",
@@ -570,11 +571,12 @@
 			"title": "storage-fs scopeRoot ignores the declared home for every consumer of scopedAssetsDir",
 			"body": "LOOSE ENDS opened by the sandbox-node session (D3/D4), 2026-08-07, each named with its own evidence:\n\n(1) packages/storage-fs/src/scope.ts:60-63 -- `options.userHome ?? homedir()` ignores the declared home for EVERY consumer of scopedAssetsDir, not just the sandbox's plugin install; confirmed on disk that this wrote the working-tree agent.wasm into the OPERATOR's real ~/.refarm/assets/ before HOME became a declared axis. Same shape as the already-fixed declaredBase defect -- a resolver asking the OS instead of reading the declaration. apps/refarm/src/utils/composition-resolver.ts's 'user' tier has the identical defect (its own comment names a deliberate co-habitation reason with config.ts), currently unreachable from either subprocess this launcher runs or the daemon -- named, not fixed.",
 			"location": "packages/storage-fs/src/scope.ts:60-63",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "high",
 			"package": "packages/storage-fs",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "f6d0a761"
 		},
 		{
 			"id": "ISS-051",
@@ -702,7 +704,7 @@
 		{
 			"id": "ISS-062",
 			"title": "declaredWorkspaceRoots resolves through declaredBase(), which is why cross-workspace seeding is unreliable",
-			"body": "Deferred from the workspace-attribution plan, triaged, NOT done. Own ticket each:\n\n(f) declaredWorkspaceRoots resolving via declaredBase(), which is why cross-workspace seeding is unreliable -- deserves a decision, not a patch.",
+			"body": "Deferred from the workspace-attribution plan, triaged, NOT done. Own ticket each:\n\n(f) declaredWorkspaceRoots resolving via declaredBase(), which is why cross-workspace seeding is unreliable -- deserves a decision, not a patch.\n\nSTRUCK 2026-08-10: THE PREMISE WAS FIXED ELSEWHERE, and the causal claim above is no longer true. It was true when it was filed (2026-08-06): declaredBase() fell back to process.cwd() at the time, so the catalog came from wherever the operator happened to stand and the seeding it fed was genuinely positional. The two-halves-one-node slice removed that fallback the same week (1df0d243) -- declaredBase() is now SOVEREIGN_BASE, else dirname(REFARM_HOME), else the OS home, and never cwd.\n\nMEASURED 2026-08-10, the same resolution declaredWorkspaceRoots performs, run from three real directories:\n  from ~/github/refarm      base=/home/s095407044 roots=[rcdc5, refarm]\n  from /tmp                 base=/home/s095407044 roots=[rcdc5, refarm]\n  from ~/git/rcdc5/rcdc5    base=/home/s095407044 roots=[rcdc5, refarm]\nIdentical, including each workspace's absolute path. scripts/directory-independence.mjs reports `workspace list` as `same` for the same reason.\n\nWHAT REMAINS, and it is NOT this item: the seeding questions that motivated the ticket live in ISS-057 (--workspace cannot correct an already-stamped session), ISS-058 (workspace_source never reaches the BudgetObservation) and ISS-059. Those are about what the RECORD carries, not about where the catalog is read from. Kept as resolved rather than deleted, because a stale record that vanishes teaches nothing about why it was filed.",
 			"location": "apps/refarm/src/commands/ask.ts:224",
 			"status": "open",
 			"category": "issue",

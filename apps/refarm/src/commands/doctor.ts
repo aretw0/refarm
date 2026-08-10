@@ -185,8 +185,11 @@ export function buildRefarmDoctorReport(
 	// from the SAME probe `classifyStatusDiagnostics` used above, not a second HTTP call —
 	// so `check.ts`'s `runDefaultDoctor` gets this for free through its existing
 	// `buildRefarmDoctorReport(statusPayload.json, …)` call, with no wiring of its own.
+	// ISS-030: `undefined` and `null` are DIFFERENT here and `?? []` collapsed them. Omitted means
+	// "not compared" (the documented default, and what every test that does not care passes);
+	// `null` means the comparison was attempted and threw, which is a finding of its own.
 	const sovereignDivergenceRecommendations = buildSovereignDivergenceDoctorRecommendations(
-		options.sovereignDivergences ?? [],
+		options.sovereignDivergences === undefined ? [] : options.sovereignDivergences,
 		status.runtime.ready === true,
 	);
 	const warnings = [
