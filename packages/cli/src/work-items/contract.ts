@@ -74,6 +74,14 @@ export interface WorkItemAdapter {
 	 * requires `axis` on every open item, so "reopen a resolved item" would otherwise force a hand
 	 * edit inside a gated document. */
 	setAxis(id: string, axis: WorkItemAxis): WorkItemWriteResult;
+	/** Correct what an item SAYS: its title, body or location. Without this the ledger had writers
+	 *  for creation, lifecycle and classification and none for its own prose, so fixing a sentence
+	 *  meant hand-editing a governed document — the exact writer-gap that killed `tasks.json` and
+	 *  `issues.json` the first time (ISS-085), and one that bit five times in a single session.
+	 *  ONE verb rather than three, unlike `setStatus` and `setAxis`: those are separate because
+	 *  lifecycle and classification are separate questions, while title, body and location are three
+	 *  answers to one question — what does this item say. */
+	editText(id: string, fields: { title?: string; body?: string; location?: string }): WorkItemWriteResult;
 }
 
 export function qualifyId(workspaceId: string, itemId: string): string {

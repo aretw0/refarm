@@ -171,6 +171,53 @@ export function createProjectJsonAdapter(options: ProjectJsonAdapterOptions): Wo
 			}
 		},
 
+		editText(
+			id: string,
+			fields: { title?: string; body?: string; location?: string },
+		): WorkItemWriteResult {
+			const named = (["title", "body", "location"] as const).filter((key) => fields[key] !== undefined);
+			if (named.length === 0) {
+				return {
+					ok: false,
+					item: null,
+					error: { reason: "no_fields", message: "Name at least one of --title, --body or --location." },
+				};
+			}
+			// An empty value is REFUSED rather than written: title, body and location are required by
+			// the schema, so "clearing" one produces a record the gate rejects — and a writer that can
+			// leave a governed document invalid is worse than the hand edit it replaces.
+			const empty = named.filter((key) => !String(fields[key]).trim());
+			if (empty.length > 0) {
+				return {
+					ok: false,
+					item: null,
+					error: {
+						reason: "empty_value",
+						message: `${empty.join(", ")} cannot be empty — these fields are required by the schema.`,
+					},
+				};
+			}
+			try {
+				const { records } = readRecords();
+				const index = records.findIndex((record) => String(record.id) === id);
+				if (index === -1) {
+					return { ok: false, item: null, error: { reason: "unknown_id", message: `No work item with id ${id}.` } };
+				}
+				let updated = records[index] as Record<string, unknown>;
+				for (const key of named) {
+					// `withField` keeps key ORDER and every unmodelled key (rcdc5's `description`) — the
+					// same rule `setAxis` follows, and the reason a plain spread is not enough.
+					updated = withField(updated, key, String(fields[key]), ["package"]);
+				}
+				const next = [...records];
+				next[index] = updated;
+				write(next);
+				return { ok: true, item: toWorkItem(updated), error: null };
+			} catch (error) {
+				return { ok: false, item: null, error: documentUnreadableError(error) };
+			}
+		},
+
 		setAxis(id: string, axis: WorkItemAxis): WorkItemWriteResult {
 			if (!WORK_ITEM_AXES.includes(axis)) {
 				return {
@@ -190,7 +237,7 @@ export function createProjectJsonAdapter(options: ProjectJsonAdapterOptions): Wo
 					};
 				}
 				const next = [...records];
-				next[index] = withAxis(records[index] as Record<string, unknown>, axis);
+				next[index] = withField(records[index] as Record<string, unknown>, "axis", axis, ["package"]);
 				write(next);
 				return { ok: true, item: toWorkItem(next[index] as Record<string, unknown>), error: null };
 			} catch (error) {
@@ -200,19 +247,28 @@ export function createProjectJsonAdapter(options: ProjectJsonAdapterOptions): Wo
 	};
 }
 
-/** Rebuilds one record with `axis` set, keeping EVERY other key — including the ones this contract
- * does not model, such as rcdc5's `description` — and keeping them in their original order. A
- * record that had no `axis` gets it in `toDocumentRecord`'s canonical position (immediately after
- * `package`), so a classified-later item is byte-shaped like a classified-at-add one and the
- * document does not drift into two layouts. A plain `{ ...record, axis }` would append instead,
- * and rebuilding from `toWorkItem` would silently DROP the extra fields. */
-function withAxis(record: Record<string, unknown>, axis: WorkItemAxis): Record<string, unknown> {
-	if ("axis" in record) return { ...record, axis };
+/** Rebuilds one record with `key` set, keeping EVERY other key — including the ones this contract
+ * does not model, such as rcdc5's `description` — and keeping them in their original order. A record
+ * that lacks the key gets it immediately after the first `anchors` entry it has, which is
+ * `toDocumentRecord`'s canonical position, so an item edited later is byte-shaped like one written
+ * at `add` and the document does not drift into two layouts. A plain `{ ...record, key }` would
+ * append instead, and rebuilding from `toWorkItem` would silently DROP the extra fields.
+ *
+ * Generalised from `withAxis` when `editText` arrived (ISS-085): both callers differ only in which
+ * key they write and where a missing one belongs. */
+function withField(
+	record: Record<string, unknown>,
+	key: string,
+	value: string,
+	anchors: string[],
+): Record<string, unknown> {
+	if (key in record) return { ...record, [key]: value };
+	const anchor = anchors.find((candidate) => candidate in record);
 	const next: Record<string, unknown> = {};
-	for (const [key, value] of Object.entries(record)) {
-		next[key] = value;
-		if (key === "package") next.axis = axis;
+	for (const [existingKey, existingValue] of Object.entries(record)) {
+		next[existingKey] = existingValue;
+		if (existingKey === anchor) next[key] = value;
 	}
-	if (!("axis" in next)) next.axis = axis;
+	if (!(key in next)) next[key] = value;
 	return next;
 }

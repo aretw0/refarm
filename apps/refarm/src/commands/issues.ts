@@ -878,6 +878,87 @@ function buildValidateCommand(io: IssuesIo): Command {
 		});
 }
 
+interface IssuesEditOptions {
+	workspace?: string;
+	id?: string;
+	title?: string;
+	body?: string;
+	location?: string;
+	json?: boolean;
+}
+
+/**
+ * `edit` corrects what an item SAYS. It is one verb with three optional flags, not three verbs
+ * beside `set-status` and `set-axis`, because those two are separate for a reason that does not
+ * apply here: lifecycle and classification are different questions about an item, while title, body
+ * and location are three answers to the same one.
+ *
+ * ISS-085 is the reason it exists, and the cost was measured rather than imagined: in the session
+ * that built it, two item bodies were corrupted by a shell string executing their backticks, two
+ * were repaired by editing `.project/issues.json` directly, and one item carried a hypothesis proven
+ * wrong with no way to correct the sentence that stated it. A governed document whose only editor is
+ * a text editor is the writer-gap that killed `tasks.json` and `issues.json` the first time.
+ */
+function buildEditCommand(io: IssuesIo): Command {
+	return new Command("edit")
+		.description("Correct a work item's title, body or location")
+		.option("--workspace <id>", "Declared workspace id")
+		.option("--id <id>", "Work item id")
+		.option("--title <title>", "Replacement title")
+		.option("--body <body>", "Replacement body")
+		.option("--location <location>", "Replacement location")
+		.option("--json", "Output machine-readable result")
+		.action((options: IssuesEditOptions) => {
+			const cwd = currentDirectoryForCatalogMatch();
+			const resolution = resolveWorkspaceLedger({ workspace: options.workspace, cwd, ...io });
+			if (!resolution.ok) {
+				refuse("edit", resolution, options.json);
+				return;
+			}
+			if (!options.id?.trim()) {
+				refuseAfterResolution("edit", resolution.workspaceId, "missing_id", "Missing required field: --id.", options.json);
+				return;
+			}
+
+			const fields: { title?: string; body?: string; location?: string } = {};
+			if (options.title !== undefined) fields.title = options.title;
+			if (options.body !== undefined) fields.body = options.body;
+			if (options.location !== undefined) fields.location = options.location;
+
+			const result = resolution.adapter.editText(options.id.trim(), fields);
+			if (!result.ok || !result.item) {
+				refuseAfterResolution(
+					"edit",
+					resolution.workspaceId,
+					result.error?.reason ?? "write_failed",
+					result.error?.message ?? "Could not edit the work item.",
+					options.json,
+				);
+				return;
+			}
+
+			const qualifiedId = qualifyId(resolution.workspaceId, result.item.id);
+			if (options.json) {
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "issues",
+						operation: "edit",
+						nextCommands: [],
+						extra: {
+							workspaceId: resolution.workspaceId,
+							workspaceFrom: resolution.workspaceFrom,
+							providerFrom: resolution.providerFrom,
+							edited: Object.keys(fields),
+							item: { ...result.item, qualifiedId },
+						},
+					}),
+				);
+				return;
+			}
+			console.log(chalk.green(`Edited ${qualifiedId}: ${Object.keys(fields).join(", ")}.`));
+		});
+}
+
 export function createIssuesCommand(io: IssuesIo = defaultIo): Command {
 	const command = new Command("issues").description(
 		"Work items for a declared workspace's ledger — resolved through the catalog, never the cwd",
@@ -886,6 +967,7 @@ export function createIssuesCommand(io: IssuesIo = defaultIo): Command {
 	command.addCommand(buildAddCommand(io));
 	command.addCommand(buildSetStatusCommand(io));
 	command.addCommand(buildSetAxisCommand(io));
+	command.addCommand(buildEditCommand(io));
 	command.addCommand(buildValidateCommand(io));
 	return command;
 }

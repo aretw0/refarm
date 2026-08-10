@@ -165,3 +165,66 @@ describe("project-json adapter specifics", () => {
 		expect(result.error?.reason).toBe("document_unreadable");
 	});
 });
+
+// ISS-085. The ledger had writers for creation, lifecycle and classification, and none for the
+// item's own PROSE. Correcting a title, body or location meant editing .project/issues.json by hand
+// — a governed document — which is the writer-gap that killed tasks.json and issues.json the first
+// time. It bit five times in the 2026-08-10 session alone: two bodies corrupted by a shell string,
+// two corrected by hand, and one hypothesis (ISS-099's) proven wrong with no way to fix the body
+// that carried it.
+describe("editText", () => {
+	function adapterOver(records: unknown[]) {
+		let contents = JSON.stringify({ issues: records });
+		return {
+			adapter: createProjectJsonAdapter({
+				readDocument: () => contents,
+				writeDocument: (next) => { contents = next; },
+			}),
+			read: () => JSON.parse(contents).issues,
+		};
+	}
+
+	const base = {
+		id: "ISS-1", title: "old title", body: "old body", location: "old.ts:1", status: "open",
+		category: "issue", priority: "high", package: "p", axis: "cost", description: "rcdc5's extra",
+	};
+
+	it("edits one field and leaves every other key, and their order, alone", () => {
+		const { adapter, read } = adapterOver([base]);
+		const result = adapter.editText("ISS-1", { body: "a corrected body" });
+		expect(result.ok).toBe(true);
+		expect(read()[0].body).toBe("a corrected body");
+		expect(read()[0].title).toBe("old title");
+		expect(Object.keys(read()[0])).toEqual(Object.keys(base));
+		expect(read()[0].description).toBe("rcdc5's extra");
+	});
+
+	it("edits several fields in one write", () => {
+		const { adapter, read } = adapterOver([base]);
+		adapter.editText("ISS-1", { title: "new", location: "new.ts:9" });
+		expect(read()[0]).toMatchObject({ title: "new", location: "new.ts:9", body: "old body" });
+	});
+
+	it("refuses an edit that names no field rather than writing the record back unchanged", () => {
+		const { adapter } = adapterOver([base]);
+		const result = adapter.editText("ISS-1", {});
+		expect(result.ok).toBe(false);
+		expect(result.error?.reason).toBe("no_fields");
+	});
+
+	it("refuses an unknown id rather than creating a record", () => {
+		const { adapter, read } = adapterOver([]);
+		const result = adapter.editText("ISS-404", { title: "x" });
+		expect(result.ok).toBe(false);
+		expect(result.error?.reason).toBe("unknown_id");
+		expect(read()).toEqual([]);
+	});
+
+	it("refuses an empty value — clearing a required field is not an edit", () => {
+		const { adapter, read } = adapterOver([base]);
+		const result = adapter.editText("ISS-1", { title: "   " });
+		expect(result.ok).toBe(false);
+		expect(result.error?.reason).toBe("empty_value");
+		expect(read()[0].title).toBe("old title");
+	});
+});
