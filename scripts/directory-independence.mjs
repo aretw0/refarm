@@ -475,6 +475,158 @@ export const PROBE_COMMANDS = [
 		allowedVaryingFieldPaths: [],
 	},
 	{
+		name: "auth list",
+		argv: ["auth", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"Credentials are enrolled on the NODE; which ones exist does not change with the caller's directory.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "config plugins list",
+		argv: ["config", "plugins", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"The plugin declarations in the node's config. Declared node until proven otherwise -- the directional rule: a wrongly-node-declared command is convicted and corrected with evidence, the reverse is silently excused.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "issues validate",
+		argv: ["issues", "validate", "--workspace", SELF_WORKSPACE, "--json"],
+		scope: "node",
+		scopeReason:
+			"Validates the ledger addressed through the node's declared catalog, exactly as `issues list` does.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "model doctor",
+		argv: ["model", "doctor", "--json"],
+		scope: "node",
+		scopeReason:
+			"Diagnoses the node's model route and credential.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "model env",
+		argv: ["model", "env", "--json"],
+		scope: "node",
+		scopeReason:
+			"The model-related environment this node resolves.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "process status",
+		argv: ["process", "status", "--json"],
+		scope: "node",
+		scopeReason:
+			"Processes the node is tracking.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "provision list",
+		argv: ["provision", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"What this node has provisioned.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "records analyze",
+		argv: ["records", "analyze", "--json"],
+		scope: "node",
+		scopeReason:
+			"Reads the node's graph.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "workspace mounts",
+		argv: ["workspace", "mounts", "--json"],
+		scope: "node",
+		scopeReason:
+			"Mounts are declared on the node, like workspaces themselves.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "workspace status",
+		argv: ["workspace", "status", "--json"],
+		scope: "node",
+		scopeReason:
+			"The node's view of its declared workspaces.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "hardening",
+		argv: ["hardening", "--json"],
+		scope: "project",
+		scopeReason:
+			"RECLASSIFIED 2026-08-10 by the probe, which is what the directional rule is for: declared `node` on admission, convicted on the first run, and the diverging fields say why — baseline.path, baseline.entries and every ratchet.* field are facts about the TREE being audited. It audits the working tree, so answering identically everywhere would mean it audited nothing.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "health audit",
+		argv: ["health", "audit", "--json"],
+		scope: "project",
+		scopeReason:
+			"The auditing half of `health`, which is already declared project: it inspects the tree the operator is standing in, and an identical answer from /tmp would mean it audited nothing.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "health policy",
+		argv: ["health", "policy", "--json"],
+		scope: "project",
+		scopeReason:
+			"The policy governing THIS project's health audit.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "health suggest-policy",
+		argv: ["health", "suggest-policy", "--json"],
+		scope: "project",
+		scopeReason:
+			"Suggests a policy from what it finds in THIS tree.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "project automations list",
+		argv: ["project", "automations", "list", "--json"],
+		scope: "project",
+		scopeReason:
+			"`refarm project` resolves .project/ relative to the working directory by design; answering the same everywhere would mean it stopped reading the project.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "project automations validate",
+		argv: ["project", "automations", "validate", "--json"],
+		scope: "project",
+		scopeReason:
+			"Same document, same resolution as `project automations list`.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "release check",
+		argv: ["release", "check", "--json"],
+		scope: "project",
+		scopeReason:
+			"Checks THIS repository's release readiness.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "release plan",
+		argv: ["release", "plan", "--json"],
+		scope: "project",
+		scopeReason:
+			"Plans a release of THIS repository.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "workspace execution",
+		argv: ["workspace", "execution", "--json"],
+		scope: "project",
+		scopeReason:
+			"Inspects THIS directory's package manager, turbo and cache state -- resolveWorkspaceExecutionCwd's flagless branch deliberately reads the current directory, and the 2026-08-06 slice kept it that way on purpose.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
 		name: "workspace sources declarations",
 		argv: ["workspace", "sources", "declarations", "--json"],
 		scope: "node",

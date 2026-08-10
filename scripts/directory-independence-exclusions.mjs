@@ -39,6 +39,7 @@ export const EXCLUSION_CATEGORIES = Object.freeze({
 /** The declared exclusions. `category` must be a key of EXCLUSION_CATEGORIES. */
 export const PROBE_EXCLUSIONS = Object.freeze([
 	// --- mutates ---
+	{ argv: ["agent", "doctor"], category: "mutates" },
 	{ argv: ["agent", "finish"], category: "mutates" },
 	{ argv: ["agent-respond"], category: "mutates" },
 	{ argv: ["auth", "enroll"], category: "mutates" },
@@ -109,26 +110,6 @@ export const PROBE_EXCLUSIONS = Object.freeze([
 	{ argv: ["parity"], category: "no-fixture" },
 	{ argv: ["telemetry"], category: "no-fixture" },
 	// --- not-yet-probed ---
-	{ argv: ["agent", "doctor"], category: "not-yet-probed" },
-	{ argv: ["auth", "list"], category: "not-yet-probed" },
-	{ argv: ["config", "plugins", "list"], category: "not-yet-probed" },
-	{ argv: ["hardening"], category: "not-yet-probed" },
-	{ argv: ["health", "audit"], category: "not-yet-probed" },
-	{ argv: ["health", "policy"], category: "not-yet-probed" },
-	{ argv: ["health", "suggest-policy"], category: "not-yet-probed" },
-	{ argv: ["issues", "validate"], category: "not-yet-probed" },
-	{ argv: ["model", "doctor"], category: "not-yet-probed" },
-	{ argv: ["model", "env"], category: "not-yet-probed" },
-	{ argv: ["process", "status"], category: "not-yet-probed" },
-	{ argv: ["project", "automations", "list"], category: "not-yet-probed" },
-	{ argv: ["project", "automations", "validate"], category: "not-yet-probed" },
-	{ argv: ["provision", "list"], category: "not-yet-probed" },
-	{ argv: ["records", "analyze"], category: "not-yet-probed" },
-	{ argv: ["release", "check"], category: "not-yet-probed" },
-	{ argv: ["release", "plan"], category: "not-yet-probed" },
-	{ argv: ["workspace", "execution"], category: "not-yet-probed" },
-	{ argv: ["workspace", "mounts"], category: "not-yet-probed" },
-	{ argv: ["workspace", "status"], category: "not-yet-probed" },
 ]);
 
 /**
@@ -137,4 +118,4 @@ export const PROBE_EXCLUSIONS = Object.freeze([
  * `scripts/no-os-resolution.mjs`'s BASELINE_MAX_OFFENDING_SITES: the number goes down, or the change
  * is wrong.
  */
-export const NOT_YET_PROBED_CEILING = 20;
+export const NOT_YET_PROBED_CEILING = 0;

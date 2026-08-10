@@ -116,10 +116,6 @@ function handoffPath(cwd: string): string {
 	return path.join(cwd, PROJECT_HANDOFF_RELATIVE_PATH);
 }
 
-function automationsPath(cwd: string): string {
-	return path.join(cwd, PROJECT_AUTOMATIONS_RELATIVE_PATH);
-}
-
 /**
  * A ledger for `tick` dry-run: it reads the real `.refarm` fired state (so the
  * report reflects what a real `--submit` would fire), but `recordFired` is a
@@ -463,7 +459,9 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 		.action((options: AutomationsValidateOptions) => {
 			const filePath = automationsPath(deps.cwd());
 			const document = readExistingJson(filePath);
-			const result = validateProjectAutomationsDocument(document);
+			// The path it ACTUALLY read, not the bare relative name: the same string from every
+			// directory cannot say which project answered (see `automationsPath`).
+			const result = validateProjectAutomationsDocument(document, { path: filePath });
 			printAutomationsValidation(result, {
 				json: options.json,
 				operation: "automations.validate",
@@ -499,7 +497,7 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 							operation: "automations.list",
 							nextCommands,
 							extra: {
-								path: PROJECT_AUTOMATIONS_RELATIVE_PATH,
+								path: automationsPath(deps.cwd()),
 								status: options.status ?? null,
 								count: automations.length,
 								automations,
@@ -589,7 +587,7 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 							operation: options.dryRun ? "automations.add.dry-run" : "automations.add",
 							nextCommands,
 							extra: {
-								path: PROJECT_AUTOMATIONS_RELATIVE_PATH,
+								path: automationsPath(deps.cwd()),
 								dryRun: Boolean(options.dryRun),
 								automation,
 								document,
@@ -662,7 +660,7 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 								: "automations.set-status",
 							nextCommands,
 							extra: {
-								path: PROJECT_AUTOMATIONS_RELATIVE_PATH,
+								path: automationsPath(deps.cwd()),
 								dryRun: Boolean(options.dryRun),
 								automation,
 								document,
@@ -791,6 +789,19 @@ function projectAutomationTriggerFromOptions(
 		return { type: "event", eventType: options.eventType };
 	}
 	throw new Error("Automation trigger must be manual, once, cron, or event.");
+}
+
+/** The automations document this invocation actually read, ABSOLUTE.
+ *
+ * It used to report the bare relative `.project/automations.json`, which is the same string from
+ * every directory — so the envelope could not say WHICH project answered, and three runs from three
+ * different places were indistinguishable. `scripts/directory-independence.mjs` convicted it through
+ * the inverse check: a project-scoped command that answers identically everywhere has stopped
+ * reading the project, or has stopped saying which one it read. Same defect ISS-034 had in
+ * `workspace sources declarations`, one command over.
+ */
+function automationsPath(cwd: string): string {
+	return path.join(cwd, PROJECT_AUTOMATIONS_RELATIVE_PATH);
 }
 
 export function createProjectCommand(deps: Partial<ProjectDeps> = {}): Command {
