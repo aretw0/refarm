@@ -442,3 +442,45 @@ test("declaredSelfWorkspace finds the id this checkout is declared under", () =>
 	assert.equal(declaredSelfWorkspace("/home/op/.refarm", "/home/op/github/refarm", { readFile: () => config }), "refarm");
 	assert.equal(declaredSelfWorkspace("/home/op/.refarm", "/somewhere/else", { readFile: () => config }), null);
 });
+
+// ---- A command that answers with a negative verdict RAN. ----
+//
+// ISS-098. runCliFromDirectory treated any non-zero exit as unrunnable, so `refarm health --json`
+// from the rcdc5 workspace — a complete envelope with ok:false and 25 issues — was recorded as a
+// command that did not run. It ran; it answered; the answer was "this project has 25 issues". The
+// two states are acted on differently: unrunnable-somewhere CONVICTS a node command on the grounds
+// that it refuses in some directories, while a command answering differently is a finding to be
+// compared field by field.
+
+test("an exit code that differs across directories is itself a divergence", () => {
+	const result = compareAnswers(
+		{ repo: ran({ ok: true }, 0), tmp: ran({ ok: true }, 1) },
+		NODE_IDENTICAL,
+	);
+	assert.equal(result.verdict, "differs-undeclared");
+	assert.deepEqual(result.fieldPaths, ["(exit code)"]);
+});
+
+test("an identical answer with an identical exit code is still same", () => {
+	const result = compareAnswers({ repo: ran({ ok: false }, 1), tmp: ran({ ok: false }, 1) }, NODE_IDENTICAL);
+	assert.equal(result.verdict, "same");
+});
+
+test("the exit code is compared ALONGSIDE the body, never instead of it", () => {
+	const result = compareAnswers(
+		{ repo: ran({ count: 1 }, 1), tmp: ran({ count: 2 }, 0) },
+		NODE_IDENTICAL,
+	);
+	assert.deepEqual(result.fieldPaths, ["(exit code)", "count"]);
+});
+
+test("a declared exit-code difference passes like any other declared path", () => {
+	const declaration = {
+		scope: "node",
+		scopeReason: "r",
+		allowedVaryingFieldPaths: ["(exit code)"],
+		fieldReasons: { "(exit code)": "this command exits non-zero when it finds something" },
+	};
+	const result = compareAnswers({ repo: ran({}, 0), tmp: ran({}, 1) }, declaration);
+	assert.equal(result.verdict, "differs-as-declared");
+});

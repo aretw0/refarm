@@ -53,13 +53,20 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 // never `null`, because `null` is itself a value a real `--json` answer could legitimately
 // contain and overloading it would make "it failed" indistinguishable from "it answered null".
 
-/** Wraps a successfully parsed JSON answer. */
-export function ran(value) {
-	return { status: "ran", value };
+/** Wraps a successfully parsed JSON answer, with the exit code the command left behind.
+ *
+ * ISS-098: the exit code is part of the ANSWER, not a gate on whether there was one. `refarm health
+ * --json` prints a complete envelope with ok:false and exits non-zero when a project has findings —
+ * it ran, and recording that as "did not run" both loses the answer and convicts (or excuses) for
+ * the wrong reason. Defaults to 0 so every existing caller and test keeps its meaning. */
+export function ran(value, exitCode = 0) {
+	return { status: "ran", value, exitCode };
 }
 
-/** Wraps a directory where the command produced no comparable answer (crash, timeout, non-JSON
- * stdout, non-zero exit). `reason` is free text for the report table, not matched on. */
+/** Wraps a directory where the command produced NO COMPARABLE ANSWER: a crash, a timeout, a missing
+ * binary, or stdout that is not JSON. A non-zero exit is NOT one of these (ISS-098) — a command that
+ * printed a valid envelope and exited 1 answered, and its exit code is compared like any other
+ * field. `reason` is free text for the report table, not matched on. */
 export function unrunnable(reason) {
 	return { status: "unrunnable", reason };
 }
@@ -155,16 +162,24 @@ function isDeclaredPath(fieldPath, declaredPaths) {
  * comparison serves both questions this probe asks — "does it differ between directories?" and
  * "does it differ between two runs in one directory?" — because a control measured by a different
  * rule than the comparison it feeds would exclude the wrong fields. */
+export const EXIT_CODE_PATH = "(exit code)";
+
 export function divergingPaths(byDirectory) {
 	const labels = Object.keys(byDirectory);
+	// The exit code is compared as its own synthetic path, parenthesised so it can never collide
+	// with a real JSON field name. Alongside the body, never instead of it: a command can answer the
+	// same thing and exit differently, and both facts matter.
+	const exitCodes = labels.map((label) => byDirectory[label].exitCode ?? 0);
+	const exitDiverges = exitCodes.some((code) => code !== exitCodes[0]);
 	const allPaths = new Set();
 	for (const label of labels) collectLeafPaths(byDirectory[label].value, "", allPaths);
-	return [...allPaths]
+	const bodyPaths = [...allPaths]
 		.filter((p) => p !== "")
 		.filter((fieldPath) => {
 			const values = labels.map((label) => getAtPath(byDirectory[label].value, fieldPath));
 			return values.some((v) => !valuesEqual(v, values[0]));
 		});
+	return exitDiverges ? [EXIT_CODE_PATH, ...bodyPaths] : bodyPaths;
 }
 
 export function compareAnswers(byDirectory, declaration, inPlaceVaryingFieldPaths = []) {
@@ -699,17 +714,23 @@ export function runCliFromDirectory(
 
 	if (result.error) return unrunnable(`spawn error: ${result.error.message}`);
 	if (result.signal) return unrunnable(`killed by signal ${result.signal} (likely timeout)`);
-	if (result.status !== 0) {
-		const stderr = (result.stderr || "").trim().slice(0, 300);
-		return unrunnable(`exit code ${result.status}${stderr ? `: ${stderr}` : ""}`);
-	}
 
+	// PARSE FIRST, exit code second (ISS-098). A non-zero exit with a valid envelope is an ANSWER —
+	// `refarm health --json` exits 1 when it finds issues and prints the whole report — and treating
+	// it as "did not run" discarded the evidence and produced the right verdict for the wrong reason.
+	// The exit code travels with the answer and is compared like any other field.
 	const stdout = (result.stdout || "").trim();
-	if (!stdout) return unrunnable("empty stdout");
+	if (!stdout) {
+		const stderr = (result.stderr || "").trim().slice(0, 300);
+		return unrunnable(`exit code ${result.status}, empty stdout${stderr ? `: ${stderr}` : ""}`);
+	}
 	try {
-		return ran(JSON.parse(stdout));
+		return ran(JSON.parse(stdout), result.status ?? 0);
 	} catch {
-		return unrunnable(`stdout was not valid JSON: ${stdout.slice(0, 200)}`);
+		const stderr = (result.stderr || "").trim().slice(0, 200);
+		return unrunnable(
+			`stdout was not valid JSON (exit ${result.status}): ${stdout.slice(0, 160)}${stderr ? ` | ${stderr}` : ""}`,
+		);
 	}
 }
 
