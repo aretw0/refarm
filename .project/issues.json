@@ -1076,6 +1076,17 @@
 			"priority": "high",
 			"package": "apps/refarm",
 			"axis": "node-vs-directory"
+		},
+		{
+			"id": "ISS-096",
+			"title": "Twenty-one read-only commands are probeable and not yet probed, held under a ratchet",
+			"body": "MEASURED 2026-08-10 while building the coverage test. The CLI has 187 leaf commands, not the 64 top-level ones the first count reported, and 181 of them accept --json -- the flag is nearly universal here. Of those, 64 require a positional argument the probe has no fixture for and are excluded by a DERIVED rule, 35 are probed, and 85 needed a decision.\n\nOf the 85, twenty-one are read-only candidates that SHOULD be probed and have not been given a scope and a written reason yet: agent doctor, auth list, config plugins list, hardening, health audit, health policy, health suggest-policy, issues validate, model doctor, model env, process status, project automations list, project automations validate, provision list, records analyze, release check, release plan, workspace execution, workspace mounts, workspace sources declarations, workspace status.\n\nThey are NOT in the probe yet for one reason, and it is the ISS-091 lesson: `refarm task list` looked read-only from every angle a reviewer has -- it is called list, it prints, it exits 0 -- and it rewrites the node's task-session file on every read. Admitting twenty-one commands to an instrument that runs each of them four times per invocation, on the strength of their names, would repeat that mistake twenty-one times. Each needs the same treatment the 35 got: verify it writes nothing, decide node or project, write the reason.\n\nTHE BACKLOG IS RATCHETED, NOT MERELY LISTED. scripts/directory-independence-exclusions.mjs exports NOT_YET_PROBED_CEILING = 21 and apps/refarm/test/commands/probe-coverage.test.ts fails if the count exceeds it -- same discipline as no-os-resolution.mjs's BASELINE_MAX_OFFENDING_SITES. A new command may be excluded as mutating, interactive or expensive; it may not join this backlog. Lower the ceiling in the same commit that graduates a command into PROBE_COMMANDS.\n\nProbing all 21 would raise the measured surface from 35 to 56 of the 116 commands that are probeable in principle (181 with --json, minus 64 needing arguments, minus the mutating and interactive ones).",
+			"location": "scripts/directory-independence-exclusions.mjs",
+			"status": "open",
+			"category": "capability",
+			"priority": "medium",
+			"package": "scripts",
+			"axis": "durability"
 		}
 	]
 }

@@ -428,7 +428,7 @@ refarm agent finish --lane after-commit --run --json
 - Consumes: `PROBE_COMMANDS`, the Commander program from `apps/refarm/src/program.ts`.
 - Produces: `PROBE_EXCLUSIONS: Array<{ argv: string[], reason: string }>`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 import { describe, expect, it } from "vitest";
@@ -468,7 +468,7 @@ describe("probe coverage", () => {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail**
+- [x] **Step 2: Run and watch it fail**
 
 ```bash
 pnpm --filter refarm exec vitest run test/commands/probe-coverage.test.ts
@@ -476,7 +476,7 @@ pnpm --filter refarm exec vitest run test/commands/probe-coverage.test.ts
 Expected: a long `uncovered` array — that array **is** the honest coverage gap, and printing it is
 the point.
 
-- [ ] **Step 3: Write the exclusions, each with a reason**
+- [x] **Step 3: Write the exclusions, each with a reason**
 
 ```javascript
 /** Commands deliberately outside the directory-independence probe. Every entry needs a reason:
@@ -491,7 +491,7 @@ export const PROBE_EXCLUSIONS = [
 ];
 ```
 
-- [ ] **Step 4: Run until green, then commit**
+- [x] **Step 4: Run until green, then commit**
 
 ```bash
 pnpm --filter refarm exec vitest run test/commands/probe-coverage.test.ts
