@@ -531,6 +531,14 @@ export const PROBE_COMMANDS = [
 		allowedVaryingFieldPaths: [],
 	},
 	{
+		name: "task list",
+		argv: ["task", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"Efforts live in the node's queue and graph, not in a directory. Probeable since ISS-091 moved its session write behind an explicit --refresh: before that it rewrote the node's task-session file on every read, so an instrument running it four times per pass wrote four times.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
 		name: "sessions list",
 		argv: ["sessions", "list", "--json"],
 		scope: "node",

@@ -31,7 +31,7 @@ export const EXCLUSION_CATEGORIES = Object.freeze({
 	"no-fixture":
 		"Cannot produce a comparable answer in this environment — it needs the sandbox node running, a language server, or an armed intention. It would report `unproven` on every run, which is noise rather than signal.",
 	"writes-on-read":
-		"Looks read-only and is not. `refarm task list --json` rewrites ~/.refarm/sessions/task-session.v1.json on every read (ISS-091). Excluded until that stops; this category exists so the exception is legible rather than filed under `mutates`, which would hide that a LIST command writes.",
+		"Looks read-only and is not. CURRENTLY UNUSED: its only instance was `refarm task list`, which rewrote ~/.refarm/sessions/task-session.v1.json on every read until ISS-091 moved that behind an explicit --refresh. The category stays because the defect CLASS is real and was invisible until an instrument ran the command four times per pass — a future one should be filed here rather than under `mutates`, which would hide that a LIST command writes.",
 	"not-yet-probed":
 		"A read-only candidate that SHOULD be probed and has not been given a scope and a reason yet. Ratcheted by the coverage test: this list may shrink, never grow.",
 });
@@ -106,8 +106,6 @@ export const PROBE_EXCLUSIONS = Object.freeze([
 	{ argv: ["intention", "check"], category: "no-fixture" },
 	{ argv: ["parity"], category: "no-fixture" },
 	{ argv: ["telemetry"], category: "no-fixture" },
-	// --- writes-on-read ---
-	{ argv: ["task", "list"], category: "writes-on-read" },
 	// --- not-yet-probed ---
 	{ argv: ["agent", "doctor"], category: "not-yet-probed" },
 	{ argv: ["auth", "list"], category: "not-yet-probed" },
