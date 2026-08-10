@@ -514,7 +514,7 @@ refarm agent finish --lane after-commit --run --json
 **The conviction list, measured 2026-08-10.** 35 probed · 26 same · 1 declared · **4 convicted** ·
 0 unproven. This plan stops being unbounded here.
 
-- [ ] **5.1 — `resume`, ISS-092 (critical).** Sixteen `project.*` paths. From `/tmp` it returns
+- [x] **5.1 — `resume`, ISS-092 (critical).** DONE `caf5b851`: probe row `resume` → differs-as-declared (pass), new row `resume --workspace <self>` → same. Convictions 4 → 3, ratchet 117 → 116. Sixteen `project.*` paths. From `/tmp` it returns
   `ok: true` with an empty project block and `truncation: null`. The entry point CLAUDE.md mandates
   at every slice start cannot distinguish "no work" from "no project read". Fix shape: three states
   in the project block, never two.

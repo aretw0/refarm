@@ -1038,11 +1038,12 @@
 			"title": "refarm resume --json returns ok:true with an EMPTY project block outside the repository",
 			"body": "CONVICTED by scripts/directory-independence.mjs on 2026-08-10. Verdict: differs-undeclared, scope node. Sixteen diverging field paths: project.blockers, project.context, project.currentPhase, project.currentTasks, project.nextActions, project.openQuestions, project.path, project.timestamp, and all eight project.truncation.{blockers,currentTasks,nextActions,openQuestions}.{returned,total}. Directories: /home/s095407044/github/refarm vs /tmp vs ~/git/rcdc5. environmentPressure.signals was EXCLUDED as time-variant by the control pair, so all sixteen are real.\n\nWHAT IT ACTUALLY RETURNS from /tmp, measured: ok:true, project.path null, currentPhase null, context empty string, 0 currentTasks, 0 nextActions, 0 blockers, truncation null.\n\nTHIS IS THE ZERO THAT IS NOT A ZERO, at the front door. CLAUDE.md section 4 mandates 'refarm resume --json' at the start of EVERY slice and tells the agent to trust its nextCommands. From outside the repository it reports no work, no blockers and no next actions with ok:true, and nothing in the envelope distinguishes 'this node has no pending work' from 'I did not read any project'. Worse: the truncation field is null -- the field the 2026-08-08 slice added SPECIFICALLY so a partial read could not masquerade as a complete one now reads as 'nothing was truncated' rather than 'nothing was read'. That slice fixed the instrument lying about 5-of-24; this is the same instrument lying about 0-of-24 one directory over.\n\nSCOPE DECISION, AND WHY IT IS A CONVICTION RATHER THAN A DECLARATION: resume is MIXED. Runtime, model, session and ledger are node facts -- the ledger block is correctly identical from all three directories, which proves the node path works -- while the project block is genuinely this directory's project. Declaring project.* as allowed-varying would make the row pass and leave the empty-block-with-ok-true untouched, which is declaring the defect instead of closing it.\n\nFIX SHAPE, to be decided in the burn-down after auditing the call sites: the project block needs three states, not two -- a project was read (contents), there is no project here (explicitly absent, never an empty list), and the project could not be read (a named failure). apps/refarm/src/commands/resume.ts carries 3 bare process.cwd() sites, and packages/cli/src/project-handoff.ts:100 resolves .project/handoff.json as a RELATIVE path -- the same positional resolution the ledger slice named when it refused to mirror 'refarm project' for the issues command.",
 			"location": "apps/refarm/src/commands/resume.ts",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "critical",
 			"package": "apps/refarm",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "caf5b851"
 		},
 		{
 			"id": "ISS-093",
