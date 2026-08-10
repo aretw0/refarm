@@ -280,6 +280,50 @@ export function summarise(rows) {
 	};
 }
 
+/**
+ * ISONOMY. The scope table below is a statement about REFARM — "`resume` speaks for the node" is
+ * true on every machine that runs this binary. The verdict table it produces is a measurement of ONE
+ * node on one date. Nothing in this file may confuse the two, and until 2026-08-10 one entry did: it
+ * named `--workspace refarm` literally, so on any node that declares no workspace by that id the
+ * entry measured nothing while still occupying a row.
+ *
+ * `SELF_WORKSPACE` is the placeholder for "whichever id this node declares for this checkout".
+ * `withSelfWorkspace` substitutes it, and DROPS the entry when the node declares none — never
+ * guesses an id, because a guessed workspace would produce a verdict about a workspace nobody named.
+ */
+export const SELF_WORKSPACE = "<self>";
+
+/** The id this node declares for `repoRoot`, or `null` when this checkout is not a declared
+ * workspace here. Mirror of `declaredSecondWorkspace`, and null for the same reason: a fallback
+ * would put a verdict about some other workspace in this row. */
+export function declaredSelfWorkspace(sovereignDir, repoRoot, { readFile = (p) => fs.readFileSync(p, "utf8") } = {}) {
+	let config;
+	try {
+		config = JSON.parse(readFile(path.join(sovereignDir, "config.json")));
+	} catch {
+		return null;
+	}
+	for (const [id, value] of Object.entries(config?.workspaces ?? {})) {
+		const declaredPath = typeof value?.path === "string" ? value.path : "";
+		if (!declaredPath) continue;
+		if (path.resolve(path.dirname(sovereignDir), declaredPath) === path.resolve(repoRoot)) return id;
+	}
+	return null;
+}
+
+/** Substitutes `SELF_WORKSPACE` in every entry's argv, dropping entries that need it when this node
+ * declares no id for this checkout. The caller reports what was dropped — a silently shorter table
+ * is a smaller measurement presented as the same one. */
+export function withSelfWorkspace(commands, selfWorkspaceId) {
+	return commands
+		.filter((command) => selfWorkspaceId !== null || !command.argv.includes(SELF_WORKSPACE))
+		.map((command) =>
+			command.argv.includes(SELF_WORKSPACE)
+				? { ...command, argv: command.argv.map((token) => (token === SELF_WORKSPACE ? selfWorkspaceId : token)) }
+				: command,
+		);
+}
+
 // ---- The declaration table. ----
 //
 // Five commands, measured by hand by the operator (2026-08-07) and reproduced by this probe.
@@ -437,11 +481,11 @@ export const PROBE_COMMANDS = [
 		allowedVaryingFieldPaths: [],
 	},
 	{
-		name: "issues list --workspace refarm",
-		argv: ["issues", "list", "--workspace", "refarm", "--json"],
+		name: "issues list",
+		argv: ["issues", "list", "--workspace", SELF_WORKSPACE, "--json"],
 		scope: "node",
 		scopeReason:
-			"The ledger is addressed through the node's declared catalog; the 2026-08-08 slice proved this identical from three directories by hand, and this entry is that proof's regression guard.",
+			"The ledger is addressed through the node's declared catalog, so it answers the same from anywhere; the workspace id comes from THIS node's declaration rather than a literal, which is what makes the row mean the same thing on any node.",
 		allowedVaryingFieldPaths: [],
 	},
 	{
@@ -677,6 +721,37 @@ export function snapshotDirectory(root) {
 	return snapshot;
 }
 
+/**
+ * The probe's second directory: another DECLARED workspace, read from the node's own catalog rather
+ * than guessed from a path that looks right.
+ *
+ * This function exists because the guess was wrong. Until 2026-08-10 the probe used
+ * `~/git/rcdc5` — the PARENT of the declared workspace `~/git/rcdc5/rcdc5` — so it ran from inside
+ * ONE workspace and two directories that are inside none. Every resolver's cwd-match branch, the
+ * branch that decides which project, which ledger and which budget policy answer, was never
+ * exercised from a second workspace at all. The probe was measuring "workspace vs nowhere" and
+ * reporting it as directory independence.
+ *
+ * Returns `null` rather than a fallback when the catalog cannot be read or declares nothing but this
+ * checkout: a probe that quietly substituted some other directory would go back to measuring
+ * something other than what it says.
+ */
+export function declaredSecondWorkspace(sovereignDir, repoRoot, { readFile = (p) => fs.readFileSync(p, "utf8") } = {}) {
+	let config;
+	try {
+		config = JSON.parse(readFile(path.join(sovereignDir, "config.json")));
+	} catch {
+		return null;
+	}
+	for (const [id, value] of Object.entries(config?.workspaces ?? {})) {
+		const declaredPath = typeof value?.path === "string" ? value.path : "";
+		if (!declaredPath) continue;
+		const resolved = path.resolve(path.dirname(sovereignDir), declaredPath);
+		if (resolved !== path.resolve(repoRoot)) return { id, path: resolved };
+	}
+	return null;
+}
+
 /** True when `dir` exists and is a readable directory — used to validate the operator's
  * real work repository (`~/git/rcdc5`) before trusting it as the third probe directory. */
 function isReadableDirectory(dir) {
@@ -698,14 +773,21 @@ export function resolveProbeDirectories({
 	repoRoot = REPO_ROOT,
 	homedir = os.homedir(),
 	tmpdir = os.tmpdir(),
-	rcdc5Dir = path.join(homedir, "git", "rcdc5"),
+	secondWorkspace = declaredSecondWorkspace(observedSovereignDir(homedir), repoRoot),
 	exists = isReadableDirectory,
 } = {}) {
+	// THREE KINDS OF DIRECTORY, and each earns its place: this checkout (a declared workspace),
+	// somewhere unrelated to refarm entirely (/tmp), and ANOTHER declared workspace. The third used
+	// to be `~/git/rcdc5` — the parent of the declared workspace, inside no workspace at all — so
+	// two of the three were "nowhere" and no resolver's cwd-match branch was ever exercised against
+	// a second workspace. The label carries the workspace id so the report says which one answered.
 	const directories = { repo: repoRoot, tmp: tmpdir };
-	if (exists(rcdc5Dir)) {
-		directories.rcdc5 = rcdc5Dir;
+	if (secondWorkspace && exists(secondWorkspace.path)) {
+		directories[`workspace:${secondWorkspace.id}`] = secondWorkspace.path;
 	} else {
-		directories["home (rcdc5 unavailable)"] = homedir;
+		// Named, never silent: a two-directory run measures less, and the header must say so rather
+		// than let a missing workspace read as a clean three-directory result.
+		directories["home (no second workspace declared)"] = homedir;
 	}
 	return directories;
 }
@@ -779,7 +861,18 @@ function main() {
 	// The declaration guard runs BEFORE anything is probed. A malformed table would otherwise
 	// produce a full run of verdicts whose judgements cannot be trusted — and the expensive part
 	// (three spawns per command) would already have been paid.
-	const declarationErrors = validateDeclarations(PROBE_COMMANDS);
+	// ISONOMY: the id for this checkout comes from THIS node's catalog, never from a literal in the
+	// table. A node that declares no id for this checkout loses that one row, and is told so —
+	// a shorter table presented as the same measurement is the defect this probe exists to find.
+	const selfWorkspaceId = declaredSelfWorkspace(observedSovereignDir(os.homedir()), REPO_ROOT);
+	const commands = withSelfWorkspace(PROBE_COMMANDS, selfWorkspaceId);
+	if (commands.length < PROBE_COMMANDS.length) {
+		process.stdout.write(
+			`directory-independence: ${PROBE_COMMANDS.length - commands.length} command(s) skipped — this checkout is not a declared workspace on this node.\n`,
+		);
+	}
+
+	const declarationErrors = validateDeclarations(commands);
 	if (declarationErrors.length > 0) {
 		process.stderr.write(`directory-independence: ${declarationErrors.length} malformed declaration(s)\n`);
 		for (const message of declarationErrors) process.stderr.write(`  - ${message}\n`);
@@ -789,7 +882,7 @@ function main() {
 
 	const directories = resolveProbeDirectories();
 	process.stdout.write(
-		`directory-independence: probing ${PROBE_COMMANDS.length} command(s) from ` +
+		`directory-independence: probing ${commands.length} command(s) from ` +
 			`${Object.entries(directories)
 				.map(([label, dir]) => `${label}=${dir}`)
 				.join(", ")}\n\n`,
@@ -801,7 +894,7 @@ function main() {
 	const sovereignDir = observedSovereignDir(os.homedir());
 	const before = snapshotDirectory(sovereignDir);
 
-	const rows = runProbe(PROBE_COMMANDS, directories);
+	const rows = runProbe(commands, directories);
 	process.stdout.write(`${formatProbeTable(rows)}\n`);
 
 	// WARNS, never blocks: the daemon shares this directory and may legitimately write while the

@@ -311,6 +311,28 @@ reports" — a snapshot goes stale the moment a command is added or code changes
 stale is `apps/refarm/test/commands/probe-coverage.test.ts`, which fails if a new leaf command is
 neither probed nor excluded with a written reason.
 
+#### What is universal here, and what belongs to one node
+
+**The declarations are refarm's. The verdicts are the node's.** "`resume` speaks for the node" is a
+statement about this binary and is true on every machine that runs it; "`resume` is convicted" is a
+measurement of one node on one date. The two live in the same file and must never be read as the same
+kind of claim.
+
+Three consequences, all enforced in code rather than asked for in prose:
+
+- **No workspace id is written literally in the table.** The one entry that needs one uses the
+  `SELF_WORKSPACE` placeholder, and `withSelfWorkspace` substitutes whatever id THIS node declares
+  for this checkout. On a node that declares it as `meu-projeto`, the row runs as
+  `issues list --workspace meu-projeto`. On a node that declares this checkout not at all, the row is
+  **dropped and the run says so** — never guessed, because a guessed workspace produces a verdict
+  about a workspace nobody named.
+- **The second directory is read from the node's catalog**, not from a path that looks right. Until
+  2026-08-10 it was the hardcoded `~/git/rcdc5` — which is the *parent* of that declared workspace,
+  so the probe ran from one workspace and two directories inside none, and no resolver's cwd-match
+  branch was ever exercised against a second workspace.
+- **A node with fewer workspaces measures less, and the header says which directories answered.** It
+  never silently drops to two and reports the result as if three had agreed.
+
 #### Three things this table says that the old one could not
 
 **A command declares what it speaks about.** `scope: "node"` means the answer must not change with

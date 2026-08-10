@@ -3,6 +3,8 @@ import { test } from "node:test";
 
 import {
 	compareAnswers,
+	declaredSecondWorkspace,
+	declaredSelfWorkspace,
 	diffSnapshots,
 	divergingPaths,
 	judge,
@@ -10,9 +12,11 @@ import {
 	PROBE_COMMANDS,
 	ran,
 	runProbe,
+	SELF_WORKSPACE,
 	summarise,
 	unrunnable,
 	validateDeclarations,
+	withSelfWorkspace,
 } from "./directory-independence.mjs";
 
 /** A declaration with no allowed variance — the command must answer identically everywhere. */
@@ -371,4 +375,70 @@ test("diffSnapshots is silent when nothing moved", () => {
 test("observedSovereignDir takes the home EXPLICITLY — no default to forget", () => {
 	assert.equal(observedSovereignDir("/home/op"), "/home/op/.refarm");
 	assert.equal(observedSovereignDir.length, 1);
+});
+
+// ---- The second directory must be a declared WORKSPACE, not a path that looks like one. ----
+//
+// Measured 2026-08-10: the probe's third directory was ~/git/rcdc5, the PARENT of the declared
+// workspace ~/git/rcdc5/rcdc5. So it ran from inside ONE workspace and two non-workspaces, and the
+// cwd-match branch of every resolver -- the branch that decides which project, which ledger, which
+// budget policy answers -- was never exercised from a second workspace at all. The probe was
+// measuring "workspace vs nowhere" while reporting "directory independence".
+
+test("declaredSecondWorkspace picks a declared workspace that is not this checkout", () => {
+	const config = JSON.stringify({
+		workspaces: { refarm: { path: "/home/op/github/refarm" }, rcdc5: { path: "/home/op/git/rcdc5/rcdc5" } },
+	});
+	const chosen = declaredSecondWorkspace("/home/op/.refarm", "/home/op/github/refarm", {
+		readFile: () => config,
+	});
+	assert.deepEqual(chosen, { id: "rcdc5", path: "/home/op/git/rcdc5/rcdc5" });
+});
+
+test("declaredSecondWorkspace returns null rather than guessing when the catalog is unreadable", () => {
+	const chosen = declaredSecondWorkspace("/home/op/.refarm", "/home/op/github/refarm", {
+		readFile: () => { throw new Error("ENOENT"); },
+	});
+	assert.equal(chosen, null);
+});
+
+test("declaredSecondWorkspace returns null when this checkout is the only declared workspace", () => {
+	const config = JSON.stringify({ workspaces: { refarm: { path: "/home/op/github/refarm" } } });
+	const chosen = declaredSecondWorkspace("/home/op/.refarm", "/home/op/github/refarm", {
+		readFile: () => config,
+	});
+	assert.equal(chosen, null);
+});
+
+// ---- Isonomy: the declarations are refarm's, the verdicts are the node's. ----
+//
+// The operator asked on 2026-08-10 whether this instrument was coupling to HIS node's workspaces.
+// It was, in one place: the table named `--workspace refarm` literally, so the entry was meaningless
+// on any node that does not declare a workspace by that id. The scope table is a statement about
+// refarm and is true on every node; the verdict table is a measurement of one node on one date, and
+// nothing may confuse the two.
+
+test("the self-workspace placeholder is substituted with whatever this node declares", () => {
+	const commands = [
+		{ name: "issues list", argv: ["issues", "list", "--workspace", SELF_WORKSPACE, "--json"], scope: "node", scopeReason: "r", allowedVaryingFieldPaths: [] },
+	];
+	const [resolved] = withSelfWorkspace(commands, "some-other-id");
+	assert.deepEqual(resolved.argv, ["issues", "list", "--workspace", "some-other-id", "--json"]);
+});
+
+test("an entry needing the self workspace is DROPPED, not guessed, when this node declares none", () => {
+	const commands = [
+		{ name: "issues list", argv: ["issues", "list", "--workspace", SELF_WORKSPACE, "--json"], scope: "node", scopeReason: "r", allowedVaryingFieldPaths: [] },
+		{ name: "status", argv: ["status", "--json"], scope: "node", scopeReason: "r", allowedVaryingFieldPaths: [] },
+	];
+	const resolved = withSelfWorkspace(commands, null);
+	assert.deepEqual(resolved.map((c) => c.name), ["status"]);
+});
+
+test("declaredSelfWorkspace finds the id this checkout is declared under", () => {
+	const config = JSON.stringify({
+		workspaces: { refarm: { path: "/home/op/github/refarm" }, rcdc5: { path: "/home/op/git/rcdc5/rcdc5" } },
+	});
+	assert.equal(declaredSelfWorkspace("/home/op/.refarm", "/home/op/github/refarm", { readFile: () => config }), "refarm");
+	assert.equal(declaredSelfWorkspace("/home/op/.refarm", "/somewhere/else", { readFile: () => config }), null);
 });

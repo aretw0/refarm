@@ -1098,6 +1098,17 @@
 			"priority": "low",
 			"package": "scripts",
 			"axis": "durability"
+		},
+		{
+			"id": "ISS-098",
+			"title": "The probe records a non-zero exit as unrunnable, even when the command answered in JSON",
+			"body": "FOUND 2026-08-10 while re-baselining the probe against the real second workspace. runCliFromDirectory treats ANY non-zero exit as unrunnable(...), so a command that answered with valid JSON and a negative verdict is recorded as one that did not run.\n\nMEASURED: `refarm health --json` from ~/git/rcdc5/rcdc5 prints a complete envelope -- ok:false, issueCount 25, full results -- and exits non-zero. The probe reports it `unrunnable in: workspace:rcdc5`. It ran. It answered. The answer was 'this project has 25 health issues'.\n\nWHY IT MATTERS BEYOND TIDINESS: the two states are acted on differently. `unrunnable-somewhere` convicts a node-scoped command on the grounds that it refuses in some directories -- the ENOENT shape. A command that ANSWERS ok:false in one directory and ok:true in another is a different finding entirely, and one the probe should compare field by field rather than collapse into 'did not run'. Today a node command that started returning ok:false in one directory would be convicted for the right outcome with the wrong reason, and the diverging fields -- the actual evidence -- would be discarded.\n\nFIX SHAPE: parse stdout first. If it is valid JSON, the command RAN, whatever its exit code, and the exit code itself becomes a compared value so a directory-dependent exit code is its own divergence rather than a lost fact. Reserve unrunnable for the cases that genuinely produced no comparable answer: a crash, a timeout, non-JSON stdout, a missing binary.\n\nNOT FIXED IN THE SLICE THAT FOUND IT, deliberately: ISS-092's burn-down was the operator's instruction, `refarm resume` exits 0 from every directory, and this defect changes no verdict that ISS-092's proof depends on. It does change two rows -- `health` and `check --next-action` would move from unrunnable-somewhere to differs-undeclared, both still passing as project-scoped -- so it must land in its own commit with its own before/after table, not inside a fix that would then be crediting itself with someone else's change.",
+			"location": "scripts/directory-independence.mjs",
+			"status": "open",
+			"category": "issue",
+			"priority": "medium",
+			"package": "scripts",
+			"axis": "durability"
 		}
 	]
 }
