@@ -474,6 +474,7 @@ interface IssuesAddOptions {
 	priority?: string;
 	package?: string;
 	axis?: string;
+	requirement?: string;
 	dryRun?: boolean;
 	json?: boolean;
 }
@@ -490,6 +491,7 @@ function buildAddCommand(io: IssuesIo): Command {
 		.option("--priority <priority>", "Work item priority")
 		.option("--package <package>", "Owning package or workspace path")
 		.option("--axis <axis>", `Axis: ${WORK_ITEM_AXES.join(", ")}`)
+		.option("--requirement <id>", "Operator requirement this item serves (R1-R12)")
 		.option("--dry-run", "Validate without writing")
 		.option("--json", "Output machine-readable result")
 		.action((options: IssuesAddOptions) => {
@@ -512,6 +514,19 @@ function buildAddCommand(io: IssuesIo): Command {
 				return;
 			}
 
+			// Mirrors `set-requirement`'s check: a requirement id is DATA, so the catalog is read and a
+			// typo refuses at the point of the write rather than becoming a citation the gate catches
+			// later. `add` accepting `--axis` but not `--requirement` was an asymmetry with no reason.
+			if (options.requirement) {
+				const refusal = validateRequirementCitation(
+					readRequirementCatalog(io, resolution.documentPath),
+					options.requirement.trim(),
+				);
+				if (refusal) {
+					refuseAfterResolution("add", resolution.workspaceId, refusal.reason, refusal.message, options.json);
+					return;
+				}
+			}
 			if (options.axis && !WORK_ITEM_AXES.includes(options.axis as WorkItemAxis)) {
 				refuseAfterResolution(
 					"add",
@@ -533,6 +548,7 @@ function buildAddCommand(io: IssuesIo): Command {
 				category: options.category!.trim(),
 				package: options.package!.trim(),
 				axis: options.axis as WorkItemAxis | undefined,
+				...(options.requirement ? { requirement: options.requirement.trim() } : {}),
 			};
 
 			const unsupported = rejectUnsupportedFields(resolution.adapter.capabilities(), item);

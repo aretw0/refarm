@@ -2,6 +2,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { buildRuntimeJsonPayload } from "../../src/commands/runtime-status.js";
 import { createRuntimeCommand } from "../../src/commands/runtime.js";
 import type { LaunchRuntimeSelection } from "../../src/commands/session-launch.js";
 
@@ -1141,5 +1142,44 @@ describe("runtime command", () => {
 		expect(logSpy).not.toHaveBeenCalled();
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
+	});
+});
+
+// ISS-084. The operator ran `refarm runtime restart --json` while clearing config drift and got,
+// verbatim: {"ok": false, "error": null, "message": null, "nextAction": "refarm runtime ensure ..."}.
+// The restart had SUCCEEDED — following the handoff confirmed the runtime ready and the drift gone,
+// and `refarm check` returned ok afterwards. The command reported failure for an act it had just
+// performed, and carried no error to explain it.
+//
+// The cause: `ok` was computed from the status snapshot taken while the runtime was STOPPED, one
+// step before it was started again. Without `--wait` the command never looks afterwards, so it has
+// no verdict to give.
+describe("an act that was not observed is not a failure (ISS-084)", () => {
+	const stoppedSnapshot = { activeEngine: "rust", ready: undefined, issue: undefined } as never;
+
+	it("reports ok for a restart that ran without --wait", () => {
+		const payload = buildRuntimeJsonPayload(stoppedSnapshot, { started: true }, undefined, "restart");
+		expect(payload.ok).toBe(true);
+	});
+
+	it("still reports the real verdict when the caller DID wait", () => {
+		const waited = { activeEngine: "rust", ready: false, issue: undefined } as never;
+		expect(buildRuntimeJsonPayload(waited, { started: true }, undefined, "restart").ok).toBe(false);
+		const healthy = { activeEngine: "rust", ready: true, issue: undefined } as never;
+		expect(buildRuntimeJsonPayload(healthy, { started: true }, undefined, "restart").ok).toBe(true);
+	});
+
+	it("does not turn an act that never started into a success", () => {
+		// The fixture has to be genuinely unhealthy, which the first version of this test got wrong:
+		// engine "rust" with no issue and `ready: undefined` already IS healthy by
+		// `runtimeIsHealthy`'s existing definition, so it proved nothing about the new branch.
+		const neverStarted = { activeEngine: "unknown", ready: undefined, issue: "no runtime" } as never;
+		const payload = buildRuntimeJsonPayload(neverStarted, { started: false }, undefined, "restart");
+		expect(payload.ok).toBe(false);
+	});
+
+	it("leaves `status` alone — a report always succeeds at reporting", () => {
+		const notRunning = { activeEngine: "unknown", ready: false, issue: "not running" } as never;
+		expect(buildRuntimeJsonPayload(notRunning, undefined, undefined, "status").ok).toBe(true);
 	});
 });

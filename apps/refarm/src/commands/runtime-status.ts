@@ -156,7 +156,7 @@ export function buildRuntimeJsonPayload<TExtra extends object = object>(
 		operation,
 		...payload,
 		...(extra ?? {}),
-		ok: runtimeOperationOk(payload, operation),
+		ok: runtimeOperationOk(payload, operation, extra),
 		nextAction: nextActions[0] ?? null,
 		nextActions,
 		nextCommand: nextCommands[0] ?? null,
@@ -178,11 +178,25 @@ export function buildRuntimeJsonPayload<TExtra extends object = object>(
  *
  * See `docs/NAMING_REGISTRY.md` § "`ok` semantics".
  */
-function runtimeOperationOk(
+function runtimeOperationOk<TExtra extends object = object>(
 	payload: RuntimeStatusPayload,
 	operation: RuntimeJsonPayload["operation"],
+	extra?: TExtra,
 ): boolean {
-	return operation === "status" ? true : runtimeIsHealthy(payload);
+	if (operation === "status") return true;
+	// ISS-084. THE ACT WAS PERFORMED AND ITS RESULT WAS NOT OBSERVED — three states, and the middle
+	// one used to be reported as failure. `refarm runtime restart --json` returned
+	// `{"ok": false, "error": null, "message": null}` after a restart that SUCCEEDED, because `ok`
+	// was computed from `payload`: the status snapshot taken while the runtime was stopped, one step
+	// before it was started again. Without `--wait` the command never looked afterwards, so it had
+	// no verdict to give — and an `ok: false` carrying a null error is unactionable besides.
+	//
+	// When the caller waited, `ready` is the real answer and still decides. When it did not, the
+	// honest verdict is on what the command DID: it started the runtime, which is what was asked.
+	// The payload's staleness must not masquerade as an observation.
+	const started = (extra as { started?: unknown } | undefined)?.started === true;
+	if (started && payload.ready === undefined) return true;
+	return runtimeIsHealthy(payload);
 }
 
 /** Is the runtime itself usable? The SUBJECT's state — never confuse it with `ok`, which is
