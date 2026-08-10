@@ -62,6 +62,7 @@ export const PROBE_EXCLUSIONS = Object.freeze([
 	{ argv: ["intention", "prepare"], category: "mutates" },
 	{ argv: ["issues", "add"], category: "mutates" },
 	{ argv: ["issues", "set-axis"], category: "mutates" },
+	{ argv: ["issues", "edit"], category: "mutates" },
 	{ argv: ["issues", "set-status"], category: "mutates" },
 	{ argv: ["migrate"], category: "mutates" },
 	{ argv: ["model", "reset"], category: "mutates" },
@@ -126,7 +127,6 @@ export const PROBE_EXCLUSIONS = Object.freeze([
 	{ argv: ["release", "plan"], category: "not-yet-probed" },
 	{ argv: ["workspace", "execution"], category: "not-yet-probed" },
 	{ argv: ["workspace", "mounts"], category: "not-yet-probed" },
-	{ argv: ["workspace", "sources", "declarations"], category: "not-yet-probed" },
 	{ argv: ["workspace", "status"], category: "not-yet-probed" },
 ]);
 
@@ -136,4 +136,4 @@ export const PROBE_EXCLUSIONS = Object.freeze([
  * `scripts/no-os-resolution.mjs`'s BASELINE_MAX_OFFENDING_SITES: the number goes down, or the change
  * is wrong.
  */
-export const NOT_YET_PROBED_CEILING = 21;
+export const NOT_YET_PROBED_CEILING = 20;

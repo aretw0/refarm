@@ -475,6 +475,14 @@ export const PROBE_COMMANDS = [
 		allowedVaryingFieldPaths: [],
 	},
 	{
+		name: "workspace sources declarations",
+		argv: ["workspace", "sources", "declarations", "--json"],
+		scope: "node",
+		scopeReason:
+			"Advice about the NODE's catalog: which declared workspaces still lack a repository, and where that declaration belongs. Graduated from the not-yet-probed backlog when ISS-034 made its configPath the node's absolute catalog instead of a relative `.refarm/config.json`, which read as the workspace's own file — the shape the abolished-local refusal rejects in the same breath.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
 		name: "workspace list",
 		argv: ["workspace", "list", "--json"],
 		scope: "node",

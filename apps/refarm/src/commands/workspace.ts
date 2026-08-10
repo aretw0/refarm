@@ -30,10 +30,12 @@ import {
 	type WorkspaceSweepSummary,
 } from "@refarm.dev/cli/workspace-sweep";
 import {
+	CONFIG_FILE_NAME,
 	declaredBase,
 	declaredWorkspaceFromConfig,
 	declaredWorkspacesFromConfig,
 	loadConfig,
+	sovereignDir,
 	type DeclaredWorkspaceConfig,
 } from "@refarm.dev/config";
 import chalk from "chalk";
@@ -621,8 +623,21 @@ function printWorkspaceSources(
 	}
 }
 
+/** The NODE's catalog file, absolute. Never a relative `.refarm/config.json`: that string reads as
+ *  the workspace's own file, which is the shape `localWorkspaceDeclarationAbolishedMessage` refuses
+ *  outright — "a workspace never declares itself or another workspace, in any file". Falls back to
+ *  the bare name when the sovereign dir selector is unset, because advice must not throw. */
+function nodeCatalogPath(baseDir: string): string {
+	try {
+		return path.join(baseDir, sovereignDir(), CONFIG_FILE_NAME);
+	} catch {
+		return path.join(baseDir, CONFIG_FILE_NAME);
+	}
+}
+
 function buildWorkspaceSourceDeclarationPlan(
 	plan: ReturnType<typeof buildWorkspaceSourceCachePlan>,
+	baseDir: string,
 ): {
 	mode: "all";
 	configPath: string;
@@ -662,15 +677,22 @@ function buildWorkspaceSourceDeclarationPlan(
 		}));
 	return {
 		mode: "all",
-		configPath: ".refarm/config.json",
+		// ISS-034: the NODE's catalog, absolute. This said `.refarm/config.json` — a relative path,
+		// which reads as the workspace's own file, and that is the shape
+		// `localWorkspaceDeclarationAbolishedMessage` refuses in the same breath: "a workspace never
+		// declares itself or another workspace, IN ANY FILE — only a node does, in its own catalog."
+		// The advice and the refusal contradicted each other, and the advice was the one an operator
+		// would follow, because it arrives when he is looking for something to do.
+		configPath: nodeCatalogPath(baseDir),
 		declarationCount: declarations.length,
 		declarations,
 		instructions:
 			declarations.length > 0
 				? [
-						"Fill each repository.url with the canonical Git remote for that workspace.",
+						"Declare each repository through `refarm workspace add <path> --repository <git-url> --replace`, which writes the node's catalog through a reviewed proposal.",
+						"Editing the node catalog by hand also works; the snippet above is that entry's shape. Do NOT put it in the workspace's own .refarm/config.json — a workspace never declares itself.",
 						"Keep ref null unless this workspace should materialize a specific branch or tag.",
-						"Run refarm workspace sources materialize --dry-run --json after declaring repositories.",
+						"Run `refarm workspace sources materialize --dry-run --json` after declaring repositories.",
 					]
 				: [],
 	};
@@ -684,7 +706,7 @@ function printWorkspaceSourceDeclarations(
 	const sourcePlan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), {
 		baseDir,
 	});
-	const declarationPlan = buildWorkspaceSourceDeclarationPlan(sourcePlan);
+	const declarationPlan = buildWorkspaceSourceDeclarationPlan(sourcePlan, baseDir);
 	if (options.json) {
 		printJson(
 			buildJsonSuccessEnvelope({

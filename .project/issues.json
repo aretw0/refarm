@@ -416,11 +416,12 @@
 			"title": "workspace add --replace rebuilds the entry and DROPS commands — it can destroy rcdc5's vpn entry",
 			"body": "LOOSE ENDS from the workspace-is-not-a-node plan, added 2026-08-06 after a whole-plan review found the queue had none of them. Each names its file:\n\n(4) `workspace add --replace` (packages/cli/src/workspace-declaration.ts:138-146) rebuilds the entry from path/kind/execution/repository and DROPS `commands`. Pre-existing, but sharper now: it can destroy rcdc5's node-only `vpn` and `code-boundaries`, which sync cannot restore. Shown in the consent diff, so not silent.",
 			"location": "packages/cli/src/workspace-declaration.ts:138-146",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "high",
 			"package": "packages/cli",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "efb4404d"
 		},
 		{
 			"id": "ISS-037",
