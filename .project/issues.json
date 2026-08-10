@@ -291,22 +291,24 @@
 			"title": "cliBaseOrigin re-derives declaredBase's precedence instead of reading an exported witness",
 			"body": "LOOSE ENDS from the two-halves-one-node plan, from its only whole-plan review (the per-task gates were skipped on that plan and the review was scoped accordingly):\n\n(b) `cliBaseOrigin` in context.ts re-derives declaredBase's precedence rather than reading a witness; exporting the origin from @refarm.dev/config would make them unable to drift.",
 			"location": "apps/refarm/src/commands/context.ts:454-465",
-			"status": "open",
+			"status": "resolved",
 			"category": "cleanup",
 			"priority": "medium",
 			"package": "apps/refarm",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "a624a749"
 		},
 		{
 			"id": "ISS-026",
 			"title": "--refarm-dir has no TypeScript counterpart, so the base guarantee is scoped to env-declared nodes",
 			"body": "LOOSE ENDS from the two-halves-one-node plan:\n\n(c) `--refarm-dir` has no TypeScript counterpart: a node started with `--refarm-dir /srv/x/.refarm` and no env exports settles /srv/x, while the CLI answers $HOME, so the guarantee is scoped to env-declared nodes and is currently stated unconditionally.\n\nDECIDED 2026-08-10 — SCOPE THE CLAIM, DO NOT MIRROR THE FLAG. Two ways to close this and only one of them is honest at this size:\n\nMirroring the flag means every CLI command grows a `--refarm-dir` and threads it through every resolver, because a base passed to one command and not another is worse than no flag at all. That is the centralisation slice (one resolved node scope, injected end to end), not a patch — and until it exists, a half-mirrored flag would make the two halves disagree in a NEW way while appearing to fix the old one.\n\nWhat actually holds today, measured: `run_daemon` sets SOVEREIGN_BASE in-process from `--refarm-dir` before any config-node code runs, so the DAEMON and everything it spawns are consistent. A CLI invoked separately, in a shell without those exports, is a different process and cannot know what flag the daemon was started with. That is not a bug in the CLI; it is the boundary between two processes, and the honest form is to say so rather than to imply a guarantee that spans it.\n\nSo this item closes as a SCOPING correction: the guarantee is stated for env-declared nodes, and `refarm context` already reports which of SOVEREIGN_BASE / REFARM_HOME / home answered (cliBaseOrigin, now derived from declaredBaseWithOrigin rather than a mirrored ternary — ISS-025). An operator on a --refarm-dir node sees `home` there and can tell. The flag mirror is folded into the centralisation slice, where it costs one field instead of thirty.",
 			"location": "packages/config/src/index.js:178-184",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "medium",
 			"package": "packages/config",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "a624a749"
 		},
 		{
 			"id": "ISS-027",
@@ -336,11 +338,12 @@
 			"title": "Neither side of the base comparison is path.resolve'd, so a trailing slash fakes a base-divergence",
 			"body": "LOOSE ENDS from the node-answers-for-itself plan:\n\n(a) neither side of the base comparison is path.resolve'd, so a trailing slash produces a spurious base-divergence;",
 			"location": "apps/refarm/src/commands/context.ts:295-315",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "medium",
 			"package": "apps/refarm",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "a624a749"
 		},
 		{
 			"id": "ISS-030",
@@ -359,11 +362,12 @@
 			"title": "refarm context --json renamed base/baseOrigin to cliBase/cliBaseOrigin with no snapshot test",
 			"body": "LOOSE ENDS from the node-answers-for-itself plan:\n\n(c) `refarm context --json` renamed base/baseOrigin to cliBase/cliBaseOrigin, a public JSON contract change with no consumer and no snapshot test, so nothing broke, but it was unrecorded until now.",
 			"location": "apps/refarm/src/commands/context.ts:183",
-			"status": "open",
+			"status": "resolved",
 			"category": "cleanup",
 			"priority": "low",
 			"package": "apps/refarm",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "a624a749"
 		},
 		{
 			"id": "ISS-032",
