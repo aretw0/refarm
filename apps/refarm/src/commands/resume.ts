@@ -56,7 +56,9 @@ export interface ResumeDeps {
 	loadRecentSessions(): Promise<OperatorResumeSessionRecord[]>;
 	loadChatHistory(): string[];
 	loadModelTokens(): Promise<ModelTokens>;
-	loadProjectHandoff(): OperatorResumeProjectSummary | undefined;
+	/** Takes the optional `--workspace` id: `resume` must be able to answer about a workspace the
+	 *  operator is not standing in (a phone, Termux, /tmp), and must SAY which one answered. */
+	resolveProject(workspace?: string): ProjectHandoffResolutionResult;
 	loadScheduledWork(): Promise<ProjectScheduledWorkInspection | undefined>;
 	loadEnvironmentPressure(): OperatorResumeEnvironmentPressure | undefined;
 	loadLedgerReads(): Record<string, LedgerReadResult>;
@@ -68,6 +70,7 @@ interface LoadScheduledWorkOptions {
 }
 
 interface ResumeOptions {
+	workspace?: string;
 	json?: boolean;
 	status?: boolean;
 	nextAction?: boolean;
@@ -83,7 +86,7 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 		loadRecentSessions: loadRecentRuntimeSessions,
 		loadChatHistory,
 		loadModelTokens: defaultModelDeps().loadTokens,
-		loadProjectHandoff,
+		resolveProject,
 		loadScheduledWork,
 		loadEnvironmentPressure,
 		loadLedgerReads,
@@ -92,6 +95,7 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 
 	return new Command("resume")
 		.description("Show the operator resume view across runtime and worker tasks")
+		.option("--workspace <id>", "Report the project block for this declared workspace instead of the current directory's")
 		.option("--json", "Print machine-readable JSON output")
 		.option("--no-status", "Skip runtime status inspection and only read local checkpoints")
 		.option("--next-action", "Print only the first recovery command and exit")
@@ -123,7 +127,8 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 	const finish = deps.finishRecorder.getLatest();
 	const activeSessionId = deps.readActiveSessionId();
 	const recentPrompts = deps.loadChatHistory().slice(0, 5);
-	const project = deps.loadProjectHandoff();
+	const projectResolution = deps.resolveProject(options.workspace);
+	const project = projectResolution.summary;
 	const scheduledWork = await deps.loadScheduledWork();
 	const environmentPressure = deps.loadEnvironmentPressure();
 	const ledger = buildLedgerSummary(deps.loadLedgerReads());
@@ -182,6 +187,12 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 		if (options.json) {
 			printJson({
 				...envelope,
+				// ISS-092: `project` is ALWAYS present, explicitly null when nothing was read, and
+				// `projectResolution` always says which of the four states produced it. The key used to
+				// vanish, so a consumer doing `project?.currentTasks ?? []` saw an empty list and no
+				// signal — the same "a zero that is not a zero" shape this line of work keeps finding.
+				project: project ?? null,
+				projectResolution: projectResolution.resolution,
 				ledger,
 				nextCommand: nextCommands[0] ?? null,
 				nextCommands,
@@ -265,9 +276,12 @@ export function loadKnownSessionPressureFiles(baseDir?: string): SessionPressure
 	);
 }
 
-export function loadProjectHandoff(
-	cwd: string = process.cwd(),
-): OperatorResumeProjectSummary | undefined {
+/** The low-level reader: the handoff at THIS directory. `cwd` is required — the `= process.cwd()`
+ *  default it used to carry is the exact shape
+ *  `docs/superpowers/plans/2026-08-07-no-resolver-defaults-to-the-os.md` calls the footgun, and it
+ *  was how `resume` came to read a project nobody chose. Deciding WHICH directory is
+ *  `resolveProjectHandoff`'s job, below; this function only reads the one it is handed. */
+export function loadProjectHandoff(cwd: string): OperatorResumeProjectSummary | undefined {
 	const handoffPath = path.join(cwd, PROJECT_HANDOFF_RELATIVE_PATH);
 	try {
 		return parseProjectHandoffSummary(JSON.parse(fs.readFileSync(handoffPath, "utf-8")), {
@@ -276,6 +290,163 @@ export function loadProjectHandoff(
 	} catch {
 		return undefined;
 	}
+}
+
+/**
+ * FOUR STATES, and the old code had one. `loadProjectHandoff` returned `undefined` for "there is no
+ * project here", "the handoff is corrupt", and "the handoff exists and was never checkpointed"
+ * alike, and `resume` then omitted the key entirely — so from outside a project the envelope said
+ * `ok: true` with no project, no tasks, no blockers and `truncation: null`. A consumer reading
+ * `project?.currentTasks ?? []` got an empty list and no signal at all (ISS-092).
+ */
+export type ProjectHandoffResolution =
+	| { state: "read"; workspaceId: string | null; from: "flag" | "cwd-match" | "cwd-convention"; path: string; catalogError?: string }
+	| { state: "empty"; workspaceId: string | null; from: "flag" | "cwd-match" | "cwd-convention"; path: string; catalogError?: string }
+	| { state: "unreadable"; workspaceId: string | null; path: string; reason: string; catalogError?: string }
+	| {
+			state: "absent";
+			reason: "no-project-here" | "no-such-workspace" | "no-handoff-in-workspace";
+			workspaceId?: string;
+			cwd: string;
+			declared: string[];
+			/** Set when the node's catalog could not be READ at all — a different fact from "this node
+			 *  declares no workspaces", and one `resume` must never present as the latter. */
+			catalogError?: string;
+	  };
+
+export interface ProjectHandoffResolutionResult {
+	summary: OperatorResumeProjectSummary | undefined;
+	resolution: ProjectHandoffResolution;
+}
+
+export interface ResolveProjectHandoffInput {
+	/** An explicit workspace id. This is what lets `resume` answer about refarm from a phone, a
+	 *  Termux session or `/tmp` — anywhere the operator is not standing in the checkout. */
+	workspace?: string;
+	/** A DELIBERATE cwd read, used only to match against the declared catalog or, failing that, to
+	 *  look for a project by convention. Always reported in `from`. */
+	cwd: string;
+	loadWorkspaces: () => LedgerWorkspace[];
+	fileExists: (candidate: string) => boolean;
+	readDocument: (candidate: string) => string;
+}
+
+function isInsideDirectory(parent: string, candidate: string): boolean {
+	const relative = path.relative(parent, candidate);
+	return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+/**
+ * Resolves WHICH project `resume` should report on, through the node's declared catalog — the same
+ * way this module's `ledger` block already resolves, so one envelope stops carrying two resolution
+ * models.
+ *
+ * Precedence, each step reported rather than inferred: an explicit `--workspace` id; else the
+ * longest declared workspace containing `cwd`; else a `.project/handoff.json` sitting in `cwd`
+ * itself, read and reported as `cwd-convention` so a checkout nobody declared keeps working and
+ * says that it was inferred; else absent, naming where it looked and what this node declares.
+ */
+export function resolveProjectHandoff(input: ResolveProjectHandoffInput): ProjectHandoffResolutionResult {
+	// `resume` is the command that must ALWAYS answer — it is what an operator runs when he does not
+	// know what state anything is in, and CLAUDE.md mandates it at the start of every slice. A
+	// catalog that cannot be read degrades this block to the convention path and is REPORTED;
+	// it never takes the whole envelope down with it. (Found by the test suite: the first version
+	// of this resolver let `loadConfig` throw straight through `emitResume`.)
+	let workspaces: LedgerWorkspace[] = [];
+	let catalogError: string | undefined;
+	try {
+		workspaces = input.loadWorkspaces();
+	} catch (error) {
+		catalogError = error instanceof Error ? error.message : String(error);
+	}
+	const declared = workspaces.map((workspace) => workspace.id);
+	const withCatalogError = <T extends object>(resolution: T): T & { catalogError?: string } =>
+		catalogError ? { ...resolution, catalogError } : resolution;
+
+	let root: string | undefined;
+	let workspaceId: string | null = null;
+	let from: "flag" | "cwd-match" | "cwd-convention";
+
+	if (input.workspace) {
+		const match = workspaces.find((workspace) => workspace.id === input.workspace);
+		if (!match) {
+			return {
+				summary: undefined,
+				resolution: withCatalogError({ state: "absent" as const, reason: "no-such-workspace" as const, cwd: input.cwd, declared }),
+			};
+		}
+		root = match.absolutePath;
+		workspaceId = match.id;
+		from = "flag";
+	} else {
+		// LONGEST match wins, so a workspace nested inside another is not shadowed by its parent —
+		// the same rule `resolveWorkspaceLedger` follows for the ledger.
+		const match = workspaces
+			.filter((workspace) => isInsideDirectory(workspace.absolutePath, input.cwd))
+			.sort((left, right) => right.absolutePath.length - left.absolutePath.length)[0];
+		if (match) {
+			root = match.absolutePath;
+			workspaceId = match.id;
+			from = "cwd-match";
+		} else {
+			root = input.cwd;
+			from = "cwd-convention";
+		}
+	}
+
+	const handoffPath = path.join(root, PROJECT_HANDOFF_RELATIVE_PATH);
+	if (!input.fileExists(handoffPath)) {
+		return {
+			summary: undefined,
+			resolution: withCatalogError({
+				state: "absent" as const,
+				reason: (workspaceId ? "no-handoff-in-workspace" : "no-project-here") as
+					| "no-handoff-in-workspace"
+					| "no-project-here",
+				...(workspaceId ? { workspaceId } : {}),
+				cwd: input.cwd,
+				declared,
+			}),
+		};
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(input.readDocument(handoffPath));
+	} catch (error) {
+		return {
+			summary: undefined,
+			resolution: withCatalogError({
+				state: "unreadable" as const,
+				workspaceId,
+				path: handoffPath,
+				reason: error instanceof Error ? error.message : String(error),
+			}),
+		};
+	}
+
+	const summary = parseProjectHandoffSummary(parsed, { arrayLimit: 5 });
+	if (!summary) {
+		// The document is there and holds no checkpoint. That is a real state — a project nobody has
+		// written a handoff for yet — and folding it into `absent` would tell the operator to go
+		// looking for a project that is right in front of him.
+		return {
+			summary: undefined,
+			resolution: withCatalogError({ state: "empty" as const, workspaceId, from, path: handoffPath }),
+		};
+	}
+	return { summary, resolution: withCatalogError({ state: "read" as const, workspaceId, from, path: handoffPath }) };
+}
+
+/** The default seam: the node's declared catalog and the real filesystem. */
+export function resolveProject(workspace?: string): ProjectHandoffResolutionResult {
+	return resolveProjectHandoff({
+		workspace,
+		cwd: currentDirectoryForCatalogMatch(),
+		loadWorkspaces: defaultLedgerIo.loadWorkspaces,
+		fileExists: defaultLedgerIo.fileExists,
+		readDocument: defaultLedgerIo.readDocument,
+	});
 }
 
 export async function loadScheduledWork(

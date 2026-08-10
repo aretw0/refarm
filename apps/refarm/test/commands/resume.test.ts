@@ -346,20 +346,31 @@ describe("resume command", () => {
 			}),
 			loadRecentSessions: vi.fn().mockResolvedValue([]),
 			loadChatHistory: vi.fn().mockReturnValue([]),
-			loadProjectHandoff: vi.fn().mockReturnValue({
-				path: ".project/handoff.json",
-				timestamp: "2026-06-27T05:00:00.000Z",
-				currentPhase: 12,
-				context: "resume from project handoff",
-				currentTasks: ["finish current slice"],
-				blockers: [],
-				nextActions: ["pick next slice"],
-				openQuestions: [],
-				truncation: {
-					currentTasks: { returned: 1, total: 1 },
-					blockers: { returned: 0, total: 0 },
-					nextActions: { returned: 1, total: 1 },
-					openQuestions: { returned: 0, total: 0 },
+			// The seam now returns the RESOLUTION beside the summary (ISS-092): the same handoff, plus
+			// which workspace answered and how it was found. The summary itself is unchanged, which is
+			// what keeps every assertion below meaning the same thing it did before.
+			resolveProject: vi.fn().mockReturnValue({
+				summary: {
+					path: ".project/handoff.json",
+					timestamp: "2026-06-27T05:00:00.000Z",
+					currentPhase: 12,
+					context: "resume from project handoff",
+					currentTasks: ["finish current slice"],
+					blockers: [],
+					nextActions: ["pick next slice"],
+					openQuestions: [],
+					truncation: {
+						currentTasks: { returned: 1, total: 1 },
+						blockers: { returned: 0, total: 0 },
+						nextActions: { returned: 1, total: 1 },
+						openQuestions: { returned: 0, total: 0 },
+					},
+				},
+				resolution: {
+					state: "read",
+					workspaceId: "refarm",
+					from: "cwd-match",
+					path: "/repo/.project/handoff.json",
 				},
 			}),
 		});

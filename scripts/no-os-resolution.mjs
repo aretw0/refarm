@@ -381,7 +381,7 @@ export function computeBaseline({ repoRoot = REPO_ROOT } = {}) {
  * implements) that removes real sites, by exactly the number of sites removed; NEVER raised
  * to make a slice pass — see docs/NO_OS_RESOLUTION.md.
  */
-export const BASELINE_MAX_OFFENDING_SITES = 117;
+export const BASELINE_MAX_OFFENDING_SITES = 116;
 
 function printReport() {
 	const { count, byKind, filesScanned } = computeBaseline();

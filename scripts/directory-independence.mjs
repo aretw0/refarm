@@ -342,7 +342,25 @@ export const PROBE_COMMANDS = [
 		argv: ["resume", "--json"],
 		scope: "node",
 		scopeReason:
-			"The slice entry point CLAUDE.md section 4 mandates: it reports the node's runtime, model route, session and ledger. Where the operator stands must not change what work he is told is waiting.",
+			"The slice entry point CLAUDE.md section 4 mandates. Runtime, model route, session and ledger are the node's and must not move; the project block reports whichever project THIS invocation resolved, and since 2026-08-10 it says which one and how (ISS-092).",
+		fieldReasons: {
+			project:
+				"The project block is the handoff of the project this invocation resolved — by --workspace, by cwd-match against the declared catalog, or by convention. It varies because the project varies, and `projectResolution` beside it names which. Before ISS-092 this key simply VANISHED outside a project, so a consumer reading project?.currentTasks got an empty list and no signal; that silent absence, not the variance, was the defect.",
+			projectResolution:
+				"Reports which of the four states produced the block above -- read, empty, unreadable, absent -- with the workspace id, the origin and the path. It varies BY CONSTRUCTION: a field whose job is to say what this directory resolved to would be lying if it were constant.",
+		},
+		allowedVaryingFieldPaths: ["project", "projectResolution"],
+	},
+	{
+		// The strong claim, and the regression guard for ISS-092's fix: asked about a NAMED workspace,
+		// resume must answer identically from every directory -- including the project block, which is
+		// exactly what the row above is allowed to vary. This is what makes the declaration above a
+		// report of real variance rather than a place to hide one.
+		name: "resume --workspace <self>",
+		argv: ["resume", "--workspace", SELF_WORKSPACE, "--json"],
+		scope: "node",
+		scopeReason:
+			"An explicitly named workspace is a node-level address, so nothing at all may depend on the caller's directory -- this is the row that proves --workspace actually decouples the answer from where the operator stands.",
 		allowedVaryingFieldPaths: [],
 	},
 	{
