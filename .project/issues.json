@@ -1032,6 +1032,50 @@
 			"priority": "high",
 			"package": "apps/refarm",
 			"axis": "node-vs-directory"
+		},
+		{
+			"id": "ISS-092",
+			"title": "refarm resume --json returns ok:true with an EMPTY project block outside the repository",
+			"body": "CONVICTED by scripts/directory-independence.mjs on 2026-08-10. Verdict: differs-undeclared, scope node. Sixteen diverging field paths: project.blockers, project.context, project.currentPhase, project.currentTasks, project.nextActions, project.openQuestions, project.path, project.timestamp, and all eight project.truncation.{blockers,currentTasks,nextActions,openQuestions}.{returned,total}. Directories: /home/s095407044/github/refarm vs /tmp vs ~/git/rcdc5. environmentPressure.signals was EXCLUDED as time-variant by the control pair, so all sixteen are real.\n\nWHAT IT ACTUALLY RETURNS from /tmp, measured: ok:true, project.path null, currentPhase null, context empty string, 0 currentTasks, 0 nextActions, 0 blockers, truncation null.\n\nTHIS IS THE ZERO THAT IS NOT A ZERO, at the front door. CLAUDE.md section 4 mandates 'refarm resume --json' at the start of EVERY slice and tells the agent to trust its nextCommands. From outside the repository it reports no work, no blockers and no next actions with ok:true, and nothing in the envelope distinguishes 'this node has no pending work' from 'I did not read any project'. Worse: the truncation field is null -- the field the 2026-08-08 slice added SPECIFICALLY so a partial read could not masquerade as a complete one now reads as 'nothing was truncated' rather than 'nothing was read'. That slice fixed the instrument lying about 5-of-24; this is the same instrument lying about 0-of-24 one directory over.\n\nSCOPE DECISION, AND WHY IT IS A CONVICTION RATHER THAN A DECLARATION: resume is MIXED. Runtime, model, session and ledger are node facts -- the ledger block is correctly identical from all three directories, which proves the node path works -- while the project block is genuinely this directory's project. Declaring project.* as allowed-varying would make the row pass and leave the empty-block-with-ok-true untouched, which is declaring the defect instead of closing it.\n\nFIX SHAPE, to be decided in the burn-down after auditing the call sites: the project block needs three states, not two -- a project was read (contents), there is no project here (explicitly absent, never an empty list), and the project could not be read (a named failure). apps/refarm/src/commands/resume.ts carries 3 bare process.cwd() sites, and packages/cli/src/project-handoff.ts:100 resolves .project/handoff.json as a RELATIVE path -- the same positional resolution the ledger slice named when it refused to mirror 'refarm project' for the issues command.",
+			"location": "apps/refarm/src/commands/resume.ts",
+			"status": "open",
+			"category": "issue",
+			"priority": "critical",
+			"package": "apps/refarm",
+			"axis": "node-vs-directory"
+		},
+		{
+			"id": "ISS-093",
+			"title": "doctor reports host.packageManager as pnpm here and npm from anywhere else",
+			"body": "CONVICTED by scripts/directory-independence.mjs on 2026-08-10. Verdict: differs-undeclared, scope node. Diverging field paths: host.packageManager, nextAction, nextActions, nextCommand, nextCommands, recommendations, warnings, warningCount.\n\nMEASURED VALUES: host.packageManager is 'pnpm' from /home/s095407044/github/refarm and 'npm' from BOTH /tmp and ~/git/rcdc5.\n\nTHE FIELD NAME IS THE ARGUMENT: a field called host.* cannot depend on which directory the operator is standing in. Either the value is the project's package manager and the name is a lie, or the resolution is wrong. Both are defects and they are not the same defect.\n\nThe seven other diverging fields are DOWNSTREAM: nextAction, nextCommands, recommendations, warnings and warningCount are derived from the wrong packageManager, so the doctor's ADVICE changes with the caller's directory too. That is the part that costs -- 'refarm doctor' is what an operator or agent runs to be told what to do next, and it currently says something different depending on where you were standing when you asked.\n\nTHE RATCHET'S LARGEST CLUSTER IS BEHIND THIS: packages/config/src/package-manager.js carries TEN bare process.cwd() sites, the single biggest file in the 103-site count, and apps/refarm/src/commands/doctor.ts carries three more. This is the first time that cluster has been tied to a WRONG ANSWER rather than to a shape count, which is the entire reason this slice measures by consequence.\n\nDO NOT CONFLATE THE COMPANION: 'refarm package-manager --json' is declared scope PROJECT in the probe and legitimately varies (pnpm here, npm elsewhere) -- detecting THIS tree's package manager is its job. The defect is doctor consuming that project fact and reporting it under a host.* name.",
+			"location": "packages/config/src/package-manager.js",
+			"status": "open",
+			"category": "issue",
+			"priority": "high",
+			"package": "packages/config",
+			"axis": "node-vs-directory"
+		},
+		{
+			"id": "ISS-094",
+			"title": "plugin list reports the node's own plugin as unresolved from any other directory",
+			"body": "CONVICTED by scripts/directory-independence.mjs on 2026-08-10. Verdict: differs-undeclared, scope node. Diverging field path: plugins.\n\nMEASURED: from /home/s095407044/github/refarm the single installed plugin reports packageSource 'workspace' with packageDir '/home/s095407044/github/refarm/packages/agent'; from /tmp the SAME plugin reports packageSource 'unresolved' with packageDir null. Same id (@refarm/agent), same version (0.1.0), same source (bundled) -- only the provenance fields collapse.\n\nWHY IT MATTERS: a plugin is installed into the NODE's sovereign dir, and 'plugin status' (which reports what the daemon has LOADED) is correctly identical from all three directories. So the node knows perfectly well where its plugin came from; 'plugin list' re-derives that provenance from the caller's working tree instead of reading it. 'unresolved' is not a neutral word here -- it is what an operator sees before deciding whether a plugin is trustworthy, and it appears for a plugin that is fully resolved on the node.\n\nThis is the same family as the VPN defect the 2026-08-07 slice closed: node state presented through a working-tree lens, correct exactly where it is developed and wrong everywhere the operator actually stands. apps/refarm/src/commands/plugin-shared.ts carries 2 bare process.cwd() sites; audit before substituting, because resolving a WORKSPACE package legitimately needs a workspace root.",
+			"location": "apps/refarm/src/commands/plugin-shared.ts",
+			"status": "open",
+			"category": "issue",
+			"priority": "high",
+			"package": "apps/refarm",
+			"axis": "node-vs-directory"
+		},
+		{
+			"id": "ISS-095",
+			"title": "surface list reads the caller's directory .refarm/config.json instead of the node's",
+			"body": "CONVICTED by scripts/directory-independence.mjs on 2026-08-10. Verdict: differs-undeclared, scope node. Diverging field paths: configPath, root, surfaces.\n\nMEASURED: from the repository, root '/home/s095407044/github/refarm', configPath '/home/s095407044/github/refarm/.refarm/config.json', 3 surfaces. From /tmp, root '/tmp', configPath '/tmp/.refarm/config.json', 0 surfaces.\n\nTHIS IS THE FIXTURE DEFECT, EXACTLY AS THE 2026-08-07 SLICE NAMED IT. That slice found ovpn-serpro visible only from this checkout and recorded the finding in these words: 'visible from the repo, invisible everywhere else was never the feature working -- it was the SYMPTOM, the CLI reading a fixture and presenting it as the node's catalog.' The repo's .refarm/config.json is a gitignored dev fixture written while building that very feature. surface list is still reading it and presenting its three surfaces as the node's.\n\nWHY IT MATTERS FOR DAILY USE: surfaces are how the operator reaches this node from Termux, the PWA and Telegram. A surface catalog that empties when he runs the command from anywhere but one checkout is the difference between 'my node offers three ways in' and 'my node offers none', decided by his shell's working directory. The honest empty answer -- 0 surfaces from every directory -- would at least be legible; 3-here and 0-there is the state that reads as working.\n\napps/refarm/src/commands/surface.ts carries 3 bare process.cwd() sites. The fix is the same one connection.ts took in d8f850b8: resolve declaredBase() rather than the caller's directory.",
+			"location": "apps/refarm/src/commands/surface.ts",
+			"status": "open",
+			"category": "issue",
+			"priority": "high",
+			"package": "apps/refarm",
+			"axis": "node-vs-directory"
 		}
 	]
 }

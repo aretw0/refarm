@@ -340,7 +340,7 @@ refarm agent finish --lane after-commit --run --json
 - Consumes: Task 2's engine.
 - Produces: **the conviction list.** Everything after this task is sized by it.
 
-- [ ] **Step 1: Declare all 36, each with a scope and a reason**
+- [x] **Step 1: Declare all 36, each with a scope and a reason**
 
 Every entry states what it speaks about. The classification is the deliverable; write the reason as
 a sentence a reader can disagree with, not a label:
@@ -374,7 +374,7 @@ name. **When the honest answer is 'unclear', mark it `node` and say so in the re
 command that turns out to be project-local will be convicted by the inverse of what you expected,
 which is information; the reverse silently excuses a leak.
 
-- [ ] **Step 2: Run the full probe and capture the table**
+- [x] **Step 2: Run the full probe and capture the table**
 
 ```bash
 pnpm --filter refarm run build
@@ -386,7 +386,7 @@ Expected shape (**not** a prediction of the numbers):
 directory-independence: 36 probed · N same · N declared · N convicted · N unproven
 ```
 
-- [ ] **Step 3: File one work item per conviction, before fixing anything**
+- [x] **Step 3: File one work item per conviction, before fixing anything**
 
 ```bash
 refarm issues add --workspace refarm --axis node-vs-directory --category issue --priority high \
@@ -400,14 +400,14 @@ The record exists **before** the fix so that an abandoned fix leaves a named ite
 nothing. If a conviction turns out to be a mis-declared scope rather than a defect, the item is
 resolved with the corrected declaration as its `resolved_by`.
 
-- [ ] **Step 4: Turn the conviction list into sub-tasks in this plan**
+- [x] **Step 4: Turn the conviction list into sub-tasks in this plan**
 
 Append to Task 5 one `- [ ] **5.N: <command> — <field paths>**` line per conviction, ordered by how
 early the command appears in the daily loop (`resume`, `check`, `doctor`, `health`, `status`,
 `context`, `workspace`, `connection`, `budget`, `sessions`, `issues`, then the rest). The plan stops
 being unbounded the moment this step lands.
 
-- [ ] **Step 5: Commit the measurement**
+- [x] **Step 5: Commit the measurement**
 
 ```bash
 refarm agent finish --lane after-edit --run --json
@@ -510,6 +510,29 @@ refarm agent finish --lane after-commit --run --json
 **Interfaces:**
 - Consumes: the conviction list and its work items.
 - Produces: `convicted == 0`.
+
+**The conviction list, measured 2026-08-10.** 35 probed · 26 same · 1 declared · **4 convicted** ·
+0 unproven. This plan stops being unbounded here.
+
+- [ ] **5.1 — `resume`, ISS-092 (critical).** Sixteen `project.*` paths. From `/tmp` it returns
+  `ok: true` with an empty project block and `truncation: null`. The entry point CLAUDE.md mandates
+  at every slice start cannot distinguish "no work" from "no project read". Fix shape: three states
+  in the project block, never two.
+- [ ] **5.2 — `doctor`, ISS-093 (high).** `host.packageManager` is `pnpm` here and `npm` from both
+  other directories, and seven downstream advice fields follow it. `packages/config/src/package-manager.js`
+  holds the ratchet's largest cluster (10 sites) and this is the first time it is tied to a wrong
+  answer rather than a shape count.
+- [ ] **5.3 — `plugin list`, ISS-094 (high).** The node's own plugin reports `packageSource:
+  "unresolved"`, `packageDir: null` from anywhere else, while `plugin status` is correctly identical
+  — so the node knows, and `list` re-derives.
+- [ ] **5.4 — `surface list`, ISS-095 (high).** Reads `<cwd>/.refarm/config.json`: 3 surfaces here, 0
+  from `/tmp`. The gitignored dev-fixture defect the 2026-08-07 slice named, still live in another
+  command.
+
+Not convicted, and worth stating because a passing row is a claim too: the four `project`-scoped
+commands (`check --next-action`, `health`, `project handoff validate`, `package-manager`) pass —
+three by refusing or differing outside their project, which is what the inverse check demands.
+`budget usage`, `inspect` and `resume` carry time-variant fields the control pair excluded.
 
 **Per-conviction procedure.** For each sub-task, in daily-loop order:
 

@@ -294,25 +294,19 @@ export function summarise(rows) {
 // that surfaced this.
 export const PROBE_COMMANDS = [
 	{
-		name: "workspace list",
-		argv: ["workspace", "list", "--json"],
+		name: "resume",
+		argv: ["resume", "--json"],
 		scope: "node",
 		scopeReason:
-			"The workspace catalog is the NODE's, read from its declared base; which workspace the operator is standing in must not change which workspaces exist.",
+			"The slice entry point CLAUDE.md section 4 mandates: it reports the node's runtime, model route, session and ledger. Where the operator stands must not change what work he is told is waiting.",
 		allowedVaryingFieldPaths: [],
 	},
 	{
-		name: "model current",
-		argv: ["model", "current", "--json"],
+		name: "status",
+		argv: ["status", "--json"],
 		scope: "node",
-		scopeReason: "The model route and its credential are resolved from the node's identity, never from a directory.",
-		allowedVaryingFieldPaths: [],
-	},
-	{
-		name: "plugin status",
-		argv: ["plugin", "status", "--json"],
-		scope: "node",
-		scopeReason: "Plugins are installed into the node's sovereign dir; the loaded set is a property of the node.",
+		scopeReason:
+			"The node's overall state as one answer; it names no project and must not read one.",
 		allowedVaryingFieldPaths: [],
 	},
 	{
@@ -339,11 +333,259 @@ export const PROBE_COMMANDS = [
 		],
 	},
 	{
+		name: "doctor",
+		argv: ["doctor", "--json"],
+		scope: "node",
+		scopeReason:
+			"Diagnoses the NODE — its own fields are named host.*, and a host fact that moves with the directory is a contradiction in the field name itself.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "model current",
+		argv: ["model", "current", "--json"],
+		scope: "node",
+		scopeReason:
+			"The model route and its credential are resolved from the node's identity, never from a directory.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "model providers",
+		argv: ["model", "providers", "--json"],
+		scope: "node",
+		scopeReason:
+			"The provider catalog and each provider's credential state belong to the node.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "plugin status",
+		argv: ["plugin", "status", "--json"],
+		scope: "node",
+		scopeReason:
+			"Which plugin the daemon has LOADED is a property of the running node.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "plugin list",
+		argv: ["plugin", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"Plugins are installed into the node's sovereign dir; the installed set and where each came from are node facts, not facts about the caller's directory.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "workspace list",
+		argv: ["workspace", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"The workspace catalog is the NODE's, read from its declared base; which workspace the operator stands in must not change which workspaces exist.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
 		name: "connection status",
 		argv: ["connection", "status", "--json"],
 		scope: "node",
 		scopeReason:
-			"host.wit's own words: a connection is 'declared by the OPERATOR ... several plugins share ONE live connection'. It is node state, and the 2026-08-08 fix to connection.ts:499,830 is what made this row `same`; this entry is that fix's regression guard.",
+			"host.wit's own words: a connection is 'declared by the OPERATOR ... several plugins share ONE live connection'. Node state, and the 2026-08-08 fix to connection.ts:499,830 made this row same; this entry is that fix's regression guard.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "budget observations",
+		argv: ["budget", "observations", "--limit", "3", "--json"],
+		scope: "node",
+		scopeReason:
+			"The cost record lives in the node's graph; a spend observation does not change because the reader moved.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "budget by-workspace",
+		argv: ["budget", "by-workspace", "--json"],
+		scope: "node",
+		scopeReason:
+			"An aggregate over the node's graph, grouped BY workspace — the grouping is data, not the caller's location.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "budget by-host",
+		argv: ["budget", "by-host", "--json"],
+		scope: "node",
+		scopeReason:
+			"Same graph aggregate, grouped by host.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "budget by-spawner",
+		argv: ["budget", "by-spawner", "--json"],
+		scope: "node",
+		scopeReason:
+			"Same graph aggregate, grouped by spawner.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "budget usage",
+		argv: ["budget", "usage", "--json"],
+		scope: "node",
+		scopeReason:
+			"The node's usage window; its period bounds are computed from now, which the control pair measures as time-variant rather than directory-variant.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "sessions list",
+		argv: ["sessions", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"Sessions live in the node's graph.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "issues list --workspace refarm",
+		argv: ["issues", "list", "--workspace", "refarm", "--json"],
+		scope: "node",
+		scopeReason:
+			"The ledger is addressed through the node's declared catalog; the 2026-08-08 slice proved this identical from three directories by hand, and this entry is that proof's regression guard.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "capabilities",
+		argv: ["capabilities", "--json"],
+		scope: "node",
+		scopeReason:
+			"What this build of refarm can do is a property of the binary and the node, never of the directory.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "agent",
+		argv: ["agent", "--json"],
+		scope: "node",
+		scopeReason:
+			"The agent handoff plan is derived from the node's runtime and model state.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "runtime status",
+		argv: ["runtime", "status", "--json"],
+		scope: "node",
+		scopeReason:
+			"Whether the daemon is up, and on which namespace, is the node's most basic fact.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "process list",
+		argv: ["process", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"Processes the node is tracking.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "delivery list",
+		argv: ["delivery", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"Delivery adapters are declared on the node.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "records list",
+		argv: ["records", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"Records live in the node's graph.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "vault list",
+		argv: ["vault", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"Vaults are declared on the node, like workspaces.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "skill list",
+		argv: ["skill", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"Skills are installed into the node's sovereign dir.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "extension list",
+		argv: ["extension", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"Extensions are installed into the node's sovereign dir.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "theme list",
+		argv: ["theme", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"Themes ship with the binary and are selected on the node.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "tree list",
+		argv: ["tree", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"Trees are addressed through the node's graph.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "inspect",
+		argv: ["inspect", "--json"],
+		scope: "node",
+		scopeReason:
+			"Inspects the node; its createdAt moves on its own, which the control pair measures.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "surface list",
+		argv: ["surface", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"Surfaces are the node's operator projections (Termux, PWA, Telegram). A surface catalog that changes with the caller's directory is reading a fixture, which is the exact defect the 2026-08-07 slice named when a repo-local .refarm/ was mistaken for the node's catalog.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "actions",
+		argv: ["actions", "--json"],
+		scope: "node",
+		scopeReason:
+			"The action catalog is derived from the binary and the node's declared capabilities.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "check --next-action",
+		argv: ["check", "--next-action", "--json"],
+		scope: "project",
+		scopeReason:
+			"The composite gate answers 'is THIS project ready to work in' — it reads the working tree's dependency and build state, so refusing outside a project is correct and answering identically everywhere would mean it stopped looking at the project.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "health",
+		argv: ["health", "--json"],
+		scope: "project",
+		scopeReason:
+			"Audits the filesystem structure, build alignment and resolution state of the project the operator is standing in; its findings are about that tree, and an identical answer from /tmp would mean it audited nothing.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "project handoff validate",
+		argv: ["project", "handoff", "validate", "--json"],
+		scope: "project",
+		scopeReason:
+			"refarm project resolves .project/ relative to the working directory BY DESIGN; refusing outside a project is the correct answer, and answering the same everywhere would mean it stopped reading the project.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
+		name: "package-manager",
+		argv: ["package-manager", "--json"],
+		scope: "project",
+		scopeReason:
+			"Detects which package manager THIS tree uses (pnpm here, npm elsewhere). Varying by directory is the whole point; what is wrong is doctor reporting the same value under a host.* name.",
 		allowedVaryingFieldPaths: [],
 	},
 ];
