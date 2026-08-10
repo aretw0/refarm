@@ -394,11 +394,12 @@
 			"title": "workspace sources declarations still advises the abolished workspaces map in the abolished place",
 			"body": "LOOSE ENDS from the workspace-is-not-a-node plan, added 2026-08-06 after a whole-plan review found the queue had none of them. Each names its file:\n\n(1) `refarm workspace sources declarations` (apps/refarm/src/commands/workspace.ts:642,654,702) still hands the operator a `workspaces` map and tells him to add it to `.refarm/config.json` -- the abolished shape in the abolished place, contradicting the refusal message that says 'in any file'. Advice only, no write, but the refusals disagree with each other.",
 			"location": "apps/refarm/src/commands/workspace.ts:642,654,702",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "medium",
 			"package": "apps/refarm",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "6fb8a8b3"
 		},
 		{
 			"id": "ISS-035",
@@ -1167,6 +1168,17 @@
 			"priority": "high",
 			"package": "apps/refarm",
 			"axis": "node-vs-directory"
+		},
+		{
+			"id": "ISS-103",
+			"title": "An env injected through deps stops at loadConfig, which reads process.env directly",
+			"body": "MEASURED 2026-08-10 by stashing every uncommitted change and running the file against the committed HEAD: `vitest run src/commands/workspace-sync.test.ts` reported 9 failed | 10 passed, all nine with MissingSovereignDirError.\n\nCAUSE, and it is a plumbing gap rather than a test mistake: the tests DO inject their environment -- `runWorkspaceSync({...}, { root, env: { SOVEREIGN_DIR: '.refarm' } })` -- and that env never reaches `loadConfig`, which reads `process.env` for the sovereign-dir selector through sovereignConfigPathCandidates. `loadConfig(root, options)` takes an options bag and has no `env` in it. So the injection is honoured by the code the test can see and ignored by the code it cannot.\n\nWHY IT WAS INVISIBLE: the CLI sets SOVEREIGN_DIR in-process, so the daemon and every real invocation are fine; only a test harness that constructs the call directly hits it. And the after-edit lane selects tests by change detection, so a file nobody touched is a file nobody runs -- the same reason ISS-100's three doctor tests sat failing.\n\nUNBLOCKED FOR NOW, not fixed: the test file pins process.env.SOVEREIGN_DIR in beforeAll and restores it in afterAll, with a comment naming this item. That makes the file state its own environment instead of inheriting one, which is the ISS-100 shape, but it leaves the real gap standing: an env injected through deps stops at the first module that reads process.env directly.\n\nTO CLOSE: `loadConfig` accepts `{ env }` and threads it to sovereignDir/sovereignConfigPathCandidates, and the call sites that already carry an operator env pass it. That is a small change with a wide blast radius -- loadConfig is called from nearly every command -- so it wants its own slice and a test that proves an injected env reaches the path resolution, rather than being folded into a workspace-sync change.",
+			"location": "packages/config/src/index.js:506",
+			"status": "open",
+			"category": "issue",
+			"priority": "high",
+			"package": "packages/config",
+			"axis": "durability"
 		}
 	]
 }

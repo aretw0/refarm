@@ -1,3 +1,19 @@
+import { afterAll, beforeAll } from "vitest";
+
+// ISS-103. These tests inject `env: { SOVEREIGN_DIR: ".refarm" }` through `deps`, and that env never
+// reaches `loadConfig`, which reads `process.env` for the sovereign-dir selector. So nine of them
+// failed on any machine whose shell does not export SOVEREIGN_DIR — which is every machine, since
+// the CLI sets it in-process — while passing wherever it happened to be exported. Pinned here so
+// the file states its own environment instead of inheriting one; the plumbing fix is ISS-103.
+const PREVIOUS_SOVEREIGN_DIR = process.env.SOVEREIGN_DIR;
+beforeAll(() => {
+	process.env.SOVEREIGN_DIR = ".refarm";
+});
+afterAll(() => {
+	if (PREVIOUS_SOVEREIGN_DIR === undefined) delete process.env.SOVEREIGN_DIR;
+	else process.env.SOVEREIGN_DIR = PREVIOUS_SOVEREIGN_DIR;
+});
+
 import type { DeclaredWorkspaceConfig } from "@refarm.dev/config";
 import { createScriptedOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import fs from "node:fs";
@@ -5,7 +21,12 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { WorkspaceOffer } from "./workspace-declaration.js";
-import { describeNothingToSync, planWorkspaceSync, runWorkspaceSync } from "./workspace-sync.js";
+import {
+	describeNothingToSync,
+	formatWorkspaceSyncPlanLines,
+	planWorkspaceSync,
+	runWorkspaceSync,
+} from "./workspace-sync.js";
 import type { WorkspaceDeclaredCommand } from "./workspace.js";
 
 function catalogEntry(commands: Record<string, WorkspaceDeclaredCommand>): DeclaredWorkspaceConfig {
@@ -89,7 +110,7 @@ describe("planWorkspaceSync — PURE, literals only", () => {
 			catalogEntry: catalogEntry({ existing: { run: ["x"] } }),
 		});
 
-		expect(plan).toEqual({ additions: [], collisions: [], unchanged: [] });
+		expect(plan).toEqual({ additions: [], collisions: [], revisions: [], unchanged: [] });
 	});
 });
 
@@ -173,7 +194,7 @@ describe("runWorkspaceSync — the command", () => {
 		);
 
 		expect(result.status).toBe("inspected");
-		expect(result.plan).toEqual({ additions: [], collisions: [], unchanged: [] });
+		expect(result.plan).toEqual({ additions: [], collisions: [], revisions: [], unchanged: [] });
 	});
 
 	it("refuses a workspace id the node catalog does not declare", async () => {
@@ -355,5 +376,72 @@ describe("runWorkspaceSync — the command", () => {
 
 		expect(result.status).toBe("declined");
 		expect(readConfig(root)).toEqual(before);
+	});
+});
+
+// ISS-035. A command the node ADOPTED from a workspace's offer, which the workspace then revised,
+// was reported as a collision — so the node kept its stale copy of the workspace's OWN command,
+// permanently, because nothing ever re-opened it. `source: "workspace-offer"` is the field that says
+// who authored it, and it was written, displayed, and never read by the planner. The repo's five VPN
+// commands were frozen at whatever the offer file said the day they were first accepted.
+describe("a revised offer is not a collision (ISS-035)", () => {
+	const offered = { run: ["node", "scripts/vpn.mjs", "--new"], description: "revised" };
+	const catalogEntry = (source?: string) =>
+		({
+			path: "/w",
+			commands: { vpn: { run: ["node", "scripts/vpn.mjs", "--old"], description: "older", ...(source ? { source } : {}) } },
+		}) as never;
+
+	it("classifies a change to a command this node adopted as a REVISION", () => {
+		const plan = planWorkspaceSync({
+			offer: { commands: { vpn: offered } } as never,
+			catalogEntry: catalogEntry("workspace-offer"),
+		});
+		expect(plan.collisions).toEqual([]);
+		expect(plan.revisions).toHaveLength(1);
+		expect(plan.revisions[0]?.name).toBe("vpn");
+		expect(plan.revisions[0]?.offered.run).toEqual(offered.run);
+	});
+
+	it("still defends a command the NODE authored — that is what a collision is for", () => {
+		const plan = planWorkspaceSync({
+			offer: { commands: { vpn: offered } } as never,
+			catalogEntry: catalogEntry(),
+		});
+		expect(plan.revisions).toEqual([]);
+		expect(plan.collisions).toHaveLength(1);
+	});
+
+	it("an unchanged re-offer is still unchanged, not a revision", () => {
+		const same = { run: ["node", "scripts/vpn.mjs", "--old"], description: "older" };
+		const plan = planWorkspaceSync({
+			offer: { commands: { vpn: same } } as never,
+			catalogEntry: catalogEntry("workspace-offer"),
+		});
+		expect(plan.revisions).toEqual([]);
+		expect(plan.unchanged).toHaveLength(1);
+	});
+
+	it("names the revision in the plan lines, and says how to accept it", () => {
+		const plan = planWorkspaceSync({
+			offer: { commands: { vpn: offered } } as never,
+			catalogEntry: catalogEntry("workspace-offer"),
+		});
+		const lines = formatWorkspaceSyncPlanLines("rcdc5", plan, "/w/refarm.workspace.json").join("\n");
+		expect(lines).toMatch(/revisions \(1\)/);
+		expect(lines).toMatch(/--replace/);
+		expect(lines).not.toMatch(/collisions/);
+	});
+});
+
+describe("describeNothingToSync names a revision rather than shrugging (ISS-035)", () => {
+	it("says how many revisions are waiting and which flag takes them", () => {
+		const plan = planWorkspaceSync({
+			offer: { commands: { vpn: { run: ["new"] } } },
+			catalogEntry: catalogEntry({ vpn: { run: ["old"], source: "workspace-offer" } as never }),
+		});
+		expect(describeNothingToSync(plan)).toBe(
+			"nothing accepted — 1 revision the workspace has made since; re-run with --replace to take them",
+		);
 	});
 });

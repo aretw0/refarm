@@ -85,9 +85,24 @@ export interface WorkspaceSyncUnchanged {
 	command: WorkspaceDeclaredCommand;
 }
 
+/** A command the node adopted from this workspace, now revised at the source. */
+export interface WorkspaceSyncRevision {
+	name: string;
+	/** What the node currently runs — adopted from an earlier offer. */
+	adopted: WorkspaceDeclaredCommand;
+	/** What the workspace offers now. */
+	offered: WorkspaceDeclaredCommand;
+}
+
 export interface WorkspaceSyncPlan {
 	additions: WorkspaceSyncAddition[];
 	collisions: WorkspaceSyncCollision[];
+	/** ISS-035. A command the node ADOPTED from this workspace's offer, which the workspace has
+	 *  since revised. Not a collision: the node never authored it, so there is nothing of the
+	 *  node's to defend — `source: "workspace-offer"` is exactly the field that says so, and it was
+	 *  written, displayed and never read. Without this bucket a revised offer was a PERMANENT
+	 *  collision and the node kept a stale copy of a command the workspace had moved on from. */
+	revisions: WorkspaceSyncRevision[];
 	unchanged: WorkspaceSyncUnchanged[];
 }
 
@@ -129,6 +144,7 @@ export function planWorkspaceSync(input: {
 
 	const additions: WorkspaceSyncAddition[] = [];
 	const collisions: WorkspaceSyncCollision[] = [];
+	const revisions: WorkspaceSyncRevision[] = [];
 	const unchanged: WorkspaceSyncUnchanged[] = [];
 
 	for (const name of offeredNames) {
@@ -143,10 +159,20 @@ export function planWorkspaceSync(input: {
 			unchanged.push({ name, command: existing });
 			continue;
 		}
+		// ISS-035: WHO AUTHORED THE ONE IN THE CATALOG decides which of these this is. A command the
+		// node adopted from this same workspace (`source: "workspace-offer"`) and that the workspace
+		// has since changed is a REVISION — there is no node-authored definition to defend, and
+		// reporting it as a collision froze the node on a stale copy of the workspace's own command,
+		// permanently, because nothing ever re-opened it. A command the node authored itself keeps
+		// winning, unchanged: that is what a collision is for.
+		if (existing.source === WORKSPACE_OFFER_SOURCE) {
+			revisions.push({ name, adopted: existing, offered });
+			continue;
+		}
 		collisions.push({ name, kept: existing, rejected: offered });
 	}
 
-	return { additions, collisions, unchanged };
+	return { additions, collisions, revisions, unchanged };
 }
 
 /** Human-readable lines for a plan — used for BOTH the interactive announce
@@ -154,7 +180,12 @@ export function planWorkspaceSync(input: {
  *  formatting, no I/O. */
 export function formatWorkspaceSyncPlanLines(workspace: string, plan: WorkspaceSyncPlan, offerPath: string): string[] {
 	const lines: string[] = [`Workspace sync: ${workspace}`, `  offer: ${offerPath}`];
-	if (plan.additions.length === 0 && plan.collisions.length === 0 && plan.unchanged.length === 0) {
+	if (
+		plan.additions.length === 0 &&
+		plan.collisions.length === 0 &&
+		plan.revisions.length === 0 &&
+		plan.unchanged.length === 0
+	) {
 		lines.push("  the workspace offers nothing");
 		return lines;
 	}
@@ -163,6 +194,19 @@ export function formatWorkspaceSyncPlanLines(workspace: string, plan: WorkspaceS
 		for (const addition of plan.additions) {
 			lines.push(`    + ${addition.name}: ${addition.command.run.join(" ")}`);
 		}
+	}
+	if (plan.revisions.length > 0) {
+		// Printed BEFORE collisions: a revision is the workspace updating something this node took
+		// from it, which is a different sentence from "your version lost to mine".
+		lines.push(
+			`  revisions (${plan.revisions.length}) — this node adopted these from ${workspace}, which has since changed them:`,
+		);
+		for (const revision of plan.revisions) {
+			lines.push(`    ~ ${revision.name}`);
+			lines.push(`      adopted: ${revision.adopted.run.join(" ")}`);
+			lines.push(`      offered: ${revision.offered.run.join(" ")}`);
+		}
+		lines.push("      re-run with --replace to accept the workspace's current definition.");
 	}
 	if (plan.collisions.length > 0) {
 		lines.push(`  collisions (${plan.collisions.length}) — this node's definition is kept, the offer's is rejected:`);
@@ -185,6 +229,12 @@ export function formatWorkspaceSyncPlanLines(workspace: string, plan: WorkspaceS
  * names WHY there is nothing to accept instead of leaving that to be inferred.
  */
 export function describeNothingToSync(plan: WorkspaceSyncPlan): string {
+	// ISS-035: a plan whose only content is revisions is NOT "nothing to see" — it is a node holding
+	// a stale copy of the workspace's own command, and the sentence has to say which flag re-opens it.
+	if (plan.revisions.length > 0) {
+		const count = plan.revisions.length;
+		return `nothing accepted — ${count} revision${count === 1 ? "" : "s"} the workspace has made since; re-run with --replace to take them`;
+	}
 	if (plan.collisions.length > 0) {
 		const count = plan.collisions.length;
 		return `nothing to accept — ${count} collision${count === 1 ? "" : "s"} reported`;
@@ -199,6 +249,11 @@ export interface WorkspaceSyncOptions {
 	workspace: string;
 	json?: boolean;
 	attendedElsewhere?: boolean;
+	/** ISS-035. Accept the workspace's CURRENT definition for commands this node adopted from it
+	 *  earlier and the workspace has since revised. Off by default and never implied: a sync that
+	 *  silently rewrote what the node runs would be the opposite of the consent this command is
+	 *  built around. Collisions — commands the NODE authored — are unaffected by it. */
+	replace?: boolean;
 }
 
 export interface WorkspaceSyncDeps {
@@ -299,7 +354,11 @@ export async function runWorkspaceSync(
 	const say = deps.announce ?? ((line: string) => console.log(line));
 	for (const line of formatWorkspaceSyncPlanLines(workspaceId, plan, offerPath)) say(line);
 
-	if (plan.additions.length === 0) {
+	// ISS-035: revisions count as work to do only when the operator asked for them. Without
+	// `--replace` a plan of nothing-but-revisions is still "nothing to sync" — the plan lines above
+	// have already told him the command exists and what it would change.
+	const acceptedRevisions = options.replace ? plan.revisions : [];
+	if (plan.additions.length === 0 && acceptedRevisions.length === 0) {
 		return { status: "nothing-to-sync", workspace: workspaceId, plan, configPath, offerPath };
 	}
 
@@ -331,6 +390,11 @@ export async function runWorkspaceSync(
 	for (const addition of plan.additions) {
 		acceptedCommands[addition.name] = { ...addition.command, source: WORKSPACE_OFFER_SOURCE };
 	}
+	// The revision keeps the same provenance it had: the node adopted it from this workspace before
+	// and is adopting the workspace's newer definition now.
+	for (const revision of acceptedRevisions) {
+		acceptedCommands[revision.name] = { ...revision.offered, source: WORKSPACE_OFFER_SOURCE };
+	}
 	const entry = { ...existingRaw, commands: { ...existingCommands, ...acceptedCommands } };
 
 	const operationId = `accept:workspace-sync:${workspaceId}`;
@@ -343,7 +407,10 @@ export async function runWorkspaceSync(
 		operationId,
 		operationKind: "accept-workspace-sync",
 		title: `${WORKSPACE_SYNC_COMMAND} ${workspaceId}`,
-		purpose: `Aceitar ${plan.additions.length} comando(s) que "${workspaceId}" ofereceu em ${offerPath}.`,
+		purpose:
+			acceptedRevisions.length > 0
+				? `Aceitar ${plan.additions.length} comando(s) novo(s) e ${acceptedRevisions.length} revisão(ões) que "${workspaceId}" ofereceu em ${offerPath}.`
+				: `Aceitar ${plan.additions.length} comando(s) que "${workspaceId}" ofereceu em ${offerPath}.`,
 		requester: WORKSPACE_SYNC_COMMAND,
 		requestedAt: (deps.now ?? (() => new Date().toISOString()))(),
 		notes: [

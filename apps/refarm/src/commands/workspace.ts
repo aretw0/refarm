@@ -1053,7 +1053,11 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.description("Review a workspace's own offer and accept it into this node's catalog")
 		.option("--attended-elsewhere", "A remote surface is attending the consent prompts")
 		.option("--json", "Print the sync plan as JSON — inspection only, never writes")
-		.action(async (id: string, options: Pick<WorkspaceSyncOptions, "attendedElsewhere" | "json">) => {
+		.option(
+			"--replace",
+			"Accept the workspace's current definition for commands this node adopted from it and the workspace has since revised (ISS-035)",
+		)
+		.action(async (id: string, options: Pick<WorkspaceSyncOptions, "attendedElsewhere" | "json" | "replace">) => {
 			try {
 				const result = await runWorkspaceSync({ workspace: id, ...options }, deps);
 				if (options.json) {
