@@ -111,6 +111,35 @@ the front door (`resume`'s truncation counts); these six are the same shape furt
 
 **Proof needed:** a fixture larger than each limit, asserting the envelope declares what it withheld.
 
+**REVISED 2026-08-10, after measuring instead of estimating.** This group is NOT six independent
+fixes with a shared fixture. It is one missing field with a root, and the root is ISS-040:
+
+```
+packages/storage-contract-v1/src/types.ts:59
+    queryNodes(type: string): Promise<unknown[]>        ← nowhere to put "there is more"
+```
+
+17 call sites across **8 implementations** (`farmhand`, `tractor-store`, `sidecar-client`,
+`storage-node-view`, `storage-rest`, `storage-sqlite`, `sync-loro`, the tractor-ts mock adapters).
+The eight consumers do not discard `truncated` out of carelessness — the contract they call cannot
+carry it. `sidecar-client` is the one exception, and only because it speaks HTTP and the HTTP body
+already has the fields; the contract beneath it does not.
+
+Two consequences for this map:
+
+- **ISS-044 is BLOCKED on ISS-040, not parallel to it.** Farmhand sorts the whole list and slices,
+  which is correct only while the page is complete — and completeness cannot be checked through a
+  contract that cannot express it. Closing ISS-044 first would mean asserting an invariant nothing
+  can verify.
+- **ISS-042 and ISS-047 are the same missing field at the HTTP and WASM boundaries**, one and two
+  layers below.
+
+**So group F earns its own spec and plan**, like the ledger and probe slices before it: change the
+contract to `{ rows, stored?, truncated? }`, migrate eight implementations, then let ISS-042, ISS-044
+and ISS-047 close against it. Sizing it as a batch of quick fixes is how it would land half-done —
+which is the state it is in today, and ISS-040's original first claim (that `sidecar-client` discards
+the fields) was already stale by the time it was read.
+
 ### G. Operator-only — cannot be closed by an agent (2 items)
 
 ISS-071 (main has no branch protection) and the pending ruling inside ISS-054 (a prior slice touched
