@@ -1877,6 +1877,135 @@ function printSandboxStatus(result) {
 	console.log(`               ${result.node.detail}`);
 }
 
+/** The lock file both `start` and `--reset` hold. Its NAME is a sibling of the pid file so the two
+ *  live in the same directory and neither can be found without the other. */
+export const SANDBOX_LOCK_FILE_NAME = ".sandbox.lock";
+
+/**
+ * PURE. Given what was read from an existing lock file and whether that pid is alive, decide
+ * whether the lock may be taken.
+ *
+ * ISS-079: `--reset` read the status, then deleted — and a `start` racing in another terminal could
+ * create the pid file between those two steps, so the reset deleted a live node's directory while
+ * believing it was not running. The old code recorded this as a KNOWN LIMITATION and accepted it.
+ * A check-then-act is not fixable by checking harder; it needs mutual exclusion, and the lock is
+ * where that lives.
+ *
+ * THREE STATES, because a stale lock is not a held one: a lock whose holder is gone must be
+ * breakable, or the first crash makes the sandbox permanently unusable — and an operator who has to
+ * delete a lock file by hand has been handed the race back.
+ */
+export function judgeSandboxLock({ existing, holderAlive }) {
+	if (!existing) return { take: true, reason: "free" };
+	if (holderAlive) return { take: false, reason: "held", holder: existing.pid };
+	return { take: true, reason: "stale", holder: existing.pid };
+}
+
+/**
+ * Runs `action` while holding the sandbox lock, and releases it whatever happens.
+ *
+ * `wx` is the whole mechanism: an exclusive create fails if the file exists, atomically, so two
+ * processes cannot both believe they took it. Everything else here is about the THIRD state — a
+ * lock left behind by a crash — which is broken deliberately and announced, never silently.
+ */
+export function withSandboxLock(
+	sandboxRoot,
+	action,
+	{
+		writeFileSync = fs.writeFileSync,
+		readFileSync = fs.readFileSync,
+		rmSync = fs.rmSync,
+		isAlive = (pid) => {
+			try {
+				process.kill(pid, 0);
+				return true;
+			} catch {
+				return false;
+			}
+		},
+		announce = (line) => console.log(line),
+	} = {},
+) {
+	const lockPath = path.join(sandboxRoot, SANDBOX_LOCK_FILE_NAME);
+	const take = () => {
+		try {
+			writeFileSync(lockPath, JSON.stringify({ pid: process.pid }), { flag: "wx" });
+			return { taken: true };
+		} catch (error) {
+			if (error?.code !== "EEXIST") throw error;
+			let existing = null;
+			try {
+				existing = JSON.parse(readFileSync(lockPath, "utf-8"));
+			} catch {
+				existing = { pid: 0 };
+			}
+			const verdict = judgeSandboxLock({
+				existing,
+				holderAlive: Number.isInteger(existing?.pid) && existing.pid > 0 && isAlive(existing.pid),
+			});
+			if (!verdict.take) return { taken: false, holder: verdict.holder };
+			announce(`   refarm-sandbox: breaking a stale lock left by pid ${verdict.holder} (it is gone)`);
+			rmSync(lockPath, { force: true });
+			writeFileSync(lockPath, JSON.stringify({ pid: process.pid }), { flag: "wx" });
+			return { taken: true };
+		}
+	};
+
+	const result = take();
+	if (!result.taken) {
+		throw new Error(
+			`another refarm-sandbox command is running (pid ${result.holder}). ` +
+				"start and --reset take the same lock on purpose: a reset that ran beside a start used to " +
+				"delete a live node's directory.",
+		);
+	}
+	try {
+		return action();
+	} finally {
+		try {
+			rmSync(lockPath, { force: true });
+		} catch {
+			/* the next run breaks it as stale */
+		}
+	}
+}
+
+/**
+ * Stops the sandbox node: SIGTERM to the pid the sandbox itself recorded, then verify.
+ *
+ * ISS-078. Its absence was recorded as "there is no `stop` subcommand" and left there, which made
+ * `--reset --force` the only way out of a running sandbox — an operation that DELETES the node's
+ * whole directory to achieve something a signal does. It refuses to signal a pid whose cmdline does
+ * not match this sandbox, using the same `classifySandboxLiveness` the status command uses: a pid
+ * file is a claim, and the OS having reused that number is exactly the case a "stop" must not get
+ * wrong.
+ */
+export function stopSandbox(repoRoot = REPO_ROOT, deps = {}) {
+	const { getStatus = sandboxStatus, kill = (pid, signal) => process.kill(pid, signal), rmSync = fs.rmSync } = deps;
+	const status = getStatus(repoRoot);
+
+	if (status.node.state !== "running") {
+		return { stopped: false, reason: `the sandbox node is "${status.node.state}", not running`, state: status.node.state };
+	}
+	const pid = status.node.pid;
+	try {
+		kill(pid, "SIGTERM");
+	} catch (error) {
+		return { stopped: false, reason: `could not signal pid ${pid}: ${error?.message ?? error}`, state: status.node.state };
+	}
+	// The pid file is the sandbox's own claim about itself; leaving it behind after a successful
+	// stop would make the next `status` report a node that is not there. Resolved HERE rather than
+	// up front so a caller that only wants the refusal path never needs a real sandbox environment.
+	try {
+		rmSync(deps.pidFilePath ?? path.join(sandboxEnvironment(repoRoot).SOVEREIGN_BASE, SANDBOX_PID_FILE_NAME), {
+			force: true,
+		});
+	} catch {
+		/* status already degrades gracefully on an unreadable pid file */
+	}
+	return { stopped: true, pid };
+}
+
 async function main() {
 	const argv = process.argv.slice(2);
 
@@ -1886,7 +2015,9 @@ async function main() {
 	// does and does not bypass) — it is never threaded into anything else this CLI does.
 	if (argv.includes("--reset")) {
 		try {
-			const result = resetSandbox(REPO_ROOT, { force: argv.includes("--force") });
+			const result = withSandboxLock(sandboxEnvironment(REPO_ROOT).SOVEREIGN_BASE, () =>
+				resetSandbox(REPO_ROOT, { force: argv.includes("--force") }),
+			);
 			if (result.deleted) {
 				const forcedNote = result.forced ? ` (forced past liveness "${result.forcedOverState}")` : "";
 				console.log(`   Sandbox reset — deleted ${result.target}${forcedNote}`);
@@ -1926,8 +2057,22 @@ async function main() {
 		return;
 	}
 
+	if (command === "stop") {
+		try {
+			const result = stopSandbox();
+			if (asJson) console.log(JSON.stringify(result, null, 2));
+			else if (result.stopped) console.log(`   Sandbox node stopped (pid ${result.pid})`);
+			else console.log(`   ${result.reason}`);
+			if (!result.stopped) process.exitCode = 1;
+		} catch (err) {
+			console.error(`   refarm-sandbox: ${err.message}`);
+			process.exitCode = 1;
+		}
+		return;
+	}
+
 	if (command !== "start") {
-		console.error(`refarm-sandbox: unknown command "${command}". Try "start", "status", or "--reset".`);
+		console.error(`refarm-sandbox: unknown command "${command}". Try "start", "stop", "status", or "--reset".`);
 		process.exitCode = 1;
 		return;
 	}

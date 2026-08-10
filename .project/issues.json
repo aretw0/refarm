@@ -1018,11 +1018,12 @@
 			"title": "The operator requirements R1-R12 exist only in Markdown and are invisible to every instrument",
 			"body": "docs/OPERATOR_REQUIREMENTS.md carries the operator requirements from his 2026-08-06 interview: R1 through R12, each with need, acceptance criteria, maturity state and evidence. Eleven are Parcial and one (R12, the executive view) is Ausente. NONE of them exists in .project/requirements.json. Measured 2026-08-09: that file holds 31 entries, ALL status accepted, with prefixes REQ-ENV-, REQ-RESO-, REQ-PIPE-, REQ-WORK-, REQ-RUNTIME-, REQ-CONTRACT-, REQ-PLUGIN-, REQ-DOC-, REQ-GOV-, REQ-MIG-, REQ-AGENT- -- the May-era phase cohort -- whose traces_to point at T-ENV-/T-PIPE-/T-OPS- ids in the tasks ledger that died 2026-05-05. So there are TWO requirement records: one governed, complete and obsolete; one live, authoritative and ungovernable. This is the THIRD instance of the pattern the ledger slice named on 2026-08-08: a schema-governed .project document with no CLI writer stops receiving reality. tasks.json and issues.json were the first two and issues.json now has a writer. CONSEQUENCE the operator hit directly: with twelve requirements all reading Parcial and no link to work, there is no way to answer which requirement a given open item serves, or how many open items stand between him and any one of them -- so choosing what to build next is an impression rather than a number.",
 			"location": "docs/OPERATOR_REQUIREMENTS.md:115",
-			"status": "open",
+			"status": "resolved",
 			"category": "capability",
 			"priority": "high",
 			"package": "refarm",
-			"axis": "durability"
+			"axis": "durability",
+			"resolved_by": "18a21789"
 		},
 		{
 			"id": "ISS-090",

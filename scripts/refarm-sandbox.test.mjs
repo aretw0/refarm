@@ -52,6 +52,9 @@ import {
 	sandboxStatus,
 	shouldInstallSandboxPlugin,
 	startSandbox,
+	judgeSandboxLock,
+	stopSandbox,
+	withSandboxLock,
 } from "./refarm-sandbox.mjs";
 
 // A literal, not this checkout's real path — sandboxEnvironment must not assume anything
@@ -1792,4 +1795,88 @@ test("resolveEffectivePlugin: a caller-supplied plugin loader in extraArgs skips
 	});
 	assert.equal(called, false);
 	assert.equal(result.notice, undefined);
+});
+
+// ISS-079. `--reset` read the status and then deleted, and a `start` racing in another terminal
+// could create the pid file between those two steps — so a reset could delete a LIVE node's whole
+// directory while believing it was not running. The old code recorded this as a known limitation
+// and accepted it. A check-then-act is not fixable by checking harder.
+test("the lock is free when no one holds it", () => {
+	assert.deepEqual(judgeSandboxLock({ existing: null, holderAlive: false }), { take: true, reason: "free" });
+});
+
+test("a lock whose holder is ALIVE is refused, naming the holder", () => {
+	const verdict = judgeSandboxLock({ existing: { pid: 4242 }, holderAlive: true });
+	assert.equal(verdict.take, false);
+	assert.equal(verdict.reason, "held");
+	assert.equal(verdict.holder, 4242);
+});
+
+test("a lock whose holder is GONE is breakable — a crash must not make the sandbox unusable", () => {
+	const verdict = judgeSandboxLock({ existing: { pid: 4242 }, holderAlive: false });
+	assert.equal(verdict.take, true);
+	assert.equal(verdict.reason, "stale");
+});
+
+test("withSandboxLock refuses to run its action while another process holds the lock", () => {
+	let ran = false;
+	assert.throws(
+		() =>
+			withSandboxLock("/sandbox", () => { ran = true; }, {
+				writeFileSync: () => { const error = new Error("exists"); error.code = "EEXIST"; throw error; },
+				readFileSync: () => JSON.stringify({ pid: 4242 }),
+				rmSync: () => {},
+				isAlive: () => true,
+				announce: () => {},
+			}),
+		/another refarm-sandbox command is running \(pid 4242\)/,
+	);
+	assert.equal(ran, false, "the action must not run while the lock is held");
+});
+
+test("withSandboxLock releases the lock even when the action throws", () => {
+	const removed = [];
+	assert.throws(
+		() =>
+			withSandboxLock("/sandbox", () => { throw new Error("boom"); }, {
+				writeFileSync: () => {},
+				readFileSync: () => "",
+				rmSync: (target) => removed.push(target),
+				isAlive: () => false,
+				announce: () => {},
+			}),
+		/boom/,
+	);
+	assert.equal(removed.length, 1, "a lock held past a failure is a sandbox nobody can start");
+});
+
+// ISS-078. Its absence made `--reset --force` the only way out of a running sandbox — an operation
+// that DELETES the node's whole directory to achieve what a signal does.
+test("stopSandbox refuses when the node is not running, and says which state it found", () => {
+	const result = stopSandbox("/repo", { getStatus: () => ({ node: { state: "not-running" } }) });
+	assert.equal(result.stopped, false);
+	assert.match(result.reason, /not-running/);
+});
+
+test("stopSandbox signals the pid the sandbox itself recorded", () => {
+	const signalled = [];
+	const result = stopSandbox("/repo", {
+		getStatus: () => ({ node: { state: "running", pid: 5150 } }),
+		kill: (pid, signal) => signalled.push([pid, signal]),
+		rmSync: () => {},
+		pidFilePath: "/sandbox/.refarm/node.pid",
+	});
+	assert.deepEqual(result, { stopped: true, pid: 5150 });
+	assert.deepEqual(signalled, [[5150, "SIGTERM"]]);
+});
+
+test("stopSandbox reports a signal it could not deliver rather than claiming success", () => {
+	const result = stopSandbox("/repo", {
+		getStatus: () => ({ node: { state: "running", pid: 5150 } }),
+		kill: () => { throw new Error("EPERM"); },
+		rmSync: () => {},
+		pidFilePath: "/sandbox/.refarm/node.pid",
+	});
+	assert.equal(result.stopped, false);
+	assert.match(result.reason, /EPERM/);
 });
