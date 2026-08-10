@@ -366,7 +366,17 @@ export function printRefarmCheckNextActionJson(report: RefarmCheckReport): void 
 			report.warningsAsBlocking,
 		),
 	});
-	printJson(output);
+	// ISS-083. `ok: true` from THIS command is what CLAUDE.md tells every agent to trust, and it
+	// used to mean two different things with no way to tell them apart: "every auditor ran and
+	// found nothing" and "the auditor that would have found something did not run for this change
+	// set". A standing config_node_drift was invisible here while `refarm health` reported it on
+	// the same node, minutes apart.
+	//
+	// The auditor layer already got this right — it distinguishes `config_node_unreachable` from a
+	// clean pass precisely so a failed read cannot read as fine — and the composite above it
+	// re-introduced the collapse. The list is carried even when EMPTY, because "nothing was skipped"
+	// is the fact that makes `ok: true` mean what a reader assumes it means.
+	printJson({ ...output, skippedAuditors: report.checks.health.skippedAuditors ?? [] });
 }
 
 function compactActionableRecommendations(

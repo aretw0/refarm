@@ -616,11 +616,12 @@
 			"title": "runtime-stop.ts:88 accepts a corrupted pid file — parseInt leniency the sandbox launcher already fixed",
 			"body": "LOOSE ENDS opened by the sandbox-node session (D3/D4), 2026-08-07, each named with its own evidence:\n\n(4) apps/refarm/src/commands/runtime-stop.ts:88 has the same parseInt leniency bug the sandbox launcher's own parseSandboxPidFile was fixed to avoid: `Number.parseInt(\"123abc\", 10)` returns 123 (finite, positive), so a truncated/corrupted pid file would be silently accepted as a plausible pid -- the launcher's fix (a strict `/^[0-9]+$/` match BEFORE the parseInt) is the pattern to port.",
 			"location": "apps/refarm/src/commands/runtime-stop.ts:88",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "medium",
 			"package": "apps/refarm",
-			"axis": "other"
+			"axis": "other",
+			"resolved_by": "014dfc1b"
 		},
 		{
 			"id": "ISS-054",

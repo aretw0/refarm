@@ -1,5 +1,6 @@
 import os from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { printRefarmCheckNextActionJson } from "../../src/commands/check-report.js";
 import {
 	buildNodeSubstrateRecommendations,
 	buildRefarmCheckReport,
@@ -1121,6 +1122,7 @@ describe("checkCommand", () => {
 			nextCommand: null,
 			nextCommands: [],
 			recommendations: [],
+			skippedAuditors: [],
 		});
 		expect(process.exitCode).toBeUndefined();
 
@@ -1151,6 +1153,7 @@ describe("checkCommand", () => {
 			nextCommand: null,
 			nextCommands: [],
 			recommendations: [],
+			skippedAuditors: [],
 		});
 		expect(process.exitCode).toBeUndefined();
 
@@ -1386,6 +1389,7 @@ describe("checkCommand", () => {
 					target: "packages/example",
 				},
 			],
+			skippedAuditors: [],
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -1438,6 +1442,7 @@ describe("checkCommand", () => {
 					target: "node_modules/.bin/vitest -> node_modules/.bin/vitest.cmd",
 				},
 			],
+			skippedAuditors: [],
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -1553,6 +1558,7 @@ describe("checkCommand", () => {
 					command: "refarm runtime start --wait",
 				},
 			],
+			skippedAuditors: [],
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -1615,8 +1621,45 @@ describe("checkCommand", () => {
 					command: "refarm model current --json",
 				},
 			],
+			skippedAuditors: [],
 		});
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
+	});
+});
+
+// ISS-083. `refarm check --next-action --json` returned ok:true on a node where `refarm health`
+// reported config_node_drift minutes apart, on the same tree. The divergence was real and standing;
+// what changed was whether the mandated entry point LOOKED. Two states where three are needed:
+// "audited and clean" and "not audited" both produced ok:true, and the third — "this auditor did
+// not run for this change set" — appeared nowhere in the envelope.
+describe("check says what it audited, not only its verdict (ISS-083)", () => {
+	function payloadFor(skippedAuditors: { id: string; title: string; reason: string }[]) {
+		const report = buildRefarmCheckReport(
+			{
+				health: makeHealthReport({ ok: true, issueCount: 0, recommendations: [], skippedAuditors }),
+				doctor: makeDoctorReport(),
+			},
+			{},
+		);
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		try {
+			printRefarmCheckNextActionJson(report);
+			return JSON.parse(logs.join("\n"));
+		} finally {
+			spy.mockRestore();
+		}
+	}
+
+	it("carries the skipped auditors into the next-action envelope", () => {
+		const skipped = [{ id: "configNode", title: "Config node", reason: "not applicable" }];
+		expect(payloadFor(skipped).skippedAuditors).toEqual(skipped);
+	});
+
+	it("carries an EMPTY list when nothing was skipped — the fact that makes ok:true mean what a reader assumes", () => {
+		expect(payloadFor([]).skippedAuditors).toEqual([]);
 	});
 });
