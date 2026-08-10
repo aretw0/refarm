@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import {
 	checkHandoffCitations,
+	checkRequirementCitations,
 	checkLedgerFreshness,
 	parseCommitCount,
 } from "./project-block-consistency.mjs";
@@ -110,5 +111,37 @@ describe("parseCommitCount", () => {
 		const result = checkLedgerFreshness({ commitsSinceLedgerChange });
 		assert.match(result.warnings.join(" "), /unknown/);
 		assert.deepEqual(result.errors, []);
+	});
+});
+
+describe("checkRequirementCitations", () => {
+	const requirements = [{ id: "R1" }, { id: "R7" }, { id: "REQ-ENV-001" }];
+
+	it("errors when an item serves a requirement that does not exist", () => {
+		const result = checkRequirementCitations(requirements, [{ id: "ISS-1", requirement: "R99" }]);
+		assert.ok(result.errors.includes("[issues] ISS-1 serves unknown requirement: R99"));
+	});
+
+	it("passes when the citation exists", () => {
+		assert.deepEqual(checkRequirementCitations(requirements, [{ id: "ISS-1", requirement: "R7" }]).errors, []);
+	});
+
+	it("does NOT require an item to cite one — the field is optional by decision", () => {
+		assert.deepEqual(checkRequirementCitations(requirements, [{ id: "ISS-1", status: "open" }]).errors, []);
+	});
+
+	it("accepts a citation of the May-era cohort too — they are requirements of this project as well", () => {
+		assert.deepEqual(
+			checkRequirementCitations(requirements, [{ id: "ISS-1", requirement: "REQ-ENV-001" }]).errors,
+			[],
+		);
+	});
+
+	it("names every offender rather than stopping at the first", () => {
+		const result = checkRequirementCitations(requirements, [
+			{ id: "ISS-1", requirement: "R98" },
+			{ id: "ISS-2", requirement: "R99" },
+		]);
+		assert.equal(result.errors.length, 2);
 	});
 });

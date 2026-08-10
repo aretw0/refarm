@@ -96,6 +96,24 @@ export function checkHandoffCitations(handoff, issues) {
 	return { errors };
 }
 
+// External anchor #3 (deterministic — feeds `errors`): an item MAY serve an operator requirement,
+// and if it names one, that requirement must exist. Deliberately does NOT require an item to name
+// one: the field is optional by the operator's decision, because several open items are pure hygiene
+// and "serves no requirement" is a real answer rather than missing data. Blocks rather than warns
+// under the rule this gate already follows — a citation of a non-existent id is verifiable, and the
+// agent fixes it with one command (`issues set-requirement`, or `--clear`).
+export function checkRequirementCitations(requirements, issues) {
+	const errors = [];
+	const ids = new Set(requirements.map((entry) => entry?.id).filter(Boolean));
+	for (const issue of issues) {
+		if (!issue?.requirement) continue;
+		if (!ids.has(issue.requirement)) {
+			errors.push(`[issues] ${issue.id} serves unknown requirement: ${issue.requirement}`);
+		}
+	}
+	return { errors };
+}
+
 // External anchor #2 (heuristic — feeds `warnings`, never `errors`): the ledger can be
 // internally perfect and still be stale. Staleness is a judgement call, not a verifiable defect
 // an agent can always remediate in one command, so it warns rather than blocks — blocking here
@@ -307,6 +325,9 @@ function main() {
 
 	const citations = checkHandoffCitations(handoff, issues);
 	errors.push(...citations.errors);
+
+	const requirementCitations = checkRequirementCitations(requirements, issues);
+	errors.push(...requirementCitations.errors);
 
 	const freshness = checkLedgerFreshness({
 		commitsSinceLedgerChange: readCommitsSinceLedgerChange(),
