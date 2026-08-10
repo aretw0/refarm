@@ -347,11 +347,12 @@
 			"title": "resolveSovereignDivergences() returns null on throw and doctor flattens it to [] — failure reads as clean",
 			"body": "LOOSE ENDS from the node-answers-for-itself plan:\n\n(b) resolveSovereignDivergences() returns null on throw and doctor flattens it to [] -- a failed resolution is indistinguishable from 'no divergences', pre-existing but now the umbrella over four more findings;",
 			"location": "apps/refarm/src/commands/doctor.ts:475",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "high",
 			"package": "apps/refarm",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "e9f9e42f"
 		},
 		{
 			"id": "ISS-031",
@@ -706,11 +707,12 @@
 			"title": "declaredWorkspaceRoots resolves through declaredBase(), which is why cross-workspace seeding is unreliable",
 			"body": "Deferred from the workspace-attribution plan, triaged, NOT done. Own ticket each:\n\n(f) declaredWorkspaceRoots resolving via declaredBase(), which is why cross-workspace seeding is unreliable -- deserves a decision, not a patch.\n\nSTRUCK 2026-08-10: THE PREMISE WAS FIXED ELSEWHERE, and the causal claim above is no longer true. It was true when it was filed (2026-08-06): declaredBase() fell back to process.cwd() at the time, so the catalog came from wherever the operator happened to stand and the seeding it fed was genuinely positional. The two-halves-one-node slice removed that fallback the same week (1df0d243) -- declaredBase() is now SOVEREIGN_BASE, else dirname(REFARM_HOME), else the OS home, and never cwd.\n\nMEASURED 2026-08-10, the same resolution declaredWorkspaceRoots performs, run from three real directories:\n  from ~/github/refarm      base=/home/s095407044 roots=[rcdc5, refarm]\n  from /tmp                 base=/home/s095407044 roots=[rcdc5, refarm]\n  from ~/git/rcdc5/rcdc5    base=/home/s095407044 roots=[rcdc5, refarm]\nIdentical, including each workspace's absolute path. scripts/directory-independence.mjs reports `workspace list` as `same` for the same reason.\n\nWHAT REMAINS, and it is NOT this item: the seeding questions that motivated the ticket live in ISS-057 (--workspace cannot correct an already-stamped session), ISS-058 (workspace_source never reaches the BudgetObservation) and ISS-059. Those are about what the RECORD carries, not about where the catalog is read from. Kept as resolved rather than deleted, because a stale record that vanishes teaches nothing about why it was filed.",
 			"location": "apps/refarm/src/commands/ask.ts:224",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "medium",
 			"package": "apps/refarm",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "e9f9e42f"
 		},
 		{
 			"id": "ISS-063",

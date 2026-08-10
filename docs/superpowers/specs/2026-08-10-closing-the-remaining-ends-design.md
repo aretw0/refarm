@@ -142,6 +142,60 @@ pair is probabilistic), ISS-097 (the probe has no CI home), ISS-046 (diagram dri
 `NOT_YET_PROBED_CEILING` in the same commit — the mechanism is already built and the ceiling already
 enforces it.
 
+### K. The five groups the first draft of this map MISSED (22 items)
+
+*Added 2026-08-10, after checking the map against the ledger instead of against memory: the first
+draft grouped 37 of 59 open items and read as if it covered all of them. A closure map with a
+silent coverage gap is the same defect as a probe with one — so it is measured here, per group,
+the way every other count in this line of work is.*
+
+**K1 — The sandbox, its own axis and its own instrument (5).** ISS-078 (no `stop` subcommand),
+ISS-079 (`--reset` races `start`, documented and unclosed), ISS-080 (`tractor.engine` rust↔auto,
+which `refarm parity` FOUND and deliberately did not fix), ISS-051 (the sandbox's
+`BudgetObservation` is unattributable — its graph has no `SovereignConfig` node), ISS-052 (a
+spurious namespace divergence: `--namespace` reaches the daemon as an argument, never as
+`REFARM_NAMESPACE`). **Proof:** `scripts/refarm-sandbox.mjs` plus `refarm parity` already exist;
+this group is where they get used rather than admired. It is also the harness group A and E need,
+which is the argument for building it once — the operator asked for exactly that batching.
+
+**K2 — Security and supply chain, one gate three scopes (3).** ISS-088 (CI audits at three
+different scopes and the moderate-prod one is red), ISS-086 (the postcss pin is overtaken by a newer
+advisory), ISS-087 (the decompress advisory was accepted for having no patch, and a patch now
+exists). **Proof:** the audit going green at the scope CI actually enforces. **Operator-gated by
+policy** — the standing rule is that a dependency change is measured first and the operator picks
+the minimum scope that unblocks, never what `security:fix` proposes.
+
+**K3 — The runtime's own reporting (5).** ISS-084 (`runtime restart --json` reports `ok:false` with
+a null error AFTER succeeding), ISS-083 (`refarm check` says ok while `refarm health` reports
+`config_node_drift` on the same node), ISS-053 (`runtime-stop.ts:88` accepts a corrupted pid file —
+`parseInt` leniency the sandbox launcher already fixed on its side), ISS-069 (`cargo component
+build --release` does not republish the wasm `plugin install` reads, so the documented build command
+leaves stale code installed), ISS-037. **Proof:** each is a verdict that disagrees with reality;
+each closes with the two commands agreeing, taken on the sandbox node.
+
+**K4 — Records, paging and the graph client (4).** ISS-043 (the TS graph client throws against the
+real daemon because the sidecar never sets `@context`), ISS-039 (the budget re-query is unbounded
+and `UsageRecord` is never reaped), ISS-061, ISS-066 (nothing EXECUTES a declared automation — the
+language is complete and no evaluator exists). These sit beside group F and are not the same shape:
+F is about readers that hide what they withheld, K4 is about readers that cannot run at all, or run
+without bound.
+
+**K5 — Durable knowledge and the things only the operator can do (5).** ISS-070 (`.superpowers/sdd/`
+is gitignored, so every measurement and rejected alternative in those plans exists on one machine —
+**agent-fixable**, and the reason this session pastes its measurements into tracked plan files
+instead), ISS-081 (the `openai-codex` token expires and nothing refreshes it on either node),
+ISS-077 (rcdc5 automation blocked on P1: a pending prompt's lifetime is its asker's, and nothing
+resumes it), ISS-102 (config.ts and the composition resolver anchor the user tier on the OS home
+together — filed by group C, which stopped rather than split a file the composition layer depends
+on being single), ISS-021/ISS-022 (already in group H).
+
+## The count, restated honestly
+
+59 open at the time of this revision. **All 59 are now in a group.** The agent-closable count is
+**51**: ISS-071 and ISS-054's ruling are the operator's, and the six policy questions in group H are
+answers rather than code. Four in group D may honestly end as strikes — ISS-062 already did, on
+2026-08-10, when its causal claim was re-measured and found fixed elsewhere.
+
 ## The order this document recommends, and why
 
 1. **C, then E's ISS-038** — the cheapest fixes that lower the ratchet and close two defects that
@@ -155,13 +209,20 @@ enforces it.
 6. **E's Rust remainder, then B** — the most expensive to compile on this host (CLAUDE.md §7), so
    last among the fixable.
 7. **D** — decide-or-strike, cheap but needs the operator's appetite for keeping unobservable items.
-8. **G and H** — surfaced to the operator, never closed by an agent.
+8. **K1** — the sandbox harness, built once and then used by A, B and E; the operator asked that
+   harness needs be batched, and this is where they meet.
+9. **K3, then K4** — verdicts that disagree with reality, then readers that cannot run.
+10. **K2** — measured, then the operator picks the minimum scope that unblocks.
+11. **G, H, and K5's operator half** — surfaced, never closed by an agent.
 
 ## What this document is NOT
 
 - **Not a plan.** No task has steps here. Each group earns its own plan when it is picked, the way
   the two slices before it did.
-- **Not a promise of 62 closures.** Two are operator-only and six are questions; the honest
-  agent-closable count is **54**, and D's four may end as strikes rather than fixes.
+- **Not a promise of 59 closures.** Two are operator-only and six are questions; the honest
+  agent-closable count is **51**, and D's four may end as strikes rather than fixes. The first draft
+  of this document said 54 of 62 and grouped only 37 of them — corrected above rather than quietly
+  restated, because a map that misses a third of its territory is the same defect as an instrument
+  that measures a third of its surface.
 - **Not a re-triage of priorities.** The `priority` field on each item is left exactly as filed; this
   groups by *what would prove it closed*, which is a different question and the one that was missing.
