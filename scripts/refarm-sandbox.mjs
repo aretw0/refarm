@@ -1462,7 +1462,20 @@ export async function startSandbox({
 		}
 		fs.writeFileSync(
 			sandboxConfigPath,
-			`${JSON.stringify({ ...existing, tractor: { ...(existing.tractor ?? {}), engine: engineChoice.engine } }, null, 2)}\n`,
+			`${JSON.stringify(
+				{
+					...existing,
+					// ISS-051: the sandbox DECLARES A NAME, so its BudgetObservations are attributable.
+					// `host.name` is written from `config.node.name` and is deliberately OMITTED rather
+					// than faked when no name is declared — which was right, and left every sandbox
+					// observation anonymous because the sandbox declared nothing at all. A lab that
+					// isolates cost and then records it unattributably solves half the problem.
+					node: { ...(existing.node ?? {}), name: SANDBOX_NODE_NAME },
+					tractor: { ...(existing.tractor ?? {}), engine: engineChoice.engine },
+				},
+				null,
+				2,
+			)}\n`,
 		);
 	} else if (engineChoice.state === "unreadable") {
 		notices.push(
@@ -1948,6 +1961,11 @@ export function resolveSandboxEngine(readOperatorConfig) {
 /** The lock file both `start` and `--reset` hold. Its NAME is a sibling of the pid file so the two
  *  live in the same directory and neither can be found without the other. */
 export const SANDBOX_LOCK_FILE_NAME = ".sandbox.lock";
+
+/** The name the sandbox node declares for itself (ISS-051). Distinct from the operator's on
+ *  purpose: an observation that says `host.name: "sandbox"` is one an analysis can EXCLUDE, which
+ *  is the whole point of isolating the lab's cost. */
+export const SANDBOX_NODE_NAME = "refarm-sandbox";
 
 /**
  * PURE. Given what was read from an existing lock file and whether that pid is alive, decide

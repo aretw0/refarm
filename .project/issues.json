@@ -590,7 +590,7 @@
 		{
 			"id": "ISS-051",
 			"title": "The sandbox's BudgetObservation is unattributable — its graph has no SovereignConfig node",
-			"body": "LOOSE ENDS opened by the sandbox-node session (D3/D4), 2026-08-07, each named with its own evidence:\n\n(2) The sandbox's BudgetObservation lacks refarm.workspace.id and host.name because the sandbox graph has no SovereignConfig node -- a lab that isolates cost but records an unattributable observation solves only half of the cost-separation loose end already open below.",
+			"body": "LOOSE ENDS opened by the sandbox-node session (D3/D4), 2026-08-07:\n\n(2) The sandbox's BudgetObservation lacks refarm.workspace.id and host.name because the sandbox graph has no SovereignConfig node -- a lab that isolates cost but records an unattributable observation solves only half of the cost-separation loose end.\n\nTRACED 2026-08-10, and it splits in two with different owners.\n\nTHE MISSING NODE, and it was a consequence rather than a cause: store_refarm_config_node (host/plugin_host/env_and_runtime.rs:415) returns early -- 'No sovereign config on disk => nothing to publish.' The sandbox had NO config.json at all, so the node was never published. ISS-080's fix gave it one, and the node appeared on the next boot without any further change: the sandbox graph now holds SovereignConfig alongside BudgetObservation, Session, Task and the rest. Verified by reading .sandbox/share/refarm/sandbox.db directly.\n\nHOST.NAME was still absent afterwards, and the code was RIGHT to omit it. node_identity.rs:174's declared_node_name reads config.node.name and returns None when there is none, and observation.rs:326-334 documents the rule: 'Both OMITTED, never an empty string or a fabricated placeholder, when this boot has nothing to report.' The sandbox declared no name, so it had none. FIXED in the launcher rather than the host: the sandbox now declares node.name = 'refarm-sandbox', distinct from the operator's on purpose -- an observation that says host.name 'refarm-sandbox' is one an analysis can EXCLUDE, which is the entire point of isolating the lab's cost.\n\nREFARM.WORKSPACE.ID IS NOT THIS ITEM'S. observation.rs:323 writes it from input.workspace_id, which arrives with the DISPATCH, not from the node. A sandbox observation has no workspace id for the same reason any other dispatch without one does, and that is ISS-058 (workspace_source never reaches the BudgetObservation) plus ISS-057. Claiming it here would have meant fixing the sandbox for a defect the sandbox does not have.\n\nNO RUST WAS CHANGED. The operator authorised paying the build cost and the trace made it unnecessary: both halves resolved in the launcher, and the third belongs to another item.",
 			"location": "docs/SANDBOX_NODE.md:1",
 			"status": "open",
 			"category": "issue",
@@ -920,11 +920,12 @@
 			"title": "tractor.engine diverges rust vs auto between the operator's node and the sandbox — parity found it, nothing fixed it",
 			"body": "The undeclared divergence `refarm parity` reported on its first live run, recorded by the slice that built the instrument and deliberately not fixed by it.\n\nFound a real undeclared divergence on its very first live run: the operator's ~/.refarm/config.json pins tractor.engine=\"rust\"; the sandbox has no config.json and falls back to \"auto\" -- not fixed by this slice (the instrument, not the fix).",
 			"location": "apps/refarm/src/commands/parity.ts:1",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "medium",
 			"package": "apps/refarm",
-			"axis": "sandbox"
+			"axis": "sandbox",
+			"resolved_by": "0a702c83"
 		},
 		{
 			"id": "ISS-081",
