@@ -1050,11 +1050,12 @@
 			"title": "doctor reports host.packageManager as pnpm here and npm from anywhere else",
 			"body": "CONVICTED by scripts/directory-independence.mjs on 2026-08-10. Verdict: differs-undeclared, scope node. Diverging field paths: host.packageManager, nextAction, nextActions, nextCommand, nextCommands, recommendations, warnings, warningCount.\n\nMEASURED VALUES: host.packageManager is 'pnpm' from /home/s095407044/github/refarm and 'npm' from BOTH /tmp and ~/git/rcdc5.\n\nTHE FIELD NAME IS THE ARGUMENT: a field called host.* cannot depend on which directory the operator is standing in. Either the value is the project's package manager and the name is a lie, or the resolution is wrong. Both are defects and they are not the same defect.\n\nThe seven other diverging fields are DOWNSTREAM: nextAction, nextCommands, recommendations, warnings and warningCount are derived from the wrong packageManager, so the doctor's ADVICE changes with the caller's directory too. That is the part that costs -- 'refarm doctor' is what an operator or agent runs to be told what to do next, and it currently says something different depending on where you were standing when you asked.\n\nTHE RATCHET'S LARGEST CLUSTER IS BEHIND THIS: packages/config/src/package-manager.js carries TEN bare process.cwd() sites, the single biggest file in the 103-site count, and apps/refarm/src/commands/doctor.ts carries three more. This is the first time that cluster has been tied to a WRONG ANSWER rather than to a shape count, which is the entire reason this slice measures by consequence.\n\nDO NOT CONFLATE THE COMPANION: 'refarm package-manager --json' is declared scope PROJECT in the probe and legitimately varies (pnpm here, npm elsewhere) -- detecting THIS tree's package manager is its job. The defect is doctor consuming that project fact and reporting it under a host.* name.",
 			"location": "packages/config/src/package-manager.js",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "high",
 			"package": "packages/config",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "c0397eaf"
 		},
 		{
 			"id": "ISS-094",

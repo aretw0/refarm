@@ -518,7 +518,7 @@ refarm agent finish --lane after-commit --run --json
   `ok: true` with an empty project block and `truncation: null`. The entry point CLAUDE.md mandates
   at every slice start cannot distinguish "no work" from "no project read". Fix shape: three states
   in the project block, never two.
-- [ ] **5.2 — `doctor`, ISS-093 (high).** `host.packageManager` is `pnpm` here and `npm` from both
+- [x] **5.2 — `doctor`, ISS-093 (high).** DONE `c0397eaf`: `host` is now byte-identical from all three directories; `packageManager` moved to `workingTree`, which carries the path it was read from. Ratchet 116 → 115. **Doctor stays convicted on purpose** — the residual seven advice fields are ISS-099, split after ISS-094 rather than declared away. `host.packageManager` is `pnpm` here and `npm` from both
   other directories, and seven downstream advice fields follow it. `packages/config/src/package-manager.js`
   holds the ratchet's largest cluster (10 sites) and this is the first time it is tied to a wrong
   answer rather than a shape count.
