@@ -290,8 +290,12 @@ attempted.
 $ pnpm run directory-independence
 ```
 
-**36 probed · 29 same · 3 declared · 0 convicted · 0 unproven** (2026-08-10, after the burn-down;
-the first run of this table, before any fix, was 35 probed · 26 same · 1 declared · **4 convicted**). The five-command table this section
+**37 probed · 30 same · 3 declared · 0 convicted · 0 unproven** (2026-08-10, after the burn-down and
+the two instrument fixes that followed; the first run of this table, before any fix, was 35 probed ·
+26 same · 1 declared · **4 convicted**). `task list` joined the probe when ISS-091 stopped it
+writing on read; `check --next-action`, `health` and `project handoff validate` moved from
+`unrunnable-somewhere` to `differs-*` when ISS-098 stopped a non-zero exit being read as "did not
+run". The five-command table this section
 used to carry covered 8% of a 64-command surface; the gap was never chosen, it was simply never
 required of anyone.
 
