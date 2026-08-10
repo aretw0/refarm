@@ -63,7 +63,7 @@ burn-down that follows is driven by convictions, never by the site count.
   probeable count differs materially from 36, or if any of the five currently-probed commands has
   changed verdict, stop and add a dated erratum to the spec before continuing.
 
-- [ ] **Step 1: Re-take the coverage numbers**
+- [x] **Step 1: Re-take the coverage numbers**
 
 ```bash
 refarm --help | grep -cE '^  [a-z]'                    # expect 64
@@ -72,7 +72,7 @@ pnpm --filter refarm run build && node scripts/directory-independence.mjs   # ex
 node scripts/no-os-resolution.mjs                       # expect 117, delta 0
 ```
 
-- [ ] **Step 2: Re-take the probeable list**
+- [x] **Step 2: Re-take the probeable list**
 
 Run every candidate from the repository, requiring exit 0 and parseable JSON. The 36 confirmed on
 2026-08-09:
@@ -96,7 +96,7 @@ done
 Extend the loop to the multi-word invocations. **Any candidate that mutates state is excluded here,
 not later** — the probe would run it three times per invocation.
 
-- [ ] **Step 3: Record the verdicts in this file and commit**
+- [x] **Step 3: Record the verdicts in this file and commit**
 
 Paste the real numbers into a `## Task 1 measurements` section at the end of this plan. `.superpowers/`
 is gitignored (ISS-070), so the tracked plan file is the durable record.
@@ -621,3 +621,69 @@ crash. The mitigation is directional and stated in Step 1: when unclear, declare
 **Unbounded until Task 3, and bounded after it.** Task 5 has no sub-tasks written yet, by
 construction — the number of convictions is unknown until the probe runs. Task 3 Step 4 is the step
 that converts this plan from open-ended to countable, and it is not optional.
+
+---
+
+## Task 1 measurements
+
+Taken 2026-08-09 on the operator's node (`sede`), against `26b618c4`. `.superpowers/sdd/` is
+gitignored (ISS-070), so this section — not a report file — is the durable record.
+
+### Coverage, re-taken
+
+| Measurement | Command | Expected | Observed | Verdict |
+| --- | --- | --- | --- | --- |
+| Top-level commands | `refarm --help \| grep -cE '^  [a-z]'` | 64 | **64** | CONFIRMED |
+| Commands probed today | `PROBE_COMMANDS.length` | 5 | **5** | CONFIRMED |
+| Ratchet | `node scripts/no-os-resolution.mjs` | 117, delta 0 | **117, delta 0** | CONFIRMED |
+| Probeable invocations | 36 candidates, exit 0 + parseable JSON | 36 | **36/36** | CONFIRMED |
+
+### The five currently probed, unchanged
+
+```
+| Command             | Verdict             | Notes                                              |
+| workspace list      | same                |                                                    |
+| model current       | same                |                                                    |
+| plugin status       | same                |                                                    |
+| context             | differs-as-declared | builtPluginPath, builtPluginSha, divergences,       |
+|                     |                     | otherSovereignDirs                                 |
+| connection status   | same                |                                                    |
+```
+
+Probed from `repo=/home/s095407044/github/refarm`, `tmp=/tmp`, `rcdc5=/home/s095407044/git/rcdc5`.
+
+### The 36 confirmed probeable
+
+All 36 returned exit 0 with parseable JSON from the repository, after
+`pnpm --filter refarm run build`:
+
+```
+resume · check --next-action · status · health · doctor · context ·
+model current · model providers · plugin status · plugin list · workspace list ·
+connection status · budget observations --limit 3 · budget by-workspace ·
+budget by-host · budget by-spawner · budget usage · sessions list · task list ·
+issues list --workspace refarm · capabilities · agent · runtime status ·
+project handoff validate · process list · delivery list · records list · vault list ·
+skill list · extension list · theme list · tree list · inspect · surface list ·
+actions · package-manager
+```
+
+**Stop gate: PASSED.** No measurement diverged, so no erratum is owed to the spec and Task 2 may
+proceed as written.
+
+### What this run adds that the spec did not have
+
+The 36 were confirmed **against a fresh build**. The spec's recon ran against whatever `dist/` held
+at the time; this run rebuilt first, which matters because the probe spawns
+`apps/refarm/dist/index.js` — a stale `dist/` would have measured the previous build and the plan's
+own Global Constraints now say so.
+
+Two candidates worth naming for Task 3, because their scope is not obvious from the name and the
+plan's directional rule ("when unclear, declare `node`") will be doing real work on them:
+
+- `project handoff validate` — runs here, and the ledger slice already measured it ENOENT-ing from
+  `/tmp` and `~/git/rcdc5`. Expected `scope: "project"`, and it is the entry that proves the inverse
+  check has something to check.
+- `issues list --workspace refarm` — the same family of document, addressed through the node's
+  catalog instead of the cwd. Expected `scope: "node"`, and its verdict is the regression guard for
+  the proof the 2026-08-08 slice took by hand.
