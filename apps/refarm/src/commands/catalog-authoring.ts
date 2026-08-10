@@ -59,6 +59,36 @@ export function catalogOperationKind(block: string): string {
 	return `declare-${block}`;
 }
 
+/**
+ * PURE. The entry to write: `next` wins for every key it carries, and any key the PREVIOUS entry
+ * had that this writer does not own survives. Key order follows the previous entry, so a preserved
+ * declaration is not silently relocated in the diff the operator reads.
+ *
+ * Returns `next` untouched when there was no previous entry, or when the caller declared no
+ * `ownedKeys` — the latter means "I define this entry wholly", which is true of a delivery channel
+ * or a surface and false of a workspace the operator has added commands to.
+ */
+export function mergePreservingUnowned(
+	previous: unknown,
+	next: Record<string, unknown>,
+	ownedKeys?: readonly string[],
+): Record<string, unknown> {
+	if (!ownedKeys || !isRecord(previous)) return next;
+	const merged: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(previous)) {
+		merged[key] = key in next ? next[key] : value;
+	}
+	for (const [key, value] of Object.entries(next)) {
+		if (!(key in merged)) merged[key] = value;
+	}
+	// A key the writer OWNS and did not supply this time is genuinely removed — that is what owning
+	// it means, and it is how `--kind` changing from consumer to project drops a stale field.
+	for (const key of ownedKeys) {
+		if (!(key in next)) delete merged[key];
+	}
+	return merged;
+}
+
 export interface CatalogEntryProposal {
 	/** Catalog block in the sovereign config — `delivery`, `connections`, `surfaces`, `workspaces`. */
 	block: string;
@@ -71,6 +101,20 @@ export interface CatalogEntryProposal {
 	root: string;
 	/** Injected so a test never needs a real `SOVEREIGN_DIR`. */
 	env?: NodeJS.ProcessEnv;
+	/**
+	 * The keys this writer OWNS. On a replace, every other key of the existing entry survives.
+	 *
+	 * ISS-036: `workspace add --replace` builds its entry from path/kind/execution/repository and
+	 * the assignment below replaced the whole entry, so a workspace's declared `commands` block was
+	 * dropped — on the operator's real node that is rcdc5's `vpn` and `code-boundaries`, which
+	 * `workspace sync` cannot restore. The loss appears in the consent diff, so it was never silent;
+	 * it was merely easy to authorise while reading the fields you came to change.
+	 *
+	 * Omitted keeps the old behaviour — a full replace — because most callers write an entry they
+	 * wholly define (a delivery channel, a surface). A caller that only declares PART of an entry
+	 * says which part.
+	 */
+	ownedKeys?: readonly string[];
 }
 
 export interface CatalogDeclarationPlan {
@@ -184,7 +228,10 @@ export function planCatalogDeclaration(proposal: CatalogEntryProposal): CatalogD
 	const block: Record<string, unknown> = { ...(existingBlock ?? {}) };
 	const previousEntry = block[proposal.name];
 	const replaced = proposal.name in block;
-	block[proposal.name] = proposal.entry;
+	// ISS-036: a writer replaces what it OWNS and preserves what it was never asked about. Without
+	// `ownedKeys` this is a full replace, which is right for a caller that wholly defines its entry
+	// and wrong for one that declares four fields of an entry the operator has extended.
+	block[proposal.name] = mergePreservingUnowned(previousEntry, proposal.entry, proposal.ownedKeys);
 
 	const after = `${JSON.stringify({ ...config, [proposal.block]: block }, null, 2)}\n`;
 	const entryJson = renderEntry(proposal.name, proposal.entry);

@@ -224,6 +224,12 @@ export async function runWorkspaceAdd(
 			entry: proposal.entry,
 			root,
 			env: catalogEnv,
+			// ISS-036. `buildWorkspaceDeclaration` produces exactly these four keys, so on a
+			// `--replace` everything else the operator declared — a `commands` allowlist, an
+			// `issues` provider, a `cache` block — is none of this writer's business and survives.
+			// On the operator's real node the dropped block was rcdc5's `vpn` and
+			// `code-boundaries`, which `workspace sync` cannot restore.
+			ownedKeys: ["path", "kind", "execution", "repository"],
 		});
 		const proposedConfig = JSON.parse(plan.after) as Record<string, unknown>;
 		if (

@@ -59,6 +59,22 @@ times per pass and a writer would mutate four times.
 temp dir, the launcher `scripts/refarm-sandbox.mjs` already exists), so the operator's real catalog
 is never the fixture. This is the same separation the sandbox slice built for cost.
 
+**REVISED 2026-08-10: that shape does not work, measured by building it.** `workspace add` refuses to
+run unattended by design — CLAUDE.md §8 puts consent at the point where an action can still be
+interrupted, and it declines with *"Run `refarm workspace add` from an attended surface"* whether
+stdin is a pipe or absent. A harness driving the real binary therefore cannot exercise the writer at
+all. The one written reported **`preserved`** for a run in which nothing was written, which is the
+defect this whole line of work exists to find, produced by the instrument built to find it. It was
+deleted rather than kept.
+
+**What actually proves it:** the pure plan builder, `planCatalogDeclaration`, where the loss happens
+(`catalog-authoring.ts:187` assigned the whole entry). A writer now declares the keys it OWNS and
+everything else in the existing entry survives. ISS-036 closed this way; ISS-034 and ISS-035 are
+readers and advice rather than destructive writers, and are provable the same way.
+
+**The general lesson for this map:** a consent-gated writer cannot have a CLI-level harness, and that
+is a property of the design rather than a gap in it. Its instrument is the pure function underneath.
+
 ### B. The Rust half of the node — needs the probe's Rust counterpart (1 item)
 
 ISS-023: `config_node.rs`'s `declared_base()` is a second Rust base resolver that still falls back to
