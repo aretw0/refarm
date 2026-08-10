@@ -201,6 +201,55 @@ the defect, failing *everywhere* is the environment. Collapsing them would let a
 as a directory leak — and, in the direction that actually costs something, would let a real
 ENOENT-from-`/tmp` hide inside an environmental excuse.
 
+### The control pair: time-variance is not directory-variance
+
+*Added 2026-08-10, after measuring rather than assuming — the first draft of this spec did not have
+it, and the burn-down would have started by convicting four correct commands.*
+
+Two runs of the same command **in the same directory** disagree for four of the 36 probeable
+invocations:
+
+| Invocation | Field that moves on its own |
+| --- | --- |
+| `resume` | `environmentPressure.signals` (a live memory and free-space reading) |
+| `budget usage` | `usage.period.startMs`, `usage.period.endMs` (a window computed from now) |
+| `project handoff validate` | `ageMs` |
+| `inspect` | `createdAt` |
+
+The probe spawns each command once per directory, so those fields diverge for reasons that have
+nothing to do with directories. Declaring them by hand would work once and then rot: a hand-written
+`allowedVaryingFieldPaths` entry outlives its reason and silently covers a real divergence that
+appears in the same field later.
+
+So the probe **measures it**: one extra run from the first directory forms a control pair, and any
+field that differs between those two is time-variant. Such a field is **unmeasurable by this
+instrument** — a third state, neither `same` nor convicted — excluded per FIELD (never per command)
+and printed on every row, including `same` rows, so a verdict reached by exclusion always shows what
+it excluded. The exclusion is self-expiring: when the field stops moving in place, the control stops
+reporting it and the comparison picks it back up.
+
+Proven on real data 2026-08-10: with the control, `resume` reports `environmentPressure.signals` as
+time-variant and is convicted on its sixteen `project.*` fields alone. Without it, the memory reading
+sat in the same list as the real finding.
+
+### The read-only rule is observed, not promised
+
+`refarm task list --json` **writes** `~/.refarm/sessions/task-session.v1.json` on every read — it
+updates `updatedAt` and stamps `lastCommand: "list"`. Measured 2026-08-10 by bisecting a sweep of 72
+read-only invocations that changed exactly one file on the operator's node.
+
+Two consequences, and the first is the urgent one:
+
+1. **A mutating command in `PROBE_COMMANDS` runs three times per probe invocation, against the
+   operator's real node, forever.** `task list` is therefore excluded with that reason until it
+   stops writing, and the write itself is filed as a work item rather than absorbed as a quirk.
+2. The plan's "read-only" rule was a promise kept by discipline. `task list` looks read-only from
+   every angle that matters — it is called `list`, it prints, it exits 0 — which is exactly why the
+   rule needed an observation behind it. The probe therefore compares the node's own file listing
+   before and after a full run and **warns**, naming the files that changed. It warns rather than
+   blocks because the daemon shares that directory and may legitimately write while the probe runs;
+   a blocking check there would fire on the environment and train its reader to ignore it.
+
 ### The coverage stops rotting
 
 The reason the probe covers 5 of 64 is that nothing ever required otherwise. A vitest test in

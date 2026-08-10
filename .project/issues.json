@@ -1021,6 +1021,17 @@
 			"priority": "high",
 			"package": "refarm",
 			"axis": "durability"
+		},
+		{
+			"id": "ISS-091",
+			"title": "refarm task list --json writes to the node on every read",
+			"body": "MEASURED 2026-08-10 while closing the footguns before the directory-independence burn-down. A sweep of 72 read-only invocations (the 36 probeable commands, run twice each from the repository) changed exactly one file on the operator's real node: ~/.refarm/sessions/task-session.v1.json. Bisected to a single command: `refarm task list --json` rewrites it on every read, updating `updatedAt` and stamping `lastCommand: \"list\"` (size unchanged 9648 -> 9648; only mtime and those fields move). WHY IT MATTERS BEYOND TIDINESS: (1) it makes a read command a writer, so the node's task-session record cannot distinguish 'this effort was touched' from 'somebody listed'; `lastCommand` and `updatedAt` are written by an observer, which is the same shape as a report that claims more than it measured. (2) It is a live hazard for scripts/directory-independence.mjs, which runs every probed command once per directory plus a control run -- a mutating entry would write to the operator's real node three times per probe invocation, forever, and the probe is meant to be run often. THE READ-ONLY RULE HAD NO OBSERVATION BEHIND IT: `task list` is called list, it prints, it exits 0, and it looks read-only from every angle a reviewer has. That is why the probe now snapshots the sovereign dir around a full run and WARNS naming the files that changed (warn, not block: the daemon shares that directory and may write concurrently, and a check that fires on the environment trains its reader to ignore it). UNTIL THIS IS FIXED, `task list` is excluded from PROBE_COMMANDS with this id as the reason -- so 1 of the 36 probeable invocations is deliberately unmeasured, named rather than silently dropped. FIX SHAPE: the read path should not persist; if a read genuinely needs to refresh a cache, that write belongs behind an explicit flag or a separate verb, not inside `list`.",
+			"location": "apps/refarm/src/commands/task.ts",
+			"status": "open",
+			"category": "issue",
+			"priority": "high",
+			"package": "apps/refarm",
+			"axis": "node-vs-directory"
 		}
 	]
 }

@@ -3,9 +3,13 @@ import { test } from "node:test";
 
 import {
 	compareAnswers,
+	diffSnapshots,
+	divergingPaths,
 	judge,
+	observedSovereignDir,
 	PROBE_COMMANDS,
 	ran,
+	runProbe,
 	summarise,
 	unrunnable,
 	validateDeclarations,
@@ -284,4 +288,87 @@ test("validateDeclarations rejects a scope declared with no written reason", () 
 
 test("every shipped PROBE_COMMANDS entry is well-formed", () => {
 	assert.deepEqual(validateDeclarations(PROBE_COMMANDS), []);
+});
+
+// ---- Time-variance is not directory-variance. ----
+//
+// Measured 2026-08-10: four of the 36 probeable invocations differ between TWO RUNS IN THE SAME
+// DIRECTORY — `resume` (environmentPressure.signals), `budget usage` (period.startMs/endMs),
+// `project handoff validate` (ageMs), `inspect` (createdAt). The probe spawns each command once per
+// directory, so those fields would diverge for reasons that have nothing to do with directories and
+// four correct commands would be convicted. The control pair measures it instead of asking a human
+// to declare it: a field that varies in place is UNMEASURABLE by this instrument, not exempt.
+
+test("a field that varies IN PLACE is excluded from the comparison and reported", () => {
+	const byDirectory = {
+		repo: ran({ ageMs: 10, base: "/same" }),
+		tmp: ran({ ageMs: 99, base: "/same" }),
+	};
+	const result = compareAnswers(byDirectory, NODE_IDENTICAL, ["ageMs"]);
+	assert.equal(result.verdict, "same");
+	assert.deepEqual(result.inPlaceFieldPaths, ["ageMs"]);
+	assert.equal(judge(result.verdict, "node"), "pass");
+});
+
+test("an in-place varying field does NOT hide a real divergence beside it", () => {
+	const byDirectory = {
+		repo: ran({ ageMs: 10, base: "/repo" }),
+		tmp: ran({ ageMs: 99, base: "/tmp" }),
+	};
+	const result = compareAnswers(byDirectory, NODE_IDENTICAL, ["ageMs"]);
+	assert.equal(result.verdict, "differs-undeclared");
+	assert.deepEqual(result.fieldPaths, ["base"]);
+	assert.equal(judge(result.verdict, "node"), "convicted");
+});
+
+test("in-place exclusion is measured per field, never per command", () => {
+	// The blanket-exemption trap, in its time-variance form: measuring that ONE field moves must
+	// not buy silence for the rest of the answer.
+	const byDirectory = { repo: ran({ t: 1, a: "x", b: "y" }), tmp: ran({ t: 2, a: "x", b: "z" }) };
+	const result = compareAnswers(byDirectory, NODE_IDENTICAL, ["t"]);
+	assert.deepEqual(result.fieldPaths, ["b"]);
+});
+
+test("divergingPaths is the one comparison both the control pair and the directories use", () => {
+	assert.deepEqual(divergingPaths({ a: ran({ x: 1, y: 2 }), b: ran({ x: 1, y: 3 }) }), ["y"]);
+	assert.deepEqual(divergingPaths({ a: ran({ x: 1 }), b: ran({ x: 1 }) }), []);
+});
+
+test("runProbe refuses a malformed declaration table rather than judging it as node", () => {
+	// F3, and it was mine: validateDeclarations ran only inside main(), while this plan's own
+	// burn-down step calls runProbe directly with a filtered table. A missing scope would have
+	// fallen through judge()'s node branch and produced a verdict nobody declared.
+	assert.throws(
+		() => runProbe([{ name: "x", argv: ["x", "--json"], allowedVaryingFieldPaths: [] }], { repo: "/tmp" }),
+		/scope/,
+	);
+});
+
+// ---- The read-only rule is observed, not promised. ----
+//
+// `refarm task list --json` writes ~/.refarm/sessions/task-session.v1.json on every read (measured
+// 2026-08-10 by bisecting a 72-invocation sweep). It is called `list`, it prints, it exits 0 — every
+// angle that matters says read-only. That is exactly why the rule needs an observation behind it:
+// a mutating entry in PROBE_COMMANDS writes to the operator's real node three times per run.
+
+test("diffSnapshots names every file whose size or mtime moved", () => {
+	const before = new Map([["/n/a", "1:10"], ["/n/b", "2:20"]]);
+	const after = new Map([["/n/a", "1:10"], ["/n/b", "9:20"]]);
+	assert.deepEqual(diffSnapshots(before, after), ["/n/b"]);
+});
+
+test("diffSnapshots reports an added and a removed file, not only a changed one", () => {
+	const before = new Map([["/n/a", "1:10"], ["/n/gone", "1:1"]]);
+	const after = new Map([["/n/a", "1:10"], ["/n/new", "1:1"]]);
+	assert.deepEqual(diffSnapshots(before, after).sort(), ["/n/gone", "/n/new"]);
+});
+
+test("diffSnapshots is silent when nothing moved", () => {
+	const same = new Map([["/n/a", "1:10"]]);
+	assert.deepEqual(diffSnapshots(same, new Map(same)), []);
+});
+
+test("observedSovereignDir takes the home EXPLICITLY — no default to forget", () => {
+	assert.equal(observedSovereignDir("/home/op"), "/home/op/.refarm");
+	assert.equal(observedSovereignDir.length, 1);
 });

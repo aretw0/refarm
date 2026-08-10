@@ -27,15 +27,22 @@ burn-down that follows is driven by convictions, never by the site count.
   delta stays 0 — the discipline `d8f850b8` set.
 - **The probe is the acceptance test.** No site is touched unless a command's verdict convicts it. A
   site that no command convicts stays, guarded by the ratchet against becoming a *new* default.
+- **Time-variance is measured, never declared.** Four invocations differ between two runs in the
+  same directory (`resume`, `budget usage`, `project handoff validate`, `inspect`). The control pair
+  excludes those fields per FIELD and prints them on every row; do not hand-declare a field the
+  control already covers, and never widen a declaration to silence one.
 - **Never fix by declaring.** Adding a field path to `allowedVaryingFieldPaths` requires a written
   reason and is counted separately from `same` in every report. A commit that converts a conviction
   into a declaration must say so in its message and explain why the variance is correct.
 - **Lanes.** `refarm agent finish --lane after-edit --run --json` before each commit,
   `--lane after-commit` after, `--lane handoffs` after any public JSON change, `--lane before-push`
   before pushing.
-- **Read-only rule.** A command may enter `PROBE_COMMANDS` only if it mutates nothing. The probe runs
-  every command three times from three directories; a mutating entry would run a mutation three
-  times per invocation of the instrument.
+- **Read-only rule, now observed rather than promised.** A command may enter `PROBE_COMMANDS` only
+  if it mutates nothing. The probe runs every command once per directory PLUS a control run, so a
+  mutating entry writes to the operator's real node four times per invocation. `refarm task list`
+  is excluded (ISS-091: it rewrites `~/.refarm/sessions/task-session.v1.json` on every read), which
+  leaves **35 of the 36 probeable invocations** in scope for Task 3. The probe snapshots the
+  sovereign dir around each run and warns, naming the files that changed.
 - **No `refarm ask`.** It spends the operator's paid quota.
 
 ## File Structure
@@ -122,7 +129,7 @@ git commit -m "docs(plan): the probe expansion, with task 1's coverage measureme
   - `validateDeclarations(commands) → string[]` (empty means every entry is well-formed)
   - `summarise(rows) → { probed, same, declared, convicted, unproven }`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `scripts/directory-independence.test.mjs`, matching its flat `test(...)` style:
 
@@ -211,7 +218,7 @@ test("every shipped PROBE_COMMANDS entry is well-formed", () => {
 });
 ```
 
-- [ ] **Step 2: Run and watch them fail**
+- [x] **Step 2: Run and watch them fail**
 
 ```bash
 node --test scripts/directory-independence.test.mjs
@@ -219,7 +226,7 @@ node --test scripts/directory-independence.test.mjs
 Expected: `judge is not a function`, plus the `unproven` assertions failing (today every unrunnable
 directory yields `"unrunnable"`).
 
-- [ ] **Step 3: Split the unrunnable branch**
+- [x] **Step 3: Split the unrunnable branch**
 
 In `compareAnswers` (`scripts/directory-independence.mjs:153`), replace the early return:
 
@@ -238,7 +245,7 @@ In `compareAnswers` (`scripts/directory-independence.mjs:153`), replace the earl
 	}
 ```
 
-- [ ] **Step 4: Add the judgement matrix and the declaration guard**
+- [x] **Step 4: Add the judgement matrix and the declaration guard**
 
 ```javascript
 /** PURE. The verdict says what was OBSERVED; the scope says what that observation MEANS. Keeping
@@ -289,7 +296,7 @@ export function summarise(rows) {
 }
 ```
 
-- [ ] **Step 5: Carry `scope` through `runProbe`, the table and `main`**
+- [x] **Step 5: Carry `scope` through `runProbe`, the table and `main`**
 
 - `runProbe` returns `{ name, scope, ...result, byDirectory }`.
 - `formatProbeTable` gains a Judgement column and prints `scope`, plus the reason on a declared or
@@ -300,7 +307,7 @@ export function summarise(rows) {
   exits non-zero when `convicted > 0`. `unproven > 0` does **not** fail the run, and the summary line
   states it explicitly.
 
-- [ ] **Step 6: Run everything**
+- [x] **Step 6: Run everything**
 
 ```bash
 node --test scripts/directory-independence.test.mjs
@@ -311,7 +318,7 @@ Expected: the five existing commands keep their verdicts (`workspace list`, `mod
 `scope: "node"` with a reason and `context`'s four paths gain theirs — lift those reasons from the
 comment already at `directory-independence.mjs:189-200`, which explains them in prose.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 refarm agent finish --lane after-edit --run --json

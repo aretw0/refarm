@@ -151,7 +151,23 @@ function isDeclaredPath(fieldPath, declaredPaths) {
  *     ONLY the undeclared, i.e. offending, paths); no diverging paths at all → `"same"`.
  *   - `unrunnableDirectories` is `[]` except in the `"unrunnable"` verdict.
  */
-export function compareAnswers(byDirectory, declaration) {
+/** PURE. The leaf field paths on which two or more answers disagree. Extracted so the SAME
+ * comparison serves both questions this probe asks — "does it differ between directories?" and
+ * "does it differ between two runs in one directory?" — because a control measured by a different
+ * rule than the comparison it feeds would exclude the wrong fields. */
+export function divergingPaths(byDirectory) {
+	const labels = Object.keys(byDirectory);
+	const allPaths = new Set();
+	for (const label of labels) collectLeafPaths(byDirectory[label].value, "", allPaths);
+	return [...allPaths]
+		.filter((p) => p !== "")
+		.filter((fieldPath) => {
+			const values = labels.map((label) => getAtPath(byDirectory[label].value, fieldPath));
+			return values.some((v) => !valuesEqual(v, values[0]));
+		});
+}
+
+export function compareAnswers(byDirectory, declaration, inPlaceVaryingFieldPaths = []) {
 	const labels = Object.keys(byDirectory);
 	const unrunnableDirectories = labels.filter((label) => byDirectory[label].status === "unrunnable").sort();
 	// THREE STATES where there were two. Failing in EVERY directory is the ENVIRONMENT — no daemon,
@@ -161,39 +177,44 @@ export function compareAnswers(byDirectory, declaration) {
 	// itself: it is the shape of `ENOENT /tmp/.project/handoff.json`, a command that answers where
 	// the operator happens to stand and refuses everywhere else.
 	if (unrunnableDirectories.length === labels.length) {
-		return { verdict: "unproven", fieldPaths: [], unrunnableDirectories };
+		return { verdict: "unproven", fieldPaths: [], inPlaceFieldPaths: [], unrunnableDirectories };
 	}
 	if (unrunnableDirectories.length > 0) {
-		return { verdict: "unrunnable-somewhere", fieldPaths: [], unrunnableDirectories };
+		return { verdict: "unrunnable-somewhere", fieldPaths: [], inPlaceFieldPaths: [], unrunnableDirectories };
 	}
 
-	const allPaths = new Set();
-	for (const label of labels) {
-		collectLeafPaths(byDirectory[label].value, "", allPaths);
-	}
-	// A top-level object's keys come out clean ("foo", not ".foo" — the empty root prefix is
-	// falsy, so `collectLeafPaths` uses the bare key for the first level). The one path this
-	// filters out is a bare "" — what `collectLeafPaths` would add if a command's TOP-LEVEL
-	// answer were itself an array or a primitive rather than an object, which none of the
-	// probed `--json` commands' answers are, but a future command's could be.
-	const normalizedPaths = [...allPaths].filter((p) => p !== "");
+	const allDiverging = divergingPaths(byDirectory);
 
-	const divergingPaths = normalizedPaths.filter((fieldPath) => {
-		const values = labels.map((label) => getAtPath(byDirectory[label].value, fieldPath));
-		return values.some((v) => !valuesEqual(v, values[0]));
-	});
+	// MEASURED, not declared. A field that also moves between two runs in ONE directory cannot be
+	// attributed to the directory by this instrument at all — it is UNMEASURABLE here, which is a
+	// third thing, neither "same" nor "convicted". Excluding it per FIELD (never per command) keeps
+	// a real divergence sitting beside a clock from being swallowed with it. The exclusion is
+	// self-expiring: if the field stops moving in place, the control stops reporting it and the
+	// comparison picks it back up — unlike a hand-written declaration, which outlives its reason.
+	const inPlace = allDiverging.filter((fieldPath) => isDeclaredPath(fieldPath, inPlaceVaryingFieldPaths)).sort();
+	const measurable = allDiverging.filter((fieldPath) => !isDeclaredPath(fieldPath, inPlaceVaryingFieldPaths));
 
-	if (divergingPaths.length === 0) {
-		return { verdict: "same", fieldPaths: [], unrunnableDirectories: [] };
+	if (measurable.length === 0) {
+		return { verdict: "same", fieldPaths: [], inPlaceFieldPaths: inPlace, unrunnableDirectories: [] };
 	}
 
 	const allowed = declaration.allowedVaryingFieldPaths ?? [];
-	const undeclared = divergingPaths.filter((fieldPath) => !isDeclaredPath(fieldPath, allowed));
+	const undeclared = measurable.filter((fieldPath) => !isDeclaredPath(fieldPath, allowed));
 
 	if (undeclared.length > 0) {
-		return { verdict: "differs-undeclared", fieldPaths: undeclared.sort(), unrunnableDirectories: [] };
+		return {
+			verdict: "differs-undeclared",
+			fieldPaths: undeclared.sort(),
+			inPlaceFieldPaths: inPlace,
+			unrunnableDirectories: [],
+		};
 	}
-	return { verdict: "differs-as-declared", fieldPaths: divergingPaths.sort(), unrunnableDirectories: [] };
+	return {
+		verdict: "differs-as-declared",
+		fieldPaths: measurable.sort(),
+		inPlaceFieldPaths: inPlace,
+		unrunnableDirectories: [],
+	};
 }
 
 /**
@@ -363,6 +384,57 @@ export function runCliFromDirectory(
 	}
 }
 
+/**
+ * The node's sovereign dir, as an OBSERVATION TARGET — never as a resolver anything acts on. The
+ * home is a REQUIRED parameter with no default, which is the shape
+ * `docs/superpowers/plans/2026-08-07-no-resolver-defaults-to-the-os.md` prescribes for a site that
+ * legitimately needs it: "an EXPLICIT resolver call, not a silent default". A default here would
+ * add a counted site to `scripts/no-os-resolution.mjs`'s ratchet, and it would do it inside the
+ * instrument built to hunt that exact shape.
+ */
+export function observedSovereignDir(homedir) {
+	const declared = process.env.REFARM_HOME?.trim();
+	return declared ? declared : path.join(homedir, ".refarm");
+}
+
+/** PURE. The paths whose size-or-mtime fingerprint changed, appeared or vanished between two
+ * snapshots. Additions and removals count: a probe run that DELETES something on the node is at
+ * least as interesting as one that writes. */
+export function diffSnapshots(before, after) {
+	const paths = new Set([...before.keys(), ...after.keys()]);
+	return [...paths].filter((p) => before.get(p) !== after.get(p)).sort();
+}
+
+/** Fingerprints every file under `root` as `mtimeMs:size`. A missing root is an EMPTY snapshot, not
+ * an error — a node with no sovereign dir yet is a legitimate state, and the diff against a later
+ * snapshot still reports whatever appeared. */
+export function snapshotDirectory(root) {
+	const snapshot = new Map();
+	const walk = (dir) => {
+		let entries;
+		try {
+			entries = fs.readdirSync(dir, { withFileTypes: true });
+		} catch {
+			return;
+		}
+		for (const entry of entries) {
+			const full = path.join(dir, entry.name);
+			if (entry.isDirectory()) {
+				walk(full);
+			} else if (entry.isFile()) {
+				try {
+					const stat = fs.statSync(full);
+					snapshot.set(full, `${stat.mtimeMs}:${stat.size}`);
+				} catch {
+					/* raced with a writer; the next run sees it */
+				}
+			}
+		}
+	};
+	walk(root);
+	return snapshot;
+}
+
 /** True when `dir` exists and is a readable directory — used to validate the operator's
  * real work repository (`~/git/rcdc5`) before trusting it as the third probe directory. */
 function isReadableDirectory(dir) {
@@ -399,12 +471,34 @@ export function resolveProbeDirectories({
 /** Runs every command in `commands` from every directory in `directories`, compares, and
  * returns one row per command: `{ name, verdict, fieldPaths, unrunnableDirectories, byDirectory }`. */
 export function runProbe(commands = PROBE_COMMANDS, directories = resolveProbeDirectories(), options = {}) {
+	// The guard lives HERE, not only in `main()`, because `runProbe` is called directly — the
+	// burn-down re-probes a single filtered command that way, and this plan's own text told it to.
+	// An entry with no scope would otherwise fall through `judge`'s node branch and produce a
+	// verdict nobody declared, which is the same "a signal claiming more than it measured" shape
+	// this instrument exists to catch.
+	const declarationErrors = validateDeclarations(commands);
+	if (declarationErrors.length > 0) {
+		throw new Error(`malformed probe declaration(s):\n  - ${declarationErrors.join("\n  - ")}`);
+	}
+
+	const [controlLabel] = Object.keys(directories);
 	return commands.map((command) => {
 		const byDirectory = {};
 		for (const [label, dir] of Object.entries(directories)) {
 			byDirectory[label] = runCliFromDirectory(dir, command.argv, options);
 		}
-		const result = compareAnswers(byDirectory, command);
+
+		// THE CONTROL PAIR. A second run from the SAME directory, so a field that moves on its own
+		// (a clock, a free-memory reading, an `ageMs`) is measured as time-variant rather than
+		// mistaken for directory-variance. Four of the 36 probeable invocations do this — measured
+		// 2026-08-10 — and without the control each would be convicted for owning a clock.
+		const control = runCliFromDirectory(directories[controlLabel], command.argv, options);
+		const inPlaceVarying =
+			byDirectory[controlLabel].status === "ran" && control.status === "ran"
+				? divergingPaths({ first: byDirectory[controlLabel], second: control })
+				: [];
+
+		const result = compareAnswers(byDirectory, command, inPlaceVarying);
 		// `scope` travels with the row because the row is what gets judged and summarised — a
 		// verdict without its scope is not enough to say whether it passed.
 		return { name: command.name, scope: command.scope, ...result, byDirectory };
@@ -425,6 +519,11 @@ export function formatProbeTable(rows) {
 			notes = `never ran: ${row.unrunnableDirectories.join(", ")}`;
 		} else if (row.fieldPaths.length > 0) {
 			notes = row.fieldPaths.join(", ");
+		}
+		// Always printed, on every row, even a `same` one: a verdict reached by EXCLUDING fields
+		// must show what it excluded, or `same` reads as byte-identical when it is not.
+		if (row.inPlaceFieldPaths?.length > 0) {
+			notes += `${notes ? " · " : ""}time-variant, excluded: ${row.inPlaceFieldPaths.join(", ")}`;
 		}
 		const judgement = judge(row.verdict, row.scope);
 		lines.push(
@@ -453,8 +552,27 @@ function main() {
 				.map(([label, dir]) => `${label}=${dir}`)
 				.join(", ")}\n\n`,
 	);
+	// The read-only rule, observed rather than promised. `refarm task list --json` rewrites
+	// ~/.refarm/sessions/task-session.v1.json on every read — measured 2026-08-10 — and it looks
+	// read-only from every angle a reviewer has. A probe that runs a mutating command writes to the
+	// operator's real node three times per invocation, forever.
+	const sovereignDir = observedSovereignDir(os.homedir());
+	const before = snapshotDirectory(sovereignDir);
+
 	const rows = runProbe(PROBE_COMMANDS, directories);
 	process.stdout.write(`${formatProbeTable(rows)}\n`);
+
+	// WARNS, never blocks: the daemon shares this directory and may legitimately write while the
+	// probe runs, so a blocking check here would fire on the environment and train its reader to
+	// ignore it. Naming the files is what makes it actionable — that is how `task list` was caught.
+	const touched = diffSnapshots(before, snapshotDirectory(sovereignDir));
+	if (touched.length > 0) {
+		process.stdout.write(
+			`\nWARNING: ${touched.length} file(s) under ${sovereignDir} changed during this run.\n` +
+				`A probed command may not be read-only (or the daemon wrote concurrently):\n` +
+				`${touched.map((p) => `  - ${p}`).join("\n")}\n`,
+		);
+	}
 
 	// FOUR COUNTS, never one. `declared` is not folded into `same` and `unproven` is folded into
 	// neither, so a green line cannot hide either a surface declared into compliance or a surface
