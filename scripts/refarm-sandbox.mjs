@@ -378,6 +378,15 @@ export function sandboxEnvironment(repoRoot, overrides = {}) {
 			// sibling of nothing else in this list, but the SAME relationship the operator's
 			// own node already has between the two.
 			REFARM_STREAMS_DIR: streamsDir,
+			// ISS-052: the namespace is ALSO declared in the environment, not only passed as
+			// `--namespace` on the command line. The flag settles what the daemon does — it opens
+			// `sandbox.db`, which is the real answer — but `refarm context`'s witness reads
+			// `/proc/<pid>/environ`, found no REFARM_NAMESPACE there, and reported the sandbox as
+			// "declares no namespace ... default", producing a divergence against a node that was
+			// never diverging. The instrument was right to look at the environ; the launcher was
+			// wrong to tell only one of the two channels. Same shape, same fix, as
+			// REFARM_STREAMS_DIR above: declare the var the actual reader checks.
+			REFARM_NAMESPACE: overrides.namespace ?? SANDBOX_NAMESPACE,
 		},
 		port: overrides.port ?? SANDBOX_PORT,
 		httpPort: overrides.httpPort ?? SANDBOX_HTTP_PORT,

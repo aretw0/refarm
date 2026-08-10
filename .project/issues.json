@@ -895,22 +895,24 @@
 			"title": "The sandbox launcher has no stop subcommand",
 			"body": "This item is the \"there is no `stop` subcommand\" clause of the paragraph below, which is reproduced whole so the reason for the non-isolation travels with it.\n\nWHAT IS NOT ISOLATED, named rather than left to be discovered: SILO_HOME isolates the STORE, not the credential -- inherited by copy on purpose, since isolation that forced re-auth would not get used; the openai-codex token expires and nothing in this repo auto-refreshes it on EITHER node; there is no `stop` subcommand, and --reset has a documented, unclosed TOCTOU race with `start`.",
 			"location": "scripts/refarm-sandbox.mjs:1",
-			"status": "open",
+			"status": "resolved",
 			"category": "capability",
 			"priority": "medium",
 			"package": "scripts",
-			"axis": "sandbox"
+			"axis": "sandbox",
+			"resolved_by": "a78c4080"
 		},
 		{
 			"id": "ISS-079",
 			"title": "The sandbox launcher's --reset has a documented, unclosed TOCTOU race with start",
 			"body": "This item is the \"--reset has a documented, unclosed TOCTOU race with `start`\" clause of the paragraph below, which is reproduced whole so the reason for the non-isolation travels with it.\n\nWHAT IS NOT ISOLATED, named rather than left to be discovered: SILO_HOME isolates the STORE, not the credential -- inherited by copy on purpose, since isolation that forced re-auth would not get used; the openai-codex token expires and nothing in this repo auto-refreshes it on EITHER node; there is no `stop` subcommand, and --reset has a documented, unclosed TOCTOU race with `start`.",
 			"location": "scripts/refarm-sandbox.mjs:1",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "medium",
 			"package": "scripts",
-			"axis": "sandbox"
+			"axis": "sandbox",
+			"resolved_by": "a78c4080"
 		},
 		{
 			"id": "ISS-080",

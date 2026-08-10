@@ -1880,3 +1880,18 @@ test("stopSandbox reports a signal it could not deliver rather than claiming suc
 	assert.equal(result.stopped, false);
 	assert.match(result.reason, /EPERM/);
 });
+
+// ISS-052. `refarm context` reported a namespace-divergence for the sandbox that was never real:
+// `--namespace` settles what the daemon DOES (it opens sandbox.db) but the witness reads
+// /proc/<pid>/environ, found no REFARM_NAMESPACE there, and described the node as "default". The
+// instrument was right to look at the environ; the launcher was wrong to tell only one channel.
+test("the namespace is declared in the environment, not only on the command line", () => {
+	const { env, namespace } = sandboxEnvironment("/repo");
+	assert.equal(env.REFARM_NAMESPACE, namespace);
+});
+
+test("an overridden namespace reaches both channels together", () => {
+	const { env, namespace } = sandboxEnvironment("/repo", { namespace: "lab" });
+	assert.equal(namespace, "lab");
+	assert.equal(env.REFARM_NAMESPACE, "lab");
+});
