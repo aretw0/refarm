@@ -60,8 +60,9 @@ function makeDoctorReport(
 			command: "refarm",
 			profile: "dev",
 			version: "0.1.0",
-			packageManager: "pnpm",
 		},
+		// ISS-093: the package manager is a fact about the tree the CLI ran in, not about the host.
+		workingTree: { path: "/repo", packageManager: "pnpm" },
 		status: {
 			schemaVersion: 1,
 			host: {

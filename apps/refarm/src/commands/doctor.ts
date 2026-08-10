@@ -40,7 +40,12 @@ import {
 } from "./node-name-doctor.js";
 import { buildRuntimeEnvironmentDoctorRecommendations } from "./runtime-environment-doctor.js";
 import { buildRuntimeFreshnessDoctorRecommendations } from "./runtime-freshness-doctor.js";
-import { resolveRefarmRuntimeMetadata, type RefarmRuntimeMetadata } from "./runtime-metadata.js";
+import {
+	resolveRefarmRuntimeMetadata,
+	resolveWorkingTreeFacts,
+	type RefarmRuntimeMetadata,
+	type WorkingTreeFacts,
+} from "./runtime-metadata.js";
 import {
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 	RUNTIME_NOT_READY_RECOVERY_ACTION,
@@ -66,6 +71,10 @@ export interface RefarmDoctorReport {
 	nextCommand: string | null;
 	nextCommands: string[];
 	host: RefarmRuntimeMetadata;
+	/** ISS-093: the directory the CLI was invoked from, and what was detected THERE. Kept apart from
+	 *  `host` because `host` promises facts that do not move with the caller, and `packageManager`
+	 *  moved with it — measured `pnpm` here and `npm` from anywhere else, under a `host.*` name. */
+	workingTree: WorkingTreeFacts;
 	status: StatusJson;
 }
 
@@ -86,11 +95,23 @@ export interface RefarmDoctorOptions {
 	failOnWarnings?: boolean;
 }
 
+/** THE ONE DELIBERATE cwd READ added by ISS-093's fix — a named, documented function rather than a
+ *  `?? process.cwd()` default, which is the shape `scripts/no-os-resolution.mjs` counts and the shape
+ *  that put a working-tree fact under `host.*` in the first place. `doctor`'s own report says which
+ *  directory this was, so the read is declared in the output, not merely in a comment. */
+function operatorWorkingDirectory(): string {
+	return process.cwd();
+}
+
 export function buildRefarmDoctorReport(
 	status: StatusJson,
 	options: {
 		failOnWarnings?: boolean;
 		metadata?: RefarmRuntimeMetadata;
+		/** ISS-093. Injected by tests; the default reads the operator's working directory through
+		 *  `operatorWorkingDirectory()` below. Kept OUT of `metadata` because the two answer
+		 *  different questions: `metadata` is the binary, this is the tree it was invoked in. */
+		workingTree?: WorkingTreeFacts;
 		/** The config object `loadConfig()` returns — read ONLY for the declared
 		 * `connections` block (see `connection-doctor.ts`). Omitted (the default) means
 		 * "nothing declared", which produces no connection findings — this keeps the
@@ -219,6 +240,7 @@ export function buildRefarmDoctorReport(
 				command: status.host.command,
 				profile: status.host.profile,
 			}),
+		workingTree: options.workingTree ?? resolveWorkingTreeFacts({ cwd: operatorWorkingDirectory() }),
 		status,
 	};
 }

@@ -89,8 +89,8 @@ describe("buildRefarmDoctorReport", () => {
 					command: "refarm",
 					profile: "dev",
 					version: "1.2.3",
-					packageManager: "pnpm",
 				},
+				workingTree: { path: "/repo", packageManager: "pnpm" },
 			},
 		);
 
@@ -124,7 +124,9 @@ describe("buildRefarmDoctorReport", () => {
 		expect(report.nextCommands).toEqual(["refarm runtime ensure --wait --next-command"]);
 		expect(report.nextCommand).toBe("refarm runtime ensure --wait --next-command");
 		expect(report.host.version).toBe("1.2.3");
-		expect(report.host.packageManager).toBe("pnpm");
+		// ISS-093: the package manager left `host` — a host fact cannot change with the caller's
+		// directory — and the tree it was read from is now reported beside it.
+		expect(report.workingTree).toEqual({ path: "/repo", packageManager: "pnpm" });
 	});
 
 	it("fails on warnings when failOnWarnings is enabled", () => {

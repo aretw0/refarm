@@ -36,8 +36,9 @@ function makeReport() {
 			command: "refarm",
 			profile: "dev",
 			version: "1.2.3",
-			packageManager: "pnpm" as const,
 		},
+		// ISS-093: the package manager is a fact about the tree the CLI ran in, not about the host.
+		workingTree: { path: "/repo", packageManager: "pnpm" as const },
 		status: {
 			schemaVersion: 1 as const,
 			host: {

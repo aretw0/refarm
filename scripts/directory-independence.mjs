@@ -399,8 +399,12 @@ export const PROBE_COMMANDS = [
 		argv: ["doctor", "--json"],
 		scope: "node",
 		scopeReason:
-			"Diagnoses the NODE — its own fields are named host.*, and a host fact that moves with the directory is a contradiction in the field name itself.",
-		allowedVaryingFieldPaths: [],
+			"Diagnoses the NODE. Its identity fields are named host.* and must not move with the caller; its scope DIAGNOSTICS compare the node against where the operator is standing, which is the feature, not a leak.",
+		fieldReasons: {
+			workingTree:
+				"Added by ISS-093's fix: the directory the CLI was invoked from and the package manager detected THERE. It varies because the tree varies, and it carries its own `path` so the variance names itself. It exists precisely so `host` no longer has to lie — host.packageManager used to be pnpm here and npm anywhere else.",
+		},
+		allowedVaryingFieldPaths: ["workingTree"],
 	},
 	{
 		name: "model current",

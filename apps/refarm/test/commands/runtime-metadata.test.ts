@@ -4,6 +4,7 @@ import {
 	resolveRefarmHostIdentity,
 	resolveRefarmRuntimeMetadata,
 	resolveRefarmVersion,
+	resolveWorkingTreeFacts,
 } from "../../src/commands/runtime-metadata.js";
 
 describe("resolveRefarmHostIdentity", () => {
@@ -41,7 +42,6 @@ describe("resolveRefarmRuntimeMetadata", () => {
 			command: "refarm",
 			profile: "dev",
 			version: "1.0.0",
-			packageManager: "npm",
 		});
 	});
 
@@ -58,16 +58,15 @@ describe("resolveRefarmRuntimeMetadata", () => {
 			command: "custom",
 			profile: "prod",
 			version: "2.0.0",
-			packageManager: "npm",
 		});
 	});
 
-	it("includes the resolved package manager", () => {
+	it("no longer carries the package manager — that moved to the working tree (ISS-093)", () => {
 		__resetRefarmRuntimeMetadataCacheForTests();
 		const metadata = resolveRefarmRuntimeMetadata({
 			env: { REFARM_VERSION: "1.0.0", REFARM_PACKAGE_MANAGER: "bun" },
 		});
-		expect(metadata.packageManager).toBe("bun");
+		expect("packageManager" in metadata).toBe(false);
 	});
 });
 
@@ -106,5 +105,32 @@ describe("resolveRefarmVersion (runtime metadata)", () => {
 			readPackageJson: () => "not-json",
 		});
 		expect(version).toBe("unknown");
+	});
+});
+
+// ISS-093. `host` promised the HOST — and carried one field that was a fact about the working tree.
+// Measured 2026-08-10: `refarm doctor --json` reported host.packageManager as "pnpm" from this
+// checkout and "npm" from both /tmp and another workspace, and seven advice fields moved with it. A
+// field named host.* cannot depend on which directory the operator is standing in; the resolution
+// was never wrong, its NAME was.
+describe("host identity versus working tree (ISS-093)", () => {
+	it("host carries only what is true of the binary, wherever it was invoked", () => {
+		__resetRefarmRuntimeMetadataCacheForTests();
+		const metadata = resolveRefarmRuntimeMetadata({ env: { REFARM_VERSION: "1.0.0" } });
+		expect(Object.keys(metadata).sort()).toEqual(["app", "command", "profile", "version"]);
+	});
+
+	it("the working tree reports where it looked as well as what it found", () => {
+		const tree = resolveWorkingTreeFacts({
+			cwd: "/some/project",
+			env: { REFARM_PACKAGE_MANAGER: "bun" },
+		});
+		expect(tree).toEqual({ path: "/some/project", packageManager: "bun" });
+	});
+
+	it("takes the directory EXPLICITLY — there is no default to forget", () => {
+		// The old site was `cwd: options?.cwd ?? process.cwd()`, which is the exact shape
+		// scripts/no-os-resolution.mjs counts and the burn-down plan calls the footgun.
+		expect(resolveWorkingTreeFacts.length).toBe(1);
 	});
 });

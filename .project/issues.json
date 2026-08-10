@@ -1110,6 +1110,28 @@
 			"priority": "medium",
 			"package": "scripts",
 			"axis": "durability"
+		},
+		{
+			"id": "ISS-099",
+			"title": "doctor's advice fields still vary by directory: part by design, part ISS-094's symptom",
+			"body": "RESIDUAL CONVICTION after ISS-093's fix, measured 2026-08-10. host.packageManager moved to workingTree and `host` is now identical from all three directories, but `doctor` stays convicted on seven fields: nextAction, nextActions, nextCommand, nextCommands, recommendations, warnings, warningCount.\n\nMEASURED WARNINGS, and they split into two different kinds:\n  from the repo: scope:auth-policy-divergence, scope:config-divergence, context:home-divergence, sovereign:unloaded-dir\n  from /tmp:     context:home-divergence, sovereign:plugin-unknown, sovereign:unloaded-dir\n\nTHE SPLIT. The scope:* findings are the FEATURE. The 2026-08-06 two-halves-one-node slice put doctor.ts:380's operatorBase on a deliberate process.cwd() precisely so scope-doctor could compare where the operator is STANDING against where the node LIVES; a doctor whose scope findings did not change with the directory would have stopped doing the comparison. Those fields varying is correct.\n\nsovereign:plugin-unknown is a different animal: it fires from /tmp and not from the repo, and it is almost certainly the same root cause as ISS-094 -- plugin provenance re-derived from the caller's working tree rather than read from the node, which makes `plugin list` report the node's own plugin as packageSource 'unresolved' from anywhere else.\n\nWHY THIS IS NOT DECLARED AWAY TODAY, which is the whole point of filing it: adding these seven fields to allowedVaryingFieldPaths with a reason would make the row pass, and it would swallow ISS-094's symptom along with the by-design comparison. Declaring another item's defect as expected variance is exactly the 'fix by declaring' the burn-down's own rules forbid. So doctor stays CONVICTED until ISS-094 lands, and only then does the residual get split: the scope:* fields declared with a reason, and anything still moving after that treated as a new finding rather than absorbed.\n\nNEXT STEP, concretely: fix ISS-094, re-run scripts/directory-independence.mjs, and compare this warnings list. If sovereign:plugin-unknown disappears from /tmp, the remainder is the deliberate scope comparison and can be declared with that as its written reason.",
+			"location": "apps/refarm/src/commands/doctor.ts:380",
+			"status": "open",
+			"category": "issue",
+			"priority": "medium",
+			"package": "apps/refarm",
+			"axis": "node-vs-directory"
+		},
+		{
+			"id": "ISS-100",
+			"title": "Three doctor tests fail on a clean checkout because they read the real environment",
+			"body": "MEASURED 2026-08-10 by stashing every uncommitted change and running the suite against the committed HEAD: `pnpm --filter refarm exec vitest run test/commands/doctor.test.ts` reports 3 failed | 17 passed. The three are 'emits the first blocking recovery action as JSON', 'emits the first executable recovery command as JSON' and 'createDoctorCommand reports no connection findings when loadConfig throws'.\n\nCAUSE: they drive createDoctorCommand against the REAL environment, and this checkout has a gitignored .refarm/ directory. That produces scope:auth-policy-divergence, context:home-divergence and sovereign:unloaded-dir findings, and the fixtures expect a nextActions list without them. The tests are not wrong about doctor; they are coupled to the machine they run on.\n\nHOW IT STAYED INVISIBLE: `refarm agent finish --lane after-edit` passes, because the lane selects tests by change detection and these had not been touched. Two quality gates with different scopes is a known property of this repo, not a surprise -- but it means a green lane is not evidence that the suite is green.\n\nIT IS NOT THIS SLICE'S DOING, and that is why it is filed rather than fixed inside another commit: the failures reproduce with zero of ISS-093's changes applied. Fixing them means injecting the scope comparison in those three tests the way the other doctor tests already do, so the fixture stops depending on whether the machine running it happens to have a .refarm/ beside the checkout.",
+			"location": "apps/refarm/test/commands/doctor.test.ts",
+			"status": "open",
+			"category": "issue",
+			"priority": "high",
+			"package": "apps/refarm",
+			"axis": "durability"
 		}
 	]
 }
