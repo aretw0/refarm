@@ -499,7 +499,7 @@
 		{
 			"id": "ISS-043",
 			"title": "The TS graph client throws against the real daemon because the sidecar never sets @context",
-			"body": "LOOSE ENDS QUEUE, opened at the operator's request on 2026-08-06 -- obvious fixes to be resolved definitively rather than decided one at a time. Each is named with its file so none needs rediscovering:\n\n(6) The TS graph client throws against the real daemon because the sidecar never sets @context.",
+			"body": "LOOSE ENDS QUEUE, opened at the operator's request on 2026-08-06:\n\n(6) The TS graph client throws against the real daemon because the sidecar never sets @context.\n\nSTRUCK 2026-08-10: MEASURED AGAINST THE RUNNING DAEMON AND IT DOES NOT THROW. The sidecar sets the field:\n\n  GET http://127.0.0.1:42001/nodes?type=Session&limit=2\n  -> {\"nodes\":[{\"@context\":\"urn:sovereign:schema:v1\",\"@id\":\"liveness-00264862\",\"@type\":\"Session\",...\n\nAnd the client consumes it cleanly:\n\n  createSidecarGraphClient(\"http://127.0.0.1:42001\").queryNodes(\"Session\", { limit: 2 })\n  -> nodes: 2 | stored: 10 | truncated: true | first @type: Session\n\nFixed at some point between 2026-08-06 and today; the item was never re-measured. Third stale causal claim found this session, after ISS-062 (its premise was fixed by the two-halves slice the same week) and ISS-040 (its first half was already done). The ledger allowed all three to be re-MEASURED rather than re-DISCOVERED because each body carried file:line and a reproducible command -- which is the argument for writing them that way.\n\nWHAT THE MEASUREMENT ALSO SETTLES, and it is worth more than the strike: the HTTP path is honest end to end. The sidecar returns `stored` and `truncated`, and packages/sidecar-client reads both and refuses to default them. So the truncation gap ISS-040 describes is NOT in the wire or in this client -- it is one layer below, in storage-contract-v1's `queryNodes(type): Promise<unknown[]>`, which has nowhere to put either field. Kept as resolved rather than deleted: a stale record that vanishes teaches nothing about why it was filed.",
 			"location": "packages/tractor/src/sidecar/mod.rs:1",
 			"status": "open",
 			"category": "issue",
@@ -798,11 +798,12 @@
 			"title": "OPERATIONAL DEFECT 3: cargo component build --release does not republish packages/agent/dist/agent.wasm",
 			"body": "OPERATIONAL DEFECT 3 -- `cargo component build --release` does NOT republish packages/agent/dist/agent.wasm, which is what `refarm plugin install` reads. The documented build command silently leaves stale code installed. Working path: `pnpm --filter @refarm.dev/agent run build` -> `refarm plugin install` -> `refarm runtime restart`. Defect 2 is what makes this silent; with a working staleness check this one is loud.",
 			"location": "packages/agent/package.json:1",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "high",
 			"package": "packages/agent",
-			"axis": "other"
+			"axis": "other",
+			"resolved_by": "f8bd3eed"
 		},
 		{
 			"id": "ISS-070",

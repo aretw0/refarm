@@ -91,7 +91,7 @@ devcontainer.
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------ | --------------------------------------------- |
 | Pure Rust parser/helper edit               | `cargo test --lib <test_or_module> --quiet`                                                      | full `cargo test`                             |
 | Rust API shape changed                     | focused test + `cargo check --quiet` in that package                                             | rebuilding unrelated crates                   |
-| agent source changed, no harness needed | `cargo check --target wasm32-wasip1 --quiet`                                                     | `cargo component build --release` (also leaves `dist/agent.wasm` stale — ISS-069) |
+| agent source changed, no harness needed | `cargo check --target wasm32-wasip1 --quiet`                                                     | `cargo component build --release` (and it leaves `dist/` stale — see PLUGIN_DEVELOPER_STORIES.md) |
 | agent/Tractor boundary changed          | filtered `agent_harness` run, sequential                                                      | full harness suite repeatedly                 |
 | TS package edit                            | `pnpm --filter <pkg> run type-check` or direct unit suite                                         | repo-wide `turbo build`                       |
 | Before push                                | reproduce likely failures locally with the closest scoped command, then CI as final confirmation | using GitHub Actions as the first test runner |
