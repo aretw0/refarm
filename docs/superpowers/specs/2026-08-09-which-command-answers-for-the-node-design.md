@@ -308,6 +308,16 @@ Driven by convictions, one atomic commit each:
 **Exit criterion:** `convicted == 0` across the probed surface, every `declared` carrying a reason,
 and every `unproven` carrying its cause.
 
+**MET 2026-08-10:** `36 probed · 29 same · 3 declared · 0 convicted · 0 unproven`, from `35 probed ·
+26 same · 1 declared · 4 convicted` at the first run. The three declarations are `resume` (its
+project block and the live environment reading), `resume --workspace <self>` (the environment
+reading only — its project block is identical, which is the claim that proves `--workspace`
+decouples the answer from the caller's directory), and `doctor` (seven advice fields, each traced to
+a by-design node-vs-operator comparison before being declared). Ratchet 117 → 112 across the
+burn-down. One declaration was made for a reason the design did not anticipate and is filed rather
+than absorbed: the control pair is probabilistic, so a field that moves only sometimes is excluded
+only sometimes (ISS-101).
+
 ## Error handling
 
 - A command that times out from one directory and answers from another is `unrunnable` → convicted,

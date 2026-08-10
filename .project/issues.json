@@ -1062,22 +1062,24 @@
 			"title": "plugin list reports the node's own plugin as unresolved from any other directory",
 			"body": "CONVICTED by scripts/directory-independence.mjs on 2026-08-10. Verdict: differs-undeclared, scope node. Diverging field path: plugins.\n\nMEASURED: from /home/s095407044/github/refarm the single installed plugin reports packageSource 'workspace' with packageDir '/home/s095407044/github/refarm/packages/agent'; from /tmp the SAME plugin reports packageSource 'unresolved' with packageDir null. Same id (@refarm/agent), same version (0.1.0), same source (bundled) -- only the provenance fields collapse.\n\nWHY IT MATTERS: a plugin is installed into the NODE's sovereign dir, and 'plugin status' (which reports what the daemon has LOADED) is correctly identical from all three directories. So the node knows perfectly well where its plugin came from; 'plugin list' re-derives that provenance from the caller's working tree instead of reading it. 'unresolved' is not a neutral word here -- it is what an operator sees before deciding whether a plugin is trustworthy, and it appears for a plugin that is fully resolved on the node.\n\nThis is the same family as the VPN defect the 2026-08-07 slice closed: node state presented through a working-tree lens, correct exactly where it is developed and wrong everywhere the operator actually stands. apps/refarm/src/commands/plugin-shared.ts carries 2 bare process.cwd() sites; audit before substituting, because resolving a WORKSPACE package legitimately needs a workspace root.",
 			"location": "apps/refarm/src/commands/plugin-shared.ts",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "high",
 			"package": "apps/refarm",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "52e4602d"
 		},
 		{
 			"id": "ISS-095",
 			"title": "surface list reads the caller's directory .refarm/config.json instead of the node's",
 			"body": "CONVICTED by scripts/directory-independence.mjs on 2026-08-10. Verdict: differs-undeclared, scope node. Diverging field paths: configPath, root, surfaces.\n\nMEASURED: from the repository, root '/home/s095407044/github/refarm', configPath '/home/s095407044/github/refarm/.refarm/config.json', 3 surfaces. From /tmp, root '/tmp', configPath '/tmp/.refarm/config.json', 0 surfaces.\n\nTHIS IS THE FIXTURE DEFECT, EXACTLY AS THE 2026-08-07 SLICE NAMED IT. That slice found ovpn-serpro visible only from this checkout and recorded the finding in these words: 'visible from the repo, invisible everywhere else was never the feature working -- it was the SYMPTOM, the CLI reading a fixture and presenting it as the node's catalog.' The repo's .refarm/config.json is a gitignored dev fixture written while building that very feature. surface list is still reading it and presenting its three surfaces as the node's.\n\nWHY IT MATTERS FOR DAILY USE: surfaces are how the operator reaches this node from Termux, the PWA and Telegram. A surface catalog that empties when he runs the command from anywhere but one checkout is the difference between 'my node offers three ways in' and 'my node offers none', decided by his shell's working directory. The honest empty answer -- 0 surfaces from every directory -- would at least be legible; 3-here and 0-there is the state that reads as working.\n\napps/refarm/src/commands/surface.ts carries 3 bare process.cwd() sites. The fix is the same one connection.ts took in d8f850b8: resolve declaredBase() rather than the caller's directory.",
 			"location": "apps/refarm/src/commands/surface.ts",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "high",
 			"package": "apps/refarm",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "52e4602d"
 		},
 		{
 			"id": "ISS-096",
@@ -1117,11 +1119,12 @@
 			"title": "doctor's advice fields still vary by directory: part by design, part ISS-094's symptom",
 			"body": "RESIDUAL CONVICTION after ISS-093's fix, measured 2026-08-10. host.packageManager moved to workingTree and `host` is now identical from all three directories, but `doctor` stays convicted on seven fields: nextAction, nextActions, nextCommand, nextCommands, recommendations, warnings, warningCount.\n\nMEASURED WARNINGS, and they split into two different kinds:\n  from the repo: scope:auth-policy-divergence, scope:config-divergence, context:home-divergence, sovereign:unloaded-dir\n  from /tmp:     context:home-divergence, sovereign:plugin-unknown, sovereign:unloaded-dir\n\nTHE SPLIT. The scope:* findings are the FEATURE. The 2026-08-06 two-halves-one-node slice put doctor.ts:380's operatorBase on a deliberate process.cwd() precisely so scope-doctor could compare where the operator is STANDING against where the node LIVES; a doctor whose scope findings did not change with the directory would have stopped doing the comparison. Those fields varying is correct.\n\nsovereign:plugin-unknown is a different animal: it fires from /tmp and not from the repo, and it is almost certainly the same root cause as ISS-094 -- plugin provenance re-derived from the caller's working tree rather than read from the node, which makes `plugin list` report the node's own plugin as packageSource 'unresolved' from anywhere else.\n\nWHY THIS IS NOT DECLARED AWAY TODAY, which is the whole point of filing it: adding these seven fields to allowedVaryingFieldPaths with a reason would make the row pass, and it would swallow ISS-094's symptom along with the by-design comparison. Declaring another item's defect as expected variance is exactly the 'fix by declaring' the burn-down's own rules forbid. So doctor stays CONVICTED until ISS-094 lands, and only then does the residual get split: the scope:* fields declared with a reason, and anything still moving after that treated as a new finding rather than absorbed.\n\nNEXT STEP, concretely: fix ISS-094, re-run scripts/directory-independence.mjs, and compare this warnings list. If sovereign:plugin-unknown disappears from /tmp, the remainder is the deliberate scope comparison and can be declared with that as its written reason.",
 			"location": "apps/refarm/src/commands/doctor.ts:380",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "medium",
 			"package": "apps/refarm",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "52e4602d"
 		},
 		{
 			"id": "ISS-100",
@@ -1134,6 +1137,17 @@
 			"package": "apps/refarm",
 			"axis": "durability",
 			"resolved_by": "0d147e5c"
+		},
+		{
+			"id": "ISS-101",
+			"title": "The probe's control pair is probabilistic: a field that moves only sometimes is excluded only sometimes",
+			"body": "MY OWN DEFECT, found by the instrument turning on me. The control pair added on 2026-08-10 runs each command a second time in the first directory and excludes any field that differs between those two runs as time-variant. It works when the field MOVES during that pair -- and environmentPressure.signals, a live memory and free-space reading, sometimes does not move between two spawns seconds apart.\n\nOBSERVED: the row `resume --workspace <self>` reported `same` on one run and `differs-undeclared` on the next, with no code change between them. A verdict that flips is worse than a verdict that is wrong, because nobody can tell which run to believe.\n\nAND THE CONTROL COULD NEVER HAVE CAUGHT THE OTHER HALF: environmentPressure.signals carries the free space of the filesystem the command was invoked on (signals[].path is the cwd), so it varies by DIRECTORY too. A same-directory control is blind to that by construction. It is now declared with a written reason on both resume rows, which is the right answer for a field that varies for two independent causes.\n\nWHAT REMAINS TO DECIDE, and it is a real design question rather than a bug to squash: the control pair is a PROBABILISTIC instrument sold as a measurement. Options, none free: run the pair in every directory instead of only the first (three chances instead of one, 50% more spawns, still probabilistic); run the pair N times (linear cost for asymptotic confidence); or accept that known-volatile fields are DECLARED and keep the control only as a safety net that catches new ones. The third is closest to how the rest of this instrument already works -- declarations carry written reasons and are counted apart from `same` -- but it gives up the self-expiring property that made the control attractive: a declaration outlives its reason, a measurement does not.\n\nDO NOT close this by making the control run more times without saying so in the report. A probe that is 95% reliable and presents itself as 100% is the exact defect class this whole line of work exists to find.",
+			"location": "scripts/directory-independence.mjs",
+			"status": "open",
+			"category": "issue",
+			"priority": "medium",
+			"package": "scripts",
+			"axis": "durability"
 		}
 	]
 }

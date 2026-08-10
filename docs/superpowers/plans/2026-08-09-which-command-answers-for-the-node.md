@@ -522,10 +522,10 @@ refarm agent finish --lane after-commit --run --json
   other directories, and seven downstream advice fields follow it. `packages/config/src/package-manager.js`
   holds the ratchet's largest cluster (10 sites) and this is the first time it is tied to a wrong
   answer rather than a shape count.
-- [ ] **5.3 — `plugin list`, ISS-094 (high).** The node's own plugin reports `packageSource:
+- [x] **5.3 — `plugin list`, ISS-094 (high).** DONE `52e4602d`: bundled provenance anchors on the app's own module dir, not the caller's. Row → `same`. The node's own plugin reports `packageSource:
   "unresolved"`, `packageDir: null` from anywhere else, while `plugin status` is correctly identical
   — so the node knows, and `list` re-derives.
-- [ ] **5.4 — `surface list`, ISS-095 (high).** Reads `<cwd>/.refarm/config.json`: 3 surfaces here, 0
+- [x] **5.4 — `surface list`, ISS-095 (high).** DONE `52e4602d`: `list` and `add` moved to `declaredBase()` together. Row → `same`. Reads `<cwd>/.refarm/config.json`: 3 surfaces here, 0
   from `/tmp`. The gitignored dev-fixture defect the 2026-08-07 slice named, still live in another
   command.
 

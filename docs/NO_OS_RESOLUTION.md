@@ -290,16 +290,18 @@ attempted.
 $ pnpm run directory-independence
 ```
 
-**35 probed · 26 same · 1 declared · 4 convicted · 0 unproven.** The five-command table this section
+**36 probed · 29 same · 3 declared · 0 convicted · 0 unproven** (2026-08-10, after the burn-down;
+the first run of this table, before any fix, was 35 probed · 26 same · 1 declared · **4 convicted**). The five-command table this section
 used to carry covered 8% of a 64-command surface; the gap was never chosen, it was simply never
 required of anyone.
 
 | Command | Scope | Verdict | Judgement |
 | --- | --- | --- | --- |
-| `resume` | node | differs-undeclared | **CONVICTED** — ISS-092 |
-| `doctor` | node | differs-undeclared | **CONVICTED** — ISS-093 |
-| `plugin list` | node | differs-undeclared | **CONVICTED** — ISS-094 |
-| `surface list` | node | differs-undeclared | **CONVICTED** — ISS-095 |
+| `resume` | node | differs-as-declared | pass — its project block, which now names which workspace answered (ISS-092) |
+| `resume --workspace <self>` | node | same | pass — the row that proves `--workspace` decouples the answer from the caller's directory |
+| `doctor` | node | differs-as-declared | pass — seven advice fields, each traced to a by-design node-vs-operator comparison (ISS-093, ISS-099) |
+| `plugin list` | node | same | pass — bundled provenance anchors on the app's own location (ISS-094) |
+| `surface list` | node | same | pass — the catalog is the node's, not whatever `.refarm/` sat beside the caller (ISS-095) |
 | `context` | node | differs-as-declared | pass — four working-tree fields, each with a written reason |
 | `budget usage` · `inspect` | node | same | pass — time-variant fields excluded by the control pair |
 | 24 others | node | same | pass |
