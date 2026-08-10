@@ -12,6 +12,8 @@ import {
 	RUNTIME_AGENT_PLUGIN_ID,
 } from "@refarm.dev/config/plugin-identity";
 import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { refarmCommand, refarmProcess } from "../brand.js";
 import {
 	PLUGIN_INSTALL_COMMAND,
@@ -76,6 +78,11 @@ export async function restartRuntimeForPluginReload(wait: boolean): Promise<{
  * (npm/git/url) is a valid filter that simply matches nothing — the list never
  * over-claims coverage. Defaults (no filter) to every known plugin.
  */
+/** This module's own directory — the anchor for resolving what shipped WITH the app. Not a cwd
+ *  fallback: there is nothing to fall back from, because the question never involved the caller's
+ *  directory in the first place. */
+const APP_MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
+
 export async function buildPluginListReport(
 	options: { origin?: PluginOrigin; bundled?: readonly BundledPlugin[] } = {},
 ): Promise<PluginListReport> {
@@ -91,6 +98,13 @@ export async function buildPluginListReport(
 			const version = await readInstalledVersion(plugin.id);
 			const resolution = resolvePluginPackage(plugin, {
 				baseUrl: import.meta.url,
+				// ISS-094. Where a BUNDLED plugin's package lives is a property of this
+				// installation of refarm, not of the directory the operator is standing in — which
+				// is exactly what `baseUrl: import.meta.url` already says for the node_modules
+				// branch. The workspace branch was still walking up from `process.cwd()`, so the
+				// node's own plugin read as packageSource "workspace" from this checkout and
+				// "unresolved" from anywhere else, while `plugin status` stayed correctly identical.
+				cwd: APP_MODULE_DIR,
 			});
 			plugins.push({
 				id: plugin.id,

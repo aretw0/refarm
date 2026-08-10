@@ -3,7 +3,7 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
-import { loadRawSovereignConfig } from "@refarm.dev/config";
+import { declaredBase, loadRawSovereignConfig } from "@refarm.dev/config";
 import {
 	createFileOperationTrail,
 	createNodeOperationFileSystem,
@@ -96,7 +96,11 @@ export async function runSurfaceAdd(
 	options: SurfaceAddOptions,
 	deps: SurfaceAddDeps = {},
 ): Promise<SurfaceAddResult> {
-	const root = deps.root ?? process.cwd();
+	// ISS-095: the same base as `list`. Fixing only the reader would have been worse than fixing
+	// neither — a surface DECLARED into the directory's config and then absent from the node's
+	// catalog authorises nothing, which is precisely the failure `doctor` already warns about for
+	// credentials written to the wrong file.
+	const root = deps.root ?? declaredBase();
 	const env = deps.env ?? process.env;
 	const atTerminal = Boolean(process.stdin.isTTY && process.stdout.isTTY);
 	if (!(deps.interactive ?? (atTerminal || Boolean(options.attendedElsewhere)))) {
@@ -189,7 +193,7 @@ export async function runSurfaceAdd(
 	}
 }
 
-function serializeCatalog(root = process.cwd()): Array<{ name: string; expose: string; gate: string | null }> {
+function serializeCatalog(root: string): Array<{ name: string; expose: string; gate: string | null }> {
 	return [...parseSurfaces(loadRawSovereignConfig(root))].map(([name, declaration]) => ({
 		name,
 		expose: declaration.expose.kind === "host" ? `host:${declaration.expose.host}` : declaration.expose.kind,
@@ -218,7 +222,14 @@ export function createSurfaceCommand(): Command {
 		}
 	});
 	command.command("list").option("--json").action((options: { json?: boolean }) => {
-		const root = process.cwd();
+		// ISS-095. This was `process.cwd()`, so the catalog came from whatever `.refarm/config.json`
+		// happened to sit beside the operator — in this repo, a gitignored dev fixture, which is the
+		// exact shape the 2026-08-07 slice named when the VPN was "visible from the repo, invisible
+		// everywhere else": the CLI reading a fixture and presenting it as the node's catalog.
+		// Surfaces are how the operator REACHES this node from Termux, the PWA and Telegram; a
+		// catalog that empties when he asks from another directory is the difference between "my node
+		// offers three ways in" and "none", decided by his shell.
+		const root = declaredBase();
 		const configPath = catalogConfigPath(root, process.env);
 		const surfaces = serializeCatalog(root);
 		if (options.json) printJson(buildJsonSuccessEnvelope({ command: "surface", operation: "list", nextAction: null, nextCommands: [], extra: { root, configPath, surfaces } }));

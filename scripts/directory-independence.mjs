@@ -344,12 +344,13 @@ export const PROBE_COMMANDS = [
 		scopeReason:
 			"The slice entry point CLAUDE.md section 4 mandates. Runtime, model route, session and ledger are the node's and must not move; the project block reports whichever project THIS invocation resolved, and since 2026-08-10 it says which one and how (ISS-092).",
 		fieldReasons: {
+			"environmentPressure.signals": "Reports live host memory AND the free space of the filesystem the command was invoked on (environmentPressure.signals[].path is the cwd), so it varies by BOTH time and directory. The control pair catches the time half only when the reading happens to move between two spawns seconds apart — which made this row flip between same and convicted (ISS-101). The directory half it could never catch. Declared with a reason rather than left to a coin flip.",
 			project:
 				"The project block is the handoff of the project this invocation resolved — by --workspace, by cwd-match against the declared catalog, or by convention. It varies because the project varies, and `projectResolution` beside it names which. Before ISS-092 this key simply VANISHED outside a project, so a consumer reading project?.currentTasks got an empty list and no signal; that silent absence, not the variance, was the defect.",
 			projectResolution:
 				"Reports which of the four states produced the block above -- read, empty, unreadable, absent -- with the workspace id, the origin and the path. It varies BY CONSTRUCTION: a field whose job is to say what this directory resolved to would be lying if it were constant.",
 		},
-		allowedVaryingFieldPaths: ["project", "projectResolution"],
+		allowedVaryingFieldPaths: ["environmentPressure.signals", "project", "projectResolution"],
 	},
 	{
 		// The strong claim, and the regression guard for ISS-092's fix: asked about a NAMED workspace,
@@ -361,7 +362,10 @@ export const PROBE_COMMANDS = [
 		scope: "node",
 		scopeReason:
 			"An explicitly named workspace is a node-level address, so nothing at all may depend on the caller's directory -- this is the row that proves --workspace actually decouples the answer from where the operator stands.",
-		allowedVaryingFieldPaths: [],
+		fieldReasons: {
+			"environmentPressure.signals": "Reports live host memory AND the free space of the filesystem the command was invoked on (environmentPressure.signals[].path is the cwd), so it varies by BOTH time and directory. The control pair catches the time half only when the reading happens to move between two spawns seconds apart — which made this row flip between same and convicted (ISS-101). The directory half it could never catch. Declared with a reason rather than left to a coin flip.",
+		},
+		allowedVaryingFieldPaths: ["environmentPressure.signals"],
 	},
 	{
 		name: "status",
@@ -401,10 +405,27 @@ export const PROBE_COMMANDS = [
 		scopeReason:
 			"Diagnoses the NODE. Its identity fields are named host.* and must not move with the caller; its scope DIAGNOSTICS compare the node against where the operator is standing, which is the feature, not a leak.",
 		fieldReasons: {
+			warnings:
+				"Doctor's job includes comparing the NODE against where the operator is standing, so these findings differ by directory BY DESIGN. Measured 2026-08-10, and each was traced rather than assumed: scope:auth-policy-divergence and scope:config-divergence come from doctor.ts:380's operatorBase, a deliberate cwd read the 2026-08-06 two-halves-one-node slice installed precisely so the comparison exists; sovereign:plugin-unknown comes from context.ts's built-plugin comparison, which reports null rather than trusting a fallback root when the invocation directory has no build -- the same working-tree fact already declared on the `context` row. A doctor whose scope findings did not move with the directory would have stopped doing the comparison.",
+			warningCount: "The count of the warnings above; it moves with them.",
+			recommendations: "One entry per finding above, carrying its action and command.",
+			nextAction: "The first recommendation's action, so it follows the findings.",
+			nextActions: "Every recommendation's action, in the same order.",
+			nextCommand: "The first recommendation's command.",
+			nextCommands: "Every recommendation's command.",
 			workingTree:
 				"Added by ISS-093's fix: the directory the CLI was invoked from and the package manager detected THERE. It varies because the tree varies, and it carries its own `path` so the variance names itself. It exists precisely so `host` no longer has to lie — host.packageManager used to be pnpm here and npm anywhere else.",
 		},
-		allowedVaryingFieldPaths: ["workingTree"],
+		allowedVaryingFieldPaths: [
+			"nextAction",
+			"nextActions",
+			"nextCommand",
+			"nextCommands",
+			"recommendations",
+			"warningCount",
+			"warnings",
+			"workingTree",
+		],
 	},
 	{
 		name: "model current",
