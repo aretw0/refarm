@@ -2,6 +2,8 @@ import type { StatusJson } from "@refarm.dev/cli/status";
 import { accessSync, constants as fsConstants } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { resolveNodeContextMetadata } from "../../src/utils/context-metadata.js";
+
 /** The Task 3 connection-finding tests below resolve `/usr/bin/true` against the REAL
  * PATH (via `resolveBinary`, transitively through `buildConnectionDoctorRecommendations`)
  * to exercise a "this binary resolves fine" case — fail loudly up front rather than let
@@ -395,6 +397,34 @@ describe("doctorCommand", () => {
 		logSpy.mockRestore();
 	});
 
+/**
+	 * ISS-100. These three tests assert on the FULL nextActions/warnings output, so every environment
+	 * reader has to be injected or they measure the machine they run on rather than the code. They
+	 * failed on a developer checkout (which has a gitignored .refarm/ beside it, and no SILO_HOME
+	 * declared) while passing in CI — the worst shape for a test, because the failure looks like a
+	 * regression to whoever is mid-slice and like nothing at all to CI.
+	 */
+	const HERMETIC_DOCTOR_DEPS = {
+		cwd: () => "/fake/root",
+		loadConfig: () => ({}),
+		readNodeDescriptor: () => null,
+		sovereignDivergences: () => [],
+		// `homesAligned` is the field the context:home-divergence finding reads. An empty stub leaves it
+	// falsy, which is itself a divergence — so the fixture states the ALIGNED case explicitly rather
+	// than half-mocking and getting a warning nobody asked for.
+	context: () =>
+		({
+			mode: "node",
+			binding: { kind: "detached", origin: "default" },
+			state: { policy: "node-owned", homeRef: "/fake/home/.refarm" },
+			credentials: { policy: "node", storeRef: "/fake/home/.refarm" },
+			runtime: { policy: "node" },
+			sovereignHome: "/fake/home/.refarm",
+			credentialStoreHome: "/fake/home/.refarm",
+			homesAligned: true,
+		}) as ReturnType<typeof resolveNodeContextMetadata>,
+	};
+	
 	it("emits the first blocking recovery action as JSON", async () => {
 		mockResolveStatusPayload.mockResolvedValue({
 			json: makeStatus(["runtime:not-ready", "trust:warnings-present"]),
@@ -402,7 +432,7 @@ describe("doctorCommand", () => {
 		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await doctorCommand.parseAsync(["--next-action", "--json"], {
+		await createDoctorCommand(HERMETIC_DOCTOR_DEPS).parseAsync(["--next-action", "--json"], {
 			from: "user",
 		});
 
@@ -460,7 +490,7 @@ describe("doctorCommand", () => {
 		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await doctorCommand.parseAsync(["--next-command", "--json"], {
+		await createDoctorCommand(HERMETIC_DOCTOR_DEPS).parseAsync(["--next-command", "--json"], {
 			from: "user",
 		});
 
@@ -512,7 +542,7 @@ describe("doctorCommand", () => {
 		});
 
 		try {
-			await createDoctorCommand({ loadConfig: loadConfigSpy, cwd: () => "/fake/root" }).parseAsync(
+			await createDoctorCommand({ ...HERMETIC_DOCTOR_DEPS, loadConfig: loadConfigSpy }).parseAsync(
 				["--json"],
 				{ from: "user" },
 			);
@@ -539,17 +569,17 @@ describe("doctorCommand", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		try {
 			await createDoctorCommand({
+				// The reasoning this override was written with was right and did not go far enough
+				// (ISS-100): `sovereignDivergences` was pinned so this host's real sovereign state
+				// could not leak into `warnings`, but `scope:*` and `context:*` reach the same list
+				// through readers this test did not control, so it asserted `warnings: []` against
+				// whatever machine ran it. HERMETIC_DOCTOR_DEPS pins every environment reader, and
+				// the assertion below stays exactly what it always meant to be: a throwing
+				// `loadConfig` produces no `connection:*` finding and does not fail the report.
+				...HERMETIC_DOCTOR_DEPS,
 				loadConfig: () => {
 					throw new Error("config is malformed");
 				},
-				// Without this override, `sovereignDivergences` would resolve from the REAL,
-				// unmockable filesystem/process state (no other `deps` override reaches it), so
-				// whatever this host's own sovereign state genuinely is (e.g.
-				// `sovereign:stale-descriptor`) would leak into `warnings` as real signal this
-				// test cannot control. Pinning it to `[]` keeps this a deterministic assertion
-				// on the ONE thing this test verifies: a throwing `loadConfig` produces no
-				// `connection:*` finding, and does not fail the whole report.
-				sovereignDivergences: () => [],
 			}).parseAsync(["--json"], { from: "user" });
 
 			const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));

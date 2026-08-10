@@ -362,6 +362,12 @@ export interface RefarmDoctorCommandDeps {
 	 *  sovereign state (config paths, node descriptor). Same purity rule as `loadConfig`
 	 *  and `readNodeDescriptor` above: omitted means "use the real resolver". */
 	sovereignDivergences?: () => Divergence[] | null;
+	/** Overrides `resolveNodeContextMetadata(process.env)` — the last environment reader that was
+	 *  NOT injectable, and the reason three tests in `doctor.test.ts` failed on a developer machine
+	 *  while passing in CI (ISS-100): a test asserting on the FULL `warnings`/`nextActions` output
+	 *  cannot depend on whether whoever runs it happens to have SILO_HOME and REFARM_HOME declared.
+	 *  Same purity rule as the three above: omitted means "read the real environment". */
+	context?: () => ReturnType<typeof resolveNodeContextMetadata>;
 }
 
 /**
@@ -558,7 +564,7 @@ Notes:
 						nodeIdentity: resolveNodeDescriptor(deps),
 						runtimeFreshness: resolveFreshness(),
 						runtimeEnvironment: resolveEnvironment(deps),
-						context: resolveNodeContextMetadata(process.env),
+						context: deps?.context?.() ?? resolveNodeContextMetadata(process.env),
 						sovereignDivergences: deps?.sovereignDivergences?.() ?? resolveSovereignDivergences(),
 					});
 					const outputMode = resolveDoctorOutputMode(options);
