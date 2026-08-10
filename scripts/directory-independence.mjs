@@ -824,6 +824,15 @@ function main() {
 		`\ndirectory-independence: ${summary.probed} probed · ${summary.same} same · ` +
 			`${summary.declared} declared · ${summary.convicted} convicted · ${summary.unproven} unproven\n`,
 	);
+	// The caveat is printed by the TOOL, not left in a spec, because the number above is the part
+	// people quote. MEASURED 2026-08-10 with an empty REFARM_HOME: `workspace list` and
+	// `connection status` return `[]` from every directory and score `same` — agreement between two
+	// absences, which is why this probe is a LOCAL instrument against a real node and is deliberately
+	// not wired into CI (ISS-097).
+	process.stdout.write(
+		"A verdict is only as strong as the node it was taken on: a node with an empty catalog answers\n" +
+			"emptily from every directory, and that reads as `same`. Run this against a real node.\n",
+	);
 
 	const convicted = rows.filter((row) => judge(row.verdict, row.scope) === "convicted");
 	if (convicted.length > 0) {

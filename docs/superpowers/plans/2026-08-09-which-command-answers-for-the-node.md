@@ -587,7 +587,7 @@ refarm agent finish --lane after-commit --run --json
 - Modify: `package.json` (scripts), `.github/workflows/test.yml`
 - Modify: `docs/NO_OS_RESOLUTION.md`, `.project/handoff.json`
 
-- [ ] **Step 1: Split the probe into a CI subset**
+- [x] **Step 1: Split the probe into a CI subset** — *superseded 2026-08-10: measurement showed a CI run would score `same` by emptiness for the node-catalog commands, so the probe stays local and the tool prints that caveat itself. ISS-097.*
 
 Add `--ci` to `main()`: it runs only entries marked `ciSafe: true` (those needing no daemon and no
 second workspace), and prints the coverage fraction **in the summary line**:
@@ -600,20 +600,20 @@ CI green means the subset CI could measure is directory-independent. It does not
 That second line is printed by the tool, not only written in a spec — a report that can be read as a
 stronger claim than it earned is the defect this whole slice is about.
 
-- [ ] **Step 2: Wire it**
+- [x] **Step 2: Wire it**
 
 `package.json`: `"directory-independence:ci": "node scripts/directory-independence.mjs --ci"`. Add it
 to the workflow beside the existing `project-block-consistency` step, with a minimal, targeted diff —
 `.github/workflows/**` is a CLAUDE.md §8 protected surface, so no re-indentation and no re-ordering.
 
-- [ ] **Step 3: Record the table with its date**
+- [x] **Step 3: Record the table with its date**
 
 Add to `docs/NO_OS_RESOLUTION.md`: the full local run's table, the date it was taken, the summary
 line, and the sentence that the local run is the authority. Replace the current five-row table rather
 than appending a second one — two tables of the same measurement is the drift this repo keeps paying
 for.
 
-- [ ] **Step 4: Rewrite the handoff and gate**
+- [x] **Step 4: Rewrite the handoff and gate**
 
 `.project/handoff.json`'s `current_tasks` head entry becomes the slice narrative **citing ids**; every
 `next_actions` and `blockers` entry must still cite at least one existing id or the gate blocks.

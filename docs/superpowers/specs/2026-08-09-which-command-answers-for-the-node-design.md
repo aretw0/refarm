@@ -262,15 +262,33 @@ exactly how the current state was reached, with nobody choosing it.
 
 ### What CI runs, and what it may claim
 
-The full probe needs a live daemon and `~/git/rcdc5`. CI has neither reliably.
+*Superseded 2026-08-10 by measurement. The first draft said CI would run a subset and report its
+coverage as a fraction. It was wrong about what that subset would be worth.*
 
-- CI runs the subset that needs no daemon and no second workspace, and **reports its coverage as a
-  fraction** rather than a pass/fail alone.
+Under an empty `REFARM_HOME` — which is what CI has — the probe was run against four commands:
+
+| Command | Verdict in a CI-shaped environment | Why |
+| --- | --- | --- |
+| `workspace list` | `same` | `[]` from every directory — **green by emptiness** |
+| `connection status` | `same` | `[]` from every directory — green by emptiness |
+| `plugin list` | differs | reads the working tree, so the defect survives an empty node |
+| `surface list` | differs | same |
+
+CI would therefore catch two of the four real convictions and report **agreement between two
+absences** as `same` for the rest. A step that passes because it measured nothing is the exact defect
+this slice exists to end, so:
+
+- **The probe is a local instrument against a real node, and is deliberately not wired into CI.**
+  Filed as ISS-097 so the decision is revisitable: the day CI has a seeded node fixture (a declared
+  catalog and a second workspace), the probe becomes meaningful there.
+- **The CI-side guard is the coverage test**, `apps/refarm/test/commands/probe-coverage.test.ts`. It
+  is pure, needs no node, and it guards the thing CI can actually protect: that a new command cannot
+  join the CLI without being probed or excluded with a reason.
 - The full local run is the authority, and `docs/NO_OS_RESOLUTION.md` carries the current table with
   the date it was taken.
-- A CI run that could not probe a command reports it `unproven`. **CI green never means "the surface
-  is directory-independent"; it means "the subset CI could measure is."** That sentence goes in the
-  report output, not only in this spec.
+- **The tool prints the caveat itself**, on every run, because the summary line is the part people
+  quote: *"A verdict is only as strong as the node it was taken on: a node with an empty catalog
+  answers emptily from every directory, and that reads as `same`."*
 
 ### The burn-down
 

@@ -284,29 +284,73 @@ would read as agreement (`same`) rather than the "I don't know" it actually
 is — `unrunnable` always wins over any comparison, before one is even
 attempted.
 
-### The probe's table, measured 2026-08-08
+### The probe's table, measured 2026-08-10
 
 ```bash
 $ pnpm run directory-independence
 ```
 
-| Command | Verdict | Notes |
-| --- | --- | --- |
-| `workspace list` | same | |
-| `model current` | same | |
-| `plugin status` | same | |
-| `context` | differs-as-declared | `context.builtPluginPath`, `context.builtPluginSha`, `context.divergences`, `context.otherSovereignDirs` |
-| `connection status` | same | (was `differs-undeclared` before the `connection.ts` fix below) |
+**35 probed · 26 same · 1 declared · 4 convicted · 0 unproven.** The five-command table this section
+used to carry covered 8% of a 64-command surface; the gap was never chosen, it was simply never
+required of anyone.
 
-Run it yourself before trusting this table for anything beyond "the shape of
-what this instrument reports" — the whole reason it exists is that a
-snapshot goes stale the moment new commands are added or code changes.
-`context`'s four varying fields are all, by investigation rather than
-assumption, facts about the working tree: `builtPluginPath`/`builtPluginSha`
-name which `agent.wasm` *this* checkout built, and `otherSovereignDirs`/
-`divergences` are derived from a plain `fs.existsSync(cwd/.refarm)` check —
-see `task-1-report.md` for the field-by-field trace that confirmed this
-rather than widening the declaration to make noise disappear.
+| Command | Scope | Verdict | Judgement |
+| --- | --- | --- | --- |
+| `resume` | node | differs-undeclared | **CONVICTED** — ISS-092 |
+| `doctor` | node | differs-undeclared | **CONVICTED** — ISS-093 |
+| `plugin list` | node | differs-undeclared | **CONVICTED** — ISS-094 |
+| `surface list` | node | differs-undeclared | **CONVICTED** — ISS-095 |
+| `context` | node | differs-as-declared | pass — four working-tree fields, each with a written reason |
+| `budget usage` · `inspect` | node | same | pass — time-variant fields excluded by the control pair |
+| 24 others | node | same | pass |
+| `check --next-action` · `project handoff validate` | project | unrunnable-somewhere | pass — refusing outside their project is correct |
+| `health` · `package-manager` | project | differs-undeclared | pass — varying by project is their job |
+
+Run it yourself before trusting this table for anything beyond "the shape of what this instrument
+reports" — a snapshot goes stale the moment a command is added or code changes. What does NOT go
+stale is `apps/refarm/test/commands/probe-coverage.test.ts`, which fails if a new leaf command is
+neither probed nor excluded with a written reason.
+
+#### Three things this table says that the old one could not
+
+**A command declares what it speaks about.** `scope: "node"` means the answer must not change with
+the directory; `scope: "project"` means it must. The `project` rows pass by *differing* — and a
+project-scoped command that answered identically everywhere would be **convicted**, because it would
+have stopped reading the project. That inverse check is the same rule `refarm parity` applies to its
+`ISOLATING_AXES` table.
+
+**Time-variance is measured, not declared.** A control pair — a second run from the first directory —
+separates fields that move on their own from fields that move with the directory. Four invocations
+need it: `resume` (`environmentPressure.signals`), `budget usage` (`usage.period.*`), `project handoff
+validate` (`ageMs`), `inspect` (`createdAt`). Without it, `resume`'s memory reading sat in the same
+list as its sixteen real findings. The exclusion self-expires: when a field stops moving in place,
+the control stops reporting it and the comparison picks it back up.
+
+**Declaring is not fixing.** Every `allowedVaryingFieldPaths` entry requires a written reason, and
+`declared` is counted apart from `same` in every report. Zero convictions over one reasoned
+declaration and zero convictions over forty are different states of the same surface.
+
+### Why this probe is not wired into CI
+
+Measured 2026-08-10 under an empty `REFARM_HOME`, which is what CI has:
+
+| Command | Verdict in a CI-shaped environment | Why |
+| --- | --- | --- |
+| `workspace list` | `same` | `[]` from every directory — **green by emptiness** |
+| `connection status` | `same` | `[]` from every directory — green by emptiness |
+| `plugin list` | differs | reads the working tree, so the defect survives an empty node |
+| `surface list` | differs | same |
+
+CI would catch two of the four real convictions and report **agreement between two absences** as
+`same` for the rest. A step that passes because it measured nothing is the defect this instrument
+exists to find, so the probe stays local, against a real node, and the tool prints that caveat on
+every run rather than leaving it in a document. ISS-097 keeps the decision revisitable: the day CI
+has a seeded node fixture — a declared catalog and a second workspace — the probe becomes meaningful
+there.
+
+The CI-side guard is `probe-coverage.test.ts`, which is pure, needs no node, and protects the one
+thing CI can protect: that a new command cannot join the CLI without being probed or excluded with a
+reason.
 
 ### The worked example: a fix that revealed the acceptance test was backwards
 
