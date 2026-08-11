@@ -207,7 +207,21 @@ export const baseConfig = {
 		 * A package that adds its OWN `setupFiles` keeps this one — `mergeConfig` concatenates
 		 * arrays — so opting into extra containment never opts out of the shared floor.
 		 */
-		setupFiles: [path.join(path.dirname(fileURLToPath(import.meta.url)), "home-containment.js")],
+		setupFiles: [
+			path.join(path.dirname(fileURLToPath(import.meta.url)), "home-containment.js"),
+			// LAYER 1 too, repo-wide, on a MEASUREMENT rather than a plan. ISS-110 assumed this had
+			// to be adopted package by package because 101 test files write through
+			// `writeFileSync`/`mkdirSync`. It does not: a forced `turbo run test` across all 282
+			// tasks with the guard in "report" mode recorded ZERO escapes, because Layer 0 already
+			// points HOME at a tree inside the OS temp dir, so those 101 writers were landing
+			// somewhere the guard permits. The count that looked like the cost was the count of
+			// writers, not the count of escapes.
+			//
+			// The zero was verified against a deliberate escape, not trusted: planting one
+			// `writeFileSync` outside tmp produced exactly one recorded escape naming the
+			// operation, the path, the test and the package.
+			path.join(path.dirname(fileURLToPath(import.meta.url)), "write-guard-strict.js"),
+		],
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "json-summary"],

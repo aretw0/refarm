@@ -1,11 +1,16 @@
-import path from "node:path";
 // Relative, not a package subpath: this file is config-adjacent (never shipped), and a
 // subpath export resolved through vite's alias layer landed on `src/index.js/home-containment`.
-import { beforeEach, expect, vi } from "vitest";
-import { testHomeSandbox } from "../../packages/vtconfig/src/home-containment.js";
+import { beforeEach } from "vitest";
 import { resetAllProcessCaches } from "./src/utils/process-cache.js";
 
 /**
+ * WHAT IS LEFT HERE: the process-cache reset. Both containment layers moved into
+ * `@refarm.dev/vtconfig`'s `baseConfig` — Layer 0 (the throwaway HOME) on 2026-08-11 for
+ * ISS-109, and Layer 1 (the fs write guard) the same day for ISS-110, once a repo-wide
+ * measurement showed it costs nothing.
+ *
+ * The history below is kept because it is why both exist.
+ *
  * SUITE-WIDE SIDE-EFFECT CONTAINMENT.
  *
  * `pnpm --filter @refarm.dev/refarm run test` was measured rewriting the
@@ -46,119 +51,7 @@ import { resetAllProcessCaches } from "./src/utils/process-cache.js";
  *   `$HOME`. A write outside the sandbox now throws loudly, naming the path and
  *   the offending fs call, instead of silently landing on disk.
  */
-const SANDBOX = testHomeSandbox;
 
-/** Writable only inside the throwaway tree (and the OS temp dir it lives in) —
- *  same policy as the conformance harness. A write anywhere else is a bug in a
- *  test or in the code under test, not something to redirect silently. */
-function isWritablePath(target: unknown): boolean {
-	if (typeof target !== "string" && !(target instanceof URL) && !Buffer.isBuffer(target)) {
-		// A numeric fd — the open()/createWriteStream() that produced it was already
-		// gated, so there is no path left to check here.
-		return true;
-	}
-	const value =
-		target instanceof URL ? target.pathname : Buffer.isBuffer(target) ? target.toString() : target;
-	const resolved = path.resolve(process.cwd(), value);
-	return resolved === SANDBOX.tmpRoot || resolved.startsWith(`${SANDBOX.tmpRoot}${path.sep}`);
-}
-
-function sandboxEscape(operation: string, target: unknown): Error {
-	const testName = expect.getState?.().currentTestName ?? "(unknown test)";
-	const error = new Error(
-		`test-home-sandbox: fs.${operation} refused outside ${SANDBOX.tmpRoot} ` +
-			`(path: ${String(target)}, test: ${testName})`,
-	);
-	error.name = "SandboxEscape";
-	return Object.assign(error, { code: "EACCES" });
-}
-
-/**
- * fs entry points that CREATE OR MUTATE something, each guarded in both its
- * callback and `Sync` form. Reads are untouched. Identical list to the
- * conformance harness's `guardedFsNames` — see that file for why each one is
- * here.
- */
-function guardedFsNames(): string[] {
-	const operations = [
-		"writeFile",
-		"appendFile",
-		"mkdir",
-		"mkdtemp",
-		"rm",
-		"rmdir",
-		"unlink",
-		"rename",
-		"copyFile",
-		"cp",
-		"truncate",
-		"chmod",
-		"chown",
-		"lchmod",
-		"lchown",
-		"symlink",
-		"link",
-		"utimes",
-		"lutimes",
-		"open",
-		"writev",
-		"createWriteStream",
-	];
-	return operations.flatMap((operation) => [operation, `${operation}Sync`]);
-}
-
-/**
- * Which argument positions of a guarded fs call are PATHS to check.
- *
- * Most guarded operations (`writeFile`, `mkdir`, `unlink`, `chmod`, `truncate`, …)
- * take exactly one path in position 0 — position 1 is DATA or OPTIONS, never a
- * path, and must not be checked: a string data payload (e.g. JSON content passed
- * to `writeFileSync`) is not a path and checking it against the sandbox root
- * produces a false "escape" on every ordinary write.
- *
- * `rename`/`copyFile`/`cp`/`link` are the real two-path operations (both the
- * source and the destination are paths). `symlink(target, path)` only creates
- * `path` — `target` is an arbitrary string that need not resolve to anything.
- */
-function pathArgIndexes(name: string): number[] {
-	const base = name.endsWith("Sync") ? name.slice(0, -"Sync".length) : name;
-	if (base === "rename" || base === "copyFile" || base === "cp" || base === "link") return [0, 1];
-	if (base === "symlink") return [1];
-	return [0];
-}
-
-/** Wrap every write entry point on an fs-like module object. Returns the same
- *  object shape with guarded functions; anything absent is skipped. */
-function guardFsLike<T extends Record<string, unknown>>(source: T): T {
-	const guarded: Record<string, unknown> = { ...source };
-	for (const name of guardedFsNames()) {
-		const original = source[name];
-		if (typeof original !== "function") continue;
-		guarded[name] = (...args: unknown[]) => {
-			for (const index of pathArgIndexes(name)) {
-				const target = args[index];
-				if (typeof target !== "string" && !(target instanceof URL)) continue;
-				if (!isWritablePath(target)) throw sandboxEscape(name, target);
-			}
-			return (original as (...a: unknown[]) => unknown)(...args);
-		};
-	}
-	return guarded as T;
-}
-
-// Layer 1: the write guard, applied to the transformed module graph (this app
-// and every workspace package vitest inlines).
-vi.mock("node:fs", async (importOriginal) => {
-	const real = await importOriginal<typeof import("node:fs")>();
-	const guarded = guardFsLike(real as unknown as Record<string, unknown>);
-	guarded.promises = guardFsLike((real.promises ?? {}) as unknown as Record<string, unknown>);
-	return { ...guarded, default: guarded };
-});
-vi.mock("node:fs/promises", async (importOriginal) => {
-	const real = await importOriginal<typeof import("node:fs/promises")>();
-	const guarded = guardFsLike(real as unknown as Record<string, unknown>);
-	return { ...guarded, default: guarded };
-});
 
 
 // Every process-lifetime cache (makeProcessCache) self-registers, so this single
