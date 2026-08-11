@@ -269,6 +269,7 @@ export function runProcessHandoff(
 		const capBytes = resolveOutputCapBytes(options.outputCap);
 
 		const child = spawn(spec.command, spec.args, {
+			// os-resolution: process — the working directory handed to a spawned child process
 			cwd: spec.cwd ?? process.cwd(),
 			stdio: options.capture ? ["ignore", "pipe", "pipe"] : "inherit",
 			env: options.isolatedEnv ? (options.env ?? {}) : (options.env ?? process.env),
@@ -400,6 +401,7 @@ export function runProcessHandoffSync(
 ): ProcessHandoffRunResult {
 	const capBytes = resolveOutputCapBytes(options.outputCap);
 	const result = spawnSync(spec.command, spec.args, {
+		// os-resolution: process — the working directory handed to a spawned child process
 		cwd: spec.cwd ?? process.cwd(),
 		encoding: "utf-8",
 		// Honors `isolatedEnv` exactly like the async runner (see its doc comment) —
@@ -449,6 +451,7 @@ export function startDetachedProcessHandoff(
 	const outputFd = options.logPath ? openProcessHandoffLog(options.logPath) : "ignore";
 	try {
 		const child = spawn(spec.command, spec.args, {
+			// os-resolution: process — the working directory handed to a spawned child process
 			cwd: spec.cwd ?? process.cwd(),
 			detached: true,
 			env: options.env ?? process.env,

@@ -428,6 +428,7 @@ export async function runProcessUninstall(
 	name: string,
 	deps: ProcessDeps = {},
 ): Promise<ProcessUninstallResult> {
+	// os-resolution: project — the process catalog is declared in the workspace tier config
 	const root = deps.root ?? process.cwd();
 	const catalog = readProcessCatalog(root, deps.config);
 	const declaration = declarationOrRefusal(catalog, name);
@@ -487,6 +488,7 @@ export async function runProcessLinger(
 	options: { revisit?: boolean } = {},
 	deps: ProcessDeps = {},
 ): Promise<ProcessLingerResult> {
+	// os-resolution: project — the process catalog is declared in the workspace tier config
 	const root = deps.root ?? process.cwd();
 	const runner = deps.runner ?? createNodeCommandRunner();
 	const user = sessionUser(deps);

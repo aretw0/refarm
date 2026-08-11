@@ -84,6 +84,7 @@ function scopeRoot(scope: LedgerScope, options: ScopeResolutionOptions): string 
 		if (options.orgRoot === undefined) throw new MissingOrgRootError();
 		return join(resolve(options.orgRoot), ledgerDir);
 	}
+	// os-resolution: project — this IS the definition of the workspace tier root, which the tier model anchors on the operator directory
 	return join(resolve(options.workspaceRoot ?? process.cwd()), ledgerDir);
 }
 

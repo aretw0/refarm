@@ -67,6 +67,7 @@ export function resolveAuthPolicyPath(
 	const env = options.env ?? process.env;
 	const override = (env.REFARM_AUTH_POLICY ?? "").trim();
 	if (override) return path.resolve(override);
+	// os-resolution: node — auth-policy.json is the NODE credential policy; a cwd default puts it under whatever directory ran the command
 	return path.resolve(options.root ?? process.cwd(), ".refarm", "auth-policy.json");
 }
 

@@ -529,7 +529,7 @@ export const BASELINE_MAX_OFFENDING_SITES = 111;
  *
  * Falls to 0. It cannot be lowered by accident: a new unjudged site raises it immediately.
  */
-export const BASELINE_MAX_UNCLASSIFIED_SITES = 58;
+export const BASELINE_MAX_UNCLASSIFIED_SITES = 0;
 
 /**
  * A marker that does not parse — an unknown purpose token, or a purpose with no re-checkable
@@ -538,6 +538,20 @@ export const BASELINE_MAX_UNCLASSIFIED_SITES = 58;
  * person who just typed it.
  */
 export const BASELINE_MAX_INVALID_MARKERS = 0;
+
+/**
+ * THE REAL DEBT — sites declared `node`, i.e. a node-scoped question answered by asking the OS.
+ *
+ * This ceiling could not exist until 2026-08-11, and that is the point. Before the vocabulary,
+ * the only number was 111 shape matches, which mixed real debt with sites that are correct and
+ * say so; a ceiling on THAT number can only be lowered by deleting code. Once every site had
+ * been judged, the honest size of ISS-024's work turned out to be TWENTY-ONE.
+ *
+ * Recorded as this scan's own count, the same discipline as the ceiling above it: measured, not
+ * estimated. Lowered by a slice that removes real sites, by exactly the number removed. NEVER
+ * raised — a `node` site is debt by definition, so the fix is `declaredBase()`, not the guard.
+ */
+export const BASELINE_MAX_DEFECT_SITES = 21;
 
 function formatReport(baseline) {
 	const { count, byKind, filesScanned, purposes } = baseline;
@@ -555,6 +569,8 @@ function formatReport(baseline) {
 		`  unclassified: ${purposes.unclassified} / ceiling ${BASELINE_MAX_UNCLASSIFIED_SITES} · delta ${signed(unclassifiedDelta)}` +
 		`${unclassifiedDelta < 0 ? " (burn-down — lower BASELINE_MAX_UNCLASSIFIED_SITES to match)" : ""}\n` +
 		`  invalid:      ${purposes.invalid} / ceiling ${BASELINE_MAX_INVALID_MARKERS}\n` +
+		`  defect:       ${purposes.defect} / ceiling ${BASELINE_MAX_DEFECT_SITES} · delta ${signed(purposes.defect - BASELINE_MAX_DEFECT_SITES)}` +
+		`${purposes.defect < BASELINE_MAX_DEFECT_SITES ? " (burn-down — lower BASELINE_MAX_DEFECT_SITES to match)" : ""}\n` +
 		`  declared:     ${purposes.defect} defect, ${purposes.legitimate} legitimate` +
 		`${declared ? ` (${declared})` : ""}\n`
 	);
@@ -565,7 +581,8 @@ function ceilingsHold(purposes, count) {
 	return (
 		count <= BASELINE_MAX_OFFENDING_SITES &&
 		purposes.unclassified <= BASELINE_MAX_UNCLASSIFIED_SITES &&
-		purposes.invalid <= BASELINE_MAX_INVALID_MARKERS
+		purposes.invalid <= BASELINE_MAX_INVALID_MARKERS &&
+		purposes.defect <= BASELINE_MAX_DEFECT_SITES
 	);
 }
 

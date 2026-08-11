@@ -113,6 +113,7 @@ export async function runWorkspaceAdd(
 		);
 	}
 	const env = deps.env ?? process.env;
+	// os-resolution: process — resolves the path the operator typed, against where the operator typed it
 	const cwd = deps.cwd ?? process.cwd();
 	const operatorHome = path.resolve(resolveRefarmHome(env));
 	const root = deps.root ?? path.dirname(operatorHome);

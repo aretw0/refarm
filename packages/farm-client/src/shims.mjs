@@ -45,6 +45,7 @@ export const SHIM_NAMES = [
 ];
 
 /** Onde os lançadores vão. `FARM_BIN_DIR` > `~/.local/bin`. */
+// os-resolution: os-user — launchers go in ~/.local/bin because that is where the OS account PATH looks, not where the node keeps state
 export function defaultBinDir({ env = process.env, home = homedir() } = {}) {
 	const declared = env?.FARM_BIN_DIR;
 	if (typeof declared === "string" && declared.trim()) return resolve(declared.trim());

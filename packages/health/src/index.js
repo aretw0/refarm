@@ -97,6 +97,7 @@ export class HealthCore {
 	/**
 	 * Helper for backward compatibility.
 	 */
+	// os-resolution: project — audits the resolution state of the repository being inspected
 	async checkResolutionStatus(rootDir = process.cwd()) {
 		const projectAuditor = this.#auditors.get("project");
 		if (!projectAuditor) return [];

@@ -139,11 +139,12 @@ see the CLI report without opening a test runner:
 
 ```bash
 node scripts/no-os-resolution.mjs
-# no-os-resolution: 111 site(s) across 929 scanned file(s) (default=58, fallback=53)
+# no-os-resolution: 111 site(s) across 930 scanned file(s) (default=58, fallback=53)
 #   total:        111 / ceiling 111 · delta 0
-#   unclassified: 58 / ceiling 58 · delta 0
+#   unclassified: 0 / ceiling 0 · delta 0
 #   invalid:      0 / ceiling 0
-#   declared:     10 defect, 43 legitimate (project=39, process=2, os-user=2, node=10)
+#   defect:       21 / ceiling 21 · delta 0
+#   declared:     21 defect, 90 legitimate (project=77, process=9, os-user=4, node=21)
 
 node scripts/no-os-resolution.mjs --list --unclassified   # the burn-down's work list
 node scripts/no-os-resolution.mjs --json                  # every site, with its verdict
@@ -196,9 +197,50 @@ not in a side table because a line number is not a stable key for 111 sites in a
 moving codebase, and because two of these reasons were already written there in
 prose; the marker only makes that prose machine-readable.
 
-`BASELINE_MAX_UNCLASSIFIED_SITES` is the number a burn-down actually moves, and
-classifying a site lowers it **with no behaviour change at all** — the missing
-thing was the judgement.
+`BASELINE_MAX_UNCLASSIFIED_SITES` is the number the first half of a burn-down
+moves, and classifying a site lowers it **with no behaviour change at all** —
+the missing thing was the judgement. It reached **0** on 2026-08-11.
+
+## The answer the classification gave
+
+**Twenty-one.** Not 111.
+
+```
+111 sites   =   21 defect (node)   +   90 legitimate
+                                       77 project · 9 process · 4 os-user
+```
+
+`BASELINE_MAX_DEFECT_SITES = 21` exists because of that measurement and could not
+have existed before it: a ceiling over 111 mixed shape matches can only be
+lowered by deleting code, which is why it moved twice in a year and both times by
+accident.
+
+The 21, by file — this IS the burn-down's work list:
+
+| Sites | File |
+| --- | --- |
+| 5 | `apps/refarm/src/commands/cert.ts` — the CA and its trust trail; a node has one CA |
+| 5 | `packages/farm-client/src/auth.mjs` — the device token under `<home>/.refarm` |
+| 2 | `apps/refarm/src/commands/plugin-shared.ts` — the operator extensions dir |
+| 1 each | `farmhand/config-env.ts`, `auth-remote.ts`, `remote-initiation.ts`, `sas-store.ts`, `web-surface.ts`, `open-external-links.ts`, `cli/chat-history.ts`, `config/workspaces-config.js`, `config/workspace-namespaces-config.js` |
+
+Three shapes account for most of them, and only the first was ever obvious:
+
+1. **A name that states the scope the body then fails to resolve.**
+   `nodeOperationRoot(home = os.homedir())`.
+2. **Two files answering ONE question two ways.** `plugin-shared.ts` resolves the
+   operator extensions dir with `os.homedir()` while `plugin-local.ts` resolves
+   the same directory with `resolveRefarmHome()`.
+3. **The home tier of a two-tier config read.** Several modules read
+   `<home>/.refarm/config.json` then `<cwd>/.refarm/config.json`, and take the
+   first from the OS instead of the declaration — `farmhand/config-env.ts`,
+   `open-external-links.ts`, and the same shape `composition-resolver.ts`
+   documents as a known gap (ISS-102). The cwd half of each pair is `project` and
+   correct; only the home half is debt.
+
+`packages/farm-client` is **zero-dep** and cannot import `@refarm.dev/config` —
+but it already receives `env`, so reading `SOVEREIGN_BASE`/`REFARM_HOME` from it
+costs no dependency.
 
 Two shapes are matched:
 

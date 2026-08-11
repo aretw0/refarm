@@ -28,7 +28,9 @@ async function readJsonConfig(filePath: string): Promise<Record<string, unknown>
 export async function injectConfigEnv(options: ConfigEnvOptions = {}): Promise<void> {
 	const env = options.env ?? process.env;
 	const originalEnvKeys = new Set(Object.keys(env));
+	// os-resolution: node — the HOME tier of a two-tier read: <home>/.refarm/config.json is the node config, so declaredBase is the answer
 	const home = options.home ?? os.homedir();
+	// os-resolution: project — the cwd tier of the same read, anchored on the operator directory by the tier model
 	const cwd = options.cwd ?? process.cwd();
 
 	for (const filePath of [

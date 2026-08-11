@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
 	ALLOWLISTED_RESOLVER_MODULES,
+	BASELINE_MAX_DEFECT_SITES,
 	BASELINE_MAX_INVALID_MARKERS,
 	BASELINE_MAX_OFFENDING_SITES,
 	BASELINE_MAX_UNCLASSIFIED_SITES,
@@ -326,4 +327,33 @@ test("a marker that does not parse is always a failure, never a tolerated backlo
 			.map((s) => `${s.file}:${s.line} (${s.purposeInvalid.problem})`)
 			.join(", ")}`,
 	);
+});
+
+// THE DEBT CEILING. Distinct from both ceilings above: it counts only sites DECLARED `node` — a
+// node-scoped question answered by asking the OS. It could not exist before the vocabulary did,
+// because the only number available was 111 shape matches, and a ceiling on that number can be
+// lowered only by deleting code. With every site judged, the honest answer is 21.
+test("the debt: sites declared `node` must never RISE above the recorded ceiling", () => {
+	const { sites, purposes } = computeBaseline();
+	const delta = purposes.defect - BASELINE_MAX_DEFECT_SITES;
+	console.log(
+		`  defect: ${purposes.defect} / ceiling ${BASELINE_MAX_DEFECT_SITES} · delta ${delta > 0 ? "+" : ""}${delta}`,
+	);
+	assert.ok(
+		purposes.defect <= BASELINE_MAX_DEFECT_SITES,
+		`no-os-resolution: ${purposes.defect} site(s) declared \`node\`, ceiling is ` +
+			`${BASELINE_MAX_DEFECT_SITES}. A node-scoped question is being answered by asking the OS ` +
+			`at: ${sites
+				.filter((site) => site.purpose === "node")
+				.map((site) => `${site.file}:${site.line}`)
+				.join(", ")}. Resolve it from \`declaredBase()\` instead of raising the ceiling.`,
+	);
+});
+
+// Every site now carries a judgement, so this is the property that keeps it that way: the three
+// counters must account for every match, with nothing falling between them.
+test("every site is accounted for: declared + unclassified + invalid == total", () => {
+	const { purposes, count } = computeBaseline();
+	assert.equal(purposes.defect + purposes.legitimate + purposes.unclassified + purposes.invalid, count);
+	assert.equal(purposes.unclassified, 0, "the burn-down's first half is done — keep it done");
 });

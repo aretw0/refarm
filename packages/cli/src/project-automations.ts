@@ -371,6 +371,7 @@ function validateProjectAutomationTrigger(
 	return [];
 }
 
+// os-resolution: project — project automations are declared per project, in .project of the tree being walked
 export function findProjectAutomationsPath(cwd: string = process.cwd()): string | undefined {
 	let current = path.resolve(cwd);
 	while (true) {
@@ -385,6 +386,7 @@ export function findProjectAutomationsPath(cwd: string = process.cwd()): string 
 export async function loadProjectScheduledWork(
 	options: ProjectScheduledWorkOptions = {},
 ): Promise<ProjectScheduledWorkInspection | undefined> {
+	// os-resolution: project — project automations are declared per project, in .project of the tree being walked
 	const automationsPath = findProjectAutomationsPath(options.cwd ?? process.cwd());
 	if (!automationsPath) return undefined;
 
@@ -417,6 +419,7 @@ export async function loadProjectScheduledWork(
 }
 
 export function createProjectAutomationAdapter(options: ProjectAutomationAdapterOptions = {}) {
+	// os-resolution: project — project automations are declared per project, in .project of the tree being walked
 	const cwd = options.cwd ?? process.cwd();
 	const now = options.now ?? (() => new Date());
 

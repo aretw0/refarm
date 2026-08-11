@@ -164,6 +164,7 @@ export function workspaceInitiationOperations(
 ): RemotelyInitiableOperation[] {
 	const operations: RemotelyInitiableOperation[] = [];
 	for (const workspace of declaredWorkspacesFromConfig(config, {
+		// os-resolution: node — resolves relative workspace paths declared in the NODE config, same anchor as declaredWorkspacesFromConfig
 		baseDir: options.baseDir ?? process.cwd(),
 	})) {
 		if (!workspace) continue;

@@ -405,6 +405,7 @@ function resolveWorkspaceExecutionCwd(
 	// defaults to cwd, so collapsing this into one resolution would make the flagless path
 	// silently inspect the node's OS home instead of the operator's actual project.
 	if (!options.workspace) {
+		// os-resolution: project — the comment above says it deliberately: the operator actual project, never the node OS home
 		const cwd = deps?.cwd?.() ?? process.cwd();
 		return { cwd, declaredWorkspace: null, pathResolution: null };
 	}

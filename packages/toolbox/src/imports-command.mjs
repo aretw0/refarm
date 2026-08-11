@@ -9,6 +9,7 @@ export function printImportsUsage(stream = process.stderr) {
 }
 
 export function runImportsCommand(argv = process.argv.slice(2), options = {}) {
+	// os-resolution: project — organizes imports across the repository the operator is standing in
 	const root = options.cwd ?? process.cwd();
 	const stderr = options.stderr ?? process.stderr;
 	const stdout = options.stdout ?? process.stdout;

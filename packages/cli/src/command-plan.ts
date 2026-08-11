@@ -1,3 +1,7 @@
+import {
+	buildJsonSuccessEnvelope,
+	type JsonSuccessEnvelope,
+} from "@refarm.dev/capabilities/envelope";
 import { spawnSync } from "node:child_process";
 import { normalizeHandoffValues, shellCommand } from "./command-handoff.js";
 import {
@@ -7,10 +11,6 @@ import {
 	commandPayloadRecommendations,
 	parseCommandJsonPayload,
 } from "./command-result.js";
-import {
-	buildJsonSuccessEnvelope,
-	type JsonSuccessEnvelope,
-} from "@refarm.dev/capabilities/envelope";
 
 export interface CommandProcessSpec {
 	command: string;
@@ -299,6 +299,7 @@ export function runCommandPlanCliStep(
 ): CommandPlanStepRunResult {
 	const startedAt = Date.now();
 	const result = spawnSync(options.executable, [options.entrypoint, ...args], {
+		// os-resolution: process — the working directory handed to a spawned child process
 		cwd: options.cwd ?? process.cwd(),
 		env: options.env ?? process.env,
 		encoding: "utf-8",
@@ -336,6 +337,7 @@ export function runCommandPlanProcessStep(
 	}
 	const startedAt = Date.now();
 	const result = spawnSync(step.process.command, step.process.args, {
+		// os-resolution: process — the working directory handed to a spawned child process
 		cwd: step.process.cwd ?? options.cwd ?? process.cwd(),
 		env: options.env ?? process.env,
 		encoding: "utf-8",

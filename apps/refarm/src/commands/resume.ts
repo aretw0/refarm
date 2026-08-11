@@ -450,6 +450,7 @@ export function resolveProject(workspace?: string): ProjectHandoffResolutionResu
 }
 
 export async function loadScheduledWork(
+	// os-resolution: project — scheduled work is declared per project, in the tree the operator is standing in
 	cwd: string = process.cwd(),
 	options: LoadScheduledWorkOptions = {},
 ): Promise<OperatorResumeScheduledWorkInspection | undefined> {

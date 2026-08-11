@@ -5,6 +5,7 @@ import path from "node:path";
 
 export const MAX_CHAT_HISTORY_LINES = 500;
 
+// os-resolution: node — chat history lives under the sovereign dir beside config and streams, so it is node state
 export function resolveChatHistoryPath(homeDir = os.homedir()): string {
 	// The sovereign dir name (`.refarm`) is injected by the app, not hardcoded here
 	// (SOVEREIGN_DIR); chat-history lives under it, beside config/streams/etc.

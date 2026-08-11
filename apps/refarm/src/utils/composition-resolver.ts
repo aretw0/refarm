@@ -97,6 +97,7 @@ function cohabitationHome(): string {
 export function resolveComposition(deps: CompositionResolverDeps = {}): CompositionResolution {
 	const env = deps.env ?? process.env;
 	const scopePaths = orderedScopeStorePaths("config.json", {
+		// os-resolution: project — the workspace tier root, which storage-fs anchors on the operator directory by design
 		workspaceRoot: deps.cwd ?? process.cwd(),
 		userHome: deps.home ?? cohabitationHome(),
 		...(resolveOrgRoot(env) ? { orgRoot: resolveOrgRoot(env) } : {}),
@@ -119,6 +120,7 @@ export function resolveComposition(deps: CompositionResolverDeps = {}): Composit
 
 /** The user-tier config path this resolver folds — exposed so a test can assert
  * it equals config.ts's `configPath({local:false})` (the co-habitation guarantee). */
+// os-resolution: os-user — the user tier must land on the exact file config.ts writes, and that one is anchored on the OS home
 export function userScopeConfigPath(home = os.homedir()): string {
 	return orderedScopeStorePaths("config.json", { userHome: home }).find((p) => p.scope === "user")!
 		.path;
@@ -138,6 +140,7 @@ export function compositionScopePath(
 	const orgRoot = resolveOrgRoot(deps.env ?? process.env);
 	if (scope === "org" && !orgRoot) return null;
 	const path = orderedScopeStorePaths("config.json", {
+		// os-resolution: project — the workspace tier root, which storage-fs anchors on the operator directory by design
 		workspaceRoot: deps.cwd ?? process.cwd(),
 		userHome: deps.home ?? cohabitationHome(),
 		...(orgRoot ? { orgRoot } : {}),

@@ -45,6 +45,7 @@ export async function runDueScheduledWork(
 	if (!options?.effortAdapter) {
 		throw new Error("runDueScheduledWork requires an effortAdapter");
 	}
+	// os-resolution: project — runs work declared by the project the operator is standing in
 	const cwd = options.cwd ?? process.cwd();
 	const owner = options.owner ?? DEFAULT_SCHEDULED_WORK_OWNER;
 	const automationAdapter = createProjectAutomationAdapter({ cwd });
