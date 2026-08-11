@@ -1,6 +1,5 @@
-import { MODEL_ID_ENV_VAR } from "@refarm.dev/config";
+import { declaredBase, MODEL_ID_ENV_VAR } from "@refarm.dev/config";
 import { readFile } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 
 export interface ConfigEnvOptions {
@@ -28,8 +27,9 @@ async function readJsonConfig(filePath: string): Promise<Record<string, unknown>
 export async function injectConfigEnv(options: ConfigEnvOptions = {}): Promise<void> {
 	const env = options.env ?? process.env;
 	const originalEnvKeys = new Set(Object.keys(env));
-	// os-resolution: node — the HOME tier of a two-tier read: <home>/.refarm/config.json is the node config, so declaredBase is the answer
-	const home = options.home ?? os.homedir();
+	// The NODE tier of this two-tier read. The cwd tier below is correct as it stands; only this
+	// one was taking the OS's answer instead of the declaration.
+	const home = options.home ?? declaredBase(env);
 	// os-resolution: project — the cwd tier of the same read, anchored on the operator directory by the tier model
 	const cwd = options.cwd ?? process.cwd();
 

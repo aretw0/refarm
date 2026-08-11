@@ -1,3 +1,4 @@
+import { declaredBase } from "./declared-base.js";
 import path from "node:path";
 
 export const WORKSPACE_EXECUTION_ADAPTERS = Object.freeze(["auto", "turbo", "direct-script"]);
@@ -23,8 +24,9 @@ export function parseWorkspaceRemoteCacheProvider(value) {
 }
 
 export function declaredWorkspacesFromConfig(config, options = {}) {
-	// os-resolution: node — resolves relative workspace paths DECLARED IN THE NODE CONFIG, so the anchor is the node base
-	const baseDir = options.baseDir ?? process.cwd();
+	// The node base, never the cwd: these paths are declared in the NODE's config, so the
+	// same declaration must name the same directory from anywhere the command is run.
+	const baseDir = options.baseDir ?? declaredBase();
 	const workspaces = config?.workspaces;
 	if (!workspaces || typeof workspaces !== "object" || Array.isArray(workspaces)) return [];
 

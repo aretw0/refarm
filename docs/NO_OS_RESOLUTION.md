@@ -139,12 +139,12 @@ see the CLI report without opening a test runner:
 
 ```bash
 node scripts/no-os-resolution.mjs
-# no-os-resolution: 111 site(s) across 930 scanned file(s) (default=58, fallback=53)
-#   total:        111 / ceiling 111 · delta 0
+# no-os-resolution: 90 site(s) across 932 scanned file(s) (default=46, fallback=44)
+#   total:        90 / ceiling 90 · delta 0
 #   unclassified: 0 / ceiling 0 · delta 0
 #   invalid:      0 / ceiling 0
-#   defect:       21 / ceiling 21 · delta 0
-#   declared:     21 defect, 90 legitimate (project=77, process=9, os-user=4, node=21)
+#   defect:       0 / ceiling 0 · delta 0
+#   declared:     0 defect, 90 legitimate (project=77, process=9, os-user=4)
 
 node scripts/no-os-resolution.mjs --list --unclassified   # the burn-down's work list
 node scripts/no-os-resolution.mjs --json                  # every site, with its verdict
@@ -201,88 +201,45 @@ prose; the marker only makes that prose machine-readable.
 moves, and classifying a site lowers it **with no behaviour change at all** —
 the missing thing was the judgement. It reached **0** on 2026-08-11.
 
-## The answer the classification gave
+## The answer the classification gave, and the burn-down that followed
 
-**Twenty-one.** Not 111.
+**Twenty-one.** Not 111. And then zero, the same day.
 
 ```
-111 sites   =   21 defect (node)   +   90 legitimate
-                                       77 project · 9 process · 4 os-user
+2026-08-11, before:  111 sites = 21 defect (node) + 90 legitimate
+2026-08-11, after:    90 sites =  0 defect       + 90 legitimate
 ```
 
-`BASELINE_MAX_DEFECT_SITES = 21` exists because of that measurement and could not
-have existed before it: a ceiling over 111 mixed shape matches can only be
-lowered by deleting code, which is why it moved twice in a year and both times by
-accident.
+The 90 that remain are not debt and never were: 77 `project`, 9 `process`,
+4 `os-user` — sites where reading the operator's directory or the OS account's
+home **is** the correct answer, each saying so at the site with a reason the next
+reader can re-check. `BASELINE_MAX_DEFECT_SITES` is 0 and stays 0: a `node` site
+is debt by definition, so a new one fails the ratchet rather than joining a pile.
 
-The 21, by file — this IS the burn-down's work list:
+The 21 came out in four slices, and what each one cost is the useful record:
 
-| Sites | File |
-| --- | --- |
-| 5 | `apps/refarm/src/commands/cert.ts` — the CA and its trust trail; a node has one CA |
-| 5 | `packages/farm-client/src/auth.mjs` — the device token under `<home>/.refarm` |
-| 2 | `apps/refarm/src/commands/plugin-shared.ts` — the operator extensions dir |
-| 1 each | `farmhand/config-env.ts`, `auth-remote.ts`, `remote-initiation.ts`, `sas-store.ts`, `web-surface.ts`, `open-external-links.ts`, `cli/chat-history.ts`, `config/workspaces-config.js`, `config/workspace-namespaces-config.js` |
-
-Three shapes account for most of them, and only the first was ever obvious:
-
-1. **A name that states the scope the body then fails to resolve.**
-   `nodeOperationRoot(home = os.homedir())`.
-2. **Two files answering ONE question two ways.** `plugin-shared.ts` resolves the
-   operator extensions dir with `os.homedir()` while `plugin-local.ts` resolves
-   the same directory with `resolveRefarmHome()`.
-3. **The home tier of a two-tier config read.** Several modules read
-   `<home>/.refarm/config.json` then `<cwd>/.refarm/config.json`, and take the
-   first from the OS instead of the declaration — `farmhand/config-env.ts`,
-   `open-external-links.ts`, and the same shape `composition-resolver.ts`
-   documents as a known gap (ISS-102). The cwd half of each pair is `project` and
-   correct; only the home half is debt.
-
-`packages/farm-client` is **zero-dep** and cannot import `@refarm.dev/config` —
-but it already receives `env`, so reading `SOVEREIGN_BASE`/`REFARM_HOME` from it
-costs no dependency.
-
-Two shapes are matched:
-
-- **`default`** — a bare `=` (never `==`, `!=`, `<=`, `>=`, or `=>`)
-  immediately followed by a resolver call. This covers a true function
-  parameter default (`function f(root = process.cwd())`), a destructuring
-  parameter default (`{ home = homedir() } = {}` — the real shape at
-  `packages/farm-client/src/auth.mjs`), **and** a plain, unconditional
-  variable assignment (`const x = process.cwd();`). The last of those is not
-  "forgettable" the way a parameter default is, but it is still an unguarded
-  direct read outside the two allowlisted modules, and it is exactly the
-  shape the ratchet's own Step 5 proof (below) adds to confirm the guard
-  fires — see `task-1-report.md` for the full reasoning and the measured
-  effect of scoping this more narrowly.
-- **`fallback`** — `?? <resolverCall>`, anywhere it appears. Unambiguous:
-  `??` is always a fallback expression.
-
-A resolver call only counts once its identity is verified against the file's
-**own** `"node:os"` import — `homedir()` can be imported and called three
-different ways, and the scanner handles each explicitly rather than trusting
-bare text:
-
-| Import shape | Example | Handling |
+| Slice | Sites | What the fix actually exposed |
 | --- | --- | --- |
-| Default/namespace import | `import os from "node:os"` | `os.homedir()` is trusted — matched as a member call on that binding's local name. |
-| Destructured, unaliased | `import { homedir } from "node:os"` | a bare `homedir()` call is trusted **only in this file**, because the import was found. |
-| Destructured, aliased | `import { homedir as getHome } from "node:os"` | a bare `getHome()` call is trusted, under its **local** name — the scan follows the alias, not the literal word `homedir`. |
+| `cert.ts` | 5 | The machine already held **two CAs** — `<repo>/.refarm/tls` for `serpro-1577853`, `~/.refarm/tls` for `tail894688.ts.net`, minted an hour apart. Neither identity wrong; two places decided by `cd` is. Nothing moved or deleted; `--dir` still reaches either. |
+| `farm-client/auth.mjs` | 5 | Ships to devices by `git pull` with ZERO runtime deps, so it cannot import the fix. It carries a **third** copy of the chain, made safe by a parity test that runs it and the TypeScript one over eleven environments — including the relative/rootless `REFARM_HOME` rows that split the Rust and TS twins (ISS-028). |
+| `plugin-shared.ts` | 2 | One question, two answers, in two files read together: `os.homedir()` here, `resolveRefarmHome()` in `plugin-local.ts`. Fixing it exposed a second divergence underneath — the reader rebuilt the path as `base + ".refarm"`, so a `REFARM_HOME` not ending in `.refarm` would still have split them. |
+| the last nine | 9 | `nodeOperationRoot`, the auth policy, the surface catalog, the workspace catalog (×2), chat history, and two "home tier of a two-tier read". `declaredBase` moved into its own module so config's own readers could import it without cycling through the barrel that re-exports it. |
 
-A bare `homedir()` call in a file with **no** `"node:os"` import at all is
-never flagged — it might be an unrelated local function, and the scanner
-would rather undercount than manufacture a false positive that erodes trust
-in the whole mechanism.
+Three shapes accounted for most of them, and **only the first was visible from
+the code**:
 
-**Comments and strings never count.** `maskComments` and
-`maskStringsAndTemplates` blank out every `//` line comment, `/* */` block
-comment, and single/double/backtick string (template literals included,
-wholesale — see the doc comment on `maskStringsAndTemplates` for the one
-documented gap this creates) before any resolver pattern is matched, so a
-commented-out example or a string that happens to mention `process.cwd()`
-can never inflate the count. Import-binding discovery runs on a
-comments-masked-but-strings-intact pass specifically because the import
-specifier `"node:os"` is itself a string literal that has to stay readable.
+1. **A name that states the scope the body then fails to resolve** —
+   `nodeOperationRoot(home = os.homedir())`.
+2. **Two files answering ONE question two ways.** Neither is wrong alone; they
+   are wrong together, and no shape scan can see that.
+3. **The home tier of a two-tier config read.** Several modules read
+   `<home>/.refarm/config.json` then `<cwd>/.refarm/config.json` and took the
+   first from the OS. The cwd half of each pair is `project` and correct; only
+   the home half was debt.
+
+Shapes 2 and 3 became visible **only because the purposes were written down**.
+That is the argument for classifying before fixing, stated as evidence rather
+than as principle.
 
 ## Running a burn-down slice
 

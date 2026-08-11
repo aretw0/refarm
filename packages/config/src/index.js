@@ -141,11 +141,8 @@ export {
  * the app sets it to ".refarm"). No default in the substrate — the app owns the name. */
 export const SOVEREIGN_DIR_SELECTOR_KEY = "SOVEREIGN_DIR";
 
-/** The neutral env var that names WHERE this node's declarations live — the directory
- * that contains the sovereign dir. Sibling of {@link SOVEREIGN_DIR_SELECTOR_KEY}, injected
- * the same way and read identically by the Rust host and this stack, so the two cannot
- * answer from different directories on the same node. */
-export const SOVEREIGN_BASE_KEY = "SOVEREIGN_BASE";
+// SOVEREIGN_BASE_KEY lives with the resolver that reads it, in ./declared-base.js.
+export { declaredBase, declaredBaseWithOrigin, SOVEREIGN_BASE_KEY } from "./declared-base.js";
 
 /**
  * The base declarations resolve against: what the node was TOLD, or — absent that — the
@@ -183,32 +180,9 @@ export const SOVEREIGN_BASE_KEY = "SOVEREIGN_BASE";
  * {@link sovereignDir} THROWS when the selector is unset (deliberately, so no brand name
  * is ever assumed) — a base resolver must not throw.
  */
-/**
- * The base AND which step produced it — one function, so a caller can never label a step
- * `declaredBase` did not take.
- *
- * ISS-025: `refarm context` re-derived this precedence with its own ternary to fill
- * `cliBaseOrigin`, and a comment explaining that it "mirrors `declaredBase()`'s own precedence step
- * for step" is exactly the kind of promise that holds until one of the two changes. The label had
- * already been wrong once for that reason: it said `"cwd"` for months after the cwd fallback was
- * removed, a small untruth in a `--json` field.
- *
- * `origin` is the witness. `base` is what `declaredBase` returns, by construction — this IS its
- * implementation, and `declaredBase` is now a projection of it.
- */
-export function declaredBaseWithOrigin(env = process.env) {
-	const base = env[SOVEREIGN_BASE_KEY]?.trim();
-	if (base) return { base, origin: "SOVEREIGN_BASE" };
-	const refarmHome = env.REFARM_HOME?.trim();
-	if (refarmHome) return { base: path.dirname(refarmHome), origin: "REFARM_HOME" };
-	// ISS-027: step 3 honours the SAME `env` the first two steps honour.
-	const home = env.HOME?.trim() || env.USERPROFILE?.trim();
-	return home ? { base: home, origin: "env-home" } : { base: os.homedir(), origin: "os-home" };
-}
-
-export function declaredBase(env = process.env) {
-	return declaredBaseWithOrigin(env).base;
-}
+// `declaredBase`/`declaredBaseWithOrigin` moved to ./declared-base.js so the two config
+// modules that need them (workspaces-config.js, workspace-namespaces-config.js) can import the
+// resolver WITHOUT importing this barrel, which re-exports them — a cycle. Re-exported below.
 
 /** The config file name inside the sovereign config dir. This IS a fixed substrate
  * convention (the file, not the branded dir), and matches the Rust host. */

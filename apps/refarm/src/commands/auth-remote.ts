@@ -1,9 +1,8 @@
 import { createProcessHandoffDisplay, runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
-import { loadConfig } from "@refarm.dev/config";
+import { declaredBase, loadConfig } from "@refarm.dev/config";
 import { Command } from "commander";
-import os from "node:os";
 
 import { refarmCommand } from "../brand.js";
 import {
@@ -94,8 +93,7 @@ export const REMOTE_INITIATION_WIRE = "remote-initiation.v1";
  * after a restart. Home is already the source of truth used by `workspace add` without `--local`,
  * device enrolment, surfaces and supervised processes; remote surfaces must see that same scope.
  */
-// os-resolution: node — a function literally named nodeOperationRoot must resolve from declaredBase, never the OS home
-export function nodeOperationRoot(home = os.homedir()): string {
+export function nodeOperationRoot(home = declaredBase()): string {
 	return home;
 }
 

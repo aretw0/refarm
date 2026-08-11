@@ -164,8 +164,7 @@ export function workspaceInitiationOperations(
 ): RemotelyInitiableOperation[] {
 	const operations: RemotelyInitiableOperation[] = [];
 	for (const workspace of declaredWorkspacesFromConfig(config, {
-		// os-resolution: node — resolves relative workspace paths declared in the NODE config, same anchor as declaredWorkspacesFromConfig
-		baseDir: options.baseDir ?? process.cwd(),
+		baseDir: options.baseDir ?? declaredBase(),
 	})) {
 		if (!workspace) continue;
 		const commands =
@@ -283,4 +282,4 @@ export function everyCommandPath(root: CommandLike): string[] {
 	walk(root, []);
 	return paths;
 }
-import { declaredWorkspacesFromConfig } from "@refarm.dev/config";
+import { declaredBase, declaredWorkspacesFromConfig } from "@refarm.dev/config";

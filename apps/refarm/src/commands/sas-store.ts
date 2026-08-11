@@ -1,6 +1,8 @@
 import { appendFile, mkdir, open, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { declaredBase, sovereignDir } from "@refarm.dev/config";
+
 import {
 	type SasExchange,
 	type SasExchangeStore,
@@ -67,8 +69,9 @@ export function resolveAuthPolicyPath(
 	const env = options.env ?? process.env;
 	const override = (env.REFARM_AUTH_POLICY ?? "").trim();
 	if (override) return path.resolve(override);
-	// os-resolution: node — auth-policy.json is the NODE credential policy; a cwd default puts it under whatever directory ran the command
-	return path.resolve(options.root ?? process.cwd(), ".refarm", "auth-policy.json");
+	// The NODE's credential policy. A cwd default put it under whatever directory ran the
+	// command, so `refarm sas` answered for a different gate depending on where it was typed.
+	return path.resolve(options.root ?? declaredBase(), sovereignDir(), "auth-policy.json");
 }
 
 function exchangePath(dir: string, id: string): string {

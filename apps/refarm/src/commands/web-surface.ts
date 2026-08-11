@@ -2,7 +2,7 @@ import {
 	createProcessHandoffDisplay,
 	runProcessHandoffSync,
 } from "@refarm.dev/cli/process-handoff";
-import { loadRawSovereignConfig } from "@refarm.dev/config";
+import { declaredBase, loadRawSovereignConfig } from "@refarm.dev/config";
 import {
 	anySurfaceDeclaresDeviceTokenGate,
 	isLoopbackBindHost,
@@ -66,8 +66,7 @@ export function proxiedUpstreamsAreGated(
 /** Read the `surfaces` catalog from the FILESYSTEM `.refarm/config.json` under `root`.
  *  A malformed declaration THROWS (fail-shut, like `parse_surfaces`); an absent or unreadable
  *  file is S1's silence — an empty catalog, every surface loopback. */
-// os-resolution: node — surfaces are how the NODE exposes itself; the config tier table marks them node-owned and not requestable
-export function readSurfacesFromFilesystem(root = process.cwd()): SurfaceCatalog {
+export function readSurfacesFromFilesystem(root = declaredBase()): SurfaceCatalog {
 	// loadRawSovereignConfig reads the local file ONLY — it never consults the replicated
 	// config node. That is the point, not an incidental property of the helper.
 	return parseSurfaces(loadRawSovereignConfig(root));

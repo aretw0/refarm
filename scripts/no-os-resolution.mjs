@@ -40,6 +40,10 @@ const REPO_ROOT = path.resolve(HERE, "..");
 export const ALLOWLISTED_RESOLVER_MODULES = [
 	"apps/refarm/src/utils/refarm-home.ts",
 	"packages/config/src/index.js",
+	// The base resolver itself, split out of index.js (2026-08-11) so config modules can import
+	// it without cycling through the barrel that re-exports it. It moved the OS call, it did not
+	// add one: `index.js` no longer contains `declaredBase`'s body.
+	"packages/config/src/declared-base.js",
 ];
 
 /**
@@ -518,7 +522,7 @@ export function computeBaseline({ repoRoot = REPO_ROOT } = {}) {
  * implements) that removes real sites, by exactly the number of sites removed; NEVER raised
  * to make a slice pass — see docs/NO_OS_RESOLUTION.md.
  */
-export const BASELINE_MAX_OFFENDING_SITES = 99;
+export const BASELINE_MAX_OFFENDING_SITES = 90;
 
 /**
  * THE BURN-DOWN CEILING — sites nobody has judged yet. This is the number a burn-down actually
@@ -551,7 +555,7 @@ export const BASELINE_MAX_INVALID_MARKERS = 0;
  * estimated. Lowered by a slice that removes real sites, by exactly the number removed. NEVER
  * raised — a `node` site is debt by definition, so the fix is `declaredBase()`, not the guard.
  */
-export const BASELINE_MAX_DEFECT_SITES = 9;
+export const BASELINE_MAX_DEFECT_SITES = 0;
 
 function formatReport(baseline) {
 	const { count, byKind, filesScanned, purposes } = baseline;
