@@ -757,6 +757,32 @@ pub(crate) fn normalize_declaration(raw: Option<&str>) -> Option<String> {
     Some(trimmed.to_string())
 }
 
+/// PURE. What an event list MEANS, given whether the page it came from was truncated.
+///
+/// Lives here rather than beside its one caller in `tool_dispatch/task_tools.rs` for the reason
+/// that module states about itself: it is `#[cfg(target_arch = "wasm32")]` and cannot host a test
+/// that runs on `cargo test --lib`. The decision is the part worth proving; the call site is two
+/// lines of plumbing.
+///
+/// (Original note.) What an event list MEANS, given whether the page it came from was truncated.
+///
+/// `None` when the answer is whole — an absent key cannot be mistaken for decoration. `Some` on
+/// the two states that are not:
+///   - truncated AND empty: the strongest claim this function must never let a caller make. It is
+///     "not in the window I could see", not "there are none", and the caller is a model.
+///   - truncated AND non-empty: what was found is real, and there may be more behind the window.
+pub(crate) fn describe_event_completeness(found: usize, truncated: bool) -> Option<&'static str> {
+    if !truncated {
+        return None;
+    }
+    Some(if found == 0 {
+        "unknown: the TaskEvent read was truncated before this task's events were reached — this \
+         is NOT a report that the task has no events"
+    } else {
+        "partial: the TaskEvent read was truncated, so events older than the ones listed may exist"
+    })
+}
+
 /// What the store said about a Session node — THREE states, never two.
 ///
 /// `get_or_create_session` used to ask `get_node(id).is_err()` and branch on the boolean. That
@@ -1491,6 +1517,35 @@ mod tests {
         for reason in all {
             assert!(seen.insert(reason.as_str()), "{reason:?} shares a string with another");
         }
+    }
+
+
+
+    /// ISS-045. `query_nodes("TaskEvent", N)` limits GLOBALLY and the per-task filter runs after,
+    /// so an older task whose events sit past the window came back `events: []` — a claim, not an
+    /// observation, and indistinguishable from a task that genuinely has none.
+    #[test]
+    fn an_empty_list_from_a_truncated_read_is_never_reported_as_none() {
+        let note = describe_event_completeness(0, true).expect("a truncated empty read must speak");
+        assert!(note.starts_with("unknown:"));
+        assert!(
+            note.contains("NOT a report that the task has no events"),
+            "the note must refuse the stronger claim outright, not merely hedge: {note}"
+        );
+    }
+
+    #[test]
+    fn a_truncated_read_that_found_events_says_there_may_be_more() {
+        let note = describe_event_completeness(3, true).expect("a truncated read must speak");
+        assert!(note.starts_with("partial:"));
+    }
+
+    /// The whole answer carries NO key at all. An absent field cannot be mistaken for decoration,
+    /// and a caller that sees one knows the read was incomplete without parsing prose.
+    #[test]
+    fn a_complete_read_says_nothing_at_all() {
+        assert_eq!(describe_event_completeness(0, false), None);
+        assert_eq!(describe_event_completeness(7, false), None);
     }
 
 }

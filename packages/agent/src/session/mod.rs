@@ -4,6 +4,7 @@ mod pure;
 pub(crate) use pure::{
     budget_exceeded,
     compact_history,
+    describe_event_completeness,
     compact_history_detailed,
     history_from_nodes,
     normalize_declaration,
