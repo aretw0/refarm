@@ -201,11 +201,25 @@ test("work focus keeps adjacent tracks orbiting without premature product work",
 
 	assert.match(focus, /Distributed availability \/ Pears/);
 	assert.match(focus, /runtime-adoption-gated/);
-	assert.match(focus, /Adopting Bare\/Hypercore\/Pears wholesale/);
+	// THE RULE, not the roster. This pinned `Adopting Bare/Hypercore/Pears wholesale` verbatim and
+	// went red when the row was rewritten to name Pears/Iroh instead — the anti-goal survived
+	// intact and only the stack list moved. What this test is FOR is that the row still refuses
+	// wholesale adoption ahead of proof; WHICH P2P stack is on the shortlist this quarter is the
+	// document's business, and a copy of it here is a second roadmap that drifts.
+	assert.match(focus, /adopting [^|]*wholesale before the boundary is proven/i);
 
 	assert.match(focus, /Remote workspace control/);
-	assert.match(focus, /capability-scoped control/);
-	assert.match(focus, /Treating mounts, host paths, Telegram, Matrix, or Tailscale as the core abstraction/);
+	// Same repair as the row above: the prose moved on (`capability-scoped control` became a
+	// fuller description of named, shell-free, reviewed commands) while the RULE held. What must
+	// not vanish is that remote control is projected through named operations and that a terminal
+	// is never one of them.
+	assert.match(focus, /shell-free commands/i);
+	assert.match(focus, /stdout and argv never become a remote terminal/i);
+	// The anti-goal, by rule. The roster was rewritten (`mounts, Telegram, Matrix` became `SSH,
+	// host paths, Tailscale, or a generic remote shell`) and the refusal is unchanged: transport
+	// is never the abstraction. Pinning the list made this a copy of the roadmap that drifts.
+	assert.match(focus, /host paths[^|]*as the abstraction/i);
+	assert.match(focus, /generic remote shell/i);
 });
 
 test("convergence roadmap keeps sub-project numbers unique", () => {

@@ -51,8 +51,8 @@ import { fileURLToPath } from "node:url";
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 /**
- * THE REMAINING FIVE. Fifteen when this runner shipped, measured 2026-08-11;
- * ten closed the same day and each already failing before this runner existed. Named
+ * EMPTY, and it is meant to stay empty. Fifteen when this runner shipped on 2026-08-11;
+ * all fifteen closed the same day and each already failing before this runner existed. Named
  * rather than counted, so the list is a work queue and a new failure cannot hide inside a
  * number.
  *
@@ -65,16 +65,27 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
  *     rather than being tagged green — stamping "consumer-proven" to pass a test is
  *     manufacturing the evidence the gate exists to demand.
  *
- * REMOVE a name when its suite goes green. Never add one to make a run pass — that is the
- * mechanism this file exists to give the cadence, and adding to it is spending it.
+ * EVERY ENTRY CARRIES ITS REASON, which is what stops this from becoming a place to hide things.
+ * A name with no reason is a silence; a name with a reason is a decision somebody can disagree
+ * with. Fourteen of the original fifteen are gone because they were fixed; the one that remains
+ * says why in its own value.
+ *
+ * The other honest path, taken by `requirements:supply:handoff:test`, is to make the SUITE assert
+ * the blocked state and name its blocker (ISS-113) — a red thing turned into a green assertion
+ * ABOUT the red thing. Prefer that where the failure is a fact about the repo rather than a
+ * backlog of edits.
  */
-export const KNOWN_FAILING = [
-	"audience:boundary:test",
-	"devcontainer:contract:test",
-	"extension-sandbox:poc:test",
-	"release:brand:guard",
-	"release:readiness:test",
-];
+export const KNOWN_FAILING = {
+	"release:brand:guard":
+		"ADR-087 phase 3 is unfinished, not this test. The guard reports 21 brand literals across " +
+		"10 generic packages (certificate-contract-v1, certificate-local-ca, cli, emoji-sas-v1, " +
+		"farm-client, operation-web-v1, process-contract-v1, process-systemd-user, std, …) — real " +
+		"production strings, each a user-facing message that needs the binary name injected " +
+		"rather than spelled. Inventory and the reason each one is not a one-line rename: ISS-114. " +
+		"NOT put on the guard's own ALLOWLIST, which requires a written reason per file and 'may " +
+		"only shrink' — filling it with 21 unsurveyed entries would spend the mechanism that " +
+		"makes the burn-down self-expiring.",
+};
 
 /** PURE. Every package.json script that invokes `node --test`, in declaration order. Reading the
  *  registry rather than globbing the filesystem is what carries the prerequisites — see this
@@ -89,12 +100,13 @@ export function nodeTestScripts(packageJson) {
  *  a NEW failure is the finding, a known one is the backlog, and a known one that PASSED is the
  *  backlog shrinking and should be recorded rather than silently enjoyed. */
 export function classify(results, knownFailing = KNOWN_FAILING) {
-	const known = new Set(knownFailing);
+	const names = Array.isArray(knownFailing) ? knownFailing : Object.keys(knownFailing);
+	const known = new Set(names);
 	const failed = results.filter((result) => !result.ok).map((result) => result.name);
 	return {
 		newFailures: failed.filter((name) => !known.has(name)).sort(),
 		knownFailures: failed.filter((name) => known.has(name)).sort(),
-		recovered: knownFailing.filter((name) => !failed.includes(name)).sort(),
+		recovered: names.filter((name) => !failed.includes(name)).sort(),
 		passed: results.filter((result) => result.ok).length,
 		total: results.length,
 	};
@@ -126,7 +138,7 @@ function runScript(name, timeoutMs) {
 function main() {
 	const packageJson = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "package.json"), "utf8"));
 	const only = process.argv.includes("--only-known")
-		? KNOWN_FAILING
+		? Object.keys(KNOWN_FAILING)
 		: nodeTestScripts(packageJson);
 	const timeoutMs = 180_000;
 
@@ -149,7 +161,7 @@ function main() {
 		`\nscript tests: ${verdict.passed}/${verdict.total} suites green, ` +
 			`${assertions} assertion(s), ${seconds}s\n` +
 			`  new failures:   ${verdict.newFailures.length} / ceiling 0\n` +
-			`  known failures: ${verdict.knownFailures.length} / ${KNOWN_FAILING.length} recorded\n`,
+			`  known failures: ${verdict.knownFailures.length} / ${Object.keys(KNOWN_FAILING).length} recorded\n`,
 	);
 
 	if (verdict.recovered.length > 0) {

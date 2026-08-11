@@ -108,7 +108,15 @@ test("devcontainer keeps runtime mutable state inside the workspace", () => {
 	);
 	assert.match(tractorStart, /XDG_DATA_HOME="\$\{XDG_DATA_HOME:-\$REFARM_HOME\/data\}"/);
 	assert.match(tractorStart, /REFARM_STREAMS_DIR="\$\{REFARM_STREAMS_DIR:-\$REFARM_HOME\/streams\}"/);
-	assert.match(tractorStart, /INSTALLED_AGENT_PLUGIN="\$REFARM_HOME\/plugins\/@refarm\/agent\/plugin\.wasm"/);
+	// ASKED, not re-spelled. This used to pin the literal
+	// `INSTALLED_AGENT_PLUGIN="$REFARM_HOME/plugins/@refarm/agent/plugin.wasm"`, and the script
+	// has since stopped hardcoding that path: it calls the CLI installer's OWN path function, so
+	// the two cannot disagree about where a plugin was installed. The test went red for the
+	// improvement, which is the wrong way round — what it is FOR is that the location stays
+	// inside REFARM_HOME and is derived rather than duplicated.
+	assert.match(tractorStart, /INSTALLED_AGENT_PLUGIN=""/);
+	assert.match(tractorStart, /scripts\/installed-plugin-path\.mjs/);
+	assert.match(tractorStart, /REFARM_HOME="\$REFARM_HOME" node/);
 	assert.ok(!tractorStart.includes(["INSTALLED", "PI", "AGENT"].join("_")));
 	assert.doesNotMatch(tractorStart, /\$HOME\/\.refarm\/plugins/);
 	assert.match(tractorStart, /--refarm-dir "\$REFARM_HOME"/);
@@ -152,7 +160,16 @@ test("devcontainer keeps Rust target artifacts inside the workspace cache", () =
 		!config.mounts.some((mount) => mount.includes("target=/home/vscode/.cargo-target")),
 		"Cargo target must stay in the writable workspace cache, not a home mount that agent sandboxes may expose read-only",
 	);
-	assert.match(cargoConfig, /target-dir = "\/workspaces\/refarm\/\.cache\/cargo-target"/);
+	// RELATIVE, and deliberately so — `.cargo/config.toml` says why in its own comment: cargo
+	// resolves a relative `target-dir` against the directory holding the config, so one line works
+	// in the devcontainer AND on a host checkout. This pinned the absolute
+	// `/workspaces/refarm/.cache/cargo-target` and went red for the improvement.
+	//
+	// What the contract actually requires is that the target dir lands INSIDE the workspace (so it
+	// rides the named volume rather than the image layer), not that it is spelled as a container
+	// path. `.cache/cargo-target` satisfies that from either side.
+	assert.match(cargoConfig, /^target-dir = "\.cache\/cargo-target"$/m);
+	assert.doesNotMatch(cargoConfig, /target-dir = "\//, "an absolute target-dir only works in the container");
 	assert.match(postCreate, /"\$CARGO_TARGET_DIR"/);
 	assert.match(farm, /export CARGO_TARGET_DIR=\$\{PROJECT_DIR\}\/\.cache\/cargo-target/);
 });
