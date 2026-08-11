@@ -7,6 +7,7 @@ import {
 	SOVEREIGN_DIR_SELECTOR_KEY,
 	DEFAULT_ENV_PREFIX,
 	declaredBase,
+	loadConfig,
 	ENV_PREFIX_SELECTOR_KEY,
 	defaultSovereignConfigPath,
 	envPrefixFromBrand,
@@ -282,5 +283,66 @@ describe("declaredBase honours the env it was given, all the way down (ISS-027)"
 
 	it("ignores an empty or whitespace HOME rather than resolving to nothing", () => {
 		expect(declaredBase({ HOME: "   " })).toBe(os.homedir());
+	});
+});
+
+describe("loadConfig honours an injected env all the way down (ISS-103)", () => {
+	const roots = [];
+	afterEach(() => {
+		while (roots.length > 0) rmSync(roots.pop(), { recursive: true, force: true });
+	});
+
+	function rootWithTwoSovereignDirs() {
+		const root = mkdtempSync(join(tmpdir(), "refarm-loadconfig-"));
+		roots.push(root);
+		for (const [dir, marker] of [
+			[".refarm", "from-refarm"],
+			[".outra", "from-outra"],
+		]) {
+			mkdirSync(join(root, dir), { recursive: true });
+			writeFileSync(join(root, dir, "config.json"), JSON.stringify({ marker }));
+		}
+		return root;
+	}
+
+	// THE DEFECT, stated as the thing it decides: `SOVEREIGN_DIR` chooses WHICH FILE is loaded,
+	// and it was read from `process.env` inside `sovereignConfigPathCandidates` no matter what
+	// the caller injected. Every function on the path already TOOK an `env` parameter; no call
+	// site passed one. So the injection was honoured by the code a caller could see (the
+	// prefix) and ignored by the code it could not (the path).
+	it("the injected env decides which sovereign dir is read", () => {
+		const root = rootWithTwoSovereignDirs();
+		expect(loadConfig(root, { env: { [SOVEREIGN_DIR_SELECTOR_KEY]: ".refarm" } }).marker).toBe(
+			"from-refarm",
+		);
+		expect(loadConfig(root, { env: { [SOVEREIGN_DIR_SELECTOR_KEY]: ".outra" } }).marker).toBe(
+			"from-outra",
+		);
+	});
+
+	// And it is the ONLY thing consulted: an injected env that names no selector must not fall
+	// back to the process's, or the injection is advisory and the next caller is surprised the
+	// same way.
+	it("an injected env with no selector does not fall back to the process env", () => {
+		const root = rootWithTwoSovereignDirs();
+		const prior = process.env[SOVEREIGN_DIR_SELECTOR_KEY];
+		process.env[SOVEREIGN_DIR_SELECTOR_KEY] = ".refarm";
+		try {
+			expect(() => loadConfig(root, { env: {} })).toThrow();
+		} finally {
+			if (prior === undefined) delete process.env[SOVEREIGN_DIR_SELECTOR_KEY];
+			else process.env[SOVEREIGN_DIR_SELECTOR_KEY] = prior;
+		}
+	});
+
+	it("the `<PREFIX>_*` mapping reads the injected env too, not the process one", () => {
+		const root = rootWithTwoSovereignDirs();
+		const config = loadConfig(root, {
+			env: {
+				[SOVEREIGN_DIR_SELECTOR_KEY]: ".refarm",
+				[`${DEFAULT_ENV_PREFIX}_SITE_URL`]: "https://injected.example",
+			},
+		});
+		expect(config.brand?.urls?.site).toBe("https://injected.example");
 	});
 });

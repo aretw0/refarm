@@ -1,18 +1,9 @@
-import { afterAll, beforeAll } from "vitest";
-
-// ISS-103. These tests inject `env: { SOVEREIGN_DIR: ".refarm" }` through `deps`, and that env never
-// reaches `loadConfig`, which reads `process.env` for the sovereign-dir selector. So nine of them
-// failed on any machine whose shell does not export SOVEREIGN_DIR — which is every machine, since
-// the CLI sets it in-process — while passing wherever it happened to be exported. Pinned here so
-// the file states its own environment instead of inheriting one; the plumbing fix is ISS-103.
-const PREVIOUS_SOVEREIGN_DIR = process.env.SOVEREIGN_DIR;
-beforeAll(() => {
-	process.env.SOVEREIGN_DIR = ".refarm";
-});
-afterAll(() => {
-	if (PREVIOUS_SOVEREIGN_DIR === undefined) delete process.env.SOVEREIGN_DIR;
-	else process.env.SOVEREIGN_DIR = PREVIOUS_SOVEREIGN_DIR;
-});
+// The `beforeAll`/`afterAll` that used to pin `process.env.SOVEREIGN_DIR` here is GONE (ISS-103,
+// fixed 2026-08-11). It existed because these tests inject `env: { SOVEREIGN_DIR: ".refarm" }`
+// through `deps` and that env stopped at `loadConfig`, which read `process.env` for the selector
+// — so the injection was honoured by the code this file can see and ignored by the code it
+// cannot. `loadConfig` threads `options.env` now, and these tests get the environment they ask
+// for instead of the one the shell happens to have.
 
 import type { DeclaredWorkspaceConfig } from "@refarm.dev/config";
 import { createScriptedOperatorChannel } from "@refarm.dev/prompt-contract-v1";

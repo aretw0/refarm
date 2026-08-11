@@ -240,6 +240,13 @@ export function resolveEnvPrefix(
 export interface LoadConfigOptions {
     /** White-label env-var prefix (default resolved via {@link resolveEnvPrefix}). */
     envPrefix?: string;
+    /**
+     * The environment this load reads — the prefix, the `<PREFIX>_*` mapping, `{{env.X}}`
+     * interpolation, AND the `SOVEREIGN_DIR` selector that decides which file is loaded at all.
+     * Defaults to `process.env`. Injecting it used to be honoured by the prefix and ignored by
+     * the path (ISS-103).
+     */
+    env?: Record<string, string | undefined>;
 }
 export function loadConfig(root?: string, options?: LoadConfigOptions): any;
 export function loadConfigAsync(

@@ -1222,14 +1222,15 @@
 		{
 			"id": "ISS-105",
 			"title": "Eight runtime tests fail on a clean checkout — the third file with environment-coupled tests",
-			"body": "MEASURED 2026-08-10 by stashing every uncommitted change and running the file against the committed HEAD: `vitest run test/commands/runtime.test.ts` reports 8 failed. They fail with assertions like `expected '...' to contain 'binding:    detached (explicit)'` and object mismatches on the status payload -- the same shape as ISS-100's three doctor tests, in another file: they drive the real command against the machine running them.\n\nTHIS IS THE THIRD FILE IN ONE SESSION with the same defect (doctor.test.ts, workspace-sync.test.ts, runtime.test.ts), which stops being a coincidence and starts being a pattern worth naming: a test that reads process.env or the real filesystem passes on the machine that wrote it and fails on every other, and the after-edit lane never runs it because change detection only selects touched files. A green lane has never been evidence that the suite is green, and three files now prove it.\n\nNOT CAUSED BY THE ISS-084 FIX, verified by diffing the failure list before and after: the same 8 fail either way, and the four tests that fix added all pass.\n\nTO CLOSE: the same treatment ISS-100 got — a fixture that pins every environment reader the file depends on, so it states its own environment rather than inheriting one. Related: ISS-103, where an env injected through deps stops at loadConfig, which is why some of these cannot simply be handed an env today.",
+			"body": "MEASURED 2026-08-10: 8 failed on a clean checkout, environment-coupled — the third file in one session with the same defect (doctor.test.ts, workspace-sync.test.ts, runtime.test.ts).\n\nCLOSED 2026-08-11, and NOT by touching this file. The cause was the one ISS-109 names: the throwaway-HOME containment lived in apps/refarm/vitest.setup.ts alone, and change detection meant a file nobody touched was a file nobody ran, so these sat failing against the operator machine that wrote them.\n\nMoving that containment into @refarm.dev/vtconfig baseConfig.test.setupFiles — so every workspace inherits it and no resolvable config can lack it — fixed these eight without a line changing in runtime.test.ts.\n\n  pnpm -C apps/refarm exec vitest run test/commands/runtime.test.ts\n  Tests  32 passed (32)\n\nThe pattern this item named was right and the fix belonged one level up: a test that reads process.env or the real filesystem passes on the machine that wrote it and fails everywhere else, and no per-file repair addresses that. The lane gap it also named is closed separately (ISS-107: after-edit now runs the affected package tests).",
 			"location": "apps/refarm/test/commands/runtime.test.ts",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "high",
 			"package": "apps/refarm",
 			"axis": "durability",
-			"requirement": "R2"
+			"requirement": "R2",
+			"resolved_by": "5354dee4"
 		},
 		{
 			"id": "ISS-106",
