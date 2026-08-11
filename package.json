@@ -386,7 +386,9 @@
 		"dispatch-surface:build-rs:release": "DISPATCH_SURFACE_REQUIRE_JCO=1 pnpm run dispatch-surface:build-rs",
 		"dispatch-surface:ci": "pnpm --filter @refarm.dev/effort-contract-v1 run build && pnpm run dispatch-surface:build-rs && pnpm --filter @refarm.dev/dispatch-surface lint && pnpm --filter @refarm.dev/dispatch-surface type-check && pnpm --filter @refarm.dev/dispatch-surface test:parity",
 		"probe:seeded": "node scripts/directory-independence-ci.mjs",
-		"scripts:test": "node scripts/ci/run-script-tests.mjs"
+		"scripts:test": "node scripts/ci/run-script-tests.mjs",
+		"security:gate": "node scripts/security/audit-gate.mjs",
+		"security:gate:test": "node --test scripts/security/audit-gate.test.mjs"
 	},
 	"repository": {
 		"type": "git",

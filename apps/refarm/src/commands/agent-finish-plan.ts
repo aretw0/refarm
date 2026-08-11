@@ -262,9 +262,19 @@ function handoffContractStep(): CommandPlanStep {
  *
  * The audit is deliberately blocking here, matching CI rather than softening it: this lane's
  * contract is "say what the pipeline will say" (CLAUDE.md §6, local reproduction first). An
- * advisory published overnight will therefore stop a push — which is the same stop CI would
- * make, arriving earlier and cheaper. `pnpm-workspace.yaml`'s `auditConfig.ignoreGhsas` is the
- * documented escape hatch, and it asks for a written reason, which is the right price.
+ * advisory published overnight will therefore stop a push — the same stop CI would make,
+ * arriving earlier and cheaper.
+ *
+ * WHICH audit, on the operator's ruling of 2026-08-11 (ISS-088): `moderate --prod`, which is the
+ * strictest of the four scopes this repo runs and the only one that was red. The step was
+ * `--audit-level=high` and passed while `moderate --prod` failed, so "the audit is green" named
+ * no particular fact.
+ *
+ * The escape hatch is `scripts/security/accepted-advisories.mjs`, NOT
+ * `pnpm-workspace.yaml`'s `auditConfig.ignoreGhsas`. Both ask for a written reason; only one asks
+ * for a DATE. An entry with no expiry stops being verified the moment it is written, which is how
+ * a CRITICAL decompress acceptance (ISS-087) and a postcss pin (ISS-086) both went stale with
+ * their justifications still sitting there looking current.
  */
 function repoContractGateSteps(): CommandPlanStep[] {
 	return [
@@ -282,8 +292,9 @@ function repoContractGateSteps(): CommandPlanStep[] {
 		),
 		scriptTestStep({
 			id: "gate-security-audit",
-			args: ["node", "scripts/security/audit.mjs", "--audit-level=high"],
-			description: "Check for high-severity advisories, at CI's blocking level.",
+			args: ["node", "scripts/security/audit-gate.mjs"],
+			description:
+				"The promotion gate: moderate --prod, with a re-check date on every accepted advisory.",
 		}),
 		scriptTestStep({
 			id: "gate-script-tests",
