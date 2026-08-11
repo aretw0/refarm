@@ -558,7 +558,40 @@ describe("buildIssuesValidate", () => {
 		// rcdc5's `description` is legitimate; a contract that failed on it would be wrong about one
 		// of the two real workspaces declared on this node.
 		expect(outcome.extraFields).toEqual(["description"]);
+		expect(outcome.coercedValues).toEqual([]);
 		expect(outcome.counts).toEqual({ total: 2, open: 1, deferred: 0, resolved: 1 });
+	});
+
+	it("FAILS a ledger whose status is a word it does not have, naming both values", () => {
+		// The gate hole this closes, found by falling into it on 2026-08-11: two finished items were
+		// written as "closed". The reader substituted "open" — availability fails open, correctly —
+		// and NOTHING said so, so `validate` passed and both sat in the operator's open queue.
+		//
+		// An unknown FIELD is information (`extraFields`, above): dropping it loses nothing anyone
+		// was using. An unknown VALUE is replaced, and the replacement is then indistinguishable
+		// from what the author wrote. That asymmetry is why one is a finding and the other is not.
+		const outcome = buildIssuesValidate({
+			workspace: "good",
+			cwd: "/tmp",
+			...fakeIo({
+				readDocument: () =>
+					JSON.stringify({
+						issues: [{ id: "a1", title: "t", status: "closed", axis: "cost" }],
+					}),
+			}),
+		});
+		if (outcome.kind !== "ok") throw new Error("expected ok");
+		expect(outcome.valid).toBe(false);
+		expect(outcome.findings.map((finding) => finding.reason)).toContain("unrecognised_value");
+		expect(outcome.coercedValues).toEqual([
+			{ id: "a1", field: "status", raw: "closed", readAs: "open" },
+		]);
+		// The message must carry BOTH values. "Invalid status" alone leaves the reader unable to
+		// tell what the rest of the system has been seeing in the meantime.
+		const message = outcome.findings.find((f) => f.reason === "unrecognised_value")?.message ?? "";
+		expect(message).toContain('"closed"');
+		expect(message).toContain("read as open");
+		expect(message).toContain("open, deferred, resolved");
 	});
 
 	it("reports an unreadable document as a read failure, never as a clean empty ledger", () => {

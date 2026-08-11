@@ -1,5 +1,6 @@
 import type {
 	CapabilityTable,
+	CoercedValue,
 	WorkItem,
 	WorkItemAdapter,
 	WorkItemAxis,
@@ -55,13 +56,30 @@ function documentUnreadableError(error: unknown): { reason: string; message: str
 	};
 }
 
-function toWorkItem(record: Record<string, unknown>): WorkItem {
-	const status = WORK_ITEM_STATUSES.includes(record.status as WorkItemStatus)
-		? (record.status as WorkItemStatus)
+/**
+ * NEVER SILENTLY. `coerced` collects what this reader had to substitute, so a value the contract
+ * has no name for is reported by `issues validate` rather than absorbed.
+ *
+ * The status coercion is the one that lied. An unrecognised axis becomes `undefined` — the reader
+ * saying it does not know. An unrecognised status became `"open"`, which is a claim about the work:
+ * two finished items written as `"closed"` reappeared in the operator's open queue on 2026-08-11,
+ * and `validate` passed while it happened.
+ */
+function toWorkItem(record: Record<string, unknown>, coerced: CoercedValue[]): WorkItem {
+	const id = String(record.id ?? "");
+	const rawStatus = record.status;
+	const status = WORK_ITEM_STATUSES.includes(rawStatus as WorkItemStatus)
+		? (rawStatus as WorkItemStatus)
 		: "open";
+	if (rawStatus !== undefined && rawStatus !== status) {
+		coerced.push({ id, field: "status", raw: String(rawStatus), readAs: status });
+	}
 	const axisValue = record.axis;
+	if (axisValue !== undefined && !WORK_ITEM_AXES.includes(axisValue as never)) {
+		coerced.push({ id, field: "axis", raw: String(axisValue), readAs: "(absent)" });
+	}
 	return {
-		id: String(record.id ?? ""),
+		id,
 		title: String(record.title ?? ""),
 		body: String(record.body ?? ""),
 		location: String(record.location ?? ""),
@@ -120,9 +138,17 @@ export function createProjectJsonAdapter(options: ProjectJsonAdapterOptions): Wo
 		list(): WorkItemReadResult {
 			try {
 				const { records, extraFields } = readRecords();
-				return { ok: true, items: records.map(toWorkItem), extraFields, error: null };
+				const coercedValues: CoercedValue[] = [];
+				const items = records.map((record) => toWorkItem(record, coercedValues));
+				return { ok: true, items, extraFields, coercedValues, error: null };
 			} catch (error) {
-				return { ok: false, items: [], extraFields: [], error: documentUnreadableError(error) };
+				return {
+					ok: false,
+					items: [],
+					extraFields: [],
+					coercedValues: [],
+					error: documentUnreadableError(error),
+				};
 			}
 		},
 
@@ -169,7 +195,7 @@ export function createProjectJsonAdapter(options: ProjectJsonAdapterOptions): Wo
 				const next = [...records];
 				next[index] = updated;
 				write(next);
-				return { ok: true, item: toWorkItem(updated), error: null };
+				return { ok: true, item: toWorkItem(updated, []), error: null };
 			} catch (error) {
 				return { ok: false, item: null, error: documentUnreadableError(error) };
 			}
@@ -216,7 +242,7 @@ export function createProjectJsonAdapter(options: ProjectJsonAdapterOptions): Wo
 				const next = [...records];
 				next[index] = updated;
 				write(next);
-				return { ok: true, item: toWorkItem(updated), error: null };
+				return { ok: true, item: toWorkItem(updated, []), error: null };
 			} catch (error) {
 				return { ok: false, item: null, error: documentUnreadableError(error) };
 			}
@@ -240,7 +266,7 @@ export function createProjectJsonAdapter(options: ProjectJsonAdapterOptions): Wo
 					"package",
 				]);
 				write(next);
-				return { ok: true, item: toWorkItem(next[index] as Record<string, unknown>), error: null };
+				return { ok: true, item: toWorkItem(next[index] as Record<string, unknown>, []), error: null };
 			} catch (error) {
 				return { ok: false, item: null, error: documentUnreadableError(error) };
 			}
@@ -267,7 +293,7 @@ export function createProjectJsonAdapter(options: ProjectJsonAdapterOptions): Wo
 				const next = [...records];
 				next[index] = withField(records[index] as Record<string, unknown>, "axis", axis, ["package"]);
 				write(next);
-				return { ok: true, item: toWorkItem(next[index] as Record<string, unknown>), error: null };
+				return { ok: true, item: toWorkItem(next[index] as Record<string, unknown>, []), error: null };
 			} catch (error) {
 				return { ok: false, item: null, error: documentUnreadableError(error) };
 			}

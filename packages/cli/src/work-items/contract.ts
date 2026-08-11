@@ -54,12 +54,37 @@ export interface WorkItem {
 	resolvedBy?: string;
 }
 
+/** One value the backend used that this contract does not recognise. `readAs` is what the reader
+ *  substituted, so a report says both what was written and what the rest of the system then saw. */
+export interface CoercedValue {
+	id: string;
+	field: WorkItemField;
+	raw: string;
+	readAs: string;
+}
+
 export interface WorkItemReadResult {
 	ok: boolean;
 	items: WorkItem[];
 	/** Fields present in the backend document that this contract does not know. Reported, never
 	 * rejected: rcdc5's ledger carries `description` and refarm's schema forbids it. */
 	extraFields: string[];
+	/**
+	 * VALUES the backend carries that this contract has no name for, and what each was read as
+	 * instead. The same "reported, never rejected" split `extraFields` above takes — applied one
+	 * level down, where nobody had applied it.
+	 *
+	 * IT MATTERS BECAUSE THE COERCION LIES IN A PARTICULAR DIRECTION. An unrecognised `axis`
+	 * becomes `undefined`, which is honest — the reader says it does not know. An unrecognised
+	 * `status` became `"open"`, which is a CLAIM: a work item written as resolved-under-some-other-
+	 * name reappeared in the operator's open queue as if nobody had touched it. Found 2026-08-11
+	 * by writing `"closed"` into two items that were finished; `validate` passed, `list` counted
+	 * them as open, and nothing anywhere said a value had been rewritten.
+	 *
+	 * The read stays lenient so one bad row cannot break `list` — availability fails open. The
+	 * gate is where it fails closed: `issues validate` reports these.
+	 */
+	coercedValues: CoercedValue[];
 	error: { reason: string; message: string } | null;
 }
 

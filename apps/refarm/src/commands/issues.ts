@@ -26,6 +26,7 @@ import {
 	WORK_ITEM_AXES,
 	WORK_ITEM_STATUSES,
 	type CapabilityTable,
+	type CoercedValue,
 	type LedgerResolution,
 	type LedgerWorkspace,
 	type WorkItem,
@@ -788,7 +789,11 @@ function buildSetAxisCommand(io: IssuesIo): Command {
 }
 
 export interface IssuesValidateFinding {
-	reason: "duplicate_id" | "open_without_axis" | "resolved_without_resolved_by";
+	reason:
+		| "duplicate_id"
+		| "open_without_axis"
+		| "resolved_without_resolved_by"
+		| "unrecognised_value";
 	ids: string[];
 	message: string;
 }
@@ -809,6 +814,11 @@ export type IssuesValidateOutcome =
 			 *  refarm's schema forbids it — a contract that failed on the difference would be wrong
 			 *  about one of the two real workspaces on this node. */
 			extraFields: string[];
+			/** A FINDING, unlike `extraFields`, and the difference is which way the reader had to
+			 *  guess. An unknown FIELD is dropped, which loses nothing the contract was using. An
+			 *  unknown VALUE is REPLACED, and the replacement is then indistinguishable from what
+			 *  the author wrote. */
+			coercedValues: CoercedValue[];
 	  };
 
 export interface BuildIssuesValidateInput extends IssuesIo {
@@ -873,6 +883,22 @@ export function buildIssuesValidate(input: BuildIssuesValidateInput): IssuesVali
 			message: `${resolvedWithoutRef.length} resolved item(s) name no resolved_by; "resolved" without proof is an assertion.`,
 		});
 	}
+	// THE READER IS LENIENT SO ONE BAD ROW CANNOT BREAK `list`; THE GATE IS WHERE IT IS STRICT.
+	// A status this contract has no name for is read as "open" — which is not a shrug, it is a
+	// claim about the work. On 2026-08-11 two FINISHED items were written with status "closed",
+	// a word this ledger does not use: `validate` passed, `list` counted them among the open, and
+	// nothing said a value had been rewritten. Fail open for availability, closed for correctness.
+	if (read.coercedValues.length > 0) {
+		findings.push({
+			reason: "unrecognised_value",
+			ids: [...new Set(read.coercedValues.map((coerced) => coerced.id))],
+			message:
+				`${read.coercedValues.length} value(s) use a word this ledger does not have: ` +
+				`${read.coercedValues
+					.map((c) => `${c.id}.${c.field}="${c.raw}" read as ${c.readAs}`)
+					.join("; ")}. Legal statuses: ${WORK_ITEM_STATUSES.join(", ")}.`,
+		});
+	}
 
 	return {
 		kind: "ok",
@@ -889,6 +915,9 @@ export function buildIssuesValidate(input: BuildIssuesValidateInput): IssuesVali
 		},
 		findings,
 		extraFields: read.extraFields,
+		// Reported alongside the findings, not only inside one: a consumer that wants to know WHAT
+		// was rewritten should not have to parse a sentence to find out.
+		coercedValues: read.coercedValues,
 	};
 }
 

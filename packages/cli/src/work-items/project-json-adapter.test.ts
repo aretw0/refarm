@@ -228,3 +228,68 @@ describe("editText", () => {
 		expect(read()[0].title).toBe("old title");
 	});
 });
+
+describe("a value this ledger has no name for is reported, never absorbed", () => {
+	/** The defect these pin, found 2026-08-11 by hitting it: two FINISHED items were written with
+	 *  status "closed" — a word this ledger does not use. The reader substituted "open", `validate`
+	 *  passed, and both reappeared in the operator's open queue as if nobody had touched them. */
+	function ledgerWith(record: Record<string, unknown>) {
+		return createProjectJsonAdapter({
+			readDocument: () => JSON.stringify({ issues: [record] }),
+			writeDocument: () => {},
+		});
+	}
+
+	it("reports an unrecognised status AND what it was read as instead", () => {
+		const result = ledgerWith({ id: "ISS-900", title: "t", status: "closed" }).list();
+		expect(result.ok).toBe(true);
+		expect(result.coercedValues).toEqual([
+			{ id: "ISS-900", field: "status", raw: "closed", readAs: "open" },
+		]);
+		// The read still succeeds — availability fails open, so one bad row cannot break `list`.
+		expect(result.items[0]?.status).toBe("open");
+	});
+
+	it("reports an unrecognised axis, which coerces in the HONEST direction", () => {
+		// An unknown axis becomes absent — the reader saying it does not know. An unknown status
+		// became a claim about the work. Both are reported; only one of them was ever a lie.
+		const result = ledgerWith({ id: "ISS-901", title: "t", status: "open", axis: "vibes" }).list();
+		expect(result.coercedValues).toEqual([
+			{ id: "ISS-901", field: "axis", raw: "vibes", readAs: "(absent)" },
+		]);
+		expect(result.items[0]?.axis).toBeUndefined();
+	});
+
+	it("says nothing when every value is one the contract knows", () => {
+		const result = ledgerWith({
+			id: "ISS-902",
+			title: "t",
+			status: "resolved",
+			axis: "cost",
+		}).list();
+		expect(result.coercedValues).toEqual([]);
+	});
+
+	it("does not report an ABSENT status — absent is not the same as unrecognised", () => {
+		// A record with no status at all is a different fact from one carrying a word nobody
+		// recognises. Reporting the first would make the finding noise and teach an operator to
+		// ignore it, which is how a gate stops working without ever going red.
+		const result = ledgerWith({ id: "ISS-903", title: "t" }).list();
+		expect(result.coercedValues).toEqual([]);
+		expect(result.items[0]?.status).toBe("open");
+	});
+
+	it("reports every offending row, not just the first", () => {
+		const adapter = createProjectJsonAdapter({
+			readDocument: () =>
+				JSON.stringify({
+					issues: [
+						{ id: "ISS-904", title: "t", status: "closed" },
+						{ id: "ISS-905", title: "t", status: "wontfix" },
+					],
+				}),
+			writeDocument: () => {},
+		});
+		expect(adapter.list().coercedValues.map((c) => c.raw)).toEqual(["closed", "wontfix"]);
+	});
+});

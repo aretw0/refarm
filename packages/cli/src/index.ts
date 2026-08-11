@@ -372,6 +372,7 @@ export {
 } from "./work-items/contract.js";
 export type {
 	CapabilityTable,
+	CoercedValue,
 	FieldSupport,
 	WorkItem,
 	WorkItemAdapter,
