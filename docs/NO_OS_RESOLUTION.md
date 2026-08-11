@@ -419,7 +419,64 @@ the control stops reporting it and the comparison picks it back up.
 `declared` is counted apart from `same` in every report. Zero convictions over one reasoned
 declaration and zero convictions over forty are different states of the same surface.
 
-### Why this probe is not wired into CI
+### The seeded node: what CI runs, and the guard on the guard
+
+**Resolved 2026-08-11 (ISS-097).** The section below records why this probe was
+kept out of CI, and it is still the reason — under an empty home, two absences
+agree and the run is green by emptiness. What changed is that CI no longer has to
+have an empty home.
+
+`seedNodeFixture()` builds a real base with a real `.refarm/config.json`: two
+declared workspaces that are real directories, a surface, a connection. No
+daemon, deliberately — everything it seeds is read from the filesystem, so the
+fixture is honest about which half of the probe it enables.
+
+```bash
+pnpm run probe:seeded          # ~71s: 45 commands × (3 directories + 1 control)
+pnpm run probe:seeded --table  # the full markdown table
+```
+
+Measured against it, 2026-08-11:
+
+```
+45 node-scoped commands · 3 directories (two declared workspaces + one outside)
+  populated:  43 / floor 43      <- the half an empty home could never have
+  convicted:   0 / ceiling 0
+  empty:       2 (auth list, extension list)
+```
+
+**Two ratchets, and the second one is the point.** Convictions must stay 0 — the
+ordinary guard. But *populated must not fall*, because every conviction this
+instrument can find depends on there being something to compare, and that failure
+is silent: a change that empties an answer turns a real comparison into two
+absences agreeing, and the run goes **greener, not redder**. A ceiling on
+convictions alone would reward exactly the regression this whole item is about.
+
+Both were proven to bite: removing one `allowedVaryingFieldPaths` entry produced
+`convicted: 1 / ceiling 0`, and emptying the fixture's workspace catalog produced
+`populated: 42 / floor 43` with `workspace list` named as newly empty — the
+instrument catching itself going blind.
+
+`auth list` and `extension list` stay empty against this fixture and are reported
+as `empty`, never folded into `same`. Seeding them needs credentials and an
+installed extension; that is a bigger fixture and its own decision.
+
+**Where it belongs in CI, not wired here** (`.github/workflows/**` is a §8
+protected surface): Release Health rather than Test & Quality — Test & Quality
+skips work by change detection, and this probe's subject is behaviour no single
+changed file predicts, since a resolver edited in `packages/config` convicts a
+command in `apps/refarm`. After the CLI build step, since it spawns
+`apps/refarm/dist/index.js`.
+
+**What the fixture found on its first run**, which is the argument for having it:
+`resume --workspace <self>` varies in `projectResolution.cwd`. Not a defect —
+`state`, `reason`, `workspaceId` and `declared` are identical across directories,
+which IS the guarantee that row exists to prove — but it is a code path the
+operator's own node never takes, because there the named workspace *has* a
+handoff and the resolution is `read`. The fixture reaches the `absent` branch a
+populated node cannot.
+
+### Why this probe was not wired into CI (2026-08-10, superseded above)
 
 Measured 2026-08-10 under an empty `REFARM_HOME`, which is what CI has:
 

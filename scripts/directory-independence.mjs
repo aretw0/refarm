@@ -379,8 +379,10 @@ export const PROBE_COMMANDS = [
 			"An explicitly named workspace is a node-level address, so nothing at all may depend on the caller's directory -- this is the row that proves --workspace actually decouples the answer from where the operator stands.",
 		fieldReasons: {
 			"environmentPressure.signals": "Reports live host memory AND the free space of the filesystem the command was invoked on (environmentPressure.signals[].path is the cwd), so it varies by BOTH time and directory. The control pair catches the time half only when the reading happens to move between two spawns seconds apart — which made this row flip between same and convicted (ISS-101). The directory half it could never catch. Declared with a reason rather than left to a coin flip.",
+			"projectResolution.cwd":
+				"WHERE THE COMMAND WAS INVOKED, reported beside the answer rather than being part of it — and this row is careful about the difference: `state`, `reason`, `workspaceId` and `declared` are all identical across directories, which IS the guarantee this entry exists to prove. Only the diagnostic moves. Found by the seeded-node fixture (ISS-097) and not by any run against the operator's own node, because there the named workspace HAS a handoff, so the resolution is `read` and this field never appears — the fixture reaches the `absent` branch that a populated node cannot. Whether `cwd` belongs in an answer whose origin is `flag` at all is a real question, filed rather than settled here.",
 		},
-		allowedVaryingFieldPaths: ["environmentPressure.signals"],
+		allowedVaryingFieldPaths: ["environmentPressure.signals", "projectResolution.cwd"],
 	},
 	{
 		name: "status",
@@ -877,7 +879,17 @@ export const PROBE_COMMANDS = [
 export function runCliFromDirectory(
 	cwd,
 	argv,
-	{ cliPath = CLI_PATH, timeoutMs = DEFAULT_TIMEOUT_MS, execPath = process.execPath } = {},
+	{
+		cliPath = CLI_PATH,
+		timeoutMs = DEFAULT_TIMEOUT_MS,
+		execPath = process.execPath,
+		// DECLARED, not inherited. The probe used to let every spawn pick up this shell's
+		// environment, which is fine for a local run against the operator's own node and is
+		// exactly what made the instrument unusable anywhere else: on a machine with no node the
+		// answers are all empty, and two empty answers agree. Passing a seeded environment is
+		// what lets `same` mean agreement between two POPULATED answers (ISS-097).
+		env = process.env,
+	} = {},
 ) {
 	if (!fs.existsSync(cwd)) return unrunnable(`directory does not exist: ${cwd}`);
 	if (!fs.existsSync(cliPath)) return unrunnable(`CLI not built: ${cliPath} does not exist`);
@@ -886,6 +898,7 @@ export function runCliFromDirectory(
 		cwd,
 		encoding: "utf8",
 		timeout: timeoutMs,
+		env,
 	});
 
 	if (result.error) return unrunnable(`spawn error: ${result.error.message}`);
@@ -1030,6 +1043,124 @@ export function resolveProbeDirectories({
 		directories["home (no second workspace declared)"] = homedir;
 	}
 	return directories;
+}
+
+/**
+ * A NODE WITH SOMETHING IN IT — the fixture ISS-097 said this instrument was waiting for.
+ *
+ * The probe's verdict is only as strong as the node it was taken on, and that is not a caveat,
+ * it is the thing that kept it out of CI. Measured 2026-08-10 under an empty home: `workspace
+ * list` returns `[]` from every directory and scores `same`, `connection status` does the same.
+ * Two absences agreeing is not independence, it is a step that measured nothing — the precise
+ * defect this instrument exists to find, manufactured inside the instrument.
+ *
+ * So: a real base, a real `.refarm/config.json`, TWO declared workspaces that are real
+ * directories, a surface and a connection. Every node-scoped answer is then non-empty, and
+ * `same` means two populated answers agreed.
+ *
+ * No daemon. Deliberately: everything seeded here is read from the filesystem, so the fixture is
+ * honest about which half of the probe it enables. A runtime-backed command run against this
+ * fixture is measuring an absent daemon, and `runProbeAgainstSeededNode` says so rather than
+ * counting it.
+ *
+ * Returns `{ base, env, directories, cleanup }`. `env` is a COMPLETE environment for a spawn —
+ * `process.env` plus the declarations — not a fragment to merge, because a fragment is how a
+ * spawn ends up half seeded and half inherited.
+ */
+export function seedNodeFixture({ tmpRoot = os.tmpdir(), env = process.env } = {}) {
+	const base = fs.mkdtempSync(path.join(fs.realpathSync(tmpRoot), "refarm-probe-node-"));
+	const alpha = fs.mkdtempSync(path.join(fs.realpathSync(tmpRoot), "refarm-probe-alpha-"));
+	const beta = fs.mkdtempSync(path.join(fs.realpathSync(tmpRoot), "refarm-probe-beta-"));
+	const sovereignDir = ".refarm";
+	fs.mkdirSync(path.join(base, sovereignDir), { recursive: true });
+	fs.writeFileSync(
+		path.join(base, sovereignDir, "config.json"),
+		`${JSON.stringify(
+			{
+				node: { name: "probe-fixture" },
+				workspaces: {
+					alpha: { path: alpha, kind: "consumer" },
+					beta: { path: beta, kind: "consumer" },
+				},
+				surfaces: { "sidecar-http": { expose: "loopback", gate: "none" } },
+				// A declared connection so `connection status` answers with something. The command
+				// probes the binary and reports `down`/`unknown`; that IS a populated answer, and
+				// it is the shape the empty-home run could never produce.
+				connections: {
+					probe: { establish: ["/bin/true"], probe: { run: ["/bin/true"] } },
+				},
+			},
+			null,
+			2,
+		)}\n`,
+	);
+	return {
+		base,
+		alpha,
+		beta,
+		/** What `<self>` resolves to here. `withSelfWorkspace` needs a REAL declared id, and the
+		 *  fixture is the only thing that knows one. */
+		selfWorkspace: "alpha",
+		env: {
+			...env,
+			SOVEREIGN_BASE: base,
+			SOVEREIGN_DIR: sovereignDir,
+			REFARM_HOME: path.join(base, sovereignDir),
+		},
+		// The two declared workspaces plus somewhere that is neither, which is the same three
+		// kinds `resolveProbeDirectories` uses against a real node.
+		directories: { "workspace:alpha": alpha, "workspace:beta": beta, outside: fs.realpathSync(tmpRoot) },
+		cleanup() {
+			for (const dir of [base, alpha, beta]) fs.rmSync(dir, { recursive: true, force: true });
+		},
+	};
+}
+
+/**
+ * Run a subset of the probe against a seeded node and report BOTH things a verdict needs: that
+ * the answers agreed, and that there was something to agree about.
+ *
+ * `populated` is the half the empty-home run could never have. A row where every directory
+ * answered with an empty collection is reported as `empty`, NOT as `same` — because that is what
+ * kept this instrument out of CI, and folding it back into `same` here would re-manufacture the
+ * defect one layer up.
+ */
+export function runProbeAgainstSeededNode(commands, fixture, options = {}) {
+	// `<self>` MUST be substituted, and forgetting it does not fail loudly — it asks about a
+	// workspace that does not exist, which produces a real-looking `differs-undeclared` on
+	// `projectResolution.cwd`. It did, on this function's first run, and the row read exactly
+	// like a defect. A fixture that can manufacture a conviction is worse than no fixture.
+	const resolved = withSelfWorkspace(commands, fixture.selfWorkspace);
+	const rows = runProbe(resolved, fixture.directories, { ...options, env: fixture.env });
+	return rows.map((row) => {
+		const answers = Object.values(row.byDirectory);
+		const populated = answers.some((answer) => answer.status === "ran" && hasContent(answer.value));
+		return { ...row, populated, verdict: populated ? row.verdict : "empty" };
+	});
+}
+
+/** PURE. Whether a parsed answer says anything at all — an envelope whose every collection is
+ *  empty is an absence wearing an answer's shape. Scalars and non-empty collections count; the
+ *  envelope's own bookkeeping keys (`ok`, `command`, `nextCommand`…) are present on every reply
+ *  and therefore cannot distinguish one. */
+export function hasContent(value) {
+	if (value === null || value === undefined) return false;
+	if (Array.isArray(value)) return value.length > 0;
+	if (typeof value !== "object") return true;
+	const BOOKKEEPING = new Set([
+		"ok",
+		"command",
+		"operation",
+		"action",
+		"status",
+		"nextAction",
+		"nextActions",
+		"nextCommand",
+		"nextCommands",
+		"writes",
+		"effects",
+	]);
+	return Object.entries(value).some(([key, nested]) => !BOOKKEEPING.has(key) && hasContent(nested));
 }
 
 /** Runs every command in `commands` from every directory in `directories`, compares, and

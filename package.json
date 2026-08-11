@@ -384,7 +384,8 @@
 		"agent:streaming:harness:build": "node scripts/ci/agent-cargo-gates.mjs streaming:harness:build",
 		"dispatch-surface:build-rs": "node scripts/build-dispatch-surface-rs.mjs",
 		"dispatch-surface:build-rs:release": "DISPATCH_SURFACE_REQUIRE_JCO=1 pnpm run dispatch-surface:build-rs",
-		"dispatch-surface:ci": "pnpm --filter @refarm.dev/effort-contract-v1 run build && pnpm run dispatch-surface:build-rs && pnpm --filter @refarm.dev/dispatch-surface lint && pnpm --filter @refarm.dev/dispatch-surface type-check && pnpm --filter @refarm.dev/dispatch-surface test:parity"
+		"dispatch-surface:ci": "pnpm --filter @refarm.dev/effort-contract-v1 run build && pnpm run dispatch-surface:build-rs && pnpm --filter @refarm.dev/dispatch-surface lint && pnpm --filter @refarm.dev/dispatch-surface type-check && pnpm --filter @refarm.dev/dispatch-surface test:parity",
+		"probe:seeded": "node scripts/directory-independence-ci.mjs"
 	},
 	"repository": {
 		"type": "git",
