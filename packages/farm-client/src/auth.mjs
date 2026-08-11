@@ -10,11 +10,11 @@
 
 import { readFileSync, statSync } from "node:fs";
 import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
-// os-resolution: node — the device token under <home>/.refarm is NODE state; farm-client is zero-dep but already receives env, so SOVEREIGN_BASE costs no dependency
-export function farmTokenFile({ env = process.env, home = homedir() } = {}) {
+import { declaredBase } from "./declared-base.mjs";
+
+export function farmTokenFile({ env = process.env, home = declaredBase(env) } = {}) {
 	const explicit = typeof env.FARM_TOKEN_FILE === "string" ? env.FARM_TOKEN_FILE.trim() : "";
 	return explicit ? resolve(explicit) : join(home, ".refarm", "credentials", "device-token");
 }
@@ -22,8 +22,7 @@ export function farmTokenFile({ env = process.env, home = homedir() } = {}) {
 /** Inspect without exposing the token. Environment wins; the file must be private on POSIX. */
 export function farmCredentialStatus({
 	env = process.env,
-	// os-resolution: node — same device-token path as farmTokenFile, and it must not diverge from it
-	home = homedir(),
+	home = declaredBase(env),
 	read = readFileSync,
 	stat = statSync,
 } = {}) {
@@ -50,8 +49,7 @@ export function farmCredentialStatus({
 }
 
 /** Resolve the token without printing it. An unsafe/unreadable file is closed, not guessed. */
-// os-resolution: node — same device-token path as farmTokenFile, and it must not diverge from it
-export function farmToken({ env = process.env, home = homedir(), read = readFileSync, stat = statSync } = {}) {
+export function farmToken({ env = process.env, home = declaredBase(env), read = readFileSync, stat = statSync } = {}) {
 	const fromEnv = typeof env.FARM_TOKEN === "string" ? env.FARM_TOKEN.trim() : "";
 	if (fromEnv) return fromEnv;
 	const status = farmCredentialStatus({ env, home, read, stat });
@@ -60,8 +58,7 @@ export function farmToken({ env = process.env, home = homedir(), read = readFile
 }
 
 /** Store the device credential outside the updateable kit, with Silo's POSIX hardening. */
-// os-resolution: node — same device-token path as farmTokenFile, and it must not diverge from it
-export async function saveFarmToken(token, { env = process.env, home = homedir() } = {}) {
+export async function saveFarmToken(token, { env = process.env, home = declaredBase(env) } = {}) {
 	const value = typeof token === "string" ? token.trim() : "";
 	if (!value) throw new Error("a credencial não pode ser vazia");
 	const path = farmTokenFile({ env, home });
@@ -72,8 +69,7 @@ export async function saveFarmToken(token, { env = process.env, home = homedir()
 	return { path };
 }
 
-// os-resolution: node — same device-token path as farmTokenFile, and it must not diverge from it
-export async function removeFarmToken({ env = process.env, home = homedir() } = {}) {
+export async function removeFarmToken({ env = process.env, home = declaredBase(env) } = {}) {
 	const path = farmTokenFile({ env, home });
 	await rm(path, { force: true });
 	return { path };

@@ -20,6 +20,7 @@ import {
 	createProcessHandoffSpecFromRunner,
 	runProcessHandoffSync,
 } from "@refarm.dev/cli/process-handoff";
+import { declaredBase } from "@refarm.dev/config";
 import {
 	createMemoryOperationTrail,
 	undoOperationRecord,
@@ -709,5 +710,32 @@ describe("the registry is built once, and a second provider would be one line", 
 		expect(registry.ids()).toEqual(["local-ca"]);
 		expect(localCa.caCertFile).toBe(path.join(dir, "ca.crt"));
 		expect(localCa.nameSuffixes).toEqual([HOST]);
+	});
+});
+
+// THE PROPERTY THE NODE-SCOPED DEFAULT DELIVERS. Every other test in this file passes `root`
+// explicitly, so none of them exercised the default — which is exactly how the default came to
+// be `process.cwd()` and this machine came to hold TWO certificate authorities: one under
+// `<repo>/.refarm/tls` for `serpro-1577853` and one under `~/.refarm/tls` for
+// `tail894688.ts.net`, minted an hour apart, differing only in where the operator was standing.
+describe("the CA belongs to the node, not to the directory", () => {
+	it("answers for the declared base, and the SAME answer from anywhere", () => {
+		const base = declaredBase();
+		expect(resolveTlsDir()).toBe(path.resolve(base, ".refarm", "tls"));
+		expect(resolveCertTrailPath()).toBe(path.join(resolveTlsDir(), "operations.json"));
+
+		const priorCwd = process.cwd();
+		const elsewhere = mkdtempSync(path.join(tmpdir(), "refarm-cert-elsewhere-"));
+		try {
+			process.chdir(elsewhere);
+			expect(resolveTlsDir()).toBe(path.resolve(base, ".refarm", "tls"));
+		} finally {
+			process.chdir(priorCwd);
+			rmSync(elsewhere, { recursive: true, force: true });
+		}
+	});
+
+	it("still takes an explicit root, so a CA issued into a project tree stays reachable", () => {
+		expect(resolveTlsDir("/somewhere/else")).toBe(path.resolve("/somewhere/else", ".refarm", "tls"));
 	});
 });

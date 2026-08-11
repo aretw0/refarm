@@ -36,6 +36,7 @@ import {
 	type LocalCaProvider,
 	type NssStore,
 } from "@refarm.dev/certificate-local-ca";
+import { declaredBase } from "@refarm.dev/config";
 import {
 	createFileOperationTrail,
 	renderOperationRequest,
@@ -118,15 +119,26 @@ const CERT_TRUST_PLAIN_COMMAND = `  ${refarmCommand(["cert", "trust"])}`;
 const CERT_TRUST_SYSTEM_PLAIN_COMMAND = refarmPrivilegedCommand(["cert", "trust", "system"]);
 const CERT_HELP_COMMAND = refarmCommand(["cert", "--help"]);
 
-/** Where this node keeps its CA and the certificates it has issued. */
-// os-resolution: node — the comment one line up says THIS NODE keeps its CA here; a node has one CA, not one per directory
-export function resolveTlsDir(root: string = process.cwd()): string {
+/**
+ * Where this node keeps its CA and the certificates it has issued.
+ *
+ * `declaredBase()`, not `process.cwd()`. A node has ONE CA; the previous default gave it one per
+ * directory the operator happened to be standing in when he ran `refarm cert issue`, and this
+ * machine had already grown two — `<repo>/.refarm/tls` for `serpro-1577853` and
+ * `~/.refarm/tls` for `tail894688.ts.net`, minted an hour apart on 2026-07-31. Neither is wrong
+ * as an identity; having them in two places decided by `cd` is.
+ *
+ * BEHAVIOUR CHANGE, stated because certificates are the kind of thing whose disappearance is
+ * alarming: `cert list`/`issue`/`trust` with no `--dir` now answer for the node's own directory
+ * wherever they are run. A CA that was issued into a project tree is still on disk and still
+ * reachable with an explicit `--dir`; it is no longer found by standing next to it.
+ */
+export function resolveTlsDir(root: string = declaredBase()): string {
 	return path.resolve(root, ".refarm", "tls");
 }
 
 /** Where the trail of trust decisions lives — beside the CA they are about. */
-// os-resolution: node — the trail of trust decisions lives beside the CA, so it inherits the CA node scope
-export function resolveCertTrailPath(root: string = process.cwd()): string {
+export function resolveCertTrailPath(root: string = declaredBase()): string {
 	return path.join(resolveTlsDir(root), "operations.json");
 }
 
@@ -222,8 +234,7 @@ export async function runCertProviders(deps: CertDeps = {}): Promise<{
 	nextCommand: string;
 	nextCommands: string[];
 }> {
-	// os-resolution: node — feeds resolveTlsDir, which is node-scoped by its own comment
-	const root = deps.root ?? process.cwd();
+	const root = deps.root ?? declaredBase();
 	const registry =
 		deps.registry ??
 		buildCertificateRegistry({
@@ -282,8 +293,7 @@ export async function runCertIssue(
 	options: CertIssueOptions,
 	deps: CertDeps = {},
 ): Promise<CertIssueResult> {
-	// os-resolution: node — feeds resolveTlsDir, which is node-scoped by its own comment
-	const root = deps.root ?? process.cwd();
+	const root = deps.root ?? declaredBase();
 	const dir = options.dir ? path.resolve(options.dir) : resolveTlsDir(root);
 	const say = deps.say ?? (() => {});
 	const hostname = deps.hostname ?? os.hostname();
@@ -438,8 +448,7 @@ export async function runCertTrust(
 	options: CertTrustOptions,
 	deps: CertDeps = {},
 ): Promise<CertTrustResult> {
-	// os-resolution: node — feeds resolveTlsDir, which is node-scoped by its own comment
-	const root = deps.root ?? process.cwd();
+	const root = deps.root ?? declaredBase();
 	const dir = options.dir ? path.resolve(options.dir) : resolveTlsDir(root);
 	const hostname = deps.hostname ?? os.hostname();
 	const device = options.device?.trim() || hostname;

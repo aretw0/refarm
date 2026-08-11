@@ -3,12 +3,12 @@ import {
 	surfaceablePluginVerbsFrom,
 	type SurfaceablePluginVerb,
 } from "@refarm.dev/capability-host";
+import { sovereignDir } from "@refarm.dev/config";
 import { BUNDLED_PLUGIN_DESCRIPTORS, pluginIdToFsToken } from "@refarm.dev/config/plugin-identity";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
-import { pluginsBaseDir } from "../utils/refarm-home.js";
+import { pluginsBaseDir, resolveRefarmHome } from "../utils/refarm-home.js";
 import type { ModelRateCatalogMaterialization } from "./model-rate-catalog.js";
 import { RUNTIME_AGENT_RELOAD_JSON_COMMAND } from "./plugin-handoffs.js";
 
@@ -282,8 +282,13 @@ function readLocalExtensionManifest(extDir: string): InstalledPluginManifest | n
 	}
 }
 
-function readLocalExtensionBase(baseDir: string): InstalledPluginManifest[] {
-	const extensionsDir = path.join(baseDir, ".refarm", "extensions");
+/** The extensions directory of ONE tier, given that directory — not a base to append a
+ *  hardcoded `.refarm` onto. The append is what made this reader and `plugin-local.ts` disagree:
+ *  that file resolves the operator tier as `resolveRefarmHome() + "extensions"`, which honours a
+ *  REFARM_HOME whose last segment is not `.refarm`, while this one silently rebuilt the path
+ *  from a base plus a literal. Same question, two answers, and `plugin local promote` wrote
+ *  where this reader would not look. Each caller now names its own directory. */
+function readExtensionsIn(extensionsDir: string): InstalledPluginManifest[] {
 	if (!existsSync(extensionsDir)) return [];
 	let entries;
 	try {
@@ -303,10 +308,20 @@ function readLocalExtensionBase(baseDir: string): InstalledPluginManifest[] {
 export function readLocalExtensionManifests(
 	// os-resolution: project — the project-local .refarm/extensions tier, which is anchored where the operator stands
 	cwd = process.cwd(),
-	// os-resolution: node — the operator extensions dir, which plugin-local.ts resolves via resolveRefarmHome for the SAME path
-	homeDir = os.homedir(),
+	// The OPERATOR tier, through the SAME call `plugin-local.ts` makes. It was `os.homedir()`
+	// here and `resolveRefarmHome()` there — one question with two answers, which part company
+	// the moment a REFARM_HOME is declared: `plugin local promote` wrote an extension into the
+	// declared home while this reader looked for it in the OS one.
+	//
+	// RENAMED from `homeDir`: it used to be a BASE that this file appended `.refarm` to, and it
+	// is now the sovereign home itself. Same position, different meaning — a rename is what makes
+	// that visible to a caller instead of silently reinterpreting the value it already passes.
+	operatorHome = resolveRefarmHome(),
 ): InstalledPluginManifest[] {
-	return [...readLocalExtensionBase(cwd), ...readLocalExtensionBase(homeDir)];
+	return [
+		...readExtensionsIn(path.join(cwd, sovereignDir(), "extensions")),
+		...readExtensionsIn(path.join(operatorHome, "extensions")),
+	];
 }
 
 export function readSurfaceablePluginManifests(): InstalledPluginManifest[] {
@@ -316,11 +331,18 @@ export function readSurfaceablePluginManifests(): InstalledPluginManifest[] {
 export function readSurfaceablePluginVerbs(
 	// os-resolution: project — the project-local .refarm/extensions tier, which is anchored where the operator stands
 	cwd = process.cwd(),
-	// os-resolution: node — the operator extensions dir, which plugin-local.ts resolves via resolveRefarmHome for the SAME path
-	homeDir = os.homedir(),
+	// The OPERATOR tier, through the SAME call `plugin-local.ts` makes. It was `os.homedir()`
+	// here and `resolveRefarmHome()` there — one question with two answers, which part company
+	// the moment a REFARM_HOME is declared: `plugin local promote` wrote an extension into the
+	// declared home while this reader looked for it in the OS one.
+	//
+	// RENAMED from `homeDir`: it used to be a BASE that this file appended `.refarm` to, and it
+	// is now the sovereign home itself. Same position, different meaning — a rename is what makes
+	// that visible to a caller instead of silently reinterpreting the value it already passes.
+	operatorHome = resolveRefarmHome(),
 	installedManifests = readInstalledPluginManifests(),
 ): SurfaceablePluginVerb[] {
-	return [...installedManifests, ...readLocalExtensionManifests(cwd, homeDir)].flatMap((manifest) =>
+	return [...installedManifests, ...readLocalExtensionManifests(cwd, operatorHome)].flatMap((manifest) =>
 		surfaceablePluginVerbsFrom(manifest),
 	);
 }
