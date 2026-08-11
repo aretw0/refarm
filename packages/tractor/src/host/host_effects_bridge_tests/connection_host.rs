@@ -8,6 +8,7 @@
 // here it is exercised again only as the natural continuation of the sharing
 // scenario, at the WIT layer.
 
+use crate::test_support::DeclaredBaseGuard;
 use crate::host::plugin_host::plugin::host::host_connection::{
     ConnectionStatus as WitConnectionStatus, Host as HostConnectionHost,
 };
@@ -16,29 +17,6 @@ use crate::host::plugin_host::plugin::host::host_connection::{
 // second import of the same path would collide (E0252), like every other
 // duplicate-`use` case this module tree already documents.
 
-/// `.refarm/config.json`'s `connections` catalog is resolved fresh from the
-/// process CWD (see `connections_catalog()` in `connection_host.rs`), so these
-/// tests point CWD at an isolated tempdir for their duration — the same technique
-/// `tests/agent_harness.rs::harness_refarm_config_json_injects_provider` already
-/// uses for the same reason, but restored via `Drop` so a panicking assertion
-/// mid-test still leaves CWD sane for whichever test runs next.
-struct CwdGuard {
-    original: std::path::PathBuf,
-}
-
-impl CwdGuard {
-    fn enter(dir: &std::path::Path) -> Self {
-        let original = std::env::current_dir().expect("current_dir");
-        std::env::set_current_dir(dir).expect("set_current_dir");
-        Self { original }
-    }
-}
-
-impl Drop for CwdGuard {
-    fn drop(&mut self) {
-        let _ = std::env::set_current_dir(&self.original);
-    }
-}
 
 /// `SOVEREIGN_DIR` has no default by design (`config_node.rs`) — the app injects
 /// it. Set once to the fixed value every fixture here writes under; idempotent +
@@ -130,7 +108,7 @@ async fn ensure_of_an_undeclared_name_errors_naming_it() {
     let _env = crate::test_support::env_lock();
     ensure_sovereign_dir_env();
     let dir = tempfile::tempdir().unwrap(); // no connections declared at all
-    let _cwd = CwdGuard::enter(dir.path());
+    let _base = DeclaredBaseGuard::enter(dir.path());
 
     let storage = NativeStorage::open(":memory:").unwrap();
     let sync = NativeSync::new(storage, ":memory:").unwrap();
@@ -156,7 +134,7 @@ async fn status_of_an_undeclared_name_also_errors_naming_it() {
     let _env = crate::test_support::env_lock();
     ensure_sovereign_dir_env();
     let dir = tempfile::tempdir().unwrap();
-    let _cwd = CwdGuard::enter(dir.path());
+    let _base = DeclaredBaseGuard::enter(dir.path());
 
     let storage = NativeStorage::open(":memory:").unwrap();
     let sync = NativeSync::new(storage, ":memory:").unwrap();
@@ -180,7 +158,7 @@ async fn two_plugin_ids_sharing_one_connection_produce_one_spawn_and_two_claims(
     ensure_sovereign_dir_env();
     let dir = tempfile::tempdir().unwrap();
     write_connections_config(dir.path(), trivial_connection_json());
-    let _cwd = CwdGuard::enter(dir.path());
+    let _base = DeclaredBaseGuard::enter(dir.path());
 
     let storage = NativeStorage::open(":memory:").unwrap();
     let sync = NativeSync::new(storage, ":memory:").unwrap();
@@ -246,7 +224,7 @@ async fn release_cannot_drop_another_plugins_claim() {
     ensure_sovereign_dir_env();
     let dir = tempfile::tempdir().unwrap();
     write_connections_config(dir.path(), trivial_connection_json());
-    let _cwd = CwdGuard::enter(dir.path());
+    let _base = DeclaredBaseGuard::enter(dir.path());
 
     let storage = NativeStorage::open(":memory:").unwrap();
     let sync = NativeSync::new(storage, ":memory:").unwrap();
@@ -307,7 +285,7 @@ async fn release_by_id_drops_only_the_named_claim_and_is_idempotent() {
     ensure_sovereign_dir_env();
     let dir = tempfile::tempdir().unwrap();
     write_connections_config(dir.path(), trivial_connection_json());
-    let _cwd = CwdGuard::enter(dir.path());
+    let _base = DeclaredBaseGuard::enter(dir.path());
 
     let storage = NativeStorage::open(":memory:").unwrap();
     let sync = NativeSync::new(storage, ":memory:").unwrap();

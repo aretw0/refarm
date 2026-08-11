@@ -29,32 +29,114 @@ pub(crate) const SOVEREIGN_DIR_SELECTOR_KEY: &str = "SOVEREIGN_DIR";
 /// the process happens to be standing. `main()` sets it from `--refarm-dir`, which the
 /// node already carries and already threads to its auth policy and Scarecrow.
 ///
-/// Unset means "nobody told me", and the caller falls back to the process cwd — which is
-/// today's behaviour, and is what an embedded or test use still wants. Setting it is what
-/// turns a scope inherited from someone's last `cd` into one the node was given.
+/// Unset means "nobody told me", and the resolution continues down the chain below rather
+/// than dropping straight to the process cwd. Setting it is what turns a scope inherited from
+/// someone's last `cd` into one the node was given.
 pub(crate) const SOVEREIGN_BASE_KEY: &str = "SOVEREIGN_BASE";
+/// The sovereign DIRECTORY itself (`~/.refarm`), whose PARENT is the base. Read as step 2 of
+/// the chain for one reason only: the TypeScript `declaredBase()` reads it there, and this
+/// function is that function's Rust half. A resolver that agrees with its twin on three of
+/// four steps is not a shared contract, it is two contracts that look alike (ISS-028).
+pub(crate) const REFARM_HOME_KEY: &str = "REFARM_HOME";
 /// The config file name inside the sovereign config dir (fixed substrate convention,
 /// matches TS `CONFIG_FILE_NAME`).
 pub(crate) const CONFIG_FILE_NAME: &str = "config.json";
+
+/// WHICH STEP produced the base, so a caller can never label one this function did not take —
+/// the same witness `declaredBaseWithOrigin()` returns in TS, and for the same reason: the
+/// label was wrong there for months after a step changed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DeclaredBaseOrigin {
+    SovereignBase,
+    RefarmHome,
+    EnvHome,
+    OsHome,
+    /// The process's current directory. Reached ONLY when nothing above answered — no
+    /// injection, no `REFARM_HOME`, no `HOME`/`USERPROFILE`, no OS home. Named rather than
+    /// silent, because this is the step where the node stops answering for itself and starts
+    /// answering for whoever's shell last ran `cd`.
+    Cwd,
+}
+
+/// `path.dirname()`'s exact semantics, which `Path::parent()` does NOT share:
+///   TS `dirname("/a/b")` = "/a"      Rust `Path::new("/a/b").parent()` = Some("/a")   ✓
+///   TS `dirname(".refarm")` = "."    Rust `.parent()` = Some("")                      ✗
+///   TS `dirname("/")` = "/"          Rust `.parent()` = None                          ✗
+///
+/// The two disagreements are exactly the relative and rootless cases ISS-028 names. Left to
+/// `Path::parent()`, a relative `REFARM_HOME=.refarm` resolves to `""` here and `"."` in TS —
+/// two different directories from one declaration, which is the whole failure this chain
+/// exists to prevent.
+fn dirname_like_ts(path: &Path) -> PathBuf {
+    match path.parent() {
+        Some(parent) if parent.as_os_str().is_empty() => PathBuf::from("."),
+        Some(parent) => parent.to_path_buf(),
+        None => path.to_path_buf(),
+    }
+}
+
+/// PURE. The chain itself, over injected lookups — so every step is assertable without
+/// mutating this process's environment. `std::env::set_var` is global to the test binary, and
+/// `cargo test` runs tests in parallel: an env-mutating test for a resolver every other test
+/// reads is a race, not a test.
+///
+/// Step for step the same chain as `declaredBaseWithOrigin()` in packages/config/src/index.js.
+/// Kept in that order deliberately: the two are one contract with two implementations, and the
+/// only thing making them one is that both are written down and both are tested.
+pub(crate) fn resolve_declared_base<F>(
+    get_env: F,
+    os_home: Option<PathBuf>,
+    cwd: Option<PathBuf>,
+) -> (PathBuf, DeclaredBaseOrigin)
+where
+    F: Fn(&str) -> Option<String>,
+{
+    let non_empty = |key: &str| {
+        get_env(key)
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+    };
+    if let Some(base) = non_empty(SOVEREIGN_BASE_KEY) {
+        return (PathBuf::from(base), DeclaredBaseOrigin::SovereignBase);
+    }
+    if let Some(home) = non_empty(REFARM_HOME_KEY) {
+        return (
+            dirname_like_ts(Path::new(&home)),
+            DeclaredBaseOrigin::RefarmHome,
+        );
+    }
+    // HOME then USERPROFILE, the same pair and the same order as the TS step 3.
+    if let Some(home) = non_empty("HOME").or_else(|| non_empty("USERPROFILE")) {
+        return (PathBuf::from(home), DeclaredBaseOrigin::EnvHome);
+    }
+    if let Some(home) = os_home {
+        return (home, DeclaredBaseOrigin::OsHome);
+    }
+    (cwd.unwrap_or_default(), DeclaredBaseOrigin::Cwd)
+}
+
+/// The impure edge: today's environment, this OS's home, this process's directory.
+pub(crate) fn declared_base_with_origin() -> (PathBuf, DeclaredBaseOrigin) {
+    resolve_declared_base(
+        |key| std::env::var(key).ok(),
+        dirs::home_dir(),
+        std::env::current_dir().ok(),
+    )
+}
+
+/// The base this node's declarations resolve against: what it was TOLD, or — failing that —
+/// the operator's home, and only as a last resort where the process is standing. One place
+/// decides, so `spawnEnv`, connections, surfaces and plugin grants cannot answer from
+/// different directories on the same node.
+pub(crate) fn declared_base() -> PathBuf {
+    declared_base_with_origin().0
+}
 
 /// Resolve `<base>/<configDir>/config.json`, reading the config dir from the injected
 /// selector env. Returns None when the selector is unset — the substrate has NO
 /// default, so an unset selector means "no sovereign config path" (the caller then
 /// behaves as if the file is absent), never a silent brand-dir fallback. Mirrors the
 /// TS `sovereignConfigRelativePath`, kept in lockstep.
-/// The base this node's declarations resolve against: what it was TOLD, or — when nobody
-/// told it — where the process is standing. One place decides, so `spawnEnv`, connections,
-/// surfaces and plugin grants cannot answer from different directories on the same node.
-pub(crate) fn declared_base() -> PathBuf {
-    if let Ok(base) = std::env::var(SOVEREIGN_BASE_KEY) {
-        let trimmed = base.trim();
-        if !trimmed.is_empty() {
-            return PathBuf::from(trimmed);
-        }
-    }
-    std::env::current_dir().unwrap_or_default()
-}
-
 pub(crate) fn sovereign_config_path(base: &Path) -> Option<PathBuf> {
     let dir = std::env::var(SOVEREIGN_DIR_SELECTOR_KEY).ok()?;
     let dir = dir.trim();
@@ -316,6 +398,103 @@ pub(crate) fn payload_revision(payload: &str) -> Option<String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    // ---- declared_base: the chain, step for step against its TypeScript twin.
+    // PURE, so no test here mutates this binary's environment: `set_var` is process-global and
+    // `cargo test` runs in parallel, so an env-mutating test for a resolver every other test
+    // reads is a race dressed as coverage.
+
+    /// The declared injection wins over everything, including a present home.
+    #[test]
+    fn sovereign_base_wins_over_every_later_step() {
+        let (base, origin) = resolve_declared_base(
+            |key| match key {
+                "SOVEREIGN_BASE" => Some("/declared".into()),
+                "REFARM_HOME" => Some("/other/.refarm".into()),
+                "HOME" => Some("/home/someone".into()),
+                _ => None,
+            },
+            Some(PathBuf::from("/os/home")),
+            Some(PathBuf::from("/somewhere/else")),
+        );
+        assert_eq!(base, PathBuf::from("/declared"));
+        assert_eq!(origin, DeclaredBaseOrigin::SovereignBase);
+    }
+
+    /// Step 2 — the step this resolver did not have. Before it existed, a node with a declared
+    /// REFARM_HOME and no SOVEREIGN_BASE resolved to the process cwd, while TS resolved to the
+    /// home's parent: one declaration, two directories, one of them whatever shell ran `cd`.
+    #[test]
+    fn refarm_home_resolves_to_its_parent_when_no_base_is_injected() {
+        let (base, origin) = resolve_declared_base(
+            |key| match key {
+                "REFARM_HOME" => Some("/home/op/.refarm".into()),
+                "HOME" => Some("/home/op".into()),
+                _ => None,
+            },
+            Some(PathBuf::from("/os/home")),
+            Some(PathBuf::from("/repo")),
+        );
+        assert_eq!(base, PathBuf::from("/home/op"));
+        assert_eq!(origin, DeclaredBaseOrigin::RefarmHome);
+    }
+
+    /// ISS-028 exactly: `Path::parent()` answers "" where `path.dirname()` answers ".", and
+    /// None where it answers "/". Both cases come from a REFARM_HOME an operator can really
+    /// type, and both used to make the two stacks disagree about one declaration.
+    #[test]
+    fn dirname_matches_the_typescript_semantics_on_relative_and_rootless_paths() {
+        assert_eq!(dirname_like_ts(Path::new("/a/b")), PathBuf::from("/a"));
+        assert_eq!(dirname_like_ts(Path::new(".refarm")), PathBuf::from("."));
+        assert_eq!(dirname_like_ts(Path::new("/")), PathBuf::from("/"));
+    }
+
+    #[test]
+    fn an_empty_or_whitespace_declaration_is_no_declaration_at_all() {
+        let (base, origin) = resolve_declared_base(
+            |key| match key {
+                "SOVEREIGN_BASE" => Some("   ".into()),
+                "REFARM_HOME" => Some("".into()),
+                "HOME" => Some("/home/op".into()),
+                _ => None,
+            },
+            None,
+            Some(PathBuf::from("/repo")),
+        );
+        assert_eq!(base, PathBuf::from("/home/op"));
+        assert_eq!(origin, DeclaredBaseOrigin::EnvHome);
+    }
+
+    #[test]
+    fn userprofile_answers_where_home_is_absent() {
+        let (base, origin) = resolve_declared_base(
+            |key| (key == "USERPROFILE").then(|| "C:\\Users\\op".to_string()),
+            None,
+            Some(PathBuf::from("/repo")),
+        );
+        assert_eq!(base, PathBuf::from("C:\\Users\\op"));
+        assert_eq!(origin, DeclaredBaseOrigin::EnvHome);
+    }
+
+    #[test]
+    fn the_os_home_answers_before_the_current_directory_ever_does() {
+        let (base, origin) =
+            resolve_declared_base(|_| None, Some(PathBuf::from("/os/home")), Some(PathBuf::from("/repo")));
+        assert_eq!(base, PathBuf::from("/os/home"));
+        assert_eq!(origin, DeclaredBaseOrigin::OsHome);
+    }
+
+    /// THE REGRESSION. This used to be step 2 of two; it is now step 5 of five, reachable only
+    /// when no injection, no REFARM_HOME, no HOME, no USERPROFILE and no OS home answered.
+    /// It is kept rather than removed because an embedded or test use still wants an answer —
+    /// but it is NAMED, so a caller can tell a node that knows where it lives from one that is
+    /// reporting the last `cd`.
+    #[test]
+    fn the_current_directory_is_the_last_resort_and_says_so() {
+        let (base, origin) = resolve_declared_base(|_| None, None, Some(PathBuf::from("/repo")));
+        assert_eq!(base, PathBuf::from("/repo"));
+        assert_eq!(origin, DeclaredBaseOrigin::Cwd);
+    }
 
     fn data_of(payload: &Value) -> &Value {
         &payload["data"]

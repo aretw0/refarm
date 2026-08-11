@@ -114,24 +114,43 @@ repository's workspace config would go from five keys to zero. That is a
 deliberate act with a blast radius, and it belongs to its own slice, not to the
 commit that wrote the contract.
 
-## The Rust half, unfixed
+## The Rust half — fixed 2026-08-11
 
-`packages/tractor/src/host/plugin_host/config_node.rs`'s `declared_base()` is
-two branches:
+`packages/tractor/src/host/plugin_host/config_node.rs`'s `declared_base()` used
+to be two branches: `SOVEREIGN_BASE`, or `current_dir()`. It now runs the same
+five-step chain as its TypeScript twin:
 
-```rust
-if let Ok(base) = std::env::var(SOVEREIGN_BASE_KEY) { /* … */ }
-std::env::current_dir().unwrap_or_default()
-```
+| Step | Source | `DeclaredBaseOrigin` |
+| --- | --- | --- |
+| 1 | `SOVEREIGN_BASE` | `SovereignBase` |
+| 2 | `dirname(REFARM_HOME)` | `RefarmHome` |
+| 3 | `HOME`, then `USERPROFILE` | `EnvHome` |
+| 4 | the OS home (`dirs::home_dir()`) | `OsHome` |
+| 5 | the current directory | `Cwd` |
 
-`SOVEREIGN_BASE` is set by `scripts/refarm-sandbox.mjs` and by Rust tests. It is
-**not** set by `refarm runtime start`, and it is not in the operator's shell
-profile (verified 2026-08-10: the variable is empty in a fresh login shell,
-while the live daemon has it, inherited from whatever launched it).
+Step 5 is kept — an embedded or test use still wants an answer — but it is
+NAMED, so a caller can tell a node that knows where it lives from one reporting
+whichever directory someone last stood in.
 
-So a host started without it resolves its config base to the current directory —
-and reads that directory's `.refarm/config.json` for `approvedPermissions` and
-`spawnEnv`. The TypeScript `declaredBase()` has a four-step chain
-(`SOVEREIGN_BASE` → `dirname(REFARM_HOME)` → `HOME` → `os.homedir()`); the Rust
-one has two. Tracked as ISS-023 and ISS-028. `packages/tractor/**` is a
-CLAUDE.md §8 protected surface, so the fix waits on the maintainer.
+**How exposed was this?** Less than an earlier draft of this document claimed,
+and the correction matters. `main.rs:441` sets `SOVEREIGN_BASE` from
+`--refarm-dir` (default: a `dirs`-based home) **before any declaration is read**,
+so the daemon binary never reached the fallback. The exposure was to consumers of
+this crate that are not that binary. The earlier text said `SOVEREIGN_BASE` is
+set by neither `refarm runtime start` nor the operator's profile — true, and
+incomplete, because the daemon sets it itself.
+
+**The parity bug was the real one.** `Path::parent()` and `path.dirname()`
+disagree on exactly the cases ISS-028 names — `.refarm` → `Some("")` vs `"."`,
+and `/` → `None` vs `"/"` — so a relative `REFARM_HOME` an operator can really
+type resolved to two different directories in the two stacks. `dirname_like_ts`
+fixes that and is pinned by its own test.
+
+**What the fix exposed.** Ten Rust tests failed the moment step 3 landed: 92
+connection tests became 85. They were passing *through* the defect — three
+copies of a `CwdGuard` entered a temp fixture directory and let the cwd fallback
+carry the base. With a real chain they read the operator's actual
+`~/.refarm/config.json` instead. The three copies are now one
+`DeclaredBaseGuard` in `test_support` that DECLARES the base and still enters the
+directory. Their intent was always "the node's base is this temp dir"; `cd` was
+the only way to say it while `cd` was the only thing the resolver read.

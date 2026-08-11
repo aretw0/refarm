@@ -64,6 +64,47 @@ pub(crate) mod test_support {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
+
+    /// Point the node's declared base at `dir` for the duration of a test.
+    ///
+    /// It DECLARES (`SOVEREIGN_BASE`) and it also enters the directory, because a test that
+    /// spawns a child still wants the child to run there. Before `declared_base()` had a
+    /// chain, only the second half existed — three separate copies of a `CwdGuard` that
+    /// changed directory and let the resolver's cwd fallback do the rest. Those tests were
+    /// therefore passing THROUGH the defect: give `declared_base()` a real chain and they
+    /// read the operator's actual `~/.refarm/config.json` instead of their fixture, which is
+    /// exactly what happened (92 passing connection tests became 85 the moment step 3 of the
+    /// chain landed).
+    ///
+    /// Requires the caller to hold `env_lock()` — `set_var` and `set_current_dir` are both
+    /// process-global.
+    pub(crate) struct DeclaredBaseGuard {
+        original_cwd: std::path::PathBuf,
+        previous_base: Option<String>,
+    }
+
+    impl DeclaredBaseGuard {
+        pub(crate) fn enter(dir: &std::path::Path) -> Self {
+            let original_cwd = std::env::current_dir().expect("current_dir");
+            let previous_base = std::env::var(crate::host::SOVEREIGN_BASE_KEY).ok();
+            std::env::set_var(crate::host::SOVEREIGN_BASE_KEY, dir);
+            std::env::set_current_dir(dir).expect("set_current_dir");
+            Self {
+                original_cwd,
+                previous_base,
+            }
+        }
+    }
+
+    impl Drop for DeclaredBaseGuard {
+        fn drop(&mut self) {
+            match self.previous_base.take() {
+                Some(value) => std::env::set_var(crate::host::SOVEREIGN_BASE_KEY, value),
+                None => std::env::remove_var(crate::host::SOVEREIGN_BASE_KEY),
+            }
+            let _ = std::env::set_current_dir(&self.original_cwd);
+        }
+    }
 }
 
 use anyhow::{Context, Result};

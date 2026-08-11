@@ -13,30 +13,8 @@
 //! per the task, to prove the sharing guarantee "now at the HTTP layer".
 
 use super::*;
+use crate::test_support::DeclaredBaseGuard;
 
-/// `.refarm/config.json`'s `connections` catalog is resolved fresh from the process
-/// CWD, so these tests point CWD at an isolated tempdir for their duration — restored
-/// via `Drop` so a panicking assertion mid-test still leaves CWD sane for whichever
-/// test runs next. Same technique as
-/// `host/host_effects_bridge_tests/connection_host.rs`'s own `CwdGuard`; duplicated
-/// rather than shared because that one is private to a different module tree.
-struct CwdGuard {
-    original: std::path::PathBuf,
-}
-
-impl CwdGuard {
-    fn enter(dir: &std::path::Path) -> Self {
-        let original = std::env::current_dir().expect("current_dir");
-        std::env::set_current_dir(dir).expect("set_current_dir");
-        Self { original }
-    }
-}
-
-impl Drop for CwdGuard {
-    fn drop(&mut self) {
-        let _ = std::env::set_current_dir(&self.original);
-    }
-}
 
 fn ensure_sovereign_dir_env() {
     use std::sync::Once;
@@ -99,7 +77,7 @@ async fn sidecar_get_connections_reports_a_never_established_name_as_down() {
     ensure_sovereign_dir_env();
     let dir = tempfile::tempdir().unwrap();
     write_connections_config(dir.path(), trivial_connection_json());
-    let _cwd = CwdGuard::enter(dir.path());
+    let _base = DeclaredBaseGuard::enter(dir.path());
 
     let (_state, port, tractor) = start_connections_sidecar().await;
     let client = reqwest::Client::new();
@@ -122,7 +100,7 @@ async fn sidecar_post_connection_up_on_an_undeclared_name_is_a_clean_404() {
     let _env = crate::test_support::env_lock();
     ensure_sovereign_dir_env();
     let dir = tempfile::tempdir().unwrap(); // no connections declared at all
-    let _cwd = CwdGuard::enter(dir.path());
+    let _base = DeclaredBaseGuard::enter(dir.path());
 
     let (_state, port, tractor) = start_connections_sidecar().await;
     let client = reqwest::Client::new();
@@ -154,7 +132,7 @@ async fn sidecar_up_called_twice_performs_one_establish_and_reports_two_claims()
     ensure_sovereign_dir_env();
     let dir = tempfile::tempdir().unwrap();
     write_connections_config(dir.path(), trivial_connection_json());
-    let _cwd = CwdGuard::enter(dir.path());
+    let _base = DeclaredBaseGuard::enter(dir.path());
 
     let (_state, port, tractor) = start_connections_sidecar().await;
     let client = reqwest::Client::new();
@@ -207,7 +185,7 @@ async fn sidecar_down_reports_active_claims_then_is_idempotent() {
     ensure_sovereign_dir_env();
     let dir = tempfile::tempdir().unwrap();
     write_connections_config(dir.path(), trivial_connection_json());
-    let _cwd = CwdGuard::enter(dir.path());
+    let _base = DeclaredBaseGuard::enter(dir.path());
 
     let (_state, port, tractor) = start_connections_sidecar().await;
     let client = reqwest::Client::new();

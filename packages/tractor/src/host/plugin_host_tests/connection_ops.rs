@@ -1,3 +1,4 @@
+use crate::test_support::DeclaredBaseGuard;
     // `env_policy_core.rs` (the first file `include!`d into this flattened `tests`
     // module) already brings in `use super::*;` for the whole module — a second one
     // here would be a redundant glob, like every other duplicate-`use` case this
@@ -12,30 +13,6 @@
     // methods) is proven separately in `sidecar/tests/connection.rs`, including the
     // "up twice performs ONE establish" sharing guarantee at the HTTP layer.
 
-    /// `.refarm/config.json`'s `connections` catalog is resolved fresh from the
-    /// process CWD (`connections_catalog()` in `connection_host.rs`), so these tests
-    /// point CWD at an isolated tempdir for their duration — restored via `Drop` so a
-    /// panicking assertion mid-test still leaves CWD sane for whichever test runs
-    /// next. Mirrors `host_effects_bridge_tests/connection_host.rs`'s own `CwdGuard`;
-    /// duplicated rather than shared because that one is private to a DIFFERENT
-    /// flattened module tree.
-    struct CwdGuard {
-        original: std::path::PathBuf,
-    }
-
-    impl CwdGuard {
-        fn enter(dir: &std::path::Path) -> Self {
-            let original = std::env::current_dir().expect("current_dir");
-            std::env::set_current_dir(dir).expect("set_current_dir");
-            Self { original }
-        }
-    }
-
-    impl Drop for CwdGuard {
-        fn drop(&mut self) {
-            let _ = std::env::set_current_dir(&self.original);
-        }
-    }
 
     fn write_connections_config(dir: &std::path::Path, connections_json: &str) {
         let refarm_dir = dir.join(".refarm");
@@ -74,7 +51,7 @@
         ensure_sovereign_dir_env();
         let dir = tempfile::tempdir().unwrap();
         write_connections_config(dir.path(), trivial_connection_json());
-        let _cwd = CwdGuard::enter(dir.path());
+        let _base = DeclaredBaseGuard::enter(dir.path());
 
         let host = bare_host();
         let sync = memory_sync();
@@ -94,7 +71,7 @@
         ensure_sovereign_dir_env();
         let dir = tempfile::tempdir().unwrap();
         write_connections_config(dir.path(), trivial_connection_json());
-        let _cwd = CwdGuard::enter(dir.path());
+        let _base = DeclaredBaseGuard::enter(dir.path());
 
         let host = bare_host();
         let sync = memory_sync();
@@ -136,7 +113,7 @@
         let _env = crate::test_support::env_lock();
         ensure_sovereign_dir_env();
         let dir = tempfile::tempdir().unwrap(); // no connections declared at all
-        let _cwd = CwdGuard::enter(dir.path());
+        let _base = DeclaredBaseGuard::enter(dir.path());
 
         let host = bare_host();
         let sync = memory_sync();
@@ -164,7 +141,7 @@
         ensure_sovereign_dir_env();
         let dir = tempfile::tempdir().unwrap();
         write_connections_config(dir.path(), trivial_connection_json());
-        let _cwd = CwdGuard::enter(dir.path());
+        let _base = DeclaredBaseGuard::enter(dir.path());
 
         let host = bare_host();
         let sync = memory_sync();
@@ -190,7 +167,7 @@
         let _env = crate::test_support::env_lock();
         ensure_sovereign_dir_env();
         let dir = tempfile::tempdir().unwrap(); // no connections declared at all
-        let _cwd = CwdGuard::enter(dir.path());
+        let _base = DeclaredBaseGuard::enter(dir.path());
 
         let host = bare_host();
 
@@ -224,7 +201,7 @@
         ensure_sovereign_dir_env();
         let dir = tempfile::tempdir().unwrap();
         write_connections_config(dir.path(), trivial_connection_json());
-        let _cwd = CwdGuard::enter(dir.path());
+        let _base = DeclaredBaseGuard::enter(dir.path());
 
         let host = bare_host();
         let sync = memory_sync();
