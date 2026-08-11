@@ -189,10 +189,16 @@ test("computeBaseline scans the real repo and returns a stable, explainable coun
 	assert.equal(baseline.sites.length, baseline.count);
 });
 
-test("the two allowlisted modules are named exactly, matching apps/refarm and packages/config", () => {
+// A WHITELIST is only a whitelist if joining it is deliberate, so the membership is pinned by
+// value and not by count. It grew to three on 2026-08-11 when `declaredBase` was split out of
+// `packages/config/src/index.js` into its own module so config's own readers could import the
+// resolver without cycling through the barrel that re-exports it — the cycle being exactly why
+// two of them had defaulted to `process.cwd()`. That MOVED the OS call; it did not add one.
+test("the allowlisted resolver modules are named exactly", () => {
 	assert.deepEqual(ALLOWLISTED_RESOLVER_MODULES, [
 		"apps/refarm/src/utils/refarm-home.ts",
 		"packages/config/src/index.js",
+		"packages/config/src/declared-base.js",
 	]);
 });
 

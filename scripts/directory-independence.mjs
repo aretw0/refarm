@@ -192,10 +192,10 @@ export function compareAnswers(byDirectory, declaration, inPlaceVaryingFieldPath
 	// itself: it is the shape of `ENOENT /tmp/.project/handoff.json`, a command that answers where
 	// the operator happens to stand and refuses everywhere else.
 	if (unrunnableDirectories.length === labels.length) {
-		return { verdict: "unproven", fieldPaths: [], inPlaceFieldPaths: [], unrunnableDirectories };
+		return { verdict: "unproven", fieldPaths: [], inPlaceFieldPaths: [], undeclaredInPlaceFieldPaths: [], unrunnableDirectories };
 	}
 	if (unrunnableDirectories.length > 0) {
-		return { verdict: "unrunnable-somewhere", fieldPaths: [], inPlaceFieldPaths: [], unrunnableDirectories };
+		return { verdict: "unrunnable-somewhere", fieldPaths: [], inPlaceFieldPaths: [], undeclaredInPlaceFieldPaths: [], unrunnableDirectories };
 	}
 
 	const allDiverging = divergingPaths(byDirectory);
@@ -209,11 +209,33 @@ export function compareAnswers(byDirectory, declaration, inPlaceVaryingFieldPath
 	const inPlace = allDiverging.filter((fieldPath) => isDeclaredPath(fieldPath, inPlaceVaryingFieldPaths)).sort();
 	const measurable = allDiverging.filter((fieldPath) => !isDeclaredPath(fieldPath, inPlaceVaryingFieldPaths));
 
-	if (measurable.length === 0) {
-		return { verdict: "same", fieldPaths: [], inPlaceFieldPaths: inPlace, unrunnableDirectories: [] };
-	}
-
 	const allowed = declaration.allowedVaryingFieldPaths ?? [];
+
+	// THE CONTROL'S SILENCE IS NOT EVIDENCE (ISS-101). Seeing a field move in place PROVES it is
+	// time-variant; NOT seeing it move proves nothing — the clock simply may not have ticked
+	// between two spawns seconds apart. So the exclusion above is sound in one direction and the
+	// verdict built on it flips: the same row scored `same` on one run and `differs-undeclared`
+	// on the next, with no code change between them, and a verdict that flips is worse than one
+	// that is wrong because nobody can tell which run to believe.
+	//
+	// More spawns cannot fix that — they buy asymptotic confidence at linear cost and the answer
+	// stays probabilistic. A DECLARATION is the only deterministic mechanism this instrument has.
+	//
+	// So the control keeps its exclusion (it is self-expiring, which a hand-written declaration
+	// is not) and loses its SILENCE: any field it caught moving that nobody declared is reported
+	// here, because that field is a coin flip waiting to be tossed. The control's job becomes
+	// growing the declarations rather than hiding behind them.
+	const undeclaredInPlaceFieldPaths = inPlace.filter((fieldPath) => !isDeclaredPath(fieldPath, allowed));
+
+	if (measurable.length === 0) {
+		return {
+			verdict: "same",
+			fieldPaths: [],
+			inPlaceFieldPaths: inPlace,
+			undeclaredInPlaceFieldPaths,
+			unrunnableDirectories: [],
+		};
+	}
 	const undeclared = measurable.filter((fieldPath) => !isDeclaredPath(fieldPath, allowed));
 
 	if (undeclared.length > 0) {
@@ -221,6 +243,7 @@ export function compareAnswers(byDirectory, declaration, inPlaceVaryingFieldPath
 			verdict: "differs-undeclared",
 			fieldPaths: undeclared.sort(),
 			inPlaceFieldPaths: inPlace,
+			undeclaredInPlaceFieldPaths,
 			unrunnableDirectories: [],
 		};
 	}
@@ -697,8 +720,14 @@ export const PROBE_COMMANDS = [
 		argv: ["budget", "usage", "--json"],
 		scope: "node",
 		scopeReason:
-			"The node's usage window; its period bounds are computed from now, which the control pair measures as time-variant rather than directory-variant.",
-		allowedVaryingFieldPaths: [],
+			"The node's usage window. Its period bounds are computed from `now`, so they are time-variant and not directory-variant.",
+		fieldReasons: {
+			"usage.period.startMs":
+				"The window is computed from `now` at each invocation, so both bounds move between any two spawns. DECLARED rather than left to the control pair (ISS-101): the prose here used to say the control measures it, and the control only measures it when the clock happens to tick between two spawns seconds apart. On a run where it does not, this row convicts — the verdict flips with nothing changed, and a verdict that flips is worse than one that is wrong.",
+			"usage.period.endMs":
+				"The other bound of the same window, moving for the same reason and declared for the same one.",
+		},
+		allowedVaryingFieldPaths: ["usage.period.startMs", "usage.period.endMs"],
 	},
 	{
 		name: "task list",
@@ -817,8 +846,12 @@ export const PROBE_COMMANDS = [
 		argv: ["inspect", "--json"],
 		scope: "node",
 		scopeReason:
-			"Inspects the node; its createdAt moves on its own, which the control pair measures.",
-		allowedVaryingFieldPaths: [],
+			"Inspects the node. Everything it reports is the node's except the timestamp of the inspection itself.",
+		fieldReasons: {
+			createdAt:
+				"Stamped when the inspection runs, so it differs between any two invocations regardless of where they ran. DECLARED rather than left to the control pair (ISS-101), for the same reason as `budget usage`: the control catches this only when two spawns land in different milliseconds, and a field excluded by luck is included by luck on the next run.",
+		},
+		allowedVaryingFieldPaths: ["createdAt"],
 	},
 	{
 		name: "surface list",

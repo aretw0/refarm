@@ -23,16 +23,23 @@
  *    2 empty          <- auth list, extension list: REPORTED, never counted as agreement
  * ```
  *
- * ## The two ratchets, and why the second one is the point
+ * ## Three ratchets, and only the first is ordinary
  *
- * 1. **CONVICTIONS must stay 0.** The ordinary guard: a node-scoped command that answers
- *    differently from different directories, without a declared reason, fails here.
+ * 1. **CONVICTIONS must stay 0.** A node-scoped command that answers differently from different
+ *    directories, without a declared reason, fails here.
  *
- * 2. **POPULATED must not fall.** This is the guard on the guard. Every conviction this
- *    instrument can find depends on there being something to compare, and the failure mode is
- *    silent: a change that makes an answer empty turns a real comparison into two absences
- *    agreeing, and the run goes GREENER, not redder. A ceiling on convictions alone would
- *    reward exactly the regression this whole item is about.
+ * 2. **POPULATED must not fall.** The guard on the guard. Every conviction this instrument can
+ *    find depends on there being something to compare, and that failure is silent: a change that
+ *    empties an answer turns a real comparison into two absences agreeing, and the run goes
+ *    GREENER, not redder. A ceiling on convictions alone would reward exactly the regression
+ *    this item is about.
+ *
+ * 3. **UNDECLARED VOLATILITY must stay 0** (ISS-101). The control pair excludes a field it
+ *    caught moving in place, which is sound — seeing it move PROVES time-variance. Its SILENCE
+ *    proves nothing. So an undeclared volatile field is a coin flip: today the control catches
+ *    it and the row is `same`, tomorrow it does not and the row convicts, with no code change
+ *    between. This ceiling turns the control from a silencer into a detector that grows the
+ *    declarations, which is the only deterministic mechanism here.
  *
  * ## Cost, measured
  *
@@ -77,6 +84,25 @@ export const SEEDED_MAX_CONVICTIONS = 0;
  */
 export const SEEDED_MIN_POPULATED = 43;
 
+/**
+ * FIELDS THE CONTROL PAIR CAUGHT MOVING IN PLACE THAT NOBODY DECLARED — zero, and it stays zero.
+ *
+ * The control excludes such a field from the comparison, which is sound: seeing it move PROVES it
+ * is time-variant. Its silence proves nothing, though — the clock may simply not have ticked
+ * between two spawns. So an undeclared volatile field is a coin flip waiting to be tossed: today
+ * the control catches it and the row is `same`; tomorrow it does not and the row convicts, with
+ * no code change in between (ISS-101).
+ *
+ * More spawns cannot fix that — they buy asymptotic confidence at linear cost and stay
+ * probabilistic. A declaration is the only deterministic mechanism this instrument has, so the
+ * control's job is to GROW the declarations, and this ceiling is what makes it do that.
+ *
+ * It found two on its first run: `budget usage` (`usage.period.*`) and `inspect` (`createdAt`),
+ * both of whose `scopeReason` already SAID the control measures them — the author knew, and
+ * leaned on a probabilistic instrument where a declaration was needed.
+ */
+export const SEEDED_MAX_UNDECLARED_VOLATILITY = 0;
+
 function main() {
 	const fixture = seedNodeFixture();
 	try {
@@ -84,6 +110,7 @@ function main() {
 		const rows = runProbeAgainstSeededNode(commands, fixture);
 
 		const convicted = rows.filter((row) => judge(row.verdict, row.scope) === "convicted");
+		const volatile_ = rows.filter((row) => (row.undeclaredInPlaceFieldPaths ?? []).length > 0);
 		const populated = rows.filter((row) => row.populated);
 		const empty = rows.filter((row) => !row.populated);
 
@@ -94,6 +121,7 @@ function main() {
 				`across ${Object.keys(fixture.directories).length} directories\n` +
 				`  populated:  ${populated.length} / floor ${SEEDED_MIN_POPULATED}\n` +
 				`  convicted:  ${convicted.length} / ceiling ${SEEDED_MAX_CONVICTIONS}\n` +
+				`  undeclared volatility: ${volatile_.length} / ceiling ${SEEDED_MAX_UNDECLARED_VOLATILITY}\n` +
 				`  empty:      ${empty.length}${empty.length > 0 ? ` (${empty.map((r) => r.name).join(", ")})` : ""}\n`,
 		);
 
@@ -104,6 +132,16 @@ function main() {
 				`\nCONVICTED — a node-scoped answer moved with the directory and nothing declared it:\n${convicted
 					.map((row) => `  ${row.name}: ${(row.fieldPaths ?? []).join(", ")}`)
 					.join("\n")}\n`,
+			);
+		}
+		if (volatile_.length > SEEDED_MAX_UNDECLARED_VOLATILITY) {
+			failed = true;
+			process.stdout.write(
+				"\nUNDECLARED VOLATILITY — the control pair caught these moving in place and nothing " +
+					"declares them, so their verdict depends on whether the clock ticks between two " +
+					`spawns:\n${volatile_
+						.map((row) => `  ${row.name}: ${row.undeclaredInPlaceFieldPaths.join(", ")}`)
+						.join("\n")}\n`,
 			);
 		}
 		if (populated.length < SEEDED_MIN_POPULATED) {

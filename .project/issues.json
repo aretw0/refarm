@@ -1135,11 +1135,12 @@
 			"title": "The directory-independence probe has no CI home until a seeded node fixture exists",
 			"body": "DECISION 2026-08-10, taken from measurement rather than from the plan, which had said CI would run a subset of the probe and report its coverage as a fraction.\n\nMEASURED under an empty REFARM_HOME, which is what CI has: `workspace list` returns [] from every directory and scores `same`; `connection status` does the same. `plugin list` and `surface list` still differ, because they read the WORKING TREE rather than the node's catalog.\n\nSo a CI run would catch two of the four real convictions and report agreement between two ABSENCES as `same` for the rest. A step that passes because it measured nothing is precisely the defect this instrument exists to find, and putting it in CI would have manufactured that defect inside the instrument.\n\nWHAT IS TRUE INSTEAD: the probe is a local instrument run against a real node, and the tool now prints the caveat on every run rather than leaving it in a spec -- 'a verdict is only as strong as the node it was taken on'. The CI-side guard is apps/refarm/test/commands/probe-coverage.test.ts, which is pure, needs no node, and protects what CI can actually protect: that a new leaf command cannot join the CLI without being probed or excluded with a written reason.\n\nWHAT WOULD CHANGE THIS: a seeded node fixture in CI -- a declared catalog with at least two workspaces and a reachable daemon -- would make `same` mean agreement between two POPULATED answers instead of between two empty ones. At that point the probe becomes meaningful in CI and this item is the place to reopen the decision. Until then, running it there would buy a green that overclaims, which costs more than the coverage is worth.",
 			"location": "scripts/directory-independence.mjs",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "low",
 			"package": "scripts",
-			"axis": "durability"
+			"axis": "durability",
+			"resolved_by": "fa20705f"
 		},
 		{
 			"id": "ISS-098",
