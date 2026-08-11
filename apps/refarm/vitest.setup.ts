@@ -1,5 +1,8 @@
 import path from "node:path";
-import { afterAll, beforeEach, expect, vi } from "vitest";
+// Relative, not a package subpath: this file is config-adjacent (never shipped), and a
+// subpath export resolved through vite's alias layer landed on `src/index.js/home-containment`.
+import { beforeEach, expect, vi } from "vitest";
+import { testHomeSandbox } from "../../packages/vtconfig/src/home-containment.js";
 import { resetAllProcessCaches } from "./src/utils/process-cache.js";
 
 /**
@@ -14,6 +17,17 @@ import { resetAllProcessCaches } from "./src/utils/process-cache.js";
  * regardless of how careful any ONE test file's own fs mocks were. Per-test
  * discipline is what failed; the next test that forgets to mock `fs` fails the
  * same way.
+ *
+ * LAYER 0 MOVED OUT (2026-08-11, ISS-109). The throwaway HOME now lives in
+ * `@refarm.dev/vtconfig/home-containment`, wired into `baseConfig.test.setupFiles`, so all 64
+ * workspaces get it and no resolvable vitest config can lack it. It lived here alone, and a run
+ * launched from the repo root resolved the ROOT config — which loads no package setup file —
+ * and deleted `spawnEnv` from the operator's live `~/.refarm/config.json`. This file imports
+ * that sandbox rather than creating a second one.
+ *
+ * WHAT STAYS HERE is Layer 1, the write guard, because it REFUSES rather than redirects: 101
+ * test files in this monorepo write through `writeFileSync`/`mkdirSync`, so it is adopted
+ * package by package, not switched on for all of them in one move.
  *
  * This reuses the fs write guard + throwaway HOME pattern from
  * test/architecture/cli-refusal-conformance.test.ts (commit 8c31e8f5) — this is
@@ -32,39 +46,7 @@ import { resetAllProcessCaches } from "./src/utils/process-cache.js";
  *   `$HOME`. A write outside the sandbox now throws loudly, naming the path and
  *   the offending fs call, instead of silently landing on disk.
  */
-const SANDBOX = await vi.hoisted(async () => {
-	const os = await import("node:os");
-	const fs = await import("node:fs");
-	const nodePath = await import("node:path");
-
-	const tmpRoot = fs.realpathSync(os.tmpdir());
-	const root = fs.realpathSync(fs.mkdtempSync(nodePath.join(tmpRoot, "refarm-test-home-")));
-	const home = nodePath.join(root, "home");
-	fs.mkdirSync(home, { recursive: true });
-
-	const ENV_KEYS = [
-		"HOME",
-		"USERPROFILE",
-		"REFARM_HOME",
-		"XDG_CONFIG_HOME",
-		"XDG_DATA_HOME",
-		"XDG_CACHE_HOME",
-		"XDG_STATE_HOME",
-	] as const;
-	const originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
-	for (const key of ENV_KEYS) process.env[key] = home;
-
-
-	// The substrate (@refarm.dev/config) has no default config-dir name — it reads
-	// SOVEREIGN_DIR (injected by the app at boot; see src/index.ts). Tests exercise
-	// the app's commands/modules directly, bypassing that entry, so this setup file
-	// stands in for it. Unset would throw MissingSovereignDirError.
-	if (!process.env.SOVEREIGN_DIR?.trim()) {
-		process.env.SOVEREIGN_DIR = ".refarm";
-	}
-
-	return { root, home, tmpRoot, envKeys: ENV_KEYS, originalEnv };
-});
+const SANDBOX = testHomeSandbox;
 
 /** Writable only inside the throwaway tree (and the OS temp dir it lives in) —
  *  same policy as the conformance harness. A write anywhere else is a bug in a
@@ -178,13 +160,6 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 	return { ...guarded, default: guarded };
 });
 
-afterAll(() => {
-	for (const key of SANDBOX.envKeys) {
-		const original = SANDBOX.originalEnv[key];
-		if (original === undefined) delete process.env[key];
-		else process.env[key] = original;
-	}
-});
 
 // Every process-lifetime cache (makeProcessCache) self-registers, so this single
 // hook clears them all before each test — no per-suite reset to remember, and no

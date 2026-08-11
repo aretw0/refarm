@@ -139,14 +139,66 @@ see the CLI report without opening a test runner:
 
 ```bash
 node scripts/no-os-resolution.mjs
-# no-os-resolution: 117 offending site(s) across 921 scanned file(s) (default=61, fallback=56)
-#   ceiling: 117
-#   delta:   0
+# no-os-resolution: 111 site(s) across 929 scanned file(s) (default=58, fallback=53)
+#   total:        111 / ceiling 111 · delta 0
+#   unclassified: 58 / ceiling 58 · delta 0
+#   invalid:      0 / ceiling 0
+#   declared:     10 defect, 43 legitimate (project=39, process=2, os-user=2, node=10)
+
+node scripts/no-os-resolution.mjs --list --unclassified   # the burn-down's work list
+node scripts/no-os-resolution.mjs --json                  # every site, with its verdict
 ```
 
-(117 as of 2026-08-08, `connection.ts`'s fix — see the worked example above.
-It started at 119; run the command yourself rather than trusting either
-number, since the whole point of a ratchet is that it moves.)
+(Measured 2026-08-11. Run it yourself rather than trusting the number — the
+whole point of a ratchet is that it moves.)
+
+## The vocabulary: which QUESTION the site answers
+
+**The single count above is not a defect count.** `?? process.cwd()` is right or
+wrong depending on what the site is being asked:
+
+- *"which project am I in?"* → reading the current directory **is the answer**.
+- *"where does this node's state live?"* → reading it **is the defect**.
+
+For most of this ratchet's life it could not tell those apart, which is why its
+burn-down never started (ISS-054). It counted
+`findWorkspaceRoot(cwd = process.cwd())`, which walks up for the git root, beside
+`doctor.ts`'s `operatorBase`, which carries five lines of prose arguing that a
+bare `process.cwd()` is the only correct fallback there. A ceiling that mixes
+answers with debt can only fall by accident, and every slice had to re-derive the
+same judgements from scratch — which the burn-down instructions below ask for
+without giving the audit anywhere to live.
+
+The words are not invented here. `scripts/directory-independence.mjs` already
+judges by `scope: "node" | "project"` and already convicts a *project*-scoped
+command that answers identically from every directory. Both instruments measure
+the same property; only one had words for it.
+
+A site declares its own, on its line or in the comment block above it:
+
+```ts
+// os-resolution: project — walks up from where the operator stands for the git root
+function findWorkspaceRoot(cwd = process.cwd()): string {
+```
+
+| Purpose | The question | Verdict |
+| --- | --- | --- |
+| `project` | *"which project/repo am I in?"* | **legitimate** — the directory IS the question |
+| `process` | *"what cwd do I hand this child, or resolve this typed path against?"* | **legitimate** |
+| `os-user` | *"where is the OS ACCOUNT's home?"* (`~/.ssh`, tier co-habitation) | **legitimate, rare** — the reason must say why the node's base is the wrong answer |
+| `node` | *"where does THIS NODE's state live?"* | **DEFECT** — must resolve from `declaredBase()` |
+
+Three states, never two. No marker is *"nobody judged this"*; an unknown token or
+a reason under three words is *"somebody judged it and it does not parse"* —
+counted apart, because a burn-down that reports them as one number cannot tell an
+untouched pile from a broken declaration. The declaration lives at the site and
+not in a side table because a line number is not a stable key for 111 sites in a
+moving codebase, and because two of these reasons were already written there in
+prose; the marker only makes that prose machine-readable.
+
+`BASELINE_MAX_UNCLASSIFIED_SITES` is the number a burn-down actually moves, and
+classifying a site lowers it **with no behaviour change at all** — the missing
+thing was the judgement.
 
 Two shapes are matched:
 
@@ -192,24 +244,34 @@ specifier `"node:os"` is itself a string literal that has to stay readable.
 
 ## Running a burn-down slice
 
-1. Run `node scripts/no-os-resolution.mjs` (or read `sites` from
-   `computeBaseline()` directly) to see every current offender, file and
-   line.
-2. Pick a coherent slice — one command family, not a scattering (see
-   `docs/superpowers/plans/2026-08-07-no-resolver-defaults-to-the-os.md`,
-   Task 2).
-3. For each site in the slice, **audit before changing**: did the caller want
-   the node's declared base, or the operator's current directory? Some
-   commands (`release`, `cert`, `scan`) legitimately operate where the
-   operator is standing — those get an **explicit** resolver call, never
-   removed, just no longer a silent default.
-4. Lower `BASELINE_MAX_OFFENDING_SITES` in `scripts/no-os-resolution.mjs` by
-   exactly the number of sites the slice removed. State the before/after in
-   the commit message. **Never raise it** to make a slice pass — a raised
-   ceiling defeats the entire mechanism; the fix belongs in the code, not the
-   guard.
-5. Run `node --test scripts/no-os-resolution.test.mjs` and confirm the
-   printed count matches the new ceiling exactly (delta `0`).
+A slice has TWO halves now, and the first one is where the value is.
+
+**Half one — classify (no behaviour change).**
+
+1. `node scripts/no-os-resolution.mjs --list --unclassified` for the work list.
+2. Pick a coherent slice — one command family, not a scattering.
+3. For each site, answer the question the vocabulary above asks: did the caller
+   want the node's declared base, the project it is standing in, the cwd for a
+   child process, or the OS account's own home? Write the answer as a marker
+   **at the site**, with a reason a later reader can re-check.
+4. Lower `BASELINE_MAX_UNCLASSIFIED_SITES` by exactly the number classified.
+   **Never raise it.**
+
+**Half two — fix what the classification found.**
+
+5. Every site marked `node` is real debt: give it `declaredBase()` (or the
+   package's own declared resolver) instead of the OS. `os-user` sites stay, and
+   their reason must say why the node's base is the WRONG answer there.
+6. Lower `BASELINE_MAX_OFFENDING_SITES` by exactly the number of sites removed,
+   and state the before/after in the commit message.
+7. `node --test scripts/no-os-resolution.test.mjs` — every ceiling at delta `0`.
+
+Classification is not paperwork ahead of the real work: until 2026-08-11 nobody
+could say how big this burn-down was, and the answer for the first 53 sites
+audited was **ten**, not 111. Two of the three commonest defect shapes only
+became visible once the answers were written down — a function named
+`nodeOperationRoot` defaulting to `os.homedir()`, and two files resolving the
+SAME operator-extensions directory by two different rules.
 
 ## Known limitations
 

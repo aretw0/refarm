@@ -197,6 +197,17 @@ export const baseConfig = {
 		 * loads, which is the only point early enough.
 		 */
 		env: { FORCE_COLOR: "0", NO_COLOR: "1" },
+		/**
+		 * HOME CONTAINMENT, for every project that inherits this config — see
+		 * `home-containment.js` for what it does and for the day it was written after the suite
+		 * deleted a key from the operator's live node config (ISS-109). Resolved from THIS
+		 * file's location, never from cwd, for the same reason the aliases are: a package
+		 * running under `--filter` has a different cwd and would otherwise resolve nothing.
+		 *
+		 * A package that adds its OWN `setupFiles` keeps this one — `mergeConfig` concatenates
+		 * arrays — so opting into extra containment never opts out of the shared floor.
+		 */
+		setupFiles: [path.join(path.dirname(fileURLToPath(import.meta.url)), "home-containment.js")],
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "json-summary"],
