@@ -51,8 +51,9 @@ import { fileURLToPath } from "node:url";
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 /**
- * EMPTY, and it is meant to stay empty. Fifteen when this runner shipped on 2026-08-11;
- * all fifteen closed the same day and each already failing before this runner existed. Named
+ * EMPTY, and it is meant to stay empty. Fifteen when this runner shipped on 2026-08-11; all
+ * fifteen closed the same day — the last of them by finishing ADR-087 phase 3 rather than by
+ * silencing it (ISS-114) and each already failing before this runner existed. Named
  * rather than counted, so the list is a work queue and a new failure cannot hide inside a
  * number.
  *
@@ -75,17 +76,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
  * ABOUT the red thing. Prefer that where the failure is a fact about the repo rather than a
  * backlog of edits.
  */
-export const KNOWN_FAILING = {
-	"release:brand:guard":
-		"ADR-087 phase 3 is unfinished, not this test. The guard reports 21 brand literals across " +
-		"10 generic packages (certificate-contract-v1, certificate-local-ca, cli, emoji-sas-v1, " +
-		"farm-client, operation-web-v1, process-contract-v1, process-systemd-user, std, …) — real " +
-		"production strings, each a user-facing message that needs the binary name injected " +
-		"rather than spelled. Inventory and the reason each one is not a one-line rename: ISS-114. " +
-		"NOT put on the guard's own ALLOWLIST, which requires a written reason per file and 'may " +
-		"only shrink' — filling it with 21 unsurveyed entries would spend the mechanism that " +
-		"makes the burn-down self-expiring.",
-};
+export const KNOWN_FAILING = {};
 
 /** PURE. Every package.json script that invokes `node --test`, in declaration order. Reading the
  *  registry rather than globbing the filesystem is what carries the prerequisites — see this

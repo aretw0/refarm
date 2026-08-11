@@ -171,8 +171,15 @@ test("the sidecar advice DECLARES a surface — it never tells anyone to bind 0.
 	assert.match(text, /"sidecar-http": \{ "expose": "tailnet", "gate": "device-token" \}/);
 	assert.match(text, /"loopback" \| "host:<ip>" \| "tailnet"/);
 	assert.match(text, /\.refarm\/config\.json/);
-	// A declaration alone is not reach: the device also needs a credential.
-	assert.match(text, /refarm auth enroll/);
+	// A declaration alone is not reach: the device also needs a credential — named with the
+	// binary the CALLER supplied. This package is generic and never spells one (ADR-087,
+	// ISS-114); the caller passing `binary` is what makes the advice typable.
+	assert.match(
+		sidecarExposureLines({ binary: "my-app" }).join("\n"),
+		/my-app auth enroll/,
+	);
+	// And with no caller binary the advice is vague-and-true rather than specific-and-wrong.
+	assert.match(text, /o CLI do host auth enroll/);
 	assert.match(text, /farm-auth set/);
 });
 

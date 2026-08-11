@@ -72,6 +72,9 @@ export interface SasHttpOptions {
 	readonly limiter: SasRateLimiter;
 	/** Which surface this listener is. Recorded and shown to the operator. */
 	readonly surface: string;
+	/** The operator-facing binary, so `nextStep` names a command that can be typed. Neutral
+	 *  default: a generic package never spells the brand (ADR-087, ISS-114). */
+	readonly binary?: string;
 	readonly now?: () => number;
 	readonly maxPending?: number;
 	readonly ttlMs?: number;
@@ -210,7 +213,7 @@ async function handleStart(options: SasHttpOptions, request: SasHttpRequest, now
 			expiresAt: exchange.expiresAt,
 			pollIntervalMs: SAS_POLL_INTERVAL_MS,
 			nextStep:
-				"Compare the seven emoji with the ones shown by `refarm auth verify` on the node, " +
+				`Compare the seven emoji with the ones shown by \`${options.binary ?? "the host CLI"} auth verify\` on the node, ` +
 				"and confirm there. A mismatch aborts this exchange for good.",
 		},
 	};

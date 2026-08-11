@@ -188,15 +188,22 @@ export function refuseUnguardedNonLoopbackBind(
 	host: string,
 	authPolicyPresent: boolean,
 	surface = "listener",
+	/**
+	 * The operator-facing binary, so the advice names a command the operator can actually type.
+	 * A generic package never spells it (ADR-087, ISS-114), and the neutral default keeps the
+	 * refusal truthful for a caller that supplies nothing: "the host CLI" is vague and correct,
+	 * where a brand would be specific and wrong.
+	 */
+	binary = "the host CLI",
 ): string | null {
 	if (authPolicyPresent || isLoopbackBindHost(host)) return null;
 	return (
 		`refusing to bind ${surface} to non-loopback host ${JSON.stringify(host)} with no auth ` +
 		"policy configured — an unauthenticated listener reachable from other devices is not a " +
 		"default this surface will pick for you. Mint a per-device credential with " +
-		"`refarm auth enroll`, then point this surface at the resulting policy file via " +
+		`\`${binary} auth enroll\`, then point this surface at the resulting policy file via ` +
 		"REFARM_AUTH_POLICY before binding beyond loopback (or pass an explicit loopback host). " +
-		"Note the refarm daemon DERIVES that path from its own `gate` declaration and needs no " +
+		"Note the daemon DERIVES that path from its own `gate` declaration and needs no " +
 		"env var; a TypeScript surface still resolves it from the environment."
 	);
 }

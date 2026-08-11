@@ -107,14 +107,14 @@ function whyCouldNotAsk(report, reason) {
  * ela é DECLARADA, e o que não é declarado fica fechado.
  * Ver docs/superpowers/specs/2026-07-29-declared-surfaces-design.md.
  */
-export function sidecarExposureLines({ expose = "tailnet" } = {}) {
+export function sidecarExposureLines({ expose = "tailnet", binary = "o CLI do host" } = {}) {
 	return [
 		"   Uma superfície não se abre por flag — ela é DECLARADA. No host, em",
 		"   .refarm/config.json:",
 		`     "surfaces": { "sidecar-http": { "expose": "${expose}", "gate": "device-token" } }`,
 		'     (expose: "loopback" | "host:<ip>" | "tailnet" — o não declarado fica fechado)',
 		"   E este dispositivo precisa da credencial dele:",
-		"     refarm auth enroll <rótulo-deste-aparelho>   # no host; o token aparece 1x",
+		`     ${binary} auth enroll <rótulo-deste-aparelho>   # no host; o token aparece 1x`,
 		"     farm-auth set                                # aqui, no aparelho; entrada mascarada",
 	];
 }
@@ -129,20 +129,20 @@ export function classifySidecarProbe(status) {
 }
 
 /** Actionable diagnosis once a host answered but the sidecar refused the probe. */
-export function sidecarProbeFailureLines(probe, base) {
+export function sidecarProbeFailureLines(probe, base, { binary = "o CLI do host" } = {}) {
 	if (probe?.reason === "credential-required") {
 		return [
 			`❌ sidecar alcançável em ${base}, mas a credencial não foi aceita (HTTP 401)`,
 			"   Confirme a credencial persistida (ou o override FARM_TOKEN desta sessão):",
 			"     farm-auth status",
 			"   Se estiver presente, ele é antigo ou não corresponde ao aparelho: gere outro com",
-			"     refarm auth enroll <rótulo-deste-aparelho>   # no host; o token aparece 1x",
+			`     ${binary} auth enroll <rótulo-deste-aparelho>   # no host; o token aparece 1x`,
 		];
 	}
 	if (probe?.reason === "credential-refused") {
 		return [
 			`❌ sidecar alcançável em ${base}, mas esta credencial não autoriza a operação (HTTP 403)`,
-			"   Use uma credencial de aparelho criada por `refarm auth enroll`.",
+			`   Use uma credencial de aparelho criada por \`${binary} auth enroll\`.`,
 		];
 	}
 	if (probe?.reason === "http-error") {

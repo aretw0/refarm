@@ -103,9 +103,9 @@ describe("refuseUnguardedNonLoopbackBind", () => {
 	});
 
 	it("refuses a non-loopback bind with no policy, and names the fix", () => {
-		const refusal = refuseUnguardedNonLoopbackBind("0.0.0.0", false);
+		const refusal = refuseUnguardedNonLoopbackBind("0.0.0.0", false, "listener", "my-app");
 		expect(refusal).not.toBeNull();
-		expect(refusal).toContain("refarm auth enroll");
+		expect(refusal).toContain("my-app auth enroll");
 		expect(refusal).toContain("REFARM_AUTH_POLICY");
 		expect(refusal).toContain("0.0.0.0");
 	});
