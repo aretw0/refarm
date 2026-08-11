@@ -88,6 +88,16 @@ pub(crate) enum BudgetUnknownReason {
     /// sum is `Known` by the same lower-bound arithmetic `resolve_budget_check`
     /// applies to the first read, regardless of truncation.
     RequeryTruncated,
+    /// `MODEL_BUDGET_<PROVIDER>_USD` is set to something that is not a number at all. It used
+    /// to `return false` with no event, which is indistinguishable on the record from a
+    /// provider legitimately under budget (ISS-038).
+    DeclarationUnparseable,
+    /// The declaration parses as an f64 but is not FINITE — `nan` and `inf` both do. `nan` is
+    /// the dangerous one: `NaN <= 0.0` is false so the zero short-circuit misses it, and every
+    /// `>=` against NaN is false so the guard can never trip. It landed in `Known`, so not even
+    /// the unknown event fired. A budget that silently cannot be exceeded is worse than no
+    /// budget, because the operator believes he set one.
+    DeclarationNotFinite,
 }
 
 impl BudgetUnknownReason {
@@ -96,8 +106,50 @@ impl BudgetUnknownReason {
         match self {
             BudgetUnknownReason::QueryError => "query_error",
             BudgetUnknownReason::RequeryTruncated => "requery_truncated",
+            BudgetUnknownReason::DeclarationUnparseable => "declaration_unparseable",
+            BudgetUnknownReason::DeclarationNotFinite => "declaration_not_finite",
         }
     }
+}
+
+/// What `MODEL_BUDGET_<PROVIDER>_USD` says — three states, never two.
+///
+/// `budget_exceeded_for_provider` used to do this with two `let ... else { return false }`
+/// arms, which collapsed "nobody declared a budget" onto "the declaration is nonsense". The
+/// first is the ordinary state of most installations; the second means the operator BELIEVES
+/// he set a ceiling and has not. Reporting them the same way is what let `nan` disable the
+/// guard with nothing at all on the record (ISS-038).
+///
+/// A malformed declaration does NOT block. It reports. That follows the doctrine written above
+/// `budget_exceeded`: an `Unknown` resolves to "do not block" precisely because it is LOUD, and
+/// blocking every call on a typo would be a worse failure for a daily driver than proceeding
+/// with a named event on the record.
+///
+/// Note what is NOT malformed: a zero or negative budget. Both already reach
+/// `Known { spend: 0.0, budget }`, and `0.0 >= budget` holds for both, so they BLOCK — the safe
+/// direction, and arithmetic rather than a special case.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum BudgetDeclaration {
+    /// No env var, or an empty one. No ceiling, which is what most installations have.
+    Absent,
+    /// A finite number. Zero and negative included — see the note above.
+    Declared(f64),
+    /// Set to something that cannot be a ceiling.
+    Malformed(BudgetUnknownReason),
+}
+
+/// PURE. See `BudgetDeclaration` for why each state exists.
+pub(crate) fn parse_budget_declaration(raw: Option<&str>) -> BudgetDeclaration {
+    let Some(text) = raw.map(str::trim).filter(|value| !value.is_empty()) else {
+        return BudgetDeclaration::Absent;
+    };
+    let Ok(value) = text.parse::<f64>() else {
+        return BudgetDeclaration::Malformed(BudgetUnknownReason::DeclarationUnparseable);
+    };
+    if !value.is_finite() {
+        return BudgetDeclaration::Malformed(BudgetUnknownReason::DeclarationNotFinite);
+    }
+    BudgetDeclaration::Declared(value)
 }
 
 /// The outcome of trying to establish a provider's rolling spend against its budget.
@@ -1355,6 +1407,90 @@ mod tests {
         assert_eq!(normalize_declaration(Some("")), None);
         assert_eq!(normalize_declaration(None), None);
         assert_eq!(normalize_declaration(Some("\t\nrcdc5\n")), Some("rcdc5".to_string()));
+    }
+
+
+    // ---- ISS-038: `nan` is a budget that cannot be exceeded, and said nothing.
+
+    /// THE DEFECT, as arithmetic. `nan` parses, so neither `let else` arm caught it; `NaN <= 0.0`
+    /// is false so the zero short-circuit missed it; every `>=` against NaN is false so the guard
+    /// could never trip; and it landed in `Known`, so not even the unknown event fired. A budget
+    /// the operator BELIEVES he set, that silently cannot be exceeded, is worse than no budget.
+    #[test]
+    fn nan_and_inf_are_malformed_declarations_not_budgets() {
+        assert_eq!(
+            parse_budget_declaration(Some("nan")),
+            BudgetDeclaration::Malformed(BudgetUnknownReason::DeclarationNotFinite)
+        );
+        assert_eq!(
+            parse_budget_declaration(Some("NaN")),
+            BudgetDeclaration::Malformed(BudgetUnknownReason::DeclarationNotFinite)
+        );
+        assert_eq!(
+            parse_budget_declaration(Some("inf")),
+            BudgetDeclaration::Malformed(BudgetUnknownReason::DeclarationNotFinite)
+        );
+
+        // And the arithmetic that made it dangerous, pinned so the reasoning above cannot rot:
+        let nan = "nan".parse::<f64>().expect("nan parses as a valid f64");
+        assert!(!(nan <= 0.0), "the zero short-circuit does not catch NaN");
+        assert!(!(1_000_000.0 >= nan), "no spend can ever exceed a NaN budget");
+    }
+
+    #[test]
+    fn a_string_that_is_not_a_number_is_malformed_rather_than_silent() {
+        assert_eq!(
+            parse_budget_declaration(Some("ten dollars")),
+            BudgetDeclaration::Malformed(BudgetUnknownReason::DeclarationUnparseable)
+        );
+    }
+
+    /// The ordinary state of most installations, and it must stay distinct from malformed: an
+    /// absent budget is not a misconfiguration and must not put an event on the record.
+    #[test]
+    fn absent_and_empty_are_no_declaration_at_all() {
+        assert_eq!(parse_budget_declaration(None), BudgetDeclaration::Absent);
+        assert_eq!(parse_budget_declaration(Some("")), BudgetDeclaration::Absent);
+        assert_eq!(parse_budget_declaration(Some("   ")), BudgetDeclaration::Absent);
+    }
+
+    /// NOT malformed. Both already reach `Known { spend: 0.0, budget }` and block, which is the
+    /// safe direction — arithmetic, not a special case, and this pins that it stays so.
+    #[test]
+    fn zero_and_negative_are_declarations_that_block() {
+        assert_eq!(parse_budget_declaration(Some("0")), BudgetDeclaration::Declared(0.0));
+        assert_eq!(parse_budget_declaration(Some("-5")), BudgetDeclaration::Declared(-5.0));
+        for declared in [0.0, -5.0] {
+            let check = resolve_budget_check(
+                "openai",
+                declared,
+                0,
+                1,
+                || panic!("a zero-or-negative ceiling is decided before any query"),
+                |_| panic!("nor any follow-up"),
+            );
+            assert!(budget_exceeded(&check), "a ceiling of {declared} blocks");
+        }
+    }
+
+    #[test]
+    fn an_ordinary_budget_still_parses_including_whitespace_around_it() {
+        assert_eq!(parse_budget_declaration(Some("12.50")), BudgetDeclaration::Declared(12.5));
+        assert_eq!(parse_budget_declaration(Some("  12.50  ")), BudgetDeclaration::Declared(12.5));
+    }
+
+    #[test]
+    fn every_unknown_reason_has_a_distinct_stable_telemetry_string() {
+        let all = [
+            BudgetUnknownReason::QueryError,
+            BudgetUnknownReason::RequeryTruncated,
+            BudgetUnknownReason::DeclarationUnparseable,
+            BudgetUnknownReason::DeclarationNotFinite,
+        ];
+        let mut seen = std::collections::HashSet::new();
+        for reason in all {
+            assert!(seen.insert(reason.as_str()), "{reason:?} shares a string with another");
+        }
     }
 
 }

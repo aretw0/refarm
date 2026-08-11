@@ -3,9 +3,9 @@ use crate::plugin::host::tractor_bridge;
 
 use super::{
     budget_exceeded, history_from_nodes, pick_latest_session_id, pick_latest_session_leaf_id,
-    normalize_declaration, resolve_budget_check, session_entry_node, session_node,
+    normalize_declaration, parse_budget_declaration, resolve_budget_check, session_entry_node, session_node,
     stored_workspace_of,
-    workspace_stamp_action, BudgetCheck, StoredSession, WorkspaceStamp,
+    workspace_stamp_action, BudgetCheck, BudgetDeclaration, StoredSession, WorkspaceStamp,
 };
 
 const SESSION_PREFIX_V1: &str = "urn:sovereign:session:v1:";
@@ -408,11 +408,16 @@ pub(crate) fn record_context_fold(
 /// can genuinely skip the first query, not just ignore an already-fetched result.
 pub(crate) fn budget_exceeded_for_provider(provider_name: &str) -> bool {
     let budget_key = format!("MODEL_BUDGET_{}_USD", provider_name.to_uppercase());
-    let Ok(budget_str) = std::env::var(&budget_key) else {
-        return false;
-    };
-    let Ok(budget) = budget_str.parse::<f64>() else {
-        return false;
+    // THREE states. The two `let ... else { return false }` arms this replaces reported
+    // "nobody declared a budget" and "the declaration is nonsense" identically — and `nan`
+    // reached neither of them, because it parses. See `parse_budget_declaration` (ISS-038).
+    let budget = match parse_budget_declaration(std::env::var(&budget_key).ok().as_deref()) {
+        BudgetDeclaration::Absent => return false,
+        BudgetDeclaration::Malformed(reason) => {
+            crate::agent_events::budget_unknown(provider_name, reason.as_str());
+            return false;
+        }
+        BudgetDeclaration::Declared(value) => value,
     };
 
     const WINDOW_30D_NS: u64 = 30 * 24 * 3600 * 1_000_000_000;

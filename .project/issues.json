@@ -678,11 +678,12 @@
 			"title": "workspace_source never reaches the BudgetObservation, so a cwd seed silently selects budget policy",
 			"body": "Deferred from the workspace-attribution plan, triaged, NOT done. Own ticket each:\n\n(b) workspace_source never reaches the BudgetObservation -- dispatch.rs:516 already folds a budget ceiling by workspace_id with no provenance, so a cwd seed silently selects policy, which is exactly what the design calls breaching H2 in substance.",
 			"location": "packages/tractor/src/sidecar/dispatch.rs:516",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "high",
 			"package": "packages/tractor",
-			"axis": "cost"
+			"axis": "cost",
+			"resolved_by": "bca12ac3"
 		},
 		{
 			"id": "ISS-059",
