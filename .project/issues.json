@@ -708,11 +708,12 @@
 			"title": "The /sessions double fetch when --session is passed",
 			"body": "Deferred from the workspace-attribution plan, triaged, NOT done. Own ticket each:\n\n(e) the /sessions double fetch with --session.",
 			"location": "apps/refarm/src/commands/ask.ts:1",
-			"status": "open",
+			"status": "resolved",
 			"category": "cleanup",
 			"priority": "low",
 			"package": "apps/refarm",
-			"axis": "cost"
+			"axis": "cost",
+			"resolved_by": "4f00ebe9"
 		},
 		{
 			"id": "ISS-062",
