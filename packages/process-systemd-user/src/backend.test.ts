@@ -24,6 +24,7 @@ import { LINGER_DIR, lingerMarkerPath } from "./linger.js";
 import type { CommandResult, CommandRunner } from "./runner.js";
 import { renderSystemdUnit, systemdUnitPath } from "./unit.js";
 
+const BINARY = "refarm";
 const USER = "op";
 
 const DECLARATION: ProcessDeclaration = parseProcessCatalog({
@@ -96,6 +97,8 @@ function backendFor(runner: CommandRunner, existing: Record<string, string> = {}
 	return createSystemdUserBackend({
 		runner,
 		user: USER,
+		// Supplied by the caller, never spelled inside the package (ADR-087 phase 3, ISS-114).
+		binary: BINARY,
 		env: { XDG_CONFIG_HOME: configHome },
 		async readFile(target) {
 			return existing[target] ?? (await readFile(target, "utf8").catch(() => null));

@@ -61,7 +61,7 @@ export async function readLingerState(
  * This is the sentence W3 exists to force into the proposal. It changes with the measured state and
  * never claims more than the state supports.
  */
-export function describeUnitLifetime(state: LingerState, user: string): string {
+export function describeUnitLifetime(state: LingerState, user: string, binary: string): string {
 	switch (state) {
 		case "enabled":
 			return (
@@ -73,11 +73,11 @@ export function describeUnitLifetime(state: LingerState, user: string): string {
 				`Lifetime: this starts when you log in and STOPS WHEN YOU LOG OUT. Lingering is off for ` +
 				`"${user}", so it does not survive a logout and does not come back at boot until you log ` +
 				`in again. Making it survive is a SEPARATE operation you authorise separately: ` +
-				`\`refarm process linger\`.`
+				`\`${binary} process linger\`.`
 			);
 		case "unknown":
 			return (
-				`Lifetime: refarm could not read the lingering state for "${user}", so it does NOT know ` +
+				`Lifetime: ${binary} could not read the lingering state for "${user}", so it does NOT know ` +
 				`whether this survives a logout — and will not guess. \`loginctl show-user ${user} ` +
 				`--property=Linger\` answers it.`
 			);
@@ -90,6 +90,8 @@ export interface LingerRequestInput {
 	purpose?: string;
 	requester: string;
 	requestedAt: string;
+	/** The operator-facing binary name (ADR-087: this package never spells it). */
+	binary: string;
 	/** The measured state, so the request never proposes what is already true. */
 	current: LingerState;
 }
@@ -110,7 +112,7 @@ export function buildLingerRequest(input: LingerRequestInput): OperationRequest 
 		purpose:
 			input.purpose ??
 			`Sem isso, TODA unit \`systemd --user\` deste usuário morre quando você sai da sessão — ` +
-				`inclusive o \`refarm web serve\` de que o celular depende para o cold bootstrap.`,
+				`inclusive o \`${input.binary} web serve\` de que o celular depende para o cold bootstrap.`,
 		requester: input.requester,
 		requestedAt: input.requestedAt,
 		changes: [
@@ -149,7 +151,7 @@ export function buildLingerRequest(input: LingerRequestInput): OperationRequest 
  * Enforced on the REQUEST, before consent runs, so the bundling cannot happen by accident in a
  * later edit — the operator's protection is a test away from being noticed, not a comment.
  */
-export function refuseBundledLinger(request: OperationRequest): void {
+export function refuseBundledLinger(request: OperationRequest, binary: string): void {
 	const touchesLinger = request.changes.some((change) => change.path.startsWith(`${LINGER_DIR}/`));
 	if (request.kind === LINGER_OPERATION_KIND) {
 		const other = request.changes.find((change) => !change.path.startsWith(`${LINGER_DIR}/`));
@@ -168,7 +170,7 @@ export function refuseBundledLinger(request: OperationRequest): void {
 			"bundled-consent",
 			`operation "${request.id}" (kind "${request.kind}") would also enable lingering — a small ` +
 				`yes may not be turned into a large one by bundling`,
-			"Ask for lingering on its own, with `refarm process linger`, so it is decided on its own.",
+			`Ask for lingering on its own, with \`${binary} process linger\`, so it is decided on its own.`,
 		);
 	}
 }

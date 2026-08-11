@@ -21,6 +21,10 @@ import {
 } from "./linger.js";
 import type { CommandResult, CommandRunner } from "./runner.js";
 
+/** The operator-facing binary, supplied by the caller — this package never spells it
+ *  (ADR-087 phase 3, ISS-114). */
+const BINARY = "refarm";
+
 const USER = "op";
 
 function scripted(script: Record<string, CommandResult>): CommandRunner & { calls: string[] } {
@@ -45,6 +49,7 @@ function answering(answer: string): OperationConsentChannel {
 
 const request = (current: "enabled" | "disabled" | "unknown" = "disabled") =>
 	buildLingerRequest({
+		binary: BINARY,
 		user: USER,
 		requester: "refarm process linger",
 		requestedAt: "2026-07-31T12:00:00.000Z",
@@ -106,18 +111,18 @@ describe("reading the lingering state, with 'could not ask' kept apart from 'no'
 
 describe("W3 — the lifetime sentence is the measured one", () => {
 	it("off: names the logout, and names the separate operation", () => {
-		const line = describeUnitLifetime("disabled", USER);
+		const line = describeUnitLifetime("disabled", USER, BINARY);
 		expect(line).toMatch(/STOPS WHEN YOU LOG OUT/);
 		expect(line).toMatch(/does not come back at boot until you log in/);
 		expect(line).toContain("refarm process linger");
 	});
 
 	it("on: claims survival, and only then", () => {
-		expect(describeUnitLifetime("enabled", USER)).toMatch(/KEEPS RUNNING after you log out/);
+		expect(describeUnitLifetime("enabled", USER, BINARY)).toMatch(/KEEPS RUNNING after you log out/);
 	});
 
 	it("unknown: says it does not know, and how to find out", () => {
-		const line = describeUnitLifetime("unknown", USER);
+		const line = describeUnitLifetime("unknown", USER, BINARY);
 		expect(line).toMatch(/does NOT know/);
 		expect(line).toContain("loginctl show-user op --property=Linger");
 	});
@@ -144,7 +149,8 @@ describe("lingering is its own operation, decided on its own", () => {
 
 	it("refuses a linger request that smuggles anything else in", () => {
 		expect(() =>
-			refuseBundledLinger({
+			refuseBundledLinger(
+				{
 				...request(),
 				changes: [
 					...request().changes,
@@ -154,14 +160,15 @@ describe("lingering is its own operation, decided on its own", () => {
 						after: "x",
 					},
 				],
-			}),
+			}, BINARY),
 		).toThrow(/may change nothing but the lingering state/);
 	});
 
 	it("refuses ANY non-linger operation that would also enable lingering", () => {
 		const error = (() => {
 			try {
-				refuseBundledLinger({
+				refuseBundledLinger(
+				{
 					id: "process-unit:systemd-user:web-serve",
 					kind: PROCESS_UNIT_OPERATION_KIND,
 					title: "install",
@@ -173,7 +180,7 @@ describe("lingering is its own operation, decided on its own", () => {
 						{ path: lingerMarkerPath(USER), before: null, after: "" },
 					],
 					undo: { kind: "restore-snapshot", summary: "…" },
-				});
+				}, BINARY);
 				return null;
 			} catch (thrown) {
 				return thrown as SupervisionRefusal;

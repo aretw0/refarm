@@ -227,8 +227,11 @@ function parseOneProcess(name: string, raw: unknown): ProcessDeclaration {
 function parseCommand(name: string, raw: unknown): readonly string[] {
 	if (typeof raw === "string") {
 		throw new ProcessDeclarationError(
+			// The example teaches the SHAPE — array, not shell line — and the binary in it is
+			// incidental, so it does not name one. Threading a `binary` through a pure parser to
+			// print one example would be paying a parameter for nothing (ADR-087, ISS-114).
 			`processes."${name}": "command" must be an ARRAY of arguments, not a shell line — ` +
-				`["refarm", "web", "serve", "."] rather than "refarm web serve ."`,
+				`["my-app", "web", "serve", "."] rather than "my-app web serve ."`,
 		);
 	}
 	if (!Array.isArray(raw) || raw.length === 0) {

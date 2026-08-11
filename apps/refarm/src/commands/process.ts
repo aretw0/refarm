@@ -44,7 +44,7 @@ import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 
-import { refarmCommand } from "../brand.js";
+import { REFARM_BINARY, refarmCommand } from "../brand.js";
 import {
 	ProcessAddRefusal,
 	processRecipeNames,
@@ -163,6 +163,7 @@ export function buildSupervisionBackends(
 		createSystemdUserBackend({
 			runner,
 			user: sessionUser(deps),
+			binary: REFARM_BINARY,
 			env: deps.env ?? process.env,
 			...(deps.unitDir ? { unitDir: deps.unitDir } : {}),
 			async readFile(target) {
@@ -369,7 +370,7 @@ export async function runProcessInstall(
 
 	// The rule at the moment it could be broken. `plan()` already checked; checking again at the
 	// call site costs nothing and means no future backend can slip a bundled grant past this command.
-	refuseBundledLinger(plan.request);
+	refuseBundledLinger(plan.request, REFARM_BINARY);
 
 	const say = deps.say ?? (() => {});
 	const trail = deps.trail ?? createFileOperationTrail(resolveProcessTrailPath(root));
@@ -509,11 +510,12 @@ export async function runProcessLinger(
 
 	const request = buildLingerRequest({
 		user,
+		binary: REFARM_BINARY,
 		requester: PROCESS_LINGER_COMMAND,
 		requestedAt: deps.now?.() ?? new Date().toISOString(),
 		current: state,
 	});
-	refuseBundledLinger(request);
+	refuseBundledLinger(request, REFARM_BINARY);
 
 	const say = deps.say ?? (() => {});
 	const trail = deps.trail ?? createFileOperationTrail(resolveProcessTrailPath(root));

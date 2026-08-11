@@ -50,6 +50,13 @@ export interface SystemdUserBackendOptions {
 	unitDir?: string;
 	/** Reads an existing unit so the consent request can show a real before/after. */
 	readFile: (path: string) => Promise<string | null>;
+	/**
+	 * The operator-facing binary name, threaded in rather than spelled here (ADR-087: a generic
+	 * package never names the brand — a white-label build supplies it). REQUIRED and undefaulted,
+	 * the same shape `buildCapabilities(binary)` uses in `@refarm.dev/cli`: a default would put
+	 * the brand back in this package and read as correct forever.
+	 */
+	binary: string;
 	requester?: string;
 	now?: () => string;
 }
@@ -78,7 +85,7 @@ export function createSystemdUserBackend(
 ): SupervisionBackend<SystemdUnitPlan> {
 	const { runner, user } = options;
 	const env = options.env ?? process.env;
-	const requester = options.requester ?? "refarm process install";
+	const requester = options.requester ?? `${options.binary} process install`;
 
 	async function lingerState(): Promise<{ state: LingerState; detail: string }> {
 		return readLingerState(runner, user);
@@ -121,7 +128,7 @@ export function createSystemdUserBackend(
 		/** W3, answered from the machine rather than from a hopeful sentence. */
 		async describeLifetime(): Promise<string> {
 			const { state } = await lingerState();
-			return describeUnitLifetime(state, user);
+			return describeUnitLifetime(state, user, options.binary);
 		},
 
 		/**
@@ -161,7 +168,7 @@ export function createSystemdUserBackend(
 				return processNotRunning(
 					declaration.name,
 					SYSTEMD_USER_BACKEND_ID,
-					`declared, but no ${unit} is installed — \`refarm process install ${declaration.name}\` writes it`,
+					`declared, but no ${unit} is installed — \`${options.binary} process install ${declaration.name}\` writes it`,
 					false,
 				);
 			}
@@ -186,10 +193,13 @@ export function createSystemdUserBackend(
 		async plan(declaration: ProcessDeclaration): Promise<SystemdUnitPlan> {
 			const unitName = systemdUnitName(declaration.name);
 			const unitPath = systemdUnitPath(declaration.name, env, options.unitDir);
-			const unitText = renderSystemdUnit(declaration);
+			const unitText = renderSystemdUnit(declaration, {
+				generator: options.binary,
+				rewriteCommand: `${options.binary} process install ${declaration.name}`,
+			});
 			const existingUnit = await options.readFile(unitPath);
 			const { state, detail } = await lingerState();
-			const lifetime = describeUnitLifetime(state, user);
+			const lifetime = describeUnitLifetime(state, user, options.binary);
 			const unitChanged = existingUnit !== null && existingUnit !== unitText;
 			const activationCommands = unitChanged
 				? [
@@ -242,7 +252,7 @@ export function createSystemdUserBackend(
 			// The rule, at the moment it could be broken: a unit installation carries the unit and
 			// nothing else. Checked here rather than only at the call site, so the request that leaves
 			// this function is already known not to bundle.
-			refuseBundledLinger(request);
+			refuseBundledLinger(request, options.binary);
 
 			return {
 				unitName,
