@@ -249,6 +249,98 @@ function lineTextAt(text, index) {
  * or bare call on a name this file's own `"node:os"` import binds (a re-exported alias from
  * a THIRD module, for instance).
  */
+/**
+ * THE VOCABULARY — which question a site answers, which is what decides whether reading the OS
+ * is a defect. The shape (`?? process.cwd()`) is identical in all four cases; only the question
+ * differs, and only the author knows it.
+ *
+ * These are the SAME words `scripts/directory-independence.mjs` judges by (`scope: "node" |
+ * "project"`), on purpose: the consequence probe already knows that a project-scoped command
+ * SHOULD answer differently from a different directory — it convicts one that does not. Two
+ * instruments measuring the same property in two vocabularies is how this ratchet ended up
+ * counting a site that carries five lines of written argument for why it is right (see
+ * `doctor.ts`'s `operatorBase`) beside a site that is simply wrong.
+ *
+ * `verdict` is the whole point: only `node` is debt. The other three are ANSWERS, and an
+ * answered site is not a smaller problem — it is not a problem.
+ */
+export const SITE_PURPOSES = {
+	/** "Which project/repo am I in?" The operator's directory IS the question being asked. */
+	project: { verdict: "legitimate" },
+	/** "What cwd do I hand this child process, or resolve this operator-typed path against?" */
+	process: { verdict: "legitimate" },
+	/** "Where is the OS ACCOUNT's own home?" (`~/.ssh`, the config-tier co-habitation in
+	 *  `composition-resolver.ts`). Legitimate but rare, and the reason must say why the node's
+	 *  declared base is the WRONG answer here — otherwise this is `node` wearing a disguise. */
+	"os-user": { verdict: "legitimate" },
+	/** "Where does THIS NODE's state live?" The defect. Must resolve from `declaredBase()`. */
+	node: { verdict: "defect" },
+};
+
+/** `// os-resolution: <purpose> — <reason>`. The separator is optional and may be any dash. */
+const PURPOSE_MARKER_RE = /os-resolution:\s*([a-z][a-z-]*)\s*(?:[—–-]+\s*)?(.*)$/;
+
+/**
+ * PURE. Reads ONE line of raw source and returns what it declares, in three states — never two.
+ * A line with no marker is `null` ("nobody has judged this site"), which is categorically
+ * different from `{ state: "invalid" }` ("somebody tried and it does not parse"): collapsing
+ * them would let a typo'd purpose token read as unclassified debt and quietly rejoin the pile
+ * it was meant to leave.
+ *
+ * A reason of fewer than three words is REJECTED rather than accepted-with-a-shrug. The failure
+ * mode this whole mechanism exists to avoid is a judgement that cannot be re-checked by the next
+ * reader, and `// os-resolution: project — ok` is that failure mode with extra steps.
+ */
+export function parsePurposeMarker(line) {
+	const match = PURPOSE_MARKER_RE.exec(line);
+	if (!match) return null;
+	const [, token, rest] = match;
+	const reason = rest
+		.replace(/\*\/\s*$/, "")
+		.trim()
+		.replace(/\s+/g, " ");
+	if (!Object.hasOwn(SITE_PURPOSES, token)) {
+		return { state: "invalid", problem: "unknown-purpose", token, reason };
+	}
+	if (reason.split(" ").filter(Boolean).length < 3) {
+		return { state: "invalid", problem: "no-reason", token, reason };
+	}
+	return { state: "declared", purpose: token, reason };
+}
+
+/** A line that is inside or is a comment — used to walk the contiguous block above a site. */
+function isCommentLine(line) {
+	const trimmed = line.trim();
+	return (
+		trimmed.startsWith("//") ||
+		trimmed.startsWith("*") ||
+		trimmed.startsWith("/*") ||
+		trimmed.endsWith("*/")
+	);
+}
+
+/**
+ * PURE. The marker for the site on `lineNumber` (1-based): trailing on the site's own line, or
+ * anywhere in the CONTIGUOUS comment block directly above it. The block is walked rather than a
+ * fixed one-line lookback because the reasons that already exist in this repo are written inside
+ * JSDoc blocks several lines long (`doctor.ts:396-401`), and forcing them to be restated on the
+ * line above would duplicate the prose it is the point of this marker to make machine-readable.
+ *
+ * Walks at most `MAX_BLOCK` lines so a file-header comment cannot silently classify the first
+ * site in the file.
+ */
+export function purposeForSite(lines, lineNumber) {
+	const MAX_BLOCK = 14;
+	const own = parsePurposeMarker(lines[lineNumber - 1] ?? "");
+	if (own) return own;
+	for (let i = lineNumber - 2, walked = 0; i >= 0 && walked < MAX_BLOCK; i -= 1, walked += 1) {
+		if (!isCommentLine(lines[i])) break;
+		const found = parsePurposeMarker(lines[i]);
+		if (found) return found;
+	}
+	return null;
+}
+
 export function scanFileForOsResolution(filePath, content) {
 	const commentsOnly = maskComments(content);
 	const bindings = findOsModuleBindings(commentsOnly);
@@ -280,6 +372,18 @@ export function scanFileForOsResolution(filePath, content) {
 			resolver,
 			snippet: lineTextAt(content, match.index),
 		});
+	}
+
+	// Purpose is read from the ORIGINAL content, not the masked copy: masking is what erases
+	// comments, and the declaration lives in one. Every site carries a `purpose` key — `null`
+	// for "not yet judged" — so no consumer has to distinguish an absent key from an absent
+	// judgement.
+	const rawLines = content.split("\n");
+	for (const site of sites) {
+		const declared = purposeForSite(rawLines, site.line);
+		site.purpose = declared?.state === "declared" ? declared.purpose : null;
+		site.purposeReason = declared?.state === "declared" ? declared.reason : null;
+		site.purposeInvalid = declared?.state === "invalid" ? declared : null;
 	}
 
 	sites.sort((a, b) => a.line - b.line || a.kind.localeCompare(b.kind));
@@ -362,12 +466,45 @@ export function collectScanFiles({ repoRoot = REPO_ROOT } = {}) {
  * `no-os-resolution.test.mjs`'s ratchet assertion calls, and what this file's own CLI entry
  * point below prints.
  */
+/**
+ * PURE. Folds sites into the counters the ratchet actually gates on. Split out from
+ * `computeBaseline` so the arithmetic is assertable against literal site records, without a
+ * filesystem walk — the same shape `summarise` has in `scripts/directory-independence.mjs`.
+ *
+ * `unclassified` and `invalid` are counted apart. Both are "no usable judgement here", but one
+ * is nobody having looked and the other is somebody having looked and mistyped, and a burn-down
+ * that reports them as one number cannot tell an untouched pile from a broken declaration.
+ */
+export function summariseByPurpose(sites) {
+	const byPurpose = Object.fromEntries(Object.keys(SITE_PURPOSES).map((name) => [name, 0]));
+	let unclassified = 0;
+	let invalid = 0;
+	for (const site of sites) {
+		if (site.purposeInvalid) invalid += 1;
+		else if (site.purpose) byPurpose[site.purpose] += 1;
+		else unclassified += 1;
+	}
+	const defect = Object.entries(byPurpose)
+		.filter(([name]) => SITE_PURPOSES[name].verdict === "defect")
+		.reduce((total, [, count]) => total + count, 0);
+	const legitimate = Object.entries(byPurpose)
+		.filter(([name]) => SITE_PURPOSES[name].verdict === "legitimate")
+		.reduce((total, [, count]) => total + count, 0);
+	return { byPurpose, unclassified, invalid, defect, legitimate, total: sites.length };
+}
+
 export function computeBaseline({ repoRoot = REPO_ROOT } = {}) {
 	const files = collectScanFiles({ repoRoot });
 	const sites = scanForOsResolution(files);
 	const byKind = { default: 0, fallback: 0 };
 	for (const site of sites) byKind[site.kind] = (byKind[site.kind] ?? 0) + 1;
-	return { sites, count: sites.length, filesScanned: files.length, byKind };
+	return {
+		sites,
+		count: sites.length,
+		filesScanned: files.length,
+		byKind,
+		purposes: summariseByPurpose(sites),
+	};
 }
 
 /**
@@ -383,17 +520,81 @@ export function computeBaseline({ repoRoot = REPO_ROOT } = {}) {
  */
 export const BASELINE_MAX_OFFENDING_SITES = 111;
 
-function printReport() {
-	const { count, byKind, filesScanned } = computeBaseline();
+/**
+ * THE BURN-DOWN CEILING — sites nobody has judged yet. This is the number a burn-down actually
+ * moves, and the reason the one above never moved on purpose: `BASELINE_MAX_OFFENDING_SITES`
+ * counts shape, which mixes real debt with sites that are correct and say so, so lowering it
+ * required removing code rather than answering a question. Classifying a site lowers THIS one
+ * with no behaviour change at all, because the missing thing was the judgement.
+ *
+ * Falls to 0. It cannot be lowered by accident: a new unjudged site raises it immediately.
+ */
+export const BASELINE_MAX_UNCLASSIFIED_SITES = 111;
+
+/**
+ * A marker that does not parse — an unknown purpose token, or a purpose with no re-checkable
+ * reason. Always 0: unlike the two counts above, this is never legacy debt. It can only be
+ * introduced by an edit made after this mechanism existed, so it is always fixable now, by the
+ * person who just typed it.
+ */
+export const BASELINE_MAX_INVALID_MARKERS = 0;
+
+function formatReport(baseline) {
+	const { count, byKind, filesScanned, purposes } = baseline;
 	const delta = count - BASELINE_MAX_OFFENDING_SITES;
-	process.stdout.write(
-		`no-os-resolution: ${count} offending site(s) across ${filesScanned} scanned file(s) ` +
-			`(default=${byKind.default}, fallback=${byKind.fallback})\n` +
-			`  ceiling: ${BASELINE_MAX_OFFENDING_SITES}\n` +
-			`  delta:   ${delta > 0 ? "+" : ""}${delta}${delta < 0 ? " (burn-down — lower BASELINE_MAX_OFFENDING_SITES to match)" : ""}\n`,
+	const unclassifiedDelta = purposes.unclassified - BASELINE_MAX_UNCLASSIFIED_SITES;
+	const signed = (n) => `${n > 0 ? "+" : ""}${n}`;
+	const declared = Object.entries(purposes.byPurpose)
+		.filter(([, n]) => n > 0)
+		.map(([name, n]) => `${name}=${n}`)
+		.join(", ");
+	return (
+		`no-os-resolution: ${count} site(s) across ${filesScanned} scanned file(s) ` +
+		`(default=${byKind.default}, fallback=${byKind.fallback})\n` +
+		`  total:        ${count} / ceiling ${BASELINE_MAX_OFFENDING_SITES} · delta ${signed(delta)}\n` +
+		`  unclassified: ${purposes.unclassified} / ceiling ${BASELINE_MAX_UNCLASSIFIED_SITES} · delta ${signed(unclassifiedDelta)}` +
+		`${unclassifiedDelta < 0 ? " (burn-down — lower BASELINE_MAX_UNCLASSIFIED_SITES to match)" : ""}\n` +
+		`  invalid:      ${purposes.invalid} / ceiling ${BASELINE_MAX_INVALID_MARKERS}\n` +
+		`  declared:     ${purposes.defect} defect, ${purposes.legitimate} legitimate` +
+		`${declared ? ` (${declared})` : ""}\n`
 	);
 }
 
+/** True when every ceiling holds. Separated from printing so the exit code has one owner. */
+function ceilingsHold(purposes, count) {
+	return (
+		count <= BASELINE_MAX_OFFENDING_SITES &&
+		purposes.unclassified <= BASELINE_MAX_UNCLASSIFIED_SITES &&
+		purposes.invalid <= BASELINE_MAX_INVALID_MARKERS
+	);
+}
+
+function main() {
+	const baseline = computeBaseline();
+	// `--json` exists because a burn-down cannot start from a number. Before this, the ONLY way
+	// to see WHICH sites were counted was to import the module and call the pure function by
+	// hand, so every slice re-derived the list — and `docs/NO_OS_RESOLUTION.md`'s own burn-down
+	// instructions said "read `sites` from `computeBaseline()` directly", which is a document
+	// telling its reader to write a script.
+	if (process.argv.includes("--json")) {
+		process.stdout.write(`${JSON.stringify(baseline, null, 2)}\n`);
+	} else if (process.argv.includes("--list")) {
+		const only = process.argv.includes("--unclassified");
+		for (const site of baseline.sites) {
+			if (only && (site.purpose || site.purposeInvalid)) continue;
+			const mark = site.purposeInvalid
+				? `!${site.purposeInvalid.problem}`
+				: (site.purpose ?? "unclassified");
+			process.stdout.write(
+				`${site.file}:${site.line}\t${mark}\t${site.resolver}\t${site.snippet.trim()}\n`,
+			);
+		}
+	} else {
+		process.stdout.write(formatReport(baseline));
+	}
+	if (!ceilingsHold(baseline.purposes, baseline.count)) process.exitCode = 1;
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
-	printReport();
+	main();
 }

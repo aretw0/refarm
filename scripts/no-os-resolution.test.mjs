@@ -3,9 +3,13 @@ import { test } from "node:test";
 
 import {
 	ALLOWLISTED_RESOLVER_MODULES,
+	BASELINE_MAX_INVALID_MARKERS,
 	BASELINE_MAX_OFFENDING_SITES,
+	BASELINE_MAX_UNCLASSIFIED_SITES,
 	computeBaseline,
+	parsePurposeMarker,
 	scanForOsResolution,
+	summariseByPurpose,
 } from "./no-os-resolution.mjs";
 
 /** Small helper so fixtures read as `{ path, content }` without repeating the shape. */
@@ -211,5 +215,115 @@ test("the ratchet: offending sites must never RISE above the recorded ceiling", 
 		`no-os-resolution: ${count} offending site(s) found, ceiling is ${BASELINE_MAX_OFFENDING_SITES} ` +
 			`(+${delta}). A NEW resolver defaulted to the OS somewhere outside the two allowlisted ` +
 			"modules. Fix the new site instead of raising the ceiling — see docs/NO_OS_RESOLUTION.md.",
+	);
+});
+
+// ---- The vocabulary: which QUESTION the site answers, which is what decides whether reading
+// the OS is a defect at all. See docs/superpowers/specs/2026-08-10-one-vocabulary-for-both-
+// instruments-design.md for why a shape-only ratchet could never start its own burn-down.
+
+test("a marker on the site's own line classifies it", () => {
+	const sites = scanForOsResolution([
+		file(
+			"packages/example/src/where.ts",
+			"const root = deps.root ?? process.cwd(); // os-resolution: project — the repo the operator stands in\n",
+		),
+	]);
+	assert.equal(sites.length, 1);
+	assert.equal(sites[0].purpose, "project");
+	assert.equal(sites[0].purposeReason, "the repo the operator stands in");
+});
+
+// The reasons that already exist in this repo are written inside JSDoc blocks several lines
+// long (doctor.ts:396-401 argues for five lines that its bare `process.cwd()` is correct).
+// Requiring the marker on the immediately preceding line would force that prose to be restated.
+test("a marker anywhere in the contiguous comment block above classifies the site", () => {
+	const sites = scanForOsResolution([
+		file(
+			"packages/example/src/where.ts",
+			"/**\n * This value must stay the operator's literal standing directory.\n" +
+				" * os-resolution: process — the cwd handed to the spawned child\n */\n" +
+				"const cwd = options.cwd ?? process.cwd();\n",
+		),
+	]);
+	assert.equal(sites[0].purpose, "process");
+	assert.equal(sites[0].line, 5);
+});
+
+test("a blank line breaks the block, so a file header cannot classify the first site", () => {
+	const sites = scanForOsResolution([
+		file(
+			"packages/example/src/where.ts",
+			"// os-resolution: project — a header comment about the whole file\n\n" +
+				"const root = deps.root ?? process.cwd();\n",
+		),
+	]);
+	assert.equal(sites[0].purpose, null);
+});
+
+// Three states, never two: "nobody judged this" and "somebody judged it and mistyped" are
+// different facts, and a typo'd token must never read as untouched debt.
+test("an unknown purpose token is invalid, NOT unclassified", () => {
+	const marker = parsePurposeMarker("// os-resolution: projekt — a typo in the token");
+	assert.equal(marker.state, "invalid");
+	assert.equal(marker.problem, "unknown-purpose");
+	assert.equal(marker.token, "projekt");
+});
+
+test("a purpose with a reason too short to re-check is rejected", () => {
+	assert.equal(parsePurposeMarker("// os-resolution: project — ok").problem, "no-reason");
+	assert.equal(parsePurposeMarker("// os-resolution: project").problem, "no-reason");
+});
+
+test("no marker at all is null — the absence of a judgement, not a judgement", () => {
+	assert.equal(parsePurposeMarker("const root = deps.root ?? process.cwd();"), null);
+});
+
+test("summariseByPurpose separates defect from legitimate, and unclassified from invalid", () => {
+	const summary = summariseByPurpose([
+		{ purpose: "node", purposeInvalid: null },
+		{ purpose: "project", purposeInvalid: null },
+		{ purpose: "os-user", purposeInvalid: null },
+		{ purpose: null, purposeInvalid: null },
+		{ purpose: null, purposeInvalid: { problem: "unknown-purpose" } },
+	]);
+	assert.equal(summary.defect, 1);
+	assert.equal(summary.legitimate, 2);
+	assert.equal(summary.unclassified, 1);
+	assert.equal(summary.invalid, 1);
+	assert.equal(summary.total, 5);
+});
+
+// THE BURN-DOWN RATCHET. Distinct from the shape ceiling above: this is the number a
+// classification slice moves, and it moves with no behaviour change, because the missing thing
+// was always the judgement. Falls to 0.
+test("the burn-down: unclassified sites must never RISE above the recorded ceiling", () => {
+	const { purposes } = computeBaseline();
+	const delta = purposes.unclassified - BASELINE_MAX_UNCLASSIFIED_SITES;
+	console.log(
+		`  unclassified: ${purposes.unclassified} / ceiling ${BASELINE_MAX_UNCLASSIFIED_SITES} ` +
+			`· delta ${delta > 0 ? "+" : ""}${delta}`,
+	);
+	console.log(`  declared:     ${purposes.defect} defect, ${purposes.legitimate} legitimate`);
+	assert.ok(
+		purposes.unclassified <= BASELINE_MAX_UNCLASSIFIED_SITES,
+		`no-os-resolution: ${purposes.unclassified} unjudged site(s), ceiling is ` +
+			`${BASELINE_MAX_UNCLASSIFIED_SITES}. A new site resolved against the OS without saying ` +
+			"WHICH question it answers. Add `// os-resolution: <purpose> — <reason>` (see " +
+			"SITE_PURPOSES) rather than raising the ceiling.",
+	);
+});
+
+// Always 0, and unlike the two ceilings above this one is not legacy debt: an invalid marker
+// can only be introduced by an edit made after this mechanism existed.
+test("a marker that does not parse is always a failure, never a tolerated backlog", () => {
+	const { sites, purposes } = computeBaseline();
+	const broken = sites.filter((site) => site.purposeInvalid);
+	assert.equal(
+		purposes.invalid,
+		BASELINE_MAX_INVALID_MARKERS,
+		`unparseable os-resolution marker(s): ${broken
+			.map((s) => `${s.file}:${s.line} (${s.purposeInvalid.problem})`)
+			.join(", ")}`,
 	);
 });
