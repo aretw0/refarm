@@ -2356,6 +2356,9 @@ importers:
       '@refarm.dev/root':
         specifier: workspace:*
         version: link:../root
+      '@refarm.dev/storage-contract-v1':
+        specifier: workspace:*
+        version: link:../storage-contract-v1
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*

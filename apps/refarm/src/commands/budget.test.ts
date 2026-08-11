@@ -1,3 +1,4 @@
+import { readCompleteness } from "@refarm.dev/sidecar-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	budgetObservationsPageFromBody,
@@ -579,6 +580,32 @@ describe("printObservationsHuman — truncation notice", () => {
 		// record is definitely truncated" (the --limit warning) — an unstated fact must not
 		// be dressed up as either resolved state.
 		expect(text.toLowerCase()).not.toContain("raise --limit");
+	});
+});
+
+describe("readCompleteness governs the budget page — one vocabulary, not four", () => {
+	// The point of importing it here is that this is the SAME function
+	// `@refarm.dev/storage-contract-v1` hands to fifteen storage adapters, reached through the
+	// client this command already depends on. Four sites in budget.ts used to each decide what an
+	// absent `truncated` means; a test that only checked the printed text would keep passing if one
+	// of them quietly started defaulting it to `false`.
+	it("accepts a BudgetObservationsPage structurally — no throwaway `nodes` to satisfy a type", () => {
+		const page = budgetObservationsPageFromBody({ nodes: [{ a: 1 }], stored: 42, truncated: true });
+		expect(readCompleteness(page)).toBe("partial");
+	});
+
+	it("reports the sidecar's silence as unknown, which is what the JSON `completeness` carries", () => {
+		const page = budgetObservationsPageFromBody({ nodes: [{ a: 1 }] });
+		expect(page.truncated).toBeUndefined();
+		expect(readCompleteness(page)).toBe("unknown");
+	});
+
+	it("separates an empty record from an unreadable one — the distinction the sums depend on", () => {
+		// Both pages summarise to `total: 0`. Only one of them means "there are no observations".
+		expect(readCompleteness(budgetObservationsPageFromBody({ nodes: [], truncated: false }))).toBe(
+			"complete",
+		);
+		expect(readCompleteness(budgetObservationsPageFromBody({ nodes: [] }))).toBe("unknown");
 	});
 });
 

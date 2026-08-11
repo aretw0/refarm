@@ -148,14 +148,31 @@ not leave it silent.**
 
 ## Order of work, and what each step costs
 
-| # | Step | Surface | Protected? |
-| --- | --- | --- | --- |
-| 1 | Close ISS-047 by re-measurement | ledger only | no |
-| 2 | `QueryNodesPage`, `readCompleteness`, optional method + conformance | `packages/storage-contract-v1` | no |
-| 3 | Adopt in `sidecar-client` (it already has the shape) | `packages/sidecar-client` | no |
-| 4 | `budget.ts` reads completeness — closes the visible half of ISS-039 | `apps/refarm` | no |
-| 5 | `GET /tasks`, four changes | `packages/tractor` | **§8** |
-| 6 | `offset` on `GET /nodes` | `packages/tractor` | **§8** |
+| # | Step | Surface | Protected? | State |
+| --- | --- | --- | --- | --- |
+| 1 | Close ISS-047 by re-measurement | ledger only | no | **done** 2026-08-11 |
+| 2 | `QueryNodesPage`, `readCompleteness`, optional method + conformance | `packages/storage-contract-v1` | no | **done** 2026-08-11 |
+| 3 | Adopt in `sidecar-client` (it already has the shape) | `packages/sidecar-client` | no | **done** 2026-08-11 |
+| 4 | `budget.ts` reads completeness — closes the visible half of ISS-039 | `apps/refarm` | no | **done** 2026-08-11 |
+| 5 | `GET /tasks`, four changes | `packages/tractor` | **§8** | waiting on the nod |
+| 6 | `offset` on `GET /nodes` | `packages/tractor` | **§8** | waiting on the nod |
+
+### What steps 2–4 actually cost, measured
+
+Three packages, `after-edit` green, and **two things the design did not predict**:
+
+- **`readCompleteness` takes `Pick<QueryNodesPage, "truncated">`, not the whole page.** The
+  judgement only ever reads one field, and `apps/refarm`'s `BudgetObservationsPage` calls its rows
+  `observations`. A parameter typed as the full page would have forced those callers to build a
+  throwaway object with a fake `nodes` — manufacturing data to satisfy a type, in the one file
+  whose entire subject is not manufacturing data.
+- **`QueryGraphNodesOptions` became a `type` alias, not an empty `extends`.** The linter caught it
+  and was making this spec's own argument back at it: an interface that adds nothing is a second
+  declaration pretending to be a first.
+
+The conformance ships with a third verdict, `unsupported`, for an adapter that does not implement
+`queryNodesPage`. Reporting that as `pass` would have been this family's exact defect, rebuilt
+inside the instrument that exists to find it.
 
 Steps 1–4 are reachable without a protected surface and close ISS-047 and ISS-040
 and move ISS-039. Steps 5–6 need the maintainer's nod, the same one

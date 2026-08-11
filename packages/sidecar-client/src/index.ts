@@ -1,6 +1,12 @@
 import type { NormalisedNode } from "@refarm.dev/node-contract-v1";
 import type { PressureSnapshot, PressureWindow } from "@refarm.dev/pressure-contract-v1";
 import { fetchWithTimeout, resolveRequestTimeoutMs } from "@refarm.dev/root";
+import {
+	type QueryNodesOptions,
+	type QueryNodesPage,
+	type ReadCompleteness,
+	readCompleteness,
+} from "@refarm.dev/storage-contract-v1";
 
 const SIDECAR_REQUEST_TIMEOUT_ENV_VAR = "REFARM_SIDE_REQUEST_TIMEOUT_MS";
 const DEFAULT_SIDE_REQUEST_TIMEOUT_MS = 500;
@@ -17,9 +23,10 @@ export interface PressureClient {
 	getWindow(minutes: number): Promise<PressureWindow | null>;
 }
 
-export interface QueryGraphNodesOptions {
-	limit?: number;
-}
+/** The contract's options, under this client's historical name. An ALIAS rather than an empty
+ *  `extends`: an interface that adds nothing is a second declaration pretending to be a first,
+ *  which is the drift this whole change removes. Kept as a name because callers import it. */
+export type QueryGraphNodesOptions = QueryNodesOptions;
 
 /**
  * `GET /nodes?type=…`'s page-level facts, alongside the rows themselves —
@@ -34,8 +41,14 @@ export interface QueryGraphNodesOptions {
  * exactly the silent-false-clean shape `apps/refarm/src/commands/budget.ts`
  * briefly reintroduced one layer up and was fixed for. Absent means absent;
  * it must propagate as `undefined`, never rounded to a boolean or a count.
+ *
+ * IT EXTENDS `QueryNodesPage` (`@refarm.dev/storage-contract-v1`) rather than restating it. The
+ * rule was written here first and lived here alone; the same shape now sits on the contract that
+ * fifteen storage adapters implement, and TWO DECLARATIONS THAT AGREE TODAY ARE TWO DECLARATIONS
+ * THAT CAN DRIFT TOMORROW. Extending turns that drift into a compile error instead of a
+ * discovery. `nodes` narrows to `SidecarGraphNode[]` — the sidecar knows what its own rows are.
  */
-export interface QueryGraphNodesResult {
+export interface QueryGraphNodesResult extends QueryNodesPage {
 	nodes: SidecarGraphNode[];
 	/** How many nodes of this `@type` exist right now — the true count, not this
 	 *  page's size. `undefined` when the sidecar did not say (see the interface
@@ -277,3 +290,11 @@ export async function fetchSidecarJson<T = unknown>(
 	}
 	return (await response.json()) as T;
 }
+
+/**
+ * Re-exported so a caller of this HTTP client reads a page with the SAME vocabulary a caller of a
+ * storage adapter does. The judgement is ONE function, in `@refarm.dev/storage-contract-v1`;
+ * nineteen consumer files were each inventing their own, which is how "there are none" and
+ * "nobody could tell" got collapsed into one answer in the first place (ISS-040).
+ */
+export { readCompleteness, type ReadCompleteness, type QueryNodesPage };

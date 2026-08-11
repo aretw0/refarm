@@ -2,7 +2,7 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
-import { fetchSidecarJson } from "@refarm.dev/sidecar-client";
+import { fetchSidecarJson, readCompleteness } from "@refarm.dev/sidecar-client";
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
 import { refarmCommand } from "../brand.js";
@@ -667,7 +667,11 @@ function printPageCompletenessNotice(
 	page: Pick<BudgetObservationsPage, "stored" | "truncated">,
 	commandLabel: string,
 ): void {
-	if (page.truncated === true) {
+	// The branch reads the SHARED judgement rather than the raw field: `readCompleteness` is the
+	// one function `@refarm.dev/storage-contract-v1` exports for this, and four sites in this file
+	// were each re-deciding what an absent `truncated` means (ISS-040).
+	const completeness = readCompleteness(page);
+	if (completeness === "partial") {
 		// `shownCount` (the caller's own header line) and `page.stored` (here) are
 		// deliberately printed side by side with different words, not both called
 		// "total" — see `BudgetObservationsPage`'s doc for why that collision must
@@ -693,7 +697,7 @@ function printPageCompletenessNotice(
 					`through \`${commandLabel}\` today.\n`,
 			),
 		);
-	} else if (page.truncated === undefined) {
+	} else if (completeness === "unknown") {
 		// This is a gap in what the node could report, not a finding about the record — it
 		// may be all of them or it may not, and this cannot tell you which. Same phrasing
 		// discipline as `runtime-freshness-doctor.ts`'s `unknown` state: reported plainly,
@@ -1265,6 +1269,11 @@ export function createBudgetCommand(): Command {
 							// the wire too, never an invented `false`/count.
 							stored,
 							truncated,
+							// The VERDICT, beside the sums it qualifies. `summary` totals a page that
+							// may have been cut, and a consumer reading `summary.total` to decide
+							// "under budget" needs to know which of the three states produced it —
+							// ISS-039's visible half. Derived, never stored: one function decides.
+							completeness: readCompleteness({ truncated }),
 						},
 						nextAction,
 					}),
@@ -1331,6 +1340,7 @@ export function createBudgetCommand(): Command {
 								// absent, never defaulted (`BudgetObservationsPage`'s doc).
 								stored: page.stored,
 								truncated: page.truncated,
+								completeness: readCompleteness(page),
 							},
 							nextAction,
 							// Read-only drill-down into the individual records this group
@@ -1411,6 +1421,7 @@ export function createBudgetCommand(): Command {
 							cannotAnswer: USAGE_CANNOT_ANSWER,
 							stored: page.stored,
 							truncated: page.truncated,
+							completeness: readCompleteness(page),
 						},
 						nextAction,
 						// Read-only drill-down, offered whenever there is a gap the summary itself
