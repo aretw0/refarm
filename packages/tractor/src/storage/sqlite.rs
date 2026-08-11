@@ -67,6 +67,105 @@ pub struct NativeStorage {
     conn: Arc<Mutex<Connection>>,
 }
 
+/// What a page of nodes is being asked for.
+///
+/// Every field here describes work SQLite does. The reason that matters is `GET /tasks`: it
+/// filtered, re-sorted and truncated in Rust, over every row of the type, and each of those
+/// three passes was a place where the answer could stop agreeing with the count beside it.
+#[derive(Debug, Clone)]
+pub struct NodePageSpec<'a> {
+    pub type_: &'a str,
+    /// `(top-level field of the JSON payload, required value)`, ANDed. Field names are code
+    /// constants at every call site today; [`Self::sql_fragments`] rejects anything outside
+    /// `[A-Za-z0-9_]` anyway, because a name cannot be a bound parameter and the day someone
+    /// threads a query string into one is the day that stops being a formality.
+    pub json_filters: &'a [(&'a str, &'a str)],
+    /// A top-level payload field to order by, DESC, AHEAD of the store's own order.
+    ///
+    /// `GET /tasks` needs `created_at_ns` — and needs it HERE rather than as a re-sort of the
+    /// page, because a limit taken in one order and presented in another is neither order. It
+    /// answers "the newest N by updated_at, shuffled by created_at", which is not a question
+    /// anybody asked.
+    pub order_by_json_field: Option<&'a str>,
+    /// `None` means no ceiling. A ceiling belongs to the caller who can justify one.
+    pub limit: Option<usize>,
+    pub offset: usize,
+}
+
+impl<'a> NodePageSpec<'a> {
+    /// The unfiltered, unordered-beyond-the-store, uncapped page — what `query_nodes` has
+    /// always meant.
+    pub fn of(type_: &'a str) -> Self {
+        Self {
+            type_,
+            json_filters: &[],
+            order_by_json_field: None,
+            limit: None,
+            offset: 0,
+        }
+    }
+
+    /// PURE. `(where_suffix, order_by)`, with placeholders numbered to match the bind order
+    /// both callers use: type, then limit+offset when present, then one per filter.
+    ///
+    /// THE `json_valid` GUARD appears only when this spec actually reads the payload as JSON.
+    /// `json_extract` on malformed text raises, which would turn one bad row into a 500 for
+    /// the whole endpoint; the Rust code being replaced dropped such rows silently via
+    /// `from_str(..).ok()`, so the guard reproduces the behaviour the endpoint already had
+    /// rather than inventing a new one. `GET /nodes` touches no JSON and is left exactly as
+    /// it was — its malformed-row handling is a separate question nobody has asked yet.
+    ///
+    /// ORDERING COUNTS AS READING. A spec that orders by a payload field excludes malformed
+    /// rows even with no filters at all, because `json_extract` in an ORDER BY raises just as
+    /// readily as one in a WHERE. That is why [`NativeStorage::count_nodes_matching`] takes the
+    /// whole spec: the guard follows from the ordering as much as from the filters, and a count
+    /// copying only the filters would silently disagree with the page it describes.
+    pub fn sql_fragments(&self) -> Result<(String, String)> {
+        let reads_json = !self.json_filters.is_empty() || self.order_by_json_field.is_some();
+        let mut where_sql = String::new();
+        if reads_json {
+            where_sql.push_str(" AND json_valid(payload)");
+        }
+
+        let first_filter_index = if self.limit.is_some() || self.offset > 0 { 4 } else { 2 };
+        for (index, (field, _)) in self.json_filters.iter().enumerate() {
+            let field = validated_json_field(field)?;
+            where_sql.push_str(&format!(
+                " AND json_extract(payload, '$.{field}') = ?{}",
+                first_filter_index + index
+            ));
+        }
+
+        let order_sql = match self.order_by_json_field {
+            Some(field) => {
+                let field = validated_json_field(field)?;
+                // NULLs — a payload with no such key — sort last under DESC in SQLite, which
+                // is where `unwrap_or(0)` put them in the Rust sort this replaces.
+                format!("json_extract(payload, '$.{field}') DESC, updated_at DESC, id DESC")
+            }
+            None => "updated_at DESC, id DESC".to_string(),
+        };
+
+        Ok((where_sql, order_sql))
+    }
+}
+
+/// A JSON field name is spliced into SQL because a placeholder cannot name a column or a path.
+/// So it is checked rather than trusted — the one place in this file where a string reaches the
+/// statement without going through a bound parameter.
+fn validated_json_field(field: &str) -> Result<&str> {
+    if field.is_empty() || !field.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        anyhow::bail!("json field name must be [A-Za-z0-9_]+, got {field:?}");
+    }
+    Ok(field)
+}
+
+/// Whether this spec needs SQLite's `LIMIT ?/OFFSET ?` clause at all — the two travel together
+/// because SQLite has no OFFSET without a LIMIT.
+fn limit_or_offset(spec: &NodePageSpec<'_>) -> bool {
+    spec.limit.is_some() || spec.offset > 0
+}
+
 impl NativeStorage {
     /// Open (or create) a database at an explicit file path.
     ///
@@ -219,26 +318,44 @@ impl NativeStorage {
     /// unlike `query_nodes(type_).len()`, which is exactly the cost `query_nodes_limited`
     /// exists to avoid reintroducing one line below the fix.
     pub fn count_nodes(&self, type_: &str) -> Result<usize> {
-        let conn = self.conn.lock().unwrap();
-        let count: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM nodes WHERE type = ?1",
-                params![type_],
-                |row| row.get(0),
-            )
-            .context("count_nodes")?;
-        Ok(count as usize)
+        self.count_nodes_matching(&NodePageSpec::of(type_))
     }
 
     fn query_nodes_inner(&self, type_: &str, limit: Option<usize>) -> Result<Vec<NodeRow>> {
+        self.query_nodes_page(&NodePageSpec {
+            limit,
+            ..NodePageSpec::of(type_)
+        })
+    }
+
+    /// A page of nodes, with the FILTERING AND THE ORDERING BOTH IN SQL.
+    ///
+    /// That pairing is the point, not a convenience. `GET /tasks` used to read every `Task`
+    /// row, filter by `status`/`session_id` in Rust, re-sort by `created_at_ns`, and only
+    /// then truncate — three passes over a set the database could have cut once. Moving only
+    /// the limit into SQL would have been WORSE than leaving it alone: the limit would apply
+    /// to the unfiltered set, so `?status=done` would answer out of the newest 100 rows of
+    /// any status and could report zero while hundreds of done tasks existed. That is the
+    /// global-limit-then-filter shape ISS-045 was filed for. Filter and limit travel
+    /// together or neither moves.
+    ///
+    /// `stored` counts are taken with [`Self::count_nodes_matching`] and THE SAME filters, so
+    /// `truncated` compares two numbers that were measured over the same set.
+    pub fn query_nodes_page(&self, spec: &NodePageSpec<'_>) -> Result<Vec<NodeRow>> {
+        let (where_sql, order_sql) = spec.sql_fragments()?;
+        let mut sql = format!(
+            "SELECT id, type, context, payload, source_plugin, updated_at \
+             FROM nodes WHERE type = ?1{where_sql} ORDER BY {order_sql}"
+        );
+        // SQLite has no OFFSET without a LIMIT. A caller that wants to skip rows and take the
+        // rest gets -1, which SQLite reads as "no ceiling" — the alternative is inventing a
+        // ceiling here and calling it the caller's.
+        if limit_or_offset(spec) {
+            sql.push_str(" LIMIT ?2 OFFSET ?3");
+        }
+
         let conn = self.conn.lock().unwrap();
-        let sql = match limit {
-            Some(_) => "SELECT id, type, context, payload, source_plugin, updated_at \
-                        FROM nodes WHERE type = ?1 ORDER BY updated_at DESC, id DESC LIMIT ?2",
-            None => "SELECT id, type, context, payload, source_plugin, updated_at \
-                     FROM nodes WHERE type = ?1 ORDER BY updated_at DESC, id DESC",
-        };
-        let mut stmt = conn.prepare(sql).context("prepare query_nodes")?;
+        let mut stmt = conn.prepare(&sql).context("prepare query_nodes")?;
 
         let map_row = |row: &rusqlite::Row<'_>| {
             Ok(NodeRow {
@@ -251,20 +368,57 @@ impl NativeStorage {
             })
         };
 
-        let rows = match limit {
-            Some(n) => stmt
-                .query_map(params![type_, n as i64], map_row)
-                .context("query_nodes")?
-                .collect::<Result<Vec<_>, _>>()
-                .context("collect nodes")?,
-            None => stmt
-                .query_map(params![type_], map_row)
-                .context("query_nodes")?
-                .collect::<Result<Vec<_>, _>>()
-                .context("collect nodes")?,
-        };
+        let mut bound: Vec<Box<dyn rusqlite::ToSql>> = vec![Box::new(spec.type_.to_string())];
+        if limit_or_offset(spec) {
+            bound.push(Box::new(spec.limit.map(|n| n as i64).unwrap_or(-1)));
+            bound.push(Box::new(spec.offset as i64));
+        }
+        for (_, value) in spec.json_filters {
+            bound.push(Box::new((*value).to_string()));
+        }
+        let refs: Vec<&dyn rusqlite::ToSql> = bound.iter().map(|b| b.as_ref()).collect();
+
+        let rows = stmt
+            .query_map(refs.as_slice(), map_row)
+            .context("query_nodes")?
+            .collect::<Result<Vec<_>, _>>()
+            .context("collect nodes")?;
 
         Ok(rows)
+    }
+
+    /// `SELECT COUNT(*)` over the SAME predicate [`Self::query_nodes_page`] would apply.
+    ///
+    /// It exists so `truncated` is a comparison between two numbers measured over one set. A
+    /// count taken without the filters, beside a page taken with them, produces a `truncated:
+    /// true` on an endpoint that already returned everything the caller asked for — a lie in
+    /// the direction the whole page contract exists to prevent.
+    pub fn count_nodes_matching(&self, spec: &NodePageSpec<'_>) -> Result<usize> {
+        // IT TAKES THE PAGE'S OWN SPEC, not a repeat of its filters, and that is the fix for a
+        // defect this signature had in its first draft: `order_by_json_field` also pulls in the
+        // `json_valid` guard, so a count that kept only the filters agreed with the page
+        // whenever a filter was present and disagreed the moment one was not. `GET /tasks` with
+        // no `?status` and one malformed row would then have reported `truncated: true`
+        // permanently, about a row it could never return. Passing the spec makes the two
+        // predicates one object instead of two copies somebody has to keep in step.
+        let counting = NodePageSpec {
+            limit: None,
+            offset: 0,
+            ..spec.clone()
+        };
+        let (where_sql, _) = counting.sql_fragments()?;
+        let sql = format!("SELECT COUNT(*) FROM nodes WHERE type = ?1{where_sql}");
+
+        let conn = self.conn.lock().unwrap();
+        let mut bound: Vec<Box<dyn rusqlite::ToSql>> = vec![Box::new(counting.type_.to_string())];
+        for (_, value) in counting.json_filters {
+            bound.push(Box::new((*value).to_string()));
+        }
+        let refs: Vec<&dyn rusqlite::ToSql> = bound.iter().map(|b| b.as_ref()).collect();
+        let count: i64 = conn
+            .query_row(&sql, refs.as_slice(), |row| row.get(0))
+            .context("count_nodes_matching")?;
+        Ok(count as usize)
     }
 
     /// Delete the given node ids, returning the number of rows removed. Used by
@@ -445,6 +599,154 @@ fn db_dir() -> Result<std::path::PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn seeded_things() -> NativeStorage {
+        let storage = memory_storage();
+        // `n` descends while `id` ascends, so a query that fell back to the store's own order
+        // returns the opposite of one ordered by the payload field.
+        for (id, n, status) in [("a", 3, "done"), ("b", 2, "active"), ("c", 1, "done")] {
+            storage
+                .store_node(id, "Thing", None, &format!(r#"{{"n":{n},"status":"{status}"}}"#), None)
+                .unwrap();
+        }
+        storage
+    }
+
+    #[test]
+    fn query_nodes_page_offset_reaches_rows_a_limit_left_behind() {
+        // ISS-042: before this, rows past the ceiling were unreachable AT ANY LIMIT, so a
+        // `truncated: true` pointed at nothing the caller could do about it.
+        let storage = seeded_things();
+        let first = storage
+            .query_nodes_page(&NodePageSpec { limit: Some(2), ..NodePageSpec::of("Thing") })
+            .unwrap();
+        let second = storage
+            .query_nodes_page(&NodePageSpec {
+                limit: Some(2),
+                offset: 2,
+                ..NodePageSpec::of("Thing")
+            })
+            .unwrap();
+
+        assert_eq!(first.len(), 2);
+        assert_eq!(second.len(), 1);
+        let seen: Vec<&str> = first.iter().chain(second.iter()).map(|r| r.id.as_str()).collect();
+        assert_eq!(seen.len(), 3, "the two pages together are the whole set");
+        assert!(!seen[..2].contains(&seen[2]), "no row appears on both pages");
+    }
+
+    #[test]
+    fn offset_without_a_limit_does_not_invent_a_ceiling() {
+        // SQLite has no OFFSET without a LIMIT, so the implementation passes -1. If it had
+        // invented a number instead, this would silently cap a caller who asked for no cap.
+        let storage = seeded_things();
+        let rows = storage
+            .query_nodes_page(&NodePageSpec { offset: 1, ..NodePageSpec::of("Thing") })
+            .unwrap();
+        assert_eq!(rows.len(), 2);
+    }
+
+    #[test]
+    fn json_filters_and_count_are_measured_over_the_same_set() {
+        // The pairing `truncated` depends on: a count taken without the filters, beside a page
+        // taken with them, reports "there is more" to a caller already given everything.
+        let storage = seeded_things();
+        let filters = [("status", "done")];
+        let rows = storage
+            .query_nodes_page(&NodePageSpec { json_filters: &filters, ..NodePageSpec::of("Thing") })
+            .unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(
+            storage
+                .count_nodes_matching(&NodePageSpec {
+                    json_filters: &filters,
+                    ..NodePageSpec::of("Thing")
+                })
+                .unwrap(),
+            2
+        );
+        assert_eq!(storage.count_nodes("Thing").unwrap(), 3, "unfiltered count is unchanged");
+    }
+
+    #[test]
+    fn order_by_json_field_beats_the_stores_own_order() {
+        let storage = seeded_things();
+        let by_store = storage.query_nodes("Thing").unwrap();
+        let by_payload = storage
+            .query_nodes_page(&NodePageSpec {
+                order_by_json_field: Some("n"),
+                ..NodePageSpec::of("Thing")
+            })
+            .unwrap();
+        assert_eq!(by_payload[0].id, "a", "n=3 first");
+        assert_eq!(by_payload[2].id, "c", "n=1 last");
+        assert_ne!(
+            by_store.iter().map(|r| &r.id).collect::<Vec<_>>(),
+            by_payload.iter().map(|r| &r.id).collect::<Vec<_>>(),
+            "the two orders must actually differ, or this test proves nothing"
+        );
+    }
+
+    #[test]
+    fn malformed_payload_is_excluded_from_both_the_page_and_the_count() {
+        // `json_extract` RAISES on malformed text — one bad row would 500 the whole endpoint.
+        // The `json_valid` guard drops it instead, which is what the Rust `from_str(..).ok()`
+        // being replaced already did. Both sides must agree, or `truncated` claims a row the
+        // caller can never be given.
+        let storage = seeded_things();
+        storage.store_node("broken", "Thing", None, "not json", None).unwrap();
+        let filters = [("status", "done")];
+
+        let filtered = NodePageSpec { json_filters: &filters, ..NodePageSpec::of("Thing") };
+        assert_eq!(storage.query_nodes_page(&filtered).unwrap().len(), 2);
+        assert_eq!(storage.count_nodes_matching(&filtered).unwrap(), 2);
+
+        // ORDERING COUNTS AS READING: `json_extract` in an ORDER BY raises on malformed text
+        // just as readily as one in a WHERE, so a spec that orders by a payload field carries
+        // the same guard and drops the row even with NO filters. The page and the count must
+        // still agree — this is the case whose first draft did not, and which would have made
+        // `GET /tasks` report `truncated: true` forever about a row nothing could return.
+        let ordered = NodePageSpec {
+            order_by_json_field: Some("n"),
+            ..NodePageSpec::of("Thing")
+        };
+        assert_eq!(storage.query_nodes_page(&ordered).unwrap().len(), 3);
+        assert_eq!(storage.count_nodes_matching(&ordered).unwrap(), 3);
+
+        // The unordered, unfiltered read still sees everything — the guard follows from reading
+        // the payload, and is never a blanket policy about what counts as a row.
+        assert_eq!(storage.query_nodes("Thing").unwrap().len(), 4);
+        assert_eq!(storage.count_nodes("Thing").unwrap(), 4);
+    }
+
+    #[test]
+    fn a_json_field_name_that_is_not_a_name_is_refused_rather_than_spliced() {
+        // A field name cannot be a bound parameter, so it is the one string in this file that
+        // reaches the statement by concatenation. Today every call site passes a constant;
+        // this is what makes that a checked fact instead of a habit.
+        let storage = seeded_things();
+        let hostile = [("status'; DROP TABLE nodes; --", "done")];
+        assert!(storage
+            .query_nodes_page(&NodePageSpec {
+                json_filters: &hostile,
+                ..NodePageSpec::of("Thing")
+            })
+            .is_err());
+        assert!(storage
+            .count_nodes_matching(&NodePageSpec {
+                json_filters: &hostile,
+                ..NodePageSpec::of("Thing")
+            })
+            .is_err());
+        assert!(storage
+            .query_nodes_page(&NodePageSpec {
+                order_by_json_field: Some("n DESC, id"),
+                ..NodePageSpec::of("Thing")
+            })
+            .is_err());
+        // and the table is still there
+        assert_eq!(storage.count_nodes("Thing").unwrap(), 3);
+    }
 
     fn memory_storage() -> NativeStorage {
         NativeStorage::open(":memory:").unwrap()

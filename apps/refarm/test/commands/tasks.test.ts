@@ -98,10 +98,14 @@ describe("refarm tasks", () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
-	it("prints empty state when no tasks exist", async () => {
+	it("prints empty state when the node says the record IS empty", async () => {
+		// `truncated: false` is the node stating a measurement: nothing was left out, so the
+		// zero rows are the whole answer. Only here is "No tasks yet" a true sentence.
 		vi.stubGlobal(
 			"fetch",
-			vi.fn().mockResolvedValue(jsonResponse({ tasks: [] })),
+			vi.fn().mockResolvedValue(
+				jsonResponse({ tasks: [], stored: 0, truncated: false, offset: 0 }),
+			),
 		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -111,6 +115,48 @@ describe("refarm tasks", () => {
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("No tasks yet"),
 		);
+	});
+
+	it("does NOT claim the record is empty when the node did not say so", async () => {
+		// This fixture is not hypothetical — it is the exact body any sidecar built before
+		// ISS-041 returns, and it was what this suite asserted "No tasks yet" against until the
+		// endpoint learned to report. Zero rows plus no completeness is "nothing was found in
+		// what I could see", which is a different fact from "there are none" and must not be
+		// printed as one (the collapse ISS-045 and budget.ts were both fixed for).
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ tasks: [] })));
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.parseAsync([], { from: "user" });
+
+		const printed = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(printed).toContain("did not report how many exist");
+		expect(printed).not.toContain("No tasks yet");
+	});
+
+	it("names the offset that reaches the rest when a page was cut", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(
+				jsonResponse({
+					tasks: [{ "@id": "urn:sovereign:task:v1:a", "@type": "Task", status: "done" }],
+					stored: 9,
+					truncated: true,
+					offset: 4,
+				}),
+			),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.parseAsync(["--limit", "1", "--offset", "4"], { from: "user" });
+
+		const printed = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(printed).toContain("of 9 stored");
+		// The remedy must be a command the operator can run, with the number to run it with —
+		// the older wording said the rows were unreachable, which stopped being true the moment
+		// `GET /nodes` and `GET /tasks` learned `offset` (ISS-042).
+		expect(printed).toContain("--offset 5");
 	});
 
 	it("sets exitCode when task listing cannot reach the runtime", async () => {
@@ -169,6 +215,9 @@ describe("refarm tasks", () => {
 							status: "done",
 						},
 					],
+					stored: 1,
+					truncated: false,
+					offset: 0,
 				}),
 			),
 		);
@@ -198,6 +247,7 @@ describe("refarm tasks", () => {
 				status: "done",
 				session_id: "session-1",
 				limit: 2,
+				offset: 0,
 			},
 			tasks: [
 				{
@@ -207,6 +257,13 @@ describe("refarm tasks", () => {
 					status: "done",
 				},
 			],
+			// The page facts, and the VERDICT beside them. A consumer reading `tasks` to decide
+			// "that is all of them" needs to know which of three states produced the list; before
+			// ISS-041 this envelope carried `total`, which was the page size dressed as a count.
+			stored: 1,
+			truncated: false,
+			offset: 0,
+			completeness: "complete",
 		});
 	});
 

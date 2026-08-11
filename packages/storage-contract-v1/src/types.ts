@@ -86,6 +86,15 @@ export interface QueryNodesOptions {
 	/** How many rows to ask for. An adapter that cannot limit ignores it and reports the truth in
 	 *  `truncated` — never by silently returning fewer. */
 	limit?: number;
+	/**
+	 * How many rows to skip. THE REMEDY `truncated` USED TO LACK: a page that says it left rows
+	 * out, on a transport with no way to ask for them, is an observation the caller cannot act on.
+	 *
+	 * NOT A CURSOR. A cursor needs a sort key stable under concurrent writes, which no adapter
+	 * guarantees today. An offset is honest about what it is — adequate for paging a table, liable
+	 * to skip or repeat a row if the set changes underneath the caller.
+	 */
+	offset?: number;
 }
 
 /**
@@ -104,8 +113,17 @@ export interface QueryNodesPage {
 	/** How many of this type exist, independent of any limit. Absent when the adapter cannot count
 	 *  without materialising the rows it is counting. */
 	stored?: number;
-	/** True when `stored` exceeds what `nodes` carries. Absent when the adapter cannot tell. */
+	/**
+	 * Whether rows remain BEYOND this page. Absent when the adapter cannot tell.
+	 *
+	 * WITH AN OFFSET IT IS NOT `stored > nodes.length`. Rows before the offset were skipped on
+	 * purpose and are reachable by asking again, so counting them as withheld would leave a caller
+	 * paging forever, one empty page at a time. The arithmetic is
+	 * `stored > offset + nodes.length`, and the last page of a truncated read reports `false`.
+	 */
 	truncated?: boolean;
+	/** Which row this page starts at, echoed back. Absent when the adapter does not page. */
+	offset?: number;
 }
 
 /** What a page MEANS. `unknown` is not a failure — it is the honest verdict of an adapter that

@@ -154,8 +154,8 @@ not leave it silent.**
 | 2 | `QueryNodesPage`, `readCompleteness`, optional method + conformance | `packages/storage-contract-v1` | no | **done** 2026-08-11 |
 | 3 | Adopt in `sidecar-client` (it already has the shape) | `packages/sidecar-client` | no | **done** 2026-08-11 |
 | 4 | `budget.ts` reads completeness — closes the visible half of ISS-039 | `apps/refarm` | no | **done** 2026-08-11 |
-| 5 | `GET /tasks`, four changes | `packages/tractor` | **§8** | waiting on the nod |
-| 6 | `offset` on `GET /nodes` | `packages/tractor` | **§8** | waiting on the nod |
+| 5 | `GET /tasks`, four changes | `packages/tractor` | **§8** | **done** 2026-08-11, one change made differently — see below |
+| 6 | `offset` on `GET /nodes` | `packages/tractor` | **§8** | **done** 2026-08-11 |
 
 ### What steps 2–4 actually cost, measured
 
@@ -189,3 +189,48 @@ and move ISS-039. Steps 5–6 need the maintainer's nod, the same one
   that asserts only one side is what let them drift.
 - Every step states its before/after counts, and `total`'s removal is called out
   in the commit message rather than left for a consumer to discover.
+
+## What steps 5–6 cost, and the one instruction here that was wrong
+
+**§2 was not carried out as written, deliberately.** The plan said to drop the
+`created_at_ns` re-sort and let the store's order be the answer. That does make
+`GET /tasks` and `list_tasks` agree — and it silently changes what `refarm tasks`
+MEANS, from "the newest tasks" to "the most recently touched tasks", and makes it
+disagree with farmhand's own `/tasks` route, which sorts by `created_at_ns` in
+TypeScript. Two surfaces agreeing on the wrong answer is not an improvement over
+two answering different questions.
+
+So the ordering moved INTO SQL instead of being dropped — which fixes the real
+incoherence (a limit taken in one order and presented in another) without
+changing the endpoint's meaning. The disagreement survives, is documented, and is
+now **ISS-115**: neither surface says which question it answers, which is the
+shape-versus-purpose distinction rather than a sort bug.
+
+**The verification criterion §"Step 5" states is therefore NOT met, and saying so
+is the point.** It asked for a test proving the two agree. They do not agree, on
+purpose. What ships instead is a test that the limit and the presented order use
+one key — which is what catches the naive fix a future editor reaches for first,
+and which was proven to discriminate by temporarily removing the SQL ordering and
+watching two tests go red.
+
+**Two things the plan did not anticipate:**
+
+- **The filters had to move into SQL with the limit, or not at all.** Moving only
+  the limit would have been *worse* than leaving the endpoint alone: `?status=done`
+  would answer out of the newest 100 rows of any status and could report zero while
+  hundreds of done tasks existed — ISS-045's shape, rebuilt while fixing something
+  else.
+- **`count_nodes_matching` takes the page's whole spec, not a copy of its filters.**
+  The first draft copied only the filters, and `order_by_json_field` also pulls in
+  the `json_valid` guard — so the count agreed with the page whenever a filter was
+  present and disagreed the moment one was not. `GET /tasks` with no `?status` and
+  one malformed row would have reported `truncated: true` permanently, about a row
+  it could never return. Caught by a test whose assertion was wrong for the same
+  reason the code was.
+
+**The remedy had to reach the operator or step 6 was invisible.** `refarm budget
+observations|by-*|usage` and `refarm tasks` all take `--offset`, and their notices
+name the command and number that reach the rest. That sentence had been wrong
+twice in opposite directions — "raise --limit" (which could not work) and then
+"not reachable today" (true when written, false the moment offset shipped) — so it
+now names a runnable command, the only form of the claim that goes stale loudly.

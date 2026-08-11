@@ -454,7 +454,7 @@ describe("printGroupedObservationsHuman — the subscription axis renders as —
 			[{ "refarm.workspace.id": "refarm", "refarm.pricing_mode": "subscription" }],
 			{ by: "workspace" },
 		);
-		printGroupedObservationsHuman(grouped, { stored: 1, truncated: false });
+		printGroupedObservationsHuman(grouped, { stored: 1, truncated: false, offset: 0 });
 		const text = stdout.join("\n");
 		expect(text).toContain("—");
 		expect(text).not.toContain("$0.00");
@@ -462,7 +462,7 @@ describe("printGroupedObservationsHuman — the subscription axis renders as —
 
 	it("always prints the (unattributed) row, even when its count is zero", () => {
 		const grouped = groupObservations([{ "refarm.workspace.id": "refarm" }], { by: "workspace" });
-		printGroupedObservationsHuman(grouped, { stored: 1, truncated: false });
+		printGroupedObservationsHuman(grouped, { stored: 1, truncated: false, offset: 0 });
 		const text = stdout.join("\n");
 		expect(text).toContain("(unattributed)");
 	});
@@ -472,7 +472,7 @@ describe("printGroupedObservationsHuman — the subscription axis renders as —
 
 	it("prints the truncation notice (naming both counts) when the page reports truncated: true", () => {
 		const grouped = groupObservations([{ "refarm.workspace.id": "refarm" }], { by: "workspace" });
-		printGroupedObservationsHuman(grouped, { stored: 42, truncated: true });
+		printGroupedObservationsHuman(grouped, { stored: 42, truncated: true, offset: 0 });
 		const text = stdout.join("\n");
 		expect(text).toContain("42");
 		expect(text.toLowerCase()).toContain("stored");
@@ -480,14 +480,14 @@ describe("printGroupedObservationsHuman — the subscription axis renders as —
 
 	it("prints an unknown-completeness notice when the page omits stored/truncated", () => {
 		const grouped = groupObservations([{ "refarm.workspace.id": "refarm" }], { by: "workspace" });
-		printGroupedObservationsHuman(grouped, { stored: undefined, truncated: undefined });
+		printGroupedObservationsHuman(grouped, { stored: undefined, truncated: undefined, offset: 0 });
 		const text = stdout.join("\n");
 		expect(text.toLowerCase()).toContain("unknown");
 	});
 
 	it("prints nothing about storage when the page reports truncated: false", () => {
 		const grouped = groupObservations([{ "refarm.workspace.id": "refarm" }], { by: "workspace" });
-		printGroupedObservationsHuman(grouped, { stored: 1, truncated: false });
+		printGroupedObservationsHuman(grouped, { stored: 1, truncated: false, offset: 0 });
 		const text = stdout.join("\n");
 		expect(text.toLowerCase()).not.toContain("stored");
 	});
@@ -503,7 +503,7 @@ describe("printGroupedObservationsHuman — the subscription axis renders as —
 			],
 			{ by: "workspace" },
 		);
-		printGroupedObservationsHuman(grouped, { stored: 2, truncated: false });
+		printGroupedObservationsHuman(grouped, { stored: 2, truncated: false, offset: 0 });
 		const lines = stdout.join("\n").split("\n").filter((l) => l.includes("(unattributed)"));
 		// Two DISTINCT lines must mention "(unattributed)" — the real workspace's row and
 		// the sentinel bucket's row — never one line standing in for both.
@@ -534,7 +534,7 @@ describe("printObservationsHuman — truncation notice", () => {
 		const observations = [{ "refarm.outcome": "done" }];
 		const summary = summariseObservations(observations);
 
-		printObservationsHuman(observations, summary, { stored: 42, truncated: true });
+		printObservationsHuman(observations, summary, { stored: 42, truncated: true, offset: 0 });
 
 		const text = stdout.join("\n");
 		expect(text).toContain("42");
@@ -548,7 +548,7 @@ describe("printObservationsHuman — truncation notice", () => {
 		const observations = [{ "refarm.outcome": "done" }];
 		const summary = summariseObservations(observations);
 
-		printObservationsHuman(observations, summary, { stored: undefined, truncated: true });
+		printObservationsHuman(observations, summary, { stored: undefined, truncated: true, offset: 0 });
 
 		const text = stdout.join("\n");
 		expect(text.toLowerCase()).not.toContain("undefined");
@@ -558,7 +558,7 @@ describe("printObservationsHuman — truncation notice", () => {
 		const observations = [{ "refarm.outcome": "done" }];
 		const summary = summariseObservations(observations);
 
-		printObservationsHuman(observations, summary, { stored: 1, truncated: false });
+		printObservationsHuman(observations, summary, { stored: 1, truncated: false, offset: 0 });
 
 		const text = stdout.join("\n");
 		expect(text.toLowerCase()).not.toContain("stored");
@@ -572,7 +572,7 @@ describe("printObservationsHuman — truncation notice", () => {
 		const observations = [{ "refarm.outcome": "done" }];
 		const summary = summariseObservations(observations);
 
-		printObservationsHuman(observations, summary, { stored: undefined, truncated: undefined });
+		printObservationsHuman(observations, summary, { stored: undefined, truncated: undefined, offset: 0 });
 
 		const text = stdout.join("\n");
 		expect(text.toLowerCase()).toContain("unknown");
@@ -612,7 +612,17 @@ describe("readCompleteness governs the budget page — one vocabulary, not four"
 describe("budgetObservationsPageFromBody — absent means absent", () => {
 	it("carries stored/truncated through when the sidecar reports them", () => {
 		const page = budgetObservationsPageFromBody({ nodes: [{ a: 1 }], stored: 42, truncated: true });
-		expect(page).toEqual({ observations: [{ a: 1 }], stored: 42, truncated: true });
+		expect(page).toEqual({ observations: [{ a: 1 }], stored: 42, truncated: true, offset: 0 });
+	});
+
+	it("defaults ONLY offset, and the asymmetry is the point", () => {
+		// `stored`/`truncated` are measurements the node either made or did not, so an absent one
+		// stays absent. `offset` is the caller's own parameter coming back — a request that sent
+		// none asked to start at 0, which is a fact about the request, not a guess about the store.
+		const page = budgetObservationsPageFromBody({ nodes: [], offset: 40, stored: 100 });
+		expect(page.offset).toBe(40);
+		expect(budgetObservationsPageFromBody({ nodes: [] }).offset).toBe(0);
+		expect(budgetObservationsPageFromBody({ nodes: [] }).truncated).toBeUndefined();
 	});
 
 	it("leaves stored/truncated undefined — NOT defaulted — when the sidecar omits them", () => {
@@ -888,7 +898,7 @@ describe("printUsageByPeriodHuman — states what it cannot answer, unconditiona
 		const usage = usageByPeriod([], {
 			period: { kind: "rolling-days", startMs: 0, endMs: 1, spec: "30d", label: "last 30 days" },
 		});
-		printUsageByPeriodHuman(usage, { stored: 0, truncated: false });
+		printUsageByPeriodHuman(usage, { stored: 0, truncated: false, offset: 0 });
 		const text = stdout.join("\n");
 		expect(text).toContain(USAGE_CANNOT_ANSWER);
 	});
@@ -897,7 +907,7 @@ describe("printUsageByPeriodHuman — states what it cannot answer, unconditiona
 		const usage = usageByPeriod([{ timestamp_ns: 500 }, {}], {
 			period: { kind: "rolling-days", startMs: 0, endMs: 1000, spec: "30d", label: "last 30 days" },
 		});
-		printUsageByPeriodHuman(usage, { stored: 2, truncated: false });
+		printUsageByPeriodHuman(usage, { stored: 2, truncated: false, offset: 0 });
 		const text = stdout.join("\n").toLowerCase();
 		expect(text).toContain("in period");
 		expect(text).toContain("out of period");
@@ -908,7 +918,7 @@ describe("printUsageByPeriodHuman — states what it cannot answer, unconditiona
 		const usage = usageByPeriod([{ timestamp_ns: 500 }], {
 			period: { kind: "rolling-days", startMs: 0, endMs: 1000, spec: "30d", label: "last 30 days" },
 		});
-		printUsageByPeriodHuman(usage, { stored: 1, truncated: false });
+		printUsageByPeriodHuman(usage, { stored: 1, truncated: false, offset: 0 });
 		expect(stdout.join("\n")).toContain(USAGE_CANNOT_ANSWER);
 	});
 
@@ -920,7 +930,7 @@ describe("printUsageByPeriodHuman — states what it cannot answer, unconditiona
 		const usage = usageByPeriod([{ timestamp_ns: 500 }], {
 			period: { kind: "rolling-days", startMs: 0, endMs: 1000, spec: "30d", label: "last 30 days" },
 		});
-		printUsageByPeriodHuman(usage, { stored: 42, truncated: true });
+		printUsageByPeriodHuman(usage, { stored: 42, truncated: true, offset: 0 });
 		const text = stdout.join("\n");
 		expect(text).toContain("42");
 		expect(text.toLowerCase()).toContain("stored");
@@ -930,7 +940,7 @@ describe("printUsageByPeriodHuman — states what it cannot answer, unconditiona
 		const usage = usageByPeriod([{ timestamp_ns: 500 }], {
 			period: { kind: "rolling-days", startMs: 0, endMs: 1000, spec: "30d", label: "last 30 days" },
 		});
-		printUsageByPeriodHuman(usage, { stored: undefined, truncated: undefined });
+		printUsageByPeriodHuman(usage, { stored: undefined, truncated: undefined, offset: 0 });
 		expect(stdout.join("\n").toLowerCase()).toContain("unknown");
 	});
 
@@ -938,7 +948,7 @@ describe("printUsageByPeriodHuman — states what it cannot answer, unconditiona
 		const usage = usageByPeriod([{ timestamp_ns: 500 }], {
 			period: { kind: "rolling-days", startMs: 0, endMs: 1000, spec: "30d", label: "last 30 days" },
 		});
-		printUsageByPeriodHuman(usage, { stored: 1, truncated: false });
+		printUsageByPeriodHuman(usage, { stored: 1, truncated: false, offset: 0 });
 		expect(stdout.join("\n").toLowerCase()).not.toContain("stored");
 	});
 
@@ -949,7 +959,7 @@ describe("printUsageByPeriodHuman — states what it cannot answer, unconditiona
 			[{ timestamp_ns: 500 }, { timestamp_ns: 500 }], // both inside, neither carries refarm.pricing_mode
 			{ period: { kind: "rolling-days", startMs: 0, endMs: 1000, spec: "30d", label: "last 30 days" } },
 		);
-		printUsageByPeriodHuman(usage, { stored: 2, truncated: false });
+		printUsageByPeriodHuman(usage, { stored: 2, truncated: false, offset: 0 });
 		const text = stdout.join("\n");
 		expect(text).toContain("no-usage-record:2");
 	});

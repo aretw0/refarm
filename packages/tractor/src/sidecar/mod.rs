@@ -1522,6 +1522,18 @@ struct NodesQuery {
     type_: Option<String>,
     #[serde(default = "default_nodes_limit")]
     limit: usize,
+    /// How many rows to skip. THE ONLY WAY PAST `MAX_NODES_PER_RESPONSE` (ISS-042): the cap
+    /// stays — an unbounded response is its own hazard — but before this, rows beyond the
+    /// hundredth were unreachable at any `limit` a caller asked for, and `truncated: true`
+    /// pointed at nothing a caller could do.
+    ///
+    /// NOT A CURSOR, deliberately. A cursor needs a sort key stable across concurrent writes,
+    /// which no adapter guarantees today and `docs/SOVEREIGN_RECORD_ORDERING.md` would have to
+    /// settle first. An offset is honest about what it is: adequate for paging a table, and
+    /// liable to skip or repeat a row if the set changes underneath the caller. Say that in the
+    /// docs rather than dressing it up.
+    #[serde(default)]
+    offset: usize,
 }
 
 fn default_nodes_limit() -> usize {
@@ -1610,7 +1622,11 @@ async fn get_nodes(
     // them (`query_nodes(...).take(n)`, the pre-2026-08-06 shape this replaces).
     let effective_limit = params.limit.min(MAX_NODES_PER_RESPONSE);
 
-    let rows = match storage.query_nodes_limited(type_, effective_limit) {
+    let rows = match storage.query_nodes_page(&crate::storage::NodePageSpec {
+        limit: Some(effective_limit),
+        offset: params.offset,
+        ..crate::storage::NodePageSpec::of(type_)
+    }) {
         Ok(rows) => rows,
         Err(e) => {
             return (
@@ -1656,13 +1672,18 @@ async fn get_nodes(
     // word again in `apps/refarm/src/commands/budget.ts`'s `summary.total` (observations
     // returned, not observations stored) — exactly the collision this shape avoids by
     // giving the new fact ("how many exist") its own name instead.
-    let truncated = stored > nodes.len();
+    // WITH AN OFFSET, "is there more" is no longer `stored > nodes.len()`. Rows before the
+    // offset were not withheld — the caller skipped them on purpose and can reach them by
+    // asking again. What `truncated` must answer is whether anything remains BEYOND this page,
+    // which is the only form of the question an operator can act on.
+    let truncated = stored > params.offset.saturating_add(nodes.len());
 
     Json(serde_json::json!({
         "nodes": nodes,
         "total": nodes.len(),
         "stored": stored,
         "truncated": truncated,
+        "offset": params.offset,
     }))
     .into_response()
 }
@@ -1708,6 +1729,11 @@ struct TaskQuery {
     session_id: Option<String>,
     #[serde(default = "default_task_limit")]
     limit: usize,
+    /// Same meaning and same caveats as `NodesQuery::offset`. It is here because the four
+    /// corrections below give this endpoint a `truncated` — and a `truncated: true` with no
+    /// way to reach the rest is the complaint ISS-042 already is.
+    #[serde(default)]
+    offset: usize,
 }
 
 fn default_task_limit() -> usize {
@@ -1729,7 +1755,41 @@ async fn get_tasks(
         }
     };
 
-    let rows = match storage.query_nodes("Task") {
+    // ISS-041, four defects, and the fourth was never filed. Every one of them was a pass
+    // this endpoint made over data the database could have cut once:
+    //
+    //   1. `query_nodes("Task")` read EVERY task row, at any limit.
+    //   2. a `created_at_ns` re-sort in Rust reordered the page AFTER the store had chosen
+    //      which rows the page contained — a limit taken in one order and presented in
+    //      another answers neither question.
+    //   3. nothing said the answer had been cut.
+    //   4. `total` was computed AFTER `truncate`, so it always equalled the page size. A
+    //      consumer reading it to ask "is there more" was answered "no", always. It is REMOVED
+    //      rather than redefined: a key whose meaning changes silently is worse than one that
+    //      vanishes loudly, and nothing outside this file's own tests read it.
+    //
+    // The filters move into SQL WITH the limit, never behind it. Limiting first and filtering
+    // after would let `?status=done` answer out of the newest 100 rows of any status and
+    // report zero while hundreds of done tasks existed — the global-limit-then-filter shape
+    // ISS-045 was filed for, rebuilt here in the act of fixing something else.
+    let mut filters: Vec<(&str, &str)> = Vec::new();
+    if let Some(status) = params.status.as_deref() {
+        filters.push(("status", status));
+    }
+    if let Some(session_id) = params.session_id.as_deref() {
+        filters.push(("context_id", session_id));
+    }
+
+    let effective_limit = params.limit.min(MAX_NODES_PER_RESPONSE);
+    let spec = crate::storage::NodePageSpec {
+        json_filters: &filters,
+        order_by_json_field: Some("created_at_ns"),
+        limit: Some(effective_limit),
+        offset: params.offset,
+        ..crate::storage::NodePageSpec::of("Task")
+    };
+
+    let rows = match storage.query_nodes_page(&spec) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -1740,32 +1800,37 @@ async fn get_tasks(
         }
     };
 
-    let mut tasks: Vec<Value> = rows
+    // Counted over THE SAME filters the page was taken with, so `truncated` compares two
+    // numbers measured over one set. A count taken without them would report "there is more"
+    // to a caller who had already been given everything matching their query.
+    let stored = match storage.count_nodes_matching(&spec) {
+        Ok(n) => n,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("count: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    // `json_valid(payload)` is already in the WHERE clause, so this parses everything it is
+    // given and `tasks.len() == rows.len()`. Malformed rows are excluded by the same predicate
+    // the count uses — which is what keeps the two numbers about the same set.
+    let tasks: Vec<Value> = rows
         .into_iter()
         .filter_map(|row| serde_json::from_str::<Value>(&row.payload).ok())
-        .filter(|t| {
-            params
-                .status
-                .as_deref()
-                .is_none_or(|s| t["status"].as_str() == Some(s))
-        })
-        .filter(|t| {
-            params
-                .session_id
-                .as_deref()
-                .is_none_or(|sid| t["context_id"].as_str() == Some(sid))
-        })
         .collect();
 
-    tasks.sort_by(|a, b| {
-        b["created_at_ns"]
-            .as_u64()
-            .unwrap_or(0)
-            .cmp(&a["created_at_ns"].as_u64().unwrap_or(0))
-    });
-    tasks.truncate(params.limit.min(100));
+    let truncated = stored > params.offset.saturating_add(tasks.len());
 
-    Json(serde_json::json!({ "tasks": tasks, "total": tasks.len() })).into_response()
+    Json(serde_json::json!({
+        "tasks": tasks,
+        "stored": stored,
+        "truncated": truncated,
+        "offset": params.offset,
+    }))
+    .into_response()
 }
 
 async fn get_task(

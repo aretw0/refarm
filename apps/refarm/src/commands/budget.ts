@@ -538,6 +538,16 @@ function parseLimitOption(value: string): number {
 	return parsed;
 }
 
+/** Zero IS valid here, unlike `--limit` — "start at the beginning" is the default and must be
+ *  expressible, so this is a separate parser rather than a reuse that would reject it. */
+function parseOffsetOption(value: string): number {
+	const parsed = Number(value);
+	if (!Number.isInteger(parsed) || parsed < 0) {
+		throw new InvalidArgumentError("--offset must be a non-negative integer.");
+	}
+	return parsed;
+}
+
 /**
  * The sidecar's `/nodes` page-level facts, deliberately NOT folded into `ObservationSummary`.
  * `summary.total` already means "how many observations this call returned" (`nodes.length`
@@ -566,6 +576,10 @@ export interface BudgetObservationsPage {
 	 *  NOT returned, so this is never computed on the client from `stored` and the page size
 	 *  — an `undefined` `stored` must produce an `undefined` `truncated`, not a guess. */
 	truncated: boolean | undefined;
+	/** Which row this page starts at — echoed by the sidecar, defaulted to 0 for an older build
+	 *  that does not page. Unlike `stored`/`truncated` this one IS safe to default, because the
+	 *  caller chose it: 0 is what a request that sent no offset asked for. */
+	offset: number;
 }
 
 /**
@@ -579,6 +593,7 @@ export function budgetObservationsPageFromBody(body: {
 	nodes?: unknown[];
 	stored?: number;
 	truncated?: boolean;
+	offset?: number;
 }): BudgetObservationsPage {
 	const observations = Array.isArray(body.nodes) ? (body.nodes as ObservationNode[]) : [];
 	return {
@@ -587,13 +602,26 @@ export function budgetObservationsPageFromBody(body: {
 		// `BudgetObservationsPage`'s doc for why a guess here is worse than saying "unknown".
 		stored: typeof body.stored === "number" ? body.stored : undefined,
 		truncated: typeof body.truncated === "boolean" ? body.truncated : undefined,
+		// Defaulted, and it is the one field here that may be: an absent `offset` means the
+		// request did not ask to skip anything, which is 0. It is not a measurement the node
+		// withheld — it is the caller's own parameter coming back.
+		offset: typeof body.offset === "number" ? body.offset : 0,
 	};
 }
 
-async function fetchBudgetObservations(limit: number): Promise<BudgetObservationsPage> {
-	const body = await fetchSidecarJson<{ nodes?: unknown[]; stored?: number; truncated?: boolean }>(
+async function fetchBudgetObservations(
+	limit: number,
+	offset = 0,
+): Promise<BudgetObservationsPage> {
+	const paging = offset > 0 ? `&offset=${offset}` : "";
+	const body = await fetchSidecarJson<{
+		nodes?: unknown[];
+		stored?: number;
+		truncated?: boolean;
+		offset?: number;
+	}>(
 		sidecarUrl(
-			`/nodes?type=${encodeURIComponent(BUDGET_OBSERVATION_NODE_TYPE)}&limit=${limit}`,
+			`/nodes?type=${encodeURIComponent(BUDGET_OBSERVATION_NODE_TYPE)}&limit=${limit}${paging}`,
 		),
 	);
 	return budgetObservationsPageFromBody(body);
@@ -664,7 +692,7 @@ export function outcomeMark(outcome: string): string {
  */
 function printPageCompletenessNotice(
 	shownCount: number,
-	page: Pick<BudgetObservationsPage, "stored" | "truncated">,
+	page: Pick<BudgetObservationsPage, "stored" | "truncated" | "offset">,
 	commandLabel: string,
 ): void {
 	// The branch reads the SHARED judgement rather than the raw field: `readCompleteness` is the
@@ -677,24 +705,28 @@ function printPageCompletenessNotice(
 		// "total" — see `BudgetObservationsPage`'s doc for why that collision must
 		// not happen.
 		//
-		// This used to end with "raise --limit to see the rest" — advice that cannot work.
-		// The sidecar clamps every `GET /nodes` response at `MAX_NODES_PER_RESPONSE`
-		// (`packages/tractor/src/sidecar/mod.rs`) regardless of the requested `--limit`,
-		// there is no offset/paging parameter to reach the rows past that cap, and
-		// `DEFAULT_LIMIT` above is already 100 — equal to the ceiling. So on a record of
-		// more than 100 rows, the very first default run printed an instruction that does
-		// nothing. Say what is true instead: this is the newest page a single response can
-		// carry, and rows beyond the cap are not reachable through this command today.
+		// THIS SENTENCE HAS NOW BEEN WRONG TWICE, IN OPPOSITE DIRECTIONS, and both times because
+		// it described the transport from memory rather than from the transport:
+		//
+		//   1. it once ended "raise --limit to see the rest" — advice that could not work, since
+		//      the sidecar clamps every response at MAX_NODES_PER_RESPONSE and DEFAULT_LIMIT was
+		//      already equal to that ceiling;
+		//   2. it was then corrected to "rows beyond the cap are not reachable today" — true when
+		//      written, and false from the moment `GET /nodes` learned `offset` (ISS-042).
+		//
+		// So it names a command the operator can run and the number to run it with, which is the
+		// only form of this claim that goes stale loudly instead of quietly.
 		//
 		// `page.stored` can be absent even when `truncated` is `true` — `BudgetObservationsPage`'s
 		// doc allows either field to be missing independently, so this must not print "of
 		// undefined" when the sidecar reports truncation without also reporting the true count.
 		const storedNote = typeof page.stored === "number" ? ` of ${page.stored} stored` : "";
+		const nextOffset = page.offset + shownCount;
 		console.log(
 			chalk.yellow(
-				`  ⚠  Showing the newest ${shownCount}${storedNote} — this command's response ` +
-					`is capped at a single page, so records beyond that cap are not reachable ` +
-					`through \`${commandLabel}\` today.\n`,
+				`  ⚠  Showing ${shownCount}${storedNote}, starting at ${page.offset} — this ` +
+					`command's response is capped at a single page. The rest is reachable: ` +
+					`\`${commandLabel} --offset ${nextOffset}\`.\n`,
 			),
 		);
 	} else if (completeness === "unknown") {
@@ -717,7 +749,7 @@ function printPageCompletenessNotice(
 export function printObservationsHuman(
 	observations: readonly ObservationNode[],
 	summary: ObservationSummary,
-	page: Pick<BudgetObservationsPage, "stored" | "truncated">,
+	page: Pick<BudgetObservationsPage, "stored" | "truncated" | "offset">,
 ): void {
 	console.log(chalk.bold(`\n  Budget observations  (${summary.total} shown)\n`));
 	printPageCompletenessNotice(summary.total, page, "refarm budget observations");
@@ -828,7 +860,7 @@ function groupedNextAction(grouped: GroupedObservations): string | null {
  *  (Task 1 review, Critical 3) — it used to be JSON-only. */
 export function printGroupedObservationsHuman(
 	grouped: GroupedObservations,
-	page: Pick<BudgetObservationsPage, "stored" | "truncated">,
+	page: Pick<BudgetObservationsPage, "stored" | "truncated" | "offset">,
 ): void {
 	const axis = GROUP_AXIS_LABEL[grouped.by];
 	console.log(chalk.bold(`\n  Budget by ${axis}  (${grouped.total} observation(s))\n`));
@@ -1187,7 +1219,7 @@ function usageNextAction(usage: UsageByPeriod): string | null {
  *  either, and a record past a single page's cap looked complete over partial data. */
 export function printUsageByPeriodHuman(
 	usage: UsageByPeriod,
-	page: Pick<BudgetObservationsPage, "stored" | "truncated">,
+	page: Pick<BudgetObservationsPage, "stored" | "truncated" | "offset">,
 ): void {
 	console.log(chalk.bold(`\n  Budget usage — ${usage.period.label}  (--period ${usage.period.spec})\n`));
 	printPageCompletenessNotice(usage.total, page, "refarm budget usage");
@@ -1215,6 +1247,7 @@ export function printUsageByPeriodHuman(
 
 interface BudgetObservationsCommandOptions {
 	limit: number;
+	offset: number;
 	currentRateTable?: string;
 	json?: boolean;
 }
@@ -1229,6 +1262,12 @@ export function createBudgetCommand(): Command {
 		.description("List BudgetObservation nodes and summarise which ceiling cut what")
 		.option("-n, --limit <n>", "Max observations to read", parseLimitOption, DEFAULT_LIMIT)
 		.option(
+			"--offset <n>",
+			"Skip this many records — the way past the single-page cap (ISS-042)",
+			parseOffsetOption,
+			0,
+		)
+		.option(
 			"--current-rate-table <version>",
 			"Compare each observation's stamp against this rate table version to count stale pricing " +
 				"(omit to auto-derive it from the newest observation's own stamp — F7)",
@@ -1237,7 +1276,7 @@ export function createBudgetCommand(): Command {
 		.action(async (options: BudgetObservationsCommandOptions) => {
 			let page: BudgetObservationsPage;
 			try {
-				page = await fetchBudgetObservations(options.limit);
+				page = await fetchBudgetObservations(options.limit, options.offset);
 			} catch (err) {
 				reportSidecarError(err, {
 					json: options.json,
@@ -1269,6 +1308,7 @@ export function createBudgetCommand(): Command {
 							// the wire too, never an invented `false`/count.
 							stored,
 							truncated,
+							offset: page.offset,
 							// The VERDICT, beside the sums it qualifies. `summary` totals a page that
 							// may have been cut, and a consumer reading `summary.total` to decide
 							// "under budget" needs to know which of the three states produced it —
@@ -1280,7 +1320,7 @@ export function createBudgetCommand(): Command {
 				);
 				return;
 			}
-			printObservationsHuman(observations, summary, { stored, truncated });
+			printObservationsHuman(observations, summary, { stored, truncated, offset: page.offset });
 		});
 
 	command.addHelpText(
@@ -1318,11 +1358,17 @@ export function createBudgetCommand(): Command {
 			.command(name)
 			.description(`Group BudgetObservation nodes by ${describes} and summarise cost per group`)
 			.option("-n, --limit <n>", "Max observations to read", parseLimitOption, DEFAULT_LIMIT)
+			.option(
+				"--offset <n>",
+				"Skip this many records — the way past the single-page cap (ISS-042)",
+				parseOffsetOption,
+				0,
+			)
 			.option("--json", "Output machine-readable JSON")
-			.action(async (options: { limit: number; json?: boolean }) => {
+			.action(async (options: { limit: number; offset: number; json?: boolean }) => {
 				let page: BudgetObservationsPage;
 				try {
-					page = await fetchBudgetObservations(options.limit);
+					page = await fetchBudgetObservations(options.limit, options.offset);
 				} catch (err) {
 					reportSidecarError(err, { json: options.json, command: "budget", operation: name });
 					return;
@@ -1340,6 +1386,7 @@ export function createBudgetCommand(): Command {
 								// absent, never defaulted (`BudgetObservationsPage`'s doc).
 								stored: page.stored,
 								truncated: page.truncated,
+								offset: page.offset,
 								completeness: readCompleteness(page),
 							},
 							nextAction,
@@ -1354,7 +1401,7 @@ export function createBudgetCommand(): Command {
 					);
 					return;
 				}
-				printGroupedObservationsHuman(grouped, { stored: page.stored, truncated: page.truncated });
+				printGroupedObservationsHuman(grouped, { stored: page.stored, truncated: page.truncated, offset: page.offset });
 			});
 	}
 
@@ -1385,6 +1432,12 @@ export function createBudgetCommand(): Command {
 		)
 		.option("-n, --limit <n>", "Max observations to read", parseLimitOption, DEFAULT_LIMIT)
 		.option(
+			"--offset <n>",
+			"Skip this many records — the way past the single-page cap (ISS-042)",
+			parseOffsetOption,
+			0,
+		)
+		.option(
 			"--period <spec>",
 			`Period to bucket by: "<N>d" for a rolling N-day window ending now (default ` +
 				`"${DEFAULT_PERIOD_SPEC}"), "month" for the current UTC calendar month, or "YYYY-MM" ` +
@@ -1393,10 +1446,10 @@ export function createBudgetCommand(): Command {
 			DEFAULT_PERIOD_SPEC,
 		)
 		.option("--json", "Output machine-readable JSON")
-		.action(async (options: { limit: number; period: string; json?: boolean }) => {
+		.action(async (options: { limit: number; offset: number; period: string; json?: boolean }) => {
 			let page: BudgetObservationsPage;
 			try {
-				page = await fetchBudgetObservations(options.limit);
+				page = await fetchBudgetObservations(options.limit, options.offset);
 			} catch (err) {
 				reportSidecarError(err, { json: options.json, command: "budget", operation: "usage" });
 				return;
@@ -1421,6 +1474,7 @@ export function createBudgetCommand(): Command {
 							cannotAnswer: USAGE_CANNOT_ANSWER,
 							stored: page.stored,
 							truncated: page.truncated,
+							offset: page.offset,
 							completeness: readCompleteness(page),
 						},
 						nextAction,
@@ -1437,7 +1491,7 @@ export function createBudgetCommand(): Command {
 				);
 				return;
 			}
-			printUsageByPeriodHuman(usage, { stored: page.stored, truncated: page.truncated });
+			printUsageByPeriodHuman(usage, { stored: page.stored, truncated: page.truncated, offset: page.offset });
 		});
 
 	command.addHelpText(

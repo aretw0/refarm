@@ -273,3 +273,83 @@ async fn sidecar_query_nodes_reports_no_truncation_when_limit_covers_everything(
         "limit=10 covers all 3 stored rows: nothing was left out, so truncated must be false"
     );
 }
+
+#[tokio::test]
+async fn sidecar_query_nodes_offset_reaches_rows_past_the_first_page() {
+    // ISS-042. Before this, `truncated: true` was an observation with no remedy: the response
+    // said rows had been left out and offered the caller no way to ask for them. `--limit`
+    // could not help — `MAX_NODES_PER_RESPONSE` clamps it, and the default was already equal to
+    // the ceiling, so on a record past 100 rows the very first default run printed an
+    // instruction ("raise --limit") that did nothing.
+    let ns = storage_path();
+    for i in 0..5 {
+        write_node(
+            &ns,
+            &format!("urn:task:{i}"),
+            "Task",
+            serde_json::json!({ "@id": format!("urn:task:{i}"), "@type": "Task" }),
+        );
+    }
+    let (_state, port) = start_nodes_sidecar(&ns).await;
+
+    let mut seen: Vec<String> = Vec::new();
+    let mut offset = 0;
+    loop {
+        let body: serde_json::Value = reqwest::get(format!(
+            "{}/nodes?type=Task&limit=2&offset={offset}",
+            base(port)
+        ))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+        assert_eq!(body["offset"].as_u64().unwrap(), offset as u64);
+        assert_eq!(body["stored"].as_u64().unwrap(), 5, "stored never depends on the page");
+        let page = body["nodes"].as_array().unwrap();
+        for node in page {
+            seen.push(node["@id"].as_str().unwrap().to_string());
+        }
+        if !body["truncated"].as_bool().unwrap() {
+            break;
+        }
+        offset += page.len();
+        assert!(offset <= 5, "truncated must go false on the last page or this never ends");
+    }
+
+    seen.sort();
+    seen.dedup();
+    assert_eq!(seen.len(), 5, "paging by offset reaches every stored row exactly once");
+}
+
+#[tokio::test]
+async fn sidecar_query_nodes_last_page_is_not_truncated_even_though_stored_exceeds_it() {
+    // The arithmetic `truncated` uses, stated as its own case: `stored`(5) is greater than the
+    // rows this page carries(1), and yet nothing remains. Rows before the offset were skipped
+    // ON PURPOSE and are reachable by asking again, so "is there more" can only mean more
+    // BEYOND this page. Reading it as `stored > nodes.len()` would leave a caller paging
+    // forever, one empty page at a time.
+    let ns = storage_path();
+    for i in 0..5 {
+        write_node(
+            &ns,
+            &format!("urn:task:{i}"),
+            "Task",
+            serde_json::json!({ "@id": format!("urn:task:{i}"), "@type": "Task" }),
+        );
+    }
+    let (_state, port) = start_nodes_sidecar(&ns).await;
+
+    let body: serde_json::Value =
+        reqwest::get(format!("{}/nodes?type=Task&limit=2&offset=4", base(port)))
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+
+    assert_eq!(body["nodes"].as_array().unwrap().len(), 1);
+    assert_eq!(body["stored"].as_u64().unwrap(), 5);
+    assert_eq!(body["truncated"].as_bool().unwrap(), false);
+}

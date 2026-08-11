@@ -134,9 +134,14 @@ export function createSidecarGraphClient(
 			queryOptions: QueryGraphNodesOptions = {},
 		): Promise<QueryGraphNodesResult> {
 			const limit = queryOptions.limit ?? 100;
+			// `offset` is omitted from the URL when zero rather than sent as `&offset=0`: an older
+			// sidecar ignores the parameter either way, and a request that carries only what it
+			// means is one less thing to explain when a response comes back short.
+			const offset = queryOptions.offset ?? 0;
+			const paging = offset > 0 ? `&offset=${offset}` : "";
 			const body = asObject(
 				await fetchSidecarJson(
-					`${base}/nodes?type=${encodeURIComponent(type)}&limit=${limit}`,
+					`${base}/nodes?type=${encodeURIComponent(type)}&limit=${limit}${paging}`,
 					{},
 					{ ...options, errorLabel: "sidecar graph HTTP" },
 				),
@@ -152,6 +157,7 @@ export function createSidecarGraphClient(
 			});
 			return {
 				nodes,
+				...(typeof body?.offset === "number" ? { offset: body.offset } : {}),
 				// Absent means absent: no fallback to `nodes.length` / `false`. See
 				// `QueryGraphNodesResult`'s doc for why a guess here is worse than
 				// saying "unknown".

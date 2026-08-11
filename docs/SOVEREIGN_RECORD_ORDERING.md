@@ -87,27 +87,52 @@ the same bug), and it is included because it demonstrably disagrees with its gue
 | `task_status`'s `TaskEvent` lookup | `packages/agent/src/tool_dispatch/task_tools.rs:44` | this task's recent events | No |
 | `task_context_for_prompt` | `packages/agent/src/runtime/policy.rs:128` | the newest N tasks for prompt context | No |
 | `load_personas` | `packages/delegate/src/lib.rs:230` | the available personas | No |
-| `GET /tasks` (→ `refarm tasks`) | `packages/tractor/src/sidecar/mod.rs:1703-1758` (`get_tasks`) | the newest N tasks | No — and unlike the four rows above, this one is a live bug today, not a deferred cost. See below. |
+| `GET /tasks` (→ `refarm tasks`) | `packages/tractor/src/sidecar/mod.rs` (`get_tasks`) | the newest N tasks **by creation** | Yes, since 2026-08-11 (ISS-041). The ordering difference from its guest sibling survives ON PURPOSE — see below. |
 
-**`GET /tasks` is the sharpest of the rows still marked "No," and it disagrees with its
-own guest sibling today.** `get_tasks` (`packages/tractor/src/sidecar/mod.rs:1718,1747,1752`)
-still holds all three shapes this document's fixes removed elsewhere: an unlimited
-`storage.query_nodes("Task")` with no `LIMIT` pushed into SQL (line 1718, never
-`query_nodes_limited`), a second, re-derived sort order —
-`tasks.sort_by(|a, b| b["created_at_ns"]...cmp(&a["created_at_ns"]...))` (line 1747), the
-exact "second sort order" shape "What a caller must do" forbids — and a silent
-`tasks.truncate(params.limit.min(100))` (line 1752) returning `{tasks, total}` with no
-`stored`/`truncated`, the same shape `GET /nodes` had before its fix. Its guest sibling,
-`list_tasks` (`packages/agent/src/tool_dispatch/task_tools.rs:3-27`), calls
-`tractor_bridge::query_nodes("Task", limit)` — the fixed WASM bridge — which now takes the
-front N in the storage layer's `updated_at DESC, id DESC` order. `GET /tasks` orders by
-`created_at_ns` instead. For any Task whose status has changed since it was created (the
-ordinary case — a Task is created `active` and later updated to `done`/`failed`/`blocked`),
-`created_at_ns` and `updated_at` diverge, so the two surfaces can, and do, return a
-different "newest N tasks" for the identical underlying data — the same
-created-versus-touched divergence just fixed for Session (see above), live in the same
-file as the `get_nodes` handler that was fixed. The two surfaces disagree today; this row
-is named here so the next reader does not have to rediscover it.
+**`GET /tasks` was the sharpest of the rows marked "No". Fixed 2026-08-11 (ISS-041) —
+four defects, and the fourth was never filed by anybody.**
+
+1. `storage.query_nodes("Task")` read every row of the type at any limit. It now calls
+   `query_nodes_page`, which pushes the limit into SQL.
+2. A second, re-derived sort order in Rust —
+   `tasks.sort_by(|a, b| b["created_at_ns"]…)` — the exact shape "What a caller must do"
+   forbids. The ordering moved INTO SQL rather than being dropped; see below.
+3. A silent `tasks.truncate(limit.min(100))` with no `stored`/`truncated`. It now reports
+   both, plus `offset`.
+4. **`total` was computed AFTER the truncate**, so it always equalled the page size. A
+   consumer reading it to ask "is there more" was answered "no", always. It is REMOVED
+   rather than redefined: a key whose meaning changes silently is worse than one that
+   vanishes loudly. Nothing outside this file's own tests read it — measured before
+   removal.
+
+**The filters moved into SQL WITH the limit, and that pairing is not incidental.** Moving
+only the limit would have been *worse* than leaving the endpoint alone: `?status=done`
+would then answer out of the newest 100 rows of any status, and could report zero while
+hundreds of done tasks existed. That is the global-limit-then-filter shape ISS-045 was
+filed for, and it would have been rebuilt here in the act of fixing something else. The
+`stored` count is taken over the same predicate, so `truncated` compares two numbers
+measured over one set.
+
+**THE DISAGREEMENT WITH `list_tasks` IS STILL THERE, and is now named instead of
+accidental.** `GET /tasks` orders by `created_at_ns`; the guest's `list_tasks`
+(`packages/agent/src/tool_dispatch/task_tools.rs`) goes through the bridge's
+`query_nodes_limited` and gets `updated_at DESC, id DESC`. For any Task whose status has
+changed since creation — the ordinary case — the two diverge, so the two surfaces can
+return a different "newest N" for identical data.
+
+The plan for this work said to drop the `created_at_ns` sort and let the store's order be
+the answer, which would have made them agree. That was not done, and the reason is worth
+recording: **it would have changed what the endpoint MEANS without saying so.** `refarm
+tasks` would silently switch from "the newest tasks" to "the most recently touched tasks",
+and it would then disagree with farmhand's own `/tasks` route, which sorts by
+`created_at_ns` in TypeScript. Two surfaces agreeing on the wrong answer is not an
+improvement over two surfaces answering different questions.
+
+So the real defect is not that they differ — it is that **neither says which question it
+answers**. An operator listing tasks reasonably wants the newest by creation; an agent
+loading prompt context reasonably wants the most recently active. Both are defensible and
+neither is labelled. That is the shape-versus-purpose distinction this repository keeps
+rediscovering, and it is filed rather than papered over.
 
 **How the two 2026-08-06 fixes worked, and why 4 rows above stayed "No" without being
 wrong.** The bridge fix (`8bf5d345`) was a cost fix, not a correctness fix: the
@@ -226,7 +251,29 @@ found this either — nothing was there to grep for.
 | --- | --- |
 | `total` | rows in **this** response (`nodes.len()`) — unchanged meaning, matches `summary.total` / `history.total` / `cache.total` elsewhere in the codebase |
 | `stored` | the true count of rows of this `@type`, via `count_nodes` — independent of `limit` or the server's own `MAX_NODES_PER_RESPONSE` (100) ceiling |
-| `truncated` | `stored > nodes.len()` — `true` only when the caller's limit (or the ceiling) actually left rows out |
+| `truncated` | rows remain **beyond this page**: `stored > offset + nodes.len()`. With no offset that is the plain `stored > nodes.len()`; see the paging note below for why it cannot stay that way once an offset exists |
+| `offset` | which row the page starts at, echoed back (added 2026-08-11, ISS-042) |
+
+### Paging, and the remedy `truncated` used to lack
+
+`GET /nodes` and `GET /tasks` accept `offset` since 2026-08-11. Before that, `truncated:
+true` was **an observation with no remedy**: the response said rows had been left out and
+gave the caller no way to ask for them. `--limit` could not help — the ceiling clamps it,
+and the CLI default was already equal to the ceiling, so on a record past 100 rows the
+first default run printed an instruction that did nothing.
+
+`MAX_NODES_PER_RESPONSE` stays. The fix is reachability, not removal of the ceiling.
+
+**It is an offset, not a cursor, and the difference is stated rather than hidden.** A
+cursor needs a sort key stable under concurrent writes, which no adapter guarantees today
+and which this document would have to settle first. An offset is adequate for paging a
+table and liable to skip or repeat a row if the set changes underneath the caller.
+
+**`truncated` is not `stored > nodes.length` once an offset exists.** Rows before the
+offset were skipped on purpose and are reachable by asking again; counting them as
+withheld would leave a caller paging forever, one empty page at a time. The last page of a
+truncated read reports `truncated: false` even though `stored` still exceeds the rows it
+carries.
 
 A ceiling on response size (`MAX_NODES_PER_RESPONSE = 100`, `sidecar/mod.rs:1521`) is a
 reasonable thing for an HTTP endpoint to have — an unbounded response is its own hazard.
@@ -244,6 +291,12 @@ response shape today. `apps/refarm/src/commands/budget.ts`'s
 caller must handle three states — truncated, confirmed complete, and *unknown* — not
 two. See the next section for why collapsing that third state was the recurring bug in
 this same session.
+
+Since 2026-08-11 that three-state rule is **a type rather than a discipline**:
+`QueryNodesPage` and `readCompleteness` in `@refarm.dev/storage-contract-v1`, which
+`packages/sidecar-client` now extends instead of restating (ISS-040). `readCompleteness`
+returns `complete | partial | unknown`, and `unknown` is the state an empty list must not
+be allowed to hide inside.
 
 The TS graph client (`packages/sidecar-client/src/index.ts`, fixed 2026-08-06, commit
 `d732a4f4`) carries this same discipline into `SidecarGraphClient.queryNodes`:
