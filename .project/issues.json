@@ -280,12 +280,13 @@
 			"title": "33 command call sites resolve with a bare ?? process.cwd() — the declaredBase question one layer up",
 			"body": "PLAN-SIZED SEAM, measured 2026-08-06 and deliberately NOT taken as a drive-by: 33 call sites across 18 command files resolve with a bare `?? process.cwd()` -- connection, process, surface, cert, sas-store, delivery, release, package-manager, remote-initiation and more. It is the declaredBase question one layer up: which commands speak about the NODE and which about the directory the operator is standing in. THE LIVE INSTANCE that surfaced it: `refarm connection status --json` lists the operator's ovpn-serpro VPN from ~/github/refarm and NOTHING from /tmp or from ~/git/rcdc5, because connection.ts:499 and :830 read `deps?.cwd?.() ?? process.cwd()` directly. His VPN is declared only where he happens to stand. By the model this session established a connection is NODE state -- host.wit's own words, 'declared by the OPERATOR ... several plugins share ONE live connection' -- and its declaration currently lives in a WORKSPACE's sovereign dir. WHY NOT A QUICK FIX: moving the declaration into ~/.refarm/config.json would make it invisible EVERYWHERE, because the code reads cwd rather than the base. And not all 33 are wrong -- doctor.ts is one of them ON PURPOSE, put there on 2026-08-06 so scope-doctor can compare where the operator stands against the node's home. This needs the same per-site audit that caught two silent breakages in the two-halves-one-node plan, not a reflex substitution.",
 			"location": "docs/NO_OS_RESOLUTION.md:1",
-			"status": "open",
+			"status": "resolved",
 			"category": "cleanup",
 			"priority": "high",
 			"package": "apps/refarm",
 			"axis": "node-vs-directory",
-			"requirement": "R2"
+			"requirement": "R2",
+			"resolved_by": "4a33ec7d"
 		},
 		{
 			"id": "ISS-025",
@@ -629,11 +630,12 @@
 			"title": "The no-os-resolution burn-down has not started, and Task 1 touched a protected surface awaiting a ruling",
 			"body": "LOOSE ENDS opened by the sandbox-node session (D3/D4), 2026-08-07, each named with its own evidence:\n\n(5) scripts/no-os-resolution.mjs (baseline 119 sites, docs/NO_OS_RESOLUTION.md) is the ratchet that would catch (1) above by construction going forward -- its own burn-down plan (docs/superpowers/plans/2026-08-07-no-resolver-defaults-to-the-os.md) has Task 1 done and Task 2+ (the actual burn-down) not started. Task 1 modified .github/workflows/test.yml, a CLAUDE.md section 8 protected surface -- the operator has been told and has not yet ruled on it.\n\nALSO RECORDED, in a second handoff entry that named the same thing:\n\nRATCHET, reverified 2026-08-08: `node scripts/no-os-resolution.mjs` reports 117 offending sites, not 119 -- it fell in commit d8f850b8 when connection.ts's two fixed sites left the scan, and BASELINE_MAX_OFFENDING_SITES was lowered in that same commit (delta 0). The remaining 117 sites are held, not urgent, per docs/superpowers/plans/2026-08-07-who-owns-this-work.md's own self-review out-of-scope line -- do not copy 119 forward in any future record without rerunning the scan.",
 			"location": "scripts/no-os-resolution.mjs:1",
-			"status": "open",
+			"status": "resolved",
 			"category": "cleanup",
 			"priority": "medium",
 			"package": "scripts",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "4a33ec7d"
 		},
 		{
 			"id": "ISS-055",

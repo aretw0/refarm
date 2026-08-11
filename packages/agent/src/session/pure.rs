@@ -681,6 +681,85 @@ fn truncate_line(text: &str, max_chars: usize) -> String {
     }
 }
 
+/// The provenance value the CLI sends when a HUMAN named the workspace. Anything else — today
+/// only `"seeded-from-cwd"` — is an inference, and ADR-094 H2 makes that distinction
+/// load-bearing: a seed is not policy truth.
+pub(crate) const WORKSPACE_SOURCE_DECLARED: &str = "declared";
+
+/// What the store said about a Session node — THREE states, never two.
+///
+/// `get_or_create_session` used to ask `get_node(id).is_err()` and branch on the boolean. That
+/// collapses `PluginError::NotFound` (the node is not there) onto `Internal` (the store could
+/// not be asked), and the two demand opposite actions: the first says create, the second says
+/// touch nothing. The WIT surface has carried the distinction all along; only the caller threw
+/// it away (ISS-063).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum StoredSession {
+    /// Not in the store. Creating is safe.
+    Absent,
+    /// In the store, carrying this attribution (`None` when it carries none).
+    Present(Option<(String, String)>),
+    /// The store could not be asked. NOT absent — and the difference is a conversation's
+    /// attribution, so it is not a nuance.
+    Unreadable,
+}
+
+/// What to do about the workspace stamp.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WorkspaceStamp {
+    /// Write a new Session node carrying the incoming attribution.
+    Create,
+    /// The node exists; write the attribution onto it.
+    Stamp,
+    /// Change nothing.
+    Leave,
+}
+
+/// PURE. The whole attribution policy in one place, so the three defects it closes cannot drift
+/// apart again — they were one decision made in three halves.
+///
+/// - **Unreadable → Leave.** Never create on a read failure: the node may exist and be carrying a
+///   declaration this call would silently replace with whatever it happens to hold (ISS-063).
+/// - **Absent → Create.** The ordinary first call on a CLI-generated id.
+/// - **Present with NO attribution → Stamp**, whenever anything is declared. Every session
+///   created before attribution existed is in this state, and without this the cwd seed re-fires
+///   on every single run for the rest of that conversation's life (ISS-059).
+/// - **Present WITH an attribution → Stamp only for a human declaration.** `--workspace` is the
+///   operator speaking, and the operator may correct a session that was seeded wrongly (ISS-057).
+///   A seed may not: the fear the old comment recorded — "a later run from another directory
+///   cannot silently re-attribute a conversation already under way" — is exactly right about
+///   seeds, and this keeps it true of them while letting a human be heard.
+pub(crate) fn workspace_stamp_action(
+    stored: &StoredSession,
+    incoming: Option<(&str, &str)>,
+) -> WorkspaceStamp {
+    match stored {
+        StoredSession::Unreadable => WorkspaceStamp::Leave,
+        StoredSession::Absent => WorkspaceStamp::Create,
+        StoredSession::Present(existing) => match (existing, incoming) {
+            (_, None) => WorkspaceStamp::Leave,
+            (None, Some(_)) => WorkspaceStamp::Stamp,
+            (Some(_), Some((_, source))) if source == WORKSPACE_SOURCE_DECLARED => {
+                WorkspaceStamp::Stamp
+            }
+            (Some(_), Some(_)) => WorkspaceStamp::Leave,
+        },
+    }
+}
+
+/// PURE. Reads the attribution off a stored Session payload. Both keys or neither, the same pair
+/// rule `session_node` writes them with and `declared_workspace` reads them with — an id with no
+/// provenance is not defaulted to `"declared"`, because defaulting there would fail toward the
+/// STRONGER claim on the one distinction that decides budget policy.
+pub(crate) fn stored_workspace_of(node: &serde_json::Value) -> Option<(String, String)> {
+    let id = node.get("workspace_id")?.as_str()?.trim();
+    let source = node.get("workspace_source")?.as_str()?.trim();
+    if id.is_empty() || source.is_empty() {
+        return None;
+    }
+    Some((id.to_string(), source.to_string()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1155,4 +1234,94 @@ mod tests {
         assert_eq!(negative, BudgetCheck::Known { spend_usd: 0.0, budget_usd: -5.0 });
         assert!(budget_exceeded(&negative), "a negative budget must also block, no query needed");
     }
+
+    // ---- Workspace attribution: one decision, formerly three halves (ISS-057/059/063).
+
+    fn present_with(source: &str) -> StoredSession {
+        StoredSession::Present(Some(("rcdc5".into(), source.into())))
+    }
+
+    /// ISS-063. `get_node` returning `Internal` is "could not ask", and the old `.is_err()` read
+    /// it as "not there" and created — over a live session that may already carry a human
+    /// declaration. Failing shut here costs one uncreated node; failing open costs an
+    /// attribution, which is what decides the budget.
+    #[test]
+    fn an_unreadable_store_changes_nothing_even_with_a_human_declaration() {
+        assert_eq!(
+            workspace_stamp_action(&StoredSession::Unreadable, Some(("rcdc5", "declared"))),
+            WorkspaceStamp::Leave
+        );
+        assert_eq!(
+            workspace_stamp_action(&StoredSession::Unreadable, None),
+            WorkspaceStamp::Leave
+        );
+    }
+
+    #[test]
+    fn an_absent_node_is_created_with_whatever_this_call_declared() {
+        assert_eq!(
+            workspace_stamp_action(&StoredSession::Absent, Some(("rcdc5", "seeded-from-cwd"))),
+            WorkspaceStamp::Create
+        );
+    }
+
+    /// ISS-059. Every session created before attribution existed sits here. Without the stamp,
+    /// degree 3 re-seeds from the current directory on every run for the rest of its life.
+    #[test]
+    fn a_session_with_no_attribution_is_stamped_by_a_seed_as_well_as_a_declaration() {
+        assert_eq!(
+            workspace_stamp_action(&StoredSession::Present(None), Some(("rcdc5", "seeded-from-cwd"))),
+            WorkspaceStamp::Stamp
+        );
+        assert_eq!(
+            workspace_stamp_action(&StoredSession::Present(None), Some(("rcdc5", "declared"))),
+            WorkspaceStamp::Stamp
+        );
+    }
+
+    /// ISS-057. `--workspace` is the operator speaking, and a session seeded from the wrong
+    /// directory stayed wrong for life because nothing could correct it.
+    #[test]
+    fn a_human_declaration_corrects_a_session_that_was_seeded_wrongly() {
+        assert_eq!(
+            workspace_stamp_action(&present_with("seeded-from-cwd"), Some(("notes", "declared"))),
+            WorkspaceStamp::Stamp
+        );
+    }
+
+    /// The other half of ISS-057, and the fear the original comment recorded: a later run from
+    /// another directory must NOT silently re-attribute a conversation already under way. True of
+    /// seeds, which is what that comment was really about.
+    #[test]
+    fn a_seed_never_re_attributes_a_session_that_already_has_one() {
+        assert_eq!(
+            workspace_stamp_action(&present_with("seeded-from-cwd"), Some(("notes", "seeded-from-cwd"))),
+            WorkspaceStamp::Leave
+        );
+        assert_eq!(
+            workspace_stamp_action(&present_with("declared"), Some(("notes", "seeded-from-cwd"))),
+            WorkspaceStamp::Leave
+        );
+    }
+
+    #[test]
+    fn nothing_declared_this_call_changes_nothing() {
+        assert_eq!(workspace_stamp_action(&present_with("declared"), None), WorkspaceStamp::Leave);
+        assert_eq!(workspace_stamp_action(&StoredSession::Present(None), None), WorkspaceStamp::Leave);
+    }
+
+    #[test]
+    fn stored_workspace_needs_both_keys_and_neither_may_be_blank() {
+        let both = serde_json::json!({"workspace_id": "rcdc5", "workspace_source": "declared"});
+        assert_eq!(
+            stored_workspace_of(&both),
+            Some(("rcdc5".to_string(), "declared".to_string()))
+        );
+        assert_eq!(stored_workspace_of(&serde_json::json!({"workspace_id": "rcdc5"})), None);
+        assert_eq!(
+            stored_workspace_of(&serde_json::json!({"workspace_id": "  ", "workspace_source": "declared"})),
+            None
+        );
+    }
+
 }

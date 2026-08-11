@@ -3,7 +3,8 @@ use crate::plugin::host::tractor_bridge;
 
 use super::{
     budget_exceeded, history_from_nodes, pick_latest_session_id, pick_latest_session_leaf_id,
-    resolve_budget_check, session_entry_node, session_node, BudgetCheck,
+    resolve_budget_check, session_entry_node, session_node, stored_workspace_of,
+    workspace_stamp_action, BudgetCheck, StoredSession, WorkspaceStamp,
 };
 
 const SESSION_PREFIX_V1: &str = "urn:sovereign:session:v1:";
@@ -151,16 +152,26 @@ pub(crate) fn append_to_session(session_id: &str, kind: &str, content: &str) -> 
 pub(crate) fn get_or_create_session() -> String {
     if let Ok(id) = std::env::var("MODEL_SESSION_ID") {
         if !id.is_empty() {
-            if tractor_bridge::get_node(&id).is_err() {
-                // Bound first: `declared_workspace()` returns owned Strings, and
-                // `session_node` borrows. Inlining the call would drop the temporary
-                // while the borrow is still live.
-                let declared = declared_workspace();
-                let workspace = declared
-                    .as_ref()
-                    .map(|(id, source)| (id.as_str(), source.as_str()));
-                let node = session_node(&id, None, None, None, now_ns(), workspace);
-                let _ = tractor_bridge::store_node(&node.to_string());
+            // Bound first: `declared_workspace()` returns owned Strings, and the borrow below
+            // outlives the temporary if the call is inlined.
+            let declared = declared_workspace();
+            let incoming = declared
+                .as_ref()
+                .map(|(id, source)| (id.as_str(), source.as_str()));
+            let stored = read_stored_session(&id);
+            match workspace_stamp_action(&stored, incoming) {
+                WorkspaceStamp::Create => {
+                    let node = session_node(&id, None, None, None, now_ns(), incoming);
+                    let _ = tractor_bridge::store_node(&node.to_string());
+                }
+                // Read-modify-write, exactly like `append_to_session`'s leaf-pointer update:
+                // the node already exists and carries fields this call knows nothing about.
+                WorkspaceStamp::Stamp => {
+                    if let Some((workspace_id, workspace_source)) = incoming {
+                        stamp_workspace(&id, workspace_id, workspace_source);
+                    }
+                }
+                WorkspaceStamp::Leave => {}
             }
             return id;
         }
@@ -173,11 +184,46 @@ pub(crate) fn get_or_create_session() -> String {
     store_new_session(None).unwrap_or_else(new_session_id)
 }
 
+/// THREE STATES from the host's own error vocabulary. `PluginError::NotFound` means the node is
+/// not there; anything else means the store could not be asked, and the two want opposite
+/// actions. `.is_err()` collapsed them, which is how a read failure could create a node over a
+/// live session (ISS-063). A payload that will not parse is `Present(None)` rather than
+/// `Unreadable`: the node demonstrably exists, and the honest reading of an unparseable payload
+/// is "it declares no workspace", not "there might be nothing here".
+fn read_stored_session(id: &str) -> StoredSession {
+    match tractor_bridge::get_node(&id.to_string()) {
+        Ok(raw) => StoredSession::Present(
+            serde_json::from_str::<serde_json::Value>(&raw)
+                .ok()
+                .and_then(|node| stored_workspace_of(&node)),
+        ),
+        Err(crate::plugin::host::tractor_bridge::PluginError::NotFound(_)) => StoredSession::Absent,
+        Err(_) => StoredSession::Unreadable,
+    }
+}
+
+/// Write the attribution onto an EXISTING Session node, preserving every other field. Same
+/// read-modify-write shape `append_to_session` uses for `leaf_entry_id`, and for the same
+/// reason: this call knows about two keys and must not author the rest.
+fn stamp_workspace(id: &str, workspace_id: &str, workspace_source: &str) {
+    let Ok(raw) = tractor_bridge::get_node(&id.to_string()) else {
+        return;
+    };
+    let Ok(mut node) = serde_json::from_str::<serde_json::Value>(&raw) else {
+        return;
+    };
+    node["workspace_id"] = serde_json::Value::String(workspace_id.to_string());
+    node["workspace_source"] = serde_json::Value::String(workspace_source.to_string());
+    let _ = tractor_bridge::store_node(&node.to_string());
+}
+
 /// The workspace attribution declared for THIS call, or `None`.
 ///
-/// Read only where a Session node is CREATED. An existing session keeps whatever it was
-/// created with: the declaration is the session's, not the dispatch's, so a later run from
-/// another directory cannot silently re-attribute a conversation already under way.
+/// What happens with it is `workspace_stamp_action`'s decision, not this function's. The rule
+/// that used to live here — "an existing session keeps whatever it was created with" — was right
+/// about SEEDS and wrong about declarations: a seed must never re-attribute a conversation
+/// already under way, and `--workspace` is the operator correcting one that was seeded wrongly
+/// (ISS-057). See `pure.rs` for the full policy and its tests.
 ///
 /// Both or neither: `workspace_id` and `workspace_source` are a pair, exactly like the two
 /// keys `session_node` inserts together (see `pure.rs`). An id arriving with no provenance
