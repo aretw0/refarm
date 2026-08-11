@@ -88,7 +88,31 @@ export interface PluginListReport {
 }
 
 export interface RuntimePluginStatusEntry {
+	/**
+	 * WHATEVER FORM THE RUNTIME REPORTED, unchanged — kept so no existing reader breaks. It is
+	 * NOT a single vocabulary and never was: measured on the operator's own node, this array
+	 * carried `"@refarm/agent"` (a MANIFEST id) and `"lsp-code-ops"` (a RUNTIME id) in the same
+	 * response, under the same key (ISS-068).
+	 */
 	id: string;
+	/**
+	 * The id `trusted_plugins` is matched against — the manifest id's last `/` segment, which is
+	 * what the host compares at the load gate.
+	 *
+	 * Reported because guessing it wrong is not a typo, it is a DENY-ALL: `trusted_plugins` has
+	 * three states, not two — absent is permissive, valid is an allowlist, and INVALID makes the
+	 * daemon log "trusted_plugins config unreadable" and refuse every plugin. That happened on
+	 * this operator's real node, from a confident reading of a manifest's own `id` field.
+	 */
+	runtimeId: string;
+	/**
+	 * The id `approvedPermissions` is keyed by — the scoped manifest id — or NULL when this
+	 * response cannot tell. A bare runtime id maps back only through a declared alias, and
+	 * `lsp-code-ops` has none: its real manifest id is `@refarm/lsp-code-ops`, which nothing here
+	 * can derive. Null rather than a guess, because a confidently wrong id is what put a deny-all
+	 * on the operator's node in the first place. See `pluginIdPair`.
+	 */
+	manifestId: string | null;
 	installed: boolean;
 	loaded: boolean;
 	local: boolean;

@@ -651,6 +651,8 @@ describe("plugin status", () => {
 			available: boolean;
 			plugins: Array<{
 				id: string;
+				runtimeId: string;
+				manifestId: string | null;
 				installed: boolean;
 				loaded: boolean;
 				local: boolean;
@@ -664,15 +666,26 @@ describe("plugin status", () => {
 		expect(payload.operation).toBe("status");
 		expect(payload.ok).toBe(false);
 		expect(payload.available).toBe(true);
+		// BOTH VOCABULARIES, named (ISS-068). `id` keeps whatever the runtime reported — this array
+		// really did carry a scoped manifest id and a bare runtime id side by side under one key —
+		// and the two fields beside it say which config key wants which.
+		//
+		// `manifestId: null` on the second entry is the honest half: `@local/tool` has no declared
+		// alias back from its bare form, and inventing a scope is precisely what put a deny-all on
+		// the operator's node. Null sends the reader to `refarm plugin approve`, which normalises.
 		expect(payload.plugins).toEqual([
 			{
 				id: "@refarm/agent",
+				runtimeId: "agent",
+				manifestId: "@refarm/agent",
 				installed: true,
 				loaded: false,
 				local: false,
 			},
 			{
 				id: "@local/tool",
+				runtimeId: "tool",
+				manifestId: "@local/tool",
 				installed: false,
 				loaded: false,
 				local: true,

@@ -32,6 +32,7 @@ import {
 	type RuntimePluginRecommendation,
 	type RuntimePluginStatusReport,
 } from "./plugin-shared.js";
+import { pluginIdPair } from "./plugin-trust.js";
 import { readRuntimePluginState, reloadRuntimePluginsAndWait } from "./runtime-plugins.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
@@ -240,8 +241,12 @@ export function buildRuntimePluginStatusReport(
 		operation: "status",
 		ok: runtimeAgentLoaded,
 		available: true,
+		// BOTH vocabularies, named. `id` keeps whatever the runtime said; the two beside it say
+		// which config key wants which, so a reader never has to infer it from the shape of a
+		// string (ISS-068).
 		plugins: known.map((id) => ({
 			id,
+			...pluginIdPair(id, normalizePluginId),
 			installed: state.installed.includes(id),
 			loaded: state.loaded.includes(id),
 			local: state.local.includes(id),
