@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	CertificateRefusal,
 	createCertificateProviderRegistry,
@@ -15,9 +16,9 @@ import {
 import {
 	buildCaTrustRequest,
 	buildNssCaTrustRequest,
+	CERTUTIL_MISSING_FIX,
 	certutilCommandLine,
 	certutilDeleteArgs,
-	CERTUTIL_MISSING_FIX,
 	chromiumNssDir,
 	createLocalCaProvider,
 	createNodeCertutilRunner,
@@ -43,7 +44,6 @@ import {
 	type OperationOutcome,
 	type OperationTrail,
 } from "@refarm.dev/operation-consent-v1";
-import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -119,11 +119,13 @@ const CERT_TRUST_SYSTEM_PLAIN_COMMAND = refarmPrivilegedCommand(["cert", "trust"
 const CERT_HELP_COMMAND = refarmCommand(["cert", "--help"]);
 
 /** Where this node keeps its CA and the certificates it has issued. */
+// os-resolution: node — the comment one line up says THIS NODE keeps its CA here; a node has one CA, not one per directory
 export function resolveTlsDir(root: string = process.cwd()): string {
 	return path.resolve(root, ".refarm", "tls");
 }
 
 /** Where the trail of trust decisions lives — beside the CA they are about. */
+// os-resolution: node — the trail of trust decisions lives beside the CA, so it inherits the CA node scope
 export function resolveCertTrailPath(root: string = process.cwd()): string {
 	return path.join(resolveTlsDir(root), "operations.json");
 }
@@ -220,6 +222,7 @@ export async function runCertProviders(deps: CertDeps = {}): Promise<{
 	nextCommand: string;
 	nextCommands: string[];
 }> {
+	// os-resolution: node — feeds resolveTlsDir, which is node-scoped by its own comment
 	const root = deps.root ?? process.cwd();
 	const registry =
 		deps.registry ??
@@ -279,6 +282,7 @@ export async function runCertIssue(
 	options: CertIssueOptions,
 	deps: CertDeps = {},
 ): Promise<CertIssueResult> {
+	// os-resolution: node — feeds resolveTlsDir, which is node-scoped by its own comment
 	const root = deps.root ?? process.cwd();
 	const dir = options.dir ? path.resolve(options.dir) : resolveTlsDir(root);
 	const say = deps.say ?? (() => {});
@@ -434,6 +438,7 @@ export async function runCertTrust(
 	options: CertTrustOptions,
 	deps: CertDeps = {},
 ): Promise<CertTrustResult> {
+	// os-resolution: node — feeds resolveTlsDir, which is node-scoped by its own comment
 	const root = deps.root ?? process.cwd();
 	const dir = options.dir ? path.resolve(options.dir) : resolveTlsDir(root);
 	const hostname = deps.hostname ?? os.hostname();
@@ -575,6 +580,7 @@ async function runBrowserTrust(input: {
 	say: (line: string) => void;
 }): Promise<CertTrustResult> {
 	const { options, deps, root, device, hostname, ca, caPem, say } = input;
+	// os-resolution: os-user — the certutil NSS database genuinely belongs to the OS account, not to the refarm node
 	const home = deps.home ?? os.homedir();
 	const run = deps.certutil ?? createNodeCertutilRunner();
 

@@ -97,6 +97,7 @@ async function resolveHealthBaseInput(): Promise<BaseSurfaceModelInput["health"]
 	return runHealthAudit(projectRoot);
 }
 
+// os-resolution: os-user — a walk boundary: stop climbing at the OS account home rather than escaping into the filesystem
 export function nearestProjectRoot(start: string, boundary = os.homedir()): string | null {
 	let current = path.resolve(start);
 	const resolvedBoundary = path.resolve(boundary);

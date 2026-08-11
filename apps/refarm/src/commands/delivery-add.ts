@@ -487,6 +487,7 @@ export async function runDeliveryAdd(
 	deps: DeliveryAddDeps = {},
 ): Promise<DeliveryAddResult> {
 	const env = deps.env ?? process.env;
+	// os-resolution: project — writes into the workspace tier catalog the operator is standing in
 	const root = deps.root ?? process.cwd();
 	const factories = deps.factories ?? defaultDeliveryAdapterFactories();
 
@@ -934,6 +935,7 @@ export async function runDeliveryTest(
 	channelName: string,
 	deps: DeliveryTestDeps = {},
 ): Promise<DeliveryTestResult> {
+	// os-resolution: project — reads the workspace tier catalog the operator is standing in
 	const root = deps.root ?? process.cwd();
 	const { channels } = loadDeclaredDelivery({ root });
 	const channel: ResolvedDeliveryChannel | undefined = channels.find(

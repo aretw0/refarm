@@ -301,7 +301,9 @@ function readLocalExtensionBase(baseDir: string): InstalledPluginManifest[] {
 }
 
 export function readLocalExtensionManifests(
+	// os-resolution: project — the project-local .refarm/extensions tier, which is anchored where the operator stands
 	cwd = process.cwd(),
+	// os-resolution: node — the operator extensions dir, which plugin-local.ts resolves via resolveRefarmHome for the SAME path
 	homeDir = os.homedir(),
 ): InstalledPluginManifest[] {
 	return [...readLocalExtensionBase(cwd), ...readLocalExtensionBase(homeDir)];
@@ -312,7 +314,9 @@ export function readSurfaceablePluginManifests(): InstalledPluginManifest[] {
 }
 
 export function readSurfaceablePluginVerbs(
+	// os-resolution: project — the project-local .refarm/extensions tier, which is anchored where the operator stands
 	cwd = process.cwd(),
+	// os-resolution: node — the operator extensions dir, which plugin-local.ts resolves via resolveRefarmHome for the SAME path
 	homeDir = os.homedir(),
 	installedManifests = readInstalledPluginManifests(),
 ): SurfaceablePluginVerb[] {

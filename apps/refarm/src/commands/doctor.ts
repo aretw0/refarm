@@ -398,6 +398,7 @@ function resolveScopeComparison(
 		// the exact divergence this comparison exists to report. This value must stay the
 		// operator's literal standing directory, so the fallback is a bare `process.cwd()`,
 		// not a "smart" resolver.
+		// os-resolution: process — deliberately the operator LITERAL standing directory: the divergence report compares it against the node home, so a resolver here would erase the very gap being measured
 		const operatorBase = path.resolve(deps?.cwd?.() ?? process.cwd());
 		const nodeHome = path.resolve(resolveRefarmHome());
 		// What the RUNNING node says about itself, when it is running and says it. Absent,
@@ -485,6 +486,7 @@ function resolveEnvironment(deps: RefarmDoctorCommandDeps | undefined): RuntimeE
 		// MODEL_PROVIDER alone: that is a different process's environment, and reading it as if
 		// it were the declaration would compare the daemon against whatever shell happened to
 		// invoke the doctor.
+		// os-resolution: project — reads the workspace tier config where the operator stands, the tier storage-fs anchors on cwd
 		const baseDir = deps?.cwd?.() ?? process.cwd();
 		const tokens = (deps?.loadConfig ?? loadConfig)(baseDir) as Record<string, unknown>;
 		const route = effectiveModelRouteForScope(tokens, "default", { env: process.env });
@@ -512,6 +514,7 @@ export function resolveSovereignDivergences(): Divergence[] | null {
 }
 
 function resolveConnectionConfig(deps: RefarmDoctorCommandDeps | undefined): Record<string, unknown> {
+	// os-resolution: project — reads the workspace tier config where the operator stands, the tier storage-fs anchors on cwd
 	const baseDir = deps?.cwd?.() ?? process.cwd();
 	try {
 		return (deps?.loadConfig ?? loadConfig)(baseDir) as Record<string, unknown>;

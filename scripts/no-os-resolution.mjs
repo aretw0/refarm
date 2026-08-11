@@ -529,7 +529,7 @@ export const BASELINE_MAX_OFFENDING_SITES = 111;
  *
  * Falls to 0. It cannot be lowered by accident: a new unjudged site raises it immediately.
  */
-export const BASELINE_MAX_UNCLASSIFIED_SITES = 111;
+export const BASELINE_MAX_UNCLASSIFIED_SITES = 58;
 
 /**
  * A marker that does not parse — an unknown purpose token, or a purpose with no re-checkable

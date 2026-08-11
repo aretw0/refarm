@@ -98,6 +98,7 @@ class ProcessHandoffRefusal extends SupervisionRefusal {
 }
 
 /** Where the trail of process operations lives — beside the units they are about. */
+// os-resolution: project — the operations trail lives beside the units, so it follows the catalog workspace tier
 export function resolveProcessTrailPath(root: string = process.cwd()): string {
 	return path.join(root, ".refarm", "processes", "operations.json");
 }
@@ -123,6 +124,7 @@ export interface ProcessDeps {
  * merge — because a declaration about what runs on this machine must be read from exactly what is
  * on disk.
  */
+// os-resolution: project — the process catalog is declared in the workspace tier config, anchored on the operator directory
 export function readProcessCatalog(root: string = process.cwd(), config?: unknown): ProcessCatalog {
 	return parseProcessCatalog(config === undefined ? loadRawSovereignConfig(root) : config);
 }
@@ -221,6 +223,7 @@ export interface ProcessListResult {
 }
 
 export async function runProcessList(deps: ProcessDeps = {}): Promise<ProcessListResult> {
+	// os-resolution: project — the process catalog is declared in the workspace tier config, anchored on the operator directory
 	const catalog = readProcessCatalog(deps.root ?? process.cwd(), deps.config);
 	let backend: string | null = null;
 	let backendDetail: string;
@@ -276,6 +279,7 @@ export async function runProcessStatus(
 	names: string[],
 	deps: ProcessDeps = {},
 ): Promise<ProcessStatusResult> {
+	// os-resolution: project — the process catalog is declared in the workspace tier config, anchored on the operator directory
 	const root = deps.root ?? process.cwd();
 	const catalog = readProcessCatalog(root, deps.config);
 	const configPath = defaultSovereignConfigPath(root, deps.env ?? process.env);
@@ -356,6 +360,7 @@ export async function runProcessInstall(
 	options: { revisit?: boolean } = {},
 	deps: ProcessDeps = {},
 ): Promise<ProcessInstallResult> {
+	// os-resolution: project — the process catalog is declared in the workspace tier config, anchored on the operator directory
 	const root = deps.root ?? process.cwd();
 	const catalog = readProcessCatalog(root, deps.config);
 	const declaration = declarationOrRefusal(catalog, name);

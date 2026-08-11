@@ -94,10 +94,12 @@ function defaultHealthPolicy(rootDir: string): HealthPolicy {
 	};
 }
 
+// os-resolution: project — the health policy is declared in the config of the repository being audited
 export function resolveHealthPolicy(rootDir = process.cwd()): HealthPolicy {
 	return resolveHealthPolicyReport(rootDir).policy;
 }
 
+// os-resolution: project — the health policy is declared in the config of the repository being audited
 export function resolveHealthPolicyReport(rootDir = process.cwd()): HealthPolicyReport {
 	const configPath = findSovereignConfigPath(rootDir) ?? defaultSovereignConfigPath(rootDir);
 	const fallback = defaultHealthPolicy(rootDir);

@@ -50,6 +50,7 @@ export interface DistributionReadiness {
 export async function resolveOperationalReadinessUnits(
 	deps: OperationalReadinessDeps = {},
 ): Promise<BaseSurfaceUnit[]> {
+	// os-resolution: project — reads the workspace tier config the operator is standing in
 	const root = deps.root ?? process.cwd();
 	const config = deps.config ?? loadRawSovereignConfig(root);
 	const surfaces = parseSurfaces(config);

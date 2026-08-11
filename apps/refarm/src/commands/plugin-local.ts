@@ -141,6 +141,7 @@ async function saveExtension(
 		process.exitCode = 1;
 		return;
 	}
+	// os-resolution: project — the project-local extensions source, paired with resolveRefarmHome for the operator tier below
 	const cwd = process.cwd();
 	const operatorExtensionsDir = path.join(resolveRefarmHome(), "extensions");
 

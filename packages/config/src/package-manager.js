@@ -57,6 +57,7 @@ function detectPackageManagerFromLockfile(dir) {
 	return null;
 }
 
+// os-resolution: project — which package manager the PROJECT at this path declares, read from its lockfile and package.json
 export function detectPackageManager({ cwd = process.cwd(), env = process.env } = {}) {
 	const override = parsePackageManager(env[PACKAGE_MANAGER_OVERRIDE_ENV_VAR]);
 	if (override) return override;
@@ -186,6 +187,7 @@ function formatNpmArgsDisplay(args) {
 	return args.length > 0 ? ` -- ${formatDisplayArgs(args)}` : "";
 }
 
+// os-resolution: project — the project whose package manager decides how to phrase a script run
 export function packageScriptCommand(script, { cwd = process.cwd(), env = process.env } = {}) {
 	const packageManager = detectPackageManager({ cwd, env });
 	const command = `${packageManager} run ${script}`;
@@ -196,6 +198,7 @@ export function packageScriptCommand(script, { cwd = process.cwd(), env = proces
 	};
 }
 
+// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
 export function packageInstallCommand({ cwd = process.cwd(), env = process.env } = {}) {
 	const packageManager = detectPackageManager({ cwd, env });
 	const command = `${packageManager} install`;
@@ -206,6 +209,7 @@ export function packageInstallCommand({ cwd = process.cwd(), env = process.env }
 	};
 }
 
+// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
 export function packageFrozenInstallCommand({ cwd = process.cwd(), env = process.env } = {}) {
 	const packageManager = detectPackageManager({ cwd, env });
 
@@ -253,6 +257,7 @@ export function packageFrozenInstallCommand({ cwd = process.cwd(), env = process
 
 export function packageAddDevCommand(
 	dependencyName,
+	// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
 	{ cwd = process.cwd(), env = process.env } = {},
 ) {
 	const packageManager = detectPackageManager({ cwd, env });
@@ -304,6 +309,7 @@ export function packageAddDevCommand(
 }
 
 export function packageAuditCommand({
+	// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
 	cwd = process.cwd(),
 	env = process.env,
 	auditLevel = null,
@@ -343,6 +349,7 @@ export function packageAuditCommand({
 	}
 }
 
+// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
 export function packageAuditHighCommand({ cwd = process.cwd(), env = process.env } = {}) {
 	const packageManager = detectPackageManager({ cwd, env });
 
@@ -401,6 +408,7 @@ export function packageAuditHighCommand({ cwd = process.cwd(), env = process.env
 	}
 }
 
+// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
 export function packagePublishDryRunCommand({ cwd = process.cwd(), env = process.env } = {}) {
 	const packageManager = detectPackageManager({ cwd, env });
 
@@ -435,6 +443,7 @@ export function packagePublishDryRunCommand({ cwd = process.cwd(), env = process
 }
 
 export function packageWorkspacePublishDryRunCommand({
+	// os-resolution: project — same project question as detectPackageManager, which is all this cwd feeds
 	cwd = process.cwd(),
 	env = process.env,
 } = {}) {
@@ -501,6 +510,7 @@ export function packageWorkspacePublishDryRunCommand({
 export function packageBinaryCommand(
 	binary,
 	args = [],
+	// os-resolution: project — the project whose package manager knows how to invoke a local binary
 	{ cwd = process.cwd(), env = process.env } = {},
 ) {
 	const packageManager = detectPackageManager({ cwd, env });

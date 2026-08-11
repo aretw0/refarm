@@ -655,6 +655,7 @@ export async function runProcessAdd(
 	deps: ProcessAddDeps = {},
 ): Promise<ProcessAddResult> {
 	const env = deps.env ?? process.env;
+	// os-resolution: project — writes into the workspace tier catalog the operator is standing in
 	const root = deps.root ?? process.cwd();
 	const say = deps.announce ?? ((line: string) => console.log(line));
 	const exists = deps.exists ?? ((target: string) => fs.existsSync(target));

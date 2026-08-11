@@ -23,6 +23,7 @@ export function parseWorkspaceRemoteCacheProvider(value) {
 }
 
 export function declaredWorkspacesFromConfig(config, options = {}) {
+	// os-resolution: node — resolves relative workspace paths DECLARED IN THE NODE CONFIG, so the anchor is the node base
 	const baseDir = options.baseDir ?? process.cwd();
 	const workspaces = config?.workspaces;
 	if (!workspaces || typeof workspaces !== "object" || Array.isArray(workspaces)) return [];

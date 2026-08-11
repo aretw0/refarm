@@ -427,6 +427,7 @@ export function resolveOtherSovereignDirs(
 	return result;
 }
 
+// os-resolution: process — same divergence report as doctor operatorBase: the operator standing position is the input, not a thing to resolve away
 export function resolveContextInput(env = process.env, cwd = process.cwd()): ContextInput {
 	const metadata = resolveNodeContextMetadata(env, cwd);
 	const nodeHome = path.resolve(metadata.sovereignHome);

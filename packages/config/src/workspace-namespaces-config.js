@@ -13,6 +13,7 @@ export function parseWorkspaceNamespaceAccess(value) {
 }
 
 export function declaredWorkspaceNamespacesFromConfig(config, options = {}) {
+	// os-resolution: node — same node-config anchor as declaredWorkspacesFromConfig, for the namespaces block
 	const baseDir = options.baseDir ?? process.cwd();
 	const namespaces = config?.workspaceNamespaces;
 	if (!namespaces || typeof namespaces !== "object" || Array.isArray(namespaces)) return [];

@@ -1,4 +1,3 @@
-import os from "node:os";
 import { loadRawSovereignConfig } from "@refarm.dev/config";
 import {
 	parseDeliveryCatalog,
@@ -12,6 +11,7 @@ import {
 	type PendingPromptHub,
 	type PromptPublisher,
 } from "@refarm.dev/prompt-contract-v1";
+import os from "node:os";
 import type { DeliveryAttachment, DeliveryChannelIssue } from "./delivery.js";
 import { createSidecarPromptHub } from "./pending-prompt-sidecar.js";
 import { resolveSidecarUrl } from "./sidecar-url.js";
@@ -179,6 +179,7 @@ export async function installDeclaredDelivery(
 	options: InstallDeclaredDeliveryOptions,
 ): Promise<DeclaredDeliveryMount> {
 	const warn = options.warn ?? defaultWarn;
+	// os-resolution: project — mounts what the workspace tier catalog declares, anchored where the operator stands
 	const root = options.root ?? process.cwd();
 	const env = options.env ?? process.env;
 

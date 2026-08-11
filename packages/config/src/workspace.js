@@ -59,6 +59,7 @@ export function findWorkspacePackageForPath(root, changedPath, options = {}) {
 	return null;
 }
 
+// os-resolution: project — walks UP from where the operator stands looking for a workspace marker
 export function findWorkspaceRoot(startDir = process.cwd()) {
 	let current = path.resolve(startDir);
 	while (true) {

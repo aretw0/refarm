@@ -346,6 +346,7 @@ export function resolveConfigNodeBase(env = process.env): string {
 }
 
 export async function runHealthAudit(
+	// os-resolution: project — audits the repository tree the operator is standing in
 	rootDir = process.cwd(),
 	options: HealthAuditOptions = {},
 ): Promise<HealthReport> {
@@ -403,6 +404,7 @@ export async function runHealthAudit(
 }
 
 export async function runHealthPolicySuggestion(
+	// os-resolution: project — audits the repository tree the operator is standing in
 	rootDir = process.cwd(),
 ): Promise<HealthPolicySuggestionReport> {
 	const policy = resolveHealthPolicy(rootDir);
@@ -423,6 +425,7 @@ export async function runHealthPolicySuggestion(
 }
 
 export async function applySuggestedHealthPolicy(
+	// os-resolution: project — audits the repository tree the operator is standing in
 	rootDir = process.cwd(),
 ): Promise<HealthPolicyApplicationReport> {
 	const configPath = findSovereignConfigPath(rootDir) ?? defaultSovereignConfigPath(rootDir);

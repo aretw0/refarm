@@ -184,6 +184,7 @@ function packageScriptStep(
 	};
 }
 
+// os-resolution: project — walks UP from where the operator stands looking for the git or marker root
 function findWorkspaceRoot(cwd = process.cwd()): string {
 	try {
 		const root = readGitCommand(["rev-parse", "--show-toplevel"], { cwd });

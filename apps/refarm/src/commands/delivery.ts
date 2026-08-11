@@ -49,6 +49,7 @@ import { defaultDeliveryAdapterFactories } from "./delivery-adapters.js";
  * host's view of the file — because a declaration about who may interrupt the
  * operator must be read from exactly what is on disk.
  */
+// os-resolution: project — the delivery catalog is declared in the workspace tier config, anchored on the operator directory
 export function readDeliveryCatalog(root: string = process.cwd()): DeliveryCatalog {
 	return parseDeliveryCatalog(loadRawSovereignConfig(root));
 }
@@ -84,6 +85,7 @@ export async function resolveDeclaredToken(
 		return value.trim();
 	}
 
+	// os-resolution: project — resolves a catalog-relative path against the same workspace tier root the catalog came from
 	const root = options.root ?? process.cwd();
 	const resolved = path.isAbsolute(ref.path) ? ref.path : path.join(root, ref.path);
 	let raw: string;
@@ -444,6 +446,7 @@ function announceFailures(record: DeliveryRecord, warn: (message: string) => voi
 export function loadDeclaredDelivery(
 	options: ResolveDeliveryChannelsOptions & { root?: string } = {},
 ): { channels: ResolvedDeliveryChannel[]; issues: DeliveryChannelIssue[] } {
+	// os-resolution: project — the delivery catalog is declared in the workspace tier config, anchored on the operator directory
 	const root = options.root ?? process.cwd();
 	let catalog: DeliveryCatalog;
 	try {
