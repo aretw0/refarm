@@ -3,7 +3,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { finishSelectionFromLane } from "../../src/commands/agent-finish-plan.js";
+import {
+	finishSelectionFromLane,
+	plannedFinishCommands,
+} from "../../src/commands/agent-finish-plan.js";
 import { createAgentCommand } from "../../src/commands/agent.js";
 
 // THE LANE CONTRACT. CLAUDE.md section 4 prescribes `after-edit` for "after source edits,
@@ -16,16 +19,30 @@ describe("agent finish lanes: which ones measure the tests", () => {
 		expect(finishSelectionFromLane("after-edit").includeTests).toBe(true);
 	});
 
-	// before-push does NOT, and this pins that rather than hiding it: it compares against
-	// `upstream`, so it validates everything the branch is about to publish, but the tests
-	// themselves are expected to have run at after-edit on each slice. Whether the last gate
-	// before work leaves the machine should re-run them is the operator's call, not a default
-	// worth slipping in beside a change he asked for on ONE lane.
-	it("before-push covers the whole branch range, and does not re-run the tests", () => {
+	// before-push does not re-run the PACKAGE tests — they ran at after-edit on each slice — but
+	// it does compare against `upstream`, so it validates everything the branch is about to
+	// publish.
+	it("before-push covers the whole branch range, and does not re-run the package tests", () => {
 		const selection = finishSelectionFromLane("before-push");
 		expect(selection.profile).toBe("affected");
 		expect(selection.since).toBe("upstream");
 		expect(selection.includeTests).toBeUndefined();
+	});
+
+	// THE SCRIPT SUITES, which no lane reached until 2026-08-11 (ISS-106). package.json registers
+	// ~87 `node --test` entries and the lanes run vitest through turbo, which sees none of them —
+	// so `scripts/no-os-resolution.test.mjs` sat red for hours while every gate reported green.
+	//
+	// before-push and not after-edit, on the operator's ruling: ~115s is a high price per EDIT for
+	// a failure that is rare per edit but silent and long-lived. It escapes the machine, so the
+	// gate belongs at the machine's edge.
+	it("before-push runs the script test suites, and no earlier lane does", () => {
+		const commandsFor = (lane: "after-edit" | "after-commit" | "handoffs" | "before-push") =>
+			plannedFinishCommands({ ...finishSelectionFromLane(lane), lane }).join("\n");
+		expect(commandsFor("before-push")).toContain("scripts/ci/run-script-tests.mjs");
+		for (const lane of ["after-edit", "after-commit", "handoffs"] as const) {
+			expect(commandsFor(lane), lane).not.toContain("scripts/ci/run-script-tests.mjs");
+		}
 	});
 
 	// after-commit deliberately does NOT: the tests ran at after-edit on the very same tree,

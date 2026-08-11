@@ -244,8 +244,21 @@ function handoffContractStep(): CommandPlanStep {
  *
  * They belong in `before-push` specifically, and in no earlier lane. Each is repo-wide rather
  * than change-scoped, so running them after every edit would charge a whole-repo question to a
- * one-file answer; a push is the first moment the question is actually being asked. None of the
- * three compiles anything, so the whole addition is seconds.
+ * one-file answer; a push is the first moment the question is actually being asked.
+ *
+ * `scripts:test` joined them on 2026-08-11 (ISS-106) and is the expensive one — ~115s against
+ * seconds for the other three. It earns the place by the same rule and by the failure it
+ * catches: package.json registers ~87 `node --test` suites and NO lane ran any of them, so
+ * `scripts/no-os-resolution.test.mjs` sat red for hours while after-edit, after-commit and a
+ * full 282-task `turbo run test` all reported green.
+ *
+ * `before-push` and not `after-edit`, on the operator's ruling and for a reason worth keeping: a
+ * gate belongs in the lane where the error it catches is still cheap to fix, and THIS error is
+ * rare per edit but silent and long-lived — it escapes the machine rather than the keystroke.
+ * Charging 115s to every edit pays a high price for a low frequency; charging it once per slice
+ * closes exactly the window in which this failure gets away. The runner reports `new failures`
+ * apart from `known failures` precisely so that judgement can be revisited with data: if new
+ * ones start appearing often, the cost has moved and so should the step.
  *
  * The audit is deliberately blocking here, matching CI rather than softening it: this lane's
  * contract is "say what the pipeline will say" (CLAUDE.md §6, local reproduction first). An
@@ -271,6 +284,12 @@ function repoContractGateSteps(): CommandPlanStep[] {
 			id: "gate-security-audit",
 			args: ["node", "scripts/security/audit.mjs", "--audit-level=high"],
 			description: "Check for high-severity advisories, at CI's blocking level.",
+		}),
+		scriptTestStep({
+			id: "gate-script-tests",
+			args: ["node", "scripts/ci/run-script-tests.mjs"],
+			description:
+				"Run the ~87 node --test suites no other gate reaches; fails on a NEW failure, not on the 15 already recorded.",
 		}),
 	];
 }
