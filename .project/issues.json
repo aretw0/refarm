@@ -701,11 +701,12 @@
 			"title": "The trim asymmetry between prompt_handler.rs and dispatch.rs on the workspace declaration",
 			"body": "Deferred from the workspace-attribution plan, triaged, NOT done. Own ticket each:\n\n(d) the trim asymmetry between prompt_handler.rs:319-325 and dispatch.rs:205-215.",
 			"location": "packages/agent/src/runtime/prompt_handler.rs:319-325",
-			"status": "open",
+			"status": "resolved",
 			"category": "cleanup",
 			"priority": "low",
 			"package": "packages/agent",
-			"axis": "cost"
+			"axis": "cost",
+			"resolved_by": "cd3ed370"
 		},
 		{
 			"id": "ISS-061",

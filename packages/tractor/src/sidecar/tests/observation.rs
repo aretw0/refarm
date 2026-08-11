@@ -21,6 +21,7 @@ fn base_input() -> ObservationInput<'static> {
         effort_id: "eff-1",
         prompt_ref: Some("urn:sovereign:prompt-1"),
         workspace_id: Some("rcdc5"),
+        workspace_source: None,
         spawner: Some("termux"),
         outcome: "timed-out",
         elapsed_ms: Some(45_000),
@@ -63,6 +64,37 @@ fn the_observation_records_all_three_axes_asked_and_ruling() {
     assert_eq!(node["refarm.outcome.steps_completed"], 4);
     assert_eq!(node["refarm.outcome.steps_planned"], 25);
     assert_eq!(node["refarm.workspace.id"], "rcdc5");
+}
+
+/// ISS-058. A record that names a workspace without saying whether the run CLAIMED it or was
+/// GUESSED into it cannot be aggregated: "spend on rcdc5" would silently mix money the operator
+/// attributed there with money attributed by a directory that looked like it.
+#[test]
+fn the_record_says_whether_the_workspace_was_claimed_or_guessed() {
+    let node = build_observation_node(ObservationInput {
+        workspace_id: Some("rcdc5"),
+        workspace_source: Some("declared"),
+        ..base_input()
+    });
+    assert_eq!(node["refarm.workspace.id"], "rcdc5");
+    assert_eq!(node["refarm.workspace.source"], "declared");
+
+    let seeded = build_observation_node(ObservationInput {
+        workspace_id: Some("rcdc5"),
+        workspace_source: Some("seeded-from-cwd"),
+        ..base_input()
+    });
+    assert_eq!(seeded["refarm.workspace.source"], "seeded-from-cwd");
+
+    // OMITTED, never defaulted (D6). Every observation written before this field existed says
+    // nothing about provenance, and a `"declared"` invented here would read to every future
+    // analysis as an operator's claim about money that nobody claimed.
+    let unknown = build_observation_node(ObservationInput {
+        workspace_id: Some("rcdc5"),
+        workspace_source: None,
+        ..base_input()
+    });
+    assert!(unknown.get("refarm.workspace.source").is_none());
 }
 
 #[test]
@@ -240,6 +272,7 @@ fn an_undeterminable_field_is_omitted_rather_than_zeroed() {
     // run with no plan, where a planned step count does not exist at all.
     let node = build_observation_node(ObservationInput {
         workspace_id: None,
+        workspace_source: None,
         steps_planned: None,
         ..base_input()
     });
@@ -492,6 +525,7 @@ async fn a_config_change_after_dispatch_does_not_leak_into_the_observation() {
         // under the effort between dispatch and finalisation.
         budget: None,
         workspace_id: None,
+        workspace_source: None,
         scenario_id: None,
         expectation: None,
     };
@@ -577,6 +611,7 @@ async fn an_event_dispatch_efforts_observation_carries_no_budget_family() {
         submitted_at: "2026-01-01T00:00:00Z".to_string(),
         budget: None,
         workspace_id: None,
+        workspace_source: None,
         scenario_id: None,
         expectation: None,
     };
@@ -907,6 +942,7 @@ fn scenario_effort(
         submitted_at: "2026-01-01T00:00:00.123Z".to_string(),
         budget,
         workspace_id: workspace_id.map(str::to_string),
+        workspace_source: None,
         scenario_id: scenario_id.map(str::to_string),
         expectation: None,
     }

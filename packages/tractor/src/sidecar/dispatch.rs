@@ -512,8 +512,13 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
         &node_base,
         super::budget::NodeBudget::from_respond_watch(state.respond_watch.timeout_ms),
     );
-    let workspace_budget =
-        super::budget::workspace_budget_for(&node_base, effort.workspace_id.as_deref());
+    // The PAIR, never the id alone: a workspace ceiling is policy the operator set, and a cwd
+    // seed selecting it is the sidecar deciding a spending limit from a `cd` (ISS-058).
+    let workspace_budget = super::budget::workspace_budget_for(
+        &node_base,
+        effort.workspace_id.as_deref(),
+        effort.workspace_source.as_deref(),
+    );
     let resolved_budget =
         super::budget::resolve_budget(effort.budget.as_ref(), workspace_budget.as_ref(), &node_budget);
     let deadline_ms = resolved_budget.deadline_ms.effective;
@@ -1223,6 +1228,7 @@ mod tests {
             submitted_at: "2026-01-01T00:00:00Z".to_string(),
             budget: None,
             workspace_id: None,
+            workspace_source: None,
             scenario_id: None,
             expectation: None,
         }

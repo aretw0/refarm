@@ -120,6 +120,12 @@ export function createRuntimeAgentRespondEffort({
 		// reads onto the observation; `args.workspace_id` above is what the agent reads onto
 		// the Session node. One value, two readers, no null between them.
 		...(declaredWorkspace ? { workspaceId: declaredWorkspace } : {}),
+		// The PROVENANCE rides with the id, on the root as well as in `args`. Sending the id
+		// alone made a seed and a declaration the same string by the time the sidecar read it,
+		// so a directory that looked like a workspace selected that workspace's spending
+		// ceiling exactly as the operator naming it would (ISS-058). Both or neither — the id
+		// is what gates this spread, so a source can never arrive without one.
+		...(declaredWorkspace && workspaceSource ? { workspaceSource } : {}),
 		tasks: [
 			{
 				id: randomUUID(),

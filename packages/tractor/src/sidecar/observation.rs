@@ -37,6 +37,11 @@ pub(crate) struct ObservationInput<'a> {
     pub effort_id: &'a str,
     pub prompt_ref: Option<&'a str>,
     pub workspace_id: Option<&'a str>,
+    /// HOW `workspace_id` was decided. Rides with it or not at all — a record that names a
+    /// workspace without saying whether the run CLAIMED it or was GUESSED into it cannot be
+    /// aggregated: "spend on rcdc5" would silently mix money the operator attributed there with
+    /// money attributed by a directory that looked like it (ISS-058).
+    pub workspace_source: Option<&'a str>,
     pub spawner: Option<&'a str>,
     pub outcome: &'a str,
     /// `None` when `EffortResult.submitted_at`/`completed_at` could not both be
@@ -321,6 +326,10 @@ pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json:
 
     put_opt(&mut map, "prompt_ref", input.prompt_ref.map(Into::into));
     put_opt(&mut map, "refarm.workspace.id", input.workspace_id.map(Into::into));
+    // Beside the id, never inside it, and OMITTED rather than defaulted when unknown (D6): an
+    // observation written before this field existed says nothing about provenance, and a
+    // `"declared"` invented here would read to every future analysis as an operator's claim.
+    put_opt(&mut map, "refarm.workspace.source", input.workspace_source.map(Into::into));
     put_opt(&mut map, "refarm.budget.spawner", input.spawner.map(Into::into));
     // WHICH NODE ran this — OTel's resource semantic conventions already speak here
     // (`host.name`/`host.id`, https://opentelemetry.io/docs/specs/semconv/resource/host/),
@@ -427,7 +436,7 @@ pub(crate) fn write_budget_observation(
     // parallel store would be a third road to the same doorstep — and a store
     // whose entries are TAKEN would also have to be reasoned about across
     // retry, which this needs not be.
-    let (workspace_id, spawner, expectation) = state
+    let (workspace_id, workspace_source, spawner, expectation) = state
         .efforts_input
         .read()
         .ok()
@@ -435,12 +444,13 @@ pub(crate) fn write_budget_observation(
             inputs.get(effort_id).map(|effort| {
                 (
                     effort.workspace_id.clone(),
+                    effort.workspace_source.clone(),
                     effort.source.clone(),
                     super::verification::declared_expectation(effort.expectation.as_deref()),
                 )
             })
         })
-        .unwrap_or((None, None, None));
+        .unwrap_or((None, None, None, None));
 
     // The comparison itself — run here, once, at the only point where both the
     // declaration and the answer exist. No expectation means no comparison and
@@ -476,6 +486,7 @@ pub(crate) fn write_budget_observation(
         effort_id,
         prompt_ref: Some(&prompt_ref),
         workspace_id: workspace_id.as_deref(),
+        workspace_source: workspace_source.as_deref(),
         spawner: spawner.as_deref(),
         outcome,
         elapsed_ms,

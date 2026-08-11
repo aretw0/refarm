@@ -152,6 +152,20 @@ pub struct Effort {
     /// `None`, never `""`.
     #[serde(default)]
     pub workspace_id: Option<String>,
+    /// HOW that workspace was decided — `"declared"` when a human named it, anything else
+    /// (today only `"seeded-from-cwd"`) when it was inferred from a directory.
+    ///
+    /// Both or neither, the same pair rule the Session node writes them with. It rides beside
+    /// the id rather than being looked up because the two consumers that need it are the budget
+    /// fold and the observation, and only the caller knows which it was: by the time either
+    /// reads the id, a seed and a declaration are the same string.
+    ///
+    /// ADR-094 H2 makes the distinction load-bearing — a cwd seed is not policy truth — and
+    /// without this field it was not merely unrecorded, it was UNKNOWABLE downstream, so a
+    /// directory that happened to look like a workspace selected that workspace's spending
+    /// ceiling exactly as the operator naming it would (ISS-058).
+    #[serde(default)]
+    pub workspace_source: Option<String>,
     /// The scenario this dispatch DECLARES itself to be an instance of — the
     /// caller's claim that this run and other runs bearing the same id are the
     /// same task and may be compared (`refarm dispatch --scenario <id>`).

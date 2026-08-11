@@ -311,14 +311,34 @@ fn read_budget_section(node_base: &Path) -> Option<BudgetSection> {
 /// CONTAINS the sovereign dir), the value `dispatch_effort` passes at its call site —
 /// taken as a parameter, rather than resolved internally, so this stays directly testable
 /// against a tempdir without touching env or cwd for the base half of the resolution.
+///
+/// `workspace_source` is REQUIRED, and only `"declared"` selects a workspace ceiling. A
+/// workspace budget is a POLICY the operator set for that workspace; applying it because a
+/// directory happened to look like that workspace is the sidecar deciding how much money to
+/// spend on the strength of a `cd`. ADR-094 H2 already said a cwd seed is not policy truth —
+/// this is the sentence being enforced rather than documented (ISS-058).
+///
+/// A seeded effort is NOT unbudgeted: it falls through to the node's own ceiling, which is what
+/// governs anything with no workspace at all. The seed still reaches the observation, so the
+/// record can say which workspace the run looked like without having spent against it.
 pub(crate) fn workspace_budget_for(
     node_base: &Path,
     workspace_id: Option<&str>,
+    workspace_source: Option<&str>,
 ) -> Option<WorkspaceBudget> {
     let workspace_id = workspace_id?;
+    if workspace_source? != WORKSPACE_SOURCE_DECLARED {
+        return None;
+    }
     let section = read_budget_section(node_base)?;
     section.workspaces.get(workspace_id).copied()
 }
+
+/// The one provenance value that means a human named the workspace. Mirrors the agent's
+/// `session::pure::WORKSPACE_SOURCE_DECLARED` and the CLI's `"declared"` literal; the three are
+/// one vocabulary, and `check:permission-vocab`'s idiom is the precedent for pinning such a set
+/// across stacks when it grows beyond one member.
+pub(crate) const WORKSPACE_SOURCE_DECLARED: &str = "declared";
 
 /// Layer `budget.node` over the env-resolved `fallback` — config wins where it declares a
 /// value, `fallback` (already `NodeBudget::from_respond_watch`'d by the caller) fills the

@@ -210,7 +210,48 @@ fn a_config_with_no_budget_section_changes_nothing() {
     let _env = crate::test_support::env_lock();
     let _sovereign_dir = SovereignDirGuard::set(".refarm");
     let dir = tempdir_with_config(r#"{ "workspaces": {} }"#);
-    assert!(workspace_budget_for(dir.path(), Some("rcdc5")).is_none());
+    assert!(workspace_budget_for(dir.path(), Some("rcdc5"), Some("declared")).is_none());
+}
+
+/// ISS-058. A workspace budget is POLICY the operator set for that workspace. Applying it
+/// because a directory happened to look like that workspace is the sidecar deciding a spending
+/// limit from a `cd` — which is what "a cwd seed is not policy truth" (ADR-094 H2) forbids, and
+/// which nothing enforced because the provenance never reached this function.
+#[test]
+fn a_cwd_seed_does_not_buy_the_workspace_ceiling_a_declaration_would() {
+    let _env = crate::test_support::env_lock();
+    let _sovereign_dir = SovereignDirGuard::set(".refarm");
+    let dir = tempdir_with_config(
+        r#"{ "budget": { "workspaces": { "rcdc5": { "ceiling": { "deadlineMs": 300000 } } } } }"#,
+    );
+
+    // The operator naming it: the ceiling binds.
+    assert!(
+        workspace_budget_for(dir.path(), Some("rcdc5"), Some("declared")).is_some(),
+        "a declared workspace selects its own policy"
+    );
+
+    // The SAME id, inferred from a directory: no workspace ceiling. The effort is not left
+    // unbudgeted — it falls through to the node's own ceiling, exactly like a dispatch with no
+    // workspace at all — and the seed still reaches the observation, so the record can say which
+    // workspace the run looked like without having spent against it.
+    assert!(
+        workspace_budget_for(dir.path(), Some("rcdc5"), Some("seeded-from-cwd")).is_none(),
+        "a directory that looks like a workspace must not select that workspace's spending limit"
+    );
+}
+
+/// Both or neither, the same pair rule the Session node and the CLI apply. An id arriving with
+/// no provenance is not treated as declared: that would fail toward the STRONGER claim on the
+/// one distinction that decides how much money a run may spend.
+#[test]
+fn an_id_with_no_provenance_selects_nothing() {
+    let _env = crate::test_support::env_lock();
+    let _sovereign_dir = SovereignDirGuard::set(".refarm");
+    let dir = tempdir_with_config(
+        r#"{ "budget": { "workspaces": { "rcdc5": { "ceiling": { "deadlineMs": 300000 } } } } }"#,
+    );
+    assert!(workspace_budget_for(dir.path(), Some("rcdc5"), None).is_none());
 }
 
 #[test]
@@ -220,14 +261,14 @@ fn a_workspace_ceiling_is_read_for_that_workspace_only() {
     let dir = tempdir_with_config(
         r#"{ "budget": { "workspaces": { "rcdc5": { "ceiling": { "deadlineMs": 300000 } } } } }"#,
     );
-    let ws = workspace_budget_for(dir.path(), Some("rcdc5")).expect("declared");
+    let ws = workspace_budget_for(dir.path(), Some("rcdc5"), Some("declared")).expect("declared");
     assert_eq!(ws.ceiling.and_then(|c| c.deadline_ms), Some(300_000));
     assert!(
-        workspace_budget_for(dir.path(), Some("other")).is_none(),
+        workspace_budget_for(dir.path(), Some("other"), Some("declared")).is_none(),
         "one workspace's ceiling must not bind another"
     );
     assert!(
-        workspace_budget_for(dir.path(), None).is_none(),
+        workspace_budget_for(dir.path(), None, Some("declared")).is_none(),
         "a dispatch with no workspace has no workspace ceiling"
     );
 }
@@ -239,7 +280,7 @@ fn max_usd_crosses_the_boundary_as_a_decimal_and_lands_as_millis() {
     let dir = tempdir_with_config(
         r#"{ "budget": { "workspaces": { "w": { "ceiling": { "maxUsd": 2.5 } } } } }"#,
     );
-    let ws = workspace_budget_for(dir.path(), Some("w")).expect("declared");
+    let ws = workspace_budget_for(dir.path(), Some("w"), Some("declared")).expect("declared");
     assert_eq!(ws.ceiling.and_then(|c| c.max_usd_millis), Some(2_500));
 }
 
@@ -263,7 +304,7 @@ fn no_sovereign_dir_selector_means_no_sovereign_config_path_not_a_guessed_one() 
         r#"{ "budget": { "workspaces": { "rcdc5": { "ceiling": { "deadlineMs": 1 } } } } }"#,
     )
     .expect("write config.json");
-    assert!(workspace_budget_for(dir.path(), Some("rcdc5")).is_none());
+    assert!(workspace_budget_for(dir.path(), Some("rcdc5"), Some("declared")).is_none());
     let fallback = node();
     let resolved = node_budget_from_config(dir.path(), fallback);
     assert_eq!(resolved.default.deadline_ms, fallback.default.deadline_ms);
@@ -282,7 +323,7 @@ fn a_non_default_sovereign_dir_selector_is_honoured_not_a_hardcoded_dot_refarm()
     )
     .expect("write config.json");
     let ws =
-        workspace_budget_for(dir.path(), Some("rcdc5")).expect("declared under the custom dir");
+        workspace_budget_for(dir.path(), Some("rcdc5"), Some("declared")).expect("declared under the custom dir");
     assert_eq!(ws.ceiling.and_then(|c| c.deadline_ms), Some(42));
 }
 

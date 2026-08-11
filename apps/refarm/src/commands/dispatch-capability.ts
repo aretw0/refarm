@@ -84,6 +84,8 @@ export type BudgetDeclaration = {
 type DispatchEffort = Effort & {
 	budget?: BudgetDeclaration;
 	workspaceId?: string;
+	/** The provenance of `workspaceId` — `"declared"` when a human named it. Both or neither. */
+	workspaceSource?: string;
 	scenarioId?: string;
 };
 
