@@ -39,7 +39,11 @@ export function readOperationCatalog(value: unknown): readonly AdmittedOperation
 		if (!isRecord(raw) || typeof raw.id !== "string" || raw.id === "") continue;
 		operations.push({
 			id: raw.id,
-			command: typeof raw.command === "string" ? raw.command : `refarm ${raw.id}`,
+			// The ID ALONE when the wire carried no command — not an invented `<brand> <id>`. The
+			// old fallback guessed a command line and presented the guess as the operation's
+			// command, which is both a brand literal in a generic package (ADR-087, ISS-114) and a
+			// claim this module cannot support: it does not know how the node spells its verbs.
+			command: typeof raw.command === "string" ? raw.command : raw.id,
 			why: typeof raw.why === "string" ? raw.why : "",
 		});
 	}

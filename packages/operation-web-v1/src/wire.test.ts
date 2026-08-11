@@ -21,7 +21,11 @@ describe("operation web wire", () => {
 			}),
 		).toEqual([
 			{ id: "delivery add", command: "refarm delivery add", why: "guided" },
-			{ id: "workspace:home:refresh", command: "refarm workspace:home:refresh", why: "" },
+			// The ID ALONE, not an invented `<brand> <id>` — which is what this test's own name asks
+			// for. The node sends `command` when it has one (the row above); when it does not, this
+			// module does not know how the node spells its verbs and must not guess (ADR-087,
+			// ISS-114).
+			{ id: "workspace:home:refresh", command: "workspace:home:refresh", why: "" },
 		]);
 		expect(readOperationCatalog({})).toBeNull();
 	});

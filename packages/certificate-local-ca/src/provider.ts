@@ -69,7 +69,12 @@ export interface LocalCaOptions {
 	/** The operator's own DNS suffixes — the ceiling on everything this CA may ever vouch for. */
 	nameSuffixes: readonly string[];
 	/** A human label for the CA, carried into its subject CN. */
-	caName?: string;
+	/**
+	 * The CA's name — REQUIRED, because a generic package must not invent one and the default it
+	 * used to carry was the brand (ADR-087, ISS-114). It becomes the certificate's CN and the
+	 * anchor filename on a trust store, so it is a VALUE the caller owns, not a label.
+	 */
+	caName: string;
 	/** Injected so the whole provider is testable without a real openssl. */
 	openssl?: OpensslRunner;
 	/** Injected clock — no ambient `new Date()`. */
@@ -147,7 +152,10 @@ function failed(step: string, result: OpensslResult): CertificateRefusal {
 /** A CN openssl will accept in a `-subj` argument. PURE. */
 export function subjectCommonName(label: string): string {
 	const cleaned = label.replace(/[/=\n\r]+/g, " ").trim();
-	return (cleaned || "refarm").slice(0, 64);
+	// A brand-free fallback (ADR-087, ISS-114). Reached only when a label sanitizes to nothing —
+	// a CN of punctuation — and what it must be is VALID, not branded: this string goes into the
+	// certificate, so a generic package inventing the app's name here would put it on the wire.
+	return (cleaned || "certificate-authority").slice(0, 64);
 }
 
 export interface LocalCaProvider extends CertificateProvider {
@@ -164,7 +172,10 @@ export function createLocalCaProvider(options: LocalCaOptions): LocalCaProvider 
 	const run = options.openssl ?? createNodeOpensslRunner();
 	const now = options.now ?? (() => new Date());
 	const nameSuffixes = normalizeNameSuffixes(options.nameSuffixes);
-	const caName = options.caName ?? "refarm";
+	// REQUIRED, not defaulted. Every call site already passes it, so the default was pure
+	// redundancy that happened to spell the brand — and a default is what makes a brand literal
+	// survive a debranding, because nothing ever exercises it (ADR-087, ISS-114).
+	const caName = options.caName;
 	const caLifetimeDays = options.caLifetimeDays ?? DEFAULT_CA_LIFETIME_DAYS;
 	const log = options.log ?? (() => {});
 	const caCertFile = join(options.dir, CA_CERT);

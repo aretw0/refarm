@@ -153,7 +153,10 @@ export function parseOperationCatalog(body) {
 		if (!id) continue;
 		parsed.push({
 			id,
-			command: typeof entry?.command === "string" ? entry.command : `refarm ${id}`,
+			// The id alone, never an invented `<brand> <id>` — the node sends the command when it
+			// has one, and guessing one here brands a generic client with a line it cannot verify
+			// (ADR-087, ISS-114).
+			command: typeof entry?.command === "string" ? entry.command : id,
 			why: typeof entry?.why === "string" ? entry.why : "",
 		});
 	}

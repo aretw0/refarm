@@ -72,7 +72,9 @@ test("parseOperationCatalog reads what the node relayed, and refuses what is not
 	};
 	assert.deepEqual(parseOperationCatalog(body), [
 		{ id: "delivery add", command: "refarm delivery add", why: "porque sim" },
-		{ id: "outra coisa", command: "refarm outra coisa", why: "" },
+		// O ID SOZINHO quando o nó não mandou comando — nunca um `<marca> <id>` inventado. Este
+		// cliente é genérico e não sabe como o nó soletra os verbos dele (ADR-087, ISS-114).
+		{ id: "outra coisa", command: "outra coisa", why: "" },
 	]);
 
 	for (const notACatalog of [null, {}, { catalog: {} }, { catalog: { operations: "x" } }]) {

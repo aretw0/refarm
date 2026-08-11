@@ -128,8 +128,10 @@ export function assertShortLeafLifetime(days: number): number {
 			`certificate: a leaf lifetime of ${days} days exceeds the ${MAX_LEAF_LIFETIME_DAYS}-day ` +
 				"ceiling — a long-lived leaf is a standing credential, and a leaked one would outlive " +
 				"anyone's memory of issuing it",
+			// The point is IDEMPOTENCE, not which command does it — and this is a pure validator
+			// with no caller context to thread a binary through (ADR-087, ISS-114).
 			`Ask for at most ${MAX_LEAF_LIFETIME_DAYS} days, and let rotation renew it ` +
-				"(`refarm cert issue` is idempotent by design).",
+				"(re-issuing is idempotent by design).",
 		);
 	}
 	return days;

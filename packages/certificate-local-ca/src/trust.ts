@@ -50,7 +50,10 @@ export function linuxCaAnchorPath(caName: string, anchorDir: string = LINUX_CA_A
 			.trim()
 			.toLowerCase()
 			.replace(/[^a-z0-9.-]+/g, "-")
-			.replace(/^-+|-+$/g, "") || "refarm";
+			// Brand-free fallback, same reason as `subjectCommonName`: this slug becomes the ANCHOR
+			// FILENAME on the operator's trust store, so a generic package must not invent the
+			// app's name for it (ADR-087, ISS-114).
+			.replace(/^-+|-+$/g, "") || "certificate-authority";
 	// `.crt` is not decoration: `update-ca-certificates` only picks up files with that extension.
 	return `${anchorDir.replace(/\/+$/, "")}/${slug}.crt`;
 }

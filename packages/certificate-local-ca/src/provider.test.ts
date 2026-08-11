@@ -121,7 +121,7 @@ describe("the CA's subject is built from a label openssl will accept", () => {
 	});
 
 	it("never yields an empty CN", () => {
-		expect(subjectCommonName("///")).toBe("refarm");
+		expect(subjectCommonName("///")).toBe("certificate-authority");
 	});
 
 	it("stays inside X.509's 64-character limit", () => {
