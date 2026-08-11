@@ -205,15 +205,67 @@ async function collectDefaultSystemPrompt(request: {
 	return buildSystemPrompt(entries, { productName: REFARM_PRODUCT_NAME, binary: REFARM_BINARY });
 }
 
+/**
+ * ONE snapshot of `/sessions` per invocation, shared by every reader of it.
+ *
+ * ISS-061: `--session <prefix>` made two round trips — `resolveSessionIdPrefixFromSidecar` to turn
+ * the prefix into a full id, then `readSessionWorkspace` to read that session's declaration. The
+ * wasted fetch is the small half. The real one is that they were two reads of a MOVING list: a
+ * prefix resolved against one snapshot and a declaration read from another can, in principle,
+ * disagree about which sessions exist — and the second read's `undefined` ("no declaration") would
+ * then be indistinguishable from "that session was not in this snapshot".
+ *
+ * Scoped to the process because a CLI invocation is one act with one question. `resetSessionsSnapshotForTests`
+ * exists so a test can state a second, different answer without a second process.
+ */
+/** PURE-ish. Runs `work` at most once and hands every caller the SAME promise. Extracted from the
+ *  snapshot below so the property that matters — one execution, one shared result — is provable
+ *  without a network: a test can count executions of a plain function where it cannot easily count
+ *  fetches through `sidecarUrlAsync`. Exported for that test only. */
+export function onceAsync<T>(work: () => Promise<T>): { run: () => Promise<T>; reset: () => void } {
+	let pending: Promise<T> | null = null;
+	return {
+		run: () => (pending ??= work()),
+		reset: () => {
+			pending = null;
+		},
+	};
+}
+
+const sessionsSnapshot = onceAsync<SessionNode[] | null>(async () => {
+	try {
+		const response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/sessions"));
+		if (!response.ok) return null;
+		const body = (await response.json()) as { sessions?: SessionNode[] };
+		// A body that parses but carries no `sessions` array is a failed read, not an empty answer:
+		// collapsing it would let the cwd seed fire and silently re-attribute a session whose
+		// declaration simply could not be read.
+		return Array.isArray(body.sessions) ? body.sessions : null;
+	} catch {
+		return null;
+	}
+});
+
+export function resetSessionsSnapshotForTests(): void {
+	sessionsSnapshot.reset();
+}
+
+/** `null` means the read FAILED — never an empty list, which is a successful read of a node with no
+ *  sessions. Both callers below depend on that distinction.
+ *
+ *  Exported for ONE test: that two callers in the same invocation produce one fetch. The callers
+ *  themselves stay internal — the property worth pinning is the shared snapshot, not their
+ *  signatures. */
+export async function loadSessionsSnapshot(): Promise<SessionNode[] | null> {
+	return sessionsSnapshot.run();
+}
+
 async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 
-	const response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/sessions"));
-	if (!response.ok) {
-		throw new Error(`sidecar HTTP ${response.status}`);
-	}
-	const body = (await response.json()) as { sessions?: SessionNode[] };
-	return resolveSessionIdPrefix(prefix, body.sessions ?? []);
+	const sessions = await loadSessionsSnapshot();
+	if (sessions === null) throw new Error("sidecar sessions could not be read");
+	return resolveSessionIdPrefix(prefix, sessions);
 }
 
 /** `DeclaredRoot[]` built from the config catalog — the same `id`/`absolutePath` pair
@@ -259,28 +311,16 @@ export type SessionWorkspaceLookup = { id: string; source: string } | "unknown";
 async function readSessionWorkspace(
 	sessionId: string,
 ): Promise<SessionWorkspaceLookup | undefined> {
-	let response: Response;
-	try {
-		response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/sessions"));
-	} catch {
-		return "unknown";
-	}
-	if (!response.ok) return "unknown";
-	try {
-		const body = (await response.json()) as { sessions?: SessionNode[] };
-		// A body that parses but carries no `sessions` array is a failed read, not an
-		// empty answer: collapsing it to "absent" would let the cwd seed fire and
-		// silently re-attribute a session whose declaration simply couldn't be read.
-		if (!Array.isArray(body.sessions)) return "unknown";
-		const node = body.sessions.find((session) => session["@id"] === sessionId);
-		if (!node?.workspace_id) return undefined;
-		return {
-			id: node.workspace_id,
-			source: typeof node.workspace_source === "string" ? node.workspace_source : "seeded-from-cwd",
-		};
-	} catch {
-		return "unknown";
-	}
+	// Reads the SAME snapshot the prefix was resolved against (ISS-061) — `null` is the failed read
+	// this function has always reported as "unknown", now decided in one place instead of two.
+	const sessions = await loadSessionsSnapshot();
+	if (sessions === null) return "unknown";
+	const node = sessions.find((session) => session["@id"] === sessionId);
+	if (!node?.workspace_id) return undefined;
+	return {
+		id: node.workspace_id,
+		source: typeof node.workspace_source === "string" ? node.workspace_source : "seeded-from-cwd",
+	};
 }
 
 export interface DispatchWorkspaceInput {

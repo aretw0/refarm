@@ -7,6 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AskDeps } from "../../src/commands/ask.js";
 import {
 	createAskCommand,
+	loadSessionsSnapshot,
+	onceAsync,
+	resetSessionsSnapshotForTests,
 	resolveRuntimeStreamsDir,
 	resolveRuntimeTaskResultsDir,
 } from "../../src/commands/ask.js";
@@ -1731,5 +1734,67 @@ describe("refarm ask", () => {
 
 		logSpy.mockRestore();
 		errSpy.mockRestore();
+	});
+});
+
+// ISS-061. `--session <prefix>` made two round trips to /sessions: one to turn the prefix into a
+// full id, one to read that session's workspace declaration. The wasted fetch is the small half —
+// the real one is that they were two reads of a MOVING list, so a prefix resolved against one
+// snapshot and a declaration read from another can disagree about which sessions exist, and the
+// second read's `undefined` ("no declaration") becomes indistinguishable from "not in this snapshot".
+describe("one invocation, one sessions snapshot (ISS-061)", () => {
+	afterEach(() => {
+		resetSessionsSnapshotForTests();
+	});
+
+	it("two readers share ONE execution", () => {
+		// The property, provable without a network: `onceAsync` is what makes the two /sessions
+		// readers agree on a snapshot instead of racing two reads of a moving list.
+		let runs = 0;
+		const once = onceAsync(async () => {
+			runs += 1;
+			return ["a"];
+		});
+		const first = once.run();
+		const second = once.run();
+		expect(second).toBe(first);
+		return first.then(() => {
+			expect(runs).toBe(1);
+		});
+	});
+
+	it("reset lets a second answer be stated — one invocation, one snapshot, not one per process", async () => {
+		let runs = 0;
+		const once = onceAsync(async () => {
+			runs += 1;
+			return runs;
+		});
+		expect(await once.run()).toBe(1);
+		once.reset();
+		expect(await once.run()).toBe(2);
+	});
+
+	it("a failed read is null, never an empty list — an empty list is a node with no sessions", async () => {
+		resetSessionsSnapshotForTests();
+		const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+			throw new Error("ECONNREFUSED");
+		});
+		try {
+			expect(await loadSessionsSnapshot()).toBeNull();
+		} finally {
+			fetchSpy.mockRestore();
+		}
+	});
+
+	it("a body with no sessions array is a failed read, not an empty answer", async () => {
+		resetSessionsSnapshotForTests();
+		const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+			async () => new Response(JSON.stringify({}), { status: 200, headers: { "content-type": "application/json" } }),
+		);
+		try {
+			expect(await loadSessionsSnapshot()).toBeNull();
+		} finally {
+			fetchSpy.mockRestore();
+		}
 	});
 });
