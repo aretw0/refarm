@@ -930,7 +930,13 @@ describe("workspace command", () => {
 			operation: "source-declarations",
 			ok: true,
 			mode: "all",
-			configPath: ".refarm/config.json",
+			// ABSOLUTE, and deliberately so. `nodeCatalogPath` documents why: a bare
+			// ".refarm/config.json" reads as the WORKSPACE's own file, and
+			// `localWorkspaceDeclarationAbolishedMessage` refuses that shape outright — "a
+			// workspace never declares itself or another workspace, in any file". This
+			// expectation held the pre-rule string, so the test was failing precisely because
+			// the code stopped emitting the thing the code forbids.
+			configPath: join(controlRoot, ".refarm", "config.json"),
 			declarationCount: 1,
 			declarations: [
 				{
@@ -948,15 +954,21 @@ describe("workspace command", () => {
 					},
 				},
 			],
-			instructions: [
-				"Fill each repository.url with the canonical Git remote for that workspace.",
-				"Keep ref null unless this workspace should materialize a specific branch or tag.",
-				"Run refarm workspace sources materialize --dry-run --json after declaring repositories.",
-			],
 			nextAction: "Add repository declarations for missing source cache workspaces.",
 			nextCommand: "refarm workspace sources materialize --dry-run --json",
 			nextCommands: ["refarm workspace sources materialize --dry-run --json"],
 		});
+
+		// INSTRUCTIONS: the rules, not the prose. Pinning all three strings verbatim is what made
+		// this assertion rot — the payload GAINED a line stating "a workspace never declares
+		// itself", and the copy here stayed behind, so the test failed because the contract got
+		// better. What must not silently vanish is the rule and the next command; how they are
+		// worded is the payload's business.
+		const instructions = JSON.parse(String(logSpy.mock.calls[0]?.[0])).instructions as string[];
+		const joined = instructions.join(" ");
+		expect(joined).toContain("a workspace never declares itself");
+		expect(joined).toContain("refarm workspace sources materialize --dry-run");
+		expect(joined).toContain("ref null");
 	});
 
 	it("prints source repository declaration snippets in human output", async () => {
@@ -979,7 +991,9 @@ describe("workspace command", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Workspace source declarations");
 		expect(output).toContain(`missing: ${missingRoot}`);
-		expect(output).toContain("add to .refarm/config.json:");
+		// The same absolute path the --json branch asserts, for the same reason: the advice names
+		// WHICH file, and only the node's catalog is a legal answer.
+		expect(output).toContain(`add to ${join(controlRoot, ".refarm", "config.json")}:`);
 		expect(output).toContain('"repository": {');
 		expect(output).toContain('"url": "<git-url>"');
 		expect(output).toContain('"ref": null');

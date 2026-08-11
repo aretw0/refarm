@@ -79,17 +79,28 @@ describe("refarm surface add", () => {
 });
 
 describe("refarm surface list", () => {
+	// DECLARES the base; it used to `process.chdir(root)` and expect the answer to follow.
+	//
+	// `surface list` resolves from `declaredBase()`, and rightly: surfaces are how the NODE
+	// exposes itself to the network, so the answer belongs to the node, not to whichever
+	// directory the operator happens to stand in. Once the suite grew a throwaway HOME
+	// (vitest.setup.ts's Layer 0), `declaredBase()` correctly stopped following the cwd and this
+	// assertion started failing — the test was pinning the behaviour the codebase is spending
+	// this whole burn-down removing. Same lesson the Rust `CwdGuard` taught in the commit before
+	// this one: a test that declares its base by walking into a directory is testing THROUGH the
+	// defect.
 	it("names the sovereign root and config path in its machine-readable result", async () => {
-		const priorCwd = process.cwd();
+		const priorBase = process.env.SOVEREIGN_BASE;
 		const lines: string[] = [];
 		const log = console.log;
 		try {
-			process.chdir(root);
+			process.env.SOVEREIGN_BASE = root;
 			console.log = (line?: unknown) => lines.push(String(line));
 			await createSurfaceCommand().parseAsync(["node", "surface", "list", "--json"]);
 		} finally {
 			console.log = log;
-			process.chdir(priorCwd);
+			if (priorBase === undefined) delete process.env.SOVEREIGN_BASE;
+			else process.env.SOVEREIGN_BASE = priorBase;
 		}
 		const payload = JSON.parse(lines.join("\n"));
 		expect(payload).toMatchObject({

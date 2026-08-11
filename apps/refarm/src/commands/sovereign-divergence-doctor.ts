@@ -101,6 +101,7 @@
 // a node running exactly what a fresh build produces — yields no recommendation at all, the
 // same rule every other doctor finding in this codebase follows.
 
+import { refarmCommand } from "../brand.js";
 import { CONTEXT_HOME_DIVERGENCE_DIAGNOSTIC } from "./context-doctor.js";
 import type { Divergence } from "./context.js";
 import type { RefarmDoctorRecommendation } from "./doctor.js";
@@ -137,7 +138,10 @@ export function buildSovereignDivergenceDoctorRecommendations(
 					"The sovereign-state comparison could not be made, so no divergence was ruled in OR out.",
 				action:
 					"Run `refarm context --json` to see the comparison directly and what stopped it. This is not a report that the node is healthy — it is a report that the check did not run.",
-				command: "refarm context --json",
+				// Through the handoff helper, never a literal: the binary's name comes from the
+				// environment (ADR-087 — a white-label build supplies it), which is what
+				// `process-boundary.test.ts` guards. This site was the guard's only live offender.
+				command: refarmCommand(["context", "--json"]),
 			},
 		];
 	}
