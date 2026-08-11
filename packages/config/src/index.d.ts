@@ -158,6 +158,22 @@ export type {
     WorkspaceNamespacePersistence,
 } from "./workspace-namespaces-config.js";
 export {
+    CONFIG_KEY_OWNERSHIP,
+    CONFIG_REQUEST_BLOCK_KEY,
+    CONFIG_TIERS,
+    auditConfigTier,
+    classifyConfigKey,
+    pendingRequests,
+} from "./config-tiers.js";
+export type {
+    ConfigKeyOwnership,
+    ConfigKeyVerdict,
+    ConfigTier,
+    ConfigTierAudit,
+    ConfigTierFinding,
+    PendingConfigRequest,
+} from "./config-tiers.js";
+export {
     affectedWorkspacePackagesFromChangedPaths,
     affectedWorkspacePackagesFromGitStatus,
     changedFilePathsFromGitNameOnly,

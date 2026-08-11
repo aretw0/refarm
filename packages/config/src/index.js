@@ -103,6 +103,14 @@ export {
 	parseWorkspaceNamespacePersistence,
 } from "./workspace-namespaces-config.js";
 export {
+	CONFIG_KEY_OWNERSHIP,
+	CONFIG_REQUEST_BLOCK_KEY,
+	CONFIG_TIERS,
+	auditConfigTier,
+	classifyConfigKey,
+	pendingRequests,
+} from "./config-tiers.js";
+export {
 	affectedWorkspacePackagesFromChangedPaths,
 	affectedWorkspacePackagesFromGitStatus,
 	changedFilePathsFromGitNameOnly,
