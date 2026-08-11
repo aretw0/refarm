@@ -479,7 +479,7 @@
 		{
 			"id": "ISS-041",
 			"title": "GET /tasks holds an unlimited query, a second sort order and a silent truncate",
-			"body": "LOOSE ENDS QUEUE, opened at the operator's request on 2026-08-06 -- obvious fixes to be resolved definitively rather than decided one at a time. Each is named with its file so none needs rediscovering:\n\n(4) GET /tasks (sidecar/mod.rs:1718,1746,1752) still holds the unlimited query, a second sort order and a silent truncate, and DISAGREES with its guest sibling about 'the newest N tasks'.\n\nALSO RECORDED, in a second handoff entry that named the same thing:\n\nGET /tasks is the sharpest remaining instance of the shape this work removed, and it now DISAGREES with its own guest sibling. packages/tractor/src/sidecar/mod.rs:1718 does an unlimited query_nodes(\"Task\"), :1746 re-sorts by created_at_ns DESC, and :1752 silently truncates to limit.min(100) while answering {tasks, total} with no stored/truncated. The guest's list_tasks now takes the front N in updated_at order through the fixed bridge, so for any task whose status has changed the two surfaces name different 'newest N'. Same created-versus-touched divergence just fixed for Session, in the same file as the get_nodes that was fixed.",
+			"body": "CONFIRMED 2026-08-11, and there is a FOURTH defect nobody filed.\n\n  sidecar/mod.rs:1732  storage.query_nodes(\"Task\")            unlimited — materialises the table\n  sidecar/mod.rs:1760  tasks.sort_by(created_at_ns DESC)      a second sort order\n  sidecar/mod.rs:1766  tasks.truncate(limit.min(100))         silent truncate\n  sidecar/mod.rs:1768  { tasks, total: tasks.len() }          <- THE FOURTH\n\n`total` is computed AFTER the truncate, so it always equals the page size. A consumer reading\n`total` to ask \"is there more?\" is answered \"no\", always. That is not a missing signal, it is a\nwrong one — worse than the absent `stored`/`truncated` the item already names.\n\nALSO MEASURED: `get_task`'s fallback path does another unlimited `query_nodes(\"Task\")` to do a\n`contains` match on the id, and the status/session_id filters run AFTER the limit — the same\nglobal-limit-then-filter shape ISS-045 just fixed in the agent, where it made an older task report\nzero events.\n\nDesign, with the four changes and why removing `total` is safer than redefining it:\ndocs/superpowers/specs/2026-08-11-a-page-says-it-is-a-page-design.md (step 5).\n\npackages/tractor is a CLAUDE.md section 8 protected surface.",
 			"location": "packages/tractor/src/sidecar/mod.rs:1718,1746,1752",
 			"status": "open",
 			"category": "issue",
@@ -515,22 +515,24 @@
 			"title": "Farmhand re-sorts Sessions by created_at_ns — harmless in a Map, a regression when Phase 2 swaps in sqlite",
 			"body": "LOOSE ENDS QUEUE, opened at the operator's request on 2026-08-06 -- obvious fixes to be resolved definitively rather than decided one at a time. Each is named with its file so none needs rediscovering:\n\n(7) apps/farmhand/src/transports/sessions.ts:83-88 re-sorts by created_at_ns; harmless while the store is an in-memory Map, reintroduces the removed defect verbatim when Phase 2 swaps in storage-sqlite. Close it BEFORE that swap.\n\nALSO RECORDED, in a second handoff entry that named the same thing:\n\nFarmhand re-sorts Sessions by created_at_ns (apps/farmhand/src/transports/sessions.ts:83-88). Harmless today because that store is an in-memory Map where sessions are never upserted -- but apps/farmhand/src/index.ts:82 says it becomes @refarm.dev/storage-sqlite in Phase 2, at which point it reintroduces the removed defect verbatim. Close it BEFORE that swap, not after.",
 			"location": "apps/farmhand/src/transports/sessions.ts:83-88",
-			"status": "open",
+			"status": "resolved",
 			"category": "cleanup",
 			"priority": "medium",
 			"package": "apps/farmhand",
-			"axis": "other"
+			"axis": "other",
+			"resolved_by": "afba137c"
 		},
 		{
 			"id": "ISS-045",
 			"title": "task_tools.rs:44 limits TaskEvent globally then filters by task_id, so an older task reports zero events",
 			"body": "LOOSE ENDS QUEUE, opened at the operator's request on 2026-08-06 -- obvious fixes to be resolved definitively rather than decided one at a time. Each is named with its file so none needs rediscovering:\n\n(8) task_tools.rs:44 limits TaskEvent globally then filters by task_id, so an older task reports zero events while the sidecar reports all.",
 			"location": "packages/agent/src/tool_dispatch/task_tools.rs:44",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "medium",
 			"package": "packages/agent",
-			"axis": "other"
+			"axis": "other",
+			"resolved_by": "afba137c"
 		},
 		{
 			"id": "ISS-046",
@@ -546,13 +548,14 @@
 		{
 			"id": "ISS-047",
 			"title": "The WASM bridge still materialises whole tables and its WIT returns a bare list with no truncation signal",
-			"body": "Deferred from the record-reader plan, triaged, each its own ticket:\n\n(b) the WASM bridge (host/wasi_bridge/core.rs:378-386) still does query_nodes + .take(limit), the full materialisation the fix exists to remove, and its WIT returns a bare list<string> so the guest gets no truncation signal at all -- this is the same silent ceiling one layer lower, plugin-visible rather than operator-visible, and the fix agent named it as what it would prioritise next;",
+			"body": "RE-MEASURED 2026-08-11 against the code. BOTH HALVES OF THIS ITEM ARE STALE, and the reason is\nworth recording: it was filed on 2026-08-06 against the state of the tree BEFORE that same day's\nfix, and nothing re-read it since.\n\nCLAIM 1: \"the WASM bridge (host/wasi_bridge/core.rs:378-386) still does query_nodes + .take(limit),\nthe full materialisation the fix exists to remove.\"\n\n  FALSE. `wasi_bridge/core.rs`'s `query_nodes` calls `self.sync.query_nodes_limited(&node_type,\n  limit as usize)` — the limit is applied IN SQL. Its own doc comment says so and dates it:\n  \"Before 2026-08-06 this loaded every row of the type and dropped all but `limit`, which was\n  affordable at 29 records and is not at 29,000.\"\n\nCLAIM 2: \"its WIT returns a bare list<string> so the guest gets no truncation signal at all.\"\n\n  FALSE. packages/plugin-wit/wit/host.wit:24 declares:\n\n      record node-page { nodes: list<json-ld-node>, stored: u32, truncated: bool }\n      query-nodes: func(node-type: string, limit: u32) -> result<node-page, plugin-error>\n\n  and the comment above it names the exact defect this item describes, in the past tense: the\n  budget guard summing a possibly-truncated set of UsageRecords and concluding \"under budget\"\n  either way. The guest reads `page.truncated` today — `agent/src/session/wasm_ops.rs` threads it\n  through `resolve_budget_check`, and `tool_dispatch/task_tools.rs` started reading it on\n  2026-08-11 (ISS-045).\n\nWHAT REMAINS TRUE, and it is a DIFFERENT item: ISS-040's root. The TypeScript\n`StorageAdapter.queryNodes(type): Promise<unknown[]>` still has nowhere to put truncation, so 19\nconsumer files discard it structurally. The Rust host learned this lesson on 2026-08-06; the\nTypeScript contract did not.\n\nDesign for that: docs/superpowers/specs/2026-08-11-a-page-says-it-is-a-page-design.md",
 			"location": "packages/tractor/src/host/wasi_bridge/core.rs:378-386",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "high",
 			"package": "packages/tractor",
-			"axis": "other"
+			"axis": "other",
+			"resolved_by": "afba137c"
 		},
 		{
 			"id": "ISS-048",
