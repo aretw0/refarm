@@ -6,6 +6,7 @@ pub(crate) use pure::{
     compact_history,
     compact_history_detailed,
     history_from_nodes,
+    normalize_declaration,
     history_from_tree,
     pick_latest_session_id,
     pick_latest_session_leaf_id,

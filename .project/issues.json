@@ -666,11 +666,12 @@
 			"title": "--workspace cannot correct an already-stamped session: a wrongly-seeded session stays wrong for life",
 			"body": "Deferred from the workspace-attribution plan, triaged, NOT done. Own ticket each:\n\n(a) `--workspace` cannot correct an already-stamped session -- wasm_ops.rs:130-146 stamps only at creation, while the design asserts three times that the flag re-declares; a wrongly-seeded session stays wrong for life.",
 			"location": "packages/agent/src/session/wasm_ops.rs:130-146",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "high",
 			"package": "packages/agent",
-			"axis": "cost"
+			"axis": "cost",
+			"resolved_by": "4f17011d"
 		},
 		{
 			"id": "ISS-058",
@@ -688,11 +689,12 @@
 			"title": "Sessions created before workspace attribution have no stored declaration, so degree 3 re-fires every run",
 			"body": "Deferred from the workspace-attribution plan, triaged, NOT done. Own ticket each:\n\n(c) every session created BEFORE this feature has no stored declaration, so degree 3 re-fires from the current directory on every run.",
 			"location": "packages/agent/src/session/wasm_ops.rs:130-146",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "medium",
 			"package": "packages/agent",
-			"axis": "cost"
+			"axis": "cost",
+			"resolved_by": "4f17011d"
 		},
 		{
 			"id": "ISS-060",
@@ -734,11 +736,12 @@
 			"title": "The read-failure->unknown branch has no test, needs injectability, and is safety-critical",
 			"body": "Deferred from the workspace-attribution plan, triaged, NOT done. Own ticket each:\n\n(g) the read-failure->unknown branch has no test; it needs injectability and it is safety-critical.",
 			"location": "packages/agent/src/session/wasm_ops.rs:130-146",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "high",
 			"package": "packages/agent",
-			"axis": "cost"
+			"axis": "cost",
+			"resolved_by": "4f17011d"
 		},
 		{
 			"id": "ISS-064",

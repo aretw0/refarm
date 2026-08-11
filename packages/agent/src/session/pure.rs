@@ -686,6 +686,25 @@ fn truncate_line(text: &str, max_chars: usize) -> String {
 /// load-bearing: a seed is not policy truth.
 pub(crate) const WORKSPACE_SOURCE_DECLARED: &str = "declared";
 
+/// PURE. What a declaration IS, in one place — trimmed, and empty means absent.
+///
+/// The same rule `dispatch.rs` applies on the sidecar side (`str::trim` then reject empty). It
+/// was applied there and nowhere else on the way in: `prompt_handler.rs` forwarded the raw
+/// string into the env, and `declared_workspace` rejected a trim-empty value without TRIMMING
+/// the one it kept. So a caller that is not the CLI could send `"  rcdc5  "` and have it stamped
+/// verbatim onto the Session node, where it matches no workspace in the catalog and no budget
+/// keyed by one — an attribution that exists, looks declared, and selects nothing (ISS-060).
+///
+/// Three sites applying "the same" rule from memory is how they came to differ. One function is
+/// how they stop.
+pub(crate) fn normalize_declaration(raw: Option<&str>) -> Option<String> {
+    let trimmed = raw?.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    Some(trimmed.to_string())
+}
+
 /// What the store said about a Session node — THREE states, never two.
 ///
 /// `get_or_create_session` used to ask `get_node(id).is_err()` and branch on the boolean. That
@@ -1322,6 +1341,20 @@ mod tests {
             stored_workspace_of(&serde_json::json!({"workspace_id": "  ", "workspace_source": "declared"})),
             None
         );
+    }
+
+
+    /// ISS-060. `dispatch.rs` trims and rejects empty; the two sites downstream of it did not,
+    /// so a non-CLI caller could stamp `"  rcdc5  "` onto a Session node — an attribution that
+    /// exists, reads as declared, and matches nothing.
+    #[test]
+    fn a_declaration_is_trimmed_and_an_empty_one_is_no_declaration() {
+        assert_eq!(normalize_declaration(Some("  rcdc5  ")), Some("rcdc5".to_string()));
+        assert_eq!(normalize_declaration(Some("rcdc5")), Some("rcdc5".to_string()));
+        assert_eq!(normalize_declaration(Some("   ")), None);
+        assert_eq!(normalize_declaration(Some("")), None);
+        assert_eq!(normalize_declaration(None), None);
+        assert_eq!(normalize_declaration(Some("\t\nrcdc5\n")), Some("rcdc5".to_string()));
     }
 
 }

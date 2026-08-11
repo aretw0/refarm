@@ -316,14 +316,16 @@ pub(crate) fn handle_prompt(payload: String) {
             // downstream of this call and stamps it onto the Session node it creates —
             // that stamp is the whole inheritance mechanism, and without these two
             // lines it never happens for the one path that matters.
-            let workspace_id = v
-                .get("workspace_id")
-                .and_then(|s| s.as_str())
-                .map(|s| s.to_owned());
-            let workspace_source = v
-                .get("workspace_source")
-                .and_then(|s| s.as_str())
-                .map(|s| s.to_owned());
+            // ONE rule, applied here as well as at `dispatch.rs` and `declared_workspace`.
+            // This site forwarded the raw string and the other two disagreed about what to do
+            // with the whitespace, which is how `"  rcdc5  "` could reach a Session node
+            // (ISS-060).
+            let workspace_id = crate::session::normalize_declaration(
+                v.get("workspace_id").and_then(|s| s.as_str()),
+            );
+            let workspace_source = crate::session::normalize_declaration(
+                v.get("workspace_source").and_then(|s| s.as_str()),
+            );
             let turns_str = history_turns.map(|n| n.to_string());
             let _session = crate::EnvGuard::maybe_set("MODEL_SESSION_ID", session_id.as_deref());
             let _workspace =

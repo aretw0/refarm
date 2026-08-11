@@ -3,7 +3,8 @@ use crate::plugin::host::tractor_bridge;
 
 use super::{
     budget_exceeded, history_from_nodes, pick_latest_session_id, pick_latest_session_leaf_id,
-    resolve_budget_check, session_entry_node, session_node, stored_workspace_of,
+    normalize_declaration, resolve_budget_check, session_entry_node, session_node,
+    stored_workspace_of,
     workspace_stamp_action, BudgetCheck, StoredSession, WorkspaceStamp,
 };
 
@@ -232,12 +233,10 @@ fn stamp_workspace(id: &str, workspace_id: &str, workspace_source: &str) {
 /// truth). The CLI always sends both, so this changes no working path; it only closes a
 /// way for a non-CLI caller to get a mislabelled human declaration.
 fn declared_workspace() -> Option<(String, String)> {
-    let id = std::env::var("MODEL_WORKSPACE_ID")
-        .ok()
-        .filter(|v| !v.trim().is_empty())?;
-    let source = std::env::var("MODEL_WORKSPACE_SOURCE")
-        .ok()
-        .filter(|v| !v.trim().is_empty())?;
+    // `normalize_declaration`, not a hand-rolled filter: this used to REJECT a trim-empty value
+    // without TRIMMING the one it kept, so `"  rcdc5  "` survived all the way onto the node.
+    let id = normalize_declaration(std::env::var("MODEL_WORKSPACE_ID").ok().as_deref())?;
+    let source = normalize_declaration(std::env::var("MODEL_WORKSPACE_SOURCE").ok().as_deref())?;
     Some((id, source))
 }
 
