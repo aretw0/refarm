@@ -3,7 +3,37 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { finishSelectionFromLane } from "../../src/commands/agent-finish-plan.js";
 import { createAgentCommand } from "../../src/commands/agent.js";
+
+// THE LANE CONTRACT. CLAUDE.md section 4 prescribes `after-edit` for "after source edits,
+// before committing", and agents are told to trust it instead of asking the operator to
+// eyeball diffs. Until 2026-08-11 it did not run a single test -- neither did any other lane;
+// `turbo run test` was defined in turbo.json and invoked by nothing -- so a deliberately
+// broken assertion passed after-edit AND before-push green.
+describe("agent finish lanes: which ones measure the tests", () => {
+	it("after-edit runs the affected package's tests", () => {
+		expect(finishSelectionFromLane("after-edit").includeTests).toBe(true);
+	});
+
+	// before-push does NOT, and this pins that rather than hiding it: it compares against
+	// `upstream`, so it validates everything the branch is about to publish, but the tests
+	// themselves are expected to have run at after-edit on each slice. Whether the last gate
+	// before work leaves the machine should re-run them is the operator's call, not a default
+	// worth slipping in beside a change he asked for on ONE lane.
+	it("before-push covers the whole branch range, and does not re-run the tests", () => {
+		const selection = finishSelectionFromLane("before-push");
+		expect(selection.profile).toBe("affected");
+		expect(selection.since).toBe("upstream");
+		expect(selection.includeTests).toBeUndefined();
+	});
+
+	// after-commit deliberately does NOT: the tests ran at after-edit on the very same tree,
+	// and re-running them per commit buys nothing an atomic-commit cadence does not already have.
+	it("after-commit stays cheap and scoped to the last commit", () => {
+		expect(finishSelectionFromLane("after-commit").since).toBe("HEAD~1");
+	});
+});
 
 describe("agent command", () => {
 	const tempDirs: string[] = [];

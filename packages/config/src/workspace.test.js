@@ -29,6 +29,23 @@ describe("workspace package detection", () => {
 		]);
 	});
 
+	// WHY the leading space in the fixture above is load-bearing, stated as a negative so the
+	// next reader cannot mistake it for formatting. `git status --short` is columnar (`XY
+	// <path>`) and this parser takes `slice(3)`, so RAW git stdout is a precondition, not a
+	// preference. A caller that trims first hands over a line one character short and gets a
+	// path that matches no workspace -- silently, because a wrong path is still a string.
+	// That is not hypothetical: `readGitCommand` trimmed, and it made
+	// `refarm agent finish --lane after-edit` blind to every UNSTAGED edit (column 0 is a space
+	// for those) while staged ones survived. `readGitCommandRaw` exists for this.
+	it("needs RAW git output: a pre-trimmed status line loses the path's first character", () => {
+		expect(changedFilePathsFromGitStatus(" M packages/config/src/index.js")).toEqual([
+			"packages/config/src/index.js",
+		]);
+		expect(changedFilePathsFromGitStatus(" M packages/config/src/index.js".trim())).toEqual([
+			"ackages/config/src/index.js",
+		]);
+	});
+
 	it("parses changed paths from git diff name-only output", () => {
 		expect(
 			changedFilePathsFromGitNameOnly(

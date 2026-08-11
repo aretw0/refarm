@@ -12,7 +12,7 @@ import {
 	type CommandPlanStepRunResult,
 	type CommandPlanWorkClass,
 } from "@refarm.dev/cli/command-plan";
-import { readGitCommand } from "@refarm.dev/cli/git-command";
+import { readGitCommand, readGitCommandRaw } from "@refarm.dev/cli/git-command";
 import {
 	affectedWorkspacePackagesFromChangedPaths,
 	changedFilePathsFromGitNameOnly,
@@ -496,7 +496,11 @@ function changedPathsFromGit(
 	const repoRoot = options.repoRoot ?? findWorkspaceRoot();
 	const includeWorkingTree = options.includeWorkingTree ?? true;
 	try {
-		const status = readGitCommand(["status", "--short", "--untracked-files=all"], {
+		// RAW, never `readGitCommand`: `git status --short` is columnar (`XY <path>`), and a file
+		// modified but not staged has a SPACE in column 0. Trimming it and then `slice(3)`ing
+		// eats the path's first character, so the workspace never matches — which is exactly how
+		// this lane came to be blind to unstaged work.
+		const status = readGitCommandRaw(["status", "--short", "--untracked-files=all"], {
 			cwd: repoRoot,
 		});
 		if (!options.since) {
@@ -601,6 +605,15 @@ export function finishSelectionFromLane(lane: AgentFinishLane): Omit<AgentFinish
 		return { lane, profile: "affected", since: "upstream" };
 	}
 	if (lane === "with-package-tests") {
+		return { lane, includeTests: true, profile: "affected" };
+	}
+	// The lane CLAUDE.md section 4 prescribes for "after source edits, before committing" runs
+	// the affected package's TESTS, on the operator's ruling of 2026-08-11. Before it did not,
+	// and neither did any other lane: a deliberately broken assertion in packages/config passed
+	// `after-edit` AND `before-push` green. `turbo run test` was defined in turbo.json and
+	// invoked by nothing, so the cadence this repo asks agents to trust instead of eyeballing
+	// diffs did not measure the one property it was trusted for.
+	if (lane === "after-edit") {
 		return { lane, includeTests: true, profile: "affected" };
 	}
 	if (lane === "handoffs") {

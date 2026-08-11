@@ -54,6 +54,7 @@ const SANDBOX = await vi.hoisted(async () => {
 	const originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
 	for (const key of ENV_KEYS) process.env[key] = home;
 
+
 	// The substrate (@refarm.dev/config) has no default config-dir name — it reads
 	// SOVEREIGN_DIR (injected by the app at boot; see src/index.ts). Tests exercise
 	// the app's commands/modules directly, bypassing that entry, so this setup file

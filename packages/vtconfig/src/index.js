@@ -178,6 +178,25 @@ export const baseConfig = {
 	test: {
 		globals: true,
 		environment: "node",
+		/**
+		 * COLOUR OFF, REPO-WIDE. Dozens of assertions across this monorepo read printed output
+		 * as plain text (`expect(out).toContain("current: ollama/llama3.2")`), and chalk wraps
+		 * that value in ANSI escapes whenever the ambient terminal supports colour. CI has no
+		 * TTY, so those suites are green there and RED on an ordinary developer machine —
+		 * measured 2026-08-11: `FORCE_COLOR=3` in an xterm-256color session turned 5 failures
+		 * into 16 in apps/refarm alone.
+		 *
+		 * A suite whose result depends on the operator's terminal is not a suite. Fixed here,
+		 * once, rather than in each assertion: the defect is ONE environment dependency, not
+		 * eleven wrong expectations.
+		 *
+		 * `test.env` and not a setup file, measured: chalk resolves its level at import, and
+		 * vitest loads chalk for its own reporter before any setupFile runs — setting the var
+		 * (or `chalk.level`) from there changed nothing, because the instance under test is a
+		 * different module copy. `test.env` is applied to the worker before the module graph
+		 * loads, which is the only point early enough.
+		 */
+		env: { FORCE_COLOR: "0", NO_COLOR: "1" },
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "json-summary"],

@@ -1244,6 +1244,17 @@
 			"priority": "high",
 			"package": "apps/refarm",
 			"axis": "durability"
+		},
+		{
+			"id": "ISS-108",
+			"title": "Four order-dependent test failures in apps/refarm, now visible because after-edit runs tests",
+			"body": "Surfaced by ISS-107's fix: after-edit now runs the affected package's tests, so these stop being invisible.\n\nMEASURED 2026-08-11, full run:\n  apps/refarm      3265 passed | 4 failed (3269)\n  packages/cli      314 passed | 0 failed\n  packages/config   144 passed | 0 failed\n\nTHE FOUR (full run, `turbo run test --filter=./apps/refarm`):\n  src/commands/surface.test.ts > surface list > names the sovereign root and config path\n  test/architecture/process-boundary.test.ts > builds refarm command contract fields through handoff helpers\n  test/commands/workspace.test.ts > prints missing source repository declaration snippets\n  test/commands/workspace.test.ts > prints source repository declaration snippets in human output\n\nTHEY ARE ORDER-DEPENDENT, which is the finding under the finding. A FILTERED run of five files\nreported a DIFFERENT set of five: `surface add` x2 failed there and passed in the full run, while\nthe two workspace tests failed in the full run and were not in the filtered set. A suite whose\nfailures depend on which other files ran with it cannot be trusted either way -- it is why nobody\ncould have noticed these by running a subset, and why they may be green in CI.\n\nDISTINCT CAUSES OBSERVED (not yet root-caused):\n  1. MissingSovereignDirError from surface.test.ts -- `SOVEREIGN_DIR` is unset by the time the\n     command runs, even though apps/refarm/vitest.setup.ts sets it in its hoisted block. Points\n     at env restoration (vitest env stubbing / the setup's own afterAll) racing the assignment.\n  2. model.test.ts expected `binding:  detached (explicit)`; the rendered output has no binding\n     line at all. Same shape as the chat-repl staleness fixed in the ISS-107 commit -- a test\n     holding a copy of output that has since moved.\n  3. process-boundary.test.ts is an ARCHITECTURE GUARD and it is reporting a real violation:\n     `sovereign-divergence-doctor.ts` builds a command outside the handoff helpers. That one is\n     not a stale test; it is the guard doing its job on a file that got past it.\n\nNOT COLOUR. Eleven OTHER failures in the same area WERE colour, and are fixed in the same commit\nas this filing: the suite read printed output as plain text while chalk wrapped it in ANSI\nescapes whenever the terminal supported colour. `FORCE_COLOR=3` in an ordinary xterm-256color\nsession turned 5 failures into 16. Fixed once in packages/vtconfig/src/index.js (`test.env`),\nrepo-wide, because it was one environment dependency and not eleven wrong expectations.\n\nCONSEQUENCE TO WEIGH: `refarm agent finish --lane after-edit` is now RED for any slice that\ntouches apps/refarm, until these four are fixed. That is the gate working on its first day, but a\ngate that is red on arrival is a gate an operator learns to bypass -- so these four are the next\nslice, not a backlog item to age.",
+			"location": "apps/refarm/test",
+			"status": "open",
+			"category": "issue",
+			"priority": "high",
+			"package": "apps/refarm",
+			"axis": "durability"
 		}
 	]
 }
