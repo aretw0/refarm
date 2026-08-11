@@ -8,6 +8,10 @@ test("requirements supply composition proves cheap records plus enrichment prefl
 		completedAt: "2026-06-30T00:00:00.000Z",
 	});
 
+	// STILL BRANDED, and correctly: this is the CI script's OWN envelope, and `scripts/ci/` is not
+	// a brand-free generic package — `release:brand:guard` polices packages/, not this. Only the
+	// NESTED schemas below come from packages and were debranded. A blanket rename over this file
+	// changed all three and this assertion caught it.
 	assert.equal(result.schema, "refarm.requirements-supply-composition.v1");
 	assert.equal(result.ok, true);
 	assert.equal(result.mode, "synthetic-sanitized-composition");
@@ -49,7 +53,17 @@ test("requirements supply composition proves cheap records plus enrichment prefl
 	assert.equal(result.artifacts.capability, "artifact:v1");
 	assert.equal(result.artifacts.validation.ok, true);
 	assert.equal(result.artifacts.validation.issueCount, 0);
-	assert.equal(result.artifacts.manifest.schema, "refarm.task-artifacts.v1");
+// THREE schemas in one payload and TWO different prefixes, which is the honest state and not a
+	// typo: the envelope and the review report are this CI script's own (`scripts/ci/` is not a
+	// brand-free package, so `refarm.*` is legitimate there), while the artifact manifest comes
+	// from `packages/artifact-contract-v1`, which was debranded to `sovereign.*`.
+	//
+	// The trap underneath: `TASK_ARTIFACT_MANIFEST_SCHEMA` is declared TWICE with DIFFERENT values
+	// — `refarm.task-artifacts.v1` in scripts/ci/check-task-artifact-manifests.mjs and
+	// `sovereign.task-artifacts.v1` in the package. One name, two wire contracts. Filed as
+	// ISS-112 rather than reconciled here: picking one inside a test-repair slice would be
+	// deciding a wire contract by accident.
+	assert.equal(result.artifacts.manifest.schema, "sovereign.task-artifacts.v1");
 	assert.equal(result.artifacts.manifest.artifacts.length, 4);
 	assert.deepEqual(
 		result.artifacts.manifest.artifacts.map((artifact) => artifact.id),

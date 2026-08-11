@@ -51,15 +51,19 @@ import { fileURLToPath } from "node:url";
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 /**
- * THE FIFTEEN, measured 2026-08-11 and each already failing before this runner existed. Named
+ * THE REMAINING FIVE. Fifteen when this runner shipped, measured 2026-08-11;
+ * ten closed the same day and each already failing before this runner existed. Named
  * rather than counted, so the list is a work queue and a new failure cannot hide inside a
  * number.
  *
- * They are not one problem: `release:boundary:audit:test` asserts `23 !== 21` (a count of
- * packages the repo has since grown past), `workspace-protect:test` asserts `0 !== 1` on a
- * confirmation path, and five of them are skill/proof smokes that build a package first. A
- * stale figure, a behaviour, and an integration — three different kinds of work. Fixing them is
- * per-suite work and belongs to ISS-106, not here.
+ * The ten that closed were four kinds, and only one was a test simply being wrong:
+ *   - a hardcoded package count the repo grew past, beside the config the test already read;
+ *   - five schema names left branded when ADR-087 debranded the packages;
+ *   - two guards reporting REAL drift (a parser reading a function the table had moved out of;
+ *     a container check with no way to declare, so its own gate was unreachable off-container);
+ *   - one profile member with no consumer proof, which stayed red as a FILED finding (ISS-113)
+ *     rather than being tagged green — stamping "consumer-proven" to pass a test is
+ *     manufacturing the evidence the gate exists to demand.
  *
  * REMOVE a name when its suite goes green. Never add one to make a run pass — that is the
  * mechanism this file exists to give the cadence, and adding to it is spending it.
@@ -68,18 +72,8 @@ export const KNOWN_FAILING = [
 	"audience:boundary:test",
 	"devcontainer:contract:test",
 	"extension-sandbox:poc:test",
-	"local-first:proof:test",
-	"models:defaults:check:test",
-	"native:skills:agents-lab-git-workflow-smoke:test",
-	"native:skills:dgk-vault-search-smoke:test",
-	"native:skills:source-engine-smoke:test",
-	"native:skills:surface-smoke:test",
-	"release:boundary:audit:test",
 	"release:brand:guard",
 	"release:readiness:test",
-	"requirements:supply:composition:test",
-	"requirements:supply:handoff:test",
-	"workspace-protect:test",
 ];
 
 /** PURE. Every package.json script that invokes `node --test`, in declaration order. Reading the

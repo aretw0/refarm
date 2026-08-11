@@ -1306,6 +1306,28 @@
 			"priority": "low",
 			"package": "apps/refarm",
 			"axis": "node-vs-directory"
+		},
+		{
+			"id": "ISS-112",
+			"title": "TASK_ARTIFACT_MANIFEST_SCHEMA is declared twice with different values — one name, two wire contracts",
+			"body": "FOUND 2026-08-11 while repairing the fifteen script suites (ISS-106). `TASK_ARTIFACT_MANIFEST_SCHEMA`\nis declared TWICE, with DIFFERENT values:\n\n  scripts/ci/check-task-artifact-manifests.mjs:6   \"refarm.task-artifacts.v1\"\n  packages/artifact-contract-v1/src/types.ts:2     \"sovereign.task-artifacts.v1\"\n\nOne name, two wire contracts. A reader who greps the constant finds whichever copy is nearer.\n\nHOW IT HAPPENED: ADR-087 phase 3 debranded the generic packages, so the package constant became\n`sovereign.*`. `scripts/ci/` is NOT a brand-free surface -- `release:brand:guard` polices\n`packages/`, not scripts -- so nothing forced the CI copy to move, and nothing noticed it had not.\n\nA THIRD CONSUMER already picks a side by hand: scripts/ci/local-first-platform-proof.mjs:70 tests\n`manifest?.schema === \"refarm.task-artifacts.v1\"` as a literal. So a manifest produced through the\nPACKAGE would fail that check today.\n\nWHAT IS ACTUALLY EMITTED, measured through requirements-supply-composition:\n  result.schema                     refarm.requirements-supply-composition.v1   (the CI envelope)\n  result.artifacts.reviewReport     refarm.requirements-supply-review.v1        (the CI envelope)\n  result.artifacts.manifest         sovereign.task-artifacts.v1                 (from the package)\n\nSo one payload carries both prefixes. That is not wrong on its face -- an envelope may legitimately\ncarry a foreign schema -- but the DUPLICATE CONSTANT is, and the literal in local-first is a bug\nwaiting for the producer to change.\n\nWHY IT IS FILED AND NOT FIXED: a wire name is a contract. Renaming the CI copy to `sovereign.*`\nwould change what a consumer reads off disk, and choosing which of the two names is canonical\ninside a slice about repairing tests would be deciding it by accident. The three call sites are\nlisted above so whoever takes it does not have to find them again.\n\nTHE SMALLEST HONEST FIX, if taken up: scripts/ci/check-task-artifact-manifests.mjs imports the\nconstant from @refarm.dev/artifact-contract-v1 instead of declaring its own, and\nlocal-first-platform-proof.mjs compares against the imported constant instead of a literal. That\nmakes the package the single declaration and leaves the VALUE decision (which prefix) as the one\nquestion to answer.\n\nRELATED: `check:permission-vocab` and `check:config-node-keys` are this repo's existing idiom for\npinning a vocabulary across two stacks. A third guard of that shape would catch the next duplicate\nconstant by construction rather than by someone repairing a test.",
+			"location": "scripts/ci/check-task-artifact-manifests.mjs:6",
+			"status": "open",
+			"category": "issue",
+			"priority": "medium",
+			"package": "scripts",
+			"axis": "durability"
+		},
+		{
+			"id": "ISS-113",
+			"title": "content-projection joined the requirements-supply profile with no consumer proof, blocking the handoff",
+			"body": "FOUND 2026-08-11 by `requirements:supply:handoff:test`, one of the fifteen script suites no lane\nran (ISS-106). The gate is right; the config has a gap.\n\n  requirements-supply-handoff: blocked\n    @refarm.dev/content-projection  missing consumer-proven tag\n    @refarm.dev/content-projection  does not declare requirements-supply consumer proof metadata\n\n  consumer-proven, correctly: @refarm.dev/enrichment-contract-v1,\n                              @refarm.dev/records-contract-v1,\n                              @refarm.dev/source-web\n\n`@refarm.dev/content-projection` is a member of the `requirements-supply` profile in\nrefarm.config.json and carries neither the `consumer-proven` tag nor the consumer-proof metadata\nthe other three carry. So the whole handoff reports `ok: false` and the lane cannot promote.\n\nWHY THIS WAS NOT FIXED IN THE SLICE THAT FOUND IT: adding the tag is not a code change, it is a\nCLAIM -- that a consumer has pulled this package and proved it works. Nobody has verified that,\nand stamping it to turn a test green is manufacturing exactly the evidence the gate exists to\ndemand. The test was updated to assert the honest state instead, naming this package as the\nblocker, so the day the claim becomes true the test fails and gets updated deliberately.\n\nTHE OPERATOR DECIDES WHICH IS TRUE:\n  a) content-projection HAS been consumer-proven -> add the tag and the `consumerPull` metadata\n     (proofId / downstreamUse / proofTarget / ownershipBoundary, the four fields\n     test-release-boundary-audit.mjs requires of every vault-seed-ready profile).\n  b) It has NOT -> it does not belong in the `requirements-supply` profile yet, and removing the\n     tag is the honest move until a consumer pulls it.\n\nEither way the handoff goes green for a reason rather than by assertion. (a) is a claim to\nverify; (b) is a scope correction.",
+			"location": "refarm.config.json",
+			"status": "open",
+			"category": "issue",
+			"priority": "medium",
+			"package": "scripts",
+			"axis": "durability"
 		}
 	]
 }

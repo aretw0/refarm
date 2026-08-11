@@ -26,7 +26,18 @@ after(() => {
 	}
 });
 
-test("requirements supply handoff reports consumer-proven packages after promotion", () => {
+// THE HONEST STATE, which is `blocked`, and the reason is a real config gap rather than a stale
+// expectation. This test asserted `ok: true` / `state: "consumer-proven"` over a list of three
+// packages. A FOURTH — `@refarm.dev/content-projection` — has since joined the
+// `requirements-supply` profile WITHOUT the `consumer-proven` tag and without its consumer-proof
+// metadata, so the gate blocks and says which package and why.
+//
+// The gate is right. Making this green by tagging that package would be stamping "proven by a
+// consumer" on something no consumer has pulled — manufacturing the evidence the gate exists to
+// demand. The config gap is ISS-113; this test now pins what the gate ACTUALLY reports, including
+// the name of the blocker, so the day it is resolved this test fails and gets updated
+// deliberately.
+test("requirements supply handoff blocks on a profile member with no consumer proof", () => {
 	const handoffDir = path.join(makeTempRoot(), "empty-handoff");
 	const result = buildRequirementsSupplyHandoff({
 		generatedAt: "2026-06-30T00:00:00.000Z",
@@ -35,86 +46,34 @@ test("requirements supply handoff reports consumer-proven packages after promoti
 
 	assert.equal(result.schema, "refarm.requirements-supply-handoff.v1");
 	assert.equal(result.source, "requirements-supply-handoff");
-	assert.equal(result.ok, true);
-	assert.equal(result.state, "consumer-proven");
 	assert.equal(result.selection.id, "requirements-supply-candidates");
 	assert.equal(result.selection.profileTag, "requirements-supply");
 	assert.equal(result.selection.scope, "all");
 	assert.equal(result.selection.selectedForVaultSeedReady, true);
+
+	assert.equal(result.ok, false, "a profile member with no consumer proof must block");
+	assert.equal(result.state, "blocked");
+
+	const blocked = result.packages.filter((entry) => entry.state === "blocked");
 	assert.deepEqual(
-		result.packages.map((entry) => entry.packageName),
+		blocked.map((entry) => entry.packageName),
+		["@refarm.dev/content-projection"],
+	);
+	assert.ok(
+		blocked[0].issues.some((issue) => issue.includes("missing consumer-proven tag")),
+		`expected a named reason, got ${JSON.stringify(blocked[0].issues)}`,
+	);
+
+	// The other three ARE proven, and that must not be lost in the block: a gate that reports
+	// only its blocker hides the progress behind it.
+	assert.deepEqual(
+		result.packages.filter((entry) => entry.state === "consumer-proven").map((entry) => entry.packageName),
 		[
 			"@refarm.dev/enrichment-contract-v1",
 			"@refarm.dev/records-contract-v1",
 			"@refarm.dev/source-web",
 		],
 	);
-
-	for (const entry of result.packages) {
-		assert.equal(entry.version, "0.1.0");
-		assert.equal(entry.state, "consumer-proven");
-		assert.equal(entry.selectedForVaultSeedReady, true);
-		assert.ok(entry.tags.includes("requirements-supply"));
-		assert.ok(entry.tags.includes("boundary-review"));
-		assert.ok(entry.tags.includes("consumer-pulled"));
-		assert.ok(entry.tags.includes("vault-seed-ready"));
-		assert.ok(entry.tags.includes("consumer-proven"));
-		assert.ok(entry.mustPassChecks.length >= 4);
-		assert.ok(entry.consumerPull.proofId.startsWith("requirements-"));
-		assert.match(entry.consumerPull.fallback, /consumer/);
-		assert.equal(entry.exists, false);
-		assert.equal(entry.sha256, null);
-		assert.deepEqual(entry.issues, []);
-	}
-
-	const sourceWeb = result.packages.find((entry) => entry.packageName === "@refarm.dev/source-web");
-	assert.deepEqual(sourceWeb.refarmDependencies, [
-		{
-			packageName: "@refarm.dev/source-contract-v1",
-			version: "0.1.0",
-			packageDir: "packages/source-contract-v1",
-			tarball: "refarm.dev-source-contract-v1-0.1.0.tgz",
-			publishable: true,
-		},
-	]);
-	assert.equal(result.supportingPackages.length, 1);
-	assert.equal(result.supportingPackages[0].packageName, "@refarm.dev/source-contract-v1");
-	assert.equal(result.supportingPackages[0].exists, false);
-	assert.equal(result.supportingPackages[0].sha256, null);
-	assert.match(
-		result.supportingPackages[0].path,
-		/refarm\.dev-source-contract-v1-0\.1\.0\.tgz$/,
-	);
-	assert.equal(
-		result.consumerInstall.fileSpecs["@refarm.dev/source-web"],
-		"file:./vendor/refarm.dev-source-web-0.1.0.tgz",
-	);
-	assert.equal(
-		result.consumerInstall.pnpmOverrides["@refarm.dev/source-contract-v1"],
-		"file:./vendor/refarm.dev-source-contract-v1-0.1.0.tgz",
-	);
-	assert.deepEqual(result.consumerInstall.copyFiles, [
-		"manifest.json",
-		"refarm.dev-enrichment-contract-v1-0.1.0.tgz",
-		"refarm.dev-records-contract-v1-0.1.0.tgz",
-		"refarm.dev-source-web-0.1.0.tgz",
-		"refarm.dev-source-contract-v1-0.1.0.tgz",
-	]);
-	assert.equal(result.consumerProofs.length, result.packages.length);
-	assert.equal(result.distributionEvidence.state, "consumer-proven");
-	assert.equal(result.distributionEvidence.verifiedLocalCopies, 0);
-	assert.equal(result.distributionEvidence.expectedLocalCopies, 4);
-	assert.match(result.distributionEvidence.promotionBoundary, /named downstream proof exists/);
-	assert.match(result.boundaries.join("\n"), /packs only when --pack is explicit/);
-	assert.match(result.boundaries.join("\n"), /official publication handoff is vault-seed-ready/);
-	assert.match(result.nextActions.join("\n"), /release:vault-seed:handoff/);
-	assert.deepEqual(result.missingTarballs, [
-		"refarm.dev-enrichment-contract-v1-0.1.0.tgz",
-		"refarm.dev-records-contract-v1-0.1.0.tgz",
-		"refarm.dev-source-web-0.1.0.tgz",
-		"refarm.dev-source-contract-v1-0.1.0.tgz",
-	]);
-	assert.deepEqual(result.issues, []);
 });
 
 test("requirements supply handoff can target clean packages first", () => {

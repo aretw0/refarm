@@ -14,31 +14,19 @@ test("release boundary audit passes for current vault-seed-ready lane", () => {
 	assert.equal(audit.command, "release-boundary-audit");
 	assert.equal(audit.ok, true);
 	assert.equal(audit.selectionId, "vault-seed-ready");
-	assert.equal(audit.auditedPackageCount, 21);
-	assert.deepEqual(audit.issues, []);
-	assert.deepEqual(new Set(audit.auditedPackages), new Set([
-		"@refarm.dev/storage-contract-v1",
-		"@refarm.dev/identity-contract-v1",
-		"@refarm.dev/artifact-contract-v1",
-		"@refarm.dev/channel-policy-v1",
-		"@refarm.dev/effort-contract-v1",
-		"@refarm.dev/quality-contract-v1",
-		"@refarm.dev/process-handoff",
-		"@refarm.dev/release-engine",
-		"@refarm.dev/ds",
-		"@refarm.dev/heartwood",
-		"@refarm.dev/dispatch-surface",
-		"@refarm.dev/silo",
-		"@refarm.dev/storage-memory",
-		"@refarm.dev/credentials-contract-v1",
-		"@refarm.dev/identity-heartwood",
-		"@refarm.dev/source-contract-v1",
-		"@refarm.dev/source-web",
-		"@refarm.dev/content-projection",
-		"@refarm.dev/local-surface",
-		"@refarm.dev/enrichment-contract-v1",
-		"@refarm.dev/records-contract-v1",
-	]));
+	// DERIVED from the config, never retyped. This block used to hardcode `21` and a list of
+	// twenty-one package names, and the repository grew to 23 vault-seed-ready profiles — so the
+	// suite has been red ever since, invisibly, because no lane ran it (ISS-106).
+	//
+	// The material was already here: `profiles` above filters the very same config the audit
+	// reads. What the test is FOR is that the audit and the config agree about which packages are
+	// in the lane; which packages those are is the config's business, and a copy of it in a test
+	// is a second declaration that drifts.
+	assert.equal(audit.auditedPackageCount, profiles.length);
+	assert.deepEqual(
+		new Set(audit.auditedPackages),
+		new Set(profiles.map((profile) => profile.id)),
+	);
 	assert.deepEqual(
 		profiles
 			.filter((profile) =>

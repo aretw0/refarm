@@ -94,10 +94,14 @@ test("pricedLiterals throws when the body is reformatted past recognition (below
 	assert.throws(() => pricedLiterals(body), /priced literal/);
 });
 
+// The function this parser slices is `rate_from_builtin_table`. It WAS `rate_for_model`, until
+// the pricing chain split three ways and the table moved — at which point the parser read a
+// three-line delegator, found zero literals, and screamed exactly as designed. Naming the real
+// function here is what makes this test able to notice the next such move.
 test("rateForModelFunctionSource throws when the function cannot be found at all (renamed past recognition)", () => {
 	assert.throws(
 		() => rateForModelFunctionSource("pub(crate) fn totally_renamed(model: &str) { }"),
-		/could not find `rate_for_model`/,
+		/could not find `rate_from_builtin_table`/,
 	);
 });
 

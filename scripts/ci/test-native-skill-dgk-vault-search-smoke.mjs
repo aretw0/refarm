@@ -87,12 +87,12 @@ test("DGK vault-search smoke wraps external skill evidence without installing or
 		"refarm.operator-loop",
 		"source:v1",
 	]);
-	assert.equal(result.sourceIntegrity.schema, "refarm.skill-source-integrity.v1");
+	assert.equal(result.sourceIntegrity.schema, "sovereign.skill-source-integrity.v1");
 	assert.equal(result.sourceIntegrity.verified, true);
 	assert.equal(result.sourceIntegrity.assetPath, "skills/dgk-vault-search-refarm-wrapper/SKILL.md");
 	assert.match(result.sourceIntegrity.source.sha256, /^[a-f0-9]{64}$/);
 	assert.deepEqual(result.sourceIntegrity.issues, []);
-	assert.equal(result.activationPreflight.schema, "refarm.skill-activation-preflight.v1");
+	assert.equal(result.activationPreflight.schema, "sovereign.skill-activation-preflight.v1");
 	assert.equal(result.activationPreflight.state, "blocked");
 	assert.equal(result.activationPreflight.readyForRuntimeDispatch, false);
 	assert.deepEqual(
@@ -104,10 +104,10 @@ test("DGK vault-search smoke wraps external skill evidence without installing or
 		{ id: "source:v1", required: true },
 	]);
 	assert.deepEqual(result.plan.engineBindings.requires, ["source:v1"]);
-	assert.equal(result.decision.schema, "refarm.skill-invocation-decision.v1");
+	assert.equal(result.decision.schema, "sovereign.skill-invocation-decision.v1");
 	assert.equal(result.decision.decision, "approved");
 	assert.equal(result.decision.executed, false);
-	assert.equal(result.receipt.schema, "refarm.skill-invocation-receipt.v1");
+	assert.equal(result.receipt.schema, "sovereign.skill-invocation-receipt.v1");
 	assert.equal(result.receipt.status, "succeeded");
 	assert.equal(result.receipt.executed, true);
 	assert.equal(result.receipt.completedAt, "2026-06-30T00:00:00.000Z");

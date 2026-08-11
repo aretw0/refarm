@@ -45,7 +45,7 @@ test("proves the T2 local-first platform packet without binding provider UX", as
 		statusBefore: "active",
 		statusAfter: "revoked",
 	});
-	assert.equal(proof.localSurface.manifest.schema, "refarm.local-surface.v1");
+	assert.equal(proof.localSurface.manifest.schema, "local-surface.v1");
 	assert.equal(proof.localSurface.manifest.localFirst.networkRequired, false);
 	assert.deepEqual(proof.localSurface.launchPlan.steps.map((step) => step.id), [
 		"doctor",

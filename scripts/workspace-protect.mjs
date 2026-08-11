@@ -56,7 +56,21 @@ export function loadWorkspaceProtection(rootDir = ROOT, env = process.env) {
 	};
 }
 
-function isInsideContainer() {
+/**
+ * DECLARED over detected, with detection as the fallback.
+ *
+ * `existsSync("/.dockerenv")` is the OS being asked where this process is, with no way for a
+ * caller to say. It is the same shape `docs/NO_OS_RESOLUTION.md` is about, and here it had a
+ * second cost: `apply`'s confirmation gate lives BEHIND this check, so on any host the command
+ * short-circuits to `skipped` and the gate is unreachable — including from its own test, which
+ * asserted the confirmation branch and had therefore been red on every machine that is not the
+ * devcontainer. Invisibly, because no lane ran it (ISS-106).
+ *
+ * `REFARM_CONTAINER_RUNTIME=1|0` states it. Unset keeps today's behaviour exactly.
+ */
+function isInsideContainer(env = process.env) {
+	const declared = env.REFARM_CONTAINER_RUNTIME?.trim();
+	if (declared) return declared === "1";
 	return existsSync("/.dockerenv");
 }
 

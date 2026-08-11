@@ -132,22 +132,32 @@ export function stripRustComments(source) {
 // matches any current default (stale cover) — it is green only while the
 // unpriced set is fully, currently, accounted for.
 
-/// Slice out just the body of `rate_for_model` so a `model.contains("...")`
-/// literal elsewhere in the file (there shouldn't be one today, but the parse
-/// must not silently assume that stays true) can never be mistaken for a priced
-/// branch.
+/// The function that HOLDS THE TABLE, sliced out so a `model.contains("...")` literal elsewhere
+/// in the file can never be mistaken for a priced branch.
+///
+/// It is `rate_from_builtin_table`, not `rate_for_model`. It used to be the latter, and the
+/// pricing chain was later split three ways — `rate_for_model` became a three-line delegator,
+/// `rate_for_model_in` took the catalog-first path, and the literal table moved here. The parser
+/// kept reading the delegator and found ZERO literals.
+///
+/// The gate handled that exactly as designed: `MINIMUM_PLAUSIBLE_PRICED_LITERAL_COUNT` made it
+/// SCREAM about a broken parse instead of reporting a clean run over an empty table, which is
+/// the one thing a matcher-based guard must never do. What it could not do was tell anyone —
+/// no lane ran this suite (ISS-106), so the scream went into an empty room for as long as the
+/// refactor has been in. Both halves are fixed: the parser points at the table, and
+/// `pnpm run scripts:test` runs in `before-push`.
 export function rateForModelFunctionSource(source) {
-	const start = source.indexOf("pub(crate) fn rate_for_model");
+	const start = source.indexOf("pub(crate) fn rate_from_builtin_table");
 	if (start === -1) {
 		throw new Error(
-			"check-model-defaults-drift: could not find `rate_for_model` in " +
+			"check-model-defaults-drift: could not find `rate_from_builtin_table` in " +
 				`${relative(rootDir, utilsPath)} — refusing to guess which default models are priced.`,
 		);
 	}
 	const nextFn = source.indexOf("\npub(crate) fn ", start + 1);
 	if (nextFn === -1) {
 		throw new Error(
-			"check-model-defaults-drift: found `rate_for_model` but not the function after it in " +
+			"check-model-defaults-drift: found `rate_from_builtin_table` but not the function after it in " +
 				`${relative(rootDir, utilsPath)} — refusing to guess where it ends.`,
 		);
 	}
@@ -183,7 +193,7 @@ export function pricedLiterals(fnSource) {
 	}
 	if (literals.size < MINIMUM_PLAUSIBLE_PRICED_LITERAL_COUNT) {
 		throw new Error(
-			`check-model-defaults-drift: rate_for_model parsed only ${literals.size} priced literal(s) in ` +
+			`check-model-defaults-drift: rate_from_builtin_table parsed only ${literals.size} priced literal(s) in ` +
 				`${relative(rootDir, utilsPath)} (expected at least ${MINIMUM_PLAUSIBLE_PRICED_LITERAL_COUNT}) ` +
 				"— the parse looks broken (renamed function, reformatted branches, comments stripped down to " +
 				"nothing left, or something else this parser doesn't understand), not just a smaller table. " +

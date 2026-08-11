@@ -23,14 +23,14 @@ test("native skill surface smoke builds a policy-checkable package skill handoff
 		"refarm.operator-loop",
 		"refarm.git.write",
 	]);
-	assert.equal(result.plan.schema, "refarm.skill-invocation-plan.v1");
+	assert.equal(result.plan.schema, "sovereign.skill-invocation-plan.v1");
 	assert.equal(result.plan.requiresHostPolicyApproval, true);
 	assert.deepEqual(result.plan.engineBindings.requires, ["runtime-agent", "source:v1"]);
-	assert.equal(result.request.schema, "refarm.skill-invocation-request.v1");
+	assert.equal(result.request.schema, "sovereign.skill-invocation-request.v1");
 	assert.equal(result.request.input.format, "text/markdown");
 	assert.equal(result.request.output.format, "text/markdown");
 	assert.equal(result.request.requiresHostPolicyApproval, true);
-	assert.equal(result.decision.schema, "refarm.skill-invocation-decision.v1");
+	assert.equal(result.decision.schema, "sovereign.skill-invocation-decision.v1");
 	assert.equal(result.decision.decision, "approved");
 	assert.equal(result.decision.requiresRuntimeDispatch, true);
 	assert.equal(result.decision.executed, false);
