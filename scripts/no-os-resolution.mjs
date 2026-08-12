@@ -522,7 +522,7 @@ export function computeBaseline({ repoRoot = REPO_ROOT } = {}) {
  * implements) that removes real sites, by exactly the number of sites removed; NEVER raised
  * to make a slice pass — see docs/NO_OS_RESOLUTION.md.
  */
-export const BASELINE_MAX_OFFENDING_SITES = 90;
+export const BASELINE_MAX_OFFENDING_SITES = 89;
 
 /**
  * THE BURN-DOWN CEILING — sites nobody has judged yet. This is the number a burn-down actually

@@ -1,6 +1,6 @@
+import { declaredBase } from "@refarm.dev/config";
 import { orderedScopeStorePaths, type LedgerScope } from "@refarm.dev/storage-node-view";
 import fs from "node:fs";
-import os from "node:os";
 
 import { getSource, type PackageSource } from "./composition.js";
 import { resolveOrgRoot } from "./refarm-home.js";
@@ -76,22 +76,29 @@ function readPluginsAt(filePath: string): PackageSource[] {
  * deferred divergence).
  */
 /**
- * The OS home, named — because here it is the ANSWER, not a fallback nobody chose.
+ * The node's DECLARED base — the user tier's root, and the same one `config.ts` writes to.
  *
- * ISS-050 removed `orderedScopeStorePaths`'s silent `userHome ?? os.homedir()` default, which had
- * been writing plugin assets into the operator's real home while a sandbox home was declared. This
- * module is the one caller that genuinely means the OS home: the user tier MUST land on the exact
- * file `config.ts` writes (`os.homedir()/.refarm/config.json`) so scalars and `plugins[]` share one
- * file at every tier, and passing the REFARM_HOME-aware base would split them.
+ * ## What this used to be, and why it changed (ISS-102)
  *
- * A named function rather than a bare `?? os.homedir()`: `scripts/no-os-resolution.mjs` counts the
- * inline shape, and it is right to — the shape is indistinguishable from the accident it exists to
- * catch. What makes this one legitimate is the reason above, and a reason belongs somewhere a reader
- * can find it. The co-habitation itself is a KNOWN gap under a custom REFARM_HOME (see ISS-102): both
- * sides are anchored on the OS home, so they are consistently wrong together rather than split.
+ * It was `os.homedir()`, named rather than inlined, with a comment admitting the gap: under a
+ * declared home — a sandbox node, a second device, anything the sovereign-state work exists to
+ * make possible — this side and `config.ts` both answered the operator's OS home. They were not
+ * correct; they were CONSISTENTLY WRONG TOGETHER, and the co-habitation guarantee is what kept
+ * them consistent rather than split.
+ *
+ * ## The guarantee is unchanged, and that is the whole point
+ *
+ * The user tier must land on the exact file `config.ts` writes, so scalars and `plugins[]` share
+ * one file at every tier. Both sides now resolve through `declaredBase()`, so they still agree —
+ * and they agree on the base the NODE declared rather than on the one the OS happens to have.
+ * Moving one without the other would split that file, which is why ISS-102 insisted they move in
+ * one change with a test pinning them to the same path.
+ *
+ * With nothing declared, `declaredBase()` is `HOME`, so the ordinary case is byte-for-byte what it
+ * was.
  */
 function cohabitationHome(): string {
-	return os.homedir();
+	return declaredBase();
 }
 
 export function resolveComposition(deps: CompositionResolverDeps = {}): CompositionResolution {
@@ -119,9 +126,12 @@ export function resolveComposition(deps: CompositionResolverDeps = {}): Composit
 }
 
 /** The user-tier config path this resolver folds — exposed so a test can assert
- * it equals config.ts's `configPath({local:false})` (the co-habitation guarantee). */
-// os-resolution: os-user — the user tier must land on the exact file config.ts writes, and that one is anchored on the OS home
-export function userScopeConfigPath(home = os.homedir()): string {
+ * it equals config.ts's `configPath({local:false})` (the co-habitation guarantee).
+ *
+ * The default is the DECLARED base since ISS-102, matching `config.ts`'s. Both used to answer the
+ * OS home, which kept them consistent and kept them wrong under any declared home. */
+// os-resolution: node — the user tier follows the base this node declared, and so does config.ts
+export function userScopeConfigPath(home = cohabitationHome()): string {
 	return orderedScopeStorePaths("config.json", { userHome: home }).find((p) => p.scope === "user")!
 		.path;
 }

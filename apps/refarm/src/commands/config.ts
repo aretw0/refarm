@@ -6,7 +6,8 @@ import {
 } from "@refarm.dev/runtime";
 import chalk from "chalk";
 import { Command } from "commander";
-import os from "node:os";
+
+import { declaredBase } from "@refarm.dev/config";
 import path from "node:path";
 import { refarmCommand } from "../brand.js";
 import {
@@ -184,7 +185,13 @@ interface SpawnEnvResult {
 function defaultDeps(): ConfigDeps {
 	return {
 		cwd: () => process.cwd(),
-		home: () => os.homedir(),
+		// ISS-102: the DECLARED base, not the OS home. This and
+		// `composition-resolver.ts`'s user tier must land on the same file — scalars live here,
+		// `plugins[]` lives there, and the composition layer depends on it being ONE file. They
+		// were both anchored on `os.homedir()`, which kept them consistent and kept them wrong
+		// under any declared home. They move together or not at all, which is why this pair
+		// changed in one commit with a test pinning them to the same path.
+		home: () => declaredBase(),
 	};
 }
 
