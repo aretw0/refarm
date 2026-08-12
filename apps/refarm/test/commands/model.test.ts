@@ -1,14 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toCommanderGroup } from "../../src/commands/capability-commander.js";
 import {
-    createModelCapabilityGroup,
-    modelCapabilityHooks,
+	createModelCapabilityGroup,
+	modelCapabilityHooks,
 } from "../../src/commands/model-capability.js";
 import {
-    buildCurrentModelStatus,
-    buildModelDoctorStatus,
-    resolveRuntimeModelRoute,
-    type ModelCommandDeps,
+	buildCurrentModelStatus,
+	buildModelDoctorStatus,
+	credentialLifetime,
+	formatCredentialLifetime,
+	resolveRuntimeModelRoute,
+	type ModelCommandDeps,
 } from "../../src/commands/model.js";
 
 /**
@@ -1636,5 +1638,61 @@ describe("modelCommand", () => {
 		expect(process.exitCode).toBe(1);
 
 		logSpy.mockRestore();
+	});
+});
+
+describe("the credential's own clock, reported beside the probe", () => {
+	/**
+	 * ISS-081, measured on the operator's node 2026-08-12: the `openai-codex` token had expired
+	 * FIVE DAYS earlier and nothing in this repository said so. `model doctor` probed whether the
+	 * endpoint answers, which is a different question — an expired credential and an unreachable
+	 * host are two facts with two remedies, and a doctor reporting only the second sends an
+	 * operator to debug a network.
+	 */
+	const NOW = 1_786_500_000_000;
+	const tokensWith = (expires: unknown) =>
+		({ oauthCredentials: { "openai-codex": { access: "a", refresh: "r", expires } } }) as never;
+
+	it("reads an expired credential as expired, with how long it has been so", () => {
+		const lifetime = credentialLifetime("openai-codex", tokensWith(NOW - 86_400_000 * 5), NOW);
+		expect(lifetime).toMatchObject({ state: "expired", expiredForMs: 86_400_000 * 5 });
+	});
+
+	it("the boundary is the instant itself — expiring NOW is expired", () => {
+		expect(credentialLifetime("openai-codex", tokensWith(NOW), NOW).state).toBe("expired");
+		expect(credentialLifetime("openai-codex", tokensWith(NOW + 1), NOW).state).toBe("valid");
+	});
+
+	it("a provider with no OAuth entry is UNKNOWN, never valid", () => {
+		// The shape this repository keeps removing: an absence rendered as a reassurance. A
+		// keyless local provider has no credential to be valid.
+		expect(credentialLifetime("ollama", tokensWith(NOW + 1), NOW)).toEqual({
+			state: "unknown",
+			reason: "not-oauth",
+		});
+	});
+
+	it("an OAuth entry with no expiry is UNKNOWN, not valid forever", () => {
+		expect(credentialLifetime("openai-codex", tokensWith(undefined), NOW)).toEqual({
+			state: "unknown",
+			reason: "no-expiry-recorded",
+		});
+	});
+
+	it("prints a line for a fact and NOTHING for an unknown", () => {
+		// A doctor that announces "credential: unknown" for every keyless provider teaches an
+		// operator to skim the line — and the day it says EXPIRED they skim that too.
+		expect(formatCredentialLifetime({ state: "unknown", reason: "not-oauth" })).toBeNull();
+		expect(
+			formatCredentialLifetime({ state: "expired", expiresAt: NOW, expiredForMs: 86_400_000 * 5 }),
+		).toContain("EXPIRED");
+		expect(
+			formatCredentialLifetime({ state: "valid", expiresAt: NOW, remainingMs: 86_400_000 * 30 }),
+		).toContain("30");
+	});
+
+	it("warns before it fails — three days out reads differently from thirty", () => {
+		const soon = formatCredentialLifetime({ state: "valid", expiresAt: NOW, remainingMs: 86_400_000 * 2 });
+		expect(soon).toContain("expires in");
 	});
 });

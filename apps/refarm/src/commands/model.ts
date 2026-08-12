@@ -7,7 +7,6 @@ import { isContainer as detectContainerRuntime, fetchWithTimeout } from "@refarm
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
-import { resolveNodeContextMetadata, type NodeContextMetadata } from "../utils/context-metadata.js";
 import {
 	DEFAULT_MODEL_PROVIDER,
 	defaultModelForProvider,
@@ -29,18 +28,19 @@ import {
 	parseModelRef,
 	type ModelScope,
 } from "../model-routing.js";
+import { resolveNodeContextMetadata, type NodeContextMetadata } from "../utils/context-metadata.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
-	modelBaseUrlJsonCommand,
 	MODEL_DOCTOR_JSON_COMMAND,
 	MODEL_PROVIDERS_JSON_COMMAND,
+	modelBaseUrlJsonCommand,
 	modelRefJsonCommand,
 	OLLAMA_DEFAULT_REF,
-	OPERATOR_LINKS_CONFIG_COMMAND,
 	OPENAI_DEFAULT_REF,
 	OPENAI_MONITOR_REF,
 	OPENAI_WORKER_REF,
+	OPERATOR_LINKS_CONFIG_COMMAND,
 	setScopedModelJsonCommand,
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
@@ -136,8 +136,30 @@ export interface CurrentModelStatus {
 	};
 }
 
+/**
+ * What the stored OAuth credential says about its own lifetime — THREE STATES (ISS-081).
+ *
+ * `unknown` is not a hedge and not "probably fine": it is a credential that carries no `expires`,
+ * or a provider that is not OAuth at all. Reporting that as `valid` would be the shape this
+ * repository keeps removing — an absence rendered as a reassurance.
+ */
+export type CredentialLifetime =
+	| { state: "valid"; expiresAt: number; remainingMs: number }
+	| { state: "expired"; expiresAt: number; expiredForMs: number }
+	| { state: "unknown"; reason: "not-oauth" | "no-expiry-recorded" };
+
 export interface ModelDoctorStatus {
 	current: CurrentModelStatus["current"];
+	/**
+	 * THE CREDENTIAL'S OWN CLOCK, reported beside the reachability probe and never folded into it.
+	 *
+	 * Measured on the operator's node 2026-08-12: the `openai-codex` token had expired FIVE DAYS
+	 * earlier and nothing in this repository said so. `model doctor` probed whether the endpoint
+	 * answers, which is a different question — an expired credential and an unreachable host are
+	 * two facts with two remedies, and a doctor reporting only the second sends an operator to
+	 * debug a network.
+	 */
+	credential: CredentialLifetime;
 	providerProbe: {
 		provider: string | undefined;
 		baseUrl: string | undefined;
@@ -569,6 +591,28 @@ async function probeProviderViaRuntime(
  *  4. non-ollama with no TS-resolvable endpoint — no-endpoint-source; the Rust
  *     runtime, which owns the provider→baseURL map, fills this in a later fatia.
  */
+/**
+ * PURE. What the stored credential says about its own expiry.
+ *
+ * `now` is injected because a lifetime check whose clock is ambient cannot be tested without
+ * waiting, and the one thing this must get right is the boundary.
+ */
+export function credentialLifetime(
+	provider: string | undefined,
+	tokens: ModelTokens,
+	now: number,
+): CredentialLifetime {
+	const oauth = (tokens as { oauthCredentials?: Record<string, { expires?: unknown }> })
+		.oauthCredentials;
+	const entry = provider ? oauth?.[provider] : undefined;
+	if (!entry) return { state: "unknown", reason: "not-oauth" };
+	const expiresAt = typeof entry.expires === "number" ? entry.expires : null;
+	if (expiresAt === null) return { state: "unknown", reason: "no-expiry-recorded" };
+	return expiresAt <= now
+		? { state: "expired", expiresAt, expiredForMs: now - expiresAt }
+		: { state: "valid", expiresAt, remainingMs: expiresAt - now };
+}
+
 async function resolveProviderProbe(
 	provider: string | undefined,
 	current: CurrentModelStatus,
@@ -624,6 +668,7 @@ export async function buildModelDoctorStatus(
 	const probe = await resolveProviderProbe(provider, current, tokens, deps);
 	const status: ModelDoctorStatus = {
 		current: current.current,
+		credential: credentialLifetime(provider, tokens, Date.now()),
 		providerProbe: probe,
 		probeEnvironment,
 		handoffs,
@@ -661,10 +706,40 @@ export async function formatModelDoctor(
 
 /** Format `model doctor` text from an already-computed status — so a CLI
  * renderText hook formats straight from the envelope. */
+/**
+ * The credential's own clock, as one line — or NOTHING when there is nothing to say.
+ *
+ * `unknown` prints no line on purpose. A doctor that announces "credential: unknown" for every
+ * keyless local provider teaches an operator to skim past the line, and the day it says `expired`
+ * they skim past that too. Silence where there is no fact, a sentence where there is one.
+ */
+export function formatCredentialLifetime(lifetime: CredentialLifetime): string | null {
+	const days = (ms: number) => Math.floor(ms / 86_400_000);
+	if (lifetime.state === "expired") {
+		const held = days(lifetime.expiredForMs);
+		return chalk.red(
+			`  credential: EXPIRED ${held === 0 ? "today" : `${held} day(s) ago`} — this authenticates nothing; re-run the provider login`,
+		);
+	}
+	if (lifetime.state === "valid") {
+		const left = days(lifetime.remainingMs);
+		return left <= 3
+			? chalk.yellow(`  credential: expires in ${left} day(s)`)
+			: chalk.dim(`  credential: valid for ${left} more day(s)`);
+	}
+	return null;
+}
+
 export function formatModelDoctorFromStatus(status: ModelDoctorStatus): string {
 	const lines: string[] = [];
 	lines.push(chalk.bold("Model doctor"));
 	lines.push(`  current: ${chalk.cyan(status.current.ref)}`);
+	// BEFORE the probe, and before any early return. An expired credential and an unreachable
+	// host are two facts with two remedies, and every `return` below this point belongs to the
+	// probe — printing the credential after them means the one case where it matters most (a
+	// skipped or failed probe) is the one where it never gets said (ISS-081).
+	const credentialLine = formatCredentialLifetime(status.credential);
+	if (credentialLine) lines.push(credentialLine);
 	if (status.providerProbe.skipped) {
 		lines.push("  provider probe: skipped");
 		lines.push(chalk.dim("  use --json for machine-readable handoffs"));
