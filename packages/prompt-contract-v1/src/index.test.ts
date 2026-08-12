@@ -4,6 +4,7 @@ import {
 	checkPendingPromptAnswer,
 	checkPendingPromptListWire,
 	checkPendingPromptWire,
+	createAttendedOperatorChannel,
 	createAutoOperatorChannel,
 	createPeeredOperatorChannel,
 	createPendingPromptHub,
@@ -14,18 +15,18 @@ import {
 	currentPromptPublisher,
 	handlePendingPromptHttp,
 	NODE_LOCAL_PROMPT_DEVICE,
+	normalizeNoticeInput,
+	OPERATOR_NOTICE_WIRE,
 	OperatorPromptCancelledError,
 	OperatorPromptExpiredError,
+	parseOperatorNotice,
+	parseOperatorNoticeList,
 	parseOperatorPrompt,
 	parsePendingPrompt,
 	parsePendingPromptList,
 	PENDING_PROMPT_WIRE,
 	PROMPT_CAPABILITY,
 	readDeclaredPendingPromptWire,
-	normalizeNoticeInput,
-	OPERATOR_NOTICE_WIRE,
-	parseOperatorNotice,
-	parseOperatorNoticeList,
 	RESERVED_PROMPT_DEVICES,
 	resolveAnsweringDevice,
 	runOperatorChannelConformance,
@@ -1796,5 +1797,76 @@ describe("conformance does not pollute its host's output", () => {
 
 		expect(result.announces).toBe(true); // still REPORTED…
 		expect(written).toBe(""); // …and never exercised.
+	});
+});
+
+describe("createAttendedOperatorChannel — the phone, with no terminal behind it", () => {
+	// Its OWN publisher, deliberately not the one in the describe above. Reaching across that
+	// scope threw a ReferenceError inside the publisher THUNK, where `currentPromptPublisher`'s
+	// catch swallowed it and returned null — so the first run of these tests failed with "no
+	// publisher declared" for a publisher that was declared. A catch that turns a programming
+	// error into a legitimate-looking absence is the exact shape this suite keeps guarding against.
+	const ATTENDED_ASKER = { command: "test", host: "test-host", pid: 1 };
+	function publisherFor(hub: PendingPromptHub): PromptPublisher {
+		return {
+			remote: (signal) =>
+				createRemoteOperatorChannel({ hub, asker: ATTENDED_ASKER, signal, timeoutMs: null }),
+		};
+	}
+
+	/**
+	 * ISS-116. `refarm process install` refused whenever stdin was not a TTY, so an operator away
+	 * from this machine could DECLARE a process and could not install it. The refusal was right —
+	 * a consent prompt with nobody behind it is not answered yes and not answered no — but the
+	 * node has published questions to enrolled devices since the pending-prompt bridge, and that
+	 * path was simply never reached.
+	 */
+	it("reaches the hub with no terminal involved at all", async () => {
+		const hub = createPendingPromptHub();
+		const off = setPromptPublisher(() => publisherFor(hub));
+		try {
+			const channel = createAttendedOperatorChannel();
+			expect(channel).not.toBeNull();
+			const answer = channel!.ask({ type: "confirm", question: "Install refarm-automations?" });
+			await Promise.resolve();
+			await Promise.resolve();
+
+			const pending = hub.list();
+			expect(pending).toHaveLength(1);
+			expect(hub.answer(pending[0]!.id, true, "my-phone").ok).toBe(true);
+			await expect(answer).resolves.toBe(true);
+		} finally {
+			off();
+		}
+	});
+
+	it("is NOT a peered channel, which is the whole reason it exists", async () => {
+		// The trap this avoids: `readline` settles a non-TTY stdin immediately — a closed or piped
+		// input fires `close`, which becomes OperatorPromptCancelledError. A peered channel would
+		// therefore REJECT LOCALLY FIRST, win its own race, and withdraw the question from the
+		// operator's phone before anyone could see it. A dead peer is worse than no peer: it
+		// reports "cancelled" for a question that was never shown.
+		//
+		// Proven by leaving the question outstanding for longer than any local settle would take.
+		const hub = createPendingPromptHub();
+		const off = setPromptPublisher(() => publisherFor(hub));
+		try {
+			const channel = createAttendedOperatorChannel();
+			const answer = channel!.ask({ type: "confirm", question: "still waiting?" });
+			for (let tick = 0; tick < 20; tick += 1) await Promise.resolve();
+			expect(hub.list()).toHaveLength(1);
+
+			hub.answer(hub.list()[0]!.id, false, "my-phone");
+			await expect(answer).resolves.toBe(false);
+		} finally {
+			off();
+		}
+	});
+
+	it("returns NULL when nothing publishes — a claim about a human is not a wire", () => {
+		// `--attended-elsewhere` says a person is watching. With no publisher there is nowhere for
+		// the question to go, and the caller must treat that as "no operator" rather than invent a
+		// default. Silence here is the same silence a missing terminal is.
+		expect(createAttendedOperatorChannel()).toBeNull();
 	});
 });

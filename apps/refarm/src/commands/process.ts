@@ -40,7 +40,10 @@ import {
 	type LingerState,
 	type SystemdUnitPlan,
 } from "@refarm.dev/process-systemd-user";
-import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
+import {
+	createAttendedOperatorChannel,
+	createStdioOperatorChannel,
+} from "@refarm.dev/prompt-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 
@@ -138,9 +141,23 @@ export function readProcessCatalog(root: string = process.cwd(), config?: unknow
  * make the command WAIT FOREVER for a decision nobody is there to make — which is how a CLI in a
  * script, a cron job, or a CI step turns into a hang with no output.
  */
-function resolveOperatorChannel(deps: ProcessDeps): OperationConsentChannel | null {
+function resolveOperatorChannel(
+	deps: ProcessDeps,
+	attendedElsewhere = false,
+): OperationConsentChannel | null {
 	if (deps.operator !== undefined) return deps.operator;
-	return process.stdin.isTTY ? createStdioOperatorChannel() : null;
+	// A terminal peers with the node's hub, so a question asked here also reaches the operator's
+	// enrolled devices and either side may answer it.
+	if (process.stdin.isTTY) return createStdioOperatorChannel();
+	// No terminal, and the caller DECLARED that somebody is attending from a device (ISS-116).
+	// REMOTE-ONLY, not peered: `readline` settles a non-TTY stdin immediately, so a peered channel
+	// would reject locally, win its own race, and withdraw the question from the phone before it
+	// could be seen. `null` when nothing publishes — attended-elsewhere is a claim about a human,
+	// not about a wire, and a claim with no wire behind it is still nobody to ask.
+	if (attendedElsewhere) return createAttendedOperatorChannel();
+	// Never INFERRED from a publisher existing: one exists on every node since the pending-prompt
+	// bridge, so its presence says nothing about whether a human is watching (`f9a0ad4f`).
+	return null;
 }
 
 function sessionUser(deps: ProcessDeps): string {
@@ -363,7 +380,7 @@ export interface ProcessInstallResult {
  */
 export async function runProcessInstall(
 	name: string,
-	options: { revisit?: boolean } = {},
+	options: { revisit?: boolean; attendedElsewhere?: boolean } = {},
 	deps: ProcessDeps = {},
 ): Promise<ProcessInstallResult> {
 	// os-resolution: project — the process catalog is declared in the workspace tier config, anchored on the operator directory
@@ -379,7 +396,7 @@ export async function runProcessInstall(
 
 	const say = deps.say ?? (() => {});
 	const trail = deps.trail ?? createFileOperationTrail(resolveProcessTrailPath(root));
-	const channel = resolveOperatorChannel(deps);
+	const channel = resolveOperatorChannel(deps, options.attendedElsewhere);
 
 	const outcome = await runOperationConsent({
 		request: plan.request,
@@ -493,7 +510,7 @@ export interface ProcessLingerResult {
  * MACHINE, not about the service that happened to prompt the question.
  */
 export async function runProcessLinger(
-	options: { revisit?: boolean } = {},
+	options: { revisit?: boolean; attendedElsewhere?: boolean } = {},
 	deps: ProcessDeps = {},
 ): Promise<ProcessLingerResult> {
 	// os-resolution: project — the process catalog is declared in the workspace tier config
@@ -526,7 +543,7 @@ export async function runProcessLinger(
 
 	const say = deps.say ?? (() => {});
 	const trail = deps.trail ?? createFileOperationTrail(resolveProcessTrailPath(root));
-	const channel = resolveOperatorChannel(deps);
+	const channel = resolveOperatorChannel(deps, options.attendedElsewhere);
 
 	const outcome = await runOperationConsent({
 		request,
@@ -769,12 +786,23 @@ export function createProcessCommand(): Command {
 		.description("Propose the supervisor unit for a declared process — shown exactly, then decided")
 		.argument("<name>", "The declared process to supervise")
 		.option("--revisit", "Re-open a decision you already made")
+		.option(
+			"--attended-elsewhere",
+			"No terminal here, and that is fine — you are attending from another surface",
+		)
 		.option("--json", "Print the result as JSON")
-		.action(async (name: string, options: { json?: boolean; revisit?: boolean }) => {
+		.action(
+			async (
+				name: string,
+				options: { json?: boolean; revisit?: boolean; attendedElsewhere?: boolean },
+			) => {
 			await guarded("install", async () => {
 				const result = await runProcessInstall(
 					name,
-					{ ...(options.revisit ? { revisit: true } : {}) },
+					{
+						...(options.revisit ? { revisit: true } : {}),
+						...(options.attendedElsewhere ? { attendedElsewhere: true } : {}),
+					},
 					{
 						say: (line) => {
 							if (!options.json) process.stdout.write(`${line}\n`);
@@ -797,7 +825,8 @@ export function createProcessCommand(): Command {
 						: []),
 				]);
 			})(options);
-		});
+			},
+		);
 
 	command
 		.command("uninstall")

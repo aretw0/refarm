@@ -366,6 +366,62 @@ export function createStdioOperatorChannel(
 }
 
 /**
+ * Ask ONLY the devices attending this node. No terminal half.
+ *
+ * ## Why a peered channel is the WRONG answer when there is no terminal
+ *
+ * `createStdioOperatorChannel` races a terminal against the node's hub and lets whoever answers
+ * first win. With no terminal that race is not merely pointless, it is HARMFUL: `readline` settles
+ * a non-TTY stdin immediately — a closed or piped input fires `close`, which this module turns
+ * into `OperatorPromptCancelledError` — so the local side REJECTS FIRST, wins, and
+ * `createPeeredOperatorChannel` withdraws the question from every attending device before anyone
+ * could see it. A peered channel with one dead peer is worse than no peer, because it reports
+ * "cancelled" for a question the operator was never shown.
+ *
+ * So this builds the remote side alone, and its cancellation semantics are the remote's.
+ *
+ * ## Null is an answer
+ *
+ * `null` means NOTHING PUBLISHES THIS PROCESS'S QUESTIONS — no hub, nowhere to ask. A caller must
+ * treat that as "there is no operator", exactly as it treats a missing terminal, rather than
+ * inventing a default. The whole point of the surrounding design is that a consent prompt with
+ * nobody behind it is not answered yes and is not answered no; it is not asked.
+ */
+export function createAttendedOperatorChannel(
+	options: { signal?: AbortSignal } = {},
+): OperatorChannel | null {
+	// Captured, not re-read. `currentPromptPublisher()` is a thunk a host may swap, and a channel
+	// that resolved the publisher again inside `ask` could route a question to a different place
+	// than the one it announced to — which is the class of bug the peered channel's abort logic
+	// exists to prevent, one layer down.
+	const publisher = currentPromptPublisher();
+	if (publisher === null) return null;
+	const attending: PromptPublisher = publisher;
+
+	function ask(prompt: ConfirmPrompt): Promise<boolean>;
+	function ask(prompt: SelectPrompt): Promise<string>;
+	function ask(prompt: TextPrompt): Promise<string>;
+	function ask(prompt: SecretPrompt): Promise<string>;
+	async function ask(prompt: OperatorPrompt): Promise<boolean | string> {
+		const controller = new AbortController();
+		const detach = onAbortOnce(options.signal, () => controller.abort());
+		try {
+			return await attending.remote(controller.signal).ask(prompt as never);
+		} finally {
+			detach();
+		}
+	}
+
+	/** A statement still has somewhere to go — and when the publisher cannot announce, it goes
+	 *  nowhere rather than to a terminal nobody is reading. */
+	function say(notice: string | OperatorNoticeInput): void {
+		attending.announce?.(notice);
+	}
+
+	return { ask, say };
+}
+
+/**
  * Ask a single line via `rl.question`, settling with the raw answer text — or
  * rejecting with `OperatorPromptCancelledError` when the operator cancels, by
  * either way a terminal user quits: SIGINT (Ctrl+C) or closing stdin (Ctrl+D /
