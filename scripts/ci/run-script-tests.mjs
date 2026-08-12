@@ -87,6 +87,77 @@ export function nodeTestScripts(packageJson) {
 		.map(([name]) => name);
 }
 
+/**
+ * PURE. Which registered suites are worth running for a set of changed files.
+ *
+ * ## Why this exists
+ *
+ * The whole registry takes ~125s, which is a `before-push` cost and not an `after-edit` one. So
+ * the lane ran it only before pushing — and `workspace-script:test` sat RED for a whole day on
+ * 2026-08-12 because of an edge added that morning, with every after-edit green the entire time.
+ * That is the same failure this runner was built for, one level up: a suite nobody runs is a
+ * suite that is not a test.
+ *
+ * ## Matched by NAME, and the convention is the contract
+ *
+ * A suite for `scripts/foo.mjs` is `scripts/foo.test.mjs` or `scripts/ci/test-foo-lib.mjs`, and a
+ * registered command names the file it runs. So a changed file's stem, found inside a registered
+ * `node --test` command, is the link. Heuristic, and deliberately so: the alternative is a
+ * hand-maintained map, which is a second registry to feed and the exact thing that goes stale.
+ *
+ * AN EMPTY RESULT IS NOT AN ALL-CLEAR — it is "no suite names this file", which is the untested
+ * 60% ISS-106 is about. The caller reports the distinction rather than printing a green tick.
+ */
+/**
+ * SUITES THAT ARE ABOUT THE REPOSITORY, not about one file.
+ *
+ * Name-matching finds the suite FOR a changed script. It cannot find a suite about an invariant
+ * the change happens to break, and that gap is not hypothetical — it is exactly what happened on
+ * 2026-08-12. A dependency edge added to `packages/sidecar-client/package.json` invalidated the
+ * build order pinned in `scripts/ci/subprocess-utils.mjs`; `workspace-script:test` went red and
+ * stayed red for a day, with every after-edit green, because nothing connected a manifest edit to
+ * an ordering check.
+ *
+ * Each entry is a predicate over a changed path and the suites it should wake. Small on purpose:
+ * a list that tried to be complete would be a second dependency graph, maintained by hand.
+ */
+const REPO_INVARIANT_SUITES = [
+	{
+		// A manifest edit can change the dependency graph, and the build order is a hand-kept
+		// projection of that graph. This is the pair that has already drifted once.
+		matches: (file) => file.endsWith("/package.json") || file === "package.json",
+		suites: ["workspace-script:test"],
+	},
+];
+
+export function suitesForChangedPaths(packageJson, paths) {
+	const scripts = packageJson.scripts ?? {};
+	const matched = new Set();
+	for (const file of paths) {
+		for (const rule of REPO_INVARIANT_SUITES) {
+			if (!rule.matches(file)) continue;
+			for (const suite of rule.suites) {
+				if (scripts[suite]) matched.add(suite);
+			}
+		}
+	}
+	for (const file of paths) {
+		const stem = (file.split("/").pop() ?? "")
+			.replace(/\.test\.mjs$/u, "")
+			.replace(/^test-/u, "")
+			.replace(/-lib$/u, "")
+			.replace(/\.(mjs|js|ts)$/u, "");
+		if (stem.length < 3) continue;
+		for (const [name, command] of Object.entries(scripts)) {
+			if (!command.includes("node --test")) continue;
+			if (command.includes(`/${stem}.`) || command.includes(`test-${stem}`) || command.includes(`${stem}.test.`)) {
+				matched.add(name);
+			}
+		}
+	}
+	return [...matched].sort();
+}
+
 /** PURE. What the run means, given what failed and what was already known to fail. Three states:
  *  a NEW failure is the finding, a known one is the backlog, and a known one that PASSED is the
  *  backlog shrinking and should be recorded rather than silently enjoyed. */
@@ -128,9 +199,25 @@ function runScript(name, timeoutMs) {
 
 function main() {
 	const packageJson = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "package.json"), "utf8"));
+	// `--for <path>…` runs only the suites that NAME the changed files — the after-edit shape.
+	// Everything else runs the whole registry, which is the before-push shape.
+	const forIndex = process.argv.indexOf("--for");
+	const changed = forIndex === -1 ? [] : process.argv.slice(forIndex + 1).filter((a) => !a.startsWith("--"));
 	const only = process.argv.includes("--only-known")
 		? Object.keys(KNOWN_FAILING)
-		: nodeTestScripts(packageJson);
+		: forIndex === -1
+			? nodeTestScripts(packageJson)
+			: suitesForChangedPaths(packageJson, changed);
+
+	if (forIndex !== -1 && only.length === 0) {
+		// NOT AN ALL-CLEAR. No registered suite names these files, which is the untested majority
+		// ISS-106 measures — said plainly rather than printed as a green tick.
+		process.stdout.write(
+			`script tests: no registered suite names ${changed.length} changed file(s) — ` +
+				"nothing was verified here, which is not the same as nothing being wrong.\n",
+		);
+		return;
+	}
 	const timeoutMs = 180_000;
 
 	const results = [];

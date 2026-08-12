@@ -1,5 +1,5 @@
-import { buildCommandPlanRunEnvelope } from "@refarm.dev/cli/command-plan";
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import { buildCommandPlanRunEnvelope } from "@refarm.dev/cli/command-plan";
 import { Command } from "commander";
 import {
 	buildAgentFinishPlanEnvelope,
@@ -416,6 +416,9 @@ Notes:
 				...(selectionContext.affectedWorkspaces
 					? { affectedWorkspaces: selectionContext.affectedWorkspaces }
 					: {}),
+				// The changed files themselves, so the plan can ask the script-suite runner which
+				// of the ~90 `node --test` registrations this edit could have broken (ISS-106).
+				...(selectionContext.changedPaths ? { changedPaths: selectionContext.changedPaths } : {}),
 			};
 			if (options.run) {
 				const result = runAgentFinishPlan(resolvedDeps, selectionWithAffected);

@@ -1700,6 +1700,7 @@ describe("agent command", () => {
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
 			"check",
+			"affected-script-tests",
 			"package-apps-refarm-type-check",
 			"package-apps-refarm-lint",
 		]);
@@ -1760,6 +1761,7 @@ describe("agent command", () => {
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
 			"check",
+			"affected-script-tests",
 			"package-packages-vtconfig-test",
 		]);
 		expect(payload.nextCommands).toContain("npm --prefix packages/vtconfig run test");
@@ -2388,6 +2390,7 @@ describe("agent command", () => {
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
 			"check",
+			"affected-script-tests",
 		]);
 		expect(payload.steps.map((step) => step.id)).not.toContain(
 			"script-refarm-agent-e2e-mock",
@@ -2447,9 +2450,14 @@ describe("agent command", () => {
 			"tidy-imports-check",
 			"check",
 			"script-refarm-agent-e2e-mock",
+			"affected-script-tests",
 		]);
-		expect(payload.steps.at(-1)?.command).toContain("run refarm:agent:e2e:mock");
-		expect(payload.steps.at(-1)?.process?.command).toBe("npm");
+		// BY ID, not by position. `.at(-1)` meant "the e2e step" only for as long as it happened to
+		// be last, and the affected-script-suite step (ISS-106) moved it — a positional assertion
+		// asserting the wrong thing while still passing is how a suite stops testing what it names.
+		const e2eStep = payload.steps.find((step) => step.id === "script-refarm-agent-e2e-mock");
+		expect(e2eStep?.command).toContain("run refarm:agent:e2e:mock");
+		expect(e2eStep?.process?.command).toBe("npm");
 		expect(payload.selection.affectedScriptChecks).toEqual(["agent-e2e-mock"]);
 		expect(payload.selection.affectedWorkspaces).toEqual([]);
 	});
@@ -2499,6 +2507,7 @@ describe("agent command", () => {
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
 			"check",
+			"affected-script-tests",
 			"package-apps-refarm-lint",
 			"package-apps-refarm-test",
 			"package-apps-refarm-build",
@@ -2564,6 +2573,7 @@ describe("agent command", () => {
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
 			"check",
+			"affected-script-tests",
 			"package-affected-validation",
 		]);
 		const validation = payload.steps.at(-1);
@@ -2616,6 +2626,7 @@ describe("agent command", () => {
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
 			"check",
+			"affected-script-tests",
 		]);
 		expect(payload.nextCommands).not.toContain("npm --prefix . run type-check");
 		expect(payload.selection.affectedWorkspaces).toEqual([]);

@@ -71,6 +71,8 @@ export interface AgentFinishSelection {
 	lane?: AgentFinishLane;
 	profile: AgentFinishProfile;
 	affectedScriptChecks?: string[];
+	/** Files this edit touched — carried so the plan can ask which script suites it could break. */
+	changedPaths?: string[];
 	since?: string;
 	sinceRef?: string;
 	workspace?: string;
@@ -92,6 +94,8 @@ export interface AgentFinishSelectionMetadata {
 export interface AgentFinishSelectionContext {
 	affectedScriptChecks?: string[];
 	affectedWorkspaces?: string[];
+	/** Files this edit touched — the input the affected script-suite step is built from. */
+	changedPaths?: string[];
 	sinceRef?: string;
 }
 
@@ -349,6 +353,36 @@ function affectedScriptFinishSteps(checks: string[] = []): CommandPlanStep[] {
 		}
 		throw new Error(`Unknown affected script check: ${check}`);
 	});
+}
+
+/**
+ * The script suites this edit could have broken — decided by the runner, from the changed files.
+ *
+ * ONE STEP OR NONE. The runner does the matching (it owns the registry), so this does not need a
+ * second copy of the mapping — which is the whole lesson of the day the build order and the
+ * dependency graph disagreed because two hand-kept lists were meant to stay in step.
+ *
+ * Nothing changed under a path any suite could name means no step, not a green tick: the runner
+ * says "no registered suite names these files" out loud when it is asked and finds none.
+ */
+function couldWakeAScriptSuite(file: string): boolean {
+	// The two rules the runner itself has, as a cheap precondition. A step that runs on every edit
+	// and almost always reports "no suite names these files" is noise, and noise is how a lane
+	// stops being read — the failure this whole item is about, one level up.
+	return file.startsWith("scripts/") || file === "package.json" || file.endsWith("/package.json");
+}
+
+function affectedScriptSuiteSteps(changedPaths: string[] = []): CommandPlanStep[] {
+	const candidates = changedPaths.filter(couldWakeAScriptSuite);
+	if (candidates.length === 0) return [];
+	return [
+		scriptTestStep({
+			id: "affected-script-tests",
+			args: ["node", "scripts/ci/run-script-tests.mjs", "--for", ...candidates],
+			description:
+				"Run the node --test suites that name the changed files, plus the repo-invariant ones a manifest edit wakes.",
+		}),
+	];
 }
 
 function packageFinishStepsForWorkspace(
@@ -738,6 +772,7 @@ function selectedFinishSteps(
 		workspace?: string;
 		affectedScriptChecks?: string[];
 		affectedWorkspaces?: string[];
+		changedPaths?: string[];
 	} = {},
 ): CommandPlanStep[] {
 	const steps = options.fix
@@ -756,6 +791,13 @@ function selectedFinishSteps(
 		return [
 			...steps,
 			...affectedScriptFinishSteps(options.affectedScriptChecks),
+			// The `node --test` suites THIS EDIT could have broken. The whole registry is a
+			// before-push cost (~125s); this asks only the suites that name the changed files, plus
+			// the repo-invariant ones a manifest edit wakes. Skipped entirely before-push, where the
+			// full registry runs anyway.
+			...(options.lane === "before-push"
+				? []
+				: affectedScriptSuiteSteps(options.changedPaths)),
 			...affectedPackageFinishSteps(options.includeTests, options.affectedWorkspaces),
 			// Repo-wide contracts, asked at the one moment the repo is about to become public.
 			...(options.lane === "before-push" ? repoContractGateSteps() : []),
@@ -773,6 +815,7 @@ export function plannedFinishCommands(
 		workspace?: string;
 		affectedScriptChecks?: string[];
 		affectedWorkspaces?: string[];
+		changedPaths?: string[];
 	} = {},
 ): string[] {
 	return commandPlanStepCommands(selectedFinishSteps(options));
@@ -788,6 +831,7 @@ export function runAgentFinishPlan(
 		workspace?: string;
 		affectedScriptChecks?: string[];
 		affectedWorkspaces?: string[];
+		changedPaths?: string[];
 	} = {},
 ): CommandPlanRunResult {
 	const environmentPressure = buildEnvironmentPressureReport({
@@ -837,6 +881,7 @@ export function buildAgentFinishPlanEnvelope(
 	selection: AgentFinishSelection & {
 		affectedScriptChecks?: string[];
 		affectedWorkspaces?: string[];
+		changedPaths?: string[];
 	},
 	affectedWorkspaces?: string[],
 ) {
@@ -923,6 +968,11 @@ export function resolveFinishSelectionContext(
 			includeHeavy: selection.includeTests === true,
 		}),
 		affectedWorkspaces: affectedWorkspacePackagesFromChangedPaths(repoRoot, changedPaths),
+		// THE CHANGED PATHS THEMSELVES, so the plan can ask the script-suite runner which of the
+		// ~90 `node --test` registrations this edit could have broken. The whole registry is ~125s
+		// — a before-push cost — and running it only there is why `workspace-script:test` sat red
+		// for a full day on 2026-08-12 with every after-edit green (ISS-106).
+		changedPaths,
 		...(sinceRef ? { sinceRef } : {}),
 	};
 }
