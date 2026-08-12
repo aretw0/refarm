@@ -11,6 +11,7 @@ import type {
 	StaticBody,
 	TemplateBody,
 } from "@refarm.dev/automation-contract-v1";
+import { declaredBase } from "@refarm.dev/config";
 import type { Effort, Task } from "@refarm.dev/effort-contract-v1";
 import {
 	inspectLocalScheduledWork,
@@ -24,6 +25,36 @@ import type {
 } from "./operator-resume.js";
 
 export const PROJECT_AUTOMATIONS_RELATIVE_PATH = ".project/automations.json";
+
+/**
+ * WHERE A NODE-SCOPED AUTOMATION LIVES (ISS-075) — beside the other things this node declares
+ * about itself.
+ *
+ * ## Why it could not simply be `.project/automations.json`
+ *
+ * That file is PROJECT-scoped and says so in its name, and so does the governed writer that
+ * addresses it — the `project automations` command group. It is found by walking UP from the
+ * working directory, which is
+ * the right answer for "what does this repository want done" and the wrong one for "what does this
+ * NODE keep doing" — two of the three known customers, restarting this node and verifying this
+ * node's rate catalog, are facts about the machine and have no repository to be found from.
+ *
+ * The sovereign dir is where `config.json`, `node.json` and `model-rates.v1.json` already live.
+ * An automation about the node belongs beside them, and is reached the same way: from the base
+ * this node DECLARED, never from wherever a command happened to be run.
+ *
+ * ## Both scopes exist; neither is a degenerate case of the other
+ *
+ * Spec D8, settled by the operator. A nightly job about a vault is the vault's; a restart is the
+ * node's. The executor does not fork — the node's loop runs everything — but what governs a run
+ * follows its subject, which is why the two are separate files rather than one with a flag.
+ */
+export const NODE_AUTOMATIONS_RELATIVE_PATH = ".refarm/automations.json";
+
+/** The node's automations file, from the base this node declared. */
+export function nodeAutomationsPath(base: string = declaredBase()): string {
+	return path.join(base, NODE_AUTOMATIONS_RELATIVE_PATH);
+}
 
 // The project-automations surface IS `automation:v1` + `effort:v1` — the canonical contracts,
 // not a private clone. These aliases keep the CLI's `ProjectAutomation*` names (nothing else
@@ -100,6 +131,14 @@ export type ProjectScheduledWorkInspection = OperatorResumeScheduledWorkInspecti
 export interface ProjectAutomationAdapterOptions {
 	cwd?: string;
 	now?: () => Date;
+	/**
+	 * Read THIS file instead of walking up from `cwd` for a `.project/automations.json`.
+	 *
+	 * The seam that lets the node scope reuse every line of validation, normalisation and
+	 * scheduling below it. A second adapter would have been a second place for the trigger
+	 * vocabulary to drift, and the two would agree right up until one of them was edited.
+	 */
+	documentPath?: string;
 }
 
 const PROJECT_AUTOMATION_STATUSES = new Set(["draft", "ready", "active", "archived"]);
@@ -450,13 +489,33 @@ export async function loadProjectScheduledWork(
 	) as Promise<ProjectScheduledWorkInspection>;
 }
 
+/**
+ * The NODE's automations, from the base this node declared (ISS-075).
+ *
+ * Every line of validation, normalisation and scheduling is the project adapter's — this only
+ * changes WHICH FILE is read. A second implementation would have been a second place for the
+ * trigger vocabulary to drift, and the two would agree right up until one of them was edited.
+ */
+export function createNodeAutomationAdapter(
+	options: { base?: string; now?: () => Date } = {},
+) {
+	return createProjectAutomationAdapter({
+		documentPath: nodeAutomationsPath(options.base),
+		// `cwd` is unused once `documentPath` is given, and is passed as the base rather than the
+		// working directory so a stray relative read can never reach a repository from here.
+		cwd: options.base ?? declaredBase(),
+		...(options.now ? { now: options.now } : {}),
+	});
+}
+
 export function createProjectAutomationAdapter(options: ProjectAutomationAdapterOptions = {}) {
 	// os-resolution: project — project automations are declared per project, in .project of the tree being walked
 	const cwd = options.cwd ?? process.cwd();
 	const now = options.now ?? (() => new Date());
+	const documentPath = options.documentPath;
 
 	function loadAutomations(): NormalizedProjectAutomation[] {
-		const document = readProjectAutomationsDocument(cwd);
+		const document = readProjectAutomationsDocument(cwd, documentPath);
 		if (!document) return [];
 		return document.automations.flatMap((record) => {
 			const automation = normalizeProjectAutomationForScheduler(record);
@@ -471,7 +530,7 @@ export function createProjectAutomationAdapter(options: ProjectAutomationAdapter
 			return automations.filter((automation) => automation.status === filter.status);
 		},
 		async trigger(id: string, input?: unknown): Promise<ProjectAutomationEffort | null> {
-			const automation = readProjectAutomationsDocument(cwd)
+			const automation = readProjectAutomationsDocument(cwd, documentPath)
 				?.automations.flatMap((record) => {
 					const normalized = normalizeProjectAutomationForTrigger(record);
 					return normalized ? [normalized] : [];
@@ -495,9 +554,12 @@ export function createProjectAutomationAdapter(options: ProjectAutomationAdapter
 	};
 }
 
-function readProjectAutomationsDocument(cwd: string): ProjectAutomationsDocument | undefined {
-	const automationsPath = findProjectAutomationsPath(cwd);
-	if (!automationsPath) return undefined;
+function readProjectAutomationsDocument(
+	cwd: string,
+	documentPath?: string,
+): ProjectAutomationsDocument | undefined {
+	const automationsPath = documentPath ?? findProjectAutomationsPath(cwd);
+	if (!automationsPath || !fs.existsSync(automationsPath)) return undefined;
 	try {
 		return normalizeProjectAutomationsDocument(
 			JSON.parse(fs.readFileSync(automationsPath, "utf-8")) as unknown,

@@ -881,13 +881,14 @@
 		{
 			"id": "ISS-075",
 			"title": "Where does a NODE-scoped automation live? .project/automations.json is project-scoped by name",
-			"body": "Where does a NODE-scoped automation live? .project/automations.json is project-scoped and the governed writer says so in its name. Two of the three known customers -- restarting this node, verifying this node's catalog -- are node concerns. The sovereign dir is the obvious home, beside config.json, node.json and model-rates.v1.json.",
+			"body": "Where does a NODE-scoped automation live? .project/automations.json is project-scoped and the governed writer says so in its name. Two of the three known customers -- restarting this node, verifying this node's catalog -- are node concerns. The sovereign dir is the obvious home, beside config.json, node.json and model-rates.v1.json.\n\nANSWERED 2026-08-12, as the item itself proposed: the sovereign dir, beside config.json, node.json\nand model-rates.v1.json.\n\n    <declaredBase>/.refarm/automations.json     the NODE's\n    <project>/.project/automations.json          the project's, found by walking UP from cwd\n\nBoth scopes exist and neither is a degenerate case of the other (spec D8). A nightly job about a\nvault is the vault's; a restart is the node's, and the node has no repository to be found from.\n\nTHE EXECUTOR DOES NOT FORK. `runDueScheduledWork` merges the two adapters and runs one pass -- two\nruns would mean two reports, two ledger passes, and a caller stitching them back together, which\nis three places for the halves to disagree about what fired. An id in both scopes resolves to the\nnode's, stated rather than left to be discovered.\n\nONE IMPLEMENTATION, NOT TWO. The node adapter is the project adapter with `documentPath` supplied;\nevery line of validation, normalisation and scheduling is shared. A second implementation would\nhave been a second place for the trigger vocabulary to drift, and the two would have agreed right\nup until one was edited.\n\nTHE NODE ADAPTER DOES NOT WALK UP, and there is a test that says so: a node standing inside a\nrepository must not silently adopt that repository's automations as its own.\n\nTHE FIRE-ONCE LEDGER MOVED TOO, and it was the same bug one layer down: it lived under `cwd`, so a\nnode automation ticked from two directories would consult two ledgers and fire twice -- precisely\nthe duplication the ledger exists to prevent. It is the node's now, with an explicit `base` option\nso a test that wants everything inside one temp tree says which node it is rather than inferring\none from the working directory.",
 			"location": "docs/superpowers/specs/2026-08-05-what-executes-a-declared-automation-design.md:1",
-			"status": "open",
+			"status": "resolved",
 			"category": "capability",
 			"priority": "high",
 			"package": "apps/refarm",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "nodeAutomationsPath + createNodeAutomationAdapter, and the tick reads both scopes, 2026-08-12"
 		},
 		{
 			"id": "ISS-076",
