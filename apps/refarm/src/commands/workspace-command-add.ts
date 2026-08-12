@@ -10,7 +10,7 @@ import {
 	type OperationTrail,
 } from "@refarm.dev/operation-consent-v1";
 import {
-	createStdioOperatorChannel,
+	createOperatorChannelFor,
 	OperatorPromptCancelledError,
 	type OperatorChannel,
 } from "@refarm.dev/prompt-contract-v1";
@@ -142,6 +142,23 @@ export async function runWorkspaceCommandRemote(
 			"Changing remote admission requires an attended consent surface.",
 		);
 	}
+	// THE CHANNEL MUST MATCH THE EVIDENCE THE GUARD JUST ACCEPTED. It did not: the guard allowed
+	// "attended elsewhere" and the channel put a terminal in the race regardless, so with no
+	// terminal the local side settled instantly, won, and withdrew the question from every
+	// attending device (measured 2026-08-11). `null` means the claim had no wire behind it — and
+	// it REFUSES rather than falling back to a channel that answers on the operator's behalf.
+	const operatorChannel =
+		deps.operator ??
+		createOperatorChannelFor({
+			atTerminal: Boolean(process.stdin.isTTY && process.stdout.isTTY),
+			attendedElsewhere: options.attendedElsewhere,
+		});
+	if (!operatorChannel) {
+		throw new WorkspaceCommandAddRefusal(
+			"workspace-command-not-interactive",
+			"You are attending from elsewhere, and nothing on this node publishes its questions — there is nowhere to ask you.",
+		);
+	}
 	const { remote: _remote, ...commandWithoutRemote } = existingCommand;
 	const updatedCommand = options.remote
 		? { ...commandWithoutRemote, remote: true }
@@ -186,7 +203,10 @@ export async function runWorkspaceCommandRemote(
 	try {
 		const outcome = await authorCatalogDeclaration({
 			request,
-			channel: deps.operator ?? createStdioOperatorChannel(),
+			// Resolved ABOVE, never here: a `??` chain ending in an auto-answering channel would
+			// approve this on the operator's behalf, which is the one outcome the guard exists to
+			// prevent. See `operatorChannel`.
+			channel: operatorChannel,
 			trail,
 			...(deps.fs ? { fs: deps.fs } : {}),
 			...(deps.now ? { now: deps.now } : {}),
@@ -269,6 +289,23 @@ export async function runWorkspaceCommandAdd(
 			`Declaring an operation requires an attended consent surface. Run ${COMMAND} interactively.`,
 		);
 	}
+	// THE CHANNEL MUST MATCH THE EVIDENCE THE GUARD JUST ACCEPTED. It did not: the guard allowed
+	// "attended elsewhere" and the channel put a terminal in the race regardless, so with no
+	// terminal the local side settled instantly, won, and withdrew the question from every
+	// attending device (measured 2026-08-11). `null` means the claim had no wire behind it — and
+	// it REFUSES rather than falling back to a channel that answers on the operator's behalf.
+	const operatorChannel =
+		deps.operator ??
+		createOperatorChannelFor({
+			atTerminal: Boolean(process.stdin.isTTY && process.stdout.isTTY),
+			attendedElsewhere: options.attendedElsewhere,
+		});
+	if (!operatorChannel) {
+		throw new WorkspaceCommandAddRefusal(
+			"workspace-command-not-interactive",
+			"You are attending from elsewhere, and nothing on this node publishes its questions — there is nowhere to ask you.",
+		);
+	}
 	const existingCommands = isRecord(existingWorkspace.commands) ? existingWorkspace.commands : {};
 	const alreadyDeclared = proposal.name in existingCommands;
 	const entry = {
@@ -306,7 +343,10 @@ export async function runWorkspaceCommandAdd(
 	try {
 		const outcome = await authorCatalogDeclaration({
 			request,
-			channel: deps.operator ?? createStdioOperatorChannel(),
+			// Resolved ABOVE, never here: a `??` chain ending in an auto-answering channel would
+			// approve this on the operator's behalf, which is the one outcome the guard exists to
+			// prevent. See `operatorChannel`.
+			channel: operatorChannel,
 			trail,
 			...(deps.fs ? { fs: deps.fs } : {}),
 			...(deps.now ? { now: deps.now } : {}),
@@ -380,6 +420,23 @@ export async function runWorkspaceCommandRemove(
 			"Removing an operation requires an attended consent surface.",
 		);
 	}
+	// THE CHANNEL MUST MATCH THE EVIDENCE THE GUARD JUST ACCEPTED. It did not: the guard allowed
+	// "attended elsewhere" and the channel put a terminal in the race regardless, so with no
+	// terminal the local side settled instantly, won, and withdrew the question from every
+	// attending device (measured 2026-08-11). `null` means the claim had no wire behind it — and
+	// it REFUSES rather than falling back to a channel that answers on the operator's behalf.
+	const operatorChannel =
+		deps.operator ??
+		createOperatorChannelFor({
+			atTerminal: Boolean(process.stdin.isTTY && process.stdout.isTTY),
+			attendedElsewhere: options.attendedElsewhere,
+		});
+	if (!operatorChannel) {
+		throw new WorkspaceCommandAddRefusal(
+			"workspace-command-not-interactive",
+			"You are attending from elsewhere, and nothing on this node publishes its questions — there is nowhere to ask you.",
+		);
+	}
 	const commands = { ...existingCommands };
 	delete commands[options.name];
 	const entry = {
@@ -406,7 +463,10 @@ export async function runWorkspaceCommandRemove(
 	try {
 		const outcome = await authorCatalogDeclaration({
 			request,
-			channel: deps.operator ?? createStdioOperatorChannel(),
+			// Resolved ABOVE, never here: a `??` chain ending in an auto-answering channel would
+			// approve this on the operator's behalf, which is the one outcome the guard exists to
+			// prevent. See `operatorChannel`.
+			channel: operatorChannel,
 			trail,
 			...(deps.fs ? { fs: deps.fs } : {}),
 			...(deps.now ? { now: deps.now } : {}),

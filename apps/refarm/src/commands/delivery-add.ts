@@ -18,6 +18,7 @@ import {
 	type OperationTrail,
 } from "@refarm.dev/operation-consent-v1";
 import {
+	createOperatorChannelFor,
 	createStdioOperatorChannel,
 	OperatorPromptCancelledError,
 	type OperatorChannel,
@@ -575,7 +576,21 @@ export async function runDeliveryAdd(
 			[DELIVERY_ADD_COMMAND, DELIVERY_LIST_COMMAND],
 		);
 	}
-	const operator = deps.operator ?? createStdioOperatorChannel();
+	// The channel must match the evidence the guard just accepted. It did not: the guard allowed
+	// "attended elsewhere" and the channel put a terminal in the race regardless, so with no
+	// terminal the local side settled instantly, won, and withdrew the question from every
+	// attending device (measured 2026-08-11). `null` = the claim had no wire behind it.
+	const operator =
+		deps.operator ?? createOperatorChannelFor({ atTerminal, attendedElsewhere: options.attendedElsewhere });
+	if (!operator) {
+		throw new DeliveryAddRefusal(
+			"delivery-add-not-interactive",
+			"You are attending from elsewhere, and nothing on this node publishes its questions — " +
+				"there is nowhere to ask you. Run this from an interactive shell, or write the " +
+				`\`delivery\` block into ${catalogConfigPath(root, env)} by hand.`,
+			[DELIVERY_ADD_COMMAND, DELIVERY_LIST_COMMAND],
+		);
+	}
 
 	/**
 	 * Framing, through the CHANNEL.
@@ -958,6 +973,9 @@ export async function runDeliveryTest(
 			[DELIVERY_LIST_COMMAND],
 		);
 	}
+	// TERMINAL-ONLY ON PURPOSE, and it is the one place in this file that is: the guard above
+	// refuses without a terminal because a real message would leave this machine. No
+	// attended-elsewhere path exists here to match.
 	const operator = deps.operator ?? createStdioOperatorChannel();
 	// Through the CHANNEL: a warning that stays on the node warns nobody who is
 	// answering from a phone. `deps.announce` still overrides, for tests that read

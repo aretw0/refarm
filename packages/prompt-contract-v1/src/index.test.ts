@@ -6,6 +6,7 @@ import {
 	checkPendingPromptWire,
 	createAttendedOperatorChannel,
 	createAutoOperatorChannel,
+	createOperatorChannelFor,
 	createPeeredOperatorChannel,
 	createPendingPromptHub,
 	createRemoteOperatorChannel,
@@ -1868,5 +1869,73 @@ describe("createAttendedOperatorChannel — the phone, with no terminal behind i
 		// the question to go, and the caller must treat that as "no operator" rather than invent a
 		// default. Silence here is the same silence a missing terminal is.
 		expect(createAttendedOperatorChannel()).toBeNull();
+	});
+});
+
+describe("createOperatorChannelFor — the channel must match how the operator is present", () => {
+	/**
+	 * Measured 2026-08-11, across FIVE commands that offer `--attended-elsewhere`: each gated its
+	 * refusal on `atTerminal || attendedElsewhere` and then built the peered channel regardless of
+	 * which one was true. With stdin at /dev/null the terminal half settled instantly, WON the
+	 * race, and the question was withdrawn from every attending device before it could be shown —
+	 * so the flag did the opposite of what its own help text promised, everywhere it was offered.
+	 * It appeared to work only when something was actively writing to stdin (a remote pty), which
+	 * is the one case it was not needed for.
+	 */
+	const ASKER_2 = { command: "test", host: "test-host", pid: 2 };
+	function publisherFor2(hub: PendingPromptHub): PromptPublisher {
+		return {
+			remote: (signal) =>
+				createRemoteOperatorChannel({ hub, asker: ASKER_2, signal, timeoutMs: null }),
+		};
+	}
+
+	it("attended elsewhere with NO terminal reaches the hub and stays there", async () => {
+		const hub = createPendingPromptHub();
+		const off = setPromptPublisher(() => publisherFor2(hub));
+		try {
+			const channel = createOperatorChannelFor({ atTerminal: false, attendedElsewhere: true });
+			expect(channel).not.toBeNull();
+			const answer = channel!.ask({ type: "confirm", question: "Bring the VPN up?" });
+			for (let tick = 0; tick < 20; tick += 1) await Promise.resolve();
+			// The assertion that would have failed before: a peered channel leaves ZERO here,
+			// because its dead local half already cancelled the question.
+			expect(hub.list()).toHaveLength(1);
+			hub.answer(hub.list()[0]!.id, true, "my-phone");
+			await expect(answer).resolves.toBe(true);
+		} finally {
+			off();
+		}
+	});
+
+	it("at a terminal it is still the PEERED channel — the phone is a peer, not a replacement", async () => {
+		const hub = createPendingPromptHub();
+		const off = setPromptPublisher(() => publisherFor2(hub));
+		try {
+			const { input, output } = makeTtyIo();
+			const channel = createOperatorChannelFor({ atTerminal: true }, { input, output });
+			const answer = channel!.ask({ type: "confirm", question: "proceed?" });
+			await Promise.resolve();
+			// Published to the devices AND answerable at the terminal.
+			expect(hub.list()).toHaveLength(1);
+			input.write("y\n");
+			await expect(answer).resolves.toBe(true);
+			expect(hub.list()).toEqual([]);
+		} finally {
+			off();
+		}
+	});
+
+	it("is NULL when neither — nobody to ask is a verdict, not a default", () => {
+		expect(createOperatorChannelFor({ atTerminal: false })).toBeNull();
+		expect(createOperatorChannelFor({ atTerminal: false, attendedElsewhere: false })).toBeNull();
+	});
+
+	it("is NULL when attendance is CLAIMED and nothing publishes", () => {
+		// A caller must refuse on this rather than fall back to a channel that answers for the
+		// operator. Falling back to an auto-answering channel would approve the very operation the
+		// guard exists to gate — and that is not hypothetical: it was written, and caught, in the
+		// same slice that added this function.
+		expect(createOperatorChannelFor({ atTerminal: false, attendedElsewhere: true })).toBeNull();
 	});
 });

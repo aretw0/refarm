@@ -26,7 +26,7 @@ import {
 	type OperationTrail,
 } from "@refarm.dev/operation-consent-v1";
 import {
-	createStdioOperatorChannel,
+	createOperatorChannelFor,
 	OperatorPromptCancelledError,
 	type OperatorChannel,
 } from "@refarm.dev/prompt-contract-v1";
@@ -370,6 +370,23 @@ export async function runWorkspaceSync(
 			`Accepting a workspace's offer is your authorisation, and there is nowhere to ask you. Run ${WORKSPACE_SYNC_COMMAND} from an interactive surface.`,
 		);
 	}
+	// THE CHANNEL MUST MATCH THE EVIDENCE THE GUARD JUST ACCEPTED. It did not: the guard allowed
+	// "attended elsewhere" and the channel put a terminal in the race regardless, so with no
+	// terminal the local side settled instantly, won, and withdrew the question from every
+	// attending device (measured 2026-08-11). `null` means the claim had no wire behind it — and
+	// it REFUSES rather than falling back to a channel that answers on the operator's behalf.
+	const operatorChannel =
+		deps.operator ??
+		createOperatorChannelFor({
+			atTerminal: Boolean(process.stdin.isTTY && process.stdout.isTTY),
+			attendedElsewhere: options.attendedElsewhere,
+		});
+	if (!operatorChannel) {
+		throw new WorkspaceSyncRefusal(
+			"workspace-sync-not-interactive",
+			"You are attending from elsewhere, and nothing on this node publishes its questions — there is nowhere to ask you.",
+		);
+	}
 
 	let rawConfig: Record<string, unknown>;
 	try {
@@ -425,7 +442,10 @@ export async function runWorkspaceSync(
 	try {
 		const outcome = await authorCatalogDeclaration({
 			request,
-			channel: deps.operator ?? createStdioOperatorChannel(),
+			// Resolved ABOVE, never here: a `??` chain ending in an auto-answering channel would
+			// approve this on the operator's behalf, which is the one outcome the guard exists to
+			// prevent. See `operatorChannel`.
+			channel: operatorChannel,
 			trail,
 			...(deps.fs ? { fs: deps.fs } : {}),
 			...(deps.now ? { now: deps.now } : {}),

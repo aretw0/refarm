@@ -9,7 +9,7 @@ import {
 	createNodeOperationFileSystem,
 } from "@refarm.dev/operation-consent-v1";
 import {
-	createStdioOperatorChannel,
+	createOperatorChannelFor,
 	OperatorPromptCancelledError,
 	type OperatorChannel,
 } from "@refarm.dev/prompt-contract-v1";
@@ -110,7 +110,19 @@ export async function runSurfaceAdd(
 			[SURFACE_ADD_COMMAND, SURFACE_LIST_COMMAND],
 		);
 	}
-	const operator = deps.operator ?? createStdioOperatorChannel();
+	// THE CHANNEL MUST MATCH THE EVIDENCE THE GUARD ABOVE ACCEPTED. It did not: the guard allowed
+	// "attended elsewhere" and the channel put a terminal in the race anyway, so with no terminal
+	// the local side settled instantly, won, and withdrew the question from every attending device
+	// before it could be shown. `null` here means the claim had no wire behind it.
+	const operator =
+		deps.operator ?? createOperatorChannelFor({ atTerminal, attendedElsewhere: options.attendedElsewhere });
+	if (!operator) {
+		throw new SurfaceAddRefusal(
+			"surface-add-not-interactive",
+			`You are attending from elsewhere, and nothing on this node publishes its questions — there is nowhere to ask you. Run this from an interactive surface, or edit ${catalogConfigPath(root, env)} by hand.`,
+			[SURFACE_ADD_COMMAND, SURFACE_LIST_COMMAND],
+		);
+	}
 	let name = options.name?.trim() ?? "";
 	try {
 		if (!name) {

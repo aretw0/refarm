@@ -1372,6 +1372,18 @@
 			"category": "cleanup",
 			"priority": "medium",
 			"resolved_by": "path (a): --attended-elsewhere on `process install`, backed by a remote-only operator channel"
+		},
+		{
+			"id": "ISS-117",
+			"title": "--attended-elsewhere built a peered channel that cancelled the question it was meant to send",
+			"body": "FOUND AND FIXED 2026-08-11, immediately after ISS-116 -- the same defect, in every other command\nthat offered the flag. Recorded because the FIX is a pattern the next such command must follow, and\nbecause a one-line diff hides how the failure looked.\n\n`--attended-elsewhere` means \"no terminal here, and that is fine -- you are attending from another\nsurface\". Five commands offered it: process add, process install, surface add, workspace sync,\nworkspace command add. Each gated its refusal on `atTerminal || attendedElsewhere` AND THEN BUILT\n`createStdioOperatorChannel()` REGARDLESS OF WHICH ONE WAS TRUE.\n\nThat channel peers a terminal against the node's hub and lets whoever answers first win. Measured\nagainst the real modules with stdin at /dev/null:\n\n    the question is printed to a terminal nobody is reading\n    the local side rejects        OperatorPromptCancelledError\n    it WINS the race\n    pending prompts on the hub: 0        <- withdrawn before any device could show it\n\nSo the flag did the OPPOSITE of what its help text promised, in every command that offered it. It\nappeared to work only when something was actively writing to stdin -- a remote pty -- which is the\none case the flag was not needed for.\n\nTHE FIX IS A CHANNEL SELECTOR, `createOperatorChannelFor({ atTerminal, attendedElsewhere })`, which\npicks by the same evidence the guard already weighed:\n  at a terminal              -> peered (terminal AND devices; either answers, the other withdraws)\n  attended, no terminal      -> the devices ALONE\n  neither, or attended with nothing publishing -> null, and the caller REFUSES\n\nTHE NEAR-MISS IS THE PART WORTH READING. The first draft of this fix ended the workspace call sites\nin `?? createAutoOperatorChannel()`. That channel returns each prompt's DEFAULT without asking --\n`prompt.default ?? true` for a confirm -- so it would have AUTO-APPROVED the very operations the\nguard exists to gate, silently, in the slice that was fixing consent. Caught before it shipped. A\nnull channel must refuse; it must never fall back to something that answers on the operator's\nbehalf.\n\nNOT CHANGED, deliberately: `delivery test` builds the terminal channel directly. Its guard refuses\nwithout a terminal on purpose -- \"a real message would leave this machine\" -- so there is no\nattended-elsewhere path there to match.",
+			"status": "resolved",
+			"resolved_by": "createOperatorChannelFor + the five call sites, 2026-08-11",
+			"axis": "other",
+			"location": "packages/prompt-contract-v1/src/index.ts::createOperatorChannelFor",
+			"package": "apps/refarm",
+			"category": "cleanup",
+			"priority": "medium"
 		}
 	]
 }

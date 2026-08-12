@@ -10,7 +10,7 @@ import {
 	type RestartPolicy,
 } from "@refarm.dev/process-contract-v1";
 import {
-	createStdioOperatorChannel,
+	createOperatorChannelFor,
 	OperatorPromptCancelledError,
 	type OperatorChannel,
 	type SelectPrompt,
@@ -718,7 +718,21 @@ export async function runProcessAdd(
 			[PROCESS_ADD_COMMAND, PROCESS_LIST_COMMAND],
 		);
 	}
-	const operator = deps.operator ?? createStdioOperatorChannel();
+	// The channel must match the evidence the guard just accepted. It did not: the guard allowed
+	// "attended elsewhere" and the channel put a terminal in the race regardless, so with no
+	// terminal the local side settled instantly, won, and withdrew the question from every
+	// attending device (measured 2026-08-11). `null` = the claim had no wire behind it.
+	const operator =
+		deps.operator ?? createOperatorChannelFor({ atTerminal, attendedElsewhere: options.attendedElsewhere });
+	if (!operator) {
+		throw new ProcessAddRefusal(
+			"process-add-not-interactive",
+			"You are attending from elsewhere, and nothing on this node publishes its questions — " +
+				"there is nowhere to ask you. Run this from an interactive shell, or write the " +
+				`"processes" block into ${catalogConfigPath(root, env)} by hand.`,
+			[PROCESS_ADD_COMMAND, PROCESS_LIST_COMMAND],
+		);
+	}
 
 	let processName: string | null = null;
 	try {

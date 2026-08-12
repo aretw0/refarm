@@ -366,6 +366,52 @@ export function createStdioOperatorChannel(
 }
 
 /**
+ * The channel that matches HOW the operator is present — the same evidence the caller's own
+ * interactive guard already weighed.
+ *
+ * ## The defect this exists to stop, measured 2026-08-11
+ *
+ * Five commands take `--attended-elsewhere` ("no terminal here, and that is fine — you are
+ * attending from another surface"), gate their refusal on `atTerminal || attendedElsewhere`, and
+ * then build `createStdioOperatorChannel()` REGARDLESS OF WHICH ONE WAS TRUE. That channel puts a
+ * terminal in the race, and with `stdin` at `/dev/null` the terminal half settles instantly:
+ *
+ * ```
+ *   the question is printed to a terminal nobody is reading
+ *   the local side rejects       OperatorPromptCancelledError
+ *   it WINS the race
+ *   pending prompts on the hub: 0     <- withdrawn before any device could show it
+ * ```
+ *
+ * So the flag did the opposite of what its own help text promised, in every command that offered
+ * it. It appeared to work only when something was actively writing to stdin — a remote pty — which
+ * is the one case the flag was not needed for.
+ *
+ * ## Three states, and the third is not a terminal
+ *
+ *  - AT A TERMINAL — the peered channel. The terminal keeps working and gains the devices as
+ *    peers; either may answer and the other is withdrawn.
+ *  - ATTENDED ELSEWHERE, NO TERMINAL — the devices alone. Putting a dead terminal in that race is
+ *    not a fallback, it is a cancellation.
+ *  - NEITHER — `null`. Nobody to ask, which the caller must refuse on rather than default.
+ *
+ * `null` ALSO COMES BACK when the caller claims attendance and nothing publishes this process's
+ * questions. That is the honest answer: `--attended-elsewhere` is a claim about a human, and a
+ * claim with no wire behind it is still nobody to ask.
+ */
+export function createOperatorChannelFor(
+	presence: { atTerminal: boolean; attendedElsewhere?: boolean },
+	options: StdioOperatorChannelOptions = {},
+): OperatorChannel | null {
+	if (presence.atTerminal) return createStdioOperatorChannel(options);
+	if (presence.attendedElsewhere) {
+		const signal = options.signal;
+		return createAttendedOperatorChannel(signal ? { signal } : {});
+	}
+	return null;
+}
+
+/**
  * Ask ONLY the devices attending this node. No terminal half.
  *
  * ## Why a peered channel is the WRONG answer when there is no terminal
