@@ -6,6 +6,7 @@ import {
 	buildOperatorResumeEnvelope,
 	buildOperatorResumeSummary,
 	formatOperatorResumeSummary,
+	type OperatorResumeAwaiting,
 	type OperatorResumeEnvironmentPressure,
 	type OperatorResumeModelSummary,
 	type OperatorResumeProjectSummary,
@@ -22,6 +23,11 @@ import {
 } from "@refarm.dev/cli/project-handoff";
 import { declaredBase, declaredWorkspacesFromConfig, loadConfig } from "@refarm.dev/config";
 import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
+import {
+	createFileOperationTrail,
+	summariseStandingQuestions,
+	type OperationQuestion,
+} from "@refarm.dev/operation-consent-v1";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
@@ -141,6 +147,11 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			: await deps.resolveStatusPayload({ renderer: "headless" });
 	try {
 		const status = statusResult?.json;
+		// READ ONCE. Two call sites build from this input — the JSON envelope and the human
+		// summary — and reading the trails twice would be two answers to one question, taken a
+		// moment apart. The first version patched only the envelope, so `--json` reported what
+		// was waiting and the human surface silently did not.
+		const awaitingOperator = await loadAwaitingOperator();
 		const envelope = buildOperatorResumeEnvelope({
 			status,
 			model,
@@ -152,6 +163,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			recentPrompts,
 			finish,
 			environmentPressure,
+			awaitingOperator,
 			handoffs: RESUME_HANDOFFS,
 		});
 
@@ -211,6 +223,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			recentPrompts,
 			finish,
 			environmentPressure,
+			awaitingOperator,
 			handoffs: RESUME_HANDOFFS,
 		});
 		console.log(formatOperatorResumeSummary(summary));
@@ -223,6 +236,54 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 		}
 	} finally {
 		await statusResult?.shutdown?.();
+	}
+}
+
+/**
+ * What this node is waiting on the operator for, read from the consent trails.
+ *
+ * ## Why the paths are a LIST and not a search
+ *
+ * Every trail this repo writes is named `operations.json`, in the directory that owns the thing it
+ * records — processes beside processes, certificates beside certificates, catalog decisions beside
+ * the config they change. That is a convention, not a registry, so this names them. A recursive
+ * search would find trails belonging to other roots and report another node's questions as this
+ * one's, which is the directory-versus-node confusion in a new costume.
+ *
+ * ## Absent is not empty
+ *
+ * Returns `null` when nothing could be read at all, so `resume` prints nothing rather than
+ * "nothing is waiting" — a sentence that would be a claim. An empty summary, by contrast, IS the
+ * claim, and it is the one that lets an operator stop wondering.
+ *
+ * Never throws: `resume` is the command an operator runs when they have lost the thread, and a
+ * trail it cannot parse must not be the reason they cannot run it.
+ */
+async function loadAwaitingOperator(): Promise<OperatorResumeAwaiting | null> {
+	try {
+		const root = declaredBase();
+		const paths = [
+			path.join(root, ".refarm", "processes", "operations.json"),
+			path.join(root, ".refarm", "tls", "operations.json"),
+			path.join(root, ".refarm", "operations.json"),
+		];
+		const questions: OperationQuestion[] = [];
+		for (const trailPath of paths) {
+			const trail = createFileOperationTrail(trailPath);
+			questions.push(...((await trail.readQuestions?.()) ?? []));
+		}
+		const summary = summariseStandingQuestions(questions, new Date().toISOString());
+		const flatten = (list: OperationQuestion[]) =>
+			list.map((question) => ({
+				requestId: question.requestId,
+				title: question.title,
+				requester: question.requester,
+				askedAt: question.askedAt,
+				expiresAt: question.expiresAt,
+			}));
+		return { outstanding: flatten(summary.outstanding), expired: flatten(summary.expired) };
+	} catch {
+		return null;
 	}
 }
 

@@ -164,6 +164,14 @@ export interface OperatorResumeInput {
 	finish?: OperatorResumeFinishRecord | null;
 	scheduledWork?: OperatorResumeScheduledWorkInspection | null;
 	environmentPressure?: OperatorResumeEnvironmentPressure | null;
+	/**
+	 * What this node is WAITING ON THE OPERATOR for — questions put by runs that may be long gone.
+	 *
+	 * `undefined` means nobody looked, which is not the same fact as "nothing is waiting" and must
+	 * not be rendered as one. The three states this whole family keeps insisting on, at the one
+	 * place an operator actually reads.
+	 */
+	awaitingOperator?: OperatorResumeAwaiting | null;
 	/** The app-supplied handoff set (ADR-087) — commands + processes + dynamic
 	 *  builder for the app's binary. Required: the package names no binary. */
 	handoffs: OperatorResumeHandoffs;
@@ -245,6 +253,27 @@ export interface OperatorResumeSummary {
 	recentPrompts: readonly string[];
 	finish: OperatorResumeFinishSummary;
 	tasks: OperatorResumeTaskSummary;
+	/** Omitted when nobody looked. Present with empty lists means somebody looked and found none —
+	 *  a different sentence, and the one that lets an operator stop worrying. */
+	awaitingOperator?: OperatorResumeAwaiting;
+}
+
+/** Questions standing on this node, as `resume` reports them. Mirrors `StandingQuestions` from
+ *  `@refarm.dev/operation-consent-v1`, flattened to what a summary needs to say. */
+export interface OperatorResumeAwaiting {
+	/** Asked, not answered, window still open. */
+	outstanding: readonly OperatorResumeStandingQuestion[];
+	/** Asked, never answered, window closed. Reported rather than swept: it is a commitment the
+	 *  node could not keep, and hiding it makes the node look like it never asked. */
+	expired: readonly OperatorResumeStandingQuestion[];
+}
+
+export interface OperatorResumeStandingQuestion {
+	requestId: string;
+	title: string;
+	requester: string;
+	askedAt: string;
+	expiresAt: string | null;
 }
 
 export type OperatorResumeEnvelope = JsonSuccessEnvelope<
@@ -475,6 +504,11 @@ export function buildOperatorResumeSummary(input: OperatorResumeInput): Operator
 		recentPrompts: (input.recentPrompts ?? []).slice(0, 5),
 		finish,
 		tasks,
+		// `null` and `undefined` collapse here ON PURPOSE and only here: both mean nobody looked,
+		// and the summary's contract is that an ABSENT field is "unknown" while a present one with
+		// empty lists is "looked, found none". Two ways of spelling absence would be a third state
+		// nobody declared.
+		...(input.awaitingOperator ? { awaitingOperator: input.awaitingOperator } : {}),
 	};
 }
 
@@ -644,6 +678,26 @@ export function buildOperatorResumeEnvelope(input: OperatorResumeInput): Operato
 export function formatOperatorResumeSummary(summary: OperatorResumeSummary): string {
 	const lines: string[] = [];
 	lines.push("Operator resume");
+	// FIRST, when there is any, because it is the only line here that is about the OPERATOR rather
+	// than about the node. Everything else describes state they can read later; this is a thing
+	// waiting on them, and a run that already died asking for it.
+	if (summary.awaitingOperator) {
+		const { outstanding, expired } = summary.awaitingOperator;
+		if (outstanding.length > 0) {
+			lines.push(`Waiting on you: ${outstanding.length}`);
+			for (const question of outstanding.slice(0, 5)) {
+				lines.push(`  ? ${question.title} — asked by ${question.requester} at ${question.askedAt}`);
+			}
+		}
+		if (expired.length > 0) {
+			// Reported, never swept: a question nobody answered in time is a commitment this node
+			// could not keep, and hiding it makes the node look like it never asked (spec D5).
+			lines.push(`Asked and never answered: ${expired.length}`);
+			for (const question of expired.slice(0, 3)) {
+				lines.push(`  · ${question.title} — asked by ${question.requester}, window closed`);
+			}
+		}
+	}
 	if (summary.runtime) {
 		const engine = summary.runtime.engine ? ` engine=${summary.runtime.engine.activeEngine}` : "";
 		lines.push(

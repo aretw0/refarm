@@ -273,6 +273,45 @@ export interface OperationQuestion {
 	pid?: number;
 }
 
+/**
+ * Every question this node is waiting on the operator for, folded across the trails that keep
+ * them.
+ *
+ * ## Why a summary type exists at all
+ *
+ * The durable question record stops a run asking twice. It does nothing for the operator until
+ * something SHOWS it — a record nobody reads is a write-only file, and the failure it was built
+ * to prevent (four cards for one VPN) is a failure of ATTENTION, which only a surface fixes.
+ *
+ * ## `expired` is reported, not swept
+ *
+ * A question whose window closed is not noise: it says somebody asked, nobody answered, and the
+ * chance passed. That is exactly the fact an operator needs in order to notice a commitment the
+ * node could not keep — the same reason the automation spec reports a skipped window rather than
+ * silently moving on (D5). Sweeping them would make the node look like it never asked.
+ */
+export interface StandingQuestions {
+	outstanding: OperationQuestion[];
+	expired: OperationQuestion[];
+}
+
+/** PURE. Fold a set of questions into what is still waiting and what timed out. Newest first,
+ *  because an operator scanning a list reads the top of it. */
+export function summariseStandingQuestions(
+	questions: readonly OperationQuestion[],
+	now: string,
+): StandingQuestions {
+	const outstanding: OperationQuestion[] = [];
+	const expired: OperationQuestion[] = [];
+	for (const question of questions) {
+		const { standing } = standingQuestion([question], question.requestId, now);
+		if (standing === "outstanding") outstanding.push(question);
+		else if (standing === "expired") expired.push(question);
+	}
+	const newestFirst = (a: OperationQuestion, b: OperationQuestion) => b.askedAt.localeCompare(a.askedAt);
+	return { outstanding: outstanding.sort(newestFirst), expired: expired.sort(newestFirst) };
+}
+
 /** What a standing question MEANS. Three states, never two: an absent record is not the same
  *  fact as a record whose window closed. */
 export type QuestionStanding = "outstanding" | "expired" | "none";
@@ -377,6 +416,17 @@ export function createFileOperationTrail(
 		records: OperationRecord[],
 		questions: OperationQuestion[],
 	): Promise<void> {
+		// NOTHING TO REMEMBER ⇒ NO FILE. A run that asks and then defers used to leave no trace on
+		// disk at all, and that is a property worth keeping: "the operator was asked and said not
+		// now" must not be distinguishable from "nobody ran this" by a stray empty document. The
+		// standing-question record made every ask touch the file, so this puts it back.
+		//
+		// A crashed run still leaves its question behind, because nothing removes it — which is
+		// the whole point, and exactly why the removal is conditional on BOTH lists being empty.
+		if (records.length === 0 && questions.length === 0) {
+			await fs.removeFile(path);
+			return;
+		}
 		const document: OperationTrailDocument = {
 			capability: OPERATION_CONSENT_CAPABILITY,
 			version: 1,

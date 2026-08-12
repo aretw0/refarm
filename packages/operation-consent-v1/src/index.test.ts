@@ -27,6 +27,7 @@ import {
 	runOperationConsent,
 	standingDecision,
 	standingQuestion,
+	summariseStandingQuestions,
 	undoOperationRecord,
 	type OperationConsentChannel,
 	type OperationFileChange,
@@ -882,5 +883,97 @@ describe("standingQuestion", () => {
 		expect(standingQuestion([Q({ requestId: "op:2" })], "op:1", "2026-08-11T12:00:00.000Z").standing).toBe(
 			"none",
 		);
+	});
+});
+
+describe("summariseStandingQuestions — what a surface shows the operator", () => {
+	const Q = (over: Partial<OperationQuestion>): OperationQuestion => ({
+		requestId: "op:1",
+		kind: "k",
+		title: "t",
+		purpose: "p",
+		requester: "r",
+		askedAt: "2026-08-11T10:00:00.000Z",
+		expiresAt: "2026-08-12T10:00:00.000Z",
+		...over,
+	});
+	const NOW = "2026-08-11T12:00:00.000Z";
+
+	it("separates what is still answerable from what timed out", () => {
+		const summary = summariseStandingQuestions(
+			[
+				Q({ requestId: "a", expiresAt: "2026-08-12T10:00:00.000Z" }),
+				Q({ requestId: "b", expiresAt: "2026-08-11T09:00:00.000Z" }),
+			],
+			NOW,
+		);
+		expect(summary.outstanding.map((q) => q.requestId)).toEqual(["a"]);
+		expect(summary.expired.map((q) => q.requestId)).toEqual(["b"]);
+	});
+
+	it("REPORTS the expired rather than sweeping them", () => {
+		// A question nobody answered in time is a commitment this node could not keep. Hiding it
+		// makes the node look like it never asked — the same reason a skipped automation window is
+		// reported instead of silently passed over.
+		const summary = summariseStandingQuestions([Q({ expiresAt: "2026-08-11T09:00:00.000Z" })], NOW);
+		expect(summary.expired).toHaveLength(1);
+	});
+
+	it("puts the newest first, because that is where an operator looks", () => {
+		const summary = summariseStandingQuestions(
+			[
+				Q({ requestId: "old", askedAt: "2026-08-11T08:00:00.000Z" }),
+				Q({ requestId: "new", askedAt: "2026-08-11T11:00:00.000Z" }),
+			],
+			NOW,
+		);
+		expect(summary.outstanding.map((q) => q.requestId)).toEqual(["new", "old"]);
+	});
+
+	it("an empty input is an EMPTY SUMMARY, never an absent one", () => {
+		// The caller decides what absence means. This function's empty answer is "I looked and
+		// found none", which is the sentence that lets an operator stop wondering — and it is a
+		// different sentence from the one a caller prints when nothing could be read at all.
+		expect(summariseStandingQuestions([], NOW)).toEqual({ outstanding: [], expired: [] });
+	});
+});
+
+describe("a trail with nothing to remember leaves no file", () => {
+	it("a run that asks and then defers is indistinguishable from a run that never happened", async () => {
+		// A real property, pinned by `delivery add` and `process add` before this slice existed and
+		// broken by it on the first pass: the standing-question record made every ask touch the
+		// file, so a defer left an empty document where there had been nothing at all.
+		const fs = memoryFs();
+		const trail = createFileOperationTrail("/t/operations.json", fs);
+		await trail.openQuestion?.({
+			requestId: "op:1",
+			kind: "k",
+			title: "t",
+			purpose: "p",
+			requester: "r",
+			askedAt: "2026-08-11T10:00:00.000Z",
+			expiresAt: null,
+		});
+		expect(fs.files.get("/t/operations.json")).toBeDefined();
+
+		await trail.closeQuestion?.("op:1");
+		expect(fs.files.get("/t/operations.json")).toBeUndefined();
+	});
+
+	it("but a run that DIED asking leaves its question behind", async () => {
+		// The removal is conditional on BOTH lists being empty, which is what keeps the crash case
+		// working: nothing closes the question, so nothing removes the file.
+		const fs = memoryFs();
+		const trail = createFileOperationTrail("/t/operations.json", fs);
+		await trail.openQuestion?.({
+			requestId: "op:1",
+			kind: "k",
+			title: "t",
+			purpose: "p",
+			requester: "the run that died",
+			askedAt: "2026-08-11T10:00:00.000Z",
+			expiresAt: null,
+		});
+		expect(await trail.readQuestions?.()).toHaveLength(1);
 	});
 });
