@@ -112,6 +112,10 @@ function makeModelDoctorStatus(
 			modelId: "gpt-5.5",
 			ref: "openai/gpt-5.5",
 		},
+		// ISS-081: the credential's own clock. `unknown` here rather than a value, because this
+		// fixture is about the PROBE and a doctor status that claimed a valid credential it never
+		// read would be the fixture asserting something it does not know.
+		credential: { state: "unknown", reason: "not-oauth" },
 		providerProbe: {
 			provider: "openai",
 			baseUrl: undefined,
