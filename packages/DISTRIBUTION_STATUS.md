@@ -36,7 +36,7 @@ pnpm run release:readiness
 pnpm run release:boundary:audit
 ```
 
-### `vault-seed-ready` (consumer-pulled candidate lane)
+### `consumer-ready` (consumer-pulled candidate lane)
 
 These packages are allowed into the local handoff lane because `vault-seed`
 would otherwise keep rebuilding reusable Refarm machinery. This is a candidate
@@ -97,7 +97,7 @@ is not a public install contract or P2P substrate.
 When a package rename or selection change intentionally leaves old generated
 tarballs in that ephemeral directory, rerun the handoff with `--prune-extra` to
 delete only unexpected `.tgz` files before manifest validation.
-The `vault-seed-ready` release-policy selection also carries an
+The `consumer-ready` release-policy selection also carries an
 `audienceBoundary` contract: consumer `vault-seed`, naming
 `product-neutral-sdk`, and vault-specific CLI labels, copy, notebooks, routes,
 and UX remaining downstream-owned.
@@ -116,7 +116,7 @@ contract override. Its consumer-contract suite is green (16/16), and the
 sanitized reference vault proves `source-web` fixture input composing through
 `records:v1` and `enrichment:v1` with an empty gap ledger. That proof promotes
 the three T3 blocks, plus the required source contract support package, into
-`vault-seed-ready`; private login, selectors, ETL profiles, enrichment providers,
+`consumer-ready`; private login, selectors, ETL profiles, enrichment providers,
 and vocabulary remain downstream-owned.
 
 `@refarm.dev/content-projection` now adds the generic Markdown/MDX projection
@@ -132,13 +132,13 @@ PARA labels, notebooks, routes, copy, and product-specific blocks stay
 downstream-owned.
 
 `@refarm.dev/local-surface` is implemented as the T2 local-first surface
-consumer-proven candidate and is now selected in `vault-seed-ready` after the downstream proof. It owns a
+consumer-proven candidate and is now selected in `consumer-ready` after the downstream proof. It owns a
 provider-neutral `local-surface:v1` manifest, DS-backed static HTML rendering,
 white-label launch plan, and `quality:v1` report helper. Server binding, route
 branding, storage adapters, provider setup, screenshots, and product UX remain
 downstream-owned.
 
-T2 credentials supply is also consumer-proven and selected in `vault-seed-ready`.
+T2 credentials supply is also consumer-proven and selected in `consumer-ready`.
 `@refarm.dev/credentials-contract-v1` exposes the `credentials:v1` issue,
 verify, present, store, list, and remove seams; `@refarm.dev/identity-contract-v1`
 and `@refarm.dev/storage-contract-v1` are the transitive contract support
@@ -166,7 +166,7 @@ headspace wallet UX stay downstream-owned.
 candidate for YAML-LD front matter and YAML documents. It is package-tested and
 now has a second YAML-native consumer signal from `vault-seed`, which round-trips
 its `records:v1` projection through the codec. The base `records:v1` package
-remains the selected `vault-seed-ready` publication unit, and the selected
+remains the selected `consumer-ready` publication unit, and the selected
 package gate runs the YAML unit proof.
 
 `@refarm.dev/ds/lint` now rides with the selected `@refarm.dev/ds` package as
@@ -213,9 +213,9 @@ packages are ready:
 | `@refarm.dev/source-local` | release-profiled; not selected | live working-tree reads are useful for Refarm dogfood and expected downstream assimilation, but handoff promotion waits for a proof that dirty/untracked state is required |
 | `@refarm.dev/source-dispatch` | not created | dispatch adapter activates when Refarm, `vault-seed`, or `agents-lab` needs `source:v1` through `dispatch-surface` with an executable proof |
 | `@refarm.dev/skill-contract-v1` | implemented; not selected | native `skill:v1` manifest/plan/request/decision/receipt/surface/preflight helpers are checked, plugin-manifest validates `pi/skill` package surfaces, activation install evidence now derives from plugin-manifest validation, source integrity, and host install-policy decisions, the plan-only Refarm git-workflow smoke records a host policy decision, the source-status smoke records one `source:v1` engine call through `@refarm.dev/source-local`, the `agents-lab` git-workflow wrapper smoke records external source evidence without installing upstream skill text, and the DGK `vault-search` wrapper smoke records external `vault-seed` source evidence plus a package-declared `pi/skill` surface and blocked activation preflight without executing `dgk` or Obsidian CLI; publication now waits for accepted host install policy and runtime-host proof rather than a missing DGK wrapper fixture |
-| `@refarm.dev/homestead` | held out of `vault-seed-ready` | full SDK closure still pulls Tractor/storage/sync/plugin dependencies; DS-only HTML helpers ship through `@refarm.dev/ds/html` |
+| `@refarm.dev/homestead` | held out of `consumer-ready` | full SDK closure still pulls Tractor/storage/sync/plugin dependencies; DS-only HTML helpers ship through `@refarm.dev/ds/html` |
 | `@refarm.dev/homestead-ssr` | removed pre-publication | `@refarm.dev/ds/html` is the canonical DS-owned helper surface |
-| `@refarm.dev/cli` | held out of `vault-seed-ready` | `@refarm.dev/process-handoff` is the leaf package needed by consumers |
+| `@refarm.dev/cli` | held out of `consumer-ready` | `@refarm.dev/process-handoff` is the leaf package needed by consumers |
 | `@refarm.dev/plugin-manifest` | deferred | Pi/WASM/UI plugin boundary still needs reproducible multi-layer proof |
 | `@refarm.dev/agent` | unheld engine package; not the plugin-runtime stack | `pnpm run agent:release-proof` proves the narrow public built-artifact boundary (`dist/agent.wasm`, `dist/plugin.json`, `dist/jco`) while plugin-manifest and WIT-component publication remain separate gates |
 | agent-demo public surface | release-proven through selected blocks | `pnpm run agent-demo:release-proof` confirms downstream agent demos can consume `dispatch-surface`, `effort-contract-v1`, `channel-policy-v1`, `artifact-contract-v1`, `process-handoff`, and `ds` while `plugin-manifest`, `terminal-plugin`, `toolbox`, and `refarm:agent-tools@0.1.0` remain held |
@@ -241,7 +241,7 @@ Before any publication or handoff:
 6. Audit exported SDK names: use product-neutral domain names for reusable
    primitives, and reserve `Refarm` prefixes for product identity surfaces.
    `pnpm run release:boundary:audit` emits the machine-readable release boundary
-   audit for the current `vault-seed-ready` handoff lane; the
+   audit for the current `consumer-ready` handoff lane; the
    `release:vault-seed:handoff` manifest embeds the same summary as
    `releaseBoundaryAudit` and blocks the handoff when that audit fails.
 
@@ -249,7 +249,7 @@ Current commands:
 
 ```bash
 refarm release preflight --selection default --json
-refarm release preflight --selection vault-seed-ready --json
+refarm release preflight --selection consumer-ready --json
 pnpm run release:readiness
 pnpm run release:readiness:test
 pnpm run release:boundary:audit
@@ -273,5 +273,5 @@ pnpm --silent run release:vault-seed:handoff -- --out .refarm/handoff/vault-seed
 - Current version: `v0.0.1-dev`
 - Public scope: `@refarm.dev`
 - Default release-policy selection: `kernel-candidates`
-- Consumer-pulled selection: `vault-seed-ready`
+- Consumer-pulled selection: `consumer-ready`
 - Publication posture: held until daily-driver gate or explicit human override

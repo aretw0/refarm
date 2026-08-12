@@ -138,7 +138,7 @@ test("ecosystem supply map keeps reference driver package-first", () => {
 	assert.match(supplyMap, /candidate,\s+internal,\s+then hold/);
 	assert.match(supplyMap, /publicationBoundary/);
 	assert.match(supplyMap, /@refarm\.dev\/cli`\s+remains in\s+`boundary-review`/);
-	assert.match(supplyMap, /not a\s+`vault-seed-ready`\s+leaf/);
+	assert.match(supplyMap, /not a\s+`consumer-ready`\s+leaf/);
 	assert.match(supplyMap, /package-owned by\s+`@refarm\.dev\/cli\/capability-index`/);
 	assert.match(supplyMap, /[Pp]reflight is for\s+release posture and consumer\s+planning/);
 	assert.match(supplyMap, /worker\s+isolation/i);

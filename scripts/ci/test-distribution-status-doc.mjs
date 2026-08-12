@@ -123,7 +123,7 @@ test("distribution status reflects release-policy selections", () => {
 	);
 	assert.match(doc, /daily-driver gate/);
 	assert.match(doc, /kernel-candidates/);
-	assert.match(doc, /vault-seed-ready/);
+	assert.match(doc, /consumer-ready/);
 	assert.match(doc, /schemaVersion: 1/);
 	assert.match(doc, /consumerPull/);
 	assert.match(doc, /Each selected package entry carries `consumerPull` metadata in\s+`refarm\.config\.json`/);
@@ -161,7 +161,7 @@ test("package registry does not promise publication ahead of release policy", ()
 	assert.doesNotMatch(packageRegistryDoc, /READY FOR v0\.1\.0/);
 	assert.match(packageRegistryDoc, /daily-driver gate/);
 	assert.match(packageRegistryDoc, /kernel-candidates/);
-	assert.match(packageRegistryDoc, /vault-seed-ready/);
+	assert.match(packageRegistryDoc, /consumer-ready/);
 
 	for (const packageName of releaseSelectionNames("default")) {
 		assert.match(
@@ -196,8 +196,8 @@ test("vault seed convergence keeps current handoff hashes in the manifest", () =
 });
 
 test("cross-repo consumption uses the current vault-seed-ready packet", () => {
-	assert.match(crossRepoConsumptionDoc, /vault-seed-ready/);
-	assert.match(crossRepoConsumptionDoc, /release:first-publish:plan -- --selection vault-seed-ready --json/);
+	assert.match(crossRepoConsumptionDoc, /consumer-ready/);
+	assert.match(crossRepoConsumptionDoc, /release:first-publish:plan -- --selection consumer-ready --json/);
 	assert.match(crossRepoConsumptionDoc, /--out \.refarm\/handoff\/vault-seed\/<YYYY-MM-DD>\/manifest\.json/);
 	assert.match(crossRepoConsumptionDoc, /manifest\.json/);
 	assert.match(crossRepoConsumptionDoc, /manifest\.md/);
@@ -254,7 +254,7 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.match(releaseGateDoc, /the official downstream proof was received on 2026-07-03: the `vault-seed` Telegram adapter emits/);
 	assert.match(releaseGateDoc, /the official downstream proof was received on 2026-07-03: `vault-seed` emits task artifact/);
 	assert.match(releaseGateDoc, /official downstream proof verified the 2026-07-03 handoff tarballs and quality\/content\/site flows/);
-	assert.match(releaseGateDoc, /consumer-proven in `vault-seed-ready`; public publish still waits on develop stabilization and release lane/);
+	assert.match(releaseGateDoc, /consumer-proven in `consumer-ready`; public publish still waits on develop stabilization and release lane/);
 	assert.match(releaseGateDoc, /Official `vault-seed` proof confirms `@aretw0\/dgk-runner` and `dgk-cli` import the SDK internally/);
 	assert.match(processHandoffBridgeSpec, /IMPLEMENTED - downstream proof received; public publish waits on the release lane/);
 	assert.match(processHandoffBridgeSpec, /official 2026-07-03 downstream proof confirms the runner and\s+CLI import the SDK internally/);
@@ -271,9 +271,9 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.match(factoryReadinessDoc, /8b channel policy .* \| \*\*downstream-proven package slice\*\*/);
 	assert.match(factoryReadinessDoc, /8c `process-handoff` \+ artifact provenance \| \*\*downstream-proven bridge slice\*\*/);
 	assert.match(releaseGateDoc, /Official `vault-seed` proof confirms `silo\.js` now delegates publishing credentials to `SiloCore\.saveSecret/);
-	assert.match(releaseGateDoc, /`@refarm\.dev\/local-surface` .* consumer-proven in `vault-seed-ready`; public publish still waits on develop stabilization and release lane/);
+	assert.match(releaseGateDoc, /`@refarm\.dev\/local-surface` .* consumer-proven in `consumer-ready`; public publish still waits on develop stabilization and release lane/);
 	assert.match(localSurfaceSpec, /Downstream proof received \(2026-07-03\): the official `vault-seed` checkout consumed a packed candidate tarball/);
-	assert.match(packagesReadme, /`@refarm\.dev\/local-surface`.*consumer-proven; `vault-seed-ready`; held/);
+	assert.match(packagesReadme, /`@refarm\.dev\/local-surface`.*consumer-proven; `consumer-ready`; held/);
 	assert.match(vaultSeedSiloBridgeSpec, /IMPLEMENTED - downstream adapter proof received; public publish waits on the release lane/);
 	assert.match(factoryReadinessDoc, /product adoption of the Silo-backed credential bridge remains downstream/);
 	assert.match(artifactLabEvidencePlan, /Official downstream proof received \(2026-07-03\): `vault-seed` emits a\s+validated `refarm\.task-artifacts\.v1` manifest/);
