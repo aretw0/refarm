@@ -3,6 +3,27 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+/**
+ * THE CI SURFACE'S WIRE NAME — and it is NOT the package's, on purpose (ISS-112).
+ *
+ * `@refarm.dev/artifact-contract-v1` declares `sovereign.task-artifacts.v1`; this declares
+ * `refarm.task-artifacts.v1`. One identifier, two values, which looked like pure drift from
+ * ADR-087 phase 3 debranding the packages while `release:brand:guard` polices `packages/` and not
+ * `scripts/`.
+ *
+ * MEASURING BEFORE RENAMING FOUND A SECOND PRODUCER. Four checked-in expected fixtures under
+ * `validations/*‍/fixtures/expected/task-artifacts.json` carry `refarm.*`, and
+ * `refarm.config.json` declares a proof target reading "vault-seed emits refarm.task-artifacts.v1
+ * manifests". vault-seed is a SEPARATE repository consuming refarm as an SDK. So the two names may
+ * both be true of different producers, and collapsing them here would rename a contract somebody
+ * else reads off disk.
+ *
+ * WHAT WAS ACTUALLY WRONG was never the second declaration — it was the LITERAL that had been
+ * copied out of it into `local-first-platform-proof.mjs`, where a producer change would have left
+ * it silently matching nothing. That one now imports this constant. The VALUE question stays open
+ * and belongs to whoever owns the vault-seed contract; it is not a thing to settle inside a slice
+ * about removing a duplicate string.
+ */
 export const TASK_ARTIFACT_MANIFEST_SCHEMA = "refarm.task-artifacts.v1";
 
 const ROLE_SET = new Set([

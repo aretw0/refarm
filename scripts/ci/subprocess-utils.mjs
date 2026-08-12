@@ -16,8 +16,12 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/identity-contract-v1",
 	"packages/node-contract-v1",
 	"packages/pressure-contract-v1",
-	"packages/sidecar-client",
+	// storage-contract-v1 BEFORE sidecar-client: the client extends `QueryNodesPage` and imports
+	// `readCompleteness` from it (ISS-040), so building it first is not a preference, it is the
+	// edge. The order test caught this the same day the edge was added — and no lane did, because
+	// the script suites run in `before-push` rather than `after-edit`.
 	"packages/storage-contract-v1",
+	"packages/sidecar-client",
 	"packages/storage-fs",
 	"packages/storage-node-view",
 	"packages/task-contract-v1",

@@ -58,11 +58,12 @@ test("requirements supply composition proves cheap records plus enrichment prefl
 	// brand-free package, so `refarm.*` is legitimate there), while the artifact manifest comes
 	// from `packages/artifact-contract-v1`, which was debranded to `sovereign.*`.
 	//
-	// The trap underneath: `TASK_ARTIFACT_MANIFEST_SCHEMA` is declared TWICE with DIFFERENT values
-	// — `refarm.task-artifacts.v1` in scripts/ci/check-task-artifact-manifests.mjs and
-	// `sovereign.task-artifacts.v1` in the package. One name, two wire contracts. Filed as
-	// ISS-112 rather than reconciled here: picking one inside a test-repair slice would be
-	// deciding a wire contract by accident.
+	// The trap underneath (ISS-112): `TASK_ARTIFACT_MANIFEST_SCHEMA` names two different values —
+	// `sovereign.*` in the package and `refarm.*` on the CI surface. The duplicate LITERAL is gone
+	// (2026-08-12): `local-first-platform-proof.mjs` imports the constant instead of copying its
+	// value. The VALUE question is deliberately still open, because measuring found a second
+	// producer: four checked-in expected fixtures and a declared proof target say vault-seed emits
+	// `refarm.*`, and vault-seed is a separate repository reading this off disk.
 	assert.equal(result.artifacts.manifest.schema, "sovereign.task-artifacts.v1");
 	assert.equal(result.artifacts.manifest.artifacts.length, 4);
 	assert.deepEqual(

@@ -9,6 +9,7 @@ import {
 	MINIMUM_PLAUSIBLE_TASK_ARTIFACT_MANIFEST_COUNT,
 	checkTaskArtifactManifests,
 	validateTaskArtifactManifestFile,
+	TASK_ARTIFACT_MANIFEST_SCHEMA,
 } from "./check-task-artifact-manifests.mjs";
 
 function sha256Text(value) {
@@ -22,7 +23,7 @@ async function makeFixture(manifestOverrides = {}, artifactOverrides = {}) {
 	const contents = "hello\n";
 	writeFileSync(path.join(fixtureDir, "report.md"), contents);
 	const manifest = {
-		schema: "refarm.task-artifacts.v1",
+		schema: TASK_ARTIFACT_MANIFEST_SCHEMA,
 		taskId: "task-sample",
 		effortId: "effort-sample",
 		createdAt: "2026-01-01T00:00:00.000Z",
