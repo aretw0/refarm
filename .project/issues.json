@@ -1430,6 +1430,17 @@
 			"package": ".",
 			"category": "cleanup",
 			"priority": "medium"
+		},
+		{
+			"id": "ISS-121",
+			"title": "A conformance test's sentinel is the operator's configured model route",
+			"body": "FOUND 2026-08-12, in `refarm model doctor`'s own output on the operator's node.\n\n    current: openai-codex/__refarm_ancestor_option_probe__\n    probe:   __refarm_ancestor_option_probe__\n\nThat sentinel exists in exactly ONE place in this repository:\n`apps/refarm/test/architecture/ancestor-option-conformance.test.ts`. A TEST wrote its probe value\ninto the operator's real model route, and every `model current` since has reported it as his\nconfigured model.\n\nWHERE, and it is not where ISS-109 looked: `~/.silo/identity.json`, in three fields --\n`tokens.modelId`, `tokens.modelFallbackModelId`, `tokens.modelBaseUrl`. ISS-109 was written about\n`~/.refarm/config.json`. The silo is a SECOND store nobody thought to check, and both are reached\nthrough HOME -- which is why redirecting HOME, rather than blocklisting known paths, was the right\nshape for the containment.\n\nTHE HOLE IS ALREADY CLOSED. The file's mtime is 2026-08-11 01:31, hours before the home containment\nshipped. Verified today from inside a real `apps/refarm` test: a write to a LITERAL path under the\noperator's home throws.\n\nMEASUREMENT NOTE, because the first attempt to verify this got it backwards: probing with\n`os.homedir()` SUCCEEDS under containment, because containment REDIRECTS HOME rather than\nblocklisting it, so `os.homedir()` already points at the disposable tree. Reading that success as\nan escape is the trap; only a literal path distinguishes containment from redirection. The\npermanent test asserts both halves and says so.\n\nWHAT REMAINS IS OPERATOR DATA, and it is his call rather than mine: his model route still holds the\nsentinel. `refarm model reset` restores the built-in default for the provider\n(`openai-codex` -> `gpt-5.5`), and `--scope worker` / `--scope monitor` do the same per scope. What\nthe route held BEFORE the test overwrote it is not recoverable from anything in this repository --\nchoosing a value would be inventing his configuration, which is the same class of act as the one\nthat caused this.",
+			"status": "open",
+			"axis": "durability",
+			"location": "~/.silo/identity.json::tokens.modelId",
+			"package": "apps/refarm",
+			"category": "cleanup",
+			"priority": "medium"
 		}
 	]
 }
