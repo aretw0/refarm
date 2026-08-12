@@ -3088,3 +3088,26 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 });
+
+describe("agent doctor says it spends before it spends", () => {
+	/**
+	 * ISS-104, measured on the operator's real node: `agent doctor --json` touched FIVE files in a
+	 * single run — a graph record, an audit entry, a response stream and a task result — and took
+	 * 2.1s against 0.4s for every other diagnostic. It DISPATCHES a real prompt, which on a paid
+	 * route spends quota.
+	 *
+	 * The name reads like the safest thing in the CLI, and an operator debugging a broken node runs
+	 * it repeatedly. Whether it should dispatch at all is the operator's call; that it must SAY SO
+	 * is not.
+	 */
+	it("the one-line description states that it DISPATCHES", () => {
+		// The line every `refarm agent --help` prints, which is where an operator meets this
+		// command before they meet its long help. The `addHelpText` block underneath carries the
+		// cost, the file count and the cheap alternatives — it is not asserted here because
+		// commander's `helpInformation()` does not include after-text, and a test that reached
+		// into commander's internals to check it would break on a dependency bump while proving
+		// nothing about what the operator sees.
+		const doctor = createAgentCommand().commands.find((sub) => sub.name() === "doctor");
+		expect(doctor?.description()).toContain("DISPATCHES");
+	});
+});

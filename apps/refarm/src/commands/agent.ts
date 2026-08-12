@@ -503,9 +503,32 @@ Notes:
 	// pass while the agent is a zombie (dispatch received, nothing executed); this doesn't.
 	command
 		.command("doctor")
-		.description("Probe whether the agent actually completes a respond (detects a zombie agent)")
+		.description(
+			"Probe whether the agent actually completes a respond (detects a zombie agent) — DISPATCHES a real prompt",
+		)
 		.option("--json", "Output machine-readable result")
 		.option("--timeout <ms>", "How long to wait for the probe respond (ms)")
+		.addHelpText(
+			"after",
+			`
+THIS COMMAND SPENDS. It is not a read.
+
+Detecting a zombie agent means watching one COMPLETE a respond, so this submits a
+real minimal prompt through whichever route is configured and waits for the
+answer. On a paid route that costs quota, and the run leaves a full effort trail
+behind — a graph record, an audit entry, a response stream and a task result.
+Measured on a real node: five files written, ~2.1s against ~0.4s for every other
+diagnostic (ISS-104).
+
+The name reads like the safest thing in the CLI, and an operator debugging a
+broken node runs it repeatedly. So it says this here rather than leaving it to be
+discovered in a bill.
+
+For the cheap questions — is the runtime up, is a model configured, is a
+credential present — use \`refarm check\`, \`refarm doctor\` or
+\`refarm model doctor\`. None of them dispatches.
+`,
+		)
 		.action(async function (this: Command) {
 			const opts = this.opts<{ json?: boolean; timeout?: string }>();
 			// The parent `agent` command also declares --json; commander may bind a trailing
@@ -514,6 +537,16 @@ Notes:
 			const json = opts.json === true || parentJson;
 			const { probeAgentLiveness } = await import("./agent-liveness.js");
 			const timeoutMs = opts.timeout ? Number(opts.timeout) : undefined;
+			// SAID BEFORE IT HAPPENS, which is the only moment it can still be stopped. The help
+			// text explains it to whoever goes looking; this reaches the operator who did not
+			// (ISS-104). Human path only, and on stderr, so a `--json` consumer's stdout stays a
+			// single parseable document.
+			if (!json) {
+				process.stderr.write(
+					"agent doctor dispatches a real prompt through the configured route — this spends " +
+						"quota and writes an effort trail. `refarm check` and `refarm model doctor` do not.\n",
+				);
+			}
 			const result = await probeAgentLiveness({ timeoutMs });
 			if (json) {
 				// `ok` says the PROBE ran, not that the agent is alive.
@@ -539,6 +572,11 @@ Notes:
 							responsive: result.status === "responsive",
 							message: result.message,
 							elapsedMs: result.elapsedMs,
+							// STATED IN THE ENVELOPE, not only in the help text. A consumer that
+							// schedules this — and the probe instrument that runs every command four
+							// times per pass nearly did — must be able to read that the run had a
+							// cost without knowing this command's history (ISS-104).
+							dispatched: true,
 						},
 					}),
 				);
