@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { buildReleaseCheckPlan } from "../release-check.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const DEFAULT_SELECTION = "vault-seed-ready";
+const DEFAULT_SELECTION = "consumer-ready";
 const EXTENSION_SANDBOX_MANIFEST =
 	"validations/extension-sandbox-poc/fixtures/expected/task-artifacts.json";
 

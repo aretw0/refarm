@@ -1411,6 +1411,18 @@
 			"package": "apps/refarm",
 			"category": "cleanup",
 			"priority": "medium"
+		},
+		{
+			"id": "ISS-120",
+			"title": "vault-seed-ready named one consumer for a relationship every consumer has",
+			"body": "DONE 2026-08-12, at the operator's request and with his ruling on the name.\n\n`vault-seed-ready` was a release-policy TAG and a SELECTION id naming one specific consumer. Its\nmeaning is generic: packages a downstream checkout can adopt DIRECTLY -- vendored as tarballs --\nbefore any npm or crates publication, so the coupling can be tested without an official release.\n\nTHE CONFIG ALREADY SHOWED WHERE THE PROPER NOUN BELONGS:\n\n    { \"id\": \"vault-seed-ready\",                      <- proper noun\n      \"audienceBoundary\": { \"consumer\": \"vault-seed\" },   <- the field whose JOB is to name it\n      \"profileTags\": [\"vault-seed-ready\"] }          <- proper noun again\n\nSo the consumer's name stays exactly where a field exists for it, and the relationship gets a word\nfrom the family it belongs to:\n\n    consumer-pulled   a consumer pulls it\n    consumer-ready    ready to be pulled, without a registry     <- was vault-seed-ready\n    consumer-proven   a consumer proved it works\n\nSCOPE, decided before touching anything because a blanket rename in this repository had already\nover-reached once that same day (it rewrote three schemas where two were meant):\n\n  RENAMED, because they are VALUES describing a relationship\n    refarm.config.json      23 profile tags, 1 selection id, its profileTags\n    27 .mjs/.ts files       the string literal and the VAULT_SEED_READY identifier\n    3 workflow lines        the selection default and two --selection arguments (section 8 surface,\n                            three mechanical lines inside the authorised rename)\n    package.json            3 scripts passing --selection; their NAMES kept\n    capability-index        `not-vault-seed-ready` -> `not-consumer-ready`, the same vocabulary\n\n  UNTOUCHED, because they are a PROPER NOUN\n    specs/ADRs/ADR-080-vault-seed-ready-handoff-pipeline.md   renaming an ADR rewrites history\n    scripts/vault-seed-ready-handoff.mjs                      the pipeline, built for that consumer\n    docs, README prose, `release:vault-seed:*` script names   they are about vault-seed\n\nCHECKED FOR AN EXTERNAL READER FIRST, which is the lesson ISS-112 cost: ~/github/vault-seed carries\n10 occurrences and every one is prose or a test's description string. No code there parses the id,\nso the rename does not break the consumer. Its docs now name an identifier this repository no\nlonger uses -- worth a pass on that side.\n\nONE OPERATOR-FACING CONSEQUENCE, and it is deliberate: the first-publish confirmation token is\nDERIVED (`publish-${selectionId}-0.1.0`), so it changed with the selection:\n\n    publish-vault-seed-ready-0.1.0   ->   publish-consumer-ready-0.1.0\n\nThat is the load-bearing guard on the first publish. It followed the rename automatically and\ncorrectly, and `first-publish-selection.mjs` prints the required value on every dry run, but an\noperator holding the old string in their head would be refused.",
+			"status": "resolved",
+			"resolved_by": "renamed to consumer-ready across tag, selection and derived token, 2026-08-12",
+			"axis": "other",
+			"location": "refarm.config.json::releasePolicy",
+			"package": ".",
+			"category": "cleanup",
+			"priority": "medium"
 		}
 	]
 }

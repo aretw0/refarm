@@ -208,7 +208,7 @@
 				]
 			},
 			{
-				"id": "vault-seed-ready",
+				"id": "consumer-ready",
 				"description": "Consumer-pulled packages that vault-seed can adopt before the full daily-driver release.",
 				"audienceBoundary": {
 					"consumer": "vault-seed",
@@ -216,7 +216,7 @@
 					"productLocal": "Vault-specific CLI labels, copy, notebooks, routes, and UX stay downstream-owned."
 				},
 				"profileTags": [
-					"vault-seed-ready"
+					"consumer-ready"
 				]
 			}
 		],
@@ -233,7 +233,7 @@
 					"kernel-contract",
 					"candidate",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"consumer-proven"
 				],
 				"consumerPull": {
@@ -268,7 +268,7 @@
 					"kernel-contract",
 					"candidate",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"consumer-proven"
 				],
 				"consumerPull": {
@@ -293,7 +293,7 @@
 					"reference-proven",
 					"boundary-review",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"consumer-proven"
 				],
 				"consumerPull": {
@@ -319,7 +319,7 @@
 					"reference-proven",
 					"boundary-review",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"consumer-proven"
 				],
 				"consumerPull": {
@@ -346,7 +346,7 @@
 					"reference-proven",
 					"boundary-review",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"consumer-proven"
 				],
 				"consumerPull": {
@@ -367,7 +367,7 @@
 					"kernel",
 					"kernel-contract",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"review"
 				],
 				"consumerPull": {
@@ -388,7 +388,7 @@
 					"kernel",
 					"kernel-contract",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"candidate"
 				],
 				"consumerPull": {
@@ -422,7 +422,7 @@
 					"kernel",
 					"kernel-contract",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"review"
 				],
 				"consumerPull": {
@@ -446,7 +446,7 @@
 					"contract",
 					"sdk-primitive",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"boundary-review"
 				],
 				"consumerPull": {
@@ -471,7 +471,7 @@
 					"ui",
 					"consumer-pulled",
 					"consumer-proven",
-					"vault-seed-ready",
+					"consumer-ready",
 					"candidate"
 				],
 				"consumerPull": {
@@ -546,7 +546,7 @@
 					"contract",
 					"sdk-primitive",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"boundary-review",
 					"consumer-proven"
 				],
@@ -605,7 +605,7 @@
 					"sdk-primitive",
 					"requirements-supply",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"boundary-review",
 					"consumer-proven"
 				],
@@ -630,7 +630,7 @@
 					"sdk-primitive",
 					"requirements-supply",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"boundary-review",
 					"consumer-proven"
 				],
@@ -656,7 +656,7 @@
 					"sdk-primitive",
 					"requirements-supply",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"boundary-review",
 					"consumer-proven"
 				],
@@ -681,7 +681,7 @@
 					"sdk-primitive",
 					"requirements-supply",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"boundary-review",
 					"candidate"
 				],
@@ -707,7 +707,7 @@
 					"ui",
 					"render-adapter",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"boundary-review",
 					"candidate"
 				],
@@ -743,7 +743,7 @@
 				"tags": [
 					"process",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"candidate",
 					"build-free"
 				],
@@ -779,7 +779,7 @@
 					"kernel-primitive",
 					"sdk-primitive",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"boundary-review"
 				],
 				"consumerPull": {
@@ -799,7 +799,7 @@
 					"kernel",
 					"kernel-primitive",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"dogfood"
 				],
 				"consumerPull": {
@@ -821,7 +821,7 @@
 				"tags": [
 					"ui",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"candidate"
 				],
 				"consumerPull": {
@@ -844,7 +844,7 @@
 				"tags": [
 					"dispatch",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"candidate"
 				],
 				"consumerPull": {
@@ -864,7 +864,7 @@
 					"crypto",
 					"silo-dependency",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"candidate"
 				],
 				"consumerPull": {
@@ -885,7 +885,7 @@
 				"tags": [
 					"credentials",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"candidate"
 				],
 				"consumerPull": {

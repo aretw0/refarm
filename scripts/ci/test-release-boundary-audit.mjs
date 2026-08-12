@@ -7,13 +7,13 @@ test("release boundary audit passes for current vault-seed-ready lane", () => {
 	const audit = buildReleaseBoundaryAudit();
 	const config = JSON.parse(readFileSync(new URL("../../refarm.config.json", import.meta.url), "utf8"));
 	const profiles = config.releasePolicy.packageProfiles.filter((profile) =>
-		profile.tags?.includes("vault-seed-ready"),
+		profile.tags?.includes("consumer-ready"),
 	);
 
 	assert.equal(audit.schemaVersion, 1);
 	assert.equal(audit.command, "release-boundary-audit");
 	assert.equal(audit.ok, true);
-	assert.equal(audit.selectionId, "vault-seed-ready");
+	assert.equal(audit.selectionId, "consumer-ready");
 	// DERIVED from the config, never retyped. This block used to hardcode `21` and a list of
 	// twenty-one package names, and the repository grew to 23 vault-seed-ready profiles — so the
 	// suite has been red ever since, invisibly, because no lane ran it (ISS-106).

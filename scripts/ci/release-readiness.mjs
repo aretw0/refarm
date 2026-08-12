@@ -108,7 +108,7 @@ const RELEASE_READINESS_STEPS = [
 	{
 		id: "first-publish-selection-plan",
 		script: "release:first-publish:plan",
-		args: ["--", "--selection", "vault-seed-ready"],
+		args: ["--", "--selection", "consumer-ready"],
 		reason:
 			"First-publish packages for the selected release-policy lane must resolve to an accepted publish plan before release approval.",
 	},

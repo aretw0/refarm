@@ -45,7 +45,7 @@ function packageVersion(packageName, root = ROOT) {
 		env: {
 			REFARM_PACKAGE_MANAGER: "pnpm",
 		},
-		selectionId: "vault-seed-ready",
+		selectionId: "consumer-ready",
 	});
 	const command = check.commands.find((entry) => entry.packageName === packageName);
 	if (!command) {
@@ -112,7 +112,7 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		env: {
 			REFARM_PACKAGE_MANAGER: "pnpm",
 		},
-		selectionId: "vault-seed-ready",
+		selectionId: "consumer-ready",
 	});
 
 	assert.equal(check.ok, true);
@@ -160,7 +160,7 @@ test("vault-seed-ready selection is covered by changesets provider inputs", () =
 		env: {
 			REFARM_PACKAGE_MANAGER: "pnpm",
 		},
-		selectionId: "vault-seed-ready",
+		selectionId: "consumer-ready",
 	});
 	const changesetPackages = changesetPackageNames();
 	const missing = check.plan.orderedNames.filter(
@@ -187,17 +187,17 @@ test("release check plan json exposes acceptance summary", () => {
 			env: {
 				REFARM_PACKAGE_MANAGER: "pnpm",
 			},
-			selectionId: "vault-seed-ready",
+			selectionId: "consumer-ready",
 		}),
 	);
 
 	assert.equal(payload.ok, true);
-	assert.equal(payload.selection.id, "vault-seed-ready");
+	assert.equal(payload.selection.id, "consumer-ready");
 	assert.equal(payload.acceptance.status, "accepted");
 	assert.equal(payload.acceptance.packageCount, 23);
 	assert.equal(payload.acceptance.blockerCount, 0);
 	assert.equal(payload.acceptance.manualApprovalRequired, true);
-	assert.deepEqual(payload.acceptance.profileTags, ["vault-seed-ready"]);
+	assert.deepEqual(payload.acceptance.profileTags, ["consumer-ready"]);
 	assert.equal(
 		payload.acceptance.requiredChecks.length,
 		payload.acceptance.requiredCheckCount,

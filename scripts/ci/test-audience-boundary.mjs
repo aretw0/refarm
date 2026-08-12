@@ -400,7 +400,7 @@ test("release policy keeps SDK primitives behind explicit audience boundaries", 
 			`${profile.id} must declare boundary-review before publication`,
 		);
 		assert.ok(
-			!profile.tags.includes("vault-seed-ready") ||
+			!profile.tags.includes("consumer-ready") ||
 				profile.tags.includes("consumer-pulled"),
 			`${profile.id} must not enter vault-seed-ready without consumer-pulled proof`,
 		);
@@ -410,7 +410,7 @@ test("release policy keeps SDK primitives behind explicit audience boundaries", 
 test("vault-seed-ready packages declare consumer-pulled intent", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const policy = config.releasePolicy;
-	const selection = policy.selections.find((item) => item.id === "vault-seed-ready");
+	const selection = policy.selections.find((item) => item.id === "consumer-ready");
 	assert.deepEqual(selection.audienceBoundary, {
 		consumer: "vault-seed",
 		naming: "product-neutral-sdk",
@@ -420,7 +420,7 @@ test("vault-seed-ready packages declare consumer-pulled intent", () => {
 
 	const profiles = policy.packageProfiles;
 	const readyProfiles = profiles.filter((profile) =>
-		profile.tags?.includes("vault-seed-ready"),
+		profile.tags?.includes("consumer-ready"),
 	);
 
 	assert.ok(readyProfiles.length > 0, "expected vault-seed-ready profiles");
@@ -476,7 +476,7 @@ test("process handoff stays the selected process leaf", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const policyText = read("refarm.config.json");
 	const selected = config.releasePolicy.packageProfiles
-		.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+		.filter((profile) => profile.tags?.includes("consumer-ready"))
 		.map((profile) => profile.id);
 
 	assert.ok(selected.includes("@refarm.dev/process-handoff"));
@@ -492,7 +492,7 @@ test("source librarian packages distinguish proven handoff leaves from held adap
 	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
 	const vaultSeedReady = new Set(
 		profiles
-			.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+			.filter((profile) => profile.tags?.includes("consumer-ready"))
 			.map((profile) => profile.id),
 	);
 
@@ -519,7 +519,7 @@ test("source librarian packages distinguish proven handoff leaves from held adap
 		"@refarm.dev/source-web",
 	]) {
 		const profile = byId.get(packageName);
-		for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+		for (const tag of ["consumer-pulled", "consumer-ready", "consumer-proven"]) {
 			assert.ok(
 				profile.tags.includes(tag),
 				`${packageName} must declare ${tag} after selected downstream proof`,
@@ -552,7 +552,7 @@ test("requirements supply packages are selected only after downstream proof", ()
 	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
 	const vaultSeedReady = new Set(
 		profiles
-			.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+			.filter((profile) => profile.tags?.includes("consumer-ready"))
 			.map((profile) => profile.id),
 	);
 
@@ -571,7 +571,7 @@ test("requirements supply packages are selected only after downstream proof", ()
 			profile.tags.includes("boundary-review"),
 			`${packageName} must stay boundary-reviewed`,
 		);
-		for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+		for (const tag of ["consumer-pulled", "consumer-ready", "consumer-proven"]) {
 			assert.ok(
 				profile.tags.includes(tag),
 				`${packageName} must declare ${tag} after selected downstream proof`,
@@ -621,7 +621,7 @@ test("t2 credentials seam is consumer-pulled with reference issuer and wallet pr
 	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
 	const vaultSeedReady = new Set(
 		profiles
-			.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+			.filter((profile) => profile.tags?.includes("consumer-ready"))
 			.map((profile) => profile.id),
 	);
 
@@ -634,7 +634,7 @@ test("t2 credentials seam is consumer-pulled with reference issuer and wallet pr
 	]) {
 		const profile = byId.get(packageName);
 		assert.ok(profile, `${packageName} must be release-profiled`);
-		for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+		for (const tag of ["consumer-pulled", "consumer-ready", "consumer-proven"]) {
 			assert.ok(
 				profile.tags.includes(tag),
 				`${packageName} must declare ${tag} after the selected credentials pull`,
@@ -717,7 +717,7 @@ test("release-engine docs keep host integration product-neutral", () => {
 test("vault-seed-ready README openings stay consumer-neutral", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const profiles = config.releasePolicy.packageProfiles.filter((profile) =>
-		profile.tags?.includes("vault-seed-ready"),
+		profile.tags?.includes("consumer-ready"),
 	);
 	const forbiddenOpening = [
 		/\bRefarm platform\b/,
@@ -755,7 +755,7 @@ test("vault-seed-ready package descriptions stay consumer-neutral", () => {
 	];
 
 	for (const profile of config.releasePolicy.packageProfiles.filter((candidate) =>
-		candidate.tags?.includes("vault-seed-ready"),
+		candidate.tags?.includes("consumer-ready"),
 	)) {
 		const packageDir = profile.id.replace("@refarm.dev/", "");
 		const packageJson = JSON.parse(read(`packages/${packageDir}/package.json`));
@@ -775,7 +775,7 @@ test("vault-seed-ready README openings promote selected packages, not compatibil
 	const config = JSON.parse(read("refarm.config.json"));
 	const selectedPackageNames = new Set(
 		config.releasePolicy.packageProfiles
-			.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+			.filter((profile) => profile.tags?.includes("consumer-ready"))
 			.map((profile) => profile.id),
 	);
 	const forbiddenCompatibilitySubpaths = [
@@ -790,7 +790,7 @@ test("vault-seed-ready README openings promote selected packages, not compatibil
 	];
 
 	for (const profile of config.releasePolicy.packageProfiles.filter((candidate) =>
-		candidate.tags?.includes("vault-seed-ready"),
+		candidate.tags?.includes("consumer-ready"),
 	)) {
 		const packageDir = profile.id.replace("@refarm.dev/", "");
 		const readme = read(`packages/${packageDir}/README.md`);
@@ -820,7 +820,7 @@ test("vault-seed-ready README bodies avoid Refarm-owned capability wording", () 
 	];
 
 	for (const profile of config.releasePolicy.packageProfiles.filter((candidate) =>
-		candidate.tags?.includes("vault-seed-ready"),
+		candidate.tags?.includes("consumer-ready"),
 	)) {
 		const packageDir = profile.id.replace("@refarm.dev/", "");
 		const readme = read(`packages/${packageDir}/README.md`);

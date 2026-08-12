@@ -6,7 +6,7 @@ on:
       selection:
         description: "Release policy selection to publish at its declared 0.1.0 versions"
         required: true
-        default: "vault-seed-ready"
+        default: "consumer-ready"
         type: string
       dry_run:
         description: "Run publish dry-runs only"

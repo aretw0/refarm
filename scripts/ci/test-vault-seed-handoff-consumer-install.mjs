@@ -23,7 +23,7 @@ function fixture() {
 		sourceGitSha: "abc123",
 		ok: true,
 		status: "ready",
-		selection: { id: "vault-seed-ready" },
+		selection: { id: "consumer-ready" },
 		acceptance: { status: "accepted", packageCount: 2 },
 		packages: [
 			{
@@ -144,7 +144,7 @@ test("latest-accepted mode skips a newer blocked candidate", () => {
 		sourceGitSha: "blocked",
 		ok: false,
 		status: "ready",
-		selection: { id: "vault-seed-ready" },
+		selection: { id: "consumer-ready" },
 		acceptance: { status: "accepted", packageCount: 0 },
 		packages: [],
 		consumerInstall: { copyFiles: ["manifest.json"], fileSpecs: {}, pnpmOverrides: {} },

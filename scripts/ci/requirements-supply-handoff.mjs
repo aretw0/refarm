@@ -21,8 +21,8 @@ const SOURCE = "requirements-supply-handoff";
 const REQUIREMENTS_SUPPLY_TAG = "requirements-supply";
 const BASE_TAGS = [REQUIREMENTS_SUPPLY_TAG, "boundary-review"];
 const HOLD_TAGS = [...BASE_TAGS, "candidate-hold"];
-const PROVEN_TAGS = [...BASE_TAGS, "consumer-pulled", "vault-seed-ready", "consumer-proven"];
-const VAULT_SEED_READY = "vault-seed-ready";
+const PROVEN_TAGS = [...BASE_TAGS, "consumer-pulled", "consumer-ready", "consumer-proven"];
+const CONSUMER_READY = "consumer-ready";
 const DEFAULT_HANDOFF_DIR = `.refarm/handoff/requirements-supply/${new Date().toISOString().slice(0, 10)}`;
 
 /**
@@ -353,7 +353,7 @@ export function buildRequirementsSupplyHandoff({
 	const config = readJson(path.join(cwd, "refarm.config.json"));
 	const policy = config.releasePolicy;
 	const selected = new Set(
-		profilePackages(policy, VAULT_SEED_READY).map((profile) => profile.id),
+		profilePackages(policy, CONSUMER_READY).map((profile) => profile.id),
 	);
 	const allPackages = sortForCleanFirst(profilePackages(policy, REQUIREMENTS_SUPPLY_TAG)
 		.map((profile) => packageEntry({ cwd, policy, profile, selected })));

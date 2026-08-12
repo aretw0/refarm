@@ -28,7 +28,7 @@ test("prints an ordered release readiness plan", () => {
 	assert.match(output, /agent-demo-release-proof: .*agent-demo:release-proof/);
 	assert.match(output, /secure-extensibility-proof: .*secure-extensibility:proof/);
 	assert.match(output, /local-first-platform-proof: .*local-first:proof/);
-	assert.match(output, /first-publish-selection-plan: .*release:first-publish:plan -- --selection vault-seed-ready/);
+	assert.match(output, /first-publish-selection-plan: .*release:first-publish:plan -- --selection consumer-ready/);
 	assert.match(output, /publish-dry-run: .*release:check/);
 });
 

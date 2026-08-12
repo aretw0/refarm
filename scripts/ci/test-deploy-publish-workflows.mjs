@@ -54,11 +54,11 @@ test("release workflow keeps package publishing opt-in and provenance-scoped", (
 	assert.match(workflow, /if: vars\.RELEASE_AUTOMATION == 'true'/);
 	assert.match(workflow, /vars\.RELEASE_OWNER == '' \|\| github\.repository_owner == vars\.RELEASE_OWNER/);
 	assert.match(workflow, /uses: \.\/\.github\/actions\/setup\n\s+with:\n\s+cache-mode: "off"/);
-	assert.match(workflow, /pnpm --silent run release:first-publish:plan -- --selection vault-seed-ready --json/);
+	assert.match(workflow, /pnpm --silent run release:first-publish:plan -- --selection consumer-ready --json/);
 	assert.doesNotMatch(workflow, /scripts\/release-engine\.mjs/);
 	assert.match(workflow, /pnpm run runtime-descriptor:release-smoke -- --sha "\$\{\{ github\.sha \}\}"/);
 	assert.match(workflow, /id: first-publish-guard/);
-	assert.match(workflow, /pnpm --silent run release:first-publish:changesets-guard -- --selection vault-seed-ready --soft/);
+	assert.match(workflow, /pnpm --silent run release:first-publish:changesets-guard -- --selection consumer-ready --soft/);
 	assert.match(workflow, /if: steps\.first-publish-guard\.outputs\.blocked == 'true'/);
 	assert.match(workflow, /if: steps\.first-publish-guard\.outputs\.blocked != 'true'/);
 	assert.match(workflow, /uses: changesets\/action@[0-9a-f]{40}/);
@@ -75,7 +75,7 @@ test("first-publish workflow publishes 0.1.0 only through explicit manual confir
 
 	assert.match(workflow, /name: First Publish Selection/);
 	assert.match(workflow, /workflow_dispatch:/);
-	assert.match(workflow, /selection:\n\s+description: "Release policy selection to publish at its declared 0\.1\.0 versions"\n\s+required: true\n\s+default: "vault-seed-ready"\n\s+type: string/);
+	assert.match(workflow, /selection:\n\s+description: "Release policy selection to publish at its declared 0\.1\.0 versions"\n\s+required: true\n\s+default: "consumer-ready"\n\s+type: string/);
 	assert.match(workflow, /dry_run:/);
 	assert.match(workflow, /default: "true"/);
 	assert.match(workflow, /confirm:/);

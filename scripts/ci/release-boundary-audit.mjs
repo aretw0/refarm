@@ -6,7 +6,7 @@ import { buildReleaseCheckPlan } from "../release-check.mjs";
 
 const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SCHEMA_VERSION = 1;
-const VAULT_SEED_READY = "vault-seed-ready";
+const CONSUMER_READY = "consumer-ready";
 
 const FORBIDDEN_OPENING_PATTERNS = [
 	/\bRefarm platform\b/,
@@ -90,7 +90,7 @@ function packageFiles(root, packageName) {
 }
 
 function auditAudienceBoundary(policy, issues) {
-	const selection = policy.selections?.find((item) => item.id === VAULT_SEED_READY);
+	const selection = policy.selections?.find((item) => item.id === CONSUMER_READY);
 	const expected = {
 		consumer: "vault-seed",
 		naming: "product-neutral-sdk",
@@ -116,7 +116,7 @@ function auditSdkPrimitiveHolds(profiles, issues) {
 			}));
 		}
 		if (
-			profile.tags.includes(VAULT_SEED_READY) &&
+			profile.tags.includes(CONSUMER_READY) &&
 			!profile.tags.includes("consumer-pulled")
 		) {
 			issues.push(issue({
@@ -129,10 +129,10 @@ function auditSdkPrimitiveHolds(profiles, issues) {
 }
 
 function auditConsumerPulledProfiles(profiles, issues) {
-	for (const profile of profiles.filter((item) => item.tags?.includes(VAULT_SEED_READY))) {
+	for (const profile of profiles.filter((item) => item.tags?.includes(CONSUMER_READY))) {
 		if (!profile.tags.includes("consumer-pulled")) {
 			issues.push(issue({
-				code: "VAULT_SEED_READY_WITHOUT_CONSUMER_PULLED",
+				code: "CONSUMER_READY_WITHOUT_CONSUMER_PULLED",
 				packageName: profile.id,
 				message: "`vault-seed-ready` packages must declare consumer-pulled intent.",
 			}));
@@ -142,7 +142,7 @@ function auditConsumerPulledProfiles(profiles, issues) {
 
 function auditConsumerPullMetadata(profiles, issues) {
 	const requiredFields = ["proofId", "downstreamUse", "proofTarget", "ownershipBoundary"];
-	for (const profile of profiles.filter((item) => item.tags?.includes(VAULT_SEED_READY))) {
+	for (const profile of profiles.filter((item) => item.tags?.includes(CONSUMER_READY))) {
 		const missingFields = requiredFields.filter(
 			(field) =>
 				typeof profile.consumerPull?.[field] !== "string" ||
@@ -150,7 +150,7 @@ function auditConsumerPullMetadata(profiles, issues) {
 		);
 		if (missingFields.length > 0) {
 			issues.push(issue({
-				code: "VAULT_SEED_READY_WITHOUT_CONSUMER_PULL_METADATA",
+				code: "CONSUMER_READY_WITHOUT_CONSUMER_PULL_METADATA",
 				packageName: profile.id,
 				message: "`vault-seed-ready` packages must declare complete consumerPull metadata in release policy.",
 				evidence: missingFields,
@@ -160,7 +160,7 @@ function auditConsumerPullMetadata(profiles, issues) {
 }
 
 function auditSelectedPackageNaming(root, profiles, issues) {
-	const selected = profiles.filter((item) => item.tags?.includes(VAULT_SEED_READY));
+	const selected = profiles.filter((item) => item.tags?.includes(CONSUMER_READY));
 	const selectedNames = new Set(selected.map((item) => item.id));
 
 	for (const profile of selected) {
@@ -213,7 +213,7 @@ function auditSelectedPackageNaming(root, profiles, issues) {
 
 function auditSelectedLeaves(profiles, policyText, issues) {
 	const selected = profiles
-		.filter((profile) => profile.tags?.includes(VAULT_SEED_READY))
+		.filter((profile) => profile.tags?.includes(CONSUMER_READY))
 		.map((profile) => profile.id);
 	if (!selected.includes("@refarm.dev/process-handoff")) {
 		issues.push(issue({
@@ -249,7 +249,7 @@ function auditSourceHolds(profiles, policyText, issues) {
 	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
 	const selected = new Set(
 		profiles
-			.filter((profile) => profile.tags?.includes(VAULT_SEED_READY))
+			.filter((profile) => profile.tags?.includes(CONSUMER_READY))
 			.map((profile) => profile.id),
 	);
 	for (const packageName of [
@@ -277,7 +277,7 @@ function auditSourceHolds(profiles, policyText, issues) {
 			}
 		}
 		if (CONSUMER_PROVEN_SOURCE_PACKAGES.has(packageName)) {
-			for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+			for (const tag of ["consumer-pulled", "consumer-ready", "consumer-proven"]) {
 				if (!profile.tags.includes(tag)) {
 					issues.push(issue({
 						code: "SOURCE_PACKAGE_MISSING_CONSUMER_PROOF_TAG",
@@ -323,7 +323,7 @@ function auditRequirementsSupplyHolds(profiles, issues) {
 	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
 	const selected = new Set(
 		profiles
-			.filter((profile) => profile.tags?.includes(VAULT_SEED_READY))
+			.filter((profile) => profile.tags?.includes(CONSUMER_READY))
 			.map((profile) => profile.id),
 	);
 	for (const packageName of [
@@ -350,7 +350,7 @@ function auditRequirementsSupplyHolds(profiles, issues) {
 			}
 		}
 		if (CONSUMER_PROVEN_REQUIREMENTS_SUPPLY_PACKAGES.has(packageName)) {
-			for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+			for (const tag of ["consumer-pulled", "consumer-ready", "consumer-proven"]) {
 				if (!profile.tags.includes(tag)) {
 					issues.push(issue({
 						code: "REQUIREMENTS_SUPPLY_PACKAGE_MISSING_CONSUMER_PROOF_TAG",
@@ -393,7 +393,7 @@ export function buildReleaseBoundaryAudit({ root = DEFAULT_ROOT } = {}) {
 	const issues = [];
 	const releaseCheck = buildReleaseCheckPlan({
 		cwd: root,
-		selectionId: VAULT_SEED_READY,
+		selectionId: CONSUMER_READY,
 	});
 
 	auditAudienceBoundary(policy, issues);
@@ -416,13 +416,13 @@ export function buildReleaseBoundaryAudit({ root = DEFAULT_ROOT } = {}) {
 	const selectedPackages = releaseCheck.ok
 		? releaseCheck.plan.orderedNames
 		: profiles
-			.filter((profile) => profile.tags?.includes(VAULT_SEED_READY))
+			.filter((profile) => profile.tags?.includes(CONSUMER_READY))
 			.map((profile) => profile.id);
 	return {
 		schemaVersion: SCHEMA_VERSION,
 		command: "release-boundary-audit",
 		ok: issues.length === 0,
-		selectionId: VAULT_SEED_READY,
+		selectionId: CONSUMER_READY,
 		auditedPackageCount: selectedPackages.length,
 		auditedPackages: selectedPackages,
 		issueCount: issues.length,

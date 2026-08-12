@@ -20,7 +20,7 @@ import { releasePlanAcceptance } from "../packages/release-engine/src/index.mjs"
 import { buildReleaseBoundaryAudit } from "./ci/release-boundary-audit.mjs";
 import { buildReleaseCheckPlan } from "./release-check.mjs";
 
-const DEFAULT_SELECTION = "vault-seed-ready";
+const DEFAULT_SELECTION = "consumer-ready";
 const DEFAULT_HANDOFF_DIR = `.refarm/handoff/vault-seed/${new Date().toISOString().slice(0, 10)}`;
 const HANDOFF_MANIFEST_SCHEMA_VERSION = 1;
 const HANDOFF_MANIFEST_SOURCE = "vault-seed-ready-handoff";

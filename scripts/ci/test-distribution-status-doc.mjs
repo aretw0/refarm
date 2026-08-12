@@ -151,7 +151,7 @@ test("distribution status reflects release-policy selections", () => {
 		assert.match(doc, new RegExp(`\\\`${escapeRegExp(packageName)}\\\``));
 	}
 
-	for (const packageName of releaseSelectionNames("vault-seed-ready")) {
+	for (const packageName of releaseSelectionNames("consumer-ready")) {
 		assert.match(doc, new RegExp(`\\\`${escapeRegExp(packageName)}\\\``));
 	}
 });
@@ -170,7 +170,7 @@ test("package registry does not promise publication ahead of release policy", ()
 		);
 	}
 
-	for (const packageName of releaseSelectionNames("vault-seed-ready")) {
+	for (const packageName of releaseSelectionNames("consumer-ready")) {
 		assert.match(
 			packageRegistryDoc,
 			new RegExp(`\\[\\\`${escapeRegExp(packageName)}\\\``),
@@ -209,7 +209,7 @@ test("cross-repo consumption uses the current vault-seed-ready packet", () => {
 });
 
 test("vault-seed handoff docs distinguish historical 10-package packets from current selection", () => {
-	const currentSelection = releaseSelectionNames("vault-seed-ready");
+	const currentSelection = releaseSelectionNames("consumer-ready");
 	assert.equal(currentSelection.length, 23);
 
 	assert.match(releaseGateDoc, /current\s+23-package\s+selection/);

@@ -6,7 +6,7 @@ import { detectPackageManager, packageManagerSpawnCommand } from "../packages/co
 import { buildReleaseCheckPlan } from "./release-check.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const DEFAULT_SELECTION = "vault-seed-ready";
+const DEFAULT_SELECTION = "consumer-ready";
 const FIRST_PUBLISH_VERSION = "0.1.0";
 
 export function parseFirstPublishArgs(argv = []) {

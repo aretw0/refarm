@@ -101,14 +101,14 @@ function releaseCheck() {
 		plan: {
 			ok: true,
 			status: "ready",
-			selection: { id: "vault-seed-ready" },
+			selection: { id: "consumer-ready" },
 			orderedNames: ["@refarm.dev/alpha", "@refarm.dev/beta"],
 			orderedPackages: [
 				{
 					name: "@refarm.dev/alpha",
 					profile: {
 						risk: "shared",
-						tags: ["vault-seed-ready"],
+						tags: ["consumer-ready"],
 						mustPassChecks: ["pnpm --filter @refarm.dev/alpha run test"],
 					},
 				},
@@ -116,13 +116,13 @@ function releaseCheck() {
 					name: "@refarm.dev/beta",
 					profile: {
 						risk: "core",
-						tags: ["vault-seed-ready"],
+						tags: ["consumer-ready"],
 						mustPassChecks: ["pnpm --filter @refarm.dev/beta run test"],
 					},
 				},
 			],
 			gates: [{ id: "preflight", required: true }],
-			profileTags: ["vault-seed-ready"],
+			profileTags: ["consumer-ready"],
 			publishIntents: [
 				{ provider: "changesets", plan: { requiresManualApproval: true } },
 			],
@@ -151,7 +151,7 @@ test("parses handoff CLI arguments", () => {
 	assert.deepEqual(
 		parseHandoffArgs([
 			"--selection",
-			"vault-seed-ready",
+			"consumer-ready",
 			"--dir",
 			".refarm/handoff",
 			"--out",
@@ -162,7 +162,7 @@ test("parses handoff CLI arguments", () => {
 			"--json",
 		]),
 		{
-			selectionId: "vault-seed-ready",
+			selectionId: "consumer-ready",
 			handoffDir: ".refarm/handoff",
 			json: true,
 			out: "manifest.md",
@@ -195,7 +195,7 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 		providerCount: 1,
 		manualApprovalRequired: true,
 		surfaces: ["core", "shared"],
-		profileTags: ["vault-seed-ready"],
+		profileTags: ["consumer-ready"],
 		requiredChecks: [
 			{
 				command: "pnpm --filter @refarm.dev/alpha run test",
@@ -249,7 +249,7 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 		manifest.distributionEvidence.currentRef,
 		"refarm-handoff://vault-seed-ready/fixture",
 	);
-	assert.equal(manifest.distributionEvidence.subject.selectionId, "vault-seed-ready");
+	assert.equal(manifest.distributionEvidence.subject.selectionId, "consumer-ready");
 	assert.deepEqual(manifest.distributionEvidence.subject.tarballs, [
 		"refarm.dev-alpha-0.1.0.tgz",
 		"refarm.dev-beta-0.2.0.tgz",
@@ -356,21 +356,21 @@ test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
 			plan: {
 				ok: true,
 				status: "ready",
-				selection: { id: "vault-seed-ready" },
+				selection: { id: "consumer-ready" },
 				orderedNames: ["@refarm.dev/process-handoff"],
 				orderedPackages: [
 					{
 						name: "@refarm.dev/process-handoff",
 							profile: {
 								risk: "shared",
-								tags: ["vault-seed-ready"],
+								tags: ["consumer-ready"],
 								mustPassChecks: ["pnpm --filter @refarm.dev/process-handoff run test"],
 								consumerPull: PROCESS_HANDOFF_CONSUMER_PULL,
 							},
 						},
 					],
 				gates: [{ id: "preflight", required: true }],
-				profileTags: ["vault-seed-ready"],
+				profileTags: ["consumer-ready"],
 				publishIntents: [],
 			},
 			commands: [
@@ -420,21 +420,21 @@ test("uses document wording for ds/html consumer-pull metadata", () => {
 			plan: {
 				ok: true,
 				status: "ready",
-				selection: { id: "vault-seed-ready" },
+				selection: { id: "consumer-ready" },
 				orderedNames: ["@refarm.dev/ds"],
 				orderedPackages: [
 					{
 						name: "@refarm.dev/ds",
 							profile: {
 								risk: "shared",
-								tags: ["vault-seed-ready"],
+								tags: ["consumer-ready"],
 								mustPassChecks: ["pnpm --filter @refarm.dev/ds run test"],
 								consumerPull: DS_CONSUMER_PULL,
 							},
 						},
 					],
 				gates: [{ id: "preflight", required: true }],
-				profileTags: ["vault-seed-ready"],
+				profileTags: ["consumer-ready"],
 				publishIntents: [],
 			},
 			commands: [
@@ -462,7 +462,7 @@ test("keeps blocked distribution evidence at zero verified copies", () => {
 			plan: {
 				ok: false,
 				status: "blocked",
-				selection: { id: "vault-seed-ready" },
+				selection: { id: "consumer-ready" },
 				reason: "release selection is not ready",
 				orderedNames: [],
 				orderedPackages: [],
@@ -493,7 +493,7 @@ test("blocks manifest when release boundary audit fails", () => {
 			schemaVersion: 1,
 			command: "release-boundary-audit",
 			ok: false,
-			selectionId: "vault-seed-ready",
+			selectionId: "consumer-ready",
 			auditedPackageCount: 2,
 			auditedPackages: ["@refarm.dev/alpha", "@refarm.dev/beta"],
 			issueCount: 1,
@@ -530,7 +530,7 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 		handoffDir,
 	});
 
-	assert.equal(manifest.selection.id, "vault-seed-ready");
+	assert.equal(manifest.selection.id, "consumer-ready");
 	assert.equal(manifest.packages.length, 23);
 	assert.ok(manifest.packages.some((pkg) => pkg.packageName === "@refarm.dev/health"));
 	assert.equal(manifest.consumerProofs.length, manifest.packages.length);
@@ -541,7 +541,7 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 23);
 	assert.equal(manifest.releaseBoundaryAudit.ok, true);
 	assert.equal(manifest.releaseBoundaryAudit.command, "release-boundary-audit");
-	assert.equal(manifest.releaseBoundaryAudit.selectionId, "vault-seed-ready");
+	assert.equal(manifest.releaseBoundaryAudit.selectionId, "consumer-ready");
 	assert.equal(manifest.releaseBoundaryAudit.auditedPackageCount, manifest.packages.length);
 	assert.equal(manifest.distributionEvidence.boundary.releaseBoundaryAudit.ok, true);
 	assert.equal(

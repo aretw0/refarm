@@ -13,7 +13,7 @@ import {
 import { buildReleaseCheckPlan } from "../release-check.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const DEFAULT_SELECTION = "vault-seed-ready";
+const DEFAULT_SELECTION = "consumer-ready";
 const WALLET_FIXTURE_ROOT = "validations/citizen-data-wallet-poc/fixtures/expected";
 
 export const REQUIRED_T2_PACKAGES = [

@@ -27,7 +27,7 @@ function vaultSeedReadyPackages() {
 		env: {
 			REFARM_PACKAGE_MANAGER: "pnpm",
 		},
-		selectionId: "vault-seed-ready",
+		selectionId: "consumer-ready",
 	});
 	assert.equal(check.ok, true);
 	return check.plan.orderedNames;

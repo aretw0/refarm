@@ -128,7 +128,7 @@ function validateHandoffManifest({ root = ROOT, handoffDir = null, consumerRoot 
 	if (manifest.source !== "vault-seed-ready-handoff") {
 		issue(issues, "source", "manifest.source must be vault-seed-ready-handoff", { actual: manifest.source });
 	}
-	if (manifest.selection?.id !== "vault-seed-ready") {
+	if (manifest.selection?.id !== "consumer-ready") {
 		issue(issues, "selection", "manifest.selection.id must be vault-seed-ready", { actual: manifest.selection?.id });
 	}
 	if (manifest.ok !== true || manifest.status !== "ready") {

@@ -360,19 +360,19 @@ test("cli plan json resolves the Refarm default release selection", (t) => {
 test("cli plan json resolves the Refarm vault-seed-ready release selection", (t) => {
   if (skipWithoutRefarmRepo(t)) return;
 
-  const payload = runCliJson(["plan", "--cwd", repoRoot, "--selection", "vault-seed-ready"]);
+  const payload = runCliJson(["plan", "--cwd", repoRoot, "--selection", "consumer-ready"]);
 
   assert.equal(payload.command, "plan");
   assert.equal(payload.schemaVersion, 1);
   assert.equal(payload.ok, true);
-  assert.equal(payload.selection.id, "vault-seed-ready");
+  assert.equal(payload.selection.id, "consumer-ready");
   assert.deepEqual(payload.selection.audienceBoundary, {
     consumer: "vault-seed",
     naming: "product-neutral-sdk",
     productLocal:
       "Vault-specific CLI labels, copy, notebooks, routes, and UX stay downstream-owned.",
   });
-  assert.deepEqual(payload.profileTags, ["vault-seed-ready"]);
+  assert.deepEqual(payload.profileTags, ["consumer-ready"]);
   assert.deepEqual(payload.packages, [
     "@refarm.dev/storage-contract-v1",
     "@refarm.dev/identity-contract-v1",
@@ -400,7 +400,7 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", (t)
   ]);
   assert.equal(
     payload.packageProfiles.every((profile) =>
-      profile.tags.includes("vault-seed-ready")
+      profile.tags.includes("consumer-ready")
     ),
     true,
   );
@@ -410,7 +410,7 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", (t)
   assert.equal(payload.acceptance.packageCount, 23);
   assert.equal(payload.acceptance.blockerCount, 0);
   assert.equal(payload.acceptance.manualApprovalRequired, true);
-  assert.deepEqual(payload.acceptance.profileTags, ["vault-seed-ready"]);
+  assert.deepEqual(payload.acceptance.profileTags, ["consumer-ready"]);
   assert.deepEqual(payload.acceptance.surfaces, ["core", "shared"]);
   assert.equal(
     payload.acceptance.requiredCheckCount,
