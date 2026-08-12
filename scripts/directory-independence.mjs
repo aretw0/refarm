@@ -402,10 +402,12 @@ export const PROBE_COMMANDS = [
 			"An explicitly named workspace is a node-level address, so nothing at all may depend on the caller's directory -- this is the row that proves --workspace actually decouples the answer from where the operator stands.",
 		fieldReasons: {
 			"environmentPressure.signals": "Reports live host memory AND the free space of the filesystem the command was invoked on (environmentPressure.signals[].path is the cwd), so it varies by BOTH time and directory. The control pair catches the time half only when the reading happens to move between two spawns seconds apart — which made this row flip between same and convicted (ISS-101). The directory half it could never catch. Declared with a reason rather than left to a coin flip.",
-			"projectResolution.cwd":
-				"WHERE THE COMMAND WAS INVOKED, reported beside the answer rather than being part of it — and this row is careful about the difference: `state`, `reason`, `workspaceId` and `declared` are all identical across directories, which IS the guarantee this entry exists to prove. Only the diagnostic moves. Found by the seeded-node fixture (ISS-097) and not by any run against the operator's own node, because there the named workspace HAS a handoff, so the resolution is `read` and this field never appears — the fixture reaches the `absent` branch that a populated node cannot. Whether `cwd` belongs in an answer whose origin is `flag` at all is a real question, filed rather than settled here.",
 		},
-		allowedVaryingFieldPaths: ["environmentPressure.signals", "projectResolution.cwd"],
+		// `projectResolution.cwd` WAS declared here and is gone: ISS-111 removed the field from a
+		// flag-origin resolution, so there is nothing left to allow. An exception that outlives its
+		// cause is a permission nobody is checking — the same self-expiry the brand allowlist and
+		// the security gate's accepted advisories both carry.
+		allowedVaryingFieldPaths: ["environmentPressure.signals"],
 	},
 	{
 		name: "status",

@@ -100,11 +100,27 @@ describe("resolveProjectHandoff", () => {
 
 	it("an unknown --workspace refuses by name instead of falling back to the directory", () => {
 		const result = resolveProjectHandoff({ workspace: "nope", cwd: "/home/op/github/refarm", ...io() });
+		// NO `cwd` (ISS-111): this branch is reachable only when the operator NAMED a workspace, so
+		// the directory played no part in reaching it. Reporting it made an otherwise
+		// directory-independent answer vary across machines by a field that means nothing —
+		// found by the seeded-node fixture, which reaches this branch a populated node cannot.
 		expect(result.resolution).toEqual({
 			state: "absent",
 			reason: "no-such-workspace",
-			cwd: "/home/op/github/refarm",
 			declared: ["refarm", "rcdc5"],
+		});
+		expect(result.resolution).not.toHaveProperty("cwd");
+	});
+
+	it("keeps `cwd` when the DIRECTORY is how the answer was reached", () => {
+		// The other half of ISS-111, and the reason the field was not simply deleted: under
+		// `cwd-match` or `cwd-convention` the directory IS the resolution, and reporting it is the
+		// entire point of the `projectResolution` block (ISS-092).
+		const result = resolveProjectHandoff({ cwd: "/tmp/nowhere", ...io({ fileExists: () => false }) });
+		expect(result.resolution).toMatchObject({
+			state: "absent",
+			reason: "no-project-here",
+			cwd: "/tmp/nowhere",
 		});
 	});
 

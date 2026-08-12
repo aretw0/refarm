@@ -544,7 +544,21 @@ export type ProjectHandoffResolution =
 			state: "absent";
 			reason: "no-project-here" | "no-such-workspace" | "no-handoff-in-workspace";
 			workspaceId?: string;
-			cwd: string;
+			/**
+			 * The directory this resolution was reached FROM — and absent when it was not.
+			 *
+			 * ISS-111, found by the seeded-node fixture on its first run: `resume --workspace X`
+			 * answered identically from three directories in every field EXCEPT this one. The
+			 * guarantee held — an explicitly named workspace is a node-level address and the ANSWER
+			 * does not move — but a diagnostic ABOUT the question was moving, so a consumer diffing
+			 * two payloads across machines saw a difference that means nothing.
+			 *
+			 * When the origin is `cwd-match` or `cwd-convention`, `cwd` is HOW the answer was
+			 * reached and reporting it is the entire point. When the operator named the workspace,
+			 * the directory played no part, and a key the caller did not influence carries no key
+			 * at all — the same absent-not-null rule the rest of this payload follows.
+			 */
+			cwd?: string;
 			declared: string[];
 			/** Set when the node's catalog could not be READ at all — a different fact from "this node
 			 *  declares no workspaces", and one `resume` must never present as the latter. */
@@ -609,7 +623,9 @@ export function resolveProjectHandoff(input: ResolveProjectHandoffInput): Projec
 		if (!match) {
 			return {
 				summary: undefined,
-				resolution: withCatalogError({ state: "absent" as const, reason: "no-such-workspace" as const, cwd: input.cwd, declared }),
+				// No `cwd`: this branch is reachable only when the operator NAMED a workspace, so the
+				// directory played no part in reaching it.
+				resolution: withCatalogError({ state: "absent" as const, reason: "no-such-workspace" as const, declared }),
 			};
 		}
 		root = match.absolutePath;
@@ -641,7 +657,10 @@ export function resolveProjectHandoff(input: ResolveProjectHandoffInput): Projec
 					| "no-handoff-in-workspace"
 					| "no-project-here",
 				...(workspaceId ? { workspaceId } : {}),
-				cwd: input.cwd,
+				// Only when the directory is HOW this was reached. `from === "flag"` means the
+				// operator named the workspace and `cwd` would be a fact about the caller, not
+				// about the resolution.
+				...(from === "flag" ? {} : { cwd: input.cwd }),
 				declared,
 			}),
 		};
