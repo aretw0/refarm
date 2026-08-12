@@ -384,3 +384,59 @@ describe("project automations", () => {
 		).rejects.toThrow("host plugin adapter");
 	});
 });
+
+describe("a cron timezone nobody can resolve is refused at write time", () => {
+	/** The automation vocabulary has carried `CronTrigger.timezone` since it was written, and until
+	 *  2026-08-11 every evaluator matched against UTC while every reporter echoed the declared zone
+	 *  back. The executor now says `unsupported` for a zone it cannot resolve — this refuses it one
+	 *  step earlier, so an operator finds out when they type it rather than at the hour the job was
+	 *  supposed to run and did not. */
+	function validateWithTimezone(timezone: unknown) {
+		return validateProjectAutomationsDocument({
+			schemaVersion: 1,
+			automations: [
+				{
+					id: "a1",
+					name: "nightly",
+					status: "active",
+					body: { type: "static", effort: { direction: "d", tasks: [] } },
+					triggers: [{ type: "cron", schedule: "0 0 * * *", timezone }],
+				},
+			],
+		});
+	}
+
+	it("accepts a real IANA zone", () => {
+		expect(validateWithTimezone("America/Sao_Paulo").ok).toBe(true);
+	});
+
+	it("accepts an absent timezone — absent means UTC, which is a decision, not a gap", () => {
+		const result = validateProjectAutomationsDocument({
+			schemaVersion: 1,
+			automations: [
+				{
+					id: "a1",
+					name: "nightly",
+					status: "active",
+					body: { type: "static", effort: { direction: "d", tasks: [] } },
+					triggers: [{ type: "cron", schedule: "0 0 * * *" }],
+				},
+			],
+		});
+		expect(result.ok).toBe(true);
+	});
+
+	it("refuses a zone this runtime cannot resolve, naming the value", () => {
+		const result = validateWithTimezone("Mars/Olympus");
+		expect(result.ok).toBe(false);
+		expect(result.issues.map((issue) => issue.code)).toContain(
+			"invalid_project_automation_cron_timezone",
+		);
+		expect(result.issues[0]?.message).toContain("Mars/Olympus");
+	});
+
+	it("refuses a non-string timezone rather than coercing it", () => {
+		expect(validateWithTimezone(42).ok).toBe(false);
+		expect(validateWithTimezone("").ok).toBe(false);
+	});
+});

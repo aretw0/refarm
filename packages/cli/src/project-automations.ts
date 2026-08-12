@@ -105,6 +105,24 @@ export interface ProjectAutomationAdapterOptions {
 const PROJECT_AUTOMATION_STATUSES = new Set(["draft", "ready", "active", "archived"]);
 const PROJECT_AUTOMATION_TRIGGER_TYPES = new Set(["manual", "cron", "once", "event"]);
 
+/**
+ * Whether this runtime can resolve an IANA zone name.
+ *
+ * REFUSED AT WRITE TIME, and still checked at evaluation time — the two runtimes are not
+ * guaranteed to be the same one. A CLI built against a trimmed ICU can accept what a daemon
+ * cannot resolve, so the executor keeps its own `unsupported` state as the backstop. What this
+ * buys is that the ordinary case fails at the moment the operator types it, rather than at the
+ * hour the job was supposed to run and did not.
+ */
+function isResolvableTimezone(timezone: string): boolean {
+	try {
+		new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -358,6 +376,20 @@ function validateProjectAutomationTrigger(
 				"Project automation cron trigger requires a non-empty schedule.",
 			),
 		];
+	}
+	if (trigger.type === "cron" && trigger.timezone !== undefined) {
+		const timezone = cleanString(trigger.timezone);
+		if (!timezone || !isResolvableTimezone(timezone)) {
+			return [
+				issue(
+					`${path}.timezone`,
+					"invalid_project_automation_cron_timezone",
+					`Project automation cron timezone ${JSON.stringify(trigger.timezone)} is not an ` +
+						"IANA zone this runtime can resolve. A zone nobody can resolve makes the " +
+						"automation permanently unsupported — refuse it here rather than at 3am.",
+				),
+			];
+		}
 	}
 	if (trigger.type === "event" && !cleanString(trigger.eventType)) {
 		return [
