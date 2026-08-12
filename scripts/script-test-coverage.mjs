@@ -45,7 +45,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
  * are to write the suite, or to say in the commit why this file is not the kind of thing that has
  * one — and take the number down when a slice covers something.
  */
-export const BASELINE_MAX_UNCOVERED = 114;
+export const BASELINE_MAX_UNCOVERED = 113;
 
 /** PURE. Is this a production script rather than a suite? A suite is named for what it tests, by
  *  the convention the runner matches on: `<name>.test.mjs` or `test-<name>.mjs`. */

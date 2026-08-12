@@ -301,6 +301,12 @@ function repoContractGateSteps(): CommandPlanStep[] {
 				"The promotion gate: moderate --prod, with a re-check date on every accepted advisory.",
 		}),
 		scriptTestStep({
+			id: "gate-diagram-sync",
+			args: ["node", "scripts/check-diagrams.mjs", "--ci"],
+			description:
+				"Verify every SVG is derived from its current .mermaid — a recorded source hash, no browser, ~50ms (ISS-046).",
+		}),
+		scriptTestStep({
 			id: "gate-script-coverage",
 			args: ["node", "scripts/script-test-coverage.mjs"],
 			description:
