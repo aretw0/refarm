@@ -193,6 +193,14 @@ pub(crate) struct PendingPromptAsker {
 pub(crate) struct PendingPrompt {
     pub(crate) wire: &'static str,
     pub(crate) id: String,
+    /// What this question is ABOUT, when the asker chose to say — the coalescing key.
+    ///
+    /// Serialized so an attending device can show "3 processes are waiting on this" rather than
+    /// three identical cards, and so a human can tell why one answer moved several things.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) subject: Option<String>,
+    /// How many askers are waiting on this one card. `1` unless the subject coalesced.
+    pub(crate) waiters: usize,
     pub(crate) prompt: OperatorPrompt,
     pub(crate) answer_travels: bool,
     pub(crate) asker: PendingPromptAsker,
@@ -404,7 +412,13 @@ struct HubEntry {
     pending: PendingPrompt,
     /// Publication order, so `list()` is oldest-first without an ordered-map dependency.
     seq: u64,
-    settle: oneshot::Sender<PromptOutcome>,
+    /// EVERY asker waiting on this one question.
+    ///
+    /// A `Vec` rather than a single sender because of coalescing (see [`PromptHub::publish`]):
+    /// several processes may be waiting on the SAME card, and settling it has to reach all of
+    /// them. P2 is untouched — `claim` is still one `remove`, still the only compare-and-set,
+    /// and the fan-out happens after it has already won.
+    settle: Vec<oneshot::Sender<PromptOutcome>>,
 }
 
 struct HubInner {
@@ -443,9 +457,18 @@ impl HubInner {
             return false;
         };
         self.remember(settlement.clone());
-        // The asker may already be gone (its request dropped); a closed channel is not a
-        // failure of the settlement, it just means nobody is left to hear it.
-        let _ = entry.settle.send(PromptOutcome { settlement, value });
+        // Every asker waiting on this card hears the same settlement. One decision, N waiters —
+        // which is the whole point of coalescing: the operator answered the QUESTION, not one
+        // process's copy of it.
+        //
+        // An asker may already be gone (its request dropped); a closed channel is not a failure
+        // of the settlement, it just means nobody is left on that one to hear it.
+        for sender in entry.settle {
+            let _ = sender.send(PromptOutcome {
+                settlement: settlement.clone(),
+                value: value.clone(),
+            });
+        }
         true
     }
 
@@ -558,45 +581,118 @@ impl PromptHub {
 
     /// Publish a question and take a ticket for it. The ticket is the ASKER's handle: hold
     /// it for as long as you are waiting, and drop it to withdraw (P1).
+    /// Publish a question — or JOIN one already being asked about the same subject.
+    ///
+    /// ## Why joining exists
+    ///
+    /// Without it, N processes wanting the same thing produce N cards on the operator's phone,
+    /// each needing its own answer, and the operator taps "connect the VPN" four times for one
+    /// VPN. The question is the same question; only the asker differs.
+    ///
+    /// ## What joining does NOT change
+    ///
+    /// P2 is untouched. `claim` is still one `HashMap::remove` and still the only
+    /// compare-and-set; joining adds waiters to an entry, it does not add a second way to settle
+    /// one. P1 is untouched too, and is the subtle half: the card lives as long as ANY of its
+    /// askers, so a joined asker going away withdraws nothing — see [`PromptHub::release`].
+    ///
+    /// ## The deadline belongs to the FIRST asker
+    ///
+    /// A joiner inherits the card's existing `expires_at` rather than extending it. Extending
+    /// would let a late joiner keep a question standing past the deadline the operator was
+    /// shown, which is a different question from the one they were asked.
     pub(crate) fn publish(
         &self,
         prompt: OperatorPrompt,
         asker: PendingPromptAsker,
         timeout_ms: u64,
+        subject: Option<String>,
     ) -> Result<PromptTicket, PublishRefusal> {
-        let asked_at = now_epoch_millis();
-        let id = format!("p-{}", uuid::Uuid::new_v4().simple());
-        let pending = PendingPrompt {
-            wire: PENDING_PROMPT_WIRE,
-            answer_travels: prompt.answer_travels(),
-            id: id.clone(),
-            prompt,
-            asker,
-            asked_at,
-            expires_at: Some(asked_at.saturating_add(timeout_ms)),
-        };
         let (tx, rx) = oneshot::channel();
+        let asked_at = now_epoch_millis();
+
         {
             let mut inner = self.inner.lock().expect("prompt hub poisoned");
+
+            // JOIN, when the asker declared a subject already being asked about.
+            if let Some(key) = subject.as_deref() {
+                if let Some(entry) = inner
+                    .entries
+                    .values_mut()
+                    .find(|entry| entry.pending.subject.as_deref() == Some(key))
+                {
+                    entry.settle.push(tx);
+                    entry.pending.waiters = entry.settle.len();
+                    let pending = entry.pending.clone();
+                    return Ok(PromptTicket {
+                        hub: self.clone(),
+                        pending,
+                        rx,
+                    });
+                }
+            }
+
             if inner.entries.len() >= inner.max_pending {
                 return Err(PublishRefusal::TooManyPending(inner.max_pending));
             }
+            let id = format!("p-{}", uuid::Uuid::new_v4().simple());
+            let pending = PendingPrompt {
+                wire: PENDING_PROMPT_WIRE,
+                answer_travels: prompt.answer_travels(),
+                id: id.clone(),
+                subject,
+                waiters: 1,
+                prompt,
+                asker,
+                asked_at,
+                expires_at: Some(asked_at.saturating_add(timeout_ms)),
+            };
             inner.seq += 1;
             let seq = inner.seq;
             inner.entries.insert(
-                id.clone(),
+                id,
                 HubEntry {
                     pending: pending.clone(),
                     seq,
-                    settle: tx,
+                    settle: vec![tx],
                 },
             );
+            Ok(PromptTicket {
+                hub: self.clone(),
+                pending,
+                rx,
+            })
         }
-        Ok(PromptTicket {
-            hub: self.clone(),
-            pending,
-            rx,
-        })
+    }
+
+    /// One asker has stopped waiting. Withdraw the card only when it was the LAST one.
+    ///
+    /// THIS IS P1 UNDER COALESCING, and getting it wrong is silent: a naive `Drop` that always
+    /// withdrew would let any joined asker's exit cancel a question the others are still waiting
+    /// on — and the operator would see the card vanish for no reason they could observe.
+    ///
+    /// The dropped asker's own sender goes with it; the remaining ones keep the card alive.
+    /// Idempotent, like `withdraw`: an entry already settled is simply not there.
+    pub(crate) fn release(&self, prompt_id: &str) {
+        let mut inner = self.inner.lock().expect("prompt hub poisoned");
+        let Some(entry) = inner.entries.get_mut(prompt_id) else {
+            return;
+        };
+        // A closed receiver is a departed asker. Dropping them here rather than counting
+        // separately keeps ONE source of truth for "who is still waiting".
+        entry.settle.retain(|sender| !sender.is_closed());
+        entry.pending.waiters = entry.settle.len();
+        if !entry.settle.is_empty() {
+            return;
+        }
+        let settlement = PendingPromptSettlement {
+            prompt_id: prompt_id.to_string(),
+            outcome: OUTCOME_ABANDONED,
+            device: TERMINAL_PROMPT_DEVICE.to_string(),
+            reason: Some(AbandonReason::Withdrawn.as_str()),
+            at: now_epoch_millis(),
+        };
+        inner.claim(prompt_id, settlement, None);
     }
 
     /// Every prompt still waiting, oldest first. Never includes a settled one.
@@ -705,10 +801,16 @@ impl PromptTicket {
 
 impl Drop for PromptTicket {
     fn drop(&mut self) {
-        // Idempotent by construction: `claim` finds nothing when the prompt already settled,
-        // so a ticket dropped AFTER its answer arrived changes nothing.
-        self.hub
-            .withdraw(&self.pending.id, AbandonReason::Withdrawn, TERMINAL_PROMPT_DEVICE);
+        // CLOSE OUR OWN RECEIVER FIRST. `Drop::drop` runs BEFORE this struct's fields are
+        // dropped, so at this instant `self.rx` is still alive and the hub would count this very
+        // asker as still waiting — the card would never be withdrawn, and P1 would be quietly
+        // gone. Closing it is what makes "is anyone still listening?" the honest question.
+        self.rx.close();
+        // RELEASE, not withdraw. A card may have several askers waiting on it (coalescing), and
+        // this one leaving must not cancel the question for the rest — `release` withdraws only
+        // when the last waiter is gone. Idempotent, exactly as before: an entry already settled
+        // is not in the map.
+        self.hub.release(&self.pending.id);
     }
 }
 
@@ -803,6 +905,20 @@ struct PublishPromptRequest {
     /// [`MAX_PROMPT_TIMEOUT_MS`] ⇒ clamped. There is no "no deadline" on this surface.
     #[serde(default)]
     timeout_ms: Option<u64>,
+    /// WHAT THIS QUESTION IS ABOUT — the coalescing key, and OPT-IN.
+    ///
+    /// Omitted, this publishes a card of its own, exactly as before. Supplied, an asker whose
+    /// subject matches one already waiting JOINS that card instead of adding another, and the
+    /// single answer settles every joined asker.
+    ///
+    /// DECLARED, NEVER INFERRED FROM THE QUESTION TEXT. Two prompts can read identically and
+    /// mean different things — "Bring the VPN up?" for a read-only sync and for a deploy are not
+    /// one decision, and sharing an answer between them would hand the operator's consent to a
+    /// thing they were not shown. The asker is the only party that knows whether two questions
+    /// are the same question, so the asker says so. Same discipline as `--attended-elsewhere`:
+    /// a claim the caller makes, not a similarity the node guesses.
+    #[serde(default)]
+    subject: Option<String>,
 }
 
 /// `POST /prompts` — publish a question and WAIT for it to be settled (the asker's side).
@@ -837,7 +953,12 @@ pub(crate) async fn post_prompts(
         .unwrap_or(DEFAULT_PROMPT_TIMEOUT_MS)
         .min(MAX_PROMPT_TIMEOUT_MS);
 
-    let mut ticket = match state.prompts.publish(request.prompt, request.asker, timeout_ms) {
+    let mut ticket = match state.prompts.publish(
+        request.prompt,
+        request.asker,
+        timeout_ms,
+        request.subject.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+    ) {
         Ok(ticket) => ticket,
         Err(PublishRefusal::TooManyPending(ceiling)) => {
             return json_error(

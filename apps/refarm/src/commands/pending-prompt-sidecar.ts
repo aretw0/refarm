@@ -108,6 +108,9 @@ interface PublishPromptRequestBody {
 	prompt: PendingPrompt["prompt"];
 	asker: PendingPrompt["asker"];
 	timeoutMs: number;
+	/** The coalescing key, when the asker declared one — the node joins matching outstanding
+	 *  questions rather than adding a second card for the same decision. */
+	subject?: string;
 }
 
 /** What a settled `POST /prompts` returns. `value` only ever on `answered`. */
@@ -254,6 +257,7 @@ export function createSidecarPromptHub(options: SidecarPromptHubOptions): Pendin
 				prompt: pending.prompt,
 				asker: pending.asker,
 				timeoutMs: Math.min(remaining, SIDECAR_MAX_PROMPT_TIMEOUT_MS),
+				...(pending.subject ? { subject: pending.subject } : {}),
 			};
 			const startedAt = now();
 

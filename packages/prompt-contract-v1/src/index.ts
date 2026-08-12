@@ -1197,6 +1197,21 @@ export interface PendingPrompt {
 	askedAt: number;
 	/** P5 — the ASKER's deadline, epoch ms. `null` when it declared none. */
 	expiresAt: number | null;
+	/**
+	 * What this question is ABOUT, when the asker chose to say — the coalescing key.
+	 *
+	 * Absent means this asker did not opt in, and the card is its own. Present, every asker that
+	 * declared the same subject is waiting on THIS card, and one answer settles all of them.
+	 *
+	 * DECLARED, NEVER INFERRED FROM THE QUESTION TEXT. Two prompts can read identically and mean
+	 * different things — "Bring the VPN up?" for a read-only sync and for a deploy are not one
+	 * decision — so sharing an answer between them would hand consent to something the operator
+	 * was not shown. Only the asker knows whether two questions are the same question.
+	 */
+	subject?: string;
+	/** How many askers are waiting on this one card. `1` unless a subject coalesced them. An
+	 *  attending surface can say "3 processes are waiting on this" instead of showing three. */
+	waiters?: number;
 }
 
 /** Why a prompt ended without an answer (P5). */
@@ -1339,6 +1354,8 @@ export interface ToPendingPromptOptions {
 	askedAt?: number;
 	/** The asker's deadline in ms from `askedAt`. `null`/omitted → no deadline. */
 	timeoutMs?: number | null;
+	/** What this question is about — the coalescing key. See {@link PendingPrompt.subject}. */
+	subject?: string;
 }
 
 /** Build the wire shape for a prompt about to be published. PURE. */
@@ -1356,6 +1373,9 @@ export function toPendingPrompt(
 		asker: options.asker,
 		askedAt,
 		expiresAt: timeoutMs === null ? null : askedAt + timeoutMs,
+		// Omitted when absent rather than written as `undefined`: this shape crosses a wire, and
+		// a key that is present-but-undefined is a third state nobody declared.
+		...(options.subject ? { subject: options.subject } : {}),
 	};
 }
 

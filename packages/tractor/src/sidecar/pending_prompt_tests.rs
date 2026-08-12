@@ -61,7 +61,7 @@ fn asker() -> PendingPromptAsker {
 }
 
 fn publish(hub: &PromptHub, prompt: OperatorPrompt) -> PromptTicket {
-    hub.publish(prompt, asker(), 60_000).expect("a fresh hub accepts a prompt")
+    hub.publish(prompt, asker(), 60_000, None).expect("a fresh hub accepts a prompt")
 }
 
 // ── P2: exactly one answer settles a prompt ────────────────────────────────────────────
@@ -247,14 +247,14 @@ fn the_bounded_queue_refuses_rather_than_growing() {
     let hub = PromptHub::with_limits(3, 8);
     let held: Vec<_> = (0..3).map(|_| publish(&hub, confirm("apply?"))).collect();
     assert!(matches!(
-        hub.publish(confirm("one too many"), asker(), 1_000),
+        hub.publish(confirm("one too many"), asker(), 1_000, None),
         Err(PublishRefusal::TooManyPending(3))
     ));
 
     // …and the ceiling is on SIMULTANEOUSLY pending prompts, not a lifetime budget: settle
     // one and the next publish is accepted again.
     drop(held);
-    assert!(hub.publish(confirm("after the queue drained"), asker(), 1_000).is_ok());
+    assert!(hub.publish(confirm("after the queue drained"), asker(), 1_000, None).is_ok());
 }
 
 #[test]
@@ -383,7 +383,7 @@ fn answer_travels_is_computed_from_the_kind_and_not_read_off_the_request() {
     });
     let request: PublishPromptRequest = serde_json::from_value(raw).expect("parses");
     let hub = PromptHub::new();
-    let ticket = hub.publish(request.prompt, request.asker, 1_000).unwrap();
+    let ticket = hub.publish(request.prompt, request.asker, 1_000, None).unwrap();
     assert!(ticket.pending.answer_travels, "a secret always travels");
 
     let ticket = publish(&hub, confirm("apply?"));
@@ -496,7 +496,7 @@ fn the_wire_vocabulary_is_the_one_the_vendored_block_parses() {
 fn a_published_prompt_serializes_to_the_shape_the_kit_expects() {
     let hub = PromptHub::new();
     let ticket = hub
-        .publish(select("which farm?", &["home", "coop"]), asker(), 5_000)
+        .publish(select("which farm?", &["home", "coop"]), asker(), 5_000, None)
         .unwrap();
     let wire: serde_json::Value = serde_json::to_value(&ticket.pending).unwrap();
 
@@ -553,7 +553,7 @@ fn url(port: u16, path: &str) -> String {
 /// its request open — the shape the routes are actually used in. Returns the prompt id once
 /// the node is holding it.
 fn published(hub: &PromptHub, prompt: OperatorPrompt) -> (String, PromptTicket) {
-    let ticket = hub.publish(prompt, asker(), 30_000).expect("published");
+    let ticket = hub.publish(prompt, asker(), 30_000, None).expect("published");
     (ticket.pending.id.clone(), ticket)
 }
 
@@ -1078,6 +1078,7 @@ async fn a_notice_outlives_the_prompt_it_framed() {
             OperatorPrompt::Text { question: "Qual o chatId?".into(), default: None, placeholder: None },
             asker.clone(),
             60_000,
+            None,
         )
         .expect("publish");
     let id = hub.list()[0].id.clone();
@@ -1101,4 +1102,129 @@ fn an_unknown_kind_degrades_to_context_instead_of_dropping_the_message() {
 
     let known: NoticeKind = serde_json::from_value(serde_json::json!("decision")).unwrap();
     assert_eq!(known, NoticeKind::Decision);
+}
+
+// ── Coalescing: one question, many askers ──────────────────────────────────────────────
+
+fn publish_about(hub: &PromptHub, prompt: OperatorPrompt, subject: &str) -> PromptTicket {
+    hub.publish(prompt, asker(), 60_000, Some(subject.to_string()))
+        .expect("a fresh hub accepts a prompt")
+}
+
+#[test]
+fn the_same_subject_asked_twice_is_one_card_with_two_waiters() {
+    // The operator's own case: several processes wanting the VPN up produced several identical
+    // cards on the phone, each needing its own tap, for one VPN.
+    let hub = PromptHub::new();
+    let first = publish_about(&hub, confirm("Bring the VPN up?"), "vpn:serpro");
+    let second = publish_about(&hub, confirm("Bring the VPN up?"), "vpn:serpro");
+
+    assert_eq!(hub.pending_count(), 1, "one question, not two");
+    assert_eq!(first.pending.id, second.pending.id, "the joiner waits on the SAME card");
+    assert_eq!(hub.list()[0].waiters, 2, "and the card says how many are waiting");
+}
+
+#[test]
+fn one_answer_settles_every_asker_that_joined() {
+    let hub = PromptHub::new();
+    let mut first = publish_about(&hub, confirm("Bring the VPN up?"), "vpn:serpro");
+    let mut second = publish_about(&hub, confirm("Bring the VPN up?"), "vpn:serpro");
+    let id = first.pending.id.clone();
+
+    assert!(matches!(
+        hub.answer(&id, &serde_json::json!(true), "my-phone"),
+        AnswerOutcome::Settled(_)
+    ));
+
+    // The operator answered THE QUESTION, not one process's copy of it.
+    for (label, ticket) in [("first", &mut first), ("second", &mut second)] {
+        let outcome = ticket.settled_now().unwrap_or_else(|| panic!("{label} heard nothing"));
+        assert_eq!(outcome.settlement.device, "my-phone");
+        assert_eq!(outcome.settlement.outcome, OUTCOME_ANSWERED);
+    }
+}
+
+#[test]
+fn a_different_subject_is_a_different_question() {
+    let hub = PromptHub::new();
+    let _up = publish_about(&hub, confirm("Bring the VPN up?"), "vpn:serpro");
+    let _deploy = publish_about(&hub, confirm("Bring the VPN up?"), "deploy:prod");
+    // IDENTICAL TEXT, two cards. Sharing an answer between them would hand the operator's
+    // consent to something they were never shown — which is why the key is declared and never
+    // inferred from the question.
+    assert_eq!(hub.pending_count(), 2);
+}
+
+#[test]
+fn no_subject_means_no_coalescing_at_all() {
+    // The behaviour every existing caller has today, unchanged: opt-in means opt-in.
+    let hub = PromptHub::new();
+    let _a = publish(&hub, confirm("Bring the VPN up?"));
+    let _b = publish(&hub, confirm("Bring the VPN up?"));
+    assert_eq!(hub.pending_count(), 2);
+    assert_eq!(hub.list()[0].waiters, 1);
+    assert!(hub.list()[0].subject.is_none());
+}
+
+#[test]
+fn a_joined_asker_leaving_does_not_cancel_the_question_for_the_others() {
+    // THE HALF THAT IS SILENT WHEN WRONG. A `Drop` that always withdrew would let any joined
+    // asker's exit cancel a question the others are still waiting on, and the card would vanish
+    // from the operator's phone for no reason they could observe.
+    let hub = PromptHub::new();
+    let first = publish_about(&hub, confirm("Bring the VPN up?"), "vpn:serpro");
+    let mut second = publish_about(&hub, confirm("Bring the VPN up?"), "vpn:serpro");
+    let id = first.pending.id.clone();
+
+    drop(first);
+    assert_eq!(hub.pending_count(), 1, "the question is still standing");
+    assert_eq!(hub.list()[0].waiters, 1, "and it says one asker is left");
+
+    assert!(matches!(
+        hub.answer(&id, &serde_json::json!(true), "my-phone"),
+        AnswerOutcome::Settled(_)
+    ));
+    assert!(second.settled_now().is_some(), "the remaining asker still hears it");
+}
+
+#[test]
+fn the_last_asker_leaving_takes_the_question_with_it_p1_survives_coalescing() {
+    let hub = PromptHub::new();
+    let first = publish_about(&hub, confirm("Bring the VPN up?"), "vpn:serpro");
+    let second = publish_about(&hub, confirm("Bring the VPN up?"), "vpn:serpro");
+
+    drop(first);
+    drop(second);
+    // P1 is the whole design: nothing persists, nothing is garbage-collected. Coalescing must
+    // not become a way for a question to outlive every process that wanted it.
+    assert_eq!(hub.pending_count(), 0);
+}
+
+#[test]
+fn a_joiner_inherits_the_deadline_it_did_not_set() {
+    // Extending on join would let a late asker keep a question standing past the deadline the
+    // operator was shown — a different question from the one they were asked.
+    let hub = PromptHub::new();
+    let first = hub
+        .publish(confirm("Bring the VPN up?"), asker(), 5_000, Some("vpn:serpro".into()))
+        .unwrap();
+    let second = hub
+        .publish(confirm("Bring the VPN up?"), asker(), 900_000, Some("vpn:serpro".into()))
+        .unwrap();
+    assert_eq!(first.pending.expires_at, second.pending.expires_at);
+}
+
+#[test]
+fn a_settled_subject_does_not_keep_answering_later_asks() {
+    // Coalescing joins OUTSTANDING questions only. Once the card is settled the subject is free
+    // again, and the next asker gets a fresh question rather than yesterday's consent.
+    let hub = PromptHub::new();
+    let first = publish_about(&hub, confirm("Bring the VPN up?"), "vpn:serpro");
+    let id = first.pending.id.clone();
+    hub.answer(&id, &serde_json::json!(true), "my-phone");
+    drop(first);
+
+    let second = publish_about(&hub, confirm("Bring the VPN up?"), "vpn:serpro");
+    assert_ne!(second.pending.id, id, "a new question, not a replay of the answered one");
+    assert_eq!(hub.pending_count(), 1);
 }

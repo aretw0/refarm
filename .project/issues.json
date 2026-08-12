@@ -1384,6 +1384,17 @@
 			"package": "apps/refarm",
 			"category": "cleanup",
 			"priority": "medium"
+		},
+		{
+			"id": "ISS-118",
+			"title": "A question whose precondition already holds should not be asked, and one answer still lets N askers act",
+			"body": "OPENED 2026-08-11 by the operator, while coalescing landed in the prompt hub. Coalescing solves\nthe half the hub owns; this is the half it cannot.\n\nHIS CASE, in his words: an operator (or an agent) keeps asking to connect the VPN WHEN IT IS\nALREADY CONNECTED; and something that needs that connection should use the one that exists, or\nwait for him to pay attention.\n\nWHAT COALESCING NOW DOES: N askers declaring the same subject wait on ONE card, and one answer\nsettles all of them. That kills the duplicate cards and the \"tap four times for one VPN\".\n\nWHAT IT DOES NOT DO, and must not be mistaken for: it does not know whether the VPN is ALREADY UP.\nA question whose precondition is already satisfied should not be asked at all -- and after one\nanswer, N joined askers each proceed, so N of them may each try to connect. The hub settles\nDECISIONS; it does not own the resource.\n\nTHE MISSING PRIMITIVE is a precondition the asker states and something checks, twice:\n  1. BEFORE publishing -- if the state already holds, do not ask. An operator asked to authorise\n     something already true learns that the questions are noise, which is how a consent surface\n     stops working without ever going red.\n  2. AFTER the answer, before acting -- the world may have changed while the card stood on a\n     phone. This is the same lesson `truncated` taught: the gap between measuring and acting is\n     where the wrong answer lives.\n\nAND A THIRD THING, which is really resource ownership rather than prompting: \"use the connection\nthat exists\". That is a lease/handle held somewhere both askers can see, not a prompt at all.\nNaming it here so it is not solved by accident inside the prompt layer, where it does not belong.\n\nNOT URGENT and deliberately unbuilt: the concrete customers (Serpro VPN, Teams, Outlook, Telegram,\nWhatsApp) are the bridges the operator said should mature first. Filed so the primitive is designed\nonce, from three real cases, rather than three times from one.",
+			"status": "open",
+			"axis": "other",
+			"location": "packages/tractor/src/sidecar/pending_prompt.rs",
+			"package": "packages/tractor",
+			"category": "cleanup",
+			"priority": "medium"
 		}
 	]
 }
