@@ -26,10 +26,13 @@ import {
 	reverseChanges,
 	runOperationConsent,
 	standingDecision,
+	standingQuestion,
 	undoOperationRecord,
 	type OperationConsentChannel,
 	type OperationFileChange,
 	type OperationFileSystem,
+	type OperationQuestion,
+	type OperationRecord,
 	type OperationRequest,
 } from "./index.js";
 
@@ -680,5 +683,204 @@ describe("recordOperation — the operator's own change is remembered, never re-
 		expect(fs.files.get(PROFILE)).toBe("# perfil\n");
 		// Append-only: the original record is still there, with the reversal after it.
 		expect((await trail.read()).map((entry) => entry.decision)).toEqual(["authorized", "undone"]);
+	});
+});
+
+describe("a question that outlives the process that asked it", () => {
+	/**
+	 * ISS-077's sentence, made false: *"waiting for a human" is indistinguishable from "dead"*.
+	 * The trail has always remembered DECISIONS. Nothing remembered a question still WAITING, so a
+	 * background run that asked and died left no trace of having asked — and on its next run it
+	 * asked again, until the operator had four cards for one VPN and had learned to ignore them.
+	 *
+	 * P1 IS UNTOUCHED. `pending_prompt.rs` still gives a PROMPT the lifetime of its asker. This is
+	 * a different record in the trail the operator's decisions already live in: the prompt dies,
+	 * the memory that it was asked does not.
+	 */
+	function trailInMemory() {
+		let records: OperationRecord[] = [];
+		let questions: OperationQuestion[] = [];
+		return {
+			read: async () => records,
+			append: async (record: OperationRecord) => {
+				records = [...records, record];
+				questions = questions.filter((q) => q.requestId !== record.requestId);
+				return record;
+			},
+			readQuestions: async () => questions,
+			openQuestion: async (question: OperationQuestion) => {
+				questions = [...questions.filter((q) => q.requestId !== question.requestId), question];
+			},
+			closeQuestion: async (requestId: string) => {
+				questions = questions.filter((q) => q.requestId !== requestId);
+			},
+			peek: () => questions,
+		};
+	}
+
+	const NOW = "2026-08-11T12:00:00.000Z";
+
+	it("records the question BEFORE asking, so a run that dies leaves the trace", async () => {
+		const trail = trailInMemory();
+		// A channel that never answers is exactly the run this is for: it is still waiting when
+		// the process is killed. Recording after the answer would leave nothing behind.
+		let seen: OperationQuestion[] = [];
+		const channel = {
+			ask: async () => {
+				seen = trail.peek();
+				return "defer";
+			},
+		};
+		await runOperationConsent({
+			request: requestAppending("# perfil\n"),
+			trail,
+			channel: channel as never,
+			now: () => NOW,
+		});
+		expect(seen).toHaveLength(1);
+		expect(seen[0]).toMatchObject({ requestId: requestAppending("# perfil\n").id, askedAt: NOW });
+	});
+
+	it("closes the question on the way out, including when the ask THROWS", async () => {
+		const trail = trailInMemory();
+		const channel = {
+			ask: async () => {
+				throw new Error("operator hung up");
+			},
+		};
+		await expect(
+			runOperationConsent({
+				request: requestAppending("# perfil\n"),
+				trail,
+				channel: channel as never,
+				now: () => NOW,
+			}),
+		).rejects.toThrow("operator hung up");
+		// A question left standing because its asker raised would block the next run from asking
+		// at all, turning a crash into silence.
+		expect(trail.peek()).toEqual([]);
+	});
+
+	it("refuses to ask a SECOND time while the first is still standing", async () => {
+		const trail = trailInMemory();
+		await trail.openQuestion({
+			requestId: requestAppending("# perfil\n").id,
+			kind: "k",
+			title: "t",
+			purpose: "p",
+			requester: "the run that died",
+			askedAt: NOW,
+			expiresAt: "2026-08-12T12:00:00.000Z",
+		});
+		let asked = false;
+		const outcome = await runOperationConsent({
+			request: requestAppending("# perfil\n"),
+			trail,
+			channel: { ask: async () => { asked = true; return "authorize"; } } as never,
+			fs: memoryFs(),
+			now: () => NOW,
+		});
+		expect(asked).toBe(false);
+		expect(outcome.status).toBe("already-asked");
+		// Distinct from `already-decided` (they answered) and `deferred` (they said not now).
+		expect(outcome.status).not.toBe("already-decided");
+	});
+
+	it("asks again once the window has closed — a crash must not become a permanent veto", async () => {
+		const trail = trailInMemory();
+		await trail.openQuestion({
+			requestId: requestAppending("# perfil\n").id,
+			kind: "k",
+			title: "t",
+			purpose: "p",
+			requester: "a run killed yesterday",
+			askedAt: "2026-08-09T12:00:00.000Z",
+			expiresAt: "2026-08-10T12:00:00.000Z",
+		});
+		const outcome = await runOperationConsent({
+			request: requestAppending("# perfil\n"),
+			trail,
+			channel: { ask: async () => "authorize" } as never,
+			// A memory filesystem because authorising APPLIES the change: the sample request
+			// writes to a real path, and the repo's own write-guard caught these tests reaching
+			// for it. Containment working on the person who built it.
+			fs: memoryFs(),
+			now: () => NOW,
+		});
+		expect(outcome.status).toBe("authorized");
+	});
+
+	it("a decision ENDS the question, so an answered operation stops looking like it is waiting", async () => {
+		const trail = trailInMemory();
+		await runOperationConsent({
+			request: requestAppending("# perfil\n"),
+			trail,
+			channel: { ask: async () => "authorize" } as never,
+			// A memory filesystem because authorising APPLIES the change: the sample request
+			// writes to a real path, and the repo's own write-guard caught these tests reaching
+			// for it. Containment working on the person who built it.
+			fs: memoryFs(),
+			now: () => NOW,
+		});
+		expect(trail.peek()).toEqual([]);
+	});
+
+	it("a trail that cannot remember questions behaves EXACTLY as before", async () => {
+		// `readQuestions === undefined` is a readable answer — this trail cannot tell you — and a
+		// caller must not read an empty list out of it. Every existing implementor is this one.
+		let records: OperationRecord[] = [];
+		const plain = {
+			read: async () => records,
+			append: async (record: OperationRecord) => {
+				records = [...records, record];
+				return record;
+			},
+		};
+		const outcome = await runOperationConsent({
+			request: requestAppending("# perfil\n"),
+			trail: plain,
+			channel: { ask: async () => "authorize" } as never,
+			// A memory filesystem because authorising APPLIES the change: the sample request
+			// writes to a real path, and the repo's own write-guard caught these tests reaching
+			// for it. Containment working on the person who built it.
+			fs: memoryFs(),
+			now: () => NOW,
+		});
+		expect(outcome.status).toBe("authorized");
+	});
+});
+
+describe("standingQuestion", () => {
+	const Q = (over: Partial<OperationQuestion> = {}): OperationQuestion => ({
+		requestId: "op:1",
+		kind: "k",
+		title: "t",
+		purpose: "p",
+		requester: "r",
+		askedAt: "2026-08-11T10:00:00.000Z",
+		expiresAt: "2026-08-12T10:00:00.000Z",
+		...over,
+	});
+
+	it("separates never-asked from asked-and-timed-out", () => {
+		// Two empty-looking answers that mean different things: nobody asked, versus somebody
+		// asked and the window closed with no answer.
+		expect(standingQuestion([], "op:1", "2026-08-11T12:00:00.000Z").standing).toBe("none");
+		expect(
+			standingQuestion([Q({ expiresAt: "2026-08-11T11:00:00.000Z" })], "op:1", "2026-08-11T12:00:00.000Z")
+				.standing,
+		).toBe("expired");
+	});
+
+	it("reports an outstanding question and hands back WHO asked it", () => {
+		const result = standingQuestion([Q({ requester: "the nightly run" })], "op:1", "2026-08-11T12:00:00.000Z");
+		expect(result.standing).toBe("outstanding");
+		expect(result.question?.requester).toBe("the nightly run");
+	});
+
+	it("ignores questions about other operations", () => {
+		expect(standingQuestion([Q({ requestId: "op:2" })], "op:1", "2026-08-11T12:00:00.000Z").standing).toBe(
+			"none",
+		);
 	});
 });

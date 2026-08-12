@@ -216,6 +216,87 @@ export function makeOperationRecord(input: {
 export interface OperationTrail {
 	read(): Promise<OperationRecord[]>;
 	append(record: OperationRecord): Promise<OperationRecord>;
+	/**
+	 * The QUESTIONS still standing — asked, not yet decided.
+	 *
+	 * OPTIONAL, and `undefined` is a readable answer: this trail cannot remember an outstanding
+	 * question, so a caller must not conclude from an empty list that nobody has asked. Same third
+	 * state `queryNodesPage` expresses in the storage contract.
+	 */
+	readQuestions?(): Promise<OperationQuestion[]>;
+	openQuestion?(question: OperationQuestion): Promise<void>;
+	closeQuestion?(requestId: string): Promise<void>;
+}
+
+/**
+ * A question that has been ASKED and not yet decided.
+ *
+ * ## Why this exists, and what it is not
+ *
+ * The trail already remembers DECISIONS, durably, and `standingDecision` is what stops a wizard
+ * re-asking something already settled. Nothing remembered a question that was still WAITING — so
+ * a background run that asked, and died before an answer came, left no trace of having asked. On
+ * its next run it asked again, and again, which is how an operator ends up with the same card
+ * four times for one VPN and learns that the questions are noise.
+ *
+ * That is also ISS-077's sentence, exactly: *"waiting for a human" is indistinguishable from
+ * "dead"*. It is distinguishable now — one of them leaves this behind.
+ *
+ * ## It does not weaken P1
+ *
+ * `pending_prompt.rs` keeps its principle: a PROMPT's lifetime is its asker's, nothing persists,
+ * no garbage collection, no stale-answer problem. This is a different record in a different place
+ * — the trail the operator's decisions already live in — saying that a question was put. The
+ * prompt still dies with its asker; the memory that it was asked does not.
+ *
+ * ## It expires by time, never by sweeping
+ *
+ * `expiresAt` carries the asker's own deadline. A run that dies hard leaves the record behind, and
+ * a record with no expiry would stand forever and block the question from ever being asked again —
+ * turning a crash into permanent silence. Past its deadline the record is `expired`, which is a
+ * third state and not an absence: it says somebody asked, nobody answered, and the window closed.
+ * Same self-expiry the security gate's accepted advisories carry, for the same reason.
+ */
+export interface OperationQuestion {
+	/** The operation's identity — the same key `standingDecision` matches on. */
+	requestId: string;
+	kind: string;
+	title: string;
+	/** WHY, copied from the request, so a record found later explains itself. */
+	purpose: string;
+	/** WHO ASKED — and, with `host`/`pid`, whether that process is still around. */
+	requester: string;
+	askedAt: string;
+	/** ISO. `null` only when the asker declared no deadline, which this surface discourages. */
+	expiresAt: string | null;
+	host?: string;
+	pid?: number;
+}
+
+/** What a standing question MEANS. Three states, never two: an absent record is not the same
+ *  fact as a record whose window closed. */
+export type QuestionStanding = "outstanding" | "expired" | "none";
+
+/**
+ * PURE. Whether this operation is already being asked about.
+ *
+ * `none` covers both "never asked" and "asked and since decided" — the caller checks
+ * `standingDecision` for the difference, which is the question that function already answers.
+ */
+export function standingQuestion(
+	questions: OperationQuestion[],
+	requestId: string,
+	now: string,
+): { standing: QuestionStanding; question: OperationQuestion | null } {
+	let latest: OperationQuestion | null = null;
+	for (const question of questions) {
+		if (question.requestId === requestId) latest = question;
+	}
+	if (!latest) return { standing: "none", question: null };
+	if (latest.expiresAt !== null && latest.expiresAt <= now) {
+		return { standing: "expired", question: latest };
+	}
+	return { standing: "outstanding", question: latest };
 }
 
 /** The on-disk shape of a file trail. */
@@ -223,6 +304,9 @@ export interface OperationTrailDocument {
 	capability: typeof OPERATION_CONSENT_CAPABILITY;
 	version: 1;
 	records: OperationRecord[];
+	/** ADDITIVE: a document written before this field existed simply has none, and reads as a
+	 *  trail that remembers decisions but not outstanding questions. */
+	questions?: OperationQuestion[];
 }
 
 /** The operator's STANDING decision on an operation — the last thing they said about it, or null
@@ -272,26 +356,63 @@ export function createFileOperationTrail(
 	path: string,
 	fs: OperationFileSystem = createNodeOperationFileSystem(),
 ): OperationTrail {
-	async function readAll(): Promise<OperationRecord[]> {
+	async function readDocument(): Promise<Partial<OperationTrailDocument>> {
 		const raw = await fs.readFile(path);
-		if (raw === null) return [];
+		if (raw === null) return {};
 		try {
-			const parsed = JSON.parse(raw) as Partial<OperationTrailDocument>;
-			return Array.isArray(parsed?.records) ? parsed.records : [];
+			return JSON.parse(raw) as Partial<OperationTrailDocument>;
 		} catch {
-			return [];
+			return {};
 		}
+	}
+	async function readAll(): Promise<OperationRecord[]> {
+		const parsed = await readDocument();
+		return Array.isArray(parsed.records) ? parsed.records : [];
+	}
+	async function readQuestions(): Promise<OperationQuestion[]> {
+		const parsed = await readDocument();
+		return Array.isArray(parsed.questions) ? parsed.questions : [];
+	}
+	async function write(
+		records: OperationRecord[],
+		questions: OperationQuestion[],
+	): Promise<void> {
+		const document: OperationTrailDocument = {
+			capability: OPERATION_CONSENT_CAPABILITY,
+			version: 1,
+			records,
+			// Omitted when empty, so a trail that never asked anything keeps the exact document
+			// shape it had before this field existed.
+			...(questions.length > 0 ? { questions } : {}),
+		};
+		await fs.writeFile(path, `${JSON.stringify(document, null, 2)}\n`);
 	}
 	return {
 		read: readAll,
+		readQuestions,
 		async append(record) {
-			const document: OperationTrailDocument = {
-				capability: OPERATION_CONSENT_CAPABILITY,
-				version: 1,
-				records: [...(await readAll()), record],
-			};
-			await fs.writeFile(path, `${JSON.stringify(document, null, 2)}\n`);
+			// A decision ENDS the question by definition, so appending one clears any standing
+			// record for the same operation. Leaving it would make an answered operation look
+			// like it were still waiting — the exact confusion this pair exists to remove.
+			const questions = (await readQuestions()).filter(
+				(question) => question.requestId !== record.requestId,
+			);
+			await write([...(await readAll()), record], questions);
 			return record;
+		},
+		async openQuestion(question) {
+			const questions = (await readQuestions()).filter(
+				(existing) => existing.requestId !== question.requestId,
+			);
+			await write(await readAll(), [...questions, question]);
+		},
+		async closeQuestion(requestId) {
+			const questions = await readQuestions();
+			if (!questions.some((question) => question.requestId === requestId)) return;
+			await write(
+				await readAll(),
+				questions.filter((question) => question.requestId !== requestId),
+			);
 		},
 	};
 }
@@ -562,11 +683,28 @@ export type OperationOutcome =
 	| { status: "authorized"; record: OperationRecord }
 	| { status: "declined"; record: OperationRecord }
 	/** "Agora não" — deliberately nothing recorded, so the question comes back next run. */
-	| { status: "deferred"; record: null };
+	| { status: "deferred"; record: null }
+	/**
+	 * SOMEBODY IS ALREADY ASKING THIS, and the operator has not answered yet.
+	 *
+	 * Distinct from `already-decided` (they answered) and from `deferred` (they said not now).
+	 * Returned instead of publishing a second identical question — the failure this exists to stop
+	 * is a background run that asks, dies, restarts, and asks again, until the operator has four
+	 * cards for one decision and has learned to ignore all of them.
+	 */
+	| { status: "already-asked"; record: null; question: OperationQuestion };
 
 export interface RunOperationConsentOptions {
 	request: OperationRequest;
 	trail: OperationTrail;
+	/**
+	 * How long a standing question stays standing, in ms. Default {@link DEFAULT_QUESTION_TTL_MS}.
+	 *
+	 * This is the BACKSTOP, not the ordinary path: a run that ends normally closes its own
+	 * question in a `finally`. The TTL is for the run that is killed outright — and without one, a
+	 * single `kill -9` would block the operation from ever being asked about again.
+	 */
+	questionTtlMs?: number;
 	/** `null`/absent ⇒ there is nobody to ask. Never prompts, never records. */
 	channel?: OperationConsentChannel | null;
 	fs?: OperationFileSystem;
@@ -593,6 +731,17 @@ export interface RunOperationConsentOptions {
  * Cancellation (`OperatorPromptCancelledError` from the prompt block) is deliberately not caught:
  * it propagates with nothing applied and nothing recorded.
  */
+/** A day. Long enough that an operator who is asleep still gets to answer in the morning; short
+ *  enough that a question nobody ever answered does not become a permanent veto. */
+export const DEFAULT_QUESTION_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** PURE. When a question put at `askedAt` stops standing. */
+export function questionExpiry(askedAt: string, ttlMs = DEFAULT_QUESTION_TTL_MS): string | null {
+	const asked = Date.parse(askedAt);
+	if (!Number.isFinite(asked)) return null;
+	return new Date(asked + ttlMs).toISOString();
+}
+
 export async function runOperationConsent(
 	options: RunOperationConsentOptions,
 ): Promise<OperationOutcome> {
@@ -616,11 +765,47 @@ export async function runOperationConsent(
 	const prior = standingDecision(await trail.read(), request.id);
 	if (prior && !revisit) return { status: "already-decided", record: prior };
 
+	// IS SOMEBODY ALREADY ASKING THIS? Only a trail that can remember outstanding questions can
+	// say — one that cannot returns `undefined` here, and this whole block is skipped, leaving
+	// its behaviour byte-for-byte what it was. An absent answer is not a "no".
+	if (trail.readQuestions && !revisit) {
+		const outstanding = standingQuestion(await trail.readQuestions(), request.id, now());
+		if (outstanding.standing === "outstanding" && outstanding.question) {
+			return { status: "already-asked", record: null, question: outstanding.question };
+		}
+		// `expired` falls through and asks again ON PURPOSE: the window closed with nobody
+		// answering, and a record that blocked the question forever would turn one crashed run
+		// into permanent silence.
+	}
+
 	if (announce) {
 		for (const line of renderOperationRequest(request, { labels })) announce(line);
 	}
 
-	const answer = await channel.ask(operationDecisionPrompt(request, { labels }));
+	// RECORDED BEFORE THE ASK, because the whole point is to survive the asker. A record written
+	// after the answer would be exactly as absent as no record at all for the run that dies
+	// waiting — which is the run this is for.
+	await trail.openQuestion?.({
+		requestId: request.id,
+		kind: request.kind,
+		title: request.title,
+		purpose: request.purpose,
+		requester: request.requester,
+		askedAt: now(),
+		expiresAt: questionExpiry(now(), options.questionTtlMs),
+		...(host ? { host } : {}),
+	});
+
+	let answer: string;
+	try {
+		answer = await channel.ask(operationDecisionPrompt(request, { labels }));
+	} finally {
+		// CLOSED ON EVERY EXIT, including a throw. A question left standing because its asker
+		// raised would block the next run from asking at all, until the deadline passed — the
+		// crash would become silence, which is the shape the expiry above is the backstop for and
+		// this is the ordinary path for.
+		await trail.closeQuestion?.(request.id);
+	}
 	if (answer !== OPERATION_AUTHORIZE && answer !== OPERATION_DECLINE) {
 		return { status: "deferred", record: null };
 	}
