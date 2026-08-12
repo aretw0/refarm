@@ -136,7 +136,6 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		"@refarm.dev/dispatch-surface",
 		"@refarm.dev/ds",
 		"@refarm.dev/source-web",
-		"@refarm.dev/content-projection",
 		"@refarm.dev/identity-heartwood",
 		"@refarm.dev/local-surface",
 		"@refarm.dev/ds-astro",
@@ -194,7 +193,11 @@ test("release check plan json exposes acceptance summary", () => {
 	assert.equal(payload.ok, true);
 	assert.equal(payload.selection.id, "consumer-ready");
 	assert.equal(payload.acceptance.status, "accepted");
-	assert.equal(payload.acceptance.packageCount, 23);
+		// 22 since ISS-113: `@refarm.dev/content-projection` left the `consumer-ready` selection
+	// because NOTHING declares a dependency on it — the config was claiming "ready to hand to a
+	// consumer" and "still a candidate" in one tag list. It carries `candidate-hold` now, which is
+	// the third state: proposed, not proven, not blocking.
+	assert.equal(payload.acceptance.packageCount, 22);
 	assert.equal(payload.acceptance.blockerCount, 0);
 	assert.equal(payload.acceptance.manualApprovalRequired, true);
 	assert.deepEqual(payload.acceptance.profileTags, ["consumer-ready"]);

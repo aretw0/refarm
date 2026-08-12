@@ -1829,6 +1829,20 @@ async fn get_tasks(
         "stored": stored,
         "truncated": truncated,
         "offset": params.offset,
+        // WHICH CLOCK "the newest N" MEANS (ISS-115).
+        //
+        // This endpoint orders by `created_at_ns`; the guest's `list_tasks` goes through the
+        // bridge and gets the store's `updated_at DESC`. For any Task whose status changed since
+        // creation -- the ordinary case, since a Task is created `active` and later becomes
+        // done/failed/blocked -- the two return a DIFFERENT "newest N" for identical data.
+        //
+        // Both are defensible: an operator listing tasks reasonably wants the newest by creation,
+        // an agent loading prompt context reasonably wants the most recently active. The defect
+        // was never that they differ; it was that neither said which question it answers, so a
+        // consumer comparing them saw a disagreement with nothing to attribute it to. Naming it
+        // changes no behaviour and makes any future drift a visible contradiction rather than a
+        // rediscovery.
+        "order": "created",
     }))
     .into_response()
 }

@@ -26,18 +26,23 @@ after(() => {
 	}
 });
 
-// THE HONEST STATE, which is `blocked`, and the reason is a real config gap rather than a stale
-// expectation. This test asserted `ok: true` / `state: "consumer-proven"` over a list of three
-// packages. A FOURTH — `@refarm.dev/content-projection` — has since joined the
-// `requirements-supply` profile WITHOUT the `consumer-proven` tag and without its consumer-proof
-// metadata, so the gate blocks and says which package and why.
+// THE HONEST STATE, and it took two corrections to reach.
 //
-// The gate is right. Making this green by tagging that package would be stamping "proven by a
-// consumer" on something no consumer has pulled — manufacturing the evidence the gate exists to
-// demand. The config gap is ISS-113; this test now pins what the gate ACTUALLY reports, including
-// the name of the blocker, so the day it is resolved this test fails and gets updated
-// deliberately.
-test("requirements supply handoff blocks on a profile member with no consumer proof", () => {
+// This test once asserted `ok: true` over three packages. A fourth —
+// `@refarm.dev/content-projection` — joined the `requirements-supply` profile carrying
+// `consumer-ready` (then named vault-seed-ready) AND `candidate`, so the gate blocked. The test was
+// rewritten to pin the BLOCK and name its blocker, deliberately, because making it green by
+// tagging that package `consumer-proven` would have stamped "proven by a consumer" on something no
+// consumer has ever pulled — manufacturing the evidence the gate exists to demand (ISS-113).
+//
+// Measuring settled it: NOTHING in this repository declares a dependency on
+// `@refarm.dev/content-projection`. The config was contradicting itself — "ready to hand to a
+// consumer" and "still a candidate" in one tag list — and the honest repair was to say the true
+// thing, not to claim the false one. It carries `candidate-hold` now, and the handoff proceeds.
+//
+// So this asserts the third state rather than either of the first two: not proven, not blocking,
+// ON HOLD until a consumer actually pulls it.
+test("a member that no consumer has pulled is on HOLD, and does not block the handoff", () => {
 	const handoffDir = path.join(makeTempRoot(), "empty-handoff");
 	const result = buildRequirementsSupplyHandoff({
 		generatedAt: "2026-06-30T00:00:00.000Z",
@@ -49,31 +54,20 @@ test("requirements supply handoff blocks on a profile member with no consumer pr
 	assert.equal(result.selection.id, "requirements-supply-candidates");
 	assert.equal(result.selection.profileTag, "requirements-supply");
 	assert.equal(result.selection.scope, "all");
-	assert.equal(result.selection.selectedForVaultSeedReady, true);
 
-	assert.equal(result.ok, false, "a profile member with no consumer proof must block");
-	assert.equal(result.state, "blocked");
+	assert.equal(result.ok, true, "a declared hold is not a failure");
 
-	const blocked = result.packages.filter((entry) => entry.state === "blocked");
-	assert.deepEqual(
-		blocked.map((entry) => entry.packageName),
-		["@refarm.dev/content-projection"],
-	);
-	assert.ok(
-		blocked[0].issues.some((issue) => issue.includes("missing consumer-proven tag")),
-		`expected a named reason, got ${JSON.stringify(blocked[0].issues)}`,
-	);
-
-	// The other three ARE proven, and that must not be lost in the block: a gate that reports
-	// only its blocker hides the progress behind it.
-	assert.deepEqual(
-		result.packages.filter((entry) => entry.state === "consumer-proven").map((entry) => entry.packageName),
-		[
-			"@refarm.dev/enrichment-contract-v1",
-			"@refarm.dev/records-contract-v1",
-			"@refarm.dev/source-web",
-		],
-	);
+	// THREE STATES, and the middle one is the point: `candidate-hold` is neither proven nor
+	// broken. A gate with only two would have to call this either a lie or a blocker.
+	const byState = (state) =>
+		result.packages.filter((entry) => entry.state === state).map((entry) => entry.packageName);
+	assert.deepEqual(byState("candidate-hold"), ["@refarm.dev/content-projection"]);
+	assert.deepEqual(byState("blocked"), []);
+	assert.deepEqual(byState("consumer-proven"), [
+		"@refarm.dev/enrichment-contract-v1",
+		"@refarm.dev/records-contract-v1",
+		"@refarm.dev/source-web",
+	]);
 });
 
 test("requirements supply handoff can target clean packages first", () => {

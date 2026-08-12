@@ -113,8 +113,15 @@ filed for, and it would have been rebuilt here in the act of fixing something el
 `stored` count is taken over the same predicate, so `truncated` compares two numbers
 measured over one set.
 
-**THE DISAGREEMENT WITH `list_tasks` IS STILL THERE, and is now named instead of
-accidental.** `GET /tasks` orders by `created_at_ns`; the guest's `list_tasks`
+**THE DISAGREEMENT WITH `list_tasks` IS STILL THERE, and since 2026-08-12 EACH SIDE
+SAYS WHICH CLOCK IT MEANS (ISS-115).** `GET /tasks` answers `order: "created"` in
+every response, including the empty one; `list_tasks`'s tool description states
+that it lists most recently UPDATED first, which is where a model actually reads
+its contract — the tool returns a bare array, and wrapping it in an object to carry
+one field would change the shape a model parses for a fact its description can
+state.
+
+The rest of this section explains why the two differ, which remains true: `GET /tasks` orders by `created_at_ns`; the guest's `list_tasks`
 (`packages/agent/src/tool_dispatch/task_tools.rs`) goes through the bridge's
 `query_nodes_limited` and gets `updated_at DESC, id DESC`. For any Task whose status has
 changed since creation — the ordinary case — the two diverge, so the two surfaces can

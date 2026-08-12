@@ -43,7 +43,11 @@ test("plans vault-seed first-publish dry-run without version bumps", () => {
 	});
 
 	assert.equal(plan.mode, "dry-run");
-	assert.equal(plan.packageCount, 23);
+		// 22 since ISS-113: `@refarm.dev/content-projection` left the `consumer-ready` selection
+	// because NOTHING declares a dependency on it — the config was claiming "ready to hand to a
+	// consumer" and "still a candidate" in one tag list. It carries `candidate-hold` now, which is
+	// the third state: proposed, not proven, not blocking.
+	assert.equal(plan.packageCount, 22);
 	assert.equal(plan.requiredConfirmation, "publish-consumer-ready-0.1.0");
 	assert.equal(plan.packages.every((pkg) => pkg.version === "0.1.0"), true);
 	assert.equal(plan.commands.every((command) => command.display === "pnpm publish --dry-run --no-git-checks"), true);

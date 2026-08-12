@@ -210,9 +210,11 @@ test("cross-repo consumption uses the current vault-seed-ready packet", () => {
 
 test("vault-seed handoff docs distinguish historical 10-package packets from current selection", () => {
 	const currentSelection = releaseSelectionNames("consumer-ready");
-	assert.equal(currentSelection.length, 23);
+	// 22 since ISS-113: content-projection left the selection because nothing declares a
+	// dependency on it. The dated PLAN below keeps its own 23 — it records what was true then.
+	assert.equal(currentSelection.length, 22);
 
-	assert.match(releaseGateDoc, /current\s+23-package\s+selection/);
+	assert.match(releaseGateDoc, /current\s+22-package\s+selection/);
 	assert.match(releaseGateDoc, /materialized the then-current 10-package selection/);
 	assert.match(
 		releaseGateDoc,

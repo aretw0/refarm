@@ -349,3 +349,38 @@ async fn sidecar_tasks_session_filter_and_malformed_payload_are_both_excluded_co
     assert_eq!(body["stored"].as_u64().unwrap(), 1);
     assert_eq!(body["truncated"].as_bool().unwrap(), false);
 }
+
+#[tokio::test]
+async fn the_response_says_which_clock_the_newest_n_means() {
+    // ISS-115. This endpoint orders by `created_at_ns`; the guest's `list_tasks` goes through the
+    // bridge and gets the store's `updated_at DESC`. For any Task whose status changed since
+    // creation — the ordinary case — the two return a DIFFERENT "newest N" for identical data.
+    //
+    // Both are defensible: an operator listing tasks wants the newest by creation, an agent
+    // loading prompt context wants the most recently active. The defect was never that they
+    // differ; it was that NEITHER SAID WHICH QUESTION IT ANSWERS, so a consumer comparing them
+    // saw a disagreement with nothing to attribute it to.
+    let ns = storage_path();
+    write_task(&ns, "urn:task:o1", "One", "done", None, 1_000);
+    let (_state, port) = start_tasks_sidecar(&ns).await;
+
+    let body: serde_json::Value = reqwest::get(format!("{}/tasks", base(port)))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    assert_eq!(body["order"].as_str().unwrap(), "created");
+    // And it is stated on the EMPTY answer too — a consumer must not have to find a row before it
+    // can learn what the ordering means.
+    let ns_empty = storage_path();
+    let (_empty_state, empty_port) = start_tasks_sidecar(&ns_empty).await;
+    let empty: serde_json::Value = reqwest::get(format!("{}/tasks", base(empty_port)))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(empty["order"].as_str().unwrap(), "created");
+}
