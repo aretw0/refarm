@@ -25,35 +25,21 @@ const PROVEN_TAGS = [...BASE_TAGS, "consumer-pulled", "vault-seed-ready", "consu
 const VAULT_SEED_READY = "vault-seed-ready";
 const DEFAULT_HANDOFF_DIR = `.refarm/handoff/requirements-supply/${new Date().toISOString().slice(0, 10)}`;
 
-const CONSUMER_PULLS = {
-	"@refarm.dev/source-web": {
-		proofId: "requirements-source-web.authenticated-capture",
-		downstreamUse: "Authenticated source capture fixture for requirement-like records",
-		proofTarget:
-			"downstream checkout wraps source-web with real login/selectors while Refarm receives only redacted source:v1 snapshots",
-		fallback:
-			"consumer keeps private login/selectors and materializes a local opaque snapshot until the Refarm adapter is available",
-		ownershipBoundary: "Real credentials, discovery, selectors, and pacing values remain downstream",
-	},
-	"@refarm.dev/enrichment-contract-v1": {
-		proofId: "requirements-enrichment.private-provider-wrapper",
-		downstreamUse: "Deterministic enrichment report contract for records or note files",
-		proofTarget:
-			"downstream checkout emits enrichment:v1 dry-run/apply reports from a private provider without importing provider logic into Refarm",
-		fallback:
-			"consumer degrades to no-op enrichment or a private local report shape until the contract package is consumed",
-		ownershipBoundary: "Private registries, lookup adapters, and vocabulary remain downstream",
-	},
-	"@refarm.dev/records-contract-v1": {
-		proofId: "requirements-records.knowledge-manifest",
-		downstreamUse: "Neutral records:v1 manifest for source-linked knowledge/content evidence",
-		proofTarget:
-			"downstream checkout validates requirement-like records through records:v1 while keeping note placement and vocabulary downstream",
-		fallback:
-			"consumer treats records as opaque notes or a private manifest until records:v1 consumption is wired",
-		ownershipBoundary: "PARA placement, editorial model, note rendering, and domain labels remain downstream",
-	},
-};
+/**
+ * THE CONSUMER-PULL METADATA IS IN `refarm.config.json`, and this reads it from there.
+ *
+ * It used to be a hardcoded map right here — a SECOND copy of blocks that already sit on each
+ * `releasePolicy.packageProfiles[]` entry as `consumerPull`. The two drifted exactly as two copies
+ * do: `@refarm.dev/content-projection` joined the profile with its metadata declared in the config
+ * and absent from this map, so the gate reported "does not declare requirements-supply consumer
+ * proof metadata" about a package that declares it (ISS-113).
+ *
+ * A gate reading its own copy of the thing it audits is auditing itself.
+ */
+function consumerPullFor(policy, profileId) {
+	const profile = (policy?.packageProfiles ?? []).find((entry) => entry.id === profileId);
+	return profile?.consumerPull ?? null;
+}
 
 function readJson(filePath) {
 	return JSON.parse(readFileSync(filePath, "utf8"));
@@ -130,7 +116,7 @@ function profilePackages(policy, tag) {
 	return (policy.packageProfiles ?? []).filter((profile) => profile.tags?.includes(tag));
 }
 
-function packageEntry({ cwd, profile, selected }) {
+function packageEntry({ cwd, policy, profile, selected }) {
 	const packageInfo = readPackage(cwd, profile.id);
 	const packageJson = packageInfo.packageJson;
 	const version = packageJson?.version ?? null;
@@ -147,7 +133,7 @@ function packageEntry({ cwd, profile, selected }) {
 	if (!Array.isArray(profile.mustPassChecks) || profile.mustPassChecks.length === 0) {
 		issues.push(`${profile.id} does not declare release-policy checks`);
 	}
-	if (!CONSUMER_PULLS[profile.id]) {
+	if (!consumerPullFor(policy, profile.id)) {
 		issues.push(`${profile.id} does not declare requirements-supply consumer proof metadata`);
 	}
 
@@ -176,7 +162,7 @@ function packageEntry({ cwd, profile, selected }) {
 		selectedForVaultSeedReady: selected.has(profile.id),
 		tags: profile.tags ?? [],
 		mustPassChecks: profile.mustPassChecks ?? [],
-		consumerPull: CONSUMER_PULLS[profile.id] ?? null,
+		consumerPull: consumerPullFor(policy, profile.id),
 		refarmDependencies,
 		issues,
 	};
@@ -370,7 +356,7 @@ export function buildRequirementsSupplyHandoff({
 		profilePackages(policy, VAULT_SEED_READY).map((profile) => profile.id),
 	);
 	const allPackages = sortForCleanFirst(profilePackages(policy, REQUIREMENTS_SUPPLY_TAG)
-		.map((profile) => packageEntry({ cwd, profile, selected })));
+		.map((profile) => packageEntry({ cwd, policy, profile, selected })));
 	const packages = selectScope(allPackages, scope);
 	const supportingByName = new Map();
 	for (const entry of packages) {
