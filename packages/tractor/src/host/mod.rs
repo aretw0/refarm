@@ -45,6 +45,10 @@ pub(crate) use host_effects_bridge::{read_refarm_config_value_at, spawn_env_from
 pub(crate) use plugin_host::config_node::{
     declared_base, SOVEREIGN_BASE_KEY, SOVEREIGN_DIR_SELECTOR_KEY,
 };
+/// The two seams `main.rs` needs, so the DAEMON settles SOVEREIGN_BASE with the same semantics
+/// this resolver uses and publishes the base it actually resolved (ISS-023). Public rather than
+/// crate-visible because the binary is a separate crate root.
+pub use plugin_host::config_node::{declared_base_public, dirname_like_ts_public};
 /// Recursive key-sorted JSON canonicalisation — the ONE canonical form this crate
 /// digests arbitrary JSON through. Re-exported for `sidecar::scenario`, which hashes
 /// a dispatch's request shape and must agree with the config node's revision digest

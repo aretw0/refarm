@@ -51,11 +51,6 @@ pub(crate) enum DeclaredBaseOrigin {
     RefarmHome,
     EnvHome,
     OsHome,
-    /// The process's current directory. Reached ONLY when nothing above answered — no
-    /// injection, no `REFARM_HOME`, no `HOME`/`USERPROFILE`, no OS home. Named rather than
-    /// silent, because this is the step where the node stops answering for itself and starts
-    /// answering for whoever's shell last ran `cd`.
-    Cwd,
 }
 
 /// `path.dirname()`'s exact semantics, which `Path::parent()` does NOT share:
@@ -75,6 +70,20 @@ fn dirname_like_ts(path: &Path) -> PathBuf {
     }
 }
 
+/// `dirname_like_ts`, reachable from the binary. The daemon settles SOVEREIGN_BASE before any
+/// declaration is read, and it must use the SAME semantics this resolver does — `Path::parent()`
+/// answers `None` at the filesystem root where `path.dirname()` answers `/`, and that difference
+/// is what let a root-level sovereign dir leave the variable unset (ISS-023).
+pub fn dirname_like_ts_public(path: &Path) -> PathBuf {
+    dirname_like_ts(path)
+}
+
+/// The resolved base, reachable from the binary — so the node descriptor publishes what this node
+/// ACTUALLY resolved rather than an empty string from an unset variable.
+pub fn declared_base_public() -> PathBuf {
+    declared_base()
+}
+
 /// PURE. The chain itself, over injected lookups — so every step is assertable without
 /// mutating this process's environment. `std::env::set_var` is global to the test binary, and
 /// `cargo test` runs tests in parallel: an env-mutating test for a resolver every other test
@@ -86,8 +95,7 @@ fn dirname_like_ts(path: &Path) -> PathBuf {
 pub(crate) fn resolve_declared_base<F>(
     get_env: F,
     os_home: Option<PathBuf>,
-    cwd: Option<PathBuf>,
-) -> (PathBuf, DeclaredBaseOrigin)
+) -> Option<(PathBuf, DeclaredBaseOrigin)>
 where
     F: Fn(&str) -> Option<String>,
 {
@@ -97,30 +105,40 @@ where
             .filter(|value| !value.is_empty())
     };
     if let Some(base) = non_empty(SOVEREIGN_BASE_KEY) {
-        return (PathBuf::from(base), DeclaredBaseOrigin::SovereignBase);
+        return Some((PathBuf::from(base), DeclaredBaseOrigin::SovereignBase));
     }
     if let Some(home) = non_empty(REFARM_HOME_KEY) {
-        return (
+        return Some((
             dirname_like_ts(Path::new(&home)),
             DeclaredBaseOrigin::RefarmHome,
-        );
+        ));
     }
     // HOME then USERPROFILE, the same pair and the same order as the TS step 3.
     if let Some(home) = non_empty("HOME").or_else(|| non_empty("USERPROFILE")) {
-        return (PathBuf::from(home), DeclaredBaseOrigin::EnvHome);
+        return Some((PathBuf::from(home), DeclaredBaseOrigin::EnvHome));
     }
-    if let Some(home) = os_home {
-        return (home, DeclaredBaseOrigin::OsHome);
-    }
-    (cwd.unwrap_or_default(), DeclaredBaseOrigin::Cwd)
+    // THE CHAIN ENDS HERE, exactly where the TypeScript one ends (ISS-023).
+    //
+    // There used to be a fifth step: the process's current directory. It was NAMED rather than
+    // silent, which was an improvement and not a fix — the TS resolver has no such step, so on a
+    // machine where nothing above answers the two implementations returned different bases and
+    // the node rooted itself in whatever directory a shell last `cd`-ed to.
+    //
+    // `None` is the honest answer: nothing told this node where its declarations live. A node
+    // that cannot resolve its base cannot function, and refusing at the edge is better than
+    // operating out of an invented one — which is the entire subject of this axis.
+    os_home.map(|home| (home, DeclaredBaseOrigin::OsHome))
 }
 
 /// The impure edge: today's environment, this OS's home, this process's directory.
 pub(crate) fn declared_base_with_origin() -> (PathBuf, DeclaredBaseOrigin) {
-    resolve_declared_base(
-        |key| std::env::var(key).ok(),
-        dirs::home_dir(),
-        std::env::current_dir().ok(),
+    // PANICS, and says which four things it asked. Reached only when SOVEREIGN_BASE, REFARM_HOME,
+    // HOME/USERPROFILE and the OS home are ALL absent — a machine on which nothing can tell this
+    // node where it lives. Falling back to the working directory here is what ISS-023 was about:
+    // it turns "nobody told me" into a confident wrong answer that every later read inherits.
+    resolve_declared_base(|key| std::env::var(key).ok(), dirs::home_dir()).expect(
+        "no base could be resolved: none of SOVEREIGN_BASE, REFARM_HOME, HOME, USERPROFILE or the \
+         OS home answered. Declare one — the node will not guess from its working directory.",
     )
 }
 
@@ -414,9 +432,7 @@ mod tests {
                 "HOME" => Some("/home/someone".into()),
                 _ => None,
             },
-            Some(PathBuf::from("/os/home")),
-            Some(PathBuf::from("/somewhere/else")),
-        );
+            Some(PathBuf::from("/os/home"))).expect("a base resolves");
         assert_eq!(base, PathBuf::from("/declared"));
         assert_eq!(origin, DeclaredBaseOrigin::SovereignBase);
     }
@@ -432,9 +448,7 @@ mod tests {
                 "HOME" => Some("/home/op".into()),
                 _ => None,
             },
-            Some(PathBuf::from("/os/home")),
-            Some(PathBuf::from("/repo")),
-        );
+            Some(PathBuf::from("/os/home"))).expect("a base resolves");
         assert_eq!(base, PathBuf::from("/home/op"));
         assert_eq!(origin, DeclaredBaseOrigin::RefarmHome);
     }
@@ -458,9 +472,7 @@ mod tests {
                 "HOME" => Some("/home/op".into()),
                 _ => None,
             },
-            None,
-            Some(PathBuf::from("/repo")),
-        );
+            None).expect("a base resolves");
         assert_eq!(base, PathBuf::from("/home/op"));
         assert_eq!(origin, DeclaredBaseOrigin::EnvHome);
     }
@@ -469,9 +481,7 @@ mod tests {
     fn userprofile_answers_where_home_is_absent() {
         let (base, origin) = resolve_declared_base(
             |key| (key == "USERPROFILE").then(|| "C:\\Users\\op".to_string()),
-            None,
-            Some(PathBuf::from("/repo")),
-        );
+            None).expect("a base resolves");
         assert_eq!(base, PathBuf::from("C:\\Users\\op"));
         assert_eq!(origin, DeclaredBaseOrigin::EnvHome);
     }
@@ -479,21 +489,53 @@ mod tests {
     #[test]
     fn the_os_home_answers_before_the_current_directory_ever_does() {
         let (base, origin) =
-            resolve_declared_base(|_| None, Some(PathBuf::from("/os/home")), Some(PathBuf::from("/repo")));
+            resolve_declared_base(|_| None, Some(PathBuf::from("/os/home"))).expect("a base resolves");
         assert_eq!(base, PathBuf::from("/os/home"));
         assert_eq!(origin, DeclaredBaseOrigin::OsHome);
     }
 
-    /// THE REGRESSION. This used to be step 2 of two; it is now step 5 of five, reachable only
-    /// when no injection, no REFARM_HOME, no HOME, no USERPROFILE and no OS home answered.
-    /// It is kept rather than removed because an embedded or test use still wants an answer —
-    /// but it is NAMED, so a caller can tell a node that knows where it lives from one that is
-    /// reporting the last `cd`.
+    /// THE CHAIN ENDS WHERE THE TYPESCRIPT ONE ENDS, and says nothing rather than guessing.
+    ///
+    /// There used to be a fifth step here: the process's current directory, named rather than
+    /// silent. Naming it was an improvement and not a fix — the TS resolver has no such step, so
+    /// on a machine where nothing above answers the two implementations returned DIFFERENT bases
+    /// and this node rooted itself in whatever directory a shell last `cd`-ed to (ISS-023).
     #[test]
-    fn the_current_directory_is_the_last_resort_and_says_so() {
-        let (base, origin) = resolve_declared_base(|_| None, None, Some(PathBuf::from("/repo")));
-        assert_eq!(base, PathBuf::from("/repo"));
-        assert_eq!(origin, DeclaredBaseOrigin::Cwd);
+    fn nothing_declared_and_no_home_resolves_to_nothing_at_all() {
+        assert_eq!(resolve_declared_base(|_| None, None), None);
+    }
+
+    /// The two inputs ISS-028 named as diverging between the languages, asserted against the
+    /// values `path.dirname()` returns for them: `.refarm` -> `.`, `/` -> `/`. `Path::parent()`
+    /// agrees with NEITHER on its own — it answers `Some("")` and `None` — which is why
+    /// `dirname_like_ts` exists and why the daemon must use it too.
+    #[test]
+    fn a_relative_or_rootless_refarm_home_answers_what_dirname_answers() {
+        let relative = resolve_declared_base(
+            |key| (key == REFARM_HOME_KEY).then(|| ".refarm".to_string()),
+            None,
+        )
+        .expect("a base resolves");
+        assert_eq!(relative.0, PathBuf::from("."));
+        assert_eq!(relative.1, DeclaredBaseOrigin::RefarmHome);
+
+        let rootless = resolve_declared_base(
+            |key| (key == REFARM_HOME_KEY).then(|| "/".to_string()),
+            None,
+        )
+        .expect("a base resolves");
+        assert_eq!(rootless.0, PathBuf::from("/"));
+        assert_eq!(rootless.1, DeclaredBaseOrigin::RefarmHome);
+    }
+
+    /// The daemon settles SOVEREIGN_BASE through the SAME helper. `Path::parent()` on `/` is
+    /// `None`, and the daemon used to skip setting the variable entirely in that case — leaving
+    /// every later read to fall through the chain (ISS-023).
+    #[test]
+    fn the_daemon_helper_answers_for_a_root_level_sovereign_dir() {
+        assert_eq!(dirname_like_ts_public(Path::new("/")), PathBuf::from("/"));
+        assert_eq!(dirname_like_ts_public(Path::new("/home/op/.refarm")), PathBuf::from("/home/op"));
+        assert_eq!(dirname_like_ts_public(Path::new(".refarm")), PathBuf::from("."));
     }
 
     fn data_of(payload: &Value) -> &Value {

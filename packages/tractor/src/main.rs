@@ -441,9 +441,15 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     // `sovereign_config_path` joins the dir name onto. An operator env override wins, so a
     // project scope stays available — declared, rather than inherited from a `cd`.
     if std::env::var("SOVEREIGN_BASE").map(|v| v.trim().is_empty()).unwrap_or(true) {
-        if let Some(base) = refarm_dir.parent() {
-            std::env::set_var("SOVEREIGN_BASE", base);
-        }
+        // `dirname`'s semantics, NOT `Path::parent()`'s (ISS-023). They differ exactly where it
+        // matters: `Path::new("/").parent()` is `None`, so a sovereign dir at the filesystem root
+        // used to leave SOVEREIGN_BASE UNSET and every later read fell through the chain to
+        // whatever HOME — or, before the step was removed, whatever directory — happened to be
+        // there. `path.dirname("/")` is `"/"`, and the TypeScript resolver has always agreed.
+        std::env::set_var(
+            "SOVEREIGN_BASE",
+            tractor::host::dirname_like_ts_public(&refarm_dir),
+        );
     }
 
     // The node says what it is, where whoever can read the node can read it. Published
@@ -451,9 +457,12 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     // a descriptor finds the base the node actually went on to use. Best effort: a node
     // that cannot describe itself still works, and absence reads as "this node does not
     // say" rather than as a wrong answer.
+    // The base as the node RESOLVED it, never `unwrap_or_default()`. That default published an
+    // EMPTY path as this node's base whenever the variable was unset — a descriptor stating a
+    // wrong answer as a fact, which is worse than one that says nothing (ISS-023).
     tractor::node_descriptor::publish_for_this_process(
         &refarm_dir,
-        &std::path::PathBuf::from(std::env::var("SOVEREIGN_BASE").unwrap_or_default()),
+        &tractor::host::declared_base_public(),
         &std::env::var("SOVEREIGN_DIR").unwrap_or_default(),
     );
 

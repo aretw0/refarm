@@ -267,13 +267,14 @@
 		{
 			"id": "ISS-023",
 			"title": "config_node.rs declared_base() is a second Rust base resolver that falls back to current_dir()",
-			"body": "LOOSE ENDS from the two-halves-one-node plan, from its only whole-plan review (the per-task gates were skipped on that plan and the review was scoped accordingly):\n\n(a) packages/tractor/src/host/plugin_host/config_node.rs:48-55's `declared_base()` is a SECOND Rust base resolver and still falls back to current_dir(). The guarantee holds only because run_daemon sets SOVEREIGN_BASE in-process first -- and it skips doing so when refarm_dir.parent() is None.",
+			"body": "LOOSE ENDS from the two-halves-one-node plan, from its only whole-plan review (the per-task gates were skipped on that plan and the review was scoped accordingly):\n\n(a) packages/tractor/src/host/plugin_host/config_node.rs:48-55's `declared_base()` is a SECOND Rust base resolver and still falls back to current_dir(). The guarantee holds only because run_daemon sets SOVEREIGN_BASE in-process first -- and it skips doing so when refarm_dir.parent() is None.\n\nCLOSED 2026-08-12 with the operator's section 8 authorisation. Both halves this item names, plus a\nthird the second half was hiding.\n\n(a) THE cwd FALLBACK IS GONE. It had been NAMED earlier the same day (`DeclaredBaseOrigin::Cwd`),\nwhich was an improvement and not a fix: the TypeScript resolver has no fifth step, so on a machine\nwhere nothing above answers the two implementations returned DIFFERENT bases and the node rooted\nitself in whatever directory a shell last `cd`-ed to. `resolve_declared_base` returns `Option` now\nand ends exactly where the TS chain ends. The impure edge PANICS, naming all four things it asked\n-- a node that cannot resolve its base cannot function, and refusing is better than operating out\nof an invented one.\n\n(b) THE DAEMON NO LONGER SKIPS SETTING SOVEREIGN_BASE. It used `if let Some(base) =\nrefarm_dir.parent()`, and `Path::new(\"/\").parent()` is `None` -- so a sovereign dir at the\nfilesystem root left the variable unset and every later read fell through the chain. It settles\nthrough `dirname_like_ts` now, the same helper the resolver uses, which answers `/` for `/` exactly\nas `path.dirname()` does.\n\n(c) FOUND WHILE FIXING (b), AND WORSE: the node descriptor was published with\n`PathBuf::from(std::env::var(\"SOVEREIGN_BASE\").unwrap_or_default())`. With the variable unset that\nis an EMPTY PATH, published as this node's base -- a descriptor stating a wrong answer as a fact,\nwhich is worse than one that says nothing. It publishes the base the node actually resolved.\n\nPARITY PROVEN IN BOTH LANGUAGES, for the inputs ISS-028 named:\n\n    REFARM_HOME=.refarm      Rust \".\"       TS \".\"\n    REFARM_HOME=/            Rust \"/\"       TS \"/\"\n    REFARM_HOME=/x/.refarm   Rust \"/x\"      TS \"/x\"\n\n`Path::parent()` agrees with NEITHER on its own -- it answers `Some(\"\")` and `None` -- which is why\n`dirname_like_ts` exists and why the daemon had to use it too.\n\n  tractor 1482 lib tests, 18 in config_node (3 new, one per half)",
 			"location": "packages/tractor/src/host/plugin_host/config_node.rs:48-55",
-			"status": "open",
+			"status": "resolved",
 			"category": "cleanup",
 			"priority": "high",
 			"package": "packages/tractor",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "the cwd step removed and the daemon's SOVEREIGN_BASE settled through dirname semantics, 2026-08-12"
 		},
 		{
 			"id": "ISS-024",
@@ -327,13 +328,14 @@
 		{
 			"id": "ISS-028",
 			"title": "A relative or rootless REFARM_HOME diverges between the TypeScript and Rust resolvers",
-			"body": "LOOSE ENDS from the two-halves-one-node plan, from its only whole-plan review (the per-task gates were skipped on that plan and the review was scoped accordingly):\n\n(e) a relative or rootless REFARM_HOME (`.refarm`, `/`) diverges between the two languages and is positional again; unreachable in practice, unguarded in principle.",
+			"body": "LOOSE ENDS from the two-halves-one-node plan, from its only whole-plan review (the per-task gates were skipped on that plan and the review was scoped accordingly):\n\n(e) a relative or rootless REFARM_HOME (`.refarm`, `/`) diverges between the two languages and is positional again; unreachable in practice, unguarded in principle.\n\nCLOSED 2026-08-12, and the divergence this item names was already gone when it was re-read --\n`dirname_like_ts` was written earlier the same day for the `declared_base()` fix and handles both\ncases. What was missing was a TEST saying so, which is the difference between agreeing and being\nKNOWN to agree.\n\n    REFARM_HOME=\".refarm\"    Rust \".\"   TS \".\"\n    REFARM_HOME=\"/\"          Rust \"/\"   TS \"/\"\n\n`Path::parent()` matches neither on its own: `Some(\"\")` for the first and `None` for the second.\nThat is the whole reason the helper exists, and the reason the same helper now settles the daemon's\nSOVEREIGN_BASE too (ISS-023, part b) -- the daemon was the one place still using raw `parent()`,\nand a sovereign dir at `/` left it unset.\n\nAn empty `REFARM_HOME` never reaches the helper: the chain filters blank values before dirname is\napplied, so the third divergent shape the item worried about cannot occur.",
 			"location": "packages/config/src/index.js:178-184",
-			"status": "open",
+			"status": "resolved",
 			"category": "issue",
 			"priority": "low",
 			"package": "packages/config",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "parity asserted in both languages for the named inputs, 2026-08-12"
 		},
 		{
 			"id": "ISS-029",
