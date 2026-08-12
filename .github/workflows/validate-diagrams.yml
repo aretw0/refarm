@@ -6,6 +6,9 @@ on:
       - "docs/**/*.mermaid"
       - "specs/diagrams/**/*.mermaid"
       - "examples/**/*.mermaid"
+      # A hash input since ISS-046: a theme edit redraws every diagram while no .mermaid moves,
+      # so without this the workflow would not run for the change that invalidated all 43.
+      - "specs/diagrams/mermaid.config.json"
   push:
     branches:
       - main
@@ -14,6 +17,9 @@ on:
       - "docs/**/*.mermaid"
       - "specs/diagrams/**/*.mermaid"
       - "examples/**/*.mermaid"
+      # A hash input since ISS-046: a theme edit redraws every diagram while no .mermaid moves,
+      # so without this the workflow would not run for the change that invalidated all 43.
+      - "specs/diagrams/mermaid.config.json"
   # Manually triggered or scheduled validation
   workflow_dispatch:
   schedule:
@@ -31,7 +37,11 @@ jobs:
   validate:
     uses: ./.github/workflows/reusable-validate-docs.yml
     with:
-      validation-command: node scripts/ci/install-puppeteer-browser.mjs && REFARM_DIAGRAM_SYNC_STRICT=0 pnpm run diagrams:check
+      # STRICT, and no browser (ISS-046). `diagrams:check` verifies a recorded source hash
+      # instead of re-rendering and diffing bytes, so it reaches the same verdict on every machine
+      # in ~50ms. `REFARM_DIAGRAM_SYNC_STRICT=0` was here because a byte comparison could fail on an
+      # environmental difference — a font the runner lacked — and that cannot happen now.
+      validation-command: pnpm run diagrams:check
       validation-name: Diagrams
       validation-cache-files: |
         docs/**/*.mermaid
