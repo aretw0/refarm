@@ -77,7 +77,9 @@ export type WorkspaceAddResult =
 	| { status: "cancelled"; workspace: string | null }
 	| { status: "unchanged"; workspace: string; reason: "already-declared" | "already-decided" }
 	/** Somebody is already waiting on this exact question — a run that asked and may be gone. */
-	| { status: "already-asked"; workspace: string; question: OperationQuestion };
+	| { status: "already-asked"; workspace: string; question: OperationQuestion }
+	/** Nothing was asked: every file already held exactly what this would have written. */
+	| { status: "already-applied"; workspace: string };
 
 export class WorkspaceAddRefusal extends Error {
 	constructor(readonly code: string, message: string) {
@@ -278,6 +280,10 @@ export async function runWorkspaceAdd(
 		if (outcome.status === "already-asked") {
 			return { status: "already-asked", workspace: id, question: outcome.question };
 		}
+		// `already-applied` is not `deferred` either: nothing was asked because the world already
+		// looked like the answer. Reporting it as a deferral would tell the operator they put off
+		// a decision about something that was already true.
+		if (outcome.status === "already-applied") return { status: "already-applied", workspace: id };
 		if (outcome.status !== "authorized") return { status: "deferred", workspace: id };
 		return {
 			status: "declared",

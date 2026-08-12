@@ -660,6 +660,11 @@ function addNextAction(result: ProcessAddResult): string | null {
 			return "Cancelled. Nothing was written.";
 		case "unchanged":
 			return "Kept what was already there.";
+		case "already-applied":
+			// Not "deferred": nothing was asked because every file already held exactly what this
+			// would have written. Telling the operator they put off a decision about something
+			// already true is how a consent surface teaches people its questions are noise.
+			return "Nothing to do — the declaration already reads exactly like this. Nothing was asked and nothing recorded.";
 		case "already-asked":
 			// NOT "deferred". Somebody already put this question and is still waiting on it —
 			// usually a run that asked and died, whose card is still standing. Telling the

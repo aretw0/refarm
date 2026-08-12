@@ -371,7 +371,12 @@ describe("lingering is a separate operation, and cannot be reached through insta
 		);
 		expect(result.current).toBe("enabled");
 		expect(result.detail).toContain("enabled");
-		expect(calls.filter((call) => call.includes("show-user"))).toHaveLength(2);
+		// THREE observations, not two, since consent checks its own precondition (ISS-118): the
+		// snapshot that builds the proposal, the "is this already true?" read before asking, and
+		// the re-observation after the machine change. The middle one costs one `loginctl` and is
+		// what stops an operator being asked to enable something that is already enabled — this
+		// adapter's `readFile` IS a machine read, so the generic file check lands on real state.
+		expect(calls.filter((call) => call.includes("show-user"))).toHaveLength(3);
 	});
 
 	it("does not ask at all when lingering is already on", async () => {

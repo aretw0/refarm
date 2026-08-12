@@ -69,6 +69,8 @@ export type SurfaceAddResult =
 	| { status: "unchanged" | "cancelled" | "deferred"; surface: string }
 	/** Somebody is already waiting on this exact question — see `OperationQuestion`. */
 	| { status: "already-asked"; surface: string; question: OperationQuestion }
+	/** Nothing was asked: every file already held exactly what this would have written. */
+	| { status: "already-applied"; surface: string }
 	| { status: "declined"; surface: string; recordId: string };
 
 export class SurfaceAddRefusal extends Error {
@@ -202,6 +204,10 @@ export async function runSurfaceAdd(
 		if (outcome.status === "already-asked") {
 			return { status: "already-asked", surface: name, question: outcome.question };
 		}
+		// `already-applied` is not `deferred` either: nothing was asked because the world already
+		// looked like the answer. Reporting it as a deferral would tell the operator they put off
+		// a decision about something that was already true.
+		if (outcome.status === "already-applied") return { status: "already-applied", surface: name };
 		if (outcome.status !== "authorized") return { status: "deferred", surface: name };
 		parseSurfaces(loadRawSovereignConfig(root));
 		return {

@@ -9,11 +9,13 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
+	alreadyApplied,
 	answerStandingQuestion,
 	applyChanges,
 	createFileOperationTrail,
 	createMemoryOperationTrail,
 	createNodeOperationFileSystem,
+	driftedChanges,
 	isReversible,
 	makeOperationRecord,
 	OPERATION_AUTHORIZE,
@@ -1190,5 +1192,85 @@ describe("answering a question whose asker is gone", () => {
 			now: () => AT,
 		});
 		expect(outcome.status).toBe("not-found");
+	});
+});
+
+describe("a question whose answer is already true is not asked", () => {
+	/**
+	 * The operator's complaint, in his words: *"um operador ficando pedindo pra conectar na vpn
+	 * sendo que já esta conectado"*.
+	 *
+	 * It looked like it needed a new declaration — a predicate per operation, domain knowledge in
+	 * a block that has none. It did not. Every request already carries a complete `after` for each
+	 * file it touches, so "is it already done?" is `driftedChanges` read the other way round.
+	 */
+	const AT = "2026-08-12T12:00:00.000Z";
+
+	it("asks nothing and records nothing when the world already looks like the answer", async () => {
+		const request = requestAppending("# perfil\n");
+		const change = request.changes[0]!;
+		const fs = memoryFs({ [change.path]: change.after ?? "" });
+		let asked = false;
+		const outcome = await runOperationConsent({
+			request,
+			trail: createMemoryOperationTrail(),
+			channel: { ask: async () => { asked = true; return "authorize"; } } as never,
+			fs,
+			now: () => AT,
+		});
+		expect(asked).toBe(false);
+		expect(outcome.status).toBe("already-applied");
+		// NOTHING RECORDED, deliberately: a record would claim the operator authorised something
+		// they were never asked about. The state arrived some other way — possibly their own hand.
+		expect(outcome.record).toBeNull();
+	});
+
+	it("still asks when even one file differs", async () => {
+		const request = requestAppending("# perfil\n");
+		const change = request.changes[0]!;
+		const fs = memoryFs({ [change.path]: change.before ?? "" });
+		let asked = false;
+		await runOperationConsent({
+			request,
+			trail: createMemoryOperationTrail(),
+			channel: { ask: async () => { asked = true; return "later"; } } as never,
+			fs,
+			now: () => AT,
+		});
+		expect(asked).toBe(true);
+	});
+
+	it("an EMPTY change set is never already-applied", async () => {
+		// A request with no file changes describes a side effect this block cannot see. Vacuous
+		// truth would silently skip asking about every one of them — the opposite of the point.
+		expect(await alreadyApplied([], memoryFs())).toBe(false);
+	});
+
+	it("--revisit forces the question even when it is already true", async () => {
+		// An operator who explicitly re-opened a decision is asking to SEE it, whatever the files
+		// say. Skipping there would refuse them the one thing they asked for.
+		const request = requestAppending("# perfil\n");
+		const change = request.changes[0]!;
+		const fs = memoryFs({ [change.path]: change.after ?? "" });
+		let asked = false;
+		await runOperationConsent({
+			request,
+			trail: createMemoryOperationTrail(),
+			channel: { ask: async () => { asked = true; return "later"; } } as never,
+			fs,
+			revisit: true,
+			now: () => AT,
+		});
+		expect(asked).toBe(true);
+	});
+
+	it("is the mirror of driftedChanges, and both are needed", async () => {
+		// One asks whether reality still matches where we STARTED, the other whether it already
+		// matches where we were GOING. A request mid-flight is neither.
+		const request = requestAppending("# perfil\n");
+		const change = request.changes[0]!;
+		const midFlight = memoryFs({ [change.path]: "something else entirely\n" });
+		expect(await alreadyApplied(request.changes, midFlight)).toBe(false);
+		expect(await driftedChanges(request.changes, midFlight)).toEqual([change.path]);
 	});
 });

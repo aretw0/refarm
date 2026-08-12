@@ -337,6 +337,39 @@ export type AnswerStandingQuestionOutcome =
 	 */
 	| { status: "stale"; record: null; drifted: string[] };
 
+/**
+ * PURE-ish (reads files). Is this change ALREADY DONE?
+ *
+ * ## The operator's complaint, answered without a word of new vocabulary
+ *
+ * *"um operador ficando pedindo pra conectar na vpn sendo que já esta conectado"*. The generic
+ * form is: a question whose precondition already holds should not be asked. It looked like it
+ * needed a new declaration — a predicate per operation, domain knowledge in a block that has
+ * none — and it did not. Every request already carries a complete `after` for each file it
+ * touches. If the world ALREADY looks like that, there is nothing to do, so there is nothing to
+ * consent to.
+ *
+ * It is `driftedChanges` read the other way round, and that symmetry is the point: one asks
+ * whether reality still matches where we STARTED, the other whether it already matches where we
+ * were GOING.
+ *
+ * ## An empty change set is NOT already applied
+ *
+ * A request with no file changes describes a side effect this block cannot see: something leaves
+ * the machine, or a command is handed back for the operator to run. Vacuous truth would silently
+ * skip asking about every one of them, which is the opposite of what this is for.
+ */
+export async function alreadyApplied(
+	changes: readonly OperationFileChange[],
+	fs: OperationFileSystem,
+): Promise<boolean> {
+	if (changes.length === 0) return false;
+	for (const change of changes) {
+		if ((await fs.readFile(change.path)) !== change.after) return false;
+	}
+	return true;
+}
+
 /** PURE-ish (reads files). Which of a request's changes no longer match the world they were
  *  captured from. Empty means every `before` is still true. */
 export async function driftedChanges(
@@ -919,7 +952,18 @@ export type OperationOutcome =
 	 * is a background run that asks, dies, restarts, and asks again, until the operator has four
 	 * cards for one decision and has learned to ignore all of them.
 	 */
-	| { status: "already-asked"; record: null; question: OperationQuestion };
+	| { status: "already-asked"; record: null; question: OperationQuestion }
+	/**
+	 * THE WORLD ALREADY LOOKS LIKE THE ANSWER. Every file this request would change already holds
+	 * exactly what it would write, so there is nothing to do and nothing to consent to.
+	 *
+	 * Nothing is asked and nothing is recorded — deliberately. A record here would claim the
+	 * operator authorised something, and they were never asked; the state arrived some other way,
+	 * possibly by their own hand. Saying so is the whole point: an operator asked to authorise
+	 * what is already true learns the questions are noise, which is how a consent surface stops
+	 * working without ever going red.
+	 */
+	| { status: "already-applied"; record: null };
 
 export interface RunOperationConsentOptions {
 	request: OperationRequest;
@@ -1011,6 +1055,13 @@ export async function runOperationConsent(
 
 	const prior = standingDecision(await trail.read(), request.id);
 	if (prior && !revisit) return { status: "already-decided", record: prior };
+
+	// IS IT ALREADY TRUE? Checked before anything is asked, recorded or rendered. `revisit` still
+	// forces the question, because an operator who explicitly re-opened a decision is asking to
+	// see it regardless of what the files say.
+	if (!revisit && (await alreadyApplied(request.changes, fs))) {
+		return { status: "already-applied", record: null };
+	}
 
 	// IS SOMEBODY ALREADY ASKING THIS? Only a trail that can remember outstanding questions can
 	// say — one that cannot returns `undefined` here, and this whole block is skipped, leaving

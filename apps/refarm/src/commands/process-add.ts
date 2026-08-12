@@ -623,7 +623,9 @@ export type ProcessAddResult =
 	| { status: "cancelled"; process: string | null }
 	| { status: "unchanged"; process: string; reason: "already-declared" | "already-decided" }
 	/** Somebody is already waiting on this exact question — a run that asked and may be gone. */
-	| { status: "already-asked"; process: string; question: OperationQuestion };
+	| { status: "already-asked"; process: string; question: OperationQuestion }
+	/** Nothing was asked: every file already held exactly what this would have written. */
+	| { status: "already-applied"; process: string };
 
 export interface ProcessAddDeps {
 	root?: string;
@@ -1007,6 +1009,12 @@ export async function runProcessAdd(
 		// something they were never shown.
 		if (outcome.status === "already-asked") {
 			return { status: "already-asked", process: processName, question: outcome.question };
+		}
+		// `already-applied` is not `deferred` either: nothing was asked because the world already
+		// looked like the answer. Reporting it as a deferral would tell the operator they put off
+		// a decision about something that was already true.
+		if (outcome.status === "already-applied") {
+			return { status: "already-applied", process: processName };
 		}
 		if (outcome.status !== "authorized") {
 			return { status: "deferred", process: processName };
