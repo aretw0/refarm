@@ -30,6 +30,7 @@ import {
 	standingCatalogDecision,
 	type CatalogDeclarationPlan,
 } from "./catalog-authoring.js";
+import { processCatalogRoot } from "./process.js";
 import { DEFAULT_WEB_SERVE_PORT } from "./web-serve.js";
 
 /**
@@ -684,7 +685,9 @@ export async function runProcessAdd(
 ): Promise<ProcessAddResult> {
 	const env = deps.env ?? process.env;
 	// os-resolution: project — writes into the workspace tier catalog the operator is standing in
-	const root = deps.root ?? process.cwd();
+	// ONE ANSWER for where a supervised process is declared — see `processCatalogRoot`. It is the
+	// NODE's base, because the unit this ends up installing is node-wide and always was.
+	const root = processCatalogRoot(deps.root);
 	const say = deps.announce ?? ((line: string) => console.log(line));
 	const exists = deps.exists ?? ((target: string) => fs.existsSync(target));
 	const listDirectory =

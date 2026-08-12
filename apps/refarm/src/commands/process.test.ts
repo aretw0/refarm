@@ -1,3 +1,4 @@
+import { declaredBase } from "@refarm.dev/config";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -13,6 +14,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
 	createProcessCommand,
+	processCatalogRoot,
+	resolveProcessTrailPath,
 	runProcessInstall,
 	runProcessLinger,
 	runProcessList,
@@ -404,5 +407,38 @@ describe("lingering is a separate operation, and cannot be reached through insta
 		const shown = lines.join("\n");
 		expect(shown).toMatch(/O QUE CUSTA/);
 		expect(shown).toMatch(/loginctl disable-linger op/);
+	});
+});
+
+describe("where a supervised process is declared — one answer, not eight", () => {
+	/**
+	 * Measured on the operator's node 2026-08-12, and it is the confusion he opened this line of
+	 * work asking to end: `web-serve` sat in the NODE's config and `automations`, declared from a
+	 * repository, sat in that repository's — invisible to `process list` from anywhere else.
+	 *
+	 * The declaration was directory-scoped. Its EFFECT never was: it installs
+	 * `refarm-<name>.service` into one node-wide systemd namespace, started at boot by a
+	 * supervisor that has never heard of a working directory. Two repositories declaring
+	 * `automations` would fight over one unit and neither would say so.
+	 */
+	it("answers the NODE's declared base, wherever the command was run from", () => {
+		const env = { HOME: "/home/op" };
+		expect(processCatalogRoot(undefined)).toBe(declaredBase());
+		// Not the working directory, which is what eight separate `?? process.cwd()` defaults said.
+		expect(processCatalogRoot(undefined)).not.toBe("/tmp/some-other-project");
+		expect(declaredBase(env)).toBe("/home/op");
+	});
+
+	it("an explicit root still wins, so every test that injects one is untouched", () => {
+		// The centralisation must not take away the seam the suite depends on.
+		expect(processCatalogRoot("/tmp/fixture")).toBe("/tmp/fixture");
+	});
+
+	it("the trail and the catalog resolve through the SAME answer", () => {
+		// Eight copies of a default is eight places to change and eight chances to miss one —
+		// which is exactly how the pair in ISS-102 stayed wrong together for months.
+		expect(resolveProcessTrailPath()).toBe(
+			path.join(processCatalogRoot(undefined), ".refarm", "processes", "operations.json"),
+		);
 	});
 });

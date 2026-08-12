@@ -1397,6 +1397,18 @@
 			"category": "cleanup",
 			"priority": "medium",
 			"resolved_by": "alreadyApplied + driftedChanges in operation-consent-v1, 2026-08-12"
+		},
+		{
+			"id": "ISS-119",
+			"title": "The processes catalog was directory-scoped while the unit it installs is node-wide",
+			"body": "FOUND AND FIXED 2026-08-12, on the operator's live node, while closing ISS-102.\n\n    web-serve     ~/.refarm/config.json          (the node)\n    automations   <repo>/.refarm/config.json     (a directory)\n\n`refarm process list` from /tmp saw NEITHER of the second one. Eight sites across process.ts and\nprocess-add.ts each wrote `deps.root ?? process.cwd()`, so the `processes` catalog was\ndirectory-scoped.\n\nITS EFFECT NEVER WAS. A declaration installs `refarm-<name>.service` into `~/.config/systemd/user`\n-- one node-wide namespace, started at boot by a supervisor that has never heard of a working\ndirectory. Two repositories declaring `automations` would fight over one unit and neither would\nsay so.\n\nFIXED BY CENTRALISING, at the operator's request in the same breath: \"o que puder ser centralizado\nque seja para não sofrermos tanto mantendo vários locais\". One `processCatalogRoot()` answers for\nevery reader and writer, defaulting to `declaredBase()`. Eight copies of a default is eight places\nto change when the answer moves and eight chances to miss one -- which is precisely how ISS-102's\npair stayed wrong together for months.\n\nAn explicit `deps.root` still wins, so every test injecting a temporary root is untouched.\n\nONE PIECE OF OPERATOR STATE IS STRANDED BY THIS, deliberately not migrated: the `automations`\nprocess declared on 2026-08-11 sits in `<repo>/.refarm/config.json`, which nothing reads any more.\nIt is gitignored local state, it was never installed, and moving it would mean writing to the\noperator's live node config without passing the consent gate that exists to stop exactly that. The\nhonest repair is one command he runs:\n\n    refarm process add automations --description \"fire due local scheduled work\" \\\n      --command \"/home/s095407044/.local/bin/refarm project automations tick --submit\" \\\n      --working-directory /home/s095407044/github/refarm \\\n      --restart never --every-seconds 60\n\nDOES NOT CLOSE ISS-075, which is the same axis one layer up: where a NODE-scoped AUTOMATION is\nwritten. `.project/automations.json` is project-scoped and says so in its name, and the tick still\nreads it relative to the working directory.",
+			"status": "resolved",
+			"resolved_by": "processCatalogRoot() on declaredBase(), 2026-08-12",
+			"axis": "node-vs-directory",
+			"location": "apps/refarm/src/commands/process.ts::processCatalogRoot",
+			"package": "apps/refarm",
+			"category": "cleanup",
+			"priority": "medium"
 		}
 	]
 }

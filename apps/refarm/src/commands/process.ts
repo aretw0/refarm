@@ -6,7 +6,7 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
-import { defaultSovereignConfigPath, loadRawSovereignConfig } from "@refarm.dev/config";
+import { declaredBase, defaultSovereignConfigPath, loadRawSovereignConfig } from "@refarm.dev/config";
 import {
 	createFileOperationTrail,
 	renderOperationRequest,
@@ -102,7 +102,33 @@ class ProcessHandoffRefusal extends SupervisionRefusal {
 
 /** Where the trail of process operations lives — beside the units they are about. */
 // os-resolution: project — the operations trail lives beside the units, so it follows the catalog workspace tier
-export function resolveProcessTrailPath(root: string = process.cwd()): string {
+/**
+ * WHERE A SUPERVISED PROCESS IS DECLARED — one answer, for every reader and writer here.
+ *
+ * ## It is the NODE's, and it always was in effect
+ *
+ * Eight sites in this file and its sibling each wrote `processCatalogRoot(deps.root)`, which made the
+ * `processes` catalog DIRECTORY-scoped. Its effect never was: a declaration installs
+ * `refarm-<name>.service` into `~/.config/systemd/user`, a single node-wide namespace, started at
+ * boot by a supervisor that has never heard of a working directory.
+ *
+ * Measured on the operator's node 2026-08-12: `web-serve` sat in the node's config and
+ * `automations`, declared from a repository, sat in that repository's — invisible to
+ * `refarm process list` from anywhere else, while both would have installed units that collide by
+ * name. Two repositories declaring `automations` would fight over one unit and neither would say
+ * so.
+ *
+ * ## Centralised on purpose
+ *
+ * Eight copies of a default is eight places to change when the answer moves, and eight chances for
+ * one of them to be missed — which is how the pair in ISS-102 stayed wrong together for months.
+ * A `deps.root` override still wins, so every test that injects a temporary root is untouched.
+ */
+export function processCatalogRoot(root?: string): string {
+	return root ?? declaredBase();
+}
+
+export function resolveProcessTrailPath(root: string = processCatalogRoot()): string {
 	return path.join(root, ".refarm", "processes", "operations.json");
 }
 
@@ -128,7 +154,10 @@ export interface ProcessDeps {
  * on disk.
  */
 // os-resolution: project — the process catalog is declared in the workspace tier config, anchored on the operator directory
-export function readProcessCatalog(root: string = process.cwd(), config?: unknown): ProcessCatalog {
+export function readProcessCatalog(
+	root: string = processCatalogRoot(),
+	config?: unknown,
+): ProcessCatalog {
 	return parseProcessCatalog(config === undefined ? loadRawSovereignConfig(root) : config);
 }
 
@@ -242,7 +271,7 @@ export interface ProcessListResult {
 
 export async function runProcessList(deps: ProcessDeps = {}): Promise<ProcessListResult> {
 	// os-resolution: project — the process catalog is declared in the workspace tier config, anchored on the operator directory
-	const catalog = readProcessCatalog(deps.root ?? process.cwd(), deps.config);
+	const catalog = readProcessCatalog(processCatalogRoot(deps.root), deps.config);
 	let backend: string | null = null;
 	let backendDetail: string;
 	let lifetime: string | null = null;
@@ -298,7 +327,7 @@ export async function runProcessStatus(
 	deps: ProcessDeps = {},
 ): Promise<ProcessStatusResult> {
 	// os-resolution: project — the process catalog is declared in the workspace tier config, anchored on the operator directory
-	const root = deps.root ?? process.cwd();
+	const root = processCatalogRoot(deps.root);
 	const catalog = readProcessCatalog(root, deps.config);
 	const configPath = defaultSovereignConfigPath(root, deps.env ?? process.env);
 	const wanted = names.length > 0 ? names : [...catalog.keys()];
@@ -384,7 +413,7 @@ export async function runProcessInstall(
 	deps: ProcessDeps = {},
 ): Promise<ProcessInstallResult> {
 	// os-resolution: project — the process catalog is declared in the workspace tier config, anchored on the operator directory
-	const root = deps.root ?? process.cwd();
+	const root = processCatalogRoot(deps.root);
 	const catalog = readProcessCatalog(root, deps.config);
 	const declaration = declarationOrRefusal(catalog, name);
 	const backend = await resolveSupervisionBackend(buildSupervisionBackends(deps));
@@ -454,7 +483,7 @@ export async function runProcessUninstall(
 	deps: ProcessDeps = {},
 ): Promise<ProcessUninstallResult> {
 	// os-resolution: project — the process catalog is declared in the workspace tier config
-	const root = deps.root ?? process.cwd();
+	const root = processCatalogRoot(deps.root);
 	const catalog = readProcessCatalog(root, deps.config);
 	const declaration = declarationOrRefusal(catalog, name);
 	const backend = await resolveSupervisionBackend(buildSupervisionBackends(deps));
