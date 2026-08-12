@@ -244,10 +244,18 @@ mod tests {
     fn budget_unknown_is_a_progress_note_naming_the_reason() {
         // The "loud" half of the agent's FAIL-OPEN-BUT-LOUD budget policy must reach
         // the same operator-facing surface `budget:blocked` does — the CLI tails
-        // `activity.ndjson`, not the audit log or an opt-in observer plugin. Two
-        // DIFFERENT reason strings here exercise that the note is not hardcoded to
-        // one value, not that both are currently reachable: as of the agent's
-        // round-2 budget-guard fix, only "query_error" is ever actually emitted.
+        // `activity.ndjson`, not the audit log or an opt-in observer plugin.
+        //
+        // BOTH REASONS ARE REACHABLE, and this comment used to say otherwise (ISS-037).
+        // It claimed that "as of the agent's round-2 budget-guard fix, only `query_error`
+        // is ever actually emitted", which went stale the moment `RequeryTruncated`
+        // became a returned value: `session::pure::resolve_budget_check` yields it when
+        // the FOLLOW-UP read comes back truncated too, and that path is live today.
+        //
+        // No functional impact — this formatter is reason-string-agnostic by design, and
+        // that is exactly why the drift could sit here: nothing failed, the comment simply
+        // stopped being true. `BudgetUnknownReason` in the agent crate is the source of
+        // truth for which strings exist.
         let mut payload = p("urn:p-1");
         payload["provider"] = json!("anthropic");
         payload["reason"] = json!("truncated");
