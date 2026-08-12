@@ -301,6 +301,12 @@ function repoContractGateSteps(): CommandPlanStep[] {
 				"The promotion gate: moderate --prod, with a re-check date on every accepted advisory.",
 		}),
 		scriptTestStep({
+			id: "gate-script-coverage",
+			args: ["node", "scripts/script-test-coverage.mjs"],
+			description:
+				"Ceiling on how much of scripts/ no suite would ever run for — the untested fraction could only grow before this (ISS-106).",
+		}),
+		scriptTestStep({
 			id: "gate-script-tests",
 			args: ["node", "scripts/ci/run-script-tests.mjs"],
 			description:
