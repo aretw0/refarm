@@ -341,6 +341,11 @@ export interface ProcessInstallResult {
 	process: string;
 	unitPath: string;
 	unitText: string;
+	/** The timer, when the declaration is periodic — `null` otherwise. A JSON consumer approving
+	 *  this operation must see EVERY file it writes; showing one of two is a formality with a diff
+	 *  attached, not consent. */
+	timerPath: string | null;
+	timerText: string | null;
 	/** W3, in the result too — a JSON consumer must not have to read prose to learn this. */
 	lifetime: string;
 	linger: LingerState;
@@ -394,6 +399,8 @@ export async function runProcessInstall(
 		process: name,
 		unitPath: plan.unitPath,
 		unitText: plan.unitText,
+		timerPath: plan.timerPath,
+		timerText: plan.timerText,
 		lifetime: plan.lifetime,
 		linger: plan.linger,
 		recordId: outcome.record?.id ?? null,
@@ -681,6 +688,10 @@ export function createProcessCommand(): Command {
 		)
 		.option("--working-directory <path>", "Absolute directory the supervisor starts it from")
 		.option("--restart <policy>", "always | on-failure | never — asked when not given")
+		.option(
+			"--every-seconds <n>",
+			"Run it on a clock every N seconds instead of keeping it up (10-86400)",
+		)
 		.option("--dir <path>", "For web-serve: the directory to serve")
 		.option("--port <port>", "For web-serve: the port to listen on")
 		.option("--replace", "Re-open a process that is already declared or already decided")
@@ -773,6 +784,9 @@ export function createProcessCommand(): Command {
 				print(Boolean(options.json), result, [
 					`decisão: ${result.status}`,
 					`unit:    ${result.unitPath}`,
+					// A periodic declaration writes TWO files and the operator enables the second
+					// one, so naming only the first would describe an install that does not exist.
+					...(result.timerPath ? [`timer:   ${result.timerPath}`] : []),
 					result.lifetime,
 					...(result.activationCommands.length > 0
 						? [

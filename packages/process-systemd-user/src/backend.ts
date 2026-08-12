@@ -17,16 +17,38 @@ import {
 	type LingerState,
 } from "./linger.js";
 import type { CommandRunner } from "./runner.js";
-import { renderSystemdUnit, systemdUnitName, systemdUnitPath } from "./unit.js";
+import {
+	isPeriodic,
+	renderSystemdTimer,
+	renderSystemdUnit,
+	systemdTimerName,
+	systemdTimerPath,
+	systemdUnitName,
+	systemdUnitPath,
+} from "./unit.js";
 
 export const SYSTEMD_USER_BACKEND_ID = "systemd-user";
 
-/** The operation a systemd install IS: one file, plus the commands only the operator runs. */
+/** The operation a systemd install IS: the files, plus the commands only the operator runs. */
 export interface SystemdUnitPlan {
 	unitName: string;
 	unitPath: string;
 	unitText: string;
 	existingUnit: string | null;
+	/**
+	 * The timer, for a periodic declaration — `null` for a long-running one.
+	 *
+	 * SURFACED SEPARATELY BECAUSE CONSENT IS ABOUT WHAT LANDS ON DISK. `request.changes` already
+	 * carried both files, but the plan exposed only `unitText`, so every caller rendering "here is
+	 * the unit" showed ONE of the two files it was about to write. A consent surface that displays
+	 * half of an operation is not a consent surface; it is a formality with a diff attached.
+	 */
+	timerName: string | null;
+	timerPath: string | null;
+	timerText: string | null;
+	existingTimer: string | null;
+	/** What the operator will actually enable — the timer when there is one, else the service. */
+	activationUnit: string;
 	linger: LingerState;
 	lifetime: string;
 	request: OperationRequest;
@@ -201,15 +223,33 @@ export function createSystemdUserBackend(
 			const { state, detail } = await lingerState();
 			const lifetime = describeUnitLifetime(state, user, options.binary);
 			const unitChanged = existingUnit !== null && existingUnit !== unitText;
-			const activationCommands = unitChanged
+
+			// A PERIODIC declaration is TWO files, and the one that gets enabled is the TIMER.
+			// Enabling the service instead runs it once at boot and never again — which looks
+			// exactly like a working install right up until the second interval does not arrive.
+			const periodic = isPeriodic(declaration);
+			const timerName = systemdTimerName(declaration.name);
+			const timerPath = systemdTimerPath(declaration.name, env, options.unitDir);
+			const timerText = periodic
+				? renderSystemdTimer(declaration, {
+						generator: options.binary,
+						rewriteCommand: `${options.binary} process install ${declaration.name}`,
+					})
+				: null;
+			const existingTimer = periodic ? await options.readFile(timerPath) : null;
+
+			const activationTarget = periodic ? timerName : unitName;
+			const changed =
+				unitChanged || (timerText !== null && existingTimer !== null && existingTimer !== timerText);
+			const activationCommands = changed
 				? [
 						"systemctl --user daemon-reload",
-						`systemctl --user enable ${unitName}`,
-						`systemctl --user restart ${unitName}`,
+						`systemctl --user enable ${activationTarget}`,
+						`systemctl --user restart ${activationTarget}`,
 					]
 				: [
 						"systemctl --user daemon-reload",
-						`systemctl --user enable --now ${unitName}`,
+						`systemctl --user enable --now ${activationTarget}`,
 					];
 
 			const change: OperationFileChange = {
@@ -232,7 +272,23 @@ export function createSystemdUserBackend(
 					`ordem quando você pede — em vez de rodar solto num shell que ninguém observa.`,
 				requester,
 				requestedAt: options.now?.() ?? new Date().toISOString(),
-				changes: [change],
+				changes:
+					timerText === null
+						? [change]
+						: [
+								change,
+								{
+									path: timerPath,
+									before: existingTimer,
+									after: timerText,
+									insertion: {
+										line: 1,
+										text: timerText.trimEnd(),
+										placement:
+											"o arquivo inteiro É o timer — é ele que roda o serviço acima no relógio",
+									},
+								},
+							],
 				undo: {
 					kind: "restore-snapshot",
 					summary:
@@ -259,6 +315,11 @@ export function createSystemdUserBackend(
 				unitPath,
 				unitText,
 				existingUnit,
+				timerName: periodic ? timerName : null,
+				timerPath: periodic ? timerPath : null,
+				timerText,
+				existingTimer,
+				activationUnit: activationTarget,
 				linger: state,
 				lifetime,
 				request,

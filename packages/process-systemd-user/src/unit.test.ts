@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	quoteExecArgument,
+	renderSystemdTimer,
 	renderSystemdUnit,
 	systemdRestartValue,
 	systemdUnitName,
@@ -142,5 +143,76 @@ describe("what would silently become a different command", () => {
 			/command\[0\] must be an ABSOLUTE path/,
 		);
 		expect(() => renderSystemdUnit(declare({ command: ["refarm"] }))).toThrow(/command -v refarm/);
+	});
+});
+
+describe("a periodic declaration renders a timer, and the service stops pretending to be one", () => {
+	/** The customer, and the reason this field exists: ISS-066. A complete cron evaluator, a
+	 *  fire-once ledger and a host command all existed; NOTHING CALLED THEM ON A CLOCK. */
+	const TICK: ProcessDeclaration = {
+		name: "automations",
+		description: "fire due local scheduled work",
+		command: ["/home/op/.local/bin/refarm", "project", "automations", "tick", "--submit"],
+		workingDirectory: "/home/op/repo",
+		environment: {},
+		restart: "never",
+		stopTimeoutSeconds: 20,
+		restartDelaySeconds: 5,
+		everySeconds: 60,
+	};
+
+	it("makes the service oneshot and gives it NO [Install]", () => {
+		const unit = renderSystemdUnit(TICK);
+		expect(unit).toContain("Type=oneshot");
+		expect(unit).not.toContain("Type=simple");
+		// A periodic service enabled on its own runs once at boot and never again, which looks
+		// exactly like a working install. The timer is what gets enabled.
+		expect(unit).not.toContain("[Install]");
+		expect(unit).not.toContain("WantedBy=");
+		// `Restart=always` on a `Type=oneshot` is refused by systemd itself; "never" emits none.
+		expect(unit).not.toContain("Restart=");
+	});
+
+	it("leaves a long-running declaration exactly as it was", () => {
+		const unit = renderSystemdUnit({ ...TICK, everySeconds: undefined, restart: "always" });
+		expect(unit).toContain("Type=simple");
+		expect(unit).toContain("Restart=always");
+		expect(unit).toContain("WantedBy=default.target");
+	});
+
+	it("skips a missed window rather than catching up — spec D5, and NOT systemd's careless default", () => {
+		// `Persistent=true` fires immediately at boot for every window that passed, so a week
+		// offline becomes a week of backlog at once. Every customer here wants now or nothing.
+		const timer = renderSystemdTimer(TICK);
+		expect(timer).toContain("Persistent=false");
+		expect(timer).not.toContain("Persistent=true");
+	});
+
+	it("asks for second accuracy, because a minute of slack skips a whole minute", () => {
+		// systemd spends up to ONE MINUTE of slack by default to batch wakeups. Due-ness is decided
+		// at minute resolution with a fire key to match, so that slack can drop a minute entirely —
+		// and a skipped minute is a skipped automation nothing reports.
+		expect(renderSystemdTimer(TICK)).toContain("AccuracySec=1s");
+	});
+
+	it("fires the FIRST time too", () => {
+		// `OnUnitActiveSec` alone never fires initially: there is no previous activation to measure
+		// from. The pair is the idiom.
+		const timer = renderSystemdTimer(TICK);
+		expect(timer).toContain("OnBootSec=60s");
+		expect(timer).toContain("OnUnitActiveSec=60s");
+		expect(timer).toContain("Unit=refarm-automations.service");
+		expect(timer).toContain("WantedBy=timers.target");
+	});
+
+	it("refuses to render a timer for something that declared no interval", () => {
+		expect(() => renderSystemdTimer({ ...TICK, everySeconds: undefined })).toThrow(
+			/long-running process/u,
+		);
+	});
+
+	it("names the pair in both files, so neither is a mystery on its own", () => {
+		expect(renderSystemdUnit(TICK)).toContain("refarm-automations.timer");
+		expect(renderSystemdTimer(TICK)).toContain("every 60s");
 	});
 });

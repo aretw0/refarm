@@ -79,6 +79,25 @@ export interface ProcessDeclaration {
 	readonly stopTimeoutSeconds: number;
 	/** Seconds to wait before restarting — the anti-hot-loop cooldown `respawn.rs` already argues for. */
 	readonly restartDelaySeconds: number;
+	/**
+	 * Run it ON A CLOCK, every this many seconds, instead of keeping it up.
+	 *
+	 * ABSENT IS THE ORIGINAL MEANING and stays it: a declaration with no `everySeconds` is a
+	 * long-running process, supervised exactly as before. Present, the process becomes periodic —
+	 * it runs, it exits, and the supervisor runs it again.
+	 *
+	 * The customer that forced it is the automation tick (ISS-066). A complete cron evaluator, a
+	 * fire-once ledger and a host command all existed; NOTHING CALLED THEM ON A CLOCK, so a
+	 * declared automation was evaluated only when a human happened to type the command. The
+	 * supervisor this node already trusts for `web serve` knows how to do that, and borrowing it
+	 * costs one field.
+	 *
+	 * IT IS AN INTERVAL, NOT A SCHEDULE, and the distinction is load-bearing. Cron already lives
+	 * one layer up, in the automations themselves; a second scheduling vocabulary here would mean
+	 * two places to look when something fires at the wrong hour, and two parsers to keep agreeing.
+	 * What this says is only how often the evaluator gets ASKED.
+	 */
+	readonly everySeconds?: number;
 }
 
 export type ProcessCatalog = ReadonlyMap<string, ProcessDeclaration>;
@@ -96,6 +115,16 @@ export const MAX_DECLARED_PROCESSES = 16;
 export const DEFAULT_STOP_TIMEOUT_SECONDS = 20;
 export const MAX_STOP_TIMEOUT_SECONDS = 900;
 export const DEFAULT_RESTART_DELAY_SECONDS = 5;
+
+/**
+ * The tightest and loosest interval a periodic declaration may ask for.
+ *
+ * The floor is 10s because a supervisor asked to run something every second spends more on
+ * starting a process than on the work. The ceiling is a day: past that the thing being described
+ * is a calendar event, not an interval, and `everySeconds` would be the wrong word for it.
+ */
+export const MIN_EVERY_SECONDS = 10;
+export const MAX_EVERY_SECONDS = 86_400;
 export const MAX_RESTART_DELAY_SECONDS = 3600;
 
 /**
@@ -199,6 +228,7 @@ function parseOneProcess(name: string, raw: unknown): ProcessDeclaration {
 	}
 
 	const workingDirectory = parseWorkingDirectory(name, raw.workingDirectory);
+	const everySeconds = parseEverySeconds(name, raw.everySeconds, raw.restart);
 
 	return {
 		name,
@@ -221,7 +251,47 @@ function parseOneProcess(name: string, raw: unknown): ProcessDeclaration {
 			DEFAULT_RESTART_DELAY_SECONDS,
 			MAX_RESTART_DELAY_SECONDS,
 		),
+		...(everySeconds === undefined ? {} : { everySeconds }),
 	};
+}
+
+/**
+ * PURE. The interval, or `undefined` for a long-running process.
+ *
+ * REFUSES `restart: "always"` BESIDE IT rather than picking one. "Bring it back whenever it dies"
+ * and "run it every N seconds" are two different instructions about the same process, and a
+ * supervisor given both would restart the periodic run the instant it finished — a hot loop
+ * wearing a schedule's clothes. Declaring both is a mistake about what is being described, so it
+ * is named as one here, where the operator is still looking at the declaration.
+ */
+export function parseEverySeconds(
+	name: string,
+	raw: unknown,
+	restart: unknown,
+): number | undefined {
+	if (raw === undefined) return undefined;
+	if (typeof raw !== "number" || !Number.isInteger(raw)) {
+		throw new ProcessDeclarationError(
+			`processes."${name}": "everySeconds" must be a whole number of seconds (got ${JSON.stringify(raw)})`,
+		);
+	}
+	if (raw < MIN_EVERY_SECONDS || raw > MAX_EVERY_SECONDS) {
+		throw new ProcessDeclarationError(
+			`processes."${name}": "everySeconds" must be between ${MIN_EVERY_SECONDS} and ` +
+				`${MAX_EVERY_SECONDS} (got ${raw}). Below the floor a supervisor spends more on starting ` +
+				`the process than on the work; above the ceiling you are describing a calendar event, ` +
+				`not an interval.`,
+		);
+	}
+	if (restart === "always") {
+		throw new ProcessDeclarationError(
+			`processes."${name}": "everySeconds" and "restart": "always" are two different ` +
+				`instructions about the same process — one says bring it back whenever it dies, the ` +
+				`other says run it every ${raw}s. A supervisor given both restarts the periodic run the ` +
+				`instant it finishes. Use "never" (or "on-failure" to retry a failed run).`,
+		);
+	}
+	return raw;
 }
 
 function parseCommand(name: string, raw: unknown): readonly string[] {

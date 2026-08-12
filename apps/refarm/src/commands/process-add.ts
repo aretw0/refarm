@@ -332,6 +332,24 @@ export function processRestartPrompt(name: string): SelectPrompt {
 
 const RESTART_POLICIES: readonly RestartPolicy[] = ["always", "on-failure", "never"];
 
+/**
+ * PURE. `--every-seconds`, or `undefined`.
+ *
+ * The RANGE is not checked here: `parseProcessCatalog` owns it, and duplicating the bounds is how
+ * two limits drift apart. This only refuses what a flag can be that a number cannot.
+ */
+export function parseEverySecondsFlag(raw: string | undefined): number | undefined {
+	if (raw === undefined) return undefined;
+	const parsed = Number(raw);
+	if (!Number.isInteger(parsed)) {
+		throw new ProcessAddRefusal(
+			"process-add-invalid-every-seconds",
+			`--every-seconds must be a whole number of seconds (got ${JSON.stringify(raw)}).`,
+		);
+	}
+	return parsed;
+}
+
 function parseRestartFlag(raw: string): RestartPolicy {
 	const value = raw.trim();
 	if (!(RESTART_POLICIES as readonly string[]).includes(value)) {
@@ -527,6 +545,9 @@ export interface ProcessEntryInput {
 	command: readonly string[];
 	workingDirectory?: string;
 	restart: RestartPolicy;
+	/** Run it on a clock every this many seconds instead of keeping it up. Absent = long-running,
+	 *  which is what every declaration meant before periodic processes existed. */
+	everySeconds?: number;
 }
 
 /**
@@ -545,6 +566,7 @@ export function buildProcessEntry(input: ProcessEntryInput): Record<string, unkn
 		command: Array.isArray(input.command) ? [...input.command] : (input.command as unknown),
 		...(input.workingDirectory ? { workingDirectory: input.workingDirectory } : {}),
 		restart: input.restart,
+		...(input.everySeconds === undefined ? {} : { everySeconds: input.everySeconds }),
 	};
 	parseProcessCatalog({ [PROCESS_BLOCK]: { [input.name]: entry } });
 	return entry;
@@ -560,6 +582,7 @@ export interface ProcessAddOptions {
 	command?: string;
 	workingDirectory?: string;
 	restart?: string;
+	everySeconds?: string;
 	/** Recipe narrowings. Present ⇒ the proposal shows YOUR value with "--dir/--port" as its source. */
 	dir?: string;
 	port?: string;
@@ -673,6 +696,9 @@ export async function runProcessAdd(
 	// operator (or a device that had to be attended for the questions to arrive at all) through a
 	// conversation only to reject a flag they passed at the start is the wrong order.
 	const restartFromFlag = options.restart ? parseRestartFlag(options.restart) : null;
+	// NOT ASKED WHEN ABSENT, unlike `restart`. Absent has a truthful meaning here — this stays up —
+	// whereas an absent restart policy would be refarm guessing whether a process comes back.
+	const everySecondsFromFlag = parseEverySecondsFlag(options.everySeconds);
 	const portFromFlag = parsePortFlag(options.port);
 
 	// NOWHERE TO ASK ⇒ NO PROMPT, AND NO HANG. A declaration is the operator's; with nobody to ask
@@ -910,6 +936,7 @@ export async function runProcessAdd(
 			command,
 			...(workingDirectory ? { workingDirectory } : {}),
 			restart,
+			...(everySecondsFromFlag === undefined ? {} : { everySeconds: everySecondsFromFlag }),
 		});
 
 		const plan: CatalogDeclarationPlan = planCatalogDeclaration({
@@ -971,6 +998,7 @@ export async function runProcessAdd(
 			command,
 			workingDirectory,
 			restart,
+			...(everySecondsFromFlag === undefined ? {} : { everySeconds: everySecondsFromFlag }),
 			configPath: plan.configPath,
 			recordId: outcome.record.id,
 			undoCommand: undoCommandFor(outcome.record.id),

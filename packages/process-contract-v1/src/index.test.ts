@@ -7,11 +7,11 @@ import {
 	MAX_DECLARED_PROCESSES,
 	parseProcessCatalog,
 	processCouldNotAsk,
+	ProcessDeclarationError,
 	processIsKnownUp,
 	processNotDeclared,
 	processNotRunning,
 	processRunning,
-	ProcessDeclarationError,
 	resolveSupervisionBackend,
 	SupervisionRefusal,
 	type ProcessDeclaration,
@@ -241,5 +241,49 @@ describe("resolving a supervision backend decides HOW, never WHAT", () => {
 		);
 		expect(error).toBeInstanceOf(SupervisionRefusal);
 		expect(error.fix).toMatch(/No supervision backend is registered for this platform/);
+	});
+});
+
+describe("everySeconds — a process that runs on a clock instead of staying up", () => {
+	function parseOne(raw: Record<string, unknown>) {
+		return catalogWith({
+			tick: {
+				description: "fire due scheduled work",
+				command: ["/usr/bin/refarm", "project", "automations", "tick"],
+				restart: "never",
+				...raw,
+			},
+		});
+	}
+
+	it("is absent by default, and absent keeps the original meaning", () => {
+		expect(parseOne({}).get("tick")?.everySeconds).toBeUndefined();
+	});
+
+	it("accepts a whole number of seconds", () => {
+		expect(parseOne({ everySeconds: 60 }).get("tick")?.everySeconds).toBe(60);
+	});
+
+	it("refuses both instructions at once rather than picking one", () => {
+		// "Bring it back whenever it dies" and "run it every 60s" describe the same process two
+		// different ways, and a supervisor given both restarts the periodic run the instant it
+		// finishes — a hot loop wearing a schedule's clothes.
+		expect(() => parseOne({ everySeconds: 60, restart: "always" })).toThrow(
+			/two different\s+instructions/u,
+		);
+	});
+
+	it("allows on-failure beside it, because retrying a FAILED run is a different thing", () => {
+		expect(parseOne({ everySeconds: 60, restart: "on-failure" }).get("tick")?.everySeconds).toBe(60);
+	});
+
+	it("refuses an interval below the floor or above the ceiling, and says why", () => {
+		expect(() => parseOne({ everySeconds: 1 })).toThrow(/between 10 and 86400/u);
+		expect(() => parseOne({ everySeconds: 100_000 })).toThrow(/calendar event/u);
+	});
+
+	it("refuses a non-integer rather than rounding one", () => {
+		expect(() => parseOne({ everySeconds: 60.5 })).toThrow(/whole number/u);
+		expect(() => parseOne({ everySeconds: "60" })).toThrow(/whole number/u);
 	});
 });
