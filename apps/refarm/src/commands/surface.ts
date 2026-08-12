@@ -7,6 +7,7 @@ import { declaredBase, loadRawSovereignConfig } from "@refarm.dev/config";
 import {
 	createFileOperationTrail,
 	createNodeOperationFileSystem,
+	type OperationQuestion,
 } from "@refarm.dev/operation-consent-v1";
 import {
 	createOperatorChannelFor,
@@ -66,6 +67,8 @@ export type SurfaceAddResult =
 			replaced: boolean;
 	  }
 	| { status: "unchanged" | "cancelled" | "deferred"; surface: string }
+	/** Somebody is already waiting on this exact question — see `OperationQuestion`. */
+	| { status: "already-asked"; surface: string; question: OperationQuestion }
 	| { status: "declined"; surface: string; recordId: string };
 
 export class SurfaceAddRefusal extends Error {
@@ -192,6 +195,13 @@ export async function runSurfaceAdd(
 			...(prior ? { revisit: true } : {}),
 		});
 		if (outcome.status === "declined") return { status: "declined", surface: name, recordId: outcome.record.id };
+		// `already-asked` is NOT `deferred`. Deferred is the operator saying "not now"; this is
+		// somebody ELSE still waiting on the same question — usually a run that asked and died,
+		// whose card is still standing. Collapsing them would tell the operator they declined
+		// something they were never shown.
+		if (outcome.status === "already-asked") {
+			return { status: "already-asked", surface: name, question: outcome.question };
+		}
 		if (outcome.status !== "authorized") return { status: "deferred", surface: name };
 		parseSurfaces(loadRawSovereignConfig(root));
 		return {

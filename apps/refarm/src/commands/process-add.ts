@@ -2,6 +2,7 @@ import {
 	createFileOperationTrail,
 	createNodeOperationFileSystem,
 	type OperationFileSystem,
+	type OperationQuestion,
 	type OperationTrail,
 } from "@refarm.dev/operation-consent-v1";
 import {
@@ -620,7 +621,9 @@ export type ProcessAddResult =
 	| { status: "deferred"; process: string }
 	/** Ctrl+C / EOF mid-wizard. Nothing asked after it, nothing written. */
 	| { status: "cancelled"; process: string | null }
-	| { status: "unchanged"; process: string; reason: "already-declared" | "already-decided" };
+	| { status: "unchanged"; process: string; reason: "already-declared" | "already-decided" }
+	/** Somebody is already waiting on this exact question — a run that asked and may be gone. */
+	| { status: "already-asked"; process: string; question: OperationQuestion };
 
 export interface ProcessAddDeps {
 	root?: string;
@@ -997,6 +1000,13 @@ export async function runProcessAdd(
 
 		if (outcome.status === "declined") {
 			return { status: "declined", process: processName, recordId: outcome.record.id };
+		}
+		// `already-asked` is NOT `deferred`. Deferred is the operator saying "not now"; this is
+		// somebody ELSE still waiting on the same question — usually a run that asked and died,
+		// whose card is still standing. Collapsing them would tell the operator they declined
+		// something they were never shown.
+		if (outcome.status === "already-asked") {
+			return { status: "already-asked", process: processName, question: outcome.question };
 		}
 		if (outcome.status !== "authorized") {
 			return { status: "deferred", process: processName };

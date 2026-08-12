@@ -81,6 +81,9 @@ interface ResumeOptions {
 	status?: boolean;
 	nextAction?: boolean;
 	nextCommand?: boolean;
+	/** A standing question's requestId to stop reporting. */
+	dismiss?: string;
+	dismissExpired?: boolean;
 }
 
 export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
@@ -106,6 +109,14 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 		.option("--no-status", "Skip runtime status inspection and only read local checkpoints")
 		.option("--next-action", "Print only the first recovery command and exit")
 		.option("--next-command", "Alias for --next-action")
+		.option(
+			"--dismiss <requestId>",
+			"Stop reporting a standing question — it was handled elsewhere, or no longer matters",
+		)
+		.option(
+			"--dismiss-expired",
+			"Stop reporting every question whose window has closed — nobody dismisses fourteen one at a time",
+		)
 		.addHelpText(
 			"after",
 			`
@@ -124,6 +135,13 @@ Notes:
 `,
 		)
 		.action(async (options: ResumeOptions) => {
+			// DISMISS IS ITS OWN RUN, not a flag that also prints the view. The operator is saying
+			// one thing — stop telling me about this — and answering it with a full resume would
+			// bury the confirmation in the report they were trying to shorten.
+			if (options.dismiss || options.dismissExpired) {
+				await emitResumeDismiss(options.dismiss ?? null, Boolean(options.json), Boolean(options.dismissExpired));
+				return;
+			}
 			await emitResume(options, resolvedDeps);
 		});
 }
@@ -240,6 +258,63 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 }
 
 /**
+ * Stop reporting one standing question.
+ *
+ * ## Why this exists, in the operator's own words
+ *
+ * "importante lidar com o lixo do resume, para não ficarmos recebendo algo de forma eterna
+ * poluindo" — and he is right in a way that matters more than tidiness. A surface an operator
+ * scrolls past has stopped working, and the standing-question record exists precisely to stop
+ * questions being ignored. Left to accumulate, it would manufacture the habit it was built to
+ * break.
+ *
+ * Two mechanisms, and they answer different questions:
+ *   · RETENTION, automatic — the trail bounds how many EXPIRED questions it keeps (never the
+ *     outstanding ones), pruning as a side effect of writing rather than needing a sweep.
+ *   · DISMISS, this — the operator saying a specific question was handled elsewhere or no longer
+ *     matters. Conscious, named, and reported back.
+ *
+ * IT CLEARS THE NODE'S MEMORY, NOT A LIVE CARD. If the asking process is still running and still
+ * waiting, its prompt is untouched: that lives in the hub under P1 and belongs to the process that
+ * put it. This says "stop telling me", never "cancel it".
+ */
+async function emitResumeDismiss(
+	requestId: string | null,
+	json: boolean,
+	expired: boolean,
+): Promise<void> {
+	const root = declaredBase();
+	const at = new Date().toISOString();
+	let dismissed = 0;
+	for (const trailPath of standingQuestionTrailPaths(root)) {
+		const trail = createFileOperationTrail(trailPath);
+		if (expired) dismissed += (await trail.dismissExpiredQuestions?.(at)) ?? 0;
+		if (requestId && (await trail.dismissQuestion?.(requestId))) dismissed += 1;
+	}
+	const subject = requestId ?? "every question whose window had closed";
+	const nextCommands = [refarmCommand(["resume", "--json"])];
+	// THREE STATES on the way out too: something went, or nothing matched — which is neither an
+	// error (it may have been answered a second ago) nor a success worth congratulating.
+	const nextAction =
+		dismissed > 0
+			? `${dismissed} no longer reported. Any asker still running keeps its own prompt — this cleared the node's memory, not a live card.`
+			: `Nothing matched ${subject}. It may have been answered, or aged out already.`;
+	if (json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "resume",
+				operation: "dismiss",
+				extra: { requestId, expired, dismissed },
+				nextAction,
+				nextCommands,
+			}),
+		);
+		return;
+	}
+	console.log(nextAction);
+}
+
+/**
  * What this node is waiting on the operator for, read from the consent trails.
  *
  * ## Why the paths are a LIST and not a search
@@ -259,16 +334,19 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
  * Never throws: `resume` is the command an operator runs when they have lost the thread, and a
  * trail it cannot parse must not be the reason they cannot run it.
  */
+function standingQuestionTrailPaths(root: string): string[] {
+	return [
+		path.join(root, ".refarm", "processes", "operations.json"),
+		path.join(root, ".refarm", "tls", "operations.json"),
+		path.join(root, ".refarm", "operations.json"),
+	];
+}
+
 async function loadAwaitingOperator(): Promise<OperatorResumeAwaiting | null> {
 	try {
 		const root = declaredBase();
-		const paths = [
-			path.join(root, ".refarm", "processes", "operations.json"),
-			path.join(root, ".refarm", "tls", "operations.json"),
-			path.join(root, ".refarm", "operations.json"),
-		];
 		const questions: OperationQuestion[] = [];
-		for (const trailPath of paths) {
+		for (const trailPath of standingQuestionTrailPaths(root)) {
 			const trail = createFileOperationTrail(trailPath);
 			questions.push(...((await trail.readQuestions?.()) ?? []));
 		}

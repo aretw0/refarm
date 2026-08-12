@@ -660,6 +660,16 @@ function addNextAction(result: ProcessAddResult): string | null {
 			return "Cancelled. Nothing was written.";
 		case "unchanged":
 			return "Kept what was already there.";
+		case "already-asked":
+			// NOT "deferred". Somebody already put this question and is still waiting on it —
+			// usually a run that asked and died, whose card is still standing. Telling the
+			// operator they deferred something they were never shown is the collapse this
+			// distinction exists to prevent.
+			return (
+				`Already being asked: "${result.question.title}" was put by ${result.question.requester} ` +
+				`at ${result.question.askedAt} and nobody has answered yet. ` +
+				"Answer it wherever you are attending, or wait for its window to close."
+			);
 	}
 }
 

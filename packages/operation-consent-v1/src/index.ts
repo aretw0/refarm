@@ -225,7 +225,29 @@ export interface OperationTrail {
 	 */
 	readQuestions?(): Promise<OperationQuestion[]>;
 	openQuestion?(question: OperationQuestion): Promise<void>;
+	/** The ASKER finished — answered, deferred, or raised. Ordinary end of a question. */
 	closeQuestion?(requestId: string): Promise<void>;
+	/**
+	 * THE OPERATOR let it go: it is no longer relevant, or it was handled elsewhere.
+	 *
+	 * The same removal as `closeQuestion` and a different fact, which is why it has its own name.
+	 * A question closed by its asker was resolved through the machinery; one dismissed by the
+	 * operator was resolved OUTSIDE it — the VPN was brought up by hand, the deploy was cancelled,
+	 * the reason evaporated. Reusing one verb for both would make the trail unable to say which.
+	 *
+	 * IT CLEARS THE NODE'S MEMORY, NOT A LIVE CARD. If the asker is still running and still
+	 * waiting, its prompt is unaffected — that lives in the hub, under P1, and belongs to the
+	 * process that put it. Dismissing here says "stop telling me about this", not "cancel it".
+	 */
+	dismissQuestion?(requestId: string): Promise<boolean>;
+	/**
+	 * Stop reporting every question whose window has closed. Returns how many went.
+	 *
+	 * The bulk form of `dismissQuestion`, and the one an operator actually reaches for: nobody
+	 * dismisses fourteen things one id at a time. It touches only what has EXPIRED — an
+	 * outstanding question is a live obligation and is never cleared by a tidy-up.
+	 */
+	dismissExpiredQuestions?(now: string): Promise<number>;
 }
 
 /**
@@ -394,7 +416,28 @@ export function createMemoryOperationTrail(seed: OperationRecord[] = []): Operat
 export function createFileOperationTrail(
 	path: string,
 	fs: OperationFileSystem = createNodeOperationFileSystem(),
+	options: {
+		/** Injectable so the retention rule is testable without waiting a day. */
+		now?: () => string;
+		maxExpiredKept?: number;
+	} = {},
 ): OperationTrail {
+	const now = options.now ?? (() => new Date().toISOString());
+	const maxExpiredKept = options.maxExpiredKept ?? DEFAULT_EXPIRED_QUESTIONS_KEPT;
+
+	/** PURE-ish (reads the clock): drop the oldest expired questions past the bound. Outstanding
+	 *  ones are untouched, whatever the count — see {@link DEFAULT_EXPIRED_QUESTIONS_KEPT}. */
+	function prune(questions: OperationQuestion[]): OperationQuestion[] {
+		const summary = summariseStandingQuestions(questions, now());
+		if (summary.expired.length <= maxExpiredKept) return questions;
+		const kept = new Set(summary.expired.slice(0, maxExpiredKept).map((q) => q.requestId));
+		return questions.filter(
+			(question) =>
+				summary.expired.every((expired) => expired.requestId !== question.requestId) ||
+				kept.has(question.requestId),
+		);
+	}
+
 	async function readDocument(): Promise<Partial<OperationTrailDocument>> {
 		const raw = await fs.readFile(path);
 		if (raw === null) return {};
@@ -414,8 +457,11 @@ export function createFileOperationTrail(
 	}
 	async function write(
 		records: OperationRecord[],
-		questions: OperationQuestion[],
+		unpruned: OperationQuestion[],
 	): Promise<void> {
+		// Retention is applied ON WRITE, so a trail that is never touched again never grows, and
+		// one that is touched cleans up as a side effect of the work rather than needing a sweep.
+		const questions = prune(unpruned);
 		// NOTHING TO REMEMBER ⇒ NO FILE. A run that asks and then defers used to leave no trace on
 		// disk at all, and that is a property worth keeping: "the operator was asked and said not
 		// now" must not be distinguishable from "nobody ran this" by a stray empty document. The
@@ -455,6 +501,26 @@ export function createFileOperationTrail(
 				(existing) => existing.requestId !== question.requestId,
 			);
 			await write(await readAll(), [...questions, question]);
+		},
+		async dismissQuestion(requestId) {
+			const questions = await readQuestions();
+			if (!questions.some((question) => question.requestId === requestId)) return false;
+			await write(
+				await readAll(),
+				questions.filter((question) => question.requestId !== requestId),
+			);
+			return true;
+		},
+		async dismissExpiredQuestions(at) {
+			const questions = await readQuestions();
+			const { expired } = summariseStandingQuestions(questions, at);
+			if (expired.length === 0) return 0;
+			const gone = new Set(expired.map((question) => question.requestId));
+			await write(
+				await readAll(),
+				questions.filter((question) => !gone.has(question.requestId)),
+			);
+			return expired.length;
 		},
 		async closeQuestion(requestId) {
 			const questions = await readQuestions();
@@ -784,6 +850,26 @@ export interface RunOperationConsentOptions {
 /** A day. Long enough that an operator who is asleep still gets to answer in the morning; short
  *  enough that a question nobody ever answered does not become a permanent veto. */
 export const DEFAULT_QUESTION_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * How many EXPIRED questions a trail keeps.
+ *
+ * ## Why a bound rather than a sweep
+ *
+ * An expired question is worth reporting — it says the node asked and nobody answered, which is a
+ * commitment it could not keep. Worth reporting once. Kept forever, it becomes the thing an
+ * operator scrolls past, and a surface people scroll past has stopped working, which is the exact
+ * failure the whole standing-question record was built to prevent. So the trail keeps the most
+ * recent few and drops the rest at the moment it writes.
+ *
+ * OUTSTANDING QUESTIONS ARE NEVER DROPPED, at any count. A question still inside its window is a
+ * live obligation; discarding one to save space would silently lose the thing this record is for.
+ * The bound applies only to what has already timed out.
+ *
+ * Same idiom as the prompt hub's `recent_capacity` ring: bounded memory of what settled, and no
+ * garbage collector anywhere.
+ */
+export const DEFAULT_EXPIRED_QUESTIONS_KEPT = 10;
 
 /** PURE. When a question put at `askedAt` stops standing. */
 export function questionExpiry(askedAt: string, ttlMs = DEFAULT_QUESTION_TTL_MS): string | null {

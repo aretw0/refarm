@@ -8,6 +8,7 @@ import {
 	createFileOperationTrail,
 	createNodeOperationFileSystem,
 	type OperationFileSystem,
+	type OperationQuestion,
 	type OperationTrail,
 } from "@refarm.dev/operation-consent-v1";
 import {
@@ -74,7 +75,9 @@ export type WorkspaceAddResult =
 	  }
 	| { status: "declined" | "deferred"; workspace: string; recordId?: string }
 	| { status: "cancelled"; workspace: string | null }
-	| { status: "unchanged"; workspace: string; reason: "already-declared" | "already-decided" };
+	| { status: "unchanged"; workspace: string; reason: "already-declared" | "already-decided" }
+	/** Somebody is already waiting on this exact question — a run that asked and may be gone. */
+	| { status: "already-asked"; workspace: string; question: OperationQuestion };
 
 export class WorkspaceAddRefusal extends Error {
 	constructor(readonly code: string, message: string) {
@@ -267,6 +270,13 @@ export async function runWorkspaceAdd(
 		});
 		if (outcome.status === "declined") {
 			return { status: "declined", workspace: id, recordId: outcome.record.id };
+		}
+		// `already-asked` is NOT `deferred`. Deferred is the operator saying "not now"; this is
+		// somebody ELSE still waiting on the same question — usually a run that asked and died,
+		// whose card is still standing. Collapsing them would tell the operator they declined
+		// something they were never shown.
+		if (outcome.status === "already-asked") {
+			return { status: "already-asked", workspace: id, question: outcome.question };
 		}
 		if (outcome.status !== "authorized") return { status: "deferred", workspace: id };
 		return {

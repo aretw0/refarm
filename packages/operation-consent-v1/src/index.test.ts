@@ -977,3 +977,90 @@ describe("a trail with nothing to remember leaves no file", () => {
 		expect(await trail.readQuestions?.()).toHaveLength(1);
 	});
 });
+
+describe("garbage: what a standing-question trail is allowed to keep", () => {
+	/**
+	 * The operator's point, and it matters more than tidiness: a surface people scroll past has
+	 * stopped working. The standing-question record exists to stop questions being ignored — left
+	 * to accumulate, it would manufacture the very habit it was built to break.
+	 *
+	 * Two mechanisms, answering different questions:
+	 *   RETENTION — automatic, bounded, applied when the trail is written.
+	 *   DISMISS   — the operator saying this was handled elsewhere or no longer matters.
+	 */
+	const AT = "2026-08-12T12:00:00.000Z";
+	const expiredQ = (n: number): OperationQuestion => ({
+		requestId: `old:${n}`,
+		kind: "k",
+		title: `stale ${n}`,
+		purpose: "p",
+		requester: "a dead run",
+		askedAt: `2026-08-0${1 + (n % 9)}T01:00:00.000Z`,
+		expiresAt: "2026-08-11T01:00:00.000Z",
+	});
+	const liveQ: OperationQuestion = {
+		requestId: "live:1",
+		kind: "k",
+		title: "still answerable",
+		purpose: "p",
+		requester: "a run still waiting",
+		askedAt: AT,
+		expiresAt: "2026-08-13T01:00:00.000Z",
+	};
+
+	async function seeded(maxExpiredKept?: number) {
+		const fs = memoryFs();
+		const trail = createFileOperationTrail("/t/operations.json", fs, {
+			now: () => AT,
+			...(maxExpiredKept === undefined ? {} : { maxExpiredKept }),
+		});
+		for (let n = 0; n < 14; n += 1) await trail.openQuestion?.(expiredQ(n));
+		await trail.openQuestion?.(liveQ);
+		return { fs, trail };
+	}
+
+	it("bounds how many EXPIRED it keeps, as a side effect of writing", async () => {
+		const { trail } = await seeded(3);
+		const questions = (await trail.readQuestions?.()) ?? [];
+		const summary = summariseStandingQuestions(questions, AT);
+		expect(summary.expired).toHaveLength(3);
+	});
+
+	it("never drops an OUTSTANDING one, at any count", async () => {
+		// A question still inside its window is a live obligation. Discarding one to save space
+		// would silently lose the thing this whole record is for.
+		const { trail } = await seeded(1);
+		const summary = summariseStandingQuestions((await trail.readQuestions?.()) ?? [], AT);
+		expect(summary.outstanding.map((q) => q.requestId)).toEqual(["live:1"]);
+	});
+
+	it("dismisses every expired one at once, and only those", async () => {
+		// Nobody dismisses fourteen things one id at a time.
+		const { trail } = await seeded(100);
+		expect(await trail.dismissExpiredQuestions?.(AT)).toBe(14);
+		const summary = summariseStandingQuestions((await trail.readQuestions?.()) ?? [], AT);
+		expect(summary.expired).toEqual([]);
+		expect(summary.outstanding.map((q) => q.requestId)).toEqual(["live:1"]);
+	});
+
+	it("dismisses one by id, and says plainly when nothing matched", async () => {
+		const { trail } = await seeded(100);
+		expect(await trail.dismissQuestion?.("live:1")).toBe(true);
+		// Not an error and not a success: it may have been answered a second ago.
+		expect(await trail.dismissQuestion?.("live:1")).toBe(false);
+	});
+
+	it("leaves no file behind once there is nothing left to remember", async () => {
+		const { fs, trail } = await seeded(100);
+		await trail.dismissExpiredQuestions?.(AT);
+		await trail.dismissQuestion?.("live:1");
+		expect(fs.files.get("/t/operations.json")).toBeUndefined();
+	});
+
+	it("dismissing clears the RECORD, and a decision trail is not touched by it", async () => {
+		// Dismiss says "stop telling me", never "cancel it" — and never "pretend it was decided".
+		const { trail } = await seeded(100);
+		await trail.dismissExpiredQuestions?.(AT);
+		expect(await trail.read()).toEqual([]);
+	});
+});
