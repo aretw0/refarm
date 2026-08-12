@@ -9,6 +9,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
+	answerStandingQuestion,
 	applyChanges,
 	createFileOperationTrail,
 	createMemoryOperationTrail,
@@ -1062,5 +1063,132 @@ describe("garbage: what a standing-question trail is allowed to keep", () => {
 		const { trail } = await seeded(100);
 		await trail.dismissExpiredQuestions?.(AT);
 		expect(await trail.read()).toEqual([]);
+	});
+});
+
+describe("answering a question whose asker is gone", () => {
+	/**
+	 * The last link: a run asks and dies, the node remembers, `resume` reports it, and the answer
+	 * lands HERE — applying the change the original process would have applied, into the same
+	 * trail it would have written to.
+	 *
+	 * The record has to carry the WHOLE REQUEST for that to be possible. Carrying only the title
+	 * is enough to report a question and enough to stop a second run asking it; it is not enough
+	 * to answer one, because a decision and its application happen together in this block and
+	 * `already-decided` deliberately does not re-apply. A decision recorded out of band without
+	 * the changes would be a decision that never took effect — worse than not deciding, because it
+	 * looks like it worked.
+	 */
+	const AT = "2026-08-12T12:00:00.000Z";
+	function standing(over: Partial<OperationQuestion> = {}): OperationQuestion {
+		const request = requestAppending("# perfil\n");
+		return {
+			requestId: request.id,
+			kind: request.kind,
+			title: request.title,
+			purpose: request.purpose,
+			requester: "a run that died",
+			askedAt: "2026-08-12T10:00:00.000Z",
+			expiresAt: "2026-08-13T10:00:00.000Z",
+			request,
+			...over,
+		};
+	}
+
+	async function seeded(question = standing(), seed: Record<string, string> = {}) {
+		const fs = memoryFs(seed);
+		const trail = createFileOperationTrail("/t/operations.json", fs, { now: () => AT });
+		await trail.openQuestion?.(question);
+		return { fs, trail, question };
+	}
+
+	it("applies the change and records the decision", async () => {
+		const question = standing();
+		const change = question.request!.changes[0]!;
+		const { fs, trail } = await seeded(question, { [change.path]: change.before ?? "" });
+		const outcome = await answerStandingQuestion({
+			requestId: question.requestId,
+			decision: "authorized",
+			trail,
+			fs,
+			now: () => AT,
+		});
+		expect(outcome.status).toBe("applied");
+		expect(fs.files.get(change.path)).toBe(change.after);
+		// And the question stops standing, because a decision ends it.
+		expect(await trail.readQuestions?.()).toEqual([]);
+	});
+
+	it("REFUSES when the world moved between the asking and the answering", async () => {
+		// ISS-118's second check, made real. The gap between asking and answering is exactly where
+		// a card sits on a phone for an hour — and the operator authorised a change to the file
+		// they were SHOWN, not to this one.
+		const question = standing();
+		const change = question.request!.changes[0]!;
+		const { fs, trail } = await seeded(question, { [change.path]: "somebody else edited this\n" });
+		const outcome = await answerStandingQuestion({
+			requestId: question.requestId,
+			decision: "authorized",
+			trail,
+			fs,
+			now: () => AT,
+		});
+		expect(outcome.status).toBe("stale");
+		expect(fs.files.get(change.path)).toBe("somebody else edited this\n");
+		// The question SURVIVES a refusal: nothing was decided, so it is still standing.
+		expect(await trail.readQuestions?.()).toHaveLength(1);
+	});
+
+	it("declining records the refusal and touches nothing", async () => {
+		const question = standing();
+		const change = question.request!.changes[0]!;
+		const { fs, trail } = await seeded(question, { [change.path]: change.before ?? "" });
+		const outcome = await answerStandingQuestion({
+			requestId: question.requestId,
+			decision: "declined",
+			trail,
+			fs,
+			now: () => AT,
+		});
+		expect(outcome.status).toBe("declined");
+		expect(fs.files.get(change.path)).toBe(change.before);
+	});
+
+	it("will not answer a question whose window closed", async () => {
+		const { trail } = await seeded(standing({ expiresAt: "2026-08-11T10:00:00.000Z" }));
+		const outcome = await answerStandingQuestion({
+			requestId: standing().requestId,
+			decision: "authorized",
+			trail,
+			now: () => AT,
+		});
+		expect(outcome.status).toBe("expired");
+	});
+
+	it("says UNANSWERABLE for a record written before requests were stored", async () => {
+		// Reported honestly rather than offered a button that fails. Such a question can still be
+		// seen and dismissed; it cannot be answered, and pretending otherwise would apply nothing
+		// while claiming success.
+		const question = standing();
+		delete (question as { request?: unknown }).request;
+		const { trail } = await seeded(question);
+		const outcome = await answerStandingQuestion({
+			requestId: question.requestId,
+			decision: "authorized",
+			trail,
+			now: () => AT,
+		});
+		expect(outcome.status).toBe("unanswerable");
+	});
+
+	it("not-found is not an error — it may have been answered a moment ago", async () => {
+		const { trail } = await seeded();
+		const outcome = await answerStandingQuestion({
+			requestId: "nothing-like-this",
+			decision: "authorized",
+			trail,
+			now: () => AT,
+		});
+		expect(outcome.status).toBe("not-found");
 	});
 });

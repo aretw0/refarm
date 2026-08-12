@@ -1,4 +1,4 @@
-import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { resolveWorkspaceLedger, type LedgerWorkspace } from "@refarm.dev/cli";
 import { loadChatHistory } from "@refarm.dev/cli/chat-history";
 import {
@@ -24,6 +24,7 @@ import {
 import { declaredBase, declaredWorkspacesFromConfig, loadConfig } from "@refarm.dev/config";
 import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
 import {
+	answerStandingQuestion,
 	createFileOperationTrail,
 	summariseStandingQuestions,
 	type OperationQuestion,
@@ -84,6 +85,9 @@ interface ResumeOptions {
 	/** A standing question's requestId to stop reporting. */
 	dismiss?: string;
 	dismissExpired?: boolean;
+	answer?: string;
+	authorize?: boolean;
+	decline?: boolean;
 }
 
 export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
@@ -117,6 +121,9 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 			"--dismiss-expired",
 			"Stop reporting every question whose window has closed — nobody dismisses fourteen one at a time",
 		)
+		.option("--answer <requestId>", "Answer a standing question whose asker is gone")
+		.option("--authorize", "With --answer: yes. Applies the change the original run would have")
+		.option("--decline", "With --answer: no. Records the refusal, changes nothing")
 		.addHelpText(
 			"after",
 			`
@@ -138,6 +145,10 @@ Notes:
 			// DISMISS IS ITS OWN RUN, not a flag that also prints the view. The operator is saying
 			// one thing — stop telling me about this — and answering it with a full resume would
 			// bury the confirmation in the report they were trying to shorten.
+			if (options.answer) {
+				await emitResumeAnswer(options, Boolean(options.json));
+				return;
+			}
 			if (options.dismiss || options.dismissExpired) {
 				await emitResumeDismiss(options.dismiss ?? null, Boolean(options.json), Boolean(options.dismissExpired));
 				return;
@@ -255,6 +266,93 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 	} finally {
 		await statusResult?.shutdown?.();
 	}
+}
+
+/**
+ * Answer a question whose asker is gone — the last link in the loop.
+ *
+ * A run asks and dies, the node remembers it asked, `resume` reports it, and this is where the
+ * answer finally lands: applying the change the original process would have applied, and writing
+ * the decision into the same trail it would have written to.
+ *
+ * ## `--authorize` and `--decline` are BOTH required to be explicit
+ *
+ * There is no default. A missing flag is not "probably yes" and not "probably no"; it is a
+ * malformed instruction, and the one place a consent surface must never guess is the answer.
+ */
+async function emitResumeAnswer(options: ResumeOptions, json: boolean): Promise<void> {
+	const requestId = options.answer ?? "";
+	const say = (message: string, extra: Record<string, unknown> = {}, ok = true) => {
+		if (json) {
+			printJson(
+				(ok ? buildJsonSuccessEnvelope : buildJsonErrorEnvelope)({
+					command: "resume",
+					operation: "answer",
+					...(ok ? {} : { error: "resume-answer-refused" }),
+					extra: { requestId, ...extra },
+					nextAction: message,
+					nextCommands: [refarmCommand(["resume", "--json"])],
+				} as never),
+			);
+		} else {
+			console.log(message);
+		}
+		if (!ok) process.exitCode = 1;
+	};
+
+	if (options.authorize === options.decline) {
+		say(
+			"Say which: --authorize or --decline. A missing answer is not a quiet yes and not a quiet no.",
+			{},
+			false,
+		);
+		return;
+	}
+
+	const decision = options.authorize ? "authorized" : "declined";
+	for (const trailPath of standingQuestionTrailPaths(declaredBase())) {
+		const outcome = await answerStandingQuestion({
+			requestId,
+			decision,
+			trail: createFileOperationTrail(trailPath),
+		});
+		switch (outcome.status) {
+			case "applied":
+				say(`Authorised and applied. Recorded as ${outcome.record.id}.`, { status: outcome.status });
+				return;
+			case "declined":
+				say(`Declined. Nothing was changed. Recorded as ${outcome.record.id}.`, {
+					status: outcome.status,
+				});
+				return;
+			case "expired":
+				say("That question's window closed before anyone answered it.", { status: outcome.status }, false);
+				return;
+			case "unanswerable":
+				// Reported honestly rather than offered a button that fails: this record predates
+				// the field that carries the request, so there is nothing to apply.
+				say(
+					"That question was recorded before this node stored what it would change, so it cannot be answered here — run the original command again.",
+					{ status: outcome.status },
+					false,
+				);
+				return;
+			case "stale":
+				// ISS-118's second check, made real. The gap between asking and answering is
+				// exactly where a card sits on a phone for an hour.
+				say(
+					`The world moved: ${outcome.drifted.join(", ")} no longer looks like it did when the question was put, so applying the stored change would clobber whatever altered it. Run the original command again.`,
+					{ status: outcome.status, drifted: outcome.drifted },
+					false,
+				);
+				return;
+			case "not-found":
+				break;
+		}
+	}
+	say(`No standing question with id ${requestId} — it may have been answered or aged out.`, {
+		status: "not-found",
+	});
 }
 
 /**

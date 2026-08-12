@@ -293,6 +293,117 @@ export interface OperationQuestion {
 	expiresAt: string | null;
 	host?: string;
 	pid?: number;
+	/**
+	 * THE WHOLE REQUEST, so this question can still be answered when the process that put it is
+	 * gone.
+	 *
+	 * ## Why the title was not enough
+	 *
+	 * The first version of this record carried what a SURFACE needs — title, purpose, who asked.
+	 * That is enough to report a question and enough to stop a second run asking it again. It is
+	 * not enough to ANSWER one: a decision and its application happen together in this block, and
+	 * `already-decided` deliberately does not re-apply. So a decision recorded out of band would
+	 * have been a decision that never took effect — a worse outcome than not being able to decide
+	 * at all, because it looks like it worked.
+	 *
+	 * The request carries its own `changes`, with a complete `before` and `after` for each file,
+	 * which is exactly what applying it later needs.
+	 *
+	 * OPTIONAL, because a trail written before this field existed has questions without one. Those
+	 * can be reported and dismissed; they cannot be answered, and the surface says so rather than
+	 * offering a button that fails.
+	 */
+	request?: OperationRequest;
+}
+
+/** What answering a standing question did — and every way it can honestly fail. */
+export type AnswerStandingQuestionOutcome =
+	| { status: "applied"; record: OperationRecord }
+	| { status: "declined"; record: OperationRecord }
+	/** No standing question with that id. Not an error: it may have been answered a moment ago. */
+	| { status: "not-found"; record: null }
+	/** Its window closed before anyone answered. */
+	| { status: "expired"; record: null }
+	/** Recorded before the request was stored, so there is nothing to apply. */
+	| { status: "unanswerable"; record: null }
+	/**
+	 * THE WORLD MOVED. At least one file no longer looks like it did when the question was put, so
+	 * applying the stored `after` would clobber whatever changed in between.
+	 *
+	 * This is the second half of ISS-118 made real: a precondition checked BEFORE asking is not
+	 * enough, because the gap between asking and answering is exactly where a card sits on a phone
+	 * for an hour. Refusing here is the only honest answer — the operator authorised a change to
+	 * the file they were shown, not to this one.
+	 */
+	| { status: "stale"; record: null; drifted: string[] };
+
+/** PURE-ish (reads files). Which of a request's changes no longer match the world they were
+ *  captured from. Empty means every `before` is still true. */
+export async function driftedChanges(
+	changes: readonly OperationFileChange[],
+	fs: OperationFileSystem,
+): Promise<string[]> {
+	const drifted: string[] = [];
+	for (const change of changes) {
+		const current = await fs.readFile(change.path);
+		if (current !== change.before) drifted.push(change.path);
+	}
+	return drifted;
+}
+
+/**
+ * Answer a question whose asker is gone.
+ *
+ * The loop this completes: a run asks and dies, the node remembers, `refarm resume` reports it,
+ * and this is where the operator's answer finally lands — applying the change the original process
+ * would have applied, and recording the decision in the same trail it would have written to.
+ */
+export async function answerStandingQuestion(options: {
+	requestId: string;
+	decision: "authorized" | "declined";
+	trail: OperationTrail;
+	fs?: OperationFileSystem;
+	now?: () => string;
+	decidedBy?: string;
+	host?: string;
+}): Promise<AnswerStandingQuestionOutcome> {
+	const fs = options.fs ?? createNodeOperationFileSystem();
+	const now = options.now ?? (() => new Date().toISOString());
+	const decidedAt = now();
+	const questions = (await options.trail.readQuestions?.()) ?? [];
+	const { standing, question } = standingQuestion(questions, options.requestId, decidedAt);
+	if (!question) return { status: "not-found", record: null };
+	if (standing === "expired") return { status: "expired", record: null };
+	if (!question.request) return { status: "unanswerable", record: null };
+
+	const request = question.request;
+	if (options.decision === "declined") {
+		const record = makeOperationRecord({
+			request,
+			decision: "declined",
+			decidedBy: options.decidedBy ?? "operator",
+			decidedAt,
+			appliedAt: null,
+			...(options.host ? { host: options.host } : {}),
+		});
+		await options.trail.append(record);
+		return { status: "declined", record };
+	}
+
+	const drifted = await driftedChanges(request.changes, fs);
+	if (drifted.length > 0) return { status: "stale", record: null, drifted };
+
+	await applyChanges(request.changes, fs);
+	const record = makeOperationRecord({
+		request,
+		decision: "authorized",
+		decidedBy: options.decidedBy ?? "operator",
+		decidedAt,
+		appliedAt: decidedAt,
+		...(options.host ? { host: options.host } : {}),
+	});
+	await options.trail.append(record);
+	return { status: "applied", record };
 }
 
 /**
@@ -930,6 +1041,9 @@ export async function runOperationConsent(
 		askedAt: now(),
 		expiresAt: questionExpiry(now(), options.questionTtlMs),
 		...(host ? { host } : {}),
+		// The whole request, so this can still be ANSWERED when this process is gone. Reporting a
+		// question needs its title; answering one needs its changes.
+		request,
 	});
 
 	let answer: string;
