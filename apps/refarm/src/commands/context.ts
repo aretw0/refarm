@@ -111,6 +111,12 @@ import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { resolveRuntimeSidecarUrl } from "../utils/runtime-config.js";
 import { resolveTractorNamespace } from "../utils/tractor-store.js";
 import { CONTEXT_HOME_DIVERGENCE_DIAGNOSTIC } from "./context-doctor.js";
+import {
+	formatInventory,
+	inventoryLocation,
+	sovereignLocations,
+	summariseInventory,
+} from "./sovereign-inventory.js";
 
 /** The running node's own identity, as `node.json` states it — a narrow projection of
  *  `NodeDescriptor` (`../utils/node-descriptor.ts`), kept small so a test can express "a
@@ -574,12 +580,44 @@ function printContextHuman(report: ContextReport): void {
 
 interface ContextCommandOptions {
 	json?: boolean;
+	inventory?: boolean;
+}
+
+/**
+ * The inventory's answer to "what must a backup contain" (ISS-123).
+ *
+ * It lives behind a flag on `context` rather than in the default report because the default report
+ * is read on every slice and this walks three directories. The claim `context` already makes —
+ * "the whole resolved sovereign state" — is what makes this the right command: it reported where
+ * the state is ROOTED while omitting `~/.local/share/refarm`, where the Rust host writes this
+ * node's actual database.
+ *
+ * The namespace comes from `cliNamespace`, which is THIS CLI's resolution. The node's own
+ * `nodeEnvironment.namespace` is null on this host, and using a null there would classify every
+ * database as undeclared. Which one was used is printed, because a file being "this node's data"
+ * rests entirely on that choice.
+ */
+function buildInventoryReport(report: ContextReport) {
+	const locations = sovereignLocations(
+		report.metadata.sovereignHome,
+		report.metadata.credentialStoreHome,
+		report.cliBase,
+	);
+	const namespace = report.nodeEnvironment?.namespace ?? report.cliNamespace ?? null;
+	const namespaceOrigin = report.nodeEnvironment?.namespace ? "node" : report.cliNamespace ? "cli" : "none";
+	const entries = [
+		...inventoryLocation(locations.stateHome, namespace),
+		...inventoryLocation(locations.credentialStore, namespace),
+		...inventoryLocation(locations.dataDir, namespace),
+	];
+	return { locations, namespace, namespaceOrigin, entries, summary: summariseInventory(entries) };
 }
 
 export function createContextCommand(): Command {
 	return new Command("context")
 		.description("Report the whole resolved sovereign state: mode, home, node, and loaded plugin")
 		.option("--json", "Output machine-readable JSON")
+		.option("--inventory", "List what this node holds and what survives losing the machine")
 		.addHelpText(
 			"after",
 			`
@@ -587,6 +625,8 @@ export function createContextCommand(): Command {
 Examples:
   $ refarm context
   $ refarm context --json
+  $ refarm context --inventory
+  $ refarm context --inventory --json
 
 Notes:
   Read-only — this command never restarts a node and never writes anything.
@@ -597,6 +637,24 @@ Notes:
 		)
 		.action((options: ContextCommandOptions) => {
 			const report = buildContextReport(resolveContextInput());
+			if (options.inventory) {
+				const inventory = buildInventoryReport(report);
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "context",
+							operation: "inventory",
+							extra: { inventory },
+						}),
+					);
+					return;
+				}
+				process.stdout.write(
+					`${formatInventory(inventory.locations, inventory.entries, inventory.summary)}\n` +
+						`\n  namespace: ${inventory.namespace ?? "(none)"} (resolved by: ${inventory.namespaceOrigin})\n`,
+				);
+				return;
+			}
 			if (options.json) {
 				printJson(
 					buildJsonSuccessEnvelope({
