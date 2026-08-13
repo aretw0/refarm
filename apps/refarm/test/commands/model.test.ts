@@ -9,6 +9,7 @@ import {
 	buildModelDoctorStatus,
 	credentialLifetime,
 	formatCredentialLifetime,
+	formatModelDoctorFromStatus,
 	resolveRuntimeModelRoute,
 	type ModelCommandDeps,
 } from "../../src/commands/model.js";
@@ -1694,5 +1695,129 @@ describe("the credential's own clock, reported beside the probe", () => {
 	it("warns before it fails — three days out reads differently from thirty", () => {
 		const soon = formatCredentialLifetime({ state: "valid", expiresAt: NOW, remainingMs: 86_400_000 * 2 });
 		expect(soon).toContain("expires in");
+	});
+});
+
+/**
+ * A MALFORMED ROUTE IS NOT A NETWORK FAULT (ISS-121).
+ *
+ * Measured on the operator's own node 2026-08-12: `tokens.modelBaseUrl` held
+ * `__refarm_ancestor_option_probe__` — a conformance test's sentinel that had leaked into the
+ * silo and sat there for over a day — and `model doctor` reported `unreachable`. The evidence
+ * was already in the payload (`ERR_INVALID_URL`) and the VERDICT contradicted it. Whoever read
+ * that line went to debug a network that was fine.
+ *
+ * These pin the three things that had to change together: the verdict, the sentence, and the
+ * remedy. A doctor that names the fault correctly but still hands back `ollama serve` has moved
+ * the operator's wasted hour, not removed it.
+ */
+describe("endpoint-malformed", () => {
+	const previousBaseUrl = process.env.MODEL_BASE_URL;
+	const previousKey = process.env.OPENAI_API_KEY;
+
+	beforeEach(() => {
+		process.env.OPENAI_API_KEY = "sk-test-key";
+	});
+
+	afterEach(() => {
+		if (previousBaseUrl === undefined) delete process.env.MODEL_BASE_URL;
+		else process.env.MODEL_BASE_URL = previousBaseUrl;
+		if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
+		else process.env.OPENAI_API_KEY = previousKey;
+	});
+
+	/** The real fetch, so the URL parse failure is Node's own and not a mock's idea of one. */
+	async function doctorWithBaseUrl(baseUrl: string) {
+		return buildModelDoctorStatus(
+			{ modelProvider: "openai", modelId: "gpt-5.5", modelBaseUrl: baseUrl },
+			{ isContainer: () => false },
+		);
+	}
+
+	it("names an unparseable endpoint as malformed, not as unreachable", async () => {
+		const status = await doctorWithBaseUrl("__refarm_ancestor_option_probe__");
+		expect(status.providerProbe.reason).toBe("endpoint-malformed");
+		expect(status.providerProbe.ready).toBe(false);
+		// The evidence stays: the verdict changed, the measurement did not.
+		expect(status.providerProbe.error).toMatch(/ERR_INVALID_URL|Failed to parse URL/u);
+	});
+
+	it("still reports a genuinely dead host as unreachable", async () => {
+		// The other side of the boundary. Widening `endpoint-malformed` to swallow connection
+		// failures would trade one mislabel for its mirror image.
+		const status = await buildModelDoctorStatus(
+			{ modelProvider: "openai", modelId: "gpt-5.5", modelBaseUrl: "http://127.0.0.1:1" },
+			{
+				fetch: vi.fn().mockRejectedValue(
+					Object.assign(new Error("fetch failed"), { cause: { code: "ECONNREFUSED" } }),
+				) as unknown as typeof fetch,
+				isContainer: () => false,
+			},
+		);
+		expect(status.providerProbe.reason).toBe("unreachable");
+	});
+
+	it("hands back the remedy that CAN work — clearing the silo's value", async () => {
+		const status = await doctorWithBaseUrl("not a url");
+		expect(status.baseUrlSource).toBe("silo");
+		const text = formatModelDoctorFromStatus(status);
+		expect(text).toContain("refarm model base-url off --json");
+		// And NOT the local-runtime start command: no server was ever the problem.
+		expect(text).not.toContain("ollama serve");
+	});
+
+	it("does not offer a CLI remedy for a value the SHELL exported", async () => {
+		// `model base-url off` deletes the persisted token. With MODEL_BASE_URL set, that command
+		// would report success and the malformed endpoint would survive into the next run — a
+		// remedy that measurably does nothing is worse than none, because it looks like progress.
+		process.env.MODEL_BASE_URL = "__refarm_ancestor_option_probe__";
+		const status = await buildModelDoctorStatus(
+			{ modelProvider: "openai", modelId: "gpt-5.5" },
+			{ isContainer: () => false },
+		);
+		expect(status.baseUrlSource).toBe("env");
+		const text = formatModelDoctorFromStatus(status);
+		expect(text).toContain("unset MODEL_BASE_URL");
+		expect(text).not.toContain("refarm model base-url off");
+	});
+
+	it("says in words that the fault is configuration, and where it lives", async () => {
+		// The verdict is a vocabulary word; this is the line an operator actually reads.
+		const silo = await doctorWithBaseUrl("::::");
+		expect(formatModelDoctorFromStatus(silo)).toContain("stored configuration");
+		process.env.MODEL_BASE_URL = "::::";
+		const env = await buildModelDoctorStatus(
+			{ modelProvider: "openai", modelId: "gpt-5.5" },
+			{ isContainer: () => false },
+		);
+		expect(formatModelDoctorFromStatus(env)).toContain("environment");
+	});
+
+	it("gives the MACHINE reader its own diagnostic, not the network one", async () => {
+		// `recommendations[].diagnostic` is what an automated consumer dispatches on. Leaving it as
+		// `model-provider-unreachable` would keep the original defect alive on the surface that
+		// acts without a human reading the sentence beside it.
+		const silo = await doctorWithBaseUrl("__refarm_ancestor_option_probe__");
+		expect(silo.recommendations?.[0]).toMatchObject({
+			diagnostic: "model-endpoint-malformed",
+			severity: "failure",
+			command: "refarm model base-url off --json",
+		});
+		expect(silo.recommendations?.[0]?.summary).toContain("not a URL");
+
+		process.env.MODEL_BASE_URL = "__refarm_ancestor_option_probe__";
+		const env = await buildModelDoctorStatus(
+			{ modelProvider: "openai", modelId: "gpt-5.5" },
+			{ isContainer: () => false },
+		);
+		expect(env.recommendations?.[0]?.command).toBe("unset MODEL_BASE_URL");
+	});
+
+	it("records baseUrlSource as absent when there is no base URL at all", async () => {
+		// The third state. `undefined` here is not "silo with an empty value" — it is the case
+		// where nothing configured an endpoint, which is how the provider's built-in one applies.
+		const status = await buildCurrentModelStatus({ modelProvider: "openai", modelId: "gpt-5.5" });
+		expect(status.baseUrl).toBeUndefined();
+		expect(status.baseUrlSource).toBeUndefined();
 	});
 });

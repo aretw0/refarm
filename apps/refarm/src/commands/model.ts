@@ -112,6 +112,14 @@ export interface CurrentModelStatus {
 		}
 	>;
 	baseUrl: string | undefined;
+	/**
+	 * WHERE {@link baseUrl} came from — `undefined` when there is no base URL at all.
+	 *
+	 * Recorded because the two sources have different remedies and only one of them is reachable
+	 * from inside this process (ISS-121). Without this, an operator handed `model base-url off`
+	 * for an environment-exported endpoint would watch the command succeed and the fault remain.
+	 */
+	baseUrlSource: "env" | "silo" | undefined;
 	fallback: string | undefined;
 	source: {
 		kind: "environment" | "identity" | "built-in";
@@ -150,6 +158,8 @@ export type CredentialLifetime =
 
 export interface ModelDoctorStatus {
 	current: CurrentModelStatus["current"];
+	/** Carried from {@link CurrentModelStatus} because it decides which remedy the doctor can offer. */
+	baseUrlSource: CurrentModelStatus["baseUrlSource"];
 	/**
 	 * THE CREDENTIAL'S OWN CLOCK, reported beside the reachability probe and never folded into it.
 	 *
@@ -189,6 +199,16 @@ export interface ModelDoctorStatus {
 		inspectCurrent: string;
 		startOllama: string;
 		setDockerOllamaBaseUrl: string;
+		/**
+		 * Drop the PERSISTED base URL so the provider's built-in endpoint applies again.
+		 *
+		 * The remedy when the stored configuration is itself the fault. It restores a default
+		 * rather than inventing a value — the operator's own endpoint, if they had one, is not
+		 * recoverable from here and guessing one would be writing their configuration for them.
+		 */
+		clearPersistedBaseUrl: string;
+		/** Shell, not CLI: an endpoint coming from the environment is outside this process's reach. */
+		unsetBaseUrlEnv: string;
 	};
 }
 
@@ -429,11 +449,24 @@ function modelDoctorHandoffs(
 		// generalized. For ollama this is "ollama serve", byte-identical to before.
 		startOllama: profile.startCommand ?? "ollama serve",
 		setDockerOllamaBaseUrl: modelBaseUrlJsonCommand(OLLAMA_DOCKER_BASE_URL),
+		clearPersistedBaseUrl: modelBaseUrlJsonCommand("off"),
+		unsetBaseUrlEnv: `unset ${MODEL_BASE_URL_ENV_VAR}`,
 	};
 }
 
 function modelDoctorRecoveryCommands(status: ModelDoctorStatus): string[] {
 	if (status.providerProbe.ready !== false) return [];
+	// A ROUTE THAT IS NOT A URL IS NOT FIXED BY STARTING A SERVER. Handing back `ollama serve`
+	// here would spend the operator's time on a runtime that was never the problem; the fault is
+	// in the stored configuration, so the remedy restores it and then shows what it became.
+	if (status.providerProbe.reason === "endpoint-malformed") {
+		// WHERE the endpoint came from decides which remedy is even available. A value the shell
+		// exported cannot be cleared by this process, and `model base-url off` on an env-sourced
+		// endpoint would report success while the malformed value survived the next run.
+		return status.baseUrlSource === "env"
+			? [status.handoffs.unsetBaseUrlEnv, status.handoffs.inspectCurrent]
+			: [status.handoffs.clearPersistedBaseUrl, status.handoffs.inspectCurrent];
+	}
 	const commands: string[] = [];
 	if (status.probeEnvironment.container && status.probeEnvironment.localhostTargetsRuntime) {
 		commands.push(status.handoffs.setDockerOllamaBaseUrl);
@@ -453,6 +486,25 @@ function modelDoctorRecommendations(
 	status: ModelDoctorStatus,
 ): ModelDoctorStatus["recommendations"] | undefined {
 	if (status.providerProbe.ready !== false) return undefined;
+	// The machine-readable twin of the human verdict, and it has to agree with it. A consumer
+	// reading `model-provider-unreachable` for a route that is not a URL would file a network
+	// incident; the diagnostic name is what an automated reader dispatches on.
+	if (status.providerProbe.reason === "endpoint-malformed") {
+		const fromEnv = status.baseUrlSource === "env";
+		return [
+			{
+				diagnostic: "model-endpoint-malformed",
+				severity: "failure",
+				summary: `The configured model endpoint is not a URL, so no request was made — the ${fromEnv ? "environment" : "stored configuration"} is the fault, not the network.`,
+				action: fromEnv
+					? `Unset ${MODEL_BASE_URL_ENV_VAR} in the shell that started this process, then re-check the route.`
+					: "Clear the persisted base URL so the provider's built-in endpoint applies again, then re-check the route.",
+				command: fromEnv
+					? modelDoctorHandoffs().unsetBaseUrlEnv
+					: modelDoctorHandoffs().clearPersistedBaseUrl,
+			},
+		];
+	}
 	const profile = providerDoctorProfile(status.providerProbe.provider);
 	return [
 		{
@@ -515,7 +567,13 @@ async function probeProviderEndpoint(
 			baseUrl,
 			url,
 			ready: false,
-			reason: "unreachable",
+			// A ROUTE THAT CANNOT BE PARSED WAS NEVER PINGED. `fetch` throws before any socket is
+			// opened when the URL is malformed, so calling that "unreachable" reports a network
+			// verdict for a configuration fact and sends the operator to debug a connection that
+			// is fine (ISS-121). `ERR_INVALID_URL` is the code Node uses for exactly this.
+			reason: causeCode === "ERR_INVALID_URL" || /Failed to parse URL/u.test(message)
+				? "endpoint-malformed"
+				: "unreachable",
 			error: causeCode ? `${message}: ${causeCode}` : message,
 			timedOut: name === "AbortError",
 		};
@@ -668,6 +726,7 @@ export async function buildModelDoctorStatus(
 	const probe = await resolveProviderProbe(provider, current, tokens, deps);
 	const status: ModelDoctorStatus = {
 		current: current.current,
+		baseUrlSource: current.baseUrlSource,
 		credential: credentialLifetime(provider, tokens, Date.now()),
 		providerProbe: probe,
 		probeEnvironment,
@@ -750,7 +809,17 @@ export function formatModelDoctorFromStatus(status: ModelDoctorStatus): string {
 		lines.push(chalk.green(`  status:  ready (${status.providerProbe.status})`));
 		return lines.join("\n");
 	}
-	lines.push(chalk.red("  status:  unreachable"));
+	// The VERDICT the operator reads, not a constant. Printing "unreachable" for every failure
+	// meant a malformed route — a configuration fact — arrived as a network verdict, and the
+	// evidence that said otherwise sat one line below, in an error string nobody reads first.
+	lines.push(chalk.red(`  status:  ${status.providerProbe.reason}`));
+	if (status.providerProbe.reason === "endpoint-malformed") {
+		lines.push(
+			chalk.red(
+				`  meaning: the configured endpoint is not a URL, so nothing was contacted — the fault is in the ${status.baseUrlSource === "env" ? "environment" : "stored configuration"}, not the network`,
+			),
+		);
+	}
 	if (status.providerProbe.error) lines.push(`  error:   ${status.providerProbe.error}`);
 	for (const command of modelDoctorRecoveryCommands(status)) {
 		lines.push(chalk.dim(`  fix:     ${command}`));
@@ -985,9 +1054,14 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 	const credentialEnv = modelCredentialEnvKey(provider);
 	const credentialState = modelCredentialState(provider, tokens);
 	const credentialStatus = modelCredentialStatus(provider, tokens);
-	const baseUrl =
-		process.env[MODEL_BASE_URL_ENV_VAR] ??
-		(storedProviderMatchesRoute ? tokens.modelBaseUrl : undefined);
+	const envBaseUrl = process.env[MODEL_BASE_URL_ENV_VAR];
+	const siloBaseUrl = storedProviderMatchesRoute ? tokens.modelBaseUrl : undefined;
+	const baseUrl = envBaseUrl ?? siloBaseUrl;
+	const baseUrlSource: CurrentModelStatus["baseUrlSource"] = envBaseUrl
+		? "env"
+		: siloBaseUrl
+			? "silo"
+			: undefined;
 	const fallbackProvider =
 		process.env[MODEL_FALLBACK_PROVIDER_ENV_VAR] ?? tokens.modelFallbackProvider;
 	let fallbackRef: string | undefined;
@@ -1043,6 +1117,7 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 		},
 		routeCredentials,
 		baseUrl,
+		baseUrlSource,
 		fallback: fallbackRef,
 		source: {
 			kind: sourceKind,

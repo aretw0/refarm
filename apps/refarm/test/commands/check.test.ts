@@ -107,6 +107,9 @@ function makeModelDoctorStatus(
 	overrides: Partial<ModelDoctorStatus> = {},
 ): ModelDoctorStatus {
 	return {
+		// No base URL is configured in the default fixture, which is its own state — see
+		// CurrentModelStatus.baseUrlSource. Naming it here keeps the fixture from asserting one.
+		baseUrlSource: undefined,
 		current: {
 			provider: "openai",
 			modelId: "gpt-5.5",
@@ -133,6 +136,8 @@ function makeModelDoctorStatus(
 			inspectCurrent: "refarm model current --json",
 			startOllama: "ollama serve",
 			setDockerOllamaBaseUrl: "refarm model base-url http://host.docker.internal:11434 --json",
+			clearPersistedBaseUrl: "refarm model base-url off --json",
+			unsetBaseUrlEnv: "unset MODEL_BASE_URL",
 		},
 		...overrides,
 	};
