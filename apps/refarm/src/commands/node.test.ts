@@ -184,3 +184,87 @@ describe("node diff", () => {
 		process.exitCode = 0;
 	});
 });
+
+/** A home with no `.refarm` at all — the machine after the reformat. */
+function emptyHome(): string {
+	const home = syntheticHome();
+	fs.rmSync(path.join(home, ".refarm"), { recursive: true, force: true });
+	return home;
+}
+
+describe("node apply", () => {
+	it("restores decisions AND identity onto an empty home", async () => {
+		const file = await declaredFile(syntheticHome());
+		const fresh = emptyHome();
+		const command = createNodeCommand(
+			() => fresh,
+			() => createScriptedOperatorChannel(["pw"]),
+		);
+		await command.parseAsync(["apply", file, "--yes", "--json"], { from: "user" });
+		expect(
+			JSON.parse(fs.readFileSync(path.join(fresh, ".refarm", "config.json"), "utf8")),
+		).toMatchObject({ surfaces: { web: { port: 3000 } } });
+		expect(fs.readFileSync(path.join(fresh, ".refarm", "tls", "ca.key"), "utf8")).toBe(
+			"PRIVATE-CA-KEY",
+		);
+	});
+
+	it("refuses a wrong passphrase and leaves the target UNTOUCHED", async () => {
+		// Unsealed BEFORE anything is written. A half-applied node is worse than an untouched one:
+		// it looks configured and its identity is missing.
+		const file = await declaredFile(syntheticHome());
+		const fresh = emptyHome();
+		const command = createNodeCommand(
+			() => fresh,
+			() => createScriptedOperatorChannel(["wrong"]),
+		);
+		await expect(
+			command.parseAsync(["apply", file, "--yes", "--json"], { from: "user" }),
+		).rejects.toThrow(/passphrase/iu);
+		expect(fs.existsSync(path.join(fresh, ".refarm", "config.json"))).toBe(false);
+	});
+
+	it("does not write without --yes or a confirmation", async () => {
+		// CLAUDE.md section 8: no silent high-impact action. `apply` overwrites the operator's live
+		// declarations, which is exactly the class that must be confirmed.
+		//
+		// ONE answer in the queue, and it is the confirmation. The passphrase is never asked for
+		// because the refusal happens first — if that order ever inverts, this fails with "answer
+		// queue exhausted" instead of passing while the operator types a secret for an operation he
+		// already declined.
+		const file = await declaredFile(syntheticHome());
+		const fresh = emptyHome();
+		const command = createNodeCommand(
+			() => fresh,
+			() => createScriptedOperatorChannel([false]),
+		);
+		await command.parseAsync(["apply", file, "--json"], { from: "user" });
+		expect(fs.existsSync(path.join(fresh, ".refarm", "config.json"))).toBe(false);
+	});
+
+	it("names replication as NOT DONE when no peer answered, and points at the escape hatch", async () => {
+		// The operator has one node. "Data replicates through the mesh" is true of the design and
+		// false of his machine today, and a command that stayed quiet about it would be claiming a
+		// completeness that does not exist.
+		const file = await declaredFile(syntheticHome());
+		const fresh = emptyHome();
+		const out: string[] = [];
+		const write = process.stdout.write.bind(process.stdout);
+		process.stdout.write = ((chunk: string) => {
+			out.push(String(chunk));
+			return true;
+		}) as never;
+		try {
+			const command = createNodeCommand(
+				() => fresh,
+				() => createScriptedOperatorChannel(["pw"]),
+			);
+			await command.parseAsync(["apply", file, "--yes"], { from: "user" });
+		} finally {
+			process.stdout.write = write;
+		}
+		const printed = out.join("");
+		expect(printed).toMatch(/not replicated/iu);
+		expect(printed).toContain("refarm backup create");
+	});
+});

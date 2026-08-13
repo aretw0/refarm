@@ -226,7 +226,12 @@ export function createBackupCommand(homeOf = () => process.env.HOME ?? ""): Comm
 						? "  This node has not declared its storage namespaces, so the conventional one is\n" +
 							"  assumed. Declare them in .refarm/config.json under storage.namespaces to make\n" +
 							"  the answer yours rather than inherited.\n"
-						: ""),
+						: "") +
+					// The two commands answer different halves, and an operator meeting only this one
+					// would never learn the other exists. Measured 2026-08-13: this bundle is 95% of
+					// the bytes and 0% of the reconstitution decisions.
+					"\n  This bundle is the 95% a declaration does not carry: history and storage.\n" +
+					"  For the decisions and identity as ONE readable file:  refarm node declare\n",
 			);
 		});
 

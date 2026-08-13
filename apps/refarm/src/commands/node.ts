@@ -25,7 +25,7 @@ import {
 	summariseNotCarried,
 	type NodeDeclaration,
 } from "./node-declaration.js";
-import { readSealState, sealPayload } from "./node-seal.js";
+import { readSealState, sealPayload, unsealPayload } from "./node-seal.js";
 
 /** Read every file the declaration seals, as base64. Absent files are simply absent. */
 export function collectSealedFiles(home: string): { relative: string; base64: string }[] {
@@ -232,6 +232,94 @@ export function createNodeCommand(
 			}
 			// NON-ZERO ON DIVERGENCE, so this can be a gate rather than a report.
 			if (!diff.aligned) process.exitCode = 1;
+		});
+
+	node
+		.command("apply")
+		.argument("<file>", "A declaration written by `refarm node declare --out`")
+		.description("Write a declaration's decisions and identity onto this node")
+		.option("--json", "Output machine-readable result")
+		.option("--yes", "Skip the confirmation — for automation, never for a first run")
+		.action(async (file: string, options: { json?: boolean; yes?: boolean }) => {
+			const home = homeOf();
+			const declaration = readJsonFile(file) as NodeDeclaration | null;
+			if (!declaration) throw new Error(`${file} is not a readable declaration`);
+			const seal = readSealState(declaration.seal);
+			if (seal.state !== "openable") {
+				throw new Error(`cannot apply ${file}: ${(seal as { reason: string }).reason}`);
+			}
+
+			const channel = channelOf();
+			// THE DIFF IS SHOWN BEFORE THE PASSPHRASE IS ASKED FOR. An operator who sees the change is
+			// wrong should not have had to type a secret to learn it.
+			const current = readJsonFile(path.join(home, ".refarm", "config.json")) ?? {};
+			const diff = diffDeclarations(current, declaration);
+			if (!options.yes) {
+				const changing = diff.keys.filter((entry) => entry.verdict !== "aligned");
+				channel.say?.(
+					`Applying ${file} will change ${changing.length} key(s): ` +
+						`${changing.map((entry) => entry.key).join(", ") || "(none)"}`,
+				);
+				const confirmed = await channel.ask({
+					type: "confirm",
+					question: "Write these declarations and this identity onto this node?",
+				});
+				if (!confirmed) {
+					process.stdout.write("nothing written\n");
+					return;
+				}
+			}
+
+			const passphrase = await resolvePassphrase(channel, process.env, false);
+			// UNSEALED BEFORE ANYTHING IS WRITTEN. A wrong passphrase must leave the node exactly as it
+			// was, not half-applied.
+			const opened = unsealPayload(declaration.seal, passphrase) as {
+				files?: Record<string, string>;
+			};
+
+			fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
+			fs.writeFileSync(
+				path.join(home, ".refarm", "config.json"),
+				`${JSON.stringify(declaration.declarations, null, 2)}\n`,
+			);
+			if (declaration.authPolicy) {
+				fs.writeFileSync(
+					path.join(home, ".refarm", "auth-policy.json"),
+					`${JSON.stringify(declaration.authPolicy, null, 2)}\n`,
+				);
+			}
+			const written: string[] = [];
+			for (const [relative, base64] of Object.entries(opened.files ?? {})) {
+				const target = path.join(home, relative);
+				fs.mkdirSync(path.dirname(target), { recursive: true });
+				fs.writeFileSync(target, Buffer.from(base64, "base64"));
+				written.push(relative);
+			}
+
+			// THREE STATES, and today the operator's answer is the middle one. Replication is not
+			// attempted by this slice, so it reports `not-attempted` rather than inventing a peer
+			// count — and the human output says "not replicated" in the same breath, because a silent
+			// success would read as a complete node.
+			const replication = { state: "not-attempted" as const, peers: 0 };
+			const result = {
+				file,
+				keys: Object.keys(declaration.declarations ?? {}).length,
+				identityFiles: written.length,
+				reAuthenticate: declaration.reAuthenticate,
+				replication,
+			};
+			if (options.json) {
+				printJson(buildJsonSuccessEnvelope({ command: "node", operation: "apply", extra: result }));
+			} else {
+				process.stdout.write(
+					`applied ${file}\n` +
+						`  ✓ ${result.keys} declaration key(s), ${written.length} identity file(s)\n` +
+						`  → data: not replicated — this slice does not sync, and a node with no peer has\n` +
+						`    nobody to sync from. History and storage did NOT come back.\n` +
+						`    until a second node exists:  refarm backup create <destination>\n` +
+						`  re-authenticate: ${declaration.reAuthenticate.join(", ") || "(none)"}\n`,
+				);
+			}
 		});
 
 	return node;
