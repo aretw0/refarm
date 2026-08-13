@@ -383,6 +383,13 @@ export const PROBE_COMMANDS = [
 			"What a backup must contain is a fact about the NODE's home, not about where the operator happened to stand when asking. This is the command an operator runs when a machine is about to be reformatted (ISS-123), so a directory-dependent answer would produce a bundle whose completeness varied with the shell's cwd — the failure would surface on the day the backup is restored, which is the worst possible moment to learn it.",
 	},
 	{
+		name: "node declare",
+		argv: ["node", "declare", "--json"],
+		scope: "node",
+		scopeReason:
+			"What a node declares about itself is a fact about its home, never about the shell that asked. A cwd-dependent preview would let an operator seal a declaration describing a different node than the one he is standing up, and the error would only surface on the machine where nothing else is left to check it against.",
+	},
+	{
 		name: "resume",
 		argv: ["resume", "--json"],
 		scope: "node",

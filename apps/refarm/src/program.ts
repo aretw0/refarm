@@ -26,6 +26,7 @@ import { inspectCommand } from "./commands/inspect.js";
 import { intentionCommand } from "./commands/intention.js";
 import { issuesCommand } from "./commands/issues.js";
 import { lintCommand } from "./commands/lint.js";
+import { nodeCommand } from "./commands/node.js";
 import { openUrlCommand } from "./commands/open-url.js";
 import { packageManagerCommand } from "./commands/package-manager.js";
 import { parityCommand } from "./commands/parity.js";
@@ -284,6 +285,7 @@ program.addCommand(
 	}),
 );
 program.addCommand(backupCommand);
+program.addCommand(nodeCommand);
 program.addCommand(provisionCommand);
 program.addCommand(guideCommand);
 program.addCommand(hardeningCommand);
