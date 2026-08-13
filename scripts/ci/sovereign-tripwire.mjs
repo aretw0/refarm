@@ -26,8 +26,8 @@
  * do write to HOME constantly; what they write is the toolchain's own state, which is exactly what
  * HOME is for.
  *
- * A tripwire is the proportionate shape: two `stat`+`hash` pairs around a run that already takes
- * minutes, watching the two files that have actually been damaged.
+ * A tripwire is the proportionate shape: a handful of `stat`+`hash` pairs around a run that already
+ * takes minutes, watching the files that have actually been damaged.
  *
  * ## What it does NOT see, said plainly
  *
@@ -45,10 +45,29 @@ import path from "node:path";
 /**
  * The files a test must never touch, relative to the operator's home.
  *
- * Both have been damaged by a test suite. Adding to this list is cheap and the right move the
- * moment a new sovereign store appears — a file that is not named here is not watched.
+ * Every one of these has been written to by a test suite. Adding to this list is cheap and the
+ * right move the moment a new sovereign store appears — a file that is not named here is not
+ * watched.
  */
-export const SOVEREIGN_WITNESS_FILES = [".silo/identity.json", ".refarm/config.json"];
+export const SOVEREIGN_WITNESS_FILES = [
+	".silo/identity.json",
+	".refarm/config.json",
+	// THE NODE'S DATABASE, in both places one has been found. Added 2026-08-12 after
+	// `refarm context --inventory` measured 67 files in ~/.local/share/refarm of which 65 are
+	// scratch and test leftovers — proof that suites DO write to a third sovereign location, which
+	// this file's own "what it does NOT see" note had named as a limit hours earlier.
+	//
+	// TWO PATHS FOR ONE NAMESPACE because the operator's node has exactly that: the live database
+	// is under `.refarm/data/refarm/` while the path the Rust source documents,
+	// `.local/share/refarm/`, held a copy a week stale. Watching only the documented one would
+	// have watched the wrong file.
+	//
+	// The CONVENTIONAL namespace only. A node running under another namespace is not watched here,
+	// and that is a real limit rather than a hedge — the tripwire cannot resolve a node's namespace
+	// without the node.
+	".refarm/data/refarm/default.db",
+	".local/share/refarm/default.db",
+];
 
 /** PURE. The absolute paths this tripwire watches, given a home. */
 export function witnessedPaths(home = os.homedir()) {

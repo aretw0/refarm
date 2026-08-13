@@ -134,5 +134,9 @@ test("it watches named files, and says which", () => {
 	assert.deepEqual(watched, [
 		"/home/somebody/.silo/identity.json",
 		"/home/somebody/.refarm/config.json",
+		// Both places a node database has been found — the live one and the one the Rust source
+		// documents, which on the operator's node held a copy a week stale.
+		"/home/somebody/.refarm/data/refarm/default.db",
+		"/home/somebody/.local/share/refarm/default.db",
 	]);
 });
