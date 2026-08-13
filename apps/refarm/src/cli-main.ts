@@ -84,6 +84,16 @@ function handleCliMainError(err: unknown): void {
 	throw err;
 }
 
-if (!process.env.VITEST) {
-	await runCliMain();
-}
+// NO AUTO-RUN ON IMPORT. This used to be `if (!process.env.VITEST) await runCliMain()`, which used
+// an environment variable as a proxy for "was I imported?" — and got it wrong in the direction that
+// hides defects. A test that SPAWNS the built CLI inherits VITEST, so the child printed nothing and
+// exited 0: success-shaped silence. Measured 2026-08-12: `VITEST=true refarm init --help` produced
+// zero lines.
+//
+// That is why the lazy-command drift survived. `refarm sow --reconfigure` was rejected by the CLI
+// while `sow --help` advertised it, and no test could see that, because the only way to see it is
+// to run the real binary. The suites drove `sowCommand` directly instead — where the option exists.
+//
+// `index.ts` (the bin) now calls `runCliMain()` explicitly, so importing this module for a unit
+// test runs nothing and spawning the binary runs everything. The question "am I the entrypoint?" is
+// answered by the entrypoint, which is the only thing that knows.

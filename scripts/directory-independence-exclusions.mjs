@@ -40,6 +40,10 @@ export const EXCLUSION_CATEGORIES = Object.freeze({
 export const PROBE_EXCLUSIONS = Object.freeze([
 	// --- mutates ---
 	{ argv: ["agent", "doctor"], category: "mutates" },
+	// Became visible on 2026-08-12 rather than newly true: `init` always accepted `--json`, but the
+	// lazy stub in program.ts had never exposed it, so this gate could not see the command at all.
+	// Probing it would scaffold a workspace in each of the four directories the probe runs from.
+	{ argv: ["init"], category: "mutates" },
 	{ argv: ["agent", "finish"], category: "mutates" },
 	{ argv: ["agent-respond"], category: "mutates" },
 	{ argv: ["auth", "enroll"], category: "mutates" },

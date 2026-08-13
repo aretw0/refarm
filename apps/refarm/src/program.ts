@@ -195,7 +195,7 @@ program.hook("preAction", async (_thisCommand, actionCommand) => {
 });
 
 program.addCommand(
-	createLazyCommand<{ force?: boolean }>({
+	createLazyCommand<{ force?: boolean; json?: boolean; template?: string }>({
 		name: "init",
 		description: "Initialize a new Refarm workspace",
 		argument: {
@@ -208,6 +208,8 @@ program.addCommand(
 				flags: "--force",
 				description: "Reinitialize even if already initialized (destructive)",
 			},
+			{ flags: "--json", description: "Output machine-readable initialization result" },
+			{ flags: "--template <id>", description: "Template to scaffold without prompting" },
 		],
 		helpText: `
 
@@ -226,7 +228,12 @@ Notes:
   to generate a local setup audit with GitHub/Cloudflare next steps.
 `,
 		load: async () => (await import("./commands/init.js")).initCommand,
-		toArgs: (name, opts) => [name ?? "my-workspace", ...(opts.force ? ["--force"] : [])],
+		toArgs: (name, opts) => [
+			name ?? "my-workspace",
+			...(opts.force ? ["--force"] : []),
+			...(opts.json ? ["--json"] : []),
+			...(opts.template ? ["--template", opts.template] : []),
+		],
 	}),
 );
 program.addCommand(
@@ -236,6 +243,7 @@ program.addCommand(
 		cloudflare?: boolean;
 		all?: boolean;
 		json?: boolean;
+		reconfigure?: boolean;
 	}>({
 		name: "sow",
 		description: SOW_COMMAND_DESCRIPTION,
@@ -250,6 +258,10 @@ program.addCommand(
 				flags: "--all",
 				description: "Configure or reconfigure all credentials",
 			},
+			{
+				flags: "--reconfigure",
+				description: "Reconfigure model credentials even if already configured",
+			},
 			{ flags: "--json", description: "Output machine-readable sow result" },
 		],
 		helpText: SOW_HELP_TEXT,
@@ -259,6 +271,7 @@ program.addCommand(
 			...(opts.github ? ["--github"] : []),
 			...(opts.cloudflare ? ["--cloudflare"] : []),
 			...(opts.all ? ["--all"] : []),
+			...(opts.reconfigure ? ["--reconfigure"] : []),
 			...(opts.json ? ["--json"] : []),
 		],
 	}),
