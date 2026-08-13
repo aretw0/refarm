@@ -68,7 +68,14 @@ afterEach(() => {
 function exportNode() {
 	const { plan } = surveyHome(home, "default");
 	const silo = readSiloSplit(home);
-	return { manifest: writeBundle(home, bundle, plan.carry, plan.undecidable, silo), plan, silo };
+	return {
+		manifest: writeBundle(home, bundle, plan.carry, plan.undecidable, silo, {
+			entries: plan.sensitive,
+			include: false,
+		}),
+		plan,
+		silo,
+	};
 }
 
 describe("the round trip", () => {
@@ -151,6 +158,66 @@ describe("what the bundle refuses to carry", () => {
 		expect(undecided.some((file) => file.includes("bak-antes-do-batismo"))).toBe(true);
 		expect(undecided.some((file) => file.includes("repro.db"))).toBe(true);
 		expect(manifest.undecided.every((entry) => entry.reason.length > 20)).toBe(true);
+	});
+});
+
+describe("secrets that live outside the silo", () => {
+	// FOUND ON THE OPERATOR'S NODE 2026-08-12, and skipped until then only because no rule
+	// classified them: ~/.refarm/tls/ca.key (his own certificate authority's private key),
+	// the node's TLS key, and ~/.refarm/delivery/telegram.token. Safe by accident.
+	beforeEach(() => {
+		write(".refarm/tls/ca.key", "CA-PRIVATE-KEY");
+		write(".refarm/tls/ca.crt", "PUBLIC-CERT");
+		write(".refarm/tls/ca.cnf", "[req]");
+		write(".refarm/delivery/telegram.token", "BOT-TOKEN");
+	});
+
+	it("excludes them by default, and the bundle proves it byte by byte", () => {
+		exportNode();
+		const found: string[] = [];
+		const walk = (dir: string) => {
+			for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+				const full = path.join(dir, item.name);
+				if (item.isDirectory()) walk(full);
+				else found.push(fs.readFileSync(full, "utf8"));
+			}
+		};
+		walk(bundle);
+		expect(found.join("\n")).not.toContain("CA-PRIVATE-KEY");
+		expect(found.join("\n")).not.toContain("BOT-TOKEN");
+	});
+
+	it("RECORDS them in the manifest even when excluded", () => {
+		// A restore reading `included: false` knows the node it stands up will be missing its CA
+		// identity — a node that works and is quietly no longer trusted by the devices that trusted
+		// it. Silence here is the worst outcome of all.
+		const { manifest } = exportNode();
+		expect(manifest.secrets.included).toBe(false);
+		expect(manifest.secrets.files.some((f) => f.endsWith("ca.key"))).toBe(true);
+		expect(manifest.secrets.files.some((f) => f.endsWith("telegram.token"))).toBe(true);
+	});
+
+	it("carries them only when asked, and says the bundle is now a credential", () => {
+		const { plan } = surveyHome(home, "default");
+		const manifest = writeBundle(home, bundle, plan.carry, plan.undecidable, readSiloSplit(home), {
+			entries: plan.sensitive,
+			include: true,
+		});
+		expect(manifest.secrets.included).toBe(true);
+		expect(fs.readFileSync(path.join(bundle, BUNDLE_FILES_DIR, ".refarm/tls/ca.key"), "utf8")).toBe(
+			"CA-PRIVATE-KEY",
+		);
+		expect(verifyBundle(bundle).state).toBe("intact");
+	});
+
+	it("does not treat a public certificate or a config as a secret", () => {
+		// `tls/` holds both. Marking the whole directory sensitive would exclude the public cert from
+		// every backup for no reason, and teach the operator that the warning means nothing.
+		const { plan } = surveyHome(home, "default");
+		const sensitive = plan.sensitive.map((entry) => path.basename(entry.file));
+		expect(sensitive).toContain("ca.key");
+		expect(sensitive).not.toContain("ca.crt");
+		expect(sensitive).not.toContain("ca.cnf");
 	});
 });
 

@@ -33,7 +33,29 @@ import path from "node:path";
 
 import type { InventoryEntry } from "./sovereign-inventory.js";
 
-export type ExportDisposition = "carry" | "re-authenticate" | "skip" | "undecidable";
+export type ExportDisposition =
+	| "carry"
+	| "re-authenticate"
+	| "skip"
+	| "undecidable"
+	/**
+	 * IRRECOVERABLE **AND** SECRET, and no login rebuilds it.
+	 *
+	 * Found on the operator's node 2026-08-12: `~/.refarm/tls/ca.key` is the private key of his own
+	 * local certificate authority. Regenerating it is not recovery — every device that trusted the
+	 * old CA stops trusting the node until it is re-enrolled by hand. Beside it sit the node's TLS
+	 * key and `~/.refarm/delivery/telegram.token`.
+	 *
+	 * Neither of the two easy answers is right. Dropping them silently loses something no login can
+	 * return; carrying them silently turns the bundle into a credential the operator may sync to a
+	 * phone or a cloud drive believing it safe. So they are their own disposition: excluded by
+	 * default, named in the plan, and carried only when the operator says so — at which point the
+	 * bundle must be stored like a password, and the command says that out loud.
+	 *
+	 * Until this existed these files were skipped only because NO RULE CLASSIFIED THEM. Safe by
+	 * accident is the shape this repository keeps removing.
+	 */
+	| "sensitive";
 
 export interface ExportPlanEntry {
 	readonly file: string;
@@ -85,10 +107,41 @@ export function splitSiloContent(tokens: Record<string, unknown>): {
 	return { decisions, reAuthenticate: [...providers].sort() };
 }
 
+/**
+ * Directories and suffixes inside the node home whose contents are SECRET.
+ *
+ * By location rather than by filename, because a list of filenames is what let `tls/` and
+ * `delivery/telegram.token` fall through in the first place. A new key dropped into `tls/` is
+ * covered the day it appears; a new secret directory is not, which is why unregistered paths stay
+ * `undecidable` and visible instead of defaulting to carried.
+ */
+const SENSITIVE_DIRECTORIES = ["tls", "delivery"];
+const SENSITIVE_SUFFIXES = [".key", ".token", ".pem"];
+
+/** PURE. Is this entry a secret that lives outside the silo? */
+export function isSensitivePath(file: string): boolean {
+	const segments = file.split(/[/\\]/u);
+	const base = segments.at(-1) ?? "";
+	if (SENSITIVE_SUFFIXES.some((suffix) => base.endsWith(suffix))) return true;
+	// A directory match alone is not enough — `tls/ca.crt` is a public certificate and `ca.cnf` is
+	// a config. Only the material that must not travel is named.
+	return SENSITIVE_DIRECTORIES.includes(segments.at(-2) ?? "") && /\.(key|token|pem|p12|pfx)$/u.test(base);
+}
+
 /** PURE. What happens to one inventory entry in an export. */
 export function planEntry(entry: InventoryEntry): ExportPlanEntry {
 	const base = path.basename(entry.file);
 	const common = { file: entry.file, bytes: entry.bytes };
+
+	if (isSensitivePath(entry.file)) {
+		return {
+			...common,
+			disposition: "sensitive",
+			reason:
+				"a secret that no login rebuilds. Excluded by default: a bundle containing it must be " +
+				"stored like a password. Carry it only with --include-secrets, deliberately.",
+		};
+	}
 
 	if (base === "identity.json" && path.basename(path.dirname(entry.file)) === ".silo") {
 		return {
@@ -129,6 +182,7 @@ export function planSovereignExport(entries: readonly InventoryEntry[]) {
 		reAuthenticate: of("re-authenticate"),
 		skip: of("skip"),
 		undecidable: of("undecidable"),
+		sensitive: of("sensitive"),
 		carriedBytes: of("carry").reduce((total, entry) => total + (entry.bytes ?? 0), 0),
 		/** True when SOMETHING could not be decided — the signal that this backup is not yet complete. */
 		hasUndecided: of("undecidable").length > 0,
@@ -161,6 +215,15 @@ export function formatExportPlan(
 		// flags; everything else here is a MODEL provider. Printing `--model-provider github` would
 		// hand the operator a command that fails, from the very module that split the axes.
 		lines.push(`    ${provider}   →  ${reAuthenticateCommand(provider)}`);
+	}
+	if (plan.sensitive.length > 0) {
+		lines.push("");
+		lines.push(`  SECRETS      ${plan.sensitive.length} file(s) no login rebuilds — NOT carried by default:`);
+		for (const entry of plan.sensitive) lines.push(`    ${entry.file}`);
+		lines.push("  Losing these is not recoverable by logging in again; a local CA key, for instance,");
+		lines.push("  means every device that trusted this node must be re-enrolled. Carrying them makes");
+		lines.push("  the bundle a credential. `--include-secrets` carries them, and then the bundle must");
+		lines.push("  be stored like a password.");
 	}
 	lines.push("");
 	lines.push(`  skips        ${plan.skip.length} file(s) that rebuild themselves`);

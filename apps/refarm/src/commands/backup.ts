@@ -40,6 +40,14 @@ export interface BackupManifest {
 	readonly reAuthenticate: string[];
 	/** Entries the plan could not decide. Recorded so a restore can say the backup was partial. */
 	readonly undecided: { file: string; reason: string }[];
+	/**
+	 * Secrets this node holds that no login rebuilds, and whether this bundle contains them.
+	 *
+	 * Recorded either way. A restore reading `included: false` knows the node it is about to stand
+	 * up will be missing its CA key — which is a working node that quietly cannot be trusted by the
+	 * devices that used to trust it, and the worst thing to discover later.
+	 */
+	readonly secrets: { files: string[]; included: boolean };
 }
 
 /** PURE. Where a source path lives inside the bundle. Absolute paths are flattened onto a relative
@@ -80,10 +88,14 @@ export function writeBundle(
 	carried: readonly ExportPlanEntry[],
 	undecided: readonly ExportPlanEntry[],
 	silo: { decisions: Record<string, unknown>; reAuthenticate: string[] },
+	// REQUIRED, not defaulted. A default of "no secrets" means a caller who forgets writes a
+	// manifest claiming this node holds none — and a restore would then stand up a node missing its
+	// CA identity with nothing saying so. The type makes forgetting impossible instead.
+	secrets: { entries: readonly ExportPlanEntry[]; include: boolean },
 ): BackupManifest {
 	fs.mkdirSync(path.join(destination, BUNDLE_FILES_DIR), { recursive: true });
 	const files: BackupManifest["files"] = [];
-	for (const entry of carried) {
+	for (const entry of [...carried, ...(secrets.include ? secrets.entries : [])]) {
 		const stored = storedPathFor(entry.file, home);
 		const target = path.join(destination, BUNDLE_FILES_DIR, stored);
 		fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -102,6 +114,7 @@ export function writeBundle(
 		decisions: silo.decisions,
 		reAuthenticate: silo.reAuthenticate,
 		undecided: undecided.map((entry) => ({ file: entry.file, reason: entry.reason })),
+		secrets: { files: secrets.entries.map((entry) => entry.file), included: secrets.include },
 	};
 	fs.writeFileSync(path.join(destination, MANIFEST_NAME), `${JSON.stringify(manifest, null, 2)}\n`);
 	return manifest;
@@ -186,11 +199,19 @@ export function createBackupCommand(homeOf = () => process.env.HOME ?? ""): Comm
 		.description("Write the bundle, then verify it before reporting success")
 		.option("--json", "Output machine-readable result")
 		.option("--namespace <id>", "Storage namespace to treat as this node's own", "default")
-		.action((destination: string, options: { json?: boolean; namespace?: string }) => {
+		.option(
+			"--include-secrets",
+			"Also carry keys and tokens no login rebuilds — the bundle then IS a credential",
+		)
+		.action((destination: string, options: { json?: boolean; namespace?: string; includeSecrets?: boolean }) => {
 			const home = homeOf();
 			const { plan } = surveyHome(home, options.namespace ?? "default");
 			const silo = readSiloSplit(home);
-			writeBundle(home, destination, plan.carry, plan.undecidable, silo);
+			const includeSecrets = Boolean(options.includeSecrets);
+			writeBundle(home, destination, plan.carry, plan.undecidable, silo, {
+				entries: plan.sensitive,
+				include: includeSecrets,
+			});
 			// VERIFIED BEFORE REPORTING. A create that says "done" without reading back what it wrote
 			// is the shape of backup that fails on the day it is needed.
 			const verdict = verifyBundle(destination);
@@ -201,6 +222,7 @@ export function createBackupCommand(homeOf = () => process.env.HOME ?? ""): Comm
 				carried: plan.carry.length,
 				undecided: plan.undecidable.length,
 				reAuthenticate: silo.reAuthenticate,
+				secrets: { count: plan.sensitive.length, included: includeSecrets },
 			};
 			if (options.json) {
 				printJson(
@@ -210,6 +232,11 @@ export function createBackupCommand(homeOf = () => process.env.HOME ?? ""): Comm
 				process.stdout.write(
 					`backup ${verdict.state} — ${plan.carry.length} file(s) in ${destination}\n` +
 						`  re-authenticate after restoring: ${silo.reAuthenticate.join(", ") || "(none)"}\n` +
+						(plan.sensitive.length > 0
+							? includeSecrets
+								? `  CONTAINS ${plan.sensitive.length} SECRET(S) — store this bundle like a password\n`
+								: `  ${plan.sensitive.length} secret(s) NOT carried; without them a restored node loses its CA identity — --include-secrets carries them\n`
+							: "") +
 						(plan.undecidable.length > 0
 							? `  ${plan.undecidable.length} entries UNDECIDED and not carried — see \`refarm backup plan --json\`\n`
 							: ""),
