@@ -105,6 +105,7 @@
 		"diagrams:browser:test": "node --test scripts/ci/test-install-puppeteer-browser.mjs",
 		"diagrams:check": "node scripts/check-diagrams.mjs --ci",
 		"diagrams:check:test": "node --test scripts/ci/test-check-diagrams-source-hash.mjs",
+		"sovereign-tripwire:test": "node --test scripts/ci/test-sovereign-tripwire.mjs",
 		"diagrams:fix": "node scripts/check-diagrams.mjs --fix",
 		"diagrams:inventory": "node scripts/ci/check-diagram-inventory.mjs",
 		"diagrams:inventory:json": "node scripts/ci/check-diagram-inventory.mjs --json",

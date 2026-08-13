@@ -48,6 +48,13 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import {
+	captureWitnesses,
+	compareWitnesses,
+	formatWitnessReport,
+	isBreach,
+} from "./sovereign-tripwire.mjs";
+
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 /**
@@ -199,6 +206,9 @@ function runScript(name, timeoutMs) {
 
 function main() {
 	const packageJson = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "package.json"), "utf8"));
+	// THESE SUITES RUN OUTSIDE THE VITEST HOME CONTAINMENT — see sovereign-tripwire.mjs for the
+	// measurement that says a tripwire is the proportionate shape here and redirecting HOME is not.
+	const witnessBefore = captureWitnesses();
 	// `--for <path>…` runs only the suites that NAME the changed files — the after-edit shape.
 	// Everything else runs the whole registry, which is the before-push shape.
 	const forIndex = process.argv.indexOf("--for");
@@ -248,6 +258,12 @@ function main() {
 				`${verdict.recovered.map((name) => `  ${name}`).join("\n")}\n`,
 		);
 	}
+	const witnessChanges = compareWitnesses(witnessBefore, captureWitnesses());
+	if (witnessChanges.length > 0) {
+		process.stdout.write(formatWitnessReport(witnessChanges));
+		if (isBreach(witnessChanges)) process.exitCode = 1;
+	}
+
 	if (verdict.newFailures.length > 0) {
 		process.stdout.write(
 			`\nNEW FAILURE — a suite that was green is not any more, and no lane would have told you:\n` +
