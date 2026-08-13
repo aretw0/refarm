@@ -3,6 +3,7 @@ import { actionsCommand } from "./commands/actions.js";
 import { agentCommand } from "./commands/agent.js";
 import { askCommand } from "./commands/ask.js";
 import { authCommand } from "./commands/auth.js";
+import { backupCommand } from "./commands/backup.js";
 import { budgetCommand } from "./commands/budget.js";
 import { capabilitiesCommand } from "./commands/capabilities.js";
 import { capabilityCliCommands } from "./commands/capability-registry.js";
@@ -282,6 +283,7 @@ program.addCommand(
 		],
 	}),
 );
+program.addCommand(backupCommand);
 program.addCommand(provisionCommand);
 program.addCommand(guideCommand);
 program.addCommand(hardeningCommand);

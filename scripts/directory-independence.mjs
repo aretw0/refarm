@@ -376,6 +376,13 @@ export function withSelfWorkspace(commands, selfWorkspaceId) {
 // that surfaced this.
 export const PROBE_COMMANDS = [
 	{
+		name: "backup plan",
+		argv: ["backup", "plan", "--json"],
+		scope: "node",
+		scopeReason:
+			"What a backup must contain is a fact about the NODE's home, not about where the operator happened to stand when asking. This is the command an operator runs when a machine is about to be reformatted (ISS-123), so a directory-dependent answer would produce a bundle whose completeness varied with the shell's cwd — the failure would surface on the day the backup is restored, which is the worst possible moment to learn it.",
+	},
+	{
 		name: "resume",
 		argv: ["resume", "--json"],
 		scope: "node",
