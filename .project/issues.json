@@ -1453,6 +1453,18 @@
 			"package": "packages/silo",
 			"axis": "durability",
 			"requirement": "R11"
+		},
+		{
+			"id": "ISS-123",
+			"title": "Nothing can enumerate, export or restore the node's source of truth — a reformat loses it",
+			"body": "THE OPERATOR'S OWN FRAMING, 2026-08-12: he needs to be able to bring a node up somewhere else, or\non the same machine after a reformat, and says this is why he builds refarm at all.\n\nTODAY MADE IT CONCRETE RATHER THAN HYPOTHETICAL. Three findings in one session, all about the same\nstore:\n\n  - ISS-121: a test wrote a sentinel into `~/.silo/identity.json` and it stood as his configured\n    model for over a day. What the route held BEFORE is not recoverable from anything in this\n    repository.\n  - ISS-122: authenticating a second account of one provider destroys the first, measured, with\n    no copy kept.\n  - The `sow` wizard would not repair either, because it read presence as health.\n\nEach was fixed at the point of damage. None of them answers the question underneath: when the\nvalue is gone, there is nothing to restore it from. Reversibility (R11) and continuity (R1) both\nfail at the same place.\n\nWHAT DOES NOT EXIST YET, stated as three separate gaps because they have different costs:\n\n  1. AN INVENTORY. Nothing can say what a node's sovereign state CONSISTS OF. There is a seed:\n     `scripts/ci/sovereign-tripwire.mjs` names `~/.silo/identity.json` and `~/.refarm/config.json`\n     because those are the two that have been damaged. That list is honest about being a list of\n     NAMED files rather than a complete one — which is exactly why it is a starting point and not\n     an answer.\n  2. AN EXPORT. Some of the state is recoverable from elsewhere (git, npm, a provider login) and\n     some is not. Nothing distinguishes them, so an operator cannot know what a backup must\n     contain versus what a re-login would rebuild.\n  3. A RESTORE. Untested restore is not a backup. Whatever ships must be proven by standing up a\n     node from the export in a disposable home, not by inspecting the file.\n\nWHY IT ORDERS BEFORE MORE INTEGRATIONS. Each new provider, workspace and quota adds state to a\nstore that cannot be exported. The cost of the missing inventory grows with every integration\nadded before it, and integrations are what the operator wants next.",
+			"location": "packages/silo/src, scripts/ci/sovereign-tripwire.mjs",
+			"status": "open",
+			"category": "gap",
+			"priority": "high",
+			"package": "packages/silo",
+			"axis": "durability",
+			"requirement": "R1"
 		}
 	]
 }
