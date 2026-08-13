@@ -13,6 +13,11 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { refarmCommand } from "../brand.js";
 import {
+	REPLACE_ACCOUNT_FLAG,
+	compareStoredAccount,
+	describeAccountVerdict,
+} from "../credentials/credential-account.js";
+import {
 	cloudflareCredentialProvider,
 	githubCredentialProvider,
 	modelCredentialProvider,
@@ -24,6 +29,7 @@ import {
 import { OAUTH_PROVIDER_TO_MODEL_PROVIDER, modelProviderInventories } from "../credentials/model.js";
 import { modelRouteTokenUpdate, parseModelRef } from "../model-routing.js";
 import { tryOpenUrl } from "../utils/open-url.js";
+import { emitCommandRefusal } from "./command-refusal.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
@@ -96,6 +102,14 @@ interface SowOptions {
 	cloudflare?: boolean;
 	all?: boolean;
 	reconfigure?: boolean;
+	/**
+	 * Deliberately replace a stored credential belonging to a DIFFERENT account.
+	 *
+	 * There is one slot per provider (ISS-122), so this is destructive by construction and stays a
+	 * flag rather than a prompt: the operator with a personal and a corporate Copilot account needs
+	 * the replacement to be something he typed, not something he agreed to at the end of a login.
+	 */
+	replaceAccount?: boolean;
 	json?: boolean;
 }
 
@@ -151,6 +165,10 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 			"Configure this model provider directly, skipping the picker (e.g. openai-codex)",
 		)
 		.option("--reconfigure", "Reconfigure model credentials even if already configured")
+		.option(
+			"--replace-account",
+			"Replace a stored credential that belongs to a DIFFERENT account — destructive, one slot per provider",
+		)
 		.option("--json", "Output machine-readable sow result")
 		.addHelpText("after", SOW_HELP_TEXT)
 		.action(async (opts: SowOptions) => {
@@ -371,6 +389,34 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 						const modelProvider =
 							OAUTH_PROVIDER_TO_MODEL_PROVIDER[credential.provider] ?? credential.provider;
 						const existingTokens = (await silo.loadTokens()) as Record<string, unknown>;
+						// ISS-122's IRREVERSIBLE HALF, closed here without deciding the shape. One slot
+						// per provider means writing a SECOND account's credential destroys the first,
+						// and the operator has three quotas across two providers — two of them the same
+						// provider. The comparison happens after the login (the account is only known
+						// from the token) but BEFORE the write, so a refusal costs a browser round trip
+						// and keeps a working credential.
+						const slot = (existingTokens.oauthCredentials as Record<string, unknown> | undefined)?.[
+							credential.provider
+						];
+						const verdict = compareStoredAccount(slot, credential.oauthCredentials);
+						const notice = describeAccountVerdict(verdict, credential.provider);
+						if (verdict.kind === "different-account" && !opts.replaceAccount) {
+							emitCommandRefusal({
+								command: "sow",
+								operation: "credentials",
+								options: opts,
+								error: "sow-would-replace-a-different-account",
+								message: notice ?? "this login would replace a different account",
+								nextAction: `Re-run with ${REPLACE_ACCOUNT_FLAG} to replace it deliberately.`,
+								nextCommands: [
+									`refarm sow --model-provider ${opts.modelProvider ?? modelProvider} ${REPLACE_ACCOUNT_FLAG}`,
+								],
+							});
+							return;
+						}
+						// `unknown` warns and proceeds: nothing PROVED a loss, and refusing would block
+						// re-authenticating any credential stored before accounts were recorded.
+						if (notice) console.log(chalk.yellow(`  ${notice}`));
 						const tokenUpdate = {
 							modelProvider,
 							oauthProvider: credential.provider,

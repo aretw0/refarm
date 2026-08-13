@@ -247,6 +247,7 @@ program.addCommand(
 		json?: boolean;
 		reconfigure?: boolean;
 		modelProvider?: string;
+		replaceAccount?: boolean;
 	}>({
 		name: "sow",
 		description: SOW_COMMAND_DESCRIPTION,
@@ -269,6 +270,11 @@ program.addCommand(
 				flags: "--model-provider <id>",
 				description: "Configure this model provider directly, skipping the picker (e.g. openai-codex)",
 			},
+			{
+				flags: "--replace-account",
+				description:
+					"Replace a stored credential that belongs to a DIFFERENT account — destructive, one slot per provider",
+			},
 			{ flags: "--json", description: "Output machine-readable sow result" },
 		],
 		helpText: SOW_HELP_TEXT,
@@ -280,6 +286,7 @@ program.addCommand(
 			...(opts.all ? ["--all"] : []),
 			...(opts.reconfigure ? ["--reconfigure"] : []),
 			...(opts.modelProvider ? ["--model-provider", opts.modelProvider] : []),
+			...(opts.replaceAccount ? ["--replace-account"] : []),
 			...(opts.json ? ["--json"] : []),
 		],
 	}),
