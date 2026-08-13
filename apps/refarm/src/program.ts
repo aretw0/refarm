@@ -244,6 +244,7 @@ program.addCommand(
 		all?: boolean;
 		json?: boolean;
 		reconfigure?: boolean;
+		modelProvider?: string;
 	}>({
 		name: "sow",
 		description: SOW_COMMAND_DESCRIPTION,
@@ -262,6 +263,10 @@ program.addCommand(
 				flags: "--reconfigure",
 				description: "Reconfigure model credentials even if already configured",
 			},
+			{
+				flags: "--model-provider <id>",
+				description: "Configure this model provider directly, skipping the picker (e.g. openai-codex)",
+			},
 			{ flags: "--json", description: "Output machine-readable sow result" },
 		],
 		helpText: SOW_HELP_TEXT,
@@ -272,6 +277,7 @@ program.addCommand(
 			...(opts.cloudflare ? ["--cloudflare"] : []),
 			...(opts.all ? ["--all"] : []),
 			...(opts.reconfigure ? ["--reconfigure"] : []),
+			...(opts.modelProvider ? ["--model-provider", opts.modelProvider] : []),
 			...(opts.json ? ["--json"] : []),
 		],
 	}),

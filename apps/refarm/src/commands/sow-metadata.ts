@@ -25,6 +25,11 @@ Examples:
 Notes:
   --json is non-interactive: nextAction describes any manual login/configuration
   step, while nextCommand lists executable recovery or continuation commands.
+  --model-provider <id> skips the picker and configures that provider directly
+  (openai-codex, ollama, groq, ...). A provider offering both a subscription and
+  an API key must say which: anthropic:subscription or anthropic:key. It is the
+  MODEL provider axis — credential providers stay on --github/--cloudflare, and
+  the bare word "provider" is left unclaimed as a flag for future ones.
   --reconfigure always asks for model credentials (API key or OAuth login),
   even when they are already present.
   --model changes the saved provider/model routing. It does not collect a new

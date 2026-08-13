@@ -477,6 +477,70 @@ describe("sowCommand — default (no flags)", () => {
 		logSpy.mockRestore();
 	});
 
+	/**
+	 * `--model-provider` skips the picker. Named for the MODEL axis because `sow` already selects
+	 * among credential providers (`--github`, `--cloudflare`), and the bare `--provider` is left
+	 * unclaimed so a future Telegram or SSO credential can have it without a breaking change.
+	 */
+	describe("--model-provider", () => {
+		it("goes straight to the named provider, without asking", async () => {
+			// The operator's ask: log into openai-codex without walking the menu.
+			mockLoadTokens.mockResolvedValue({});
+			await sowCommand.parseAsync(["--model-provider", "openai-codex"], { from: "user" });
+			expect(mockModelCollect).toHaveBeenCalledWith(
+				expect.anything(),
+				expect.objectContaining({ modelProvider: "openai-codex" }),
+			);
+		});
+
+		it("overrides 'already configured', because naming a provider is an instruction", async () => {
+			// Without this the flag would be silently ignored on a node that already has a working
+			// credential — an instruction read as a question, which is the defect two commits back.
+			mockLoadTokens.mockResolvedValue({
+				modelProvider: "anthropic",
+				modelApiKey: "sk-ant-existing",
+			});
+			await sowCommand.parseAsync(["--model-provider", "openai-codex"], { from: "user" });
+			expect(mockModelCollect).toHaveBeenCalled();
+		});
+
+		it("refuses a provider with no credential flow WITHOUT touching the silo", async () => {
+			// github-copilot is the operator's corporate quota: a real provider whose login is not
+			// built (ISS-122). The refusal must arrive before anything is written or prompted.
+			const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+			mockLoadTokens.mockResolvedValue({});
+			await sowCommand.parseAsync(["--model-provider", "github-copilot"], { from: "user" });
+			expect(mockModelCollect).not.toHaveBeenCalled();
+			expect(mockSaveTokens).not.toHaveBeenCalled();
+			expect(process.exitCode).toBe(1);
+			expect(errSpy.mock.calls.map((c) => String(c[0])).join("\n")).toContain("no login or key flow");
+			errSpy.mockRestore();
+			process.exitCode = 0;
+		});
+
+		it("refuses an ambiguous provider rather than choosing a billing path", async () => {
+			const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+			mockLoadTokens.mockResolvedValue({});
+			await sowCommand.parseAsync(["--model-provider", "anthropic"], { from: "user" });
+			expect(mockModelCollect).not.toHaveBeenCalled();
+			expect(errSpy.mock.calls.map((c) => String(c[0])).join("\n")).toContain("anthropic:subscription");
+			errSpy.mockRestore();
+			process.exitCode = 0;
+		});
+
+		it("names the valid values for a typo, as JSON when asked", async () => {
+			const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+			mockLoadTokens.mockResolvedValue({});
+			await sowCommand.parseAsync(["--model-provider", "opnai", "--json"], { from: "user" });
+			const payload = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+			expect(payload.ok).toBe(false);
+			expect(payload.error).toBe("unusable-model-provider");
+			expect(payload.message).toContain("openai");
+			logSpy.mockRestore();
+			process.exitCode = 0;
+		});
+	});
+
 	it("reconfigures model credentials when --reconfigure is explicit", async () => {
 		mockLoadTokens.mockResolvedValue({
 			modelProvider: "anthropic",

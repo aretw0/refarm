@@ -3,6 +3,10 @@ import { modelCredentialEnvKey } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { isContainer } from "@refarm.dev/root";
 import chalk from "chalk";
+import {
+	formatSelectionRefusal,
+	resolveModelProviderSelection,
+} from "./model-provider-selection.js";
 import type {
 	OAuthCallbackWaitStatus,
 	OAuthCredentials,
@@ -273,14 +277,54 @@ async function runApiKeyFlow(
 	return { provider: p.id, apiKey };
 }
 
+/**
+ * The two credential inventories, so a caller can validate a `--model-provider` value WITHOUT
+ * re-listing them. One source; a second list would be the `program.ts` defect again.
+ */
+export function modelProviderInventories(): { oauth: string[]; apiKey: string[] } {
+	return {
+		oauth: OAUTH_PROVIDERS.map((provider) => provider.id),
+		apiKey: API_KEY_PROVIDERS.map((provider) => provider.id),
+	};
+}
+
 export const modelCredentialProvider: CredentialProvider & {
-	collectModel(ctx: CollectContext): Promise<ModelCredential>;
+	collectModel(
+		ctx: CollectContext,
+		options?: { modelProvider?: string },
+	): Promise<ModelCredential>;
 } = {
 	id: "model",
 	label: "Model Provider",
 	namespace: "model",
 
-	async collectModel(ctx: CollectContext): Promise<ModelCredential> {
+	/**
+	 * @param options.modelProvider Skip the picker and go straight to this provider's credential
+	 *   flow. THROWS rather than falling back to the picker when the value cannot be honoured: an
+	 *   operator who named a provider was being explicit, and quietly showing a menu instead would
+	 *   discard that — worse, in a non-interactive shell it would hang on a prompt nobody can answer.
+	 */
+	async collectModel(
+		ctx: CollectContext,
+		options: { modelProvider?: string } = {},
+	): Promise<ModelCredential> {
+		if (options.modelProvider) {
+			const selection = resolveModelProviderSelection(options.modelProvider, {
+				oauth: OAUTH_PROVIDERS.map((p) => p.id),
+				apiKey: API_KEY_PROVIDERS.map((p) => p.id),
+			});
+			const refusal = formatSelectionRefusal(selection);
+			if (refusal) throw new Error(refusal);
+			if (selection.kind === "ollama") {
+				console.log(chalk.green("  ✓ Ollama selected — make sure Ollama is running: ollama serve"));
+				return { provider: "ollama", apiKey: null };
+			}
+			if (selection.kind === "oauth") {
+				return runOAuthFlow(ctx, OAUTH_PROVIDERS.find((p) => p.id === selection.id)!);
+			}
+			return runApiKeyFlow(ctx, API_KEY_PROVIDERS.find((p) => p.id === selection.id)!);
+		}
+
 		console.log(chalk.bold("\n  Model Provider"));
 		console.log(chalk.gray("  Choose how to connect to an AI model.\n"));
 

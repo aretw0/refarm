@@ -17,7 +17,11 @@ import {
 	githubCredentialProvider,
 	modelCredentialProvider,
 } from "../credentials/index.js";
-import { OAUTH_PROVIDER_TO_MODEL_PROVIDER } from "../credentials/model.js";
+import {
+	formatSelectionRefusal,
+	resolveModelProviderSelection,
+} from "../credentials/model-provider-selection.js";
+import { OAUTH_PROVIDER_TO_MODEL_PROVIDER, modelProviderInventories } from "../credentials/model.js";
 import { modelRouteTokenUpdate, parseModelRef } from "../model-routing.js";
 import { tryOpenUrl } from "../utils/open-url.js";
 import {
@@ -80,6 +84,14 @@ function isPromptCancelledError(error: unknown): boolean {
 
 interface SowOptions {
 	model?: string;
+	/**
+	 * A MODEL provider id, not a credential provider id.
+	 *
+	 * Named `modelProvider` rather than `provider` because `sow` already selects among CREDENTIAL
+	 * providers (`--github`, `--cloudflare`, model by default) and a future one — Telegram, an ERP,
+	 * a corporate SSO — will want the bare word. See `model-provider-selection.ts`.
+	 */
+	modelProvider?: string;
 	github?: boolean;
 	cloudflare?: boolean;
 	all?: boolean;
@@ -134,6 +146,10 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 		.option("--github", "Configure GitHub credentials")
 		.option("--cloudflare", "Configure Cloudflare credentials")
 		.option("--all", "Configure or reconfigure all credentials")
+		.option(
+			"--model-provider <id>",
+			"Configure this model provider directly, skipping the picker (e.g. openai-codex)",
+		)
 		.option("--reconfigure", "Reconfigure model credentials even if already configured")
 		.option("--json", "Output machine-readable sow result")
 		.addHelpText("after", SOW_HELP_TEXT)
@@ -147,6 +163,35 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 					tryOpenUrl: deps.tryOpenUrl,
 					operator: deps.createOperator(),
 				};
+				// VALIDATED BEFORE ANYTHING IS TOUCHED, and rendered through the same envelope as the
+				// other option errors. `collectModel` also refuses a bad value, but by then the wizard
+				// has printed a banner and the refusal would arrive as an unhandled stack trace — an
+				// operator who mistyped a provider deserves the list of valid ones, not a backtrace.
+				if (opts.modelProvider !== undefined) {
+					const refusal = formatSelectionRefusal(
+						resolveModelProviderSelection(opts.modelProvider, modelProviderInventories()),
+					);
+					if (refusal) {
+						if (opts.json) {
+							printJson(
+								buildJsonErrorEnvelope({
+									command: "sow",
+									operation: "credentials",
+									error: "unusable-model-provider",
+									message: refusal,
+									nextAction: MODEL_PROVIDERS_JSON_COMMAND,
+									nextCommand: MODEL_PROVIDERS_JSON_COMMAND,
+									extra: { action: "sow" },
+								}),
+							);
+							process.exitCode = 1;
+							return;
+						}
+						console.error(chalk.red(`✗  ${refusal}`));
+						process.exitCode = 1;
+						return;
+					}
+				}
 				const initialModelRef = parseModelRef(opts.model, stringValue(stored.modelProvider));
 				let modelRef = initialModelRef;
 				if (opts.model !== undefined && !initialModelRef) {
@@ -206,8 +251,15 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 					credentialLifetime(stringValue(stored.modelProvider), stored as ModelTokens, Date.now())
 						.state === "expired";
 				const configureModelRef = modelRef !== null;
+				// NAMING A PROVIDER IS ASKING FOR IT. Without this, `sow --model-provider openai-codex`
+				// on a node that already has a credential would print "already configured — skipped"
+				// and ignore the operator's explicit instruction, which is the same defect as the
+				// expired-credential skip one commit earlier: an instruction read as a question.
 				const configureModel =
-					Boolean(opts.reconfigure) || (needsModel && !configureModelRef) || Boolean(opts.all);
+					Boolean(opts.reconfigure) ||
+					Boolean(opts.modelProvider) ||
+					(needsModel && !configureModelRef) ||
+					Boolean(opts.all);
 				const configureGithub = Boolean(opts.github) || Boolean(opts.all);
 				const configureCloudflare = Boolean(opts.cloudflare) || Boolean(opts.all);
 
@@ -311,7 +363,9 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 							chalk.dim(`  Model: reconfiguring (was: ${stringValue(stored.modelProvider)})`),
 						);
 					}
-					const credential = await deps.providers.model.collectModel(ctx);
+					const credential = await deps.providers.model.collectModel(ctx, {
+						...(opts.modelProvider ? { modelProvider: opts.modelProvider } : {}),
+					});
 
 					if (credential.oauthCredentials) {
 						const modelProvider =
