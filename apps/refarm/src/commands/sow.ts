@@ -27,6 +27,7 @@ import {
 	OPERATOR_LINKS_CONFIG_COMMAND,
 	SOW_INTERACTIVE_COMMAND,
 } from "./credential-handoffs.js";
+import { credentialLifetime, type ModelTokens } from "./model.js";
 import {
 	SOW_COMMAND_DESCRIPTION,
 	SOW_HELP_TEXT,
@@ -39,10 +40,35 @@ function stringValue(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-function hasModelCredential(tokens: Record<string, unknown>, env: NodeJS.ProcessEnv): boolean {
+/**
+ * Does the operator have a model credential the wizard should leave alone?
+ *
+ * PRESENCE IS NOT VALIDITY, and reading the first as the second is what made the wizard useless
+ * on the day it was most needed. Measured on this node 2026-08-12: the `openai-codex` OAuth token
+ * had expired FIVE DAYS earlier, `hasUsableModelCredential` returned true because a credential was
+ * *there*, and `refarm sow` answered "Model: already configured — skipped". The one command an
+ * operator reaches for to fix their login declined to do anything, and said so in a reassuring
+ * tone.
+ *
+ * `credentialLifetime` is the doctor's own function, imported rather than re-derived, so the
+ * wizard and `model doctor` cannot disagree about whether a credential is alive.
+ *
+ * The three states are kept apart on purpose:
+ *  - `valid`   → configured; do not re-prompt.
+ *  - `expired` → NOT configured; this is the case that used to be silently skipped.
+ *  - `unknown` → an API-key provider carries no expiry at all, and treating "no expiry recorded"
+ *                as expired would re-prompt every single run for every keyed provider. Absence of
+ *                a measurement is not a measurement of failure.
+ */
+function hasModelCredential(
+	tokens: Record<string, unknown>,
+	env: NodeJS.ProcessEnv,
+	now: number = Date.now(),
+): boolean {
 	const provider = stringValue(tokens.modelProvider);
 	if (!provider) return false;
-	return hasUsableModelCredential(provider, tokens, env);
+	if (!hasUsableModelCredential(provider, tokens, env)) return false;
+	return credentialLifetime(provider, tokens as ModelTokens, now).state !== "expired";
 }
 
 function isPromptCancelledError(error: unknown): boolean {
@@ -173,6 +199,12 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 				}
 
 				const needsModel = !hasModelCredential(stored, env);
+				// Named separately from `needsModel` because the two arrive at the same decision from
+				// opposite facts, and the operator deserves to know which one they are looking at: a
+				// node that never had a credential, or one whose credential quietly died.
+				const modelCredentialExpired =
+					credentialLifetime(stringValue(stored.modelProvider), stored as ModelTokens, Date.now())
+						.state === "expired";
 				const configureModelRef = modelRef !== null;
 				const configureModel =
 					Boolean(opts.reconfigure) || (needsModel && !configureModelRef) || Boolean(opts.all);
@@ -251,7 +283,13 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 				}
 
 				if (configureModel) {
-					if (!needsModel) {
+					if (modelCredentialExpired) {
+						console.log(
+							chalk.yellow(
+								`  Model: the stored ${stringValue(stored.modelProvider)} credential has EXPIRED — logging in again`,
+							),
+						);
+					} else if (!needsModel) {
 						console.log(
 							chalk.dim(`  Model: reconfiguring (was: ${stringValue(stored.modelProvider)})`),
 						);

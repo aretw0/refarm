@@ -388,6 +388,62 @@ describe("sowCommand — default (no flags)", () => {
 		expect(mockSaveTokens).not.toHaveBeenCalled();
 	});
 
+	/**
+	 * AN EXPIRED CREDENTIAL IS NOT A CONFIGURED ONE (ISS-121).
+	 *
+	 * Measured on the operator's node 2026-08-12: the `openai-codex` OAuth token had expired five
+	 * days earlier and `refarm sow` reported "Model: already configured — skipped". The single
+	 * command an operator runs to fix their login declined to do anything, because the check asked
+	 * whether a credential was PRESENT.
+	 */
+	it("re-authenticates when the stored OAuth credential has EXPIRED", async () => {
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "openai-codex",
+			oauthProvider: "openai-codex",
+			oauthCredentials: { "openai-codex": { expires: Date.now() - 5 * 86_400_000 } },
+		});
+		await sowCommand.parseAsync([], { from: "user" });
+		expect(mockModelCollect).toHaveBeenCalled();
+	});
+
+	it("says WHY it is asking again, rather than re-prompting without explanation", async () => {
+		// Two different facts land on the same prompt — never configured, and configured-then-died.
+		// An operator who is asked to log in again without being told which is being told nothing.
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "openai-codex",
+			oauthProvider: "openai-codex",
+			oauthCredentials: { "openai-codex": { expires: Date.now() - 5 * 86_400_000 } },
+		});
+		await sowCommand.parseAsync([], { from: "user" });
+		const output = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
+		expect(output).toContain("EXPIRED");
+		logSpy.mockRestore();
+	});
+
+	it("leaves a LIVE OAuth credential alone", async () => {
+		// The other side of the boundary. A wizard that re-prompted for a healthy credential would
+		// have traded a silent skip for a standing nag.
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "openai-codex",
+			oauthProvider: "openai-codex",
+			oauthCredentials: { "openai-codex": { expires: Date.now() + 86_400_000 } },
+		});
+		await sowCommand.parseAsync([], { from: "user" });
+		expect(mockModelCollect).not.toHaveBeenCalled();
+	});
+
+	it("does not re-prompt a keyed provider that records no expiry at all", async () => {
+		// `unknown` is the third state and it must not collapse into `expired`. An API-key provider
+		// carries no `expires`; treating that absence as a failure would re-prompt on every run.
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "anthropic",
+			modelApiKey: "sk-ant-existing",
+		});
+		await sowCommand.parseAsync([], { from: "user" });
+		expect(mockModelCollect).not.toHaveBeenCalled();
+	});
+
 	it("reconfigures model credentials when --reconfigure is explicit", async () => {
 		mockLoadTokens.mockResolvedValue({
 			modelProvider: "anthropic",
