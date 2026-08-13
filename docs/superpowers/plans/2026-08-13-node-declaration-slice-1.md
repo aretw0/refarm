@@ -1,5 +1,20 @@
 # Node Declaration — Slice 1 Implementation Plan
 
+**Status: IMPLEMENTED 2026-08-13.** All five tasks landed
+(`da6aadff`, `17624f5c`, `b94f2c4a`, `914977f0`, `3a36a5cb`), plus `947e1384` for two defects the
+repo's own instruments caught after the fact: an exception escaping `parseAsync`
+(`cli-refusal-conformance`) and a path traversal in `apply` (commit security review). 3453 tests pass
+across 230 files. Proved end to end against the operator's real node: `declare` → `diff` aligned →
+`apply` into an empty home with `ca.key` byte-identical.
+
+Two corrections to what is written below, kept rather than edited away because the reasons matter:
+
+- **`node apply` needs no declared probe exclusion.** It takes a required argument, so the DERIVED
+  rule already covers it, and `probe-coverage` rejects a redundant declaration on purpose: derived
+  exclusions re-evaluate every run and cannot go stale.
+- **The artefact is ~52 KB, not 30.** Thirty kilobytes is the node's material; base64 inflates the
+  sealed half by 4/3.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** `refarm node declare` emits a single ~30 KB versioned file holding this node's decisions in cleartext and its identity sealed with a passphrase; `refarm node diff` reports how a node and such a file disagree; `refarm node apply` replays one onto a node.
