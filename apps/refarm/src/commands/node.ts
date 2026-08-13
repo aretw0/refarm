@@ -20,11 +20,12 @@ import { createStdioOperatorChannel, type OperatorChannel } from "@refarm.dev/pr
 import { nodeNamespaces, readSiloSplit, surveyHome } from "./backup.js";
 import {
 	buildDeclaration,
+	diffDeclarations,
 	isSealedPath,
 	summariseNotCarried,
 	type NodeDeclaration,
 } from "./node-declaration.js";
-import { sealPayload } from "./node-seal.js";
+import { readSealState, sealPayload } from "./node-seal.js";
 
 /** Read every file the declaration seals, as base64. Absent files are simply absent. */
 export function collectSealedFiles(home: string): { relative: string; base64: string }[] {
@@ -194,6 +195,44 @@ export function createNodeCommand(
 				}
 			},
 		);
+
+	node
+		.command("diff")
+		.argument("<file>", "A declaration written by `refarm node declare --out`")
+		.description("Compare this node against a declaration, key by key")
+		.option("--json", "Output machine-readable result")
+		.action((file: string, options: { json?: boolean }) => {
+			const home = homeOf();
+			const declaration = readJsonFile(file) as NodeDeclaration | null;
+			if (!declaration) throw new Error(`${file} is not a readable declaration`);
+			const config = readJsonFile(path.join(home, ".refarm", "config.json")) ?? {};
+			const diff = diffDeclarations(config, declaration);
+			const seal = readSealState(declaration.seal);
+			if (options.json) {
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "node",
+						operation: "diff",
+						extra: { file, diff, seal, governance: declaration.governance },
+					}),
+				);
+			} else {
+				const label: Record<string, string> = {
+					aligned: "=",
+					"node-only": "> only on this node",
+					"source-only": "< only in the file",
+					divergent: "! different",
+				};
+				process.stdout.write(
+					`${file} (governance: ${declaration.governance})\n` +
+						diff.keys.map((entry) => `  ${entry.key.padEnd(20)} ${label[entry.verdict]}\n`).join("") +
+						`  ${"identity".padEnd(20)} ${diff.identity}` +
+						(seal.state === "openable" ? "\n" : ` — ${(seal as { reason: string }).reason}\n`),
+				);
+			}
+			// NON-ZERO ON DIVERGENCE, so this can be a gate rather than a report.
+			if (!diff.aligned) process.exitCode = 1;
+		});
 
 	return node;
 }
