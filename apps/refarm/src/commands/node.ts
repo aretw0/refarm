@@ -18,6 +18,7 @@ import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/en
 import { createStdioOperatorChannel, type OperatorChannel } from "@refarm.dev/prompt-contract-v1";
 
 import { nodeNamespaces, readSiloSplit, surveyHome } from "./backup.js";
+import { emitCommandRefusal } from "./command-refusal.js";
 import {
 	buildDeclaration,
 	diffDeclarations,
@@ -86,6 +87,41 @@ function readJsonFile(file: string): Record<string, unknown> | null {
 	}
 }
 
+/**
+ * REFUSALS, NOT ESCAPING EXCEPTIONS.
+ *
+ * `test/architecture/cli-refusal-conformance.test.ts` probes every registered command with garbage
+ * input and fails any that lets an exception escape `parseAsync`. It caught this file on
+ * 2026-08-13, which is the second time in one day: `sow --model-provider <unknown>` had the same
+ * defect that morning. The gate is right — a stack trace tells the operator that refarm broke, when
+ * what happened is that he pointed at the wrong file.
+ *
+ * The `throw` statements stay: they say what is wrong where it is discovered. This turns them into
+ * the shape the rest of the CLI already speaks, at the boundary.
+ */
+function guarded(
+	operation: string,
+	options: { json?: boolean },
+	body: () => Promise<void> | void,
+): Promise<void> | void {
+	const fail = (error: unknown) =>
+		emitCommandRefusal({
+			command: "node",
+			operation,
+			options,
+			error: `node-${operation}-refused`,
+			message: error instanceof Error ? error.message : String(error),
+			nextAction: "Run `refarm node --help` to see the accepted arguments.",
+			nextCommands: ["refarm node --help"],
+		});
+	try {
+		const result = body();
+		return result instanceof Promise ? result.catch(fail) : result;
+	} catch (error) {
+		fail(error);
+	}
+}
+
 export function createNodeCommand(
 	homeOf = () => process.env.HOME ?? "",
 	channelOf = (): OperatorChannel => createStdioOperatorChannel(),
@@ -102,7 +138,8 @@ export function createNodeCommand(
 		.option("--force", "Overwrite an existing declaration at --out")
 		.option("--governance <mode>", "Who is authoritative for this node: local or repo", "local")
 		.action(
-			async (options: { json?: boolean; out?: string; force?: boolean; governance?: string }) => {
+			async (options: { json?: boolean; out?: string; force?: boolean; governance?: string }) =>
+				guarded("declare", options, async () => {
 				const home = homeOf();
 				const config = readJsonFile(path.join(home, ".refarm", "config.json")) ?? {};
 				const authPolicy = readJsonFile(path.join(home, ".refarm", "auth-policy.json"));
@@ -193,7 +230,7 @@ export function createNodeCommand(
 							`  re-authenticate after applying: ${silo.reAuthenticate.join(", ") || "(none)"}\n`,
 					);
 				}
-			},
+				}),
 		);
 
 	node
@@ -201,7 +238,8 @@ export function createNodeCommand(
 		.argument("<file>", "A declaration written by `refarm node declare --out`")
 		.description("Compare this node against a declaration, key by key")
 		.option("--json", "Output machine-readable result")
-		.action((file: string, options: { json?: boolean }) => {
+		.action((file: string, options: { json?: boolean }) =>
+			guarded("diff", options, () => {
 			const home = homeOf();
 			const declaration = readJsonFile(file) as NodeDeclaration | null;
 			if (!declaration) throw new Error(`${file} is not a readable declaration`);
@@ -232,7 +270,8 @@ export function createNodeCommand(
 			}
 			// NON-ZERO ON DIVERGENCE, so this can be a gate rather than a report.
 			if (!diff.aligned) process.exitCode = 1;
-		});
+			}),
+		);
 
 	node
 		.command("apply")
@@ -240,7 +279,8 @@ export function createNodeCommand(
 		.description("Write a declaration's decisions and identity onto this node")
 		.option("--json", "Output machine-readable result")
 		.option("--yes", "Skip the confirmation — for automation, never for a first run")
-		.action(async (file: string, options: { json?: boolean; yes?: boolean }) => {
+		.action(async (file: string, options: { json?: boolean; yes?: boolean }) =>
+			guarded("apply", options, async () => {
 			const home = homeOf();
 			const declaration = readJsonFile(file) as NodeDeclaration | null;
 			if (!declaration) throw new Error(`${file} is not a readable declaration`);
@@ -277,6 +317,23 @@ export function createNodeCommand(
 				files?: Record<string, string>;
 			};
 
+			// PATH TRAVERSAL, CHECKED BEFORE THE FIRST WRITE. The keys inside the seal come from a
+			// FILE, and this feature exists so that file can travel between machines. `path.join(home,
+			// "../../.ssh/authorized_keys")` resolves happily and writes outside the node's home; the
+			// seal proves the file was not altered after sealing, and proves nothing about who sealed
+			// it. Every destination is resolved and checked first, so a declaration containing one bad
+			// entry writes NOTHING rather than everything up to it.
+			const root = path.resolve(home);
+			const targets = Object.entries(opened.files ?? {}).map(([relative, base64]) => {
+				const target = path.resolve(home, relative);
+				if (target !== root && !target.startsWith(`${root}${path.sep}`)) {
+					throw new Error(
+						`refusing to apply: the declaration names a path outside this node's home — ${relative}`,
+					);
+				}
+				return { relative, base64, target };
+			});
+
 			fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
 			fs.writeFileSync(
 				path.join(home, ".refarm", "config.json"),
@@ -289,11 +346,10 @@ export function createNodeCommand(
 				);
 			}
 			const written: string[] = [];
-			for (const [relative, base64] of Object.entries(opened.files ?? {})) {
-				const target = path.join(home, relative);
-				fs.mkdirSync(path.dirname(target), { recursive: true });
-				fs.writeFileSync(target, Buffer.from(base64, "base64"));
-				written.push(relative);
+			for (const entry of targets) {
+				fs.mkdirSync(path.dirname(entry.target), { recursive: true });
+				fs.writeFileSync(entry.target, Buffer.from(entry.base64, "base64"));
+				written.push(entry.relative);
 			}
 
 			// THREE STATES, and today the operator's answer is the middle one. Replication is not
@@ -320,7 +376,8 @@ export function createNodeCommand(
 						`  re-authenticate: ${declaration.reAuthenticate.join(", ") || "(none)"}\n`,
 				);
 			}
-		});
+			}),
+		);
 
 	return node;
 }

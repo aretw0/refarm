@@ -23,6 +23,66 @@ function syntheticHome(): string {
 	return home;
 }
 
+/** A home with no `.refarm` at all — the machine after the reformat. */
+function emptyHome(): string {
+	const home = syntheticHome();
+	fs.rmSync(path.join(home, ".refarm"), { recursive: true, force: true });
+	return home;
+}
+
+/**
+ * Drive the command the way the operator does, and capture what he sees.
+ *
+ * Asserting on the REFUSAL rather than on a thrown error is deliberate: since the refusal guard
+ * landed, an invalid input prints a named message and sets a non-zero exit code instead of letting
+ * an exception escape `parseAsync`. `.rejects.toThrow()` would now pass for the wrong reason (it
+ * would not), and would stop testing anything the operator experiences.
+ */
+async function runNode(
+	home: string,
+	answers: Array<string | boolean>,
+	argv: string[],
+): Promise<{ out: string; exitCode: number }> {
+	const chunks: string[] = [];
+	const write = process.stdout.write.bind(process.stdout);
+	const consoleError = console.error;
+	// `console.log` TOO, and it is not redundant: `printJson` goes through it, so the JSON refusal
+	// envelope — the thing every `--json` assertion below reads — is invisible to a capture that
+	// only replaces `process.stdout.write`.
+	const consoleLog = console.log;
+	const collect = (...args: unknown[]) => {
+		chunks.push(args.map(String).join(" "));
+	};
+	process.stdout.write = ((chunk: string) => {
+		chunks.push(String(chunk));
+		return true;
+	}) as never;
+	console.error = collect;
+	console.log = collect;
+	process.exitCode = 0;
+	try {
+		await createNodeCommand(
+			() => home,
+			() => createScriptedOperatorChannel(answers),
+		).parseAsync(argv, { from: "user" });
+	} finally {
+		process.stdout.write = write;
+		console.error = consoleError;
+		console.log = consoleLog;
+	}
+	const exitCode = Number(process.exitCode ?? 0);
+	process.exitCode = 0;
+	return { out: chunks.join(""), exitCode };
+}
+
+/** Declare a home into a file, so the diff and apply suites start from a real sealed artefact. */
+async function declaredFile(home: string): Promise<string> {
+	const target = path.join(home, "declared.json");
+	const { exitCode } = await runNode(home, ["pw", "pw"], ["declare", "--out", target, "--json"]);
+	expect(exitCode).toBe(0);
+	return target;
+}
+
 afterEach(() => {
 	for (const home of homes.splice(0)) fs.rmSync(home, { recursive: true, force: true });
 });
@@ -43,15 +103,11 @@ describe("node declare", () => {
 		// demanded a passphrase could not run unattended, and a node whose declaration cannot be
 		// inspected before it is sealed is a node the operator must trust blindly.
 		//
-		// The EMPTY answer queue is the assertion. `createScriptedOperatorChannel` throws
-		// `RangeError: answer queue exhausted` on any `ask`, so a preview that ever prompted would
-		// fail here rather than pass quietly.
+		// The EMPTY answer queue is the assertion. `createScriptedOperatorChannel` throws on any
+		// `ask`, so a preview that ever prompted would refuse here rather than pass quietly.
 		const home = syntheticHome();
-		const command = createNodeCommand(
-			() => home,
-			() => createScriptedOperatorChannel([]),
-		);
-		await command.parseAsync(["declare", "--json"], { from: "user" });
+		const { exitCode } = await runNode(home, [], ["declare", "--json"]);
+		expect(exitCode).toBe(0);
 		expect(fs.readdirSync(home)).toEqual([".refarm"]);
 	});
 
@@ -63,13 +119,13 @@ describe("node declare", () => {
 		fs.mkdirSync(path.join(home, ".refarm", "nobody-declared-this"), { recursive: true });
 		fs.writeFileSync(path.join(home, ".refarm", "nobody-declared-this", "x.json"), "{}");
 		const target = path.join(home, "declared.json");
-		const command = createNodeCommand(
-			() => home,
-			() => createScriptedOperatorChannel(["pw", "pw"]),
+		const { out, exitCode } = await runNode(
+			home,
+			["pw", "pw"],
+			["declare", "--out", target, "--json"],
 		);
-		await expect(
-			command.parseAsync(["declare", "--out", target, "--json"], { from: "user" }),
-		).rejects.toThrow(/unregistered/iu);
+		expect(exitCode).toBe(1);
+		expect(out).toMatch(/unregistered/iu);
 		expect(fs.existsSync(target)).toBe(false);
 	});
 
@@ -78,36 +134,28 @@ describe("node declare", () => {
 		// it until the day he needs it. Confirmation is the only moment the mistake is still free.
 		const home = syntheticHome();
 		const target = path.join(home, "declared.json");
-		const channel = createScriptedOperatorChannel(["hunter2", "hunter2"]);
-		const command = createNodeCommand(
-			() => home,
-			() => channel,
+		const { exitCode } = await runNode(
+			home,
+			["hunter2", "hunter2"],
+			["declare", "--out", target, "--json"],
 		);
-		await command.parseAsync(["declare", "--out", target, "--json"], { from: "user" });
+		expect(exitCode).toBe(0);
 		expect(fs.existsSync(target)).toBe(true);
 	});
 
 	it("refuses when the two passphrases differ, and writes NOTHING", async () => {
 		const home = syntheticHome();
 		const target = path.join(home, "declared.json");
-		const command = createNodeCommand(
-			() => home,
-			() => createScriptedOperatorChannel(["a", "b"]),
-		);
-		await expect(
-			command.parseAsync(["declare", "--out", target, "--json"], { from: "user" }),
-		).rejects.toThrow(/did not match/iu);
+		const { out, exitCode } = await runNode(home, ["a", "b"], ["declare", "--out", target, "--json"]);
+		expect(exitCode).toBe(1);
+		expect(out).toMatch(/did not match/iu);
 		expect(fs.existsSync(target)).toBe(false);
 	});
 
 	it("writes a file whose cleartext holds the decisions and NONE of the key bytes", async () => {
 		const home = syntheticHome();
 		const target = path.join(home, "declared.json");
-		const command = createNodeCommand(
-			() => home,
-			() => createScriptedOperatorChannel(["pw", "pw"]),
-		);
-		await command.parseAsync(["declare", "--out", target, "--json"], { from: "user" });
+		await runNode(home, ["pw", "pw"], ["declare", "--out", target, "--json"]);
 		const written = fs.readFileSync(target, "utf8");
 		expect(written).toContain('"port": 3000');
 		expect(written).not.toContain("PRIVATE-CA-KEY");
@@ -118,38 +166,22 @@ describe("node declare", () => {
 		const home = syntheticHome();
 		const target = path.join(home, "declared.json");
 		fs.writeFileSync(target, "{}");
-		const command = createNodeCommand(
-			() => home,
-			() => createScriptedOperatorChannel(["pw", "pw"]),
+		const { out, exitCode } = await runNode(
+			home,
+			["pw", "pw"],
+			["declare", "--out", target, "--json"],
 		);
-		await expect(
-			command.parseAsync(["declare", "--out", target, "--json"], { from: "user" }),
-		).rejects.toThrow(/--force/u);
+		expect(exitCode).toBe(1);
+		expect(out).toMatch(/--force/u);
 		expect(fs.readFileSync(target, "utf8")).toBe("{}");
 	});
 });
-
-/** Declare a home into a file, so the diff and apply suites start from a real sealed artefact. */
-async function declaredFile(home: string): Promise<string> {
-	const target = path.join(home, "declared.json");
-	const command = createNodeCommand(
-		() => home,
-		() => createScriptedOperatorChannel(["pw", "pw"]),
-	);
-	await command.parseAsync(["declare", "--out", target, "--json"], { from: "user" });
-	return target;
-}
 
 describe("node diff", () => {
 	it("reports aligned when nothing changed since the declaration", async () => {
 		const home = syntheticHome();
 		const file = await declaredFile(home);
-		const command = createNodeCommand(
-			() => home,
-			() => createScriptedOperatorChannel([]),
-		);
-		await command.parseAsync(["diff", file, "--json"], { from: "user" });
-		expect(process.exitCode ?? 0).toBe(0);
+		expect((await runNode(home, [], ["diff", file, "--json"])).exitCode).toBe(0);
 	});
 
 	it("reports divergence after the node's config changes, and EXITS NON-ZERO", async () => {
@@ -161,13 +193,7 @@ describe("node diff", () => {
 			path.join(home, ".refarm", "config.json"),
 			JSON.stringify({ node: { name: "n1" }, surfaces: { web: { port: 4000 } } }),
 		);
-		const command = createNodeCommand(
-			() => home,
-			() => createScriptedOperatorChannel([]),
-		);
-		await command.parseAsync(["diff", file, "--json"], { from: "user" });
-		expect(process.exitCode).toBe(1);
-		process.exitCode = 0;
+		expect((await runNode(home, [], ["diff", file, "--json"])).exitCode).toBe(1);
 	});
 
 	it("says UNCOMPARABLE rather than aligned when the seal is a custody it cannot open", async () => {
@@ -175,32 +201,28 @@ describe("node diff", () => {
 		const file = await declaredFile(home);
 		const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
 		fs.writeFileSync(file, JSON.stringify({ ...parsed, seal: { ...parsed.seal, custody: "peer" } }));
-		const command = createNodeCommand(
-			() => home,
-			() => createScriptedOperatorChannel([]),
-		);
-		await command.parseAsync(["diff", file, "--json"], { from: "user" });
-		expect(process.exitCode).toBe(1);
-		process.exitCode = 0;
+		const { out, exitCode } = await runNode(home, [], ["diff", file, "--json"]);
+		expect(exitCode).toBe(1);
+		expect(out).toContain("uncomparable");
+	});
+
+	it("REFUSES a file that is not a declaration instead of crashing", async () => {
+		// `test/architecture/cli-refusal-conformance.test.ts` probes exactly this and caught this file
+		// on 2026-08-13. A stack trace tells the operator refarm broke; what happened is that he
+		// pointed at the wrong path.
+		const home = syntheticHome();
+		const { out, exitCode } = await runNode(home, [], ["diff", "/nope/not-here.json", "--json"]);
+		expect(exitCode).toBe(1);
+		expect(out).toMatch(/not a readable declaration/iu);
 	});
 });
-
-/** A home with no `.refarm` at all — the machine after the reformat. */
-function emptyHome(): string {
-	const home = syntheticHome();
-	fs.rmSync(path.join(home, ".refarm"), { recursive: true, force: true });
-	return home;
-}
 
 describe("node apply", () => {
 	it("restores decisions AND identity onto an empty home", async () => {
 		const file = await declaredFile(syntheticHome());
 		const fresh = emptyHome();
-		const command = createNodeCommand(
-			() => fresh,
-			() => createScriptedOperatorChannel(["pw"]),
-		);
-		await command.parseAsync(["apply", file, "--yes", "--json"], { from: "user" });
+		const { exitCode } = await runNode(fresh, ["pw"], ["apply", file, "--yes", "--json"]);
+		expect(exitCode).toBe(0);
 		expect(
 			JSON.parse(fs.readFileSync(path.join(fresh, ".refarm", "config.json"), "utf8")),
 		).toMatchObject({ surfaces: { web: { port: 3000 } } });
@@ -214,14 +236,46 @@ describe("node apply", () => {
 		// it looks configured and its identity is missing.
 		const file = await declaredFile(syntheticHome());
 		const fresh = emptyHome();
-		const command = createNodeCommand(
-			() => fresh,
-			() => createScriptedOperatorChannel(["wrong"]),
-		);
-		await expect(
-			command.parseAsync(["apply", file, "--yes", "--json"], { from: "user" }),
-		).rejects.toThrow(/passphrase/iu);
+		const { out, exitCode } = await runNode(fresh, ["wrong"], ["apply", file, "--yes", "--json"]);
+		expect(exitCode).toBe(1);
+		expect(out).toMatch(/passphrase/iu);
 		expect(fs.existsSync(path.join(fresh, ".refarm", "config.json"))).toBe(false);
+	});
+
+	it("REFUSES a declaration naming a path outside the home, and writes NOTHING", async () => {
+		// Found by the commit security review, 2026-08-13. The keys inside the seal come from a FILE,
+		// and this whole feature exists so that file can travel between machines. `path.join(home,
+		// "../../.ssh/authorized_keys")` resolves happily. The seal proves the file was not altered
+		// after sealing and proves NOTHING about who sealed it.
+		//
+		// The escape is placed second on purpose: every destination is checked before the first write,
+		// so a declaration with one bad entry writes nothing rather than everything up to it.
+		const source = syntheticHome();
+		const file = await declaredFile(source);
+		const escapeTarget = path.join(source, "ESCAPED");
+		const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+		const { sealPayload } = await import("./node-seal.js");
+		fs.writeFileSync(
+			file,
+			JSON.stringify({
+				...parsed,
+				seal: sealPayload(
+					{
+						files: {
+							".refarm/node-id": Buffer.from("innocent").toString("base64"),
+							[`../${path.basename(source)}/ESCAPED`]: Buffer.from("owned").toString("base64"),
+						},
+					},
+					"pw",
+				),
+			}),
+		);
+		const fresh = emptyHome();
+		const { out, exitCode } = await runNode(fresh, ["pw"], ["apply", file, "--yes", "--json"]);
+		expect(exitCode).toBe(1);
+		expect(out).toMatch(/outside this node's home/iu);
+		expect(fs.existsSync(escapeTarget)).toBe(false);
+		expect(fs.existsSync(path.join(fresh, ".refarm", "node-id"))).toBe(false);
 	});
 
 	it("does not write without --yes or a confirmation", async () => {
@@ -234,11 +288,8 @@ describe("node apply", () => {
 		// already declined.
 		const file = await declaredFile(syntheticHome());
 		const fresh = emptyHome();
-		const command = createNodeCommand(
-			() => fresh,
-			() => createScriptedOperatorChannel([false]),
-		);
-		await command.parseAsync(["apply", file, "--json"], { from: "user" });
+		const { exitCode } = await runNode(fresh, [false], ["apply", file, "--json"]);
+		expect(exitCode).toBe(0);
 		expect(fs.existsSync(path.join(fresh, ".refarm", "config.json"))).toBe(false);
 	});
 
@@ -248,23 +299,8 @@ describe("node apply", () => {
 		// completeness that does not exist.
 		const file = await declaredFile(syntheticHome());
 		const fresh = emptyHome();
-		const out: string[] = [];
-		const write = process.stdout.write.bind(process.stdout);
-		process.stdout.write = ((chunk: string) => {
-			out.push(String(chunk));
-			return true;
-		}) as never;
-		try {
-			const command = createNodeCommand(
-				() => fresh,
-				() => createScriptedOperatorChannel(["pw"]),
-			);
-			await command.parseAsync(["apply", file, "--yes"], { from: "user" });
-		} finally {
-			process.stdout.write = write;
-		}
-		const printed = out.join("");
-		expect(printed).toMatch(/not replicated/iu);
-		expect(printed).toContain("refarm backup create");
+		const { out } = await runNode(fresh, ["pw"], ["apply", file, "--yes"]);
+		expect(out).toMatch(/not replicated/iu);
+		expect(out).toContain("refarm backup create");
 	});
 });
