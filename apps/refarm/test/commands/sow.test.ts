@@ -444,6 +444,39 @@ describe("sowCommand — default (no flags)", () => {
 		expect(mockModelCollect).not.toHaveBeenCalled();
 	});
 
+	it("warns before replacing a LIVE credential, because the slot is irreversible", async () => {
+		// ISS-122: `oauthCredentials` holds one slot per provider, so `--reconfigure` on a working
+		// credential destroys it with no copy kept. An operator with Copilot personal AND corporate
+		// has no way to learn that from the wizard's own output.
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "openai-codex",
+			oauthProvider: "openai-codex",
+			oauthCredentials: { "openai-codex": { expires: Date.now() + 86_400_000 } },
+		});
+		await sowCommand.parseAsync(["--reconfigure"], { from: "user" });
+		const output = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
+		expect(output).toContain("LIVE");
+		expect(output).toContain("cannot be recovered");
+		logSpy.mockRestore();
+	});
+
+	it("does NOT warn when replacing an already-expired credential", async () => {
+		// Replacing something that authenticates nothing costs nothing, and a warning there would
+		// be noise on the exact path today's expiry fix exists to make frictionless.
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "openai-codex",
+			oauthProvider: "openai-codex",
+			oauthCredentials: { "openai-codex": { expires: Date.now() - 86_400_000 } },
+		});
+		await sowCommand.parseAsync([], { from: "user" });
+		const output = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
+		expect(output).not.toContain("cannot be recovered");
+		expect(output).toContain("EXPIRED");
+		logSpy.mockRestore();
+	});
+
 	it("reconfigures model credentials when --reconfigure is explicit", async () => {
 		mockLoadTokens.mockResolvedValue({
 			modelProvider: "anthropic",

@@ -1441,6 +1441,18 @@
 			"package": "apps/refarm",
 			"category": "cleanup",
 			"priority": "medium"
+		},
+		{
+			"id": "ISS-122",
+			"title": "A second account of one provider destroys the first: the silo keys credentials by provider alone",
+			"body": "MEASURED 2026-08-12, against a real SiloCore with SILO_HOME redirected — not read from the code:\n\n    1) after personal login : {\"github-copilot\":{\"account\":\"pessoal\",\"token\":\"gho_PESSOAL\",...}}\n    2) after corporate login: {\"github-copilot\":{\"account\":\"corporativa\",\"token\":\"gho_CORP\",...}}\n    personal credential still present? false\n\n`tokens.oauthCredentials` is keyed by PROVIDER and holds ONE slot. `sow` spreads the existing map\nand writes `[credential.provider]`, so authenticating a second account of the same provider\nsilently overwrites the first. No error, no warning, no copy kept. This is the same class of\naccident as ISS-121 — an irreversible write to the operator's source of truth that nothing\nreports — with the difference that here it is the DESIGN doing it, not a stray test.\n\nWHY IT BLOCKS STATED WORK. The operator has three quotas across two providers: GitHub Copilot\npersonal, GitHub Copilot corporate, and Codex personal. Two of the three are the same provider.\nUnder today's shape they cannot coexist, and the act of adding the second destroys the first.\n\nNOTE THE INTERACTION WITH TODAY'S sow FIX. Making an expired credential re-prompt (commit\naaf1a8b2) is correct and makes this MORE reachable: the wizard now re-authenticates on expiry,\nwhich is exactly the moment a second account would be entered.\n\nPRIOR ART, already proven next door rather than to be invented: `agents-lab`'s pi-stack models\nidentity as `buildProviderAccountKey(provider, account)` throughout its quota-visibility\nextensions — `packages/pi-stack/extensions/quota-visibility-billing.ts` extracts Copilot billing\nrows keyed by provider AND account, with weekly/monthly caps and share semantics. That is the\nsame key this repository is missing, and it is also what R4's per-workspace quota split (ISS-064)\nand the \"which part did refarm not dispatch\" question (ISS-073) both need.\n\nTHE DECISION IS THE OPERATOR'S, because it is his credential model and it reaches workspaces:\nwhether an account is a dimension OF the credential key, or credentials are scoped BY workspace\nand the workspace carries the account. Both make the destruction impossible; they differ in\nwhere the operator picks which quota a piece of work spends.\n\nWHAT IS SAFE TO DO BEFORE THAT DECISION: refuse to silently replace an existing subscription\ncredential. A guard needs no new data model and removes the irreversible half of the defect.",
+			"location": "packages/silo/src/index.js, apps/refarm/src/commands/sow.ts",
+			"status": "open",
+			"category": "defect",
+			"priority": "high",
+			"package": "packages/silo",
+			"axis": "durability",
+			"requirement": "R11"
 		}
 	]
 }

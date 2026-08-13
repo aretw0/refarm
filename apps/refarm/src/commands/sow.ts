@@ -283,6 +283,23 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 				}
 
 				if (configureModel) {
+					// NOT SILENT, because the write is irreversible. `tokens.oauthCredentials` holds ONE
+					// slot per provider, so authenticating replaces whatever is there with no copy kept
+					// (ISS-122, measured). For an EXPIRED credential that costs nothing — it authenticates
+					// nothing already. For a LIVE one it destroys a working credential, and the operator
+					// with two accounts on one provider (Copilot personal and corporate) has no way to
+					// learn that from the wizard's own output.
+					if (
+						!modelCredentialExpired &&
+						credentialLifetime(stringValue(stored.modelProvider), stored as ModelTokens, Date.now())
+							.state === "valid"
+					) {
+						console.log(
+							chalk.yellow(
+								`  Model: this replaces the LIVE ${stringValue(stored.modelProvider)} credential — one slot per provider, and the current one cannot be recovered afterwards`,
+							),
+						);
+					}
 					if (modelCredentialExpired) {
 						console.log(
 							chalk.yellow(
