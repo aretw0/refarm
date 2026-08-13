@@ -39,6 +39,18 @@ export type ExportDisposition =
 	| "skip"
 	| "undecidable"
 	/**
+	 * REAL FILES THIS NODE DOES NOT CLAIM. Not carried, not deleted, and not a loose end.
+	 *
+	 * The operator's policy, chosen 2026-08-13: a storage namespace the node does not declare is not
+	 * the node's data. This is DECIDED, which is what separates it from `undecidable` — and the
+	 * separation is the point, because a backup with 71 permanent "undecided" entries would report
+	 * itself incomplete forever and the warning would stop meaning anything.
+	 *
+	 * It is a policy rather than a cleanup: the 65 scratch databases on his node are retired by it,
+	 * and so are the ones written next week.
+	 */
+	| "foreign"
+	/**
 	 * IRRECOVERABLE **AND** SECRET, and no login rebuilds it.
 	 *
 	 * Found on the operator's node 2026-08-12: `~/.refarm/tls/ca.key` is the private key of his own
@@ -165,7 +177,7 @@ export function planEntry(entry: InventoryEntry): ExportPlanEntry {
 	if (!entry.declared) {
 		return {
 			...common,
-			disposition: "undecidable",
+			disposition: "foreign",
 			reason: `${entry.reason} — carrying every undeclared file would bury the ones that matter`,
 		};
 	}
@@ -183,6 +195,7 @@ export function planSovereignExport(entries: readonly InventoryEntry[]) {
 		skip: of("skip"),
 		undecidable: of("undecidable"),
 		sensitive: of("sensitive"),
+		foreign: of("foreign"),
 		carriedBytes: of("carry").reduce((total, entry) => total + (entry.bytes ?? 0), 0),
 		/** True when SOMETHING could not be decided — the signal that this backup is not yet complete. */
 		hasUndecided: of("undecidable").length > 0,
@@ -227,6 +240,11 @@ export function formatExportPlan(
 	}
 	lines.push("");
 	lines.push(`  skips        ${plan.skip.length} file(s) that rebuild themselves`);
+	if (plan.foreign.length > 0) {
+		lines.push(
+			`  foreign      ${plan.foreign.length} file(s) this node does not claim — not carried, not deleted`,
+		);
+	}
 	if (plan.hasUndecided) {
 		lines.push("");
 		lines.push(`  UNDECIDED    ${plan.undecidable.length} file(s) — this backup is NOT yet complete.`);

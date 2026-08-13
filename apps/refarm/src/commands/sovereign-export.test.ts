@@ -102,11 +102,23 @@ describe("planEntry", () => {
 		expect(planned.reason).toContain("decide before trusting this backup");
 	});
 
-	it("leaves an undeclared irrecoverable file undecided too", () => {
-		// 72 of these: scratch databases and hand-made backups. Irrecoverable AND unreferenced.
+	it("calls an undeclared irrecoverable file FOREIGN — decided, not a loose end", () => {
+		// The operator's policy, 2026-08-13. Before it, these 71 files sat permanently "undecided"
+		// and the bundle reported itself incomplete forever, which turns the warning into noise.
+		// Foreign is an answer: not the node's, not carried, not deleted.
 		expect(planEntry(entry({ file: "/home/op/x/repro.db", declared: false })).disposition).toBe(
-			"undecidable",
+			"foreign",
 		);
+	});
+
+	it("leaves UNDECIDABLE for what the layout does not describe, and nothing else", () => {
+		// The distinction that keeps the completeness signal meaningful: `foreign` is decided,
+		// `undecidable` means a subsystem writes somewhere the layout never described — the state
+		// that would have caught the CA key years earlier.
+		const unregistered = planEntry(
+			entry({ file: "/home/op/.refarm/new-thing/x", recoverability: "unknown", declared: false }),
+		);
+		expect(unregistered.disposition).toBe("undecidable");
 	});
 });
 
@@ -123,13 +135,30 @@ describe("planSovereignExport", () => {
 		expect(PLAN.carry.map((e) => e.file)).toEqual(["/n/.refarm/config.json", "/n/.refarm/node-id"]);
 		expect(PLAN.carriedBytes).toBe(4133);
 		expect(PLAN.skip).toHaveLength(1);
-		expect(PLAN.undecidable).toHaveLength(1);
+		expect(PLAN.foreign).toHaveLength(1);
+		expect(PLAN.undecidable).toHaveLength(0);
+	});
+
+	it("is COMPLETE when nothing is unregistered, even with foreign files present", () => {
+		// The payoff of the policy: a node full of scratch can still have a complete backup, because
+		// the scratch has an answer. Measured on the operator's node the same day: 153 undecided
+		// became 0, with 71 foreign and 69 rebuilt.
+		const withForeign = planSovereignExport([
+			entry({ file: "/n/.refarm/config.json" }),
+			entry({ file: "/n/x/repro.db", declared: false }),
+		]);
+		expect(withForeign.foreign).toHaveLength(1);
+		expect(withForeign.hasUndecided).toBe(false);
 	});
 
 	it("flags that the backup is not complete while anything is undecided", () => {
 		// The signal that stops a false sense of safety. A plan with undecided entries has not yet
 		// been turned into a backup anyone should trust.
-		expect(PLAN.hasUndecided).toBe(true);
+		expect(
+			planSovereignExport([
+				entry({ file: "/n/?", recoverability: "unknown", declared: false }),
+			]).hasUndecided,
+		).toBe(true);
 		expect(planSovereignExport([entry({ file: "/n/.refarm/config.json" })]).hasUndecided).toBe(false);
 	});
 

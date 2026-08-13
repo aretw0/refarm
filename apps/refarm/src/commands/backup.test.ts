@@ -69,7 +69,7 @@ function exportNode() {
 	const { plan } = surveyHome(home, "default");
 	const silo = readSiloSplit(home);
 	return {
-		manifest: writeBundle(home, bundle, plan.carry, plan.undecidable, silo, {
+		manifest: writeBundle(home, bundle, plan.carry, plan.undecidable, plan.foreign, silo, {
 			entries: plan.sensitive,
 			include: false,
 		}),
@@ -150,14 +150,18 @@ describe("what the bundle refuses to carry", () => {
 		expect(stored).not.toContain(path.join(".local", "share", "refarm", "repro.db"));
 	});
 
-	it("RECORDS what it could not decide, so a restore knows the backup was partial", () => {
-		// The hand-made backup and the scratch database are irrecoverable and undeclared. Silently
-		// dropping them would make an incomplete bundle look complete.
+	it("RECORDS what it deliberately left behind, with the reason", () => {
+		// The hand-made backup and the scratch database are irrecoverable and undeclared, so under
+		// the operator's policy they are FOREIGN — decided, not carried. Recorded anyway: "this
+		// bundle is complete" and "there was nothing else on that machine" are different statements,
+		// and an operator restoring a year later is owed the second one.
 		const { manifest } = exportNode();
-		const undecided = manifest.undecided.map((entry) => entry.file);
-		expect(undecided.some((file) => file.includes("bak-antes-do-batismo"))).toBe(true);
-		expect(undecided.some((file) => file.includes("repro.db"))).toBe(true);
-		expect(manifest.undecided.every((entry) => entry.reason.length > 20)).toBe(true);
+		const foreign = manifest.foreign.map((entry) => entry.file);
+		expect(foreign.some((file) => file.includes("bak-antes-do-batismo"))).toBe(true);
+		expect(foreign.some((file) => file.includes("repro.db"))).toBe(true);
+		expect(manifest.foreign.every((entry) => entry.reason.length > 20)).toBe(true);
+		// And the bundle is nonetheless complete, because foreign is an answer.
+		expect(manifest.undecided).toEqual([]);
 	});
 });
 
@@ -199,7 +203,7 @@ describe("secrets that live outside the silo", () => {
 
 	it("carries them only when asked, and says the bundle is now a credential", () => {
 		const { plan } = surveyHome(home, "default");
-		const manifest = writeBundle(home, bundle, plan.carry, plan.undecidable, readSiloSplit(home), {
+		const manifest = writeBundle(home, bundle, plan.carry, plan.undecidable, plan.foreign, readSiloSplit(home), {
 			entries: plan.sensitive,
 			include: true,
 		});

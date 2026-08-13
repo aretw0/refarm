@@ -38,6 +38,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { classifyByLayout } from "./sovereign-layout.js";
+
 /** Where a value comes back from, when it comes back at all. */
 export type RecoverySource = "provider-login" | "git" | "rebuild" | "none";
 
@@ -69,87 +71,38 @@ export interface InventoryEntry {
  * node's database and `repro.db` somebody's afternoon. Passing it in rather than reading it keeps
  * the rule testable against a node that does not exist.
  */
-export function classifyEntry(file: string, declaredNamespace: string | null): Omit<InventoryEntry, "bytes"> {
-	const base = path.basename(file);
-	const dir = path.basename(path.dirname(file));
+export function classifyEntry(
+	file: string,
+	declaredNamespace: string | null,
+	home?: string,
+): Omit<InventoryEntry, "bytes"> {
+	// DELEGATED TO THE DECLARED LAYOUT. This used to be a chain of filename `if`s, and the chain had
+	// already missed `~/.refarm/tls/ca.key` — excluded from backups only because nothing matched it.
+	// The layout answers "what does this node declare about where this sits" instead.
+	const base = home ?? inferHome(file);
+	const relative = path.relative(base, file);
+	const verdict = classifyByLayout(relative, declaredNamespace ? [declaredNamespace] : []);
+	switch (verdict.nature) {
+		case "decision":
+		case "data":
+			return { file, recoverability: "irrecoverable", source: "none", declared: true, reason: verdict.reason };
+		case "secret":
+			return { file, recoverability: "irrecoverable", source: "none", declared: true, reason: verdict.reason };
+		case "cache":
+			return { file, recoverability: "recoverable", source: "rebuild", declared: true, reason: verdict.reason };
+		case "foreign":
+			return { file, recoverability: "irrecoverable", source: "none", declared: false, reason: verdict.reason };
+		default:
+			return { file, recoverability: "unknown", source: "none", declared: false, reason: verdict.reason };
+	}
+}
 
-	if (base === "identity.json" && dir === ".silo") {
-		return {
-			file,
-			recoverability: "irrecoverable",
-			source: "none",
-			declared: true,
-			// Mixed on purpose, and classified by its WORST part. The OAuth tokens inside do come
-			// back from a login; the route decisions beside them do not, and ISS-121 is exactly the
-			// case where those were destroyed and nothing could say what they had been.
-			reason: "credentials come back from a login, but the model route and identity beside them do not",
-		};
-	}
-	if (base === "config.json" && dir === ".refarm") {
-		return {
-			file,
-			recoverability: "irrecoverable",
-			source: "none",
-			declared: true,
-			reason: "the operator's declarations — workspaces, connections, processes, declared base",
-		};
-	}
-	if (base.startsWith("config.json.bak")) {
-		return {
-			file,
-			recoverability: "irrecoverable",
-			source: "none",
-			declared: false,
-			reason: "a hand-made backup — undeclared, and the only copy of whatever it holds",
-		};
-	}
-	if (base === "node-id" || base === "node.json") {
-		return {
-			file,
-			recoverability: "irrecoverable",
-			source: "none",
-			declared: true,
-			reason: "this node's identity — a new one is a different node to every peer that trusted it",
-		};
-	}
-	if (base.endsWith(".db") || base.endsWith(".peer")) {
-		const namespace = base.replace(/\.(db|peer)$/u, "");
-		const isDeclared = declaredNamespace !== null && namespace === declaredNamespace;
-		return {
-			file,
-			recoverability: "irrecoverable",
-			source: "none",
-			declared: isDeclared,
-			reason: isDeclared
-				? "this node's own storage namespace — the accumulated work lives here"
-				: `namespace "${namespace}" is not the declared one; nothing declared refers to it`,
-		};
-	}
-	if (base.endsWith(".managed.json") || base === "model-rates.v1.json") {
-		return {
-			file,
-			recoverability: "recoverable",
-			source: "rebuild",
-			declared: true,
-			reason: "a managed cache — refarm rewrites it",
-		};
-	}
-	if (dir === "assets") {
-		return {
-			file,
-			recoverability: "unknown",
-			source: "none",
-			declared: false,
-			reason: "content-addressed asset — whether its source still exists is not knowable from here",
-		};
-	}
-	return {
-		file,
-		recoverability: "unknown",
-		source: "none",
-		declared: false,
-		reason: "no rule classifies this entry — it is unclassified, which is not the same as safe",
-	};
+/** The node home a path belongs to, when the caller did not say. Walks up to the parent of the
+ *  first `.refarm`/`.silo`/`.local` segment — the same three roots `sovereignLocations` names. */
+function inferHome(file: string): string {
+	const segments = file.split(path.sep);
+	const index = segments.findIndex((segment) => segment === ".refarm" || segment === ".silo" || segment === ".local");
+	return index > 0 ? segments.slice(0, index).join(path.sep) : path.dirname(file);
 }
 
 /**

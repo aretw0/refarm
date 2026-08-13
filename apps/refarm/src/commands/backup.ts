@@ -26,6 +26,7 @@ import {
 	type ExportPlanEntry,
 } from "./sovereign-export.js";
 import { inventoryLocation, sovereignLocations } from "./sovereign-inventory.js";
+import { declaredNamespaces } from "./sovereign-layout.js";
 
 export const MANIFEST_NAME = "manifest.json";
 export const BUNDLE_FILES_DIR = "files";
@@ -38,8 +39,17 @@ export interface BackupManifest {
 	readonly decisions: Record<string, unknown>;
 	/** Providers whose credentials must be obtained again — names only, never secrets. */
 	readonly reAuthenticate: string[];
-	/** Entries the plan could not decide. Recorded so a restore can say the backup was partial. */
+	/** Entries the plan could not decide — the layout describes no rule for them. Recorded so a
+	 *  restore can say the backup was partial. */
 	readonly undecided: { file: string; reason: string }[];
+	/**
+	 * Files the source node deliberately did NOT claim, and therefore did not carry.
+	 *
+	 * Recorded because "this bundle is complete" and "there was nothing else on that machine" are
+	 * different statements, and only the first is true. An operator restoring a year from now, with
+	 * the old disk still in a drawer, is owed the list of what was left behind on purpose.
+	 */
+	readonly foreign: { file: string; reason: string }[];
 	/**
 	 * Secrets this node holds that no login rebuilds, and whether this bundle contains them.
 	 *
@@ -57,6 +67,17 @@ export function storedPathFor(source: string, home: string): string {
 	// A path outside the home would escape the bundle with `..`; it is stored under a marker
 	// instead of silently landing somewhere unexpected on restore.
 	return relative.startsWith("..") ? path.join("_absolute", source.replace(/^[/\\]/u, "")) : relative;
+}
+
+/** The namespaces THIS node declares, read from its own config. Absent config → the convention,
+ *  with `origin` saying which — a node predating the declaration must not call its own data
+ *  foreign. */
+export function nodeNamespaces(home: string): { namespaces: string[]; origin: "declared" | "convention" } {
+	try {
+		return declaredNamespaces(JSON.parse(fs.readFileSync(path.join(home, ".refarm", "config.json"), "utf8")));
+	} catch {
+		return declaredNamespaces(null);
+	}
 }
 
 /** Collect the inventory for a home. Shared by plan and create so the two cannot disagree. */
@@ -87,6 +108,7 @@ export function writeBundle(
 	destination: string,
 	carried: readonly ExportPlanEntry[],
 	undecided: readonly ExportPlanEntry[],
+	foreign: readonly ExportPlanEntry[],
 	silo: { decisions: Record<string, unknown>; reAuthenticate: string[] },
 	// REQUIRED, not defaulted. A default of "no secrets" means a caller who forgets writes a
 	// manifest claiming this node holds none — and a restore would then stand up a node missing its
@@ -114,6 +136,7 @@ export function writeBundle(
 		decisions: silo.decisions,
 		reAuthenticate: silo.reAuthenticate,
 		undecided: undecided.map((entry) => ({ file: entry.file, reason: entry.reason })),
+		foreign: foreign.map((entry) => ({ file: entry.file, reason: entry.reason })),
 		secrets: { files: secrets.entries.map((entry) => entry.file), included: secrets.include },
 	};
 	fs.writeFileSync(path.join(destination, MANIFEST_NAME), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -178,19 +201,33 @@ export function createBackupCommand(homeOf = () => process.env.HOME ?? ""): Comm
 		.option("--namespace <id>", "Storage namespace to treat as this node's own", "default")
 		.action((options: { json?: boolean; namespace?: string }) => {
 			const home = homeOf();
-			const { plan } = surveyHome(home, options.namespace ?? "default");
+			const declared = nodeNamespaces(home);
+			const { plan } = surveyHome(home, options.namespace ?? declared.namespaces[0] ?? null);
 			const silo = readSiloSplit(home);
 			if (options.json) {
 				printJson(
 					buildJsonSuccessEnvelope({
 						command: "backup",
 						operation: "plan",
-						extra: { plan, reAuthenticate: silo.reAuthenticate, decisions: silo.decisions },
+						extra: {
+							plan,
+							namespaces: declared,
+							reAuthenticate: silo.reAuthenticate,
+							decisions: silo.decisions,
+						},
 					}),
 				);
 				return;
 			}
-			process.stdout.write(`${formatExportPlan(plan, silo.reAuthenticate)}\n`);
+			process.stdout.write(
+				`${formatExportPlan(plan, silo.reAuthenticate)}\n` +
+					`\n  namespaces: ${declared.namespaces.join(", ") || "(none)"} (${declared.origin})\n` +
+					(declared.origin === "convention"
+						? "  This node has not declared its storage namespaces, so the conventional one is\n" +
+							"  assumed. Declare them in .refarm/config.json under storage.namespaces to make\n" +
+							"  the answer yours rather than inherited.\n"
+						: ""),
+			);
 		});
 
 	backup
@@ -208,7 +245,7 @@ export function createBackupCommand(homeOf = () => process.env.HOME ?? ""): Comm
 			const { plan } = surveyHome(home, options.namespace ?? "default");
 			const silo = readSiloSplit(home);
 			const includeSecrets = Boolean(options.includeSecrets);
-			writeBundle(home, destination, plan.carry, plan.undecidable, silo, {
+			writeBundle(home, destination, plan.carry, plan.undecidable, plan.foreign, silo, {
 				entries: plan.sensitive,
 				include: includeSecrets,
 			});

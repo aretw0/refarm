@@ -31,7 +31,9 @@ describe("classifyEntry", () => {
 		const verdict = classifyEntry("/home/op/.silo/identity.json", "default");
 		expect(verdict.recoverability).toBe("irrecoverable");
 		expect(verdict.declared).toBe(true);
-		expect(verdict.reason).toContain("model route");
+		// The wording lives in the declared layout now; what must not move is that the file is never
+		// treated as recoverable just because a login rebuilds the tokens inside it.
+		expect(verdict.reason).toContain("secrets never travel");
 	});
 
 	it("names the node's own database from its DECLARED namespace", () => {
@@ -47,7 +49,8 @@ describe("classifyEntry", () => {
 		const verdict = classifyEntry("/home/op/.local/share/refarm/repro.db", "default");
 		expect(verdict.declared).toBe(false);
 		expect(verdict.recoverability).toBe("irrecoverable");
-		expect(verdict.reason).toContain("not the declared one");
+		expect(verdict.reason).toContain("not declared by this node");
+		expect(verdict.reason).toContain("not deleted either");
 	});
 
 	it("treats a node with NO declared namespace as declaring nothing", () => {
@@ -73,7 +76,7 @@ describe("classifyEntry", () => {
 		// that skips it, silently — the exact failure this whole item exists to prevent.
 		const verdict = classifyEntry("/home/op/.refarm/something-new.json", "default");
 		expect(verdict.recoverability).toBe("unknown");
-		expect(verdict.reason).toContain("not the same as safe");
+		expect(verdict.reason).toContain("no layout entry covers this path");
 	});
 });
 
