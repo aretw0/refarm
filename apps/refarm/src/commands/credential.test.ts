@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { buildAccountView } from "@refarm.dev/model-account-contract-v1";
+
 import { createCredentialCommand } from "./credential.js";
 
 const TOKENS = {
@@ -20,11 +22,9 @@ async function run(
 	argv: string[],
 	tokens: Record<string, unknown> = TOKENS,
 	catalog: unknown[] = [],
-	// THE LEGACY REF SHAPE, not `model/openai-codex`. A credential stored before the namespaced
-	// store existed lives in the flat token map, and `credentialSecretLocation` says so through the
-	// ref itself. Passing the namespaced shape here made the account `incomplete` and produced an
-	// `unclaimed` orphan beside it — which is exactly what should happen, and why this is spelled out.
-	secretRefs: string[] = ["legacy:oauthCredentials/openai-codex"],
+	// Namespaced secrets, keyed by secretRef. Legacy credentials need no entry: their secret IS the
+	// flat token map that produced the descriptor, and the view declares those present itself.
+	secrets: Map<string, unknown> = new Map(),
 ) {
 	const chunks: string[] = [];
 	const write = process.stdout.write.bind(process.stdout);
@@ -41,8 +41,8 @@ async function run(
 		await createCredentialCommand({
 			homeOf: () => "/nonexistent-home",
 			siloOf: () => ({ loadTokens: async () => tokens, saveTokens: async () => tokens }),
-			catalogOf: () => catalog as never,
-			secretRefsOf: async () => secretRefs,
+			viewOf: async () =>
+				buildAccountView({ tokens, catalog: catalog as never, secrets }),
 			bindingsOf: () => [],
 		}).parseAsync(argv, { from: "user" });
 	} finally {
@@ -67,19 +67,14 @@ describe("credential list", () => {
 	});
 
 	it("says a node with no credentials has none, rather than printing an empty table", async () => {
-		const { out } = await run(["list", "--json"], {}, [], []);
+		const { out } = await run(["list", "--json"], {}, []);
 		expect(out).toMatch(/"accounts":\s*\[\]/u);
 	});
 
 	it("shows an INCOMPLETE account rather than hiding it", async () => {
 		// A descriptor whose secret is gone is the operator's evidence that a login happened. The
 		// listing is where he finds out, so it must not filter to the healthy ones.
-		const { out } = await run(
-			["list", "--json"],
-			TOKENS,
-			[CORPORATE],
-			["legacy:oauthCredentials/openai-codex"],
-		);
+		const { out } = await run(["list", "--json"], TOKENS, [CORPORATE]);
 		expect(out).toContain("incomplete");
 		expect(out).toContain("corporativa");
 	});
@@ -99,7 +94,7 @@ describe("credential current", () => {
 			["current", "--provider", "github-copilot", "--json"],
 			{ oauthCredentials: { "github-copilot": { access: "A" } } },
 			[CORPORATE],
-			["legacy:oauthCredentials/github-copilot", "model/github-copilot-corp"],
+			new Map([[CORPORATE.secretRef, { access: "CORP" }]]),
 		);
 		expect(exitCode).toBe(1);
 		expect(out).toContain("model_credential_ambiguous");
@@ -107,7 +102,7 @@ describe("credential current", () => {
 	});
 
 	it("refuses without crashing when nothing is registered at all", async () => {
-		const { out, exitCode } = await run(["current", "--json"], {}, [], []);
+		const { out, exitCode } = await run(["current", "--json"], {}, []);
 		expect(exitCode).toBe(1);
 		expect(out).toMatch(/no model account|model_credential_none/u);
 	});

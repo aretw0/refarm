@@ -19,18 +19,15 @@ import { Command } from "commander";
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	isRefusal,
-	readLegacyCredentials,
-	reconcileCatalog,
 	resolveModelAccount,
-	upsertDescriptor,
+	type AccountView,
 	type ModelAccountBinding,
 	type ModelAccountDescriptor,
 } from "@refarm.dev/model-account-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
 
+import { loadAccountView, type AccountViewSilo } from "../credentials/account-view-loader.js";
 import { emitCommandRefusal } from "./command-refusal.js";
-
-export const CATALOG_FILE = ".refarm/model-accounts.json";
 
 interface CredentialSilo {
 	loadTokens(): Promise<unknown>;
@@ -40,8 +37,8 @@ interface CredentialSilo {
 export interface CredentialDeps {
 	homeOf: () => string;
 	siloOf: () => CredentialSilo;
-	catalogOf: () => ModelAccountDescriptor[];
-	secretRefsOf: () => Promise<string[]>;
+	/** The one snapshot this command answers from. Built by the loader that owns the I/O. */
+	viewOf: () => Promise<AccountView>;
 	bindingsOf: () => ModelAccountBinding[];
 }
 
@@ -58,16 +55,8 @@ function defaultDeps(): CredentialDeps {
 	return {
 		homeOf,
 		siloOf: () => new SiloCore() as unknown as CredentialSilo,
-		catalogOf: () => readJson<ModelAccountDescriptor[]>(path.join(homeOf(), CATALOG_FILE), []),
-		secretRefsOf: async () => {
-			const silo = new SiloCore() as unknown as {
-				listSecretDescriptors?: (ns: string) => Promise<{ ref: string }[]>;
-			};
-			// ABSENT IS NOT EMPTY. A build whose silo has no descriptor listing must not report every
-			// account as missing its secret; `loadAccounts` reads an empty result as "not measured".
-			if (typeof silo.listSecretDescriptors !== "function") return [];
-			return (await silo.listSecretDescriptors("model")).map((d) => d.ref);
-		},
+		viewOf: () =>
+			loadAccountView({ home: homeOf(), silo: new SiloCore() as unknown as AccountViewSilo }),
 		bindingsOf: () =>
 			Object.entries(
 				readJson<{ modelBindings?: Record<string, string> }>(
@@ -117,19 +106,12 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 		"Model accounts this node holds, and which one a workspace spends",
 	);
 
-	/** Legacy readers plus the stored catalog, reconciled against the secrets that exist. */
-	const loadAccounts = async (): Promise<ModelAccountDescriptor[]> => {
-		const tokens = (await deps.siloOf().loadTokens()) as Record<string, unknown>;
-		const legacy = readLegacyCredentials(tokens);
-		const merged = deps
-			.catalogOf()
-			.reduce<ModelAccountDescriptor[]>((acc, entry) => upsertDescriptor(acc, entry), legacy);
-		const refs = await deps.secretRefsOf();
-		// NOT MEASURED IS NOT ABSENT. With no listing available, reconciling against an empty set
-		// would mark every account `incomplete` and tell the operator his whole node is broken. The
-		// descriptors' own refs are the best available statement until a listing exists.
-		return reconcileCatalog(merged, refs.length > 0 ? refs : merged.map((e) => e.secretRef));
-	};
+	/**
+	 * ONE VIEW PER INVOCATION, from the loader that owns the I/O. This command used to assemble the
+	 * picture itself, which meant a second consumer would have assembled it slightly differently.
+	 */
+	const loadAccounts = async (): Promise<ModelAccountDescriptor[]> =>
+		[...(await deps.viewOf()).accounts];
 
 	credential
 		.command("list")
