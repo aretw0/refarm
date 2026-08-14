@@ -218,14 +218,24 @@ Declared in `.refarm/config.json`, and **defaulting to refarm's own identity** â
 | `editor-imitation` | the Copilot editor plugin's client id and its version headers | works; a risk the operator accepts explicitly |
 | `integration` + `integrationId` | refarm's OWN client id, with the granted id in `Copilot-Integration-Id` | sovereign and authorised, once GitHub grants one |
 
-```bash
-# accept the imitation risk deliberately
-refarm config set providers.githubCopilot.identity editor-imitation
+Declared by hand in `~/.refarm/config.json`, which is the path that always works
+(`declaring-is-authoring`, A2):
 
-# later, once an integration id is granted
-refarm config set providers.githubCopilot.identity integration
-refarm config set providers.githubCopilot.integrationId refarm-cli
+```jsonc
+{
+  "providers": {
+    "githubCopilot": {
+      "identity": "editor-imitation"
+      // later, once an id is granted:
+      // "identity": "integration", "integrationId": "refarm-cli"
+    }
+  }
+}
 ```
+
+`refarm config set` does not accept these keys yet â€” it holds a deliberately small typed allowlist,
+and refusing an unknown key is the behaviour that told us so rather than writing something nobody
+validates.
 
 Four rules the implementation enforces, each because the opposite is a real failure:
 
