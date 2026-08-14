@@ -1632,6 +1632,39 @@ ambiguity refuses."* Both are covered by Task 2's suite. The acceptance rows thi
 | two accounts, no binding → `model_credential_ambiguous` | 2 |
 | logs/status export carry safe credential id only | 1, 5 |
 
+## The reader/writer sequencing, learned by doing it
+
+Established 2026-08-14 while teaching the readers, and it corrects the order twice.
+
+**Readers before writers.** The spec forbids dual-WRITING a secret value while requiring legacy
+readers to keep working, so a new login writes only to the namespaced store. Switching the writer
+first leaves a credential nothing can read. Three of the four readers were taught first, and each
+kept its behaviour exactly:
+
+| reader | commit | how it changed |
+| --- | --- | --- |
+| `model.ts` → `runtimeOAuthCredential` | `f2b312e4` | resolves location, then reads |
+| `farmhand` → read **and refresh write** | `8cae910c` | the write reuses the location the read resolved |
+| `model.ts` → `credentialLifetime` | `282acfc0` | expiry read from wherever the credential lives |
+
+**But the fourth reader must NOT move before the writer.** `modelCredentialStatus`
+(`packages/config`, JS-Atomic) receives only `tokens` and does no I/O, so it structurally cannot see
+a namespaced credential. The fix is a sixth state meaning *"from tokens alone I cannot rule out a
+credential elsewhere"* — and **today that state would be false**, because no namespaced credential
+can exist yet and `missing` is factually correct.
+
+Adding it now would encode a doubt that does not exist, which is the mirror image of the defect this
+whole area removes: asserting certainty that does not exist. The state becomes true at the instant
+the writer creates the possibility, so **the writer and this reader move in the same slice**.
+
+That slice is the next one, and it is:
+
+1. a login writes the descriptor to the catalog and the secret to Silo's `model` namespace;
+2. `modelCredentialStatus` gains its sixth state, and `hasUsableModelCredential` treats it as
+   not-usable so today's behaviour is preserved for every caller that cannot act on the difference;
+3. `sow` — the one caller that *can* act — resolves through the account contract instead;
+4. task 6 above becomes correct and can finally run.
+
 ## Debts this slice leaves, stated rather than discovered
 
 1. **No secret is written under the new key yet.** S0 reads; the first write happens when a login
