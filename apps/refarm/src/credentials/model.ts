@@ -3,6 +3,8 @@ import { modelCredentialEnvKey } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { isContainer } from "@refarm.dev/root";
 import chalk from "chalk";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { githubOAuthClientId } from "./github.js";
 import {
 	formatSelectionRefusal,
@@ -18,6 +20,7 @@ import {
 	anthropicOAuthProvider,
 	createGitHubCopilotProvider,
 	openaiCodexOAuthProvider,
+	resolveCopilotIdentity,
 } from "./oauth/index.js";
 import type { CollectContext, CredentialProvider } from "./types.js";
 
@@ -28,6 +31,17 @@ export interface ModelCredential {
 	apiKey: string | null;
 	/** Present when provider used OAuth. Stored in Silo for refresh. */
 	oauthCredentials?: OAuthCredentials;
+}
+
+/** The node's own declaration. Absent or unreadable means the honest identity, never imitation. */
+function readCopilotIdentityConfig(): unknown {
+	try {
+		return JSON.parse(
+			readFileSync(join(process.env.HOME ?? "", ".refarm", "config.json"), "utf8"),
+		) as unknown;
+	} catch {
+		return undefined;
+	}
 }
 
 // ── Subscription tier (OAuth PKCE, no API credits needed) ─────────────────────
@@ -45,6 +59,9 @@ const OAUTH_PROVIDERS: OAuthProviderInterface[] = [
 	createGitHubCopilotProvider({
 		clientId: githubOAuthClientId(),
 		fetch: (...args) => fetch(...args),
+		// DECLARED, never inferred. Defaults to refarm's own identity — the one measured at HTTP 403
+		// — because imitation must be something the operator chose, not something he inherited.
+		identity: resolveCopilotIdentity(readCopilotIdentityConfig()),
 	}),
 ];
 

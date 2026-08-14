@@ -8,6 +8,9 @@ vi.mock("@refarm.dev/root", () => ({
 
 // OAuth flows open browsers — mock them out
 vi.mock("./oauth/index.js", () => ({
+	// The identity profile is pure and has its own suite; the stub keeps the default so this file
+	// never accidentally exercises imitation.
+	resolveCopilotIdentity: () => ({ kind: "refarm" }),
 	// The Copilot provider is a FACTORY, not a singleton — it needs refarm's client id and a fetch.
 	// The mock returns a stub with the same shape so the inventory includes `github-copilot`.
 	createGitHubCopilotProvider: () => ({

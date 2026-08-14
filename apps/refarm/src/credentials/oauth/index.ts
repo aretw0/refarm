@@ -10,6 +10,13 @@ export { anthropicOAuthProvider, loginAnthropic } from "./anthropic.js";
 export { openaiCodexOAuthProvider, loginOpenAICodex } from "./openai-codex.js";
 export { createGitHubCopilotProvider } from "./github-copilot.js";
 export {
+	copilotRequestIdentity,
+	describeCopilotIdentity,
+	EDITOR_IMITATION,
+	resolveCopilotIdentity,
+	type CopilotIdentity,
+} from "./copilot-identity.js";
+export {
 	COPILOT_SCOPE,
 	copilotApiBaseUrl,
 	copilotRefreshMargin,

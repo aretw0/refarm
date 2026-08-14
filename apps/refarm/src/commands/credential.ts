@@ -27,6 +27,10 @@ import {
 import { SiloCore } from "@refarm.dev/silo";
 
 import { loadAccountView, type AccountViewSilo } from "../credentials/account-view-loader.js";
+import {
+	describeCopilotIdentity,
+	resolveCopilotIdentity,
+} from "../credentials/oauth/index.js";
 import { emitCommandRefusal } from "./command-refusal.js";
 
 interface CredentialSilo {
@@ -120,18 +124,32 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 		.action(async (options: { json?: boolean }) =>
 			guarded("list", options, async () => {
 				const accounts = (await loadAccounts()).map(safeRow);
+				// A NODE THAT IMITATES IN SILENCE is a node nobody knows will break. The identity
+				// profile is reported wherever credentials are, so the choice stays visible long after
+				// whoever made it has forgotten.
+				const identityNotice = describeCopilotIdentity(
+					resolveCopilotIdentity(
+						readJson<unknown>(path.join(deps.homeOf(), ".refarm", "config.json"), undefined),
+					),
+				);
 				if (options.json) {
 					printJson(
 						buildJsonSuccessEnvelope({
 							command: "credential",
 							operation: "list",
-							extra: { accounts },
+							extra: { accounts, ...(identityNotice ? { identityNotice } : {}) },
 						}),
 					);
 					return;
 				}
 				if (accounts.length === 0) {
-					process.stdout.write("no model account is registered on this node\n  refarm sow\n");
+					// THE NOTICE STILL PRINTS. A declared identity profile is true whether or not a
+					// credential exists yet — and the moment it matters most is the login that has not
+					// happened, because that is the one the profile will govern.
+					process.stdout.write(
+						"no model account is registered on this node\n  refarm sow\n" +
+							(identityNotice ? `\n  ${identityNotice}\n` : ""),
+					);
 					return;
 				}
 				process.stdout.write(
@@ -140,7 +158,7 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 							(a) =>
 								`  ${a.provider.padEnd(18)}${a.alias.padEnd(16)}${a.health.padEnd(12)}${a.identity}\n`,
 						)
-						.join(""),
+						.join("") + (identityNotice ? `\n  ${identityNotice}\n` : ""),
 				);
 			}),
 		);

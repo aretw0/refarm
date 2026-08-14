@@ -17,6 +17,10 @@
  */
 import { resolveRefarmVersion } from "../../commands/runtime-metadata.js";
 import {
+	copilotRequestIdentity,
+	type CopilotIdentity,
+} from "./copilot-identity.js";
+import {
 	COPILOT_SCOPE,
 	copilotApiBaseUrl,
 	copilotRefreshMargin,
@@ -29,20 +33,17 @@ import type { OAuthCredentials, OAuthLoginCallbacks, OAuthProviderInterface } fr
 const GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code";
 
 export interface GitHubCopilotProviderOptions {
+	/** Refarm's own OAuth App id. Used unless the profile says to present another. */
 	readonly clientId: string;
 	readonly fetch: typeof fetch;
+	/**
+	 * WHO REFARM SAYS IT IS at the exchange. Defaults to its own identity, which is the honest one
+	 * and the one measured at HTTP 403 — imitation must never be reached by omission.
+	 */
+	readonly identity?: CopilotIdentity;
 	/** A GitHub Enterprise host, when the operator has one. Absent means github.com. */
 	readonly enterpriseDomain?: string;
 	readonly sleep?: (ms: number) => Promise<void>;
-}
-
-/** Honest headers. The absence of an editor identity here is the whole point of this adapter. */
-function refarmHeaders(): Record<string, string> {
-	return {
-		Accept: "application/json",
-		"Content-Type": "application/json",
-		"User-Agent": `refarm/${resolveRefarmVersion()}`,
-	};
 }
 
 interface DeviceCode {
@@ -59,11 +60,19 @@ export function createGitHubCopilotProvider(
 	const doFetch = options.fetch;
 	const sleep = options.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
 	const domain = options.enterpriseDomain ?? "github.com";
+	// ONE PLACE decides the client id and the headers, for all three profiles. Nothing below this
+	// line knows which identity is in use, which is what keeps a granted integration id an edit
+	// rather than a migration.
+	const presented = copilotRequestIdentity(
+		options.identity ?? { kind: "refarm" },
+		options.clientId,
+		resolveRefarmVersion(),
+	);
 
 	/** The undocumented step, isolated so a failure names itself. */
 	async function exchangeForCopilotToken(githubToken: string): Promise<OAuthCredentials> {
 		const response = await doFetch(copilotTokenExchangeUrl(domain), {
-			headers: { ...refarmHeaders(), Authorization: `Bearer ${githubToken}` },
+			headers: { ...presented.headers, Authorization: `Bearer ${githubToken}` },
 		});
 		if (!response.ok) {
 			throw new Error(
@@ -98,8 +107,8 @@ export function createGitHubCopilotProvider(
 		async login(callbacks: OAuthLoginCallbacks): Promise<OAuthCredentials> {
 			const deviceResponse = await doFetch(GITHUB_DEVICE_CODE_URL, {
 				method: "POST",
-				headers: refarmHeaders(),
-				body: JSON.stringify({ client_id: options.clientId, scope: COPILOT_SCOPE }),
+				headers: presented.headers,
+				body: JSON.stringify({ client_id: presented.clientId, scope: COPILOT_SCOPE }),
 			});
 			const device = (await deviceResponse.json()) as Partial<DeviceCode>;
 			if (!device.device_code || !device.user_code || !device.verification_uri) {
@@ -118,9 +127,9 @@ export function createGitHubCopilotProvider(
 				await sleep(intervalMs);
 				const tokenResponse = await doFetch(GITHUB_ACCESS_TOKEN_URL, {
 					method: "POST",
-					headers: refarmHeaders(),
+					headers: presented.headers,
 					body: JSON.stringify({
-						client_id: options.clientId,
+						client_id: presented.clientId,
 						device_code: device.device_code,
 						grant_type: GRANT_TYPE,
 					}),

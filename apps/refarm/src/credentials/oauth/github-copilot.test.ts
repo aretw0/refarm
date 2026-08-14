@@ -139,3 +139,46 @@ describe("createGitHubCopilotProvider — refresh", () => {
 		expect(JSON.stringify(init.headers)).toContain("gho_USER");
 	});
 });
+
+describe("createGitHubCopilotProvider — the identity profile", () => {
+	it("presents the EDITOR identity, both halves, when imitation is declared", async () => {
+		// The operator accepted this risk explicitly (2026-08-14, after refarm's own identity was
+		// measured at HTTP 403). It must be complete: a borrowed client id without the matching
+		// headers impersonates AND does not work.
+		const doFetch = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
+		const provider = createGitHubCopilotProvider({
+			clientId: "Ov23-refarm",
+			fetch: doFetch as never,
+			identity: { kind: "editor-imitation" },
+		});
+		await expect(provider.login(callbacks())).rejects.toThrow();
+		const init = doFetch.mock.calls[0]![1]!;
+		expect(JSON.parse(String(init.body)).client_id).toBe("Iv1.b507a08c87ecfe98");
+		expect(JSON.stringify(init.headers)).toContain("vscode-chat");
+	});
+
+	it("keeps refarm's OWN client id when an integration id is granted", async () => {
+		// A granted id authorises refarm's identity; pairing it with a borrowed client id would be
+		// imitation wearing a licence.
+		const doFetch = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
+		const provider = createGitHubCopilotProvider({
+			clientId: "Ov23-refarm",
+			fetch: doFetch as never,
+			identity: { kind: "integration", id: "refarm-cli" },
+		});
+		await expect(provider.login(callbacks())).rejects.toThrow();
+		const init = doFetch.mock.calls[0]![1]!;
+		expect(JSON.parse(String(init.body)).client_id).toBe("Ov23-refarm");
+		const headers = JSON.stringify(init.headers);
+		expect(headers).toContain("refarm-cli");
+		expect(headers).not.toMatch(/vscode|Editor-Version/iu);
+	});
+
+	it("defaults to the honest identity when no profile is given", async () => {
+		// Imitation must never be reached by omission — only by a declaration someone made.
+		const doFetch = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
+		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: doFetch as never });
+		await expect(provider.login(callbacks())).rejects.toThrow();
+		expect(JSON.stringify(doFetch.mock.calls[0]![1]!.headers)).not.toMatch(/vscode/iu);
+	});
+});

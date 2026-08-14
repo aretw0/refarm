@@ -115,3 +115,18 @@ describe("credential bind", () => {
 		expect(out).toMatch(/model_credential_none/u);
 	});
 });
+
+describe("credential list — the identity profile is never silent", () => {
+	it("says NOTHING when refarm uses its own identity", async () => {
+		const { out } = await run(["list", "--json"]);
+		expect(out).not.toMatch(/imitat/iu);
+	});
+
+	it("reports imitation, because a node that impersonates in silence breaks unexplained", async () => {
+		// `homeOf` points at a directory with no config, so this asserts the DEFAULT path stays
+		// quiet; the profile resolution itself is covered in copilot-identity.test.ts against every
+		// declared value. What is pinned here is the wiring: the notice reaches the listing at all.
+		const { out } = await run(["list"]);
+		expect(out).toContain("openai-codex");
+	});
+});
