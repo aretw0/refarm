@@ -3,6 +3,7 @@ import { modelCredentialEnvKey } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { isContainer } from "@refarm.dev/root";
 import chalk from "chalk";
+import { githubOAuthClientId } from "./github.js";
 import {
 	formatSelectionRefusal,
 	resolveModelProviderSelection,
@@ -13,7 +14,11 @@ import type {
 	OAuthLoginCallbacks,
 	OAuthProviderInterface,
 } from "./oauth/index.js";
-import { anthropicOAuthProvider, openaiCodexOAuthProvider } from "./oauth/index.js";
+import {
+	anthropicOAuthProvider,
+	createGitHubCopilotProvider,
+	openaiCodexOAuthProvider,
+} from "./oauth/index.js";
 import type { CollectContext, CredentialProvider } from "./types.js";
 
 export interface ModelCredential {
@@ -29,6 +34,18 @@ export interface ModelCredential {
 const OAUTH_PROVIDERS: OAuthProviderInterface[] = [
 	openaiCodexOAuthProvider,
 	anthropicOAuthProvider,
+	// GitHub Copilot, under REFARM'S OWN OAuth App rather than a borrowed editor id. Registering it
+	// here is what turns `resolveModelProviderSelection("github-copilot")` from `no-credential-flow`
+	// into `oauth` — the inventory is derived from this list, so the refusal retires itself.
+	//
+	// It is NOT added to RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS. The login can happen and the
+	// credential is stored and listed, but the runtime does not dispatch through it until a spike
+	// has actually run — the 2026-08-06 design is explicit that a passing spike proves feasibility,
+	// not production maturity.
+	createGitHubCopilotProvider({
+		clientId: githubOAuthClientId(),
+		fetch: (...args) => fetch(...args),
+	}),
 ];
 
 const DEVCONTAINER_CALLBACK_TIMEOUT_MS = 120_000;
@@ -376,4 +393,5 @@ export const modelCredentialProvider: CredentialProvider & {
 export const OAUTH_PROVIDER_TO_MODEL_PROVIDER: Record<string, string> = {
 	anthropic: "anthropic",
 	"openai-codex": "openai-codex",
+	"github-copilot": "github-copilot",
 };

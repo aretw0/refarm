@@ -9,6 +9,24 @@ import type { CollectContext, CredentialProvider } from "./types.js";
 // or via env:                      REFARM_PROVIDER_GITHUB_CLIENT_ID=...
 // Device flow does not use a client_secret — this value is safe to commit.
 const DEFAULT_CLIENT_ID = "Ov23lier7kyBcgIUQsih";
+
+/**
+ * The same OAuth App serves BOTH GitHub logins, and that is not a shortcut.
+ *
+ * Scopes are requested per authorization, never configured on the app, so this id asks for
+ * `repo read:org` here and `read:user` for Copilot without either inheriting the other's power.
+ * See docs/GITHUB_IDENTITY_SETUP.md.
+ */
+export function githubOAuthClientId(env: NodeJS.ProcessEnv = process.env): string {
+	const fromEnv = env.REFARM_PROVIDER_GITHUB_CLIENT_ID;
+	if (typeof fromEnv === "string" && fromEnv.trim().length > 0) return fromEnv.trim();
+	try {
+		const cfg = loadConfig() as { providers?: { github?: { clientId?: string } } };
+		return cfg.providers?.github?.clientId ?? DEFAULT_CLIENT_ID;
+	} catch {
+		return DEFAULT_CLIENT_ID;
+	}
+}
 const DEFAULT_SCOPES = "repo read:org";
 const DEVICE_CODE_URL = "https://github.com/login/device/code";
 const TOKEN_URL = "https://github.com/login/oauth/access_token";

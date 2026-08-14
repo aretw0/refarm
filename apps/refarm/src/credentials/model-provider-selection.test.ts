@@ -7,9 +7,14 @@ import {
 } from "./model-provider-selection.js";
 
 /**
- * The world as it is today: `anthropic` is reachable BOTH ways, `openai-codex` only by
- * subscription, the rest only by key. `github-copilot` is in neither inventory while being a real
- * model provider — which is the case these tests exist for most.
+ * A FIXED inventory, not a snapshot of the live one. `anthropic` is reachable both ways,
+ * `openai-codex` only by subscription, the rest only by key, and `github-copilot` is in neither
+ * while being a real model provider.
+ *
+ * That last row stopped describing reality on 2026-08-14, when Copilot gained a login. It is kept
+ * because the STATE it exercises has to survive its first example: a known provider whose flow is
+ * not built must never be reported as a typo, and the next provider in that position should find
+ * the behaviour already tested rather than discover it.
  */
 const INVENTORIES = {
 	oauth: ["openai-codex", "anthropic"],
@@ -59,9 +64,11 @@ describe("resolveModelProviderSelection", () => {
 	});
 
 	it("names a KNOWN provider with no login flow as exactly that, not as unknown", () => {
-		// github-copilot is the operator's corporate quota. It is in MODEL_PROVIDERS, the runtime
-		// understands it, `refarm model providers` lists it — and no credential flow exists here
-		// (ISS-122). Calling it "unknown" would send him to check his spelling.
+		// SYNTHETIC INVENTORY, deliberately: `github-copilot` gained a real login on 2026-08-14, so
+		// this no longer describes the live node. The STATE still has to exist and still has to be
+		// distinguishable from `unknown` — a known provider whose flow is not built must not send the
+		// operator to check his spelling — and testing it against a fixed inventory is what keeps it
+		// covered without waiting for the next provider to be in that position.
 		const selection = resolve("github-copilot");
 		expect(selection.kind).toBe("no-credential-flow");
 		expect(formatSelectionRefusal(selection)).toContain("no login or key flow is implemented");

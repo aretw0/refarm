@@ -8,6 +8,16 @@ vi.mock("@refarm.dev/root", () => ({
 
 // OAuth flows open browsers — mock them out
 vi.mock("./oauth/index.js", () => ({
+	// The Copilot provider is a FACTORY, not a singleton — it needs refarm's client id and a fetch.
+	// The mock returns a stub with the same shape so the inventory includes `github-copilot`.
+	createGitHubCopilotProvider: () => ({
+		id: "github-copilot",
+		name: "GitHub Copilot",
+		usesCallbackServer: false,
+		login: vi.fn(),
+		refreshToken: vi.fn(),
+		getApiKey: vi.fn().mockReturnValue("tok-copilot"),
+	}),
 	anthropicOAuthProvider: {
 		id: "anthropic",
 		name: "Anthropic",

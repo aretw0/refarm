@@ -508,16 +508,25 @@ describe("sowCommand — default (no flags)", () => {
 			expect(mockModelCollect).toHaveBeenCalled();
 		});
 
-		it("refuses a provider with no credential flow WITHOUT touching the silo", async () => {
-			// github-copilot is the operator's corporate quota: a real provider whose login is not
-			// built (ISS-122). The refusal must arrive before anything is written or prompted.
-			const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		it("ACCEPTS github-copilot, whose login exists as of 2026-08-14", async () => {
+			// This test used to pin the opposite: copilot was the operator's corporate quota with no
+			// login built (ISS-122), and `sow` refused it. The adapter now exists under refarm's own
+			// OAuth App, so the refusal would be a lie. The `no-credential-flow` STATE is still
+			// covered, against a synthetic inventory, in model-provider-selection.test.ts.
 			mockLoadTokens.mockResolvedValue({});
 			await sowCommand.parseAsync(["--model-provider", "github-copilot"], { from: "user" });
+			expect(mockModelCollect).toHaveBeenCalled();
+		});
+
+		it("still refuses a provider it does not know at all, WITHOUT touching the silo", async () => {
+			// The refusal-before-any-write guarantee this file has always asserted, now carried by the
+			// case that is still true: a typo is not a provider.
+			const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+			mockLoadTokens.mockResolvedValue({});
+			await sowCommand.parseAsync(["--model-provider", "githbu-copilot"], { from: "user" });
 			expect(mockModelCollect).not.toHaveBeenCalled();
 			expect(mockSaveTokens).not.toHaveBeenCalled();
 			expect(process.exitCode).toBe(1);
-			expect(errSpy.mock.calls.map((c) => String(c[0])).join("\n")).toContain("no login or key flow");
 			errSpy.mockRestore();
 			process.exitCode = 0;
 		});
