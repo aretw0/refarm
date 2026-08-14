@@ -1802,6 +1802,18 @@ importers:
         specifier: workspace:*
         version: link:../plugin-manifest
 
+  packages/model-account-contract-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
   packages/model-catalog-plugin-anthropic:
     dependencies:
       '@refarm.dev/model-catalog-v1':
