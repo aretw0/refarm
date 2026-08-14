@@ -383,6 +383,20 @@ export const PROBE_COMMANDS = [
 			"What a backup must contain is a fact about the NODE's home, not about where the operator happened to stand when asking. This is the command an operator runs when a machine is about to be reformatted (ISS-123), so a directory-dependent answer would produce a bundle whose completeness varied with the shell's cwd — the failure would surface on the day the backup is restored, which is the worst possible moment to learn it.",
 	},
 	{
+		name: "credential list",
+		argv: ["credential", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"Which model accounts this node holds is a fact about its silo and its catalog, never about the shell that asked. A cwd-dependent listing would let a workspace resolve a different account depending on where the operator happened to be standing, which is the exact silent quota crossover the account contract exists to prevent (ISS-122).",
+	},
+	{
+		name: "credential current",
+		argv: ["credential", "current", "--json"],
+		scope: "node",
+		scopeReason:
+			"Which account a dispatch would spend must not depend on the shell's cwd — that is the one selector D3 names first among those that are not selectors. A directory-dependent answer here spends the wrong quota on the wrong work and reports success while doing it.",
+	},
+	{
 		name: "node declare",
 		argv: ["node", "declare", "--json"],
 		scope: "node",

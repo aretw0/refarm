@@ -14,6 +14,7 @@ import { configCommand } from "./commands/config.js";
 import { configureCommand } from "./commands/configure.js";
 import { connectionCommand } from "./commands/connection.js";
 import { contextCommand } from "./commands/context.js";
+import { credentialCommand } from "./commands/credential.js";
 import { deliveryCommand } from "./commands/delivery-command.js";
 import { deployCommand } from "./commands/deploy.js";
 import { discoverCommand } from "./commands/discover.js";
@@ -293,6 +294,7 @@ program.addCommand(
 );
 program.addCommand(backupCommand);
 program.addCommand(nodeCommand);
+program.addCommand(credentialCommand);
 program.addCommand(provisionCommand);
 program.addCommand(guideCommand);
 program.addCommand(hardeningCommand);
