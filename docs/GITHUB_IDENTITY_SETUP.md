@@ -8,10 +8,10 @@ request.
 
 ## Why this document exists
 
-The operator asked whether GitHub and GitHub Copilot are the same login, and whether registering a
-GitHub App is required to use Copilot as a model provider. Both questions have factual answers, and
-both had been answered wrongly in conversation before they were measured. This is the durable
-version, so the next person does not have to re-derive it.
+The operator asked whether GitHub and GitHub Copilot are the same login, whether registering an app
+is required to use Copilot as a model provider, and whether an OAuth App must become a GitHub App.
+All three have factual answers, and two had been answered wrongly in conversation before anyone
+measured. This is the durable version, so the next person does not have to re-derive it.
 
 ## They are two logins, and the proof is what each one CANNOT do
 
@@ -68,9 +68,9 @@ Verified live on 2026-08-14: a device-code request with this client id and `scop
 returns a valid `device_code`, so **the app exists and has Device Flow enabled**. What that check
 cannot tell you is *whose account owns it* — see "Is it yours?" below.
 
-## Do you need to register your own app?
+## Was registering it necessary?
 
-**No. Not to make Copilot work.** The reason is worth knowing, because it is the difference between
+**No, not to make Copilot work.** The reason is worth knowing, because it is the difference between
 Refarm and the tools it is being compared to.
 
 `@earendil-works/pi-ai` — the model library behind pi — does **not** register its own app. Read from
@@ -99,13 +99,58 @@ another product's OAuth client id, integration id, or version impersonation"
 
 ## Is it yours?
 
-If **OAuth Apps** is also empty in your account, then `Ov23lier7kyBcgIUQsih` belongs to someone
-else, and Refarm is doing exactly what pi does without meaning to. That is the reason to check,
-not bureaucracy.
+Confirmed 2026-08-14: **yes.** The operator registered `refarm` under his own **OAuth Apps**, and
+`Ov23lier7kyBcgIUQsih` is that registration.
 
-## When you do register one: what each field means
+## The client-identity inventory, and what it reveals
 
-Registered under Settings → Developer settings → **OAuth Apps** → **New OAuth App**.
+Refarm ships three OAuth client ids. Only one of them is Refarm's:
+
+| provider | client id | whose registration |
+| --- | --- | --- |
+| `github` (platform) | `Ov23lier7kyBcgIUQsih` | **Refarm's own OAuth App** |
+| `anthropic` | `9d1c250a-e61b-44d9-88ed-5944d1962f5e` | pi's, and the source says so: *"Client ID is the Pi-validated OAuth App registered with Anthropic"* |
+| `openai-codex` | `app_EMoamEEZ73f0CkXaXp7hrann` | the Codex CLI's own id |
+| `github-copilot` | not built yet | would be Refarm's, reusing the GitHub App above |
+
+So the GitHub App is not half a step. It is **the only sovereign client identity Refarm currently
+has**, and the pattern to extend to the others. The criticism this document makes of pi's borrowed
+Copilot id applies to Refarm's own Anthropic and Codex ids, and naming that here is cheaper than
+discovering it during an incident.
+
+## Does it need to become a GitHub App?
+
+**No, and for this job the OAuth App is the better fit.** Researched against GitHub's own comparison
+on 2026-08-14:
+
+- **OAuth Apps are not deprecated.** There is no deprecation notice, they remain supported, and they
+  are *required* for enterprise-level resources.
+- GitHub prefers GitHub Apps for three stated reasons: *"fine-grained permissions, more control over
+  which repositories the app can access, and short-lived tokens."* **None of the three applies to a
+  login that requests `read:user` and touches no repository.**
+- Token lifetime actively favours the OAuth App here. *"OAuth app tokens are long-lived by
+  default"*, while GitHub App user tokens are short-lived. The Copilot flow wants exactly that: a
+  durable outer GitHub token that it exchanges, repeatedly, for short-lived Copilot tokens. A short
+  outer token would make unattended work impossible without re-authenticating.
+- Both support user authentication, and GitHub's Copilot SDK documentation says of the choice:
+  *"Both work. GitHub Apps offer finer-grained permissions and are recommended for new projects."*
+
+Where a GitHub App would genuinely earn its place is the **platform** login, not the Copilot one:
+`repo read:org` is a coarse grant, and fine-grained repository permissions are the reason GitHub
+prefers Apps. That is a future refinement of one half, not a migration of the whole.
+
+## Recreating the app if it is lost
+
+The app is external infrastructure with no copy in this repository, and `refarm backup` cannot carry
+it. If it is deleted, the client id changes and every operator's stored authorization stops working.
+What must be true to recreate it is exactly the table below, plus this: it is registered on the
+**personal account**, not an organization, and it grants nothing by itself — an OAuth App holds no
+permissions, only the right to ask a user for scopes.
+
+## The registration itself: what each field means
+
+Settings → Developer settings → **OAuth Apps** → **New OAuth App**. This is the record of how
+Refarm's app is configured, and therefore how to recreate it.
 
 | field | what to put | what it actually does |
 | --- | --- | --- |
