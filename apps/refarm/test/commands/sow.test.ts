@@ -448,10 +448,16 @@ describe("sowCommand — default (no flags)", () => {
 		expect(mockModelCollect).not.toHaveBeenCalled();
 	});
 
-	it("warns before replacing a LIVE credential, because the slot is irreversible", async () => {
-		// ISS-122: `oauthCredentials` holds one slot per provider, so `--reconfigure` on a working
-		// credential destroys it with no copy kept. An operator with Copilot personal AND corporate
-		// has no way to learn that from the wizard's own output.
+	it("does NOT claim a live credential is about to be destroyed, because it is not", async () => {
+		// This asserted the opposite until 2026-08-14, and the warning it pinned was wrong TWICE.
+		// It was written for one slot per provider, where authenticating destroyed what was there;
+		// the write is now keyed by account and only retires the legacy entry of the SAME provider.
+		// And it read `stored.modelProvider` — the ACTIVE provider — not the one being logged into,
+		// so adding github-copilot told the operator his working openai-codex credential was about
+		// to be destroyed. Neither half was true.
+		//
+		// A false warning on a safe operation is worse than no warning: it teaches the operator to
+		// abort. What actually happens is reported after the write, counted from the catalog.
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		mockLoadTokens.mockResolvedValue({
 			modelProvider: "openai-codex",
@@ -460,8 +466,8 @@ describe("sowCommand — default (no flags)", () => {
 		});
 		await sowCommand.parseAsync(["--reconfigure"], { from: "user" });
 		const output = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
-		expect(output).toContain("LIVE");
-		expect(output).toContain("cannot be recovered");
+		expect(output).not.toContain("cannot be recovered");
+		expect(output).not.toMatch(/replaces the LIVE/u);
 		logSpy.mockRestore();
 	});
 

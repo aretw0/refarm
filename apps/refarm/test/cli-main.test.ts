@@ -102,4 +102,25 @@ describe("runCliMain", () => {
 
 		expect(process.exitCode).toBe(130);
 	});
+
+	it("renders an UNANTICIPATED failure as a sentence, and still keeps the trace", async () => {
+		// Measured 2026-08-14: `sow --model-provider github-copilot` produced a perfectly written
+		// refusal — "GitHub did not accept this identity at copilot_internal/v2/token (HTTP 403)" —
+		// and the operator saw it buried under `at process.processTicksAndRejections`. The message
+		// was right; the presentation crashed. The fallthrough used to rethrow.
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		mockProgramParseAsync.mockRejectedValueOnce(new Error("GitHub did not accept this identity"));
+		const { runCliMain } = await import("../src/cli-main.js");
+
+		await expect(runCliMain(["node", "refarm", "sow"])).resolves.toBeUndefined();
+
+		const printed = errSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(printed).toContain("GitHub did not accept this identity");
+		// The trace is still there, dimmed and after the sentence: an unanticipated failure is a
+		// defect, and hiding it behind a flag would cost a re-run that may not reproduce.
+		expect(printed).toContain("at ");
+		expect(process.exitCode).toBe(1);
+		errSpy.mockRestore();
+		process.exitCode = 0;
+	});
 });

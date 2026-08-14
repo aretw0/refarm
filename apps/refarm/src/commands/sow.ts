@@ -349,23 +349,20 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 				}
 
 				if (configureModel) {
-					// NOT SILENT, because the write is irreversible. `tokens.oauthCredentials` holds ONE
-					// slot per provider, so authenticating replaces whatever is there with no copy kept
-					// (ISS-122, measured). For an EXPIRED credential that costs nothing — it authenticates
-					// nothing already. For a LIVE one it destroys a working credential, and the operator
-					// with two accounts on one provider (Copilot personal and corporate) has no way to
-					// learn that from the wizard's own output.
-					if (
-						!modelCredentialExpired &&
-						credentialLifetime(stringValue(stored.modelProvider), stored as ModelTokens, Date.now())
-							.state === "valid"
-					) {
-						console.log(
-							chalk.yellow(
-								`  Model: this replaces the LIVE ${stringValue(stored.modelProvider)} credential — one slot per provider, and the current one cannot be recovered afterwards`,
-							),
-						);
-					}
+					// THE "this replaces the LIVE credential" WARNING WAS REMOVED HERE, and removing it is
+					// the point rather than an omission.
+					//
+					// It was written for a store with one slot per provider, where authenticating did
+					// destroy whatever was there. Two things stopped being true on 2026-08-14: the write
+					// is keyed by ACCOUNT and only retires the legacy entry of the SAME provider, so
+					// nothing else is touched — and the warning read `stored.modelProvider`, the
+					// operator's ACTIVE provider, not the one he was logging into. Reported live while
+					// he was adding github-copilot, it named openai-codex and told him a working
+					// credential was about to be destroyed. Neither half was true, and a false warning
+					// on a safe operation is worse than none: it teaches the operator to abort.
+					//
+					// What actually happens is reported AFTER the write, from the catalog, where it can
+					// be counted instead of guessed.
 					if (modelCredentialExpired) {
 						console.log(
 							chalk.yellow(

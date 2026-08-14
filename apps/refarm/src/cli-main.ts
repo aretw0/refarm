@@ -81,7 +81,22 @@ function handleCliMainError(err: unknown): void {
 		process.exitCode = 130;
 		return;
 	}
-	throw err;
+	// THE FALLTHROUGH USED TO RETHROW, and that is how a measured refusal reached the operator as a
+	// Node stack trace. Measured 2026-08-14: `sow --model-provider github-copilot` produced a
+	// perfectly written sentence — "GitHub did not accept this identity at copilot_internal/v2/token
+	// (HTTP 403)" — buried under `at process.processTicksAndRejections`. The message was right and
+	// the presentation crashed.
+	//
+	// BOTH AUDIENCES ARE SERVED, which is why this is not simply a softer message. The operator gets
+	// the sentence first, in red, because it is usually all he needs. The stack follows it dimmed,
+	// because an unanticipated failure is a defect and hiding the trace behind a flag would cost a
+	// re-run that may not reproduce. Nothing is swallowed; only the order changed.
+	const message = err instanceof Error ? err.message : String(err);
+	console.error(chalk.red(`✗  ${message}`));
+	if (err instanceof Error && typeof err.stack === "string") {
+		console.error(chalk.dim(err.stack.split("\n").slice(1).join("\n")));
+	}
+	process.exitCode = 1;
 }
 
 // NO AUTO-RUN ON IMPORT. This used to be `if (!process.env.VITEST) await runCliMain()`, which used
