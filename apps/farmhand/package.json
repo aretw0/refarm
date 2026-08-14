@@ -31,6 +31,7 @@
 		"@refarm.dev/effort-contract-v1": "workspace:*",
 		"@refarm.dev/file-stream-transport": "workspace:*",
 		"@refarm.dev/identity-contract-v1": "workspace:*",
+		"@refarm.dev/model-account-contract-v1": "workspace:*",
 		"@refarm.dev/lsp-code-ops": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/plugin-surface-loader": "workspace:*",

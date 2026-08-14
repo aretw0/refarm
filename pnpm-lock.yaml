@@ -216,6 +216,9 @@ importers:
       '@refarm.dev/lsp-code-ops':
         specifier: workspace:*
         version: link:../../packages/lsp-code-ops
+      '@refarm.dev/model-account-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/model-account-contract-v1
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../../packages/plugin-manifest

@@ -7,6 +7,11 @@ import {
 	MODEL_PROVIDER_ENV_VAR,
 	modelCredentialEnvKey,
 } from "@refarm.dev/config";
+import {
+	credentialSecretLocation,
+	readCredentialAt,
+	readLegacyCredentials,
+} from "@refarm.dev/model-account-contract-v1";
 
 export interface OAuthCreds {
 	access: string;
@@ -43,14 +48,30 @@ function stringValue(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
+/**
+ * WHERE THIS CREDENTIAL LIVES, asked once and reused by the refresh write below.
+ *
+ * The refresh path is the reason this matters more here than in any other reader. It reads a
+ * credential, renews it upstream, and writes the result back — and if the write rebuilt its
+ * destination from the provider name instead of reusing what the read resolved, a refreshed
+ * credential would land on the flat provider key no matter where it came from. That is the
+ * one-slot collision returning through a code path nobody is watching, at a moment nobody chose.
+ */
+function credentialLocationFor(tokens: SiloModelTokens, provider: string) {
+	const descriptor = readLegacyCredentials(tokens as Record<string, unknown>).find(
+		(account) => account.provider === provider,
+	);
+	return descriptor ? credentialSecretLocation(descriptor) : null;
+}
+
 function oauthCredentialsFor(tokens: SiloModelTokens, provider: string): OAuthCreds | undefined {
-	const allOAuth =
-		tokens.oauthCredentials && typeof tokens.oauthCredentials === "object"
-			? (tokens.oauthCredentials as Record<string, unknown>)
-			: {};
-	const value = allOAuth[provider];
-	if (!value || typeof value !== "object") return undefined;
-	const candidate = value as Partial<OAuthCreds>;
+	const location = credentialLocationFor(tokens, provider);
+	if (!location) return undefined;
+	const read = readCredentialAt(location, {
+		legacyOauthCredentials: tokens.oauthCredentials as Record<string, unknown> | undefined,
+	});
+	if (read.kind !== "found") return undefined;
+	const candidate = read.credential as Partial<OAuthCreds>;
 	return typeof candidate.access === "string" &&
 		typeof candidate.refresh === "string" &&
 		typeof candidate.expires === "number"
@@ -135,16 +156,37 @@ export function createSiloModelEnvInjector(options: SiloModelEnvInjectorOptions)
 							const refreshed = await options.refreshOAuthToken(oauthProvider, creds);
 							if (refreshed) {
 								effectiveCreds = refreshed;
-								const allOAuth =
-									tokens.oauthCredentials && typeof tokens.oauthCredentials === "object"
-										? (tokens.oauthCredentials as Record<string, unknown>)
-										: {};
-								await options.store.saveTokens({
-									oauthCredentials: {
-										...allOAuth,
-										[oauthProvider]: refreshed,
-									},
-								});
+								// WRITES BACK WHERE IT READ FROM. The location is resolved once, from the
+								// same descriptor the read used, rather than rebuilt from the provider
+								// name — a refreshed credential must not migrate stores just because it
+								// was renewed.
+								const location = credentialLocationFor(tokens, oauthProvider);
+								if (location?.kind === "legacy") {
+									const allOAuth =
+										tokens.oauthCredentials && typeof tokens.oauthCredentials === "object"
+											? (tokens.oauthCredentials as Record<string, unknown>)
+											: {};
+									await options.store.saveTokens({
+										oauthCredentials: {
+											...allOAuth,
+											[location.provider]: refreshed,
+										},
+									});
+								} else {
+									// A namespaced credential is renewed in the silo's `model` namespace, and
+									// this injector has no writer for it. REFUSING to write is the correct
+									// outcome: writing it to the flat map instead would silently create a
+									// second copy of a secret in a store the catalog does not describe.
+									//
+									// UNREACHABLE TODAY, and said plainly rather than left to look tested:
+									// `credentialLocationFor` resolves through `readLegacyCredentials`, which
+									// only ever produces legacy refs. This branch becomes live the moment a
+									// login writes a namespaced credential, and it exists now so that the
+									// writer's arrival is not also the arrival of a silent second copy.
+									warn(
+										`[farmhand] refreshed ${oauthProvider} credential is not stored in the flat token map; leaving it to the owner of its store`,
+									);
+								}
 							} else {
 								warn(`[farmhand] OAuth token refresh failed for ${oauthProvider} - agent may fail`);
 								return;
