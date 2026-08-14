@@ -45,8 +45,12 @@ Examples:
   CLI and JSON-RPC; it is not a replacement implementation of the same raw
   provider adapter. Refarm evaluates both layers independently. Note that pi
   reaches that transport with another product's OAuth client id and VS Code
-  version headers; the operator-facing consequences, and the fact that Copilot
-  and GitHub platform access are two separate logins of one account, are in
+  version headers. Measured 2026-08-14: refarm's OWN identity authenticates and is
+  then refused at the exchange with HTTP 403 — authenticated, not authorised. Which
+  identity refarm presents is therefore a declared profile with three values
+  (own / imitation / granted integration id) rather than three adapters; that
+  profile, the operator-facing consequences, and the fact that Copilot and GitHub
+  platform access are two separate logins of one account are in
   [`GITHUB_IDENTITY_SETUP.md`](GITHUB_IDENTITY_SETUP.md).
 
 Subscription does not imply zero marginal cost. Current Copilot plans use AI

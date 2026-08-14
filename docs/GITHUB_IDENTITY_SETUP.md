@@ -173,18 +173,82 @@ After creating it, point Refarm at it — either in `~/.refarm/config.json`:
 
 or with `REFARM_PROVIDER_GITHUB_CLIENT_ID=Ov23…`.
 
-## The question an own app does not answer
+## The question an own app does not answer — answered, 2026-08-14
 
-Registering your own app makes Refarm's identity sovereign. It does **not** answer whether GitHub
-accepts that identity for the Copilot token exchange at `api.github.com/copilot_internal/v2/token`,
-which is an undocumented endpoint that may only honour known integration ids. Nobody can answer that
-without one real login attempt, and that measurement is the point of the Copilot spike, not a
-prerequisite of it.
+Registering your own app makes refarm's identity sovereign. It does **not** make GitHub accept that
+identity at the Copilot token exchange, and now we know it does not:
 
-If it is accepted, Copilot becomes a Refarm model provider under your own identity. If it is
-refused, the honest options are the official Copilot SDK as an external agent runtime, or an
-explicit, operator-accepted compatibility risk. By then you will be choosing between measured
-outcomes rather than guesses.
+```
+refarm sow --model-provider github-copilot --alias pessoal
+  → device flow completed, GitHub issued a user token
+  → GitHub did not accept this identity at copilot_internal/v2/token (HTTP 403)
+```
+
+**403, not 401.** That distinction is the whole finding. 401 would mean the token was invalid; 403
+means authenticated and *not authorised*. Refarm's OAuth App works — the device flow completed and
+GitHub issued the user token. The undocumented exchange is what declines, which confirms the
+hypothesis that it honours some client identities and not others.
+
+The node was untouched: no secret written, no catalog created, the existing credential still valid.
+The write order — secret, then descriptor, then retire the legacy entry — put the refusal before the
+first write.
+
+## Three ways forward, and they are TWO axes, not three options
+
+This is the distinction that keeps the feature from becoming three implementations:
+
+**Same transport, different identity.** Refarm's own identity, an imitated editor client, and a
+granted integration id all use the same endpoint, the same device flow, the same token parsing and
+the same refresh. They differ in a client id and three headers. So the identity is a **declared
+profile**, and the adapter does not change shape.
+
+**A different axis entirely.** The official Copilot SDK/CLI owns the agent loop: it is a runtime,
+not a model transport. The governing design forbids presenting the two as implementations of one
+adapter, and refarm does not. It will arrive as its own capability, with its own consent and
+sessions, or not at all.
+
+## The identity profile
+
+Declared in `.refarm/config.json`, and **defaulting to refarm's own identity** — the one measured at
+403 — because imitation must be chosen rather than inherited.
+
+| value | what refarm presents | status |
+| --- | --- | --- |
+| *(absent)* / `refarm` | refarm's OAuth App, `User-Agent: refarm/<version>` | honest; **measured 403** at the exchange |
+| `editor-imitation` | the Copilot editor plugin's client id and its version headers | works; a risk the operator accepts explicitly |
+| `integration` + `integrationId` | refarm's OWN client id, with the granted id in `Copilot-Integration-Id` | sovereign and authorised, once GitHub grants one |
+
+```bash
+# accept the imitation risk deliberately
+refarm config set providers.githubCopilot.identity editor-imitation
+
+# later, once an integration id is granted
+refarm config set providers.githubCopilot.identity integration
+refarm config set providers.githubCopilot.integrationId refarm-cli
+```
+
+Four rules the implementation enforces, each because the opposite is a real failure:
+
+- **Every unrecognised or half-declared value falls back to refarm's own identity.** Falling back to
+  imitation would let a typo impersonate another product; an empty integration id would send a
+  header that means nothing. Failing visibly at the exchange is better than either.
+- **Both halves or neither.** A borrowed client id without its matching headers, or the reverse, is
+  a shape no real client sends: it impersonates *and* it fails.
+- **A granted id keeps refarm's own client id.** Pairing a granted id with a borrowed client id
+  would be imitation wearing a licence.
+- **The node says which profile is in use**, in `refarm credential list`, including when no
+  credential exists yet — which is exactly when it matters, because the profile governs the login
+  that has not happened.
+
+## What is still open
+
+- Whether the imitation route keeps working, and for how long. It reaches an undocumented endpoint
+  by presenting another product's identity; GitHub may fence it without notice, and that is the
+  stated risk rather than a surprise.
+- Whether an integration id can be requested at all through a public channel. If it can, it is the
+  only route that is both sovereign and supported.
+- The SDK/CLI runtime track, which is unbuilt and is a different axis. It remains Public Preview,
+  and its own repository says it may not be suitable for production.
 
 ## Sources
 
