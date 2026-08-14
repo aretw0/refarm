@@ -3,6 +3,11 @@ import {
 	modelCredentialEnvKey,
 	modelCredentialStatus as resolveModelCredentialStatus,
 } from "@refarm.dev/config";
+import {
+	credentialSecretLocation,
+	readCredentialAt,
+	readLegacyCredentials,
+} from "@refarm.dev/model-account-contract-v1";
 import { isContainer as detectContainerRuntime, fetchWithTimeout } from "@refarm.dev/root";
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { SiloCore } from "@refarm.dev/silo";
@@ -278,15 +283,35 @@ function modelRuntimeCredentialEnv(
 	return apiKey ? [envKey, apiKey] : null;
 }
 
+/**
+ * THE DUAL-READ, reached through the account contract rather than by indexing a map.
+ *
+ * The behaviour is unchanged today: every credential on every existing node is legacy, so the
+ * location resolves to the flat token map and this returns exactly what the old two-line lookup
+ * returned. What changes is that the knowledge of WHERE a credential lives now lives in one place
+ * (`credentialSecretLocation`) instead of being re-derived here, which is the precondition for the
+ * writer to move at all. Readers before writers — the other order leaves a credential nothing can
+ * read.
+ *
+ * `unreadable` is deliberately treated the same as absent BY THIS CALLER and not by the contract:
+ * `runtimeOAuthCredential` returns a nullable credential to a caller that only decides whether to
+ * export an environment variable. The distinction is preserved where it can be acted on, and
+ * collapsed only at the boundary that cannot act on it.
+ */
 function runtimeOAuthCredential(
 	provider: string | undefined,
 	tokens: ModelTokens,
 ): RuntimeOAuthCredential | null {
 	if (!provider || tokens.oauthProvider !== provider) return null;
-	if (!tokens.oauthCredentials || typeof tokens.oauthCredentials !== "object") return null;
-	const value = tokens.oauthCredentials[provider];
-	if (!value || typeof value !== "object") return null;
-	const candidate = value as { access?: unknown; accountId?: unknown };
+	const descriptor = readLegacyCredentials(tokens as Record<string, unknown>).find(
+		(account) => account.provider === provider,
+	);
+	if (!descriptor) return null;
+	const read = readCredentialAt(credentialSecretLocation(descriptor), {
+		legacyOauthCredentials: tokens.oauthCredentials as Record<string, unknown> | undefined,
+	});
+	if (read.kind !== "found") return null;
+	const candidate = read.credential as { access?: unknown; accountId?: unknown };
 	if (typeof candidate.access !== "string" || candidate.access.trim().length === 0) {
 		return null;
 	}
