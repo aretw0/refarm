@@ -1,3 +1,4 @@
+export * from "./account-view.js";
 export * from "./catalog.js";
 export * from "./describe-new.js";
 export * from "./migrate.js";
