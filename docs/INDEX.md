@@ -34,6 +34,7 @@
 - **[Device Operator Journeys](REFARM_DEVICE_OPERATOR_JOURNEYS.md)** — Termux and PWA acceptance paths with commands, observable outcomes, undo, and automated proof, independent of the operator's network rail and downstream workspaces.
 - **[Operator Primitives](OPERATOR_PRIMITIVES.md)** — Stable JSON, session, task, runtime, model, and finish primitives for agentic operation.
 - **[Model Provider Strata](model-provider-strata.md)** — API-key billing vs subscription-backed provider contract for model routing.
+- **[GitHub Identity Setup](GITHUB_IDENTITY_SETUP.md)** — Why platform access and Copilot are two logins, where Refarm's OAuth App lives, and what each registration field actually does.
 - **[NixOS Curated Runtime Strategy](NIXOS_CURATED_RUNTIME_STRATEGY.md)** — Strategic lane for evaluating Nix/NixOS as a reproducible Refarm substrate without becoming a distro prematurely.
 - **[Environment Substrate Inventory](ENVIRONMENT_SUBSTRATE_INVENTORY.md)** — Current ownership map for devcontainer, CI, host install, Rust/WASM, browser runtime, and future Nix lanes.
 - **[Action Readiness Cookbook](REFARM_ACTION_READINESS_COOKBOOK.md)** — JSON handoff contract, `nextCommand` rules, and end-of-slice agent finish flow.
