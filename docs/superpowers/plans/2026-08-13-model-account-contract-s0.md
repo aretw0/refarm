@@ -1534,7 +1534,26 @@ git commit -m "feat(credential): list, resolve and bind model accounts without e
 
 ---
 
-## Task 6: Retire the interim guard's refusal
+## Task 6: Retire the interim guard's refusal — **BLOCKED, and the plan was wrong**
+
+**Status 2026-08-13: attempted, reverted, and it must not be attempted again until the login writes
+to the catalog.**
+
+The reasoning below is sound and its premise is false. It says a `different-account` write "goes to
+a different key and destroys nothing" — but **nothing writes to the catalog in S0**. Measured after
+tasks 1–5 landed: `sow.ts` still writes `oauthCredentials: { ...existing, [provider]: creds }`, one
+slot per provider, and `.refarm/model-accounts.json` is only ever READ (`catalogOf`). The catalog
+write is S1/S2 work, named in this plan's own debt #1.
+
+So removing the refusal now would restore exactly the destruction `73692b05` closed — on the
+operator's node, for the account pair he is preparing to add. The change was made, measured, and
+reverted before commit.
+
+**The real precondition:** a login that produces a catalog entry and a namespaced secret. When that
+lands, this task becomes correct as written, and the assertion to add is not only the message change
+— it is *two accounts of one provider stored, and the first still readable after the second login*.
+
+The original reasoning, kept because it is what to do once the precondition holds:
 
 **Files:**
 - Modify: `apps/refarm/src/commands/sow.ts`, `apps/refarm/src/credentials/credential-account.ts`
@@ -1616,7 +1635,10 @@ ambiguity refuses."* Both are covered by Task 2's suite. The acceptance rows thi
 ## Debts this slice leaves, stated rather than discovered
 
 1. **No secret is written under the new key yet.** S0 reads; the first write happens when a login
-   produces a catalog entry, which is S1/S2 work. Until then the operator's silo is untouched.
+   produces a catalog entry, which is S1/S2 work. Until then the operator's silo is untouched —
+   **and the one-slot destruction is still real**, which is why task 6 is blocked and the interim
+   guard from `73692b05` stays in force. This debt is load-bearing, not cosmetic: it is the whole
+   reason a second Copilot login is still refused rather than merely reported.
 2. **`normalizeAccountId` is unmeasured for Copilot.** Codex's account id is a 36-character UUID;
    Copilot's shape is unknown until a login produces one, and nothing here may assume it.
 3. **The `ambiguous` path is unexercised on real hardware.** The operator has one account. It is
