@@ -7,6 +7,7 @@
  * silo is left exactly as it is until he next authenticates, which is what makes this reversible:
  * deleting this file restores the old behaviour completely.
  */
+import { LEGACY_REF_PREFIX } from "./secret-location.js";
 import { newCredentialId, type ModelAccountDescriptor } from "./types.js";
 
 /** The alias a legacy credential is READ under. It is a display string and means nothing. */
@@ -20,7 +21,10 @@ function legacyDescriptor(provider: string): ModelAccountDescriptor {
 		provider,
 		alias: LEGACY_ALIAS,
 		identity: { status: "unverified" },
-		secretRef: `model/${provider}`,
+		// SELF-DESCRIBING, not inferred. A legacy secret is in the flat token map, NOT in the
+		// `model` namespace, and a reader that looked for it there would report a working
+		// credential as missing.
+		secretRef: `${LEGACY_REF_PREFIX}${provider}`,
 		// Claimed healthy here and CONFIRMED by `reconcileCatalog` against the secrets that actually
 		// exist. This function cannot see the store, so it must not pretend to have checked.
 		health: "healthy",

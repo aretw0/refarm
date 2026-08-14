@@ -15,7 +15,7 @@ describe("readLegacyCredentials", () => {
 		expect(accounts[0]).toMatchObject({
 			provider: "openai-codex",
 			alias: LEGACY_ALIAS,
-			secretRef: "model/openai-codex",
+			secretRef: "legacy:oauthCredentials/openai-codex",
 		});
 	});
 

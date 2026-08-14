@@ -20,7 +20,11 @@ async function run(
 	argv: string[],
 	tokens: Record<string, unknown> = TOKENS,
 	catalog: unknown[] = [],
-	secretRefs: string[] = ["model/openai-codex"],
+	// THE LEGACY REF SHAPE, not `model/openai-codex`. A credential stored before the namespaced
+	// store existed lives in the flat token map, and `credentialSecretLocation` says so through the
+	// ref itself. Passing the namespaced shape here made the account `incomplete` and produced an
+	// `unclaimed` orphan beside it — which is exactly what should happen, and why this is spelled out.
+	secretRefs: string[] = ["legacy:oauthCredentials/openai-codex"],
 ) {
 	const chunks: string[] = [];
 	const write = process.stdout.write.bind(process.stdout);
@@ -70,7 +74,12 @@ describe("credential list", () => {
 	it("shows an INCOMPLETE account rather than hiding it", async () => {
 		// A descriptor whose secret is gone is the operator's evidence that a login happened. The
 		// listing is where he finds out, so it must not filter to the healthy ones.
-		const { out } = await run(["list", "--json"], TOKENS, [CORPORATE], ["model/openai-codex"]);
+		const { out } = await run(
+			["list", "--json"],
+			TOKENS,
+			[CORPORATE],
+			["legacy:oauthCredentials/openai-codex"],
+		);
 		expect(out).toContain("incomplete");
 		expect(out).toContain("corporativa");
 	});
@@ -90,7 +99,7 @@ describe("credential current", () => {
 			["current", "--provider", "github-copilot", "--json"],
 			{ oauthCredentials: { "github-copilot": { access: "A" } } },
 			[CORPORATE],
-			["model/github-copilot", "model/github-copilot-corp"],
+			["legacy:oauthCredentials/github-copilot", "model/github-copilot-corp"],
 		);
 		expect(exitCode).toBe(1);
 		expect(out).toContain("model_credential_ambiguous");
