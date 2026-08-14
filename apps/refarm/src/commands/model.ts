@@ -685,10 +685,21 @@ export function credentialLifetime(
 	tokens: ModelTokens,
 	now: number,
 ): CredentialLifetime {
-	const oauth = (tokens as { oauthCredentials?: Record<string, { expires?: unknown }> })
-		.oauthCredentials;
-	const entry = provider ? oauth?.[provider] : undefined;
-	if (!entry) return { state: "unknown", reason: "not-oauth" };
+	// Reached through the account contract, so expiry is read from wherever the credential actually
+	// lives. `not-oauth` stays the answer for BOTH "no descriptor" and "nothing stored": neither
+	// establishes an expiry, and this function's `unknown` is precisely the state that must not be
+	// mistaken for `expired` — an API-key provider records no expiry at all, and re-prompting every
+	// run for every keyed provider is the defect that reading absence as failure produces.
+	const descriptor = provider
+		? readLegacyCredentials(tokens as Record<string, unknown>).find((a) => a.provider === provider)
+		: undefined;
+	if (!descriptor) return { state: "unknown", reason: "not-oauth" };
+	const read = readCredentialAt(credentialSecretLocation(descriptor), {
+		legacyOauthCredentials: (tokens as { oauthCredentials?: Record<string, unknown> })
+			.oauthCredentials,
+	});
+	if (read.kind !== "found") return { state: "unknown", reason: "not-oauth" };
+	const entry = read.credential as { expires?: unknown };
 	const expiresAt = typeof entry.expires === "number" ? entry.expires : null;
 	if (expiresAt === null) return { state: "unknown", reason: "no-expiry-recorded" };
 	return expiresAt <= now
