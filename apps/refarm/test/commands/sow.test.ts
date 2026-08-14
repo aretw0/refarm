@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
 	mockSaveTokens,
+	mockSaveSecret,
 	mockLoadTokens,
 	mockOperatorAsk,
 	mockGithubCollect,
@@ -9,6 +10,7 @@ const {
 	mockModelCollect,
 } = vi.hoisted(() => ({
 	mockSaveTokens: vi.fn().mockResolvedValue({}),
+	mockSaveSecret: vi.fn().mockResolvedValue({}),
 	mockLoadTokens: vi.fn().mockResolvedValue({}),
 	mockOperatorAsk: vi.fn().mockResolvedValue("my-org"),
 	mockGithubCollect: vi.fn().mockResolvedValue("gho_test_github"),
@@ -52,7 +54,7 @@ vi.mock("../../src/credentials/index.js", () => ({
 
 vi.mock("@refarm.dev/silo", () => ({
 	SiloCore: vi.fn().mockImplementation(function () {
-		return { saveTokens: mockSaveTokens, loadTokens: mockLoadTokens };
+		return { saveTokens: mockSaveTokens, loadTokens: mockLoadTokens, saveSecret: mockSaveSecret };
 	}),
 }));
 
@@ -103,18 +105,20 @@ describe("sowCommand — default (no flags)", () => {
 
 		await sowCommand.parseAsync([], { from: "user" });
 
+		// THE SECRET NO LONGER TOUCHES THE TOKEN MAP. It goes to the silo's `model` namespace under
+		// an opaque credential id, which is what lets a second account of one provider exist. The
+		// token map keeps only the DECISIONS — which provider is active — and those are not secret.
 		expect(mockSaveTokens).toHaveBeenCalledWith(
 			expect.objectContaining({
 				modelProvider: "openai-codex",
 				oauthProvider: "openai-codex",
-				oauthCredentials: {
-					"openai-codex": expect.objectContaining({
-						access: "oauth-access-test",
-						refresh: "oauth-refresh-test",
-						accountId: "chatgpt-account-test",
-					}),
-				},
 			}),
+		);
+		expect(JSON.stringify(mockSaveTokens.mock.calls)).not.toContain("oauth-access-test");
+		expect(mockSaveSecret).toHaveBeenCalledWith(
+			"model",
+			expect.stringMatching(/^model-account:/u),
+			expect.stringContaining("oauth-access-test"),
 		);
 	});
 
@@ -703,13 +707,16 @@ describe("sowCommand — --all flag", () => {
 			{ from: "user" },
 		);
 
+		// Decisions only, in the token map. The credential itself went to the namespaced store.
 		expect(mockSaveTokens).toHaveBeenNthCalledWith(1, {
 			modelProvider: "anthropic",
 			oauthProvider: "anthropic",
-			oauthCredentials: {
-				anthropic: { accessToken: "oauth-test" },
-			},
 		});
+		expect(mockSaveSecret).toHaveBeenCalledWith(
+			"model",
+			expect.stringMatching(/^model-account:/u),
+			expect.stringContaining("oauth-test"),
+		);
 		expect(mockSaveTokens).toHaveBeenNthCalledWith(2, {
 			modelProvider: "anthropic",
 			modelId: "claude-sonnet-4-6",

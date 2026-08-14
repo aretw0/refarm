@@ -12,11 +12,8 @@ import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
 import { refarmCommand } from "../brand.js";
-import {
-	REPLACE_ACCOUNT_FLAG,
-	compareStoredAccount,
-	describeAccountVerdict,
-} from "../credentials/credential-account.js";
+import { readCatalog } from "../credentials/account-view-loader.js";
+import { writeModelCredential, type AccountWriteSilo } from "../credentials/account-write.js";
 import {
 	cloudflareCredentialProvider,
 	githubCredentialProvider,
@@ -103,13 +100,13 @@ interface SowOptions {
 	all?: boolean;
 	reconfigure?: boolean;
 	/**
-	 * Deliberately replace a stored credential belonging to a DIFFERENT account.
+	 * The operator's name for the account being added.
 	 *
-	 * There is one slot per provider (ISS-122), so this is destructive by construction and stays a
-	 * flag rather than a prompt: the operator with a personal and a corporate Copilot account needs
-	 * the replacement to be something he typed, not something he agreed to at the end of a login.
+	 * Aliases are unique per provider and mean NOTHING to code (D1); absent, the contract picks a
+	 * free one. This exists so the operator can say "corporativa" at login time rather than renaming
+	 * afterwards.
 	 */
-	replaceAccount?: boolean;
+	alias?: string;
 	json?: boolean;
 }
 
@@ -121,6 +118,7 @@ interface SowSilo {
 
 export interface SowDeps {
 	createSilo(): SowSilo;
+	homeOf(): string;
 	createOperator(): ReturnType<typeof createStdioOperatorChannel>;
 	env(): NodeJS.ProcessEnv;
 	tryOpenUrl: typeof tryOpenUrl;
@@ -134,6 +132,7 @@ export interface SowDeps {
 function defaultSowDeps(): SowDeps {
 	return {
 		createSilo: () => new SiloCore(),
+		homeOf: () => process.env.HOME ?? "",
 		createOperator: createStdioOperatorChannel,
 		env: () => process.env,
 		tryOpenUrl,
@@ -165,10 +164,7 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 			"Configure this model provider directly, skipping the picker (e.g. openai-codex)",
 		)
 		.option("--reconfigure", "Reconfigure model credentials even if already configured")
-		.option(
-			"--replace-account",
-			"Replace a stored credential that belongs to a DIFFERENT account — destructive, one slot per provider",
-		)
+		.option("--alias <name>", "Name this account (unique per provider; renameable later)")
 		.option("--json", "Output machine-readable sow result")
 		.addHelpText("after", SOW_HELP_TEXT)
 		.action(async (opts: SowOptions) => {
@@ -388,42 +384,56 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 					if (credential.oauthCredentials) {
 						const modelProvider =
 							OAUTH_PROVIDER_TO_MODEL_PROVIDER[credential.provider] ?? credential.provider;
-						const existingTokens = (await silo.loadTokens()) as Record<string, unknown>;
-						// ISS-122's IRREVERSIBLE HALF, closed here without deciding the shape. One slot
-						// per provider means writing a SECOND account's credential destroys the first,
-						// and the operator has three quotas across two providers — two of them the same
-						// provider. The comparison happens after the login (the account is only known
-						// from the token) but BEFORE the write, so a refusal costs a browser round trip
-						// and keeps a working credential.
-						const slot = (existingTokens.oauthCredentials as Record<string, unknown> | undefined)?.[
-							credential.provider
-						];
-						const verdict = compareStoredAccount(slot, credential.oauthCredentials);
-						const notice = describeAccountVerdict(verdict, credential.provider);
-						if (verdict.kind === "different-account" && !opts.replaceAccount) {
+						// THE WRITE MOVED, and with it ISS-122's last half. The secret goes to the silo's
+						// `model` namespace under an opaque id and the descriptor to the catalog, so a
+						// second account of one provider lands beside the first instead of on top of it.
+						// The same act retires this provider's legacy flat entry, which is what stops a
+						// re-login from producing two accounts for one credential.
+						//
+						// THE INTERIM REFUSAL IS GONE (73692b05), and this is the commit that earns it:
+						// it refused a different-account login because the write destroyed the stored one.
+						// The write no longer can. A warning kept past its cause is how warnings stop
+						// being read.
+						const written = await writeModelCredential({
+							home: deps.homeOf(),
+							silo: silo as AccountWriteSilo,
+							provider: credential.provider,
+							credentials: credential.oauthCredentials as unknown as Record<string, unknown>,
+							...(opts.alias ? { alias: opts.alias } : {}),
+						});
+						if (written.refusal) {
 							emitCommandRefusal({
 								command: "sow",
 								operation: "credentials",
 								options: opts,
-								error: "sow-would-replace-a-different-account",
-								message: notice ?? "this login would replace a different account",
-								nextAction: `Re-run with ${REPLACE_ACCOUNT_FLAG} to replace it deliberately.`,
-								nextCommands: [
-									`refarm sow --model-provider ${opts.modelProvider ?? modelProvider} ${REPLACE_ACCOUNT_FLAG}`,
-								],
+								error: "sow-cannot-store-namespaced-credential",
+								message: written.refusal,
+								nextAction: "Update refarm so its credential store can hold namespaced secrets.",
+								nextCommands: [MODEL_CURRENT_JSON_COMMAND],
 							});
 							return;
 						}
-						// `unknown` warns and proceeds: nothing PROVED a loss, and refusing would block
-						// re-authenticating any credential stored before accounts were recorded.
-						if (notice) console.log(chalk.yellow(`  ${notice}`));
+						const siblings = readCatalog(deps.homeOf()).filter(
+							(entry) => entry.provider === credential.provider,
+						);
+						if (siblings.length > 1) {
+							// INFORMATION, not a warning about loss. Which account his work spends is now a
+							// question he has to answer, and a dispatch with none bound refuses rather than
+							// choosing.
+							console.log(
+								chalk.yellow(
+									`  This is account ${siblings.length} of ${siblings.length} for ${credential.provider} ("${written.descriptor.alias}"). Bind one to a workspace, or a dispatch will refuse as ambiguous: refarm credential list`,
+								),
+							);
+						}
+						if (written.migratedFromLegacy) {
+							console.log(
+								chalk.dim(`  Migrated the previous ${credential.provider} credential out of the flat store.`),
+							);
+						}
 						const tokenUpdate = {
 							modelProvider,
 							oauthProvider: credential.provider,
-							oauthCredentials: {
-								...(existingTokens.oauthCredentials ?? {}),
-								[credential.provider]: credential.oauthCredentials,
-							},
 						};
 						await silo.saveTokens(tokenUpdate);
 						currentTokens = { ...currentTokens, ...tokenUpdate };

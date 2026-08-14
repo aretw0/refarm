@@ -653,7 +653,7 @@ function createContractInitCommand() {
 			createOperator: () => ({
 				ask: vi.fn().mockResolvedValue("workspace"),
 			}),
-			createSilo: () => ({
+		createSilo: () => ({
 				bootstrapIdentity: vi.fn().mockResolvedValue({
 					publicKey: "pk_contract",
 					timestamp: "2026-05-01T00:00:00.000Z",
@@ -1003,6 +1003,7 @@ function createContractSessionsSubcommand(name: string) {
 function createContractSowCommand() {
 	const tokens: Record<string, unknown> = { modelProvider: "openai" };
 	return createSowCommand({
+		homeOf: () => "/nonexistent-home",
 		createSilo: () => ({
 			loadTokens: vi.fn().mockResolvedValue(tokens),
 			saveTokens: vi.fn().mockImplementation(async (update: Record<string, unknown>) => {
