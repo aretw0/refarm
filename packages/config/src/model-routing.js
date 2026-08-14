@@ -126,12 +126,25 @@ export function modelCredentialStatus(provider, tokens = {}, env = defaultEnv())
 	) {
 		return { state: "silo-oauth", envKey: credentialEnv, oauthProvider };
 	}
-	return { state: "missing", envKey: credentialEnv };
+	// UNRESOLVED ONLY WHERE A CREDENTIAL COULD BE ELSEWHERE, which is narrower than it first looks.
+	//
+	// Since 2026-08-14 a login writes SUBSCRIPTION credentials to the silo's `model` namespace
+	// instead of this flat map, so for those providers "nothing here" no longer means "there is
+	// none" — this function does no I/O and cannot see that store. An API-key provider is different:
+	// its key lives in `modelApiKey`, in this very map, so absence here IS absence and `missing`
+	// stays the honest answer. Widening `unresolved` to cover them would trade a false certainty for
+	// a false doubt, which is the same defect facing the other way.
+	return SUBSCRIPTION_MODEL_PROVIDERS.includes(normalizedProvider ?? "")
+		? { state: "unresolved", envKey: credentialEnv }
+		: { state: "missing", envKey: credentialEnv };
 }
 
 export function hasUsableModelCredential(provider, tokens = {}, env = defaultEnv()) {
 	const status = modelCredentialStatus(provider, tokens, env);
-	return status.state !== "missing";
+	// `unresolved` is not usable FROM HERE, which preserves every existing caller's behaviour
+	// exactly: what used to be `missing` still answers false. A caller that can consult the account
+	// catalog gets a better answer by asking the catalog, not by reinterpreting this boolean.
+	return status.state !== "missing" && status.state !== "unresolved";
 }
 
 export function hasUsableModelCredentialSource(source = {}, env = defaultEnv()) {

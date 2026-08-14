@@ -104,7 +104,8 @@ export interface CurrentModelStatus {
 	routes: Record<ModelScope, string>;
 	credential: {
 		envKey: string | undefined;
-		state: "not-required" | "env" | "silo-api-key" | "silo-oauth" | "missing";
+		/** `unresolved` is not `missing`: the credential may be namespaced, where this cannot look. */
+		state: "not-required" | "env" | "silo-api-key" | "silo-oauth" | "missing" | "unresolved";
 		status: string | null;
 	};
 	routeCredentials: Record<
@@ -112,7 +113,8 @@ export interface CurrentModelStatus {
 		{
 			provider: string | undefined;
 			envKey: string | undefined;
-			state: "not-required" | "env" | "silo-api-key" | "silo-oauth" | "missing";
+			/** `unresolved` is not `missing`: the credential may be namespaced, where this cannot look. */
+		state: "not-required" | "env" | "silo-api-key" | "silo-oauth" | "missing" | "unresolved";
 			status: string | null;
 		}
 	>;
@@ -246,6 +248,10 @@ function modelCredentialStatus(provider: string | undefined, tokens: ModelTokens
 			return `Silo OAuth (${status.oauthProvider})`;
 		case "missing":
 			return "missing (run refarm sow)";
+		case "unresolved":
+			// NOT "missing". The credential may be in the silo's `model` namespace, which the pure
+			// status function cannot read — `refarm credential list` is the surface that can.
+			return "not in env or tokens (refarm credential list)";
 	}
 }
 

@@ -322,10 +322,13 @@ describe("resolveModelRouteFromTokens — Critical 2 regression: no environment 
 	it("an env-set credential (OPENAI_CODEX_ACCESS_TOKEN) does not leak into credentialState either — tokens alone decide it", () => {
 		vi.stubEnv("OPENAI_CODEX_ACCESS_TOKEN", "not-a-real-token-value");
 		const result = resolveModelRouteFromTokens({ modelProvider: "openai-codex", modelId: "gpt-5.5" });
-		// With no environment consulted, an openai-codex route with no oauth/api-key token
-		// in `tokens` itself resolves to "missing", never the env-derived "env" state that
-		// a real OPENAI_CODEX_ACCESS_TOKEN in this process's own env would otherwise cause.
-		expect(result.credentialState).toBe("missing");
+		// With no environment consulted, an openai-codex route with no oauth/api-key token in
+		// `tokens` itself resolves to "unresolved", never the env-derived "env" state that a real
+		// OPENAI_CODEX_ACCESS_TOKEN in this process's own env would otherwise cause. The state is
+		// `unresolved` rather than `missing` because openai-codex is a SUBSCRIPTION provider, whose
+		// credential may live in the silo's `model` namespace that this pure function cannot read —
+		// the assertion this test exists for is unchanged: the env token did not leak in.
+		expect(result.credentialState).toBe("unresolved");
 	});
 
 	it("empty tokens still resolve to a real, deterministic route (the built-in default), never throwing", () => {
