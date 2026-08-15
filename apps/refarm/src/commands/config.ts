@@ -97,7 +97,15 @@ type ConfigKey =
 	| "runtime.autostart"
 	| "runtime.sidecarUrl"
 	| "operator.openExternalLinks"
-	| "tractor.engine";
+	| "tractor.engine"
+	/**
+	 * WHO REFARM SAYS IT IS at the Copilot exchange. A guided key rather than a hand-edit, because
+	 * `declaring-is-authoring` A2 makes hand-editing the safety net and not the path — and because
+	 * an unvalidated `identiy` typo would fall back to refarm's own identity while the operator
+	 * believed he had declared imitation.
+	 */
+	| "providers.githubCopilot.identity"
+	| "providers.githubCopilot.integrationId";
 
 interface EffectiveConfigValue {
 	key: ConfigKey;
@@ -148,7 +156,10 @@ const CONFIG_KEYS: readonly ConfigKey[] = [
 	"runtime.sidecarUrl",
 	"operator.openExternalLinks",
 	"tractor.engine",
+	"providers.githubCopilot.identity",
+	"providers.githubCopilot.integrationId",
 ];
+const COPILOT_IDENTITY_MODES: readonly string[] = ["refarm", "editor-imitation", "integration"];
 const AUTOSTART_MODES = RUNTIME_AUTOSTART_MODES;
 const OPEN_EXTERNAL_LINKS_MODES: readonly OpenExternalLinksMode[] = ["auto", "never"];
 const TRACTOR_ENGINE_MODES = RUNTIME_ENGINE_MODES;
@@ -452,6 +463,25 @@ function parseConfigAutostartMode(
 	);
 }
 
+function parseConfigCopilotIdentity(value: string): string {
+	if (COPILOT_IDENTITY_MODES.includes(value)) return value;
+	throw new CommandRefusal(
+		"invalid-config-value",
+		`Invalid providers.githubCopilot.identity: ${value}`,
+		`Use: ${COPILOT_IDENTITY_MODES.join(", ")} — "editor-imitation" presents another product's client id and is a risk you are accepting deliberately.`,
+	);
+}
+
+function parseConfigCopilotIntegrationId(value: string): string {
+	const trimmed = value.trim();
+	if (trimmed) return trimmed;
+	throw new CommandRefusal(
+		"invalid-config-value",
+		"Invalid providers.githubCopilot.integrationId: empty",
+		"An integration id is the value GitHub granted; unset the key instead of clearing it to an empty string.",
+	);
+}
+
 function parseConfigOpenExternalLinksMode(value: string): OpenExternalLinksMode {
 	if ((OPEN_EXTERNAL_LINKS_MODES as readonly string[]).includes(value)) {
 		return value as OpenExternalLinksMode;
@@ -546,6 +576,20 @@ function resolveConfigValue(
 	if (key === "operator.openExternalLinks") {
 		const effective = resolveOpenExternalLinksMode(deps, opts);
 		return { key, value: effective.value, source: effective.source };
+	}
+	if (key === "providers.githubCopilot.identity") {
+		const declared = readConfig(configPath(deps, opts)).providers?.githubCopilot?.identity;
+		// ABSENT IS THE HONEST IDENTITY, and it is reported as `built-in` rather than as a value the
+		// operator chose — imitation must never look like something already declared.
+		return declared
+			? { key, value: declared, source: "config" }
+			: { key, value: "refarm", source: "built-in" };
+	}
+	if (key === "providers.githubCopilot.integrationId") {
+		const declared = readConfig(configPath(deps, opts)).providers?.githubCopilot?.integrationId;
+		return declared
+			? { key, value: declared, source: "config" }
+			: { key, value: "(none)", source: "built-in" };
 	}
 	if (key === "runtime.sidecarUrl") {
 		const effective = resolveSidecarUrl(deps, opts);
@@ -802,6 +846,22 @@ function applyKeyToConfig(config: RefarmCliConfig, key: ConfigKey, value: string
 		config.runtime = { ...(config.runtime ?? {}), sidecarUrl };
 		return sidecarUrl;
 	}
+	if (key === "providers.githubCopilot.identity") {
+		const identity = parseConfigCopilotIdentity(value);
+		config.providers = {
+			...(config.providers ?? {}),
+			githubCopilot: { ...(config.providers?.githubCopilot ?? {}), identity },
+		};
+		return identity;
+	}
+	if (key === "providers.githubCopilot.integrationId") {
+		const integrationId = parseConfigCopilotIntegrationId(value);
+		config.providers = {
+			...(config.providers ?? {}),
+			githubCopilot: { ...(config.providers?.githubCopilot ?? {}), integrationId },
+		};
+		return integrationId;
+	}
 	const mode = parseConfigTractorEngineMode(value);
 	config.tractor = { ...(config.tractor ?? {}), engine: mode };
 	return mode;
@@ -830,6 +890,13 @@ function removeKeyFromConfig(config: RefarmCliConfig, key: ConfigKey): boolean {
 	if (key === "tractor.engine") {
 		const removed = Object.prototype.hasOwnProperty.call(config.tractor ?? {}, "engine");
 		if (removed && config.tractor) delete config.tractor.engine;
+		return removed;
+	}
+	if (key === "providers.githubCopilot.identity" || key === "providers.githubCopilot.integrationId") {
+		const field = key === "providers.githubCopilot.identity" ? "identity" : "integrationId";
+		const copilot = config.providers?.githubCopilot;
+		const removed = Object.prototype.hasOwnProperty.call(copilot ?? {}, field);
+		if (removed && copilot) delete copilot[field];
 		return removed;
 	}
 	return false;

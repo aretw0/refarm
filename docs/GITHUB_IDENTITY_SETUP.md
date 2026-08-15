@@ -218,24 +218,27 @@ Declared in `.refarm/config.json`, and **defaulting to refarm's own identity** �
 | `editor-imitation` | the Copilot editor plugin's client id and its version headers | works; a risk the operator accepts explicitly |
 | `integration` + `integrationId` | refarm's OWN client id, with the granted id in `Copilot-Integration-Id` | sovereign and authorised, once GitHub grants one |
 
-Declared by hand in `~/.refarm/config.json`, which is the path that always works
-(`declaring-is-authoring`, A2):
+```bash
+# what is in force right now
+refarm config get providers.githubCopilot.identity
+#   providers.githubCopilot.identity=refarm
+#   source=built-in          <- not declared, rather than declared as refarm
 
-```jsonc
-{
-  "providers": {
-    "githubCopilot": {
-      "identity": "editor-imitation"
-      // later, once an id is granted:
-      // "identity": "integration", "integrationId": "refarm-cli"
-    }
-  }
-}
+# accept the imitation risk deliberately
+refarm config set providers.githubCopilot.identity editor-imitation
+
+# later, once GitHub grants an id
+refarm config set providers.githubCopilot.identity integration
+refarm config set providers.githubCopilot.integrationId refarm-cli
+
+# back to the honest identity
+refarm config unset providers.githubCopilot.identity
 ```
 
-`refarm config set` does not accept these keys yet — it holds a deliberately small typed allowlist,
-and refusing an unknown key is the behaviour that told us so rather than writing something nobody
-validates.
+The keys are typed, so an invalid value is refused with the accepted ones named, and every change is
+recorded with an `undo`. Hand-editing `~/.refarm/config.json` keeps working — `declaring-is-authoring`
+A2 guarantees it permanently — but it is the safety net, not the path: a mistyped key there falls
+back to refarm's own identity silently, and the operator believes he declared imitation.
 
 Four rules the implementation enforces, each because the opposite is a real failure:
 

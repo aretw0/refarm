@@ -16,6 +16,13 @@ export interface RefarmCliConfig {
 	tractor?: {
 		engine?: string;
 	};
+	/** Declared provider posture. See docs/GITHUB_IDENTITY_SETUP.md. */
+	providers?: {
+		githubCopilot?: {
+			identity?: string;
+			integrationId?: string;
+		};
+	};
 	spawnEnv?: {
 		path?: string[];
 		home?: string;
