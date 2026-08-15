@@ -353,6 +353,24 @@ function shellQuote(value: string): string {
  * token in silence, while `credential current` refused correctly and exited 1. The surface that
  * feeds a dispatch was the one that stayed quiet.
  */
+/** PURE. The credential the view resolved, in the shape the env entries need. */
+function viewCredential(
+	view: AccountView | undefined,
+	provider: string | undefined,
+): RuntimeOAuthCredential | null {
+	if (!view || !provider) return null;
+	const found = view.credentialFor(provider);
+	if (found.kind !== "found") return null;
+	const candidate = found.credential as { access?: unknown; accountId?: unknown };
+	if (typeof candidate.access !== "string" || candidate.access.trim().length === 0) return null;
+	return {
+		access: candidate.access,
+		...(typeof candidate.accountId === "string" && candidate.accountId.trim().length > 0
+			? { accountId: candidate.accountId }
+			: {}),
+	};
+}
+
 export function modelEnvCredentialNotice(
 	view: AccountView | undefined,
 	provider: string | undefined,
@@ -380,7 +398,7 @@ export function modelEnvCredentialNotice(
 
 function buildModelEnvEntries(
 	tokens: ModelTokens,
-	options: { includeSecrets?: boolean } = {},
+	options: { includeSecrets?: boolean; view?: AccountView } = {},
 ): [string, string][] {
 	const status = buildCurrentModelStatus(tokens);
 	const entries: [string, string][] = [];
@@ -418,7 +436,14 @@ function buildModelEnvEntries(
 		entries.push([MODEL_CONFIGURED_PROVIDERS_ENV_VAR, configuredProviders.join(",")]);
 	}
 	if (options.includeSecrets) {
-		const oauthCredential = runtimeOAuthCredential(status.current.provider, tokens);
+		// THE VIEW FIRST, because it sees namespaced credentials and honours a workspace binding; the
+		// legacy reader is the fallback for a node whose credential never moved.
+		//
+		// Wiring the view into the NOTICE alone was worse than not wiring it at all: it announced a
+		// resolution and then exported nothing, which is a claim contradicted one line later.
+		const oauthCredential =
+			viewCredential(options.view, status.current.provider) ??
+			runtimeOAuthCredential(status.current.provider, tokens);
 		const oauthEnvKey = modelCredentialEnvKey(status.current.provider);
 		if (oauthCredential && oauthEnvKey && !process.env[oauthEnvKey]) {
 			entries.push([oauthEnvKey, oauthCredential.access]);

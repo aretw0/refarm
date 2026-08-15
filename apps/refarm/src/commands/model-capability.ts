@@ -149,6 +149,11 @@ export function createModelCapabilityGroup(
 				kind: "boolean",
 				summary: "Include local runtime credential secrets",
 			},
+			{
+				name: "workspace",
+				kind: "string",
+				summary: "Resolve the credential as this workspace would — honours `refarm credential bind`",
+			},
 		],
 		async run(input) {
 			// THE VIEW IS BUILT HERE, where I/O is allowed, and handed to a pure builder. It is what
@@ -159,9 +164,17 @@ export function createModelCapabilityGroup(
 			// still correct, and the notice simply has nothing to add.
 			let view: AccountView | undefined;
 			try {
+				// THE WORKSPACE IS WHAT MAKES A BINDING MEAN ANYTHING. Without it the view resolves at
+				// node level and two eligible accounts stay ambiguous forever, however carefully the
+				// operator bound them.
+				const workspaceId =
+					typeof input.options.workspace === "string" && input.options.workspace.trim()
+						? input.options.workspace.trim()
+						: null;
 				view = await loadAccountView({
 					home: process.env.HOME ?? "",
 					silo: new SiloCore() as unknown as AccountViewSilo,
+					workspaceId,
 				});
 			} catch {
 				view = undefined;

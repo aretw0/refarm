@@ -72,9 +72,24 @@ export async function loadAccountView(options: LoadAccountViewOptions): Promise<
 		const id = descriptor.secretRef.slice(prefix.length);
 		try {
 			const value = await options.silo.loadSecret(MODEL_NAMESPACE, id);
-			// A silo that answers with a wrapper reports absence as a falsy value; either way, only a
-			// value that is actually there is recorded, so `incomplete` stays reachable and honest.
-			if (value !== undefined && value !== null) secrets.set(descriptor.secretRef, value);
+			if (value === undefined || value === null) continue;
+			// PARSED HERE, because the silo stores a STRING and the readers expect a credential.
+			// Measured 2026-08-15: with the string handed through untouched, a correctly bound account
+			// resolved and then reported `unreadable` — the binding worked and the credential looked
+			// broken, which is the most confusing possible pair.
+			//
+			// A string that is not JSON is left out rather than passed on: that is an `incomplete`
+			// entry, which sends the operator to repair, and is the honest reading of material this
+			// build cannot make sense of.
+			if (typeof value === "string") {
+				try {
+					secrets.set(descriptor.secretRef, JSON.parse(value) as unknown);
+				} catch {
+					// Not a credential this build can read; left absent so the catalog reports it.
+				}
+				continue;
+			}
+			secrets.set(descriptor.secretRef, value);
 		} catch {
 			// Unreadable is not absent, and the view distinguishes them — but this loader cannot say
 			// which without inventing a shape. Leaving the key out marks the account `incomplete`,
