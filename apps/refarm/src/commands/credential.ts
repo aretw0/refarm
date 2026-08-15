@@ -26,7 +26,12 @@ import {
 } from "@refarm.dev/model-account-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
 
-import { loadAccountView, type AccountViewSilo } from "../credentials/account-view-loader.js";
+import {
+	CATALOG_FILE,
+	loadAccountView,
+	MODEL_NAMESPACE,
+	type AccountViewSilo,
+} from "../credentials/account-view-loader.js";
 import {
 	describeCopilotIdentity,
 	resolveCopilotIdentity,
@@ -36,6 +41,7 @@ import { emitCommandRefusal } from "./command-refusal.js";
 interface CredentialSilo {
 	loadTokens(): Promise<unknown>;
 	saveTokens(tokens: Record<string, unknown>): Promise<unknown>;
+	removeSecret?(namespace: string, id: string): Promise<unknown>;
 }
 
 export interface CredentialDeps {
@@ -43,6 +49,7 @@ export interface CredentialDeps {
 	siloOf: () => CredentialSilo;
 	/** The one snapshot this command answers from. Built by the loader that owns the I/O. */
 	viewOf: () => Promise<AccountView>;
+	writeCatalog: (catalog: readonly ModelAccountDescriptor[]) => void;
 	bindingsOf: () => ModelAccountBinding[];
 }
 
@@ -61,6 +68,11 @@ function defaultDeps(): CredentialDeps {
 		siloOf: () => new SiloCore() as unknown as CredentialSilo,
 		viewOf: () =>
 			loadAccountView({ home: homeOf(), silo: new SiloCore() as unknown as AccountViewSilo }),
+		writeCatalog: (catalog) => {
+			const file = path.join(homeOf(), CATALOG_FILE);
+			fs.mkdirSync(path.dirname(file), { recursive: true });
+			fs.writeFileSync(file, `${JSON.stringify(catalog, null, 2)}\n`);
+		},
 		bindingsOf: () =>
 			Object.entries(
 				readJson<{ modelBindings?: Record<string, string> }>(
@@ -233,6 +245,61 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 					printJson(buildJsonSuccessEnvelope({ command: "credential", operation: "bind", extra }));
 				} else {
 					process.stdout.write(`${workspace} → ${credentialId}\n`);
+				}
+			}),
+		);
+
+	credential
+		.command("forget")
+		.argument("<credentialId>", "The OPAQUE id, as shown by `refarm credential list`")
+		.description("Remove one model account: its descriptor and its secret")
+		.option("--json", "Output machine-readable result")
+		.option("--yes", "Skip the confirmation — for automation, never for a first run")
+		.action(async (credentialId: string, options: { json?: boolean; yes?: boolean }) =>
+			guarded("forget", options, async () => {
+				const accounts = await loadAccounts();
+				const target = accounts.find((entry) => entry.credentialId === credentialId);
+				if (!target) {
+					throw new Error(
+						`model_credential_none: no account on this node carries the id ${credentialId}`,
+					);
+				}
+				// REFUSED WHILE BOUND. A workspace binding persists the opaque id, so removing the
+				// account underneath it would leave the binding pointing at nothing — and the dispatch
+				// that discovers it would be the operator's work, not a check.
+				const bound = deps.bindingsOf().filter((b) => b.credentialId === credentialId);
+				if (bound.length > 0) {
+					throw new Error(
+						`this account is bound to ${bound.map((b) => b.workspaceId).join(", ")}. ` +
+							"Bind those workspaces elsewhere first, or the binding would point at nothing.",
+					);
+				}
+				if (!options.yes) {
+					process.stdout.write(
+						`forget ${target.provider} "${target.alias}" (${credentialId})?\n` +
+							"  The secret is deleted and cannot be recovered; logging in again creates a new one.\n" +
+							"  Re-run with --yes to do it.\n",
+					);
+					return;
+				}
+
+				// The SECRET first, then the descriptor. A failure between them leaves an `incomplete`
+				// entry the operator can see and repair; the reverse order would leave an `unclaimed`
+				// secret nothing describes.
+				const silo = deps.siloOf();
+				const prefix = `${MODEL_NAMESPACE}/`;
+				if (target.secretRef.startsWith(prefix) && typeof silo.removeSecret === "function") {
+					await silo.removeSecret(MODEL_NAMESPACE, target.secretRef.slice(prefix.length));
+				}
+				deps.writeCatalog(accounts.filter((entry) => entry.credentialId !== credentialId));
+
+				const extra = { credentialId, provider: target.provider, alias: target.alias };
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({ command: "credential", operation: "forget", extra }),
+					);
+				} else {
+					process.stdout.write(`forgot ${target.provider} "${target.alias}"\n`);
 				}
 			}),
 		);

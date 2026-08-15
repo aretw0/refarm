@@ -18,6 +18,9 @@ const CORPORATE = {
 	revision: "sha256:r1",
 };
 
+const written: unknown[][] = [];
+const removed: string[] = [];
+
 async function run(
 	argv: string[],
 	tokens: Record<string, unknown> = TOKENS,
@@ -25,6 +28,7 @@ async function run(
 	// Namespaced secrets, keyed by secretRef. Legacy credentials need no entry: their secret IS the
 	// flat token map that produced the descriptor, and the view declares those present itself.
 	secrets: Map<string, unknown> = new Map(),
+	bindings: { workspaceId: string; credentialId: string }[] = [],
 ) {
 	const chunks: string[] = [];
 	const write = process.stdout.write.bind(process.stdout);
@@ -40,10 +44,15 @@ async function run(
 	try {
 		await createCredentialCommand({
 			homeOf: () => "/nonexistent-home",
-			siloOf: () => ({ loadTokens: async () => tokens, saveTokens: async () => tokens }),
+			siloOf: () => ({
+				loadTokens: async () => tokens,
+				saveTokens: async () => tokens,
+				removeSecret: async (_ns: string, id: string) => void removed.push(id),
+			}),
 			viewOf: async () =>
 				buildAccountView({ tokens, catalog: catalog as never, secrets }),
-			bindingsOf: () => [],
+			bindingsOf: () => bindings,
+			writeCatalog: (next) => void written.push([...next]),
 		}).parseAsync(argv, { from: "user" });
 	} finally {
 		process.stdout.write = write;
@@ -128,5 +137,67 @@ describe("credential list — the identity profile is never silent", () => {
 		// declared value. What is pinned here is the wiring: the notice reaches the listing at all.
 		const { out } = await run(["list"]);
 		expect(out).toContain("openai-codex");
+	});
+});
+
+describe("credential forget", () => {
+	const CORP_ID = CORPORATE.credentialId;
+
+	it("refuses an id nothing carries", async () => {
+		const { out, exitCode } = await run(["forget", "model-account:NOPE", "--json"]);
+		expect(exitCode).toBe(1);
+		expect(out).toMatch(/model_credential_none/u);
+	});
+
+	it("REFUSES while a workspace is bound to it, naming the workspaces", async () => {
+		// A binding persists the OPAQUE id, so removing the account underneath it would leave the
+		// binding pointing at nothing — and the dispatch that discovered it would be the operator's
+		// real work, not a check.
+		written.length = 0;
+		const { out, exitCode } = await run(
+			["forget", CORP_ID, "--yes", "--json"],
+			TOKENS,
+			[CORPORATE],
+			new Map([[CORPORATE.secretRef, { access: "C" }]]),
+			[{ workspaceId: "rcdc5", credentialId: CORP_ID }],
+		);
+		expect(exitCode).toBe(1);
+		expect(out).toContain("rcdc5");
+		expect(written).toHaveLength(0);
+	});
+
+	it("asks before removing, and removes NOTHING without --yes", async () => {
+		written.length = 0;
+		removed.length = 0;
+		const { out } = await run(
+			["forget", CORP_ID],
+			TOKENS,
+			[CORPORATE],
+			new Map([[CORPORATE.secretRef, { access: "C" }]]),
+		);
+		expect(out).toMatch(/--yes/u);
+		expect(written).toHaveLength(0);
+		expect(removed).toHaveLength(0);
+	});
+
+	it("removes the SECRET and then the descriptor, leaving the siblings alone", async () => {
+		// Secret first: a failure between the two leaves an `incomplete` entry the operator can see
+		// and repair. The reverse order would leave an `unclaimed` secret nothing describes.
+		written.length = 0;
+		removed.length = 0;
+		await run(
+			["forget", CORP_ID, "--yes", "--json"],
+			TOKENS,
+			[CORPORATE],
+			new Map([[CORPORATE.secretRef, { access: "C" }]]),
+		);
+		// Removed by the id inside the secretRef, NOT by the credentialId. They coincide for a real
+		// write, and this fixture deliberately does not: a descriptor points at its secret through the
+		// ref, and following the id instead would miss a secret written under any other name.
+		expect(removed).toEqual(["github-copilot-corp"]);
+		expect(written).toHaveLength(1);
+		expect(written[0]!.some((e) => (e as { credentialId: string }).credentialId === CORP_ID)).toBe(
+			false,
+		);
 	});
 });
