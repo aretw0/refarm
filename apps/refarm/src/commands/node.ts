@@ -79,6 +79,16 @@ export async function resolvePassphrase(
 	return first;
 }
 
+/** The catalog, or an empty one. A node that never logged in has no file and carries no accounts. */
+function readJsonArray(file: string): unknown[] {
+	try {
+		const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
+		return Array.isArray(parsed) ? parsed : [];
+	} catch {
+		return [];
+	}
+}
+
 function readJsonFile(file: string): Record<string, unknown> | null {
 	try {
 		return JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, unknown>;
@@ -205,6 +215,7 @@ export function createNodeCommand(
 					governance: options.governance === "repo" ? "repo" : "local",
 					config,
 					authPolicy,
+					modelAccounts: readJsonArray(path.join(home, ".refarm", "model-accounts.json")),
 					seal: sealPayload(
 						{ files: Object.fromEntries(sealedFiles.map((file) => [file.relative, file.base64])) },
 						passphrase,
@@ -343,6 +354,14 @@ export function createNodeCommand(
 				fs.writeFileSync(
 					path.join(home, ".refarm", "auth-policy.json"),
 					`${JSON.stringify(declaration.authPolicy, null, 2)}\n`,
+				);
+			}
+			// The catalog travels with the bindings that point into it, so it is restored beside them
+			// rather than left for a login to rebuild — a login would mint different ids.
+			if (Array.isArray(declaration.modelAccounts) && declaration.modelAccounts.length > 0) {
+				fs.writeFileSync(
+					path.join(home, ".refarm", "model-accounts.json"),
+					`${JSON.stringify(declaration.modelAccounts, null, 2)}\n`,
 				);
 			}
 			const written: string[] = [];

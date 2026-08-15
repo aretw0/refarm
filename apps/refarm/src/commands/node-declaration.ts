@@ -27,8 +27,14 @@ export function isSealedPath(relative: string): boolean {
 	return classifyByLayout(normalised, []).nature === "secret";
 }
 
-/** The two files the declaration carries in CLEARTEXT. Everything else is sealed or not carried. */
-const DECISION_FILES = [".refarm/config.json", ".refarm/auth-policy.json"];
+/** The files the declaration carries in CLEARTEXT. Everything else is sealed or not carried. */
+const DECISION_FILES = [
+	".refarm/config.json",
+	".refarm/auth-policy.json",
+	// Carried in CLEARTEXT: it holds no secret, only where each secret lives. Leaving it out would
+	// restore a node whose config binds workspaces to credentialIds nothing describes.
+	".refarm/model-accounts.json",
+];
 const STORAGE_DIRECTORIES = [".refarm/data/refarm/", ".local/share/refarm/"];
 
 /** PURE. Whether the declaration carries this path at all, sealed or in the clear. */
@@ -64,6 +70,15 @@ export interface NodeDeclaration {
 	readonly governance: "local" | "repo";
 	readonly declarations: Record<string, unknown>;
 	readonly authPolicy: Record<string, unknown> | null;
+	/**
+	 * The model-account catalog, verbatim. Descriptors only — a `secretRef` is a location and the
+	 * secrets themselves travel sealed, keyed by the same ids.
+	 *
+	 * Carried because `declarations.modelBindings` points at these credentialIds: a restore without
+	 * it stands up a node that binds workspaces to accounts nothing describes, with the secrets
+	 * present and unusable.
+	 */
+	readonly modelAccounts: readonly unknown[];
 	readonly seal: SealEnvelope;
 	readonly reAuthenticate: readonly string[];
 	readonly notCarried: {
@@ -80,6 +95,7 @@ export interface BuildDeclarationInput {
 	readonly governance: "local" | "repo";
 	readonly config: Record<string, unknown>;
 	readonly authPolicy: Record<string, unknown> | null;
+	readonly modelAccounts?: readonly unknown[];
 	readonly seal: SealEnvelope;
 	readonly reAuthenticate: readonly string[];
 	readonly notCarried: NodeDeclaration["notCarried"];
@@ -93,6 +109,7 @@ export function buildDeclaration(input: BuildDeclarationInput): NodeDeclaration 
 		governance: input.governance,
 		declarations: input.config,
 		authPolicy: input.authPolicy,
+		modelAccounts: [...(input.modelAccounts ?? [])],
 		seal: input.seal,
 		reAuthenticate: [...input.reAuthenticate],
 		notCarried: input.notCarried,

@@ -132,6 +132,18 @@ export const SOVEREIGN_LAYOUT: LayoutRule[] = [
 		verdict: () => ({ nature: "decision", reason: "who may reach this node, and how" }),
 	},
 	{
+		// THE MODEL-ACCOUNT CATALOG. Descriptors only — provider, the operator's alias, health, and a
+		// secretRef that is a LOCATION and never material. It is a decision rather than data because
+		// the aliases are his and, more importantly, `modelBindings` in the config points at these
+		// credentialIds: losing this file orphans every binding while the secrets survive, which is a
+		// node that looks configured and cannot choose an account.
+		match: is(".refarm/model-accounts.json"),
+		verdict: () => ({
+			nature: "decision",
+			reason: "which model accounts this node holds, and the aliases the operator gave them",
+		}),
+	},
+	{
 		match: (relative) => is(".refarm/node-id")(relative) || is(".refarm/node.json")(relative),
 		verdict: () => ({
 			nature: "data",
