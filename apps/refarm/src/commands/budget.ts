@@ -197,12 +197,25 @@ export function summariseObservations(
  *  (see `RepresentedNode`'s doc): two real machines can legitimately declare the
  *  same name, and merging them into one bucket would silently absorb one node's
  *  spend into another's report. */
-export type GroupByAxis = "workspace" | "host" | "spawner";
+/**
+ * `account` is the axis this file was missing, and the one the operator's
+ * sustainability question needs: workspace, host and spawner all answer "where
+ * did this spend happen", and none answers "WHICH QUOTA PAID FOR IT". An
+ * operator holding a personal and a corporate subscription of one provider
+ * cannot separate his costs without it.
+ *
+ * The field is the opaque `credentialId` minted by
+ * `@refarm.dev/model-account-contract-v1` — never the alias, which the operator
+ * may rename, and never a login or an account name, which must not travel into
+ * a budget export.
+ */
+export type GroupByAxis = "workspace" | "host" | "spawner" | "account";
 
 const GROUP_KEY_FIELD: Record<GroupByAxis, string> = {
 	workspace: "refarm.workspace.id",
 	host: "host.id",
 	spawner: "refarm.budget.spawner",
+	account: "refarm.budget.credentialId",
 };
 
 /** Requests and tokens are the primary quantity (Global Constraints) — every
@@ -806,6 +819,7 @@ const GROUP_AXIS_LABEL: Record<GroupByAxis, string> = {
 	workspace: "workspace",
 	host: "host",
 	spawner: "spawner",
+	account: "model account",
 };
 
 /** The subcommand name per axis — used both to build the `--json` example
@@ -815,6 +829,7 @@ const GROUP_SUBCOMMAND_NAME: Record<GroupByAxis, string> = {
 	workspace: "by-workspace",
 	host: "by-host",
 	spawner: "by-spawner",
+	account: "by-account",
 };
 
 /** The row label this file reserves for the unattributed bucket. A REAL
@@ -1352,6 +1367,11 @@ export function createBudgetCommand(): Command {
 		{ name: "by-workspace", by: "workspace", describes: "workspace (refarm.workspace.id)" },
 		{ name: "by-host", by: "host", describes: "node (host.id)" },
 		{ name: "by-spawner", by: "spawner", describes: "spawner (refarm.budget.spawner)" },
+		{
+			name: "by-account",
+			by: "account",
+			describes: "model account (refarm.budget.credentialId) — which quota paid",
+		},
 	];
 	for (const { name, by, describes } of GROUP_SUBCOMMANDS) {
 		command

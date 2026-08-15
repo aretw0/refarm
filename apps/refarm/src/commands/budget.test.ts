@@ -414,6 +414,37 @@ describe("groupObservations", () => {
 		]);
 	});
 
+	it("groups by model account, which is the only axis that says WHICH QUOTA PAID", () => {
+		// workspace, host and spawner all answer "where did this spend happen". None answers which
+		// subscription was billed — and an operator holding a personal and a corporate account of one
+		// provider cannot separate his costs without that.
+		const grouped = groupObservations(
+			[
+				{ "refarm.budget.credentialId": "model-account:PESSOAL" },
+				{ "refarm.budget.credentialId": "model-account:PESSOAL" },
+				{ "refarm.budget.credentialId": "model-account:CORPORATIVO" },
+			],
+			{ by: "account" },
+		);
+		expect(grouped.groups.map((g) => ({ key: g.key, observations: g.observations }))).toEqual([
+			{ key: "model-account:PESSOAL", observations: 2 },
+			{ key: "model-account:CORPORATIVO", observations: 1 },
+		]);
+	});
+
+	it("puts spend with NO account into the unattributed bucket, never into a group", () => {
+		// Every observation written before the dispatcher records the credential is in this state, and
+		// it must stay visible as unattributed rather than being folded into whichever account
+		// happened to be first. A total that silently absorbs unknown spend is worse than one that
+		// admits it.
+		const grouped = groupObservations(
+			[{ "refarm.budget.credentialId": "model-account:PESSOAL" }, {}, {}],
+			{ by: "account" },
+		);
+		expect(grouped.groups.map((g) => g.key)).toEqual(["model-account:PESSOAL"]);
+		expect(grouped.unattributed.observations).toBe(2);
+	});
+
 	it("sorts groups by observation count descending, ties broken by key ascending", () => {
 		const grouped = groupObservations(
 			[{ "refarm.workspace.id": "b" }, { "refarm.workspace.id": "a" }],

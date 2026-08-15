@@ -746,6 +746,14 @@ export const PROBE_COMMANDS = [
 		allowedVaryingFieldPaths: [],
 	},
 	{
+		name: "budget by-account",
+		argv: ["budget", "by-account", "--json"],
+		scope: "node",
+		scopeReason:
+			"Same graph aggregate, grouped by the model account that paid. Which quota was billed is a fact about the node's credentials and its spend record, never about the shell that asked — and a cwd-dependent answer here would misattribute cost between a personal and a corporate subscription, which is the separation this axis exists to provide.",
+		allowedVaryingFieldPaths: [],
+	},
+	{
 		name: "budget usage",
 		argv: ["budget", "usage", "--json"],
 		scope: "node",
