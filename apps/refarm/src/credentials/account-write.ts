@@ -20,6 +20,7 @@ import path from "node:path";
 
 import {
 	describeNewCredential,
+	isIndistinguishableAccount,
 	upsertDescriptor,
 	type ModelAccountDescriptor,
 } from "@refarm.dev/model-account-contract-v1";
@@ -42,7 +43,8 @@ export interface WriteModelCredentialInput {
 }
 
 export interface WriteModelCredentialResult {
-	readonly descriptor: ModelAccountDescriptor;
+	/** Absent when the write was refused — see `refusal`. */
+	readonly descriptor?: ModelAccountDescriptor;
 	/** True when this write also retired a flat-map entry for the same provider. */
 	readonly migratedFromLegacy: boolean;
 	/** Set when the secret could not be stored namespaced, so the caller can refuse honestly. */
@@ -64,13 +66,27 @@ export async function writeModelCredential(
 		typeof input.credentials.accountId === "string" && input.credentials.accountId.length > 0
 			? input.credentials.accountId
 			: undefined;
-	const descriptor = describeNewCredential({
+	const described = describeNewCredential({
 		provider: input.provider,
 		...(accountId ? { accountId } : {}),
 		...(input.alias ? { alias: input.alias } : {}),
 		existing: catalog,
 		secretDigest: `sha256:${createHash("sha256").update(serialised).digest("hex").slice(0, 32)}`,
 	});
+
+	// REFUSED RATHER THAN WRITTEN. The provider gave no account id and this node already holds one
+	// for it, so storing would either replace a working credential or duplicate it, and nothing here
+	// can tell which. Measured 2026-08-15: this is exactly how the operator's first Copilot account
+	// disappeared under his second.
+	if (isIndistinguishableAccount(described)) {
+		return {
+			migratedFromLegacy: false,
+			refusal:
+				`${described.reason} Already stored: ${described.existingAliases.join(", ")}. ` +
+				"Nothing was written.",
+		};
+	}
+	const descriptor = described;
 
 	if (typeof input.silo.saveSecret !== "function") {
 		// REFUSED, not silently fallen back to the flat map. A fallback would write the secret to the

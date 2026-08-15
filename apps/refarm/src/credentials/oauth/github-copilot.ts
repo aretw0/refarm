@@ -22,6 +22,7 @@ import {
 } from "./copilot-identity.js";
 import {
 	COPILOT_SCOPE,
+	copilotAccountId,
 	copilotApiBaseUrl,
 	copilotRefreshMargin,
 	copilotTokenExchangeUrl,
@@ -86,8 +87,12 @@ export function createGitHubCopilotProvider(
 			throw new Error("the Copilot token exchange returned a shape refarm does not recognise");
 		}
 		const endpoint = copilotApiBaseUrl(body.token, options.enterpriseDomain);
+		// THE ACCOUNT, read from the token GitHub just issued. Without it every Copilot credential
+		// looks like the same account and the second login replaces the first — measured, 2026-08-15.
+		const accountId = copilotAccountId(body.token);
 		return {
 			access: body.token,
+			...(accountId ? { accountId } : {}),
 			// THE DURABLE TOKEN IS THE REFRESH MATERIAL. The Copilot token is short-lived; storing it
 			// as `refresh` would make every renewal fail once the first one expired.
 			refresh: githubToken,

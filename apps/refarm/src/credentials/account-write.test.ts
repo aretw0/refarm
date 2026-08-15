@@ -47,8 +47,8 @@ describe("writeModelCredential", () => {
 			provider: "github-copilot",
 			credentials: CREDS,
 		});
-		expect(silo.secrets.get(`model/${descriptor.credentialId}`)).toContain("TOKEN-A");
-		expect(readCatalog(dir).map((e) => e.credentialId)).toEqual([descriptor.credentialId]);
+		expect(silo.secrets.get(`model/${descriptor!.credentialId}`)).toContain("TOKEN-A");
+		expect(readCatalog(dir).map((e) => e.credentialId)).toEqual([descriptor!.credentialId]);
 	});
 
 	it("does NOT write the flat slot, so a secret never has two copies", async () => {
@@ -127,9 +127,9 @@ describe("writeModelCredential", () => {
 			provider: "github-copilot",
 			credentials: { access: "FRESH", accountId: "pessoal" },
 		});
-		expect(again.descriptor.credentialId).toBe(first.descriptor.credentialId);
+		expect(again.descriptor!.credentialId).toBe(first.descriptor!.credentialId);
 		expect(readCatalog(dir)).toHaveLength(1);
-		expect(silo.secrets.get(`model/${again.descriptor.credentialId}`)).toContain("FRESH");
+		expect(silo.secrets.get(`model/${again.descriptor!.credentialId}`)).toContain("FRESH");
 	});
 
 	it("REFUSES when the store cannot hold namespaced secrets, instead of falling back", async () => {
@@ -160,7 +160,7 @@ describe("writeModelCredential", () => {
 		const view = buildAccountView({
 			tokens: {},
 			catalog: readCatalog(dir),
-			secrets: new Map([[descriptor.secretRef, JSON.parse(silo.secrets.get(descriptor.secretRef)!)]]),
+			secrets: new Map([[descriptor!.secretRef, JSON.parse(silo.secrets.get(descriptor!.secretRef)!)]]),
 		});
 		expect(view.credentialFor("github-copilot")).toMatchObject({ kind: "found" });
 		expect(view.legacyAccounts).toEqual([]);

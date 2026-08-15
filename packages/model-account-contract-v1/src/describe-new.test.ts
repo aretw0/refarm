@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { describeNewCredential, nextFreeAlias } from "./describe-new.js";
+import {
+	describeNewCredential,
+	isIndistinguishableAccount,
+	nextFreeAlias,
+} from "./describe-new.js";
 import { credentialSecretLocation } from "./secret-location.js";
 import type { ModelAccountDescriptor } from "./types.js";
 
@@ -42,7 +46,7 @@ describe("describeNewCredential", () => {
 	const base = { provider: "github-copilot", secretDigest: "sha256:abc", existing: [] };
 
 	it("puts the secret in the MODEL NAMESPACE, keyed by the opaque id", () => {
-		const descriptor = describeNewCredential({ ...base, accountId: "acct-1" });
+		const descriptor = describeNewCredential({ ...base, accountId: "acct-1" }) as ModelAccountDescriptor;
 		expect(credentialSecretLocation(descriptor)).toEqual({
 			kind: "namespaced",
 			namespace: "model",
@@ -96,5 +100,61 @@ describe("describeNewCredential", () => {
 		const after = describeNewCredential({ ...base, accountId: "a", secretDigest: "sha256:2" });
 		expect(after.revision).not.toBe(before.revision);
 		expect(after.credentialId).toBe(before.credentialId);
+	});
+});
+
+describe("describeNewCredential — an unknown account is not the same account", () => {
+	const stored: ModelAccountDescriptor = {
+		credentialId: "model-account:AAAAAAAAAAAAAAAAAAAAAAAAAA",
+		provider: "github-copilot",
+		alias: "pessoal",
+		identity: { status: "unverified" },
+		secretRef: "model/model-account:AAAAAAAAAAAAAAAAAAAAAAAAAA",
+		health: "healthy",
+		revision: "sha256:r1",
+	};
+
+	it("stores a FIRST credential with no account id, because nothing can collide", () => {
+		const result = describeNewCredential({
+			provider: "github-copilot",
+			existing: [],
+			secretDigest: "sha256:a",
+		});
+		expect(isIndistinguishableAccount(result)).toBe(false);
+	});
+
+	it("REFUSES a second one, instead of replacing what is stored", () => {
+		// Measured on the operator's node 2026-08-15. The Copilot adapter did not read an account id,
+		// so both of his logins seeded the same opaque id and the second replaced the first —
+		// silently, because with one entry in the catalog nothing counted as a sibling.
+		const result = describeNewCredential({
+			provider: "github-copilot",
+			existing: [stored],
+			secretDigest: "sha256:b",
+		});
+		expect(isIndistinguishableAccount(result)).toBe(true);
+		expect((result as { reason: string }).reason).toMatch(/did not say which account/u);
+		expect((result as { existingAliases: string[] }).existingAliases).toEqual(["pessoal"]);
+	});
+
+	it("does not refuse when the account IS known, even with siblings present", () => {
+		expect(
+			isIndistinguishableAccount(
+				describeNewCredential({
+					provider: "github-copilot",
+					accountId: "corporativa",
+					existing: [stored],
+					secretDigest: "sha256:c",
+				}),
+			),
+		).toBe(false);
+	});
+
+	it("does not refuse for a DIFFERENT provider with no id, because there is nothing to collide with", () => {
+		expect(
+			isIndistinguishableAccount(
+				describeNewCredential({ provider: "kimi-api", existing: [stored], secretDigest: "sha256:d" }),
+			),
+		).toBe(false);
 	});
 });

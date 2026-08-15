@@ -75,6 +75,20 @@ export function copilotApiBaseUrl(
 	return { kind: "assumed-individual", baseUrl: "https://api.individual.githubcopilot.com" };
 }
 
+/**
+ * WHICH ACCOUNT THIS TOKEN BELONGS TO, from the token itself.
+ *
+ * Measured on the operator's node 2026-08-15: a Copilot token carries `tid=` — 32 characters that
+ * differ per account — alongside `sku`, `exp`, `proxy-ep` and the feature flags. Without reading it,
+ * every Copilot credential looked like the same account, and his second login replaced his first.
+ *
+ * `null` means the token did not carry one, which is NOT "the same account as before". The contract
+ * refuses to store a second indistinguishable credential rather than guess.
+ */
+export function copilotAccountId(token: string): string | null {
+	return parseCopilotTokenFields(token).get("tid") ?? null;
+}
+
 /** The moment to renew at, from the exchange's `expires_at` (seconds). */
 export function copilotRefreshMargin(expiresAtSeconds: number): number {
 	return expiresAtSeconds * 1000 - REFRESH_MARGIN_MS;

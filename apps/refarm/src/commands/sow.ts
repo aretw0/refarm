@@ -398,13 +398,13 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 							credentials: credential.oauthCredentials as unknown as Record<string, unknown>,
 							...(opts.alias ? { alias: opts.alias } : {}),
 						});
-						if (written.refusal) {
+						if (written.refusal || !written.descriptor) {
 							emitCommandRefusal({
 								command: "sow",
 								operation: "credentials",
 								options: opts,
 								error: "sow-cannot-store-namespaced-credential",
-								message: written.refusal,
+								message: written.refusal ?? "the credential could not be stored",
 								nextAction: "Update refarm so its credential store can hold namespaced secrets.",
 								nextCommands: [MODEL_CURRENT_JSON_COMMAND],
 							});

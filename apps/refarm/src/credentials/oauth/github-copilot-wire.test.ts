@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	copilotAccountId,
 	copilotApiBaseUrl,
 	copilotRefreshMargin,
 	parseCopilotTokenFields,
@@ -57,6 +58,20 @@ describe("copilotApiBaseUrl", () => {
 			kind: "assumed-individual",
 			baseUrl: "https://api.individual.githubcopilot.com",
 		});
+	});
+});
+
+describe("copilotAccountId", () => {
+	it("reads `tid`, which is what distinguishes two accounts of one operator", () => {
+		// Measured 2026-08-15: without this, both of the operator's Copilot logins produced the same
+		// opaque credential id and the second replaced the first, silently.
+		expect(copilotAccountId("tid=abc123;sku=x;proxy-ep=proxy.y.com")).toBe("abc123");
+	});
+
+	it("returns null when the token carries none, which is NOT sameness", () => {
+		// The contract refuses to store a second indistinguishable credential rather than guess, so
+		// this must report absence honestly instead of inventing a stable-looking value.
+		expect(copilotAccountId("opaque-blob")).toBeNull();
 	});
 });
 

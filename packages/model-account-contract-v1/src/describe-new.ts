@@ -33,6 +33,29 @@ export function nextFreeAlias(
 	}
 }
 
+/**
+ * Refused when the provider gave no account id AND this provider already holds an account.
+ *
+ * The caller must be able to tell this apart from a normal write, because the alternative is what
+ * it replaced: falling back to a fixed seed made "I cannot tell which account this is" produce the
+ * SAME opaque id as the account already stored, and the second login silently replaced the first.
+ * Measured on the operator's node 2026-08-15, after he added two GitHub Copilot accounts and found
+ * one.
+ */
+export interface IndistinguishableAccount {
+	readonly refused: true;
+	readonly provider: string;
+	readonly reason: string;
+	readonly existingAliases: readonly string[];
+}
+
+/** PURE. Whether `describeNewCredential` refused rather than described. */
+export function isIndistinguishableAccount(
+	value: ModelAccountDescriptor | IndistinguishableAccount,
+): value is IndistinguishableAccount {
+	return (value as IndistinguishableAccount).refused === true;
+}
+
 export interface DescribeNewCredentialInput {
 	readonly provider: string;
 	/** The provider's own account identifier, when its token carried one. */
@@ -44,8 +67,34 @@ export interface DescribeNewCredentialInput {
 	readonly secretDigest: string;
 }
 
-/** PURE. The catalog entry for a credential that has just been obtained. */
-export function describeNewCredential(input: DescribeNewCredentialInput): ModelAccountDescriptor {
+/**
+ * PURE. The catalog entry for a credential that has just been obtained, or a refusal.
+ *
+ * ABSENCE OF AN ACCOUNT ID IS NOT SAMENESS. A first credential for a provider may be stored without
+ * one — nothing is at risk, there is nothing to collide with. A SECOND cannot: without an id there
+ * is no way to tell a re-login of the stored account from a different account, and both answers are
+ * destructive if guessed. Guessing "same" replaces a working credential; guessing "different" would
+ * need an id this function does not have.
+ *
+ * The alias is not a substitute. It is operator-chosen and renameable, and seeding the opaque id
+ * from it would break the one guarantee the id exists for: that a rename leaves every binding
+ * pointing where it did.
+ */
+export function describeNewCredential(
+	input: DescribeNewCredentialInput,
+): ModelAccountDescriptor | IndistinguishableAccount {
+	const siblings = input.existing.filter((entry) => entry.provider === input.provider);
+	if (!input.accountId && siblings.length > 0) {
+		return {
+			refused: true,
+			provider: input.provider,
+			reason:
+				`${input.provider} did not say which account this credential belongs to, and this node already ` +
+				`holds ${siblings.length} for it. Storing it would either replace one of them or duplicate it, ` +
+				`and nothing here can tell which.`,
+			existingAliases: siblings.map((entry) => entry.alias),
+		};
+	}
 	// SEEDED BY THE ACCOUNT, never by the alias or the moment. A re-login of the same account must
 	// produce the same id so it replaces its own entry instead of accumulating one per login, and a
 	// rename must not move it or every binding pointing at it breaks.
