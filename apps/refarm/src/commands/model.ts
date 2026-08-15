@@ -7,6 +7,7 @@ import {
 	credentialSecretLocation,
 	readCredentialAt,
 	readLegacyCredentials,
+	type AccountView,
 } from "@refarm.dev/model-account-contract-v1";
 import { isContainer as detectContainerRuntime, fetchWithTimeout } from "@refarm.dev/root";
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
@@ -343,6 +344,40 @@ function shellQuote(value: string): string {
 
 /** Compute the ordered model runtime env entries (no I/O). Shared by the shell
  * printer and the `env` envelope so both surface the exact same variables. */
+/**
+ * Why a credential can be absent, when it is not simply missing.
+ *
+ * `buildModelEnvEntries` exports variables; it has no way to say "there IS a credential and I will
+ * not choose between two of them". Measured on the operator's node 2026-08-15: with two eligible
+ * GitHub Copilot accounts, `model env --include-secrets` printed provider and model and omitted the
+ * token in silence, while `credential current` refused correctly and exited 1. The surface that
+ * feeds a dispatch was the one that stayed quiet.
+ */
+export function modelEnvCredentialNotice(
+	view: AccountView | undefined,
+	provider: string | undefined,
+): string | null {
+	if (!view || !provider) return null;
+	const found = view.credentialFor(provider);
+	switch (found.kind) {
+		case "found":
+		case "none":
+			// `none` is already legible everywhere else — the operator is told to log in. Repeating it
+			// here would add noise to the common first-run case.
+			return null;
+		case "ambiguous":
+			return (
+				`model_credential_ambiguous: ${found.candidates.length} ${provider} accounts are eligible and ` +
+				`nothing said which to use, so NO credential was exported. Bind one to a workspace: ` +
+				found.candidates.map((c) => `refarm credential bind <workspace> ${c.credentialId}`).join(" | ")
+			);
+		case "incomplete":
+			return `${provider} account "${found.descriptor.alias}" is missing its secret, so no credential was exported. Repair or forget it: refarm credential list`;
+		case "unreadable":
+			return `the ${provider} credential store could not be consulted (${found.reason}), so no credential was exported.`;
+	}
+}
+
 function buildModelEnvEntries(
 	tokens: ModelTokens,
 	options: { includeSecrets?: boolean } = {},
@@ -404,9 +439,15 @@ function buildModelEnvEntries(
  * surface is rendered by the env renderText hook via formatModelEnvFromEnvelope. */
 export function buildModelEnvEnvelope(
 	tokens: ModelTokens,
-	options: { includeSecrets?: boolean } = {},
+	options: { includeSecrets?: boolean; view?: AccountView } = {},
 ) {
 	const entries = buildModelEnvEntries(tokens, options);
+	// THE SILENCE, MADE AUDIBLE. Carried beside the entries rather than folded into them: an env map
+	// can only say what IS exported, and the operator needs to know why something is not.
+	const credentialNotice = modelEnvCredentialNotice(
+		options.view,
+		buildCurrentModelStatus(tokens).current.provider,
+	);
 	const env: Record<string, string> = {};
 	for (const [key, value] of entries) {
 		env[key] = value;
@@ -418,6 +459,7 @@ export function buildModelEnvEnvelope(
 		extra: {
 			env,
 			managedKeys,
+			...(credentialNotice ? { credentialNotice } : {}),
 			[REFARM_MANAGED_MODEL_ENV_KEYS]: managedKeys.join(","),
 		},
 		nextCommand: MODEL_CURRENT_JSON_COMMAND,

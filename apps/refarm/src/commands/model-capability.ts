@@ -3,8 +3,11 @@ import type {
 	CapabilityGroup,
 	CapabilityGroupResolution,
 } from "@refarm.dev/capabilities";
+import type { AccountView } from "@refarm.dev/model-account-contract-v1";
+import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 
+import { type AccountViewSilo, loadAccountView } from "../credentials/account-view-loader.js";
 import { parseModelScope } from "../model-routing.js";
 import { type CapabilitySurfaceHooks, renderCapabilityError } from "./capability-commander.js";
 import {
@@ -148,8 +151,24 @@ export function createModelCapabilityGroup(
 			},
 		],
 		async run(input) {
+			// THE VIEW IS BUILT HERE, where I/O is allowed, and handed to a pure builder. It is what
+			// lets the envelope say WHY a credential is absent instead of omitting it in silence —
+			// measured 2026-08-15 with two eligible Copilot accounts.
+			//
+			// A view that cannot be loaded is left undefined rather than guessed at: the entries are
+			// still correct, and the notice simply has nothing to add.
+			let view: AccountView | undefined;
+			try {
+				view = await loadAccountView({
+					home: process.env.HOME ?? "",
+					silo: new SiloCore() as unknown as AccountViewSilo,
+				});
+			} catch {
+				view = undefined;
+			}
 			return buildModelEnvEnvelope(await deps.loadTokens(), {
 				includeSecrets: Boolean(input.options["include-secrets"]),
+				...(view ? { view } : {}),
 			});
 		},
 	};
