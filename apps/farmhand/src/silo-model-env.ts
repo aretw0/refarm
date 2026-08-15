@@ -148,19 +148,33 @@ export function createSiloModelEnvInjector(options: SiloModelEnvInjectorOptions)
 				const credentialProviderMatchesRoute =
 					!routeProviderOverridden || effectiveProvider === provider;
 
-				if (oauthProvider && credentialProviderMatchesRoute) {
-					const creds = oauthCredentialsFor(tokens, oauthProvider);
+				// WHICHEVER PROVIDER ACTUALLY HAS A CREDENTIAL, asked of the credentials rather than of a
+				// pointer beside them.
+				//
+				// The route's provider comes first: `model set` clears `oauthProvider` on any provider
+				// change, so a node switched back to a provider whose credential is sitting right there
+				// had it made unreachable — measured 2026-08-15, the injector exported nothing and said
+				// nothing.
+				//
+				// `oauthProvider` remains the FALLBACK, and that is a real case rather than politeness:
+				// a subscription login records it, and a route still naming a keyed provider should
+				// dispatch through the subscription that was actually authenticated. Preferring the
+				// route unconditionally would have broken that, which is what its test caught.
+				const credentialProvider =
+					provider && oauthCredentialsFor(tokens, provider) ? provider : (oauthProvider ?? provider);
+				if (credentialProvider && credentialProviderMatchesRoute) {
+					const creds = oauthCredentialsFor(tokens, credentialProvider);
 					if (creds) {
 						let effectiveCreds = creds;
 						if (Date.now() >= creds.expires && options.refreshOAuthToken) {
-							const refreshed = await options.refreshOAuthToken(oauthProvider, creds);
+							const refreshed = await options.refreshOAuthToken(credentialProvider, creds);
 							if (refreshed) {
 								effectiveCreds = refreshed;
 								// WRITES BACK WHERE IT READ FROM. The location is resolved once, from the
 								// same descriptor the read used, rather than rebuilt from the provider
 								// name — a refreshed credential must not migrate stores just because it
 								// was renewed.
-								const location = credentialLocationFor(tokens, oauthProvider);
+								const location = credentialLocationFor(tokens, credentialProvider);
 								if (location?.kind === "legacy") {
 									const allOAuth =
 										tokens.oauthCredentials && typeof tokens.oauthCredentials === "object"
@@ -184,20 +198,20 @@ export function createSiloModelEnvInjector(options: SiloModelEnvInjectorOptions)
 									// login writes a namespaced credential, and it exists now so that the
 									// writer's arrival is not also the arrival of a silent second copy.
 									warn(
-										`[farmhand] refreshed ${oauthProvider} credential is not stored in the flat token map; leaving it to the owner of its store`,
+										`[farmhand] refreshed ${credentialProvider} credential is not stored in the flat token map; leaving it to the owner of its store`,
 									);
 								}
 							} else {
-								warn(`[farmhand] OAuth token refresh failed for ${oauthProvider} - agent may fail`);
+								warn(`[farmhand] OAuth token refresh failed for ${credentialProvider} - agent may fail`);
 								return;
 							}
 						}
-						if (oauthProvider && !routeProviderOverridden && provider !== oauthProvider) {
-							setManagedEnv(MODEL_PROVIDER_ENV_VAR, oauthProvider);
+						if (credentialProvider && !routeProviderOverridden && provider !== credentialProvider) {
+							setManagedEnv(MODEL_PROVIDER_ENV_VAR, credentialProvider);
 						}
-						const envKey = modelCredentialEnvKey(oauthProvider);
+						const envKey = modelCredentialEnvKey(credentialProvider);
 						if (envKey) setManagedEnv(envKey, effectiveCreds.access);
-						if (oauthProvider === "openai-codex" && effectiveCreds.accountId) {
+						if (credentialProvider === "openai-codex" && effectiveCreds.accountId) {
 							setManagedEnv("OPENAI_CODEX_ACCOUNT_ID", effectiveCreds.accountId);
 						}
 						return;

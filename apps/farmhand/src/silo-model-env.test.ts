@@ -271,4 +271,25 @@ describe("createSiloModelEnvInjector", () => {
 			},
 		});
 	});
+
+	it("finds the route's credential even when `oauthProvider` was cleared", async () => {
+		// MEASURED ON THE OPERATOR'S NODE, 2026-08-15. `refarm model set` clears `oauthProvider`
+		// whenever the provider changes, so after switching back to openai-codex his credential — in
+		// the token map the whole time — became unreachable: no credential exported, and nothing said.
+		// The pointer duplicated what the credentials already say, and duplicated information can
+		// disagree with reality.
+		const env: NodeJS.ProcessEnv = {};
+		const store = {
+			loadTokens: async () => ({
+				modelProvider: "openai-codex",
+				// oauthProvider deliberately absent, exactly as `model set` leaves it
+				oauthCredentials: {
+					"openai-codex": { access: "tok", refresh: "r", expires: Date.now() + 60_000 },
+				},
+			}),
+			saveTokens: vi.fn(),
+		};
+		await createSiloModelEnvInjector({ store, env }).inject();
+		expect(env.OPENAI_CODEX_ACCESS_TOKEN).toBe("tok");
+	});
 });

@@ -308,7 +308,15 @@ function runtimeOAuthCredential(
 	provider: string | undefined,
 	tokens: ModelTokens,
 ): RuntimeOAuthCredential | null {
-	if (!provider || tokens.oauthProvider !== provider) return null;
+	// NO `oauthProvider` GATE. It was a pointer beside the credentials that duplicated what they
+	// already say, and duplicated information can disagree with reality — measured on the operator's
+	// node 2026-08-15: `refarm model set` clears `oauthProvider` whenever the provider changes, so
+	// switching back to a provider whose credential was sitting right there in the map made it
+	// unreachable, and the injector exported nothing while reporting nothing.
+	//
+	// The lookup below is already BY PROVIDER, which is the credential answering for itself. Asking
+	// a pointer as well could only ever subtract.
+	if (!provider) return null;
 	const descriptor = readLegacyCredentials(tokens as Record<string, unknown>).find(
 		(account) => account.provider === provider,
 	);
