@@ -7,6 +7,7 @@ import { buildReleaseCheckPlan } from "../release-check.mjs";
 const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SCHEMA_VERSION = 1;
 const CONSUMER_READY = "consumer-ready";
+const REQUIREMENTS_SUPPLY = "requirements-supply";
 
 const FORBIDDEN_OPENING_PATTERNS = [
 	/\bRefarm platform\b/,
@@ -319,6 +320,16 @@ function auditSourceHolds(profiles, policyText, issues) {
 	}
 }
 
+// MEMBERSHIP IS DERIVED, PROOF IS DECLARED, and the split is the whole point.
+//
+// This walked a hardcoded list of three names until 2026-08-16, while the profile had four
+// members. `@refarm.dev/content-projection` was audited by NOTHING — the hold rule below never
+// ran against the one package actually on hold. Deriving membership from the tag closes that by
+// construction: a new member is audited the moment it joins.
+//
+// `CONSUMER_PROVEN_REQUIREMENTS_SUPPLY_PACKAGES` stays an explicit declaration on purpose. It is
+// the audit's EXTERNAL anchor — the thing the config must agree with. Derive it from the same
+// tags this function audits and the check becomes a tautology that can never fail.
 function auditRequirementsSupplyHolds(profiles, issues) {
 	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
 	const selected = new Set(
@@ -326,11 +337,11 @@ function auditRequirementsSupplyHolds(profiles, issues) {
 			.filter((profile) => profile.tags?.includes(CONSUMER_READY))
 			.map((profile) => profile.id),
 	);
-	for (const packageName of [
-		"@refarm.dev/source-web",
-		"@refarm.dev/enrichment-contract-v1",
-		"@refarm.dev/records-contract-v1",
-	]) {
+	const members = profiles
+		.filter((profile) => profile.tags?.includes(REQUIREMENTS_SUPPLY))
+		.map((profile) => profile.id);
+	const audited = new Set([...members, ...CONSUMER_PROVEN_REQUIREMENTS_SUPPLY_PACKAGES]);
+	for (const packageName of audited) {
 		const profile = byId.get(packageName);
 		if (!profile) {
 			issues.push(issue({
@@ -383,6 +394,7 @@ function auditRequirementsSupplyHolds(profiles, issues) {
 			}));
 		}
 	}
+	return [...audited];
 }
 
 export function buildReleaseBoundaryAudit({ root = DEFAULT_ROOT } = {}) {
@@ -403,7 +415,7 @@ export function buildReleaseBoundaryAudit({ root = DEFAULT_ROOT } = {}) {
 	auditSelectedPackageNaming(root, profiles, issues);
 	auditSelectedLeaves(profiles, configText, issues);
 	auditSourceHolds(profiles, configText, issues);
-	auditRequirementsSupplyHolds(profiles, issues);
+	const requirementsSupplyAudited = auditRequirementsSupplyHolds(profiles, issues);
 
 	if (!releaseCheck.ok) {
 		issues.push(issue({
@@ -425,6 +437,7 @@ export function buildReleaseBoundaryAudit({ root = DEFAULT_ROOT } = {}) {
 		selectionId: CONSUMER_READY,
 		auditedPackageCount: selectedPackages.length,
 		auditedPackages: selectedPackages,
+		requirementsSupplyAudited,
 		issueCount: issues.length,
 		issues,
 	};
