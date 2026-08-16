@@ -11,10 +11,14 @@
 //! CREATE TABLE crdt_log   -- Triple-based Op-Log (ADR-028)
 //! ```
 //!
-//! Database file path:
-//!   Linux/macOS: ~/.local/share/refarm/{namespace}.db
-//!   Windows:     %APPDATA%\refarm\{namespace}.db
+//! Database file path — THE GRAPH FOLLOWS THE DECLARED NODE (see `graph_base`):
+//!   Declared:    <XDG_DATA_HOME | REFARM_HOME/data | SOVEREIGN_BASE/SOVEREIGN_DIR/data>/refarm/{namespace}.db
+//!   Undeclared:  ~/.local/share/refarm/{namespace}.db  (unix) — logged, not silent
+//!                %APPDATA%\refarm\{namespace}.db      (windows)
 //!   Ephemeral:   :memory:
+//!
+//! This header used to name ONLY the undeclared path, and ISS-123 records the consequence: a
+//! backup guided by this doc saved the wrong `default.db` and reported success.
 
 use anyhow::{Context, Result};
 use rusqlite::{params, Connection};
@@ -184,13 +188,25 @@ impl NativeStorage {
     /// Open (or create) a storage database.
     ///
     /// - `:memory:` → ephemeral in-process database
-    /// - any other string → `~/.local/share/refarm/{namespace}.db`
+    /// - any other string → `<graph base>/refarm/{namespace}.db`, where the graph base comes
+    ///   from the node's declaration rather than the OS — see [`graph_base`]
     pub fn open(namespace: &str) -> Result<Self> {
         let conn = if namespace == ":memory:" {
             Connection::open_in_memory().context("open in-memory SQLite")?
         } else {
             let dir = db_dir()?;
             std::fs::create_dir_all(&dir).with_context(|| format!("create db dir {dir:?}"))?;
+            if let Some(orphan) = legacy_graph_dir()
+                .and_then(|legacy| orphaned_legacy_graph(&dir, namespace, &legacy, |p| p.exists()))
+            {
+                tracing::warn!(
+                    orphan = %orphan.display(),
+                    graph = %dir.display(),
+                    "a database for this namespace also exists at the legacy graph location; \
+                     nothing merges the two, and `refarm backup plan` carries both because it \
+                     cannot tell which is live",
+                );
+            }
             let path = dir.join(format!("{namespace}.db"));
             tracing::debug!(path = %path.display(), "Opening SQLite database");
             Connection::open(&path).with_context(|| format!("open SQLite at {path:?}"))?
@@ -577,23 +593,121 @@ fn generate_peer_id() -> u64 {
     }
 }
 
-/// Resolve the platform-appropriate database directory.
+/// A trimmed, non-empty environment variable, or `None`. An empty string is an ABSENT
+/// declaration, not a declaration of the empty path — the same reading `dirs_sovereign_base`
+/// (main.rs:769) applies to REFARM_HOME.
+fn declared_env(key: &str) -> Option<std::path::PathBuf> {
+    let value = std::env::var(key).ok()?;
+    let trimmed = value.trim();
+    (!trimmed.is_empty()).then(|| std::path::PathBuf::from(trimmed))
+}
+
+/// Resolve the database directory FROM THE NODE'S DECLARATION.
+///
+/// This used to read `XDG_DATA_HOME` and fall back to `~/.local/share`, which meant the graph
+/// never once consulted the node it belongs to. The daemon is TOLD where its node lives —
+/// `--refarm-dir` arrives on its own argv and main.rs:431 resolves it — and the graph ignored
+/// that entirely. Whenever `XDG_DATA_HOME` happened to be unset, a SECOND database appeared for
+/// the same namespace, silently, with nothing reporting the split.
+///
+/// It is not hypothetical. On 2026-08-05 the operator's machine grew
+/// `~/.local/share/refarm/default.db` beside its live `~/.refarm/data/refarm/default.db`: 21
+/// nodes, two dispatches with their own budget observations, invisible to the node that believed
+/// it held the record. `refarm backup plan` carried BOTH and could not say which was live.
+///
+/// Same family as ISS-023 (`config_node.rs` declared_base) and ISS-050 (storage-fs scopeRoot),
+/// both closed: a resolver asking the OS instead of reading the declaration.
 fn db_dir() -> Result<std::path::PathBuf> {
+    Ok(graph_base()?.join("refarm"))
+}
+
+/// The graph location this node used before its graph followed the declaration — `~/.local/share`
+/// on unix, `%APPDATA%` on windows — or `None` when the OS reports no home.
+fn legacy_graph_dir() -> Option<std::path::PathBuf> {
     let base = if cfg!(windows) {
-        std::env::var("APPDATA")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|_| std::path::PathBuf::from("."))
+        declared_env("APPDATA")
     } else {
-        // XDG_DATA_HOME takes precedence; fall back to ~/.local/share
-        std::env::var("XDG_DATA_HOME")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|_| {
-                std::env::var("HOME")
-                    .map(|h| std::path::PathBuf::from(h).join(".local/share"))
-                    .unwrap_or_else(|_| std::path::PathBuf::from("."))
-            })
+        dirs::home_dir().map(|home| home.join(".local/share"))
     };
-    Ok(base.join("refarm"))
+    base.map(|base| base.join("refarm"))
+}
+
+/// PURE. The same-namespace database left at the legacy location, when this node's graph
+/// resolved somewhere else. `exists` is injected so the judgement is testable without a
+/// filesystem; [`NativeStorage::open`] supplies the real probe.
+///
+/// It WARNS rather than refuses, and that is ISS-072's rule rather than timidity: a gate blocks
+/// only what the agent can fix. The declaration defect is fixed in [`graph_base`] and cannot
+/// recur; what remains is a FILE, and whether to carry, merge or discard it is the operator's
+/// call — not a reason to refuse to start his node.
+fn orphaned_legacy_graph(
+    resolved_dir: &std::path::Path,
+    namespace: &str,
+    legacy_dir: &std::path::Path,
+    exists: impl Fn(&std::path::Path) -> bool,
+) -> Option<std::path::PathBuf> {
+    if resolved_dir == legacy_dir {
+        return None;
+    }
+    let candidate = legacy_dir.join(format!("{namespace}.db"));
+    exists(&candidate).then_some(candidate)
+}
+
+fn graph_base() -> Result<std::path::PathBuf> {
+    // 1. XDG_DATA_HOME — an EXPLICIT declaration, and it still wins. `scripts/refarm-sandbox.mjs`
+    //    points the graph at a SIBLING of its REFARM_HOME on purpose (`<base>/share` beside
+    //    `<base>/refarm`); that is one of the seven axes that make the sandbox a real second
+    //    node, and `refarm parity` reads declared divergence as healthy. Forcing the graph under
+    //    REFARM_HOME here would silently collapse the lab into the node it exists to isolate.
+    if let Some(path) = declared_env("XDG_DATA_HOME") {
+        return Ok(path);
+    }
+
+    // 2. REFARM_HOME — the node's own directory. `scripts/tractor-start.sh:85` derives
+    //    XDG_DATA_HOME as `$REFARM_HOME/data`, so this reproduces the launcher's own answer for
+    //    every caller the launcher did not start. That gap is where the orphan came from.
+    if let Some(path) = declared_env("REFARM_HOME") {
+        return Ok(path.join("data"));
+    }
+
+    // 3. SOVEREIGN_BASE + SOVEREIGN_DIR — the same chain the other half of the node walks, so
+    //    both halves answer alike rather than merely happening to agree today.
+    if let Some(dir) = declared_env("SOVEREIGN_DIR") {
+        if let Some(base) = declared_env("SOVEREIGN_BASE").or_else(dirs::home_dir) {
+            return Ok(base.join(dir).join("data"));
+        }
+    }
+
+    // 4. NOTHING DECLARES A NODE. The platform default is legitimate for a standalone binary —
+    //    it is the XDG location, not an invention — but it is also exactly the state that
+    //    produced the orphan, so it names itself instead of happening quietly.
+    let platform_default = if cfg!(windows) {
+        declared_env("APPDATA")
+    } else {
+        dirs::home_dir().map(|home| home.join(".local/share"))
+    };
+
+    match platform_default {
+        Some(base) => {
+            tracing::warn!(
+                base = %base.display(),
+                "no node declared (XDG_DATA_HOME, REFARM_HOME, SOVEREIGN_DIR all unset); \
+                 opening the graph at the platform default — a node started later with a \
+                 declaration will NOT see anything written here",
+            );
+            Ok(base)
+        }
+        // 5. REFUSE. The previous code answered `PathBuf::from(".")` here, which opened the
+        //    node's graph relative to whatever directory a shell last cd-ed to — the
+        //    node-vs-directory defect in its purest form. A graph that cannot say where it
+        //    belongs must not invent a home; refusing is the behaviour ISS-023 settled on for
+        //    the same question one resolver over.
+        None => anyhow::bail!(
+            "cannot resolve where this node's graph lives: XDG_DATA_HOME, REFARM_HOME and \
+             SOVEREIGN_DIR are all unset and the OS reports no home directory. Declare one \
+             rather than letting the graph open relative to the current directory."
+        ),
+    }
 }
 
 #[cfg(test)]
@@ -1037,6 +1151,124 @@ mod tests {
                 "reserved {reserved} must be regenerated"
             );
         }
+    }
+
+    /// Restores every graph-declaration variable this module reads, so one test's
+    /// environment cannot leak into the next. Paired with `env_lock`.
+    struct GraphEnvGuard {
+        saved: Vec<(&'static str, Option<String>)>,
+    }
+
+    impl GraphEnvGuard {
+        fn take() -> Self {
+            let keys = ["XDG_DATA_HOME", "REFARM_HOME", "SOVEREIGN_BASE", "SOVEREIGN_DIR"];
+            let saved = keys.iter().map(|k| (*k, std::env::var(k).ok())).collect();
+            for key in keys {
+                std::env::remove_var(key);
+            }
+            Self { saved }
+        }
+    }
+
+    impl Drop for GraphEnvGuard {
+        fn drop(&mut self) {
+            for (key, value) in &self.saved {
+                match value {
+                    Some(v) => std::env::set_var(key, v),
+                    None => std::env::remove_var(key),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_same_namespace_graph_at_the_legacy_default_is_named_not_swallowed() {
+        // THE TRIPWIRE, and it WARNS rather than refuses on purpose. ISS-072 settled the rule on
+        // 2026-08-08: a gate blocks only what the agent can fix. The declaration defect is fixed
+        // above and cannot recur; a database already sitting at the old location is a FILE, and
+        // what to do with it — carry it, merge it, discard it — is the operator's call, not a
+        // reason to refuse to start his node.
+        let legacy = std::path::PathBuf::from("/home/op/.local/share/refarm");
+        let declared = std::path::PathBuf::from("/home/op/.refarm/data/refarm");
+
+        assert_eq!(
+            orphaned_legacy_graph(&declared, "default", &legacy, |_| true),
+            Some(legacy.join("default.db")),
+            "a same-namespace database outside the resolved graph is reported",
+        );
+
+        assert_eq!(
+            orphaned_legacy_graph(&declared, "default", &legacy, |_| false),
+            None,
+            "no file, nothing to report",
+        );
+
+        // The node whose graph ALREADY resolves to the legacy location is not diverging from
+        // anything — it is simply an undeclared node, which step 4 of `graph_base` already names.
+        assert_eq!(
+            orphaned_legacy_graph(&legacy, "default", &legacy, |_| true),
+            None,
+            "the legacy path IS this node's graph; there is no second copy",
+        );
+    }
+
+    #[test]
+    fn db_dir_follows_the_declared_node_when_xdg_is_unset() {
+        // THE DEFECT THIS PINS. The daemon is TOLD where its node lives — `--refarm-dir` is on
+        // its own argv and main.rs:431 resolves it — and this function used to ignore that
+        // entirely, reading XDG_DATA_HOME or falling back to ~/.local/share. On 2026-08-05 that
+        // produced a SECOND database for the `default` namespace on the operator's machine: 21
+        // nodes including two dispatches with their own budget observations, invisible to the
+        // node that believed it held the record.
+        //
+        // `scripts/tractor-start.sh:85` derives XDG_DATA_HOME as `$REFARM_HOME/data`, so this is
+        // the launcher's own answer, reproduced for every caller the launcher did not start.
+        let _guard = crate::test_support::env_lock();
+        let _env = GraphEnvGuard::take();
+
+        std::env::set_var("REFARM_HOME", "/declared/node/.refarm");
+
+        assert_eq!(
+            db_dir().unwrap(),
+            std::path::PathBuf::from("/declared/node/.refarm/data/refarm"),
+        );
+    }
+
+    #[test]
+    fn db_dir_honours_an_explicitly_declared_xdg_data_home() {
+        // DECLARED DIVERGENCE STAYS LEGAL. `scripts/refarm-sandbox.mjs` points the graph at a
+        // SIBLING of its REFARM_HOME (`<base>/share` beside `<base>/refarm`) on purpose — that
+        // is one of the seven axes that make the sandbox a real second node, and `refarm parity`
+        // treats declared divergence as healthy rather than broken. A resolver that forced the
+        // graph under REFARM_HOME would silently collapse the lab into the node it isolates.
+        let _guard = crate::test_support::env_lock();
+        let _env = GraphEnvGuard::take();
+
+        std::env::set_var("REFARM_HOME", "/sandbox/refarm");
+        std::env::set_var("XDG_DATA_HOME", "/sandbox/share");
+
+        assert_eq!(
+            db_dir().unwrap(),
+            std::path::PathBuf::from("/sandbox/share/refarm"),
+            "an explicit XDG_DATA_HOME outranks the derivation",
+        );
+    }
+
+    #[test]
+    fn db_dir_walks_the_same_sovereign_chain_as_the_other_half_of_the_node() {
+        // Both halves of one node must answer alike. This mirrors `dirs_sovereign_base`
+        // (main.rs:769) step for step — SOVEREIGN_BASE joined with SOVEREIGN_DIR — so a node
+        // declared through those variables does not get a graph somewhere else.
+        let _guard = crate::test_support::env_lock();
+        let _env = GraphEnvGuard::take();
+
+        std::env::set_var("SOVEREIGN_BASE", "/srv/operator");
+        std::env::set_var("SOVEREIGN_DIR", ".refarm");
+
+        assert_eq!(
+            db_dir().unwrap(),
+            std::path::PathBuf::from("/srv/operator/.refarm/data/refarm"),
+        );
     }
 
     #[test]
