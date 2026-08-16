@@ -1489,6 +1489,18 @@
 			"package": "ci",
 			"axis": "durability",
 			"resolved_by": "a5aae8f3"
+		},
+		{
+			"id": "ISS-126",
+			"title": "A third Rust base resolver: the graph asked the OS instead of the node that owns it",
+			"body": "FOUND 2026-08-16 while closing ISS-123's named remainder (\"Resolving the duplicate namespace is\npart of closing this\").\n\n    packages/tractor/src/main.rs:431      refarm_dir = --refarm-dir | dirs_sovereign_base()\n    packages/tractor/src/storage/sqlite.rs:581  db_dir() = XDG_DATA_HOME | ~/.local/share\n\nTHE THIRD RUST BASE RESOLVER, after ISS-023 (config_node.rs declared_base) and ISS-050 (storage-fs\nscopeRoot), both closed. Same shape every time: a resolver asking the OS instead of reading the\ndeclaration. The daemon is TOLD where its node lives -- --refarm-dir is on its own argv -- and the\ngraph never consulted it. With XDG_DATA_HOME unset, a SECOND database for the same namespace\nappeared silently.\n\nTHE EVIDENCE ON THE OPERATOR'S OWN MACHINE, read read-only:\n\n    ~/.refarm/data/refarm/default.db    295KB  2026-08-15 19:46  317 nodes   LIVE\n    ~/.local/share/refarm/default.db     48KB  2026-08-05 00:06   21 nodes   ORPHAN\n\nOnly 3 of the orphan's 21 ids are also in the live graph. The other 18 are two whole dispatches --\n2 UserPrompt, 2 Task, 2 Response, 2 UsageRecord, 2 BudgetObservation -- invisible to the node that\nbelieved it held the record. All token counts are zero, so nothing was spent; what was lost is the\nrecord that they happened. The prompts were probes (\"responda apenas: ok\" and a file count under\ndocs/superpowers/specs/).\n\nTHE DATE NAMES THE CAUSE. 2026-08-05 is when the sandbox-node slice was being built, and that slice\nis the one that DOCUMENTED this behaviour (scripts/refarm-sandbox.mjs:18, \"Follows REFARM_HOME? NO\").\nThe leak it wrote down is the leak that produced the file.\n\nFIXED 2026-08-16 in c3f625e4. The chain: XDG_DATA_HOME (still wins -- the sandbox points its graph\nat a SIBLING of its REFARM_HOME on purpose, and refarm parity reads declared divergence as healthy)\n-> REFARM_HOME/data (exactly what tractor-start.sh:85 derives) -> SOVEREIGN_BASE/SOVEREIGN_DIR/data\n-> platform default WITH A WARNING -> refuse. The refusal replaces PathBuf::from(\".\"), which opened\nthe node's graph relative to whatever directory a shell last cd-ed to.\n\nA TRIPWIRE (orphaned_legacy_graph, pure, existence probe injected) warns when a same-namespace\ndatabase sits at the legacy location. It WARNS rather than blocks per ISS-072: the declaration\ndefect cannot recur, and what remains is a file whose disposition is the operator's call.\n\nTHE LIVE NODE DOES NOT MOVE, proven not hoped: the daemon runs with XDG_DATA_HOME=$REFARM_HOME/data\n(read from /proc/<pid>/environ), step 1 honours it, and a test pins that precedence.\n\nSTILL OPEN, and it is not this item: the orphan FILE itself. 18 nodes exist nowhere else. Discard\nwith a written rule, or import into the live graph -- the operator decides. Until then `refarm\nbackup plan` carries both databases, which is the safe direction and is not the same as right.",
+			"location": "packages/tractor/src/storage/sqlite.rs",
+			"status": "resolved",
+			"category": "defect",
+			"priority": "high",
+			"package": "tractor",
+			"axis": "node-vs-directory",
+			"resolved_by": "c3f625e4"
 		}
 	]
 }
