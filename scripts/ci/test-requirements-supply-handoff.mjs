@@ -40,9 +40,18 @@ after(() => {
 // consumer" and "still a candidate" in one tag list — and the honest repair was to say the true
 // thing, not to claim the false one. It carries `candidate-hold` now, and the handoff proceeds.
 //
-// So this asserts the third state rather than either of the first two: not proven, not blocking,
-// ON HOLD until a consumer actually pulls it.
-test("a member that no consumer has pulled is on HOLD, and does not block the handoff", () => {
+// RESOLVED 2026-08-16, by the fact changing rather than the claim. vault-seed's records reference
+// vault — the T3 composition proof, and the same non-test surface where `source-web` and
+// `enrichment-contract-v1` earned this tag — now structures its MD/MDX lane through
+// `projectContentToRecords`, and those records land in the same validated `records:v1` manifest as
+// the web ETL lane. So all four members are `consumer-proven` and the profile has no hold left.
+//
+// WHAT THIS TEST STOPPED COVERING, said out loud rather than discovered later: with the hold empty,
+// `candidate-hold` no longer has a live example HERE. The state is not dead — `source-git` and
+// `source-local` carry it under `auditSourceHolds` — but this profile no longer exercises the
+// middle state, and the assertion below is now a floor (nothing regressed into hold) rather than a
+// demonstration that three states exist.
+test("every member of the profile is consumer-proven, and none is on hold", () => {
 	const handoffDir = path.join(makeTempRoot(), "empty-handoff");
 	const result = buildRequirementsSupplyHandoff({
 		generatedAt: "2026-06-30T00:00:00.000Z",
@@ -55,15 +64,19 @@ test("a member that no consumer has pulled is on HOLD, and does not block the ha
 	assert.equal(result.selection.profileTag, "requirements-supply");
 	assert.equal(result.selection.scope, "all");
 
-	assert.equal(result.ok, true, "a declared hold is not a failure");
+	assert.equal(result.ok, true);
 
-	// THREE STATES, and the middle one is the point: `candidate-hold` is neither proven nor
-	// broken. A gate with only two would have to call this either a lie or a blocker.
+	// Sorted: which bucket a package lands in is the contract, the order inside a bucket is not.
+	// The previous assertion happened to be alphabetical and read as if the order meant something.
 	const byState = (state) =>
-		result.packages.filter((entry) => entry.state === state).map((entry) => entry.packageName);
-	assert.deepEqual(byState("candidate-hold"), ["@refarm.dev/content-projection"]);
+		result.packages
+			.filter((entry) => entry.state === state)
+			.map((entry) => entry.packageName)
+			.sort();
+	assert.deepEqual(byState("candidate-hold"), []);
 	assert.deepEqual(byState("blocked"), []);
 	assert.deepEqual(byState("consumer-proven"), [
+		"@refarm.dev/content-projection",
 		"@refarm.dev/enrichment-contract-v1",
 		"@refarm.dev/records-contract-v1",
 		"@refarm.dev/source-web",

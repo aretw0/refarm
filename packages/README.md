@@ -56,7 +56,7 @@ and downstream proofs exist.
 |---|---|---|
 | [`@refarm.dev/enrichment-contract-v1`](./enrichment-contract-v1) | Deterministic record/note enrichment provider contract with dry-run/apply evidence, diagnostics, and provenance | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Graph/content envelope for records, sections, relations, attachments, source references, hashes, and review state; YAML-LD codec lives at the package subpath | consumer-proven; `consumer-ready`; held |
-| [`@refarm.dev/content-projection`](./content-projection) | Markdown/MDX frontmatter, wikilink, and inline-link projection into `records:v1` records without owning acquisition or rendering | candidate; `consumer-ready`; held |
+| [`@refarm.dev/content-projection`](./content-projection) | Markdown/MDX frontmatter, wikilink, and inline-link projection into `records:v1` records without owning acquisition or rendering | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/local-surface`](./local-surface) | Local-first surface manifest, DS-backed HTML rendering, white-label launch plan, and quality report helpers without owning provider adapters or Homestead runtime | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/ds-astro`](./ds-astro) | Product-neutral Astro/MDX DS component bindings and component-map metadata without owning downstream content vocabulary | candidate; `consumer-ready`; held |
 
@@ -115,7 +115,7 @@ CLI labels, copy, notebooks, routes, and UX.
 | [`@refarm.dev/credentials-contract-v1`](./credentials-contract-v1) | `credentials:v1` issue, verify, present, wallet, and local status-list revocation seams | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/identity-heartwood`](./identity-heartwood) | Heartwood-backed Ed25519 `identity:v1` reference provider | `consumer-ready`; held |
 | [`@refarm.dev/source-web`](./source-web) | Authenticated-web replay fixture adapter over `source:v1` | consumer-proven; `consumer-ready`; held |
-| [`@refarm.dev/content-projection`](./content-projection) | Markdown/MDX projection helpers for frontmatter, wikilinks, inline links, and valid `records:v1` output | candidate; `consumer-ready`; held |
+| [`@refarm.dev/content-projection`](./content-projection) | Markdown/MDX projection helpers for frontmatter, wikilinks, inline links, and valid `records:v1` output | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/local-surface`](./local-surface) | Local-first surface manifest, DS-backed HTML rendering, white-label launch plan, and quality report helpers | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/ds-astro`](./ds-astro) | Product-neutral Astro/MDX DS component bindings and component-map metadata | candidate; `consumer-ready`; held |
 

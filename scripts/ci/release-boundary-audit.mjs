@@ -54,6 +54,13 @@ const CONSUMER_PROVEN_REQUIREMENTS_SUPPLY_PACKAGES = new Set([
 	"@refarm.dev/source-web",
 	"@refarm.dev/enrichment-contract-v1",
 	"@refarm.dev/records-contract-v1",
+	// Added 2026-08-16 by the same bar the three above meet: a consumer reaches the package from a
+	// surface that is not the contract test. vault-seed's records reference vault — the T3
+	// composition proof — now structures its MD/MDX lane through `projectContentToRecords` and
+	// lands those records in the same validated `records:v1` manifest as the web ETL lane.
+	// (ISS-113 refused this tag while the only caller was the contract test, which proved the
+	// package works and not that anything uses it.)
+	"@refarm.dev/content-projection",
 ]);
 
 function readText(root, relativePath) {

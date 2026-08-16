@@ -531,18 +531,20 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	});
 
 	assert.equal(manifest.selection.id, "consumer-ready");
-		// 22 since ISS-113: `@refarm.dev/content-projection` left the `consumer-ready` selection
-	// because NOTHING declares a dependency on it — the config was claiming "ready to hand to a
-	// consumer" and "still a candidate" in one tag list. It carries `candidate-hold` now, which is
-	// the third state: proposed, not proven, not blocking.
-	assert.equal(manifest.packages.length, 22);
+	// 23 since 2026-08-16: `@refarm.dev/content-projection` REJOINED the `consumer-ready`
+	// selection. ISS-113 held it out at 22 because nothing declared a dependency on it, and refused
+	// to stamp `consumer-proven` to make a test green. The bar its three profile peers meet is a
+	// consumer reaching the package from a surface that is NOT the contract test, and vault-seed's
+	// records reference vault now structures its MD/MDX lane through `projectContentToRecords`.
+	// The tag moved because the fact moved — not to make this number move.
+	assert.equal(manifest.packages.length, 23);
 	assert.ok(manifest.packages.some((pkg) => pkg.packageName === "@refarm.dev/health"));
 	assert.equal(manifest.consumerProofs.length, manifest.packages.length);
 	assert.ok(manifest.consumerProofs.some((proof) => proof.proofId === "health.toolchain-environment-auditor"));
 	assert.equal(manifest.distributionEvidence.state, "blocked");
 	assert.equal(manifest.distributionEvidence.availability.currentVerifiedCopies, 0);
-	assert.equal(manifest.distributionEvidence.subject.packageCount, 22);
-	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 22);
+	assert.equal(manifest.distributionEvidence.subject.packageCount, 23);
+	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 23);
 	assert.equal(manifest.releaseBoundaryAudit.ok, true);
 	assert.equal(manifest.releaseBoundaryAudit.command, "release-boundary-audit");
 	assert.equal(manifest.releaseBoundaryAudit.selectionId, "consumer-ready");

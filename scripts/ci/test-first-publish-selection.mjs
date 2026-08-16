@@ -43,11 +43,13 @@ test("plans vault-seed first-publish dry-run without version bumps", () => {
 	});
 
 	assert.equal(plan.mode, "dry-run");
-		// 22 since ISS-113: `@refarm.dev/content-projection` left the `consumer-ready` selection
-	// because NOTHING declares a dependency on it — the config was claiming "ready to hand to a
-	// consumer" and "still a candidate" in one tag list. It carries `candidate-hold` now, which is
-	// the third state: proposed, not proven, not blocking.
-	assert.equal(plan.packageCount, 22);
+	// 23 since 2026-08-16: `@refarm.dev/content-projection` REJOINED the `consumer-ready`
+	// selection. ISS-113 held it out at 22 because nothing declared a dependency on it, and refused
+	// to stamp `consumer-proven` to make a test green. The bar its three profile peers meet is a
+	// consumer reaching the package from a surface that is NOT the contract test, and vault-seed's
+	// records reference vault now structures its MD/MDX lane through `projectContentToRecords`.
+	// The tag moved because the fact moved — not to make this number move.
+	assert.equal(plan.packageCount, 23);
 	assert.equal(plan.requiredConfirmation, "publish-consumer-ready-0.1.0");
 	assert.equal(plan.packages.every((pkg) => pkg.version === "0.1.0"), true);
 	assert.equal(plan.commands.every((command) => command.display === "pnpm publish --dry-run --no-git-checks"), true);

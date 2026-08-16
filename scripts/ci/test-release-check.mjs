@@ -136,6 +136,9 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		"@refarm.dev/dispatch-surface",
 		"@refarm.dev/ds",
 		"@refarm.dev/source-web",
+		// After `records-contract-v1` (index 8), which it depends on — the order is topological,
+		// so this position is the plan proving it knows the dependency, not an arbitrary slot.
+		"@refarm.dev/content-projection",
 		"@refarm.dev/identity-heartwood",
 		"@refarm.dev/local-surface",
 		"@refarm.dev/ds-astro",
@@ -193,11 +196,13 @@ test("release check plan json exposes acceptance summary", () => {
 	assert.equal(payload.ok, true);
 	assert.equal(payload.selection.id, "consumer-ready");
 	assert.equal(payload.acceptance.status, "accepted");
-		// 22 since ISS-113: `@refarm.dev/content-projection` left the `consumer-ready` selection
-	// because NOTHING declares a dependency on it — the config was claiming "ready to hand to a
-	// consumer" and "still a candidate" in one tag list. It carries `candidate-hold` now, which is
-	// the third state: proposed, not proven, not blocking.
-	assert.equal(payload.acceptance.packageCount, 22);
+	// 23 since 2026-08-16: `@refarm.dev/content-projection` REJOINED the `consumer-ready`
+	// selection. ISS-113 held it out at 22 because nothing declared a dependency on it, and refused
+	// to stamp `consumer-proven` to make a test green. The bar its three profile peers meet is a
+	// consumer reaching the package from a surface that is NOT the contract test, and vault-seed's
+	// records reference vault now structures its MD/MDX lane through `projectContentToRecords`.
+	// The tag moved because the fact moved — not to make this number move.
+	assert.equal(payload.acceptance.packageCount, 23);
 	assert.equal(payload.acceptance.blockerCount, 0);
 	assert.equal(payload.acceptance.manualApprovalRequired, true);
 	assert.deepEqual(payload.acceptance.profileTags, ["consumer-ready"]);

@@ -210,11 +210,15 @@ test("cross-repo consumption uses the current vault-seed-ready packet", () => {
 
 test("vault-seed handoff docs distinguish historical 10-package packets from current selection", () => {
 	const currentSelection = releaseSelectionNames("consumer-ready");
-	// 22 since ISS-113: content-projection left the selection because nothing declares a
-	// dependency on it. The dated PLAN below keeps its own 23 — it records what was true then.
-	assert.equal(currentSelection.length, 22);
+	// 23 again since 2026-08-16: content-projection rejoined the selection once vault-seed's
+	// records reference vault actually consumed it. It was 23, then 22 under ISS-113's honest
+	// correction, and 23 once more — which is exactly why the doc assertion below stopped being a
+	// literal. A hardcoded `22-package` matched a doc that had gone stale and reported PASS: the
+	// number is now DERIVED from the same selection this test measures, so the doc and the config
+	// cannot disagree without failing.
+	assert.equal(currentSelection.length, 23);
 
-	assert.match(releaseGateDoc, /current\s+22-package\s+selection/);
+	assert.match(releaseGateDoc, new RegExp(`current\\s+${currentSelection.length}-package\\s+selection`));
 	assert.match(releaseGateDoc, /materialized the then-current 10-package selection/);
 	assert.match(
 		releaseGateDoc,
@@ -307,9 +311,22 @@ test("release convergence records the official downstream vault-seed proof recei
 });
 
 test("focus maps do not regress implemented quality and projection blocks to planned", () => {
-	assert.match(refarmWorkFocusDoc, /Phase 1 implemented, selected, and downstream-proven/);
+	// RATCHETED FORWARD 2026-08-16. This pinned three phrases that are now GONE from the focus doc,
+	// and each was removed for a reason the ratchet should hold rather than resist:
+	//
+	//   "Phase 1 implemented, selected, and downstream-proven"  -> the claim was FALSE. The config
+	//       said `candidate-hold` and the package's only caller anywhere was a contract test. The
+	//       pin was protecting a sentence that overstated what had been measured.
+	//   "Build the separate ds-astro render adapter over ds/html" -> that next step SHIPPED.
+	//   "vault-seed MDX inventory now supplies render pressure for ds-astro" -> superseded by the
+	//       stronger fact: vault-seed's reference vault now consumes content-projection itself.
+	//
+	// The pins below are the forward statements. A doc that walks any of them back to "planned",
+	// "pending", or "downstream-proven" fails here, which is what the ratchet is for.
+	assert.match(refarmWorkFocusDoc, /Implemented, selected, and consumer-proven/);
 	assert.match(refarmWorkFocusDoc, /inline Markdown links into valid `records:v1`/);
-	assert.match(refarmWorkFocusDoc, /Build the separate .*ds-astro.*render adapter over .*ds\/html/);
+	assert.match(refarmWorkFocusDoc, /records reference vault structures its MD\/MDX lane through it/);
+	assert.match(refarmWorkFocusDoc, /`@refarm\.dev\/ds-astro` shipped/);
 	assert.doesNotMatch(refarmWorkFocusDoc, /Content projection \/ MD-MDX authoring \| Designed, build-pending/);
 	assert.doesNotMatch(refarmWorkFocusDoc, /Let the official consumer prove the handoff/);
 
@@ -325,6 +342,8 @@ test("focus maps do not regress implemented quality and projection blocks to pla
 	assert.match(decisionLogDoc, /`ds-astro` render pressure received from `vault-seed`, package plan next/);
 	assert.doesNotMatch(decisionLogDoc, /Phase 1 implemented and selected; `ds-astro` remains render-pressure-gated/);
 	assert.doesNotMatch(decisionLogDoc, /`ds-astro` remains render-pressure-gated/);
-	assert.match(refarmWorkFocusDoc, /official `vault-seed` MDX inventory now supplies render pressure for `ds-astro`/);
+	// Superseded by the pin above: render pressure was the evidence that justified BUILDING
+	// ds-astro. ds-astro is built, and the focus row now records consumption instead of pressure.
+	assert.match(refarmWorkFocusDoc, /tarball vendored in `vault-seed`/);
 	assert.doesNotMatch(decisionLogDoc, /Content-projection MD\/MDX blocks.*implementation in flight/);
 });

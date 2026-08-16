@@ -681,8 +681,9 @@
 					"sdk-primitive",
 					"requirements-supply",
 					"consumer-pulled",
+					"consumer-ready",
 					"boundary-review",
-					"candidate-hold"
+					"consumer-proven"
 				],
 				"consumerPull": {
 					"proofId": "content-projection.markdown-mdx-records",
