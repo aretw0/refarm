@@ -1465,6 +1465,30 @@
 			"package": "packages/silo",
 			"axis": "durability",
 			"requirement": "R1"
+		},
+		{
+			"id": "ISS-124",
+			"title": "The requirements-supply hold audit walked three hardcoded names for a four-member profile",
+			"body": "FOUND 2026-08-16 while flipping content-projection to consumer-proven, and it is the reason\nthat flip could not simply be a tag edit.\n\n    scripts/ci/release-boundary-audit.mjs:329   for (const packageName of [ ...3 names... ])\n    refarm.config.json  releasePolicy   4 profiles carry the requirements-supply tag\n\n`auditRequirementsSupplyHolds` iterated a hardcoded list of THREE package names while the profile\nhad FOUR members. `@refarm.dev/content-projection` was in neither that list nor\n`CONSUMER_PROVEN_REQUIREMENTS_SUPPLY_PACKAGES`, so the boundary audit had NO OPINION about it.\n\nTHE SHARP EDGE: the rule the function exists to enforce -- \"must declare candidate-hold until\nselected downstream proof\" -- never ran against the one package that was actually on hold. The\n`candidate-hold` tag was held in place by a single deepEqual in\nscripts/ci/test-requirements-supply-handoff.mjs and by nothing else, while release-boundary-audit\nreported ok:true about the lane.\n\nSAME CLASS AS ISS-113, one function over in the same file: that item found a `CONSUMER_PULLS` map\nhere duplicating refarm.config.json and drifting from it. A gate reading its own copy of the thing\nit audits is auditing itself.\n\nFIXED 2026-08-16 in 2f1df27e, and the fix is a SPLIT rather than a fourth hardcoded name:\nmembership is DERIVED from the requirements-supply tag, so a fifth member is covered the moment it\njoins; which members are PROVEN stays an explicit declaration, because deriving that from the same\ntags the function audits makes the check a tautology that can never fail. The audit now returns\nwhat it looked at and a test asserts coverage equals membership -- ok:true says nothing about a\npackage the auditor never opened.",
+			"location": "scripts/ci/release-boundary-audit.mjs",
+			"status": "resolved",
+			"category": "defect",
+			"priority": "medium",
+			"package": "ci",
+			"axis": "durability",
+			"resolved_by": "2f1df27e"
+		},
+		{
+			"id": "ISS-125",
+			"title": "A doc gate compared a stale document to a hardcoded count, and reported PASS",
+			"body": "FOUND 2026-08-16, by watching it NOT fail.\n\n    assert.equal(currentSelection.length, 23);                        // measured\n    assert.match(releaseGateDoc, /current\\s+22-package\\s+selection/); // literal\n\nThe first line reads the real selection. The second compares the doc against a hardcoded 22. When\ncontent-projection rejoined the consumer-ready selection and the count went 22 -> 23,\ndocs/v0.1.0-release-gate.md went stale and this test PASSED, because the literal still matched the\nstale sentence. The suite was green about a document that was wrong.\n\nThe two assertions sat four lines apart and one of them already had the correct value in hand.\n\nTHE CLASS: a signal claiming more than it measured -- the same family as ISS-113 (a tag claiming a\nconsumer that did not exist) and ISS-124 (a gate reporting ok about packages it never opened).\nHere the defect is narrower and meaner: the gate was not blind, it was comparing the doc to a\nnumber it had already measured correctly two lines above and then ignored.\n\nFIXED 2026-08-16: the doc assertion is built from currentSelection.length, so the doc and the\nconfig cannot disagree without failing. PROVEN TO BITE rather than merely to pass -- the doc was\nedited to 21, the test failed, the doc was restored, the test passed.",
+			"location": "scripts/ci/test-distribution-status-doc.mjs",
+			"status": "resolved",
+			"category": "defect",
+			"priority": "medium",
+			"package": "ci",
+			"axis": "durability",
+			"resolved_by": "a5aae8f3"
 		}
 	]
 }
