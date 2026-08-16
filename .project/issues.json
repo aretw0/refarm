@@ -1501,6 +1501,17 @@
 			"package": "tractor",
 			"axis": "node-vs-directory",
 			"resolved_by": "c3f625e4"
+		},
+		{
+			"id": "ISS-127",
+			"title": "The bundle names which credentials to re-obtain, and three excluded secrets are in no list",
+			"body": "FOUND 2026-08-16 by running the instrument for the first time on the operator's real node.\n`refarm backup create ~/refarm-backups/2026-08-16` succeeded: state intact, 0 problems, 19 files,\n0 undecided, verified against its own manifest.\n\nTHE BUNDLE IS HONEST ABOUT WHAT IT CARRIES AND INCOMPLETE ABOUT WHAT IT DOES NOT.\n\n    manifest.reAuthenticate  [cloudflare, github, openai-codex]\n    manifest.secrets.files   [.refarm/delivery/telegram.token,\n                              .refarm/tls/ca.key,\n                              .refarm/tls/serpro-*.key]        included: false\n\nThree secret files are excluded, correctly — carrying them would make the bundle itself a\ncredential. But NONE of the three is named by `reAuthenticate`, which reads as \"here is everything\nyou must redo\". Checked mechanically: no entry of the re-obtain list matches any of the three paths.\n\nWHY IT MATTERS PER FILE, and they are not the same kind of loss:\n\n  - telegram.token   RE-OBTAINABLE from BotFather. Nothing says so, so a restore comes up with\n                     delivery silently unable to send.\n  - tls/ca.key       NOT RE-OBTAINABLE AT ALL. `refarm cert issue` can create a CA, but it is a\n                     NEW one: every device that ran `refarm cert trust` must trust again. That is\n                     re-establishment, not re-authentication, and the vocabulary has no word for it.\n  - tls/<host>.key   Re-issuable, but only after the CA question above is settled.\n\nTHE CLASS: a signal claiming more than it measured — the same family as ISS-113, ISS-124 and\nISS-125. The list is not wrong about what it contains; it is wrong about being the whole answer.\n\nWHAT WOULD CLOSE IT: the excluded secrets each carry their own recovery verb, and the vocabulary\ngrows a third state beside carried/re-authenticate — something that means RE-ESTABLISH, where the\nold value cannot come back and its replacement invalidates trust others already granted. Until\nthen a restore is partial in a way the manifest does not say.\n\nRELATED: ISS-123 (the capability), ISS-126 (the graph following the declared node).",
+			"location": "apps/refarm/src/commands/backup.ts, apps/refarm/src/commands/sovereign-export.ts",
+			"status": "open",
+			"category": "gap",
+			"priority": "high",
+			"package": "refarm",
+			"axis": "durability"
 		}
 	]
 }
