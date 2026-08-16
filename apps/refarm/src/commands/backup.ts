@@ -25,7 +25,7 @@ import {
 	splitSiloContent,
 	type ExportPlanEntry,
 } from "./sovereign-export.js";
-import { inventoryLocation, sovereignLocations } from "./sovereign-inventory.js";
+import { dedupeInventory, inventoryLocation, sovereignLocations } from "./sovereign-inventory.js";
 import { declaredNamespaces } from "./sovereign-layout.js";
 
 export const MANIFEST_NAME = "manifest.json";
@@ -83,11 +83,16 @@ export function nodeNamespaces(home: string): { namespaces: string[]; origin: "d
 /** Collect the inventory for a home. Shared by plan and create so the two cannot disagree. */
 export function surveyHome(home: string, namespace: string | null) {
 	const locations = sovereignLocations(path.join(home, ".refarm"), path.join(home, ".silo"), home);
-	const entries = [
+	const entries = dedupeInventory([
 		...inventoryLocation(locations.stateHome, namespace),
 		...inventoryLocation(locations.credentialStore, namespace),
 		...inventoryLocation(locations.dataDir, namespace),
-	];
+		// THE LEGACY GRAPH IS STILL WALKED. `dataDir` now names this node's declared graph, which
+		// `stateHome` already reaches through its subdirectory walk; if the list stopped here, the
+		// one place an orphan from before c3f625e4 can hide would drop out of the inventory
+		// entirely — and hiding it is worse than the ambiguity that made it worth reporting.
+		...inventoryLocation(locations.legacyDataDir, namespace),
+	]);
 	return { locations, entries, plan: planSovereignExport(entries) };
 }
 

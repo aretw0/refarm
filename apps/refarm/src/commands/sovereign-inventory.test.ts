@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
 	classifyEntry,
 	formatInventory,
+	dedupeInventory,
 	sovereignLocations,
 	summariseInventory,
 	type InventoryEntry,
@@ -83,9 +84,71 @@ describe("classifyEntry", () => {
 describe("sovereignLocations", () => {
 	it("includes the data directory that `refarm context` omits", () => {
 		// The gap that started this: `context` promises "the whole resolved sovereign state" and
-		// never mentions ~/.local/share/refarm, where the Rust host writes {namespace}.db.
+		// never mentions the node's graph, where the Rust host writes {namespace}.db.
 		const locations = sovereignLocations("/home/op/.refarm", "/home/op/.silo", "/home/op");
-		expect(locations.dataDir).toBe(path.join("/home/op", ".local", "share", "refarm"));
+		expect(locations.dataDir).toBe(path.join("/home/op/.refarm", "data", "refarm"));
+	});
+
+	it("names the node's DECLARED graph, and the legacy location as a separate place", () => {
+		// THE RULE, written 2026-08-16. `dataDir` used to BE ~/.local/share/refarm, on the belief
+		// that this is where the Rust host writes. It was where the host wrote whenever
+		// XDG_DATA_HOME happened to be unset — which is the leak c3f625e4 closed, and which left a
+		// second `default.db` on the operator's node holding 18 nodes that existed nowhere else.
+		//
+		// Now the two are DIFFERENT PLACES with different meanings: `dataDir` is this node's graph,
+		// and `legacyDataDir` is where an orphan from before the fix may still sit. Keeping the
+		// legacy path in the inventory matters — dropping it would hide exactly the file that
+		// proved the leak — but calling it the node's data is what made a backup ambiguous.
+		const locations = sovereignLocations("/home/op/.refarm", "/home/op/.silo", "/home/op");
+		expect(locations.dataDir).toBe(path.join("/home/op/.refarm", "data", "refarm"));
+		expect(locations.legacyDataDir).toBe(path.join("/home/op", ".local", "share", "refarm"));
+	});
+
+	it("honours a graph the caller resolved, because the sandbox declares its own", () => {
+		// `scripts/refarm-sandbox.mjs` points XDG_DATA_HOME at a SIBLING of its REFARM_HOME. A
+		// derivation that assumed `<sovereignHome>/data` would report the wrong graph for the one
+		// node in this repository that deliberately diverges.
+		const locations = sovereignLocations(
+			"/sbx/refarm",
+			"/sbx/silo",
+			"/sbx",
+			"/sbx/share/refarm",
+		);
+		expect(locations.dataDir).toBe("/sbx/share/refarm");
+		expect(locations.legacyDataDir).toBe(path.join("/sbx", ".local", "share", "refarm"));
+	});
+});
+
+describe("dedupeInventory", () => {
+	it("counts a file once however many locations reached it", () => {
+		// FOUND LIVE 2026-08-16, not by a unit test. Once `dataDir` became the node's DECLARED
+		// graph, it sat INSIDE `stateHome` — which already reaches it through its subdirectory
+		// walk — so `refarm backup plan` listed `~/.refarm/data/refarm/default.db` TWICE and
+		// reported 21 carried files where there were 19. A bundle that carries the same database
+		// twice is not merely noisy: it is a count nobody can reconcile against the disk.
+		//
+		// The overlap is structural, not accidental: the node's graph lives under the node. So the
+		// rule is about identity rather than about which walk found it first.
+		const entries = [
+			entry({ file: "/n/.refarm/data/refarm/default.db", recoverability: "irrecoverable" }),
+			entry({ file: "/n/.refarm/data/refarm/default.db", recoverability: "irrecoverable" }),
+			entry({ file: "/n/.local/share/refarm/default.db", recoverability: "irrecoverable" }),
+		];
+
+		expect(dedupeInventory(entries).map((e) => e.file)).toEqual([
+			"/n/.refarm/data/refarm/default.db",
+			"/n/.local/share/refarm/default.db",
+		]);
+	});
+
+	it("keeps same-named databases in different directories apart", () => {
+		// The whole point of the duplicate-namespace report: two `default.db` in two places are
+		// two files. Deduping by basename would erase exactly the finding this module exists for.
+		const entries = [
+			entry({ file: "/a/default.db", recoverability: "irrecoverable" }),
+			entry({ file: "/b/default.db", recoverability: "irrecoverable" }),
+		];
+		expect(dedupeInventory(entries)).toHaveLength(2);
 	});
 });
 

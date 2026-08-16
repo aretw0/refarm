@@ -112,6 +112,7 @@ import { resolveRuntimeSidecarUrl } from "../utils/runtime-config.js";
 import { resolveTractorNamespace } from "../utils/tractor-store.js";
 import { CONTEXT_HOME_DIVERGENCE_DIAGNOSTIC } from "./context-doctor.js";
 import {
+	dedupeInventory,
 	formatInventory,
 	inventoryLocation,
 	sovereignLocations,
@@ -605,11 +606,16 @@ function buildInventoryReport(report: ContextReport) {
 	);
 	const namespace = report.nodeEnvironment?.namespace ?? report.cliNamespace ?? null;
 	const namespaceOrigin = report.nodeEnvironment?.namespace ? "node" : report.cliNamespace ? "cli" : "none";
-	const entries = [
+	const entries = dedupeInventory([
 		...inventoryLocation(locations.stateHome, namespace),
 		...inventoryLocation(locations.credentialStore, namespace),
 		...inventoryLocation(locations.dataDir, namespace),
-	];
+		// THE LEGACY GRAPH IS STILL WALKED. `dataDir` now names this node's declared graph, which
+		// `stateHome` already reaches through its subdirectory walk; if the list stopped here, the
+		// one place an orphan from before c3f625e4 can hide would drop out of the inventory
+		// entirely — and hiding it is worse than the ambiguity that made it worth reporting.
+		...inventoryLocation(locations.legacyDataDir, namespace),
+	]);
 	return { locations, namespace, namespaceOrigin, entries, summary: summariseInventory(entries) };
 }
 

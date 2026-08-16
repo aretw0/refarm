@@ -138,6 +138,15 @@ export function summariseInventory(entries: readonly InventoryEntry[]) {
 	};
 }
 
+/** PURE. One entry per FILE, keeping the first sighting, because the locations overlap by design:
+ *  a node's graph lives under the node, so `stateHome`'s subdirectory walk and `dataDir` reach the
+ *  same database. Keyed on the full path, never the basename — two `default.db` in two directories
+ *  are two files, and collapsing them would erase the duplicate-namespace finding above. */
+export function dedupeInventory(entries: readonly InventoryEntry[]): InventoryEntry[] {
+	const seen = new Set<string>();
+	return entries.filter((entry) => !seen.has(entry.file) && seen.add(entry.file));
+}
+
 /** PURE. Namespaces (`<name>.db`) appearing under more than one directory, with every path. */
 function duplicateNamespaceGroups(entries: readonly InventoryEntry[]) {
 	const byNamespace = new Map<string, string[]>();
@@ -157,21 +166,42 @@ function duplicateNamespaceGroups(entries: readonly InventoryEntry[]) {
 export interface SovereignLocations {
 	readonly stateHome: string;
 	readonly credentialStore: string;
+	/** This node's graph — where `{namespace}.db` actually lives, per its declaration. */
 	readonly dataDir: string;
+	/**
+	 * Where a graph from BEFORE the declaration was honoured may still sit.
+	 *
+	 * Still inspected, deliberately. Dropping it would hide precisely the file that proved the
+	 * leak: the operator's node carried a second `default.db` here holding 18 nodes — two whole
+	 * dispatches — that existed nowhere else. What changed is that it is no longer CALLED this
+	 * node's data, because that is what made a backup ambiguous rather than merely incomplete.
+	 */
+	readonly legacyDataDir: string;
 }
 
-/** PURE. Where to look, given the homes `refarm context` already resolves. */
+/** PURE. Where to look, given the homes `refarm context` already resolves.
+ *
+ * `graphDir` is the node's resolved graph. Callers that have one pass it; the default mirrors
+ * what `scripts/tractor-start.sh:85` derives (`$REFARM_HOME/data`) and what
+ * `packages/tractor/src/storage/sqlite.rs` `graph_base()` resolves. It is a PARAMETER rather
+ * than a derivation because `scripts/refarm-sandbox.mjs` points its graph at a SIBLING of its
+ * REFARM_HOME — a declared divergence, and an inventory that assumed otherwise would report the
+ * wrong graph for the one node in this repository that diverges on purpose.
+ */
 export function sovereignLocations(
 	sovereignHome: string,
 	credentialStoreHome: string,
 	base: string,
+	graphDir?: string,
 ): SovereignLocations {
 	return {
 		stateHome: sovereignHome,
 		credentialStore: credentialStoreHome,
-		// THE ONE `refarm context` OMITS. `packages/tractor/src/storage/sqlite.rs` writes
-		// `~/.local/share/refarm/{namespace}.db`, which is this node's actual accumulated work.
-		dataDir: path.join(base, ".local", "share", "refarm"),
+		// THE ONE `refarm context` OMITS — this node's accumulated work. It used to be the legacy
+		// path below, on the belief that the Rust host writes there. The host wrote there only
+		// when XDG_DATA_HOME happened to be unset, which is the leak c3f625e4 closed (ISS-126).
+		dataDir: graphDir ?? path.join(sovereignHome, "data", "refarm"),
+		legacyDataDir: path.join(base, ".local", "share", "refarm"),
 	};
 }
 
