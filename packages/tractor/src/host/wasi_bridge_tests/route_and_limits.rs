@@ -903,6 +903,91 @@
         .is_err());
     }
 
+    /// ISS-141 — when a configured route was admitted for THIS provider and refused the request
+    /// for another reason, its complaint is what surfaces.
+    ///
+    /// Measured 2026-08-17: a Copilot request refused for its PATH was reported as
+    /// `provider mismatch: requested 'github-copilot', expected 'openai-codex'` — the primary's
+    /// complaint about a question nobody asked. The reading sent the search at the allowlist,
+    /// which was correct, while the actual difference was one path segment.
+    #[test]
+    fn enforce_route_any_reports_the_nearest_routes_complaint() {
+        let primary = ModelRoute {
+            provider: "openai-codex".to_string(),
+            base_url: "https://chatgpt.com".to_string(),
+            path: "/backend-api/codex/responses".to_string(),
+        };
+        let configured = vec![ModelRoute {
+            provider: "github-copilot".to_string(),
+            base_url: "https://api.business.githubcopilot.com".to_string(),
+            path: "/chat/completions".to_string(),
+        }];
+
+        let err = enforce_model_route_any(
+            "github-copilot",
+            "https://api.business.githubcopilot.com",
+            "/v1/chat/completions",
+            &primary,
+            None,
+            &configured,
+        )
+        .unwrap_err();
+        assert!(err.contains("path"), "expected a path complaint, got: {err}");
+        assert!(!err.contains("provider mismatch"), "got: {err}");
+
+        // A provider NOBODY admitted still reports the primary's mismatch, unchanged.
+        let err = enforce_model_route_any(
+            "kimi-api",
+            "https://api.moonshot.cn",
+            "/v1/chat/completions",
+            &primary,
+            None,
+            &configured,
+        )
+        .unwrap_err();
+        assert!(err.contains("provider mismatch"), "got: {err}");
+    }
+
+    /// ISS-141 — the endpoint is a property of the ACCOUNT, and the format is the contract.
+    ///
+    /// Measured on two real Copilot seats 2026-08-17: `api.business.githubcopilot.com` and
+    /// `api.individual.githubcopilot.com`. No static provider table can hold both, and the global
+    /// MODEL_BASE_URL would redirect every other provider along with whichever one it named.
+    #[test]
+    fn parse_provider_base_url_reads_one_providers_endpoint() {
+        let raw = "github-copilot=https://api.business.githubcopilot.com,openai-codex=https://chatgpt.com";
+        assert_eq!(
+            parse_provider_base_url(raw, "github-copilot").as_deref(),
+            Some("https://api.business.githubcopilot.com")
+        );
+        assert_eq!(
+            parse_provider_base_url(raw, "openai-codex").as_deref(),
+            Some("https://chatgpt.com")
+        );
+        // A provider the map says nothing about falls through to the static defaults.
+        assert!(parse_provider_base_url(raw, "groq").is_none());
+        assert!(parse_provider_base_url("", "github-copilot").is_none());
+    }
+
+    #[test]
+    fn parse_provider_base_url_drops_what_it_cannot_read_rather_than_guessing() {
+        // The CLI writes this and the guest reads it with the same rule. A pair either side cannot
+        // read must be DROPPED, so the two can only agree or both fall back — never disagree about
+        // where a request is allowed to go.
+        assert!(parse_provider_base_url("github-copilot=ftp://x.example", "github-copilot").is_none());
+        assert!(parse_provider_base_url("github-copilot=", "github-copilot").is_none());
+        assert!(parse_provider_base_url("no-equals-sign", "github-copilot").is_none());
+    }
+
+    #[test]
+    fn parse_provider_base_url_is_case_insensitive_on_the_provider_only() {
+        assert_eq!(
+            parse_provider_base_url("GitHub-Copilot=https://api.business.githubcopilot.com", "github-copilot")
+                .as_deref(),
+            Some("https://api.business.githubcopilot.com")
+        );
+    }
+
     #[test]
     fn parse_configured_providers_splits_dedups_and_drops_unsafe() {
         // Comma/space separated, lowercased, deduped, malformed tokens dropped.

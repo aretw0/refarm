@@ -45,7 +45,17 @@ export const MODEL_PROVIDERS = [
 	"openrouter",
 ];
 export const SUBSCRIPTION_MODEL_PROVIDERS = ["openai-codex", "github-copilot"];
-export const RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS = ["openai-codex"];
+/**
+ * Subscription providers the RUNTIME can actually dispatch through — a narrower list than
+ * `SUBSCRIPTION_MODEL_PROVIDERS`, which is about how a credential is obtained.
+ *
+ * `github-copilot` joined on 2026-08-17 (ISS-141) when the adapter that makes it dispatchable
+ * landed: an endpoint arm in the guest, one in the host, the editor-identity headers Copilot
+ * refuses requests without, and the credential env var the host reads. Before that it could be
+ * logged in, listed, health-checked and quota-read, and every dispatch resolved to the localhost
+ * floor — this list is what kept `ask` from sending an operator there.
+ */
+export const RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS = ["openai-codex", "github-copilot"];
 
 export const MODEL_CREDENTIAL_ENV_KEYS = {
 	openai: "OPENAI_API_KEY",

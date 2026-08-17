@@ -1,5 +1,7 @@
 use crate::{
-    provider_config::{choose_model, openai_compat_defaults, ANTHROPIC_DEFAULT_MODEL},
+    provider_config::{
+        choose_model, openai_compat_defaults, provider_base_url_from, ANTHROPIC_DEFAULT_MODEL,
+    },
     plugin::host::model_bridge,
 };
 
@@ -40,7 +42,14 @@ impl Provider {
         }
 
         let (default_base, default_model) = openai_compat_defaults(provider_name);
-        let base_url = std::env::var("MODEL_BASE_URL").unwrap_or_else(|_| default_base.to_owned());
+        // THE ACCOUNT'S OWN ENDPOINT FIRST, then the global override, then the static default —
+        // the same order the host resolves in, because the host validates this request against its
+        // own resolution and a different order would build requests it refuses (ISS-141).
+        let base_url = std::env::var("MODEL_PROVIDER_BASE_URLS")
+            .ok()
+            .and_then(|raw| provider_base_url_from(&raw, provider_name))
+            .or_else(|| std::env::var("MODEL_BASE_URL").ok().filter(|v| !v.trim().is_empty()))
+            .unwrap_or_else(|| default_base.to_owned());
         Provider::OpenAiCompat {
             provider: provider_name.to_owned(),
             base_url,

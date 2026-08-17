@@ -712,17 +712,38 @@ fn enforce_model_route_any(
             // route a profile may have selected. The PRIMARY error is what surfaces if
             // none match — so an unset fallback + empty configured list is byte-identical
             // to the single-route host, and the error string is unchanged.
+            let mut nearest: Option<String> = None;
+            let requested_provider = normalize_provider_name(provider);
+            let mut consider = |route: &ModelRoute| -> Option<()> {
+                match enforce_model_route(provider, base_url, path, route) {
+                    Ok(()) => Some(()),
+                    Err(err) => {
+                        // THE NEAREST ROUTE'S COMPLAINT, not always the primary's. When a route was
+                        // admitted for this very provider and refused the base url or the path, the
+                        // primary's "provider mismatch" names a question nobody asked — measured
+                        // 2026-08-17, where a Copilot request refused for its PATH was reported as
+                        // requesting a provider the host did not expect, and the reading cost a
+                        // debugging cycle before the real difference was found.
+                        if nearest.is_none()
+                            && normalize_provider_name(&route.provider) == requested_provider
+                        {
+                            nearest = Some(err);
+                        }
+                        None
+                    }
+                }
+            };
             if let Some(fb) = fallback {
-                if enforce_model_route(provider, base_url, path, fb).is_ok() {
+                if consider(fb).is_some() {
                     return Ok(());
                 }
             }
             for route in configured {
-                if enforce_model_route(provider, base_url, path, route).is_ok() {
+                if consider(route).is_some() {
                     return Ok(());
                 }
             }
-            Err(primary_err)
+            Err(nearest.unwrap_or(primary_err))
         }
     }
 }
@@ -762,6 +783,13 @@ fn send_model_http_post(
         for (name, value) in openai_codex_auth_headers(&header, &account_id, &codex_request_id()) {
             req = req.set(name, &value);
         }
+    } else if use_github_copilot_auth(&provider) {
+        let Some(header) = bearer_key_for_provider(&provider)? else {
+            return Err("GITHUB_COPILOT_ACCESS_TOKEN not set".to_string());
+        };
+        for (name, value) in github_copilot_auth_headers(&header, &codex_request_id()) {
+            req = req.set(name, &value);
+        }
     } else if let Some(header) = bearer_key_for_provider(&provider)? {
         req = req.set("authorization", &header);
     }
@@ -797,6 +825,28 @@ fn use_openai_codex_auth(provider: &str) -> bool {
     provider.trim().eq_ignore_ascii_case("openai-codex")
 }
 
+fn use_github_copilot_auth(provider: &str) -> bool {
+    provider.trim().eq_ignore_ascii_case("github-copilot")
+}
+
+/// Copilot's editor-client headers.
+///
+/// DECLARED, NOT SMUGGLED. This node already announces that it reaches Copilot by imitating an
+/// editor client — `refarm credential list` prints that notice on every listing, and clearing
+/// `providers.githubCopilot.identity` stops it. The choice was made and printed; this is where it
+/// is carried out. Sending only `authorization` reaches the endpoint and is refused by it.
+fn github_copilot_auth_headers(bearer: &str, request_id: &str) -> Vec<(&'static str, String)> {
+    vec![
+        ("authorization", bearer.to_string()),
+        ("Copilot-Integration-Id", "vscode-chat".to_string()),
+        ("Editor-Version", "vscode/1.99.0".to_string()),
+        ("Editor-Plugin-Version", "copilot-chat/0.26.0".to_string()),
+        ("User-Agent", "GitHubCopilotChat/0.26.0".to_string()),
+        ("Openai-Intent", "conversation-panel".to_string()),
+        ("X-Request-Id", request_id.to_string()),
+    ]
+}
+
 // Registry of known providers that need no MODEL_BASE_URL to work.
 fn known_provider_base_url(provider: &str) -> Option<&'static str> {
     match provider.trim().to_ascii_lowercase().as_str() {
@@ -816,6 +866,9 @@ fn known_provider_base_url(provider: &str) -> Option<&'static str> {
 fn known_provider_api_path(provider: &str) -> &'static str {
     match provider.trim().to_ascii_lowercase().as_str() {
         "openai-codex" => "/backend-api/codex/responses",
+        // Copilot speaks the OpenAI chat shape at its own root; its BASE URL is per-account and
+        // arrives via MODEL_PROVIDER_BASE_URLS, never from a table here (ISS-141).
+        "github-copilot" => "/chat/completions",
         "groq"       => "/openai/v1/chat/completions",
         "openrouter" => "/api/v1/chat/completions",
         "gemini"     => "/v1beta/openai/chat/completions",
@@ -866,6 +919,12 @@ fn bearer_key_for_provider(provider: &str) -> Result<Option<String>, String> {
 
     let primary_env_var = if use_openai_codex_auth(&normalized) {
         "OPENAI_CODEX_ACCESS_TOKEN".to_string()
+    } else if use_github_copilot_auth(&normalized) {
+        // NOT the derived `GITHUB_COPILOT_API_KEY`. The credential is a subscription token, the
+        // CLI exports it as `GITHUB_COPILOT_ACCESS_TOKEN` (`modelCredentialEnvKey`), and the
+        // derived name would have looked for a variable nothing writes — a provider configured
+        // everywhere and unreachable here.
+        "GITHUB_COPILOT_ACCESS_TOKEN".to_string()
     } else if is_openai_provider_family(&normalized) {
         "OPENAI_API_KEY".to_string()
     } else {
@@ -1034,7 +1093,19 @@ impl ModelRoute {
         }
 
         let path = known_provider_api_path(&provider).to_string();
-        let base_url = model_base_url_from_env().unwrap_or_else(|| {
+        // THE ACCOUNT'S OWN ENDPOINT FIRST. Some providers announce where to talk to them as part
+        // of issuing the credential — GitHub Copilot returns a different host per seat
+        // (`api.business.` vs `api.individual.`), measured on two real accounts 2026-08-17. A
+        // static table cannot hold that, and the GLOBAL `MODEL_BASE_URL` cannot either: setting it
+        // for one provider redirects every other provider's traffic with it.
+        //
+        // Order: the per-provider map, then the global override, then the static defaults. The map
+        // is narrower than the override and describes a fact about the credential rather than an
+        // operator's intent to redirect, so an operator who sets `MODEL_BASE_URL` deliberately is
+        // still the one being obeyed for providers the map says nothing about.
+        let base_url = provider_base_url_from_env(&provider)
+            .or_else(model_base_url_from_env)
+            .unwrap_or_else(|| {
             if let Some(url) = known_provider_base_url(&provider) {
                 url.to_string()
             } else if is_openai_provider_family(&provider) {
@@ -1131,6 +1202,39 @@ impl ModelRoute {
             path: path.to_string(),
         }
     }
+}
+
+/// PURE. One provider's endpoint from a `MODEL_PROVIDER_BASE_URLS` value.
+///
+/// FORMAT IS THE CONTRACT, shared with the CLI that writes it and the guest that reads it:
+/// `provider=url` pairs joined by `,`, no whitespace, ASCII. A pair this cannot read is DROPPED
+/// rather than guessed, which is what keeps host and guest able only to agree or both fall back —
+/// never to disagree about where a request is allowed to go.
+pub(crate) fn parse_provider_base_url(raw: &str, provider: &str) -> Option<String> {
+    let wanted = provider.trim().to_ascii_lowercase();
+    for pair in raw.split(',') {
+        let (name, url) = pair.split_once('=')?;
+        let name = name.trim().to_ascii_lowercase();
+        let url = url.trim();
+        if name != wanted || url.is_empty() {
+            continue;
+        }
+        // Same shape the guardrail below will demand of it anyway; rejecting here keeps a
+        // malformed entry from becoming an accepted route.
+        if !url.starts_with("http://") && !url.starts_with("https://") {
+            return None;
+        }
+        if !url.is_ascii() || url.chars().any(|c| c.is_whitespace() || c.is_control()) {
+            return None;
+        }
+        return Some(url.to_string());
+    }
+    None
+}
+
+fn provider_base_url_from_env(provider: &str) -> Option<String> {
+    let raw = std::env::var("MODEL_PROVIDER_BASE_URLS").ok()?;
+    parse_provider_base_url(&raw, provider)
 }
 
 fn model_base_url_from_env() -> Option<String> {

@@ -32,8 +32,43 @@ pub(crate) fn openai_compat_defaults(provider: &str) -> (&'static str, &'static 
             "https://generativelanguage.googleapis.com",
             "gemini-3-flash-preview",
         ),
+        // GitHub Copilot speaks the OpenAI chat shape, and its BASE URL IS PER-ACCOUNT: the token
+        // exchange announces where that seat talks (`api.business.` for a business seat,
+        // `api.individual.` for a personal one — measured on two real accounts 2026-08-17). The
+        // value here is only the last resort; the real endpoint arrives in MODEL_PROVIDER_BASE_URLS.
+        "github-copilot" => ("https://api.githubcopilot.com", "gpt-4o"),
         _ => ("http://localhost:11434", "llama3.2"),
     }
+}
+
+/// PURE. One provider's endpoint from a `MODEL_PROVIDER_BASE_URLS` value.
+///
+/// THE HOST PARSES THE SAME STRING WITH THE SAME RULE (`parse_provider_base_url` in the tractor
+/// bridge), and that lockstep is the point: the host validates every request against its own
+/// resolution of this map, so a guest that read it differently would build a request the host
+/// refuses. A pair either side cannot read is DROPPED rather than guessed, which leaves only two
+/// outcomes — both agree, or both fall back to the static default above.
+///
+/// Format: `provider=url` pairs joined by `,`, no whitespace, ASCII.
+pub(crate) fn provider_base_url_from(raw: &str, provider: &str) -> Option<String> {
+    let wanted = provider.trim().to_ascii_lowercase();
+    for pair in raw.split(',') {
+        let Some((name, url)) = pair.split_once('=') else {
+            continue;
+        };
+        if name.trim().to_ascii_lowercase() != wanted {
+            continue;
+        }
+        let url = url.trim();
+        if url.is_empty() || (!url.starts_with("http://") && !url.starts_with("https://")) {
+            return None;
+        }
+        if !url.is_ascii() || url.chars().any(|c| c.is_whitespace() || c.is_control()) {
+            return None;
+        }
+        return Some(url.to_string());
+    }
+    None
 }
 
 // ── ADR-012: capability map + routing profiles (agent-side) ──────────────────────
@@ -220,4 +255,45 @@ pub(crate) fn configured_providers(list: &str) -> std::collections::BTreeSet<Str
         .collect();
     set.insert("ollama".to_owned()); // keyless local floor is always a valid route
     set
+}
+
+#[cfg(test)]
+mod provider_base_url_tests {
+    use super::provider_base_url_from;
+
+    /// ISS-141. The guest and the tractor host parse the SAME string with the SAME rule, and this
+    /// is the guest half of that lockstep. The host validates every request against its own
+    /// resolution of this map, so any divergence here builds requests the host refuses.
+    #[test]
+    fn reads_one_providers_endpoint() {
+        let raw =
+            "github-copilot=https://api.business.githubcopilot.com,openai-codex=https://chatgpt.com";
+        assert_eq!(
+            provider_base_url_from(raw, "github-copilot").as_deref(),
+            Some("https://api.business.githubcopilot.com")
+        );
+        assert_eq!(
+            provider_base_url_from(raw, "openai-codex").as_deref(),
+            Some("https://chatgpt.com")
+        );
+        assert!(provider_base_url_from(raw, "groq").is_none());
+        assert!(provider_base_url_from("", "github-copilot").is_none());
+    }
+
+    #[test]
+    fn drops_what_it_cannot_read_rather_than_guessing() {
+        assert!(provider_base_url_from("github-copilot=ftp://x.example", "github-copilot").is_none());
+        assert!(provider_base_url_from("github-copilot=", "github-copilot").is_none());
+        assert!(provider_base_url_from("no-equals-sign", "github-copilot").is_none());
+    }
+
+    #[test]
+    fn copilot_has_a_default_that_is_not_the_ollama_floor() {
+        // The whole failure this closes: a dispatch routed to github-copilot resolved to
+        // http://localhost:11434 and reported "Model provider unavailable: ollama" for a request
+        // nobody made to ollama.
+        let (base, model) = super::openai_compat_defaults("github-copilot");
+        assert!(base.contains("githubcopilot.com"), "got {base}");
+        assert_ne!(model, "llama3.2");
+    }
 }
