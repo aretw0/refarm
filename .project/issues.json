@@ -1536,6 +1536,17 @@
 			"priority": "high",
 			"package": "refarm",
 			"axis": "cost"
+		},
+		{
+			"id": "ISS-130",
+			"title": "The budget observation has a reader for which account paid, and no writer anywhere",
+			"body": "MEASURED 2026-08-16, and the gap is one-directional in a way that makes it easy to miss.\n\n    apps/refarm/src/commands/budget.ts:218   account: \"refarm.budget.credentialId\"   READER\n    grep over packages/tractor/src/**/*.rs   zero matches                            NO WRITER\n\n`refarm budget by-account` shipped in d1b94ec5 and works. On the operator's real node it reports\n32 observations and `groups: []` — every single one unattributed — because the Rust host that\nmints a BudgetObservation never records which credential paid. The command is not broken; it is\ncorrectly reporting that nothing told it.\n\nWHY IT MATTERS NOW rather than as tidying. ISS-129 measured that github-copilot answers the quota\nquestion with `limited_user_quotas: null` for both of the operator's SKUs — the provider has a\nplace to say and declines. So for these accounts the ONLY sovereign depletion signal available is\nthe dispatch outcome itself: a 403/429 attributable to the account that made it. Unattributed\nobservations make that signal unreadable, which means the whole \"is my corporate seat depleted\"\nquestion stays subjective no matter what the provider does.\n\nIt is also the precondition for the operator's stated goal of using different demands as the\nstage for dispatch across repos and contexts through workspaces: the workspace->account BINDING\nshipped (757e1ee4), so the node already decides which account a dispatch spends. What is missing\nis the stamp recording which one it DID spend. Deciding without recording is how a budget axis\nlooks alive and answers nothing.\n\nSCOPE, from ISS-064's own warning and confirmed by this measurement: the budget fold is\nthree-level with a hardcoded signature — 3 Rust callers plus one TS mirror, guarded by\nconformance. `packages/tractor/**` is a protected surface under CLAUDE.md section 8, so this\nwants its own slice with the operator's explicit go-ahead, not a tail-end edit.\n\nACCEPTANCE, and it is measurable on the operator's real node rather than in fixtures: after one\ndispatch, `refarm budget by-account --json` returns a non-empty `groups` naming the credentialId\nthat paid, and `unattributed` stops counting that observation. The 32 already stored stay\nunattributed and must be reported as such — backfilling an attribution nobody recorded would\ninvent the evidence this axis exists to collect.",
+			"location": "packages/tractor/src/sidecar/dispatch.rs, apps/refarm/src/commands/budget.ts:218",
+			"status": "open",
+			"category": "gap",
+			"priority": "high",
+			"package": "tractor",
+			"axis": "cost"
 		}
 	]
 }
