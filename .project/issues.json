@@ -1564,49 +1564,53 @@
 			"title": "The account view swears a legacy secret is present because it once was",
 			"body": "MEASURED 2026-08-17 on the operator's node, after `refarm sow` re-authenticated openai-codex.\n\n    ~/.refarm/model-accounts.json   holds  secretRef: legacy:oauthCredentials/openai-codex\n    ~/.silo/identity.json           holds  oauthCredentials: {}      <- empty\n    refarm credential list          says   health: healthy\n\nA descriptor pointing at a secret that does not exist, reported healthy, and no reconciliation\ncan ever say otherwise.\n\n`buildAccountView` assembles `merged` from TWO origins — descriptors derived from the flat\ntokens in THIS call, and descriptors read from the catalog file — and then declares:\n\n    // Legacy refs are present by definition — their secret is the flat map entry that\n    // produced the descriptor\n    const presentRefs = [ ...merged.filter(e => e.secretRef.startsWith(LEGACY_REF_PREFIX)) ... ]\n\nThe comment states the invariant AND its only justification: the descriptor was produced by\nthe flat map entry. That is true of the first origin and false of the second. `reconcileCatalog`\nis then handed a present-ref list containing refs it was supposed to CHECK, so `healthy` is\nstamped on evidence the function invented.\n\nPRESENCE MUST BE DERIVED FROM THE TOKENS ACTUALLY LOADED, not from the shape of the ref. A\nlegacy ref whose provider is absent from `tokens.oauthCredentials` is `incomplete` — which is\nexactly the state the contract already has for 'a descriptor whose secret went missing'.\n\nThis is the reader half of the chain that produced ISS-134's wrong sibling count. It does not\ncreate the fossil (see ISS-133); it makes the fossil permanently invisible.",
 			"location": "packages/model-account-contract-v1/src/account-view.ts:62-68",
-			"status": "open",
+			"status": "resolved",
 			"category": "defect",
 			"priority": "high",
 			"package": "packages/model-account-contract-v1",
-			"axis": "durability"
+			"axis": "durability",
+			"resolved_by": "2a32a752"
 		},
 		{
 			"id": "ISS-133",
 			"title": "`credential forget` writes the derived view back into the catalog",
 			"body": "MEASURED 2026-08-17. `forget` removes one account and persists the rest:\n\n    const loadAccounts = async () => [...(await deps.viewOf()).accounts];   // the VIEW\n    ...\n    deps.writeCatalog(accounts.filter((entry) => entry.credentialId !== credentialId));\n\n`accounts` is the reconciled VIEW — catalog descriptors MERGED with descriptors synthesised\nfrom the flat token map by `readLegacyCredentials`. Writing it back into the catalog file\npromotes every legacy descriptor from a derived reading into a stored record.\n\nThat is CLAUDE.md section 1 in another terrain: the view is a derived observation, the catalog\nis the model. Persisting the observation freezes a transient truth — 'the flat map currently\nholds openai-codex' — into a permanent one, and the flat map then changes underneath it.\n\nThe contract is explicit that this must not happen. `migrate.ts` opens with 'Nothing here\nwrites... deleting this file restores the old behaviour completely', and `account-view.ts`\ndefines `legacyAccounts` as the number that says when the transition is over — 'when it is\nempty on every node that matters, the legacy branch is deletable'. A persisted legacy\ndescriptor makes that number never reach zero, because it no longer measures the flat map.\n\nTHE FIX IS THE CATALOG, NOT THE VIEW: remove the entry from what `readCatalog` returns and\nwrite that. The view stays the thing commands ANSWER from and stops being the thing they SAVE.\n\nWhether any other write path shares the defect is worth a sweep; today `writeCatalog` has two\ncallers and the other one (`account-write.ts:110`) upserts onto `readCatalog`, correctly.",
 			"location": "apps/refarm/src/commands/credential.ts:294",
-			"status": "open",
+			"status": "resolved",
 			"category": "defect",
 			"priority": "high",
 			"package": "apps/refarm",
-			"axis": "durability"
+			"axis": "durability",
+			"resolved_by": "8c8a2e41"
 		},
 		{
 			"id": "ISS-134",
 			"title": "The migration retires the secret and leaves the record that points at it",
 			"body": "MEASURED 2026-08-17 — this is what the operator SAW, and the question he asked.\n\n    refarm sow  ->  openai-codex authenticated\n                    'This is account 2 of 2 for openai-codex (\"account-2\").'\n                    'Migrated the previous openai-codex credential out of the flat store.'\n\nHe has ONE openai-codex account. The node held TWO RECORDS of it and counted records.\n\nThe two messages contradict each other and the code knows it. `migratedFromLegacy: true` is\nreturned ONLY on the branch where `legacySubjectOf(flat[provider]) === accountId` — the node\nPROVED the stored credential and the new login are the same account. One line later\n`sow.ts:413` counts siblings from the catalog and finds two.\n\nStep 3 retires the flat entry — the SECRET — and leaves any catalog descriptor whose secretRef\nis `legacy:oauthCredentials/<provider>`. The module header claims this step is 'what stops a\nre-login from producing two accounts for one credential'. It stops half of it.\n\nWHERE THE PROOF ALREADY IS: the same branch that authorises deleting the secret authorises\ndropping the record, and nothing else does. Retirement must be one act over both stores, or\nthe two stores disagree and the disagreement is invisible (ISS-132).\n\nDepends on ISS-133 for how the fossil got into the catalog, and on ISS-132 for why it then\nreported healthy. Each is independently a defect; together they cost the operator a phantom\naccount and an ambiguous dispatch.\n\nACCEPTANCE: on a node whose flat entry and new login share a subject, after `sow` the catalog\nholds exactly one descriptor for that provider, and `credential list` agrees.",
 			"location": "apps/refarm/src/credentials/account-write.ts:112-151",
-			"status": "open",
+			"status": "resolved",
 			"category": "defect",
 			"priority": "high",
 			"package": "apps/refarm",
-			"axis": "durability"
+			"axis": "durability",
+			"resolved_by": "21bb0129"
 		},
 		{
 			"id": "ISS-135",
 			"title": "The select prompt erases a frame it measured at a width that no longer holds",
 			"body": "MEASURED 2026-08-17. The operator saw the provider picker leave a ghost — the question line and\nthe first option surviving above a freshly painted frame — while choosing in `refarm sow`.\n\nReproduced by driving the real prompt against a fake TTY, capturing every byte, and replaying\nthe stream through a terminal emulator:\n\n    steady width 60,72,80,100,120,160,200    clean\n    width unreported (TTY without columns)   clean\n    narrowed mid-prompt 120 -> 80            GHOST: question + first option survive\n    widened  mid-prompt 80 -> 120            clean\n\n`render()` stores `renderedLines` — physical rows, correctly counted — and the NEXT render\nclimbs that stored number. The count is measured against `output.columns` at paint time and\ntrusted at erase time. While the width holds, past and present agree, which is why seven\nwidths pass. Change the width in between and the number describes a screen that no longer\nexists.\n\nTHE ASYMMETRY IS THE DANGEROUS PART: widening makes the old frame occupy FEWER rows than\nremembered, so the erase rises too far and eats extra — invisible, and therefore absent from\nany measurement that only looks for leftovers. Narrowing rises short and leaves the ghost.\nOnly one of the two failures reports itself.\n\nA previous fix in this same function ('Rows, not lines') corrected HOW the count is computed.\nIt did not address that the count is REMEMBERED, which is the part that fails here.\n\nTWO HALVES: the frame must record the width it was painted at and refuse to reuse a stale\ngeometry, and the prompt must repaint on `resize` rather than staying wrongly wrapped until\nthe next keystroke.\n\n`packages/farm-client/vendor/prompt-contract-v1` is a vendored copy of this file, identical\ntoday, kept aligned by `pnpm --filter @refarm.dev/farm-client run vendor:sync` and guarded by\n`vendor:check`. The fix lands in the source and is regenerated, never edited twice.",
 			"location": "packages/prompt-contract-v1/src/index.ts:604-625",
-			"status": "open",
+			"status": "resolved",
 			"category": "defect",
 			"priority": "medium",
 			"package": "packages/prompt-contract-v1",
-			"axis": "other"
+			"axis": "other",
+			"resolved_by": "d5b981ed"
 		},
 		{
 			"id": "ISS-136",
 			"title": "`vendor:check` exists, works, and is wired to nothing",
-			"body": "MEASURED 2026-08-17, while fixing ISS-135 in `packages/prompt-contract-v1`.\n\n`packages/farm-client/vendor/` holds byte-copies of two packages, and `packages/farm-client`\ndeclares both halves of the mechanism that keeps them true:\n\n    vendor:sync   node scripts/vendor.mjs\n    vendor:check  node scripts/vendor.mjs --check\n\n`vendor:check` is referenced by NOTHING — not a workflow, not a lane, not another script. A repo\ngrep across .github/, package.json and scripts/ returns no caller.\n\nWHAT THAT COST, measured rather than supposed: running `vendor:sync` for the prompt fix also\nrewrote `vendor/operation-consent-v1`, whose vendored source was ~500 lines behind its origin —\nan entire feature (the outstanding-questions surface on `OperationTrail`) missing from the copy\nthe farm-client actually loads. Every gate in this repo was green throughout.\n\nThis is the same shape as ISS-125 and the requirements-supply audit: the check exists, it works,\nand nothing asks it. A guard nobody runs is indistinguishable from one that does not exist, and\nworse than none, because its presence reads as coverage.\n\nFIXED IN THE SAME SLICE: `vendor:check` joins the `before-push` repo-contract gates, beside\n`validate-packages` and `task:build-order:check`. It belongs there by the lane's own stated rule —\nrepo-wide rather than change-scoped, and the error escapes the machine rather than the keystroke.\nThe check is two file comparisons and adds no measurable time.\n\nSTILL OPEN: whether CI runs it. The lane's contract is 'say what the pipeline will say', and\nthe pipeline does not say this yet.",
+			"body": "MEASURED 2026-08-17, while fixing ISS-135 in `packages/prompt-contract-v1`.\n\n`packages/farm-client/vendor/` holds byte-copies of two packages, and `packages/farm-client`\ndeclares both halves of the mechanism that keeps them true:\n\n    vendor:sync   node scripts/vendor.mjs\n    vendor:check  node scripts/vendor.mjs --check\n\n`vendor:check` is referenced by NOTHING — not a workflow, not a lane, not another script. A repo\ngrep across .github/, package.json and scripts/ returns no caller.\n\nWHAT THAT COST, measured rather than supposed: running `vendor:sync` for the prompt fix also\nrewrote `vendor/operation-consent-v1`, whose vendored source was ~500 lines behind its origin —\nan entire feature (the outstanding-questions surface on `OperationTrail`) missing from the copy\nthe farm-client actually loads. Every gate in this repo was green throughout.\n\nThis is the same shape as ISS-125 and the requirements-supply audit: the check exists, it works,\nand nothing asks it. A guard nobody runs is indistinguishable from one that does not exist, and\nworse than none, because its presence reads as coverage.\n\nFIXED IN THE SAME SLICE: `vendor:check` joins the `before-push` repo-contract gates, beside\n`validate-packages` and `task:build-order:check`. It belongs there by the lane's own stated rule —\nrepo-wide rather than change-scoped, and the error escapes the machine rather than the keystroke.\nThe check is two file comparisons and adds no measurable time.\n\nSTILL OPEN: whether CI runs it. The lane's contract is 'say what the pipeline will say', and\nthe pipeline does not say this yet.\nLANDED 2026-08-17 in a7eb6e0d: `vendor:check` is now a `before-push` repo-contract gate,\nbeside `validate-packages` and `task:build-order:check`, and the ~500-line\n`operation-consent-v1` drift it was blind to is paid off in the same commit.\n\nSTILL OPEN, which is why this item is: the PIPELINE does not run it. This lane_s stated\ncontract is to say what the pipeline will say, and right now the lane says more. Until CI\nruns the same check, a push from a machine that skipped the lane can still land drift.",
 			"location": "packages/farm-client/package.json:38",
 			"status": "open",
 			"category": "gap",
