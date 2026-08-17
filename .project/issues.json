@@ -1525,6 +1525,17 @@
 			"package": "model-account-contract-v1",
 			"axis": "durability",
 			"resolved_by": "dfe5d0cb"
+		},
+		{
+			"id": "ISS-129",
+			"title": "Copilot tells the node WHICH quota it lives on and never how much is left — measured, both accounts",
+			"body": "MEASURED 2026-08-16, advancing ISS-064's step 1 (\"first, measure what each configured provider\nactually exposes\") for github-copilot, on the operator's two real accounts.\n\nWHAT THE STORED COPILOT TOKEN CARRIES — 18 fields, parsed with the repo's own\nparseCopilotTokenFields, no network call needed:\n\n    tid, exp, iat, sku, proxy-ep, st, chat, cit/sn, editor_preview_features, client_byok,\n    agent_mode, agent_mode_auto_approval, mcp, blackbird_external_indexing, ccr, ip, asn, sl\n\nONE OF THEM IS ABOUT QUOTA, AND IT IS THE REGIME RATHER THAN THE LEVEL:\n\n    pessoal      sku = monthly_subscriber_quota\n    corporativo  sku = copilot_for_business_seat_quota\n\nNO counter. No remaining, no limit, no reset date, no allowance. The token says WHICH QUOTA this\naccount lives on and never how much of it is left. So \"is the corporate seat depleted\" cannot be\nanswered from the credential the node already holds — and that is now a measured fact rather than\nan assumption.\n\nTWO MORE FACTS THE PROBE TURNED UP:\n\n1. The stored `access` is the SHORT-LIVED COPILOT TOKEN, not the GitHub user token — it starts\n   `tid=` and `baseUrlSource` is `from-token`. Both accounts' tokens were EXPIRED, by 45h and\n   34h. `refresh` holds a `ghu_` user-to-server token, so the node CAN renew without a new\n   login; nothing had.\n2. THE NUMERATOR IS EMPTY TOO. `refarm budget by-account --json` reports 32 observations and\n   `groups: []` — every one unattributed. The grouping shipped (d1b94ec5) but no observation\n   carries `refarm.budget.credentialId`, so \"what has this account spent\" is unanswerable\n   independently of the denominator.\n\nWHERE TO LOOK NEXT, and it is one request: the JSON BODY of the `copilot_internal/v2/token`\nexchange, which this probe could not read because it presented the Copilot token to\napi.github.com — the wrong audience. With the `ghu_` refresh token that is a single call, and the\nsame probe then answers whether the body carries a counter the token does not.\n\nIF THE BODY CARRIES NO COUNTER EITHER, the honest outcome is ISS-064's THIRD STATE for this\nprovider — \"github-copilot cannot say\" — and the only sovereign signal left is the dispatch\noutcome itself (a 403/429 attributable to the account that made it), which needs the numerator\nattribution above to be worth anything.\n\nA NOTE ON THE PROBE, because it is the second instrument this session to answer confidently while\nlooking in the wrong place: it read `access` as a GitHub user token and got 401 Bad Credentials\ntwice, which would have read as \"the provider refuses us\" rather than \"we asked wrong\".",
+			"location": "apps/refarm/src/credentials/oauth/github-copilot-wire.ts, docs/model-provider-strata.md",
+			"status": "open",
+			"category": "gap",
+			"priority": "high",
+			"package": "refarm",
+			"axis": "cost"
 		}
 	]
 }
