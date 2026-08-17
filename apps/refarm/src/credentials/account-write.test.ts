@@ -249,3 +249,106 @@ describe("retiring the legacy entry (ISS-128)", () => {
 		expect(result.legacyKept).toMatch(/cannot say/u);
 	});
 });
+
+/**
+ * ISS-134. Retirement was ONE STORE DEEP: the flat secret went and the catalog record naming it
+ * stayed. This is what the operator saw on 2026-08-17 — one openai-codex account, and `sow` telling
+ * him in consecutive lines that it had migrated his previous credential AND that this was account 2
+ * of 2. The proof that authorises deleting the secret is the same proof that authorises dropping
+ * the record: `legacySubject === accountId`. Nothing else earns either.
+ */
+describe("retiring the RECORD as well as the secret (ISS-134)", () => {
+	const FOSSIL = {
+		credentialId: "model-account:CG4WNKR6KNSH3510XGHBWW0JXA",
+		provider: "openai-codex",
+		alias: "default",
+		identity: { status: "unverified" as const },
+		secretRef: "legacy:oauthCredentials/openai-codex",
+		health: "healthy" as const,
+		revision: "sha256:legacy",
+	};
+
+	function seed(dir: string, catalog: readonly unknown[]): void {
+		const file = path.join(dir, ".refarm", "model-accounts.json");
+		fs.mkdirSync(path.dirname(file), { recursive: true });
+		fs.writeFileSync(file, `${JSON.stringify(catalog, null, 2)}\n`);
+	}
+
+	it("leaves ONE record for the provider when the login proves it is the same account", async () => {
+		const dir = home();
+		seed(dir, [FOSSIL]);
+		const silo = fakeSilo({
+			oauthCredentials: { "openai-codex": { access: "OLD", accountId: "conta-a" } },
+		});
+
+		const result = await writeModelCredential({
+			home: dir,
+			silo,
+			provider: "openai-codex",
+			credentials: { access: "NOVO", accountId: "conta-a" },
+		});
+
+		expect(result.migratedFromLegacy).toBe(true);
+		expect(readCatalog(dir).map((e) => e.credentialId)).toEqual([result.descriptor!.credentialId]);
+	});
+
+	it("names it `default`, because the record it would have been second to is gone", async () => {
+		// The alias is picked by looking at what the provider already has. Counting the record being
+		// retired in that same act is how a node with one account produced "account-2".
+		const dir = home();
+		seed(dir, [FOSSIL]);
+		const silo = fakeSilo({
+			oauthCredentials: { "openai-codex": { access: "OLD", accountId: "conta-a" } },
+		});
+
+		const result = await writeModelCredential({
+			home: dir,
+			silo,
+			provider: "openai-codex",
+			credentials: { access: "NOVO", accountId: "conta-a" },
+		});
+
+		expect(result.descriptor?.alias).toBe("default");
+	});
+
+	it("KEEPS the record when the legacy entry belongs to someone else", async () => {
+		// Symmetric with the secret: unproven is not licence to delete. Two accounts, two records.
+		const dir = home();
+		seed(dir, [FOSSIL]);
+		const silo = fakeSilo({
+			oauthCredentials: { "openai-codex": { access: "OLD", accountId: "conta-a" } },
+		});
+
+		const result = await writeModelCredential({
+			home: dir,
+			silo,
+			provider: "openai-codex",
+			credentials: { access: "NOVO", accountId: "conta-b" },
+		});
+
+		expect(result.migratedFromLegacy).toBe(false);
+		expect(readCatalog(dir).map((e) => e.credentialId).sort()).toEqual(
+			[FOSSIL.credentialId, result.descriptor!.credentialId].sort(),
+		);
+	});
+
+	it("KEEPS a record whose flat entry is already gone, since nothing proves whose it was", async () => {
+		// The operator's node, exactly: the fossil outlived its secret. Deleting it here would be a
+		// removal on no evidence. It is reported `incomplete` by the view (ISS-132) and removed
+		// deliberately with `credential forget`.
+		const dir = home();
+		seed(dir, [FOSSIL]);
+		const silo = fakeSilo({ oauthCredentials: {} });
+
+		const result = await writeModelCredential({
+			home: dir,
+			silo,
+			provider: "openai-codex",
+			credentials: { access: "NOVO", accountId: "conta-a" },
+		});
+
+		expect(readCatalog(dir).map((e) => e.credentialId).sort()).toEqual(
+			[FOSSIL.credentialId, result.descriptor!.credentialId].sort(),
+		);
+	});
+});

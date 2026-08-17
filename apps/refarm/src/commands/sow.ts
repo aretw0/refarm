@@ -428,6 +428,14 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 								chalk.dim(`  Migrated the previous ${credential.provider} credential out of the flat store.`),
 							);
 						}
+						// SAID OUT LOUD. The write computes this reason precisely so that keeping a
+						// credential is not a silent outcome — its own field doc says "Silence here would
+						// repeat ISS-128 quietly" — and nothing printed it. A node that kept a second
+						// credential without saying so is a node whose next dispatch refuses as ambiguous
+						// for a reason the operator was never told.
+						if (written.legacyKept) {
+							console.log(chalk.yellow(`  ${written.legacyKept}`));
+						}
 						const tokenUpdate = {
 							modelProvider,
 							oauthProvider: credential.provider,
