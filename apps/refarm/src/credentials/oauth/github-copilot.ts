@@ -26,8 +26,14 @@ import {
 	copilotApiBaseUrl,
 	copilotRefreshMargin,
 	copilotTokenExchangeUrl,
+	explainRefusal,
 	GITHUB_ACCESS_TOKEN_URL,
+	GITHUB_COPILOT_STATUS_COMPONENT,
 	GITHUB_DEVICE_CODE_URL,
+	GITHUB_STATUS_SUMMARY_URL,
+	latestIncidentNote,
+	readProviderStatus,
+	type ProviderStatus,
 } from "./github-copilot-wire.js";
 import type { OAuthCredentials, OAuthLoginCallbacks, OAuthProviderInterface } from "./types.js";
 
@@ -55,6 +61,34 @@ interface DeviceCode {
 	expires_in: number;
 }
 
+
+/**
+ * What GitHub says about Copilot right now, or `unknown`.
+ *
+ * NEVER THROWS AND NEVER BLOCKS THE REAL ERROR. This runs on a path that is already failing; a
+ * status check that failed loudly would replace one diagnosis with a worse one. It is also given a
+ * short deadline for the same reason — an operator waiting on an error message is not waiting on
+ * this.
+ */
+async function readGitHubCopilotStatus(
+	doFetch: typeof globalThis.fetch,
+): Promise<{ status: ProviderStatus; note?: string }> {
+	try {
+		const response = await doFetch(GITHUB_STATUS_SUMMARY_URL, {
+			signal: AbortSignal.timeout(5_000),
+		});
+		if (!response.ok) return { status: { health: "unknown" } };
+		const document: unknown = await response.json();
+		const note = latestIncidentNote(document, GITHUB_COPILOT_STATUS_COMPONENT);
+		return {
+			status: readProviderStatus(document, GITHUB_COPILOT_STATUS_COMPONENT),
+			...(note ? { note } : {}),
+		};
+	} catch {
+		return { status: { health: "unknown" } };
+	}
+}
+
 export function createGitHubCopilotProvider(
 	options: GitHubCopilotProviderOptions,
 ): OAuthProviderInterface {
@@ -76,10 +110,26 @@ export function createGitHubCopilotProvider(
 			headers: { ...presented.headers, Authorization: `Bearer ${githubToken}` },
 		});
 		if (!response.ok) {
+			// ASK THE PROVIDER ABOUT ITSELF BEFORE BLAMING THE OPERATOR.
+			//
+			// This used to say only "GitHub did not accept this identity ... may only honour known
+			// integration ids", which is a true sentence about a possible cause and reads as a
+			// diagnosis. Measured 2026-08-17: during a declared Copilot MAJOR OUTAGE — GitHub's own
+			// note that hour was "we have partially disabled authentication token retries", and this
+			// endpoint IS an authentication token retry — it sent the operator to re-register an
+			// identity, re-run the device flow three times and change a config key. None of it could
+			// have worked.
+			//
+			// The identity hint is KEPT, because it remains the right suspicion when the provider
+			// reports itself healthy. What changed is that the sentence now says which of the two
+			// worlds it is in, and admits when it could not tell.
+			const status = await readGitHubCopilotStatus(doFetch);
 			throw new Error(
-				`GitHub did not accept this identity at copilot_internal/v2/token (HTTP ${response.status}). ` +
-					"The endpoint is undocumented and may only honour known integration ids; refarm does not " +
-					"impersonate one. See docs/GITHUB_IDENTITY_SETUP.md.",
+				`The Copilot token exchange failed. ${explainRefusal(status.status, response.status, status.note)} ` +
+					(status.status.health === "operational"
+						? "The endpoint is undocumented and may only honour known integration ids; refarm does not " +
+							"impersonate one. See docs/GITHUB_IDENTITY_SETUP.md."
+						: ""),
 			);
 		}
 		const body = (await response.json()) as { token?: unknown; expires_at?: unknown };

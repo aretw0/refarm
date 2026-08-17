@@ -110,19 +110,66 @@ describe("createGitHubCopilotProvider — login", () => {
 		expect(creds.baseUrlSource).toBe("from-token");
 	});
 
-	it("REFUSES the exchange by name when GitHub rejects this identity", async () => {
-		// The measurement the operator's first login exists to make. If GitHub only honours known
-		// integration ids, this is where it shows, and it must say so rather than surface a raw
-		// status code.
-		const doFetch = vi.fn(async (url: string) =>
-			String(url).includes("device/code")
-				? jsonResponse(DEVICE_CODE)
-				: String(url).includes("access_token")
-					? jsonResponse({ access_token: "gho_USER" })
-					: jsonResponse({ message: "Forbidden" }, false),
-		);
+	/**
+	 * A REFUSAL MEANS TWO DIFFERENT THINGS, and the message must say which.
+	 *
+	 * Measured 2026-08-17: during a declared Copilot MAJOR OUTAGE — GitHub's own note that hour was
+	 * "we have partially disabled authentication token retries", and this endpoint IS an
+	 * authentication token retry — the old single sentence ("may only honour known integration
+	 * ids") sent the operator to re-register an identity, re-run the device flow three times and
+	 * change a config key. None of it could have worked.
+	 */
+	function loginFetch(statusDocument: unknown | null) {
+		return vi.fn(async (url: string) => {
+			const target = String(url);
+			if (target.includes("device/code")) return jsonResponse(DEVICE_CODE);
+			if (target.includes("access_token")) return jsonResponse({ access_token: "gho_USER" });
+			if (target.includes("githubstatus.com")) {
+				return statusDocument === null
+					? jsonResponse({}, false)
+					: jsonResponse(statusDocument);
+			}
+			return jsonResponse({ message: "Forbidden" }, false);
+		});
+	}
+
+	it("says WAIT, and keeps the identity out of it, when GitHub declares Copilot impaired", async () => {
+		const doFetch = loginFetch({
+			components: [{ name: "Copilot", status: "major_outage" }],
+			incidents: [
+				{
+					name: "Incident with GitHub.com",
+					components: [{ name: "Copilot", status: "major_outage" }],
+					incident_updates: [{ body: "partially disabled authentication token retries" }],
+				},
+			],
+		});
 		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: doFetch as never });
-		await expect(provider.login(callbacks())).rejects.toThrow(/did not accept|copilot_internal/iu);
+		const error = await provider.login(callbacks()).catch((e: Error) => e);
+		expect(String(error)).toMatch(/DECLARED trouble/u);
+		expect(String(error)).toMatch(/authentication token retries/u);
+		// The identity hint MUST NOT appear here: it is the sentence that sent him to re-register.
+		expect(String(error)).not.toMatch(/integration ids/u);
+	});
+
+	it("KEEPS the identity hint when GitHub reports Copilot operational", async () => {
+		// The old suspicion remains the right one in this world, which is why it is kept rather
+		// than deleted.
+		const doFetch = loginFetch({ components: [{ name: "Copilot", status: "operational" }] });
+		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: doFetch as never });
+		const error = await provider.login(callbacks()).catch((e: Error) => e);
+		expect(String(error)).toMatch(/integration ids/u);
+		expect(String(error)).toMatch(/about this node or its credential/u);
+	});
+
+	it("admits it could not tell when the status page is unreachable", async () => {
+		// Unknown is not operational. A status check that could not run must not license the
+		// conclusion it exists to prevent.
+		const doFetch = loginFetch(null);
+		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: doFetch as never });
+		const error = await provider.login(callbacks()).catch((e: Error) => e);
+		expect(String(error)).toMatch(/UNMEASURED/u);
+		expect(String(error)).not.toMatch(/integration ids/u);
 	});
 });
 

@@ -4,6 +4,7 @@ export * from "./catalog.js";
 export * from "./copilot-wire.js";
 export * from "./describe-new.js";
 export * from "./migrate.js";
+export * from "./provider-status.js";
 export * from "./quota.js";
 export * from "./read-credential.js";
 export * from "./resolve.js";

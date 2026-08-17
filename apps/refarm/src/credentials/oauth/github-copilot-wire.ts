@@ -7,6 +7,12 @@
  */
 export {
 	COPILOT_SCOPE,
+	explainRefusal,
+	GITHUB_COPILOT_STATUS_COMPONENT,
+	GITHUB_STATUS_SUMMARY_URL,
+	latestIncidentNote,
+	readProviderStatus,
+	type ProviderStatus,
 	copilotAccountId,
 	copilotApiBaseUrl,
 	copilotRefreshMargin,

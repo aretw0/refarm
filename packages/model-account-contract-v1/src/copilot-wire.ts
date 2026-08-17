@@ -28,6 +28,12 @@
  * publishes, which is the exact failure the file's own opening paragraph exists to prevent.
  */
 
+/** Where GitHub declares its own health, and the component name that answers for Copilot.
+ *  Consulted before a refusal is blamed on this node — see `provider-status.ts` for the cycle that
+ *  cost, measured on 2026-08-17 during a Copilot major outage. */
+export const GITHUB_STATUS_SUMMARY_URL = "https://www.githubstatus.com/api/v2/summary.json";
+export const GITHUB_COPILOT_STATUS_COMPONENT = "Copilot";
+
 /** GitHub's device-code endpoints, which ARE documented. Only the exchange below is not. */
 export const GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code";
 export const GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token";
