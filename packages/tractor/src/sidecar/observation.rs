@@ -43,6 +43,17 @@ pub(crate) struct ObservationInput<'a> {
     /// money attributed by a directory that looked like it (ISS-058).
     pub workspace_source: Option<&'a str>,
     pub spawner: Option<&'a str>,
+    /// WHICH ACCOUNT'S QUOTA PAID — the opaque credential id, never an alias and never a secret.
+    ///
+    /// `refarm budget by-account` has read this since d1b94ec5 and nothing wrote it, so the
+    /// operator's node held 32 observations with `groups: []` (ISS-130). It rides on the `Effort`
+    /// like `workspace_id` does, because only the CALLER knows which account its binding
+    /// resolved to; re-deriving it here would be a second road to the same doorstep and would
+    /// drift the moment a binding changed mid-run.
+    ///
+    /// An alias would be wrong for the same reason the catalog persists the opaque id (D2): a
+    /// rename must not move spend from one account's history to another's.
+    pub credential_id: Option<&'a str>,
     pub outcome: &'a str,
     /// `None` when `EffortResult.submitted_at`/`completed_at` could not both be
     /// parsed — omitted via `put_opt`, never a fabricated elapsed time (D6). A
@@ -331,6 +342,10 @@ pub(crate) fn build_observation_node(input: ObservationInput<'_>) -> serde_json:
     // `"declared"` invented here would read to every future analysis as an operator's claim.
     put_opt(&mut map, "refarm.workspace.source", input.workspace_source.map(Into::into));
     put_opt(&mut map, "refarm.budget.spawner", input.spawner.map(Into::into));
+    // OMITTED rather than null, per D6 — the same rule `workspace_source` follows. A null payer
+    // is indistinguishable, once aggregated, from a dispatch that spent nobody's quota, and
+    // `by-account` already counts an absent field as `unattributed`, which is the true answer.
+    put_opt(&mut map, "refarm.budget.credentialId", input.credential_id.map(Into::into));
     // WHICH NODE ran this — OTel's resource semantic conventions already speak here
     // (`host.name`/`host.id`, https://opentelemetry.io/docs/specs/semconv/resource/host/),
     // so this is `gen_ai.*`'s sibling rather than a `refarm.*` invention, per D2's rule.
@@ -436,7 +451,7 @@ pub(crate) fn write_budget_observation(
     // parallel store would be a third road to the same doorstep — and a store
     // whose entries are TAKEN would also have to be reasoned about across
     // retry, which this needs not be.
-    let (workspace_id, workspace_source, spawner, expectation) = state
+    let (workspace_id, workspace_source, spawner, credential_id, expectation) = state
         .efforts_input
         .read()
         .ok()
@@ -446,11 +461,12 @@ pub(crate) fn write_budget_observation(
                     effort.workspace_id.clone(),
                     effort.workspace_source.clone(),
                     effort.source.clone(),
+                    effort.credential_id.clone(),
                     super::verification::declared_expectation(effort.expectation.as_deref()),
                 )
             })
         })
-        .unwrap_or((None, None, None, None));
+        .unwrap_or((None, None, None, None, None));
 
     // The comparison itself — run here, once, at the only point where both the
     // declaration and the answer exist. No expectation means no comparison and
@@ -488,6 +504,7 @@ pub(crate) fn write_budget_observation(
         workspace_id: workspace_id.as_deref(),
         workspace_source: workspace_source.as_deref(),
         spawner: spawner.as_deref(),
+        credential_id: credential_id.as_deref(),
         outcome,
         elapsed_ms,
         node_name: node_name.as_deref(),

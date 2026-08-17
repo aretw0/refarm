@@ -1343,6 +1343,7 @@ async fn sidecar_in_flight_carries_the_deadline_dispatch_resolved() {
             workspace_id: None,
             workspace_source: None,
             scenario_id: None,
+            credential_id: None,
             expectation: None,
         },
     );

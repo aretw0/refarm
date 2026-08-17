@@ -1230,6 +1230,7 @@ mod tests {
             workspace_id: None,
             workspace_source: None,
             scenario_id: None,
+            credential_id: None,
             expectation: None,
         }
     }

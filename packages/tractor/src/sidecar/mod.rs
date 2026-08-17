@@ -175,6 +175,12 @@ pub struct Effort {
     /// why this is a different kind of thing from the hash that rides beside it.
     #[serde(default)]
     pub scenario_id: Option<String>,
+    /// WHICH ACCOUNT this dispatch spends — the opaque credential id the caller's workspace
+    /// binding resolved to. Declared like `workspace_id`, never inferred: only the caller knows
+    /// which binding applied, and by the time the observation reads it a re-derivation could
+    /// disagree with what actually paid. A dispatch with no resolved account sends `None`.
+    #[serde(default)]
+    pub credential_id: Option<String>,
     /// What the caller DECLARES this run's answer must contain, so the record
     /// can say the run was WRONG (`refarm ask --expect <text>`) — a question
     /// `refarm.outcome` does not answer and was never asking: `done` means the

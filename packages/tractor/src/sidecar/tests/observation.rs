@@ -23,6 +23,7 @@ fn base_input() -> ObservationInput<'static> {
         workspace_id: Some("rcdc5"),
         workspace_source: None,
         spawner: Some("termux"),
+        credential_id: None,
         outcome: "timed-out",
         elapsed_ms: Some(45_000),
         steps_completed: Some(4),
@@ -119,6 +120,7 @@ fn an_undeclared_scenario_is_absent_from_the_record_not_null() {
 fn a_declared_scenario_and_a_derived_hash_land_as_flat_top_level_keys() {
     let node = build_observation_node(ObservationInput {
         scenario_id: Some("summarise-v1"),
+        credential_id: None,
         scenario_hash: Some("sha256:deadbeef"),
         ..base_input()
     });
@@ -514,6 +516,7 @@ async fn a_config_change_after_dispatch_does_not_leak_into_the_observation() {
             args: serde_json::json!({ "prompt": "ping" }),
         }],
         source: Some("test".to_string()),
+        credential_id: None,
         // Millisecond shape ON PURPOSE. Every real client stamps `submittedAt` with
         // `new Date().toISOString()`, which always carries `.sss`; the seconds shape this
         // fixture used to carry is one NOTHING in production emits, and using it here is
@@ -613,6 +616,7 @@ async fn an_event_dispatch_efforts_observation_carries_no_budget_family() {
         workspace_id: None,
         workspace_source: None,
         scenario_id: None,
+        credential_id: None,
         expectation: None,
     };
 
@@ -939,6 +943,7 @@ fn scenario_effort(
             args,
         }],
         source: Some("test".to_string()),
+        credential_id: None,
         submitted_at: "2026-01-01T00:00:00.123Z".to_string(),
         budget,
         workspace_id: workspace_id.map(str::to_string),
@@ -1113,4 +1118,37 @@ fn an_effort_with_no_dispatch_time_resolution_records_neither_scenario_field() {
             "{key} must be absent when dispatch left no resolution to read back: {node}"
         );
     }
+}
+
+/// WHICH QUOTA PAID (ISS-130). `refarm budget by-account` has read
+/// `refarm.budget.credentialId` since d1b94ec5 and nothing has ever written it: on the operator's
+/// real node the command reported 32 observations and `groups: []`, every one unattributed. The
+/// command was not broken — it was correctly reporting that nobody told it.
+///
+/// It is load-bearing rather than tidy. ISS-129 measured that GitHub Copilot answers the quota
+/// question with `limited_user_quotas: null` for both of the operator's SKUs, so the only sovereign
+/// depletion signal left is the dispatch outcome — and an outcome nobody can attribute to an
+/// account cannot say which account ran out.
+#[test]
+fn the_record_says_which_account_paid() {
+    let node = build_observation_node(ObservationInput {
+        credential_id: Some("model-account:K4NXGZTQQ4KFM0GG9139VN67PR"),
+        ..base_input()
+    });
+
+    assert_eq!(node["refarm.budget.credentialId"], "model-account:K4NXGZTQQ4KFM0GG9139VN67PR");
+}
+
+/// OMITTED, NEVER NULL — the same D6 rule `workspace_source` follows one test up, and for the same
+/// reason. Every observation written before this field existed is unattributed, and a null here
+/// would be indistinguishable, once aggregated, from "this dispatch spent no account's quota".
+/// `by-account` counts absent as `unattributed`, which is the true answer.
+#[test]
+fn an_unattributed_dispatch_says_nothing_rather_than_null() {
+    let node = build_observation_node(ObservationInput { credential_id: None, ..base_input() });
+
+    assert!(
+        !node.as_object().unwrap().contains_key("refarm.budget.credentialId"),
+        "an unknown payer is an ABSENT field, not a null one",
+    );
 }

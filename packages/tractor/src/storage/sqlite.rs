@@ -1089,6 +1089,11 @@ mod tests {
 
     #[test]
     fn peer_id_memory_namespace_has_no_persistent_home() {
+        // TAKES THE LOCK because `peer_id_for_namespace` reads `REFARM_PEER_ID`, and since
+        // `graph_base` this module also has tests that REMOVE the graph-declaration variables.
+        // Without it this raced them and failed only in a full run — green alone, red in the
+        // suite, which is the worst shape a test can have.
+        let _guard = crate::test_support::env_lock();
         // `:memory:` returns None → the caller falls back to namespace-derivation,
         // so in-process/test docs never share a persisted peer file.
         assert_eq!(peer_id_for_namespace(":memory:").unwrap(), None);
