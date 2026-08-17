@@ -14,6 +14,10 @@
 import { AGENT_CORE_BUNDLE, loadConfigAsync } from "@refarm.dev/config";
 import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
+import {
+	readModelAuthorization,
+	type ModelAccountDescriptor,
+} from "@refarm.dev/model-account-contract-v1";
 import type { RuntimeHost, RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
 import { SiloCore } from "@refarm.dev/silo";
 import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
@@ -24,6 +28,7 @@ import { createNodeSqliteStorageProvider } from "@refarm.dev/storage-sqlite/node
 import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
 import { Tractor } from "@refarm.dev/tractor";
 import { WsStreamTransport } from "@refarm.dev/ws-stream-transport";
+import fs from "node:fs";
 import { mkdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -199,10 +204,40 @@ const silo = new SiloCore();
 const modelRouteResolver = createModelRouteResolver({
 	loadTokens: () => silo.loadTokens() as Promise<Record<string, unknown>>,
 });
+/** The refarm home this daemon reads its non-secret node files from. `SOVEREIGN_DIR` is injected
+ *  as `.refarm` before any config read (below), so this is the same directory the CLI writes. */
+function refarmHomeDir(): string {
+	return process.env.REFARM_HOME ?? path.join(os.homedir(), ".refarm");
+}
+
+function readNodeJson(file: string): unknown {
+	try {
+		return JSON.parse(fs.readFileSync(path.join(refarmHomeDir(), file), "utf8")) as unknown;
+	} catch {
+		return undefined;
+	}
+}
+
 const siloModelEnvInjector = createSiloModelEnvInjector({
 	store: {
 		loadTokens: () => silo.loadTokens() as Promise<Record<string, unknown>>,
 		saveTokens: (tokens) => silo.saveTokens(tokens),
+	},
+	// WHAT THE NODE HOLDS AND WHAT IT DECLARED IT MAY SPEND, read fresh on every injection rather
+	// than captured at import: a declaration made while the daemon runs must apply at its next
+	// start without the operator having to know that it was cached (ISS-131 tier 3).
+	accounts: async () => {
+		const parsed = readNodeJson("model-accounts.json");
+		return {
+			catalog: Array.isArray(parsed) ? (parsed as ModelAccountDescriptor[]) : [],
+			authorization: readModelAuthorization(readNodeJson("config.json")),
+		};
+	},
+	// The namespaced store, so a credential `sow` migrated can be READ at all and a renewed one
+	// written back where it came from instead of copied into the flat map (ISS-081, ISS-140).
+	secrets: {
+		load: (namespace, id) => silo.loadSecret(namespace, id),
+		save: (namespace, id, value) => silo.saveSecret(namespace, id, value),
 	},
 	refreshOAuthToken,
 });
