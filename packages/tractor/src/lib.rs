@@ -122,6 +122,54 @@ pub use trust::{ExecutionProfile, SecurityMode, TrustManager};
 /// A neutral event envelope routed to a loaded plugin's runner. `event` is the
 /// event name (e.g. `user:prompt`, `vault:dispatch`); `payload` is an opaque
 /// JSON string. Nothing here is agent-specific — the agent is just one plugin
+#[cfg(test)]
+mod declared_model_provider_tests {
+    use super::declared_model_provider;
+
+    /// ISS-140 tier B. This decides how far a single invocation may reach, so what it does with
+    /// input it does not understand is the whole design: `None` leaves the allowlist exactly as the
+    /// node authorised it, which is the previous behaviour. Refusing on unfamiliar JSON would make
+    /// an unrelated payload change break every model call.
+    #[test]
+    fn reads_the_declared_provider_in_either_spelling() {
+        assert_eq!(
+            declared_model_provider(r#"{"modelProvider":"github-copilot"}"#).as_deref(),
+            Some("github-copilot")
+        );
+        assert_eq!(
+            declared_model_provider(r#"{"model_provider":"openai-codex"}"#).as_deref(),
+            Some("openai-codex")
+        );
+    }
+
+    #[test]
+    fn yields_none_for_anything_it_cannot_read() {
+        assert!(declared_model_provider("not json").is_none());
+        assert!(declared_model_provider("{}").is_none());
+        assert!(declared_model_provider(r#"{"modelProvider":""}"#).is_none());
+        assert!(declared_model_provider(r#"{"modelProvider":"   "}"#).is_none());
+        assert!(declared_model_provider(r#"{"modelProvider":42}"#).is_none());
+    }
+}
+
+/// PURE. The model provider a dispatch payload declares, if it declares one.
+///
+/// Best-effort by design: a payload this cannot parse yields `None`, which leaves the allowlist
+/// exactly as the node authorised it. Failing to narrow is the previous behaviour; refusing a
+/// dispatch because its JSON was unfamiliar would make an unrelated payload change break every
+/// model call.
+fn declared_model_provider(payload: &str) -> Option<String> {
+    let parsed: serde_json::Value = serde_json::from_str(payload).ok()?;
+    let provider = parsed
+        .get("modelProvider")
+        .or_else(|| parsed.get("model_provider"))?;
+    let provider = provider.as_str()?.trim();
+    if provider.is_empty() {
+        return None;
+    }
+    Some(provider.to_string())
+}
+
 /// whose events happen to be `user:prompt`. (Formerly `AgentMessage`; the neutral
 /// name reflects that any plugin, not only the agent, is driven through this.)
 ///
@@ -470,7 +518,12 @@ fn spawn_plugin_store_runner(
                 // `sync:<verb>`, so an async-only plugin is never driven this way.
                 if let Some(reply) = msg.reply {
                     let payload = msg.payload.unwrap_or_default();
+                    // NARROWED FOR THIS INVOCATION ONLY (ISS-140 tier B). The declaration comes from
+                    // the payload the host itself received, and it can only INTERSECT with what the
+                    // node authorised — a task that lies restricts itself and reaches nothing new.
+                    h.set_task_provider(declared_model_provider(&payload));
                     let result = h.call_respond(&payload).await.map_err(|e| e.to_string());
+                    h.set_task_provider(None);
                     // The receiver may have dropped (caller gave up / timed out); a
                     // failed send is not the runner's problem.
                     let _ = reply.send(result);

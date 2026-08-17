@@ -903,6 +903,111 @@
         .is_err());
     }
 
+    /// ISS-140 tier B — what a single TASK may reach, not only what the node may.
+    ///
+    /// The three route sets resolve once at plugin load, so they bound the NODE. A workspace bound
+    /// to one account could therefore have its work sent to another, and `refarm budget by-account`
+    /// would name the account the CLI intended rather than the one the host actually spent — an
+    /// attribution worse than none, because it reads as measured.
+    #[test]
+    fn routes_for_task_narrows_and_can_never_widen() {
+        let primary = ModelRoute {
+            provider: "openai-codex".to_string(),
+            base_url: "https://chatgpt.com".to_string(),
+            path: "/backend-api/codex/responses".to_string(),
+        };
+        let configured = vec![ModelRoute {
+            provider: "github-copilot".to_string(),
+            base_url: "https://api.business.githubcopilot.com".to_string(),
+            path: "/chat/completions".to_string(),
+        }];
+
+        // Un-narrowed: exactly what the node authorised, unchanged.
+        assert_eq!(routes_for_task(None, &primary, None, &configured).len(), 2);
+
+        // Narrowed: an INTERSECTION. One provider survives.
+        let only = routes_for_task(Some("github-copilot"), &primary, None, &configured);
+        assert_eq!(only.len(), 1);
+        assert_eq!(only[0].provider, "github-copilot");
+
+        // MONOTONIC: a declaration can only shrink the set, so a task naming something the node
+        // never authorised reaches NOTHING rather than something new.
+        assert!(routes_for_task(Some("kimi-api"), &primary, None, &configured).is_empty());
+    }
+
+    #[test]
+    fn a_task_declaring_an_unauthorised_provider_is_REFUSED_not_served_by_the_primary() {
+        // The silent substitution this closes: falling through to the primary would send a
+        // workspace's work to an account it never named, and the record would name the other one.
+        let primary = ModelRoute {
+            provider: "openai-codex".to_string(),
+            base_url: "https://chatgpt.com".to_string(),
+            path: "/backend-api/codex/responses".to_string(),
+        };
+        let err = enforce_model_route_for_task(
+            "openai-codex",
+            "https://chatgpt.com",
+            "/backend-api/codex/responses",
+            Some("github-copilot"),
+            &primary,
+            None,
+            &[],
+        )
+        .unwrap_err();
+        assert!(err.contains("did not authorise"), "got: {err}");
+    }
+
+    #[test]
+    fn narrowing_to_the_declared_provider_still_admits_its_own_route() {
+        let primary = ModelRoute {
+            provider: "openai-codex".to_string(),
+            base_url: "https://chatgpt.com".to_string(),
+            path: "/backend-api/codex/responses".to_string(),
+        };
+        let configured = vec![ModelRoute {
+            provider: "github-copilot".to_string(),
+            base_url: "https://api.business.githubcopilot.com".to_string(),
+            path: "/chat/completions".to_string(),
+        }];
+        assert!(enforce_model_route_for_task(
+            "github-copilot",
+            "https://api.business.githubcopilot.com",
+            "/chat/completions",
+            Some("github-copilot"),
+            &primary,
+            None,
+            &configured,
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn a_narrowed_task_cannot_reach_a_SIBLING_the_node_authorised() {
+        // The whole point. The node authorises both; this task declared one; the other is closed
+        // for the duration of that task.
+        let primary = ModelRoute {
+            provider: "openai-codex".to_string(),
+            base_url: "https://chatgpt.com".to_string(),
+            path: "/backend-api/codex/responses".to_string(),
+        };
+        let configured = vec![ModelRoute {
+            provider: "github-copilot".to_string(),
+            base_url: "https://api.business.githubcopilot.com".to_string(),
+            path: "/chat/completions".to_string(),
+        }];
+        let err = enforce_model_route_for_task(
+            "openai-codex",
+            "https://chatgpt.com",
+            "/backend-api/codex/responses",
+            Some("github-copilot"),
+            &primary,
+            None,
+            &configured,
+        )
+        .unwrap_err();
+        assert!(err.contains("provider mismatch"), "got: {err}");
+    }
+
     /// ISS-141 — when a configured route was admitted for THIS provider and refused the request
     /// for another reason, its complaint is what surfaces.
     ///

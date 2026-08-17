@@ -101,6 +101,24 @@ pub struct TractorNativeBindings {
     /// at PluginHost boot and cloned in here at load, so the per-call effect path
     /// reads &self, never std::env::var.
     pub(crate) effect_policy: crate::host::host_effects_bridge::HostEffectPolicy,
+    /// The provider THIS INVOCATION declared, narrowing the allowlist for its duration.
+    ///
+    /// ISS-140 tier B. The three route sets below are resolved once at plugin load, so they bound
+    /// what the NODE may reach and nothing bounded what a single task may. A workspace bound to one
+    /// account could therefore have its work sent to another, and the budget record would name the
+    /// account the CLI intended rather than the one the host actually spent.
+    ///
+    /// NARROWING IS MONOTONICALLY SAFE, which is what makes reading the task's own declaration
+    /// sound here: this can only INTERSECT with the boot allowlist, never widen it. A task that
+    /// lies about its provider restricts itself and reaches nothing new — so the authorization
+    /// still comes from the node's declaration, and only the SELECTION comes from the task.
+    ///
+    /// `None` is the un-narrowed state: a dispatch that declared no provider, or a host wired
+    /// without the runner that sets this, behaves exactly as it did before.
+    ///
+    /// Single-threaded by construction rather than by lock: a plugin's invocations are served by
+    /// one task that owns the handle and calls the guest one at a time.
+    pub(crate) task_provider: Option<String>,
     /// The expected model ROUTE (provider + base-url + path) guardrail, resolved
     /// from the routing env vars (MODEL_PROVIDER / MODEL_BASE_URL)
     /// ONCE at boot. Read per model POST to validate the guest's requested route —
@@ -307,6 +325,8 @@ impl TractorNativeBindings {
             // Resolved once here at load (not per-request) from the same env the guest's
             // profile resolver reads, so host and guest agree on the configured set.
             configured_routes: ModelRoute::configured_routes_from_env(),
+            // Nothing is running yet, so nothing is narrowed yet.
+            task_provider: None,
             permission_grant,
             trusted_plugins,
             cross_plugin,
@@ -562,6 +582,7 @@ impl ModelBridgeHost for TractorNativeBindings {
             &path,
             &headers,
             &body,
+            self.task_provider.as_deref(),
             &self.model_route,
             self.fallback_route.as_ref(),
             &self.configured_routes,
@@ -589,6 +610,7 @@ impl ModelBridgeHost for TractorNativeBindings {
             &path,
             &headers,
             &body,
+            self.task_provider.as_deref(),
             &self.model_route,
             self.fallback_route.as_ref(),
             &self.configured_routes,
@@ -675,18 +697,28 @@ fn validate_stream_text_field(label: &str, value: &str, max_len: usize) -> Resul
 // internal seam. The guardrail's `configured` arg pushed it to 8; grouping into structs
 // would ripple through the model bridge for no behavioural gain.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 fn model_complete_http(
     provider: &str,
     base_url: &str,
     path: &str,
     headers: &[(String, String)],
     body: &[u8],
+    task_provider: Option<&str>,
     expected: &ModelRoute,
     fallback: Option<&ModelRoute>,
     configured: &[ModelRoute],
 ) -> Result<Vec<u8>, String> {
     let resp = send_model_http_post(
-        provider, base_url, path, headers, body, expected, fallback, configured,
+        provider,
+        base_url,
+        path,
+        headers,
+        body,
+        task_provider,
+        expected,
+        fallback,
+        configured,
     )?;
     read_response_bytes(resp)
 }
@@ -697,6 +729,35 @@ fn model_complete_http(
 /// primary error is returned unchanged, so an unset MODEL_FALLBACK_PROVIDER behaves
 /// byte-identically to a single-route host. On a fallback mismatch the primary
 /// error surfaces (chosen to keep the no-fallback path's error string identical).
+/// PURE. The routes admitted for THIS invocation, given what the task declared.
+///
+/// ISS-140 tier B. `None` leaves the set exactly as the node authorised it — the un-narrowed
+/// behaviour, byte for byte. A declared provider INTERSECTS: only routes for that provider survive,
+/// which can shrink the set to empty and can never add to it.
+///
+/// EMPTY IS A REFUSAL, not a fallthrough. A task that declares a provider the node never authorised
+/// must be refused rather than quietly served by the primary route — that silent substitution is
+/// the whole defect: a workspace bound to one account having its work sent to another while the
+/// budget record named the first.
+pub(crate) fn routes_for_task<'a>(
+    task_provider: Option<&str>,
+    primary: &'a ModelRoute,
+    fallback: Option<&'a ModelRoute>,
+    configured: &'a [ModelRoute],
+) -> Vec<&'a ModelRoute> {
+    let all: Vec<&ModelRoute> = std::iter::once(primary)
+        .chain(fallback)
+        .chain(configured.iter())
+        .collect();
+    let Some(wanted) = task_provider else {
+        return all;
+    };
+    let wanted = normalize_provider_name(wanted);
+    all.into_iter()
+        .filter(|route| normalize_provider_name(&route.provider) == wanted)
+        .collect()
+}
+
 fn enforce_model_route_any(
     provider: &str,
     base_url: &str,
@@ -705,6 +766,36 @@ fn enforce_model_route_any(
     fallback: Option<&ModelRoute>,
     configured: &[ModelRoute],
 ) -> Result<(), String> {
+    enforce_model_route_for_task(provider, base_url, path, None, primary, fallback, configured)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn enforce_model_route_for_task(
+    provider: &str,
+    base_url: &str,
+    path: &str,
+    task_provider: Option<&str>,
+    primary: &ModelRoute,
+    fallback: Option<&ModelRoute>,
+    configured: &[ModelRoute],
+) -> Result<(), String> {
+    if let Some(wanted) = task_provider {
+        let admitted = routes_for_task(Some(wanted), primary, fallback, configured);
+        if admitted.is_empty() {
+            return Err(format!(
+                "[blocked: model-bridge task declared provider '{}', which this node did not authorise]",
+                normalize_provider_name(wanted)
+            ));
+        }
+        let mut last = String::new();
+        for route in &admitted {
+            match enforce_model_route(provider, base_url, path, route) {
+                Ok(()) => return Ok(()),
+                Err(err) => last = err,
+            }
+        }
+        return Err(last);
+    }
     match enforce_model_route(provider, base_url, path, primary) {
         Ok(()) => Ok(()),
         Err(primary_err) => {
@@ -757,11 +848,20 @@ fn send_model_http_post(
     path: &str,
     headers: &[(String, String)],
     body: &[u8],
+    task_provider: Option<&str>,
     expected: &ModelRoute,
     fallback: Option<&ModelRoute>,
     configured: &[ModelRoute],
 ) -> Result<ureq::Response, String> {
-    enforce_model_route_any(provider, base_url, path, expected, fallback, configured)?;
+    enforce_model_route_for_task(
+        provider,
+        base_url,
+        path,
+        task_provider,
+        expected,
+        fallback,
+        configured,
+    )?;
     enforce_model_request_body(body)?;
     let provider = normalize_provider_name(provider);
 

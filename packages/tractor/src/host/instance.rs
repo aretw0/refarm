@@ -568,6 +568,20 @@ impl PluginInstanceHandle {
     /// Runs guest logic, so it arms the wall-clock deadline like `call_on_event`
     /// (timeout + cooperative cancel). P1 plain modules have no `respond` export → a
     /// clear error (they use `on_event` dispatch instead).
+    /// Narrow the model allowlist to what THIS invocation declared, for its duration.
+    ///
+    /// ISS-140 tier B. Set before the guest runs and cleared after, by the one task that owns this
+    /// handle — a plugin's invocations are served by a single consumer loop, so this needs no lock
+    /// and can never interleave.
+    ///
+    /// `None` restores the node-wide set, which is what a dispatch that declared no provider gets
+    /// and what every caller got before this existed.
+    pub fn set_task_provider(&mut self, provider: Option<String>) {
+        if let PluginImpl::Component { store, .. } = &mut self.inner {
+            store.data_mut().bindings.task_provider = provider;
+        }
+    }
+
     pub async fn call_respond(&mut self, payload: &str) -> Result<String> {
         // Same epoch arming as call_on_event: clear a stale cancel, set the deadline.
         self.epoch_guard
