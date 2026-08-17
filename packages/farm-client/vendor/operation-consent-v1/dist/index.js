@@ -70,6 +70,129 @@ export function makeOperationRecord(input) {
         ...(input.revisitOf ? { revisitOf: input.revisitOf } : {}),
     };
 }
+/**
+ * PURE-ish (reads files). Is this change ALREADY DONE?
+ *
+ * ## The operator's complaint, answered without a word of new vocabulary
+ *
+ * *"um operador ficando pedindo pra conectar na vpn sendo que já esta conectado"*. The generic
+ * form is: a question whose precondition already holds should not be asked. It looked like it
+ * needed a new declaration — a predicate per operation, domain knowledge in a block that has
+ * none — and it did not. Every request already carries a complete `after` for each file it
+ * touches. If the world ALREADY looks like that, there is nothing to do, so there is nothing to
+ * consent to.
+ *
+ * It is `driftedChanges` read the other way round, and that symmetry is the point: one asks
+ * whether reality still matches where we STARTED, the other whether it already matches where we
+ * were GOING.
+ *
+ * ## An empty change set is NOT already applied
+ *
+ * A request with no file changes describes a side effect this block cannot see: something leaves
+ * the machine, or a command is handed back for the operator to run. Vacuous truth would silently
+ * skip asking about every one of them, which is the opposite of what this is for.
+ */
+export async function alreadyApplied(changes, fs) {
+    if (changes.length === 0)
+        return false;
+    for (const change of changes) {
+        if ((await fs.readFile(change.path)) !== change.after)
+            return false;
+    }
+    return true;
+}
+/** PURE-ish (reads files). Which of a request's changes no longer match the world they were
+ *  captured from. Empty means every `before` is still true. */
+export async function driftedChanges(changes, fs) {
+    const drifted = [];
+    for (const change of changes) {
+        const current = await fs.readFile(change.path);
+        if (current !== change.before)
+            drifted.push(change.path);
+    }
+    return drifted;
+}
+/**
+ * Answer a question whose asker is gone.
+ *
+ * The loop this completes: a run asks and dies, the node remembers, `refarm resume` reports it,
+ * and this is where the operator's answer finally lands — applying the change the original process
+ * would have applied, and recording the decision in the same trail it would have written to.
+ */
+export async function answerStandingQuestion(options) {
+    const fs = options.fs ?? createNodeOperationFileSystem();
+    const now = options.now ?? (() => new Date().toISOString());
+    const decidedAt = now();
+    const questions = (await options.trail.readQuestions?.()) ?? [];
+    const { standing, question } = standingQuestion(questions, options.requestId, decidedAt);
+    if (!question)
+        return { status: "not-found", record: null };
+    if (standing === "expired")
+        return { status: "expired", record: null };
+    if (!question.request)
+        return { status: "unanswerable", record: null };
+    const request = question.request;
+    if (options.decision === "declined") {
+        const record = makeOperationRecord({
+            request,
+            decision: "declined",
+            decidedBy: options.decidedBy ?? "operator",
+            decidedAt,
+            appliedAt: null,
+            ...(options.host ? { host: options.host } : {}),
+        });
+        await options.trail.append(record);
+        return { status: "declined", record };
+    }
+    const drifted = await driftedChanges(request.changes, fs);
+    if (drifted.length > 0)
+        return { status: "stale", record: null, drifted };
+    await applyChanges(request.changes, fs);
+    const record = makeOperationRecord({
+        request,
+        decision: "authorized",
+        decidedBy: options.decidedBy ?? "operator",
+        decidedAt,
+        appliedAt: decidedAt,
+        ...(options.host ? { host: options.host } : {}),
+    });
+    await options.trail.append(record);
+    return { status: "applied", record };
+}
+/** PURE. Fold a set of questions into what is still waiting and what timed out. Newest first,
+ *  because an operator scanning a list reads the top of it. */
+export function summariseStandingQuestions(questions, now) {
+    const outstanding = [];
+    const expired = [];
+    for (const question of questions) {
+        const { standing } = standingQuestion([question], question.requestId, now);
+        if (standing === "outstanding")
+            outstanding.push(question);
+        else if (standing === "expired")
+            expired.push(question);
+    }
+    const newestFirst = (a, b) => b.askedAt.localeCompare(a.askedAt);
+    return { outstanding: outstanding.sort(newestFirst), expired: expired.sort(newestFirst) };
+}
+/**
+ * PURE. Whether this operation is already being asked about.
+ *
+ * `none` covers both "never asked" and "asked and since decided" — the caller checks
+ * `standingDecision` for the difference, which is the question that function already answers.
+ */
+export function standingQuestion(questions, requestId, now) {
+    let latest = null;
+    for (const question of questions) {
+        if (question.requestId === requestId)
+            latest = question;
+    }
+    if (!latest)
+        return { standing: "none", question: null };
+    if (latest.expiresAt !== null && latest.expiresAt <= now) {
+        return { standing: "expired", question: latest };
+    }
+    return { standing: "outstanding", question: latest };
+}
 /** The operator's STANDING decision on an operation — the last thing they said about it, or null
  *  when they have never been asked. PURE. This is what stops a wizard re-asking (R4). */
 export function standingDecision(records, requestId) {
@@ -105,29 +228,99 @@ export function createMemoryOperationTrail(seed = []) {
  * An unreadable or corrupt file reads as an EMPTY trail rather than throwing: losing the memory of
  * past decisions must degrade into asking again, never into a wizard that cannot run at all.
  */
-export function createFileOperationTrail(path, fs = createNodeOperationFileSystem()) {
-    async function readAll() {
+export function createFileOperationTrail(path, fs = createNodeOperationFileSystem(), options = {}) {
+    const now = options.now ?? (() => new Date().toISOString());
+    const maxExpiredKept = options.maxExpiredKept ?? DEFAULT_EXPIRED_QUESTIONS_KEPT;
+    /** PURE-ish (reads the clock): drop the oldest expired questions past the bound. Outstanding
+     *  ones are untouched, whatever the count — see {@link DEFAULT_EXPIRED_QUESTIONS_KEPT}. */
+    function prune(questions) {
+        const summary = summariseStandingQuestions(questions, now());
+        if (summary.expired.length <= maxExpiredKept)
+            return questions;
+        const kept = new Set(summary.expired.slice(0, maxExpiredKept).map((q) => q.requestId));
+        return questions.filter((question) => summary.expired.every((expired) => expired.requestId !== question.requestId) ||
+            kept.has(question.requestId));
+    }
+    async function readDocument() {
         const raw = await fs.readFile(path);
         if (raw === null)
-            return [];
+            return {};
         try {
-            const parsed = JSON.parse(raw);
-            return Array.isArray(parsed?.records) ? parsed.records : [];
+            return JSON.parse(raw);
         }
         catch {
-            return [];
+            return {};
         }
+    }
+    async function readAll() {
+        const parsed = await readDocument();
+        return Array.isArray(parsed.records) ? parsed.records : [];
+    }
+    async function readQuestions() {
+        const parsed = await readDocument();
+        return Array.isArray(parsed.questions) ? parsed.questions : [];
+    }
+    async function write(records, unpruned) {
+        // Retention is applied ON WRITE, so a trail that is never touched again never grows, and
+        // one that is touched cleans up as a side effect of the work rather than needing a sweep.
+        const questions = prune(unpruned);
+        // NOTHING TO REMEMBER ⇒ NO FILE. A run that asks and then defers used to leave no trace on
+        // disk at all, and that is a property worth keeping: "the operator was asked and said not
+        // now" must not be distinguishable from "nobody ran this" by a stray empty document. The
+        // standing-question record made every ask touch the file, so this puts it back.
+        //
+        // A crashed run still leaves its question behind, because nothing removes it — which is
+        // the whole point, and exactly why the removal is conditional on BOTH lists being empty.
+        if (records.length === 0 && questions.length === 0) {
+            await fs.removeFile(path);
+            return;
+        }
+        const document = {
+            capability: OPERATION_CONSENT_CAPABILITY,
+            version: 1,
+            records,
+            // Omitted when empty, so a trail that never asked anything keeps the exact document
+            // shape it had before this field existed.
+            ...(questions.length > 0 ? { questions } : {}),
+        };
+        await fs.writeFile(path, `${JSON.stringify(document, null, 2)}\n`);
     }
     return {
         read: readAll,
+        readQuestions,
         async append(record) {
-            const document = {
-                capability: OPERATION_CONSENT_CAPABILITY,
-                version: 1,
-                records: [...(await readAll()), record],
-            };
-            await fs.writeFile(path, `${JSON.stringify(document, null, 2)}\n`);
+            // A decision ENDS the question by definition, so appending one clears any standing
+            // record for the same operation. Leaving it would make an answered operation look
+            // like it were still waiting — the exact confusion this pair exists to remove.
+            const questions = (await readQuestions()).filter((question) => question.requestId !== record.requestId);
+            await write([...(await readAll()), record], questions);
             return record;
+        },
+        async openQuestion(question) {
+            const questions = (await readQuestions()).filter((existing) => existing.requestId !== question.requestId);
+            await write(await readAll(), [...questions, question]);
+        },
+        async dismissQuestion(requestId) {
+            const questions = await readQuestions();
+            if (!questions.some((question) => question.requestId === requestId))
+                return false;
+            await write(await readAll(), questions.filter((question) => question.requestId !== requestId));
+            return true;
+        },
+        async dismissExpiredQuestions(at) {
+            const questions = await readQuestions();
+            const { expired } = summariseStandingQuestions(questions, at);
+            if (expired.length === 0)
+                return 0;
+            const gone = new Set(expired.map((question) => question.requestId));
+            await write(await readAll(), questions.filter((question) => !gone.has(question.requestId)));
+            return expired.length;
+        },
+        async closeQuestion(requestId) {
+            const questions = await readQuestions();
+            if (!questions.some((question) => question.requestId === requestId))
+                return;
+            await write(await readAll(), questions.filter((question) => question.requestId !== requestId));
         },
     };
 }
@@ -311,6 +504,35 @@ export function operationDecisionPrompt(request, options = {}) {
  * Cancellation (`OperatorPromptCancelledError` from the prompt block) is deliberately not caught:
  * it propagates with nothing applied and nothing recorded.
  */
+/** A day. Long enough that an operator who is asleep still gets to answer in the morning; short
+ *  enough that a question nobody ever answered does not become a permanent veto. */
+export const DEFAULT_QUESTION_TTL_MS = 24 * 60 * 60 * 1000;
+/**
+ * How many EXPIRED questions a trail keeps.
+ *
+ * ## Why a bound rather than a sweep
+ *
+ * An expired question is worth reporting — it says the node asked and nobody answered, which is a
+ * commitment it could not keep. Worth reporting once. Kept forever, it becomes the thing an
+ * operator scrolls past, and a surface people scroll past has stopped working, which is the exact
+ * failure the whole standing-question record was built to prevent. So the trail keeps the most
+ * recent few and drops the rest at the moment it writes.
+ *
+ * OUTSTANDING QUESTIONS ARE NEVER DROPPED, at any count. A question still inside its window is a
+ * live obligation; discarding one to save space would silently lose the thing this record is for.
+ * The bound applies only to what has already timed out.
+ *
+ * Same idiom as the prompt hub's `recent_capacity` ring: bounded memory of what settled, and no
+ * garbage collector anywhere.
+ */
+export const DEFAULT_EXPIRED_QUESTIONS_KEPT = 10;
+/** PURE. When a question put at `askedAt` stops standing. */
+export function questionExpiry(askedAt, ttlMs = DEFAULT_QUESTION_TTL_MS) {
+    const asked = Date.parse(askedAt);
+    if (!Number.isFinite(asked))
+        return null;
+    return new Date(asked + ttlMs).toISOString();
+}
 export async function runOperationConsent(options) {
     const { request, trail, channel = null, fs = createNodeOperationFileSystem(), now = () => new Date().toISOString(), decidedBy = "operator", host, revisit = false, labels, announce, } = options;
     // Nobody to ask ⇒ nothing happens at all. Checked first so a non-interactive run neither
@@ -320,11 +542,55 @@ export async function runOperationConsent(options) {
     const prior = standingDecision(await trail.read(), request.id);
     if (prior && !revisit)
         return { status: "already-decided", record: prior };
+    // IS IT ALREADY TRUE? Checked before anything is asked, recorded or rendered. `revisit` still
+    // forces the question, because an operator who explicitly re-opened a decision is asking to
+    // see it regardless of what the files say.
+    if (!revisit && (await alreadyApplied(request.changes, fs))) {
+        return { status: "already-applied", record: null };
+    }
+    // IS SOMEBODY ALREADY ASKING THIS? Only a trail that can remember outstanding questions can
+    // say — one that cannot returns `undefined` here, and this whole block is skipped, leaving
+    // its behaviour byte-for-byte what it was. An absent answer is not a "no".
+    if (trail.readQuestions && !revisit) {
+        const outstanding = standingQuestion(await trail.readQuestions(), request.id, now());
+        if (outstanding.standing === "outstanding" && outstanding.question) {
+            return { status: "already-asked", record: null, question: outstanding.question };
+        }
+        // `expired` falls through and asks again ON PURPOSE: the window closed with nobody
+        // answering, and a record that blocked the question forever would turn one crashed run
+        // into permanent silence.
+    }
     if (announce) {
         for (const line of renderOperationRequest(request, { labels }))
             announce(line);
     }
-    const answer = await channel.ask(operationDecisionPrompt(request, { labels }));
+    // RECORDED BEFORE THE ASK, because the whole point is to survive the asker. A record written
+    // after the answer would be exactly as absent as no record at all for the run that dies
+    // waiting — which is the run this is for.
+    await trail.openQuestion?.({
+        requestId: request.id,
+        kind: request.kind,
+        title: request.title,
+        purpose: request.purpose,
+        requester: request.requester,
+        askedAt: now(),
+        expiresAt: questionExpiry(now(), options.questionTtlMs),
+        ...(host ? { host } : {}),
+        // The whole request, so this can still be ANSWERED when this process is gone. Reporting a
+        // question needs its title; answering one needs its changes.
+        request,
+    });
+    let answer;
+    try {
+        answer = await channel.ask(operationDecisionPrompt(request, { labels }));
+    }
+    finally {
+        // CLOSED ON EVERY EXIT, including a throw. A question left standing because its asker
+        // raised would block the next run from asking at all, until the deadline passed — the
+        // crash would become silence, which is the shape the expiry above is the backstop for and
+        // this is the ordinary path for.
+        await trail.closeQuestion?.(request.id);
+    }
     if (answer !== OPERATION_AUTHORIZE && answer !== OPERATION_DECLINE) {
         return { status: "deferred", record: null };
     }

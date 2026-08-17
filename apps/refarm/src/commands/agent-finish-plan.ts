@@ -294,6 +294,16 @@ function repoContractGateSteps(): CommandPlanStep[] {
 			"Check the task-smoke build order still names every TypeScript dependency.",
 			"gate",
 		),
+		// A VENDORED COPY DRIFTS IN SILENCE, and `vendor:check` was written to catch exactly that
+		// and wired to nothing — not CI, not a lane, not a script. Measured 2026-08-17 (ISS-136):
+		// `operation-consent-v1`'s vendored source was ~500 lines behind its origin, a whole feature
+		// missing, and every gate in this repo was green. The check is two file comparisons.
+		packageScriptStep(
+			"packages/farm-client",
+			"vendor:check",
+			"Check each vendored block is byte-identical to the package it was copied from.",
+			"gate",
+		),
 		scriptTestStep({
 			id: "gate-security-audit",
 			args: ["node", "scripts/security/audit-gate.mjs"],
