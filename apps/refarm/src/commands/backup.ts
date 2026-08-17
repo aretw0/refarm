@@ -24,6 +24,7 @@ import {
 	planSovereignExport,
 	splitSiloContent,
 	type ExportPlanEntry,
+	type SecretRecovery,
 } from "./sovereign-export.js";
 import { dedupeInventory, inventoryLocation, sovereignLocations } from "./sovereign-inventory.js";
 import { declaredNamespaces } from "./sovereign-layout.js";
@@ -56,8 +57,15 @@ export interface BackupManifest {
 	 * Recorded either way. A restore reading `included: false` knows the node it is about to stand
 	 * up will be missing its CA key — which is a working node that quietly cannot be trusted by the
 	 * devices that used to trust it, and the worst thing to discover later.
+	 *
+	 * Each excluded file carries its OWN recovery verb, because the three are not the same kind of
+	 * loss and one list could not hold them (ISS-127). The warning above used to live only in this
+	 * comment; a restore reading the manifest could not act on it.
 	 */
-	readonly secrets: { files: string[]; included: boolean };
+	readonly secrets: {
+		files: Array<{ file: string; recovery: SecretRecovery | null }>;
+		included: boolean;
+	};
 }
 
 /** PURE. Where a source path lives inside the bundle. Absolute paths are flattened onto a relative
@@ -142,7 +150,13 @@ export function writeBundle(
 		reAuthenticate: silo.reAuthenticate,
 		undecided: undecided.map((entry) => ({ file: entry.file, reason: entry.reason })),
 		foreign: foreign.map((entry) => ({ file: entry.file, reason: entry.reason })),
-		secrets: { files: secrets.entries.map((entry) => entry.file), included: secrets.include },
+		secrets: {
+			files: secrets.entries.map((entry) => ({
+				file: entry.file,
+				recovery: entry.recovery ?? null,
+			})),
+			included: secrets.include,
+		},
 	};
 	fs.writeFileSync(path.join(destination, MANIFEST_NAME), `${JSON.stringify(manifest, null, 2)}\n`);
 	return manifest;

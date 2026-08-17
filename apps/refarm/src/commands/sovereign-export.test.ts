@@ -5,6 +5,7 @@ import {
 	planEntry,
 	planSovereignExport,
 	reAuthenticateCommand,
+	secretRecovery,
 	splitSiloContent,
 } from "./sovereign-export.js";
 import type { InventoryEntry } from "./sovereign-inventory.js";
@@ -192,5 +193,88 @@ describe("formatExportPlan", () => {
 	it("says a node with no credentials has none, rather than printing an empty list", () => {
 		const text = formatExportPlan(planSovereignExport([]), []);
 		expect(text).toContain("no stored credentials found");
+	});
+});
+
+describe("secretRecovery", () => {
+	// THE THIRD STATE (ISS-127). The first real `refarm backup create` on the operator's node,
+	// 2026-08-16, verified intact and excluded three secret files correctly — and named none of
+	// them anywhere a reader would look. `reAuthenticate` said cloudflare/github/openai-codex and
+	// matched no excluded path, so the manifest read as "here is everything you must redo" while
+	// being silent about the three that decide whether a restored node can serve at all.
+	//
+	// One list could not hold them, because they are not the same kind of loss.
+
+	it("a token comes back from the issuer that minted it", () => {
+		expect(secretRecovery("/n/.refarm/delivery/telegram.token")).toBe("re-obtain");
+	});
+
+	it("a leaf key is re-issued by the node's own CA", () => {
+		expect(secretRecovery("/n/.refarm/tls/host.tail1234.ts.net.key")).toBe("re-issue");
+	});
+
+	it("the CA key does not come back, and its replacement invalidates granted trust", () => {
+		// THE ONE WITH NO WORD BEFORE THIS. `refarm cert issue` can make a CA, but it is a NEW one:
+		// every device that ran `refarm cert trust` must trust again. Calling that "re-issue" would
+		// promise a local, invisible fix for something that reaches every browser the operator
+		// taught to trust this node.
+		expect(secretRecovery("/n/.refarm/tls/ca.key")).toBe("re-establish");
+	});
+
+	it("says nothing about files that are not secrets", () => {
+		expect(secretRecovery("/n/.refarm/tls/ca.crt")).toBeNull();
+		expect(secretRecovery("/n/.refarm/config.json")).toBeNull();
+	});
+});
+
+describe("planEntry recovery", () => {
+	it("carries the recovery verb on the sensitive entry itself", () => {
+		// On the ENTRY, not in a parallel list beside it. ISS-113 and ISS-124 are both instances of
+		// the same failure — a second copy of the truth, drifting from the first. A recovery map
+		// keyed by path somewhere else would be the third.
+		const planned = planEntry({
+			file: "/n/.refarm/tls/ca.key",
+			bytes: 1,
+			recoverability: "irrecoverable",
+			declared: true,
+			reason: "r",
+			source: null,
+		} as never);
+
+		expect(planned.disposition).toBe("sensitive");
+		expect(planned.recovery).toBe("re-establish");
+		expect(planned.reason).toMatch(/every device that trusted this node's CA must trust again/u);
+	});
+
+	it("leaves recovery absent where the concept does not apply", () => {
+		const planned = planEntry({
+			file: "/n/.refarm/config.json",
+			bytes: 1,
+			recoverability: "irrecoverable",
+			declared: true,
+			reason: "the operator's decisions",
+			source: null,
+		} as never);
+
+		expect(planned.disposition).toBe("carry");
+		expect(planned.recovery ?? null).toBeNull();
+	});
+});
+
+describe("formatExportPlan secrets", () => {
+	it("prints each secret with its own verb, not one paragraph for all of them", () => {
+		// The plan already prints `provider  →  command` per credential. Secrets printed as bare
+		// paths under a paragraph saying "a local CA key, for instance" put the distinction in
+		// prose the reader must apply themselves — and the whole finding of ISS-127 is that the
+		// three files differ in what recovery even MEANS.
+		const plan = planSovereignExport([
+			{ file: "/n/.refarm/tls/ca.key", bytes: 1, recoverability: "irrecoverable", declared: true, reason: "r", source: null },
+			{ file: "/n/.refarm/delivery/telegram.token", bytes: 1, recoverability: "irrecoverable", declared: true, reason: "r", source: null },
+		] as never);
+
+		const text = formatExportPlan(plan, []);
+
+		expect(text).toMatch(/ca\.key\s+→\s+re-establish/u);
+		expect(text).toMatch(/telegram\.token\s+→\s+re-obtain/u);
 	});
 });

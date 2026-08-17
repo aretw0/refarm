@@ -75,6 +75,9 @@ export interface ExportPlanEntry {
 	readonly reason: string;
 	/** Bytes, when the inventory measured them. `null` stays null — never rounded to 0. */
 	readonly bytes: number | null;
+	/** How an excluded secret comes back. Present only on `sensitive` — absent everywhere else,
+	 *  because a concept that does not apply must not answer. */
+	readonly recovery?: SecretRecovery;
 }
 
 /**
@@ -140,18 +143,65 @@ export function isSensitivePath(file: string): boolean {
 	return SENSITIVE_DIRECTORIES.includes(segments.at(-2) ?? "") && /\.(key|token|pem|p12|pfx)$/u.test(base);
 }
 
+/**
+ * HOW AN EXCLUDED SECRET COMES BACK — the third state, and it exists because two were not enough.
+ *
+ * `sensitive` says a file does not travel. It never said what to DO about that, and the first real
+ * `refarm backup create` on the operator's node (2026-08-16) showed the cost: the bundle verified
+ * intact, excluded three secrets correctly, and named none of them anywhere a reader would look.
+ * `reAuthenticate` listed providers and matched no excluded path, so the manifest read as the whole
+ * answer while being silent about the three files that decide whether a restored node can serve.
+ *
+ * One verb could not cover them, because they are not the same kind of loss:
+ *
+ * - `re-obtain`    an external issuer mints a new one and nothing else is affected.
+ * - `re-issue`     this node makes a new one from material it still holds.
+ * - `re-establish` NOTHING brings the value back, and the replacement invalidates trust that
+ *                  other parties already granted. This is the state that had no name, and
+ *                  flattening it into `re-issue` would promise a local fix for something that
+ *                  reaches every browser the operator taught to trust this node.
+ */
+export type SecretRecovery = "re-obtain" | "re-issue" | "re-establish";
+
+/** PURE. How an excluded secret comes back, or `null` when the file is not a secret at all. */
+export function secretRecovery(file: string): SecretRecovery | null {
+	if (!isSensitivePath(file)) return null;
+	const base = path.basename(file);
+	// The CA is the node's own trust anchor. `refarm cert issue` can build one, but a NEW CA is a
+	// different anchor: `refarm cert trust` has to run again wherever the old one was accepted.
+	if (base === "ca.key") return "re-establish";
+	// Everything else under `tls/` is a leaf this node signs with the CA it still has.
+	if (base.endsWith(".key") || base.endsWith(".pem")) return "re-issue";
+	return "re-obtain";
+}
+
+const RECOVERY_REASON: Record<SecretRecovery, string> = {
+	"re-obtain":
+		"ask the service that issued it for a new one — nothing else on this node is affected.",
+	"re-issue": "re-issue it with `refarm cert issue`, using the CA this node still holds.",
+	"re-establish":
+		"NOTHING brings this value back. `refarm cert issue` builds a NEW certificate authority, " +
+		"which means every device that trusted this node's CA must trust again (`refarm cert trust`). " +
+		"Carry it with --include-secrets, or accept re-establishing trust everywhere.",
+};
+
 /** PURE. What happens to one inventory entry in an export. */
 export function planEntry(entry: InventoryEntry): ExportPlanEntry {
 	const base = path.basename(entry.file);
 	const common = { file: entry.file, bytes: entry.bytes };
 
-	if (isSensitivePath(entry.file)) {
+	const recovery = secretRecovery(entry.file);
+	if (recovery) {
 		return {
 			...common,
 			disposition: "sensitive",
+			// ON THE ENTRY, never in a list beside it. ISS-113 and ISS-124 are both one defect —
+			// a second copy of the truth that drifts from the first — and a recovery map keyed by
+			// path somewhere else would have been the third.
+			recovery,
 			reason:
 				"a secret that no login rebuilds. Excluded by default: a bundle containing it must be " +
-				"stored like a password. Carry it only with --include-secrets, deliberately.",
+				`stored like a password. To recover it, ${RECOVERY_REASON[recovery]}`,
 		};
 	}
 
@@ -232,7 +282,13 @@ export function formatExportPlan(
 	if (plan.sensitive.length > 0) {
 		lines.push("");
 		lines.push(`  SECRETS      ${plan.sensitive.length} file(s) no login rebuilds — NOT carried by default:`);
-		for (const entry of plan.sensitive) lines.push(`    ${entry.file}`);
+		// PER FILE, mirroring the `provider  →  command` shape above. A bare path under a paragraph
+		// that says "a local CA key, for instance" leaves the reader to work out which of their
+		// files that sentence is about — and ISS-127 is precisely that the three differ in what
+		// recovery MEANS. `re-establish` is the one worth reading twice.
+		for (const entry of plan.sensitive) {
+			lines.push(`    ${entry.file}   →  ${entry.recovery ?? "unclassified"}`);
+		}
 		lines.push("  Losing these is not recoverable by logging in again; a local CA key, for instance,");
 		lines.push("  means every device that trusted this node must be re-enrolled. Carrying them makes");
 		lines.push("  the bundle a credential. `--include-secrets` carries them, and then the bundle must");

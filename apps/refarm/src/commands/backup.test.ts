@@ -197,8 +197,20 @@ describe("secrets that live outside the silo", () => {
 		// it. Silence here is the worst outcome of all.
 		const { manifest } = exportNode();
 		expect(manifest.secrets.included).toBe(false);
-		expect(manifest.secrets.files.some((f) => f.endsWith("ca.key"))).toBe(true);
-		expect(manifest.secrets.files.some((f) => f.endsWith("telegram.token"))).toBe(true);
+
+		// EACH EXCLUDED SECRET CARRIES ITS OWN RECOVERY VERB (ISS-127). The list used to be bare
+		// paths, and `reAuthenticate` — the only place naming how anything comes back — matched
+		// none of them. So the manifest read as the whole answer while saying nothing about the
+		// three files that decide whether a restored node can serve.
+		//
+		// The knowledge was not missing, only unmachine-readable: this interface's own comment
+		// already warned that a restore without ca.key stands up "a working node that quietly
+		// cannot be trusted by the devices that used to trust it". A comment is not a contract.
+		const byName = (suffix: string) =>
+			manifest.secrets.files.find((entry) => entry.file.endsWith(suffix));
+
+		expect(byName("ca.key")?.recovery).toBe("re-establish");
+		expect(byName("telegram.token")?.recovery).toBe("re-obtain");
 	});
 
 	it("carries them only when asked, and says the bundle is now a credential", () => {
