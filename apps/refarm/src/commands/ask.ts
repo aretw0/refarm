@@ -25,7 +25,7 @@ import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import { REFARM_BINARY, REFARM_PRODUCT_NAME, refarmCommand } from "../brand.js";
-import { readBindings } from "../credentials/account-view-loader.js";
+import { readBindings, readCatalog } from "../credentials/account-view-loader.js";
 import { MODEL_SCOPES, parseModelScope, type ModelScope } from "../model-routing.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { RUNTIME_AUTOSTART_ENV_VAR } from "../utils/runtime-config.js";
@@ -42,7 +42,12 @@ import {
 	printSubscriptionRuntimeUnsupported,
 } from "./ask-subscription.js";
 import { MODEL_CURRENT_JSON_COMMAND, OPENAI_DEFAULT_REF } from "./credential-handoffs.js";
-import { buildCurrentModelStatus, defaultModelDeps, resolveRuntimeModelRoute } from "./model.js";
+import {
+	buildCurrentModelStatus,
+	defaultModelDeps,
+	resolveRuntimeModelRoute,
+	routeForBoundAccount,
+} from "./model.js";
 import {
 	PLUGIN_INSTALL_COMMAND,
 	PLUGIN_INSTALL_JSON_COMMAND,
@@ -863,6 +868,19 @@ export {
 					roots: declaredRoots,
 				});
 
+				// THE BINDING DRIVES THE ROUTE (ISS-131), and it can only be applied once the
+				// workspace is known — which is why it lives here and not beside `selectedRoute`.
+				// Without it the dispatch carried the route's provider and the binding's account id
+				// in the SAME message: measured on the operator's node, `modelProvider: openai-codex`
+				// beside a github-copilot `credentialId`. The record would have named an account the
+				// spend never touched, which is an attribution worse than none because it reads as
+				// measured.
+				const boundRoute = routeForBoundAccount(
+					selectedRoute,
+					boundAccountFor(workspace.workspaceId),
+					askScope,
+				);
+
 				const effort = createRuntimeAgentRespondEffort({
 					prompt: query,
 					system,
@@ -872,8 +890,8 @@ export {
 					// A profile routes by intent: send it and leave the route unpinned so
 					// the guest's profile resolver chooses. Without a profile, pin the
 					// scope's resolved provider/model as before.
-					modelProvider: activeProfile ? undefined : selectedRoute.modelProvider,
-					modelId: activeProfile ? undefined : selectedRoute.modelId,
+					modelProvider: activeProfile ? undefined : boundRoute.modelProvider,
+					modelId: activeProfile ? undefined : boundRoute.modelId,
 					profile: activeProfile,
 					// Declared, never invented: absent when the operator names none.
 					scenarioId: opts.scenario,
@@ -1011,6 +1029,25 @@ export {
  * unbound workspace spent, and the record would carry both under one story. Unbound stays
  * unattributed, which `refarm budget by-account` already reports honestly.
  */
+	/** PURE-ish. The DESCRIPTOR a workspace is bound to, when this node actually holds it.
+ *
+ * The catalog holds descriptors, never secrets, so this is a cheap synchronous read. Health is not
+ * gated here on purpose: a binding to an unusable account must reach the resolver, which refuses
+ * rather than quietly spending a different one (ISS-131). Suppressing it here would restore exactly
+ * the silent substitution that item is about.
+ */
+	function boundAccountFor(workspaceId: string | undefined): { provider: string } | undefined {
+	if (!workspaceId) return undefined;
+	try {
+		const home = resolveRefarmHome();
+		const binding = readBindings(home).find((b) => b.workspaceId === workspaceId);
+		if (!binding) return undefined;
+		return readCatalog(home).find((a) => a.credentialId === binding.credentialId);
+	} catch {
+		return undefined;
+	}
+	}
+
 	function credentialIdForWorkspace(workspaceId: string | undefined): string | undefined {
 	if (!workspaceId) return undefined;
 	try {

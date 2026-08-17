@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { buildCurrentModelEnvelope, formatCurrentModel } from "./model.js";
 import type { ModelTokens } from "./model.js";
+import { buildCurrentModelEnvelope, formatCurrentModel, routeForBoundAccount } from "./model.js";
 
 // The legacy print wrappers were deleted after the model group migration; the
 // live formatter (text) and envelope builder (JSON) are the source of truth the
@@ -166,5 +166,53 @@ describe("model current output", () => {
 		expect(output).toContain("worker:   anthropic/claude-sonnet-4-6");
 		expect(output).toContain("source:   ~/.refarm/identity.json");
 		expect(output).not.toContain("source:   built-in defaults");
+	});
+});
+
+/**
+ * ISS-131 — the route names a provider, the binding names an account, and they can disagree.
+ *
+ * Measured on the operator's node 2026-08-17: `refarm ask --workspace refarm` sent
+ * `modelProvider: openai-codex` from the route AND `credentialId: K4NX...` (a github-copilot
+ * account) from the binding, in the same dispatch. The record and the spend would have named
+ * different accounts — an attribution worse than none, because it reads as measured.
+ */
+describe("routeForBoundAccount", () => {
+	it("takes the provider from the bound account when the route names another", () => {
+		expect(
+			routeForBoundAccount(
+				{ modelProvider: "openai-codex", modelId: "gpt-5.5" },
+				{ provider: "github-copilot" },
+				"default",
+			),
+		).toMatchObject({ modelProvider: "github-copilot" });
+	});
+
+	it("moves the MODEL with the provider, because a route's model id does not travel", () => {
+		const routed = routeForBoundAccount(
+			{ modelProvider: "openai-codex", modelId: "gpt-5.5" },
+			{ provider: "github-copilot" },
+			"default",
+		);
+		expect(routed.modelId).not.toBe("gpt-5.5");
+		expect(routed.modelId).toBeTruthy();
+	});
+
+	it("leaves the route alone when the binding is of the same provider", () => {
+		// Which of one provider's accounts pays is the resolver's question, not the route's.
+		const route = { modelProvider: "github-copilot", modelId: "claude-sonnet-4" };
+		expect(routeForBoundAccount(route, { provider: "github-copilot" }, "default")).toBe(route);
+	});
+
+	it("leaves the route alone when nothing is bound", () => {
+		const route = { modelProvider: "openai-codex", modelId: "gpt-5.5" };
+		expect(routeForBoundAccount(route, undefined, "default")).toBe(route);
+	});
+
+	it("answers per SCOPE, so a worker route does not inherit the default model", () => {
+		const asDefault = routeForBoundAccount({}, { provider: "github-copilot" }, "default");
+		const asWorker = routeForBoundAccount({}, { provider: "github-copilot" }, "worker");
+		expect(asDefault.modelProvider).toBe("github-copilot");
+		expect(asWorker.modelProvider).toBe("github-copilot");
 	});
 });

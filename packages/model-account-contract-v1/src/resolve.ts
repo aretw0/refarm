@@ -3,9 +3,13 @@
  *
  * Precedence, and there is no fifth option:
  *   1. an explicit, authorised dispatch override
- *   2. the node-owned workspace binding
+ *   2. the node-owned workspace binding — WHICH DECIDES THE PROVIDER TOO (ISS-131)
  *   3. a node default ONLY when exactly one eligible credential exists
  *   4. refusal
+ *
+ * `provider` is therefore the route's provider: what this node would use if no binding spoke. A
+ * workspace-scoped run whose workspace is bound resolves to that account whatever the route says,
+ * because the binding is the operator's instruction about which account his work spends.
  *
  * WHAT IS NOT A SELECTOR, listed because each one has been a selector in some tool: the current
  * working directory, the last login, the last used account, the provider's model default, and any
@@ -67,12 +71,35 @@ export function resolveModelAccount(input: ResolveInput): DispatchSnapshot | Mod
 		};
 	}
 
+	// THE BINDING OUTRANKS THE ROUTE, on the operator's ruling of 2026-08-17 (ISS-131): a
+	// workspace-scoped run is decided by that workspace's binding; a node-level run by whatever the
+	// node is associated with. So `input.provider` is what this node would use ABSENT a binding, and
+	// the search below is over EVERY account rather than `ofProvider`.
+	//
+	// It used to be inside the provider filter, justified as "a workspace may be bound per provider"
+	// — a shape the store cannot express, since `modelBindings` holds one credential per workspace.
+	// Measured on the operator's node with both his bindings pointing at Copilot accounts and the
+	// route naming openai-codex: BOTH were inert. Not overridden — never consulted, because a
+	// binding to another provider's account had no way to be reached.
 	if (input.workspaceId) {
 		const bound = input.bindings.find((b) => b.workspaceId === input.workspaceId);
-		const chosen = bound && eligible.find((a) => a.credentialId === bound.credentialId);
-		// A binding naming a credential that is not this provider's simply does not match, and the
-		// resolution continues rather than refusing: a workspace may be bound per provider.
-		if (chosen) return snapshot(chosen, input.workspaceId, "workspace-binding");
+		const held = bound && input.accounts.find((a) => a.credentialId === bound.credentialId);
+		if (held?.health === "healthy") return snapshot(held, input.workspaceId, "workspace-binding");
+		if (held) {
+			// NAMED AND UNUSABLE IS A QUESTION, NOT A LICENCE. Falling through here would spend a
+			// different account than the one the operator named, silently, and report it as a node
+			// default. A binding is an instruction about cost.
+			return {
+				code: held.health === "unclaimed" ? REFUSAL_CODES.unclaimed : REFUSAL_CODES.incomplete,
+				message:
+					`${input.workspaceId} is bound to a ${held.provider} account that is ${held.health}. ` +
+					"Repair it or bind this workspace elsewhere; nothing else was chosen for it.",
+				candidates: safeCandidates([held]),
+			};
+		}
+		// A binding naming a credential this node does not hold names nothing to act on, so the
+		// resolution continues. `credential bind` refuses unknown ids and `forget` refuses while
+		// bound, which makes this an anomaly rather than a choice worth honouring.
 	}
 
 	if (eligible.length === 1) return snapshot(eligible[0]!, input.workspaceId, "node-default");

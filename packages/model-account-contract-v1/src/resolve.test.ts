@@ -164,3 +164,76 @@ describe("resolveModelAccount — refusals", () => {
 		expect(result).toMatchObject({ code: REFUSAL_CODES.ambiguous });
 	});
 });
+
+/**
+ * ISS-131 — THE BINDING DRIVES THE ROUTE, on the operator's ruling of 2026-08-17.
+ *
+ * `provider` used to filter first and everything else happened inside it, so a binding could only
+ * ever disambiguate WITHIN the route's provider. The comment above that behaviour justified it with
+ * "a workspace may be bound per provider" — a shape the store cannot express: `modelBindings` is
+ * one credential per workspace.
+ *
+ * Measured on the operator's node, both of his bindings inert:
+ *
+ *     config.json  refarm -> K4NX... (github-copilot, corporativo)
+ *     route        openai-codex/gpt-5.5
+ *     resolved     openai-codex / account-2 / source: node-default
+ *
+ * His ruling: a workspace-scoped run is decided by that workspace's binding; a node-level run by
+ * whatever the node is associated with. So `provider` is what the node would use ABSENT a binding.
+ */
+describe("resolveModelAccount — a workspace binding outranks the route's provider", () => {
+	const CODEX = account("codex", { provider: "openai-codex" });
+
+	it("selects the bound account even when the route names another provider", () => {
+		const result = resolveModelAccount({
+			provider: "openai-codex",
+			accounts: [CODEX, BLUE],
+			bindings: [{ workspaceId: "refarm", credentialId: BLUE.credentialId }],
+			workspaceId: "refarm",
+		});
+		expect(result).toMatchObject({
+			provider: "github-copilot",
+			credentialId: BLUE.credentialId,
+			source: "workspace-binding",
+		});
+	});
+
+	it("REFUSES when the bound account is on this node and not usable", () => {
+		// Falling through would spend a DIFFERENT account than the one the operator named, silently,
+		// and report it as a node default. A binding is an instruction about cost; an unusable one is
+		// a question, not a licence to choose.
+		const broken = account("broken", { health: "incomplete" });
+		const result = resolveModelAccount({
+			provider: "openai-codex",
+			accounts: [CODEX, broken],
+			bindings: [{ workspaceId: "refarm", credentialId: broken.credentialId }],
+			workspaceId: "refarm",
+		});
+		expect(isRefusal(result)).toBe(true);
+		expect(result).toMatchObject({ code: REFUSAL_CODES.incomplete });
+	});
+
+	it("leaves a NODE-LEVEL run to the route, because no workspace is asking", () => {
+		const result = resolveModelAccount({
+			provider: "openai-codex",
+			accounts: [CODEX, BLUE],
+			bindings: [{ workspaceId: "refarm", credentialId: BLUE.credentialId }],
+			workspaceId: null,
+		});
+		expect(result).toMatchObject({ provider: "openai-codex", source: "node-default" });
+	});
+
+	it("still falls through when the binding names a credential this node does not hold", () => {
+		// A dangling binding names nothing to act on. `credential bind` refuses unknown ids and
+		// `forget` refuses while bound, so this is an anomaly rather than a choice — and acting on it
+		// would mean inventing which account it meant.
+		const result = resolveModelAccount({
+			provider: "github-copilot",
+			accounts: [BLUE, GREEN],
+			bindings: [{ workspaceId: "refarm", credentialId: "model-account:GONEXXXXXXXXXXXXXXXXXXXXXX" }],
+			workspaceId: "refarm",
+		});
+		expect(result).toMatchObject({ code: REFUSAL_CODES.ambiguous });
+	});
+});

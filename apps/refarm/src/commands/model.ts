@@ -1155,6 +1155,33 @@ export function resolveRuntimeModelRoute(
 	};
 }
 
+/**
+ * PURE. The route a dispatch actually takes once the workspace's binding has spoken.
+ *
+ * ISS-131, on the operator's ruling: a workspace-scoped run is decided by that workspace's binding.
+ * The route names a PROVIDER and a binding names an ACCOUNT, and until this existed the two could
+ * disagree with nothing reconciling them — measured on the operator's node, where both workspaces
+ * were bound to Copilot accounts and every dispatch went to openai-codex.
+ *
+ * THE MODEL MOVES WITH THE PROVIDER, because it has to: a route of `openai-codex/gpt-5.5` carries a
+ * model id that means nothing to Copilot. The scope's default for the bound provider is used, which
+ * is the same answer the node would give for that provider anywhere else.
+ *
+ * A binding to an account of the SAME provider changes nothing here — the route already names it,
+ * and which of that provider's accounts pays is the resolver's question, not the route's.
+ */
+export function routeForBoundAccount(
+	route: { modelProvider?: string; modelId?: string },
+	account: { provider: string } | undefined,
+	scope: ModelScope,
+): { modelProvider?: string; modelId?: string } {
+	if (!account || account.provider === route.modelProvider) return route;
+	return {
+		modelProvider: account.provider,
+		modelId: defaultModelForScope(account.provider, scope),
+	};
+}
+
 export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus {
 	const defaultRoute = effectiveModelRouteForScope(tokens, "default", {
 		env: process.env,
