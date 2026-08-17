@@ -59,13 +59,17 @@ export function buildAccountView(input: BuildAccountViewInput): AccountView {
 		(acc, entry) => upsertDescriptor(acc, entry),
 		legacy,
 	);
-	// Legacy refs are present by definition — their secret is the flat map entry that produced the
-	// descriptor — so they are declared present here rather than looked up in a store they do not
-	// live in.
-	const presentRefs = [
-		...merged.filter((e) => e.secretRef.startsWith(LEGACY_REF_PREFIX)).map((e) => e.secretRef),
-		...[...input.secrets.keys()],
-	];
+	// A legacy secret lives in the flat token map, not the namespaced store, so its presence is
+	// answered by `legacy` — what `readLegacyCredentials` JUST READ out of those tokens — and never
+	// looked for in a store it does not live in.
+	//
+	// IT USED TO BE ANSWERED BY THE REF'S SHAPE: every `legacy:` ref in `merged` was declared present
+	// "by definition — their secret is the flat map entry that produced the descriptor". That holds
+	// for the descriptors this call derived from `tokens`, and `merged` has a SECOND origin the rule
+	// never saw — the catalog file. ISS-132 measured the cost on the operator's node: a descriptor
+	// naming `legacy:oauthCredentials/openai-codex`, a silo holding `oauthCredentials: {}`, and
+	// `credential list` reporting healthy. Shape is not evidence; the store is.
+	const presentRefs = [...legacy.map((e) => e.secretRef), ...input.secrets.keys()];
 	const accounts = reconcileCatalog(merged, presentRefs);
 
 	const credentialFor = (provider: string): CredentialForProvider => {

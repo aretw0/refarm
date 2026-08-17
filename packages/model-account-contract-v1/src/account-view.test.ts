@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildAccountView } from "./account-view.js";
 import { describeNewCredential } from "./describe-new.js";
+import type { ModelAccountDescriptor } from "./types.js";
 
 const TOKENS = { oauthCredentials: { "openai-codex": { access: "LEGACY", expires: 1 } } };
 
@@ -110,5 +111,58 @@ describe("buildAccountView", () => {
 
 		const migrated = buildAccountView({ tokens: {}, catalog: [NAMESPACED], secrets: new Map() });
 		expect(migrated.legacyAccounts).toEqual([]);
+	});
+
+	/**
+	 * ISS-132. `presentRefs` used to declare every `legacy:` ref present "by definition — their
+	 * secret is the flat map entry that produced the descriptor". True of a descriptor this call
+	 * derived from `tokens`; false of one read out of the catalog file, which is a SECOND origin the
+	 * invariant never saw. Measured on the operator's node: catalog holding the ref, silo holding
+	 * `oauthCredentials: {}`, and `credential list` calling it healthy.
+	 */
+	describe("a legacy ref is present because the flat map says so, never because of its shape", () => {
+		const FOSSIL: ModelAccountDescriptor = {
+			credentialId: "model-account:CG4WNKR6KNSH3510XGHBWW0JXA",
+			provider: "openai-codex",
+			alias: "default",
+			identity: { status: "unverified" },
+			secretRef: "legacy:oauthCredentials/openai-codex",
+			health: "healthy",
+			revision: "sha256:legacy",
+		};
+
+		it("calls a stored legacy descriptor INCOMPLETE once its flat entry is gone", () => {
+			const view = buildAccountView({
+				tokens: { oauthCredentials: {} },
+				catalog: [FOSSIL],
+				secrets: new Map(),
+			});
+			expect(view.accounts.find((a) => a.credentialId === FOSSIL.credentialId)?.health).toBe(
+				"incomplete",
+			);
+			expect(view.credentialFor("openai-codex")).toMatchObject({ kind: "incomplete" });
+		});
+
+		it("still calls it healthy while the flat entry it names is there", () => {
+			// The invariant the old code MEANT, kept: a legacy secret lives in the token map and is
+			// never looked for in the namespaced store. Losing this would report every un-migrated
+			// node's working credential as broken.
+			const view = buildAccountView({ tokens: TOKENS, catalog: [FOSSIL], secrets: new Map() });
+			expect(view.accounts.find((a) => a.credentialId === FOSSIL.credentialId)?.health).toBe(
+				"healthy",
+			);
+			expect(view.credentialFor("openai-codex")).toMatchObject({ kind: "found" });
+		});
+
+		it("keeps counting a fossil as legacy, so the transition cannot look finished while it exists", () => {
+			// `legacyAccounts` is the number that licenses deleting the legacy branch. A stored
+			// descriptor nobody can service must keep that number off zero until it is removed.
+			const view = buildAccountView({
+				tokens: { oauthCredentials: {} },
+				catalog: [FOSSIL],
+				secrets: new Map(),
+			});
+			expect(view.legacyAccounts.map((a) => a.credentialId)).toEqual([FOSSIL.credentialId]);
+		});
 	});
 });
