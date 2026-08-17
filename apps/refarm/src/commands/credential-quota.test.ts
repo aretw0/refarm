@@ -157,3 +157,80 @@ describe("exhaustedMeters", () => {
 		]);
 	});
 });
+
+/**
+ * ISS-141 — a failed read carries the provider's own weather.
+ *
+ * Measured 2026-08-17: a declared Copilot MAJOR OUTAGE was read as GitHub refusing this client, and
+ * the repair attempted was an identity nobody needed to change. The row that failed is exactly
+ * where an operator looks, so it is where the provider's own words belong.
+ */
+describe("a failed read says what the provider declares about itself", () => {
+	const CORP = account("github-copilot", "corporativo");
+	const INCIDENT = {
+		components: [{ name: "Copilot", status: "major_outage" }],
+		incidents: [
+			{
+				name: "Incident with GitHub.com",
+				components: [{ name: "Copilot", status: "major_outage" }],
+				incident_updates: [{ body: "partially disabled authentication token retries" }],
+			},
+		],
+	};
+
+	const routed = (quotaStatus: number) =>
+		(async (url: string) =>
+			String(url).includes("githubstatus.com")
+				? new Response(JSON.stringify(INCIDENT), { status: 200 })
+				: new Response("{}", { status: quotaStatus })) as unknown as typeof fetch;
+
+	it("attaches the declared outage to the row that failed", async () => {
+		const rows = await readQuotaRows([CORP], new Map([[CORP.credentialId, { refresh: "ghu_x" }]]), {
+			fetch: routed(403),
+			sleep: async () => {},
+			attempts: 1,
+		});
+		expect(rows[0]!.providerHealth).toBe("impaired");
+		expect(rows[0]!.detail).toMatch(/DECLARED trouble/u);
+		expect(rows[0]!.detail).toMatch(/authentication token retries/u);
+	});
+
+	it("does NOT ask the status page when every read succeeded", async () => {
+		// A reading that worked needs no alibi, and asking anyway spends a request per run to learn
+		// nothing.
+		let statusCalls = 0;
+		await readQuotaRows([CORP], new Map([[CORP.credentialId, { refresh: "ghu_x" }]]), {
+			fetch: (async (url: string) => {
+				if (String(url).includes("githubstatus.com")) statusCalls += 1;
+				return new Response(JSON.stringify(CORPORATE_BODY), { status: 200 });
+			}) as unknown as typeof fetch,
+		});
+		expect(statusCalls).toBe(0);
+	});
+
+	it("asks ONCE for a provider, not once per account", async () => {
+		// Two seats share their provider's weather, and the answer to "try again later" is a
+		// property of the provider rather than of the seat.
+		let statusCalls = 0;
+		const other = account("github-copilot", "pessoal");
+		await readQuotaRows(
+			[CORP, other],
+			new Map<string, unknown>([
+				[CORP.credentialId, { refresh: "ghu_a" }],
+				[other.credentialId, { refresh: "ghu_b" }],
+			]),
+			{
+				fetch: (async (url: string) => {
+					if (String(url).includes("githubstatus.com")) {
+						statusCalls += 1;
+						return new Response(JSON.stringify(INCIDENT), { status: 200 });
+					}
+					return new Response("{}", { status: 403 });
+				}) as unknown as typeof fetch,
+				sleep: async () => {},
+				attempts: 1,
+			},
+		);
+		expect(statusCalls).toBe(1);
+	});
+});

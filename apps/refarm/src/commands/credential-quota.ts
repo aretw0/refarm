@@ -7,9 +7,15 @@
  * providers it could read would let "we never asked" pass for "there is nothing to report".
  */
 import {
+	explainRefusal,
+	GITHUB_COPILOT_STATUS_COMPONENT,
+	GITHUB_STATUS_SUMMARY_URL,
 	isMeterExhausted,
+	latestIncidentNote,
+	readProviderStatus,
 	type AccountQuota,
 	type ModelAccountDescriptor,
+	type ProviderStatus,
 	type QuotaMeter,
 } from "@refarm.dev/model-account-contract-v1";
 
@@ -22,12 +28,23 @@ const READERS: Readonly<
 	"github-copilot": readCopilotQuota,
 };
 
+/** Which providers declare their own health, and where. Statuspage is the format GitHub, OpenAI
+ *  and Anthropic all publish, so adding one is a URL and a component name. */
+const STATUS_SOURCES: Readonly<Record<string, { url: string; component: string }>> = {
+	"github-copilot": {
+		url: GITHUB_STATUS_SUMMARY_URL,
+		component: GITHUB_COPILOT_STATUS_COMPONENT,
+	},
+};
+
 export interface AccountQuotaRow {
 	readonly credentialId: string;
 	readonly provider: string;
 	readonly alias: string;
 	readonly outcome: QuotaOutcome["kind"];
 	readonly detail?: string;
+	/** What the provider declares about itself, attached only when this row failed. */
+	readonly providerHealth?: ProviderStatus["health"];
 	readonly quota?: AccountQuota;
 }
 
@@ -63,6 +80,34 @@ export function quotaRow(
 	}
 }
 
+/**
+ * WHAT THE PROVIDER SAYS ABOUT ITSELF, asked ONCE per provider and only when something failed.
+ *
+ * Not on the happy path: a reading that succeeded needs no alibi, and asking anyway would spend a
+ * request per run to learn nothing. Asked once rather than per account because two accounts of one
+ * provider share its weather — and because the answer to "should I try again later" is a property
+ * of the provider, not of the seat.
+ */
+async function providerStatusFor(
+	provider: string,
+	deps: CopilotQuotaDeps,
+): Promise<{ status: ProviderStatus; note?: string } | undefined> {
+	const source = STATUS_SOURCES[provider];
+	if (!source) return undefined;
+	try {
+		const response = await deps.fetch(source.url, { signal: AbortSignal.timeout(5_000) });
+		if (!response.ok) return { status: { health: "unknown" } };
+		const document: unknown = await response.json();
+		const note = latestIncidentNote(document, source.component);
+		return {
+			status: readProviderStatus(document, source.component),
+			...(note ? { note } : {}),
+		};
+	} catch {
+		return { status: { health: "unknown" } };
+	}
+}
+
 export async function readQuotaRows(
 	accounts: readonly ModelAccountDescriptor[],
 	credentials: ReadonlyMap<string, unknown>,
@@ -94,7 +139,31 @@ export async function readQuotaRows(
 		}
 		rows.push(quotaRow(descriptor, await reader(credential, deps)));
 	}
-	return rows;
+	// THE PROVIDER'S OWN WEATHER, attached to the rows that failed. Without it an operator reads a
+	// refusal as being about his node — measured 2026-08-17, where a declared Copilot MAJOR OUTAGE
+	// was read as GitHub refusing this client, and the repair attempted was an identity nobody
+	// needed to change.
+	const troubled = [
+		...new Set(rows.filter((r) => r.outcome !== "read" && STATUS_SOURCES[r.provider]).map((r) => r.provider)),
+	];
+	if (troubled.length === 0) return rows;
+	const weather = new Map<string, { status: ProviderStatus; note?: string }>();
+	for (const provider of troubled) {
+		const status = await providerStatusFor(provider, deps);
+		if (status) weather.set(provider, status);
+	}
+	return rows.map((row) => {
+		const seen = row.outcome === "read" ? undefined : weather.get(row.provider);
+		if (!seen) return row;
+		return {
+			...row,
+			providerHealth: seen.status.health,
+			detail: `${row.detail ?? ""} ${explainRefusal(seen.status, 0, seen.note)}`
+				.replace("HTTP 0, and ", "")
+				.replace("this HTTP 0", "this refusal")
+				.trim(),
+		};
+	});
 }
 
 function meterLine(id: string, meter: QuotaMeter): string {

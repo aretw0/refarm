@@ -92,6 +92,14 @@ describe("latestIncidentNote", () => {
 });
 
 describe("explainRefusal", () => {
+	it("reads as a sentence when the caller already printed the code", () => {
+		// An earlier version interpolated a zero and patched "HTTP 0" out afterwards — a rendering
+		// bug waiting for the first phrasing change.
+		const text = explainRefusal({ health: "impaired", summary: "Copilot is major outage" });
+		expect(text).toMatch(/this refusal says nothing/u);
+		expect(text).not.toMatch(/HTTP/u);
+	});
+
 	it("tells an operator to WAIT when the provider declared trouble", () => {
 		// The sentence is the deliverable. The same HTTP 403 produced "re-register your identity"
 		// three times; this one produces "wait".
@@ -101,6 +109,7 @@ describe("explainRefusal", () => {
 			latestIncidentNote(GITHUB_DURING_INCIDENT, "Copilot"),
 		);
 		expect(text).toMatch(/DECLARED trouble/u);
+		expect(text).toMatch(/this HTTP 403/u);
 		expect(text).toMatch(/says nothing about this node/u);
 		expect(text).toMatch(/authentication token retries/u);
 	});

@@ -127,23 +127,27 @@ export function latestIncidentNote(document: unknown, componentName: string): st
  */
 export function explainRefusal(
 	status: ProviderStatus,
-	httpStatus: number,
+	/** The status code, when there is one. Absent for a caller that already printed its own. */
+	httpStatus?: number,
 	incidentNote?: string,
 ): string {
+	// NAMED, NOT INTERPOLATED BLANK. A caller that has already printed the code passes none, and
+	// the sentence must still read as a sentence — an earlier version patched "HTTP 0" out of the
+	// string afterwards, which is a rendering bug waiting for the first phrasing change.
+	const refusal = httpStatus === undefined ? "this refusal" : `this HTTP ${httpStatus}`;
 	if (status.health === "impaired") {
 		return (
-			`the provider has DECLARED trouble (${status.summary ?? "impaired"}), so this HTTP ` +
-			`${httpStatus} says nothing about this node or its credential. Wait for the incident to ` +
-			`clear and try again.` +
+			`The provider has DECLARED trouble (${status.summary ?? "impaired"}), so ${refusal} says ` +
+			"nothing about this node or its credential. Wait for the incident to clear and try again." +
 			(incidentNote ? ` Provider's own note — ${incidentNote}` : "")
 		);
 	}
 	if (status.health === "unknown") {
 		return (
-			`HTTP ${httpStatus}, and the provider's status could not be consulted — so whether this is ` +
-			"about this node or about the provider is UNMEASURED. Check the provider's status page " +
-			"before changing anything here."
+			`The provider's status could not be consulted, so whether ${refusal} is about this node or ` +
+			"about the provider is UNMEASURED. Check the provider's status page before changing " +
+			"anything here."
 		);
 	}
-	return `HTTP ${httpStatus}, and the provider reports itself operational — so this is about this node or its credential.`;
+	return `The provider reports itself operational, so ${refusal} is about this node or its credential.`;
 }
