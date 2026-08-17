@@ -8,6 +8,7 @@ import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 
 import {
+	provisionableAccounts,
 	readModelAuthorization,
 	type ModelAuthorization,
 } from "@refarm.dev/model-account-contract-v1";
@@ -18,7 +19,14 @@ import {
 	loadAccountView,
 	type AccountViewSilo,
 } from "../credentials/account-view-loader.js";
+import { renewExpiredCopilotCredentials } from "../credentials/copilot-renew.js";
+import { githubOAuthClientId } from "../credentials/github.js";
+import {
+	copilotRequestIdentity,
+	resolveCopilotIdentity,
+} from "../credentials/oauth/index.js";
 import { parseModelScope } from "../model-routing.js";
+import { resolveRefarmVersion } from "./runtime-metadata.js";
 
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { renderCapabilityError, type CapabilitySurfaceHooks } from "./capability-commander.js";
@@ -212,10 +220,36 @@ export function createModelCapabilityGroup(
 			}
 			if (input.options["include-secrets"]) {
 				try {
-					credentials = await loadAccountCredentials({
-						home,
-						silo: new SiloCore() as unknown as AccountViewSilo,
-					});
+					const silo = new SiloCore() as unknown as AccountViewSilo & {
+						saveSecret?: (ns: string, id: string, value: string) => Promise<unknown>;
+					};
+					credentials = await loadAccountCredentials({ home, silo });
+					// RENEWED BEFORE THE RUNTIME IS HANDED IT (ISS-141). A Copilot token lasts
+					// minutes and `scripts/tractor-start.sh` provisions the Rust runtime from exactly
+					// this command, so an expired credential here starts a runtime that cannot
+					// dispatch and says nothing until the first request fails.
+					if (authorization && view && typeof silo.saveSecret === "function") {
+						const { provision } = provisionableAccounts({
+							catalog: view.accounts,
+							authorization,
+						});
+						// THE DECLARED IDENTITY, resolved from the same config the login reads. Inventing
+						// headers here refuses on every attempt (ISS-141).
+						const identity = copilotRequestIdentity(
+							resolveCopilotIdentity(
+								JSON.parse(fs.readFileSync(path.join(home, "config.json"), "utf8")) as unknown,
+							),
+							githubOAuthClientId(),
+							resolveRefarmVersion(),
+						);
+						credentials = await renewExpiredCopilotCredentials(provision, credentials, {
+							fetch: globalThis.fetch,
+							identityHeaders: identity.headers,
+							save: async (credentialId, credential) => {
+								await silo.saveSecret!("model", credentialId, JSON.stringify(credential));
+							},
+						});
+					}
 				} catch {
 					credentials = undefined;
 				}

@@ -74,6 +74,9 @@ const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434";
 const OLLAMA_DOCKER_BASE_URL = "http://host.docker.internal:11434";
 const MODEL_PROVIDER_PROBE_TIMEOUT_MS = 2_000;
 const REFARM_MANAGED_MODEL_ENV_KEYS = "REFARM_MANAGED_MODEL_ENV_KEYS";
+/** Per-provider endpoints, `provider=url` joined by `,`. Read by the tractor host AND by the
+ *  guest agent, which parse it identically — see `buildProviderBaseUrls` for why it exists. */
+export const MODEL_PROVIDER_BASE_URLS_ENV_VAR = "MODEL_PROVIDER_BASE_URLS";
 
 export interface ModelTokens {
 	modelProvider?: string;
@@ -400,6 +403,53 @@ export function modelEnvCredentialNotice(
 	}
 }
 
+/**
+ * PURE. The per-provider endpoint map the host and guest both route against.
+ *
+ * ## Why a map and not one base url
+ *
+ * `MODEL_BASE_URL` is global: one endpoint for the whole daemon. Measured on the operator's node
+ * 2026-08-17, the two Copilot accounts announce DIFFERENT endpoints in their own token exchange:
+ *
+ *     corporativo  https://api.business.githubcopilot.com     baseUrlSource: from-token
+ *     pessoal      https://api.individual.githubcopilot.com   baseUrlSource: from-token
+ *
+ * So a static provider→url table in the host is not merely incomplete, it is WRONG for this
+ * provider, and setting the global `MODEL_BASE_URL` to one of them would redirect every other
+ * provider's traffic with it. The endpoint is a property of the ACCOUNT.
+ *
+ * ## The format IS the contract
+ *
+ * `provider=url` pairs joined by `,`. No whitespace anywhere, ASCII only — which is exactly the
+ * shape the host's default `MODEL_*` forward policy already admits ("provider base URLs, model
+ * ids, flags"), so this crosses to the guest without widening any allowlist. The host and the
+ * guest parse the same string with the same rule; a pair either side cannot read is DROPPED rather
+ * than guessed, so the two can only ever agree or both fall back.
+ *
+ * Only providers whose credential actually announces an endpoint appear. A provider with a
+ * well-known static endpoint needs no entry and gets none — an empty map is the ordinary case.
+ */
+export function buildProviderBaseUrls(
+	accounts: readonly { credentialId: string; provider: string }[],
+	credentials: ReadonlyMap<string, unknown>,
+): string {
+	const seen = new Set<string>();
+	const pairs: string[] = [];
+	for (const account of accounts) {
+		if (seen.has(account.provider)) continue;
+		const credential = credentials.get(account.credentialId) as { baseUrl?: unknown } | undefined;
+		const baseUrl = typeof credential?.baseUrl === "string" ? credential.baseUrl.trim() : "";
+		// Rejected here rather than at the far end: a value with whitespace or a non-ASCII byte
+		// would be dropped by the host's forward policy and take the WHOLE map with it, so one bad
+		// endpoint would silently unroute every other provider.
+		if (!baseUrl || !/^https?:\/\/[\x21-\x7e]+$/u.test(baseUrl) || baseUrl.includes(",")) continue;
+		if (!/^[a-z0-9_-]+$/u.test(account.provider)) continue;
+		seen.add(account.provider);
+		pairs.push(`${account.provider}=${baseUrl}`);
+	}
+	return pairs.join(",");
+}
+
 function buildModelEnvEntries(
 	tokens: ModelTokens,
 	options: {
@@ -490,6 +540,14 @@ function buildModelEnvEntries(
 				catalog: options.view.accounts,
 				authorization: options.authorization,
 			});
+			const providerBaseUrls = buildProviderBaseUrls(provision, options.credentials);
+			// THE ENDPOINT TRAVELS WITH THE CREDENTIAL. Without it the host resolves a static
+			// provider table and a Copilot request lands on the localhost floor — the operator's
+			// dispatch reported "Model provider unavailable: ollama" for a request nobody made to
+			// ollama (ISS-141).
+			if (providerBaseUrls && !process.env[MODEL_PROVIDER_BASE_URLS_ENV_VAR]) {
+				entries.push([MODEL_PROVIDER_BASE_URLS_ENV_VAR, providerBaseUrls]);
+			}
 			for (const account of provision) {
 				const envKey = modelCredentialEnvKey(account.provider);
 				if (!envKey || process.env[envKey] || entries.some(([key]) => key === envKey)) continue;

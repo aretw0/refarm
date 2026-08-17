@@ -177,11 +177,18 @@ export function createSiloModelEnvInjector(options: SiloModelEnvInjectorOptions)
 				`[farmhand] ${provider} has ${aliases.length} authorised accounts (${aliases.join(", ")}) and the host reads one credential per provider, so NONE was provisioned. Authorise exactly one, or bind per workspace once the host scopes routes per task.`,
 			);
 		}
+		const providerBaseUrls: string[] = [];
 		for (const account of provision) {
 			const envKey = modelCredentialEnvKey(account.provider);
 			if (!envKey) continue;
 			const creds = await credentialForAccount(tokens, account);
 			if (!creds) continue;
+			// THE ENDPOINT TRAVELS WITH THE CREDENTIAL (ISS-141). Some providers announce where a
+			// seat talks as part of issuing its token — Copilot returns a different host per seat —
+			// so the host cannot resolve it from a static table and the global MODEL_BASE_URL would
+			// redirect every other provider along with it.
+			const announced = await announcedBaseUrl(tokens, account);
+			if (announced) providerBaseUrls.push(`${account.provider}=${announced}`);
 			let effective = creds;
 			if (Date.now() >= creds.expires && options.refreshOAuthToken) {
 				const refreshed = await options.refreshOAuthToken(account.provider, creds);
@@ -199,6 +206,38 @@ export function createSiloModelEnvInjector(options: SiloModelEnvInjectorOptions)
 				setManagedEnv("OPENAI_CODEX_ACCOUNT_ID", effective.accountId);
 			}
 		}
+		if (providerBaseUrls.length > 0) {
+			setManagedEnv("MODEL_PROVIDER_BASE_URLS", providerBaseUrls.join(","));
+		}
+	}
+
+	/** The endpoint a credential announces for itself, when it announces one and the value is one
+	 *  the host and guest will both accept. Malformed is DROPPED: a value with whitespace fails the
+	 *  host's forward policy and takes the whole variable — and every other provider — with it. */
+	async function announcedBaseUrl(
+		tokens: SiloModelTokens,
+		account: ModelAccountDescriptor,
+	): Promise<string | undefined> {
+		const location = credentialSecretLocation(account);
+		let raw: unknown;
+		const read = readCredentialAt(location, {
+			legacyOauthCredentials: tokens.oauthCredentials as Record<string, unknown> | undefined,
+			namespacedSecret: () => undefined,
+		});
+		if (read.kind === "found") raw = read.credential;
+		else if (location.kind === "namespaced" && options.secrets) {
+			try {
+				const value = await options.secrets.load(location.namespace, location.id);
+				raw = typeof value === "string" ? JSON.parse(value) : value;
+			} catch {
+				return undefined;
+			}
+		}
+		const baseUrl = (raw as { baseUrl?: unknown } | undefined)?.baseUrl;
+		if (typeof baseUrl !== "string") return undefined;
+		const trimmed = baseUrl.trim();
+		if (!/^https?:\/\/[\x21-\x7e]+$/u.test(trimmed) || trimmed.includes(",")) return undefined;
+		return trimmed;
 	}
 
 	/** One account's stored credential, read from wherever its descriptor says it lives. */

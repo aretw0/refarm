@@ -864,7 +864,17 @@ describe("refarm ask", () => {
 		errSpy.mockRestore();
 	});
 
-	it("fails before submitting when an unsupported subscription provider token comes from env", async () => {
+	/**
+	 * REPINNED FORWARD 2026-08-17 (ISS-141). This test used `github-copilot` as its example of a
+	 * subscription provider the runtime cannot dispatch through, and that stopped being true when
+	 * the adapter landed. The GUARD is unchanged and still asserted — what changed is which
+	 * providers it applies to, and the honest assertion now is that Copilot SUBMITS.
+	 *
+	 * No declared subscription provider is currently unsupported, so there is no real value left to
+	 * exercise the refusal with. Inventing one would test a fiction; asserting the new truth keeps
+	 * this file describing the node that exists.
+	 */
+	it("SUBMITS for github-copilot from env, which the runtime can now dispatch", async () => {
 		process.env.REFARM_HOME = tempHome ?? "";
 		process.env.MODEL_PROVIDER = "github-copilot";
 		process.env.MODEL_ID = "gpt-4o";
@@ -887,21 +897,9 @@ describe("refarm ask", () => {
 		await command.parseAsync(["hello", "--json"], { from: "user" });
 
 		expect(errSpy).not.toHaveBeenCalled();
-		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
-			ok: boolean;
-			error: string;
-			credential: { state: string; envKey: string };
-		};
-		expect(payload).toMatchObject({
-			ok: false,
-			error: "model-subscription-runtime-unsupported",
-			credential: {
-				state: "env",
-				envKey: "GITHUB_COPILOT_ACCESS_TOKEN",
-			},
-		});
-		expect(deps.submitEffort).not.toHaveBeenCalled();
-		expect(process.exitCode).toBe(1);
+		const printed = String(logSpy.mock.calls[0]?.[0] ?? "");
+		expect(printed).not.toContain("model-subscription-runtime-unsupported");
+		expect(deps.submitEffort).toHaveBeenCalled();
 
 		logSpy.mockRestore();
 		errSpy.mockRestore();

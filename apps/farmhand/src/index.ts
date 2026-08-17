@@ -15,6 +15,10 @@ import { AGENT_CORE_BUNDLE, loadConfigAsync } from "@refarm.dev/config";
 import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import {
+	copilotAccountId,
+	copilotApiBaseUrl,
+	copilotRefreshMargin,
+	copilotTokenExchangeUrl,
 	readModelAuthorization,
 	type ModelAccountDescriptor,
 } from "@refarm.dev/model-account-contract-v1";
@@ -242,10 +246,55 @@ const siloModelEnvInjector = createSiloModelEnvInjector({
 	refreshOAuthToken,
 });
 
+/**
+ * GitHub Copilot renews by RE-EXCHANGING the durable token, not by an OAuth grant.
+ *
+ * The stored `access` is a short-lived Copilot token (`tid=` prefix, minutes of life) and `refresh`
+ * holds the durable GitHub user token (`ghu_`) that mints it. There is no `refresh_token` grant to
+ * post, which is why github-copilot appears in neither `OAUTH_TOKEN_URLS` nor `OAUTH_CLIENT_IDS`
+ * and why its credential simply expired and stayed expired — measured 2026-08-17, where a dispatch
+ * that had reached Copilot at last answered `HTTP 401: IDE token expired`.
+ *
+ * THE ENDPOINT MOVES WITH THE TOKEN. Each exchange announces where that seat talks, so the renewal
+ * rewrites `baseUrl` too; a renewal that kept the old endpoint would be a fresh token pointed at a
+ * stale host. The shape is read through the one module that owns this undocumented wire.
+ */
+async function refreshCopilotToken(creds: OAuthCreds): Promise<OAuthCreds | null> {
+	try {
+		const response = await fetch(copilotTokenExchangeUrl(), {
+			headers: {
+				authorization: `Bearer ${creds.refresh}`,
+				accept: "application/json",
+				"user-agent": "GitHubCopilotChat/0.26.0",
+				"editor-version": "vscode/1.99.0",
+			},
+			signal: AbortSignal.timeout(15_000),
+		});
+		if (!response.ok) return null;
+		const body = (await response.json()) as { token?: unknown; expires_at?: unknown };
+		if (typeof body.token !== "string" || typeof body.expires_at !== "number") return null;
+		const endpoint = copilotApiBaseUrl(body.token, undefined);
+		const accountId = copilotAccountId(body.token);
+		return {
+			access: body.token,
+			// The DURABLE token is unchanged and stays the refresh material; storing the new
+			// short-lived one here would make the next renewal fail.
+			refresh: creds.refresh,
+			expires: copilotRefreshMargin(body.expires_at),
+			...(accountId ? { accountId } : {}),
+			baseUrl: endpoint.baseUrl,
+			baseUrlSource: endpoint.kind,
+		} as OAuthCreds;
+	} catch {
+		return null;
+	}
+}
+
 async function refreshOAuthToken(
 	oauthProvider: string,
 	creds: OAuthCreds,
 ): Promise<OAuthCreds | null> {
+	if (oauthProvider === "github-copilot") return refreshCopilotToken(creds);
 	const tokenUrl = OAUTH_TOKEN_URLS[oauthProvider];
 	const clientId = OAUTH_CLIENT_IDS[oauthProvider];
 	if (!tokenUrl || !clientId) return null;
