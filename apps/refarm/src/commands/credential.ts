@@ -19,6 +19,7 @@ import { Command } from "commander";
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	isRefusal,
+	LEGACY_REF_PREFIX,
 	resolveModelAccount,
 	type AccountView,
 	type ModelAccountBinding,
@@ -30,6 +31,7 @@ import {
 	CATALOG_FILE,
 	loadAccountView,
 	MODEL_NAMESPACE,
+	readCatalog,
 	type AccountViewSilo,
 } from "../credentials/account-view-loader.js";
 import {
@@ -49,6 +51,8 @@ export interface CredentialDeps {
 	siloOf: () => CredentialSilo;
 	/** The one snapshot this command answers from. Built by the loader that owns the I/O. */
 	viewOf: () => Promise<AccountView>;
+	/** The STORED records, which are not what the view answers from — see `forget` and ISS-133. */
+	catalogOf: () => readonly ModelAccountDescriptor[];
 	writeCatalog: (catalog: readonly ModelAccountDescriptor[]) => void;
 	bindingsOf: () => ModelAccountBinding[];
 }
@@ -68,6 +72,7 @@ function defaultDeps(): CredentialDeps {
 		siloOf: () => new SiloCore() as unknown as CredentialSilo,
 		viewOf: () =>
 			loadAccountView({ home: homeOf(), silo: new SiloCore() as unknown as AccountViewSilo }),
+		catalogOf: () => readCatalog(homeOf()),
 		writeCatalog: (catalog) => {
 			const file = path.join(homeOf(), CATALOG_FILE);
 			fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -274,6 +279,25 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 							"Bind those workspaces elsewhere first, or the binding would point at nothing.",
 					);
 				}
+				// REFUSED, NOT HALF-PERFORMED — but only while there is something here to fail to
+				// remove. A legacy account's secret is the flat token entry that produced its
+				// descriptor, and this command touches the namespaced store and the catalog, neither
+				// of which holds it; it used to run to completion and print success having removed
+				// nothing.
+				//
+				// AN `incomplete` LEGACY RECORD IS THE OPPOSITE CASE and must not be caught by the
+				// same refusal. Its secret is already gone — that is what `incomplete` means since
+				// ISS-132 — so the record is all that is left, and this command owns the catalog. A
+				// blanket refusal here would leave the operator's node with a phantom account no
+				// command could remove: `forget` declines it and `sow` keeps it, correctly, because
+				// nothing proves whose it was.
+				if (target.secretRef.startsWith(LEGACY_REF_PREFIX) && target.health === "healthy") {
+					throw new Error(
+						`${credentialId} is a legacy account: its secret lives in the silo's flat token map, ` +
+							"which this command does not touch. Re-authenticate with `refarm sow` to migrate it " +
+							"out of that store, which is the act that retires it.",
+					);
+				}
 				if (!options.yes) {
 					process.stdout.write(
 						`forget ${target.provider} "${target.alias}" (${credentialId})?\n` +
@@ -291,7 +315,11 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 				if (target.secretRef.startsWith(prefix) && typeof silo.removeSecret === "function") {
 					await silo.removeSecret(MODEL_NAMESPACE, target.secretRef.slice(prefix.length));
 				}
-				deps.writeCatalog(accounts.filter((entry) => entry.credentialId !== credentialId));
+				// THE CATALOG, NOT THE VIEW. `accounts` is the reconciled view — stored descriptors
+				// MERGED with ones synthesised from the flat token map — and writing it back promotes
+				// those synthetic readings into stored records (ISS-133). That is the derived
+				// observation overwriting the model: the flat map then changes and the record does not.
+				deps.writeCatalog(deps.catalogOf().filter((entry) => entry.credentialId !== credentialId));
 
 				const extra = { credentialId, provider: target.provider, alias: target.alias };
 				if (options.json) {

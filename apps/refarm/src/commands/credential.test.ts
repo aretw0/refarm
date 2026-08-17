@@ -52,6 +52,10 @@ async function run(
 			viewOf: async () =>
 				buildAccountView({ tokens, catalog: catalog as never, secrets }),
 			bindingsOf: () => bindings,
+			// The STORED records. Deliberately a different list from what `viewOf` returns — the view
+			// merges legacy descriptors synthesised from the tokens, and a fixture where the two
+			// coincide cannot see ISS-133 at all.
+			catalogOf: () => catalog as never,
 			writeCatalog: (next) => void written.push([...next]),
 		}).parseAsync(argv, { from: "user" });
 	} finally {
@@ -199,5 +203,68 @@ describe("credential forget", () => {
 		expect(written[0]!.some((e) => (e as { credentialId: string }).credentialId === CORP_ID)).toBe(
 			false,
 		);
+	});
+
+	/**
+	 * ISS-133. What is WRITTEN is the catalog; what is ANSWERED from is the view. They are not the
+	 * same list — the view merges descriptors synthesised from the flat token map — and writing the
+	 * view back promotes those into stored records. Measured on the operator's node: a descriptor
+	 * naming `legacy:oauthCredentials/openai-codex` persisted in the catalog, outliving the flat
+	 * entry that produced it, and counted as a second openai-codex account by the next `sow`.
+	 */
+	it("writes the CATALOG minus the entry, never the view minus the entry", async () => {
+		written.length = 0;
+		removed.length = 0;
+		// The node's catalog holds one namespaced account; its silo still holds a legacy one. The
+		// view sees two, and only one of them is a stored record.
+		await run(
+			["forget", CORP_ID, "--yes", "--json"],
+			TOKENS,
+			[CORPORATE],
+			new Map([[CORPORATE.secretRef, { access: "C" }]]),
+		);
+		expect(written).toHaveLength(1);
+		expect(written[0]).toEqual([]);
+	});
+
+	it("REMOVES a legacy record whose secret is already gone, which nothing else can", async () => {
+		// The operator's node on 2026-08-17: a persisted legacy descriptor (ISS-133) outliving the
+		// flat entry that produced it. `sow` keeps it — correctly, nothing proves whose it was — so
+		// if this command refused it too, the record would be unremovable by any means the CLI has.
+		written.length = 0;
+		removed.length = 0;
+		const FOSSIL = {
+			credentialId: "model-account:CG4WNKR6KNSH3510XGHBWW0JXA",
+			provider: "openai-codex",
+			alias: "default",
+			identity: { status: "unverified" as const },
+			secretRef: "legacy:oauthCredentials/openai-codex",
+			health: "healthy" as const,
+			revision: "sha256:legacy",
+		};
+		const { exitCode } = await run(
+			["forget", FOSSIL.credentialId, "--yes", "--json"],
+			{ oauthCredentials: {} },
+			[FOSSIL],
+		);
+		expect(exitCode).toBe(0);
+		// The catalog loses it and no secret removal is attempted — there is none to remove.
+		expect(written).toEqual([[]]);
+		expect(removed).toHaveLength(0);
+	});
+
+	it("REFUSES to forget a legacy account, rather than reporting a removal it did not perform", async () => {
+		// A legacy account's secret is the flat token entry, and this command touches only the
+		// namespaced store and the catalog. Removing neither and printing success is how a node comes
+		// to disagree with itself; the operator is told where the credential actually lives.
+		written.length = 0;
+		removed.length = 0;
+		const legacyId = buildAccountView({ tokens: TOKENS, catalog: [], secrets: new Map() })
+			.accounts[0]!.credentialId;
+		const { out, exitCode } = await run(["forget", legacyId, "--yes", "--json"], TOKENS, []);
+		expect(exitCode).toBe(1);
+		expect(out).toMatch(/legacy/iu);
+		expect(written).toHaveLength(0);
+		expect(removed).toHaveLength(0);
 	});
 });
