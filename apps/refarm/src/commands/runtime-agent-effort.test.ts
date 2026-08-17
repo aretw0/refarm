@@ -60,3 +60,33 @@ describe("createRuntimeAgentRespondEffort workspace attribution", () => {
 		expect(args != null ? "workspace_source" in args : false).toBe(false);
 	});
 });
+
+describe("which account pays (ISS-130)", () => {
+	it("declares the credential the caller's binding resolved to", () => {
+		const effort = createRuntimeAgentRespondEffort({
+			prompt: "p",
+			system: "s",
+			sessionId: "sess",
+			source: "refarm-ask",
+			historyTurns: 0,
+			credentialId: "model-account:K4NXGZTQQ4KFM0GG9139VN67PR",
+		});
+
+		expect(effort).toMatchObject({ credentialId: "model-account:K4NXGZTQQ4KFM0GG9139VN67PR" });
+	});
+
+	it("carries NO key at all when nothing resolved an account", () => {
+		// Omitted, never null — the same rule `scenarioId` follows. The host field is
+		// `#[serde(default)]`, and a null payer reads, once aggregated, exactly like a dispatch
+		// that spent nobody's quota.
+		const effort = createRuntimeAgentRespondEffort({
+			prompt: "p",
+			system: "s",
+			sessionId: "sess",
+			source: "refarm-ask",
+			historyTurns: 0,
+		});
+
+		expect(Object.hasOwn(effort, "credentialId")).toBe(false);
+	});
+});

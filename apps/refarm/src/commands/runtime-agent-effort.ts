@@ -65,6 +65,22 @@ export interface RuntimeAgentRespondEffortOptions {
 	 * while breaking it in substance.
 	 */
 	workspaceSource?: "declared" | "seeded-from-cwd";
+	/**
+	 * WHICH ACCOUNT'S QUOTA THIS DISPATCH SPENDS — the opaque credential id the caller's
+	 * workspace binding resolved to, never an alias.
+	 *
+	 * DECLARED here rather than derived downstream, for the reason `workspaceSource` exists two
+	 * fields up: only the caller knows which binding applied, and by the time the observation
+	 * reads it a re-derivation could disagree with what actually paid. The record has read
+	 * `refarm.budget.credentialId` since d1b94ec5 and nothing wrote it — 32 observations on the
+	 * operator's node, all unattributed (ISS-130).
+	 *
+	 * It is load-bearing rather than bookkeeping: ISS-129 measured that GitHub Copilot answers
+	 * the quota question with a null counter for both of his SKUs, so the only sovereign
+	 * depletion signal left is the dispatch outcome — and an outcome nobody can attribute to an
+	 * account cannot say which account ran out.
+	 */
+	credentialId?: string;
 	now?: () => Date;
 	randomUUID?: () => string;
 }
@@ -82,6 +98,7 @@ export function createRuntimeAgentRespondEffort({
 	expectation,
 	workspaceId,
 	workspaceSource,
+	credentialId,
 	now = () => new Date(),
 	randomUUID = () => crypto.randomUUID(),
 }: RuntimeAgentRespondEffortOptions): Effort {
@@ -98,6 +115,7 @@ export function createRuntimeAgentRespondEffort({
 	const declaredScenario = scenarioId?.trim();
 	const declaredExpectation = expectation?.trim();
 	const declaredWorkspace = workspaceId?.trim();
+	const declaredCredential = credentialId?.trim();
 
 	if (declaredWorkspace) {
 		args.workspace_id = declaredWorkspace;
@@ -111,6 +129,11 @@ export function createRuntimeAgentRespondEffort({
 		// node must record no id at all rather than a null, which would be
 		// indistinguishable from the "could not tell" a restart mid-run leaves behind.
 		...(declaredScenario ? { scenarioId: declaredScenario } : {}),
+		// Same spread rule, same reason: `credential_id` is `#[serde(default)]` on the host and an
+		// unattributed dispatch must record NO key. A null payer is indistinguishable, once
+		// aggregated, from a dispatch that spent nobody's quota, and `budget by-account` already
+		// counts an absent field as `unattributed` — which is the true answer.
+		...(declaredCredential ? { credentialId: declaredCredential } : {}),
 		// Same rule, same reason, for the expectation: absent when nobody declared one,
 		// so the observation carries no verdict key at all. An empty `--expect ""` is no
 		// declaration either — it is a substring of every answer, so it would record a
