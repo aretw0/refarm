@@ -100,6 +100,7 @@ export const PROBE_EXCLUSIONS = Object.freeze([
 	// --- network ---
 	{ argv: ["auth", "verify"], category: "network" },
 	{ argv: ["cert", "providers"], category: "network" },
+	{ argv: ["credential", "quota"], category: "network" },
 	{ argv: ["source", "discover"], category: "network" },
 	// --- interactive ---
 	{ argv: ["guide"], category: "interactive" },

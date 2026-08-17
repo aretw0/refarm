@@ -29,6 +29,7 @@ import { SiloCore } from "@refarm.dev/silo";
 
 import {
 	CATALOG_FILE,
+	loadAccountCredentials,
 	loadAccountView,
 	MODEL_NAMESPACE,
 	readCatalog,
@@ -39,6 +40,7 @@ import {
 	resolveCopilotIdentity,
 } from "../credentials/oauth/index.js";
 import { emitCommandRefusal } from "./command-refusal.js";
+import { exhaustedMeters, formatQuotaRows, readQuotaRows } from "./credential-quota.js";
 
 interface CredentialSilo {
 	loadTokens(): Promise<unknown>;
@@ -53,6 +55,8 @@ export interface CredentialDeps {
 	viewOf: () => Promise<AccountView>;
 	/** The STORED records, which are not what the view answers from — see `forget` and ISS-133. */
 	catalogOf: () => readonly ModelAccountDescriptor[];
+	/** Each account's stored credential, by OPAQUE id — for asking a PROVIDER about one account. */
+	credentialsOf: () => Promise<ReadonlyMap<string, unknown>>;
 	writeCatalog: (catalog: readonly ModelAccountDescriptor[]) => void;
 	bindingsOf: () => ModelAccountBinding[];
 }
@@ -73,6 +77,8 @@ function defaultDeps(): CredentialDeps {
 		viewOf: () =>
 			loadAccountView({ home: homeOf(), silo: new SiloCore() as unknown as AccountViewSilo }),
 		catalogOf: () => readCatalog(homeOf()),
+		credentialsOf: () =>
+			loadAccountCredentials({ home: homeOf(), silo: new SiloCore() as unknown as AccountViewSilo }),
 		writeCatalog: (catalog) => {
 			const file = path.join(homeOf(), CATALOG_FILE);
 			fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -218,6 +224,36 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 				}
 				// NON-ZERO ON REFUSAL, so this can be a gate rather than a report.
 				if (isRefusal(result)) process.exitCode = 1;
+			}),
+		);
+
+	credential
+		.command("quota")
+		.description("What each account has left, asked of the providers — never declared here")
+		.option("--json", "Output machine-readable result")
+		.action(async (options: { json?: boolean }) =>
+			guarded("quota", options, async () => {
+				const accounts = await loadAccounts();
+				const rows = await readQuotaRows(accounts, await deps.credentialsOf(), {
+					fetch: globalThis.fetch,
+				});
+				const exhausted = exhaustedMeters(rows);
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "credential",
+							operation: "quota",
+							extra: { accounts: rows, exhausted },
+							...(exhausted.length > 0
+								? {
+										nextAction: `${exhausted.map((e) => `${e.alias}/${e.meter}`).join(", ")} is out. Bind the workspaces that spend it elsewhere, or wait for the reset.`,
+									}
+								: {}),
+						}),
+					);
+					return;
+				}
+				process.stdout.write(formatQuotaRows(rows));
 			}),
 		);
 

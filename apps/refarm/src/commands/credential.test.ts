@@ -56,6 +56,10 @@ async function run(
 			// merges legacy descriptors synthesised from the tokens, and a fixture where the two
 			// coincide cannot see ISS-133 at all.
 			catalogOf: () => catalog as never,
+			// The stored credential per account, which only the quota reader asks for. Empty here on
+			// purpose: every other test in this file must pass without one, or the dependency has
+			// leaked into commands that have no business holding secret material.
+			credentialsOf: async () => new Map<string, unknown>(),
 			writeCatalog: (next) => void written.push([...next]),
 		}).parseAsync(argv, { from: "user" });
 	} finally {
