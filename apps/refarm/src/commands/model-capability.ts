@@ -7,9 +7,21 @@ import type { AccountView } from "@refarm.dev/model-account-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 
-import { type AccountViewSilo, loadAccountView } from "../credentials/account-view-loader.js";
+import {
+	readModelAuthorization,
+	type ModelAuthorization,
+} from "@refarm.dev/model-account-contract-v1";
+import fs from "node:fs";
+import path from "node:path";
+import {
+	loadAccountCredentials,
+	loadAccountView,
+	type AccountViewSilo,
+} from "../credentials/account-view-loader.js";
 import { parseModelScope } from "../model-routing.js";
-import { type CapabilitySurfaceHooks, renderCapabilityError } from "./capability-commander.js";
+
+import { resolveRefarmHome } from "../utils/refarm-home.js";
+import { renderCapabilityError, type CapabilitySurfaceHooks } from "./capability-commander.js";
 import {
 	buildCurrentModelEnvelope,
 	buildInvalidScopeEnvelope,
@@ -20,12 +32,12 @@ import {
 	buildSetFallbackEnvelope,
 	buildSetModelBaseUrlEnvelope,
 	buildSetModelEnvelope,
-	type CurrentModelStatus,
 	defaultModelDeps,
 	formatCurrentModelFromStatus,
 	formatKnownModelProviders,
 	formatModelDoctorFromStatus,
 	formatModelEnvFromEnvelope,
+	type CurrentModelStatus,
 	type ModelCommandDeps,
 	type ModelDoctorStatus,
 } from "./model.js";
@@ -172,16 +184,47 @@ export function createModelCapabilityGroup(
 						? input.options.workspace.trim()
 						: null;
 				view = await loadAccountView({
-					home: process.env.HOME ?? "",
+					// The DECLARED home (ISS-139). `process.env.HOME` here read a catalog that is not
+					// there, so `model env --include-secrets` exported no credential at all — and
+					// `scripts/tractor-start.sh` refuses to start the runtime without one.
+					home: resolveRefarmHome(),
 					silo: new SiloCore() as unknown as AccountViewSilo,
 					workspaceId,
 				});
 			} catch {
 				view = undefined;
 			}
+			// The DECLARATION and the credentials it authorises, loaded only for `--include-secrets`.
+			// A node that has declared nothing gets exactly the previous behaviour.
+			// THE DECLARATION IS CONFIG, NOT A SECRET, so it is read on every call: it decides
+			// `MODEL_CONFIGURED_PROVIDERS`, which is the host's egress allowlist and is exported
+			// with or without `--include-secrets`. The CREDENTIALS behind it are loaded only when
+			// secrets were asked for.
+			let authorization: ModelAuthorization | undefined;
+			let credentials: ReadonlyMap<string, unknown> | undefined;
+			const home = resolveRefarmHome();
+			try {
+				authorization = readModelAuthorization(
+					JSON.parse(fs.readFileSync(path.join(home, "config.json"), "utf8")) as unknown,
+				);
+			} catch {
+				authorization = undefined;
+			}
+			if (input.options["include-secrets"]) {
+				try {
+					credentials = await loadAccountCredentials({
+						home,
+						silo: new SiloCore() as unknown as AccountViewSilo,
+					});
+				} catch {
+					credentials = undefined;
+				}
+			}
 			return buildModelEnvEnvelope(await deps.loadTokens(), {
 				includeSecrets: Boolean(input.options["include-secrets"]),
 				...(view ? { view } : {}),
+				...(authorization ? { authorization } : {}),
+				...(credentials ? { credentials } : {}),
 			});
 		},
 	};

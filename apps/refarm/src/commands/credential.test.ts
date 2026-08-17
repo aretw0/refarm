@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, describe, expect, it } from "vitest";
 
 import { buildAccountView } from "@refarm.dev/model-account-contract-v1";
 
@@ -29,6 +33,7 @@ async function run(
 	// flat token map that produced the descriptor, and the view declares those present itself.
 	secrets: Map<string, unknown> = new Map(),
 	bindings: { workspaceId: string; credentialId: string }[] = [],
+	home = "/nonexistent-home",
 ) {
 	const chunks: string[] = [];
 	const write = process.stdout.write.bind(process.stdout);
@@ -43,7 +48,7 @@ async function run(
 	process.exitCode = 0;
 	try {
 		await createCredentialCommand({
-			homeOf: () => "/nonexistent-home",
+			homeOf: () => home,
 			siloOf: () => ({
 				loadTokens: async () => tokens,
 				saveTokens: async () => tokens,
@@ -60,6 +65,8 @@ async function run(
 			// purpose: every other test in this file must pass without one, or the dependency has
 			// leaked into commands that have no business holding secret material.
 			credentialsOf: async () => new Map<string, unknown>(),
+			// Frozen, so a declaration's recorded date is assertable rather than whatever day it ran.
+			todayOf: () => "2026-08-17",
 			writeCatalog: (next) => void written.push([...next]),
 		}).parseAsync(argv, { from: "user" });
 	} finally {
@@ -270,5 +277,130 @@ describe("credential forget", () => {
 		expect(out).toMatch(/legacy/iu);
 		expect(written).toHaveLength(0);
 		expect(removed).toHaveLength(0);
+	});
+});
+
+/**
+ * ISS-131 tier 3 — what this node is authorised to spend, declared rather than inferred.
+ *
+ * The operator's ruling: a node with nothing associated must DECLARE that, either "approved to use
+ * everything this node holds" or "approved only for these". Blanket approval is legitimate and
+ * cheap; it just has to be GIVEN, so a node that never chose stays distinguishable from one that
+ * chose everything. Here, silence spends money.
+ */
+describe("credential authorize", () => {
+	const CORP_ID = CORPORATE.credentialId;
+	const homes: string[] = [];
+
+	function tmpHome(): string {
+		const dir = mkdtempSync(join(tmpdir(), "refarm-authz-"));
+		homes.push(dir);
+		return dir;
+	}
+
+	afterEach(() => {
+		for (const dir of homes.splice(0)) rmSync(dir, { recursive: true, force: true });
+	});
+
+	const readConfig = (home: string) =>
+		JSON.parse(readFileSync(join(home, "config.json"), "utf8")) as Record<string, unknown>;
+
+	it("shows an UNDECLARED node what it has not said, and writes nothing", async () => {
+		const home = tmpHome();
+		const { out, exitCode } = await run(
+			["authorize", "--json"],
+			TOKENS,
+			[CORPORATE],
+			new Map([[CORPORATE.secretRef, { access: "C" }]]),
+			[],
+			home,
+		);
+		expect(exitCode).toBe(0);
+		expect(out).toContain("undeclared");
+		expect(out).toMatch(/has not declared/u);
+		expect(existsSync(join(home, "config.json"))).toBe(false);
+	});
+
+	it("records blanket approval WITH the date it was given", async () => {
+		// The date is the difference between a standing decision and one nobody remembers making.
+		const home = tmpHome();
+		await run(
+			["authorize", "--all", "--json"],
+			TOKENS,
+			[CORPORATE],
+			new Map([[CORPORATE.secretRef, { access: "C" }]]),
+			[],
+			home,
+		);
+		expect(readConfig(home).modelAuthorization).toEqual({
+			scope: "all",
+			declaredAt: "2026-08-17",
+		});
+	});
+
+	it("records a named list by OPAQUE id", async () => {
+		const home = tmpHome();
+		await run(
+			["authorize", CORP_ID, "--json"],
+			TOKENS,
+			[CORPORATE],
+			new Map([[CORPORATE.secretRef, { access: "C" }]]),
+			[],
+			home,
+		);
+		expect(readConfig(home).modelAuthorization).toMatchObject({
+			scope: "declared",
+			accounts: [CORP_ID],
+		});
+	});
+
+	it("REFUSES an id this node does not hold, rather than writing a stale declaration", async () => {
+		// A declaration naming an account that is not here is stale the moment it is written, and
+		// the operator would believe he had approved something.
+		const home = tmpHome();
+		const { out, exitCode } = await run(
+			["authorize", "model-account:NOPE", "--json"],
+			TOKENS,
+			[CORPORATE],
+			new Map([[CORPORATE.secretRef, { access: "C" }]]),
+			[],
+			home,
+		);
+		expect(exitCode).toBe(1);
+		expect(out).toContain("model-account:NOPE");
+		expect(existsSync(join(home, "config.json"))).toBe(false);
+	});
+
+	it("REFUSES --all together with a list, because they say different things", async () => {
+		const home = tmpHome();
+		const { exitCode } = await run(
+			["authorize", "--all", CORP_ID, "--json"],
+			TOKENS,
+			[CORPORATE],
+			new Map([[CORPORATE.secretRef, { access: "C" }]]),
+			[],
+			home,
+		);
+		expect(exitCode).toBe(1);
+		expect(existsSync(join(home, "config.json"))).toBe(false);
+	});
+
+	it("keeps the rest of the config, because this writes one key and owns only that one", async () => {
+		const home = tmpHome();
+		writeFileSync(
+			join(home, "config.json"),
+			JSON.stringify({ modelBindings: { rcdc5: CORP_ID }, somethingElse: 1 }),
+		);
+		await run(
+			["authorize", "--all", "--json"],
+			TOKENS,
+			[CORPORATE],
+			new Map([[CORPORATE.secretRef, { access: "C" }]]),
+			[],
+			home,
+		);
+		const config = readConfig(home);
+		expect(config.modelBindings).toEqual({ rcdc5: CORP_ID });
+		expect(config.somethingElse).toBe(1);
 	});
 });

@@ -4,10 +4,14 @@ import {
 	modelCredentialStatus as resolveModelCredentialStatus,
 } from "@refarm.dev/config";
 import {
+	authorizedAccounts,
+	authorizedProviders,
 	credentialSecretLocation,
+	provisionableAccounts,
 	readCredentialAt,
 	readLegacyCredentials,
 	type AccountView,
+	type ModelAuthorization,
 } from "@refarm.dev/model-account-contract-v1";
 import { isContainer as detectContainerRuntime, fetchWithTimeout } from "@refarm.dev/root";
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
@@ -398,7 +402,15 @@ export function modelEnvCredentialNotice(
 
 function buildModelEnvEntries(
 	tokens: ModelTokens,
-	options: { includeSecrets?: boolean; view?: AccountView } = {},
+	options: {
+		includeSecrets?: boolean;
+		view?: AccountView;
+		/** What the node DECLARED it may spend. Absent or undeclared keeps the previous derivation,
+		 *  so adopting the declaration is additive rather than a behaviour change (ISS-131 tier 3). */
+		authorization?: ModelAuthorization;
+		/** One account's credential, by opaque id. Only consulted for the authorised set. */
+		credentials?: ReadonlyMap<string, unknown>;
+	} = {},
 ): [string, string][] {
 	const status = buildCurrentModelStatus(tokens);
 	const entries: [string, string][] = [];
@@ -429,9 +441,19 @@ function buildModelEnvEntries(
 	// configured; only "missing" is excluded. The list crosses the host→guest boundary
 	// as text (tractor's MODEL_CONFIGURED_PROVIDERS text-content allowlist); the secrets
 	// themselves never do.
-	const configuredProviders = MODEL_PROVIDERS.filter(
-		(provider) => modelCredentialState(provider, tokens) !== "missing",
-	);
+	//
+	// DERIVED FROM THE DECLARATION when there is one. This list becomes the host's EGRESS
+	// ALLOWLIST, so deriving it from "which credential states are not missing" let an
+	// implementation detail decide a policy question — and on a node whose credentials had moved
+	// to the namespaced store, `unresolved` is not `missing`, so every provider passed. The
+	// operator's declaration is the answer to "what may this node spend"; nothing else is.
+	const declared =
+		options.authorization && options.authorization.scope !== "undeclared" && options.view
+			? authorizedProviders(authorizedAccounts(options.authorization, options.view.accounts))
+			: null;
+	const configuredProviders =
+		declared ??
+		MODEL_PROVIDERS.filter((provider) => modelCredentialState(provider, tokens) !== "missing");
 	if (configuredProviders.length > 0) {
 		entries.push([MODEL_CONFIGURED_PROVIDERS_ENV_VAR, configuredProviders.join(",")]);
 	}
@@ -455,6 +477,38 @@ function buildModelEnvEntries(
 		) {
 			entries.push(["OPENAI_CODEX_ACCOUNT_ID", oauthCredential.accountId]);
 		}
+		// EVERY AUTHORISED PROVIDER, not only the route's. The route names one provider and a
+		// workspace binding may name another (ISS-131), so exporting only the route's credential
+		// left the host able to reach a provider it had no key for — which is the mismatch the
+		// operator hit: `route github-copilot (override)` against a host holding openai-codex.
+		//
+		// One account per provider is all this shape can carry — the host reads one credential env
+		// var per provider — so a provider with two authorised accounts is REFUSED here rather than
+		// resolved by picking. `provisionableAccounts` owns that rule for every reader of it.
+		if (options.authorization && options.view && options.credentials) {
+			const { provision } = provisionableAccounts({
+				catalog: options.view.accounts,
+				authorization: options.authorization,
+			});
+			for (const account of provision) {
+				const envKey = modelCredentialEnvKey(account.provider);
+				if (!envKey || process.env[envKey] || entries.some(([key]) => key === envKey)) continue;
+				const credential = options.credentials.get(account.credentialId) as
+					| { access?: unknown; accountId?: unknown }
+					| undefined;
+				const access = typeof credential?.access === "string" ? credential.access : undefined;
+				if (!access) continue;
+				entries.push([envKey, access]);
+				if (
+					account.provider === "openai-codex" &&
+					typeof credential?.accountId === "string" &&
+					!process.env.OPENAI_CODEX_ACCOUNT_ID &&
+					!entries.some(([key]) => key === "OPENAI_CODEX_ACCOUNT_ID")
+				) {
+					entries.push(["OPENAI_CODEX_ACCOUNT_ID", credential.accountId]);
+				}
+			}
+		}
 	}
 	return entries;
 }
@@ -464,7 +518,12 @@ function buildModelEnvEntries(
  * surface is rendered by the env renderText hook via formatModelEnvFromEnvelope. */
 export function buildModelEnvEnvelope(
 	tokens: ModelTokens,
-	options: { includeSecrets?: boolean; view?: AccountView } = {},
+	options: {
+		includeSecrets?: boolean;
+		view?: AccountView;
+		authorization?: ModelAuthorization;
+		credentials?: ReadonlyMap<string, unknown>;
+	} = {},
 ) {
 	const entries = buildModelEnvEntries(tokens, options);
 	// THE SILENCE, MADE AUDIBLE. Carried beside the entries rather than folded into them: an env map

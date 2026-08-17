@@ -49,6 +49,7 @@ export const PROBE_EXCLUSIONS = Object.freeze([
 	{ argv: ["auth", "enroll"], category: "mutates" },
 	{ argv: ["auth", "revoke"], category: "mutates" },
 	{ argv: ["cert", "issue"], category: "mutates" },
+	{ argv: ["credential", "authorize"], category: "mutates" },
 	{ argv: ["cert", "trust", "browser"], category: "mutates" },
 	{ argv: ["cert", "trust", "system"], category: "mutates" },
 	{ argv: ["code-ops-move-symbol"], category: "mutates" },

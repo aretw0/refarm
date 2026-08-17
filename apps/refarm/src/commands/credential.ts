@@ -18,8 +18,13 @@ import { Command } from "commander";
 
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
+	authorizedAccounts,
+	authorizedProviders,
+	describeAuthorization,
 	isRefusal,
 	LEGACY_REF_PREFIX,
+	MODEL_AUTHORIZATION_KEY,
+	readModelAuthorization,
 	resolveModelAccount,
 	type AccountView,
 	type ModelAccountBinding,
@@ -58,6 +63,9 @@ export interface CredentialDeps {
 	catalogOf: () => readonly ModelAccountDescriptor[];
 	/** Each account's stored credential, by OPAQUE id — for asking a PROVIDER about one account. */
 	credentialsOf: () => Promise<ReadonlyMap<string, unknown>>;
+	/** Today, as an ISO date. Injected because a declaration records WHEN it was given, and a test
+	 *  that reads the real clock cannot assert the record it writes. */
+	todayOf: () => string;
 	writeCatalog: (catalog: readonly ModelAccountDescriptor[]) => void;
 	bindingsOf: () => ModelAccountBinding[];
 }
@@ -79,6 +87,7 @@ function defaultDeps(): CredentialDeps {
 		viewOf: () =>
 			loadAccountView({ home: homeOf(), silo: new SiloCore() as unknown as AccountViewSilo }),
 		catalogOf: () => readCatalog(homeOf()),
+		todayOf: () => new Date().toISOString().slice(0, 10),
 		credentialsOf: () =>
 			loadAccountCredentials({ home: homeOf(), silo: new SiloCore() as unknown as AccountViewSilo }),
 		writeCatalog: (catalog) => {
@@ -148,7 +157,19 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 		.option("--json", "Output machine-readable result")
 		.action(async (options: { json?: boolean }) =>
 			guarded("list", options, async () => {
-				const accounts = (await loadAccounts()).map(safeRow);
+				const all = await loadAccounts();
+				const accounts = all.map(safeRow);
+				// THE ABSENCE IS SHOWN WHERE HE ALREADY LOOKS. A node that has not declared what it may
+				// spend is not faulty and is not finished either, and the listing is the surface an
+				// operator reaches for when asking "what does this node have?" — which is the same
+				// question one step before "and what may it spend?" (ISS-131 tier 3).
+				const authorization = readModelAuthorization(
+					readJson<unknown>(path.join(deps.homeOf(), "config.json"), undefined),
+				);
+				const authorizationNotice = describeAuthorization(
+					authorization,
+					authorizedAccounts(authorization, all),
+				);
 				// A NODE THAT IMITATES IN SILENCE is a node nobody knows will break. The identity
 				// profile is reported wherever credentials are, so the choice stays visible long after
 				// whoever made it has forgotten.
@@ -162,7 +183,12 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 						buildJsonSuccessEnvelope({
 							command: "credential",
 							operation: "list",
-							extra: { accounts, ...(identityNotice ? { identityNotice } : {}) },
+							extra: {
+								accounts,
+								authorization,
+								...(identityNotice ? { identityNotice } : {}),
+								...(authorizationNotice ? { authorizationNotice } : {}),
+							},
 						}),
 					);
 					return;
@@ -183,7 +209,9 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 							(a) =>
 								`  ${a.provider.padEnd(18)}${a.alias.padEnd(16)}${a.health.padEnd(12)}${a.identity}\n`,
 						)
-						.join("") + (identityNotice ? `\n  ${identityNotice}\n` : ""),
+						.join("") +
+						(authorizationNotice ? `\n  ${authorizationNotice}\n` : "") +
+						(identityNotice ? `\n  ${identityNotice}\n` : ""),
 				);
 			}),
 		);
@@ -256,6 +284,99 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 					return;
 				}
 				process.stdout.write(formatQuotaRows(rows));
+			}),
+		);
+
+	credential
+		.command("authorize")
+		.argument("[credentialIds...]", "The OPAQUE ids this node may spend — never aliases (D2)")
+		.description("Declare what this node is authorised to spend, or show what it has declared")
+		.option("--all", "Approve every account this node holds, now and later")
+		.option("--none", "Declare explicitly that nothing beyond the configured route is approved")
+		.option("--json", "Output machine-readable result")
+		.action(async (credentialIds: string[], options: { all?: boolean; none?: boolean; json?: boolean }) =>
+			guarded("authorize", options, async () => {
+				const accounts = await loadAccounts();
+				const configPath = path.join(deps.homeOf(), "config.json");
+				const config = readJson<Record<string, unknown>>(configPath, {});
+
+				// READ-ONLY WITH NO ARGUMENTS. `authorize` with nothing to say must not be a way to
+				// accidentally declare something — the surface that shows a declaration and the one
+				// that makes it cannot be the same keystroke.
+				const declaring = Boolean(options.all || options.none || credentialIds.length > 0);
+				if (!declaring) {
+					const current = readModelAuthorization(config);
+					const resolved = authorizedAccounts(current, accounts);
+					const notice = describeAuthorization(current, resolved);
+					if (options.json) {
+						printJson(
+							buildJsonSuccessEnvelope({
+								command: "credential",
+								operation: "authorize",
+								extra: {
+									authorization: current,
+									authorized: resolved.authorized.map(safeRow),
+									unknown: resolved.unknown,
+									unusable: resolved.unusable,
+									providers: authorizedProviders(resolved),
+									...(notice ? { notice } : {}),
+								},
+							}),
+						);
+						return;
+					}
+					process.stdout.write(
+						`  scope: ${current.scope}\n` +
+							resolved.authorized
+								.map((a) => `    ${a.provider.padEnd(18)}${a.alias}\n`)
+								.join("") +
+							(notice ? `\n  ${notice}\n` : ""),
+					);
+					return;
+				}
+
+				if ([options.all, options.none, credentialIds.length > 0].filter(Boolean).length > 1) {
+					throw new Error(
+						"--all, --none and a list of ids say three different things; name exactly one",
+					);
+				}
+
+				// REFUSED, as `bind` refuses: an authorization naming an account this node does not hold
+				// is stale the moment it is written, and writing it would put a stale declaration on
+				// disk with the operator believing he had approved something.
+				const held = new Set(accounts.map((a) => a.credentialId));
+				const missing = credentialIds.filter((id) => !held.has(id));
+				if (missing.length > 0) {
+					throw new Error(
+						`no account on this node carries ${missing.join(", ")} — see \`refarm credential list\``,
+					);
+				}
+
+				const authorization = options.all
+					? { scope: "all" as const, declaredAt: deps.todayOf() }
+					: { scope: "declared" as const, accounts: credentialIds, declaredAt: deps.todayOf() };
+				fs.writeFileSync(
+					configPath,
+					`${JSON.stringify({ ...config, [MODEL_AUTHORIZATION_KEY]: authorization }, null, 2)}\n`,
+				);
+
+				const resolved = authorizedAccounts(authorization, accounts);
+				const extra = {
+					authorization,
+					authorized: resolved.authorized.map(safeRow),
+					providers: authorizedProviders(resolved),
+				};
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({ command: "credential", operation: "authorize", extra }),
+					);
+					return;
+				}
+				process.stdout.write(
+					`  declared: ${authorization.scope}\n` +
+						resolved.authorized.map((a) => `    ${a.provider.padEnd(18)}${a.alias}\n`).join("") +
+						"\n  The runtime reads this at start; restart it to apply: refarm runtime restart\n",
+				);
 			}),
 		);
 
