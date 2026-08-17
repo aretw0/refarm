@@ -236,6 +236,90 @@ describe("checkSessionReadiness", () => {
 		});
 	});
 
+	/**
+	 * ISS-138 — the node's credentials moved and this gate did not.
+	 *
+	 * Measured on the operator's node 2026-08-17, immediately after `refarm sow` succeeded: three
+	 * healthy accounts in the catalog, `refarm credential list` naming all three, and every
+	 * dispatch refused with "No usable model credentials configured."
+	 *
+	 * `sow` writes the secret to Silo's `model` namespace and RETIRES the flat entry — that is the
+	 * whole point of the namespaced store. This gate reads `identity.json`, finds a provider still
+	 * declared there, looks for its credential in the flat map, finds an empty one, and reports a
+	 * DECLARED-MISSING credential. The more completely a node migrates, the more certain this gate
+	 * becomes that it has nothing.
+	 */
+	it("counts a healthy account in the CATALOG, not only a credential in the flat map", async () => {
+		const tmpBase = join(tmpdir(), `refarm-readiness-catalog-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		// The operator's node exactly: a provider still declared in identity.json whose flat entry
+		// `sow` has already retired...
+		writeFileSync(
+			join(refarmDir, "identity.json"),
+			JSON.stringify({ modelProvider: "openai-codex", oauthProvider: "openai-codex", oauthCredentials: {} }),
+		);
+		// ...and the account it was migrated INTO.
+		writeFileSync(
+			join(refarmDir, "model-accounts.json"),
+			JSON.stringify([
+				{
+					credentialId: "model-account:AAAAAAAAAAAAAAAAAAAAAAAAAA",
+					provider: "openai-codex",
+					alias: "account-2",
+					identity: { status: "verified", subject: "s" },
+					secretRef: "model/model-account:AAAAAAAAAAAAAAAAAAAAAAAAAA",
+					health: "healthy",
+					revision: "sha256:r",
+				},
+			]),
+		);
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({ providerConfigured: true });
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
+	it("still reports NOT configured when the catalog holds nothing usable", async () => {
+		// The gate must keep failing closed. An `incomplete` descriptor is a login that happened and
+		// a secret that did not survive — evidence of intent, never of a usable credential.
+		const tmpBase = join(tmpdir(), `refarm-readiness-incomplete-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		// A provider IS declared, so the keyless ollama floor does not apply and the question is
+		// only whether the catalog rescues it. It must not.
+		writeFileSync(
+			join(refarmDir, "identity.json"),
+			JSON.stringify({ modelProvider: "openai-codex", oauthProvider: "openai-codex", oauthCredentials: {} }),
+		);
+		writeFileSync(
+			join(refarmDir, "model-accounts.json"),
+			JSON.stringify([
+				{
+					credentialId: "model-account:BBBBBBBBBBBBBBBBBBBBBBBBBB",
+					provider: "openai-codex",
+					alias: "broken",
+					identity: { status: "unverified" },
+					secretRef: "model/model-account:BBBBBBBBBBBBBBBBBBBBBBBBBB",
+					health: "incomplete",
+					revision: "sha256:r",
+				},
+			]),
+		);
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({ providerConfigured: false });
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
 	it("recognizes a default provider credential from .refarm/.env", async () => {
 		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
 		const refarmDir = join(tmpBase, ".refarm");

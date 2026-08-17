@@ -6,15 +6,15 @@
 import { ambientActivitySink, newActivityRef } from "@refarm.dev/capabilities";
 import { executeProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
-    hasUsableModelCredential,
-    hasUsableModelCredentialSource,
-    modelCredentialSource,
+	hasUsableModelCredential,
+	hasUsableModelCredentialSource,
+	modelCredentialSource,
 } from "@refarm.dev/config";
 import { createStdioOperatorChannel, type OperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import {
-    autoStartRuntime as operatorAutoStartRuntime,
-    type AutostartActivityReporter,
-    type AutostartVocabulary,
+	autoStartRuntime as operatorAutoStartRuntime,
+	type AutostartActivityReporter,
+	type AutostartVocabulary,
 } from "@refarm.dev/runtime-operator";
 import { resolveSiloHome } from "@refarm.dev/silo";
 import chalk from "chalk";
@@ -23,41 +23,41 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { refarmCommand } from "../brand.js";
 import {
-    DEFAULT_MODEL_PROVIDER,
-    MODEL_DEFAULT_PROVIDER_ENV_VAR,
-    MODEL_PROVIDER_ENV_VAR,
+	DEFAULT_MODEL_PROVIDER,
+	MODEL_DEFAULT_PROVIDER_ENV_VAR,
+	MODEL_PROVIDER_ENV_VAR,
 } from "../model-routing.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import {
-    resolveAutostartMode,
-    resolveAutostartModeAsync,
-    resolveTractorEngineMode,
-    resolveTractorEngineModeAsync,
-    type AutostartMode,
-    type TractorEngineMode,
+	resolveAutostartMode,
+	resolveAutostartModeAsync,
+	resolveTractorEngineMode,
+	resolveTractorEngineModeAsync,
+	type AutostartMode,
+	type TractorEngineMode,
 } from "../utils/runtime-config.js";
 import { resolveSovereignConfig } from "../utils/sovereign-config.js";
 import {
-    MODEL_CREDENTIALS_INSPECT_ROUTE_COMMAND,
-    MODEL_CREDENTIALS_LIST_PROVIDERS_COMMAND,
-    MODEL_CREDENTIALS_MISSING_MESSAGE,
-    MODEL_CREDENTIALS_OLLAMA_SERVE_COMMAND,
-    MODEL_CREDENTIALS_SETUP_COMMAND,
-    missingModelCredentialDeferredLines,
+	MODEL_CREDENTIALS_INSPECT_ROUTE_COMMAND,
+	MODEL_CREDENTIALS_LIST_PROVIDERS_COMMAND,
+	MODEL_CREDENTIALS_MISSING_MESSAGE,
+	MODEL_CREDENTIALS_OLLAMA_SERVE_COMMAND,
+	MODEL_CREDENTIALS_SETUP_COMMAND,
+	missingModelCredentialDeferredLines,
 } from "./model-credential-guidance.js";
 import { createPackageScriptCommand } from "./package-manager.js";
 import { resolveRuntimeLaunchCommand, startRuntimeProcess } from "./runtime-launcher.js";
 import {
-    probeRuntimeReady,
-    waitForRuntimeOutcome,
-    waitForRuntimeReady,
-    type RuntimeWaitOutcome,
+	probeRuntimeReady,
+	waitForRuntimeOutcome,
+	waitForRuntimeReady,
+	type RuntimeWaitOutcome,
 } from "./runtime-readiness.js";
 import {
-    RUNTIME_DOCTOR_COMMAND,
-    RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-    RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-    RUNTIME_START_COMMAND,
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	RUNTIME_START_COMMAND,
 } from "./runtime-recovery.js";
 
 export type { AutostartMode, TractorEngineMode } from "../utils/runtime-config.js";
@@ -188,6 +188,43 @@ function* collectProviderEvidence(): Generator<ProviderEvidence> {
 		yield envFileEvidence(path.join(base, ".env"));
 		yield identityEvidence(path.join(base, "identity.json"));
 		yield configEvidence(path.join(base, "config.json"));
+		yield catalogEvidence(path.join(base, "model-accounts.json"));
+	}
+}
+
+/**
+ * A HEALTHY ACCOUNT IN THE CATALOG IS A USABLE CREDENTIAL, and this gate did not know it.
+ *
+ * Measured on the operator's node 2026-08-17, right after `refarm sow` succeeded: three healthy
+ * accounts, `refarm credential list` naming all three, and every dispatch refused with "No usable
+ * model credentials configured."
+ *
+ * `sow` writes the secret into Silo's `model` namespace and RETIRES the flat entry — that is what
+ * the namespaced store is for. Every source above reads the flat shape, so a provider still
+ * declared in `identity.json` resolved to `declared-missing` against an emptied map. The more
+ * completely a node migrated, the more certain this gate became that it had nothing (ISS-138).
+ *
+ * ONLY `healthy` COUNTS. An `incomplete` descriptor is a login that happened and a secret that did
+ * not survive; treating it as evidence would turn a fail-closed gate into one that passes on
+ * intent. The descriptor carries no secret material, so this stays a plain synchronous read.
+ */
+function catalogEvidence(filePath: string): ProviderEvidence {
+	if (!fs.existsSync(filePath)) return "none";
+	try {
+		const parsed: unknown = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+		if (!Array.isArray(parsed)) return "none";
+		const usable = parsed.some(
+			(entry) =>
+				typeof entry === "object" &&
+				entry !== null &&
+				(entry as { health?: unknown }).health === "healthy",
+		);
+		// "none", never "declared-missing", when the catalog holds nothing usable: a catalog is not
+		// a declaration of intent, so an empty one has chosen nothing and must not veto another
+		// source that has a working credential.
+		return usable ? "usable" : "none";
+	} catch {
+		return "none";
 	}
 }
 
