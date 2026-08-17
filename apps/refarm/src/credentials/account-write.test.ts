@@ -66,8 +66,18 @@ describe("writeModelCredential", () => {
 		// Without this, a re-login would leave the old flat entry AND add a namespaced one — two
 		// accounts for one provider, and every dispatch refusing as ambiguous on a node with one
 		// real credential.
+		//
+		// THE FIXTURE NOW CARRIES AN accountId, and that is the point rather than a detail. The
+		// retirement is only safe when the code can SEE that this is a re-login; ISS-128 measured
+		// what happens when it retires without looking. The guarantee is unchanged and its
+		// precondition is now stated. The operator's own legacy openai-codex blob carries a
+		// 36-character accountId, so this is his real shape; the anonymous shape has its own test
+		// below, where the deliberate answer is to KEEP.
 		const silo = fakeSilo({
-			oauthCredentials: { "openai-codex": { access: "OLD" }, "kimi-api": { access: "KEEP" } },
+			oauthCredentials: {
+				"openai-codex": { access: "OLD", accountId: "a" },
+				"kimi-api": { access: "KEEP" },
+			},
 		});
 		const result = await writeModelCredential({
 			home: home(),
@@ -164,5 +174,78 @@ describe("writeModelCredential", () => {
 		});
 		expect(view.credentialFor("github-copilot")).toMatchObject({ kind: "found" });
 		expect(view.legacyAccounts).toEqual([]);
+	});
+});
+
+describe("retiring the legacy entry (ISS-128)", () => {
+	// MEASURED 2026-08-16 in a redirected-SILO_HOME lab against this very function: a legacy
+	// openai-codex holding account A, a login for account B with a DIFFERENT accountId, and A was
+	// gone — deleted by a retirement keyed on the PROVIDER, which returned `migratedFromLegacy:
+	// true` and so reported the deletion as a successful migration.
+	//
+	// sow.ts:390 records an interim refusal being removed on the grounds that "the write no longer
+	// can" destroy a stored credential. It could not from a namespaced account. It still could
+	// from a legacy one, which is where the operator's own default provider lives.
+
+	it("retires the legacy entry when the login is the SAME account", () => {
+		const dir = home();
+		const silo = fakeSilo({
+			oauthCredentials: { "openai-codex": { access: "TOKEN-A", accountId: "conta-a" } },
+		});
+
+		return writeModelCredential({
+			home: dir,
+			silo,
+			provider: "openai-codex",
+			credentials: { access: "TOKEN-A-RENOVADO", accountId: "conta-a" },
+		}).then((result) => {
+			expect(result.migratedFromLegacy).toBe(true);
+			expect(silo.tokens.oauthCredentials).toEqual({});
+		});
+	});
+
+	it("KEEPS the legacy entry when the login is a DIFFERENT account", async () => {
+		const dir = home();
+		const silo = fakeSilo({
+			oauthCredentials: { "openai-codex": { access: "TOKEN-A", accountId: "conta-a" } },
+		});
+
+		const result = await writeModelCredential({
+			home: dir,
+			silo,
+			provider: "openai-codex",
+			credentials: { access: "TOKEN-B", accountId: "conta-b" },
+			alias: "segunda",
+		});
+
+		// The second account is stored...
+		expect(result.descriptor?.alias).toBe("segunda");
+		expect([...silo.secrets.keys()]).toHaveLength(1);
+		// ...and the FIRST one is still there. This assertion is the whole item.
+		expect((silo.tokens.oauthCredentials as Record<string, unknown>)["openai-codex"]).toMatchObject({
+			access: "TOKEN-A",
+		});
+		expect(result.migratedFromLegacy).toBe(false);
+		expect(result.legacyKept).toMatch(/different account/u);
+	});
+
+	it("KEEPS the legacy entry when it cannot say whose it is", async () => {
+		// A blob with no accountId. Retiring would risk deleting a working credential; keeping it
+		// risks a duplicate, which is visible in the catalog and repairable. This module already
+		// chose that direction for its write ordering — "a failure at the last step leaves a
+		// duplicate, which is visible and repairable" — and the same reasoning decides here.
+		const dir = home();
+		const silo = fakeSilo({ oauthCredentials: { "openai-codex": { access: "TOKEN-ANONIMO" } } });
+
+		const result = await writeModelCredential({
+			home: dir,
+			silo,
+			provider: "openai-codex",
+			credentials: { access: "TOKEN-B", accountId: "conta-b" },
+		});
+
+		expect((silo.tokens.oauthCredentials as Record<string, unknown>)["openai-codex"]).toBeDefined();
+		expect(result.migratedFromLegacy).toBe(false);
+		expect(result.legacyKept).toMatch(/cannot say/u);
 	});
 });

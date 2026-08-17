@@ -21,6 +21,7 @@ import path from "node:path";
 import {
 	describeNewCredential,
 	isIndistinguishableAccount,
+	legacySubjectOf,
 	upsertDescriptor,
 	type ModelAccountDescriptor,
 } from "@refarm.dev/model-account-contract-v1";
@@ -49,6 +50,9 @@ export interface WriteModelCredentialResult {
 	readonly migratedFromLegacy: boolean;
 	/** Set when the secret could not be stored namespaced, so the caller can refuse honestly. */
 	readonly refusal?: string;
+	/** Set when a legacy entry for this provider was left in place, and WHY — it belongs to another
+	 *  account, or this node cannot say whose it is. Silence here would repeat ISS-128 quietly. */
+	readonly legacyKept?: string;
 }
 
 function writeCatalog(home: string, catalog: readonly ModelAccountDescriptor[]): void {
@@ -105,11 +109,42 @@ export async function writeModelCredential(
 	// 2. The descriptor. A failure here leaves an `unclaimed` secret, which the catalog reports.
 	writeCatalog(input.home, upsertDescriptor(catalog, descriptor));
 
-	// 3. The legacy entry for this provider, retired. A failure here leaves a duplicate, which shows
-	//    up as `ambiguous` and is repairable — the only one of the three that loses nothing.
+	// 3. The legacy entry for this provider, retired ONLY WHEN IT IS PROVABLY THIS ACCOUNT.
+	//
+	//    It used to be retired unconditionally, keyed on the provider — and ISS-128 measured what
+	//    that costs: a legacy `openai-codex` holding account A, a login for account B, and A was
+	//    deleted while the call returned `migratedFromLegacy: true`. It reported the deletion as a
+	//    successful migration. sow.ts records an interim refusal being removed on the grounds that
+	//    "the write no longer can" destroy a stored credential; it could not from a NAMESPACED
+	//    account, and still could from a legacy one.
+	//
+	//    KEEPING IS THE SAFE DIRECTION, and it is the same choice this function's write ordering
+	//    already makes: a duplicate is visible in the catalog and repairable, a deleted credential
+	//    is neither.
 	const tokens = ((await input.silo.loadTokens()) ?? {}) as Record<string, unknown>;
 	const flat = tokens.oauthCredentials as Record<string, unknown> | undefined;
 	if (flat && Object.hasOwn(flat, input.provider)) {
+		// Asked of the contract, never parsed here — one reader of the legacy shape.
+		const legacySubject = legacySubjectOf(flat[input.provider]);
+		if (!legacySubject) {
+			return {
+				descriptor,
+				migratedFromLegacy: false,
+				legacyKept:
+					`the stored ${input.provider} credential does not say which account it belongs to, so this ` +
+					"node cannot say whose it is. It was KEPT rather than replaced; remove it deliberately " +
+					"once you know.",
+			};
+		}
+		if (legacySubject !== accountId) {
+			return {
+				descriptor,
+				migratedFromLegacy: false,
+				legacyKept:
+					`the stored ${input.provider} credential belongs to a different account, so it was KEPT. ` +
+					"Both are now on this node; bind the one a workspace should spend.",
+			};
+		}
 		const { [input.provider]: _retired, ...rest } = flat;
 		await input.silo.saveTokens({ oauthCredentials: rest });
 		return { descriptor, migratedFromLegacy: true };

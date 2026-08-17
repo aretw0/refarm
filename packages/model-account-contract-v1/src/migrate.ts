@@ -13,14 +13,34 @@ import { newCredentialId, type ModelAccountDescriptor } from "./types.js";
 /** The alias a legacy credential is READ under. It is a display string and means nothing. */
 export const LEGACY_ALIAS = "default";
 
-function legacyDescriptor(provider: string): ModelAccountDescriptor {
+/** PURE. The provider's own account id inside a legacy blob, when it put one there.
+ *  EXPORTED so the write path asks this module what a legacy blob says, rather than parsing the
+ *  shape a second time — two readers of one shape is the defect ISS-113 and ISS-124 both were. */
+export function legacySubjectOf(blob: unknown): string | undefined {
+	if (!blob || typeof blob !== "object" || Array.isArray(blob)) return undefined;
+	const id = (blob as Record<string, unknown>).accountId;
+	return typeof id === "string" && id.length > 0 ? id : undefined;
+}
+
+function legacyDescriptor(provider: string, blob?: unknown): ModelAccountDescriptor {
+	// THE BLOB IS OPENED NOW, and ISS-128 is why. This took only the provider, so a legacy account
+	// had NO identity — and with no subject to compare, the write path's by-provider retirement had
+	// to assume the entry belonged to whoever was logging in. Measured in a lab against the real
+	// write path: a second openai-codex login deleted the first account and reported
+	// `migratedFromLegacy: true`. The information was never missing; nothing read it.
+	const subject = legacySubjectOf(blob);
 	return {
 		// Seeded by provider so a re-read produces the same id, and so a binding written against a
 		// legacy account survives a restart.
 		credentialId: newCredentialId(`legacy:${provider}`),
 		provider,
 		alias: LEGACY_ALIAS,
-		identity: { status: "unverified" },
+		// STILL UNVERIFIED, even knowing the subject. The provider confirmed nothing in this
+		// session — the id was read off a stored blob. `verified` travels into budget and status
+		// output where identity claims are believed, so knowing WHO does not license claiming
+		// CONFIRMED. Absence stays absence: a blob with no id yields no subject, never an invented
+		// one, because inventing would make two accounts look like one.
+		identity: subject ? { status: "unverified", subject } : { status: "unverified" },
 		// SELF-DESCRIBING, not inferred. A legacy secret is in the flat token map, NOT in the
 		// `model` namespace, and a reader that looked for it there would report a working
 		// credential as missing.
@@ -37,8 +57,9 @@ export function readLegacyCredentials(tokens: Record<string, unknown>): ModelAcc
 	const found: ModelAccountDescriptor[] = [];
 	const oauth = tokens.oauthCredentials;
 	if (oauth && typeof oauth === "object" && !Array.isArray(oauth)) {
-		for (const provider of Object.keys(oauth as Record<string, unknown>)) {
-			found.push(legacyDescriptor(provider));
+		const entries = oauth as Record<string, unknown>;
+		for (const provider of Object.keys(entries)) {
+			found.push(legacyDescriptor(provider, entries[provider]));
 		}
 	}
 	const apiProvider = typeof tokens.modelProvider === "string" ? tokens.modelProvider : undefined;
