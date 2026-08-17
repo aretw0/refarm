@@ -584,6 +584,65 @@ async function askSelectNumbered(
 	return opt?.value ?? prompt.default ?? prompt.options[0]?.value ?? "";
 }
 
+/**
+ * PURE. Which options a frame may show, so that the frame FITS THE SCREEN.
+ *
+ * ## The defect this closes, measured 2026-08-17
+ *
+ * A 13-option picker builds a 15-row frame. On a screen that cannot hold it, writing the frame
+ * SCROLLS the buffer — and what scrolls off the top is in SCROLLBACK, where `clearScreenDown` can
+ * never reach it, because that code clears the VISIBLE screen and nothing else. Every redraw then
+ * leaves one more copy of the frame's top behind:
+ *
+ *     viewport 16 rows   frame fits      clean
+ *     viewport 12 rows   frame scrolls   the question line appears three times
+ *
+ * The redraw was CORRECT the whole time. Nothing about the erase can fix this, which is why the
+ * earlier fix for a width change (recording the width the frame was painted at) left it standing:
+ * the two look identical on screen and have nothing in common underneath.
+ *
+ * ## The window
+ *
+ * Centred on the selection, clamped to the ends, and never smaller than one option — an operator
+ * on a very short screen gets a cramped picker rather than an empty one. `undefined` capacity (a
+ * stream that reports no height) shows everything, because there is no screen to overflow.
+ */
+export function visibleOptionWindow(
+	total: number,
+	selected: number,
+	capacity: number | undefined,
+): { readonly start: number; readonly end: number } {
+	if (capacity === undefined || !Number.isFinite(capacity) || capacity >= total) {
+		return { start: 0, end: total };
+	}
+	const size = Math.max(1, Math.min(total, Math.floor(capacity)));
+	// Centred, then pushed back inside the list. Clamping AFTER centring is what keeps the window
+	// full at both ends instead of half-empty at the top and bottom.
+	const half = Math.floor(size / 2);
+	const start = Math.min(Math.max(0, selected - half), Math.max(0, total - size));
+	return { start, end: start + size };
+}
+
+/**
+ * PURE. How many option rows fit, given the screen and what the frame must always carry.
+ *
+ * The question, the hint, and each "more" indicator occupy rows too, so they are subtracted before
+ * the options get any — a budget that forgot them would produce a frame one row too tall, which is
+ * the entire failure, arrived at from the other direction.
+ *
+ * ONE ROW IS LEFT SPARE on purpose: the prompt is drawn at wherever the cursor already is, and the
+ * caller's own preceding output is not this module's to measure.
+ */
+export function optionCapacityFor(rows: number | undefined, total: number): number | undefined {
+	if (rows === undefined || !Number.isFinite(rows) || rows <= 0) return undefined;
+	// question + hint + one spare row
+	const reserved = 3;
+	const room = Math.floor(rows) - reserved;
+	if (room >= total) return undefined;
+	// Two more rows go to the indicators once the list is truncated at all.
+	return Math.max(1, room - 2);
+}
+
 function askSelectTui(
 	prompt: SelectPrompt,
 	input: NodeJS.ReadStream,
@@ -621,13 +680,26 @@ function askSelectTui(
 				}
 				readline.clearScreenDown(output);
 			}
+			// THE FRAME MUST FIT. A frame taller than the screen scrolls as it is written, and what
+			// scrolls into scrollback is beyond any erase — see `visibleOptionWindow`.
+			const capacity = optionCapacityFor(output.rows, prompt.options.length);
+			const { start, end } = visibleOptionWindow(
+				prompt.options.length,
+				selectedIndex,
+				capacity,
+			);
+			const hiddenAbove = start;
+			const hiddenBelow = prompt.options.length - end;
 			const lines = [
 				prompt.question,
-				...prompt.options.map((opt, i) => {
+				...(hiddenAbove > 0 ? [`  ⋯ ${hiddenAbove} more above`] : []),
+				...prompt.options.slice(start, end).map((opt, offset) => {
+					const i = start + offset;
 					const marker = i === selectedIndex ? ">" : " ";
 					const desc = opt.description ? ` - ${opt.description}` : "";
 					return formatSelectLine(`  ${marker} ${opt.label}${desc}`, i === selectedIndex, output);
 				}),
+				...(hiddenBelow > 0 ? [`  ⋯ ${hiddenBelow} more below`] : []),
 				"  Use Up/Down and Enter.",
 			];
 			output.write(lines.join("\n"));

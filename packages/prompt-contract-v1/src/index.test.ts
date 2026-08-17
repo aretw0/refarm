@@ -12,6 +12,8 @@ import {
 	createRemoteOperatorChannel,
 	createScriptedOperatorChannel,
 	createStdioOperatorChannel,
+	optionCapacityFor,
+	visibleOptionWindow,
 	createTerminalOperatorChannel,
 	currentPromptPublisher,
 	handlePendingPromptHttp,
@@ -2075,5 +2077,60 @@ describe("askSelect redraw survives a width change", () => {
 		const screen = await paintAcross(100, 100);
 		expect(framesOn(screen)).toBe(1);
 		expect(screen.some((line) => line.includes("Model Provider"))).toBe(true);
+	});
+});
+
+/**
+ * ISS-135, second half — the frame must FIT, or no erase can be right.
+ *
+ * The first half recorded the width the frame was painted at. This one is a different failure that
+ * looks identical on screen: a frame taller than the viewport SCROLLS as it is written, and what
+ * scrolls off the top is in SCROLLBACK, where `clearScreenDown` — which clears the VISIBLE screen —
+ * can never reach it. Measured 2026-08-17 against the real prompt through a terminal that models
+ * scrollback:
+ *
+ *     viewport 16 rows   frame fits      one frame on screen
+ *     viewport 12 rows   frame scrolls   the question line appears THREE times
+ *
+ * The redraw was correct throughout. Only making the frame fit removes the class.
+ */
+describe("the select frame fits the screen", () => {
+	it("shows everything when the screen can hold it", () => {
+		expect(optionCapacityFor(60, 13)).toBeUndefined();
+		expect(visibleOptionWindow(13, 0, undefined)).toEqual({ start: 0, end: 13 });
+	});
+
+	it("shows everything when the stream reports no height, because there is nothing to overflow", () => {
+		expect(optionCapacityFor(undefined, 13)).toBeUndefined();
+	});
+
+	it("reserves rows for the question, the hint and the indicators", () => {
+		// A budget that forgot them produces a frame one row too tall, which IS the failure —
+		// arrived at from the other direction.
+		expect(optionCapacityFor(12, 13)).toBe(7); // 12 - (question+hint+spare) - two indicators
+	});
+
+	it("never yields an empty picker on a very short screen", () => {
+		expect(optionCapacityFor(4, 13)).toBe(1);
+		expect(visibleOptionWindow(13, 6, 1)).toEqual({ start: 6, end: 7 });
+	});
+
+	it("centres the window on the selection", () => {
+		expect(visibleOptionWindow(13, 6, 5)).toEqual({ start: 4, end: 9 });
+	});
+
+	it("keeps the window FULL at both ends rather than half-empty", () => {
+		// Clamping after centring is what does this; clamping the centre first would show three
+		// options at the top of a list and three at the bottom while the screen had room for five.
+		expect(visibleOptionWindow(13, 0, 5)).toEqual({ start: 0, end: 5 });
+		expect(visibleOptionWindow(13, 12, 5)).toEqual({ start: 8, end: 13 });
+	});
+
+	it("keeps the selection inside the window at every position", () => {
+		for (let selected = 0; selected < 13; selected += 1) {
+			const { start, end } = visibleOptionWindow(13, selected, 5);
+			expect(selected).toBeGreaterThanOrEqual(start);
+			expect(selected).toBeLessThan(end);
+		}
 	});
 });
