@@ -597,14 +597,28 @@ function askSelectTui(
 
 	return new Promise((resolve, reject) => {
 		const wasRaw = input.isRaw;
-		let renderedLines = 0;
+		/** The last frame, AND the width it was laid out against. Both, or the pair is a guess. */
+		let painted: { rows: number; columns: number | undefined } | null = null;
 		let settled = false;
 		let detachAbort = () => {};
 
 		const render = () => {
-			if (renderedLines > 0) {
-				readline.moveCursor(output, 0, -renderedLines);
-				readline.cursorTo(output, 0);
+			const columns = output.columns;
+			if (painted) {
+				if (painted.columns === columns) {
+					readline.moveCursor(output, 0, -painted.rows);
+					readline.cursorTo(output, 0);
+				} else {
+					// THE WIDTH MOVED UNDER THE FRAME, so its height on screen is no longer knowable
+					// here: a reflowing terminal re-wrapped it against the new width, one that does not
+					// reflow still holds the old layout, and nothing distinguishes them from this side.
+					// Both remembered and recomputed counts are guesses, and ISS-135 measured what each
+					// guess costs — narrowing leaves the top of the old frame behind, widening ERASES
+					// ROWS THIS PROMPT NEVER WROTE and says nothing. Refusing to guess costs the screen
+					// above the prompt, which is visible and recoverable by scrolling; the alternative
+					// destroys it silently and only sometimes.
+					readline.cursorTo(output, 0, 0);
+				}
 				readline.clearScreenDown(output);
 			}
 			const lines = [
@@ -621,12 +635,25 @@ function askSelectTui(
 			// long option wraps into several — so counting the lines we MEANT to write made
 			// the next redraw rise short, erase from the middle, and leave everything above
 			// it on screen. Once per keystroke, that is the whole prompt reprinting itself.
-			renderedLines = lines.reduce((rows, line) => rows + renderedRowsFor(line, output), 0) - 1;
+			//
+			// The WIDTH is recorded beside the count because the count is only true against it.
+			painted = {
+				rows: lines.reduce((rows, line) => rows + renderedRowsFor(line, output), 0) - 1,
+				columns,
+			};
+		};
+
+		// A frame is laid out against a width, so a resize is a repaint. Without this the prompt sits
+		// wrongly wrapped until the operator happens to press something, and the repair then arrives
+		// attached to an unrelated keystroke.
+		const onResize = () => {
+			if (!settled) render();
 		};
 
 		const cleanup = () => {
 			input.off("keypress", onKeypress);
 			input.off("end", onEnd);
+			if (typeof output.off === "function") output.off("resize", onResize);
 			detachAbort();
 			input.setRawMode(wasRaw);
 			input.pause();
@@ -681,6 +708,7 @@ function askSelectTui(
 		input.resume();
 		input.on("keypress", onKeypress);
 		input.once("end", onEnd);
+		if (typeof output.on === "function") output.on("resize", onResize);
 		// Registered last, so an already-aborted signal tears down a fully set-up
 		// prompt (raw mode restored, listeners removed) instead of half of one.
 		detachAbort = onAbortOnce(signal, () =>

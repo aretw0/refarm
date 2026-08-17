@@ -1939,3 +1939,141 @@ describe("createOperatorChannelFor — the channel must match how the operator i
 		expect(createOperatorChannelFor({ atTerminal: false, attendedElsewhere: true })).toBeNull();
 	});
 });
+
+/**
+ * ISS-135 — THE SELECT FRAME AND THE WIDTH IT WAS PAINTED AT.
+ *
+ * The redraw erases the previous frame by climbing a row count measured when that frame was
+ * written. While the width holds, the measurement and the screen agree; change the width in between
+ * and the count describes a screen that no longer exists. Both directions fail, and only one of
+ * them leaves evidence:
+ *
+ *     narrowed 120 -> 80    the climb rises short   -> the top of the old frame survives (GHOST)
+ *     widened   80 -> 120   the climb rises far     -> rows ABOVE the frame are erased (SILENT)
+ *
+ * These tests drive the real prompt against a fake TTY, capture every byte, and replay the stream
+ * through a terminal small enough to trust. The assertion is about the SCREEN, which is the only
+ * thing the operator ever sees — not about which escape codes were emitted.
+ */
+describe("askSelect redraw survives a width change", () => {
+	/** Auto-wrap, LF as CRLF, and the cursor/erase codes `readline` emits. Nothing else. */
+	function screenOf(bytes: string, columns: number): string[] {
+		const rows: string[][] = [];
+		let row = 0;
+		let col = 0;
+		const at = (r: number) => (rows[r] ??= []);
+		for (let i = 0; i < bytes.length; i += 1) {
+			const ch = bytes[i]!;
+			if (ch === "\x1b" && bytes[i + 1] === "[") {
+				let j = i + 2;
+				while (j < bytes.length && /[0-9;]/u.test(bytes[j]!)) j += 1;
+				const params = bytes.slice(i + 2, j);
+				const final = bytes[j];
+				const parts = params.split(";").map((p) => (p === "" ? undefined : Number.parseInt(p, 10)));
+				const n = parts[0];
+				if (final === "A") row = Math.max(0, row - (n ?? 1));
+				else if (final === "B") row += n ?? 1;
+				else if (final === "G") col = (n ?? 1) - 1;
+				else if (final === "H") {
+					row = (n ?? 1) - 1;
+					col = (parts[1] ?? 1) - 1;
+				} else if (final === "J" && (n ?? 0) === 0) {
+					at(row).length = col;
+					rows.length = row + 1;
+				} else if (final === "K" && (n ?? 0) === 0) at(row).length = col;
+				i = j;
+				continue;
+			}
+			if (ch === "\n") {
+				row += 1;
+				col = 0;
+				continue;
+			}
+			if (ch === "\r") {
+				col = 0;
+				continue;
+			}
+			if (col >= columns) {
+				col = 0;
+				row += 1;
+			}
+			at(row)[col] = ch;
+			col += 1;
+		}
+		return rows.map((r) => (r ?? []).map((c) => c ?? " ").join("").trimEnd());
+	}
+
+	const OPTIONS = [
+		"Subscription - OpenAI Codex (ChatGPT sign-in)",
+		"Subscription - Anthropic Claude (Pro/Max)",
+		"Subscription - GitHub Copilot",
+		"API key - OpenAI API key",
+		"API key - Gemini (Google)",
+		"Local - Ollama  (no key required)",
+	].map((label, i) => ({
+		value: `v${i}`,
+		label,
+		description: "Use a logged-in provider account when supported.",
+	}));
+
+	const HEADER = "  Model Provider — a line the prompt does not own";
+
+	/** Paints the frame, applies `finalColumns`, presses a key, then answers. */
+	async function paintAcross(startColumns: number, finalColumns: number) {
+		const captured: string[] = [];
+		const output = {
+			isTTY: true,
+			columns: startColumns,
+			rows: 60,
+			write(chunk: string) {
+				captured.push(String(chunk));
+				return true;
+			},
+		} as unknown as NodeJS.WriteStream;
+		const input = new PassThrough() as unknown as NodeJS.ReadStream;
+		(input as unknown as { isTTY: boolean }).isTTY = true;
+		(input as unknown as { isRaw: boolean }).isRaw = false;
+		(input as unknown as { setRawMode: (v: boolean) => void }).setRawMode = (v) => {
+			(input as unknown as { isRaw: boolean }).isRaw = v;
+		};
+
+		const channel = createStdioOperatorChannel({ input, output, transition: "preserve" });
+		output.write(`${HEADER}\n`);
+		const answer = channel.ask({
+			type: "select",
+			question: "Select provider:",
+			default: "v0",
+			options: OPTIONS,
+		});
+		const settle = () => new Promise((r) => setImmediate(r));
+		await settle();
+		(output as unknown as { columns: number }).columns = finalColumns;
+		input.write("\x1b[B");
+		await settle();
+		input.write("\r");
+		await answer;
+
+		return screenOf(captured.join(""), finalColumns);
+	}
+
+	const framesOn = (screen: string[]) =>
+		screen.filter((line) => line.includes("Select provider:")).length;
+
+	it("leaves ONE frame when the terminal narrows under it", async () => {
+		const screen = await paintAcross(120, 80);
+		expect(framesOn(screen)).toBe(1);
+	});
+
+	it("leaves ONE frame when the terminal widens under it", async () => {
+		const screen = await paintAcross(80, 120);
+		expect(framesOn(screen)).toBe(1);
+	});
+
+	it("erases only its own rows while the width holds", async () => {
+		// The silent direction. A redraw that rises too far takes rows it never wrote, and nothing
+		// about the result says so — which is why this asserts on a line the prompt does not own.
+		const screen = await paintAcross(100, 100);
+		expect(framesOn(screen)).toBe(1);
+		expect(screen.some((line) => line.includes("Model Provider"))).toBe(true);
+	});
+});

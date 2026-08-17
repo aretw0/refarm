@@ -184,6 +184,97 @@ export function createStdioOperatorChannel(options = {}) {
     });
 }
 /**
+ * The channel that matches HOW the operator is present — the same evidence the caller's own
+ * interactive guard already weighed.
+ *
+ * ## The defect this exists to stop, measured 2026-08-11
+ *
+ * Five commands take `--attended-elsewhere` ("no terminal here, and that is fine — you are
+ * attending from another surface"), gate their refusal on `atTerminal || attendedElsewhere`, and
+ * then build `createStdioOperatorChannel()` REGARDLESS OF WHICH ONE WAS TRUE. That channel puts a
+ * terminal in the race, and with `stdin` at `/dev/null` the terminal half settles instantly:
+ *
+ * ```
+ *   the question is printed to a terminal nobody is reading
+ *   the local side rejects       OperatorPromptCancelledError
+ *   it WINS the race
+ *   pending prompts on the hub: 0     <- withdrawn before any device could show it
+ * ```
+ *
+ * So the flag did the opposite of what its own help text promised, in every command that offered
+ * it. It appeared to work only when something was actively writing to stdin — a remote pty — which
+ * is the one case the flag was not needed for.
+ *
+ * ## Three states, and the third is not a terminal
+ *
+ *  - AT A TERMINAL — the peered channel. The terminal keeps working and gains the devices as
+ *    peers; either may answer and the other is withdrawn.
+ *  - ATTENDED ELSEWHERE, NO TERMINAL — the devices alone. Putting a dead terminal in that race is
+ *    not a fallback, it is a cancellation.
+ *  - NEITHER — `null`. Nobody to ask, which the caller must refuse on rather than default.
+ *
+ * `null` ALSO COMES BACK when the caller claims attendance and nothing publishes this process's
+ * questions. That is the honest answer: `--attended-elsewhere` is a claim about a human, and a
+ * claim with no wire behind it is still nobody to ask.
+ */
+export function createOperatorChannelFor(presence, options = {}) {
+    if (presence.atTerminal)
+        return createStdioOperatorChannel(options);
+    if (presence.attendedElsewhere) {
+        const signal = options.signal;
+        return createAttendedOperatorChannel(signal ? { signal } : {});
+    }
+    return null;
+}
+/**
+ * Ask ONLY the devices attending this node. No terminal half.
+ *
+ * ## Why a peered channel is the WRONG answer when there is no terminal
+ *
+ * `createStdioOperatorChannel` races a terminal against the node's hub and lets whoever answers
+ * first win. With no terminal that race is not merely pointless, it is HARMFUL: `readline` settles
+ * a non-TTY stdin immediately — a closed or piped input fires `close`, which this module turns
+ * into `OperatorPromptCancelledError` — so the local side REJECTS FIRST, wins, and
+ * `createPeeredOperatorChannel` withdraws the question from every attending device before anyone
+ * could see it. A peered channel with one dead peer is worse than no peer, because it reports
+ * "cancelled" for a question the operator was never shown.
+ *
+ * So this builds the remote side alone, and its cancellation semantics are the remote's.
+ *
+ * ## Null is an answer
+ *
+ * `null` means NOTHING PUBLISHES THIS PROCESS'S QUESTIONS — no hub, nowhere to ask. A caller must
+ * treat that as "there is no operator", exactly as it treats a missing terminal, rather than
+ * inventing a default. The whole point of the surrounding design is that a consent prompt with
+ * nobody behind it is not answered yes and is not answered no; it is not asked.
+ */
+export function createAttendedOperatorChannel(options = {}) {
+    // Captured, not re-read. `currentPromptPublisher()` is a thunk a host may swap, and a channel
+    // that resolved the publisher again inside `ask` could route a question to a different place
+    // than the one it announced to — which is the class of bug the peered channel's abort logic
+    // exists to prevent, one layer down.
+    const publisher = currentPromptPublisher();
+    if (publisher === null)
+        return null;
+    const attending = publisher;
+    async function ask(prompt) {
+        const controller = new AbortController();
+        const detach = onAbortOnce(options.signal, () => controller.abort());
+        try {
+            return await attending.remote(controller.signal).ask(prompt);
+        }
+        finally {
+            detach();
+        }
+    }
+    /** A statement still has somewhere to go — and when the publisher cannot announce, it goes
+     *  nowhere rather than to a terminal nobody is reading. */
+    function say(notice) {
+        attending.announce?.(notice);
+    }
+    return { ask, say };
+}
+/**
  * Ask a single line via `rl.question`, settling with the raw answer text — or
  * rejecting with `OperatorPromptCancelledError` when the operator cancels, by
  * either way a terminal user quits: SIGINT (Ctrl+C) or closing stdin (Ctrl+D /
@@ -279,13 +370,28 @@ function askSelectTui(prompt, input, output, signal) {
     let selectedIndex = defaultIndex >= 0 ? defaultIndex : 0;
     return new Promise((resolve, reject) => {
         const wasRaw = input.isRaw;
-        let renderedLines = 0;
+        /** The last frame, AND the width it was laid out against. Both, or the pair is a guess. */
+        let painted = null;
         let settled = false;
         let detachAbort = () => { };
         const render = () => {
-            if (renderedLines > 0) {
-                readline.moveCursor(output, 0, -renderedLines);
-                readline.cursorTo(output, 0);
+            const columns = output.columns;
+            if (painted) {
+                if (painted.columns === columns) {
+                    readline.moveCursor(output, 0, -painted.rows);
+                    readline.cursorTo(output, 0);
+                }
+                else {
+                    // THE WIDTH MOVED UNDER THE FRAME, so its height on screen is no longer knowable
+                    // here: a reflowing terminal re-wrapped it against the new width, one that does not
+                    // reflow still holds the old layout, and nothing distinguishes them from this side.
+                    // Both remembered and recomputed counts are guesses, and ISS-135 measured what each
+                    // guess costs — narrowing leaves the top of the old frame behind, widening ERASES
+                    // ROWS THIS PROMPT NEVER WROTE and says nothing. Refusing to guess costs the screen
+                    // above the prompt, which is visible and recoverable by scrolling; the alternative
+                    // destroys it silently and only sometimes.
+                    readline.cursorTo(output, 0, 0);
+                }
                 readline.clearScreenDown(output);
             }
             const lines = [
@@ -302,11 +408,25 @@ function askSelectTui(prompt, input, output, signal) {
             // long option wraps into several — so counting the lines we MEANT to write made
             // the next redraw rise short, erase from the middle, and leave everything above
             // it on screen. Once per keystroke, that is the whole prompt reprinting itself.
-            renderedLines = lines.reduce((rows, line) => rows + renderedRowsFor(line, output), 0) - 1;
+            //
+            // The WIDTH is recorded beside the count because the count is only true against it.
+            painted = {
+                rows: lines.reduce((rows, line) => rows + renderedRowsFor(line, output), 0) - 1,
+                columns,
+            };
+        };
+        // A frame is laid out against a width, so a resize is a repaint. Without this the prompt sits
+        // wrongly wrapped until the operator happens to press something, and the repair then arrives
+        // attached to an unrelated keystroke.
+        const onResize = () => {
+            if (!settled)
+                render();
         };
         const cleanup = () => {
             input.off("keypress", onKeypress);
             input.off("end", onEnd);
+            if (typeof output.off === "function")
+                output.off("resize", onResize);
             detachAbort();
             input.setRawMode(wasRaw);
             input.pause();
@@ -358,6 +478,8 @@ function askSelectTui(prompt, input, output, signal) {
         input.resume();
         input.on("keypress", onKeypress);
         input.once("end", onEnd);
+        if (typeof output.on === "function")
+            output.on("resize", onResize);
         // Registered last, so an already-aborted signal tears down a fully set-up
         // prompt (raw mode restored, listeners removed) instead of half of one.
         detachAbort = onAbortOnce(signal, () => finish(() => reject(new OperatorPromptCancelledError())));
@@ -778,6 +900,9 @@ export function toPendingPrompt(prompt, options) {
         asker: options.asker,
         askedAt,
         expiresAt: timeoutMs === null ? null : askedAt + timeoutMs,
+        // Omitted when absent rather than written as `undefined`: this shape crosses a wire, and
+        // a key that is present-but-undefined is a third state nobody declared.
+        ...(options.subject ? { subject: options.subject } : {}),
     };
 }
 // ── Parsing: a device receives untrusted JSON ─────────────────────────────────
