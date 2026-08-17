@@ -1687,6 +1687,17 @@
 			"priority": "medium",
 			"package": "packages/model-account-contract-v1",
 			"axis": "durability"
+		},
+		{
+			"id": "ISS-143",
+			"title": "GitHub Models is retired and a GitHub App is not a dispatch path — the map, so nobody re-derives it",
+			"body": "MEASURED 2026-08-17, chasing the operator's question: if the Copilot editor door is stuck,\ncan we prepare a GitHub App instead?\n\nThe answer is that the documented door was already closed before we looked at it.\n\n## GitHub Models is retired\n\n    GET https://models.github.ai/catalog/models\n      410  {\"error\":{\"code\":\"github_models_retirement_brownout\",\n            \"message\":\"GitHub Models is temporarily unavailable as part of a scheduled\n            retirement brownout.\"}}\n\nAnnounced 2026-07-01, fully retired 2026-07-30 — playground, catalog, inference API and\nbring-your-own-key, for every customer including existing ones. That was 18 days before this\nmeasurement. The 410 body still says 'brownout', which is the retirement's own leftover wording\nand would have read as a temporary condition to anybody who did not check the date.\n\nIT WAS THE RIGHT SHAPE, and that is why losing it matters: OpenAI-compatible\n`POST /inference/chat/completions`, authenticated by a fine-grained PAT with `models:read` OR BY\nA GITHUB APP, with an org-scoped variant `POST /orgs/{org}/inference/chat/completions` that\nATTRIBUTED INFERENCE TO THE ORGANISATION. Documented, supported, no impersonation, and per-org\nattribution that maps onto this node's workspace/cost axis almost exactly.\n\n## What that leaves\n\nGitHub's own migration guidance points back at Copilot for model access on GitHub. So the\nundocumented editor endpoint refarm already speaks is not a shortcut around a documented\nalternative — since 2026-07-30 there is no documented alternative to be around.\n\nTHE GITHUB APP IS NOT A DISPATCH PATH TODAY. GitHub's incident note during the outage said\n'Copilot usage via the GitHub CLI and GitHub App are unaffected', which reads like a door: it is\nnot one for us. A GitHub App reaches Copilot as an EXTENSION — GitHub calls the app — which is\nthe inverse direction from a node dispatching its own work. Building one would not produce a\ncredential this runtime can spend.\n\n## Why this is filed rather than acted on\n\nNothing here is a defect and nothing is buildable. It is the map: two of the three doors an\noperator would reasonably try are closed, and the reasons are dated and public. Without it\nwritten down, the next slice that asks 'why not just use GitHub Models / a GitHub App' spends a\nday rediscovering a retirement announcement and an inverse-direction API.\n\nWORTH RE-CHECKING IF: GitHub ships a successor inference API, or Copilot Extensions gain an\noutbound completion surface. Neither is announced.",
+			"location": "packages/model-account-contract-v1/src/copilot-wire.ts",
+			"status": "open",
+			"category": "gap",
+			"priority": "low",
+			"package": "apps/refarm",
+			"axis": "cost"
 		}
 	]
 }
