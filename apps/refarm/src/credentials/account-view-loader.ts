@@ -61,17 +61,25 @@ export function readBindings(home: string): ModelAccountBinding[] {
 	}));
 }
 
-export async function loadAccountView(options: LoadAccountViewOptions): Promise<AccountView> {
-	const tokens = ((await options.silo.loadTokens()) ?? {}) as Record<string, unknown>;
-	const catalog = readCatalog(options.home);
+/**
+ * The namespaced secrets for the described accounts, keyed by `secretRef`.
+ *
+ * Extracted so `loadAccountView` and any reader that needs a SPECIFIC account's credential share
+ * one parse. A second loop written elsewhere would be a second opinion about what a stored
+ * credential looks like, and this file exists to be the only one.
+ */
+async function loadNamespacedSecrets(
+	catalog: readonly ModelAccountDescriptor[],
+	silo: AccountViewSilo,
+): Promise<Map<string, unknown>> {
 	const secrets = new Map<string, unknown>();
 	for (const descriptor of catalog) {
 		const prefix = `${MODEL_NAMESPACE}/`;
 		if (!descriptor.secretRef.startsWith(prefix)) continue;
-		if (typeof options.silo.loadSecret !== "function") continue;
+		if (typeof silo.loadSecret !== "function") continue;
 		const id = descriptor.secretRef.slice(prefix.length);
 		try {
-			const value = await options.silo.loadSecret(MODEL_NAMESPACE, id);
+			const value = await silo.loadSecret(MODEL_NAMESPACE, id);
 			if (value === undefined || value === null) continue;
 			// PARSED HERE, because the silo stores a STRING and the readers expect a credential.
 			// Measured 2026-08-15: with the string handed through untouched, a correctly bound account
@@ -96,6 +104,13 @@ export async function loadAccountView(options: LoadAccountViewOptions): Promise<
 			// which sends the operator to repair rather than to re-authenticate.
 		}
 	}
+	return secrets;
+}
+
+export async function loadAccountView(options: LoadAccountViewOptions): Promise<AccountView> {
+	const tokens = ((await options.silo.loadTokens()) ?? {}) as Record<string, unknown>;
+	const catalog = readCatalog(options.home);
+	const secrets = await loadNamespacedSecrets(catalog, options.silo);
 	return buildAccountView({
 		tokens,
 		catalog,
@@ -103,4 +118,25 @@ export async function loadAccountView(options: LoadAccountViewOptions): Promise<
 		bindings: readBindings(options.home),
 		workspaceId: options.workspaceId ?? null,
 	});
+}
+
+/**
+ * One account's stored credential, by its OPAQUE id.
+ *
+ * For readers that must ask a PROVIDER about a specific account — quota, health — rather than
+ * resolve "the credential for this provider". `credentialFor` on the view cannot serve them: it
+ * answers per provider and refuses as ambiguous exactly where two accounts of one provider exist,
+ * which is the case these readers are most needed in.
+ */
+export async function loadAccountCredentials(
+	options: LoadAccountViewOptions,
+): Promise<Map<string, unknown>> {
+	const catalog = readCatalog(options.home);
+	const secrets = await loadNamespacedSecrets(catalog, options.silo);
+	const byCredentialId = new Map<string, unknown>();
+	for (const descriptor of catalog) {
+		const secret = secrets.get(descriptor.secretRef);
+		if (secret !== undefined) byCredentialId.set(descriptor.credentialId, secret);
+	}
+	return byCredentialId;
 }
