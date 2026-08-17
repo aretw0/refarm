@@ -20,8 +20,21 @@ import {
 	type ModelAccountDescriptor,
 } from "@refarm.dev/model-account-contract-v1";
 
-/** Where the non-secret descriptor catalog lives. Not in the silo — descriptors are not secrets. */
-export const CATALOG_FILE = ".refarm/model-accounts.json";
+/**
+ * Where the non-secret descriptor catalog lives, RELATIVE TO THE REFARM HOME. Not in the silo —
+ * descriptors are not secrets.
+ *
+ * `home` throughout this module means the REFARM HOME — the directory `resolveRefarmHome()`
+ * answers with, `~/.refarm` by default. It used to mean the directory CONTAINING it, with this
+ * constant carrying the `.refarm/` segment, and the two readings were indistinguishable to the
+ * compiler: `credential.ts` passed `process.env.HOME` and `ask.ts` passed `resolveRefarmHome()`,
+ * and both built a path. One of them built `~/.refarm/.refarm/model-accounts.json` and read an
+ * empty catalog and empty bindings, silently, on every dispatch (ISS-139).
+ *
+ * The refarm home is also the only reading that honours a declared `REFARM_HOME`, which the old
+ * one ignored: a node with a redirected home kept its accounts under the operator's real `$HOME`.
+ */
+export const CATALOG_FILE = "model-accounts.json";
 export const MODEL_NAMESPACE = "model";
 
 export interface AccountViewSilo {
@@ -52,7 +65,7 @@ export function readCatalog(home: string): ModelAccountDescriptor[] {
 /** Workspace bindings, which the node's own config owns and which persist the OPAQUE id. */
 export function readBindings(home: string): ModelAccountBinding[] {
 	const config = readJson<{ modelBindings?: Record<string, string> }>(
-		path.join(home, ".refarm", "config.json"),
+		path.join(home, "config.json"),
 		{},
 	);
 	return Object.entries(config.modelBindings ?? {}).map(([workspaceId, credentialId]) => ({

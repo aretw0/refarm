@@ -26,6 +26,7 @@ import {
 import { OAUTH_PROVIDER_TO_MODEL_PROVIDER, modelProviderInventories } from "../credentials/model.js";
 import { modelRouteTokenUpdate, parseModelRef } from "../model-routing.js";
 import { tryOpenUrl } from "../utils/open-url.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { emitCommandRefusal } from "./command-refusal.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
@@ -132,7 +133,8 @@ export interface SowDeps {
 function defaultSowDeps(): SowDeps {
 	return {
 		createSilo: () => new SiloCore(),
-		homeOf: () => process.env.HOME ?? "",
+		// The DECLARED home (ISS-139): the account store lives under it, not under $HOME.
+		homeOf: () => resolveRefarmHome(),
 		createOperator: createStdioOperatorChannel,
 		env: () => process.env,
 		tryOpenUrl,

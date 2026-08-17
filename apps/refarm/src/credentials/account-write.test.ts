@@ -269,7 +269,7 @@ describe("retiring the RECORD as well as the secret (ISS-134)", () => {
 	};
 
 	function seed(dir: string, catalog: readonly unknown[]): void {
-		const file = path.join(dir, ".refarm", "model-accounts.json");
+		const file = path.join(dir, "model-accounts.json");
 		fs.mkdirSync(path.dirname(file), { recursive: true });
 		fs.writeFileSync(file, `${JSON.stringify(catalog, null, 2)}\n`);
 	}

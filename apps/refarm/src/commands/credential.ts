@@ -39,6 +39,7 @@ import {
 	describeCopilotIdentity,
 	resolveCopilotIdentity,
 } from "../credentials/oauth/index.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { emitCommandRefusal } from "./command-refusal.js";
 import { exhaustedMeters, formatQuotaRows, readQuotaRows } from "./credential-quota.js";
 
@@ -70,7 +71,8 @@ function readJson<T>(file: string, fallback: T): T {
 }
 
 function defaultDeps(): CredentialDeps {
-	const homeOf = () => process.env.HOME ?? "";
+	// The DECLARED home, which is the only reading that honours REFARM_HOME (ISS-139).
+	const homeOf = () => resolveRefarmHome();
 	return {
 		homeOf,
 		siloOf: () => new SiloCore() as unknown as CredentialSilo,
@@ -87,7 +89,7 @@ function defaultDeps(): CredentialDeps {
 		bindingsOf: () =>
 			Object.entries(
 				readJson<{ modelBindings?: Record<string, string> }>(
-					path.join(homeOf(), ".refarm", "config.json"),
+					path.join(homeOf(), "config.json"),
 					{},
 				).modelBindings ?? {},
 			).map(([workspaceId, credentialId]) => ({ workspaceId, credentialId })),
@@ -152,7 +154,7 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 				// whoever made it has forgotten.
 				const identityNotice = describeCopilotIdentity(
 					resolveCopilotIdentity(
-						readJson<unknown>(path.join(deps.homeOf(), ".refarm", "config.json"), undefined),
+						readJson<unknown>(path.join(deps.homeOf(), "config.json"), undefined),
 					),
 				);
 				if (options.json) {
@@ -271,7 +273,7 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 						`model_credential_none: no eligible account on this node carries the id ${credentialId}`,
 					);
 				}
-				const configPath = path.join(deps.homeOf(), ".refarm", "config.json");
+				const configPath = path.join(deps.homeOf(), "config.json");
 				const config = readJson<Record<string, unknown>>(configPath, {});
 				// PERSISTS THE OPAQUE ID, NEVER THE ALIAS (D2). An alias may be renamed, and every
 				// binding written against it would then point at nothing — or at whatever took the name.
