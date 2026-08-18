@@ -44,7 +44,9 @@ describe("reconcileAccountQuota", () => {
 			remaining: 1200,
 			consumed: 300,
 			dispatchedHere: 12,
-			attribution: "unknown",
+			// Unknown BECAUSE the caller supplied no models — a caller that did not look is not a
+			// caller that looked and found nothing.
+			attribution: { kind: "unknown" },
 		});
 	});
 
@@ -88,6 +90,38 @@ describe("reconcileAccountQuota", () => {
 		const again = reconcileAccountQuota(QUOTA, DISPATCHED()).map((m) => m.meter);
 		expect(once).toEqual(again);
 		expect(once).toEqual(["chat", "premium_interactions"]);
+	});
+});
+
+describe("reconcileAccountQuota — attribution", () => {
+	it("says NONE when every model dispatched was measured not to touch the meter", () => {
+		// The operator's real case: gpt-4o moved neither premium meter across a live before/after
+		// read on 2026-08-18. That turns a blanket "unattributed" into a definite zero.
+		const [, premium] = reconcileAccountQuota(
+			QUOTA,
+			{ ...DISPATCHED(), models: [{ provider: "github-copilot", model: "gpt-4o" }] },
+			[
+				{
+					provider: "github-copilot",
+					model: "gpt-4o",
+					meter: "premium_interactions",
+					consumes: false,
+					measuredAt: "2026-08-18",
+				},
+			],
+		);
+		expect(premium).toMatchObject({ attribution: { kind: "none" } });
+		expect(describeReconciliation(premium!)).toMatch(/NONE of that consumption/u);
+	});
+
+	it("keeps UNKNOWN when one dispatched model was never measured", () => {
+		const [, premium] = reconcileAccountQuota(
+			QUOTA,
+			{ ...DISPATCHED(), models: [{ provider: "github-copilot", model: "claude-sonnet-4" }] },
+			[],
+		);
+		expect(premium).toMatchObject({ attribution: { kind: "unknown" } });
+		expect(describeReconciliation(premium!)).toMatch(/UNATTRIBUTED/u);
 	});
 });
 

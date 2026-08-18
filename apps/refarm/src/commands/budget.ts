@@ -1164,6 +1164,13 @@ export interface UsageByPeriod {
  * here would make two surfaces disagree about one record. */
 export interface DispatchedPerAccount {
 	readonly byAccount: ReadonlyMap<string, number>;
+	/** Which provider/model pairs each account sent — what a meter needs to say whether this
+	 *  node's traffic touches it at all (ISS-073 step 3). */
+	readonly modelsByAccount: ReadonlyMap<string, { provider: string; model: string }[]>;
+	/** Dispatches whose provider/model could not be read. NOT the same as an account that sent
+	 *  nothing: one is silence, the other is traffic nobody can classify, and only the first can
+	 *  support a claim that a meter went untouched. */
+	readonly modelUnknownByAccount: ReadonlyMap<string, number>;
 	/** Dated, inside the window, but naming no account. */
 	readonly unattributed: number;
 	/** Named an account but carried no timestamp, so no window can claim it. */
@@ -1175,6 +1182,8 @@ export function dispatchedPerAccount(
 	period: ResolvedPeriod,
 ): DispatchedPerAccount {
 	const byAccount = new Map<string, number>();
+	const modelsByAccount = new Map<string, { provider: string; model: string }[]>();
+	const modelUnknownByAccount = new Map<string, number>();
 	let unattributed = 0;
 	let undated = 0;
 
@@ -1191,9 +1200,20 @@ export function dispatchedPerAccount(
 			continue;
 		}
 		byAccount.set(account, (byAccount.get(account) ?? 0) + 1);
+		const provider = node["gen_ai.provider.name"];
+		const model = node["gen_ai.request.model"];
+		if (typeof provider === "string" && typeof model === "string") {
+			const seen = modelsByAccount.get(account) ?? [];
+			if (!seen.some((m) => m.provider === provider && m.model === model)) {
+				seen.push({ provider, model });
+			}
+			modelsByAccount.set(account, seen);
+		} else {
+			modelUnknownByAccount.set(account, (modelUnknownByAccount.get(account) ?? 0) + 1);
+		}
 	}
 
-	return { byAccount, unattributed, undated };
+	return { byAccount, modelsByAccount, modelUnknownByAccount, unattributed, undated };
 }
 
 export function usageByPeriod(

@@ -23,6 +23,7 @@
  * Recording the meter a dispatch consumed is what would turn `unknown` into a number. That is a
  * change to the dispatch path, not to this reader, and it is tracked separately.
  */
+import { attributeMeter, type DispatchedModel, type MeterAttribution, type MeterUsageFact } from "./meter-usage.js";
 import type { AccountQuota, QuotaMeter } from "./quota.js";
 
 export interface DispatchedOnAccount {
@@ -37,6 +38,9 @@ export interface DispatchedOnAccount {
 	 * provider's.
 	 */
 	readonly windowStart?: string;
+	/** Which models this node sent, so a meter can say whether they touch it. Absent means the
+	 *  caller did not look, which lands on `unknown` rather than on a claim. */
+	readonly models?: readonly DispatchedModel[];
 }
 
 interface ReconciliationBase {
@@ -55,27 +59,33 @@ export type MeterReconciliation =
 			/** The PROVIDER's arithmetic, not ours. */
 			readonly consumed: number;
 			/**
-			 * How much of `consumed` this node caused. Always `unknown` today, and stated rather
-			 * than omitted: a reader that sees two numbers and no attribution will subtract them.
+			 * How much of `consumed` this node caused — `none` when every model it sent was
+			 * measured not to touch this meter, `unknown` otherwise. Stated rather than omitted:
+			 * a reader that sees two numbers and no attribution will subtract them.
 			 */
-			readonly attribution: "unknown";
+			readonly attribution: MeterAttribution;
 	  });
 
 /** PURE. Every meter the provider published, in a stable order, each beside this node's count. */
 export function reconcileAccountQuota(
 	quota: AccountQuota,
 	dispatched: DispatchedOnAccount,
+	facts: readonly MeterUsageFact[] = [],
 ): MeterReconciliation[] {
 	const dispatchedHere = dispatched.windowStart ? dispatched.requests : null;
 	return Object.keys(quota.meters)
 		.sort()
-		.map((meter) => reconcileMeter(meter, quota.meters[meter]!, dispatchedHere));
+		.map((meter) =>
+			reconcileMeter(meter, quota.meters[meter]!, dispatchedHere, dispatched.models ?? null, facts),
+		);
 }
 
 function reconcileMeter(
 	meter: string,
 	value: QuotaMeter,
 	dispatchedHere: number | null,
+	models: readonly DispatchedModel[] | null,
+	facts: readonly MeterUsageFact[],
 ): MeterReconciliation {
 	if (value.kind === "unlimited") return { kind: "unlimited", meter, dispatchedHere };
 	if (value.kind === "cannot-say") {
@@ -89,7 +99,12 @@ function reconcileMeter(
 		// Derived from the provider's own two numbers, so it cannot disagree with them.
 		consumed: value.entitlement - value.remaining,
 		dispatchedHere,
-		attribution: "unknown",
+		// A caller that did not supply the models did not look, which is not the same as looking
+		// and finding nothing — so it lands on `unknown` rather than inheriting `none`.
+		attribution:
+			models === null
+				? { kind: "unknown", because: "the models this node dispatched were not supplied, so nothing here could tell whether they touch this meter." }
+				: attributeMeter(meter, models, facts),
 	};
 }
 
@@ -110,10 +125,12 @@ export function describeReconciliation(reconciliation: MeterReconciliation): str
 	if (reconciliation.kind === "cannot-say") {
 		return `\`${reconciliation.meter}\`: the provider would not say (${reconciliation.reason}), which is not zero.`;
 	}
+	const attribution =
+		reconciliation.attribution.kind === "none"
+			? `NONE of that consumption was this node: ${reconciliation.attribution.because}`
+			: `How much of that consumption this node caused is UNATTRIBUTED — ${reconciliation.attribution.because}`;
 	return (
 		`\`${reconciliation.meter}\`: ${reconciliation.consumed} of ${reconciliation.entitlement} consumed, ` +
-		`${reconciliation.remaining} left. In the same period ${here}. How much of that consumption ` +
-		"this node caused is UNATTRIBUTED: nothing records which meter a dispatch spends, so the two " +
-		"numbers must not be subtracted."
+		`${reconciliation.remaining} left. In the same period ${here}. ${attribution}`
 	);
 }

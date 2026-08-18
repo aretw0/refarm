@@ -5,15 +5,19 @@
  */
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import chalk from "chalk";
+import nodeFs from "node:fs";
+import nodePath from "node:path";
 
 import { SiloCore } from "@refarm.dev/silo";
 
+import { readMeterUsageFacts } from "@refarm.dev/model-account-contract-v1";
 import {
 	loadAccountCredentials,
 	loadAccountView,
 	type AccountViewSilo,
 } from "../credentials/account-view-loader.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
+
 import { reconcileQuotaRows, type QuotaReconciliationReport } from "./budget-quota.js";
 import type { BudgetObservationsPage } from "./budget.js";
 import { readQuotaRows } from "./credential-quota.js";
@@ -52,7 +56,10 @@ async function runBudgetQuotaUnguarded(options: BudgetQuotaOptions): Promise<voi
 	const credentials = await loadAccountCredentials({ home, silo });
 	const rows = await readQuotaRows(accounts, credentials, { fetch: globalThis.fetch });
 	const page = await options.fetchObservations(options.limit);
-	const report = reconcileQuotaRows(rows, page.observations, (options.now ?? Date.now)());
+	// Declared in the NODE config beside nodeTools, for the same reason: this is a fact about the
+	// machine's relationship with a provider, not about any repository standing here.
+	const facts = readMeterUsageFacts(readNodeConfig());
+	const report = reconcileQuotaRows(rows, page.observations, (options.now ?? Date.now)(), facts);
 
 	if (options.json) {
 		printJson(
@@ -67,6 +74,18 @@ async function runBudgetQuotaUnguarded(options: BudgetQuotaOptions): Promise<voi
 		return;
 	}
 	printQuotaHuman(report);
+}
+
+/** The node-tier config, read without throwing: a quota report that dies on a config typo
+ *  reports nothing, and reporting is its whole job. */
+function readNodeConfig(): unknown {
+	try {
+		return JSON.parse(
+			nodeFs.readFileSync(nodePath.join(resolveRefarmHome(), "config.json"), "utf-8"),
+		);
+	} catch {
+		return {};
+	}
 }
 
 function printQuotaHuman(report: QuotaReconciliationReport): void {

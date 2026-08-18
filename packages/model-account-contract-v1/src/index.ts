@@ -5,6 +5,13 @@ export * from "./describe-new.js";
 export * from "./migrate.js";
 export * from "./provider-status.js";
 export * from "./quota.js";
+export {
+	attributeMeter,
+	readMeterUsageFacts,
+	type DispatchedModel,
+	type MeterAttribution,
+	type MeterUsageFact,
+} from "./meter-usage.js";
 export { quotaWindowFor, type QuotaWindow, type QuotaWindowSource } from "./quota-window.js";
 export {
 	describeReconciliation,

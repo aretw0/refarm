@@ -54,7 +54,12 @@ describe("reconcileQuotaRows", () => {
 	it("never derives a spend figure from the two numbers", () => {
 		const report = reconcileQuotaRows([readRow()], [obs(Date.UTC(2026, 7, 3), "model-account:AAAA")], NOW);
 		expect(JSON.stringify(report)).not.toMatch(/notDispatched|not_dispatched/u);
-		expect(report.rows[0]?.meters[0]).toMatchObject({ attribution: "unknown" });
+		// UNKNOWN, not `none`: these fixtures carry no model fields, so the account sent traffic
+		// nobody can classify. Claiming the meter went untouched there would be the bug this
+		// assertion exists to hold shut.
+		const meter = report.rows[0]?.meters[0];
+		expect(meter?.kind).toBe("metered");
+		expect(meter?.kind === "metered" && meter.attribution).toMatchObject({ kind: "unknown" });
 	});
 
 	it("keeps a provider that could not be asked as its own outcome, not as zero remaining", () => {

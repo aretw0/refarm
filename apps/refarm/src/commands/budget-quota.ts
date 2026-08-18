@@ -14,6 +14,7 @@ import {
 	quotaWindowFor,
 	reconcileAccountQuota,
 	type MeterReconciliation,
+	type MeterUsageFact,
 	type QuotaWindow,
 } from "@refarm.dev/model-account-contract-v1";
 
@@ -53,6 +54,9 @@ export function reconcileQuotaRows(
 	rows: readonly AccountQuotaRow[],
 	observations: readonly ObservationNode[],
 	nowMs: number,
+	/** Declared, dated measurements of which meter a model spends — ISS-073 step 3. Empty means
+	 *  nothing was measured, which lands every metered row on `unknown` rather than on a claim. */
+	meterFacts: readonly MeterUsageFact[] = [],
 ): QuotaReconciliationReport {
 	let unattributed = 0;
 	let undated = 0;
@@ -79,11 +83,21 @@ export function reconcileQuotaRows(
 		unattributed = Math.max(unattributed, counted.unattributed);
 		undated = Math.max(undated, counted.undated);
 
-		const meters = reconcileAccountQuota(row.quota, {
-			credentialId: row.credentialId,
-			requests: counted.byAccount.get(row.credentialId) ?? 0,
-			windowStart: window.spec,
-		});
+		const meters = reconcileAccountQuota(
+			row.quota,
+			{
+				credentialId: row.credentialId,
+				requests: counted.byAccount.get(row.credentialId) ?? 0,
+				windowStart: window.spec,
+				// `undefined`, not an empty list, when this account sent traffic whose model could
+				// not be read. An empty list means "looked, found none" and would let a meter claim
+				// it went untouched by dispatches nobody could classify.
+				...((counted.modelUnknownByAccount.get(row.credentialId) ?? 0) === 0
+					? { models: counted.modelsByAccount.get(row.credentialId) ?? [] }
+					: {}),
+			},
+			meterFacts,
+		);
 
 		return {
 			credentialId: row.credentialId,
