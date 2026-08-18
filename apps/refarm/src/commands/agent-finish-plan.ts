@@ -310,33 +310,14 @@ function repoContractGateSteps(): CommandPlanStep[] {
 			description:
 				"The promotion gate: moderate --prod, with a re-check date on every accepted advisory.",
 		}),
-		// RUST TESTS ARE CODE THE LINT NEVER READS. `tractor-rs:lint` runs `cargo clippy` without
-		// `--all-targets`, so an integration test that stopped COMPILING was invisible to every
-		// gate — measured 2026-08-18, where `handle.sync_verbs` had moved under `profile` and the
-		// test reaching past it had not compiled since. `test --lib` does not reach it either:
-		// integration tests are separate binaries.
-		//
-		// `cargo check --all-targets` TYPE-CHECKS them without running them, which is exactly the
-		// question: the expensive thing about an integration test is executing it, and the thing
-		// that rots is whether it still matches the code it tests.
-		//
-		// `check`, NOT `clippy -D warnings`, and the distinction is deliberate. Clippy over test
-		// targets turns years of style debt in fixtures into a red gate on arrival — measured here:
-		// its first run reported doc-comment formatting and a held `MutexGuard`, none of which is
-		// the failure this exists to catch. A gate red on arrival is a gate an operator learns to
-		// bypass, and this one has a precise question to ask instead: does it still compile.
+		// RUST TARGETS THE LINT NEVER READS. `clippy` without `--all-targets` and `test --lib` both
+		// skip integration tests, benches and bins — see the script for what that cost and why the
+		// crate list is discovered rather than declared.
 		scriptTestStep({
 			id: "gate-rust-test-targets",
-			args: [
-				"node",
-				"scripts/ci/cargo-run.mjs",
-				"check",
-				"--all-targets",
-				"--manifest-path",
-				"packages/tractor/Cargo.toml",
-			],
+			args: ["node", "scripts/ci/rust-test-targets-gate.mjs"],
 			description:
-				"Type-check Rust test targets nothing else reads — integration tests are separate binaries, so neither `clippy` nor `test --lib` reaches them.",
+				"Type-check Rust targets nothing else reads — the crate list is WALKED, so a crate that grows a tests/ directory is covered the day it does.",
 		}),
 		scriptTestStep({
 			id: "gate-diagram-sync",
