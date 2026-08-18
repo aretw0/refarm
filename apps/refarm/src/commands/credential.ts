@@ -325,12 +325,18 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 						);
 						return;
 					}
+					// THE COMMAND IS RENDERED HERE (brand guard). The contract states the FACT — this
+					// node has not declared — and naming a CLI verb inside a generic package would
+					// make it unusable by any other surface.
 					process.stdout.write(
 						`  scope: ${current.scope}\n` +
 							resolved.authorized
 								.map((a) => `    ${a.provider.padEnd(18)}${a.alias}\n`)
 								.join("") +
-							(notice ? `\n  ${notice}\n` : ""),
+							(notice
+							? `\n  ${notice}\n` +
+								"  refarm credential authorize --all   (or: refarm credential authorize <credentialId...>)\n"
+							: ""),
 					);
 					return;
 				}

@@ -100,6 +100,35 @@ export const ACCEPTED_ADVISORIES = [
 		trigger: "Identical to GHSA-h39j-r5qq-r9mm. They lift together, and the ignore entry goes with them.",
 		recheckBy: "2026-11-09",
 	},
+	{
+		ghsa: "GHSA-jmr9-qjv8-65gv",
+		package: "extract-zip",
+		severity: "high",
+		why:
+			"THE PATCH THE ADVISORY NAMES DOES NOT EXIST. It says `>=2.0.2`; the registry's latest " +
+			"published version is 2.0.1 (measured 2026-08-18, `npm view extract-zip versions`). " +
+			"Transitive through `@puppeteer/browsers@2.13.2`, which requires `^2.0.1` — so even a " +
+			"lockfile override has nothing to resolve to. Browser tooling, not production runtime.",
+		trigger:
+			"2.0.2 (or later) is actually PUBLISHED. Check the registry, not the advisory page: the " +
+			"advisory has named a version that does not exist since it was filed, which is exactly " +
+			"the claim a dated acceptance exists to keep re-checking.",
+		recheckBy: "2026-11-18",
+	},
+	{
+		ghsa: "GHSA-jwp9-9v96-94mx",
+		package: "decompress",
+		severity: "moderate",
+		why:
+			"Same shape as the two decompress entries above and same absent patch, measured freshly: " +
+			"the advisory names `>=4.2.2` and the registry's latest published version is 4.2.1 " +
+			"(2026-08-18). Transitive through `@bytecodealliance/weval@0.4.1`, which requires " +
+			"`^4.2.1`. A build-time WASM optimiser, not a production runtime dependency.",
+		trigger:
+			"4.2.2 (or later) is published, OR `weval` drops the dependency. It lifts with " +
+			"GHSA-h39j-r5qq-r9mm and GHSA-mp2f-45pm-3cg9 — same package, same missing release.",
+		recheckBy: "2026-11-18",
+	},
 ];
 
 /** PURE. Three states, never two: an entry whose date has passed is EXPIRED (the acceptance

@@ -77,8 +77,8 @@ export function readModelAuthorization(config: unknown): ModelAuthorization {
 			})
 		: [];
 	// An EMPTY declared list is still a declaration: the operator said "these", and named none. It
-	// authorises nothing and it is not silence — `refarm credential authorize` can tell the two
-	// apart, and so can anything reading this.
+	// authorises nothing and it is not silence — anything reading this can tell the two apart, and
+	// the surface that renders it can say so.
 	return { scope: "declared", accounts, ...(declaredAt ? { declaredAt } : {}) };
 }
 
@@ -150,10 +150,12 @@ export function describeAuthorization(
 	authorized: AuthorizedAccounts,
 ): string | null {
 	if (authorization.scope === "undeclared") {
+		// THE FACT, NOT THE COMMAND. A generic contract that names one CLI's verb cannot be reused by
+		// another surface, and the brand guard is right to refuse it: handoffs are the CLI's to
+		// render, from `nextCommands`, where every other one already lives.
 		return (
-			"this node has not declared what it is authorised to spend, so only its configured route is " +
-			"reachable. Declare it with `refarm credential authorize --all` or " +
-			"`refarm credential authorize <credentialId...>`."
+			"this node has not declared what it is authorised to spend, so only its configured route " +
+			"is reachable."
 		);
 	}
 	const notes: string[] = [];

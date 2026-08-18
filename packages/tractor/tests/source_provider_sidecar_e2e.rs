@@ -103,7 +103,10 @@ async fn wasm_source_provider_discover_over_the_sidecar() {
     let plugin_id = handle.id.clone();
     // It declared its verbs synchronous (capabilities.syncVerbs).
     assert!(
-        handle.sync_verbs.iter().any(|v| v == "source:discover"),
+        // Through the handle's OWN accessor rather than a field path: `sync_verbs` moved under
+        // `profile` and this reached past it, so the test stopped compiling and no gate said so —
+        // `clippy` without `--all-targets` never reaches an integration test.
+        handle.serves_sync("source:discover"),
         "the plugin manifest must declare syncVerbs:[source:discover, …]"
     );
     tractor.register_for_events(handle);

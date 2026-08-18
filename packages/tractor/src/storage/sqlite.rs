@@ -69,6 +69,18 @@ pub struct NodeRow {
 #[derive(Clone, Debug)]
 pub struct NativeStorage {
     conn: Arc<Mutex<Connection>>,
+    /// Whether this storage survives the process.
+    ///
+    /// A PEER ID IS THE IDENTITY OF A PERSISTED REPLICA, and an in-memory one has none — so this is
+    /// the fact `peer_id_for_namespace` needed and did not have. It keyed on the NAMESPACE STRING
+    /// instead, so a sync over `:memory:` storage under any other name read-or-created a
+    /// `{namespace}.peer` file under the declared graph base.
+    ///
+    /// Measured 2026-08-18: that made roughly fifteen test files env-sensitive at once. A sibling
+    /// pointing REFARM_HOME at a TempDir that had since dropped failed whichever test happened to
+    /// run next — a different name each run, which is what a shared cause looks like from the
+    /// outside. Locking them one by one moved the failure rather than removing it.
+    persistent: bool,
 }
 
 /// What a page of nodes is being asked for.
@@ -180,6 +192,7 @@ impl NativeStorage {
         let conn = Connection::open(path).with_context(|| format!("open SQLite at {path:?}"))?;
         let storage = Self {
             conn: Arc::new(Mutex::new(conn)),
+            persistent: true,
         };
         storage.ensure_schema()?;
         Ok(storage)
@@ -191,7 +204,8 @@ impl NativeStorage {
     /// - any other string → `<graph base>/refarm/{namespace}.db`, where the graph base comes
     ///   from the node's declaration rather than the OS — see [`graph_base`]
     pub fn open(namespace: &str) -> Result<Self> {
-        let conn = if namespace == ":memory:" {
+        let in_memory = namespace == ":memory:";
+        let conn = if in_memory {
             Connection::open_in_memory().context("open in-memory SQLite")?
         } else {
             let dir = db_dir()?;
@@ -214,9 +228,15 @@ impl NativeStorage {
 
         let storage = Self {
             conn: Arc::new(Mutex::new(conn)),
+            persistent: !in_memory,
         };
         storage.ensure_schema()?;
         Ok(storage)
+    }
+
+    /// Whether this storage survives the process — see the field's own note.
+    pub(crate) fn is_persistent(&self) -> bool {
+        self.persistent
     }
 
     /// Create all tables and indexes if they do not already exist.

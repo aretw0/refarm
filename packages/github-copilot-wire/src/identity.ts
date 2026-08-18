@@ -3,7 +3,7 @@
  *
  * ## Why this is a profile and not three adapters
  *
- * Measured 2026-08-14 on the operator's node: refarm's own OAuth App authenticates fine — the device
+ * Measured 2026-08-14 on a real node: the caller's own OAuth App authenticates fine — the device
  * flow completes and GitHub issues a user token — and then `copilot_internal/v2/token` answers
  * **HTTP 403**. Not 401. Authenticated, and not authorised. The endpoint honours some identities and
  * not others.
@@ -27,7 +27,7 @@
 
 /** The editor identity `@earendil-works/pi-ai` presents, read from the installed package 2026-08-14. */
 export const EDITOR_IMITATION = {
-	/** Not refarm's, and not pi's either: the Copilot editor-plugin family's. */
+	/** Not the caller's, and not pi's either: the Copilot editor-plugin family's. */
 	clientId: "Iv1.b507a08c87ecfe98",
 	headers: {
 		"User-Agent": "GitHubCopilotChat/0.35.0",
@@ -39,7 +39,7 @@ export const EDITOR_IMITATION = {
 
 export type CopilotIdentity =
 	/** Refarm's own OAuth App and honest headers. Measured 403 at the exchange, and still the default. */
-	| { readonly kind: "refarm" }
+	| { readonly kind: "own" }
 	/** Another product's client id and version headers. Works; the operator accepted the risk. */
 	| { readonly kind: "editor-imitation" }
 	/** Refarm's own identity, authorised by an integration id GitHub granted. */
@@ -52,7 +52,7 @@ interface CopilotIdentityConfig {
 /**
  * PURE. The declared profile, defaulting to the honest identity.
  *
- * Every unrecognised or half-declared value falls back to `refarm`. That is deliberate and it is the
+ * Every unrecognised or half-declared value falls back to `own`. That is deliberate and it is the
  * safe direction: falling back to imitation would make a typo impersonate another product, and
  * falling back to an empty integration id would send a header that means nothing. Failing visibly
  * at the exchange is better than either.
@@ -63,9 +63,9 @@ export function resolveCopilotIdentity(config: unknown): CopilotIdentity {
 	if (kind === "editor-imitation") return { kind: "editor-imitation" };
 	if (kind === "integration") {
 		const id = typeof declared?.integrationId === "string" ? declared.integrationId.trim() : "";
-		return id ? { kind: "integration", id } : { kind: "refarm" };
+		return id ? { kind: "integration", id } : { kind: "own" };
 	}
-	return { kind: "refarm" };
+	return { kind: "own" };
 }
 
 export interface CopilotRequestIdentity {
@@ -76,8 +76,12 @@ export interface CopilotRequestIdentity {
 /** PURE. The client id and headers this profile sends. The ONLY place either is decided. */
 export function copilotRequestIdentity(
 	identity: CopilotIdentity,
-	refarmClientId: string,
-	refarmVersion: string,
+	/** The CALLER's own OAuth client id, when it presents as itself. */
+	ownClientId: string,
+	/** How the caller names itself in `User-Agent`. INJECTED, never built
+	 *  here: a provider adapter that hardcoded one consumer name could not be used by another,
+	 *  and this package is deliberately reusable outside whatever ships it. */
+	ownUserAgent: string,
 ): CopilotRequestIdentity {
 	const base = { Accept: "application/json", "Content-Type": "application/json" };
 	if (identity.kind === "editor-imitation") {
@@ -85,16 +89,16 @@ export function copilotRequestIdentity(
 		// is a shape no real client sends: it impersonates and it does not work.
 		return { clientId: EDITOR_IMITATION.clientId, headers: { ...base, ...EDITOR_IMITATION.headers } };
 	}
-	const honest = { ...base, "User-Agent": `refarm/${refarmVersion}` };
+	const honest = { ...base, "User-Agent": ownUserAgent };
 	if (identity.kind === "integration") {
 		// Refarm's OWN client id, authorised by the granted id. Pairing a granted id with a borrowed
 		// client id would be imitation wearing a licence.
 		return {
-			clientId: refarmClientId,
+			clientId: ownClientId,
 			headers: { ...honest, "Copilot-Integration-Id": identity.id },
 		};
 	}
-	return { clientId: refarmClientId, headers: honest };
+	return { clientId: ownClientId, headers: honest };
 }
 
 /**
@@ -105,7 +109,7 @@ export function copilotRequestIdentity(
  */
 export function describeCopilotIdentity(identity: CopilotIdentity): string | null {
 	switch (identity.kind) {
-		case "refarm":
+		case "own":
 			return null;
 		case "editor-imitation":
 			return (
@@ -114,6 +118,6 @@ export function describeCopilotIdentity(identity: CopilotIdentity): string | nul
 				"Clear providers.githubCopilot.identity to stop."
 			);
 		case "integration":
-			return `github-copilot is using the granted integration id "${identity.id}" under refarm's own identity.`;
+			return `github-copilot is using the granted integration id "${identity.id}" under this node's own identity.`;
 	}
 }

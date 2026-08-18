@@ -19,6 +19,7 @@ import {
 	copilotRequestIdentity,
 	type CopilotIdentity,
 } from "@refarm.dev/github-copilot-wire";
+import { REFARM_BINARY } from "../../brand.js";
 import { resolveRefarmVersion } from "../../commands/runtime-metadata.js";
 import {
 	COPILOT_SCOPE,
@@ -99,9 +100,11 @@ export function createGitHubCopilotProvider(
 	// line knows which identity is in use, which is what keeps a granted integration id an edit
 	// rather than a migration.
 	const presented = copilotRequestIdentity(
-		options.identity ?? { kind: "refarm" },
+		options.identity ?? { kind: "own" },
 		options.clientId,
-		resolveRefarmVersion(),
+		// THE BRAND IS THE APP'S. The wire package takes a user agent and never builds one, so it
+		// stays usable by any caller (brand guard).
+		`${REFARM_BINARY}/${resolveRefarmVersion()}`,
 	);
 
 	/** The undocumented step, isolated so a failure names itself. */

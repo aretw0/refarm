@@ -717,7 +717,6 @@ fn validate_stream_text_field(label: &str, value: &str, max_len: usize) -> Resul
 // internal seam. The guardrail's `configured` arg pushed it to 8; grouping into structs
 // would ripple through the model bridge for no behavioural gain.
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_arguments)]
 fn model_complete_http(
     provider: &str,
     base_url: &str,
@@ -780,17 +779,12 @@ pub(crate) fn routes_for_task<'a>(
         .collect()
 }
 
-fn enforce_model_route_any(
-    provider: &str,
-    base_url: &str,
-    path: &str,
-    primary: &ModelRoute,
-    fallback: Option<&ModelRoute>,
-    configured: &[ModelRoute],
-) -> Result<(), String> {
-    enforce_model_route_for_task(provider, base_url, path, None, primary, fallback, configured)
-}
-
+/// The route guardrail, with the task's narrowing applied when it declared one.
+///
+/// ONE ENTRY POINT. A `_any` wrapper that passed `None` lived here until every caller moved to this
+/// form and left it reachable only from tests — a second door into one rule, which is exactly the
+/// shape that lets two places drift. Callers and tests both pass `None` explicitly, and that reads
+/// as what it is: no narrowing.
 #[allow(clippy::too_many_arguments)]
 fn enforce_model_route_for_task(
     provider: &str,

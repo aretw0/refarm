@@ -150,7 +150,9 @@ describe("describeAuthorization", () => {
 	it("tells an undeclared node what it has not said, without calling it a fault", () => {
 		const text = describeAuthorization({ scope: "undeclared" }, { authorized: [], unknown: [], unusable: [] });
 		expect(text).toMatch(/has not declared/u);
-		expect(text).toMatch(/refarm credential authorize/u);
+		// THE FACT, NOT THE COMMAND. A generic contract naming one CLI's verb cannot be reused by
+		// another surface; the handoff is rendered where every other one is, from `nextCommands`.
+		expect(text).not.toMatch(/refarm /u);
 	});
 
 	it("says NOTHING when a declaration is satisfied", () => {

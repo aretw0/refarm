@@ -21,7 +21,7 @@
  *
  * ## Why it lives in the contract package
  *
- * It was in `apps/refarm` and the DAEMON needs it too: a Copilot token lasts minutes, and renewing
+ * It began inside a CLI and the DAEMON needed it too: a Copilot token lasts minutes, and renewing
  * it is a re-exchange of the durable `ghu_` rather than an OAuth `refresh_token` grant, so the
  * renewal path could not reach the module that already knew the shape. The alternative was a second
  * implementation of an UNDOCUMENTED wire — two places to be wrong about an endpoint nobody

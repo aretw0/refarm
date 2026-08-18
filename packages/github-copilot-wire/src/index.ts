@@ -22,7 +22,7 @@
  *     descriptors, health, resolution          the token exchange url and headers
  *     bindings, authorization, precedence      parsing a copilot token's fields
  *     QuotaMeter / AccountQuota vocabulary     deriving the per-seat endpoint from it
- *     isMeterExhausted, provisionableAccounts  the client identities refarm may present
+ *     isMeterExhausted, provisionableAccounts  the client identities a caller may present
  *
  * VOCABULARY IS GENERIC, PARSING IS PER PROVIDER.
  *

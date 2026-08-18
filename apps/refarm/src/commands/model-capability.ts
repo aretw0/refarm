@@ -6,6 +6,7 @@ import type {
 import type { AccountView } from "@refarm.dev/model-account-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
+import { REFARM_BINARY } from "../brand.js";
 
 import {
 	authorizedAccounts,
@@ -243,7 +244,9 @@ export function createModelCapabilityGroup(
 								JSON.parse(fs.readFileSync(path.join(home, "config.json"), "utf8")) as unknown,
 							),
 							githubOAuthClientId(),
-							resolveRefarmVersion(),
+							// THE BRAND IS THE APP'S. The wire package takes a user agent and never builds one, so it
+		// stays usable by any caller (brand guard).
+		`${REFARM_BINARY}/${resolveRefarmVersion()}`,
 						);
 						credentials = await renewExpiredCopilotCredentials(provision, credentials, {
 							fetch: globalThis.fetch,

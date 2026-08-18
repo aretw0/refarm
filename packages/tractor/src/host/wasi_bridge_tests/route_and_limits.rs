@@ -834,10 +834,11 @@
             ModelRoute::for_test("ollama", "http://127.0.0.1:11434", "/v1/chat/completions");
 
         // Primary request: accepted.
-        assert!(enforce_model_route_any(
+        assert!(enforce_model_route_for_task(
             "anthropic",
             "https://api.anthropic.com",
             "/v1/messages",
+            None,
             &primary,
             Some(&fallback),
             &[],
@@ -845,10 +846,11 @@
         .is_ok());
 
         // Fallback request: accepted (this is exactly what was blocked before).
-        assert!(enforce_model_route_any(
+        assert!(enforce_model_route_for_task(
             "ollama",
             "http://127.0.0.1:11434",
             "/v1/chat/completions",
+            None,
             &primary,
             Some(&fallback),
             &[],
@@ -856,10 +858,11 @@
         .is_ok());
 
         // A third provider neither route allows: still rejected.
-        assert!(enforce_model_route_any(
+        assert!(enforce_model_route_for_task(
             "openai",
             "https://api.openai.com",
             "/v1/chat/completions",
+            None,
             &primary,
             Some(&fallback),
             &[],
@@ -881,10 +884,11 @@
         )];
 
         // The configured ollama route is accepted even though it is not primary/fallback.
-        assert!(enforce_model_route_any(
+        assert!(enforce_model_route_for_task(
             "ollama",
             "http://localhost:11434",
             "/v1/chat/completions",
+            None,
             &primary,
             None,
             &configured,
@@ -892,10 +896,11 @@
         .is_ok());
 
         // A provider in NEITHER the primary/fallback NOR the configured set: rejected.
-        assert!(enforce_model_route_any(
+        assert!(enforce_model_route_for_task(
             "anthropic",
             "https://api.anthropic.com",
             "/v1/messages",
+            None,
             &primary,
             None,
             &configured,
@@ -1074,10 +1079,11 @@
             path: "/chat/completions".to_string(),
         }];
 
-        let err = enforce_model_route_any(
+        let err = enforce_model_route_for_task(
             "github-copilot",
             "https://api.business.githubcopilot.com",
             "/v1/chat/completions",
+            None,
             &primary,
             None,
             &configured,
@@ -1087,10 +1093,11 @@
         assert!(!err.contains("provider mismatch"), "got: {err}");
 
         // A provider NOBODY admitted still reports the primary's mismatch, unchanged.
-        let err = enforce_model_route_any(
+        let err = enforce_model_route_for_task(
             "kimi-api",
             "https://api.moonshot.cn",
             "/v1/chat/completions",
+            None,
             &primary,
             None,
             &configured,
@@ -1151,7 +1158,7 @@
     fn enforce_route_any_without_fallback_returns_the_primary_error_unchanged() {
         // No fallback (the common case) must behave byte-identically to the
         // single-route matcher: the same request that enforce_model_route rejects
-        // yields the SAME error string through enforce_model_route_any.
+        // yields the SAME error string through enforce_model_route_for_task.
         let primary =
             ModelRoute::for_test("anthropic", "https://api.anthropic.com", "/v1/messages");
 
@@ -1161,10 +1168,11 @@
             "/v1/chat/completions",
             &primary,
         );
-        let any = enforce_model_route_any(
+        let any = enforce_model_route_for_task(
             "ollama",
             "http://127.0.0.1:11434",
             "/v1/chat/completions",
+            None,
             &primary,
             None,
             &[],

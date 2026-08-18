@@ -53,9 +53,16 @@ impl NativeSync {
     ///   namespace string, so in-process/test docs stay distinct by their distinct
     ///   namespace strings without sharing a persisted peer file.
     pub fn new(storage: NativeStorage, namespace: &str) -> Result<Self> {
-        let peer_id = match crate::storage::peer_id_for_namespace(namespace)? {
-            Some(persisted) => persisted,
-            None => peer_id_from_namespace(namespace),
+        // A PEER ID IS THE IDENTITY OF A PERSISTED REPLICA. Storage that does not survive the
+        // process has none, whatever its namespace is called — and asking for one wrote a
+        // `{namespace}.peer` file under the declared graph base for every in-memory sync built with
+        // a name. Derivation from the namespace keeps in-process replicas distinct without it.
+        let peer_id = match storage.is_persistent() {
+            true => match crate::storage::peer_id_for_namespace(namespace)? {
+                Some(persisted) => persisted,
+                None => peer_id_from_namespace(namespace),
+            },
+            false => peer_id_from_namespace(namespace),
         };
         Self::new_with_peer(storage, peer_id)
     }
