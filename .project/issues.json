@@ -1447,12 +1447,13 @@
 			"title": "A second account of one provider destroys the first: the silo keys credentials by provider alone",
 			"body": "MEASURED 2026-08-12, against a real SiloCore with SILO_HOME redirected — not read from the code:\n\n    1) after personal login : {\"github-copilot\":{\"account\":\"pessoal\",\"token\":\"gho_PESSOAL\",...}}\n    2) after corporate login: {\"github-copilot\":{\"account\":\"corporativa\",\"token\":\"gho_CORP\",...}}\n    personal credential still present? false\n\n`tokens.oauthCredentials` is keyed by PROVIDER and holds ONE slot. `sow` spreads the existing map\nand writes `[credential.provider]`, so authenticating a second account of the same provider\nsilently overwrites the first. No error, no warning, no copy kept. This is the same class of\naccident as ISS-121 — an irreversible write to the operator's source of truth that nothing\nreports — with the difference that here it is the DESIGN doing it, not a stray test.\n\nWHY IT BLOCKS STATED WORK. The operator has three quotas across two providers: GitHub Copilot\npersonal, GitHub Copilot corporate, and Codex personal. Two of the three are the same provider.\nUnder today's shape they cannot coexist, and the act of adding the second destroys the first.\n\nNOTE THE INTERACTION WITH TODAY'S sow FIX. Making an expired credential re-prompt (commit\naaf1a8b2) is correct and makes this MORE reachable: the wizard now re-authenticates on expiry,\nwhich is exactly the moment a second account would be entered.\n\nPRIOR ART, already proven next door rather than to be invented: `agents-lab`'s pi-stack models\nidentity as `buildProviderAccountKey(provider, account)` throughout its quota-visibility\nextensions — `packages/pi-stack/extensions/quota-visibility-billing.ts` extracts Copilot billing\nrows keyed by provider AND account, with weekly/monthly caps and share semantics. That is the\nsame key this repository is missing, and it is also what R4's per-workspace quota split (ISS-064)\nand the \"which part did refarm not dispatch\" question (ISS-073) both need.\n\nTHE DECISION IS THE OPERATOR'S, because it is his credential model and it reaches workspaces:\nwhether an account is a dimension OF the credential key, or credentials are scoped BY workspace\nand the workspace carries the account. Both make the destruction impossible; they differ in\nwhere the operator picks which quota a piece of work spends.\n\nWHAT IS SAFE TO DO BEFORE THAT DECISION: refuse to silently replace an existing subscription\ncredential. A guard needs no new data model and removes the irreversible half of the defect.",
 			"location": "packages/silo/src/index.js, apps/refarm/src/commands/sow.ts",
-			"status": "open",
+			"status": "resolved",
 			"category": "defect",
 			"priority": "high",
 			"package": "packages/silo",
 			"axis": "durability",
-			"requirement": "R11"
+			"requirement": "R11",
+			"resolved_by": "medido 2026-08-18: github-copilot com 2 contas healthy convivendo"
 		},
 		{
 			"id": "ISS-123",
@@ -1754,11 +1755,12 @@
 			"title": "A node declares the tools it depends on but does not ship",
 			"body": "A node runs on tools it did not build (gh, rsync, cargo, a VPN client). Nothing measured them: a presence check passes for a gh from 2022, and the staleness only surfaces as an unrelated subcommand failing mid-work. Measured on the operator's node as 'gh version 2.4.0+dfsg1 (2022-03-23)'.\n\nSHIPPED: packages/health/src/tool-requirements.js — pure, four states (ok / absent / outdated / cannot-say), malformed entries reported rather than dropped. Wired through ToolchainAuditor (which already existed, was generic, and had NO consumer outside its own test) into refarm health, which reports results.nodeTools and recommends per state with no invented fix command.\n\nTHREE THINGS THE SLICE CLOSED BEYOND THE FEATURE:\n1. Privilege boundary. Auditing a tool RUNS it, so the declaration is read from the NODE tier only. auditConfigTier is reporting-only today, so readNodeToolDeclaration enforces it at the reader itself; a workspace config declaring nodeTools is refused AND reported. Registered in CONFIG_KEY_OWNERSHIP and docs/CONFIG_TIERS.md.\n2. Cache staleness. The health audit cache fingerprints the REPOSITORY; a node tool is outside that tree, so no hash of it notices gh being upgraded. Tool checks are re-measured on every run including cache hits, and the report is rebuilt rather than patched.\n3. Regression from 772480bd. packages/config's suite had been red since the Copilot dispatch adapter landed: github-copilot gained a runtime adapter and the test still asserted it had none. Fixed; 147/147.\n\nDocs: docs/node-tools.md. Step toward describing the node rather than copying it.",
 			"location": "packages/health/src/tool-requirements.js",
-			"status": "open",
+			"status": "resolved",
 			"category": "feature",
 			"priority": "medium",
 			"package": "@refarm.dev/health",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "aaa0ea18"
 		},
 		{
 			"id": "ISS-149",
@@ -1776,11 +1778,12 @@
 			"title": "nodeTools is declared through the guided path, not by hand",
 			"body": "ISS-148 shipped the reader and stopped at \"writing the config is the operator's call\". That was the wrong stopping point: this repository already has the blocks for exactly this, and leaving the operator to hand-edit JSON is the failure mode the blocks exist to prevent.\n\nTWO CORRECTIONS TO ISS-148:\n1. SHAPE. nodeTools was an ARRAY. planCatalogDeclaration REFUSES a block that is not a record, so an array was a declaration no guided command could ever write — a fresh instance of the built-and-never-wired pattern. It is now a catalog block keyed by command, the same shape delivery/connections/surfaces/workspaces use. The key being the command also settles what two entries naming one binary mean: they cannot exist.\n2. PATH. health.ts hardcoded \".refarm\" while the new reader used sovereignConfigRelativePath. Two readers disagreeing about which file is the node config. Both now resolve through the same helper.\n\nSHIPPED: \"refarm tools add <command>\" and \"refarm tools list\", composing prompt-contract-v1 (channel-abstract), operation-consent-v1 (whole-file diff, durable record, undo) and catalog-authoring (keyed write preserving unowned fields, ISS-036). Nothing re-implemented. The only thing tools.ts owns is measuring the binary BEFORE asking, so the floor the operator authorises is a number they were shown — the line between a draft accepted and an inference nobody decided.\n\nATTENDED HALF PROVEN LIVE 2026-08-18 against the node at 127.0.0.1:42001. \"tools add --attended-elsewhere\" published the journey to the pending-prompt hub; GET /prompts showed the consent select with all three options and the measurement in the notices; POST /prompts/{id}/answer with \"authorize\" from an external client woke the command, which returned status authorized and wrote the declaration with an undo record. The terminal was never used for the decision. Same pending-prompt.v1 wire an attending PWA reads — curl stood in for the device, not for the protocol. Two regression tests hold the wiring: the flag must select the attended channel, and no publisher must yield the same \"deferred\" as a headless terminal.\n\nTHREE ARCHITECTURAL GUARDS CAUGHT SHORTCUTS, and each pointed somewhere better:\n- process-boundary refused node:child_process in app source, which moved measureTool into @refarm.dev/health beside the auditor that already spawns.\n- ancestor-option refused --args (collides with Commander's positional bag) and then --version-args (variadic, invisible to the guard's probe — see ISS-151). The flag became one token, which also removed speculative generality: a version probe is one token in practice.\n- probe-coverage required \"tools list\" to be accounted for; it is now registered in the directory-independence probe with its reason.\n\nREFUSALS THAT ARE THE POINT: a tool that did not run is refused rather than declared (--even-if-absent says it out loud); the consent notes state that authorising the declaration ALSO authorises an execution, because health runs the binary on every audit; with no operator nothing is written.",
 			"location": "apps/refarm/src/commands/tools.ts",
-			"status": "open",
+			"status": "resolved",
 			"category": "feature",
 			"priority": "medium",
 			"package": "@refarm.dev/refarm",
-			"axis": "node-vs-directory"
+			"axis": "node-vs-directory",
+			"resolved_by": "aaa0ea18"
 		},
 		{
 			"id": "ISS-151",
