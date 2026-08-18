@@ -3,12 +3,13 @@ import { describe, expect, it } from "vitest";
 
 import {
 	classifyEntry,
-	formatInventory,
 	dedupeInventory,
+	formatInventory,
 	sovereignLocations,
 	summariseInventory,
 	type InventoryEntry,
 } from "./sovereign-inventory.js";
+import { classifyByLayout } from "./sovereign-layout.js";
 
 /**
  * The inventory's job is to answer "what must a backup contain", so these pin the two ways it
@@ -229,5 +230,37 @@ describe("formatInventory", () => {
 		const entries = [entry({ file: "/n/x.db", recoverability: "irrecoverable", declared: false })];
 		const text = formatInventory(locations, entries, summariseInventory(entries));
 		expect(text).toContain("Undeclared is not the same as disposable");
+	});
+});
+
+/**
+ * ISS-123's last undecided entry on the operator's real node.
+ *
+ * `backup plan` reported exactly one `undecidable` file — `.refarm/session.lock` — and
+ * `hasUndecided` is driven by that list alone, so this single classification is what stands
+ * between his node and a bundle it can trust.
+ */
+describe("SOVEREIGN_LAYOUT — runtime locks", () => {
+	it("classifies a lock as rebuilt, never as data to carry", () => {
+		// A lock names a LIVE process. Restored onto another machine it points at a pid that does
+		// not exist there, and a stale lock is worse than an absent one: it can make the restored
+		// node refuse to start, or believe a session is already held.
+		const verdict = classifyByLayout(".refarm/session.lock", []);
+		expect(verdict.nature).toBe("cache");
+		expect(verdict.rebuiltBy).toBeDefined();
+		expect(verdict.reason).toMatch(/lock|process/iu);
+	});
+
+	it("covers every lock the node writes, not one filename", () => {
+		// A rule keyed on `session.lock` would leave the next lock undecidable, which is how this
+		// entry came to exist in the first place.
+		for (const relative of [".refarm/session.lock", ".refarm/runtime.lock", ".refarm/data/x.lock"]) {
+			expect(classifyByLayout(relative, []).nature, relative).toBe("cache");
+		}
+	});
+
+	it("does not let the lock rule swallow a secret that happens to end in .lock", () => {
+		// Secrets are matched first, always. This asserts the ORDER holds rather than trusting it.
+		expect(classifyByLayout(".silo/identity.json", []).nature).toBe("secret");
 	});
 });

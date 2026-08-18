@@ -174,6 +174,21 @@ export const SOVEREIGN_LAYOUT: LayoutRule[] = [
 		}),
 	},
 	{
+		// ISS-123's last undecidable entry on the operator's node: `.refarm/session.lock`.
+		//
+		// A lock names a LIVE process. Carried into a bundle and restored elsewhere it points at a
+		// pid that does not exist there, and a STALE lock is worse than an absent one — it can make
+		// the restored node refuse to start, or believe a session is already held. Keyed on the
+		// suffix rather than on the filename, because a rule that named `session.lock` would leave
+		// the next lock undecidable, which is exactly how this entry came to exist.
+		match: endsWithAny([".lock"]),
+		verdict: () => ({
+			nature: "cache",
+			reason: "a lock held by a running process — it describes a moment, not the node",
+			rebuiltBy: "the process that takes it, on the next run",
+		}),
+	},
+	{
 		match: (relative) => under(".refarm/dist")(relative) || under(".refarm/plugins")(relative),
 		verdict: () => ({
 			nature: "cache",
