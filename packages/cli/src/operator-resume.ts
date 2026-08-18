@@ -82,7 +82,12 @@ export interface OperatorResumeSessionParticipantAlias {
 
 export interface OperatorResumeFinishRecord {
 	updatedAt: string;
-	status: "passed" | "failed";
+	/**
+	 * `timed-out` is carried, not folded into `failed`, so `resume` can tell an operator coming
+	 * back that the last gate was KILLED at its ceiling rather than that their code broke. The
+	 * two send them to different places.
+	 */
+	status: "passed" | "failed" | "timed-out";
 	command: string;
 	profile?: string | null;
 	lane?: string | null;
@@ -230,7 +235,8 @@ export interface OperatorResumeSessionSummary {
 }
 
 export interface OperatorResumeFinishSummary {
-	status: "none" | "passed" | "failed";
+	/** `none` is "no gate has run"; `timed-out` is "one ran and was killed before it could say". */
+	status: "none" | "passed" | "failed" | "timed-out";
 	updatedAt?: string;
 	command?: string;
 	profile?: string | null;
@@ -367,6 +373,18 @@ function taskJsonSummary(tasks: OperatorResumeTaskSummary): OperatorResumeTaskSu
 
 function isApplicationResumeCommand(command: string, binary: string): boolean {
 	return command.trim().startsWith(`${binary} `);
+}
+
+/**
+ * Did the last gate leave work behind?
+ *
+ * `failed` and `timed-out` both do, and both hand back the same next commands — the difference is
+ * what an operator DOES about it, not whether there is something to resume. Splitting the outcome
+ * without widening this predicate would have made a killed gate quietly stop offering its own
+ * recovery, which is a worse bug than the one the split was fixing.
+ */
+function finishLeftWorkBehind(status: OperatorResumeFinishSummary["status"]): boolean {
+	return status === "failed" || status === "timed-out";
 }
 
 function isTerminalTaskStatus(status: string | undefined): boolean {
@@ -520,7 +538,7 @@ export function operatorResumeNextCommands(
 
 	// Emergency: runtime not ready — fix that first, everything else is noise.
 	if (summary.runtime && !summary.runtime.ready) {
-		const recovery = summary.finish.status === "failed" ? summary.finish.nextCommands : [];
+		const recovery = finishLeftWorkBehind(summary.finish.status) ? summary.finish.nextCommands : [];
 		return [...new Set([resolved.runtimeDoctor, ...recovery])];
 	}
 
@@ -535,8 +553,8 @@ export function operatorResumeNextCommands(
 		return [...new Set(nextCommands)];
 	}
 
-	// Recovery: finish failed — the most urgent resumption point.
-	if (summary.finish.status === "failed") {
+	// Recovery: the last gate left work behind — the most urgent resumption point.
+	if (finishLeftWorkBehind(summary.finish.status)) {
 		nextCommands.push(...summary.finish.nextCommands);
 	}
 
@@ -575,6 +593,11 @@ export function operatorResumeNextActions(summary: OperatorResumeSummary): strin
 
 	const actions: string[] = [];
 	if (summary.finish.status === "failed") actions.push("Complete the failed validation handoff.");
+	// Worded for what actually happened: nothing failed, so "complete the failed handoff" would
+	// send the operator looking for a defect that is not there.
+	if (summary.finish.status === "timed-out") {
+		actions.push("Re-run the validation handoff: the last one was killed at its time ceiling.");
+	}
 	if (summary.session.status === "stale") actions.push("Repair the stale active-session pointer.");
 	if (summary.model?.credential?.state === "missing") {
 		actions.push("Configure the missing model credential.");

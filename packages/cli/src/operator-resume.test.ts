@@ -660,6 +660,44 @@ describe("operator resume", () => {
 		]);
 	});
 
+	it("keeps offering recovery when the last gate was KILLED rather than failed", () => {
+		// The split between `failed` and `timed-out` must not quietly cost a killed gate its own
+		// recovery commands. Both left work behind; only the wording an operator reads differs.
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const summary = buildOperatorResumeSummary({
+			handoffs: HANDOFFS,
+			status: readyStatus,
+			activeSessionId: "urn:sovereign:session:v1:abcdef1234567890",
+			finish: {
+				updatedAt: "2026-05-27T12:05:00.000Z",
+				status: "timed-out",
+				command: "refarm agent finish --run --json",
+				profile: "quick",
+				lane: null,
+				validationScope: "quick",
+				failedStepId: "package-apps-refarm-validation",
+				// Package-manager-NEUTRAL on purpose: handoffs must not hardcode an executor, and
+				// json-next-command-contract.test.ts scans fixtures too. The step this stands for
+				// really does run turbo; what matters here is that the command survives the split.
+				failedCommand: "refarm check --next-action --json",
+				nextCommands: ["refarm check --next-action --json"],
+				remainingCommands: [],
+			},
+			taskCheckpoint: {
+				updatedAt: "2026-05-27T12:00:00.000Z",
+				activeEffortId: undefined,
+				efforts: [],
+			},
+		});
+		expect(operatorResumeNextCommands(summary, HANDOFFS.commands)).toContain(
+			"refarm check --next-action --json",
+		);
+		// And it must not send the operator hunting for a defect that does not exist.
+		const actions = operatorResumeNextActions(summary);
+		expect(actions.join(" ")).toMatch(/killed at its time ceiling/u);
+		expect(actions.join(" ")).not.toMatch(/Complete the failed validation handoff/u);
+	});
+
 	it("surfaces missing model credentials when runtime is ready", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({
