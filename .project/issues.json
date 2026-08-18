@@ -1711,6 +1711,18 @@
 			"package": "apps/refarm",
 			"axis": "cost",
 			"resolved_by": "845c7deb"
+		},
+		{
+			"id": "ISS-145",
+			"title": "One provider could hold only one spendable seat, because the credential lived in the process and not on the task",
+			"body": "MEASURED 2026-08-17. The wall ISS-140 tier B named and did not move: the host bounds WHERE a\ntask may send, and nothing bounded WHICH SEAT pays when one provider holds two.\n\n    bearer_key_for_provider(provider) -> one env var per provider\n\nSo the operator's personal and corporate Copilot seats — different endpoints, different\nentitlements — could never both be provisioned. `provisionableAccounts` refused the pair and\nmade him authorise one, and a workspace bound to the other could not be honoured.\n\n## Keyed by the id everything else already uses\n\n`MODEL_ACCOUNT_CREDENTIALS` carries every authorised seat by OPAQUE credential id — what the\ndispatch declares and what the budget observation stamps. The seat that was bound, the seat that\npays and the seat the record names become ONE id rather than three inferences that can disagree.\n\nIT NEVER REACHES A PLUGIN, refused BY NAME in the env-forward policy and pinned by a test there.\nA name that merely happened not to match the `*_KEY` / `*_TOKEN` patterns would have forwarded\nlive tokens to a guest, which is the one failure that policy exists to make impossible.\n\nTHE ENDPOINT TRAVELS WITH THE SEAT for the same reason the key does: Copilot's exchange announces\na different host per seat, so a per-provider map cannot hold both. Precedence, narrowest first:\nthe task's seat, then the provider map, then the global override, then the static default.\n\n## Verified live, both seats of one provider on one node\n\n    ask --workspace refarm  -> corporate seat  -> ok   1814 in / 3 out\n    ask --workspace rcdc5   -> personal seat   -> ok   1814 in / 3 out\n    budget by-account       -> 2 groups, separate spend\n\n## Three defects found by live failure, and what each taught\n\n1. THE RENEWAL SKIPPED EXACTLY THE ACCOUNTS IT WAS FOR. It iterated `provisionableAccounts`,\n   which refuses a provider holding two authorised seats — so authorising both Copilot accounts\n   stopped either from being renewed, and both expired. A renewal that runs only where it was\n   not needed.\n\n2. THE NARROWING WAS WIRED INTO ONE OF TWO DISPATCH SHAPES. `refarm ask` fires a reply-LESS\n   envelope served by `on_event`; only `respond` had it. On the operator's note about\n   centralising common failure points, both now call ONE `set_task_scope` that owns the parsing\n   AND both writes — a third dispatch shape cannot half-adopt it. This is the second time in two\n   slices that a guard shipped inert and nothing said so.\n\n3. `base_url not allowed` NAMED NEITHER URL. It sent the search at the allowlist while the\n   difference was one seat's endpoint against another's. Both are printed now; they are\n   addresses, not credentials.\n\n## What this does not do\n\nThe per-provider env vars remain as the fallback for a dispatch that declares no seat, which is\nevery node-level run and every un-bound workspace. Nothing about the previous behaviour changed\nfor them.",
+			"location": "packages/tractor/src/host/wasi_bridge/core.rs",
+			"status": "resolved",
+			"category": "capability",
+			"priority": "high",
+			"package": "packages/tractor",
+			"axis": "cost",
+			"resolved_by": "75ad15ce"
 		}
 	]
 }
