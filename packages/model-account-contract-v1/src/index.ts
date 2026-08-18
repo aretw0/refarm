@@ -5,6 +5,7 @@ export * from "./describe-new.js";
 export * from "./migrate.js";
 export * from "./provider-status.js";
 export * from "./quota.js";
+export { quotaWindowFor, type QuotaWindow, type QuotaWindowSource } from "./quota-window.js";
 export {
 	describeReconciliation,
 	reconcileAccountQuota,

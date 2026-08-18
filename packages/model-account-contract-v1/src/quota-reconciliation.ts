@@ -101,11 +101,14 @@ export function describeReconciliation(reconciliation: MeterReconciliation): str
 			? "this node's own count is unknown for that period"
 			: `this node dispatched ${reconciliation.dispatchedHere} request(s)`;
 
+	// The dispatch count is an ACCOUNT fact, not a per-meter one. Repeating it on every line
+	// invites a reader to add it up — three meters would read as three times the traffic. It
+	// appears only where it is part of a comparison.
 	if (reconciliation.kind === "unlimited") {
-		return `\`${reconciliation.meter}\` is unlimited on this plan, so there is no remainder to spend down — ${here}.`;
+		return `\`${reconciliation.meter}\` is unlimited on this plan, so there is no remainder to spend down.`;
 	}
 	if (reconciliation.kind === "cannot-say") {
-		return `\`${reconciliation.meter}\`: the provider would not say (${reconciliation.reason}), which is not zero — ${here}.`;
+		return `\`${reconciliation.meter}\`: the provider would not say (${reconciliation.reason}), which is not zero.`;
 	}
 	return (
 		`\`${reconciliation.meter}\`: ${reconciliation.consumed} of ${reconciliation.entitlement} consumed, ` +

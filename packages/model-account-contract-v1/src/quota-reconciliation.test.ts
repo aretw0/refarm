@@ -105,6 +105,13 @@ describe("describeReconciliation", () => {
 		expect(describeReconciliation(chat!)).toMatch(/unlimited/iu);
 	});
 
+	it("does NOT repeat the account's dispatch count on every meter", () => {
+		// It is an account fact. Printed once per meter, three meters read as three times the
+		// traffic — and a reader who adds them gets a number nothing measured.
+		const [chat] = reconcileAccountQuota(QUOTA, DISPATCHED());
+		expect(describeReconciliation(chat!)).not.toMatch(/\b12\b/u);
+	});
+
 	it("names no CLI verb, so any surface can render it", () => {
 		const [, premium] = reconcileAccountQuota(QUOTA, DISPATCHED());
 		expect(describeReconciliation(premium!)).not.toMatch(/refarm /u);

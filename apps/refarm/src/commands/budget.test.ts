@@ -4,6 +4,7 @@ import {
 	budgetObservationsPageFromBody,
 	currentRateTableFrom,
 	DEFAULT_PERIOD_SPEC,
+	dispatchedPerAccount,
 	groupObservations,
 	outcomeMark,
 	parsePeriodSpec,
@@ -1005,5 +1006,67 @@ describe("outcomeMark", () => {
 		// An outcome the vocabulary does not (yet) name still renders, via the
 		// fallback — it must never throw.
 		expect(() => outcomeMark("some-future-outcome")).not.toThrow();
+	});
+});
+
+/**
+ * ISS-073 step 2: the two counts must share a period.
+ *
+ * A provider meter resets on a date. Counting this node's dispatches over a different span is the
+ * units error moved into time, and harder to catch because both numbers look like counts.
+ */
+describe("dispatchedPerAccount", () => {
+	const at = (ms: number, account: string | null) => ({
+		timestamp_ns: ms * 1_000_000,
+		...(account ? { "refarm.budget.credentialId": account } : {}),
+	});
+	const period = {
+		kind: "calendar-month" as const,
+		startMs: Date.UTC(2026, 7, 1),
+		endMs: Date.UTC(2026, 8, 1),
+		spec: "2026-08",
+		label: "August 2026",
+	};
+
+	it("counts each account's requests INSIDE the window only", () => {
+		const result = dispatchedPerAccount(
+			[
+				at(Date.UTC(2026, 7, 5), "acct-a"),
+				at(Date.UTC(2026, 7, 9), "acct-a"),
+				at(Date.UTC(2026, 6, 30), "acct-a"), // July — before the window
+				at(Date.UTC(2026, 7, 11), "acct-b"),
+			],
+			period,
+		);
+		expect(result.byAccount.get("acct-a")).toBe(2);
+		expect(result.byAccount.get("acct-b")).toBe(1);
+	});
+
+	it("keeps observations with NO account out of every account's count", () => {
+		// Folding them into any one account would invent attribution; folding them into the total
+		// silently would make one account look like it spent someone else's quota.
+		const result = dispatchedPerAccount(
+			[at(Date.UTC(2026, 7, 5), null), at(Date.UTC(2026, 7, 6), "acct-a")],
+			period,
+		);
+		expect(result.byAccount.get("acct-a")).toBe(1);
+		expect(result.unattributed).toBe(1);
+	});
+
+	it("counts a record with NO timestamp as unplaceable, not as inside the window", () => {
+		// `usageByPeriod` already draws this distinction for totals; an account count that
+		// quietly absorbed undated records would report more spend in a month than happened.
+		const result = dispatchedPerAccount(
+			[{ "refarm.budget.credentialId": "acct-a" }, at(Date.UTC(2026, 7, 5), "acct-a")],
+			period,
+		);
+		expect(result.byAccount.get("acct-a")).toBe(1);
+		expect(result.undated).toBe(1);
+	});
+
+	it("returns an empty map rather than zeros for accounts it never saw", () => {
+		const result = dispatchedPerAccount([], period);
+		expect(result.byAccount.size).toBe(0);
+		expect(result.unattributed).toBe(0);
 	});
 });

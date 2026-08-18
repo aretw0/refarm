@@ -1155,6 +1155,47 @@ export interface UsageByPeriod {
  * "how many requests, and how many tokens, did I use in this window" — the
  * subscription request-quota axis, not the dollar axis.
  */
+/** What this node dispatched, per account, inside one window.
+ *
+ * THREE BUCKETS, not one map. An observation with no account and an observation with no timestamp
+ * are different absences: the first cannot be attributed to a quota, the second cannot be placed
+ * in a period. Folding either into an account's count would report spend that did not happen
+ * there — and `usageByPeriod` already draws the same line for totals, so drawing a different one
+ * here would make two surfaces disagree about one record. */
+export interface DispatchedPerAccount {
+	readonly byAccount: ReadonlyMap<string, number>;
+	/** Dated, inside the window, but naming no account. */
+	readonly unattributed: number;
+	/** Named an account but carried no timestamp, so no window can claim it. */
+	readonly undated: number;
+}
+
+export function dispatchedPerAccount(
+	nodes: readonly ObservationNode[],
+	period: ResolvedPeriod,
+): DispatchedPerAccount {
+	const byAccount = new Map<string, number>();
+	let unattributed = 0;
+	let undated = 0;
+
+	for (const node of nodes) {
+		const tsMs = parseObservationTimestampMs(node);
+		if (tsMs === undefined) {
+			undated += 1;
+			continue;
+		}
+		if (tsMs < period.startMs || tsMs >= period.endMs) continue;
+		const account = node[GROUP_KEY_FIELD.account];
+		if (typeof account !== "string" || account.trim() === "") {
+			unattributed += 1;
+			continue;
+		}
+		byAccount.set(account, (byAccount.get(account) ?? 0) + 1);
+	}
+
+	return { byAccount, unattributed, undated };
+}
+
 export function usageByPeriod(
 	nodes: readonly ObservationNode[],
 	options: { period: ResolvedPeriod },
@@ -1373,6 +1414,22 @@ export function createBudgetCommand(): Command {
 			describes: "model account (refarm.budget.credentialId) — which quota paid",
 		},
 	];
+	command
+		.command("quota")
+		.description(
+			"The provider's remainder beside this node's dispatches, in the provider's own period",
+		)
+		.option("-n, --limit <n>", "Max observations to read", parseLimitOption, DEFAULT_LIMIT)
+		.option("--json", "Output machine-readable JSON")
+		.action(async (options: { limit: number; json?: boolean }) => {
+			const { runBudgetQuota } = await import("./budget-quota-command.js");
+			await runBudgetQuota({
+				limit: options.limit,
+				...(options.json ? { json: true } : {}),
+				fetchObservations: fetchBudgetObservations,
+			});
+		});
+
 	for (const { name, by, describes } of GROUP_SUBCOMMANDS) {
 		command
 			.command(name)

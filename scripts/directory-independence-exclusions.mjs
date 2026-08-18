@@ -102,6 +102,9 @@ export const PROBE_EXCLUSIONS = Object.freeze([
 	{ argv: ["auth", "verify"], category: "network" },
 	{ argv: ["cert", "providers"], category: "network" },
 	{ argv: ["credential", "quota"], category: "network" },
+	// Same provider call as `credential quota`, plus the local record beside it. Probing it from
+	// four directories would ask GitHub four times and prove nothing the sibling does not.
+	{ argv: ["budget", "quota"], category: "network" },
 	{ argv: ["source", "discover"], category: "network" },
 	// --- interactive ---
 	{ argv: ["guide"], category: "interactive" },
