@@ -295,7 +295,10 @@ describe("model routing config", () => {
 
 	it("classifies subscription providers with runtime adapters separately", () => {
 		expect(isRuntimeSubscriptionModelProvider("openai-codex")).toBe(true);
-		expect(isRuntimeSubscriptionModelProvider("github-copilot")).toBe(false);
+		// Was `false` until the host gained a Copilot arm (772480bd) and dispatched through it for
+		// real. A provider is listed here because the RUNTIME can reach it, so this line moves when
+		// the adapter lands — not when the provider is merely known.
+		expect(isRuntimeSubscriptionModelProvider("github-copilot")).toBe(true);
 		expect(isRuntimeSubscriptionModelProvider("openai")).toBe(false);
 	});
 
