@@ -24,7 +24,7 @@ import {
 	resolveModelProviderSelection,
 } from "../credentials/model-provider-selection.js";
 import { OAUTH_PROVIDER_TO_MODEL_PROVIDER, modelProviderInventories } from "../credentials/model.js";
-import { modelRouteTokenUpdate, parseModelRef } from "../model-routing.js";
+import { defaultModelForProvider, modelRouteTokenUpdate, parseModelRef } from "../model-routing.js";
 import { tryOpenUrl } from "../utils/open-url.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { emitCommandRefusal } from "./command-refusal.js";
@@ -144,6 +144,37 @@ function defaultSowDeps(): SowDeps {
 			cloudflare: cloudflareCredentialProvider,
 		},
 	};
+}
+
+/**
+ * PURE. What a login must write beside a provider, so the route stays COHERENT.
+ *
+ * A MODEL ID IS NOT PORTABLE ACROSS PROVIDERS, and a pinned one survives the change of the thing it
+ * was pinned to. Measured on the operator's node 2026-08-17: re-authenticating GitHub Copilot wrote
+ * `modelProvider: github-copilot` and left `modelId: gpt-5.5` — openai-codex's model — so the route
+ * became `github-copilot/gpt-5.5` and Copilot's own API refused it:
+ *
+ *     HTTP 400  model "gpt-5.5" is not accessible via the /chat/completions endpoint
+ *
+ * The scoped routes were right the whole time because they are DERIVED. Only the pinned value was
+ * wrong, which is the shape worth remembering: derived values follow their owner, pinned ones do
+ * not, and a pin outlives whatever it was pinned to unless something re-derives it.
+ *
+ * UNCHANGED PROVIDER TOUCHES NOTHING. A re-login of the same provider must not silently replace a
+ * model the operator chose — the pin is only stale when its owner moved.
+ */
+export function modelIdForProviderChange(
+	previousProvider: string | undefined,
+	nextProvider: string | undefined,
+	pinnedModelId: string | undefined,
+): string | undefined {
+	if (!nextProvider) return undefined;
+	const previous = stringValue(previousProvider)?.toLowerCase();
+	if (previous === nextProvider.trim().toLowerCase()) return undefined;
+	// No pin to invalidate: the route already derives, and writing one would PIN something the
+	// operator never chose.
+	if (!stringValue(pinnedModelId)) return undefined;
+	return defaultModelForProvider(nextProvider);
 }
 
 function credentialSummary(tokens: Record<string, unknown>, env: NodeJS.ProcessEnv) {
@@ -438,16 +469,32 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 						if (written.legacyKept) {
 							console.log(chalk.yellow(`  ${written.legacyKept}`));
 						}
+						// THE PIN FOLLOWS ITS OWNER (ISS-144): a model id belonging to the provider we
+						// are leaving must not survive the move, or the route names a model the new
+						// provider does not serve.
+						const rederivedModelId = modelIdForProviderChange(
+							stringValue(currentTokens.modelProvider),
+							modelProvider,
+							stringValue(currentTokens.modelId),
+						);
 						const tokenUpdate = {
 							modelProvider,
 							oauthProvider: credential.provider,
+							...(rederivedModelId ? { modelId: rederivedModelId } : {}),
 						};
 						await silo.saveTokens(tokenUpdate);
 						currentTokens = { ...currentTokens, ...tokenUpdate };
 					} else {
+						// Same rule on the API-key branch: the provider changes here too.
+						const rederivedApiModelId = modelIdForProviderChange(
+							stringValue(currentTokens.modelProvider),
+							credential.provider,
+							stringValue(currentTokens.modelId),
+						);
 						const tokenUpdate = {
 							modelProvider: credential.provider,
 							...(credential.apiKey ? { modelApiKey: credential.apiKey } : {}),
+							...(rederivedApiModelId ? { modelId: rederivedApiModelId } : {}),
 							oauthProvider: undefined,
 						};
 						await silo.saveTokens(tokenUpdate);

@@ -132,6 +132,13 @@ mod declared_model_provider_tests {
     /// an unrelated payload change break every model call.
     #[test]
     fn reads_the_declared_provider_in_either_spelling() {
+        // `provider` is what the wire actually carries: the CLI writes `args.provider`,
+        // `dispatch.rs` copies it into the payload, and the guest reads it. Reading only the
+        // effort's own field name made this inert and silent.
+        assert_eq!(
+            declared_model_provider(r#"{"prompt":"hi","provider":"github-copilot"}"#).as_deref(),
+            Some("github-copilot")
+        );
         assert_eq!(
             declared_model_provider(r#"{"modelProvider":"github-copilot"}"#).as_deref(),
             Some("github-copilot")
@@ -160,8 +167,16 @@ mod declared_model_provider_tests {
 /// model call.
 fn declared_model_provider(payload: &str) -> Option<String> {
     let parsed: serde_json::Value = serde_json::from_str(payload).ok()?;
+    // `provider` IS THE WIRE NAME, and reading the wrong one made this inert — measured
+    // 2026-08-17, right after it shipped: the CLI writes `args.provider`, `dispatch.rs` copies it
+    // to the payload as `provider`, and the guest reads `provider`. Nothing anywhere sends
+    // `modelProvider` at the top level, so the narrowing never fired and nothing said so.
+    //
+    // THE OTHER SPELLINGS STAY as a cheap hedge: this must keep working if a future payload
+    // carries the effort's own field names, and reading a name nobody sends costs nothing.
     let provider = parsed
-        .get("modelProvider")
+        .get("provider")
+        .or_else(|| parsed.get("modelProvider"))
         .or_else(|| parsed.get("model_provider"))?;
     let provider = provider.as_str()?.trim();
     if provider.is_empty() {

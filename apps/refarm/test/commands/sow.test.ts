@@ -870,3 +870,68 @@ describe("sowCommand — SIGINT handling", () => {
 		expect(process.exitCode).toBe(130);
 	});
 });
+
+/**
+ * ISS-144 — a model id is not portable across providers.
+ *
+ * Measured on the operator's node 2026-08-17. He re-authenticated GitHub Copilot; `sow` wrote
+ * `modelProvider: github-copilot` and left `modelId: gpt-5.5`, which belongs to openai-codex. The
+ * route became `github-copilot/gpt-5.5` — a provider and a model from different providers — and the
+ * first dispatch through it reached Copilot and was refused by Copilot's own API:
+ *
+ *     HTTP 400  model "gpt-5.5" is not accessible via the /chat/completions endpoint
+ *
+ * The SCOPED routes were right throughout (`worker` and `monitor` resolved to
+ * `github-copilot/gpt-4o`) because they are derived. Only the pinned `modelId` was wrong, because a
+ * pinned value survived the change of the thing it was pinned to.
+ */
+describe("sowCommand — a model id does not survive a change of provider", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		process.exitCode = undefined;
+	});
+
+	it("re-derives the model when the login moves the route to another provider", async () => {
+		mockLoadTokens.mockResolvedValue({ modelProvider: "openai-codex", modelId: "gpt-5.5" });
+		mockModelCollect.mockResolvedValue({
+			provider: "github-copilot",
+			apiKey: "copilot-access",
+			oauthCredentials: {
+				access: "tid=abc",
+				refresh: "ghu_x",
+				expires: Date.now() + 60_000,
+				accountId: "acct",
+			},
+		});
+
+		await sowCommand.parseAsync([], { from: "user" });
+
+		const saved = mockSaveTokens.mock.calls.map(([t]) => t).find((t) => t?.modelProvider);
+		expect(saved?.modelProvider).toBe("github-copilot");
+		expect(saved?.modelId).toBeTruthy();
+		expect(saved?.modelId).not.toBe("gpt-5.5");
+	});
+
+	it("does NOT touch the model when the provider is unchanged", async () => {
+		// A re-login of the same provider must not silently replace a model the operator pinned.
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "github-copilot",
+			modelId: "claude-sonnet-4",
+		});
+		mockModelCollect.mockResolvedValue({
+			provider: "github-copilot",
+			apiKey: "copilot-access",
+			oauthCredentials: {
+				access: "tid=abc",
+				refresh: "ghu_x",
+				expires: Date.now() + 60_000,
+				accountId: "acct",
+			},
+		});
+
+		await sowCommand.parseAsync([], { from: "user" });
+
+		const saved = mockSaveTokens.mock.calls.map(([t]) => t).find((t) => t?.modelProvider);
+		expect(saved?.modelId).toBeUndefined();
+	});
+});
