@@ -1759,6 +1759,17 @@
 			"priority": "medium",
 			"package": "@refarm.dev/health",
 			"axis": "node-vs-directory"
+		},
+		{
+			"id": "ISS-149",
+			"title": "The lane's per-step budget is below the cold cost of the package it validates",
+			"body": "MEASURED 2026-08-18, twice. 'refarm agent finish --lane after-edit --run' reported FAIL on package-apps-refarm-validation with elapsedMs=180106 against FINISH_PROCESS_TIMEOUT_MS=180000 (agent-finish-plan.ts:44). No test failed: the step was KILLED at the ceiling.\n\nWHY IT LOOKS LIKE A DEFECT AND IS NOT. apps/refarm's own suite is 239 files / 3599 tests and takes ~120s alone; type-check + lint + build push the cold total past 180s. With a warm turbo cache the same step finishes in 556ms. So the lane passes whenever the cache is warm and fails whenever it is cold — and the cache goes cold for apps/refarm on ANY edit to a package it depends on, which is most slices.\n\nTHE COST IS DIAGNOSTIC, NOT JUST TIME. The failing step reports stdout containing only turbo's banner, with no failing task named, so the honest reading of the output is 'something in apps/refarm broke'. Reproducing the printed nextCommand standalone then PASSES (warm cache), which reads as a flake. Two lane runs and one wrong conclusion were spent here before elapsedMs was inspected.\n\nNOT FIXED IN THIS SLICE, deliberately: raising the ceiling, splitting the step, or warming the cache before timing are three different answers with different costs, and the choice is the operator's. The measurement is recorded so the next agent reads elapsedMs before diagnosing.\n\nAdjacent: the step's failure envelope could name the timeout as a timeout — a killed process and a failed one are different facts, and today they render the same.",
+			"location": "apps/refarm/src/commands/agent-finish-plan.ts:44",
+			"status": "open",
+			"category": "infrastructure",
+			"priority": "medium",
+			"package": "@refarm.dev/refarm",
+			"axis": "durability"
 		}
 	]
 }
