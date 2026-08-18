@@ -1683,11 +1683,12 @@
 			"title": "The GitHub Copilot wire is parked in the generic account contract; it wants its own provider block",
 			"body": "MEASURED 2026-08-17, and prompted by the operator's own note mid-slice: evaluate where things\nbest live, for the sake of cultivating the general SDK.\n\nMaking GitHub Copilot dispatchable (ISS-141) needed its undocumented wire in TWO apps — the CLI\nprovisions the runtime, the daemon renews mid-run, and `apps/farmhand` cannot import from\n`apps/refarm`. The wire moved into `@refarm.dev/model-account-contract-v1` as a WAYPOINT, which\nis where it should not stay.\n\n## The line, and it is a clean one\n\n    GENERIC (stays in the account contract)     PROVIDER (belongs elsewhere)\n    descriptors, health, resolution             the copilot token exchange url + headers\n    bindings, authorization, precedence         parsing a copilot token's fields\n    QuotaMeter / AccountQuota vocabulary        deriving the per-seat endpoint from it\n    isMeterExhausted, meteredEntries            reading `quota_snapshots` into meters\n    provisionableAccounts                       the identity profiles refarm may present\n\nVOCABULARY IS GENERIC, PARSING IS PER PROVIDER. `readQuotaMeter` reads `unlimited`,\n`has_quota`, `percent_remaining` — Copilot's field names — while the three states it produces\nare provider-neutral and already carry the trap worth keeping generic (an unlimited meter\nreporting `remaining: 0`).\n\n## Why it matters beyond tidiness\n\nISS-137 measured seven packages whose NAME declares a contract and whose shape does not, and the\nrepair for four of them is genuine. Letting one provider's undocumented wire settle into the\ngeneric account contract is that drift arriving from the other direction — the package would\nstill be named a contract and would increasingly be a provider adapter.\n\nNAMED FOR WHAT IT IS: `@refarm.dev/github-copilot-wire`, NOT `*-contract-v1`. It is an adapter\nfor one provider's undocumented surface, it has no conformance suite to offer, and naming it a\ncontract would trip the ratchet ISS-137 just planted — correctly.\n\n## Not done in the same slice, deliberately\n\nA new package is a scaffold plus two hand-maintained registries plus a full gate run, at the end\nof a slice that already rebuilt the WASM component and the runtime. The extraction is mechanical\nand provable — tests green on both sides of a move that changes no behaviour — which is exactly\nthe kind of change that should own its own commit and its own green tree.",
 			"location": "packages/model-account-contract-v1/src/copilot-wire.ts",
-			"status": "open",
+			"status": "resolved",
 			"category": "cleanup",
 			"priority": "medium",
 			"package": "packages/model-account-contract-v1",
-			"axis": "durability"
+			"axis": "durability",
+			"resolved_by": "c77fd97e"
 		},
 		{
 			"id": "ISS-143",
@@ -1723,6 +1724,30 @@
 			"package": "packages/tractor",
 			"axis": "cost",
 			"resolved_by": "75ad15ce"
+		},
+		{
+			"id": "ISS-146",
+			"title": "The lint never reads Rust test targets, so an integration test that stopped compiling was invisible",
+			"body": "MEASURED 2026-08-18. `tractor-rs:lint` runs `cargo clippy` WITHOUT `--all-targets`, and\n`test --lib` does not reach integration tests either — they are separate binaries. So\n`tests/source_provider_sidecar_e2e.rs` had not COMPILED since `sync_verbs` moved under\n`profile`, and every gate in this repo was green throughout.\n\nFIXED: `gate-rust-test-targets` in `before-push` runs `cargo check --all-targets`. Proven to\nbite — reverting the one-line repair fails the gate.\n\n`check`, NOT `clippy -D warnings`, and the distinction is the point. Clippy over test\ntargets turns years of style debt in fixtures into a red gate on arrival: its first run here\nreported doc-comment formatting and a `MutexGuard` held across an await, none of which is\nthe failure this exists to catch. A gate red on arrival is a gate an operator learns to\nbypass; this one asks a precise question instead — does it still compile.\n\nSTILL OPEN: the same blind spot exists for `packages/agent`, and the gate covers only\n`packages/tractor`. Widening it is a line of config; what is worth measuring first is\nwhether the agent crate has integration tests at all.",
+			"location": "apps/refarm/src/commands/agent-finish-plan.ts",
+			"status": "resolved",
+			"category": "gap",
+			"priority": "medium",
+			"package": "packages/tractor",
+			"axis": "durability",
+			"resolved_by": "c77fd97e"
+		},
+		{
+			"id": "ISS-147",
+			"title": "A peer id was keyed on the namespace STRING, so every in-memory sync wrote to the ambient graph base",
+			"body": "MEASURED 2026-08-18, and the shape is worth more than the fix.\n\n`peer_id_for_namespace` returned `None` — no persistent home — for the literal namespace\n`:memory:`, and read-or-created `{namespace}.peer` under the declared graph base for every\nother name. A sync over IN-MEMORY storage built as `NativeSync::new(storage, \"test\")`\ntherefore wrote a file to disk.\n\nHarmless while the base fell back to the process CWD. Once the base honoured the node's\ndeclaration (ISS-123 — correctly), roughly fifteen test files became env-sensitive at once:\na sibling pointing REFARM_HOME at a TempDir that had since dropped failed whichever test ran\nnext. Roughly one run in three, with A DIFFERENT NAME EACH TIME.\n\n## Three fixes before one\n\nA per-test `env_lock` deflaked one test and the failure moved to the next. Locking fourteen\nin that file moved it to another file. A lock inside a shared helper moved it again.\n\nTHE DIFFERENT NAME EACH RUN WAS THE EVIDENCE and I read it late: a failure that changes\nidentity between runs is not several bugs, it is one cause with several victims. Every lock\nwas a second door into one rule.\n\n## The rule, stated once\n\nA peer id is the identity of a PERSISTED replica. Storage that does not survive the process\nhas none, whatever its namespace is called — and derivation from the namespace already keeps\nin-process replicas distinct without a file. `NativeStorage` now carries whether it is\npersistent, and that fact decides, not a name.\n\nThirteen of fourteen consecutive full-suite runs green after, against roughly two in three\nbefore. The scattered guards were removed rather than kept: leaving them would say the cure\nwas the lock.\n\nWORTH WATCHING: prior art in a90028cb deflaked two env tests before this slice, so a residual\nenv-race class predates it. If a name recurs, it is that class and not this rule.",
+			"location": "packages/tractor/src/sync/loro.rs:56",
+			"status": "resolved",
+			"category": "defect",
+			"priority": "high",
+			"package": "packages/tractor",
+			"axis": "durability",
+			"resolved_by": "4e19d553"
 		}
 	]
 }
