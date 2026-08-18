@@ -5,6 +5,7 @@ export * from "./describe-new.js";
 export * from "./migrate.js";
 export * from "./provider-status.js";
 export * from "./quota.js";
+export { solePayerFor } from "./sole-payer.js";
 export {
 	attributeMeter,
 	readMeterUsageFacts,

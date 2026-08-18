@@ -20,11 +20,13 @@ import {
 	type ContextProvider,
 } from "@refarm.dev/context-provider-v1";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
+import { solePayerFor } from "@refarm.dev/model-account-contract-v1";
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import { REFARM_BINARY, REFARM_PRODUCT_NAME, refarmCommand } from "../brand.js";
+
 import { readBindings, readCatalog } from "../credentials/account-view-loader.js";
 import { MODEL_SCOPES, parseModelScope, type ModelScope } from "../model-routing.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
@@ -910,9 +912,14 @@ export {
 					// unattributed (ISS-130). Resolved from the binding rather than from the
 					// route, because the route names a provider and a provider is not an account.
 					//
-					// Absent when this workspace binds nothing — the field is omitted all the way
-					// to the host, and `by-account` counts that as `unattributed`, which is true.
-					credentialId: credentialIdForWorkspace(workspace.workspaceId),
+					// Absent when the workspace binds nothing AND the provider has more than one
+					// usable seat — the field is omitted all the way to the host, and `by-account`
+					// counts that as `unattributed`, which is then the true answer rather than a
+					// gap. With a single seat the payer is determined and is recorded.
+					credentialId: credentialIdForWorkspace(
+						workspace.workspaceId,
+						boundRoute.modelProvider,
+					),
 				});
 
 				if (!opts.json) {
@@ -1048,13 +1055,33 @@ export {
 	}
 	}
 
-	function credentialIdForWorkspace(workspaceId: string | undefined): string | undefined {
-	if (!workspaceId) return undefined;
+	/**
+	 * Which seat pays for this dispatch.
+	 *
+	 * A DECLARED binding wins — the operator naming a seat for a workspace is the whole point of
+	 * the binding. When nobody declared one, the seat is still knowable if the provider has
+	 * exactly one usable account on this node, and that case is worth recovering: measured
+	 * 2026-08-18, 36 of 57 observations named no payer, 34 of them on a provider this node holds
+	 * a single account of. They spent a real seat and the record said nobody did.
+	 *
+	 * With two seats and no binding it REFUSES. Nothing here knows which one the host chose, and
+	 * naming either would attribute spend to a seat that may not have paid.
+	 */
+	function credentialIdForWorkspace(
+		workspaceId: string | undefined,
+		provider?: string,
+	): string | undefined {
 	try {
-		return readBindings(resolveRefarmHome()).find((b) => b.workspaceId === workspaceId)?.credentialId;
+		const home = resolveRefarmHome();
+		const declared = workspaceId
+			? readBindings(home).find((b) => b.workspaceId === workspaceId)?.credentialId
+			: undefined;
+		if (declared) return declared;
+		if (!provider) return undefined;
+		return solePayerFor(provider, readCatalog(home))?.credentialId;
 	} catch {
-		// A binding that cannot be read must not stop a dispatch. The observation then records no
-		// payer, which is the same honest absence an unbound workspace produces.
+		// A catalog or binding that cannot be read must not stop a dispatch. The observation then
+		// records no payer, which is the same honest absence an ambiguous provider produces.
 		return undefined;
 	}
 	}
