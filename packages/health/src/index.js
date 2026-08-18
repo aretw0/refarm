@@ -112,6 +112,13 @@ import { ToolchainAuditor } from "./auditors/toolchain.js";
 import { ConfigNodeAuditor } from "./auditors/config-node.js";
 export { detectProjectBase } from "./project-base.js";
 export {
+	compareVersions,
+	explainToolRequirement,
+	parseToolVersion,
+	readToolRequirements,
+	toolRequirementState,
+} from "./tool-requirements.js";
+export {
 	buildSessionPressureBudget,
 	buildEnvironmentPressureReport,
 	bytesToMiB,

@@ -1748,6 +1748,17 @@
 			"package": "packages/tractor",
 			"axis": "durability",
 			"resolved_by": "4e19d553"
+		},
+		{
+			"id": "ISS-148",
+			"title": "A node declares the tools it depends on but does not ship",
+			"body": "A node runs on tools it did not build (gh, rsync, cargo, a VPN client). Nothing measured them: a presence check passes for a gh from 2022, and the staleness only surfaces as an unrelated subcommand failing mid-work. Measured on the operator's node as 'gh version 2.4.0+dfsg1 (2022-03-23)'.\n\nSHIPPED: packages/health/src/tool-requirements.js — pure, four states (ok / absent / outdated / cannot-say), malformed entries reported rather than dropped. Wired through ToolchainAuditor (which already existed, was generic, and had NO consumer outside its own test) into refarm health, which reports results.nodeTools and recommends per state with no invented fix command.\n\nTHREE THINGS THE SLICE CLOSED BEYOND THE FEATURE:\n1. Privilege boundary. Auditing a tool RUNS it, so the declaration is read from the NODE tier only. auditConfigTier is reporting-only today, so readNodeToolDeclaration enforces it at the reader itself; a workspace config declaring nodeTools is refused AND reported. Registered in CONFIG_KEY_OWNERSHIP and docs/CONFIG_TIERS.md.\n2. Cache staleness. The health audit cache fingerprints the REPOSITORY; a node tool is outside that tree, so no hash of it notices gh being upgraded. Tool checks are re-measured on every run including cache hits, and the report is rebuilt rather than patched.\n3. Regression from 772480bd. packages/config's suite had been red since the Copilot dispatch adapter landed: github-copilot gained a runtime adapter and the test still asserted it had none. Fixed; 147/147.\n\nDocs: docs/node-tools.md. Step toward describing the node rather than copying it.",
+			"location": "packages/health/src/tool-requirements.js",
+			"status": "open",
+			"category": "feature",
+			"priority": "medium",
+			"package": "@refarm.dev/health",
+			"axis": "node-vs-directory"
 		}
 	]
 }

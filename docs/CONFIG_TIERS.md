@@ -79,6 +79,7 @@ key, correctable in one line, each carrying a reason a reader can re-check.
 | `approvedPermissions` | node | yes | the grant itself, enforced by the Rust host |
 | `spawnEnv` | node | yes | what the host injects into every spawned process — a repo setting it chooses which binaries run |
 | `trusted_plugins` | node | yes | which plugin code may load; a plugin cannot be trusted to decide this about itself |
+| `nodeTools` | node | yes | auditing a declared tool RUNS it, so whoever holds this key chooses which binaries the node executes — see [`docs/node-tools.md`](node-tools.md) |
 | `connections` | node | yes | names a command that runs on THIS machine |
 | `delivery` | node | yes | channels carry the node's credentials |
 | `processes` | node | yes | a long-running process on the node |
@@ -113,6 +114,15 @@ the readers **changes what those configs do** — by the measurement above, this
 repository's workspace config would go from five keys to zero. That is a
 deliberate act with a blast radius, and it belongs to its own slice, not to the
 commit that wrote the contract.
+
+**One key does not wait for that slice.** `nodeTools` is enforced at its own
+reader (`readNodeToolDeclaration` in `apps/refarm/src/commands/health.ts`),
+because auditing a declared tool spawns it: a repository that could hold this key
+would choose which binaries the machine runs, and cloning it would be enough. A
+workspace config that declares `nodeTools` is **not honoured and IS reported** —
+the sanction this document already describes, applied early because the reader
+that creates the risk is the one that can close it. Every other key still follows
+the reporting-only rule above.
 
 ## The Rust half — fixed 2026-08-11
 

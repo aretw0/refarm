@@ -29,6 +29,10 @@ export interface HealthComplexityPolicy {
 
 export interface RefarmConfig {
 	workspaceNamespaces?: unknown;
+	/** Tools this node depends on but does not ship — see readToolRequirements in
+	 *  @refarm.dev/health. Loose here because the reader validates and REPORTS malformed
+	 *  entries; typing it strictly would make a typo a parse error instead of a finding. */
+	nodeTools?: unknown;
 	health?: {
 		preset?: "refarm" | "workspace";
 		workspaceRoots?: unknown;

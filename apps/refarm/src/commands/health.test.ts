@@ -153,3 +153,78 @@ describe("buildHealthReport — skippedAuditors", () => {
 		expect(report.issueCount).toBe(0);
 	});
 });
+
+/**
+ * DECLARED NODE TOOLS.
+ *
+ * The tools a node runs on but does not ship — `gh`, a VPN client, `rsync`. The failure measured
+ * on the operator's own node: `gh` 2.4.0 from 2022, installed and exiting 0, so every presence
+ * check passed and the staleness only surfaced as an unrelated command failing mid-work.
+ *
+ * These tests hold the line at the LAST hop: a finding that reaches the report envelope and stops
+ * there has told nobody. The recommendation is where an operator actually reads it.
+ */
+describe("buildHealthRecommendations — declared node tools", () => {
+	it("says nothing about tools for a node that declared none", () => {
+		// Adopting this must not change a node that has said nothing.
+		expect(buildHealthRecommendations(emptyResults())).toEqual([]);
+	});
+
+	it("recommends UPDATING an outdated tool, carrying both versions", () => {
+		const results: HealthResults = {
+			...emptyResults(),
+			nodeTools: {
+				checks: [
+					{
+						id: "node-tool:gh",
+						label: "gh >= 2.40.0",
+						ok: false,
+						required: true,
+						state: "outdated",
+						minVersion: "2.40.0",
+						measuredVersion: "2.4.0",
+						detail: "`gh` measured 2.4.0, below the declared minimum 2.40.0.",
+					},
+				],
+				malformed: [],
+			},
+		};
+		const [recommendation] = buildHealthRecommendations(results);
+		expect(recommendation?.diagnostic).toBe("node-tool-outdated");
+		expect(recommendation?.summary).toContain("2.4.0");
+		expect(recommendation?.action).toMatch(/Update the tool/u);
+		// No handoff command: this node has no verb that installs a tool, and a dead command in
+		// `nextCommands` is followed by every agent loop in this repo.
+		expect(recommendation?.command).toBeUndefined();
+	});
+
+	it("does NOT tell an operator to update a tool whose version could not be read", () => {
+		// `cannot-say` and `outdated` are different repairs. Merging them sends the operator to
+		// upgrade something that may already be current, and hides that nothing measured it.
+		const results: HealthResults = {
+			...emptyResults(),
+			nodeTools: {
+				checks: [
+					{ id: "node-tool:ovpnctl", label: "ovpnctl >= 1.0.0", ok: false, required: true, state: "cannot-say" },
+				],
+				malformed: [],
+			},
+		};
+		const [recommendation] = buildHealthRecommendations(results);
+		expect(recommendation?.diagnostic).toBe("node-tool-cannot-say");
+		expect(recommendation?.action).toMatch(/UNVERIFIED/u);
+		expect(recommendation?.action).not.toMatch(/Update the tool/u);
+	});
+
+	it("surfaces a declaration entry it could not read, rather than dropping it", () => {
+		// The silence this surface exists to break: an entry the operator believes guards a tool,
+		// which nothing is checking.
+		const results: HealthResults = {
+			...emptyResults(),
+			nodeTools: { checks: [], malformed: [{ minVersion: "2.40.0" }] },
+		};
+		const [recommendation] = buildHealthRecommendations(results);
+		expect(recommendation?.diagnostic).toBe("node-tool-malformed");
+		expect(recommendation?.summary).toMatch(/nothing is checking/u);
+	});
+});

@@ -39,7 +39,12 @@ const {
   mockRenameSync: vi.fn(),
 }));
 
-vi.mock("@refarm.dev/health", () => ({
+// PARTIAL. The auditors are replaced because they reach the filesystem; the pure readers
+// (`readToolRequirements`) are kept, because a hand-written stand-in would let this suite pass
+// against a contract the package no longer has — and a total mock silently drops every export
+// added later, which is how a missing reader surfaced here as "config could not be parsed".
+vi.mock("@refarm.dev/health", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@refarm.dev/health")>()),
   HealthCore: vi.fn().mockImplementation(function () {
     return { register: vi.fn(), audit: mockAudit, checkResolutionStatus: mockCheckResolutionStatus };
   }),

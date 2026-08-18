@@ -99,6 +99,10 @@ export interface ComplexityAuditResult {
     }>;
 }
 
+/** The four states a declared tool can be in. `cannot-say` is deliberately not `ok`: a minimum
+ *  that nothing could verify is unmet-as-far-as-this-node-knows, not satisfied. */
+export type ToolRequirementState = "ok" | "absent" | "outdated" | "cannot-say";
+
 export interface ToolchainCheck {
     id: string;
     label: string;
@@ -108,6 +112,12 @@ export interface ToolchainCheck {
     target?: string;
     command?: string;
     version?: string;
+    /** Command checks only; path and mount checks carry no version question. */
+    state?: ToolRequirementState;
+    minVersion?: string;
+    measuredVersion?: string;
+    /** Human-readable fact for a state that is not `ok`. Never names a fix command. */
+    detail?: string;
     stderr?: string;
 }
 
@@ -126,6 +136,10 @@ export interface ToolchainCommandCheckOptions {
     args?: string[];
     required?: boolean;
     shell?: boolean;
+    /** Declared floor. Present and older than this FAILS the check — see tool-requirements.js. */
+    minVersion?: string;
+    /** What the node depends on this tool for, carried into the reported detail. */
+    why?: string;
 }
 
 export interface ToolchainAnyCommandCheckOptions {
@@ -260,3 +274,31 @@ export class RefarmProjectAuditor extends ProjectAuditor {
     constructor(options?: ProjectAuditorOptions);
 }
 //# sourceMappingURL=index.d.ts.map
+
+export interface DeclaredTool {
+    command: string;
+    args: string[];
+    minVersion?: string;
+    why?: string;
+}
+
+export interface ToolRequirements {
+    tools: DeclaredTool[];
+    /** Entries that could not be read. Reported rather than dropped: a vanished typo leaves an
+     *  unguarded dependency that reads as a guarded one. */
+    malformed: unknown[];
+}
+
+export function readToolRequirements(config: unknown): ToolRequirements;
+export function parseToolVersion(text: string | undefined): string | undefined;
+export function compareVersions(left: string, right: string): -1 | 0 | 1;
+export function toolRequirementState(input: {
+    present: boolean;
+    versionText?: string;
+    minVersion?: string;
+}): ToolRequirementState;
+export function explainToolRequirement(
+    tool: { command: string; minVersion?: string; why?: string },
+    state: ToolRequirementState,
+    measured: string | undefined,
+): string | null;

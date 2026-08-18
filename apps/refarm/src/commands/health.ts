@@ -1,11 +1,13 @@
-import { defaultSovereignConfigPath, findSovereignConfigPath } from "@refarm.dev/config";
+import { declaredBase, defaultSovereignConfigPath, findSovereignConfigPath } from "@refarm.dev/config";
 import {
 	ComplexityAuditor,
 	ConfigNodeAuditor,
 	FileSystemAuditor,
 	HealthCore,
 	ProjectAuditor,
+	readToolRequirements,
 	RefarmProjectAuditor,
+	ToolchainAuditor,
 } from "@refarm.dev/health";
 import type { Command } from "commander";
 import fs from "node:fs";
@@ -67,6 +69,10 @@ export interface HealthResults {
 	complexity?: HealthIssue[];
 	complexitySummary?: unknown;
 	configNode?: HealthIssue[];
+	/** Declared tools this node could not satisfy, plus declaration entries that could not be
+	 *  read. Present-and-EMPTY when the node declared nothing: "asked, nothing to report" is a
+	 *  different fact from a build that never looked, and only one of them is absence. */
+	nodeTools?: NodeToolFindings;
 	/**
 	 * The orchestrator's per-auditor results (config-node lives here).
 	 * `applicable`/`reason` are set by project-shaped auditors (generic_fs,
@@ -87,6 +93,24 @@ export interface HealthResults {
 			[key: string]: unknown;
 		}
 	>;
+}
+
+/** A declared tool the node could not satisfy. `state` separates the repairs: install it, update
+ *  it, or find out why its version cannot be read. */
+export interface NodeToolCheck {
+	id: string;
+	label: string;
+	ok: boolean;
+	required: boolean;
+	state?: "ok" | "absent" | "outdated" | "cannot-say";
+	minVersion?: string;
+	measuredVersion?: string;
+	detail?: string;
+}
+
+export interface NodeToolFindings {
+	checks: NodeToolCheck[];
+	malformed: unknown[];
 }
 
 /**
@@ -168,7 +192,12 @@ export function buildHealthReport(
 		results.alignment.length +
 		(results.automations?.length ?? 0) +
 		(results.complexity?.length ?? 0) +
-		(results.configNode?.length ?? 0);
+		(results.configNode?.length ?? 0) +
+		// Counted, so `ok` cannot say all-clear while recommending a repair. Only a node that
+		// DECLARED tools can reach this — an operator who does not want an outdated tool to fail
+		// the gate lowers the minimum or drops the entry, which are both honest answers.
+		(results.nodeTools?.checks.length ?? 0) +
+		(results.nodeTools?.malformed.length ?? 0);
 	const recommendations = buildHealthRecommendations(results);
 	const nextActions = diagnosticNextActions(recommendations);
 	const nextCommands = diagnosticNextCommands(recommendations);
@@ -314,8 +343,38 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
 				action: presentation.action,
 			};
 		}),
+		// No `command`: this node has no verb that installs a tool for the operator, and inventing
+		// one that does not exist would put a dead handoff into `nextCommands`, which every agent
+		// loop in this repo is told to follow.
+		...(results.nodeTools?.checks ?? []).map((check) => ({
+			issueType: `node-tool-${check.state ?? "absent"}`,
+			diagnostic: `node-tool-${check.state ?? "absent"}`,
+			target: check.label,
+			summary: check.detail ?? `${check.label} is declared by this node and is not satisfied.`,
+			action: NODE_TOOL_ACTIONS[check.state ?? "absent"],
+		})),
+		...(results.nodeTools?.malformed ?? []).map((entry) => ({
+			issueType: "node-tool-malformed",
+			diagnostic: "node-tool-malformed",
+			target: typeof entry === "string" ? entry : JSON.stringify(entry),
+			summary: "A nodeTools entry could not be read, so nothing is checking the tool it names.",
+			action:
+				"Fix the entry in the sovereign config: each tool needs a `command`, and may carry " +
+				"`minVersion` and `why`.",
+		})),
 	];
 }
+
+/** What an operator actually does about each state. Kept beside the mapping rather than inside
+ *  @refarm.dev/health, which reports the FACT and must not name one surface's repair. */
+const NODE_TOOL_ACTIONS: Record<NonNullable<NodeToolCheck["state"]>, string> = {
+	absent: "Install the tool on this node, or remove it from `nodeTools` if it is no longer needed.",
+	outdated:
+		"Update the tool on this node, or lower the declared minimum if the older version is genuinely enough.",
+	"cannot-say":
+		"Read the tool's version output by hand: the declared minimum is UNVERIFIED, not met, and one of the two is a real problem.",
+	ok: "No action: this tool satisfies its declaration.",
+};
 
 /**
  * The base `ConfigNodeAuditor` must read the local `.refarm/config.json` from —
@@ -356,7 +415,16 @@ export async function runHealthAudit(
 	const cached = readHealthAuditCache(rootDir, fingerprint, {
 		allowStale: options.cacheMode === "stable",
 	});
-	if (cached) return cached;
+	if (cached) {
+		// The cache is a fingerprint over the REPOSITORY. A node tool lives outside it entirely —
+		// which is the whole reason this surface exists — so no hash of the tree can notice `gh`
+		// being upgraded. Re-measured on every hit: an operator who updates a tool and re-runs
+		// `health` must not be told the stale answer they just repaired.
+		cached.results.nodeTools = await auditDeclaredNodeTools(rootDir);
+		// Rebuilt, not patched: recommendations, nextActions and `ok` are all derived from results,
+		// and hand-updating one of the four is how a report comes to contradict itself.
+		return buildHealthReport(cached.results, cached.resolution, cached.skippedAuditors);
+	}
 
 	const graphContext = await openTractorGraph();
 	const health = new HealthCore(graphContext);
@@ -389,6 +457,7 @@ export async function runHealthAudit(
 	// Lift the config-node auditor's issues out of the orchestrator bag so the
 	// report surfaces cross-device config drift alongside the fs/build findings.
 	results.configNode = results._orchestrator?.["config-node"]?.issues ?? [];
+	results.nodeTools = await auditDeclaredNodeTools(rootDir);
 	// generic_fs and project self-report `applicable: false` when `rootDir` is
 	// not a project (a node base like `~`) — surface that at the envelope's
 	// top level instead of letting their resulting empty arrays read as a
@@ -428,7 +497,7 @@ export async function applySuggestedHealthPolicy(
 	// os-resolution: project — audits the repository tree the operator is standing in
 	rootDir = process.cwd(),
 ): Promise<HealthPolicyApplicationReport> {
-	const configPath = findSovereignConfigPath(rootDir) ?? defaultSovereignConfigPath(rootDir);
+	const configPath = resolveSovereignConfigPath(rootDir);
 	const suggestion = await runHealthPolicySuggestion(rootDir);
 	const config = readRefarmConfigForWrite(configPath);
 	const previousHealth = config.health;
@@ -452,6 +521,99 @@ export async function applySuggestedHealthPolicy(
 		nextCommand,
 		nextCommands,
 	};
+}
+
+/**
+ * The tools this node depends on but does not ship: `gh`, a VPN client, `rsync`. They drift on
+ * their own schedule and nothing here noticed when they did — measured on this node as `gh` 2.4.0
+ * from 2022, present and answering, so every presence check passed.
+ *
+ * A declared tool that is absent, outdated or unverifiable is a NODE finding, not a project one:
+ * it belongs beside the fs/build results so `health` answers "can this node work?" and not only
+ * "is this repository well-formed?".
+ *
+ * ONE function owns this, deliberately. It runs on the full audit AND on a cache hit, and two
+ * copies of the mapping would be two places for the declaration to be read differently. A node
+ * that declared nothing measures nothing, so adopting this changes no existing node's report.
+ */
+async function auditDeclaredNodeTools(rootDir: string): Promise<NodeToolFindings> {
+	const declaration = readNodeToolDeclaration(rootDir);
+	if (declaration.tools.length === 0) return { checks: [], malformed: declaration.malformed };
+	const auditor = new ToolchainAuditor({
+		title: "Declared Node Tools",
+		commandChecks: declaration.tools.map((tool) => ({
+			id: `node-tool:${tool.command}`,
+			label: tool.minVersion ? `${tool.command} >= ${tool.minVersion}` : tool.command,
+			command: tool.command,
+			args: tool.args,
+			minVersion: tool.minVersion,
+			why: tool.why,
+		})),
+	});
+	const report = await auditor.audit({ rootDir });
+	return {
+		checks: (report.checks as NodeToolCheck[]).filter((check) => !check.ok),
+		malformed: declaration.malformed,
+	};
+}
+
+/** ONE place that decides which file this node speaks its config through. Two call sites drifting
+ *  apart would have `health` audit one file while `--apply-policy` writes another. */
+function resolveSovereignConfigPath(rootDir: string): string {
+	return findSovereignConfigPath(rootDir) ?? defaultSovereignConfigPath(rootDir);
+}
+
+/**
+ * The declared node tools — read from the NODE tier only, and never from where the operator stands.
+ *
+ * This is a privilege boundary, not a lookup preference. Auditing a declared tool SPAWNS it to read
+ * its version, so whoever may write this key chooses which binaries this machine executes. Cloning
+ * a repository whose `.refarm/config.json` declared `nodeTools` would be enough. `docs/CONFIG_TIERS.md`
+ * registers the key as node-owned and workspace-REQUESTABLE, but `auditConfigTier` is reporting-only
+ * today — so the reader that creates the risk is the one that holds the line, rather than waiting
+ * for the general enforcement slice.
+ *
+ * A parse failure comes back as MALFORMED, not as an empty declaration: `readRefarmConfigForWrite`
+ * throws, which is right for a writer (never overwrite a file you could not read) and wrong here —
+ * `health` exists to report problems, and crashing on the config it audits reports nothing. A config
+ * this build cannot read is not a node that declared no tools, and letting it read that way is the
+ * silence this surface exists to break.
+ */
+function readNodeToolDeclaration(rootDir: string): ReturnType<typeof readToolRequirements> {
+	const nodeConfigPath = path.join(declaredBase(), ".refarm", "config.json");
+	const declaration = readToolDeclarationAt(nodeConfigPath);
+
+	// A workspace may STATE the need; it may not hold the declaration. Reported rather than
+	// silently ignored, so an operator who wrote it in the wrong file learns why nothing happened.
+	const workspaceConfigPath = resolveSovereignConfigPath(rootDir);
+	if (path.resolve(workspaceConfigPath) !== path.resolve(nodeConfigPath)) {
+		const requested = readToolDeclarationAt(workspaceConfigPath);
+		// `tools` only. A workspace config that is merely unreadable has not declared anything, and
+		// saying it did would be an accusation the file does not support.
+		if (requested.tools.length > 0) {
+			declaration.malformed.push(
+				`${workspaceConfigPath} declares nodeTools, which only the node tier may hold — ` +
+					"auditing a tool runs it, so a repository declaring this would choose which binaries " +
+					"this machine executes. Move it to the node config to honour it.",
+			);
+		}
+	}
+	return declaration;
+}
+
+function readToolDeclarationAt(configPath: string): ReturnType<typeof readToolRequirements> {
+	if (!fs.existsSync(configPath)) return { tools: [], malformed: [] };
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return { tools: [], malformed: [`${configPath} could not be parsed: ${message}`] };
+	}
+	// OUTSIDE the catch, deliberately. Wrapping the reader too turned a missing export into
+	// "this config could not be parsed" — a failure in this build, reported as a fault in the
+	// operator's file. A broken reader must fail loudly as itself.
+	return readToolRequirements(parsed);
 }
 
 function readRefarmConfigForWrite(configPath: string): RefarmConfig {

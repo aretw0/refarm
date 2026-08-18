@@ -55,6 +55,12 @@ export const CONFIG_KEY_OWNERSHIP = {
 		requestable: true,
 		reason: "which plugin code may load at all — the decision a plugin cannot be trusted to make about itself",
 	},
+	nodeTools: {
+		owner: "node",
+		requestable: true,
+		reason:
+			"health SPAWNS every declared command to read its version, so a repository that could declare this would choose which binaries the node executes; stating the need (`I require gh >= 2.40.0`) is legitimate, holding the declaration is not",
+	},
 	connections: {
 		owner: "node",
 		requestable: true,
