@@ -33,4 +33,5 @@
  * PURE. No network, no credential, no login. The I/O belongs to whoever calls this.
  */
 export * from "./identity.js";
+export * from "./quota.js";
 export * from "./wire.js";

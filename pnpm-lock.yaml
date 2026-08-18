@@ -1484,6 +1484,10 @@ importers:
         version: link:../vtconfig
 
   packages/github-copilot-wire:
+    dependencies:
+      '@refarm.dev/model-account-contract-v1':
+        specifier: workspace:*
+        version: link:../model-account-contract-v1
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*

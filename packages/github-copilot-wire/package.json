@@ -26,5 +26,8 @@
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*"
+	},
+	"dependencies": {
+		"@refarm.dev/model-account-contract-v1": "workspace:*"
 	}
 }

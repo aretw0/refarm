@@ -16,7 +16,8 @@
  * them. "The provider was unavailable" is not "the credential is rejected" is not "this account
  * has no quota left".
  */
-import { readAccountQuota, type AccountQuota } from "@refarm.dev/model-account-contract-v1";
+import { readAccountQuota } from "@refarm.dev/github-copilot-wire";
+import type { AccountQuota } from "@refarm.dev/model-account-contract-v1";
 
 export const COPILOT_QUOTA_URL = "https://api.github.com/copilot_internal/user";
 

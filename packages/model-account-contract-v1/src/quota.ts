@@ -13,7 +13,7 @@
  *                  anything in.
  *  - `cannot-say`  asked, and the provider did not answer. NOT zero, NOT unlimited.
  *
- * ## The trap this file exists to not fall into, measured 2026-08-17
+ * ## The trap this vocabulary exists to not fall into, measured 2026-08-17
  *
  * GitHub Copilot answers, for both of the operator's accounts:
  *
@@ -31,8 +31,12 @@
  * permits overage, so reaching zero there means billing continues, not that work stops. A node
  * that reported only "depleted" would send him looking for a failure that will not happen.
  *
- * PURE. Takes a parsed body, returns a reading. No fetch, no clock, no provider knowledge beyond
- * the shape it is handed.
+ * VOCABULARY ONLY. The READERS that turn one provider's body into these states moved to that
+ * provider's own block (`@refarm.dev/github-copilot-wire`, ISS-142): the three states and what they
+ * mean are generic, and `quota_snapshots` / `has_quota` / `percent_remaining` are Copilot's field
+ * names. Keeping the parsing here is how a generic contract accretes one vendor's shape.
+ *
+ * PURE. No fetch, no clock, no provider knowledge at all.
  */
 
 export type QuotaMeter =
@@ -55,67 +59,6 @@ export interface AccountQuota {
 	readonly resetsAt?: string;
 	/** Keyed by the provider's own meter id, because inventing names would lose which is which. */
 	readonly meters: Readonly<Record<string, QuotaMeter>>;
-}
-
-const num = (value: unknown): number | undefined =>
-	typeof value === "number" && Number.isFinite(value) ? value : undefined;
-
-const str = (value: unknown): string | undefined =>
-	typeof value === "string" && value.length > 0 ? value : undefined;
-
-/** PURE. One meter from one snapshot, with `unlimited` outranking every number beneath it. */
-export function readQuotaMeter(snapshot: unknown): QuotaMeter {
-	if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
-		return { kind: "cannot-say", reason: "the provider returned no snapshot for this meter" };
-	}
-	const s = snapshot as Record<string, unknown>;
-
-	// FIRST, and the ordering is the whole point. On an unlimited meter this provider sends
-	// `remaining: 0` and `entitlement: 0`; reading those before this flag reports no-ceiling as
-	// exhausted.
-	if (s.unlimited === true) return { kind: "unlimited" };
-
-	// `has_quota: false` is the provider saying this meter does not apply to this plan. Absent is
-	// not the same as false, so only an explicit false is treated as an answer.
-	if (s.has_quota === false) {
-		return { kind: "cannot-say", reason: "the provider does not meter this on this plan" };
-	}
-
-	const entitlement = num(s.entitlement);
-	const remaining = num(s.remaining) ?? num(s.quota_remaining);
-	if (entitlement === undefined || remaining === undefined) {
-		return { kind: "cannot-say", reason: "the provider stated no entitlement or remainder" };
-	}
-	return {
-		kind: "metered",
-		entitlement,
-		remaining,
-		// Taken from the provider when it states one — its rounding is the one the operator sees in
-		// GitHub's own UI, and recomputing would disagree with it by a fraction for no gain.
-		percentRemaining:
-			num(s.percent_remaining) ?? (entitlement > 0 ? (remaining / entitlement) * 100 : 0),
-		overagePermitted: s.overage_permitted === true,
-		overageCount: num(s.overage_count) ?? 0,
-	};
-}
-
-/** PURE. A whole account's reading from a `copilot_internal/user`-shaped body. */
-export function readAccountQuota(body: unknown): AccountQuota {
-	if (!body || typeof body !== "object" || Array.isArray(body)) return { meters: {} };
-	const b = body as Record<string, unknown>;
-	const snapshots = b.quota_snapshots;
-	const meters: Record<string, QuotaMeter> = {};
-	if (snapshots && typeof snapshots === "object" && !Array.isArray(snapshots)) {
-		for (const [id, snapshot] of Object.entries(snapshots as Record<string, unknown>)) {
-			meters[id] = readQuotaMeter(snapshot);
-		}
-	}
-	return {
-		...(str(b.copilot_plan) ? { plan: str(b.copilot_plan)! } : {}),
-		...(str(b.access_type_sku) ? { sku: str(b.access_type_sku)! } : {}),
-		...(str(b.quota_reset_date) ? { resetsAt: str(b.quota_reset_date)! } : {}),
-		meters,
-	};
 }
 
 /**
