@@ -714,6 +714,14 @@ export const PROBE_COMMANDS = [
 		allowedVaryingFieldPaths: [],
 	},
 	{
+		name: "tools list",
+		argv: ["tools", "list", "--json"],
+		scope: "node",
+		scopeReason:
+			"The declared tools are a NODE fact read from the node-tier config, and the binaries are measured on PATH — neither answer moves because the caller stood somewhere else. A workspace may state the need; it may never hold the declaration (docs/CONFIG_TIERS.md).",
+		allowedVaryingFieldPaths: [],
+	},
+	{
 		name: "budget observations",
 		argv: ["budget", "observations", "--limit", "3", "--json"],
 		scope: "node",

@@ -118,6 +118,7 @@ export {
 	readToolRequirements,
 	toolRequirementState,
 } from "./tool-requirements.js";
+export { describeMeasurement, measureTool, proposedFloor } from "./tool-measurement.js";
 export {
 	buildSessionPressureBudget,
 	buildEnvironmentPressureReport,

@@ -22,19 +22,27 @@ normally `~/.refarm/config.json`):
 
 ```json
 {
-  "nodeTools": [
-    { "command": "gh", "minVersion": "2.40.0", "why": "CI handoffs and run watching" },
-    { "command": "rsync", "why": "node backup and restore" }
-  ]
+  "nodeTools": {
+    "gh": { "minVersion": "2.40.0", "why": "CI handoffs and run watching" },
+    "rsync": { "why": "node backup and restore" }
+  }
 }
 ```
 
+A **catalog block keyed by command**, the same shape `delivery`, `connections`,
+`surfaces` and `workspaces` use. Not cosmetic: `planCatalogDeclaration` refuses a
+block that is not a record, so an array would be a declaration no guided command
+could ever write — and the key being the command settles what two entries naming
+one binary mean. They cannot exist.
+
 | Field | Required | Meaning |
 | --- | --- | --- |
-| `command` | yes | the binary to run |
+| *(the key)* | yes | the binary to run |
 | `minVersion` | no | the declared floor. Omit it and presence *is* the whole question |
 | `why` | no | what breaks without it — carried into the reported finding |
 | `args` | no | defaults to `["--version"]` |
+
+**You do not write this by hand** — see *Declaring one, guided* below.
 
 **Declared, never inferred.** Reading the requirement off whatever happens to be
 installed turns today's accident into tomorrow's contract. A node that declares
@@ -105,7 +113,68 @@ Tool checks are re-measured on every run, including cache hits. An operator who
 updates a tool and re-runs `health` must not be handed back the stale answer they
 just repaired.
 
+## Declaring one, guided
+
+```bash
+refarm tools add gh          # measures it, proposes the floor it just read, asks why
+refarm tools list            # every declared tool AND the ones that are fine
+```
+
+`tools add` composes three blocks this repository already had, and re-implements
+none of them:
+
+| Block | What it contributes |
+| --- | --- |
+| `@refarm.dev/prompt-contract-v1` | asks over a channel that is not assumed to be a terminal — the same wizard reaches an attended surface |
+| `@refarm.dev/operation-consent-v1` | shows the whole diff, records the decision, keeps an undo |
+| `catalog-authoring.ts` | writes one keyed entry, preserving fields it does not own |
+
+The only part `tools.ts` owns is the part that is genuinely about tools:
+**measuring the binary before asking**, so the floor the operator authorises is a
+number they were shown rather than one they had to remember. That is the line
+between a draft the operator accepts and an inference nobody decided — and it is
+why this cannot be a plain `config set`.
+
+Two things it refuses to do quietly:
+
+- A tool that is **not installed** is refused, not declared. Wanting to declare
+  one you are about to install is reasonable; doing it by accident starts the
+  node reporting a finding nobody chose. `--even-if-absent` says it out loud.
+- The consent notes say that authorising this **also authorises an execution** —
+  `health` will run the binary on every audit from now on. Burying that in this
+  document and not in the prompt would be consent to the wrong thing.
+
+With nobody to ask, nothing is written and the result is `deferred`. A
+consent-gated write with no operator is not a silent write.
+
+### It is not a terminal command
+
+`--attended-elsewhere` routes the whole journey through the node's pending-prompt
+hub instead of stdio. **Measured live 2026-08-18** against the node at
+`127.0.0.1:42001`:
+
+```bash
+refarm tools add gh --min 2.40.0 --why "…" --attended-elsewhere --json &
+
+curl -s http://127.0.0.1:42001/prompts        # the consent select, all three options
+curl -s -X POST .../prompts/$ID/answer \
+     -d '{"value":"authorize","device":"…"}'  # answered from outside
+```
+
+The command woke, returned `status: "authorized"`, and wrote the declaration.
+The terminal was never used for the decision. That is the same
+`pending-prompt.v1` wire an attending PWA or a phone reads — `curl` stands in for
+the device, not for the protocol.
+
+The measurement travels with the question: a device is asked to authorise a floor
+it was **shown**, because authorising a number you were never told is trusting the
+asker rather than deciding.
+
+With `--attended-elsewhere` and no publisher installed, the outcome is the same
+`deferred` as a headless terminal. Attending elsewhere is a route, not a promise.
+
 ## Where it surfaces
+
 
 ```bash
 refarm health --json    # results.nodeTools.{checks,malformed}

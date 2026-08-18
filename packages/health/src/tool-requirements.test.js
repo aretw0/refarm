@@ -14,14 +14,14 @@ describe("readToolRequirements", () => {
 	});
 
 	it("reads a declared tool, carrying the reason the node depends on it", () => {
-		const config = { nodeTools: [{ command: "gh", minVersion: "2.40.0", why: "CI handoffs" }] };
+		const config = { nodeTools: { gh: { minVersion: "2.40.0", why: "CI handoffs" } } };
 		expect(readToolRequirements(config).tools).toEqual([
 			{ command: "gh", args: ["--version"], minVersion: "2.40.0", why: "CI handoffs" },
 		]);
 	});
 
 	it("accepts a tool declared WITHOUT a minimum, where presence is the whole question", () => {
-		expect(readToolRequirements({ nodeTools: [{ command: "rsync" }] }).tools).toEqual([
+		expect(readToolRequirements({ nodeTools: { rsync: {} } }).tools).toEqual([
 			{ command: "rsync", args: ["--version"], minVersion: undefined, why: undefined },
 		]);
 	});
@@ -29,15 +29,25 @@ describe("readToolRequirements", () => {
 	it("REPORTS a malformed entry rather than dropping it", () => {
 		// A typo'd entry that vanishes leaves the operator believing a tool is guarded when nothing
 		// checks it. Silence here is the failure mode; the entry must surface as broken.
-		const result = readToolRequirements({ nodeTools: [{ command: "gh" }, { minVersion: "1" }, "cargo", 7] });
+		const result = readToolRequirements({
+			nodeTools: { gh: {}, rsync: "3.2.7", cargo: null, jq: ["--version"] },
+		});
 		expect(result.tools.map((t) => t.command)).toEqual(["gh"]);
 		expect(result.malformed).toHaveLength(3);
 	});
 
-	it("reads a non-array declaration as malformed, never as an empty list", () => {
-		const result = readToolRequirements({ nodeTools: { gh: "2.40.0" } });
+	it("reads an ARRAY as malformed, because a catalog block is keyed", () => {
+		// The shape matters beyond taste: planCatalogDeclaration refuses a block that is not a
+		// record, so an array here would be a declaration no guided command could ever write.
+		const result = readToolRequirements({ nodeTools: [{ command: "gh" }] });
 		expect(result.tools).toEqual([]);
 		expect(result.malformed).toHaveLength(1);
+	});
+
+	it("keys the entry by COMMAND, so one binary cannot be declared twice", () => {
+		const result = readToolRequirements({ nodeTools: { gh: { minVersion: "2.40.0" } } });
+		expect(result.tools).toHaveLength(1);
+		expect(result.tools[0].command).toBe("gh");
 	});
 });
 

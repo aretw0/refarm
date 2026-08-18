@@ -58,6 +58,7 @@ import { taskCommand } from "./commands/task.js";
 import { tasksCommand } from "./commands/tasks.js";
 import { telemetryCommand } from "./commands/telemetry.js";
 import { tidyCommand } from "./commands/tidy.js";
+import { createToolsCommand } from "./commands/tools-command.js";
 import { treeCommand } from "./commands/tree.js";
 import { tuiCommand } from "./commands/tui.js";
 import { webCommand } from "./commands/web.js";
@@ -321,6 +322,8 @@ program.addCommand(serveCommand);
 program.addCommand(workspaceCommand);
 program.addCommand(connectionCommand);
 program.addCommand(deliveryCommand);
+// The tools this node depends on but does not ship — declared here, measured by `health`.
+program.addCommand(createToolsCommand());
 program.addCommand(budgetCommand);
 program.addCommand(createSurfaceCommand());
 // The long-running processes refarm OWNS: declared in `.refarm/config.json`, supervised by the

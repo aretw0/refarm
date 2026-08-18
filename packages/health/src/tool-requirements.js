@@ -41,6 +41,11 @@ const DEFAULT_VERSION_ARGS = ["--version"];
 /**
  * PURE. Reads the declared tool requirements out of a sovereign config.
  *
+ * A CATALOG BLOCK, keyed by command — the same shape `delivery`, `connections`, `surfaces` and
+ * `workspaces` use. This is not cosmetic: `planCatalogDeclaration` refuses a block that is not a
+ * record, so an array here would be a declaration no guided command could ever write. The key IS
+ * the command, which also settles what two entries naming the same binary mean: they cannot exist.
+ *
  * Malformed entries are RETURNED, not dropped. An entry the operator believes is guarding a tool
  * must never vanish into silence — that turns a typo into an unguarded dependency that reads as
  * a guarded one.
@@ -51,25 +56,27 @@ const DEFAULT_VERSION_ARGS = ["--version"];
 export function readToolRequirements(config) {
 	const declared = config && typeof config === "object" ? config.nodeTools : undefined;
 	if (declared === undefined || declared === null) return { tools: [], malformed: [] };
-	if (!Array.isArray(declared)) return { tools: [], malformed: [declared] };
+	if (typeof declared !== "object" || Array.isArray(declared)) {
+		return { tools: [], malformed: [declared] };
+	}
 
 	const tools = [];
 	const malformed = [];
-	for (const entry of declared) {
-		if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-			malformed.push(entry);
+	for (const [command, entry] of Object.entries(declared)) {
+		if (!command.trim()) {
+			malformed.push({ [command]: entry });
 			continue;
 		}
-		const command = typeof entry.command === "string" ? entry.command.trim() : "";
-		if (!command) {
-			malformed.push(entry);
+		if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+			malformed.push({ [command]: entry });
 			continue;
 		}
 		tools.push({
-			command,
-			args: Array.isArray(entry.args) && entry.args.every((a) => typeof a === "string")
-				? entry.args
-				: DEFAULT_VERSION_ARGS,
+			command: command.trim(),
+			args:
+				Array.isArray(entry.args) && entry.args.every((a) => typeof a === "string")
+					? entry.args
+					: DEFAULT_VERSION_ARGS,
 			minVersion: typeof entry.minVersion === "string" ? entry.minVersion : undefined,
 			why: typeof entry.why === "string" ? entry.why : undefined,
 		});

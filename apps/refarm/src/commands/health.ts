@@ -1,4 +1,9 @@
-import { declaredBase, defaultSovereignConfigPath, findSovereignConfigPath } from "@refarm.dev/config";
+import {
+	declaredBase,
+	defaultSovereignConfigPath,
+	findSovereignConfigPath,
+	sovereignConfigRelativePath,
+} from "@refarm.dev/config";
 import {
 	ComplexityAuditor,
 	ConfigNodeAuditor,
@@ -580,7 +585,10 @@ function resolveSovereignConfigPath(rootDir: string): string {
  * silence this surface exists to break.
  */
 function readNodeToolDeclaration(rootDir: string): ReturnType<typeof readToolRequirements> {
-	const nodeConfigPath = path.join(declaredBase(), ".refarm", "config.json");
+	// `sovereignConfigRelativePath`, not a hardcoded ".refarm": the sovereign dir is selected by
+	// SOVEREIGN_DIR, and a reader that assumes the default answers about a file the operator
+	// does not use. `refarm tools` resolves the same path through the same helper.
+	const nodeConfigPath = path.join(declaredBase(), sovereignConfigRelativePath());
 	const declaration = readToolDeclarationAt(nodeConfigPath);
 
 	// A workspace may STATE the need; it may not hold the declaration. Reported rather than
