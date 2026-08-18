@@ -25,7 +25,7 @@
 import {
 	copilotTokenExchangeUrl,
 	renewedCopilotCredential,
-} from "@refarm.dev/model-account-contract-v1";
+} from "@refarm.dev/github-copilot-wire";
 
 export interface CopilotRenewDeps {
 	readonly fetch: typeof globalThis.fetch;

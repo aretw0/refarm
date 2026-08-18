@@ -15,11 +15,11 @@
  * id; refarm sends its own identity and its own user agent. If GitHub declines that, the honest
  * outcome is a measured refusal and a decision for the operator, not a costume.
  */
-import { resolveRefarmVersion } from "../../commands/runtime-metadata.js";
 import {
 	copilotRequestIdentity,
 	type CopilotIdentity,
-} from "./copilot-identity.js";
+} from "@refarm.dev/github-copilot-wire";
+import { resolveRefarmVersion } from "../../commands/runtime-metadata.js";
 import {
 	COPILOT_SCOPE,
 	copilotAccountId,

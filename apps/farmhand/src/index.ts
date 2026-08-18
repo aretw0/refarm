@@ -13,12 +13,14 @@
 
 import { AGENT_CORE_BUNDLE, loadConfigAsync } from "@refarm.dev/config";
 import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
-import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import {
 	copilotAccountId,
 	copilotApiBaseUrl,
 	copilotRefreshMargin,
 	copilotTokenExchangeUrl,
+} from "@refarm.dev/github-copilot-wire";
+import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
+import {
 	readModelAuthorization,
 	type ModelAccountDescriptor,
 } from "@refarm.dev/model-account-contract-v1";

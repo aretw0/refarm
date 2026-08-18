@@ -1,7 +1,6 @@
 export * from "./account-view.js";
 export * from "./authorization.js";
 export * from "./catalog.js";
-export * from "./copilot-wire.js";
 export * from "./describe-new.js";
 export * from "./migrate.js";
 export * from "./provider-status.js";

@@ -87,7 +87,8 @@
       "@refarm.dev/source-git": ["./packages/source-git/src"],
       "@refarm.dev/skill-contract-v1": ["./packages/skill-contract-v1/src"],
       "@refarm.dev/plugin-surface-loader": ["./packages/plugin-surface-loader/src"],
-      "@refarm.dev/model-catalog-v1": ["./packages/model-catalog-v1/src/index"]
+      "@refarm.dev/model-catalog-v1": ["./packages/model-catalog-v1/src/index"],
+      "@refarm.dev/github-copilot-wire": ["./packages/github-copilot-wire/src"]
     }
   },
   "exclude": ["node_modules", "dist", "build", "pkg", "**/*.test.ts"]

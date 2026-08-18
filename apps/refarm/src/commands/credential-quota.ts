@@ -7,9 +7,11 @@
  * providers it could read would let "we never asked" pass for "there is nothing to report".
  */
 import {
-	explainRefusal,
 	GITHUB_COPILOT_STATUS_COMPONENT,
 	GITHUB_STATUS_SUMMARY_URL,
+} from "@refarm.dev/github-copilot-wire";
+import {
+	explainRefusal,
 	isMeterExhausted,
 	latestIncidentNote,
 	readProviderStatus,

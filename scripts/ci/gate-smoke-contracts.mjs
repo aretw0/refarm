@@ -51,6 +51,8 @@ const STEPS = [
 	["packages/skill-contract-v1", "test:unit"],
 	["packages/model-catalog-v1", "build"],
 	["packages/model-catalog-v1", "test:unit"],
+	["packages/github-copilot-wire", "build"],
+	["packages/github-copilot-wire", "test:unit"],
 ];
 
 function commandForStep([workspaceDir, script]) {

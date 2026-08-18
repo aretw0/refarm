@@ -5,7 +5,7 @@ import {
 	describeCopilotIdentity,
 	EDITOR_IMITATION,
 	resolveCopilotIdentity,
-} from "./copilot-identity.js";
+} from "./identity.js";
 
 const REFARM_CLIENT_ID = "Ov23-refarm";
 

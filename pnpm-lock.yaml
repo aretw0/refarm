@@ -210,6 +210,9 @@ importers:
       '@refarm.dev/file-stream-transport':
         specifier: workspace:*
         version: link:../../packages/file-stream-transport
+      '@refarm.dev/github-copilot-wire':
+        specifier: workspace:*
+        version: link:../../packages/github-copilot-wire
       '@refarm.dev/identity-contract-v1':
         specifier: workspace:*
         version: link:../../packages/identity-contract-v1
@@ -407,6 +410,9 @@ importers:
       '@refarm.dev/file-stream-transport':
         specifier: workspace:*
         version: link:../../packages/file-stream-transport
+      '@refarm.dev/github-copilot-wire':
+        specifier: workspace:*
+        version: link:../../packages/github-copilot-wire
       '@refarm.dev/hardening':
         specifier: workspace:*
         version: link:../../packages/hardening
@@ -1466,6 +1472,18 @@ importers:
       '@refarm.dev/stream-contract-v1':
         specifier: workspace:*
         version: link:../stream-contract-v1
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
+  packages/github-copilot-wire:
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*

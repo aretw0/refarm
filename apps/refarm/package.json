@@ -48,6 +48,7 @@
 		"@refarm.dev/enrichment-contract-v1": "workspace:*",
 		"@refarm.dev/farm-client": "workspace:*",
 		"@refarm.dev/file-stream-transport": "workspace:*",
+		"@refarm.dev/github-copilot-wire": "workspace:*",
 		"@refarm.dev/hardening": "workspace:*",
 		"@refarm.dev/health": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",

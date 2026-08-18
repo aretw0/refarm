@@ -1,7 +1,7 @@
 {
 	"name": "@refarm.dev/farmhand",
 	"version": "0.1.0",
-	"description": "Refarm Farmhand — headless Node.js daemon for always-on sync",
+	"description": "Refarm Farmhand \u2014 headless Node.js daemon for always-on sync",
 	"type": "module",
 	"main": "./dist/index.js",
 	"exports": {
@@ -30,9 +30,10 @@
 		"@refarm.dev/dispatch-surface": "workspace:*",
 		"@refarm.dev/effort-contract-v1": "workspace:*",
 		"@refarm.dev/file-stream-transport": "workspace:*",
+		"@refarm.dev/github-copilot-wire": "workspace:*",
 		"@refarm.dev/identity-contract-v1": "workspace:*",
-		"@refarm.dev/model-account-contract-v1": "workspace:*",
 		"@refarm.dev/lsp-code-ops": "workspace:*",
+		"@refarm.dev/model-account-contract-v1": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/plugin-surface-loader": "workspace:*",
 		"@refarm.dev/pressure-contract-v1": "workspace:*",
