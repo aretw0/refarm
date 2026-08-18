@@ -12,6 +12,12 @@ pub(crate) fn is_disallowed_model_forward_env_upper(upper: &str) -> bool {
             | "MODEL_USER_NAME"
             | "MODEL_EMAIL"
             | "MODEL_AUTHENTICATION"
+            // The per-ACCOUNT credential map (ISS-145). Blocked BY NAME rather than by a suffix
+            // pattern: it carries live provider tokens keyed by opaque credential id, the host
+            // reads it at send time, and the guest must never see it. A name that happened not to
+            // match a pattern would forward secret material to a plugin — the one failure this
+            // whole policy exists to make impossible, so it is stated rather than inferred.
+            | "MODEL_ACCOUNT_CREDENTIALS"
     ) || upper.ends_with("_API_KEY")
         || upper.ends_with("_KEY")
         || upper.contains("_KEY_")

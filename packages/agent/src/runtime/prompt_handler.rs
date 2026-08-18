@@ -327,6 +327,16 @@ pub(crate) fn handle_prompt(payload: String) {
                 v.get("workspace_source").and_then(|s| s.as_str()),
             );
             let turns_str = history_turns.map(|n| n.to_string());
+            // THE SEAT'S ENDPOINT FOR THIS TURN (ISS-145). Two accounts of one provider can
+            // announce different hosts, so the per-PROVIDER map cannot carry both — the host
+            // resolves the declared seat's endpoint and sends it here. Scoped like MODEL_PROFILE:
+            // it belongs to this turn, not to the daemon.
+            let base_url = v
+                .get("base_url")
+                .and_then(|s| s.as_str())
+                .map(str::trim)
+                .filter(|s| !s.is_empty());
+            let _task_base_url = crate::EnvGuard::maybe_set("MODEL_TASK_BASE_URL", base_url);
             let _session = crate::EnvGuard::maybe_set("MODEL_SESSION_ID", session_id.as_deref());
             let _workspace =
                 crate::EnvGuard::maybe_set("MODEL_WORKSPACE_ID", workspace_id.as_deref());

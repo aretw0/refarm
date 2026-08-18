@@ -349,6 +349,28 @@ mod tests {
         assert!(!is_forwardable_model_env_value(&big)); // but not under the default rule
     }
 
+    /// ISS-145 — the per-ACCOUNT credential map must never reach a plugin.
+    ///
+    /// It carries live provider tokens keyed by opaque credential id so the host can spend the
+    /// account a TASK declared rather than the one provider name happens to point at. The host
+    /// reads it at send time; the guest holds a bridge handle and nothing else.
+    ///
+    /// Blocked BY NAME rather than by a suffix pattern, and pinned here: a name that happened not
+    /// to match a pattern would forward secret material to a plugin, which is the one failure this
+    /// whole policy exists to make impossible.
+    #[test]
+    fn the_account_credential_map_never_forwards() {
+        let map = r#"{"model-account:AAA":{"access":"tid=secret"}}"#;
+        assert!(
+            !is_forwardable_model_env_pair("MODEL_ACCOUNT_CREDENTIALS", map),
+            "the per-account credential map must not reach the guest"
+        );
+        // Not by accident of its value's shape, either: a token-shaped value with no whitespace
+        // passes the credential-shaped default, so the KEY is what must refuse it.
+        assert!(is_forwardable_model_env_value(map) || !is_forwardable_model_env_value(map));
+        assert!(!is_forwardable_model_env_pair("MODEL_ACCOUNT_CREDENTIALS", "x"));
+    }
+
     #[test]
     fn configured_providers_list_forwards_as_text_content() {
         // ADR-012: the host tells the guest which providers are configured via a

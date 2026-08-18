@@ -45,9 +45,19 @@ impl Provider {
         // THE ACCOUNT'S OWN ENDPOINT FIRST, then the global override, then the static default —
         // the same order the host resolves in, because the host validates this request against its
         // own resolution and a different order would build requests it refuses (ISS-141).
-        let base_url = std::env::var("MODEL_PROVIDER_BASE_URLS")
+        // THIS TURN'S SEAT FIRST, then the per-provider map, then the global override, then the
+        // static default. The order is the precedence: an endpoint that belongs to the ACCOUNT
+        // paying for this turn is narrower than one that belongs to its provider, which is narrower
+        // than one the operator set for the whole node.
+        let base_url = std::env::var("MODEL_TASK_BASE_URL")
             .ok()
-            .and_then(|raw| provider_base_url_from(&raw, provider_name))
+            .map(|v| v.trim().to_owned())
+            .filter(|v| !v.is_empty())
+            .or_else(|| {
+                std::env::var("MODEL_PROVIDER_BASE_URLS")
+                    .ok()
+                    .and_then(|raw| provider_base_url_from(&raw, provider_name))
+            })
             .or_else(|| std::env::var("MODEL_BASE_URL").ok().filter(|v| !v.trim().is_empty()))
             .unwrap_or_else(|| default_base.to_owned());
         Provider::OpenAiCompat {

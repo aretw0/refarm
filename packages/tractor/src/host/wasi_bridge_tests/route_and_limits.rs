@@ -903,6 +903,52 @@
         .is_err());
     }
 
+    /// ISS-145 — WHICH SEAT pays, when one provider holds two.
+    ///
+    /// The host read one credential env var per provider, so the operator's personal and corporate
+    /// Copilot seats — different endpoints, different entitlements — could never both be
+    /// provisioned, and a workspace bound to the one that was not the default could not be
+    /// honoured. Keyed by the OPAQUE credential id, which is what the task already declares and
+    /// what the budget record already stamps: one id rather than three inferences.
+    #[test]
+    fn parse_account_credential_reads_one_seat_by_its_opaque_id() {
+        let raw = r#"{
+            "model-account:CORP": {"access":"tid=corp","baseUrl":"https://api.business.githubcopilot.com"},
+            "model-account:PESS": {"access":"tid=pess","baseUrl":"https://api.individual.githubcopilot.com"}
+        }"#;
+        let corp = parse_account_credential(raw, "model-account:CORP").expect("corp");
+        assert_eq!(corp.access, "tid=corp");
+        assert_eq!(corp.base_url.as_deref(), Some("https://api.business.githubcopilot.com"));
+
+        // The SIBLING is a different seat with a different endpoint — the whole reason this is
+        // keyed by account rather than by provider.
+        let pess = parse_account_credential(raw, "model-account:PESS").expect("pess");
+        assert_eq!(pess.access, "tid=pess");
+        assert_ne!(pess.base_url, corp.base_url);
+    }
+
+    #[test]
+    fn parse_account_credential_yields_none_for_anything_it_cannot_read() {
+        // Falling back to the provider-wide variable is the previous behaviour; inventing a
+        // credential is not a behaviour this may have.
+        assert!(parse_account_credential("not json", "model-account:CORP").is_none());
+        assert!(parse_account_credential("{}", "model-account:CORP").is_none());
+        assert!(parse_account_credential(r#"{"model-account:CORP":{}}"#, "model-account:CORP").is_none());
+        assert!(
+            parse_account_credential(r#"{"model-account:CORP":{"access":"  "}}"#, "model-account:CORP")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn parse_account_credential_omits_an_endpoint_nobody_announced() {
+        // Absent is absent: a seat with no announced endpoint must not gain one, or the route
+        // guardrail would admit a host the account never named.
+        let one = parse_account_credential(r#"{"a":{"access":"t"}}"#, "a").expect("a");
+        assert!(one.base_url.is_none());
+        assert!(one.account_id.is_none());
+    }
+
     /// ISS-140 tier B — what a single TASK may reach, not only what the node may.
     ///
     /// The three route sets resolve once at plugin load, so they bound the NODE. A workspace bound

@@ -8,7 +8,7 @@ import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 
 import {
-	provisionableAccounts,
+	authorizedAccounts,
 	readModelAuthorization,
 	type ModelAuthorization,
 } from "@refarm.dev/model-account-contract-v1";
@@ -229,10 +229,13 @@ export function createModelCapabilityGroup(
 					// this command, so an expired credential here starts a runtime that cannot
 					// dispatch and says nothing until the first request fails.
 					if (authorization && view && typeof silo.saveSecret === "function") {
-						const { provision } = provisionableAccounts({
-							catalog: view.accounts,
-							authorization,
-						});
+						// EVERY AUTHORISED SEAT, not only the provisionable one (ISS-145). This
+						// iterated `provisionableAccounts`, which REFUSES a provider holding two
+						// authorised seats — so the moment the operator authorised both of his
+						// Copilot accounts, neither was renewed and both silently expired. A
+						// renewal that skips exactly the accounts the node may spend is a renewal
+						// that runs only where it was not needed.
+						const provision = authorizedAccounts(authorization, view.accounts).authorized;
 						// THE DECLARED IDENTITY, resolved from the same config the login reads. Inventing
 						// headers here refuses on every attempt (ISS-141).
 						const identity = copilotRequestIdentity(

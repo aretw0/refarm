@@ -119,6 +119,13 @@ pub struct TractorNativeBindings {
     /// Single-threaded by construction rather than by lock: a plugin's invocations are served by
     /// one task that owns the handle and calls the guest one at a time.
     pub(crate) task_provider: Option<String>,
+    /// The ACCOUNT this invocation declared, by opaque credential id (ISS-145).
+    ///
+    /// `task_provider` bounds WHERE a task may send; this bounds WHICH SEAT pays. They are
+    /// different questions and one provider can hold two seats — the operator's Copilot pair have
+    /// different endpoints and different entitlements, and a workspace binding that named one
+    /// could not be honoured while the host read a single env var per provider.
+    pub(crate) task_credential_id: Option<String>,
     /// The expected model ROUTE (provider + base-url + path) guardrail, resolved
     /// from the routing env vars (MODEL_PROVIDER / MODEL_BASE_URL)
     /// ONCE at boot. Read per model POST to validate the guest's requested route —
@@ -302,6 +309,16 @@ mod get_identity_tests {
 }
 
 impl TractorNativeBindings {
+    /// The credential this invocation declared, read fresh from the env map.
+    ///
+    /// Resolved per call rather than cached: the CLI rewrites the map when a credential is renewed,
+    /// and a cached copy would keep spending a token the node has already replaced.
+    fn task_account(&self) -> Option<AccountCredential> {
+        account_credential_from_env(self.task_credential_id.as_deref()?)
+    }
+}
+
+impl TractorNativeBindings {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         plugin_id: impl Into<String>,
@@ -327,6 +344,7 @@ impl TractorNativeBindings {
             configured_routes: ModelRoute::configured_routes_from_env(),
             // Nothing is running yet, so nothing is narrowed yet.
             task_provider: None,
+            task_credential_id: None,
             permission_grant,
             trusted_plugins,
             cross_plugin,
@@ -583,6 +601,7 @@ impl ModelBridgeHost for TractorNativeBindings {
             &headers,
             &body,
             self.task_provider.as_deref(),
+            self.task_account().as_ref(),
             &self.model_route,
             self.fallback_route.as_ref(),
             &self.configured_routes,
@@ -611,6 +630,7 @@ impl ModelBridgeHost for TractorNativeBindings {
             &headers,
             &body,
             self.task_provider.as_deref(),
+            self.task_account().as_ref(),
             &self.model_route,
             self.fallback_route.as_ref(),
             &self.configured_routes,
@@ -705,6 +725,7 @@ fn model_complete_http(
     headers: &[(String, String)],
     body: &[u8],
     task_provider: Option<&str>,
+    task_account: Option<&AccountCredential>,
     expected: &ModelRoute,
     fallback: Option<&ModelRoute>,
     configured: &[ModelRoute],
@@ -716,6 +737,7 @@ fn model_complete_http(
         headers,
         body,
         task_provider,
+        task_account,
         expected,
         fallback,
         configured,
@@ -849,10 +871,26 @@ fn send_model_http_post(
     headers: &[(String, String)],
     body: &[u8],
     task_provider: Option<&str>,
+    task_account: Option<&AccountCredential>,
     expected: &ModelRoute,
     fallback: Option<&ModelRoute>,
     configured: &[ModelRoute],
 ) -> Result<ureq::Response, String> {
+    // THE ACCOUNT'S OWN ENDPOINT IS AN ADMITTED ROUTE (ISS-145). Two seats of one provider can
+    // announce different hosts — the operator's Copilot pair do — so a task bound to the seat that
+    // is NOT the provisioned default would otherwise be refused for a base url the node genuinely
+    // authorised, just not under that provider's single entry.
+    let account_route = task_account.and_then(|account| {
+        account.base_url.as_ref().map(|url| ModelRoute {
+            provider: normalize_provider_name(provider),
+            base_url: url.clone(),
+            path: known_provider_api_path(provider).to_string(),
+        })
+    });
+    let mut admitted: Vec<ModelRoute> = configured.to_vec();
+    if let Some(route) = account_route {
+        admitted.push(route);
+    }
     enforce_model_route_for_task(
         provider,
         base_url,
@@ -860,7 +898,7 @@ fn send_model_http_post(
         task_provider,
         expected,
         fallback,
-        configured,
+        &admitted,
     )?;
     enforce_model_request_body(body)?;
     let provider = normalize_provider_name(provider);
@@ -872,25 +910,36 @@ fn send_model_http_post(
         req = req.set(name, value);
     }
 
+    // THE SEAT THE TASK DECLARED, before the provider-wide variable. One env var per provider is
+    // what made two accounts of one provider mutually exclusive; a task that named its account
+    // spends THAT account, and one that named none keeps the previous behaviour exactly.
+    let task_bearer = task_account.map(|account| format!("Bearer {}", account.access));
     if use_anthropic_auth(&provider) {
         let key = anthropic_api_key_from_env()?;
         req = req.set("x-api-key", &key);
     } else if use_openai_codex_auth(&provider) {
-        let Some(header) = bearer_key_for_provider(&provider)? else {
-            return Err("OPENAI_CODEX_ACCESS_TOKEN not set".to_string());
+        let header = match task_bearer.clone() {
+            Some(bearer) => bearer,
+            None => bearer_key_for_provider(&provider)?
+                .ok_or_else(|| "OPENAI_CODEX_ACCESS_TOKEN not set".to_string())?,
         };
-        let account_id = openai_codex_account_id_from_env()?;
+        let account_id = match task_account.and_then(|a| a.account_id.clone()) {
+            Some(id) => id,
+            None => openai_codex_account_id_from_env()?,
+        };
         for (name, value) in openai_codex_auth_headers(&header, &account_id, &codex_request_id()) {
             req = req.set(name, &value);
         }
     } else if use_github_copilot_auth(&provider) {
-        let Some(header) = bearer_key_for_provider(&provider)? else {
-            return Err("GITHUB_COPILOT_ACCESS_TOKEN not set".to_string());
+        let header = match task_bearer.clone() {
+            Some(bearer) => bearer,
+            None => bearer_key_for_provider(&provider)?
+                .ok_or_else(|| "GITHUB_COPILOT_ACCESS_TOKEN not set".to_string())?,
         };
         for (name, value) in github_copilot_auth_headers(&header, &codex_request_id()) {
             req = req.set(name, &value);
         }
-    } else if let Some(header) = bearer_key_for_provider(&provider)? {
+    } else if let Some(header) = task_bearer.or(bearer_key_for_provider(&provider)?) {
         req = req.set("authorization", &header);
     }
 
@@ -919,6 +968,71 @@ fn model_error_body_preview(bytes: &[u8]) -> String {
 
 fn use_anthropic_auth(provider: &str) -> bool {
     provider.trim().eq_ignore_ascii_case("anthropic")
+}
+
+/// PURE. One account's credential from the `MODEL_ACCOUNT_CREDENTIALS` map.
+///
+/// ## Why a per-ACCOUNT map exists at all
+///
+/// The host reads ONE credential env var per provider (`bearer_key_for_provider`), so two
+/// authorised accounts of one provider could never both be provisioned — measured on the
+/// operator's node, which holds a personal and a corporate Copilot seat with DIFFERENT endpoints
+/// (`api.individual.` and `api.business.`). Until this existed, `provisionableAccounts` had to
+/// refuse the pair and make him authorise one, and the workspace binding could name a seat the
+/// host had no way to spend.
+///
+/// Keyed by the OPAQUE credential id, which is what the task already declares and what the budget
+/// record already stamps — so the account that pays, the account that was bound, and the account
+/// the record names are one id rather than three inferences.
+///
+/// NEVER REACHES THE GUEST: the key is refused by name in `sensitive_aliases::policy`, pinned by a
+/// test there. The host reads it at send time and the guest holds a bridge handle.
+pub(crate) fn parse_account_credential(
+    raw: &str,
+    credential_id: &str,
+) -> Option<AccountCredential> {
+    let parsed: serde_json::Value = serde_json::from_str(raw).ok()?;
+    let entry = parsed.get(credential_id)?;
+    let access = entry.get("access")?.as_str()?.trim();
+    if access.is_empty() {
+        return None;
+    }
+    let field = |name: &str| {
+        entry
+            .get(name)
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(str::to_owned)
+    };
+    Some(AccountCredential {
+        access: access.to_string(),
+        account_id: field("accountId"),
+        base_url: field("baseUrl"),
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct AccountCredential {
+    pub(crate) access: String,
+    pub(crate) account_id: Option<String>,
+    /// The endpoint THIS account announces, when it announces one. Per-account rather than
+    /// per-provider because Copilot's token exchange returns a different host per seat.
+    pub(crate) base_url: Option<String>,
+}
+
+/// The ENDPOINT half of a seat's credential, for callers that must not touch the token.
+///
+/// The sidecar needs the endpoint to tell the guest where to send; it has no business holding the
+/// key. Two functions rather than one return value: a caller that only needs the address cannot
+/// accidentally carry the secret with it.
+pub(crate) fn account_base_url_from_env(credential_id: &str) -> Option<String> {
+    account_credential_from_env(credential_id)?.base_url
+}
+
+fn account_credential_from_env(credential_id: &str) -> Option<AccountCredential> {
+    let raw = std::env::var("MODEL_ACCOUNT_CREDENTIALS").ok()?;
+    parse_account_credential(&raw, credential_id)
 }
 
 fn use_openai_codex_auth(provider: &str) -> bool {
@@ -1409,7 +1523,13 @@ fn enforce_model_route(
     let requested_base = normalize_base_url(base_url)?;
     let expected_base = normalize_base_url(&expected.base_url)?;
     if requested_base != expected_base {
-        return Err("[blocked: model-bridge base_url not allowed]".to_string());
+        // BOTH VALUES, because the difference is the diagnosis and the operator cannot see either.
+        // Measured 2026-08-17: this refused a Copilot request and named neither host, so the search
+        // went to the allowlist while the difference was one seat's endpoint against another's.
+        // These are addresses, not credentials — nothing here is secret.
+        return Err(format!(
+            "[blocked: model-bridge base_url not allowed: requested '{requested_base}', expected '{expected_base}']"
+        ));
     }
 
     let requested_path = normalize_path(path);

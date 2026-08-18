@@ -159,13 +159,33 @@ mod declared_model_provider_tests {
     }
 }
 
+/// PURE. The ACCOUNT a dispatch payload declares, if it declares one.
+///
+/// Same best-effort rule as the provider: unreadable yields `None` and the host falls back to the
+/// provider-wide credential, which is the behaviour every dispatch had before seats existed.
+///
+/// `credential_id` is the wire name the CLI writes into `args` and the budget observation already
+/// stamps — so the seat that is bound, the seat that pays, and the seat the record names are ONE
+/// id rather than three inferences that can disagree.
+pub(crate) fn declared_credential_id(payload: &str) -> Option<String> {
+    let parsed: serde_json::Value = serde_json::from_str(payload).ok()?;
+    let id = parsed
+        .get("credential_id")
+        .or_else(|| parsed.get("credentialId"))?;
+    let id = id.as_str()?.trim();
+    if id.is_empty() {
+        return None;
+    }
+    Some(id.to_string())
+}
+
 /// PURE. The model provider a dispatch payload declares, if it declares one.
 ///
 /// Best-effort by design: a payload this cannot parse yields `None`, which leaves the allowlist
 /// exactly as the node authorised it. Failing to narrow is the previous behaviour; refusing a
 /// dispatch because its JSON was unfamiliar would make an unrelated payload change break every
 /// model call.
-fn declared_model_provider(payload: &str) -> Option<String> {
+pub(crate) fn declared_model_provider(payload: &str) -> Option<String> {
     let parsed: serde_json::Value = serde_json::from_str(payload).ok()?;
     // `provider` IS THE WIRE NAME, and reading the wrong one made this inert — measured
     // 2026-08-17, right after it shipped: the CLI writes `args.provider`, `dispatch.rs` copies it
@@ -536,9 +556,9 @@ fn spawn_plugin_store_runner(
                     // NARROWED FOR THIS INVOCATION ONLY (ISS-140 tier B). The declaration comes from
                     // the payload the host itself received, and it can only INTERSECT with what the
                     // node authorised — a task that lies restricts itself and reaches nothing new.
-                    h.set_task_provider(declared_model_provider(&payload));
+                    h.set_task_scope(Some(&payload));
                     let result = h.call_respond(&payload).await.map_err(|e| e.to_string());
-                    h.set_task_provider(None);
+                    h.set_task_scope(None);
                     // The receiver may have dropped (caller gave up / timed out); a
                     // failed send is not the runner's problem.
                     let _ = reply.send(result);
@@ -557,8 +577,16 @@ fn spawn_plugin_store_runner(
                         .insert(pr.clone(), store_cancel.clone());
                 }
 
+                // NARROWED HERE TOO, and this is the path that matters: `refarm ask` fires
+                // `user:prompt` as a reply-LESS envelope, so the runner calls `on_event` and never
+                // reaches the `respond` branch above. Setting the slots only there left the whole
+                // mechanism inert for the one dispatch shape an operator actually uses — measured
+                // 2026-08-17, where the host expected the localhost floor for a Copilot request
+                // whose seat it had been told about and never read.
+                h.set_task_scope(msg.payload.as_deref());
                 let started = std::time::Instant::now();
                 let outcome = h.call_on_event(&msg.event, msg.payload.as_deref()).await;
+                h.set_task_scope(None);
                 let exec_us = started.elapsed().as_micros() as u64;
 
                 // Deregister the prompt_ref — the call is done (or trapped).

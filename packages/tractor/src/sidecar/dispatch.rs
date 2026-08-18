@@ -108,6 +108,17 @@ pub(crate) struct TaskArgs {
     /// the responder's payload so the guest resolves the route by profile. The host
     /// does not interpret it — it is a neutral field forwarded like provider/model.
     pub(crate) profile: Option<String>,
+    /// WHICH SEAT this dispatch spends, by opaque credential id (ISS-145).
+    ///
+    /// Sourced from the EFFORT rather than from the task's own args: the caller declares it once,
+    /// beside the workspace it resolved it from, and the budget observation already stamps the same
+    /// id. Forwarding it into the payload is what lets the host spend the account a workspace was
+    /// bound to when its provider holds more than one seat — before this, one credential env var
+    /// per provider made two seats of one provider mutually exclusive.
+    pub(crate) credential_id: Option<String>,
+    /// The endpoint the declared SEAT announces, when it announces one. Resolved by the host from
+    /// its own credential map and forwarded so the guest and the guardrail agree.
+    pub(crate) base_url: Option<String>,
     /// Which workspace the CALLER declared this run belongs to, and how it arrived at
     /// that. Forwarded verbatim, exactly like `profile`: the host never derives a
     /// workspace (it has no directory worth consulting on the caller's behalf), and the
@@ -196,6 +207,9 @@ pub(crate) fn extract_task_args(task: &EffortTask) -> Result<TaskArgs, String> {
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string()),
+        // Filled from the EFFORT after this parse — a task's own args do not carry it.
+        credential_id: None,
+        base_url: None,
         profile: args
             .get("profile")
             .and_then(|v| v.as_str())
@@ -250,6 +264,16 @@ fn respond_payload_json(
     put_str(&mut payload_obj, "provider", args.provider.as_ref());
     put_str(&mut payload_obj, "model", args.model.as_ref());
     put_str(&mut payload_obj, "profile", args.profile.as_ref());
+    // Rides the same channel as `profile` and `workspace_id` — no second road for one more value.
+    // The HOST reads it (to pick the seat's credential); the guest ignores it.
+    put_str(&mut payload_obj, "credential_id", args.credential_id.as_ref());
+    // THE SEAT'S ENDPOINT, so the guest builds the request the host will admit (ISS-145).
+    //
+    // Two seats of one provider can announce different hosts, and the per-PROVIDER map cannot hold
+    // both — measured: with both Copilot seats authorised the guest fell back to its static default
+    // and the guardrail refused it for a base url the node genuinely authorised, under the other
+    // seat. The endpoint is not secret; only the token beside it is, and that stays in the host.
+    put_str(&mut payload_obj, "base_url", args.base_url.as_ref());
     // The declared workspace rides the same channel as `profile` — no second road for
     // one more value. The guest reads it only where it CREATES a Session node, so a
     // dispatch carrying a workspace can never re-attribute a conversation already
@@ -629,7 +653,7 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
             return;
         }
 
-        let args = match extract_task_args(&task) {
+        let mut args = match extract_task_args(&task) {
             Ok(args) => args,
             Err(error) => {
                 finalise_effort(
@@ -645,6 +669,21 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
                 return;
             }
         };
+        // FROM THE EFFORT, not from the task's args (ISS-145). The caller declares which seat it
+        // spends once, beside the workspace it resolved that from, and the budget observation
+        // stamps the same id — so the seat that was bound, the seat that pays and the seat the
+        // record names are ONE id rather than three inferences that can disagree.
+        args.credential_id = effort
+            .credential_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned);
+        // Read from the host's OWN credential map — the endpoint half of it, never the token.
+        args.base_url = args
+            .credential_id
+            .as_deref()
+            .and_then(crate::host::wasi_bridge::account_base_url_from_env);
         let prompt_ref = prompt_ref_from_effort(&effort_id);
         let stream_ref = stream_ref_for_prompt(&prompt_ref);
         tracing::info!(
@@ -1412,6 +1451,8 @@ mod tests {
 
     fn args_with_workspace(id: Option<&str>, source: Option<&str>) -> TaskArgs {
         TaskArgs {
+            credential_id: None,
+            base_url: None,
             prompt: "hi".to_string(),
             system: None,
             session_id: Some("urn:sovereign:session:v1:abc".to_string()),

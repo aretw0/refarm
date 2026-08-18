@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { ModelTokens } from "./model.js";
 import {
+	buildAccountCredentialMap,
 	buildCurrentModelEnvelope,
 	buildProviderBaseUrls,
 	formatCurrentModel,
@@ -276,5 +277,55 @@ describe("buildProviderBaseUrls", () => {
 
 	it("is EMPTY when nothing announces an endpoint, which is the ordinary case", () => {
 		expect(buildProviderBaseUrls([], new Map())).toBe("");
+	});
+});
+
+/**
+ * ISS-145 — WHICH SEAT pays, when one provider holds two.
+ *
+ * The host reads one credential env var per provider, so the operator's personal and corporate
+ * Copilot seats — different endpoints, different entitlements — could never both be provisioned,
+ * and a workspace bound to the one that was not the default could not be honoured.
+ */
+describe("buildAccountCredentialMap", () => {
+	const seat = (credentialId: string, provider = "github-copilot") => ({ credentialId, provider });
+
+	it("carries BOTH seats of one provider, each with its own endpoint", () => {
+		const map = JSON.parse(
+			buildAccountCredentialMap(
+				[seat("model-account:CORP"), seat("model-account:PESS")],
+				new Map<string, unknown>([
+					["model-account:CORP", { access: "tid=corp", baseUrl: "https://api.business.githubcopilot.com" }],
+					["model-account:PESS", { access: "tid=pess", baseUrl: "https://api.individual.githubcopilot.com" }],
+				]),
+			),
+		) as Record<string, { access: string; baseUrl?: string }>;
+
+		expect(Object.keys(map).sort()).toEqual(["model-account:CORP", "model-account:PESS"]);
+		expect(map["model-account:CORP"]!.baseUrl).toContain("business");
+		expect(map["model-account:PESS"]!.baseUrl).toContain("individual");
+	});
+
+	it("omits an endpoint the credential never announced, rather than inventing one", () => {
+		// The host admits the account's endpoint as a route. An invented one would let the guardrail
+		// accept a host the seat never named.
+		const map = JSON.parse(
+			buildAccountCredentialMap([seat("a", "openai-codex")], new Map([["a", { access: "t" }]])),
+		) as Record<string, { baseUrl?: string }>;
+		expect(map.a!.baseUrl).toBeUndefined();
+	});
+
+	it("drops a malformed endpoint for the same reason", () => {
+		const map = JSON.parse(
+			buildAccountCredentialMap([seat("a")], new Map([["a", { access: "t", baseUrl: "not a url" }]])),
+		) as Record<string, { baseUrl?: string }>;
+		expect(map.a!.baseUrl).toBeUndefined();
+	});
+
+	it("skips a seat with no readable secret, and exports NOTHING when none is readable", () => {
+		// An empty object would export a variable that says "asked and found nothing", which is not
+		// what an absent variable says.
+		expect(buildAccountCredentialMap([seat("a")], new Map())).toBe("");
+		expect(buildAccountCredentialMap([], new Map())).toBe("");
 	});
 });

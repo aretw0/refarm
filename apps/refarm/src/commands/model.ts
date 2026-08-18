@@ -77,6 +77,9 @@ const REFARM_MANAGED_MODEL_ENV_KEYS = "REFARM_MANAGED_MODEL_ENV_KEYS";
 /** Per-provider endpoints, `provider=url` joined by `,`. Read by the tractor host AND by the
  *  guest agent, which parse it identically — see `buildProviderBaseUrls` for why it exists. */
 export const MODEL_PROVIDER_BASE_URLS_ENV_VAR = "MODEL_PROVIDER_BASE_URLS";
+/** Every authorised seat's credential, keyed by opaque id. HOST ONLY — refused by name in the
+ *  env-forward policy so it can never reach a plugin. See `buildAccountCredentialMap`. */
+export const MODEL_ACCOUNT_CREDENTIALS_ENV_VAR = "MODEL_ACCOUNT_CREDENTIALS";
 
 export interface ModelTokens {
 	modelProvider?: string;
@@ -450,6 +453,57 @@ export function buildProviderBaseUrls(
 	return pairs.join(",");
 }
 
+/**
+ * PURE. Every AUTHORISED account's credential, keyed by opaque id, for the host alone.
+ *
+ * ## Why a per-account map
+ *
+ * The host reads ONE credential env var per provider, so two authorised seats of one provider
+ * could never both be provisioned — and the operator holds a personal and a corporate Copilot seat
+ * with DIFFERENT endpoints and DIFFERENT entitlements. `provisionableAccounts` had to refuse the
+ * pair and make him authorise one, and a workspace bound to the other could not be honoured.
+ *
+ * Keyed by the OPAQUE credential id, which the dispatch already declares and the budget
+ * observation already stamps: the seat that was bound, the seat that pays and the seat the record
+ * names become ONE id rather than three inferences that can disagree.
+ *
+ * ## It must never reach a plugin
+ *
+ * `MODEL_ACCOUNT_CREDENTIALS` is refused BY NAME in the host's env-forward policy, pinned by a test
+ * there. The host reads it at send time; the guest holds a bridge handle and no key. That is the
+ * same boundary every other credential already respects — this one just had to be stated, because
+ * the name would otherwise have passed a policy built around `*_KEY` and `*_TOKEN` suffixes.
+ *
+ * The endpoint travels WITH the seat, because Copilot's exchange announces a different host per
+ * seat and a per-provider map cannot carry two.
+ */
+export function buildAccountCredentialMap(
+	accounts: readonly { credentialId: string; provider: string }[],
+	credentials: ReadonlyMap<string, unknown>,
+): string {
+	const out: Record<string, { access: string; accountId?: string; baseUrl?: string }> = {};
+	for (const account of accounts) {
+		const credential = credentials.get(account.credentialId) as
+			| { access?: unknown; accountId?: unknown; baseUrl?: unknown }
+			| undefined;
+		const access = typeof credential?.access === "string" ? credential.access.trim() : "";
+		if (!access) continue;
+		const accountId =
+			typeof credential?.accountId === "string" ? credential.accountId.trim() : "";
+		const baseUrl = typeof credential?.baseUrl === "string" ? credential.baseUrl.trim() : "";
+		out[account.credentialId] = {
+			access,
+			...(accountId ? { accountId } : {}),
+			// Only an endpoint the credential actually announced. Absent stays absent, or the host's
+			// route guardrail would admit a host the account never named.
+			...(/^https?:\/\/[\x21-\x7e]+$/u.test(baseUrl) ? { baseUrl } : {}),
+		};
+	}
+	// A map with no readable seat is no map: an empty object would export a variable that says
+	// "asked and found nothing", which is not what an absent one says.
+	return Object.keys(out).length > 0 ? JSON.stringify(out) : "";
+}
+
 function buildModelEnvEntries(
 	tokens: ModelTokens,
 	options: {
@@ -540,6 +594,14 @@ function buildModelEnvEntries(
 				catalog: options.view.accounts,
 				authorization: options.authorization,
 			});
+			// EVERY AUTHORISED SEAT, not only the one provisionable per provider (ISS-145). The host
+			// picks by the credential id the dispatch declares; the per-provider variables below
+			// stay as the fallback for a dispatch that declares none.
+			const authorized = authorizedAccounts(options.authorization, options.view.accounts).authorized;
+			const accountCredentials = buildAccountCredentialMap(authorized, options.credentials);
+			if (accountCredentials && !process.env[MODEL_ACCOUNT_CREDENTIALS_ENV_VAR]) {
+				entries.push([MODEL_ACCOUNT_CREDENTIALS_ENV_VAR, accountCredentials]);
+			}
 			const providerBaseUrls = buildProviderBaseUrls(provision, options.credentials);
 			// THE ENDPOINT TRAVELS WITH THE CREDENTIAL. Without it the host resolves a static
 			// provider table and a Copilot request lands on the localhost floor — the operator's

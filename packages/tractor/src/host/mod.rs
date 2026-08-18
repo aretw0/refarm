@@ -7,7 +7,7 @@ mod plugin_host;
 pub(crate) mod plugin_registry;
 pub(crate) mod self_dispatch;
 mod sensitive_aliases;
-mod wasi_bridge;
+pub(crate) mod wasi_bridge;
 pub mod wasi_variant;
 
 pub use instance::{PluginInstanceHandle, DEFAULT_ON_EVENT_BUDGET_MS};
