@@ -95,6 +95,9 @@ export const SIDECAR_PROMPT_RENEW_MIN_ELAPSED_MS = 30_000;
 export interface SidecarPromptHubOptions {
 	/** The node's sidecar base URL, e.g. `http://127.0.0.1:42001`. */
 	baseUrl: string;
+	/** Is a local terminal reading the question? When it is, a failure to ALSO reach attending
+	 *  devices is not worth interrupting someone who is answering it right now. */
+	attendedLocally?: () => boolean;
 	/** Injected in tests. Defaults to the global `fetch`. */
 	fetch?: typeof globalThis.fetch;
 	env?: NodeJS.ProcessEnv;
@@ -164,6 +167,11 @@ export function createSidecarPromptHub(options: SidecarPromptHubOptions): Pendin
 	function degrade(detail: string): void {
 		if (degraded) return;
 		degraded = true;
+		// AND NOT AT ALL when a terminal is attending. The question is answerable right here and
+		// the operator is reading it — telling them their phone will not see it, written into the
+		// prompt line they are typing on, is noise measured on a real terminal 2026-08-19. When
+		// nobody is at a terminal this is the whole story, so it still gets said.
+		if (options.attendedLocally?.()) return;
 		warn(
 			`refarm: could not publish this question to the node at ${base} — ${detail}. ` +
 				`It is answerable at this terminal only; attending devices will not see it.`,

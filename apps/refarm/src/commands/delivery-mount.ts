@@ -199,6 +199,7 @@ export async function installDeclaredDelivery(
 		env,
 		warn,
 	};
+	if (options.attendedLocally) hubOptions.attendedLocally = options.attendedLocally;
 	if (options.fetch) hubOptions.fetch = options.fetch;
 	if (options.now) hubOptions.now = options.now;
 	const hub = createSidecarPromptHub(hubOptions);
