@@ -446,6 +446,15 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 						const siblings = readCatalog(deps.homeOf()).filter(
 							(entry) => entry.provider === credential.provider,
 						);
+						// THE OBLIGATION IS BORN HERE. A credential that expires needs something to
+						// renew it, and leaving the operator to discover that later — from an
+						// advisory, or from the node stopping — puts a gap where none is needed.
+						// Renewal is not a new capability: authorising this node to hold a GitHub
+						// credential authorised it to speak to GitHub as him. Installing a
+						// supervisor unit IS a system change, so this PROPOSES through the same
+						// consent journey `process add` walks, and a decline is remembered.
+						await offerRenewalDeclaration(credential.provider, deps.homeOf());
+
 						if (siblings.length > 1) {
 							// INFORMATION, not a warning about loss. Which account his work spends is now a
 							// question he has to answer, and a dispatch with none bound refuses rather than
@@ -594,3 +603,41 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 }
 
 export const sowCommand = createSowCommand();
+
+
+/**
+ * Offer the renewal declaration, once, right after an expiring credential is stored.
+ *
+ * NEVER THROWS and never blocks the credential that was just saved: a proposal that fails must
+ * not undo work the operator already authorised. The health advisory remains the safety net for
+ * anything this path misses.
+ */
+async function offerRenewalDeclaration(provider: string, home: string): Promise<void> {
+	try {
+		const { proposeRenewal } = await import("../credentials/propose-renewal.js");
+		const nodeFs = await import("node:fs");
+		const nodePath = await import("node:path");
+		const config = JSON.parse(
+			nodeFs.default.readFileSync(nodePath.default.join(home, "config.json"), "utf-8"),
+		) as { processes?: Record<string, { command?: string[] | string }> };
+		const declared = Object.entries(config.processes ?? {}).map(([name, value]) => ({
+			name,
+			...(value?.command !== undefined ? { command: value.command } : {}),
+		}));
+		const proposal = proposeRenewal(provider, declared, process.argv[1] ?? "");
+		if (proposal.kind !== "propose") return;
+
+		const { runProcessAdd } = await import("./process-add.js");
+		await runProcessAdd({
+			name: proposal.name,
+			description: proposal.description,
+			command: proposal.command,
+			everySeconds: String(proposal.everySeconds),
+			workingDirectory: home,
+			restart: "on-failure",
+		});
+	} catch {
+		// The advisory in `refarm health` still says it. A failed proposal is a missed
+		// convenience, never a lost credential.
+	}
+}
