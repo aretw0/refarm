@@ -36,6 +36,34 @@ editor, another machine, a browser tab — spend the same seat, and this node ca
 neither see nor bound them. It bounds what **this node** dispatches for one
 workspace, which is the only thing it is in a position to promise.
 
+## The workspace announces, the node grants
+
+A workspace may carry its own baseline — what working on it is expected to cost —
+in **its** `.refarm/config.json`, under the same key:
+
+```json
+{ "workspaceAllowances": { "refarm": { "maxRequestsPerMonth": 200 } } }
+```
+
+It travels with the repository. It is a **need stated**, never a grant held —
+`docs/CONFIG_TIERS.md`'s rule, and one asymmetry enforces it:
+
+| Workspace announces | Node granted | Binds | Why |
+| --- | --- | --- | --- |
+| 100 | 400 | **100** | tightening takes nothing from anyone |
+| 800 | 400 | **400** | a cloned repo must not widen your spend |
+| 100 | *nothing* | **100** | asking to be bounded is not an escalation |
+| *nothing* | 400 | **400** | — |
+
+Equal values report the **node** as the binding side: nothing changed hands, and
+naming the workspace would send you to raise the wrong ceiling.
+
+This gives you the three postures without a mode switch:
+
+- **keep your own** — declare the grant; announcements can only tighten it
+- **canonise** — write the announcement into your node's grant (a hand edit today)
+- **honour** — do nothing; a tightening announcement binds on its own
+
 ## Three outcomes
 
 | State | Meaning | Dispatch |
