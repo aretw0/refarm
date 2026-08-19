@@ -7,11 +7,13 @@ import {
 import {
 	ComplexityAuditor,
 	ConfigNodeAuditor,
+	describeRenewalCoverage,
 	FileSystemAuditor,
 	HealthCore,
 	ProjectAuditor,
 	readToolRequirements,
 	RefarmProjectAuditor,
+	renewalCoverage,
 	ToolchainAuditor,
 } from "@refarm.dev/health";
 import type { Command } from "commander";
@@ -78,6 +80,8 @@ export interface HealthResults {
 	 *  read. Present-and-EMPTY when the node declared nothing: "asked, nothing to report" is a
 	 *  different fact from a build that never looked, and only one of them is absence. */
 	nodeTools?: NodeToolFindings;
+	/** Whether anything on this node keeps its short-lived credentials alive. */
+	credentialRenewal?: { state: "unneeded" | "covered" | "uncovered"; providers: string[]; by?: string };
 	/**
 	 * The orchestrator's per-auditor results (config-node lives here).
 	 * `applicable`/`reason` are set by project-shaped auditors (generic_fs,
@@ -203,6 +207,14 @@ export function buildHealthReport(
 		// the gate lowers the minimum or drops the entry, which are both honest answers.
 		(results.nodeTools?.checks.length ?? 0) +
 		(results.nodeTools?.malformed.length ?? 0);
+	// NOT COUNTED, and the line is worth stating because the sibling above IS counted.
+	//
+	// `issueCount` is what is broken NOW against something this node DECLARED. An unmet
+	// `nodeTools` minimum is exactly that: the operator said `gh >= 2.40` and it is not. The
+	// renewal gap is a PREDICTION — nothing is broken, the node dispatches, and the operator never
+	// declared a position on it. Counting a prediction as a fault turns `refarm check` red on a
+	// working node and blocks the agent loop over a risk, which teaches operators to pass their
+	// eyes over a red gate. It rides as a RECOMMENDATION instead, which is what advice is.
 	const recommendations = buildHealthRecommendations(results);
 	const nextActions = diagnosticNextActions(recommendations);
 	const nextCommands = diagnosticNextCommands(recommendations);
@@ -358,6 +370,20 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
 			summary: check.detail ?? `${check.label} is declared by this node and is not satisfied.`,
 			action: NODE_TOOL_ACTIONS[check.state ?? "absent"],
 		})),
+		...(results.credentialRenewal?.state === "uncovered"
+			? [
+					{
+						issueType: "credential-renewal-uncovered",
+						diagnostic: "credential-renewal-uncovered",
+						target: results.credentialRenewal.providers.join(", "),
+						summary: describeRenewalCoverage(results.credentialRenewal) ?? "",
+						action:
+							"Declare a supervised process that runs the renewal — `refarm process add`, " +
+							"with `refarm credential renew`. It asks no provider when nothing has lapsed, " +
+							"so a short interval costs nothing and closes the window a dispatch can fail in.",
+					},
+				]
+			: []),
 		...(results.nodeTools?.malformed ?? []).map((entry) => ({
 			issueType: "node-tool-malformed",
 			diagnostic: "node-tool-malformed",
@@ -426,6 +452,11 @@ export async function runHealthAudit(
 		// being upgraded. Re-measured on every hit: an operator who updates a tool and re-runs
 		// `health` must not be told the stale answer they just repaired.
 		cached.results.nodeTools = await auditDeclaredNodeTools(rootDir);
+		// SAME REASON as nodeTools above: which accounts this node holds and which processes it
+		// declares are facts about the MACHINE, and the cache fingerprints the repository. A
+		// cached "all clear" would keep saying nothing is wrong while the node walks toward the
+		// day it stops dispatching — and `refarm check` reads exactly this cached path.
+		cached.results.credentialRenewal = readRenewalCoverage();
 		// Rebuilt, not patched: recommendations, nextActions and `ok` are all derived from results,
 		// and hand-updating one of the four is how a report comes to contradict itself.
 		return buildHealthReport(cached.results, cached.resolution, cached.skippedAuditors);
@@ -463,6 +494,11 @@ export async function runHealthAudit(
 	// report surfaces cross-device config drift alongside the fs/build findings.
 	results.configNode = results._orchestrator?.["config-node"]?.issues ?? [];
 	results.nodeTools = await auditDeclaredNodeTools(rootDir);
+	// A CREDENTIAL THAT EXPIRES AND NOTHING RENEWING IT. Measured 2026-08-19: a node up for a day
+	// answered every dispatch with `token expired`. Reported rather than declared — writing a
+	// timer that talks to a provider into someone's machine is their decision, and the node's job
+	// is to make sure it is made deliberately instead of discovered by the node stopping.
+	results.credentialRenewal = readRenewalCoverage();
 	// generic_fs and project self-report `applicable: false` when `rootDir` is
 	// not a project (a node base like `~`) — surface that at the envelope's
 	// top level instead of letting their resulting empty arrays read as a
@@ -584,6 +620,33 @@ function resolveSovereignConfigPath(rootDir: string): string {
  * this build cannot read is not a node that declared no tools, and letting it read that way is the
  * silence this surface exists to break.
  */
+/** PURE-ish. The held accounts and declared processes, read without secrets and without throwing:
+ *  a health run must not die because a catalog is unreadable, and an unreadable catalog holds no
+ *  accounts as far as anything here can tell. */
+function readRenewalCoverage(): {
+	state: "unneeded" | "covered" | "uncovered";
+	providers: string[];
+	by?: string;
+} {
+	try {
+		const home = declaredBase();
+		const dir = path.dirname(path.join(home, sovereignConfigRelativePath()));
+		const accounts = JSON.parse(
+			fs.readFileSync(path.join(dir, "model-accounts.json"), "utf-8"),
+		) as { provider?: string }[];
+		const config = JSON.parse(
+			fs.readFileSync(path.join(dir, "config.json"), "utf-8"),
+		) as { processes?: Record<string, { command?: string[] | string }> };
+		const processes = Object.entries(config.processes ?? {}).map(([name, value]) => ({
+			name,
+			...(value?.command !== undefined ? { command: value.command } : {}),
+		}));
+		return renewalCoverage(Array.isArray(accounts) ? accounts : [], processes);
+	} catch {
+		return { state: "unneeded", providers: [] };
+	}
+}
+
 function readNodeToolDeclaration(rootDir: string): ReturnType<typeof readToolRequirements> {
 	// `sovereignConfigRelativePath`, not a hardcoded ".refarm": the sovereign dir is selected by
 	// SOVEREIGN_DIR, and a reader that assumes the default answers about a file the operator
