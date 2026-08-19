@@ -42,9 +42,19 @@ import { configTrailPath, defaultDecidedBy } from "./config-record.js";
  * question set and nothing else.
  */
 
-/** The context lines the proposal render shows — deliberately "all of them". R2 says the operator
- *  authorises a specific diff, and a diff you can only see three lines of is a category. */
-const WHOLE_FILE = 100_000;
+/**
+ * How much of the file the proposal shows around the change.
+ *
+ * R2's reasoning stands: the operator authorises a SPECIFIC diff, and three lines of context is a
+ * category rather than a change. It was implemented as "all of them", and measured on a real
+ * terminal 2026-08-19 that meant printing a 259-line config TWICE — about 530 lines to scroll for
+ * an addition of ten, which is a diff nobody reads to the end.
+ *
+ * Twelve lines each side: enough to see which block the change lands in and what surrounds it,
+ * bounded enough to read. The render states how many lines it left out, so a bounded view can
+ * never be mistaken for a complete one.
+ */
+const PROPOSAL_CONTEXT_LINES = 12;
 
 /** How a catalog declaration is remembered: `declare:<block>:<name>`.
  *
@@ -328,7 +338,7 @@ export function buildCatalogOperationRequest(
 /** The proposal as the operator reads it: the whole current file, the exact entry, the whole
  *  result. PURE — returns lines; the caller decides where they go. */
 export function renderCatalogProposal(request: OperationRequest): string[] {
-	return renderOperationRequest(request, { contextLines: WHOLE_FILE });
+	return renderOperationRequest(request, { contextLines: PROPOSAL_CONTEXT_LINES });
 }
 
 /** Where the trail for a catalog declaration lives: beside the config it describes, in the same

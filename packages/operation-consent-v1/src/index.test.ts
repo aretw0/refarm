@@ -1274,3 +1274,119 @@ describe("a question whose answer is already true is not asked", () => {
 		expect(await driftedChanges(request.changes, midFlight)).toEqual([change.path]);
 	});
 });
+
+/**
+ * MEASURED ON A REAL TERMINAL, 2026-08-19. Declaring one process in a 259-line config printed the
+ * WHOLE file twice — once as "Como está agora", once as "Como fica" — about 530 lines of scroll to
+ * authorise an addition of ten.
+ *
+ * The original choice was deliberate and the reasoning still holds: "a diff you can only see three
+ * lines of is a category, not a change". The answer is not fewer lines, it is BOUNDED lines with
+ * the elision stated — a diff that silently hides context is worse than one that is too long,
+ * because the reader cannot tell which they are looking at.
+ */
+describe("a long file is bounded, and says what it left out", () => {
+	const longFile = (lines: number) =>
+		Array.from({ length: lines }, (_, i) => `linha ${i + 1}`).join("\n");
+
+	function requestInLongFile(lines: number) {
+		const before = longFile(lines);
+		const after = `${before}\nexport PATH="$HOME/.farm/bin:$PATH"`;
+		return {
+			id: "shell-path:long",
+			kind: "shell-path",
+			title: "t",
+			purpose: "p",
+			requester: "r",
+			requestedAt: "2026-07-30T10:00:00.000Z",
+			changes: [
+				{
+					path: PROFILE,
+					before,
+					after,
+					insertion: {
+						line: lines + 1,
+						text: 'export PATH="$HOME/.farm/bin:$PATH"',
+						placement: `no fim do arquivo (linha ${lines + 1})`,
+					},
+				},
+			],
+			undo: { kind: "restore-snapshot" as const, summary: "s" },
+		};
+	}
+
+	it("does not print a 250-line file to authorise a one-line addition", () => {
+		const text = renderOperationRequest(requestInLongFile(250), { contextLines: 6 });
+		// The whole proposal — both sections, the notes, the undo — inside a screen or two.
+		expect(text.length).toBeLessThan(40);
+	});
+
+	it("SAYS how many lines it left out, rather than hiding them", () => {
+		const text = renderOperationRequest(requestInLongFile(250), { contextLines: 6 }).join("\n");
+		// Silently truncating would make a bounded view indistinguishable from a complete one, and
+		// an operator authorising a diff has to know which they are reading.
+		expect(text).toMatch(/24[0-9] linhas/u);
+	});
+
+	it("still shows the added line, marked, with real context around it", () => {
+		const text = renderOperationRequest(requestInLongFile(250), { contextLines: 6 }).join("\n");
+		expect(text).toMatch(/\+\s+251 │ export PATH/u);
+		expect(text).toContain("linha 250");
+	});
+
+	it("elides NOTHING when the file already fits, and says nothing about it", () => {
+		// A short file must not grow a "… lines above" line that refers to nothing.
+		const text = renderOperationRequest(requestInLongFile(4), { contextLines: 6 }).join("\n");
+		expect(text).toContain("linha 1");
+		expect(text).not.toMatch(/linhas acima|linhas antes/u);
+	});
+});
+
+/**
+ * MEASURED 2026-08-19 on the same proposal: the two sections showed DIFFERENT parts of the file.
+ * "Como está agora" elided 247 lines and showed the tail; "Como fica" elided 23 and showed the
+ * middle, where the change actually lands. The operator was being asked to compare the end of the
+ * old file with the middle of the new one.
+ *
+ * The tail-slice was right when every insertion was an append — a shell profile gaining a PATH
+ * line. A catalog declaration lands inside a named block, in the middle, and the current view has
+ * to follow it there.
+ */
+describe("both sides of the diff look at the same place", () => {
+	function requestInsertingMidFile() {
+		const before = Array.from({ length: 60 }, (_, i) => `linha ${i + 1}`).join("\n");
+		const lines = before.split("\n");
+		const after = [...lines.slice(0, 20), "NOVA", ...lines.slice(20)].join("\n");
+		return {
+			id: "mid",
+			kind: "shell-path",
+			title: "t",
+			purpose: "p",
+			requester: "r",
+			requestedAt: "2026-07-30T10:00:00.000Z",
+			changes: [
+				{
+					path: PROFILE,
+					before,
+					after,
+					insertion: { line: 21, text: "NOVA", placement: "dentro do bloco" },
+				},
+			],
+			undo: { kind: "restore-snapshot" as const, summary: "s" },
+		};
+	}
+
+	it("anchors the CURRENT view at the change, not at the end of the file", () => {
+		const text = renderOperationRequest(requestInsertingMidFile(), { contextLines: 5 }).join("\n");
+		// The lines around where the insertion lands — not the file's last five.
+		expect(text).toContain("linha 20");
+		expect(text).not.toContain("linha 60");
+	});
+
+	it("elides the same amount on both sides, so the two views line up", () => {
+		const lines = renderOperationRequest(requestInsertingMidFile(), { contextLines: 5 });
+		const elisions = lines.filter((l) => l.includes("não mostradas"));
+		expect(elisions).toHaveLength(2);
+		expect(elisions[0]).toEqual(elisions[1]);
+	});
+});
