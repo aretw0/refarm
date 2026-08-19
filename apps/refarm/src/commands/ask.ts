@@ -916,6 +916,11 @@ export {
 					readNodeConfigForAllowance(),
 					await readSpendForAllowance(),
 					Date.now(),
+					// What the WORKSPACE announces about itself — a baseline of what working on it
+					// is expected to cost. It can only tighten: the node holds the grant, which is
+					// `docs/CONFIG_TIERS.md`'s rule, and a repository that could widen its own
+					// allowance would spend the operator's seat by being cloned.
+					readWorkspaceConfigForAllowance(),
 				);
 				if (allowance.state === "exceeded") {
 					console.error(chalk.yellow(`refarm ask: ${allowance.because}`));
@@ -1126,6 +1131,21 @@ export {
 		// A catalog or binding that cannot be read must not stop a dispatch. The observation then
 		// records no payer, which is the same honest absence an ambiguous provider produces.
 		return undefined;
+	}
+	}
+
+	/** The WORKSPACE's own config, where it may ANNOUNCE a baseline. Read from where the operator is
+ *  standing, and never trusted to widen anything — see `effectiveAllowances`. */
+	function readWorkspaceConfigForAllowance(): unknown {
+	try {
+		return JSON.parse(
+			nodeFsForAllowance.readFileSync(
+				nodePathForAllowance.join(process.cwd(), ".refarm", "config.json"),
+				"utf-8",
+			),
+		);
+	} catch {
+		return {};
 	}
 	}
 

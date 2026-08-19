@@ -17,7 +17,9 @@
 import {
 	checkWorkspaceAllowance,
 	readWorkspaceAllowances,
+	reconcileAnnouncedAllowance,
 	type AllowanceVerdict,
+	type WorkspaceAllowance,
 } from "@refarm.dev/budget-contract-v1";
 
 import { dispatchedPerAccount, type ObservationNode, type ResolvedPeriod } from "./budget.js";
@@ -47,9 +49,12 @@ export function allowanceForDispatch(
 	config: unknown,
 	observations: readonly ObservationNode[] | null,
 	nowMs: number,
+	/** What the WORKSPACE announced about itself, if it announced anything. A need stated, never
+	 *  a grant held — see `reconcileAnnouncedAllowance`. */
+	workspaceConfig?: unknown,
 ): AllowanceVerdict {
 	if (!workspaceId) return { state: "unbounded" };
-	const allowances = readWorkspaceAllowances(config);
+	const allowances = effectiveAllowances(workspaceId, config, workspaceConfig);
 	if (allowances.length === 0) return { state: "unbounded" };
 	if (observations === null) return checkWorkspaceAllowance(workspaceId, null, allowances);
 
@@ -100,4 +105,34 @@ export async function boundCredentialFor(credentialId: string | undefined): Prom
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * PURE. The node's grants, with the workspace's own announcement folded in where it TIGHTENS.
+ *
+ * The announcement is read from the workspace's config under the same key. It cannot widen: a
+ * repository that could raise its own allowance by shipping a file would spend the operator's seat
+ * by being cloned.
+ */
+export function effectiveAllowances(
+	workspaceId: string,
+	nodeConfig: unknown,
+	workspaceConfig: unknown,
+): WorkspaceAllowance[] {
+	const granted = readWorkspaceAllowances(nodeConfig);
+	const announced = readWorkspaceAllowances(workspaceConfig).find(
+		(a) => a.workspaceId === workspaceId,
+	);
+	if (!announced) return granted;
+
+	const grant = granted.find((a) => a.workspaceId === workspaceId);
+	const outcome = reconcileAnnouncedAllowance(
+		grant?.maxRequestsPerMonth,
+		announced.maxRequestsPerMonth,
+	);
+	if (outcome.effective === undefined) return granted;
+	return [
+		...granted.filter((a) => a.workspaceId !== workspaceId),
+		{ workspaceId, maxRequestsPerMonth: outcome.effective },
+	];
 }

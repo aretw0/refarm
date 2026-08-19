@@ -115,3 +115,43 @@ export function checkWorkspaceAllowance(
 	}
 	return { state: "within", spent, allowed, remaining: allowed - spent };
 }
+
+/**
+ * WHAT THE WORKSPACE ASKED FOR, AGAINST WHAT THE NODE GRANTED.
+ *
+ * The operator's design, 2026-08-19: a workspace announces what it expects working on it to cost —
+ * a baseline that travels with the work — and the node decides how much it actually grants. It is
+ * `docs/CONFIG_TIERS.md`'s rule reached from the other side: a workspace STATES A NEED, it never
+ * holds a grant.
+ *
+ * ONE DIRECTION IS SAFE AND ONE IS NOT. Asking for LESS takes nothing from anyone, so an
+ * announcement that only tightens is honoured without ceremony — including when the node granted
+ * nothing, since a self-imposed cap is not an escalation. Asking for MORE is a repository widening
+ * the operator's spend by being cloned, so the node's grant wins and the announcement is REPORTED
+ * rather than dropped in silence.
+ *
+ * Which is `Math.min` — the same rule `resolveBudget` already applies to workspace ceilings: a
+ * scope cannot grant capacity the machine lacks.
+ */
+export interface AnnouncedAllowanceOutcome {
+	/** The limit that will actually bind, or `undefined` when neither side set one. */
+	readonly effective: number | undefined;
+	/** Which side produced it. `node` when they are equal: nothing changed hands, and reporting
+	 *  the workspace would send an operator raising the node's grant to the wrong ceiling. */
+	readonly source: "node" | "workspace" | "none";
+}
+
+export function reconcileAnnouncedAllowance(
+	granted: number | undefined,
+	announced: number | undefined,
+): AnnouncedAllowanceOutcome {
+	if (announced === undefined) {
+		return granted === undefined
+			? { effective: undefined, source: "none" }
+			: { effective: granted, source: "node" };
+	}
+	if (granted === undefined) return { effective: announced, source: "workspace" };
+	return announced < granted
+		? { effective: announced, source: "workspace" }
+		: { effective: granted, source: "node" };
+}

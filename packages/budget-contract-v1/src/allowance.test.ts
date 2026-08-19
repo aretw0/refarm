@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { checkWorkspaceAllowance, readWorkspaceAllowances } from "./allowance.js";
+import {
+	checkWorkspaceAllowance,
+	readWorkspaceAllowances,
+	reconcileAnnouncedAllowance,
+} from "./allowance.js";
 
 /**
  * ISS-064 step 3, the capping half — and NOT the per-dispatch fold.
@@ -88,5 +92,57 @@ describe("checkWorkspaceAllowance", () => {
 		const verdict = checkWorkspaceAllowance("refarm", 10, allowances);
 		expect("because" in verdict && verdict.because).toMatch(/this node/iu);
 		expect("because" in verdict && verdict.because).not.toMatch(/provider'?s (meter|quota) is/iu);
+	});
+});
+
+/**
+ * THE OPERATOR'S DESIGN, 2026-08-19: a workspace announces what it expects working on it to cost;
+ * the node decides how much it actually grants. His words — the node may keep its own
+ * configuration, canonise the workspace's announcement, or duly honour a workspace that already
+ * announces one.
+ *
+ * That is `docs/CONFIG_TIERS.md`'s own rule reached independently: a workspace STATES A NEED, it
+ * never holds a grant. And the safety rule comes from `resolveBudget`: a scope cannot grant
+ * capacity the machine lacks.
+ */
+describe("reconcileAnnouncedAllowance", () => {
+	it("honours an announcement that only TIGHTENS what the node granted", () => {
+		// Asking for less takes nothing from anyone, so it needs no permission.
+		expect(reconcileAnnouncedAllowance(400, 100)).toEqual({
+			effective: 100,
+			source: "workspace",
+		});
+	});
+
+	it("REFUSES an announcement that would raise the node's grant, and says so", () => {
+		// The one dangerous direction. A repository that could widen its own budget by shipping a
+		// config file is a repository that spends the operator's seat by being cloned.
+		expect(reconcileAnnouncedAllowance(400, 800)).toMatchObject({
+			effective: 400,
+			source: "node",
+		});
+	});
+
+	it("honours an announcement when the node granted nothing", () => {
+		// A self-imposed cap is not an escalation: the workspace is asking to be bounded where it
+		// was not. The node keeps the power to override by declaring its own.
+		expect(reconcileAnnouncedAllowance(undefined, 100)).toEqual({
+			effective: 100,
+			source: "workspace",
+		});
+	});
+
+	it("leaves a workspace that announces nothing exactly as the node left it", () => {
+		expect(reconcileAnnouncedAllowance(400, undefined)).toEqual({ effective: 400, source: "node" });
+		expect(reconcileAnnouncedAllowance(undefined, undefined)).toEqual({
+			effective: undefined,
+			source: "none",
+		});
+	});
+
+	it("treats a matching announcement as the node's, because nothing changed hands", () => {
+		// Equal values must not report the workspace as the binding level — an operator raising
+		// the node's grant would then see no effect and blame the wrong ceiling.
+		expect(reconcileAnnouncedAllowance(100, 100)).toEqual({ effective: 100, source: "node" });
 	});
 });
