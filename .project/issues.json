@@ -1820,6 +1820,17 @@
 			"priority": "low",
 			"package": "@refarm.dev/tractor",
 			"axis": "durability"
+		},
+		{
+			"id": "ISS-154",
+			"title": "The node executes the development repo, and nothing says so",
+			"body": "MEASURED 2026-08-19, chasing \"why did the node not come back after the reboot\". The answer is smaller than what the measuring found.\n\nTHE CHAIN, end to end:\n\n  systemd unit  ->  ~/.local/bin/refarm  ->  ~/github/refarm/apps/refarm/dist/index.js\n\n`~/.local/bin/refarm` is a 313-byte shim that execs the development repo's build output. So `web-serve` -- a declared, supervised, currently-running service -- executes code from the git working tree, and looks independent of it because the unit names a path under `~/.local/bin`.\n\nThe runtime is worse: `packages/runtime-operator/src/launcher.ts` resolves `repo script if present, else the binary on PATH`, and `tractor` is NOT on PATH on this node. Its binary lives at `~/github/refarm/.cache/cargo-target/release/tractor` -- a cargo target directory. The `path` fallback exists and is unreachable here.\n\nFOUR CONSEQUENCES, each derived rather than imagined:\n\n1. A BUILD REWRITES WHAT LIVE SERVICES EXECUTE. `pnpm run build` replaces `dist/`; a supervised service restarting during it reads a partial tree, and a failed build leaves the node running nothing.\n2. A BRANCH SWITCH CHANGES THE OPERATOR'S LIVE NODE, silently. `git checkout` is a development action with production effect.\n3. THE BACKUP RESTORES A NODE THAT CANNOT RUN. Measured: `backup plan` carries 32 files, and none of them is the code. Restoring on a reformatted machine yields a fully configured node -- credentials named, processes declared, databases intact -- with nothing to execute. ISS-123 closed on \"the node's source of truth is exportable\", and that is still true; the code was never part of that truth, and now it is clear that it has to be.\n4. DECLARING THE RUNTIME AS A SUPERVISED PROCESS WOULD ENCODE A REPO PATH into a systemd unit, which is why the operator's reboot left the node down and why the obvious fix is not obviously right.\n\nWHAT THIS IS NOT: it is not an accident of a bad install. A development node running its own working tree is the fastest possible loop, and this repository is the operator's own instrument -- editing it and using it in the same breath is the point. The defect is that nothing SAYS the two are the same thing, so a development action and a node action are indistinguishable until one breaks the other.\n\nTHE DECISION IS THE OPERATOR'S, and the two directions diverge:\n\n  A. SEPARATE THEM. The node runs an INSTALLED copy (a real binary, or a dist snapshot under `~/.refarm`), and the repo is where new versions are built and promoted deliberately. Costs a promote step; buys a node that survives a broken build, a branch switch and a reformat.\n  B. DECLARE THE COUPLING. Keep running the working tree and make the node say so -- health reports \"this node executes /home/.../github/refarm\", the backup manifest names the repo as something to re-clone, and `process add` refuses to write a unit pointing into a git tree without saying what that means.\n\nB is cheap and honest; A is what \"bring the node up somewhere else\" actually requires. They are not exclusive -- B is the smaller step and makes A's absence visible until it is taken.",
+			"location": "packages/runtime-operator/src/launcher.ts",
+			"status": "open",
+			"category": "infrastructure",
+			"priority": "high",
+			"package": "@refarm.dev/refarm",
+			"axis": "node-vs-directory"
 		}
 	]
 }
