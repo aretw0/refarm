@@ -1024,8 +1024,40 @@ pub(crate) fn account_base_url_from_env(credential_id: &str) -> Option<String> {
     account_credential_from_env(credential_id)?.base_url
 }
 
+/// The env var naming a FILE that holds the same map. Set, it wins.
+///
+/// MEASURED 2026-08-19: a credential handed to this process at spawn goes stale about a day later,
+/// and every dispatch then fails with `token expired` until the node is restarted. The read below
+/// already happens per call — what was missing was a source anything could rewrite. A process
+/// cannot have its own environment updated from outside; a file it re-reads can.
+///
+/// The path is expected to end in `.token`, which the sovereign layout already classifies as a
+/// secret: it is never carried into a backup bundle, and that rule is inherited rather than
+/// restated here.
+pub(crate) const MODEL_ACCOUNT_CREDENTIALS_PATH_ENV: &str = "MODEL_ACCOUNT_CREDENTIALS_PATH";
+
+/// PURE. The raw credential map, from the file when one is declared, else from the environment.
+///
+/// A declared path that cannot be read falls back to the environment rather than failing: the
+/// env copy is stale, not wrong, and refusing every dispatch because a file went missing is worse
+/// than serving the credential the process already had.
+fn account_credentials_raw(env_path: Option<String>, env_inline: Option<String>) -> Option<String> {
+    if let Some(path) = env_path.map(|p| p.trim().to_string()).filter(|p| !p.is_empty()) {
+        if let Ok(contents) = std::fs::read_to_string(&path) {
+            let contents = contents.trim().to_string();
+            if !contents.is_empty() {
+                return Some(contents);
+            }
+        }
+    }
+    env_inline
+}
+
 fn account_credential_from_env(credential_id: &str) -> Option<AccountCredential> {
-    let raw = std::env::var("MODEL_ACCOUNT_CREDENTIALS").ok()?;
+    let raw = account_credentials_raw(
+        std::env::var(MODEL_ACCOUNT_CREDENTIALS_PATH_ENV).ok(),
+        std::env::var("MODEL_ACCOUNT_CREDENTIALS").ok(),
+    )?;
     parse_account_credential(&raw, credential_id)
 }
 

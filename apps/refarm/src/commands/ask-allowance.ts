@@ -136,3 +136,50 @@ export function effectiveAllowances(
 		{ workspaceId, maxRequestsPerMonth: outcome.effective },
 	];
 }
+
+/**
+ * Renew whatever has lapsed and hand it to the running host, from the dispatch path.
+ *
+ * Assembles what `refreshLiveCredentials` needs from the same loaders every other surface uses, so
+ * a second assembly cannot drift from theirs. Never throws.
+ */
+export async function refreshLiveCredentialsForDispatch(): Promise<
+	{ kind: "none-stale" } | { kind: "refreshed" } | { kind: "could-not-renew"; because: string }
+> {
+	try {
+		const { SiloCore } = await import("@refarm.dev/silo");
+		const { loadAccountCredentials, loadAccountView } = await import(
+			"../credentials/account-view-loader.js"
+		);
+		const { resolveRefarmHome } = await import("../utils/refarm-home.js");
+		const { refreshLiveCredentials } = await import("../credentials/refresh-live-credentials.js");
+		const { buildAccountCredentialMap } = await import("./model.js");
+		const { githubOAuthClientId } = await import("../credentials/github.js");
+		const { REFARM_BINARY } = await import("../brand.js");
+		const { resolveRefarmVersion } = await import("./runtime-metadata.js");
+
+		const home = resolveRefarmHome();
+		const silo = new SiloCore() as never;
+		const view = await loadAccountView({ home, silo });
+		const credentials = await loadAccountCredentials({ home, silo });
+		const outcome = await refreshLiveCredentials({
+			home,
+			accounts: [...view.accounts],
+			credentials,
+			buildMap: buildAccountCredentialMap,
+			clientId: githubOAuthClientId(),
+			userAgent: `${REFARM_BINARY}/${resolveRefarmVersion()}`,
+			fetch: globalThis.fetch,
+			save: async (credentialId, credential) => {
+				await (silo as unknown as { saveSecret: (n: string, k: string, v: string) => Promise<void> }).saveSecret(
+					"model",
+					credentialId,
+					JSON.stringify(credential),
+				);
+			},
+		});
+		return outcome.kind === "refreshed" ? { kind: "refreshed" } : outcome;
+	} catch (error) {
+		return { kind: "could-not-renew", because: error instanceof Error ? error.message : String(error) };
+	}
+}

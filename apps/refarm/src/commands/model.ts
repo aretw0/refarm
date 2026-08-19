@@ -18,6 +18,10 @@ import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import {
+	MODEL_ACCOUNT_CREDENTIALS_PATH_ENV_VAR,
+	writeLiveCredentials,
+} from "../credentials/live-credential-file.js";
+import {
 	DEFAULT_MODEL_PROVIDER,
 	defaultModelForProvider,
 	defaultModelForScope,
@@ -514,6 +518,9 @@ function buildModelEnvEntries(
 		authorization?: ModelAuthorization;
 		/** One account's credential, by opaque id. Only consulted for the authorised set. */
 		credentials?: ReadonlyMap<string, unknown>;
+		/** The node home to write the live credential file into. Absent means only the inline
+		 *  copy is provisioned — the previous behaviour, kept for callers that pass no home. */
+		home?: string;
 	} = {},
 ): [string, string][] {
 	const status = buildCurrentModelStatus(tokens);
@@ -601,6 +608,15 @@ function buildModelEnvEntries(
 			const accountCredentials = buildAccountCredentialMap(authorized, options.credentials);
 			if (accountCredentials && !process.env[MODEL_ACCOUNT_CREDENTIALS_ENV_VAR]) {
 				entries.push([MODEL_ACCOUNT_CREDENTIALS_ENV_VAR, accountCredentials]);
+				// AND A PATH THE RUNNING HOST CAN BE HANDED AGAIN. The inline copy above is fixed at
+				// spawn; a credential with a finite life outlives about a day and then every
+				// dispatch fails until the node is restarted (measured 2026-08-19). The host reads
+				// its map per call and prefers this file, so a renewal reaches a live runtime
+				// without one. The inline copy stays as the fallback.
+				const live = options.home ? writeLiveCredentials(options.home, accountCredentials) : null;
+				if (live && !process.env[MODEL_ACCOUNT_CREDENTIALS_PATH_ENV_VAR]) {
+					entries.push([MODEL_ACCOUNT_CREDENTIALS_PATH_ENV_VAR, live]);
+				}
 			}
 			const providerBaseUrls = buildProviderBaseUrls(provision, options.credentials);
 			// THE ENDPOINT TRAVELS WITH THE CREDENTIAL. Without it the host resolves a static
@@ -643,6 +659,9 @@ export function buildModelEnvEnvelope(
 		view?: AccountView;
 		authorization?: ModelAuthorization;
 		credentials?: ReadonlyMap<string, unknown>;
+		/** Threaded through so provisioning can write the credential FILE a running host re-reads —
+		 *  without it only the spawn-time copy exists, and a renewal never reaches a live node. */
+		home?: string;
 	} = {},
 ) {
 	const entries = buildModelEnvEntries(tokens, options);

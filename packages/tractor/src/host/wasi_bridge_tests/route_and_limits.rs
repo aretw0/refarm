@@ -915,6 +915,54 @@
     /// provisioned, and a workspace bound to the one that was not the default could not be
     /// honoured. Keyed by the OPAQUE credential id, which is what the task already declares and
     /// what the budget record already stamps: one id rather than three inferences.
+    /// A CREDENTIAL THIS PROCESS CAN BE HANDED AGAIN.
+    ///
+    /// MEASURED 2026-08-19 on the operator's node: every dispatch failed with `token expired`
+    /// about a day after the runtime started, and a restart fixed it. The credential was fine.
+    /// The host reads its map per call, but a process cannot have its own environment rewritten
+    /// from outside — so a renewal could never reach a running node.
+    ///
+    /// A declared FILE can be rewritten. It wins over the inline copy, which stays as the
+    /// fallback so nothing that works today stops working.
+    #[test]
+    fn account_credentials_prefer_the_declared_file_over_the_inline_copy() {
+        let dir = std::env::temp_dir().join(format!("refarm-cred-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let path = dir.join("model-accounts.token");
+        std::fs::write(&path, r#"{"model-account:A":{"access":"tid=renewed"}}"#).expect("write");
+
+        let raw = account_credentials_raw(
+            Some(path.to_string_lossy().to_string()),
+            Some(r#"{"model-account:A":{"access":"tid=stale"}}"#.to_string()),
+        )
+        .expect("some source");
+        let credential = parse_account_credential(&raw, "model-account:A").expect("seat");
+        assert_eq!(
+            credential.access, "tid=renewed",
+            "the rewritten file is what a running node must pick up"
+        );
+
+        // A declared path that is GONE falls back rather than refusing: the inline copy is stale,
+        // not wrong, and refusing every dispatch because a file vanished is the worse failure.
+        std::fs::remove_file(&path).expect("remove");
+        let fallback = account_credentials_raw(
+            Some(path.to_string_lossy().to_string()),
+            Some(r#"{"model-account:A":{"access":"tid=stale"}}"#.to_string()),
+        )
+        .expect("falls back");
+        assert!(fallback.contains("tid=stale"), "the process keeps what it already had");
+
+        // An EMPTY file is not an answer either — a half-written rewrite must not blank the node.
+        std::fs::write(&path, "   ").expect("write empty");
+        let empty = account_credentials_raw(
+            Some(path.to_string_lossy().to_string()),
+            Some(r#"{"model-account:A":{"access":"tid=stale"}}"#.to_string()),
+        )
+        .expect("falls back");
+        assert!(empty.contains("tid=stale"), "an empty file is not a credential map");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     #[test]
     fn parse_account_credential_reads_one_seat_by_its_opaque_id() {
         let raw = r#"{

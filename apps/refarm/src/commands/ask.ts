@@ -30,7 +30,12 @@ import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import { REFARM_BINARY, REFARM_PRODUCT_NAME, refarmCommand } from "../brand.js";
-import { allowanceForDispatch, boundCredentialFor, readSpendForAllowance } from "./ask-allowance.js";
+import {
+	allowanceForDispatch,
+	boundCredentialFor,
+	readSpendForAllowance,
+	refreshLiveCredentialsForDispatch,
+} from "./ask-allowance.js";
 import { credentialStaleness } from "./ask-credential-staleness.js";
 
 import { readBindings, readCatalog } from "../credentials/account-view-loader.js";
@@ -899,9 +904,14 @@ export {
 					Date.now(),
 				);
 				if (staleness.state === "expired") {
-					console.error(chalk.yellow(`refarm ask: ${staleness.because}`));
-					process.exitCode = 1;
-					return;
+					// RENEW IN PLACE rather than refuse. The host prefers a credential FILE it
+					// re-reads per dispatch, so a renewal reaches a live runtime without a restart —
+					// and restarting to pick one up kills work in flight, which on a node serving a
+					// phone and a PWA includes the operator's own work from somewhere else.
+					const refreshed = await refreshLiveCredentialsForDispatch();
+					if (refreshed.kind === "could-not-renew") {
+						console.error(chalk.yellow(`refarm ask: ${refreshed.because}`));
+					}
 				}
 
 				// THE GATE. Measured 2026-08-18: every ceiling that existed bounded a single

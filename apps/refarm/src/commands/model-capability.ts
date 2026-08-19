@@ -265,6 +265,9 @@ export function createModelCapabilityGroup(
 				...(view ? { view } : {}),
 				...(authorization ? { authorization } : {}),
 				...(credentials ? { credentials } : {}),
+				// The home the credential FILE is written into. Without it the runtime gets only
+				// the spawn-time copy and a renewal can never reach it (measured 2026-08-19).
+				home,
 			});
 		},
 	};
