@@ -1809,6 +1809,17 @@
 			"priority": "medium",
 			"package": "@refarm.dev/budget-contract-v1",
 			"axis": "cost"
+		},
+		{
+			"id": "ISS-153",
+			"title": "A Rust lib test flaked once and the run that saw it hid which one",
+			"body": "OBSERVED 2026-08-19, once in roughly seven runs of `cargo test --lib` on packages/tractor: 1503 passed, 1 failed. Five consecutive re-runs afterwards were clean, and the failure did not reproduce.\n\nTHE NAME IS UNKNOWN, AND THAT IS THE PART WORTH FIXING. The run used `--quiet`, which prints the result line and suppresses the `failures:` block naming which test failed. So a real intermittent failure was observed and cannot be chased, because the only invocation that saw it threw away the one fact needed to act on it.\n\nThat is the same shape as ISS-149's timeout envelope: the output that reports a problem omits the field that identifies it. The cheap fix is at the invocation, not in any test — a run that reports a failure must name it.\n\nWHAT WAS RULED OUT by measurement rather than assumption: it is not the live daemon. Five clean runs happened with the node's `tractor` process up and holding its databases, which was the first hypothesis.\n\nWHAT IS STILL OPEN: which test, and whether it is order- or parallelism-dependent. `cargo test` runs the lib suite in one process with threads, and this repository has fixed exactly that class before (the peer-id flake, resolved by keying identity on persistence rather than on name).\n\nNOT INVESTIGATED FURTHER on purpose: chasing an unnamed flake by re-running is how an afternoon disappears. Recorded so the next observer starts with \"run it without --quiet\" instead of with five more runs.",
+			"location": "packages/tractor",
+			"status": "open",
+			"category": "infrastructure",
+			"priority": "low",
+			"package": "@refarm.dev/tractor",
+			"axis": "durability"
 		}
 	]
 }
