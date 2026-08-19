@@ -370,7 +370,9 @@ left to be discovered:
   that report.
 - **The working directory both nodes' processes were started from is the same repository.** Nothing
   about the sandbox isolates *code* — both nodes execute the same working-tree source; only state
-  (graph, credentials store, sovereign dir, home) is split.
+  (graph, credentials store, sovereign dir, home) is split. Measured 2026-08-19, this is not only a
+  sandbox limit: the operator's REAL node runs the same working tree, through a shim in
+  `~/.local/bin`, and its backup does not carry it. See [`NODE_SUBSTRATE.md`](NODE_SUBSTRATE.md).
 
 ---
 
