@@ -299,6 +299,15 @@ export interface AttachDeliveryOptions {
 	maxRecords?: number;
 	/** Where a delivery failure becomes visible. Defaults to stderr (D4). */
 	warn?: (message: string) => void;
+	/**
+	 * Is a LOCAL terminal attending — that is, reading the question right now?
+	 *
+	 * When it is, a failure to ALSO reach a phone is not worth interrupting: the operator is
+	 * looking at the thing the delivery was for. Measured 2026-08-19, the notice was written into
+	 * the prompt line once per question, which trains an operator to read past the one line that
+	 * would have mattered on the day nobody was there.
+	 */
+	attendedLocally?: () => boolean;
 }
 
 const DEFAULT_MAX_RECORDS = 64;
@@ -375,7 +384,7 @@ export function attachDeliveryToHub(
 			.then((outcomes) => {
 				const record = buildDeliveryRecord(pending.id, now(), plan, outcomes);
 				remember(record);
-				announceFailures(record, warn);
+				if (!options.attendedLocally?.()) announceFailures(record, warn);
 			})
 			.catch((error: unknown) => {
 				// deliver() is total, so this is a bug rather than a transport failure —

@@ -118,6 +118,9 @@ export interface InstallDeclaredDeliveryOptions {
 	factories?: readonly DeliveryAdapterFactory[];
 	/** Where a delivery failure becomes visible. Defaults to stderr (D4). */
 	warn?: (message: string) => void;
+	/** Is a local terminal reading the question? Threaded to the attachment so a failure to ALSO
+	 *  reach a phone does not interrupt an operator who is looking at the prompt. */
+	attendedLocally?: () => boolean;
 	/** Injected in tests so routing can be exercised without the filesystem (D8). */
 	attending?: () => boolean;
 	now?: () => number;
@@ -217,6 +220,7 @@ export async function installDeclaredDelivery(
 				warn,
 			};
 			if (options.attending) attachOptions.attending = options.attending;
+			if (options.attendedLocally) attachOptions.attendedLocally = options.attendedLocally;
 			if (options.now) attachOptions.now = options.now;
 			attachment = resolved.attachDeliveryToHub(hub, attachOptions);
 		}

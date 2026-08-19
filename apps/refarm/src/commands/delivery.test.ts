@@ -1,6 +1,3 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import {
 	delivered,
 	DeliveryDeclarationError,
@@ -15,6 +12,9 @@ import {
 	type OperatorChannel,
 	type PendingPromptHub,
 } from "@refarm.dev/prompt-contract-v1";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { defaultDeliveryAdapterFactories } from "./delivery-adapters.js";
 import {
@@ -488,6 +488,85 @@ describe("D5 — a wizard gains delivery with no code change", () => {
 		const answer = bringTheVpnUp(channelFor(hub));
 		await new Promise((r) => setTimeout(r, 10));
 
+		hub.answer(hub.list()[0]!.id, false, "my-phone");
+		expect(await answer).toBe(false);
+		expect(warnings.join()).toContain("could not be delivered");
+		attachment.detach();
+	});
+
+	/**
+	 * MEASURED ON THE OPERATOR'S TERMINAL, 2026-08-19. Every question `refarm process add` asked
+	 * was preceded by "a question is waiting and could not be delivered — telegram only reaches you
+	 * while you are attending", written INTO the prompt line, once per prompt:
+	 *
+	 *   Qual processo? (…) [web-serve]: refarm delivery: a question is waiting and could not be…
+	 *
+	 * The notice is right when nobody is looking: a prompt waiting, an operator never told, and
+	 * nothing saying so. It is noise when the operator is READING THE QUESTION — the thing the
+	 * delivery was for already happened, locally, and repeating the failure per prompt trains an
+	 * operator to ignore the one line that would have mattered.
+	 */
+	it("stays quiet about undelivered questions when the operator is at the terminal", async () => {
+		const factory: DeliveryAdapterFactory = {
+			id: "telegram",
+			create: () => ({
+				id: "telegram",
+				capability: "answer",
+				unattended: true,
+				announce: async () => {
+					throw new Error("socket hang up");
+				},
+				offerAnswer: async () => {
+					throw new Error("socket hang up");
+				},
+			}),
+		};
+		const { channels } = resolveDeliveryChannels(catalogFor("telegram"), { factories: [factory] });
+		const warnings: string[] = [];
+		const attachment = attachDeliveryToHub(hub, {
+			channels,
+			attending: () => true,
+			// The terminal is right here and is asking.
+			attendedLocally: () => true,
+			warn: (m) => warnings.push(m),
+		});
+
+		const answer = bringTheVpnUp(channelFor(hub));
+		await new Promise((r) => setTimeout(r, 10));
+		hub.answer(hub.list()[0]!.id, false, "my-phone");
+		expect(await answer).toBe(false);
+		expect(warnings.join()).not.toContain("could not be delivered");
+		attachment.detach();
+	});
+
+	it("still says it when NOBODY is at a terminal, which is the case it exists for", async () => {
+		// Suppressing this everywhere would restore the worst outcome the notice was written for:
+		// a question waiting, an operator who was never told, and nothing anywhere saying so.
+		const factory: DeliveryAdapterFactory = {
+			id: "telegram",
+			create: () => ({
+				id: "telegram",
+				capability: "answer",
+				unattended: true,
+				announce: async () => {
+					throw new Error("socket hang up");
+				},
+				offerAnswer: async () => {
+					throw new Error("socket hang up");
+				},
+			}),
+		};
+		const { channels } = resolveDeliveryChannels(catalogFor("telegram"), { factories: [factory] });
+		const warnings: string[] = [];
+		const attachment = attachDeliveryToHub(hub, {
+			channels,
+			attending: () => true,
+			attendedLocally: () => false,
+			warn: (m) => warnings.push(m),
+		});
+
+		const answer = bringTheVpnUp(channelFor(hub));
+		await new Promise((r) => setTimeout(r, 10));
 		hub.answer(hub.list()[0]!.id, false, "my-phone");
 		expect(await answer).toBe(false);
 		expect(warnings.join()).toContain("could not be delivered");

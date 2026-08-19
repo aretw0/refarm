@@ -12,8 +12,6 @@ import {
 	createRemoteOperatorChannel,
 	createScriptedOperatorChannel,
 	createStdioOperatorChannel,
-	optionCapacityFor,
-	visibleOptionWindow,
 	createTerminalOperatorChannel,
 	currentPromptPublisher,
 	handlePendingPromptHttp,
@@ -22,6 +20,7 @@ import {
 	OPERATOR_NOTICE_WIRE,
 	OperatorPromptCancelledError,
 	OperatorPromptExpiredError,
+	optionCapacityFor,
 	parseOperatorNotice,
 	parseOperatorNoticeList,
 	parseOperatorPrompt,
@@ -35,7 +34,9 @@ import {
 	runOperatorChannelConformance,
 	setPromptPublisher,
 	TERMINAL_PROMPT_DEVICE,
+	textPromptHint,
 	toPendingPrompt,
+	visibleOptionWindow,
 	type OperatorChannel,
 	type OperatorNotice,
 	type OperatorPrompt,
@@ -2132,5 +2133,36 @@ describe("the select frame fits the screen", () => {
 			expect(selected).toBeGreaterThanOrEqual(start);
 			expect(selected).toBeLessThan(end);
 		}
+	});
+});
+
+/**
+ * MEASURED ON A REAL TERMINAL, 2026-08-19:
+ *
+ *   Qual processo? (refarm já sabe propor: web-serve) (web-serve) [web-serve]:
+ *
+ * The same value three times — once in the caller's prose, once as the placeholder, once as the
+ * default. A line that says one thing three ways reads as three things, and the operator has to
+ * work out that they are the same before answering.
+ */
+describe("textPromptHint", () => {
+	it("prints a value ONCE when the placeholder and the default agree", () => {
+		expect(textPromptHint({ type: "text", question: "q", placeholder: "web-serve", default: "web-serve" })).toBe(
+			" [web-serve]",
+		);
+	});
+
+	it("keeps both when they say DIFFERENT things", () => {
+		// A placeholder that shows the SHAPE of an answer and a default that is one are two facts,
+		// and collapsing them would lose the example.
+		expect(
+			textPromptHint({ type: "text", question: "q", placeholder: "/usr/bin/node app.js", default: "web-serve" }),
+		).toBe(" (/usr/bin/node app.js) [web-serve]");
+	});
+
+	it("renders each alone when only one is given", () => {
+		expect(textPromptHint({ type: "text", question: "q", placeholder: "meu-servico" })).toBe(" (meu-servico)");
+		expect(textPromptHint({ type: "text", question: "q", default: "web-serve" })).toBe(" [web-serve]");
+		expect(textPromptHint({ type: "text", question: "q" })).toBe("");
 	});
 });

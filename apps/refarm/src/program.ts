@@ -187,7 +187,14 @@ program.hook("preAction", async (_thisCommand, actionCommand) => {
 		for (let node: Command | null = actionCommand; node && node.parent; node = node.parent) {
 			argvPath.unshift(node.name());
 		}
-		await installDeclaredDelivery({ asker: askerForCommandPath(argvPath) });
+		await installDeclaredDelivery({
+			asker: askerForCommandPath(argvPath),
+			// A TERMINAL IS READING THIS. Measured 2026-08-19: every prompt of `refarm process add`
+			// was preceded by "a question is waiting and could not be delivered", written into the
+			// prompt line. The notice exists for the case where nobody is looking; repeating it at
+			// someone who is reading the question teaches them to read past it.
+			attendedLocally: () => Boolean(process.stdin.isTTY && process.stdout.isTTY),
+		});
 	} catch (error) {
 		// Notification is never the reason a command does not run.
 		process.stderr.write(

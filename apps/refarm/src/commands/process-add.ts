@@ -751,7 +751,12 @@ export async function runProcessAdd(
 			processName = (
 				await operator.ask({
 					type: "text",
-					question: `Qual processo? (refarm já sabe propor: ${known.join(", ")})`,
+					// The channel already renders the default as `[web-serve]`. Naming it again here
+					// printed the same value three times in one line — see `textPromptHint`.
+					question:
+						known.length > 1
+							? `Qual processo? (refarm sabe propor: ${known.join(", ")})`
+							: "Qual processo?",
 					default: known[0] ?? "",
 					placeholder: known[0] ?? "meu-servico",
 				})
@@ -1119,6 +1124,14 @@ async function askForCommand(question: CommandQuestion): Promise<string[]> {
 					[PROCESS_ADD_COMMAND],
 				);
 			}
+			// SAY WHY BEFORE ASKING AGAIN. Measured on a real terminal 2026-08-19: pressing Enter
+			// re-printed the identical question with no explanation, and the parenthesised example
+			// reads exactly like a default that Enter would accept. An operator cannot tell a
+			// rejected answer from a question that did not register.
+			question.operator.say?.(
+				"That is required, and the example in parentheses is a placeholder rather than a " +
+					"default — Enter alone does not accept it. Type the executable and its arguments.",
+			);
 			raw = "";
 			continue;
 		}
