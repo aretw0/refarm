@@ -1171,6 +1171,11 @@ export interface DispatchedPerAccount {
 	 *  nothing: one is silence, the other is traffic nobody can classify, and only the first can
 	 *  support a claim that a meter went untouched. */
 	readonly modelUnknownByAccount: ReadonlyMap<string, number>;
+	/** Which workspaces spent each account, and how much — the subscription meter is per ACCOUNT
+	 *  and several workspaces can bind to one, so a share is the only way to see who is using it.
+	 *  A dispatch naming no workspace appears in `byAccount` and in no share: it spent the seat
+	 *  and said for whom it did not. */
+	readonly workspacesByAccount: ReadonlyMap<string, ReadonlyMap<string, number>>;
 	/** Dated, inside the window, but naming no account. */
 	readonly unattributed: number;
 	/** Named an account but carried no timestamp, so no window can claim it. */
@@ -1184,6 +1189,7 @@ export function dispatchedPerAccount(
 	const byAccount = new Map<string, number>();
 	const modelsByAccount = new Map<string, { provider: string; model: string }[]>();
 	const modelUnknownByAccount = new Map<string, number>();
+	const workspacesByAccount = new Map<string, Map<string, number>>();
 	let unattributed = 0;
 	let undated = 0;
 
@@ -1200,6 +1206,12 @@ export function dispatchedPerAccount(
 			continue;
 		}
 		byAccount.set(account, (byAccount.get(account) ?? 0) + 1);
+		const workspace = node[GROUP_KEY_FIELD.workspace];
+		if (typeof workspace === "string" && workspace.trim() !== "") {
+			const shares = workspacesByAccount.get(account) ?? new Map<string, number>();
+			shares.set(workspace, (shares.get(workspace) ?? 0) + 1);
+			workspacesByAccount.set(account, shares);
+		}
 		const provider = node["gen_ai.provider.name"];
 		const model = node["gen_ai.request.model"];
 		if (typeof provider === "string" && typeof model === "string") {
@@ -1213,7 +1225,7 @@ export function dispatchedPerAccount(
 		}
 	}
 
-	return { byAccount, modelsByAccount, modelUnknownByAccount, unattributed, undated };
+	return { byAccount, modelsByAccount, modelUnknownByAccount, workspacesByAccount, unattributed, undated };
 }
 
 export function usageByPeriod(

@@ -98,3 +98,51 @@ describe("readAccountQuota", () => {
 		expect(readAccountQuota(null).meters).toEqual({});
 	});
 });
+
+/**
+ * MEASURED 2026-08-18 on a real business seat, and it corrected an assumption this reader was
+ * built on. `has_quota: false` was read as "the provider does not meter this on this plan". The
+ * provider also sends it when the meter is EXHAUSTED — with the entitlement still stated and
+ * `credits_used` equal to it.
+ *
+ * The consequence was the worst direction possible: a seat at ZERO reported as "the provider
+ * would not say". An operator reads that as missing information and keeps dispatching.
+ */
+describe("readQuotaMeter — has_quota: false", () => {
+	const EXHAUSTED = {
+		quota_id: "premium_interactions",
+		unlimited: false,
+		has_quota: false,
+		entitlement: 10000,
+		remaining: 0,
+		quota_remaining: 0,
+		credits_used: 10000,
+		percent_remaining: 0,
+		overage_permitted: false,
+		overage_count: 0,
+	};
+
+	it("reads an EXHAUSTED meter as metered-with-nothing-left, not as unanswerable", () => {
+		expect(readQuotaMeter(EXHAUSTED)).toMatchObject({
+			kind: "metered",
+			entitlement: 10000,
+			remaining: 0,
+			percentRemaining: 0,
+		});
+	});
+
+	it("still reads a meter that does NOT apply as cannot-say", () => {
+		// The distinction is the entitlement. Nothing was allotted, so nothing was spent — that is
+		// a plan without this meter, and it is not a zero balance.
+		expect(readQuotaMeter({ ...EXHAUSTED, entitlement: 0, credits_used: 0 })).toMatchObject({
+			kind: "cannot-say",
+		});
+	});
+
+	it("does not let an unlimited meter fall into either branch", () => {
+		// Order still holds: this provider sends entitlement 0 / remaining 0 on unlimited meters.
+		expect(readQuotaMeter({ ...EXHAUSTED, unlimited: true, has_quota: true, entitlement: 0 })).toEqual({
+			kind: "unlimited",
+		});
+	});
+});

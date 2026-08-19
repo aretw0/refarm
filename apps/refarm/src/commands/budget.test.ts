@@ -1070,3 +1070,65 @@ describe("dispatchedPerAccount", () => {
 		expect(result.unattributed).toBe(0);
 	});
 });
+
+/**
+ * ISS-064 step 3, the seeing half.
+ *
+ * The subscription meter is per ACCOUNT, and several workspaces can bind to one. Before deciding
+ * how to split a seat, the operator needs to see who is already spending it — and the split has to
+ * be inside the provider's own period, or it answers about a different month.
+ */
+describe("dispatchedPerAccount — by workspace", () => {
+	const period = {
+		kind: "calendar-month" as const,
+		startMs: Date.UTC(2026, 7, 1),
+		endMs: Date.UTC(2026, 8, 1),
+		spec: "2026-08",
+		label: "August 2026",
+	};
+	const obs = (ms: number, account: string, workspace?: string) => ({
+		timestamp_ns: ms * 1_000_000,
+		"refarm.budget.credentialId": account,
+		...(workspace ? { "refarm.workspace.id": workspace } : {}),
+	});
+
+	it("splits one account's requests across the workspaces that spent them", () => {
+		const result = dispatchedPerAccount(
+			[
+				obs(Date.UTC(2026, 7, 3), "acct-a", "refarm"),
+				obs(Date.UTC(2026, 7, 4), "acct-a", "refarm"),
+				obs(Date.UTC(2026, 7, 5), "acct-a", "rcdc5"),
+			],
+			period,
+		);
+		expect(result.workspacesByAccount.get("acct-a")).toEqual(
+			new Map([
+				["refarm", 2],
+				["rcdc5", 1],
+			]),
+		);
+	});
+
+	it("keeps a dispatch with no workspace out of every workspace's share", () => {
+		// It spent the seat and named no workspace. Folding it into one would attribute someone
+		// else's traffic; folding it into the total silently would make the shares not add up
+		// without saying why.
+		const result = dispatchedPerAccount(
+			[obs(Date.UTC(2026, 7, 3), "acct-a"), obs(Date.UTC(2026, 7, 4), "acct-a", "refarm")],
+			period,
+		);
+		expect(result.workspacesByAccount.get("acct-a")).toEqual(new Map([["refarm", 1]]));
+		expect(result.byAccount.get("acct-a")).toBe(2);
+	});
+
+	it("counts only inside the window, like every other figure here", () => {
+		const result = dispatchedPerAccount(
+			[
+				obs(Date.UTC(2026, 6, 30), "acct-a", "refarm"),
+				obs(Date.UTC(2026, 7, 2), "acct-a", "refarm"),
+			],
+			period,
+		);
+		expect(result.workspacesByAccount.get("acct-a")).toEqual(new Map([["refarm", 1]]));
+	});
+});

@@ -31,6 +31,9 @@ export interface QuotaReconciliationRow {
 	/** `null` when no window could be established, which makes every count in this row unplaceable
 	 *  rather than wrong. */
 	readonly window: (QuotaWindow & { readonly label: string }) | null;
+	/** Which workspaces spent this seat in that window, largest first. Empty when the account was
+	 *  spent only by dispatches that named no workspace — which is a fact, not an absence. */
+	readonly workspaces: readonly { readonly id: string; readonly requests: number }[];
 	readonly meters: readonly MeterReconciliation[];
 	/** The prose a surface renders, one line per meter. */
 	readonly notes: readonly string[];
@@ -71,6 +74,7 @@ export function reconcileQuotaRows(
 				outcome: row.outcome,
 				...(row.detail !== undefined ? { detail: row.detail } : {}),
 				window: null,
+				workspaces: [],
 				meters: [],
 				notes: [noWindowNote(row)],
 			};
@@ -99,6 +103,7 @@ export function reconcileQuotaRows(
 			meterFacts,
 		);
 
+		const shares = counted.workspacesByAccount.get(row.credentialId) ?? new Map<string, number>();
 		return {
 			credentialId: row.credentialId,
 			alias: row.alias,
@@ -106,6 +111,11 @@ export function reconcileQuotaRows(
 			outcome: row.outcome,
 			...(row.detail !== undefined ? { detail: row.detail } : {}),
 			window: { ...window, label: period.label },
+			// Largest first: the question this answers is "who is eating this seat", and the
+			// answer is the top of the list.
+			workspaces: [...shares.entries()]
+				.map(([id, requests]) => ({ id, requests }))
+				.sort((a, b) => b.requests - a.requests || a.id.localeCompare(b.id)),
 			meters,
 			notes: meters.map(describeReconciliation),
 		};

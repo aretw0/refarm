@@ -100,6 +100,17 @@ function printQuotaHuman(report: QuotaReconciliationReport): void {
 		const dispatched = row.meters[0]?.dispatchedHere;
 		if (dispatched !== undefined && dispatched !== null) {
 			console.log(chalk.dim(`  this node dispatched ${dispatched} request(s) in that period`));
+			for (const share of row.workspaces) {
+				console.log(chalk.dim(`    ${share.requests} of them for workspace ${share.id}`));
+			}
+			const named = row.workspaces.reduce((sum, s) => sum + s.requests, 0);
+			if (named < dispatched) {
+				// Stated, never inferred by subtraction on the reader's part: a dispatch that named
+				// no workspace spent the seat and said for whom it did not.
+				console.log(
+					chalk.dim(`    ${dispatched - named} named no workspace`),
+				);
+			}
 		}
 		for (const note of row.notes) console.log(`  ${note}`);
 		console.log();
