@@ -1798,6 +1798,17 @@
 			"priority": "low",
 			"package": "@refarm.dev/refarm",
 			"axis": "durability"
+		},
+		{
+			"id": "ISS-152",
+			"title": "The allowance is a conditional promise, and nothing shows when the condition failed",
+			"body": "`workspaceAllowances` bounds what this node dispatches for a workspace in a UTC calendar month, and refuses before spending (01b3d991). Two questions it does NOT answer are the operator's, and both get harder to change the longer they wait.\n\n1. WHAT HAPPENS WHEN THE COUNT IS IMPOSSIBLE.\n\nThe gate has three outcomes. `cannot-check` -- the record could not be read -- PERMITS and says so on stderr. That choice was made here, not by the operator: a node that refuses work because it cannot count is unusable exactly when its runtime is down.\n\nThe consequence is that the allowance is a CONDITIONAL promise: it holds while the record is readable. A month of silent `cannot-check` is indistinguishable, from the outside, from a month spent inside the allowance -- and that is the only way this design can mislead.\n\nIf a hard guarantee is wanted instead (\"never exceed, whatever happens\"), the choice inverts and a read failure becomes paralysis. Neither is free.\n\nWHAT WOULD MAKE THE CURRENT CHOICE SAFE: `cannot-check` has to land somewhere the operator looks LATER, not only on the stderr of the moment. Today it scrolls past. That is the concrete next piece of work either way, because it is what turns a conditional promise into a visible one.\n\n2. WHERE THE ALLOWANCE LIVES.\n\nIt is a node-tier config key today, which is right by the tier rules -- deciding what may be spent is the node's business. The consequence appears with the second node: the allowance does NOT travel with the workspace.\n\n  Node fact:      \"this machine lets no workspace spend more than X.\" Protects the seat of whoever operates the machine. What is built.\n  Workspace fact: \"this work has this budget, wherever it runs.\" Follows the workspace between nodes, so the same work is capped identically on the PC and on the phone.\n\nThe mesh -> PWA -> x86-node ladder makes the second reading matter. Nothing needs deciding before the first allowance is declared; it needs deciding before allowances are declared on SEVERAL workspaces, because migrating afterwards means reconciling two sources of truth.",
+			"location": "packages/budget-contract-v1/src/allowance.ts",
+			"status": "open",
+			"category": "feature",
+			"priority": "medium",
+			"package": "@refarm.dev/budget-contract-v1",
+			"axis": "cost"
 		}
 	]
 }
