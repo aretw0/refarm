@@ -8,13 +8,16 @@ import {
 	ComplexityAuditor,
 	ConfigNodeAuditor,
 	describeRenewalCoverage,
+	describeSubstrate,
 	FileSystemAuditor,
 	HealthCore,
 	ProjectAuditor,
+	readNodeSubstrate,
 	readToolRequirements,
 	RefarmProjectAuditor,
 	renewalCoverage,
 	ToolchainAuditor,
+	type NodeSubstrate,
 } from "@refarm.dev/health";
 import type { Command } from "commander";
 import fs from "node:fs";
@@ -82,6 +85,11 @@ export interface HealthResults {
 	nodeTools?: NodeToolFindings;
 	/** Whether anything on this node keeps its short-lived credentials alive. */
 	credentialRenewal?: { state: "unneeded" | "covered" | "uncovered"; providers: string[]; by?: string };
+	/** Which code this node executes, and whether a git tree encloses it. The DISCRIMINATED union,
+	 *  not a widened shape: `repository` exists only on the arm that has one, and widening it here
+	 *  would let a reader ask for it on an installed node and get `undefined` instead of a type
+	 *  error. */
+	nodeSubstrate?: NodeSubstrate;
 	/**
 	 * The orchestrator's per-auditor results (config-node lives here).
 	 * `applicable`/`reason` are set by project-shaped auditors (generic_fs,
@@ -370,11 +378,32 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
 			summary: check.detail ?? `${check.label} is declared by this node and is not satisfied.`,
 			action: NODE_TOOL_ACTIONS[check.state ?? "absent"],
 		})),
+		...(results.nodeSubstrate?.kind === "working-tree"
+			? [
+					{
+						issueType: "node-runs-working-tree",
+						diagnostic: "node-runs-working-tree",
+						// INFO, so it never leads `nextAction`. A handoff is what to DO next, and
+						// "nothing is broken, know this about your node" is not that — putting it
+						// first would push a real recovery below an advisory. `diagnosticNextActions`
+						// already skips this severity; the category existed and this is what it is for.
+						severity: "info" as const,
+						target: results.nodeSubstrate.repository ?? "",
+						summary: describeSubstrate(results.nodeSubstrate) ?? "",
+						action:
+							"Nothing is broken. Know that building, switching branches or moving that " +
+							"repository changes what this node runs, and that a backup of the node does " +
+							"not carry it — see ISS-154.",
+					},
+				]
+			: []),
 		...(results.credentialRenewal?.state === "uncovered"
 			? [
 					{
 						issueType: "credential-renewal-uncovered",
 						diagnostic: "credential-renewal-uncovered",
+						// Same reason: a prediction about tomorrow must not displace a fault today.
+						severity: "info" as const,
 						target: results.credentialRenewal.providers.join(", "),
 						summary: describeRenewalCoverage(results.credentialRenewal) ?? "",
 						action:
@@ -499,6 +528,11 @@ export async function runHealthAudit(
 	// timer that talks to a provider into someone's machine is their decision, and the node's job
 	// is to make sure it is made deliberately instead of discovered by the node stopping.
 	results.credentialRenewal = readRenewalCoverage();
+	// WHAT THIS NODE ACTUALLY EXECUTES. Measured 2026-08-19: the launcher is a shim into a git
+	// working tree, so every supervised service runs the development repo's build output while
+	// naming a path under `~/.local/bin`. Reported, not counted — nothing is broken, and running
+	// the working tree is a legitimate choice that simply must not be invisible.
+	results.nodeSubstrate = readNodeSubstrate(process.argv[1] ?? undefined);
 	// generic_fs and project self-report `applicable: false` when `rootDir` is
 	// not a project (a node base like `~`) — surface that at the envelope's
 	// top level instead of letting their resulting empty arrays read as a

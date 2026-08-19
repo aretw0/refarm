@@ -112,8 +112,22 @@ export function formatHealthSummary(report: HealthReport): string {
 		});
 	}
 
+	// ADVISORIES PRINT EITHER WAY. They are `info` so they never lead a handoff — a prediction must
+	// not displace a fault — but an advisory that appears only in `--json` reached nobody. Measured
+	// 2026-08-19: `health` said "All checks passed" while carrying an unread note that the node
+	// executes a git working tree.
+	const advisories = report.recommendations.filter((r) => r.severity === "info");
+	const faults = report.recommendations.filter((r) => r.severity !== "info");
+
 	if (report.ok) {
 		lines.push(chalk.bold.green("\n✨ All checks passed."));
+		if (advisories.length > 0) {
+			lines.push(chalk.bold("\nWorth knowing"));
+			for (const advisory of advisories) {
+				lines.push(chalk.dim(`   · ${advisory.summary}`));
+				lines.push(chalk.dim(`     ${advisory.action}`));
+			}
+		}
 	} else {
 		lines.push(
 			chalk.bold.yellow(
@@ -121,7 +135,7 @@ export function formatHealthSummary(report: HealthReport): string {
 			),
 		);
 		lines.push(chalk.bold("\nRecommendations"));
-		report.recommendations.forEach((recommendation) => {
+		[...faults, ...advisories].forEach((recommendation) => {
 			const target = recommendation.target ? ` (${recommendation.target})` : "";
 			lines.push(chalk.gray(`   - ${recommendation.summary}${target}`));
 			lines.push(chalk.gray(`     ${recommendation.action}`));
