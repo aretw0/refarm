@@ -622,7 +622,9 @@ export function budgetObservationsPageFromBody(body: {
 	};
 }
 
-async function fetchBudgetObservations(
+/** Exported so the pre-dispatch allowance gate reads the record through the SAME call the budget
+ *  surfaces do — a second reader would be a second answer to "what has this node spent". */
+export async function fetchBudgetObservations(
 	limit: number,
 	offset = 0,
 ): Promise<BudgetObservationsPage> {

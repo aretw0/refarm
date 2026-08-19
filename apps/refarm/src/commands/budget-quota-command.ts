@@ -10,6 +10,7 @@ import nodePath from "node:path";
 
 import { SiloCore } from "@refarm.dev/silo";
 
+import { readWorkspaceAllowances } from "@refarm.dev/budget-contract-v1";
 import { readMeterUsageFacts } from "@refarm.dev/model-account-contract-v1";
 import {
 	loadAccountCredentials,
@@ -58,8 +59,15 @@ async function runBudgetQuotaUnguarded(options: BudgetQuotaOptions): Promise<voi
 	const page = await options.fetchObservations(options.limit);
 	// Declared in the NODE config beside nodeTools, for the same reason: this is a fact about the
 	// machine's relationship with a provider, not about any repository standing here.
-	const facts = readMeterUsageFacts(readNodeConfig());
-	const report = reconcileQuotaRows(rows, page.observations, (options.now ?? Date.now)(), facts);
+	const config = readNodeConfig();
+	const facts = readMeterUsageFacts(config);
+	const report = reconcileQuotaRows(
+		rows,
+		page.observations,
+		(options.now ?? Date.now)(),
+		facts,
+		readWorkspaceAllowances(config),
+	);
 
 	if (options.json) {
 		printJson(
@@ -101,7 +109,19 @@ function printQuotaHuman(report: QuotaReconciliationReport): void {
 		if (dispatched !== undefined && dispatched !== null) {
 			console.log(chalk.dim(`  this node dispatched ${dispatched} request(s) in that period`));
 			for (const share of row.workspaces) {
-				console.log(chalk.dim(`    ${share.requests} of them for workspace ${share.id}`));
+				const a = share.allowance;
+				const standing =
+					a.state === "within"
+						? ` — ${a.remaining} of ${a.allowed} left`
+						: a.state === "exceeded"
+							? chalk.yellow(" — ALLOWANCE SPENT")
+							: a.state === "cannot-check"
+								? chalk.yellow(" — allowance unchecked")
+								: "";
+				console.log(chalk.dim(`    ${share.requests} of them for workspace ${share.id}`) + standing);
+				if (a.state === "exceeded" || a.state === "cannot-check") {
+					console.log(chalk.dim(`      ${a.because}`));
+				}
 			}
 			const named = row.workspaces.reduce((sum, s) => sum + s.requests, 0);
 			if (named < dispatched) {

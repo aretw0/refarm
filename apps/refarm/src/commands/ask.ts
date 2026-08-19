@@ -21,11 +21,16 @@ import {
 } from "@refarm.dev/context-provider-v1";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 import { solePayerFor } from "@refarm.dev/model-account-contract-v1";
+
+import nodeFsForAllowance from "node:fs";
+import nodePathForAllowance from "node:path";
+
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import { REFARM_BINARY, REFARM_PRODUCT_NAME, refarmCommand } from "../brand.js";
+import { allowanceForDispatch, readSpendForAllowance } from "./ask-allowance.js";
 
 import { readBindings, readCatalog } from "../credentials/account-view-loader.js";
 import { MODEL_SCOPES, parseModelScope, type ModelScope } from "../model-routing.js";
@@ -883,6 +888,28 @@ export {
 					askScope,
 				);
 
+				// THE GATE. Measured 2026-08-18: every ceiling that existed bounded a single
+				// dispatch, and a shared seat went from 1706 remaining to zero across a month of
+				// them. This is the only check that reads what the workspace ALREADY spent.
+				//
+				// It permits when nothing was declared, and permits-and-says-so when the record
+				// could not be read: a node that refuses work because it cannot count is unusable
+				// exactly when its runtime is down.
+				const allowance = allowanceForDispatch(
+					workspace.workspaceId,
+					readNodeConfigForAllowance(),
+					await readSpendForAllowance(),
+					Date.now(),
+				);
+				if (allowance.state === "exceeded") {
+					console.error(chalk.yellow(`refarm ask: ${allowance.because}`));
+					process.exitCode = 1;
+					return;
+				}
+				if (allowance.state === "cannot-check") {
+					console.error(chalk.dim(`refarm ask: ${allowance.because}`));
+				}
+
 				const effort = createRuntimeAgentRespondEffort({
 					prompt: query,
 					system,
@@ -1083,5 +1110,20 @@ export {
 		// A catalog or binding that cannot be read must not stop a dispatch. The observation then
 		// records no payer, which is the same honest absence an ambiguous provider produces.
 		return undefined;
+	}
+	}
+
+	/** The node-tier config the allowance is declared in, read without throwing: a dispatch must not
+ *  die on a config typo, and an unreadable config declares no allowance, which permits. */
+	function readNodeConfigForAllowance(): unknown {
+	try {
+		return JSON.parse(
+			nodeFsForAllowance.readFileSync(
+				nodePathForAllowance.join(resolveRefarmHome(), "config.json"),
+				"utf-8",
+			),
+		);
+	} catch {
+		return {};
 	}
 	}

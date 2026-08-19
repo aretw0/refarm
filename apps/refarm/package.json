@@ -31,6 +31,7 @@
 		"@refarm.dev/asset-resolver-contract-v1": "workspace:*",
 		"@refarm.dev/attend-web-v1": "workspace:*",
 		"@refarm.dev/barn": "workspace:*",
+		"@refarm.dev/budget-contract-v1": "workspace:*",
 		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
 		"@refarm.dev/certificate-contract-v1": "workspace:*",

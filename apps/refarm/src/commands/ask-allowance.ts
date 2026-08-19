@@ -1,0 +1,81 @@
+/**
+ * REFUSING BEFORE SPENDING.
+ *
+ * `budget quota` shows a workspace's standing against its declared allowance. Showing is not
+ * stopping: measured 2026-08-18, the operator's shared seat went from 1706 premium interactions
+ * remaining to zero, and every ceiling that existed bounded a single dispatch rather than a month
+ * of them.
+ *
+ * This is the gate. It counts what THIS NODE already dispatched for a workspace in the current UTC
+ * calendar month and refuses the next one when the allowance is spent.
+ *
+ * THREE OUTCOMES, and the third is why this can exist on a hot path at all: a record that cannot
+ * be read yields `cannot-check`, which PERMITS and says so. Refusing work because the runtime is
+ * down would make the node unusable exactly when the operator most needs it; permitting in silence
+ * would make the allowance a fiction.
+ */
+import {
+	checkWorkspaceAllowance,
+	readWorkspaceAllowances,
+	type AllowanceVerdict,
+} from "@refarm.dev/budget-contract-v1";
+
+import { dispatchedPerAccount, type ObservationNode, type ResolvedPeriod } from "./budget.js";
+
+/** PURE. The UTC calendar month containing `nowMs`, as the counter's window. */
+export function currentMonth(nowMs: number): ResolvedPeriod {
+	const now = new Date(nowMs);
+	const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+	const end = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
+	return {
+		kind: "calendar-month",
+		startMs: start,
+		endMs: end,
+		spec: `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`,
+		label: `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`,
+	};
+}
+
+/**
+ * PURE. What the allowance says about dispatching for this workspace right now.
+ *
+ * `observations` is `null` when the record could not be read — which is not zero spend, and the
+ * difference is the whole point of the third state.
+ */
+export function allowanceForDispatch(
+	workspaceId: string | undefined,
+	config: unknown,
+	observations: readonly ObservationNode[] | null,
+	nowMs: number,
+): AllowanceVerdict {
+	if (!workspaceId) return { state: "unbounded" };
+	const allowances = readWorkspaceAllowances(config);
+	if (allowances.length === 0) return { state: "unbounded" };
+	if (observations === null) return checkWorkspaceAllowance(workspaceId, null, allowances);
+
+	const counted = dispatchedPerAccount(observations, currentMonth(nowMs));
+	// Summed across accounts on purpose: the allowance bounds what the WORKSPACE dispatches, and a
+	// workspace that exhausted one seat must not simply move to the next one under the same cap.
+	let spent = 0;
+	for (const shares of counted.workspacesByAccount.values()) {
+		spent += shares.get(workspaceId) ?? 0;
+	}
+	return checkWorkspaceAllowance(workspaceId, spent, allowances);
+}
+
+/**
+ * Read the record for the gate, or `null` when it cannot be read.
+ *
+ * NEVER throws. A dispatch must not fail because the spend could not be counted — that lands on
+ * `cannot-check`, which permits and says so.
+ */
+export async function readSpendForAllowance(
+	limit = 500,
+): Promise<readonly ObservationNode[] | null> {
+	try {
+		const { fetchBudgetObservations } = await import("./budget.js");
+		return (await fetchBudgetObservations(limit)).observations;
+	} catch {
+		return null;
+	}
+}

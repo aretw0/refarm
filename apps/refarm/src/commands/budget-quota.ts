@@ -10,6 +10,11 @@
  * unknown, which the contract states in every row rather than leaving a reader to subtract.
  */
 import {
+	checkWorkspaceAllowance,
+	type AllowanceVerdict,
+	type WorkspaceAllowance,
+} from "@refarm.dev/budget-contract-v1";
+import {
 	describeReconciliation,
 	quotaWindowFor,
 	reconcileAccountQuota,
@@ -33,7 +38,12 @@ export interface QuotaReconciliationRow {
 	readonly window: (QuotaWindow & { readonly label: string }) | null;
 	/** Which workspaces spent this seat in that window, largest first. Empty when the account was
 	 *  spent only by dispatches that named no workspace — which is a fact, not an absence. */
-	readonly workspaces: readonly { readonly id: string; readonly requests: number }[];
+	readonly workspaces: readonly {
+		readonly id: string;
+		readonly requests: number;
+		/** Where the workspace stands against its declared per-period allowance, if it has one. */
+		readonly allowance: AllowanceVerdict;
+	}[];
 	readonly meters: readonly MeterReconciliation[];
 	/** The prose a surface renders, one line per meter. */
 	readonly notes: readonly string[];
@@ -60,6 +70,9 @@ export function reconcileQuotaRows(
 	/** Declared, dated measurements of which meter a model spends — ISS-073 step 3. Empty means
 	 *  nothing was measured, which lands every metered row on `unknown` rather than on a claim. */
 	meterFacts: readonly MeterUsageFact[] = [],
+	/** Declared per-period allowances. Empty means no workspace is bounded, which is what a node
+	 *  that never asked to be capped must keep getting. */
+	allowances: readonly WorkspaceAllowance[] = [],
 ): QuotaReconciliationReport {
 	let unattributed = 0;
 	let undated = 0;
@@ -114,7 +127,11 @@ export function reconcileQuotaRows(
 			// Largest first: the question this answers is "who is eating this seat", and the
 			// answer is the top of the list.
 			workspaces: [...shares.entries()]
-				.map(([id, requests]) => ({ id, requests }))
+				.map(([id, requests]) => ({
+					id,
+					requests,
+					allowance: checkWorkspaceAllowance(id, requests, allowances),
+				}))
 				.sort((a, b) => b.requests - a.requests || a.id.localeCompare(b.id)),
 			meters,
 			notes: meters.map(describeReconciliation),

@@ -359,6 +359,9 @@ importers:
       '@refarm.dev/barn':
         specifier: workspace:*
         version: link:../../packages/barn
+      '@refarm.dev/budget-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/budget-contract-v1
       '@refarm.dev/capabilities':
         specifier: workspace:*
         version: link:../../packages/capabilities
