@@ -77,10 +77,32 @@ other.
 An **installed** substrate: the node runs a real binary or a promoted snapshot,
 and the working tree is where new versions are built and promoted deliberately.
 
-It is a packaging project rather than a slice — the CLI resolves workspace
-packages through a runtime loader (`scripts/farmhand-node-loader.mjs`), so
-copying `dist/` is not enough. That work is tracked as the 0.1.0 release; ISS-154
-carries the decision and its costs.
+**It is reachable, and measured.** An earlier version of this document called it a
+packaging project on the grounds that a runtime loader made copying `dist/`
+insufficient. That was asserted from a quick read and is wrong:
+
+| | |
+| --- | --- |
+| the installable tree | 45MB of `dist` + 127 `package.json` |
+| external runtime deps, whole workspace | 15 |
+| `pnpm deploy --prod --legacy` | exit 0, self-contained, `node_modules/@refarm.dev/*` populated |
+
+That tree almost runs, and fails on **one precise thing**:
+
+```
+Cannot find module '…/@refarm.dev/root/dist/fetch-with-timeout.js'
+```
+
+`packages/root` declares `files: ["dist/index.js", "dist/index.d.ts"]`, and the
+built CLI deep-imports a path that list does not ship. A deep import bypasses
+`exports` and depends entirely on `files` — and **26 workspace packages carry a
+restrictive `files` list**, so each is a latent instance of the same failure,
+invisible while everything resolves through the workspace.
+
+This is the rope the 0.1.0 release already names, measured here as *shipped*-dist
+rather than *built*-dist, with a reproduction. Fixing those declarations is the
+first slice of the install path **and** the release's own blocker — one fix,
+both. ISS-154 carries it.
 
 ## Related
 
