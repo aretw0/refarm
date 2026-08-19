@@ -79,3 +79,25 @@ export async function readSpendForAllowance(
 		return null;
 	}
 }
+
+/**
+ * The credential this dispatch would spend, read for its stated expiry only.
+ *
+ * NEVER throws and never returns the secret — the caller wants one fact: has it lapsed. A read
+ * failure yields `null`, which the staleness check reports as `unknown` rather than as fresh.
+ */
+export async function boundCredentialFor(credentialId: string | undefined): Promise<unknown> {
+	if (!credentialId) return null;
+	try {
+		const { SiloCore } = await import("@refarm.dev/silo");
+		const { loadAccountCredentials } = await import("../credentials/account-view-loader.js");
+		const { resolveRefarmHome } = await import("../utils/refarm-home.js");
+		const credentials = await loadAccountCredentials({
+			home: resolveRefarmHome(),
+			silo: new SiloCore() as never,
+		});
+		return credentials.get(credentialId) ?? null;
+	} catch {
+		return null;
+	}
+}

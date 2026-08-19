@@ -30,7 +30,8 @@ import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import { REFARM_BINARY, REFARM_PRODUCT_NAME, refarmCommand } from "../brand.js";
-import { allowanceForDispatch, readSpendForAllowance } from "./ask-allowance.js";
+import { allowanceForDispatch, boundCredentialFor, readSpendForAllowance } from "./ask-allowance.js";
+import { credentialStaleness } from "./ask-credential-staleness.js";
 
 import { readBindings, readCatalog } from "../credentials/account-view-loader.js";
 import { MODEL_SCOPES, parseModelScope, type ModelScope } from "../model-routing.js";
@@ -887,6 +888,21 @@ export {
 					boundAccountFor(workspace.workspaceId),
 					askScope,
 				);
+
+				// STALENESS FIRST, because it explains a failure the operator would otherwise read
+				// as a provider refusal. The host was handed this credential at boot and reads it
+				// from its own process env; a renewed one never reaches it without a restart.
+				const staleness = credentialStaleness(
+					await boundCredentialFor(
+						credentialIdForWorkspace(workspace.workspaceId, boundRoute.modelProvider),
+					),
+					Date.now(),
+				);
+				if (staleness.state === "expired") {
+					console.error(chalk.yellow(`refarm ask: ${staleness.because}`));
+					process.exitCode = 1;
+					return;
+				}
 
 				// THE GATE. Measured 2026-08-18: every ceiling that existed bounded a single
 				// dispatch, and a shared seat went from 1706 remaining to zero across a month of
