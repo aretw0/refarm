@@ -72,7 +72,7 @@ function exportNode() {
 		manifest: writeBundle(home, bundle, plan.carry, plan.undecidable, plan.foreign, silo, {
 			entries: plan.sensitive,
 			include: false,
-		}),
+		}, { kind: "installed", executes: "/usr/local/lib/refarm/index.js", included: false }),
 		plan,
 		silo,
 	};
@@ -218,7 +218,7 @@ describe("secrets that live outside the silo", () => {
 		const manifest = writeBundle(home, bundle, plan.carry, plan.undecidable, plan.foreign, readSiloSplit(home), {
 			entries: plan.sensitive,
 			include: true,
-		});
+		}, { kind: "installed", executes: "/usr/local/lib/refarm/index.js", included: false });
 		expect(manifest.secrets.included).toBe(true);
 		expect(fs.readFileSync(path.join(bundle, BUNDLE_FILES_DIR, ".refarm/tls/ca.key"), "utf8")).toBe(
 			"CA-PRIVATE-KEY",
@@ -307,5 +307,49 @@ describe("readSiloSplit", () => {
 	it("survives a silo that is not JSON at all", () => {
 		fs.writeFileSync(path.join(home, ".silo", "identity.json"), "not json{");
 		expect(readSiloSplit(home).reAuthenticate).toEqual([]);
+	});
+});
+
+/**
+ * MEASURED 2026-08-19: a bundle of the operator's node carried 32 files and none of them was code.
+ * Restoring on a reformatted machine yields a fully configured node — credentials named, processes
+ * declared, databases intact — with nothing to execute.
+ *
+ * That was already true and already invisible. The manifest now says it, for the same reason
+ * `secrets.included` exists: "this bundle is complete" and "there was nothing else to carry" are
+ * different statements, and only one of them is true.
+ */
+describe("the manifest says what the bundle does NOT carry", () => {
+	it("records a working-tree substrate and that the code did not travel", () => {
+		const home = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-substrate-"));
+		const destination = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-bundle-"));
+		try {
+			const manifest = writeBundle(
+				home,
+				destination,
+				[],
+				[],
+				[],
+				{ decisions: {}, reAuthenticate: [] },
+				{ entries: [], include: false },
+				{
+					kind: "working-tree",
+					executes: "/home/op/github/refarm/apps/refarm/dist/index.js",
+					repository: "/home/op/github/refarm",
+					included: false,
+				},
+			);
+			expect(manifest.substrate).toMatchObject({
+				kind: "working-tree",
+				repository: "/home/op/github/refarm",
+				// Never true. A bundle that carried the code would be a different artifact with a
+				// different size and a different trust boundary; claiming it here would make a
+				// restore believe it has everything.
+				included: false,
+			});
+		} finally {
+			fs.rmSync(home, { recursive: true, force: true });
+			fs.rmSync(destination, { recursive: true, force: true });
+		}
 	});
 });

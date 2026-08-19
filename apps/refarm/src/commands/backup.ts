@@ -11,6 +11,7 @@
  * synced by any tool he already uses, and restored by hand if refarm itself is what broke — which
  * is exactly the situation a backup exists for.
  */
+import { readNodeSubstrate } from "@refarm.dev/health";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -65,6 +66,25 @@ export interface BackupManifest {
 	readonly secrets: {
 		files: Array<{ file: string; recovery: SecretRecovery | null }>;
 		included: boolean;
+	};
+	/**
+	 * The CODE the source node was executing, and whether this bundle carries it.
+	 *
+	 * Never carried — measured 2026-08-19, a bundle of this node holds 32 files and none of them
+	 * is code. That was already true and already invisible: restoring on a reformatted machine
+	 * yields a fully configured node — credentials named, processes declared, databases intact —
+	 * with nothing to run.
+	 *
+	 * Recorded either way, for the same reason `secrets.included` is: "this bundle is complete"
+	 * and "there was nothing else to carry" are different statements. A node running a git working
+	 * tree needs that repository cloned back before any of this configuration means anything, and
+	 * a restore reading the manifest can say so instead of leaving it to be discovered.
+	 */
+	readonly substrate: {
+		kind: "installed" | "working-tree" | "unknown";
+		executes?: string;
+		repository?: string;
+		included: false;
 	};
 }
 
@@ -127,6 +147,9 @@ export function writeBundle(
 	// manifest claiming this node holds none — and a restore would then stand up a node missing its
 	// CA identity with nothing saying so. The type makes forgetting impossible instead.
 	secrets: { entries: readonly ExportPlanEntry[]; include: boolean },
+	// REQUIRED for the same reason `secrets` is: a default would write a manifest that says
+	// nothing about the code, which is exactly the silence this field exists to break.
+	substrate: BackupManifest["substrate"],
 ): BackupManifest {
 	fs.mkdirSync(path.join(destination, BUNDLE_FILES_DIR), { recursive: true });
 	const files: BackupManifest["files"] = [];
@@ -150,6 +173,7 @@ export function writeBundle(
 		reAuthenticate: silo.reAuthenticate,
 		undecided: undecided.map((entry) => ({ file: entry.file, reason: entry.reason })),
 		foreign: foreign.map((entry) => ({ file: entry.file, reason: entry.reason })),
+		substrate,
 		secrets: {
 			files: secrets.entries.map((entry) => ({
 				file: entry.file,
@@ -269,10 +293,19 @@ export function createBackupCommand(homeOf = () => process.env.HOME ?? ""): Comm
 			const { plan } = surveyHome(home, options.namespace ?? "default");
 			const silo = readSiloSplit(home);
 			const includeSecrets = Boolean(options.includeSecrets);
-			writeBundle(home, destination, plan.carry, plan.undecidable, plan.foreign, silo, {
-				entries: plan.sensitive,
-				include: includeSecrets,
-			});
+			writeBundle(
+				home,
+				destination,
+				plan.carry,
+				plan.undecidable,
+				plan.foreign,
+				silo,
+				{ entries: plan.sensitive, include: includeSecrets },
+				// WHAT THIS NODE RUNS, recorded because the bundle never carries it. A restore
+				// reading `working-tree` knows a repository has to be cloned back before any of
+				// this configuration means anything (ISS-154).
+				{ ...readNodeSubstrate(process.argv[1] ?? undefined), included: false },
+			);
 			// VERIFIED BEFORE REPORTING. A create that says "done" without reading back what it wrote
 			// is the shape of backup that fails on the day it is needed.
 			const verdict = verifyBundle(destination);
