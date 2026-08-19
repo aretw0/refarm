@@ -258,6 +258,49 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 		);
 
 	credential
+		.command("renew")
+		.description(
+			"Renew what has lapsed and hand it to the running node — no restart, no work lost",
+		)
+		.option("--json", "Output machine-readable result")
+		.action(async (options: { json?: boolean }) =>
+			guarded("renew", options, async () => {
+				// THE THIRD PATH, COMPLETED. The host reads a credential FILE it re-reads per
+				// dispatch (5791626c), so a renewal reaches a live runtime. What was missing is
+				// something that renews when the operator is not typing: `ask` covers the terminal
+				// and nothing covers a dispatch arriving from a phone, a PWA or an automation.
+				//
+				// This is that something, as a command rather than a daemon — the node already
+				// supervises declared processes, and WHICH cadence to run it at is the operator's
+				// declaration, not a hardcoded timer.
+				const { refreshLiveCredentialsForDispatch } = await import("./ask-allowance.js");
+				const outcome = await refreshLiveCredentialsForDispatch();
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "credential",
+							operation: "renew",
+							extra: { ...outcome },
+							nextAction:
+								outcome.kind === "could-not-renew"
+									? "Re-authenticate the account the provider refused: `refarm sow`."
+									: null,
+							nextCommands: [],
+						}),
+					);
+					return;
+				}
+				console.log(
+					outcome.kind === "none-stale"
+						? "Nothing had lapsed — no provider was asked."
+						: outcome.kind === "refreshed"
+							? "Renewed, and the running node was handed it. No restart."
+							: `Could not renew: ${outcome.because}`,
+				);
+			}),
+		);
+
+	credential
 		.command("quota")
 		.description("What each account has left, asked of the providers — never declared here")
 		.option("--json", "Output machine-readable result")

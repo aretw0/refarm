@@ -102,6 +102,9 @@ export const PROBE_EXCLUSIONS = Object.freeze([
 	{ argv: ["auth", "verify"], category: "network" },
 	{ argv: ["cert", "providers"], category: "network" },
 	{ argv: ["credential", "quota"], category: "network" },
+	// Asks the provider for a fresh token when one has lapsed, and WRITES the credential file
+	// the running host re-reads. Probing it from four directories would renew four times.
+	{ argv: ["credential", "renew"], category: "network" },
 	// Same provider call as `credential quota`, plus the local record beside it. Probing it from
 	// four directories would ask GitHub four times and prove nothing the sibling does not.
 	{ argv: ["budget", "quota"], category: "network" },
