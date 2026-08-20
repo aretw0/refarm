@@ -81,6 +81,7 @@ export {
 	packageManagerOverrideDiagnostic,
 	packagePublishDryRunCommand,
 	packageScriptCommand,
+	packageWorkspaceDeployCommand,
 	packageWorkspacePublishDryRunCommand,
 	parsePackageManager,
 } from "./package-manager.js";
