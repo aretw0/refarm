@@ -15,6 +15,7 @@ describe("runtime command", () => {
 	// stopped" and failing the assertion (a CI-only flake, invisible locally). Tests that need
 	// specific proc entries set REFARM_PROC_ROOT themselves; afterEach restores the original.
 	let originalProcRoot: string | undefined;
+	let originalPath: string | undefined;
 	let hermeticProcRoot = "";
 	let procRootCounter = 0;
 	beforeEach(() => {
@@ -23,8 +24,16 @@ describe("runtime command", () => {
 		hermeticProcRoot = join(tmpdir(), `refarm-hermetic-proc-${Date.now()}-${procRootCounter++}`);
 		mkdirSync(hermeticProcRoot, { recursive: true });
 		process.env.REFARM_PROC_ROOT = hermeticProcRoot;
+		// PATH, for the SAME hermeticity this suite already buys with REFARM_PROC_ROOT above: the
+		// engine now also accepts a `tractor` installed on PATH, so a suite inheriting the
+		// developer's PATH asserts about whatever that machine happens to have. Measured
+		// 2026-08-19 — installing the binary on a real node turned green tests red untouched.
+		originalPath = process.env.PATH;
+		process.env.PATH = hermeticProcRoot;
 	});
 	afterEach(() => {
+		if (originalPath === undefined) delete process.env.PATH;
+		else process.env.PATH = originalPath;
 		if (originalProcRoot === undefined) delete process.env.REFARM_PROC_ROOT;
 		else process.env.REFARM_PROC_ROOT = originalProcRoot;
 		rmSync(hermeticProcRoot, { recursive: true, force: true });
@@ -149,7 +158,9 @@ describe("runtime command", () => {
 			ready: false,
 			sidecarUrl: "http://127.0.0.1:42001",
 			sidecarUrlSource: "default",
-			startCommand: "farmhand --background",
+			// The command now names the NODE. A runtime launched without `--refarm-dir` resolves
+			// its own home from somewhere else — running, and not the operator's node.
+			startCommand: expect.stringContaining("farmhand --background --refarm-dir"),
 			nextAction: "refarm runtime ensure --wait --next-command",
 			nextActions: ["refarm runtime ensure --wait --next-command"],
 			nextCommand: "refarm runtime ensure --wait --next-command",
@@ -328,7 +339,9 @@ describe("runtime command", () => {
 			sidecarUrl: "http://127.0.0.1:42001",
 			sidecarUrlSource: "default",
 			ready: false,
-			startCommand: "farmhand --background",
+			// The command now names the NODE. A runtime launched without `--refarm-dir` resolves
+			// its own home from somewhere else — running, and not the operator's node.
+			startCommand: expect.stringContaining("farmhand --background --refarm-dir"),
 			ok: true,
 			nextAction: "refarm runtime ensure --wait --next-command",
 			nextActions: ["refarm runtime ensure --wait --next-command"],
@@ -424,7 +437,8 @@ describe("runtime command", () => {
 
 		await command.parseAsync(["start", "--dry-run"], { from: "user" });
 
-		expect(logSpy).toHaveBeenCalledWith("farmhand --background");
+		// The printed command now names the node too — see the `startCommand` note above.
+		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("farmhand --background --refarm-dir"));
 		expect(startRuntime).not.toHaveBeenCalled();
 		logSpy.mockRestore();
 	});
@@ -461,7 +475,7 @@ describe("runtime command", () => {
 		expect(payload.operation).toBe("start");
 		expect(payload.ok).toBe(true);
 		expect(payload.dryRun).toBe(true);
-		expect(payload.launchCommand?.display).toBe("farmhand --background");
+		expect(payload.launchCommand?.display).toContain("farmhand --background --refarm-dir");
 		expect(payload.nextAction).toBeNull();
 		expect(payload.nextCommand).toBeNull();
 		expect(startRuntime).not.toHaveBeenCalled();
@@ -1110,8 +1124,11 @@ describe("runtime command", () => {
 			expect.objectContaining({
 				engine: "rust",
 				command: "tractor",
-				display: "tractor",
+				display: expect.stringContaining("tractor --refarm-dir"),
 			}),
+			// The ENVIRONMENT, second. A runtime handed only its arguments comes up healthy and
+			// refuses every dispatch — the node's model authorisation travels here.
+			expect.objectContaining({}),
 		);
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Started rust runtime.");

@@ -162,6 +162,11 @@ export const SOVEREIGN_LAYOUT: LayoutRule[] = [
 			under(".refarm/sas")(relative) ||
 			under(".refarm/task-results")(relative) ||
 			is(".refarm/task-memory.db")(relative) ||
+			// The FILENAME, wherever a block writes it. Measured 2026-08-19: declaring the first
+			// supervised process created `.refarm/processes/operations.json` and sent the whole
+			// backup plan back to `hasUndecided`. A rule naming one path leaves the next block's
+			// trail undecidable — the same reason the lock rule keys on a suffix.
+			(relative.startsWith(".refarm/") && relative.endsWith("/operations.json")) ||
 			is(".refarm/operations.json")(relative),
 		verdict: () => ({ nature: "data", reason: "the node's own record of what it has done" }),
 	},

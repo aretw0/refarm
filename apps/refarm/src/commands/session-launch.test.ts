@@ -993,7 +993,10 @@ describe("resolveLaunchRuntime", () => {
 		mkdirSync(repoRoot, { recursive: true });
 
 		try {
-			expect(resolveLaunchRuntime(repoRoot, "auto")).toMatchObject({
+			// `onPath: () => null` states what this scenario always meant: the binary is absent
+			// EVERYWHERE. It used to pass because the machine running the suite happened to have
+			// no `tractor` on PATH — a premise the test never declared and could not keep.
+			expect(resolveLaunchRuntime(repoRoot, "auto", { onPath: () => null })).toMatchObject({
 				activeEngine: "ts",
 				reason: "auto-ts-fallback",
 			});
@@ -1065,12 +1068,55 @@ describe("resolveLaunchRuntime", () => {
 
 		try {
 			// The guidance must name the path a default build will actually use.
-			expect(() => resolveLaunchRuntime(repoRoot, "rust")).toThrow(
+			// Same explicit premise as above: absent EVERYWHERE, not merely absent from the repo.
+			expect(() => resolveLaunchRuntime(repoRoot, "rust", { onPath: () => null })).toThrow(
 				join(repoRoot, ".cache", "cargo-target"),
 			);
 		} finally {
 			if (saved !== undefined) process.env.CARGO_TARGET_DIR = saved;
 			rmSync(repoRoot, { recursive: true, force: true });
 		}
+	});
+});
+
+/**
+ * MEASURED 2026-08-19, with this node moved onto an INSTALLED copy of the CLI:
+ *
+ *   refarm runtime status  ->  configuredEngine: "rust", activeEngine: "unknown"
+ *   refarm runtime ensure  ->  ensured: false, started: false, ok: false
+ *
+ * The engine resolves by looking for the tractor binary at a REPO path. An installed node has no
+ * repo, so a node whose config says `rust`, whose runtime was RUNNING, and whose binary sat on
+ * PATH reported that it had no engine — and refused to start one.
+ *
+ * The launcher already knows "repo build, else the binary on PATH". The selection above it did
+ * not, and a selection that disagrees with the launcher is a node that will not start itself.
+ */
+describe("resolveLaunchRuntime — an installed node", () => {
+	it("accepts the rust engine when the binary is on PATH rather than in a repo", () => {
+		const selection = resolveLaunchRuntime("/nowhere/at/all", "rust", {
+			existsSync: () => false,
+			onPath: () => "/home/op/.local/bin/tractor",
+		});
+		expect(selection.activeEngine).toBe("rust");
+	});
+
+	it("still refuses when the binary is in neither place, and says both", () => {
+		// The refusal has to name what it looked for. "Build it" is wrong advice for an operator
+		// whose node was installed rather than built.
+		expect(() =>
+			resolveLaunchRuntime("/nowhere", "rust", { existsSync: () => false, onPath: () => null }),
+		).toThrowError(/PATH/u);
+	});
+
+	it("keeps preferring the repo build when one is there", () => {
+		// A developer running from the working tree must keep getting the binary they just built,
+		// not one installed weeks ago.
+		const selection = resolveLaunchRuntime("/repo", "rust", {
+			existsSync: () => true,
+			onPath: () => "/home/op/.local/bin/tractor",
+		});
+		expect(selection.activeEngine).toBe("rust");
+		expect(selection.reason).toBe("configured-rust");
 	});
 });

@@ -264,3 +264,30 @@ describe("SOVEREIGN_LAYOUT — runtime locks", () => {
 		expect(classifyByLayout(".silo/identity.json", []).nature).toBe("secret");
 	});
 });
+
+/**
+ * MEASURED 2026-08-19 on the operator's node, right after he declared his first supervised
+ * process: `backup plan` went from `hasUndecided: false` back to `true`, over one new file —
+ * `.refarm/processes/operations.json`.
+ *
+ * The layout knew `.refarm/operations.json` and not the one a block writes beside itself. Keyed on
+ * the FILENAME rather than that one path, for the same reason the lock rule is keyed on a suffix:
+ * a rule that names one instance leaves the next one undecidable, and undecided is what stops a
+ * backup from being trusted.
+ */
+describe("SOVEREIGN_LAYOUT — consent trails, wherever a block writes them", () => {
+	it("classifies an operations trail inside a block's directory as the node's own record", () => {
+		const verdict = classifyByLayout(".refarm/processes/operations.json", []);
+		expect(verdict.nature).toBe("data");
+		expect(verdict.reason).toMatch(/record|trail/iu);
+	});
+
+	it("still classifies the one at the root", () => {
+		expect(classifyByLayout(".refarm/operations.json", []).nature).toBe("data");
+	});
+
+	it("does not claim an unrelated json that merely lives near one", () => {
+		// The rule is about a decision trail, not about every file in a block's directory.
+		expect(classifyByLayout(".refarm/processes/scratch.json", []).nature).not.toBe("data");
+	});
+});

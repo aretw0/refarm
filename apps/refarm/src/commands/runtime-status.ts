@@ -3,6 +3,7 @@ import chalk from "chalk";
 import { existsSync, readFileSync } from "node:fs";
 
 import { resolveNodeContextMetadata, type NodeContextMetadata } from "../utils/context-metadata.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { resolveRuntimeSidecarUrl } from "../utils/runtime-config.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
@@ -14,6 +15,7 @@ import {
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
 import { resolveRuntimeLaunchCommand, type RuntimeLaunchCommand } from "./runtime-launcher.js";
+import { runtimeNodeArgs } from "./runtime-node-args.js";
 import type { RuntimeReadinessProbe } from "./runtime-readiness.js";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
@@ -107,7 +109,7 @@ export async function runtimeStatusPayload(
 			...(sidecarProbe ? { sidecarProbe } : {}),
 			context: resolveNodeContextMetadata(process.env),
 			ready,
-			startCommand: resolveRuntimeLaunchCommand(repoRoot, selection.activeEngine).display,
+			startCommand: resolveRuntimeLaunchCommand(repoRoot, selection.activeEngine, runtimeNodeArgs(resolveRefarmHome())).display,
 		};
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -351,6 +353,6 @@ export async function resolveRuntimeStartCommand(deps: RuntimeCommandDeps): Prom
 	}
 	return {
 		payload,
-		command: resolveRuntimeLaunchCommand(repoRoot, payload.activeEngine),
+		command: resolveRuntimeLaunchCommand(repoRoot, payload.activeEngine, runtimeNodeArgs(resolveRefarmHome())),
 	};
 }

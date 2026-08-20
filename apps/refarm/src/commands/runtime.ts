@@ -4,6 +4,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { resolveRuntimeSidecarUrl, TRACTOR_ENGINE_ENV_VAR } from "../utils/runtime-config.js";
 import { startRuntimeProcess, type RuntimeLaunchCommand } from "./runtime-launcher.js";
+import { runtimeNodeEnv } from "./runtime-node-env.js";
 import {
 	probeRuntimeLiveness,
 	waitForRuntimeReady,
@@ -232,7 +233,7 @@ Notes:
 						return;
 					}
 
-					(deps.startRuntime ?? startRuntimeProcess)(command);
+					(deps.startRuntime ?? startRuntimeProcess)(command, await runtimeNodeEnv());
 					const ready = opts.wait
 						? await (deps.waitUntilReady ?? waitForRuntimeReady)()
 						: undefined;
@@ -364,7 +365,7 @@ Notes:
 							return;
 						}
 
-						(deps.startRuntime ?? startRuntimeProcess)(command);
+						(deps.startRuntime ?? startRuntimeProcess)(command, await runtimeNodeEnv());
 						if (opts.wait) {
 							const ready = await (deps.waitUntilReady ?? waitForRuntimeReady)();
 							const diagnostics = ready ? undefined : runtimeStartDiagnostics(command);
@@ -514,7 +515,7 @@ Notes:
 							return;
 						}
 
-						(deps.startRuntime ?? startRuntimeProcess)(command);
+						(deps.startRuntime ?? startRuntimeProcess)(command, await runtimeNodeEnv());
 						if (opts.wait) {
 							const ready = await (deps.waitUntilReady ?? waitForRuntimeReady)();
 							if (json) {

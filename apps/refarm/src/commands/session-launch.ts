@@ -47,6 +47,7 @@ import {
 } from "./model-credential-guidance.js";
 import { createPackageScriptCommand } from "./package-manager.js";
 import { resolveRuntimeLaunchCommand, startRuntimeProcess } from "./runtime-launcher.js";
+import { runtimeNodeArgs } from "./runtime-node-args.js";
 import {
 	probeRuntimeReady,
 	waitForRuntimeOutcome,
@@ -346,7 +347,19 @@ function tractorBuildCommand(repoRoot: string): string {
 export function resolveLaunchRuntime(
 	repoRoot: string,
 	configuredEngine: TractorEngineMode = readTractorEngineMode(),
+	/**
+	 * How to find the runtime binary. Injected so a test pins both answers, and so the two places
+	 * this node can hold one are asked in the same order the LAUNCHER asks them.
+	 *
+	 * MEASURED 2026-08-19 with the CLI installed rather than run from the working tree: this
+	 * looked only at a REPO path, so a node whose config said `rust`, whose runtime was RUNNING,
+	 * and whose binary sat on PATH reported `activeEngine: "unknown"` and refused to start one. A
+	 * selection that disagrees with the launcher below it is a node that cannot restart itself.
+	 */
+	io: { existsSync?: (target: string) => boolean; onPath?: () => string | null } = {},
 ): LaunchRuntimeSelection {
+	const exists = io.existsSync ?? fs.existsSync;
+	const onPath = io.onPath ?? (() => tractorOnPath());
 	if (configuredEngine === "ts") {
 		return {
 			configuredEngine,
@@ -355,9 +368,9 @@ export function resolveLaunchRuntime(
 		};
 	}
 	if (configuredEngine === "rust") {
-		if (!fs.existsSync(tractorBinaryPath(repoRoot))) {
+		if (!exists(tractorBinaryPath(repoRoot)) && !onPath()) {
 			throw new Error(
-				`tractor.engine=rust but the Rust tractor binary is not built at ${tractorBinaryPath(repoRoot)}. Build it with: ${tractorBuildCommand(repoRoot)}`,
+				`tractor.engine=rust but no Rust tractor binary was found — not at ${tractorBinaryPath(repoRoot)}, and not on PATH. Build it with: ${tractorBuildCommand(repoRoot)}, or install it where this node can reach it.`,
 			);
 		}
 		return {
@@ -366,7 +379,7 @@ export function resolveLaunchRuntime(
 			reason: "configured-rust",
 		};
 	}
-	if (fs.existsSync(tractorBinaryPath(repoRoot))) {
+	if (exists(tractorBinaryPath(repoRoot)) || onPath()) {
 		return {
 			configuredEngine,
 			activeEngine: "rust",
@@ -396,7 +409,7 @@ export function defaultLaunchDeps(): LaunchDeps {
 
 		spawnRuntime(repoRoot) {
 			const runtime = resolveLaunchRuntime(repoRoot);
-			const command = resolveRuntimeLaunchCommand(repoRoot, runtime.activeEngine);
+			const command = resolveRuntimeLaunchCommand(repoRoot, runtime.activeEngine, runtimeNodeArgs(resolveRefarmHome()));
 			startRuntimeProcess(command);
 		},
 		resolveRuntime: resolveLaunchRuntime,
@@ -588,4 +601,20 @@ export function printOnboarding(): void {
 	console.log(chalk.dim("\n  The Refarm runtime starts automatically on first use."));
 	console.log();
 	console.log(chalk.dim("Need help?  ") + chalk.cyan(RUNTIME_DOCTOR_COMMAND));
+}
+
+
+/** PURE-ish. The runtime binary on PATH, or nothing. The launcher's own fallback looks here; the
+ *  selection above it has to look in the same places or the two disagree. */
+function tractorOnPath(): string | null {
+	const dirs = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
+	for (const dir of dirs) {
+		const candidate = path.join(dir, "tractor");
+		try {
+			if (fs.statSync(candidate).isFile()) return candidate;
+		} catch {
+			// Not here; keep looking.
+		}
+	}
+	return null;
 }
