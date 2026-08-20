@@ -1831,6 +1831,28 @@
 			"priority": "high",
 			"package": "@refarm.dev/refarm",
 			"axis": "node-vs-directory"
+		},
+		{
+			"id": "ISS-155",
+			"title": "pnpm deploy --legacy leaves the source checkout unable to run its own gates",
+			"body": "MEASURED 2026-08-19, reproducible in four steps from a clean checkout:\n\n  pnpm install                       -> \"Already up to date\" (~2s)\n  pnpm exec node -e '...'            -> runs\n  pnpm --filter <pkg> deploy --prod --legacy <dir>   -> exit 0\n  pnpm exec node -e '...'            -> ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY\n\n`--legacy` runs its own `pnpm install --production`, and the workspace's recorded dependency status does not survive it. Afterwards EVERY `pnpm run` and `pnpm exec` in that checkout aborts -- `pnpm run build` and the repo's own quality lanes included. `pnpm install` (~2s, \"Already up to date\") puts it back, so nothing is actually stale; only the recorded status is.\n\n`--legacy` is not optional: without it pnpm refuses with ERR_PNPM_DEPLOY_NONINJECTED_WORKSPACE unless the whole workspace sets `inject-workspace-packages=true` -- a 153-project layout change, not a slice.\n\n## HANDLED where it is caused\n\n`refarm node install` resyncs immediately after assembling, using the same resolved binary that made the mess, and BEFORE verification -- so even a failed verify leaves a working checkout. It reports a fourth state rather than assuming: `checkout: restored | stale`, and a stale checkout is printed last, because it breaks the NEXT command the operator runs there and nothing else would explain why. The coupling is documented on `packageWorkspaceDeployCommand` in `@refarm.dev/config`, so the next caller of the resolver does not rediscover it.\n\n## STILL OPEN\n\nAny OTHER caller of `pnpm deploy --legacy` has the same footgun -- `release-engine` and the packaging gates are worth auditing. And the failure was invisible to 3692 passing tests plus every architecture guard: only running the real command and then trying to use the repo surfaced it.",
+			"location": "packages/config/src/package-manager.js",
+			"status": "open",
+			"category": "tooling",
+			"priority": "medium",
+			"package": "@refarm.dev/config",
+			"axis": "durability"
+		},
+		{
+			"id": "ISS-156",
+			"title": "The ancestor-option floor asserts a wall-clock budget inside a parallel suite",
+			"body": "SEEN 2026-08-19. `apps/refarm` full run: 1 failed | 3691 passed. Failing test:\n\n  test/architecture/ancestor-option-conformance.test.ts\n  > \"saw the options it claims to have audited -- the audit is not vacuous\"\n\nRan green in isolation (88/88) and green on the next full run (3692/3692). Unlike ISS-153, the cause is legible from the source rather than unknown.\n\n## Why it can flake\n\nThat test asserts `expect(timedOut).toEqual([])` over every probed command, and `timedOut` is filled by a WALL-CLOCK budget: `PROBE_TIMEOUT_MS = 4_000`, raced against `parseAsync`. The probes run inside a 249-file suite with parallel workers, so a command that normally settles in milliseconds can lose 4s of wall clock to scheduling pressure alone -- no defect in the command, no defect in the harness's logic.\n\nThe other two floors in the same test (`OBSERVED.size` and `withReads.length`) are counts, not clocks, and cannot flake this way.\n\n## Why it matters more than a normal flake\n\nThis harness exists to prevent a FOURTH instance of an operator's flag never arriving. A floor that fails for load reasons trains its readers to re-run rather than read it, which is how the real signal gets waved past -- the same argument `operation-consent-v1` makes about a prompt nobody learns from.\n\n## Not yet decided\n\nWhether a timeout should fail the audit at all, or be reported the way the file already reports its other gaps (printed, named, counted, not asserted). It is currently the only clock-based assertion in a file that is otherwise careful to measure rather than assume.",
+			"location": "apps/refarm/test/architecture/ancestor-option-conformance.test.ts",
+			"status": "open",
+			"category": "testing",
+			"priority": "low",
+			"package": "@refarm.dev/refarm",
+			"axis": "durability"
 		}
 	]
 }

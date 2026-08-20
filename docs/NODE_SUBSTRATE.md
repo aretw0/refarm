@@ -72,12 +72,13 @@ other.
   included: false }`. Recorded either way, like `secrets.included`: *"this bundle
   is complete"* and *"there was nothing else to carry"* are different statements.
 
-## What would separate them
+## What separates them
 
-An **installed** substrate: the node runs a real binary or a promoted snapshot,
-and the working tree is where new versions are built and promoted deliberately.
+An **installed** substrate: the node runs a promoted tree, and the working tree is
+where new versions are built and promoted deliberately. This is now the case on
+this machine, and `refarm node install` is how it gets there.
 
-**It is reachable, and measured.** An earlier version of this document called it a
+**It was reachable, and measured.** An earlier version of this document called it a
 packaging project on the grounds that a runtime loader made copying `dist/`
 insufficient. That was asserted from a quick read and is wrong:
 
@@ -100,9 +101,51 @@ restrictive `files` list**, so each is a latent instance of the same failure,
 invisible while everything resolves through the workspace.
 
 This is the rope the 0.1.0 release already names, measured here as *shipped*-dist
-rather than *built*-dist, with a reproduction. Fixing those declarations is the
+rather than *built*-dist, with a reproduction. Fixing those declarations was the
 first slice of the install path **and** the release's own blocker — one fix,
-both. ISS-154 carries it.
+both. Six packages were corrected and
+`scripts/ci/package-files-closure-gate.mjs` now reports every offender rather
+than the first.
+
+## `refarm node install`
+
+```
+assemble  →  restore the checkout  →  verify by RUNNING it  →  repoint  →  record
+```
+
+**The order is the content.** Each step exists because skipping it produced a
+failure that looked like success:
+
+- **Verify by running it.** An install that reports success without executing
+  what it installed is the shape of a backup that fails on the day it is needed.
+  Twice while proving this path, a tree that "built" could not start.
+- **Restore the checkout, immediately.** `pnpm deploy --legacy` leaves the source
+  workspace's recorded dependency status stale, and afterwards every `pnpm run`
+  and `pnpm exec` there aborts — the repo's own gates included. The install
+  resyncs with the same resolved binary that caused it, *before* verification, so
+  even a failed verify leaves a working checkout. ISS-155.
+- **Repoint, do not ask.** `operation-consent-v1` splits on one question: is this
+  proposed *on the operator's behalf*, or is it what they typed? Repointing the
+  launcher is not beyond `node install` — it *is* `node install`, and
+  `--verify-only` exists for whoever wants the tree without it. So the change is
+  recorded in full (before/after, who, when, an undo that executes) and nothing
+  is asked. A new release therefore installs with nobody at the keyboard.
+
+**What it reports** is three states, never two:
+
+| | |
+| --- | --- |
+| `installed` | the launcher points at the new tree; `<launcher>.previous` holds the old one |
+| `verified` | assembled and proven to run; the launcher was not touched (`--verify-only`) |
+| `refused` | said why, and left the failed tree on disk for whoever has to debug it |
+
+…plus `checkout: restored \| stale`, because a stale checkout breaks the *next*
+command the operator runs there and nothing else would explain why.
+
+**Where the tree goes:** `~/.local/lib/refarm/<version>-<commit>` — deliberately
+**not** under `~/.refarm`, which `backup create` walks. A node's identity and a
+node's code are different things, and a backup that swallowed 434MB of
+reproducible artifacts would be the same category error this document opens with.
 
 ## Related
 
