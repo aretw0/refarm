@@ -1,5 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// NO PROCESS EVER SPAWNS. `runHealthAudit` measures machine facts by running things — declared
+// node tools, and the workspace's own package manager — and this file mocks `fs.existsSync` to a
+// fiction where every path exists, so those probes would fire against the operator's real machine
+// from a unit test. The mock behaves like a host where the binary is missing, which every probe
+// already handles as "cannot check". Same shape and same reason as
+// test/architecture/cli-refusal-conformance.test.ts.
+vi.mock("node:child_process", async (importOriginal) => {
+  const real = await importOriginal<typeof import("node:child_process")>();
+  const enoent = (command: unknown) =>
+    Object.assign(new Error(`spawn ${String(command)} ENOENT`), { code: "ENOENT", errno: -2 });
+  const patched = {
+    ...real,
+    spawnSync: (command: unknown) => ({
+      pid: 0,
+      status: null,
+      signal: null,
+      output: [null, "", ""],
+      stdout: "",
+      stderr: "",
+      error: enoent(command),
+    }),
+  };
+  return { ...patched, default: patched };
+});
+
 const {
   mockAudit,
   mockCheckResolutionStatus,
@@ -112,6 +137,51 @@ describe("buildHealthReport", () => {
       "node packages/toolbox/src/cli.mjs reso dist",
       "refarm health policy --json",
     ]);
+  });
+
+  it("counts a workspace that cannot run its own tooling", () => {
+    // Broken NOW against something DECLARED: the workspace names a packageManager and scripts,
+    // and right now not one of them runs. Same class as an unmet nodeTools minimum, and unlike
+    // the renewal gap next to it, which is a prediction.
+    const report = buildHealthReport(
+      {
+        git: [],
+        builds: [],
+        alignment: [],
+        workspaceTooling: {
+          kind: "broken",
+          workspace: "/w",
+          detail: "ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY",
+          repair: "pnpm install",
+        },
+      },
+      [],
+    );
+
+    expect(report.ok).toBe(false);
+    expect(report.issueCount).toBe(1);
+    expect(report.recommendations).toEqual([
+      expect.objectContaining({ issueType: "workspace-tooling-broken", action: "Run `pnpm install` in that workspace." }),
+    ]);
+  });
+
+  it("does not count a workspace whose tooling could not be checked", () => {
+    // An installed node runs `health` from wherever the operator stands, which is usually not a
+    // checkout. "Nothing here to ask" must never read as a fault, or the gate goes red on every
+    // node that is working exactly as intended.
+    const report = buildHealthReport(
+      {
+        git: [],
+        builds: [],
+        alignment: [],
+        workspaceTooling: { kind: "cannot-check", workspace: "/home/op", detail: "no package.json at /home/op" },
+      },
+      [],
+    );
+
+    expect(report.ok).toBe(true);
+    expect(report.issueCount).toBe(0);
+    expect(report.recommendations).toEqual([]);
   });
 
   it("does not count workspace namespace warnings as health issues", () => {

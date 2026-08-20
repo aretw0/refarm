@@ -127,6 +127,11 @@ export {
 } from "./tool-requirements.js";
 export { describeMeasurement, measureTool, proposedFloor } from "./tool-measurement.js";
 export {
+	describeWorkspaceTooling,
+	measureWorkspaceTooling,
+} from "./workspace-tooling.js";
+/** @typedef {import("./workspace-tooling.js").WorkspaceToolingMeasurement} WorkspaceToolingMeasurement */
+export {
 	buildSessionPressureBudget,
 	buildEnvironmentPressureReport,
 	bytesToMiB,

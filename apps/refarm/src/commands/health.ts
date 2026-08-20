@@ -1,6 +1,7 @@
 import {
 	declaredBase,
 	defaultSovereignConfigPath,
+	detectPackageManager,
 	findSovereignConfigPath,
 	sovereignConfigRelativePath,
 } from "@refarm.dev/config";
@@ -9,8 +10,10 @@ import {
 	ConfigNodeAuditor,
 	describeRenewalCoverage,
 	describeSubstrate,
+	describeWorkspaceTooling,
 	FileSystemAuditor,
 	HealthCore,
+	measureWorkspaceTooling,
 	ProjectAuditor,
 	readNodeSubstrate,
 	readToolRequirements,
@@ -90,6 +93,7 @@ export interface HealthResults {
 	 *  would let a reader ask for it on an installed node and get `undefined` instead of a type
 	 *  error. */
 	nodeSubstrate?: NodeSubstrate;
+	workspaceTooling?: ReturnType<typeof measureWorkspaceTooling>;
 	/**
 	 * The orchestrator's per-auditor results (config-node lives here).
 	 * `applicable`/`reason` are set by project-shaped auditors (generic_fs,
@@ -214,7 +218,12 @@ export function buildHealthReport(
 		// DECLARED tools can reach this — an operator who does not want an outdated tool to fail
 		// the gate lowers the minimum or drops the entry, which are both honest answers.
 		(results.nodeTools?.checks.length ?? 0) +
-		(results.nodeTools?.malformed.length ?? 0);
+		(results.nodeTools?.malformed.length ?? 0) +
+		// Counted for the same reason: broken NOW against something DECLARED. The workspace names a
+		// packageManager and scripts in its own manifest, and right now not one of them runs — its
+		// builds, tests and lanes all fail the same way. `ready` and `cannot-check` contribute
+		// nothing; only a measured refusal does, so a node standing outside any checkout stays green.
+		(results.workspaceTooling?.kind === "broken" ? 1 : 0);
 	// NOT COUNTED, and the line is worth stating because the sibling above IS counted.
 	//
 	// `issueCount` is what is broken NOW against something this node DECLARED. An unmet
@@ -397,6 +406,17 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
 					},
 				]
 			: []),
+		...(results.workspaceTooling?.kind === "broken"
+			? [
+					{
+						issueType: "workspace-tooling-broken",
+						diagnostic: "workspace-tooling-broken",
+						target: results.workspaceTooling.workspace,
+						summary: describeWorkspaceTooling(results.workspaceTooling),
+						action: `Run \`${results.workspaceTooling.repair}\` in that workspace.`,
+					},
+				]
+			: []),
 		...(results.credentialRenewal?.state === "uncovered"
 			? [
 					{
@@ -464,6 +484,41 @@ export function resolveConfigNodeBase(env = process.env): string {
 	return running ? path.resolve(running.declarationBase) : path.dirname(nodeHome);
 }
 
+/**
+ * Facts about the MACHINE, re-measured on every audit — cache hit included.
+ *
+ * The audit cache is a fingerprint over the REPOSITORY, and none of these live there: a tool
+ * upgraded outside the tree, a credential that expires by the clock, a `node_modules` left stale
+ * by a command that touched no tracked file, a launcher repointed at a different installed tree.
+ * A cached "all clear" over any of them keeps saying nothing is wrong while the machine walks
+ * toward the day it stops dispatching, and `refarm check` reads exactly this cached path.
+ *
+ * ONE PLACE, deliberately. The first two were written twice — once per branch — and the third was
+ * briefly added to only one, so a poisoned checkout reported 0 issues forever. Re-measuring is not
+ * something to remember per fact; it is what this function is.
+ */
+async function measureMachineFacts(results: HealthResults, rootDir: string): Promise<void> {
+	results.nodeTools = await auditDeclaredNodeTools(rootDir);
+	// A CREDENTIAL THAT EXPIRES AND NOTHING RENEWING IT. Measured 2026-08-19: a node up for a day
+	// answered every dispatch with `token expired`. Reported rather than declared — writing a
+	// timer that talks to a provider into someone's machine is their decision.
+	results.credentialRenewal = readRenewalCoverage();
+	// WHAT THIS NODE ACTUALLY EXECUTES — and it changes without the repository changing, which is
+	// the whole point of `refarm node install`.
+	results.nodeSubstrate = readNodeSubstrate(process.argv[1] ?? undefined);
+	// CAN THIS WORKSPACE RUN ITS OWN TOOLING? Everything else the repo knew about a workspace's
+	// executor was read from files, and `refarm check --next-action` answered "all clear" on a
+	// checkout where `pnpm exec` aborted (ISS-155). Costs one manager invocation (~0.45s), and
+	// stays silent where there is no workspace to ask.
+	// Counted, not advisory: unlike the substrate above, this is not a legitimate choice — the
+	// builds, tests and scripts of that workspace all fail the same way right now.
+	results.workspaceTooling = measureWorkspaceTooling({
+		// os-resolution: project — whether THIS project can run ITS tooling
+		cwd: rootDir,
+		packageManager: detectPackageManager({ cwd: rootDir }),
+	});
+}
+
 export async function runHealthAudit(
 	// os-resolution: project — audits the repository tree the operator is standing in
 	rootDir = process.cwd(),
@@ -476,16 +531,7 @@ export async function runHealthAudit(
 		allowStale: options.cacheMode === "stable",
 	});
 	if (cached) {
-		// The cache is a fingerprint over the REPOSITORY. A node tool lives outside it entirely —
-		// which is the whole reason this surface exists — so no hash of the tree can notice `gh`
-		// being upgraded. Re-measured on every hit: an operator who updates a tool and re-runs
-		// `health` must not be told the stale answer they just repaired.
-		cached.results.nodeTools = await auditDeclaredNodeTools(rootDir);
-		// SAME REASON as nodeTools above: which accounts this node holds and which processes it
-		// declares are facts about the MACHINE, and the cache fingerprints the repository. A
-		// cached "all clear" would keep saying nothing is wrong while the node walks toward the
-		// day it stops dispatching — and `refarm check` reads exactly this cached path.
-		cached.results.credentialRenewal = readRenewalCoverage();
+		await measureMachineFacts(cached.results, rootDir);
 		// Rebuilt, not patched: recommendations, nextActions and `ok` are all derived from results,
 		// and hand-updating one of the four is how a report comes to contradict itself.
 		return buildHealthReport(cached.results, cached.resolution, cached.skippedAuditors);
@@ -522,17 +568,7 @@ export async function runHealthAudit(
 	// Lift the config-node auditor's issues out of the orchestrator bag so the
 	// report surfaces cross-device config drift alongside the fs/build findings.
 	results.configNode = results._orchestrator?.["config-node"]?.issues ?? [];
-	results.nodeTools = await auditDeclaredNodeTools(rootDir);
-	// A CREDENTIAL THAT EXPIRES AND NOTHING RENEWING IT. Measured 2026-08-19: a node up for a day
-	// answered every dispatch with `token expired`. Reported rather than declared — writing a
-	// timer that talks to a provider into someone's machine is their decision, and the node's job
-	// is to make sure it is made deliberately instead of discovered by the node stopping.
-	results.credentialRenewal = readRenewalCoverage();
-	// WHAT THIS NODE ACTUALLY EXECUTES. Measured 2026-08-19: the launcher is a shim into a git
-	// working tree, so every supervised service runs the development repo's build output while
-	// naming a path under `~/.local/bin`. Reported, not counted — nothing is broken, and running
-	// the working tree is a legitimate choice that simply must not be invisible.
-	results.nodeSubstrate = readNodeSubstrate(process.argv[1] ?? undefined);
+	await measureMachineFacts(results, rootDir);
 	// generic_fs and project self-report `applicable: false` when `rootDir` is
 	// not a project (a node base like `~`) — surface that at the envelope's
 	// top level instead of letting their resulting empty arrays read as a
