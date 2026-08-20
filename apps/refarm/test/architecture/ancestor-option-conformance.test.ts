@@ -65,7 +65,7 @@
  * serve`, and a live CA under `~/.refarm`; none of them may be touched to make a test green.
  */
 
-import { CommanderError, Command } from "commander";
+import { Command, CommanderError } from "commander";
 import realChildProcess from "node:child_process";
 import realDgram from "node:dgram";
 import realFs from "node:fs";
@@ -333,6 +333,9 @@ interface ReachableOption {
 	declaredBy: string;
 	takesValue: boolean;
 	negated: boolean;
+	/** `--x <args...>` collects into an ARRAY. Comparing it to the bare sentinel says the flag
+	 *  never arrived, which is the opposite of what happened. ISS-151. */
+	variadic: boolean;
 }
 
 function reachableOptions(entry: DiscoveredCommand): ReachableOption[] {
@@ -356,6 +359,7 @@ function reachableOptions(entry: DiscoveredCommand): ReachableOption[] {
 				declaredBy: label,
 				takesValue: Boolean(option.required || option.optional),
 				negated: Boolean((option as unknown as { negate?: boolean }).negate),
+				variadic: Boolean((option as unknown as { variadic?: boolean }).variadic),
 			});
 		}
 	}
@@ -407,6 +411,27 @@ export function mirrorTree(
 	return copy;
 }
 
+/**
+ * DID THE PROBE VALUE LAND HERE? — asked of one command's `opts()`.
+ *
+ * A variadic option (`--x <args...>`) collects into an ARRAY, so the value that arrives is
+ * `[MIRROR_VALUE]`, not `MIRROR_VALUE`. Comparing against the bare sentinel reported the flag as
+ * never having arrived — and since "did not arrive" is exactly this file's definition of misfiled,
+ * the guard told the author their operator's flag was being swallowed and to reach for
+ * `optsWithGlobals()`, which would not have helped because nothing was wrong. ISS-151, found while
+ * adding `refarm tools add`; no command in this CLI declared a variadic option at the time, which
+ * is why it had never fired.
+ *
+ * Modelled rather than merely re-worded: an arrival this oracle cannot recognise is a false
+ * positive, and a false positive in a guard is worse than a gap, because it is acted on.
+ */
+function arrived(value: unknown, option: ReachableOption): boolean {
+	if (option.negated) return value === false;
+	if (!option.takesValue) return value === true;
+	if (option.variadic) return Array.isArray(value) && value.includes(MIRROR_VALUE);
+	return value === MIRROR_VALUE;
+}
+
 export interface MisfiledOption extends ReachableOption {
 	/** Where the value actually landed, as a label — the ancestor that swallowed it. */
 	landedOn: string;
@@ -448,13 +473,12 @@ export function misfiledOptions(root: Command, entry: DiscoveredCommand): {
 	const landedHere = sink.get(entry.argvPath.join(" ")) ?? {};
 	const misfiled: MisfiledOption[] = [];
 	for (const option of options) {
-		const expected = option.negated ? false : option.takesValue ? MIRROR_VALUE : true;
-		if (landedHere[option.attribute] === expected) continue;
+		if (arrived(landedHere[option.attribute], option)) continue;
 		// Name the swallower rather than reporting "somewhere else". The recorder walks leaf → root,
 		// so the first match is the NEAREST declaring ancestor, which is the one Commander chose.
 		let landedOn = "(nowhere)";
 		for (const [key, values] of sink) {
-			if (values[option.attribute] === expected) {
+			if (arrived(values[option.attribute], option)) {
 				landedOn = labelFor(entry.rootName, key.split(" ").filter(Boolean));
 				break;
 			}
@@ -833,13 +857,29 @@ describe("ancestor option conformance", () => {
 						(entry.escaped ? `  (action threw: ${entry.escaped})` : "") +
 						(entry.timedOut ? "  (did not settle within the probe budget)" : ""),
 				),
+				"",
+				`${timedOut.length} did not settle within ${PROBE_TIMEOUT_MS}ms — counted, never`,
+				"asserted; see the note under the floors below.",
+				...timedOut.map(([label]) => `  ${label}`),
 			].join("\n"),
 		);
 		// The floor. If an upstream change ever disarms the instrument, this fails instead of the
 		// suite reporting a clean run forever.
+		//
+		// BOTH FLOORS ARE COUNTS, deliberately — nothing here is asserted against a clock.
+		// `expect(timedOut).toEqual([])` used to sit beside them and flaked: `PROBE_TIMEOUT_MS` is
+		// 4s of WALL CLOCK raced against `parseAsync`, and these probes run inside a 250-file suite
+		// with parallel workers, so a command that settles in milliseconds can lose that budget to
+		// scheduling pressure alone. It failed once in a full run, then passed alone and on the
+		// next full run (ISS-156). A floor that fails for load reasons teaches its reader to
+		// re-run instead of read — which is precisely how the flag-never-arrives bug this file
+		// exists to prevent would get waved past a fourth time.
+		//
+		// Nothing is lost by dropping it: a probe that does not settle records no reads, so a
+		// systematic stall still fails `withReads` below. Timeouts are named and counted above,
+		// where this file already writes down the coverage it does not have.
 		expect(OBSERVED.size).toBe(PROBEABLE.length);
 		expect(withReads.length).toBeGreaterThan(PROBEABLE.length / 2);
-		expect(timedOut).toEqual([]);
 		// The three that motivated this file must each be OBSERVED, not merely probed.
 		for (const label of [
 			"refarm tasks show",
@@ -910,6 +950,30 @@ describe("ancestor option conformance — the harness itself", () => {
 				}
 			});
 
+		// (5b) VARIADIC, unshadowed. `--tags <t...>` collects into an array, so the probe value
+		//      arrives as [MIRROR_VALUE]. Before ISS-151 the oracle compared against the bare
+		//      sentinel, called it "(nowhere)", and told the author their flag was swallowed.
+		group
+			.command("variadic-unshadowed")
+			.option("--tags <tags...>", "Tags")
+			.action((options: { tags?: string[] }) => {
+				void options.tags;
+			});
+
+		// (5c) VARIADIC and genuinely shadowed — the oracle must still catch this one. Modelling
+		//      the array must not turn the guard off for the case it exists to find. Its own
+		//      group, so declaring the ancestor option does not change what the cases above see.
+		const variadicGroup = root
+			.command("variadic-group")
+			.option("--only <names...>", "Restrict")
+			.action(() => {});
+		variadicGroup
+			.command("variadic-shadowed")
+			.option("--only <names...>", "Restrict")
+			.action((options: { only?: string[] }) => {
+				void options.only;
+			});
+
 		// (5) No ancestor declares --depth, so reading it off opts() is CORRECT and must not be
 		//     flagged. This is the false-positive guard: the rule fires on shadowing, not on opts().
 		group
@@ -956,6 +1020,17 @@ describe("ancestor option conformance — the harness itself", () => {
 
 	it("leaves an unshadowed option alone — reading opts() is not itself a fault", async () => {
 		expect(await judge("unshadowed")).toEqual([]);
+	});
+
+	it("does not call an unshadowed variadic option swallowed — it arrives as an array", async () => {
+		// ISS-151. The array IS the arrival. Reporting it as "(nowhere)" sent the author to
+		// optsWithGlobals() for a command where nothing was wrong.
+		expect(await judge("variadic-unshadowed")).toEqual([]);
+	});
+
+	it("still catches a variadic option that IS shadowed", async () => {
+		// The other half of the same fix: modelling the array must not disarm the rule.
+		expect((await judge("variadic-shadowed")).map((option) => option.long)).toEqual(["--only"]);
 	});
 
 	it("measures the mirror against Commander itself rather than assuming a binding rule", () => {
