@@ -105,6 +105,9 @@ export const PROBE_EXCLUSIONS = Object.freeze([
 	// Asks the provider for a fresh token when one has lapsed, and WRITES the credential file
 	// the running host re-reads. Probing it from four directories would renew four times.
 	{ argv: ["credential", "renew"], category: "network" },
+	// Assembles a 434MB tree and repoints the operator's launcher. Probing it from four
+	// directories would install four times and ask four times.
+	{ argv: ["node", "install"], category: "mutates" },
 	// Same provider call as `credential quota`, plus the local record beside it. Probing it from
 	// four directories would ask GitHub four times and prove nothing the sibling does not.
 	{ argv: ["budget", "quota"], category: "network" },

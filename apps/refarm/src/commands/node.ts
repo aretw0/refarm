@@ -12,6 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import chalk from "chalk";
 import { Command } from "commander";
 
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
@@ -139,6 +140,50 @@ export function createNodeCommand(
 	const node = new Command("node").description(
 		"Declare this node as one portable file, compare a node against one, and replay it",
 	);
+
+	node
+		.command("install")
+		.description("Assemble an installed tree, verify it by running it, then repoint the launcher")
+		.option("--verify-only", "Assemble and verify, and leave the launcher alone")
+		.option("--json", "Output machine-readable JSON")
+		.action(async (options: { verifyOnly?: boolean; json?: boolean }) => {
+				// SAME GROUP as `declare`/`diff`/`apply` on purpose: they are all about this node's
+				// own substrate — describing it, comparing it, replaying it, and now standing it up
+				// from an assembled tree. A second `node`-shaped group would have split one subject.
+				const { runNodeInstall } = await import("./node-install.js");
+				const result = await runNodeInstall(
+					options.verifyOnly ? { verifyOnly: true } : {},
+					// Silent under --json: the proposal render is prose for a terminal, and mixing it
+					// into a machine-readable stream is how a parser meets a wall of diff.
+					options.json ? { announce: () => {} } : {},
+				);
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "node",
+							operation: "install",
+							extra: { ...result },
+							nextAction: result.status === "installed" ? "refarm health --json" : null,
+							nextCommands: result.status === "installed" ? ["refarm health --json"] : [],
+						}),
+					);
+					return;
+				}
+				if (result.status === "installed") {
+					console.log(chalk.green(`✓ This node now runs ${result.tree}`));
+					console.log(chalk.dim("   The previous launcher is kept as `<launcher>.previous`."));
+				} else if (result.status === "verified") {
+					console.log(chalk.green(`✓ Assembled and verified at ${result.tree}`));
+					console.log(chalk.dim("   The launcher was not touched — that is what --verify-only means."));
+				} else {
+					console.log(chalk.yellow(`· ${result.because}`));
+				}
+				// Said last so it is the line still on screen: a stale checkout breaks the NEXT
+				// command the operator runs there, and nothing else would explain why.
+				if (result.status !== "refused" && result.checkout.status === "stale") {
+					console.log(chalk.yellow(`! ${result.checkout.because}`));
+				}
+			});
 
 	node
 		.command("declare")
