@@ -29,6 +29,7 @@ import {
 	type AccountView,
 	type ModelAccountBinding,
 	type ModelAccountDescriptor,
+	type StoredModelBindings,
 } from "@refarm.dev/model-account-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
 
@@ -432,32 +433,64 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 	credential
 		.command("bind")
 		.argument("<workspace>", "Workspace id, as declared in .refarm/config.json")
-		.argument("<credentialId>", "The OPAQUE id — never the alias, which may be renamed")
-		.description("Bind a workspace to one model account")
+		.argument(
+			"<credentialId...>",
+			"The OPAQUE ids — never aliases, which may be renamed. More than one declares a fallback order.",
+		)
+		.description("Bind a workspace to one model account, or to several in priority order")
 		.option("--json", "Output machine-readable result")
-		.action(async (workspace: string, credentialId: string, options: { json?: boolean }) =>
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm credential bind refarm model-account:K4NX…",
+				"  $ refarm credential bind refarm model-account:K4NX… model-account:54BG…",
+				"",
+				"Notes:",
+				"  The ORDER is the instruction: the first usable seat pays, and nothing outside the",
+				"  list is ever spent. Declaring the fallback once is what replaces deciding it at",
+				"  every refusal.",
+			].join("\n"),
+		)
+		.action(async (workspace: string, credentialIds: string[], options: { json?: boolean }) =>
 			guarded("bind", options, async () => {
 				const accounts = await loadAccounts();
-				if (!accounts.some((a) => a.credentialId === credentialId && a.health === "healthy")) {
+				for (const credentialId of credentialIds) {
+					if (!accounts.some((a) => a.credentialId === credentialId && a.health === "healthy")) {
+						throw new Error(
+							`model_credential_none: no eligible account on this node carries the id ${credentialId}`,
+						);
+					}
+				}
+				// REFUSED HERE, WITH THE OPERATOR WATCHING, rather than deduped on read. A repeated id
+				// in a fallback order means a seat that could never be reached, and silently editing a
+				// declaration is worse than refusing to write one.
+				const seen = new Set<string>();
+				const repeated = credentialIds.filter((id) => !seen.add(id));
+				if (repeated.length > 0) {
 					throw new Error(
-						`model_credential_none: no eligible account on this node carries the id ${credentialId}`,
+						`model_credential_none: ${repeated[0]} appears twice in the order, and a seat ` +
+							"cannot fall back to itself.",
 					);
 				}
 				const configPath = path.join(deps.homeOf(), "config.json");
 				const config = readJson<Record<string, unknown>>(configPath, {});
 				// PERSISTS THE OPAQUE ID, NEVER THE ALIAS (D2). An alias may be renamed, and every
 				// binding written against it would then point at nothing — or at whatever took the name.
-				const bindings = { ...((config.modelBindings as Record<string, string>) ?? {}) };
-				bindings[workspace] = credentialId;
+				const bindings = { ...((config.modelBindings as StoredModelBindings) ?? {}) };
+				// A single id stays a STRING: every node that exists today keeps the shape it has, and
+				// a diff of this file shows a list only where the operator actually declared one.
+				bindings[workspace] = credentialIds.length === 1 ? credentialIds[0]! : credentialIds;
 				fs.writeFileSync(
 					configPath,
 					`${JSON.stringify({ ...config, modelBindings: bindings }, null, 2)}\n`,
 				);
-				const extra = { workspace, credentialId };
+				const extra = { workspace, credentialIds };
 				if (options.json) {
 					printJson(buildJsonSuccessEnvelope({ command: "credential", operation: "bind", extra }));
 				} else {
-					process.stdout.write(`${workspace} → ${credentialId}\n`);
+					process.stdout.write(`${workspace} → ${credentialIds.join(" → ")}\n`);
 				}
 			}),
 		);

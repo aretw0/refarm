@@ -82,24 +82,49 @@ export function resolveModelAccount(input: ResolveInput): DispatchSnapshot | Mod
 	// route naming openai-codex: BOTH were inert. Not overridden — never consulted, because a
 	// binding to another provider's account had no way to be reached.
 	if (input.workspaceId) {
-		const bound = input.bindings.find((b) => b.workspaceId === input.workspaceId);
-		const held = bound && input.accounts.find((a) => a.credentialId === bound.credentialId);
-		if (held?.health === "healthy") return snapshot(held, input.workspaceId, "workspace-binding");
-		if (held) {
+		// EVERY binding for this workspace, IN DECLARED ORDER — a workspace may name more than one
+		// seat (ISS-157). One binding meant the operator decided the personal/corporate crossing at
+		// every refusal; an ordered list is that same decision made ONCE, in advance. Walking it
+		// therefore spends nothing he did not name, which is what keeps the doctrine below intact.
+		//
+		// THE ORDER IS AN INSTRUCTION ABOUT COST, not a hint: a healthy seat ranked second is never
+		// preferred over a healthy seat ranked first, and nothing here sorts.
+		const declared = input.bindings.filter((b) => b.workspaceId === input.workspaceId);
+		const held = declared
+			.map((b) => input.accounts.find((a) => a.credentialId === b.credentialId))
+			// A binding naming a credential this node does not hold names nothing to act on, so it
+			// is skipped rather than refused on. `credential bind` refuses unknown ids and `forget`
+			// refuses while bound, which makes this an anomaly rather than a choice worth honouring.
+			.filter((a): a is ModelAccountDescriptor => a !== undefined);
+
+		const usable = held.find((a) => a.health === "healthy");
+		if (usable) return snapshot(usable, input.workspaceId, "workspace-binding");
+
+		if (held.length > 0) {
 			// NAMED AND UNUSABLE IS A QUESTION, NOT A LICENCE. Falling through here would spend a
 			// different account than the one the operator named, silently, and report it as a node
 			// default. A binding is an instruction about cost.
+			//
+			// The code is the FIRST seat's. A refusal carries one code and the seats can fail
+			// differently; the one ranked first is the one the operator most wants working, so its
+			// repair is the primary one. Every seat is named in the message regardless, because a
+			// list that reports only its head hides the work.
+			const first = held[0]!;
+			const codeOf = (a: ModelAccountDescriptor) =>
+				a.health === "unclaimed" ? REFUSAL_CODES.unclaimed : REFUSAL_CODES.incomplete;
 			return {
-				code: held.health === "unclaimed" ? REFUSAL_CODES.unclaimed : REFUSAL_CODES.incomplete,
+				code: codeOf(first),
 				message:
-					`${input.workspaceId} is bound to a ${held.provider} account that is ${held.health}. ` +
-					"Repair it or bind this workspace elsewhere; nothing else was chosen for it.",
-				candidates: safeCandidates([held]),
+					held.length === 1
+						? `${input.workspaceId} is bound to a ${first.provider} account that is ` +
+							`${first.health}. Repair it or bind this workspace elsewhere; nothing else ` +
+							"was chosen for it."
+						: `${input.workspaceId} declared ${held.length} seats and none is usable: ` +
+							held.map((a) => `${a.alias} (${a.provider}, ${a.health})`).join(", ") +
+							". Repair one or declare another; nothing outside that list was chosen.",
+				candidates: safeCandidates(held),
 			};
 		}
-		// A binding naming a credential this node does not hold names nothing to act on, so the
-		// resolution continues. `credential bind` refuses unknown ids and `forget` refuses while
-		// bound, which makes this an anomaly rather than a choice worth honouring.
 	}
 
 	if (eligible.length === 1) return snapshot(eligible[0]!, input.workspaceId, "node-default");

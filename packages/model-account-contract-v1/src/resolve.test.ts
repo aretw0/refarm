@@ -42,6 +42,78 @@ describe("resolveModelAccount — D3 precedence", () => {
 		expect(result).toMatchObject({ credentialId: GREEN.credentialId, source: "workspace-binding" });
 	});
 
+	it("walks a workspace's seats IN THE ORDER the operator declared them", () => {
+		// ISS-157. One binding per workspace made the operator decide the personal/corporate
+		// crossing at every refusal. An ORDERED list is that decision made once, in advance —
+		// which is why walking it spends nothing he did not name.
+		const result = resolveModelAccount({
+			provider: "github-copilot",
+			accounts: [account("first", { health: "unclaimed" }), GREEN],
+			bindings: [
+				{ workspaceId: "rcdc5", credentialId: account("first").credentialId },
+				{ workspaceId: "rcdc5", credentialId: GREEN.credentialId },
+			],
+			workspaceId: "rcdc5",
+		});
+		expect(result).toMatchObject({ credentialId: GREEN.credentialId, source: "workspace-binding" });
+	});
+
+	it("does not reorder the list to find a healthy seat sooner", () => {
+		// The order is an instruction about COST, not a hint. A healthy seat ranked second must not
+		// be preferred over a healthy seat ranked first.
+		const result = resolveModelAccount({
+			provider: "github-copilot",
+			accounts: [BLUE, GREEN],
+			bindings: [
+				{ workspaceId: "rcdc5", credentialId: BLUE.credentialId },
+				{ workspaceId: "rcdc5", credentialId: GREEN.credentialId },
+			],
+			workspaceId: "rcdc5",
+		});
+		expect(result).toMatchObject({ credentialId: BLUE.credentialId });
+	});
+
+	it("refuses when every declared seat is unusable, and names each with its own reason", () => {
+		// "NAMED AND UNUSABLE IS A QUESTION, NOT A LICENCE" still holds — it now holds over a list.
+		// Falling through to a node default here would spend an account ranked nowhere.
+		const stale = account("stale", { health: "unclaimed" });
+		const broken = account("broken", { health: "incomplete" });
+		const result = resolveModelAccount({
+			provider: "github-copilot",
+			accounts: [stale, broken, BLUE],
+			bindings: [
+				{ workspaceId: "rcdc5", credentialId: stale.credentialId },
+				{ workspaceId: "rcdc5", credentialId: broken.credentialId },
+			],
+			workspaceId: "rcdc5",
+		});
+		expect(isRefusal(result)).toBe(true);
+		if (!isRefusal(result)) return;
+		// The code is the FIRST seat's, because the operator ranked it first: repairing that one is
+		// the action he most wants, and a single code cannot carry two different repairs.
+		expect(result.code).toBe(REFUSAL_CODES.unclaimed);
+		expect(result.message).toContain("stale");
+		expect(result.message).toContain("broken");
+		expect(result.candidates.map((c) => c.alias)).toEqual(["stale", "broken"]);
+		// And never the unnamed healthy account sitting right there.
+		expect(result.message).not.toContain("blue");
+	});
+
+	it("still refuses with the single-seat wording when only one is declared", () => {
+		// The overwhelming majority of nodes declare one, and their refusal must not grow a list.
+		const stale = account("stale", { health: "unclaimed" });
+		const result = resolveModelAccount({
+			provider: "github-copilot",
+			accounts: [stale, BLUE],
+			bindings: [{ workspaceId: "rcdc5", credentialId: stale.credentialId }],
+			workspaceId: "rcdc5",
+		});
+		expect(isRefusal(result)).toBe(true);
+		if (!isRefusal(result)) return;
+		expect(result.code).toBe(REFUSAL_CODES.unclaimed);
+		expect(result.candidates).toHaveLength(1);
+	});
+
 	it("prefers an explicit dispatch override over the binding", () => {
 		const result = resolveModelAccount({
 			provider: "github-copilot",

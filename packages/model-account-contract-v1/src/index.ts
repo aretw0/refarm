@@ -1,5 +1,6 @@
 export * from "./account-view.js";
 export * from "./authorization.js";
+export { bindingsFromConfig, type StoredModelBindings } from "./bindings.js";
 export * from "./catalog.js";
 export * from "./describe-new.js";
 export * from "./migrate.js";

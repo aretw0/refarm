@@ -14,10 +14,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 import {
+	bindingsFromConfig,
 	buildAccountView,
 	type AccountView,
 	type ModelAccountBinding,
 	type ModelAccountDescriptor,
+	type StoredModelBindings,
 } from "@refarm.dev/model-account-contract-v1";
 
 /**
@@ -62,16 +64,16 @@ export function readCatalog(home: string): ModelAccountDescriptor[] {
 	return Array.isArray(parsed) ? (parsed as ModelAccountDescriptor[]) : [];
 }
 
-/** Workspace bindings, which the node's own config owns and which persist the OPAQUE id. */
+/** Workspace bindings, which the node's own config owns and which persist the OPAQUE id.
+ *
+ *  What the stored shape MEANS lives in `bindingsFromConfig` — one id or an ordered list of them
+ *  (ISS-157) — so this reader and any other cannot disagree about it. */
 export function readBindings(home: string): ModelAccountBinding[] {
-	const config = readJson<{ modelBindings?: Record<string, string> }>(
+	const config = readJson<{ modelBindings?: StoredModelBindings }>(
 		path.join(home, "config.json"),
 		{},
 	);
-	return Object.entries(config.modelBindings ?? {}).map(([workspaceId, credentialId]) => ({
-		workspaceId,
-		credentialId,
-	}));
+	return bindingsFromConfig(config.modelBindings);
 }
 
 /**
