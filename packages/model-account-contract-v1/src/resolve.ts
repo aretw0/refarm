@@ -34,6 +34,21 @@ export interface ResolveInput {
 	/** `null` when the dispatch has no workspace — a node-level ask. */
 	readonly workspaceId: string | null;
 	readonly overrideCredentialId?: string;
+	/**
+	 * Seats ALREADY TRIED in this dispatch, never handed back.
+	 *
+	 * The reactive half of the ordered declaration (ISS-157). A provider refusing a seat for quota
+	 * is a FACT; falling to the next seat the operator NAMED needs no prediction about which meter
+	 * a model consumes — and predicting it would skip a seat whose `chat` meter is unlimited and
+	 * cross the operator's personal/corporate frontier for no reason.
+	 *
+	 * ONE MEANING EVERYWHERE, including the override and the node default. Handing back a seat the
+	 * caller has just learned does not work reads as "try this" and invites a loop.
+	 *
+	 * IT IS NOT A LICENCE. Excluding the last DECLARED seat refuses; it never falls through to an
+	 * account the operator did not name. That property is what keeps the doctrine below intact.
+	 */
+	readonly excludeCredentialIds?: readonly string[];
 }
 
 export function isRefusal(value: unknown): value is ModelAccountRefusal {
@@ -58,8 +73,10 @@ const snapshot = (
 });
 
 export function resolveModelAccount(input: ResolveInput): DispatchSnapshot | ModelAccountRefusal {
+	const tried = new Set(input.excludeCredentialIds ?? []);
+	const untried = (a: ModelAccountDescriptor) => !tried.has(a.credentialId);
 	const ofProvider = input.accounts.filter((a) => a.provider === input.provider);
-	const eligible = ofProvider.filter((a) => a.health === "healthy");
+	const eligible = ofProvider.filter((a) => a.health === "healthy" && untried(a));
 
 	if (input.overrideCredentialId) {
 		const chosen = eligible.find((a) => a.credentialId === input.overrideCredentialId);
@@ -97,7 +114,7 @@ export function resolveModelAccount(input: ResolveInput): DispatchSnapshot | Mod
 			// refuses while bound, which makes this an anomaly rather than a choice worth honouring.
 			.filter((a): a is ModelAccountDescriptor => a !== undefined);
 
-		const usable = held.find((a) => a.health === "healthy");
+		const usable = held.find((a) => a.health === "healthy" && untried(a));
 		if (usable) return snapshot(usable, input.workspaceId, "workspace-binding");
 
 		if (held.length > 0) {
@@ -109,21 +126,33 @@ export function resolveModelAccount(input: ResolveInput): DispatchSnapshot | Mod
 			// differently; the one ranked first is the one the operator most wants working, so its
 			// repair is the primary one. Every seat is named in the message regardless, because a
 			// list that reports only its head hides the work.
-			const first = held[0]!;
+			// A SEAT THAT WAS TRIED IS NOT A BROKEN SEAT. Reporting `incomplete` for a healthy
+			// account the dispatch already spent sends the operator to repair something that is not
+			// wrong; the code therefore comes from the first seat still UNTRIED, and only when every
+			// one has been tried does it become "none left".
+			const stillUntried = held.filter(untried);
+			const first = stillUntried[0];
 			const codeOf = (a: ModelAccountDescriptor) =>
 				a.health === "unclaimed" ? REFUSAL_CODES.unclaimed : REFUSAL_CODES.incomplete;
-			return {
-				code: codeOf(first),
-				message:
-					held.length === 1
-						? `${input.workspaceId} is bound to a ${first.provider} account that is ` +
-							`${first.health}. Repair it or bind this workspace elsewhere; nothing else ` +
-							"was chosen for it."
-						: `${input.workspaceId} declared ${held.length} seats and none is usable: ` +
-							held.map((a) => `${a.alias} (${a.provider}, ${a.health})`).join(", ") +
-							". Repair one or declare another; nothing outside that list was chosen.",
-				candidates: safeCandidates(held),
-			};
+			const stateOf = (a: ModelAccountDescriptor) =>
+				untried(a) ? a.health : `${a.health}, already tried`;
+			// THE SEAT IS NAMED. "a github-copilot account that is healthy" is unreadable on a node
+			// holding two Copilot seats, which is the node this exists for.
+			const one = held[0]!;
+			const listed = held.map((a) => `${a.alias} (${a.provider}, ${stateOf(a)})`).join(", ");
+			const message =
+				held.length === 1
+					? untried(one)
+						? `${input.workspaceId} is bound to ${one.alias} (${one.provider}), which is ` +
+							`${one.health}. Repair it or bind this workspace elsewhere; nothing else was ` +
+							"chosen for it."
+						: // Nothing to repair — the seat works and was spent. The repair is a DECLARATION.
+							`${input.workspaceId} is bound to ${one.alias} (${one.provider}) and nothing ` +
+							"else. It was already tried, so there is no second seat to fall to — declare " +
+							"one with `credential bind`, in the order you want them spent."
+					: `${input.workspaceId} declared ${held.length} seats and none is usable: ${listed}. ` +
+						"Repair one or declare another; nothing outside that list was chosen.";
+			return { code: first ? codeOf(first) : REFUSAL_CODES.none, message, candidates: safeCandidates(held) };
 		}
 	}
 

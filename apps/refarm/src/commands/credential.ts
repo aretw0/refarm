@@ -474,6 +474,28 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 							"cannot fall back to itself.",
 					);
 				}
+				// ONE PROVIDER PER ORDER, refused here rather than skipped at dispatch.
+				//
+				// The route — provider, base URL, auth shape — is resolved ONCE before a dispatch is
+				// submitted. Falling back to a seat of another provider would leave the route naming
+				// the first one, so the walk would either send to the wrong endpoint or have to
+				// rebuild the route mid-flight. Refusing the declaration removes the class instead of
+				// carrying a skip rule nobody can see. Bind different providers to different
+				// workspaces, which is what the route already expresses.
+				const providers = [
+					...new Set(
+						credentialIds.map(
+							(id) => accounts.find((a) => a.credentialId === id)?.provider ?? "unknown",
+						),
+					),
+				];
+				if (providers.length > 1) {
+					throw new Error(
+						`model_credential_none: a fallback order must name seats of ONE provider, and ` +
+							`this names ${providers.join(", ")}. A fallback that changes provider changes ` +
+							"the route, which is resolved before the dispatch is submitted.",
+					);
+				}
 				const configPath = path.join(deps.homeOf(), "config.json");
 				const config = readJson<Record<string, unknown>>(configPath, {});
 				// PERSISTS THE OPAQUE ID, NEVER THE ALIAS (D2). An alias may be renamed, and every

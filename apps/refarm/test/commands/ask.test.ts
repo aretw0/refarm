@@ -180,6 +180,129 @@ describe("refarm ask", () => {
 		).toBe("/tmp/refarm-results");
 	});
 
+	/** A node holding two seats of one provider, with `workspaceId` declaring them in order. */
+	function declareTwoSeats(order: string[]): void {
+		const home = path.join(tempHome, ".refarm");
+		fs.mkdirSync(home, { recursive: true });
+		fs.writeFileSync(
+			path.join(home, "model-accounts.json"),
+			JSON.stringify(
+				["first", "second"].map((alias, index) => ({
+					credentialId: `model-account:${alias.toUpperCase().padEnd(26, "X")}`,
+					provider: "github-copilot",
+					alias,
+					identity: { status: "unverified" },
+					secretRef: `model/${alias}`,
+					health: "healthy",
+					revision: `sha256:r${index}`,
+				})),
+			),
+		);
+		fs.writeFileSync(
+			path.join(home, "config.json"),
+			JSON.stringify({ modelBindings: { paid: order } }),
+		);
+		process.env.REFARM_HOME = home;
+		process.env.MODEL_PROVIDER = "github-copilot";
+	}
+
+	/** The declared-workspace roots `--workspace paid` needs to be accepted at all. */
+	const PAID_ROOTS = [{ id: "paid", absolutePath: "/home/op/paid" }];
+
+	const SEAT_ONE = `model-account:${"FIRST".padEnd(26, "X")}`;
+	const SEAT_TWO = `model-account:${"SECOND".padEnd(26, "X")}`;
+
+	it("falls to the next DECLARED seat when the first is refused for quota", async () => {
+		// ISS-157, the reactive half. The order is the operator's standing instruction; a provider
+		// refusing the first seat is a fact, and honouring what he already declared needs no
+		// prediction about which meter a model consumes.
+		declareTwoSeats([SEAT_ONE, SEAT_TWO]);
+		const deps = makeDeps({
+			declaredWorkspaceRoots: vi.fn().mockReturnValue(PAID_ROOTS),
+			followStream: vi
+				.fn()
+				.mockRejectedValueOnce(new Error("model quota exceeded for this account"))
+				.mockImplementation(async (_id: string, onChunk: (chunk: StreamChunk) => void) => {
+					onChunk(makeChunk("ok", 0, true, { model: "gpt-4o" }));
+				}),
+		});
+		const command = createAskCommand(deps);
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+		await command.parseAsync(["hello", "--workspace", "paid"], { from: "user" });
+
+		const spent = (deps.submitEffort as ReturnType<typeof vi.fn>).mock.calls.map(
+			([effort]) => (effort as { credentialId?: string }).credentialId,
+		);
+		expect(spent).toEqual([SEAT_ONE, SEAT_TWO]);
+		expect(process.exitCode).not.toBe(1);
+	});
+
+	it("stops at the end of the declared order rather than spending an unnamed seat", async () => {
+		// The property that makes the walk safe: `second` is healthy and sitting right there, and
+		// it was never declared for this workspace.
+		declareTwoSeats([SEAT_ONE]);
+		const deps = makeDeps({
+			declaredWorkspaceRoots: vi.fn().mockReturnValue(PAID_ROOTS),
+			followStream: vi.fn().mockRejectedValue(new Error("model quota exceeded for this account")),
+		});
+		const command = createAskCommand(deps);
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+		await command.parseAsync(["hello", "--workspace", "paid"], { from: "user" });
+
+		const spent = (deps.submitEffort as ReturnType<typeof vi.fn>).mock.calls.map(
+			([effort]) => (effort as { credentialId?: string }).credentialId,
+		);
+		expect(spent).toEqual([SEAT_ONE]);
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("does not walk after an answer has already been printed", async () => {
+		// A stream that emitted text and THEN failed cannot be retried: the operator would read one
+		// answer twice, spliced. Failing toward the previous behaviour is the only honest move.
+		declareTwoSeats([SEAT_ONE, SEAT_TWO]);
+		const deps = makeDeps({
+			declaredWorkspaceRoots: vi.fn().mockReturnValue(PAID_ROOTS),
+			followStream: vi
+				.fn()
+				.mockImplementationOnce(async (_id: string, onChunk: (chunk: StreamChunk) => void) => {
+					onChunk(makeChunk("half an answer", 0, false));
+					throw new Error("model quota exceeded for this account");
+				}),
+		});
+		const command = createAskCommand(deps);
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+		await command.parseAsync(["hello", "--workspace", "paid"], { from: "user" });
+
+		expect((deps.submitEffort as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("does not walk on a failure that is not about quota", async () => {
+		// Walking on any error would spend a second seat on a bug, twice.
+		declareTwoSeats([SEAT_ONE, SEAT_TWO]);
+		const deps = makeDeps({
+			declaredWorkspaceRoots: vi.fn().mockReturnValue(PAID_ROOTS),
+			followStream: vi.fn().mockRejectedValue(new Error("runtime agent is not loaded")),
+		});
+		const command = createAskCommand(deps);
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+		await command.parseAsync(["hello", "--workspace", "paid"], { from: "user" });
+
+		expect((deps.submitEffort as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
+	});
+
 	it("submits effort with runtime agent respond payload", async () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);

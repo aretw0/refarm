@@ -114,6 +114,102 @@ describe("resolveModelAccount — D3 precedence", () => {
 		expect(result.candidates).toHaveLength(1);
 	});
 
+	it("walks past a seat that was already tried, to the next DECLARED one", () => {
+		// The reactive half of ISS-157: a seat refused by the provider for quota is a FACT, and
+		// falling to the next seat the operator named needs no prediction about meters.
+		const result = resolveModelAccount({
+			provider: "github-copilot",
+			accounts: [BLUE, GREEN],
+			bindings: [
+				{ workspaceId: "rcdc5", credentialId: BLUE.credentialId },
+				{ workspaceId: "rcdc5", credentialId: GREEN.credentialId },
+			],
+			workspaceId: "rcdc5",
+			excludeCredentialIds: [BLUE.credentialId],
+		});
+		expect(result).toMatchObject({ credentialId: GREEN.credentialId, source: "workspace-binding" });
+	});
+
+	it("REFUSES rather than falling to an unnamed account when the declared list runs out", () => {
+		// The property that makes the walk safe. Exclusion must never become a licence: a workspace
+		// that declared one seat and saw it fail has nothing left to spend, and BLUE — healthy,
+		// eligible, sitting right there — was never named.
+		const result = resolveModelAccount({
+			provider: "github-copilot",
+			accounts: [BLUE, GREEN],
+			bindings: [{ workspaceId: "rcdc5", credentialId: GREEN.credentialId }],
+			workspaceId: "rcdc5",
+			excludeCredentialIds: [GREEN.credentialId],
+		});
+		expect(isRefusal(result)).toBe(true);
+		if (!isRefusal(result)) return;
+		expect(result.code).toBe(REFUSAL_CODES.none);
+		expect(result.message).toContain("green");
+		expect(result.message).not.toContain("blue");
+	});
+
+	it("says a tried seat was tried, not that it is broken", () => {
+		// An operator reading "incomplete" about a healthy seat repairs something that is not wrong.
+		const result = resolveModelAccount({
+			provider: "github-copilot",
+			accounts: [BLUE, GREEN],
+			bindings: [
+				{ workspaceId: "rcdc5", credentialId: BLUE.credentialId },
+				{ workspaceId: "rcdc5", credentialId: GREEN.credentialId },
+			],
+			workspaceId: "rcdc5",
+			excludeCredentialIds: [BLUE.credentialId, GREEN.credentialId],
+		});
+		expect(isRefusal(result)).toBe(true);
+		if (!isRefusal(result)) return;
+		expect(result.message).toMatch(/already tried/u);
+	});
+
+	it("keeps the health reason when an untried seat is the unusable one", () => {
+		const broken = account("broken", { health: "incomplete" });
+		const result = resolveModelAccount({
+			provider: "github-copilot",
+			accounts: [BLUE, broken],
+			bindings: [
+				{ workspaceId: "rcdc5", credentialId: BLUE.credentialId },
+				{ workspaceId: "rcdc5", credentialId: broken.credentialId },
+			],
+			workspaceId: "rcdc5",
+			excludeCredentialIds: [BLUE.credentialId],
+		});
+		expect(isRefusal(result)).toBe(true);
+		if (!isRefusal(result)) return;
+		expect(result.code).toBe(REFUSAL_CODES.incomplete);
+	});
+
+	it("refuses rather than returning a seat that was already tried, even as the node default", () => {
+		// `excludeCredentialIds` means ONE thing everywhere: seats already tried in this dispatch,
+		// never handed back. Returning the sole eligible account again would read as "try this" to a
+		// caller that just learned it does not work, which is an invitation to loop forever.
+		const result = resolveModelAccount({
+			provider: "github-copilot",
+			accounts: [BLUE],
+			bindings: [],
+			workspaceId: "rcdc5",
+			excludeCredentialIds: [BLUE.credentialId],
+		});
+		expect(isRefusal(result)).toBe(true);
+		if (!isRefusal(result)) return;
+		expect(result.code).toBe(REFUSAL_CODES.none);
+	});
+
+	it("refuses a dispatch override that was already tried", () => {
+		const result = resolveModelAccount({
+			provider: "github-copilot",
+			accounts: [BLUE, GREEN],
+			bindings: [],
+			workspaceId: "rcdc5",
+			overrideCredentialId: BLUE.credentialId,
+			excludeCredentialIds: [BLUE.credentialId],
+		});
+		expect(isRefusal(result)).toBe(true);
+	});
+
 	it("prefers an explicit dispatch override over the binding", () => {
 		const result = resolveModelAccount({
 			provider: "github-copilot",
