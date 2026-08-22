@@ -12,7 +12,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { runNodeInstall } from "./node-install.js";
+import { materializeWorkspacePackages, runNodeInstall, sharedWithCheckout } from "./node-install.js";
 
 /** A checkout shaped enough for the install to read a version and resolve pnpm. */
 function fakeCheckout(name: string): string {
@@ -84,6 +84,79 @@ describe("refarm node install", () => {
 		expect(record?.undo.kind).toBe("restore-snapshot");
 	});
 
+	it("makes the tree independent of the checkout BEFORE it runs or repoints anything", async () => {
+		// THE DEFECT THIS ORDER EXISTS FOR, measured on the operator's node 2026-08-22. The install
+		// verified a tree that was hardlinked to `packages/<pkg>/dist`, so a later `tsc` rewrote an
+		// installed file in place, the node began importing a module missing from its own tree, and
+		// nothing said so until a reboot 33 hours later killed every unit at once.
+		const repoRoot = fakeCheckout("checkout-coupled");
+		const home = path.join(os.homedir(), "node-coupled");
+		const built = path.join(repoRoot, "packages", "x", "dist", "index.js");
+		fs.mkdirSync(path.dirname(built), { recursive: true });
+		fs.writeFileSync(built, "export const built = 1;\n");
+
+		const tree = path.join(home, ".local", "lib", "refarm", "9.9.9-abc1234");
+		const installed = path.join(
+			tree, "node_modules", ".pnpm", "@refarm.dev+x@file+packages+x",
+			"node_modules", "@refarm.dev", "x", "dist", "index.js",
+		);
+		const seen: string[] = [];
+		let sharedAtVerify: boolean | null = null;
+		const run = (spec: { id: string }) => {
+			seen.push(spec.id);
+			if (spec.id === "assemble") {
+				// Stands in for `pnpm deploy`, which hardlinks rather than copies.
+				fs.mkdirSync(path.dirname(installed), { recursive: true });
+				fs.linkSync(built, installed);
+			}
+			if (spec.id === "verify") {
+				sharedAtVerify = fs.statSync(installed).ino === fs.statSync(built).ino;
+			}
+			return { exitCode: 0, stdout: spec.id === "git-head" ? "abc1234\n" : "9.9.9\n", stderr: "" };
+		};
+
+		const result = await runNodeInstall({}, { repoRoot, home, run, announce: () => {} });
+
+		expect(result.status).toBe("installed");
+		// Independent by the time it was RUN — not merely by the time the command returned.
+		expect(sharedAtVerify).toBe(false);
+		expect(fs.statSync(installed).ino).not.toBe(fs.statSync(built).ino);
+		expect(fs.readFileSync(installed, "utf-8")).toBe("export const built = 1;\n");
+		expect(seen).toEqual(["git-head", "assemble", "resync", "verify"]);
+	});
+
+	it("refuses, and leaves the launcher alone, when the tree is still coupled to the checkout", async () => {
+		// The materialiser picks packages by name and can be wrong about a name — it was, on
+		// 2026-08-22. This is what happens when it is: the install stops instead of handing the
+		// operator a node that a later build would rewrite underneath.
+		const repoRoot = fakeCheckout("checkout-refuses");
+		const home = path.join(os.homedir(), "node-refuses");
+		const shimPath = path.join(home, ".local", "bin", "refarm");
+		fs.mkdirSync(path.dirname(shimPath), { recursive: true });
+		fs.writeFileSync(shimPath, "#!/bin/sh\nexec node /somewhere/old/index.js \"$@\"\n");
+		const built = path.join(repoRoot, "packages", "x", "dist", "index.js");
+		fs.mkdirSync(path.dirname(built), { recursive: true });
+		fs.writeFileSync(built, "export const built = 1;\n");
+
+		const tree = path.join(home, ".local", "lib", "refarm", "9.9.9-abc1234");
+		const run = (spec: { id: string }) => {
+			if (spec.id === "assemble") {
+				// A shape the selection rule does not recognise — so the copying step skips it.
+				const dir = path.join(tree, "node_modules", ".pnpm", "unrecognised", "node_modules", "x");
+				fs.mkdirSync(dir, { recursive: true });
+				fs.linkSync(built, path.join(dir, "index.js"));
+			}
+			return { exitCode: 0, stdout: spec.id === "git-head" ? "abc1234\n" : "9.9.9\n", stderr: "" };
+		};
+
+		const result = await runNodeInstall({}, { repoRoot, home, shimPath, run, announce: () => {} });
+
+		expect(result.status).toBe("refused");
+		if (result.status === "refused") expect(result.because).toContain("share storage");
+		// The launcher is untouched — the node keeps whatever was working before this ran.
+		expect(fs.readFileSync(shimPath, "utf-8")).toContain("/somewhere/old/index.js");
+	});
+
 	it("says so when it cannot put the checkout's dependency status back", async () => {
 		const repoRoot = fakeCheckout("checkout-stale");
 		const home = path.join(os.homedir(), "node-stale");
@@ -150,5 +223,112 @@ describe("refarm node install", () => {
 
 		expect(result.status).toBe("refused");
 		expect(seen).toEqual([]);
+	});
+});
+
+describe("sharedWithCheckout", () => {
+	it("finds coupling the materialiser MISSED, because it never asks which packages were chosen", () => {
+		// THE LESSON OF 2026-08-22, encoded. `materializeWorkspacePackages` picks directories by
+		// name, and the first version of that rule misread pnpm's peer suffix and skipped a package
+		// — leaving 1081 files hardlinked while the install called itself independent. A verdict
+		// built from the same selection cannot see its own blind spot. This measures the tree
+		// against the checkout instead, so a naming bug shows up as a failure rather than a silence.
+		const root = path.join(os.homedir(), "shared-independent");
+		const repoRoot = path.join(root, "checkout");
+		const built = path.join(repoRoot, "packages", "x", "dist", "index.js");
+		const vendored = path.join(repoRoot, "node_modules", "dep", "index.js");
+		fs.mkdirSync(path.dirname(built), { recursive: true });
+		fs.mkdirSync(path.dirname(vendored), { recursive: true });
+		fs.writeFileSync(built, "built\n");
+		fs.writeFileSync(vendored, "vendored\n");
+
+		const tree = path.join(root, "tree");
+		// A directory name the selection rule does NOT recognise — the point of the test.
+		const opaque = path.join(tree, "node_modules", ".pnpm", "unrecognised-shape", "node_modules", "x");
+		const fromStore = path.join(tree, "node_modules", ".pnpm", "dep@1.0.0", "node_modules", "dep");
+		fs.mkdirSync(opaque, { recursive: true });
+		fs.mkdirSync(fromStore, { recursive: true });
+		fs.linkSync(built, path.join(opaque, "index.js"));
+		fs.linkSync(vendored, path.join(fromStore, "index.js"));
+
+		const shared = sharedWithCheckout(tree, repoRoot);
+
+		// The build output couples; the store does not. pnpm keeps its store inside the checkout
+		// here (`.npmrc`, `store-dir=.pnpm-store`) and nothing ever rewrites a content-addressed
+		// tarball, so counting those would condemn every install for no gain.
+		expect(shared.map((entry) => entry.path)).toEqual([
+			path.join("node_modules", ".pnpm", "unrecognised-shape", "node_modules", "x", "index.js"),
+		]);
+	});
+});
+
+describe("materializeWorkspacePackages", () => {
+	/** A tree shaped like pnpm's, with one workspace package and one registry package, both
+	 *  hardlinked to files OUTSIDE it — which is exactly what `pnpm deploy` produces. */
+	function fakeTree(name: string): { tree: string; source: string; vendor: string } {
+		const root = path.join(os.homedir(), name);
+		const source = path.join(root, "checkout", "packages", "x", "dist", "index.js");
+		const vendor = path.join(root, "store", "chalk-index.js");
+		fs.mkdirSync(path.dirname(source), { recursive: true });
+		fs.mkdirSync(path.dirname(vendor), { recursive: true });
+		fs.writeFileSync(source, "export const built = 1;\n");
+		fs.writeFileSync(vendor, "module.exports = {};\n");
+
+		const tree = path.join(root, "tree");
+		const workspacePkg = path.join(
+			tree,
+			"node_modules",
+			".pnpm",
+			"@s+x@file+packages+x",
+			"node_modules",
+			"@s",
+			"x",
+			"dist",
+		);
+		const registryPkg = path.join(tree, "node_modules", ".pnpm", "chalk@5.3.0", "node_modules", "chalk");
+		fs.mkdirSync(workspacePkg, { recursive: true });
+		fs.mkdirSync(registryPkg, { recursive: true });
+		fs.linkSync(source, path.join(workspacePkg, "index.js"));
+		fs.linkSync(vendor, path.join(registryPkg, "index.js"));
+		return { tree, source, vendor };
+	}
+
+	it("gives the workspace package its own storage, so a build in the checkout cannot reach it", () => {
+		// THE DEFECT, reproduced. Measured on the operator's node 2026-08-22: the installed
+		// `index.js` shared an inode with the checkout, a `tsc` run rewrote it in place, and the
+		// node began importing a module absent from its own tree.
+		const { tree, source } = fakeTree("materialize-workspace");
+		const installed = path.join(
+			tree, "node_modules", ".pnpm", "@s+x@file+packages+x",
+			"node_modules", "@s", "x", "dist", "index.js",
+		);
+		expect(fs.statSync(installed).ino).toBe(fs.statSync(source).ino);
+
+		const stillShared = materializeWorkspacePackages(tree);
+
+		expect(stillShared).toEqual([]);
+		expect(fs.statSync(installed).ino).not.toBe(fs.statSync(source).ino);
+		expect(fs.readFileSync(installed, "utf-8")).toBe("export const built = 1;\n");
+	});
+
+	it("leaves the registry alone — a content-addressed tarball is never rewritten in place", () => {
+		// 366 of the operator's 443 materializations are registry packages. Copying them would buy
+		// no independence and cost the whole tree in disk.
+		const { tree, vendor } = fakeTree("materialize-registry");
+		const installed = path.join(tree, "node_modules", ".pnpm", "chalk@5.3.0", "node_modules", "chalk", "index.js");
+
+		materializeWorkspacePackages(tree);
+
+		expect(fs.statSync(installed).ino).toBe(fs.statSync(vendor).ino);
+	});
+
+	it("does not disturb the checkout it copied from", () => {
+		const { tree, source } = fakeTree("materialize-checkout-intact");
+		const before = fs.statSync(source).ino;
+
+		materializeWorkspacePackages(tree);
+
+		expect(fs.readFileSync(source, "utf-8")).toBe("export const built = 1;\n");
+		expect(fs.statSync(source).ino).toBe(before);
 	});
 });

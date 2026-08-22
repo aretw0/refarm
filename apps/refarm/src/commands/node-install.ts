@@ -34,10 +34,13 @@ import path from "node:path";
 
 import { refarmCommand } from "../brand.js";
 import {
+	independenceVerdict,
 	installedTreePath,
 	installVersionLabel,
+	type SharedFile,
 	shimScript,
 	verificationVerdict,
+	workspaceMaterializations,
 } from "./node-install-plan.js";
 import { createWorkspaceDeployCommand } from "./package-manager.js";
 
@@ -202,6 +205,21 @@ export async function runNodeInstall(
 				};
 	if (checkout.status === "stale") say(checkout.because);
 
+	// ── 1c. Make it its OWN tree ─────────────────────────────────────────────
+	// BEFORE the verification below, deliberately: a tree still hardlinked to the checkout would
+	// be verified as one thing and later become another, which is precisely how this defect went
+	// unseen for 33 hours. Assembling produces the files; this makes them the tree's own.
+	materializeWorkspacePackages(tree);
+	// MEASURED AGAINST THE CHECKOUT, not against the materialiser's own selection — see
+	// `sharedWithCheckout`. A verdict derived from the selection cannot report a selection bug,
+	// and on 2026-08-22 that is exactly what it failed to do.
+	const independence = independenceVerdict({ shared: sharedWithCheckout(tree, repoRoot) });
+	if (!independence.ok) {
+		// LEFT ON DISK, like a failed verification: whoever debugs this needs the tree that failed.
+		return { status: "refused", because: `${independence.because} The tree is at ${tree}.` };
+	}
+	say(`Independent: ${independence.because}`);
+
 	// ── 2. Verify, by RUNNING it ─────────────────────────────────────────────
 	const entrypoint = path.join(tree, "dist", "index.js");
 	const probe = run({
@@ -276,4 +294,103 @@ export async function runNodeInstall(
 	});
 	fs.chmodSync(shimPath, 0o755);
 	return { status: "installed", tree, recordId: record.id, checkout };
+}
+
+/**
+ * IMPURE. Give every workspace-sourced package in the assembled tree its own storage, and report
+ * whatever is STILL shared afterwards.
+ *
+ * WHY THIS EXISTS AND NO FLAG DOES. `pnpm deploy` hardlinks; that is the store's design, not an
+ * oversight. Measured 2026-08-22, each of these produced a hardlink anyway:
+ * `--config.package-import-method=copy`, `npm_config_package_import_method=copy`, and
+ * `--config.inject-workspace-packages=true` (the non-legacy deploy refuses without the last).
+ * So independence is taken after assembly rather than asked for during it.
+ *
+ * SCOPED TO THE WORKSPACE ON PURPOSE. The registry half of the tree is hardlinked to pnpm's store,
+ * which this repository keeps inside the checkout (`.npmrc`, `store-dir=.pnpm-store`) — so a blunt
+ * "share nothing with the checkout" would condemn 366 of 443 materializations. Those are
+ * content-addressed: nothing ever rewrites one, and copying them would buy no independence while
+ * costing the whole tree in disk. The 77 that came from a path are the only ones a `tsc` run can
+ * reach.
+ *
+ * Symlinks are skipped rather than copied: pnpm's top level is made of them, and turning them into
+ * files would give the tree a second copy of everything it already has.
+ */
+export function materializeWorkspacePackages(tree: string): SharedFile[] {
+	const store = path.join(tree, "node_modules", ".pnpm");
+	let entries: string[];
+	try {
+		entries = fs.readdirSync(store);
+	} catch {
+		return [];
+	}
+	const stillShared: SharedFile[] = [];
+	for (const materialization of workspaceMaterializations(entries)) {
+		for (const file of walkFiles(path.join(store, materialization))) {
+			if (fs.statSync(file).nlink <= 1) continue;
+			giveItsOwnStorage(file);
+			// Re-measured, not assumed. This function's whole claim is the one thing it must not
+			// take on faith about itself.
+			if (fs.statSync(file).nlink > 1) stillShared.push({ path: path.relative(tree, file) });
+		}
+	}
+	return stillShared;
+}
+
+/** Regular files only — a symlink is pnpm's own structure, not content to copy, and following one
+ *  would also walk out of the tree being measured. */
+function* walkFiles(dir: string, skip?: ReadonlySet<string>): Generator<string> {
+	let entries: fs.Dirent[];
+	try {
+		entries = fs.readdirSync(dir, { withFileTypes: true });
+	} catch {
+		return;
+	}
+	for (const entry of entries) {
+		if (skip?.has(entry.name)) continue;
+		const full = path.join(dir, entry.name);
+		if (entry.isDirectory()) yield* walkFiles(full, skip);
+		else if (entry.isFile()) yield full;
+	}
+}
+
+/** Copy beside, then rename over: the file is never absent, and the link is broken by the rename
+ *  rather than by a truncation that would have written through to the checkout. */
+function giveItsOwnStorage(file: string): void {
+	const mode = fs.statSync(file).mode;
+	const scratch = `${file}.materializing`;
+	fs.copyFileSync(file, scratch);
+	fs.chmodSync(scratch, mode);
+	fs.renameSync(scratch, file);
+}
+
+/**
+ * Directories that are not the checkout's own work: pnpm's store lives inside this repository
+ * (`.npmrc`, `store-dir=.pnpm-store`) and its installed copies hang off `node_modules`. Both are
+ * content-addressed and neither is ever rewritten in place, so sharing storage with them is free.
+ */
+const NOT_THE_CHECKOUT_S_OWN = new Set([".git", "node_modules", ".pnpm-store"]);
+
+/**
+ * IMPURE. Every file in the assembled tree that shares storage with the CHECKOUT'S OWN work.
+ *
+ * WHY THIS DOES NOT REUSE THE MATERIALISER'S SELECTION, which would be the obvious economy: on
+ * 2026-08-22 the selection rule misread pnpm's peer suffix, skipped `@refarm.dev/cli`, and left
+ * 1081 files hardlinked — while a verdict computed from that same selection reported the tree
+ * independent. A check that inherits the blind spot of the thing it checks is the shape this
+ * repository keeps finding and removing: correct, and unable to fail.
+ *
+ * So it measures the two trees against each other. Costs ~0.15s on the operator's node (66k files
+ * in the checkout, 16.5k in the tree) — the price of a claim that can be wrong out loud.
+ */
+export function sharedWithCheckout(tree: string, repoRoot: string): SharedFile[] {
+	const ownWork = new Set<number>();
+	for (const file of walkFiles(repoRoot, NOT_THE_CHECKOUT_S_OWN)) {
+		ownWork.add(fs.statSync(file).ino);
+	}
+	const shared: SharedFile[] = [];
+	for (const file of walkFiles(tree)) {
+		if (ownWork.has(fs.statSync(file).ino)) shared.push({ path: path.relative(tree, file) });
+	}
+	return shared;
 }

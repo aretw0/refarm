@@ -114,3 +114,75 @@ export function verificationVerdict(input: VerificationInput): VerificationVerdi
 	}
 	return { ok: true, because: `the assembled tree answered: ${input.stdout.trim().slice(0, 80)}` };
 }
+
+/**
+ * PURE. Which of pnpm's materialized packages came from a PATH in the workspace.
+ *
+ * pnpm encodes a directory under `.pnpm` as `<name>@<reference>`, with `/` written `+`. A registry
+ * package carries a version (`chalk@5.3.0`); a package resolved from a workspace path carries
+ * `file+<path>` (`@refarm.dev+model-account-contract-v1@file+packages+model-account-contract-v1`).
+ *
+ * WHY THE DISTINCTION EARNS ITS KEEP: measured on the operator's node 2026-08-22, 77 of 443
+ * materializations came from the workspace and every file in them was hardlinked back to the
+ * checkout. The other 366 are registry tarballs — content-addressed, and nothing ever rewrites
+ * one — so copying them would buy no independence and cost the whole tree in disk.
+ *
+ * THE SEPARATOR IS THE FIRST `@` PAST A SCOPE — not the last, which is what the first version of
+ * this looked for and why it did not work. pnpm appends a peer hash to a package that has peers
+ * (`@refarm.dev+cli@file+packages+cli_@emnapi+core@1.11.1_..._f284c20f`), and that suffix carries
+ * scoped names of its own. Measured on the real tree 2026-08-22: reading from the end landed
+ * inside `@types+nod_...`, excluded the package, and left 1081 files hardlinked to the checkout
+ * while the install called itself independent. The unit tests passed throughout — they used names
+ * without peers. Only a measurement taken outside the tool found it.
+ */
+export function workspaceMaterializations(entries: readonly string[]): string[] {
+	return entries.filter((entry) => {
+		// From index 1: a scoped name opens with an `@` that separates nothing.
+		const separator = entry.indexOf("@", 1);
+		if (separator < 0) return false;
+		return entry.slice(separator + 1).startsWith("file+");
+	});
+}
+
+export interface SharedFile {
+	readonly path: string;
+}
+
+export interface IndependenceInput {
+	readonly shared: readonly SharedFile[];
+}
+
+/**
+ * PURE. Is the assembled tree actually its own?
+ *
+ * THE STEP THAT SEPARATES A SELF-CONTAINED TREE FROM THE WORD FOR ONE — the sibling of
+ * `verificationVerdict`, and it exists because the same install passed that one while failing this.
+ *
+ * Measured 2026-08-22: `pnpm deploy` hardlinks workspace packages into the tree, so
+ * `~/.local/lib/refarm/<label>` shared inodes with `packages/<pkg>/dist`. A `tsc` run in the checkout
+ * rewrote an installed file IN PLACE at 00:58; the node began importing a module that did not
+ * exist in its own tree; nothing said so; and 33 hours later a reboot killed every unit at once,
+ * with the credential timer having failed 4420 times in silence.
+ *
+ * No pnpm flag prevents it. `package-import-method=copy`, its environment form, and
+ * `inject-workspace-packages=true` were each measured hardlinking anyway — the store is
+ * content-addressed and hardlinks are its design. So the tree is made independent after assembly,
+ * and this refuses to call it installed until it is.
+ */
+export function independenceVerdict(input: IndependenceInput): IndependenceVerdict {
+	const count = input.shared.length;
+	if (count === 0) {
+		return { ok: true, because: "no file in the tree is shared with the checkout." };
+	}
+	return {
+		ok: false,
+		because:
+			`${count} file(s) in the assembled tree still share storage with the checkout, so a ` +
+			`build there would rewrite what this node runs — starting with ${input.shared[0]?.path}.`,
+	};
+}
+
+export interface IndependenceVerdict {
+	readonly ok: boolean;
+	readonly because: string;
+}

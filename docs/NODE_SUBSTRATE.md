@@ -147,6 +147,61 @@ command the operator runs there and nothing else would explain why.
 node's code are different things, and a backup that swallowed 434MB of
 reproducible artifacts would be the same category error this document opens with.
 
+## The separation was not achieved — measured 2026-08-22
+
+Everything above was true and the node was still executing the working tree.
+
+`pnpm deploy` does not copy. It **hardlinks** workspace packages into the
+assembled tree, so `~/.local/lib/refarm/<label>` shared inodes with
+`packages/<pkg>/dist`. The consequences are the same four this document opens
+with, minus the one thing that made them bearable: nothing said so. The launcher
+said the opposite, in a comment, in the file.
+
+The chain of events, each part measured:
+
+| when | what |
+| --- | --- |
+| 19/08 23:26 | `node install` assembles `0.1.0-5b4810a9`, verifies it by running it, repoints. Correct at that instant. |
+| 20/08 00:58 | a `tsc` run in the checkout rewrites `index.js` **in place**. Same inode — so the installed tree's copy changes too. |
+| 20/08 01:15 | the same commit adds `bindings.ts`. A **new** file: hardlinks are per-file, so it never reaches the tree. |
+| — | the installed node now imports a module absent from its own tree. Live processes, already loaded, keep running. |
+| 21/08 09:18 | reboot. Every unit reloads from disk and dies. `web-serve` retries six times and gives up. |
+| 22/08 20:25 | found. `credential-renew` has failed **4420 times** in the meantime, silently. |
+
+**The instrument could not see it.** `readNodeSubstrate` classifies by one
+question — is there a `.git` above the entrypoint? `~/.local/lib/refarm/…` has
+none, so it answered `installed`, `describeSubstrate` returned `null`, and
+`refarm health` had nothing to say while the node ran working-tree bytes.
+
+**No flag prevents it.** Measured, each producing a hardlink anyway:
+`--config.package-import-method=copy`, `npm_config_package_import_method=copy`,
+and `--config.inject-workspace-packages=true` (the non-legacy deploy refuses
+without the last). Hardlinking is the store's design, not an oversight.
+
+### What the install does now
+
+A step between assembling and verifying: **give the tree its own storage, then
+prove it has it.**
+
+- Only the 77 materializations that came from a workspace path are copied. The
+  other 366 are registry tarballs hardlinked to pnpm's store — which this repo
+  keeps inside the checkout (`.npmrc`, `store-dir=.pnpm-store`) — and nothing
+  ever rewrites a content-addressed file. Copying them would buy no independence
+  and cost the whole tree in disk.
+- **The proof does not reuse the selection.** The first version of this shipped
+  and did not work: pnpm appends a peer hash whose suffix carries its own `@`
+  (`@refarm.dev+cli@file+packages+cli_@emnapi+core@1.11.1_…`), the rule read the
+  separator from the wrong end, skipped the package, and left **1081 files**
+  hardlinked while the install reported itself independent. The unit tests passed
+  throughout — they used names without peers. Only a measurement taken *outside
+  the tool* found it. So the verdict now indexes the checkout's own files by
+  inode and scans the assembled tree against them: ~0.15s for 65,545 against
+  16,552, and a naming bug surfaces as a failure instead of a silence.
+- A tree that is still coupled is **refused**, and the launcher is left alone.
+
+Verified on the operator's node 2026-08-22: `0.1.0-c58ae2ba`, 16,552 files, **0
+shared with the checkout**, measured independently of the install that made it.
+
 ## Related
 
 - [`SANDBOX_NODE.md`](SANDBOX_NODE.md) — a second node that isolates **state**

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	independenceVerdict,
 	installedTreePath,
 	installVersionLabel,
 	shimScript,
 	verificationVerdict,
+	workspaceMaterializations,
 } from "./node-install-plan.js";
 
 /**
@@ -94,5 +96,77 @@ describe("verificationVerdict", () => {
 
 	it("fails when the process could not be started at all", () => {
 		expect(verificationVerdict({ status: null, stdout: "" }).ok).toBe(false);
+	});
+});
+
+describe("workspaceMaterializations", () => {
+	it("picks the packages materialized from a workspace PATH, and leaves the registry alone", () => {
+		// Measured on the operator's node 2026-08-22: 443 directories under `.pnpm`, of which 77
+		// carry `@file+` — pnpm's own encoding of "this came from a path in the workspace, not
+		// from a registry". Those 77 are the ones hardlinked back to the checkout, and the only
+		// ones worth copying: a registry tarball is content-addressed and nothing rewrites it.
+		expect(
+			workspaceMaterializations([
+				"@refarm.dev+model-account-contract-v1@file+packages+model-account-contract-v1",
+				"chalk@5.3.0",
+				"@refarm.dev+attend-web-v1@file+packages+attend-web-v1",
+				"acorn@8.17.0",
+			]),
+		).toEqual([
+			"@refarm.dev+model-account-contract-v1@file+packages+model-account-contract-v1",
+			"@refarm.dev+attend-web-v1@file+packages+attend-web-v1",
+		]);
+	});
+
+	it("finds the separator even when the peer-dependency suffix carries its own `@`", () => {
+		// MEASURED ON THE REAL TREE 2026-08-22, after the first version of this shipped and did not
+		// work. pnpm appends a peer hash to a package that has peers, and that suffix contains
+		// scoped names — so the LAST `@` is inside `@types+nod_...`, not the separator. 1081 files
+		// stayed hardlinked to the checkout while the install reported itself independent, and only
+		// a measurement outside the tool found it. The separator is the FIRST `@` past a scope.
+		expect(
+			workspaceMaterializations([
+				"@refarm.dev+cli@file+packages+cli_@emnapi+core@1.11.1_@emnapi+runtime@1.11.1_@types+nod_f284c20f",
+				"@types+node@25.9.4",
+			]),
+		).toEqual([
+			"@refarm.dev+cli@file+packages+cli_@emnapi+core@1.11.1_@emnapi+runtime@1.11.1_@types+nod_f284c20f",
+		]);
+	});
+
+	it("is not fooled by a registry package whose NAME contains the marker", () => {
+		// `file+` is a substring, and a package may legitimately be called this. The marker is the
+		// separator between name and reference — anything else is a name that happens to read alike.
+		expect(workspaceMaterializations(["file-type@19.0.0", "@scope+file+util@2.0.0"])).toEqual([]);
+	});
+});
+
+describe("independenceVerdict", () => {
+	it("passes only when NOTHING in the tree is still shared with the checkout", () => {
+		expect(independenceVerdict({ shared: [] })).toMatchObject({ ok: true });
+	});
+
+	it("refuses a tree that still shares a file with the checkout, and names one", () => {
+		// THE DEFECT THIS EXISTS FOR, measured on the operator's node 2026-08-22. `pnpm deploy`
+		// hardlinks workspace packages, so the "self-contained" tree shared inodes with
+		// `packages/<pkg>/dist`. A `tsc` run at 00:58 rewrote an installed file in place; the node
+		// began importing a module that did not exist in its own tree; and it stayed alive until
+		// a reboot 33 hours later, when every unit died at once. No flag prevents it —
+		// `package-import-method=copy`, the env var, and `inject-workspace-packages` were each
+		// measured hardlinking anyway.
+		const verdict = independenceVerdict({
+			shared: [
+				{ path: "node_modules/.pnpm/@refarm.dev+x@file+packages+x/node_modules/x/dist/index.js" },
+			],
+		});
+		expect(verdict.ok).toBe(false);
+		expect(verdict.because).toContain("dist/index.js");
+	});
+
+	it("counts what it found, so the operator sees scale rather than one example", () => {
+		const verdict = independenceVerdict({
+			shared: [{ path: "a.js" }, { path: "b.js" }, { path: "c.js" }],
+		});
+		expect(verdict.because).toContain("3");
 	});
 });
