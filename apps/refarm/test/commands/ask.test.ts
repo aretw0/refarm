@@ -182,6 +182,9 @@ describe("refarm ask", () => {
 
 	/** A node holding two seats of one provider, with `workspaceId` declaring them in order. */
 	function declareTwoSeats(order: string[]): void {
+		// Narrowed rather than coerced: `path.join(null ?? "", ".refarm")` is a RELATIVE path, so a
+		// helper called outside `beforeEach` would quietly declare seats into the repository.
+		if (!tempHome) throw new Error("declareTwoSeats needs the temporary HOME from beforeEach.");
 		const home = path.join(tempHome, ".refarm");
 		fs.mkdirSync(home, { recursive: true });
 		fs.writeFileSync(
