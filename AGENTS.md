@@ -91,12 +91,29 @@ refarm agent finish --lane before-push --run --json
 
 ## 5. Hybrid Awareness
 
-- **Sovereign Stratification**: This monorepo is HÍBRIDO.
-  - If a package has `tsconfig.build.json`, it is **TS-Strict** (source is `.ts`, `.js` in `src/` are artifacts).
-  - If it lacks TS configuration, it is **JS-Atomic** (source is `.js`).
-- **Careful Cleaning**: Never run global `rm -f src/*.js` without verifying package nature first.
+- **Sovereign Stratification**: This monorepo is HÍBRIDO, and a package's nature is not declared
+  anywhere — it is **measured**.
+  - **`git ls-files <pkg>/src` is the authority.** A tracked file is source; an untracked or
+    ignored one is an artifact. Nothing else decides.
+  - **TS-Strict**: `src/` holds tracked `.ts` and no tracked `.js`. The `.js` is emitted to `dist/`.
+  - **JS-Atomic**: `src/` holds tracked `.js` and no tracked `.ts`.
+  - **Mixed**: both tracked, side by side. This is a real category here, not a mistake.
+- **`tsconfig.build.json` DOES NOT decide this**, and an earlier revision of this rule said it did.
+  Measured 2026-08-23: **nine** packages carry one *and* carry tracked `.js` in `src/` —
+  `enrichment-provider-ref`, `fence`, `health`, `quality-checker-plugin`, `silo`,
+  `source-provider-ref`, `thresher`, `vault-surface-ref`, `windmill`. Four of them (`fence`,
+  `health`, `thresher`, `windmill`) have **no `.ts` at all**; their tsconfig emits `.d.ts` from
+  JSDoc. Read as "source is `.ts`, `.js` in `src/` are artifacts", the old rule condemned 26
+  hand-written files in `packages/health` alone.
+  - Measured alongside it, and the reason git is trustworthy here: **zero** tracked `.js` sits
+    beside a same-named `.ts` (no committed artifacts), and **zero** untracked `.js` exists under
+    any `src/` (nothing emits there).
+- **Careful Cleaning**: Never run a global `rm -f src/*.js`. Ask git first —
+  `git ls-files <pkg>/src | grep '\.js$'` — and treat everything it lists as source.
 
-> _Active Inference_: recognizing a package's nature reduces the model's complexity — acting without this knowledge maximizes surprise.
+> _Active Inference_: a package's nature is an observation, not a declaration. The old rule inferred
+> it from a neighbouring fact and was wrong nine times; sampling the repository directly costs one
+> command and removes the guess.
 
 ## 5. Documentation Continuity
 
