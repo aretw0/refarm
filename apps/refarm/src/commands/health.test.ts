@@ -278,3 +278,35 @@ describe("buildHealthRecommendations — an installed node that has aged (ISS-15
 	});
 });
 
+describe("buildHealthRecommendations — work the remote has never seen", () => {
+	it("renders the fact the measurement produced, as INFO", () => {
+		// MEASURED 2026-08-23: 302 commits, oldest 14 days old, and six gates went red across those
+		// days with nothing able to see any of it. Pushing is the operator's act and its timing is
+		// his, so this informs and never reddens the gate.
+		//
+		// The SENTENCE is built where the clock is (`measureMachineFacts`), not here. A renderer
+		// that dated its own input would make this suite a time bomb: a fixture written "yesterday"
+		// becomes "eight days old" in a week and the assertion flips with no code change.
+		const [recommendation] = buildHealthRecommendations({
+			...emptyResults(),
+			branchDrift: { ahead: 302, upstream: "origin/develop", oldestUnpushedAt: "2026-08-09" },
+			branchDriftNote:
+				"302 commit(s) here have never reached origin/develop, the oldest 14 days old.",
+		});
+		expect(recommendation?.diagnostic).toBe("branch-work-unpushed");
+		expect(recommendation?.severity).toBe("info");
+		expect(recommendation?.summary).toContain("302");
+		expect(recommendation?.summary).toContain("origin/develop");
+	});
+
+	it("says nothing when the measurement had nothing to say", () => {
+		// `describeBranchDrift` owns every silence — young work, no upstream, unreadable age — and
+		// proves each with an injected clock next door in @refarm.dev/health.
+		expect(
+			buildHealthRecommendations({
+				...emptyResults(),
+				branchDrift: { ahead: 4, upstream: "origin/develop", oldestUnpushedAt: "2026-08-22" },
+			}),
+		).toEqual([]);
+	});
+});

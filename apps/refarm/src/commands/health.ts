@@ -9,6 +9,7 @@ import {
 import {
 	ComplexityAuditor,
 	ConfigNodeAuditor,
+	describeBranchDrift,
 	describeRenewalCoverage,
 	describeSubstrate,
 	describeWorkspaceTooling,
@@ -21,12 +22,12 @@ import {
 	RefarmProjectAuditor,
 	renewalCoverage,
 	ToolchainAuditor,
+	type BranchDrift,
 	type NodeSubstrate,
 } from "@refarm.dev/health";
 import type { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
-import { NODE_INSTALL_COMMAND } from "./node-install.js";
 import { readNodeDescriptor } from "../utils/node-descriptor.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { openTractorGraph } from "../utils/tractor-store.js";
@@ -53,6 +54,7 @@ import {
 	type HealthPolicy,
 	type RefarmConfig,
 } from "./health-policy.js";
+import { NODE_INSTALL_COMMAND } from "./node-install.js";
 import { RUNTIME_DOCTOR_NEXT_ACTION_COMMAND } from "./runtime-recovery.js";
 
 export { buildHealthAuditFingerprint } from "./health-audit-cache.js";
@@ -95,6 +97,10 @@ export interface HealthResults {
 	 *  would let a reader ask for it on an installed node and get `undefined` instead of a type
 	 *  error. */
 	nodeSubstrate?: NodeSubstrate;
+	/** How far this branch's work is from the remote a pipeline can see. */
+	branchDrift?: BranchDrift;
+	/** That distance as prose, or null when there is nothing worth saying. Dated at measure time. */
+	branchDriftNote?: string | null;
 	/** The checkout's HEAD, when this tree is the one the node was assembled from — null otherwise
 	 *  (a phone, a released install, or simply a different repository). */
 	checkoutHead?: string | null;
@@ -392,6 +398,23 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
 			summary: check.detail ?? `${check.label} is declared by this node and is not satisfied.`,
 			action: NODE_TOOL_ACTIONS[check.state ?? "absent"],
 		})),
+		...(results.branchDriftNote
+			? [
+					{
+						issueType: "branch-work-unpushed",
+						diagnostic: "branch-work-unpushed",
+						// INFO, like its two neighbours. WHEN to push is the operator's judgement and
+						// a working branch is not a fault; what was missing is the fact, not a rule.
+						severity: "info" as const,
+						target: results.branchDrift?.upstream ?? "",
+						summary: results.branchDriftNote,
+						action:
+							"Nothing is broken. Know that no pipeline has seen this work, so a gate that " +
+							"goes red in it is found in a batch — and a lane stops at its first red step, " +
+							"so a batch of N costs N separate discoveries.",
+					},
+				]
+			: []),
 		...(results.nodeSubstrate?.kind === "installed" &&
 		describeSubstrate(results.nodeSubstrate, results.checkoutHead ?? null)
 			? [
@@ -527,6 +550,36 @@ export function resolveConfigNodeBase(env = process.env): string {
  * Never throws: a directory with no git is a legitimate place to run health from, and the absence
  * of a head is reported as "nothing to compare against" rather than as a fault.
  */
+/**
+ * How much work has never reached the remote, and how old the oldest of it is.
+ *
+ * Never throws: a directory with no git, or a branch with no upstream, is a legitimate place to
+ * run health from — and both are reported as "nothing to compare against" rather than as a fault.
+ */
+function readBranchDrift(rootDir: string): BranchDrift {
+	const none = { ahead: 0, upstream: null, oldestUnpushedAt: null };
+	try {
+		const upstream = readGitCommand(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], {
+			cwd: rootDir,
+		});
+		if (!upstream) return none;
+		const ahead = Number.parseInt(
+			readGitCommand(["rev-list", "--count", `${upstream}..HEAD`], { cwd: rootDir }),
+			10,
+		);
+		if (!Number.isFinite(ahead) || ahead <= 0) return { ...none, upstream };
+		// The OLDEST unpushed commit, not the newest: what matters is how long the earliest of this
+		// work has been invisible, and `--reverse | head -1` is that commit.
+		const oldest = readGitCommand(
+			["log", "--reverse", "--format=%ad", "--date=short", "--max-count=1", `${upstream}..HEAD`],
+			{ cwd: rootDir },
+		);
+		return { ahead, upstream, oldestUnpushedAt: oldest || null };
+	} catch {
+		return none;
+	}
+}
+
 function readCheckoutHeadFor(substrate: NodeSubstrate | undefined, rootDir: string): string | null {
 	if (substrate?.kind !== "installed") return null;
 	const repository = substrate.identity?.repository;
@@ -554,6 +607,13 @@ async function measureMachineFacts(results: HealthResults, rootDir: string): Pro
 	// repository's HEAD would produce a confident sentence about two histories that never met — so
 	// the head is read ONLY when this tree is that tree.
 	results.checkoutHead = readCheckoutHeadFor(results.nodeSubstrate, rootDir);
+	// WORK NOBODY CAN SEE. Re-measured here rather than cached with the repository fingerprint,
+	// for the same reason its neighbours are: pushing changes this and touches no tracked file.
+	results.branchDrift = readBranchDrift(rootDir);
+	// The SENTENCE is built here, where the clock is. A renderer that dated its own input would
+	// make every fixture downstream a time bomb — one written "yesterday" reads as a week old a
+	// week later, with no code change to explain it.
+	results.branchDriftNote = describeBranchDrift(results.branchDrift, new Date().toISOString().slice(0, 10));
 	// CAN THIS WORKSPACE RUN ITS OWN TOOLING? Everything else the repo knew about a workspace's
 	// executor was read from files, and `refarm check --next-action` answered "all clear" on a
 	// checkout where `pnpm exec` aborted (ISS-155). Costs one manager invocation (~0.45s), and
