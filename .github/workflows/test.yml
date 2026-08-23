@@ -1159,6 +1159,22 @@ jobs:
           json-output: audit-moderate.json
           markdown-output: audit-moderate.md
 
+      # THE PROMOTION GATE, and now it blocks. The operator ruled on 2026-08-11 that
+      # `moderate --prod` with a per-advisory re-check date is what counts (ISS-088), and
+      # `audit-gate.mjs` is that ruling — it reads `accepted-advisories.mjs`, passes while every
+      # reported advisory is declared and no date has passed, and fails the moment one is neither.
+      #
+      # THE BARE COMMAND COULD NEVER HAVE BLOCKED, which is why nothing did: `pnpm audit
+      # --audit-level=moderate --prod` is red on arrival here (6 reported, 7 declared), so every
+      # surface that ran it had to be made non-blocking. The repo worked around the wrong tool
+      # instead of running the right one, which no workflow ran at all until 2026-08-23.
+      #
+      # It is DESIGNED to expire: on 2026-10-10 the three astro acceptances come due and this
+      # goes red until someone re-checks them. That is the point — an acceptance without a date
+      # is a decision that quietly becomes permanent.
+      - name: Security gate (moderate --prod, with per-advisory expiry)
+        run: node scripts/security/audit-gate.mjs
+
       - name: Audit moderate notice
         if: steps.audit_report.outputs.total != '0'
         run: |
