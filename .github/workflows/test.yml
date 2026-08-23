@@ -478,8 +478,14 @@ jobs:
       - name: Validate .project cross-block consistency
         run: node scripts/ci/project-block-consistency.mjs
 
+      # BARE `node`, like its sibling above, because this block runs BEFORE `Setup` — which is what
+      # provisions pnpm. Added 2026-08-09 as `pnpm run project:validate:test`, it has exited 127
+      # (`pnpm: command not found`) every time it ran, which is once: the branch was not pushed
+      # again for fourteen days. The script it wraps is `node --test` with no dependencies (72ms in
+      # a dependency-free worktree), so it belongs here rather than after a conditional Setup that
+      # a cache hit skips.
       - name: Validate .project cross-block consistency (test)
-        run: pnpm run project:validate:test
+        run: node --test scripts/ci/project-block-consistency.test.mjs
 
       - name: Text quality verify
         if: needs.changes.outputs.text_quality_changes == 'true'
