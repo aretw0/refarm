@@ -112,17 +112,20 @@ playwright/.cache/
 # `receipts/` (~15 KB para 16 recibos). Os tarballs continuam fora.
 #
 # `!` não re-inclui arquivo sob diretório excluído, por isso a liberação é
-# nível a nível.
-.refarm/*
-!.refarm/handoff/
-.refarm/handoff/*
-!.refarm/handoff/*/
-.refarm/handoff/*/*
-!.refarm/handoff/*/*/
-.refarm/handoff/*/*/*
-!.refarm/handoff/*/*/manifest.json
-!.refarm/handoff/*/*/manifest.md
-!.refarm/handoff/*/*/receipts/
+# nível a nível. E o caminho é ancorado com `/` inicial: sem isso o padrão
+# passa a valer só para a raiz e desprotege `.refarm/` dentro de packages.
+/.refarm/*
+!/.refarm/handoff/
+/.refarm/handoff/*
+!/.refarm/handoff/*/
+/.refarm/handoff/*/*
+!/.refarm/handoff/*/*/
+/.refarm/handoff/*/*/*
+!/.refarm/handoff/*/*/manifest.json
+!/.refarm/handoff/*/*/manifest.md
+!/.refarm/handoff/*/*/receipts/
+# `.refarm/` em qualquer outro lugar do workspace continua sendo estado local.
+**/*/.refarm/
 .dgk/
 
 # The sandbox node (scripts/refarm-sandbox.mjs) — a second, isolated refarm node out of
