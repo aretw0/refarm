@@ -191,6 +191,10 @@ describe("refarm node install", () => {
 			version: "9.9.9",
 			commit: "abc1234",
 			installedAt: "2026-08-23T03:00:00.000Z",
+			// WHICH checkout that commit belongs to. Without it, a `refarm health` run from a
+			// different repository would compare this node's commit against THAT repository's HEAD
+			// and produce a confident sentence about two unrelated histories.
+			repository: repoRoot,
 		});
 		expect(identity.checkout.dirty).toBe(true);
 		// WHICH kind of dirty, not merely that it was — "one file changed" and "git would not

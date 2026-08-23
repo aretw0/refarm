@@ -1,3 +1,4 @@
+import { readGitCommand } from "@refarm.dev/cli/git-command";
 import {
 	declaredBase,
 	defaultSovereignConfigPath,
@@ -25,6 +26,7 @@ import {
 import type { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
+import { NODE_INSTALL_COMMAND } from "./node-install.js";
 import { readNodeDescriptor } from "../utils/node-descriptor.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { openTractorGraph } from "../utils/tractor-store.js";
@@ -93,6 +95,9 @@ export interface HealthResults {
 	 *  would let a reader ask for it on an installed node and get `undefined` instead of a type
 	 *  error. */
 	nodeSubstrate?: NodeSubstrate;
+	/** The checkout's HEAD, when this tree is the one the node was assembled from — null otherwise
+	 *  (a phone, a released install, or simply a different repository). */
+	checkoutHead?: string | null;
 	workspaceTooling?: ReturnType<typeof measureWorkspaceTooling>;
 	/**
 	 * The orchestrator's per-auditor results (config-node lives here).
@@ -387,6 +392,25 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
 			summary: check.detail ?? `${check.label} is declared by this node and is not satisfied.`,
 			action: NODE_TOOL_ACTIONS[check.state ?? "absent"],
 		})),
+		...(results.nodeSubstrate?.kind === "installed" &&
+		describeSubstrate(results.nodeSubstrate, results.checkoutHead ?? null)
+			? [
+					{
+						issueType: "node-runs-installed-tree",
+						diagnostic: "node-runs-installed-tree",
+						// INFO, for the same reason its sibling below is: ageing is legitimate. A
+						// node is meant to change when someone decides it should, and a gate that
+						// reddened over that would teach its reader to skim red.
+						severity: "info" as const,
+						target: results.nodeSubstrate.identity?.label ?? "",
+						summary: describeSubstrate(results.nodeSubstrate, results.checkoutHead ?? null) ?? "",
+						action:
+							"Nothing is broken. Updating this node is a deliberate act — " +
+							`${NODE_INSTALL_COMMAND} assembles the current checkout, proves it, and keeps ` +
+							"the previous launcher beside it.",
+					},
+				]
+			: []),
 		...(results.nodeSubstrate?.kind === "working-tree"
 			? [
 					{
@@ -497,6 +521,25 @@ export function resolveConfigNodeBase(env = process.env): string {
  * briefly added to only one, so a poisoned checkout reported 0 issues forever. Re-measuring is not
  * something to remember per fact; it is what this function is.
  */
+/**
+ * The checkout's HEAD — but ONLY when this tree is the one the node was assembled from.
+ *
+ * Never throws: a directory with no git is a legitimate place to run health from, and the absence
+ * of a head is reported as "nothing to compare against" rather than as a fault.
+ */
+function readCheckoutHeadFor(substrate: NodeSubstrate | undefined, rootDir: string): string | null {
+	if (substrate?.kind !== "installed") return null;
+	const repository = substrate.identity?.repository;
+	if (!repository) return null;
+	try {
+		const here = path.resolve(readGitCommand(["rev-parse", "--show-toplevel"], { cwd: rootDir }));
+		if (here !== path.resolve(repository)) return null;
+		return readGitCommand(["rev-parse", "--short", "HEAD"], { cwd: rootDir }) || null;
+	} catch {
+		return null;
+	}
+}
+
 async function measureMachineFacts(results: HealthResults, rootDir: string): Promise<void> {
 	results.nodeTools = await auditDeclaredNodeTools(rootDir);
 	// A CREDENTIAL THAT EXPIRES AND NOTHING RENEWING IT. Measured 2026-08-19: a node up for a day
@@ -506,6 +549,11 @@ async function measureMachineFacts(results: HealthResults, rootDir: string): Pro
 	// WHAT THIS NODE ACTUALLY EXECUTES — and it changes without the repository changing, which is
 	// the whole point of `refarm node install`.
 	results.nodeSubstrate = readNodeSubstrate(process.argv[1] ?? undefined);
+	// ISS-159. The comparison is only meaningful against the history the node was assembled from.
+	// A node is administrable from anywhere, and reading its commit beside an unrelated
+	// repository's HEAD would produce a confident sentence about two histories that never met — so
+	// the head is read ONLY when this tree is that tree.
+	results.checkoutHead = readCheckoutHeadFor(results.nodeSubstrate, rootDir);
 	// CAN THIS WORKSPACE RUN ITS OWN TOOLING? Everything else the repo knew about a workspace's
 	// executor was read from files, and `refarm check --next-action` answered "all clear" on a
 	// checkout where `pnpm exec` aborted (ISS-155). Costs one manager invocation (~0.45s), and

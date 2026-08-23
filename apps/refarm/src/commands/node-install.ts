@@ -246,6 +246,7 @@ export async function runNodeInstall(
 		commit,
 		checkout: dirtiness,
 		installedAt: (deps.now ?? (() => new Date().toISOString()))(),
+		repository: repoRoot,
 	};
 	fs.mkdirSync(tree, { recursive: true });
 	fs.writeFileSync(

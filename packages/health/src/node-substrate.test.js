@@ -88,3 +88,81 @@ describe("describeSubstrate", () => {
 		expect(text).not.toMatch(/refarm /u);
 	});
 });
+
+/**
+ * ISS-159. An installed node AGES, and until 2026-08-23 nothing said by how much.
+ *
+ * The operator's node ran `0.1.0-5b4810a9` while his checkout moved ten commits past it, and every
+ * surface was silent — `describeSubstrate` returned null for `installed` because that was the goal
+ * state and had nothing to explain. Reaching the goal state is not the end of the question: an
+ * intentional update cycle needs a trigger, and the trigger is this comparison.
+ */
+const readsIdentity = (byDirectory) => (directory) => byDirectory[directory] ?? null;
+
+const IDENTITY = {
+	label: "0.1.0-5b4810a9",
+	version: "0.1.0",
+	commit: "5b4810a9",
+	checkout: { dirty: false, because: "the checkout matched its commit." },
+	installedAt: "2026-08-19T23:26:01.000Z",
+};
+
+describe("an installed node says which build it is", () => {
+	it("carries the identity its tree recorded, found by walking up from the entrypoint", () => {
+		const substrate = readNodeSubstrate(
+			"/home/op/.local/lib/refarm/0.1.0-5b4810a9/dist/index.js",
+			isDir([]),
+			readsIdentity({ "/home/op/.local/lib/refarm/0.1.0-5b4810a9": IDENTITY }),
+		);
+		expect(substrate.kind).toBe("installed");
+		expect(substrate.identity).toEqual(IDENTITY);
+	});
+
+	it("is still installed, and silent, when the tree predates identity records", () => {
+		// Every tree assembled before 2026-08-23 has no such file, and that is not a fault.
+		const substrate = readNodeSubstrate("/usr/local/lib/refarm/index.js", isDir([]), readsIdentity({}));
+		expect(substrate).toEqual({ kind: "installed", executes: "/usr/local/lib/refarm/index.js" });
+		expect(describeSubstrate(substrate, "f58c6d00")).toBeNull();
+	});
+
+	it("says the checkout has moved on, naming both ends", () => {
+		const substrate = { kind: "installed", executes: "/x/dist/index.js", identity: IDENTITY };
+		const text = describeSubstrate(substrate, "f58c6d00");
+		expect(text).toContain("5b4810a9");
+		expect(text).toContain("f58c6d00");
+	});
+
+	it("SAYS NOTHING when the node already runs what the checkout has", () => {
+		// The trap this repository just spent a session removing, in its other direction: a line
+		// that is always there is a line nobody reads, and it would bury the one that matters.
+		const substrate = { kind: "installed", executes: "/x/dist/index.js", identity: IDENTITY };
+		expect(describeSubstrate(substrate, "5b4810a9")).toBeNull();
+	});
+
+	it("says a dirty build is described by NO commit, even when the commits match", () => {
+		const dirty = {
+			...IDENTITY,
+			label: "0.1.0-5b4810a9-dirty",
+			checkout: { dirty: true, because: "the checkout held 4 uncommitted change(s) this commit does not have." },
+		};
+		const text = describeSubstrate(
+			{ kind: "installed", executes: "/x/dist/index.js", identity: dirty },
+			"5b4810a9",
+		);
+		expect(text).toMatch(/uncommitted|no commit/iu);
+		expect(text).toContain("0.1.0-5b4810a9-dirty");
+	});
+
+	it("says nothing when there is no checkout to compare against", () => {
+		// A node on a phone or a Raspberry Pi has no repository beside it. Silence is the honest
+		// answer there — not "up to date", which would be a claim nothing measured.
+		const substrate = { kind: "installed", executes: "/x/dist/index.js", identity: IDENTITY };
+		expect(describeSubstrate(substrate, null)).toBeNull();
+	});
+
+	it("names no CLI verb — the handoff belongs where every other one is rendered", () => {
+		const substrate = { kind: "installed", executes: "/x/dist/index.js", identity: IDENTITY };
+		expect(describeSubstrate(substrate, "f58c6d00")).not.toMatch(/refarm /u);
+	});
+});
+

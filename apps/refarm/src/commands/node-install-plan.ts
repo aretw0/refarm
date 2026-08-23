@@ -269,5 +269,12 @@ export interface InstalledNodeIdentity {
 	readonly commit: string | null;
 	readonly checkout: DirtinessVerdict;
 	readonly installedAt: string;
+	/**
+	 * WHICH checkout that commit belongs to. A commit is only meaningful against the history it
+	 * came from, and a node is administrable from anywhere: reading this node's commit beside an
+	 * unrelated repository's HEAD would produce a confident sentence about two histories that never
+	 * met. A reader compares only when this matches the tree it is standing in.
+	 */
+	readonly repository: string;
 }
 

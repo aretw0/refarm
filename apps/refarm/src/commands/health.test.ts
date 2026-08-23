@@ -228,3 +228,53 @@ describe("buildHealthRecommendations — declared node tools", () => {
 		expect(recommendation?.summary).toMatch(/nothing is checking/u);
 	});
 });
+
+describe("buildHealthRecommendations — an installed node that has aged (ISS-159)", () => {
+	const IDENTITY = {
+		label: "0.1.0-5b4810a9",
+		version: "0.1.0",
+		commit: "5b4810a9",
+		checkout: { dirty: false, because: "the checkout matched its commit." },
+		installedAt: "2026-08-19T23:26:01.000Z",
+		repository: "/home/op/github/refarm",
+	};
+
+	it("says which build the node runs and which the checkout has, as INFO", () => {
+		// MEASURED 2026-08-22: the node ran 5b4810a9 while the checkout sat ten commits past it and
+		// every surface was silent. Ageing is legitimate — a node is meant to change when someone
+		// decides it should — so this informs and never reddens the gate.
+		const [recommendation] = buildHealthRecommendations({
+			...emptyResults(),
+			nodeSubstrate: { kind: "installed", executes: "/x/dist/index.js", identity: IDENTITY },
+			checkoutHead: "f58c6d00",
+		});
+		expect(recommendation?.diagnostic).toBe("node-runs-installed-tree");
+		expect(recommendation?.severity).toBe("info");
+		expect(recommendation?.summary).toContain("5b4810a9");
+		expect(recommendation?.summary).toContain("f58c6d00");
+		expect(recommendation?.action).toMatch(/deliberate act/u);
+	});
+
+	it("says NOTHING when the node already runs what the checkout has", () => {
+		// The other half of the same judgement. A line that is always present is a line nobody
+		// reads, and it would bury the one that matters.
+		expect(
+			buildHealthRecommendations({
+				...emptyResults(),
+				nodeSubstrate: { kind: "installed", executes: "/x/dist/index.js", identity: IDENTITY },
+				checkoutHead: "5b4810a9",
+			}),
+		).toEqual([]);
+	});
+
+	it("says nothing for a tree assembled before identity records existed", () => {
+		expect(
+			buildHealthRecommendations({
+				...emptyResults(),
+				nodeSubstrate: { kind: "installed", executes: "/x/dist/index.js" },
+				checkoutHead: "f58c6d00",
+			}),
+		).toEqual([]);
+	});
+});
+
