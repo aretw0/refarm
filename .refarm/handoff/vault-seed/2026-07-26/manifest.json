@@ -1,0 +1,1586 @@
+{
+  "schemaVersion": 1,
+  "source": "vault-seed-ready-handoff",
+  "generatedAt": "2026-07-26T21:13:32.315Z",
+  "sourceGitSha": "a7b1fe462a7a15f3e0933bcae56b889d658b7bd3",
+  "ok": true,
+  "status": "ready",
+  "selection": {
+    "id": "vault-seed-ready",
+    "description": "Consumer-pulled packages that vault-seed can adopt before the full daily-driver release.",
+    "audienceBoundary": {
+      "consumer": "vault-seed",
+      "naming": "product-neutral-sdk",
+      "productLocal": "Vault-specific CLI labels, copy, notebooks, routes, and UX stay downstream-owned."
+    }
+  },
+  "acceptance": {
+    "status": "accepted",
+    "packageCount": 23,
+    "blockerCount": 0,
+    "requiredGateCount": 4,
+    "requiredCheckCount": 72,
+    "providerCount": 1,
+    "manualApprovalRequired": true,
+    "surfaces": [
+      "core",
+      "shared"
+    ],
+    "profileTags": [
+      "vault-seed-ready"
+    ],
+    "requiredChecks": [
+      {
+        "command": "pnpm run gate:smoke:contracts",
+        "package": "@refarm.dev/storage-contract-v1"
+      },
+      {
+        "command": "pnpm run gate:smoke:contracts",
+        "package": "@refarm.dev/identity-contract-v1"
+      },
+      {
+        "command": "pnpm run gate:smoke:contracts",
+        "package": "@refarm.dev/artifact-contract-v1"
+      },
+      {
+        "command": "pnpm run gate:smoke:contracts",
+        "package": "@refarm.dev/channel-policy-v1"
+      },
+      {
+        "command": "pnpm run gate:smoke:contracts",
+        "package": "@refarm.dev/effort-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/quality-contract-v1 run lint",
+        "package": "@refarm.dev/quality-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/quality-contract-v1 run type-check",
+        "package": "@refarm.dev/quality-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/quality-contract-v1 run test:conformance",
+        "package": "@refarm.dev/quality-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/quality-contract-v1 run build",
+        "package": "@refarm.dev/quality-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/source-contract-v1 run test:conformance",
+        "package": "@refarm.dev/source-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/source-contract-v1 run build",
+        "package": "@refarm.dev/source-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/enrichment-contract-v1 run lint",
+        "package": "@refarm.dev/enrichment-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/enrichment-contract-v1 run type-check",
+        "package": "@refarm.dev/enrichment-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/enrichment-contract-v1 run test:conformance",
+        "package": "@refarm.dev/enrichment-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/enrichment-contract-v1 run build",
+        "package": "@refarm.dev/enrichment-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/records-contract-v1 run lint",
+        "package": "@refarm.dev/records-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/records-contract-v1 run type-check",
+        "package": "@refarm.dev/records-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/records-contract-v1 run test:conformance",
+        "package": "@refarm.dev/records-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/records-contract-v1 run test:unit",
+        "package": "@refarm.dev/records-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/records-contract-v1 run build",
+        "package": "@refarm.dev/records-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/process-handoff run lint",
+        "package": "@refarm.dev/process-handoff"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/process-handoff run type-check",
+        "package": "@refarm.dev/process-handoff"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/process-handoff run test",
+        "package": "@refarm.dev/process-handoff"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/process-handoff run build",
+        "package": "@refarm.dev/process-handoff"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/health run lint",
+        "package": "@refarm.dev/health"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/health run test",
+        "package": "@refarm.dev/health"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/health run build",
+        "package": "@refarm.dev/health"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/release-engine run test",
+        "package": "@refarm.dev/release-engine"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/heartwood run test",
+        "package": "@refarm.dev/heartwood"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/silo run lint",
+        "package": "@refarm.dev/silo"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/silo run test",
+        "package": "@refarm.dev/silo"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/silo run build",
+        "package": "@refarm.dev/silo"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/storage-memory run lint",
+        "package": "@refarm.dev/storage-memory"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/storage-memory run test:conformance",
+        "package": "@refarm.dev/storage-memory"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/storage-memory run build",
+        "package": "@refarm.dev/storage-memory"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/credentials-contract-v1 run lint",
+        "package": "@refarm.dev/credentials-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/credentials-contract-v1 run type-check",
+        "package": "@refarm.dev/credentials-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/credentials-contract-v1 run test:conformance",
+        "package": "@refarm.dev/credentials-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/credentials-contract-v1 run build",
+        "package": "@refarm.dev/credentials-contract-v1"
+      },
+      {
+        "command": "pnpm run sovereign-citizen:reference:test",
+        "package": "@refarm.dev/credentials-contract-v1"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/dispatch-surface run lint",
+        "package": "@refarm.dev/dispatch-surface"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/dispatch-surface run type-check",
+        "package": "@refarm.dev/dispatch-surface"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/dispatch-surface run test",
+        "package": "@refarm.dev/dispatch-surface"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/dispatch-surface run test:parity",
+        "package": "@refarm.dev/dispatch-surface"
+      },
+      {
+        "command": "pnpm run agent-demo:release-proof",
+        "package": "@refarm.dev/dispatch-surface"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/ds run lint",
+        "package": "@refarm.dev/ds"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/ds run type-check",
+        "package": "@refarm.dev/ds"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/ds run test",
+        "package": "@refarm.dev/ds"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/ds run build",
+        "package": "@refarm.dev/ds"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/source-web run lint",
+        "package": "@refarm.dev/source-web"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/source-web run type-check",
+        "package": "@refarm.dev/source-web"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/source-web run test:conformance",
+        "package": "@refarm.dev/source-web"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/source-web run build",
+        "package": "@refarm.dev/source-web"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/content-projection run lint",
+        "package": "@refarm.dev/content-projection"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/content-projection run type-check",
+        "package": "@refarm.dev/content-projection"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/content-projection run test:conformance",
+        "package": "@refarm.dev/content-projection"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/content-projection run build",
+        "package": "@refarm.dev/content-projection"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/identity-heartwood run lint",
+        "package": "@refarm.dev/identity-heartwood"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/identity-heartwood run type-check",
+        "package": "@refarm.dev/identity-heartwood"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/identity-heartwood run test:conformance",
+        "package": "@refarm.dev/identity-heartwood"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/identity-heartwood run build",
+        "package": "@refarm.dev/identity-heartwood"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/local-surface run lint",
+        "package": "@refarm.dev/local-surface"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/local-surface run type-check",
+        "package": "@refarm.dev/local-surface"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/local-surface run test",
+        "package": "@refarm.dev/local-surface"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/local-surface run build",
+        "package": "@refarm.dev/local-surface"
+      },
+      {
+        "command": "pnpm run local-surface:docs:test",
+        "package": "@refarm.dev/local-surface"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/ds-astro run lint",
+        "package": "@refarm.dev/ds-astro"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/ds-astro run type-check",
+        "package": "@refarm.dev/ds-astro"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/ds-astro run test",
+        "package": "@refarm.dev/ds-astro"
+      },
+      {
+        "command": "pnpm --filter @refarm.dev/ds-astro run build",
+        "package": "@refarm.dev/ds-astro"
+      },
+      {
+        "command": "node scripts/ci/test-ds-astro-mdx-proof.mjs",
+        "package": "@refarm.dev/ds-astro"
+      },
+      {
+        "command": "pnpm -C apps/site run build",
+        "package": "@refarm.dev/ds-astro"
+      }
+    ]
+  },
+  "handoffDir": ".refarm/handoff/vault-seed/2026-07-26",
+  "packages": [
+    {
+      "packageName": "@refarm.dev/storage-contract-v1",
+      "packageDir": "packages/storage-contract-v1",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-storage-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-storage-contract-v1-0.1.0.tgz",
+      "exists": true,
+      "sha256": "ca4a9f10f77eda2f8be143c9625a0b70a814d12dfe8d715a6ddd3c7f0c68743d",
+      "sizeBytes": 17441,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/storage-contract-v1/package.json",
+        "mtimeMs": 1784139925491.2073
+      },
+      "buildInput": {
+        "path": "packages/storage-contract-v1/src/conformance.ts",
+        "mtimeMs": 1784139925491.2073
+      },
+      "buildOutput": {
+        "path": "packages/storage-contract-v1/dist/index.d.ts.map",
+        "mtimeMs": 1784149930232.9158
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "credentials-storage-contract.transitive-wallet-support",
+        "downstreamUse": "storage:v1 contract support for credentials:v1 wallet store/list/remove",
+        "proofTarget": "vault-seed vendors storage-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present -> wallet",
+        "ownershipBoundary": "Durable wallet persistence, retention, encryption policy, and wallet UX remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/identity-contract-v1",
+      "packageDir": "packages/identity-contract-v1",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-identity-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-identity-contract-v1-0.1.0.tgz",
+      "exists": true,
+      "sha256": "b36b23c458a07f56b02f9cfd648259505d9354c3357946ee44cf4a00594e9dac",
+      "sizeBytes": 17928,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/identity-contract-v1/package.json",
+        "mtimeMs": 1784139925463.207
+      },
+      "buildInput": {
+        "path": "packages/identity-contract-v1/src/conformance.ts",
+        "mtimeMs": 1784139925463.207
+      },
+      "buildOutput": {
+        "path": "packages/identity-contract-v1/dist/index.d.ts.map",
+        "mtimeMs": 1784149930188.9155
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "credentials-identity-contract.transitive-signature-support",
+        "downstreamUse": "identity:v1 contract support for credentials:v1 issuer and holder proofs",
+        "proofTarget": "vault-seed vendors identity-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present",
+        "ownershipBoundary": "Issuer trust, DID methods, account recovery, and identity UX remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/artifact-contract-v1",
+      "packageDir": "packages/artifact-contract-v1",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-artifact-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-artifact-contract-v1-0.1.0.tgz",
+      "exists": true,
+      "sha256": "19d248c4a96ecababa22ddbb8b958a04d82be55bfcc9d35a5638ec3b7a6eb7f9",
+      "sizeBytes": 25491,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/artifact-contract-v1/package.json",
+        "mtimeMs": 1784139925431.2065
+      },
+      "buildInput": {
+        "path": "packages/artifact-contract-v1/src/conformance.ts",
+        "mtimeMs": 1784139925431.2065
+      },
+      "buildOutput": {
+        "path": "packages/artifact-contract-v1/dist/conformance.d.ts",
+        "mtimeMs": 1784149931616.917
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "artifact-contract.lab-outbox-evidence",
+        "downstreamUse": "Lab datasets, publication outbox, and notebook snapshot evidence",
+        "proofTarget": "vault-seed emits refarm.task-artifacts.v1 manifests from Lab/outbox/notebook producers",
+        "ownershipBoundary": "Vault schemas, notebook UX, and frontmatter remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/channel-policy-v1",
+      "packageDir": "packages/channel-policy-v1",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-channel-policy-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-channel-policy-v1-0.1.0.tgz",
+      "exists": true,
+      "sha256": "984b55e8a57e4c534c73655791caf252f2e2ab9b0c107144c8bf928cb5b6e004",
+      "sizeBytes": 18347,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/channel-policy-v1/src/index.ts",
+        "mtimeMs": 1784139925439.2068
+      },
+      "buildInput": {
+        "path": "packages/channel-policy-v1/src/index.ts",
+        "mtimeMs": 1784139925439.2068
+      },
+      "buildOutput": {
+        "path": "packages/channel-policy-v1/dist/index.d.ts",
+        "mtimeMs": 1784693095375.0068
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "channel-policy.telegram-delivery-envelope",
+        "downstreamUse": "Channel destinations, rate limits, receipts, dry-run, and review gates",
+        "proofTarget": "vault-seed Telegram adapter emits refarm.channel-delivery-envelope.v1",
+        "ownershipBoundary": "Provider API calls, copy formatting, and inbox/outbox UX remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/effort-contract-v1",
+      "packageDir": "packages/effort-contract-v1",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-effort-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-effort-contract-v1-0.1.0.tgz",
+      "exists": true,
+      "sha256": "724aac79d9530aa610545ffdaffd3266d87b1239225a9c7a5d075e39d70e7fd7",
+      "sizeBytes": 20270,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/effort-contract-v1/package.json",
+        "mtimeMs": 1784139925455.2068
+      },
+      "buildInput": {
+        "path": "packages/effort-contract-v1/src/conformance.ts",
+        "mtimeMs": 1784139925455.2068
+      },
+      "buildOutput": {
+        "path": "packages/effort-contract-v1/dist/index.d.ts",
+        "mtimeMs": 1785008090859.7544
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "effort-contract.dgk-effort-evidence",
+        "downstreamUse": "Reusable task/effort evidence for dgk operations and handoffs",
+        "proofTarget": "dgk process flows attach effort identifiers to emitted evidence",
+        "ownershipBoundary": "dgk command vocabulary and operator UX remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/quality-contract-v1",
+      "packageDir": "packages/quality-contract-v1",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-quality-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-quality-contract-v1-0.1.0.tgz",
+      "exists": true,
+      "sha256": "2a77254588670060a6025b87906f3e159335fdec745817ab0767686ecdaac97b",
+      "sizeBytes": 38090,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/quality-contract-v1/package.json",
+        "mtimeMs": 1784139925479.207
+      },
+      "buildInput": {
+        "path": "packages/quality-contract-v1/src/design-tells.ts",
+        "mtimeMs": 1784139925479.207
+      },
+      "buildOutput": {
+        "path": "packages/quality-contract-v1/dist/node.d.ts",
+        "mtimeMs": 1784149929124.9146
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "quality-contract.declared-lint-envelope",
+        "downstreamUse": "Declared quality/lint profiles and reports for text, UI, and checker plugin POCs",
+        "proofTarget": "vault-seed and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
+        "ownershipBoundary": "Rule catalogs, severity policy, product copy, personas, and rendered-subject collection remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/source-contract-v1",
+      "packageDir": "packages/source-contract-v1",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-source-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-source-contract-v1-0.1.0.tgz",
+      "exists": true,
+      "sha256": "8001ec758892a996c5d04c64401d32859a7dd1fc46e175bc718fcdfb9736b280",
+      "sizeBytes": 17976,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/source-contract-v1/src/conformance.test.ts",
+        "mtimeMs": 1784139925487.2073
+      },
+      "buildInput": {
+        "path": "packages/source-contract-v1/src/conformance.ts",
+        "mtimeMs": 1784139925487.2073
+      },
+      "buildOutput": {
+        "path": "packages/source-contract-v1/dist/index.d.ts",
+        "mtimeMs": 1784149931812.9172
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "requirements-source-contract.transitive-source-web-support",
+        "downstreamUse": "source:v1 contract support for the source-web vendor packet",
+        "proofTarget": "vault-seed vendors source-contract-v1 as the source-web transitive override while proving source-web -> records:v1 -> enrichment:v1 composition",
+        "ownershipBoundary": "Concrete login, selectors, and source profile vocabulary remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/enrichment-contract-v1",
+      "packageDir": "packages/enrichment-contract-v1",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-enrichment-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-enrichment-contract-v1-0.1.0.tgz",
+      "exists": true,
+      "sha256": "c8b1eff867108cec6a1d891b89ce76dbb544b3042c2d232bd3d65b9bb2c9dc77",
+      "sizeBytes": 24724,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/enrichment-contract-v1/src/conformance.test.ts",
+        "mtimeMs": 1784139925455.2068
+      },
+      "buildInput": {
+        "path": "packages/enrichment-contract-v1/src/conformance.ts",
+        "mtimeMs": 1784139925455.2068
+      },
+      "buildOutput": {
+        "path": "packages/enrichment-contract-v1/dist/index.d.ts",
+        "mtimeMs": 1784149932868.9182
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "requirements-enrichment.private-provider-wrapper",
+        "downstreamUse": "Deterministic enrichment report contract for records and note projections",
+        "proofTarget": "vault-seed emits enrichment:v1 reports from checkout-owned providers while the package supplies only the neutral contract and fixture provider",
+        "ownershipBoundary": "Private registries, lookup adapters, tag vocabulary, and domain enrichment rules remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/records-contract-v1",
+      "packageDir": "packages/records-contract-v1",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-records-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-records-contract-v1-0.1.0.tgz",
+      "exists": true,
+      "sha256": "3e665f81a9fdd74899174907ea8af965aca2fa631c3665294538add61be00434",
+      "sizeBytes": 26831,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/records-contract-v1/src/conformance.test.ts",
+        "mtimeMs": 1784139925479.207
+      },
+      "buildInput": {
+        "path": "packages/records-contract-v1/src/conformance.ts",
+        "mtimeMs": 1784139925479.207
+      },
+      "buildOutput": {
+        "path": "packages/records-contract-v1/dist/index.d.ts",
+        "mtimeMs": 1784149933044.9182
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "requirements-records.knowledge-manifest",
+        "downstreamUse": "Neutral records:v1 manifest for source-linked knowledge/content evidence",
+        "proofTarget": "vault-seed validates requirement-like records and notes-to-records projections through records:v1 with a clean reference-vault composition proof",
+        "ownershipBoundary": "PARA placement, editorial model, note rendering, and domain labels remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/process-handoff",
+      "packageDir": "packages/process-handoff",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-process-handoff-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-process-handoff-0.1.0.tgz",
+      "exists": true,
+      "sha256": "03cb926af9eca02150b71701e370f09b9216477f11333fae8971e7e2b42daff9",
+      "sizeBytes": 16789,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/process-handoff/src/index.test.ts",
+        "mtimeMs": 1785008065623.766
+      },
+      "buildInput": {
+        "path": "packages/process-handoff/src/index.ts",
+        "mtimeMs": 1785007994287.8062
+      },
+      "buildOutput": {
+        "path": "packages/process-handoff/dist/index.d.ts",
+        "mtimeMs": 1785008095159.7527
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "process-handoff.dgk-runner-adapter",
+        "downstreamUse": "Structured process runner primitive for dgk-runner and dgk-cli internals",
+        "proofTarget": "dgk-runner keeps run(cmd, args, opts) while using process-handoff internally",
+        "ownershipBoundary": "dgk package names, binary, commands, and product labels remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/health",
+      "packageDir": "packages/health",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-health-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-health-0.1.0.tgz",
+      "exists": true,
+      "sha256": "d2840e9018a431f72a757eaf482234d33889c5a5fb9937ba2c4f7be68f743132",
+      "sizeBytes": 37806,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/health/src/auditors/generic.test.js",
+        "mtimeMs": 1784662207962.7231
+      },
+      "buildInput": {
+        "path": "packages/health/src/auditors/generic.js",
+        "mtimeMs": 1784662191674.7146
+      },
+      "buildOutput": {
+        "path": "packages/health/dist/index.d.ts.map",
+        "mtimeMs": 1784662210502.7244
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "health.toolchain-environment-auditor",
+        "downstreamUse": "Generic doctor/substrate checks for node, pnpm, uv, Python, node_modules, executable shims, and devcontainer mounts",
+        "proofTarget": "vault-seed can replace dgk check-substrate internals with ToolchainAuditor while keeping dgk doctor UX and recovery copy downstream",
+        "ownershipBoundary": "Project-specific command names, setup recommendations, required file policy, and health+quality composition remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/release-engine",
+      "packageDir": "packages/release-engine",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-release-engine-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-release-engine-0.1.0.tgz",
+      "exists": true,
+      "sha256": "2c485ec253954e250eaae98e4e4359ca89a1fa3034bcad3f0e8f0ba41c8dcca7",
+      "sizeBytes": 32174,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/release-engine/src/cli.mjs",
+        "mtimeMs": 1784139925479.207
+      },
+      "buildInput": {
+        "path": "packages/release-engine/src/cli.mjs",
+        "mtimeMs": 1784139925479.207
+      },
+      "buildOutput": null,
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "release-engine.package-acceptance",
+        "downstreamUse": "Package acceptance, release planning, and publish dry-run policy",
+        "proofTarget": "vault-seed release/package smoke consumes release-engine acceptance output",
+        "ownershipBoundary": "Distribution identity, prose, and changelog content remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/heartwood",
+      "packageDir": "packages/heartwood",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-heartwood-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-heartwood-0.1.0.tgz",
+      "exists": true,
+      "sha256": "99f07aae42a770faff1f503b22db07a5dcf518637d0aa08b68e84ab738e55f07",
+      "sizeBytes": 139280,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/heartwood/src/bindings.rs",
+        "mtimeMs": 1784149919516.9058
+      },
+      "buildInput": {
+        "path": "packages/heartwood/src/bindings.rs",
+        "mtimeMs": 1784149919516.9058
+      },
+      "buildOutput": {
+        "path": "packages/heartwood/pkg/heartwood.core2.wasm",
+        "mtimeMs": 1785008088667.7554
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "heartwood.silo-crypto-substrate",
+        "downstreamUse": "Shared crypto substrate needed by silo-backed credentials",
+        "proofTarget": "vault-seed credential flow uses silo without local crypto stand-ins",
+        "ownershipBoundary": "Credential policy choices and publishing identities remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/silo",
+      "packageDir": "packages/silo",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-silo-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-silo-0.1.0.tgz",
+      "exists": true,
+      "sha256": "69050483d2580b21878eb1920b8dacea551857f427137c006e56348a8157d6fb",
+      "sizeBytes": 22179,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/silo/src/collect.js",
+        "mtimeMs": 1784139925483.2073
+      },
+      "buildInput": {
+        "path": "packages/silo/src/collect.js",
+        "mtimeMs": 1784139925483.2073
+      },
+      "buildOutput": {
+        "path": "packages/silo/dist/index.browser.d.ts.map",
+        "mtimeMs": 1784661751746.532
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "silo.credential-namespaces",
+        "downstreamUse": "Scoped credential collection and secret namespace separation",
+        "proofTarget": "vault-seed stores model/runtime/publishing credentials through silo namespaces",
+        "ownershipBoundary": "Provider-specific publishing adapters and approval workflow remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/storage-memory",
+      "packageDir": "packages/storage-memory",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-storage-memory-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-storage-memory-0.1.0.tgz",
+      "exists": true,
+      "sha256": "0da13f60be1852bc20cc79559d3e00c4f552ea10e3fd9893f2609bb7b39424be",
+      "sizeBytes": 13543,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/storage-memory/package.json",
+        "mtimeMs": 1784139925491.2073
+      },
+      "buildInput": {
+        "path": "packages/storage-memory/src/memory-storage.ts",
+        "mtimeMs": 1784139925491.2073
+      },
+      "buildOutput": {
+        "path": "packages/storage-memory/dist/memory-storage.d.ts.map",
+        "mtimeMs": 1784149936824.9219
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "credentials-storage-memory.reference-wallet",
+        "downstreamUse": "Volatile storage:v1 implementation for credentials smoke and consumer-contract wallet proofs",
+        "proofTarget": "sovereign-citizen:reference:test stores and lists the issued credential through storage-memory",
+        "ownershipBoundary": "Production durability, synchronization, encryption-at-rest, and wallet UX remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/credentials-contract-v1",
+      "packageDir": "packages/credentials-contract-v1",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-credentials-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-credentials-contract-v1-0.1.0.tgz",
+      "exists": true,
+      "sha256": "5797caa35a9ee4a137448e688d3f0a41e6f283008101b6307d999ceb5536f86f",
+      "sizeBytes": 31494,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/credentials-contract-v1/package.json",
+        "mtimeMs": 1784139925451.2068
+      },
+      "buildInput": {
+        "path": "packages/credentials-contract-v1/src/canonical.ts",
+        "mtimeMs": 1784139925451.2068
+      },
+      "buildOutput": {
+        "path": "packages/credentials-contract-v1/dist/index.d.ts",
+        "mtimeMs": 1784149967092.9502
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "credentials-contract.issue-verify-present-wallet",
+        "downstreamUse": "credentials:v1 contract for issue, policy-driven verify, present, store, list, remove, and revoke seams before VC UX",
+        "proofTarget": "vault-seed vendors credentials-contract-v1 early and proves issuer/verifier/wallet seams with trustedIssuers, trustSelf, holder-binding, and local signed status-list revocation checks before headspace UX",
+        "ownershipBoundary": "Issuer authorities, credential schemas, trust registry sources, remote status-list distribution, trust UI, and domain vocabulary remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/dispatch-surface",
+      "packageDir": "packages/dispatch-surface",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-dispatch-surface-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-dispatch-surface-0.1.0.tgz",
+      "exists": true,
+      "sha256": "c68225e06b9298b838dc2d0f00474e33bfece9202dae3420d7bb169e2a6460d0",
+      "sizeBytes": 19503,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/dispatch-surface/src/dispatch-surface.test.ts",
+        "mtimeMs": 1784139925455.2068
+      },
+      "buildInput": {
+        "path": "packages/dispatch-surface/src/dispatch-surface.ts",
+        "mtimeMs": 1784139925455.2068
+      },
+      "buildOutput": {
+        "path": "packages/dispatch-surface/dist/dispatch-surface.d.ts.map",
+        "mtimeMs": 1784661096538.6152
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "dispatch-surface.dgk-descriptor",
+        "downstreamUse": "Channel/transport dispatch primitives — parseTaskTransport (file/http/channel:*), the control-surface adapter, and channel effort payloads that feed the runtime HTTP surface.",
+        "proofTarget": "Consumers route channel/transport dispatch operations through these shared primitives. This is NOT a product-command/CLI registry — product commands stay in the consumer command layer (the old wording wrongly suggested modeling CLI commands on it).",
+        "ownershipBoundary": "Surface labels, routes, and product-specific actions remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/ds",
+      "packageDir": "packages/ds",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-ds-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-ds-0.1.0.tgz",
+      "exists": true,
+      "sha256": "b7b8bd4b4522f33a65d859ca6e4542318767c549a0017cdeec114fdbb87f57e5",
+      "sizeBytes": 45210,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/ds/src/theme-tui.test.ts",
+        "mtimeMs": 1784566417652.6567
+      },
+      "buildInput": {
+        "path": "packages/ds/src/theme-tui.ts",
+        "mtimeMs": 1784566417652.6567
+      },
+      "buildOutput": {
+        "path": "packages/ds/dist/sd-config.d.ts",
+        "mtimeMs": 1784574624847.7856
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "ds.lab-admin-static-document",
+        "downstreamUse": "Lab/admin tokens, verde-jardim theme source, and build-free DS HTML document helpers",
+        "proofTarget": "vault-seed Lab/admin UI imports ds tokens and renders documentHtml through @refarm.dev/ds/html without pulling Homestead",
+        "ownershipBoundary": "PARA vocabulary, editorial copy, and content semantics remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/source-web",
+      "packageDir": "packages/source-web",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-source-web-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-source-web-0.1.0.tgz",
+      "exists": true,
+      "sha256": "076420bc8d7ae038e71b86fd9b4cdbbfc24ed73be277f23b4ed021ebf2b37ef1",
+      "sizeBytes": 49600,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/source-web/src/attachment.test.ts",
+        "mtimeMs": 1784139925487.2073
+      },
+      "buildInput": {
+        "path": "packages/source-web/src/attachment.ts",
+        "mtimeMs": 1784139925487.2073
+      },
+      "buildOutput": {
+        "path": "packages/source-web/dist/index.d.ts",
+        "mtimeMs": 1784149938564.9233
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "requirements-source-web.authenticated-capture",
+        "downstreamUse": "Authenticated source capture fixture feeding requirement-like records",
+        "proofTarget": "vault-seed wraps source-web with real checkout-owned source behavior and proves redacted source:v1 snapshots compose into records:v1 and enrichment:v1",
+        "ownershipBoundary": "Real credentials, discovery, selectors, pacing values, and source-specific ETL profiles remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/content-projection",
+      "packageDir": "packages/content-projection",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-content-projection-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-content-projection-0.1.0.tgz",
+      "exists": true,
+      "sha256": "9ba431d916ca8bda6bec9566d35caa9f8f3ea97399b39fcc5c0f401550527981",
+      "sizeBytes": 18429,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/content-projection/src/index.ts",
+        "mtimeMs": 1784139925451.2068
+      },
+      "buildInput": {
+        "path": "packages/content-projection/src/index.ts",
+        "mtimeMs": 1784139925451.2068
+      },
+      "buildOutput": {
+        "path": "packages/content-projection/dist/index.d.ts",
+        "mtimeMs": 1784693095435.0068
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "content-projection.markdown-mdx-records",
+        "downstreamUse": "Markdown/MDX frontmatter, wikilink, and inline-link projection into records:v1",
+        "proofTarget": "vault-seed can replace local note-to-record, wikilink, and inline-link projection helpers with the generic projection block while retaining its product configuration",
+        "ownershipBoundary": "PARA folder mapping, note vocabulary, Obsidian/Foam conventions, and rendering remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/identity-heartwood",
+      "packageDir": "packages/identity-heartwood",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-identity-heartwood-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-identity-heartwood-0.1.0.tgz",
+      "exists": true,
+      "sha256": "2f70b2e39375cde797143ab7d2164719dac13d032198951c679bebda0ad714fd",
+      "sizeBytes": 15408,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/identity-heartwood/package.json",
+        "mtimeMs": 1784139925463.207
+      },
+      "buildInput": {
+        "path": "packages/identity-heartwood/src/index.ts",
+        "mtimeMs": 1784139925463.207
+      },
+      "buildOutput": {
+        "path": "packages/identity-heartwood/dist/index.d.ts",
+        "mtimeMs": 1784693095419.0068
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "credentials-identity-heartwood.reference-signature",
+        "downstreamUse": "Heartwood-backed identity:v1 issuer and holder signatures for the credentials smoke",
+        "proofTarget": "sovereign-citizen:reference:test proves real Ed25519 issue and present signatures through identity:v1",
+        "ownershipBoundary": "Trust registry, default identity provider choice, secret persistence, and DID resolution remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/local-surface",
+      "packageDir": "packages/local-surface",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-local-surface-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-local-surface-0.1.0.tgz",
+      "exists": true,
+      "sha256": "1ac038601d1da4d73aa01eb88770e3137fe143290a3726823899f5e72e1d03e5",
+      "sizeBytes": 18417,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/local-surface/README.md",
+        "mtimeMs": 1784139925467.207
+      },
+      "buildInput": {
+        "path": "packages/local-surface/src/index.ts",
+        "mtimeMs": 1784139925467.207
+      },
+      "buildOutput": {
+        "path": "packages/local-surface/dist/index.d.ts",
+        "mtimeMs": 1784693010082.9773
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "local-surface.white-label-operator-proof",
+        "downstreamUse": "Local-first white-label operator surface for vault tasks and agent handoffs",
+        "proofTarget": "vault-seed can build a local-surface:v1 manifest, DS-backed HTML, white-label launch plan, and quality:v1 report while keeping routes, screenshots, provider adapters, and product vocabulary downstream-owned",
+        "ownershipBoundary": "Server binding, route branding, storage adapters, provider setup, screenshots, and product UX remain downstream"
+      }
+    },
+    {
+      "packageName": "@refarm.dev/ds-astro",
+      "packageDir": "packages/ds-astro",
+      "version": "0.1.0",
+      "tarball": "refarm.dev-ds-astro-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-07-26/refarm.dev-ds-astro-0.1.0.tgz",
+      "exists": true,
+      "sha256": "e17da7624dfa0ddf2fd818acd776c6604bf8c5bc9da1d679dcf8eb514db5992d",
+      "sizeBytes": 14250,
+      "stale": false,
+      "sourceInput": {
+        "path": "packages/ds-astro/package.json",
+        "mtimeMs": 1784139925455.2068
+      },
+      "buildInput": {
+        "path": "packages/ds-astro/src/index.ts",
+        "mtimeMs": 1784139925455.2068
+      },
+      "buildOutput": {
+        "path": "packages/ds-astro/dist/index.d.ts",
+        "mtimeMs": 1784693095331.0068
+      },
+      "buildOutputStale": false,
+      "consumerPull": {
+        "proofId": "ds-astro.mdx-render-adapter",
+        "downstreamUse": "Sanctioned Astro/MDX component embed set over Refarm DS classes and CSS",
+        "proofTarget": "vault-seed can replace local dgk/vault/astro block packages with @refarm.dev/ds-astro imports while keeping product-specific MDX copy and route semantics downstream",
+        "ownershipBoundary": "PARA labels, notebook/editorial vocabulary, custom routes, and product-specific blocks remain downstream"
+      }
+    }
+  ],
+  "consumerInstall": {
+    "packageManager": "pnpm",
+    "vendorDir": "vendor",
+    "copyFrom": ".refarm/handoff/vault-seed/2026-07-26",
+    "copyFiles": [
+      "manifest.json",
+      "refarm.dev-storage-contract-v1-0.1.0.tgz",
+      "refarm.dev-identity-contract-v1-0.1.0.tgz",
+      "refarm.dev-artifact-contract-v1-0.1.0.tgz",
+      "refarm.dev-channel-policy-v1-0.1.0.tgz",
+      "refarm.dev-effort-contract-v1-0.1.0.tgz",
+      "refarm.dev-quality-contract-v1-0.1.0.tgz",
+      "refarm.dev-source-contract-v1-0.1.0.tgz",
+      "refarm.dev-enrichment-contract-v1-0.1.0.tgz",
+      "refarm.dev-records-contract-v1-0.1.0.tgz",
+      "refarm.dev-process-handoff-0.1.0.tgz",
+      "refarm.dev-health-0.1.0.tgz",
+      "refarm.dev-release-engine-0.1.0.tgz",
+      "refarm.dev-heartwood-0.1.0.tgz",
+      "refarm.dev-silo-0.1.0.tgz",
+      "refarm.dev-storage-memory-0.1.0.tgz",
+      "refarm.dev-credentials-contract-v1-0.1.0.tgz",
+      "refarm.dev-dispatch-surface-0.1.0.tgz",
+      "refarm.dev-ds-0.1.0.tgz",
+      "refarm.dev-source-web-0.1.0.tgz",
+      "refarm.dev-content-projection-0.1.0.tgz",
+      "refarm.dev-identity-heartwood-0.1.0.tgz",
+      "refarm.dev-local-surface-0.1.0.tgz",
+      "refarm.dev-ds-astro-0.1.0.tgz",
+      "refarm.dev-config-0.1.0.tgz"
+    ],
+    "fileSpecs": {
+      "@refarm.dev/storage-contract-v1": "file:./vendor/refarm.dev-storage-contract-v1-0.1.0.tgz",
+      "@refarm.dev/identity-contract-v1": "file:./vendor/refarm.dev-identity-contract-v1-0.1.0.tgz",
+      "@refarm.dev/artifact-contract-v1": "file:./vendor/refarm.dev-artifact-contract-v1-0.1.0.tgz",
+      "@refarm.dev/channel-policy-v1": "file:./vendor/refarm.dev-channel-policy-v1-0.1.0.tgz",
+      "@refarm.dev/effort-contract-v1": "file:./vendor/refarm.dev-effort-contract-v1-0.1.0.tgz",
+      "@refarm.dev/quality-contract-v1": "file:./vendor/refarm.dev-quality-contract-v1-0.1.0.tgz",
+      "@refarm.dev/source-contract-v1": "file:./vendor/refarm.dev-source-contract-v1-0.1.0.tgz",
+      "@refarm.dev/enrichment-contract-v1": "file:./vendor/refarm.dev-enrichment-contract-v1-0.1.0.tgz",
+      "@refarm.dev/records-contract-v1": "file:./vendor/refarm.dev-records-contract-v1-0.1.0.tgz",
+      "@refarm.dev/process-handoff": "file:./vendor/refarm.dev-process-handoff-0.1.0.tgz",
+      "@refarm.dev/health": "file:./vendor/refarm.dev-health-0.1.0.tgz",
+      "@refarm.dev/release-engine": "file:./vendor/refarm.dev-release-engine-0.1.0.tgz",
+      "@refarm.dev/heartwood": "file:./vendor/refarm.dev-heartwood-0.1.0.tgz",
+      "@refarm.dev/silo": "file:./vendor/refarm.dev-silo-0.1.0.tgz",
+      "@refarm.dev/storage-memory": "file:./vendor/refarm.dev-storage-memory-0.1.0.tgz",
+      "@refarm.dev/credentials-contract-v1": "file:./vendor/refarm.dev-credentials-contract-v1-0.1.0.tgz",
+      "@refarm.dev/dispatch-surface": "file:./vendor/refarm.dev-dispatch-surface-0.1.0.tgz",
+      "@refarm.dev/ds": "file:./vendor/refarm.dev-ds-0.1.0.tgz",
+      "@refarm.dev/source-web": "file:./vendor/refarm.dev-source-web-0.1.0.tgz",
+      "@refarm.dev/content-projection": "file:./vendor/refarm.dev-content-projection-0.1.0.tgz",
+      "@refarm.dev/identity-heartwood": "file:./vendor/refarm.dev-identity-heartwood-0.1.0.tgz",
+      "@refarm.dev/local-surface": "file:./vendor/refarm.dev-local-surface-0.1.0.tgz",
+      "@refarm.dev/ds-astro": "file:./vendor/refarm.dev-ds-astro-0.1.0.tgz"
+    },
+    "pnpmOverrides": {
+      "@refarm.dev/storage-contract-v1": "file:./vendor/refarm.dev-storage-contract-v1-0.1.0.tgz",
+      "@refarm.dev/identity-contract-v1": "file:./vendor/refarm.dev-identity-contract-v1-0.1.0.tgz",
+      "@refarm.dev/artifact-contract-v1": "file:./vendor/refarm.dev-artifact-contract-v1-0.1.0.tgz",
+      "@refarm.dev/channel-policy-v1": "file:./vendor/refarm.dev-channel-policy-v1-0.1.0.tgz",
+      "@refarm.dev/effort-contract-v1": "file:./vendor/refarm.dev-effort-contract-v1-0.1.0.tgz",
+      "@refarm.dev/quality-contract-v1": "file:./vendor/refarm.dev-quality-contract-v1-0.1.0.tgz",
+      "@refarm.dev/source-contract-v1": "file:./vendor/refarm.dev-source-contract-v1-0.1.0.tgz",
+      "@refarm.dev/enrichment-contract-v1": "file:./vendor/refarm.dev-enrichment-contract-v1-0.1.0.tgz",
+      "@refarm.dev/records-contract-v1": "file:./vendor/refarm.dev-records-contract-v1-0.1.0.tgz",
+      "@refarm.dev/process-handoff": "file:./vendor/refarm.dev-process-handoff-0.1.0.tgz",
+      "@refarm.dev/health": "file:./vendor/refarm.dev-health-0.1.0.tgz",
+      "@refarm.dev/release-engine": "file:./vendor/refarm.dev-release-engine-0.1.0.tgz",
+      "@refarm.dev/heartwood": "file:./vendor/refarm.dev-heartwood-0.1.0.tgz",
+      "@refarm.dev/silo": "file:./vendor/refarm.dev-silo-0.1.0.tgz",
+      "@refarm.dev/storage-memory": "file:./vendor/refarm.dev-storage-memory-0.1.0.tgz",
+      "@refarm.dev/credentials-contract-v1": "file:./vendor/refarm.dev-credentials-contract-v1-0.1.0.tgz",
+      "@refarm.dev/dispatch-surface": "file:./vendor/refarm.dev-dispatch-surface-0.1.0.tgz",
+      "@refarm.dev/ds": "file:./vendor/refarm.dev-ds-0.1.0.tgz",
+      "@refarm.dev/source-web": "file:./vendor/refarm.dev-source-web-0.1.0.tgz",
+      "@refarm.dev/content-projection": "file:./vendor/refarm.dev-content-projection-0.1.0.tgz",
+      "@refarm.dev/identity-heartwood": "file:./vendor/refarm.dev-identity-heartwood-0.1.0.tgz",
+      "@refarm.dev/local-surface": "file:./vendor/refarm.dev-local-surface-0.1.0.tgz",
+      "@refarm.dev/ds-astro": "file:./vendor/refarm.dev-ds-astro-0.1.0.tgz",
+      "@refarm.dev/config": "file:./vendor/refarm.dev-config-0.1.0.tgz"
+    },
+    "revendorPolicy": {
+      "sameNameVersionBehavior": "file: tarballs can keep the same package name and version while their bytes change during pre-publication handoff.",
+      "changedContentDetection": "compare packages[].sha256 against the consumer vendor tarball and lockfile integrity",
+      "requiredWhenShaChanges": [
+        "replace the matching vendor/*.tgz file from the same handoff directory",
+        "refresh the package-manager lockfile entry for the changed file: tarball",
+        "if the package manager keeps the old bytes, reinstall from a clean node_modules before running consumer proofs"
+      ],
+      "proofAfterRefresh": "consumerProofs"
+    },
+    "proofChecklist": "consumerProofs"
+  },
+  "consumerProofs": [
+    {
+      "proofId": "credentials-storage-contract.transitive-wallet-support",
+      "packageName": "@refarm.dev/storage-contract-v1",
+      "downstreamUse": "storage:v1 contract support for credentials:v1 wallet store/list/remove",
+      "proofTarget": "vault-seed vendors storage-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present -> wallet",
+      "ownershipBoundary": "Durable wallet persistence, retention, encryption policy, and wallet UX remain downstream"
+    },
+    {
+      "proofId": "credentials-identity-contract.transitive-signature-support",
+      "packageName": "@refarm.dev/identity-contract-v1",
+      "downstreamUse": "identity:v1 contract support for credentials:v1 issuer and holder proofs",
+      "proofTarget": "vault-seed vendors identity-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present",
+      "ownershipBoundary": "Issuer trust, DID methods, account recovery, and identity UX remain downstream"
+    },
+    {
+      "proofId": "artifact-contract.lab-outbox-evidence",
+      "packageName": "@refarm.dev/artifact-contract-v1",
+      "downstreamUse": "Lab datasets, publication outbox, and notebook snapshot evidence",
+      "proofTarget": "vault-seed emits refarm.task-artifacts.v1 manifests from Lab/outbox/notebook producers",
+      "ownershipBoundary": "Vault schemas, notebook UX, and frontmatter remain downstream"
+    },
+    {
+      "proofId": "channel-policy.telegram-delivery-envelope",
+      "packageName": "@refarm.dev/channel-policy-v1",
+      "downstreamUse": "Channel destinations, rate limits, receipts, dry-run, and review gates",
+      "proofTarget": "vault-seed Telegram adapter emits refarm.channel-delivery-envelope.v1",
+      "ownershipBoundary": "Provider API calls, copy formatting, and inbox/outbox UX remain downstream"
+    },
+    {
+      "proofId": "effort-contract.dgk-effort-evidence",
+      "packageName": "@refarm.dev/effort-contract-v1",
+      "downstreamUse": "Reusable task/effort evidence for dgk operations and handoffs",
+      "proofTarget": "dgk process flows attach effort identifiers to emitted evidence",
+      "ownershipBoundary": "dgk command vocabulary and operator UX remain downstream"
+    },
+    {
+      "proofId": "quality-contract.declared-lint-envelope",
+      "packageName": "@refarm.dev/quality-contract-v1",
+      "downstreamUse": "Declared quality/lint profiles and reports for text, UI, and checker plugin POCs",
+      "proofTarget": "vault-seed and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
+      "ownershipBoundary": "Rule catalogs, severity policy, product copy, personas, and rendered-subject collection remain downstream"
+    },
+    {
+      "proofId": "requirements-source-contract.transitive-source-web-support",
+      "packageName": "@refarm.dev/source-contract-v1",
+      "downstreamUse": "source:v1 contract support for the source-web vendor packet",
+      "proofTarget": "vault-seed vendors source-contract-v1 as the source-web transitive override while proving source-web -> records:v1 -> enrichment:v1 composition",
+      "ownershipBoundary": "Concrete login, selectors, and source profile vocabulary remain downstream"
+    },
+    {
+      "proofId": "requirements-enrichment.private-provider-wrapper",
+      "packageName": "@refarm.dev/enrichment-contract-v1",
+      "downstreamUse": "Deterministic enrichment report contract for records and note projections",
+      "proofTarget": "vault-seed emits enrichment:v1 reports from checkout-owned providers while the package supplies only the neutral contract and fixture provider",
+      "ownershipBoundary": "Private registries, lookup adapters, tag vocabulary, and domain enrichment rules remain downstream"
+    },
+    {
+      "proofId": "requirements-records.knowledge-manifest",
+      "packageName": "@refarm.dev/records-contract-v1",
+      "downstreamUse": "Neutral records:v1 manifest for source-linked knowledge/content evidence",
+      "proofTarget": "vault-seed validates requirement-like records and notes-to-records projections through records:v1 with a clean reference-vault composition proof",
+      "ownershipBoundary": "PARA placement, editorial model, note rendering, and domain labels remain downstream"
+    },
+    {
+      "proofId": "process-handoff.dgk-runner-adapter",
+      "packageName": "@refarm.dev/process-handoff",
+      "downstreamUse": "Structured process runner primitive for dgk-runner and dgk-cli internals",
+      "proofTarget": "dgk-runner keeps run(cmd, args, opts) while using process-handoff internally",
+      "ownershipBoundary": "dgk package names, binary, commands, and product labels remain downstream"
+    },
+    {
+      "proofId": "health.toolchain-environment-auditor",
+      "packageName": "@refarm.dev/health",
+      "downstreamUse": "Generic doctor/substrate checks for node, pnpm, uv, Python, node_modules, executable shims, and devcontainer mounts",
+      "proofTarget": "vault-seed can replace dgk check-substrate internals with ToolchainAuditor while keeping dgk doctor UX and recovery copy downstream",
+      "ownershipBoundary": "Project-specific command names, setup recommendations, required file policy, and health+quality composition remain downstream"
+    },
+    {
+      "proofId": "release-engine.package-acceptance",
+      "packageName": "@refarm.dev/release-engine",
+      "downstreamUse": "Package acceptance, release planning, and publish dry-run policy",
+      "proofTarget": "vault-seed release/package smoke consumes release-engine acceptance output",
+      "ownershipBoundary": "Distribution identity, prose, and changelog content remain downstream"
+    },
+    {
+      "proofId": "heartwood.silo-crypto-substrate",
+      "packageName": "@refarm.dev/heartwood",
+      "downstreamUse": "Shared crypto substrate needed by silo-backed credentials",
+      "proofTarget": "vault-seed credential flow uses silo without local crypto stand-ins",
+      "ownershipBoundary": "Credential policy choices and publishing identities remain downstream"
+    },
+    {
+      "proofId": "silo.credential-namespaces",
+      "packageName": "@refarm.dev/silo",
+      "downstreamUse": "Scoped credential collection and secret namespace separation",
+      "proofTarget": "vault-seed stores model/runtime/publishing credentials through silo namespaces",
+      "ownershipBoundary": "Provider-specific publishing adapters and approval workflow remain downstream"
+    },
+    {
+      "proofId": "credentials-storage-memory.reference-wallet",
+      "packageName": "@refarm.dev/storage-memory",
+      "downstreamUse": "Volatile storage:v1 implementation for credentials smoke and consumer-contract wallet proofs",
+      "proofTarget": "sovereign-citizen:reference:test stores and lists the issued credential through storage-memory",
+      "ownershipBoundary": "Production durability, synchronization, encryption-at-rest, and wallet UX remain downstream"
+    },
+    {
+      "proofId": "credentials-contract.issue-verify-present-wallet",
+      "packageName": "@refarm.dev/credentials-contract-v1",
+      "downstreamUse": "credentials:v1 contract for issue, policy-driven verify, present, store, list, remove, and revoke seams before VC UX",
+      "proofTarget": "vault-seed vendors credentials-contract-v1 early and proves issuer/verifier/wallet seams with trustedIssuers, trustSelf, holder-binding, and local signed status-list revocation checks before headspace UX",
+      "ownershipBoundary": "Issuer authorities, credential schemas, trust registry sources, remote status-list distribution, trust UI, and domain vocabulary remain downstream"
+    },
+    {
+      "proofId": "dispatch-surface.dgk-descriptor",
+      "packageName": "@refarm.dev/dispatch-surface",
+      "downstreamUse": "Channel/transport dispatch primitives — parseTaskTransport (file/http/channel:*), the control-surface adapter, and channel effort payloads that feed the runtime HTTP surface.",
+      "proofTarget": "Consumers route channel/transport dispatch operations through these shared primitives. This is NOT a product-command/CLI registry — product commands stay in the consumer command layer (the old wording wrongly suggested modeling CLI commands on it).",
+      "ownershipBoundary": "Surface labels, routes, and product-specific actions remain downstream"
+    },
+    {
+      "proofId": "ds.lab-admin-static-document",
+      "packageName": "@refarm.dev/ds",
+      "downstreamUse": "Lab/admin tokens, verde-jardim theme source, and build-free DS HTML document helpers",
+      "proofTarget": "vault-seed Lab/admin UI imports ds tokens and renders documentHtml through @refarm.dev/ds/html without pulling Homestead",
+      "ownershipBoundary": "PARA vocabulary, editorial copy, and content semantics remain downstream"
+    },
+    {
+      "proofId": "requirements-source-web.authenticated-capture",
+      "packageName": "@refarm.dev/source-web",
+      "downstreamUse": "Authenticated source capture fixture feeding requirement-like records",
+      "proofTarget": "vault-seed wraps source-web with real checkout-owned source behavior and proves redacted source:v1 snapshots compose into records:v1 and enrichment:v1",
+      "ownershipBoundary": "Real credentials, discovery, selectors, pacing values, and source-specific ETL profiles remain downstream"
+    },
+    {
+      "proofId": "content-projection.markdown-mdx-records",
+      "packageName": "@refarm.dev/content-projection",
+      "downstreamUse": "Markdown/MDX frontmatter, wikilink, and inline-link projection into records:v1",
+      "proofTarget": "vault-seed can replace local note-to-record, wikilink, and inline-link projection helpers with the generic projection block while retaining its product configuration",
+      "ownershipBoundary": "PARA folder mapping, note vocabulary, Obsidian/Foam conventions, and rendering remain downstream"
+    },
+    {
+      "proofId": "credentials-identity-heartwood.reference-signature",
+      "packageName": "@refarm.dev/identity-heartwood",
+      "downstreamUse": "Heartwood-backed identity:v1 issuer and holder signatures for the credentials smoke",
+      "proofTarget": "sovereign-citizen:reference:test proves real Ed25519 issue and present signatures through identity:v1",
+      "ownershipBoundary": "Trust registry, default identity provider choice, secret persistence, and DID resolution remain downstream"
+    },
+    {
+      "proofId": "local-surface.white-label-operator-proof",
+      "packageName": "@refarm.dev/local-surface",
+      "downstreamUse": "Local-first white-label operator surface for vault tasks and agent handoffs",
+      "proofTarget": "vault-seed can build a local-surface:v1 manifest, DS-backed HTML, white-label launch plan, and quality:v1 report while keeping routes, screenshots, provider adapters, and product vocabulary downstream-owned",
+      "ownershipBoundary": "Server binding, route branding, storage adapters, provider setup, screenshots, and product UX remain downstream"
+    },
+    {
+      "proofId": "ds-astro.mdx-render-adapter",
+      "packageName": "@refarm.dev/ds-astro",
+      "downstreamUse": "Sanctioned Astro/MDX component embed set over Refarm DS classes and CSS",
+      "proofTarget": "vault-seed can replace local dgk/vault/astro block packages with @refarm.dev/ds-astro imports while keeping product-specific MDX copy and route semantics downstream",
+      "ownershipBoundary": "PARA labels, notebook/editorial vocabulary, custom routes, and product-specific blocks remain downstream"
+    }
+  ],
+  "releaseBoundaryAudit": {
+    "schemaVersion": 1,
+    "command": "release-boundary-audit",
+    "ok": true,
+    "selectionId": "vault-seed-ready",
+    "auditedPackageCount": 23,
+    "auditedPackages": [
+      "@refarm.dev/storage-contract-v1",
+      "@refarm.dev/identity-contract-v1",
+      "@refarm.dev/artifact-contract-v1",
+      "@refarm.dev/channel-policy-v1",
+      "@refarm.dev/effort-contract-v1",
+      "@refarm.dev/quality-contract-v1",
+      "@refarm.dev/source-contract-v1",
+      "@refarm.dev/enrichment-contract-v1",
+      "@refarm.dev/records-contract-v1",
+      "@refarm.dev/process-handoff",
+      "@refarm.dev/health",
+      "@refarm.dev/release-engine",
+      "@refarm.dev/heartwood",
+      "@refarm.dev/silo",
+      "@refarm.dev/storage-memory",
+      "@refarm.dev/credentials-contract-v1",
+      "@refarm.dev/dispatch-surface",
+      "@refarm.dev/ds",
+      "@refarm.dev/source-web",
+      "@refarm.dev/content-projection",
+      "@refarm.dev/identity-heartwood",
+      "@refarm.dev/local-surface",
+      "@refarm.dev/ds-astro"
+    ],
+    "issueCount": 0,
+    "issues": []
+  },
+  "distributionEvidence": {
+    "schema": "refarm.vault-seed-ready-distribution-evidence.v1",
+    "stableRef": "refarm-handoff://vault-seed-ready",
+    "currentRef": "refarm-handoff://vault-seed-ready/2026-07-26",
+    "state": "local-handoff-ready",
+    "subject": {
+      "kind": "release-selection",
+      "selectionId": "vault-seed-ready",
+      "packageCount": 23,
+      "packageNames": [
+        "@refarm.dev/storage-contract-v1",
+        "@refarm.dev/identity-contract-v1",
+        "@refarm.dev/artifact-contract-v1",
+        "@refarm.dev/channel-policy-v1",
+        "@refarm.dev/effort-contract-v1",
+        "@refarm.dev/quality-contract-v1",
+        "@refarm.dev/source-contract-v1",
+        "@refarm.dev/enrichment-contract-v1",
+        "@refarm.dev/records-contract-v1",
+        "@refarm.dev/process-handoff",
+        "@refarm.dev/health",
+        "@refarm.dev/release-engine",
+        "@refarm.dev/heartwood",
+        "@refarm.dev/silo",
+        "@refarm.dev/storage-memory",
+        "@refarm.dev/credentials-contract-v1",
+        "@refarm.dev/dispatch-surface",
+        "@refarm.dev/ds",
+        "@refarm.dev/source-web",
+        "@refarm.dev/content-projection",
+        "@refarm.dev/identity-heartwood",
+        "@refarm.dev/local-surface",
+        "@refarm.dev/ds-astro"
+      ],
+      "tarballs": [
+        "refarm.dev-storage-contract-v1-0.1.0.tgz",
+        "refarm.dev-identity-contract-v1-0.1.0.tgz",
+        "refarm.dev-artifact-contract-v1-0.1.0.tgz",
+        "refarm.dev-channel-policy-v1-0.1.0.tgz",
+        "refarm.dev-effort-contract-v1-0.1.0.tgz",
+        "refarm.dev-quality-contract-v1-0.1.0.tgz",
+        "refarm.dev-source-contract-v1-0.1.0.tgz",
+        "refarm.dev-enrichment-contract-v1-0.1.0.tgz",
+        "refarm.dev-records-contract-v1-0.1.0.tgz",
+        "refarm.dev-process-handoff-0.1.0.tgz",
+        "refarm.dev-health-0.1.0.tgz",
+        "refarm.dev-release-engine-0.1.0.tgz",
+        "refarm.dev-heartwood-0.1.0.tgz",
+        "refarm.dev-silo-0.1.0.tgz",
+        "refarm.dev-storage-memory-0.1.0.tgz",
+        "refarm.dev-credentials-contract-v1-0.1.0.tgz",
+        "refarm.dev-dispatch-surface-0.1.0.tgz",
+        "refarm.dev-ds-0.1.0.tgz",
+        "refarm.dev-source-web-0.1.0.tgz",
+        "refarm.dev-content-projection-0.1.0.tgz",
+        "refarm.dev-identity-heartwood-0.1.0.tgz",
+        "refarm.dev-local-surface-0.1.0.tgz",
+        "refarm.dev-ds-astro-0.1.0.tgz"
+      ]
+    },
+    "availability": {
+      "mode": "local-handoff",
+      "minAvailableCopies": 1,
+      "currentVerifiedCopies": 1,
+      "offlineBehavior": "consumer can use copied vendor tarballs after SHA-256 verification",
+      "actors": [
+        {
+          "id": "refarm-local-handoff",
+          "role": "primary-source",
+          "required": true,
+          "ref": "refarm-handoff://vault-seed-ready/2026-07-26"
+        },
+        {
+          "id": "consumer-vendor-copy",
+          "role": "expected-replica",
+          "required": false,
+          "ref": "consumerInstall.vendorDir"
+        }
+      ]
+    },
+    "update": {
+      "source": "release-engine",
+      "strategy": "replace handoff directory and selected package tarballs",
+      "acceptanceStatus": "accepted",
+      "evidenceRefs": [
+        "acceptance",
+        "packages[].sha256",
+        "consumerProofs",
+        "consumerInstall.revendorPolicy",
+        "releaseBoundaryAudit"
+      ]
+    },
+    "rollback": {
+      "strategy": "retain previous handoff directory or pinned consumer vendor tarballs",
+      "targetRef": "previous refarm-handoff://vault-seed-ready/<date>",
+      "requiresHumanApproval": true
+    },
+    "integrity": {
+      "algorithm": "sha256",
+      "tarballs": [
+        {
+          "packageName": "@refarm.dev/storage-contract-v1",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-storage-contract-v1-0.1.0.tgz",
+          "sha256": "ca4a9f10f77eda2f8be143c9625a0b70a814d12dfe8d715a6ddd3c7f0c68743d",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/identity-contract-v1",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-identity-contract-v1-0.1.0.tgz",
+          "sha256": "b36b23c458a07f56b02f9cfd648259505d9354c3357946ee44cf4a00594e9dac",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/artifact-contract-v1",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-artifact-contract-v1-0.1.0.tgz",
+          "sha256": "19d248c4a96ecababa22ddbb8b958a04d82be55bfcc9d35a5638ec3b7a6eb7f9",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/channel-policy-v1",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-channel-policy-v1-0.1.0.tgz",
+          "sha256": "984b55e8a57e4c534c73655791caf252f2e2ab9b0c107144c8bf928cb5b6e004",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/effort-contract-v1",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-effort-contract-v1-0.1.0.tgz",
+          "sha256": "724aac79d9530aa610545ffdaffd3266d87b1239225a9c7a5d075e39d70e7fd7",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/quality-contract-v1",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-quality-contract-v1-0.1.0.tgz",
+          "sha256": "2a77254588670060a6025b87906f3e159335fdec745817ab0767686ecdaac97b",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/source-contract-v1",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-source-contract-v1-0.1.0.tgz",
+          "sha256": "8001ec758892a996c5d04c64401d32859a7dd1fc46e175bc718fcdfb9736b280",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/enrichment-contract-v1",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-enrichment-contract-v1-0.1.0.tgz",
+          "sha256": "c8b1eff867108cec6a1d891b89ce76dbb544b3042c2d232bd3d65b9bb2c9dc77",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/records-contract-v1",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-records-contract-v1-0.1.0.tgz",
+          "sha256": "3e665f81a9fdd74899174907ea8af965aca2fa631c3665294538add61be00434",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/process-handoff",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-process-handoff-0.1.0.tgz",
+          "sha256": "03cb926af9eca02150b71701e370f09b9216477f11333fae8971e7e2b42daff9",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/health",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-health-0.1.0.tgz",
+          "sha256": "d2840e9018a431f72a757eaf482234d33889c5a5fb9937ba2c4f7be68f743132",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/release-engine",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-release-engine-0.1.0.tgz",
+          "sha256": "2c485ec253954e250eaae98e4e4359ca89a1fa3034bcad3f0e8f0ba41c8dcca7",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/heartwood",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-heartwood-0.1.0.tgz",
+          "sha256": "99f07aae42a770faff1f503b22db07a5dcf518637d0aa08b68e84ab738e55f07",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/silo",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-silo-0.1.0.tgz",
+          "sha256": "69050483d2580b21878eb1920b8dacea551857f427137c006e56348a8157d6fb",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/storage-memory",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-storage-memory-0.1.0.tgz",
+          "sha256": "0da13f60be1852bc20cc79559d3e00c4f552ea10e3fd9893f2609bb7b39424be",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/credentials-contract-v1",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-credentials-contract-v1-0.1.0.tgz",
+          "sha256": "5797caa35a9ee4a137448e688d3f0a41e6f283008101b6307d999ceb5536f86f",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/dispatch-surface",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-dispatch-surface-0.1.0.tgz",
+          "sha256": "c68225e06b9298b838dc2d0f00474e33bfece9202dae3420d7bb169e2a6460d0",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/ds",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-ds-0.1.0.tgz",
+          "sha256": "b7b8bd4b4522f33a65d859ca6e4542318767c549a0017cdeec114fdbb87f57e5",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/source-web",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-source-web-0.1.0.tgz",
+          "sha256": "076420bc8d7ae038e71b86fd9b4cdbbfc24ed73be277f23b4ed021ebf2b37ef1",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/content-projection",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-content-projection-0.1.0.tgz",
+          "sha256": "9ba431d916ca8bda6bec9566d35caa9f8f3ea97399b39fcc5c0f401550527981",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/identity-heartwood",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-identity-heartwood-0.1.0.tgz",
+          "sha256": "2f70b2e39375cde797143ab7d2164719dac13d032198951c679bebda0ad714fd",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/local-surface",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-local-surface-0.1.0.tgz",
+          "sha256": "1ac038601d1da4d73aa01eb88770e3137fe143290a3726823899f5e72e1d03e5",
+          "exists": true
+        },
+        {
+          "packageName": "@refarm.dev/ds-astro",
+          "version": "0.1.0",
+          "tarball": "refarm.dev-ds-astro-0.1.0.tgz",
+          "sha256": "e17da7624dfa0ddf2fd818acd776c6604bf8c5bc9da1d679dcf8eb514db5992d",
+          "exists": true
+        }
+      ]
+    },
+    "boundary": {
+      "publicInstallContract": false,
+      "p2pSubstrateAdopted": false,
+      "pearRuntimeAdopted": false,
+      "appOwnedContract": false,
+      "productReady": false,
+      "releaseBoundaryAudit": {
+        "command": "release-boundary-audit",
+        "ok": true,
+        "selectionId": "vault-seed-ready",
+        "issueCount": 0
+      }
+    },
+    "issues": []
+  },
+  "missing": [],
+  "extra": [],
+  "prunedExtra": [],
+  "issues": []
+}
