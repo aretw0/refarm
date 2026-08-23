@@ -83,31 +83,42 @@ sentinel stay, because they are true.
 
 A verdict is added beside the status, not on top of it.
 
-## D3 — where it cannot go yet, and this is the blocker
+## D3 — the surface is `refarm health`, and the graph read WORKS
 
 The natural surface is `refarm health`, beside the two facts added the same day (the installed
-node's age, the branch's unpushed work). **It cannot go there yet.**
+node's age, the branch's unpushed work).
 
-`packages/health`'s `ConfigNodeAuditor` reaches the graph through a client that requires `@context`;
-the Rust sidecar never sets it; a `try/catch` turns the throw into a soft "skipped" note. That is
-recorded at the end of `CONVERGENCE-LANE.md` as *"`refarm health` contains a check that has always
-passed by never running"*, and it deserves its own spec.
+**A first revision of this section said it was blocked, and that was wrong — inferred from a stale
+note rather than measured.** `CONVERGENCE-LANE.md` records `packages/health`'s ConfigNodeAuditor as
+*"a check that has always passed by never running"*, because the graph client required `@context`
+the Rust sidecar never set. Measured against the live node on 2026-08-23:
 
-Building this on that path would put a new fact behind a guard already known not to fire — the exact
-shape AGENTS.md §9 was written to stop, two days after writing it.
+```
+GET http://127.0.0.1:42001/nodes/urn:sovereign:config:workspace
+  -> {"node":{"@context":"urn:sovereign:schema:v1","@id":"urn:sovereign:config:workspace",...}}
 
-And `refarm task list` is not the surface either: it reads the sidecar over HTTP
+openTractorGraph() -> getNode(...)  -> node read, @context=urn:sovereign:schema:v1
+ConfigNodeAuditor.audit(...)        -> {"issues":[],"note":"config node in sync with the local config"}
+```
+
+The note was true when written and was fixed since — `c0dbbc92` set `@context`, and a caught read
+failure now returns a real `config_node_unreachable` issue instead of a note shaped like a clean
+pass. The auditor reads the graph, compares, and reports.
+
+Writing this section from the lane's entry instead of from the node is the corollary AGENTS.md §9
+names — *a number in a durable record is measured or it is not written* — applied to a BLOCKER,
+which is worse: an unmeasured blocker stops work that was never blocked.
+
+`refarm task list` is still not the surface: it reads the sidecar over HTTP
 (`fetchSidecarWithTimeout(sidecarUrl("/tasks"))`), which is precisely the store that legitimately
-holds zero.
+holds zero for an effort that never completed.
 
 ## The order this implies
 
-1. **Fix the graph read** (the ConfigNodeAuditor `@context` gap). Not this design's work, but this
-   design's precondition — and it unblocks more than this.
-2. **Name the abandoned effort.** A pure classifier over (last update, process start), surfaced
-   wherever step 1 makes the graph legible. Severity `info`: an abandoned effort is not a fault of
+1. **Name the abandoned effort.** A pure classifier over (last update, process start), surfaced in
+   `refarm health` beside its two siblings. Severity `info`: an abandoned effort is not a fault of
    the node's, it is a fact about work that stopped.
-3. **Then decide resumption**, with the three policy questions in D1 answered separately and each
+2. **Then decide resumption**, with the three policy questions in D1 answered separately and each
    one measured against a node that can finally list what it would be resuming.
 
 ## What is NOT proposed

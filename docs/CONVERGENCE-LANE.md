@@ -276,7 +276,13 @@ The maintainer sharpened the North Star: the goal is not "rcdc5 imports `@refarm
     never audited a real replicated node: the graph client requires `@context`, the Rust sidecar never
     sets it, and a `try/catch` turns the throw into a soft "skipped" note. **`refarm health` contains a
     check that has always passed by never running.** Pre-existing, unrelated to this work, and it
-    deserves its own spec.
+    deserves its own spec. — **FIXED, and re-measured 2026-08-23.** `c0dbbc92` set `@context`, and a
+    caught read now returns a real `config_node_unreachable` issue rather than a note shaped like a
+    clean pass. Against the live node: `getNode` reads it with `@context=urn:sovereign:schema:v1`
+    and the auditor answers *"config node in sync with the local config"*. Left standing, this
+    sentence cost real work — a design written the same day declared itself blocked on it without
+    measuring, which is the §9 corollary applied to a blocker: an unmeasured one stops work that was
+    never stopped.
 
 **Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.
 
