@@ -1077,6 +1077,16 @@ jobs:
       - name: Face smoke coverage (every example page has a web-face smoke entry)
         run: pnpm run ci:face-smoke-coverage:check
 
+      # A VENDORED COPY DRIFTS IN SILENCE. `packages/farm-client/vendor/` holds byte-copies of two
+      # blocks, and nothing in turbo's graph connects them to their sources — so changing
+      # `prompt-contract-v1` does not wake farm-client's tests, which is exactly how both copies
+      # ended up two days behind on 2026-08-19 with every gate green. This check has lived only in
+      # the before-push lane since 2026-08-17 and drifted again two days later (ISS-136).
+      # Measured 2.3s from a cold checkout: it BUILDS the block when `dist/` is absent rather than
+      # skipping, because a drift check that quietly passes when it cannot look is not a check.
+      - name: Vendored blocks are byte-identical to their sources
+        run: pnpm -C packages/farm-client run vendor:check
+
       - name: Phantom workspace deps in tool configs
         run: pnpm run deps:vitest-config-check
 
