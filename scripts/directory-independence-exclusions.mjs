@@ -39,6 +39,12 @@ export const EXCLUSION_CATEGORIES = Object.freeze({
 /** The declared exclusions. `category` must be a key of EXCLUSION_CATEGORIES. */
 export const PROBE_EXCLUSIONS = Object.freeze([
 	// --- mutates ---
+	// `agent doctor` until 2026-08-23, when ISS-104 moved the word: a cheap read there would have
+	// duplicated `check`/`doctor`/`model doctor`, so the DISPATCH is what the command is and the
+	// name took a form that says so. Both spellings are declared — the deprecated one still
+	// answers, and a leaf this gate can reach must be accounted for under whichever name it is
+	// reached by.
+	{ argv: ["agent", "probe"], category: "mutates" },
 	{ argv: ["agent", "doctor"], category: "mutates" },
 	// Became visible on 2026-08-12 rather than newly true: `init` always accepted `--json`, but the
 	// lazy stub in program.ts had never exposed it, so this gate could not see the command at all.

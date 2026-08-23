@@ -231,6 +231,12 @@ describe("refarm tasks", () => {
 
 		const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
 		expect(output).toEqual({
+			// ISS-077. The single mocked fetch answers `/efforts` with the same task page, which is
+			// not an array — so `liveEffortIds` is NULL: the daemon could not be asked. That is the
+			// distinction the field exists for, and `abandoned` must stay silent under it, because
+			// treating "could not ask" as "owns nothing" would condemn every running task.
+			liveEffortIds: null,
+			abandoned: null,
 			schemaVersion: 1,
 			command: "tasks",
 			operation: "list",

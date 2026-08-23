@@ -111,6 +111,8 @@ import { ComplexityAuditor } from "./auditors/complexity.js";
 import { ToolchainAuditor } from "./auditors/toolchain.js";
 import { ConfigNodeAuditor } from "./auditors/config-node.js";
 export { detectProjectBase } from "./project-base.js";
+export { abandonedTasks, classifyStoredTask, describeAbandonedTasks } from "./abandoned-effort.js";
+/** @typedef {import("./abandoned-effort.js").StoredTask} StoredTask */
 export { BRANCH_DRIFT_DAYS, describeBranchDrift } from "./branch-drift.js";
 /** @typedef {import("./branch-drift.js").BranchDrift} BranchDrift */
 export { describeSubstrate, readNodeSubstrate } from "./node-substrate.js";

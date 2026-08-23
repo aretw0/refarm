@@ -1,7 +1,7 @@
 import { readCompleteness } from "@refarm.dev/sidecar-client";
 import { describe, expect, it } from "vitest";
 
-import { taskPageFromBody } from "./tasks.js";
+import { liveEffortIdsFromBody, taskPageFromBody } from "./tasks.js";
 
 /**
  * `GET /tasks` gained `stored`/`truncated`/`offset` and LOST `total` when ISS-041 was fixed.
@@ -47,5 +47,36 @@ describe("taskPageFromBody", () => {
 	it("survives a body whose tasks key is missing or not an array", () => {
 		expect(taskPageFromBody({}).tasks).toEqual([]);
 		expect(taskPageFromBody({ tasks: "nope" as never }).tasks).toEqual([]);
+	});
+});
+
+describe("liveEffortIds — asking the daemon what it still owns", () => {
+	/**
+	 * MEASURED 2026-08-23. `GET /tasks` reported `stored: 82` while `GET /efforts` reported `[]`,
+	 * and one of those 82 had been `active` since 2026-08-03 — twenty days, through a reboot.
+	 * `refarm tasks` rendered it identically to a task running right now, because a stored status
+	 * says what the record CLAIMS and only the live set says what anything is actually doing.
+	 *
+	 * NULL IS NOT EMPTY. A daemon that could not be asked must not read as a daemon that owns
+	 * nothing — the second would condemn every non-terminal task on the node.
+	 */
+	it("reads the ids the sidecar reports as live", () => {
+		expect(liveEffortIdsFromBody([{ effortId: "urn:a" }, { effortId: "urn:b" }])).toEqual([
+			"urn:a",
+			"urn:b",
+		]);
+	});
+
+	it("accepts either shape the effort list has used, and drops what carries neither", () => {
+		expect(liveEffortIdsFromBody([{ id: "urn:a" }, { effortId: "urn:b" }, { note: "x" }])).toEqual([
+			"urn:a",
+			"urn:b",
+		]);
+	});
+
+	it("says NULL when the body is not a list, rather than calling it empty", () => {
+		expect(liveEffortIdsFromBody(null)).toBeNull();
+		expect(liveEffortIdsFromBody({ efforts: [] })).toBeNull();
+		expect(liveEffortIdsFromBody("[]")).toBeNull();
 	});
 });

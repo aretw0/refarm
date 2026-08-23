@@ -4,6 +4,7 @@ import {
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
 import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
+import { describeAbandonedTasks } from "@refarm.dev/health";
 import { fetchSidecarWithTimeout, readCompleteness } from "@refarm.dev/sidecar-client";
 import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
 import chalk from "chalk";
@@ -160,6 +161,42 @@ async function fetchTasks(
 	return taskPageFromBody((await response.json()) as Parameters<typeof taskPageFromBody>[0]);
 }
 
+/**
+ * PURE. The effort ids the daemon reports as live.
+ *
+ * NULL IS NOT EMPTY, and the distinction is the whole point. `[]` means "the daemon owns nothing",
+ * which makes every non-terminal stored task abandoned. `null` means "the daemon could not be
+ * asked", which proves nothing — and reading the second as the first would condemn every task
+ * actually running. Measured 2026-08-23: `/efforts` answered `[]` while `/tasks` held 82, one of
+ * them `active` since 2026-08-03.
+ *
+ * Both key spellings are accepted because the effort list has carried both; an entry with neither
+ * is dropped rather than guessed at.
+ */
+export function liveEffortIdsFromBody(body: unknown): string[] | null {
+	if (!Array.isArray(body)) return null;
+	const ids: string[] = [];
+	for (const entry of body) {
+		if (!entry || typeof entry !== "object") continue;
+		const record = entry as { id?: unknown; effortId?: unknown };
+		const id = typeof record.effortId === "string" ? record.effortId : record.id;
+		if (typeof id === "string" && id) ids.push(id);
+	}
+	return ids;
+}
+
+/** The live set, or null when the daemon could not be asked. Never throws: this is a fact ADDED to
+ *  a listing, and a listing must not fail because the extra fact was unavailable. */
+async function fetchLiveEffortIds(): Promise<string[] | null> {
+	try {
+		const response = await fetchSidecarWithTimeout(sidecarUrl("/efforts"));
+		if (!response.ok) return null;
+		return liveEffortIdsFromBody(await response.json());
+	} catch {
+		return null;
+	}
+}
+
 async function listTasks(opts: {
 	status?: string;
 	session?: string;
@@ -185,6 +222,14 @@ async function listTasks(opts: {
 	}
 
 	const { tasks, stored, truncated, offset } = page;
+	// WHAT THE RECORD CLAIMS vs WHAT ANYTHING IS DOING. A stored status says the first; only the
+	// live effort set says the second. Measured 2026-08-23: 82 stored, `/efforts` empty, and one
+	// task `active` since 2026-08-03 rendering identically to a task running right now.
+	const liveEffortIds = await fetchLiveEffortIds();
+	const abandonedNote = describeAbandonedTasks(
+		tasks.map((task) => ({ id: task["@id"], status: String(task.status ?? "") })),
+		liveEffortIds,
+	);
 
 	if (opts.json) {
 		const nextCommands = tasks[0]
@@ -210,6 +255,10 @@ async function listTasks(opts: {
 				truncated,
 				offset,
 				completeness: readCompleteness({ truncated }),
+				// The DATA is always here (null when the daemon could not be asked); the prose is
+				// conditional. Same split as the node-substrate and branch-drift facts.
+				liveEffortIds,
+				abandoned: abandonedNote,
 			},
 			nextCommands,
 		});
@@ -232,6 +281,9 @@ async function listTasks(opts: {
 	}
 
 	console.log(chalk.bold(`\n  Tasks  (${tasks.length} shown)\n`));
+	// SAID BEFORE THE LIST, because it changes how the list reads: without it an abandoned task
+	// and a running one are the same two words on the same line.
+	if (abandonedNote) console.log(`  ${chalk.yellow("⚠")}  ${abandonedNote}\n`);
 	if (truncated === true) {
 		const storedNote = typeof stored === "number" ? ` of ${stored} stored` : "";
 		console.log(
