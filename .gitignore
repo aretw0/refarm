@@ -100,7 +100,29 @@ playwright/.cache/
 
 # Ignore in-place JS/DTS emissions (source is always .ts)
 # Test byproducts and Local Identity
-.refarm/
+#
+# `.refarm/` guarda estado local: identidade, chaves e os tarballs do packet de
+# handoff (~720 KB por packet). Nada disso entra no Git.
+#
+# Duas exceções, abertas em 2026-08-23. ADR-080 decidiu que provas downstream
+# devolvem recibos ao lado do packet, para substituir prosa que já divergiu do
+# disco. Num diretório ignorado o recibo some no primeiro reclone — a evidência
+# precisa viveria menos que a prosa imprecisa que ela substitui. Rastreamos
+# `manifest.json` (o source of truth do packet, segundo o próprio ADR) e
+# `receipts/` (~15 KB para 16 recibos). Os tarballs continuam fora.
+#
+# `!` não re-inclui arquivo sob diretório excluído, por isso a liberação é
+# nível a nível.
+.refarm/*
+!.refarm/handoff/
+.refarm/handoff/*
+!.refarm/handoff/*/
+.refarm/handoff/*/*
+!.refarm/handoff/*/*/
+.refarm/handoff/*/*/*
+!.refarm/handoff/*/*/manifest.json
+!.refarm/handoff/*/*/manifest.md
+!.refarm/handoff/*/*/receipts/
 .dgk/
 
 # The sandbox node (scripts/refarm-sandbox.mjs) — a second, isolated refarm node out of
