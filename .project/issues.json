@@ -1865,6 +1865,28 @@
 			"priority": "high",
 			"package": "@refarm.dev/refarm",
 			"axis": "cost"
+		},
+		{
+			"id": "ISS-158",
+			"title": "The installed tree's label names a commit it does not contain",
+			"body": "MEASURED 2026-08-22, immediately after ISS-154's coupling was closed.\n\n`refarm node install` labels the assembled tree `<version>-<git HEAD>` but assembles it from the working tree's `dist/`. When the checkout is dirty, the label names a commit that does not contain the code in the tree.\n\nReproduced on the operator's node:\n\n  installed 0.1.0-c58ae2ba carries materializeWorkspacePackages  -> yes\n  git show c58ae2ba:apps/refarm/src/commands/node-install.ts     -> no such symbol\n\n`installVersionLabel`'s own docstring states the purpose: \"two installs of 0.1.0 from different commits are different trees, and an operator rolling back has to tell them apart in a directory listing\". It cannot: two trees labelled c58ae2ba may differ by whatever was uncommitted at each install.\n\nThis blocks the INTENTIONAL UPDATE CYCLE the operator asked for (2026-08-22): deciding to update a node on purpose needs a label that says what the node actually runs. A label that is nearly-but-not-quite traceable is worse than none, because it invites the trust it cannot carry.\n\nCandidate shapes, undecided: refuse to install from a dirty checkout; or mark the label (`c58ae2ba-dirty`); or record a content digest of the assembled tree beside the label. The third also serves ISS-159.",
+			"location": "apps/refarm/src/commands/node-install-plan.ts",
+			"status": "open",
+			"category": "defect",
+			"priority": "medium",
+			"package": "@refarm.dev/refarm",
+			"axis": "node-vs-directory"
+		},
+		{
+			"id": "ISS-159",
+			"title": "Nothing compares what the node RUNS with what the checkout HAS",
+			"body": "MEASURED 2026-08-22. `readNodeSubstrate` answers `installed` and `describeSubstrate` returns null — deliberately, because an installed substrate was the goal state and had nothing to explain.\n\nBut an installed node AGES, and nothing says by how much. The node ran 0.1.0-5b4810a9 while the checkout moved 10 commits past it, and no surface said so. Ageing is legitimate; being silent about it is not.\n\nThe operator's requirement, in his own words (2026-08-22): the node must not be coupled to the repo, and the update cycle must be INTENTIONAL — 'seja via oficial quando publicado ou nesse nosso desenvolvimento local'. An intentional cycle needs a trigger, and the trigger is a comparison that does not exist: which build does this node execute, and is it behind what I have?\n\nShape, undecided: the installed tree records its identity (label, commit, digest) at install; `readNodeSubstrate` reads it back; `refarm health`/`resume` state it, and say the distance from the checkout's HEAD without grading it as a defect — the same posture ISS-154 chose for the working-tree substrate (info, never reddening the gate).\n\nDepends on ISS-158: a label that names a commit it does not contain cannot anchor the comparison.",
+			"location": "packages/health/src/node-substrate.js",
+			"status": "open",
+			"category": "gap",
+			"priority": "medium",
+			"package": "@refarm.dev/health",
+			"axis": "node-vs-directory"
 		}
 	]
 }
