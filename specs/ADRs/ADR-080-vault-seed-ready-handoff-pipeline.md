@@ -1,7 +1,7 @@
 # ADR-080: The `vault-seed-ready` Handoff Pipeline as Pre-Publication Release Vehicle
 
 **Status**: Accepted
-**Progress**: Implemented + tested. `scripts/vault-seed-ready-handoff.mjs` emits a mandatory `manifest.json` (with `generatedAt` + `sourceGitSha`) as the packet's source of truth, derives `consumerProofs` from release policy, and supports `--prune-extra`; `scripts/ci/test-vault-seed-ready-handoff.mjs` passes (14/0). The one open item — receipts as plain JSON — is CONDITIONAL by design (only if a downstream tranche runs before publication; the preferred resolution is the publish decision itself) and has not been triggered, so it stays a documented conditional under the capped scope below.
+**Progress**: Implemented + tested. `scripts/vault-seed-ready-handoff.mjs` emits a mandatory `manifest.json` (with `generatedAt` + `sourceGitSha`) as the packet's source of truth, derives `consumerProofs` from release policy, and supports `--prune-extra`; `scripts/ci/test-vault-seed-ready-handoff.mjs` passes (14/0). The conditional item — receipts as plain JSON — was triggered on 2026-08-23: a downstream tranche ran before publication, so the official `vault-seed` checkout emitted 16 receipts for the 2026-07-26 packet (`scripts/emit_refarm_proof_receipts.mjs`, consumer commit `5aa0869`). 7 of the 23 proofs have no local proof in that consumer and correctly have no receipt. Emitting them exposed one gap the decision had not accounted for — `.refarm/` is fully gitignored, so a receipt would not survive a reclone while the prose it replaces would; `manifest.json`/`manifest.md` and `receipts/` are now tracked, tarballs and keys are not.
 **Scope**: This is deliberately **temporary scaffolding** ("puxadinho"), not product surface. It
 exists only so the official `vault-seed` checkout can validate blocks while Refarm is not yet on
 npm/cargo. Investment in it is capped (see Sunset) — no growing test suite, no new packages, no
@@ -34,9 +34,14 @@ failure classes have already occurred or are structurally open:
    bytes than the previous manifest-bearing packet under identical names/versions. This is exactly
    the revendor footgun the manifest exists to prevent, produced by the pipeline itself, because
    manifest emission is opt-in (`--out`) and nothing validates a packet directory's completeness.
-2. **Unverifiable downstream "done" (open).** `consumerProofs` names what the official `vault-seed`
-   checkout must prove, but no receipt ever returns. Completed proofs (T2/T3) exist only as prose in
-   `docs/VAULT_SEED_CONVERGENCE.md` — prose that has already drifted from disk once.
+2. **Unverifiable downstream "done" (closed, 2026-08-23).** `consumerProofs` names what the
+   official `vault-seed` checkout must prove, and until 2026-08-23 no receipt ever returned —
+   completed proofs existed only as prose in `docs/VAULT_SEED_CONVERGENCE.md`, prose that had
+   already drifted from disk once. The consumer now emits a receipt per proven `proofId` carrying
+   the consumer commit, the manifest sha256, the exact commands and the result. The proofId-to-test
+   link is read from both sides rather than kept as a hand-maintained map: each contract test
+   already names the packages it consumes, and each proof already carries `packageName`. Proofs
+   without a local proof are reported, not silenced.
 3. **Split canon (closed, 2026-07-03).** Consumer-pull metadata originally lived both in the
    script's hardcoded map and inline in `refarm.config.json` package profiles. The release policy is
    now canonical: every selected `vault-seed-ready` profile carries complete `consumerPull`
