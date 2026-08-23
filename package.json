@@ -188,6 +188,7 @@
 		"onboarding:doctor:test": "node --test scripts/ci/test-onboarding-doctor.mjs",
 		"openapi:check": "node scripts/ci/check-openapi-specs.mjs",
 		"package-manager:sh:test": "node --test scripts/ci/test-package-manager-sh.mjs",
+		"packaging:files-closure:test": "node --test scripts/ci/test-package-files-closure-gate.mjs",
 		"perf:baseline:prepush": "node scripts/perf/prepush-baseline.mjs --out artifacts/perf/prepush-baseline.csv",
 		"permission:vocab:check": "node scripts/ci/check-permission-vocab.mjs",
 		"platform-compat:check": "node scripts/ci/check-platform-compat.mjs",
