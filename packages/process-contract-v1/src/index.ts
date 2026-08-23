@@ -424,7 +424,12 @@ function parseSeconds(
  * same one the runtime's `down` vs `unknown` makes. "I asked and was told no" and "I never got to
  * ask" lead an operator to entirely different fixes.
  */
-export type ProcessLiveness = "running" | "not-running" | "not-declared" | "could-not-ask";
+export type ProcessLiveness =
+	| "running"
+	| "failed"
+	| "not-running"
+	| "not-declared"
+	| "could-not-ask";
 
 export interface ProcessStatus {
 	name: string;
@@ -455,6 +460,22 @@ export function processNotRunning(
 	return { name, state: "not-running", detail, backend, supervised };
 }
 
+/**
+ * IT TRIED AND IT COULD NOT. The state this contract was missing.
+ *
+ * MEASURED 2026-08-22: on the operator's node `refarm-credential-renew` failed 4420 times across
+ * 33 hours and `refarm-web-serve` gave up after six restarts, and the only verdict either could
+ * receive was `not-running` — the same word this file gives to a unit the operator stopped, to one
+ * that was never installed, and to a oneshot that finished cleanly. Nothing led with it, because
+ * nothing could tell it apart from the ordinary.
+ *
+ * `supervised: true` is not a formality. A failed unit HAS a unit file and a journal entry that
+ * explains itself, which is exactly what makes this state actionable where `not-running` is not.
+ */
+export function processFailed(name: string, backend: string, detail: string): ProcessStatus {
+	return { name, state: "failed", detail, backend, supervised: true };
+}
+
 export function processNotDeclared(name: string): ProcessStatus {
 	return {
 		name,
@@ -478,11 +499,13 @@ export function processIsKnownUp(status: ProcessStatus): boolean {
 	return status.state === "running";
 }
 
-/** One line an operator reads. Names all four cases; collapses none. */
+/** One line an operator reads. Names every case; collapses none. */
 export function describeProcessStatus(status: ProcessStatus): string {
 	switch (status.state) {
 		case "running":
 			return `${status.name}: up (${status.backend}) — ${status.detail}`;
+		case "failed":
+			return `${status.name}: FAILED (${status.backend}) — ${status.detail}`;
 		case "not-running":
 			return `${status.name}: DOWN (${status.backend}) — ${status.detail}`;
 		case "not-declared":

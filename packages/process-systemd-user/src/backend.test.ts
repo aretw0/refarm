@@ -172,6 +172,21 @@ describe("status distinguishes not-running, never-installed and could-not-ask", 
 		expect(status.detail).toContain("inactive (dead)");
 	});
 
+	it("reports FAILED — not 'not-running' — when the unit tried and could not", async () => {
+		// MEASURED ON THE OPERATOR'S NODE 2026-08-22. `refarm-web-serve` reached exactly this state
+		// at boot and stayed there for 33 hours: six restarts, `Start request repeated too quickly`,
+		// then systemd stopped trying. `refarm-credential-renew` failed 4420 times beside it. Both
+		// answered `not-running` — the same word as the test above, where the operator simply
+		// stopped it. Nothing led with either, because nothing could tell them apart.
+		const backend = backendFor(
+			scripted(showUnit("LoadState=loaded\nActiveState=failed\nSubState=failed\n")),
+		);
+		const status = await backend.status(DECLARATION);
+		expect(status.state).toBe("failed");
+		expect(status.supervised).toBe(true);
+		expect(status.detail).toContain("failed");
+	});
+
 	it("reports NOT-RUNNING with supervised=false when no unit was ever installed", async () => {
 		const backend = backendFor(
 			scripted(showUnit("LoadState=not-found\nActiveState=inactive\nSubState=dead\n")),

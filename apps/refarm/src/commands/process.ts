@@ -364,8 +364,14 @@ export async function runProcessStatus(
 		statuses.push(await backend.status(declaration));
 	}
 
+	// `failed` joins the list rather than relying on it not being "running": a new state that no
+	// aggregate looks for turns the loudest fact into the quietest, which is the defect this state
+	// was added to end.
 	const declaredNotUp = statuses.some(
-		(status) => status.state === "not-running" || status.state === "could-not-ask",
+		(status) =>
+			status.state === "failed" ||
+			status.state === "not-running" ||
+			status.state === "could-not-ask",
 	);
 	return {
 		ok: !declaredNotUp,

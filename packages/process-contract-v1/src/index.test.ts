@@ -8,6 +8,7 @@ import {
 	parseProcessCatalog,
 	processCouldNotAsk,
 	ProcessDeclarationError,
+	processFailed,
 	processIsKnownUp,
 	processNotDeclared,
 	processNotRunning,
@@ -285,5 +286,35 @@ describe("everySeconds — a process that runs on a clock instead of staying up"
 	it("refuses a non-integer rather than rounding one", () => {
 		expect(() => parseOne({ everySeconds: 60.5 })).toThrow(/whole number/u);
 		expect(() => parseOne({ everySeconds: "60" })).toThrow(/whole number/u);
+	});
+});
+
+describe("a unit that tried and died", () => {
+	it("is a different fact from one that is simply off", () => {
+		// MEASURED ON THE OPERATOR'S NODE 2026-08-22. `refarm-credential-renew` failed 4420 times
+		// over 33 hours and `refarm-web-serve` gave up after six restarts, while the only verdict
+		// available for either was `not-running` — the same word for "you stopped it", "it was
+		// never installed", and "it is a oneshot that finished". This file already draws that
+		// distinction one level up ("declared but never installed" and "could not find out" are
+		// different facts) and then folded the loudest case of all into the quietest.
+		expect(processFailed("credential-renew", "systemd-user", "start request repeated too quickly").state).toBe(
+			"failed",
+		);
+		expect(processNotRunning("credential-renew", "systemd-user", "inactive (dead)").state).toBe(
+			"not-running",
+		);
+	});
+
+	it("is not known-up, and says FAILED rather than DOWN to the operator reading one line", () => {
+		const failed = processFailed("web-serve", "systemd-user", "start request repeated too quickly");
+		expect(processIsKnownUp(failed)).toBe(false);
+		expect(describeProcessStatus(failed)).toContain("FAILED");
+		expect(describeProcessStatus(failed)).not.toContain("DOWN");
+	});
+
+	it("is supervised — something IS watching it, which is why its death is reportable", () => {
+		// The distinction that makes the state actionable: a failed unit has a unit file and a
+		// journal entry explaining itself. A `not-running` one may have neither.
+		expect(processFailed("web-serve", "systemd-user", "exit-code").supervised).toBe(true);
 	});
 });

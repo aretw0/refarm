@@ -48,6 +48,44 @@ describe("operational readiness surface units", () => {
 		expect(units.flatMap((unit) => unit.actions)).toEqual([]);
 	});
 
+	it("a unit that GAVE UP is a failure, and the action leads to why rather than to a retry", async () => {
+		// MEASURED 2026-08-22: `refarm-web-serve` gave up at boot after six restarts and sat there
+		// for 33 hours. Restarting it again was never the useful next act — systemd had already
+		// tried six times. The journal is the only thing that says WHY, and it is the one artefact
+		// a failed unit is guaranteed to have.
+		const units = await resolveOperationalReadinessUnits({
+			config: {
+				processes: {
+					"web-serve": {
+						description: "the mesh distribution server",
+						command: ["/usr/local/bin/refarm", "web", "serve"],
+						restart: "always",
+					},
+				},
+			},
+			credentialCount: 0,
+			observeProcesses: async () => [
+				{
+					name: "web-serve",
+					state: "failed",
+					detail: "refarm-web-serve.service is failed (failed)",
+					backend: "systemd-user",
+					supervised: true,
+				},
+			],
+			observeDistribution: (directory) => ({ directory, manifest: true, installer: true }),
+		});
+		const supervision = units.find((unit) => unit.id === "supervision");
+		// Not merely "degraded, warning" — the same grade a process nobody started would get.
+		expect(supervision?.severity).toBe("failure");
+		expect(supervision?.actions[0]).toMatchObject({
+			id: "diagnose-web-serve",
+			intent: "process:diagnose",
+			primary: true,
+		});
+		expect(supervision?.actions[0]?.command).toContain("journalctl --user -u refarm-web-serve.service");
+	});
+
 	it("turns an installed stopped process into a renderer-neutral restart action", async () => {
 		const units = await resolveOperationalReadinessUnits({
 			config: {

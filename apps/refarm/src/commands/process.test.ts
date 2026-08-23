@@ -158,13 +158,35 @@ describe("refarm process status — three answers, kept apart", () => {
 		expect(result.nextCommands).toEqual([]);
 	});
 
-	it("NOT RUNNING is a verdict from the supervisor", async () => {
+	it("a FAILED unit is not ok — the regression that let 4420 failures pass unremarked", async () => {
+		// MEASURED 2026-08-22. Before `failed` existed, a unit that had given up answered
+		// `not-running` and this function said so. The danger of adding the state is the opposite
+		// mistake: a fresh word no aggregate looks for, so the loudest fact becomes the quietest.
 		const result = await runProcessStatus(
 			["web-serve"],
 			deps(
 				scripted({
 					...READY,
 					...showUnit("web-serve", "LoadState=loaded\nActiveState=failed\nSubState=failed\n"),
+				}),
+			),
+		);
+		expect(result.statuses[0]?.state).toBe("failed");
+		expect(result.ok).toBe(false);
+		expect(result.lines[0]).toContain("FAILED");
+	});
+
+	it("NOT RUNNING is a verdict from the supervisor", async () => {
+		// The fixture used to be `ActiveState=failed`, which PINNED the collapse this suite was
+		// meant to catch: a unit that had given up was asserted to answer `not-running` and read
+		// `DOWN`. It is `inactive (dead)` now — a unit that is genuinely just off — and the failed
+		// case has a test of its own above.
+		const result = await runProcessStatus(
+			["web-serve"],
+			deps(
+				scripted({
+					...READY,
+					...showUnit("web-serve", "LoadState=loaded\nActiveState=inactive\nSubState=dead\n"),
 				}),
 			),
 		);

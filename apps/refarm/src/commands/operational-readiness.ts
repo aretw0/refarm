@@ -207,6 +207,7 @@ function buildSupervisionUnit(
 ): BaseSurfaceUnit {
 	const names = [...processes.keys()];
 	const running = statuses.filter((status) => status.state === "running").length;
+	const failed = statuses.filter((status) => status.state === "failed").length;
 	const requiresDurability = processes.has("web-serve");
 	const durable = !requiresDurability || lifetime?.state === "enabled";
 	const ready = names.length > 0 && running === names.length && durable;
@@ -222,7 +223,17 @@ function buildSupervisionUnit(
 	} else {
 		for (const status of statuses) {
 			if (status.state === "running") continue;
-			if (status.state === "not-running" && status.supervised && status.backend === "systemd-user") {
+			// IT GAVE UP. Not a retry — systemd already retried, which is how it reached this state.
+			// The journal is the only artefact that says why, and a failed unit always has one.
+			if (status.state === "failed" && status.backend === "systemd-user") {
+				actions.push({
+					id: `diagnose-${status.name}`,
+					label: `See why ${status.name} failed`,
+					command: `journalctl --user -u ${systemdUnitName(status.name)} -n 50 --no-pager`,
+					intent: "process:diagnose",
+					primary: true,
+				});
+			} else if (status.state === "not-running" && status.supervised && status.backend === "systemd-user") {
 				actions.push({
 					id: `restart-${status.name}`,
 					label: `Restart ${status.name}`,
@@ -263,7 +274,9 @@ function buildSupervisionUnit(
 		label: "Supervision",
 		owner: "apps/refarm",
 		state: ready ? "ready" : "degraded",
-		severity: ready ? "info" : "warning",
+		// A unit that TRIED AND COULD NOT outranks one nobody started. Grading them alike is what
+		// let 4420 failures read as an ordinary warning for 33 hours.
+		severity: ready ? "info" : failed > 0 ? "failure" : "warning",
 		summary:
 			names.length === 0
 				? "No long-running process is declared for host supervision."

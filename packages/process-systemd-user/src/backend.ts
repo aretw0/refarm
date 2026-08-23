@@ -1,6 +1,7 @@
 import type { OperationFileChange, OperationRequest } from "@refarm.dev/operation-consent-v1";
 import {
 	processCouldNotAsk,
+	processFailed,
 	processNotRunning,
 	processRunning,
 	type ProcessDeclaration,
@@ -199,6 +200,18 @@ export function createSystemdUserBackend(
 					declaration.name,
 					SYSTEMD_USER_BACKEND_ID,
 					`${unit} is ${active} (${properties.SubState ?? "running"})`,
+				);
+			}
+			// IT TRIED AND IT COULD NOT — kept apart from the line below, which also answers for a
+			// unit the operator stopped and for a oneshot that finished. Measured 2026-08-22:
+			// `refarm-web-serve` sat here for 33 hours after giving up at boot, and
+			// `refarm-credential-renew` failed 4420 times beside it, both reported as merely down.
+			if (active === "failed") {
+				return processFailed(
+					declaration.name,
+					SYSTEMD_USER_BACKEND_ID,
+					`${unit} is ${active}${properties.SubState ? ` (${properties.SubState})` : ""} — ` +
+						`\`journalctl --user -u ${unit} -n 50\` says why`,
 				);
 			}
 			return processNotRunning(
