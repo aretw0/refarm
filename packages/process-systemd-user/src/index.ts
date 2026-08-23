@@ -42,6 +42,7 @@ export {
 	refuseRelativeExecutable,
 	renderSystemdUnit,
 	systemdRestartValue,
+	systemdTimerName,
 	systemdUnitName,
 	systemdUnitPath,
 	systemdUserUnitDir,

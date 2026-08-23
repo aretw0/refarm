@@ -214,6 +214,41 @@ export function createSystemdUserBackend(
 						`\`journalctl --user -u ${unit} -n 50\` says why`,
 				);
 			}
+			// A SCHEDULED PROCESS IS NOT ITS SERVICE. `everySeconds` means a oneshot woken by a
+			// timer, so between runs the service is `inactive (dead)` — the HEALTHY state — and the
+			// thing that has to be alive is the timer. Measured 2026-08-22: read as merely down, it
+			// pinned `refarm process status` to ok:false forever on the operator's node, and a gate
+			// that is always red is how the `failed` branch above becomes invisible again.
+			//
+			// ASKED AFTER `failed`, never before. For 33 hours that node's timer sat `active
+			// (waiting)` and fired 4420 times while every run died; a timer consulted first would
+			// have called that healthy.
+			if (declaration.everySeconds !== undefined) {
+				const timer = systemdTimerName(declaration.name);
+				const timerResult = await runner.run("systemctl", [
+					"--user",
+					"show",
+					timer,
+					"--property=LoadState",
+					"--property=ActiveState",
+					"--property=SubState",
+				]);
+				const timerProperties = parseShowProperties(timerResult.stdout);
+				if (timerProperties.ActiveState === "active") {
+					return processRunning(
+						declaration.name,
+						SYSTEMD_USER_BACKEND_ID,
+						`${timer} is armed (every ${declaration.everySeconds}s); ${unit} is ` +
+							`${active}${properties.SubState ? ` (${properties.SubState})` : ""} between runs`,
+					);
+				}
+				return processNotRunning(
+					declaration.name,
+					SYSTEMD_USER_BACKEND_ID,
+					`${timer} is ${timerProperties.ActiveState ?? "unreadable"} — nothing will wake ` +
+						`${unit} again`,
+				);
+			}
 			return processNotRunning(
 				declaration.name,
 				SYSTEMD_USER_BACKEND_ID,

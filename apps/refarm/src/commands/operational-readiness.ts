@@ -4,6 +4,7 @@ import { parseProcessCatalog, type ProcessStatus } from "@refarm.dev/process-con
 import {
 	createNodeCommandRunner,
 	readLingerState,
+	systemdTimerName,
 	systemdUnitName,
 	type LingerState,
 } from "@refarm.dev/process-systemd-user";
@@ -234,13 +235,28 @@ function buildSupervisionUnit(
 					primary: true,
 				});
 			} else if (status.state === "not-running" && status.supervised && status.backend === "systemd-user") {
-				actions.push({
-					id: `restart-${status.name}`,
-					label: `Restart ${status.name}`,
-					command: `systemctl --user restart ${systemdUnitName(status.name)}`,
-					intent: "process:restart",
-					primary: actions.length === 0,
-				});
+				// A PERIODIC PROCESS IS DOWN BECAUSE ITS SCHEDULE IS, not because its service is
+				// idle — idle between runs is what healthy looks like. Restarting the service here
+				// would run it once and leave the timer disarmed, so the next interval still never
+				// comes and the action reads as if it fixed something.
+				const periodic = processes.get(status.name)?.everySeconds !== undefined;
+				actions.push(
+					periodic
+						? {
+								id: `rearm-${status.name}`,
+								label: `Re-arm ${status.name}'s schedule`,
+								command: `systemctl --user restart ${systemdTimerName(status.name)}`,
+								intent: "process:rearm",
+								primary: actions.length === 0,
+							}
+						: {
+								id: `restart-${status.name}`,
+								label: `Restart ${status.name}`,
+								command: `systemctl --user restart ${systemdUnitName(status.name)}`,
+								intent: "process:restart",
+								primary: actions.length === 0,
+							},
+				);
 			} else if (status.state === "not-running" && status.supervised === false) {
 				actions.push({
 					id: `install-${status.name}`,

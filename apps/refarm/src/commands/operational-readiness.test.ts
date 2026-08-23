@@ -86,6 +86,41 @@ describe("operational readiness surface units", () => {
 		expect(supervision?.actions[0]?.command).toContain("journalctl --user -u refarm-web-serve.service");
 	});
 
+	it("re-arms the SCHEDULE, not the service, when a periodic process has no timer left", async () => {
+		// The branch the scheduled-process fix opened, and the way it would go wrong: restarting the
+		// SERVICE of a periodic process runs it once and leaves the timer disarmed, so the problem
+		// returns silently on the next interval that never comes. `refarm process install` writes
+		// both units; what a disarmed one needs is the timer back.
+		const units = await resolveOperationalReadinessUnits({
+			config: {
+				processes: {
+					"credential-renew": {
+						description: "renews short-lived credentials before they expire",
+						command: ["/usr/bin/refarm", "credential", "renew"],
+						restart: "on-failure",
+						everySeconds: 120,
+					},
+				},
+			},
+			credentialCount: 0,
+			observeProcesses: async () => [
+				{
+					name: "credential-renew",
+					state: "not-running",
+					detail: "refarm-credential-renew.timer is inactive — nothing will wake it again",
+					backend: "systemd-user",
+					supervised: true,
+				},
+			],
+			observeDistribution: (directory) => ({ directory, manifest: true, installer: true }),
+		});
+		const supervision = units.find((unit) => unit.id === "supervision");
+		expect(supervision?.actions[0]?.command).toBe(
+			"systemctl --user restart refarm-credential-renew.timer",
+		);
+		expect(supervision?.actions[0]?.id).toBe("rearm-credential-renew");
+	});
+
 	it("turns an installed stopped process into a renderer-neutral restart action", async () => {
 		const units = await resolveOperationalReadinessUnits({
 			config: {

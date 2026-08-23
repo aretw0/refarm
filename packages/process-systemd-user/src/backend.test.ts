@@ -69,6 +69,26 @@ function showUnit(properties: string): Record<string, CommandResult> {
 	};
 }
 
+/** A declaration that runs ON A SCHEDULE — the shape `credential-renew` has on the real node. */
+const SCHEDULED: ProcessDeclaration = parseProcessCatalog({
+	processes: {
+		"web-serve": {
+			description: "renews short-lived credentials before they expire",
+			command: ["/usr/local/bin/refarm", "credential", "renew"],
+			workingDirectory: "/home/op",
+			restart: "on-failure",
+			everySeconds: 120,
+		},
+	},
+}).get("web-serve") as ProcessDeclaration;
+
+function showTimer(properties: string): Record<string, CommandResult> {
+	return {
+		"systemctl --user show refarm-web-serve.timer --property=LoadState --property=ActiveState --property=SubState":
+			ok(properties),
+	};
+}
+
 function answering(answer: string): OperationConsentChannel & { asked: number } {
 	const channel = {
 		asked: 0,
@@ -185,6 +205,50 @@ describe("status distinguishes not-running, never-installed and could-not-ask", 
 		expect(status.state).toBe("failed");
 		expect(status.supervised).toBe(true);
 		expect(status.detail).toContain("failed");
+	});
+
+	it("a SCHEDULED process between runs is up — its health is the timer, not the moment", async () => {
+		// MEASURED ON THE OPERATOR'S NODE 2026-08-22, right after `failed` was made loud.
+		// `credential-renew` declares `everySeconds: 120` and is a oneshot: between runs its
+		// service is `inactive (dead)`, which IS the healthy state. Reported as `not-running`, it
+		// pinned `refarm process status` to ok:false forever — and a gate that is always red is
+		// how the `failed` state above becomes invisible again. This repository already names that
+		// trap: a gate that reddens over a legitimate choice teaches its reader to skim red.
+		const backend = backendFor(
+			scripted({
+				...showUnit("LoadState=loaded\nActiveState=inactive\nSubState=dead\n"),
+				...showTimer("LoadState=loaded\nActiveState=active\nSubState=waiting\n"),
+			}),
+		);
+		const status = await backend.status(SCHEDULED);
+		expect(status.state).toBe("running");
+		expect(status.detail).toContain("timer");
+	});
+
+	it("a scheduled process whose TIMER is not armed is down, however idle the service looks", async () => {
+		// The other way of being wrong: reading "inactive service" as healthy without checking that
+		// anything is still going to wake it. A disarmed timer means it will never run again.
+		const backend = backendFor(
+			scripted({
+				...showUnit("LoadState=loaded\nActiveState=inactive\nSubState=dead\n"),
+				...showTimer("LoadState=loaded\nActiveState=inactive\nSubState=dead\n"),
+			}),
+		);
+		const status = await backend.status(SCHEDULED);
+		expect(status.state).toBe("not-running");
+	});
+
+	it("a scheduled process whose last run FAILED is failed, even with its timer still armed", async () => {
+		// EXACTLY THE OPERATOR'S NODE for 33 hours: the timer stayed `active (waiting)` and fired
+		// 4420 times while every run died. Asking the timer first would have called that healthy.
+		const backend = backendFor(
+			scripted({
+				...showUnit("LoadState=loaded\nActiveState=failed\nSubState=failed\n"),
+				...showTimer("LoadState=loaded\nActiveState=active\nSubState=waiting\n"),
+			}),
+		);
+		const status = await backend.status(SCHEDULED);
+		expect(status.state).toBe("failed");
 	});
 
 	it("reports NOT-RUNNING with supervised=false when no unit was ever installed", async () => {
