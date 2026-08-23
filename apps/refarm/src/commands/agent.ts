@@ -498,11 +498,18 @@ Notes:
 			this.outputHelp();
 		});
 
-	// `agent doctor` — the end-to-end liveness check the other diagnostics miss: it submits a
+	// `agent probe` — the end-to-end liveness check the other diagnostics miss: it submits a
 	// real minimal respond and reports whether the agent COMPLETES it. `doctor`/`model doctor`
 	// pass while the agent is a zombie (dispatch received, nothing executed); this doesn't.
+	//
+	// NAMED `probe`, NOT `doctor` (ISS-104, decided 2026-08-23). Both readings of the old name were
+	// defensible and the choice is which one this command IS: a cheap read here would say nothing
+	// `refarm check`, `refarm doctor` and `refarm model doctor` do not already say, so the dispatch
+	// is its only reason to exist. That settles it — the dispatch stays, and the WORD moves, because
+	// every other `doctor` in this CLI is a read and one that spends teaches an operator to distrust
+	// the whole family. `doctor` still works, deprecated, below.
 	command
-		.command("doctor")
+		.command("probe")
 		.description(
 			"Probe whether the agent actually completes a respond (detects a zombie agent) — DISPATCHES a real prompt",
 		)
@@ -543,7 +550,7 @@ credential present — use \`refarm check\`, \`refarm doctor\` or
 			// single parseable document.
 			if (!json) {
 				process.stderr.write(
-					"agent doctor dispatches a real prompt through the configured route — this spends " +
+					"agent probe dispatches a real prompt through the configured route — this spends " +
 						"quota and writes an effort trail. `refarm check` and `refarm model doctor` do not.\n",
 				);
 			}
@@ -565,7 +572,7 @@ credential present — use \`refarm check\`, \`refarm doctor\` or
 				printJson(
 					buildJsonSuccessEnvelope({
 						command: "agent",
-						operation: "doctor",
+						operation: "probe",
 						nextAction: result.nextAction,
 						extra: {
 							status: result.status,
@@ -583,9 +590,39 @@ credential present — use \`refarm check\`, \`refarm doctor\` or
 				return;
 			}
 			const mark = result.status === "responsive" ? "✅" : "✗";
-			console.log("Agent doctor");
+			console.log("Agent probe");
 			console.log(`  ${mark} ${result.message}`);
 			console.log(`  → ${result.nextAction}`);
+		});
+
+	// THE OLD NAME, KEPT WORKING. Nothing in this repository invokes `agent doctor` — measured —
+	// but an operator's finger and a machine outside this tree are not searchable, and a rename
+	// that silently stops answering is a worse trade than a word that lingers with a notice.
+	//
+	// A SEPARATE COMMAND rather than `.alias("doctor")`, because an alias cannot tell which name
+	// was typed, and the notice is the entire point: the word `doctor` in this CLI means a read,
+	// and whoever still types it here has to learn that this one does not.
+	command
+		.command("doctor", { hidden: true })
+		.description("Deprecated alias for `agent probe` — DISPATCHES a real prompt")
+		.option("--json", "Output machine-readable result")
+		.option("--timeout <ms>", "How long to wait for the probe respond (ms)")
+		.action(async function (this: Command) {
+			const opts = this.opts<{ json?: boolean; timeout?: string }>();
+			process.stderr.write(
+				"`agent doctor` is now `agent probe`. Every other `doctor` in this CLI is a read; " +
+					"this one dispatches, so it took a name that says so (ISS-104).\n",
+			);
+			// REBUILT FROM THE PARSED OPTIONS, not forwarded as `this.args`. Commander consumes a
+			// declared option and its VALUE out of the remaining argv, so `--timeout 1234` reached
+			// the shim and never left it — measured by the test next door, which is the whole
+			// reason a compatibility shim gets one: an option silently dropped changes behaviour,
+			// and that is the single thing this shim exists not to do.
+			const argv: string[] = [];
+			if (opts.json) argv.push("--json");
+			if (opts.timeout) argv.push("--timeout", opts.timeout);
+			const probe = command.commands.find((sub) => sub.name() === "probe");
+			await probe?.parseAsync(argv, { from: "user" });
 		});
 
 	return command;

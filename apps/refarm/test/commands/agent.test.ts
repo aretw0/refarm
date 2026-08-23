@@ -3089,16 +3089,18 @@ describe("agent command", () => {
 	});
 });
 
-describe("agent doctor says it spends before it spends", () => {
+describe("agent probe says it spends before it spends", () => {
 	/**
-	 * ISS-104, measured on the operator's real node: `agent doctor --json` touched FIVE files in a
-	 * single run — a graph record, an audit entry, a response stream and a task result — and took
-	 * 2.1s against 0.4s for every other diagnostic. It DISPATCHES a real prompt, which on a paid
-	 * route spends quota.
+	 * ISS-104, measured on the operator's real node: this command touched FIVE files in a single
+	 * run — a graph record, an audit entry, a response stream and a task result — and took 2.1s
+	 * against 0.4s for every other diagnostic. It DISPATCHES a real prompt, which on a paid route
+	 * spends quota.
 	 *
-	 * The name reads like the safest thing in the CLI, and an operator debugging a broken node runs
-	 * it repeatedly. Whether it should dispatch at all is the operator's call; that it must SAY SO
-	 * is not.
+	 * It was called `doctor`, which reads like the safest thing in the CLI, and an operator
+	 * debugging a broken node runs it repeatedly. Decided 2026-08-23: the dispatch is its only
+	 * reason to exist — a cheap read here would say nothing `refarm check`, `refarm doctor` and
+	 * `refarm model doctor` do not — so the word moved instead. The deprecated name is pinned in
+	 * `agent-probe-alias.test.ts`; that it must SAY SO is pinned here, under either name.
 	 */
 	it("the one-line description states that it DISPATCHES", () => {
 		// The line every `refarm agent --help` prints, which is where an operator meets this
@@ -3107,7 +3109,10 @@ describe("agent doctor says it spends before it spends", () => {
 		// commander's `helpInformation()` does not include after-text, and a test that reached
 		// into commander's internals to check it would break on a dependency bump while proving
 		// nothing about what the operator sees.
-		const doctor = createAgentCommand().commands.find((sub) => sub.name() === "doctor");
-		expect(doctor?.description()).toContain("DISPATCHES");
+		const subcommands = createAgentCommand().commands;
+		expect(subcommands.find((sub) => sub.name() === "probe")?.description()).toContain("DISPATCHES");
+		// The deprecated word carries the same warning: an operator who has not learned the rename
+		// meets this command through the old name, and that is exactly who most needs the line.
+		expect(subcommands.find((sub) => sub.name() === "doctor")?.description()).toContain("DISPATCHES");
 	});
 });
