@@ -198,6 +198,42 @@ cargo test   # compiles ALL test binaries simultaneously → OOM risk
 
 > _Active Inference_: in uncertain conditions, information-gathering (ask/confirm) is lower-risk than irreversible action.
 
+## 9. Guard Fireability
+
+**No guard lands until it has been SHOWN to fail.** Write the gate, then break the thing it
+watches and watch it go red. A guard that has only ever been seen passing is indistinguishable
+from one that does not run — and worse than none, because its presence reads as coverage.
+
+- **Break it on purpose, then restore.** Mutate the code, the fixture, or the input the guard
+  reads; confirm the failure names the right thing; put it back. Say so in the commit — the next
+  reader needs to know the guard was proven, not merely written.
+- **A verdict must not share assumptions with what it judges.** If a check derives its input from
+  the same selection, parse or convention as the thing it checks, it inherits that blind spot and
+  cannot report it. Measure the property directly instead, even when that costs more.
+- **Read the fixture of the test that already covers the behaviour.** It may be the source of the
+  error rather than the guard against it — a suite can PIN a defect as correct.
+- **A number in a durable record is measured or it is not written.** Inferring one from an
+  adjacent fact produces an entry that reads as evidence and is not.
+
+MEASURED 2026-08-22/23, and this rule exists because of the count rather than the principle.
+Twelve defects were found in two days; eleven were this one shape:
+
+    readNodeSubstrate classified by a neighbouring fact and could not see the coupling · the
+    install verified a tree that then changed · ProcessLiveness folded "died" into "is off" ·
+    the suite ASSERTED that fold · a CI gate lived in a pipeline nothing had triggered for
+    fourteen days · a lane-only gate watched drift land anyway · a contract asserted a
+    requirement its design had deleted · a workflow step called `pnpm` before the step that
+    installs it, exiting 127 since the day it was written · the moderate audit was non-blocking
+    in three places while crying wolf weekly · §5 of this document prescribed a verification
+    that was itself wrong · and two of the twelve were introduced the same day by an agent
+    following every other rule here.
+
+The last clause is the argument for writing it down: care was not the missing ingredient.
+
+> _Active Inference_: a guard is a prediction that something will be observed when it breaks.
+> An untested prediction is a belief, and this repository's whole method is to prefer the
+> measurement over the belief.
+
 ---
 
 > "We cultivate the code as we cultivate the soil: with patience, honesty, and respect for the cycle."
