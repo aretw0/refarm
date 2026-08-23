@@ -312,6 +312,16 @@ jobs:
         run: node scripts/ci/check-github-action-pins.mjs
       - name: Validate GitHub Action contracts
         run: node scripts/ci/check-github-actions-contracts.mjs
+      # Two repo-contract gates the before-push lane has run since 2026-08-17 and no
+      # workflow ever has. Measured in a dependency-free worktree (what this job is):
+      # 48ms and 64ms, no node_modules, no toolchain. The lane's own rule is that these
+      # are repo-wide rather than change-scoped, and a gate only the lane runs is one a
+      # push from any other machine walks straight past — which is how four gates were
+      # found red on 2026-08-23 after fourteen days with no pipeline. See ISS-136.
+      - name: Check task-smoke build order
+        run: node -e "import('./scripts/ci/subprocess-utils.mjs').then(m => m.assertTaskSmokeBuildOrderIntegrity()).catch(e => { console.error(e.message); process.exit(1); })"
+      - name: Check scripts/ test-coverage ceiling
+        run: node scripts/script-test-coverage.mjs
 
   # The Rust → WASM plugin packages (agent, tractor-rs, delegate, heartwood,
   # lsp-code-ops, scarecrow-plugin) build through `cargo component` + a `check:wit`
