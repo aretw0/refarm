@@ -741,6 +741,8 @@ export interface OperationRenderLabels {
 	added: string;
 	current: string;
 	currentEmpty: string;
+	/** Said out loud when a view is bounded — never silent. */
+	elided: (count: number) => string;
 	result: string;
 	undo: string;
 	irreversible: string;
@@ -764,6 +766,7 @@ export const DEFAULT_OPERATION_LABELS: OperationRenderLabels = {
 	added: "O que acrescento, exatamente",
 	current: "Como está agora",
 	currentEmpty: "(vazio)",
+	elided: (count) => `… ${count} linha${count === 1 ? "" : "s"} acima, não mostradas`,
 	result: "Como fica",
 	undo: "Desfazer",
 	irreversible: "NÃO dá para desfazer",
@@ -827,8 +830,22 @@ export function renderOperationRequest(
 
 		if (change.before !== null) {
 			out.push(`   ${l.current}:`);
-			const tail = beforeLines.slice(Math.max(0, beforeLines.length - context));
-			const from = beforeLines.length - tail.length + 1;
+			// ANCHORED AT THE CHANGE, not at the end of the file. The tail-slice was right when
+			// every insertion was an append — a shell profile gaining a PATH line — and wrong for a
+			// catalog declaration, which lands inside a named block in the middle. Measured
+			// 2026-08-19: the current view elided 247 lines and showed the tail while the result
+			// view showed the middle, so the operator was comparing the end of the old file with
+			// the middle of the new one.
+			const anchor = change.insertion
+				? Math.max(1, change.insertion.line - context)
+				: Math.max(1, beforeLines.length - context + 1);
+			const tail = beforeLines.slice(anchor - 1, anchor - 1 + context * 2 + 1);
+			const from = tail.length === 0 ? beforeLines.length + 1 : anchor;
+			// SAY WHAT IS NOT SHOWN. Measured 2026-08-19: authorising a ten-line addition to a
+			// 259-line config printed the whole file twice. Bounding it is right; bounding it in
+			// SILENCE is not — a truncated view and a complete one would look identical, and the
+			// operator is being asked to authorise exactly what they can see.
+			if (from > 1) out.push(`       ${l.elided(from - 1)}`);
 			const width = String(beforeLines.length).length;
 			if (tail.length === 0 || (tail.length === 1 && tail[0] === "")) {
 				out.push(`       ${l.currentEmpty}`);
@@ -846,6 +863,7 @@ export function renderOperationRequest(
 			const marked = new Set<number>();
 			for (let n = first; n <= last; n++) marked.add(n);
 			out.push(`   ${l.result}:`);
+			if (start > 1) out.push(`       ${l.elided(start - 1)}`);
 			out.push(...numbered(afterLines.slice(start - 1, end), start, marked, String(end).length));
 		}
 	}

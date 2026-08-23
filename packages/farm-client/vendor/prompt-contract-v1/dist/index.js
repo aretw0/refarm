@@ -171,6 +171,24 @@ function anySignal(a, b) {
  * gains a peer; see `createPeeredOperatorChannel` for what "peer" costs and
  * guarantees.
  */
+/**
+ * PURE. The bracketed hints after a text question.
+ *
+ * A placeholder SHOWS THE SHAPE of an answer; a default IS one. When a caller passes the same
+ * string as both, printing it twice makes one fact read as two — measured on a real terminal as
+ * `Qual processo? (refarm já sabe propor: web-serve) (web-serve) [web-serve]:`, the same value
+ * three times in one line.
+ */
+export function textPromptHint(prompt) {
+    const placeholder = prompt.placeholder?.trim();
+    const fallback = prompt.default?.trim();
+    let hint = "";
+    if (placeholder && placeholder !== fallback)
+        hint += ` (${placeholder})`;
+    if (fallback)
+        hint += ` [${fallback}]`;
+    return hint;
+}
 export function createStdioOperatorChannel(options = {}) {
     const publisher = currentPromptPublisher();
     if (publisher === null)
@@ -561,11 +579,7 @@ function promptSuffix(question) {
 }
 async function askText(prompt, input, output, signal) {
     const rl = readline.createInterface({ input, output });
-    let hint = "";
-    if (prompt.placeholder)
-        hint += ` (${prompt.placeholder})`;
-    if (prompt.default)
-        hint += ` [${prompt.default}]`;
+    const hint = textPromptHint(prompt);
     const answer = await askLine(rl, `${prompt.question}${hint}${promptSuffix(prompt.question)}`, signal);
     return answer.trim() || prompt.default || "";
 }
