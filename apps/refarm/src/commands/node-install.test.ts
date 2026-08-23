@@ -12,6 +12,10 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import {
+	InstalledNodeIdentity,
+	NODE_IDENTITY_FILE,
+} from "./node-install-plan.js";
 import { materializeWorkspacePackages, runNodeInstall, sharedWithCheckout } from "./node-install.js";
 
 /** A checkout shaped enough for the install to read a version and resolve pnpm. */
@@ -57,7 +61,7 @@ describe("refarm node install", () => {
 		expect(result.status).toBe("installed");
 		// It ran what it assembled BEFORE it repointed anything — and it put the checkout's
 		// dependency status back straight after assembling, which `deploy --legacy` leaves stale.
-		expect(seen).toEqual(["git-head", "assemble", "resync", "verify"]);
+		expect(seen).toEqual(["git-head", "git-status", "assemble", "resync", "verify"]);
 		if (result.status === "installed") expect(result.checkout.status).toBe("restored");
 		if (result.status !== "installed") return;
 		expect(result.tree).toContain("9.9.9-abc1234");
@@ -112,6 +116,7 @@ describe("refarm node install", () => {
 			if (spec.id === "verify") {
 				sharedAtVerify = fs.statSync(installed).ino === fs.statSync(built).ino;
 			}
+			if (spec.id === "git-status") return { exitCode: 0, stdout: "", stderr: "" };
 			return { exitCode: 0, stdout: spec.id === "git-head" ? "abc1234\n" : "9.9.9\n", stderr: "" };
 		};
 
@@ -122,7 +127,7 @@ describe("refarm node install", () => {
 		expect(sharedAtVerify).toBe(false);
 		expect(fs.statSync(installed).ino).not.toBe(fs.statSync(built).ino);
 		expect(fs.readFileSync(installed, "utf-8")).toBe("export const built = 1;\n");
-		expect(seen).toEqual(["git-head", "assemble", "resync", "verify"]);
+		expect(seen).toEqual(["git-head", "git-status", "assemble", "resync", "verify"]);
 	});
 
 	it("refuses, and leaves the launcher alone, when the tree is still coupled to the checkout", async () => {
@@ -146,6 +151,7 @@ describe("refarm node install", () => {
 				fs.mkdirSync(dir, { recursive: true });
 				fs.linkSync(built, path.join(dir, "index.js"));
 			}
+			if (spec.id === "git-status") return { exitCode: 0, stdout: "", stderr: "" };
 			return { exitCode: 0, stdout: spec.id === "git-head" ? "abc1234\n" : "9.9.9\n", stderr: "" };
 		};
 
@@ -155,6 +161,61 @@ describe("refarm node install", () => {
 		if (result.status === "refused") expect(result.because).toContain("share storage");
 		// The launcher is untouched — the node keeps whatever was working before this ran.
 		expect(fs.readFileSync(shimPath, "utf-8")).toContain("/somewhere/old/index.js");
+	});
+
+	it("leaves the tree carrying its own identity, dirt included (ISS-158)", async () => {
+		// The label alone could not say this. A tree filed under `0.1.0-c58ae2ba` may hold anything
+		// that was uncommitted when it was assembled, and months later nothing on disk remembers
+		// which. This is what `refarm health` will read to say which build a node executes.
+		const repoRoot = fakeCheckout("checkout-identity");
+		const home = path.join(os.homedir(), "node-identity");
+		const { run } = runnerFor({
+			"git-head": { exitCode: 0, stdout: "abc1234\n" },
+			"git-status": { exitCode: 0, stdout: " M apps/refarm/src/commands/node-install.ts\n" },
+			verify: { exitCode: 0, stdout: "9.9.9\n" },
+		});
+		const result = await runNodeInstall(
+			{},
+			{ repoRoot, home, run, announce: () => {}, now: () => "2026-08-23T03:00:00.000Z" },
+		);
+
+		expect(result.status).toBe("installed");
+		if (result.status !== "installed") return;
+		expect(result.tree).toContain("9.9.9-abc1234-dirty");
+
+		const identity = JSON.parse(
+			fs.readFileSync(path.join(result.tree, NODE_IDENTITY_FILE), "utf-8"),
+		) as InstalledNodeIdentity;
+		expect(identity).toMatchObject({
+			label: "9.9.9-abc1234-dirty",
+			version: "9.9.9",
+			commit: "abc1234",
+			installedAt: "2026-08-23T03:00:00.000Z",
+		});
+		expect(identity.checkout.dirty).toBe(true);
+		// WHICH kind of dirty, not merely that it was — "one file changed" and "git would not
+		// answer" are different facts about how much this label can be trusted.
+		expect(identity.checkout.because).toContain("1 uncommitted");
+	});
+
+	it("records a CLEAN checkout as clean, so the label means what it says", async () => {
+		const repoRoot = fakeCheckout("checkout-identity-clean");
+		const home = path.join(os.homedir(), "node-identity-clean");
+		const { run } = runnerFor({
+			"git-head": { exitCode: 0, stdout: "abc1234\n" },
+			"git-status": { exitCode: 0, stdout: "" },
+			verify: { exitCode: 0, stdout: "9.9.9\n" },
+		});
+		const result = await runNodeInstall({}, { repoRoot, home, run, announce: () => {} });
+
+		expect(result.status).toBe("installed");
+		if (result.status !== "installed") return;
+		expect(result.tree).toContain("9.9.9-abc1234");
+		expect(result.tree).not.toContain("dirty");
+		const identity = JSON.parse(
+			fs.readFileSync(path.join(result.tree, NODE_IDENTITY_FILE), "utf-8"),
+		) as InstalledNodeIdentity;
+		expect(identity.checkout.dirty).toBe(false);
 	});
 
 	it("says so when it cannot put the checkout's dependency status back", async () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	checkoutDirtiness,
 	independenceVerdict,
 	installedTreePath,
 	installVersionLabel,
@@ -28,6 +29,49 @@ describe("installVersionLabel", () => {
 		// traceable and is not.
 		expect(installVersionLabel("0.1.0", null)).toBe("0.1.0");
 		expect(installVersionLabel("0.1.0", "  ")).toBe("0.1.0");
+	});
+
+	it("says -dirty when the tree carried changes that commit does not have (ISS-158)", () => {
+		// MEASURED 2026-08-22, on the install that fixed the coupling. The tree filed under
+		// `0.1.0-c58ae2ba` carried `materializeWorkspacePackages`, a symbol c58ae2ba does not
+		// contain — because the label comes from `git HEAD` and the tree comes from the working
+		// tree's `dist/`. The label promised a traceability it did not have, which is worse than
+		// promising none: it invites the trust it cannot carry.
+		expect(installVersionLabel("0.1.0", "c58ae2ba", true)).toBe("0.1.0-c58ae2ba-dirty");
+		expect(installVersionLabel("0.1.0", "c58ae2ba", false)).toBe("0.1.0-c58ae2ba");
+	});
+
+	it("has nothing to qualify when there is no commit — dirty against WHAT?", () => {
+		// `-dirty` is a statement about a difference from a named commit. With no commit named,
+		// it would decorate a label that already claims nothing.
+		expect(installVersionLabel("0.1.0", null, true)).toBe("0.1.0");
+	});
+});
+
+describe("checkoutDirtiness", () => {
+	it("is clean only when git ANSWERED and had nothing to report", () => {
+		expect(checkoutDirtiness({ status: 0, stdout: "" })).toMatchObject({ dirty: false });
+		expect(checkoutDirtiness({ status: 0, stdout: "\n  \n" })).toMatchObject({ dirty: false });
+	});
+
+	it("is dirty when git listed anything, and names how much", () => {
+		const verdict = checkoutDirtiness({ status: 0, stdout: " M a.ts\n?? b.ts\n" });
+		expect(verdict.dirty).toBe(true);
+		expect(verdict.because).toContain("2");
+	});
+
+	it("COLLAPSES 'could not tell' into dirty, deliberately, and says which it was", () => {
+		// The asymmetry is the whole decision. Marking a dirty tree clean is a false assurance that
+		// travels into a label an operator rolls back by; marking a clean tree dirty is only an
+		// alarm. This repository already chose that side once, for the install that reports success
+		// without running what it installed.
+		const unreadable = checkoutDirtiness({ status: 128, stdout: "" });
+		expect(unreadable.dirty).toBe(true);
+		expect(unreadable.because).toContain("could not");
+
+		const unspawnable = checkoutDirtiness({ status: null, stdout: "" });
+		expect(unspawnable.dirty).toBe(true);
+		expect(unspawnable.because).toContain("could not");
 	});
 });
 

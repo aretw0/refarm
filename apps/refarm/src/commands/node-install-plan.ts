@@ -23,10 +23,26 @@
  * trees, and an operator rolling back has to tell them apart in a directory listing. Absent when
  * there is nothing to name — an install from a tarball has no commit, and inventing one produces
  * a label that looks traceable and is not.
+ *
+ * `-dirty` EXISTS BECAUSE THE COMMIT ALONE WAS THAT SAME LIE (ISS-158). Measured 2026-08-22: the
+ * tree filed under `0.1.0-c58ae2ba` carried a symbol that commit does not contain, because the
+ * label is read from `git HEAD` while the tree is assembled from the working tree's `dist/`. The
+ * two trees a rolling-back operator most needs to tell apart are exactly the ones this collapsed.
+ *
+ * It does NOT distinguish two dirty installs of the same commit — those share a path, and what
+ * separates them is the `installedAt` in the tree's own identity file. Saying so here because a
+ * label that quietly stops being unique is how this defect happened the first time.
  */
-export function installVersionLabel(version: string, commit: string | null): string {
+export function installVersionLabel(
+	version: string,
+	commit: string | null,
+	dirty = false,
+): string {
 	const short = commit?.trim();
-	return short ? `${version}-${short}` : version;
+	if (!short) return version;
+	// `-dirty` IS A STATEMENT ABOUT A DIFFERENCE FROM A NAMED COMMIT, so it needs one to name.
+	// With no commit, the label already claims nothing and there is nothing to qualify.
+	return dirty ? `${version}-${short}-dirty` : `${version}-${short}`;
 }
 
 /**
@@ -186,3 +202,72 @@ export interface IndependenceVerdict {
 	readonly ok: boolean;
 	readonly because: string;
 }
+
+export interface DirtinessProbe {
+	readonly status: number | null;
+	readonly stdout: string;
+}
+
+export interface DirtinessVerdict {
+	readonly dirty: boolean;
+	readonly because: string;
+}
+
+/**
+ * PURE. Did the checkout hold anything the commit does not?
+ *
+ * "COULD NOT TELL" IS DIRTY, and the asymmetry is the entire decision. A clean tree wrongly marked
+ * dirty is an alarm; a dirty tree wrongly marked clean is a false assurance that travels into a
+ * label an operator rolls back by, months later, believing it names a commit. This repository has
+ * already chosen that side once — an install that reports success without running what it
+ * installed is refused for the same reason.
+ *
+ * The verdict carries `because` rather than a bare boolean so the tree's identity file can say
+ * WHICH kind of dirty it was. "Two files changed" and "git would not answer" are different facts,
+ * and folding them is how this defect was born one level up.
+ */
+export function checkoutDirtiness(probe: DirtinessProbe): DirtinessVerdict {
+	if (probe.status === null) {
+		return { dirty: true, because: "git could not be run here, so nothing could be compared." };
+	}
+	if (probe.status !== 0) {
+		return {
+			dirty: true,
+			because: `git could not report the working tree (exit ${probe.status}).`,
+		};
+	}
+	const entries = probe.stdout
+		.split("\n")
+		.map((line) => line.trim())
+		.filter((line) => line.length > 0);
+	if (entries.length === 0) {
+		return { dirty: false, because: "the checkout matched its commit." };
+	}
+	return {
+		dirty: true,
+		because: `the checkout held ${entries.length} uncommitted change(s) this commit does not have.`,
+	};
+}
+
+/** The file a tree keeps its own identity in, at the root of the assembled tree. */
+export const NODE_IDENTITY_FILE = "installed-node.json";
+
+/**
+ * WHAT AN INSTALLED TREE KNOWS ABOUT ITSELF (ISS-158/ISS-159).
+ *
+ * The label is a directory name — legible in an `ls`, and that is all a directory name can be. It
+ * cannot carry WHEN, and it cannot say which kind of dirty. Both are what an operator deciding
+ * whether to update a node actually asks, so the tree carries them itself.
+ *
+ * `checkout` is the whole verdict rather than a boolean, deliberately: "one file changed" and
+ * "git would not answer" both produce `-dirty` in the label, and collapsing them in the record too
+ * would repeat this defect one level down.
+ */
+export interface InstalledNodeIdentity {
+	readonly label: string;
+	readonly version: string;
+	readonly commit: string | null;
+	readonly checkout: DirtinessVerdict;
+	readonly installedAt: string;
+}
+

@@ -34,9 +34,12 @@ import path from "node:path";
 
 import { refarmCommand } from "../brand.js";
 import {
+	checkoutDirtiness,
 	independenceVerdict,
+	type InstalledNodeIdentity,
 	installedTreePath,
 	installVersionLabel,
+	NODE_IDENTITY_FILE,
 	type SharedFile,
 	shimScript,
 	verificationVerdict,
@@ -122,6 +125,13 @@ function currentCommit(run: RunStep, repoRoot: string): string | null {
 	return probe.exitCode === 0 ? probe.stdout.trim() || null : null;
 }
 
+/** Run a read-only probe and hand back only what a verdict needs. Never throws: a checkout with no
+ *  git is a legitimate place to install from, and the verdict decides what that means. */
+function probeStep(run: RunStep, spec: ReturnType<typeof step>): { status: number | null; stdout: string } {
+	const result = run(spec);
+	return { status: result.exitCode, stdout: result.stdout };
+}
+
 function readVersion(repoRoot: string): string | null {
 	try {
 		const manifest = JSON.parse(
@@ -152,7 +162,14 @@ export async function runNodeInstall(
 				"is not one. Run it from a checkout.",
 		};
 	}
-	const label = installVersionLabel(version, currentCommit(run, repoRoot));
+	const commit = currentCommit(run, repoRoot);
+	// ISS-158. The label is read from `git HEAD` and the TREE is assembled from the working tree's
+	// `dist/`, so without this the two disagree the moment anything is uncommitted — and the label
+	// promises a traceability it does not have.
+	const dirtiness = checkoutDirtiness(
+		probeStep(run, step("git-status", "git", ["-C", repoRoot, "status", "--porcelain"], repoRoot, 30_000)),
+	);
+	const label = installVersionLabel(version, commit, dirtiness.dirty);
 	const tree = installedTreePath(home, label);
 
 	// ── 1. Assemble ──────────────────────────────────────────────────────────
@@ -219,6 +236,23 @@ export async function runNodeInstall(
 		return { status: "refused", because: `${independence.because} The tree is at ${tree}.` };
 	}
 	say(`Independent: ${independence.because}`);
+
+	// ── 1d. The tree says who it is ──────────────────────────────────────────
+	// Written BEFORE the verification below, so what is proven to run is the finished tree — the
+	// same reason materialisation comes first.
+	const identity: InstalledNodeIdentity = {
+		label,
+		version,
+		commit,
+		checkout: dirtiness,
+		installedAt: (deps.now ?? (() => new Date().toISOString()))(),
+	};
+	fs.mkdirSync(tree, { recursive: true });
+	fs.writeFileSync(
+		path.join(tree, NODE_IDENTITY_FILE),
+		`${JSON.stringify(identity, null, "\t")}\n`,
+	);
+	if (dirtiness.dirty) say(`Recorded as dirty: ${dirtiness.because}`);
 
 	// ── 2. Verify, by RUNNING it ─────────────────────────────────────────────
 	const entrypoint = path.join(tree, "dist", "index.js");
