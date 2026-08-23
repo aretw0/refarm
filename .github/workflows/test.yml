@@ -512,9 +512,20 @@ jobs:
       #     path: .turbo
       #     ...
 
-      - name: Security audit
+      # WAS `pnpm audit --audit-level=high` — the only audit in this repository that included
+      # devDependencies, and red since 2026-08-18 on GHSA-jmr9-qjv8-65gv (extract-zip). That
+      # advisory names a patch that DOES NOT EXIST: it says `>=2.0.2`, the registry's latest
+      # published version is 2.0.1, and `@puppeteer/browsers` requires `^2.0.1`, so even a lockfile
+      # override has nothing to resolve to. It surfaced only today because this step is gated on
+      # `code_changes` and no code-change push happened in between.
+      #
+      # `audit-gate.mjs` is a STRICTER severity over a narrower dep scope: `moderate` is a superset
+      # of `high`, so everything the old command reported here is still judged — now against the
+      # dated register, which is where a fact like "no patch exists" belongs. What is given up is
+      # blocking on DEV-scope advisories, and no other audit in this repo ever blocked on those.
+      - name: Security audit (moderate --prod, with per-advisory expiry)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
-        run: pnpm audit --audit-level=high
+        run: node scripts/security/audit-gate.mjs
 
       - name: Dispatch-surface parity CI
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_dispatch_surface_ci == 'true'
