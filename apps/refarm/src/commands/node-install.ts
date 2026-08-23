@@ -147,7 +147,13 @@ export async function runNodeInstall(
 	options: NodeInstallOptions = {},
 	deps: NodeInstallDeps = {},
 ): Promise<NodeInstallResult> {
+	// os-resolution: project — an install assembles the checkout the operator is standing in, so
+	// the operator's directory IS the question; there is no node-declared answer to prefer.
 	const repoRoot = deps.repoRoot ?? process.cwd();
+	// os-resolution: os-user — the launcher and the assembled trees live BESIDE the sovereign
+	// directory, never inside it. `declaredBase()` is deliberately the wrong answer here:
+	// `~/.refarm` is what `backup plan` walks, and 434MB of reproducible artifacts landing there
+	// takes the whole backup plan back to "not yet trustworthy" (see `installedTreePath`).
 	const home = deps.home ?? os.homedir();
 	const shimPath = deps.shimPath ?? path.join(home, ".local", "bin", "refarm");
 	const say = deps.announce ?? ((line: string) => console.log(line));
