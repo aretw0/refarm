@@ -202,6 +202,75 @@ prove it has it.**
 Verified on the operator's node 2026-08-22: `0.1.0-c58ae2ba`, 16,552 files, **0
 shared with the checkout**, measured independently of the install that made it.
 
+## What the tree knows about itself, and when it says so
+
+Closing the coupling above left two ends open, and they are one requirement: the
+node must not be coupled to the repository, **and updating it must be a deliberate
+act** — from a published release or from local development.
+
+### The label stopped naming a commit it does not contain (ISS-158)
+
+`installVersionLabel`'s purpose is stated in its own docstring: two installs of
+"0.1.0" from different commits are different trees, and an operator rolling back has
+to tell them apart in a directory listing. It could not. The label comes from
+`git HEAD`; the tree comes from the working tree's `dist/`. Measured on the install
+that closed the coupling:
+
+```
+installed 0.1.0-c58ae2ba carries materializeWorkspacePackages  -> yes
+git show c58ae2ba:apps/refarm/src/commands/node-install.ts     -> no such symbol
+```
+
+A label that is nearly-but-not-quite traceable is worse than one claiming nothing:
+it invites the trust it cannot carry. **Refusing a dirty checkout would have been the
+wrong fix** — installing from one is the development loop this repository exists for.
+The name simply stops asserting what it does not know: `-dirty`, as `git describe`
+has spelled it for years.
+
+**"Could not tell" collapses into dirty**, deliberately. A clean tree wrongly marked
+dirty is an alarm; a dirty tree wrongly marked clean is a false assurance travelling
+into a label someone rolls back by.
+
+And the tree now carries `installed-node.json` at its root, because a directory name
+cannot hold *when*, and cannot say *which kind* of dirty:
+
+```json
+{ "label": "0.1.0-528fd2df", "version": "0.1.0", "commit": "528fd2df",
+  "checkout": { "dirty": false, "because": "the checkout matched its commit." },
+  "installedAt": "2026-08-23T04:09:14.068Z",
+  "repository": "/home/s095407044/github/refarm" }
+```
+
+`checkout` is the whole verdict rather than a boolean: *"one file changed"* and
+*"git would not answer"* both produce `-dirty` in the label, and folding them in the
+record too would repeat the defect one level down. Two dirty installs of one commit
+still share a path — said out loud, because a label that quietly stops being unique
+is how this happened the first time.
+
+### The node says when it has aged (ISS-159)
+
+`describeSubstrate` returned `null` for an installed node because that was the goal
+state and had nothing to explain. **Reaching a goal state does not end the question.**
+The node ran `0.1.0-5b4810a9` while the checkout moved ten commits past it and every
+surface was silent.
+
+| | |
+| --- | --- |
+| node current | **silent** — a line that is always present is a line nobody reads, and it would bury the one that matters |
+| checkout moved on | names both ends, `severity: info` — ageing is legitimate, and a gate that reddens over it teaches its reader to skim red |
+| build was dirty | said **even when the commits match**: it was assembled from a working directory that held changes, so matching `HEAD` proves nothing about what went in |
+| no identity file | silent — every tree assembled before 2026-08-23 has none, and that is not a fault |
+| no checkout beside it | silent — a phone, a Raspberry Pi, a released install. *"Up to date"* would be a claim nothing measured |
+
+The **data** is always in the substrate; only the prose is conditional.
+
+**The identity carries its repository**, which is the defect this would otherwise have
+shipped. A node is administrable from anywhere and this operator has two declared
+workspaces; reading the node's commit beside an unrelated repository's `HEAD` would
+produce a confident sentence about two histories that never met. The head is read
+only when `rev-parse --show-toplevel` resolves to the tree the node was assembled
+from.
+
 ## Related
 
 - [`SANDBOX_NODE.md`](SANDBOX_NODE.md) — a second node that isolates **state**
