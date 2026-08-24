@@ -110,13 +110,13 @@
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*",
-		"@storybook/addon-a11y": "^10.3.5",
-		"@storybook/addon-links": "^10.3.5",
-		"@storybook/html": "^10.3.5",
-		"@storybook/html-vite": "^10.3.5",
-		"storybook": "^10.3.5",
-		"style-dictionary": "^4.4.0",
-		"tsx": "^4.23.0"
+		"@storybook/addon-a11y": "^10.5.10",
+		"@storybook/addon-links": "^10.5.10",
+		"@storybook/html": "^10.5.10",
+		"@storybook/html-vite": "^10.5.10",
+		"storybook": "^10.5.10",
+		"style-dictionary": "^5.5.2",
+		"tsx": "^4.23.12"
 	},
 	"license": "MIT",
 	"publishConfig": {

@@ -35,6 +35,6 @@
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/storage-contract-v1": "workspace:*",
 		"@refarm.dev/storage-node-view": "workspace:*",
-		"jsdom": "^29.0.2"
+		"jsdom": "^30.0.1"
 	}
 }
