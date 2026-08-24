@@ -404,3 +404,81 @@ describe("credential authorize", () => {
 		expect(config.somethingElse).toBe(1);
 	});
 });
+
+/**
+ * LOCAL REMOVAL IS NOT REVOCATION, and the prompt read as though it were.
+ *
+ * Asked by the operator 2026-08-24 after three of his GitHub tokens had to be revoked by hand:
+ * "porque nao temos comando para invalidar o antigo?" MEASURED against the live API with a token
+ * that does not exist, so nothing could be revoked by the experiment:
+ *
+ *     DELETE /applications/<client_id>/token
+ *       no auth                          -> 401 {"message":"Requires authentication"}
+ *       Basic client_id:invented_secret  -> 401 {"message":"Bad credentials"}
+ *
+ * The message CHANGES, which proves the endpoint evaluates the Basic pair: revocation needs a real
+ * `client_secret`, and `github.ts:10` records why this node has none — "Device flow does not use a
+ * client_secret". Being a public client is what lets the client id live in the repository and every
+ * node use it with no distribution step. So refarm can ACQUIRE a credential it cannot DISPOSE of,
+ * and the honest thing is to say so where an operator is about to believe otherwise.
+ *
+ * The prompt said "The secret is deleted and cannot be recovered", which is true about this node
+ * and reads as finality. The grant survives.
+ */
+describe("forget says what it cannot do", () => {
+	const HELD = {
+		credentialId: "model-account:BBBBBBBBBBBBBBBBBBBBBBBBBB",
+		provider: "github-copilot",
+		alias: "pessoal",
+		identity: { status: "verified" as const },
+		secretRef: "model/github-copilot-pessoal",
+		health: "healthy" as const,
+		revision: "sha256:r9",
+	};
+
+	const confirmPrompt = async () => {
+		const { out } = await run(
+			["forget", HELD.credentialId],
+			TOKENS,
+			[HELD],
+			new Map([[HELD.secretRef, { access: "A", refresh: "ghu_x" }]]),
+		);
+		return out;
+	};
+
+	it("says the provider still holds the authorization after the secret is gone", async () => {
+		const out = await confirmPrompt();
+
+		expect(out).toMatch(/does not revoke/iu);
+		expect(out).toMatch(/provider/iu);
+	});
+
+	it("keeps the sentence coherent when a revocation URL is known", async () => {
+		// Caught by READING THE LIVE HUMAN OUTPUT, which is the lesson ISS-161 cost. Splicing the
+		// URL in place of "the provider" produced "does NOT revoke anything at
+		// https://github.com/settings/applications" — which names the page an operator must go to
+		// as the place nothing happens. A URL-presence assertion would have passed on that text.
+		const out = await confirmPrompt();
+
+		expect(out).toMatch(/does NOT revoke anything at the provider/u);
+		expect(out).toMatch(/https:\/\/github\.com\/settings\/applications/u);
+	});
+
+	it("names the check that proves a revocation landed", async () => {
+		// refarm cannot revoke and CAN measure: `credential quota` already asks the provider and
+		// already returns `rejected` for 401/403, with its own comment on why that is a credential
+		// fact and not a quota one. Nothing pointed an operator at it for this question.
+		const out = await confirmPrompt();
+
+		expect(out).toMatch(/credential quota/u);
+	});
+
+	it("states the ORDER, because re-authenticating destroys the evidence", async () => {
+		// `sow` replaces the stored token, so a check run afterwards asks about the NEW credential
+		// and answers `read` — saying nothing about the one that was revoked. The proof exists only
+		// in the window between revoking and re-authenticating.
+		const out = await confirmPrompt();
+
+		expect(out).toMatch(/before .*(sow|re-authenticat)/isu);
+	});
+});

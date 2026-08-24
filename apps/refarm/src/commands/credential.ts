@@ -79,6 +79,59 @@ function readJson<T>(file: string, fallback: T): T {
 	}
 }
 
+/**
+ * WHAT `forget` CANNOT DO, said where an operator is about to assume otherwise.
+ *
+ * MEASURED 2026-08-24 against the live API, with a token that does not exist so the experiment
+ * could revoke nothing:
+ *
+ *     DELETE /applications/<client_id>/token
+ *       no auth                          -> 401 {"message":"Requires authentication"}
+ *       Basic client_id:invented_secret  -> 401 {"message":"Bad credentials"}
+ *
+ * The message CHANGES between the two, which proves the endpoint evaluates the Basic pair rather
+ * than ignoring it: revocation requires a real `client_secret`. `credentials/github.ts:10` records
+ * why this node has none — "Device flow does not use a client_secret" — and being a public client
+ * is exactly what lets the client id live in the repository and every node use it with no secret
+ * to distribute. So this node can ACQUIRE a credential it cannot DISPOSE of, and the previous
+ * prompt ("deleted and cannot be recovered") was true about this node and read as finality.
+ *
+ * THE ORDER IS LOAD-BEARING, and it is why this says `quota` BEFORE `sow`. Re-authenticating
+ * replaces the stored token, so a check run afterwards asks about the NEW credential and answers
+ * `read` — saying nothing about the one that was revoked. The proof exists only in the window
+ * between revoking and logging in again.
+ *
+ * NO NEW VERDICT IS INVENTED. `credential quota` already asks the provider and already returns
+ * `rejected` for 401/403, with its own note that "401/403 is the CREDENTIAL, and conflating it
+ * with quota is the whole trap". Nothing pointed an operator at it for this question. And nothing
+ * here claims WHY a credential is refused: GitHub answers an identical `401 Bad credentials` for a
+ * revoked, an invalid and a malformed token — measured the same day — so a `revoked` verdict would
+ * be a distinction the provider does not make.
+ *
+ * @param provider the account's provider, which decides only whether a URL is known
+ */
+function revocationNotice(provider: string): string {
+	// THE FACT IS CONSTANT, THE URL IS APPENDED. Splicing the address in PLACE of "the provider"
+	// produced "does NOT revoke anything at https://github.com/settings/applications" — naming the
+	// page the operator must visit as the place where nothing happens. Read off the live output;
+	// an assertion that merely found the URL passed on that text.
+	//
+	// NAMED ONLY WHERE MEASURED: github-copilot's grant is revoked from the OAuth applications
+	// page. Whether OpenAI offers a public-client revocation path was NOT established, so codex
+	// gets the fact and no link rather than one nobody confirmed (ISS-162).
+	const where =
+		provider.trim().toLowerCase() === "github-copilot"
+			? ": https://github.com/settings/applications"
+			: ".";
+	return (
+		`  This does NOT revoke anything at the provider: the authorization stays live until you\n` +
+		`  revoke it there${where}\n` +
+		"  To prove a revocation landed, run `refarm credential quota` BEFORE `refarm sow` — the\n" +
+		"  provider answers `rejected` for a credential it no longer accepts, and logging in again\n" +
+		"  replaces the token that check would ask about.\n"
+	);
+}
+
 function defaultDeps(): CredentialDeps {
 	// The DECLARED home, which is the only reading that honours REFARM_HOME (ISS-139).
 	const homeOf = () => resolveRefarmHome();
@@ -565,6 +618,7 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 					process.stdout.write(
 						`forget ${target.provider} "${target.alias}" (${credentialId})?\n` +
 							"  The secret is deleted and cannot be recovered; logging in again creates a new one.\n" +
+							revocationNotice(target.provider) +
 							"  Re-run with --yes to do it.\n",
 					);
 					return;
