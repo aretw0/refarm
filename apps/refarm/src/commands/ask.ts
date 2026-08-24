@@ -50,6 +50,7 @@ import {
 	printAskSuccessJson,
 	printMissingModelCredentials,
 	usageLine,
+	type RefusedSeat,
 } from "./ask-errors.js";
 import {
 	currentSubscriptionRuntimeUnsupported,
@@ -119,9 +120,9 @@ export {
 	readLatestAgentEntryFromSession,
 	resolveRuntimeStreamsDir,
 	resolveRuntimeTaskResultsDir,
-};
+	};
 
-export interface AskDeps {
+	export interface AskDeps {
 	submitEffort(effort: Effort): Promise<string>;
 	followStream(
 		effortId: string,
@@ -152,23 +153,23 @@ export interface AskDeps {
 	/** What the Session node already carries. Injectable so tests never hit the real sidecar
 	 * over the network — see `readSessionWorkspace` for the production default. */
 	readSessionWorkspace?(sessionId: string): Promise<SessionWorkspaceLookup | undefined>;
-}
+	}
 
-interface SessionNode {
+	interface SessionNode {
 	"@id": string;
 	/** Absent (not null) on a session with no workspace attribution yet. */
 	workspace_id?: string;
 	workspace_source?: string;
-}
+	}
 
-export interface AskJsonResult {
+	export interface AskJsonResult {
 	effortId: string;
 	sessionId: string;
 	content: string;
 	metadata?: Record<string, unknown>;
-}
+	}
 
-async function submitViaHttp(effort: Effort): Promise<string> {
+	async function submitViaHttp(effort: Effort): Promise<string> {
 	const response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/efforts"), {
 		method: "POST",
 		headers: { "content-type": "application/json" },
@@ -179,15 +180,15 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 	}
 	const payload = (await response.json()) as { effortId: string };
 	return payload.effortId;
-}
+	}
 
-function newSessionId(): string {
+	function newSessionId(): string {
 	return `urn:sovereign:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
-}
+	}
 
-function sourceForAskScope(
+	function sourceForAskScope(
 	scope: ModelScope,
-): "refarm-ask" | "refarm-ask:worker" | "refarm-ask:monitor" {
+	): "refarm-ask" | "refarm-ask:worker" | "refarm-ask:monitor" {
 	switch (scope) {
 		case "default":
 			return "refarm-ask";
@@ -196,13 +197,13 @@ function sourceForAskScope(
 		case "monitor":
 			return "refarm-ask:monitor";
 	}
-}
+	}
 
-async function collectDefaultSystemPrompt(request: {
+	async function collectDefaultSystemPrompt(request: {
 	cwd: string;
 	query: string;
 	files: string[];
-}): Promise<string> {
+	}): Promise<string> {
 	const providers: ContextProvider[] = [
 		// Feed the resolved sidecar URL (env REFARM_SIDECAR_URL → home/cwd .refarm
 		// config → replicated config graph node → default) instead of the provider's
@@ -224,9 +225,9 @@ async function collectDefaultSystemPrompt(request: {
 		query: request.query,
 	});
 	return buildSystemPrompt(entries, { productName: REFARM_PRODUCT_NAME, binary: REFARM_BINARY });
-}
+	}
 
-/**
+	/**
  * ONE snapshot of `/sessions` per invocation, shared by every reader of it.
  *
  * ISS-061: `--session <prefix>` made two round trips — `resolveSessionIdPrefixFromSidecar` to turn
@@ -239,11 +240,11 @@ async function collectDefaultSystemPrompt(request: {
  * Scoped to the process because a CLI invocation is one act with one question. `resetSessionsSnapshotForTests`
  * exists so a test can state a second, different answer without a second process.
  */
-/** PURE-ish. Runs `work` at most once and hands every caller the SAME promise. Extracted from the
+	/** PURE-ish. Runs `work` at most once and hands every caller the SAME promise. Extracted from the
  *  snapshot below so the property that matters — one execution, one shared result — is provable
  *  without a network: a test can count executions of a plain function where it cannot easily count
  *  fetches through `sidecarUrlAsync`. Exported for that test only. */
-export function onceAsync<T>(work: () => Promise<T>): { run: () => Promise<T>; reset: () => void } {
+	export function onceAsync<T>(work: () => Promise<T>): { run: () => Promise<T>; reset: () => void } {
 	let pending: Promise<T> | null = null;
 	return {
 		run: () => (pending ??= work()),
@@ -251,9 +252,9 @@ export function onceAsync<T>(work: () => Promise<T>): { run: () => Promise<T>; r
 			pending = null;
 		},
 	};
-}
+	}
 
-const sessionsSnapshot = onceAsync<SessionNode[] | null>(async () => {
+	const sessionsSnapshot = onceAsync<SessionNode[] | null>(async () => {
 	try {
 		const response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/sessions"));
 		if (!response.ok) return null;
@@ -265,36 +266,36 @@ const sessionsSnapshot = onceAsync<SessionNode[] | null>(async () => {
 	} catch {
 		return null;
 	}
-});
+	});
 
-export function resetSessionsSnapshotForTests(): void {
+	export function resetSessionsSnapshotForTests(): void {
 	sessionsSnapshot.reset();
-}
+	}
 
-/** `null` means the read FAILED — never an empty list, which is a successful read of a node with no
+	/** `null` means the read FAILED — never an empty list, which is a successful read of a node with no
  *  sessions. Both callers below depend on that distinction.
  *
  *  Exported for ONE test: that two callers in the same invocation produce one fetch. The callers
  *  themselves stay internal — the property worth pinning is the shared snapshot, not their
  *  signatures. */
-export async function loadSessionsSnapshot(): Promise<SessionNode[] | null> {
+	export async function loadSessionsSnapshot(): Promise<SessionNode[] | null> {
 	return sessionsSnapshot.run();
-}
+	}
 
-async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
+	async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 
 	const sessions = await loadSessionsSnapshot();
 	if (sessions === null) throw new Error("sidecar sessions could not be read");
 	return resolveSessionIdPrefix(prefix, sessions);
-}
+	}
 
-/** `DeclaredRoot[]` built from the config catalog — the same `id`/`absolutePath` pair
+	/** `DeclaredRoot[]` built from the config catalog — the same `id`/`absolutePath` pair
  * `refarm workspace list --json` prints, reduced to what `resolveWorkspaceFromPath` needs.
  * Uses `declaredBase()` — the node's base (SOVEREIGN_BASE, else REFARM_HOME's parent, else
  * the OS home; never cwd) — the established way this CLI finds declarations. A different
  * value, and a different job, from the interactive cwd seed below. */
-function declaredWorkspaceRoots(): DeclaredRoot[] {
+	function declaredWorkspaceRoots(): DeclaredRoot[] {
 	const baseDir = declaredBase();
 	return declaredWorkspacesFromConfig(loadConfig(baseDir), { baseDir })
 		.filter((workspace): workspace is NonNullable<typeof workspace> => workspace != null)
@@ -302,9 +303,9 @@ function declaredWorkspaceRoots(): DeclaredRoot[] {
 			id: workspace.id,
 			absolutePath: workspace.absolutePath,
 		}));
-}
+	}
 
-/**
+	/**
  * What `readSessionWorkspace` found, reduced to what the ladder needs to tell apart:
  * a declaration (`{ id, source }`), or `"unknown"` — the sidecar could not be asked, so
  * NOTHING may be inferred, least of all a cwd seed standing in for a fact that might
@@ -313,9 +314,9 @@ function declaredWorkspaceRoots(): DeclaredRoot[] {
  * `"unknown"` and must be told apart from it: collapsing "asked and got nothing" into
  * "could not ask" is exactly the silent re-attribution this ladder exists to prevent.
  */
-export type SessionWorkspaceLookup = { id: string; source: string } | "unknown";
+	export type SessionWorkspaceLookup = { id: string; source: string } | "unknown";
 
-/**
+	/**
  * What the Session node already carries, when it carries anything — or `"unknown"` when
  * the sidecar could not be asked at all (non-2xx, a thrown network/timeout error, a
  * response body that did not parse, or a body that parsed but carried no `sessions`
@@ -329,9 +330,9 @@ export type SessionWorkspaceLookup = { id: string; source: string } | "unknown";
  * expected to seed from cwd. `workspace_id`/`workspace_source` being ABSENT (not null) on
  * the node is what that successful-but-empty read looks like on the wire.
  */
-async function readSessionWorkspace(
+	async function readSessionWorkspace(
 	sessionId: string,
-): Promise<SessionWorkspaceLookup | undefined> {
+	): Promise<SessionWorkspaceLookup | undefined> {
 	// Reads the SAME snapshot the prefix was resolved against (ISS-061) — `null` is the failed read
 	// this function has always reported as "unknown", now decided in one place instead of two.
 	const sessions = await loadSessionsSnapshot();
@@ -342,9 +343,9 @@ async function readSessionWorkspace(
 		id: node.workspace_id,
 		source: typeof node.workspace_source === "string" ? node.workspace_source : "seeded-from-cwd",
 	};
-}
+	}
 
-export interface DispatchWorkspaceInput {
+	export interface DispatchWorkspaceInput {
 	/** `--workspace <id>`, already validated. */
 	flag?: string;
 	/**
@@ -363,9 +364,9 @@ export interface DispatchWorkspaceInput {
 	 */
 	interactiveCwd?: string;
 	roots: DeclaredRoot[];
-}
+	}
 
-/**
+	/**
  * The four degrees, in order: explicit flag, the session's own declaration, a cwd seed at
  * a session's first dispatch, then nothing. cwd is absent from degrees 1 and 2 on purpose —
  * ADR-094's D2 keeps it out of the resolution order, and it enters here only as the
@@ -377,10 +378,10 @@ export interface DispatchWorkspaceInput {
  * happens to be standing today. Only a confirmed empty read (`undefined`) — the ordinary
  * shape of a session that has nothing stored yet — reaches degree 3.
  */
-export function resolveDispatchWorkspace(input: DispatchWorkspaceInput): {
+	export function resolveDispatchWorkspace(input: DispatchWorkspaceInput): {
 	workspaceId?: string;
 	workspaceSource?: "declared" | "seeded-from-cwd";
-} {
+	} {
 	const flag = input.flag?.trim();
 	if (flag) return { workspaceId: flag, workspaceSource: "declared" };
 
@@ -399,9 +400,9 @@ export function resolveDispatchWorkspace(input: DispatchWorkspaceInput): {
 	}
 
 	return {};
-}
+	}
 
-/**
+	/**
  * Validate `--workspace <id>` against the DECLARED catalog before it ever reaches
  * `resolveDispatchWorkspace` — an unchecked flag lets a typo (`--workspace rcdc`) land as
  * `workspaceSource: "declared"` on a phantom id that matches nothing, which is exactly the
@@ -412,10 +413,10 @@ export function resolveDispatchWorkspace(input: DispatchWorkspaceInput): {
  * or colon — plus the one check that command cannot make without a resolved catalog in
  * hand: the id must actually be declared, and the error names the ones that are.
  */
-export function validateWorkspaceFlag(
+	export function validateWorkspaceFlag(
 	flag: string | undefined,
 	roots: DeclaredRoot[],
-): { workspaceId?: string } | { error: string } {
+	): { workspaceId?: string } | { error: string } {
 	if (flag === undefined) return {};
 	const trimmed = flag.trim();
 	if (trimmed.length === 0) {
@@ -432,9 +433,9 @@ export function validateWorkspaceFlag(
 		return { error: `--workspace "${trimmed}" is not declared. Declared workspaces: ${knownList}` };
 	}
 	return { workspaceId: trimmed };
-}
+	}
 
-function defaultDeps(): AskDeps {
+	function defaultDeps(): AskDeps {
 	const streamsDir = resolveRuntimeStreamsDir();
 	const resultsDir = resolveRuntimeTaskResultsDir();
 	return {
@@ -456,12 +457,12 @@ function defaultDeps(): AskDeps {
 		readPluginState: readRuntimePluginState,
 		reloadPlugins: reloadRuntimePlugins,
 	};
-}
+	}
 
-const DEFAULT_HISTORY_TURNS = 10;
-const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
+	const DEFAULT_HISTORY_TURNS = 10;
+	const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
 
-async function ensureAskRuntimeReady(launch: LaunchDeps, json = false): Promise<boolean> {
+	async function ensureAskRuntimeReady(launch: LaunchDeps, json = false): Promise<boolean> {
 	let readiness = await checkSessionReadiness();
 
 	const canPrompt = Boolean(process.stdin.isTTY && process.stdout.isTTY);
@@ -480,13 +481,13 @@ async function ensureAskRuntimeReady(launch: LaunchDeps, json = false): Promise<
 	}
 
 	return true;
-}
+	}
 
-async function ensureAgentReady(
+	async function ensureAgentReady(
 	readPluginState: (() => Promise<RuntimePluginState | null>) | undefined,
 	reloadPlugins: ((pluginIds: string[]) => Promise<RuntimePluginReloadResult | null>) | undefined,
 	json = false,
-): Promise<boolean> {
+	): Promise<boolean> {
 	if (!readPluginState) return true;
 	const state = await readPluginState();
 	if (!state) return true;
@@ -601,9 +602,9 @@ async function ensureAgentReady(
 	);
 	console.error(chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`));
 	return false;
-}
+	}
 
-export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Command {
+	export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Command {
 	const resolved = deps ?? defaultDeps();
 	const readActiveSession = resolved.readActiveSessionId ?? readActiveSessionId;
 	const clearActiveSession = resolved.clearActiveSessionId ?? clearActiveSessionId;
@@ -1127,7 +1128,13 @@ export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Comma
 						if (opts.json) {
 							printAskErrorJson(message);
 						} else {
-							printAskError(message);
+							printAskError(
+								message,
+								refusedSeatContext(workspace.workspaceId, boundRoute.modelProvider, [
+									...triedSeats,
+									...(spent ? [spent] : []),
+								]),
+							);
 						}
 						process.exitCode = 1;
 						return;
@@ -1135,25 +1142,25 @@ export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Comma
 				}
 			},
 		);
-}
+	}
 
-export const askCommand = createAskCommand();
+	export const askCommand = createAskCommand();
 
-/** PURE-ish. The account a workspace's dispatch spends, from the node's DECLARED bindings.
+	/** PURE-ish. The account a workspace's dispatch spends, from the node's DECLARED bindings.
  *
  * Reads the binding and nothing else. It deliberately does NOT fall back to "the only account on
  * this node": a node with one account today and two tomorrow would silently change which quota an
  * unbound workspace spent, and the record would carry both under one story. Unbound stays
  * unattributed, which `refarm budget by-account` already reports honestly.
  */
-/** PURE-ish. The DESCRIPTOR a workspace is bound to, when this node actually holds it.
+	/** PURE-ish. The DESCRIPTOR a workspace is bound to, when this node actually holds it.
  *
  * The catalog holds descriptors, never secrets, so this is a cheap synchronous read. Health is not
  * gated here on purpose: a binding to an unusable account must reach the resolver, which refuses
  * rather than quietly spending a different one (ISS-131). Suppressing it here would restore exactly
  * the silent substitution that item is about.
  */
-function boundAccountFor(workspaceId: string | undefined): { provider: string } | undefined {
+	function boundAccountFor(workspaceId: string | undefined): { provider: string } | undefined {
 	if (!workspaceId) return undefined;
 	try {
 		const home = resolveRefarmHome();
@@ -1163,9 +1170,9 @@ function boundAccountFor(workspaceId: string | undefined): { provider: string } 
 	} catch {
 		return undefined;
 	}
-}
+	}
 
-/**
+	/**
  * Which seat pays for this dispatch.
  *
  * A DECLARED binding wins — the operator naming a seat for a workspace is the whole point of
@@ -1177,11 +1184,51 @@ function boundAccountFor(workspaceId: string | undefined): { provider: string } 
  * With two seats and no binding it REFUSES. Nothing here knows which one the host chose, and
  * naming either would attribute spend to a seat that may not have paid.
  */
-function credentialIdForWorkspace(
+	/**
+ * What the refusal path knows about the seats it just spent, from a LOCAL read.
+ *
+ * ISS-157. The dispatch lived the walk, so the seats and the walk's outcome cost nothing to
+ * report; the catalog turns opaque ids into the aliases the operator declared them under. No
+ * provider is asked — `credential quota` is the surface for that, and asking here would put a
+ * request on a failure path.
+ *
+ * A CATALOG THAT CANNOT BE READ YIELDS NO SEAT, never an invented one: the refusal then carries
+ * the command and nothing else, which is the same honest absence `credentialIdForWorkspace`
+ * returns from the same failure.
+ */
+	function refusedSeatContext(
+	workspaceId: string | undefined,
+	provider: string | undefined,
+	tried: readonly string[],
+	): { provider: string | undefined; tried: RefusedSeat[]; declaredExhausted: boolean } {
+	try {
+		const home = resolveRefarmHome();
+		const catalog = readCatalog(home);
+		const aliasOf = (credentialId: string) =>
+			catalog.find((entry) => entry.credentialId === credentialId)?.alias ?? credentialId;
+		const declared = workspaceId
+			? readBindings(home)
+					.filter((b) => b.workspaceId === workspaceId)
+					.map((b) => b.credentialId)
+			: [];
+		return {
+			provider,
+			tried: tried.map((credentialId) => ({ credentialId, alias: aliasOf(credentialId) })),
+			// EXHAUSTED means a declaration existed and every seat in it was tried. With none
+			// declared there is nothing to have run out of, and saying so would describe a choice
+			// the operator never made.
+			declaredExhausted: declared.length > 0 && declared.every((id) => tried.includes(id)),
+		};
+	} catch {
+		return { provider, tried: [], declaredExhausted: false };
+	}
+	}
+
+	function credentialIdForWorkspace(
 	workspaceId: string | undefined,
 	provider?: string,
 	tried: readonly string[] = [],
-): string | undefined {
+	): string | undefined {
 	try {
 		const home = resolveRefarmHome();
 		// EVERY seat this workspace declared, IN ORDER (ISS-157). With nothing tried this returns
@@ -1206,11 +1253,11 @@ function credentialIdForWorkspace(
 		// records no payer, which is the same honest absence an ambiguous provider produces.
 		return undefined;
 	}
-}
+	}
 
-/** The WORKSPACE's own config, where it may ANNOUNCE a baseline. Read from where the operator is
+	/** The WORKSPACE's own config, where it may ANNOUNCE a baseline. Read from where the operator is
  *  standing, and never trusted to widen anything — see `effectiveAllowances`. */
-function readWorkspaceConfigForAllowance(): unknown {
+	function readWorkspaceConfigForAllowance(): unknown {
 	try {
 		return JSON.parse(
 			nodeFsForAllowance.readFileSync(
@@ -1221,11 +1268,11 @@ function readWorkspaceConfigForAllowance(): unknown {
 	} catch {
 		return {};
 	}
-}
+	}
 
-/** The node-tier config the allowance is declared in, read without throwing: a dispatch must not
+	/** The node-tier config the allowance is declared in, read without throwing: a dispatch must not
  *  die on a config typo, and an unreadable config declares no allowance, which permits. */
-function readNodeConfigForAllowance(): unknown {
+	function readNodeConfigForAllowance(): unknown {
 	try {
 		return JSON.parse(
 			nodeFsForAllowance.readFileSync(
@@ -1236,4 +1283,4 @@ function readNodeConfigForAllowance(): unknown {
 	} catch {
 		return {};
 	}
-}
+	}
