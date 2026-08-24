@@ -1,3 +1,4 @@
+import type { ModelAccountDescriptor } from "@refarm.dev/model-account-contract-v1";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toCommanderGroup } from "../../src/commands/capability-commander.js";
 import {
@@ -6,12 +7,14 @@ import {
 } from "../../src/commands/model-capability.js";
 import {
 	buildCurrentModelStatus,
+	buildModelDoctorEnvelope,
 	buildModelDoctorStatus,
 	credentialLifetime,
 	formatCredentialLifetime,
 	formatModelDoctorFromStatus,
 	resolveRuntimeModelRoute,
 	type ModelCommandDeps,
+	type ModelTokens,
 } from "../../src/commands/model.js";
 
 /**
@@ -1819,5 +1822,190 @@ describe("endpoint-malformed", () => {
 		const status = await buildCurrentModelStatus({ modelProvider: "openai", modelId: "gpt-5.5" });
 		expect(status.baseUrl).toBeUndefined();
 		expect(status.baseUrlSource).toBeUndefined();
+	});
+});
+
+/**
+ * THE CATALOG ANSWERS WHAT THE FLAT TOKEN MAP CANNOT SEE.
+ *
+ * Measured on the operator's node 2026-08-23. `refarm credential quota` reached GitHub with two
+ * Copilot seats and came back with live plan data; in the same minute `refarm model current`
+ * reported `unresolved` on all three routes and `refarm model doctor` prescribed `ollama serve`
+ * for a `github-copilot` route.
+ *
+ * `modelCredentialStatus` (packages/config) is NOT the defect and is not changed: it does no I/O,
+ * it says `unresolved` precisely because it cannot see the `model` namespace, and its own comment
+ * names the remedy — "a caller that can consult the account catalog gets a better answer by asking
+ * the catalog, not by reinterpreting this boolean." These are the callers that can, doing so.
+ */
+describe("the catalog answers what the flat token map cannot see", () => {
+	const seat = (over: Partial<ModelAccountDescriptor> = {}): ModelAccountDescriptor => ({
+		credentialId: "model-account:K4NXGZTQQ4KFM0GG9139VN67PR",
+		provider: "github-copilot",
+		alias: "corporativo",
+		identity: { status: "verified" },
+		secretRef: "model/model-account:K4NXGZTQQ4KFM0GG9139VN67PR",
+		health: "healthy",
+		revision: "sha256:test",
+		...over,
+	});
+
+	const copilotRoute = { modelProvider: "github-copilot", modelId: "gpt-4o" } as ModelTokens;
+
+	it("an authorized healthy seat resolves the route the flat map calls unresolved", () => {
+		// The negative control: with no catalog handed in, today's honest "I cannot see" stands.
+		expect(buildCurrentModelStatus(copilotRoute).credential.state).toBe("unresolved");
+
+		const status = buildCurrentModelStatus(copilotRoute, {
+			accounts: [seat()],
+			authorization: { scope: "all" },
+		});
+
+		expect(status.credential.state).toBe("account");
+		expect(status.credential.status).toContain("corporativo");
+	});
+
+	it("a seat this node holds and has NOT authorized is not a missing credential", () => {
+		// Two absences with two different remedies. Reading "you never declared it" as "there is
+		// none" is the same substitution this whole block exists to remove, one layer down.
+		const status = buildCurrentModelStatus(copilotRoute, {
+			accounts: [seat()],
+			authorization: { scope: "undeclared" },
+		});
+
+		expect(status.credential.state).toBe("unauthorized");
+	});
+
+	it("a catalog holding nothing for the provider is measured absence, not doubt", () => {
+		const status = buildCurrentModelStatus(copilotRoute, {
+			accounts: [seat({ provider: "openai-codex", alias: "account-2" })],
+			authorization: { scope: "all" },
+		});
+
+		expect(status.credential.state).toBe("missing");
+	});
+
+	it("every route is resolved, not only the default", () => {
+		const status = buildCurrentModelStatus(copilotRoute, {
+			accounts: [seat()],
+			authorization: { scope: "all" },
+		});
+
+		expect(status.routeCredentials.default.state).toBe("account");
+		expect(status.routeCredentials.worker.state).toBe("account");
+		expect(status.routeCredentials.monitor.state).toBe("account");
+	});
+
+	it("an incomplete seat is an absence, not a doubt — its secret is gone", () => {
+		// `not.toBe("account")` would pass today without the feature, which proves nothing. The
+		// honest answer names the same remedy as holding nothing at all: `refarm sow` writes the
+		// secret in both cases, so both are `missing` and `credential list` is where the
+		// descriptor-vs-nothing distinction is read.
+		const status = buildCurrentModelStatus(copilotRoute, {
+			accounts: [seat({ health: "incomplete" })],
+			authorization: { scope: "all" },
+		});
+
+		expect(status.credential.state).toBe("missing");
+	});
+});
+
+/**
+ * THE DOCTOR'S OWN CLOCK LOOKS IN THE LEGACY MAP ONLY.
+ *
+ * `credentialLifetime`'s comment claims it is "reached through the account contract, so expiry is
+ * read from wherever the credential actually lives". Measured 2026-08-23: it resolves its
+ * descriptor from `readLegacyCredentials(tokens)` — the flat map — and every account written since
+ * 2026-08-14 lives in the `model` namespace instead. On the operator's node `refarm model doctor`
+ * answered `{state: "unknown", reason: "not-oauth"}` for an OAuth credential whose stored blob
+ * carried `expires`, ninety minutes before it lapsed.
+ *
+ * The describe block above this one is not wrong and is not changed: its fixture is the legacy
+ * shape, which still exists and must keep working. It simply never asked the other question.
+ */
+describe("the credential's clock reads the namespace too", () => {
+	const NOW = 1_786_500_000_000;
+	const namespaced = {
+		credentialId: "model-account:K4NXGZTQQ4KFM0GG9139VN67PR",
+		provider: "github-copilot",
+		alias: "corporativo",
+		identity: { status: "verified" as const },
+		secretRef: "model/model-account:K4NXGZTQQ4KFM0GG9139VN67PR",
+		health: "healthy" as const,
+		revision: "sha256:test",
+	} satisfies ModelAccountDescriptor;
+
+	const catalogWith = (expires: unknown) => ({
+		accounts: [namespaced],
+		authorization: { scope: "all" as const },
+		credentials: new Map<string, unknown>([
+			[namespaced.credentialId, { access: "a", refresh: "r", expires }],
+		]),
+	});
+
+	it("a namespaced credential with an expiry is read, not called not-oauth", () => {
+		expect(credentialLifetime("github-copilot", {} as never, NOW, catalogWith(NOW + 86_400_000)))
+			.toMatchObject({ state: "valid", remainingMs: 86_400_000 });
+	});
+
+	it("a namespaced credential already past its expiry reads as expired", () => {
+		expect(credentialLifetime("github-copilot", {} as never, NOW, catalogWith(NOW - 3_600_000)))
+			.toMatchObject({ state: "expired", expiredForMs: 3_600_000 });
+	});
+
+	it("without a catalog the answer is unchanged — this adds a reader, it does not move one", () => {
+		expect(credentialLifetime("github-copilot", {} as never, NOW)).toEqual({
+			state: "unknown",
+			reason: "not-oauth",
+		});
+	});
+});
+
+/**
+ * A REMOTE PROVIDER HAS NO LOCAL RUNTIME TO START.
+ *
+ * Measured on the operator's node 2026-08-23, with a healthy `github-copilot` route:
+ *
+ *     refarm model doctor --json
+ *       providerProbe.baseUrl: "http://localhost:11434"
+ *       nextAction: "ollama serve"
+ *
+ * `PROVIDER_DOCTOR_PROFILES` already knows this — github-copilot takes `DEFAULT_REMOTE_PROFILE`,
+ * whose `startCommand` is absent precisely because there is nothing to start. The knowledge was
+ * in the table and the recovery list pushed `handoffs.startOllama` unconditionally, past it.
+ */
+describe("the doctor's remedy matches the provider it is talking about", () => {
+	const failingFetch = () => vi.fn().mockRejectedValue(new Error("unreachable")) as never;
+
+	it("a remote provider is never told to start a local runtime", async () => {
+		// `modelBaseUrl` REPRODUCES THE NODE, and without it this test passes vacuously: an absent
+		// endpoint sends `resolveProviderProbe` to the runtime and the probe never reports
+		// `ready: false`, so the recovery list is empty and asserting on it proves nothing. On the
+		// operator's node a base URL persisted while the route was ollama was still being applied
+		// to a github-copilot route, which is what got pinged and what failed.
+		const envelope = await buildModelDoctorEnvelope(
+			{
+				modelProvider: "github-copilot",
+				modelId: "gpt-4o",
+				modelBaseUrl: "http://localhost:11434",
+			} as ModelTokens,
+			{ fetch: failingFetch(), isContainer: () => false },
+		);
+
+		expect((envelope as { providerProbe: { ready: boolean | null } }).providerProbe.ready).toBe(
+			false,
+		);
+
+		expect((envelope as { nextActions?: string[] }).nextActions).not.toContain("ollama serve");
+		expect((envelope as { nextAction?: string | null }).nextAction).not.toBe("ollama serve");
+	});
+
+	it("ollama still gets its start command — this narrows the advice, it does not delete it", async () => {
+		const envelope = await buildModelDoctorEnvelope(
+			{ modelProvider: "ollama", modelId: "llama3.2" } as ModelTokens,
+			{ fetch: failingFetch(), isContainer: () => false },
+		);
+
+		expect((envelope as { nextActions?: string[] }).nextActions).toContain("ollama serve");
 	});
 });

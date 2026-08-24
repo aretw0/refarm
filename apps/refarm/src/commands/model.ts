@@ -11,6 +11,7 @@ import {
 	readCredentialAt,
 	readLegacyCredentials,
 	type AccountView,
+	type ModelAccountDescriptor,
 	type ModelAuthorization,
 } from "@refarm.dev/model-account-contract-v1";
 import { isContainer as detectContainerRuntime, fetchWithTimeout } from "@refarm.dev/root";
@@ -110,6 +111,45 @@ export interface ModelCommandDeps {
 	isContainer?: () => boolean;
 }
 
+/**
+ * What a route's credential is, once whoever could look has looked.
+ *
+ * The first six come from `modelCredentialStatus` (packages/config), which does no I/O. The last
+ * two can only be decided by a caller holding the account catalog, and exist because `unresolved`
+ * — "a credential may be in the `model` namespace, which the pure function cannot read" — was
+ * being rendered to operators as though it meant "there is none".
+ */
+export type ModelCredentialState =
+	| "not-required"
+	| "env"
+	| "silo-api-key"
+	| "silo-oauth"
+	| "missing"
+	| "unresolved"
+	/** A model account this node holds, is healthy, and the operator has authorised. */
+	| "account"
+	/** Held and healthy, and NOT authorised. A declaration away from usable, not a repair away. */
+	| "unauthorized";
+
+/**
+ * The catalog a caller hands in so `unresolved` can be decided.
+ *
+ * OPTIONAL BY DESIGN. `buildCurrentModelStatus` has nine production call sites and stays
+ * synchronous and I/O-free (see parity.ts's "THE TWO CRITICALS"); a caller that has not loaded the
+ * catalog gets exactly the previous answer, and one that has gets the true one.
+ */
+export interface ModelAccountCatalog {
+	readonly accounts: readonly ModelAccountDescriptor[];
+	readonly authorization: ModelAuthorization;
+	/**
+	 * The stored credentials by opaque id, for readers that need an expiry rather than a state.
+	 *
+	 * ABSENT MEANS THE LOADER DID NOT FETCH THEM, never that the store holds none — the same
+	 * distinction the catalog itself draws between `undefined` and an empty account list.
+	 */
+	readonly credentials?: ReadonlyMap<string, unknown>;
+}
+
 export interface CurrentModelStatus {
 	current: {
 		provider: string | undefined;
@@ -120,7 +160,7 @@ export interface CurrentModelStatus {
 	credential: {
 		envKey: string | undefined;
 		/** `unresolved` is not `missing`: the credential may be namespaced, where this cannot look. */
-		state: "not-required" | "env" | "silo-api-key" | "silo-oauth" | "missing" | "unresolved";
+		state: ModelCredentialState;
 		status: string | null;
 	};
 	routeCredentials: Record<
@@ -129,7 +169,7 @@ export interface CurrentModelStatus {
 			provider: string | undefined;
 			envKey: string | undefined;
 			/** `unresolved` is not `missing`: the credential may be namespaced, where this cannot look. */
-		state: "not-required" | "env" | "silo-api-key" | "silo-oauth" | "missing" | "unresolved";
+			state: ModelCredentialState;
 			status: string | null;
 		}
 	>;
@@ -280,18 +320,62 @@ function modelCredentialState(
 function modelRouteCredentialStatus(
 	provider: string | undefined,
 	tokens: ModelTokens,
+	catalog?: ModelAccountCatalog,
 ): CurrentModelStatus["routeCredentials"][ModelScope] {
 	const status = resolveModelCredentialStatus(provider, tokens, process.env);
-	return {
+	const resolved = resolveCredentialAgainstCatalog(
 		provider,
-		envKey: "envKey" in status ? status.envKey : undefined,
-		state: status.state,
-		status: modelCredentialStatus(provider, tokens),
-	};
+		{
+			state: status.state,
+			envKey: "envKey" in status ? status.envKey : undefined,
+			status: modelCredentialStatus(provider, tokens),
+		},
+		catalog,
+	);
+	return { provider, ...resolved };
 }
 
 function stringToken(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+/**
+ * PURE. Decide an `unresolved` credential against the account catalog.
+ *
+ * ONLY `unresolved` IS TOUCHED. `env`, `silo-api-key` and `silo-oauth` are positive findings from a
+ * store this function does not improve on, and `not-required`/`missing` are already decided. A
+ * resolver that recomputed all six would let the catalog overrule a credential the operator has
+ * exported into the environment, which is the reverse of the precedence every other surface keeps.
+ *
+ * THE THREE OUTCOMES HAVE THREE REMEDIES, which is why they are three states and not one boolean:
+ * an authorised seat needs nothing, a held-but-undeclared seat needs `credential authorize`, and
+ * nothing held needs `sow`. Collapsing the middle one into `missing` would send an operator to
+ * re-authenticate an account this node already has.
+ */
+export function resolveCredentialAgainstCatalog(
+	provider: string | undefined,
+	base: { state: ModelCredentialState; envKey: string | undefined; status: string | null },
+	catalog: ModelAccountCatalog | undefined,
+): { state: ModelCredentialState; envKey: string | undefined; status: string | null } {
+	if (!catalog || !provider || base.state !== "unresolved") return base;
+	const aliases = (accounts: readonly ModelAccountDescriptor[]) =>
+		accounts.map((a) => a.alias).join(", ");
+	const { authorized } = authorizedAccounts(catalog.authorization, catalog.accounts);
+	const usable = authorized.filter((a) => a.provider === provider);
+	if (usable.length > 0) {
+		return { ...base, state: "account", status: `model account (${aliases(usable)})` };
+	}
+	// HEALTHY ONLY. An `incomplete` descriptor has no secret, so declaring it would not make it
+	// spendable and `credential authorize` is the wrong instruction to hand back.
+	const held = catalog.accounts.filter((a) => a.provider === provider && a.health === "healthy");
+	if (held.length > 0) {
+		return {
+			...base,
+			state: "unauthorized",
+			status: `held, not authorised (${aliases(held)}) — refarm credential authorize`,
+		};
+	}
+	return { ...base, state: "missing", status: "missing (run refarm sow)" };
 }
 
 function modelRuntimeCredentialEnv(
@@ -775,7 +859,15 @@ function modelDoctorRecoveryCommands(status: ModelDoctorStatus): string[] {
 	if (status.probeEnvironment.container && status.probeEnvironment.localhostTargetsRuntime) {
 		commands.push(status.handoffs.setDockerOllamaBaseUrl);
 	}
-	commands.push(status.handoffs.startOllama);
+	// A REMOTE PROVIDER HAS NO LOCAL RUNTIME TO START, and `PROVIDER_DOCTOR_PROFILES` already
+	// records which do: `DEFAULT_REMOTE_PROFILE` carries no `startCommand` precisely because there
+	// is nothing to start. `handoffs.startOllama` falls back to the literal `"ollama serve"` for
+	// every provider (the field name is the wire, kept until the shape is generalized), so pushing
+	// it unconditionally spent the table's knowledge on the way past it. Measured 2026-08-23: a
+	// healthy github-copilot route whose probe failed answered `nextAction: "ollama serve"`.
+	if (providerDoctorProfile(status.current.provider).startCommand) {
+		commands.push(status.handoffs.startOllama);
+	}
 	if (
 		status.probeEnvironment.container &&
 		!commands.includes(status.handoffs.setDockerOllamaBaseUrl)
@@ -963,6 +1055,7 @@ export function credentialLifetime(
 	provider: string | undefined,
 	tokens: ModelTokens,
 	now: number,
+	catalog?: ModelAccountCatalog,
 ): CredentialLifetime {
 	// Reached through the account contract, so expiry is read from wherever the credential actually
 	// lives. `not-oauth` stays the answer for BOTH "no descriptor" and "nothing stored": neither
@@ -972,18 +1065,55 @@ export function credentialLifetime(
 	const descriptor = provider
 		? readLegacyCredentials(tokens as Record<string, unknown>).find((a) => a.provider === provider)
 		: undefined;
-	if (!descriptor) return { state: "unknown", reason: "not-oauth" };
-	const read = readCredentialAt(credentialSecretLocation(descriptor), {
-		legacyOauthCredentials: (tokens as { oauthCredentials?: Record<string, unknown> })
-			.oauthCredentials,
-	});
-	if (read.kind !== "found") return { state: "unknown", reason: "not-oauth" };
-	const entry = read.credential as { expires?: unknown };
-	const expiresAt = typeof entry.expires === "number" ? entry.expires : null;
-	if (expiresAt === null) return { state: "unknown", reason: "no-expiry-recorded" };
+	const legacy = descriptor
+		? readCredentialAt(credentialSecretLocation(descriptor), {
+				legacyOauthCredentials: (tokens as { oauthCredentials?: Record<string, unknown> })
+					.oauthCredentials,
+			})
+		: { kind: "absent" as const };
+	const expiries =
+		legacy.kind === "found"
+			? [expiryOf(legacy.credential)]
+			: namespacedExpiries(provider, catalog);
+	if (expiries.length === 0) return { state: "unknown", reason: "not-oauth" };
+	const recorded = expiries.filter((value): value is number => value !== null);
+	if (recorded.length === 0) return { state: "unknown", reason: "no-expiry-recorded" };
+	// THE SOONEST, when a provider holds more than one seat. A doctor is a warning surface, and an
+	// expiry that has already passed on one authorised seat is a fault the operator must see —
+	// hiding it behind a healthier sibling is the same "claims more than it measured" defect this
+	// whole slice removes. Per-seat detail is `refarm credential list`'s question, not this one's.
+	const expiresAt = Math.min(...recorded);
 	return expiresAt <= now
 		? { state: "expired", expiresAt, expiredForMs: now - expiresAt }
 		: { state: "valid", expiresAt, remainingMs: expiresAt - now };
+}
+
+/** PURE. The `expires` a stored credential blob records, or `null` when it records none. */
+function expiryOf(credential: unknown): number | null {
+	const entry = credential as { expires?: unknown };
+	return typeof entry?.expires === "number" ? entry.expires : null;
+}
+
+/**
+ * PURE. Every expiry the catalog holds for a provider — `[]` when it can say nothing.
+ *
+ * An EMPTY array and an array of `null`s are different answers: the first is "no credential here"
+ * (`not-oauth`), the second is "a credential that records no expiry" (`no-expiry-recorded`). The
+ * caller needs both, and collapsing them would resurrect an absence rendered as a reassurance.
+ */
+function namespacedExpiries(
+	provider: string | undefined,
+	catalog: ModelAccountCatalog | undefined,
+): (number | null)[] {
+	if (!provider || !catalog?.credentials) return [];
+	const { authorized } = authorizedAccounts(catalog.authorization, catalog.accounts);
+	const seats = (authorized.length > 0 ? authorized : catalog.accounts).filter(
+		(a) => a.provider === provider && a.health === "healthy",
+	);
+	return seats.flatMap((seat) => {
+		const stored = catalog.credentials?.get(seat.credentialId);
+		return stored === undefined ? [] : [expiryOf(stored)];
+	});
 }
 
 async function resolveProviderProbe(
@@ -1027,8 +1157,9 @@ async function resolveProviderProbe(
 export async function buildModelDoctorStatus(
 	tokens: ModelTokens,
 	deps: Pick<ModelCommandDeps, "fetch" | "isContainer"> = {},
+	catalog?: ModelAccountCatalog,
 ): Promise<ModelDoctorStatus> {
-	const current = buildCurrentModelStatus(tokens);
+	const current = buildCurrentModelStatus(tokens, catalog);
 	const profile = providerDoctorProfile(current.current.provider);
 	const handoffs = modelDoctorHandoffs(profile);
 	const container = deps.isContainer?.() ?? detectContainerRuntime();
@@ -1042,7 +1173,7 @@ export async function buildModelDoctorStatus(
 	const status: ModelDoctorStatus = {
 		current: current.current,
 		baseUrlSource: current.baseUrlSource,
-		credential: credentialLifetime(provider, tokens, Date.now()),
+		credential: credentialLifetime(provider, tokens, Date.now(), catalog),
 		providerProbe: probe,
 		probeEnvironment,
 		handoffs,
@@ -1058,8 +1189,9 @@ export async function buildModelDoctorStatus(
 export async function buildModelDoctorEnvelope(
 	tokens: ModelTokens,
 	deps: Pick<ModelCommandDeps, "fetch" | "isContainer"> = {},
+	catalog?: ModelAccountCatalog,
 ) {
-	const status = await buildModelDoctorStatus(tokens, deps);
+	const status = await buildModelDoctorStatus(tokens, deps, catalog);
 	return buildJsonSuccessEnvelope({
 		command: "model",
 		operation: "doctor",
@@ -1144,8 +1276,8 @@ export function formatModelDoctorFromStatus(status: ModelDoctorStatus): string {
 
 /** Format the `model current` human text as a string (no I/O), so the CLI
  * renderText hook formats from this single source of truth. */
-export function formatCurrentModel(tokens: ModelTokens): string {
-	return formatCurrentModelFromStatus(buildCurrentModelStatus(tokens));
+export function formatCurrentModel(tokens: ModelTokens, catalog?: ModelAccountCatalog): string {
+	return formatCurrentModelFromStatus(buildCurrentModelStatus(tokens, catalog));
 }
 
 /** Format `model current` text from an already-computed status — so a CLI
@@ -1206,8 +1338,8 @@ export function formatCurrentModelFromStatus(status: CurrentModelStatus): string
 
 /** Build the `model current` JSON envelope (no I/O) so every surface — CLI, the
  * REPL /model capability, an API — returns the identical result. */
-export function buildCurrentModelEnvelope(tokens: ModelTokens) {
-	const status = buildCurrentModelStatus(tokens);
+export function buildCurrentModelEnvelope(tokens: ModelTokens, catalog?: ModelAccountCatalog) {
+	const status = buildCurrentModelStatus(tokens, catalog);
 	return buildJsonSuccessEnvelope({
 		command: "model",
 		operation: "current",
@@ -1380,7 +1512,57 @@ export function routeForBoundAccount(
 	};
 }
 
-export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus {
+/**
+ * Load the account catalog for {@link buildCurrentModelStatus}, or `undefined` when it cannot be read.
+ *
+ * NEVER THROWS, and `undefined` is not an empty catalog. A store this process cannot read leaves
+ * the status exactly where it was — `unresolved`, the honest "I cannot see" — rather than turning
+ * a filesystem fault into a claim that the operator holds no credentials. This is the same
+ * distinction `refarm tasks` drew on 2026-08-23 between an empty effort list and an unaskable one.
+ *
+ * Imports are deferred so the module graph of every other `model.ts` consumer is unchanged.
+ */
+export async function loadModelAccountCatalog(): Promise<ModelAccountCatalog | undefined> {
+	try {
+		const [{ loadAccountView }, { readModelAuthorization }, { resolveRefarmHome }, fs, path] =
+			await Promise.all([
+				import("../credentials/account-view-loader.js"),
+				import("@refarm.dev/model-account-contract-v1"),
+				import("../utils/refarm-home.js"),
+				import("node:fs"),
+				import("node:path"),
+			]);
+		const home = resolveRefarmHome();
+		const { loadAccountCredentials } = await import("../credentials/account-view-loader.js");
+		const view = await loadAccountView({ home, silo: new SiloCore() as never });
+		// Read beside the view rather than lazily: both come from the same store, and a second
+		// deferred read would let the two halves of one answer be taken at different moments.
+		const credentials = await loadAccountCredentials({ home, silo: new SiloCore() as never });
+		// A MISSING CONFIG IS AN UNDECLARED AUTHORIZATION, not a broken catalog: the accounts are
+		// still known, and `readModelAuthorization` already lands a malformed declaration on the
+		// state that authorises nothing.
+		let config: unknown = {};
+		try {
+			config = JSON.parse(
+				fs.default.readFileSync(path.default.join(home, "config.json"), "utf8"),
+			) as unknown;
+		} catch {
+			config = {};
+		}
+		return {
+			accounts: view.accounts,
+			authorization: readModelAuthorization(config),
+			credentials,
+		};
+	} catch {
+		return undefined;
+	}
+}
+
+export function buildCurrentModelStatus(
+	tokens: ModelTokens,
+	catalog?: ModelAccountCatalog,
+): CurrentModelStatus {
 	const defaultRoute = effectiveModelRouteForScope(tokens, "default", {
 		env: process.env,
 	});
@@ -1394,8 +1576,17 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 		!routeProviderOverridden || tokens.modelProvider?.toLowerCase() === provider?.toLowerCase();
 
 	const credentialEnv = modelCredentialEnvKey(provider);
-	const credentialState = modelCredentialState(provider, tokens);
-	const credentialStatus = modelCredentialStatus(provider, tokens);
+	const resolvedCredential = resolveCredentialAgainstCatalog(
+		provider,
+		{
+			state: modelCredentialState(provider, tokens),
+			envKey: credentialEnv,
+			status: modelCredentialStatus(provider, tokens),
+		},
+		catalog,
+	);
+	const credentialState = resolvedCredential.state;
+	const credentialStatus = resolvedCredential.status;
 	const envBaseUrl = process.env[MODEL_BASE_URL_ENV_VAR];
 	const siloBaseUrl = storedProviderMatchesRoute ? tokens.modelBaseUrl : undefined;
 	const baseUrl = envBaseUrl ?? siloBaseUrl;
@@ -1423,9 +1614,9 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 	});
 	const monitorRoute = formatModelRef(monitor.provider, monitor.modelId);
 	const routeCredentials: CurrentModelStatus["routeCredentials"] = {
-		default: modelRouteCredentialStatus(provider, tokens),
-		worker: modelRouteCredentialStatus(worker.provider, tokens),
-		monitor: modelRouteCredentialStatus(monitor.provider, tokens),
+		default: modelRouteCredentialStatus(provider, tokens, catalog),
+		worker: modelRouteCredentialStatus(worker.provider, tokens, catalog),
+		monitor: modelRouteCredentialStatus(monitor.provider, tokens, catalog),
 	};
 	const envOverrides = activeModelEnvOverrides();
 	let sourceKind: CurrentModelStatus["source"]["kind"];

@@ -74,6 +74,11 @@ function createTestResumeCommand(
 		// declared workspaces (`~/.refarm/config.json`) — a test wanting ledger behavior
 		// overrides this explicitly, same as `loadEnvironmentPressure` above.
 		loadLedgerReads: vi.fn().mockReturnValue({}),
+		// Same reason, one axis over: the default catalog loader reads this machine's real
+		// `~/.refarm` account store, so without this stub every credential assertion here would
+		// depend on which seats the operator happens to hold today. `undefined` is the loader
+		// saying it could not look, which is the state these tests want unless they say otherwise.
+		loadModelCatalog: vi.fn().mockResolvedValue(undefined),
 		...deps,
 	});
 }
@@ -836,5 +841,73 @@ describe("resume command", () => {
 			expect.stringContaining("Runtime: not inspected"),
 		);
 		spy.mockRestore();
+	});
+});
+
+/**
+ * ISS-131's readable half, measured on the operator's node 2026-08-23.
+ *
+ * `refarm credential quota` reached GitHub with two Copilot seats and returned live plan data. In
+ * the same minute this command — the one CLAUDE.md section 4 mandates at the start of every slice —
+ * reported `state: "unresolved"`, `"not in env or tokens"` on all three routes. Every agent began
+ * its work by reading a false sentence about the operator's own fleet.
+ */
+describe("resume answers about credentials with the catalog, not only the flat map", () => {
+	const seat = {
+		credentialId: "model-account:K4NXGZTQQ4KFM0GG9139VN67PR",
+		provider: "github-copilot",
+		alias: "corporativo",
+		identity: { status: "verified" as const },
+		secretRef: "model/model-account:K4NXGZTQQ4KFM0GG9139VN67PR",
+		health: "healthy" as const,
+		revision: "sha256:test",
+	};
+
+	const commandWith = (loadModelCatalog?: unknown) =>
+		createTestResumeCommand({
+			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
+			sessionRecorder: recorder(null),
+			finishRecorder: finishRecorder(null),
+			readActiveSessionId: vi.fn().mockReturnValue(null),
+			loadModelTokens: vi.fn().mockResolvedValue({
+				modelProvider: "github-copilot",
+				modelId: "gpt-4o",
+			}),
+			loadRecentSessions: vi.fn().mockResolvedValue([]),
+			loadChatHistory: vi.fn().mockReturnValue([]),
+			...(loadModelCatalog ? { loadModelCatalog } : {}),
+		} as Parameters<typeof createResumeCommand>[0]);
+
+	const runJson = async (command: ReturnType<typeof createTestResumeCommand>) => {
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		await command.parseAsync(["--json"], { from: "user" });
+		spy.mockRestore();
+		return JSON.parse(logs.join("\n")) as {
+			model?: { credential: { state: string; status: string | null } };
+		};
+	};
+
+	it("names the seat that answers, where it used to say it could not see", async () => {
+		// The negative control, and the state of this command before today: no catalog, no answer.
+		const blind = await runJson(commandWith());
+		expect(blind.model?.credential.state).toBe("unresolved");
+
+		const seeing = await runJson(
+			commandWith(vi.fn().mockResolvedValue({ accounts: [seat], authorization: { scope: "all" } })),
+		);
+
+		expect(seeing.model?.credential.state).toBe("account");
+		expect(seeing.model?.credential.status).toContain("corporativo");
+	});
+
+	it("a catalog that cannot be read leaves the honest 'cannot see' alone", async () => {
+		// A store fault must not become a claim about the operator's credentials. `undefined` is
+		// the loader saying it could not look, which is exactly what `unresolved` already means.
+		const unreadable = await runJson(commandWith(vi.fn().mockResolvedValue(undefined)));
+
+		expect(unreadable.model?.credential.state).toBe("unresolved");
 	});
 });

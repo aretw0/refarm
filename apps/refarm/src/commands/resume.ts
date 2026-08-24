@@ -40,7 +40,13 @@ import {
 	type AgentFinishSessionRecorder,
 } from "./agent-finish-session.js";
 import { MODEL_CURRENT_JSON_COMMAND, MODEL_DOCTOR_JSON_COMMAND } from "./credential-handoffs.js";
-import { buildCurrentModelStatus, defaultModelDeps, type ModelTokens } from "./model.js";
+import {
+	buildCurrentModelStatus,
+	defaultModelDeps,
+	loadModelAccountCatalog,
+	type ModelAccountCatalog,
+	type ModelTokens,
+} from "./model.js";
 import { loadRecentRuntimeSessions } from "./session-history.js";
 import { readActiveSessionId } from "./session-lock.js";
 import { resolveStatusPayload, type ResolveStatusPayloadResult } from "./status.js";
@@ -63,6 +69,9 @@ export interface ResumeDeps {
 	loadRecentSessions(): Promise<OperatorResumeSessionRecord[]>;
 	loadChatHistory(): string[];
 	loadModelTokens(): Promise<ModelTokens>;
+	/** The account catalog, so a namespaced credential is not reported as one nobody can find.
+	 *  OPTIONAL: a caller that does not supply it gets the flat map's honest "I cannot see". */
+	loadModelCatalog?(): Promise<ModelAccountCatalog | undefined>;
 	/** Takes the optional `--workspace` id: `resume` must be able to answer about a workspace the
 	 *  operator is not standing in (a phone, Termux, /tmp), and must SAY which one answered. */
 	resolveProject(workspace?: string): ProjectHandoffResolutionResult;
@@ -99,6 +108,7 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 		loadRecentSessions: loadRecentRuntimeSessions,
 		loadChatHistory,
 		loadModelTokens: defaultModelDeps().loadTokens,
+		loadModelCatalog: loadModelAccountCatalog,
 		resolveProject,
 		loadScheduledWork,
 		loadEnvironmentPressure,
@@ -901,11 +911,11 @@ export function loadLedgerReads(io: LedgerIo = defaultLedgerIo): Record<string, 
 }
 
 async function loadModelResumeSummary(
-	deps: Pick<ResumeDeps, "loadModelTokens">,
+	deps: Pick<ResumeDeps, "loadModelTokens" | "loadModelCatalog">,
 ): Promise<OperatorResumeModelSummary | undefined> {
 	try {
 		const tokens = await deps.loadModelTokens();
-		const status = buildCurrentModelStatus(tokens);
+		const status = buildCurrentModelStatus(tokens, await deps.loadModelCatalog?.());
 		return {
 			current: {
 				scope: "default",

@@ -46,6 +46,7 @@ import {
 	formatKnownModelProviders,
 	formatModelDoctorFromStatus,
 	formatModelEnvFromEnvelope,
+	loadModelAccountCatalog,
 	type CurrentModelStatus,
 	type ModelCommandDeps,
 	type ModelDoctorStatus,
@@ -132,7 +133,7 @@ export function createModelCapabilityGroup(
 		name: "current",
 		summary: "Show the currently configured model route",
 		async run() {
-			return buildCurrentModelEnvelope(await deps.loadTokens());
+			return buildCurrentModelEnvelope(await deps.loadTokens(), await loadModelAccountCatalog());
 		},
 		renderers: { web: { route: "/settings/model" } },
 	};
@@ -149,10 +150,11 @@ export function createModelCapabilityGroup(
 		name: "doctor",
 		summary: "Probe the active local model provider endpoint",
 		async run() {
-			return buildModelDoctorEnvelope(await deps.loadTokens(), {
-				fetch: deps.fetch,
-				isContainer: deps.isContainer,
-			});
+			return buildModelDoctorEnvelope(
+				await deps.loadTokens(),
+				{ fetch: deps.fetch, isContainer: deps.isContainer },
+				await loadModelAccountCatalog(),
+			);
 		},
 	};
 
