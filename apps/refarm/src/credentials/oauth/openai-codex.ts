@@ -3,9 +3,13 @@ import { waitForOAuthCallback } from "./callback-wait.js";
 import { generatePKCE } from "./pkce.js";
 import type { OAuthCredentials, OAuthLoginCallbacks, OAuthProviderInterface } from "./types.js";
 
-const CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
+/** The codex OAuth wire, exported so a renewer driving an INJECTED fetch cannot drift from the
+ *  login that minted the credential — two spellings of one endpoint is the defect ISS-112 names. */
+export const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
+const CLIENT_ID = CODEX_CLIENT_ID;
 const AUTHORIZE_URL = "https://auth.openai.com/oauth/authorize";
-const TOKEN_URL = "https://auth.openai.com/oauth/token";
+export const CODEX_TOKEN_URL = "https://auth.openai.com/oauth/token";
+const TOKEN_URL = CODEX_TOKEN_URL;
 const CALLBACK_PORT = 1455;
 const CALLBACK_PATH = "/auth/callback";
 const REDIRECT_URI = `http://localhost:${CALLBACK_PORT}${CALLBACK_PATH}`;

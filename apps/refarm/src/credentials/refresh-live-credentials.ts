@@ -18,8 +18,24 @@ import type { ModelAccountDescriptor } from "@refarm.dev/model-account-contract-
 import fs from "node:fs";
 import path from "node:path";
 
+import { renewCodex } from "./codex-renew.js";
 import { isExpired, renewExpiredCopilotCredentials } from "./copilot-renew.js";
 import { writeLiveCredentials } from "./live-credential-file.js";
+
+/**
+ * Providers whose stored credential carries an expiry this node can act on.
+ *
+ * MEASURED, NOT ASSUMED, and the previous premise was the defect: this file used to filter on
+ * `github-copilot` alone and say so in prose — "only for the provider whose tokens actually
+ * expire". The codex blob on the operator's node carries `expires` too, so the sentence was false
+ * and the renewal command reported "nothing had lapsed" about a seat that had.
+ *
+ * `anthropic` implements a refresh grant and is deliberately NOT here: no account of that provider
+ * has ever been held on a node this repository has measured, and a renewer that has never run
+ * against a real credential is a guard nobody has watched fail (AGENTS.md section 9). It joins the
+ * day one exists to prove it.
+ */
+const RENEWABLE_PROVIDERS = new Set(["github-copilot", "openai-codex"]);
 
 export interface RefreshLiveCredentialsDeps {
 	readonly home: string;
@@ -52,7 +68,7 @@ export async function refreshLiveCredentials(
 	const now = (deps.now ?? Date.now)();
 	const stale = deps.accounts.filter(
 		(account) =>
-			account.provider === "github-copilot" &&
+			RENEWABLE_PROVIDERS.has(account.provider) &&
 			isExpired(deps.credentials.get(account.credentialId), now),
 	);
 	if (stale.length === 0) return { kind: "none-stale" };
@@ -65,11 +81,29 @@ export async function refreshLiveCredentials(
 			deps.clientId,
 			deps.userAgent,
 		);
-		const renewed = await renewExpiredCopilotCredentials(stale, deps.credentials, {
+		const copilotRenewed = await renewExpiredCopilotCredentials(stale, deps.credentials, {
 			fetch: deps.fetch,
 			identityHeaders: identity.headers,
 			save: deps.save,
 		});
+		// PER PROVIDER, sequentially over the same map: each renewer reads what the last one wrote,
+		// so a node holding a lapsed seat of each kind renews both in one pass rather than the last
+		// writer deciding. Copilot re-exchanges a `ghu_`; codex runs a refresh grant that ROTATES.
+		const renewed = new Map(copilotRenewed);
+		for (const account of stale) {
+			if (account.provider !== "openai-codex") continue;
+			const credential = renewed.get(account.credentialId);
+			if (credential === undefined) continue;
+			renewed.set(
+				account.credentialId,
+				await renewCodex(account.credentialId, credential, {
+					fetch: deps.fetch,
+					save: deps.save,
+					// ONE CLOCK PER CYCLE: the same `now` this function judged expiry with.
+					now: () => now,
+				}),
+			);
+		}
 		// STILL EXPIRED means the exchange refused. Saying so beats writing a file that changes
 		// nothing and reporting success.
 		const remaining = stale.filter((a) => isExpired(renewed.get(a.credentialId), now));
