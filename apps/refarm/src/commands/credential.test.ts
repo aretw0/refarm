@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { buildAccountView } from "@refarm.dev/model-account-contract-v1";
 
-import { createCredentialCommand } from "./credential.js";
+import { createCredentialCommand, revocationGuidance } from "./credential.js";
 
 const TOKENS = {
 	oauthCredentials: { "openai-codex": { access: "SECRET-TOKEN", expires: 1, accountId: "acc-1" } },
@@ -480,5 +480,79 @@ describe("forget says what it cannot do", () => {
 		const out = await confirmPrompt();
 
 		expect(out).toMatch(/before .*(sow|re-authenticat)/isu);
+	});
+});
+
+/**
+ * WHERE TO REVOKE, since this node cannot.
+ *
+ * Asked by the operator 2026-08-24: "se não temos como revogar daqui então que a gente tenha pelo
+ * menos um comando que retorna o link para revogar."
+ *
+ * MEASURED the same day, with a token belonging to nobody so the probe could revoke nothing:
+ *
+ *     DELETE /applications/<client_id>/token
+ *       no auth                          -> 401 {"message":"Requires authentication"}
+ *       Basic client_id:invented_secret  -> 401 {"message":"Bad credentials"}
+ *
+ * The message CHANGES, which proves the endpoint evaluates the Basic pair: revocation needs a real
+ * `client_secret`, and the device flow deliberately has none. So the node can say WHERE and prove
+ * WHETHER, and cannot DO.
+ */
+describe("revocationGuidance", () => {
+	const copilot = {
+		credentialId: "model-account:AAA",
+		provider: "github-copilot",
+		alias: "corporativo",
+		identity: { status: "verified" as const },
+		secretRef: "model/a",
+		health: "healthy" as const,
+		revision: "sha256:a",
+	};
+	const codex = { ...copilot, credentialId: "model-account:BBB", provider: "openai-codex", alias: "account-2" };
+
+	it("names the page for a provider whose revocation URL was measured", () => {
+		const [entry] = revocationGuidance([copilot]);
+
+		expect(entry?.alias).toBe("corporativo");
+		expect(entry?.url).toBe("https://github.com/settings/applications");
+	});
+
+	it("gives NO url for a provider whose path was never established", () => {
+		// openai-codex: whether its OAuth offers a public-client revocation path is unmeasured. A
+		// link nobody confirmed is worse than none — it sends an operator somewhere to fail.
+		const [entry] = revocationGuidance([codex]);
+
+		expect(entry?.url).toBeNull();
+		expect(entry?.because).toMatch(/not established|unmeasured|not known/iu);
+	});
+
+	it("carries the check that proves a revocation landed, for every account", () => {
+		const entries = revocationGuidance([copilot, codex]);
+
+		expect(entries).toHaveLength(2);
+		for (const entry of entries) {
+			expect(entry.verifyCommand).toBe("refarm credential quota");
+		}
+	});
+
+	it("does not promise a proof for a provider this node cannot ask", () => {
+		// MEASURED on the node 2026-08-24: `refarm credential quota` answers openai-codex with
+		// `cannot-ask` — "this node has no quota reader for openai-codex, so it did not ask." A
+		// healthy secret is not enough; the verification also needs a reader that covers the
+		// provider. Caught by reading the LIVE human output, which promised `rejected` for a seat
+		// nothing can interrogate.
+		const [entry] = revocationGuidance([codex]);
+
+		expect(entry?.verifiable).toBe(false);
+	});
+
+	it("reports an account whose secret is gone as nothing to revoke here", () => {
+		// `incomplete` means the secret is absent from this node. The grant may still exist at the
+		// provider, so the page still matters — but this node holds nothing that could be tested,
+		// and saying it could would promise a proof it cannot produce.
+		const [entry] = revocationGuidance([{ ...copilot, health: "incomplete" as const }]);
+
+		expect(entry?.verifiable).toBe(false);
 	});
 });

@@ -110,6 +110,98 @@ function readJson<T>(file: string, fallback: T): T {
  *
  * @param provider the account's provider, which decides only whether a URL is known
  */
+/**
+ * The human rendering. Kept beside the pure reading so the two cannot drift, and written to be
+ * read TOP TO BOTTOM as a procedure: where, then the proof, then the ordering that makes the
+ * proof possible at all.
+ */
+export function formatRevocationEntries(entries: readonly RevocationEntry[]): string {
+	if (entries.length === 0) {
+		return "This node holds no model accounts, so there is nothing to revoke.\n";
+	}
+	const lines = ["This node CANNOT revoke a provider authorization — a human must, in a browser.", ""];
+	for (const entry of entries) {
+		lines.push(`${entry.alias}  (${entry.provider})`);
+		lines.push(entry.url ? `  Revoke at:  ${entry.url}` : `  Revoke at:  ${entry.because}`);
+		lines.push(
+			entry.verifiable
+				? `  Then prove it:  ${entry.verifyCommand}  ->  this account should answer \`rejected\``
+				: `  Cannot be proven from here: nothing on this node can ask ${entry.provider} about a credential.`,
+		);
+		lines.push("");
+	}
+	lines.push("Run the check BEFORE `refarm sow`: logging in again replaces the token it asks about.");
+	return `${lines.join("\n")}\n`;
+}
+
+/**
+ * Providers this node can ASK about a credential, which is narrower than the ones it holds.
+ *
+ * `credential quota` is the only surface that interrogates a stored credential, and its reader is
+ * Copilot's. Anything else answers `cannot-ask` — a shrug, not a verdict.
+ */
+const PROVIDERS_WITH_QUOTA_READER = new Set(["github-copilot"]);
+
+/** One account's revocation coordinates: where a human must go, and what proves they went. */
+export interface RevocationEntry {
+	readonly credentialId: string;
+	readonly alias: string;
+	readonly provider: string;
+	/** The page that revokes this provider's authorization, or null where none was established. */
+	readonly url: string | null;
+	/** Why there is no url, when there is none. */
+	readonly because: string | null;
+	/** The command that asks the provider whether this credential is still accepted. */
+	readonly verifyCommand: string;
+	/** False when this node holds no secret to test — the grant may live on, unprovably from here. */
+	readonly verifiable: boolean;
+}
+
+/**
+ * PURE. Where each account this node holds must be revoked, and what proves it landed.
+ *
+ * THE NODE CANNOT REVOKE, measured 2026-08-24 with a token belonging to nobody so the probe could
+ * revoke nothing: `DELETE /applications/<client_id>/token` answers 401 "Requires authentication"
+ * unauthenticated and 401 "Bad credentials" under Basic auth with an invented secret. The message
+ * CHANGES, which proves the endpoint evaluates the pair — revocation needs a real `client_secret`,
+ * and `credentials/github.ts:10` records why this node has none: "Device flow does not use a
+ * client_secret". Being a public client is exactly what lets the client id live in the repository
+ * and every node use it with nothing to distribute.
+ *
+ * So the honest division is: a human REVOKES, and this node SAYS WHERE and PROVES WHETHER.
+ *
+ * A URL IS GIVEN ONLY WHERE MEASURED. Sending an operator to a page nobody confirmed is worse than
+ * sending them nowhere — they arrive, find nothing, and doubt the rest of the instruction.
+ */
+export function revocationGuidance(
+	accounts: readonly ModelAccountDescriptor[],
+): RevocationEntry[] {
+	return accounts.map((account) => {
+		const provider = account.provider.trim().toLowerCase();
+		const known = provider === "github-copilot" || provider === "github";
+		return {
+			credentialId: account.credentialId,
+			alias: account.alias,
+			provider: account.provider,
+			url: known ? "https://github.com/settings/applications" : null,
+			because: known
+				? null
+				: `no revocation page has been established for ${account.provider} — it is not known whether one is reachable by a public client`,
+			verifyCommand: "refarm credential quota",
+			// TWO THINGS ARE NEEDED TO PROVE IT, and having only one is what made the first draft
+			// lie. An `incomplete` account has no secret on this node, so nothing can ask; and a
+			// provider with no quota reader cannot be asked even holding one — measured the same
+			// day, `credential quota` answers openai-codex with `cannot-ask`, "this node has no
+			// quota reader for openai-codex, so it did not ask."
+			//
+			// The grant may be live in both cases, which is exactly why the PAGE still matters
+			// while the PROOF does not exist. Promising it would send an operator to run a check
+			// that returns a shrug and read the shrug as a failure to revoke.
+			verifiable: account.health === "healthy" && PROVIDERS_WITH_QUOTA_READER.has(provider),
+		};
+	});
+}
+
 function revocationNotice(provider: string): string {
 	// THE FACT IS CONSTANT, THE URL IS APPENDED. Splicing the address in PLACE of "the provider"
 	// produced "does NOT revoke anything at https://github.com/settings/applications" — naming the
@@ -381,6 +473,34 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 					return;
 				}
 				process.stdout.write(formatQuotaRows(rows));
+			}),
+		);
+
+	credential
+		.command("revocation")
+		.description("Where to revoke this node's authorizations — refarm cannot do it for you")
+		.option("--json", "Output machine-readable result")
+		.action(async (options: { json?: boolean }) =>
+			guarded("revocation", options, async () => {
+				const entries = revocationGuidance(await loadAccounts());
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "credential",
+							operation: "revocation",
+							extra: { accounts: entries },
+							// THE ORDER IS THE INSTRUCTION. `sow` replaces the stored token, so a check
+							// run afterwards asks about the NEW credential and answers `read` — saying
+							// nothing about the one that was revoked. The proof exists only in the
+							// window between revoking and logging in again.
+							nextAction:
+								"Revoke in the browser, then `refarm credential quota` BEFORE `refarm sow`.",
+							nextCommands: ["refarm credential quota"],
+						}),
+					);
+					return;
+				}
+				process.stdout.write(formatRevocationEntries(entries));
 			}),
 		);
 

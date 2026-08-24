@@ -390,6 +390,13 @@ export const PROBE_COMMANDS = [
 			"Which model accounts this node holds is a fact about its silo and its catalog, never about the shell that asked. A cwd-dependent listing would let a workspace resolve a different account depending on where the operator happened to be standing, which is the exact silent quota crossover the account contract exists to prevent (ISS-122).",
 	},
 	{
+		name: "credential revocation",
+		argv: ["credential", "revocation", "--json"],
+		scope: "node",
+		scopeReason:
+			"Where an authorization is revoked, and whether this node can prove it landed, are facts about the accounts this node HOLDS and the readers it carries — never about the shell that asked. A cwd-dependent answer here would send an operator to a different page, or promise a proof, depending on where they happened to be standing while their credential was live at the provider.",
+	},
+	{
 		name: "credential current",
 		argv: ["credential", "current", "--json"],
 		scope: "node",
