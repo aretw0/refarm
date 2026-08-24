@@ -37,7 +37,7 @@
 		"@refarm.dev/process-handoff": "workspace:*",
 		"@refarm.dev/prompt-contract-v1": "workspace:*",
 		"@refarm.dev/sidecar-client": "workspace:*",
-		"chalk": "^5.6.2"
+		"chalk": "^6.0.0"
 	},
 	"devDependencies": {
 		"@refarm.dev/eslint-config": "workspace:*",

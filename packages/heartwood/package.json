@@ -28,7 +28,7 @@
 		"test:integration": "echo 'No integration tests for this crate'"
 	},
 	"dependencies": {
-		"@bytecodealliance/preview2-shim": "^0.17.3"
+		"@bytecodealliance/preview2-shim": "^0.22.0"
 	},
 	"devDependencies": {
 		"@bytecodealliance/jco": "catalog:",
