@@ -361,6 +361,36 @@ The maintainer sharpened the North Star: the goal is not "rcdc5 imports `@refarm
     following §4 handoffs executes. What the moment actually lacks is the NUMBER — which is
     ISS-064's denominator, not a keystroke.
 
+- **2026-08-25 (third pass) — the staleness gate's FIRST USE pointed at a real audit dead-end.** It
+  named ISS-068 (oldest open item, 16.7d). Re-measured: the item was RIGHT, and the consequence was
+  worse than it recorded. `lsp-code-ops` is loaded and declares `shell:spawn`, and the question
+  *"what may this code do on my node"* had no answer path — `plugin status` said `manifestId: null`,
+  `plugin permissions lsp-code-ops` refused and sent the reader to `plugin list`, which contains it
+  under **no** `--origin` filter, while `plugin permissions @refarm/lsp-code-ops` worked on an id no
+  surface published.
+  - **The cause was ten lines above the symptom.** `normalizePluginId`'s alias table was hand-written
+    and omitted `@refarm/lsp-code-ops` while `LSP_CODE_OPS_PLUGIN_DESCRIPTOR.id` sat right there.
+    Now derived from the declarations (`fc75c0c2`) — same shape as the `budget by-account` label
+    fixed hours earlier: the store held the name, the surface returned null.
+  - **Half of it was deliberately NOT fixed, and that is the point.** Lifting the normalisation into
+    the shared `readManifest` would resolve `approve` too — which WRITES under the id it is handed,
+    raw. That turns today's loud refusal into an `approvedPermissions` key the host never looks up:
+    a grant you can see and that grants nothing. `permissions` alone was canonicalised (`c2a93fc1`),
+    because its own comment says it cannot write. **ISS-166** carries the write side with the
+    decision it needs first — what happens to an existing non-canonical key, since a canonicalising
+    reader that misses one silently drops an approval the operator made.
+  - **ISS-167:** four installed plugin trees, `plugin list` reports one, and the pre-convergence
+    fallback points at a tree whose declared integrity cannot validate. **No security hole** — the
+    daemon's own command line settles which tree runs and that one hashes to what it claims. The
+    legacy layout is deliberate and named in code (`legacyScopedPluginWasmPath`), so the shape that
+    fits is a `plugin doctor` that REPORTS, never a prune: removing executable code is §8's.
+  - **Three findings in a row came from INSTALLING and LOOKING, not from reading.** The human budget
+    table still printed a ULID after the JSON was fixed; `plugin status` changed shape in a way not
+    predicted; and chasing that turned up a comment (`id` "keeps whatever the runtime said") that had
+    been false since before the session and that a defect was making look correct.
+  - **ISS-149 re-measured, seven days on, same number:** 79 of 80 tasks cached and still 2m8s against
+    a 180s ceiling. The lane was NOT re-run to buy a green check — the direct 80/80 is the evidence.
+
 **Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.
 
 ## How to resume
