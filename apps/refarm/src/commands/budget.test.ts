@@ -1207,4 +1207,35 @@ describe("where the money went, named the way the operator named it", () => {
 		expect(grouped.groups).toHaveLength(2);
 		expect(grouped.groups.every((g) => g.label === null)).toBe(true);
 	});
+	it("prints the alias in the HUMAN row too, where the ULID actually was", async () => {
+		// The JSON carried the label and the human table did not — found by running the command
+		// against the live node after shipping the JSON half, not by reading the code, which is
+		// how the axis list in the renderer was found to predate the `account` axis existing.
+		const lines: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((...a) => void lines.push(String(a[0])));
+
+		printGroupedObservationsHuman(
+			groupObservations(OBS, { by: "account", labelFor: () => "corporativo" }),
+			{ stored: 3, truncated: false, offset: 0 },
+		);
+		spy.mockRestore();
+
+		expect(lines.join("\n")).toMatch(/corporativo/u);
+	});
+
+	it("fingerprints a key by what DISTINGUISHES it, not by its scheme", async () => {
+		// `slice(0, 8)` of `model-account:<ULID>` is "model-ac" on EVERY row — a disambiguator
+		// identical everywhere, which reads as if it disambiguates. Measured 2026-08-25.
+		const lines: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((...a) => void lines.push(String(a[0])));
+
+		printGroupedObservationsHuman(
+			groupObservations(OBS, { by: "account", labelFor: () => "corporativo" }),
+			{ stored: 3, truncated: false, offset: 0 },
+		);
+		spy.mockRestore();
+
+		expect(lines.join("\n")).not.toMatch(/\[model-ac\]/u);
+		expect(lines.join("\n")).toMatch(/\[CORP\]/u);
+	});
 });

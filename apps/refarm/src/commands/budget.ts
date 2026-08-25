@@ -913,6 +913,25 @@ function groupedNextAction(grouped: GroupedObservations): string | null {
  *  Takes `page` for the same reason `printObservationsHuman` does: the
  *  truncation/completeness signal must reach the human surface here too
  *  (Task 1 review, Critical 3) — it used to be JSON-only. */
+/** Axes whose key is an opaque id rather than a name an operator chose, and which therefore
+ *  carry a separate label to print in front of it. */
+const OPAQUE_KEY_AXES: ReadonlySet<GroupByAxis> = new Set<GroupByAxis>(["host", "account"]);
+
+/** The 8 characters that actually DISTINGUISH one key from another.
+ *
+ * MEASURED on the operator's node 2026-08-25, and the reason this is not a bare `slice(0, 8)`:
+ *
+ *     host.id     f17151b4-35f2-4f46-b43a-0ff03514a874   -> "f17151b4"  distinctive
+ *     account key model-account:K4NXGZTQQ4KFM0GG9139VN67PR -> "model-ac"  IDENTICAL on every row
+ *
+ * A fingerprint that is the same for every group disambiguates nothing while reading as if it
+ * does — the same shape of defect as the label it sits beside. Taking what follows the LAST colon
+ * handles both a scheme-prefixed id and a bare one (`lastIndexOf` returns -1, so the whole key is
+ * used) without knowing which is which. */
+function keyFingerprint(key: string): string {
+	return key.slice(key.lastIndexOf(":") + 1, key.lastIndexOf(":") + 9);
+}
+
 export function printGroupedObservationsHuman(
 	grouped: GroupedObservations,
 	page: Pick<BudgetObservationsPage, "stored" | "truncated" | "offset">,
@@ -937,12 +956,17 @@ export function printGroupedObservationsHuman(
 		);
 	};
 	for (const group of grouped.groups) {
-		// by:"host" carries a separate mutable label (host.name); workspace/spawner keys
-		// are already the human-facing string, so the key alone is the label there.
-		let rowLabel =
-			grouped.by === "host"
-				? `${group.label ?? "(unnamed)"} [${group.key.slice(0, 8)}]`
-				: group.key;
+		// WHETHER THE KEY IS SOMETHING A PERSON TYPED. `workspace`/`spawner` keys ARE the
+		// human-facing string ("refarm", "rcdc5"), so the key alone is the label. `host` and
+		// `account` keys are opaque ids nobody chose, and both carry a separate name — host.name
+		// off the record, an account alias off the catalog — so both print the name with a
+		// fingerprint of the id beside it.
+		//
+		// `account` used to fall in the second branch and printed a bare ULID, which is the whole
+		// of ISS-157's "the one surface built to show where money went reads as two ULIDs".
+		let rowLabel = OPAQUE_KEY_AXES.has(grouped.by)
+			? `${group.label ?? "(unnamed)"} [${keyFingerprint(group.key)}]`
+			: group.key;
 		// A real workspace/spawner named exactly "(unattributed)" would otherwise print
 		// identically to the bucket below — see `UNATTRIBUTED_ROW_LABEL`'s doc.
 		if (rowLabel === UNATTRIBUTED_ROW_LABEL) rowLabel = `${UNATTRIBUTED_ROW_LABEL} [a real key, not the bucket]`;
