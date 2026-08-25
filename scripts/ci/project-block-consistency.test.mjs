@@ -5,7 +5,10 @@ import {
 	checkRequirementCitations,
 	checkRequirementIndex,
 	checkLedgerFreshness,
-	parseCommitCount,
+	itemDigest,
+	lastChangeByItem,
+	openItemAgeDays,
+	UNREVIEWED_AFTER_DAYS,
 } from "./project-block-consistency.mjs";
 
 describe("checkHandoffCitations", () => {
@@ -68,53 +71,6 @@ describe("checkHandoffCitations", () => {
 	});
 });
 
-describe("checkLedgerFreshness", () => {
-	it("warns, never errors, when commits landed and the ledger did not move", () => {
-		const result = checkLedgerFreshness({ commitsSinceLedgerChange: 12 });
-		assert.deepEqual(result.errors, []);
-		assert.equal(result.warnings.length, 1);
-	});
-
-	it("is silent when the ledger moved recently", () => {
-		const result = checkLedgerFreshness({ commitsSinceLedgerChange: 0 });
-		assert.deepEqual(result.warnings, []);
-	});
-
-	it("reports unknown rather than fresh when git cannot be read", () => {
-		const result = checkLedgerFreshness({ commitsSinceLedgerChange: null });
-		assert.match(result.warnings.join(" "), /unknown/);
-		assert.deepEqual(result.errors, []);
-	});
-});
-
-describe("parseCommitCount", () => {
-	it("parses a valid git rev-list --count line", () => {
-		assert.equal(parseCommitCount("4\n"), 4);
-	});
-
-	it("parses zero", () => {
-		assert.equal(parseCommitCount("0\n"), 0);
-	});
-
-	// Regression for the finding: a non-numeric `git rev-list --count` result (empty stdout,
-	// truncated output, an unexpected shape) used to flow through as `NaN`, and `NaN > 0` is
-	// `false`, so `checkLedgerFreshness` reported FRESH for a count it never actually read.
-	it("returns null (UNKNOWN), never NaN, for non-numeric output", () => {
-		assert.equal(parseCommitCount(""), null);
-		assert.equal(parseCommitCount("not a number"), null);
-		assert.equal(parseCommitCount("\n"), null);
-	});
-
-	// The end-to-end proof that the guard actually protects `checkLedgerFreshness`: feeding its
-	// result straight through must land on the UNKNOWN branch, not the "0 commits, fresh" branch.
-	it("composes with checkLedgerFreshness to report UNKNOWN, not FRESH, for garbage git output", () => {
-		const commitsSinceLedgerChange = parseCommitCount("not a number");
-		const result = checkLedgerFreshness({ commitsSinceLedgerChange });
-		assert.match(result.warnings.join(" "), /unknown/);
-		assert.deepEqual(result.errors, []);
-	});
-});
-
 describe("checkRequirementCitations", () => {
 	const requirements = [{ id: "R1" }, { id: "R7" }, { id: "REQ-ENV-001" }];
 
@@ -174,5 +130,119 @@ describe("checkRequirementIndex", () => {
 		const result = checkRequirementIndex(null, requirements);
 		assert.deepEqual(result.errors, []);
 		assert.match(result.warnings[0], /could not be read/i);
+	});
+});
+
+describe("checkLedgerFreshness — per ITEM, because per FILE was wrong in both directions", () => {
+	// MEASURED 2026-08-25, before this changed. The old check asked "how many commits since
+	// .project/issues.json changed", and that file is touched most sessions:
+	//
+	//   UNDER-REPORTED  it answered FRESH while 9 of 23 open items had not themselves changed in
+	//                   over a week, the oldest a `high` at 16.7 days. ISS-131 — found false that
+	//                   day with 8-day-old evidence — was in exactly that tail.
+	//   OVER-REPORTED   its threshold was `> 0`, so it fired on 52 of the last 80 commits (65%)
+	//                   while the maximum real distance was 7. A gate heard two runs in three is
+	//                   not heard at all (7b35d843, the same finding for the security audit).
+	const ages = (entries) => new Map(entries);
+
+	it("warns, never errors, naming the count and the OLDEST item", () => {
+		const result = checkLedgerFreshness({
+			itemAgeDays: ages([["ISS-001", 20], ["ISS-002", 16], ["ISS-003", 2]]),
+		});
+		assert.deepEqual(result.errors, []);
+		assert.equal(result.warnings.length, 1);
+		assert.match(result.warnings[0], /2 open item/);
+		assert.match(result.warnings[0], /ISS-001/);
+	});
+
+	it("is silent while every open item is inside the window", () => {
+		const result = checkLedgerFreshness({ itemAgeDays: ages([["ISS-001", 1], ["ISS-002", 13]]) });
+		assert.deepEqual(result.warnings, []);
+	});
+
+	it("does not fire on a ledger the newest commit simply did not touch", () => {
+		// The whole of the over-reporting half: a ledger nobody edited in this commit is normal,
+		// and used to produce a warning on two runs in three.
+		const result = checkLedgerFreshness({ itemAgeDays: ages([["ISS-001", 0.01]]) });
+		assert.deepEqual(result.warnings, []);
+	});
+
+	it("reports unknown rather than fresh when git cannot be read", () => {
+		const result = checkLedgerFreshness({ itemAgeDays: null });
+		assert.match(result.warnings.join(" "), /unknown/);
+		assert.deepEqual(result.errors, []);
+	});
+
+	it("is silent for an empty ledger rather than claiming anything about it", () => {
+		assert.deepEqual(checkLedgerFreshness({ itemAgeDays: ages([]) }).warnings, []);
+	});
+});
+
+describe("the walk that dates each item", () => {
+	const DAY = 86_400_000;
+	const rev = (days, issues) => ({ timestampMs: 10 * DAY - days * DAY, issues });
+
+	it("dates an item at the revision its OWN content last changed", () => {
+		const lastChange = lastChangeByItem([
+			rev(9, [{ id: "ISS-001", body: "a" }, { id: "ISS-002", body: "x" }]),
+			rev(1, [{ id: "ISS-001", body: "a" }, { id: "ISS-002", body: "y" }]),
+		]);
+		// ISS-001 never moved; ISS-002 did. This is the whole defect: the FILE changed in the
+		// second revision, so the old check called both of them fresh.
+		assert.equal(lastChange.get("ISS-001"), 10 * DAY - 9 * DAY);
+		assert.equal(lastChange.get("ISS-002"), 10 * DAY - 1 * DAY);
+	});
+
+	it("counts a first appearance as a change, so a new item is fresh and not ageless", () => {
+		const lastChange = lastChangeByItem([
+			rev(9, [{ id: "ISS-001", body: "a" }]),
+			rev(1, [{ id: "ISS-001", body: "a" }, { id: "ISS-002", body: "new" }]),
+		]);
+		assert.equal(lastChange.get("ISS-002"), 10 * DAY - 1 * DAY);
+	});
+
+	it("reads a reordered item as unchanged, not as a review", () => {
+		// A writer that serialises keys in a different order has not reviewed anything.
+		const lastChange = lastChangeByItem([
+			rev(9, [{ id: "ISS-001", title: "t", body: "a" }]),
+			rev(1, [{ id: "ISS-001", body: "a", title: "t" }]),
+		]);
+		assert.equal(lastChange.get("ISS-001"), 10 * DAY - 9 * DAY);
+	});
+
+	it("counts a status or resolved_by move as a review, not only prose", () => {
+		// "When did anyone last look at this" — closing an item IS looking at it.
+		const lastChange = lastChangeByItem([
+			rev(9, [{ id: "ISS-001", body: "a", status: "open" }]),
+			rev(1, [{ id: "ISS-001", body: "a", status: "resolved" }]),
+		]);
+		assert.equal(lastChange.get("ISS-001"), 10 * DAY - 1 * DAY);
+	});
+
+	it("digests are stable across key order and sensitive to content", () => {
+		assert.equal(itemDigest({ id: "a", body: "x" }), itemDigest({ body: "x", id: "a" }));
+		assert.notEqual(itemDigest({ id: "a", body: "x" }), itemDigest({ id: "a", body: "y" }));
+	});
+
+	it("scores only OPEN items, and omits an id the walk never saw", () => {
+		// An id with no history is UNKNOWN. Scoring it 0 would report the one thing nobody
+		// measured as the freshest thing in the ledger — the defect shape this whole change is
+		// about, one level down.
+		const ages = openItemAgeDays({
+			issues: [
+				{ id: "ISS-001", status: "open" },
+				{ id: "ISS-002", status: "resolved" },
+				{ id: "ISS-003", status: "open" },
+			],
+			lastChange: new Map([["ISS-001", 0]]),
+			nowMs: 3 * 86_400_000,
+		});
+		assert.deepEqual([...ages.keys()], ["ISS-001"]);
+		assert.equal(ages.get("ISS-001"), 3);
+	});
+
+	it("declares its threshold rather than hiding it in a comparison", () => {
+		assert.equal(typeof UNREVIEWED_AFTER_DAYS, "number");
+		assert.ok(UNREVIEWED_AFTER_DAYS > 0);
 	});
 });
