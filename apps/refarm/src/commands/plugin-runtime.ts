@@ -241,9 +241,18 @@ export function buildRuntimePluginStatusReport(
 		operation: "status",
 		ok: runtimeAgentLoaded,
 		available: true,
-		// BOTH vocabularies, named. `id` keeps whatever the runtime said; the two beside it say
-		// which config key wants which, so a reader never has to infer it from the shape of a
-		// string (ISS-068).
+		// BOTH vocabularies, named, so a reader never infers one from the shape of a string
+		// (ISS-068). `runtimeId` is what `trusted_plugins` matches; `manifestId` is what
+		// `approvedPermissions` and the installed directory are keyed by.
+		//
+		// `id` IS THE MANIFEST ID, not "whatever the runtime said" — which is what this comment
+		// used to claim. `readRuntimePluginState` maps every id from the daemon through
+		// `normalizePluginId` (runtime-plugins.ts:42), so the sidecar's `["agent",
+		// "lsp-code-ops"]` has already become manifest ids by the time it arrives here. The old
+		// wording read as true only because the alias table was missing `@refarm/lsp-code-ops`,
+		// so exactly one of the two ids failed to normalise and looked like a passed-through
+		// runtime id. Corrected 2026-08-25 with the table (fc75c0c2); both are consistent now,
+		// which is what this item's title asked for.
 		plugins: known.map((id) => ({
 			id,
 			...pluginIdPair(id, normalizePluginId),
