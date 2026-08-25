@@ -28,6 +28,11 @@ export const SOW_CLOUDFLARE_JSON_COMMAND = refarmCommand(["sow", "--cloudflare",
 export const MODEL_CURRENT_JSON_COMMAND = refarmCommand(["model", "current", "--json"]);
 export const MODEL_DOCTOR_JSON_COMMAND = refarmCommand(["model", "doctor", "--json"]);
 export const MODEL_PROVIDERS_JSON_COMMAND = refarmCommand(["model", "providers", "--json"]);
+/** The ONE surface that answers which meter refused and how much is left, per account.
+ *
+ * ISS-157: the refusal NAMES this instead of racing it — fetching the numbers would put a
+ * second request to the provider that just refused on a failure path. */
+export const CREDENTIAL_QUOTA_JSON_COMMAND = refarmCommand(["credential", "quota", "--json"]);
 export const OPERATOR_LINKS_CONFIG_COMMAND = refarmCommand([
 	"config",
 	"get",

@@ -1613,18 +1613,20 @@ describe("refarm ask", () => {
 
 		await command.parseAsync(["hello", "--json"], { from: "user" });
 
+		// THIS FIXTURE PINNED THE DEFECT AS CORRECT until 2026-08-25, which is AGENTS.md section 9's
+		// third bullet arriving literally: the four commands it asserted were all about the ROUTE,
+		// and the last of them WROTE it — `refarm model openai/<ref>` reaches the model group's
+		// bare-ref sugar and repoints the NODE's route at a pay-as-you-go provider this node holds
+		// no credential for. An agent following `nextCommand`, as AGENTS.md section 4 tells it to,
+		// would have moved every workspace onto metered billing because one subscription meter
+		// emptied. The test was not failing to catch that; it was asserting it (ISS-157).
 		expect(errSpy).not.toHaveBeenCalled();
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
 			ok: false,
 			error: "model-quota-exceeded",
-			nextAction: "refarm model current --json",
-			nextCommand: "refarm model current --json",
-			nextCommands: [
-				"refarm model current --json",
-				"refarm sow --json",
-				"refarm model providers --json",
-				"refarm model openai/gpt-5.6-sol --json",
-			],
+			nextAction: "refarm credential quota --json",
+			nextCommand: "refarm credential quota --json",
+			nextCommands: ["refarm credential quota --json", "refarm model current --json"],
 		});
 		expect(process.exitCode).toBe(1);
 

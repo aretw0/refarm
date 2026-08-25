@@ -9,6 +9,7 @@ import { refarmCommand } from "../brand.js";
 import type { AskJsonResult } from "./ask.js";
 import {
 	AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND,
+	CREDENTIAL_QUOTA_JSON_COMMAND,
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
 	MODEL_DOCTOR_JSON_COMMAND,
@@ -172,12 +173,23 @@ export function observedAskContentError(content: string): string | null {
 	return null;
 }
 
-export function buildAskErrorPayload(message: string): {
+/**
+ * @param quotaContext OPTIONAL, mirroring `printAskError`. A caller that lived the walk hands in
+ * what it tried; one that did not gets the commands and no invented seat. The human rendering has
+ * taken this since 2026-08-24 and the JSON one did not, so the two surfaces DESCRIBED THE SAME
+ * REFUSAL DIFFERENTLY — measured live 2026-08-25, see the quota branch below.
+ */
+export function buildAskErrorPayload(
+	message: string,
+	quotaContext?: QuotaRefusalContext,
+): {
 	action: "ask";
 	ok: false;
 	error: string;
 	message?: string;
 	provider?: string;
+	seats?: readonly RefusedSeat[];
+	declaredExhausted?: boolean;
 	nextAction: string;
 	nextActions: string[];
 	nextCommand?: string | null;
@@ -318,26 +330,46 @@ export function buildAskErrorPayload(message: string): {
 		});
 	}
 	if (isQuotaError) {
+		// THE SAME REFUSAL, SAID THE SAME WAY. Measured on the operator's node 2026-08-25, with the
+		// corporate seat at 0/10000 on `premium_interactions` and the personal one at 1500/1500:
+		//
+		//   refarm ask --workspace refarm        "Seat refused: github-copilot corporativo"
+		//   refarm ask --workspace refarm --json  no seat, no workspace, no `credential quota`
+		//
+		// A HANDOFF THAT SPENDS. The four commands this branch used to return were all about the
+		// ROUTE, and the last of them wrote it: `refarm model openai/<ref>` resolves through
+		// `resolveModelGrammar`'s bare-ref sugar, so an agent following `nextCommand` — which
+		// AGENTS.md section 4 instructs it to do — moved the NODE'S route (not the workspace's)
+		// from a subscription provider to `openai`, which docs/model-provider-strata.md:17 records
+		// as public pay-as-you-go API pricing, and for which this node holds no credential at all.
+		// A subscription meter emptying is not a reason to start paying per token, and it is not a
+		// reason to rewrite a route the workspace's binding decided (ISS-131's operator ruling:
+		// "the node must never silently spend an account the scope did not name").
+		//
+		// What is left is what the human rendering settled on: the surface that HAS the numbers,
+		// and a read-only look at the route that ran. Both are inspections; neither writes.
+		const quotaCommands = [CREDENTIAL_QUOTA_JSON_COMMAND, MODEL_CURRENT_JSON_COMMAND];
 		return buildJsonErrorEnvelope({
 			command: "ask",
 			operation: "submit",
 			error: "model-quota-exceeded",
 			message,
-			nextAction: MODEL_CURRENT_JSON_COMMAND,
-			nextActions: [
-				MODEL_CURRENT_JSON_COMMAND,
-				SOW_JSON_COMMAND,
-				MODEL_PROVIDERS_JSON_COMMAND,
-				OPENAI_MODEL_JSON_COMMAND,
-			],
-			nextCommand: MODEL_CURRENT_JSON_COMMAND,
-			nextCommands: [
-				MODEL_CURRENT_JSON_COMMAND,
-				SOW_JSON_COMMAND,
-				MODEL_PROVIDERS_JSON_COMMAND,
-				OPENAI_MODEL_JSON_COMMAND,
-			],
-			extra: { action: "ask" },
+			nextAction: quotaCommands[0]!,
+			nextActions: quotaCommands,
+			nextCommand: quotaCommands[0],
+			nextCommands: quotaCommands,
+			extra: {
+				action: "ask",
+				// SAYS NOTHING IT DID NOT MEASURE. Absent entirely when no context was handed in,
+				// rather than present and empty — an empty list reads as "nothing was tried".
+				...(quotaContext
+					? {
+							...(quotaContext.provider ? { provider: quotaContext.provider } : {}),
+							seats: quotaContext.tried,
+							declaredExhausted: quotaContext.declaredExhausted,
+						}
+					: {}),
+			},
 		});
 	}
 	return buildJsonErrorEnvelope({
@@ -353,8 +385,8 @@ export function buildAskErrorPayload(message: string): {
 	});
 }
 
-export function printAskErrorJson(message: string): void {
-	printJson(buildAskErrorPayload(message));
+export function printAskErrorJson(message: string, quotaContext?: QuotaRefusalContext): void {
+	printJson(buildAskErrorPayload(message, quotaContext));
 }
 
 export function printAskSuccessJson(result: AskJsonResult): void {

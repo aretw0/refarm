@@ -1125,16 +1125,19 @@ export {
 							}
 							continue;
 						}
+						// ONE context, BOTH renderings. Computing it inside the human branch is HOW the
+						// two surfaces diverged: the JSON one could not describe a walk it never
+						// received, so it fell back to a payload about the route. Sharing the value
+						// removes the shape of that defect, not just this instance of it.
+						const refused = refusedSeatContext(
+							workspace.workspaceId,
+							boundRoute.modelProvider,
+							[...triedSeats, ...(spent ? [spent] : [])],
+						);
 						if (opts.json) {
-							printAskErrorJson(message);
+							printAskErrorJson(message, refused);
 						} else {
-							printAskError(
-								message,
-								refusedSeatContext(workspace.workspaceId, boundRoute.modelProvider, [
-									...triedSeats,
-									...(spent ? [spent] : []),
-								]),
-							);
+							printAskError(message, refused);
 						}
 						process.exitCode = 1;
 						return;
