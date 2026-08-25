@@ -334,7 +334,21 @@ export function createPluginCapabilityGroup(
 		summary: "Show the host-effect permissions a plugin declares",
 		args: [{ name: "id", required: true }],
 		async run(input) {
-			const id = input.args.id as string;
+			// CANONICALISED HERE, AND ONLY HERE. `approvedPermissions` and the installed directory
+			// layout are both keyed by the MANIFEST id, while `plugin status` and the daemon speak
+			// the RUNTIME one — so an operator auditing `lsp-code-ops`, the id every surface shows
+			// him, was refused and sent to `plugin list`, which does not contain it under any
+			// --origin (measured 2026-08-25, ISS-068). `normalizePluginId` maps only ids this
+			// package DECLARES; an unknown one passes through and still refuses, so nothing is
+			// guessed — which is the distinction `pluginIdPair` exists to keep.
+			//
+			// NOT lifted into `deps.readManifest`, though both callers would then resolve: the
+			// other caller is `approve`, which WRITES through `setApprovedPermissions` under the
+			// id it was given. Normalising its READ without its WRITE turns today's loud refusal
+			// into a permissions entry keyed by an id the host never looks up. That half needs the
+			// writer to canonicalise the way `setTrustedPlugin` already does, plus a decision
+			// about an existing non-canonical key — filed, not smuggled in here.
+			const id = normalizePluginId((input.args.id as string).trim());
 			let manifest: { permissions?: unknown };
 			try {
 				manifest = (await deps.readManifest(id)) as { permissions?: unknown };

@@ -247,6 +247,42 @@ describe("plugin capability group", () => {
 			expect(extra.unknown).toEqual(["fs:reed"]);
 		});
 
+		it("resolves a DECLARED runtime id to the manifest the store is keyed by", async () => {
+			// ISS-068, measured on the operator's node 2026-08-25. `plugin status` shows
+			// `lsp-code-ops`; the installed directory and `approvedPermissions` are keyed by
+			// `@refarm/lsp-code-ops`; and `plugin list` contains it under NO --origin filter. So
+			// the audit question "what may this loaded plugin do" — and it declares shell:spawn —
+			// had no answer path from any id the node published.
+			const seen: string[] = [];
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					readManifest: async (id: string) => {
+						seen.push(id);
+						return { permissions: ["fs:read"] };
+					},
+				}),
+			);
+			await action(group, "permissions").run(input({ id: "lsp-code-ops" }));
+			expect(seen).toEqual(["@refarm/lsp-code-ops"]);
+		});
+
+		it("passes an UNDECLARED id through untouched, so nothing is guessed", async () => {
+			// The distinction `pluginIdPair` exists to keep: a confidently wrong manifest id is
+			// what put a deny-all on the operator's real node. Only ids this repo DECLARES are
+			// mapped; everything else reaches the store exactly as typed and refuses honestly.
+			const seen: string[] = [];
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					readManifest: async (id: string) => {
+						seen.push(id);
+						return { permissions: [] };
+					},
+				}),
+			);
+			await action(group, "permissions").run(input({ id: "some-third-party" }));
+			expect(seen).toEqual(["some-third-party"]);
+		});
+
 		it("returns an error envelope when the manifest is missing", async () => {
 			const group = createPluginCapabilityGroup(
 				makeDeps({
