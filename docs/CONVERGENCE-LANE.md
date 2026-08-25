@@ -284,6 +284,41 @@ The maintainer sharpened the North Star: the goal is not "rcdc5 imports `@refarm
     measuring, which is the §9 corollary applied to a blocker: an unmeasured one stops work that was
     never stopped.
 
+- **2026-08-25 — the delivery link was the open one, and closing it found the node instructing agents
+  to spend.** The corner was picked by measurement rather than from the backlog: `refarm ask
+  --workspace refarm` REFUSED on the operator's node while `--workspace rcdc5` answered, same route
+  (`github-copilot/gpt-4o`), so the only variable was the seat. Three things fell out of that pair.
+  - **The node ran code 8 commits old and its health surface said so correctly.** `~/.local/bin/refarm`
+    executed `0.1.0-94f248c3` while the checkout stood at `046eff13`, and `refarm health` printed the
+    distance in prose beside "Ageing is legitimate". Nothing was broken — but the three `feat` commits
+    of 2026-08-24, all on this lane, had never reached the surface the operator types into, so
+    `a6897987` (the refusal that names the seat) had shipped without ever being seen to happen.
+    `refarm node install` closed it, and the same dispatch then printed *"Seat refused: github-copilot
+    corporativo"*. **The ship→node link is the one that makes every other slice on this lane
+    provable**; it costs one command and had been open for two days.
+  - **The JSON refusal was worse than absent — it was a spend instruction** (`30c4d4d0`, ISS-157's own
+    named STILL OPEN). The human half named the seat; the agent-facing half returned four commands
+    about the route, the last of which WRITES it: `refarm model openai/<ref>` reaches the model
+    group's bare-ref sugar and repoints the NODE'S route (every workspace, not the refusing one) at
+    `openai` — pay-as-you-go in `model-provider-strata.md:17` — which this node holds no credential
+    for. AGENTS.md §4 tells agents to follow `nextCommand`. So one subscription meter emptying
+    instructed the fleet onto metered billing, contradicting ISS-131's own ruling. Now: seat, alias,
+    `declaredExhausted`, and two read-only commands. **Proven live after re-installing**, which is the
+    point of the first bullet.
+  - **`ask.test.ts:1599` was PINNING the defect as correct** — AGENTS.md §9's third bullet arriving
+    literally. The suite asserted all four commands including the route write, so a correct fix read
+    as a regression. Fixed with the reason recorded in the fixture.
+  - **ISS-131 was arguing with 2026-08-17 and all three of its tiers had landed** (`workspace-binding`
+    / `node-default` / `modelAuthorization declared`). Fourth stale-entry finding in three days — the
+    shape is a durable record nothing re-runs, not carelessness. Kept OPEN: its third acceptance line
+    ("nothing declared anywhere → REFUSES") is unobservable on a node that HAS declared, and belongs
+    in the sandbox node.
+  - **ISS-164's undetermined fact is now measured.** `chat: unlimited` on a seat does NOT make
+    `gpt-4o` dispatchable once `premium_interactions` is empty — the operator's own reading was
+    right. It sits beside `config.modelMeters`'s `consumes: false` for that exact pair, and the two
+    do not contradict: one is about SPENDING a meter, the other about being REFUSED when it is empty.
+    The node has vocabulary for the first and none for the second.
+
 **Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.
 
 ## How to resume
