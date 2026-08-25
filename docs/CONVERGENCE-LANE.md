@@ -313,6 +313,24 @@ The maintainer sharpened the North Star: the goal is not "rcdc5 imports `@refarm
     shape is a durable record nothing re-runs, not carelessness. Kept OPEN: its third acceptance line
     ("nothing declared anywhere → REFUSES") is unobservable on a node that HAS declared, and belongs
     in the sandbox node.
+  - **ISS-131 CLOSED the same day** (`e3f50bcc`). Both residues: `budget by-account` now reads
+    `pessoal [54BGBH6Y]` / `corporativo [K4NXGZTQ]` instead of two ULIDs — and the JSON half
+    shipped first with every test and gate green while the table the operator actually reads still
+    printed the raw id, found only by running the command against the node. Tier 3's refusal
+    turned out to be **already shipped with a better rule than the acceptance asked for**: an
+    undeclared node authorises nothing and says so, rather than refusing outright, because
+    *"undeclared is a question nobody has answered yet"*. No sandbox run was needed.
+  - **A static personal/corporate label per workspace was RETIRED before being built.** The
+    operator's own description settles it: rcdc5 is legitimately BOTH seats, and which one it
+    spends is a temporal, priority decision — reserve the scarce corporate allowance for
+    higher-value corporate work, burn what is left before it resets. `model-account:v1`'s D1 had
+    already refused that taxonomy on the account side. **The axis with value is allocation over an
+    expiring resource** (ISS-064, ISS-152), not a frontier flag.
+  - **THE SESSION'S PATTERN, five for five:** every finding was a durable record that was correct
+    when written and that nothing re-measures — the installed tree, ISS-131's evidence,
+    `modelMeters`, ISS-131's acceptance line, and a test fixture. AGENTS.md §9 governs WRITING such
+    a record. Nothing governs RE-READING one before acting on it, and `refarm health` already does
+    exactly that for the node substrate — the piece exists and is not wired to the ledger.
   - **ISS-164's undetermined fact is now measured.** `chat: unlimited` on a seat does NOT make
     `gpt-4o` dispatchable once `premium_interactions` is empty — the operator's own reading was
     right. It sits beside `config.modelMeters`'s `consumes: false` for that exact pair, and the two
