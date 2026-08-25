@@ -889,6 +889,7 @@ function createContractPluginCommand() {
 			persistApproval: (filePath, pluginId, capabilities) => ({
 				pluginId,
 				filePath,
+				ineffectiveKeys: [],
 				approved: [...new Set(capabilities)].sort(),
 				changed: true,
 			}),

@@ -35,6 +35,7 @@ function makeDeps(overrides: Partial<PluginCommandDeps> = {}): PluginCommandDeps
 			filePath,
 			approved: [...new Set(capabilities)].sort(),
 			changed: true,
+			ineffectiveKeys: [],
 		}),
 		persistTrust: (filePath, pluginId, trusted) => ({
 			pluginId,
@@ -696,6 +697,7 @@ describe("plugin capability group", () => {
 						return {
 							pluginId,
 							filePath,
+							ineffectiveKeys: [],
 							approved: [...capabilities].sort(),
 							changed: true,
 						};
@@ -738,7 +740,7 @@ describe("plugin capability group", () => {
 					readManifest: async () => ({ permissions: ["fs:read"] }),
 					persistApproval: (filePath, pluginId, capabilities) => {
 						persisted = capabilities;
-						return { pluginId, filePath, approved: [], changed: true };
+						return { pluginId, filePath, approved: [], changed: true, ineffectiveKeys: [] };
 					},
 				}),
 			);

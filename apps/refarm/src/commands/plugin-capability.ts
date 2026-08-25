@@ -29,7 +29,9 @@ import {
 	unrevoke,
 	type RevocationResult,
 } from "./plugin-revocation.js";
-import { setTrustedPlugin, trustConfigPath, type TrustResult } from "./plugin-trust.js";
+import { setTrustedPlugin, trustConfigPath, type TrustResult,
+	pluginIdPair,
+} from "./plugin-trust.js";
 
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import { normalizePluginId } from "@refarm.dev/config/plugin-identity";
@@ -813,7 +815,15 @@ export function createPluginCapabilityGroup(
 			},
 		],
 		async run(input) {
-			const id = input.args.id as string;
+			// ONE INPUT, BOTH PROJECTIONS. The manifest read needs the MANIFEST id (it resolves an
+			// installed directory through `pluginIdToFsToken`); the config key needs the RUNTIME
+			// id, which is what the host looks the approval up under. Before this, the only input
+			// the manifest read accepted was the one the host ignores — `approve lsp-code-ops`
+			// failed at the read and `approve @refarm/lsp-code-ops` wrote a key that never
+			// applied. The two constraints were mutually exclusive; `pluginIdPair` satisfies both
+			// from one string, and `setApprovedPermissions` canonicalises the key it writes.
+			const pair = pluginIdPair((input.args.id as string).trim(), normalizePluginId);
+			const id = pair.manifestId ?? pair.runtimeId;
 			const scopeRaw = (input.options.scope as string) ?? "user";
 			if (scopeRaw !== "user" && scopeRaw !== "workspace" && scopeRaw !== "org") {
 				return buildJsonErrorEnvelope({
@@ -886,10 +896,20 @@ export function createPluginCapabilityGroup(
 				nextCommand: PLUGIN_STATUS_JSON_COMMAND,
 				nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
 				extra: {
-					pluginId: id,
+					// The key that was WRITTEN, which is the one the host reads — not the string
+					// the operator typed. Reporting the input here would say a restriction is in
+					// place under an id nothing consults.
+					pluginId: result.pluginId,
 					scope,
 					approved: approvedSpecs,
 					changed: result.changed,
+					// REPORTED, NEVER MIGRATED (the operator's rule, 2026-08-25). A key naming this
+					// plugin that the host will never look up is an approval that never applied;
+					// removing it is his call, and a `scope_to_approved` MISS is permissive, so
+					// such a key has been granting everything the plugin declared.
+					...(result.ineffectiveKeys.length > 0
+						? { ineffectiveKeys: result.ineffectiveKeys }
+						: {}),
 				},
 			});
 		},

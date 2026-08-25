@@ -1925,6 +1925,72 @@ mod capability_tests {
         assert_eq!(manifest_runtime_plugin_id("@refarm/agent"), "agent");
     }
 
+    // ── The approval lookup, which had NO test at all before 2026-08-25 ───────
+    //
+    // `scope_to_approved` decides which permissions a plugin actually receives — the whole of
+    // the operator's capability model — and nothing exercised it. AGENTS.md section 9: a guard
+    // that has only ever been seen passing is indistinguishable from one that does not run;
+    // here there was not even a guard.
+
+    fn caps(items: &[&str]) -> std::collections::HashSet<String> {
+        items.iter().map(|s| (*s).to_string()).collect()
+    }
+
+    #[test]
+    fn scope_to_approved_narrows_to_the_intersection_when_the_key_matches() {
+        let mut approvals = std::collections::HashMap::new();
+        approvals.insert("lsp-code-ops".to_string(), caps(&["fs:read", "fs:write"]));
+
+        let effective = PluginHost::scope_to_approved(
+            Some(&approvals),
+            "lsp-code-ops",
+            caps(&["fs:read", "fs:write", "shell:spawn"]),
+        );
+
+        assert_eq!(effective, caps(&["fs:read", "fs:write"]));
+        assert!(!effective.contains("shell:spawn"), "an unapproved capability must be dropped");
+    }
+
+    #[test]
+    fn scope_to_approved_is_PERMISSIVE_when_the_key_does_not_match() {
+        // THE FACT THAT MAKES A WRONG KEY DANGEROUS RATHER THAN INERT. A miss is not "deny";
+        // it is "no approval recorded", and the plugin keeps everything it declared. So an
+        // approval written under an id the load path does not use does not merely fail to
+        // grant — it fails to RESTRICT, silently, while reading as a restriction in the config.
+        let mut approvals = std::collections::HashMap::new();
+        approvals.insert("@refarm/lsp-code-ops".to_string(), caps(&["fs:read"]));
+
+        let effective = PluginHost::scope_to_approved(
+            Some(&approvals),
+            manifest_runtime_plugin_id("@refarm/lsp-code-ops"),
+            caps(&["fs:read", "fs:write", "shell:spawn"]),
+        );
+
+        assert!(
+            effective.contains("shell:spawn"),
+            "documented behaviour: a key the load path never looks up leaves declared standing"
+        );
+    }
+
+    #[test]
+    fn scope_to_approved_leaves_declared_standing_when_no_map_exists() {
+        // Backward compatibility, and stated so a future change cannot quietly make an
+        // unconfigured node deny-all — the failure mode ISS-068 records for `trusted_plugins`.
+        let effective = PluginHost::scope_to_approved(None, "agent", caps(&["fs:read"]));
+        assert_eq!(effective, caps(&["fs:read"]));
+    }
+
+    #[test]
+    fn the_load_path_keys_approvals_on_the_RUNTIME_id() {
+        // The ground truth three durable records got wrong (ISS-068, the comment at
+        // policy_and_fs.rs:421, and a session analysis on 2026-08-25): the load path computes
+        // `manifest_runtime_plugin_id(manifest.id)` and looks the approval up under THAT.
+        // `trusted_plugins` and `approvedPermissions` want the SAME vocabulary; only the CLI
+        // canonicalises one of them.
+        assert_eq!(manifest_runtime_plugin_id("@refarm/lsp-code-ops"), "lsp-code-ops");
+        assert_eq!(manifest_runtime_plugin_id("@refarm/agent"), "agent");
+    }
+
     // ── E1: integrity-at-load (a tampered artifact must not run) ──────────────
 
     #[test]
