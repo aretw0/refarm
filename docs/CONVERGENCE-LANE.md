@@ -391,6 +391,41 @@ The maintainer sharpened the North Star: the goal is not "rcdc5 imports `@refarm
   - **ISS-149 re-measured, seven days on, same number:** 79 of 80 tasks cached and still 2m8s against
     a 180s ceiling. The lane was NOT re-run to buy a green check — the direct 80/80 is the evidence.
 
+- **2026-08-25 (fourth pass) — an approval the operator made was not being applied, and the node's
+  own install label lied about which code it ran.** Both found by going one step further than the
+  ticket said, and both on the "don't lose control of what I do" axis.
+  - **The permission finding.** ISS-166 was filed believing `approvedPermissions` is keyed by the
+    MANIFEST id, inherited from ISS-068's wording. Measured against the host instead: the load path
+    computes `manifest_runtime_plugin_id(manifest.id)` and looks the approval up under **the RUNTIME
+    id** — the same vocabulary `trusted_plugins` uses. There is no asymmetry in the host at all;
+    only `setTrustedPlugin` canonicalised and `setApprovedPermissions` did not. **Three durable
+    records said manifest id and the code never did** (ISS-068's body, the comment at
+    `policy_and_fs.rs:421`, and ISS-166 as filed six hours earlier).
+  - **And a miss is PERMISSIVE.** `scope_to_approved` returns the DECLARED set when the key is
+    absent, so a wrong key does not fail to grant — it fails to *restrict*, while the config reads
+    as a restriction. On the operator's node: `{"@refarm/lsp-code-ops": ["fs:read","fs:write"]}`
+    against a plugin that also declares `shell:spawn`, and the host was granting all three. That
+    function **had no test at all**; four now pin it, two mutations shown to fire.
+  - Fixed (`57ff5cc1`) by canonicalising inside the writer, as `trust` already did, and by REPORTING
+    a pre-existing ineffective key rather than migrating it — the operator's own rule. **His node is
+    not repaired by the fix**: the stale key stays inert until he re-approves, which is a write on
+    the permission surface and therefore his (§8).
+  - **ISS-168, found while proving the above, and it is the sharpest of the day.** `refarm node
+    install` reported success and the label `0.1.0-57ff5cc1` while packaging code **19 minutes older
+    than the commit** — `dist/` had not been rebuilt. The checkout was CLEAN, so ISS-158's dirty
+    marker said nothing: **the check guarding the label's honesty measures GIT cleanliness, and the
+    thing that goes stale is a gitignored artifact git cannot see.** Two installs, minutes apart,
+    from the SAME commit, produced different trees under one directory name.
+  - **ISS-149 and ISS-168 compose, which is why it bit here.** The lane (which builds) had timed
+    out, so verification fell back to `vitest` — which reads source and never builds. A slow gate
+    pushed the slice onto a path that skips the build, and the install turned that into a silent
+    stale node.
+  - **A mis-built probe was recorded rather than quietly redone.** The first live check seeded its
+    config at `$REFARM_HOME/config.json`, but the `user` scope resolves through
+    `dirname(REFARM_HOME)`. It read as a half-working fix and was a fully-working fix under a
+    mis-aimed probe. Chasing where the write actually went is also what proved the operator's own
+    config was never touched.
+
 **Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.
 
 ## How to resume
