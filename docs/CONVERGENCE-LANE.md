@@ -337,6 +337,30 @@ The maintainer sharpened the North Star: the goal is not "rcdc5 imports `@refarm
     do not contradict: one is about SPENDING a meter, the other about being REFUSED when it is empty.
     The node has vocabulary for the first and none for the second.
 
+- **2026-08-25 (later) — the pattern the day's five findings shared got its own instrument.** Every
+  one of them was a durable record correct when written that nothing re-measures. AGENTS.md §9
+  governs WRITING such a record; the gate that was supposed to govern reading one was measuring the
+  wrong thing in **both** directions, and both were quantified before it changed:
+  - **under-reported** — the anchor asked "commits since `.project/issues.json` changed", and that
+    file is touched most sessions. It answered FRESH while 9 of 23 open items had not themselves
+    moved in over a week, the oldest a `high` at 16.7 days. ISS-131 sat in exactly that tail.
+  - **over-reported** — its threshold was `> 0`, so it fired on **52 of the last 80 commits (65%)**
+    while the largest real distance was 7. Same shape as the moderate security audit before
+    `7b35d843`: a gate heard two runs in three is not heard.
+  - Now per ITEM, over the ledger's real history, with the 14-day window declared as a policy and
+    said to be one — derived from the measured median (6.8d) so it names the tail rather than the
+    churn. Warns, never blocks (ISS-072). `null` reports unknown, never fresh. 1.3s, once per run.
+  - **What it does NOT do is filed rather than left to be discovered (ISS-165):** the signal reaches
+    CI, and the reader it exists to protect is an agent reading an item's body mid-session. Adding
+    the walk to `refarm issues list` measured 0.38s → ~1.5s, and the per-item `git log -L`
+    alternative measured *worse* (3.0s). Three ways out are written down; none is chosen.
+  - **The `credential bind`-in-a-refusal question is recommended CLOSED, not deferred.** The
+    declarative order already exists and is strictly better: decided cold, expressible as a
+    priority list, walked automatically on a real refusal. A refusal-time offer is a second and
+    worse path to the same permanent config write, taken while blocked, and it is the one an agent
+    following §4 handoffs executes. What the moment actually lacks is the NUMBER — which is
+    ISS-064's denominator, not a keystroke.
+
 **Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.
 
 ## How to resume
