@@ -6,6 +6,8 @@ import { fetchSidecarJson, readCompleteness } from "@refarm.dev/sidecar-client";
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
 import { refarmCommand } from "../brand.js";
+import { readCatalog } from "../credentials/account-view-loader.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { reportSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
@@ -479,9 +481,27 @@ function finalizeGroupBucket(bucket: MutableGroupBucket): GroupTotals {
  */
 export function groupObservations(
 	nodes: readonly ObservationNode[],
-	options: { by: GroupByAxis },
+	options: {
+		by: GroupByAxis;
+		/** OPTIONAL, and a FUNCTION so this reducer stays pure — the caller reads whatever names
+		 * its axis (for `account`, the node's local catalog) and hands in a mapping.
+		 *
+		 * WHY THE KEY AND NOT THE RECORD, which is how `host` does it: `host.name` is stamped ON
+		 * the observation and documented mutable, so the newest one seen is the honest answer. An
+		 * account ALIAS is never recorded — `model-account:v1` keeps aliases out of the wire on
+		 * purpose ("nothing here may branch on an alias"; they carry no contract meaning). So the
+		 * only place an alias exists is the catalog, NOW, and resolving it from the key is
+		 * resolving it from the only source there is.
+		 *
+		 * DISPLAY IS NOT BRANCHING. The contract forbids DECIDING anything from an alias; naming
+		 * one for a reader is what aliases are for, and is what the quota refusal already does.
+		 *
+		 * A key the catalog no longer holds (an account forgotten since it spent) resolves to
+		 * null and keeps its opaque key, which stays authoritative either way. */
+		labelFor?: (key: string) => string | null;
+	},
 ): GroupedObservations {
-	const { by } = options;
+	const { by, labelFor } = options;
 	const keyField = GROUP_KEY_FIELD[by];
 	const buckets = new Map<string, MutableGroupBucket>();
 	const unattributed = newGroupBucket();
@@ -496,6 +516,9 @@ export function groupObservations(
 		let bucket = buckets.get(key);
 		if (!bucket) {
 			bucket = newGroupBucket();
+			// Resolved ONCE per key, not per record: unlike `host.name` this does not vary
+			// between the observations of one group, so re-resolving would only cost.
+			if (labelFor) bucket.label = labelFor(key);
 			buckets.set(key, bucket);
 		}
 		absorbIntoGroupBucket(bucket, node, by);
@@ -511,6 +534,21 @@ export function groupObservations(
 		groups,
 		unattributed: finalizeGroupBucket(unattributed),
 	};
+}
+
+/** The node's own names for its accounts, as a key->alias mapping read ONCE per invocation.
+ *
+ * Returns a resolver that always answers, `null` for anything the catalog does not hold — an
+ * account forgotten since it spent still has observations, and its row keeps the opaque key it
+ * was recorded under. */
+export function accountAliasResolver(): (key: string) => string | null {
+	let aliases: Map<string, string>;
+	try {
+		aliases = new Map(readCatalog(resolveRefarmHome()).map((a) => [a.credentialId, a.alias]));
+	} catch {
+		aliases = new Map();
+	}
+	return (key) => aliases.get(key) ?? null;
 }
 
 /**
@@ -1484,7 +1522,18 @@ export function createBudgetCommand(): Command {
 					reportSidecarError(err, { json: options.json, command: "budget", operation: name });
 					return;
 				}
-				const grouped = groupObservations(page.observations, { by });
+				// ISS-131's smaller residue, and ISS-157 named it in those words: "the one surface
+				// built to show where money went reads as two ULIDs". The aliases are the
+				// operator's own (`pessoal`, `corporativo`) and sit in the local catalog, which
+				// this surface never asked.
+				//
+				// FAILS TO null, NEVER TO AN ERROR. A budget report must still answer when the
+				// catalog is unreadable — the numbers do not depend on it, and the opaque key
+				// remains the authoritative identity in every rendering.
+				const grouped = groupObservations(page.observations, {
+					by,
+					labelFor: by === "account" ? accountAliasResolver() : undefined,
+				});
 				const nextAction = groupedNextAction(grouped);
 				if (options.json) {
 					printJson(

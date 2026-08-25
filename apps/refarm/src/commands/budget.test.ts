@@ -1132,3 +1132,79 @@ describe("dispatchedPerAccount — by workspace", () => {
 		expect(result.workspacesByAccount.get("acct-a")).toEqual(new Map([["refarm", 1]]));
 	});
 });
+
+
+/**
+ * ISS-131's smaller residue, which ISS-157 stated in these words: "`refarm budget by-account`
+ * groups by opaque credential id with `label: null`. The alias is known (`pessoal`,
+ * `corporativo`) and does not reach the grouping, so the one surface built to show where money
+ * went reads as two ULIDs."
+ *
+ * MEASURED on the operator's node 2026-08-25, still true then:
+ *
+ *     refarm budget by-account --json
+ *       { key: "model-account:54BG…", label: null, observations: 22 }
+ *       { key: "model-account:K4NX…", label: null, observations: 20 }
+ *
+ * It matters more than cosmetics for THIS operator: he steers spend between the two seats by
+ * hand across the month — personal quota while the corporate one is reserved for higher-value
+ * corporate work, corporate at month end so an expiring allowance is not wasted. A report he
+ * cannot read by seat is a report he cannot steer by.
+ */
+describe("where the money went, named the way the operator named it", () => {
+	const OBS = [
+		{ "refarm.budget.credentialId": "model-account:CORP" },
+		{ "refarm.budget.credentialId": "model-account:CORP" },
+		{ "refarm.budget.credentialId": "model-account:GONE" },
+	];
+
+	it("labels an account group with the node's own alias for it", async () => {
+		const grouped = groupObservations(OBS, {
+			by: "account",
+			labelFor: (key) => (key === "model-account:CORP" ? "corporativo" : null),
+		});
+
+		expect(grouped.groups.find((g) => g.key === "model-account:CORP")?.label).toBe("corporativo");
+	});
+
+	it("keeps the opaque key authoritative beside the label", async () => {
+		// The alias is renameable and carries no contract meaning (model-account:v1 D1). The key
+		// is what the record was written under, so it stays the identity in the payload.
+		const grouped = groupObservations(OBS, {
+			by: "account",
+			labelFor: () => "corporativo",
+		});
+
+		expect(grouped.groups.every((g) => g.key.startsWith("model-account:"))).toBe(true);
+	});
+
+	it("leaves an account this node no longer holds unnamed rather than inventing one", async () => {
+		// An account forgotten since it spent still has observations. Naming it would require a
+		// record that does not exist — aliases are deliberately kept off the wire.
+		const grouped = groupObservations(OBS, {
+			by: "account",
+			labelFor: (key) => (key === "model-account:CORP" ? "corporativo" : null),
+		});
+
+		expect(grouped.groups.find((g) => g.key === "model-account:GONE")?.label).toBeNull();
+	});
+
+	it("does not touch the host axis, which names itself from the record", async () => {
+		// `host.name` is stamped ON the observation and documented mutable, so the newest one seen
+		// is the honest answer there. Passing no resolver must leave that path exactly as it was.
+		const grouped = groupObservations([{ "host.id": "node-1", "host.name": "sede" }], {
+			by: "host",
+		});
+
+		expect(grouped.groups[0]?.label).toBe("sede");
+	});
+
+	it("still groups when nothing can name the accounts", async () => {
+		// The numbers do not depend on the catalog. A budget report must answer when it is
+		// unreadable, which is what `accountAliasResolver` degrades to.
+		const grouped = groupObservations(OBS, { by: "account" });
+
+		expect(grouped.groups).toHaveLength(2);
+		expect(grouped.groups.every((g) => g.label === null)).toBe(true);
+	});
+});
