@@ -38,6 +38,7 @@ describe("runtime plugin client", () => {
 					],
 					loaded: ["agent"],
 					defaultResponder: "agent",
+					grants: {},
 				}),
 			}),
 		);
@@ -54,6 +55,7 @@ describe("runtime plugin client", () => {
 			],
 			loaded: ["@refarm/agent"],
 			defaultResponder: "@refarm/agent",
+			grants: {},
 		});
 	});
 
@@ -66,6 +68,7 @@ describe("runtime plugin client", () => {
 					requested: [],
 					loaded: [],
 					defaultResponder: null,
+					grants: {},
 				}),
 			}),
 		);
@@ -74,6 +77,7 @@ describe("runtime plugin client", () => {
 			requested: [],
 			loaded: [],
 			defaultResponder: null,
+			grants: {},
 		});
 	});
 

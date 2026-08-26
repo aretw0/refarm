@@ -38,6 +38,7 @@ import {
 	readRuntimePluginState,
 	reloadRuntimePluginsAndWait,
 	type RequestedPluginFact,
+	type PluginGrantFact,
 } from "./runtime-plugins.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
@@ -217,6 +218,39 @@ export interface PluginFacts {
 	 *  because `local: []` already proved a field nobody surfaces is a field nobody notices: an
 	 *  operator seeing `integrity: absent` could not tell whether that tree would load at all. */
 	development: boolean;
+	/** What this plugin ACTUALLY GOT at load: `declared ∩ approved`, computed by the host and
+	 *  reported rather than recomputed here (ISS-171). `null` when no load computed one — an
+	 *  installed-but-unloaded tree. NEVER an empty array in that case: an empty effective set
+	 *  MEANS "everything was withheld", the opposite of "nothing was decided". */
+	effectivePermissions: string[] | null;
+	/** Every capability the manifest asked for, as the LOAD saw it. Travels beside `effective`
+	 *  because the PAIR is the answer: `effective` alone cannot tell "the operator withheld
+	 *  nothing" from "the operator was never consulted", and A MISS IS PERMISSIVE — a plugin
+	 *  absent from the approvals map keeps everything it declared. That is exactly what hid the
+	 *  2026-08-25 key defect, where an approval keyed by the wrong id silently applied nothing. */
+	declaredPermissions: string[] | null;
+	/** Whether THIS LOAD ran unverified under the node's development declaration. Distinct from
+	 *  `development`, which is what the node declares NOW: a signed plugin can be declared under
+	 *  development and never need the waiver, and reporting a waiver that never fired would be a
+	 *  claim about the load that is not true. `null` when no load computed one. */
+	loadedUnderDevelopment: boolean | null;
+}
+
+/** PURE. The grant facts the HOST recorded for this runtime id, or the three nulls that say no
+ *  load computed one. Never invents an empty set: an empty `effective` MEANS everything was
+ *  withheld, which is the opposite of "nothing was decided" (ISS-171). */
+function grantFactsFor(
+	grants: Record<string, { declared: string[]; effective: string[]; underDevelopment: boolean }>,
+	runtimeId: string,
+): Pick<PluginFacts, "effectivePermissions" | "declaredPermissions" | "loadedUnderDevelopment"> {
+	const found = grants[runtimeId];
+	return found
+		? {
+				effectivePermissions: found.effective,
+				declaredPermissions: found.declared,
+				loadedUnderDevelopment: found.underDevelopment,
+			}
+		: { effectivePermissions: null, declaredPermissions: null, loadedUnderDevelopment: null };
 }
 
 /** PURE. One row per installed DIRECTORY, never per id — two trees CAN share one runtime id (a
@@ -238,7 +272,7 @@ export interface PluginFacts {
  * itself as clearly as an installed tree the daemon never touched.
  */
 export function mergePluginFacts(
-	state: { requested: RequestedPluginFact[]; loaded: string[] },
+	state: { requested: RequestedPluginFact[]; loaded: string[]; grants?: Record<string, PluginGrantFact> },
 	installed: readonly InstalledPlugin[],
 	known: readonly { id: string }[] = [],
 	/** Runtime ids THIS NODE declared under development (`readPluginDevelopment`, keyed the
@@ -300,6 +334,7 @@ export function mergePluginFacts(
 			integrity: tree.integrity,
 			known: knownByRuntimeId.has(tree.runtimeId),
 			development: developmentIds.has(tree.runtimeId),
+			...grantFactsFor(state.grants ?? {}, tree.runtimeId),
 		};
 	});
 
@@ -316,6 +351,7 @@ export function mergePluginFacts(
 			integrity: null,
 			known: knownByRuntimeId.has(runtimeId),
 			development: developmentIds.has(runtimeId),
+			...grantFactsFor(state.grants ?? {}, runtimeId),
 		});
 	});
 
@@ -336,6 +372,7 @@ export function mergePluginFacts(
 			integrity: null,
 			known: true,
 			development: developmentIds.has(runtimeId),
+			...grantFactsFor(state.grants ?? {}, runtimeId),
 		});
 	}
 

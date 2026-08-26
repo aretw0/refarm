@@ -16,6 +16,19 @@ export interface RequestedPluginFact {
 	because: string | null;
 }
 
+/** What a LOAD decided about one plugin's authority — ISS-171, host-observed only.
+ *
+ * `declared ∩ approved`, computed inside the host at load. Both sets travel because the PAIR is
+ * the answer: `effective` alone cannot tell "the operator withheld nothing" from "the operator was
+ * never consulted", and A MISS IS PERMISSIVE — a plugin absent from the approvals map keeps
+ * everything it declared. `underDevelopment` is whether THIS LOAD ran unverified, which is a
+ * different fact from whether the node currently declares the plugin under development. */
+export interface PluginGrantFact {
+	declared: string[];
+	effective: string[];
+	underDevelopment: boolean;
+}
+
 export interface RuntimePluginState {
 	/** Every path the host was handed at startup, and what became of it. Host-observed only —
 	 *  the daemon receives explicit paths and does not scan, so this is never a listing of
@@ -25,6 +38,9 @@ export interface RuntimePluginState {
 	loaded: string[];
 	/** ID of the loaded plugin with "integration:respond" capability, if any. */
 	defaultResponder: string | null;
+	/** Per-plugin grant facts, keyed by runtime id. Empty when the sidecar is unwired —
+	 *  the same honesty `requested` applies, rather than guessing at an intersection. */
+	grants: Record<string, PluginGrantFact>;
 }
 
 /** ids the daemon was HANDED and could identify — every `requested` entry with a non-null id,
@@ -92,6 +108,26 @@ function reloadBody(pluginIds?: string[]): string | undefined {
  *  (`manifest_runtime_plugin_id`, e.g. `"agent"`), and every other id this module reports is
  *  already normalized to the manifest vocabulary; a `null` id stays `null` (never guessed from
  *  `path`, see `RequestedPluginFact`). */
+/** Parse the host's `grants` map with the same defensive posture as `requestedArray`: an entry
+ *  that is not an object is dropped rather than read as an empty grant, because an empty
+ *  `effective` set MEANS "everything was withheld" and inventing one would state the opposite of
+ *  the truth. Keys are left as the host sent them — the RUNTIME id, which is what the load path
+ *  keys on and what `mergePluginFacts` matches by. */
+function grantsMap(value: unknown): Record<string, PluginGrantFact> {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
+	const out: Record<string, PluginGrantFact> = {};
+	for (const [id, raw] of Object.entries(value as Record<string, unknown>)) {
+		if (typeof raw !== "object" || raw === null || Array.isArray(raw)) continue;
+		const row = raw as Record<string, unknown>;
+		out[id] = {
+			declared: stringArray(row.declared),
+			effective: stringArray(row.effective),
+			underDevelopment: row.underDevelopment === true,
+		};
+	}
+	return out;
+}
+
 function requestedArray(value: unknown): RequestedPluginFact[] {
 	if (!Array.isArray(value)) return [];
 	const out: RequestedPluginFact[] = [];
@@ -117,6 +153,7 @@ export async function readRuntimePluginState(): Promise<RuntimePluginState | nul
 		return {
 			requested: requestedArray(payload.requested),
 			loaded: pluginIdArray(payload.loaded),
+			grants: grantsMap(payload.grants),
 			defaultResponder:
 				typeof payload.defaultResponder === "string"
 					? normalizePluginId(payload.defaultResponder)

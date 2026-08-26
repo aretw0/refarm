@@ -39,6 +39,9 @@ describe("mergePluginFacts", () => {
 				integrity: null,
 				known: false,
 				development: false,
+				effectivePermissions: null,
+				declaredPermissions: null,
+				loadedUnderDevelopment: null,
 			},
 		]);
 	});
@@ -71,6 +74,9 @@ describe("mergePluginFacts", () => {
 				integrity: null,
 				known: false,
 				development: false,
+				effectivePermissions: null,
+				declaredPermissions: null,
+				loadedUnderDevelopment: null,
 			},
 		]);
 	});
@@ -89,6 +95,9 @@ describe("mergePluginFacts", () => {
 				integrity: null,
 				known: true,
 				development: false,
+				effectivePermissions: null,
+				declaredPermissions: null,
+				loadedUnderDevelopment: null,
 			},
 		]);
 	});
@@ -127,6 +136,9 @@ describe("mergePluginFacts", () => {
 				integrity: "matches",
 				known: false,
 				development: false,
+				effectivePermissions: null,
+				declaredPermissions: null,
+				loadedUnderDevelopment: null,
 			},
 		]);
 	});
@@ -198,6 +210,9 @@ describe("mergePluginFacts", () => {
 				integrity: "matches",
 				known: true,
 				development: false,
+				effectivePermissions: null,
+				declaredPermissions: null,
+				loadedUnderDevelopment: null,
 			},
 		]);
 	});
@@ -284,5 +299,61 @@ describe("nodePluginDevelopmentIds", () => {
 		const lspCodeOps = rows.find((r) => r.runtimeId === "lsp-code-ops");
 		expect(agent?.development).toBe(true);
 		expect(lspCodeOps?.development).toBe(false);
+	});
+});
+
+/**
+ * ISS-171 — the effective permission set, which no surface reported until 2026-08-26.
+ *
+ * `plugin permissions` shows what a plugin DECLARES. The config shows what the operator
+ * APPROVED. The host computes `declared ∩ approved` at load and, until now, kept it. So the
+ * question "what can this plugin actually do here" had to be answered in the operator's head,
+ * against a rule that inverts the naive reading: A MISS IS PERMISSIVE.
+ */
+describe("what the plugin actually got, reported rather than inferred", () => {
+	const hostGrants = {
+		"lsp-code-ops": {
+			declared: ["fs:read", "fs:write", "shell:spawn"],
+			effective: ["fs:read", "fs:write"],
+			underDevelopment: false,
+		},
+	};
+
+	it("carries the effective set, and it is not the declared set", () => {
+		const [row] = mergePluginFacts(
+			{ requested: [], loaded: ["lsp-code-ops"], grants: hostGrants },
+			[{ manifestId: "@refarm/lsp-code-ops", runtimeId: "lsp-code-ops", dir: "/p/x", integrity: "matches" }],
+		);
+
+		expect(row?.effectivePermissions).toEqual(["fs:read", "fs:write"]);
+		expect(row?.declaredPermissions).toContain("shell:spawn");
+		expect(row?.effectivePermissions).not.toContain("shell:spawn");
+	});
+
+	it("keeps DECLARED-under-development and LOADED-under-a-waiver apart", () => {
+		// Two different facts that a careless surface would spell the same way. The node may
+		// declare a plugin under development while the load never needed the waiver, because the
+		// plugin is signed. Collapsing them would report a waiver that never fired.
+		const [row] = mergePluginFacts(
+			{ requested: [], loaded: ["mine"], grants: { mine: { declared: [], effective: [], underDevelopment: false } } },
+			[{ manifestId: "@local/mine", runtimeId: "mine", dir: "/p/mine", integrity: "matches" }],
+			[],
+			new Set(["mine"]),
+		);
+
+		expect(row?.development).toBe(true);
+		expect(row?.loadedUnderDevelopment).toBe(false);
+	});
+
+	it("says NOTHING about a plugin the host never loaded, rather than an empty set", () => {
+		// An empty `effectivePermissions` would read as "everything was withheld". Absent reads
+		// as "no load computed one", which is the true fact for an installed-but-unloaded tree.
+		const [row] = mergePluginFacts(
+			{ requested: [], loaded: [], grants: {} },
+			[{ manifestId: "@refarm/ghost", runtimeId: "ghost", dir: "/p/ghost", integrity: "absent" }],
+		);
+
+		expect(row?.effectivePermissions).toBeNull();
+		expect(row?.loadedUnderDevelopment).toBeNull();
 	});
 });

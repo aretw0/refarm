@@ -956,6 +956,7 @@ describe("plugin capability group", () => {
 						requested: [{ id: "agent", path: "/p/agent.wasm", loaded: true, because: null }],
 						loaded: ["agent"],
 						defaultResponder: "agent",
+					grants: {},
 					}),
 					readInstalledPlugins: () => [
 						{ manifestId: "@refarm/agent", runtimeId: "agent", dir: "/p/refarm_agent", integrity: "matches" },
@@ -990,6 +991,7 @@ describe("plugin capability group", () => {
 						],
 						loaded: ["agent"],
 						defaultResponder: "agent",
+					grants: {},
 					}),
 					readInstalledPlugins: () => [
 						{
