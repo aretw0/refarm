@@ -47,3 +47,62 @@ describe("under development is a declaration this node makes", () => {
 		expect(found.get("lsp-code-ops")?.declaredAt).toBe("2026-08-26");
 	});
 });
+
+describe("declaredAt is required — every way it can be missing reads as ABSENT", () => {
+	it("a well-shaped entry object with no declaredAt key at all", () => {
+		expect(readPluginDevelopment({ pluginDevelopment: { "lsp-code-ops": {} } }).size).toBe(0);
+	});
+
+	it("an empty string declaredAt", () => {
+		expect(
+			readPluginDevelopment({ pluginDevelopment: { "lsp-code-ops": { declaredAt: "" } } }).size,
+		).toBe(0);
+	});
+
+	it("a whitespace-only declaredAt", () => {
+		expect(
+			readPluginDevelopment({ pluginDevelopment: { "lsp-code-ops": { declaredAt: "   " } } })
+				.size,
+		).toBe(0);
+	});
+
+	it("a non-string declaredAt", () => {
+		expect(
+			readPluginDevelopment({ pluginDevelopment: { "lsp-code-ops": { declaredAt: 42 } } }).size,
+		).toBe(0);
+	});
+});
+
+// MEASURED 2026-08-26, in response to review round 1: every fixture above STORES the
+// already-canonical runtime-form key. That leaves the read side of the exact asymmetry
+// behind 57ff5cc1 (`approvedPermissions` written under one vocabulary, read under
+// another — and because a miss is PERMISSIVE, the plugin kept everything it declared)
+// completely unproven: nothing showed this reader canonicalises the STORED key, only
+// that it canonicalises the QUERIED one.
+describe("the reader canonicalises the STORED key too, not just the queried one", () => {
+	it("a manifest-form stored key is found under either vocabulary", () => {
+		const config = {
+			pluginDevelopment: { "@refarm/lsp-code-ops": { declaredAt: "2026-08-26" } },
+		};
+		expect(isUnderDevelopment(config, "lsp-code-ops")).toBe(true);
+		expect(isUnderDevelopment(config, "@refarm/lsp-code-ops")).toBe(true);
+	});
+});
+
+describe("readPluginDevelopment never throws on a non-object config", () => {
+	// This reader sits on the path that decides whether an unsigned plugin may run — a
+	// crash here is not cosmetic. `null`/`undefined`/a primitive/a bare array must all
+	// answer "nothing declared", never throw.
+	it("null", () => {
+		expect(readPluginDevelopment(null).size).toBe(0);
+	});
+	it("undefined", () => {
+		expect(readPluginDevelopment(undefined).size).toBe(0);
+	});
+	it("a number", () => {
+		expect(readPluginDevelopment(42).size).toBe(0);
+	});
+	it("an array", () => {
+		expect(readPluginDevelopment([]).size).toBe(0);
+	});
+});
