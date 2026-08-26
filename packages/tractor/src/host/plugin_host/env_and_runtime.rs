@@ -2244,6 +2244,62 @@ mod capability_tests {
         );
     }
 
+    /// The test above calls `resolve_under_development_at_load` DIRECTLY, passing
+    /// `id_is_from_manifest` by hand — it never exercises the real call site
+    /// (`manifest_plugin_id.is_some()`, `load()`'s own derivation of that flag). Mutating
+    /// that call site to pass `true` unconditionally would keep every test above green,
+    /// including the four this task repaired. This test goes through `load()` itself, on a
+    /// REAL manifest-less artifact, so that derivation is the thing under test.
+    #[tokio::test]
+    async fn a_manifest_less_artifact_is_refused_even_when_the_node_declares_its_guessed_stem_under_development(
+    ) {
+        // Security-adjacent: the operator declared "plugin" under development (exactly the
+        // scenario the direct-call test above proves the RESOLVER refuses). Here the same
+        // declaration sits in a REAL config.json and a REAL manifest-less artifact is loaded
+        // through `load()` end to end — no manifest.json/plugin.json/plugin-manifest.json
+        // beside it, so `plugin_id` can only be the guessed file stem "plugin". If refusal
+        // came from anywhere other than the id-provenance gate, this would pass too — the
+        // point is that it must NOT pass.
+        let _env = crate::test_support::env_lock();
+        sovereign_dir_env_for_tests();
+        let dir = tempfile::tempdir().expect("tempdir");
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).expect("mkdir");
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"pluginDevelopment":{"plugin":{"declaredAt":"2026-08-25"}}}"#,
+        )
+        .expect("write config.json");
+        // `load()` resolves its grant base via `config_node::declared_base()` — an internal
+        // env-driven chain, not an argument — so proving it end to end (rather than by calling
+        // `resolve_under_development_at_load` with an injected base, as above) means pointing
+        // that chain at this tempdir for the duration of the test.
+        let _base = crate::test_support::DeclaredBaseGuard::enter(dir.path());
+
+        // Manifest-less: bytes at "plugin.wasm" with NO plugin.json/plugin-manifest.json/
+        // manifest.json in the same directory. The content need not be valid WASM — the
+        // integrity gate this test targets runs before any WASM parsing.
+        let plugin_path = dir.path().join("plugin.wasm");
+        std::fs::write(&plugin_path, b"not a real wasm module").expect("write plugin.wasm");
+
+        let trust =
+            crate::trust::TrustManager::with_security_mode(crate::trust::SecurityMode::Permissive);
+        let telemetry = crate::telemetry::TelemetryBus::new(64);
+        let host = PluginHost::new(trust, telemetry, crate::host::instance::DEFAULT_ON_EVENT_BUDGET_MS)
+            .expect("PluginHost::new");
+        let storage = crate::storage::NativeStorage::open(":memory:").expect("open storage");
+        let sync = crate::sync::NativeSync::new(storage, "test").expect("NativeSync::new");
+
+        let err = host.load(&plugin_path, &sync).await.expect_err(
+            "a manifest-less artifact's guessed file stem must never be waived by a config \
+             declaration keyed to that same guessed stem",
+        );
+        assert!(
+            err.to_string().contains("declares no integrity"),
+            "refusal must be the integrity-at-load gate, not an unrelated failure: {err}"
+        );
+    }
+
     // ── plugin_development_declares mirrors the JS reader exactly ──────────────
 
     #[test]

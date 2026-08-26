@@ -131,6 +131,47 @@ describe("mergePluginFacts", () => {
 		]);
 	});
 
+	it("a stale sibling directory sharing the live tree's runtime id does NOT borrow `loaded:true`", () => {
+		// Two installed DIRECTORIES share one runtime id (a pre-convergence layout left beside
+		// the live one, the exact scenario `loaded`'s own comment names). Only ONE of them is
+		// the tree the host was handed a path for (`/p/refarm_agent`, matched via
+		// `matchByPath`) and is live; `/p/refarm_agent_stale` is an untouched leftover with no
+		// entry in `state.requested` at all. `liveRuntimeIds` has "agent" either way — it is
+		// keyed by id, not by directory — so `loaded` must gate on `match`, not merely on the
+		// id being live, or the stale directory would read as loaded too. (Deleting
+		// `match !== undefined &&` from `loaded`'s definition passes every OTHER test in this
+		// file, because none of them puts two directories under one runtime id with only one
+		// of them requested.)
+		const rows = mergePluginFacts(
+			{
+				requested: [
+					{ id: "@refarm/agent", path: "/p/refarm_agent/plugin.wasm", loaded: true, because: null },
+				],
+				loaded: ["agent"],
+			},
+			[
+				{
+					manifestId: "@refarm/agent",
+					runtimeId: "agent",
+					dir: "/p/refarm_agent",
+					integrity: "matches",
+				},
+				{
+					manifestId: "@refarm/agent",
+					runtimeId: "agent",
+					dir: "/p/refarm_agent_stale",
+					integrity: "matches",
+				},
+			],
+			[],
+		);
+
+		const live = rows.find((r) => r.dir === "/p/refarm_agent");
+		const stale = rows.find((r) => r.dir === "/p/refarm_agent_stale");
+		expect(live?.loaded).toBe(true);
+		expect(stale?.loaded).toBe(false);
+	});
+
 	it("a known plugin that IS installed carries known:true on its real row, not a second phantom row", () => {
 		const rows = mergePluginFacts(
 			{ requested: [], loaded: [] },
