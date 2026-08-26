@@ -292,11 +292,28 @@ pub type InFlightCancels =
 /// are rare (one per trapped teardown) and the supervisor drains promptly.
 pub type RespawnTx = mpsc::UnboundedSender<String>;
 
-/// One `--plugin` request recorded by `TractorNative::record_plugin_request`: the report id
-/// (derived from the requested path's file stem — the one label available before a load is
-/// even attempted), the requested path, and — when the load became a channel — the id it
-/// actually loaded as (`None` when it did not).
-pub type RequestedPluginEntry = (String, std::path::PathBuf, Option<String>);
+/// What a `--plugin` request became. Mutually exclusive by construction — an entry can
+/// never claim both a real id and a failure reason, or neither, the way two independent
+/// `Option`s could drift out of sync.
+///
+/// `Failed` carries the REAL error from `load_plugin` (`e.to_string()`), not a canned
+/// string: for a request that never became a channel, the answer must say why.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PluginLoadOutcome {
+    /// The plugin id it actually loaded as (from the manifest `load_plugin` returned).
+    Loaded(String),
+    /// Why it did not become a channel.
+    Failed(String),
+}
+
+/// One `--plugin` request recorded by `TractorNative::record_plugin_request`: the
+/// requested path and what became of it. Deliberately carries NO id derived from the
+/// path itself (e.g. a file stem) — production plugins are installed as
+/// `.../refarm_<name>/plugin.wasm` (see `apps/refarm/src/commands/runtime-node-args.ts`),
+/// so every real `--plugin` argument's file stem is the SAME string, `"plugin"`. A
+/// request that never loaded has no manifest id to report; reporting `null` there is
+/// honest, reporting a guessed id that collides with every other entry is not.
+pub type RequestedPluginEntry = (std::path::PathBuf, PluginLoadOutcome);
 
 /// Every `--plugin` path requested at startup, in request order. See
 /// `TractorNative::record_plugin_request` / `requested_plugins`.
@@ -800,13 +817,13 @@ pub struct TractorNative {
     /// by load_plugin so reload_plugin can re-read the (possibly rebuilt) bytes.
     plugin_paths: Arc<RwLock<HashMap<String, std::path::PathBuf>>>,
     /// Every `--plugin` path the daemon was asked to load at startup, in request order,
-    /// with what became of each: `Some(id)` when `load_plugin` returned that id,
-    /// `None` when it did not. Distinct from `plugin_paths` above: that map holds ONLY
-    /// successes (keyed by the id it never got, for a failure), so it cannot answer "what
-    /// was asked for" — a failed load leaves no trace there. `main.rs` calls
-    /// `record_plugin_request` once per `--plugin` argument, right after each
-    /// `load_plugin` attempt; the sidecar's `GET /plugins` reads this (via the `reload`
-    /// host handle) to report `requested` without the host scanning any directory.
+    /// with what became of each (`PluginLoadOutcome::Loaded`/`Failed`). Distinct from
+    /// `plugin_paths` above: that map holds ONLY successes (keyed by the id a failure
+    /// never got), so it cannot answer "what was asked for" — a failed load leaves no
+    /// trace there. `main.rs` calls `record_plugin_request` once per `--plugin` argument,
+    /// right after each `load_plugin` attempt; the sidecar's `GET /plugins` reads this
+    /// (via the `reload` host handle) to report `requested` without the host scanning any
+    /// directory.
     requested_plugins: RequestedPlugins,
     /// Sender handed to the LAST runner of each plugin: on an epoch-trap teardown it
     /// asks the respawn supervisor (spawned by `spawn_respawn_supervisor`) to reload
@@ -968,25 +985,22 @@ impl TractorNative {
     }
 
     /// Record that `path` was requested (a `--plugin` CLI argument at startup) and what
-    /// became of it: `loaded_as = Some(id)` when it became a channel, `None` when it did
-    /// not. Called once per `--plugin` argument by `main.rs`, right after each
+    /// became of it. Called once per `--plugin` argument by `main.rs`, right after each
     /// `load_plugin` attempt — this is the ONLY source of "what was requested": the host
     /// does not scan the plugins directory, so a failed load has no other trace (it never
     /// reaches `plugin_paths`, which records successes only, keyed by an id the failure
     /// never got).
     ///
-    /// The reported `id` is the requested path's file stem (`"agent.wasm"` -> `"agent"`):
-    /// the one label available before a load is even attempted, so a request that never
-    /// produced a real plugin id still reports something stable instead of nothing.
-    pub fn record_plugin_request(&self, path: &Path, loaded_as: Option<String>) {
-        let id = path
-            .file_stem()
-            .map(|stem| stem.to_string_lossy().into_owned())
-            .unwrap_or_else(|| path.to_string_lossy().into_owned());
+    /// Deliberately does NOT derive an id from `path` itself. Every real `--plugin`
+    /// argument is `.../refarm_<name>/plugin.wasm` (the file is literally named
+    /// `plugin.wasm`), so a file-stem id would report the SAME string, `"plugin"`, for
+    /// every entry — indistinguishable from each other. `PluginLoadOutcome` carries the
+    /// real id on success and the real failure reason (not a canned string) otherwise.
+    pub fn record_plugin_request(&self, path: &Path, outcome: PluginLoadOutcome) {
         self.requested_plugins
             .write()
             .expect("requested_plugins poisoned")
-            .push((id, path.to_path_buf(), loaded_as));
+            .push((path.to_path_buf(), outcome));
     }
 
     /// Snapshot of every `--plugin` request recorded so far via `record_plugin_request`,

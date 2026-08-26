@@ -52,7 +52,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::net::TcpListener;
 
-use crate::{PluginChannels, RequestedPluginEntry};
+use crate::{PluginChannels, PluginLoadOutcome, RequestedPluginEntry};
 
 // ── effort store ─────────────────────────────────────────────────────────────
 
@@ -539,22 +539,36 @@ fn now_iso8601() -> String {
 /// channel and, when it did not, why) and `loaded`. It does NOT report `installed` or `known`:
 /// the daemon receives explicit paths and does not scan, so those are the CLI's to answer and
 /// the host answering them was the defect — one variable served under four names.
+///
+/// Two absences this function is careful not to spell as a present value:
+/// - `defaultResponder` is `Option<&str>`, emitted as JSON `null` when `None` — "nobody
+///   elected" must not read the same as an elected responder named `""`.
+/// - `requested[].id` is `null` for a request that never loaded. It is NEVER derived from
+///   `path` (e.g. a file stem): production plugins are all installed as
+///   `.../refarm_<name>/plugin.wasm`, so every real path's stem is the SAME string,
+///   `"plugin"` — a stem-derived id would collide across every entry. A wrong id is worse
+///   than an absent one.
 fn plugins_payload(
-    requested: &[(String, std::path::PathBuf, Option<String>)],
+    requested: &[RequestedPluginEntry],
     loaded: &[String],
-    default_responder: &str,
+    default_responder: Option<&str>,
 ) -> serde_json::Value {
     let rows: Vec<serde_json::Value> = requested
         .iter()
-        .map(|(id, path, loaded_as)| {
+        .map(|(path, outcome)| {
+            let (id, is_loaded, because) = match outcome {
+                PluginLoadOutcome::Loaded(id) => {
+                    (serde_json::Value::String(id.clone()), true, serde_json::Value::Null)
+                }
+                PluginLoadOutcome::Failed(reason) => {
+                    (serde_json::Value::Null, false, serde_json::Value::String(reason.clone()))
+                }
+            };
             serde_json::json!({
                 "id": id,
                 "path": path.to_string_lossy(),
-                "loaded": loaded_as.is_some(),
-                "because": loaded_as.as_ref().map_or(
-                    serde_json::Value::String("did not become a channel".to_string()),
-                    |_| serde_json::Value::Null,
-                ),
+                "loaded": is_loaded,
+                "because": because,
             })
         })
         .collect();
@@ -591,7 +605,7 @@ async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
     Json(plugins_payload(
         &requested,
         &loaded,
-        default_responder.as_deref().unwrap_or(""),
+        default_responder.as_deref(),
     ))
 }
 
