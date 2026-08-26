@@ -243,6 +243,13 @@ export interface CreatedExtensionReport extends ExtensionEntry {
 	indexPath: string;
 	surfaceName?: string;
 	surfaceCommand?: string;
+	// Every path this scaffold wrote to disk (measured, not implied) — `plugin.json`
+	// is the one `plugin install` and the host can actually read (D3).
+	files: string[];
+	// Plain-language accounting of what runs today and what does not: the WASM
+	// manifest shape is real; the light (ext.json/index.js) track is designed and
+	// not built. See docs/superpowers/specs/2026-08-26-the-plugin-lifecycle-tells-the-truth-design.md.
+	notice: string;
 	nextAction: string;
 	nextActions: string[];
 	nextCommand?: string;
@@ -308,9 +315,20 @@ export async function buildCreatedPluginReport(
 
 	await mkdir(extDir, { recursive: true });
 	const ext = buildExtJson(name, { verb });
-	await writeFile(path.join(extDir, "ext.json"), JSON.stringify(ext, null, 2) + "\n", "utf-8");
+	const extJsonPath = path.join(extDir, "ext.json");
+	await writeFile(extJsonPath, JSON.stringify(ext, null, 2) + "\n", "utf-8");
 	const indexPath = path.join(extDir, "index.js");
 	await writeFile(indexPath, indexJsTemplate(name, ext.id, dispatch), "utf-8");
+
+	// The scaffold writes the shape the node ACTUALLY runs: a manifest `plugin install` can
+	// install and the host can load. No `integrity` — a freshly authored plugin is unsigned by
+	// definition, and D3 is what makes that state declarable instead of silent.
+	const pluginJsonPath = path.join(extDir, "plugin.json");
+	await writeFile(
+		pluginJsonPath,
+		JSON.stringify({ id: `@local/${name}`, name, version: "0.1.0", capabilities: { provides: [] } }, null, 2) + "\n",
+		"utf-8",
+	);
 
 	const scope = isGlobal ? "global" : "project";
 	const reloadCommand = extensionReloadCommand(name, true);
@@ -325,6 +343,11 @@ export async function buildCreatedPluginReport(
 		dir: extDir,
 		scope,
 		indexPath,
+		files: [extJsonPath, indexPath, pluginJsonPath],
+		notice:
+			`Declare it before running it unsigned:  refarm plugin develop @local/${name}\n` +
+			"A lighter, non-WASM track is designed and not built — see " +
+			"docs/superpowers/specs/ for its own spec.",
 		...(dispatch ? { surfaceName: dispatch.surfaceName } : {}),
 		...(surfaceCommand ? { surfaceCommand } : {}),
 		nextAction: reloadCommand,

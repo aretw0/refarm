@@ -1247,6 +1247,7 @@ export function pluginCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 					if (report.surfaceCommand) lines.push(`  Surface: ${report.surfaceCommand}`);
 					lines.push(`  Activate: ${report.nextActions[0]}`);
 					if (report.nextActions[1]) lines.push(`  Fallback: ${report.nextActions[1]}`);
+					lines.push("", report.notice);
 					return lines.join("\n");
 				},
 				exitCode: (envelope) => (envelope.ok === false ? 1 : 0),

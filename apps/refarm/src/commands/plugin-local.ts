@@ -76,6 +76,7 @@ function printCreatedExtension(report: CreatedExtensionReport): void {
 	if (report.nextActions[1]) {
 		console.log(`  Fallback: ${report.nextActions[1]}`);
 	}
+	console.log(`\n${report.notice}`);
 }
 
 async function newExtension(
