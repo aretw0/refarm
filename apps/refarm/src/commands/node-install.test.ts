@@ -19,6 +19,13 @@ import {
 } from "./node-install-plan.js";
 import { materializeWorkspacePackages, runNodeInstall, sharedWithCheckout } from "./node-install.js";
 
+/** The same 8-char prefix `runNodeInstall` files the tree under, computed the identical way
+ *  (`digestTree` over `apps/refarm/src`) so a fixture never hardcodes a hash literal that would
+ *  silently stop matching if `fakeCheckout`'s content ever changed. */
+function srcDigestOf(repoRoot: string): string {
+	return (digestTree(path.join(repoRoot, "apps", "refarm", "src")) ?? "").slice(0, 8);
+}
+
 /** A checkout shaped enough for the install to read a version and resolve pnpm.
  *
  * Also stamped FRESH: this file exists to prove what happens to the launcher, not to
@@ -110,7 +117,7 @@ describe("refarm node install", () => {
 		fs.mkdirSync(path.dirname(built), { recursive: true });
 		fs.writeFileSync(built, "export const built = 1;\n");
 
-		const tree = path.join(home, ".local", "lib", "refarm", "9.9.9-abc1234");
+		const tree = path.join(home, ".local", "lib", "refarm", `9.9.9-abc1234-${srcDigestOf(repoRoot)}`);
 		const installed = path.join(
 			tree, "node_modules", ".pnpm", "@refarm.dev+x@file+packages+x",
 			"node_modules", "@refarm.dev", "x", "dist", "index.js",
@@ -154,7 +161,7 @@ describe("refarm node install", () => {
 		fs.mkdirSync(path.dirname(built), { recursive: true });
 		fs.writeFileSync(built, "export const built = 1;\n");
 
-		const tree = path.join(home, ".local", "lib", "refarm", "9.9.9-abc1234");
+		const tree = path.join(home, ".local", "lib", "refarm", `9.9.9-abc1234-${srcDigestOf(repoRoot)}`);
 		const run = (spec: { id: string }) => {
 			if (spec.id === "assemble") {
 				// A shape the selection rule does not recognise — so the copying step skips it.
@@ -192,13 +199,14 @@ describe("refarm node install", () => {
 
 		expect(result.status).toBe("installed");
 		if (result.status !== "installed") return;
-		expect(result.tree).toContain("9.9.9-abc1234-dirty");
+		const expectedLabel = `9.9.9-abc1234-${srcDigestOf(repoRoot)}-dirty`;
+		expect(result.tree).toContain(expectedLabel);
 
 		const identity = JSON.parse(
 			fs.readFileSync(path.join(result.tree, NODE_IDENTITY_FILE), "utf-8"),
 		) as InstalledNodeIdentity;
 		expect(identity).toMatchObject({
-			label: "9.9.9-abc1234-dirty",
+			label: expectedLabel,
 			version: "9.9.9",
 			commit: "abc1234",
 			installedAt: "2026-08-23T03:00:00.000Z",

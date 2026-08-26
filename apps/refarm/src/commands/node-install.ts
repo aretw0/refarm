@@ -178,7 +178,11 @@ export async function runNodeInstall(
 	// contract (`test/commands/json-next-command-contract.test.ts`) refuses a hardcoded
 	// package-manager invocation in that property, on the (correct) theory that "pnpm" is not
 	// every operator's package manager. `parity.ts` sets the precedent for saying it in prose.
-	const freshness = readTreeFreshness({ packages: measureWorkspaceFreshness(repoRoot) });
+	// Kept, not just its verdict: `apps/refarm`'s `srcDigest` is the label's `contentDigest` below,
+	// and re-hashing the tree a second time to get it would be exactly the several-hundred-MB cost
+	// this measurement already exists to avoid.
+	const packages = measureWorkspaceFreshness(repoRoot);
+	const freshness = readTreeFreshness({ packages });
 	const refusal = freshnessRefusal(freshness);
 	if (refusal) {
 		return {
@@ -194,7 +198,12 @@ export async function runNodeInstall(
 	const dirtiness = checkoutDirtiness(
 		probeStep(run, step("git-status", "git", ["-C", repoRoot, "status", "--porcelain"], repoRoot, 30_000)),
 	);
-	const label = installVersionLabel(version, commit, dirtiness.dirty);
+	// MEASURED 2026-08-25: two clean installs of the same commit, minutes apart, carried different
+	// code under one directory name — the source moved between them and neither `commit` nor
+	// `dirty` can say by how much. `packages` already refused above if this were null, so it is
+	// always present here; only its shortening is done at this call site.
+	const contentDigest = packages.find((p) => p.id === "apps/refarm")?.srcDigest?.slice(0, 8);
+	const label = installVersionLabel(version, commit, dirtiness.dirty, contentDigest);
 	const tree = installedTreePath(home, label);
 
 	// ── 1. Assemble ──────────────────────────────────────────────────────────

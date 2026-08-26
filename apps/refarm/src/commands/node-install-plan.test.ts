@@ -214,3 +214,27 @@ describe("independenceVerdict", () => {
 		expect(verdict.because).toContain("3");
 	});
 });
+
+describe("the label tells two trees from one commit apart", () => {
+	it("carries a content digest beside the commit", () => {
+		// The docstring's own promise: "two installs of 0.1.0 from different commits are
+		// different trees, and an operator rolling back has to tell them apart in a directory
+		// listing". MEASURED 2026-08-25: two installs from the SAME commit, minutes apart,
+		// produced different code under ONE directory name.
+		const a = installVersionLabel("0.1.0", "57ff5cc1", false, "aaaaaaaa");
+		const b = installVersionLabel("0.1.0", "57ff5cc1", false, "bbbbbbbb");
+
+		expect(a).not.toBe(b);
+		expect(a).toMatch(/57ff5cc1/u);
+	});
+
+	it("omits the digest when there is none, rather than inventing one", () => {
+		// Same discipline the commit already follows: an install from a tarball has no commit,
+		// and inventing one produces a label that looks traceable and is not.
+		expect(installVersionLabel("0.1.0", "57ff5cc1", false)).toBe("0.1.0-57ff5cc1");
+	});
+
+	it("still qualifies a dirty install, which is a different fact", () => {
+		expect(installVersionLabel("0.1.0", "57ff5cc1", true, "aaaaaaaa")).toMatch(/dirty/u);
+	});
+});

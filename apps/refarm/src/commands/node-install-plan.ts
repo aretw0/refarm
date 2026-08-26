@@ -29,20 +29,34 @@
  * label is read from `git HEAD` while the tree is assembled from the working tree's `dist/`. The
  * two trees a rolling-back operator most needs to tell apart are exactly the ones this collapsed.
  *
- * It does NOT distinguish two dirty installs of the same commit — those share a path, and what
- * separates them is the `installedAt` in the tree's own identity file. Saying so here because a
- * label that quietly stops being unique is how this defect happened the first time.
+ * `contentDigest` EXISTS BECAUSE THE COMMIT PLUS `-dirty` WAS STILL THAT SAME LIE. Measured
+ * 2026-08-25: two installs of the same commit, minutes apart, carried different code under one
+ * directory name — the working tree had moved between them and neither `commit` nor `dirty` (a
+ * boolean) can say by how much. Absent under the same discipline as the commit: no digest, no
+ * invented one.
+ *
+ * It does NOT distinguish two installs whose commit, dirty state, AND content digest all agree —
+ * that residual case shares a path, and what separates them is the `installedAt` in the tree's
+ * own identity file. Saying so here because a label that quietly stops being unique is how this
+ * defect happened the first time.
  */
 export function installVersionLabel(
 	version: string,
 	commit: string | null,
 	dirty = false,
+	contentDigest?: string,
 ): string {
 	const short = commit?.trim();
 	if (!short) return version;
+	// THE DIGEST GOES IN THE DIRECTORY NAME, not beside it in a record, because the promise this
+	// function makes is about a DIRECTORY LISTING. Measured 2026-08-25: two clean installs of
+	// 57ff5cc1 carried different code under one name, and `installedAt` — which this docstring
+	// already offers as the tiebreak for two dirty installs — does not say the content differs.
+	const digest = contentDigest?.trim();
+	const base = digest ? `${version}-${short}-${digest}` : `${version}-${short}`;
 	// `-dirty` IS A STATEMENT ABOUT A DIFFERENCE FROM A NAMED COMMIT, so it needs one to name.
 	// With no commit, the label already claims nothing and there is nothing to qualify.
-	return dirty ? `${version}-${short}-dirty` : `${version}-${short}`;
+	return dirty ? `${base}-dirty` : base;
 }
 
 /**
