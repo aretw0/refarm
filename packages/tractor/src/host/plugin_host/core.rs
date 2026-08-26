@@ -239,6 +239,17 @@ pub struct PluginHost {
     approved_permissions_source: GrantSource<
         Option<std::collections::HashMap<String, std::collections::HashSet<String>>>,
     >,
+    /// Which plugins THIS NODE has declared it is developing (Task 6, `.refarm/config.json`
+    /// `pluginDevelopment`, keyed by the runtime id). Consulted ONLY to waive an ABSENT
+    /// integrity claim (never a wrong one) at the load-time integrity gate. `ResolveFromConfig`
+    /// resolves it PER-LOAD from the sovereign fs config; `Injected(v)` wins verbatim — for a
+    /// test/alt-host override, and for tests that must exercise plain-module loading without a
+    /// signed artifact and without a config file in the process cwd. Resolved value semantics
+    /// (UNLIKE the two grants above): `None` = nothing declared → CLOSED (no plugin waived);
+    /// `Some(set)` = the runtime ids waived (`*` = every plugin, matching `trusted_to_load`'s
+    /// wildcard). There is no "not configured → permissive" reading here — an absent
+    /// declaration must never be read as consent.
+    under_development_source: GrantSource<Option<std::collections::HashSet<String>>>,
     /// The expected model route (provider + base-url + path) guardrail, resolved
     /// from the routing env vars ONCE at construction and cloned into every
     /// `TractorNativeBindings` at load. Only ROUTING config — API-key secrets stay

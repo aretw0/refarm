@@ -89,6 +89,22 @@
             return;
         }
 
+        // `null-plugin.wasm` has no sibling `plugin.json`, so it declares no integrity —
+        // it loads only where the node declared it is under development. Declare it for
+        // exactly this fixture's runtime id ("null-plugin", the file stem, since there is
+        // no manifest id to derive it from) rather than wildcard-waive the whole boot.
+        let _env = crate::test_support::env_lock();
+        ensure_sovereign_dir_env();
+        let dev_dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dev_dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"pluginDevelopment":{"null-plugin":{"declaredAt":"2026-08-26"}}}"#,
+        )
+        .unwrap();
+        let _base = crate::test_support::DeclaredBaseGuard::enter(dev_dir.path());
+
         let tractor = crate::TractorNative::boot(crate::TractorNativeConfig {
             namespace: ":memory:".to_string(),
             port: 0,

@@ -431,6 +431,42 @@ fn require_plugin_ingest_flag_allows_plugin_arguments() {
 
 #[tokio::test]
 async fn maybe_ingest_on_load_runs_with_plugin_fixture() {
+    // `null-plugin.wasm` has no sibling `plugin.json`, so it declares no integrity — it
+    // loads only where the node declared it is under development. `test_support` is
+    // private to the `tractor` LIBRARY crate and not reachable from this bin-crate test,
+    // so this declares it directly: a temp `.refarm/config.json` under a dedicated
+    // SOVEREIGN_BASE, restored on drop.
+    struct RestoreEnv {
+        prev_base: Option<String>,
+        prev_dir: Option<String>,
+    }
+    impl Drop for RestoreEnv {
+        fn drop(&mut self) {
+            match self.prev_base.take() {
+                Some(v) => std::env::set_var("SOVEREIGN_BASE", v),
+                None => std::env::remove_var("SOVEREIGN_BASE"),
+            }
+            match self.prev_dir.take() {
+                Some(v) => std::env::set_var("SOVEREIGN_DIR", v),
+                None => std::env::remove_var("SOVEREIGN_DIR"),
+            }
+        }
+    }
+    let _restore = RestoreEnv {
+        prev_base: std::env::var("SOVEREIGN_BASE").ok(),
+        prev_dir: std::env::var("SOVEREIGN_DIR").ok(),
+    };
+    let dev_dir = tempfile::tempdir().expect("tempdir");
+    let refarm_dir = dev_dir.path().join(".refarm");
+    std::fs::create_dir_all(&refarm_dir).expect("mkdir .refarm");
+    std::fs::write(
+        refarm_dir.join("config.json"),
+        r#"{"pluginDevelopment":{"null-plugin":{"declaredAt":"2026-08-26"}}}"#,
+    )
+    .expect("write config.json");
+    std::env::set_var("SOVEREIGN_BASE", dev_dir.path());
+    std::env::set_var("SOVEREIGN_DIR", ".refarm");
+
     let config = TractorNativeConfig {
         namespace: ":memory:".to_string(),
         port: 0,

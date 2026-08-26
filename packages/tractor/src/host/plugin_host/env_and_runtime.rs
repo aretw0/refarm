@@ -860,10 +860,25 @@ fn read_runtime_plugin_manifest_raw(path: &Path) -> Option<serde_json::Value> {
 ///
 /// `declared` accepts `sha256-<hex>`, `sha256:<hex>`, or bare hex (case-insensitive);
 /// `computed_hash` is the lowercase hex of `sha256(bytes)`. A mismatch is a hard load
-/// failure — a tampered artifact at a trusted id must not run. `None` declared = no
-/// integrity claim → Ok (backward-compatible: an un-signed local plugin still loads).
-fn verify_wasm_integrity(declared: Option<&str>, computed_hash: &str, plugin_id: &str) -> Result<()> {
+/// failure — a tampered artifact at a trusted id must not run.
+///
+/// `None` declared = no integrity claim. This USED TO BE Ok unconditionally
+/// ("backward-compatible: an un-signed local plugin still loads"), which made "deliberately
+/// unsigned because I am developing it" and "the claim is missing" the same observable state.
+/// It is now Ok only when the NODE declared it is developing this plugin. A declaration never
+/// excuses a WRONG hash — that is "tampered or replaced" and stays a hard failure.
+fn verify_wasm_integrity(
+    declared: Option<&str>,
+    computed_hash: &str,
+    plugin_id: &str,
+    under_development: bool,
+) -> Result<()> {
     let Some(declared) = declared else {
+        anyhow::ensure!(
+            under_development,
+            "plugin '{plugin_id}' declares no integrity and this node has not declared it is \
+             under development — declare it, or install a signed build",
+        );
         return Ok(());
     };
     // Lowercase FIRST so an uppercase `SHA256-...` prefix + hex both normalize.
@@ -888,6 +903,42 @@ fn manifest_runtime_plugin_id(manifest_id: &str) -> &str {
         .next()
         .filter(|v| !v.trim().is_empty())
         .unwrap_or(manifest_id)
+}
+
+/// Whether THIS node's `.refarm/config.json` declares it is developing `plugin_id` —
+/// Task 6's declaration (`packages/config/src/plugin-development.js`
+/// `isUnderDevelopment`/`readPluginDevelopment`), keyed by the RUNTIME id
+/// (`manifest_runtime_plugin_id`, proven 57ff5cc1 the vocabulary the load path looks
+/// up) IN EITHER VOCABULARY — the stored key is canonicalised the same as the queried
+/// one, so `"lsp-code-ops"` and `"@refarm/lsp-code-ops"` both resolve regardless of
+/// which spelling is on disk.
+///
+/// MIRRORS THE JS READER'S SHAPE EXACTLY, including its fail-closed rule for every
+/// malformed shape: a non-object `cfg`, a `pluginDevelopment` that is missing, not an
+/// object, or an array, an entry that is not an object (including an array entry), and
+/// a `declaredAt` that is missing, empty, whitespace-only, or not a string — every one
+/// of these lands on `false` ("not declared"), never on `true`. This function never
+/// returns an error; a parse bug on the path that decides whether an unsigned plugin
+/// may run must not be mistaken for consent.
+fn plugin_development_declares(cfg: &serde_json::Value, plugin_id: &str) -> bool {
+    let Some(raw) = cfg.get("pluginDevelopment") else {
+        return false;
+    };
+    let Some(entries) = raw.as_object() else {
+        return false;
+    };
+    let target = manifest_runtime_plugin_id(plugin_id);
+    entries.iter().any(|(stored_id, entry)| {
+        let Some(entry) = entry.as_object() else {
+            return false;
+        };
+        let declared_at = entry
+            .get("declaredAt")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim();
+        !declared_at.is_empty() && manifest_runtime_plugin_id(stored_id) == target
+    })
 }
 
 fn validate_manifest_runtime_alignment(
@@ -1131,6 +1182,7 @@ impl PluginHost {
             // the same fail-shut (trusted) / fail-open (approved) posture on a bad file.
             trusted_plugins_source: GrantSource::ResolveFromConfig,
             approved_permissions_source: GrantSource::ResolveFromConfig,
+            under_development_source: GrantSource::ResolveFromConfig,
             model_route: crate::host::wasi_bridge::ModelRoute::from_env(),
             fallback_route: crate::host::wasi_bridge::ModelRoute::fallback_from_env(),
             // Wired by the runtime via `with_cross_plugin` once its registry + router
@@ -1183,6 +1235,18 @@ impl PluginHost {
         >,
     ) -> Self {
         self.approved_permissions_source = GrantSource::Injected(approved);
+        self
+    }
+
+    /// Override which plugins (by runtime id, `*` for every plugin) this host treats as
+    /// under development — the waiver `verify_wasm_integrity` consults for an ABSENT
+    /// integrity claim only (never a wrong one). The default (`new`) reads it fs-first
+    /// from `.refarm/config.json`'s `pluginDevelopment`; this injects it explicitly — for
+    /// tests that load a manifest-less or unsigned artifact deterministically, without a
+    /// config file in the process cwd. `None` = nothing declared (CLOSED, waives nothing);
+    /// `Some(set)` = exactly those runtime ids (or all, under `*`) are waived.
+    pub fn with_under_development(mut self, declared: Option<std::collections::HashSet<String>>) -> Self {
+        self.under_development_source = GrantSource::Injected(declared);
         self
     }
 
@@ -1301,6 +1365,41 @@ impl PluginHost {
         }
     }
 
+    /// Resolve whether THIS node has declared it is developing `plugin_id` — the third
+    /// declaration this load path resolves at THIS point, beside `resolve_trusted_at_load`
+    /// and `resolve_approved_at_load` just above. An injected override (test/alt-host path,
+    /// `with_under_development`) wins verbatim; otherwise read straight from the sovereign
+    /// fs config (Task 6's `pluginDevelopment`, see `plugin_development_declares`) — no
+    /// node/CRDT side, because developing a plugin is a statement about THIS machine, not a
+    /// grant meant to converge across devices.
+    ///
+    /// UNLIKE its two siblings above (which fall PERMISSIVE on an unreadable config — see
+    /// their docs), this one fails CLOSED on every branch: an absent sovereign config, an
+    /// unreadable one, a malformed `pluginDevelopment`, or an injected `None` all land on
+    /// `false` — "not declared". A declaration only ever WIDENS what may load (an
+    /// absent-integrity plugin), so falling open on a config bug would recreate exactly the
+    /// silent-consent failure this task exists to close.
+    fn resolve_under_development_at_load(&self, base: &Path, plugin_id: &str) -> bool {
+        match &self.under_development_source {
+            GrantSource::Injected(v) => v
+                .as_ref()
+                .is_some_and(|set| set.contains("*") || set.contains(plugin_id)),
+            GrantSource::ResolveFromConfig => {
+                match crate::host::host_effects_bridge::read_refarm_config_value_at(base) {
+                    Ok(Some(cfg)) => plugin_development_declares(&cfg, plugin_id),
+                    Ok(None) => false,
+                    Err(e) => {
+                        tracing::warn!(
+                            error = %e,
+                            "pluginDevelopment config unreadable — treating as not under development"
+                        );
+                        false
+                    }
+                }
+            }
+        }
+    }
+
     /// Narrow a plugin's declared permissions to the operator-approved set (declared ∩
     /// approved). `approved` is the per-load-resolved map (fs ∩ node). None (no map) or a
     /// plugin absent from the map → declared stands unchanged (additive scoping).
@@ -1366,20 +1465,26 @@ impl PluginHost {
         let wasm_hash = hex::encode(Sha256::digest(&bytes));
         tracing::debug!(plugin_id = %plugin_id, wasm_hash = %wasm_hash, "Plugin hash computed");
 
+        // `grant_base` is needed by the integrity check below (for `under_development`)
+        // as well as the trust/approval grants further down — resolved once, ahead of
+        // all three, rather than duplicated at each call site.
+        let grant_base = crate::host::plugin_host::config_node::declared_base();
+
         // Integrity-at-load (E): a tampered artifact at a trusted id must not run. The
         // manifest's declared hash was written at install; verify the bytes on disk
-        // match it. No declared integrity → unverified local plugin still loads.
+        // match it. No declared integrity → Ok only where THIS node declared it is
+        // developing this plugin (see `verify_wasm_integrity` / `plugin_development_declares`).
         verify_wasm_integrity(
             manifest.as_ref().and_then(|m| m.integrity.as_deref()),
             &wasm_hash,
             &plugin_id,
+            self.resolve_under_development_at_load(&grant_base, &plugin_id),
         )?;
 
         // Resolve the sovereign grants for THIS load, where `sync` exists (B): the
         // trusted allowlist + the approved-permissions map, each fs ∩ node
         // (deny-dominates). Resolved ONCE per load and threaded into the trust gate,
         // the approval scoping, AND the shell-effect bindings — one source of truth.
-        let grant_base = crate::host::plugin_host::config_node::declared_base();
         let trusted_at_load = self.resolve_trusted_at_load(&grant_base, sync);
         let approved_at_load = self.resolve_approved_at_load(&grant_base, sync);
         // G: the revocation tombstones for this load. Denies a revoked id at the trust
@@ -2002,9 +2107,11 @@ mod capability_tests {
     }
 
     #[test]
-    fn integrity_none_declared_loads_unverified() {
-        // Backward-compatible: an un-signed local plugin (no integrity) still loads.
-        assert!(verify_wasm_integrity(None, "deadbeef", "@test/p").is_ok());
+    fn integrity_none_declared_loads_only_when_the_node_declared_development() {
+        // No longer backward-compatible-unconditionally: an un-signed local plugin loads
+        // ONLY where the node declared it is developing this plugin.
+        assert!(verify_wasm_integrity(None, "deadbeef", "@test/p", true).is_ok());
+        assert!(verify_wasm_integrity(None, "deadbeef", "@test/p", false).is_err());
     }
 
     #[test]
@@ -2017,7 +2124,7 @@ mod capability_tests {
             "SHA256-ABC123DEF456", // case-insensitive
         ] {
             assert!(
-                verify_wasm_integrity(Some(declared), hash, "@test/p").is_ok(),
+                verify_wasm_integrity(Some(declared), hash, "@test/p", false).is_ok(),
                 "declared {declared} should match {hash}"
             );
         }
@@ -2026,9 +2133,56 @@ mod capability_tests {
     #[test]
     fn integrity_mismatch_fails_load() {
         // The tampered-artifact case: declared hash ≠ the bytes on disk → hard fail.
-        let err = verify_wasm_integrity(Some("sha256-0000"), "abcd", "@test/p").unwrap_err();
+        let err = verify_wasm_integrity(Some("sha256-0000"), "abcd", "@test/p", false).unwrap_err();
         assert!(err.to_string().contains("integrity check failed"));
         assert!(err.to_string().contains("@test/p"));
+    }
+
+    #[test]
+    fn an_unsigned_plugin_needs_a_declaration_to_run() {
+        // The affordance existed and was expressed by SILENCE. Absence must declare itself
+        // rather than be read as consent — the same rule ISS-131 tier 3 reached for
+        // credentials.
+        assert!(verify_wasm_integrity(None, "abc", "ghost", false).is_err());
+        assert!(verify_wasm_integrity(None, "abc", "ghost", true).is_ok());
+    }
+
+    #[test]
+    fn a_declaration_never_excuses_a_wrong_hash() {
+        // "Under development" waives an ABSENT claim, never a false one. A wrong hash is
+        // "tampered or replaced" and stays a hard failure whatever the node declared.
+        assert!(verify_wasm_integrity(Some("sha256-0000"), "abc", "ghost", true).is_err());
+    }
+
+    // ── plugin_development_declares mirrors the JS reader exactly ──────────────
+
+    #[test]
+    fn plugin_development_declares_matches_the_shared_rs_js_parity_fixture() {
+        // The SAME fixture `packages/config/src/plugin-development.test.js` reads — one
+        // JSON file, two readers, so RS↔JS agreement on every malformed shape (a
+        // non-object top level, an array, an entry that is not an object, an entry
+        // that is an array, a missing/empty/whitespace/non-string declaredAt, and a
+        // stored key in either vocabulary) is PROVEN rather than asserted twice by
+        // hand in two languages that can silently drift.
+        let fixture = include_str!("../../../../config/src/plugin-development.fixture.json");
+        let cases: Vec<serde_json::Value> =
+            serde_json::from_str(fixture).expect("parity fixture must be valid JSON");
+        assert!(
+            cases.len() >= 15,
+            "parity fixture looks stale/empty ({} cases) — refusing to prove nothing",
+            cases.len()
+        );
+        for case in &cases {
+            let description = case["description"].as_str().unwrap_or("<no description>");
+            let config = case.get("config").cloned().unwrap_or(serde_json::Value::Null);
+            let plugin_id = case["pluginId"].as_str().expect("pluginId must be a string");
+            let expected = case["expected"].as_bool().expect("expected must be a bool");
+            assert_eq!(
+                plugin_development_declares(&config, plugin_id),
+                expected,
+                "case {description:?} (pluginId={plugin_id:?}): expected {expected}"
+            );
+        }
     }
 
     // ── G: the trust gate denies a revoked id even under a `*` wildcard ────────

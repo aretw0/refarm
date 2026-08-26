@@ -1,6 +1,16 @@
 // packages/config/src/plugin-development.test.js
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { isUnderDevelopment, readPluginDevelopment } from "./plugin-development.js";
+
+// The SAME fixture the Rust host's `plugin_development_declares` reads (task-7 dispatch,
+// "the plugin lifecycle tells the truth"): one JSON file, two readers, so RS↔JS agreement
+// on every malformed shape is PROVEN rather than asserted twice by hand in two languages
+// that can silently drift (the defect class ISS-131 and 57ff5cc1 are both instances of).
+const PARITY_FIXTURE = JSON.parse(
+	readFileSync(fileURLToPath(new URL("./plugin-development.fixture.json", import.meta.url)), "utf-8"),
+);
 
 /**
  * The affordance already existed and was expressed by SILENCE: `verify_wasm_integrity` returns
@@ -105,4 +115,18 @@ describe("readPluginDevelopment never throws on a non-object config", () => {
 	it("an array", () => {
 		expect(readPluginDevelopment([]).size).toBe(0);
 	});
+});
+
+describe("RS↔JS parity fixture (packages/config/src/plugin-development.fixture.json)", () => {
+	it("has at least one case per rule this reader enforces", () => {
+		// A guard against the fixture itself going stale/empty and this describe block
+		// silently proving nothing.
+		expect(PARITY_FIXTURE.length).toBeGreaterThanOrEqual(15);
+	});
+
+	for (const testCase of PARITY_FIXTURE) {
+		it(testCase.description, () => {
+			expect(isUnderDevelopment(testCase.config, testCase.pluginId)).toBe(testCase.expected);
+		});
+	}
 });
