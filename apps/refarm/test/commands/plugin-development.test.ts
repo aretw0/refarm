@@ -1,3 +1,4 @@
+import { isUnderDevelopment, readPluginDevelopment } from "@refarm.dev/config";
 import { describe, expect, it } from "vitest";
 
 import type { RefarmCliConfig } from "../../src/commands/config-shared.js";
@@ -114,5 +115,48 @@ describe("setPluginDevelopment — the development-declaration RMW", () => {
 				pluginDevelopment: { b: { declaredAt: "x" }, a: { declaredAt: "y" } },
 			}),
 		).toEqual(["a", "b"]);
+	});
+});
+
+/**
+ * The cross-package seam: `setPluginDevelopment` (this package, TS) writes the same
+ * `.refarm/config.json` `packages/config/src/plugin-development.js`'s `isUnderDevelopment` /
+ * `readPluginDevelopment` reads at load — the ACTUAL reader the Rust host mirrors
+ * (`plugin_development_declares`) and the JS load path consults, not the writer's own
+ * `readPluginDevelopmentIds` re-check above. Until now nothing asserted the writer's output is
+ * what that reader accepts; both sides were unit-tested only against their OWN expectation of
+ * the shape. This is the cross-package seam on the path that decides whether unsigned code
+ * runs — the exact asymmetry that caused a real defect on this node (57ff5cc1, for the
+ * sibling `approvedPermissions` axis).
+ */
+describe("round-trip: what setPluginDevelopment writes is what packages/config's reader accepts", () => {
+	it("a declaration written for a manifest-shaped id is read back true, in either id vocabulary", () => {
+		const c = cell();
+		setPluginDevelopment("cfg.json", "@refarm/lsp-code-ops", true, {
+			...c.io,
+			now: () => "2026-08-26",
+		});
+
+		const written: RefarmCliConfig = c.get();
+		expect(isUnderDevelopment(written, "@refarm/lsp-code-ops")).toBe(true);
+		expect(isUnderDevelopment(written, "lsp-code-ops")).toBe(true);
+		expect(readPluginDevelopment(written).get("lsp-code-ops")?.declaredAt).toBe("2026-08-26");
+	});
+
+	it("withdrawing a declaration is read back false, and the dropped key reads as absent, not malformed", () => {
+		const c = cell();
+		setPluginDevelopment("cfg.json", "agent", true, { ...c.io, now: () => "2026-08-01" });
+		expect(isUnderDevelopment(c.get(), "agent")).toBe(true);
+
+		setPluginDevelopment("cfg.json", "agent", false, c.io);
+		const written: RefarmCliConfig = c.get();
+		expect(isUnderDevelopment(written, "agent")).toBe(false);
+		expect(readPluginDevelopment(written).size).toBe(0);
+	});
+
+	it("a plugin never declared reads back false", () => {
+		const c = cell();
+		setPluginDevelopment("cfg.json", "agent", true, { ...c.io, now: () => "2026-08-26" });
+		expect(isUnderDevelopment(c.get(), "@refarm/lsp-code-ops")).toBe(false);
 	});
 });
