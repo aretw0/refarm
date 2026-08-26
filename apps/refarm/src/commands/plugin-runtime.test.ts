@@ -90,6 +90,43 @@ describe("mergePluginFacts", () => {
 		]);
 	});
 
+	it("reports NOT loaded when the boot record says loaded but the live channel list does not — the live fact, never the frozen boot record, answers `loaded`", () => {
+		// A teardown or a failed hot-reload changes `plugin_channels` (the live fact) without
+		// ever touching the `requested[]` boot record `record_plugin_request` wrote at startup
+		// (`unregister` removes the channel and updates nothing else). This constructs exactly
+		// that disagreement: the boot record still says `loaded: true`, the live list is empty.
+		const rows = mergePluginFacts(
+			{
+				requested: [
+					{ id: "@refarm/agent", path: "/p/refarm_agent/plugin.wasm", loaded: true, because: null },
+				],
+				loaded: [],
+			},
+			[
+				{
+					manifestId: "@refarm/agent",
+					runtimeId: "agent",
+					dir: "/p/refarm_agent",
+					integrity: "matches",
+				},
+			],
+			[],
+		);
+
+		expect(rows).toEqual<PluginFacts[]>([
+			{
+				runtimeId: "agent",
+				manifestId: "@refarm/agent",
+				dir: "/p/refarm_agent",
+				requested: true,
+				loaded: false,
+				installed: true,
+				integrity: "matches",
+				known: false,
+			},
+		]);
+	});
+
 	it("a known plugin that IS installed carries known:true on its real row, not a second phantom row", () => {
 		const rows = mergePluginFacts(
 			{ requested: [], loaded: [] },

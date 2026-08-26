@@ -248,6 +248,24 @@ export function mergePluginFacts(
 		knownByRuntimeId.set(pluginIdRuntimeToken(descriptor.id), descriptor.id);
 	}
 
+	// The LIVE fact — the keys of `plugin_channels` right now, exactly as D2 defines `loaded`.
+	// NEVER `match?.loaded` / `entry.loaded` (the frozen boot record of what `record_plugin_request`
+	// wrote at startup): a teardown or a failed hot-reload changes `plugin_channels` without ever
+	// updating that record, so the boot record and the live fact can and do disagree. Conflating
+	// them is the defect this merge exists to not repeat — the boot record stays exactly what it
+	// is (what happened at boot, still visible via `requested`), and `loaded` here answers the
+	// live question and nothing else.
+	//
+	// Projected through `pluginIdRuntimeToken` because `state.loaded` is NOT uniformly
+	// runtime-token-shaped: `readRuntimePluginState` normalizes each id via `normalizePluginId`,
+	// whose alias table maps a DECLARED plugin's runtime token back to its full manifest id
+	// (`"agent"` -> `"@refarm/agent"`) while leaving an undeclared (third-party) id alone. Every
+	// row's own `runtimeId` (below and throughout this merge) is always the short form
+	// (`pluginIdRuntimeToken(manifest.id)`), so comparing the two vocabularies unprojected would
+	// silently never match a declared plugin — exactly the kind of confidently-wrong id this
+	// codebase has already paid for once (see `plugin-identity.js`'s alias-table comment).
+	const liveRuntimeIds = new Set(state.loaded.map(pluginIdRuntimeToken));
+
 	const consumed = new Set<number>();
 	const matchByPath = (dir: string): RequestedPluginFact | undefined => {
 		const wasmPath = path.resolve(dir, "plugin.wasm");
@@ -266,7 +284,13 @@ export function mergePluginFacts(
 			manifestId: tree.manifestId,
 			dir: tree.dir,
 			requested: match !== undefined,
-			loaded: match?.loaded ?? false,
+			// Gated on `match` too, not just the live id set: `plugin_channels` holds one
+			// channel per id, so when two installed DIRECTORIES share a runtime id (measured on
+			// a real node — a pre-convergence layout left beside the live one), the id being
+			// live says only that SOME tree with this id is loaded, never which directory. Only
+			// the tree the host was actually handed a path for (`match`) may claim it — a stale
+			// sibling must never borrow the live tree's fact just for sharing its id.
+			loaded: match !== undefined && liveRuntimeIds.has(tree.runtimeId),
 			installed: true,
 			integrity: tree.integrity,
 			known: knownByRuntimeId.has(tree.runtimeId),
@@ -281,7 +305,7 @@ export function mergePluginFacts(
 			manifestId: entry.id,
 			dir: null,
 			requested: true,
-			loaded: entry.loaded,
+			loaded: liveRuntimeIds.has(runtimeId),
 			installed: false,
 			integrity: null,
 			known: knownByRuntimeId.has(runtimeId),
