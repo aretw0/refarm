@@ -174,6 +174,8 @@ export type {
     ConfigTierFinding,
     PendingConfigRequest,
 } from "./config-tiers.js";
+export { isUnderDevelopment, readPluginDevelopment } from "./plugin-development.js";
+export type { PluginDevelopmentEntry } from "./plugin-development.js";
 export {
     affectedWorkspacePackagesFromChangedPaths,
     affectedWorkspacePackagesFromGitStatus,
