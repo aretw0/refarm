@@ -592,6 +592,9 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         match tractor.load_plugin(path).await {
             Ok(mut handle) => {
                 tracing::info!(path = %path.display(), plugin_id = %handle.id, "plugin loaded");
+                // Record the request as satisfied BEFORE ingest/pool-staging, which can
+                // fail without un-loading the plugin — it did become a channel.
+                tractor.record_plugin_request(path, Some(handle.id.clone()));
                 maybe_ingest_on_load(&mut handle, path, ingest_policy).await?;
                 // Stage the pool's extra stores (opt-in: concurrentSafe +
                 // REFARM_PLUGIN_POOL=N>1); a no-op otherwise.
@@ -604,6 +607,10 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
                 tractor.register_for_events(handle);
             }
             Err(e) => {
+                // Record the request as unsatisfied even on the fail-fast path: the
+                // process may still bail below, but the record is cheap and correct
+                // either way, and cheaper to write unconditionally than to duplicate.
+                tractor.record_plugin_request(path, None);
                 if load_policy == PluginLoadPolicy::FailFast {
                     anyhow::bail!(
                         "required plugin failed to load during startup (path={}): {e}",

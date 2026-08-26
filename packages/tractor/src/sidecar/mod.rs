@@ -16,7 +16,7 @@
 //!   POST   /efforts/:id/cancel         — cancel
 //!   GET    /nodes?type=:type           — list graph nodes by type
 //!   GET    /nodes/:id                  — graph node by id
-//!   GET    /plugins                    — installed/loaded plugin state
+//!   GET    /plugins                    — requested/loaded plugin state (host-observed only)
 //!   POST   /plugins/reload             — report reload readiness for loaded plugins
 //!   GET    /connections                — every declared connection's registry state
 //!   POST   /connections/:name/up       — ensure a declared connection (owner refarm/operator)
@@ -52,7 +52,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::net::TcpListener;
 
-use crate::PluginChannels;
+use crate::{PluginChannels, RequestedPluginEntry};
 
 // ── effort store ─────────────────────────────────────────────────────────────
 
@@ -244,9 +244,11 @@ pub struct SidecarState {
     /// (see RespondWatchConfig). The watcher reads these off the state, not env —
     /// so tests set a short timeout by overriding the field, never set_var.
     pub respond_watch: RespondWatchConfig,
-    /// The live host, for `/plugins/reload` to invoke `reload_plugin`. Injected by
-    /// the daemon via `with_reload`; None in tests that construct the sidecar
-    /// without a running host (the reload endpoint then reports it's unavailable).
+    /// The live host, for `/plugins/reload` to invoke `reload_plugin` and for
+    /// `GET /plugins` to read `requested_plugins()` (the `--plugin` startup requests and
+    /// what became of each). Injected by the daemon via `with_reload`; None in tests that
+    /// construct the sidecar without a running host (both endpoints then degrade
+    /// honestly — reload reports unavailable, `/plugins` reports nothing requested).
     pub reload: Option<Arc<crate::TractorNative>>,
     /// The shared plugin capability registry, for the synchronous `respond` route to
     /// consult `serves_sync` (ADR-084's negotiated-sync guard) before dispatching a
@@ -531,6 +533,38 @@ fn now_iso8601() -> String {
     crate::timefmt::now_iso_millis()
 }
 
+/// PURE. The plugins answer, built from the two facts the host actually holds.
+///
+/// It reports `requested` (the `--plugin` paths it was handed, each with whether it became a
+/// channel and, when it did not, why) and `loaded`. It does NOT report `installed` or `known`:
+/// the daemon receives explicit paths and does not scan, so those are the CLI's to answer and
+/// the host answering them was the defect — one variable served under four names.
+fn plugins_payload(
+    requested: &[(String, std::path::PathBuf, Option<String>)],
+    loaded: &[String],
+    default_responder: &str,
+) -> serde_json::Value {
+    let rows: Vec<serde_json::Value> = requested
+        .iter()
+        .map(|(id, path, loaded_as)| {
+            serde_json::json!({
+                "id": id,
+                "path": path.to_string_lossy(),
+                "loaded": loaded_as.is_some(),
+                "because": loaded_as.as_ref().map_or(
+                    serde_json::Value::String("did not become a channel".to_string()),
+                    |_| serde_json::Value::Null,
+                ),
+            })
+        })
+        .collect();
+    serde_json::json!({
+        "requested": rows,
+        "loaded": loaded,
+        "defaultResponder": default_responder,
+    })
+}
+
 async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
     let loaded: Vec<String> = {
         let channels = state.plugin_channels.read().expect("channels poisoned");
@@ -543,14 +577,22 @@ async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
         .read()
         .expect("default_responder_id poisoned")
         .clone();
+    // `requested` can only come from the live host's record of its `--plugin` startup
+    // arguments (see `TractorNative::requested_plugins`) — the host never scans, so there
+    // is no other source. Without a live host wired (a sidecar built for a test via
+    // `SidecarState::for_test`, no `with_reload`), it degrades to empty rather than
+    // guessing: the same honesty `/plugins/reload` already applies when unwired.
+    let requested: Vec<RequestedPluginEntry> = state
+        .reload
+        .as_ref()
+        .map(|host| host.requested_plugins())
+        .unwrap_or_default();
 
-    Json(serde_json::json!({
-        "installed": loaded,
-        "loaded": loaded,
-        "local": [],
-        "known": loaded,
-        "defaultResponder": default_responder,
-    }))
+    Json(plugins_payload(
+        &requested,
+        &loaded,
+        default_responder.as_deref().unwrap_or(""),
+    ))
 }
 
 #[derive(Debug, Deserialize)]

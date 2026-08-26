@@ -292,6 +292,16 @@ pub type InFlightCancels =
 /// are rare (one per trapped teardown) and the supervisor drains promptly.
 pub type RespawnTx = mpsc::UnboundedSender<String>;
 
+/// One `--plugin` request recorded by `TractorNative::record_plugin_request`: the report id
+/// (derived from the requested path's file stem — the one label available before a load is
+/// even attempted), the requested path, and — when the load became a channel — the id it
+/// actually loaded as (`None` when it did not).
+pub type RequestedPluginEntry = (String, std::path::PathBuf, Option<String>);
+
+/// Every `--plugin` path requested at startup, in request order. See
+/// `TractorNative::record_plugin_request` / `requested_plugins`.
+pub type RequestedPlugins = Arc<RwLock<Vec<RequestedPluginEntry>>>;
+
 /// The neutral event router: maps an event name to the set of plugin_ids
 /// subscribed to it, layered OVER the plugin-id lifecycle registry
 /// (`plugin_channels`) rather than replacing it — the registry still owns the
@@ -789,6 +799,15 @@ pub struct TractorNative {
     /// The on-disk path each loaded plugin came from, keyed by plugin_id. Retained
     /// by load_plugin so reload_plugin can re-read the (possibly rebuilt) bytes.
     plugin_paths: Arc<RwLock<HashMap<String, std::path::PathBuf>>>,
+    /// Every `--plugin` path the daemon was asked to load at startup, in request order,
+    /// with what became of each: `Some(id)` when `load_plugin` returned that id,
+    /// `None` when it did not. Distinct from `plugin_paths` above: that map holds ONLY
+    /// successes (keyed by the id it never got, for a failure), so it cannot answer "what
+    /// was asked for" — a failed load leaves no trace there. `main.rs` calls
+    /// `record_plugin_request` once per `--plugin` argument, right after each
+    /// `load_plugin` attempt; the sidecar's `GET /plugins` reads this (via the `reload`
+    /// host handle) to report `requested` without the host scanning any directory.
+    requested_plugins: RequestedPlugins,
     /// Sender handed to the LAST runner of each plugin: on an epoch-trap teardown it
     /// asks the respawn supervisor (spawned by `spawn_respawn_supervisor`) to reload
     /// a fresh instance by the plugin's recorded path. `register_for_events` clones it
@@ -930,6 +949,7 @@ impl TractorNative {
             // The SAME map the self-dispatch spawner reads — so a plugin loaded via
             // load_plugin (which records its path here) is self-dispatchable.
             plugin_paths,
+            requested_plugins: Arc::new(RwLock::new(Vec::new())),
             respawn_tx,
             respawn_rx: Arc::new(Mutex::new(Some(respawn_rx))),
             config,
@@ -945,6 +965,38 @@ impl TractorNative {
             .expect("plugin_paths poisoned")
             .insert(handle.id.clone(), path.to_path_buf());
         Ok(handle)
+    }
+
+    /// Record that `path` was requested (a `--plugin` CLI argument at startup) and what
+    /// became of it: `loaded_as = Some(id)` when it became a channel, `None` when it did
+    /// not. Called once per `--plugin` argument by `main.rs`, right after each
+    /// `load_plugin` attempt — this is the ONLY source of "what was requested": the host
+    /// does not scan the plugins directory, so a failed load has no other trace (it never
+    /// reaches `plugin_paths`, which records successes only, keyed by an id the failure
+    /// never got).
+    ///
+    /// The reported `id` is the requested path's file stem (`"agent.wasm"` -> `"agent"`):
+    /// the one label available before a load is even attempted, so a request that never
+    /// produced a real plugin id still reports something stable instead of nothing.
+    pub fn record_plugin_request(&self, path: &Path, loaded_as: Option<String>) {
+        let id = path
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().into_owned())
+            .unwrap_or_else(|| path.to_string_lossy().into_owned());
+        self.requested_plugins
+            .write()
+            .expect("requested_plugins poisoned")
+            .push((id, path.to_path_buf(), loaded_as));
+    }
+
+    /// Snapshot of every `--plugin` request recorded so far via `record_plugin_request`,
+    /// in the order the requests were made. Read by the sidecar's `GET /plugins` (via the
+    /// `reload` host handle) to build the `requested` half of the plugins answer.
+    pub fn requested_plugins(&self) -> Vec<RequestedPluginEntry> {
+        self.requested_plugins
+            .read()
+            .expect("requested_plugins poisoned")
+            .clone()
     }
 
     /// Start the RESPAWN SUPERVISOR: a background task that reinstantiates a plugin
