@@ -35,10 +35,10 @@ import {
 	type RuntimePluginStatusReport,
 } from "./plugin-shared.js";
 import {
+	type PluginGrantFact,
 	readRuntimePluginState,
 	reloadRuntimePluginsAndWait,
 	type RequestedPluginFact,
-	type PluginGrantFact,
 } from "./runtime-plugins.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
@@ -488,6 +488,9 @@ export function buildRuntimePluginStatusReport(
 			integrity: p.integrity,
 			known: p.known,
 			development: p.development,
+					effectivePermissions: p.effectivePermissions,
+			declaredPermissions: p.declaredPermissions,
+			loadedUnderDevelopment: p.loadedUnderDevelopment,
 		})),
 		nextAction,
 		nextActions: nextCommands,

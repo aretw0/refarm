@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { CapabilityEnvelope } from "@refarm.dev/capabilities";
+import { describe, expect, it } from "vitest";
 import { formatStatusFromEnvelope } from "./plugin-render.js";
 import type { RuntimePluginStatusReport } from "./plugin-shared.js";
 
@@ -42,6 +42,9 @@ describe("formatStatusFromEnvelope", () => {
 				integrity: "absent",
 				known: true,
 				development: true,
+				effectivePermissions: null,
+				declaredPermissions: null,
+				loadedUnderDevelopment: null,
 			},
 			{
 				id: "@refarm/lsp-code-ops",
@@ -54,6 +57,9 @@ describe("formatStatusFromEnvelope", () => {
 				integrity: "matches",
 				known: true,
 				development: false,
+				effectivePermissions: null,
+				declaredPermissions: null,
+				loadedUnderDevelopment: null,
 			},
 		]);
 

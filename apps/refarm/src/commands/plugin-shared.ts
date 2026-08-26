@@ -10,8 +10,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pluginsBaseDir, resolveRefarmHome } from "../utils/refarm-home.js";
 import type { ModelRateCatalogMaterialization } from "./model-rate-catalog.js";
-import type { IntegrityVerdict } from "./plugin-inventory.js";
 import { RUNTIME_AGENT_RELOAD_JSON_COMMAND } from "./plugin-handoffs.js";
+import type { IntegrityVerdict } from "./plugin-inventory.js";
 
 // Plugins bundled with the refarm npm package — auto-installed and updated by farmhand on
 // boot. The agnostic BUNDLED_PLUGIN_DESCRIPTORS carries the set; this app-level alias is
@@ -156,6 +156,17 @@ export interface RuntimePluginStatusEntry {
 	 * that tree will load at all — this row is the answer.
 	 */
 	development: boolean;
+	/** What this plugin ACTUALLY GOT at load: `declared ∩ approved`, computed by the host and
+	 *  reported rather than recomputed (ISS-171). `null` when no load computed one — never an
+	 *  empty array, which would mean everything was withheld. */
+	effectivePermissions: string[] | null;
+	/** Every capability the manifest asked for, as the LOAD saw it. Travels beside `effective`
+	 *  because a MISS IS PERMISSIVE: `effective` alone cannot tell "nothing was withheld" from
+	 *  "nobody was consulted". */
+	declaredPermissions: string[] | null;
+	/** Whether THAT LOAD ran unverified under the node's declaration — distinct from
+	 *  `development`, which is what the node declares now. */
+	loadedUnderDevelopment: boolean | null;
 }
 
 export interface RuntimePluginStatusReport {
