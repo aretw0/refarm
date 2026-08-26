@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -41,6 +42,22 @@ describe("what is installed here, and does each tree hash to what it claims", ()
 
 		const [entry] = readInstalledPlugins(base);
 		expect(entry?.integrity).toBe("mismatch");
+	});
+
+	it("recognizes a declared hash that IS the true sha256 of the bytes on disk — verdictFor's `matches` branch", () => {
+		// Every OTHER fixture in this file passes either `null` (→ absent) or a hash that is
+		// wrong on its face (`sha256-0000000000`, → mismatch). None writes a manifest whose
+		// declared hash IS the real digest of its own bytes, so an implementation that returns
+		// "mismatch" for every declared hash — never computing or comparing anything — would
+		// pass every test above this one. The declared hash here is computed INDEPENDENTLY,
+		// with the same primitive (`createHash("sha256")`) the code under test uses, but never
+		// by calling `readInstalledPlugins`/`verdictFor` and reading back their own answer.
+		const base = mkdtempSync(path.join(tmpdir(), "inv-"));
+		const bytes = "these-are-the-real-plugin-bytes-on-disk";
+		const digest = createHash("sha256").update(bytes).digest("hex");
+		tree(base, "refarm_signed", "@refarm/signed", bytes, `sha256-${digest}`);
+
+		expect(readInstalledPlugins(base)[0]?.integrity).toBe("matches");
 	});
 
 	it("distinguishes an ABSENT claim from a wrong one", () => {
