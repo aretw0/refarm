@@ -27,6 +27,19 @@ describe("under development is a declaration this node makes", () => {
 		expect(readPluginDevelopment({ pluginDevelopment: ["x"] }).size).toBe(0);
 	});
 
+	it("rejects a top-level ARRAY even when its entries look well-shaped", () => {
+		// MEASURED while proving Step 5's guard fires: the two fixtures directly above stay at
+		// size 0 even with the top-level `Array.isArray(raw)` check deleted, because the
+		// per-entry check (`typeof entry !== "object"`) independently absorbs a bare string's
+		// characters and a bare array's non-object elements — so that mutation passed the suite
+		// silently. `[{ declaredAt: "2026-01-01" }]` is the fixture that actually depends on the
+		// top-level check: its entries ARE well-shaped objects, so only rejecting the array
+		// itself (not its contents) keeps this reading ABSENT rather than `{ "0": {...} }`.
+		expect(readPluginDevelopment({ pluginDevelopment: [{ declaredAt: "2026-01-01" }] }).size).toBe(
+			0,
+		);
+	});
+
 	it("carries declaredAt, so the state can age out loud", () => {
 		const found = readPluginDevelopment({
 			pluginDevelopment: { "lsp-code-ops": { declaredAt: "2026-08-26" } },
