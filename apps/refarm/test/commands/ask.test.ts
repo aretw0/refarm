@@ -1038,7 +1038,7 @@ describe("refarm ask", () => {
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
 				requested: [
-					{ id: "@refarm/agent", path: "/plugins/refarm_agent/plugin.wasm", loaded: false, because: null },
+					{ id: "@refarm/agent", path: "/plugins/refarm_agent/plugin.wasm", loaded: true, because: null },
 				],
 				loaded: [],
 			}),
@@ -1071,7 +1071,7 @@ describe("refarm ask", () => {
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
 				requested: [
-					{ id: "@refarm/agent", path: "/plugins/refarm_agent/plugin.wasm", loaded: false, because: null },
+					{ id: "@refarm/agent", path: "/plugins/refarm_agent/plugin.wasm", loaded: true, because: null },
 				],
 				loaded: [],
 			}),
@@ -1116,6 +1116,100 @@ describe("refarm ask", () => {
 				command: "refarm plugin reload agent --json",
 			}),
 		]);
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
+	it("never recommends install when a plugin was requested and failed to load — the state D2 exists to make expressible", async () => {
+		// The host emits id: null for EVERY failed load (never a guessed id) — so
+		// requestedPluginIds alone cannot tell "nothing was ever requested" (genuinely not
+		// installed) apart from "installed and handed to the daemon, but failed with an id this
+		// scan cannot know". Telling an operator to install a plugin that is already installed
+		// and merely failed is the exact confusion this closes.
+		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps({
+			readPluginState: vi.fn().mockResolvedValue({
+				requested: [
+					{
+						id: null,
+						path: "/plugins/refarm_agent/plugin.wasm",
+						loaded: false,
+						because: "wasm parse error: unexpected end of file",
+					},
+				],
+				loaded: [],
+			}),
+		});
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello"], { from: "user" });
+
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(errSpy).not.toHaveBeenCalledWith(expect.stringContaining("Install bundled plugins"));
+		expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("A plugin failed to load"));
+		expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("refarm plugin status --json"));
+		expect(process.exitCode).toBe(1);
+
+		errSpy.mockRestore();
+	});
+
+	it("reports agent-load-failed (never agent-not-loaded's install recommendation) as JSON when a plugin request failed", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps({
+			readPluginState: vi.fn().mockResolvedValue({
+				requested: [
+					{
+						id: null,
+						path: "/plugins/refarm_agent/plugin.wasm",
+						loaded: false,
+						because: "wasm parse error: unexpected end of file",
+					},
+				],
+				loaded: [],
+			}),
+		});
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			nextAction: string;
+			nextCommand: string;
+			installed: boolean;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "agent-load-failed",
+			nextAction: "refarm plugin status --json",
+			nextCommand: "refarm plugin status --json",
+		});
+		// installed: true — a request that failed to load is a request that WAS installed.
+		expect(payload.installed).toBe(true);
 		expect(deps.submitEffort).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
 
@@ -1274,7 +1368,7 @@ describe("refarm ask", () => {
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
 				requested: [
-					{ id: RUNTIME_AGENT_PLUGIN_ID, path: "/plugins/agent/plugin.wasm", loaded: false, because: null },
+					{ id: RUNTIME_AGENT_PLUGIN_ID, path: "/plugins/agent/plugin.wasm", loaded: true, because: null },
 				],
 				loaded: [],
 			}),
@@ -1312,7 +1406,7 @@ describe("refarm ask", () => {
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
 				requested: [
-					{ id: RUNTIME_AGENT_PLUGIN_ID, path: "/plugins/agent/plugin.wasm", loaded: false, because: null },
+					{ id: RUNTIME_AGENT_PLUGIN_ID, path: "/plugins/agent/plugin.wasm", loaded: true, because: null },
 				],
 				loaded: [],
 			}),
@@ -1349,7 +1443,7 @@ describe("refarm ask", () => {
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
 				requested: [
-					{ id: RUNTIME_AGENT_PLUGIN_ID, path: "/plugins/agent/plugin.wasm", loaded: false, because: null },
+					{ id: RUNTIME_AGENT_PLUGIN_ID, path: "/plugins/agent/plugin.wasm", loaded: true, because: null },
 				],
 				loaded: [],
 			}),
@@ -1446,7 +1540,7 @@ describe("refarm ask", () => {
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
 				requested: [
-					{ id: "@refarm/agent", path: "/plugins/refarm_agent/plugin.wasm", loaded: false, because: null },
+					{ id: "@refarm/agent", path: "/plugins/refarm_agent/plugin.wasm", loaded: true, because: null },
 				],
 				loaded: [],
 			}),

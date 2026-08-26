@@ -66,10 +66,12 @@ import {
 import {
 	PLUGIN_INSTALL_COMMAND,
 	PLUGIN_INSTALL_JSON_COMMAND,
+	PLUGIN_STATUS_JSON_COMMAND,
 	RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 } from "./plugin-handoffs.js";
 import { createRuntimeAgentRespondEffort } from "./runtime-agent-effort.js";
 import {
+	anyRequestedPluginFailed,
 	readRuntimePluginState,
 	reloadRuntimePlugins,
 	requestedPluginIds,
@@ -549,41 +551,70 @@ export {
 	}
 
 	const agentInstalled = requestedPluginIds(state).some(isRuntimeAgentPluginId);
+	// `requestedPluginIds` filters out every FAILED request (id: null — the host emits this for
+	// EVERY failed load, never a guessed id), so its absence alone cannot tell "never installed"
+	// apart from "installed and handed to the daemon, but failed to load with an id this scan
+	// cannot know" — the THIRD state D2 exists to make expressible. Telling an operator to
+	// install a plugin that is already installed and merely failed is the exact confusion this
+	// distinguishes: only recommend install when NOTHING was requested at all.
+	const agentLoadFailed = !agentInstalled && anyRequestedPluginFailed(state);
 	if (json) {
 		printJson(
 			buildJsonErrorEnvelope({
 				command: "ask",
 				operation: "plugin-readiness",
-				error: "agent-not-loaded",
-				message: "No agent is loaded in the Refarm runtime.",
-				nextAction: agentInstalled ? RUNTIME_AGENT_RELOAD_JSON_COMMAND : PLUGIN_INSTALL_COMMAND,
+				error: agentLoadFailed ? "agent-load-failed" : "agent-not-loaded",
+				message: agentLoadFailed
+					? "A plugin failed to load in the Refarm runtime — the agent may be among them."
+					: "No agent is loaded in the Refarm runtime.",
+				nextAction: agentInstalled
+					? RUNTIME_AGENT_RELOAD_JSON_COMMAND
+					: agentLoadFailed
+						? PLUGIN_STATUS_JSON_COMMAND
+						: PLUGIN_INSTALL_COMMAND,
 				nextActions: [
-					...(agentInstalled ? [RUNTIME_AGENT_RELOAD_JSON_COMMAND] : [PLUGIN_INSTALL_COMMAND]),
+					...(agentInstalled
+						? [RUNTIME_AGENT_RELOAD_JSON_COMMAND]
+						: agentLoadFailed
+							? [PLUGIN_STATUS_JSON_COMMAND]
+							: [PLUGIN_INSTALL_COMMAND]),
 					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 					RUNTIME_START_COMMAND,
 					RUNTIME_DOCTOR_COMMAND,
 				],
 				nextCommand: agentInstalled
 					? RUNTIME_AGENT_RELOAD_JSON_COMMAND
-					: PLUGIN_INSTALL_JSON_COMMAND,
+					: agentLoadFailed
+						? PLUGIN_STATUS_JSON_COMMAND
+						: PLUGIN_INSTALL_JSON_COMMAND,
 				nextCommands: [
-					...(agentInstalled ? [RUNTIME_AGENT_RELOAD_JSON_COMMAND] : [PLUGIN_INSTALL_JSON_COMMAND]),
+					...(agentInstalled
+						? [RUNTIME_AGENT_RELOAD_JSON_COMMAND]
+						: agentLoadFailed
+							? [PLUGIN_STATUS_JSON_COMMAND]
+							: [PLUGIN_INSTALL_JSON_COMMAND]),
 					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 					RUNTIME_START_WAIT_COMMAND,
 					RUNTIME_DOCTOR_NEXT_COMMAND,
 				],
 				extra: {
 					action: "ask",
-					installed: agentInstalled,
+					installed: agentInstalled || agentLoadFailed,
 					recommendations: [
 						{
-							diagnostic: "agent-not-loaded",
+							diagnostic: agentLoadFailed ? "agent-load-failed" : "agent-not-loaded",
 							severity: "failure",
-							summary: "No agent plugin is loaded in the runtime.",
-							action: "Install or reload an agent plugin, then ensure the runtime is ready.",
+							summary: agentLoadFailed
+								? "A plugin the runtime was handed failed to load."
+								: "No agent plugin is loaded in the runtime.",
+							action: agentLoadFailed
+								? "Inspect plugin status to see which plugin failed and why, then reload or repair it."
+								: "Install or reload an agent plugin, then ensure the runtime is ready.",
 							command: agentInstalled
 								? RUNTIME_AGENT_RELOAD_JSON_COMMAND
-								: PLUGIN_INSTALL_JSON_COMMAND,
+								: agentLoadFailed
+									? PLUGIN_STATUS_JSON_COMMAND
+									: PLUGIN_INSTALL_JSON_COMMAND,
 						},
 					],
 				},
@@ -592,7 +623,9 @@ export {
 		return false;
 	}
 	console.error(chalk.red("\n✗  No agent is loaded in the Refarm runtime."));
-	if (!agentInstalled) {
+	if (agentLoadFailed) {
+		console.error(chalk.dim(`   A plugin failed to load — inspect:  ${PLUGIN_STATUS_JSON_COMMAND}`));
+	} else if (!agentInstalled) {
 		console.error(chalk.dim("   Install bundled plugins:  refarm plugin install"));
 	}
 	console.error(

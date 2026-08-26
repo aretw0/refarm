@@ -3,10 +3,11 @@ import { Command } from "commander";
 import { defaultChatDeps, runSessionRepl, type ChatDeps } from "./chat.js";
 import {
 	PLUGIN_INSTALL_JSON_COMMAND,
+	PLUGIN_STATUS_JSON_COMMAND,
 	RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 } from "./plugin-handoffs.js";
 import { RUNTIME_DOCTOR_COMMAND, RUNTIME_ENSURE_WAIT_NEXT_COMMAND } from "./runtime-recovery.js";
-import { requestedPluginIds } from "./runtime-plugins.js";
+import { anyRequestedPluginFailed, requestedPluginIds } from "./runtime-plugins.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
 	autoStartFarmhand,
@@ -89,10 +90,17 @@ async function ensureSessionRuntimeAgentReady(deps: ChatDeps): Promise<boolean> 
 	}
 
 	process.stderr.write("✗  Runtime agent is not loaded in the Refarm runtime.\n");
-	if (!requestedIds.includes(RUNTIME_AGENT_PLUGIN_ID)) {
-		process.stderr.write(`   Install bundled plugins:  ${PLUGIN_INSTALL_JSON_COMMAND}\n`);
-	} else {
+	if (requestedIds.includes(RUNTIME_AGENT_PLUGIN_ID)) {
 		process.stderr.write(`   Reload runtime plugins:   ${RUNTIME_AGENT_RELOAD_JSON_COMMAND}\n`);
+	} else if (anyRequestedPluginFailed(state)) {
+		// `requestedIds` filters out every FAILED request (id: null — the host emits this for
+		// EVERY failed load, never a guessed id), so its absence alone cannot tell "never
+		// installed" apart from "installed and handed to the daemon, but failed to load with an
+		// id this scan cannot know". Telling an operator to install a plugin that is already
+		// installed and merely failed is the exact confusion D2 exists to close.
+		process.stderr.write(`   A plugin failed to load — inspect:  ${PLUGIN_STATUS_JSON_COMMAND}\n`);
+	} else {
+		process.stderr.write(`   Install bundled plugins:  ${PLUGIN_INSTALL_JSON_COMMAND}\n`);
 	}
 	process.stderr.write(`   Ensure runtime:           ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}\n`);
 	process.stderr.write(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}\n`);

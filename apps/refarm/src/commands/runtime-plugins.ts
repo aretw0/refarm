@@ -36,6 +36,20 @@ export function requestedPluginIds(state: Pick<RuntimePluginState, "requested">)
 	return [...new Set(state.requested.map((r) => r.id).filter((id): id is string => id !== null))];
 }
 
+/**
+ * Whether ANY `--plugin` the daemon was handed at startup FAILED before its manifest could be
+ * read (`id: null` — see `RequestedPluginFact`'s doc; the host emits this for every failed
+ * load, never a guessed id). `requestedPluginIds` filters exactly these entries out, so its
+ * emptiness alone cannot tell "nothing was ever requested" (genuinely not installed) apart
+ * from "something was requested and installed, but failed to load with an id this scan
+ * cannot know" — the THIRD state D2 exists to make expressible. `ask`/`session` consult this
+ * before recommending install: a plugin that failed to load is already installed, and telling
+ * an operator to install it again is the exact confusion D2 exists to close.
+ */
+export function anyRequestedPluginFailed(state: Pick<RuntimePluginState, "requested">): boolean {
+	return state.requested.some((r) => r.id === null);
+}
+
 export interface RuntimePluginReloadResult {
 	reloadId?: string;
 	reloaded: string[];
