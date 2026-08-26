@@ -2021,6 +2021,17 @@
 			"priority": "medium",
 			"package": "apps/refarm",
 			"axis": "other"
+		},
+		{
+			"id": "ISS-171",
+			"title": "No surface reports a plugin's EFFECTIVE permissions, and a miss is permissive",
+			"body": "OPENED 2026-08-26, found while re-approving `lsp-code-ops` on the operator's live node — the one\nmoment the question mattered and could not be answered.\n\nTHE QUESTION WITH NO SURFACE: \"what can this plugin actually do on my node, right now?\"\n\nWhat exists:\n    refarm plugin permissions <id>   what the plugin DECLARES it wants\n    ~/.refarm/config.json            what the operator APPROVED\n    scope_to_approved()              declared ∩ approved, computed at LOAD, in the host\n\nThe intersection is where the answer lives, and nothing reports it. An operator can read both\ninputs and must compute the outcome in his head — against a function whose rules include one that\ninverts the naive expectation: A MISS IS PERMISSIVE. `scope_to_approved` returns the DECLARED set\nwhen the plugin is absent from the approvals map, so \"I see no approval for this plugin\" means it\nhas EVERYTHING it asked for, not nothing.\n\nMEASURED CONSEQUENCE, 2026-08-25/26, and it is why this is filed rather than noted: the operator's\n`approvedPermissions` was keyed by the manifest id while the host looks it up by the runtime id.\nHis approval of `[\"fs:read\",\"fs:write\"]` was never applied and `lsp-code-ops` ran with the\n`shell:spawn` it also declares. That went unnoticed because NO SURFACE COULD HAVE SHOWN IT — the\nconfig looked right, `plugin permissions` showed the declaration, and the effective set was\nnowhere. The key defect is fixed (57ff5cc1); the blindness that let it hide for as long as it did\nis not.\n\nAND THE FIX COULD NOT BE OBSERVED EITHER. After re-approving and restarting the runtime, the\ncorrectness of the outcome rests on four Rust unit tests pinning `scope_to_approved` and on\nreading the config key. \"See it happen\" was not available — which is precisely the gap.\n\nWHERE IT WOULD LIVE, sketched rather than decided: the host computes the intersection at load and\nalready holds it (`PermissionGrant::new(effective_permissions, …)`, env_and_runtime.rs). Reporting\nit beside `requested`/`loaded` on `GET /plugins` would make it observable without recomputing\nanything, and `plugin status` already has the row to carry it. The alternative — recomputing it\nCLI-side from config + manifest — is the shape this repository keeps finding defects in: a second\nreader of the same rule, free to drift from the one that decides.\n\nRELATED: ISS-169 (the development state is enforced and only half visible) is the same shape one\naxis over — a fact the host acts on that no surface reports. Both are the D2 principle applied to\nthings the branch of 2026-08-26 did not reach: a surface may only answer what it can observe, and\nthe host CAN observe this one.",
+			"location": "packages/tractor/src/host/plugin_host/env_and_runtime.rs, apps/refarm/src/commands/plugin-runtime.ts",
+			"status": "open",
+			"category": "gap",
+			"priority": "high",
+			"package": "packages/tractor",
+			"axis": "durability"
 		}
 	]
 }
