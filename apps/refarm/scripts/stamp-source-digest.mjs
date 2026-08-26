@@ -17,8 +17,10 @@ const distDir = path.join(pkgDir, "dist");
 const srcDir = path.join(pkgDir, "src");
 
 // Imported from the just-built `dist/`, not reimplemented: the digest the install recomputes
-// must be produced by the SAME function that stamps it, or the two could silently drift.
-const { digestTree } = await import(
+// must be produced by the SAME function that stamps it, or the two could silently drift. The
+// stamp's FILENAME rides the same import for the same reason — two literals for one filename,
+// inside the mechanism whose entire purpose is that two things cannot drift, was the bug.
+const { digestTree, SOURCE_STAMP } = await import(
 	path.join(distDir, "commands", "node-install-freshness.js")
 );
 
@@ -28,5 +30,5 @@ if (!digest) {
 	process.exit(1);
 }
 
-writeFileSync(path.join(distDir, ".source-digest"), digest);
+writeFileSync(path.join(distDir, SOURCE_STAMP), digest);
 console.log(`stamp-source-digest: wrote ${digest.slice(0, 12)}… for ${srcDir}`);
