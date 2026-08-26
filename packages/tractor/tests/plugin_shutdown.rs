@@ -1,6 +1,67 @@
 use std::path::Path;
+use std::sync::{Mutex, MutexGuard};
 
 use tractor::{SecurityMode, TractorNative, TractorNativeConfig};
+
+/// Serializes env var mutations across this file's tests — mirrors
+/// `tests/agent_harness.rs`'s ENV_LOCK (each `tests/*.rs` file is its own test
+/// binary/process, so this lock is local to plugin_shutdown.rs's own tests).
+static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+fn env_lock() -> MutexGuard<'static, ()> {
+    ENV_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// `null-plugin.wasm` has no sibling `plugin.json`, so it declares no integrity — it
+/// loads only where the node declared it is under development (task 7, "the plugin
+/// lifecycle tells the truth"). Declares it for the fixture's runtime id
+/// ("null-plugin", the file stem, since there is no manifest id to derive it from)
+/// under a dedicated SOVEREIGN_BASE for this guard's lifetime; restores the env and
+/// releases the cross-test lock on drop. Every test in this file boots a real
+/// TractorNative and loads this exact fixture, so one shared helper covers all of them.
+struct DeclareNullPluginUnderDevelopment {
+    _lock: MutexGuard<'static, ()>,
+    _dir: tempfile::TempDir,
+    prev_base: Option<String>,
+    prev_dir: Option<String>,
+}
+
+impl DeclareNullPluginUnderDevelopment {
+    fn enter() -> Self {
+        let lock = env_lock();
+        let prev_base = std::env::var("SOVEREIGN_BASE").ok();
+        let prev_dir = std::env::var("SOVEREIGN_DIR").ok();
+        let dir = tempfile::tempdir().expect("tempdir");
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).expect("mkdir .refarm");
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"pluginDevelopment":{"null-plugin":{"declaredAt":"2026-08-26"}}}"#,
+        )
+        .expect("write config.json");
+        std::env::set_var("SOVEREIGN_BASE", dir.path());
+        std::env::set_var("SOVEREIGN_DIR", ".refarm");
+        Self {
+            _lock: lock,
+            _dir: dir,
+            prev_base,
+            prev_dir,
+        }
+    }
+}
+
+impl Drop for DeclareNullPluginUnderDevelopment {
+    fn drop(&mut self) {
+        match self.prev_base.take() {
+            Some(v) => std::env::set_var("SOVEREIGN_BASE", v),
+            None => std::env::remove_var("SOVEREIGN_BASE"),
+        }
+        match self.prev_dir.take() {
+            Some(v) => std::env::set_var("SOVEREIGN_DIR", v),
+            None => std::env::remove_var("SOVEREIGN_DIR"),
+        }
+    }
+}
 
 fn memory_config_with_plugins() -> TractorNativeConfig {
     TractorNativeConfig {
@@ -13,6 +74,7 @@ fn memory_config_with_plugins() -> TractorNativeConfig {
 
 #[tokio::test]
 async fn strict_load_without_network_grant_uses_the_http_less_linker_and_still_loads() {
+    let _dev = DeclareNullPluginUnderDevelopment::enter();
     // A plugin that did NOT declare network:outbound, loaded under Strict, is
     // instantiated against linker_no_http (wasi:http omitted). A plugin that does
     // not IMPORT wasi:http (null-plugin) must still load fine there — proving the
@@ -42,6 +104,7 @@ async fn strict_load_without_network_grant_uses_the_http_less_linker_and_still_l
 
 #[tokio::test]
 async fn shutdown_drains_plugin_channels_after_registration() {
+    let _dev = DeclareNullPluginUnderDevelopment::enter();
     let tractor = TractorNative::boot(memory_config_with_plugins())
         .await
         .expect("boot must succeed");
@@ -76,6 +139,7 @@ async fn shutdown_drains_plugin_channels_after_registration() {
 
 #[tokio::test]
 async fn unregister_tears_down_one_plugin_leaving_the_host_clean() {
+    let _dev = DeclareNullPluginUnderDevelopment::enter();
     let tractor = TractorNative::boot(memory_config_with_plugins())
         .await
         .expect("boot must succeed");
@@ -130,6 +194,7 @@ async fn unregister_tears_down_one_plugin_leaving_the_host_clean() {
 
 #[tokio::test]
 async fn reload_plugin_replaces_the_running_instance() {
+    let _dev = DeclareNullPluginUnderDevelopment::enter();
     let tractor = TractorNative::boot(memory_config_with_plugins())
         .await
         .expect("boot must succeed");
@@ -177,6 +242,7 @@ async fn reload_plugin_replaces_the_running_instance() {
 
 #[tokio::test]
 async fn plugins_reload_endpoint_actually_reloads_when_the_host_is_wired() {
+    let _dev = DeclareNullPluginUnderDevelopment::enter();
     use std::sync::Arc;
 
     // A host wired into the sidecar via with_reload → the /plugins/reload endpoint
@@ -248,6 +314,7 @@ async fn plugins_reload_endpoint_actually_reloads_when_the_host_is_wired() {
 
 #[tokio::test]
 async fn reload_while_events_are_in_flight_drains_the_queue_and_survives() {
+    let _dev = DeclareNullPluginUnderDevelopment::enter();
     // The critical hot-reload invariant: reloading a plugin that has events queued
     // must NOT lose them or deadlock. unregister drops the sender so the runner
     // drains its FIFO to completion (recv()→None) before teardown+join; the fresh
@@ -295,6 +362,7 @@ async fn reload_while_events_are_in_flight_drains_the_queue_and_survives() {
 
 #[tokio::test]
 async fn reload_is_idempotent_and_reuses_the_content_addressed_cache() {
+    let _dev = DeclareNullPluginUnderDevelopment::enter();
     // Reloading twice from the same unchanged bytes must succeed both times — and
     // the second compile is a content-addressed cache HIT (same wasm_hash), not a
     // recompile. We can't read the cache directly here, but we assert the observable

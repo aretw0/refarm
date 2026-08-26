@@ -522,7 +522,10 @@ fn run_instantiation_benchmark() -> Result<BenchReport> {
         }
         let sync = make_sync(":memory:")?;
         let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(64), 2_000)
-            .context("PluginHost::new")?;
+            .context("PluginHost::new")?
+            // null-plugin.wasm carries no manifest/integrity claim; this bench measures
+            // instantiation cost, not the integrity gate, so wildcard-waive it.
+            .with_under_development(Some(["*".to_string()].into_iter().collect()));
 
         // Warm one load so page-cache / JIT-compile costs don't skew the first.
         let _warm = host.load(&fixture, &sync).await.context("warm load")?;
@@ -566,6 +569,21 @@ fn run_reload_benchmark() -> Result<BenchReport> {
                 fixture.display()
             ));
         }
+        // null-plugin.wasm carries no manifest/integrity claim; this bench measures
+        // reload cost, not the integrity gate. TractorNativeConfig has no injection
+        // seam for this (unlike the bare PluginHost::new() sites above), so declare it
+        // via the sovereign fs config directly — a one-shot process, so no restore needed.
+        let dev_dir = tempfile::tempdir().context("tempdir for pluginDevelopment declaration")?;
+        std::fs::create_dir_all(dev_dir.path().join(".refarm"))
+            .context("mkdir .refarm for pluginDevelopment declaration")?;
+        std::fs::write(
+            dev_dir.path().join(".refarm/config.json"),
+            r#"{"pluginDevelopment":{"null-plugin":{"declaredAt":"2026-08-26"}}}"#,
+        )
+        .context("write pluginDevelopment declaration")?;
+        std::env::set_var("SOVEREIGN_BASE", dev_dir.path());
+        std::env::set_var("SOVEREIGN_DIR", ".refarm");
+
         let tractor = TractorNative::boot(TractorNativeConfig {
             namespace: ":memory:".to_string(),
             port: 0,
@@ -646,7 +664,10 @@ fn run_grant_benchmark() -> Result<BenchReport> {
         }
         let sync = make_sync(":memory:")?;
         let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(64), 2_000)
-            .context("PluginHost::new")?;
+            .context("PluginHost::new")?
+            // null-plugin.wasm carries no manifest/integrity claim; this bench measures
+            // instantiation cost, not the integrity gate, so wildcard-waive it.
+            .with_under_development(Some(["*".to_string()].into_iter().collect()));
 
         // Warm one load so page-cache / JIT-compile costs don't skew the first.
         let _warm = host.load(&fixture, &sync).await.context("warm load")?;
