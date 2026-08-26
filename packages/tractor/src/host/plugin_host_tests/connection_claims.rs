@@ -89,10 +89,14 @@
             return;
         }
 
-        // `null-plugin.wasm` has no sibling `plugin.json`, so it declares no integrity —
-        // it loads only where the node declared it is under development. Declare it for
-        // exactly this fixture's runtime id ("null-plugin", the file stem, since there is
-        // no manifest id to derive it from) rather than wildcard-waive the whole boot.
+        // `tests/fixtures/null-plugin.wasm` has no sibling `plugin.json` in the shared fixtures
+        // directory (crash-plugin.wasm and http-plugin.wasm sit right beside it, and the load
+        // path resolves a manifest by PARENT DIRECTORY — writing one there would become THEIR
+        // manifest too). This test needs a REAL manifest id to legitimately exercise the
+        // config-declared development route (a guessed file-stem id must never reach it — see
+        // `resolve_under_development_at_load`'s doc), so it copies the wasm bytes into an
+        // isolated directory it owns, with its own `plugin.json` naming the fixture's real
+        // exported identity (`null-plugin`/`0.1.0`, from `null-plugin/src/lib.rs`'s `metadata()`).
         let _env = crate::test_support::env_lock();
         ensure_sovereign_dir_env();
         let dev_dir = tempfile::tempdir().unwrap();
@@ -105,6 +109,15 @@
         .unwrap();
         let _base = crate::test_support::DeclaredBaseGuard::enter(dev_dir.path());
 
+        let plugin_dir = tempfile::tempdir().unwrap();
+        let plugin_wasm_path = plugin_dir.path().join("plugin.wasm");
+        std::fs::copy(&component_path, &plugin_wasm_path).unwrap();
+        std::fs::write(
+            plugin_dir.path().join("plugin.json"),
+            r#"{"id":"null-plugin","version":"0.1.0","entry":"plugin.wasm","observability":{"hooks":["onLoad","onInit","onRequest","onError","onTeardown"]}}"#,
+        )
+        .unwrap();
+
         let tractor = crate::TractorNative::boot(crate::TractorNativeConfig {
             namespace: ":memory:".to_string(),
             port: 0,
@@ -115,7 +128,7 @@
         .expect("boot tractor");
 
         let handle = tractor
-            .load_plugin(&component_path)
+            .load_plugin(&plugin_wasm_path)
             .await
             .expect("load null-plugin fixture");
         let plugin_id = handle.id.clone();

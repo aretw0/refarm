@@ -431,11 +431,18 @@ fn require_plugin_ingest_flag_allows_plugin_arguments() {
 
 #[tokio::test]
 async fn maybe_ingest_on_load_runs_with_plugin_fixture() {
-    // `null-plugin.wasm` has no sibling `plugin.json`, so it declares no integrity — it
-    // loads only where the node declared it is under development. `test_support` is
-    // private to the `tractor` LIBRARY crate and not reachable from this bin-crate test,
-    // so this declares it directly: a temp `.refarm/config.json` under a dedicated
-    // SOVEREIGN_BASE, restored on drop.
+    // `tests/fixtures/null-plugin.wasm` has no sibling `plugin.json` in the SHARED fixtures
+    // directory (other fixtures sit right beside it, and a manifest is resolved by PARENT
+    // DIRECTORY — writing one there would become THEIR manifest too), so it declares no
+    // integrity and loads only where the node declared it is under development. A guessed
+    // file-stem id must never reach that config-declared route (see
+    // `resolve_under_development_at_load`'s doc in env_and_runtime.rs) — one node-wide
+    // `refarm plugin develop plugin` must not waive every manifest-less artifact — so this
+    // copies the fixture into an isolated dir with its own manifest naming its REAL exported
+    // identity (`null-plugin`/`0.1.0`) below. `test_support` is private to the `tractor`
+    // LIBRARY crate and not reachable from this bin-crate test, so the env override is
+    // declared directly: a temp `.refarm/config.json` under a dedicated SOVEREIGN_BASE,
+    // restored on drop.
     struct RestoreEnv {
         prev_base: Option<String>,
         prev_dir: Option<String>,
@@ -467,6 +474,17 @@ async fn maybe_ingest_on_load_runs_with_plugin_fixture() {
     std::env::set_var("SOVEREIGN_BASE", dev_dir.path());
     std::env::set_var("SOVEREIGN_DIR", ".refarm");
 
+    let plugin_dir = dev_dir.path().join("plugin");
+    std::fs::create_dir_all(&plugin_dir).expect("mkdir plugin dir");
+    let fixture = plugin_dir.join("plugin.wasm");
+    std::fs::copy("tests/fixtures/null-plugin.wasm", &fixture)
+        .expect("copy null-plugin.wasm fixture");
+    std::fs::write(
+        plugin_dir.join("plugin.json"),
+        r#"{"id":"null-plugin","version":"0.1.0","entry":"plugin.wasm","observability":{"hooks":["onLoad","onInit","onRequest","onError","onTeardown"]}}"#,
+    )
+    .expect("write plugin.json");
+
     let config = TractorNativeConfig {
         namespace: ":memory:".to_string(),
         port: 0,
@@ -475,7 +493,7 @@ async fn maybe_ingest_on_load_runs_with_plugin_fixture() {
     };
 
     let tractor = TractorNative::boot(config).await.expect("boot tractor");
-    let fixture = std::path::Path::new("tests/fixtures/null-plugin.wasm");
+    let fixture = fixture.as_path();
     let mut handle = tractor
         .load_plugin(fixture)
         .await
