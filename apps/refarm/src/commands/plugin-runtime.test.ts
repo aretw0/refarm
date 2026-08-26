@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergePluginFacts, type PluginFacts } from "./plugin-runtime.js";
+import { mergePluginFacts, nodePluginDevelopmentIds, type PluginFacts } from "./plugin-runtime.js";
 
 /**
  * Direct unit coverage of `mergePluginFacts` — the pure merge `plugin status` composes its
@@ -183,6 +183,60 @@ describe("mergePluginFacts", () => {
 			],
 			[],
 			new Set(["agent"]),
+		);
+
+		const agent = rows.find((r) => r.runtimeId === "agent");
+		const lspCodeOps = rows.find((r) => r.runtimeId === "lsp-code-ops");
+		expect(agent?.development).toBe(true);
+		expect(lspCodeOps?.development).toBe(false);
+	});
+});
+
+/**
+ * `nodePluginDevelopmentIds` — the "read from the node's config" half of the development
+ * axis. Every OTHER test in this file exercises `development` via an INJECTED `Set`
+ * (`new Set(["agent"])`) or the literal `false`, so an implementation that always returns
+ * `new Set()` regardless of config would pass the rest of the suite. These tests pass a
+ * REAL config object (the same shape `.refarm/config.json` holds, and the exact shape
+ * `packages/config`'s `readPluginDevelopment` parses) and read the Set back through the
+ * real reader — no hand-built Set stands in for it anywhere below.
+ */
+describe("nodePluginDevelopmentIds", () => {
+	it("keys the returned Set by the RUNTIME id, reading a real config object through the real reader", () => {
+		const config = { pluginDevelopment: { "@refarm/agent": { declaredAt: "2026-08-26" } } };
+		const ids = nodePluginDevelopmentIds(config);
+		expect(ids.has("agent")).toBe(true);
+		expect(ids.has("lsp-code-ops")).toBe(false);
+	});
+
+	it("is empty for a config that declares nothing under development", () => {
+		expect(nodePluginDevelopmentIds({}).size).toBe(0);
+	});
+
+	it("flows a real config's declaration through to `development: true` end to end via mergePluginFacts", () => {
+		// The Set fed to mergePluginFacts here is PRODUCED by nodePluginDevelopmentIds from a
+		// real config object, not written by hand as `new Set(["agent"])` — this is the path
+		// `buildRuntimePluginStatusReport` actually takes (config → nodePluginDevelopmentIds →
+		// mergePluginFacts), proven without a live `.refarm/config.json` on disk.
+		const config = { pluginDevelopment: { "@refarm/agent": { declaredAt: "2026-08-26" } } };
+		const rows = mergePluginFacts(
+			{ requested: [], loaded: [] },
+			[
+				{
+					manifestId: "@refarm/agent",
+					runtimeId: "agent",
+					dir: "/p/refarm_agent",
+					integrity: "absent",
+				},
+				{
+					manifestId: "@refarm/lsp-code-ops",
+					runtimeId: "lsp-code-ops",
+					dir: "/p/refarm_lsp-code-ops",
+					integrity: "absent",
+				},
+			],
+			[],
+			nodePluginDevelopmentIds(config),
 		);
 
 		const agent = rows.find((r) => r.runtimeId === "agent");

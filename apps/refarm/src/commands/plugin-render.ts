@@ -66,16 +66,17 @@ export function formatStatusFromEnvelope(envelope: CapabilityEnvelope): string {
 	const dirWidth = Math.max(...report.plugins.map((p) => dirLabel(p.dir).length), 3);
 	const integrityWidth = Math.max(...report.plugins.map((p) => (p.integrity ?? "-").length), 9);
 	const lines: string[] = [
-		`  ${"PLUGIN".padEnd(idWidth)}  KNOWN  REQUESTED  LOADED  INSTALLED  ${"INTEGRITY".padEnd(integrityWidth)}  DIR`,
+		`  ${"PLUGIN".padEnd(idWidth)}  KNOWN  REQUESTED  LOADED  INSTALLED  DEV  ${"INTEGRITY".padEnd(integrityWidth)}  DIR`,
 	];
 	for (const plugin of report.plugins) {
 		const known = plugin.known ? "yes" : "no";
 		const requested = plugin.requested ? "yes" : "no";
 		const loaded = plugin.loaded ? "yes" : "no";
 		const installed = plugin.installed ? "yes" : "no";
+		const development = plugin.development ? "yes" : "no";
 		const integrity = plugin.integrity ?? "-";
 		lines.push(
-			`  ${plugin.id.padEnd(idWidth)}  ${known.padEnd(5)}  ${requested.padEnd(9)}  ${loaded.padEnd(6)}  ${installed.padEnd(9)}  ${integrity.padEnd(integrityWidth)}  ${dirLabel(plugin.dir).padEnd(dirWidth)}`,
+			`  ${plugin.id.padEnd(idWidth)}  ${known.padEnd(5)}  ${requested.padEnd(9)}  ${loaded.padEnd(6)}  ${installed.padEnd(9)}  ${development.padEnd(3)}  ${integrity.padEnd(integrityWidth)}  ${dirLabel(plugin.dir).padEnd(dirWidth)}`,
 		);
 	}
 

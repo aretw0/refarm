@@ -11,7 +11,6 @@ import {
 	isRuntimeAgentPluginId,
 	normalizePluginId,
 	pluginIdRuntimeToken,
-	RUNTIME_AGENT_PLUGIN_ID,
 } from "@refarm.dev/config/plugin-identity";
 import os from "node:os";
 import path from "node:path";
@@ -22,11 +21,7 @@ import {
 	PLUGIN_INSTALL_JSON_COMMAND,
 	PLUGIN_STATUS_JSON_COMMAND,
 } from "./plugin-handoffs.js";
-import {
-	type InstalledPlugin,
-	type IntegrityVerdict,
-	readInstalledPlugins,
-} from "./plugin-inventory.js";
+import { type InstalledPlugin, type IntegrityVerdict } from "./plugin-inventory.js";
 import { listExtensions } from "./plugin-scaffold.js";
 import {
 	BUNDLED_PLUGINS,
@@ -34,7 +29,6 @@ import {
 	PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND,
 	type PluginListEntry,
 	type PluginListReport,
-	pluginsBaseDir,
 	type PluginOrigin,
 	readInstalledVersion,
 	type RuntimePluginRecommendation,
@@ -475,65 +469,6 @@ export function runtimePluginUnavailableRecommendations(): RuntimePluginRecommen
 			command: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 		},
 	];
-}
-
-export async function printRuntimePluginStatus(options: { json?: boolean } = {}): Promise<void> {
-	const state = await readRuntimePluginState();
-	const report = buildRuntimePluginStatusReport(state, readInstalledPlugins(pluginsBaseDir()));
-	if (options.json) {
-		printJson(report);
-		if (!report.ok) process.exitCode = 1;
-		return;
-	}
-
-	if (!state) {
-		console.error("Refarm runtime plugin status is unavailable.");
-		console.error(
-			`Ensure runtime readiness with \`${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}\`, then retry.`,
-		);
-		console.error(`Fallback start command: \`${RUNTIME_START_WAIT_COMMAND}\`.`);
-		console.error(`Inspect runtime readiness with \`${RUNTIME_STATUS_COMMAND}\`.`);
-		console.error(`Next recovery action: \`${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}\`.`);
-		console.error(`Diagnose readiness with \`${RUNTIME_DOCTOR_COMMAND}\`.`);
-		process.exitCode = 1;
-		return;
-	}
-
-	const ids = report.plugins.map((plugin) => plugin.id);
-	const idWidth = Math.max(...ids.map((id) => id.length), 6);
-	// Basename, not the full path — enough to tell `refarm_agent` apart from `@refarm/agent`
-	// (two trees sharing one id, the scenario this phase exists to surface) without a
-	// terminal-width table; --json still carries the full `dir`.
-	const dirLabel = (dir: string | null) => (dir ? path.basename(dir) : "-");
-	const dirWidth = Math.max(...report.plugins.map((plugin) => dirLabel(plugin.dir).length), 3);
-	const integrityWidth = Math.max(
-		...report.plugins.map((plugin) => (plugin.integrity ?? "-").length),
-		9,
-	);
-
-	console.log(
-		`  ${"PLUGIN".padEnd(idWidth)}  KNOWN  REQUESTED  LOADED  INSTALLED  DEV  ${"INTEGRITY".padEnd(integrityWidth)}  DIR`,
-	);
-	for (const plugin of report.plugins) {
-		const known = plugin.known ? "yes" : "no";
-		const requested = plugin.requested ? "yes" : "no";
-		const loaded = plugin.loaded ? "yes" : "no";
-		const installed = plugin.installed ? "yes" : "no";
-		const development = plugin.development ? "yes" : "no";
-		const integrity = plugin.integrity ?? "-";
-		console.log(
-			`  ${plugin.id.padEnd(idWidth)}  ${known.padEnd(5)}  ${requested.padEnd(9)}  ${loaded.padEnd(6)}  ${installed.padEnd(9)}  ${development.padEnd(3)}  ${integrity.padEnd(integrityWidth)}  ${dirLabel(plugin.dir).padEnd(dirWidth)}`,
-		);
-	}
-
-	if (!report.plugins.some((plugin) => plugin.id === RUNTIME_AGENT_PLUGIN_ID && plugin.loaded)) {
-		console.log("");
-		console.log("Runtime agent plugin is not loaded.");
-		console.log(`  Install:  ${PLUGIN_INSTALL_COMMAND}`);
-		console.log(`  Reload:   ${PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND}`);
-		console.log("  Ask:      refarm ask hello");
-		console.log(`  Diagnose: ${RUNTIME_DOCTOR_COMMAND}`);
-	}
 }
 
 export async function reloadRuntimePluginCommand(
