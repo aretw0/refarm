@@ -141,6 +141,16 @@ indistinguishable.
 **`--build` as a convenience, never the default.** Paying a build on every install is the cost
 the refusal avoids.
 
+> **ERRATUM, 2026-08-26, found while writing the plan and before any code.** The first sentence
+> of D1 said "consults the staleness check that already exists", and that check decides by MTIME
+> while D4 requires the decision be made by CONTENT. Writing the call site showed the two do not
+> close: a `git checkout` moves mtimes without changing what ships, so an mtime-based REFUSAL
+> refuses spuriously — and a daily-driver command that refuses spuriously gets worked around,
+> which is precisely how `plugin new` became a dead end. The mechanism is instead ONE primitive:
+> the build stamps the source digest into `dist`, and the install recomputes and compares. Exact,
+> one file, and it hands the content digest to the label for free. The existing mtime check keeps
+> its own job — a health WARNING, the right severity for a weak signal. See Task 1, Step 5b.
+
 This is a prerequisite for everything below: while the install can ship stale code, no
 experiment is trustworthy, including inside the sandbox.
 
