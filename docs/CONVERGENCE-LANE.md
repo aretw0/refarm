@@ -426,6 +426,44 @@ The maintainer sharpened the North Star: the goal is not "rcdc5 imports `@refarm
     mis-aimed probe. Chasing where the write actually went is also what proved the operator's own
     config was never touched.
 
+- **2026-08-26 — the plugin lifecycle stopped lying, on a branch, and the method cost more than the
+  code.** The operator named four collisions and ranked them, *"not knowing what is running"* first.
+  Measured, they were one substrate answering questions it could not answer, and three consequences:
+  `GET /plugins` served ONE fact under four names (`installed`/`loaded`/`known` were the same
+  variable, `local` a literal `[]`); four plugin trees sat on disk while `plugin list` reported one;
+  `node install` shipped a `dist/` nineteen minutes older than its source under a label naming the
+  commit, on a CLEAN checkout; and an unsigned plugin ran BY SILENCE.
+  - **Spec + plan + 8 tasks, executed by subagents** —
+    [spec](./superpowers/specs/2026-08-26-the-plugin-lifecycle-tells-the-truth-design.md),
+    [plan](./superpowers/plans/2026-08-26-the-plugin-lifecycle-tells-the-truth.md), branch
+    `feat/plugin-lifecycle-truth`. **Closes ISS-068, ISS-167, ISS-168.** Opens ISS-169 (the
+    development state is enforced and only half visible) and ISS-170 (nothing injects
+    entry/integrity for `@local/*`, so a scaffolded plugin still cannot be installed).
+  - **What holds now:** install refuses a tree that does not carry its source, decided by CONTENT
+    via a digest the build stamps — not by mtime, because a `git checkout` moves mtimes and a
+    daily-driver command that refuses spuriously gets worked around. The label carries that digest
+    in the DIRECTORY NAME, which is the promise `installVersionLabel`'s docstring makes and could
+    not keep. The host reports what it was HANDED and what LOADED, with the real error for a
+    request that failed. The CLI enumerates installed trees with an integrity verdict each. And an
+    unsigned plugin runs only where the NODE'S CONFIG declares it — never the manifest, because a
+    manifest travels with the plugin and an author marking their own would ship one that loads
+    unverified everywhere.
+  - **THE METHOD IS THE FINDING.** Ten defects **in my own plan** were caught in flight, and five of
+    them were the same shape: *a proof that did not prove*. Two prescribed mutations reddened
+    nothing; a fixture's file stem coincided with the id it should have distinguished; a `git
+    checkout` revert discarded the implementation along with the mutation; and a `Map` keyed by
+    runtime id would have collapsed the very duplication the phase exists to surface. Separately,
+    **eight tests that appeared to guard and did not** were found — including four pre-existing Rust
+    tests built on the same guessed-id shortcut a fix closed, and one passing via the wrong error
+    message. None was caught by re-reading. Every one came from someone executing the text literally
+    and CHECKING THE RESULT — which is the one thing an author cannot do to their own work.
+  - **And the final whole-branch review found three blockers no per-task review could see**, because
+    each task was reviewed against its own diff: `plugin status` reporting LOADED from the frozen
+    boot record instead of the live channel list (the "ProcessLiveness folded died into is off"
+    shape, rebuilt inside the plan meant to end it); the development state enforced and invisible;
+    and `verdictFor`'s `matches` branch with zero coverage, where an implementation returning
+    `mismatch` for every declared hash passed all seventeen tests.
+
 **Held:** the doceria (until creator-complete). **Not cloned:** `notes` (personal vault) — not authorized.
 
 ## How to resume
