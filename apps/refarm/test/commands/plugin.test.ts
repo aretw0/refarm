@@ -710,6 +710,7 @@ describe("plugin status", () => {
 				loaded: boolean;
 				installed: boolean;
 				integrity: string | null;
+				known: boolean;
 			}>;
 			nextAction?: string;
 			nextActions?: string[];
@@ -722,7 +723,11 @@ describe("plugin status", () => {
 		expect(payload.available).toBe(true);
 		// FIVE FACTS. The ghost row proves `installed` and `loaded` can disagree (they were one
 		// variable under the old host) — installed via the CLI's disk scan, never requested by
-		// the daemon, so never loaded either.
+		// the daemon, so never loaded either. `@refarm/lsp-code-ops` proves `known` survives on
+		// its own row: it is part of this app's real declared set (knownPluginDescriptors) and
+		// this fixture never installs or requests it, so it appears `known: true,
+		// installed: false` — declared-and-not-installed, never a placeholder pretending to be
+		// installed.
 		expect(payload.plugins).toEqual([
 			{
 				id: "@refarm/agent",
@@ -733,6 +738,7 @@ describe("plugin status", () => {
 				loaded: false,
 				installed: true,
 				integrity: "absent",
+				known: true,
 			},
 			{
 				id: "@refarm/ghost",
@@ -743,6 +749,18 @@ describe("plugin status", () => {
 				loaded: false,
 				installed: true,
 				integrity: "absent",
+				known: false,
+			},
+			{
+				id: "@refarm/lsp-code-ops",
+				runtimeId: "lsp-code-ops",
+				manifestId: "@refarm/lsp-code-ops",
+				dir: null,
+				requested: false,
+				loaded: false,
+				installed: false,
+				integrity: null,
+				known: true,
 			},
 		]);
 		expect(payload.nextAction).toBe("refarm plugin reload agent --json");

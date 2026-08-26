@@ -712,10 +712,11 @@ function makeContractFetch() {
 				ok: true,
 				status: 200,
 				json: async () => ({
-					installed: ["@refarm/agent"],
-					loaded: ["@refarm/agent"],
-					local: [],
-					known: ["@refarm/agent"],
+					requested: [
+						{ id: "agent", path: "/plugins/refarm_agent/plugin.wasm", loaded: true, because: null },
+					],
+					loaded: ["agent"],
+					defaultResponder: "agent",
 				}),
 			};
 		}

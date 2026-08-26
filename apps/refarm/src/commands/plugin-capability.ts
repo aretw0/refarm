@@ -58,6 +58,7 @@ import {
 import {
 	buildPluginListReport,
 	buildRuntimePluginStatusReport,
+	knownPluginDescriptors,
 	pluginReloadRestartCommand,
 	restartRuntimeForPluginReload,
 	runtimePluginUnavailableRecommendations,
@@ -401,6 +402,7 @@ export function createPluginCapabilityGroup(
 			return buildRuntimePluginStatusReport(
 				await deps.readRuntimePluginState(),
 				deps.readInstalledPlugins(),
+				knownPluginDescriptors(deps.bundledPlugins),
 			) as CapabilityEnvelope;
 		},
 	};

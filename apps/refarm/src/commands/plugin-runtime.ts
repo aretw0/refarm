@@ -6,6 +6,7 @@ import {
 } from "@refarm.dev/capabilities/envelope";
 import { quoteCommandArgIfNeeded } from "@refarm.dev/cli/command-handoff";
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
+import { AGENT_CORE_BUNDLE } from "@refarm.dev/config";
 import {
 	isRuntimeAgentPluginId,
 	normalizePluginId,
@@ -209,6 +210,12 @@ export interface PluginFacts {
 	loaded: boolean;
 	installed: boolean;
 	integrity: IntegrityVerdict | null;
+	/** Whether this plugin is DECLARED — part of the bundled/core set this node is supposed to
+	 *  carry — independent of whether it is installed, requested, or loaded. Declaration-observed
+	 *  (`knownPluginDescriptors`), never inferred from disk or the host. This is what tells
+	 *  "declared and not installed" (a bundled plugin missing from this node) apart from "never
+	 *  heard of" (a third-party or local plugin with no such claim). */
+	known: boolean;
 }
 
 /** PURE. One row per installed DIRECTORY, never per id — two trees CAN share one runtime id (a
@@ -232,7 +239,15 @@ export interface PluginFacts {
 export function mergePluginFacts(
 	state: { requested: RequestedPluginFact[]; loaded: string[] },
 	installed: readonly InstalledPlugin[],
+	known: readonly { id: string }[] = [],
 ): PluginFacts[] {
+	// The declared set, keyed by RUNTIME id (the vocabulary every row already carries) so a
+	// bundled `@refarm/agent` matches an installed tree's `agent` without a second lookup path.
+	const knownByRuntimeId = new Map<string, string>();
+	for (const descriptor of known) {
+		knownByRuntimeId.set(pluginIdRuntimeToken(descriptor.id), descriptor.id);
+	}
+
 	const consumed = new Set<number>();
 	const matchByPath = (dir: string): RequestedPluginFact | undefined => {
 		const wasmPath = path.resolve(dir, "plugin.wasm");
@@ -254,30 +269,66 @@ export function mergePluginFacts(
 			loaded: match?.loaded ?? false,
 			installed: true,
 			integrity: tree.integrity,
+			known: knownByRuntimeId.has(tree.runtimeId),
 		};
 	});
 
 	state.requested.forEach((entry, index) => {
 		if (consumed.has(index)) return;
+		const runtimeId = entry.id !== null ? pluginIdRuntimeToken(entry.id) : entry.path;
 		rows.push({
-			runtimeId: entry.id !== null ? pluginIdRuntimeToken(entry.id) : entry.path,
+			runtimeId,
 			manifestId: entry.id,
 			dir: null,
 			requested: true,
 			loaded: entry.loaded,
 			installed: false,
 			integrity: null,
+			known: knownByRuntimeId.has(runtimeId),
 		});
 	});
+
+	// Declared and not installed: a known plugin no row above has touched yet still gets one —
+	// `known: true, installed: false, requested: false, loaded: false` — rather than vanishing
+	// (the old BUNDLED_PLUGINS fallback this replaces showed a placeholder that looked like it
+	// might be installed; this row says plainly that it is not).
+	const seenRuntimeIds = new Set(rows.map((r) => r.runtimeId));
+	for (const [runtimeId, manifestId] of knownByRuntimeId) {
+		if (seenRuntimeIds.has(runtimeId)) continue;
+		rows.push({
+			runtimeId,
+			manifestId,
+			dir: null,
+			requested: false,
+			loaded: false,
+			installed: false,
+			integrity: null,
+			known: true,
+		});
+	}
 
 	return rows.sort(
 		(a, b) => a.runtimeId.localeCompare(b.runtimeId) || (a.dir ?? "").localeCompare(b.dir ?? ""),
 	);
 }
 
+/** Everything this node is DECLARED to carry (D2's `known`): the app's bundled set (ADR-086
+ *  white-label seam — `bundled` defaults to refarm's own `BUNDLED_PLUGINS`) plus the SDK-level
+ *  agent core-plugin cut (`AGENT_CORE_BUNDLE`: the agent + the plugins that extend it, e.g.
+ *  `@refarm/lsp-code-ops`) — the two static sources the spec names. Deliberately NOT
+ *  `config.plugins`: that is a different, composition-layer declaration (config-plugins.ts,
+ *  package activation) with no simple `{id}` shape to union here; left as a gap for a later
+ *  round rather than guessed at. */
+export function knownPluginDescriptors(
+	bundled: readonly { id: string }[] = BUNDLED_PLUGINS,
+): readonly { id: string }[] {
+	return [...bundled, AGENT_CORE_BUNDLE.agent, ...AGENT_CORE_BUNDLE.corePlugins];
+}
+
 export function buildRuntimePluginStatusReport(
 	state: Awaited<ReturnType<typeof readRuntimePluginState>>,
 	installed: readonly InstalledPlugin[] = [],
+	known: readonly { id: string }[] = knownPluginDescriptors(),
 ): RuntimePluginStatusReport {
 	if (!state) {
 		const recommendations = runtimePluginUnavailableRecommendations();
@@ -340,11 +391,12 @@ export function buildRuntimePluginStatusReport(
 		available: true,
 		// FIVE FACTS, each from whoever can observe it. `requested`/`loaded` come from the host
 		// (it used to report one variable under four names); `installed`/`integrity` from the
-		// CLI's scan, because the daemon receives explicit paths and does not scan. Rows are
-		// keyed by installed DIRECTORY (`mergePluginFacts`), not by id — two trees can share a
-		// runtime id, and collapsing them would hide exactly what an operator cannot currently
-		// see.
-		plugins: mergePluginFacts(state, installed).map((p) => ({
+		// CLI's scan, because the daemon receives explicit paths and does not scan; `known` from
+		// the static declaration (`knownPluginDescriptors`) — a bundled plugin this node is
+		// supposed to carry, independent of whether it actually is. Rows are keyed by installed
+		// DIRECTORY (`mergePluginFacts`), not by id — two trees can share a runtime id, and
+		// collapsing them would hide exactly what an operator cannot currently see.
+		plugins: mergePluginFacts(state, installed, known).map((p) => ({
 			id: p.manifestId ?? p.runtimeId,
 			runtimeId: p.runtimeId,
 			manifestId: p.manifestId,
@@ -353,6 +405,7 @@ export function buildRuntimePluginStatusReport(
 			loaded: p.loaded,
 			installed: p.installed,
 			integrity: p.integrity,
+			known: p.known,
 		})),
 		nextAction,
 		nextActions: nextCommands,
@@ -397,15 +450,27 @@ export async function printRuntimePluginStatus(options: { json?: boolean } = {})
 
 	const ids = report.plugins.map((plugin) => plugin.id);
 	const idWidth = Math.max(...ids.map((id) => id.length), 6);
+	// Basename, not the full path — enough to tell `refarm_agent` apart from `@refarm/agent`
+	// (two trees sharing one id, the scenario this phase exists to surface) without a
+	// terminal-width table; --json still carries the full `dir`.
+	const dirLabel = (dir: string | null) => (dir ? path.basename(dir) : "-");
+	const dirWidth = Math.max(...report.plugins.map((plugin) => dirLabel(plugin.dir).length), 3);
+	const integrityWidth = Math.max(
+		...report.plugins.map((plugin) => (plugin.integrity ?? "-").length),
+		9,
+	);
 
-	console.log(`  ${"PLUGIN".padEnd(idWidth)}  REQUESTED  LOADED  INSTALLED  INTEGRITY`);
+	console.log(
+		`  ${"PLUGIN".padEnd(idWidth)}  KNOWN  REQUESTED  LOADED  INSTALLED  ${"INTEGRITY".padEnd(integrityWidth)}  DIR`,
+	);
 	for (const plugin of report.plugins) {
+		const known = plugin.known ? "yes" : "no";
 		const requested = plugin.requested ? "yes" : "no";
 		const loaded = plugin.loaded ? "yes" : "no";
 		const installed = plugin.installed ? "yes" : "no";
 		const integrity = plugin.integrity ?? "-";
 		console.log(
-			`  ${plugin.id.padEnd(idWidth)}  ${requested.padEnd(9)}  ${loaded.padEnd(6)}  ${installed.padEnd(9)}  ${integrity}`,
+			`  ${plugin.id.padEnd(idWidth)}  ${known.padEnd(5)}  ${requested.padEnd(9)}  ${loaded.padEnd(6)}  ${installed.padEnd(9)}  ${integrity.padEnd(integrityWidth)}  ${dirLabel(plugin.dir).padEnd(dirWidth)}`,
 		);
 	}
 

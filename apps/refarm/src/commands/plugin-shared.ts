@@ -136,6 +136,15 @@ export interface RuntimePluginStatusEntry {
 	 * found).
 	 */
 	integrity: IntegrityVerdict | null;
+	/**
+	 * Whether this plugin is DECLARED — part of the bundled/core set this node is supposed to
+	 * carry — independent of `installed`/`requested`/`loaded`. Declaration-observed
+	 * (`knownPluginDescriptors`, plugin-runtime.ts), the fifth fact: it is what lets "declared
+	 * and not installed" (a bundled plugin missing from this node) read differently from "never
+	 * heard of" (a third-party or local plugin with no such claim). A row can be `known: true`
+	 * with no installed tree at all (`installed: false, dir: null`) — that row IS the finding.
+	 */
+	known: boolean;
 }
 
 export interface RuntimePluginStatusReport {

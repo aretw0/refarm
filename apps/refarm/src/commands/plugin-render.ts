@@ -9,6 +9,7 @@
 // group declaration stays lean and these projections have one test target.
 
 import chalk from "chalk";
+import path from "node:path";
 
 import type { CapabilityEnvelope, CapabilityInput } from "@refarm.dev/capabilities";
 import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config/plugin-identity";
@@ -57,14 +58,24 @@ export function formatStatusFromEnvelope(envelope: CapabilityEnvelope): string {
 	}
 
 	const idWidth = Math.max(...report.plugins.map((p) => p.id.length), 6);
-	const lines: string[] = [`  ${"PLUGIN".padEnd(idWidth)}  REQUESTED  LOADED  INSTALLED  INTEGRITY`];
+	// The directory's BASENAME, not the full path: this column exists so two trees sharing one
+	// id (the exact scenario this phase surfaces) render as two visually distinct rows in text
+	// mode, not just in --json — a basename ("refarm_agent" vs "@refarm/agent") is enough to
+	// tell them apart without wrapping a terminal-width table.
+	const dirLabel = (dir: string | null) => (dir ? path.basename(dir) : "-");
+	const dirWidth = Math.max(...report.plugins.map((p) => dirLabel(p.dir).length), 3);
+	const integrityWidth = Math.max(...report.plugins.map((p) => (p.integrity ?? "-").length), 9);
+	const lines: string[] = [
+		`  ${"PLUGIN".padEnd(idWidth)}  KNOWN  REQUESTED  LOADED  INSTALLED  ${"INTEGRITY".padEnd(integrityWidth)}  DIR`,
+	];
 	for (const plugin of report.plugins) {
+		const known = plugin.known ? "yes" : "no";
 		const requested = plugin.requested ? "yes" : "no";
 		const loaded = plugin.loaded ? "yes" : "no";
 		const installed = plugin.installed ? "yes" : "no";
 		const integrity = plugin.integrity ?? "-";
 		lines.push(
-			`  ${plugin.id.padEnd(idWidth)}  ${requested.padEnd(9)}  ${loaded.padEnd(6)}  ${installed.padEnd(9)}  ${integrity}`,
+			`  ${plugin.id.padEnd(idWidth)}  ${known.padEnd(5)}  ${requested.padEnd(9)}  ${loaded.padEnd(6)}  ${installed.padEnd(9)}  ${integrity.padEnd(integrityWidth)}  ${dirLabel(plugin.dir).padEnd(dirWidth)}`,
 		);
 	}
 
