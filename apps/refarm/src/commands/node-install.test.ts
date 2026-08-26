@@ -328,6 +328,76 @@ describe("refarm node install", () => {
 		// Refused before anything was even assembled — no step ran.
 		expect(seen).toEqual([]);
 	});
+
+	it("--build rebuilds and continues instead of refusing, when the on-disk dist is stale", async () => {
+		// The spec pairs the staleness refusal with this escape hatch; until now the refusal
+		// only NAMED the build command in prose and never offered a flag that runs it.
+		const repoRoot = fakeCheckout("checkout-build-flag");
+		const srcDir = path.join(repoRoot, "apps", "refarm", "src");
+		const distDir = path.join(repoRoot, "apps", "refarm", "dist");
+		fs.writeFileSync(path.join(distDir, SOURCE_STAMP), "not-a-real-digest-0000000000000000");
+		const home = path.join(os.homedir(), "node-build-flag");
+		const shimPath = path.join(home, ".local", "bin", "refarm");
+
+		const seen: string[] = [];
+		const run = (spec: { id: string }) => {
+			seen.push(spec.id);
+			if (spec.id === "build") {
+				// Simulate a real build restamping dist to match src, the way `pnpm run build`
+				// (via stamp-source-digest.mjs) actually does.
+				fs.writeFileSync(path.join(distDir, SOURCE_STAMP), digestTree(srcDir) ?? "");
+				return { exitCode: 0, stdout: "", stderr: "" };
+			}
+			if (spec.id === "git-head") return { exitCode: 0, stdout: "abc1234\n", stderr: "" };
+			if (spec.id === "verify") return { exitCode: 0, stdout: "9.9.9\n", stderr: "" };
+			return { exitCode: 0, stdout: "", stderr: "" };
+		};
+
+		const result = await runNodeInstall(
+			{ build: true, verifyOnly: true },
+			{ repoRoot, home, shimPath, run, announce: () => {} },
+		);
+
+		expect(seen[0]).toBe("build");
+		expect(result.status).toBe("verified");
+	});
+
+	it("--build still refuses when the build itself fails", async () => {
+		const repoRoot = fakeCheckout("checkout-build-flag-fails");
+		const distDir = path.join(repoRoot, "apps", "refarm", "dist");
+		fs.writeFileSync(path.join(distDir, SOURCE_STAMP), "not-a-real-digest-0000000000000000");
+		const home = path.join(os.homedir(), "node-build-flag-fails");
+		const { run, seen } = runnerFor({
+			build: { exitCode: 1, stdout: "tsc: error TS1234" },
+		});
+
+		const result = await runNodeInstall(
+			{ build: true },
+			{ repoRoot, home, run, announce: () => {} },
+		);
+
+		expect(result.status).toBe("refused");
+		if (result.status === "refused") expect(result.because).toMatch(/--build ran/u);
+		expect(seen).toEqual(["build"]);
+	});
+
+	it("--build still refuses when the rebuilt tree is STILL stale — a deeper problem the flag cannot paper over", async () => {
+		const repoRoot = fakeCheckout("checkout-build-flag-still-stale");
+		const distDir = path.join(repoRoot, "apps", "refarm", "dist");
+		fs.writeFileSync(path.join(distDir, SOURCE_STAMP), "not-a-real-digest-0000000000000000");
+		const home = path.join(os.homedir(), "node-build-flag-still-stale");
+		// The "build" step reports success but never touches the stamp — dist stays stale.
+		const { run, seen } = runnerFor({ build: { exitCode: 0, stdout: "" } });
+
+		const result = await runNodeInstall(
+			{ build: true },
+			{ repoRoot, home, run, announce: () => {} },
+		);
+
+		expect(result.status).toBe("refused");
+		if (result.status === "refused") expect(result.because).toMatch(/apps\/refarm/u);
+		expect(seen).toEqual(["build"]);
+	});
 });
 
 describe("sharedWithCheckout", () => {

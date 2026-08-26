@@ -145,14 +145,21 @@ export function createNodeCommand(
 		.command("install")
 		.description("Assemble an installed tree, verify it by running it, then repoint the launcher")
 		.option("--verify-only", "Assemble and verify, and leave the launcher alone")
+		.option(
+			"--build",
+			"When the source is newer than dist, build apps/refarm and retry instead of refusing",
+		)
 		.option("--json", "Output machine-readable JSON")
-		.action(async (options: { verifyOnly?: boolean; json?: boolean }) => {
+		.action(async (options: { verifyOnly?: boolean; build?: boolean; json?: boolean }) => {
 				// SAME GROUP as `declare`/`diff`/`apply` on purpose: they are all about this node's
 				// own substrate — describing it, comparing it, replaying it, and now standing it up
 				// from an assembled tree. A second `node`-shaped group would have split one subject.
 				const { runNodeInstall } = await import("./node-install.js");
 				const result = await runNodeInstall(
-					options.verifyOnly ? { verifyOnly: true } : {},
+					{
+						...(options.verifyOnly ? { verifyOnly: true } : {}),
+						...(options.build ? { build: true } : {}),
+					},
 					// Silent under --json: the proposal render is prose for a terminal, and mixing it
 					// into a machine-readable stream is how a parser meets a wall of diff.
 					options.json ? { announce: () => {} } : {},

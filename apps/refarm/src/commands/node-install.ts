@@ -46,7 +46,7 @@ import {
 	verificationVerdict,
 	workspaceMaterializations,
 } from "./node-install-plan.js";
-import { createWorkspaceDeployCommand } from "./package-manager.js";
+import { createPackageScriptCommand, createWorkspaceDeployCommand } from "./package-manager.js";
 
 export const NODE_INSTALL_COMMAND = refarmCommand(["node", "install"]);
 
@@ -54,6 +54,12 @@ export interface NodeInstallOptions {
 	/** Assemble and verify, then stop — never touch the launcher. */
 	readonly verifyOnly?: boolean;
 	readonly json?: boolean;
+	/** The escape hatch the freshness refusal has always named in prose ("Run `pnpm --filter
+	 *  @refarm.dev/refarm run build`, then retry.") but never offered as a flag. When the
+	 *  staleness check refuses, run that build itself and re-measure before giving up — a build
+	 *  that STILL leaves the tree stale afterward is a deeper problem this flag cannot paper
+	 *  over, and refuses same as before. */
+	readonly build?: boolean;
 }
 
 export interface NodeInstallDeps {
@@ -181,9 +187,34 @@ export async function runNodeInstall(
 	// Kept, not just its verdict: `apps/refarm`'s `srcDigest` is the label's `contentDigest` below,
 	// and re-hashing the tree a second time to get it would be exactly the several-hundred-MB cost
 	// this measurement already exists to avoid.
-	const packages = measureWorkspaceFreshness(repoRoot);
-	const freshness = readTreeFreshness({ packages });
-	const refusal = freshnessRefusal(freshness);
+	let packages = measureWorkspaceFreshness(repoRoot);
+	let freshness = readTreeFreshness({ packages });
+	let refusal = freshnessRefusal(freshness);
+	// `--build`: the escape hatch the refusal above has always named in prose but never offered
+	// as a flag. Run the build THIS operator's package manager provides, then re-measure —
+	// never trust the exit code alone, because a build that still leaves the tree stale is a
+	// deeper problem than this flag can paper over, and refuses same as always.
+	if (refusal && options.build) {
+		const refarmPkgDir = path.join(repoRoot, "apps", "refarm");
+		const build = createPackageScriptCommand({ cwd: refarmPkgDir, script: "build" });
+		say(`${refusal} Building with \`${build.display}\` (--build) …`);
+		const built = run({
+			id: "build",
+			command: build.display,
+			args: [build.command, ...build.args],
+			description: "build apps/refarm",
+			process: { ...build, cwd: refarmPkgDir, timeoutMs: 300_000 },
+		});
+		if (built.exitCode !== 0) {
+			return {
+				status: "refused",
+				because: `--build ran \`${build.display}\` and it failed: ${(built.stderr || built.stdout).trim().slice(0, 300)}`,
+			};
+		}
+		packages = measureWorkspaceFreshness(repoRoot);
+		freshness = readTreeFreshness({ packages });
+		refusal = freshnessRefusal(freshness);
+	}
 	if (refusal) {
 		return {
 			status: "refused",
