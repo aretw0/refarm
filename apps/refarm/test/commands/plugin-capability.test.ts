@@ -45,6 +45,13 @@ function makeDeps(overrides: Partial<PluginCommandDeps> = {}): PluginCommandDeps
 			trustedPlugins: trusted ? [pluginId] : [],
 			changed: true,
 		}),
+		persistDevelopment: (filePath, pluginId, developing) => ({
+			pluginId,
+			filePath,
+			underDevelopment: developing,
+			declaredAt: developing ? "2026-08-26" : null,
+			changed: true,
+		}),
 		persistRevocation: (filePath, pluginId, capability) => ({
 			pluginId,
 			filePath,
@@ -776,6 +783,89 @@ describe("plugin capability group", () => {
 			expect((env as { error?: string }).error).toBe(
 				"plugin-manifest-not-found",
 			);
+		});
+	});
+
+	describe("develop <id> — the third axis, deliberately unsigned", () => {
+		const developInput = (
+			id: string,
+			options: Record<string, string | boolean> = {},
+		) => ({ args: { id }, options, json: true });
+
+		it("declares a plugin under development via the injected primitive", async () => {
+			let seen: { filePath: string; pluginId: string; developing: boolean } | undefined;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					persistDevelopment: (filePath, pluginId, developing) => {
+						seen = { filePath, pluginId, developing };
+						return {
+							pluginId,
+							filePath,
+							underDevelopment: developing,
+							declaredAt: "2026-08-26",
+							changed: true,
+						};
+					},
+				}),
+			);
+			const env = await action(group, "develop").run(developInput("@refarm/lsp-code-ops"));
+			expect(env.ok).toBe(true);
+			expect(env.operation).toBe("develop");
+			expect(seen).toEqual({
+				filePath: expect.any(String),
+				pluginId: "@refarm/lsp-code-ops",
+				developing: true,
+			});
+			const x = env as unknown as {
+				pluginId: string;
+				underDevelopment: boolean;
+				declaredAt: string | null;
+				changed: boolean;
+			};
+			expect(x.underDevelopment).toBe(true);
+			expect(x.declaredAt).toBe("2026-08-26");
+			expect(x.changed).toBe(true);
+		});
+
+		it("--undevelop withdraws the declaration", async () => {
+			let developing: boolean | undefined;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					persistDevelopment: (filePath, pluginId, dev) => {
+						developing = dev;
+						return {
+							pluginId,
+							filePath,
+							underDevelopment: dev,
+							declaredAt: dev ? "2026-08-26" : null,
+							changed: true,
+						};
+					},
+				}),
+			);
+			const env = await action(group, "develop").run(
+				developInput("@refarm/lsp-code-ops", { undevelop: true }),
+			);
+			expect(env.ok).toBe(true);
+			expect(developing).toBe(false);
+			const x = env as unknown as { underDevelopment: boolean; declaredAt: string | null };
+			expect(x.underDevelopment).toBe(false);
+			expect(x.declaredAt).toBeNull();
+		});
+
+		it("rejects an unknown scope", async () => {
+			const group = createPluginCapabilityGroup(makeDeps());
+			const env = await action(group, "develop").run(
+				developInput("@x/p", { scope: "galaxy" }),
+			);
+			expect(env.ok).toBe(false);
+			expect((env as { error?: string }).error).toBe("unknown-scope");
+		});
+
+		it("is headless: no prompt, decided entirely by --undevelop", async () => {
+			const group = createPluginCapabilityGroup(makeDeps());
+			const descriptor = action(group, "develop");
+			expect(descriptor.options?.some((o) => o.name === "undevelop")).toBe(true);
 		});
 	});
 

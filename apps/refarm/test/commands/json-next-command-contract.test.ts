@@ -902,6 +902,13 @@ function createContractPluginCommand() {
 				trustedPlugins: trusted ? [pluginId] : [],
 				changed: true,
 			}),
+			persistDevelopment: (filePath, pluginId, developing) => ({
+				pluginId,
+				filePath,
+				underDevelopment: developing,
+				declaredAt: developing ? "2026-08-26" : null,
+				changed: true,
+			}),
 			persistRevocation: (filePath, pluginId, capability) => ({
 				pluginId,
 				filePath,

@@ -24,13 +24,19 @@ import {
 	type ApprovalResult,
 } from "./plugin-approval.js";
 import {
+	developmentConfigPath,
+	setPluginDevelopment,
+	type DevelopmentResult,
+} from "./plugin-development.js";
+import {
 	revocationConfigPath,
 	revoke,
 	unrevoke,
 	type RevocationResult,
 } from "./plugin-revocation.js";
-import { setTrustedPlugin, trustConfigPath, type TrustResult,
+import {
 	pluginIdPair,
+	setTrustedPlugin, trustConfigPath, type TrustResult,
 } from "./plugin-trust.js";
 
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
@@ -38,12 +44,12 @@ import { normalizePluginId } from "@refarm.dev/config/plugin-identity";
 import os from "node:os";
 import { buildBundleReport, type RunBundleProcess } from "./plugin-bundle.js";
 import { PLUGIN_INSTALL_JSON_COMMAND, PLUGIN_STATUS_JSON_COMMAND, RUNTIME_RESTART_JSON_COMMAND } from "./plugin-handoffs.js";
-import { type InstalledPlugin, readInstalledPlugins } from "./plugin-inventory.js";
 import { buildGitInstallReport } from "./plugin-install-from-git.js";
 import { buildNpmInstallReport } from "./plugin-install-from-npm.js";
 import { buildExtensionInstallReport } from "./plugin-install-from-path.js";
 import { buildUrlInstallReport } from "./plugin-install-from-url.js";
 import { buildInstallReport } from "./plugin-install.js";
+import { readInstalledPlugins, type InstalledPlugin } from "./plugin-inventory.js";
 import {
 	formatBundleFromEnvelope,
 	formatInstallFromEnvelope,
@@ -141,6 +147,9 @@ export interface PluginCommandDeps {
 	// ── trust (identity) ───────────────────────────────────────────────────────
 	/** Add/remove a plugin id from the `trusted_plugins` allowlist (scope-resolved). */
 	persistTrust: typeof setTrustedPlugin;
+	// ── develop (the third axis: deliberately unsigned) ─────────────────────────
+	/** Declare/withdraw a plugin's "under development" declaration (scope-resolved). */
+	persistDevelopment: typeof setPluginDevelopment;
 	// ── revoke / unrevoke (G) ──────────────────────────────────────────────────
 	/** Append an add-only revocation (monotonic; the host materializes a tombstone). */
 	persistRevocation: typeof revoke;
@@ -189,6 +198,7 @@ export function defaultPluginDeps(): PluginCommandDeps {
 		restartRuntime: restartRuntimeForPluginReload,
 		persistApproval: setApprovedPermissions,
 		persistTrust: setTrustedPlugin,
+		persistDevelopment: setPluginDevelopment,
 		persistRevocation: revoke,
 		persistUnrevocation: unrevoke,
 	};
@@ -990,6 +1000,87 @@ export function createPluginCapabilityGroup(
 		},
 	};
 
+	// ── develop <id> [--undevelop] [--scope] ───────────────────────────────────
+	// THE THIRD AXIS, orthogonal to both trust (identity) and approve (effect): whether
+	// THIS OPERATOR declares, ABOUT THIS MACHINE, that `id` is deliberately unsigned
+	// because it is under active development. `verify_wasm_integrity` already lets an
+	// unsigned local plugin load (documented as backward-compat); what was missing was a
+	// way to tell "deliberately unsigned, I'm developing it" apart from "the integrity
+	// claim is missing for some other reason" — every surface saw the same silence. This
+	// makes the silence a declaration.
+	//
+	// NEVER a manifest field: a manifest travels WITH the plugin, so an author declaring
+	// their own plugin "under development" would ship an artifact that loads unverified
+	// on every node that installs it — a supply-chain hole wearing a convenience's
+	// clothes. See packages/config/src/plugin-development.js for the full "why".
+	//
+	// Same envelope discipline as `trust`: headless, no TTY prompt, `--undevelop` is the
+	// only decision — so every surface (CLI, TUI, HTTP, a future PWA) drives it through
+	// one primitive.
+	const develop: CapabilityDescriptor = {
+		name: "develop",
+		summary:
+			"Declare a plugin as deliberately unsigned/under development on this node (identity-adjacent, not capability)",
+		args: [{ name: "id", required: true }],
+		options: [
+			{
+				name: "undevelop",
+				kind: "boolean",
+				summary: "Withdraw the development declaration",
+			},
+			{
+				name: "scope",
+				kind: "string",
+				summary: "Config scope to persist to: user | workspace | org",
+				defaultValue: "user",
+			},
+		],
+		async run(input) {
+			const id = input.args.id as string;
+			const scopeRaw = (input.options.scope as string) ?? "user";
+			if (scopeRaw !== "user" && scopeRaw !== "workspace" && scopeRaw !== "org") {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "develop",
+					error: "unknown-scope",
+					message: `Unknown scope "${scopeRaw}". Use user, workspace, or org.`,
+					nextAction: "Retry with --scope user|workspace|org.",
+				});
+			}
+			const scope = scopeRaw as LedgerScope;
+
+			const filePath = developmentConfigPath(scope);
+			if (!filePath) {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "develop",
+					error: "scope-unavailable",
+					message: `The ${scope} scope is not available.`,
+					nextAction: "Set REFARM_ORG_HOME for org scope, or use --scope user.",
+				});
+			}
+
+			const developing = !input.options.undevelop;
+			const result: DevelopmentResult = deps.persistDevelopment(filePath, id, developing);
+			return buildJsonSuccessEnvelope({
+				command: "plugin",
+				operation: "develop",
+				// The declaration is consulted at load, like trust — point the operator at the
+				// reload so a fresh declaration actually takes effect (or a withdrawal actually
+				// starts enforcing again).
+				nextCommand: RUNTIME_RESTART_JSON_COMMAND,
+				nextCommands: [RUNTIME_RESTART_JSON_COMMAND, PLUGIN_STATUS_JSON_COMMAND],
+				extra: {
+					pluginId: result.pluginId,
+					scope,
+					underDevelopment: result.underDevelopment,
+					declaredAt: result.declaredAt,
+					changed: result.changed,
+				},
+			});
+		},
+	};
+
 	// Shared run() for revoke + unrevoke — same shape (validate scope → resolve
 	// path → persist via the injected add-only primitive → envelope). `operation`
 	// names the verb; `persist` is the primitive (revoke or unrevoke).
@@ -1105,6 +1196,7 @@ export function createPluginCapabilityGroup(
 			reload,
 			approve,
 			trust,
+			develop,
 			revoke: revokeVerb,
 			unrevoke: unrevokeVerb,
 		},

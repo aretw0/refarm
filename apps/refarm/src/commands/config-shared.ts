@@ -57,6 +57,24 @@ export interface RefarmCliConfig {
 	 */
 	approvedPermissions?: Record<string, string[]>;
 	/**
+	 * THE THIRD AXIS, beside `trusted_plugins` (identity) and `approvedPermissions`
+	 * (effect): whether THIS OPERATOR has declared, ABOUT THIS MACHINE, that a plugin
+	 * is deliberately unsigned because it is under active development. Turns a
+	 * silence (`verify_wasm_integrity` already returns Ok for a manifest with no
+	 * `integrity` claim) into a declaration one surface can distinguish from "the
+	 * claim is missing for some other reason".
+	 *
+	 * NEVER IN THE MANIFEST — a manifest travels WITH the plugin, so an author
+	 * marking their own plugin "under development" would ship an artifact that
+	 * loads unverified on every node that installs it. Keyed by RUNTIME plugin id,
+	 * like `trusted_plugins`, so it matches what the load path looks up. Authored
+	 * via `plugin develop`; read by `packages/config/src/plugin-development.js`,
+	 * which the host consults at load (a following task) beside
+	 * `resolve_trusted_at_load` / `resolve_approved_at_load`. `declaredAt` is
+	 * required — a declaration with no date cannot age out loud later.
+	 */
+	pluginDevelopment?: Record<string, { declaredAt: string }>;
+	/**
 	 * The operator's ADD-ONLY revocation list — plugin ids revoked entirely (G). A
 	 * revocation is a MONOTONIC fact, never a removal: the host materializes each id
 	 * into its own `urn:sovereign:revocation:<id>` graph tombstone at load, so a stale
