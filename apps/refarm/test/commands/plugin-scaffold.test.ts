@@ -1,12 +1,20 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import * as os from "node:os";
-import { join } from "node:path";
-import { decidePluginPolicy } from "@refarm.dev/plugin-manifest";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	buildCreatedPluginReport,
 	type CreatedExtensionReport,
 } from "../../src/commands/plugin-scaffold.js";
+
+// `packages/agent/plugin.json` is the real, worked TEMPLATE: measured 2026-08-26,
+// neither it nor `packages/lsp-code-ops/plugin.json` (the other real source manifest)
+// carries `entry`/`integrity` — both are injected at install time. That is the shape
+// every scaffold must match, not a shape re-derived from the validator (a different
+// stage — see the round-2 fix note in plugin-scaffold.ts).
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
+const AGENT_TEMPLATE_PATH = join(repoRoot, "packages/agent/plugin.json");
 
 describe("the scaffold produces something this node can run", () => {
 	let cwd: string;
@@ -49,18 +57,18 @@ describe("the scaffold produces something this node can run", () => {
 		expect(report.notice).toMatch(/not (yet )?built|designed/iu);
 	});
 
-	// REVIEW ROUND 1, CRITICAL 1 (2026-08-26): the manifest this scaffold wrote could not
-	// be installed — `decidePluginPolicy` (the function BOTH `plugin review` and `plugin
-	// install` call first, verified by reading plugin-review-capability.ts /
-	// plugin-install-from-path.ts) returned `invalid-manifest`, crashing on
-	// `hasDuplicates(manifest.capabilities.requires)` because `requires` was never set,
-	// and — even past that — missing `entry`, a non-empty `capabilities.provides`,
-	// `certification`, and the 5 `observability.hooks` `validatePluginManifest`
-	// (packages/plugin-manifest/src/validate.js) unconditionally demands. This is the ONE
-	// test the reviewer asked for by name: run the scaffold's ACTUAL on-disk `plugin.json`
-	// through the SAME validator/policy path install uses, on the real written bytes (not
-	// a hand-built stand-in), and assert it is genuinely accepted.
-	it("writes a plugin.json that decidePluginPolicy — the gate both review and install call first — actually accepts", async () => {
+	// REVIEW ROUND 2 (2026-08-26): round 1's test ran the scaffold's manifest through
+	// `decidePluginPolicy` and required it to be ACCEPTED — but that tests the wrong
+	// stage. MEASURED: neither real source manifest in this repo
+	// (`packages/agent/plugin.json`, `packages/lsp-code-ops/plugin.json`) carries
+	// `entry`/`integrity` — both are injected at install time — so `decidePluginPolicy`
+	// fails EVERY real source manifest on that same missing field. Round 1's fix
+	// (declaring `entry: "index.js"` to satisfy the validator) made the scaffold UNLIKE
+	// every real plugin and pointed at a JS file the WASM-only host can never execute.
+	// The meaningful guard is instead: does this scaffold's shape match the real
+	// template's shape? It fails the moment the scaffold and the real convention drift
+	// apart, which is the actual risk.
+	it("writes a plugin.json matching the real template's shape (packages/agent/plugin.json), not a schema fiction", async () => {
 		const report = (await buildCreatedPluginReport({
 			name: "my-tool",
 			isGlobal: false,
@@ -71,11 +79,43 @@ describe("the scaffold produces something this node can run", () => {
 		const pluginJsonPath = report.files.find((f) => f.endsWith("plugin.json"));
 		expect(pluginJsonPath).toBeDefined();
 		const manifest = JSON.parse(readFileSync(pluginJsonPath!, "utf-8"));
+		const template = JSON.parse(readFileSync(AGENT_TEMPLATE_PATH, "utf-8"));
 
-		const decision = decidePluginPolicy(manifest, { grantedCapabilities: [], policyMode: "fail-fast" });
+		// Top-level shape parity with the real template — the actual risk this guards is
+		// the scaffold and the real convention drifting apart, not schema fiction.
+		expect(Object.keys(manifest).sort()).toEqual(Object.keys(template).sort());
 
-		expect(decision.manifestErrors).toEqual([]);
-		expect(decision.manifestValid).toBe(true);
-		expect(decision.status).toBe("completed");
+		// `capabilities` core: `provides`/`requires` are the universal pair every
+		// manifest needs (and the crash `requires: undefined` used to cause). The
+		// template's `providesApi`/`requiresApi`/`verbs`/`syncVerbs` are ITS OWN
+		// plugin-specific capability surface, not part of the shape a bare scaffold
+		// must carry.
+		expect(Object.keys(manifest.capabilities).sort()).toEqual(["provides", "requires"]);
+		expect(Array.isArray(manifest.capabilities.requires)).toBe(true);
+		expect(manifest.capabilities.provides.length).toBeGreaterThan(0);
+
+		// Neither manifest declares entry/integrity — both are injected at install time,
+		// not authored here. This is the fact round 1 got wrong.
+		expect(manifest.entry).toBeUndefined();
+		expect(manifest.integrity).toBeUndefined();
+		expect(template.entry).toBeUndefined();
+		expect(template.integrity).toBeUndefined();
+	});
+
+	// REVIEW ROUND 2, point 3: the acceptance story must be stated plainly, measured
+	// rather than assumed — round 1's report claimed a failure mode it never verified
+	// against the ACTUAL fixed manifest. `report.notice` is the one place an author
+	// reads this before ever running a CLI command, so it carries the measured install
+	// story: this manifest cannot be installed until a real WASM component exists.
+	it("tells the author, before they try, that plugin install needs a built WASM component first", async () => {
+		const report = (await buildCreatedPluginReport({
+			name: "my-tool",
+			isGlobal: false,
+			cwd,
+			homeDir,
+		})) as CreatedExtensionReport;
+
+		expect(report.notice).toMatch(/build (a )?WASM component/iu);
+		expect(report.notice).toMatch(/before[\s\S]*install/iu);
 	});
 });

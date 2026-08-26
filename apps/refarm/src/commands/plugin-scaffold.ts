@@ -321,42 +321,41 @@ export async function buildCreatedPluginReport(
 	const indexPath = path.join(extDir, "index.js");
 	await writeFile(indexPath, indexJsTemplate(name, ext.id, dispatch), "utf-8");
 
-	// The scaffold writes the shape the node ACTUALLY runs: a manifest `plugin install` can
-	// install and the host can load. No `integrity` — a freshly authored plugin is unsigned by
-	// definition, and D3 is what makes that state declarable instead of silent.
-	//
-	// FIELDS ARE NOT INVENTED — every one is here because `validatePluginManifest`
-	// (packages/plugin-manifest/src/validate.js) demands it, and the shape is checked
-	// against `decidePluginPolicy` (the function both `plugin review` and `plugin
-	// install` call first) by test/commands/plugin-scaffold.test.ts:
-	//   - `entry` points at `index.js` — the ONE file this scaffold actually writes.
-	//     A `.wasm` entry would additionally force `integrity` (validate.js: "integrity
-	//     is required for .wasm entries"), which a freshly authored plugin cannot supply
-	//     honestly. `index.js` needs none, and review/install genuinely accept it — but
-	//     the native host only ever executes compiled WASM bytes (verified against
-	//     `packages/tractor/.../env_and_runtime.rs`'s `load()`), so this is schema-valid
-	//     and CLI-installable today, not yet runnable by the daemon. That gap is what
-	//     `notice` below names.
-	//   - `capabilities.requires: []` must be an array — `undefined` crashes the
-	//     validator's `hasDuplicates` check rather than reporting an error.
-	//   - `permissions: []`, `targets`, `observability.hooks`, `certification` are
-	//     unconditionally required by the same validator for EVERY manifest; the values
-	//     mirror the shape of a real installed one (`packages/agent/plugin.json`,
-	//     `~/.refarm/plugins/*/plugin.json` on a live node).
+	// REVIEW ROUND 2 (2026-08-26): round 1 declared `entry: "index.js"` so the manifest
+	// would pass `decidePluginPolicy` — but MEASURED against the real templates
+	// (`packages/agent/plugin.json`, `packages/lsp-code-ops/plugin.json`), NEITHER real
+	// source manifest carries `entry`/`integrity` at all — both are injected at INSTALL
+	// time (confirmed by `packages/agent/plugin.json`'s own `_note`, and by the fact that
+	// `decidePluginPolicy` fails EVERY real source manifest in this repo on that same
+	// missing field). Declaring a JS entry made this scaffold UNLIKE every real plugin
+	// and pointed at something the WASM-only host can never execute. Fixed by mirroring
+	// `packages/agent/plugin.json` field-for-field instead of re-deriving the shape from
+	// the validator (which is the wrong stage — see the `_note` below and the task
+	// report for the measured install story this now produces).
 	const pluginJsonPath = path.join(extDir, "plugin.json");
 	await writeFile(
 		pluginJsonPath,
 		JSON.stringify(
 			{
+				// Carries the same discipline as `packages/agent/plugin.json`'s own `_note`:
+				// say what this is and what happens to it, in the manifest itself, so the next
+				// reader (not just this scaffold's own report) isn't left to discover it.
+				_note:
+					"Scaffold — entry and integrity are injected when this is actually installed " +
+					"with a built WASM component beside it. There is no automatic injector for a " +
+					"local plugin yet (unlike packages/agent's bundleInstallPlugin): add a built " +
+					"component's `entry` + sha256 `integrity` by hand before `refarm plugin install` " +
+					`will accept it. Declare it before it ever loads unsigned: refarm plugin develop ${ext.id}.`,
 				id: ext.id,
 				name: ext.name,
 				version: "0.1.0",
-				entry: "index.js",
 				capabilities: { ...ext.capabilities, requires: [] },
 				permissions: [],
-				targets: ["server"],
 				observability: { hooks: [...REQUIRED_TELEMETRY_HOOKS] },
+				targets: ["server"],
+				executionContext: { preferred: "node", allowed: ["node"] },
 				certification: { license: "UNLICENSED", a11yLevel: 0, languages: ["en"] },
+				trust: { profile: "strict" },
 			},
 			null,
 			2,
@@ -378,10 +377,19 @@ export async function buildCreatedPluginReport(
 		scope,
 		indexPath,
 		files: [extJsonPath, indexPath, pluginJsonPath],
+		// REVIEW ROUND 2: measured, not assumed — `plugin review`/`plugin install` on this
+		// manifest AS WRITTEN today returns `invalid-manifest` ("entry must be a
+		// .js/.mjs/.cjs or .wasm path"), the SAME thing every real source manifest in this
+		// repo would say if pointed at directly (none carries `entry`/`integrity` either).
+		// That is not a signing refusal — it never reaches that stage. Said plainly here so
+		// an author isn't left assuming "unsigned" is the only gap.
 		notice:
 			`Declare it before running it unsigned:  refarm plugin develop @local/${name}\n` +
 			"A lighter, non-WASM track is designed and not built — see " +
-			"docs/superpowers/specs/ for its own spec.",
+			"docs/superpowers/specs/ for its own spec.\n" +
+			"This plugin.json mirrors the real template shape (packages/agent/plugin.json) and " +
+			"has no entry/integrity yet, same as every source manifest in this repo — build a " +
+			"WASM component and add both by hand before `refarm plugin install` will accept it.",
 		...(dispatch ? { surfaceName: dispatch.surfaceName } : {}),
 		...(surfaceCommand ? { surfaceCommand } : {}),
 		nextAction: reloadCommand,
