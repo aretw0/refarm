@@ -26,6 +26,12 @@ function srcDigestOf(repoRoot: string): string {
 	return (digestTree(path.join(repoRoot, "apps", "refarm", "src")) ?? "").slice(0, 8);
 }
 
+/** The FULL digest — never truncated — the same function the label's own 8-char prefix comes
+ *  from. Used to prove the install RECORD carries the whole thing, distinct from the label. */
+function fullSrcDigestOf(repoRoot: string): string {
+	return digestTree(path.join(repoRoot, "apps", "refarm", "src")) ?? "";
+}
+
 /** A checkout shaped enough for the install to read a version and resolve pnpm.
  *
  * Also stamped FRESH: this file exists to prove what happens to the launcher, not to
@@ -219,6 +225,13 @@ describe("refarm node install", () => {
 		// WHICH kind of dirty, not merely that it was — "one file changed" and "git would not
 		// answer" are different facts about how much this label can be trusted.
 		expect(identity.checkout.because).toContain("1 uncommitted");
+
+		// THE FULL DIGEST, not just the label's 8-hex-char prefix — two trees whose digests
+		// differ only past that prefix are otherwise indistinguishable in this record.
+		const fullDigest = fullSrcDigestOf(repoRoot);
+		expect(identity.contentDigest).toBe(fullDigest);
+		expect(identity.contentDigest?.length).toBeGreaterThan(8);
+		expect(fullDigest.startsWith(srcDigestOf(repoRoot))).toBe(true);
 	});
 
 	it("records a CLEAN checkout as clean, so the label means what it says", async () => {

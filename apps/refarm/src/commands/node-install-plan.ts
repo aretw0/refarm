@@ -290,5 +290,14 @@ export interface InstalledNodeIdentity {
 	 * met. A reader compares only when this matches the tree it is standing in.
 	 */
 	readonly repository: string;
+	/**
+	 * THE FULL `apps/refarm` source digest — never truncated, unlike the label's 8-hex-char
+	 * prefix. A directory name has to stay legible in an `ls`, so the label deliberately shows
+	 * only a prefix; the record carries the whole thing because two trees whose digests
+	 * disagree only past the 8th hex character are otherwise indistinguishable in it. `null`
+	 * under the same discipline the label's own digest follows: no digest was measured, no
+	 * invented one.
+	 */
+	readonly contentDigest: string | null;
 }
 

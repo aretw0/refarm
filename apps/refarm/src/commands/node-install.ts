@@ -232,9 +232,11 @@ export async function runNodeInstall(
 	// MEASURED 2026-08-25: two clean installs of the same commit, minutes apart, carried different
 	// code under one directory name — the source moved between them and neither `commit` nor
 	// `dirty` can say by how much. `packages` already refused above if this were null, so it is
-	// always present here; only its shortening is done at this call site.
-	const contentDigest = packages.find((p) => p.id === "apps/refarm")?.srcDigest?.slice(0, 8);
-	const label = installVersionLabel(version, commit, dirtiness.dirty, contentDigest);
+	// always present here. The FULL digest rides into the install record below (a directory
+	// listing has no room for it); only the label's own copy is shortened, here, at the one call
+	// site that names a directory.
+	const fullContentDigest = packages.find((p) => p.id === "apps/refarm")?.srcDigest ?? null;
+	const label = installVersionLabel(version, commit, dirtiness.dirty, fullContentDigest?.slice(0, 8));
 	const tree = installedTreePath(home, label);
 
 	// ── 1. Assemble ──────────────────────────────────────────────────────────
@@ -312,6 +314,7 @@ export async function runNodeInstall(
 		checkout: dirtiness,
 		installedAt: (deps.now ?? (() => new Date().toISOString()))(),
 		repository: repoRoot,
+		contentDigest: fullContentDigest,
 	};
 	fs.mkdirSync(tree, { recursive: true });
 	fs.writeFileSync(
