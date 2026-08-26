@@ -12,6 +12,14 @@
 
 ## Global Constraints
 
+- **COMMIT BEFORE PROVING A GUARD.** Every task below shows the mutation proof before the commit
+  step, and that order is WRONG — `git checkout <file>` reverts to the last COMMITTED state, so
+  proving a guard on uncommitted work and reverting discards the implementation with the mutation.
+  Found the hard way on Task 3, where it wiped a whole in-progress edit. Commit the task first,
+  then mutate, then `git checkout <file>` restores exactly the committed implementation. If a
+  proof must run before a commit, revert with a targeted string-replace that asserts the mutation
+  was present, never with `git checkout`.
+
 - **Order is mandatory:** D1 → D2 → D3. Nothing below D1 can be verified until the install stops lying.
 - **Every guard is shown to fail** before it lands, and the mutation must be asserted to have APPLIED before the test run — a `replace` that silently matched nothing reads as a passing guard (measured 2026-08-25).
 - **Fail closed.** D1's staleness refusal and D3's inverted default both refuse on uncertainty.
