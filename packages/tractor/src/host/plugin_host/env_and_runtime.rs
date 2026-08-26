@@ -879,6 +879,15 @@ fn verify_wasm_integrity(
             "plugin '{plugin_id}' declares no integrity and this node has not declared it is \
              under development — declare it, or install a signed build",
         );
+        // The waiver just fired: this artifact is about to run UNVERIFIED because the node
+        // declared it under development, not because anything vouches for its bytes. Silent
+        // before this line — an operator reading the load log had no way to tell "ran because
+        // declared" from "ran because nobody checked". `warn`, not `info`: it is a load
+        // bypassing the integrity gate, worth noticing even when nothing else is wrong.
+        tracing::warn!(
+            plugin_id = %plugin_id,
+            "plugin declares no integrity — running UNVERIFIED because this node declared it under development"
+        );
         return Ok(());
     };
     // Lowercase FIRST so an uppercase `SHA256-...` prefix + hex both normalize.
@@ -1379,12 +1388,31 @@ impl PluginHost {
     /// `false` — "not declared". A declaration only ever WIDENS what may load (an
     /// absent-integrity plugin), so falling open on a config bug would recreate exactly the
     /// silent-consent failure this task exists to close.
-    fn resolve_under_development_at_load(&self, base: &Path, plugin_id: &str) -> bool {
+    ///
+    /// `id_is_from_manifest` gates the `ResolveFromConfig` branch ONLY: when `plugin_id` is the
+    /// guessed file-stem fallback (no manifest was found), it is `false` and this ALWAYS answers
+    /// `false` without ever reading the config — every real `--plugin` argument is
+    /// `.../refarm_<name>/plugin.wasm`, so that guess is the literal string "plugin" for EVERY
+    /// manifest-less artifact on the node (`RequestedPluginEntry`'s doc, lib.rs). Consulting the
+    /// operator's declaration under that guessed key would let one `refarm plugin develop plugin`
+    /// waive the integrity gate for every manifest-less artifact at once — an id that cannot be
+    /// known must not be guessed into one that collides. `GrantSource::Injected` is UNAFFECTED
+    /// (its callers are the mechanics-test harness, never a real declaration keyed by a guessed
+    /// id): a wildcard override still bypasses the gate for a manifest-less fixture on purpose.
+    fn resolve_under_development_at_load(
+        &self,
+        base: &Path,
+        plugin_id: &str,
+        id_is_from_manifest: bool,
+    ) -> bool {
         match &self.under_development_source {
             GrantSource::Injected(v) => v
                 .as_ref()
                 .is_some_and(|set| set.contains("*") || set.contains(plugin_id)),
             GrantSource::ResolveFromConfig => {
+                if !id_is_from_manifest {
+                    return false;
+                }
                 match crate::host::host_effects_bridge::read_refarm_config_value_at(base) {
                     Ok(Some(cfg)) => plugin_development_declares(&cfg, plugin_id),
                     Ok(None) => false,
@@ -1448,15 +1476,17 @@ impl PluginHost {
 
     pub async fn load(&self, path: &Path, sync: &NativeSync) -> Result<PluginInstanceHandle> {
         let manifest = read_runtime_plugin_manifest(path)?;
-        let plugin_id = manifest
-            .as_ref()
-            .map(|m| manifest_runtime_plugin_id(&m.id).to_string())
-            .unwrap_or_else(|| {
-                path.file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("unknown")
-                    .to_string()
-            });
+        // Kept separate from `plugin_id` below: this is `Some` ONLY where the id is a REAL
+        // identity read from a manifest, never the guessed file-stem fallback. The development
+        // gate (just below) must consult the config ONLY through this id — see its call site.
+        let manifest_plugin_id =
+            manifest.as_ref().map(|m| manifest_runtime_plugin_id(&m.id).to_string());
+        let plugin_id = manifest_plugin_id.clone().unwrap_or_else(|| {
+            path.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("unknown")
+                .to_string()
+        });
 
         tracing::info!(plugin_id = %plugin_id, path = %path.display(), "Loading plugin");
         anyhow::ensure!(path.exists(), "Plugin file not found: {}", path.display());
@@ -1474,11 +1504,21 @@ impl PluginHost {
         // manifest's declared hash was written at install; verify the bytes on disk
         // match it. No declared integrity → Ok only where THIS node declared it is
         // developing this plugin (see `verify_wasm_integrity` / `plugin_development_declares`).
+        //
+        // `manifest_plugin_id.is_some()` tells the resolver below whether `plugin_id` is a REAL
+        // identity or the guessed file-stem fallback ("plugin", for EVERY manifest-less artifact
+        // — see the resolver's own doc for why that guess must never reach the config-declared
+        // lookup).
+        let under_development = self.resolve_under_development_at_load(
+            &grant_base,
+            &plugin_id,
+            manifest_plugin_id.is_some(),
+        );
         verify_wasm_integrity(
             manifest.as_ref().and_then(|m| m.integrity.as_deref()),
             &wasm_hash,
             &plugin_id,
-            self.resolve_under_development_at_load(&grant_base, &plugin_id),
+            under_development,
         )?;
 
         // Resolve the sovereign grants for THIS load, where `sync` exists (B): the
@@ -2152,6 +2192,56 @@ mod capability_tests {
         // "Under development" waives an ABSENT claim, never a false one. A wrong hash is
         // "tampered or replaced" and stays a hard failure whatever the node declared.
         assert!(verify_wasm_integrity(Some("sha256-0000"), "abc", "ghost", true).is_err());
+    }
+
+    // ── resolve_under_development_at_load: a guessed id must never waive by config ──
+
+    fn sovereign_dir_env_for_tests() {
+        // Same fixed value every other test file in this crate sets (env_policy_edges.rs's
+        // `ensure_sovereign_dir_env`) — a `Once` per test binary, safe because the VALUE never
+        // varies across tests (only `base`, an explicit fn argument here, ever does).
+        use std::sync::Once;
+        static SET: Once = Once::new();
+        SET.call_once(|| std::env::set_var("SOVEREIGN_DIR", ".refarm"));
+    }
+
+    #[test]
+    fn a_guessed_manifest_less_id_never_consults_the_development_declaration() {
+        // The operator ran `refarm plugin develop plugin` — "plugin" being the file-stem EVERY
+        // manifest-less artifact collapses to (every real `--plugin` argument is
+        // `.../refarm_<name>/plugin.wasm`, see `RequestedPluginEntry`'s doc). Without this
+        // guard, that ONE declaration would waive integrity for every manifest-less artifact
+        // on the node — the collision this task closes.
+        sovereign_dir_env_for_tests();
+        let dir = tempfile::tempdir().expect("tempdir");
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).expect("mkdir");
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"pluginDevelopment":{"plugin":{"declaredAt":"2026-08-25"}}}"#,
+        )
+        .expect("write config.json");
+
+        let trust = crate::trust::TrustManager::with_security_mode(crate::trust::SecurityMode::Permissive);
+        let telemetry = crate::telemetry::TelemetryBus::new(64);
+        let host = PluginHost::new(trust, telemetry, crate::host::instance::DEFAULT_ON_EVENT_BUDGET_MS)
+            .expect("PluginHost::new");
+
+        // A REAL manifest id "plugin" (id_is_from_manifest = true) legitimately sees the
+        // declaration — this is NOT the collision, it is the one artifact the operator named.
+        assert!(
+            host.resolve_under_development_at_load(dir.path(), "plugin", true),
+            "a manifest-derived id must see this node's own declaration"
+        );
+
+        // The GUESSED file-stem fallback for a manifest-less artifact (id_is_from_manifest =
+        // false) must NEVER consult the declaration, however the stored key reads — an id that
+        // cannot be known must not be guessed into one that collides with every other
+        // manifest-less artifact on the node.
+        assert!(
+            !host.resolve_under_development_at_load(dir.path(), "plugin", false),
+            "a guessed (manifest-less) id must never be waived via the config-declared route"
+        );
     }
 
     // ── plugin_development_declares mirrors the JS reader exactly ──────────────
