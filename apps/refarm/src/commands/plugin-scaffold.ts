@@ -19,6 +19,7 @@ import {
 } from "@refarm.dev/capabilities/envelope";
 import { pluginSurfaceName } from "@refarm.dev/capability-host";
 import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
+import { REQUIRED_TELEMETRY_HOOKS } from "@refarm.dev/plugin-manifest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -323,10 +324,43 @@ export async function buildCreatedPluginReport(
 	// The scaffold writes the shape the node ACTUALLY runs: a manifest `plugin install` can
 	// install and the host can load. No `integrity` — a freshly authored plugin is unsigned by
 	// definition, and D3 is what makes that state declarable instead of silent.
+	//
+	// FIELDS ARE NOT INVENTED — every one is here because `validatePluginManifest`
+	// (packages/plugin-manifest/src/validate.js) demands it, and the shape is checked
+	// against `decidePluginPolicy` (the function both `plugin review` and `plugin
+	// install` call first) by test/commands/plugin-scaffold.test.ts:
+	//   - `entry` points at `index.js` — the ONE file this scaffold actually writes.
+	//     A `.wasm` entry would additionally force `integrity` (validate.js: "integrity
+	//     is required for .wasm entries"), which a freshly authored plugin cannot supply
+	//     honestly. `index.js` needs none, and review/install genuinely accept it — but
+	//     the native host only ever executes compiled WASM bytes (verified against
+	//     `packages/tractor/.../env_and_runtime.rs`'s `load()`), so this is schema-valid
+	//     and CLI-installable today, not yet runnable by the daemon. That gap is what
+	//     `notice` below names.
+	//   - `capabilities.requires: []` must be an array — `undefined` crashes the
+	//     validator's `hasDuplicates` check rather than reporting an error.
+	//   - `permissions: []`, `targets`, `observability.hooks`, `certification` are
+	//     unconditionally required by the same validator for EVERY manifest; the values
+	//     mirror the shape of a real installed one (`packages/agent/plugin.json`,
+	//     `~/.refarm/plugins/*/plugin.json` on a live node).
 	const pluginJsonPath = path.join(extDir, "plugin.json");
 	await writeFile(
 		pluginJsonPath,
-		JSON.stringify({ id: `@local/${name}`, name, version: "0.1.0", capabilities: { provides: [] } }, null, 2) + "\n",
+		JSON.stringify(
+			{
+				id: ext.id,
+				name: ext.name,
+				version: "0.1.0",
+				entry: "index.js",
+				capabilities: { ...ext.capabilities, requires: [] },
+				permissions: [],
+				targets: ["server"],
+				observability: { hooks: [...REQUIRED_TELEMETRY_HOOKS] },
+				certification: { license: "UNLICENSED", a11yLevel: 0, languages: ["en"] },
+			},
+			null,
+			2,
+		) + "\n",
 		"utf-8",
 	);
 

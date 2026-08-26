@@ -1234,6 +1234,13 @@ export function pluginCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 			return { renderText: (envelope) => formatListFromEnvelope(envelope) };
 		case "new":
 			return {
+				// REVIEW ROUND 1, IMPORTANT 3 (2026-08-26): the notice used to sit BELOW
+				// `Edit:` / `Activate: reload` / `Fallback: restart` — an author reads
+				// top-down, and `reload_plugin` (packages/tractor/src/lib.rs:1164) only
+				// affects a plugin already loaded at boot; a fresh id is never in
+				// `plugin_paths`, so reload silently returns `false` and restarting the
+				// runtime does not add it either. The notice now leads, and reload/restart
+				// are no longer presented as the activation step.
 				renderText(envelope) {
 					if (envelope.ok === false) {
 						return `Plugin scaffold failed: ${(envelope as { message?: string }).message ?? "unknown error"}`;
@@ -1242,12 +1249,17 @@ export function pluginCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 					const lines = [
 						`Created plugin '${report.slug}' at ${report.dir} (${report.scope})`,
 						`  id: ${report.id}`,
-						`  Edit: ${report.indexPath}`,
+						"",
+						report.notice,
+						"",
+						`  Light-track source (not loadable by this node yet): ${report.indexPath}`,
 					];
 					if (report.surfaceCommand) lines.push(`  Surface: ${report.surfaceCommand}`);
-					lines.push(`  Activate: ${report.nextActions[0]}`);
-					if (report.nextActions[1]) lines.push(`  Fallback: ${report.nextActions[1]}`);
-					lines.push("", report.notice);
+					lines.push(
+						"  'refarm plugin reload' only takes effect on a plugin this runtime already " +
+							"loaded at boot; a freshly scaffolded id is not, so reloading it now does " +
+							"nothing — it is not an activation step.",
+					);
 					return lines.join("\n");
 				},
 				exitCode: (envelope) => (envelope.ok === false ? 1 : 0),
