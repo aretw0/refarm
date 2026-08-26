@@ -147,6 +147,37 @@ command the operator runs there and nothing else would explain why.
 node's code are different things, and a backup that swallowed 434MB of
 reproducible artifacts would be the same category error this document opens with.
 
+## The bootstrap: a fix to the installer cannot install itself
+
+MEASURED 2026-08-26, three times in one session, the third time by someone who had already
+written the other two down.
+
+`refarm` on `PATH` executes the INSTALLED tree. So `refarm node install` runs the installer that
+is already installed — not the one in the checkout. A change TO the installer therefore cannot
+take effect through itself:
+
+    refarm node install                          -> 0.1.0-31f1093d          (old installer, old label)
+    node apps/refarm/dist/index.js node install  -> 0.1.0-31f1093d-aac963a7 (new installer, new label)
+
+The first run reports `installed` and succeeds. It simply produces what the OLD code produces,
+and the only tell is the output — here, a label missing the content digest the new installer adds.
+
+**So: when the change being installed is a change to the install path, invoke the built CLI
+directly.** `node apps/refarm/dist/index.js node install`. Once that lands, `refarm node install`
+is the new one and the bootstrap is over until the next such change.
+
+THE SAME SHAPE BIT THREE OTHER THINGS THE SAME DAY, and it is worth naming as one class rather
+than four incidents: a `plugin --help` consulted from a stale `dist` and read as "the command does
+not exist"; a live `refarm ask` refusal that was the pre-fix message because the node ran code
+eight commits old; and a `plugin status` whose new columns were absent because the launcher still
+pointed at the previous tree. In every case the artifact answered honestly for the code it
+contained, and the conclusion drawn about the SOURCE was wrong.
+
+The rule that survives all four: **before concluding anything from a `refarm` command about code
+you just changed, know which tree answered.** `refarm health` prints it — the installed label
+beside the checkout's HEAD — and `health --json` carries `results.nodeSubstrate.identity.commit`
+against `results.checkoutHead`.
+
 ## The separation was not achieved — measured 2026-08-22
 
 Everything above was true and the node was still executing the working tree.
