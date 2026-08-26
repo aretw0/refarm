@@ -1192,6 +1192,7 @@ impl PluginHost {
             trusted_plugins_source: GrantSource::ResolveFromConfig,
             approved_permissions_source: GrantSource::ResolveFromConfig,
             under_development_source: GrantSource::ResolveFromConfig,
+            grants_sink: None,
             model_route: crate::host::wasi_bridge::ModelRoute::from_env(),
             fallback_route: crate::host::wasi_bridge::ModelRoute::fallback_from_env(),
             // Wired by the runtime via `with_cross_plugin` once its registry + router
@@ -1254,6 +1255,13 @@ impl PluginHost {
     /// tests that load a manifest-less or unsigned artifact deterministically, without a
     /// config file in the process cwd. `None` = nothing declared (CLOSED, waives nothing);
     /// `Some(set)` = exactly those runtime ids (or all, under `*`) are waived.
+    /// Give this host somewhere to record what each load decides about a plugin's authority.
+    /// Wired by `TractorNative`; absent in unit tests, which record nothing.
+    pub fn with_grants_sink(mut self, sink: crate::PluginGrants) -> Self {
+        self.grants_sink = Some(sink);
+        self
+    }
+
     pub fn with_under_development(mut self, declared: Option<std::collections::HashSet<String>>) -> Self {
         self.under_development_source = GrantSource::Injected(declared);
         self
@@ -1546,8 +1554,24 @@ impl PluginHost {
         // is declared ∩ approved, so approving fewer capabilities actually restricts.
         // No approvals configured, or this plugin not approved → declared stands
         // (approval is opt-in scoping, backward-compatible).
+        let declared_for_record = declared_permissions.clone();
         let effective_permissions =
             Self::scope_to_approved(approved_at_load.as_ref(), &plugin_id, declared_permissions);
+        // ISS-171. RECORDED AT THE DECISION, never recomputed. Both sets, because `effective`
+        // alone cannot distinguish "the operator withheld nothing" from "the operator was never
+        // consulted" — and that distinction is exactly what hid the 2026-08-25 key defect, where
+        // an approval keyed by the wrong id was silently not applied and the plugin kept
+        // everything it declared.
+        if let Some(sink) = self.grants_sink.as_ref() {
+            sink.write().expect("plugin_grants poisoned").insert(
+                plugin_id.clone(),
+                crate::PluginGrantFacts {
+                    declared: declared_for_record.iter().cloned().collect(),
+                    effective: effective_permissions.iter().cloned().collect(),
+                    under_development,
+                },
+            );
+        }
         let permission_grant = crate::host::wasi_bridge::PermissionGrant::new(
             effective_permissions,
             self.trust.security_mode().clone(),

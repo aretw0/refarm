@@ -315,6 +315,34 @@ pub enum PluginLoadOutcome {
 /// honest, reporting a guessed id that collides with every other entry is not.
 pub type RequestedPluginEntry = (std::path::PathBuf, PluginLoadOutcome);
 
+/// What a LOAD decided about one plugin's authority, captured where it was decided.
+///
+/// ISS-171. `scope_to_approved` computes `declared ∩ approved` inside `load()` and hands the
+/// result to `PermissionGrant::new`, and until 2026-08-26 nothing reported it. An operator could
+/// read both INPUTS — the manifest's declaration and his own config — and had to compute the
+/// outcome himself, against a rule that inverts the naive reading: A MISS IS PERMISSIVE. A plugin
+/// absent from the approvals map keeps everything it declared.
+///
+/// Both sets are carried, not just the effective one, because the pair is the answer: `effective`
+/// alone cannot distinguish "the operator withheld nothing" from "the operator was never
+/// consulted", and that distinction is exactly what hid the 2026-08-25 key defect.
+///
+/// RECORDED AT THE DECISION, never recomputed. A second reader of this rule — CLI-side, from
+/// config plus manifest — would be free to drift from the one that decides, which is the shape
+/// this repository keeps finding defects in.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PluginGrantFacts {
+    /// Every capability the plugin's manifest asked for.
+    pub declared: std::collections::BTreeSet<String>,
+    /// What it actually got: `declared ∩ approved`, or `declared` when no approval was recorded.
+    pub effective: std::collections::BTreeSet<String>,
+    /// Whether this load ran unverified because the NODE declared the plugin under development.
+    pub under_development: bool,
+}
+
+/// Per-plugin grant facts, keyed by the runtime id the load path uses.
+pub type PluginGrants = Arc<RwLock<std::collections::HashMap<String, PluginGrantFacts>>>;
+
 /// Every `--plugin` path requested at startup, in request order. See
 /// `TractorNative::record_plugin_request` / `requested_plugins`.
 pub type RequestedPlugins = Arc<RwLock<Vec<RequestedPluginEntry>>>;
@@ -825,6 +853,9 @@ pub struct TractorNative {
     /// (via the `reload` host handle) to report `requested` without the host scanning any
     /// directory.
     requested_plugins: RequestedPlugins,
+    /// What each LOAD decided about a plugin's authority — ISS-171. Written by the load path
+    /// where the decision is made, read by `GET /plugins`. Never recomputed elsewhere.
+    plugin_grants: PluginGrants,
     /// Sender handed to the LAST runner of each plugin: on an epoch-trap teardown it
     /// asks the respawn supervisor (spawned by `spawn_respawn_supervisor`) to reload
     /// a fresh instance by the plugin's recorded path. `register_for_events` clones it
@@ -883,8 +914,12 @@ impl TractorNative {
             // Populated just below, once `plugins` exists — the closure holds a Weak to it.
             self_respond: Arc::new(std::sync::OnceLock::new()),
         };
+        // Created BEFORE the host, because the host writes into it at load and the struct field
+        // below reads from it — one Arc, two holders, no second store to keep in sync (ISS-171).
+        let plugin_grants: PluginGrants = Arc::new(RwLock::new(std::collections::HashMap::new()));
         let plugins = Arc::new(
             host::PluginHost::new(trust.clone(), telemetry.clone(), config.on_event_budget_ms)?
+                .with_grants_sink(plugin_grants.clone())
                 .with_cross_plugin(cross_plugin.clone()),
         );
 
@@ -967,6 +1002,7 @@ impl TractorNative {
             // load_plugin (which records its path here) is self-dispatchable.
             plugin_paths,
             requested_plugins: Arc::new(RwLock::new(Vec::new())),
+            plugin_grants,
             respawn_tx,
             respawn_rx: Arc::new(Mutex::new(Some(respawn_rx))),
             config,
@@ -1011,6 +1047,19 @@ impl TractorNative {
             .read()
             .expect("requested_plugins poisoned")
             .clone()
+    }
+
+    /// What each load decided about a plugin's authority, keyed by runtime id (ISS-171).
+    pub fn plugin_grants(&self) -> std::collections::HashMap<String, PluginGrantFacts> {
+        self.plugin_grants.read().expect("plugin_grants poisoned").clone()
+    }
+
+    /// Record what a load decided. Called from the load path, at the point of decision.
+    pub fn record_plugin_grant(&self, plugin_id: &str, facts: PluginGrantFacts) {
+        self.plugin_grants
+            .write()
+            .expect("plugin_grants poisoned")
+            .insert(plugin_id.to_string(), facts);
     }
 
     /// Start the RESPAWN SUPERVISOR: a background task that reinstantiates a plugin

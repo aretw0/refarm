@@ -52,7 +52,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::net::TcpListener;
 
-use crate::{PluginChannels, PluginLoadOutcome, RequestedPluginEntry};
+use crate::{PluginChannels, PluginGrantFacts, PluginLoadOutcome, RequestedPluginEntry};
 
 // ── effort store ─────────────────────────────────────────────────────────────
 
@@ -552,6 +552,7 @@ fn plugins_payload(
     requested: &[RequestedPluginEntry],
     loaded: &[String],
     default_responder: Option<&str>,
+    grants: &std::collections::HashMap<String, PluginGrantFacts>,
 ) -> serde_json::Value {
     let rows: Vec<serde_json::Value> = requested
         .iter()
@@ -572,10 +573,29 @@ fn plugins_payload(
             })
         })
         .collect();
+    // ISS-171. Reported from what the LOAD decided, never recomputed here — a second reader of
+    // this rule would be free to drift from the one that decides. A plugin the host never loaded
+    // has NO row rather than an empty one: an empty `effective` would read as "everything was
+    // withheld", while absence reads as "this host never computed one", which is the true fact.
+    let grant_rows: serde_json::Map<String, serde_json::Value> = grants
+        .iter()
+        .map(|(id, facts)| {
+            (
+                id.clone(),
+                serde_json::json!({
+                    "declared": facts.declared.iter().collect::<Vec<_>>(),
+                    "effective": facts.effective.iter().collect::<Vec<_>>(),
+                    "underDevelopment": facts.under_development,
+                }),
+            )
+        })
+        .collect();
+
     serde_json::json!({
         "requested": rows,
         "loaded": loaded,
         "defaultResponder": default_responder,
+        "grants": grant_rows,
     })
 }
 
@@ -602,10 +622,19 @@ async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
         .map(|host| host.requested_plugins())
         .unwrap_or_default();
 
+    // Same honesty as `requested`: the grant facts exist only where a live host decided them, and
+    // an unwired sidecar degrades to empty rather than guessing at an intersection it never made.
+    let grants = state
+        .reload
+        .as_ref()
+        .map(|host| host.plugin_grants())
+        .unwrap_or_default();
+
     Json(plugins_payload(
         &requested,
         &loaded,
         default_responder.as_deref(),
+        &grants,
     ))
 }
 

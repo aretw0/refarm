@@ -85,6 +85,7 @@ fn requested_and_loaded_are_separate_facts() {
         ],
         &["agent".to_string()],
         Some("agent"),
+        &std::collections::HashMap::new(),
     );
 
     let requested = payload["requested"].as_array().expect("requested is an array");
@@ -118,13 +119,13 @@ fn default_responder_absence_is_null_not_the_empty_string() {
     // SPEC ❌ found in review round 1: absence must not be spelled as the empty string —
     // "nobody elected" and "elected the empty string" are different facts, and this field's
     // whole job is to keep them apart (the same invariant `requested[].id` above defends).
-    let none_payload = plugins_payload(&[], &[], None);
+    let none_payload = plugins_payload(&[], &[], None, &std::collections::HashMap::new());
     assert!(
         none_payload["defaultResponder"].is_null(),
         "no elected responder must serialize as null, not \"\""
     );
 
-    let some_payload = plugins_payload(&[], &[], Some("agent"));
+    let some_payload = plugins_payload(&[], &[], Some("agent"), &std::collections::HashMap::new());
     assert_eq!(some_payload["defaultResponder"], "agent");
 }
 
@@ -289,4 +290,90 @@ async fn sidecar_load_by_hash_degrades_honestly_without_a_live_host() {
         body["reason"].as_str().is_some(),
         "an honest reason, not a silent success"
     );
+}
+
+// ── The effective permission set, which no surface reported until 2026-08-26 ──────────────
+//
+// ISS-171. `plugin permissions` shows what a plugin DECLARES; the config shows what the operator
+// APPROVED; `scope_to_approved` computes declared ∩ approved at LOAD, inside the host — and
+// nothing reported the intersection. So an operator had to compute it in his head against a rule
+// that inverts the naive reading: A MISS IS PERMISSIVE. A plugin absent from the approvals map
+// keeps everything it declared.
+//
+// That blindness is why the 2026-08-25 defect hid for as long as it did: an approval keyed by the
+// manifest id while the host looks it up by the runtime id was never applied, and no surface could
+// have shown it. The host already holds the answer; this reports it rather than recomputing it
+// anywhere else.
+
+fn caps(items: &[&str]) -> std::collections::BTreeSet<String> {
+    items.iter().map(|s| (*s).to_string()).collect()
+}
+
+#[test]
+fn the_effective_set_is_reported_and_is_not_the_declared_set() {
+    let grants = std::collections::HashMap::from([(
+        "lsp-code-ops".to_string(),
+        PluginGrantFacts {
+            declared: caps(&["fs:read", "fs:write", "shell:spawn"]),
+            effective: caps(&["fs:read", "fs:write"]),
+            under_development: false,
+        },
+    )]);
+
+    let payload = plugins_payload(&[], &["lsp-code-ops".to_string()], Some("agent"), &grants);
+    let row = &payload["grants"]["lsp-code-ops"];
+
+    assert_eq!(row["effective"].as_array().unwrap().len(), 2);
+    assert_eq!(row["declared"].as_array().unwrap().len(), 3);
+    assert!(
+        row["effective"].as_array().unwrap().iter().all(|c| c != "shell:spawn"),
+        "a capability the operator withheld must not appear in the effective set"
+    );
+}
+
+#[test]
+fn a_plugin_ABSENT_from_the_approvals_map_reports_the_permissive_truth() {
+    // THE RULE THAT INVERTS THE NAIVE READING, said out loud instead of inferred. "No approval
+    // recorded" does NOT mean "nothing granted" — `scope_to_approved` returns the DECLARED set.
+    // An operator reading a surface that omitted this row would conclude the opposite.
+    let grants = std::collections::HashMap::from([(
+        "agent".to_string(),
+        PluginGrantFacts {
+            declared: caps(&["fs:read", "shell:spawn"]),
+            effective: caps(&["fs:read", "shell:spawn"]),
+            under_development: false,
+        },
+    )]);
+
+    let payload = plugins_payload(&[], &["agent".to_string()], Some("agent"), &grants);
+    let row = &payload["grants"]["agent"];
+
+    assert_eq!(row["effective"], row["declared"], "a miss is permissive, and the surface says so");
+}
+
+#[test]
+fn a_plugin_loaded_under_a_development_waiver_is_distinguishable_from_a_signed_one() {
+    let grants = std::collections::HashMap::from([
+        (
+            "mine".to_string(),
+            PluginGrantFacts { declared: caps(&["fs:read"]), effective: caps(&["fs:read"]), under_development: true },
+        ),
+        (
+            "agent".to_string(),
+            PluginGrantFacts { declared: caps(&["fs:read"]), effective: caps(&["fs:read"]), under_development: false },
+        ),
+    ]);
+
+    let payload = plugins_payload(&[], &[], Some("agent"), &grants);
+
+    assert_eq!(payload["grants"]["mine"]["underDevelopment"], true);
+    assert_eq!(payload["grants"]["agent"]["underDevelopment"], false);
+}
+
+#[test]
+fn a_plugin_the_host_never_loaded_has_no_grant_row_rather_than_an_empty_one() {
+    // Absence declares itself. An empty effective set would read as "everything was withheld";
+    // no row reads as "this host never computed one", which is the true fact.
+    let payload = plugins_payload(&[], &[], Some("agent"), &std::collections::HashMap::new());
+    assert_eq!(payload["grants"].as_object().unwrap().len(), 0);
 }

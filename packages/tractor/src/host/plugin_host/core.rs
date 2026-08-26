@@ -250,6 +250,10 @@ pub struct PluginHost {
     /// wildcard). There is no "not configured → permissive" reading here — an absent
     /// declaration must never be read as consent.
     under_development_source: GrantSource<Option<std::collections::HashSet<String>>>,
+    /// Where this host records what each load decided about a plugin's authority (ISS-171).
+    /// `None` when nothing is listening — a `PluginHost` built for a unit test records nothing,
+    /// which is honest rather than a second store to keep in sync.
+    grants_sink: Option<crate::PluginGrants>,
     /// The expected model route (provider + base-url + path) guardrail, resolved
     /// from the routing env vars ONCE at construction and cloned into every
     /// `TractorNativeBindings` at load. Only ROUTING config — API-key secrets stay
