@@ -10,6 +10,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pluginsBaseDir, resolveRefarmHome } from "../utils/refarm-home.js";
 import type { ModelRateCatalogMaterialization } from "./model-rate-catalog.js";
+import type { IntegrityVerdict } from "./plugin-inventory.js";
 import { RUNTIME_AGENT_RELOAD_JSON_COMMAND } from "./plugin-handoffs.js";
 
 // Plugins bundled with the refarm npm package — auto-installed and updated by farmhand on
@@ -89,10 +90,10 @@ export interface PluginListReport {
 
 export interface RuntimePluginStatusEntry {
 	/**
-	 * WHATEVER FORM THE RUNTIME REPORTED, unchanged — kept so no existing reader breaks. It is
-	 * NOT a single vocabulary and never was: measured on the operator's own node, this array
-	 * carried `"@refarm/agent"` (a MANIFEST id) and `"lsp-code-ops"` (a RUNTIME id) in the same
-	 * response, under the same key (ISS-068).
+	 * `manifestId ?? runtimeId` — a display id, NOT a unique row key. Two installed trees can
+	 * share both (a pre-convergence layout left beside the live one) and still be two separate
+	 * rows here; `dir` is what tells them apart. See the merge in `mergePluginFacts`
+	 * (plugin-runtime.ts).
 	 */
 	id: string;
 	/**
@@ -113,9 +114,28 @@ export interface RuntimePluginStatusEntry {
 	 * on the operator's node in the first place. See `pluginIdPair`.
 	 */
 	manifestId: string | null;
-	installed: boolean;
+	/**
+	 * The installed directory this row's disk facts came from — CLI-observed. `null` for a row
+	 * that exists only because the host was handed a path this node's scan never found on disk
+	 * (deleted since boot, or outside the scanned base dir): absence must declare itself, not
+	 * borrow another tree's directory.
+	 */
+	dir: string | null;
+	/**
+	 * Whether the daemon was HANDED this tree at startup (a `--plugin <path>` argument that
+	 * resolved to it) — host-observed, independent of whether the load went on to succeed.
+	 */
+	requested: boolean;
+	/** Whether this tree is a live channel right now — host-observed. */
 	loaded: boolean;
-	local: boolean;
+	/** Whether this tree exists on disk — CLI-observed; the daemon never scans. */
+	installed: boolean;
+	/**
+	 * The CLI's integrity verdict for the tree on disk (`"matches"` / `"mismatch"` / `"absent"`),
+	 * or `null` when this row has no disk tree to verify (a host-requested path the scan never
+	 * found).
+	 */
+	integrity: IntegrityVerdict | null;
 }
 
 export interface RuntimePluginStatusReport {

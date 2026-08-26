@@ -128,16 +128,26 @@ describe("session command", () => {
 		const readPluginState = vi
 			.fn()
 			.mockResolvedValueOnce({
-				installed: ["@refarm/agent"],
+				requested: [
+					{
+						id: "@refarm/agent",
+						path: "/plugins/refarm_agent/plugin.wasm",
+						loaded: false,
+						because: null,
+					},
+				],
 				loaded: [],
-				local: [],
-				known: ["@refarm/agent"],
 			})
 			.mockResolvedValueOnce({
-				installed: ["@refarm/agent"],
+				requested: [
+					{
+						id: "@refarm/agent",
+						path: "/plugins/refarm_agent/plugin.wasm",
+						loaded: true,
+						because: null,
+					},
+				],
 				loaded: ["@refarm/agent"],
-				local: [],
-				known: ["@refarm/agent"],
 			});
 		const reloadPlugins = vi.fn().mockResolvedValue({
 			reloaded: ["@refarm/agent"],
@@ -154,10 +164,8 @@ describe("session command", () => {
 
 	it("does not enter the REPL when the runtime agent plugin is missing", async () => {
 		const readPluginState = vi.fn().mockResolvedValue({
-			installed: [],
+			requested: [],
 			loaded: [],
-			local: [],
-			known: [],
 		});
 		mockDefaultChatDeps.mockReturnValue({ readPluginState });
 		const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);

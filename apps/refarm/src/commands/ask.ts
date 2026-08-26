@@ -72,6 +72,7 @@ import { createRuntimeAgentRespondEffort } from "./runtime-agent-effort.js";
 import {
 	readRuntimePluginState,
 	reloadRuntimePlugins,
+	requestedPluginIds,
 	type RuntimePluginReloadResult,
 	type RuntimePluginState,
 } from "./runtime-plugins.js";
@@ -495,10 +496,11 @@ export {
 	// Primary check: sidecar exposes the active agent by capability.
 	if (typeof state.defaultResponder === "string" && state.defaultResponder.length > 0) return true;
 
-	// Recovery: if a known agent plugin is installed, attempt reload.
+	// Recovery: if the daemon was already handed a known agent plugin, attempt reload.
 	// Falls back to the bundled runtime agent plugin as the default installable agent.
-	const reloadId = state.installed.find(isRuntimeAgentPluginId) ?? RUNTIME_AGENT_PLUGIN_ID;
-	if (state.installed.some(isRuntimeAgentPluginId) && reloadPlugins) {
+	const requestedIds = requestedPluginIds(state);
+	const reloadId = requestedIds.find(isRuntimeAgentPluginId) ?? RUNTIME_AGENT_PLUGIN_ID;
+	if (requestedIds.some(isRuntimeAgentPluginId) && reloadPlugins) {
 		const reload = await reloadPlugins([reloadId]);
 		if (reload?.reloaded.length) return true;
 		const refreshed = await readPluginState();
@@ -546,7 +548,7 @@ export {
 		}
 	}
 
-	const agentInstalled = state.installed.some(isRuntimeAgentPluginId);
+	const agentInstalled = requestedPluginIds(state).some(isRuntimeAgentPluginId);
 	if (json) {
 		printJson(
 			buildJsonErrorEnvelope({

@@ -880,6 +880,7 @@ function createContractPluginCommand() {
 			buildListReport: async () => ({ plugins: [] }),
 			readManifest: async () => ({ permissions: [] }),
 			readRuntimePluginState: async () => null,
+			readInstalledPlugins: () => [],
 			buildInstallReport: async () =>
 				({ ok: true, command: "plugin", operation: "install" }) as never,
 			runBundle: async () => ({ exitCode: 0, stdout: "", stderr: "" }) as never,

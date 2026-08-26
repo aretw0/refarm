@@ -1037,9 +1037,10 @@ describe("refarm ask", () => {
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
-				installed: ["@refarm/agent"],
+				requested: [
+					{ id: "@refarm/agent", path: "/plugins/refarm_agent/plugin.wasm", loaded: false, because: null },
+				],
 				loaded: [],
-				known: ["@refarm/agent"],
 			}),
 		});
 		const launchDeps: LaunchDeps = {
@@ -1069,9 +1070,10 @@ describe("refarm ask", () => {
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
-				installed: ["@refarm/agent"],
+				requested: [
+					{ id: "@refarm/agent", path: "/plugins/refarm_agent/plugin.wasm", loaded: false, because: null },
+				],
 				loaded: [],
-				known: ["@refarm/agent"],
 			}),
 		});
 		const launchDeps: LaunchDeps = {
@@ -1127,9 +1129,8 @@ describe("refarm ask", () => {
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
-				installed: [],
+				requested: [],
 				loaded: [],
-				known: [],
 			}),
 		});
 		const launchDeps: LaunchDeps = {
@@ -1272,9 +1273,10 @@ describe("refarm ask", () => {
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
-				installed: [RUNTIME_AGENT_PLUGIN_ID],
+				requested: [
+					{ id: RUNTIME_AGENT_PLUGIN_ID, path: "/plugins/agent/plugin.wasm", loaded: false, because: null },
+				],
 				loaded: [],
-				known: [RUNTIME_AGENT_PLUGIN_ID],
 			}),
 			submitEffort: vi.fn().mockRejectedValue(new Error(`${RUNTIME_AGENT_PLUGIN_ID} not loaded`)),
 		});
@@ -1309,9 +1311,10 @@ describe("refarm ask", () => {
 		const runtimeAgentShortId = RUNTIME_AGENT_PLUGIN_ID.split("/").at(-1) ?? "";
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
-				installed: [RUNTIME_AGENT_PLUGIN_ID],
+				requested: [
+					{ id: RUNTIME_AGENT_PLUGIN_ID, path: "/plugins/agent/plugin.wasm", loaded: false, because: null },
+				],
 				loaded: [],
-				known: [RUNTIME_AGENT_PLUGIN_ID],
 			}),
 			submitEffort: vi.fn().mockRejectedValue(new Error(`${runtimeAgentShortId} not loaded`)),
 		});
@@ -1345,9 +1348,10 @@ describe("refarm ask", () => {
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
-				installed: [RUNTIME_AGENT_PLUGIN_ID],
+				requested: [
+					{ id: RUNTIME_AGENT_PLUGIN_ID, path: "/plugins/agent/plugin.wasm", loaded: false, because: null },
+				],
 				loaded: [],
-				known: [RUNTIME_AGENT_PLUGIN_ID],
 			}),
 			submitEffort: vi
 				.fn()
@@ -1389,14 +1393,26 @@ describe("refarm ask", () => {
 			readPluginState: vi
 				.fn()
 				.mockResolvedValueOnce({
-					installed: ["@refarm/agent"],
+					requested: [
+						{
+							id: "@refarm/agent",
+							path: "/plugins/refarm_agent/plugin.wasm",
+							loaded: false,
+							because: null,
+						},
+					],
 					loaded: [],
-					known: ["@refarm/agent"],
 				})
 				.mockResolvedValueOnce({
-					installed: ["@refarm/agent"],
+					requested: [
+						{
+							id: "@refarm/agent",
+							path: "/plugins/refarm_agent/plugin.wasm",
+							loaded: true,
+							because: null,
+						},
+					],
 					loaded: ["@refarm/agent"],
-					known: ["@refarm/agent"],
 				}),
 			reloadPlugins: vi.fn().mockResolvedValue({
 				reloaded: ["@refarm/agent"],
@@ -1429,9 +1445,10 @@ describe("refarm ask", () => {
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
-				installed: ["@refarm/agent"],
+				requested: [
+					{ id: "@refarm/agent", path: "/plugins/refarm_agent/plugin.wasm", loaded: false, because: null },
+				],
 				loaded: [],
-				known: ["@refarm/agent"],
 			}),
 			reloadPlugins: vi.fn().mockResolvedValue({
 				reloaded: [],

@@ -10,27 +10,70 @@ describe("runtime plugin client", () => {
 		vi.unstubAllGlobals();
 	});
 
-	it("normalizes runtime plugin state payloads", async () => {
+	it("normalizes runtime plugin state payloads (requested/loaded/defaultResponder)", async () => {
 		vi.stubGlobal(
 			"fetch",
 			vi.fn().mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					installed: ["@refarm.dev/agent", 1],
+					requested: [
+						{
+							id: "agent",
+							path: "/plugins/refarm_agent/plugin.wasm",
+							loaded: true,
+							because: null,
+						},
+						// A load that failed before the manifest could be read: `id` stays null,
+						// never guessed from `path` — see RequestedPluginFact.
+						{
+							id: null,
+							path: "/plugins/broken/plugin.wasm",
+							loaded: false,
+							because: "wasm parse error: unexpected end of file",
+						},
+						// Malformed rows (not an object; missing the one required field) are
+						// dropped, not guessed at.
+						"not-an-object",
+						{ loaded: true },
+					],
 					loaded: ["agent"],
-					local: [false, "@local/tool"],
-					known: ["@local/tool", "@refarm/agent"],
 					defaultResponder: "agent",
 				}),
 			}),
 		);
 
 		await expect(readRuntimePluginState()).resolves.toEqual({
-			installed: ["@refarm/agent"],
+			requested: [
+				{ id: "@refarm/agent", path: "/plugins/refarm_agent/plugin.wasm", loaded: true, because: null },
+				{
+					id: null,
+					path: "/plugins/broken/plugin.wasm",
+					loaded: false,
+					because: "wasm parse error: unexpected end of file",
+				},
+			],
 			loaded: ["@refarm/agent"],
-			local: ["@local/tool"],
-			known: ["@local/tool", "@refarm/agent"],
 			defaultResponder: "@refarm/agent",
+		});
+	});
+
+	it("reports no default responder as JSON null, not an empty string", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: vi.fn().mockResolvedValue({
+					requested: [],
+					loaded: [],
+					defaultResponder: null,
+				}),
+			}),
+		);
+
+		await expect(readRuntimePluginState()).resolves.toEqual({
+			requested: [],
+			loaded: [],
+			defaultResponder: null,
 		});
 	});
 

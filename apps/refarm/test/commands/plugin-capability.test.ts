@@ -22,6 +22,7 @@ function makeDeps(overrides: Partial<PluginCommandDeps> = {}): PluginCommandDeps
 		}),
 		readManifest: async () => ({ permissions: [] }),
 		readRuntimePluginState: async () => null,
+		readInstalledPlugins: () => [],
 		buildInstallReport: async () =>
 			({ ok: true, command: "plugin", operation: "install" }) as never,
 		runBundle: async () => ({ exitCode: 0, stdout: "", stderr: "" }) as never,
@@ -852,6 +853,104 @@ describe("plugin capability group", () => {
 			);
 			const env = await action(group, "revoke").run(input("@x/gone"));
 			expect(env.ok).toBe(true);
+		});
+	});
+
+	describe("status reports five facts, and they can disagree", () => {
+		it("shows a tree that is installed and not loaded", async () => {
+			// THE TRAP: an assertion that `installed` and `loaded` are equal PASSED under the old
+			// code because they were one variable. So this constructs disagreement and asserts it.
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					readRuntimePluginState: async () => ({
+						requested: [{ id: "agent", path: "/p/agent.wasm", loaded: true, because: null }],
+						loaded: ["agent"],
+						defaultResponder: "agent",
+					}),
+					readInstalledPlugins: () => [
+						{ manifestId: "@refarm/agent", runtimeId: "agent", dir: "/p/refarm_agent", integrity: "matches" },
+						{ manifestId: "@refarm/ghost", runtimeId: "ghost", dir: "/p/refarm_ghost", integrity: "absent" },
+					],
+				}),
+			);
+
+			const env = (await action(group, "status").run(input({}))) as unknown as {
+				plugins: Array<{ runtimeId: string; installed: boolean; loaded: boolean }>;
+			};
+			const ghost = env.plugins.find((p) => p.runtimeId === "ghost");
+
+			expect(ghost).toBeDefined();
+			expect(ghost?.installed).toBe(true);
+			expect(ghost?.loaded).toBe(false);
+		});
+
+		it("keeps two installed trees that share a runtime id as two separate rows, attached by path", async () => {
+			// Measured on the operator's real node: `~/.refarm/plugins/refarm_agent/` and
+			// `~/.refarm/plugins/@refarm/agent/` are both real, both name `@refarm/agent`, and
+			// one carries a mismatching integrity claim. A merge keyed by runtime id would
+			// silently pick one tree and hide the other — exactly what this phase exists to
+			// surface, so the composed row set must keep both, distinguished by `dir`, and must
+			// attach the host's requested/loaded facts to the tree it actually handed a path
+			// to — not to whichever tree happens to share its runtime id.
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					readRuntimePluginState: async () => ({
+						requested: [
+							{ id: "agent", path: "/p/refarm_agent/plugin.wasm", loaded: true, because: null },
+						],
+						loaded: ["agent"],
+						defaultResponder: "agent",
+					}),
+					readInstalledPlugins: () => [
+						{
+							manifestId: "@refarm/agent",
+							runtimeId: "agent",
+							dir: "/p/refarm_agent",
+							integrity: "matches",
+						},
+						{
+							manifestId: "@refarm/agent",
+							runtimeId: "agent",
+							dir: "/p/@refarm/agent",
+							integrity: "mismatch",
+						},
+					],
+				}),
+			);
+
+			const env = (await action(group, "status").run(input({}))) as unknown as {
+				plugins: Array<{
+					runtimeId: string;
+					manifestId: string | null;
+					dir: string | null;
+					requested: boolean;
+					loaded: boolean;
+					installed: boolean;
+					integrity: string | null;
+				}>;
+			};
+
+			const rows = env.plugins.filter((p) => p.runtimeId === "agent");
+			expect(rows).toHaveLength(2); // NOT collapsed into one row
+
+			const live = rows.find((p) => p.dir === "/p/refarm_agent");
+			const stale = rows.find((p) => p.dir === "/p/@refarm/agent");
+
+			// The daemon was handed the LIVE tree's path — only that row shows requested/loaded.
+			expect(live).toMatchObject({
+				requested: true,
+				loaded: true,
+				installed: true,
+				integrity: "matches",
+			});
+			// The stale tree sits beside it, installed but never handed to the daemon: sharing
+			// a runtime id with the live tree does not let it borrow the live tree's facts.
+			expect(stale).toMatchObject({
+				requested: false,
+				loaded: false,
+				installed: true,
+				integrity: "mismatch",
+			});
 		});
 	});
 });

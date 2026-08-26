@@ -6,6 +6,7 @@ import {
 	RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 } from "./plugin-handoffs.js";
 import { RUNTIME_DOCTOR_COMMAND, RUNTIME_ENSURE_WAIT_NEXT_COMMAND } from "./runtime-recovery.js";
+import { requestedPluginIds } from "./runtime-plugins.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
 	autoStartFarmhand,
@@ -79,7 +80,8 @@ async function ensureSessionRuntimeAgentReady(deps: ChatDeps): Promise<boolean> 
 	if (!state) return true;
 	if (state.loaded.includes(RUNTIME_AGENT_PLUGIN_ID)) return true;
 
-	if (state.installed.includes(RUNTIME_AGENT_PLUGIN_ID) && deps.reloadPlugins) {
+	const requestedIds = requestedPluginIds(state);
+	if (requestedIds.includes(RUNTIME_AGENT_PLUGIN_ID) && deps.reloadPlugins) {
 		const reload = await deps.reloadPlugins([RUNTIME_AGENT_PLUGIN_ID]);
 		if (reload.reloaded.includes(RUNTIME_AGENT_PLUGIN_ID)) return true;
 		const refreshed = await deps.readPluginState();
@@ -87,7 +89,7 @@ async function ensureSessionRuntimeAgentReady(deps: ChatDeps): Promise<boolean> 
 	}
 
 	process.stderr.write("✗  Runtime agent is not loaded in the Refarm runtime.\n");
-	if (!state.installed.includes(RUNTIME_AGENT_PLUGIN_ID)) {
+	if (!requestedIds.includes(RUNTIME_AGENT_PLUGIN_ID)) {
 		process.stderr.write(`   Install bundled plugins:  ${PLUGIN_INSTALL_JSON_COMMAND}\n`);
 	} else {
 		process.stderr.write(`   Reload runtime plugins:   ${RUNTIME_AGENT_RELOAD_JSON_COMMAND}\n`);

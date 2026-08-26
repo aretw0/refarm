@@ -57,13 +57,14 @@ export function formatStatusFromEnvelope(envelope: CapabilityEnvelope): string {
 	}
 
 	const idWidth = Math.max(...report.plugins.map((p) => p.id.length), 6);
-	const lines: string[] = [`  ${"PLUGIN".padEnd(idWidth)}  INSTALLED  LOADED  LOCAL`];
+	const lines: string[] = [`  ${"PLUGIN".padEnd(idWidth)}  REQUESTED  LOADED  INSTALLED  INTEGRITY`];
 	for (const plugin of report.plugins) {
-		const installed = plugin.installed ? "yes" : "no";
+		const requested = plugin.requested ? "yes" : "no";
 		const loaded = plugin.loaded ? "yes" : "no";
-		const local = plugin.local ? "yes" : "no";
+		const installed = plugin.installed ? "yes" : "no";
+		const integrity = plugin.integrity ?? "-";
 		lines.push(
-			`  ${plugin.id.padEnd(idWidth)}  ${installed.padEnd(9)}  ${loaded.padEnd(6)}  ${local}`,
+			`  ${plugin.id.padEnd(idWidth)}  ${requested.padEnd(9)}  ${loaded.padEnd(6)}  ${installed.padEnd(9)}  ${integrity}`,
 		);
 	}
 

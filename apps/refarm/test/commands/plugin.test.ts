@@ -1,3 +1,4 @@
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installedPluginWasmPath } from "../../src/commands/plugin-install-path.js";
 
@@ -96,6 +97,7 @@ import {
 	createPluginCapabilityGroup,
 	pluginCapabilityHooks,
 } from "../../src/commands/plugin-capability.js";
+import { pluginsBaseDir } from "../../src/commands/plugin-shared.js";
 
 // The `plugin` command is now a tri-surface CapabilityGroup; drive its PROJECTED
 // commander surface so these byte-stability assertions prove the group produces
@@ -578,16 +580,41 @@ describe("plugin status", () => {
 		vi.unstubAllGlobals();
 	});
 
+	/** Configure the mocked `node:fs` so `readInstalledPlugins(pluginsBaseDir())` sees exactly
+	 *  these trees — the CLI's disk scan, which `status` now consults directly (the daemon
+	 *  receives explicit paths and never scans). Reset in this describe's `afterEach` so the
+	 *  fixture never leaks into a test that didn't ask for it. */
+	function mockInstalledTrees(entries: Array<{ dirName: string; id: string }>): void {
+		mockExistsSync.mockReturnValue(true);
+		mockReaddirSync.mockReturnValue(
+			entries.map((e) => ({ name: e.dirName, isDirectory: () => true })) as never[],
+		);
+		mockReadFileSync.mockImplementation((input: unknown) => {
+			const value = String(input).replace(/\\/g, "/");
+			const match = entries.find((e) => value.includes(`/${e.dirName}/plugin.json`));
+			return JSON.stringify({ id: match?.id ?? "unknown" });
+		});
+	}
+
+	afterEach(() => {
+		mockExistsSync.mockReset();
+		mockReaddirSync.mockReset().mockReturnValue([]);
+		mockReadFileSync.mockReset();
+	});
+
 	it("shows runtime plugin load state", async () => {
+		const agentDir = path.join(pluginsBaseDir(), "refarm_agent");
+		mockInstalledTrees([{ dirName: "refarm_agent", id: "@refarm/agent" }]);
 		vi.stubGlobal(
 			"fetch",
 			vi.fn().mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					installed: ["@refarm/agent"],
-					loaded: ["@refarm/agent"],
-					local: [],
-					known: ["@refarm/agent"],
+					requested: [
+						{ id: "agent", path: path.join(agentDir, "plugin.wasm"), loaded: true, because: null },
+					],
+					loaded: ["agent"],
+					defaultResponder: "agent",
 				}),
 			}),
 		);
@@ -603,15 +630,25 @@ describe("plugin status", () => {
 	});
 
 	it("guides when the runtime agent plugin is installed but not loaded", async () => {
+		const agentDir = path.join(pluginsBaseDir(), "refarm_agent");
+		mockInstalledTrees([{ dirName: "refarm_agent", id: "@refarm/agent" }]);
 		vi.stubGlobal(
 			"fetch",
 			vi.fn().mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					installed: ["@refarm/agent"],
+					// Requested (the daemon was handed this tree's path) but the load failed —
+					// installed-and-not-loaded, the state that used to have no surface at all.
+					requested: [
+						{
+							id: null,
+							path: path.join(agentDir, "plugin.wasm"),
+							loaded: false,
+							because: "wasm parse error: unexpected end of file",
+						},
+					],
 					loaded: [],
-					local: [],
-					known: ["@refarm/agent"],
+					defaultResponder: null,
 				}),
 			}),
 		);
@@ -628,15 +665,30 @@ describe("plugin status", () => {
 	});
 
 	it("prints runtime plugin load state as JSON", async () => {
+		const baseDir = pluginsBaseDir();
+		const agentDir = path.join(baseDir, "refarm_agent");
+		const ghostDir = path.join(baseDir, "refarm_ghost");
+		mockInstalledTrees([
+			{ dirName: "refarm_agent", id: "@refarm/agent" },
+			// Installed, but never requested — the tree the old one-variable host could not
+			// distinguish from "installed and loaded" (ISS-167).
+			{ dirName: "refarm_ghost", id: "@refarm/ghost" },
+		]);
 		vi.stubGlobal(
 			"fetch",
 			vi.fn().mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					installed: ["@refarm/agent"],
+					requested: [
+						{
+							id: "agent",
+							path: path.join(agentDir, "plugin.wasm"),
+							loaded: false,
+							because: null,
+						},
+					],
 					loaded: [],
-					local: ["@local/tool"],
-					known: ["@refarm/agent", "@local/tool"],
+					defaultResponder: null,
 				}),
 			}),
 		);
@@ -653,9 +705,11 @@ describe("plugin status", () => {
 				id: string;
 				runtimeId: string;
 				manifestId: string | null;
-				installed: boolean;
+				dir: string | null;
+				requested: boolean;
 				loaded: boolean;
-				local: boolean;
+				installed: boolean;
+				integrity: string | null;
 			}>;
 			nextAction?: string;
 			nextActions?: string[];
@@ -666,29 +720,29 @@ describe("plugin status", () => {
 		expect(payload.operation).toBe("status");
 		expect(payload.ok).toBe(false);
 		expect(payload.available).toBe(true);
-		// BOTH VOCABULARIES, named (ISS-068). `id` keeps whatever the runtime reported — this array
-		// really did carry a scoped manifest id and a bare runtime id side by side under one key —
-		// and the two fields beside it say which config key wants which.
-		//
-		// `manifestId: null` on the second entry is the honest half: `@local/tool` has no declared
-		// alias back from its bare form, and inventing a scope is precisely what put a deny-all on
-		// the operator's node. Null sends the reader to `refarm plugin approve`, which normalises.
+		// FIVE FACTS. The ghost row proves `installed` and `loaded` can disagree (they were one
+		// variable under the old host) — installed via the CLI's disk scan, never requested by
+		// the daemon, so never loaded either.
 		expect(payload.plugins).toEqual([
 			{
 				id: "@refarm/agent",
 				runtimeId: "agent",
 				manifestId: "@refarm/agent",
-				installed: true,
+				dir: agentDir,
+				requested: true,
 				loaded: false,
-				local: false,
+				installed: true,
+				integrity: "absent",
 			},
 			{
-				id: "@local/tool",
-				runtimeId: "tool",
-				manifestId: "@local/tool",
-				installed: false,
+				id: "@refarm/ghost",
+				runtimeId: "ghost",
+				manifestId: "@refarm/ghost",
+				dir: ghostDir,
+				requested: false,
 				loaded: false,
-				local: true,
+				installed: true,
+				integrity: "absent",
 			},
 		]);
 		expect(payload.nextAction).toBe("refarm plugin reload agent --json");

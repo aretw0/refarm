@@ -9,6 +9,7 @@ import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
 	isRuntimeAgentPluginId,
 	normalizePluginId,
+	pluginIdRuntimeToken,
 	RUNTIME_AGENT_PLUGIN_ID,
 } from "@refarm.dev/config/plugin-identity";
 import os from "node:os";
@@ -20,6 +21,11 @@ import {
 	PLUGIN_INSTALL_JSON_COMMAND,
 	PLUGIN_STATUS_JSON_COMMAND,
 } from "./plugin-handoffs.js";
+import {
+	type InstalledPlugin,
+	type IntegrityVerdict,
+	readInstalledPlugins,
+} from "./plugin-inventory.js";
 import { listExtensions } from "./plugin-scaffold.js";
 import {
 	BUNDLED_PLUGINS,
@@ -27,13 +33,17 @@ import {
 	PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND,
 	type PluginListEntry,
 	type PluginListReport,
+	pluginsBaseDir,
 	type PluginOrigin,
 	readInstalledVersion,
 	type RuntimePluginRecommendation,
 	type RuntimePluginStatusReport,
 } from "./plugin-shared.js";
-import { pluginIdPair } from "./plugin-trust.js";
-import { readRuntimePluginState, reloadRuntimePluginsAndWait } from "./runtime-plugins.js";
+import {
+	readRuntimePluginState,
+	reloadRuntimePluginsAndWait,
+	type RequestedPluginFact,
+} from "./runtime-plugins.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -185,8 +195,89 @@ export async function listInstalledPlugins(options: { json?: boolean } = {}): Pr
 	}
 }
 
+/** One row of the plugin-status answer, after the host's and the CLI's facts are merged. Kept
+ *  as an explicit interface (not `ReturnType<typeof mergePluginFacts>[number]`) because that
+ *  self-reference is what it sounds like — TypeScript rejects a function's return type quoting
+ *  itself before the function is fully typed. */
+export interface PluginFacts {
+	runtimeId: string;
+	manifestId: string | null;
+	/** The installed directory this row's disk facts came from — CLI-observed, `null` for a row
+	 *  that exists only because the host was handed a path this scan never found on disk. */
+	dir: string | null;
+	requested: boolean;
+	loaded: boolean;
+	installed: boolean;
+	integrity: IntegrityVerdict | null;
+}
+
+/** PURE. One row per installed DIRECTORY, never per id — two trees CAN share one runtime id (a
+ *  pre-convergence layout left beside the live one, measured on the operator's real node:
+ *  `~/.refarm/plugins/refarm_agent/` and `~/.refarm/plugins/@refarm/agent/` both name
+ *  `@refarm/agent`). A row keyed by id would silently pick one tree and hide the other — the
+ *  duplication IS the finding this phase exists to surface, so `readInstalledPlugins`'s rows
+ *  are never deduped or merged together here either.
+ *
+ * `installed`/`integrity` come from the CLI's disk scan (`installed`, the second argument —
+ * the daemon never scans, so it cannot answer these). `requested`/`loaded` are attached to
+ * each tree by comparing the host's `requested[].path` against `<dir>/plugin.wasm`: PATH, not
+ * id, is the only vocabulary that can tell two same-id trees apart, because the host was
+ * handed a path and recorded which path became a channel — never which id.
+ *
+ * A `requested` entry that matches no installed directory still becomes its own row
+ * (`installed: false`) rather than vanishing: the daemon was handed a path this scan cannot
+ * see (deleted since boot, or outside the scanned base dir), and that absence must declare
+ * itself as clearly as an installed tree the daemon never touched.
+ */
+export function mergePluginFacts(
+	state: { requested: RequestedPluginFact[]; loaded: string[] },
+	installed: readonly InstalledPlugin[],
+): PluginFacts[] {
+	const consumed = new Set<number>();
+	const matchByPath = (dir: string): RequestedPluginFact | undefined => {
+		const wasmPath = path.resolve(dir, "plugin.wasm");
+		const index = state.requested.findIndex(
+			(r, i) => !consumed.has(i) && path.resolve(r.path) === wasmPath,
+		);
+		if (index === -1) return undefined;
+		consumed.add(index);
+		return state.requested[index];
+	};
+
+	const rows: PluginFacts[] = installed.map((tree) => {
+		const match = matchByPath(tree.dir);
+		return {
+			runtimeId: tree.runtimeId,
+			manifestId: tree.manifestId,
+			dir: tree.dir,
+			requested: match !== undefined,
+			loaded: match?.loaded ?? false,
+			installed: true,
+			integrity: tree.integrity,
+		};
+	});
+
+	state.requested.forEach((entry, index) => {
+		if (consumed.has(index)) return;
+		rows.push({
+			runtimeId: entry.id !== null ? pluginIdRuntimeToken(entry.id) : entry.path,
+			manifestId: entry.id,
+			dir: null,
+			requested: true,
+			loaded: entry.loaded,
+			installed: false,
+			integrity: null,
+		});
+	});
+
+	return rows.sort(
+		(a, b) => a.runtimeId.localeCompare(b.runtimeId) || (a.dir ?? "").localeCompare(b.dir ?? ""),
+	);
+}
+
 export function buildRuntimePluginStatusReport(
 	state: Awaited<ReturnType<typeof readRuntimePluginState>>,
+	installed: readonly InstalledPlugin[] = [],
 ): RuntimePluginStatusReport {
 	if (!state) {
 		const recommendations = runtimePluginUnavailableRecommendations();
@@ -219,8 +310,14 @@ export function buildRuntimePluginStatusReport(
 		};
 	}
 
-	const known = state.known.length > 0 ? state.known : BUNDLED_PLUGINS.map((p) => p.id);
-	const runtimeAgentInstalled = state.installed.some(isRuntimeAgentPluginId);
+	// "Installed" for the purpose of recommending reload-vs-install is the CLI's disk fact, not
+	// a host guess: the daemon never scans, so `installed` (the second argument) is the only
+	// side that can answer "does a tree exist to reload".
+	const runtimeAgentInstalled = installed.some(
+		(tree) =>
+			isRuntimeAgentPluginId(tree.runtimeId) ||
+			(tree.manifestId !== null && isRuntimeAgentPluginId(tree.manifestId)),
+	);
 	const runtimeAgentLoaded =
 		typeof state.defaultResponder === "string" && state.defaultResponder.length > 0;
 	const nextCommands = runtimeAgentLoaded
@@ -241,24 +338,21 @@ export function buildRuntimePluginStatusReport(
 		operation: "status",
 		ok: runtimeAgentLoaded,
 		available: true,
-		// BOTH vocabularies, named, so a reader never infers one from the shape of a string
-		// (ISS-068). `runtimeId` is what `trusted_plugins` matches; `manifestId` is what
-		// `approvedPermissions` and the installed directory are keyed by.
-		//
-		// `id` IS THE MANIFEST ID, not "whatever the runtime said" — which is what this comment
-		// used to claim. `readRuntimePluginState` maps every id from the daemon through
-		// `normalizePluginId` (runtime-plugins.ts:42), so the sidecar's `["agent",
-		// "lsp-code-ops"]` has already become manifest ids by the time it arrives here. The old
-		// wording read as true only because the alias table was missing `@refarm/lsp-code-ops`,
-		// so exactly one of the two ids failed to normalise and looked like a passed-through
-		// runtime id. Corrected 2026-08-25 with the table (fc75c0c2); both are consistent now,
-		// which is what this item's title asked for.
-		plugins: known.map((id) => ({
-			id,
-			...pluginIdPair(id, normalizePluginId),
-			installed: state.installed.includes(id),
-			loaded: state.loaded.includes(id),
-			local: state.local.includes(id),
+		// FIVE FACTS, each from whoever can observe it. `requested`/`loaded` come from the host
+		// (it used to report one variable under four names); `installed`/`integrity` from the
+		// CLI's scan, because the daemon receives explicit paths and does not scan. Rows are
+		// keyed by installed DIRECTORY (`mergePluginFacts`), not by id — two trees can share a
+		// runtime id, and collapsing them would hide exactly what an operator cannot currently
+		// see.
+		plugins: mergePluginFacts(state, installed).map((p) => ({
+			id: p.manifestId ?? p.runtimeId,
+			runtimeId: p.runtimeId,
+			manifestId: p.manifestId,
+			dir: p.dir,
+			requested: p.requested,
+			loaded: p.loaded,
+			installed: p.installed,
+			integrity: p.integrity,
 		})),
 		nextAction,
 		nextActions: nextCommands,
@@ -281,7 +375,7 @@ export function runtimePluginUnavailableRecommendations(): RuntimePluginRecommen
 
 export async function printRuntimePluginStatus(options: { json?: boolean } = {}): Promise<void> {
 	const state = await readRuntimePluginState();
-	const report = buildRuntimePluginStatusReport(state);
+	const report = buildRuntimePluginStatusReport(state, readInstalledPlugins(pluginsBaseDir()));
 	if (options.json) {
 		printJson(report);
 		if (!report.ok) process.exitCode = 1;
@@ -301,16 +395,17 @@ export async function printRuntimePluginStatus(options: { json?: boolean } = {})
 		return;
 	}
 
-	const known = report.plugins.map((plugin) => plugin.id);
-	const idWidth = Math.max(...known.map((id) => id.length), 6);
+	const ids = report.plugins.map((plugin) => plugin.id);
+	const idWidth = Math.max(...ids.map((id) => id.length), 6);
 
-	console.log(`  ${"PLUGIN".padEnd(idWidth)}  INSTALLED  LOADED  LOCAL`);
+	console.log(`  ${"PLUGIN".padEnd(idWidth)}  REQUESTED  LOADED  INSTALLED  INTEGRITY`);
 	for (const plugin of report.plugins) {
-		const installed = plugin.installed ? "yes" : "no";
+		const requested = plugin.requested ? "yes" : "no";
 		const loaded = plugin.loaded ? "yes" : "no";
-		const local = plugin.local ? "yes" : "no";
+		const installed = plugin.installed ? "yes" : "no";
+		const integrity = plugin.integrity ?? "-";
 		console.log(
-			`  ${plugin.id.padEnd(idWidth)}  ${installed.padEnd(9)}  ${loaded.padEnd(6)}  ${local}`,
+			`  ${plugin.id.padEnd(idWidth)}  ${requested.padEnd(9)}  ${loaded.padEnd(6)}  ${installed.padEnd(9)}  ${integrity}`,
 		);
 	}
 

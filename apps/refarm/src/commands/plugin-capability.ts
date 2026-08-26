@@ -38,6 +38,7 @@ import { normalizePluginId } from "@refarm.dev/config/plugin-identity";
 import os from "node:os";
 import { buildBundleReport, type RunBundleProcess } from "./plugin-bundle.js";
 import { PLUGIN_INSTALL_JSON_COMMAND, PLUGIN_STATUS_JSON_COMMAND, RUNTIME_RESTART_JSON_COMMAND } from "./plugin-handoffs.js";
+import { type InstalledPlugin, readInstalledPlugins } from "./plugin-inventory.js";
 import { buildGitInstallReport } from "./plugin-install-from-git.js";
 import { buildNpmInstallReport } from "./plugin-install-from-npm.js";
 import { buildExtensionInstallReport } from "./plugin-install-from-path.js";
@@ -65,6 +66,7 @@ import { buildCreatedPluginReport, type CreatedExtensionReport } from "./plugin-
 import {
 	detectPluginOrigin,
 	installedPluginDir,
+	pluginsBaseDir,
 	type BundledPlugin,
 	type PluginOrigin,
 } from "./plugin-shared.js";
@@ -111,6 +113,9 @@ export interface PluginCommandDeps {
 	readManifest: (id: string) => Promise<unknown>;
 	/** Read runtime plugin state from the sidecar (null when unreachable). */
 	readRuntimePluginState: typeof readRuntimePluginState;
+	/** Scan the node's plugin directories for installed trees — CLI-only; the daemon receives
+	 *  explicit paths and never scans. Defaults to `readInstalledPlugins(pluginsBaseDir())`. */
+	readInstalledPlugins: () => readonly InstalledPlugin[];
 	/** Install the bundled plugins; returns the byte-stable install envelope. */
 	buildInstallReport: typeof buildInstallReport;
 	/**
@@ -175,6 +180,7 @@ export function defaultPluginDeps(): PluginCommandDeps {
 			return JSON.parse(await readFile(manifestPath, "utf-8")) as unknown;
 		},
 		readRuntimePluginState,
+		readInstalledPlugins: () => readInstalledPlugins(pluginsBaseDir()),
 		buildInstallReport,
 		runBundle: (spec) => runProcessHandoff(spec, { capture: true }),
 		onProgress: NOOP_PROGRESS,
@@ -394,6 +400,7 @@ export function createPluginCapabilityGroup(
 		async run() {
 			return buildRuntimePluginStatusReport(
 				await deps.readRuntimePluginState(),
+				deps.readInstalledPlugins(),
 			) as CapabilityEnvelope;
 		},
 	};

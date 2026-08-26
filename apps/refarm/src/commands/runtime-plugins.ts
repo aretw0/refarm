@@ -2,13 +2,38 @@ import { normalizePluginId } from "@refarm.dev/config";
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 
+/** One `--plugin <path>` the daemon was handed at startup, and what became of it.
+ *
+ * `id` is `null` when the load FAILED before the manifest could be read — the id is genuinely
+ * unknown, and `path` is what identifies the row. NEVER derived from `path` (e.g. a file stem):
+ * every real plugin is installed as `.../<name>/plugin.wasm`, so every stem is the literal
+ * string `"plugin"` — a stem-derived id would collide across every entry. A wrong id is worse
+ * than an absent one. `because` carries the real load error, or `null` when it loaded. */
+export interface RequestedPluginFact {
+	id: string | null;
+	path: string;
+	loaded: boolean;
+	because: string | null;
+}
+
 export interface RuntimePluginState {
-	installed: string[];
+	/** Every path the host was handed at startup, and what became of it. Host-observed only —
+	 *  the daemon receives explicit paths and does not scan, so this is never a listing of
+	 *  what's installed on disk (that's `readInstalledPlugins`, in plugin-inventory.ts). */
+	requested: RequestedPluginFact[];
+	/** ids (runtime tokens, normalized) that are live channels right now. */
 	loaded: string[];
-	local: string[];
-	known: string[];
 	/** ID of the loaded plugin with "integration:respond" capability, if any. */
 	defaultResponder: string | null;
+}
+
+/** ids the daemon was HANDED and could identify — every `requested` entry with a non-null id,
+ *  deduped. NOT the disk-installed fact (`readInstalledPlugins` answers that); this is the
+ *  closest a caller with only host data can get to "does the daemon already know about this
+ *  plugin, so a reload might work instead of a fresh install" — the question `ask`/`session`
+ *  ask before deciding whether to recommend reload or install. */
+export function requestedPluginIds(state: Pick<RuntimePluginState, "requested">): string[] {
+	return [...new Set(state.requested.map((r) => r.id).filter((id): id is string => id !== null))];
 }
 
 export interface RuntimePluginReloadResult {
@@ -46,19 +71,42 @@ function reloadBody(pluginIds?: string[]): string | undefined {
 	return pluginIds ? JSON.stringify({ pluginIds: pluginIds.map(normalizePluginId) }) : undefined;
 }
 
+/** Parse the host's `requested` rows defensively: a malformed entry (not an object, or missing
+ *  the one field every row must have — `path`, its identifying handle) is dropped rather than
+ *  guessed at, same posture as `stringArray` filtering non-strings. `id` runs through
+ *  `normalizePluginId` when present — the host reports a RUNTIME token
+ *  (`manifest_runtime_plugin_id`, e.g. `"agent"`), and every other id this module reports is
+ *  already normalized to the manifest vocabulary; a `null` id stays `null` (never guessed from
+ *  `path`, see `RequestedPluginFact`). */
+function requestedArray(value: unknown): RequestedPluginFact[] {
+	if (!Array.isArray(value)) return [];
+	const out: RequestedPluginFact[] = [];
+	for (const entry of value) {
+		if (typeof entry !== "object" || entry === null) continue;
+		const row = entry as Record<string, unknown>;
+		if (typeof row.path !== "string") continue;
+		out.push({
+			id: typeof row.id === "string" ? normalizePluginId(row.id) : null,
+			path: row.path,
+			loaded: row.loaded === true,
+			because: typeof row.because === "string" ? row.because : null,
+		});
+	}
+	return out;
+}
+
 export async function readRuntimePluginState(): Promise<RuntimePluginState | null> {
 	try {
 		const response = await fetchSidecarWithTimeout(sidecarUrl("/plugins"));
 		if (!response.ok) return null;
-		const payload = (await response.json()) as Partial<RuntimePluginState>;
-		const raw = payload as Record<string, unknown>;
+		const payload = (await response.json()) as Record<string, unknown>;
 		return {
-			installed: pluginIdArray(payload.installed),
+			requested: requestedArray(payload.requested),
 			loaded: pluginIdArray(payload.loaded),
-			local: pluginIdArray(payload.local),
-			known: pluginIdArray(payload.known),
 			defaultResponder:
-				typeof raw.defaultResponder === "string" ? normalizePluginId(raw.defaultResponder) : null,
+				typeof payload.defaultResponder === "string"
+					? normalizePluginId(payload.defaultResponder)
+					: null,
 		};
 	} catch {
 		return null;
