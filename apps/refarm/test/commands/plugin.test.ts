@@ -711,6 +711,7 @@ describe("plugin status", () => {
 				installed: boolean;
 				integrity: string | null;
 				known: boolean;
+				development: boolean;
 			}>;
 			nextAction?: string;
 			nextActions?: string[];
@@ -739,6 +740,7 @@ describe("plugin status", () => {
 				installed: true,
 				integrity: "absent",
 				known: true,
+				development: false,
 			},
 			{
 				id: "@refarm/ghost",
@@ -750,6 +752,7 @@ describe("plugin status", () => {
 				installed: true,
 				integrity: "absent",
 				known: false,
+				development: false,
 			},
 			{
 				id: "@refarm/lsp-code-ops",
@@ -761,6 +764,7 @@ describe("plugin status", () => {
 				installed: false,
 				integrity: null,
 				known: true,
+				development: false,
 			},
 		]);
 		expect(payload.nextAction).toBe("refarm plugin reload agent --json");

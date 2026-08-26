@@ -6,7 +6,7 @@ import {
 } from "@refarm.dev/capabilities/envelope";
 import { quoteCommandArgIfNeeded } from "@refarm.dev/cli/command-handoff";
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
-import { AGENT_CORE_BUNDLE } from "@refarm.dev/config";
+import { AGENT_CORE_BUNDLE, loadConfig, readPluginDevelopment } from "@refarm.dev/config";
 import {
 	isRuntimeAgentPluginId,
 	normalizePluginId,
@@ -216,6 +216,13 @@ export interface PluginFacts {
 	 *  "declared and not installed" (a bundled plugin missing from this node) apart from "never
 	 *  heard of" (a third-party or local plugin with no such claim). */
 	known: boolean;
+	/** Whether THIS NODE declared it is developing this plugin — the third axis
+	 *  (`.refarm/config.json`'s `pluginDevelopment`, `packages/config/src/plugin-development.js`),
+	 *  beside `trusted_plugins` and `approvedPermissions`. The host consults exactly this
+	 *  declaration to waive an ABSENT integrity claim (never a wrong one) at load. Reported here
+	 *  because `local: []` already proved a field nobody surfaces is a field nobody notices: an
+	 *  operator seeing `integrity: absent` could not tell whether that tree would load at all. */
+	development: boolean;
 }
 
 /** PURE. One row per installed DIRECTORY, never per id — two trees CAN share one runtime id (a
@@ -240,6 +247,10 @@ export function mergePluginFacts(
 	state: { requested: RequestedPluginFact[]; loaded: string[] },
 	installed: readonly InstalledPlugin[],
 	known: readonly { id: string }[] = [],
+	/** Runtime ids THIS NODE declared under development (`readPluginDevelopment`, keyed the
+	 *  same way `known` is). Empty by default so this stays PURE for direct unit tests; the
+	 *  status builder below passes the node's real declaration. */
+	developmentIds: ReadonlySet<string> = new Set(),
 ): PluginFacts[] {
 	// The declared set, keyed by RUNTIME id (the vocabulary every row already carries) so a
 	// bundled `@refarm/agent` matches an installed tree's `agent` without a second lookup path.
@@ -294,6 +305,7 @@ export function mergePluginFacts(
 			installed: true,
 			integrity: tree.integrity,
 			known: knownByRuntimeId.has(tree.runtimeId),
+			development: developmentIds.has(tree.runtimeId),
 		};
 	});
 
@@ -309,6 +321,7 @@ export function mergePluginFacts(
 			installed: false,
 			integrity: null,
 			known: knownByRuntimeId.has(runtimeId),
+			development: developmentIds.has(runtimeId),
 		});
 	});
 
@@ -328,6 +341,7 @@ export function mergePluginFacts(
 			installed: false,
 			integrity: null,
 			known: true,
+			development: developmentIds.has(runtimeId),
 		});
 	}
 
@@ -349,10 +363,19 @@ export function knownPluginDescriptors(
 	return [...bundled, AGENT_CORE_BUNDLE.agent, ...AGENT_CORE_BUNDLE.corePlugins];
 }
 
+/** THIS NODE's development declarations (`.refarm/config.json`'s `pluginDevelopment`), as the
+ *  runtime-id set `mergePluginFacts` compares rows against. Reads the same merged config
+ *  (`loadConfig`) every other status-adjacent reader on this surface uses; `config` is
+ *  injectable so callers (and tests) don't need a real config file on disk. */
+export function nodePluginDevelopmentIds(config: unknown = loadConfig()): ReadonlySet<string> {
+	return new Set(readPluginDevelopment(config).keys());
+}
+
 export function buildRuntimePluginStatusReport(
 	state: Awaited<ReturnType<typeof readRuntimePluginState>>,
 	installed: readonly InstalledPlugin[] = [],
 	known: readonly { id: string }[] = knownPluginDescriptors(),
+	developmentIds: ReadonlySet<string> = nodePluginDevelopmentIds(),
 ): RuntimePluginStatusReport {
 	if (!state) {
 		const recommendations = runtimePluginUnavailableRecommendations();
@@ -413,14 +436,17 @@ export function buildRuntimePluginStatusReport(
 		operation: "status",
 		ok: runtimeAgentLoaded,
 		available: true,
-		// FIVE FACTS, each from whoever can observe it. `requested`/`loaded` come from the host
+		// SIX FACTS, each from whoever can observe it. `requested`/`loaded` come from the host
 		// (it used to report one variable under four names); `installed`/`integrity` from the
 		// CLI's scan, because the daemon receives explicit paths and does not scan; `known` from
 		// the static declaration (`knownPluginDescriptors`) — a bundled plugin this node is
-		// supposed to carry, independent of whether it actually is. Rows are keyed by installed
-		// DIRECTORY (`mergePluginFacts`), not by id — two trees can share a runtime id, and
-		// collapsing them would hide exactly what an operator cannot currently see.
-		plugins: mergePluginFacts(state, installed, known).map((p) => ({
+		// supposed to carry, independent of whether it actually is; `development` from THIS
+		// NODE's own config (`nodePluginDevelopmentIds`) — the declaration that waives an absent
+		// integrity claim at load, surfaced so an operator can tell WHY `integrity: absent` still
+		// loads instead of guessing. Rows are keyed by installed DIRECTORY (`mergePluginFacts`),
+		// not by id — two trees can share a runtime id, and collapsing them would hide exactly
+		// what an operator cannot currently see.
+		plugins: mergePluginFacts(state, installed, known, developmentIds).map((p) => ({
 			id: p.manifestId ?? p.runtimeId,
 			runtimeId: p.runtimeId,
 			manifestId: p.manifestId,
@@ -430,6 +456,7 @@ export function buildRuntimePluginStatusReport(
 			installed: p.installed,
 			integrity: p.integrity,
 			known: p.known,
+			development: p.development,
 		})),
 		nextAction,
 		nextActions: nextCommands,
@@ -485,16 +512,17 @@ export async function printRuntimePluginStatus(options: { json?: boolean } = {})
 	);
 
 	console.log(
-		`  ${"PLUGIN".padEnd(idWidth)}  KNOWN  REQUESTED  LOADED  INSTALLED  ${"INTEGRITY".padEnd(integrityWidth)}  DIR`,
+		`  ${"PLUGIN".padEnd(idWidth)}  KNOWN  REQUESTED  LOADED  INSTALLED  DEV  ${"INTEGRITY".padEnd(integrityWidth)}  DIR`,
 	);
 	for (const plugin of report.plugins) {
 		const known = plugin.known ? "yes" : "no";
 		const requested = plugin.requested ? "yes" : "no";
 		const loaded = plugin.loaded ? "yes" : "no";
 		const installed = plugin.installed ? "yes" : "no";
+		const development = plugin.development ? "yes" : "no";
 		const integrity = plugin.integrity ?? "-";
 		console.log(
-			`  ${plugin.id.padEnd(idWidth)}  ${known.padEnd(5)}  ${requested.padEnd(9)}  ${loaded.padEnd(6)}  ${installed.padEnd(9)}  ${integrity.padEnd(integrityWidth)}  ${dirLabel(plugin.dir).padEnd(dirWidth)}`,
+			`  ${plugin.id.padEnd(idWidth)}  ${known.padEnd(5)}  ${requested.padEnd(9)}  ${loaded.padEnd(6)}  ${installed.padEnd(9)}  ${development.padEnd(3)}  ${integrity.padEnd(integrityWidth)}  ${dirLabel(plugin.dir).padEnd(dirWidth)}`,
 		);
 	}
 

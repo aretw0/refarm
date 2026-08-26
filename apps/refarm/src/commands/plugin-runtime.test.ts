@@ -38,6 +38,7 @@ describe("mergePluginFacts", () => {
 				installed: false,
 				integrity: null,
 				known: false,
+				development: false,
 			},
 		]);
 	});
@@ -69,6 +70,7 @@ describe("mergePluginFacts", () => {
 				installed: false,
 				integrity: null,
 				known: false,
+				development: false,
 			},
 		]);
 	});
@@ -86,6 +88,7 @@ describe("mergePluginFacts", () => {
 				installed: false,
 				integrity: null,
 				known: true,
+				development: false,
 			},
 		]);
 	});
@@ -123,6 +126,7 @@ describe("mergePluginFacts", () => {
 				installed: true,
 				integrity: "matches",
 				known: false,
+				development: false,
 			},
 		]);
 	});
@@ -152,7 +156,38 @@ describe("mergePluginFacts", () => {
 				installed: true,
 				integrity: "matches",
 				known: true,
+				development: false,
 			},
 		]);
+	});
+
+	it("carries development:true for a runtime id THIS NODE declared under development, and false for one it did not", () => {
+		// Two installed trees, only one of which the node declared under development —
+		// `mergePluginFacts` must attach the fact PER ROW (by runtime id), never blanket-apply
+		// or blanket-omit it.
+		const rows = mergePluginFacts(
+			{ requested: [], loaded: [] },
+			[
+				{
+					manifestId: "@refarm/agent",
+					runtimeId: "agent",
+					dir: "/p/refarm_agent",
+					integrity: "absent",
+				},
+				{
+					manifestId: "@refarm/lsp-code-ops",
+					runtimeId: "lsp-code-ops",
+					dir: "/p/refarm_lsp-code-ops",
+					integrity: "absent",
+				},
+			],
+			[],
+			new Set(["agent"]),
+		);
+
+		const agent = rows.find((r) => r.runtimeId === "agent");
+		const lspCodeOps = rows.find((r) => r.runtimeId === "lsp-code-ops");
+		expect(agent?.development).toBe(true);
+		expect(lspCodeOps?.development).toBe(false);
 	});
 });

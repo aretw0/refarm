@@ -145,6 +145,17 @@ export interface RuntimePluginStatusEntry {
 	 * with no installed tree at all (`installed: false, dir: null`) — that row IS the finding.
 	 */
 	known: boolean;
+	/**
+	 * Whether THIS NODE declared it is developing this plugin (`.refarm/config.json`'s
+	 * `pluginDevelopment`, keyed by runtime id) — the third axis, beside `trusted_plugins`
+	 * (identity) and `approvedPermissions` (effect). The host consults exactly this
+	 * declaration to waive an ABSENT integrity claim at load, never a wrong one.
+	 *
+	 * Reported for the same reason `known` is: an unpopulated field is a field nobody
+	 * notices. Without this, an operator sees `integrity: absent` and cannot tell whether
+	 * that tree will load at all — this row is the answer.
+	 */
+	development: boolean;
 }
 
 export interface RuntimePluginStatusReport {
