@@ -62,17 +62,22 @@ function safeReaddir(dir: string): Dirent[] {
 }
 
 /** Reads one candidate tree (a directory that may hold `plugin.json` + `plugin.wasm`) and,
- *  if it names itself, appends it. An unreadable or unnamed manifest is skipped, not
- *  guessed at — a tree the scan cannot name is not a tree it may invent a name for. */
+ *  if it names itself, appends it. An unreadable, wrong-shaped, or unnamed manifest is
+ *  skipped, not guessed at — a tree the scan cannot name is not a tree it may invent a name
+ *  for. The shape guard runs BEFORE any property is read off the parsed value, so a manifest
+ *  that parses to `null`, an array, or a primitive can never throw past this function: one
+ *  corrupt tree is skipped, every other tree in the same scan is still reported. */
 function readTreeInto(out: InstalledPlugin[], dir: string): void {
 	const manifestPath = path.join(dir, "plugin.json");
 	if (!existsSync(manifestPath)) return;
-	let manifest: { id?: unknown; integrity?: unknown };
+	let parsed: unknown;
 	try {
-		manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+		parsed = JSON.parse(readFileSync(manifestPath, "utf-8"));
 	} catch {
 		return; // an unreadable manifest is not a tree we can name
 	}
+	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return; // valid JSON, wrong shape — skip, don't guess
+	const manifest = parsed as { id?: unknown; integrity?: unknown };
 	if (typeof manifest.id !== "string") return;
 	out.push({
 		manifestId: manifest.id,

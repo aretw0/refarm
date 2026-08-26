@@ -137,4 +137,54 @@ describe("what is installed here, and does each tree hash to what it claims", ()
 
 		expect(readInstalledPlugins(base)).toEqual([]);
 	});
+
+	// `JSON.parse` succeeds on all four of these — they are VALID JSON, just the wrong shape
+	// to be a manifest. A shape that parses cleanly but throws on `.id` access would abort the
+	// whole scan rather than skip one tree, which is precisely the "one corrupt tree destroys
+	// the answer for every other tree" failure mode this surface exists against. Each case
+	// plants a healthy sibling tree in the SAME scan and asserts it survives — that is the
+	// load-bearing half, since it is what proves the corrupt tree no longer takes the rest down
+	// with it.
+	function rawManifest(base: string, dirName: string, rawJson: string) {
+		const dir = path.join(base, dirName);
+		mkdirSync(dir, { recursive: true });
+		writeFileSync(path.join(dir, "plugin.wasm"), "bytes");
+		writeFileSync(path.join(dir, "plugin.json"), rawJson);
+	}
+
+	it("skips a manifest that parses to literal null, and still reports the healthy tree", () => {
+		const base = mkdtempSync(path.join(tmpdir(), "inv-"));
+		rawManifest(base, "refarm_null", "null");
+		tree(base, "refarm_healthy", "@refarm/healthy", "bytes", null);
+
+		const found = readInstalledPlugins(base);
+		expect(found.map((p) => p.manifestId)).toEqual(["@refarm/healthy"]);
+	});
+
+	it("skips a manifest that parses to an array, and still reports the healthy tree", () => {
+		const base = mkdtempSync(path.join(tmpdir(), "inv-"));
+		rawManifest(base, "refarm_array", '["not", "a", "manifest"]');
+		tree(base, "refarm_healthy", "@refarm/healthy", "bytes", null);
+
+		const found = readInstalledPlugins(base);
+		expect(found.map((p) => p.manifestId)).toEqual(["@refarm/healthy"]);
+	});
+
+	it("skips a manifest that parses to a bare string, and still reports the healthy tree", () => {
+		const base = mkdtempSync(path.join(tmpdir(), "inv-"));
+		rawManifest(base, "refarm_string", '"@refarm/not-an-object"');
+		tree(base, "refarm_healthy", "@refarm/healthy", "bytes", null);
+
+		const found = readInstalledPlugins(base);
+		expect(found.map((p) => p.manifestId)).toEqual(["@refarm/healthy"]);
+	});
+
+	it("skips a manifest that parses to a bare number, and still reports the healthy tree", () => {
+		const base = mkdtempSync(path.join(tmpdir(), "inv-"));
+		rawManifest(base, "refarm_number", "42");
+		tree(base, "refarm_healthy", "@refarm/healthy", "bytes", null);
+
+		const found = readInstalledPlugins(base);
+		expect(found.map((p) => p.manifestId)).toEqual(["@refarm/healthy"]);
+	});
 });
