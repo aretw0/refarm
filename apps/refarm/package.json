@@ -8,7 +8,7 @@
 		"refarm": "./dist/index.js"
 	},
 	"scripts": {
-		"build": "tsc --project tsconfig.build.json",
+		"build": "tsc --project tsconfig.build.json && node scripts/stamp-source-digest.mjs",
 		"clean": "rm -rf dist",
 		"dev": "tsc --project tsconfig.build.json --watch",
 		"type-check": "tsc --noEmit",

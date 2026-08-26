@@ -12,16 +12,26 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { digestTree, SOURCE_STAMP } from "./node-install-freshness.js";
 import {
 	InstalledNodeIdentity,
 	NODE_IDENTITY_FILE,
 } from "./node-install-plan.js";
 import { materializeWorkspacePackages, runNodeInstall, sharedWithCheckout } from "./node-install.js";
 
-/** A checkout shaped enough for the install to read a version and resolve pnpm. */
+/** A checkout shaped enough for the install to read a version and resolve pnpm.
+ *
+ * Also stamped FRESH: this file exists to prove what happens to the launcher, not to
+ * re-prove `node-install-freshness.test.ts`'s guard, so every fixture here carries a `dist`
+ * whose stamp matches its `src` — the same digest the guard itself computes, not a
+ * hand-picked string it happens to accept. */
 function fakeCheckout(name: string): string {
 	const root = path.join(os.homedir(), name);
-	fs.mkdirSync(path.join(root, "apps", "refarm"), { recursive: true });
+	const srcDir = path.join(root, "apps", "refarm", "src");
+	const distDir = path.join(root, "apps", "refarm", "dist");
+	fs.mkdirSync(srcDir, { recursive: true });
+	fs.mkdirSync(distDir, { recursive: true });
+	fs.writeFileSync(path.join(srcDir, "index.ts"), "export const marker = 1;\n");
 	fs.writeFileSync(
 		path.join(root, "package.json"),
 		JSON.stringify({ name: "root", packageManager: "pnpm@10.0.0" }),
@@ -30,6 +40,7 @@ function fakeCheckout(name: string): string {
 		path.join(root, "apps", "refarm", "package.json"),
 		JSON.stringify({ name: "@refarm.dev/refarm", version: "9.9.9" }),
 	);
+	fs.writeFileSync(path.join(distDir, SOURCE_STAMP), digestTree(srcDir) ?? "");
 	return root;
 }
 

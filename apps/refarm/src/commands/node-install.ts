@@ -33,6 +33,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { refarmCommand } from "../brand.js";
+import { freshnessRefusal, measureWorkspaceFreshness, readTreeFreshness } from "./node-install-freshness.js";
 import {
 	checkoutDirtiness,
 	independenceVerdict,
@@ -168,6 +169,24 @@ export async function runNodeInstall(
 				"is not one. Run it from a checkout.",
 		};
 	}
+
+	// D1. The detection already existed and the installer did not ask (measured 2026-08-25):
+	// `ProjectAuditor` walks `["packages", "apps"]` and covers `apps/refarm`, and would have
+	// named the 19-minute-old dist that shipped under a clean checkout's label.
+	//
+	// The remediation is prose in `because`, not a `nextCommand` field: the executable-handoff
+	// contract (`test/commands/json-next-command-contract.test.ts`) refuses a hardcoded
+	// package-manager invocation in that property, on the (correct) theory that "pnpm" is not
+	// every operator's package manager. `parity.ts` sets the precedent for saying it in prose.
+	const freshness = readTreeFreshness({ packages: measureWorkspaceFreshness(repoRoot) });
+	const refusal = freshnessRefusal(freshness);
+	if (refusal) {
+		return {
+			status: "refused",
+			because: `${refusal} Run \`pnpm --filter @refarm.dev/refarm run build\`, then retry.`,
+		};
+	}
+
 	const commit = currentCommit(run, repoRoot);
 	// ISS-158. The label is read from `git HEAD` and the TREE is assembled from the working tree's
 	// `dist/`, so without this the two disagree the moment anything is uncommitted — and the label
