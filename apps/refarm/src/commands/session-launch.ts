@@ -48,6 +48,7 @@ import {
 import { createPackageScriptCommand } from "./package-manager.js";
 import { resolveRuntimeLaunchCommand, startRuntimeProcess } from "./runtime-launcher.js";
 import { runtimeNodeArgs } from "./runtime-node-args.js";
+import { runtimeNodeEnv } from "./runtime-node-env.js";
 import {
 	probeRuntimeReady,
 	waitForRuntimeOutcome,
@@ -86,7 +87,9 @@ export interface LaunchRuntimeSelection {
 
 export interface LaunchDeps {
 	operator: OperatorChannel;
-	spawnRuntime?(repoRoot: string): void;
+	/** May be async: an app that must assemble the node's environment before spawning has to
+	 *  await it, and a runtime started without it comes up ready and refuses every dispatch. */
+	spawnRuntime?(repoRoot: string): void | Promise<void>;
 	probeRuntimeUntilReady?(): Promise<boolean>;
 	/** Honest wait: returns why the wait ended so a slow boot isn't reported as failure. */
 	probeRuntimeUntilOutcome?(): Promise<RuntimeWaitOutcome>;
@@ -400,17 +403,35 @@ export function findRepoRoot(): string {
 	return path.resolve(path.dirname(__filename), "../../../../");
 }
 
-export function defaultLaunchDeps(): LaunchDeps {
+/**
+ * The seams `defaultLaunchDeps` opens for tests. Injected the same way `runtime.ts` already
+ * injects `deps.startRuntime` — a module mock would be a second way to do one thing.
+ */
+export interface DefaultLaunchDepsOverrides {
+	readonly startRuntime?: typeof startRuntimeProcess;
+	readonly runtimeNodeEnv?: typeof runtimeNodeEnv;
+}
+
+export function defaultLaunchDeps(overrides: DefaultLaunchDepsOverrides = {}): LaunchDeps {
 	const deps: LaunchDeps = {
 		// autostartMode is intentionally left unset — autoStartRuntime resolves it
 		// node-aware at its async decision point (defaultLaunchDeps stays sync, so
 		// its callers ask.ts/chat.ts/session.ts do not need to await it).
 		operator: createStdioOperatorChannel(),
 
-		spawnRuntime(repoRoot) {
+		async spawnRuntime(repoRoot) {
 			const runtime = resolveLaunchRuntime(repoRoot);
 			const command = resolveRuntimeLaunchCommand(repoRoot, runtime.activeEngine, runtimeNodeArgs(resolveRefarmHome()));
-			startRuntimeProcess(command);
+			// THE ENVIRONMENT, not only the arguments. MEASURED 2026-08-19 and recorded in
+			// runtime-node-env.ts: a runtime started from the arguments alone comes up healthy,
+			// with the right plugins and the right sovereign directory, and refuses every dispatch
+			// — worse than one that fails to start, because `status` says ready. The three
+			// deliberate paths in runtime.ts have always passed it; this one, which fires WITHOUT
+			// the operator asking, did not (ISS-177).
+			(overrides.startRuntime ?? startRuntimeProcess)(
+				command,
+				await (overrides.runtimeNodeEnv ?? runtimeNodeEnv)(),
+			);
 		},
 		resolveRuntime: resolveLaunchRuntime,
 

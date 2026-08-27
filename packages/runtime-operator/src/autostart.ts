@@ -64,8 +64,13 @@ export interface AutoStartRuntimeDeps {
 	operator: OperatorChannel;
 	/** The resolved autostart mode. If absent, the machine treats it as "ask". */
 	mode?: AutostartMode;
-	/** Start the daemon (the app wires its spawn). */
-	spawnRuntime(repoRoot: string): void;
+	/** Start the daemon (the app wires its spawn).
+	 *
+	 *  MAY BE ASYNC. An app that must assemble the node's environment before spawning has to
+	 *  await it; a runtime started with the arguments alone comes up healthy and refuses every
+	 *  dispatch (ISS-177). `await` on a void is a no-op, so synchronous implementations are
+	 *  unaffected. */
+	spawnRuntime(repoRoot: string): void | Promise<void>;
 	/** Poll until the daemon is ready (or a timeout). Legacy boolean form. */
 	probeRuntimeUntilReady(): Promise<boolean>;
 	/** Poll until ready, returning WHY it stopped — lets a timeout distinguish a daemon
@@ -136,7 +141,7 @@ export async function autoStartRuntime(
 		if (startCommand) {
 			process.stdout.write(chalk.dim(`\n   command: ${startCommand}\n`));
 		}
-		deps.spawnRuntime(repoRoot);
+		await deps.spawnRuntime(repoRoot);
 	} catch (error) {
 		process.stdout.write("  " + chalk.red("✗ Failed") + "\n");
 		const message = error instanceof Error ? error.message : String(error);

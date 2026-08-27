@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	autoStartFarmhand,
 	autoStartRuntime,
+	defaultLaunchDeps,
 	checkSessionReadiness,
 	isFirstRun,
 	isRuntimeRunning,
@@ -1118,5 +1119,24 @@ describe("resolveLaunchRuntime — an installed node", () => {
 		});
 		expect(selection.activeEngine).toBe("rust");
 		expect(selection.reason).toBe("configured-rust");
+	});
+});
+
+describe("defaultLaunchDeps().spawnRuntime", () => {
+	// MEASURED 2026-08-19 and recorded in runtime-node-env.ts: a runtime started with the
+	// arguments alone comes up healthy and refuses every dispatch. That failure is worse than
+	// one that does not start, because `status` says ready — so the assertion is on the SECOND
+	// parameter, not on a downstream symptom.
+	it("hands the runtime the node environment, not only its arguments", async () => {
+		const startRuntime = vi.fn();
+		const deps = defaultLaunchDeps({
+			startRuntime,
+			runtimeNodeEnv: async () => ({ MODEL_AUTHORIZATION_PROBE: "yes" }),
+		});
+		await deps.spawnRuntime?.("/nonexistent-repo-root");
+		expect(startRuntime).toHaveBeenCalledTimes(1);
+		const env = startRuntime.mock.calls[0]?.[1] as NodeJS.ProcessEnv | undefined;
+		expect(env).toBeDefined();
+		expect(env?.MODEL_AUTHORIZATION_PROBE).toBe("yes");
 	});
 });
