@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildRuntimeJsonPayload } from "../../src/commands/runtime-status.js";
+import type { RuntimeStopResult } from "../../src/commands/runtime-stop.js";
 import { createRuntimeCommand } from "../../src/commands/runtime.js";
 import type { LaunchRuntimeSelection } from "../../src/commands/session-launch.js";
 
@@ -1289,7 +1290,13 @@ describe("runtime command under a supervisor", () => {
 		restartCommand: "systemctl --user restart refarm-runtime.service",
 	});
 
-	function supervisedCommand(stopRuntime: ReturnType<typeof vi.fn>) {
+	// TYPED, not `ReturnType<typeof vi.fn>`: the pre-existing tests pass `vi.fn()` INLINE, where
+	// the object literal supplies contextual typing. Through a parameter that context is gone,
+	// and an untyped mock is not assignable to the dep. Vitest does not type-check, so this only
+	// ever appears in `tsc` — which is why the gate caught it and a green suite did not.
+	type StopRuntimeMock = ReturnType<typeof vi.fn<(repoRoot: string) => RuntimeStopResult>>;
+
+	function supervisedCommand(stopRuntime: StopRuntimeMock) {
 		return createRuntimeCommand({
 			readSupervision: supervised,
 			repoRoot: () => "/repo",
@@ -1309,7 +1316,7 @@ describe("runtime command under a supervisor", () => {
 	// to the supervisor as a crash and the daemon returns in five seconds, so a refusal that
 	// prints the right words and still signals would defeat the operator's intent silently.
 	it("refuses to stop and never signals the process", async () => {
-		const stopRuntime = vi.fn();
+		const stopRuntime = vi.fn<(repoRoot: string) => RuntimeStopResult>();
 		const logs: string[] = [];
 		const spy = vi.spyOn(console, "log").mockImplementation((line: string) => {
 			logs.push(line);
@@ -1335,7 +1342,7 @@ describe("runtime command under a supervisor", () => {
 	});
 
 	it("refuses to restart and hands over the restart line", async () => {
-		const stopRuntime = vi.fn();
+		const stopRuntime = vi.fn<(repoRoot: string) => RuntimeStopResult>();
 		const logs: string[] = [];
 		const spy = vi.spyOn(console, "log").mockImplementation((line: string) => {
 			logs.push(line);
