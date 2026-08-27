@@ -82,6 +82,25 @@ WHY NOT A GENERATED WRAPPER SCRIPT: a script regenerated on plugin install is a 
 stored at install time -- F1 again, one layer down. The derivation must happen when the daemon
 starts.
 
+IT CARRIES THE ENVIRONMENT TOO, and this was measured after the spec's first draft. The launcher
+prefers `scripts/tractor-start.sh` where it exists, and that script does more than assemble
+arguments: it evaluates `refarm model env --shell --include-secrets` before `exec`. An INSTALLED
+node has no repo scripts and takes the PATH fallback, which carries arguments only. Measured
+2026-08-19 and recorded in `runtime-node-env.ts`:
+
+    the runtime came up healthy, with the right plugins and the right sovereign directory,
+    and refused every dispatch --
+    [blocked: ... declared provider 'github-copilot', which this node did not authorise]
+
+So `--foreground` resolves `await runtimeNodeEnv()` and hands it to the child, exactly as
+`runtime start | ensure | restart` already do. A unit that ran the raw argv would not merely freeze
+the plugin set (F1) -- it would supervise a node that reports `ready` and can do nothing, which is
+the worst failure shape available because the supervisor would keep it alive.
+
+THIS IS ALSO WHY D4 IS NOT A FREE PASS. Autostart's own spawn does NOT carry that environment
+today (ISS-177, filed 2026-08-27). Supervision narrows the blast radius to unsupervised hosts; it
+does not fix it. The order is: fix the environment, then supervise.
+
 ### D2 -- `runtime stop` and `runtime restart` refuse under supervision
 
 Both consult the `supervised` fact already emitted by `refarm process status --json` for the

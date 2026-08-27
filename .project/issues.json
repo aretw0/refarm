@@ -2089,6 +2089,17 @@
 			"priority": "high",
 			"package": "packages/cli",
 			"axis": "other"
+		},
+		{
+			"id": "ISS-177",
+			"title": "Autostart starts the runtime without the node's model environment, so it comes up ready and refuses every dispatch",
+			"body": "MEASURED 2026-08-27 by reading the call chain, not by disturbing the running node:\n\n    ask.ts / chat.ts / session.ts  ->  defaultLaunchDeps()\n    session-launch.ts:410-413      ->  spawnRuntime(repoRoot) { ... startRuntimeProcess(command) }\n    autostart.ts:139               ->  deps.spawnRuntime(repoRoot)\n\n`startRuntimeProcess(command)` is called with NO second argument. Its `env` parameter defaults to\nthis process's environment, which carries none of the node's model authorisation.\n\nThe three deliberate paths DO carry it -- `runtime.ts:236`, `:368`, `:518` each call\n`startRuntimeProcess(command, await runtimeNodeEnv())`. The demand-driven autostart, which is the\npath an operator hits WITHOUT asking for it, does not.\n\nWHAT THAT PRODUCES is already written down, measured 2026-08-19, in the header of\n`apps/refarm/src/commands/runtime-node-env.ts`:\n\n    the runtime came up healthy, with the right plugins and the right sovereign directory,\n    and refused every dispatch --\n    [blocked: model-bridge task declared provider 'github-copilot', which this node did not authorise]\n\nand the same file names why it is the worst failure shape available: \"worse than one that does not\nstart, because `status` says `ready`.\"\n\nWHY IT IS LIVE ON THIS NODE. `resolveRuntimeLaunchCommand` prefers `scripts/tractor-start.sh` when\nit exists, and that script evaluates `refarm model env --shell --include-secrets` before `exec`.\nAn INSTALLED node has no repo scripts, so it takes the PATH fallback -- arguments only. This node\nruns an installed tree (`~/.local/bin/refarm`), so every autostart here is the fallback.\n\nNOT OBSERVED FIRING, deliberately: reproducing it means killing the operator's daemon and\ndispatching, which costs quota and takes his control plane down mid-session. The static chain is\nunambiguous and the failure it produces is already measured and documented in-tree. The guard\nbelow is what must observe it.\n\nRELATION TO ISS-172. A supervised daemon narrows this: the unit becomes the ONE path that starts\nthe node, and autostart drops to a fallback for unsupervised hosts. That reduces the blast radius\nand does not fix it -- an unsupervised host still autostarts blind. Fix the env, then supervise.\n\nGUARD, and it must be SHOWN to fire: assert `defaultLaunchDeps().spawnRuntime` passes an env whose\nkeys include what `runtimeNodeEnv()` adds, with a spy on `startRuntimeProcess`. Remove the env\nargument and the test must go red on the spy's second parameter -- not on a downstream symptom,\nbecause the symptom is a runtime that reports ready.",
+			"location": "apps/refarm/src/commands/session-launch.ts:410, apps/refarm/src/commands/runtime-node-env.ts",
+			"status": "open",
+			"category": "defect",
+			"priority": "high",
+			"package": "apps/refarm",
+			"axis": "durability"
 		}
 	]
 }
