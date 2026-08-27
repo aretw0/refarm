@@ -2100,6 +2100,17 @@
 			"priority": "high",
 			"package": "apps/refarm",
 			"axis": "durability"
+		},
+		{
+			"id": "ISS-178",
+			"title": "The generated unit tells every reader the daemon is hard-killed, and it is not",
+			"body": "MEASURED 2026-08-27 while installing the supervised daemon. The unit generator writes this into\nevery service it emits:\n\n    # Ordered termination comes from the supervisor, not from the process: refarm's processes\n    # handle no SIGTERM today, so systemd asks, waits this long, then kills.\n\nThat is TRUE of the Node processes it was written for (`web serve`, `credential renew`) and FALSE\nof the tractor daemon, which has handled SIGTERM since `packages/tractor/src/daemon/shutdown.rs`\n-- a module written precisely because \"systemctl stop, cron, or any supervisor -- all of which\nsend SIGTERM -- was a hard kill. Exactly backwards.\"\n\nMEASURED ON THIS NODE with the daemon under `refarm-runtime.service`:\n\n    stop duration    0.0156s      (TimeoutStopSec=20)\n    surviving child  none         the forwarded SIGTERM reached tractor and it drained\n\nSo a reader of `~/.config/systemd/user/refarm-runtime.service` is told the daemon is hard-killed\non every restart, and it is not. The comment is a hand-written constant describing a property\nthat varies per process -- the same shape as an argv frozen into a unit, one layer down.\n\nTWO WAYS TO FIX IT, and the choice is the work:\n\n  (a) derive the comment from the process, which means the generator would have to know whether a\n      given command handles signals -- a fact no declaration carries today.\n  (b) drop the claim and state only what is enforced: `TimeoutStopSec` is how long the supervisor\n      waits before escalating, whatever the process does with the signal.\n\n(b) is the honest minimum and needs no new declaration. (a) is only worth it if a `processes`\nentry ever gains a \"handles SIGTERM\" fact, and nothing needs one yet.\n\nALSO: `TimeoutStopSec=20` remains correct for this node -- measured, not inherited -- but the\nnumber was written for processes that drain nothing. If a future declared process has a real\ndrain, the template's constant is the wrong place for it and it belongs in the declaration.\n\nGUARD, and it must be SHOWN to fire: assert the generated unit for a process does not claim a\nsignal behaviour the process does not have. With (b) that is a text assertion on the emitted\ntemplate; break it by restoring the old sentence and watch it go red.",
+			"location": "packages/process-systemd-user/src, ~/.config/systemd/user/refarm-runtime.service",
+			"status": "open",
+			"category": "defect",
+			"priority": "medium",
+			"package": "packages/process-systemd-user",
+			"axis": "durability"
 		}
 	]
 }

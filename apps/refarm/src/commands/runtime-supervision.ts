@@ -53,11 +53,22 @@ export async function readRuntimeSupervision(
 	try {
 		const statuses = await (deps.readStatuses ?? defaultReadStatuses)();
 		const row = statuses.find((entry) => entry.name === SUPERVISED_RUNTIME_PROCESS);
-		// STRICT `=== true`. `supervised` is `boolean | null`, and null means "could not ask
-		// systemd". An unknown read as supervised would refuse the only stop the operator has
-		// left — so this one fails OPEN, deliberately, against the integrity default: a wrong
+		// TWO CONDITIONS, and the second was learned by running it. A unit FILE existing is not
+		// supervision of the process that happens to be alive: MEASURED 2026-08-27 on this node,
+		// with `refarm-runtime.service` written but never started and a daemon running outside it,
+		// `supervised` read `true` while `state` read `not-running`. Refusing there handed the
+		// operator `systemctl --user stop refarm-runtime.service` — a command that stops nothing,
+		// because the live process is not that unit's child. An orphan is exactly what
+		// `stopRuntimeProcess` is for.
+		//
+		// STRICT `=== true` on the first. `supervised` is `boolean | null`, and null means "could
+		// not ask systemd". An unknown read as supervised would refuse the only stop the operator
+		// has left — so this fails OPEN, deliberately, against the integrity default: a wrong
 		// refusal strands a running daemon, a wrong stop is one command to undo.
-		return { ...base, supervised: row?.supervised === true };
+		return {
+			...base,
+			supervised: row?.supervised === true && row.state === "running",
+		};
 	} catch {
 		// A reader that throws is an unknown, and an unknown is not supervision.
 		return { ...base, supervised: false };

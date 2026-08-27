@@ -69,4 +69,30 @@ describe("readRuntimeSupervision", () => {
 		expect(result.supervised).toBe(false);
 		expect(result.unit).toBe("refarm-runtime.service");
 	});
+	// FOUND BY RUNNING IT, 2026-08-27: the unit file was written and never started while a daemon
+	// from an earlier `runtime restart` was still alive. `supervised: true, state: not-running`
+	// made `runtime stop` refuse and hand over a systemctl line that stops nothing, because the
+	// live process is not that unit's child. A unit file is not supervision of a running orphan.
+	it("does not claim supervision when the unit exists but is not running the daemon", async () => {
+		const result = await readRuntimeSupervision({
+			readStatuses: async () => [
+				status({
+					name: SUPERVISED_RUNTIME_PROCESS,
+					state: "not-running",
+					detail: "refarm-runtime.service is inactive (dead)",
+					supervised: true,
+				}),
+			],
+		});
+		expect(result.supervised).toBe(false);
+	});
+
+	it("does not claim supervision for a failed unit", async () => {
+		const result = await readRuntimeSupervision({
+			readStatuses: async () => [
+				status({ name: SUPERVISED_RUNTIME_PROCESS, state: "failed", supervised: true }),
+			],
+		});
+		expect(result.supervised).toBe(false);
+	});
 });
