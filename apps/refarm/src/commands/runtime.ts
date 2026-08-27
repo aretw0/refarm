@@ -4,6 +4,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { resolveRuntimeSidecarUrl, TRACTOR_ENGINE_ENV_VAR } from "../utils/runtime-config.js";
 import { startRuntimeProcess, type RuntimeLaunchCommand } from "./runtime-launcher.js";
+import { runRuntimeForeground } from "./runtime-foreground.js";
 import { runtimeNodeEnv } from "./runtime-node-env.js";
 import {
 	probeRuntimeLiveness,
@@ -463,6 +464,10 @@ Notes:
 			new Command("start")
 				.description("Start the selected Refarm runtime in the background")
 				.option("--dry-run", "Print the resolved start command without executing it")
+				.option(
+					"--foreground",
+					"Run the runtime in THIS process instead of detaching — what a supervisor's ExecStart uses",
+				)
 				.option("--wait", "Wait until the local runtime sidecar responds")
 				.option("--json", "Output machine-readable JSON")
 				.addHelpText(
@@ -474,15 +479,19 @@ Examples:
   $ ${RUNTIME_START_WAIT_COMMAND}
   $ refarm runtime start --dry-run
   $ ${TRACTOR_ENGINE_ENV_VAR}=rust refarm runtime start
+  $ refarm runtime start --foreground
 
 Notes:
   This uses the same engine selection as refarm ask/session autostart.
+  --foreground runs the runtime in THIS process: it is what a supervisor unit's
+  ExecStart points at, so the unit stores the CALL and the plugin list and the
+  node environment are derived at every start rather than frozen into the file.
   tractor.engine=auto prefers Rust Tractor when its local binary is available.
 `,
 				)
 				.action(
 					async (
-						opts: { dryRun?: boolean; wait?: boolean; json?: boolean },
+						opts: { dryRun?: boolean; wait?: boolean; json?: boolean; foreground?: boolean },
 						subcommand: Command,
 					) => {
 						const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
@@ -512,6 +521,31 @@ Notes:
 								return;
 							}
 							console.log(command.display);
+							return;
+						}
+
+						if (opts.foreground) {
+							// THE FOREGROUND START IS THE DAEMON. There is no envelope to print at the end
+							// of it and nothing to wait for — this process becomes the node's life and its
+							// exit code is the node's. Refuse the combinations rather than print a payload
+							// nobody will read.
+							if (json || opts.wait) {
+								console.error(
+									chalk.red("✗  --foreground cannot be combined with --json or --wait."),
+								);
+								console.error(
+									chalk.dim("   The foreground start IS the daemon: it does not return a result."),
+								);
+								process.exitCode = 1;
+								return;
+							}
+							// `command.engine` and NOT `payload.activeEngine`: the launch command was already
+							// resolved from the same selection, and its engine is narrowed to one that can
+							// actually launch. Reading the payload again would be a second answer to a
+							// question that already has one — and TypeScript says so, because the payload
+							// still admits "unknown" here.
+							const result = await runRuntimeForeground(deps.repoRoot(), command.engine);
+							process.exitCode = result.exitCode;
 							return;
 						}
 

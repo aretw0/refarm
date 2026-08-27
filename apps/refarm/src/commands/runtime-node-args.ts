@@ -53,7 +53,7 @@ export function runtimeNodeArgs(refarmHome: string): string[] {
 		// THE AGENT FIRST, because `resolveBootPluginPaths` excludes it by design and the running
 		// node measured on 2026-08-19 carries it. Omitting it starts a runtime that cannot
 		// dispatch — running, answering `status`, and useless.
-		const agent = installedPluginWasmPath(AGENT_PACKAGE_ID);
+		const agent = installedPluginWasmPath(AGENT_PACKAGE_ID, path.join(refarmHome, "plugins"));
 		if (existsSync(agent)) args.push("--plugin", agent);
 		for (const plugin of resolveBootPluginPaths(path.join(refarmHome, "plugins"), config)) {
 			args.push("--plugin", plugin);

@@ -444,6 +444,51 @@ export function createProcessHandoffRunner(
 	};
 }
 
+/**
+ * A child this process STAYS ATTACHED TO: same terminal, same lifetime, signals forwarded by
+ * the caller.
+ *
+ * The third mode, and the one a SUPERVISOR needs. `runProcessHandoff` captures output and
+ * returns when the child is done; `startDetachedProcessHandoff` cuts the child loose so the
+ * parent can exit. Neither fits an `ExecStart`: a unit's `Type=simple` tracks the process it
+ * launched, so a parent that detaches and exits reads as a service that died, and a parent
+ * that captures swallows the daemon's own logging into a buffer nobody reads.
+ */
+export interface AttachedProcessHandoffOptions {
+	env?: NodeJS.ProcessEnv;
+	cwd?: string;
+}
+
+export interface AttachedProcessHandoff {
+	/** Pass a signal on to the child. A supervisor sends SIGTERM to the MAIN process under
+	 *  `KillMode=mixed`, which is the parent — so forwarding is how the child ever hears it. */
+	kill(signal: NodeJS.Signals): void;
+	/** Resolves with the child's exit code, or 0 when it was terminated by a signal. */
+	wait(): Promise<number>;
+}
+
+export function startAttachedProcessHandoff(
+	spec: ProcessHandoffSpec,
+	options: AttachedProcessHandoffOptions = {},
+): AttachedProcessHandoff {
+	const child = spawn(spec.command, spec.args, {
+		// os-resolution: process — the working directory handed to a spawned child process
+		cwd: options.cwd ?? spec.cwd ?? process.cwd(),
+		env: options.env ?? process.env,
+		stdio: "inherit",
+	});
+	return {
+		kill(signal) {
+			child.kill(signal);
+		},
+		wait() {
+			return new Promise<number>((resolve) => {
+				child.once("exit", (code) => resolve(code ?? 0));
+			});
+		},
+	};
+}
+
 export function startDetachedProcessHandoff(
 	spec: ProcessHandoffSpec,
 	options: DetachedProcessHandoffOptions = {},

@@ -30,13 +30,22 @@ import { pluginsBaseDir } from "../utils/refarm-home.js";
 export const INSTALLED_PLUGIN_WASM_FILENAME = "plugin.wasm";
 
 /** The directory `plugin install` writes a plugin to, and every reader reads it from. */
-export function installedPluginDir(pluginId: string): string {
-	return path.join(pluginsBaseDir(), pluginIdToFsToken(pluginId));
+export function installedPluginDir(pluginId: string, baseDir = pluginsBaseDir()): string {
+	return path.join(baseDir, pluginIdToFsToken(pluginId));
 }
 
-/** The wasm artifact inside {@link installedPluginDir} — what the daemon loads. */
-export function installedPluginWasmPath(pluginId: string): string {
-	return path.join(installedPluginDir(pluginId), INSTALLED_PLUGIN_WASM_FILENAME);
+/**
+ * The wasm artifact inside {@link installedPluginDir} — what the daemon loads.
+ *
+ * `baseDir` is OPTIONAL and defaults to the ambient plugins directory, which is what every
+ * caller wanted before it existed. It is here because `runtimeNodeArgs(refarmHome)` takes a
+ * home and could only honour HALF of it: the boot plugins came from the argument and the
+ * agent came from the ambient directory. Every caller passes the same value today, so the
+ * mismatch was latent rather than live — and a parameter that is honoured by half a function
+ * is a trap that fires the first time someone passes something else.
+ */
+export function installedPluginWasmPath(pluginId: string, baseDir = pluginsBaseDir()): string {
+	return path.join(installedPluginDir(pluginId, baseDir), INSTALLED_PLUGIN_WASM_FILENAME);
 }
 
 /**
