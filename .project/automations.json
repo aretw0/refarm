@@ -1,0 +1,16 @@
+{
+  "automations": [
+    {
+      "id": "proof-of-clock",
+      "name": "prova do relogio",
+      "description": "automacao draft com janela vencida: existe para o tick ter algo NAO-ZERO a reportar",
+      "status": "archived",
+      "triggers": [
+        {
+          "type": "once",
+          "at": "2026-08-26T00:00:00Z"
+        }
+      ]
+    }
+  ]
+}
