@@ -5,6 +5,7 @@ import { Command } from "commander";
 import { resolveRuntimeSidecarUrl, TRACTOR_ENGINE_ENV_VAR } from "../utils/runtime-config.js";
 import { startRuntimeProcess, type RuntimeLaunchCommand } from "./runtime-launcher.js";
 import { runRuntimeForeground } from "./runtime-foreground.js";
+import { readRuntimeSupervision, type RuntimeSupervision } from "./runtime-supervision.js";
 import { runtimeNodeEnv } from "./runtime-node-env.js";
 import {
 	probeRuntimeLiveness,
@@ -55,6 +56,9 @@ export interface RuntimeCommandDeps {
 	resolveRuntime(repoRoot: string, configuredEngine: TractorEngineMode): LaunchRuntimeSelection;
 	startRuntime?(command: RuntimeLaunchCommand): void;
 	stopRuntime?(repoRoot: string): RuntimeStopResult;
+	/** Injected by tests. Answers whether a supervisor owns this node's daemon, so `stop` and
+	 *  `restart` hand over the systemctl line instead of signalling behind its back. */
+	readSupervision?(): Promise<RuntimeSupervision>;
 	probeReadiness?(): Promise<RuntimeReadinessProbe>;
 	probeReady?(): Promise<boolean>;
 	waitUntilReady?(): Promise<boolean>;
@@ -72,6 +76,46 @@ export function defaultRuntimeCommandDeps(): RuntimeCommandDeps {
 		probeReadiness: () => probeRuntimeLiveness(),
 		waitUntilReady: waitForRuntimeReady,
 	};
+}
+
+/**
+ * The refusal a supervised daemon earns, and the line that actually does the job.
+ *
+ * NOT a redirect and not a silent no-op: sending SIGTERM by pid under `Restart=always` reads
+ * to the supervisor as a crash and the daemon returns in five seconds, so the operator's
+ * intent would be defeated without a word. refarm does not run systemctl on their behalf
+ * (see the boundary in process.ts), so it hands over the line that does — and puts it in
+ * `nextCommand`, because a handoff that names the fix only in prose is one an agent cannot
+ * follow.
+ */
+function printSupervisedRefusal(
+	supervision: RuntimeSupervision,
+	command: string,
+	operation: "stop" | "restart",
+	json: boolean,
+): void {
+	if (json) {
+		printJson({
+			command: "runtime",
+			operation,
+			ok: false,
+			error: "runtime-supervised",
+			supervised: true,
+			unit: supervision.unit,
+			message: `The runtime is supervised by ${supervision.unit}. Ask the supervisor, not the process.`,
+			nextAction: command,
+			nextActions: [command],
+			nextCommand: command,
+			nextCommands: [command],
+		});
+		return;
+	}
+	console.error(chalk.red(`✗  The runtime is supervised by ${supervision.unit}.`));
+	console.error(
+		chalk.dim("   Signalling the process directly reads as a crash, and the supervisor"),
+	);
+	console.error(chalk.dim("   would bring it back in seconds. Ask the supervisor instead:"));
+	console.error(chalk.dim(`   ${command}`));
 }
 
 export function createRuntimeCommand(
@@ -152,8 +196,14 @@ Notes:
   This stops the local runtime process tracked by the selected workspace.
 `,
 				)
-				.action((opts: { json?: boolean }, subcommand: Command) => {
+				.action(async (opts: { json?: boolean }, subcommand: Command) => {
 					const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
+					const supervision = await (deps.readSupervision ?? readRuntimeSupervision)();
+					if (supervision.supervised) {
+						printSupervisedRefusal(supervision, supervision.stopCommand, "stop", Boolean(json));
+						process.exitCode = 1;
+						return;
+					}
 					const result = (deps.stopRuntime ?? stopRuntimeProcess)(deps.repoRoot());
 					if (json) {
 						printJson(buildRuntimeStopJsonPayload(result));
@@ -192,6 +242,17 @@ Notes:
 				)
 				.action(async (opts: { wait?: boolean; json?: boolean }, subcommand: Command) => {
 					const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
+					const supervision = await (deps.readSupervision ?? readRuntimeSupervision)();
+					if (supervision.supervised) {
+						printSupervisedRefusal(
+							supervision,
+							supervision.restartCommand,
+							"restart",
+							Boolean(json),
+						);
+						process.exitCode = 1;
+						return;
+					}
 					const stop = (deps.stopRuntime ?? stopRuntimeProcess)(deps.repoRoot());
 					if (!stop.ok) {
 						if (json) {
