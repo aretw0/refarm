@@ -82,3 +82,63 @@ describe("telegram probe", () => {
 		expect(probe?.reason ?? "").not.toContain(TOKEN);
 	});
 });
+
+describe("telegram destination discovery", () => {
+	function updatesResponse(result: unknown[]) {
+		return jsonResponse({ ok: true, result });
+	}
+
+	it("finds a group the bot was added to, which arrives as my_chat_member", async () => {
+		const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+			updatesResponse([
+				{ update_id: 1, my_chat_member: { chat: { id: -100123, title: "Coop", type: "supergroup" } } },
+			]),
+		);
+		const found = await probeAdapter(fetchImpl as never).discoverDestinations?.();
+		// A bot added to a group NEVER appears as a message — this is the case an operator most
+		// wants to see, and reading only `message.chat` would miss it entirely.
+		expect(found).toEqual([
+			{ platform: "telegram", id: "-100123", name: "Coop", type: "supergroup", handle: null },
+		]);
+	});
+
+	it("carries the handle when there is one, and null when there is not", async () => {
+		const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+			updatesResponse([
+				{ update_id: 1, message: { chat: { id: 1, first_name: "Ana", type: "private", username: "ana" } } },
+				{ update_id: 2, message: { chat: { id: 2, first_name: "Bruno", type: "private" } } },
+			]),
+		);
+		const found = (await probeAdapter(fetchImpl as never).discoverDestinations?.()) ?? [];
+		expect(found.map((entry) => entry.handle)).toEqual(["@ana", null]);
+	});
+
+	it("deduplicates a chat that appears in several updates", async () => {
+		const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+			updatesResponse([
+				{ update_id: 1, message: { chat: { id: 7, first_name: "Ana", type: "private" } } },
+				{ update_id: 2, message: { chat: { id: 7, first_name: "Ana", type: "private" } } },
+			]),
+		);
+		const found = await probeAdapter(fetchImpl as never).discoverDestinations?.();
+		expect(found).toHaveLength(1);
+	});
+
+	it("NEVER advances the offset, because the answer path polls the same queue", async () => {
+		const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+			updatesResponse([]),
+		);
+		await probeAdapter(fetchImpl as never).discoverDestinations?.();
+		const body = JSON.parse(String((fetchImpl.mock.calls[0]?.[1] as RequestInit)?.body ?? "{}"));
+		// Passing an offset ACKNOWLEDGES updates and deletes them from Telegram's queue. Discovery
+		// that consumed them would silently eat button presses the answer path is waiting for.
+		expect(body).not.toHaveProperty("offset");
+	});
+
+	it("reports nothing rather than throwing when the token or the call fails", async () => {
+		const failing = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+			throw new Error("offline");
+		});
+		expect(await probeAdapter(failing as never).discoverDestinations?.()).toEqual([]);
+	});
+});

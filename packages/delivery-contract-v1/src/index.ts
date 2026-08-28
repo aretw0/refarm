@@ -242,6 +242,39 @@ export interface DeliveryAdapter {
 	 * buzz the operator's phone.
 	 */
 	probe?(): Promise<DeliveryProbe>;
+	/**
+	 * WHERE THIS TRANSPORT CAN LAND — the chats, groups and lists it has seen.
+	 *
+	 * A credential says WHO a channel speaks as; a destination says WHERE it lands. One bot
+	 * addresses many chats, which is the platform's own model rather than a workaround, so a
+	 * workspace that wants its own channel declares a DESTINATION and never a second credential
+	 * (`docs/superpowers/specs/2026-08-28-one-bot-many-destinations-design.md`). Declaring one
+	 * requires being able to see what exists.
+	 *
+	 * OPTIONAL, like `probe`: a transport with no notion of enumerable destinations says so by
+	 * absence rather than by returning an empty list that reads as "none found".
+	 *
+	 * IT RETURNS, IT DOES NOT STORE. Where topology lives is the caller's decision — it carries
+	 * real chat ids, so whether it is machine-local or in a synced tree is not a transport's to
+	 * make. `@refarm.dev/contacts` is the store; this is the read.
+	 */
+	discoverDestinations?(): Promise<DeliveryDestination[]>;
+}
+
+/**
+ * One place a channel can send to, in the platform's own vocabulary.
+ *
+ * `id` is what the transport addresses; everything else is for a human choosing between them on
+ * a small screen.
+ */
+export interface DeliveryDestination {
+	readonly platform: string;
+	readonly id: string;
+	readonly name?: string;
+	/** The platform's own kind — private, group, channel, supergroup. Not normalised: a
+	 *  vocabulary invented here would hide the distinctions each platform actually makes. */
+	readonly type?: string;
+	readonly handle?: string | null;
 }
 
 /**

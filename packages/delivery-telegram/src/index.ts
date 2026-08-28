@@ -37,6 +37,7 @@ import {
 	type DeliveryAdapterFactory,
 	type DeliveryAnswerSink,
 	type DeliveryOutcome,
+	type DeliveryDestination,
 	type DeliveryProbe,
 	type DeliveryRequest,
 } from "@refarm.dev/delivery-contract-v1";
@@ -566,6 +567,63 @@ export function createTelegramDeliveryAdapter(options: TelegramDeliveryOptions):
 		}
 	}
 
+	/**
+	 * WHICH CHATS THIS BOT HAS SEEN — `getUpdates`, read for the chats it carries rather than for
+	 * the callbacks the answer path wants.
+	 *
+	 * TELEGRAM ONLY REMEMBERS WHAT IT HAS NOT DELIVERED. `getUpdates` returns the pending queue,
+	 * so a chat that has been quiet, or whose updates this bot already consumed, does NOT appear.
+	 * That is a real limit and is reported as what it is: this returns what it SAW, never "every
+	 * chat that exists". Someone who wants a chat listed sends the bot a message.
+	 *
+	 * IT DOES NOT ADVANCE THE OFFSET. Passing an offset would acknowledge the updates and delete
+	 * them from Telegram's queue — the answer path polls the same endpoint, and a discovery that
+	 * consumed its updates would silently eat button presses.
+	 */
+	async function discoverDestinations(): Promise<DeliveryDestination[]> {
+		let token: string;
+		try {
+			token = await options.resolveToken();
+		} catch {
+			return [];
+		}
+		let payload: TelegramResponse | null = null;
+		try {
+			({ payload } = await callApi(token, "getUpdates", { limit: 100, timeout: 0 }));
+		} catch {
+			return [];
+		}
+		if (payload?.ok !== true) return [];
+		const updates = Array.isArray(payload.result) ? (payload.result as unknown[]) : [];
+		const seen = new Map<string, DeliveryDestination>();
+		for (const update of updates) {
+			const record = update as Record<string, { chat?: Record<string, unknown> } | undefined>;
+			// EVERY SHAPE THAT CARRIES A CHAT, because a bot added to a group appears as
+			// `my_chat_member` and never as a message — the case an operator most wants to see.
+			const chat =
+				record.message?.chat ??
+				record.channel_post?.chat ??
+				record.my_chat_member?.chat ??
+				record.chat_member?.chat;
+			if (!chat || (typeof chat.id !== "number" && typeof chat.id !== "string")) continue;
+			const id = String(chat.id);
+			if (seen.has(id)) continue;
+			const username = typeof chat.username === "string" ? chat.username : undefined;
+			seen.set(id, {
+				platform: TELEGRAM_ADAPTER_ID,
+				id,
+				name:
+					(typeof chat.title === "string" ? chat.title : undefined) ??
+					(typeof chat.first_name === "string" ? chat.first_name : undefined) ??
+					username ??
+					id,
+				...(typeof chat.type === "string" ? { type: chat.type } : {}),
+				handle: username ? `@${username}` : null,
+			});
+		}
+		return [...seen.values()];
+	}
+
 	return {
 		id: TELEGRAM_ADAPTER_ID,
 		capability: "answer",
@@ -575,6 +633,7 @@ export function createTelegramDeliveryAdapter(options: TelegramDeliveryOptions):
 		announce,
 		offerAnswer,
 		probe,
+		discoverDestinations,
 	};
 }
 
