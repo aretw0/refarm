@@ -37,6 +37,7 @@ import {
 	type DeliveryAdapterFactory,
 	type DeliveryAnswerSink,
 	type DeliveryOutcome,
+	type DeliveryProbe,
 	type DeliveryRequest,
 } from "@refarm.dev/delivery-contract-v1";
 
@@ -523,6 +524,48 @@ export function createTelegramDeliveryAdapter(options: TelegramDeliveryOptions):
 		}
 	}
 
+	/**
+	 * IS THIS BOT REAL, AND WHICH ONE — `getMe`, which delivers nothing to anybody.
+	 *
+	 * Telegram answers with the bot's own id and username, which is exactly the "as whom" half a
+	 * probe owes: an operator running one bot across several workspaces needs to see it is the
+	 * bot he thinks it is, and a token silently rotated onto another identity looks healthy
+	 * without that.
+	 *
+	 * NEVER THROWS. A probe that dies is a surface that cannot report, and the whole point is to
+	 * turn an unknown into a stated one.
+	 */
+	async function probe(): Promise<DeliveryProbe> {
+		let token: string;
+		try {
+			token = await options.resolveToken();
+		} catch (error) {
+			return { reachable: false, reason: `token unavailable: ${errorMessage(error)}` };
+		}
+		try {
+			const { status, payload } = await callApi(token, "getMe", {});
+			if (payload?.ok === true) {
+				const result = payload.result as { username?: unknown; id?: unknown } | undefined;
+				const username = typeof result?.username === "string" ? result.username : undefined;
+				const id = typeof result?.id === "number" ? String(result.id) : undefined;
+				const identity = username ? `@${username}` : id;
+				return identity ? { reachable: true, identity } : { reachable: true };
+			}
+			const described =
+				typeof payload?.description === "string" ? payload.description : `HTTP ${status}`;
+			// THROUGH `safeDetail`, the one door everything this adapter says out loud goes
+			// through: it scrubs AND refuses the record outright if anything survived, because a
+			// leaked credential is not a thing to report best-effort. Telegram echoes the
+			// offending token in some error descriptions, and a probe exists to be printed by
+			// `delivery list` and pasted into a handoff. Calling `scrubSecret` directly here
+			// would have been half of this helper, copied.
+			return { reachable: false, reason: safeDetail(described, token) };
+		} catch (error) {
+			// A network failure is not a verdict about the bot — say which one it is.
+			return { reachable: false, reason: `could not reach Telegram: ${errorMessage(error)}` };
+		}
+	}
+
 	return {
 		id: TELEGRAM_ADAPTER_ID,
 		capability: "answer",
@@ -531,6 +574,7 @@ export function createTelegramDeliveryAdapter(options: TelegramDeliveryOptions):
 		unattended: true,
 		announce,
 		offerAnswer,
+		probe,
 	};
 }
 

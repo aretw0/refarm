@@ -7,6 +7,7 @@ import {
 	routeDelivery,
 	type DeliveryRequest,
 	type ResolvedDeliveryChannel,
+	type DeliveryProbe,
 } from "@refarm.dev/delivery-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -54,6 +55,8 @@ interface DeliveryCommandOptions {
 	kind?: string;
 	question?: string;
 	attending?: boolean;
+	/** Ask each channel whether it exists. Opt-in because it reaches the provider. */
+	probe?: boolean;
 }
 
 /**
@@ -120,6 +123,28 @@ function guardedAsync(
 			failAuthoring(operation, options, error);
 		}
 	};
+}
+
+/**
+ * The three states a declared channel can be in, and never two.
+ *
+ * `unprobed` is not a failure and not a success — it is the honest name for "nobody asked". An
+ * adapter with no `probe` is `unsupported`, which is different again: the channel may be perfect
+ * and this transport simply cannot answer the question.
+ */
+async function describeChannelReachability(
+	channel: { adapter: { probe?: () => Promise<DeliveryProbe> } },
+	probe: boolean,
+): Promise<{ state: string; identity?: string; reason?: string }> {
+	if (!channel.adapter.probe) return { state: "unsupported" };
+	if (!probe) return { state: "unprobed" };
+	const result = await channel.adapter.probe();
+	if (result.reachable) {
+		return result.identity
+			? { state: "reachable", identity: result.identity }
+			: { state: "reachable" };
+	}
+	return result.reason ? { state: "unreachable", reason: result.reason } : { state: "unreachable" };
 }
 
 /** Wrap an action so a validation error becomes the repo's refusal shape. */
@@ -264,17 +289,29 @@ export function createDeliveryCommand(): Command {
 		.command("list")
 		.description("Show the declared delivery channels, and the ones that cannot be used")
 		.option("--json", "Output machine-readable JSON")
+		.option(
+			"--probe",
+			"Ask each channel whether it exists, and as whom — sends no message to anybody",
+		)
 		.action(
-			guarded("list", (options) => {
+			guardedAsync("list", async (options) => {
 				const { channels, issues } = loadDeclaredDelivery();
-				const declared = channels.map((channel) => ({
-					channel: channel.declaration.name,
-					adapter: channel.adapter.id,
-					capability: channel.adapter.capability,
-					unattended: channel.declaration.unattended,
-					// A SOURCE, never a value.
-					token: describeTokenSource(channel.declaration),
-				}));
+				const declared = await Promise.all(
+					channels.map(async (channel) => ({
+						channel: channel.declaration.name,
+						adapter: channel.adapter.id,
+						capability: channel.adapter.capability,
+						unattended: channel.declaration.unattended,
+						// A SOURCE, never a value.
+						token: describeTokenSource(channel.declaration),
+						// THREE STATES, and the default is honest about not having measured.
+						// "declared" is a fact about a file; leaving it to read as "works" is how a
+						// revoked token stays invisible until a consent question never arrives
+						// (ISS-174). Probing reaches the provider, so it stays opt-in — but the
+						// unprobed case now SAYS it is unprobed rather than saying nothing.
+						reachability: await describeChannelReachability(channel, Boolean(options.probe)),
+					})),
+				);
 				const nextCommand =
 					declared.length > 0 ? "refarm delivery route --json" : DELIVERY_ADD_COMMAND;
 				if (options.json) {

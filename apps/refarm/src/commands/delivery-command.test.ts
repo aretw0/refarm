@@ -105,10 +105,29 @@ describe("refarm delivery list", () => {
 				capability: "answer",
 				unattended: true,
 				token: "env:REFARM_TELEGRAM_BOT_TOKEN",
+				// UNPROBED BY DEFAULT, and it SAYS so. `list` reaches no network unless asked, and
+				// the old shape left that silence to read as health — which is how a revoked token
+				// stayed invisible (ISS-174). The exact-shape assertion stays exact on purpose: it
+				// is what catches a field appearing here that should not.
+				reachability: { state: "unprobed" },
 			},
 		]);
 		expect(text).not.toContain(SECRET);
 		expect(JSON.stringify(json)).not.toContain(SECRET);
+	});
+
+	it("reaches no network without --probe", async () => {
+		declareTelegram();
+		const fetchSpy = vi.spyOn(globalThis, "fetch");
+		try {
+			const { json } = await run(["list", "--json"]);
+			expect(json?.channels?.[0]?.reachability).toEqual({ state: "unprobed" });
+			// THE ASSERTION THAT MATTERS. "Unprobed" is a claim about behaviour, not a label: a
+			// list that quietly called the provider would still print the word.
+			expect(fetchSpy).not.toHaveBeenCalled();
+		} finally {
+			fetchSpy.mockRestore();
+		}
 	});
 
 	it("reports a channel that cannot be brought up instead of hiding it", async () => {

@@ -218,6 +218,46 @@ export interface DeliveryAdapter {
 	 * unfakeable.
 	 */
 	offerAnswer?(request: DeliveryRequest, sink: DeliveryAnswerSink): Promise<DeliveryOutcome>;
+	/**
+	 * IS THIS CHANNEL REACHABLE, AND AS WHOM — asked without sending anything a human receives.
+	 *
+	 * MEASURED 2026-08-27: the operator asked whether he had a Telegram bot configured and no
+	 * refarm surface could answer. `delivery list` reported `declared: true`, which is a fact
+	 * about a FILE — a declaration exists and a token path resolves. What actually answered was
+	 * a hand-written `getMe` outside refarm.
+	 *
+	 * THE INVERSE IS THE DANGEROUS CASE. A revoked token, a deleted bot, a rotated secret: the
+	 * declaration still reads `true`, routing still reports the channel answerable, and the first
+	 * anyone learns otherwise is a consent question that never arrives. For a node whose whole
+	 * consent model routes decisions through delivery, "declared" standing in for "works" is a
+	 * claim wearing a measurement's clothes.
+	 *
+	 * OPTIONAL BY DESIGN, so an adapter that cannot probe says so by ABSENCE — the device
+	 * `OperationTrail.readQuestions?` already uses, where a trail that cannot remember a question
+	 * says so by not implementing the method. A surface then reports three states and never
+	 * collapses the first two: declared-but-unprobed, reachable-as-X, unreachable-because-Y.
+	 *
+	 * IT MUST NOT DELIVER. `refarm delivery test` is the thing that sends, and it asks first,
+	 * every time. A control plane cannot buzz the operator's phone to find out whether it can
+	 * buzz the operator's phone.
+	 */
+	probe?(): Promise<DeliveryProbe>;
+}
+
+/**
+ * What a channel answers about itself.
+ *
+ * `identity` is the half that makes this more than a ping: it says WHO the channel speaks as. An
+ * operator running one bot across several workspaces needs to see that the workspace channel is
+ * the bot he thinks it is, and a node that has silently been rotated onto another identity looks
+ * identical to a healthy one without it.
+ */
+export interface DeliveryProbe {
+	readonly reachable: boolean;
+	/** How the far side names this channel — a bot username, an account handle. */
+	readonly identity?: string;
+	/** Why it is not reachable. Present only when `reachable` is false. */
+	readonly reason?: string;
 }
 
 /**
