@@ -33,6 +33,7 @@ import {
 } from "@refarm.dev/model-account-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
 
+import { refarmCommand } from "../brand.js";
 import {
 	CATALOG_FILE,
 	loadAccountCredentials,
@@ -47,6 +48,7 @@ import {
 } from "../credentials/oauth/index.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { emitCommandRefusal } from "./command-refusal.js";
+import { publishCredentialLapse } from "./credential-lapse-notice.js";
 import { exhaustedMeters, formatQuotaRows, readQuotaRows } from "./credential-quota.js";
 
 interface CredentialSilo {
@@ -421,17 +423,30 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 				// declaration, not a hardcoded timer.
 				const { refreshLiveCredentialsForDispatch } = await import("./ask-allowance.js");
 				const outcome = await refreshLiveCredentialsForDispatch();
+				// A LAPSE THE NODE CANNOT FIX ALONE REACHES THE OPERATOR, or says why it could not.
+				// This runs under a systemd oneshot every 120s, so its stdout is a journal — the
+				// same place 4420 failures hid for 33 hours on 2026-08-22. ISS-081's ledger
+				// recommended declaring the channel unattended, which would have changed nothing:
+				// nothing was published to route.
+				const notice =
+					outcome.kind === "could-not-renew"
+						? await publishCredentialLapse(outcome.because)
+						: null;
+				// THE COMMAND, not only the sentence naming it. `nextCommands: []` beside prose that
+				// names a fix tells an agent following CLAUDE.md there is nothing to do (ISS-173).
+				const renewNextCommands =
+					outcome.kind === "could-not-renew" ? [refarmCommand(["sow"])] : [];
 				if (options.json) {
 					printJson(
 						buildJsonSuccessEnvelope({
 							command: "credential",
 							operation: "renew",
-							extra: { ...outcome },
+							extra: { ...outcome, ...(notice ? { notice } : {}) },
 							nextAction:
 								outcome.kind === "could-not-renew"
-									? "Re-authenticate the account the provider refused: `refarm sow`."
+									? `Re-authenticate the account the provider refused: ${refarmCommand(["sow"])}`
 									: null,
-							nextCommands: [],
+							nextCommands: renewNextCommands,
 						}),
 					);
 					return;
@@ -443,6 +458,14 @@ export function createCredentialCommand(deps: CredentialDeps = defaultDeps()): C
 							? "Renewed, and the running node was handed it. No restart."
 							: `Could not renew: ${outcome.because}`,
 				);
+				// SAID OUT LOUD when nothing could carry it: a notice that evaporates is the same
+				// defect one layer up from the one this fixes.
+				for (const refusal of notice?.refused ?? []) {
+					console.log(`  not delivered by "${refusal.channel}": ${refusal.reason}`);
+				}
+				for (const adapter of notice?.delivered ?? []) {
+					console.log(`  delivered by "${adapter}"`);
+				}
 			}),
 		);
 
