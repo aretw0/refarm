@@ -7,7 +7,20 @@ own machinery, and all of it sits between an operator and using refarm from wher
 Every number and every flag here was measured on a real node. Where something is NOT knowable
 from the node, this document says so rather than guessing.
 
-## First: does your case even need a tunnel?
+## Before any of this: you probably do not need a tunnel
+
+refarm's OAuth flow accepts a PASTED redirect. Open the auth URL on the phone, authenticate, let
+the browser fail to reach `localhost` — the address bar holds the `code` — and paste the whole URL
+into the prompt. `parseCodeFromInput` takes either the full URL or a bare `code=...` fragment.
+
+    callback-wait.ts   "falling back to pasted redirect URL"
+                       "switching to pasted redirect URL" after the callback times out
+
+What that still requires is somewhere to paste. Not a browser, not the network, not Tailscale — a
+text field. Closing THAT is a consent-contract change (an answer that carries a value, ISS-081),
+not infrastructure. Everything below is for the cases where a shell is genuinely what you want.
+
+## Does your case even need a tunnel?
 
 It depends on the provider's OAuth flow, not on refarm.
 
