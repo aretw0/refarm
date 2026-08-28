@@ -70,10 +70,30 @@ At <https://login.tailscale.com/admin/acls>, add:
 `autogroup:self` restricts this to devices owned by the same person — your phone talking to your
 PC, and nothing else.
 
-NOT VERIFIABLE FROM THE NODE, and this is why it is a step rather than a check: the policy lives
-on the coordination server. `tailscale status --json` does not carry it and the CLI does not expose
-it. A node can report that it OFFERS SSH; whether the tailnet permits it is learned by trying, or
-through the Tailscale API with a key.
+VERIFIABLE FROM THE NODE AFTER ALL, and this document said otherwise for a few hours. The policy
+is pushed to every node as part of its netmap:
+
+    tailscale debug netmap | jq .SSHPolicy
+
+    rules[].principals   the node IPs allowed to originate — your phone's IP is either here or
+                         it is not, and that is the whole question
+    rules[].sshUsers     `{"*": "="}` maps any user to the same name, so a plain login works
+    rules[].action       `holdAndDelegate` is CHECK MODE: Tailscale may ask you to approve the
+                         session in a browser the first time. That is the policy working, not an
+                         error.
+
+`tailscale status --json` genuinely does not carry it, which is what the first draft measured and
+then over-generalised into "the node cannot see the ACL". A probe that finds nothing has found
+nothing in the place it looked.
+
+WHAT IS STILL NOT VERIFIABLE is the policy SOURCE — the netmap shows the compiled rules this node
+received, not the text in the admin console. Editing it remains a step at
+<https://login.tailscale.com/admin/acls>.
+
+A PROBE THAT DOES NOT WORK, so nobody repeats it: `tailscale ssh <this-node>` from the node to
+ITSELF does not exercise the policy. Tailscale SSH intercepts connections from PEERS; a
+self-connection reaches the real port 22, where there is no `sshd`, and answers
+`connection refused`. That measures the absence of a daemon, not the presence of a rule.
 
 ### 3. On the phone — Termux
 
