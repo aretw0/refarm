@@ -735,7 +735,7 @@ export function routeDelivery(input: RouteDeliveryInput): DeliveryPlan {
 	return {
 		routes,
 		refusals,
-		answerable: routes.some((route) => route.mode === "answer"),
+		answerable: routes.some((route) => routeCarriesAnAnswer(route.mode)),
 	};
 }
 
@@ -783,6 +783,28 @@ function explainDegradedToAnnounce(
  * Termux action buttons have exactly the same shape, and an adapter that
  * pretended otherwise would hang a wizard on an answer that can never arrive.
  */
+/**
+ * Does this mode bring something BACK?
+ *
+ * DERIVED FROM THE MODE, not compared against one literal. `answerable` read
+ * `mode === "answer"` and stayed silently false the day `text-answer` was added: the routing was
+ * correct, the plan said `text-answer`, and the surface reporting whether an operator could reply
+ * had been left behind — the tenth time this week a correct model and a correct consumer were
+ * separated by a hand-written projection.
+ *
+ * Exhaustive by construction: a mode added to `DeliveryRouteMode` stops this compiling until it
+ * is classified.
+ */
+export function routeCarriesAnAnswer(mode: DeliveryRouteMode): boolean {
+	switch (mode) {
+		case "answer":
+		case "text-answer":
+			return true;
+		case "announce":
+			return false;
+	}
+}
+
 export function resolveDeliveryMode(
 	request: DeliveryRequest,
 	declaration: DeliveryDeclaration,
