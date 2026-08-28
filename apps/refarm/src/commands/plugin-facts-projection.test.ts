@@ -23,7 +23,7 @@ function sampleFacts(): PluginFacts {
 		requested: true,
 		loaded: true,
 		installed: true,
-		integrity: { state: "matches" } as PluginFacts["integrity"],
+		integrity: { state: "matches" } as unknown as PluginFacts["integrity"],
 		known: true,
 		development: true,
 		effectivePermissions: ["fs:read"],
@@ -45,7 +45,7 @@ describe("the plugin status projection", () => {
 	it("carries the values, not merely the keys", () => {
 		// A projection that spread `undefined` into every field would satisfy the key check and
 		// report a plugin with no permissions and no development state — green, and wrong.
-		const projected = projectPluginFacts(sampleFacts()) as Record<string, unknown>;
+		const projected = projectPluginFacts(sampleFacts()) as unknown as Record<string, unknown>;
 		expect(projected.development).toBe(true);
 		expect(projected.loadedUnderDevelopment).toBe(true);
 		expect(projected.effectivePermissions).toEqual(["fs:read"]);
