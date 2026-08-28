@@ -110,6 +110,7 @@ interface AutomationsTickOptions extends AutomationsValidateOptions {
 	submit?: boolean;
 	owner?: string;
 	now?: string;
+	workspace?: string;
 }
 
 function defaultDeps(): ProjectDeps {
@@ -139,6 +140,40 @@ function dryRunLedger(cwd: string) {
 		hasFired: (key: string) => real.hasFired(key),
 		recordFired: async () => {},
 	};
+}
+
+/**
+ * The directory a DECLARED workspace names, resolved from the node's config.
+ *
+ * Refuses an unknown id by NAMING the declared ones rather than describing the problem: the
+ * operator or agent that mistyped needs the list, and a refusal that withholds it makes them go
+ * looking for a surface that has it.
+ */
+async function resolveDeclaredWorkspaceCwd(workspaceId: string): Promise<string> {
+	const { declaredBase, declaredWorkspacesFromConfig, loadConfig } = await import(
+		"@refarm.dev/config"
+	);
+	// THE NODE'S CONFIG, NAMED. `loadConfig()` with no root walks up from the working directory,
+	// so asking it for "the declared workspaces" from outside any tree answers "this node
+	// declares none" — the ambient resolution this option exists to escape, reintroduced one
+	// layer down. Measured from /tmp on 2026-08-28 before this argument was passed.
+	const config = await loadConfig(declaredBase());
+	// `absolutePath`, not `path`: the declaration may be relative, and the resolver anchors it on
+	// the NODE's base so the same declaration names the same directory from anywhere. Taking the
+	// raw `path` here would put the ambient working directory back into the answer.
+	const workspaces = (
+		declaredWorkspacesFromConfig(config) as Array<{ id: string; absolutePath: string } | null>
+	).filter((workspace): workspace is { id: string; absolutePath: string } => workspace !== null);
+	const match = workspaces.find((workspace) => workspace.id === workspaceId);
+	if (!match) {
+		const declared = workspaces.map((workspace) => workspace.id);
+		throw new Error(
+			declared.length > 0
+				? `No declared workspace "${workspaceId}". Declared: ${declared.join(", ")}.`
+				: `No declared workspace "${workspaceId}", and this node declares none.`,
+		);
+	}
+	return match.absolutePath;
 }
 
 function formatTickReportPlain(
@@ -767,11 +802,22 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 		.option("--submit", "Dispatch due efforts and record the fired ledger")
 		.option("--owner <owner>", "Ledger owner recorded on each job")
 		.option("--now <iso>", "Clock override (ISO-8601) for due-ness")
+		.option(
+			"--workspace <id>",
+			"Tick a DECLARED workspace by id, resolved from the node config — not from where this runs",
+		)
 		.option("--json", "Output machine-readable tick report")
 		.action(async (options: AutomationsTickOptions) => {
-			const cwd = deps.cwd();
 			const submit = Boolean(options.submit);
 			try {
+				// A DECLARED TARGET BEATS AN AMBIENT ONE. Project automations resolve by walking up
+				// from the working directory, so a supervised tick reads whatever tree its unit
+				// happens to sit in — and on 2026-08-27 that was a directory with no automations,
+				// reported as success for as long as it ran. Declared workspace paths come from the
+				// NODE's config and name the same directory from anywhere (ISS-175, ISS-075).
+				const cwd = options.workspace
+					? await resolveDeclaredWorkspaceCwd(options.workspace)
+					: deps.cwd();
 				const report = await runDueScheduledWork({
 					cwd,
 					owner: options.owner,
