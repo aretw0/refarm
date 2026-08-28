@@ -142,3 +142,115 @@ describe("telegram destination discovery", () => {
 		expect(await probeAdapter(failing as never).discoverDestinations?.()).toEqual([]);
 	});
 });
+
+describe("telegram text answers", () => {
+	/**
+	 * A watch window that actually opens. The shared `probeAdapter` sets `answerWatchMs: 0` —
+	 * right for tests about the SEND — which makes the poll loop never run. The first version of
+	 * these tests used it and the happy path silently captured nothing, which would have left the
+	 * two negative assertions passing VACUOUSLY: "no answer was captured" is trivially true when
+	 * nothing can be.
+	 */
+	function watchingAdapter(fetchImpl: typeof fetch) {
+		return createTelegramDeliveryAdapter({
+			chatId: "424242",
+			resolveToken: async () => TOKEN,
+			fetch: fetchImpl,
+			sleep: async () => {},
+			now: () => 1_000,
+			apiBase: "https://api.telegram.test",
+			answerWatchMs: 60_000,
+		});
+	}
+
+	const request = {
+		promptId: "p1",
+		question: "Paste the redirect URL:",
+		asker: "refarm sow",
+		needsDecision: true,
+		answerTravels: false,
+		expiresAt: null,
+	} as never;
+
+	function scriptedFetch(responses: unknown[]) {
+		let call = 0;
+		return vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+			const body = responses[Math.min(call, responses.length - 1)];
+			call += 1;
+			return jsonResponse(body);
+		});
+	}
+
+	const sent = { ok: true, result: { message_id: 77 } };
+
+	it("accepts a reply bound to the question it asked", async () => {
+		const answers: string[] = [];
+		const fetchImpl = scriptedFetch([
+			sent,
+			{
+				ok: true,
+				result: [{ update_id: 1, message: { text: "https://x/cb?code=abc", reply_to_message: { message_id: 77 } } }],
+			},
+		]);
+		const outcome = await watchingAdapter(fetchImpl as never).offerTextAnswer?.(request, {
+			answer: (value) => {
+				answers.push(String(value));
+				return true;
+			},
+		});
+		expect(answers).toEqual(["https://x/cb?code=abc"]);
+		expect(outcome?.status).toBe("delivered");
+	});
+
+	// THE ASSERTION THAT MATTERS. Capturing "the next message in the chat" would turn any
+	// unrelated line — or, in a group, anyone else's line — into the answer to a pending question.
+	it("ignores a message that is not a reply to this question", async () => {
+		const answers: string[] = [];
+		const fetchImpl = scriptedFetch([
+			sent,
+			{ ok: true, result: [{ update_id: 1, message: { text: "bom dia" } }] },
+		]);
+		await watchingAdapter(fetchImpl as never).offerTextAnswer?.(request, {
+			answer: (value) => {
+				answers.push(String(value));
+				return true;
+			},
+		});
+		expect(answers).toEqual([]);
+	});
+
+	it("ignores a reply to a DIFFERENT message", async () => {
+		const answers: string[] = [];
+		const fetchImpl = scriptedFetch([
+			sent,
+			{
+				ok: true,
+				result: [{ update_id: 1, message: { text: "nope", reply_to_message: { message_id: 999 } } }],
+			},
+		]);
+		await watchingAdapter(fetchImpl as never).offerTextAnswer?.(request, {
+			answer: (value) => {
+				answers.push(String(value));
+				return true;
+			},
+		});
+		expect(answers).toEqual([]);
+	});
+
+	it("asks the client to compose a reply, which is what makes the binding natural", async () => {
+		const fetchImpl = scriptedFetch([sent, { ok: true, result: [] }]);
+		await watchingAdapter(fetchImpl as never).offerTextAnswer?.(request, { answer: () => true });
+		const body = JSON.parse(String((fetchImpl.mock.calls[0]?.[1] as RequestInit)?.body ?? "{}"));
+		expect(body.reply_markup).toEqual({ force_reply: true });
+	});
+
+	it("treats sent-and-unanswered as delivered, because it was", async () => {
+		const fetchImpl = scriptedFetch([sent, { ok: true, result: [] }]);
+		const outcome = await watchingAdapter(fetchImpl as never).offerTextAnswer?.(request, {
+			answer: () => true,
+		});
+		// The question REACHED the operator. What happens next is the asker's timeout to decide.
+		expect(outcome?.status).toBe("delivered");
+		expect(outcome?.detail).toContain("no reply");
+	});
+});

@@ -34,6 +34,15 @@
  */
 export type DeliveryCapability = "announce" | "answer";
 
+/**
+ * What a route ACTUALLY carried, which is finer than what a channel is declared able to carry.
+ *
+ * Declared on the outcome as well as on the route because the outcome is the record an operator
+ * reads hours later: "answer" and "text-answer" are different events — one carried a decision
+ * among choices, the other carried a value — and collapsing them would lose which happened.
+ */
+export type DeliveryRouteMode = DeliveryCapability | "text-answer";
+
 const DELIVERY_CAPABILITIES: readonly DeliveryCapability[] = ["announce", "answer"];
 
 /** True when `held` satisfies a requirement for `needed`. `answer` ⊇ `announce`. */
@@ -79,7 +88,7 @@ export interface DeliveryOutcome {
 	adapter: string;
 	status: DeliveryStatus;
 	/** What was actually carried — an announcement, or an answerable offer. */
-	mode: DeliveryCapability;
+	mode: DeliveryRouteMode;
 	/** Epoch ms. */
 	at: number;
 	/** Short, operator-facing, secret-free. */
@@ -89,7 +98,7 @@ export interface DeliveryOutcome {
 /** Convenience constructors, so an adapter never hand-rolls the shape. */
 export function delivered(
 	adapter: string,
-	mode: DeliveryCapability,
+	mode: DeliveryRouteMode,
 	at: number,
 	detail?: string,
 ): DeliveryOutcome {
@@ -100,7 +109,7 @@ export function delivered(
 
 export function refused(
 	adapter: string,
-	mode: DeliveryCapability,
+	mode: DeliveryRouteMode,
 	at: number,
 	detail: string,
 ): DeliveryOutcome {
@@ -109,7 +118,7 @@ export function refused(
 
 export function couldNotAttempt(
 	adapter: string,
-	mode: DeliveryCapability,
+	mode: DeliveryRouteMode,
 	at: number,
 	detail: string,
 ): DeliveryOutcome {
@@ -259,6 +268,24 @@ export interface DeliveryAdapter {
 	 * make. `@refarm.dev/contacts` is the store; this is the read.
 	 */
 	discoverDestinations?(): Promise<DeliveryDestination[]>;
+	/**
+	 * Carry a question that needs a VALUE rather than a choice, and bring the value back.
+	 *
+	 * WHY IT IS SEPARATE FROM `offerAnswer`. That one carries a decision among choices — buttons,
+	 * on every transport that has them — and its absence is what makes `capability: "answer"`
+	 * unfakeable. A value has no choices to render, so a transport can be perfectly able to offer
+	 * buttons and unable to accept free text. Two methods, two abilities, each proven by presence.
+	 *
+	 * WHAT IT UNLOCKS, measured 2026-08-28: `refarm sow` asks "paste the redirect URL" through the
+	 * operator channel, which is already delivery-attached — but a choice-less question routed as
+	 * `announce`, so the operator saw it on his phone and had nowhere to answer. An OAuth
+	 * re-authentication was therefore completable from anywhere EXCEPT the surface he was holding.
+	 *
+	 * THE ANSWER MUST BE BOUND TO THE QUESTION. A transport that captured the next message in a
+	 * chat would turn any unrelated line — or anyone else in a group — into the answer to a
+	 * pending question. An implementation must tie the reply to the message it answers.
+	 */
+	offerTextAnswer?(request: DeliveryRequest, sink: DeliveryAnswerSink): Promise<DeliveryOutcome>;
 }
 
 /**
@@ -619,7 +646,7 @@ export interface DeliveryRoute {
 	adapter: DeliveryAdapter;
 	declaration: DeliveryDeclaration;
 	/** What this channel will actually carry. Never exceeds its capability. */
-	mode: DeliveryCapability;
+	mode: DeliveryRouteMode;
 }
 
 export interface DeliveryPlan {
@@ -692,7 +719,7 @@ export function routeDelivery(input: RouteDeliveryInput): DeliveryPlan {
 		}
 
 		// Gate 2 — D3. What may this channel carry?
-		const mode = resolveDeliveryMode(input.request, declaration);
+		const mode = resolveDeliveryMode(input.request, declaration, adapter);
 
 		if (input.request.needsDecision && mode === "announce") {
 			refusals.push({
@@ -759,11 +786,23 @@ function explainDegradedToAnnounce(
 export function resolveDeliveryMode(
 	request: DeliveryRequest,
 	declaration: DeliveryDeclaration,
-): DeliveryCapability {
+	/**
+	 * The adapter this route would use. OPTIONAL so every existing caller keeps its meaning:
+	 * without it a choice-less question is announce-only, which is what this function has always
+	 * answered. With it, a transport that can accept a VALUE gets to say so.
+	 */
+	adapter?: Pick<DeliveryAdapter, "offerTextAnswer">,
+): DeliveryRouteMode {
 	if (!request.needsDecision) return "announce";
 	if (declaration.capability !== "answer") return "announce";
 	if (request.answerTravels) return "announce";
-	if (!request.choices || request.choices.length === 0) return "announce";
+	if (!request.choices || request.choices.length === 0) {
+		// A QUESTION WITH NO CHOICES WANTS A VALUE. It was announce-only for as long as answers
+		// travelled as buttons, which left `refarm sow`'s "paste the redirect URL" visible on a
+		// phone and answerable only at a keyboard. A transport that implements `offerTextAnswer`
+		// can carry it; one that does not still cannot, and says so by absence.
+		return adapter?.offerTextAnswer ? "text-answer" : "announce";
+	}
 	return "answer";
 }
 
@@ -819,7 +858,10 @@ export async function deliver(input: DeliverInput): Promise<DeliveryOutcome[]> {
 					route.mode === "answer"
 						? // Non-null asserted by refuseAnswerRouteToAnnounceOnly above.
 							await route.adapter.offerAnswer!(input.request, input.sink)
-						: await route.adapter.announce(input.request);
+						: route.mode === "text-answer"
+							? // Only routed when the adapter has it — `resolveDeliveryMode` checked.
+								await route.adapter.offerTextAnswer!(input.request, input.sink)
+							: await route.adapter.announce(input.request);
 				return normaliseOutcome(outcome, route, now());
 			} catch (error) {
 				return couldNotAttempt(

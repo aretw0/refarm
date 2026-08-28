@@ -624,6 +624,104 @@ export function createTelegramDeliveryAdapter(options: TelegramDeliveryOptions):
 		return [...seen.values()];
 	}
 
+	/**
+	 * Carry a question that wants a VALUE, and bring the value back.
+	 *
+	 * WHAT IT UNLOCKS: `refarm sow` asks "paste the redirect URL" through the operator channel,
+	 * which is already delivery-attached. That question has no choices, so it routed as
+	 * `announce` — the operator saw it on his phone and had nowhere to answer. An OAuth
+	 * re-authentication was completable from anywhere except the surface he was holding.
+	 *
+	 * THE ANSWER IS BOUND TO THE QUESTION BY `reply_to_message`, and that is the whole of the
+	 * safety here. Capturing "the next message in the chat" would turn any unrelated line into
+	 * the answer to a pending question — and in a group, anyone else's line. `force_reply` makes
+	 * the client compose a reply, so the binding is what the operator does naturally rather than
+	 * something they must remember.
+	 *
+	 * IT DOES NOT ADVANCE THE OFFSET, for the reason `discoverDestinations` does not: the button
+	 * path polls the same queue, and consuming its updates would eat callbacks.
+	 */
+	async function offerTextAnswer(
+		request: DeliveryRequest,
+		sink: DeliveryAnswerSink,
+	): Promise<DeliveryOutcome> {
+		let token: string;
+		try {
+			token = await options.resolveToken();
+		} catch (error) {
+			return couldNotAttempt(
+				TELEGRAM_ADAPTER_ID,
+				"text-answer",
+				now(),
+				`token unavailable: ${errorMessage(error)}`,
+			);
+		}
+
+		let sentMessageId: number | undefined;
+		try {
+			const { status, payload } = await callApi(token, "sendMessage", {
+				chat_id: options.chatId,
+				text: composeMessage(request, "announce"),
+				// FORCE_REPLY, not a plain message: it makes the client open a reply box bound to
+				// this message.
+				reply_markup: { force_reply: true },
+			});
+			if (payload?.ok !== true) {
+				return refused(
+					TELEGRAM_ADAPTER_ID,
+					"text-answer",
+					now(),
+					safeDetail(
+						typeof payload?.description === "string" ? payload.description : `HTTP ${status}`,
+						token,
+					),
+				);
+			}
+			const result = payload.result as { message_id?: unknown } | undefined;
+			if (typeof result?.message_id === "number") sentMessageId = result.message_id;
+		} catch (error) {
+			return couldNotAttempt(
+				TELEGRAM_ADAPTER_ID,
+				"text-answer",
+				now(),
+				safeDetail(errorMessage(error), token),
+			);
+		}
+
+		const deadline = now() + (options.answerWatchMs ?? DEFAULT_ANSWER_WATCH_MS);
+		let polls = 0;
+		while (now() < deadline && polls < MAX_ANSWER_POLLS) {
+			polls += 1;
+			let payload: TelegramResponse | null = null;
+			try {
+				({ payload } = await callApi(token, "getUpdates", {
+					timeout: 0,
+					allowed_updates: ["message"],
+				}));
+			} catch {
+				payload = null;
+			}
+			const updates = Array.isArray(payload?.result) ? (payload.result as unknown[]) : [];
+			for (const update of updates) {
+				const message = (update as { message?: Record<string, unknown> }).message;
+				const repliedTo = message?.["reply_to_message"] as { message_id?: unknown } | undefined;
+				// THE BINDING. Not "a message arrived" — a reply to THIS question.
+				if (!sentMessageId || repliedTo?.message_id !== sentMessageId) continue;
+				const text = message?.["text"];
+				if (typeof text !== "string" || text.trim() === "") continue;
+				if (sink.answer(text.trim())) {
+					return delivered(TELEGRAM_ADAPTER_ID, "text-answer", now());
+				}
+				// Someone else settled it first. The value is not ours to apply twice.
+				return delivered(TELEGRAM_ADAPTER_ID, "text-answer", now(), "answered elsewhere first");
+			}
+			await sleep(CALLBACK_POLL_INTERVAL_MS);
+		}
+		// SENT AND UNANSWERED IS NOT A FAILURE TO DELIVER. The question reached the operator; the
+		// asker's own timeout decides what happens next.
+		return delivered(TELEGRAM_ADAPTER_ID, "text-answer", now(), "no reply within the watch window");
+	}
+
 	return {
 		id: TELEGRAM_ADAPTER_ID,
 		capability: "answer",
@@ -634,6 +732,7 @@ export function createTelegramDeliveryAdapter(options: TelegramDeliveryOptions):
 		offerAnswer,
 		probe,
 		discoverDestinations,
+		offerTextAnswer,
 	};
 }
 
