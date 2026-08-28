@@ -29,6 +29,7 @@ import {
 	summariseStandingQuestions,
 	type OperationQuestion,
 } from "@refarm.dev/operation-consent-v1";
+import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
@@ -94,6 +95,8 @@ interface ResumeOptions {
 	/** A standing question's requestId to stop reporting. */
 	dismiss?: string;
 	dismissExpired?: boolean;
+	/** A standing question's requestId to RENDER, deciding nothing. */
+	show?: string;
 	answer?: string;
 	authorize?: boolean;
 	decline?: boolean;
@@ -131,6 +134,10 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 			"--dismiss-expired",
 			"Stop reporting every question whose window has closed — nobody dismisses fourteen one at a time",
 		)
+		.option(
+			"--show <requestId>",
+			"Show exactly what a standing question would change — reads, decides nothing",
+		)
 		.option("--answer <requestId>", "Answer a standing question whose asker is gone")
 		.option("--authorize", "With --answer: yes. Applies the change the original run would have")
 		.option("--decline", "With --answer: no. Records the refusal, changes nothing")
@@ -155,6 +162,12 @@ Notes:
 			// DISMISS IS ITS OWN RUN, not a flag that also prints the view. The operator is saying
 			// one thing — stop telling me about this — and answering it with a full resume would
 			// bury the confirmation in the report they were trying to shorten.
+			// READ BEFORE DECIDE, and ahead of `--answer` so `--show X --answer X` cannot
+			// accidentally answer while the operator meant to look.
+			if (options.show) {
+				await emitResumeShow(options.show, Boolean(options.json));
+				return;
+			}
 			if (options.answer) {
 				await emitResumeAnswer(options, Boolean(options.json));
 				return;
@@ -206,10 +219,32 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			handoffs: RESUME_HANDOFFS,
 		});
 
-		// Appended AFTER the generic operator-resume handoffs, never ahead of them: a failed
-		// finish or a not-ready runtime stays the first, most urgent `nextCommand` — the ledger
-		// hint is "what else is left," not a replacement for active recovery.
-		const nextCommands = [...new Set([...envelope.nextCommands, ...ledgerNextCommands])];
+		// A QUESTION WAITING ON THE OPERATOR GOES FIRST, ahead of the generic handoffs, because it
+		// is the only thing here that is BLOCKED on a human rather than on the node. Measured
+		// 2026-08-27: with a standing question present, this returned `issues list` as the next
+		// command and named the answer nowhere, so an agent following CLAUDE.md read the handoff,
+		// went to the source instead, found `--dismiss` first, and threw away a decision it could
+		// have carried (ISS-173).
+		//
+		// IT POINTS AT `--show`, NEVER AT `--authorize`. `nextCommands` is what an agent
+		// dispatches; putting an answer there would let it decide the operator's question for
+		// him, and the answer is the one thing a consent surface must never guess. So the handoff
+		// routes to SEEING, and the two ways to answer travel as prose in `nextActions`.
+		const awaitingNextCommands = (awaitingOperator?.outstanding ?? [])
+			.slice(0, 3)
+			.map((question) => refarmCommand(["resume", "--show", question.requestId]));
+		const nextCommands = [
+			...new Set([...awaitingNextCommands, ...envelope.nextCommands, ...ledgerNextCommands]),
+		];
+		// The two ways to answer, as PROSE, first. A human reads these; an agent dispatching
+		// `nextCommands` reaches `--show` and stops there, which is exactly where it should stop.
+		const awaitingNextActions = (awaitingOperator?.outstanding ?? [])
+			.slice(0, 3)
+			.map(
+				(question) =>
+					`Decide "${question.title}": ${refarmCommand(["resume", "--answer", question.requestId, "--authorize"])} or ${refarmCommand(["resume", "--answer", question.requestId, "--decline"])}`,
+			);
+		const nextActions = [...new Set([...awaitingNextActions, ...envelope.nextActions])];
 
 		const nextCommandMode = options.nextAction || options.nextCommand;
 		if (nextCommandMode && options.json) {
@@ -218,7 +253,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 					command: "resume",
 					operation: "operator",
 					nextAction: envelope.nextAction,
-					nextActions: envelope.nextActions,
+					nextActions,
 					nextCommands,
 					extra: {
 						nextProcesses: envelope.nextProcesses,
@@ -238,6 +273,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 		if (options.json) {
 			printJson({
 				...envelope,
+				nextActions,
 				// ISS-092: `project` is ALWAYS present, explicitly null when nothing was read, and
 				// `projectResolution` always says which of the four states produced it. The key used to
 				// vanish, so a consumer doing `project?.currentTasks ?? []` saw an empty list and no
@@ -290,6 +326,71 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
  * There is no default. A missing flag is not "probably yes" and not "probably no"; it is a
  * malformed instruction, and the one place a consent surface must never guess is the answer.
  */
+/**
+ * SHOW what a standing question would do, without answering it.
+ *
+ * THE READ THAT WAS MISSING. A standing question carries its whole request — every change with a
+ * complete before/after — because that is what applying it later needs. Nothing rendered it. On
+ * 2026-08-27 an agent had to open the sovereign trail files by hand to show the operator the
+ * systemd unit he was about to authorise, which is the opposite of a consent surface.
+ *
+ * IT IS ALSO WHY `nextCommands` CAN POINT SOMEWHERE HONEST. `--authorize` in a handoff would let
+ * an agent following CLAUDE.md answer the operator's question for him; the answer is the one
+ * thing a consent surface must never guess. So the handoff routes to SEEING, and the two ways to
+ * answer stay in prose where a human reads them.
+ */
+async function emitResumeShow(requestId: string, json: boolean): Promise<void> {
+	const root = declaredBase();
+	const answerHint = `${refarmCommand(["resume", "--answer", requestId, "--authorize"])} | ${refarmCommand(["resume", "--answer", requestId, "--decline"])}`;
+	for (const trailPath of standingQuestionTrailPaths(root)) {
+		const trail = createFileOperationTrail(trailPath);
+		const questions = (await trail.readQuestions?.()) ?? [];
+		const question = questions.find((candidate) => candidate.requestId === requestId);
+		if (!question) continue;
+		const changes = question.request?.changes ?? [];
+		if (json) {
+			printJson(
+				buildJsonSuccessEnvelope({
+					command: "resume",
+					operation: "show",
+					extra: { question, changes },
+					nextAction: `Decide it: ${answerHint}`,
+					nextCommands: [refarmCommand(["resume", "--json"])],
+				}),
+			);
+			return;
+		}
+		console.log(question.title);
+		console.log(chalk.dim(`  ${question.purpose}`));
+		console.log(chalk.dim(`  asked by ${question.requester} at ${question.askedAt}`));
+		for (const change of changes) {
+			console.log("");
+			console.log(chalk.dim(`--- ${change.path}`));
+			const insertion = change.insertion?.text;
+			// The INSERTION when there is one: a whole-file after-image of a config the operator
+			// already knows buries the four lines that are actually new.
+			console.log(insertion ?? change.after ?? "(no content recorded)");
+		}
+		console.log("");
+		console.log(chalk.dim(`  decide it: ${answerHint}`));
+		return;
+	}
+	const missing = `No standing question with id ${requestId} — it may have been answered or aged out.`;
+	if (json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "resume",
+				operation: "show",
+				extra: { requestId, found: false },
+				nextAction: missing,
+				nextCommands: [refarmCommand(["resume", "--json"])],
+			}),
+		);
+		return;
+	}
+	console.log(missing);
+}
+
 async function emitResumeAnswer(options: ResumeOptions, json: boolean): Promise<void> {
 	const requestId = options.answer ?? "";
 	const say = (message: string, extra: Record<string, unknown> = {}, ok = true) => {

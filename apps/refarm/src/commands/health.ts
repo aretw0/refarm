@@ -37,6 +37,7 @@ import {
 	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
+import { refarmCommand } from "../brand.js";
 import {
 	buildHealthAuditFingerprint,
 	readHealthAuditCache,
@@ -212,6 +213,8 @@ export interface HealthAuditOptions {
 }
 
 const RESOLUTION_ALIGNMENT_COMMAND = "node packages/toolbox/src/cli.mjs reso dist";
+/** Built, never spelled: the same machine prints this verb under another brand. */
+const RUNTIME_RESTART_COMMAND = refarmCommand(["runtime", "restart"]);
 
 export function buildHealthReport(
 	results: HealthResults,
@@ -297,6 +300,16 @@ export function collectSkippedAuditors(
 interface ConfigNodeIssuePresentation {
 	summary: string;
 	action: string;
+	/**
+	 * The command that makes progress, or absent when none exists.
+	 *
+	 * A recommendation with prose and no command tells an agent following CLAUDE.md that there is
+	 * nothing to dispatch while the sentence beside it names a fix — measured 2026-08-27 when a
+	 * standing `config_node_drift` returned `nextCommands: []` (ISS-173). The neighbouring
+	 * `nodeTools` branch states the other half of the rule: inventing a command that does not
+	 * exist puts a DEAD handoff into a list every loop here is told to follow.
+	 */
+	command?: string;
 }
 
 const DEFAULT_CONFIG_NODE_ISSUE_PRESENTATION: ConfigNodeIssuePresentation = {
@@ -310,13 +323,21 @@ const CONFIG_NODE_ISSUE_PRESENTATION: Record<string, ConfigNodeIssuePresentation
 		summary: "The replicated config graph node differs from the local .refarm/config.json.",
 		action:
 			"Reconcile the config: another device changed it, or the local file drifted. Re-run the runtime to re-sync the RefarmConfig node.",
+		// HONEST UNDER SUPERVISION TOO, which is why this verb and not a systemctl line: on a node
+		// whose daemon is supervised, `runtime restart` refuses AND hands over the exact
+		// `systemctl --user restart` to run. Either way the operator is one step from resolved,
+		// and the handoff never names a supervisor this node may not have.
+		command: RUNTIME_RESTART_COMMAND,
 	},
 	config_node_invalid: DEFAULT_CONFIG_NODE_ISSUE_PRESENTATION,
 	config_node_unreachable: {
 		summary:
 			"The config graph node could not be read — the audit could not run, not that it ran clean.",
 		action:
-			"Confirm the runtime sidecar is reachable and the graph store is healthy (refarm check --next-action --json), then re-run refarm health.",
+			"Confirm the runtime sidecar is reachable and the graph store is healthy, then re-run the health audit.",
+		// The composite gate, not a restart: this finding says the read FAILED, and starting from
+		// "is the runtime even ready" is the honest first step rather than assuming a stale node.
+		command: HEALTH_NEXT_ACTION_COMMAND,
 	},
 };
 
@@ -386,6 +407,7 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
 				target: issue.path,
 				summary: presentation.summary,
 				action: presentation.action,
+				...(presentation.command ? { command: presentation.command } : {}),
 			};
 		}),
 		// No `command`: this node has no verb that installs a tool for the operator, and inventing
