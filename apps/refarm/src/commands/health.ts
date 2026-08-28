@@ -870,7 +870,12 @@ function resolveSovereignConfigPath(rootDir: string): string {
 function readNodePluginDevelopment(): PluginUnderDevelopment[] {
 	try {
 		const home = declaredBase();
-		const raw = fs.readFileSync(path.join(home, "config.json"), "utf-8");
+		// `sovereignConfigRelativePath()`, never a spelled "config.json": `declaredBase()` is the
+		// HOME, and the config lives under the sovereign directory beneath it. The first draft
+		// joined the name directly, read a path that does not exist, and the catch below turned
+		// that into "nothing is waived" — a wrong path reported as a clean node, which is the
+		// exact failure shape this whole lane removes. The neighbouring reader derives it too.
+		const raw = fs.readFileSync(path.join(home, sovereignConfigRelativePath()), "utf-8");
 		return readPluginsUnderDevelopment(JSON.parse(raw) as unknown);
 	} catch {
 		// No config, or none readable: nothing is waived here. The enforcement path reads it the
