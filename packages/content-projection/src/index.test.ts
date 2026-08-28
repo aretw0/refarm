@@ -54,6 +54,38 @@ describe("content projection", () => {
 		expect(records[1]?.fields.title).toBe("Real");
 	});
 
+	it("reads wikilinks out of frontmatter values when asked", () => {
+		// Obsidian vaults carry typed links in frontmatter — `responsavel:
+		// "[[Arthur]]"` — and a body-only scan drops them without a trace.
+		const records = projectContentToRecords(
+			[
+				{
+					path: "notes/opportunity.md",
+					text: '---\nresponsavel: "[[Arthur]]"\nrevisores:\n  - "[[Lais]]"\n---\nNo links here.\n',
+				},
+				{ path: "people/Arthur.md", text: "Arthur\n" },
+				{ path: "people/Lais.md", text: "Lais\n" },
+			],
+			{ linkFrontmatter: true },
+		);
+
+		expect(records[0]?.relations.map((relation) => relation.target)).toEqual([
+			records[1]?.id,
+			records[2]?.id,
+		]);
+		expect(records[0]?.relations[0]?.attrs).toMatchObject({ kind: "frontmatter", key: "responsavel" });
+		expect(records[0]?.relations[1]?.attrs).toMatchObject({ kind: "frontmatter", key: "revisores" });
+	});
+
+	it("leaves frontmatter links alone unless the consumer opts in", () => {
+		const records = projectContentToRecords([
+			{ path: "notes/opportunity.md", text: '---\nresponsavel: "[[Arthur]]"\n---\nBody.\n' },
+			{ path: "people/Arthur.md", text: "Arthur\n" },
+		]);
+
+		expect(records[0]?.relations).toEqual([]);
+	});
+
 	it("extracts wikilinks with optional labels", () => {
 		expect(extractWikilinks("See [[Alpha]] and [[Beta Note|the beta]].")).toEqual([
 			{ raw: "[[Alpha]]", target: "Alpha" },

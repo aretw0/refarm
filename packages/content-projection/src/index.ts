@@ -46,6 +46,17 @@ export interface ContentProjectionConfig {
 	relationType?: string;
 	reviewState?: string;
 	idPrefix?: string;
+	/**
+	 * Also read wikilinks out of frontmatter values. Off by default so existing
+	 * consumers keep their exact relation sets. Obsidian-style vaults put typed
+	 * links in frontmatter (`responsavel: "[[Arthur]]"`), and a body-only scan
+	 * silently drops them.
+	 */
+	linkFrontmatter?: boolean;
+}
+
+export interface FrontmatterWikiLink extends WikiLink {
+	key: string;
 }
 
 export interface ProjectedContentRecord extends KnowledgeRecord {
@@ -172,7 +183,12 @@ export function parseFrontmatter(text: string): FrontmatterParseResult {
 	// text stays in `frontmatter` for callers that want to inspect it.
 	let parsed: unknown;
 	try {
-		parsed = YAML.parse(frontmatter);
+		// `"error"` silences warnings but keeps errors throwing, so the catch below
+		// still degrades to empty data. `"silent"` would swallow the errors too and
+		// hand back the parser's best guess — for `created: {{date}} {{time}}` that
+		// is `{ created: { "{ date }": null } }`, which is worse than no data at
+		// all: nonsense that looks like a value.
+		parsed = YAML.parse(frontmatter, { logLevel: "error" });
 	} catch {
 		parsed = undefined;
 	}
@@ -202,6 +218,24 @@ export function extractMarkdownLinks(body: string): MarkdownLink[] {
 			...(match[3] ? { title: match[3].trim() } : {}),
 		}))
 		.filter((link) => link.label.length > 0 && link.target.length > 0);
+}
+
+export function extractFrontmatterWikilinks(
+	data: Record<string, unknown>,
+): FrontmatterWikiLink[] {
+	const links: FrontmatterWikiLink[] = [];
+	for (const [key, value] of Object.entries(data)) {
+		const texts =
+			typeof value === "string"
+				? [value]
+				: Array.isArray(value)
+					? value.filter((entry): entry is string => typeof entry === "string")
+					: [];
+		for (const text of texts) {
+			for (const link of extractWikilinks(text)) links.push({ ...link, key });
+		}
+	}
+	return links;
 }
 
 export function extractExternalMarkdownLinks(body: string): MarkdownLink[] {
@@ -309,6 +343,15 @@ export function projectContentToRecords(
 			fields,
 			sections: [{ key: "body", content: parsed.body }],
 			relations: uniqueRelationsByTarget([
+				...(config.linkFrontmatter ? extractFrontmatterWikilinks(parsed.data) : []).flatMap((link) =>
+					resolveWikilinks([link], index, {
+						selfId: id,
+						relationType: config.relationType,
+					}).map((relation) => ({
+						...relation,
+						attrs: { ...relation.attrs, kind: "frontmatter", key: link.key },
+					})),
+				),
 				...resolveWikilinks(extractWikilinks(parsed.body), index, {
 					selfId: id,
 					relationType: config.relationType,

@@ -14,6 +14,12 @@ objects.
 - `extractMarkdownLinks(body)` extracts inline `[label](target)` Markdown links.
 - `extractExternalMarkdownLinks(body)` extracts external inline Markdown links
   for metadata preservation.
+- `extractFrontmatterWikilinks(data)` extracts `[[target]]` links out of
+  frontmatter string and string-array values, tagged with the key they came
+  from. Obsidian-style vaults keep typed links there (`responsavel:
+  "[[Arthur]]"`), and a body-only scan drops them silently. Enable it in
+  `projectContentToRecords` with `linkFrontmatter: true`; it stays off by
+  default so existing consumers keep their exact relation sets.
 - `resolveWikilinks(links, index, options)` maps link targets to
   `records:v1` relations while dropping dangling and self links.
 - `resolveMarkdownLinks(links, index, options)` maps local inline Markdown
