@@ -32,6 +32,7 @@ import {
 	type PluginOrigin,
 	readInstalledVersion,
 	type RuntimePluginRecommendation,
+	type RuntimePluginStatusEntry,
 	type RuntimePluginStatusReport,
 } from "./plugin-shared.js";
 import {
@@ -234,6 +235,60 @@ export interface PluginFacts {
 	 *  development and never need the waiver, and reporting a waiver that never fired would be a
 	 *  claim about the load that is not true. `null` when no load computed one. */
 	loadedUnderDevelopment: boolean | null;
+}
+
+/**
+ * EVERY FIELD OF `PluginFacts`, ENUMERATED BY THE COMPILER.
+ *
+ * `Record<keyof PluginFacts, true>` is exhaustive: add a field to the type and this const stops
+ * compiling until the field is listed. That is what makes the projection guard un-forgettable —
+ * the alternative is a hand-written array that agrees with the type right up until it does not.
+ *
+ * WHY THIS EXISTS. On 2026-08-26 the host emitted new grant facts, the parser read them, the
+ * merge assembled them, six tests were green — and the hand-listed projection between them
+ * dropped them on the floor. Found by installing the node and looking, not by any test
+ * (37cb81b1). This is the third time in one week that a correct model and a correct consumer
+ * were separated by a projection somebody retyped.
+ */
+export const PLUGIN_FACT_KEYS: Record<keyof PluginFacts, true> = {
+	runtimeId: true,
+	manifestId: true,
+	dir: true,
+	requested: true,
+	loaded: true,
+	installed: true,
+	integrity: true,
+	known: true,
+	development: true,
+	effectivePermissions: true,
+	declaredPermissions: true,
+	loadedUnderDevelopment: true,
+};
+
+/**
+ * The status row for one plugin: every fact, plus the `id` a surface displays.
+ *
+ * Extracted from the payload builder so a guard can run it: a projection nobody can call is a
+ * projection nobody can check. Typed by its DESTINATION, so the compiler now polices both ends —
+ * a field added to the entry type must be produced here, and `PLUGIN_FACT_KEYS` above makes the
+ * source type's fields impossible to forget.
+ */
+export function projectPluginFacts(facts: PluginFacts): RuntimePluginStatusEntry {
+	return {
+		id: facts.manifestId ?? facts.runtimeId,
+		runtimeId: facts.runtimeId,
+		manifestId: facts.manifestId,
+		dir: facts.dir,
+		requested: facts.requested,
+		loaded: facts.loaded,
+		installed: facts.installed,
+		integrity: facts.integrity,
+		known: facts.known,
+		development: facts.development,
+		effectivePermissions: facts.effectivePermissions,
+		declaredPermissions: facts.declaredPermissions,
+		loadedUnderDevelopment: facts.loadedUnderDevelopment,
+	};
 }
 
 /** PURE. The grant facts the HOST recorded for this runtime id, or the three nulls that say no
@@ -477,21 +532,7 @@ export function buildRuntimePluginStatusReport(
 		// loads instead of guessing. Rows are keyed by installed DIRECTORY (`mergePluginFacts`),
 		// not by id — two trees can share a runtime id, and collapsing them would hide exactly
 		// what an operator cannot currently see.
-		plugins: mergePluginFacts(state, installed, known, developmentIds).map((p) => ({
-			id: p.manifestId ?? p.runtimeId,
-			runtimeId: p.runtimeId,
-			manifestId: p.manifestId,
-			dir: p.dir,
-			requested: p.requested,
-			loaded: p.loaded,
-			installed: p.installed,
-			integrity: p.integrity,
-			known: p.known,
-			development: p.development,
-					effectivePermissions: p.effectivePermissions,
-			declaredPermissions: p.declaredPermissions,
-			loadedUnderDevelopment: p.loadedUnderDevelopment,
-		})),
+		plugins: mergePluginFacts(state, installed, known, developmentIds).map(projectPluginFacts),
 		nextAction,
 		nextActions: nextCommands,
 		nextCommand: nextCommands[0] ?? null,

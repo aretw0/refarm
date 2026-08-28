@@ -39,6 +39,12 @@ import {
 } from "./diagnostic-recommendations.js";
 import { refarmCommand } from "../brand.js";
 import {
+	DEVELOPMENT_STALE_AFTER_DAYS,
+	readPluginsUnderDevelopment,
+	stalePluginDevelopment,
+	type PluginUnderDevelopment,
+} from "./plugin-development-age.js";
+import {
 	buildHealthAuditFingerprint,
 	readHealthAuditCache,
 	writeHealthAuditCache,
@@ -93,6 +99,9 @@ export interface HealthResults {
 	nodeTools?: NodeToolFindings;
 	/** Whether anything on this node keeps its short-lived credentials alive. */
 	credentialRenewal?: { state: "unneeded" | "covered" | "uncovered"; providers: string[]; by?: string };
+	/** Plugins this node declares under development, with how long each has been so. Present and
+	 *  EMPTY when nothing is declared: "asked, nothing waived" differs from never having looked. */
+	pluginDevelopment?: PluginUnderDevelopment[];
 	/** Which code this node executes, and whether a git tree encloses it. The DISCRIMINATED union,
 	 *  not a widened shape: `repository` exists only on the arm that has one, and widening it here
 	 *  would let a reader ask for it on an installed node and get `undefined` instead of a type
@@ -486,6 +495,33 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
 					},
 				]
 			: []),
+		// AGES OUT LOUD, which is the half of the spec that did not ship. A waiver older than the
+		// threshold is REPORTED, never withdrawn: the guardrails keep removal with the operator,
+		// and this is the `staleBuilds` shape — a duration and a decision.
+		...stalePluginDevelopment(results.pluginDevelopment ?? []).map((entry) => ({
+			issueType: "plugin-development-stale",
+			diagnostic: "plugin-development-stale",
+			target: entry.pluginId,
+			summary: `"${entry.pluginId}" has run unsigned under a development waiver for ${entry.ageDays} days.`,
+			action:
+				"Sign the plugin, or withdraw the waiver so this node stops running it unsigned. Neither is done for you.",
+			command: refarmCommand(["plugin", "develop", entry.pluginId, "--undevelop"]),
+			severity: "warning" as const,
+		})),
+		// A DECLARATION WITH NO USABLE DATE is a different finding, and folding it into staleness
+		// would hide it behind an action that does not fit: nothing can age out what it cannot date.
+		...(results.pluginDevelopment ?? [])
+			.filter((entry) => entry.ageDays === null)
+			.map((entry) => ({
+				issueType: "plugin-development-undated",
+				diagnostic: "plugin-development-undated",
+				target: entry.pluginId,
+				summary: `"${entry.pluginId}" is waived under development with an unreadable date (${entry.declaredAt}).`,
+				action:
+					"Re-declare it so the waiver carries a date this node can age, or withdraw it.",
+				command: refarmCommand(["plugin", "develop", entry.pluginId]),
+				severity: "warning" as const,
+			})),
 		...(results.credentialRenewal?.state === "uncovered"
 			? [
 					{
@@ -621,6 +657,10 @@ async function measureMachineFacts(results: HealthResults, rootDir: string): Pro
 	// answered every dispatch with `token expired`. Reported rather than declared — writing a
 	// timer that talks to a provider into someone's machine is their decision.
 	results.credentialRenewal = readRenewalCoverage();
+	// AN UNSIGNED PLUGIN RUNS ONLY WHERE THIS NODE WAIVES IT, and the waiver's danger is not that
+	// it is granted — it is that it becomes permanent because nothing mentions it again. Reported
+	// with an AGE so the operator can decide; withdrawing a declaration stays theirs (ISS-169).
+	results.pluginDevelopment = readNodePluginDevelopment();
 	// WHAT THIS NODE ACTUALLY EXECUTES — and it changes without the repository changing, which is
 	// the whole point of `refarm node install`.
 	results.nodeSubstrate = readNodeSubstrate(process.argv[1] ?? undefined);
@@ -823,6 +863,22 @@ function resolveSovereignConfigPath(rootDir: string): string {
 /** PURE-ish. The held accounts and declared processes, read without secrets and without throwing:
  *  a health run must not die because a catalog is unreadable, and an unreadable catalog holds no
  *  accounts as far as anything here can tell. */
+/**
+ * The node's own development declarations. Reads the NODE's config, never the working tree's:
+ * a waiver is a fact about the machine that runs the plugin.
+ */
+function readNodePluginDevelopment(): PluginUnderDevelopment[] {
+	try {
+		const home = declaredBase();
+		const raw = fs.readFileSync(path.join(home, "config.json"), "utf-8");
+		return readPluginsUnderDevelopment(JSON.parse(raw) as unknown);
+	} catch {
+		// No config, or none readable: nothing is waived here. The enforcement path reads it the
+		// same way, and a reporter that disagreed would describe a node that does not exist.
+		return [];
+	}
+}
+
 function readRenewalCoverage(): {
 	state: "unneeded" | "covered" | "uncovered";
 	providers: string[];
