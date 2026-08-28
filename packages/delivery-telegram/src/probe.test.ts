@@ -28,7 +28,10 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 describe("telegram probe", () => {
 	it("reports the bot it speaks as, and asks getMe rather than sending", async () => {
-		const fetchImpl = vi.fn(async () =>
+		// The parameters are DECLARED so the mock's call tuple carries their types; an untyped
+		// `vi.fn(async () => ...)` records calls as `[]` and every argument assertion becomes a
+		// cast. vitest does not type-check, so only `tsc` sees the difference.
+		const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
 			jsonResponse({ ok: true, result: { id: 8826483119, username: "refarm_hand_bot" } }),
 		);
 		const probe = await probeAdapter(fetchImpl as never).probe?.();
