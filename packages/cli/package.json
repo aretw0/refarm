@@ -94,6 +94,10 @@
 			"types": "./dist/scheduled-work-runner.d.ts",
 			"import": "./dist/scheduled-work-runner.js"
 		},
+		"./scheduled-work-sources": {
+			"types": "./dist/scheduled-work-sources.d.ts",
+			"import": "./dist/scheduled-work-sources.js"
+		},
 		"./status": {
 			"types": "./dist/status.d.ts",
 			"import": "./dist/status.js"

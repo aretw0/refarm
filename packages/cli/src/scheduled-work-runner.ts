@@ -6,6 +6,11 @@ import {
 	type LocalScheduledWorkFiredLedger,
 } from "@refarm.dev/windmill/local-scheduler";
 import { createLocalSchedulerLedger } from "@refarm.dev/windmill/local-scheduler-ledger";
+import {
+	describeScheduledWorkSources,
+	type ScheduledWorkSource,
+} from "./scheduled-work-sources.js";
+
 
 import {
 	createNodeAutomationAdapter,
@@ -52,9 +57,21 @@ export interface RunDueScheduledWorkOptions {
  * command and the farmhand daemon loop both call this with their own effort
  * adapter; the composition (project adapter + ledger + engine) lives here once.
  */
+/**
+ * The execution report PLUS what it read to produce it.
+ *
+ * The windmill report answers "what fired". It cannot answer "over what", because the merged
+ * adapter it receives has already lost the two scopes' identities — and a report of all zeros is
+ * the same line whether nothing was due, nothing was declared, or nothing was found (ISS-175).
+ * The sources are attached HERE because this is the layer that resolved `base` and `cwd`.
+ */
+export interface DueScheduledWorkReport extends LocalScheduledWorkExecutionReport {
+	readonly sources: ScheduledWorkSource[];
+}
+
 export async function runDueScheduledWork(
 	options: RunDueScheduledWorkOptions,
-): Promise<LocalScheduledWorkExecutionReport> {
+): Promise<DueScheduledWorkReport> {
 	if (!options?.effortAdapter) {
 		throw new Error("runDueScheduledWork requires an effortAdapter");
 	}
@@ -75,11 +92,14 @@ export async function runDueScheduledWork(
 	// duplication the fire-once ledger exists to prevent.
 	const ledger = options.ledger ?? createLocalSchedulerLedger({ cwd: base });
 
-	return executeDueLocalScheduledWork(automationAdapter, options.effortAdapter, {
+	const report = await executeDueLocalScheduledWork(automationAdapter, options.effortAdapter, {
 		owner,
 		now: options.now,
 		ledger,
 	});
+	// DESCRIBED AFTER THE RUN, from the same `base` and `cwd` the adapters were built from, so a
+	// reader of the report can tell an empty tick from a blind one.
+	return { ...report, sources: describeScheduledWorkSources({ base, cwd }) };
 }
 
 /**

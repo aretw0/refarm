@@ -31,6 +31,10 @@ import {
 	type AutomationWorkInput,
 } from "@refarm.dev/cli/automation-work";
 import { runDueScheduledWork } from "@refarm.dev/cli/scheduled-work-runner";
+import {
+	formatScheduledWorkSources,
+	type ScheduledWorkSource,
+} from "@refarm.dev/cli/scheduled-work-sources";
 import { createLocalSchedulerLedger } from "@refarm.dev/windmill/local-scheduler-ledger";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -147,6 +151,7 @@ function formatTickReportPlain(
 			failed: number;
 		};
 		results: Array<{ status: string; job: { name: string } }>;
+		sources?: readonly ScheduledWorkSource[];
 	},
 	submit: boolean,
 ): string {
@@ -155,6 +160,12 @@ function formatTickReportPlain(
 	const lines = [
 		`Scheduled work tick (${mode}): due=${s.due} ${submit ? "submitted" : "would-submit"}=${s.submitted} already-fired=${s.alreadyFired} skipped=${s.skipped} failed=${s.failed}`,
 	];
+	// WHAT IT READ, on the line under what it did. A supervised tick logs into a journal nobody
+	// reads closely, and all-zeros is the same line whether nothing was due, nothing was declared,
+	// or the clock was pointed at the wrong directory (ISS-175).
+	if (report.sources?.length) {
+		lines.push(`  read: ${formatScheduledWorkSources(report.sources)}`);
+	}
 	for (const result of report.results) {
 		lines.push(`  ${result.status}: ${result.job.name}`);
 	}
