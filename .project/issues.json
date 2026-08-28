@@ -2151,6 +2151,17 @@
 			"priority": "medium",
 			"package": "apps/refarm",
 			"axis": "other"
+		},
+		{
+			"id": "ISS-182",
+			"title": "The manual OAuth path blames a container, and races its own callback animation",
+			"body": "REPORTED BY THE OPERATOR 2026-08-28, running a real re-authentication with\n`REFARM_OAUTH_CALLBACK_MODE=manual` on his own PC:\n\n  \"identificou que esta num container mas estou rodando direto no pc\"\n  \"a troca no terminal entre a animação de loading e colagem da url foi clunky, precisamos de\n   mais fluidez no processo\"\n\nTWO DEFECTS, one already fixed and one open.\n\n(1) FIXED THE SAME DAY — A DIAGNOSIS THAT NAMED THE WRONG CAUSE. `needsManualCode` becomes true\n    for TWO reasons:\n\n        containerEnv && !hasPortForwarding    the browser cannot reach this environment\n        REFARM_OAUTH_CALLBACK_MODE=manual     the operator ASKED for the manual path\n\n    and the message asserted only the first: \"Running in a container — the browser redirect cannot\n    reach this environment.\" He was not in a container. A wrong diagnosis does not merely mislead;\n    it sends someone to debug a thing that is not happening. Now it names the reason that applied.\n\n(2) OPEN — THE CALLBACK SERVER RUNS WHEN NOBODY WILL USE IT. In manual mode the flow still starts\n    the local callback server and shows its waiting animation WHILE the paste prompt is asking. Two\n    things own the terminal at once, which is what \"clunky\" describes precisely.\n\n        model.ts:  skipCallbackServer: true    is passed for the manual path\n        and yet the wait animation still ran   — so the two are not the same switch\n\n    The honest shape: when the operator asked for manual, there is nothing to wait for. No server,\n    no animation, one prompt.\n\nA THIRD THING THE SAME RUN EXPOSED, and it is about the phone rather than the terminal: the flow\nopens the URL in a LOCAL browser (`tryOpenUrl`). An operator meaning to authenticate on a phone\ngets a browser on the machine he is trying to leave, and there is no flag to suppress it. The\npaste path assumes the browser is elsewhere; nothing helps it be elsewhere.\n\nWHAT THIS RUN DID *NOT* PROVE, recorded so the ledger does not read as more than happened: the\nanswer was pasted at the TERMINAL, so the Telegram text-answer path shipped hours earlier is\nstill unproven end to end. The transport is proven (`delivery test` arrived); the answer coming\nback is not.",
+			"location": "apps/refarm/src/credentials/model.ts",
+			"status": "open",
+			"category": "defect",
+			"priority": "medium",
+			"package": "apps/refarm",
+			"axis": "other"
 		}
 	]
 }

@@ -235,9 +235,17 @@ async function runOAuthFlow(
 					console.log(chalk.dim(`\n  ${instructions ?? "Complete login in your browser."}`));
 					console.log(chalk.cyan(`  → ${url}\n`));
 					if (needsManualCode) {
+						// THE REASON THAT ACTUALLY APPLIED, not the most common one. `needsManualCode`
+						// has TWO causes — a container whose browser cannot reach this environment,
+						// and an operator who ASKED for the manual path — and the message named only
+						// the first. Reported 2026-08-28 by an operator running directly on his PC
+						// and told he was in a container: a diagnosis that is wrong sends someone to
+						// debug a thing that is not happening.
 						console.log(
 							chalk.yellow(
-								"  ⚠  Running in a container — the browser redirect cannot reach this environment.",
+								forceManual
+									? "  ⚠  Manual callback mode requested — the redirect will not be captured automatically."
+									: "  ⚠  Running in a container — the browser redirect cannot reach this environment.",
 							),
 						);
 						console.log(
