@@ -62,6 +62,7 @@ channel, not a public npm publication promise.
 - `@refarm.dev/credentials-contract-v1`
 - `@refarm.dev/identity-heartwood`
 - `@refarm.dev/source-web`
+- `@refarm.dev/vault-contract-v1`
 - `@refarm.dev/local-surface`
 - `@refarm.dev/ds-astro`
 - `@refarm.dev/health`

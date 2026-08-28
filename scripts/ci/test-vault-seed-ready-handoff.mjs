@@ -215,6 +215,11 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 	assert.deepEqual(manifest.consumerInstall, {
 		packageManager: "pnpm",
 		vendorDir: "vendor",
+		// ADDED by the transitive-closure work (ddd4d169) and never reflected here — the manifest
+		// grew a field and this exact-shape expectation kept describing the old one. Empty in this
+		// fixture, whose two packages depend on nothing outside it, and that is the point: a
+		// field can be absent from a fixture's DATA and still have to be present in its SHAPE.
+		transitivePackages: [],
 		copyFrom: ".refarm/handoff/vault-seed/fixture",
 		copyFiles: [
 			"manifest.json",
@@ -531,20 +536,25 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	});
 
 	assert.equal(manifest.selection.id, "consumer-ready");
+	// 24 since cc61342e: `@refarm.dev/vault-contract-v1` entered the selection. That commit moved
+	// the fact and left every number that describes it behind — four assertions here, two in
+	// test-release-check.mjs, one in test-first-publish-selection.mjs and a line in
+	// DISTRIBUTION_STATUS.md. The ratchet is only a ratchet where somebody turns it.
+	//
 	// 23 since 2026-08-16: `@refarm.dev/content-projection` REJOINED the `consumer-ready`
 	// selection. ISS-113 held it out at 22 because nothing declared a dependency on it, and refused
 	// to stamp `consumer-proven` to make a test green. The bar its three profile peers meet is a
 	// consumer reaching the package from a surface that is NOT the contract test, and vault-seed's
 	// records reference vault now structures its MD/MDX lane through `projectContentToRecords`.
 	// The tag moved because the fact moved — not to make this number move.
-	assert.equal(manifest.packages.length, 23);
+	assert.equal(manifest.packages.length, 24);
 	assert.ok(manifest.packages.some((pkg) => pkg.packageName === "@refarm.dev/health"));
 	assert.equal(manifest.consumerProofs.length, manifest.packages.length);
 	assert.ok(manifest.consumerProofs.some((proof) => proof.proofId === "health.toolchain-environment-auditor"));
 	assert.equal(manifest.distributionEvidence.state, "blocked");
 	assert.equal(manifest.distributionEvidence.availability.currentVerifiedCopies, 0);
-	assert.equal(manifest.distributionEvidence.subject.packageCount, 23);
-	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 23);
+	assert.equal(manifest.distributionEvidence.subject.packageCount, 24);
+	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 24);
 	assert.equal(manifest.releaseBoundaryAudit.ok, true);
 	assert.equal(manifest.releaseBoundaryAudit.command, "release-boundary-audit");
 	assert.equal(manifest.releaseBoundaryAudit.selectionId, "consumer-ready");

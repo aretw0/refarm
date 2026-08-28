@@ -210,13 +210,17 @@ test("cross-repo consumption uses the current vault-seed-ready packet", () => {
 
 test("vault-seed handoff docs distinguish historical 10-package packets from current selection", () => {
 	const currentSelection = releaseSelectionNames("consumer-ready");
+	// 24 since cc61342e: `@refarm.dev/vault-contract-v1` entered. This literal is the ANCHOR the
+	// doc assertion derives from, so it is the one number that must be turned by hand — and the
+	// commit that moved the fact did not turn it, nor the six others across three files.
+	//
 	// 23 again since 2026-08-16: content-projection rejoined the selection once vault-seed's
 	// records reference vault actually consumed it. It was 23, then 22 under ISS-113's honest
 	// correction, and 23 once more — which is exactly why the doc assertion below stopped being a
 	// literal. A hardcoded `22-package` matched a doc that had gone stale and reported PASS: the
 	// number is now DERIVED from the same selection this test measures, so the doc and the config
 	// cannot disagree without failing.
-	assert.equal(currentSelection.length, 23);
+	assert.equal(currentSelection.length, 24);
 
 	assert.match(releaseGateDoc, new RegExp(`current\\s+${currentSelection.length}-package\\s+selection`));
 	assert.match(releaseGateDoc, /materialized the then-current 10-package selection/);
@@ -228,7 +232,7 @@ test("vault-seed handoff docs distinguish historical 10-package packets from cur
 	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 23 packages and 72 required checks/);
 	assert.match(vaultSeedHandoffAdr, /currently 23 packages tagged/);
 	assert.match(vaultSeedHandoffAdr, /current accepted packet: 23 packages,\s+72 required checks/);
-	assert.match(releasePolicyDoc, /selected 23-package publish plan/);
+	assert.match(releasePolicyDoc, /selected 24-package publish plan/);
 	assert.doesNotMatch(vaultSeedHandoffAdr, /currently 20 packages tagged/);
 	assert.doesNotMatch(releasePolicyDoc, /selected 20-package publish plan/);
 });

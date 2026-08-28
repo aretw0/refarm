@@ -136,6 +136,10 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		"@refarm.dev/dispatch-surface",
 		"@refarm.dev/ds",
 		"@refarm.dev/source-web",
+		// ENTERED at cc61342e ("enter the consumer-ready selection") and this list did not follow
+		// it. The ratchet exists so a package joining is a line someone reviews; that commit moved
+		// the fact and skipped the number, and nothing caught it until 2026-08-28.
+		"@refarm.dev/vault-contract-v1",
 		// After `records-contract-v1` (index 8), which it depends on — the order is topological,
 		// so this position is the plan proving it knows the dependency, not an arbitrary slot.
 		"@refarm.dev/content-projection",
@@ -196,13 +200,16 @@ test("release check plan json exposes acceptance summary", () => {
 	assert.equal(payload.ok, true);
 	assert.equal(payload.selection.id, "consumer-ready");
 	assert.equal(payload.acceptance.status, "accepted");
+	// 24 since cc61342e: `@refarm.dev/vault-contract-v1` entered the selection — see the ordered
+	// list above for why this number moved without any change in flight touching it.
+	//
 	// 23 since 2026-08-16: `@refarm.dev/content-projection` REJOINED the `consumer-ready`
 	// selection. ISS-113 held it out at 22 because nothing declared a dependency on it, and refused
 	// to stamp `consumer-proven` to make a test green. The bar its three profile peers meet is a
 	// consumer reaching the package from a surface that is NOT the contract test, and vault-seed's
 	// records reference vault now structures its MD/MDX lane through `projectContentToRecords`.
 	// The tag moved because the fact moved — not to make this number move.
-	assert.equal(payload.acceptance.packageCount, 23);
+	assert.equal(payload.acceptance.packageCount, 24);
 	assert.equal(payload.acceptance.blockerCount, 0);
 	assert.equal(payload.acceptance.manualApprovalRequired, true);
 	assert.deepEqual(payload.acceptance.profileTags, ["consumer-ready"]);
