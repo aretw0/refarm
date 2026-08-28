@@ -121,7 +121,8 @@ describe("refarm delivery list", () => {
 		const fetchSpy = vi.spyOn(globalThis, "fetch");
 		try {
 			const { json } = await run(["list", "--json"]);
-			expect(json?.channels?.[0]?.reachability).toEqual({ state: "unprobed" });
+			const channels = json?.channels as Array<{ reachability?: unknown }> | undefined;
+			expect(channels?.[0]?.reachability).toEqual({ state: "unprobed" });
 			// THE ASSERTION THAT MATTERS. "Unprobed" is a claim about behaviour, not a label: a
 			// list that quietly called the provider would still print the word.
 			expect(fetchSpy).not.toHaveBeenCalled();
