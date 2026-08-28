@@ -14,9 +14,9 @@ objects.
 - `extractMarkdownLinks(body)` extracts inline `[label](target)` Markdown links.
 - `extractExternalMarkdownLinks(body)` extracts external inline Markdown links
   for metadata preservation.
-- `extractFrontmatterWikilinks(data)` extracts `[[target]]` links out of
-  frontmatter string and string-array values, tagged with the key they came
-  from. Obsidian-style vaults keep typed links there (`responsavel:
+- `extractFrontmatterWikilinks(data)` extracts `[[target]]` links from anywhere
+  in the frontmatter value tree — strings, arrays, and nested objects — tagged
+  with the top-level key they came from. Obsidian-style vaults keep typed links there (`responsavel:
   "[[Arthur]]"`), and a body-only scan drops them silently. Enable it in
   `projectContentToRecords` with `linkFrontmatter: true`; it stays off by
   default so existing consumers keep their exact relation sets.

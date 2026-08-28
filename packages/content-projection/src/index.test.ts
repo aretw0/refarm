@@ -77,6 +77,22 @@ describe("content projection", () => {
 		expect(records[0]?.relations[1]?.attrs).toMatchObject({ kind: "frontmatter", key: "revisores" });
 	});
 
+	it("finds frontmatter links nested inside lists of objects", () => {
+		const records = projectContentToRecords(
+			[
+				{
+					path: "processes/mix.md",
+					text: '---\nentradas:\n  - item: "[[Flour]]"\n    quantidade: 1000\n---\nBody.\n',
+				},
+				{ path: "inventory/Flour.md", text: "Flour\n" },
+			],
+			{ linkFrontmatter: true },
+		);
+
+		expect(records[0]?.relations.map((relation) => relation.target)).toEqual([records[1]?.id]);
+		expect(records[0]?.relations[0]?.attrs).toMatchObject({ kind: "frontmatter", key: "entradas" });
+	});
+
 	it("leaves frontmatter links alone unless the consumer opts in", () => {
 		const records = projectContentToRecords([
 			{ path: "notes/opportunity.md", text: '---\nresponsavel: "[[Arthur]]"\n---\nBody.\n' },

@@ -224,17 +224,25 @@ export function extractFrontmatterWikilinks(
 	data: Record<string, unknown>,
 ): FrontmatterWikiLink[] {
 	const links: FrontmatterWikiLink[] = [];
-	for (const [key, value] of Object.entries(data)) {
-		const texts =
-			typeof value === "string"
-				? [value]
-				: Array.isArray(value)
-					? value.filter((entry): entry is string => typeof entry === "string")
-					: [];
-		for (const text of texts) {
-			for (const link of extractWikilinks(text)) links.push({ ...link, key });
+	// Walks the whole value tree, not just top-level strings: real vaults nest
+	// links inside lists of objects (`entradas: [{ item: "[[Flour]]", qty: 1 }]`),
+	// and stopping at the first level drops exactly the structured relations that
+	// motivate reading frontmatter at all. `key` stays the top-level field, which
+	// is the name a human would use for the relation.
+	const walk = (value: unknown, key: string): void => {
+		if (typeof value === "string") {
+			for (const link of extractWikilinks(value)) links.push({ ...link, key });
+			return;
 		}
-	}
+		if (Array.isArray(value)) {
+			for (const entry of value) walk(entry, key);
+			return;
+		}
+		if (isPlainObject(value)) {
+			for (const entry of Object.values(value)) walk(entry, key);
+		}
+	};
+	for (const [key, value] of Object.entries(data)) walk(value, key);
 	return links;
 }
 
