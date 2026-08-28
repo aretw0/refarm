@@ -28,6 +28,7 @@ import {
 import type { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
+import { refarmCommand } from "../brand.js";
 import { readNodeDescriptor } from "../utils/node-descriptor.js";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { openTractorGraph } from "../utils/tractor-store.js";
@@ -37,13 +38,6 @@ import {
 	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
-import { refarmCommand } from "../brand.js";
-import {
-	DEVELOPMENT_STALE_AFTER_DAYS,
-	readPluginsUnderDevelopment,
-	stalePluginDevelopment,
-	type PluginUnderDevelopment,
-} from "./plugin-development-age.js";
 import {
 	buildHealthAuditFingerprint,
 	readHealthAuditCache,
@@ -62,6 +56,11 @@ import {
 	type RefarmConfig,
 } from "./health-policy.js";
 import { NODE_INSTALL_COMMAND } from "./node-install.js";
+import {
+	readPluginsUnderDevelopment,
+	stalePluginDevelopment,
+	type PluginUnderDevelopment,
+} from "./plugin-development-age.js";
 import { RUNTIME_DOCTOR_NEXT_ACTION_COMMAND } from "./runtime-recovery.js";
 
 export { buildHealthAuditFingerprint } from "./health-audit-cache.js";
