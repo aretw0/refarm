@@ -95,6 +95,10 @@ export interface ProjectAutomationAddInput {
 	description?: string;
 	status?: ProjectAutomationStatus;
 	trigger: ProjectAutomationTrigger;
+	/** WHAT IT DOES. Absent means the default empty body, which fires an effort carrying no
+	 *  tasks — legitimate for an automation that only marks a moment, and the only thing the
+	 *  writer could express before ISS-176. */
+	body?: ProjectAutomationBody;
 }
 
 export interface ProjectAutomationStatusUpdateInput {
@@ -218,6 +222,7 @@ export function buildProjectAutomationRecord(
 		...(description ? { description } : {}),
 		status,
 		triggers: [input.trigger],
+		...(input.body ? { body: input.body } : {}),
 	};
 }
 

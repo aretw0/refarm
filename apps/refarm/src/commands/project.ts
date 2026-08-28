@@ -25,6 +25,11 @@ import {
 	type ProjectHandoffUpdate,
 	type ProjectHandoffValidationResult,
 } from "@refarm.dev/cli/project-handoff";
+import {
+	automationBodyFromWork,
+	automationWorkTasks,
+	type AutomationWorkInput,
+} from "@refarm.dev/cli/automation-work";
 import { runDueScheduledWork } from "@refarm.dev/cli/scheduled-work-runner";
 import { createLocalSchedulerLedger } from "@refarm.dev/windmill/local-scheduler-ledger";
 import chalk from "chalk";
@@ -81,6 +86,9 @@ interface AutomationsAddOptions extends AutomationsValidateOptions {
 	schedule?: string;
 	timezone?: string;
 	eventType?: string;
+	ask?: string;
+	dispatch?: string[];
+	args?: string[];
 	dryRun?: boolean;
 }
 
@@ -554,18 +562,54 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 		.option("--schedule <expr>", "Cron expression for --trigger cron")
 		.option("--timezone <tz>", "Timezone for --trigger cron")
 		.option("--event-type <type>", "Event type for --trigger event")
+		.option(
+			"--ask <prompt>",
+			"What to ask the agent when it fires — a MODEL call that spends quota",
+		)
+		.option(
+			"--dispatch <pluginId:verb>",
+			"A plugin verb to call — ordinary computation, no model. Repeatable.",
+			(value: string, previous: string[] = []) => [...previous, value],
+		)
+		.option(
+			"--args <json>",
+			"JSON arguments for the matching --dispatch, in order. Repeatable.",
+			(value: string, previous: string[] = []) => [...previous, value],
+		)
 		.option("--dry-run", "Print the would-be automations document without writing")
 		.option("--json", "Output machine-readable write result")
 		.action((options: AutomationsAddOptions) => {
 			const filePath = automationsPath(deps.cwd());
 			try {
 				const trigger = projectAutomationTriggerFromOptions(options);
+				const automationId = options.id ?? "";
+				// PARSED HERE, not at fire time. An automation whose args are malformed JSON must
+				// fail while the operator is looking at it, never at 03:00 in a journal nobody
+				// reads — which is the shape of failure this whole lane exists to remove.
+				const parsedArgs = (options.args ?? []).map((raw, index) => {
+					try {
+						return JSON.parse(raw) as unknown;
+					} catch (error) {
+						const message = error instanceof Error ? error.message : String(error);
+						throw new Error(`--args #${index + 1} is not valid JSON: ${message}`);
+					}
+				});
+				const work: AutomationWorkInput = {
+					...(options.ask ? { ask: options.ask } : {}),
+					...(options.dispatch ? { dispatch: options.dispatch } : {}),
+					...(parsedArgs.length > 0 ? { args: parsedArgs } : {}),
+					direction: options.name ?? automationId,
+					automationId,
+				};
+				const tasks = automationWorkTasks(work);
+				const body = automationBodyFromWork(work);
 				const document = addProjectAutomationRecord(readExistingJson(filePath), {
-					id: options.id ?? "",
+					id: automationId,
 					name: options.name ?? "",
 					description: options.description,
 					status: options.status as ProjectAutomationStatus | undefined,
 					trigger,
+					...(body ? { body } : {}),
 				});
 				const result = validateProjectAutomationsDocument(document);
 				if (!result.ok) {
@@ -590,6 +634,14 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 								path: automationsPath(deps.cwd()),
 								dryRun: Boolean(options.dryRun),
 								automation,
+								// WHAT IT WILL SPEND, decided by the host's own rule rather than restated
+								// here: `agent` is a model turn, `dispatch` is ordinary computation. The
+								// operator budgets along this line, so the write receipt names it.
+								work: tasks.map((task) => ({
+									pluginId: task.pluginId,
+									fn: task.fn,
+									workClass: task.workClass,
+								})),
 								document,
 								validation: result,
 							},
