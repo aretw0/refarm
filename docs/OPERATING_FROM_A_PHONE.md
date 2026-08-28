@@ -147,3 +147,32 @@ is not — the same boundary `refarm process install` draws when it writes a uni
 
 Tracked as ISS-180, together with the phone-setup scripts already being promoted in `coop-vault`,
 because a third set of them would repeat exactly what this repository has spent a week removing.
+
+## Answering from the phone, without any of the above
+
+Measured 2026-08-28. A question that wants a VALUE — "paste the redirect URL" — now travels to a
+declared channel and the answer travels back, so the tunnel section above is for people who
+genuinely want a shell rather than for completing a re-authentication.
+
+    REFARM_OAUTH_CALLBACK_MODE=manual refarm sow --model-provider openai-codex --reconfigure
+
+The browser fails to reach `localhost` on the phone, which is expected; the address bar holds the
+`code`. The question arrives in the channel with a reply box, and the answer must be a REPLY to
+that message. A loose message in the chat is ignored on purpose: capturing "the next message"
+would let any unrelated line — in a group, anyone else's — settle a pending question.
+
+### Two steps, two different reasons, and only one needs an attention window
+
+`refarm delivery test <channel>` needs NOTHING armed. It routes with `attending: true` because it
+IS the operator attending: it asks before sending, every time.
+
+`refarm sow` does, when the channel is declared `unattended: false`. That declaration is the
+operator's own recorded answer to "does this channel reach you when you are NOT attending —
+phone in a pocket, terminal closed?", and D8 honours it by skipping the channel unless a window
+is open:
+
+    refarm intention arm --profile mobile-ready --window-ms 900000   temporary, changes nothing
+    refarm delivery add                                              rewrites the declaration
+
+Prescribing the same preparation for both makes the first look like arbitrary ceremony. It is
+not: one is attention present, the other is a command acting alone.
