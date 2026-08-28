@@ -165,7 +165,17 @@ export function parseFrontmatter(text: string): FrontmatterParseResult {
 	}
 
 	const frontmatter = match[1] ?? "";
-	const parsed = YAML.parse(frontmatter);
+	// Unparseable frontmatter degrades to empty data rather than throwing: the
+	// line below already returns `{}` for YAML that parses to a non-object, and
+	// a parse error is the same kind of "no usable data" for a caller. Throwing
+	// here would take a whole vault down for one malformed file, and the raw
+	// text stays in `frontmatter` for callers that want to inspect it.
+	let parsed: unknown;
+	try {
+		parsed = YAML.parse(frontmatter);
+	} catch {
+		parsed = undefined;
+	}
 	return {
 		data: isPlainObject(parsed) ? parsed : {},
 		body: match[2] ?? "",

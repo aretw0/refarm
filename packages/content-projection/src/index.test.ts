@@ -29,6 +29,31 @@ describe("content projection", () => {
 		expect(parsed.frontmatter).toBeNull();
 	});
 
+	it("degrades to empty data when the frontmatter is not valid YAML", () => {
+		// Real vaults carry template files whose placeholders are not YAML:
+		// `{{date}}` opens a flow map that never closes. Throwing here takes down
+		// the projection of every other note because of one template.
+		const parsed = parseFrontmatter("---\ncreated: {{date}} {{time}}\n---\n# Body\n");
+
+		expect(parsed.data).toEqual({});
+		expect(parsed.body).toBe("# Body\n");
+		expect(parsed.frontmatter).toBe("created: {{date}} {{time}}");
+	});
+
+	it("projects a vault that contains one unparseable template", () => {
+		const records = projectContentToRecords([
+			// `{{date}}` alone is valid YAML — a flow map with a complex key. It is
+			// the trailing content after the flow map closes that makes it a parse
+			// error, which is exactly the shape Obsidian templates have.
+			{ path: "templates/daily.md", text: "---\ncreated: {{date}} {{time}}\n---\nTemplate body\n" },
+			{ path: "notes/real.md", text: "---\ntitle: Real\n---\nReal body\n" },
+		]);
+
+		expect(records).toHaveLength(2);
+		expect(records[0]?.fields.title).toBe("daily");
+		expect(records[1]?.fields.title).toBe("Real");
+	});
+
 	it("extracts wikilinks with optional labels", () => {
 		expect(extractWikilinks("See [[Alpha]] and [[Beta Note|the beta]].")).toEqual([
 			{ raw: "[[Alpha]]", target: "Alpha" },
