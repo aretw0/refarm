@@ -2140,6 +2140,17 @@
 			"priority": "high",
 			"package": "apps/refarm",
 			"axis": "other"
+		},
+		{
+			"id": "ISS-181",
+			"title": "The redirect host is the provider's to allow, and only one of our three OAuth apps is ours",
+			"body": "RAISED BY THE OPERATOR 2026-08-28: \"teria como o navegador do celular não usar localhost para não\nfalhar? (...) quero que exploremos tudo como deveria ser, se for algo para o futuro (...) mas que\nesteja na nossa percepção da realidade.\"\n\nMEASURED. The `redirect_uri` is chosen by refarm and VALIDATED by the provider against the\nallowlist registered on the OAuth app. Whose app it is therefore decides whether it can change:\n\n    github         Ov23lier7kyBcgIUQsih                 OURS — the source says \"the refarm GitHub\n                                                        OAuth App\", overridable via config or\n                                                        REFARM_PROVIDER_GITHUB_CLIENT_ID\n    openai-codex   app_EMoamEEZ73f0CkXaXp7hrann         OpenAI's — the Codex CLI app\n    anthropic      9d1c250a-e61b-44d9-88ed-5944d1962f5e Anthropic's — the Claude Code app\n\nLoopback is what CLI apps register, and RFC 8252 section 7.3 recommends accepting loopback on ANY\nport — which is why the port is free and the HOST is not. `serpro-1577853.tail894688.ts.net` is\nnot on anyone's allowlist and asking to be added is not ours to do for someone else's product.\n\nTWO LONG-TERM PATHS, both real, with different readiness:\n\n  A. A LISTENER ON THE PHONE INSTEAD OF A TUNNEL. The browser needs SOMETHING answering on the\n     phone's own `localhost:<port>`. It does not have to be SSH: a minimal Termux process that\n     accepts on 1455 and relays the `code` to the node over the tailnet closes it with no sshd,\n     no Tailscale SSH and no tailnet ACL — the three things the operator does not control.\n     HAS A CONSUMER TODAY: him, on the phone, now.\n\n  B. THE NODE AS THE REDIRECT TARGET, where the app is ours. `~/.refarm/tls/` already holds a CA\n     and `web serve` already runs HTTPS on the tailnet, so the infrastructure to RECEIVE a\n     redirect at `https://<node>.ts.net/...` exists. What is missing is an OAuth app that accepts\n     that host — which we can register for GitHub and cannot for the other two.\n     HAS NO CONSUMER TODAY, and the reason is worth stating: the one provider whose app is ours\n     already uses DEVICE CODE and needs no redirect at all. Building B now would be a capability\n     with no customer — the shape this repository has spent a week removing. It waits for a\n     provider that is ours AND needs a redirect.\n\nWHAT IS NOT OURS TO MOVE, so nobody spends an evening on it: the registered `redirect_uri` of\nOpenAI's and Anthropic's apps. No engineering here changes it. The remaining lever for those two\nis the pasted redirect the flow already accepts (see ISS-180), which needs a text field rather\nthan a network path.",
+			"location": "apps/refarm/src/credentials/oauth/, apps/refarm/src/credentials/github.ts",
+			"status": "open",
+			"category": "capability",
+			"priority": "medium",
+			"package": "apps/refarm",
+			"axis": "other"
 		}
 	]
 }
