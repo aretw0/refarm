@@ -482,6 +482,29 @@
 				}
 			},
 			{
+				"id": "@refarm.dev/vault-contract-v1",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/vault-contract-v1 run lint",
+					"pnpm --filter @refarm.dev/vault-contract-v1 run type-check",
+					"pnpm --filter @refarm.dev/vault-contract-v1 run test",
+					"pnpm --filter @refarm.dev/vault-contract-v1 run build"
+				],
+				"tags": [
+					"vault",
+					"knowledge",
+					"consumer-pulled",
+					"consumer-ready",
+					"candidate"
+				],
+				"consumerPull": {
+					"proofId": "vault-contract.corpus-health-over-projected-records",
+					"downstreamUse": "Cross-record corpus health and per-note profile verdicts over a PARA knowledge vault projected to records:v1",
+					"proofTarget": "a consumer can run vault:v1 corpus health over its own records:v1 projection and surface the findings, while keeping its privacy heuristics, folder policy, and PII vocabulary downstream-owned",
+					"ownershipBoundary": "Privacy heuristics, PII candidate detection, designated-folder policy, note vocabulary, and surface rendering remain downstream"
+				}
+			},
+			{
 				"id": "@refarm.dev/session-contract-v1",
 				"risk": "core",
 				"mustPassChecks": [

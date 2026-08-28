@@ -58,6 +58,7 @@ and downstream proofs exist.
 | [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Graph/content envelope for records, sections, relations, attachments, source references, hashes, and review state; YAML-LD codec lives at the package subpath | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/content-projection`](./content-projection) | Markdown/MDX frontmatter, wikilink, and inline-link projection into `records:v1` records without owning acquisition or rendering | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/local-surface`](./local-surface) | Local-first surface manifest, DS-backed HTML rendering, white-label launch plan, and quality report helpers without owning provider adapters or Homestead runtime | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/vault-contract-v1`](./vault-contract-v1) | The `vault:v1` capability contract — search, extract, organize, profile over a PARA knowledge vault — plus corpus health, a reference surface, and the conformance harness | `consumer-ready`; held |
 | [`@refarm.dev/ds-astro`](./ds-astro) | Product-neutral Astro/MDX DS component bindings and component-map metadata without owning downstream content vocabulary | candidate; `consumer-ready`; held |
 
 ## 🌿 Native Skill Surface Contract
