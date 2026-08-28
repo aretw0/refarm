@@ -40,6 +40,40 @@ const taxonomyProfile: VaultProfile = {
 };
 
 describe("recordToVaultNote", () => {
+	it("quotes scalars that YAML would otherwise retype", () => {
+		const note = recordToVaultNote(
+			record("record:evento", {
+				// The one that motivated this: unquoted, `[[Arthur]]` is a nested flow sequence and
+				// the wikilink parses as `[["Arthur"]]`.
+				registrado_por: "[[Arthur]]",
+				sim: "true",
+				numero: "42",
+				dois_pontos: "chave: valor",
+				espacos: " folgado ",
+				vazio: "",
+				normal: "limpeza",
+			}),
+		);
+
+		expect(note.text).toContain('registrado_por: "[[Arthur]]"');
+		expect(note.text).toContain('sim: "true"');
+		expect(note.text).toContain('numero: "42"');
+		expect(note.text).toContain('dois_pontos: "chave: valor"');
+		expect(note.text).toContain('espacos: " folgado "');
+		expect(note.text).toContain('vazio: ""');
+		// An already-unambiguous scalar stays bare: quoting everything is noise in every note.
+		expect(note.text).toContain("normal: limpeza");
+	});
+
+	it("leaves real numbers and booleans unquoted", () => {
+		const note = recordToVaultNote(
+			record("record:evento", { quantidade: 1000, aplicado: false }),
+		);
+
+		expect(note.text).toContain("quantidade: 1000");
+		expect(note.text).toContain("aplicado: false");
+	});
+
 	it("renders fields as frontmatter a taxonomy-route can read", () => {
 		const note = recordToVaultNote(record("record:req-1", { tipo: "requisito", sistema: "EFD" }));
 		expect(note.path).toBe("record:req-1");

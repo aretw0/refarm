@@ -44,11 +44,35 @@ export interface OrganizeDispatcher {
  * Objects/arrays become compact JSON; a scalar whose string form contains a newline (a multi-line
  * `body`, an embedded markdown field) is JSON-encoded so the newline is escaped to `\n` instead of
  * splitting the frontmatter. A plain single-line scalar renders as-is. PURE. */
+/**
+ * Does this scalar change meaning when written unquoted in YAML? PURE.
+ *
+ * The dangerous case in a knowledge vault is `[[Note]]`: unquoted it is a nested flow SEQUENCE,
+ * so a wikilink silently becomes `[["Note"]]` — the value survives a diff and dies at parse. The
+ * rest are the standard indicator characters, the `: ` / ` #` separators, surrounding whitespace,
+ * and the plain scalars YAML would retype (`true`, `null`, `1.5`).
+ */
+function needsYamlQuoting(str: string): boolean {
+	if (str === "") return true;
+	if (str !== str.trim()) return true;
+	if (/[\n\r]/.test(str)) return true;
+	// Leading indicator characters: everything after this position is ordinary text.
+	if (/^[-?:,[\]{}#&*!|>'"%@`]/.test(str)) return true;
+	// `: ` opens a mapping and ` #` opens a comment, anywhere in the scalar.
+	if (str.includes(": ") || str.includes(" #")) return true;
+	// Plain scalars YAML retypes away from string.
+	if (/^(true|false|null|~|yes|no|on|off)$/i.test(str)) return true;
+	if (/^[+-]?(\d[\d_]*)(\.\d*)?([eE][+-]?\d+)?$/.test(str)) return true;
+	return false;
+}
+
 function frontmatterValue(value: unknown): string {
 	if (typeof value === "object") return JSON.stringify(value);
 	const str = String(value);
-	// A newline (or a leading YAML-significant char) would corrupt the block — quote via JSON.
-	return /[\n\r]/.test(str) ? JSON.stringify(str) : str;
+	// Numbers and booleans arrive already typed; only strings can be retyped by quoting them, so
+	// they are the only ones asked. JSON quoting is YAML-compatible double quoting.
+	if (typeof value !== "string") return str;
+	return needsYamlQuoting(str) ? JSON.stringify(str) : str;
 }
 
 /** Render a record's `fields` as a minimal YAML frontmatter block — enough for a matcher
