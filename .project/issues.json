@@ -2118,6 +2118,28 @@
 			"priority": "medium",
 			"package": "packages/process-systemd-user",
 			"axis": "durability"
+		},
+		{
+			"id": "ISS-179",
+			"title": "A composition test asserted a verdict that depends on the runner's free memory",
+			"body": "MEASURED 2026-08-28. `pnpm run requirements:supply:composition:test` asserted `gateDecision ===\n\"allow\"` while reading the REAL machine's environment pressure. `decideGate` returns \"serialize\"\nwhenever pressure is not `continue`, so the assertion was about the runner's free memory:\n\n    free -g   31 total, 19 used, 3 available    (after a session of full-suite runs)\n    result    expected 'allow', actual 'serialize'\n\nWHY THIS IS WORSE THAN FLAKY. The `gate-script-tests` lane reported it as\n\n    \"NEW FAILURE — a suite that was green is not any more, and no lane would have told you\"\n\nwhich is a strong, correct-sounding accusation pointed at whatever change happened to be in\nflight. It was a new package with no relationship to supply composition. A test that fails for a\nreason its subject does not contain does not merely add noise: it DIRECTS the investigation at\nthe nearest innocent thing.\n\nFIXED by injection, not by freeing memory. `buildRequirementsSupplyComposition` takes an optional\n`pressure`, measured from the machine when absent and injected by the suite. The verdict is about\ncomposition again.\n\nAND THE OTHER BRANCH IS NOW TESTED ON PURPOSE. `serialize` under a warning-level pressure had\nnever been asserted — it was only ever observed by accident, on a loaded machine, where it read\nas a regression rather than as the rule working correctly.\n\nTHE CLASS, worth a sweep rather than one fix: any script test that reads machine state and\nasserts a fixed verdict has this shape. `environment-pressure` is the one measured here; whether\nothers exist is unmeasured, and finding out means grepping the CI scripts for readings taken at\nassert time rather than injected.",
+			"location": "scripts/ci/test-requirements-supply-composition.mjs, scripts/ci/requirements-supply-composition.mjs",
+			"status": "open",
+			"category": "defect",
+			"priority": "medium",
+			"package": "scripts",
+			"axis": "other"
+		},
+		{
+			"id": "ISS-180",
+			"title": "Getting a phone ready to operate the node is unmapped, and every operator re-derives it",
+			"body": "RAISED BY THE OPERATOR 2026-08-28, while proving the Termux path for an OAuth renewal:\n\n  \"seria bom incluir configurações necessárias no termux de forma a não fazer nada na unha no\n   celular, talvez um script que eu clonando o repo do refarm eu pegue, ou via client no-deps que\n   distribuímos, para acelerar ao máximo o processo. Vejo que o termux até me sugeriu o sshd no\n   autostart mais para isso indicou instalar o termux-services, são esses detalhes que sem\n   mapeamento torna tudo meio chato\"\n\nWHAT IT COST HIM, measured in the same session — the steps he actually had to work out by hand to\nattempt ONE thing (complete a browser re-auth from the phone):\n\n    tailscale up --ssh            on the PC, and it changes the node's posture\n    Tailscale ACL `ssh` rule      in the admin console; without it the connection is refused with\n                                  \"tailnet policy does not permit you to SSH as user aretw0\"\n    pkg install openssh           on the phone\n    termux-services / sshd        suggested by Termux itself for autostart, and a separate install\n    ssh -L 1455:localhost:1455    the forward, whose port comes from reading refarm's source\n\nNone of that is refarm's, and all of it is between him and using refarm from where he is.\n\nHE IS ALREADY DOING THIS ELSEWHERE. `~/github/coop-vault` carries scripts he has been promoting\nfor phone setup. Converging them rather than writing a third set is the point — the same argument\n`@aretw0/dgk-channels` makes about itself in its own ROADMAP, and the same reason\n`@refarm.dev/rate-limiter` exists.\n\nWHAT WOULD SERVE, and the shape matters because he named two delivery routes:\n\n  1. A phone-setup path reachable BEFORE refarm is usable on the phone — cloning the repo, or the\n     zero-dependency farm-client already distributed over the mesh. Whatever it is, it cannot\n     assume a working refarm on the device it is setting up.\n  2. A MAP as much as a script. What he called chato is not the commands; it is that nothing told\n     him the list existed. A script that runs them and says nothing leaves the next surprise\n     exactly as expensive.\n\nMEASURED FACTS THIS ITEM SHOULD CARRY, so the work does not re-derive them:\n\n    callback ports    openai-codex 1455 /auth/callback; anthropic 53692 /callback\n    bind address      127.0.0.1 only — a tailnet-IP relay cannot reach it, an `ssh -L` can,\n                      because the forward originates on the node's own loopback\n    github/copilot    device-code flow: NO tunnel needed, completable from any device today\n    phone on tailnet  galaxy-a55-5g, offline, last seen 22 days ago\n\nRELATED: the convergence lane (docs/CONVERGENCE-LANE.md), and the mesh distribution vision where\nthis node serves builds to its own devices.",
+			"location": "docs/CONVERGENCE-LANE.md, ~/github/coop-vault",
+			"status": "open",
+			"category": "capability",
+			"priority": "high",
+			"package": "apps/refarm",
+			"axis": "other"
 		}
 	]
 }
