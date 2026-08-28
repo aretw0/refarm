@@ -302,6 +302,15 @@ function buildConsumerInstall({ packages, transitivePackages = [], handoffDir })
 		],
 		fileSpecs,
 		pnpmOverrides: { ...fileSpecs, ...transitiveSpecs },
+		// Additive sibling of `packages[]` for the closure: same fields a consumer needs to copy
+		// and verify a tarball. `pnpmOverrides` keeps its shape (name -> file spec) so existing
+		// consumers are untouched.
+		transitivePackages: transitivePackages.map((entry) => ({
+			packageName: entry.packageName,
+			version: entry.version,
+			tarball: entry.tarball,
+			sha256: entry.sha256,
+		})),
 		revendorPolicy: REVENDOR_POLICY,
 		proofChecklist: "consumerProofs",
 	};
@@ -679,7 +688,21 @@ export function buildHandoffManifest({
 	const transitivePackages = closure.map((entry) => {
 		const version = readPackageVersion(cwd, entry.packageDir);
 		const tarball = packageTarballName(entry.packageName, version);
-		return { packageName: entry.packageName, packageDir: entry.packageDir, version, tarball };
+		// A transitive tarball is installed by the consumer exactly like a selected one, so it
+		// needs the same verifiable digest. Without it `changedContentDetection` — "compare
+		// packages[].sha256 against the consumer vendor tarball" — has nothing to compare for the
+		// closure, and a consumer either installs bytes it cannot verify or cannot vendor them at
+		// all. The coop-vault hit the second, pulling std/plugin-manifest/node-contract-v1 through
+		// vault-contract-v1.
+		const filePath = path.join(absoluteHandoffDir, tarball);
+		const exists = handoffFileSet.has(tarball) && existsSync(filePath);
+		return {
+			packageName: entry.packageName,
+			packageDir: entry.packageDir,
+			version,
+			tarball,
+			sha256: exists ? sha256File(filePath) : null,
+		};
 	});
 
 	const expected = new Set([...packages, ...transitivePackages].map((entry) => entry.tarball));
