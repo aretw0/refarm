@@ -190,9 +190,14 @@ export function recordToVaultNote(
 		parts.push(`## Rastreabilidade\n${links}`);
 	}
 	const body = parts.join("\n\n");
+	// Exatamente UMA quebra no fim, não a do corpo mais a nossa. Uma seção que já
+	// termina em `\n` produziria `\n\n`, e ao reprojetar a nota essa linha extra
+	// entra no registro: cada ida e volta acumula uma. É deriva, não perda — um
+	// portão que compare corpo com `trim()` nunca a vê, e só um ensaio de
+	// reversão a expõe.
 	return {
 		path,
-		text: `${fieldsToFrontmatter(record.fields ?? {}, options.blockStyle)}${body}\n`,
+		text: `${fieldsToFrontmatter(record.fields ?? {}, options.blockStyle)}${body.replace(/\n+$/u, "")}\n`,
 	};
 }
 

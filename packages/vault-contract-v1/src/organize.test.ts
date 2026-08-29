@@ -114,6 +114,22 @@ describe("recordToVaultNote", () => {
 		expect(note.text).toContain('itens:\n  - codigo: "18306"\n    ean:\n');
 	});
 
+	it("ends with exactly one newline, whatever the section did", () => {
+		// Round-trip stability: a section that already ends in a newline must not produce a note
+		// ending in two, or re-projecting the note grows the record by one line every cycle.
+		const comQuebra = recordToVaultNote({
+			...record("record:a", { tipo: "x" }),
+			sections: [{ key: "body", content: "Corpo.\n" }],
+		});
+		const semQuebra = recordToVaultNote({
+			...record("record:a", { tipo: "x" }),
+			sections: [{ key: "body", content: "Corpo." }],
+		});
+
+		expect(comQuebra.text.endsWith("Corpo.\n")).toBe(true);
+		expect(comQuebra.text).toBe(semQuebra.text);
+	});
+
 	it("keeps the single-line form by default", () => {
 		const note = recordToVaultNote(record("record:nfce", { itens: [{ nome: "Arroz" }] }));
 
