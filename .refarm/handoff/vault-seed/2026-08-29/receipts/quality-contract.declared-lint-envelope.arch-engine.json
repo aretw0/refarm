@@ -1,0 +1,23 @@
+{
+  "proofId": "quality-contract.declared-lint-envelope",
+  "packageName": "@refarm.dev/quality-contract-v1",
+  "consumer": "arch-engine",
+  "consumerCommit": "5d2ce508fee4e41a4dfc8c0f149a2f98f8ce18fb",
+  "consumerDirty": false,
+  "manifestSha256": "6df00dc30908f178f3968d12aaac99d470829d8f9be468721e180fd2ef188dd2",
+  "generatedAt": "2026-08-29T21:21:50.000Z",
+  "commands": [
+    "uv run arch-engine build examples/eco-house-demo",
+    "npm run test:refarm"
+  ],
+  "result": "pass",
+  "proofTargetAtPacket": "a consumer and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
+  "proofTargetCurrentPolicy": "a consumer and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
+  "notes": [
+    "Primeiro consumidor que NAO e JavaScript: o arch-engine (Python) emite o QualityReport nativamente (core/arch_engine/contracts.py espelha types.ts) e o Node so valida.",
+    "O perfil YAML da demo (data/perfil_qualidade.yaml) e um QualityProfile literal; check.type e resolvido por um registro de checks de dominio fisico (campo proibido, orcamento, cabe no lote, provenance). Catalogo de regras e severidade ficam downstream, como o proofTarget pede.",
+    "Prova: capability, checkerId, domain, profileName presentes; counts == countFindings(findings) do tarball real.",
+    "Gap observado: runQualityV1Conformance assume checker regex sobre texto (alpha beta alpha); um checker de dominio fisico nao consegue usa-la. Falta um validateQualityReport(report) puro, simetrico ao validateTaskArtifactManifest. Registrado em arch-engine/docs/ECOSYSTEM-DEMANDS.md.",
+    "Espelho manual dos types.ts e o seam temporario; JSON Schema publicado ao lado dos contratos o eliminaria."
+  ]
+}
