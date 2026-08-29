@@ -42,6 +42,18 @@ one-output-shape-per-verb, forward-safety — so the WASM component (built later
 An unknown `match.type` fires nothing (forward-safe): a newer profile's matcher
 simply doesn't fire on an older surface, it never errors.
 
+## Materializing notes
+
+`planRecordFiles` renders a record's `fields` as YAML frontmatter. Nested values
+are one compact JSON line by default — the form the reference surface's
+`frontmatter` matcher can parse, and the one `organizeRecords` / `searchRecords`
+always use.
+
+Pass `blockStyle: true` when the notes are read by people: an invoice with
+fifteen line items is one four-thousand-character line otherwise, which parses
+perfectly and cannot be read. Scalars that YAML would retype — `[[Note]]` above
+all, which unquoted is a nested flow sequence — are quoted in both forms.
+
 ## Status
 
 TS-only foundation. The WASM component and its host dispatch (the sovereign

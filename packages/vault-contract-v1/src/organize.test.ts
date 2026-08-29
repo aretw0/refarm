@@ -65,6 +65,49 @@ describe("recordToVaultNote", () => {
 		expect(note.text).toContain("normal: limpeza");
 	});
 
+	it("renders nested values as readable YAML blocks when asked", () => {
+		// An invoice with line items is the case: as one JSON line it parses perfectly and cannot
+		// be read, which is the whole reason a vault keeps them in frontmatter.
+		const note = recordToVaultNote(
+			record("record:nfce", {
+				total: 109.49,
+				itens: [
+					{ nome: "Arroz", quantidade: 2, valor: 21.9 },
+					{ nome: "Feijao", quantidade: 1 },
+				],
+				sessao: { canal: "atacado", confirmada: false },
+				vazios: [],
+			}),
+			{ blockStyle: true },
+		);
+
+		expect(note.text).toContain("itens:\n  - nome: Arroz\n    quantidade: 2\n    valor: 21.9\n");
+		expect(note.text).toContain("  - nome: Feijao\n    quantidade: 1\n");
+		expect(note.text).toContain("sessao:\n  canal: atacado\n  confirmada: false\n");
+		// An empty list stays on one line: `[]` is the only form that survives the round-trip.
+		expect(note.text).toContain("vazios: []");
+		// A top-level scalar does not change shape because of the option.
+		expect(note.text).toContain("total: 109.49");
+	});
+
+	it("keeps the single-line form by default", () => {
+		const note = recordToVaultNote(record("record:nfce", { itens: [{ nome: "Arroz" }] }));
+
+		expect(note.text).toContain('itens: [{"nome":"Arroz"}]');
+	});
+
+	it("never lets a block value break the frontmatter fence", () => {
+		// A `-`-leading scalar inside a block would read as a sequence entry, and `---` would end
+		// the fence three lines early. The quoting guard is what stops both.
+		const note = recordToVaultNote(record("record:x", { notas: ["---", "- solto"] }), {
+			blockStyle: true,
+		});
+
+		expect(note.text.split("\n").filter((l) => l === "---")).toHaveLength(2);
+		expect(note.text).toContain('- "---"');
+		expect(note.text).toContain('- "- solto"');
+	});
+
 	it("leaves real numbers and booleans unquoted", () => {
 		const note = recordToVaultNote(
 			record("record:evento", { quantidade: 1000, aplicado: false }),
