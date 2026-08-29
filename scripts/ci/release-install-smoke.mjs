@@ -6,7 +6,7 @@
  * `pnpm publish --dry-run` does NOT fail when a tarball ships no `dist/` or
  * depends on an unpublished package — so a release can pass every gate and still
  * break on `npm install`. This closes it end-to-end: for each selected package,
- * BUILD it, `npm pack` a REAL tarball, `npm install` those tarballs into a
+ * BUILD it, `pnpm pack` a REAL tarball, `pnpm install` those tarballs into a
  * throwaway consumer, and `import()` each entrypoint. If the tarball has no dist,
  * or a dep can't resolve, or the entrypoint won't load — this fails, loudly,
  * BEFORE the publish button.
@@ -18,7 +18,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 // The smallest coherent 0.1.0 — the zero-runtime-dep kernel contracts.
@@ -43,11 +43,6 @@ function readPkg(dir) {
 const stage = mkdtempSync(join(tmpdir(), "refarm-install-smoke-"));
 const consumer = join(stage, "consumer");
 mkdirSync(consumer, { recursive: true });
-writeFileSync(
-	join(consumer, "package.json"),
-	`${JSON.stringify({ name: "install-smoke-consumer", private: true, type: "module" }, null, 2)}\n`,
-);
-
 const packed = [];
 try {
 	// 1) build + pack a real tarball per package
@@ -59,15 +54,44 @@ try {
 			process.stdout.write(`   building…\n`);
 			run("pnpm", ["--filter", pkg.name, "run", "build"], repoRoot);
 		}
-		const out = run("npm", ["pack", "--pack-destination", stage], abs);
+		// Match the real publish lane: pnpm rewrites workspace: ranges to
+		// publishable versions, while npm pack leaves workspace:* untouched.
+		const out = run("pnpm", ["pack", "--pack-destination", stage], abs);
 		const tarball = out.trim().split("\n").pop().trim();
-		packed.push({ name: pkg.name, main: pkg.main ?? "index.js", tarball: join(stage, tarball) });
+		packed.push({ name: pkg.name, main: pkg.main ?? "index.js", tarball: resolve(stage, tarball) });
 		process.stdout.write(`   packed ${tarball}\n`);
 	}
 
-	// 2) install ALL tarballs into the throwaway consumer (a dep that can't resolve fails HERE)
-	process.stdout.write(`\n⬇️  npm install (${packed.length} tarball(s))…\n`);
-	run("npm", ["install", "--no-save", "--no-audit", "--no-fund", ...packed.map((p) => p.tarball)], consumer);
+	// 2) Install all tarballs into a clean pnpm consumer. Direct file specs do not
+	// redirect transitive semver lookups, so the workspace overrides are part of
+	// the proof: without them an unpublished support package would hit the registry.
+	const fileSpecs = Object.fromEntries(
+		packed.map((entry) => [
+			entry.name,
+			`file:${relative(consumer, entry.tarball).replaceAll("\\", "/")}`,
+		]),
+	);
+	writeFileSync(
+		join(consumer, "package.json"),
+		`${JSON.stringify({
+			name: "install-smoke-consumer",
+			private: true,
+			type: "module",
+			dependencies: fileSpecs,
+		}, null, 2)}\n`,
+	);
+	writeFileSync(
+		join(consumer, "pnpm-workspace.yaml"),
+		[
+			"packages:",
+			'  - "."',
+			"overrides:",
+			...Object.entries(fileSpecs).map(([name, spec]) => `  "${name}": "${spec}"`),
+			"",
+		].join("\n"),
+	);
+	process.stdout.write(`\n⬇️  pnpm install (${packed.length} tarball(s))…\n`);
+	run("pnpm", ["install", "--no-frozen-lockfile"], consumer);
 
 	// 3) import each entrypoint from the INSTALLED package (a missing dist fails HERE)
 	const results = [];
