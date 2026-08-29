@@ -165,12 +165,29 @@ export function createIntentionCommand(deps: IntentionCommandDeps = {}): Command
 					armedAt: now,
 					windowMs: target.windowMs,
 				}),
-				nextAction: `Verifique a prontidão da intenção '${target.scope}'.`,
-				nextActions: [`Verifique a prontidão da intenção '${target.scope}'.`],
+				// THE HALF THAT WAS MISSING. Arming writes the window; every CONSUMER of it reads
+				// the scope from `REFARM_OPERATOR_ATTENTION_SCOPE` and answers "not attending"
+				// when it is unset. So an operator armed successfully, saw a valid window, and
+				// every question still refused to travel — with the one notice that would have
+				// said so suppressed because a terminal was attending (ISS-183). Handing over the
+				// export is the cheapest half of that fix: it makes the second step findable at
+				// the moment the first succeeds.
+				attentionScopeEnv: `REFARM_OPERATOR_ATTENTION_SCOPE=${target.scope}`,
+				nextAction: `Export the scope so this window is READ: export REFARM_OPERATOR_ATTENTION_SCOPE="${target.scope}"`,
+				nextActions: [
+					`Export the scope so this window is READ: export REFARM_OPERATOR_ATTENTION_SCOPE="${target.scope}"`,
+					`Verifique a prontidão da intenção '${target.scope}'.`,
+				],
 				nextCommand: intentionCheckCommand(target.scope, target.windowMs),
 				nextCommands: [intentionCheckCommand(target.scope, target.windowMs)],
 			};
-			emit(payload, options, `Intenção armada para '${target.scope}'.`);
+			emit(
+				payload,
+				options,
+				`Intenção armada para '${target.scope}'.\n` +
+					`  Exporte o escopo para esta janela ser LIDA:\n` +
+					`    export REFARM_OPERATOR_ATTENTION_SCOPE="${target.scope}"`,
+			);
 		}));
 
 	command

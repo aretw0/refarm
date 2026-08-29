@@ -234,6 +234,19 @@ async function runOAuthFlow(
 				onAuth: ({ url, instructions }) => {
 					console.log(chalk.dim(`\n  ${instructions ?? "Complete login in your browser."}`));
 					console.log(chalk.cyan(`  → ${url}\n`));
+					// STATED, so it RIDES the paste question to every declared channel. The contract
+					// models this — "a wizard's framing reaches a PUSH surface only by riding the
+					// question it frames" — and this flow printed the URL to the terminal instead.
+					// The consequence, reported 2026-08-28: the question arrived on the operator's
+					// phone WITHOUT the link needed to answer it, so he had to copy it across by
+					// hand and abandoned the attempt. A question that cannot be answered where it
+					// lands is worse than one that never travelled.
+					if (needsManualCode) {
+						operator(ctx).say?.({
+							kind: "context",
+							message: `Open this to authenticate, then reply with the URL your browser lands on:\n${url}`,
+						});
+					}
 					if (needsManualCode) {
 						// THE REASON THAT ACTUALLY APPLIED, not the most common one. `needsManualCode`
 						// has TWO causes — a container whose browser cannot reach this environment,

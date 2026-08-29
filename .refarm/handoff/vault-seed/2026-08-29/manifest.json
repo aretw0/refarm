@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "source": "vault-seed-ready-handoff",
-  "generatedAt": "2026-08-28T23:36:04.863Z",
-  "sourceGitSha": "7617b121a53f32bb7fb197e5488649abd279dcce",
+  "generatedAt": "2026-08-29T13:15:17.756Z",
+  "sourceGitSha": "6e9d76113c430a832098639eaf46701c1ff12a41",
   "ok": true,
   "status": "ready",
   "selection": {
@@ -336,14 +336,14 @@
       }
     ]
   },
-  "handoffDir": ".refarm/handoff/vault-seed/2026-08-28",
+  "handoffDir": ".refarm/handoff/vault-seed/2026-08-29",
   "packages": [
     {
       "packageName": "@refarm.dev/storage-contract-v1",
       "packageDir": "packages/storage-contract-v1",
       "version": "0.1.0",
       "tarball": "refarm.dev-storage-contract-v1-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-storage-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-storage-contract-v1-0.1.0.tgz",
       "exists": true,
       "sha256": "a6b5a77db4da11e812d3a913499812aaf2751cda51c1a1b802166db28f2d0dcd",
       "sizeBytes": 24452,
@@ -373,9 +373,9 @@
       "packageDir": "packages/identity-contract-v1",
       "version": "0.1.0",
       "tarball": "refarm.dev-identity-contract-v1-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-identity-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-identity-contract-v1-0.1.0.tgz",
       "exists": true,
-      "sha256": "c3fc6abcccc717ffe93ce2919ac69f9fb65106a70a0236fa64ba6b6f9fe3804c",
+      "sha256": "951f67145ea5a420abd3aacdca5b3e7b2b5982dc0832e9bf2655877d28816d87",
       "sizeBytes": 18607,
       "stale": false,
       "sourceInput": {
@@ -403,9 +403,9 @@
       "packageDir": "packages/artifact-contract-v1",
       "version": "0.1.0",
       "tarball": "refarm.dev-artifact-contract-v1-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-artifact-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-artifact-contract-v1-0.1.0.tgz",
       "exists": true,
-      "sha256": "19d248c4a96ecababa22ddbb8b958a04d82be55bfcc9d35a5638ec3b7a6eb7f9",
+      "sha256": "686f49b96ad046b0c4a4e146b941e80a117da8173ffb7f4f60c94910a77ece83",
       "sizeBytes": 25491,
       "stale": false,
       "sourceInput": {
@@ -433,9 +433,9 @@
       "packageDir": "packages/channel-policy-v1",
       "version": "0.1.0",
       "tarball": "refarm.dev-channel-policy-v1-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-channel-policy-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-channel-policy-v1-0.1.0.tgz",
       "exists": true,
-      "sha256": "984b55e8a57e4c534c73655791caf252f2e2ab9b0c107144c8bf928cb5b6e004",
+      "sha256": "72ee95f6d2717510116642e33d994716418ffbec29a6e35180a849820218c88d",
       "sizeBytes": 18347,
       "stale": false,
       "sourceInput": {
@@ -463,7 +463,7 @@
       "packageDir": "packages/effort-contract-v1",
       "version": "0.1.0",
       "tarball": "refarm.dev-effort-contract-v1-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-effort-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-effort-contract-v1-0.1.0.tgz",
       "exists": true,
       "sha256": "5633abcd6141f437b5df19cd4b1f49811439803c3e82f78a755c61e21a0c20d8",
       "sizeBytes": 21351,
@@ -493,9 +493,9 @@
       "packageDir": "packages/quality-contract-v1",
       "version": "0.1.0",
       "tarball": "refarm.dev-quality-contract-v1-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-quality-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-quality-contract-v1-0.1.0.tgz",
       "exists": true,
-      "sha256": "c6738cb03d8c59facc54b2fd8d66649356f2ab5d7fa4bc12391f3debe6de2d48",
+      "sha256": "2a77254588670060a6025b87906f3e159335fdec745817ab0767686ecdaac97b",
       "sizeBytes": 38090,
       "stale": false,
       "sourceInput": {
@@ -523,9 +523,9 @@
       "packageDir": "packages/source-contract-v1",
       "version": "0.1.0",
       "tarball": "refarm.dev-source-contract-v1-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-source-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-source-contract-v1-0.1.0.tgz",
       "exists": true,
-      "sha256": "3ac746abc679a8255d18869def5687c9293895bd867826bccf3fcad1fe68f1ab",
+      "sha256": "10c33c815def0120e83fae2dc9348db4f09e5acb7756ac16469da8d9063c78a8",
       "sizeBytes": 18781,
       "stale": false,
       "sourceInput": {
@@ -553,9 +553,9 @@
       "packageDir": "packages/enrichment-contract-v1",
       "version": "0.1.0",
       "tarball": "refarm.dev-enrichment-contract-v1-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-enrichment-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-enrichment-contract-v1-0.1.0.tgz",
       "exists": true,
-      "sha256": "896d2f21e6b95a4561adf8480e90eab422f3e2b403fe7743f7b5e9e07d9b1e39",
+      "sha256": "93ead2e100d5d6d930d4e91ee5ce9fdbd638a7f4aa05e4b457ad6427d8922bea",
       "sizeBytes": 25729,
       "stale": false,
       "sourceInput": {
@@ -583,7 +583,7 @@
       "packageDir": "packages/records-contract-v1",
       "version": "0.1.0",
       "tarball": "refarm.dev-records-contract-v1-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-records-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-records-contract-v1-0.1.0.tgz",
       "exists": true,
       "sha256": "3355f5026397d4fb55f60ba964ae347a442730d8ae279a501f09d8058a419686",
       "sizeBytes": 26831,
@@ -613,7 +613,7 @@
       "packageDir": "packages/process-handoff",
       "version": "0.1.0",
       "tarball": "refarm.dev-process-handoff-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-process-handoff-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-process-handoff-0.1.0.tgz",
       "exists": true,
       "sha256": "6a08b77ca2113cc278fa15762383e62eda396b6413934fb392e546bcf38f06f7",
       "sizeBytes": 24357,
@@ -643,10 +643,10 @@
       "packageDir": "packages/health",
       "version": "0.1.0",
       "tarball": "refarm.dev-health-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-health-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-health-0.1.0.tgz",
       "exists": true,
-      "sha256": "ecb7b44e369807d2a7a39c8f1fe79287a8d2c36b7536630b03164bfb98aea8e2",
-      "sizeBytes": 110903,
+      "sha256": "f8d8c9673f5b202437b75089edd9bd8f9d4927961712248fb73d461e20e22872",
+      "sizeBytes": 110902,
       "stale": false,
       "sourceInput": {
         "path": "packages/health/src/abandoned-effort.js",
@@ -673,7 +673,7 @@
       "packageDir": "packages/release-engine",
       "version": "0.1.0",
       "tarball": "refarm.dev-release-engine-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-release-engine-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-release-engine-0.1.0.tgz",
       "exists": true,
       "sha256": "ba7394c329da27631bca97893b1815fd0308f4abd2643466138fe8acc507965b",
       "sizeBytes": 32249,
@@ -700,7 +700,7 @@
       "packageDir": "packages/heartwood",
       "version": "0.1.0",
       "tarball": "refarm.dev-heartwood-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-heartwood-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-heartwood-0.1.0.tgz",
       "exists": true,
       "sha256": "99f07aae42a770faff1f503b22db07a5dcf518637d0aa08b68e84ab738e55f07",
       "sizeBytes": 139280,
@@ -730,10 +730,10 @@
       "packageDir": "packages/silo",
       "version": "0.1.0",
       "tarball": "refarm.dev-silo-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-silo-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-silo-0.1.0.tgz",
       "exists": true,
-      "sha256": "89803c4f5445bc4f9d954f098d7b5efb1cb4194406a2547e52c0cd0321ed1d3b",
-      "sizeBytes": 22764,
+      "sha256": "1db4ef12df95c0cad4f6766ca73b31ab2b656df61121f0e1522e8ee17082407c",
+      "sizeBytes": 22765,
       "stale": false,
       "sourceInput": {
         "path": "packages/silo/src/index.js",
@@ -760,9 +760,9 @@
       "packageDir": "packages/storage-memory",
       "version": "0.1.0",
       "tarball": "refarm.dev-storage-memory-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-storage-memory-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-storage-memory-0.1.0.tgz",
       "exists": true,
-      "sha256": "051808f53b6f346cf85c2710c8b44fa2856a66b515ffd02f4633c76dffc8177c",
+      "sha256": "0da13f60be1852bc20cc79559d3e00c4f552ea10e3fd9893f2609bb7b39424be",
       "sizeBytes": 13543,
       "stale": false,
       "sourceInput": {
@@ -790,9 +790,9 @@
       "packageDir": "packages/credentials-contract-v1",
       "version": "0.1.0",
       "tarball": "refarm.dev-credentials-contract-v1-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-credentials-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-credentials-contract-v1-0.1.0.tgz",
       "exists": true,
-      "sha256": "e850dc2c0343ba30b5ab4a2e418986e69eec488f37bc718492a2905ac69c5d64",
+      "sha256": "18f3b0e79e4204d98e845a7b30ecfe9672966d614eaba2cb028e30bb10331d39",
       "sizeBytes": 32784,
       "stale": false,
       "sourceInput": {
@@ -820,7 +820,7 @@
       "packageDir": "packages/dispatch-surface",
       "version": "0.1.0",
       "tarball": "refarm.dev-dispatch-surface-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-dispatch-surface-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-dispatch-surface-0.1.0.tgz",
       "exists": true,
       "sha256": "c68225e06b9298b838dc2d0f00474e33bfece9202dae3420d7bb169e2a6460d0",
       "sizeBytes": 19503,
@@ -850,7 +850,7 @@
       "packageDir": "packages/ds",
       "version": "0.1.0",
       "tarball": "refarm.dev-ds-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-ds-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-ds-0.1.0.tgz",
       "exists": true,
       "sha256": "317978d2d2633190b241b2a5bc6e2bec50fbe123b4ad12929983f4062d7ecbc1",
       "sizeBytes": 45545,
@@ -880,9 +880,9 @@
       "packageDir": "packages/source-web",
       "version": "0.1.0",
       "tarball": "refarm.dev-source-web-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-source-web-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-source-web-0.1.0.tgz",
       "exists": true,
-      "sha256": "a62747832c73e0d83f94c10a82bbacabb22c2b7875f5eaa35149f4f2f9e38845",
+      "sha256": "a0484881937d26ff836a8cbfa0f2ae32927c9954fb5bf622a635b6b9be4b17a2",
       "sizeBytes": 49600,
       "stale": false,
       "sourceInput": {
@@ -910,22 +910,22 @@
       "packageDir": "packages/vault-contract-v1",
       "version": "0.1.0",
       "tarball": "refarm.dev-vault-contract-v1-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-vault-contract-v1-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-vault-contract-v1-0.1.0.tgz",
       "exists": true,
-      "sha256": "59661e2a3c9dcf181384a0f3e7c92bf0236424300fa588bbf7a6f8fd6cceb451",
-      "sizeBytes": 48694,
+      "sha256": "b3a712d22578db01df503934f7308d91873accd7271024aa438e70c2ae7e43b7",
+      "sizeBytes": 50704,
       "stale": false,
       "sourceInput": {
         "path": "packages/vault-contract-v1/src/organize.test.ts",
-        "mtimeMs": 1787960137553.3647
+        "mtimeMs": 1788009284544.9348
       },
       "buildInput": {
         "path": "packages/vault-contract-v1/src/organize.ts",
-        "mtimeMs": 1787960103269.3296
+        "mtimeMs": 1788009247084.9106
       },
       "buildOutput": {
         "path": "packages/vault-contract-v1/dist/organize.d.ts.map",
-        "mtimeMs": 1787960152481.38
+        "mtimeMs": 1788009305700.9485
       },
       "buildOutputStale": false,
       "consumerPull": {
@@ -940,7 +940,7 @@
       "packageDir": "packages/content-projection",
       "version": "0.1.0",
       "tarball": "refarm.dev-content-projection-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-content-projection-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-content-projection-0.1.0.tgz",
       "exists": true,
       "sha256": "16798f31484f21436475290702ca28e047bef27d58641bdf9a9777a3025239c9",
       "sizeBytes": 19950,
@@ -970,10 +970,10 @@
       "packageDir": "packages/identity-heartwood",
       "version": "0.1.0",
       "tarball": "refarm.dev-identity-heartwood-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-identity-heartwood-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-identity-heartwood-0.1.0.tgz",
       "exists": true,
-      "sha256": "201f4236c359427ac00b40c3790483faa38f0ce5b1ec88dd4deedeba8a26e385",
-      "sizeBytes": 15407,
+      "sha256": "2f70b2e39375cde797143ab7d2164719dac13d032198951c679bebda0ad714fd",
+      "sizeBytes": 15408,
       "stale": false,
       "sourceInput": {
         "path": "packages/identity-heartwood/package.json",
@@ -1000,7 +1000,7 @@
       "packageDir": "packages/local-surface",
       "version": "0.1.0",
       "tarball": "refarm.dev-local-surface-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-local-surface-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-local-surface-0.1.0.tgz",
       "exists": true,
       "sha256": "19220bd8ac49c9d7050148cd3c5c55f8e6b8c2381adf5164a54dd99b4d7f1f82",
       "sizeBytes": 18944,
@@ -1030,9 +1030,9 @@
       "packageDir": "packages/ds-astro",
       "version": "0.1.0",
       "tarball": "refarm.dev-ds-astro-0.1.0.tgz",
-      "path": ".refarm/handoff/vault-seed/2026-08-28/refarm.dev-ds-astro-0.1.0.tgz",
+      "path": ".refarm/handoff/vault-seed/2026-08-29/refarm.dev-ds-astro-0.1.0.tgz",
       "exists": true,
-      "sha256": "e17da7624dfa0ddf2fd818acd776c6604bf8c5bc9da1d679dcf8eb514db5992d",
+      "sha256": "3c0e2da7db80d2440c0d9373eeed7e0d7764dbe84084c7b6315b805e8ca2e062",
       "sizeBytes": 14250,
       "stale": false,
       "sourceInput": {
@@ -1059,7 +1059,7 @@
   "consumerInstall": {
     "packageManager": "pnpm",
     "vendorDir": "vendor",
-    "copyFrom": ".refarm/handoff/vault-seed/2026-08-28",
+    "copyFrom": ".refarm/handoff/vault-seed/2026-08-29",
     "copyFiles": [
       "manifest.json",
       "refarm.dev-storage-contract-v1-0.1.0.tgz",
@@ -1170,7 +1170,7 @@
         "packageName": "@refarm.dev/std",
         "version": "0.1.0",
         "tarball": "refarm.dev-std-0.1.0.tgz",
-        "sha256": "f96e87810799a4cae5fedb14cd43249a223d03c7d28bb49f16e9c713f01cd002"
+        "sha256": "7cf7a43757780e1f652a69722e575c42710a440262e4481bfb20a6f9cda93342"
       }
     ],
     "revendorPolicy": {
@@ -1393,7 +1393,7 @@
   "distributionEvidence": {
     "schema": "refarm.vault-seed-ready-distribution-evidence.v1",
     "stableRef": "refarm-handoff://vault-seed-ready",
-    "currentRef": "refarm-handoff://vault-seed-ready/2026-08-28",
+    "currentRef": "refarm-handoff://vault-seed-ready/2026-08-29",
     "state": "local-handoff-ready",
     "subject": {
       "kind": "release-selection",
@@ -1462,7 +1462,7 @@
           "id": "refarm-local-handoff",
           "role": "primary-source",
           "required": true,
-          "ref": "refarm-handoff://vault-seed-ready/2026-08-28"
+          "ref": "refarm-handoff://vault-seed-ready/2026-08-29"
         },
         {
           "id": "consumer-vendor-copy",
@@ -1503,21 +1503,21 @@
           "packageName": "@refarm.dev/identity-contract-v1",
           "version": "0.1.0",
           "tarball": "refarm.dev-identity-contract-v1-0.1.0.tgz",
-          "sha256": "c3fc6abcccc717ffe93ce2919ac69f9fb65106a70a0236fa64ba6b6f9fe3804c",
+          "sha256": "951f67145ea5a420abd3aacdca5b3e7b2b5982dc0832e9bf2655877d28816d87",
           "exists": true
         },
         {
           "packageName": "@refarm.dev/artifact-contract-v1",
           "version": "0.1.0",
           "tarball": "refarm.dev-artifact-contract-v1-0.1.0.tgz",
-          "sha256": "19d248c4a96ecababa22ddbb8b958a04d82be55bfcc9d35a5638ec3b7a6eb7f9",
+          "sha256": "686f49b96ad046b0c4a4e146b941e80a117da8173ffb7f4f60c94910a77ece83",
           "exists": true
         },
         {
           "packageName": "@refarm.dev/channel-policy-v1",
           "version": "0.1.0",
           "tarball": "refarm.dev-channel-policy-v1-0.1.0.tgz",
-          "sha256": "984b55e8a57e4c534c73655791caf252f2e2ab9b0c107144c8bf928cb5b6e004",
+          "sha256": "72ee95f6d2717510116642e33d994716418ffbec29a6e35180a849820218c88d",
           "exists": true
         },
         {
@@ -1531,21 +1531,21 @@
           "packageName": "@refarm.dev/quality-contract-v1",
           "version": "0.1.0",
           "tarball": "refarm.dev-quality-contract-v1-0.1.0.tgz",
-          "sha256": "c6738cb03d8c59facc54b2fd8d66649356f2ab5d7fa4bc12391f3debe6de2d48",
+          "sha256": "2a77254588670060a6025b87906f3e159335fdec745817ab0767686ecdaac97b",
           "exists": true
         },
         {
           "packageName": "@refarm.dev/source-contract-v1",
           "version": "0.1.0",
           "tarball": "refarm.dev-source-contract-v1-0.1.0.tgz",
-          "sha256": "3ac746abc679a8255d18869def5687c9293895bd867826bccf3fcad1fe68f1ab",
+          "sha256": "10c33c815def0120e83fae2dc9348db4f09e5acb7756ac16469da8d9063c78a8",
           "exists": true
         },
         {
           "packageName": "@refarm.dev/enrichment-contract-v1",
           "version": "0.1.0",
           "tarball": "refarm.dev-enrichment-contract-v1-0.1.0.tgz",
-          "sha256": "896d2f21e6b95a4561adf8480e90eab422f3e2b403fe7743f7b5e9e07d9b1e39",
+          "sha256": "93ead2e100d5d6d930d4e91ee5ce9fdbd638a7f4aa05e4b457ad6427d8922bea",
           "exists": true
         },
         {
@@ -1566,7 +1566,7 @@
           "packageName": "@refarm.dev/health",
           "version": "0.1.0",
           "tarball": "refarm.dev-health-0.1.0.tgz",
-          "sha256": "ecb7b44e369807d2a7a39c8f1fe79287a8d2c36b7536630b03164bfb98aea8e2",
+          "sha256": "f8d8c9673f5b202437b75089edd9bd8f9d4927961712248fb73d461e20e22872",
           "exists": true
         },
         {
@@ -1587,21 +1587,21 @@
           "packageName": "@refarm.dev/silo",
           "version": "0.1.0",
           "tarball": "refarm.dev-silo-0.1.0.tgz",
-          "sha256": "89803c4f5445bc4f9d954f098d7b5efb1cb4194406a2547e52c0cd0321ed1d3b",
+          "sha256": "1db4ef12df95c0cad4f6766ca73b31ab2b656df61121f0e1522e8ee17082407c",
           "exists": true
         },
         {
           "packageName": "@refarm.dev/storage-memory",
           "version": "0.1.0",
           "tarball": "refarm.dev-storage-memory-0.1.0.tgz",
-          "sha256": "051808f53b6f346cf85c2710c8b44fa2856a66b515ffd02f4633c76dffc8177c",
+          "sha256": "0da13f60be1852bc20cc79559d3e00c4f552ea10e3fd9893f2609bb7b39424be",
           "exists": true
         },
         {
           "packageName": "@refarm.dev/credentials-contract-v1",
           "version": "0.1.0",
           "tarball": "refarm.dev-credentials-contract-v1-0.1.0.tgz",
-          "sha256": "e850dc2c0343ba30b5ab4a2e418986e69eec488f37bc718492a2905ac69c5d64",
+          "sha256": "18f3b0e79e4204d98e845a7b30ecfe9672966d614eaba2cb028e30bb10331d39",
           "exists": true
         },
         {
@@ -1622,14 +1622,14 @@
           "packageName": "@refarm.dev/source-web",
           "version": "0.1.0",
           "tarball": "refarm.dev-source-web-0.1.0.tgz",
-          "sha256": "a62747832c73e0d83f94c10a82bbacabb22c2b7875f5eaa35149f4f2f9e38845",
+          "sha256": "a0484881937d26ff836a8cbfa0f2ae32927c9954fb5bf622a635b6b9be4b17a2",
           "exists": true
         },
         {
           "packageName": "@refarm.dev/vault-contract-v1",
           "version": "0.1.0",
           "tarball": "refarm.dev-vault-contract-v1-0.1.0.tgz",
-          "sha256": "59661e2a3c9dcf181384a0f3e7c92bf0236424300fa588bbf7a6f8fd6cceb451",
+          "sha256": "b3a712d22578db01df503934f7308d91873accd7271024aa438e70c2ae7e43b7",
           "exists": true
         },
         {
@@ -1643,7 +1643,7 @@
           "packageName": "@refarm.dev/identity-heartwood",
           "version": "0.1.0",
           "tarball": "refarm.dev-identity-heartwood-0.1.0.tgz",
-          "sha256": "201f4236c359427ac00b40c3790483faa38f0ce5b1ec88dd4deedeba8a26e385",
+          "sha256": "2f70b2e39375cde797143ab7d2164719dac13d032198951c679bebda0ad714fd",
           "exists": true
         },
         {
@@ -1657,7 +1657,7 @@
           "packageName": "@refarm.dev/ds-astro",
           "version": "0.1.0",
           "tarball": "refarm.dev-ds-astro-0.1.0.tgz",
-          "sha256": "e17da7624dfa0ddf2fd818acd776c6604bf8c5bc9da1d679dcf8eb514db5992d",
+          "sha256": "3c0e2da7db80d2440c0d9373eeed7e0d7764dbe84084c7b6315b805e8ca2e062",
           "exists": true
         }
       ]
