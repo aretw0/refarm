@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import {
 	latestAcceptedHandoffReport,
+	parseArgs,
 	validateHandoffManifest,
 } from "./vault-seed-handoff-consumer-install.mjs";
 
@@ -133,6 +134,68 @@ test("validates a downstream vendor copy when supplied", () => {
 		report.issues.map((item) => item.code).sort(),
 		["consumer-pnpm-override", "consumer-vendor-sha256"],
 	);
+});
+
+test("validates only the packages a downstream consumer actually copied", () => {
+	const { root, handoffDir, alphaTarball } = fixture();
+	const consumerRoot = path.join(root, "consumer");
+	mkdirSync(path.join(consumerRoot, "vendor"), { recursive: true });
+	writeFileSync(path.join(consumerRoot, "vendor", alphaTarball), "alpha");
+	writeFileSync(
+		path.join(consumerRoot, "package.json"),
+		JSON.stringify({
+			dependencies: {
+				"@refarm.dev/alpha": `file:vendor/${alphaTarball}`,
+				"@refarm.dev/another-proof": "file:vendor/another-proof.tgz",
+			},
+		}),
+	);
+	writeFileSync(
+		path.join(consumerRoot, "pnpm-workspace.yaml"),
+		[
+			"overrides:",
+			`  "@refarm.dev/alpha": "file:vendor/${alphaTarball}"`,
+		].join("\n"),
+	);
+
+	const report = validateHandoffManifest({
+		root,
+		handoffDir,
+		consumerRoot,
+		consumerPackages: ["@refarm.dev/alpha"],
+	});
+
+	assert.equal(report.ok, true);
+	assert.equal(report.consumerPackageCount, 1);
+	assert.deepEqual(report.consumerPackages, ["@refarm.dev/alpha"]);
+});
+
+test("rejects an explicitly requested consumer package absent from the handoff", () => {
+	const { root, handoffDir } = fixture();
+	const report = validateHandoffManifest({
+		root,
+		handoffDir,
+		consumerPackages: ["@refarm.dev/missing"],
+	});
+
+	assert.equal(report.ok, false);
+	assert.deepEqual(report.issues.map((item) => item.code), ["consumer-package-unknown"]);
+});
+
+test("parses repeatable focused consumer packages", () => {
+	const options = parseArgs([
+		"--consumer-root",
+		"/tmp/consumer",
+		"--consumer-package",
+		"@refarm.dev/ds",
+		"--consumer-package",
+		"@refarm.dev/quality-contract-v1",
+	]);
+
+	assert.deepEqual(options.consumerPackages, [
+		"@refarm.dev/ds",
+		"@refarm.dev/quality-contract-v1",
+	]);
 });
 
 test("latest-accepted mode skips a newer blocked candidate", () => {
