@@ -97,14 +97,13 @@ function frontmatterValue(value: unknown): string {
  */
 function blockFrontmatterLines(key: string, value: unknown, depth: number): string[] {
 	const pad = "  ".repeat(depth);
-	if (value === null || typeof value !== "object") {
-		return [`${pad}${key}: ${frontmatterValue(value)}`];
-	}
+	if (value === null) return [`${pad}${key}:`];
+	if (typeof value !== "object") return [`${pad}${key}: ${frontmatterValue(value)}`];
 	if (Array.isArray(value)) {
 		if (value.length === 0) return [`${pad}${key}: []`];
 		return [`${pad}${key}:`, ...value.flatMap((item) => blockFrontmatterItem(item, depth + 1))];
 	}
-	const entries = Object.entries(value).filter(([, v]) => v !== undefined && v !== null);
+	const entries = Object.entries(value).filter(([, v]) => v !== undefined);
 	if (entries.length === 0) return [`${pad}${key}: {}`];
 	return [
 		`${pad}${key}:`,
@@ -120,7 +119,7 @@ function blockFrontmatterItem(item: unknown, depth: number): string[] {
 	// A list inside a list has no readability to gain and an ambiguous layout to lose; the flow
 	// form is honest about the scope this renderer covers.
 	if (Array.isArray(item)) return [`${pad}- ${JSON.stringify(item)}`];
-	const entries = Object.entries(item).filter(([, v]) => v !== undefined && v !== null);
+	const entries = Object.entries(item).filter(([, v]) => v !== undefined);
 	if (entries.length === 0) return [`${pad}- {}`];
 	const lines: string[] = [];
 	for (const [index, [k, v]] of entries.entries()) {
@@ -137,7 +136,17 @@ function blockFrontmatterItem(item: unknown, depth: number): string[] {
 function fieldsToFrontmatter(fields: Record<string, unknown>, blockStyle = false): string {
 	const lines: string[] = ["---"];
 	for (const [key, value] of Object.entries(fields)) {
-		if (value === null || value === undefined) continue;
+		// `undefined` is absence and is skipped. `null` is a DECLARED-BUT-EMPTY field and keeps its
+		// key: this function's own contract is that "the KEY is always present (so a
+		// `frontmatter-required` gate sees it)", and dropping the line is what breaks that. In a
+		// vault whose templates declare required keys, `sessao_compra:` with no value is data —
+		// the field exists and is unfilled — and losing it silently turns a template contract
+		// violation into a materialization artifact.
+		if (value === undefined) continue;
+		if (value === null) {
+			lines.push(`${key}:`);
+			continue;
+		}
 		// The KEY is always present (so a `frontmatter-required` gate sees it); the value is a
 		// single, fence-safe line. A routing axis reads a plain string, so it simply won't match a
 		// JSON-encoded object/multiline value — forward-safe.

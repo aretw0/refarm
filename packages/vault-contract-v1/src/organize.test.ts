@@ -90,6 +90,30 @@ describe("recordToVaultNote", () => {
 		expect(note.text).toContain("total: 109.49");
 	});
 
+	it("keeps a declared-but-empty field instead of dropping the line", () => {
+		// `sessao_compra:` with no value is data: the field exists and is unfilled. Dropping the
+		// line turns a template-contract violation into a materialization artifact, and this
+		// function's own contract is that the key is always present.
+		const note = recordToVaultNote(
+			record("record:nfce", { sessao_compra: null, ausente: undefined, cheio: "x" }),
+		);
+
+		expect(note.text).toContain("\nsessao_compra:\n");
+		expect(note.text).not.toContain("ausente");
+		expect(note.text).toContain("cheio: x");
+	});
+
+	it("keeps empty fields nested inside blocks too", () => {
+		const note = recordToVaultNote(
+			record("record:nfce", { itens: [{ codigo: "18306", ean: null }] }),
+			{ blockStyle: true },
+		);
+
+		// `codigo` sai citado: "18306" e uma string com cara de numero, e sem aspas o YAML a
+		// retiparia — um codigo de produto deixaria de ser codigo entre a escrita e a leitura.
+		expect(note.text).toContain('itens:\n  - codigo: "18306"\n    ean:\n');
+	});
+
 	it("keeps the single-line form by default", () => {
 		const note = recordToVaultNote(record("record:nfce", { itens: [{ nome: "Arroz" }] }));
 
