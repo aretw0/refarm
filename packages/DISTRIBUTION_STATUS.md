@@ -118,6 +118,9 @@ node scripts/ci/release-install-smoke.mjs --selection evidence-contracts-ready
 skips a package whose exact version is already on the registry, so the two
 units can be published in either order without a half-published second run.
 
+Operator runbook for this unit's 0.1.0:
+[`docs/2026-08-30-evidence-contracts-first-publish.md`](../docs/2026-08-30-evidence-contracts-first-publish.md).
+
 The local handoff uses the daily operator artifact path
 `.refarm/handoff/vault-seed/<YYYY-MM-DD>/`. That directory is ephemeral; the
 versioned policy and package checks remain the durable source of truth. The
