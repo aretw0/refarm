@@ -140,9 +140,19 @@ mod tests {
     /// installs its handler when a stream is constructed and never restores the
     /// default disposition, so by the time `raise` runs, SIGTERM provably cannot
     /// terminate the test binary.
+    ///
+    /// `#[ignore]`, and run ONLY through `a_real_sigterm_resolves_the_wait` below, in a
+    /// child process. A signal is process-global: raised inside the shared `cargo test`
+    /// binary it reached every server any other test had waiting on `wait()` at that
+    /// instant — the WS handshake audit test saw its server vanish between two guesses
+    /// (`ConnectionRefused`) on the cold Tractor coverage gate of PR #59, 2026-08-30,
+    /// while locally the schedules never overlapped. The same doctrine ws_server already
+    /// states for `std::env::set_var`: process-global effects do not belong in a shared
+    /// test process.
     #[cfg(unix)]
+    #[ignore = "raises a real SIGTERM at its process — run by a_real_sigterm_resolves_the_wait in a child"]
     #[tokio::test]
-    async fn a_real_sigterm_resolves_the_wait() {
+    async fn a_real_sigterm_resolves_the_wait_in_this_process() {
         let _installed = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
             .expect("install the SIGTERM handler before raising one");
 
@@ -161,6 +171,35 @@ mod tests {
             .expect("SIGTERM must wake the shutdown wait")
             .expect("the wait task must not panic");
         assert_eq!(signal, ShutdownSignal::Terminate);
+    }
+
+    /// The real-signal case above, run where a real signal can only reach itself: this
+    /// same test binary, relaunched as a child for exactly that one ignored test.
+    #[cfg(unix)]
+    #[test]
+    fn a_real_sigterm_resolves_the_wait() {
+        let exe = std::env::current_exe().expect("the test binary knows its own path");
+        let output = std::process::Command::new(exe)
+            .args([
+                "--exact",
+                "daemon::shutdown::tests::a_real_sigterm_resolves_the_wait_in_this_process",
+                "--ignored",
+                "--test-threads=1",
+            ])
+            .output()
+            .expect("relaunch the test binary for the signal case");
+        assert!(
+            output.status.success(),
+            "the in-process SIGTERM case failed in its child process (status {:?})\n--- stdout ---\n{}\n--- stderr ---\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stdout).contains("test result: ok. 1 passed"),
+            "the child must have RUN the ignored case, not filtered it out:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+        );
     }
 
     /// Both signals reach the same drain, and the drain does the same thing.
