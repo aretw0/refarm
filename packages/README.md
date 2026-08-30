@@ -8,7 +8,7 @@ This document catalogues the modular primitives and engines of the Refarm monore
 |---|---|---|---|
 | [`@refarm.dev/tractor`](./tractor) | The Sovereign Microkernel & Plugin Host | 🟡 Stable-ish | Internal |
 | [`@refarm.dev/windmill`](./windmill) | Automation Engine & Infrastructure | 🟠 Alpha | Internal |
-| [`@refarm.dev/health`](./health) | Stratified Health & Policy Auditor | 🟢 Production | Release-profiled; held |
+| [`@refarm.dev/health`](./health) | Stratified Health & Policy Auditor | 🟢 Production | Release-profiled; out of `consumer-ready` until `config` passes boundary review (no consumer uses it in product) |
 
 ## 🛡 Capability Contracts (v1)
 These packages define foundational interoperability layers between Refarm and
@@ -108,6 +108,9 @@ CLI labels, copy, notebooks, routes, and UX.
 | [`@refarm.dev/enrichment-contract-v1`](./enrichment-contract-v1) | Deterministic enrichment reports for source-linked records | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Neutral records envelope plus YAML-LD subpath for proof-backed front matter bridges | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/provenance-contract-v1`](./provenance-contract-v1) | Provenance envelope with named verification checks for any input a consumer keeps | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/std`](./std) | Support: pure primitives (slugify, digest shape, bind/surface guards) that `vault-contract-v1` depends on at runtime | `consumer-ready`; held |
+| [`@refarm.dev/node-contract-v1`](./node-contract-v1) | Support: `node:v1` base GraphNode shape and normalised conversions that records/vault contracts build on | `consumer-ready`; held |
+| [`@refarm.dev/plugin-manifest`](./plugin-manifest) | Support: manifest:v1 types, validators and fixtures that `vault-contract-v1` imports; install/trust/hosting stay host-owned | `consumer-ready`; held |
 | [`@refarm.dev/process-handoff`](./process-handoff) | Build-free tokenized process specs and runner adapters | `consumer-ready`; held |
 | [`@refarm.dev/release-engine`](./release-engine) | Package acceptance and release-policy summaries | `consumer-ready`; held |
 | [`@refarm.dev/ds`](./ds) | Design tokens, theme CSS, and build-free HTML helpers consumed by vault admin/Lab UI | `consumer-ready`; held |

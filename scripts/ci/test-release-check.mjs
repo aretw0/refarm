@@ -12,7 +12,6 @@ import {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const PRE_PUBLICATION_HANDOFF_ONLY_PACKAGES = new Set([
 	"@refarm.dev/ds-astro",
-	"@refarm.dev/health",
 ]);
 
 function changesetPackageNames(root = ROOT) {
@@ -128,27 +127,31 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		// four anchors in test-vault-seed-ready-handoff.mjs, test-release-check.mjs,
 		// test-first-publish-selection.mjs, test-distribution-status-doc.mjs, and both docs.
 		"@refarm.dev/provenance-contract-v1",
+		"@refarm.dev/std",
+		"@refarm.dev/node-contract-v1",
 		"@refarm.dev/source-contract-v1",
 		"@refarm.dev/enrichment-contract-v1",
 		"@refarm.dev/records-contract-v1",
 		"@refarm.dev/process-handoff",
-		"@refarm.dev/health",
 		"@refarm.dev/release-engine",
 		"@refarm.dev/heartwood",
 		"@refarm.dev/silo",
+		"@refarm.dev/plugin-manifest",
 		"@refarm.dev/storage-memory",
 		"@refarm.dev/credentials-contract-v1",
 		"@refarm.dev/dispatch-surface",
 		"@refarm.dev/ds",
 		"@refarm.dev/source-web",
+		"@refarm.dev/content-projection",
+		"@refarm.dev/identity-heartwood",
 		// ENTERED at cc61342e ("enter the consumer-ready selection") and this list did not follow
 		// it. The ratchet exists so a package joining is a line someone reviews; that commit moved
 		// the fact and skipped the number, and nothing caught it until 2026-08-28.
 		"@refarm.dev/vault-contract-v1",
-		// After `records-contract-v1` (index 8), which it depends on — the order is topological,
+		// After `records-contract-v1` (index 11 since std/node-contract-v1 entered on 2026-08-30), which it depends on — the order is topological,
 		// so this position is the plan proving it knows the dependency, not an arbitrary slot.
-		"@refarm.dev/content-projection",
-		"@refarm.dev/identity-heartwood",
+		// Since 2026-08-30 it also lands after identity-heartwood: the ordering is the
+		// engine's topological result, re-read from the plan, never hand-placed.
 		"@refarm.dev/local-surface",
 		"@refarm.dev/ds-astro",
 	]);
@@ -249,7 +252,7 @@ test("release check plan json exposes acceptance summary", () => {
 	// consumer reaching the package from a surface that is NOT the contract test, and vault-seed's
 	// records reference vault now structures its MD/MDX lane through `projectContentToRecords`.
 	// The tag moved because the fact moved — not to make this number move.
-	assert.equal(payload.acceptance.packageCount, 25);
+	assert.equal(payload.acceptance.packageCount, 27);
 	assert.equal(payload.acceptance.blockerCount, 0);
 	assert.equal(payload.acceptance.manualApprovalRequired, true);
 	assert.deepEqual(payload.acceptance.profileTags, ["consumer-ready"]);

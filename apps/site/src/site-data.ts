@@ -8,11 +8,12 @@ export const vaultSeedPackages = [
 	"ds-astro",
 	"effort-contract-v1",
 	"enrichment-contract-v1",
-	"health",
 	"heartwood",
 	"identity-contract-v1",
 	"identity-heartwood",
 	"local-surface",
+	"node-contract-v1",
+	"plugin-manifest",
 	"process-handoff",
 	"provenance-contract-v1",
 	"quality-contract-v1",
@@ -21,6 +22,7 @@ export const vaultSeedPackages = [
 	"silo",
 	"source-contract-v1",
 	"source-web",
+	"std",
 	"storage-contract-v1",
 	"storage-memory",
 	"vault-contract-v1",
@@ -28,8 +30,8 @@ export const vaultSeedPackages = [
 
 export const siteFacts = {
 	handoffDate: "2026-08-30",
-	packageCount: 25,
-	requiredCheckCount: 80,
+	packageCount: 27,
+	requiredCheckCount: 88,
 	publicPublishCount: 0,
 	manualApprovalRequired: true,
 } as const;

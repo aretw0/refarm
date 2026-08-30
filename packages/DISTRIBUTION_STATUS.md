@@ -47,6 +47,9 @@ channel, not a public npm publication promise.
 - `@refarm.dev/effort-contract-v1`
 - `@refarm.dev/quality-contract-v1`
 - `@refarm.dev/provenance-contract-v1`
+- `@refarm.dev/std`
+- `@refarm.dev/node-contract-v1`
+- `@refarm.dev/plugin-manifest`
 - `@refarm.dev/storage-contract-v1`
 - `@refarm.dev/identity-contract-v1`
 - `@refarm.dev/source-contract-v1`
@@ -66,7 +69,6 @@ channel, not a public npm publication promise.
 - `@refarm.dev/vault-contract-v1`
 - `@refarm.dev/local-surface`
 - `@refarm.dev/ds-astro`
-- `@refarm.dev/health`
 
 Validation:
 
@@ -79,9 +81,13 @@ pnpm --silent run release:vault-seed:handoff -- --out .refarm/handoff/vault-seed
 
 The local handoff is accepted, but the complete selection is not yet a public
 install unit. `release:vault-seed:install:smoke` intentionally blocks because
-`health` depends on unselected `config`, while `vault-contract-v1` depends on
-unselected `plugin-manifest`, `std`, and `node-contract-v1`. A publish dry-run
-does not detect that registry closure.
+the selection was not dependency-closed. Closed on 2026-08-30: `vault-contract-v1`'s
+support packages — `plugin-manifest`, `std`, `node-contract-v1` — entered,
+pulled by coop-vault (which vendors all three as overrides), and `health`
+left: it depends on `config`, held for boundary review, and no consumer uses
+it in product (vault-seed keeps it as a proof-only devDependency). It returns
+with `config`. A publish dry-run does not detect registry closure; the
+install smoke does.
 
 ### `design-system-ready` (dependency-closed public unit)
 
@@ -265,7 +271,7 @@ packages are ready:
 | `@refarm.dev/cli` | held out of `consumer-ready` | `@refarm.dev/process-handoff` is the leaf package needed by consumers |
 | `@refarm.dev/plugin-manifest` | deferred | Pi/WASM/UI plugin boundary still needs reproducible multi-layer proof |
 | `@refarm.dev/agent` | unheld engine package; not the plugin-runtime stack | `pnpm run agent:release-proof` proves the narrow public built-artifact boundary (`dist/agent.wasm`, `dist/plugin.json`, `dist/jco`) while plugin-manifest and WIT-component publication remain separate gates |
-| agent-demo public surface | release-proven through selected blocks | `pnpm run agent-demo:release-proof` confirms downstream agent demos can consume `dispatch-surface`, `effort-contract-v1`, `channel-policy-v1`, `artifact-contract-v1`, `process-handoff`, and `ds` while `plugin-manifest`, `terminal-plugin`, `toolbox`, and `refarm:agent-tools@0.1.0` remain held |
+| agent-demo public surface | release-proven through selected blocks | `pnpm run agent-demo:release-proof` confirms downstream agent demos can consume `dispatch-surface`, `effort-contract-v1`, `channel-policy-v1`, `artifact-contract-v1`, `process-handoff`, and `ds` while `terminal-plugin`, `toolbox`, and `refarm:agent-tools@0.1.0` remain held (`plugin-manifest` is the published manifest:v1 contract since 2026-08-30, not runtime) |
 | secure-extensibility demo proof | release-proven T1 composition | `pnpm run secure-extensibility:proof` confirms the white-label extension envelope, review-first install packet, denied-capability receipts, quality gate, public agent engine, and selected dispatch/evidence blocks compose without claiming real WASM execution or model-authored plugin output |
 | `plugin-wit` | internal canonical WIT crate | `publish = false`; the supply surface is `plugin:host@0.1.0` WIT, not crates.io/npm yet |
 | `refarm:agent-tools@0.1.0` | internal WIT component boundary | guarded by build-free `validate-packages` preflight before any component packaging promotion |

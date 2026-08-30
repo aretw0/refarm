@@ -28,14 +28,14 @@ export const REQUIRED_EVIDENCE_ARTIFACTS = [
 	"extension-install-review-packet-json",
 ];
 
+// `@refarm.dev/plugin-manifest` left this list on 2026-08-30: it is the manifest:v1 contract
+// (schema, validators, fixtures), not runtime, and `vault-contract-v1` — in the consumer-ready
+// lane since cc61342e — depends on it at runtime, so the lane was never installable without it.
+// The runtime stack below (renderer, operator tooling, WIT component) stays held.
 export const HELD_AGENT_PLUGIN_SURFACES = [
 	{
-		id: "@refarm.dev/plugin-manifest",
-		reason: "multi-layer Pi/WASM/UI plugin proof still gates public plugin manifest promotion",
-	},
-	{
 		id: "@refarm.dev/terminal-plugin",
-		reason: "depends on plugin-manifest and is a renderer for a plugin boundary that remains held",
+		reason: "renderer for the plugin runtime boundary that remains held; the manifest contract it consumes is public, the runtime is not",
 	},
 	{
 		id: "@refarm.dev/toolbox",

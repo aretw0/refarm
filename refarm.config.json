@@ -499,6 +499,53 @@
 				}
 			},
 			{
+				"id": "@refarm.dev/std",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/std run lint",
+					"pnpm --filter @refarm.dev/std run type-check",
+					"pnpm --filter @refarm.dev/std run test",
+					"pnpm --filter @refarm.dev/std run build"
+				],
+				"tags": [
+					"primitives",
+					"sdk-primitive",
+					"consumer-pulled",
+					"consumer-ready",
+					"boundary-review"
+				],
+				"consumerPull": {
+					"proofId": "std.pure-primitives-behind-a-published-contract",
+					"downstreamUse": "Pure primitives (slugify, digest shape, bind and surface guards) that consumer-facing contracts depend on at runtime",
+					"proofTarget": "a consumer that installs vault-contract-v1 from the registry resolves @refarm.dev/std as a published dependency instead of a vendored override, and never has to re-implement its primitives",
+					"ownershipBoundary": "Listeners, servers, files, processes and product naming stay with the host; this package owns pure decisions and vocabulary only"
+				}
+			},
+			{
+				"id": "@refarm.dev/node-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/node-contract-v1 run lint",
+					"pnpm --filter @refarm.dev/node-contract-v1 run type-check",
+					"pnpm --filter @refarm.dev/node-contract-v1 run test",
+					"pnpm --filter @refarm.dev/node-contract-v1 run build"
+				],
+				"tags": [
+					"node",
+					"contract",
+					"sdk-primitive",
+					"consumer-pulled",
+					"consumer-ready",
+					"boundary-review"
+				],
+				"consumerPull": {
+					"proofId": "node-contract.base-graph-node-shape",
+					"downstreamUse": "The node:v1 base GraphNode shape and normalised conversions that records and vault contracts build on",
+					"proofTarget": "a consumer's records and vault contracts resolve node:v1 from the registry; the base shape and its conversions are the only thing this package owns",
+					"ownershipBoundary": "Storage, sync, signing and the domain vocabulary above @type stay downstream"
+				}
+			},
+			{
 				"id": "@refarm.dev/local-surface",
 				"risk": "shared",
 				"mustPassChecks": [
@@ -845,7 +892,7 @@
 					"kernel-primitive",
 					"sdk-primitive",
 					"consumer-pulled",
-					"consumer-ready",
+					"held-until-config-boundary-review",
 					"boundary-review"
 				],
 				"consumerPull": {
@@ -997,14 +1044,23 @@
 				"id": "@refarm.dev/plugin-manifest",
 				"risk": "plugin",
 				"mustPassChecks": [
-					"pnpm run type-check",
-					"pnpm run test:unit"
+					"pnpm --filter @refarm.dev/plugin-manifest run type-check",
+					"pnpm --filter @refarm.dev/plugin-manifest run test",
+					"pnpm --filter @refarm.dev/plugin-manifest run test:conformance"
 				],
 				"tags": [
 					"plugin-contract",
-					"reference-hold",
-					"multi-layer-plugin-hold"
-				]
+					"sdk-primitive",
+					"consumer-pulled",
+					"consumer-ready",
+					"boundary-review"
+				],
+				"consumerPull": {
+					"proofId": "plugin-manifest.manifest-v1-as-a-dependency",
+					"downstreamUse": "The manifest:v1 types and validators that vault-contract-v1 depends on at runtime",
+					"proofTarget": "a consumer's vault contract resolves the manifest:v1 types and validators from the registry; plugin installation, trust decisions and runtime hosting stay with the host",
+					"ownershipBoundary": "Install policy, trust, WASM/runtime hosting and registries remain host-owned; the package owns the manifest shape, its validation and its fixtures"
+				}
 			}
 		],
 		"phases": [
