@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 import { createHash } from "node:crypto";
 import {
@@ -156,5 +157,18 @@ describe("check-task-artifact-manifests", () => {
 				},
 			],
 		);
+	});
+});
+
+describe("ISS-112 — one vocabulary, two stacks", () => {
+	it("pins the CI wire name to the package's declaration", () => {
+		const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+		const packageSource = readFileSync(
+			path.join(root, "packages/artifact-contract-v1/src/types.ts"),
+			"utf8",
+		);
+		const declared = packageSource.match(/TASK_ARTIFACT_MANIFEST_SCHEMA = "([^"]+)"/);
+		assert.ok(declared, "the package declares TASK_ARTIFACT_MANIFEST_SCHEMA");
+		assert.equal(TASK_ARTIFACT_MANIFEST_SCHEMA, declared[1]);
 	});
 });

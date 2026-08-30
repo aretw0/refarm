@@ -4,7 +4,19 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
- * THE CI SURFACE'S WIRE NAME — and it is NOT the package's, on purpose (ISS-112).
+ * THE CI SURFACE'S WIRE NAME — the package's, since 2026-08-30 (ISS-112 closed).
+ *
+ * DECIDED, with the consumers measured: vault-seed and enem both read
+ * `contract?.TASK_ARTIFACT_MANIFEST_SCHEMA ?? "refarm.task-artifacts.v1"` — they already prefer
+ * the package's value and keep the old literal only as a fallback for a missing dependency.
+ * arch-engine (a Python producer) emits the package's value verbatim. So the package IS the
+ * canonical declaration (ADR-087: brand-agnostic packages), and this constant is pinned to it by
+ * `test-check-task-artifact-manifests-lib.mjs`, which reads the package source — the
+ * `check:permission-vocab` idiom for one vocabulary across two stacks. The history below is kept
+ * because it explains why this was NOT collapsed on sight.
+ *
+ * ---- history (2026-08-11/12) ----
+ * THE CI SURFACE'S WIRE NAME — and it was NOT the package's, on purpose (ISS-112).
  *
  * `@refarm.dev/artifact-contract-v1` declares `sovereign.task-artifacts.v1`; this declares
  * `refarm.task-artifacts.v1`. One identifier, two values, which looked like pure drift from
@@ -24,7 +36,7 @@ import { fileURLToPath } from "node:url";
  * and belongs to whoever owns the vault-seed contract; it is not a thing to settle inside a slice
  * about removing a duplicate string.
  */
-export const TASK_ARTIFACT_MANIFEST_SCHEMA = "refarm.task-artifacts.v1";
+export const TASK_ARTIFACT_MANIFEST_SCHEMA = "sovereign.task-artifacts.v1";
 
 const ROLE_SET = new Set([
 	"dataset",
