@@ -657,16 +657,21 @@ describe("command plan runner", () => {
 				command: process.execPath,
 				args: [
 					"-e",
-					"process.stderr.write('• tool 1.2.3\\n'); setTimeout(() => {}, 5000);",
+					"process.stderr.write('• tool 1.2.3\\n'); setTimeout(() => {}, 30_000);",
 				],
 				display: "node -e <script>",
-				timeoutMs: 150,
+				// The budget must outlive a COLD node start on a saturated runner, or the child is
+				// killed before it wrote the banner this test exists to preserve — 150 ms was not
+				// enough in the clean-room lane (PR #59, 2026-08-30), and the test then claimed the
+				// banner was dropped when the process had simply not reached it yet. The child sleeps
+				// far longer than this, so the timeout is still what ends it.
+				timeoutMs: 2_000,
 			},
 		});
 		// STRUCTURED, not just prose: a reader deciding what to do next must not have to parse
 		// English out of stderr to learn that nothing actually failed.
 		expect(result.timedOut).toBe(true);
-		expect(result.timeoutMs).toBe(150);
+		expect(result.timeoutMs).toBe(2_000);
 		expect(result.ok).toBe(false);
 		// And the prose says it FIRST, because the banner is what a reader sees and mistakes for
 		// the whole story.
