@@ -1265,7 +1265,10 @@ describe("agent command", () => {
 			steps: { id: string; command: string }[];
 		};
 
-		expect(payload.ok).toBe(true);
+		// A gate test that fails must say WHY: `ok: false` alone sent the cold clean-room lane
+		// through a whole round with nothing to read (PR #59, 2026-08-30). The envelope is the
+		// evidence, so it travels with the assertion.
+		expect(payload.ok, JSON.stringify(payload, null, 2)).toBe(true);
 		const ids = payload.steps.map((step) => step.id);
 		expect(ids).toContain("gate-validate-packages");
 		expect(ids).toContain("gate-task-build-order-check");
