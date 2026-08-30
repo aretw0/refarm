@@ -182,6 +182,24 @@ test("plans the dependency-closed design system publication unit", () => {
 	assert.deepEqual(check.plan.profileTags, ["design-system-ready"]);
 });
 
+test("plans the dependency-closed evidence contracts publication unit", () => {
+	const check = buildReleaseCheckPlan({
+		cwd: ROOT,
+		env: {
+			REFARM_PACKAGE_MANAGER: "pnpm",
+		},
+		selectionId: "evidence-contracts-ready",
+	});
+
+	assert.equal(check.ok, true);
+	assert.deepEqual(check.plan.orderedNames, [
+		"@refarm.dev/artifact-contract-v1",
+		"@refarm.dev/quality-contract-v1",
+		"@refarm.dev/provenance-contract-v1",
+	]);
+	assert.deepEqual(check.plan.profileTags, ["evidence-contracts-ready"]);
+});
+
 test("vault-seed-ready selection is covered by changesets provider inputs", () => {
 	const check = buildReleaseCheckPlan({
 		cwd: ROOT,

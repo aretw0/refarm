@@ -225,6 +225,13 @@
 				"profileTags": [
 					"design-system-ready"
 				]
+			},
+			{
+				"id": "evidence-contracts-ready",
+				"description": "Dependency-closed evidence-contract release unit (artifact, quality, provenance) proven by a downstream producer that is not JavaScript.",
+				"profileTags": [
+					"evidence-contracts-ready"
+				]
 			}
 		],
 		"packageProfiles": [
@@ -455,6 +462,7 @@
 					"sdk-primitive",
 					"consumer-pulled",
 					"consumer-ready",
+					"evidence-contracts-ready",
 					"design-system-ready",
 					"boundary-review"
 				],
@@ -480,6 +488,7 @@
 					"sdk-primitive",
 					"consumer-pulled",
 					"consumer-ready",
+					"evidence-contracts-ready",
 					"boundary-review"
 				],
 				"consumerPull": {

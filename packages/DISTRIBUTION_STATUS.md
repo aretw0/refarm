@@ -99,6 +99,25 @@ pnpm --silent run release:first-publish:plan -- --selection design-system-ready 
 node scripts/ci/release-install-smoke.mjs --selection design-system-ready
 ```
 
+### `evidence-contracts-ready` (dependency-closed public unit)
+
+The three zero-dependency evidence contracts, proven by `arch-engine` — a
+Python producer that emits the envelopes itself and validates them against the
+real tarballs (`.refarm/handoff/vault-seed/2026-08-30/receipts/*.arch-engine.json`):
+
+- `@refarm.dev/artifact-contract-v1`
+- `@refarm.dev/quality-contract-v1`
+- `@refarm.dev/provenance-contract-v1`
+
+```bash
+pnpm --silent run release:first-publish:plan -- --selection evidence-contracts-ready --json
+node scripts/ci/release-install-smoke.mjs --selection evidence-contracts-ready
+```
+
+`@refarm.dev/quality-contract-v1` belongs to both units. The first-publish lane
+skips a package whose exact version is already on the registry, so the two
+units can be published in either order without a half-published second run.
+
 The local handoff uses the daily operator artifact path
 `.refarm/handoff/vault-seed/<YYYY-MM-DD>/`. That directory is ephemeral; the
 versioned policy and package checks remain the durable source of truth. The
@@ -277,6 +296,8 @@ refarm release preflight --selection default --json
 refarm release preflight --selection consumer-ready --json
 pnpm --silent run release:first-publish:plan -- --selection design-system-ready --json
 node scripts/ci/release-install-smoke.mjs --selection design-system-ready
+pnpm --silent run release:first-publish:plan -- --selection evidence-contracts-ready --json
+node scripts/ci/release-install-smoke.mjs --selection evidence-contracts-ready
 pnpm run release:readiness
 pnpm run release:readiness:test
 pnpm run release:boundary:audit
