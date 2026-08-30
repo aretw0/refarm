@@ -268,12 +268,21 @@ function validateHandoffManifest({
 	});
 }
 
-function latestAcceptedHandoffReport({ root = ROOT, consumerRoot = null } = {}) {
+function latestAcceptedHandoffReport({
+	root = ROOT,
+	consumerRoot = null,
+	consumerPackages = [],
+} = {}) {
 	const dirs = handoffDirs(root).reverse();
 	let latestCandidate = null;
 
 	for (const dir of dirs) {
-		const report = validateHandoffManifest({ root, handoffDir: dir, consumerRoot });
+		const report = validateHandoffManifest({
+			root,
+			handoffDir: dir,
+			consumerRoot,
+			consumerPackages,
+		});
 		latestCandidate ??= report;
 		if (report.ok) {
 			return {
@@ -302,7 +311,7 @@ function latestAcceptedHandoffReport({ root = ROOT, consumerRoot = null } = {}) 
 		};
 	}
 
-	return validateHandoffManifest({ root, consumerRoot });
+	return validateHandoffManifest({ root, consumerRoot, consumerPackages });
 }
 
 function summarizeCandidate(report) {

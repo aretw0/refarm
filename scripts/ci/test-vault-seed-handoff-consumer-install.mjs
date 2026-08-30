@@ -224,3 +224,28 @@ test("latest-accepted mode skips a newer blocked candidate", () => {
 	assert.equal(report.latestCandidate.sourceGitSha, "blocked");
 	assert.equal(report.latestCandidate.issueCount, 2);
 });
+
+test("latest-accepted mode preserves a focused consumer package selection", () => {
+	const { root, alphaTarball } = fixture();
+	const consumerRoot = path.join(root, "consumer");
+	mkdirSync(path.join(consumerRoot, "vendor"), { recursive: true });
+	writeFileSync(path.join(consumerRoot, "vendor", alphaTarball), "alpha");
+	writeFileSync(
+		path.join(consumerRoot, "package.json"),
+		JSON.stringify({ dependencies: { "@refarm.dev/alpha": `file:vendor/${alphaTarball}` } }),
+	);
+	writeFileSync(
+		path.join(consumerRoot, "pnpm-workspace.yaml"),
+		`overrides:\n  "@refarm.dev/alpha": "file:vendor/${alphaTarball}"\n`,
+	);
+
+	const report = latestAcceptedHandoffReport({
+		root,
+		consumerRoot,
+		consumerPackages: ["@refarm.dev/alpha"],
+	});
+
+	assert.equal(report.ok, true);
+	assert.deepEqual(report.consumerPackages, ["@refarm.dev/alpha"]);
+	assert.equal(report.consumerPackageCount, 1);
+});
