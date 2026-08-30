@@ -9,7 +9,7 @@
 // REFUSES. Fails closed by construction: no stamp is not a fresh tree.
 import { writeFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptsDir = fileURLToPath(new URL(".", import.meta.url));
 const pkgDir = path.join(scriptsDir, "..");
@@ -20,8 +20,11 @@ const srcDir = path.join(pkgDir, "src");
 // must be produced by the SAME function that stamps it, or the two could silently drift. The
 // stamp's FILENAME rides the same import for the same reason — two literals for one filename,
 // inside the mechanism whose entire purpose is that two things cannot drift, was the bug.
+// A file URL, not a path: on Windows an absolute path parses as protocol "d:" and the ESM
+// loader refuses it (ERR_UNSUPPORTED_ESM_URL_SCHEME) — which is how `Platform compatibility
+// (windows)` went red on 2026-08-29 while every POSIX job passed.
 const { digestTree, SOURCE_STAMP } = await import(
-	path.join(distDir, "commands", "node-install-freshness.js")
+	pathToFileURL(path.join(distDir, "commands", "node-install-freshness.js")).href
 );
 
 const digest = digestTree(srcDir);
