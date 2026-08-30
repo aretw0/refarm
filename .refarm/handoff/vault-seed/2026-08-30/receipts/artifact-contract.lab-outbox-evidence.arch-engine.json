@@ -2,13 +2,13 @@
   "proofId": "artifact-contract.lab-outbox-evidence",
   "packageName": "@refarm.dev/artifact-contract-v1",
   "consumer": "arch-engine",
-  "consumerCommit": "2616c795f17ed01bb1eb5e1da4e48d57518828dd",
+  "consumerCommit": "ff1e89f7bd6e1f269c3cd85ace28a2522283400f",
   "consumerDirty": false,
-  "manifestSha256": "b51820623c72e88be0b559631783926f7048dab125517799705d99a9a7e29c86",
-  "generatedAt": "2026-08-30T00:51:27.000Z",
+  "manifestSha256": "acec276ab331a4d6fa758be5056797dd79715e85856d834b8dc4ed2033b5b5bf",
+  "generatedAt": "2026-08-30T17:48:35.000Z",
   "commands": [
-    "uv run arch-engine build examples/eco-house-demo",
-    "scripts/cli_runner.sh cad && scripts/cli_runner.sh sh3d && scripts/cli_runner.sh manifest",
+    "npm run vendor:refarm",
+    "npm install --no-package-lock",
     "npm run test:refarm"
   ],
   "result": "pass",
@@ -17,6 +17,7 @@
   "notes": [
     "Segunda emissao sobre o packet 2026-08-30. Produtor fora do escopo Lab/outbox/notebook: um build de projeto fisico. 10 artefatos (o decimo e insumos.json, role dataset) com sha256, reviewState unreviewed, provenance com process tokenizado e inputHashes das fontes YAML.",
     "validateTaskArtifactManifest do tarball real devolve zero issues; selectTaskArtifacts por role=report encontra exatamente o relatorio.",
-    "Atrito que continua: role e enum fechado; artefatos CAD caem em other e se distinguem so por labels."
+    "Atrito que continua: role e enum fechado; artefatos CAD caem em other e se distinguem so por labels.",
+    "Terceira emissao, sobre o packet 2026-08-30 rematerializado com 27 pacotes (refarm 50539198): quality-contract-v1 mudou de bytes (36049781cfb7), artifact e provenance nao; test:refarm passa sobre os artefatos do build verificado na main do arch-engine (run 33287941277)."
   ]
 }
