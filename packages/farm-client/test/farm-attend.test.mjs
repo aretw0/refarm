@@ -126,7 +126,22 @@ function runAttend(port, { stdin = "", args = [], env = {}, keepStdinOpen = fals
 	const done = new Promise((resolve) => {
 		child.on("close", (code) => resolve({ code, stdout, stderr, output: `${stdout}\n${stderr}` }));
 	});
-	return { child, done };
+	/** Resolve once the command has PRINTED something matching `pattern` — the only honest way
+	 *  to know it reached a given point. A fixed sleep guesses how fast the child starts, and on a
+	 *  cold, saturated runner it guessed wrong (PR #59, 2026-08-30). */
+	const waitForOutput = (pattern, timeoutMs = 15_000) =>
+		new Promise((resolve, reject) => {
+			const startedAt = Date.now();
+			const tick = () => {
+				if (pattern.test(stdout)) return resolve(stdout);
+				if (Date.now() - startedAt > timeoutMs) {
+					return reject(new Error(`attend never printed ${pattern} — stdout so far:\n${stdout}\nstderr:\n${stderr}`));
+				}
+				setTimeout(tick, 20);
+			};
+			tick();
+		});
+	return { child, done, waitForOutput };
 }
 
 /** Wait until the node is holding a published question. */
@@ -241,10 +256,12 @@ test("is told it LOST the race, and by which device, instead of failing silently
 	const asking = channel.ask({ type: "text", question: "Qual o nome?" });
 	const published = await waitForPending(node.hub);
 
-	const { child, done } = runAttend(node.port, { keepStdinOpen: true });
-	// Let the command render the prompt, then settle it from somewhere else —
-	// the terminal that asked, in this case — before its answer arrives.
-	await new Promise((resolve) => setTimeout(resolve, 400));
+	const { child, done, waitForOutput } = runAttend(node.port, { keepStdinOpen: true });
+	// Wait until the command has RENDERED the prompt, then settle it from somewhere else —
+	// the terminal that asked, in this case — before its answer arrives. Not a fixed sleep: with
+	// 400 ms, a cold clean-room runner had not even fetched the question yet, so the command
+	// reported "nada pendente" instead of losing a race it never entered.
+	await waitForOutput(/Qual o nome\?/);
 	node.hub.answer(published.id, "typed-at-the-desk", "tablet-1");
 	child.stdin.end("late-answer\n");
 
