@@ -1,0 +1,22 @@
+{
+  "proofId": "quality-contract.declared-lint-envelope",
+  "packageName": "@refarm.dev/quality-contract-v1",
+  "consumer": "arch-engine",
+  "consumerCommit": "2616c795f17ed01bb1eb5e1da4e48d57518828dd",
+  "consumerDirty": false,
+  "manifestSha256": "b51820623c72e88be0b559631783926f7048dab125517799705d99a9a7e29c86",
+  "generatedAt": "2026-08-30T00:51:27.000Z",
+  "commands": [
+    "uv run arch-engine build examples/eco-house-demo",
+    "npm run test:refarm"
+  ],
+  "result": "pass",
+  "proofTargetAtPacket": "a consumer and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
+  "proofTargetCurrentPolicy": "a consumer and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
+  "notes": [
+    "Segunda emissao deste receipt, agora sobre o packet 2026-08-30: o gap registrado no receipt de 2026-08-29 (nao havia como validar um relatorio ja existente) foi fechado em aaa3b6cc com validateQualityReport, e a prova passou a usa-lo.",
+    "Produtor Python (core/arch_engine/contracts.py espelha types.ts); o perfil YAML da demo e um QualityProfile literal com check.type resolvido por um registro de checks de dominio fisico. Catalogo de regras e severidade ficam downstream.",
+    "validateQualityReport do tarball real devolve zero issues; counts == tally exato de findings.",
+    "Seam temporario que continua: o espelho manual dos types.ts. JSON Schema publicado ao lado dos contratos o eliminaria (demanda P0 em arch-engine/docs/ECOSYSTEM-DEMANDS.md)."
+  ]
+}

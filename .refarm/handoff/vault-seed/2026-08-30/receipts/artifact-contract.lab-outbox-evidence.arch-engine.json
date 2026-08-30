@@ -1,0 +1,22 @@
+{
+  "proofId": "artifact-contract.lab-outbox-evidence",
+  "packageName": "@refarm.dev/artifact-contract-v1",
+  "consumer": "arch-engine",
+  "consumerCommit": "2616c795f17ed01bb1eb5e1da4e48d57518828dd",
+  "consumerDirty": false,
+  "manifestSha256": "b51820623c72e88be0b559631783926f7048dab125517799705d99a9a7e29c86",
+  "generatedAt": "2026-08-30T00:51:27.000Z",
+  "commands": [
+    "uv run arch-engine build examples/eco-house-demo",
+    "scripts/cli_runner.sh cad && scripts/cli_runner.sh sh3d && scripts/cli_runner.sh manifest",
+    "npm run test:refarm"
+  ],
+  "result": "pass",
+  "proofTargetAtPacket": "a consumer emits refarm.task-artifacts.v1 manifests from Lab/outbox/notebook producers",
+  "proofTargetCurrentPolicy": "a consumer emits refarm.task-artifacts.v1 manifests from Lab/outbox/notebook producers",
+  "notes": [
+    "Segunda emissao sobre o packet 2026-08-30. Produtor fora do escopo Lab/outbox/notebook: um build de projeto fisico. 10 artefatos (o decimo e insumos.json, role dataset) com sha256, reviewState unreviewed, provenance com process tokenizado e inputHashes das fontes YAML.",
+    "validateTaskArtifactManifest do tarball real devolve zero issues; selectTaskArtifacts por role=report encontra exatamente o relatorio.",
+    "Atrito que continua: role e enum fechado; artefatos CAD caem em other e se distinguem so por labels."
+  ]
+}

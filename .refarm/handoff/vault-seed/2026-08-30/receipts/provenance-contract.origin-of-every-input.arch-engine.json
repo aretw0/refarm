@@ -1,0 +1,22 @@
+{
+  "proofId": "provenance-contract.origin-of-every-input",
+  "packageName": "@refarm.dev/provenance-contract-v1",
+  "consumer": "arch-engine",
+  "consumerCommit": "2616c795f17ed01bb1eb5e1da4e48d57518828dd",
+  "consumerDirty": false,
+  "manifestSha256": "b51820623c72e88be0b559631783926f7048dab125517799705d99a9a7e29c86",
+  "generatedAt": "2026-08-30T00:51:27.000Z",
+  "commands": [
+    "uv run arch-engine build examples/eco-house-demo",
+    "npm run test:refarm"
+  ],
+  "result": "pass",
+  "proofTargetAtPacket": "a consumer stamps and verifies provenance:v1 on its own input records — notes, requirements, or a materials database — and can gate on the named checks while keeping its source vocabulary and evidence policy downstream-owned",
+  "proofTargetCurrentPolicy": "a consumer stamps and verifies provenance:v1 on its own input records — notes, requirements, or a materials database — and can gate on the named checks while keeping its source vocabulary and evidence policy downstream-owned",
+  "notes": [
+    "Primeiro puller deste pacote e primeiro registro de entrada que nao e nota: um DB de materiais de construcao (examples/eco-house-demo/data/materiais.yaml), 7 insumos, cada um com channel, originLink, collectedAt e license apontando para o ICE v2.0.",
+    "O produtor e Python: o build escreve artifacts/insumos.json com a provenance de cada insumo; a prova Node le esse dataset e passa cada provenance por readProvenance + verifyProvenance do tarball real. 7/7 validas, not-empty-origin ok em todas.",
+    "O validador Python (core/arch_engine/validator.py, regra provenance-required) espelha os checks nomeados has-channel / collected-at-valid / sha256-shape / not-empty-origin e decide severidade downstream (warn na demo), como o ownershipBoundary pede.",
+    "Fronteira mantida: catalogo de fontes, licenca e quais checks bloqueiam ficam no perfil YAML do consumidor; o contrato so diz se a provenance esta bem dita."
+  ]
+}
