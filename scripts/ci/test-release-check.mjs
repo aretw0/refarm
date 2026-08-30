@@ -165,6 +165,23 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 	}
 });
 
+test("plans the dependency-closed design system publication unit", () => {
+	const check = buildReleaseCheckPlan({
+		cwd: ROOT,
+		env: {
+			REFARM_PACKAGE_MANAGER: "pnpm",
+		},
+		selectionId: "design-system-ready",
+	});
+
+	assert.equal(check.ok, true);
+	assert.deepEqual(check.plan.orderedNames, [
+		"@refarm.dev/quality-contract-v1",
+		"@refarm.dev/ds",
+	]);
+	assert.deepEqual(check.plan.profileTags, ["design-system-ready"]);
+});
+
 test("vault-seed-ready selection is covered by changesets provider inputs", () => {
 	const check = buildReleaseCheckPlan({
 		cwd: ROOT,

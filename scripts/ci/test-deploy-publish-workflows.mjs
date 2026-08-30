@@ -86,6 +86,7 @@ test("first-publish workflow publishes 0.1.0 only through explicit manual confir
 	assert.match(workflow, /uses: actions\/checkout@[0-9a-f]{40}/);
 	assert.match(workflow, /REFARM_FIRST_PUBLISH_SELECTION: \$\{\{ inputs\.selection \}\}/);
 	assert.match(workflow, /pnpm --silent run release:first-publish:plan -- --selection "\$REFARM_FIRST_PUBLISH_SELECTION" --json/);
+	assert.match(workflow, /node scripts\/ci\/release-install-smoke\.mjs --selection "\$REFARM_FIRST_PUBLISH_SELECTION"/);
 	assert.match(workflow, /pnpm --silent run release:first-publish:check -- --selection "\$REFARM_FIRST_PUBLISH_SELECTION"/);
 	assert.match(workflow, /if: inputs\.dry_run == 'true'\n\s+env:\n\s+REFARM_FIRST_PUBLISH_SELECTION: \$\{\{ inputs\.selection \}\}\n\s+run: pnpm --silent run release:first-publish -- --selection "\$REFARM_FIRST_PUBLISH_SELECTION" --plan --json/);
 	assert.match(workflow, /REFARM_FIRST_PUBLISH_CONFIRM: \$\{\{ inputs\.confirm \}\}/);

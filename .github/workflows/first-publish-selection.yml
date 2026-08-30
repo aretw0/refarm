@@ -54,6 +54,11 @@ jobs:
       - name: Release boundary audit
         run: pnpm --silent run release:boundary:audit
 
+      - name: Consumer install smoke
+        env:
+          REFARM_FIRST_PUBLISH_SELECTION: ${{ inputs.selection }}
+        run: node scripts/ci/release-install-smoke.mjs --selection "$REFARM_FIRST_PUBLISH_SELECTION"
+
       - name: Publish dry-run gate
         env:
           REFARM_FIRST_PUBLISH_SELECTION: ${{ inputs.selection }}

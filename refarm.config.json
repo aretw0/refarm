@@ -218,6 +218,13 @@
 				"profileTags": [
 					"consumer-ready"
 				]
+			},
+			{
+				"id": "design-system-ready",
+				"description": "Dependency-closed design-system release unit proven by a downstream vault consumer.",
+				"profileTags": [
+					"design-system-ready"
+				]
 			}
 		],
 		"packageProfiles": [
@@ -447,6 +454,7 @@
 					"sdk-primitive",
 					"consumer-pulled",
 					"consumer-ready",
+					"design-system-ready",
 					"boundary-review"
 				],
 				"consumerPull": {
@@ -870,6 +878,7 @@
 					"ui",
 					"consumer-pulled",
 					"consumer-ready",
+					"design-system-ready",
 					"candidate"
 				],
 				"consumerPull": {
