@@ -167,14 +167,35 @@ function buildMatrix(changedPackages) {
 }
 
 /**
+ * GitHub refuses a job matrix with more than 256 configurations — the matrix-runner job is never
+ * created and the whole workflow reports failure with nothing to read. A promotion PR that
+ * carries months of develop (PR #59, 2026-08-30: 154 changed packages → 496 configurations) is
+ * exactly that case. Above the limit the honest answer is an EMPTY matrix that says why, and a
+ * flag so the cache finalize does not record the signature as validated.
+ */
+const GITHUB_MATRIX_JOB_LIMIT = 256;
+
+function capMatrix(matrix, limit = GITHUB_MATRIX_JOB_LIMIT) {
+    const size = matrix.include.length;
+    if (size <= limit) return { matrix, overflow: false, size };
+    return { matrix: { include: [] }, overflow: true, size };
+}
+
+/**
  * Write matrix to GITHUB_OUTPUT for workflow consumption
  */
-function writeToGitHubOutput(matrix) {
+function writeToGitHubOutput(matrix, { overflow = false, size = matrix.include.length } = {}) {
     const matrixJson = JSON.stringify(matrix);
     
+    if (overflow) {
+        console.log(
+            `::warning::Granular matrix skipped: ${size} configurations exceed GitHub's limit of ${GITHUB_MATRIX_JOB_LIMIT} jobs per matrix. ` +
+            "Package compatibility for this change is covered by Test & Quality; the matrix cache will not record this signature as validated.",
+        );
+    }
     if (process.env.GITHUB_OUTPUT) {
         // GitHub Actions native output format
-        const outputLine = `matrix=${matrixJson}\n`;
+        const outputLine = `matrix=${matrixJson}\nmatrix_overflow=${overflow ? "true" : "false"}\n`;
         writeFileSync(process.env.GITHUB_OUTPUT, outputLine, { flag: 'a' });
         console.log("\n✅ Matrix written to GITHUB_OUTPUT");
     } else {
@@ -192,8 +213,8 @@ function main() {
     
     try {
         const changedPackages = getChangedPackages();
-        const matrix = buildMatrix(changedPackages);
-        writeToGitHubOutput(matrix);
+        const capped = capMatrix(buildMatrix(changedPackages));
+        writeToGitHubOutput(capped.matrix, capped);
         
         console.log("\n🎉 Matrix builder completed successfully");
         process.exit(0);
@@ -209,4 +230,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     main();
 }
 
-export { getChangedPackages, buildMatrix, writeToGitHubOutput };
+export { GITHUB_MATRIX_JOB_LIMIT, capMatrix, getChangedPackages, buildMatrix, writeToGitHubOutput };
