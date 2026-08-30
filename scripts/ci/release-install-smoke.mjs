@@ -17,7 +17,7 @@
  *   node scripts/ci/release-install-smoke.mjs --selection consumer-ready
  */
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -102,6 +102,9 @@ function readPkg(dir) {
 	return JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
 }
 
+// Build scripts the consumer approves, mirroring `allowBuilds` in the root pnpm-workspace.yaml.
+const CONSUMER_ALLOW_BUILDS = { esbuild: true };
+
 const stage = mkdtempSync(join(tmpdir(), "refarm-install-smoke-"));
 const consumer = join(stage, "consumer");
 mkdirSync(consumer, { recursive: true });
@@ -153,9 +156,19 @@ try {
 			'  - "."',
 			"overrides:",
 			...Object.entries(fileSpecs).map(([name, spec]) => `  "${name}": "${spec}"`),
+			// pnpm 11 hard-errors (ERR_PNPM_IGNORED_BUILDS) on an unreviewed build script.
+			// ds-astro → astro → esbuild carries one; the root pnpm-workspace.yaml approves
+			// it, and a consumer following the same security line approves it too.
+			"allowBuilds:",
+			...Object.entries(CONSUMER_ALLOW_BUILDS).map(([name, allowed]) => `  ${name}: ${allowed}`),
 			"",
 		].join("\n"),
 	);
+	// The consumer lives in tmpdir, outside the repo, so the repo's .npmrc (public
+	// registry over any corporate proxy in ~/.npmrc) would not apply — carry it over.
+	if (existsSync(join(repoRoot, ".npmrc"))) {
+		copyFileSync(join(repoRoot, ".npmrc"), join(consumer, ".npmrc"));
+	}
 	process.stdout.write(`\n⬇️  pnpm install (${packed.length} tarball(s))…\n`);
 	run("pnpm", ["install", "--no-frozen-lockfile"], consumer);
 
