@@ -380,6 +380,10 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", (t)
     "@refarm.dev/channel-policy-v1",
     "@refarm.dev/effort-contract-v1",
     "@refarm.dev/quality-contract-v1",
+    // 25 since 2026-08-30: provenance-contract-v1 entered (0efcfd4c) and, before it,
+    // vault-contract-v1 (cc61342e, 2026-08-28) — the NINTH place that commit's counts did not
+    // reach: this suite is not in release:readiness:test, only clean-room runs it cold.
+    "@refarm.dev/provenance-contract-v1",
     "@refarm.dev/source-contract-v1",
     "@refarm.dev/enrichment-contract-v1",
     "@refarm.dev/records-contract-v1",
@@ -393,6 +397,7 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", (t)
     "@refarm.dev/dispatch-surface",
     "@refarm.dev/ds",
     "@refarm.dev/source-web",
+    "@refarm.dev/vault-contract-v1",
     "@refarm.dev/content-projection",
     "@refarm.dev/identity-heartwood",
     "@refarm.dev/local-surface",
@@ -407,7 +412,7 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", (t)
   assert.equal(payload.packages.includes("@refarm.dev/cli"), false);
   assert.equal(payload.packages.includes("@refarm.dev/homestead"), false);
   assert.equal(payload.acceptance.status, "accepted");
-  assert.equal(payload.acceptance.packageCount, 23);
+  assert.equal(payload.acceptance.packageCount, 25);
   assert.equal(payload.acceptance.blockerCount, 0);
   assert.equal(payload.acceptance.manualApprovalRequired, true);
   assert.deepEqual(payload.acceptance.profileTags, ["consumer-ready"]);
