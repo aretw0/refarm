@@ -1841,10 +1841,23 @@ mod tests {
     /// The audit write happens in the connection's own task, after the handshake response has
     /// already gone to the socket — so a test that connected must WAIT for the line rather than
     /// assume it. Bounded; a missing line fails the assertion that follows, not this helper.
+    /// Wait for the audit trail to reach `expected` lines. Returns the moment it does; only
+    /// the DEADLINE is generous. 200 × 10 ms was not enough under the coverage-instrumented,
+    /// fully parallel Tractor gate on a saturated PR runner (PR #59, 2026-08-30), and giving
+    /// up in silence let the assertion after it blame the trail for lines that were still
+    /// being written. A miss now says what it saw.
     async fn wait_for_audit_lines(dir: &std::path::Path, expected: usize) {
-        for _ in 0..200 {
-            if audit_lines(dir).len() >= expected {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+        loop {
+            let lines = audit_lines(dir);
+            if lines.len() >= expected {
                 return;
+            }
+            if tokio::time::Instant::now() >= deadline {
+                panic!(
+                    "audit trail never reached {expected} lines within 30s — it has {}: {lines:?}",
+                    lines.len()
+                );
             }
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
@@ -1990,14 +2003,19 @@ mod tests {
         port
     }
 
+    /// Same shape as `wait_for_audit_lines`: immediate in the good case, a 30 s deadline
+    /// instead of 100 × 20 ms, which the coverage gate under load exceeded (PR #59).
     async fn wait_until_listening(port: u16) {
-        for _ in 0..100 {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+        loop {
             if tokio::net::TcpStream::connect(("127.0.0.1", port)).await.is_ok() {
                 return;
             }
+            if tokio::time::Instant::now() >= deadline {
+                panic!("server on port {port} never started listening within 30s");
+            }
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
-        panic!("server on port {port} never started listening");
     }
 
     #[tokio::test]
