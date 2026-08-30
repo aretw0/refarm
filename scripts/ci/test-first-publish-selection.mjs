@@ -7,6 +7,7 @@ import {
 	buildFirstPublishPlan,
 	firstPublishConfirmValue,
 	parseFirstPublishArgs,
+	isAlreadyPublished,
 } from "../first-publish-selection.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -87,4 +88,11 @@ test("plans publish commands only after exact confirmation", () => {
 
 	assert.equal(plan.mode, "publish");
 	assert.equal(plan.commands.every((command) => command.display === "pnpm publish --access public --provenance --no-git-checks"), true);
+});
+
+test("a package already on the registry at its exact version is skipped, not re-published", () => {
+	const command = { packageName: "@refarm.dev/quality-contract-v1", version: "0.1.0" };
+	assert.equal(isAlreadyPublished(command, () => true), true);
+	assert.equal(isAlreadyPublished(command, () => false), false);
+	assert.equal(isAlreadyPublished(command, () => undefined), false, "an unknown probe result never skips");
 });
