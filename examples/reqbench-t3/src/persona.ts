@@ -1,3 +1,4 @@
+import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -15,12 +16,9 @@ import {
 	type SourceRecordParser,
 } from "@refarm.dev/capability-host/node";
 import {
-	computeRecordContentHash,
-	type KnowledgeRecord,
-	type RecordAttachment,
-	type RecordsManifest,
-} from "@refarm.dev/records-contract-v1";
-import { stampProvenance } from "@refarm.dev/provenance-contract-v1";
+	createRulesEnrichmentProvider,
+	type EnrichmentRule,
+} from "@refarm.dev/enrichment-contract-v1";
 import {
 	diffRecords,
 	manifestRevisions,
@@ -28,37 +26,26 @@ import {
 	revisionAt,
 	timeline,
 } from "@refarm.dev/history-contract-v1";
-import {
-	analyzeCorpusHealth,
-	createReferenceVaultSurface,
-	organizeRecords,
-	planRecordFiles,
-	recordToVaultNote,
-	type OrganizeDispatcher,
-	type RecordFilePlan,
-	type SearchDispatcher,
-	type VaultProfile,
-} from "@refarm.dev/vault-contract-v1";
-import { createReferenceVaultSurfaceComponent } from "@refarm.dev/vault-surface-ref";
+import { stampProvenance } from "@refarm.dev/provenance-contract-v1";
 import {
 	checkNotes,
 	createNoteQualityChecker,
 	type QualityProfile,
 } from "@refarm.dev/quality-contract-v1";
-import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
-import { createHash } from "node:crypto";
 import {
-	createRulesEnrichmentProvider,
-	type EnrichmentRule,
-} from "@refarm.dev/enrichment-contract-v1";
+	computeRecordContentHash,
+	type KnowledgeRecord,
+	type RecordAttachment,
+	type RecordsManifest,
+} from "@refarm.dev/records-contract-v1";
 import {
 	crawlSource,
 	createWebSourceProvider,
 	downloadAttachment,
 	emptyCacheManifest,
-	HttpFetchError,
 	ensureAuthenticatedSession,
 	fixtureLogin,
+	HttpFetchError,
 	loadWebSourceTargetsSync,
 	normalizeCacheManifest,
 	syncManifest,
@@ -72,11 +59,25 @@ import {
 	type WebFetchDriver,
 	type WebSourceSessionEvidence,
 } from "@refarm.dev/source-web";
-import { fileURLToPath } from "node:url";
+import {
+	analyzeCorpusHealth,
+	createReferenceVaultSurface,
+	organizeRecords,
+	planRecordFiles,
+	recordToVaultNote,
+	type OrganizeDispatcher,
+	type RecordFilePlan,
+	type SearchDispatcher,
+	type VaultProfile,
+} from "@refarm.dev/vault-contract-v1";
+import { createReferenceVaultSurfaceComponent } from "@refarm.dev/vault-surface-ref";
+import { createHash } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+import { reqManifest } from "./fixture.js";
 import {
 	createOslcCrawlExtractor,
 	createOslcFetchDriver,
@@ -84,7 +85,6 @@ import {
 	parseRequirementsFromRdf,
 	sistemaFromRef,
 } from "./oslc.js";
-import { reqManifest } from "./fixture.js";
 
 /**
  * The T3 persona (result mode). reqbench presents the analyst's requirements bench as a
@@ -1565,7 +1565,7 @@ export function createRequirementsCheckCapability(
 		renderers: { tui: { section: "requirements" } },
 		async run(): Promise<CapabilityEnvelope> {
 			const records = recordsDeps.loadManifest().records;
-			const notes = records.map(recordToVaultNote);
+			const notes = records.map((record) => recordToVaultNote(record));
 			const findings = await checkNotes(createNoteQualityChecker(), notes, REQUIREMENTS_GATES);
 			const failed = findings.filter((f) => f.severity === "fail").length;
 			return buildJsonSuccessEnvelope({
