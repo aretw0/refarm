@@ -1880,17 +1880,34 @@ mod tests {
         assert!(accepted.is_ok(), "the enrolled credential must still connect");
         wait_for_audit_lines(dir.path(), 1).await;
 
+        // A refusal has a SHAPE: the gate answers 401 over HTTP. Anything else — a reset, a
+        // refused TCP connect, a timeout — is not the gate refusing, and counting it as a
+        // refusal sends the test to wait for a trail line that no refusal ever wrote (the
+        // cold Tractor coverage gate on PR #59, 2026-08-30, waited 30 s on exactly that).
+        let refused_by_gate = |outcome: Result<_, tokio_tungstenite::tungstenite::Error>, what: &str| {
+            match outcome {
+                Err(tokio_tungstenite::tungstenite::Error::Http(response)) => {
+                    assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "{what}");
+                }
+                Err(other) => panic!("{what}: expected an HTTP 401 refusal from the gate, got: {other:?}"),
+                Ok(_) => panic!("{what}: the gate accepted a wrong credential"),
+            }
+        };
+
         // 2. FAILURE_THRESHOLD guesses: the last one engages the bound.
         for n in 0..FAILURE_THRESHOLD {
-            assert!(
-                connect("bearer.a-guess".to_string()).await.expect("no hang").is_err(),
-                "guess {n} must be refused"
+            refused_by_gate(
+                connect("bearer.a-guess".to_string()).await.expect("no hang"),
+                &format!("guess {n} must be refused"),
             );
             wait_for_audit_lines(dir.path(), 2 + n as usize).await;
         }
 
         // 3. And an attempt made while locked out writes NOTHING — the amplifier bound.
-        assert!(connect("bearer.a-guess".to_string()).await.expect("no hang").is_err());
+        refused_by_gate(
+            connect("bearer.a-guess".to_string()).await.expect("no hang"),
+            "an attempt while locked out must still be refused",
+        );
         // Give the connection task the same chance to write that every step above had.
         tokio::time::sleep(Duration::from_millis(100)).await;
 
@@ -2003,19 +2020,42 @@ mod tests {
         port
     }
 
-    /// Same shape as `wait_for_audit_lines`: immediate in the good case, a 30 s deadline
-    /// instead of 100 × 20 ms, which the coverage gate under load exceeded (PR #59).
-    async fn wait_until_listening(port: u16) {
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
-        loop {
-            if tokio::net::TcpStream::connect(("127.0.0.1", port)).await.is_ok() {
-                return;
+    /// Start a real server through `start_on(port)` on a port `free_port()` picked, and return
+    /// the port once something listens there — or say exactly why nothing does.
+    ///
+    /// `free_port()` RELEASES the port before the server binds it. With the whole lib suite
+    /// in one process, another test can take it in between; `start()` then fails at bind,
+    /// the task ends, and a wait on the socket alone sees a port nobody will ever listen on
+    /// (the cold Tractor coverage gate on PR #59, 2026-08-30, waited 30 s on that). So the
+    /// server TASK is watched alongside the socket: a bind lost to that race is retried on a
+    /// fresh port, and any other early exit is reported with its error instead of as silence.
+    async fn start_on_a_free_port<F, Fut>(start_on: F) -> u16
+    where
+        F: Fn(u16) -> Fut,
+        Fut: std::future::Future<Output = anyhow::Result<()>> + Send + 'static,
+    {
+        for attempt in 1..=5 {
+            let port = free_port().await;
+            let server = tokio::spawn(start_on(port));
+            let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+            loop {
+                if tokio::net::TcpStream::connect(("127.0.0.1", port)).await.is_ok() {
+                    return port;
+                }
+                if server.is_finished() {
+                    let outcome = server.await;
+                    eprintln!(
+                        "attempt {attempt}: server on port {port} exited before listening: {outcome:?} — retrying on a fresh port"
+                    );
+                    break;
+                }
+                if tokio::time::Instant::now() >= deadline {
+                    panic!("attempt {attempt}: server on port {port} is still running but never started listening within 30s");
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
             }
-            if tokio::time::Instant::now() >= deadline {
-                panic!("server on port {port} never started listening within 30s");
-            }
-            tokio::time::sleep(Duration::from_millis(20)).await;
         }
+        panic!("no server came up on a free port in 5 attempts");
     }
 
     #[tokio::test]
@@ -2049,21 +2089,21 @@ mod tests {
         );
 
         // ── gate 1: the WS handshake, via the real `WsServer::start` ──────────────
-        let ws_port = free_port().await;
-        let ws_server = WsServer::new(
-            make_sync(),
-            "127.0.0.1".to_string(),
-            ws_port,
-            TelemetryBus::new(10),
-            Arc::new(RwLock::new(HashMap::new())),
-            crate::EventRouter::default(),
-            None,
-            resolved.clone(),
-        );
-        tokio::spawn(async move {
-            let _ = ws_server.start().await;
-        });
-        wait_until_listening(ws_port).await;
+        let ws_policy = resolved.clone();
+        let ws_port = start_on_a_free_port(move |port| {
+            let ws_server = WsServer::new(
+                make_sync(),
+                "127.0.0.1".to_string(),
+                port,
+                TelemetryBus::new(10),
+                Arc::new(RwLock::new(HashMap::new())),
+                crate::EventRouter::default(),
+                None,
+                ws_policy.clone(),
+            );
+            async move { ws_server.start().await }
+        })
+        .await;
         let ws_addr = format!("ws://127.0.0.1:{ws_port}");
 
         let accepted = timeout(
@@ -2095,20 +2135,18 @@ mod tests {
         }
 
         // ── gate 2: the HTTP sidecar middleware, via the real `sidecar::start` ────
-        let http_port = free_port().await;
-        let state = crate::sidecar::SidecarState::for_test(dir.path(), ":memory:").unwrap();
         let http_policy = resolved.clone();
-        tokio::spawn(async move {
-            let _ = crate::sidecar::start(
-                state,
-                Some("127.0.0.1".to_string()),
-                http_port,
-                None,
-                http_policy,
-            )
-            .await;
-        });
-        wait_until_listening(http_port).await;
+        let sidecar_dir = dir.path().to_path_buf();
+        let http_port = start_on_a_free_port(move |port| {
+            let state = crate::sidecar::SidecarState::for_test(&sidecar_dir, ":memory:").unwrap();
+            let policy = http_policy.clone();
+            async move {
+                crate::sidecar::start(state, Some("127.0.0.1".to_string()), port, None, policy)
+                    .await
+                    .map(|_| ())
+            }
+        })
+        .await;
         let efforts = format!("http://127.0.0.1:{http_port}/efforts");
 
         let client = reqwest::Client::new();
