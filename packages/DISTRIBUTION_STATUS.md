@@ -72,8 +72,21 @@ Validation:
 
 ```bash
 pnpm --silent run release:vault-seed:check -- --plan --json
+pnpm run release:vault-seed:install:smoke
 pnpm --silent run release:vault-seed:handoff -- --pack --prune-extra --json --out .refarm/handoff/vault-seed/<YYYY-MM-DD>/manifest.json
 pnpm --silent run release:vault-seed:handoff -- --out .refarm/handoff/vault-seed/<YYYY-MM-DD>/manifest.md
+```
+
+The local handoff is accepted, but the complete selection is not yet a public
+install unit. `release:vault-seed:install:smoke` intentionally blocks because
+`health` depends on unselected `config`, while `vault-contract-v1` depends on
+unselected `plugin-manifest`, `std`, and `node-contract-v1`. A publish dry-run
+does not detect that registry closure. The consumer-pulled DS slice is closed
+and independently proven with:
+
+```bash
+node scripts/ci/release-install-smoke.mjs packages/quality-contract-v1 packages/ds
+pnpm --silent run release:vault-seed:first-publish -- --package @refarm.dev/quality-contract-v1 --package @refarm.dev/ds --plan --json
 ```
 
 The local handoff uses the daily operator artifact path
@@ -262,6 +275,7 @@ pnpm -C packages/identity-heartwood run test:conformance
 pnpm -C packages/credentials-contract-v1 run test:conformance
 pnpm run sovereign-citizen:reference:test
 pnpm run release:vault-seed:check
+pnpm run release:vault-seed:install:smoke
 pnpm --silent run release:vault-seed:handoff -- --pack --json
 pnpm --silent run release:vault-seed:handoff -- --pack --prune-extra --json
 pnpm --silent run release:vault-seed:handoff -- --pack --prune-extra --json --out .refarm/handoff/vault-seed/<YYYY-MM-DD>/manifest.json
