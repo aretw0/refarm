@@ -113,6 +113,12 @@ const RELEASE_READINESS_STEPS = [
 			"First-publish packages for the selected release-policy lane must resolve to an accepted publish plan before release approval.",
 	},
 	{
+		id: "consumer-install-smoke",
+		script: "release:vault-seed:install:smoke",
+		reason:
+			"Consumer-ready packages must be dependency-closed and survive pack, clean install, and entrypoint import before release approval.",
+	},
+	{
 		id: "publish-dry-run",
 		script: "release:check",
 		reason: "Release-policy package manifests must survive a publish dry-run.",

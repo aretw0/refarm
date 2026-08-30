@@ -275,6 +275,7 @@
 		"release:vault-seed:first-publish": "node scripts/first-publish-selection.mjs --selection consumer-ready",
 		"release:vault-seed:handoff": "node scripts/vault-seed-ready-handoff.mjs",
 		"release:vault-seed:handoff:test": "node --test scripts/ci/test-vault-seed-ready-handoff.mjs",
+		"release:vault-seed:install:smoke": "node scripts/ci/release-install-smoke.mjs --selection consumer-ready",
 		"release:vault-seed:plan": "node scripts/release-check.mjs --selection consumer-ready --plan",
 		"remote-workspace-control:poc:test": "node --test validations/remote-workspace-control-plane/remote-workspace-control-plane.test.mjs",
 		"repo:complexity": "node scripts/repo-complexity-check.mjs --max-lines 1000",

@@ -14,12 +14,14 @@
  * Usage:
  *   node scripts/ci/release-install-smoke.mjs                 # the 4 kernel contracts
  *   node scripts/ci/release-install-smoke.mjs packages/ds …   # explicit dirs
+ *   node scripts/ci/release-install-smoke.mjs --selection consumer-ready
  */
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { buildReleaseCheckPlan } from "../release-check.mjs";
 
 // The smallest coherent 0.1.0 — the zero-runtime-dep kernel contracts.
 const DEFAULT_PACKAGES = [
@@ -30,7 +32,67 @@ const DEFAULT_PACKAGES = [
 ];
 
 const repoRoot = process.cwd();
-const packageDirs = process.argv.slice(2).length > 0 ? process.argv.slice(2) : DEFAULT_PACKAGES;
+
+function parseArgs(argv) {
+	const options = { selectionId: null, packageDirs: [] };
+	for (let index = 0; index < argv.length; index += 1) {
+		const arg = argv[index];
+		if (arg === "--") continue;
+		if (arg === "--selection") {
+			const value = argv[index + 1];
+			if (!value || value.startsWith("--")) {
+				throw new Error("--selection requires a value");
+			}
+			options.selectionId = value;
+			index += 1;
+			continue;
+		}
+		if (arg.startsWith("--")) {
+			throw new Error(`Unknown argument: ${arg}`);
+		}
+		options.packageDirs.push(arg);
+	}
+	if (options.selectionId && options.packageDirs.length > 0) {
+		throw new Error("Use either --selection or explicit package directories, not both");
+	}
+	return options;
+}
+
+function resolvePackageDirs(options) {
+	if (!options.selectionId) {
+		return options.packageDirs.length > 0 ? options.packageDirs : DEFAULT_PACKAGES;
+	}
+	const check = buildReleaseCheckPlan({
+		cwd: repoRoot,
+		selectionId: options.selectionId,
+	});
+	if (!check.ok) {
+		throw new Error(`Release selection ${options.selectionId} is not accepted`);
+	}
+	return check.commands.map((command) => command.packageDir);
+}
+
+function assertInternalDependencyClosure(packageEntries) {
+	const selectedNames = new Set(packageEntries.map((entry) => entry.pkg.name));
+	const missing = [];
+	for (const entry of packageEntries) {
+		for (const section of ["dependencies", "optionalDependencies", "peerDependencies"]) {
+			for (const [name, spec] of Object.entries(entry.pkg[section] ?? {})) {
+				if (name.startsWith("@refarm.dev/") && !selectedNames.has(name)) {
+					missing.push(`${entry.pkg.name} -> ${name} (${section}: ${spec})`);
+				}
+			}
+		}
+	}
+	if (missing.length > 0) {
+		throw new Error(
+			`Release install selection is not closed over internal dependencies:\n- ${missing.join("\n- ")}`,
+		);
+	}
+}
+
+const options = parseArgs(process.argv.slice(2));
+const packageDirs = resolvePackageDirs(options);
 
 function run(cmd, args, cwd) {
 	return execFileSync(cmd, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -45,10 +107,14 @@ const consumer = join(stage, "consumer");
 mkdirSync(consumer, { recursive: true });
 const packed = [];
 try {
-	// 1) build + pack a real tarball per package
-	for (const dir of packageDirs) {
+	const packageEntries = packageDirs.map((dir) => {
 		const abs = resolve(repoRoot, dir);
-		const pkg = readPkg(abs);
+		return { dir, abs, pkg: readPkg(abs) };
+	});
+	assertInternalDependencyClosure(packageEntries);
+
+	// 1) build + pack a real tarball per package
+	for (const { abs, pkg } of packageEntries) {
 		process.stdout.write(`\n📦 ${pkg.name}\n`);
 		if (pkg.scripts?.build) {
 			process.stdout.write(`   building…\n`);
