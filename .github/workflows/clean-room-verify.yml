@@ -47,10 +47,26 @@ jobs:
         with:
           rust-target: "wasm32-wasip1"
 
-      - name: Cache-cold verify (type-check + test + lint, --force)
+      # The hardening collector proves a suite conformant by IMPORTING each package's built
+      # artifact (packages/hardening/src/collect.ts), and its test depends only on its OWN build —
+      # so on a cold graph it runs while most of the workspace is still unbuilt and its floors read
+      # low (18 conformant here against 24 on a built tree; PR #59, 2026-08-30). The quality job
+      # pre-builds for exactly this reason; this lane now does the same, still cold: --force, the
+      # fresh per-run cache dir, no remote cache.
+      - name: Cache-cold build (whole workspace, --force)
+        run: >-
+          pnpm turbo run build
+          --force
+          --cache-dir=.turbo-clean-room
+          --output-logs=errors-only
+          --ui=stream
+
+      # No --force here on purpose: the build artifacts above are the only thing in the fresh
+      # cache dir, so type-check/test/lint still execute for the first time while their build
+      # dependencies are reused instead of rebuilt a second time.
+      - name: Cache-cold verify (type-check + test + lint)
         run: >-
           pnpm turbo run type-check test lint
-          --force
           --cache-dir=.turbo-clean-room
           --output-logs=new-only
           --ui=stream
