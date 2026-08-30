@@ -221,23 +221,29 @@ async function installAgentPlugin(tempHome, wasmSourcePath) {
 	const wasmBuffer = await readFile(wasmDestPath);
 	const integrity = `sha256-${createHash("sha256").update(wasmBuffer).digest("hex")}`;
 
+	// The wasm is the REAL agent (built from packages/agent); only the manifest is a fixture.
+	// So the fixture reads its capabilities and permissions from the real manifest instead of
+	// restating them: a restated `ai:respond` outlived the vocabulary that knew it, and once the
+	// host stopped guessing a responder (7b11ec0e) `refarm ask` could no longer find one —
+	// every code-changing run since 2026-08-27 died here while the effort round-trip passed.
+	const realManifest = JSON.parse(
+		await readFile(path.join(process.cwd(), "packages", "agent", "plugin.json"), "utf-8"),
+	);
 	const manifest = createMockManifest({
-		id: "@refarm/agent",
+		id: realManifest.id,
 		name: "Agent",
 		entry: pathToFileURL(wasmDestPath).href,
 		integrity,
 		targets: ["server"],
 		capabilities: {
-			provides: ["ai:respond"],
-			requires: [],
-			providesApi: [],
-			requiresApi: [],
+			provides: realManifest.capabilities?.provides ?? ["integration:respond"],
+			requires: realManifest.capabilities?.requires ?? [],
+			providesApi: realManifest.capabilities?.providesApi ?? [],
+			requiresApi: realManifest.capabilities?.requiresApi ?? [],
 		},
-		// Mirror the real agent plugin's declared host-effect permissions
-		// (packages/agent/plugin.json). These are the closed WASI-capability vocabulary
-		// the host validates against; the smoke previously requested `store:*` ids that
-		// were never in that vocabulary, so the mock plugin failed to load.
-		permissions: ["fs:read", "fs:write", "shell:spawn", "network:outbound"],
+		// The closed WASI-capability vocabulary the host validates against — the real
+		// manifest's, for the same reason as above.
+		permissions: realManifest.permissions ?? ["fs:read", "fs:write", "shell:spawn", "network:outbound"],
 	});
 
 	await writeFile(
