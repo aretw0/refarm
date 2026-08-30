@@ -123,6 +123,11 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		"@refarm.dev/channel-policy-v1",
 		"@refarm.dev/effort-contract-v1",
 		"@refarm.dev/quality-contract-v1",
+		// 25 since 2026-08-29: `@refarm.dev/provenance-contract-v1` entered the selection, pulled by
+		// arch-engine (a Python producer). Entered WITH its numbers this time: this list, the
+		// four anchors in test-vault-seed-ready-handoff.mjs, test-release-check.mjs,
+		// test-first-publish-selection.mjs, test-distribution-status-doc.mjs, and both docs.
+		"@refarm.dev/provenance-contract-v1",
 		"@refarm.dev/source-contract-v1",
 		"@refarm.dev/enrichment-contract-v1",
 		"@refarm.dev/records-contract-v1",
@@ -209,7 +214,7 @@ test("release check plan json exposes acceptance summary", () => {
 	// consumer reaching the package from a surface that is NOT the contract test, and vault-seed's
 	// records reference vault now structures its MD/MDX lane through `projectContentToRecords`.
 	// The tag moved because the fact moved — not to make this number move.
-	assert.equal(payload.acceptance.packageCount, 24);
+	assert.equal(payload.acceptance.packageCount, 25);
 	assert.equal(payload.acceptance.blockerCount, 0);
 	assert.equal(payload.acceptance.manualApprovalRequired, true);
 	assert.deepEqual(payload.acceptance.profileTags, ["consumer-ready"]);

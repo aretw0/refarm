@@ -59,6 +59,7 @@ and downstream proofs exist.
 | [`@refarm.dev/content-projection`](./content-projection) | Markdown/MDX frontmatter, wikilink, and inline-link projection into `records:v1` records without owning acquisition or rendering | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/local-surface`](./local-surface) | Local-first surface manifest, DS-backed HTML rendering, white-label launch plan, and quality report helpers without owning provider adapters or Homestead runtime | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/vault-contract-v1`](./vault-contract-v1) | The `vault:v1` capability contract — search, extract, organize, profile over a PARA knowledge vault — plus corpus health, a reference surface, and the conformance harness | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/provenance-contract-v1`](./provenance-contract-v1) | Where an input came from: channel, origin locator, collection time, fingerprint, license, privacy — pure stamp/read/verify with named checks | consumer-proven (arch-engine, Python producer); `consumer-ready`; held |
 | [`@refarm.dev/ds-astro`](./ds-astro) | Product-neutral Astro/MDX DS component bindings and component-map metadata without owning downstream content vocabulary | candidate; `consumer-ready`; held |
 
 ## 🌿 Native Skill Surface Contract
@@ -106,6 +107,7 @@ CLI labels, copy, notebooks, routes, and UX.
 | [`@refarm.dev/source-contract-v1`](./source-contract-v1) | Versioned `source:v1` support contract for `source-web` | `consumer-ready`; held |
 | [`@refarm.dev/enrichment-contract-v1`](./enrichment-contract-v1) | Deterministic enrichment reports for source-linked records | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Neutral records envelope plus YAML-LD subpath for proof-backed front matter bridges | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/provenance-contract-v1`](./provenance-contract-v1) | Provenance envelope with named verification checks for any input a consumer keeps | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/process-handoff`](./process-handoff) | Build-free tokenized process specs and runner adapters | `consumer-ready`; held |
 | [`@refarm.dev/release-engine`](./release-engine) | Package acceptance and release-policy summaries | `consumer-ready`; held |
 | [`@refarm.dev/ds`](./ds) | Design tokens, theme CSS, and build-free HTML helpers consumed by vault admin/Lab UI | `consumer-ready`; held |

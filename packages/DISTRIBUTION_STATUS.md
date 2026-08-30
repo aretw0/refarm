@@ -46,6 +46,7 @@ channel, not a public npm publication promise.
 - `@refarm.dev/channel-policy-v1`
 - `@refarm.dev/effort-contract-v1`
 - `@refarm.dev/quality-contract-v1`
+- `@refarm.dev/provenance-contract-v1`
 - `@refarm.dev/storage-contract-v1`
 - `@refarm.dev/identity-contract-v1`
 - `@refarm.dev/source-contract-v1`

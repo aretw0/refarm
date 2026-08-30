@@ -457,6 +457,30 @@
 				}
 			},
 			{
+				"id": "@refarm.dev/provenance-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/provenance-contract-v1 run lint",
+					"pnpm --filter @refarm.dev/provenance-contract-v1 run type-check",
+					"pnpm --filter @refarm.dev/provenance-contract-v1 run test:conformance",
+					"pnpm --filter @refarm.dev/provenance-contract-v1 run build"
+				],
+				"tags": [
+					"provenance",
+					"contract",
+					"sdk-primitive",
+					"consumer-pulled",
+					"consumer-ready",
+					"boundary-review"
+				],
+				"consumerPull": {
+					"proofId": "provenance-contract.origin-of-every-input",
+					"downstreamUse": "One provenance envelope (channel, origin locator, collection time, fingerprint, license, privacy) on every ingested or declared input a consumer keeps",
+					"proofTarget": "a consumer stamps and verifies provenance:v1 on its own input records — notes, requirements, or a materials database — and can gate on the named checks while keeping its source vocabulary and evidence policy downstream-owned",
+					"ownershipBoundary": "Source catalogs, licensing policy, which checks block, and the domain fields that ride beside provenance remain downstream"
+				}
+			},
+			{
 				"id": "@refarm.dev/local-surface",
 				"risk": "shared",
 				"mustPassChecks": [
