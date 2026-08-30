@@ -2185,6 +2185,17 @@
 			"priority": "medium",
 			"package": "packages/tractor",
 			"axis": "durability"
+		},
+		{
+			"id": "ISS-185",
+			"title": "rcdc5 consumes six packages that no release lane carries",
+			"body": "MEASURED 2026-08-30 while coordinating the joint 0.1.0 release. rcdc5 (SERPRO OSLC integration, branch vault-upgrade) hand-packs operation-result-v1, login-flow, prompt-contract-v1, browser-driver, source-oslc and diagnostic-bundle-v1 from develop; only its source-web and source-contract-v1 come from the consumer-ready lane (27 packages). None of the six has a releasePolicy profile, a README a registry page could show, a changeset, or a boundary review, so they are not part of this wave by decision (do not delay 27 proven packages for 6 unreviewed ones). Second wave, in order of downstream dependency: prompt-contract-v1 and operation-result-v1 (pure contracts, no deps), then diagnostic-bundle-v1, then browser-driver and login-flow, then source-oslc. Each needs: packageProfiles entry with tags primitives/consumer-pulled/consumer-ready (+ sdk-primitive/boundary-review where a runtime boundary exists), consumerPull proof from rcdc5, README, changeset, and the lane-entry counts following the fact (RELEASE_POLICY, v0.1.0 gate, packages/README, DISTRIBUTION_STATUS, release-check/first-publish/handoff/status-doc anchors, release-engine list, site-data). Until then rcdc5 vendors them pinned to a develop sha with a sha256 manifest.",
+			"location": "refarm.config.json",
+			"status": "open",
+			"category": "gap",
+			"priority": "medium",
+			"package": "packages/source-oslc",
+			"axis": "other"
 		}
 	]
 }
