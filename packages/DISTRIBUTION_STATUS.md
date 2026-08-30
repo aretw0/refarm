@@ -81,12 +81,22 @@ The local handoff is accepted, but the complete selection is not yet a public
 install unit. `release:vault-seed:install:smoke` intentionally blocks because
 `health` depends on unselected `config`, while `vault-contract-v1` depends on
 unselected `plugin-manifest`, `std`, and `node-contract-v1`. A publish dry-run
-does not detect that registry closure. The consumer-pulled DS slice is closed
-and independently proven with:
+does not detect that registry closure.
+
+### `design-system-ready` (dependency-closed public unit)
+
+The smallest dependency-closed slice already proven by a downstream vault is:
+
+- `@refarm.dev/quality-contract-v1`
+- `@refarm.dev/ds`
+
+It is selected explicitly instead of weakening the complete `consumer-ready`
+gate. The first-publish workflow runs the clean-consumer installation smoke for
+the requested selection before either its dry-run or publication step:
 
 ```bash
-node scripts/ci/release-install-smoke.mjs packages/quality-contract-v1 packages/ds
-pnpm --silent run release:vault-seed:first-publish -- --package @refarm.dev/quality-contract-v1 --package @refarm.dev/ds --plan --json
+pnpm --silent run release:first-publish:plan -- --selection design-system-ready --json
+node scripts/ci/release-install-smoke.mjs --selection design-system-ready
 ```
 
 The local handoff uses the daily operator artifact path
@@ -265,6 +275,8 @@ Current commands:
 ```bash
 refarm release preflight --selection default --json
 refarm release preflight --selection consumer-ready --json
+pnpm --silent run release:first-publish:plan -- --selection design-system-ready --json
+node scripts/ci/release-install-smoke.mjs --selection design-system-ready
 pnpm run release:readiness
 pnpm run release:readiness:test
 pnpm run release:boundary:audit
@@ -290,4 +302,5 @@ pnpm --silent run release:vault-seed:handoff -- --out .refarm/handoff/vault-seed
 - Public scope: `@refarm.dev`
 - Default release-policy selection: `kernel-candidates`
 - Consumer-pulled selection: `consumer-ready`
+- Dependency-closed DS selection: `design-system-ready`
 - Publication posture: held until daily-driver gate or explicit human override
