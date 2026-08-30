@@ -75,7 +75,20 @@ export interface AgentFinishSelection {
 	changedPaths?: string[];
 	since?: string;
 	sinceRef?: string;
+	/** Set when a LANE's default `since: "upstream"` could not be resolved and the selection fell
+	 *  back to the dirty tree — the checkout has no upstream (detached HEAD in CI, a fresh clone).
+	 *  Never set for an explicit `--since`: what the operator asked for is not degraded silently. */
+	sinceFallback?: AgentFinishSinceFallback;
 	workspace?: string;
+}
+
+export interface AgentFinishSinceFallback {
+	/** What the lane asked for ("upstream"). */
+	requested: string;
+	/** Why it could not be honoured, verbatim from the resolver. */
+	reason: string;
+	/** What the selection validates instead. */
+	validationScope: "dirtyTree";
 }
 
 export interface AgentFinishSelectionMetadata {
@@ -85,6 +98,7 @@ export interface AgentFinishSelectionMetadata {
 	lane: AgentFinishLane | null;
 	since: string | null;
 	sinceRef: string | null;
+	sinceFallback?: AgentFinishSinceFallback;
 	validationScope: AgentFinishLaneValidationScope | "package" | "quick";
 	workspace: string | null;
 	affectedScriptChecks?: string[];
@@ -97,6 +111,7 @@ export interface AgentFinishSelectionContext {
 	/** Files this edit touched — the input the affected script-suite step is built from. */
 	changedPaths?: string[];
 	sinceRef?: string;
+	sinceFallback?: AgentFinishSinceFallback;
 }
 
 export function runRefarmCommand(args: string[]): CommandPlanStepRunResult {
@@ -941,6 +956,7 @@ export function finishSelectionMetadata(
 		since: selection.profile === "affected" ? (selection.since ?? null) : null,
 		sinceRef:
 			selection.profile === "affected" ? (selection.sinceRef ?? selection.since ?? null) : null,
+		...(selection.sinceFallback ? { sinceFallback: selection.sinceFallback } : {}),
 		validationScope: finishValidationScope(selection),
 		workspace: selection.profile === "package" ? (selection.workspace ?? ".") : null,
 		...(selection.profile === "affected"
@@ -988,7 +1004,25 @@ export function resolveFinishSelectionContext(
 ): AgentFinishSelectionContext {
 	if (selection.profile !== "affected") return {};
 	const repoRoot = findWorkspaceRoot();
-	const sinceRef = selection.since ? resolveSinceRef(repoRoot, selection.since) : undefined;
+	let sinceRef: string | undefined;
+	let sinceFallback: AgentFinishSinceFallback | undefined;
+	if (selection.since) {
+		try {
+			sinceRef = resolveSinceRef(repoRoot, selection.since);
+		} catch (error) {
+			// A lane's DEFAULT `upstream` is a preference, not an instruction: on a checkout with no
+			// upstream (a detached HEAD in CI, a fresh clone) the honest answer is the dirty tree,
+			// said out loud — not a plan that refuses to exist. The before-push gate test hit
+			// exactly this on the cold clean-room lane (PR #59, 2026-08-30). An EXPLICIT --since
+			// still fails: the operator named a ref, and a silent substitute would be a lie.
+			if (!(selection.lane && selection.since === "upstream")) throw error;
+			sinceFallback = {
+				requested: selection.since,
+				reason: error instanceof Error ? error.message : String(error),
+				validationScope: "dirtyTree",
+			};
+		}
+	}
 	const changedPaths = changedPathsFromGit({
 		includeWorkingTree: selection.lane !== "after-commit",
 		repoRoot,
@@ -1005,6 +1039,7 @@ export function resolveFinishSelectionContext(
 		// for a full day on 2026-08-12 with every after-edit green (ISS-106).
 		changedPaths,
 		...(sinceRef ? { sinceRef } : {}),
+		...(sinceFallback ? { sinceFallback } : {}),
 	};
 }
 

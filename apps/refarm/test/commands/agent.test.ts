@@ -2181,6 +2181,64 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("before-push falls back to the dirty tree when the checkout has no upstream, and says so", async () => {
+		// The lane's `since: "upstream"` is a DEFAULT, not an instruction. A detached HEAD (every
+		// CI checkout of a PR) has no upstream; the plan must still exist — validating the dirty
+		// tree and saying why — instead of the `invalid-agent-finish-since-ref` refusal that an
+		// explicit `--since upstream` rightly gets below. The cold clean-room lane found this on
+		// PR #59 (2026-08-30) through the repo-contract gate test above.
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-lane-detached-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init", "--initial-branch=main"], { cwd: root, stdio: "ignore" });
+		writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "root" }), "utf8");
+		execFileSync("git", ["add", "."], { cwd: root, stdio: "ignore" });
+		execFileSync("git", [
+			"-c",
+			"user.name=Refarm Test",
+			"-c",
+			"user.email=refarm-test@example.com",
+			"commit",
+			"-m",
+			"initial",
+		], { cwd: root, stdio: "ignore" });
+		execFileSync("git", ["checkout", "--detach"], { cwd: root, stdio: "ignore" });
+		const originalCwd = process.cwd();
+		const originalExitCode = process.exitCode;
+		process.chdir(root);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync(["finish", "--lane", "before-push", "--json"], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+			process.exitCode = originalExitCode;
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			steps: { id: string }[];
+			selection: {
+				lane: string | null;
+				since: string | null;
+				sinceRef: string | null;
+				sinceFallback?: { requested: string; reason: string; validationScope: string };
+				validationScope: string;
+			};
+		};
+		expect(payload.ok, JSON.stringify(payload, null, 2)).toBe(true);
+		expect(payload.selection).toMatchObject({
+			lane: "before-push",
+			since: null,
+			sinceRef: null,
+			validationScope: "dirtyTree",
+			sinceFallback: { requested: "upstream", validationScope: "dirtyTree" },
+		});
+		expect(payload.selection.sinceFallback?.reason).toContain("Could not resolve upstream");
+		expect(payload.steps.map((step) => step.id)).toContain("gate-validate-packages");
+		logSpy.mockRestore();
+	});
+
 	it("reports a JSON recovery when upstream is missing", async () => {
 		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-no-upstream-"));
 		tempDirs.push(root);

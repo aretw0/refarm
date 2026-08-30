@@ -409,6 +409,11 @@ Notes:
 			}
 			const selectionWithAffected = {
 				...selection,
+				// A lane default that could not be honoured drops `since` (the scope becomes the
+				// dirty tree) and carries WHY, so the envelope reads as a fallback, not a choice.
+				...(selectionContext.sinceFallback
+					? { since: undefined, sinceFallback: selectionContext.sinceFallback }
+					: {}),
 				...(selectionContext.sinceRef ? { sinceRef: selectionContext.sinceRef } : {}),
 				...(selectionContext.affectedScriptChecks
 					? { affectedScriptChecks: selectionContext.affectedScriptChecks }
