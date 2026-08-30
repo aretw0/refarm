@@ -447,7 +447,11 @@ jobs:
 
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 45, not 30: a PR's merge ref carries a different content signature from the branch head,
+    # so the result cache the push run hits is a miss here and the job runs cold — 30m18s twice
+    # on PR #59 (2026-08-30), reported by GitHub as "canceled", indistinguishable from a real
+    # cancel until the clock is read. The same ceiling the other heavy jobs already carry.
+    timeout-minutes: 45
     needs: [changes, build-wasm]
     # Run whether build-wasm ran or was skipped (docs-only commits skip it), but
     # not if it FAILED — a broken Rust/WASM build must block quality rather than
