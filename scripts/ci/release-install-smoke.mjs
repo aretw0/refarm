@@ -17,9 +17,9 @@
  *   node scripts/ci/release-install-smoke.mjs --selection consumer-ready
  */
 import { execFileSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, relative, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildReleaseCheckPlan } from "../release-check.mjs";
 
@@ -95,7 +95,16 @@ const options = parseArgs(process.argv.slice(2));
 const packageDirs = resolvePackageDirs(options);
 
 function run(cmd, args, cwd) {
-	return execFileSync(cmd, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+	try {
+		return execFileSync(cmd, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+	} catch (error) {
+		const detail = [error.stdout, error.stderr]
+			.filter((value) => typeof value === "string" && value.trim().length > 0)
+			.join("\n");
+		throw new Error(`Command failed: ${cmd} ${args.join(" ")}${detail ? `\n${detail}` : ""}`, {
+			cause: error,
+		});
+	}
 }
 
 function readPkg(dir) {
@@ -125,10 +134,14 @@ try {
 		}
 		// Match the real publish lane: pnpm rewrites workspace: ranges to
 		// publishable versions, while npm pack leaves workspace:* untouched.
-		const out = run("pnpm", ["pack", "--pack-destination", stage], abs);
-		const tarball = out.trim().split("\n").pop().trim();
-		packed.push({ name: pkg.name, main: pkg.main ?? "index.js", tarball: resolve(stage, tarball) });
-		process.stdout.write(`   packed ${tarball}\n`);
+		const beforePack = new Set(readdirSync(stage));
+		run("pnpm", ["pack", "--pack-destination", stage], abs);
+		const producedTarballs = readdirSync(stage).filter((name) => name.endsWith(".tgz") && !beforePack.has(name));
+		if (producedTarballs.length !== 1) {
+			throw new Error(`${pkg.name}: pnpm pack produced ${producedTarballs.length} tarballs instead of one`);
+		}
+		packed.push({ name: pkg.name, main: pkg.main ?? "index.js", tarball: resolve(stage, producedTarballs[0]) });
+		process.stdout.write(`   packed ${producedTarballs[0]}\n`);
 	}
 
 	// 2) Install all tarballs into a clean pnpm consumer. Direct file specs do not
@@ -137,7 +150,7 @@ try {
 	const fileSpecs = Object.fromEntries(
 		packed.map((entry) => [
 			entry.name,
-			`file:${relative(consumer, entry.tarball).replaceAll("\\", "/")}`,
+			`file:${entry.tarball.replaceAll("\\", "/")}`,
 		]),
 	);
 	writeFileSync(
@@ -170,7 +183,7 @@ try {
 		copyFileSync(join(repoRoot, ".npmrc"), join(consumer, ".npmrc"));
 	}
 	process.stdout.write(`\n⬇️  pnpm install (${packed.length} tarball(s))…\n`);
-	run("pnpm", ["install", "--no-frozen-lockfile"], consumer);
+	run("pnpm", ["--store-dir", ".pnpm-store", "install", "--no-frozen-lockfile"], consumer);
 
 	// 3) import each entrypoint from the INSTALLED package (a missing dist fails HERE)
 	const results = [];
@@ -201,5 +214,9 @@ try {
 	}
 	process.stdout.write(`\n✅ all ${results.length} package(s) pack → install → import cleanly.\n`);
 } finally {
-	rmSync(stage, { recursive: true, force: true });
+	if (process.env.REFARM_RELEASE_SMOKE_KEEP === "1") {
+		process.stderr.write(`Keeping release install-smoke stage for diagnosis: ${stage}\n`);
+	} else {
+		rmSync(stage, { recursive: true, force: true });
+	}
 }
