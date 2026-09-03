@@ -102,7 +102,7 @@ test("consumer install smoke matches the pnpm publication and handoff semantics"
 	assert.match(smoke, /"pnpm", \["pack", "--pack-destination"/);
 	assert.match(smoke, /"pnpm-workspace\.yaml"/);
 	assert.match(smoke, /overrides:/);
-	assert.match(smoke, /"pnpm", \["install", "--no-frozen-lockfile"\]/);
+	assert.match(smoke, /"pnpm", \["--store-dir", "\.pnpm-store", "install", "--no-frozen-lockfile"\]/);
 	assert.doesNotMatch(smoke, /run\("npm", \["pack"/);
 	assert.doesNotMatch(smoke, /run\("npm", \["install"/);
 });
