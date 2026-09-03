@@ -158,16 +158,16 @@ overrides:
   # GHSA-7p8r-x3mc-p8w7: fast-uri fails to treat a backslash as an authority introducer, unlike
   # Node's WHATWG URL parser — a parsing discrepancy that can bypass host-based security policy.
   # Source: https://github.com/advisories/GHSA-7p8r-x3mc-p8w7. Verified 2026-08-04 by reading that
-  # page. The version boundary here predates the citation: commit 4e8ac38e moved the range to
-  # <3.1.5 as part of a drift re-pin, without ever naming which advisory it answered.
+  # page. GHSA-5jgf-p345-68v8, GHSA-f65p-4m7j-42xc, GHSA-fph4-wmhf-6fwf and
+  # GHSA-jqff-g426-hqxp subsequently moved the patched boundary to 3.1.6.
   #
-  # The advisory covers THREE ranges — <2.4.4, >=3.0.0 <3.1.5, >=4.0.0 <4.1.2 — and this pins only
+  # The advisory covers THREE ranges — <2.4.4, >=3.0.0 <3.1.6, >=4.0.0 <4.1.2 — and this pins only
   # the middle one, unlike the brace-expansion block above, which pins all of its majors. That is
-  # deliberate and bounded: the lockfile resolves fast-uri at 3.1.5 and nothing else, and a future
+  # deliberate and bounded: the lockfile resolves fast-uri at 3.1.6 and nothing else, and a future
   # dependency dragging in a 2.x or 4.x would surface as a NEW `pnpm audit` failure rather than
   # slipping past, because this GHSA is not in `auditConfig.ignoreGhsas`. A preemptive pin would
   # buy silence, not safety.
-  fast-uri@>=3.0.0 <3.1.5: ^3.1.5
+  fast-uri@>=3.0.0 <3.1.6: ^3.1.6
   # GHSA-mwp4-54f8-5fhr: Address4 leading-zero octet decoding mismatch (SSRF / trust-boundary bypass
   # potential). Dev-only path (puppeteer-core > @puppeteer/browsers > proxy-agent > ... > socks >
   # ip-address, via the optional live-source browser driver). Range-scoped like the other transitive
