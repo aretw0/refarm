@@ -1,6 +1,7 @@
 {
 	"name": "@refarm.dev/silo",
 	"version": "0.1.0",
+	"repository": "https://github.com/aretw0/refarm.git",
 	"description": "The Silo — provider-neutral context and secret provisioner.",
 	"type": "module",
 	"main": "./dist/index.js",

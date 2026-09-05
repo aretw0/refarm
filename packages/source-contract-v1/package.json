@@ -1,6 +1,7 @@
 {
   "name": "@refarm.dev/source-contract-v1",
   "version": "0.1.0",
+  "repository": "https://github.com/aretw0/refarm.git",
   "private": false,
   "description": "Versioned source capability contract (source:v1) and conformance suite",
   "type": "module",

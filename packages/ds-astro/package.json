@@ -1,6 +1,7 @@
 {
 	"name": "@refarm.dev/ds-astro",
 	"version": "0.1.0",
+	"repository": "https://github.com/aretw0/refarm.git",
 	"private": false,
 	"description": "Astro/MDX component bindings for the Refarm design system.",
 	"type": "module",

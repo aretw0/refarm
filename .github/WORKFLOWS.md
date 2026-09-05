@@ -42,8 +42,12 @@ Properties:
 - permissions: `contents: write`, `pull-requests: write`, `id-token: write`;
 - setup cache mode: `off`;
 - publish command: `changeset publish`;
-- npm token: `secrets.NPM_TOKEN`;
+- current bootstrap authentication: `secrets.NPM_TOKEN` (inaugural packages only);
 - runtime descriptor release path is smoked before publish.
+
+Trusted-publishing migration and the token-to-OIDC handoff are documented in
+[`docs/RELEASE_TRUSTED_PUBLISHING.md`](../docs/RELEASE_TRUSTED_PUBLISHING.md). Do not enable
+release automation while that handoff is incomplete.
 
 ## Local Verification
 
@@ -62,7 +66,7 @@ pnpm run runtime-descriptor:release-smoke
 
 | Name | Kind | Used by | Purpose |
 |---|---|---|---|
-| `NPM_TOKEN` | secret | `release-changesets.yml` | npm publish through Changesets |
+| `NPM_TOKEN` | secret | `first-publish-selection.yml` | one-time inaugural publication only; revoke after OIDC is verified |
 | `RELEASE_AUTOMATION` | variable | `release-changesets.yml` | explicit opt-in for package release automation |
 | `RELEASE_OWNER` | variable | `release-changesets.yml` | optional owner lock |
 | `GITHUB_TOKEN` | automatic | GitHub Actions | release PRs and repository operations |
