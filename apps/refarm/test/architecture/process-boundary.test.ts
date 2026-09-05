@@ -51,6 +51,14 @@ function runtimeSourceFiles(dir: string): string[] {
 }
 
 describe("process execution boundary", () => {
+	it("keeps workspace declaration inference in the reusable CLI SDK", () => {
+		const source = readFileSync(path.join(APP_COMMANDS_DIR, "workspace-add.ts"), "utf8");
+		expect(source).toContain('@refarm.dev/cli/workspace-declaration');
+		expect(source).not.toMatch(/\.git["',]/);
+		expect(source).not.toContain('"package.json"');
+		expect(source).not.toContain("new URL(");
+	});
+
 	it("keeps child process adapters out of the refarm app source", () => {
 		const offenders = sourceFiles(APP_SRC_DIR).filter((filePath) => {
 			const source = readFileSync(filePath, "utf-8");

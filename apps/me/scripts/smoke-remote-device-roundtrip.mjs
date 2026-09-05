@@ -18,7 +18,7 @@
 import { spawn } from "node:child_process";
 import { X509Certificate, createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { networkInterfaces, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -154,6 +154,27 @@ try {
 		"--log-level", "warn",
 		"--refarm-dir", join(tempRoot, ".refarm"),
 	]);
+	// `--host 0.0.0.0` is the POINT of this proof (loopback is a secure context by
+	// definition, so only a non-loopback origin tests the TLS wall), and a non-loopback
+	// bind is now refused unless an auth policy is configured — `web serve` proxies /sync
+	// to the daemon's ungated CRDT socket, so widening it is a real decision. Mint a
+	// throwaway policy for the run rather than exempting the smoke test from the rule: the
+	// test should exercise the same gate an operator does.
+	const policyFile = join(tempRoot, "auth-policy.json");
+	await writeFile(
+		policyFile,
+		`${JSON.stringify({
+			credentials: [
+				{
+					identity: "smoke-remote-device",
+					// sha256("smoke-remote-device-token") — a throwaway in a temp dir removed
+					// in the finally block. Nothing dials the sidecar in this run (the daemon
+					// is started with --http-port 0), so no client needs the raw token.
+					tokenSha256: createHash("sha256").update("smoke-remote-device-token").digest("hex"),
+				},
+			],
+		})}\n`,
+	);
 	serve = run(process.execPath, [
 		refarmCli, "web", "serve", distDir,
 		"--host", "0.0.0.0",
@@ -162,7 +183,7 @@ try {
 		"--tls-key", keyFile,
 		"--sync-target", `127.0.0.1:${tractorPort}`,
 		"--json",
-	]);
+	], { env: { ...process.env, REFARM_AUTH_POLICY: policyFile } });
 	await waitFor(async () => {
 		const res = await fetch(`https://127.0.0.1:${hubPort}/`, {
 			// Node's fetch has no SPKI pinning; trust the fixture CA directly.

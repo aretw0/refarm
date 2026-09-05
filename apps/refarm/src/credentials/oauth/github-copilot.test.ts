@@ -1,0 +1,231 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { createGitHubCopilotProvider } from "./github-copilot.js";
+
+const DEVICE_CODE = {
+	device_code: "dev-1",
+	user_code: "ABCD-1234",
+	verification_uri: "https://github.com/login/device",
+	interval: 0,
+	expires_in: 900,
+};
+
+const COPILOT_TOKEN = "tid=t1;exp=1700000000;proxy-ep=proxy.individual.githubcopilot.com";
+
+function jsonResponse(body: unknown, ok = true): Response {
+	return { ok, status: ok ? 200 : 401, json: async () => body, text: async () => JSON.stringify(body) } as Response;
+}
+
+function callbacks() {
+	return {
+		onAuth: vi.fn(),
+		onPrompt: vi.fn(async () => ""),
+		onProgress: vi.fn(),
+	};
+}
+
+describe("createGitHubCopilotProvider — identity", () => {
+	it("uses the client id it is GIVEN, never one borrowed from another product", () => {
+		// The whole reason this adapter exists rather than a copy of pi's. `Iv1.b507a08c87ecfe98` is
+		// the Copilot editor-plugin family's id, and refarm may not claim it.
+		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: vi.fn() });
+		expect(provider.id).toBe("github-copilot");
+		expect(provider.usesCallbackServer).toBe(false);
+	});
+
+	it("asks for read:user and NOTHING else, so it cannot reach a repository", async () => {
+		// The device response is deliberately unusable, so login refuses after the ONE call this
+		// test inspects instead of entering the polling loop.
+		const doFetch = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
+		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: doFetch as never });
+		await expect(provider.login(callbacks())).rejects.toThrow(/device-code response/u);
+		const init = doFetch.mock.calls[0]![1]!;
+		expect(JSON.parse(String(init.body))).toMatchObject({
+			client_id: "Ov23-refarm",
+			scope: "read:user",
+		});
+	});
+
+	it("sends NO impersonation headers", async () => {
+		// pi sends `User-Agent: GitHubCopilotChat/0.35.0` and `Copilot-Integration-Id: vscode-chat`.
+		// Whether GitHub honours an honest identity here is exactly what the operator's first login
+		// measures, and it cannot measure it if we lie.
+		const doFetch = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
+		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: doFetch as never });
+		await expect(provider.login(callbacks())).rejects.toThrow();
+		const init = doFetch.mock.calls[0]![1]!;
+		const serialised = JSON.stringify(init.headers ?? {});
+		expect(serialised).not.toMatch(/vscode|GitHubCopilotChat|Editor-Version/iu);
+		expect(serialised).toMatch(/refarm/iu);
+	});
+});
+
+describe("createGitHubCopilotProvider — login", () => {
+	it("shows the operator the code and the URL, with no local server", async () => {
+		// DEVICE FLOW, not a browser callback. That is what lets this login happen on a headless node
+		// or from a phone, and it is a genuine advantage over the codex flow.
+		const doFetch = vi.fn(async (url: string) => {
+			if (String(url).includes("device/code")) return jsonResponse(DEVICE_CODE);
+			if (String(url).includes("access_token")) return jsonResponse({ access_token: "gho_USER" });
+			return jsonResponse({ token: COPILOT_TOKEN, expires_at: 1_700_000_000 });
+		});
+		const cb = callbacks();
+		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: doFetch as never });
+		const creds = await provider.login(cb);
+		expect(cb.onAuth).toHaveBeenCalledWith(
+			expect.objectContaining({ url: "https://github.com/login/device" }),
+		);
+		expect(String(cb.onAuth.mock.calls[0]?.[0]?.instructions)).toContain("ABCD-1234");
+		expect(creds.access).toBe(COPILOT_TOKEN);
+		expect(creds.refresh).toBe("gho_USER");
+	});
+
+	it("keeps the DURABLE github token as the refresh material", async () => {
+		// The Copilot token is short-lived and the GitHub user token is not. Storing the short one as
+		// `refresh` would make every renewal fail once the first token expired.
+		const doFetch = vi.fn(async (url: string) =>
+			String(url).includes("device/code")
+				? jsonResponse(DEVICE_CODE)
+				: String(url).includes("access_token")
+					? jsonResponse({ access_token: "gho_USER" })
+					: jsonResponse({ token: COPILOT_TOKEN, expires_at: 1_700_000_000 }),
+		);
+		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: doFetch as never });
+		const creds = await provider.login(callbacks());
+		expect(creds.refresh).toBe("gho_USER");
+		expect(creds.expires).toBeLessThan(1_700_000_000 * 1000);
+	});
+
+	it("records the endpoint AND how it was decided", async () => {
+		const doFetch = vi.fn(async (url: string) =>
+			String(url).includes("device/code")
+				? jsonResponse(DEVICE_CODE)
+				: String(url).includes("access_token")
+					? jsonResponse({ access_token: "gho_USER" })
+					: jsonResponse({ token: COPILOT_TOKEN, expires_at: 1_700_000_000 }),
+		);
+		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: doFetch as never });
+		const creds = await provider.login(callbacks());
+		expect(creds.baseUrl).toBe("https://api.individual.githubcopilot.com");
+		expect(creds.baseUrlSource).toBe("from-token");
+	});
+
+	/**
+	 * A REFUSAL MEANS TWO DIFFERENT THINGS, and the message must say which.
+	 *
+	 * Measured 2026-08-17: during a declared Copilot MAJOR OUTAGE — GitHub's own note that hour was
+	 * "we have partially disabled authentication token retries", and this endpoint IS an
+	 * authentication token retry — the old single sentence ("may only honour known integration
+	 * ids") sent the operator to re-register an identity, re-run the device flow three times and
+	 * change a config key. None of it could have worked.
+	 */
+	function loginFetch(statusDocument: unknown | null) {
+		return vi.fn(async (url: string) => {
+			const target = String(url);
+			if (target.includes("device/code")) return jsonResponse(DEVICE_CODE);
+			if (target.includes("access_token")) return jsonResponse({ access_token: "gho_USER" });
+			if (target.includes("githubstatus.com")) {
+				return statusDocument === null
+					? jsonResponse({}, false)
+					: jsonResponse(statusDocument);
+			}
+			return jsonResponse({ message: "Forbidden" }, false);
+		});
+	}
+
+	it("says WAIT, and keeps the identity out of it, when GitHub declares Copilot impaired", async () => {
+		const doFetch = loginFetch({
+			components: [{ name: "Copilot", status: "major_outage" }],
+			incidents: [
+				{
+					name: "Incident with GitHub.com",
+					components: [{ name: "Copilot", status: "major_outage" }],
+					incident_updates: [{ body: "partially disabled authentication token retries" }],
+				},
+			],
+		});
+		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: doFetch as never });
+		const error = await provider.login(callbacks()).catch((e: Error) => e);
+		expect(String(error)).toMatch(/DECLARED trouble/u);
+		expect(String(error)).toMatch(/authentication token retries/u);
+		// The identity hint MUST NOT appear here: it is the sentence that sent him to re-register.
+		expect(String(error)).not.toMatch(/integration ids/u);
+	});
+
+	it("KEEPS the identity hint when GitHub reports Copilot operational", async () => {
+		// The old suspicion remains the right one in this world, which is why it is kept rather
+		// than deleted.
+		const doFetch = loginFetch({ components: [{ name: "Copilot", status: "operational" }] });
+		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: doFetch as never });
+		const error = await provider.login(callbacks()).catch((e: Error) => e);
+		expect(String(error)).toMatch(/integration ids/u);
+		expect(String(error)).toMatch(/about this node or its credential/u);
+	});
+
+	it("admits it could not tell when the status page is unreachable", async () => {
+		// Unknown is not operational. A status check that could not run must not license the
+		// conclusion it exists to prevent.
+		const doFetch = loginFetch(null);
+		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: doFetch as never });
+		const error = await provider.login(callbacks()).catch((e: Error) => e);
+		expect(String(error)).toMatch(/UNMEASURED/u);
+		expect(String(error)).not.toMatch(/integration ids/u);
+	});
+});
+
+describe("createGitHubCopilotProvider — refresh", () => {
+	it("exchanges the durable github token again rather than re-authenticating", async () => {
+		const doFetch = vi.fn(async (_url: string, _init?: RequestInit) =>
+			jsonResponse({ token: "tid=t2;proxy-ep=proxy.x.com", expires_at: 1_800_000_000 }),
+		);
+		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: doFetch as never });
+		const next = await provider.refreshToken({ access: "old", refresh: "gho_USER", expires: 0 });
+		expect(next.access).toBe("tid=t2;proxy-ep=proxy.x.com");
+		expect(next.refresh).toBe("gho_USER");
+		const init = doFetch.mock.calls[0]![1]!;
+		expect(JSON.stringify(init.headers)).toContain("gho_USER");
+	});
+});
+
+describe("createGitHubCopilotProvider — the identity profile", () => {
+	it("presents the EDITOR identity, both halves, when imitation is declared", async () => {
+		// The operator accepted this risk explicitly (2026-08-14, after refarm's own identity was
+		// measured at HTTP 403). It must be complete: a borrowed client id without the matching
+		// headers impersonates AND does not work.
+		const doFetch = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
+		const provider = createGitHubCopilotProvider({
+			clientId: "Ov23-refarm",
+			fetch: doFetch as never,
+			identity: { kind: "editor-imitation" },
+		});
+		await expect(provider.login(callbacks())).rejects.toThrow();
+		const init = doFetch.mock.calls[0]![1]!;
+		expect(JSON.parse(String(init.body)).client_id).toBe("Iv1.b507a08c87ecfe98");
+		expect(JSON.stringify(init.headers)).toContain("vscode-chat");
+	});
+
+	it("keeps refarm's OWN client id when an integration id is granted", async () => {
+		// A granted id authorises refarm's identity; pairing it with a borrowed client id would be
+		// imitation wearing a licence.
+		const doFetch = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
+		const provider = createGitHubCopilotProvider({
+			clientId: "Ov23-refarm",
+			fetch: doFetch as never,
+			identity: { kind: "integration", id: "refarm-cli" },
+		});
+		await expect(provider.login(callbacks())).rejects.toThrow();
+		const init = doFetch.mock.calls[0]![1]!;
+		expect(JSON.parse(String(init.body)).client_id).toBe("Ov23-refarm");
+		const headers = JSON.stringify(init.headers);
+		expect(headers).toContain("refarm-cli");
+		expect(headers).not.toMatch(/vscode|Editor-Version/iu);
+	});
+
+	it("defaults to the honest identity when no profile is given", async () => {
+		// Imitation must never be reached by omission — only by a declaration someone made.
+		const doFetch = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
+		const provider = createGitHubCopilotProvider({ clientId: "Ov23-refarm", fetch: doFetch as never });
+		await expect(provider.login(callbacks())).rejects.toThrow();
+		expect(JSON.stringify(doFetch.mock.calls[0]![1]!.headers)).not.toMatch(/vscode/iu);
+	});
+});

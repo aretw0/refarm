@@ -10,14 +10,17 @@ import {
 } from "@refarm.dev/capabilities/envelope";
 import {
 	createReferenceEnrichmentProvider,
+	type EnrichmentErrorCode,
 	type EnrichmentProvider,
 	type EnrichmentResult,
+	type EnrichmentTelemetryEvent,
 } from "@refarm.dev/enrichment-contract-v1";
 import {
 	computeRecordContentHash,
 	createReferenceRecordsProvider,
 	type RecordsManifest,
 } from "@refarm.dev/records-contract-v1";
+import { randomUUID } from "node:crypto";
 
 /**
  * `records` — the generic records:v1 operator surface: enrich (and inspect) a
@@ -221,6 +224,20 @@ export function createRecordsCapabilityGroup(
 			},
 		],
 		async run(input): Promise<CapabilityEnvelope> {
+			// enrichment:v1's telemetry event (traceId/pluginId/capability/operation/
+			// durationMs/ok/errorCode) is declared in enrichment-contract-v1 but never
+			// constructed anywhere in this repo (scripts/ci/check-contract-reachability.mjs's
+			// first real finding, 2026-08-04). This is the one real interception point for
+			// enrichment:v1 that works for ANY injected provider (the reference one or a
+			// WASM-backed one via createWasmEnrichmentProvider) rather than one specific
+			// implementation: every caller of `records enrich` — CLI, REPL, HTTP, the
+			// records_enrich agent tool — reaches deps.enrichmentProvider.enrich() through
+			// here. `traceId` ties the event to this one invocation; `enrich` is timed
+			// specifically because it is the async, I/O-shaped operation (describe/select
+			// are synchronous local shaping) — see wasm-enrichment-provider.ts's own doc
+			// comment on why `enrich` is the step a real provider does real work in.
+			const traceId = randomUUID();
+			let telemetry: EnrichmentTelemetryEvent | undefined;
 			try {
 				const manifest = deps.loadManifest();
 				const mode = input.options.apply === true ? "apply" : "dry-run";
@@ -238,7 +255,33 @@ export function createRecordsCapabilityGroup(
 					sourceRef: record.sourceRefs?.[0],
 				}));
 				const selected = deps.enrichmentProvider.select(inputs);
-				const enrichment = await deps.enrichmentProvider.enrich(selected, { mode });
+
+				const enrichStartedAt = Date.now();
+				let enrichment: EnrichmentResult;
+				try {
+					enrichment = await deps.enrichmentProvider.enrich(selected, { mode });
+					telemetry = {
+						traceId: traceId,
+						pluginId: deps.enrichmentProvider.pluginId,
+						capability: deps.enrichmentProvider.capability,
+						operation: "enrich",
+						durationMs: Date.now() - enrichStartedAt,
+						ok: true,
+					};
+				} catch (enrichError) {
+					const errorCode: EnrichmentErrorCode = "INTERNAL";
+					telemetry = {
+						traceId: traceId,
+						pluginId: deps.enrichmentProvider.pluginId,
+						capability: deps.enrichmentProvider.capability,
+						operation: "enrich",
+						durationMs: Date.now() - enrichStartedAt,
+						ok: false,
+						errorCode,
+					};
+					throw enrichError;
+				}
+
 				const enrichedManifest = applyEnrichment(manifest, enrichment);
 				const validation = deps.recordsProvider.validate(enrichedManifest);
 
@@ -262,6 +305,11 @@ export function createRecordsCapabilityGroup(
 							failureCount: validation.failures.length,
 						},
 						recordCount: enrichedManifest.records.length,
+						// Observable proof this ran: a real EnrichmentTelemetryEvent, constructed
+						// from the actual provider's own pluginId/capability and a real measured
+						// durationMs — not a stub. `refarm records enrich --json` prints it; the
+						// records_enrich agent tool and `POST /records` see the same field.
+						telemetry,
 					},
 				});
 			} catch (error) {
@@ -273,6 +321,7 @@ export function createRecordsCapabilityGroup(
 					message,
 					nextAction:
 						"Inject a records manifest to enrich, or pull a source first (`source pull`).",
+					...(telemetry ? { extra: { telemetry } } : {}),
 				});
 			}
 		},

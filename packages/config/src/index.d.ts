@@ -116,6 +116,7 @@ export {
     packageManagerOverrideDiagnostic,
     packagePublishDryRunCommand,
     packageScriptCommand,
+    packageWorkspaceDeployCommand,
     packageWorkspacePublishDryRunCommand,
     parsePackageManager,
 } from "./package-manager.js";
@@ -158,12 +159,31 @@ export type {
     WorkspaceNamespacePersistence,
 } from "./workspace-namespaces-config.js";
 export {
+    CONFIG_KEY_OWNERSHIP,
+    CONFIG_REQUEST_BLOCK_KEY,
+    CONFIG_TIERS,
+    auditConfigTier,
+    classifyConfigKey,
+    pendingRequests,
+} from "./config-tiers.js";
+export type {
+    ConfigKeyOwnership,
+    ConfigKeyVerdict,
+    ConfigTier,
+    ConfigTierAudit,
+    ConfigTierFinding,
+    PendingConfigRequest,
+} from "./config-tiers.js";
+export { isUnderDevelopment, readPluginDevelopment } from "./plugin-development.js";
+export type { PluginDevelopmentEntry } from "./plugin-development.js";
+export {
     affectedWorkspacePackagesFromChangedPaths,
     affectedWorkspacePackagesFromGitStatus,
     changedFilePathsFromGitNameOnly,
     changedFilePathsFromGitStatus,
     findWorkspacePackageForPath,
     findWorkspaceRoot,
+    hasWorkspaceRootMarker,
 } from "./workspace.js";
 
 export function findSovereignRoot(startDir?: string): string;
@@ -172,6 +192,20 @@ export const REFARM_CONFIG_LEGACY_FILE_NAME: string;
 /** The neutral, brand-free env var naming the sovereign config directory (the app
  * sets it, e.g. ".refarm"). No substrate default — the app owns the name. */
 export const SOVEREIGN_DIR_SELECTOR_KEY: "SOVEREIGN_DIR";
+/** Names WHERE this node's declarations live — the directory containing the sovereign dir. */
+export const SOVEREIGN_BASE_KEY: "SOVEREIGN_BASE";
+/** The base declarations resolve against: `SOVEREIGN_BASE`, else `dirname(REFARM_HOME)`,
+ * else the OS home directory. The Rust counterpart is `run_daemon` in
+ * `packages/tractor/src/main.rs` (NOT `dirs_sovereign_base`, which never reads
+ * `SOVEREIGN_BASE`); the two change together. This function never reads `process.cwd()` —
+ * Rust's `config_node.rs::declared_base()` still can; see the `.js` doc comment. */
+export function declaredBase(env?: Record<string, string | undefined>): string;
+/** The base AND which step produced it (ISS-025) — `declaredBase` is a projection of this, so a
+ *  caller can never label a step `declaredBase` did not take. */
+export function declaredBaseWithOrigin(env?: Record<string, string | undefined>): {
+	base: string;
+	origin: "SOVEREIGN_BASE" | "REFARM_HOME" | "env-home" | "os-home";
+};
 /** The config file name inside the sovereign config dir (fixed substrate convention). */
 export const CONFIG_FILE_NAME: "config.json";
 /** Thrown when the sovereign config dir selector is unset (no substrate default). */
@@ -209,6 +243,13 @@ export function resolveEnvPrefix(
 export interface LoadConfigOptions {
     /** White-label env-var prefix (default resolved via {@link resolveEnvPrefix}). */
     envPrefix?: string;
+    /**
+     * The environment this load reads — the prefix, the `<PREFIX>_*` mapping, `{{env.X}}`
+     * interpolation, AND the `SOVEREIGN_DIR` selector that decides which file is loaded at all.
+     * Defaults to `process.env`. Injecting it used to be honoured by the prefix and ignored by
+     * the path (ISS-103).
+     */
+    env?: Record<string, string | undefined>;
 }
 export function loadConfig(root?: string, options?: LoadConfigOptions): any;
 export function loadConfigAsync(

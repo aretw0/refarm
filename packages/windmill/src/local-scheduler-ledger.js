@@ -21,6 +21,7 @@ function assertNonEmptyString(value, name) {
 
 /** Map a `{ cwd, filePath? }` options object to openScopedLedger options. */
 function ledgerOptions(options = {}) {
+	// os-resolution: project — the local scheduler ledger lives beside the project it schedules for
 	const cwd = options.cwd ?? process.cwd();
 	assertNonEmptyString(cwd, "cwd");
 	// An explicit absolute filePath opts out of scope resolution (the fs provider

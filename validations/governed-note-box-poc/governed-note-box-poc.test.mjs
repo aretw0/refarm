@@ -149,7 +149,7 @@ describe("governed note box poc", () => {
 	it("publishes a task artifact manifest for downstream labs", () => {
 		const manifest = readFixture("task-artifacts.json");
 
-		assert.equal(manifest.schema, "refarm.task-artifacts.v1");
+		assert.equal(manifest.schema, "sovereign.task-artifacts.v1");
 		assert.equal(manifest.taskId, "task-governed-note-box-poc");
 		assert.equal(manifest.effortId, "effort-governed-note-box-poc-001");
 		assert.deepEqual(

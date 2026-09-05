@@ -1,0 +1,83 @@
+{
+  "note": "The reachability ratchet (D1, docs/superpowers/specs/2026-08-04-instruments-for-the-four-shapes-design.md). Mirrors the shape scripts/ci/model-defaults-price-baseline.json already uses in this repo: a baseline that may only shrink. `pnpm run contracts:reachability:check` goes red if a non-reachable/unnamed declared type or field is NOT listed here (growth), red if a listed entry has since become reachable/named and was not deleted (undeleted progress), and red if a listed entry's state no longer matches reality, including a renamed/removed type or field (stale cover). It is green only while every non-reachable declared field, or unnamed declared type, is fully and currently accounted for here. Every entry cites where it looked and what it found, not just a state label — an unverified claim presented as fact is exactly the failure this gate exists to prevent. Edited BY HAND: no command writes this file. History: first populated 2026-08-04 from the gate's own first run against develop, scanning only packages/*-contract-v1/src/types.ts and matching field names as text. That first run's real finding was five contract packages each declaring a `*TelemetryEvent` type named nowhere else in the repository — caught only through `traceId`, the one distinctively-named field, since the type's other fields (`pluginId`, `durationMs`, `ok`) were common enough to look accidentally reachable. The SAME DAY, enrichment:v1's telemetry got wired for real (packages/capabilities-v1/src/records-capability.ts's `enrich` action constructs a real EnrichmentTelemetryEvent and returns it in the envelope `refarm records enrich --json` prints; records-capability.test.ts reads `.traceId` back to prove it) — and because the gate matched FIELD NAMES AS TEXT, not types, that one genuine `.traceId` read/write pair made ALL FIVE `*TelemetryEvent.traceId` baseline entries read as reachable and required their deletion, including the four still-genuinely-unwired ones. The finding was never 'the field traceId is unused' — it was 'the TYPE EnrichmentTelemetryEvent is named nowhere', and the gate could not ask that question. UPDATE 2026-08-04 (v2, same day): the gate now asks the type question FIRST — does a declared type's NAME appear anywhere outside its own declaration? — before it ever asks a field-level producer/consumer question of that type's fields (see COVERAGE_LIMITS_NOTE and the module doc comment's 'The TYPE question' section). identity/source/storage/sync-contract-v1's telemetry events are restored below as `unnamed` type-level entries, ONE entry per dead type rather than one per field — a type nobody names makes its fields trivially non-reachable too, so this gate now reports the type once. enrichment-contract-v1:EnrichmentTelemetryEvent is correctly NOT listed below: its name is genuinely referenced outside its own declaration (records-capability.ts and its test), so it is a live type and its fields are judged individually — and traceId is genuinely reachable. The same v2 change widened scope to wire contracts by NATURE, not by directory: every Rust struct/enum under packages/tractor/src/ that derives Serialize or Deserialize is now scanned too, alongside packages/*-contract-v1/src/types.ts — this is the design's own motivating example, `Effort.workspace_id`, which lives on packages/tractor/src/sidecar/mod.rs and was invisible to the original directory-scoped gate. Verified directly: `Effort.workspace_id` itself is reachable today (apps/refarm/src/commands/dispatch-capability.ts's `--workspace` flag sets `effort.workspaceId`; packages/tractor/src/sidecar/dispatch.rs and budget.rs read `effort.workspace_id` back) — no baseline entry needed, the original defect is fixed. The widening also required teaching the mechanical case guess to run BOTH directions (camelCase→snake_case already existed for TS-declared fields; snake_case→camelCase, `snakeToCamel`, is new) since a declared field can now start life as a Rust identifier — without it, genuinely-wired fields like `provides_api`/`providesApi`, `scoped_credentials`/`scopedCredentials`, and `plugin_ids`/`pluginIds` would have read as false unreachable defects, the exact opposite failure direction from the TelemetryEvent bug. The four NEW `tractor:` entries below are the widened scope's real, verified findings, none of them scanner artifacts: two Deserialize-only structs that exist to parse the external `tailscale status --json` command's own JSON (no producer within this repo BY DESIGN — the producer is the Tailscale CLI binary, and their `#[serde(rename = \"Self\")]`/`#[serde(rename = \"TailscaleIPs\")]` wire names are not a mechanical transform of `myself`/`tailscale_ips` in either direction regardless), and one bench-comparison payload (`GhaPayload`) written by tractor-bench.rs for a GitHub Actions workflow step to read (no consumer within packages/ or apps/ — the consumer is the CI workflow, outside this gate's scanned scope, the same shape as several pre-existing `unread` entries below). UPDATE 2026-08-04 (widen evidence scan to examples/ and validations/): the gate's own printed coverage sentence said it scanned producers/consumers/type-names ONLY across packages/ and apps/, but this repo keeps real contract consumers in examples/ and validations/ BY DESIGN — that is what those trees are for. The false positive that proved it: vault-contract-v1:VaultSearchHit.score was baselined above (now REMOVED) as `unread` with the reason 'nothing in packages/ or apps/ reads .score off a VaultSearchHit', explicitly noting a similarly-named field in examples/reqbench-t3 as out of scanned scope and assumed unrelated — but it was NOT unrelated: examples/reqbench-t3/src/search.ts's `requirements-search` capability calls vault-contract-v1's own `searchRecords`, reads `hit.score` off each returned `RecordSearchHit` (organize.ts's `interface RecordSearchHit extends VaultSearchHit`) at search.ts:119, and sorts results by it at search.ts:129 — a genuine running consumer, invisible to the gate purely because of the directory it lived in. Widening the scan (see check-contract-reachability.mjs's EVIDENCE_SCAN_DIR_NAMES) to include examples/ and validations/ makes VaultSearchHit.score read as `reachable` and it is deleted from this file accordingly. templates/ was read and deliberately EXCLUDED from the widened scope: it holds zero .ts/.tsx files, and its only .rs content (templates/rust-plugin/src/lib.rs, a plugin scaffold body, and bindings.rs, wit_bindgen-GENERATED bindings deriving only Clone) names no declared contract field and derives no Serialize/Deserialize struct — a name in a scaffold template is a starting point someone copies into a NEW package, not this repo's own code exercising a contract, and counting it as a consumer would let a template field resurrect a genuinely dead one. Every other entry in this file was re-verified against the widened scope and NONE besides VaultSearchHit.score changed state — the widening's only effect was correcting this one false positive.",
+  "entries": [
+    {
+      "id": "artifact-contract-v1:ArtifactProvenance.inputHashes",
+      "state": "unreachable",
+      "date": "2026-08-04",
+      "reason": "Declared optional on ArtifactProvenance and read by the type's own runtime validator in the same file (`value.inputHashes.forEach(...)`); nothing in packages/ or apps/ constructs a value for it — no ArtifactProvenance literal anywhere sets `inputHashes`."
+    },
+    {
+      "id": "skill-contract-v1:SkillSurfaceDeclarationOptions.includeOptionalCapabilities",
+      "state": "unreachable",
+      "date": "2026-08-04",
+      "reason": "Read once, in skill-activation.ts (`options.includeOptionalCapabilities ? ... : []`); no caller in packages/ or apps/ ever passes `{ includeOptionalCapabilities: true }` (or any value) when building the options object, so the read always sees `undefined`."
+    },
+    {
+      "id": "authorization-contract-v1:SelectivePresentation.presentedAt",
+      "state": "unread",
+      "date": "2026-08-04",
+      "reason": "Set by the reference implementation (`presentedAt: this.now().toISOString()` in reference.ts); nothing in packages/ or apps/ reads `.presentedAt` back — the reference implementation stamps a timestamp no consumer has landed for yet."
+    },
+    {
+      "id": "credentials-contract-v1:CredentialVerificationPolicy.trustRegistry",
+      "state": "unread",
+      "date": "2026-08-04",
+      "reason": "Only appears as a type declaration and in apps/site's JSON-LD vocabulary mapping (`trustRegistry: \"credentials:trustRegistry\"`, itself a schema description rather than a policy construction); no CredentialVerificationPolicy is ever built with it set, and nothing reads it."
+    },
+    {
+      "id": "source-contract-v1:SourceStatus.lastFetchedAt",
+      "state": "unread",
+      "date": "2026-08-04",
+      "reason": "Set by source-web's provider (`lastFetchedAt: provenance?.cache.capturedAt ?? mtime.toISOString()`); nothing in packages/ or apps/ reads `.lastFetchedAt` back."
+    },
+    {
+      "id": "identity-contract-v1:IdentityTelemetryEvent",
+      "state": "unnamed",
+      "date": "2026-08-04",
+      "reason": "Verified via `grep -rn '\\bIdentityTelemetryEvent\\b' packages apps` (scoped to .ts/.tsx/.rs, matching this gate's own scan): the name appears ONLY at its own declaration in identity-contract-v1/src/types.ts (a mention in the package's README.md doesn't count — out of this gate's file-extension scope). No import, construction, or type annotation anywhere references it. One of the original five `*TelemetryEvent` duplicates this gate's first run caught; restored here as a type-level entry now that the gate asks the type question before the field question."
+    },
+    {
+      "id": "source-contract-v1:SourceTelemetryEvent",
+      "state": "unnamed",
+      "date": "2026-08-04",
+      "reason": "Same verification and shape as IdentityTelemetryEvent above: `grep -rn '\\bSourceTelemetryEvent\\b' packages apps` matches only its own declaration in source-contract-v1/src/types.ts. Genuinely unwired, not a field-name-collision artifact."
+    },
+    {
+      "id": "storage-contract-v1:StorageTelemetryEvent",
+      "state": "unnamed",
+      "date": "2026-08-04",
+      "reason": "Same verification and shape again: `grep -rn '\\bStorageTelemetryEvent\\b' packages apps` matches only its own declaration in storage-contract-v1/src/types.ts (plus the package's own README.md, out of scan scope). Genuinely unwired."
+    },
+    {
+      "id": "sync-contract-v1:SyncTelemetryEvent",
+      "state": "unnamed",
+      "date": "2026-08-04",
+      "reason": "Same verification and shape again: `grep -rn '\\bSyncTelemetryEvent\\b' packages apps` matches only its own declaration in sync-contract-v1/src/types.ts (plus the package's own README.md, out of scan scope). Genuinely unwired — the last of the original five duplicates; enrichment-contract-v1:EnrichmentTelemetryEvent is the one that is actually wired and is correctly absent from this file."
+    },
+    {
+      "id": "tractor:TailscaleStatusJson.myself",
+      "state": "unreachable",
+      "date": "2026-08-04",
+      "reason": "Read at packages/tractor/src/sidecar/tailnet_resolve.rs's `resolve_ipv4_from_status_json` (`parsed.myself`, gated on `BackendState == \"Running\"`), but TailscaleStatusJson is Deserialize-only: it exists solely to parse the stdout of the external `tailscale status --json` command, so nothing in packages/ or apps/ ever constructs one — the producer is the Tailscale CLI binary itself, outside this repo's source. `#[serde(rename = \"Self\")]` also puts the wire name outside both the camelCase and snake_case mechanical guesses regardless of the producer question."
+    },
+    {
+      "id": "tractor:TailscaleSelfJson.tailscale_ips",
+      "state": "unreachable",
+      "date": "2026-08-04",
+      "reason": "Read at the same tailnet_resolve.rs (`myself.tailscale_ips`), the same external-boundary shape as TailscaleStatusJson.myself above: TailscaleSelfJson only ever comes from deserializing the Tailscale CLI's own JSON output (`#[serde(rename = \"TailscaleIPs\")]`, not a mechanical transform of `tailscale_ips` in either direction), never constructed by this repo's own code."
+    },
+    {
+      "id": "tractor:GhaPayload.improved",
+      "state": "unread",
+      "date": "2026-08-04",
+      "reason": "Set by packages/tractor/src/bin/tractor-bench.rs when it builds the benchmark-comparison payload (`GhaPayload { improved: ..., ... }`), then written to a JSON file via `write_payload` for a GitHub Actions workflow step to read; nothing in packages/ or apps/ reads `.improved` back — the consumer is the CI workflow step, outside this gate's scanned scope, the same shape as several `unread` TS entries above."
+    },
+    {
+      "id": "tractor:GhaPayload.metric",
+      "state": "unread",
+      "date": "2026-08-04",
+      "reason": "Same shape as `improved` on the same type: set when tractor-bench.rs builds the payload, written to the GHA payload file, never read back within packages/ or apps/."
+    }
+  ]
+}

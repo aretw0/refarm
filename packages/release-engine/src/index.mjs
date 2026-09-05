@@ -76,6 +76,7 @@ function ensureDirExists(baseDir) {
 	}
 }
 
+// os-resolution: project — reads the release policy embedded in the repository being released
 function readEmbeddedConfig(cwd = process.cwd()) {
 	for (const candidate of DEFAULT_EMBEDDED_CONFIG_CANDIDATES) {
 		const file = path.join(cwd, candidate);
@@ -96,6 +97,7 @@ function readEmbeddedConfig(cwd = process.cwd()) {
 	return null;
 }
 
+// os-resolution: project — resolves a policy path against the repository being released
 export function loadPolicy(policyPath = "release-policy.json", cwd = process.cwd()) {
 	const absPath = path.resolve(cwd, policyPath);
 
@@ -391,6 +393,7 @@ function readJson(absPath) {
 	return JSON.parse(fs.readFileSync(absPath, "utf8"));
 }
 
+// os-resolution: project — reads the package manifests of the repository being released
 function readPackageJsonsForWorkspace(cwd = process.cwd()) {
 	const packagesDir = path.join(cwd, "packages");
 	ensureDirExists(packagesDir);

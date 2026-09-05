@@ -100,14 +100,51 @@ playwright/.cache/
 
 # Ignore in-place JS/DTS emissions (source is always .ts)
 # Test byproducts and Local Identity
-.refarm/
+#
+# `.refarm/` guarda estado local: identidade, chaves e os tarballs do packet de
+# handoff (~720 KB por packet). Nada disso entra no Git.
+#
+# Duas exceções, abertas em 2026-08-23. ADR-080 decidiu que provas downstream
+# devolvem recibos ao lado do packet, para substituir prosa que já divergiu do
+# disco. Num diretório ignorado o recibo some no primeiro reclone — a evidência
+# precisa viveria menos que a prosa imprecisa que ela substitui. Rastreamos
+# `manifest.json` (o source of truth do packet, segundo o próprio ADR) e
+# `receipts/` (~15 KB para 16 recibos). Os tarballs continuam fora.
+#
+# `!` não re-inclui arquivo sob diretório excluído, por isso a liberação é
+# nível a nível. E o caminho é ancorado com `/` inicial: sem isso o padrão
+# passa a valer só para a raiz e desprotege `.refarm/` dentro de packages.
+/.refarm/*
+!/.refarm/handoff/
+/.refarm/handoff/*
+!/.refarm/handoff/*/
+/.refarm/handoff/*/*
+!/.refarm/handoff/*/*/
+/.refarm/handoff/*/*/*
+!/.refarm/handoff/*/*/manifest.json
+!/.refarm/handoff/*/*/manifest.md
+!/.refarm/handoff/*/*/receipts/
+# `.refarm/` em qualquer outro lugar do workspace continua sendo estado local.
+**/*/.refarm/
 .dgk/
+
+# The sandbox node (scripts/refarm-sandbox.mjs) — a second, isolated refarm node out of
+# this working tree: its own sovereign dir, its own graph (db file), pid/log files. Local
+# lab state; never committed, exactly like .refarm/ above.
+.sandbox/
 
 # Standard: All compiled outputs go to dist/
 # Use a more targeted approach for packages
 packages/**/dist/
 packages/**/build/
 packages/**/.turbo/
+# farm-client is a zero-install distribution. Its vendor capsules deliberately
+# carry built runtime files, source maps, and their referenced source; they are
+# package contents guarded byte-for-byte by scripts/vendor.mjs, not local build
+# output. Keep future capsules addable without a fragile `git add -f` ritual.
+!packages/farm-client/vendor/
+!packages/farm-client/vendor/**/
+!packages/farm-client/vendor/**
 # JS/declaration files never belong in src/ — guard against tsc emitting without outDir
 packages/**/src/**/*.d.ts
 packages/**/src/**/*.d.ts.map
@@ -184,3 +221,7 @@ __pycache__/
 packages/*/src/bindings.rs
 validations/**/src/bindings.rs
 !packages/tractor/tests/fixtures/**/src/bindings.rs
+
+# Superpowers subagent-driven-development scratch (ledger, briefs, reports, review packages).
+# Per-plan working area; the durable record is git history + docs/superpowers/.
+.superpowers/

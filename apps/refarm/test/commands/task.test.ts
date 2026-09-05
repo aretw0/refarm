@@ -757,9 +757,10 @@ describe("refarm task list/logs/retry/cancel", () => {
 
 		expect(adapter.summary).toHaveBeenCalled();
 		expect(adapter.list).toHaveBeenCalled();
-		expect(session.rememberList).toHaveBeenCalledWith(
-			expect.objectContaining({ transport: "file" }),
-		);
+		// ISS-091: reading does not write. `list` used to record unconditionally, which rewrote
+		// ~/.refarm/sessions/task-session.v1.json on every invocation and stamped
+		// `lastCommand: "list"` on efforts nobody commanded.
+		expect(session.rememberList).not.toHaveBeenCalled();
 		expect(spy).toHaveBeenCalledWith(
 			expect.stringContaining("Efforts: total=1"),
 		);
@@ -920,17 +921,8 @@ describe("refarm task list/logs/retry/cancel", () => {
 			});
 
 		expect(resolver).toHaveBeenCalledWith("channel:matrix");
-		expect(session.rememberList).toHaveBeenCalledWith(
-			expect.objectContaining({
-				transport: "channel:matrix",
-				efforts: [
-					expect.objectContaining({
-						effortId: "effort-abc",
-						status: "pending",
-					}),
-				],
-			}),
-		);
+		// ISS-091: same rule for every transport — the read path records nothing by default.
+		expect(session.rememberList).not.toHaveBeenCalled();
 
 		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
 			transport: string;
@@ -1892,5 +1884,33 @@ describe("refarm task resume", () => {
 
 		expect(help).toContain("refarm task resume --json");
 		expect(help).toContain("It does not contact the runtime by itself");
+	});
+});
+
+describe("refarm task list --refresh (ISS-091)", () => {
+	it("records what it observed only when the operator asks for it", async () => {
+		const adapter = createMockAdapter({
+			list: vi.fn().mockResolvedValue([
+				{
+					effortId: "effort-abc",
+					status: "delivered",
+					results: [],
+					submittedAt: new Date().toISOString(),
+				} satisfies EffortResult,
+			]),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "list")!
+			.parseAsync(["--refresh"], { from: "user" });
+
+		expect(session.rememberList).toHaveBeenCalledWith(expect.objectContaining({ transport: "file" }));
+		spy.mockRestore();
 	});
 });

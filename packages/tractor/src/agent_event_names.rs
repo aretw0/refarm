@@ -12,4 +12,5 @@ pub(crate) const TOOL_CALL: &str = "agent:tool:call";
 pub(crate) const RESPONSE_DONE: &str = "agent:response:done";
 pub(crate) const ERROR: &str = "agent:error";
 pub(crate) const BUDGET_BLOCKED: &str = "agent:budget:blocked";
+pub(crate) const BUDGET_UNKNOWN: &str = "agent:budget:unknown";
 pub(crate) const ROUTE_SELECTED: &str = "agent:route:selected";

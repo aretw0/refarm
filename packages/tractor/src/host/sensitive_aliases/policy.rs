@@ -12,6 +12,12 @@ pub(crate) fn is_disallowed_model_forward_env_upper(upper: &str) -> bool {
             | "MODEL_USER_NAME"
             | "MODEL_EMAIL"
             | "MODEL_AUTHENTICATION"
+            // The per-ACCOUNT credential map (ISS-145). Blocked BY NAME rather than by a suffix
+            // pattern: it carries live provider tokens keyed by opaque credential id, the host
+            // reads it at send time, and the guest must never see it. A name that happened not to
+            // match a pattern would forward secret material to a plugin — the one failure this
+            // whole policy exists to make impossible, so it is stated rather than inferred.
+            | "MODEL_ACCOUNT_CREDENTIALS"
     ) || upper.ends_with("_API_KEY")
         || upper.ends_with("_KEY")
         || upper.contains("_KEY_")
@@ -204,16 +210,18 @@ pub(crate) fn is_forwardable_model_env_value(value: &str) -> bool {
 
 /// A `MODEL_*` key whose value is TEXT CONTENT the model reads, not a credential:
 /// the skill disclosure index (`MODEL_SKILLS`), the on-demand skill bodies map
-/// (`MODEL_SKILL_BODIES`), and the ADR-012 routing config list of which providers are
+/// (`MODEL_SKILL_BODIES`), the ADR-012 routing config list of which providers are
 /// configured (`MODEL_CONFIGURED_PROVIDERS` — a space/comma-separated list of provider
-/// NAMES, never the keys themselves). Their values legitimately contain whitespace and
-/// are more than a single token — so they need a text-shaped forward policy, not the
-/// credential-shaped default. This is a CLOSED allowlist (not a pattern) so it can never
-/// accidentally widen to a real secret key.
+/// NAMES, never the keys themselves), and the verified model rate catalog
+/// (`MODEL_RATE_CATALOG` — a JSON document of PUBLIC vendor prices with their citations,
+/// resolved to the window in force by the host so the guest needs no clock). Their values
+/// legitimately contain whitespace and are more than a single token — so they need a
+/// text-shaped forward policy, not the credential-shaped default. This is a CLOSED
+/// allowlist (not a pattern) so it can never accidentally widen to a real secret key.
 pub(crate) fn is_text_content_model_env_key(key: &str) -> bool {
     matches!(
         key,
-        "MODEL_SKILLS" | "MODEL_SKILL_BODIES" | "MODEL_CONFIGURED_PROVIDERS"
+        "MODEL_SKILLS" | "MODEL_SKILL_BODIES" | "MODEL_CONFIGURED_PROVIDERS" | "MODEL_RATE_CATALOG"
     )
 }
 

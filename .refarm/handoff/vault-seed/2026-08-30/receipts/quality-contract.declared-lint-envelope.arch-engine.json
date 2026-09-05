@@ -1,0 +1,24 @@
+{
+  "proofId": "quality-contract.declared-lint-envelope",
+  "packageName": "@refarm.dev/quality-contract-v1",
+  "consumer": "arch-engine",
+  "consumerCommit": "ff1e89f7bd6e1f269c3cd85ace28a2522283400f",
+  "consumerDirty": false,
+  "manifestSha256": "acec276ab331a4d6fa758be5056797dd79715e85856d834b8dc4ed2033b5b5bf",
+  "generatedAt": "2026-08-30T17:48:35.000Z",
+  "commands": [
+    "npm run vendor:refarm",
+    "npm install --no-package-lock",
+    "npm run test:refarm"
+  ],
+  "result": "pass",
+  "proofTargetAtPacket": "a consumer and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
+  "proofTargetCurrentPolicy": "a consumer and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
+  "notes": [
+    "Segunda emissao deste receipt, agora sobre o packet 2026-08-30: o gap registrado no receipt de 2026-08-29 (nao havia como validar um relatorio ja existente) foi fechado em aaa3b6cc com validateQualityReport, e a prova passou a usa-lo.",
+    "Produtor Python (core/arch_engine/contracts.py espelha types.ts); o perfil YAML da demo e um QualityProfile literal com check.type resolvido por um registro de checks de dominio fisico. Catalogo de regras e severidade ficam downstream.",
+    "validateQualityReport do tarball real devolve zero issues; counts == tally exato de findings.",
+    "Seam temporario que continua: o espelho manual dos types.ts. JSON Schema publicado ao lado dos contratos o eliminaria (demanda P0 em arch-engine/docs/ECOSYSTEM-DEMANDS.md).",
+    "Terceira emissao, sobre o packet 2026-08-30 rematerializado com 27 pacotes (refarm 50539198): quality-contract-v1 mudou de bytes (36049781cfb7), artifact e provenance nao; test:refarm passa sobre os artefatos do build verificado na main do arch-engine (run 33287941277)."
+  ]
+}

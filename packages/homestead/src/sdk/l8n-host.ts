@@ -1,5 +1,7 @@
 import en from "@refarm.dev/locales/en.json";
+import es from "@refarm.dev/locales/es.json";
 import ptBR from "@refarm.dev/locales/pt-BR.json";
+import { formatMessage, resolveLocale } from "@refarm.dev/localization-v1";
 
 /**
  * L8nHost — Homestead shell internationalization helper.
@@ -61,13 +63,7 @@ export class L8nHost {
 
 		if (!value) return key;
 
-		if (params) {
-			for (const [param, replacement] of Object.entries(params)) {
-				value = value.replace(`{${param}}`, replacement);
-			}
-		}
-
-		return value;
+		return formatMessage(value, params);
 	}
 
 	private setupCore(): void {
@@ -83,12 +79,12 @@ export class L8nHost {
 
 export function createHomesteadL8n(locale = resolveBrowserLocale()): L8nHost {
 	const l8n = new L8nHost();
-	l8n.setLocale(locale);
+	const selected = resolveLocale([locale]);
+	l8n.setLocale(selected);
 	l8n.registerKeys("core", en);
 
-	if (locale === "pt") {
-		l8n.registerKeys("core", ptBR);
-	}
+	if (selected === "pt-BR") l8n.registerKeys("core", ptBR);
+	if (selected === "es") l8n.registerKeys("core", es);
 
 	return l8n;
 }

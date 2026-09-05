@@ -8,7 +8,7 @@ This document catalogues the modular primitives and engines of the Refarm monore
 |---|---|---|---|
 | [`@refarm.dev/tractor`](./tractor) | The Sovereign Microkernel & Plugin Host | 🟡 Stable-ish | Internal |
 | [`@refarm.dev/windmill`](./windmill) | Automation Engine & Infrastructure | 🟠 Alpha | Internal |
-| [`@refarm.dev/health`](./health) | Stratified Health & Policy Auditor | 🟢 Production | Release-profiled; held |
+| [`@refarm.dev/health`](./health) | Stratified Health & Policy Auditor | 🟢 Production | Release-profiled; out of `consumer-ready` until `config` passes boundary review (no consumer uses it in product) |
 
 ## 🛡 Capability Contracts (v1)
 These packages define foundational interoperability layers between Refarm and
@@ -20,14 +20,14 @@ publication remains held by the daily-driver gate or explicit human override.
 | [`@refarm.dev/storage-contract-v1`](./storage-contract-v1) | ✅ Conformance | 🟢 Candidate | `kernel-candidates`; held |
 | [`@refarm.dev/sync-contract-v1`](./sync-contract-v1) | ✅ Conformance | 🟢 Candidate | `kernel-candidates`; held |
 | [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | ✅ Conformance | 🟢 Candidate | `kernel-candidates`; held |
-| [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | ✅ Fixture Validation | 🟡 Candidate | `kernel-candidates` + `vault-seed-ready`; held |
+| [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | ✅ Fixture Validation | 🟡 Candidate | `kernel-candidates` + `consumer-ready`; held |
 | [`@refarm.dev/skill-contract-v1`](./skill-contract-v1) | ✅ Manifest/Surface Validation | 🟡 Proof-gated | held until engine dogfood smoke |
 
 ## 📚 Librarian Source Primitives
 
 These packages provide the `source:v1` librarian boundary. The base contract
 and authenticated-web fixture adapter are now selected for the consumer-pulled
-`vault-seed-ready` lane after the T3 proof. The other adapters remain
+`consumer-ready` lane after the T3 proof. The other adapters remain
 release-profiled and checked, but held until Refarm dogfood, the official
 `vault-seed` checkout, or `agents-lab` needs that package leaf directly.
 `source-dispatch` is intentionally absent until one of those paths needs
@@ -35,10 +35,10 @@ release-profiled and checked, but held until Refarm dogfood, the official
 
 | Package | Purpose | Publishing |
 |---|---|---|
-| [`@refarm.dev/source-contract-v1`](./source-contract-v1) | Versioned `source:v1` capability contract and conformance suite | `vault-seed-ready`; held |
+| [`@refarm.dev/source-contract-v1`](./source-contract-v1) | Versioned `source:v1` capability contract and conformance suite | `consumer-ready`; held |
 | [`@refarm.dev/source-git`](./source-git) | Clean cached git checkout provider for remote repositories | release-profiled; held |
 | [`@refarm.dev/source-local`](./source-local) | Live local working-tree provider with dirty/untracked status | release-profiled; held |
-| [`@refarm.dev/source-web`](./source-web) | Authenticated web capture fixture adapter that materializes redacted, replayable local snapshots through `source:v1` | consumer-proven; `vault-seed-ready`; held |
+| [`@refarm.dev/source-web`](./source-web) | Authenticated web capture fixture adapter that materializes redacted, replayable local snapshots through `source:v1` | consumer-proven; `consumer-ready`; held |
 
 The T3 requirements-vault pressure activated `@refarm.dev/source-web` as a
 sanitized fixture adapter. It deliberately reports `source:v1` snapshots as
@@ -54,11 +54,13 @@ and downstream proofs exist.
 
 | Candidate | Purpose | Publishing |
 |---|---|---|
-| [`@refarm.dev/enrichment-contract-v1`](./enrichment-contract-v1) | Deterministic record/note enrichment provider contract with dry-run/apply evidence, diagnostics, and provenance | consumer-proven; `vault-seed-ready`; held |
-| [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Graph/content envelope for records, sections, relations, attachments, source references, hashes, and review state; YAML-LD codec lives at the package subpath | consumer-proven; `vault-seed-ready`; held |
-| [`@refarm.dev/content-projection`](./content-projection) | Markdown/MDX frontmatter, wikilink, and inline-link projection into `records:v1` records without owning acquisition or rendering | candidate; `vault-seed-ready`; held |
-| [`@refarm.dev/local-surface`](./local-surface) | Local-first surface manifest, DS-backed HTML rendering, white-label launch plan, and quality report helpers without owning provider adapters or Homestead runtime | consumer-proven; `vault-seed-ready`; held |
-| [`@refarm.dev/ds-astro`](./ds-astro) | Product-neutral Astro/MDX DS component bindings and component-map metadata without owning downstream content vocabulary | candidate; `vault-seed-ready`; held |
+| [`@refarm.dev/enrichment-contract-v1`](./enrichment-contract-v1) | Deterministic record/note enrichment provider contract with dry-run/apply evidence, diagnostics, and provenance | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Graph/content envelope for records, sections, relations, attachments, source references, hashes, and review state; YAML-LD codec lives at the package subpath | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/content-projection`](./content-projection) | Markdown/MDX frontmatter, wikilink, and inline-link projection into `records:v1` records without owning acquisition or rendering | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/local-surface`](./local-surface) | Local-first surface manifest, DS-backed HTML rendering, white-label launch plan, and quality report helpers without owning provider adapters or Homestead runtime | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/vault-contract-v1`](./vault-contract-v1) | The `vault:v1` capability contract — search, extract, organize, profile over a PARA knowledge vault — plus corpus health, a reference surface, and the conformance harness | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/provenance-contract-v1`](./provenance-contract-v1) | Where an input came from: channel, origin locator, collection time, fingerprint, license, privacy — pure stamp/read/verify with named checks | consumer-proven (arch-engine, Python producer); `consumer-ready`; held |
+| [`@refarm.dev/ds-astro`](./ds-astro) | Product-neutral Astro/MDX DS component bindings and component-map metadata without owning downstream content vocabulary | candidate; `consumer-ready`; held |
 
 ## 🌿 Native Skill Surface Contract
 
@@ -88,7 +90,7 @@ and adapter proof.
 
 ## 🌱 Consumer-Pulled Candidate Lane
 
-The `vault-seed-ready` selection is a pre-publication handoff lane for packages
+The `consumer-ready` selection is a pre-publication handoff lane for packages
 that `vault-seed` can consume as local tarballs before the full daily-driver
 release. It is not an automatic npm publication promise: the lane remains
 manual-approval gated, product-neutral, and downstream-owned for vault-specific
@@ -96,28 +98,32 @@ CLI labels, copy, notebooks, routes, and UX.
 
 | Package | Purpose | Publishing |
 |---|---|---|
-| [`@refarm.dev/artifact-contract-v1`](./artifact-contract-v1) | Artifact/provenance manifests for Lab datasets, outbox manifests, and notebook snapshots | `vault-seed-ready`; held |
-| [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | Channel delivery evidence, rate limits, dry-run reports, and review gates | `kernel-candidates` + `vault-seed-ready`; held |
-| [`@refarm.dev/effort-contract-v1`](./effort-contract-v1) | Effort/task contract dependency for dispatch evidence | `vault-seed-ready`; held |
-| [`@refarm.dev/quality-contract-v1`](./quality-contract-v1) | Declared quality/lint profiles, findings, reports, conformance, and checker contract | `vault-seed-ready`; held |
-| [`@refarm.dev/storage-contract-v1`](./storage-contract-v1) | Versioned `storage:v1` contract used by wallet/storage seams | `kernel-candidates` + `vault-seed-ready`; held |
-| [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | Versioned `identity:v1` signing contract used by credentials seams | `kernel-candidates` + `vault-seed-ready`; held |
-| [`@refarm.dev/source-contract-v1`](./source-contract-v1) | Versioned `source:v1` support contract for `source-web` | `vault-seed-ready`; held |
-| [`@refarm.dev/enrichment-contract-v1`](./enrichment-contract-v1) | Deterministic enrichment reports for source-linked records | consumer-proven; `vault-seed-ready`; held |
-| [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Neutral records envelope plus YAML-LD subpath for proof-backed front matter bridges | consumer-proven; `vault-seed-ready`; held |
-| [`@refarm.dev/process-handoff`](./process-handoff) | Build-free tokenized process specs and runner adapters | `vault-seed-ready`; held |
-| [`@refarm.dev/release-engine`](./release-engine) | Package acceptance and release-policy summaries | `vault-seed-ready`; held |
-| [`@refarm.dev/ds`](./ds) | Design tokens, theme CSS, and build-free HTML helpers consumed by vault admin/Lab UI | `vault-seed-ready`; held |
-| [`@refarm.dev/heartwood`](./heartwood) | Cryptographic core dependency for Silo | `vault-seed-ready`; held |
-| [`@refarm.dev/dispatch-surface`](./dispatch-surface) | Product-neutral dispatch surface contracts | `vault-seed-ready`; held |
-| [`@refarm.dev/silo`](./silo) | Namespaced secret collection and storage | `vault-seed-ready`; held |
-| [`@refarm.dev/storage-memory`](./storage-memory) | Volatile `storage:v1` reference provider for consumer proof and smoke wallets | `vault-seed-ready`; held |
-| [`@refarm.dev/credentials-contract-v1`](./credentials-contract-v1) | `credentials:v1` issue, verify, present, wallet, and local status-list revocation seams | consumer-proven; `vault-seed-ready`; held |
-| [`@refarm.dev/identity-heartwood`](./identity-heartwood) | Heartwood-backed Ed25519 `identity:v1` reference provider | `vault-seed-ready`; held |
-| [`@refarm.dev/source-web`](./source-web) | Authenticated-web replay fixture adapter over `source:v1` | consumer-proven; `vault-seed-ready`; held |
-| [`@refarm.dev/content-projection`](./content-projection) | Markdown/MDX projection helpers for frontmatter, wikilinks, inline links, and valid `records:v1` output | candidate; `vault-seed-ready`; held |
-| [`@refarm.dev/local-surface`](./local-surface) | Local-first surface manifest, DS-backed HTML rendering, white-label launch plan, and quality report helpers | consumer-proven; `vault-seed-ready`; held |
-| [`@refarm.dev/ds-astro`](./ds-astro) | Product-neutral Astro/MDX DS component bindings and component-map metadata | candidate; `vault-seed-ready`; held |
+| [`@refarm.dev/artifact-contract-v1`](./artifact-contract-v1) | Artifact/provenance manifests for Lab datasets, outbox manifests, and notebook snapshots | `consumer-ready`; held |
+| [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | Channel delivery evidence, rate limits, dry-run reports, and review gates | `kernel-candidates` + `consumer-ready`; held |
+| [`@refarm.dev/effort-contract-v1`](./effort-contract-v1) | Effort/task contract dependency for dispatch evidence | `consumer-ready`; held |
+| [`@refarm.dev/quality-contract-v1`](./quality-contract-v1) | Declared quality/lint profiles, findings, reports, conformance, and checker contract | `consumer-ready`; held |
+| [`@refarm.dev/storage-contract-v1`](./storage-contract-v1) | Versioned `storage:v1` contract used by wallet/storage seams | `kernel-candidates` + `consumer-ready`; held |
+| [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | Versioned `identity:v1` signing contract used by credentials seams | `kernel-candidates` + `consumer-ready`; held |
+| [`@refarm.dev/source-contract-v1`](./source-contract-v1) | Versioned `source:v1` support contract for `source-web` | `consumer-ready`; held |
+| [`@refarm.dev/enrichment-contract-v1`](./enrichment-contract-v1) | Deterministic enrichment reports for source-linked records | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Neutral records envelope plus YAML-LD subpath for proof-backed front matter bridges | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/provenance-contract-v1`](./provenance-contract-v1) | Provenance envelope with named verification checks for any input a consumer keeps | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/std`](./std) | Support: pure primitives (slugify, digest shape, bind/surface guards) that `vault-contract-v1` depends on at runtime | `consumer-ready`; held |
+| [`@refarm.dev/node-contract-v1`](./node-contract-v1) | Support: `node:v1` base GraphNode shape and normalised conversions that records/vault contracts build on | `consumer-ready`; held |
+| [`@refarm.dev/plugin-manifest`](./plugin-manifest) | Support: manifest:v1 types, validators and fixtures that `vault-contract-v1` imports; install/trust/hosting stay host-owned | `consumer-ready`; held |
+| [`@refarm.dev/process-handoff`](./process-handoff) | Build-free tokenized process specs and runner adapters | `consumer-ready`; held |
+| [`@refarm.dev/release-engine`](./release-engine) | Package acceptance and release-policy summaries | `consumer-ready`; held |
+| [`@refarm.dev/ds`](./ds) | Design tokens, theme CSS, and build-free HTML helpers consumed by vault admin/Lab UI | `consumer-ready`; held |
+| [`@refarm.dev/heartwood`](./heartwood) | Cryptographic core dependency for Silo | `consumer-ready`; held |
+| [`@refarm.dev/dispatch-surface`](./dispatch-surface) | Product-neutral dispatch surface contracts | `consumer-ready`; held |
+| [`@refarm.dev/silo`](./silo) | Namespaced secret collection and storage | `consumer-ready`; held |
+| [`@refarm.dev/storage-memory`](./storage-memory) | Volatile `storage:v1` reference provider for consumer proof and smoke wallets | `consumer-ready`; held |
+| [`@refarm.dev/credentials-contract-v1`](./credentials-contract-v1) | `credentials:v1` issue, verify, present, wallet, and local status-list revocation seams | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/identity-heartwood`](./identity-heartwood) | Heartwood-backed Ed25519 `identity:v1` reference provider | `consumer-ready`; held |
+| [`@refarm.dev/source-web`](./source-web) | Authenticated-web replay fixture adapter over `source:v1` | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/content-projection`](./content-projection) | Markdown/MDX projection helpers for frontmatter, wikilinks, inline links, and valid `records:v1` output | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/local-surface`](./local-surface) | Local-first surface manifest, DS-backed HTML rendering, white-label launch plan, and quality report helpers | consumer-proven; `consumer-ready`; held |
+| [`@refarm.dev/ds-astro`](./ds-astro) | Product-neutral Astro/MDX DS component bindings and component-map metadata | candidate; `consumer-ready`; held |
 
 ## 🔖 Plugin Metadata
 This layer waits for the Pi and multi-layer plugin architecture proofs before entering the release lane.

@@ -9,10 +9,12 @@
 // group declaration stays lean and these projections have one test target.
 
 import chalk from "chalk";
+import path from "node:path";
 
 import type { CapabilityEnvelope, CapabilityInput } from "@refarm.dev/capabilities";
 import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config/plugin-identity";
 import { renderCapabilityError } from "./capability-commander.js";
+import { describeModelRateCatalog } from "./model-rate-catalog.js";
 import { PACKAGE_MANAGER_OVERRIDE, PACKAGE_MANAGERS } from "./package-manager.js";
 import { PLUGIN_INSTALL_COMMAND } from "./plugin-handoffs.js";
 import {
@@ -56,13 +58,25 @@ export function formatStatusFromEnvelope(envelope: CapabilityEnvelope): string {
 	}
 
 	const idWidth = Math.max(...report.plugins.map((p) => p.id.length), 6);
-	const lines: string[] = [`  ${"PLUGIN".padEnd(idWidth)}  INSTALLED  LOADED  LOCAL`];
+	// The directory's BASENAME, not the full path: this column exists so two trees sharing one
+	// id (the exact scenario this phase surfaces) render as two visually distinct rows in text
+	// mode, not just in --json — a basename ("refarm_agent" vs "@refarm/agent") is enough to
+	// tell them apart without wrapping a terminal-width table.
+	const dirLabel = (dir: string | null) => (dir ? path.basename(dir) : "-");
+	const dirWidth = Math.max(...report.plugins.map((p) => dirLabel(p.dir).length), 3);
+	const integrityWidth = Math.max(...report.plugins.map((p) => (p.integrity ?? "-").length), 9);
+	const lines: string[] = [
+		`  ${"PLUGIN".padEnd(idWidth)}  KNOWN  REQUESTED  LOADED  INSTALLED  DEV  ${"INTEGRITY".padEnd(integrityWidth)}  DIR`,
+	];
 	for (const plugin of report.plugins) {
-		const installed = plugin.installed ? "yes" : "no";
+		const known = plugin.known ? "yes" : "no";
+		const requested = plugin.requested ? "yes" : "no";
 		const loaded = plugin.loaded ? "yes" : "no";
-		const local = plugin.local ? "yes" : "no";
+		const installed = plugin.installed ? "yes" : "no";
+		const development = plugin.development ? "yes" : "no";
+		const integrity = plugin.integrity ?? "-";
 		lines.push(
-			`  ${plugin.id.padEnd(idWidth)}  ${installed.padEnd(9)}  ${loaded.padEnd(6)}  ${local}`,
+			`  ${plugin.id.padEnd(idWidth)}  ${known.padEnd(5)}  ${requested.padEnd(9)}  ${loaded.padEnd(6)}  ${installed.padEnd(9)}  ${development.padEnd(3)}  ${integrity.padEnd(integrityWidth)}  ${dirLabel(plugin.dir).padEnd(dirWidth)}`,
 		);
 	}
 
@@ -136,20 +150,44 @@ export function formatInstallFromEnvelope(envelope: CapabilityEnvelope): string 
 		);
 	}
 	const report = envelope as unknown as PluginInstallReport;
-	return (report.plugins ?? [])
-		.map((p) => {
-			switch (p.status) {
-				case "installed":
-					return chalk.green(
-						`  ✓ ${p.id} v${p.version} installed from ${p.packageSource} (${p.bytes} bytes)`,
-					);
-				case "cached":
-					return chalk.green(`  ✓ ${p.id} v${p.version} already up-to-date`);
-				default:
-					return chalk.red(`  ✗ ${p.id}: ${p.message}`);
-			}
-		})
-		.join("\n");
+	const lines = (report.plugins ?? []).map((p) => {
+		switch (p.status) {
+			case "installed":
+				return chalk.green(
+					`  ✓ ${p.id} v${p.version} installed from ${p.packageSource} (${p.bytes} bytes)`,
+				);
+			case "cached":
+				return chalk.green(`  ✓ ${p.id} v${p.version} already up-to-date`);
+			default:
+				return chalk.red(`  ✗ ${p.id}: ${p.message}`);
+		}
+	});
+	// The same pass materialises the runtime's rate catalog. It used to be reported ONLY
+	// in `--json`, so a node running last month's prices — or holding back an update
+	// because someone edited the catalog — was invisible to the human who ran the command.
+	const catalog = formatModelRateCatalogLine(report.modelRateCatalog);
+	if (catalog) lines.push(catalog);
+	return lines.join("\n");
+}
+
+/** Colour the one catalog line by what it means: taken, held back, or missing. `kept`
+ *  renders nothing, so the ordinary start stays quiet. */
+function formatModelRateCatalogLine(
+	result: PluginInstallReport["modelRateCatalog"],
+): string | null {
+	if (!result) return null;
+	const line = describeModelRateCatalog(result);
+	if (!line) return null;
+	switch (result.status) {
+		case "materialized":
+		case "updated":
+			return chalk.green(line);
+		case "edited":
+		case "unknown":
+			return chalk.yellow(line);
+		default:
+			return chalk.red(line);
+	}
 }
 
 // ── bundle ──────────────────────────────────────────────────────────────────

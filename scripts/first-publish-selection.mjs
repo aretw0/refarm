@@ -6,7 +6,7 @@ import { detectPackageManager, packageManagerSpawnCommand } from "../packages/co
 import { buildReleaseCheckPlan } from "./release-check.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const DEFAULT_SELECTION = "vault-seed-ready";
+const DEFAULT_SELECTION = "consumer-ready";
 const FIRST_PUBLISH_VERSION = "0.1.0";
 
 export function parseFirstPublishArgs(argv = []) {
@@ -160,6 +160,32 @@ function commandFor(packageManager, args) {
 	};
 }
 
+/**
+ * A package whose exact version is already on the registry is SKIPPED, not re-published:
+ * `pnpm publish` would fail on it and leave the rest of the unit unpublished. A package can sit
+ * in two units (quality-contract-v1 is in both design-system-ready and evidence-contracts-ready),
+ * so the second lane must be a no-op for what the first one already shipped. The probe is
+ * injectable so the rule is testable without a registry.
+ */
+export function defaultPublishedVersionProbe(packageName, version) {
+	const result = spawnSync("npm", ["view", `${packageName}@${version}`, "version", "--json"], {
+		encoding: "utf8",
+	});
+	if (result.status !== 0) {
+		return false; // 404 (never published) or network error — let publish decide
+	}
+	try {
+		const parsed = JSON.parse(result.stdout.trim() || "null");
+		return parsed === version || (Array.isArray(parsed) && parsed.includes(version));
+	} catch {
+		return false;
+	}
+}
+
+export function isAlreadyPublished(command, probe = defaultPublishedVersionProbe) {
+	return probe(command.packageName, command.version) === true;
+}
+
 function runCommand(command) {
 	console.log(`[first-publish] ${command.packageName}@${command.version}: ${command.display} (${command.packageDir})`);
 	const result = spawnSync(command.command, command.args, {
@@ -205,6 +231,12 @@ if (isMain()) {
 
 		if (!options.planOnly) {
 			for (const command of plan.commands) {
+				if (plan.mode === "publish" && isAlreadyPublished(command)) {
+					console.log(
+						`[first-publish] ${command.packageName}@${command.version}: already on the registry, skipping`,
+					);
+					continue;
+				}
 				runCommand(command);
 			}
 		}

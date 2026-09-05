@@ -13,23 +13,45 @@
  *
  * Discovery ladder (first hit wins):
  *   0. Tailscale peers (if the `tailscale` CLI is here) — precise, works from
- *      ANY network. No IP typed. On a device without the CLI, pass the host's
- *      MagicDNS name (it resolves over the tailnet from anywhere).
+ *      ANY network. No IP typed.
+ *   0b. If the tailnet CANNOT BE ASKED (no `tailscale` CLI — the normal state on
+ *      Android, which runs the app), the host's MagicDNS NAME is offered FIRST,
+ *      and the /24 sweep is skipped: a device that cannot enumerate has no
+ *      business probing 253 addresses. See `planTailnetReach`.
  *   1. LAN broadcast + multicast — the opt-in announcer (refarm discover announce).
- *   2. LAN unicast /24 sweep — when the router filters broadcast/multicast.
+ *   2. LAN unicast /24 sweep — when the router filters broadcast/multicast, and
+ *      only when the tailnet actually ANSWERED.
  *
  * Then it probes the resolved host:
  *   - HTTP sidecar (http://<host>:42001/plugins) — is the control plane up?
  *   - CRDT WebSocket (ws://<host>:42000) — can this device join the sync mesh?
  */
 import { networkInterfaces } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { askFarmHost, cancellationExit } from "../src/ask-host.mjs";
+import { farmAuthHeaders, farmSyncWsProtocols } from "../src/auth.mjs";
 import { defaultProbeTargets, discoverFarms, subnetSweepTargets } from "../src/beacon.mjs";
-import { tailnetPeers } from "../src/tailnet.mjs";
+import { readRememberedHost } from "../src/farm-host.mjs";
+import {
+	byNameLines,
+	daemonWsExposureLines,
+	planTailnetReach,
+	sidecarExposureLines,
+} from "../src/reach.mjs";
+import { tailnetPeersReport } from "../src/tailnet.mjs";
 
 const WS_PORT = Number(process.env.FARM_WS_PORT ?? 42000);
+/** How this script was actually invoked, so every suggested command is copyable
+ *  as-is — on a phone the kit lives under ~/.refarm/kit/farm-client, not here. */
+const SELF = `node ${process.argv[1] ?? "bin/farm-hello.mjs"}`;
+/** This kit's root (bin/..), where the farm it came from is remembered. */
+const KIT_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** Does <host>:42000 accept a WS handshake? Used both to pick a tailnet peer
- *  and as the final sync check. Resolves {ok, detail}. */
+ *  and as the final sync check. Resolves {ok, detail}. When FARM_TOKEN is set
+ *  (ADR-093, a gated farm), offers it as a `bearer.<token>` subprotocol — see
+ *  `farmSyncWsProtocols`. Unset ⇒ no protocols offered, unchanged from before. */
 function syncHandshake(host, timeoutMs = 5000) {
   return new Promise((resolve) => {
     let settled = false;
@@ -39,7 +61,7 @@ function syncHandshake(host, timeoutMs = 5000) {
       resolve({ ok, detail });
     };
     try {
-      const ws = new WebSocket(`ws://${host}:${WS_PORT}`);
+      const ws = new WebSocket(`ws://${host}:${WS_PORT}`, farmSyncWsProtocols());
       const timer = setTimeout(() => {
         ws.close();
         done(false, "timeout after 5s");
@@ -98,32 +120,53 @@ async function resolveHost() {
   const explicit = process.argv[2] ?? process.env.FARM_HOST;
   if (explicit) return { host: explicit, via: "explícito" };
 
+  // O nome que este aparelho já conhece. Perguntado uma vez (ou trazido pelo
+  // install), ele vale como um argumento explícito: é o mesmo caminho por NOME,
+  // só que o operador não precisa redigitá-lo a cada hello.
+  const remembered = await readRememberedHost(KIT_ROOT);
+  if (remembered) return { host: remembered, via: "fazenda lembrada" };
+
   // Dialeto 0: peers da tailnet (Tailscale) — preciso, funciona de QUALQUER rede.
   // O beacon UDP não cruza a tailnet; a lista de peers, sim. Probamos o sync de
   // cada peer diretamente (não precisa do anunciante).
-  const peers = await tailnetPeers();
-  if (peers.length > 0) {
-    console.log(`🔎 Tailnet detectada — testando ${peers.length} peer(s)…`);
-    for (const peer of peers) {
-      const check = await syncHandshake(peer.ip, 3000);
-      if (check.ok) return { host: peer.ip, via: `tailnet (${peer.name})` };
-    }
+  //
+  // `tailnetPeersReport` (e não `tailnetPeers`) porque a diferença entre "a
+  // tailnet disse que não há ninguém" e "não consegui perguntar" MUDA o que vem
+  // depois — `planTailnetReach` é quem decide, e é puro/testável.
+  const plan = planTailnetReach(await tailnetPeersReport(), { self: SELF });
+  for (const line of plan.lines) console.log(line);
+  for (const peer of plan.peers) {
+    const check = await syncHandshake(peer.ip, 3000);
+    if (check.ok) return { host: peer.ip, via: `tailnet (${peer.name})` };
+  }
+  if (plan.peers.length > 0) {
     console.log("   nenhum peer da tailnet respondeu o sync (a fazenda está de pé lá?).");
   }
 
   // Dialeto 1+2: broadcast + multicast — o caminho barato quando o roteador deixa.
+  // Barato mesmo sem enumeração possível: são poucos datagramas e um timeout.
   const targets = defaultProbeTargets();
   const farms = await discoverFarms({ targets });
   if (farms.length > 0) return pickFarm(farms, "descoberto");
 
   // Dialeto 3: varredura unicast da /24 — roteadores que filtram broadcast e
-  // multicast entre clientes normalmente ainda passam unicast direto.
-  const sweep = subnetSweepTargets();
+  // multicast entre clientes normalmente ainda passam unicast direto. Só quando
+  // a tailnet RESPONDEU: num aparelho que não consegue nem perguntar, 253 probes
+  // é a resposta errada para a pergunta errada (o nome do host é a certa).
+  const sweep = plan.sweepSubnet ? subnetSweepTargets() : [];
   if (sweep.length > 0) {
     console.log(`🔎 Broadcast/multicast sem resposta — varrendo a sub-rede (${sweep.length} endereços, unicast)…`);
     const swept = await discoverFarms({ targets: sweep, timeoutMs: 2500 });
     if (swept.length > 0) return pickFarm(swept, "descoberto por varredura");
   }
+
+  // Nada respondeu em dialeto nenhum, e o caminho que resta — o NOME — é o único
+  // que este aparelho não consegue descobrir sozinho. Então PERGUNTAR vem antes
+  // de EXPLICAR: num terminal, uma pergunta resolve o que quatro parágrafos de
+  // orientação apenas descrevem. A resposta fica guardada, então pergunta-se uma
+  // vez. Sem terminal não se pergunta — segue a ladainha honesta, como antes.
+  const asked = await askFarmHost({ kitRootDir: KIT_ROOT });
+  if (asked.host) return { host: asked.host, via: "você informou" };
 
   console.log("🔎 Nenhuma fazenda respondeu em nenhum dialeto. Onde procurei:");
   for (const target of targets) {
@@ -132,15 +175,24 @@ async function resolveHost() {
   if (sweep.length > 0) console.log(`   + varredura unicast de ${sweep.length} endereços da sub-rede`);
   console.log("   Possíveis causas: anunciante parado no host (refarm discover announce),");
   console.log("   isolamento de clientes no roteador, firewall/EDR no host, ou redes distintas.");
-  console.log("   Numa TAILNET (Tailscale), use o NOME do host — resolve de qualquer rede:");
-  console.log("      node scripts/farm-hello.mjs <nome-do-host>   # ex.: serpro-1577853");
-  console.log("   Ou o IP direto: node scripts/farm-hello.mjs <IP-do-host>");
+  // Já oferecido lá em cima quando a tailnet não pôde ser perguntada — não repetir.
+  if (!plan.suggestByName) for (const line of byNameLines(SELF)) console.log(line);
+  console.log(`   Ou o IP direto: ${SELF} <IP-do-host>`);
   console.log("   (no host, `refarm discover announce --status` mostra o endereço mesh/LAN)");
   console.log("   Tentando localhost…");
   return { host: "127.0.0.1", via: "fallback localhost" };
 }
 
-const { host, via } = await resolveHost();
+// Cancelar a pergunta (Ctrl+C / Ctrl+D) é uma REJEIÇÃO do bloco de prompt, não
+// um crash: uma linha e o código de SIGINT, nunca um stack trace.
+let host, via;
+try {
+  ({ host, via } = await resolveHost());
+} catch (err) {
+  const code = cancellationExit(err);
+  if (code !== null) process.exit(code);
+  throw err;
+}
 const HTTP_PORT = Number(process.env.FARM_HTTP_PORT ?? 42001);
 
 const label = (ok) => (ok ? "✅" : "❌");
@@ -156,7 +208,7 @@ async function probeSidecar() {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, { signal: controller.signal, headers: farmAuthHeaders() });
     clearTimeout(timer);
     if (!res.ok) return { ok: false, detail: `HTTP ${res.status}` };
     const body = await res.json();
@@ -187,16 +239,19 @@ if (sync.ok) {
     console.log("   E o plano de controle (efforts/chat) também responde. Alcance completo.\n");
   } else {
     console.log("   O plano de controle (sidecar :42001) está fechado em loopback POR PADRÃO.");
-    console.log("   Para dirigir a fazenda (efforts/chat) daqui, exponha-o no host — de forma");
-    console.log("   soberana, só na mesh (não na LAN corporativa):");
-    console.log("     REFARM_HTTP_HOST=<IP-mesh-do-host> bash scripts/tractor-start.sh --background");
-    console.log("     (ex.: REFARM_HTTP_HOST=100.105.71.127 — pega só a tailnet)\n");
+    console.log("   Para dirigir a fazenda (efforts/chat) daqui, o host DECLARA a superfície:");
+    for (const line of sidecarExposureLines()) console.log(line);
+    console.log("");
   }
   process.exit(0);
 }
 
 console.log("\nEste dispositivo NÃO alcançou a malha. No host, verifique:");
 console.log("  refarm runtime status                 # o daemon está de pé?");
-console.log("  (o WS :42000 já ouve em 0.0.0.0 — cobre LAN e tailnet por padrão)");
-console.log("  numa tailnet, use o NOME do host: node scripts/farm-hello.mjs <nome>\n");
+// Duas afirmações erradas moraram aqui, em sequência: "o WS :42000 já ouve em 0.0.0.0"
+// (nunca foi verdade depois do bind guard) e "o handshake de credencial do WS (ADR-093)
+// ainda não existe" (verdade até o ADR-093 shipar). O texto abaixo é o estado atual:
+// o WS é declarado como qualquer superfície, e o handshake É autenticado.
+for (const line of daemonWsExposureLines()) console.log(line);
+console.log("");
 process.exit(1);

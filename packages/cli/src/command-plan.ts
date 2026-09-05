@@ -1,3 +1,7 @@
+import {
+	buildJsonSuccessEnvelope,
+	type JsonSuccessEnvelope,
+} from "@refarm.dev/capabilities/envelope";
 import { spawnSync } from "node:child_process";
 import { normalizeHandoffValues, shellCommand } from "./command-handoff.js";
 import {
@@ -7,10 +11,6 @@ import {
 	commandPayloadRecommendations,
 	parseCommandJsonPayload,
 } from "./command-result.js";
-import {
-	buildJsonSuccessEnvelope,
-	type JsonSuccessEnvelope,
-} from "@refarm.dev/capabilities/envelope";
 
 export interface CommandProcessSpec {
 	command: string;
@@ -90,6 +90,17 @@ export interface CommandPlanStepRunResult extends CommandPlanStep {
 	ok: boolean;
 	exitCode: number;
 	elapsedMs?: number;
+	/**
+	 * The step was KILLED at its ceiling — it did not fail.
+	 *
+	 * A distinct fact because the two demand opposite responses: a failure is read, diagnosed and
+	 * fixed; a kill means the work never finished and the budget, not the code, is what to look at.
+	 * Collapsing them cost two wrong diagnoses on a real lane run (ISS-149), where the killed
+	 * step's entire output was a startup banner and read as "something in this package broke".
+	 */
+	timedOut?: boolean;
+	/** The ceiling that killed it, so a reader can judge it without finding the constant. */
+	timeoutMs?: number;
 	stdout: string;
 	stderr: string;
 	payload?: unknown;
@@ -111,7 +122,12 @@ export interface CommandPlanCliStepRunOptions extends CommandPlanCommandRunOptio
 
 export interface CommandPlanRunResult {
 	ok: boolean;
-	status: "passed" | "failed";
+	/**
+	 * `timed-out` is a THIRD outcome, not a flavour of `failed`. A caller that retries on failure
+	 * would retry a killed step forever at the same ceiling; one that reports failure to a human
+	 * would send them to debug code that is fine.
+	 */
+	status: "passed" | "failed" | "timed-out";
 	steps: CommandPlanStepRunResult[];
 	remainingSteps: CommandPlanStep[];
 	remainingCommands: string[];
@@ -132,6 +148,9 @@ export interface CommandPlanStepSummary {
 	ok: boolean;
 	exitCode: number;
 	elapsedMs?: number;
+	/** The step was killed at its ceiling rather than failing — see CommandPlanStepRunResult. */
+	timedOut?: boolean;
+	timeoutMs?: number;
 	effect?: CommandPlanEffect;
 	process?: CommandPlanStep["process"];
 	payload?: unknown;
@@ -264,6 +283,10 @@ export function commandPlanStepSummary(step: CommandPlanStepRunResult): CommandP
 		ok: step.ok,
 		exitCode: step.exitCode,
 		...(step.elapsedMs !== undefined ? { elapsedMs: step.elapsedMs } : {}),
+		// Carried into the printed envelope: a reader deciding what to do next must not have to
+		// parse English out of stderr to learn that nothing actually failed.
+		...(step.timedOut !== undefined ? { timedOut: step.timedOut } : {}),
+		...(step.timeoutMs !== undefined ? { timeoutMs: step.timeoutMs } : {}),
 		...(step.effect ? { effect: step.effect } : {}),
 		...(step.process ? { process: step.process } : {}),
 		...(step.payload !== undefined ? { payload: commandPlanPayloadSummary(step.payload) } : {}),
@@ -299,6 +322,7 @@ export function runCommandPlanCliStep(
 ): CommandPlanStepRunResult {
 	const startedAt = Date.now();
 	const result = spawnSync(options.executable, [options.entrypoint, ...args], {
+		// os-resolution: process — the working directory handed to a spawned child process
 		cwd: options.cwd ?? process.cwd(),
 		env: options.env ?? process.env,
 		encoding: "utf-8",
@@ -336,25 +360,48 @@ export function runCommandPlanProcessStep(
 	}
 	const startedAt = Date.now();
 	const result = spawnSync(step.process.command, step.process.args, {
+		// os-resolution: process — the working directory handed to a spawned child process
 		cwd: step.process.cwd ?? options.cwd ?? process.cwd(),
 		env: options.env ?? process.env,
 		encoding: "utf-8",
 		timeout: step.process.timeoutMs ?? options.timeoutMs,
 	});
 	const exitCode = result.status ?? (result.error ? 1 : 0);
+	const timeoutMs = step.process.timeoutMs ?? options.timeoutMs;
+	const timedOut = commandPlanTimedOut(result.signal, result.error, timeoutMs);
 	return {
 		...step,
 		ok: exitCode === 0,
 		exitCode,
 		elapsedMs: Date.now() - startedAt,
+		timedOut,
+		...(timedOut && timeoutMs !== undefined ? { timeoutMs } : {}),
 		stdout: result.stdout ?? "",
 		stderr: commandPlanSpawnErrorMessage(
 			result.stderr,
 			exitCode === 0 ? undefined : result.error,
 			result.signal,
-			step.process.timeoutMs ?? options.timeoutMs,
+			timeoutMs,
+			timedOut,
 		),
 	};
+}
+
+/**
+ * PURE. Was this process killed by ITS OWN ceiling?
+ *
+ * `spawnSync` reports a timeout kill as a signal, and Node also raises an `ETIMEDOUT` error on the
+ * versions that carry one. Either is enough; requiring both would miss the kill on the versions
+ * that report only a signal, and requiring neither would call every externally-terminated process
+ * a timeout. A signal with NO declared ceiling is somebody else's kill, and is not claimed here.
+ */
+function commandPlanTimedOut(
+	signal: NodeJS.Signals | null,
+	error: (Error & { code?: string }) | undefined,
+	timeoutMs: number | undefined,
+): boolean {
+	if (error?.code === "ETIMEDOUT") return true;
+	return signal !== null && timeoutMs !== undefined;
 }
 
 function commandPlanSpawnErrorMessage(
@@ -362,10 +409,22 @@ function commandPlanSpawnErrorMessage(
 	error: Error | undefined,
 	signal: NodeJS.Signals | null,
 	timeoutMs: number | undefined,
+	timedOut = false,
 ): string {
+	// FIRST, not instead. The old order returned `stderr` whenever it was non-empty, so a process
+	// that printed anything at all before being killed — a startup banner is enough — reported the
+	// banner and nothing else. The kill is the fact that explains the result; the output is the
+	// evidence, and both are kept.
+	if (timedOut) {
+		const ceiling = timeoutMs !== undefined ? `after ${timeoutMs}ms` : "at its ceiling";
+		const cause = signal ? ` (${signal})` : "";
+		const head =
+			`Command timed out ${ceiling}${cause}. NOTHING FAILED — the step was killed before it ` +
+			"finished, so its output below is partial.";
+		return stderr ? `${head}\n${stderr}` : head;
+	}
 	if (stderr) return stderr;
 	if (error?.message) return error.message;
-	if (signal && timeoutMs) return `Command timed out after ${timeoutMs}ms (${signal}).`;
 	return "";
 }
 
@@ -429,7 +488,9 @@ export function runCommandPlan(
 			const nextCommands = normalizeHandoffValues(payloadNextCommands ?? [executableStep.command]);
 			return {
 				ok: false,
-				status: "failed",
+				// The distinction reaches the RUN, not only the step: a caller that retries on
+				// failure would retry a killed step forever at the same ceiling.
+				status: normalized.timedOut ? "timed-out" : "failed",
 				steps,
 				remainingSteps,
 				remainingCommands: commandPlanStepCommands(remainingSteps),

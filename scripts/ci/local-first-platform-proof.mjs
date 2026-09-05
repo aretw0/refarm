@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
+
+import { TASK_ARTIFACT_MANIFEST_SCHEMA } from "./check-task-artifact-manifests.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -11,7 +13,7 @@ import {
 import { buildReleaseCheckPlan } from "../release-check.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const DEFAULT_SELECTION = "vault-seed-ready";
+const DEFAULT_SELECTION = "consumer-ready";
 const WALLET_FIXTURE_ROOT = "validations/citizen-data-wallet-poc/fixtures/expected";
 
 export const REQUIRED_T2_PACKAGES = [
@@ -67,7 +69,13 @@ function readJson(cwd, relativePath) {
 }
 
 function artifactById(manifest, id) {
-	if (id === "task-artifacts") return manifest?.schema === "refarm.task-artifacts.v1" ? manifest : null;
+	// THE IMPORTED CONSTANT, never a copy of its value (ISS-112). This held the literal
+	// `"refarm.task-artifacts.v1"`, so a producer changing the wire name would have left this
+	// check silently matching nothing — reporting an ABSENCE rather than the mismatch it could not
+	// see. Which VALUE is canonical is a separate, open question; see the constant's own doc.
+	if (id === "task-artifacts") {
+		return manifest?.schema === TASK_ARTIFACT_MANIFEST_SCHEMA ? manifest : null;
+	}
 	return (manifest.artifacts || []).find((artifact) => artifact.id === id) || null;
 }
 

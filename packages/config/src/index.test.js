@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import os, { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+	SOVEREIGN_BASE_KEY,
 	SOVEREIGN_DIR_SELECTOR_KEY,
 	DEFAULT_ENV_PREFIX,
+	declaredBase,
+	loadConfig,
 	ENV_PREFIX_SELECTOR_KEY,
 	defaultSovereignConfigPath,
 	envPrefixFromBrand,
@@ -205,5 +208,141 @@ describe("env-var prefix is parameterizable (white-label seam, ADR-087 phase 4)"
 		vi.stubEnv("REFARM_GIT_HOST", "gitlab");
 		const config = loadConfig(root);
 		expect(config.infrastructure.gitHost).toBe("gitlab");
+	});
+});
+
+describe("declaredBase", () => {
+	// The node is TOLD where its declarations live and every reader must give the SAME
+	// answer. Without this, a command executing a declared operation resolved the catalog
+	// from wherever the daemon happened to be standing, while the admission check beside it
+	// resolved from the operator's home — one process, two answers, and the operation was
+	// admitted and then refused. This mirrors `dirs_sovereign_base` in
+	// `packages/tractor/src/main.rs` step for step.
+
+	it("SOVEREIGN_BASE wins outright, even over REFARM_HOME", () => {
+		expect(
+			declaredBase({ [SOVEREIGN_BASE_KEY]: "/declared", REFARM_HOME: "/other/.refarm" }),
+		).toBe("/declared");
+	});
+
+	it("falls back to dirname(REFARM_HOME) when SOVEREIGN_BASE is unset", () => {
+		// A container declaring REFARM_HOME=/srv/node/.refarm resolves /srv/node —
+		// the same parent the Rust host resolves from the same variable.
+		expect(declaredBase({ REFARM_HOME: "/srv/node/.refarm" })).toBe("/srv/node");
+	});
+
+	it("falls back to the OS home directory when neither is declared", () => {
+		expect(declaredBase({})).toBe(os.homedir());
+	});
+
+	it("does not treat whitespace as a declaration, for either variable", () => {
+		expect(
+			declaredBase({ [SOVEREIGN_BASE_KEY]: "   ", REFARM_HOME: "/srv/node/.refarm" }),
+		).toBe("/srv/node");
+	});
+
+	// Regression guard for the defect being removed: the old implementation defaulted its
+	// (now-deleted) `cwd` parameter to `process.cwd()`, so a daemon started from inside a
+	// project directory and an operator's shell standing in their home directory disagreed
+	// about the node's base. Mocking process.cwd() — rather than asserting a fixed string —
+	// is what makes this discriminate: the old code read process.cwd() lazily as a default
+	// parameter at call time, so it would echo back whatever this mock returns; the fixed
+	// implementation never reads process.cwd() at all, so it must return the OS home
+	// regardless of what this mock says.
+	it("never resolves to process.cwd(), even when the process is standing outside the home directory", () => {
+		const elsewhere = "/not-the-home-directory/some/project";
+		expect(elsewhere).not.toBe(os.homedir()); // sanity: the scenario must actually differ
+		const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(elsewhere);
+		try {
+			expect(declaredBase({})).not.toBe(elsewhere);
+			expect(declaredBase({})).toBe(os.homedir());
+		} finally {
+			cwdSpy.mockRestore();
+		}
+	});
+});
+
+// ISS-027. `declaredBase(env)` honoured the injected `env` for its first two steps and then called
+// `os.homedir()` for the third, which reads the process's real environment — so the seam was
+// injectable for two thirds of its own contract and silently uninjectable for the rest. A test could
+// state SOVEREIGN_BASE or REFARM_HOME and could not state "neither is declared, and the home is
+// here", which is the branch that answers on every ordinary machine.
+describe("declaredBase honours the env it was given, all the way down (ISS-027)", () => {
+	it("takes HOME from the injected env when nothing else is declared", () => {
+		expect(declaredBase({ HOME: "/injected/home" })).toBe("/injected/home");
+	});
+
+	it("still prefers SOVEREIGN_BASE, then REFARM_HOME's parent, over that home", () => {
+		expect(declaredBase({ SOVEREIGN_BASE: "/a", REFARM_HOME: "/b/.refarm", HOME: "/c" })).toBe("/a");
+		expect(declaredBase({ REFARM_HOME: "/b/.refarm", HOME: "/c" })).toBe("/b");
+	});
+
+	it("falls back to the OS home only when the env declares no home at all", () => {
+		expect(declaredBase({})).toBe(os.homedir());
+	});
+
+	it("ignores an empty or whitespace HOME rather than resolving to nothing", () => {
+		expect(declaredBase({ HOME: "   " })).toBe(os.homedir());
+	});
+});
+
+describe("loadConfig honours an injected env all the way down (ISS-103)", () => {
+	const roots = [];
+	afterEach(() => {
+		while (roots.length > 0) rmSync(roots.pop(), { recursive: true, force: true });
+	});
+
+	function rootWithTwoSovereignDirs() {
+		const root = mkdtempSync(join(tmpdir(), "refarm-loadconfig-"));
+		roots.push(root);
+		for (const [dir, marker] of [
+			[".refarm", "from-refarm"],
+			[".outra", "from-outra"],
+		]) {
+			mkdirSync(join(root, dir), { recursive: true });
+			writeFileSync(join(root, dir, "config.json"), JSON.stringify({ marker }));
+		}
+		return root;
+	}
+
+	// THE DEFECT, stated as the thing it decides: `SOVEREIGN_DIR` chooses WHICH FILE is loaded,
+	// and it was read from `process.env` inside `sovereignConfigPathCandidates` no matter what
+	// the caller injected. Every function on the path already TOOK an `env` parameter; no call
+	// site passed one. So the injection was honoured by the code a caller could see (the
+	// prefix) and ignored by the code it could not (the path).
+	it("the injected env decides which sovereign dir is read", () => {
+		const root = rootWithTwoSovereignDirs();
+		expect(loadConfig(root, { env: { [SOVEREIGN_DIR_SELECTOR_KEY]: ".refarm" } }).marker).toBe(
+			"from-refarm",
+		);
+		expect(loadConfig(root, { env: { [SOVEREIGN_DIR_SELECTOR_KEY]: ".outra" } }).marker).toBe(
+			"from-outra",
+		);
+	});
+
+	// And it is the ONLY thing consulted: an injected env that names no selector must not fall
+	// back to the process's, or the injection is advisory and the next caller is surprised the
+	// same way.
+	it("an injected env with no selector does not fall back to the process env", () => {
+		const root = rootWithTwoSovereignDirs();
+		const prior = process.env[SOVEREIGN_DIR_SELECTOR_KEY];
+		process.env[SOVEREIGN_DIR_SELECTOR_KEY] = ".refarm";
+		try {
+			expect(() => loadConfig(root, { env: {} })).toThrow();
+		} finally {
+			if (prior === undefined) delete process.env[SOVEREIGN_DIR_SELECTOR_KEY];
+			else process.env[SOVEREIGN_DIR_SELECTOR_KEY] = prior;
+		}
+	});
+
+	it("the `<PREFIX>_*` mapping reads the injected env too, not the process one", () => {
+		const root = rootWithTwoSovereignDirs();
+		const config = loadConfig(root, {
+			env: {
+				[SOVEREIGN_DIR_SELECTOR_KEY]: ".refarm",
+				[`${DEFAULT_ENV_PREFIX}_SITE_URL`]: "https://injected.example",
+			},
+		});
+		expect(config.brand?.urls?.site).toBe("https://injected.example");
 	});
 });

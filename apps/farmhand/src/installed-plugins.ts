@@ -1,7 +1,7 @@
-import fs from "node:fs";
-import path from "node:path";
 import { assertValidPluginManifest, type PluginManifest } from "@refarm.dev/plugin-manifest";
 import type { RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
+import fs from "node:fs";
+import path from "node:path";
 
 interface LoggerLike {
 	info(...args: unknown[]): void;
@@ -49,21 +49,34 @@ function findPluginDirs(pluginsDir: string): string[] {
 	return found;
 }
 
-export function listInstalledPluginIds(baseDir: string): string[] {
+export interface InstalledPluginManifest {
+	id: string;
+	/** The directory holding this plugin.json. */
+	dir: string;
+	manifest: PluginManifest;
+}
+
+/** Every readable plugin.json under ~/.refarm/plugins, with its directory. The manifest is
+ *  what GET /plugins needs to answer the CLI's questions (which loaded plugin is the default
+ *  responder, which path a request names) — the id alone cannot. */
+export function listInstalledPluginManifests(baseDir: string): InstalledPluginManifest[] {
 	const pluginsDir = path.join(baseDir, "plugins");
 	if (!fs.existsSync(pluginsDir)) return [];
 
-	const pluginDirs = findPluginDirs(pluginsDir);
-	const ids: string[] = [];
-	for (const pluginDir of pluginDirs) {
+	const entries: InstalledPluginManifest[] = [];
+	for (const pluginDir of findPluginDirs(pluginsDir)) {
 		try {
 			const manifest = readManifestFromDir(pluginDir);
-			ids.push(manifest.id);
+			entries.push({ id: manifest.id, dir: pluginDir, manifest });
 		} catch {
 			// skip unreadable manifests silently
 		}
 	}
-	return ids;
+	return entries;
+}
+
+export function listInstalledPluginIds(baseDir: string): string[] {
+	return listInstalledPluginManifests(baseDir).map((entry) => entry.id);
 }
 
 /** A plugin pointer node's essentials (id → hash + manifest) — the RefarmPluginPointer. */

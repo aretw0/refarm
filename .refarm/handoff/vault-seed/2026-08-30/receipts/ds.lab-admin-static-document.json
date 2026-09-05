@@ -1,0 +1,14 @@
+{
+  "proofId": "ds.lab-admin-static-document",
+  "packageName": "@refarm.dev/ds",
+  "consumer": "vault-seed",
+  "consumerCommit": "94334c37235a804876620e0262c5796ebd68cc9f",
+  "consumerDirty": false,
+  "manifestSha256": "acec276ab331a4d6fa758be5056797dd79715e85856d834b8dc4ed2033b5b5bf",
+  "generatedAt": "2026-08-30T17:57:21.361Z",
+  "commands": [
+    "node node_modules/vitest/vitest.mjs --config ./vitest.config.mjs --configLoader runner run scripts/refarm_ds_astro_consumer_contract.test.mjs scripts/refarm_ds_consumer_contract.test.mjs scripts/refarm_ds_html_consumer_contract.test.mjs"
+  ],
+  "result": "pass",
+  "proofTarget": "a consumer's Lab/admin UI imports ds tokens and renders documentHtml through @refarm.dev/ds/html without pulling Homestead"
+}

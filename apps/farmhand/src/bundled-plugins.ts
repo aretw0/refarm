@@ -1,3 +1,4 @@
+import { pluginIdToFsToken } from "@refarm.dev/config/plugin-identity";
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
@@ -51,7 +52,7 @@ function readPackageVersion(packageName: string): string | null {
 
 // Version sentinel: tracks installed version to skip reinstall on every boot
 function sentinelPath(pluginsDir: string, pluginId: string): string {
-	return path.join(pluginsDir, ".versions", pluginId.replace(/\//g, "_").replace(/@/g, ""));
+	return path.join(pluginsDir, ".versions", pluginIdToFsToken(pluginId));
 }
 
 async function readInstalledVersion(pluginsDir: string, pluginId: string): Promise<string | null> {
@@ -98,13 +99,15 @@ async function installedBundleIsCurrent(
 	}
 }
 
-// Mirror the convention from scripts/agent-install.mjs:
-// - install dir: <pluginsDir>/@refarm/agent/ (scoped like npm)
-// - wasm filename: plugin.wasm
-// - integrity format: sha256-<hexdigest>
+// The install layout, and it is NOT this file's to invent. It used to mirror the
+// (now deleted) scripts/agent-install.mjs convention — the npm-shaped
+// `<pluginsDir>/@refarm/agent/` — while `refarm plugin install` wrote
+// `<pluginsDir>/refarm_agent/`. Two writers, two directories, and a daemon loading
+// whichever one its launcher happened to name. `pluginIdToFsToken` is the one
+// projection (the same one the `.versions` sentinel below already keyed on, which is
+// how a farmhand install could record a version for a directory it never wrote).
 function installDir(pluginsDir: string, pluginId: string): string {
-	// pluginId is like "@refarm/agent" — preserve the scoped path
-	return path.join(pluginsDir, pluginId);
+	return path.join(pluginsDir, pluginIdToFsToken(pluginId));
 }
 
 export async function bundleInstallPlugin(

@@ -35,7 +35,7 @@ jobs:
         run: node scripts/ci/setup-env.mjs
 
       - name: Release policy plan (preflight)
-        run: pnpm --silent run release:first-publish:plan -- --selection vault-seed-ready --json
+        run: pnpm --silent run release:first-publish:plan -- --selection consumer-ready --json
 
       - name: Strict dispatch-surface native artifact build (release mode)
         run: |
@@ -68,7 +68,7 @@ jobs:
 
       - name: Guard first-publish versions
         id: first-publish-guard
-        run: pnpm --silent run release:first-publish:changesets-guard -- --selection vault-seed-ready --soft
+        run: pnpm --silent run release:first-publish:changesets-guard -- --selection consumer-ready --soft
 
       - name: First-publish handoff pending
         if: steps.first-publish-guard.outputs.blocked == 'true'

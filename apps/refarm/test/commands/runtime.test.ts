@@ -2,8 +2,18 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { buildRuntimeJsonPayload } from "../../src/commands/runtime-status.js";
+import type { RuntimeStopResult } from "../../src/commands/runtime-stop.js";
 import { createRuntimeCommand } from "../../src/commands/runtime.js";
 import type { LaunchRuntimeSelection } from "../../src/commands/session-launch.js";
+
+/** No supervisor owns the daemon — what every pre-existing test assumed implicitly. */
+const unsupervised = async () => ({
+	supervised: false,
+	unit: "refarm-runtime.service",
+	stopCommand: "systemctl --user stop refarm-runtime.service",
+	restartCommand: "systemctl --user restart refarm-runtime.service",
+});
 
 describe("runtime command", () => {
 	// Point REFARM_PROC_ROOT at a fresh EMPTY dir so the runtime-stop /proc scan is HERMETIC by
@@ -14,6 +24,7 @@ describe("runtime command", () => {
 	// stopped" and failing the assertion (a CI-only flake, invisible locally). Tests that need
 	// specific proc entries set REFARM_PROC_ROOT themselves; afterEach restores the original.
 	let originalProcRoot: string | undefined;
+	let originalPath: string | undefined;
 	let hermeticProcRoot = "";
 	let procRootCounter = 0;
 	beforeEach(() => {
@@ -22,8 +33,16 @@ describe("runtime command", () => {
 		hermeticProcRoot = join(tmpdir(), `refarm-hermetic-proc-${Date.now()}-${procRootCounter++}`);
 		mkdirSync(hermeticProcRoot, { recursive: true });
 		process.env.REFARM_PROC_ROOT = hermeticProcRoot;
+		// PATH, for the SAME hermeticity this suite already buys with REFARM_PROC_ROOT above: the
+		// engine now also accepts a `tractor` installed on PATH, so a suite inheriting the
+		// developer's PATH asserts about whatever that machine happens to have. Measured
+		// 2026-08-19 — installing the binary on a real node turned green tests red untouched.
+		originalPath = process.env.PATH;
+		process.env.PATH = hermeticProcRoot;
 	});
 	afterEach(() => {
+		if (originalPath === undefined) delete process.env.PATH;
+		else process.env.PATH = originalPath;
 		if (originalProcRoot === undefined) delete process.env.REFARM_PROC_ROOT;
 		else process.env.REFARM_PROC_ROOT = originalProcRoot;
 		rmSync(hermeticProcRoot, { recursive: true, force: true });
@@ -32,6 +51,9 @@ describe("runtime command", () => {
 	it("prints runtime engine selection", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "auto",
 			readAutostart: () => "always",
@@ -52,6 +74,13 @@ describe("runtime command", () => {
 		expect(output).toContain("ready:      yes");
 		expect(output).toContain("autostart:  always");
 		expect(output).toContain("sidecar:    http://127.0.0.1:42001");
+		expect(output).toContain("context:    node");
+		expect(output).toContain("binding:    detached (explicit)");
+		expect(output).toContain("state:      node-owned");
+		expect(output).toContain("creds:      node");
+		expect(output).toContain("runtime:    node");
+		expect(output).toContain("home:       ");
+		expect(output).toContain("store:      ");
 		expect(output).toContain("start:      tractor");
 		expect(output).toContain("refarm config set tractor.engine auto");
 		expect(output).toContain("refarm config set runtime.autostart always");
@@ -60,6 +89,9 @@ describe("runtime command", () => {
 
 	it("documents autostart in command help", () => {
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "auto",
 			readAutostart: () => "ask",
@@ -88,6 +120,9 @@ describe("runtime command", () => {
 	it("prints status through the explicit status subcommand", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "auto",
 			readAutostart: () => "ask",
@@ -111,6 +146,9 @@ describe("runtime command", () => {
 	it("outputs explicit status as JSON", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "ts",
 			readAutostart: () => "never",
@@ -127,27 +165,98 @@ describe("runtime command", () => {
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
 			command: "runtime",
 			operation: "status",
-			ok: false,
+			ok: true,
+			context: {
+				mode: "node",
+				binding: { kind: "detached", origin: "explicit" },
+				state: { policy: "node-owned" },
+				credentials: { policy: "node" },
+				runtime: { policy: "node" },
+				homesAligned: true,
+			},
 			configuredEngine: "ts",
 			activeEngine: "ts",
 			ready: false,
 			sidecarUrl: "http://127.0.0.1:42001",
 			sidecarUrlSource: "default",
-			startCommand: "farmhand --background",
+			// The command now names the NODE. A runtime launched without `--refarm-dir` resolves
+			// its own home from somewhere else — running, and not the operator's node.
+			startCommand: expect.stringContaining("farmhand --background --refarm-dir"),
 			nextAction: "refarm runtime ensure --wait --next-command",
 			nextActions: ["refarm runtime ensure --wait --next-command"],
 			nextCommand: "refarm runtime ensure --wait --next-command",
-			nextCommands: [
-				"refarm runtime ensure --wait --next-command",
-				"refarm doctor --next-command",
-			],
+			nextCommands: ["refarm runtime ensure --wait --next-command", "refarm doctor --next-command"],
 		});
+		logSpy.mockRestore();
+	});
+
+	// The house rule, pinned: `ok` says the COMMAND did its job, not that the subject is
+	// healthy. A status report of a runtime that is down is a successful status report — the
+	// answer lives in `ready`. Were `ok` the verdict on the runtime, `set -e` would kill any
+	// script merely for ASKING how things are, which is why `git status` exits 0 on a dirty
+	// tree. `refarm intention check` is the deliberate exception, and it is not a status report.
+	it("a status report of a DOWN runtime is a successful report: ok true, ready false, exit 0", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
+			repoRoot: () => "/repo",
+			readEngine: () => "ts",
+			readAutostart: () => "never",
+			probeReady: vi.fn().mockResolvedValue(false),
+			resolveRuntime: () => ({
+				configuredEngine: "ts",
+				activeEngine: "ts",
+				reason: "configured-ts",
+			}),
+		});
+
+		await command.parseAsync(["status", "--json"], { from: "user" });
+
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string) as {
+			ok: boolean;
+			ready: boolean;
+			nextCommands: string[];
+		};
+		expect(payload.ok).toBe(true);
+		expect(payload.ready).toBe(false);
+		// The exit code AGREES with `ok` — a report is not a failure.
+		expect(process.exitCode).toBeUndefined();
+		// And it still hands the operator the way out.
+		expect(payload.nextCommands).toContain("refarm runtime ensure --wait --next-command");
+		logSpy.mockRestore();
+	});
+
+	// The other half of the same rule: an ACT is judged by whether it acted.
+	it("`runtime start` that cannot start still reports ok false — it is an act, not a report", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
+			repoRoot: () => "/repo",
+			readEngine: () => "rust",
+			readAutostart: () => "ask",
+			resolveRuntime: () => {
+				throw new Error("tractor.engine=rust but the Rust tractor binary is not built");
+			},
+		});
+
+		await command.parseAsync(["start", "--json"], { from: "user" });
+
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string) as { ok: boolean };
+		expect(payload.ok).toBe(false);
+		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 	});
 
 	it("outputs runtime sidecar probe diagnostics as JSON", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "ts",
 			readAutostart: () => "ask",
@@ -172,7 +281,7 @@ describe("runtime command", () => {
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
 			command: "runtime",
 			operation: "status",
-			ok: false,
+			ok: true,
 			sidecarUrl: "http://127.0.0.1:52001",
 			sidecarUrlSource: "/workspace/.refarm/config.json",
 			sidecarProbe: {
@@ -188,6 +297,9 @@ describe("runtime command", () => {
 	it("reports session probe failure when /sessions is the readiness blocker", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "ts",
 			readAutostart: () => "ask",
@@ -212,7 +324,7 @@ describe("runtime command", () => {
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
 			command: "runtime",
 			operation: "status",
-			ok: false,
+			ok: true,
 			sidecarUrl: "http://127.0.0.1:52001",
 			sidecarUrlSource: "/workspace/.refarm/config.json",
 			sidecarProbe: {
@@ -233,6 +345,9 @@ describe("runtime command", () => {
 			reason: "configured-ts",
 		};
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "ts",
 			readAutostart: () => "never",
@@ -242,25 +357,32 @@ describe("runtime command", () => {
 
 		await command.parseAsync(["--json"], { from: "user" });
 
-		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toEqual({
+		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
 			command: "runtime",
 			operation: "status",
 			configuredEngine: "ts",
 			activeEngine: "ts",
 			autostart: "never",
 			reason: "configured-ts",
+			context: {
+				mode: "node",
+				binding: { kind: "detached", origin: "explicit" },
+				state: { policy: "node-owned" },
+				credentials: { policy: "node" },
+				runtime: { policy: "node" },
+				homesAligned: true,
+			},
 			sidecarUrl: "http://127.0.0.1:42001",
 			sidecarUrlSource: "default",
 			ready: false,
-			startCommand: "farmhand --background",
-			ok: false,
+			// The command now names the NODE. A runtime launched without `--refarm-dir` resolves
+			// its own home from somewhere else — running, and not the operator's node.
+			startCommand: expect.stringContaining("farmhand --background --refarm-dir"),
+			ok: true,
 			nextAction: "refarm runtime ensure --wait --next-command",
 			nextActions: ["refarm runtime ensure --wait --next-command"],
 			nextCommand: "refarm runtime ensure --wait --next-command",
-			nextCommands: [
-				"refarm runtime ensure --wait --next-command",
-				"refarm doctor --next-command",
-			],
+			nextCommands: ["refarm runtime ensure --wait --next-command", "refarm doctor --next-command"],
 		});
 		logSpy.mockRestore();
 	});
@@ -268,6 +390,9 @@ describe("runtime command", () => {
 	it("reports explicit Rust configuration when the binary is missing", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "rust",
 			readAutostart: () => "ask",
@@ -282,7 +407,7 @@ describe("runtime command", () => {
 		expect(payload).toMatchObject({
 			command: "runtime",
 			operation: "status",
-			ok: false,
+			ok: true,
 			configuredEngine: "rust",
 			activeEngine: "unknown",
 			autostart: "ask",
@@ -305,6 +430,9 @@ describe("runtime command", () => {
 	it("sets exitCode when runtime start --json has no launch command", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "rust",
 			readAutostart: () => "ask",
@@ -338,6 +466,9 @@ describe("runtime command", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const startRuntime = vi.fn();
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "ts",
 			readAutostart: () => "ask",
@@ -351,7 +482,8 @@ describe("runtime command", () => {
 
 		await command.parseAsync(["start", "--dry-run"], { from: "user" });
 
-		expect(logSpy).toHaveBeenCalledWith("farmhand --background");
+		// The printed command now names the node too — see the `startCommand` note above.
+		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("farmhand --background --refarm-dir"));
 		expect(startRuntime).not.toHaveBeenCalled();
 		logSpy.mockRestore();
 	});
@@ -360,6 +492,9 @@ describe("runtime command", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const startRuntime = vi.fn();
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "ts",
 			readAutostart: () => "ask",
@@ -388,7 +523,7 @@ describe("runtime command", () => {
 		expect(payload.operation).toBe("start");
 		expect(payload.ok).toBe(true);
 		expect(payload.dryRun).toBe(true);
-		expect(payload.launchCommand?.display).toBe("farmhand --background");
+		expect(payload.launchCommand?.display).toContain("farmhand --background --refarm-dir");
 		expect(payload.nextAction).toBeNull();
 		expect(payload.nextCommand).toBeNull();
 		expect(startRuntime).not.toHaveBeenCalled();
@@ -404,6 +539,9 @@ describe("runtime command", () => {
 			pidFile: "/repo/.refarm/tractor.pid",
 		});
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "auto",
 			readAutostart: () => "ask",
@@ -437,6 +575,7 @@ describe("runtime command", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const killSpy = vi.spyOn(process, "kill").mockImplementation(() => true);
 		const command = createRuntimeCommand({
+			readSupervision: unsupervised,
 			repoRoot: () => root,
 			readEngine: () => "auto",
 			readAutostart: () => "ask",
@@ -499,6 +638,7 @@ describe("runtime command", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const killSpy = vi.spyOn(process, "kill").mockImplementation(() => true);
 		const command = createRuntimeCommand({
+			readSupervision: unsupervised,
 			repoRoot: () => root,
 			readEngine: () => "auto",
 			readAutostart: () => "ask",
@@ -566,6 +706,7 @@ describe("runtime command", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const killSpy = vi.spyOn(process, "kill").mockImplementation(() => true);
 		const command = createRuntimeCommand({
+			readSupervision: unsupervised,
 			repoRoot: () => root,
 			readEngine: () => "auto",
 			readAutostart: () => "ask",
@@ -627,6 +768,9 @@ describe("runtime command", () => {
 		const startRuntime = vi.fn();
 		const waitUntilReady = vi.fn().mockResolvedValue(true);
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "auto",
 			readAutostart: () => "ask",
@@ -664,6 +808,9 @@ describe("runtime command", () => {
 		const startRuntime = vi.fn();
 		const waitUntilReady = vi.fn().mockResolvedValue(true);
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "auto",
 			readAutostart: () => "always",
@@ -690,6 +837,9 @@ describe("runtime command", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const startRuntime = vi.fn();
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "ts",
 			readAutostart: () => "ask",
@@ -731,6 +881,9 @@ describe("runtime command", () => {
 		const startRuntime = vi.fn();
 		const waitUntilReady = vi.fn().mockResolvedValue(true);
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "ts",
 			readAutostart: () => "ask",
@@ -780,6 +933,7 @@ describe("runtime command", () => {
 			"MODEL_PROVIDER=openai but OPENAI_API_KEY is not set.\nConfigure keys with: refarm sow\n",
 		);
 		const command = createRuntimeCommand({
+			readSupervision: unsupervised,
 			repoRoot: () => repoRoot,
 			readEngine: () => "ts",
 			readAutostart: () => "ask",
@@ -855,9 +1009,7 @@ describe("runtime command", () => {
 			localNoKeyModel: "refarm sow --model ollama/llama3.2 --json",
 			openExternalLinks: "refarm config get operator.openExternalLinks --json",
 		});
-		expect(payload.diagnostics?.logPath).toBe(
-			join(repoRoot, ".refarm", "ts-runtime-start.log"),
-		);
+		expect(payload.diagnostics?.logPath).toBe(join(repoRoot, ".refarm", "ts-runtime-start.log"));
 		expect(payload.diagnostics?.logTail).toContain(
 			"MODEL_PROVIDER=openai but OPENAI_API_KEY is not set.",
 		);
@@ -874,6 +1026,7 @@ describe("runtime command", () => {
 		writeFileSync(join(repoRoot, "scripts", "farmhand-start.sh"), "");
 		writeFileSync(join(repoRoot, ".refarm", "ts-runtime-start.log"), "");
 		const command = createRuntimeCommand({
+			readSupervision: unsupervised,
 			repoRoot: () => repoRoot,
 			readEngine: () => "ts",
 			readAutostart: () => "ask",
@@ -943,6 +1096,7 @@ describe("runtime command", () => {
 			"MODEL_PROVIDER=openai but OPENAI_API_KEY is not set.\n",
 		);
 		const command = createRuntimeCommand({
+			readSupervision: unsupervised,
 			repoRoot: () => repoRoot,
 			readEngine: () => "ts",
 			readAutostart: () => "ask",
@@ -970,6 +1124,9 @@ describe("runtime command", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "auto",
 			readAutostart: () => "always",
@@ -985,9 +1142,7 @@ describe("runtime command", () => {
 		await command.parseAsync(["start", "--wait"], { from: "user" });
 
 		expect(process.exitCode).toBe(1);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Runtime did not become ready"),
-		);
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Runtime did not become ready"));
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
 	});
@@ -995,6 +1150,9 @@ describe("runtime command", () => {
 	it("reports waited readiness in JSON mode", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "ts",
 			readAutostart: () => "ask",
@@ -1024,6 +1182,9 @@ describe("runtime command", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const startRuntime = vi.fn();
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "auto",
 			readAutostart: () => "always",
@@ -1041,8 +1202,11 @@ describe("runtime command", () => {
 			expect.objectContaining({
 				engine: "rust",
 				command: "tractor",
-				display: "tractor",
+				display: expect.stringContaining("tractor --refarm-dir"),
 			}),
+			// The ENVIRONMENT, second. A runtime handed only its arguments comes up healthy and
+			// refuses every dispatch — the node's model authorisation travels here.
+			expect.objectContaining({}),
 		);
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Started rust runtime.");
@@ -1054,6 +1218,9 @@ describe("runtime command", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const command = createRuntimeCommand({
+			// HERMETIC: without this, `stop` and `restart` would ask the HOST which processes it
+			// supervises, and a developer whose node declares `runtime` would see these fail.
+			readSupervision: unsupervised,
 			repoRoot: () => "/repo",
 			readEngine: () => "rust",
 			readAutostart: () => "ask",
@@ -1066,14 +1233,128 @@ describe("runtime command", () => {
 		await command.parseAsync(["start"], { from: "user" });
 
 		expect(process.exitCode).toBe(1);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Cannot start Refarm runtime"),
-		);
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Cannot start Refarm runtime"));
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Rust tractor binary is not built"),
 		);
 		expect(logSpy).not.toHaveBeenCalled();
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
+	});
+});
+
+// ISS-084. The operator ran `refarm runtime restart --json` while clearing config drift and got,
+// verbatim: {"ok": false, "error": null, "message": null, "nextAction": "refarm runtime ensure ..."}.
+// The restart had SUCCEEDED — following the handoff confirmed the runtime ready and the drift gone,
+// and `refarm check` returned ok afterwards. The command reported failure for an act it had just
+// performed, and carried no error to explain it.
+//
+// The cause: `ok` was computed from the status snapshot taken while the runtime was STOPPED, one
+// step before it was started again. Without `--wait` the command never looks afterwards, so it has
+// no verdict to give.
+describe("an act that was not observed is not a failure (ISS-084)", () => {
+	const stoppedSnapshot = { activeEngine: "rust", ready: undefined, issue: undefined } as never;
+
+	it("reports ok for a restart that ran without --wait", () => {
+		const payload = buildRuntimeJsonPayload(stoppedSnapshot, { started: true }, undefined, "restart");
+		expect(payload.ok).toBe(true);
+	});
+
+	it("still reports the real verdict when the caller DID wait", () => {
+		const waited = { activeEngine: "rust", ready: false, issue: undefined } as never;
+		expect(buildRuntimeJsonPayload(waited, { started: true }, undefined, "restart").ok).toBe(false);
+		const healthy = { activeEngine: "rust", ready: true, issue: undefined } as never;
+		expect(buildRuntimeJsonPayload(healthy, { started: true }, undefined, "restart").ok).toBe(true);
+	});
+
+	it("does not turn an act that never started into a success", () => {
+		// The fixture has to be genuinely unhealthy, which the first version of this test got wrong:
+		// engine "rust" with no issue and `ready: undefined` already IS healthy by
+		// `runtimeIsHealthy`'s existing definition, so it proved nothing about the new branch.
+		const neverStarted = { activeEngine: "unknown", ready: undefined, issue: "no runtime" } as never;
+		const payload = buildRuntimeJsonPayload(neverStarted, { started: false }, undefined, "restart");
+		expect(payload.ok).toBe(false);
+	});
+
+	it("leaves `status` alone — a report always succeeds at reporting", () => {
+		const notRunning = { activeEngine: "unknown", ready: false, issue: "not running" } as never;
+		expect(buildRuntimeJsonPayload(notRunning, undefined, undefined, "status").ok).toBe(true);
+	});
+});
+
+describe("runtime command under a supervisor", () => {
+	const supervised = async () => ({
+		supervised: true,
+		unit: "refarm-runtime.service",
+		stopCommand: "systemctl --user stop refarm-runtime.service",
+		restartCommand: "systemctl --user restart refarm-runtime.service",
+	});
+
+	// TYPED, not `ReturnType<typeof vi.fn>`: the pre-existing tests pass `vi.fn()` INLINE, where
+	// the object literal supplies contextual typing. Through a parameter that context is gone,
+	// and an untyped mock is not assignable to the dep. Vitest does not type-check, so this only
+	// ever appears in `tsc` — which is why the gate caught it and a green suite did not.
+	type StopRuntimeMock = ReturnType<typeof vi.fn<(repoRoot: string) => RuntimeStopResult>>;
+
+	function supervisedCommand(stopRuntime: StopRuntimeMock) {
+		return createRuntimeCommand({
+			readSupervision: supervised,
+			repoRoot: () => "/repo",
+			readEngine: () => "auto",
+			readAutostart: () => "always",
+			probeReady: vi.fn().mockResolvedValue(true),
+			stopRuntime,
+			resolveRuntime: () => ({
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			}),
+		});
+	}
+
+	// THE ASSERTION THAT MATTERS IS THE SPY. Sending SIGTERM by pid under `Restart=always` reads
+	// to the supervisor as a crash and the daemon returns in five seconds, so a refusal that
+	// prints the right words and still signals would defeat the operator's intent silently.
+	it("refuses to stop and never signals the process", async () => {
+		const stopRuntime = vi.fn<(repoRoot: string) => RuntimeStopResult>();
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((line: string) => {
+			logs.push(line);
+		});
+		try {
+			await supervisedCommand(stopRuntime).parseAsync(["stop", "--json"], { from: "user" });
+		} finally {
+			spy.mockRestore();
+		}
+		expect(stopRuntime).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			error: string;
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload.ok).toBe(false);
+		expect(payload.error).toBe("runtime-supervised");
+		// The handoff CARRIES the command, it does not merely describe it: an empty nextCommands
+		// beside prose naming a fix is the defect ISS-173 records on other surfaces.
+		expect(payload.nextCommand).toBe("systemctl --user stop refarm-runtime.service");
+		expect(payload.nextCommands).toEqual(["systemctl --user stop refarm-runtime.service"]);
+	});
+
+	it("refuses to restart and hands over the restart line", async () => {
+		const stopRuntime = vi.fn<(repoRoot: string) => RuntimeStopResult>();
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((line: string) => {
+			logs.push(line);
+		});
+		try {
+			await supervisedCommand(stopRuntime).parseAsync(["restart", "--json"], { from: "user" });
+		} finally {
+			spy.mockRestore();
+		}
+		expect(stopRuntime).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as { nextCommand: string; operation: string };
+		expect(payload.operation).toBe("restart");
+		expect(payload.nextCommand).toBe("systemctl --user restart refarm-runtime.service");
 	});
 });

@@ -25,6 +25,18 @@ external consumer needs it:
 | `packages/tractor` | Runtime, plugin host, streams, sandbox boundary, runtime diagnostics. | Product command orchestration. |
 | `packages/agent` | Runtime-agent behavior and WASM contract. | Product-wide "Agent" semantics. |
 
+### Sanitized diagnostic bundles
+
+`@refarm.dev/diagnostic-bundle-v1` owns the portable `diagnostic-bundle.v1` document, recursive
+redaction and pre-transport verification. It performs no I/O and has no dependency on the Refarm
+app, so plugins, standalone apps and future TUI/web/Telegram surfaces can contribute and render the
+same evidence.
+
+`refarm inspect` is the first host adapter. It reports only narrow structured facts; it does not
+collect prompts, responses, workspace stdout, workspace names or environment values. `refarm
+inspect export` writes a mode-`0600` JSON document after verification and never uploads it. The
+operator inspects the file before choosing whether and where to share it.
+
 ## Public Handoff Contract
 
 Every public JSON command used by an agent should expose:

@@ -48,8 +48,9 @@ before daily-driver evidence:
 | `@refarm.dev/storage-memory`, `@refarm.dev/storage-rest`, `@refarm.dev/storage-sqlite` | Implementations need conformance matrix and real consumer usage. |
 | `@refarm.dev/sync-crdt`, `@refarm.dev/sync-loro` | Needs offline/reconnect and corruption recovery evidence. |
 | `@refarm.dev/tractor`, `@refarm.dev/tractor-rs` | Reference runtime should wait for daily-driver gate and clear Rust/npm/crates split. |
-| `@refarm.dev/barn`, `@refarm.dev/plugin-manifest`, `@refarm.dev/plugin-courier`, `@refarm.dev/plugin-tem` | Plugin surface still needs the Pi/WASM/UI proof in `v0.1.0-release-gate.md`; avoid WASM-only lock-in and publish `plugin-manifest` only after the proof has fixtures, negative trust tests, and an authoring example. |
+| `@refarm.dev/barn`, `@refarm.dev/plugin-courier`, `@refarm.dev/plugin-tem` | Plugin surface still needs the Pi/WASM/UI proof in `v0.1.0-release-gate.md`; avoid WASM-only lock-in and publish `plugin-manifest` only after the proof has fixtures, negative trust tests, and an authoring example. |
 | `@refarm.dev/homestead`, `@refarm.dev/ds` | Product/UI substrate should mature through `apps/me` and `apps/refarm` first. |
+| `@refarm.dev/plugin-manifest` | Support package in `consumer-ready` since 2026-08-30: `vault-contract-v1` imports manifest:v1 at runtime. The earlier hold (fixtures, negative trust tests, authoring example) is met — `src/fixtures.js`, 23 rejection cases in `src/validate.test.js`, README "Define Your Plugin Manifest". Plugin install, trust and hosting stay host-owned. |
 | `@refarm.dev/silo`, `@refarm.dev/trust`, `@refarm.dev/scarecrow`, `@refarm.dev/registry` | Security/trust APIs need threat-model and operational evidence before public API promises. |
 
 ## Daily-Driver And Lab Surfaces

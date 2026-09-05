@@ -79,9 +79,9 @@ describe("capability index", () => {
 			discoveryPackage: "@refarm.dev/cli",
 			discoverySubpath: "@refarm.dev/cli/capability-index",
 			publicationState: "boundary-review",
-			consumerInstallPolicy: "not-vault-seed-ready",
+			consumerInstallPolicy: "not-consumer-ready",
 			runtimeExecutionState: "private",
-			note: expect.stringContaining("@refarm.dev/cli is not a vault-seed-ready leaf"),
+			note: expect.stringContaining("@refarm.dev/cli is not a consumer-ready leaf"),
 		});
 		expect(supplyMap.adoptionCriteria.map((criterion) => criterion.id)).toEqual([
 			"interaction-lifecycle",
@@ -302,7 +302,7 @@ describe("capability index", () => {
 				discoveryPackage: "@refarm.dev/cli",
 				discoverySubpath: "@refarm.dev/cli/capability-index",
 				publicationState: "boundary-review",
-				consumerInstallPolicy: "not-vault-seed-ready",
+				consumerInstallPolicy: "not-consumer-ready",
 				runtimeExecutionState: "private",
 				note: expect.stringContaining("runtime execution stays private"),
 			},

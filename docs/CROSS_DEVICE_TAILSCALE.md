@@ -53,12 +53,29 @@ Android em Wi-Fi e 5G.
 
 O `sync` (`:42000`) é a malha CRDT. O `sidecar` (`:42001`, plano de controle — efforts,
 chat) fica em **loopback por padrão, de propósito**. Para dirigir a fazenda a partir do
-celular, o daemon precisa ouvir o sidecar além do loopback:
+celular, o daemon precisa ouvir o sidecar além do loopback — e desde
+`docs/superpowers/specs/2026-07-29-declared-surfaces-design.md` (S1) isso exige uma
+declaração em `.refarm/config.json`, não só a flag: um bind não-loopback sem
+`surfaces.sidecar-http` declarado é recusado na largada, política configurada ou não.
 
 ```bash
-# no host, reinicie o runtime bindando o sidecar em 0.0.0.0:
-REFARM_HTTP_HOST=0.0.0.0 bash scripts/tractor-start.sh --background
+# 1. declare a exposição (uma vez; fica em .refarm/config.json, do operador, gitignored):
+#    "surfaces": { "sidecar-http": { "expose": "host:0.0.0.0", "gate": "device-token" } }
+# 2. credencial por dispositivo — NADA de export: o gate declarado já deriva o caminho
+#    da política (<refarm-dir>/auth-policy.json, o mesmo arquivo que o enroll escreve):
+refarm auth enroll
+# 3. no host, reinicie o runtime — SEM REFARM_HTTP_HOST: com a flag ausente
+#    (packages/tractor's --http-host é Option, sem default) a declaração decide:
+bash scripts/tractor-start.sh --background
 ```
+
+Entre o passo 1 e o passo 2 o daemon SOBE e a superfície BINDA — negando tudo (401 em
+toda requisição) até existir uma credencial. Isso é deliberado: negar tudo é a forma mais
+estrita de cumprir o gate declarado, e é melhor que um runtime que se recusa a iniciar. O
+log diz isso na largada, nomeando o caminho derivado e o `refarm auth enroll`.
+
+`REFARM_AUTH_POLICY` continua existindo, como OVERRIDE: use só para apontar para um
+arquivo de política em outro lugar. Não é mais requisito para o gate valer.
 
 Por que `0.0.0.0` e não o IP mesh específico: o tooling LOCAL do refarm fala com
 `127.0.0.1:42001`; bindar só no IP mesh quebraria tudo que roda no próprio host. `0.0.0.0`

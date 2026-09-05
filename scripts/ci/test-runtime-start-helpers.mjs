@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
+
+const tractorStart = resolve("scripts/tractor-start.sh");
 
 const helper = resolve("scripts/model-provider.sh");
 
@@ -119,48 +121,186 @@ test("runtime start helpers fall back to shared default provider", () => {
 	}
 });
 
-// ── Installed-agent filename consistency ─────────────────────────────────────
-// The runtime failed to load the agent once because agent-install.mjs wrote
-// `agent.wasm` while tractor-start.sh (and the daemon) read `plugin.wasm`. Both
-// must agree on the canonical per-format name; this static guard fails fast if
-// they ever drift again — no daemon boot, no build, just read the two files.
-const CANONICAL_INSTALLED_AGENT_WASM = "plugin.wasm";
+// ── One installer, one path ──────────────────────────────────────────────────
+// The agent plugin used to have TWO installers writing TWO directories:
+// `refarm plugin install` wrote `$REFARM_HOME/plugins/refarm_agent/` (the CLI's
+// pluginIdToFsToken layout), while `scripts/agent-install.mjs` — invoked by this start
+// script — wrote `$REFARM_HOME/plugins/@refarm/agent/`, which the script then hardcoded
+// as the path it loaded. So `refarm plugin install` could truthfully report "already
+// up-to-date" about a directory nothing loaded, and the recovery handoff it printed on
+// failure named a command that could not fix the problem.
+//
+// The behavioural pins (the installer writes where the resolver points; a legacy-only
+// node still boots) live in apps/refarm/test/commands/plugin-install-path.test.ts, which
+// executes both sides. These are the cheap static mutation guards in the start script's
+// own home: no daemon boot, no build, just read the files.
 
-test("agent-install.mjs installs the agent as the canonical plugin.wasm", () => {
-	const source = readFileSync(resolve("scripts/agent-install.mjs"), "utf8");
-	// The destination the installer copies the built wasm to.
-	assert.match(
-		source,
-		/const wasmDest = path\.join\(pluginDir, "plugin\.wasm"\)/,
-		"agent-install.mjs must write the canonical plugin.wasm (not agent.wasm)",
-	);
+test("the second installer is gone — nothing but the CLI installs the agent", () => {
 	assert.ok(
-		source.includes(CANONICAL_INSTALLED_AGENT_WASM),
-		"agent-install.mjs must reference plugin.wasm",
+		!existsSync(resolve("scripts/agent-install.mjs")),
+		"scripts/agent-install.mjs was a second installer writing a second directory; it must " +
+			"not come back — `refarm plugin install` is the one installer",
+	);
+	const source = readFileSync(tractorStart, "utf8");
+	assert.ok(
+		!/agent-install\.mjs/.test(source.replace(/#.*$/gm, "")),
+		"tractor-start.sh must not invoke a private agent installer (comments may still " +
+			"explain the history)",
 	);
 });
 
-test("tractor-start.sh reads the same canonical plugin.wasm the installer writes", () => {
-	const source = readFileSync(resolve("scripts/tractor-start.sh"), "utf8");
+test("tractor-start.sh asks the CLI where the installed agent is, instead of spelling a layout", () => {
+	const source = readFileSync(tractorStart, "utf8");
 	assert.match(
 		source,
-		/INSTALLED_AGENT_PLUGIN="\$REFARM_HOME\/plugins\/@refarm\/agent\/plugin\.wasm"/,
-		"tractor-start.sh must resolve the installed agent at plugins/@refarm/agent/plugin.wasm",
+		/INSTALLED_AGENT_PLUGIN="\$\(\s*\n\s*REFARM_HOME="\$REFARM_HOME" node "\$ROOT\/scripts\/installed-plugin-path\.mjs"/,
+		"tractor-start.sh must derive the loaded path from the installer's own path function",
+	);
+	assert.ok(
+		!/INSTALLED_AGENT_PLUGIN="\$REFARM_HOME/.test(source),
+		"tractor-start.sh must not hardcode an install layout — that is how two install " +
+			"directories happened",
 	);
 });
 
-test("tractor-start.sh reinstalls when the compiled agent is newer than the installed copy", () => {
-	// The dist-stale guard: a rename that moves the agent's WIT imports must not leave the
-	// daemon loading an old installed copy. The start script must compare freshness (-nt)
-	// and reinstall before launching.
+test("the bridge resolves the path through the compiled single path function", () => {
+	const source = readFileSync(resolve("scripts/installed-plugin-path.mjs"), "utf8");
+	assert.match(
+		source,
+		/"plugin-install-path\.js"/,
+		"installed-plugin-path.mjs must import the compiled path module, not re-derive the layout",
+	);
+	assert.match(source, /installedPluginWasmPath/);
+});
+
+test("tractor-start.sh keeps the legacy scoped directory as a READ-ONLY fallback", () => {
+	// A node installed before the convergence loads `plugins/@refarm/agent/plugin.wasm`.
+	// The script must still boot it (loudly), and must never write it.
+	const source = readFileSync(tractorStart, "utf8");
+	assert.match(
+		source,
+		/LEGACY_AGENT_PLUGIN="\$REFARM_HOME\/plugins\/@refarm\/agent\/plugin\.wasm"/,
+		"tractor-start.sh must name the legacy install path so a pre-convergence node boots",
+	);
+	assert.match(
+		source,
+		/resolve_installed_agent_plugin "\$INSTALLED_AGENT_PLUGIN" "\$LEGACY_AGENT_PLUGIN"/,
+		"tractor-start.sh must resolve canonical-then-legacy through the sourced helper",
+	);
+});
+
+test("tractor-start.sh reports a compiled agent the installer has not picked up", () => {
+	// The old dist-stale guard was a SECOND installer reading the cargo target. The install
+	// currency check (version + manifest integrity vs the freshly hashed source) is strictly
+	// stronger than the mtime test it replaced, but it reads the npm package's copy — so a
+	// bare `cargo component build` is invisible to it. That is a message to the human.
+	const source = readFileSync(tractorStart, "utf8");
+	assert.match(
+		source,
+		/\[ "\$AGENT_PLUGIN" -nt "\$PACKAGED_AGENT_WASM" \]/,
+		"tractor-start.sh must notice when the compiled agent is newer than the packaged copy",
+	);
+	assert.match(
+		source,
+		/pnpm --filter @refarm\.dev\/agent run build/,
+		"the notice must name the command that publishes the build into the package",
+	);
+});
+
+test("scripts/agent-plugin-path.sh passes bash -n (syntax check)", () => {
+	execFileSync("bash", ["-n", resolve("scripts/agent-plugin-path.sh")], { stdio: "pipe" });
+});
+
+// ── surfaces declaration doctrine: the launch script must never author it ────────
+// docs/superpowers/specs/2026-07-29-declared-surfaces-design.md's whole doctrine is
+// "the operator states intent as data; the runtime interprets it" — a launch script
+// that reads-then-writes `surfaces.sidecar-http` into .refarm/config.json inverts
+// that (what the machine declares becomes a function of how it was launched, and of
+// whether `jq` happened to be installed). tractor-start.sh used to do exactly this
+// via three now-deleted helpers; these are static, source-level mutation guards so a
+// future edit cannot silently reintroduce that write path.
+test("tractor-start.sh never writes .refarm/config.json", () => {
+	const source = readFileSync(tractorStart, "utf8");
+
+	// The three deleted synthesis helpers must never come back under any name.
+	for (const helperName of [
+		"_sidecar_surface_already_declared",
+		"_declared_sidecar_expose_host",
+		"_declare_container_sidecar_surface",
+	]) {
+		assert.ok(
+			!source.includes(helperName),
+			`tractor-start.sh must not reintroduce ${helperName} — the declaration is ` +
+				"the operator's, not the launch script's, to author",
+		);
+	}
+
+	// No shell redirection ever targets config.json (covers `> "$CONFIG_JSON"`,
+	// `>"$CONFIG_JSON"`, `>>`, and a literal `.refarm/config.json` path spelled out
+	// instead of through the variable).
+	assert.ok(
+		!/>>?\s*"?\$CONFIG_JSON"?/.test(source),
+		"tractor-start.sh must not redirect output into $CONFIG_JSON",
+	);
+	assert.ok(
+		!/>>?\s*"?[^"\s]*\.refarm\/config\.json"?/.test(source),
+		"tractor-start.sh must not redirect output into a literal .refarm/config.json path",
+	);
+
+	// No `jq` invocation at all on this path (the write helpers were its only
+	// consumer) — a bare grep for the binary name catches any reintroduction, even
+	// one that does not touch CONFIG_JSON directly.
+	assert.ok(
+		!/\bjq\b/.test(source.replace(/#.*$/gm, "")),
+		"tractor-start.sh must not depend on jq (stripped of comment lines, which may " +
+			"still mention it historically)",
+	);
+});
+
+test("tractor-start.sh shares the CLI operator home unless explicitly isolated", () => {
+	const source = readFileSync(tractorStart, "utf8");
+	assert.match(
+		source,
+		/REFARM_HOME="\$\{REFARM_HOME:-\$\{HOME:\?HOME must be set\}\/\.refarm\}"/,
+	);
+	assert.match(source, /LEGACY_AGENT_PLUGIN="\$REFARM_HOME\/plugins\/@refarm\/agent\/plugin\.wasm"/);
+});
+
+test("tractor-start.sh passes bash -n (syntax check)", () => {
+	// A cheap, direct syntax proof alongside the source-level assertions above —
+	// catches an unbalanced `if`/`fi` or similar introduced while editing the bind
+	// hosts block without needing to actually run the script.
+	execFileSync("bash", ["-n", tractorStart], { stdio: "pipe" });
+});
+
+test("tractor-start.sh omits --http-host when REFARM_HTTP_HOST is unset (lets the declaration decide)", () => {
+	const source = readFileSync(tractorStart, "utf8");
+	assert.match(
+		source,
+		/if \[ "\$HAS_HTTP_HOST" = "0" \] && \[ -n "\$REFARM_HTTP_HOST" \]; then/,
+		"tractor-start.sh must only forward --http-host when REFARM_HTTP_HOST is non-empty",
+	);
+	// Mutation guard against the old always-defaulted shape: no `:=127.0.0.1` default
+	// assignment for REFARM_HTTP_HOST anywhere (that was Problem 1's root cause when
+	// mirrored into the CLI flag itself — the script must not resurrect an equivalent).
+	assert.ok(
+		!/REFARM_HTTP_HOST:=/.test(source),
+		"tractor-start.sh must not default REFARM_HTTP_HOST — an absent flag is what " +
+			"lets surfaces.sidecar-http decide",
+	);
+});
+
+test("tractor-start.sh omits --ws-host when REFARM_WS_HOST is unset (lets the declaration decide)", () => {
 	const source = readFileSync(resolve("scripts/tractor-start.sh"), "utf8");
 	assert.match(
 		source,
-		/\[ "\$AGENT_PLUGIN" -nt "\$INSTALLED_AGENT_PLUGIN" \]/,
-		"tractor-start.sh must detect a stale installed agent via a newer-than check",
+		/if \[ "\$HAS_WS_HOST" = "0" \] && \[ -n "\$REFARM_WS_HOST" \]/,
+		"tractor-start.sh must only forward --ws-host when REFARM_WS_HOST is non-empty",
 	);
-	assert.ok(
-		/agent-install\.mjs/.test(source),
-		"tractor-start.sh must reinstall (via agent-install.mjs) when the install is stale",
+	assert.doesNotMatch(
+		source,
+		/REFARM_WS_HOST="127\.0\.0\.1"/,
+		"tractor-start.sh must not default REFARM_WS_HOST — an absent flag is what " +
+			"lets surfaces.daemon-ws decide",
 	);
 });

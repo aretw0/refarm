@@ -102,6 +102,35 @@ function exportsToDist(exports) {
   return false;
 }
 
+function declaredExportTargets(value) {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(declaredExportTargets);
+  if (value && typeof value === "object") return Object.values(value).flatMap(declaredExportTargets);
+  return [];
+}
+
+/** A dist entrypoint is derived state; every declared JS entry must have a source cause. */
+export function validateDeclaredEntrypointSources(pkgDir, pkg, fileExists = existsSync) {
+  const violations = [];
+  const targets = new Set([
+    ...(typeof pkg.main === "string" ? [pkg.main] : []),
+    ...declaredExportTargets(pkg.exports),
+  ]);
+  for (const target of targets) {
+    if (!/^\.\/dist\/.+\.(?:mjs|cjs|js)$/.test(target) || target.includes("*")) continue;
+    const builtRelative = target.slice("./dist/".length);
+    const keepsBuildRelativePath = builtRelative.startsWith("src/") || builtRelative.startsWith("test/");
+    const sourceStem = (keepsBuildRelativePath ? builtRelative : `src/${builtRelative}`)
+      .replace(/\.(?:mjs|cjs|js)$/, "");
+    const candidates = [".ts", ".tsx", ".mts", ".cts", ".js", ".mjs", ".cjs"]
+      .map((extension) => join(pkgDir, `${sourceStem}${extension}`));
+    if (!candidates.some(fileExists)) {
+      violations.push(`${target} has no corresponding source entrypoint (${sourceStem}.{ts,tsx,mts,cts,js,mjs,cjs})`);
+    }
+  }
+  return violations;
+}
+
 function usesVtconfig(pkgDir, pkg) {
   const devDeps = pkg.devDependencies ?? {};
   return "@refarm.dev/vtconfig" in devDeps;
@@ -747,6 +776,45 @@ function validateRootPackageManagerConfig() {
   return validatePackageManagerConfig(readJson(join(ROOT, "package.json")));
 }
 
+/**
+ * A PACKAGE NAMED LIKE A CONTRACT THAT IS NOT SHAPED LIKE ONE — recorded, so it can only go down.
+ *
+ * `*-contract-v1` is a DECLARATION. The classifier reads only the shape, so a package that carries
+ * none of a contract's obligations lands on `buildable` and is validated against the weaker rules,
+ * silently. The run then ends with "All packages conform to their scaffold type", which is true and
+ * is not the sentence it appears to be (ISS-137, measured 2026-08-17).
+ *
+ * A RATCHET RATHER THAN A RED GATE. Seven packages were already in this state when it was measured,
+ * and failing them all for a condition nobody was told about is the opposite of the rule that a
+ * gate blocks only what its author can fix. So the seven are written down with the date, an eighth
+ * fails, and removing one from this list is the only direction the number moves.
+ *
+ * TWO DIFFERENT REPAIRS hide in this list and the entries say which. `prompt` ships a real
+ * conformance suite from `index.ts` and is demoted because the classifier looks for a FILE called
+ * `src/conformance.ts` — a detection miss. `model-account` and the others carry none — a real gap.
+ */
+const CONTRACT_NAMED_BUT_BUILDABLE = new Map([
+  ["history-contract-v1", "2026-08-17: declares test:conformance against an imported suite; no src/conformance.*"],
+  ["lab-contract-v1", "2026-08-17: no conformance suite"],
+  ["model-account-contract-v1", "2026-08-17: no conformance suite, and it holds every credential resolution rule"],
+  ["node-contract-v1", "2026-08-17: no conformance suite"],
+  ["pressure-contract-v1", "2026-08-17: declares test:conformance against an imported suite; no src/conformance.*"],
+  ["prompt-contract-v1", "2026-08-17: HAS a conformance suite (runOperatorChannelConformance) in index.ts, not in src/conformance.ts"],
+  ["workspace-access-contract-v1", "2026-08-17: no conformance suite"],
+]);
+
+/** Reports a package that CLAIMS to be a contract by name and was classified as something weaker. */
+function validateContractNamedShape(name, type) {
+  if (!name.endsWith("-contract-v1")) return [];
+  if (type === "contract-v1" || type === "structural-contract-v1") return [];
+  if (CONTRACT_NAMED_BUT_BUILDABLE.has(name)) return [];
+  return [
+    `named "*-contract-v1" but classified "${type}" — a contract package needs src/conformance.* ` +
+      `(behavioural) or private:true without test:conformance (structural). If neither is right, ` +
+      `rename the package or add it to CONTRACT_NAMED_BUT_BUILDABLE with a dated reason.`,
+  ];
+}
+
 function main() {
   const packageDirs = readdirSync(PACKAGES_DIR, { withFileTypes: true })
     .filter((d) => d.isDirectory())
@@ -812,11 +880,15 @@ function main() {
     else if (type === "hybrid-bindings-package") pkgViolations = validateHybridBindingsPackage(pkgDir, pkg);
     else if (type === "js-tool") pkgViolations = validateJsTool(pkgDir, pkg);
     else if (type === "config-pkg") pkgViolations = validateConfigPkg(pkgDir, pkg);
+    pkgViolations.push(...validateContractNamedShape(name, type));
     pkgViolations.push(...validateTestScriptRequiresTests(pkg));
     pkgViolations.push(...validatePublishSurface(pkg));
     pkgViolations.push(...validateRuntimeAgentPluginPackage(pkg));
     pkgViolations.push(...validateSiloPublicApi(pkg));
     pkgViolations.push(...validateDsPublicApi(pkg));
+    if ((pkg.scripts?.build ?? "").includes("tsc")) {
+      pkgViolations.push(...validateDeclaredEntrypointSources(pkgDir, pkg));
+    }
 
     if (pkgViolations.length === 0) {
       console.log(`  ✓ ${name.padEnd(30)} ${type}`);

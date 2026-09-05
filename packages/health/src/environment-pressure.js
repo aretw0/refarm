@@ -342,6 +342,7 @@ export function buildSessionPressureBudget(
  * @returns {EnvironmentPressureReport}
  */
 export function buildEnvironmentPressureReport(options = {}) {
+	// os-resolution: project — measures pressure on the repository tree being audited
 	const cwd = path.resolve(options.cwd ?? process.cwd());
 	const thresholds = {
 		...DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,

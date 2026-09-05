@@ -568,6 +568,42 @@ impl PluginInstanceHandle {
     /// Runs guest logic, so it arms the wall-clock deadline like `call_on_event`
     /// (timeout + cooperative cancel). P1 plain modules have no `respond` export → a
     /// clear error (they use `on_event` dispatch instead).
+    /// Narrow the model allowlist to what THIS invocation declared, for its duration.
+    ///
+    /// ISS-140 tier B. Set before the guest runs and cleared after, by the one task that owns this
+    /// handle — a plugin's invocations are served by a single consumer loop, so this needs no lock
+    /// and can never interleave.
+    ///
+    /// `None` restores the node-wide set, which is what a dispatch that declared no provider gets
+    /// and what every caller got before this existed.
+    /// Scope the model allowlist to what THIS invocation declared — provider AND seat — or clear it.
+    ///
+    /// ONE ENTRY POINT, and that is the point. The two facts were set separately and the runner has
+    /// TWO dispatch shapes (`respond` for a reply-bearing envelope, `on_event` for a reply-less
+    /// one). Wiring only the first left the whole mechanism inert for the shape `refarm ask`
+    /// actually uses — measured twice on 2026-08-17, once per fact, each time discovered by a live
+    /// failure rather than by a test.
+    ///
+    /// So the PARSING and the two writes live here, together: a third dispatch shape calls one
+    /// method and cannot half-adopt this. `None` clears both, restoring the node-wide set.
+    ///
+    /// Single-threaded by construction: a plugin's invocations are served by one task that owns the
+    /// handle and calls the guest one at a time.
+    pub fn set_task_scope(&mut self, payload: Option<&str>) {
+        let (provider, credential_id) = match payload {
+            Some(payload) => (
+                crate::declared_model_provider(payload),
+                crate::declared_credential_id(payload),
+            ),
+            None => (None, None),
+        };
+        if let PluginImpl::Component { store, .. } = &mut self.inner {
+            let bindings = &mut store.data_mut().bindings;
+            bindings.task_provider = provider;
+            bindings.task_credential_id = credential_id;
+        }
+    }
+
     pub async fn call_respond(&mut self, payload: &str) -> Result<String> {
         // Same epoch arming as call_on_event: clear a stale cancel, set the deadline.
         self.epoch_guard

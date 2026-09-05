@@ -35,10 +35,20 @@ pub(crate) struct UsageRecordInput {
     pub model: String,
     pub tokens_in: u32,
     pub tokens_out: u32,
-    pub tokens_cached: u32,
+    pub cache_read_tokens: u32,
+    pub cache_creation_tokens: u32,
     pub tokens_reasoning: u32,
     pub usage_raw: String,
     pub duration_ms: u64,
+    /// See `UsageRecordPayload::steps_completed`/`steps_planned` — the two
+    /// halves of *"died at 4/25"*, read together by the caller from
+    /// `provider_runtime::current_loop_progress()` so they cannot drift apart.
+    pub steps_completed: Option<u32>,
+    pub steps_planned: Option<u32>,
+    /// See `UsageRecordPayload::turns_completed` — read by the caller via
+    /// `react_loop::current_run_turns()` right after the turn that produced this
+    /// usage returned. A different notion from the step pair above.
+    pub turns_completed: u32,
 }
 
 /// Metadata defaults applied to partial response chunk drafts before storage.
@@ -282,10 +292,14 @@ pub(crate) fn store_usage_record(prompt_ref: &str, usage_input: UsageRecordInput
         model: &usage_input.model,
         tokens_in: usage_input.tokens_in,
         tokens_out: usage_input.tokens_out,
-        tokens_cached: usage_input.tokens_cached,
+        cache_read_tokens: usage_input.cache_read_tokens,
+        cache_creation_tokens: usage_input.cache_creation_tokens,
         tokens_reasoning: usage_input.tokens_reasoning,
         usage_raw: &usage_input.usage_raw,
         duration_ms: usage_input.duration_ms,
+        steps_completed: usage_input.steps_completed,
+        steps_planned: usage_input.steps_planned,
+        turns_completed: usage_input.turns_completed,
     });
     let _ = store_node(&usage);
 }

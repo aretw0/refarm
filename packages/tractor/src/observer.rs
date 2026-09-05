@@ -200,7 +200,14 @@ pub(crate) fn format_audit_line(event: &TelemetryEvent) -> Option<String> {
     serde_json::to_string(&serde_json::Value::Object(obj)).ok()
 }
 
-async fn append_line(path: &Path, line: &str, config: AuditConfig) {
+/// Append one NDJSON line to an audit file, rotating and pruning as configured.
+///
+/// `pub(crate)` because this is now the ONE audit writer in the daemon, not the observer's
+/// private one: `sidecar::auth` records authentication events through it so the security
+/// trail is a single file with a single retention policy, rather than a second log that
+/// would need its own rotation, its own cap, and its own way of going wrong. What is shared
+/// is the WRITER and the retention; what each caller decides is its own line.
+pub(crate) async fn append_line(path: &Path, line: &str, config: AuditConfig) {
     // Rotate BEFORE appending so a sealed segment never grows past the threshold.
     rotate_if_needed(path, config).await;
     match OpenOptions::new()
@@ -210,14 +217,51 @@ async fn append_line(path: &Path, line: &str, config: AuditConfig) {
         .await
     {
         Ok(mut file) => {
+            // ONE write of the line AND its terminator, never two.
+            //
+            // The record and the newline used to be two `write_all` calls on an `O_APPEND`
+            // handle. Each write lands atomically at the end of the file; the PAIR does not — so
+            // two concurrent writers could produce `<a><b><c>\n\n\n`, three records on one
+            // physical line and two empty ones after it. Every reader of this file is a
+            // line-oriented NDJSON parser, so that is not a cosmetic defect: it is a security
+            // trail that stops parsing exactly when several events arrive at once, which is
+            // precisely when it is interesting. Observed on a real boot, from a flood of failed
+            // WebSocket handshakes — the connection-per-event shape that makes concurrent
+            // appends the ordinary case rather than the rare one.
+            //
+            // Building the terminated string first costs one allocation per line and makes the
+            // record atomic against every other writer of this file, which is the property NDJSON
+            // has always assumed and nothing was providing.
+            let mut terminated = String::with_capacity(line.len() + 1);
+            terminated.push_str(line);
+            terminated.push('\n');
             // The audit log is tamper-evidence (CLAUDE.md §3). A dropped write
             // leaves a hole in the security trail, so surface it (warn) instead of
             // swallowing — a host-effect that executed but whose audit record was
             // lost is exactly what an operator must be able to see.
-            if let Err(e) = file.write_all(line.as_bytes()).await {
+            if let Err(e) = file.write_all(terminated.as_bytes()).await {
                 tracing::warn!(path = %path.display(), error = %e, "scarecrow: audit line write failed — security trail has a gap");
-            } else if let Err(e) = file.write_all(b"\n").await {
-                tracing::warn!(path = %path.display(), error = %e, "scarecrow: audit newline write failed — security trail line is unterminated");
+            } else if let Err(e) = file.flush().await {
+                // `tokio::fs::File::poll_write` hands the write off to a blocking-pool
+                // thread and reports `Ready` as soon as it is SPAWNED, not once it has
+                // landed — `write_all().await` resolving is not the same fact as "the
+                // bytes are in the file". `flush().await` is what actually waits for
+                // that background write to finish (see `tokio::fs::File`'s own doc: "you
+                // should call flush before dropping it"). Without this, a caller that
+                // awaits `append_line` and then immediately reads the file back — every
+                // caller does, because that is the entire point of an audit trail — can
+                // observe a file missing the line it was just told had been written, with
+                // NO error anywhere: under ordinary load the background write finishes in
+                // microseconds and the gap is invisible; under CPU contention (the
+                // blocking-pool thread waiting its turn behind everything else) the gap
+                // widens enough to be observed. This is not the documented best-effort
+                // "warn and drop on a real I/O failure" path — confirmed empirically by
+                // capturing `tracing` output across a reproduced failure under load: the
+                // line went missing with no warning at all, because nothing had failed —
+                // the write just had not happened yet. `auth.rs`'s own module doc already
+                // claims this file is "flushed per line"; this call is what makes that
+                // claim true instead of aspirational.
+                tracing::warn!(path = %path.display(), error = %e, "scarecrow: audit line flush failed — security trail has a gap");
             }
         }
         Err(e) => {
@@ -681,6 +725,71 @@ mod tests {
         assert_eq!(parsed["plugin_id"], "agent");
         // Only the base keys are present; nothing from the array was merged.
         assert!(parsed.as_object().unwrap().len() == 3);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn concurrent_appends_never_share_a_physical_line() {
+        // Observed on a real boot, not imagined: a flood of failed WebSocket handshakes — one
+        // connection per event, so concurrent appends are the ORDINARY case here — produced
+        // three records concatenated onto one line followed by two empty ones. The record and
+        // its newline were two `write_all` calls on an `O_APPEND` handle: each lands atomically,
+        // the PAIR does not.
+        //
+        // Every reader of this file is a line-oriented NDJSON parser, so an interleaved write is
+        // a security trail that stops parsing exactly when several events arrive at once, which
+        // is precisely when it is interesting.
+        let dir = std::env::temp_dir().join(format!("audit-concurrent-{}", uuid::Uuid::new_v4()));
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        let path = dir.join(AUDIT_FILE);
+        let config = AuditConfig::default();
+
+        const WRITERS: usize = 64;
+        let mut tasks = Vec::with_capacity(WRITERS);
+        for n in 0..WRITERS {
+            let path = path.clone();
+            tasks.push(tokio::spawn(async move {
+                // A realistic line width: an audit record, not a token.
+                let line = serde_json::json!({
+                    "n": n,
+                    "event": "host-effect:fs:read",
+                    "padding": "x".repeat(96),
+                })
+                .to_string();
+                append_line(&path, &line, config).await;
+            }));
+        }
+        for task in tasks {
+            task.await.unwrap();
+        }
+
+        let text = tokio::fs::read_to_string(&path).await.unwrap();
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(
+            lines.len(),
+            WRITERS,
+            "one physical line per record, no more (concatenated records) and no fewer \
+             (records that never got their own line)"
+        );
+        let mut seen: Vec<u64> = Vec::with_capacity(WRITERS);
+        for line in lines {
+            let parsed: serde_json::Value = serde_json::from_str(line).unwrap_or_else(|error| {
+                // Truncated: a line carrying several concatenated records is long by
+                // construction, and the first 120 bytes already show the concatenation.
+                panic!(
+                    "every physical line must be exactly one record ({error}): {}…",
+                    &line[..line.len().min(120)]
+                )
+            });
+            seen.push(parsed["n"].as_u64().expect("each record keeps its own field"));
+        }
+        seen.sort_unstable();
+        assert_eq!(
+            seen,
+            (0..WRITERS as u64).collect::<Vec<_>>(),
+            "every record must survive, exactly once"
+        );
+
+        let _ = tokio::fs::remove_dir_all(&dir).await;
     }
 
     #[tokio::test]

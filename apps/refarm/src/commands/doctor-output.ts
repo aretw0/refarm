@@ -39,6 +39,9 @@ export function formatRefarmDoctorReportJson(report: RefarmDoctorReport): string
 		nextCommand: report.nextCommand,
 		nextCommands: report.nextCommands,
 		host: report.host,
+		// ISS-093. This projection is an explicit allowlist, so a field added to the report type does
+		// NOT reach the JSON until it is named here — which is why the fix is two edits, not one.
+		workingTree: report.workingTree,
 		status: JSON.parse(formatStatusJson(report.status)),
 	});
 }
@@ -49,9 +52,10 @@ export function printRefarmDoctorReport(
 ): void {
 	const state = report.ok ? "PASS" : "FAIL";
 	log(`Doctor: ${state}`);
-	log(
-		`Host: ${report.host.command} v${report.host.version} (${report.host.app}, profile=${report.host.profile}, packageManager=${report.host.packageManager})`,
-	);
+	log(`Host: ${report.host.command} v${report.host.version} (${report.host.app}, profile=${report.host.profile})`);
+	// ISS-093: its own line, naming the directory. The package manager was printed under `Host:`
+	// while being a fact about wherever the operator happened to run the command from.
+	log(`Working tree: ${report.workingTree.path} (packageManager=${report.workingTree.packageManager})`);
 	log(`Renderer: ${report.status.renderer.id} (${report.status.renderer.kind})`);
 	const runtimeEngine = report.status.runtime.engine;
 	const runtimeEngineSuffix = runtimeEngine

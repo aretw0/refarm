@@ -72,6 +72,38 @@ export function planUpdate(remote, local) {
 	};
 }
 
+/**
+ * The remembered `ETag` for the manifest, as a value a device can store and re-offer.
+ *
+ * The first slice of docs/superpowers/specs/2026-07-30-declared-traffic-budget-design.md: the
+ * payload layer is already content-addressed (`planUpdate` + per-file sha256, which beats
+ * ETags for a file SET), so the only fetch left paying full price on every run, on every
+ * device, forever is the CONTROL fetch — `manifest.json` itself. `refarm web serve` now sends
+ * a strong `ETag`; these two helpers are the client half.
+ *
+ * PURE, and deliberately narrow: no freshness window, no floor, no `live`. T3 refuses to build
+ * the general vocabulary ahead of its second consumer.
+ */
+
+/** Is `value` a usable ETag to re-offer? A validator is an opaque quoted string — we neither
+ *  parse nor trust its contents, only that there is one and it is not absurdly long. */
+export function isUsableETag(value) {
+	return typeof value === "string" && value.length > 0 && value.length <= 256;
+}
+
+/**
+ * The `If-None-Match` request headers for a conditional manifest fetch, or `{}` when there is
+ * nothing to be conditional about.
+ *
+ * `hasLocalManifest` is not optional politeness — it is the correctness condition. A remembered
+ * ETag with no local manifest beside it would turn a `304` into "up to date" while the device
+ * holds nothing, so the two facts must be checked together. PURE.
+ */
+export function conditionalManifestHeaders(etag, hasLocalManifest) {
+	if (!hasLocalManifest || !isUsableETag(etag)) return {};
+	return { "if-none-match": etag };
+}
+
 /** Build a manifest object from hashed files. PURE (createdAt injected). */
 export function buildManifest({ name, version, platform = null, createdAt, files }) {
 	return {

@@ -11,12 +11,58 @@ import path from "node:path";
 import test from "node:test";
 import {
 	buildHandoffManifest,
+	computeTransitiveRefarmClosure,
 	formatHandoffMarkdown,
 	packageTarballName,
 	parseHandoffArgs,
 	pruneExtraHandoffTarballs,
 	writePacketManifests,
 } from "../vault-seed-ready-handoff.mjs";
+
+// The transitive @refarm.dev closure — the rope #2 fix: health -> config must be vendored + overridden
+// without entering the consumer-proven selection.
+test("computeTransitiveRefarmClosure: pulls a selected package's transitive @refarm.dev dep (health→config)", () => {
+	const workspaceRefarmPackages = new Map([
+		["@refarm.dev/health", "packages/health"],
+		["@refarm.dev/config", "packages/config"],
+		["@refarm.dev/storage-contract-v1", "packages/storage-contract-v1"],
+	]);
+	const deps = {
+		"packages/health": ["@refarm.dev/config", "picomatch"],
+		"packages/config": [],
+		"packages/storage-contract-v1": [],
+	};
+	const closure = computeTransitiveRefarmClosure({
+		selected: [
+			{ packageName: "@refarm.dev/health", packageDir: "packages/health" },
+			{ packageName: "@refarm.dev/storage-contract-v1", packageDir: "packages/storage-contract-v1" },
+		],
+		workspaceRefarmPackages,
+		readDeps: (dir) => deps[dir] ?? [],
+	});
+	assert.deepEqual(closure, [{ packageName: "@refarm.dev/config", packageDir: "packages/config" }]);
+});
+
+test("computeTransitiveRefarmClosure: excludes already-selected deps, non-workspace deps, and recurses", () => {
+	const workspaceRefarmPackages = new Map([
+		["@refarm.dev/a", "packages/a"],
+		["@refarm.dev/b", "packages/b"],
+		["@refarm.dev/c", "packages/c"],
+	]);
+	const deps = {
+		"packages/a": ["@refarm.dev/b", "@refarm.dev/c", "@refarm.dev/external-only"],
+		"packages/b": ["@refarm.dev/c"], // recursion: b pulls c
+		"packages/c": [],
+	};
+	const closure = computeTransitiveRefarmClosure({
+		selected: [{ packageName: "@refarm.dev/a", packageDir: "packages/a" }],
+		workspaceRefarmPackages, // b is selected below, external-only is not in the workspace map
+		readDeps: (dir) => deps[dir] ?? [],
+	}).map((entry) => entry.packageName);
+	// a selects b transitively → but b IS a selected package here? no: only a is selected.
+	// So b and c are both transitive; external-only is skipped (not a workspace package).
+	assert.deepEqual(closure, ["@refarm.dev/b", "@refarm.dev/c"]);
+});
 
 const PROCESS_HANDOFF_CONSUMER_PULL = {
 	proofId: "process-handoff.dgk-runner-adapter",
@@ -55,14 +101,14 @@ function releaseCheck() {
 		plan: {
 			ok: true,
 			status: "ready",
-			selection: { id: "vault-seed-ready" },
+			selection: { id: "consumer-ready" },
 			orderedNames: ["@refarm.dev/alpha", "@refarm.dev/beta"],
 			orderedPackages: [
 				{
 					name: "@refarm.dev/alpha",
 					profile: {
 						risk: "shared",
-						tags: ["vault-seed-ready"],
+						tags: ["consumer-ready"],
 						mustPassChecks: ["pnpm --filter @refarm.dev/alpha run test"],
 					},
 				},
@@ -70,13 +116,13 @@ function releaseCheck() {
 					name: "@refarm.dev/beta",
 					profile: {
 						risk: "core",
-						tags: ["vault-seed-ready"],
+						tags: ["consumer-ready"],
 						mustPassChecks: ["pnpm --filter @refarm.dev/beta run test"],
 					},
 				},
 			],
 			gates: [{ id: "preflight", required: true }],
-			profileTags: ["vault-seed-ready"],
+			profileTags: ["consumer-ready"],
 			publishIntents: [
 				{ provider: "changesets", plan: { requiresManualApproval: true } },
 			],
@@ -105,7 +151,7 @@ test("parses handoff CLI arguments", () => {
 	assert.deepEqual(
 		parseHandoffArgs([
 			"--selection",
-			"vault-seed-ready",
+			"consumer-ready",
 			"--dir",
 			".refarm/handoff",
 			"--out",
@@ -116,7 +162,7 @@ test("parses handoff CLI arguments", () => {
 			"--json",
 		]),
 		{
-			selectionId: "vault-seed-ready",
+			selectionId: "consumer-ready",
 			handoffDir: ".refarm/handoff",
 			json: true,
 			out: "manifest.md",
@@ -149,7 +195,7 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 		providerCount: 1,
 		manualApprovalRequired: true,
 		surfaces: ["core", "shared"],
-		profileTags: ["vault-seed-ready"],
+		profileTags: ["consumer-ready"],
 		requiredChecks: [
 			{
 				command: "pnpm --filter @refarm.dev/alpha run test",
@@ -169,6 +215,11 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 	assert.deepEqual(manifest.consumerInstall, {
 		packageManager: "pnpm",
 		vendorDir: "vendor",
+		// ADDED by the transitive-closure work (ddd4d169) and never reflected here — the manifest
+		// grew a field and this exact-shape expectation kept describing the old one. Empty in this
+		// fixture, whose two packages depend on nothing outside it, and that is the point: a
+		// field can be absent from a fixture's DATA and still have to be present in its SHAPE.
+		transitivePackages: [],
 		copyFrom: ".refarm/handoff/vault-seed/fixture",
 		copyFiles: [
 			"manifest.json",
@@ -203,7 +254,7 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 		manifest.distributionEvidence.currentRef,
 		"refarm-handoff://vault-seed-ready/fixture",
 	);
-	assert.equal(manifest.distributionEvidence.subject.selectionId, "vault-seed-ready");
+	assert.equal(manifest.distributionEvidence.subject.selectionId, "consumer-ready");
 	assert.deepEqual(manifest.distributionEvidence.subject.tarballs, [
 		"refarm.dev-alpha-0.1.0.tgz",
 		"refarm.dev-beta-0.2.0.tgz",
@@ -310,21 +361,21 @@ test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
 			plan: {
 				ok: true,
 				status: "ready",
-				selection: { id: "vault-seed-ready" },
+				selection: { id: "consumer-ready" },
 				orderedNames: ["@refarm.dev/process-handoff"],
 				orderedPackages: [
 					{
 						name: "@refarm.dev/process-handoff",
 							profile: {
 								risk: "shared",
-								tags: ["vault-seed-ready"],
+								tags: ["consumer-ready"],
 								mustPassChecks: ["pnpm --filter @refarm.dev/process-handoff run test"],
 								consumerPull: PROCESS_HANDOFF_CONSUMER_PULL,
 							},
 						},
 					],
 				gates: [{ id: "preflight", required: true }],
-				profileTags: ["vault-seed-ready"],
+				profileTags: ["consumer-ready"],
 				publishIntents: [],
 			},
 			commands: [
@@ -374,21 +425,21 @@ test("uses document wording for ds/html consumer-pull metadata", () => {
 			plan: {
 				ok: true,
 				status: "ready",
-				selection: { id: "vault-seed-ready" },
+				selection: { id: "consumer-ready" },
 				orderedNames: ["@refarm.dev/ds"],
 				orderedPackages: [
 					{
 						name: "@refarm.dev/ds",
 							profile: {
 								risk: "shared",
-								tags: ["vault-seed-ready"],
+								tags: ["consumer-ready"],
 								mustPassChecks: ["pnpm --filter @refarm.dev/ds run test"],
 								consumerPull: DS_CONSUMER_PULL,
 							},
 						},
 					],
 				gates: [{ id: "preflight", required: true }],
-				profileTags: ["vault-seed-ready"],
+				profileTags: ["consumer-ready"],
 				publishIntents: [],
 			},
 			commands: [
@@ -416,7 +467,7 @@ test("keeps blocked distribution evidence at zero verified copies", () => {
 			plan: {
 				ok: false,
 				status: "blocked",
-				selection: { id: "vault-seed-ready" },
+				selection: { id: "consumer-ready" },
 				reason: "release selection is not ready",
 				orderedNames: [],
 				orderedPackages: [],
@@ -447,7 +498,7 @@ test("blocks manifest when release boundary audit fails", () => {
 			schemaVersion: 1,
 			command: "release-boundary-audit",
 			ok: false,
-			selectionId: "vault-seed-ready",
+			selectionId: "consumer-ready",
 			auditedPackageCount: 2,
 			auditedPackages: ["@refarm.dev/alpha", "@refarm.dev/beta"],
 			issueCount: 1,
@@ -484,18 +535,36 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 		handoffDir,
 	});
 
-	assert.equal(manifest.selection.id, "vault-seed-ready");
-	assert.equal(manifest.packages.length, 23);
-	assert.ok(manifest.packages.some((pkg) => pkg.packageName === "@refarm.dev/health"));
+	assert.equal(manifest.selection.id, "consumer-ready");
+	// 24 since cc61342e: `@refarm.dev/vault-contract-v1` entered the selection. That commit moved
+	// the fact and left every number that describes it behind — four assertions here, two in
+	// test-release-check.mjs, one in test-first-publish-selection.mjs and a line in
+	// DISTRIBUTION_STATUS.md. The ratchet is only a ratchet where somebody turns it.
+	//
+	// 23 since 2026-08-16: `@refarm.dev/content-projection` REJOINED the `consumer-ready`
+	// selection. ISS-113 held it out at 22 because nothing declared a dependency on it, and refused
+	// to stamp `consumer-proven` to make a test green. The bar its three profile peers meet is a
+	// consumer reaching the package from a surface that is NOT the contract test, and vault-seed's
+	// records reference vault now structures its MD/MDX lane through `projectContentToRecords`.
+	// The tag moved because the fact moved — not to make this number move.
+	assert.equal(manifest.packages.length, 27);
+	// 27 since 2026-08-30: std, node-contract-v1 and plugin-manifest ENTERED (vault-contract-v1
+	// imports all three at runtime; coop-vault vendors them as overrides) and health LEFT — it
+	// depends on config, which is held for boundary review, and no consumer uses it in product
+	// (vault-seed keeps it as a proof-only devDependency). The lane is dependency-closed for
+	// the first time; the install smoke, not this count, is what proves that.
+	assert.ok(manifest.packages.some((pkg) => pkg.packageName === "@refarm.dev/std"));
+	assert.ok(manifest.packages.some((pkg) => pkg.packageName === "@refarm.dev/plugin-manifest"));
+	assert.ok(!manifest.packages.some((pkg) => pkg.packageName === "@refarm.dev/health"));
 	assert.equal(manifest.consumerProofs.length, manifest.packages.length);
-	assert.ok(manifest.consumerProofs.some((proof) => proof.proofId === "health.toolchain-environment-auditor"));
+	assert.ok(manifest.consumerProofs.some((proof) => proof.proofId === "std.pure-primitives-behind-a-published-contract"));
 	assert.equal(manifest.distributionEvidence.state, "blocked");
 	assert.equal(manifest.distributionEvidence.availability.currentVerifiedCopies, 0);
-	assert.equal(manifest.distributionEvidence.subject.packageCount, 23);
-	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 23);
+	assert.equal(manifest.distributionEvidence.subject.packageCount, 27);
+	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 27);
 	assert.equal(manifest.releaseBoundaryAudit.ok, true);
 	assert.equal(manifest.releaseBoundaryAudit.command, "release-boundary-audit");
-	assert.equal(manifest.releaseBoundaryAudit.selectionId, "vault-seed-ready");
+	assert.equal(manifest.releaseBoundaryAudit.selectionId, "consumer-ready");
 	assert.equal(manifest.releaseBoundaryAudit.auditedPackageCount, manifest.packages.length);
 	assert.equal(manifest.distributionEvidence.boundary.releaseBoundaryAudit.ok, true);
 	assert.equal(
@@ -513,8 +582,16 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 		],
 	);
 	assert.equal(Object.keys(manifest.consumerInstall.fileSpecs).length, manifest.packages.length);
-	assert.equal(Object.keys(manifest.consumerInstall.pnpmOverrides).length, manifest.packages.length);
-	assert.equal(manifest.consumerInstall.copyFiles.length, manifest.packages.length + 1);
+	// pnpmOverrides ⊇ fileSpecs — it adds the transitive @refarm.dev closure (e.g. health → config)
+	// so the consumer's install is dependency-closed; copyFiles carries every overridden tarball + manifest.
+	for (const key of Object.keys(manifest.consumerInstall.fileSpecs)) {
+		assert.ok(key in manifest.consumerInstall.pnpmOverrides);
+	}
+	assert.ok(Object.keys(manifest.consumerInstall.pnpmOverrides).length >= manifest.packages.length);
+	assert.equal(
+		manifest.consumerInstall.copyFiles.length,
+		Object.keys(manifest.consumerInstall.pnpmOverrides).length + 1,
+	);
 	assert.equal(manifest.consumerInstall.revendorPolicy.proofAfterRefresh, "consumerProofs");
 	assert.equal(
 		manifest.consumerInstall.fileSpecs["@refarm.dev/ds"],

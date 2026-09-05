@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	autoStartFarmhand,
 	autoStartRuntime,
+	defaultLaunchDeps,
 	checkSessionReadiness,
 	isFirstRun,
 	isRuntimeRunning,
@@ -234,6 +235,90 @@ describe("checkSessionReadiness", () => {
 			runtimeRunning: false,
 			farmhandRunning: false,
 		});
+	});
+
+	/**
+	 * ISS-138 — the node's credentials moved and this gate did not.
+	 *
+	 * Measured on the operator's node 2026-08-17, immediately after `refarm sow` succeeded: three
+	 * healthy accounts in the catalog, `refarm credential list` naming all three, and every
+	 * dispatch refused with "No usable model credentials configured."
+	 *
+	 * `sow` writes the secret to Silo's `model` namespace and RETIRES the flat entry — that is the
+	 * whole point of the namespaced store. This gate reads `identity.json`, finds a provider still
+	 * declared there, looks for its credential in the flat map, finds an empty one, and reports a
+	 * DECLARED-MISSING credential. The more completely a node migrates, the more certain this gate
+	 * becomes that it has nothing.
+	 */
+	it("counts a healthy account in the CATALOG, not only a credential in the flat map", async () => {
+		const tmpBase = join(tmpdir(), `refarm-readiness-catalog-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		// The operator's node exactly: a provider still declared in identity.json whose flat entry
+		// `sow` has already retired...
+		writeFileSync(
+			join(refarmDir, "identity.json"),
+			JSON.stringify({ modelProvider: "openai-codex", oauthProvider: "openai-codex", oauthCredentials: {} }),
+		);
+		// ...and the account it was migrated INTO.
+		writeFileSync(
+			join(refarmDir, "model-accounts.json"),
+			JSON.stringify([
+				{
+					credentialId: "model-account:AAAAAAAAAAAAAAAAAAAAAAAAAA",
+					provider: "openai-codex",
+					alias: "account-2",
+					identity: { status: "verified", subject: "s" },
+					secretRef: "model/model-account:AAAAAAAAAAAAAAAAAAAAAAAAAA",
+					health: "healthy",
+					revision: "sha256:r",
+				},
+			]),
+		);
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({ providerConfigured: true });
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
+	it("still reports NOT configured when the catalog holds nothing usable", async () => {
+		// The gate must keep failing closed. An `incomplete` descriptor is a login that happened and
+		// a secret that did not survive — evidence of intent, never of a usable credential.
+		const tmpBase = join(tmpdir(), `refarm-readiness-incomplete-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		// A provider IS declared, so the keyless ollama floor does not apply and the question is
+		// only whether the catalog rescues it. It must not.
+		writeFileSync(
+			join(refarmDir, "identity.json"),
+			JSON.stringify({ modelProvider: "openai-codex", oauthProvider: "openai-codex", oauthCredentials: {} }),
+		);
+		writeFileSync(
+			join(refarmDir, "model-accounts.json"),
+			JSON.stringify([
+				{
+					credentialId: "model-account:BBBBBBBBBBBBBBBBBBBBBBBBBB",
+					provider: "openai-codex",
+					alias: "broken",
+					identity: { status: "unverified" },
+					secretRef: "model/model-account:BBBBBBBBBBBBBBBBBBBBBBBBBB",
+					health: "incomplete",
+					revision: "sha256:r",
+				},
+			]),
+		);
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({ providerConfigured: false });
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
 	});
 
 	it("recognizes a default provider credential from .refarm/.env", async () => {
@@ -909,7 +994,10 @@ describe("resolveLaunchRuntime", () => {
 		mkdirSync(repoRoot, { recursive: true });
 
 		try {
-			expect(resolveLaunchRuntime(repoRoot, "auto")).toMatchObject({
+			// `onPath: () => null` states what this scenario always meant: the binary is absent
+			// EVERYWHERE. It used to pass because the machine running the suite happened to have
+			// no `tractor` on PATH — a premise the test never declared and could not keep.
+			expect(resolveLaunchRuntime(repoRoot, "auto", { onPath: () => null })).toMatchObject({
 				activeEngine: "ts",
 				reason: "auto-ts-fallback",
 			});
@@ -981,12 +1069,74 @@ describe("resolveLaunchRuntime", () => {
 
 		try {
 			// The guidance must name the path a default build will actually use.
-			expect(() => resolveLaunchRuntime(repoRoot, "rust")).toThrow(
+			// Same explicit premise as above: absent EVERYWHERE, not merely absent from the repo.
+			expect(() => resolveLaunchRuntime(repoRoot, "rust", { onPath: () => null })).toThrow(
 				join(repoRoot, ".cache", "cargo-target"),
 			);
 		} finally {
 			if (saved !== undefined) process.env.CARGO_TARGET_DIR = saved;
 			rmSync(repoRoot, { recursive: true, force: true });
 		}
+	});
+});
+
+/**
+ * MEASURED 2026-08-19, with this node moved onto an INSTALLED copy of the CLI:
+ *
+ *   refarm runtime status  ->  configuredEngine: "rust", activeEngine: "unknown"
+ *   refarm runtime ensure  ->  ensured: false, started: false, ok: false
+ *
+ * The engine resolves by looking for the tractor binary at a REPO path. An installed node has no
+ * repo, so a node whose config says `rust`, whose runtime was RUNNING, and whose binary sat on
+ * PATH reported that it had no engine — and refused to start one.
+ *
+ * The launcher already knows "repo build, else the binary on PATH". The selection above it did
+ * not, and a selection that disagrees with the launcher is a node that will not start itself.
+ */
+describe("resolveLaunchRuntime — an installed node", () => {
+	it("accepts the rust engine when the binary is on PATH rather than in a repo", () => {
+		const selection = resolveLaunchRuntime("/nowhere/at/all", "rust", {
+			existsSync: () => false,
+			onPath: () => "/home/op/.local/bin/tractor",
+		});
+		expect(selection.activeEngine).toBe("rust");
+	});
+
+	it("still refuses when the binary is in neither place, and says both", () => {
+		// The refusal has to name what it looked for. "Build it" is wrong advice for an operator
+		// whose node was installed rather than built.
+		expect(() =>
+			resolveLaunchRuntime("/nowhere", "rust", { existsSync: () => false, onPath: () => null }),
+		).toThrowError(/PATH/u);
+	});
+
+	it("keeps preferring the repo build when one is there", () => {
+		// A developer running from the working tree must keep getting the binary they just built,
+		// not one installed weeks ago.
+		const selection = resolveLaunchRuntime("/repo", "rust", {
+			existsSync: () => true,
+			onPath: () => "/home/op/.local/bin/tractor",
+		});
+		expect(selection.activeEngine).toBe("rust");
+		expect(selection.reason).toBe("configured-rust");
+	});
+});
+
+describe("defaultLaunchDeps().spawnRuntime", () => {
+	// MEASURED 2026-08-19 and recorded in runtime-node-env.ts: a runtime started with the
+	// arguments alone comes up healthy and refuses every dispatch. That failure is worse than
+	// one that does not start, because `status` says ready — so the assertion is on the SECOND
+	// parameter, not on a downstream symptom.
+	it("hands the runtime the node environment, not only its arguments", async () => {
+		const startRuntime = vi.fn();
+		const deps = defaultLaunchDeps({
+			startRuntime,
+			runtimeNodeEnv: async () => ({ MODEL_AUTHORIZATION_PROBE: "yes" }),
+		});
+		await deps.spawnRuntime?.("/nonexistent-repo-root");
+		expect(startRuntime).toHaveBeenCalledTimes(1);
+		const env = startRuntime.mock.calls[0]?.[1] as NodeJS.ProcessEnv | undefined;
+		expect(env).toBeDefined();
+		expect(env?.MODEL_AUTHORIZATION_PROBE).toBe("yes");
 	});
 });

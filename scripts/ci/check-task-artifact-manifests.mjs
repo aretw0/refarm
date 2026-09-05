@@ -3,7 +3,40 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const TASK_ARTIFACT_MANIFEST_SCHEMA = "refarm.task-artifacts.v1";
+/**
+ * THE CI SURFACE'S WIRE NAME — the package's, since 2026-08-30 (ISS-112 closed).
+ *
+ * DECIDED, with the consumers measured: vault-seed and enem both read
+ * `contract?.TASK_ARTIFACT_MANIFEST_SCHEMA ?? "refarm.task-artifacts.v1"` — they already prefer
+ * the package's value and keep the old literal only as a fallback for a missing dependency.
+ * arch-engine (a Python producer) emits the package's value verbatim. So the package IS the
+ * canonical declaration (ADR-087: brand-agnostic packages), and this constant is pinned to it by
+ * `test-check-task-artifact-manifests-lib.mjs`, which reads the package source — the
+ * `check:permission-vocab` idiom for one vocabulary across two stacks. The history below is kept
+ * because it explains why this was NOT collapsed on sight.
+ *
+ * ---- history (2026-08-11/12) ----
+ * THE CI SURFACE'S WIRE NAME — and it was NOT the package's, on purpose (ISS-112).
+ *
+ * `@refarm.dev/artifact-contract-v1` declares `sovereign.task-artifacts.v1`; this declares
+ * `refarm.task-artifacts.v1`. One identifier, two values, which looked like pure drift from
+ * ADR-087 phase 3 debranding the packages while `release:brand:guard` polices `packages/` and not
+ * `scripts/`.
+ *
+ * MEASURING BEFORE RENAMING FOUND A SECOND PRODUCER. Four checked-in expected fixtures under
+ * `validations/*‍/fixtures/expected/task-artifacts.json` carry `refarm.*`, and
+ * `refarm.config.json` declares a proof target reading "vault-seed emits refarm.task-artifacts.v1
+ * manifests". vault-seed is a SEPARATE repository consuming refarm as an SDK. So the two names may
+ * both be true of different producers, and collapsing them here would rename a contract somebody
+ * else reads off disk.
+ *
+ * WHAT WAS ACTUALLY WRONG was never the second declaration — it was the LITERAL that had been
+ * copied out of it into `local-first-platform-proof.mjs`, where a producer change would have left
+ * it silently matching nothing. That one now imports this constant. The VALUE question stays open
+ * and belongs to whoever owns the vault-seed contract; it is not a thing to settle inside a slice
+ * about removing a duplicate string.
+ */
+export const TASK_ARTIFACT_MANIFEST_SCHEMA = "sovereign.task-artifacts.v1";
 
 const ROLE_SET = new Set([
 	"dataset",
@@ -285,8 +318,28 @@ export function validateTaskArtifactManifestFile(manifestPath) {
 	return issues;
 }
 
+// A `validations/` rename, an empty checkout slice, or a walk that silently
+// found the wrong directory must not read the same as "scanned every manifest
+// and they are all valid" — zero manifests found is not evidence of zero
+// problems, it is evidence this gate never ran. `walkForManifests` already
+// swallows a missing rootDir into `[]`; this floor is what keeps that `[]`
+// from reading as a clean pass.
+export const MINIMUM_PLAUSIBLE_TASK_ARTIFACT_MANIFEST_COUNT = 1;
+
 export function checkTaskArtifactManifests(rootDir = process.cwd()) {
 	const manifestPaths = walkForManifests(path.join(rootDir, "validations"));
+	if (manifestPaths.length < MINIMUM_PLAUSIBLE_TASK_ARTIFACT_MANIFEST_COUNT) {
+		return {
+			ok: false,
+			manifestCount: manifestPaths.length,
+			manifestPaths,
+			issues: [],
+			coverageError:
+				`found ${manifestPaths.length} task-artifacts.json manifest(s) under validations/ ` +
+				`(expected at least ${MINIMUM_PLAUSIBLE_TASK_ARTIFACT_MANIFEST_COUNT}) — this gate cannot tell ` +
+				'"nothing to check" from "checked nothing", so it refuses to pass on zero coverage.',
+		};
+	}
 	const issues = manifestPaths.flatMap((manifestPath) =>
 		validateTaskArtifactManifestFile(manifestPath),
 	);
@@ -295,6 +348,7 @@ export function checkTaskArtifactManifests(rootDir = process.cwd()) {
 		manifestCount: manifestPaths.length,
 		manifestPaths,
 		issues,
+		coverageError: null,
 	};
 }
 
@@ -306,6 +360,10 @@ function formatIssue(issue, rootDir) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	const rootDir = process.cwd();
 	const result = checkTaskArtifactManifests(rootDir);
+	if (result.coverageError) {
+		console.error(result.coverageError);
+		process.exit(1);
+	}
 	if (!result.ok) {
 		console.error(
 			result.issues.map((issue) => formatIssue(issue, rootDir)).join("\n"),

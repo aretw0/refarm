@@ -23,9 +23,24 @@ export {
 	FARM_BEACON_PORT,
 	subnetSweepTargets,
 } from "./beacon.mjs";
-export { parseTailnetPeers, tailnetPeers, tailnetShortName } from "./tailnet.mjs";
-export { farmAuthHeaders } from "./auth.mjs";
-export { buildRespondEffort } from "./effort.mjs";
+export {
+	parseTailnetPeerRecords,
+	parseTailnetPeers,
+	tailnetPeers,
+	tailnetPeersReport,
+	tailnetShortName,
+	tailnetStatusReport,
+} from "./tailnet.mjs";
+export {
+	farmAuthHeaders,
+	farmCredentialStatus,
+	farmSyncWsProtocols,
+	farmToken,
+	farmTokenFile,
+	removeFarmToken,
+	saveFarmToken,
+} from "./auth.mjs";
+export { buildRespondEffort, parseBudgetDeclaration } from "./effort.mjs";
 export { extractAnswer, humanizeAgentError, isSuccessEffort, isTerminalEffort } from "./effort-result.mjs";
 export { compactTokens, formatUsage, formatUsd, parseUsage } from "./usage.mjs";
 export { buildManifest, integrityOf, isSafeRelPath, parseManifest, planUpdate } from "./manifest.mjs";

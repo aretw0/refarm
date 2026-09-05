@@ -5,3 +5,4 @@ include!("wasi_bridge_tests/headers_identity_aliases.rs");
 include!("wasi_bridge_tests/headers_transport_misc.rs");
 include!("wasi_bridge_tests/model_stream_contract.rs");
 include!("wasi_bridge_tests/model_stream_events.rs");
+include!("wasi_bridge_tests/query_nodes_limit.rs");

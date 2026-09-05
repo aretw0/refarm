@@ -10,6 +10,7 @@ describe("refarm program", () => {
 		expect(names).toContain("model");
 		expect(names).toContain("status");
 		expect(names).toContain("headless");
+		expect(names).toContain("intention");
 		expect(names).toContain("web");
 		expect(names).toContain("tui");
 		expect(names).toContain("doctor");
@@ -25,27 +26,23 @@ describe("refarm program", () => {
 		expect(names).toContain("tree");
 	});
 
-	it("keeps lazy command stubs aligned with their public options", () => {
+	/**
+	 * THE OPTION LISTS THAT USED TO BE HERE FROZE THE DEFECT THEY WERE NAMED AFTER.
+	 *
+	 * This test asserted each stub's options against a hardcoded literal, so when `program.ts` fell
+	 * behind the real commands the literal simply matched the stub — it was pinned to the wrong
+	 * side. Measured 2026-08-12: `refarm sow --reconfigure`, `refarm init --json` and
+	 * `refarm init --template` were all rejected by the CLI while their commands accepted them, and
+	 * this test was green throughout, because a snapshot of a mistake agrees with the mistake.
+	 *
+	 * Option parity now lives in `lazy-command-parity.test.ts`, which compares the stub against the
+	 * REAL command instead of against a list a human typed. What stays here is the part that has no
+	 * other owner: the positional argument, which `toArgs` passes by position and would silently
+	 * misplace.
+	 */
+	it("keeps the lazy init stub's positional argument", () => {
 		const init = program.commands.find((command) => command.name() === "init");
-		const sow = program.commands.find((command) => command.name() === "sow");
-		const migrate = program.commands.find((command) => command.name() === "migrate");
-
-		expect(init?.registeredArguments.map((argument) => argument.name())).toEqual([
-			"name",
-		]);
-		expect(init?.options.map((option) => option.long)).toContain("--force");
-		expect(sow?.options.map((option) => option.long)).toEqual([
-			"--model",
-			"--github",
-			"--cloudflare",
-			"--all",
-			"--json",
-		]);
-		expect(migrate?.options.map((option) => option.long)).toEqual([
-			"--target",
-			"--dry-run",
-			"--json",
-		]);
+		expect(init?.registeredArguments.map((argument) => argument.name())).toEqual(["name"]);
 	});
 
 	it("documents runtime credential reload behavior in lazy sow help", () => {
@@ -112,6 +109,7 @@ describe("refarm program", () => {
 		expect(help).toContain("refarm tidy imports --check");
 		expect(help).toContain("refarm capabilities --json");
 		expect(help).toContain("refarm project handoff validate --json");
+		expect(help).toContain("refarm intention check --profile cross-device-handoff --json");
 		expect(help).toContain("refarm agent --next-command");
 		expect(help).toContain("refarm agent finish --next-command");
 		expect(help).toContain("refarm agent finish --lane after-edit --run --json");

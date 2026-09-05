@@ -71,6 +71,7 @@
 		"@refarm.dev/ds": "workspace:*",
 		"@refarm.dev/effort-contract-v1": "workspace:*",
 		"@refarm.dev/identity-contract-v1": "workspace:*",
+		"@refarm.dev/localization-v1": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/runtime": "workspace:*",
 		"@refarm.dev/storage-sqlite": "workspace:*",

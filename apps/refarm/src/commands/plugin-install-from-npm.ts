@@ -37,6 +37,7 @@ export interface NpmInstallInput {
 	ref: string;
 	grantedCapabilities: string[];
 	policyMode: PluginPolicyMode;
+	availableConnections?: string[];
 	/** Resolution base (defaults to this module) — injected in tests. */
 	baseUrl?: string;
 	/** Workspace cwd for workspace-package resolution (defaults to process.cwd()). */
@@ -96,6 +97,7 @@ export async function buildNpmInstallReport(
 		targetPath: manifestDir,
 		grantedCapabilities: input.grantedCapabilities,
 		policyMode: input.policyMode,
+		...(input.availableConnections ? { availableConnections: input.availableConnections } : {}),
 		commandName: "plugin",
 	});
 }

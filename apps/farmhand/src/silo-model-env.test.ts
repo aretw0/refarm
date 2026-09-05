@@ -271,4 +271,199 @@ describe("createSiloModelEnvInjector", () => {
 			},
 		});
 	});
+
+	it("finds the route's credential even when `oauthProvider` was cleared", async () => {
+		// MEASURED ON THE OPERATOR'S NODE, 2026-08-15. `refarm model set` clears `oauthProvider`
+		// whenever the provider changes, so after switching back to openai-codex his credential — in
+		// the token map the whole time — became unreachable: no credential exported, and nothing said.
+		// The pointer duplicated what the credentials already say, and duplicated information can
+		// disagree with reality.
+		const env: NodeJS.ProcessEnv = {};
+		const store = {
+			loadTokens: async () => ({
+				modelProvider: "openai-codex",
+				// oauthProvider deliberately absent, exactly as `model set` leaves it
+				oauthCredentials: {
+					"openai-codex": { access: "tok", refresh: "r", expires: Date.now() + 60_000 },
+				},
+			}),
+			saveTokens: vi.fn(),
+		};
+		await createSiloModelEnvInjector({ store, env }).inject();
+		expect(env.OPENAI_CODEX_ACCESS_TOKEN).toBe("tok");
+	});
+});
+
+/**
+ * ISS-081 + ISS-140 + ISS-131 tier 3 — provisioning from what the node DECLARED it may spend.
+ *
+ * Every reader here used to know only the flat token map. `sow` retires that entry when it
+ * migrates a credential into Silo's `model` namespace, so on a fully migrated node this injector
+ * found nothing to inject and nothing to refresh — while `refarm credential list` named three
+ * healthy accounts. The dispatch that still worked was running on a credential injected before the
+ * migration and surviving in the daemon's process env.
+ */
+describe("provisioning declared accounts", () => {
+	const account = (
+		alias: string,
+		provider: string,
+		health: "healthy" | "incomplete" = "healthy",
+	) => ({
+		credentialId: `model-account:${alias.toUpperCase().padEnd(26, "X")}`,
+		provider,
+		alias,
+		identity: { status: "verified" as const, subject: alias },
+		secretRef: `model/model-account:${alias.toUpperCase().padEnd(26, "X")}`,
+		health,
+		revision: "sha256:r",
+	});
+
+	const CORP = account("corporativo", "github-copilot");
+	const PESSOAL = account("pessoal", "github-copilot");
+	const CODEX = account("account-2", "openai-codex");
+
+	function secretStore(entries: Record<string, unknown>) {
+		const saved: { namespace: string; id: string; value: string }[] = [];
+		return {
+			saved,
+			load: vi.fn(async (_ns: string, id: string) => entries[id]),
+			save: vi.fn(async (namespace: string, id: string, value: string) => {
+				saved.push({ namespace, id, value });
+				return undefined;
+			}),
+		};
+	}
+
+	const live = (over: Record<string, unknown> = {}) => ({
+		access: "TOKEN-LIVE",
+		refresh: "ghu_r",
+		expires: Date.now() + 3_600_000,
+		...over,
+	});
+
+	it("injects a NAMESPACED credential the flat map no longer holds", async () => {
+		const env: NodeJS.ProcessEnv = {};
+		const store = makeStore([{ oauthCredentials: {} }]);
+		const secrets = secretStore({ [CODEX.credentialId]: JSON.stringify(live({ accountId: "acc-1" })) });
+		const injector = createSiloModelEnvInjector({
+			store,
+			env,
+			secrets,
+			accounts: async () => ({ catalog: [CODEX], authorization: { scope: "all" } }),
+		});
+
+		await injector.inject();
+
+		expect(env.OPENAI_CODEX_ACCESS_TOKEN).toBe("TOKEN-LIVE");
+		expect(env.OPENAI_CODEX_ACCOUNT_ID).toBe("acc-1");
+	});
+
+	it("injects NOTHING when the node has declared nothing, which is exactly today's behaviour", async () => {
+		// Adoption must be additive: a node that has said nothing keeps its previous provisioning.
+		const env: NodeJS.ProcessEnv = {};
+		const store = makeStore([{ oauthCredentials: {} }]);
+		const secrets = secretStore({ [CODEX.credentialId]: JSON.stringify(live()) });
+		const injector = createSiloModelEnvInjector({
+			store,
+			env,
+			secrets,
+			accounts: async () => ({ catalog: [CODEX], authorization: { scope: "undeclared" } }),
+		});
+
+		await injector.inject();
+
+		expect(env.OPENAI_CODEX_ACCESS_TOKEN).toBeUndefined();
+	});
+
+	it("REFUSES a provider with two authorised accounts, and says which collided", async () => {
+		// One credential env var per provider is what the host reads. Choosing silently would spend
+		// an account the operator did not pick while the record named the other.
+		const env: NodeJS.ProcessEnv = {};
+		const warnings: string[] = [];
+		const store = makeStore([{ oauthCredentials: {} }]);
+		const secrets = secretStore({
+			[CORP.credentialId]: JSON.stringify(live()),
+			[PESSOAL.credentialId]: JSON.stringify(live()),
+		});
+		const injector = createSiloModelEnvInjector({
+			store,
+			env,
+			secrets,
+			warn: (m) => void warnings.push(m),
+			accounts: async () => ({ catalog: [CORP, PESSOAL], authorization: { scope: "all" } }),
+		});
+
+		await injector.inject();
+
+		expect(env.GITHUB_COPILOT_ACCESS_TOKEN).toBeUndefined();
+		expect(warnings.join(" ")).toMatch(/corporativo/u);
+		expect(warnings.join(" ")).toMatch(/pessoal/u);
+	});
+
+	it("provisions BOTH providers when exactly one account of each is authorised", async () => {
+		// The declaration is what resolves the ambiguity: naming one account per provider is what
+		// makes a node with several accounts serviceable before the host scopes routes per task.
+		const env: NodeJS.ProcessEnv = {};
+		const store = makeStore([{ oauthCredentials: {} }]);
+		const secrets = secretStore({
+			[CORP.credentialId]: JSON.stringify(live({ access: "COPILOT" })),
+			[CODEX.credentialId]: JSON.stringify(live({ access: "CODEX" })),
+		});
+		const injector = createSiloModelEnvInjector({
+			store,
+			env,
+			secrets,
+			accounts: async () => ({
+				catalog: [CORP, PESSOAL, CODEX],
+				authorization: { scope: "declared", accounts: [CORP.credentialId, CODEX.credentialId] },
+			}),
+		});
+
+		await injector.inject();
+
+		expect(env.GITHUB_COPILOT_ACCESS_TOKEN).toBe("COPILOT");
+		expect(env.OPENAI_CODEX_ACCESS_TOKEN).toBe("CODEX");
+	});
+
+	it("RENEWS an expired namespaced credential and writes it back where it came from", async () => {
+		// ISS-081. The refresh has existed for a year; it could not find the credential to refresh.
+		const env: NodeJS.ProcessEnv = {};
+		const store = makeStore([{ oauthCredentials: {} }]);
+		const secrets = secretStore({
+			[CODEX.credentialId]: JSON.stringify({ access: "STALE", refresh: "r", expires: 1 }),
+		});
+		const refreshed = { access: "FRESH", refresh: "r2", expires: Date.now() + 3_600_000 };
+		const injector = createSiloModelEnvInjector({
+			store,
+			env,
+			secrets,
+			refreshOAuthToken: vi.fn(async () => refreshed),
+			accounts: async () => ({ catalog: [CODEX], authorization: { scope: "all" } }),
+		});
+
+		await injector.inject();
+
+		expect(env.OPENAI_CODEX_ACCESS_TOKEN).toBe("FRESH");
+		// Back to the NAMESPACED store, never to the flat map — a second copy of a secret the
+		// catalog does not describe is exactly what the old code refused to create.
+		expect(secrets.saved).toHaveLength(1);
+		expect(secrets.saved[0]).toMatchObject({ namespace: "model", id: CODEX.credentialId });
+		expect(store.saveTokens).not.toHaveBeenCalled();
+	});
+
+	it("does not inject an account whose secret this node cannot read", async () => {
+		const env: NodeJS.ProcessEnv = {};
+		const store = makeStore([{ oauthCredentials: {} }]);
+		const secrets = secretStore({});
+		const injector = createSiloModelEnvInjector({
+			store,
+			env,
+			secrets,
+			accounts: async () => ({ catalog: [CODEX], authorization: { scope: "all" } }),
+		});
+
+		await injector.inject();
+
+		expect(env.OPENAI_CODEX_ACCESS_TOKEN).toBeUndefined();
+	});
 });

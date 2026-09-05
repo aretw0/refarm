@@ -12,7 +12,7 @@ import {
 	type CommandPlanStepRunResult,
 	type CommandPlanWorkClass,
 } from "@refarm.dev/cli/command-plan";
-import { readGitCommand } from "@refarm.dev/cli/git-command";
+import { readGitCommand, readGitCommandRaw } from "@refarm.dev/cli/git-command";
 import {
 	affectedWorkspacePackagesFromChangedPaths,
 	changedFilePathsFromGitNameOnly,
@@ -71,9 +71,24 @@ export interface AgentFinishSelection {
 	lane?: AgentFinishLane;
 	profile: AgentFinishProfile;
 	affectedScriptChecks?: string[];
+	/** Files this edit touched — carried so the plan can ask which script suites it could break. */
+	changedPaths?: string[];
 	since?: string;
 	sinceRef?: string;
+	/** Set when a LANE's default `since: "upstream"` could not be resolved and the selection fell
+	 *  back to the dirty tree — the checkout has no upstream (detached HEAD in CI, a fresh clone).
+	 *  Never set for an explicit `--since`: what the operator asked for is not degraded silently. */
+	sinceFallback?: AgentFinishSinceFallback;
 	workspace?: string;
+}
+
+export interface AgentFinishSinceFallback {
+	/** What the lane asked for ("upstream"). */
+	requested: string;
+	/** Why it could not be honoured, verbatim from the resolver. */
+	reason: string;
+	/** What the selection validates instead. */
+	validationScope: "dirtyTree";
 }
 
 export interface AgentFinishSelectionMetadata {
@@ -83,6 +98,7 @@ export interface AgentFinishSelectionMetadata {
 	lane: AgentFinishLane | null;
 	since: string | null;
 	sinceRef: string | null;
+	sinceFallback?: AgentFinishSinceFallback;
 	validationScope: AgentFinishLaneValidationScope | "package" | "quick";
 	workspace: string | null;
 	affectedScriptChecks?: string[];
@@ -92,7 +108,10 @@ export interface AgentFinishSelectionMetadata {
 export interface AgentFinishSelectionContext {
 	affectedScriptChecks?: string[];
 	affectedWorkspaces?: string[];
+	/** Files this edit touched — the input the affected script-suite step is built from. */
+	changedPaths?: string[];
 	sinceRef?: string;
+	sinceFallback?: AgentFinishSinceFallback;
 }
 
 export function runRefarmCommand(args: string[]): CommandPlanStepRunResult {
@@ -184,6 +203,7 @@ function packageScriptStep(
 	};
 }
 
+// os-resolution: project — walks UP from where the operator stands looking for the git or marker root
 function findWorkspaceRoot(cwd = process.cwd()): string {
 	try {
 		const root = readGitCommand(["rev-parse", "--show-toplevel"], { cwd });
@@ -232,6 +252,109 @@ function handoffContractStep(): CommandPlanStep {
 	);
 }
 
+/**
+ * THE GATES THAT USED TO EXIST ONLY IN CI.
+ *
+ * Three repo-wide contracts are enforced by the pipeline and by nothing local: the package
+ * scaffold (`validate-packages`), the task-smoke build order, and the high-severity audit. Both
+ * registries are maintained BY HAND, so a new package satisfies them only if its author
+ * remembered — and on 2026-08-02 a week of new packages had fed neither, which broke the Windows
+ * and macOS jobs before they built anything.
+ *
+ * They belong in `before-push` specifically, and in no earlier lane. Each is repo-wide rather
+ * than change-scoped, so running them after every edit would charge a whole-repo question to a
+ * one-file answer; a push is the first moment the question is actually being asked.
+ *
+ * `scripts:test` joined them on 2026-08-11 (ISS-106) and is the expensive one — ~115s against
+ * seconds for the other three. It earns the place by the same rule and by the failure it
+ * catches: package.json registers ~87 `node --test` suites and NO lane ran any of them, so
+ * `scripts/no-os-resolution.test.mjs` sat red for hours while after-edit, after-commit and a
+ * full 282-task `turbo run test` all reported green.
+ *
+ * `before-push` and not `after-edit`, on the operator's ruling and for a reason worth keeping: a
+ * gate belongs in the lane where the error it catches is still cheap to fix, and THIS error is
+ * rare per edit but silent and long-lived — it escapes the machine rather than the keystroke.
+ * Charging 115s to every edit pays a high price for a low frequency; charging it once per slice
+ * closes exactly the window in which this failure gets away. The runner reports `new failures`
+ * apart from `known failures` precisely so that judgement can be revisited with data: if new
+ * ones start appearing often, the cost has moved and so should the step.
+ *
+ * The audit is deliberately blocking here, matching CI rather than softening it: this lane's
+ * contract is "say what the pipeline will say" (CLAUDE.md §6, local reproduction first). An
+ * advisory published overnight will therefore stop a push — the same stop CI would make,
+ * arriving earlier and cheaper.
+ *
+ * WHICH audit, on the operator's ruling of 2026-08-11 (ISS-088): `moderate --prod`, which is the
+ * strictest of the four scopes this repo runs and the only one that was red. The step was
+ * `--audit-level=high` and passed while `moderate --prod` failed, so "the audit is green" named
+ * no particular fact.
+ *
+ * The escape hatch is `scripts/security/accepted-advisories.mjs`, NOT
+ * `pnpm-workspace.yaml`'s `auditConfig.ignoreGhsas`. Both ask for a written reason; only one asks
+ * for a DATE. An entry with no expiry stops being verified the moment it is written, which is how
+ * a CRITICAL decompress acceptance (ISS-087) and a postcss pin (ISS-086) both went stale with
+ * their justifications still sitting there looking current.
+ */
+function repoContractGateSteps(): CommandPlanStep[] {
+	return [
+		packageScriptStep(
+			".",
+			"validate-packages",
+			"Check every package against its scaffold type before the push.",
+			"gate",
+		),
+		packageScriptStep(
+			".",
+			"task:build-order:check",
+			"Check the task-smoke build order still names every TypeScript dependency.",
+			"gate",
+		),
+		// A VENDORED COPY DRIFTS IN SILENCE, and `vendor:check` was written to catch exactly that
+		// and wired to nothing — not CI, not a lane, not a script. Measured 2026-08-17 (ISS-136):
+		// `operation-consent-v1`'s vendored source was ~500 lines behind its origin, a whole feature
+		// missing, and every gate in this repo was green. The check is two file comparisons.
+		packageScriptStep(
+			"packages/farm-client",
+			"vendor:check",
+			"Check each vendored block is byte-identical to the package it was copied from.",
+			"gate",
+		),
+		scriptTestStep({
+			id: "gate-security-audit",
+			args: ["node", "scripts/security/audit-gate.mjs"],
+			description:
+				"The promotion gate: moderate --prod, with a re-check date on every accepted advisory.",
+		}),
+		// RUST TARGETS THE LINT NEVER READS. `clippy` without `--all-targets` and `test --lib` both
+		// skip integration tests, benches and bins — see the script for what that cost and why the
+		// crate list is discovered rather than declared.
+		scriptTestStep({
+			id: "gate-rust-test-targets",
+			args: ["node", "scripts/ci/rust-test-targets-gate.mjs"],
+			description:
+				"Type-check Rust targets nothing else reads — the crate list is WALKED, so a crate that grows a tests/ directory is covered the day it does.",
+		}),
+		scriptTestStep({
+			id: "gate-diagram-sync",
+			args: ["node", "scripts/check-diagrams.mjs", "--ci"],
+			description:
+				"Verify every SVG is derived from its current .mermaid — a recorded source hash, no browser, ~50ms (ISS-046).",
+		}),
+		scriptTestStep({
+			id: "gate-script-coverage",
+			args: ["node", "scripts/script-test-coverage.mjs"],
+			description:
+				"Ceiling on how much of scripts/ no suite would ever run for — the untested fraction could only grow before this (ISS-106).",
+		}),
+		scriptTestStep({
+			id: "gate-script-tests",
+			args: ["node", "scripts/ci/run-script-tests.mjs"],
+			description:
+				"Run the ~87 node --test suites no other gate reaches; fails on a NEW failure, not on the 15 already recorded.",
+		}),
+	];
+}
+
 function scriptTestStep(input: {
 	id: string;
 	args: string[];
@@ -276,6 +399,36 @@ function affectedScriptFinishSteps(checks: string[] = []): CommandPlanStep[] {
 		}
 		throw new Error(`Unknown affected script check: ${check}`);
 	});
+}
+
+/**
+ * The script suites this edit could have broken — decided by the runner, from the changed files.
+ *
+ * ONE STEP OR NONE. The runner does the matching (it owns the registry), so this does not need a
+ * second copy of the mapping — which is the whole lesson of the day the build order and the
+ * dependency graph disagreed because two hand-kept lists were meant to stay in step.
+ *
+ * Nothing changed under a path any suite could name means no step, not a green tick: the runner
+ * says "no registered suite names these files" out loud when it is asked and finds none.
+ */
+function couldWakeAScriptSuite(file: string): boolean {
+	// The two rules the runner itself has, as a cheap precondition. A step that runs on every edit
+	// and almost always reports "no suite names these files" is noise, and noise is how a lane
+	// stops being read — the failure this whole item is about, one level up.
+	return file.startsWith("scripts/") || file === "package.json" || file.endsWith("/package.json");
+}
+
+function affectedScriptSuiteSteps(changedPaths: string[] = []): CommandPlanStep[] {
+	const candidates = changedPaths.filter(couldWakeAScriptSuite);
+	if (candidates.length === 0) return [];
+	return [
+		scriptTestStep({
+			id: "affected-script-tests",
+			args: ["node", "scripts/ci/run-script-tests.mjs", "--for", ...candidates],
+			description:
+				"Run the node --test suites that name the changed files, plus the repo-invariant ones a manifest edit wakes.",
+		}),
+	];
 }
 
 function packageFinishStepsForWorkspace(
@@ -453,7 +606,11 @@ function changedPathsFromGit(
 	const repoRoot = options.repoRoot ?? findWorkspaceRoot();
 	const includeWorkingTree = options.includeWorkingTree ?? true;
 	try {
-		const status = readGitCommand(["status", "--short", "--untracked-files=all"], {
+		// RAW, never `readGitCommand`: `git status --short` is columnar (`XY <path>`), and a file
+		// modified but not staged has a SPACE in column 0. Trimming it and then `slice(3)`ing
+		// eats the path's first character, so the workspace never matches — which is exactly how
+		// this lane came to be blind to unstaged work.
+		const status = readGitCommandRaw(["status", "--short", "--untracked-files=all"], {
 			cwd: repoRoot,
 		});
 		if (!options.since) {
@@ -560,6 +717,15 @@ export function finishSelectionFromLane(lane: AgentFinishLane): Omit<AgentFinish
 	if (lane === "with-package-tests") {
 		return { lane, includeTests: true, profile: "affected" };
 	}
+	// The lane CLAUDE.md section 4 prescribes for "after source edits, before committing" runs
+	// the affected package's TESTS, on the operator's ruling of 2026-08-11. Before it did not,
+	// and neither did any other lane: a deliberately broken assertion in packages/config passed
+	// `after-edit` AND `before-push` green. `turbo run test` was defined in turbo.json and
+	// invoked by nothing, so the cadence this repo asks agents to trust instead of eyeballing
+	// diffs did not measure the one property it was trusted for.
+	if (lane === "after-edit") {
+		return { lane, includeTests: true, profile: "affected" };
+	}
 	if (lane === "handoffs") {
 		return { lane, profile: "quick" };
 	}
@@ -652,6 +818,7 @@ function selectedFinishSteps(
 		workspace?: string;
 		affectedScriptChecks?: string[];
 		affectedWorkspaces?: string[];
+		changedPaths?: string[];
 	} = {},
 ): CommandPlanStep[] {
 	const steps = options.fix
@@ -670,7 +837,16 @@ function selectedFinishSteps(
 		return [
 			...steps,
 			...affectedScriptFinishSteps(options.affectedScriptChecks),
+			// The `node --test` suites THIS EDIT could have broken. The whole registry is a
+			// before-push cost (~125s); this asks only the suites that name the changed files, plus
+			// the repo-invariant ones a manifest edit wakes. Skipped entirely before-push, where the
+			// full registry runs anyway.
+			...(options.lane === "before-push"
+				? []
+				: affectedScriptSuiteSteps(options.changedPaths)),
 			...affectedPackageFinishSteps(options.includeTests, options.affectedWorkspaces),
+			// Repo-wide contracts, asked at the one moment the repo is about to become public.
+			...(options.lane === "before-push" ? repoContractGateSteps() : []),
 		];
 	}
 	return steps;
@@ -685,6 +861,7 @@ export function plannedFinishCommands(
 		workspace?: string;
 		affectedScriptChecks?: string[];
 		affectedWorkspaces?: string[];
+		changedPaths?: string[];
 	} = {},
 ): string[] {
 	return commandPlanStepCommands(selectedFinishSteps(options));
@@ -700,6 +877,7 @@ export function runAgentFinishPlan(
 		workspace?: string;
 		affectedScriptChecks?: string[];
 		affectedWorkspaces?: string[];
+		changedPaths?: string[];
 	} = {},
 ): CommandPlanRunResult {
 	const environmentPressure = buildEnvironmentPressureReport({
@@ -749,6 +927,7 @@ export function buildAgentFinishPlanEnvelope(
 	selection: AgentFinishSelection & {
 		affectedScriptChecks?: string[];
 		affectedWorkspaces?: string[];
+		changedPaths?: string[];
 	},
 	affectedWorkspaces?: string[],
 ) {
@@ -777,6 +956,7 @@ export function finishSelectionMetadata(
 		since: selection.profile === "affected" ? (selection.since ?? null) : null,
 		sinceRef:
 			selection.profile === "affected" ? (selection.sinceRef ?? selection.since ?? null) : null,
+		...(selection.sinceFallback ? { sinceFallback: selection.sinceFallback } : {}),
 		validationScope: finishValidationScope(selection),
 		workspace: selection.profile === "package" ? (selection.workspace ?? ".") : null,
 		...(selection.profile === "affected"
@@ -824,7 +1004,25 @@ export function resolveFinishSelectionContext(
 ): AgentFinishSelectionContext {
 	if (selection.profile !== "affected") return {};
 	const repoRoot = findWorkspaceRoot();
-	const sinceRef = selection.since ? resolveSinceRef(repoRoot, selection.since) : undefined;
+	let sinceRef: string | undefined;
+	let sinceFallback: AgentFinishSinceFallback | undefined;
+	if (selection.since) {
+		try {
+			sinceRef = resolveSinceRef(repoRoot, selection.since);
+		} catch (error) {
+			// A lane's DEFAULT `upstream` is a preference, not an instruction: on a checkout with no
+			// upstream (a detached HEAD in CI, a fresh clone) the honest answer is the dirty tree,
+			// said out loud — not a plan that refuses to exist. The before-push gate test hit
+			// exactly this on the cold clean-room lane (PR #59, 2026-08-30). An EXPLICIT --since
+			// still fails: the operator named a ref, and a silent substitute would be a lie.
+			if (!(selection.lane && selection.since === "upstream")) throw error;
+			sinceFallback = {
+				requested: selection.since,
+				reason: error instanceof Error ? error.message : String(error),
+				validationScope: "dirtyTree",
+			};
+		}
+	}
 	const changedPaths = changedPathsFromGit({
 		includeWorkingTree: selection.lane !== "after-commit",
 		repoRoot,
@@ -835,7 +1033,13 @@ export function resolveFinishSelectionContext(
 			includeHeavy: selection.includeTests === true,
 		}),
 		affectedWorkspaces: affectedWorkspacePackagesFromChangedPaths(repoRoot, changedPaths),
+		// THE CHANGED PATHS THEMSELVES, so the plan can ask the script-suite runner which of the
+		// ~90 `node --test` registrations this edit could have broken. The whole registry is ~125s
+		// — a before-push cost — and running it only there is why `workspace-script:test` sat red
+		// for a full day on 2026-08-12 with every after-edit green (ISS-106).
+		changedPaths,
 		...(sinceRef ? { sinceRef } : {}),
+		...(sinceFallback ? { sinceFallback } : {}),
 	};
 }
 

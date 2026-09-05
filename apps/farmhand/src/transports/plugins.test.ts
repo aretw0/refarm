@@ -11,6 +11,7 @@ import { createPluginsRouteHandler } from "./plugins.js";
 vi.mock("../installed-plugins.js", () => ({
 	loadInstalledPlugins: vi.fn().mockResolvedValue({ loaded: 1, skipped: 0 }),
 	listInstalledPluginIds: vi.fn().mockReturnValue(["plugin-a"]),
+	listInstalledPluginManifests: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock("../filesystem-cache-adapter.js", () => ({
@@ -37,7 +38,20 @@ vi.mock("@refarm.dev/plugin-manifest", async (importOriginal) => {
 });
 
 import { createMockManifest, installWasmArtifact } from "@refarm.dev/plugin-manifest";
-import { listInstalledPluginIds, loadInstalledPlugins } from "../installed-plugins.js";
+import {
+	listInstalledPluginIds,
+	listInstalledPluginManifests,
+	loadInstalledPlugins,
+} from "../installed-plugins.js";
+
+/** A scanned manifest row as `listInstalledPluginManifests` returns it. */
+function installedManifest(id: string, provides: string[] = []) {
+	return {
+		id,
+		dir: `/plugins/${id}`,
+		manifest: createMockManifest({ id, capabilities: { provides, requires: [], providesApi: [], requiresApi: [] } }),
+	};
+}
 
 function makeAdapter() {
 	return {
@@ -143,13 +157,17 @@ describe("createPluginsRouteHandler", () => {
 		// Reset mock queues and re-establish base return values
 		vi.mocked(loadInstalledPlugins).mockReset().mockResolvedValue({ loaded: 1, skipped: 0 });
 		vi.mocked(listInstalledPluginIds).mockReset().mockReturnValue(["plugin-a"]);
+		vi.mocked(listInstalledPluginManifests).mockReset().mockReturnValue([]);
 	});
 
 	describe("GET /plugins", () => {
 		beforeEach(() => startSidecar(true));
 
-		it("returns installed, loaded, and known plugin ids", async () => {
-			vi.mocked(listInstalledPluginIds).mockReturnValue(["plugin-a", "plugin-b"]);
+		it("returns installed, loaded, and known plugin ids — plus the Rust host's requested/defaultResponder/grants", async () => {
+			vi.mocked(listInstalledPluginManifests).mockReturnValue([
+				installedManifest("plugin-a"),
+				installedManifest("plugin-b"),
+			]);
 
 			const res = await request(port, "GET", "/plugins");
 
@@ -159,7 +177,37 @@ describe("createPluginsRouteHandler", () => {
 				local: [],
 				loaded: ["plugin-a"],
 				known: ["plugin-a", "plugin-b"],
+				requested: [
+					{ id: "plugin-a", path: "/plugins/plugin-a/plugin.wasm", loaded: true, because: null },
+					{
+						id: "plugin-b",
+						path: "/plugins/plugin-b/plugin.wasm",
+						loaded: false,
+						because: "installed but not loaded by this host",
+					},
+				],
+				defaultResponder: null,
+				grants: {},
 			});
+		});
+
+		it("elects the first LOADED plugin declaring integration:respond as defaultResponder, like the Rust host", async () => {
+			// plugin-b declares the capability but is not loaded; plugin-a is loaded but declares
+			// nothing. Nobody is elected — the same answer the Rust host gives, and the one
+			// `refarm ask` reads before deciding whether an agent is available.
+			vi.mocked(listInstalledPluginManifests).mockReturnValue([
+				installedManifest("plugin-a"),
+				installedManifest("plugin-b", ["integration:respond"]),
+			]);
+			let res = await request(port, "GET", "/plugins");
+			expect((res.body as { defaultResponder: unknown }).defaultResponder).toBeNull();
+
+			vi.mocked(listInstalledPluginManifests).mockReturnValue([
+				installedManifest("plugin-a", ["integration:respond", "integration:v1"]),
+				installedManifest("plugin-b", ["integration:respond"]),
+			]);
+			res = await request(port, "GET", "/plugins");
+			expect((res.body as { defaultResponder: unknown }).defaultResponder).toBe("plugin-a");
 		});
 
 		it("returns 405 for non-GET /plugins", async () => {

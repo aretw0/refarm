@@ -10,65 +10,49 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
 		},
-		"./status": {
-			"types": "./dist/status.d.ts",
-			"import": "./dist/status.js"
+		"./action-affordances": {
+			"types": "./dist/action-affordances.d.ts",
+			"import": "./dist/action-affordances.js"
+		},
+		"./automation-work": {
+			"types": "./dist/automation-work.d.ts",
+			"import": "./dist/automation-work.js"
 		},
 		"./browser-open": {
 			"types": "./dist/browser-open.d.ts",
 			"import": "./dist/browser-open.js"
 		},
-		"./command-line": {
-			"types": "./dist/command-line.d.ts",
-			"import": "./dist/command-line.js"
+		"./capability-index": {
+			"types": "./dist/capability-index.d.ts",
+			"import": "./dist/capability-index.js"
+		},
+		"./chat-history": {
+			"types": "./dist/chat-history.d.ts",
+			"import": "./dist/chat-history.js"
+		},
+		"./chat-repl": {
+			"types": "./dist/chat-repl.d.ts",
+			"import": "./dist/chat-repl.js"
 		},
 		"./command-handoff": {
 			"types": "./dist/command-handoff.d.ts",
 			"import": "./dist/command-handoff.js"
 		},
-		"./command-result": {
-			"types": "./dist/command-result.d.ts",
-			"import": "./dist/command-result.js"
-		},
-		"./capability-index": {
-			"types": "./dist/capability-index.d.ts",
-			"import": "./dist/capability-index.js"
+		"./command-line": {
+			"types": "./dist/command-line.d.ts",
+			"import": "./dist/command-line.js"
 		},
 		"./command-plan": {
 			"types": "./dist/command-plan.d.ts",
 			"import": "./dist/command-plan.js"
 		},
+		"./command-result": {
+			"types": "./dist/command-result.d.ts",
+			"import": "./dist/command-result.js"
+		},
 		"./execution-plan": {
 			"types": "./dist/execution-plan.d.ts",
 			"import": "./dist/execution-plan.js"
-		},
-		"./action-affordances": {
-			"types": "./dist/action-affordances.d.ts",
-			"import": "./dist/action-affordances.js"
-		},
-		"./operator-resume": {
-			"types": "./dist/operator-resume.d.ts",
-			"import": "./dist/operator-resume.js"
-		},
-		"./project-handoff": {
-			"types": "./dist/project-handoff.d.ts",
-			"import": "./dist/project-handoff.js"
-		},
-		"./project-automations": {
-			"types": "./dist/project-automations.d.ts",
-			"import": "./dist/project-automations.js"
-		},
-		"./scheduled-work-runner": {
-			"types": "./dist/scheduled-work-runner.d.ts",
-			"import": "./dist/scheduled-work-runner.js"
-		},
-		"./process-handoff": {
-			"types": "./dist/process-handoff.d.ts",
-			"import": "./dist/process-handoff.js"
-		},
-		"./launch-policy": {
-			"types": "./dist/launch-policy.d.ts",
-			"import": "./dist/launch-policy.js"
 		},
 		"./git-command": {
 			"types": "./dist/git-command.d.ts",
@@ -78,33 +62,65 @@
 			"types": "./dist/github-actions.d.ts",
 			"import": "./dist/github-actions.js"
 		},
+		"./interaction-driver": {
+			"types": "./dist/interaction-driver.d.ts",
+			"import": "./dist/interaction-driver.js"
+		},
+		"./launch-policy": {
+			"types": "./dist/launch-policy.d.ts",
+			"import": "./dist/launch-policy.js"
+		},
+		"./operator-resume": {
+			"types": "./dist/operator-resume.d.ts",
+			"import": "./dist/operator-resume.js"
+		},
+		"./process-handoff": {
+			"types": "./dist/process-handoff.d.ts",
+			"import": "./dist/process-handoff.js"
+		},
+		"./project-automations": {
+			"types": "./dist/project-automations.d.ts",
+			"import": "./dist/project-automations.js"
+		},
+		"./project-handoff": {
+			"types": "./dist/project-handoff.d.ts",
+			"import": "./dist/project-handoff.js"
+		},
 		"./rust-substrate": {
 			"types": "./dist/rust-substrate.d.ts",
 			"import": "./dist/rust-substrate.js"
 		},
-		"./workspace-execution": {
-			"types": "./dist/workspace-execution.d.ts",
-			"import": "./dist/workspace-execution.js"
+		"./scheduled-work-runner": {
+			"types": "./dist/scheduled-work-runner.d.ts",
+			"import": "./dist/scheduled-work-runner.js"
 		},
-		"./interaction-driver": {
-			"types": "./dist/interaction-driver.d.ts",
-			"import": "./dist/interaction-driver.js"
+		"./scheduled-work-sources": {
+			"types": "./dist/scheduled-work-sources.d.ts",
+			"import": "./dist/scheduled-work-sources.js"
+		},
+		"./status": {
+			"types": "./dist/status.d.ts",
+			"import": "./dist/status.js"
 		},
 		"./worker-profile": {
 			"types": "./dist/worker-profile.d.ts",
 			"import": "./dist/worker-profile.js"
 		},
+		"./workspace-command-declaration": {
+			"types": "./dist/workspace-command-declaration.d.ts",
+			"import": "./dist/workspace-command-declaration.js"
+		},
+		"./workspace-declaration": {
+			"types": "./dist/workspace-declaration.d.ts",
+			"import": "./dist/workspace-declaration.js"
+		},
+		"./workspace-execution": {
+			"types": "./dist/workspace-execution.d.ts",
+			"import": "./dist/workspace-execution.js"
+		},
 		"./workspace-sweep": {
 			"types": "./dist/workspace-sweep.d.ts",
 			"import": "./dist/workspace-sweep.js"
-		},
-		"./chat-repl": {
-			"types": "./dist/chat-repl.d.ts",
-			"import": "./dist/chat-repl.js"
-		},
-		"./chat-history": {
-			"types": "./dist/chat-history.d.ts",
-			"import": "./dist/chat-history.js"
 		}
 	},
 	"scripts": {
@@ -119,56 +135,8 @@
 	"files": [
 		"README.md",
 		"ROADMAP.md",
-		"dist/action-affordances.d.ts",
-		"dist/action-affordances.js",
-		"dist/browser-open.d.ts",
-		"dist/browser-open.js",
-		"dist/capability-index.d.ts",
-		"dist/capability-index.js",
-		"dist/command-handoff.d.ts",
-		"dist/command-handoff.js",
-		"dist/command-line.d.ts",
-		"dist/command-line.js",
-		"dist/command-plan.d.ts",
-		"dist/command-plan.js",
-		"dist/command-result.d.ts",
-		"dist/command-result.js",
-		"dist/execution-plan.d.ts",
-		"dist/execution-plan.js",
-		"dist/git-command.d.ts",
-		"dist/git-command.js",
-		"dist/github-actions.d.ts",
-		"dist/github-actions.js",
-		"dist/index.d.ts",
-		"dist/index.js",
-		"dist/interaction-driver.d.ts",
-		"dist/interaction-driver.js",
-		"dist/launch-policy.d.ts",
-		"dist/launch-policy.js",
-		"dist/process-handoff.d.ts",
-		"dist/process-handoff.js",
-		"dist/operator-resume.d.ts",
-		"dist/operator-resume.js",
-		"dist/project-handoff.d.ts",
-		"dist/project-handoff.js",
-		"dist/project-automations.d.ts",
-		"dist/project-automations.js",
-		"dist/scheduled-work-runner.d.ts",
-		"dist/scheduled-work-runner.js",
-		"dist/rust-substrate.d.ts",
-		"dist/rust-substrate.js",
-		"dist/status.d.ts",
-		"dist/status.js",
-		"dist/workspace-execution.d.ts",
-		"dist/workspace-execution.js",
-		"dist/worker-profile.d.ts",
-		"dist/worker-profile.js",
-		"dist/workspace-sweep.d.ts",
-		"dist/workspace-sweep.js",
-		"dist/chat-repl.d.ts",
-		"dist/chat-repl.js",
-		"dist/chat-history.d.ts",
-		"dist/chat-history.js"
+		"dist",
+		"!dist/**/*.tsbuildinfo"
 	],
 	"dependencies": {
 		"@refarm.dev/automation-contract-v1": "workspace:*",

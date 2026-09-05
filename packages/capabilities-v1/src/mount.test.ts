@@ -7,6 +7,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
+	buildCapabilityHostServeInfo,
 	defaultRecordsDeps,
 	defaultSourceDeps,
 	defaultVaultDeps,
@@ -181,5 +182,79 @@ describe("mountCapabilities — the consumer-mount seam", () => {
 		} finally {
 			await close();
 		}
+	});
+});
+
+describe("serveCapabilities bind safety", () => {
+	// This surface is the SDK primitive every consuming app serves its verbs from, so a bind
+	// mistake here is inherited by every app rather than made once. It used to call
+	// `server.listen(port, cb)` with NO host — Node binds every interface — and there was no
+	// host option in the signature at all, so a consumer could not choose loopback even
+	// deliberately.
+
+	function registry() {
+		return mountCapabilities({ deps: deps(), verbs: [] });
+	}
+
+	it("binds loopback when the caller says nothing", async () => {
+		const { server, listening, close } = serveCapabilities(registry(), { port: 0 });
+		try {
+			const { host, port } = await listening;
+			expect(host).toBe("127.0.0.1");
+
+			// Not just what it REPORTS — what the OS says it bound. Mutation guard: reverting
+			// to a host-less `listen(port, cb)` makes this `0.0.0.0` and the test fails.
+			const address = server.address();
+			expect(typeof address === "object" && address ? address.address : null).toBe(
+				"127.0.0.1",
+			);
+
+			const res = await fetch(`http://127.0.0.1:${port}/agent-tools`);
+			expect(res.status).toBe(200);
+		} finally {
+			await close();
+		}
+	});
+
+	it("lets a caller choose loopback explicitly — the option exists", async () => {
+		const { listening, close } = serveCapabilities(registry(), { port: 0, host: "127.0.0.1" });
+		try {
+			const { host } = await listening;
+			expect(host).toBe("127.0.0.1");
+		} finally {
+			await close();
+		}
+	});
+
+	it("REFUSES a non-loopback bind with no auth policy configured", async () => {
+		delete process.env.REFARM_AUTH_POLICY;
+		const { listening, close } = serveCapabilities(registry(), { port: 0, host: "0.0.0.0" });
+		try {
+			await expect(listening).rejects.toThrow(/no auth policy configured/);
+			// It must refuse BEFORE opening anything — nothing is listening to clean up.
+			await expect(listening).rejects.toThrow(/0\.0\.0\.0/);
+		} finally {
+			await close();
+		}
+	});
+
+	it("refuses a tailnet-shaped host too, not just 0.0.0.0", async () => {
+		delete process.env.REFARM_AUTH_POLICY;
+		const { listening, close } = serveCapabilities(registry(), { port: 0, host: "100.64.0.1" });
+		try {
+			await expect(listening).rejects.toThrow(/refusing to bind/);
+		} finally {
+			await close();
+		}
+	});
+
+	it("reports the bound host in serve info instead of assuming 127.0.0.1", () => {
+		// buildCapabilityHostServeInfo hardcoded loopback, so a widened bind printed a URL
+		// that pointed somewhere else than where the surface was.
+		expect(buildCapabilityHostServeInfo(4321).url).toBe("http://127.0.0.1:4321");
+		expect(buildCapabilityHostServeInfo(4321, { host: "100.64.0.1" }).url).toBe(
+			"http://100.64.0.1:4321",
+		);
+		expect(buildCapabilityHostServeInfo(4321, { host: "::1" }).url).toBe("http://[::1]:4321");
 	});
 });

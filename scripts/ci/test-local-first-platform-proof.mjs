@@ -9,9 +9,9 @@ import {
 
 test("parses local-first platform proof options", () => {
 	assert.deepEqual(
-		parseLocalFirstPlatformProofArgs(["--selection", "vault-seed-ready", "--", "--json"]),
+		parseLocalFirstPlatformProofArgs(["--selection", "consumer-ready", "--", "--json"]),
 		{
-			selectionId: "vault-seed-ready",
+			selectionId: "consumer-ready",
 			json: true,
 		},
 	);
@@ -20,7 +20,7 @@ test("parses local-first platform proof options", () => {
 test("proves the T2 local-first platform packet without binding provider UX", async () => {
 	const proof = await buildLocalFirstPlatformProof({
 		env: { REFARM_PACKAGE_MANAGER: "pnpm" },
-		selectionId: "vault-seed-ready",
+		selectionId: "consumer-ready",
 	});
 
 	assert.equal(proof.schemaVersion, 1);
@@ -45,7 +45,7 @@ test("proves the T2 local-first platform packet without binding provider UX", as
 		statusBefore: "active",
 		statusAfter: "revoked",
 	});
-	assert.equal(proof.localSurface.manifest.schema, "refarm.local-surface.v1");
+	assert.equal(proof.localSurface.manifest.schema, "local-surface.v1");
 	assert.equal(proof.localSurface.manifest.localFirst.networkRequired, false);
 	assert.deepEqual(proof.localSurface.launchPlan.steps.map((step) => step.id), [
 		"doctor",

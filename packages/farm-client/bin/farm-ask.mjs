@@ -13,16 +13,25 @@
  * farm's default route:
  *   FARM_PROVIDER=openai-codex FARM_MODEL=gpt-5.3-codex-spark farm-ask "tarefa"
  *
+ * Declare this dispatch's own budget — all optional, omit any/all to leave the
+ * farm's own default/ceiling in charge:
+ *   FARM_BUDGET_DEADLINE_MS=120000 FARM_BUDGET_MAX_TOKENS=50000 farm-ask "tarefa"
+ *
  * It submits an effort to the farm's sidecar (POST /efforts) and polls the
  * result (GET /efforts/:id) until the agent answers.
  */
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { cancellationExit, resolveFarmHost } from "../src/ask-host.mjs";
 import { farmAuthHeaders } from "../src/auth.mjs";
 import { buildRespondEffort } from "../src/effort.mjs";
 import { extractAnswer, isSuccessEffort, isTerminalEffort } from "../src/effort-result.mjs";
-import { readRememberedHost } from "../src/farm-host.mjs";
 import { createSpinner } from "../src/progress.mjs";
+import {
+  classifySidecarProbe,
+  sidecarExposureLines,
+  sidecarProbeFailureLines,
+} from "../src/reach.mjs";
 import { tailnetPeers } from "../src/tailnet.mjs";
 import { formatUsage, parseUsage } from "../src/usage.mjs";
 
@@ -39,33 +48,32 @@ if (!prompt) {
 
 /** Does <host>:42001 answer /plugins? (the sidecar is up and reachable) */
 async function sidecarUp(host) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 3000);
     const res = await fetch(`http://${host}:${HTTP_PORT}/plugins`, {
       signal: controller.signal,
       headers: farmAuthHeaders(),
     });
-    clearTimeout(timer);
-    return res.ok;
+    return { ...classifySidecarProbe(res.status), status: res.status };
   } catch {
-    return false;
+    return classifySidecarProbe(null);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-async function resolveHost() {
-  // 1) Explicit override always wins.
-  const explicit = process.env.FARM_HOST;
-  if (explicit) return explicit;
-  // 2) The farm this kit was installed from (farm-update remembered it) — the
-  //    device's default, so a name given once at update time need not repeat.
-  const remembered = await readRememberedHost(KIT_ROOT);
-  if (remembered && (await sidecarUp(remembered))) return remembered;
-  // 3) Tailnet auto-discovery (when the tailscale CLI is present), then localhost.
-  for (const peer of await tailnetPeers()) {
-    if (await sidecarUp(peer.ip)) return peer.ip;
-  }
-  return "127.0.0.1";
+/** A escada inteira mora em `resolveFarmHost` (src/ask-host.mjs), que é pura de
+ *  rede — aqui só se injeta O QUE É I/O: o probe do sidecar e os peers da
+ *  tailnet. O último degrau é o novo: quando nada respondeu e o kit não conhece
+ *  nome nenhum, ele PERGUNTA (só com terminal) em vez de explicar. */
+function resolveHost() {
+  return resolveFarmHost({
+    kitRootDir: KIT_ROOT,
+    explicit: process.env.FARM_HOST,
+    probe: async (host) => (await sidecarUp(host)).reachable,
+    peers: async () => (await tailnetPeers()).map((peer) => peer.ip),
+  });
 }
 
 // Optional route: a worker-quota model (or any specific model) via env.
@@ -75,25 +83,60 @@ const route = {
   ...(process.env.FARM_MODEL ? { model: process.env.FARM_MODEL } : {}),
 };
 
-const host = await resolveHost();
+// Optional budget declaration via env, same absent-means-absent contract as the
+// route above. Raw env strings ride straight into buildRespondEffort, which
+// calls the kit's ONE budget validator (parseBudgetDeclaration, src/effort.mjs)
+// — this file never re-checks the numbers itself, so the CLI and any other
+// caller can never drift on what counts as a valid ceiling.
+const budgetEnv = {
+  deadlineMs: process.env.FARM_BUDGET_DEADLINE_MS,
+  maxTokens: process.env.FARM_BUDGET_MAX_TOKENS,
+  maxUsd: process.env.FARM_BUDGET_MAX_USD,
+};
+
+// Um Ctrl+C na pergunta é uma REJEIÇÃO do bloco de prompt, não um crash: sai
+// com uma linha e o código de SIGINT, nunca com um stack trace na cara.
+let host;
+try {
+  ({ host } = await resolveHost());
+} catch (err) {
+  const code = cancellationExit(err);
+  if (code !== null) process.exit(code);
+  throw err;
+}
 const base = `http://${host}:${HTTP_PORT}`;
 
-if (!(await sidecarUp(host))) {
-  console.error(`❌ sidecar inalcançável em ${base}`);
-  console.error("   A fazenda expõe o sidecar? No host: REFARM_HTTP_HOST=0.0.0.0 bash scripts/tractor-start.sh --background");
-  console.error("   Alcance primeiro com: node scripts/farm-hello.mjs " + host);
+const sidecar = await sidecarUp(host);
+if (!sidecar.usable) {
+  for (const line of sidecarProbeFailureLines(sidecar, base)) console.error(line);
+  // Era: "No host: REFARM_HTTP_HOST=0.0.0.0 bash scripts/tractor-start.sh --background".
+  // Isso mandava o operador contornar a própria declaração e abrir a porta em TODAS as
+  // interfaces — o footgun exato que o trabalho de `surfaces` existe para remover.
+  if (!sidecar.reachable) for (const line of sidecarExposureLines()) console.error(line);
+  console.error(`   Alcance primeiro com: node ${join(KIT_ROOT, "bin", "farm-hello.mjs")} ${host}`);
   process.exit(1);
 }
 
 const routeLabel = route.model ? ` [${route.provider ?? "?"}/${route.model}]` : "";
 console.log(`\n🌱 farm-ask → ${host}${routeLabel}\n▸ ${prompt}\n`);
 
+// Build (and validate) the effort BEFORE any network call, so an invalid
+// FARM_BUDGET_* value fails at the surface with a message naming the field,
+// never as a mysterious node-side rejection after a request already left.
+let effort;
+try {
+  effort = buildRespondEffort(prompt, { ...route, ...budgetEnv });
+} catch (err) {
+  console.error(`❌ ${err.message}`);
+  process.exit(2);
+}
+
 let effortId;
 try {
   const res = await fetch(`${base}/efforts`, {
     method: "POST",
     headers: { "content-type": "application/json", ...farmAuthHeaders() },
-    body: JSON.stringify(buildRespondEffort(prompt, route)),
+    body: JSON.stringify(effort),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   effortId = (await res.json()).effortId;

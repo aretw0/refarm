@@ -637,4 +637,129 @@ describe("command plan runner", () => {
 			exitCode: 1,
 		});
 	});
+
+	/**
+	 * A KILL IS NOT A FAILURE, and the envelope must say which one happened.
+	 *
+	 * Measured 2026-08-18: `agent finish --lane after-edit` reported FAIL on a step whose whole
+	 * output was turbo's startup banner. Nothing had failed — the step was killed at its 180s
+	 * ceiling. The step's own stderr was non-empty, and the timeout message was written only when
+	 * stderr was empty, so the one fact that explained the result was the one fact suppressed.
+	 * Two wrong diagnoses were drawn before `elapsedMs` was read by hand (ISS-149).
+	 */
+	it("REPORTS a timeout as a timeout even when the process wrote to stderr first", () => {
+		const result = runCommandPlanProcessStep({
+			id: "process-timeout-noisy",
+			command: "node -e <script>",
+			args: [],
+			description: "Run a noisy process with timeout.",
+			process: {
+				command: process.execPath,
+				args: [
+					"-e",
+					"process.stderr.write('• tool 1.2.3\\n'); setTimeout(() => {}, 30_000);",
+				],
+				display: "node -e <script>",
+				// The budget must outlive a COLD node start on a saturated runner, or the child is
+				// killed before it wrote the banner this test exists to preserve — 150 ms was not
+				// enough in the clean-room lane (PR #59, 2026-08-30), and the test then claimed the
+				// banner was dropped when the process had simply not reached it yet. The child sleeps
+				// far longer than this, so the timeout is still what ends it.
+				timeoutMs: 2_000,
+			},
+		});
+		// STRUCTURED, not just prose: a reader deciding what to do next must not have to parse
+		// English out of stderr to learn that nothing actually failed.
+		expect(result.timedOut).toBe(true);
+		expect(result.timeoutMs).toBe(2_000);
+		expect(result.ok).toBe(false);
+		// And the prose says it FIRST, because the banner is what a reader sees and mistakes for
+		// the whole story.
+		expect(result.stderr).toMatch(/^Command timed out/u);
+		// The process's own output survives: it is evidence, and dropping it would trade one
+		// missing fact for another.
+		expect(result.stderr).toContain("• tool 1.2.3");
+	});
+
+	it("does NOT call an ordinary failure a timeout", () => {
+		// The distinction is only worth anything if it stays false when the command really failed.
+		const result = runCommandPlanProcessStep({
+			id: "process-failed",
+			command: "node -e <script>",
+			args: [],
+			description: "Run a failing process.",
+			process: {
+				command: process.execPath,
+				args: ["-e", "process.stderr.write('boom'); process.exit(2);"],
+				display: "node -e <script>",
+				timeoutMs: 10_000,
+			},
+		});
+		expect(result.timedOut).toBe(false);
+		expect(result.exitCode).toBe(2);
+		expect(result.stderr).toBe("boom");
+	});
+
+	it("gives the RUN a third outcome, so a caller does not retry a ceiling forever", () => {
+		// A retry-on-failure caller would re-run a killed step at the same budget, indefinitely.
+		// `timed-out` is what lets it decide differently without parsing prose.
+		const result = runCommandPlan(
+			[
+				{
+					id: "slow",
+					command: "node -e <script>",
+					args: [],
+					description: "Run a process that outlives its ceiling.",
+					process: {
+						command: process.execPath,
+						args: ["-e", "process.stderr.write('banner'); setTimeout(() => {}, 5000);"],
+						display: "node -e <script>",
+						timeoutMs: 150,
+					},
+				},
+			],
+			runCommandPlanProcessStep,
+		);
+		expect(result.status).toBe("timed-out");
+		expect(result.ok).toBe(false);
+		expect(result.failedStepId).toBe("slow");
+		expect(result.steps[0]?.timedOut).toBe(true);
+	});
+
+	it("still calls a real failure `failed`", () => {
+		const result = runCommandPlan(
+			[
+				{
+					id: "boom",
+					command: "node -e <script>",
+					args: [],
+					description: "Run a failing process.",
+					process: {
+						command: process.execPath,
+						args: ["-e", "process.exit(2);"],
+						display: "node -e <script>",
+						timeoutMs: 10_000,
+					},
+				},
+			],
+			runCommandPlanProcessStep,
+		);
+		expect(result.status).toBe("failed");
+	});
+
+	it("carries the kill into the step summary, which is what the JSON envelope prints", () => {
+		const summary = commandPlanStepSummary({
+			id: "s",
+			command: "c",
+			args: [],
+			description: "d",
+			ok: false,
+			exitCode: 1,
+			stdout: "",
+			stderr: "Command timed out after 150ms (SIGTERM).",
+			timedOut: true,
+			timeoutMs: 150,
+		});
+		expect(summary).toMatchObject({ timedOut: true, timeoutMs: 150 });
+	});
 });

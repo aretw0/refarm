@@ -51,20 +51,38 @@ jobs:
         id: setup
         uses: ./.github/actions/setup
 
-      # ── Tier 1: blocking gate — high/critical in prod deps ──────────────
-      - name: Security gate (high/critical, prod deps only)
+      # ── Tier 1: blocking gate — judged against the dated register ───────
+      # WAS `pnpm audit --audit-level=high --prod`, which has been red since 2026-08-18 on an
+      # advisory whose named patch does not exist (GHSA-jmr9-qjv8-65gv, extract-zip >=2.0.2 vs a
+      # registry latest of 2.0.1). It opens the high/critical issue below EVERY Monday about that
+      # one fact — issue #58 has stood since 2026-08-17.
+      #
+      # The gate is stricter in severity (`moderate` includes `high` and `critical`) over the same
+      # `--prod` scope, so nothing this reported is now unjudged. What changes is that a failure
+      # MEANS something: a new advisory, or an acceptance that came due.
+      - name: Security gate (moderate --prod, with per-advisory expiry)
         id: audit_gate
-        run: pnpm audit --audit-level=high --prod
+        run: node scripts/security/audit-gate.mjs
 
-      # ── Tier 2: non-blocking gate — moderate in prod deps ───────────────
-      # GHSA-48c2-rrv3-qjmp (yaml <2.8.3): ignored — exact version pin in
-      # yaml-language-server@1.20.0 (dev tooling, @astrojs/check) that pnpm
-      # overrides cannot reach. Track: @astrojs/language-server → volar-service-yaml@0.0.71.
-      - name: Security gate (moderate, prod deps only — non-blocking)
+      # ── Tier 2: moderate in prod deps, judged against the dated register ─
+      # WAS `pnpm audit --audit-level=moderate --prod`, non-blocking, and it opened a moderate
+      # issue EVERY MONDAY about the same seven advisories the repo had already decided to accept
+      # — issue #56 has stood since 2026-08-03. A weekly alarm about a settled fact is the thing
+      # that teaches its reader to skim the day a real one arrives.
+      #
+      # `audit-gate.mjs` is the operator's 2026-08-11 ruling made executable: it passes while every
+      # reported advisory is declared in `accepted-advisories.mjs` AND no re-check date has passed,
+      # and fails otherwise. So a failure here now MEANS something — a new advisory, or an
+      # acceptance that came due — and the issue below fires on that instead of on the backlog.
+      #
+      # The acceptance that used to live in this comment (GHSA-48c2-rrv3-qjmp, yaml <2.8.3,
+      # recorded 2026-05-20 and never re-verified) is gone rather than migrated: it is dev-only,
+      # and this gate is `--prod`, so it is never reported. An undated note in YAML was exactly
+      # the shape the register replaced.
+      - name: Security gate (moderate --prod, with per-advisory expiry)
         id: audit_gate_moderate
         if: always()
-        run: pnpm audit --audit-level=moderate --prod
-        continue-on-error: true
+        run: node scripts/security/audit-gate.mjs
 
       # ── Generate rich report (prod + all) ───────────────────────────────
       - name: Generate full audit report

@@ -187,6 +187,7 @@ function planFromOptions(
 	deps: ReleaseCommandDeps | undefined,
 	engine: ReleaseEngine,
 ): ReleasePlan {
+	// os-resolution: project — the repository being released is the one the operator is standing in
 	const cwd = options.cwd ?? deps?.cwd?.() ?? process.cwd();
 	return engine.buildReleasePlan({
 		cwd,
@@ -256,6 +257,7 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 				const plan = planFromOptions(packages, options, deps, engine);
 				const gateResult = options.checkGates
 					? engine.runReleaseGates(plan, {
+							// os-resolution: project — gates run against the repository being released, where the operator stands
 							cwd: options.cwd ?? deps?.cwd?.() ?? process.cwd(),
 							dryRun: Boolean(options.dryRun),
 							onlyRequired: Boolean(options.onlyRequired),
@@ -350,6 +352,7 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 				const plan = planFromOptions(packages, { ...options, dryRun: true }, deps, engine);
 				const gateResult = plan.ok
 					? engine.runReleaseGates(plan, {
+							// os-resolution: project — gates run against the repository being released, where the operator stands
 							cwd: options.cwd ?? deps?.cwd?.() ?? process.cwd(),
 							dryRun: true,
 							onlyRequired: Boolean(options.onlyRequired),
@@ -400,6 +403,7 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 				const plan = planFromOptions(packages, options, deps, engine);
 				const gateResult = plan.ok
 					? engine.runReleaseGates(plan, {
+							// os-resolution: project — gates run against the repository being released, where the operator stands
 							cwd: options.cwd ?? deps?.cwd?.() ?? process.cwd(),
 							dryRun: Boolean(options.dryRun),
 							onlyRequired: Boolean(options.onlyRequired),

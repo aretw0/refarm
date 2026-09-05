@@ -34,14 +34,17 @@
 		"@refarm.dev/provenance-contract-v1": "workspace:*",
 		"@refarm.dev/quality-contract-v1": "workspace:*",
 		"@refarm.dev/records-contract-v1": "workspace:*",
+		"@refarm.dev/source-oslc": "workspace:*",
 		"@refarm.dev/source-web": "workspace:*",
 		"@refarm.dev/surveyor": "workspace:*",
+		"@refarm.dev/task-contract-v1": "workspace:*",
 		"@refarm.dev/vault-contract-v1": "workspace:*",
 		"@refarm.dev/vault-surface-ref": "workspace:*"
 	},
 	"devDependencies": {
 		"@astrojs/check": "^0.9.9",
 		"@refarm.dev/config": "workspace:*",
+		"@refarm.dev/storage-sqlite": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*",
 		"@types/jsonld": "^1.5.15",

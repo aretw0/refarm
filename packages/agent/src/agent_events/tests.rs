@@ -13,6 +13,7 @@ fn every_event_name_carries_the_routed_prefix() {
         EVENT_RESPONSE_DONE,
         EVENT_ERROR,
         EVENT_BUDGET_BLOCKED,
+        EVENT_BUDGET_UNKNOWN,
         EVENT_ROUTE_SELECTED,
     ] {
         assert!(
@@ -84,6 +85,25 @@ fn error_and_budget_blocked_are_distinct_terminal_signals() {
     assert_eq!(budget["provider"], "anthropic");
     // budget:blocked is not an error payload — an observer acts on cost differently.
     assert!(budget.get("error").is_none());
+}
+
+#[test]
+fn budget_unknown_names_the_reason_and_is_distinct_from_blocked() {
+    // The shaper carries whatever reason string it's given rather than hardcoding
+    // one — this exercises that with two DIFFERENT strings to pin the field isn't
+    // dropped or overwritten, not to claim both are currently reachable from the
+    // runtime. As of round 2, `BudgetUnknownReason::as_str` only ever produces
+    // "query_error"; "truncated" here is a stand-in second value proving the
+    // payload shape stays generic, not a live reason (see `budget_unknown_payload`'s
+    // doc comment).
+    let truncated = budget_unknown_payload("r-1", "anthropic", "truncated");
+    assert_eq!(truncated["provider"], "anthropic");
+    assert_eq!(truncated["reason"], "truncated");
+    let query_error = budget_unknown_payload("r-1", "anthropic", "query_error");
+    assert_eq!(query_error["reason"], "query_error");
+    // budget:unknown is a proceed signal (the run was NOT halted) — must not be
+    // confused with budget:blocked's payload shape at the event-name level.
+    assert_ne!(EVENT_BUDGET_UNKNOWN, EVENT_BUDGET_BLOCKED);
 }
 
 #[test]

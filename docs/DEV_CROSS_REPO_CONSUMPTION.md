@@ -16,10 +16,10 @@ selected `@refarm.dev/*` packages inside `vault-seed` before those packages are 
 
 **Consumer-proof uses a local tarball — faithful to the published shape.**
 
-1. In the Refarm working tree, materialize the current `vault-seed-ready`
+1. In the Refarm working tree, materialize the current `consumer-ready`
    packet:
    ```bash
-   pnpm --silent run release:first-publish:plan -- --selection vault-seed-ready --json
+   pnpm --silent run release:first-publish:plan -- --selection consumer-ready --json
    pnpm --silent run release:vault-seed:handoff -- --pack --prune-extra --json --out .refarm/handoff/vault-seed/<YYYY-MM-DD>/manifest.json
    pnpm --silent run release:vault-seed:handoff -- --out .refarm/handoff/vault-seed/<YYYY-MM-DD>/manifest.md
    ```
@@ -59,7 +59,7 @@ selected `@refarm.dev/*` packages inside `vault-seed` before those packages are 
 4. Run the surface (`dgk build` / `dgk serve` / the site test roteiro) — that is the proof.
 
 Manual single-package pack remains an escape hatch for a package that is not in
-`vault-seed-ready` yet, but it is not the official handoff path:
+`consumer-ready` yet, but it is not the official handoff path:
 
    ```bash
    pnpm -C packages/<name> run build

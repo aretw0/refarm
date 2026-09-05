@@ -123,7 +123,7 @@ test("distribution status reflects release-policy selections", () => {
 	);
 	assert.match(doc, /daily-driver gate/);
 	assert.match(doc, /kernel-candidates/);
-	assert.match(doc, /vault-seed-ready/);
+	assert.match(doc, /consumer-ready/);
 	assert.match(doc, /schemaVersion: 1/);
 	assert.match(doc, /consumerPull/);
 	assert.match(doc, /Each selected package entry carries `consumerPull` metadata in\s+`refarm\.config\.json`/);
@@ -151,7 +151,7 @@ test("distribution status reflects release-policy selections", () => {
 		assert.match(doc, new RegExp(`\\\`${escapeRegExp(packageName)}\\\``));
 	}
 
-	for (const packageName of releaseSelectionNames("vault-seed-ready")) {
+	for (const packageName of releaseSelectionNames("consumer-ready")) {
 		assert.match(doc, new RegExp(`\\\`${escapeRegExp(packageName)}\\\``));
 	}
 });
@@ -161,7 +161,7 @@ test("package registry does not promise publication ahead of release policy", ()
 	assert.doesNotMatch(packageRegistryDoc, /READY FOR v0\.1\.0/);
 	assert.match(packageRegistryDoc, /daily-driver gate/);
 	assert.match(packageRegistryDoc, /kernel-candidates/);
-	assert.match(packageRegistryDoc, /vault-seed-ready/);
+	assert.match(packageRegistryDoc, /consumer-ready/);
 
 	for (const packageName of releaseSelectionNames("default")) {
 		assert.match(
@@ -170,7 +170,7 @@ test("package registry does not promise publication ahead of release policy", ()
 		);
 	}
 
-	for (const packageName of releaseSelectionNames("vault-seed-ready")) {
+	for (const packageName of releaseSelectionNames("consumer-ready")) {
 		assert.match(
 			packageRegistryDoc,
 			new RegExp(`\\[\\\`${escapeRegExp(packageName)}\\\``),
@@ -196,8 +196,8 @@ test("vault seed convergence keeps current handoff hashes in the manifest", () =
 });
 
 test("cross-repo consumption uses the current vault-seed-ready packet", () => {
-	assert.match(crossRepoConsumptionDoc, /vault-seed-ready/);
-	assert.match(crossRepoConsumptionDoc, /release:first-publish:plan -- --selection vault-seed-ready --json/);
+	assert.match(crossRepoConsumptionDoc, /consumer-ready/);
+	assert.match(crossRepoConsumptionDoc, /release:first-publish:plan -- --selection consumer-ready --json/);
 	assert.match(crossRepoConsumptionDoc, /--out \.refarm\/handoff\/vault-seed\/<YYYY-MM-DD>\/manifest\.json/);
 	assert.match(crossRepoConsumptionDoc, /manifest\.json/);
 	assert.match(crossRepoConsumptionDoc, /manifest\.md/);
@@ -209,10 +209,20 @@ test("cross-repo consumption uses the current vault-seed-ready packet", () => {
 });
 
 test("vault-seed handoff docs distinguish historical 10-package packets from current selection", () => {
-	const currentSelection = releaseSelectionNames("vault-seed-ready");
-	assert.equal(currentSelection.length, 23);
+	const currentSelection = releaseSelectionNames("consumer-ready");
+	// 24 since cc61342e: `@refarm.dev/vault-contract-v1` entered. This literal is the ANCHOR the
+	// doc assertion derives from, so it is the one number that must be turned by hand — and the
+	// commit that moved the fact did not turn it, nor the six others across three files.
+	//
+	// 23 again since 2026-08-16: content-projection rejoined the selection once vault-seed's
+	// records reference vault actually consumed it. It was 23, then 22 under ISS-113's honest
+	// correction, and 23 once more — which is exactly why the doc assertion below stopped being a
+	// literal. A hardcoded `22-package` matched a doc that had gone stale and reported PASS: the
+	// number is now DERIVED from the same selection this test measures, so the doc and the config
+	// cannot disagree without failing.
+	assert.equal(currentSelection.length, 27);
 
-	assert.match(releaseGateDoc, /current\s+23-package\s+selection/);
+	assert.match(releaseGateDoc, new RegExp(`current\\s+${currentSelection.length}-package\\s+selection`));
 	assert.match(releaseGateDoc, /materialized the then-current 10-package selection/);
 	assert.match(
 		releaseGateDoc,
@@ -222,7 +232,7 @@ test("vault-seed handoff docs distinguish historical 10-package packets from cur
 	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 23 packages and 72 required checks/);
 	assert.match(vaultSeedHandoffAdr, /currently 23 packages tagged/);
 	assert.match(vaultSeedHandoffAdr, /current accepted packet: 23 packages,\s+72 required checks/);
-	assert.match(releasePolicyDoc, /selected 23-package publish plan/);
+	assert.match(releasePolicyDoc, /selected 27-package publish plan/);
 	assert.doesNotMatch(vaultSeedHandoffAdr, /currently 20 packages tagged/);
 	assert.doesNotMatch(releasePolicyDoc, /selected 20-package publish plan/);
 });
@@ -254,7 +264,7 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.match(releaseGateDoc, /the official downstream proof was received on 2026-07-03: the `vault-seed` Telegram adapter emits/);
 	assert.match(releaseGateDoc, /the official downstream proof was received on 2026-07-03: `vault-seed` emits task artifact/);
 	assert.match(releaseGateDoc, /official downstream proof verified the 2026-07-03 handoff tarballs and quality\/content\/site flows/);
-	assert.match(releaseGateDoc, /consumer-proven in `vault-seed-ready`; public publish still waits on develop stabilization and release lane/);
+	assert.match(releaseGateDoc, /consumer-proven in `consumer-ready`; public publish still waits on develop stabilization and release lane/);
 	assert.match(releaseGateDoc, /Official `vault-seed` proof confirms `@aretw0\/dgk-runner` and `dgk-cli` import the SDK internally/);
 	assert.match(processHandoffBridgeSpec, /IMPLEMENTED - downstream proof received; public publish waits on the release lane/);
 	assert.match(processHandoffBridgeSpec, /official 2026-07-03 downstream proof confirms the runner and\s+CLI import the SDK internally/);
@@ -271,9 +281,9 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.match(factoryReadinessDoc, /8b channel policy .* \| \*\*downstream-proven package slice\*\*/);
 	assert.match(factoryReadinessDoc, /8c `process-handoff` \+ artifact provenance \| \*\*downstream-proven bridge slice\*\*/);
 	assert.match(releaseGateDoc, /Official `vault-seed` proof confirms `silo\.js` now delegates publishing credentials to `SiloCore\.saveSecret/);
-	assert.match(releaseGateDoc, /`@refarm\.dev\/local-surface` .* consumer-proven in `vault-seed-ready`; public publish still waits on develop stabilization and release lane/);
+	assert.match(releaseGateDoc, /`@refarm\.dev\/local-surface` .* consumer-proven in `consumer-ready`; public publish still waits on develop stabilization and release lane/);
 	assert.match(localSurfaceSpec, /Downstream proof received \(2026-07-03\): the official `vault-seed` checkout consumed a packed candidate tarball/);
-	assert.match(packagesReadme, /`@refarm\.dev\/local-surface`.*consumer-proven; `vault-seed-ready`; held/);
+	assert.match(packagesReadme, /`@refarm\.dev\/local-surface`.*consumer-proven; `consumer-ready`; held/);
 	assert.match(vaultSeedSiloBridgeSpec, /IMPLEMENTED - downstream adapter proof received; public publish waits on the release lane/);
 	assert.match(factoryReadinessDoc, /product adoption of the Silo-backed credential bridge remains downstream/);
 	assert.match(artifactLabEvidencePlan, /Official downstream proof received \(2026-07-03\): `vault-seed` emits a\s+validated `refarm\.task-artifacts\.v1` manifest/);
@@ -305,9 +315,22 @@ test("release convergence records the official downstream vault-seed proof recei
 });
 
 test("focus maps do not regress implemented quality and projection blocks to planned", () => {
-	assert.match(refarmWorkFocusDoc, /Phase 1 implemented, selected, and downstream-proven/);
+	// RATCHETED FORWARD 2026-08-16. This pinned three phrases that are now GONE from the focus doc,
+	// and each was removed for a reason the ratchet should hold rather than resist:
+	//
+	//   "Phase 1 implemented, selected, and downstream-proven"  -> the claim was FALSE. The config
+	//       said `candidate-hold` and the package's only caller anywhere was a contract test. The
+	//       pin was protecting a sentence that overstated what had been measured.
+	//   "Build the separate ds-astro render adapter over ds/html" -> that next step SHIPPED.
+	//   "vault-seed MDX inventory now supplies render pressure for ds-astro" -> superseded by the
+	//       stronger fact: vault-seed's reference vault now consumes content-projection itself.
+	//
+	// The pins below are the forward statements. A doc that walks any of them back to "planned",
+	// "pending", or "downstream-proven" fails here, which is what the ratchet is for.
+	assert.match(refarmWorkFocusDoc, /Implemented, selected, and consumer-proven/);
 	assert.match(refarmWorkFocusDoc, /inline Markdown links into valid `records:v1`/);
-	assert.match(refarmWorkFocusDoc, /Build the separate .*ds-astro.*render adapter over .*ds\/html/);
+	assert.match(refarmWorkFocusDoc, /records reference vault structures its MD\/MDX lane through it/);
+	assert.match(refarmWorkFocusDoc, /`@refarm\.dev\/ds-astro` shipped/);
 	assert.doesNotMatch(refarmWorkFocusDoc, /Content projection \/ MD-MDX authoring \| Designed, build-pending/);
 	assert.doesNotMatch(refarmWorkFocusDoc, /Let the official consumer prove the handoff/);
 
@@ -323,6 +346,8 @@ test("focus maps do not regress implemented quality and projection blocks to pla
 	assert.match(decisionLogDoc, /`ds-astro` render pressure received from `vault-seed`, package plan next/);
 	assert.doesNotMatch(decisionLogDoc, /Phase 1 implemented and selected; `ds-astro` remains render-pressure-gated/);
 	assert.doesNotMatch(decisionLogDoc, /`ds-astro` remains render-pressure-gated/);
-	assert.match(refarmWorkFocusDoc, /official `vault-seed` MDX inventory now supplies render pressure for `ds-astro`/);
+	// Superseded by the pin above: render pressure was the evidence that justified BUILDING
+	// ds-astro. ds-astro is built, and the focus row now records consumption instead of pressure.
+	assert.match(refarmWorkFocusDoc, /tarball vendored in `vault-seed`/);
 	assert.doesNotMatch(decisionLogDoc, /Content-projection MD\/MDX blocks.*implementation in flight/);
 });

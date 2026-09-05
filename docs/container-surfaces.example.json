@@ -1,0 +1,6 @@
+{
+  "surfaces": {
+    "sidecar-http": { "expose": "host:0.0.0.0", "gate": "device-token" },
+    "daemon-ws": { "expose": "loopback" }
+  }
+}

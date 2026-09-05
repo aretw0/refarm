@@ -14,10 +14,11 @@ themselves.
 - The browser lives behind the `BrowserSession` interface, so the login/reuse logic is
   **testable with a fake** (no real Chrome needed) and a consumer can bring **any** browser
   (puppeteer, Playwright, CDP) without changing callers.
-- The heavy dependency (`puppeteer-core`) is **optional** and loaded **lazily** from the
-  `/puppeteer` subpath — the main entry never pulls it in, and a machine/CI without Chrome
-  still builds and runs everything else.
-- The cookie→fetch bridge is pure.
+- The heavy dependency (`puppeteer-core` **or** `playwright-core`) is **optional** and loaded
+  **lazily** from the `/puppeteer` or `/playwright` subpath — the main entry never pulls one in,
+  and a machine/CI without a browser still builds and runs everything else.
+- The cookie→fetch bridge is pure. The login-detection loop (`awaitLoginDetected`) is
+  browser-agnostic and lives in the main entry — shared by every adapter.
 
 ## Usage
 
@@ -47,6 +48,28 @@ const live = await createLiveFetch({
 `puppeteer-core` downloads **no browser** — it drives the Chrome you already have. Point at it
 with `executablePath` (or `CHROME_PATH`).
 
+### Playwright adapter (`/playwright`)
+
+Already on Playwright? Use the sibling adapter — same `BrowserSession` contract, so every caller
+is unchanged:
+
+```ts
+import { createLiveFetch } from "@refarm.dev/browser-driver";
+import { createPlaywrightSession } from "@refarm.dev/browser-driver/playwright";
+
+const session = await createPlaywrightSession({
+  executablePath: process.env.CHROME_PATH,
+  userDataDir: "/path/to/session",         // persistent profile (login reused across runs)
+  signals: { cookieNamed: "JSESSIONID" },  // your app's "logged in" signal
+});
+```
+
+It lazily imports `playwright-core` (then `playwright`), so a consumer already on `playwright`
+just works and this package ships without forcing the install. Your app's **specific** login
+(e.g. a QR / token SSO flow) is expressed as your `LoginSignals` — or, for a bespoke flow, as
+your own `BrowserSession.ensureLoggedIn`; everything above the login (fetch-in-session, cookie
+reuse, the detection loop) stays generic.
+
 ## Login auto-detection (no keypress)
 
 `createPuppeteerSession` waits until login is **detected**, never on Enter. It polls until the
@@ -61,6 +84,8 @@ Raise `loginTimeoutMs` (default 3 min) if the SSO/VPN dance is slow.
 
 ## Testing
 
-The login/reuse/persistence logic is fully unit-tested with a fake `BrowserSession` (see
-`src/session.test.ts`) — no real browser required. The puppeteer adapter (`src/puppeteer.ts`)
-is the only browser-touching code; it is exercised on a machine with Chrome.
+The login/reuse/persistence logic and the detection loop are fully unit-tested with a fake
+`BrowserSession` / fake probe (see `src/session.test.ts`) — no real browser required. The
+Playwright adapter's translation logic is tested against a fake `chromium`
+(`src/playwright.test.ts`), since its `chromium` is injectable. The puppeteer adapter
+(`src/puppeteer.ts`) is exercised on a machine with Chrome.

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BrowserSyncClient } from "./browser-sync-client";
+import { BrowserSyncClient, WS_SYNC_PROTOCOL } from "./browser-sync-client";
 import type { LoroCRDTStorage } from "./loro-crdt-storage";
 
 describe("BrowserSyncClient", () => {
@@ -115,6 +115,34 @@ describe("BrowserSyncClient", () => {
 
 		client.disconnect();
 	});
+
+	// ── ADR-093: token → Sec-WebSocket-Protocol offer ───────────────────────────
+
+	it("offers no subprotocols when no token is configured (unchanged behavior)", () => {
+		const storage = {
+			getUpdate: vi.fn(async () => new Uint8Array()),
+			applyUpdate: vi.fn(async () => {}),
+			onUpdate: vi.fn(() => vi.fn()),
+		} as unknown as LoroCRDTStorage;
+
+		const client = new BrowserSyncClient(storage, {});
+		client.connect();
+
+		expect(sockets[0]!.protocols).toBeUndefined();
+	});
+
+	it("offers the sync protocol and the bearer token when a token is configured", () => {
+		const storage = {
+			getUpdate: vi.fn(async () => new Uint8Array()),
+			applyUpdate: vi.fn(async () => {}),
+			onUpdate: vi.fn(() => vi.fn()),
+		} as unknown as LoroCRDTStorage;
+
+		const client = new BrowserSyncClient(storage, { token: "enrolled-device-token" });
+		client.connect();
+
+		expect(sockets[0]!.protocols).toEqual([WS_SYNC_PROTOCOL, "bearer.enrolled-device-token"]);
+	});
 });
 
 class MockWebSocket {
@@ -130,7 +158,10 @@ class MockWebSocket {
 	onopen: (() => void) | null = null;
 	readyState = MockWebSocket.OPEN;
 
-	constructor(readonly url: string) {
+	constructor(
+		readonly url: string,
+		readonly protocols?: string | string[],
+	) {
 		MockWebSocket.onCreate?.(this);
 	}
 

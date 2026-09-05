@@ -5,8 +5,32 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const require = createRequire(import.meta.url);
-const WRANGLER_PACKAGE_ROOT = dirname(require.resolve("wrangler/package.json"));
-const DEFAULT_WRANGLER_BIN = join(WRANGLER_PACKAGE_ROOT, "bin", "wrangler.js");
+
+/**
+ * PURE-ish. Where the bundled `wrangler` lives — resolved WHEN NEEDED, never at load.
+ *
+ * MEASURED 2026-08-19: this was a module-level `require.resolve`, and `wrangler` is a
+ * devDependency. So importing this package at all required a dependency that production installs
+ * deliberately omit, on a node that may never touch Cloudflare — the failure met while testing
+ * whether this node could run an installed copy of itself.
+ *
+ * The repository already draws this line: the delivery adapter registry is imported only when a
+ * channel is declared, which is what makes the undeclared path free rather than merely quiet. An
+ * optional capability must not make its dependency mandatory.
+ *
+ * The refusal names the decision rather than the resolver's file: `Cannot find module
+ * 'wrangler/package.json'` tells an operator about a path nobody chose.
+ */
+export function defaultWranglerBin(resolve: (specifier: string) => string = require.resolve): string {
+	try {
+		return join(dirname(resolve("wrangler/package.json")), "bin", "wrangler.js");
+	} catch {
+		throw new Error(
+			"this node has no `wrangler` installed, and Cloudflare work runs through it. Install it, " +
+				"or pass an explicit `wranglerBin` — production installs omit devDependencies on purpose.",
+		);
+	}
+}
 
 export interface CloudflareProviderOptions {
 	apiToken: string;
@@ -35,7 +59,7 @@ export class CloudflareProvider {
 		return new CloudflareProvider(
 			opts.apiToken,
 			accountId,
-			opts.wranglerBin ?? DEFAULT_WRANGLER_BIN,
+			opts.wranglerBin ?? defaultWranglerBin(),
 		);
 	}
 

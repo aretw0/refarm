@@ -5,7 +5,8 @@ pub(crate) struct FinalStreamChunkInput<'a> {
     pub provider: &'a str,
     pub tokens_in: u32,
     pub tokens_out: u32,
-    pub tokens_cached: u32,
+    pub cache_read_tokens: u32,
+    pub cache_creation_tokens: u32,
     /// True when incremental partial chunks (is_final:false, carrying the deltas)
     /// were already written to this stream file before the final line.
     pub partials_present: bool,
@@ -29,7 +30,8 @@ pub(crate) fn final_stream_chunk_ndjson(input: FinalStreamChunkInput<'_>) -> Str
         input.model,
         input.tokens_in,
         input.tokens_out,
-        input.tokens_cached,
+        input.cache_read_tokens,
+        input.cache_creation_tokens,
     );
     let content = if input.partials_present { "" } else { input.content };
     format!(

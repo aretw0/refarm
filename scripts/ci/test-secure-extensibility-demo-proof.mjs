@@ -9,9 +9,9 @@ import {
 
 test("parses secure-extensibility proof options", () => {
 	assert.deepEqual(
-		parseSecureExtensibilityDemoProofArgs(["--selection", "vault-seed-ready", "--", "--json"]),
+		parseSecureExtensibilityDemoProofArgs(["--selection", "consumer-ready", "--", "--json"]),
 		{
-			selectionId: "vault-seed-ready",
+			selectionId: "consumer-ready",
 			json: true,
 		},
 	);
@@ -20,7 +20,7 @@ test("parses secure-extensibility proof options", () => {
 test("proves the T1 secure-extensibility demo packet without widening runtime claims", () => {
 	const proof = buildSecureExtensibilityDemoProof({
 		env: { REFARM_PACKAGE_MANAGER: "pnpm" },
-		selectionId: "vault-seed-ready",
+		selectionId: "consumer-ready",
 	});
 
 	assert.equal(proof.schemaVersion, 1);

@@ -14,6 +14,10 @@
 		"./puppeteer": {
 			"import": "./dist/puppeteer.js",
 			"types": "./dist/puppeteer.d.ts"
+		},
+		"./playwright": {
+			"import": "./dist/playwright.js",
+			"types": "./dist/playwright.d.ts"
 		}
 	},
 	"scripts": {

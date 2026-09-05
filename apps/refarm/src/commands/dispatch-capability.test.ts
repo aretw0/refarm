@@ -4,7 +4,11 @@ import { describe, expect, it } from "vitest";
 
 import {
 	createDispatchCapability,
+	parseBudgetOptions,
 	parseDispatchArgs,
+	parseScenarioOption,
+	parseWorkspaceOption,
+	type BudgetDeclaration,
 	type DispatchCommandDeps,
 } from "./dispatch-capability.js";
 
@@ -34,6 +38,138 @@ describe("parseDispatchArgs", () => {
 
 	it("errors on a malformed pair", () => {
 		expect(parseDispatchArgs(["nokey"])).toEqual({ error: 'arg "nokey" must be key=value' });
+	});
+});
+
+describe("parseBudgetOptions", () => {
+	it("parses all three flags into the wire's camelCase shape", () => {
+		const r = parseBudgetOptions({
+			"budget-deadline-ms": "120000",
+			"budget-max-tokens": "50000",
+			"budget-max-usd": "2.5",
+		});
+		expect("budget" in r && r.budget).toEqual({
+			deadlineMs: 120000,
+			maxTokens: 50000,
+			maxUsd: 2.5,
+		} satisfies BudgetDeclaration);
+	});
+
+	it("omitting a flag omits that field entirely — not 0, not null", () => {
+		const r = parseBudgetOptions({ "budget-deadline-ms": "120000" });
+		expect("budget" in r && r.budget).toEqual({ deadlineMs: 120000 });
+		expect("budget" in r && r.budget && "maxTokens" in r.budget).toBe(false);
+		expect("budget" in r && r.budget && "maxUsd" in r.budget).toBe(false);
+	});
+
+	it("omitting all three sends no budget object at all", () => {
+		const r = parseBudgetOptions({});
+		expect(r).toEqual({});
+		expect("budget" in r).toBe(false);
+	});
+
+	it("also treats an option absent from a larger options bag as absent", () => {
+		const r = parseBudgetOptions({ json: true, limit: "5" });
+		expect(r).toEqual({});
+	});
+
+	it("accepts an explicit zero as a real declared ceiling", () => {
+		const r = parseBudgetOptions({ "budget-max-tokens": "0" });
+		expect("budget" in r && r.budget).toEqual({ maxTokens: 0 });
+	});
+
+	it("rejects a negative value, naming the flag", () => {
+		const r = parseBudgetOptions({ "budget-deadline-ms": "-1" });
+		expect(r).toEqual({ error: '--budget-deadline-ms must not be negative, got "-1"' });
+	});
+
+	it("rejects a non-numeric value, naming the flag", () => {
+		const r = parseBudgetOptions({ "budget-max-usd": "soon" });
+		expect(r).toEqual({ error: '--budget-max-usd must be a number, got "soon"' });
+	});
+
+	it("rejects an empty-string value rather than reading it as zero", () => {
+		const r = parseBudgetOptions({ "budget-max-tokens": "  " });
+		expect(r).toEqual({ error: '--budget-max-tokens must be a number, got "  "' });
+	});
+});
+
+describe("parseScenarioOption", () => {
+	it("parses a bare scenario id", () => {
+		expect(parseScenarioOption({ scenario: "summarise-v1" })).toEqual({
+			scenarioId: "summarise-v1",
+		});
+	});
+
+	it("absent flag ⇒ no scenarioId key at all — the node must not record an invented id", () => {
+		const r = parseScenarioOption({});
+		expect(r).toEqual({});
+		expect("scenarioId" in r).toBe(false);
+	});
+
+	it("trims surrounding whitespace", () => {
+		expect(parseScenarioOption({ scenario: "  summarise-v1  " })).toEqual({
+			scenarioId: "summarise-v1",
+		});
+	});
+
+	it("rejects an empty or whitespace-only id", () => {
+		expect(parseScenarioOption({ scenario: "" })).toEqual({
+			error: "--scenario must not be empty",
+		});
+		expect(parseScenarioOption({ scenario: "   " })).toEqual({
+			error: "--scenario must not be empty",
+		});
+	});
+
+	it("rejects an id containing whitespace", () => {
+		expect(parseScenarioOption({ scenario: "summarise v1" })).toEqual({
+			error: '--scenario must not contain whitespace, got "summarise v1"',
+		});
+	});
+
+	it("allows a colon, unlike --workspace — bench:summarise-v1 is a good scenario name", () => {
+		expect(parseScenarioOption({ scenario: "bench:summarise-v1" })).toEqual({
+			scenarioId: "bench:summarise-v1",
+		});
+	});
+});
+
+describe("parseWorkspaceOption", () => {
+	it("parses a bare workspace id", () => {
+		expect(parseWorkspaceOption({ workspace: "rcdc5" })).toEqual({ workspaceId: "rcdc5" });
+	});
+
+	it("absent flag ⇒ no workspaceId key at all — not '', not null", () => {
+		const r = parseWorkspaceOption({});
+		expect(r).toEqual({});
+		expect("workspaceId" in r).toBe(false);
+	});
+
+	it("also treats the flag absent from a larger options bag as absent", () => {
+		expect(parseWorkspaceOption({ json: true, "budget-max-tokens": "5" })).toEqual({});
+	});
+
+	it("trims surrounding whitespace", () => {
+		expect(parseWorkspaceOption({ workspace: "  rcdc5  " })).toEqual({ workspaceId: "rcdc5" });
+	});
+
+	it("rejects an empty (or all-whitespace) id, naming the flag", () => {
+		expect(parseWorkspaceOption({ workspace: "" })).toEqual({
+			error: "--workspace must not be empty",
+		});
+		expect(parseWorkspaceOption({ workspace: "   " })).toEqual({
+			error: "--workspace must not be empty",
+		});
+	});
+
+	it("rejects an id containing whitespace or a colon, naming the flag", () => {
+		expect(parseWorkspaceOption({ workspace: "rcdc5 vpn" })).toEqual({
+			error: '--workspace must not contain whitespace or a colon, got "rcdc5 vpn"',
+		});
+		expect(parseWorkspaceOption({ workspace: "workspace:rcdc5:vpn" })).toEqual({
+			error: '--workspace must not contain whitespace or a colon, got "workspace:rcdc5:vpn"',
+		});
 	});
 });
 
@@ -86,5 +222,210 @@ describe("dispatch capability", () => {
 		const env = await cap.run!(input);
 		expect(env.ok).toBe(false);
 		expect((env as { error?: string }).error).toBe("dispatch-failed");
+	});
+
+	it("declares the three budget flags, --workspace and --scenario as options", () => {
+		const cap = createDispatchCapability(makeDeps());
+		expect(cap.options?.map((o) => o.name)).toEqual([
+			"budget-deadline-ms",
+			"budget-max-tokens",
+			"budget-max-usd",
+			"workspace",
+			"scenario",
+		]);
+	});
+
+	it("--budget-deadline-ms rides the effort as Effort.budget.deadlineMs, from real argv", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, [
+			"quality",
+			"check",
+			"--budget-deadline-ms",
+			"120000",
+		]);
+		const env = await cap.run!(input);
+		expect(env.ok).toBe(true);
+		expect(d.submitted).toHaveLength(1);
+		expect((d.submitted[0] as Effort & { budget?: BudgetDeclaration }).budget).toEqual({
+			deadlineMs: 120000,
+		});
+	});
+
+	it("all three budget flags together ride as one Effort.budget object", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, [
+			"quality",
+			"check",
+			"--budget-deadline-ms",
+			"120000",
+			"--budget-max-tokens",
+			"50000",
+			"--budget-max-usd",
+			"2.5",
+		]);
+		await cap.run!(input);
+		expect((d.submitted[0] as Effort & { budget?: BudgetDeclaration }).budget).toEqual({
+			deadlineMs: 120000,
+			maxTokens: 50000,
+			maxUsd: 2.5,
+		});
+	});
+
+	it("no --budget-* flag ⇒ the submitted effort carries no budget key at all (byte-identical to today)", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check"]);
+		await cap.run!(input);
+		const submitted = d.submitted[0] as Effort & { budget?: BudgetDeclaration };
+		expect("budget" in submitted).toBe(false);
+		expect(JSON.stringify(submitted).includes("budget")).toBe(false);
+	});
+
+	it("rejects an invalid --budget-max-usd before dispatching anything", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check", "--budget-max-usd", "not-a-number"]);
+		const env = await cap.run!(input);
+		expect(env.ok).toBe(false);
+		expect((env as { error?: string }).error).toBe("invalid-args");
+		expect((env as { message?: string }).message).toBe(
+			'--budget-max-usd must be a number, got "not-a-number"',
+		);
+		expect(d.submitted).toHaveLength(0);
+	});
+
+	it("rejects a negative --budget-deadline-ms before dispatching anything", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check", "--budget-deadline-ms", "-5"]);
+		const env = await cap.run!(input);
+		expect(env.ok).toBe(false);
+		expect((env as { error?: string }).error).toBe("invalid-args");
+		expect(d.submitted).toHaveLength(0);
+	});
+
+	it("--workspace rides the effort as Effort.workspaceId, from real argv", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check", "--workspace", "rcdc5"]);
+		const env = await cap.run!(input);
+		expect(env.ok).toBe(true);
+		expect(d.submitted).toHaveLength(1);
+		expect((d.submitted[0] as Effort & { workspaceId?: string }).workspaceId).toBe("rcdc5");
+	});
+
+	it("no --workspace flag ⇒ the submitted effort carries no workspaceId key at all (byte-identical to today)", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check"]);
+		await cap.run!(input);
+		const submitted = d.submitted[0] as Effort & { workspaceId?: string };
+		expect("workspaceId" in submitted).toBe(false);
+		expect(JSON.stringify(submitted).includes("workspaceId")).toBe(false);
+	});
+
+	it("--workspace and --budget-* ride the same effort together", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, [
+			"quality",
+			"check",
+			"--workspace",
+			"rcdc5",
+			"--budget-max-tokens",
+			"50000",
+		]);
+		await cap.run!(input);
+		const submitted = d.submitted[0] as Effort & {
+			workspaceId?: string;
+			budget?: BudgetDeclaration;
+		};
+		expect(submitted.workspaceId).toBe("rcdc5");
+		expect(submitted.budget).toEqual({ maxTokens: 50000 });
+	});
+
+	it("rejects an empty --workspace before dispatching anything, naming the flag", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check", "--workspace", ""]);
+		const env = await cap.run!(input);
+		expect(env.ok).toBe(false);
+		expect((env as { error?: string }).error).toBe("invalid-args");
+		expect((env as { message?: string }).message).toBe("--workspace must not be empty");
+		expect(d.submitted).toHaveLength(0);
+	});
+
+	it("rejects a malformed --workspace (containing a colon) before dispatching anything", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, [
+			"quality",
+			"check",
+			"--workspace",
+			"workspace:rcdc5:vpn",
+		]);
+		const env = await cap.run!(input);
+		expect(env.ok).toBe(false);
+		expect((env as { error?: string }).error).toBe("invalid-args");
+		expect((env as { message?: string }).message).toBe(
+			'--workspace must not contain whitespace or a colon, got "workspace:rcdc5:vpn"',
+		);
+		expect(d.submitted).toHaveLength(0);
+	});
+	it("--scenario rides the effort as Effort.scenarioId, from real argv", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check", "--scenario", "summarise-v1"]);
+		const env = await cap.run!(input);
+		expect(env.ok).toBe(true);
+		expect(d.submitted).toHaveLength(1);
+		expect((d.submitted[0] as Effort & { scenarioId?: string }).scenarioId).toBe("summarise-v1");
+	});
+
+	it("no --scenario flag ⇒ the submitted effort carries no scenarioId key at all — absent, never invented", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check"]);
+		await cap.run!(input);
+		const submitted = d.submitted[0] as Effort & { scenarioId?: string };
+		expect("scenarioId" in submitted).toBe(false);
+		expect(JSON.stringify(submitted).includes("scenarioId")).toBe(false);
+	});
+
+	it("--scenario, --workspace and --budget-* ride the same effort together", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, [
+			"quality",
+			"check",
+			"--scenario",
+			"summarise-v1",
+			"--workspace",
+			"rcdc5",
+			"--budget-max-tokens",
+			"50000",
+		]);
+		await cap.run!(input);
+		const submitted = d.submitted[0] as Effort & {
+			scenarioId?: string;
+			workspaceId?: string;
+			budget?: BudgetDeclaration;
+		};
+		expect(submitted.scenarioId).toBe("summarise-v1");
+		expect(submitted.workspaceId).toBe("rcdc5");
+		expect(submitted.budget).toEqual({ maxTokens: 50000 });
+	});
+
+	it("rejects an empty --scenario before dispatching anything, naming the flag", async () => {
+		const d = makeDeps();
+		const cap = createDispatchCapability(d);
+		const input = parseCapabilityArgv(cap, ["quality", "check", "--scenario", ""]);
+		const env = await cap.run!(input);
+		expect(env.ok).toBe(false);
+		expect((env as { error?: string }).error).toBe("invalid-args");
+		expect((env as { message?: string }).message).toBe("--scenario must not be empty");
+		expect(d.submitted).toHaveLength(0);
 	});
 });

@@ -1,15 +1,27 @@
+import { withActivity } from "@refarm.dev/capabilities";
 import { modelCredentialEnvKey } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { isContainer } from "@refarm.dev/root";
 import chalk from "chalk";
-import { startProgressIndicator, type ProgressIndicator } from "../utils/spinner.js";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { githubOAuthClientId } from "./github.js";
+import {
+	formatSelectionRefusal,
+	resolveModelProviderSelection,
+} from "./model-provider-selection.js";
 import type {
 	OAuthCallbackWaitStatus,
 	OAuthCredentials,
 	OAuthLoginCallbacks,
 	OAuthProviderInterface,
 } from "./oauth/index.js";
-import { anthropicOAuthProvider, openaiCodexOAuthProvider } from "./oauth/index.js";
+import {
+	anthropicOAuthProvider,
+	createGitHubCopilotProvider,
+	openaiCodexOAuthProvider,
+	resolveCopilotIdentity,
+} from "./oauth/index.js";
 import type { CollectContext, CredentialProvider } from "./types.js";
 
 export interface ModelCredential {
@@ -21,10 +33,36 @@ export interface ModelCredential {
 	oauthCredentials?: OAuthCredentials;
 }
 
+/** The node's own declaration. Absent or unreadable means the honest identity, never imitation. */
+function readCopilotIdentityConfig(): unknown {
+	try {
+		return JSON.parse(
+			readFileSync(join(process.env.HOME ?? "", ".refarm", "config.json"), "utf8"),
+		) as unknown;
+	} catch {
+		return undefined;
+	}
+}
+
 // ── Subscription tier (OAuth PKCE, no API credits needed) ─────────────────────
 const OAUTH_PROVIDERS: OAuthProviderInterface[] = [
 	openaiCodexOAuthProvider,
 	anthropicOAuthProvider,
+	// GitHub Copilot, under REFARM'S OWN OAuth App rather than a borrowed editor id. Registering it
+	// here is what turns `resolveModelProviderSelection("github-copilot")` from `no-credential-flow`
+	// into `oauth` — the inventory is derived from this list, so the refusal retires itself.
+	//
+	// It is NOT added to RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS. The login can happen and the
+	// credential is stored and listed, but the runtime does not dispatch through it until a spike
+	// has actually run — the 2026-08-06 design is explicit that a passing spike proves feasibility,
+	// not production maturity.
+	createGitHubCopilotProvider({
+		clientId: githubOAuthClientId(),
+		fetch: (...args) => fetch(...args),
+		// DECLARED, never inferred. Defaults to refarm's own identity — the one measured at HTTP 403
+		// — because imitation must be something the operator chose, not something he inherited.
+		identity: resolveCopilotIdentity(readCopilotIdentityConfig()),
+	}),
 ];
 
 const DEVCONTAINER_CALLBACK_TIMEOUT_MS = 120_000;
@@ -173,83 +211,109 @@ async function runOAuthFlow(
 	ctx: CollectContext,
 	provider: OAuthProviderInterface,
 ): Promise<ModelCredential> {
-	const containerEnv = isContainer();
-	const hasPortForwarding =
-		process.env["REFARM_DEVCONTAINER"] === "true" ||
-		Boolean(process.env["VSCODE_REMOTE_CONTAINERS_SESSION"]) ||
-		Boolean(process.env["REMOTE_CONTAINERS"]) ||
-		Boolean(process.env["CODESPACES"]);
-	const forceManual = process.env["REFARM_OAUTH_CALLBACK_MODE"] === "manual";
-	const callbackCanReachBrowser =
-		Boolean(provider.usesCallbackServer) && !forceManual && (!containerEnv || hasPortForwarding);
-	const needsManualCode = Boolean(provider.usesCallbackServer) && !callbackCanReachBrowser;
-	let progress: ProgressIndicator | undefined;
+	// Emit the surface-neutral "working" signal for the OAuth round-trip instead of
+	// driving the spinner directly — the CLI's activity subscriber (attached once at
+	// process boot in cli-main.ts) renders it, and the SAME event would light up a TUI
+	// indicator or a web/mesh pill without this flow knowing the difference. `report`
+	// carries the existing "exchanging token" style progress notes onto that signal.
+	return withActivity(
+		`Signing in to ${provider.name}`,
+		async (report) => {
+			const containerEnv = isContainer();
+			const hasPortForwarding =
+				process.env["REFARM_DEVCONTAINER"] === "true" ||
+				Boolean(process.env["VSCODE_REMOTE_CONTAINERS_SESSION"]) ||
+				Boolean(process.env["REMOTE_CONTAINERS"]) ||
+				Boolean(process.env["CODESPACES"]);
+			const forceManual = process.env["REFARM_OAUTH_CALLBACK_MODE"] === "manual";
+			const callbackCanReachBrowser =
+				Boolean(provider.usesCallbackServer) && !forceManual && (!containerEnv || hasPortForwarding);
+			const needsManualCode = Boolean(provider.usesCallbackServer) && !callbackCanReachBrowser;
 
-	const loginCallbacks: OAuthLoginCallbacks = {
-		onAuth: ({ url, instructions }) => {
-			console.log(chalk.dim(`\n  ${instructions ?? "Complete login in your browser."}`));
-			console.log(chalk.cyan(`  → ${url}\n`));
-			if (needsManualCode) {
-				console.log(
-					chalk.yellow(
-						"  ⚠  Running in a container — the browser redirect cannot reach this environment.",
-					),
-				);
-				console.log(
-					chalk.dim(
-						"     After logging in, copy the full redirect URL or authorization code and paste it below.\n",
-					),
-				);
-			} else if (containerEnv && provider.usesCallbackServer) {
-				console.log(
-					chalk.dim(
-						"     Devcontainer detected — VS Code should forward the callback port automatically.",
-					),
-				);
-				console.log(
-					chalk.dim(
-						"     If the browser does not return here, you will be prompted to paste the redirect URL.",
-					),
-				);
-				console.log(
-					chalk.dim(
-						"     You can paste the full redirect URL into this terminal early; it will be consumed when the fallback prompt appears.\n",
-					),
-				);
-			}
-			ctx.tryOpenUrl(url);
-		},
-		onPrompt: async ({ message }) => promptCode(ctx, message),
-		onCallbackWait: (status) =>
-			renderCallbackWaitStatus(status, {
-				containerEnv,
-				hasPortForwarding,
-			}),
-		onProgress: (msg) => {
-			if (progress) {
-				progress.update(msg);
-				return;
-			}
-			progress = startProgressIndicator(msg);
-		},
-		...(callbackCanReachBrowser && containerEnv
-			? {
-					callbackTimeoutMs: DEVCONTAINER_CALLBACK_TIMEOUT_MS,
-				}
-			: {}),
-		// In plain containers without a known port-forwarding bridge, the host
-		// browser cannot reach the callback server, so prompt for the code.
-		...(needsManualCode
-			? {
-					skipCallbackServer: true,
-					onManualCodeInput: () => promptCode(ctx, "Paste the redirect URL or authorization code:"),
-				}
-			: {}),
-	};
+			const loginCallbacks: OAuthLoginCallbacks = {
+				onAuth: ({ url, instructions }) => {
+					console.log(chalk.dim(`\n  ${instructions ?? "Complete login in your browser."}`));
+					console.log(chalk.cyan(`  → ${url}\n`));
+					// STATED, so it RIDES the paste question to every declared channel. The contract
+					// models this — "a wizard's framing reaches a PUSH surface only by riding the
+					// question it frames" — and this flow printed the URL to the terminal instead.
+					// The consequence, reported 2026-08-28: the question arrived on the operator's
+					// phone WITHOUT the link needed to answer it, so he had to copy it across by
+					// hand and abandoned the attempt. A question that cannot be answered where it
+					// lands is worse than one that never travelled.
+					if (needsManualCode) {
+						operator(ctx).say?.({
+							kind: "context",
+							message: `Open this to authenticate, then reply with the URL your browser lands on:\n${url}`,
+						});
+					}
+					if (needsManualCode) {
+						// THE REASON THAT ACTUALLY APPLIED, not the most common one. `needsManualCode`
+						// has TWO causes — a container whose browser cannot reach this environment,
+						// and an operator who ASKED for the manual path — and the message named only
+						// the first. Reported 2026-08-28 by an operator running directly on his PC
+						// and told he was in a container: a diagnosis that is wrong sends someone to
+						// debug a thing that is not happening.
+						console.log(
+							chalk.yellow(
+								forceManual
+									? "  ⚠  Manual callback mode requested — the redirect will not be captured automatically."
+									: "  ⚠  Running in a container — the browser redirect cannot reach this environment.",
+							),
+						);
+						console.log(
+							chalk.dim(
+								"     After logging in, copy the full redirect URL or authorization code and paste it below.\n",
+							),
+						);
+					} else if (containerEnv && provider.usesCallbackServer) {
+						console.log(
+							chalk.dim(
+								"     Devcontainer detected — VS Code should forward the callback port automatically.",
+							),
+						);
+						console.log(
+							chalk.dim(
+								"     If the browser does not return here, you will be prompted to paste the redirect URL.",
+							),
+						);
+						console.log(
+							chalk.dim(
+								"     You can paste the full redirect URL into this terminal early; it will be consumed when the fallback prompt appears.\n",
+							),
+						);
+					}
+					ctx.tryOpenUrl(url);
+				},
+				onPrompt: async ({ message }) => promptCode(ctx, message),
+				onCallbackWait: (status) =>
+					renderCallbackWaitStatus(status, {
+						containerEnv,
+						hasPortForwarding,
+					}),
+				onProgress: (msg) => report(msg),
+				...(callbackCanReachBrowser && containerEnv
+					? {
+							callbackTimeoutMs: DEVCONTAINER_CALLBACK_TIMEOUT_MS,
+						}
+					: {}),
+				// In plain containers without a known port-forwarding bridge, the host
+				// browser cannot reach the callback server, so prompt for the code.
+				...(needsManualCode
+					? {
+							skipCallbackServer: true,
+							onManualCodeInput: () =>
+								promptCode(ctx, "Paste the redirect URL or authorization code:"),
+						}
+					: {}),
+			};
 
-	const creds = await provider.login(loginCallbacks).finally(() => progress?.stop());
-	console.log(chalk.green(`  ✓ ${provider.name} — authenticated`));
-	return { provider: provider.id, apiKey: provider.getApiKey(creds), oauthCredentials: creds };
+			const creds = await provider.login(loginCallbacks);
+			console.log(chalk.green(`  ✓ ${provider.name} — authenticated`));
+			return { provider: provider.id, apiKey: provider.getApiKey(creds), oauthCredentials: creds };
+		},
+		{ kind: "auth" },
+	);
 }
 
 async function runApiKeyFlow(
@@ -268,14 +332,54 @@ async function runApiKeyFlow(
 	return { provider: p.id, apiKey };
 }
 
+/**
+ * The two credential inventories, so a caller can validate a `--model-provider` value WITHOUT
+ * re-listing them. One source; a second list would be the `program.ts` defect again.
+ */
+export function modelProviderInventories(): { oauth: string[]; apiKey: string[] } {
+	return {
+		oauth: OAUTH_PROVIDERS.map((provider) => provider.id),
+		apiKey: API_KEY_PROVIDERS.map((provider) => provider.id),
+	};
+}
+
 export const modelCredentialProvider: CredentialProvider & {
-	collectModel(ctx: CollectContext): Promise<ModelCredential>;
+	collectModel(
+		ctx: CollectContext,
+		options?: { modelProvider?: string },
+	): Promise<ModelCredential>;
 } = {
 	id: "model",
 	label: "Model Provider",
 	namespace: "model",
 
-	async collectModel(ctx: CollectContext): Promise<ModelCredential> {
+	/**
+	 * @param options.modelProvider Skip the picker and go straight to this provider's credential
+	 *   flow. THROWS rather than falling back to the picker when the value cannot be honoured: an
+	 *   operator who named a provider was being explicit, and quietly showing a menu instead would
+	 *   discard that — worse, in a non-interactive shell it would hang on a prompt nobody can answer.
+	 */
+	async collectModel(
+		ctx: CollectContext,
+		options: { modelProvider?: string } = {},
+	): Promise<ModelCredential> {
+		if (options.modelProvider) {
+			const selection = resolveModelProviderSelection(options.modelProvider, {
+				oauth: OAUTH_PROVIDERS.map((p) => p.id),
+				apiKey: API_KEY_PROVIDERS.map((p) => p.id),
+			});
+			const refusal = formatSelectionRefusal(selection);
+			if (refusal) throw new Error(refusal);
+			if (selection.kind === "ollama") {
+				console.log(chalk.green("  ✓ Ollama selected — make sure Ollama is running: ollama serve"));
+				return { provider: "ollama", apiKey: null };
+			}
+			if (selection.kind === "oauth") {
+				return runOAuthFlow(ctx, OAUTH_PROVIDERS.find((p) => p.id === selection.id)!);
+			}
+			return runApiKeyFlow(ctx, API_KEY_PROVIDERS.find((p) => p.id === selection.id)!);
+		}
+
 		console.log(chalk.bold("\n  Model Provider"));
 		console.log(chalk.gray("  Choose how to connect to an AI model.\n"));
 
@@ -327,4 +431,5 @@ export const modelCredentialProvider: CredentialProvider & {
 export const OAUTH_PROVIDER_TO_MODEL_PROVIDER: Record<string, string> = {
 	anthropic: "anthropic",
 	"openai-codex": "openai-codex",
+	"github-copilot": "github-copilot",
 };

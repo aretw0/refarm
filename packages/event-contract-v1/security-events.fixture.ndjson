@@ -1,0 +1,7 @@
+{"budget":"-","credential":"device","event":"auth:accepted","identity":"id-arthur","method":"GET","outcome":"accepted","scope":"-","ts":1753900000000}
+{"budget":"-","credential":"scoped","event":"auth:accepted","identity":"id-browser","method":"POST","outcome":"accepted","scope":"prompt:answer","ts":1753900000001}
+{"budget":"authentication","credential":"-","event":"auth:authentication-failed","identity":"-","method":"GET","outcome":"authentication-failed","scope":"-","ts":1753900000002}
+{"budget":"authorization","credential":"scoped","event":"auth:authorization-refused","identity":"id-browser","method":"GET","outcome":"authorization-refused","scope":"-","ts":1753900000003}
+{"budget":"authorization","credential":"scoped","event":"auth:credential-expired","identity":"id-browser","method":"POST","outcome":"credential-expired","scope":"prompt:answer","ts":1753900000004}
+{"budget":"authentication","credential":"-","event":"auth:rate-limit-engaged","identity":"-","method":"GET","outcome":"rate-limit-engaged","scope":"prompt:answer","ts":1753900000005}
+{"budget":"authorization","credential":"scoped","event":"auth:rate-limit-engaged","identity":"id-browser","method":"GET","outcome":"rate-limit-engaged","scope":"-","ts":1753900000006}

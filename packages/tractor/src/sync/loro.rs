@@ -53,9 +53,16 @@ impl NativeSync {
     ///   namespace string, so in-process/test docs stay distinct by their distinct
     ///   namespace strings without sharing a persisted peer file.
     pub fn new(storage: NativeStorage, namespace: &str) -> Result<Self> {
-        let peer_id = match crate::storage::peer_id_for_namespace(namespace)? {
-            Some(persisted) => persisted,
-            None => peer_id_from_namespace(namespace),
+        // A PEER ID IS THE IDENTITY OF A PERSISTED REPLICA. Storage that does not survive the
+        // process has none, whatever its namespace is called — and asking for one wrote a
+        // `{namespace}.peer` file under the declared graph base for every in-memory sync built with
+        // a name. Derivation from the namespace keeps in-process replicas distinct without it.
+        let peer_id = match storage.is_persistent() {
+            true => match crate::storage::peer_id_for_namespace(namespace)? {
+                Some(persisted) => persisted,
+                None => peer_id_from_namespace(namespace),
+            },
+            false => peer_id_from_namespace(namespace),
         };
         Self::new_with_peer(storage, peer_id)
     }
@@ -140,6 +147,26 @@ impl NativeSync {
 
     pub fn query_nodes(&self, type_: &str) -> Result<Vec<crate::storage::NodeRow>> {
         self.storage.query_nodes(type_)
+    }
+
+    /// Same order as [`Self::query_nodes`] (newest first), with the limit applied IN
+    /// SQL rather than by the caller slicing an unlimited result. Passthrough to
+    /// `NativeStorage::query_nodes_limited` — prefer this wherever only the newest
+    /// few rows of a type are wanted; see `docs/SOVEREIGN_RECORD_ORDERING.md`.
+    pub fn query_nodes_limited(
+        &self,
+        type_: &str,
+        limit: usize,
+    ) -> Result<Vec<crate::storage::NodeRow>> {
+        self.storage.query_nodes_limited(type_, limit)
+    }
+
+    /// True count of nodes of `type_`, independent of any limit a caller applies via
+    /// [`Self::query_nodes_limited`]. Passthrough to `NativeStorage::count_nodes` — a
+    /// `SELECT COUNT(*)` that never materialises the rows it counts; see
+    /// `docs/SOVEREIGN_RECORD_ORDERING.md`.
+    pub fn count_nodes(&self, type_: &str) -> Result<usize> {
+        self.storage.count_nodes(type_)
     }
 
     /// Rebuild SQLite read model from current LoroDoc state.

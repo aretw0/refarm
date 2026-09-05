@@ -1,6 +1,7 @@
 {
 	"name": "@refarm.dev/std",
 	"version": "0.1.0",
+	"repository": "https://github.com/aretw0/refarm.git",
 	"description": "Zero-dependency pure primitives shared across the substrate — slugify, hashing, small text/id utils",
 	"type": "module",
 	"main": "./dist/index.js",

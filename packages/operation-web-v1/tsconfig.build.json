@@ -1,0 +1,9 @@
+{
+	"extends": ["./tsconfig.json", "@refarm.dev/tsconfig/build.json"],
+	"compilerOptions": {
+		"declaration": true,
+		"declarationMap": true,
+		"sourceMap": true
+	},
+	"exclude": ["src/**/*.test.ts"]
+}

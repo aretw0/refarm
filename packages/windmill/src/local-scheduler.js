@@ -3,7 +3,7 @@ export const LOCAL_SCHEDULED_WORK_SCHEMA_VERSION = 1;
 const SUPPORTED_SCHEDULE_TRIGGERS = new Set(["once", "cron"]);
 
 /**
- * @typedef {"due" | "scheduled" | "unsupported"} LocalScheduledJobStatus
+ * @typedef {"due" | "declared" | "unsupported"} LocalScheduledJobStatus
  * @typedef {"one-shot" | "recurring"} LocalScheduledJobKind
  * @typedef {{ type: "once", at: string } | { type: "cron", schedule: string, timezone: string }} LocalScheduledJobSchedule
  * @typedef {{ visible: true, summary: string }} LocalScheduledJobResume
@@ -24,7 +24,7 @@ const SUPPORTED_SCHEDULE_TRIGGERS = new Set(["once", "cron"]);
  *
  * @typedef {{ owner: string, now?: string | Date }} LocalScheduledWorkOptions
  * @typedef {{ owner: string, now?: string | Date, ledger?: LocalScheduledWorkFiredLedger }} LocalScheduledWorkExecutionOptions
- * @typedef {{ total: number, due: number, scheduled: number, unsupported: number }} LocalScheduledWorkSummary
+ * @typedef {{ total: number, due: number, declared: number, unsupported: number }} LocalScheduledWorkSummary
  * @typedef {{ schemaVersion: 1, id: string, automationId: string, name: string, description?: string, owner: string, kind: LocalScheduledJobKind, status: LocalScheduledJobStatus, schedule: LocalScheduledJobSchedule, fireKey: string, unsupportedReason?: string, modelRoute: "none", tokenUse: "none", resume: LocalScheduledJobResume }} LocalScheduledJob
  * @typedef {{ schemaVersion: 1, owner: string, generatedAt: string, summary: LocalScheduledWorkSummary, jobs: LocalScheduledJob[] }} LocalScheduledWorkInspection
  * @typedef {"submitted" | "skipped" | "already-fired" | "failed"} LocalScheduledWorkExecutionStatus
@@ -101,32 +101,107 @@ function matchCronField(field, value, maxValue) {
 	return expected === value;
 }
 
-function inspectCronDue(schedule, now) {
+/** `Intl`'s short weekday names, in cron's own numbering where Sunday is 0. */
+const WEEKDAY_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+/**
+ * The wall-clock fields a cron expression is matched against, IN THE DECLARED ZONE.
+ *
+ * ## Why this exists
+ *
+ * `CronTrigger.timezone` has been in the contract since the automation vocabulary was written,
+ * and every reader of it put the value in a REPORT while every evaluator matched against
+ * `getUTC*`. Measured 2026-08-11 with a nightly job declared in `America/Sao_Paulo`:
+ *
+ * ```
+ *   00:00 in Sao Paulo (03:00Z)  ->  declared   it does not fire when the operator asked
+ *   21:00 in Sao Paulo (00:00Z)  ->  due        it fires three hours early, on the wrong day
+ * ```
+ *
+ * and the job description said `timezone: "America/Sao_Paulo"` in both. A field that is declared,
+ * echoed back, and never read is worse than one that is unsupported: the response ASSERTS it was
+ * honoured.
+ *
+ * ## No dependency, and no hand-rolled offset table
+ *
+ * `Intl.DateTimeFormat` carries the platform's own IANA database, so DST and historical offset
+ * changes are the runtime's problem rather than this file's. A hand-rolled `UTC + offset` would
+ * have been wrong twice a year, in the direction nobody notices until a job runs at the wrong hour.
+ *
+ * @returns the fields, or `null` when this runtime cannot resolve the zone — which the caller
+ * MUST report as unsupported rather than quietly falling back to UTC. Falling back is how the
+ * defect above got written: silently answering a question in units nobody asked for.
+ */
+function zonedCronFields(now, timeZone) {
+	if (!timeZone || timeZone === "UTC") {
+		return {
+			minute: now.getUTCMinutes(),
+			hour: now.getUTCHours(),
+			dayOfMonth: now.getUTCDate(),
+			month: now.getUTCMonth() + 1,
+			dayOfWeek: now.getUTCDay(),
+		};
+	}
+	try {
+		// `hourCycle: "h23"` rather than `hour12: false`: the latter yields "24" for midnight
+		// under some locales, and a cron field of 24 matches nothing.
+		const parts = new Intl.DateTimeFormat("en-US", {
+			timeZone,
+			hourCycle: "h23",
+			month: "numeric",
+			day: "numeric",
+			hour: "numeric",
+			minute: "numeric",
+			weekday: "short",
+		}).formatToParts(now);
+		const read = (type) => parts.find((part) => part.type === type)?.value;
+		const fields = {
+			minute: Number(read("minute")),
+			hour: Number(read("hour")),
+			dayOfMonth: Number(read("day")),
+			month: Number(read("month")),
+			dayOfWeek: WEEKDAY_INDEX[read("weekday")],
+		};
+		return Object.values(fields).every((value) => Number.isInteger(value)) ? fields : null;
+	} catch {
+		// An IANA name this runtime does not know throws at construction. That is a fact about
+		// the declaration, not a transient failure, so it becomes `unsupported` and never `due`.
+		return null;
+	}
+}
+
+function inspectCronDue(schedule, now, timeZone) {
+	const fields = zonedCronFields(now, timeZone);
+	if (!fields) {
+		return { supported: false, due: false, reason: `unknown timezone "${timeZone}"` };
+	}
+	// The shortcuts read the SAME zoned fields as the five-field form. They used `getUTC*`
+	// directly, which made `@daily` in a declared zone fire at the zone's own wrong hour — the
+	// identical defect, in three more places nobody would have thought to check.
 	if (schedule === "@hourly") {
-		return { supported: true, due: now.getUTCMinutes() === 0 };
+		return { supported: true, due: fields.minute === 0 };
 	}
 	if (schedule === "@daily") {
-		return {
-			supported: true,
-			due: now.getUTCHours() === 0 && now.getUTCMinutes() === 0,
-		};
+		return { supported: true, due: fields.hour === 0 && fields.minute === 0 };
 	}
 	if (schedule === "@weekly") {
 		return {
 			supported: true,
-			due: now.getUTCDay() === 0 && now.getUTCHours() === 0 && now.getUTCMinutes() === 0,
+			due: fields.dayOfWeek === 0 && fields.hour === 0 && fields.minute === 0,
 		};
 	}
 
-	const fields = schedule.trim().split(/\s+/);
-	if (fields.length !== 5) return { supported: false, due: false };
+	const parts = schedule.trim().split(/\s+/);
+	if (parts.length !== 5) {
+		return { supported: false, due: false, reason: "unsupported cron expression" };
+	}
 
-	const [minute, hour, dayOfMonth, month, dayOfWeek] = fields;
-	const minuteDue = matchCronField(minute, now.getUTCMinutes(), 59);
-	const hourDue = matchCronField(hour, now.getUTCHours(), 23);
-	const monthDue = matchCronField(month, now.getUTCMonth() + 1, 12);
-	const domDue = matchCronField(dayOfMonth, now.getUTCDate(), 31);
-	const dowDue = matchCronField(dayOfWeek, now.getUTCDay(), 7);
+	const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+	const minuteDue = matchCronField(minute, fields.minute, 59);
+	const hourDue = matchCronField(hour, fields.hour, 23);
+	const monthDue = matchCronField(month, fields.month, 12);
+	const domDue = matchCronField(dayOfMonth, fields.dayOfMonth, 31);
+	const dowDue = matchCronField(dayOfWeek, fields.dayOfWeek, 7);
 	const dayDue =
 		dayOfMonth === "*" && dayOfWeek === "*"
 			? true
@@ -142,18 +217,25 @@ function inspectCronDue(schedule, now) {
 	};
 }
 
+// This module only ever computes whether a trigger's condition holds RIGHT NOW
+// ("due") or not yet ("declared"). It has no autonomous loop — nothing in here,
+// or anywhere upstream of it, watches the clock and calls executeDueLocalScheduledWork
+// on its own; that only happens when a host explicitly ticks (e.g. `refarm project
+// automations tick`). So a not-yet-due trigger is never "scheduled" in the sense
+// that word implies (an agent guarantees it will run later) - it is merely
+// declared: recorded, valid, and waiting for a tick that may or may not come.
 function describeTrigger(trigger, now) {
 	if (trigger.type === "once") {
 		const at = parseDate(trigger.at);
 		return {
 			kind: "one-shot",
 			schedule: { type: "once", at: trigger.at },
-			status: at && at.getTime() <= now.getTime() ? "due" : "scheduled",
+			status: at && at.getTime() <= now.getTime() ? "due" : "declared",
 			unsupportedReason: at ? undefined : "invalid once.at timestamp",
 		};
 	}
 
-	const cron = inspectCronDue(trigger.schedule, now);
+	const cron = inspectCronDue(trigger.schedule, now, trigger.timezone);
 	return {
 		kind: "recurring",
 		schedule: {
@@ -161,8 +243,10 @@ function describeTrigger(trigger, now) {
 			schedule: trigger.schedule,
 			timezone: trigger.timezone ?? "UTC",
 		},
-		status: cron.supported ? (cron.due ? "due" : "scheduled") : "unsupported",
-		unsupportedReason: cron.supported ? undefined : "unsupported cron expression",
+		status: cron.supported ? (cron.due ? "due" : "declared") : "unsupported",
+		// The REASON, not a category. "unsupported cron expression" beside a perfectly valid
+		// expression in a zone this runtime cannot resolve sends an operator to fix the wrong half.
+		unsupportedReason: cron.supported ? undefined : (cron.reason ?? "unsupported cron expression"),
 	};
 }
 
@@ -259,7 +343,7 @@ export async function inspectLocalScheduledWork(adapter, options = {}) {
 	const summary = {
 		total: jobs.length,
 		due: jobs.filter((job) => job.status === "due").length,
-		scheduled: jobs.filter((job) => job.status === "scheduled").length,
+		declared: jobs.filter((job) => job.status === "declared").length,
 		unsupported: jobs.filter((job) => job.status === "unsupported").length,
 	};
 

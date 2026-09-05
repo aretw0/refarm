@@ -1,0 +1,52 @@
+import type { ModelRateCatalog, ModelRateEntry } from "@refarm.dev/model-catalog-v1";
+
+export const MODEL_RATE_CATALOG_PLUGIN_CAPABILITY = "model-rate-catalog-plugin:v1" as const;
+export const MODEL_RATE_CATALOG_COMPOSER_CAPABILITY = "model-rate-catalog-composer:v1" as const;
+
+export interface ModelCatalogRatesPlugin {
+  id: string;
+  capability: typeof MODEL_RATE_CATALOG_PLUGIN_CAPABILITY;
+  entries(): readonly ModelRateEntry[];
+}
+
+export interface ComposeModelCatalogInput {
+  catalogVersion: string;
+  plugins: readonly ModelCatalogRatesPlugin[];
+}
+
+export interface ModelCatalogComposerPlugin {
+  id: string;
+  capability: typeof MODEL_RATE_CATALOG_COMPOSER_CAPABILITY;
+  compose(input: ComposeModelCatalogInput): ModelRateCatalog;
+}
+
+export function create{{pascalName}}RatesPlugin(
+  entries: readonly ModelRateEntry[] = [],
+): ModelCatalogRatesPlugin {
+  return {
+    id: "@refarm.dev/{{name}}",
+    capability: MODEL_RATE_CATALOG_PLUGIN_CAPABILITY,
+    entries: () => [...entries],
+  };
+}
+
+export function composeModelRateCatalog(input: ComposeModelCatalogInput): ModelRateCatalog {
+  const merged: ModelRateEntry[] = [];
+  for (const plugin of input.plugins) {
+    merged.push(...plugin.entries());
+  }
+
+  return {
+    schemaVersion: "model-rate-catalog.v1",
+    catalogVersion: input.catalogVersion,
+    entries: merged,
+  };
+}
+
+export function create{{pascalName}}ComposerPlugin(): ModelCatalogComposerPlugin {
+  return {
+    id: "@refarm.dev/{{name}}/composer",
+    capability: MODEL_RATE_CATALOG_COMPOSER_CAPABILITY,
+    compose: composeModelRateCatalog,
+  };
+}

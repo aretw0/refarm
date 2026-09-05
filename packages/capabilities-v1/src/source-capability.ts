@@ -126,12 +126,30 @@ export function createSourceCapabilityGroup(
 		args: [{ name: "ref", required: true }],
 		async run(input): Promise<CapabilityEnvelope> {
 			const ref = input.args.ref as string;
-			const state = await deps.sourceProvider.status(ref);
-			return buildJsonSuccessEnvelope({
-				command: "source",
-				operation: "status",
-				extra: { ref, providerId: deps.sourceProvider.pluginId, status: state },
-			});
+			// The provider REFUSES a ref it does not understand by throwing (source-web
+			// raises UNSUPPORTED_KIND). `pull` has always caught that; `status` did not, so
+			// `refarm source status <anything-else>` surfaced a raw Node stack trace and,
+			// under --json, no envelope at all. A provider throw is an internal signal —
+			// this is where it stops being one, exactly as in `pull` above.
+			try {
+				const state = await deps.sourceProvider.status(ref);
+				return buildJsonSuccessEnvelope({
+					command: "source",
+					operation: "status",
+					extra: { ref, providerId: deps.sourceProvider.pluginId, status: state },
+				});
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				return buildJsonErrorEnvelope({
+					command: "source",
+					operation: "status",
+					error: "source_status_failed",
+					message,
+					nextAction:
+						"Pass a source ref the injected provider understands; `source discover` lists them.",
+					nextCommand: "source discover",
+				});
+			}
 		},
 	};
 

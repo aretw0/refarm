@@ -18,6 +18,7 @@ import {
 	packageManagerSpawnCommand,
 	packagePublishDryRunCommand,
 	packageScriptCommand,
+	packageWorkspaceDeployCommand,
 	packageWorkspacePublishDryRunCommand,
 } from "./package-manager.js";
 
@@ -408,5 +409,34 @@ describe("package manager config", () => {
 			args: pmArgs("bun", ["publish", "--dry-run"]),
 			display: "bun publish --dry-run",
 		});
+	});
+	it("assembles a self-contained workspace tree, and refuses where the manager cannot", () => {
+		expect(
+			packageWorkspaceDeployCommand("@refarm.dev/refarm", "/tmp/tree", {
+				env: { REFARM_PACKAGE_MANAGER: "pnpm" },
+			}),
+		).toMatchObject({
+			packageManager: "pnpm",
+			command: pmCommand("pnpm"),
+			args: pmArgs("pnpm", [
+				"--filter",
+				"@refarm.dev/refarm",
+				"deploy",
+				"--prod",
+				"--legacy",
+				"/tmp/tree",
+			]),
+			display: "pnpm --filter @refarm.dev/refarm deploy --prod --legacy /tmp/tree",
+		});
+	});
+
+	// npm, yarn and bun have no deploy-to-directory operation. Naming a near-equivalent would
+	// assemble the WRONG tree silently; saying so is the only honest answer.
+	it.each(["npm", "yarn", "bun"])("refuses to fake a deploy tree under %s", (manager) => {
+		expect(() =>
+			packageWorkspaceDeployCommand("@refarm.dev/refarm", "/tmp/tree", {
+				env: { REFARM_PACKAGE_MANAGER: manager },
+			}),
+		).toThrow(/no deploy/i);
 	});
 });

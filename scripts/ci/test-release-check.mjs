@@ -12,7 +12,6 @@ import {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const PRE_PUBLICATION_HANDOFF_ONLY_PACKAGES = new Set([
 	"@refarm.dev/ds-astro",
-	"@refarm.dev/health",
 ]);
 
 function changesetPackageNames(root = ROOT) {
@@ -45,7 +44,7 @@ function packageVersion(packageName, root = ROOT) {
 		env: {
 			REFARM_PACKAGE_MANAGER: "pnpm",
 		},
-		selectionId: "vault-seed-ready",
+		selectionId: "consumer-ready",
 	});
 	const command = check.commands.find((entry) => entry.packageName === packageName);
 	if (!command) {
@@ -112,7 +111,7 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		env: {
 			REFARM_PACKAGE_MANAGER: "pnpm",
 		},
-		selectionId: "vault-seed-ready",
+		selectionId: "consumer-ready",
 	});
 
 	assert.equal(check.ok, true);
@@ -123,14 +122,21 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		"@refarm.dev/channel-policy-v1",
 		"@refarm.dev/effort-contract-v1",
 		"@refarm.dev/quality-contract-v1",
+		// 25 since 2026-08-29: `@refarm.dev/provenance-contract-v1` entered the selection, pulled by
+		// arch-engine (a Python producer). Entered WITH its numbers this time: this list, the
+		// four anchors in test-vault-seed-ready-handoff.mjs, test-release-check.mjs,
+		// test-first-publish-selection.mjs, test-distribution-status-doc.mjs, and both docs.
+		"@refarm.dev/provenance-contract-v1",
+		"@refarm.dev/std",
+		"@refarm.dev/node-contract-v1",
 		"@refarm.dev/source-contract-v1",
 		"@refarm.dev/enrichment-contract-v1",
 		"@refarm.dev/records-contract-v1",
 		"@refarm.dev/process-handoff",
-		"@refarm.dev/health",
 		"@refarm.dev/release-engine",
 		"@refarm.dev/heartwood",
 		"@refarm.dev/silo",
+		"@refarm.dev/plugin-manifest",
 		"@refarm.dev/storage-memory",
 		"@refarm.dev/credentials-contract-v1",
 		"@refarm.dev/dispatch-surface",
@@ -138,6 +144,14 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		"@refarm.dev/source-web",
 		"@refarm.dev/content-projection",
 		"@refarm.dev/identity-heartwood",
+		// ENTERED at cc61342e ("enter the consumer-ready selection") and this list did not follow
+		// it. The ratchet exists so a package joining is a line someone reviews; that commit moved
+		// the fact and skipped the number, and nothing caught it until 2026-08-28.
+		"@refarm.dev/vault-contract-v1",
+		// After `records-contract-v1` (index 11 since std/node-contract-v1 entered on 2026-08-30), which it depends on — the order is topological,
+		// so this position is the plan proving it knows the dependency, not an arbitrary slot.
+		// Since 2026-08-30 it also lands after identity-heartwood: the ordering is the
+		// engine's topological result, re-read from the plan, never hand-placed.
 		"@refarm.dev/local-surface",
 		"@refarm.dev/ds-astro",
 	]);
@@ -154,13 +168,48 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 	}
 });
 
+test("plans the dependency-closed design system publication unit", () => {
+	const check = buildReleaseCheckPlan({
+		cwd: ROOT,
+		env: {
+			REFARM_PACKAGE_MANAGER: "pnpm",
+		},
+		selectionId: "design-system-ready",
+	});
+
+	assert.equal(check.ok, true);
+	assert.deepEqual(check.plan.orderedNames, [
+		"@refarm.dev/quality-contract-v1",
+		"@refarm.dev/ds",
+	]);
+	assert.deepEqual(check.plan.profileTags, ["design-system-ready"]);
+});
+
+test("plans the dependency-closed evidence contracts publication unit", () => {
+	const check = buildReleaseCheckPlan({
+		cwd: ROOT,
+		env: {
+			REFARM_PACKAGE_MANAGER: "pnpm",
+		},
+		selectionId: "evidence-contracts-ready",
+	});
+
+	assert.equal(check.ok, true);
+	assert.deepEqual(check.plan.orderedNames, [
+		"@refarm.dev/artifact-contract-v1",
+		"@refarm.dev/quality-contract-v1",
+		"@refarm.dev/provenance-contract-v1",
+	]);
+	assert.deepEqual(check.plan.profileTags, ["evidence-contracts-ready"]);
+});
+
 test("vault-seed-ready selection is covered by changesets provider inputs", () => {
 	const check = buildReleaseCheckPlan({
 		cwd: ROOT,
 		env: {
 			REFARM_PACKAGE_MANAGER: "pnpm",
 		},
-		selectionId: "vault-seed-ready",
+		selectionId: "consumer-ready",
 	});
 	const changesetPackages = changesetPackageNames();
 	const missing = check.plan.orderedNames.filter(
@@ -187,17 +236,26 @@ test("release check plan json exposes acceptance summary", () => {
 			env: {
 				REFARM_PACKAGE_MANAGER: "pnpm",
 			},
-			selectionId: "vault-seed-ready",
+			selectionId: "consumer-ready",
 		}),
 	);
 
 	assert.equal(payload.ok, true);
-	assert.equal(payload.selection.id, "vault-seed-ready");
+	assert.equal(payload.selection.id, "consumer-ready");
 	assert.equal(payload.acceptance.status, "accepted");
-	assert.equal(payload.acceptance.packageCount, 23);
+	// 24 since cc61342e: `@refarm.dev/vault-contract-v1` entered the selection — see the ordered
+	// list above for why this number moved without any change in flight touching it.
+	//
+	// 23 since 2026-08-16: `@refarm.dev/content-projection` REJOINED the `consumer-ready`
+	// selection. ISS-113 held it out at 22 because nothing declared a dependency on it, and refused
+	// to stamp `consumer-proven` to make a test green. The bar its three profile peers meet is a
+	// consumer reaching the package from a surface that is NOT the contract test, and vault-seed's
+	// records reference vault now structures its MD/MDX lane through `projectContentToRecords`.
+	// The tag moved because the fact moved — not to make this number move.
+	assert.equal(payload.acceptance.packageCount, 27);
 	assert.equal(payload.acceptance.blockerCount, 0);
 	assert.equal(payload.acceptance.manualApprovalRequired, true);
-	assert.deepEqual(payload.acceptance.profileTags, ["vault-seed-ready"]);
+	assert.deepEqual(payload.acceptance.profileTags, ["consumer-ready"]);
 	assert.equal(
 		payload.acceptance.requiredChecks.length,
 		payload.acceptance.requiredCheckCount,

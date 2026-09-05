@@ -27,9 +27,12 @@ pub(crate) mod agent_event_names;
 pub mod capabilities;
 pub mod daemon;
 pub mod host;
+pub mod node_descriptor;
+pub mod node_identity;
 pub mod node_reap;
 pub mod observer;
 pub(crate) mod respawn;
+pub mod security_events;
 pub mod sidecar;
 pub mod storage;
 pub(crate) mod streaming;
@@ -37,6 +40,11 @@ pub mod sync;
 pub mod telemetry;
 mod timefmt;
 pub mod trust;
+
+/// The publishability guard: no production `include_str!` may reach outside this crate,
+/// because `cargo package` does not copy what it cannot see. Test-only.
+#[cfg(test)]
+mod crate_boundary;
 
 /// Shared test-only helpers for the whole crate. Kept behind `#[cfg(test)]` so it
 /// never ships in the daemon binary.
@@ -56,6 +64,47 @@ pub(crate) mod test_support {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
+
+    /// Point the node's declared base at `dir` for the duration of a test.
+    ///
+    /// It DECLARES (`SOVEREIGN_BASE`) and it also enters the directory, because a test that
+    /// spawns a child still wants the child to run there. Before `declared_base()` had a
+    /// chain, only the second half existed — three separate copies of a `CwdGuard` that
+    /// changed directory and let the resolver's cwd fallback do the rest. Those tests were
+    /// therefore passing THROUGH the defect: give `declared_base()` a real chain and they
+    /// read the operator's actual `~/.refarm/config.json` instead of their fixture, which is
+    /// exactly what happened (92 passing connection tests became 85 the moment step 3 of the
+    /// chain landed).
+    ///
+    /// Requires the caller to hold `env_lock()` — `set_var` and `set_current_dir` are both
+    /// process-global.
+    pub(crate) struct DeclaredBaseGuard {
+        original_cwd: std::path::PathBuf,
+        previous_base: Option<String>,
+    }
+
+    impl DeclaredBaseGuard {
+        pub(crate) fn enter(dir: &std::path::Path) -> Self {
+            let original_cwd = std::env::current_dir().expect("current_dir");
+            let previous_base = std::env::var(crate::host::SOVEREIGN_BASE_KEY).ok();
+            std::env::set_var(crate::host::SOVEREIGN_BASE_KEY, dir);
+            std::env::set_current_dir(dir).expect("set_current_dir");
+            Self {
+                original_cwd,
+                previous_base,
+            }
+        }
+    }
+
+    impl Drop for DeclaredBaseGuard {
+        fn drop(&mut self) {
+            match self.previous_base.take() {
+                Some(value) => std::env::set_var(crate::host::SOVEREIGN_BASE_KEY, value),
+                None => std::env::remove_var(crate::host::SOVEREIGN_BASE_KEY),
+            }
+            let _ = std::env::set_current_dir(&self.original_cwd);
+        }
+    }
 }
 
 use anyhow::{Context, Result};
@@ -73,6 +122,89 @@ pub use trust::{ExecutionProfile, SecurityMode, TrustManager};
 /// A neutral event envelope routed to a loaded plugin's runner. `event` is the
 /// event name (e.g. `user:prompt`, `vault:dispatch`); `payload` is an opaque
 /// JSON string. Nothing here is agent-specific — the agent is just one plugin
+#[cfg(test)]
+mod declared_model_provider_tests {
+    use super::declared_model_provider;
+
+    /// ISS-140 tier B. This decides how far a single invocation may reach, so what it does with
+    /// input it does not understand is the whole design: `None` leaves the allowlist exactly as the
+    /// node authorised it, which is the previous behaviour. Refusing on unfamiliar JSON would make
+    /// an unrelated payload change break every model call.
+    #[test]
+    fn reads_the_declared_provider_in_either_spelling() {
+        // `provider` is what the wire actually carries: the CLI writes `args.provider`,
+        // `dispatch.rs` copies it into the payload, and the guest reads it. Reading only the
+        // effort's own field name made this inert and silent.
+        assert_eq!(
+            declared_model_provider(r#"{"prompt":"hi","provider":"github-copilot"}"#).as_deref(),
+            Some("github-copilot")
+        );
+        assert_eq!(
+            declared_model_provider(r#"{"modelProvider":"github-copilot"}"#).as_deref(),
+            Some("github-copilot")
+        );
+        assert_eq!(
+            declared_model_provider(r#"{"model_provider":"openai-codex"}"#).as_deref(),
+            Some("openai-codex")
+        );
+    }
+
+    #[test]
+    fn yields_none_for_anything_it_cannot_read() {
+        assert!(declared_model_provider("not json").is_none());
+        assert!(declared_model_provider("{}").is_none());
+        assert!(declared_model_provider(r#"{"modelProvider":""}"#).is_none());
+        assert!(declared_model_provider(r#"{"modelProvider":"   "}"#).is_none());
+        assert!(declared_model_provider(r#"{"modelProvider":42}"#).is_none());
+    }
+}
+
+/// PURE. The ACCOUNT a dispatch payload declares, if it declares one.
+///
+/// Same best-effort rule as the provider: unreadable yields `None` and the host falls back to the
+/// provider-wide credential, which is the behaviour every dispatch had before seats existed.
+///
+/// `credential_id` is the wire name the CLI writes into `args` and the budget observation already
+/// stamps — so the seat that is bound, the seat that pays, and the seat the record names are ONE
+/// id rather than three inferences that can disagree.
+pub(crate) fn declared_credential_id(payload: &str) -> Option<String> {
+    let parsed: serde_json::Value = serde_json::from_str(payload).ok()?;
+    let id = parsed
+        .get("credential_id")
+        .or_else(|| parsed.get("credentialId"))?;
+    let id = id.as_str()?.trim();
+    if id.is_empty() {
+        return None;
+    }
+    Some(id.to_string())
+}
+
+/// PURE. The model provider a dispatch payload declares, if it declares one.
+///
+/// Best-effort by design: a payload this cannot parse yields `None`, which leaves the allowlist
+/// exactly as the node authorised it. Failing to narrow is the previous behaviour; refusing a
+/// dispatch because its JSON was unfamiliar would make an unrelated payload change break every
+/// model call.
+pub(crate) fn declared_model_provider(payload: &str) -> Option<String> {
+    let parsed: serde_json::Value = serde_json::from_str(payload).ok()?;
+    // `provider` IS THE WIRE NAME, and reading the wrong one made this inert — measured
+    // 2026-08-17, right after it shipped: the CLI writes `args.provider`, `dispatch.rs` copies it
+    // to the payload as `provider`, and the guest reads `provider`. Nothing anywhere sends
+    // `modelProvider` at the top level, so the narrowing never fired and nothing said so.
+    //
+    // THE OTHER SPELLINGS STAY as a cheap hedge: this must keep working if a future payload
+    // carries the effort's own field names, and reading a name nobody sends costs nothing.
+    let provider = parsed
+        .get("provider")
+        .or_else(|| parsed.get("modelProvider"))
+        .or_else(|| parsed.get("model_provider"))?;
+    let provider = provider.as_str()?.trim();
+    if provider.is_empty() {
+        return None;
+    }
+    Some(provider.to_string())
+}
+
 /// whose events happen to be `user:prompt`. (Formerly `AgentMessage`; the neutral
 /// name reflects that any plugin, not only the agent, is driven through this.)
 ///
@@ -159,6 +291,61 @@ pub type InFlightCancels =
 /// costs one sub-second reinstantiation, not the agent. Unbounded is fine: sends
 /// are rare (one per trapped teardown) and the supervisor drains promptly.
 pub type RespawnTx = mpsc::UnboundedSender<String>;
+
+/// What a `--plugin` request became. Mutually exclusive by construction — an entry can
+/// never claim both a real id and a failure reason, or neither, the way two independent
+/// `Option`s could drift out of sync.
+///
+/// `Failed` carries the REAL error from `load_plugin` (`e.to_string()`), not a canned
+/// string: for a request that never became a channel, the answer must say why.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PluginLoadOutcome {
+    /// The plugin id it actually loaded as (from the manifest `load_plugin` returned).
+    Loaded(String),
+    /// Why it did not become a channel.
+    Failed(String),
+}
+
+/// One `--plugin` request recorded by `TractorNative::record_plugin_request`: the
+/// requested path and what became of it. Deliberately carries NO id derived from the
+/// path itself (e.g. a file stem) — production plugins are installed as
+/// `.../refarm_<name>/plugin.wasm` (see `apps/refarm/src/commands/runtime-node-args.ts`),
+/// so every real `--plugin` argument's file stem is the SAME string, `"plugin"`. A
+/// request that never loaded has no manifest id to report; reporting `null` there is
+/// honest, reporting a guessed id that collides with every other entry is not.
+pub type RequestedPluginEntry = (std::path::PathBuf, PluginLoadOutcome);
+
+/// What a LOAD decided about one plugin's authority, captured where it was decided.
+///
+/// ISS-171. `scope_to_approved` computes `declared ∩ approved` inside `load()` and hands the
+/// result to `PermissionGrant::new`, and until 2026-08-26 nothing reported it. An operator could
+/// read both INPUTS — the manifest's declaration and his own config — and had to compute the
+/// outcome himself, against a rule that inverts the naive reading: A MISS IS PERMISSIVE. A plugin
+/// absent from the approvals map keeps everything it declared.
+///
+/// Both sets are carried, not just the effective one, because the pair is the answer: `effective`
+/// alone cannot distinguish "the operator withheld nothing" from "the operator was never
+/// consulted", and that distinction is exactly what hid the 2026-08-25 key defect.
+///
+/// RECORDED AT THE DECISION, never recomputed. A second reader of this rule — CLI-side, from
+/// config plus manifest — would be free to drift from the one that decides, which is the shape
+/// this repository keeps finding defects in.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PluginGrantFacts {
+    /// Every capability the plugin's manifest asked for.
+    pub declared: std::collections::BTreeSet<String>,
+    /// What it actually got: `declared ∩ approved`, or `declared` when no approval was recorded.
+    pub effective: std::collections::BTreeSet<String>,
+    /// Whether this load ran unverified because the NODE declared the plugin under development.
+    pub under_development: bool,
+}
+
+/// Per-plugin grant facts, keyed by the runtime id the load path uses.
+pub type PluginGrants = Arc<RwLock<std::collections::HashMap<String, PluginGrantFacts>>>;
+
+/// Every `--plugin` path requested at startup, in request order. See
+/// `TractorNative::record_plugin_request` / `requested_plugins`.
+pub type RequestedPlugins = Arc<RwLock<Vec<RequestedPluginEntry>>>;
 
 /// The neutral event router: maps an event name to the set of plugin_ids
 /// subscribed to it, layered OVER the plugin-id lifecycle registry
@@ -421,7 +608,12 @@ fn spawn_plugin_store_runner(
                 // `sync:<verb>`, so an async-only plugin is never driven this way.
                 if let Some(reply) = msg.reply {
                     let payload = msg.payload.unwrap_or_default();
+                    // NARROWED FOR THIS INVOCATION ONLY (ISS-140 tier B). The declaration comes from
+                    // the payload the host itself received, and it can only INTERSECT with what the
+                    // node authorised — a task that lies restricts itself and reaches nothing new.
+                    h.set_task_scope(Some(&payload));
                     let result = h.call_respond(&payload).await.map_err(|e| e.to_string());
+                    h.set_task_scope(None);
                     // The receiver may have dropped (caller gave up / timed out); a
                     // failed send is not the runner's problem.
                     let _ = reply.send(result);
@@ -440,8 +632,16 @@ fn spawn_plugin_store_runner(
                         .insert(pr.clone(), store_cancel.clone());
                 }
 
+                // NARROWED HERE TOO, and this is the path that matters: `refarm ask` fires
+                // `user:prompt` as a reply-LESS envelope, so the runner calls `on_event` and never
+                // reaches the `respond` branch above. Setting the slots only there left the whole
+                // mechanism inert for the one dispatch shape an operator actually uses — measured
+                // 2026-08-17, where the host expected the localhost floor for a Copilot request
+                // whose seat it had been told about and never read.
+                h.set_task_scope(msg.payload.as_deref());
                 let started = std::time::Instant::now();
                 let outcome = h.call_on_event(&msg.event, msg.payload.as_deref()).await;
+                h.set_task_scope(None);
                 let exec_us = started.elapsed().as_micros() as u64;
 
                 // Deregister the prompt_ref — the call is done (or trapped).
@@ -644,6 +844,18 @@ pub struct TractorNative {
     /// The on-disk path each loaded plugin came from, keyed by plugin_id. Retained
     /// by load_plugin so reload_plugin can re-read the (possibly rebuilt) bytes.
     plugin_paths: Arc<RwLock<HashMap<String, std::path::PathBuf>>>,
+    /// Every `--plugin` path the daemon was asked to load at startup, in request order,
+    /// with what became of each (`PluginLoadOutcome::Loaded`/`Failed`). Distinct from
+    /// `plugin_paths` above: that map holds ONLY successes (keyed by the id a failure
+    /// never got), so it cannot answer "what was asked for" — a failed load leaves no
+    /// trace there. `main.rs` calls `record_plugin_request` once per `--plugin` argument,
+    /// right after each `load_plugin` attempt; the sidecar's `GET /plugins` reads this
+    /// (via the `reload` host handle) to report `requested` without the host scanning any
+    /// directory.
+    requested_plugins: RequestedPlugins,
+    /// What each LOAD decided about a plugin's authority — ISS-171. Written by the load path
+    /// where the decision is made, read by `GET /plugins`. Never recomputed elsewhere.
+    plugin_grants: PluginGrants,
     /// Sender handed to the LAST runner of each plugin: on an epoch-trap teardown it
     /// asks the respawn supervisor (spawned by `spawn_respawn_supervisor`) to reload
     /// a fresh instance by the plugin's recorded path. `register_for_events` clones it
@@ -702,8 +914,12 @@ impl TractorNative {
             // Populated just below, once `plugins` exists — the closure holds a Weak to it.
             self_respond: Arc::new(std::sync::OnceLock::new()),
         };
+        // Created BEFORE the host, because the host writes into it at load and the struct field
+        // below reads from it — one Arc, two holders, no second store to keep in sync (ISS-171).
+        let plugin_grants: PluginGrants = Arc::new(RwLock::new(std::collections::HashMap::new()));
         let plugins = Arc::new(
             host::PluginHost::new(trust.clone(), telemetry.clone(), config.on_event_budget_ms)?
+                .with_grants_sink(plugin_grants.clone())
                 .with_cross_plugin(cross_plugin.clone()),
         );
 
@@ -785,6 +1001,8 @@ impl TractorNative {
             // The SAME map the self-dispatch spawner reads — so a plugin loaded via
             // load_plugin (which records its path here) is self-dispatchable.
             plugin_paths,
+            requested_plugins: Arc::new(RwLock::new(Vec::new())),
+            plugin_grants,
             respawn_tx,
             respawn_rx: Arc::new(Mutex::new(Some(respawn_rx))),
             config,
@@ -800,6 +1018,48 @@ impl TractorNative {
             .expect("plugin_paths poisoned")
             .insert(handle.id.clone(), path.to_path_buf());
         Ok(handle)
+    }
+
+    /// Record that `path` was requested (a `--plugin` CLI argument at startup) and what
+    /// became of it. Called once per `--plugin` argument by `main.rs`, right after each
+    /// `load_plugin` attempt — this is the ONLY source of "what was requested": the host
+    /// does not scan the plugins directory, so a failed load has no other trace (it never
+    /// reaches `plugin_paths`, which records successes only, keyed by an id the failure
+    /// never got).
+    ///
+    /// Deliberately does NOT derive an id from `path` itself. Every real `--plugin`
+    /// argument is `.../refarm_<name>/plugin.wasm` (the file is literally named
+    /// `plugin.wasm`), so a file-stem id would report the SAME string, `"plugin"`, for
+    /// every entry — indistinguishable from each other. `PluginLoadOutcome` carries the
+    /// real id on success and the real failure reason (not a canned string) otherwise.
+    pub fn record_plugin_request(&self, path: &Path, outcome: PluginLoadOutcome) {
+        self.requested_plugins
+            .write()
+            .expect("requested_plugins poisoned")
+            .push((path.to_path_buf(), outcome));
+    }
+
+    /// Snapshot of every `--plugin` request recorded so far via `record_plugin_request`,
+    /// in the order the requests were made. Read by the sidecar's `GET /plugins` (via the
+    /// `reload` host handle) to build the `requested` half of the plugins answer.
+    pub fn requested_plugins(&self) -> Vec<RequestedPluginEntry> {
+        self.requested_plugins
+            .read()
+            .expect("requested_plugins poisoned")
+            .clone()
+    }
+
+    /// What each load decided about a plugin's authority, keyed by runtime id (ISS-171).
+    pub fn plugin_grants(&self) -> std::collections::HashMap<String, PluginGrantFacts> {
+        self.plugin_grants.read().expect("plugin_grants poisoned").clone()
+    }
+
+    /// Record what a load decided. Called from the load path, at the point of decision.
+    pub fn record_plugin_grant(&self, plugin_id: &str, facts: PluginGrantFacts) {
+        self.plugin_grants
+            .write()
+            .expect("plugin_grants poisoned")
+            .insert(plugin_id.to_string(), facts);
     }
 
     /// Start the RESPAWN SUPERVISOR: a background task that reinstantiates a plugin
@@ -1219,6 +1479,11 @@ impl TractorNative {
         // Neutral router + capability registry + agent policy + interrupt/staging state.
         self.event_router.unsubscribe_all(plugin_id);
         self.plugin_registry.unregister(plugin_id);
+        // A departed plugin cannot keep interest in a shared connection alive: drop
+        // every claim it held (serpro-vpn etc.) so the registry's claim count — and
+        // therefore its linger decision — reflects reality. Whether the connection
+        // itself falls is the declaration's `linger` policy, not this call's concern.
+        self.plugins.release_connection_claims(plugin_id);
         self.cancel_flags
             .write()
             .expect("cancel_flags poisoned")

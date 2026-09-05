@@ -451,11 +451,16 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		const cnpj = (await searchVerb.run({ args: { query: "CNPJ" }, options: {}, json: true })) as unknown as {
 			ok: boolean;
 			matched: number;
-			results: Array<{ recordId: string; title: string; tipo?: string }>;
+			results: Array<{ recordId: string; title: string; tipo?: string; license?: string; privacy?: string }>;
 		};
 		expect(cnpj.ok).toBe(true);
 		expect(cnpj.matched).toBe(3);
 		expect(cnpj.results.some((r) => r.title.includes("CNPJ"))).toBe(true);
+		// PRODUCER→READER: persona.ts's parseRequirementsFromHtml stamps license/privacy on every
+		// pulled requirement (provenance-contract-v1 lane, entry 8); search.ts reads it back off the
+		// record's provenance and surfaces it on every hit — no longer silently absent.
+		expect(cnpj.results.every((r) => r.license === "unknown")).toBe(true);
+		expect(cnpj.results.every((r) => r.privacy === "internal")).toBe(true);
 		// A term that is NOT in the corpus matches nothing.
 		const none = (await searchVerb.run({ args: { query: "blockchain" }, options: {}, json: true })) as unknown as {
 			matched: number;

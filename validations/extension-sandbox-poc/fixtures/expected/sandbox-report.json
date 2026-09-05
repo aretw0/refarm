@@ -90,6 +90,7 @@
           "missingCapabilities": [
             "network:v1"
           ],
+          "missingConnections": [],
           "events": []
         },
         {
@@ -165,6 +166,7 @@
           "missingCapabilities": [
             "network:v1"
           ],
+          "missingConnections": [],
           "events": []
         },
         {

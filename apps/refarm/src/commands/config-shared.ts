@@ -16,6 +16,17 @@ export interface RefarmCliConfig {
 	tractor?: {
 		engine?: string;
 	};
+	/** Declared provider posture. See docs/GITHUB_IDENTITY_SETUP.md. */
+	providers?: {
+		githubCopilot?: {
+			identity?: string;
+			integrationId?: string;
+		};
+	};
+	spawnEnv?: {
+		path?: string[];
+		home?: string;
+	};
 	/**
 	 * The COMPOSITION layer: which packages this scope activates, with pi-style
 	 * `!`-surface suppression. Additive and deliberately NOT a `ConfigKey` — it is
@@ -45,6 +56,24 @@ export interface RefarmCliConfig {
 	 * `plugin approve`. Keyed by plugin id.
 	 */
 	approvedPermissions?: Record<string, string[]>;
+	/**
+	 * THE THIRD AXIS, beside `trusted_plugins` (identity) and `approvedPermissions`
+	 * (effect): whether THIS OPERATOR has declared, ABOUT THIS MACHINE, that a plugin
+	 * is deliberately unsigned because it is under active development. Turns a
+	 * silence (`verify_wasm_integrity` already returns Ok for a manifest with no
+	 * `integrity` claim) into a declaration one surface can distinguish from "the
+	 * claim is missing for some other reason".
+	 *
+	 * NEVER IN THE MANIFEST — a manifest travels WITH the plugin, so an author
+	 * marking their own plugin "under development" would ship an artifact that
+	 * loads unverified on every node that installs it. Keyed by RUNTIME plugin id,
+	 * like `trusted_plugins`, so it matches what the load path looks up. Authored
+	 * via `plugin develop`; read by `packages/config/src/plugin-development.js`,
+	 * which the host consults at load (a following task) beside
+	 * `resolve_trusted_at_load` / `resolve_approved_at_load`. `declaredAt` is
+	 * required — a declaration with no date cannot age out loud later.
+	 */
+	pluginDevelopment?: Record<string, { declaredAt: string }>;
 	/**
 	 * The operator's ADD-ONLY revocation list — plugin ids revoked entirely (G). A
 	 * revocation is a MONOTONIC fact, never a removal: the host materializes each id
@@ -86,7 +115,7 @@ export interface ConfigDeps {
 
 export interface JsonOptionCarrier {
 	json?: boolean;
-	opts?: () => { json?: boolean };
+	opts?: () => { json?: boolean; local?: boolean };
 	/** The parent command in the chain — recursive so `hasJsonOption` can walk to
 	 * an ancestor that owns a `--json` declared higher up (e.g. `config --json`). */
 	parent?: JsonOptionCarrier;
@@ -102,9 +131,15 @@ export function readConfig(filePath: string): RefarmCliConfig {
 	}
 }
 
+/** The exact bytes {@link writeConfig} would write. Split out so a mutation can be recorded as a
+ *  before/after SNAPSHOT pair before anything touches disk — the record's undo is those bytes. */
+export function serializeConfig(config: RefarmCliConfig): string {
+	return `${JSON.stringify(config, null, 2)}\n`;
+}
+
 export function writeConfig(filePath: string, config: RefarmCliConfig): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
-	fs.writeFileSync(filePath, `${JSON.stringify(config, null, 2)}\n`, "utf-8");
+	fs.writeFileSync(filePath, serializeConfig(config), "utf-8");
 }
 
 export function hasJsonOption(opts: JsonOptionCarrier, command?: JsonOptionCarrier): boolean {
@@ -115,6 +150,32 @@ export function hasJsonOption(opts: JsonOptionCarrier, command?: JsonOptionCarri
 	let node: JsonOptionCarrier | undefined = command;
 	while (node) {
 		if (node.opts?.().json === true) return true;
+		node = node.parent;
+	}
+	return false;
+}
+
+/**
+ * `--local`, wherever Commander happened to attach it.
+ *
+ * Same hazard as `--json`, and for a sharper reason. `config history` declares `--local` AND has
+ * an action handler AND has an `undo` subcommand. With Commander's default (options may appear
+ * anywhere), the PARENT parses the whole argv first and swallows `--local` — so
+ * `config history undo <id> --local` reached the action with `{}` and quietly undid against the
+ * HOME trail, reporting the id as missing. `--json` never showed the bug only because
+ * {@link hasJsonOption} already walked the ancestors.
+ *
+ * The scope of an undo is not a place to be approximately right: it decides which file gets
+ * rewritten. So it is read the same way, up the whole chain.
+ */
+export function hasLocalOption(
+	opts: { local?: boolean } & JsonOptionCarrier,
+	command?: JsonOptionCarrier,
+): boolean {
+	if (opts.local === true || opts.opts?.().local === true) return true;
+	let node: JsonOptionCarrier | undefined = command;
+	while (node) {
+		if (node.opts?.().local === true) return true;
 		node = node.parent;
 	}
 	return false;

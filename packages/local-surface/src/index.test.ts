@@ -107,3 +107,69 @@ describe("local surface", () => {
 		});
 	});
 });
+
+describe("table rendering aligns values to their header", () => {
+	it("keeps a value under its own column when rows declare keys in a different order", () => {
+		// Objetos JS preservam ordem de inserção, e rows vindas de fontes distintas
+		// chegam com ordens distintas. Emitir Object.values() por linha desalinha os
+		// valores sem que a tabela pareça errada.
+		const manifest = createLocalSurfaceManifest({
+			id: "align",
+			title: "Align",
+			description: "Rows with the same keys in different orders.",
+			actions: [],
+			panels: [
+				{
+					id: "p",
+					title: "P",
+					summary: "s",
+					kind: "activity",
+					rows: [
+						{ metrica: "primeira", valor: 1 },
+						{ valor: 2, metrica: "segunda" },
+					],
+				},
+			],
+		});
+		const html = renderLocalSurfaceDocument(manifest);
+		expect(html).toContain("<td>segunda</td><td>2</td>");
+		expect(html).not.toContain("<td>2</td><td>segunda</td>");
+	});
+
+	it("gives every key a column instead of dropping what the first row lacks", () => {
+		const manifest = createLocalSurfaceManifest({
+			id: "union",
+			title: "Union",
+			description: "Rows that do not declare the same keys.",
+			actions: [],
+			panels: [
+				{
+					id: "p",
+					title: "P",
+					summary: "s",
+					kind: "activity",
+					rows: [{ a: 1 }, { b: 2 }],
+				},
+			],
+		});
+		const html = renderLocalSurfaceDocument(manifest);
+		expect(html).toContain("<th>a</th>");
+		expect(html).toContain("<th>b</th>");
+		// A célula ausente fica vazia, em vez de puxar o valor da coluna vizinha.
+		expect(html).toContain("<td>1</td><td></td>");
+		expect(html).toContain("<td></td><td>2</td>");
+	});
+});
+
+describe("actions is optional", () => {
+	it("builds a read-only surface without declaring actions", () => {
+		const manifest = createLocalSurfaceManifest({
+			id: "read-only",
+			title: "Read Only",
+			description: "A surface that offers nothing to click.",
+			panels: [{ id: "p", title: "P", summary: "s", kind: "activity" }],
+		} as Parameters<typeof createLocalSurfaceManifest>[0]);
+		expect(manifest.actions).toEqual([]);
+		expect(() => renderLocalSurfaceDocument(manifest)).not.toThrow();
+	});
+});

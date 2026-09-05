@@ -7,6 +7,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 } from "@refarm.dev/capabilities/envelope";
+import { loadConfig } from "@refarm.dev/config";
 import {
 	describePermission,
 	unknownPermissions,
@@ -23,17 +24,24 @@ import {
 	type ApprovalResult,
 } from "./plugin-approval.js";
 import {
+	developmentConfigPath,
+	setPluginDevelopment,
+	type DevelopmentResult,
+} from "./plugin-development.js";
+import {
 	revocationConfigPath,
 	revoke,
 	unrevoke,
 	type RevocationResult,
 } from "./plugin-revocation.js";
-import { setTrustedPlugin, trustConfigPath, type TrustResult } from "./plugin-trust.js";
+import {
+	pluginIdPair,
+	setTrustedPlugin, trustConfigPath, type TrustResult,
+} from "./plugin-trust.js";
 
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import { normalizePluginId } from "@refarm.dev/config/plugin-identity";
 import os from "node:os";
-import { pluginsBaseDir } from "../utils/refarm-home.js";
 import { buildBundleReport, type RunBundleProcess } from "./plugin-bundle.js";
 import { PLUGIN_INSTALL_JSON_COMMAND, PLUGIN_STATUS_JSON_COMMAND, RUNTIME_RESTART_JSON_COMMAND } from "./plugin-handoffs.js";
 import { buildGitInstallReport } from "./plugin-install-from-git.js";
@@ -41,6 +49,7 @@ import { buildNpmInstallReport } from "./plugin-install-from-npm.js";
 import { buildExtensionInstallReport } from "./plugin-install-from-path.js";
 import { buildUrlInstallReport } from "./plugin-install-from-url.js";
 import { buildInstallReport } from "./plugin-install.js";
+import { readInstalledPlugins, type InstalledPlugin } from "./plugin-inventory.js";
 import {
 	formatBundleFromEnvelope,
 	formatInstallFromEnvelope,
@@ -55,6 +64,7 @@ import {
 import {
 	buildPluginListReport,
 	buildRuntimePluginStatusReport,
+	knownPluginDescriptors,
 	pluginReloadRestartCommand,
 	restartRuntimeForPluginReload,
 	runtimePluginUnavailableRecommendations,
@@ -62,7 +72,8 @@ import {
 import { buildCreatedPluginReport, type CreatedExtensionReport } from "./plugin-scaffold.js";
 import {
 	detectPluginOrigin,
-	pluginIdToFsToken,
+	installedPluginDir,
+	pluginsBaseDir,
 	type BundledPlugin,
 	type PluginOrigin,
 } from "./plugin-shared.js";
@@ -77,6 +88,12 @@ import {
  *  console.log; headless/HTTP inject a no-op, the CLI injects a stderr writer. */
 export type OperatorProgress = (line: string) => void;
 const NOOP_PROGRESS: OperatorProgress = () => {};
+
+function declaredConnectionNames(): string[] {
+	const value = loadConfig()?.connections;
+	if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+	return Object.keys(value);
+}
 
 /**
  * The `plugin` command as a tri-surface CapabilityGroup — the migration of the
@@ -103,6 +120,9 @@ export interface PluginCommandDeps {
 	readManifest: (id: string) => Promise<unknown>;
 	/** Read runtime plugin state from the sidecar (null when unreachable). */
 	readRuntimePluginState: typeof readRuntimePluginState;
+	/** Scan the node's plugin directories for installed trees — CLI-only; the daemon receives
+	 *  explicit paths and never scans. Defaults to `readInstalledPlugins(pluginsBaseDir())`. */
+	readInstalledPlugins: () => readonly InstalledPlugin[];
 	/** Install the bundled plugins; returns the byte-stable install envelope. */
 	buildInstallReport: typeof buildInstallReport;
 	/**
@@ -127,6 +147,9 @@ export interface PluginCommandDeps {
 	// ── trust (identity) ───────────────────────────────────────────────────────
 	/** Add/remove a plugin id from the `trusted_plugins` allowlist (scope-resolved). */
 	persistTrust: typeof setTrustedPlugin;
+	// ── develop (the third axis: deliberately unsigned) ─────────────────────────
+	/** Declare/withdraw a plugin's "under development" declaration (scope-resolved). */
+	persistDevelopment: typeof setPluginDevelopment;
 	// ── revoke / unrevoke (G) ──────────────────────────────────────────────────
 	/** Append an add-only revocation (monotonic; the host materializes a tombstone). */
 	persistRevocation: typeof revoke;
@@ -163,10 +186,11 @@ export function defaultPluginDeps(): PluginCommandDeps {
 	return {
 		buildListReport: buildPluginListReport,
 		readManifest: async (id) => {
-			const manifestPath = path.join(pluginsBaseDir(), pluginIdToFsToken(id), "plugin.json");
+			const manifestPath = path.join(installedPluginDir(id), "plugin.json");
 			return JSON.parse(await readFile(manifestPath, "utf-8")) as unknown;
 		},
 		readRuntimePluginState,
+		readInstalledPlugins: () => readInstalledPlugins(pluginsBaseDir()),
 		buildInstallReport,
 		runBundle: (spec) => runProcessHandoff(spec, { capture: true }),
 		onProgress: NOOP_PROGRESS,
@@ -174,6 +198,7 @@ export function defaultPluginDeps(): PluginCommandDeps {
 		restartRuntime: restartRuntimeForPluginReload,
 		persistApproval: setApprovedPermissions,
 		persistTrust: setTrustedPlugin,
+		persistDevelopment: setPluginDevelopment,
 		persistRevocation: revoke,
 		persistUnrevocation: unrevoke,
 	};
@@ -301,6 +326,7 @@ export function createPluginCapabilityGroup(
 					grantedCapabilities: (input.options.grant as string[]) ?? [],
 					policyMode: (policy as PluginPolicyMode) ?? "fail-fast",
 					commandName: "plugin",
+					availableConnections: declaredConnectionNames(),
 				});
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
@@ -327,7 +353,21 @@ export function createPluginCapabilityGroup(
 		summary: "Show the host-effect permissions a plugin declares",
 		args: [{ name: "id", required: true }],
 		async run(input) {
-			const id = input.args.id as string;
+			// CANONICALISED HERE, AND ONLY HERE. `approvedPermissions` and the installed directory
+			// layout are both keyed by the MANIFEST id, while `plugin status` and the daemon speak
+			// the RUNTIME one — so an operator auditing `lsp-code-ops`, the id every surface shows
+			// him, was refused and sent to `plugin list`, which does not contain it under any
+			// --origin (measured 2026-08-25, ISS-068). `normalizePluginId` maps only ids this
+			// package DECLARES; an unknown one passes through and still refuses, so nothing is
+			// guessed — which is the distinction `pluginIdPair` exists to keep.
+			//
+			// NOT lifted into `deps.readManifest`, though both callers would then resolve: the
+			// other caller is `approve`, which WRITES through `setApprovedPermissions` under the
+			// id it was given. Normalising its READ without its WRITE turns today's loud refusal
+			// into a permissions entry keyed by an id the host never looks up. That half needs the
+			// writer to canonicalise the way `setTrustedPlugin` already does, plus a decision
+			// about an existing non-canonical key — filed, not smuggled in here.
+			const id = normalizePluginId((input.args.id as string).trim());
 			let manifest: { permissions?: unknown };
 			try {
 				manifest = (await deps.readManifest(id)) as { permissions?: unknown };
@@ -371,6 +411,8 @@ export function createPluginCapabilityGroup(
 		async run() {
 			return buildRuntimePluginStatusReport(
 				await deps.readRuntimePluginState(),
+				deps.readInstalledPlugins(),
+				knownPluginDescriptors(deps.bundledPlugins),
 			) as CapabilityEnvelope;
 		},
 	};
@@ -406,10 +448,16 @@ export function createPluginCapabilityGroup(
 				summary: "For a <ref>: policy mode: fail-fast or warn+continue",
 				defaultValue: "fail-fast",
 			},
+			{
+				name: "subdir",
+				kind: "string",
+				summary: "For a git <ref>: plugin package directory inside a monorepo",
+			},
 		],
 		async run(input) {
 			const ref = input.args.ref as string | undefined;
 			const bundled = input.options.bundled === true;
+			const availableConnections = declaredConnectionNames();
 
 			// --bundled and a positional <ref> are distinct intents (sync the fixed
 			// set vs install one unit); asking for both is an error, not a merge.
@@ -437,12 +485,21 @@ export function createPluginCapabilityGroup(
 			// resolved package), `git` (a cloned repo), and `url` (a content-addressed
 			// descriptor) are all materializable — every origin is now wired.
 			const origin = detectPluginOrigin(ref);
+			const subdir = input.options.subdir as string | undefined;
+			if (subdir && origin !== "git") {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "install",
+					error: "install-subdir-origin",
+					message: "--subdir is supported only for git plugin references.",
+					nextAction: "Remove --subdir or use a git reference.",
+				});
+			}
 
 			// local + npm + git all run the review-first path installer, so all honor
 			// --policy / --grant. Validate the shared policy option once.
 			const policy = input.options.policy;
 			if (
-				(origin === "local" || origin === "npm" || origin === "git") &&
 				policy !== undefined &&
 				policy !== "fail-fast" &&
 				policy !== "warn+continue"
@@ -464,6 +521,7 @@ export function createPluginCapabilityGroup(
 					grantedCapabilities,
 					policyMode,
 					commandName: "plugin",
+					availableConnections,
 				})) as CapabilityEnvelope;
 			}
 
@@ -475,6 +533,7 @@ export function createPluginCapabilityGroup(
 					ref,
 					grantedCapabilities,
 					policyMode,
+					availableConnections,
 				})) as CapabilityEnvelope;
 			}
 
@@ -487,6 +546,8 @@ export function createPluginCapabilityGroup(
 					ref,
 					grantedCapabilities,
 					policyMode,
+					availableConnections,
+					...(subdir ? { subdir } : {}),
 				})) as CapabilityEnvelope;
 			}
 
@@ -494,7 +555,12 @@ export function createPluginCapabilityGroup(
 			// content-address (the hash gate), then content-store + install. Safe from
 			// an untrusted URL by construction — tampered bytes are rejected, not run.
 			if (origin === "url") {
-				return (await buildUrlInstallReport({ url: ref })) as CapabilityEnvelope;
+				return (await buildUrlInstallReport({
+					url: ref,
+					grantedCapabilities,
+					policyMode,
+					availableConnections,
+				})) as CapabilityEnvelope;
 			}
 
 			// Every PluginOrigin is now wired; this is a defensive catch for an
@@ -768,7 +834,15 @@ export function createPluginCapabilityGroup(
 			},
 		],
 		async run(input) {
-			const id = input.args.id as string;
+			// ONE INPUT, BOTH PROJECTIONS. The manifest read needs the MANIFEST id (it resolves an
+			// installed directory through `pluginIdToFsToken`); the config key needs the RUNTIME
+			// id, which is what the host looks the approval up under. Before this, the only input
+			// the manifest read accepted was the one the host ignores — `approve lsp-code-ops`
+			// failed at the read and `approve @refarm/lsp-code-ops` wrote a key that never
+			// applied. The two constraints were mutually exclusive; `pluginIdPair` satisfies both
+			// from one string, and `setApprovedPermissions` canonicalises the key it writes.
+			const pair = pluginIdPair((input.args.id as string).trim(), normalizePluginId);
+			const id = pair.manifestId ?? pair.runtimeId;
 			const scopeRaw = (input.options.scope as string) ?? "user";
 			if (scopeRaw !== "user" && scopeRaw !== "workspace" && scopeRaw !== "org") {
 				return buildJsonErrorEnvelope({
@@ -841,10 +915,20 @@ export function createPluginCapabilityGroup(
 				nextCommand: PLUGIN_STATUS_JSON_COMMAND,
 				nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
 				extra: {
-					pluginId: id,
+					// The key that was WRITTEN, which is the one the host reads — not the string
+					// the operator typed. Reporting the input here would say a restriction is in
+					// place under an id nothing consults.
+					pluginId: result.pluginId,
 					scope,
 					approved: approvedSpecs,
 					changed: result.changed,
+					// REPORTED, NEVER MIGRATED (the operator's rule, 2026-08-25). A key naming this
+					// plugin that the host will never look up is an approval that never applied;
+					// removing it is his call, and a `scope_to_approved` MISS is permissive, so
+					// such a key has been granting everything the plugin declared.
+					...(result.ineffectiveKeys.length > 0
+						? { ineffectiveKeys: result.ineffectiveKeys }
+						: {}),
 				},
 			});
 		},
@@ -910,6 +994,87 @@ export function createPluginCapabilityGroup(
 					scope,
 					trusted: result.trusted,
 					trustedPlugins: result.trustedPlugins,
+					changed: result.changed,
+				},
+			});
+		},
+	};
+
+	// ── develop <id> [--undevelop] [--scope] ───────────────────────────────────
+	// THE THIRD AXIS, orthogonal to both trust (identity) and approve (effect): whether
+	// THIS OPERATOR declares, ABOUT THIS MACHINE, that `id` is deliberately unsigned
+	// because it is under active development. `verify_wasm_integrity` already lets an
+	// unsigned local plugin load (documented as backward-compat); what was missing was a
+	// way to tell "deliberately unsigned, I'm developing it" apart from "the integrity
+	// claim is missing for some other reason" — every surface saw the same silence. This
+	// makes the silence a declaration.
+	//
+	// NEVER a manifest field: a manifest travels WITH the plugin, so an author declaring
+	// their own plugin "under development" would ship an artifact that loads unverified
+	// on every node that installs it — a supply-chain hole wearing a convenience's
+	// clothes. See packages/config/src/plugin-development.js for the full "why".
+	//
+	// Same envelope discipline as `trust`: headless, no TTY prompt, `--undevelop` is the
+	// only decision — so every surface (CLI, TUI, HTTP, a future PWA) drives it through
+	// one primitive.
+	const develop: CapabilityDescriptor = {
+		name: "develop",
+		summary:
+			"Declare a plugin as deliberately unsigned/under development on this node (identity-adjacent, not capability)",
+		args: [{ name: "id", required: true }],
+		options: [
+			{
+				name: "undevelop",
+				kind: "boolean",
+				summary: "Withdraw the development declaration",
+			},
+			{
+				name: "scope",
+				kind: "string",
+				summary: "Config scope to persist to: user | workspace | org",
+				defaultValue: "user",
+			},
+		],
+		async run(input) {
+			const id = input.args.id as string;
+			const scopeRaw = (input.options.scope as string) ?? "user";
+			if (scopeRaw !== "user" && scopeRaw !== "workspace" && scopeRaw !== "org") {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "develop",
+					error: "unknown-scope",
+					message: `Unknown scope "${scopeRaw}". Use user, workspace, or org.`,
+					nextAction: "Retry with --scope user|workspace|org.",
+				});
+			}
+			const scope = scopeRaw as LedgerScope;
+
+			const filePath = developmentConfigPath(scope);
+			if (!filePath) {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "develop",
+					error: "scope-unavailable",
+					message: `The ${scope} scope is not available.`,
+					nextAction: "Set REFARM_ORG_HOME for org scope, or use --scope user.",
+				});
+			}
+
+			const developing = !input.options.undevelop;
+			const result: DevelopmentResult = deps.persistDevelopment(filePath, id, developing);
+			return buildJsonSuccessEnvelope({
+				command: "plugin",
+				operation: "develop",
+				// The declaration is consulted at load, like trust — point the operator at the
+				// reload so a fresh declaration actually takes effect (or a withdrawal actually
+				// starts enforcing again).
+				nextCommand: RUNTIME_RESTART_JSON_COMMAND,
+				nextCommands: [RUNTIME_RESTART_JSON_COMMAND, PLUGIN_STATUS_JSON_COMMAND],
+				extra: {
+					pluginId: result.pluginId,
+					scope,
+					underDevelopment: result.underDevelopment,
+					declaredAt: result.declaredAt,
 					changed: result.changed,
 				},
 			});
@@ -1031,6 +1196,7 @@ export function createPluginCapabilityGroup(
 			reload,
 			approve,
 			trust,
+			develop,
 			revoke: revokeVerb,
 			unrevoke: unrevokeVerb,
 		},
@@ -1068,6 +1234,13 @@ export function pluginCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 			return { renderText: (envelope) => formatListFromEnvelope(envelope) };
 		case "new":
 			return {
+				// REVIEW ROUND 1, IMPORTANT 3 (2026-08-26): the notice used to sit BELOW
+				// `Edit:` / `Activate: reload` / `Fallback: restart` — an author reads
+				// top-down, and `reload_plugin` (packages/tractor/src/lib.rs:1164) only
+				// affects a plugin already loaded at boot; a fresh id is never in
+				// `plugin_paths`, so reload silently returns `false` and restarting the
+				// runtime does not add it either. The notice now leads, and reload/restart
+				// are no longer presented as the activation step.
 				renderText(envelope) {
 					if (envelope.ok === false) {
 						return `Plugin scaffold failed: ${(envelope as { message?: string }).message ?? "unknown error"}`;
@@ -1076,11 +1249,17 @@ export function pluginCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 					const lines = [
 						`Created plugin '${report.slug}' at ${report.dir} (${report.scope})`,
 						`  id: ${report.id}`,
-						`  Edit: ${report.indexPath}`,
+						"",
+						report.notice,
+						"",
+						`  Light-track source (not loadable by this node yet): ${report.indexPath}`,
 					];
 					if (report.surfaceCommand) lines.push(`  Surface: ${report.surfaceCommand}`);
-					lines.push(`  Activate: ${report.nextActions[0]}`);
-					if (report.nextActions[1]) lines.push(`  Fallback: ${report.nextActions[1]}`);
+					lines.push(
+						"  'refarm plugin reload' only takes effect on a plugin this runtime already " +
+							"loaded at boot; a freshly scaffolded id is not, so reloading it now does " +
+							"nothing — it is not an activation step.",
+					);
 					return lines.join("\n");
 				},
 				exitCode: (envelope) => (envelope.ok === false ? 1 : 0),

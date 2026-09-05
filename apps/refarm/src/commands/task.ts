@@ -605,6 +605,10 @@ Notes:
 		.command("list")
 		.description("List known efforts and queue summary")
 		.option(
+			"--refresh",
+			"Also record what this listing observed into the node's task session (ISS-091: reading does not write by default)",
+		)
+		.option(
 			"--transport <type>",
 			"Transport adapter: file, http, or channel:<name>",
 			parseTaskTransport,
@@ -632,7 +636,7 @@ Notes:
   Use resume to continue from the local checkpoint after a previous run/status/logs command.
 `,
 		)
-		.action(async (opts: { transport: TaskTransport; json?: boolean }) => {
+		.action(async (opts: { transport: TaskTransport; json?: boolean; refresh?: boolean }) => {
 			const { transport, adapter } = resolveTaskAdapter(opts.transport, adapterResolver);
 			let summary: EffortSummary;
 			let efforts: EffortResult[];
@@ -642,12 +646,22 @@ Notes:
 				reportTaskListError(transport, err, { json: opts.json });
 				return;
 			}
-			safeSessionRecord(() => {
-				sessionRecorder.rememberList({
-					transport,
-					efforts,
+			// ISS-091. `list` used to record unconditionally, which made a READ command a writer:
+			// ~/.refarm/sessions/task-session.v1.json was rewritten on every invocation, stamping
+			// `lastCommand: "list"` on efforts nobody had commanded. Two costs, and the second is
+			// the one that bites: the record could no longer tell "this effort was acted on" from
+			// "somebody listed", and any instrument that runs read-only commands repeatedly — the
+			// directory-independence probe runs each one four times per pass — wrote to the
+			// operator's real node every time. Refreshing what a list observed is still useful, so
+			// it survives as an EXPLICIT authority rather than a silent side effect.
+			if (opts.refresh) {
+				safeSessionRecord(() => {
+					sessionRecorder.rememberList({
+						transport,
+						efforts,
+					});
 				});
-			});
+			}
 
 			if (opts.json) {
 				const effortCommands = buildTaskEffortCommands(efforts, transport, {

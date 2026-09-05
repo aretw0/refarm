@@ -7,7 +7,12 @@ import {
 	applicationProcess,
 	type ApplicationProcessSpec,
 } from "./command-handoff.js";
+import type { ProjectHandoffFieldCount, ProjectHandoffTruncation } from "./project-handoff.js";
 import type { StatusJson } from "./status.js";
+
+// Re-exported alongside `OperatorResumeProjectSummary` (below) so consumers of
+// this module's `truncation` field don't need a second import path.
+export type { ProjectHandoffFieldCount, ProjectHandoffTruncation };
 
 export interface OperatorResumeModelRoute {
 	scope?: string;
@@ -77,7 +82,12 @@ export interface OperatorResumeSessionParticipantAlias {
 
 export interface OperatorResumeFinishRecord {
 	updatedAt: string;
-	status: "passed" | "failed";
+	/**
+	 * `timed-out` is carried, not folded into `failed`, so `resume` can tell an operator coming
+	 * back that the last gate was KILLED at its ceiling rather than that their code broke. The
+	 * two send them to different places.
+	 */
+	status: "passed" | "failed" | "timed-out";
 	command: string;
 	profile?: string | null;
 	lane?: string | null;
@@ -91,7 +101,10 @@ export interface OperatorResumeFinishRecord {
 export interface OperatorResumeScheduledWorkSummary {
 	total: number;
 	due: number;
-	scheduled: number;
+	/** Trigger condition not yet met: the declaration exists and is valid, but
+	 *  nothing has fired it. Not "scheduled" — this codebase has no autonomous
+	 *  loop that watches the clock and fires it; only an explicit tick does. */
+	declared: number;
 	unsupported: number;
 }
 
@@ -101,7 +114,7 @@ export interface OperatorResumeScheduledWorkJob {
 	name: string;
 	owner: string;
 	kind: "one-shot" | "recurring";
-	status: "due" | "scheduled" | "unsupported";
+	status: "due" | "declared" | "unsupported";
 	schedule: {
 		type: string;
 		at?: string;
@@ -156,6 +169,14 @@ export interface OperatorResumeInput {
 	finish?: OperatorResumeFinishRecord | null;
 	scheduledWork?: OperatorResumeScheduledWorkInspection | null;
 	environmentPressure?: OperatorResumeEnvironmentPressure | null;
+	/**
+	 * What this node is WAITING ON THE OPERATOR for — questions put by runs that may be long gone.
+	 *
+	 * `undefined` means nobody looked, which is not the same fact as "nothing is waiting" and must
+	 * not be rendered as one. The three states this whole family keeps insisting on, at the one
+	 * place an operator actually reads.
+	 */
+	awaitingOperator?: OperatorResumeAwaiting | null;
 	/** The app-supplied handoff set (ADR-087) — commands + processes + dynamic
 	 *  builder for the app's binary. Required: the package names no binary. */
 	handoffs: OperatorResumeHandoffs;
@@ -197,6 +218,10 @@ export interface OperatorResumeProjectSummary {
 	blockers: readonly string[];
 	nextActions: readonly string[];
 	openQuestions: readonly string[];
+	/** How much of each list was cut by the read limit, counted before blanks are
+	 *  dropped so whitespace is never reported as hidden content — a truncated
+	 *  read must declare itself instead of looking complete. */
+	truncation: ProjectHandoffTruncation;
 }
 
 export interface OperatorResumeSessionSummary {
@@ -210,7 +235,8 @@ export interface OperatorResumeSessionSummary {
 }
 
 export interface OperatorResumeFinishSummary {
-	status: "none" | "passed" | "failed";
+	/** `none` is "no gate has run"; `timed-out` is "one ran and was killed before it could say". */
+	status: "none" | "passed" | "failed" | "timed-out";
 	updatedAt?: string;
 	command?: string;
 	profile?: string | null;
@@ -233,6 +259,27 @@ export interface OperatorResumeSummary {
 	recentPrompts: readonly string[];
 	finish: OperatorResumeFinishSummary;
 	tasks: OperatorResumeTaskSummary;
+	/** Omitted when nobody looked. Present with empty lists means somebody looked and found none —
+	 *  a different sentence, and the one that lets an operator stop worrying. */
+	awaitingOperator?: OperatorResumeAwaiting;
+}
+
+/** Questions standing on this node, as `resume` reports them. Mirrors `StandingQuestions` from
+ *  `@refarm.dev/operation-consent-v1`, flattened to what a summary needs to say. */
+export interface OperatorResumeAwaiting {
+	/** Asked, not answered, window still open. */
+	outstanding: readonly OperatorResumeStandingQuestion[];
+	/** Asked, never answered, window closed. Reported rather than swept: it is a commitment the
+	 *  node could not keep, and hiding it makes the node look like it never asked. */
+	expired: readonly OperatorResumeStandingQuestion[];
+}
+
+export interface OperatorResumeStandingQuestion {
+	requestId: string;
+	title: string;
+	requester: string;
+	askedAt: string;
+	expiresAt: string | null;
 }
 
 export type OperatorResumeEnvelope = JsonSuccessEnvelope<
@@ -328,9 +375,22 @@ function isApplicationResumeCommand(command: string, binary: string): boolean {
 	return command.trim().startsWith(`${binary} `);
 }
 
+/**
+ * Did the last gate leave work behind?
+ *
+ * `failed` and `timed-out` both do, and both hand back the same next commands — the difference is
+ * what an operator DOES about it, not whether there is something to resume. Splitting the outcome
+ * without widening this predicate would have made a killed gate quietly stop offering its own
+ * recovery, which is a worse bug than the one the split was fixing.
+ */
+function finishLeftWorkBehind(status: OperatorResumeFinishSummary["status"]): boolean {
+	return status === "failed" || status === "timed-out";
+}
+
 function isTerminalTaskStatus(status: string | undefined): boolean {
 	return (
 		status === "done" ||
+		status === "delivered" ||
 		status === "partial" ||
 		status === "failed" ||
 		status === "timed-out" ||
@@ -462,6 +522,11 @@ export function buildOperatorResumeSummary(input: OperatorResumeInput): Operator
 		recentPrompts: (input.recentPrompts ?? []).slice(0, 5),
 		finish,
 		tasks,
+		// `null` and `undefined` collapse here ON PURPOSE and only here: both mean nobody looked,
+		// and the summary's contract is that an ABSENT field is "unknown" while a present one with
+		// empty lists is "looked, found none". Two ways of spelling absence would be a third state
+		// nobody declared.
+		...(input.awaitingOperator ? { awaitingOperator: input.awaitingOperator } : {}),
 	};
 }
 
@@ -473,7 +538,7 @@ export function operatorResumeNextCommands(
 
 	// Emergency: runtime not ready — fix that first, everything else is noise.
 	if (summary.runtime && !summary.runtime.ready) {
-		const recovery = summary.finish.status === "failed" ? summary.finish.nextCommands : [];
+		const recovery = finishLeftWorkBehind(summary.finish.status) ? summary.finish.nextCommands : [];
 		return [...new Set([resolved.runtimeDoctor, ...recovery])];
 	}
 
@@ -488,14 +553,14 @@ export function operatorResumeNextCommands(
 		return [...new Set(nextCommands)];
 	}
 
-	// Recovery: finish failed — the most urgent resumption point.
-	if (summary.finish.status === "failed") {
+	// Recovery: the last gate left work behind — the most urgent resumption point.
+	if (finishLeftWorkBehind(summary.finish.status)) {
 		nextCommands.push(...summary.finish.nextCommands);
 	}
 
-	// Context: only active sessions are actionable; recent sessions stay contextual.
-	if (summary.session.showCommand) nextCommands.push(summary.session.showCommand);
-	else if (summary.session.status === "stale") {
+	// Sessions are context, not unfinished work. Only repair a dangling pointer;
+	// an existing active pointer must not commandeer an unrelated operator slice.
+	if (summary.session.status === "stale") {
 		nextCommands.push(resolved.sessionClear);
 		nextCommands.push(resolved.sessionList);
 	}
@@ -518,6 +583,29 @@ export function operatorResumeNextCommands(
 	}
 
 	return [...new Set(nextCommands)];
+}
+
+export function operatorResumeNextActions(summary: OperatorResumeSummary): string[] {
+	if (summary.runtime && !summary.runtime.ready) return ["Restore runtime readiness."];
+	if (summary.environmentPressure?.decision === "stop-and-investigate") {
+		return ["Investigate the reported environment pressure before continuing."];
+	}
+
+	const actions: string[] = [];
+	if (summary.finish.status === "failed") actions.push("Complete the failed validation handoff.");
+	// Worded for what actually happened: nothing failed, so "complete the failed handoff" would
+	// send the operator looking for a defect that is not there.
+	if (summary.finish.status === "timed-out") {
+		actions.push("Re-run the validation handoff: the last one was killed at its time ceiling.");
+	}
+	if (summary.session.status === "stale") actions.push("Repair the stale active-session pointer.");
+	if (summary.model?.credential?.state === "missing") {
+		actions.push("Configure the missing model credential.");
+	}
+	if (summary.tasks.activeEffort) actions.push("Continue the active task effort.");
+	else if (hasResumableTaskEffort(summary.tasks)) actions.push("Resume unfinished task work.");
+	else if (summary.tasks.totalEfforts === 0) actions.push("Inspect available task efforts.");
+	return [...new Set(actions)];
 }
 
 function commandProcessKey(processSpec: ApplicationProcessSpec): string {
@@ -593,6 +681,7 @@ export function operatorResumeNextProcesses(
 
 export function buildOperatorResumeEnvelope(input: OperatorResumeInput): OperatorResumeEnvelope {
 	const summary = buildOperatorResumeSummary(input);
+	const nextActions = operatorResumeNextActions(summary);
 	const nextCommands = operatorResumeNextCommands(summary, input.handoffs.commands);
 	const nextProcesses = operatorResumeNextProcesses(summary, input.handoffs);
 	return buildJsonSuccessEnvelope<
@@ -600,7 +689,7 @@ export function buildOperatorResumeEnvelope(input: OperatorResumeInput): Operato
 	>({
 		command: "resume",
 		operation: "operator",
-		nextActions: nextCommands,
+		nextActions,
 		nextCommands,
 		extra: {
 			...operatorResumeJsonSummary(summary),
@@ -612,6 +701,26 @@ export function buildOperatorResumeEnvelope(input: OperatorResumeInput): Operato
 export function formatOperatorResumeSummary(summary: OperatorResumeSummary): string {
 	const lines: string[] = [];
 	lines.push("Operator resume");
+	// FIRST, when there is any, because it is the only line here that is about the OPERATOR rather
+	// than about the node. Everything else describes state they can read later; this is a thing
+	// waiting on them, and a run that already died asking for it.
+	if (summary.awaitingOperator) {
+		const { outstanding, expired } = summary.awaitingOperator;
+		if (outstanding.length > 0) {
+			lines.push(`Waiting on you: ${outstanding.length}`);
+			for (const question of outstanding.slice(0, 5)) {
+				lines.push(`  ? ${question.title} — asked by ${question.requester} at ${question.askedAt}`);
+			}
+		}
+		if (expired.length > 0) {
+			// Reported, never swept: a question nobody answered in time is a commitment this node
+			// could not keep, and hiding it makes the node look like it never asked (spec D5).
+			lines.push(`Asked and never answered: ${expired.length}`);
+			for (const question of expired.slice(0, 3)) {
+				lines.push(`  · ${question.title} — asked by ${question.requester}, window closed`);
+			}
+		}
+	}
 	if (summary.runtime) {
 		const engine = summary.runtime.engine ? ` engine=${summary.runtime.engine.activeEngine}` : "";
 		lines.push(
@@ -669,7 +778,7 @@ export function formatOperatorResumeSummary(summary: OperatorResumeSummary): str
 	if (summary.scheduledWork) {
 		const { summary: scheduledSummary } = summary.scheduledWork;
 		lines.push(
-			`Scheduled work: ${scheduledSummary.total} local job${scheduledSummary.total === 1 ? "" : "s"} due=${scheduledSummary.due} scheduled=${scheduledSummary.scheduled} unsupported=${scheduledSummary.unsupported}`,
+			`Scheduled work: ${scheduledSummary.total} local job${scheduledSummary.total === 1 ? "" : "s"} due=${scheduledSummary.due} declared=${scheduledSummary.declared} unsupported=${scheduledSummary.unsupported}`,
 		);
 		lines.push(`  owner: ${summary.scheduledWork.owner}`);
 		for (const job of summary.scheduledWork.jobs.slice(0, 10)) {

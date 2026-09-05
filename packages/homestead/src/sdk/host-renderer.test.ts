@@ -3,6 +3,7 @@ import {
 	assertHomesteadHostRendererConformance,
 	checkHomesteadHostRendererConformance,
 	createHomesteadHostRendererDescriptor,
+	createReferenceHomesteadHostRendererDescriptor,
 	HOMESTEAD_HOST_RENDERER_KINDS,
 	requiredHomesteadHostRendererCapabilities,
 	runHostRendererConformance,
@@ -60,6 +61,17 @@ describe("Homestead host renderer conformance", () => {
 				issues: [],
 			});
 			expect(() => assertHomesteadHostRendererConformance(report)).not.toThrow();
+		}
+	});
+
+	it("ships one reference factory that honestly covers every renderer kind", () => {
+		for (const kind of HOMESTEAD_HOST_RENDERER_KINDS) {
+			expect(
+				runHostRendererConformance(kind, createReferenceHomesteadHostRendererDescriptor),
+			).toMatchObject({
+				passed: true,
+				renderer: { id: `refarm-${kind}`, kind },
+			});
 		}
 	});
 

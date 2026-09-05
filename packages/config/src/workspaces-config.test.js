@@ -53,6 +53,8 @@ describe("workspace config declarations", () => {
 				},
 				repository: null,
 				bridges: [],
+				commands: {},
+				issues: null,
 			},
 			{
 				id: "refarm",
@@ -74,8 +76,80 @@ describe("workspace config declarations", () => {
 				},
 				repository: null,
 				bridges: [],
+				commands: {},
+				issues: null,
 			},
 		]);
+	});
+
+	it("normalizes a declared command allowlist to argv (an operation catalog, not a shell)", () => {
+		const workspace = declaredWorkspaceFromConfig(
+			{
+				workspaces: {
+					rcdc5: {
+						path: "../rcdc5",
+						kind: "project",
+						commands: {
+							// shorthand string → split to argv (no shell)
+							vpn: "pnpm --filter @rcdcp/serpro-vpn run vpn connect",
+							// explicit argv + cwd + description
+							scrape: {
+								run: ["node", "src/index.js", "scrape"],
+								cwd: "packages/scraper-playwright",
+								description: "Raspagem de requisitos",
+								remote: true,
+								result: "operation-result.v1",
+							},
+							local: { run: ["node", "local.js"], remote: "true", result: "json" },
+							"": "ignored — blank name",
+							bad: { run: 42 },
+						},
+					},
+				},
+			},
+			"rcdc5",
+			{ baseDir: "/home/me/git/refarm" },
+		);
+
+		expect(workspace?.commands).toEqual({
+			vpn: { run: ["pnpm", "--filter", "@rcdcp/serpro-vpn", "run", "vpn", "connect"] },
+			scrape: {
+				run: ["node", "src/index.js", "scrape"],
+				cwd: "packages/scraper-playwright",
+				description: "Raspagem de requisitos",
+				remote: true,
+				result: "operation-result.v1",
+			},
+			local: { run: ["node", "local.js"] },
+		});
+	});
+
+	it("carries a command's provenance when it names the workspace-offer source, and drops any other value", () => {
+		const workspace = declaredWorkspaceFromConfig(
+			{
+				workspaces: {
+					app: {
+						path: ".",
+						commands: {
+							// accepted from the workspace's own offer via `refarm workspace sync`
+							build: { run: ["pnpm", "build"], source: "workspace-offer" },
+							// authored directly via `refarm workspace command add` — no provenance tag
+							test: { run: ["pnpm", "test"] },
+							// an unrecognized value is not a fact anyone authored — dropped, fail-closed
+							deploy: { run: ["pnpm", "deploy"], source: "operator" },
+						},
+					},
+				},
+			},
+			"app",
+			{ baseDir: "/workspaces/refarm" },
+		);
+
+		expect(workspace?.commands).toEqual({
+			build: { run: ["pnpm", "build"], source: "workspace-offer" },
+			test: { run: ["pnpm", "test"] },
+			deploy: { run: ["pnpm", "deploy"] },
+		});
 	});
 
 	it("uses conservative defaults for partial declarations", () => {
@@ -189,5 +263,67 @@ describe("workspace config declarations", () => {
 		expect(parseWorkspaceKind("unknown")).toBeNull();
 		expect(parseWorkspaceRemoteCacheProvider("custom")).toBe("custom");
 		expect(parseWorkspaceRemoteCacheProvider("redis")).toBeNull();
+	});
+});
+
+describe("declared workspace issues block", () => {
+	it("carries a declared issues block through normalisation", () => {
+		const [workspace] = declaredWorkspacesFromConfig(
+			{ workspaces: { a: { path: "/w/a", issues: { provider: "project-json", path: ".project/issues.json" } } } },
+			{ baseDir: "/base" },
+		);
+		expect(workspace.issues).toEqual({ provider: "project-json", path: ".project/issues.json" });
+	});
+
+	it("is null when undeclared — never a guess", () => {
+		const [workspace] = declaredWorkspacesFromConfig(
+			{ workspaces: { a: { path: "/w/a" } } },
+			{ baseDir: "/base" },
+		);
+		expect(workspace.issues).toBeNull();
+	});
+
+	it("is null when the block is malformed rather than half-normalised", () => {
+		const [workspace] = declaredWorkspacesFromConfig(
+			{ workspaces: { a: { path: "/w/a", issues: { provider: 42 } } } },
+			{ baseDir: "/base" },
+		);
+		expect(workspace.issues).toBeNull();
+	});
+
+	it("does not drop the commands map when issues is present", () => {
+		const [workspace] = declaredWorkspacesFromConfig(
+			{ workspaces: { a: { path: "/w/a", commands: { vpn: { run: ["true"] } }, issues: { provider: "project-json", path: "p.json" } } } },
+			{ baseDir: "/base" },
+		);
+		expect(Object.keys(workspace.commands)).toContain("vpn");
+	});
+
+	// Finding 2 — a declared provider nobody implemented must NOT collapse into the same `null`
+	// as "no issues block at all". `null` means undeclared; this is declared-but-unsupported, a
+	// third, distinct state that must survive normalisation and reach the resolver.
+	it("carries a declared-but-unsupported provider through normalisation, distinct from undeclared", () => {
+		const [workspace] = declaredWorkspacesFromConfig(
+			{ workspaces: { a: { path: "/w/a", issues: { provider: "github", path: ".project/issues.json" } } } },
+			{ baseDir: "/base" },
+		);
+		expect(workspace.issues).toEqual({
+			provider: "github",
+			path: ".project/issues.json",
+			unsupported: true,
+		});
+		expect(workspace.issues).not.toBeNull();
+	});
+
+	it("defaults an unsupported provider's path to the project-json convention path, same as a supported one", () => {
+		const [workspace] = declaredWorkspacesFromConfig(
+			{ workspaces: { a: { path: "/w/a", issues: { provider: "gitlab" } } } },
+			{ baseDir: "/base" },
+		);
+		expect(workspace.issues).toEqual({
+			provider: "gitlab",
+			path: ".project/issues.json",
+			unsupported: true,
+		});
 	});
 });

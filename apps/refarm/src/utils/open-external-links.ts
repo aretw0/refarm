@@ -1,5 +1,5 @@
+import { declaredBase } from "@refarm.dev/config";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 export type OpenExternalLinksMode = "auto" | "never";
@@ -43,7 +43,10 @@ export function resolveCliOpenExternalLinksMode(
 	const envMode = parseOpenExternalLinksMode(env[OPEN_EXTERNAL_LINKS_ENV_VAR]);
 	if (envMode) return { value: envMode, source: `env:${OPEN_EXTERNAL_LINKS_ENV_VAR}` };
 
-	const home = deps.home ?? os.homedir();
+	// The NODE tier of this two-tier read. The cwd tier below stays as it is; only this one was
+	// answering from the OS instead of the declaration.
+	const home = deps.home ?? declaredBase(env);
+	// os-resolution: project — the cwd tier of the same read, anchored on the operator directory by the tier model
 	const cwd = deps.cwd ?? process.cwd();
 	let resolved: { value: OpenExternalLinksMode; source: string } | null = null;
 	for (const filePath of [

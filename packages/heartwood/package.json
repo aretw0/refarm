@@ -1,6 +1,7 @@
 {
 	"name": "@refarm.dev/heartwood",
 	"version": "0.1.0",
+	"repository": "https://github.com/aretw0/refarm.git",
 	"description": "Heartwood: Sovereign Cryptographic Core (WASM)",
 	"type": "module",
 	"files": [

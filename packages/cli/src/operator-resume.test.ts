@@ -5,6 +5,7 @@ import {
 	buildOperatorResumeSummary,
 	formatOperatorResumeSessionId,
 	formatOperatorResumeSummary,
+	operatorResumeNextActions,
 	operatorResumeNextCommands,
 	operatorResumeNextProcesses,
 } from "./operator-resume.js";
@@ -166,6 +167,8 @@ describe("operator resume", () => {
 			ok: true,
 			nextCommand: "refarm task list --json",
 			nextCommands: ["refarm task list --json"],
+			nextAction: "Inspect available task efforts.",
+			nextActions: ["Inspect available task efforts."],
 			nextProcesses: [
 				{
 					command: "refarm",
@@ -178,6 +181,38 @@ describe("operator resume", () => {
 			recentPrompts: [],
 			finish: { status: "none" },
 		});
+	});
+
+	it("keeps an existing session contextual and delivered efforts terminal", () => {
+		const summary = buildOperatorResumeSummary({
+			handoffs: HANDOFFS,
+			status: { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] },
+			activeSessionId: "urn:sovereign:session:v1:abcdef1234567890",
+			recentSessions: [
+				{
+					sessionId: "urn:sovereign:session:v1:abcdef1234567890",
+					shortId: "ef1234567890",
+					hasHistory: true,
+					showCommand: "refarm sessions show ef1234567890 --json",
+					useCommand: "refarm sessions use ef1234567890 --json",
+				},
+			],
+			taskCheckpoint: {
+				updatedAt: "2026-08-01T00:00:00.000Z",
+				efforts: [
+					{
+						effortId: "done-1",
+						transport: "file",
+						lastStatus: "delivered",
+						statusCommand: "refarm task status done-1 --transport file --json",
+						logsCommand: "refarm task logs done-1 --transport file --json",
+					},
+				],
+			},
+		});
+
+		expect(operatorResumeNextCommands(summary, HANDOFFS.commands)).toEqual([]);
+		expect(operatorResumeNextActions(summary)).toEqual([]);
 	});
 
 	it("carries repository project handoff context without changing command recovery", () => {
@@ -194,6 +229,12 @@ describe("operator resume", () => {
 				blockers: [],
 				nextActions: ["wire project handoff into app resume"],
 				openQuestions: ["when does .project become source of truth?"],
+				truncation: {
+					currentTasks: { returned: 1, total: 1 },
+					blockers: { returned: 0, total: 0 },
+					nextActions: { returned: 1, total: 1 },
+					openQuestions: { returned: 1, total: 1 },
+				},
 			},
 		});
 
@@ -223,7 +264,7 @@ describe("operator resume", () => {
 			schemaVersion: 1,
 			owner: "refarm-main",
 			generatedAt: "2026-06-27T10:00:00.000Z",
-			summary: { total: 2, due: 1, scheduled: 1, unsupported: 0 },
+			summary: { total: 2, due: 1, declared: 1, unsupported: 0 },
 			jobs: [
 				{
 					id: "automation-1:0",
@@ -246,7 +287,7 @@ describe("operator resume", () => {
 					name: "hourly cache refresh",
 					owner: "refarm-main",
 					kind: "recurring" as const,
-					status: "scheduled" as const,
+					status: "declared" as const,
 					schedule: { type: "cron", schedule: "@hourly", timezone: "UTC" },
 					modelRoute: "none" as const,
 					tokenUse: "none" as const,
@@ -262,7 +303,7 @@ describe("operator resume", () => {
 		expect(envelope).toMatchObject({
 			scheduledWork: {
 				owner: "refarm-main",
-				summary: { total: 2, due: 1, scheduled: 1, unsupported: 0 },
+				summary: { total: 2, due: 1, declared: 1, unsupported: 0 },
 				jobs: expect.arrayContaining([
 					expect.objectContaining({
 						id: "automation-1:0",
@@ -277,12 +318,12 @@ describe("operator resume", () => {
 		const formatted = formatOperatorResumeSummary(
 			buildOperatorResumeSummary({ handoffs: HANDOFFS, status: readyStatus, scheduledWork }),
 		);
-		expect(formatted).toContain("Scheduled work: 2 local jobs due=1 scheduled=1 unsupported=0");
+		expect(formatted).toContain("Scheduled work: 2 local jobs due=1 declared=1 unsupported=0");
 		expect(formatted).toContain(
 			"automation-1:0 due one-shot daily handoff at=2026-06-27T09:00:00.000Z",
 		);
 		expect(formatted).toContain(
-			"automation-2:0 scheduled recurring hourly cache refresh cron=@hourly timezone=UTC",
+			"automation-2:0 declared recurring hourly cache refresh cron=@hourly timezone=UTC",
 		);
 	});
 
@@ -617,6 +658,44 @@ describe("operator resume", () => {
 			"refarm sessions list --json",
 			"refarm task list --json",
 		]);
+	});
+
+	it("keeps offering recovery when the last gate was KILLED rather than failed", () => {
+		// The split between `failed` and `timed-out` must not quietly cost a killed gate its own
+		// recovery commands. Both left work behind; only the wording an operator reads differs.
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const summary = buildOperatorResumeSummary({
+			handoffs: HANDOFFS,
+			status: readyStatus,
+			activeSessionId: "urn:sovereign:session:v1:abcdef1234567890",
+			finish: {
+				updatedAt: "2026-05-27T12:05:00.000Z",
+				status: "timed-out",
+				command: "refarm agent finish --run --json",
+				profile: "quick",
+				lane: null,
+				validationScope: "quick",
+				failedStepId: "package-apps-refarm-validation",
+				// Package-manager-NEUTRAL on purpose: handoffs must not hardcode an executor, and
+				// json-next-command-contract.test.ts scans fixtures too. The step this stands for
+				// really does run turbo; what matters here is that the command survives the split.
+				failedCommand: "refarm check --next-action --json",
+				nextCommands: ["refarm check --next-action --json"],
+				remainingCommands: [],
+			},
+			taskCheckpoint: {
+				updatedAt: "2026-05-27T12:00:00.000Z",
+				activeEffortId: undefined,
+				efforts: [],
+			},
+		});
+		expect(operatorResumeNextCommands(summary, HANDOFFS.commands)).toContain(
+			"refarm check --next-action --json",
+		);
+		// And it must not send the operator hunting for a defect that does not exist.
+		const actions = operatorResumeNextActions(summary);
+		expect(actions.join(" ")).toMatch(/killed at its time ceiling/u);
+		expect(actions.join(" ")).not.toMatch(/Complete the failed validation handoff/u);
 	});
 
 	it("surfaces missing model credentials when runtime is ready", () => {

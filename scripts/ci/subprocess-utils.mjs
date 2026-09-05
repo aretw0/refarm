@@ -8,14 +8,20 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/std",
 	"packages/capabilities",
 	"packages/effort-contract-v1",
+	"packages/budget-contract-v1",
 	"packages/dispatch-surface",
 	"packages/artifact-contract-v1",
 	"packages/automation-contract-v1",
+	"packages/model-catalog-v1",
 	"packages/identity-contract-v1",
 	"packages/node-contract-v1",
 	"packages/pressure-contract-v1",
-	"packages/sidecar-client",
+	// storage-contract-v1 BEFORE sidecar-client: the client extends `QueryNodesPage` and imports
+	// `readCompleteness` from it (ISS-040), so building it first is not a preference, it is the
+	// edge. The order test caught this the same day the edge was added — and no lane did, because
+	// the script suites run in `before-push` rather than `after-edit`.
 	"packages/storage-contract-v1",
+	"packages/sidecar-client",
 	"packages/storage-fs",
 	"packages/storage-node-view",
 	"packages/task-contract-v1",
@@ -38,6 +44,7 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/sync-loro",
 	"packages/quality-contract-v1",
 	"packages/ds",
+	"packages/localization-v1",
 	"packages/homestead",
 	"packages/process-handoff",
 	"packages/operator-state",
@@ -50,6 +57,12 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/infra-cloudflare",
 	"packages/skill-contract-v1",
 	"packages/plugin-surface-loader",
+	// One provider's undocumented surface (ISS-142). Before `apps/farmhand`, which renews a Copilot
+	// seat mid-run and so depends on it — as does the account contract beside it, which farmhand
+	// has depended on since it began provisioning from the catalog and which this list had never
+	// carried. It was invisible because this check reported ONE missing entry and stopped.
+	"packages/model-account-contract-v1",
+	"packages/github-copilot-wire",
 	"apps/farmhand",
 	"packages/asset-resolver-contract-v1",
 	"packages/enrichment-contract-v1",
@@ -63,6 +76,18 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/runtime-operator",
 	"packages/capability-host",
 	"packages/quality-checker-ref",
+	"packages/attend-web-v1",
+	"packages/certificate-contract-v1",
+	"packages/operation-consent-v1",
+	"packages/certificate-local-ca",
+	"packages/delivery-contract-v1",
+	"packages/delivery-telegram",
+	"packages/diagnostic-bundle-v1",
+	"packages/emoji-sas-v1",
+	"packages/hardening",
+	"packages/operation-web-v1",
+	"packages/process-contract-v1",
+	"packages/process-systemd-user",
 	"apps/refarm",
 ];
 
@@ -215,6 +240,12 @@ export async function assertTaskSmokeBuildOrderIntegrity(
 
 	const workspaceByName = await loadWorkspacePackageMap();
 
+	// EVERY PROBLEM, not the first. This threw on the first offending entry, so a pre-existing gap
+	// sat hidden behind a newly added one: fixing the new package's line revealed a missing
+	// `model-account-contract-v1` that `apps/farmhand` had depended on for a while. One-at-a-time
+	// reporting turns a single audit into as many runs as there are faults, and makes the older
+	// fault look like it was caused by the newer one.
+	const problems = [];
 	for (const workspaceDir of TASK_SMOKE_TS_BUILD_ORDER) {
 		const pkg = JSON.parse(
 			await readFile(path.join(workspaceDir, "package.json"), "utf8"),
@@ -234,17 +265,23 @@ export async function assertTaskSmokeBuildOrderIntegrity(
 			const dependencyIndex = orderIndex.get(dependencyWorkspace.dir);
 			const currentIndex = orderIndex.get(workspaceDir);
 			if (dependencyIndex === undefined) {
-				throw new Error(
-					`${loggerPrefix} build order missing "${dependencyWorkspace.dir}" required by "${workspaceDir}" via "${dependencyName}"`,
+				problems.push(
+					`build order missing "${dependencyWorkspace.dir}" required by "${workspaceDir}" via "${dependencyName}"`,
 				);
+				continue;
 			}
 
 			if (dependencyIndex > currentIndex) {
-				throw new Error(
-					`${loggerPrefix} build order is invalid: "${dependencyWorkspace.dir}" must run before "${workspaceDir}" (dependency "${dependencyName}")`,
+				problems.push(
+					`build order is invalid: "${dependencyWorkspace.dir}" must run before "${workspaceDir}" (dependency "${dependencyName}")`,
 				);
 			}
 		}
+	}
+	if (problems.length > 0) {
+		throw new Error(
+			`${loggerPrefix} ${problems.length} build-order problem(s):\n  ${problems.join("\n  ")}`,
+		);
 	}
 }
 

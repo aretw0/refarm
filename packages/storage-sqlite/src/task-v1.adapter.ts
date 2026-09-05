@@ -93,6 +93,24 @@ function applyTaskFilter(tasks: Task[], filter: TaskFilter): Task[] {
 		filtered = filtered.filter((task) => task.parent_task_id === filter.parent_task_id);
 	}
 
+	// Mirrors in-memory.ts:136-147 — the SQLite-backed adapter stores tasks as JSON payloads
+	// (see parsePayload/asTask above), so this is a filter over already-parsed Task[], not a SQL
+	// predicate. Without these, the same TaskFilter silently returned different results depending
+	// on which adapter answered it (task-contract-v1 lane, entry 5).
+	if (filter.created_after_ns !== undefined) {
+		filtered = filtered.filter((task) => task.created_at_ns > filter.created_after_ns!);
+	}
+
+	if (filter.created_before_ns !== undefined) {
+		filtered = filtered.filter((task) => task.created_at_ns < filter.created_before_ns!);
+	}
+
+	if (filter.due_before_ns !== undefined) {
+		filtered = filtered.filter(
+			(task) => task.due_at_ns !== undefined && task.due_at_ns < filter.due_before_ns!,
+		);
+	}
+
 	return filtered;
 }
 

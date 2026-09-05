@@ -55,7 +55,7 @@ fn provider_runtime_run_completion_loop_from_plan_with_uses_plan_max_iter() {
         },
         |_state, _phase, iter_idx, max_iter, _response| {
             assert_eq!(iter_idx, 0);
-            assert_eq!(max_iter, 0);
+            assert_eq!(max_iter, 1, "a plan declaring 0 steps still runs — and terminates on — exactly one");
             Ok(Some("done".to_string()))
         },
     )
@@ -121,7 +121,7 @@ fn provider_runtime_run_completion_loop_from_common_config_with_dispatch_uses_co
         },
         |_state, _phase, iter_idx, max_iter, _response, dispatch_count| {
             assert_eq!(iter_idx, 0);
-            assert_eq!(max_iter, 0);
+            assert_eq!(max_iter, 1, "a plan declaring 0 steps still runs — and terminates on — exactly one");
             *dispatch_count += 1;
             Ok(Some(format!("done-{dispatch_count}")))
         },

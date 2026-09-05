@@ -15,13 +15,13 @@ fn provider_config_choose_model_falls_back_to_default() {
 
 #[test]
 fn provider_config_anthropic_default_is_shared() {
-    assert_eq!(ANTHROPIC_DEFAULT_MODEL, "claude-sonnet-4-6");
+    assert_eq!(ANTHROPIC_DEFAULT_MODEL, "claude-sonnet-5");
 }
 
 #[test]
 fn provider_config_openai_compat_defaults_known_provider() {
     let cases = [
-        ("openai", "https://api.openai.com", "gpt-5.5"),
+        ("openai", "https://api.openai.com", "gpt-5.6-sol"),
         ("mistral", "https://api.mistral.ai", "mistral-medium-3-5"),
         ("xai", "https://api.x.ai", "grok-4.3"),
         ("deepseek", "https://api.deepseek.com", "deepseek-v4-flash"),
@@ -33,7 +33,7 @@ fn provider_config_openai_compat_defaults_known_provider() {
         (
             "openrouter",
             "https://openrouter.ai",
-            "anthropic/claude-sonnet-4.6",
+            "anthropic/claude-sonnet-5",
         ),
         (
             "gemini",

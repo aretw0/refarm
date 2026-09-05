@@ -70,6 +70,15 @@ function createTestResumeCommand(
 ) {
 	return createResumeCommand({
 		loadEnvironmentPressure: vi.fn().mockReturnValue(undefined),
+		// Default to an empty ledger so these tests never depend on this machine's real
+		// declared workspaces (`~/.refarm/config.json`) — a test wanting ledger behavior
+		// overrides this explicitly, same as `loadEnvironmentPressure` above.
+		loadLedgerReads: vi.fn().mockReturnValue({}),
+		// Same reason, one axis over: the default catalog loader reads this machine's real
+		// `~/.refarm` account store, so without this stub every credential assertion here would
+		// depend on which seats the operator happens to hold today. `undefined` is the loader
+		// saying it could not look, which is the state these tests want unless they say otherwise.
+		loadModelCatalog: vi.fn().mockResolvedValue(undefined),
 		...deps,
 	});
 }
@@ -102,6 +111,12 @@ describe("resume command", () => {
 				blockers: ["blocked A"],
 				nextActions: ["next A"],
 				openQuestions: ["question A"],
+				truncation: {
+					currentTasks: { returned: 2, total: 2 },
+					blockers: { returned: 1, total: 1 },
+					nextActions: { returned: 1, total: 1 },
+					openQuestions: { returned: 1, total: 1 },
+				},
 			});
 		} finally {
 			fs.rmSync(tempDir, { recursive: true, force: true });
@@ -153,7 +168,7 @@ describe("resume command", () => {
 			).resolves.toMatchObject({
 				owner: "refarm-main",
 				generatedAt: "2026-06-27T10:15:00.000Z",
-				summary: { total: 2, due: 1, scheduled: 1, unsupported: 0 },
+				summary: { total: 2, due: 1, declared: 1, unsupported: 0 },
 				jobs: [
 					{
 						automationId: "automation-1",
@@ -166,7 +181,7 @@ describe("resume command", () => {
 					{
 						automationId: "automation-3",
 						name: "hourly cache refresh",
-						status: "scheduled",
+						status: "declared",
 						schedule: { type: "cron", schedule: "@hourly", timezone: "UTC" },
 						modelRoute: "none",
 						tokenUse: "none",
@@ -336,15 +351,32 @@ describe("resume command", () => {
 			}),
 			loadRecentSessions: vi.fn().mockResolvedValue([]),
 			loadChatHistory: vi.fn().mockReturnValue([]),
-			loadProjectHandoff: vi.fn().mockReturnValue({
-				path: ".project/handoff.json",
-				timestamp: "2026-06-27T05:00:00.000Z",
-				currentPhase: 12,
-				context: "resume from project handoff",
-				currentTasks: ["finish current slice"],
-				blockers: [],
-				nextActions: ["pick next slice"],
-				openQuestions: [],
+			// The seam now returns the RESOLUTION beside the summary (ISS-092): the same handoff, plus
+			// which workspace answered and how it was found. The summary itself is unchanged, which is
+			// what keeps every assertion below meaning the same thing it did before.
+			resolveProject: vi.fn().mockReturnValue({
+				summary: {
+					path: ".project/handoff.json",
+					timestamp: "2026-06-27T05:00:00.000Z",
+					currentPhase: 12,
+					context: "resume from project handoff",
+					currentTasks: ["finish current slice"],
+					blockers: [],
+					nextActions: ["pick next slice"],
+					openQuestions: [],
+					truncation: {
+						currentTasks: { returned: 1, total: 1 },
+						blockers: { returned: 0, total: 0 },
+						nextActions: { returned: 1, total: 1 },
+						openQuestions: { returned: 0, total: 0 },
+					},
+				},
+				resolution: {
+					state: "read",
+					workspaceId: "refarm",
+					from: "cwd-match",
+					path: "/repo/.project/handoff.json",
+				},
 			}),
 		});
 		const logs: string[] = [];
@@ -385,7 +417,7 @@ describe("resume command", () => {
 				schemaVersion: 1,
 				owner: "refarm-main",
 				generatedAt: "2026-06-27T10:00:00.000Z",
-				summary: { total: 1, due: 1, scheduled: 0, unsupported: 0 },
+				summary: { total: 1, due: 1, declared: 0, unsupported: 0 },
 				jobs: [
 					{
 						id: "automation-1:0",
@@ -627,9 +659,13 @@ describe("resume command", () => {
 		};
 		expect(payload.command).toBe("resume");
 		expect(payload.nextCommand).toBe("refarm model current --json");
-		expect(payload.nextActions).toContain("refarm model current --json");
 		expect(payload.nextCommands?.[0]).toBe("refarm model current --json");
-		expect(payload.nextAction).toBe("refarm model current --json");
+		// `nextActions` stopped mirroring `nextCommands` in e49e4220: an action says WHAT to
+		// do in a sentence, a command says HOW to do it. Assert the split rather than either
+		// list's contents, so re-conflating them fails here instead of shipping a JSON
+		// consumer a sentence where it expected an argv.
+		expect(payload.nextActions?.every((action) => !action.startsWith("refarm "))).toBe(true);
+		expect(payload.nextAction).toBe(payload.nextActions?.[0] ?? null);
 		expect(Array.isArray(payload.nextProcesses)).toBe(true);
 		expect(
 			(payload.nextProcesses ?? []).some(
@@ -805,5 +841,73 @@ describe("resume command", () => {
 			expect.stringContaining("Runtime: not inspected"),
 		);
 		spy.mockRestore();
+	});
+});
+
+/**
+ * ISS-131's readable half, measured on the operator's node 2026-08-23.
+ *
+ * `refarm credential quota` reached GitHub with two Copilot seats and returned live plan data. In
+ * the same minute this command — the one CLAUDE.md section 4 mandates at the start of every slice —
+ * reported `state: "unresolved"`, `"not in env or tokens"` on all three routes. Every agent began
+ * its work by reading a false sentence about the operator's own fleet.
+ */
+describe("resume answers about credentials with the catalog, not only the flat map", () => {
+	const seat = {
+		credentialId: "model-account:K4NXGZTQQ4KFM0GG9139VN67PR",
+		provider: "github-copilot",
+		alias: "corporativo",
+		identity: { status: "verified" as const },
+		secretRef: "model/model-account:K4NXGZTQQ4KFM0GG9139VN67PR",
+		health: "healthy" as const,
+		revision: "sha256:test",
+	};
+
+	const commandWith = (loadModelCatalog?: unknown) =>
+		createTestResumeCommand({
+			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
+			sessionRecorder: recorder(null),
+			finishRecorder: finishRecorder(null),
+			readActiveSessionId: vi.fn().mockReturnValue(null),
+			loadModelTokens: vi.fn().mockResolvedValue({
+				modelProvider: "github-copilot",
+				modelId: "gpt-4o",
+			}),
+			loadRecentSessions: vi.fn().mockResolvedValue([]),
+			loadChatHistory: vi.fn().mockReturnValue([]),
+			...(loadModelCatalog ? { loadModelCatalog } : {}),
+		} as Parameters<typeof createResumeCommand>[0]);
+
+	const runJson = async (command: ReturnType<typeof createTestResumeCommand>) => {
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		await command.parseAsync(["--json"], { from: "user" });
+		spy.mockRestore();
+		return JSON.parse(logs.join("\n")) as {
+			model?: { credential: { state: string; status: string | null } };
+		};
+	};
+
+	it("names the seat that answers, where it used to say it could not see", async () => {
+		// The negative control, and the state of this command before today: no catalog, no answer.
+		const blind = await runJson(commandWith());
+		expect(blind.model?.credential.state).toBe("unresolved");
+
+		const seeing = await runJson(
+			commandWith(vi.fn().mockResolvedValue({ accounts: [seat], authorization: { scope: "all" } })),
+		);
+
+		expect(seeing.model?.credential.state).toBe("account");
+		expect(seeing.model?.credential.status).toContain("corporativo");
+	});
+
+	it("a catalog that cannot be read leaves the honest 'cannot see' alone", async () => {
+		// A store fault must not become a claim about the operator's credentials. `undefined` is
+		// the loader saying it could not look, which is exactly what `unresolved` already means.
+		const unreadable = await runJson(commandWith(vi.fn().mockResolvedValue(undefined)));
+
+		expect(unreadable.model?.credential.state).toBe("unresolved");
 	});
 });

@@ -404,6 +404,14 @@ describe("runSessionRepl", () => {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
+			// This test only cares that "/new" shows up in /history output, not session
+			// persistence — without these, "/new" falls through to the REAL
+			// clearActiveSessionId/writeActiveSessionIdAndVerify from session-lock.ts
+			// (see runSessionRepl's `deps.clearActiveSessionId ?? clearActiveSessionId`
+			// fallback), which is exactly the unmocked path that wrote to a real
+			// operator's ~/.refarm/session.lock before this suite sandboxed HOME.
+			clearActiveSessionId: vi.fn(),
+			persistActiveSessionId: vi.fn(),
 		});
 		lastInterface.emit("line", "/new");
 		await Promise.resolve();

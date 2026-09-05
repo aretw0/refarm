@@ -149,7 +149,7 @@ describe("local scheduled work", () => {
 				now: "2026-06-27T09:00:00.000Z",
 			}),
 		).resolves.toMatchObject({
-			summary: { total: 0, due: 0, scheduled: 0, unsupported: 0 },
+			summary: { total: 0, due: 0, declared: 0, unsupported: 0 },
 			jobs: [],
 		});
 	});
@@ -485,5 +485,98 @@ describe("local scheduled work", () => {
 				{ owner: "refarm-main", ledger: { hasFired: () => false } },
 			),
 		).rejects.toThrow("hasFired() and recordFired()");
+	});
+});
+
+describe("a declared timezone is honoured, or said to be impossible", () => {
+	/**
+	 * The defect these pin, measured 2026-08-11 before the fix: `CronTrigger.timezone` had been in
+	 * the contract since the vocabulary was written, every reader put it in a REPORT, and every
+	 * evaluator matched against `getUTC*`. A nightly job declared in `America/Sao_Paulo` answered
+	 * `declared` at midnight in Sao Paulo and `due` at nine in the evening — and said
+	 * `timezone: "America/Sao_Paulo"` in both. A field that is declared, echoed back and never read
+	 * is worse than one that is unsupported: the response asserts it was honoured.
+	 */
+	function jobAt(iso, trigger) {
+		const automation = { id: "a", name: "n", status: "active", triggers: [trigger] };
+		const adapter = {
+			schemaVersion: 1,
+			async query() {
+				return [automation];
+			},
+			async get() {
+				return automation;
+			},
+		};
+		return listLocalScheduledJobs(adapter, { now: new Date(iso), owner: "test" }).then(
+			(jobs) => jobs[0],
+		);
+	}
+
+	const NIGHTLY_SP = {
+		type: "cron",
+		schedule: "0 0 * * *",
+		timezone: "America/Sao_Paulo",
+	};
+
+	it("fires at midnight IN THE ZONE, not at midnight UTC", async () => {
+		// 03:00Z is 00:00 in Sao Paulo (UTC-3). Before the fix this was `declared`.
+		expect((await jobAt("2026-08-11T03:00:00Z", NIGHTLY_SP)).status).toBe("due");
+	});
+
+	it("does NOT fire at midnight UTC when the zone says nine in the evening", async () => {
+		// Before the fix this was `due` — three hours early, and on the wrong calendar day.
+		expect((await jobAt("2026-08-11T00:00:00Z", NIGHTLY_SP)).status).toBe("declared");
+	});
+
+	it("tracks a DST shift rather than a hardcoded offset", async () => {
+		// New York is UTC-5 in winter and UTC-4 in summer, so noon local is a DIFFERENT instant in
+		// each. This is the case a hand-rolled offset table gets wrong twice a year, in the
+		// direction nobody notices until a job runs an hour off. `Intl` carries the platform's own
+		// IANA database, so the transition is the runtime's problem and not this file's.
+		const noonNY = { type: "cron", schedule: "0 12 * * *", timezone: "America/New_York" };
+		expect((await jobAt("2026-01-15T17:00:00Z", noonNY)).status).toBe("due"); // EST
+		expect((await jobAt("2026-01-15T16:00:00Z", noonNY)).status).toBe("declared");
+		expect((await jobAt("2026-07-15T16:00:00Z", noonNY)).status).toBe("due"); // EDT
+		expect((await jobAt("2026-07-15T17:00:00Z", noonNY)).status).toBe("declared");
+	});
+
+	it("calls a zone it cannot resolve UNSUPPORTED, and never due", async () => {
+		// The third state, and the one that matters: falling back to UTC is exactly how the defect
+		// above was written — silently answering the question in units nobody asked for.
+		const job = await jobAt("2026-08-11T00:00:00Z", {
+			type: "cron",
+			schedule: "0 0 * * *",
+			timezone: "Mars/Olympus",
+		});
+		expect(job.status).toBe("unsupported");
+		expect(job.status).not.toBe("due");
+		// The REASON, not the category: "unsupported cron expression" beside a perfectly valid
+		// expression sends an operator to fix the wrong half.
+		expect(job.unsupportedReason).toContain("Mars/Olympus");
+		expect(job.unsupportedReason).toContain("timezone");
+	});
+
+	it("applies the zone to the @shortcuts too", async () => {
+		// Three more evaluators read `getUTC*` directly. Nobody would have thought to check them.
+		const daily = { type: "cron", schedule: "@daily", timezone: "America/Sao_Paulo" };
+		expect((await jobAt("2026-08-11T03:00:00Z", daily)).status).toBe("due");
+		expect((await jobAt("2026-08-11T00:00:00Z", daily)).status).toBe("declared");
+	});
+
+	it("leaves an absent or UTC timezone exactly as it was", async () => {
+		const bare = { type: "cron", schedule: "0 0 * * *" };
+		expect((await jobAt("2026-08-11T00:00:00Z", bare)).status).toBe("due");
+		expect((await jobAt("2026-08-11T03:00:00Z", bare)).status).toBe("declared");
+		const utc = { type: "cron", schedule: "0 0 * * *", timezone: "UTC" };
+		expect((await jobAt("2026-08-11T00:00:00Z", utc)).status).toBe("due");
+	});
+
+	it("still gets the day-of-month / day-of-week OR rule right, in a zone", async () => {
+		// The trap ISS-076 warned about, re-checked through the new field path: when BOTH day
+		// fields are restricted, cron matches EITHER, not both. 2026-08-11 is a Tuesday.
+		const orRule = { type: "cron", schedule: "0 0 1 * 2", timezone: "America/Sao_Paulo" };
+		// The 11th is not the 1st, but it IS a Tuesday — OR means due.
+		expect((await jobAt("2026-08-11T03:00:00Z", orRule)).status).toBe("due");
 	});
 });

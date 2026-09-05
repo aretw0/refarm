@@ -1,0 +1,104 @@
+[
+	{
+		"description": "keys by the runtime id, the vocabulary the host looks up",
+		"config": { "pluginDevelopment": { "lsp-code-ops": { "declaredAt": "2026-08-26" } } },
+		"pluginId": "@refarm/lsp-code-ops",
+		"expected": true
+	},
+	{
+		"description": "false when nothing declared, which is the whole point",
+		"config": {},
+		"pluginId": "@refarm/lsp-code-ops",
+		"expected": false
+	},
+	{
+		"description": "a non-object top level: null",
+		"config": null,
+		"pluginId": "@refarm/lsp-code-ops",
+		"expected": false
+	},
+	{
+		"description": "a non-object top level: a number",
+		"config": 42,
+		"pluginId": "@refarm/lsp-code-ops",
+		"expected": false
+	},
+	{
+		"description": "a top-level array",
+		"config": [],
+		"pluginId": "@refarm/lsp-code-ops",
+		"expected": false
+	},
+	{
+		"description": "pluginDevelopment is a non-object (a string)",
+		"config": { "pluginDevelopment": "all" },
+		"pluginId": "@refarm/lsp-code-ops",
+		"expected": false
+	},
+	{
+		"description": "pluginDevelopment is an array of strings",
+		"config": { "pluginDevelopment": ["lsp-code-ops"] },
+		"pluginId": "@refarm/lsp-code-ops",
+		"expected": false
+	},
+	{
+		"description": "pluginDevelopment is an array of well-shaped entry objects",
+		"config": { "pluginDevelopment": [{ "declaredAt": "2026-01-01" }] },
+		"pluginId": "lsp-code-ops",
+		"expected": false
+	},
+	{
+		"description": "an entry that is not an object (a string)",
+		"config": { "pluginDevelopment": { "lsp-code-ops": "yes" } },
+		"pluginId": "lsp-code-ops",
+		"expected": false
+	},
+	{
+		"description": "an entry that is an array",
+		"config": { "pluginDevelopment": { "lsp-code-ops": ["declaredAt", "2026-08-26"] } },
+		"pluginId": "lsp-code-ops",
+		"expected": false
+	},
+	{
+		"description": "an entry with no declaredAt key at all",
+		"config": { "pluginDevelopment": { "lsp-code-ops": {} } },
+		"pluginId": "lsp-code-ops",
+		"expected": false
+	},
+	{
+		"description": "an empty string declaredAt",
+		"config": { "pluginDevelopment": { "lsp-code-ops": { "declaredAt": "" } } },
+		"pluginId": "lsp-code-ops",
+		"expected": false
+	},
+	{
+		"description": "a whitespace-only declaredAt",
+		"config": { "pluginDevelopment": { "lsp-code-ops": { "declaredAt": "   " } } },
+		"pluginId": "lsp-code-ops",
+		"expected": false
+	},
+	{
+		"description": "a non-string declaredAt",
+		"config": { "pluginDevelopment": { "lsp-code-ops": { "declaredAt": 42 } } },
+		"pluginId": "lsp-code-ops",
+		"expected": false
+	},
+	{
+		"description": "stored key in manifest vocabulary, queried by runtime token",
+		"config": { "pluginDevelopment": { "@refarm/lsp-code-ops": { "declaredAt": "2026-08-26" } } },
+		"pluginId": "lsp-code-ops",
+		"expected": true
+	},
+	{
+		"description": "stored key in manifest vocabulary, queried by manifest id",
+		"config": { "pluginDevelopment": { "@refarm/lsp-code-ops": { "declaredAt": "2026-08-26" } } },
+		"pluginId": "@refarm/lsp-code-ops",
+		"expected": true
+	},
+	{
+		"description": "a wrong-plugin declaration never leaks to a different id",
+		"config": { "pluginDevelopment": { "some-other-plugin": { "declaredAt": "2026-08-26" } } },
+		"pluginId": "lsp-code-ops",
+		"expected": false
+	}
+]

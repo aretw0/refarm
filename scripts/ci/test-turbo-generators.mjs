@@ -539,6 +539,56 @@ test("turbo generators expose specialized validation scaffolds", async () => {
 	assert.equal(wasmPackage.scripts.build, "node ../../scripts/ci/cargo-run.mjs component build --target wasm32-wasip1 --release");
 });
 
+test("turbo generators expose model catalog plugin package scaffold", async () => {
+	const generators = await configuredGenerators();
+	const generator = generators.get("package");
+	assert.ok(generator, "expected turbo/generators/config.ts to register a package generator");
+
+	const typePrompt = generator.prompts.find((prompt) => prompt.name === "type");
+	assert.ok(typePrompt, "package generator should expose a type prompt");
+	assert.ok(typePrompt.choices.includes("model-catalog-plugin"));
+
+	const data = {
+		name: "llm-pricing-plugin",
+		type: "model-catalog-plugin",
+		description: "Composable model pricing plugin",
+		private: false,
+		privateStr: "false",
+		pascalName: "LlmPricingPlugin",
+	};
+
+	const actions = generator.actions(data);
+	assert.ok(actions.some((action) => action.type === "addMany" && action.destination === "packages/{{name}}"));
+
+	const packageTemplate = readFileSync(
+		join(ROOT, "turbo/generators/templates/model-catalog-plugin/package.json.hbs"),
+		"utf8",
+	);
+	const packageJson = JSON.parse(render(packageTemplate, data));
+	assert.equal(packageJson.name, "@refarm.dev/llm-pricing-plugin");
+	assert.equal(packageJson.dependencies["@refarm.dev/model-catalog-v1"], "workspace:*");
+
+	const indexTemplate = readFileSync(
+		join(ROOT, "turbo/generators/templates/model-catalog-plugin/src/index.ts.hbs"),
+		"utf8",
+	);
+	const indexSource = render(indexTemplate, data);
+	assert.match(indexSource, /composeModelRateCatalog/);
+	assert.match(indexSource, /ModelCatalogComposerPlugin/);
+	assert.match(indexSource, /createLlmPricingPluginComposerPlugin/);
+
+	const tsconfigTemplate = readFileSync(
+		join(ROOT, "turbo/generators/templates/model-catalog-plugin/tsconfig.json.hbs"),
+		"utf8",
+	);
+	const tsconfigBuildTemplate = readFileSync(
+		join(ROOT, "turbo/generators/templates/model-catalog-plugin/tsconfig.build.json.hbs"),
+		"utf8",
+	);
+	assert.match(tsconfigTemplate, /"@refarm\.dev\/tsconfig\/buildable\.json"/);
+	assert.match(tsconfigBuildTemplate, /"@refarm\.dev\/tsconfig\/build\.json"/);
+});
+
 test("turbo generators create inventory-covered app, example, and validation workspaces", async () => {
 	const root = mkdtempSync(join(tmpdir(), "refarm-turbo-generator-conformance-"));
 	try {

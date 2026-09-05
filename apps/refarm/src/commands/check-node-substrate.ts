@@ -102,6 +102,7 @@ function foreignBinaryName(binary: string, platform: NodeJS.Platform): string {
 
 export async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 	const { packageFrozenInstallCommand } = await import("@refarm.dev/config");
+	// os-resolution: project — audits the repository the operator is standing in, including its lockfile
 	const root = process.cwd();
 	const platform = os.platform();
 	return runNodeSubstrateCheckWithDeps({

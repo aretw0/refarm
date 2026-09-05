@@ -1,0 +1,14 @@
+{
+  "proofId": "local-surface.white-label-operator-proof",
+  "packageName": "@refarm.dev/local-surface",
+  "consumer": "vault-seed",
+  "consumerCommit": "94334c37235a804876620e0262c5796ebd68cc9f",
+  "consumerDirty": false,
+  "manifestSha256": "acec276ab331a4d6fa758be5056797dd79715e85856d834b8dc4ed2033b5b5bf",
+  "generatedAt": "2026-08-30T17:57:21.361Z",
+  "commands": [
+    "node node_modules/vitest/vitest.mjs --config ./vitest.config.mjs --configLoader runner run scripts/refarm_local_surface_consumer_contract.test.mjs"
+  ],
+  "result": "pass",
+  "proofTarget": "a consumer can build a local-surface:v1 manifest, DS-backed HTML, white-label launch plan, and quality:v1 report while keeping routes, screenshots, provider adapters, and product vocabulary downstream-owned"
+}

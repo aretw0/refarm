@@ -11,6 +11,7 @@ import { mkdir, rename } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { refarmCommand } from "../brand.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { capabilityCliCommandsForGroup } from "./capability-registry.js";
 import { PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
 
@@ -64,17 +65,30 @@ import {
 	type CreatedExtensionReport,
 } from "./plugin-scaffold.js";
 
+// REVIEW ROUND 1, IMPORTANT 3 (2026-08-26): this used to print the stale
+// `Edit:` / `Activate: reload` / `Fallback: restart` lines FIRST and the notice
+// LAST — an author reads top-down, so the first thing read was a dead end.
+// `reload_plugin` (packages/tractor/src/lib.rs:1164) only affects a plugin this
+// runtime already loaded at boot (`plugin_paths`); a freshly scaffolded id was
+// never requested, so reload silently returns `false` and "restart the runtime"
+// does not add it either — nothing puts this fresh id on a boot `--plugin` list.
+// The notice now leads, and the reload/restart framing is gone rather than
+// mislabeled as an activation step.
 function printCreatedExtension(report: CreatedExtensionReport): void {
 	console.log(`Created extension '${report.slug}' at ${report.dir} (${report.scope})`);
 	console.log(`  id: ${report.id}`);
-	console.log(`  Edit: ${report.indexPath}`);
+	console.log("");
+	console.log(report.notice);
+	console.log("");
+	console.log(`  Light-track source (not loadable by this node yet): ${report.indexPath}`);
 	if (report.surfaceCommand) {
 		console.log(`  Surface: ${report.surfaceCommand}`);
 	}
-	console.log(`  Activate: ${report.nextActions[0]}`);
-	if (report.nextActions[1]) {
-		console.log(`  Fallback: ${report.nextActions[1]}`);
-	}
+	console.log(
+		"  'refarm plugin reload' only takes effect on a plugin this runtime already loaded " +
+			"at boot; a freshly scaffolded id is not, so reloading it now does nothing — it is " +
+			"not an activation step.",
+	);
 }
 
 async function newExtension(
@@ -140,15 +154,16 @@ async function saveExtension(
 		process.exitCode = 1;
 		return;
 	}
+	// os-resolution: project — the project-local extensions source, paired with resolveRefarmHome for the operator tier below
 	const cwd = process.cwd();
-	const homeDir = os.homedir();
+	const operatorExtensionsDir = path.join(resolveRefarmHome(), "extensions");
 
 	const srcDir = toGlobal
 		? path.join(cwd, ".refarm", "extensions", name)
-		: path.join(homeDir, ".refarm", "extensions", name);
+		: path.join(operatorExtensionsDir, name);
 
 	const destDir = toGlobal
-		? path.join(homeDir, ".refarm", "extensions", name)
+		? path.join(operatorExtensionsDir, name)
 		: path.join(cwd, ".refarm", "extensions", name);
 
 	if (!existsSync(srcDir)) {

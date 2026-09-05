@@ -1,0 +1,34 @@
+{
+	"name": "@refarm.dev/contacts",
+	"version": "0.1.0",
+	"description": "Channel topology — which chats, groups and handles a platform can reach, stored per platform and merged by id.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"test": "vitest run",
+		"lint": "eslint src"
+	},
+	"license": "AGPL-3.0-only",
+	"files": [
+		"README.md",
+		"dist/index.js",
+		"dist/index.d.ts"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
+}

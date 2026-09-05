@@ -1,6 +1,7 @@
 {
 	"name": "@refarm.dev/vault-contract-v1",
 	"version": "0.1.0",
+	"repository": "https://github.com/aretw0/refarm.git",
 	"private": false,
 	"description": "Versioned vault capability contract (vault:v1) — the four generic verbs (search/extract/organize/profile) over a PARA knowledge vault, and its conformance suite",
 	"type": "module",

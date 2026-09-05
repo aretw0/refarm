@@ -208,7 +208,7 @@
 				]
 			},
 			{
-				"id": "vault-seed-ready",
+				"id": "consumer-ready",
 				"description": "Consumer-pulled packages that vault-seed can adopt before the full daily-driver release.",
 				"audienceBoundary": {
 					"consumer": "vault-seed",
@@ -216,7 +216,21 @@
 					"productLocal": "Vault-specific CLI labels, copy, notebooks, routes, and UX stay downstream-owned."
 				},
 				"profileTags": [
-					"vault-seed-ready"
+					"consumer-ready"
+				]
+			},
+			{
+				"id": "design-system-ready",
+				"description": "Dependency-closed design-system release unit proven by a downstream vault consumer.",
+				"profileTags": [
+					"design-system-ready"
+				]
+			},
+			{
+				"id": "evidence-contracts-ready",
+				"description": "Dependency-closed evidence-contract release unit (artifact, quality, provenance) proven by a downstream producer that is not JavaScript.",
+				"profileTags": [
+					"evidence-contracts-ready"
 				]
 			}
 		],
@@ -233,13 +247,13 @@
 					"kernel-contract",
 					"candidate",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"consumer-proven"
 				],
 				"consumerPull": {
 					"proofId": "credentials-storage-contract.transitive-wallet-support",
 					"downstreamUse": "storage:v1 contract support for credentials:v1 wallet store/list/remove",
-					"proofTarget": "vault-seed vendors storage-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present -> wallet",
+					"proofTarget": "a consumer vendors storage-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present -> wallet",
 					"ownershipBoundary": "Durable wallet persistence, retention, encryption policy, and wallet UX remain downstream"
 				}
 			},
@@ -268,13 +282,13 @@
 					"kernel-contract",
 					"candidate",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"consumer-proven"
 				],
 				"consumerPull": {
 					"proofId": "credentials-identity-contract.transitive-signature-support",
 					"downstreamUse": "identity:v1 contract support for credentials:v1 issuer and holder proofs",
-					"proofTarget": "vault-seed vendors identity-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present",
+					"proofTarget": "a consumer vendors identity-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present",
 					"ownershipBoundary": "Issuer trust, DID methods, account recovery, and identity UX remain downstream"
 				}
 			},
@@ -293,7 +307,7 @@
 					"reference-proven",
 					"boundary-review",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"consumer-proven"
 				],
 				"consumerPull": {
@@ -319,7 +333,7 @@
 					"reference-proven",
 					"boundary-review",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"consumer-proven"
 				],
 				"consumerPull": {
@@ -346,13 +360,13 @@
 					"reference-proven",
 					"boundary-review",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"consumer-proven"
 				],
 				"consumerPull": {
 					"proofId": "credentials-contract.issue-verify-present-wallet",
 					"downstreamUse": "credentials:v1 contract for issue, policy-driven verify, present, store, list, remove, and revoke seams before VC UX",
-					"proofTarget": "vault-seed vendors credentials-contract-v1 early and proves issuer/verifier/wallet seams with trustedIssuers, trustSelf, holder-binding, and local signed status-list revocation checks before headspace UX",
+					"proofTarget": "a consumer vendors credentials-contract-v1 early and proves issuer/verifier/wallet seams with trustedIssuers, trustSelf, holder-binding, and local signed status-list revocation checks before headspace UX",
 					"ownershipBoundary": "Issuer authorities, credential schemas, trust registry sources, remote status-list distribution, trust UI, and domain vocabulary remain downstream"
 				}
 			},
@@ -367,13 +381,14 @@
 					"kernel",
 					"kernel-contract",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
+					"evidence-contracts-ready",
 					"review"
 				],
 				"consumerPull": {
 					"proofId": "artifact-contract.lab-outbox-evidence",
 					"downstreamUse": "Lab datasets, publication outbox, and notebook snapshot evidence",
-					"proofTarget": "vault-seed emits refarm.task-artifacts.v1 manifests from Lab/outbox/notebook producers",
+					"proofTarget": "a consumer emits sovereign.task-artifacts.v1 manifests from Lab/outbox/notebook producers",
 					"ownershipBoundary": "Vault schemas, notebook UX, and frontmatter remain downstream"
 				}
 			},
@@ -388,13 +403,13 @@
 					"kernel",
 					"kernel-contract",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"candidate"
 				],
 				"consumerPull": {
 					"proofId": "channel-policy.telegram-delivery-envelope",
 					"downstreamUse": "Channel destinations, rate limits, receipts, dry-run, and review gates",
-					"proofTarget": "vault-seed Telegram adapter emits refarm.channel-delivery-envelope.v1",
+					"proofTarget": "a consumer's Telegram adapter emits refarm.channel-delivery-envelope.v1",
 					"ownershipBoundary": "Provider API calls, copy formatting, and inbox/outbox UX remain downstream"
 				}
 			},
@@ -422,13 +437,13 @@
 					"kernel",
 					"kernel-contract",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"review"
 				],
 				"consumerPull": {
 					"proofId": "effort-contract.dgk-effort-evidence",
 					"downstreamUse": "Reusable task/effort evidence for dgk operations and handoffs",
-					"proofTarget": "dgk process flows attach effort identifiers to emitted evidence",
+					"proofTarget": "a consumer's process flows attach effort identifiers to emitted evidence",
 					"ownershipBoundary": "dgk command vocabulary and operator UX remain downstream"
 				}
 			},
@@ -446,14 +461,88 @@
 					"contract",
 					"sdk-primitive",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
+					"evidence-contracts-ready",
+					"design-system-ready",
 					"boundary-review"
 				],
 				"consumerPull": {
 					"proofId": "quality-contract.declared-lint-envelope",
 					"downstreamUse": "Declared quality/lint profiles and reports for text, UI, and checker plugin POCs",
-					"proofTarget": "vault-seed and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
+					"proofTarget": "a consumer and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
 					"ownershipBoundary": "Rule catalogs, severity policy, product copy, personas, and rendered-subject collection remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/provenance-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/provenance-contract-v1 run lint",
+					"pnpm --filter @refarm.dev/provenance-contract-v1 run type-check",
+					"pnpm --filter @refarm.dev/provenance-contract-v1 run test:conformance",
+					"pnpm --filter @refarm.dev/provenance-contract-v1 run build"
+				],
+				"tags": [
+					"provenance",
+					"contract",
+					"sdk-primitive",
+					"consumer-pulled",
+					"consumer-ready",
+					"evidence-contracts-ready",
+					"boundary-review"
+				],
+				"consumerPull": {
+					"proofId": "provenance-contract.origin-of-every-input",
+					"downstreamUse": "One provenance envelope (channel, origin locator, collection time, fingerprint, license, privacy) on every ingested or declared input a consumer keeps",
+					"proofTarget": "a consumer stamps and verifies provenance:v1 on its own input records — notes, requirements, or a materials database — and can gate on the named checks while keeping its source vocabulary and evidence policy downstream-owned",
+					"ownershipBoundary": "Source catalogs, licensing policy, which checks block, and the domain fields that ride beside provenance remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/std",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/std run lint",
+					"pnpm --filter @refarm.dev/std run type-check",
+					"pnpm --filter @refarm.dev/std run test",
+					"pnpm --filter @refarm.dev/std run build"
+				],
+				"tags": [
+					"primitives",
+					"sdk-primitive",
+					"consumer-pulled",
+					"consumer-ready",
+					"boundary-review"
+				],
+				"consumerPull": {
+					"proofId": "std.pure-primitives-behind-a-published-contract",
+					"downstreamUse": "Pure primitives (slugify, digest shape, bind and surface guards) that consumer-facing contracts depend on at runtime",
+					"proofTarget": "a consumer that installs vault-contract-v1 from the registry resolves @refarm.dev/std as a published dependency instead of a vendored override, and never has to re-implement its primitives",
+					"ownershipBoundary": "Listeners, servers, files, processes and product naming stay with the host; this package owns pure decisions and vocabulary only"
+				}
+			},
+			{
+				"id": "@refarm.dev/node-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/node-contract-v1 run lint",
+					"pnpm --filter @refarm.dev/node-contract-v1 run type-check",
+					"pnpm --filter @refarm.dev/node-contract-v1 run test",
+					"pnpm --filter @refarm.dev/node-contract-v1 run build"
+				],
+				"tags": [
+					"node",
+					"contract",
+					"sdk-primitive",
+					"consumer-pulled",
+					"consumer-ready",
+					"boundary-review"
+				],
+				"consumerPull": {
+					"proofId": "node-contract.base-graph-node-shape",
+					"downstreamUse": "The node:v1 base GraphNode shape and normalised conversions that records and vault contracts build on",
+					"proofTarget": "a consumer's records and vault contracts resolve node:v1 from the registry; the base shape and its conversions are the only thing this package owns",
+					"ownershipBoundary": "Storage, sync, signing and the domain vocabulary above @type stay downstream"
 				}
 			},
 			{
@@ -471,14 +560,38 @@
 					"ui",
 					"consumer-pulled",
 					"consumer-proven",
-					"vault-seed-ready",
+					"consumer-ready",
 					"candidate"
 				],
 				"consumerPull": {
 					"proofId": "local-surface.white-label-operator-proof",
 					"downstreamUse": "Local-first white-label operator surface for vault tasks and agent handoffs",
-					"proofTarget": "vault-seed can build a local-surface:v1 manifest, DS-backed HTML, white-label launch plan, and quality:v1 report while keeping routes, screenshots, provider adapters, and product vocabulary downstream-owned",
+					"proofTarget": "a consumer can build a local-surface:v1 manifest, DS-backed HTML, white-label launch plan, and quality:v1 report while keeping routes, screenshots, provider adapters, and product vocabulary downstream-owned",
 					"ownershipBoundary": "Server binding, route branding, storage adapters, provider setup, screenshots, and product UX remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/vault-contract-v1",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/vault-contract-v1 run lint",
+					"pnpm --filter @refarm.dev/vault-contract-v1 run type-check",
+					"pnpm --filter @refarm.dev/vault-contract-v1 run test",
+					"pnpm --filter @refarm.dev/vault-contract-v1 run build"
+				],
+				"tags": [
+					"vault",
+					"knowledge",
+					"consumer-pulled",
+					"consumer-proven",
+					"consumer-ready",
+					"candidate"
+				],
+				"consumerPull": {
+					"proofId": "vault-contract.corpus-health-over-projected-records",
+					"downstreamUse": "Cross-record corpus health and per-note profile verdicts over a PARA knowledge vault projected to records:v1",
+					"proofTarget": "a consumer can run vault:v1 corpus health over its own records:v1 projection and surface the findings, while keeping its privacy heuristics, folder policy, and PII vocabulary downstream-owned",
+					"ownershipBoundary": "Privacy heuristics, PII candidate detection, designated-folder policy, note vocabulary, and surface rendering remain downstream"
 				}
 			},
 			{
@@ -546,14 +659,14 @@
 					"contract",
 					"sdk-primitive",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"boundary-review",
 					"consumer-proven"
 				],
 				"consumerPull": {
 					"proofId": "requirements-source-contract.transitive-source-web-support",
 					"downstreamUse": "source:v1 contract support for the source-web vendor packet",
-					"proofTarget": "vault-seed vendors source-contract-v1 as the source-web transitive override while proving source-web -> records:v1 -> enrichment:v1 composition",
+					"proofTarget": "a consumer vendors source-contract-v1 as the source-web transitive override while proving source-web -> records:v1 -> enrichment:v1 composition",
 					"ownershipBoundary": "Concrete login, selectors, and source profile vocabulary remain downstream"
 				}
 			},
@@ -605,14 +718,14 @@
 					"sdk-primitive",
 					"requirements-supply",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"boundary-review",
 					"consumer-proven"
 				],
 				"consumerPull": {
 					"proofId": "requirements-source-web.authenticated-capture",
 					"downstreamUse": "Authenticated source capture fixture feeding requirement-like records",
-					"proofTarget": "vault-seed wraps source-web with real checkout-owned source behavior and proves redacted source:v1 snapshots compose into records:v1 and enrichment:v1",
+					"proofTarget": "a consumer wraps source-web with real checkout-owned source behavior and proves redacted source:v1 snapshots compose into records:v1 and enrichment:v1",
 					"ownershipBoundary": "Real credentials, discovery, selectors, pacing values, and source-specific ETL profiles remain downstream"
 				}
 			},
@@ -630,14 +743,14 @@
 					"sdk-primitive",
 					"requirements-supply",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"boundary-review",
 					"consumer-proven"
 				],
 				"consumerPull": {
 					"proofId": "requirements-enrichment.private-provider-wrapper",
 					"downstreamUse": "Deterministic enrichment report contract for records and note projections",
-					"proofTarget": "vault-seed emits enrichment:v1 reports from checkout-owned providers while the package supplies only the neutral contract and fixture provider",
+					"proofTarget": "a consumer emits enrichment:v1 reports from checkout-owned providers while the package supplies only the neutral contract and fixture provider",
 					"ownershipBoundary": "Private registries, lookup adapters, tag vocabulary, and domain enrichment rules remain downstream"
 				}
 			},
@@ -656,14 +769,14 @@
 					"sdk-primitive",
 					"requirements-supply",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"boundary-review",
 					"consumer-proven"
 				],
 				"consumerPull": {
 					"proofId": "requirements-records.knowledge-manifest",
 					"downstreamUse": "Neutral records:v1 manifest for source-linked knowledge/content evidence",
-					"proofTarget": "vault-seed validates requirement-like records and notes-to-records projections through records:v1 with a clean reference-vault composition proof",
+					"proofTarget": "a consumer validates requirement-like records and notes-to-records projections through records:v1 with a clean reference-vault composition proof",
 					"ownershipBoundary": "PARA placement, editorial model, note rendering, and domain labels remain downstream"
 				}
 			},
@@ -681,14 +794,14 @@
 					"sdk-primitive",
 					"requirements-supply",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"boundary-review",
-					"candidate"
+					"consumer-proven"
 				],
 				"consumerPull": {
 					"proofId": "content-projection.markdown-mdx-records",
 					"downstreamUse": "Markdown/MDX frontmatter, wikilink, and inline-link projection into records:v1",
-					"proofTarget": "vault-seed can replace local note-to-record, wikilink, and inline-link projection helpers with the generic projection block while retaining its product configuration",
+					"proofTarget": "a consumer can replace local note-to-record, wikilink, and inline-link projection helpers with the generic projection block while retaining its product configuration",
 					"ownershipBoundary": "PARA folder mapping, note vocabulary, Obsidian/Foam conventions, and rendering remain downstream"
 				}
 			},
@@ -707,14 +820,14 @@
 					"ui",
 					"render-adapter",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"boundary-review",
 					"candidate"
 				],
 				"consumerPull": {
 					"proofId": "ds-astro.mdx-render-adapter",
 					"downstreamUse": "Sanctioned Astro/MDX component embed set over Refarm DS classes and CSS",
-					"proofTarget": "vault-seed can replace local dgk/vault/astro block packages with @refarm.dev/ds-astro imports while keeping product-specific MDX copy and route semantics downstream",
+					"proofTarget": "a consumer can replace local dgk/vault/astro block packages with @refarm.dev/ds-astro imports while keeping product-specific MDX copy and route semantics downstream",
 					"ownershipBoundary": "PARA labels, notebook/editorial vocabulary, custom routes, and product-specific blocks remain downstream"
 				}
 			},
@@ -743,14 +856,14 @@
 				"tags": [
 					"process",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"candidate",
 					"build-free"
 				],
 				"consumerPull": {
 					"proofId": "process-handoff.dgk-runner-adapter",
 					"downstreamUse": "Structured process runner primitive for dgk-runner and dgk-cli internals",
-					"proofTarget": "dgk-runner keeps run(cmd, args, opts) while using process-handoff internally",
+					"proofTarget": "a consumer's runner keeps run(cmd, args, opts) while using process-handoff internally",
 					"ownershipBoundary": "dgk package names, binary, commands, and product labels remain downstream"
 				}
 			},
@@ -779,13 +892,13 @@
 					"kernel-primitive",
 					"sdk-primitive",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"held-until-config-boundary-review",
 					"boundary-review"
 				],
 				"consumerPull": {
 					"proofId": "health.toolchain-environment-auditor",
 					"downstreamUse": "Generic doctor/substrate checks for node, pnpm, uv, Python, node_modules, executable shims, and devcontainer mounts",
-					"proofTarget": "vault-seed can replace dgk check-substrate internals with ToolchainAuditor while keeping dgk doctor UX and recovery copy downstream",
+					"proofTarget": "a consumer can replace dgk check-substrate internals with ToolchainAuditor while keeping dgk doctor UX and recovery copy downstream",
 					"ownershipBoundary": "Project-specific command names, setup recommendations, required file policy, and health+quality composition remain downstream"
 				}
 			},
@@ -799,13 +912,13 @@
 					"kernel",
 					"kernel-primitive",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"dogfood"
 				],
 				"consumerPull": {
 					"proofId": "release-engine.package-acceptance",
 					"downstreamUse": "Package acceptance, release planning, and publish dry-run policy",
-					"proofTarget": "vault-seed release/package smoke consumes release-engine acceptance output",
+					"proofTarget": "a consumer's release/package smoke consumes release-engine acceptance output",
 					"ownershipBoundary": "Distribution identity, prose, and changelog content remain downstream"
 				}
 			},
@@ -821,13 +934,14 @@
 				"tags": [
 					"ui",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
+					"design-system-ready",
 					"candidate"
 				],
 				"consumerPull": {
 					"proofId": "ds.lab-admin-static-document",
 					"downstreamUse": "Lab/admin tokens, verde-jardim theme source, and build-free DS HTML document helpers",
-					"proofTarget": "vault-seed Lab/admin UI imports ds tokens and renders documentHtml through @refarm.dev/ds/html without pulling Homestead",
+					"proofTarget": "a consumer's Lab/admin UI imports ds tokens and renders documentHtml through @refarm.dev/ds/html without pulling Homestead",
 					"ownershipBoundary": "PARA vocabulary, editorial copy, and content semantics remain downstream"
 				}
 			},
@@ -844,13 +958,13 @@
 				"tags": [
 					"dispatch",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"candidate"
 				],
 				"consumerPull": {
 					"proofId": "dispatch-surface.dgk-descriptor",
-					"downstreamUse": "Multi-surface command/action descriptor substrate",
-					"proofTarget": "dgk exposes product commands through dispatch-surface-compatible descriptors",
+					"downstreamUse": "Channel/transport dispatch primitives — parseTaskTransport (file/http/channel:*), the control-surface adapter, and channel effort payloads that feed the runtime HTTP surface.",
+					"proofTarget": "Consumers route channel/transport dispatch operations through these shared primitives. This is NOT a product-command/CLI registry — product commands stay in the consumer command layer (the old wording wrongly suggested modeling CLI commands on it).",
 					"ownershipBoundary": "Surface labels, routes, and product-specific actions remain downstream"
 				}
 			},
@@ -864,13 +978,13 @@
 					"crypto",
 					"silo-dependency",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"candidate"
 				],
 				"consumerPull": {
 					"proofId": "heartwood.silo-crypto-substrate",
 					"downstreamUse": "Shared crypto substrate needed by silo-backed credentials",
-					"proofTarget": "vault-seed credential flow uses silo without local crypto stand-ins",
+					"proofTarget": "a consumer's credential flow uses silo without local crypto stand-ins",
 					"ownershipBoundary": "Credential policy choices and publishing identities remain downstream"
 				}
 			},
@@ -885,13 +999,13 @@
 				"tags": [
 					"credentials",
 					"consumer-pulled",
-					"vault-seed-ready",
+					"consumer-ready",
 					"candidate"
 				],
 				"consumerPull": {
 					"proofId": "silo.credential-namespaces",
 					"downstreamUse": "Scoped credential collection and secret namespace separation",
-					"proofTarget": "vault-seed stores model/runtime/publishing credentials through silo namespaces",
+					"proofTarget": "a consumer stores model/runtime/publishing credentials through silo namespaces",
 					"ownershipBoundary": "Provider-specific publishing adapters and approval workflow remain downstream"
 				}
 			},
@@ -930,14 +1044,23 @@
 				"id": "@refarm.dev/plugin-manifest",
 				"risk": "plugin",
 				"mustPassChecks": [
-					"pnpm run type-check",
-					"pnpm run test:unit"
+					"pnpm --filter @refarm.dev/plugin-manifest run type-check",
+					"pnpm --filter @refarm.dev/plugin-manifest run test",
+					"pnpm --filter @refarm.dev/plugin-manifest run test:conformance"
 				],
 				"tags": [
 					"plugin-contract",
-					"reference-hold",
-					"multi-layer-plugin-hold"
-				]
+					"sdk-primitive",
+					"consumer-pulled",
+					"consumer-ready",
+					"boundary-review"
+				],
+				"consumerPull": {
+					"proofId": "plugin-manifest.manifest-v1-as-a-dependency",
+					"downstreamUse": "The manifest:v1 types and validators that vault-contract-v1 depends on at runtime",
+					"proofTarget": "a consumer's vault contract resolves the manifest:v1 types and validators from the registry; plugin installation, trust decisions and runtime hosting stay with the host",
+					"ownershipBoundary": "Install policy, trust, WASM/runtime hosting and registries remain host-owned; the package owns the manifest shape, its validation and its fixtures"
+				}
 			}
 		],
 		"phases": [

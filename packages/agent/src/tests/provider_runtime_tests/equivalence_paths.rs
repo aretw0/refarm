@@ -25,7 +25,7 @@ fn provider_runtime_contract_and_state_primitives_dispatch_paths_are_equivalent(
         |state, phase, iter_idx, max_iter, response, dispatch| {
             assert_eq!(*phase, 41);
             assert_eq!(iter_idx, 0);
-            assert_eq!(max_iter, 0);
+            assert_eq!(max_iter, 1, "a plan declaring 0 steps still runs — and terminates on — exactly one");
             assert_eq!(response["ok"], "eq");
             state
                 .wire_msgs
@@ -54,7 +54,7 @@ fn provider_runtime_contract_and_state_primitives_dispatch_paths_are_equivalent(
         |_ctx, state, contract, dispatch| {
             assert_eq!(*contract.phase, 41);
             assert_eq!(contract.iter_idx, 0);
-            assert_eq!(contract.max_iter, 0);
+            assert_eq!(contract.max_iter, 1, "a plan declaring 0 steps still runs — and terminates on — exactly one");
             assert_eq!(contract.response["ok"], "eq");
             state
                 .wire_msgs
@@ -93,13 +93,13 @@ fn provider_runtime_contract_and_state_primitives_non_dispatch_paths_are_equival
             assert_eq!(*ctx, "ctx-eq-no-dispatch");
             assert_eq!(model, "model-eq-no-dispatch");
             assert_eq!(wire_msgs.len(), 0);
-            usage_totals.tokens_cached += 9;
+            usage_totals.cache_read_tokens += 9;
             Ok((serde_json::json!({"ok": "eq-no-dispatch"}), 51_u8))
         },
         |state, phase, iter_idx, max_iter, response| {
             assert_eq!(*phase, 51);
             assert_eq!(iter_idx, 0);
-            assert_eq!(max_iter, 0);
+            assert_eq!(max_iter, 1, "a plan declaring 0 steps still runs — and terminates on — exactly one");
             assert_eq!(response["ok"], "eq-no-dispatch");
             state.wire_msgs.push(serde_json::json!({"role": "assistant"}));
             Ok(Some("eq-no-dispatch-done".to_string()))
@@ -114,7 +114,7 @@ fn provider_runtime_contract_and_state_primitives_non_dispatch_paths_are_equival
             assert_eq!(*ctx, "ctx-eq-no-dispatch");
             assert_eq!(model, "model-eq-no-dispatch");
             assert_eq!(state.wire_msgs.len(), 0);
-            state.usage_totals.tokens_cached += 9;
+            state.usage_totals.cache_read_tokens += 9;
             Ok(crate::provider_runtime::provider_response_phase_contract(
                 serde_json::json!({"ok": "eq-no-dispatch"}),
                 51_u8,
@@ -123,7 +123,7 @@ fn provider_runtime_contract_and_state_primitives_non_dispatch_paths_are_equival
         |_ctx, state, contract| {
             assert_eq!(*contract.phase, 51);
             assert_eq!(contract.iter_idx, 0);
-            assert_eq!(contract.max_iter, 0);
+            assert_eq!(contract.max_iter, 1, "a plan declaring 0 steps still runs — and terminates on — exactly one");
             assert_eq!(contract.response["ok"], "eq-no-dispatch");
             state.wire_msgs.push(serde_json::json!({"role": "assistant"}));
             Ok(Some("eq-no-dispatch-done".to_string()))
@@ -133,10 +133,10 @@ fn provider_runtime_contract_and_state_primitives_non_dispatch_paths_are_equival
 
     assert_eq!(state_out.text, contract_out.text);
     assert_eq!(state_out.response, contract_out.response);
-    assert_eq!(state_out.state.usage_totals.tokens_cached, 9);
+    assert_eq!(state_out.state.usage_totals.cache_read_tokens, 9);
     assert_eq!(
-        state_out.state.usage_totals.tokens_cached,
-        contract_out.state.usage_totals.tokens_cached
+        state_out.state.usage_totals.cache_read_tokens,
+        contract_out.state.usage_totals.cache_read_tokens
     );
     assert_eq!(state_out.state.wire_msgs, contract_out.state.wire_msgs);
 }
@@ -161,7 +161,7 @@ fn provider_runtime_contract_and_state_dispatch_max_iter_termination_are_equival
             Ok((serde_json::json!({"iter": state_calls}), 61_u8))
         },
         |state, _phase, iter_idx, max_iter, response, dispatch| {
-            if iter_idx == max_iter {
+            if iter_idx + 1 >= max_iter {
                 Ok(Some(format!("done-max-dispatch-{iter_idx}-{}", response["iter"])))
             } else {
                 *dispatch += 1;
@@ -188,7 +188,7 @@ fn provider_runtime_contract_and_state_dispatch_max_iter_termination_are_equival
             ))
         },
         |_ctx, state, contract, dispatch| {
-            if contract.iter_idx == contract.max_iter {
+            if contract.iter_idx + 1 >= contract.max_iter {
                 Ok(Some(format!(
                     "done-max-dispatch-{}-{}",
                     contract.iter_idx, contract.response["iter"]
@@ -208,7 +208,11 @@ fn provider_runtime_contract_and_state_dispatch_max_iter_termination_are_equival
 
     assert_eq!(state_out.text, contract_out.text);
     assert_eq!(state_out.response, contract_out.response);
-    assert_eq!(state_out.state.usage_totals.tokens_out, 3);
+    assert_eq!(
+        state_out.state.usage_totals.tokens_out, 2,
+        "a plan of 2 steps makes exactly 2 completions. It used to make 3: \
+         `0..=max_iter` ran one more iteration than the ceiling it reported"
+    );
     assert_eq!(
         state_out.state.usage_totals.tokens_out,
         contract_out.state.usage_totals.tokens_out
@@ -236,7 +240,7 @@ fn provider_runtime_contract_and_state_non_dispatch_max_iter_termination_are_equ
             Ok((serde_json::json!({"iter": state_calls}), 71_u8))
         },
         |state, _phase, iter_idx, max_iter, response| {
-            if iter_idx == max_iter {
+            if iter_idx + 1 >= max_iter {
                 Ok(Some(format!("done-max-no-dispatch-{iter_idx}-{}", response["iter"])))
             } else {
                 state
@@ -261,7 +265,7 @@ fn provider_runtime_contract_and_state_non_dispatch_max_iter_termination_are_equ
             ))
         },
         |_ctx, state, contract| {
-            if contract.iter_idx == contract.max_iter {
+            if contract.iter_idx + 1 >= contract.max_iter {
                 Ok(Some(format!(
                     "done-max-no-dispatch-{}-{}",
                     contract.iter_idx, contract.response["iter"]
@@ -279,7 +283,11 @@ fn provider_runtime_contract_and_state_non_dispatch_max_iter_termination_are_equ
 
     assert_eq!(state_out.text, contract_out.text);
     assert_eq!(state_out.response, contract_out.response);
-    assert_eq!(state_out.state.usage_totals.tokens_reasoning, 3);
+    assert_eq!(
+        state_out.state.usage_totals.tokens_reasoning, 2,
+        "a plan of 2 steps makes exactly 2 completions. It used to make 3: \
+         `0..=max_iter` ran one more iteration than the ceiling it reported"
+    );
     assert_eq!(
         state_out.state.usage_totals.tokens_reasoning,
         contract_out.state.usage_totals.tokens_reasoning

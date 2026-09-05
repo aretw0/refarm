@@ -223,10 +223,14 @@ if (!dryRun) {
 const loaderSpecifier = pathToFileURL(LOADER_ENTRY).href;
 const shimPath = path.join(binDir, "refarm");
 const cmdPath = path.join(binDir, "refarm.cmd");
+// A launcher is also consumed by supervisors, whose PATH is intentionally smaller than an
+// interactive shell's (and never includes an NVM installation by accident). Pin the interpreter
+// that is installing the shim so an absolute REFARM_COMMAND is actually self-contained.
+const nodeExecutable = process.execPath;
 const shimBody = `#!/usr/bin/env bash
 set -euo pipefail
 export REFARM_COMMAND=${JSON.stringify(shimPath)}
-exec node --import ${JSON.stringify(loaderSpecifier)} ${JSON.stringify(DIST_ENTRY)} "$@"
+exec ${JSON.stringify(nodeExecutable)} --import ${JSON.stringify(loaderSpecifier)} ${JSON.stringify(DIST_ENTRY)} "$@"
 `;
 
 if (dryRun) {
@@ -242,7 +246,7 @@ if (dryRun) {
 }
 
 if (process.platform === "win32") {
-	const cmdBody = `@echo off\r\nset "REFARM_COMMAND=%~f0"\r\nnode --import "${loaderSpecifier}" "${DIST_ENTRY}" %*\r\n`;
+	const cmdBody = `@echo off\r\nset "REFARM_COMMAND=%~f0"\r\n"${nodeExecutable}" --import "${loaderSpecifier}" "${DIST_ENTRY}" %*\r\n`;
 	if (dryRun) {
 		if (!options.json) {
 			console.log(

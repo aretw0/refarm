@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { detectProjectBase } from "../project-base.js";
 
 /**
  * FileSystemAuditor: Generic primitives for filesystem and Git visibility.
@@ -28,9 +29,21 @@ export class FileSystemAuditor {
 			return { error: `Path not found: ${absolutePath}` };
 		}
 
+		// Git-visibility auditing only means something inside a project (see
+		// project-base.js). At a node base, checkGitVisibility would otherwise
+		// walk every sibling directory it can find — including unrelated git
+		// repositories nested under the same home directory — and report their
+		// files as "git_ignored" against a repository it does not own. That is
+		// neither a clean pass nor a real finding, so it must not silently
+		// become one.
+		const projectBase = detectProjectBase(rootDir);
+		const git = projectBase.isProject ? await this.checkGitVisibility(rootDir, absolutePath) : [];
+
 		return {
-			git: await this.checkGitVisibility(rootDir, absolutePath),
+			git,
 			structure: await this.analyzeStructure(absolutePath),
+			applicable: projectBase.isProject,
+			...(projectBase.isProject ? {} : { reason: projectBase.reason }),
 		};
 	}
 
@@ -80,7 +93,18 @@ export class FileSystemAuditor {
 				}
 			}
 		} catch (e) {
-			console.error(`[Health:Generic] Git visibility check failed: ${e.message}`);
+			// Three honest outcomes, not two (see ConfigNodeAuditor): a thrown
+			// read partway through the walk used to be logged to stderr only and
+			// then folded into whatever `issues` had collected so far — often
+			// `[]`, byte-identical to "scanned everything, found nothing". A
+			// caller that only counts `issues.length` cannot tell "clean" from
+			// "gave up". Push a real, typed issue instead so "could not check"
+			// survives into the report.
+			issues.push({
+				type: "git_visibility_unreachable",
+				path: targetPath,
+				note: `git-visibility scan did not complete: ${e?.message ?? e}`,
+			});
 		}
 		return issues;
 	}

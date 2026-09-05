@@ -58,7 +58,7 @@ UX de wallet.
 Enriquecimento determinístico de records/notas por providers externos. O
 provider retorna mudanças com proveniência e diagnósticos; consumidores decidem
 se e como persistir. O pacote está implementado, consumer-proven no `vault-seed`
-e selecionado para `vault-seed-ready`; publicação pública ainda passa pela
+e selecionado para `consumer-ready`; publicação pública ainda passa pela
 release lane.
 
 ### `records:v1`

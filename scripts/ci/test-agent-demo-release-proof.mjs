@@ -10,9 +10,9 @@ import {
 
 test("parses agent-demo release proof options", () => {
 	assert.deepEqual(
-		parseAgentDemoReleaseProofArgs(["--selection", "vault-seed-ready", "--", "--json"]),
+		parseAgentDemoReleaseProofArgs(["--selection", "consumer-ready", "--", "--json"]),
 		{
-			selectionId: "vault-seed-ready",
+			selectionId: "consumer-ready",
 			json: true,
 		},
 	);
@@ -21,11 +21,11 @@ test("parses agent-demo release proof options", () => {
 test("proves the agent-demo public surface without publishing held plugin runtime packages", () => {
 	const proof = buildAgentDemoReleaseProof({
 		env: { REFARM_PACKAGE_MANAGER: "pnpm" },
-		selectionId: "vault-seed-ready",
+		selectionId: "consumer-ready",
 	});
 
 	assert.equal(proof.ok, true);
-	assert.equal(proof.selectionId, "vault-seed-ready");
+	assert.equal(proof.selectionId, "consumer-ready");
 	assert.deepEqual(
 		proof.publicSurface.map((entry) => entry.package),
 		REQUIRED_PUBLIC_PACKAGES,

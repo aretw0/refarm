@@ -1,6 +1,7 @@
 {
 	"name": "@refarm.dev/node-contract-v1",
 	"version": "0.1.0",
+	"repository": "https://github.com/aretw0/refarm.git",
 	"description": "Base GraphNode interface — shared fields for typed sovereign data graph nodes",
 	"type": "module",
 	"main": "./dist/index.js",

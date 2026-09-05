@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SESSION_LOCK_PATH } from "../../src/commands/session-lock.js";
 import { createSessionsCommand } from "../../src/commands/sessions.js";
 
 describe("refarm sessions", () => {
@@ -52,6 +53,12 @@ describe("refarm sessions", () => {
 		const mkdirSpy = vi
 			.spyOn(fs, "mkdirSync")
 			.mockImplementation(() => undefined as string | undefined);
+		// getWriteCandidatePaths() probes writability with a real (unmocked) accessSync
+		// on the lock dir's parent. That parent only pre-exists by accident on a real
+		// operator machine (the actual ~/.refarm) — under the suite-wide throwaway HOME
+		// (see vitest.setup.ts) the sandboxed dir is genuinely empty, so this must be
+		// stubbed too, or the write path resolves to "none available".
+		vi.spyOn(fs, "accessSync").mockImplementation(() => undefined);
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")
 			.mockImplementation(() => undefined);
@@ -73,7 +80,7 @@ describe("refarm sessions", () => {
 		expect(init.body).toBe(JSON.stringify({ name: "auth-refactor" }));
 		expect(mkdirSpy).toHaveBeenCalled();
 		expect(writeSpy).toHaveBeenCalledWith(
-			expect.stringContaining(".refarm/session.lock"),
+			SESSION_LOCK_PATH,
 			"urn:sovereign:session:v1:abc123def456",
 			"utf-8",
 		);
@@ -94,6 +101,9 @@ describe("refarm sessions", () => {
 		});
 		vi.stubGlobal("fetch", fetchMock);
 		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
+		// See the sibling test above: accessSync must be stubbed too, since it isn't
+		// mocked at all otherwise and the sandboxed lock dir genuinely doesn't exist.
+		vi.spyOn(fs, "accessSync").mockImplementation(() => undefined);
 		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
 		vi.spyOn(fs, "readFileSync").mockReturnValue(
 			"urn:sovereign:session:v1:abc123def456",
@@ -417,7 +427,7 @@ describe("refarm sessions", () => {
 			.parseAsync(["abc123"], { from: "user" });
 
 		expect(writeSpy).toHaveBeenCalledWith(
-			expect.stringContaining(".refarm/session.lock"),
+			SESSION_LOCK_PATH,
 			"urn:sovereign:session:v1:abc123def456",
 			"utf-8",
 		);

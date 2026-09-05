@@ -23,6 +23,7 @@ import {
 export interface RefarmCheckReport {
 	command: "check";
 	operation: "readiness";
+	warningsAsBlocking: boolean;
 	ok: boolean;
 	failureCount: number;
 	warningCount: number;
@@ -134,7 +135,8 @@ export function buildRefarmCheckReport(checks: {
 	workspaceExecution?: WorkspaceExecutionStatus;
 	workspaceSweep?: WorkspaceSweepCheck;
 	releasePolicy?: ReleasePolicyCheck;
-}): RefarmCheckReport {
+}, options: { warningsAsBlocking?: boolean } = {}): RefarmCheckReport {
+	const warningsAsBlocking = options.warningsAsBlocking === true;
 	const recommendations: DiagnosticRecommendation[] = [
 		...(checks.nodeSubstrate?.recommendations ?? []),
 		...(checks.rustSubstrate?.recommendations ?? []),
@@ -146,7 +148,9 @@ export function buildRefarmCheckReport(checks: {
 		...checks.doctor.recommendations,
 		...modelDoctorCheckRecommendations(checks.model),
 	];
-	const blockingRecommendations = recommendations.filter(isBlockingRecommendation);
+	const blockingRecommendations = recommendations.filter((recommendation) =>
+		isBlockingRecommendation(recommendation, warningsAsBlocking),
+	);
 	const failureCount =
 		(checks.nodeSubstrate?.ok === false ? 1 : 0) +
 		(checks.rustSubstrate?.ok === false ? 1 : 0) +
@@ -159,6 +163,7 @@ export function buildRefarmCheckReport(checks: {
 	return {
 		command: "check",
 		operation: "readiness",
+		warningsAsBlocking,
 		ok:
 			(checks.nodeSubstrate?.ok ?? true) &&
 			(checks.rustSubstrate?.ok ?? true) &&
@@ -282,8 +287,13 @@ function modelDoctorCheckRecommendations(
 	}));
 }
 
-function isBlockingRecommendation(recommendation: DiagnosticRecommendation): boolean {
-	return recommendation.severity !== "warning" && recommendation.severity !== "info";
+function isBlockingRecommendation(
+	recommendation: DiagnosticRecommendation,
+	warningsAsBlocking = false,
+): boolean {
+	if (recommendation.severity === "info") return false;
+	if (recommendation.severity === "warning") return warningsAsBlocking;
+	return true;
 }
 
 export function printRefarmCheckSummary(report: RefarmCheckReport): void {
@@ -351,18 +361,32 @@ export function printRefarmCheckNextActionJson(report: RefarmCheckReport): void 
 		ok: report.ok,
 		nextActions: report.nextActions,
 		nextCommands: report.nextCommands,
-		recommendations: compactActionableRecommendations(report.recommendations),
+		recommendations: compactActionableRecommendations(
+			report.recommendations,
+			report.warningsAsBlocking,
+		),
 	});
-	printJson(output);
+	// ISS-083. `ok: true` from THIS command is what CLAUDE.md tells every agent to trust, and it
+	// used to mean two different things with no way to tell them apart: "every auditor ran and
+	// found nothing" and "the auditor that would have found something did not run for this change
+	// set". A standing config_node_drift was invisible here while `refarm health` reported it on
+	// the same node, minutes apart.
+	//
+	// The auditor layer already got this right — it distinguishes `config_node_unreachable` from a
+	// clean pass precisely so a failed read cannot read as fine — and the composite above it
+	// re-introduced the collapse. The list is carried even when EMPTY, because "nothing was skipped"
+	// is the fact that makes `ok: true` mean what a reader assumes it means.
+	printJson({ ...output, skippedAuditors: report.checks.health.skippedAuditors ?? [] });
 }
 
 function compactActionableRecommendations(
 	recommendations: DiagnosticRecommendation[],
+	warningsAsBlocking = false,
 ): DiagnosticRecommendation[] {
 	const seen = new Set<string>();
 	const compact: DiagnosticRecommendation[] = [];
 	for (const recommendation of recommendations) {
-		if (!isBlockingRecommendation(recommendation)) continue;
+		if (!isBlockingRecommendation(recommendation, warningsAsBlocking)) continue;
 		const key = `${recommendation.action}\n${recommendation.command ?? ""}`;
 		if (seen.has(key)) continue;
 		seen.add(key);

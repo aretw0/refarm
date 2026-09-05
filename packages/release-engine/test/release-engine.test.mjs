@@ -360,34 +360,40 @@ test("cli plan json resolves the Refarm default release selection", (t) => {
 test("cli plan json resolves the Refarm vault-seed-ready release selection", (t) => {
   if (skipWithoutRefarmRepo(t)) return;
 
-  const payload = runCliJson(["plan", "--cwd", repoRoot, "--selection", "vault-seed-ready"]);
+  const payload = runCliJson(["plan", "--cwd", repoRoot, "--selection", "consumer-ready"]);
 
   assert.equal(payload.command, "plan");
   assert.equal(payload.schemaVersion, 1);
   assert.equal(payload.ok, true);
-  assert.equal(payload.selection.id, "vault-seed-ready");
+  assert.equal(payload.selection.id, "consumer-ready");
   assert.deepEqual(payload.selection.audienceBoundary, {
     consumer: "vault-seed",
     naming: "product-neutral-sdk",
     productLocal:
       "Vault-specific CLI labels, copy, notebooks, routes, and UX stay downstream-owned.",
   });
-  assert.deepEqual(payload.profileTags, ["vault-seed-ready"]);
+  assert.deepEqual(payload.profileTags, ["consumer-ready"]);
   assert.deepEqual(payload.packages, [
+    // 25 since 2026-08-30: provenance-contract-v1 entered (0efcfd4c) and, before it,
+    // vault-contract-v1 (cc61342e, 2026-08-28) — the NINTH place that commit's counts did not
+    // reach: this suite is not in release:readiness:test, only clean-room runs it cold.
     "@refarm.dev/storage-contract-v1",
     "@refarm.dev/identity-contract-v1",
     "@refarm.dev/artifact-contract-v1",
     "@refarm.dev/channel-policy-v1",
     "@refarm.dev/effort-contract-v1",
     "@refarm.dev/quality-contract-v1",
+    "@refarm.dev/provenance-contract-v1",
+    "@refarm.dev/std",
+    "@refarm.dev/node-contract-v1",
     "@refarm.dev/source-contract-v1",
     "@refarm.dev/enrichment-contract-v1",
     "@refarm.dev/records-contract-v1",
     "@refarm.dev/process-handoff",
-    "@refarm.dev/health",
     "@refarm.dev/release-engine",
     "@refarm.dev/heartwood",
     "@refarm.dev/silo",
+    "@refarm.dev/plugin-manifest",
     "@refarm.dev/storage-memory",
     "@refarm.dev/credentials-contract-v1",
     "@refarm.dev/dispatch-surface",
@@ -395,23 +401,25 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", (t)
     "@refarm.dev/source-web",
     "@refarm.dev/content-projection",
     "@refarm.dev/identity-heartwood",
+    "@refarm.dev/vault-contract-v1",
     "@refarm.dev/local-surface",
     "@refarm.dev/ds-astro",
   ]);
   assert.equal(
     payload.packageProfiles.every((profile) =>
-      profile.tags.includes("vault-seed-ready")
+      profile.tags.includes("consumer-ready")
     ),
     true,
   );
   assert.equal(payload.packages.includes("@refarm.dev/cli"), false);
   assert.equal(payload.packages.includes("@refarm.dev/homestead"), false);
   assert.equal(payload.acceptance.status, "accepted");
-  assert.equal(payload.acceptance.packageCount, 23);
+  assert.equal(payload.acceptance.packageCount, 27);
   assert.equal(payload.acceptance.blockerCount, 0);
   assert.equal(payload.acceptance.manualApprovalRequired, true);
-  assert.deepEqual(payload.acceptance.profileTags, ["vault-seed-ready"]);
-  assert.deepEqual(payload.acceptance.surfaces, ["core", "shared"]);
+  assert.deepEqual(payload.acceptance.profileTags, ["consumer-ready"]);
+  // plugin-manifest brought the "plugin" surface into the lane (2026-08-30).
+  assert.deepEqual(payload.acceptance.surfaces, ["core", "plugin", "shared"]);
   assert.equal(
     payload.acceptance.requiredCheckCount,
     payload.packageProfiles.reduce(

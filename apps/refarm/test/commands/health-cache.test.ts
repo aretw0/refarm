@@ -21,6 +21,15 @@ function createWorkspace(): string {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-health-cache-"));
 	tempRoots.push(root);
 	fs.mkdirSync(path.join(root, "packages", "example"), { recursive: true });
+	// A root package.json is what makes this a PROJECT rather than a bare node
+	// base — see packages/health/src/project-base.js. Every real workspace root
+	// has one; without it, generic_fs/project self-report `applicable: false`
+	// and this fixture would never see a build/git finding no matter what it
+	// removes below.
+	fs.writeFileSync(
+		path.join(root, "package.json"),
+		`${JSON.stringify({ name: "example-workspace", private: true }, null, 2)}\n`,
+	);
 	fs.writeFileSync(
 		path.join(root, "refarm.config.json"),
 		`${JSON.stringify({

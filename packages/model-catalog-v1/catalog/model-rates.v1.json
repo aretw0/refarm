@@ -1,0 +1,439 @@
+{
+  "schemaVersion": "model-rate-catalog.v1",
+  "catalogVersion": "2026-08-04.6",
+  "entries": [
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-fable-5"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 10.0,
+        "outputPerMTokenUsd": 50.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-04",
+      "contextWindow": {
+        "tokens": 1000000,
+        "sourceUrl": "https://platform.claude.com/docs/en/about-claude/models/overview",
+        "verifiedAt": "2026-08-04"
+      }
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-mythos-5"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 10.0,
+        "outputPerMTokenUsd": 50.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-04",
+      "contextWindow": {
+        "tokens": 1000000,
+        "sourceUrl": "https://platform.claude.com/docs/en/about-claude/models/overview",
+        "verifiedAt": "2026-08-04"
+      }
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-opus-5"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 5.0,
+        "outputPerMTokenUsd": 25.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-04",
+      "contextWindow": {
+        "tokens": 1000000,
+        "sourceUrl": "https://platform.claude.com/docs/en/about-claude/models/overview",
+        "verifiedAt": "2026-08-04"
+      }
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-sonnet-5"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 2.0,
+        "outputPerMTokenUsd": 10.0
+      },
+      "effectiveFrom": "2026-06-01",
+      "effectiveTo": "2026-08-31",
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-04",
+      "contextWindow": {
+        "tokens": 1000000,
+        "sourceUrl": "https://platform.claude.com/docs/en/about-claude/models/overview",
+        "verifiedAt": "2026-08-04"
+      }
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-sonnet-5"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 3.0,
+        "outputPerMTokenUsd": 15.0
+      },
+      "effectiveFrom": "2026-09-01",
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-04",
+      "contextWindow": {
+        "tokens": 1000000,
+        "sourceUrl": "https://platform.claude.com/docs/en/about-claude/models/overview",
+        "verifiedAt": "2026-08-04"
+      }
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-5.6-sol"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 5.0,
+        "outputPerMTokenUsd": 30.0
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-04",
+      "contextWindow": {
+        "tokens": 1050000,
+        "sourceUrl": "https://developers.openai.com/api/docs/models",
+        "verifiedAt": "2026-08-04"
+      }
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-5.6-terra"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 2.0,
+        "outputPerMTokenUsd": 12.0
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-04",
+      "contextWindow": {
+        "tokens": 1050000,
+        "sourceUrl": "https://developers.openai.com/api/docs/models",
+        "verifiedAt": "2026-08-04"
+      }
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-5.6-luna"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 0.2,
+        "outputPerMTokenUsd": 1.2
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-04",
+      "contextWindow": {
+        "tokens": 1050000,
+        "sourceUrl": "https://developers.openai.com/api/docs/models",
+        "verifiedAt": "2026-08-04"
+      }
+    },
+    {
+      "provider": "xai",
+      "match": {
+        "mode": "contains",
+        "value": "grok-4.3"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 1.25,
+        "outputPerMTokenUsd": 2.5
+      },
+      "pricingUrl": "https://docs.x.ai/docs/models",
+      "verifiedAt": "2026-08-04",
+      "contextWindow": {
+        "tokens": 1000000,
+        "sourceUrl": "https://docs.x.ai/docs/models",
+        "verifiedAt": "2026-08-04"
+      }
+    },
+    {
+      "provider": "deepseek",
+      "match": {
+        "mode": "contains",
+        "value": "deepseek-v4-flash"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 0.14,
+        "outputPerMTokenUsd": 0.28
+      },
+      "pricingUrl": "https://api-docs.deepseek.com/quick_start/pricing",
+      "verifiedAt": "2026-08-04",
+      "contextWindow": {
+        "tokens": 1000000,
+        "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing",
+        "verifiedAt": "2026-08-04"
+      }
+    },
+    {
+      "provider": "gemini",
+      "match": {
+        "mode": "contains",
+        "value": "gemini-3-flash-preview"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 0.5,
+        "outputPerMTokenUsd": 3.0
+      },
+      "pricingUrl": "https://ai.google.dev/gemini-api/docs/pricing",
+      "verifiedAt": "2026-08-04",
+      "contextWindow": {
+        "tokens": 1048576,
+        "sourceUrl": "https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview",
+        "verifiedAt": "2026-08-04"
+      }
+    },
+    {
+      "provider": "groq",
+      "match": {
+        "mode": "contains",
+        "value": "llama-3.3-70b-versatile"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 0.59,
+        "outputPerMTokenUsd": 0.79
+      },
+      "pricingUrl": "https://groq.com/pricing",
+      "verifiedAt": "2026-08-04",
+      "contextWindow": {
+        "tokens": 131072,
+        "sourceUrl": "https://console.groq.com/docs/models",
+        "verifiedAt": "2026-08-04"
+      }
+    },
+    {
+      "provider": "mistral",
+      "match": {
+        "mode": "contains",
+        "value": "mistral-medium-3-5"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 1.5,
+        "outputPerMTokenUsd": 7.5
+      },
+      "pricingUrl": "https://mistral.ai/pricing/api",
+      "verifiedAt": "2026-08-04",
+      "contextWindow": {
+        "tokens": 256000,
+        "sourceUrl": "https://docs.mistral.ai/models/model-cards/mistral-medium-3-5-26-04",
+        "verifiedAt": "2026-08-04"
+      }
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-opus-4-5"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 5.0,
+        "outputPerMTokenUsd": 25.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-opus-4-6"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 5.0,
+        "outputPerMTokenUsd": 25.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-opus-4-7"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 5.0,
+        "outputPerMTokenUsd": 25.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-opus-4-8"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 5.0,
+        "outputPerMTokenUsd": 25.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-sonnet-4"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 3.0,
+        "outputPerMTokenUsd": 15.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-haiku-4-5"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 1.0,
+        "outputPerMTokenUsd": 5.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-opus-4"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 15.0,
+        "outputPerMTokenUsd": 75.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "anthropic",
+      "match": {
+        "mode": "contains",
+        "value": "claude-haiku"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 0.8,
+        "outputPerMTokenUsd": 4.0
+      },
+      "pricingUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-5.5"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 5.0,
+        "outputPerMTokenUsd": 30.0
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-5-mini"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 0.25,
+        "outputPerMTokenUsd": 2.0
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-5-nano"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 0.05,
+        "outputPerMTokenUsd": 0.4
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-4o-mini"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 0.15,
+        "outputPerMTokenUsd": 0.6
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-4o"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 2.5,
+        "outputPerMTokenUsd": 10.0
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-5.1-codex-mini"
+      },
+      "unpriced": {
+        "reason": "not listed on OpenAI's pricing page as its own line item, so no rate could be verified",
+        "checkedAt": "2026-08-03",
+        "note": "Must stay AHEAD of the gpt-5 family rule below: \"gpt-5.1-codex-mini\" contains \"gpt-5\", so first-match-wins would otherwise price it at $1.25/$10 by association. The built-in Rust table carves the same id out of the same family branch for the same reason."
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-03"
+    },
+    {
+      "provider": "openai",
+      "match": {
+        "mode": "contains",
+        "value": "gpt-5"
+      },
+      "rate": {
+        "inputPerMTokenUsd": 1.25,
+        "outputPerMTokenUsd": 10.0
+      },
+      "pricingUrl": "https://developers.openai.com/api/docs/pricing",
+      "verifiedAt": "2026-08-03"
+    }
+  ]
+}

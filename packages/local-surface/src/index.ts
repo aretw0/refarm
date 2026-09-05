@@ -39,7 +39,8 @@ export interface LocalSurfaceInput {
 	theme?: string;
 	storageNamespaces?: string[];
 	panels: LocalSurfacePanel[];
-	actions: LocalSurfaceAction[];
+	/** Uma superfície somente-leitura não oferece nada para clicar. */
+	actions?: LocalSurfaceAction[];
 	evidence?: string[];
 	boundaries?: string[];
 }
@@ -98,7 +99,7 @@ export function createLocalSurfaceManifest(input: LocalSurfaceInput): LocalSurfa
 			...panel,
 			...(panel.rows ? { rows: panel.rows.map((row) => ({ ...row })) } : {}),
 		})),
-		actions: input.actions.map((action) => ({ ...action })),
+		actions: (input.actions ?? []).map((action) => ({ ...action })),
 		evidence: [...(input.evidence ?? [])],
 		boundaries: [
 			...(input.boundaries ?? []),
@@ -106,6 +107,28 @@ export function createLocalSurfaceManifest(input: LocalSurfaceInput): LocalSurfa
 			"Command labels are white-label wrappers around the manifest shape.",
 		],
 	};
+}
+
+/**
+ * Monta a tabela de um painel alinhando cada célula à SUA coluna.
+ *
+ * A versão anterior tirava o cabeçalho das chaves da primeira linha e emitia
+ * `Object.values(row)` para cada linha. Como objetos JS preservam ordem de
+ * inserção, duas linhas com as mesmas chaves em ordens diferentes — o que
+ * acontece naturalmente quando vêm de fontes distintas — produziam uma tabela
+ * bem-formada com os valores trocados de coluna, sem erro nem aviso. Linhas com
+ * chaves diferentes perdiam colunas e deslocavam valores para o rótulo vizinho.
+ */
+function panelTableHtml(
+	rows: Array<Record<string, string | number | boolean | null>>,
+): string {
+	const headers = [...new Set(rows.flatMap((row) => Object.keys(row)))];
+	return tableHtml({
+		headers,
+		rows: rows.map((row) =>
+			headers.map((header) => (header in row ? String(row[header] ?? "") : "")),
+		),
+	});
 }
 
 export function renderLocalSurfaceDocument(
@@ -118,16 +141,7 @@ export function renderLocalSurfaceDocument(
 			rows: [
 				`<p>${escapeHtml(panel.summary)}</p>`,
 				`<p><strong>Kind:</strong> ${escapeHtml(panel.kind)}</p>`,
-				...(panel.rows?.length
-					? [
-							tableHtml({
-								headers: Object.keys(panel.rows[0] ?? {}),
-								rows: panel.rows.map((row) =>
-									Object.values(row).map((value) => String(value ?? "")),
-								),
-							}),
-						]
-					: []),
+				...(panel.rows?.length ? [panelTableHtml(panel.rows)] : []),
 			],
 		}),
 	);

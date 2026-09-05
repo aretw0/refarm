@@ -59,6 +59,7 @@ export function findWorkspacePackageForPath(root, changedPath, options = {}) {
 	return null;
 }
 
+// os-resolution: project — walks UP from where the operator stands looking for a workspace marker
 export function findWorkspaceRoot(startDir = process.cwd()) {
 	let current = path.resolve(startDir);
 	while (true) {
@@ -71,7 +72,15 @@ export function findWorkspaceRoot(startDir = process.cwd()) {
 	}
 }
 
-function hasWorkspaceRootMarker(dir) {
+/**
+ * Whether `dir` is a workspace root: a `.git` directory, a `pnpm-workspace.yaml`, or a
+ * `package.json` that declares `workspaces`. Exported (rather than kept private, as it
+ * was until 2026-08-06) because `apps/refarm/src/commands/context.ts` needs the exact
+ * same predicate to decide whether `findWorkspaceRoot`'s fallback-to-`cwd` fired for lack
+ * of a real marker — a second, hand-copied definition of "what makes a directory a
+ * workspace root" is a duplicate that can silently drift from this one.
+ */
+export function hasWorkspaceRootMarker(dir) {
 	return (
 		existsSync(path.join(dir, ".git")) ||
 		existsSync(path.join(dir, "pnpm-workspace.yaml")) ||

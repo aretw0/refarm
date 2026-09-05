@@ -1,14 +1,14 @@
 import {
 	buildChannelEffort,
 	CHANNEL_CONTROL_SURFACE_OPERATION_UNSUPPORTED_ERROR,
-	hasChannelControlCapability,
 	decodeChannel,
+	hasChannelControlCapability,
 	isChannelEffortPayload,
 	resolveChannelControlSurfaceAdapter,
 	type ChannelControlSurfaceOperation,
 } from "@refarm.dev/dispatch-surface";
 import type http from "node:http";
-import type { SidecarAdapter } from "./http.js";
+import type { EffortOperations } from "../effort-operations.js";
 
 function readJson<T>(req: http.IncomingMessage): Promise<T> {
 	return new Promise((resolve, reject) => {
@@ -39,7 +39,7 @@ function toJson(res: http.ServerResponse, status: number, body: unknown): void {
 function canChannelPerform(channel: string, action: ChannelControlSurfaceOperation): boolean {
 	return hasChannelControlCapability(resolveChannelControlSurfaceAdapter(channel).adapter, action);
 }
-export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
+export function createControlSurfaceRouteHandler(operations: EffortOperations) {
 	return (req: http.IncomingMessage, res: http.ServerResponse): boolean => {
 		const requestUrl = new URL(req.url ?? "/", "http://127.0.0.1");
 		const { pathname } = requestUrl;
@@ -68,8 +68,8 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 					}
 
 					const effort = buildChannelEffort(body, channel);
-					const effortId = await adapter.submit(effort);
-					void adapter.process(effort);
+					const effortId = await operations.submit(effort);
+					void operations.process(effort);
 					toJson(res, 200, {
 						effortId,
 						source: effort.source,
@@ -97,7 +97,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 						return;
 					}
 					const effortId = decodedSegment(logsMatch[2] ?? "");
-					const result = await adapter.logs(effortId);
+					const result = await operations.logs(effortId);
 					if (!result) {
 						toJson(res, 404, { error: "not found" });
 						return;
@@ -124,7 +124,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 						return;
 					}
 					const effortId = decodedSegment(retryMatch[2] ?? "");
-					const accepted = await adapter.retry(effortId);
+					const accepted = await operations.retry(effortId);
 					if (!accepted) {
 						toJson(res, 409, { error: "retry not allowed" });
 						return;
@@ -151,7 +151,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 						return;
 					}
 					const effortId = decodedSegment(cancelMatch[2] ?? "");
-					const accepted = await adapter.cancel(effortId);
+					const accepted = await operations.cancel(effortId);
 					if (!accepted) {
 						toJson(res, 409, { error: "cancel not allowed" });
 						return;
@@ -178,7 +178,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 						return;
 					}
 					const effortId = decodedSegment(statusMatch[2] ?? "");
-					const result = await adapter.query(effortId);
+					const result = await operations.query(effortId);
 					if (!result) {
 						toJson(res, 404, { error: "not found" });
 						return;
@@ -205,7 +205,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 						return;
 					}
 					const effortId = decodedSegment(streamMatch[2] ?? "");
-					const result = await adapter.logs(effortId);
+					const result = await operations.logs(effortId);
 					if (!result) {
 						toJson(res, 404, { error: "not found" });
 						return;
@@ -232,7 +232,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 						return;
 					}
 					const effortId = decodedSegment(evidenceMatch[2] ?? "");
-					const result = await adapter.logs(effortId);
+					const result = await operations.logs(effortId);
 					if (!result) {
 						toJson(res, 404, { error: "not found" });
 						return;
@@ -259,7 +259,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 						return;
 					}
 					const effortId = decodedSegment(statusByIdMatch[2] ?? "");
-					const result = await adapter.query(effortId);
+					const result = await operations.query(effortId);
 					if (!result) {
 						toJson(res, 404, { error: "not found" });
 						return;

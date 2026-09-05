@@ -178,6 +178,50 @@ export const baseConfig = {
 	test: {
 		globals: true,
 		environment: "node",
+		/**
+		 * COLOUR OFF, REPO-WIDE. Dozens of assertions across this monorepo read printed output
+		 * as plain text (`expect(out).toContain("current: ollama/llama3.2")`), and chalk wraps
+		 * that value in ANSI escapes whenever the ambient terminal supports colour. CI has no
+		 * TTY, so those suites are green there and RED on an ordinary developer machine —
+		 * measured 2026-08-11: `FORCE_COLOR=3` in an xterm-256color session turned 5 failures
+		 * into 16 in apps/refarm alone.
+		 *
+		 * A suite whose result depends on the operator's terminal is not a suite. Fixed here,
+		 * once, rather than in each assertion: the defect is ONE environment dependency, not
+		 * eleven wrong expectations.
+		 *
+		 * `test.env` and not a setup file, measured: chalk resolves its level at import, and
+		 * vitest loads chalk for its own reporter before any setupFile runs — setting the var
+		 * (or `chalk.level`) from there changed nothing, because the instance under test is a
+		 * different module copy. `test.env` is applied to the worker before the module graph
+		 * loads, which is the only point early enough.
+		 */
+		env: { FORCE_COLOR: "0", NO_COLOR: "1" },
+		/**
+		 * HOME CONTAINMENT, for every project that inherits this config — see
+		 * `home-containment.js` for what it does and for the day it was written after the suite
+		 * deleted a key from the operator's live node config (ISS-109). Resolved from THIS
+		 * file's location, never from cwd, for the same reason the aliases are: a package
+		 * running under `--filter` has a different cwd and would otherwise resolve nothing.
+		 *
+		 * A package that adds its OWN `setupFiles` keeps this one — `mergeConfig` concatenates
+		 * arrays — so opting into extra containment never opts out of the shared floor.
+		 */
+		setupFiles: [
+			path.join(path.dirname(fileURLToPath(import.meta.url)), "home-containment.js"),
+			// LAYER 1 too, repo-wide, on a MEASUREMENT rather than a plan. ISS-110 assumed this had
+			// to be adopted package by package because 101 test files write through
+			// `writeFileSync`/`mkdirSync`. It does not: a forced `turbo run test` across all 282
+			// tasks with the guard in "report" mode recorded ZERO escapes, because Layer 0 already
+			// points HOME at a tree inside the OS temp dir, so those 101 writers were landing
+			// somewhere the guard permits. The count that looked like the cost was the count of
+			// writers, not the count of escapes.
+			//
+			// The zero was verified against a deliberate escape, not trusted: planting one
+			// `writeFileSync` outside tmp produced exactly one recorded escape naming the
+			// operation, the path, the test and the package.
+			path.join(path.dirname(fileURLToPath(import.meta.url)), "write-guard-strict.js"),
+		],
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "json-summary"],

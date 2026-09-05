@@ -105,12 +105,12 @@ pnpm --filter @refarm.dev/capabilities-v1 run build
 
 Expected: PASS.
 
-- [ ] **Step 2: Run Refarm finish gate**
+- [x] **Step 2: Run Refarm finish gate**
 
 Run: `refarm agent finish --lane after-edit --run --json`
 
 Expected: PASS and next command is `refarm resume --json`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit** — landed as `24a78ee1`
 
 Commit message: `feat(refarm): add white-label extension host`

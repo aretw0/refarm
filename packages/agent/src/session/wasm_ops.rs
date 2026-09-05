@@ -1,7 +1,12 @@
 use crate::now_ns;
 use crate::plugin::host::tractor_bridge;
 
-use super::{history_from_nodes, session_entry_node, session_node, sum_provider_spend_usd};
+use super::{
+    budget_exceeded, history_from_nodes, pick_latest_session_id, pick_latest_session_leaf_id,
+    normalize_declaration, parse_budget_declaration, resolve_budget_check, session_entry_node, session_node,
+    stored_workspace_of,
+    workspace_stamp_action, BudgetCheck, BudgetDeclaration, StoredSession, WorkspaceStamp,
+};
 
 const SESSION_PREFIX_V1: &str = "urn:sovereign:session:v1:";
 const ENTRY_PREFIX_V1: &str = "urn:sovereign:session-entry:v1:";
@@ -14,45 +19,46 @@ fn new_entry_id_for_session(_session_id: &str) -> String {
     format!("{ENTRY_PREFIX_V1}{}", crate::new_id())
 }
 
+/// Select the current session id from the Session rows the storage layer returned.
+///
+/// NO SORT HERE, DELIBERATELY: `tractor_bridge::query_nodes` rides on
+/// `NativeStorage::query_nodes`'s `ORDER BY updated_at DESC, id DESC` guarantee
+/// (`docs/SOVEREIGN_RECORD_ORDERING.md`) — `sessions` below already arrives
+/// newest-TOUCHED-first. Session rows are UPSERTED on append, so `updated_at`
+/// (newest-touched) and a row's own `created_at_ns` field (newest-created) are
+/// different facts; "which session was I last in" wants the former, and SQL
+/// already gave it. Re-deriving "newest" here via a `max_by_key` on
+/// `created_at_ns` — the previous shape of this function — would be exactly the
+/// SECOND, disagreeing sort order that document forbids: it both duplicates the
+/// ordering work and answers a different question, and its top-N window could
+/// exclude a session that was created recently but never touched again. Do not
+/// add a sort/max_by_key back; if a future reader needs different semantics,
+/// change the storage layer's ORDER BY, not this caller.
+///
+/// The v1-id preference below is a SELECTION, not a re-sort: both
+/// `urn:sovereign:session:v1:`-prefixed and legacy unprefixed session ids are
+/// live in the same table, and a v1 id is preferred over a legacy one when both
+/// are present. `pick_latest_session_id` implements this as first-match scans
+/// over the order already given (first v1-prefixed row, else the first row of
+/// any shape) — never "take the first row" outright, and never a fold/max over
+/// the whole list. It lives in `pure.rs` so it is natively unit-tested; this
+/// module is wasm32-only and cannot host a `#[cfg(test)]` that runs on `cargo
+/// test --lib`.
 fn latest_session_id_with_v1_preference(limit: u32) -> Option<String> {
     let sessions: Vec<serde_json::Value> = tractor_bridge::query_nodes("Session", limit)
         .ok()?
+        .nodes
         .iter()
         .filter_map(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
         .collect();
 
-    let newest_v1 = sessions
-        .iter()
-        .filter_map(|v| {
-            let id = v["@id"].as_str()?;
-            if !id.starts_with(SESSION_PREFIX_V1) {
-                return None;
-            }
-            Some((v["created_at_ns"].as_u64().unwrap_or(0), id.to_owned()))
-        })
-        .max_by_key(|(ts, _)| *ts)
-        .map(|(_, id)| id);
-
-    if newest_v1.is_some() {
-        return newest_v1;
-    }
-
-    sessions
-        .iter()
-        .filter_map(|v| {
-            Some((
-                v["created_at_ns"].as_u64().unwrap_or(0),
-                v["@id"].as_str()?.to_owned(),
-            ))
-        })
-        .max_by_key(|(ts, _)| *ts)
-        .map(|(_, id)| id)
+    pick_latest_session_id(&sessions, SESSION_PREFIX_V1)
 }
 
 /// Create and persist a new Session. Returns the session `@id`.
 fn store_new_session(name: Option<&str>) -> Option<String> {
     let session_id = new_session_id();
-    let node = session_node(&session_id, name, None, None, now_ns());
+    let node = session_node(&session_id, name, None, None, now_ns(), None);
     tractor_bridge::store_node(&node.to_string()).ok()?;
     Some(session_id)
 }
@@ -61,18 +67,35 @@ fn latest_session_id(limit: u32) -> Option<String> {
     latest_session_id_with_v1_preference(limit)
 }
 
+/// Select the current session's leaf entry id from the Session rows the storage
+/// layer returned.
+///
+/// NO SORT HERE, DELIBERATELY, for the same reason as
+/// `latest_session_id_with_v1_preference` above: `sessions` already arrives
+/// newest-TOUCHED-first (`ORDER BY updated_at DESC, id DESC`,
+/// `docs/SOVEREIGN_RECORD_ORDERING.md`), and the previous shape of this function
+/// re-derived "newest" via `max_by_key(created_at_ns)` — a second, disagreeing sort
+/// order over the same rows this sibling function reads. Two functions answering
+/// adjacent questions about the same table must not each invent their own notion
+/// of "latest"; both now trust the one order SQL already gave.
+///
+/// `pick_latest_session_leaf_id` implements the corrected shape: the
+/// `leaf_entry_id` of the FIRST row in that order that actually has one (a
+/// freshly-created session with no entries yet is skipped in favour of the next
+/// most-recently-touched session that has a leaf — unchanged from before). Unlike
+/// `pick_latest_session_id`, there is no v1-prefix preference to apply here: this
+/// never compares session ids, it only reads a field off whichever row is first
+/// among the ones that have it. Lives in `pure.rs` for the same native-testability
+/// reason as its sibling.
 fn latest_session_leaf_id(limit: u32) -> Option<String> {
-    tractor_bridge::query_nodes("Session", limit)
+    let sessions: Vec<serde_json::Value> = tractor_bridge::query_nodes("Session", limit)
         .ok()?
+        .nodes
         .iter()
         .filter_map(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
-        .filter_map(|v| {
-            let ts = v["created_at_ns"].as_u64().unwrap_or(0);
-            let leaf_id = v["leaf_entry_id"].as_str()?.to_owned();
-            Some((ts, leaf_id))
-        })
-        .max_by_key(|(ts, _)| *ts)
-        .map(|(_, leaf_id)| leaf_id)
+        .collect();
+
+    pick_latest_session_leaf_id(&sessions)
 }
 
 /// Append a SessionEntry under `session_id`, wiring `parent_entry_id` from the
@@ -130,9 +153,26 @@ pub(crate) fn append_to_session(session_id: &str, kind: &str, content: &str) -> 
 pub(crate) fn get_or_create_session() -> String {
     if let Ok(id) = std::env::var("MODEL_SESSION_ID") {
         if !id.is_empty() {
-            if tractor_bridge::get_node(&id).is_err() {
-                let node = session_node(&id, None, None, None, now_ns());
-                let _ = tractor_bridge::store_node(&node.to_string());
+            // Bound first: `declared_workspace()` returns owned Strings, and the borrow below
+            // outlives the temporary if the call is inlined.
+            let declared = declared_workspace();
+            let incoming = declared
+                .as_ref()
+                .map(|(id, source)| (id.as_str(), source.as_str()));
+            let stored = read_stored_session(&id);
+            match workspace_stamp_action(&stored, incoming) {
+                WorkspaceStamp::Create => {
+                    let node = session_node(&id, None, None, None, now_ns(), incoming);
+                    let _ = tractor_bridge::store_node(&node.to_string());
+                }
+                // Read-modify-write, exactly like `append_to_session`'s leaf-pointer update:
+                // the node already exists and carries fields this call knows nothing about.
+                WorkspaceStamp::Stamp => {
+                    if let Some((workspace_id, workspace_source)) = incoming {
+                        stamp_workspace(&id, workspace_id, workspace_source);
+                    }
+                }
+                WorkspaceStamp::Leave => {}
             }
             return id;
         }
@@ -143,6 +183,61 @@ pub(crate) fn get_or_create_session() -> String {
     }
 
     store_new_session(None).unwrap_or_else(new_session_id)
+}
+
+/// THREE STATES from the host's own error vocabulary. `PluginError::NotFound` means the node is
+/// not there; anything else means the store could not be asked, and the two want opposite
+/// actions. `.is_err()` collapsed them, which is how a read failure could create a node over a
+/// live session (ISS-063). A payload that will not parse is `Present(None)` rather than
+/// `Unreadable`: the node demonstrably exists, and the honest reading of an unparseable payload
+/// is "it declares no workspace", not "there might be nothing here".
+fn read_stored_session(id: &str) -> StoredSession {
+    match tractor_bridge::get_node(&id.to_string()) {
+        Ok(raw) => StoredSession::Present(
+            serde_json::from_str::<serde_json::Value>(&raw)
+                .ok()
+                .and_then(|node| stored_workspace_of(&node)),
+        ),
+        Err(crate::plugin::host::tractor_bridge::PluginError::NotFound(_)) => StoredSession::Absent,
+        Err(_) => StoredSession::Unreadable,
+    }
+}
+
+/// Write the attribution onto an EXISTING Session node, preserving every other field. Same
+/// read-modify-write shape `append_to_session` uses for `leaf_entry_id`, and for the same
+/// reason: this call knows about two keys and must not author the rest.
+fn stamp_workspace(id: &str, workspace_id: &str, workspace_source: &str) {
+    let Ok(raw) = tractor_bridge::get_node(&id.to_string()) else {
+        return;
+    };
+    let Ok(mut node) = serde_json::from_str::<serde_json::Value>(&raw) else {
+        return;
+    };
+    node["workspace_id"] = serde_json::Value::String(workspace_id.to_string());
+    node["workspace_source"] = serde_json::Value::String(workspace_source.to_string());
+    let _ = tractor_bridge::store_node(&node.to_string());
+}
+
+/// The workspace attribution declared for THIS call, or `None`.
+///
+/// What happens with it is `workspace_stamp_action`'s decision, not this function's. The rule
+/// that used to live here — "an existing session keeps whatever it was created with" — was right
+/// about SEEDS and wrong about declarations: a seed must never re-attribute a conversation
+/// already under way, and `--workspace` is the operator correcting one that was seeded wrongly
+/// (ISS-057). See `pure.rs` for the full policy and its tests.
+///
+/// Both or neither: `workspace_id` and `workspace_source` are a pair, exactly like the two
+/// keys `session_node` inserts together (see `pure.rs`). An id arriving with no provenance
+/// is not defaulted to `"declared"` — that would fail toward the STRONGER claim on a
+/// distinction the design treats as load-bearing (ADR-094 H2: cwd-seeded is not policy
+/// truth). The CLI always sends both, so this changes no working path; it only closes a
+/// way for a non-CLI caller to get a mislabelled human declaration.
+fn declared_workspace() -> Option<(String, String)> {
+    // `normalize_declaration`, not a hand-rolled filter: this used to REJECT a trim-empty value
+    // without TRIMMING the one it kept, so `"  rcdc5  "` survived all the way onto the node.
+    let id = normalize_declaration(std::env::var("MODEL_WORKSPACE_ID").ok().as_deref())?;
+    let source = normalize_declaration(std::env::var("MODEL_WORKSPACE_SOURCE").ok().as_deref())?;
+    Some((id, source))
 }
 
 /// Try to build history by walking the active Session's entry tree.
@@ -197,8 +292,14 @@ pub(crate) fn query_history() -> Vec<(String, String)> {
 
     // Legacy fallback: timestamp-sort for pre-session UserPrompt/AgentResponse nodes.
     let limit = (max_turns * 2) as u32;
-    let mut nodes = tractor_bridge::query_nodes("UserPrompt", limit).unwrap_or_default();
-    nodes.extend(tractor_bridge::query_nodes("Response", limit).unwrap_or_default());
+    let mut nodes = tractor_bridge::query_nodes("UserPrompt", limit)
+        .map(|page| page.nodes)
+        .unwrap_or_default();
+    nodes.extend(
+        tractor_bridge::query_nodes("Response", limit)
+            .map(|page| page.nodes)
+            .unwrap_or_default(),
+    );
     history_from_nodes(&nodes, max_turns)
 }
 
@@ -271,15 +372,83 @@ pub(crate) fn record_context_fold(
 
 /// Returns true when `MODEL_BUDGET_<PROVIDER>_USD` is set and the rolling 30-day
 /// spend for `provider_name` (read from CRDT UsageRecord nodes) meets or exceeds it.
+///
+/// FAIL OPEN BUT LOUD (the policy is decided and justified in
+/// `session::pure::budget_exceeded` — read its HISTORY note before touching this
+/// function; it is now on its fourth telling and the earlier ones were each wrong
+/// in a different way). `resolve_budget_check` decides everything below this
+/// point: a `budget_usd <= 0.0` blocks before either `query_nodes` call is even
+/// made (case 0); otherwise a truncated first read either proves "over"
+/// arithmetically from the visible rows alone, or issues a SECOND `query_nodes`
+/// call — this function's `requery_all` closure below — for what SHOULD be the
+/// complete set, using `stored` (the true row count the first page already
+/// reported) as the limit. That follow-up carries its own `truncated` flag too
+/// (rows can be written between the two reads), and `resolve_budget_check`
+/// checks it the same way: `Unknown` unless the follow-up is complete or its
+/// own visible sum already proves "over". `resolve_budget_check` returns
+/// `Unknown` — and this function returns `false` without a definite answer —
+/// either when a POSITIVE-budget `query_nodes` call fails outright (first read
+/// or follow-up), or when the follow-up is itself truncated and still under
+/// budget. Before returning it, this function emits `agent:budget:unknown`
+/// naming the reason — the "loud" half of the policy — so even that remaining
+/// blind spot is on the record rather than indistinguishable from a genuine
+/// under-budget read.
+///
+/// A query error must not become a sum of zero (an error is not evidence of zero
+/// spend), so the `Err` branch of `query_nodes` is threaded through to
+/// `resolve_budget_check` as `Err(())` rather than defaulted away with
+/// `.unwrap_or_default()`, which is what silently disabled this guard before.
+/// The same discipline applies to the follow-up's `truncated` flag: it is
+/// threaded through rather than discarded, which is what let a re-query that
+/// raced fresh writes report a false `Known` before this function's fourth
+/// telling.
+///
+/// Both `query_nodes` calls are wrapped in closures — `query_first` is not called
+/// eagerly — so the `budget_usd <= 0.0` short-circuit in `resolve_budget_check`
+/// can genuinely skip the first query, not just ignore an already-fetched result.
 pub(crate) fn budget_exceeded_for_provider(provider_name: &str) -> bool {
     let budget_key = format!("MODEL_BUDGET_{}_USD", provider_name.to_uppercase());
-    let Ok(budget_str) = std::env::var(&budget_key) else {
-        return false;
+    // THREE states. The two `let ... else { return false }` arms this replaces reported
+    // "nobody declared a budget" and "the declaration is nonsense" identically — and `nan`
+    // reached neither of them, because it parses. See `parse_budget_declaration` (ISS-038).
+    let budget = match parse_budget_declaration(std::env::var(&budget_key).ok().as_deref()) {
+        BudgetDeclaration::Absent => return false,
+        BudgetDeclaration::Malformed(reason) => {
+            crate::agent_events::budget_unknown(provider_name, reason.as_str());
+            return false;
+        }
+        BudgetDeclaration::Declared(value) => value,
     };
-    let Ok(budget) = budget_str.parse::<f64>() else {
-        return false;
-    };
-    let records = tractor_bridge::query_nodes("UsageRecord", 10_000).unwrap_or_default();
+
     const WINDOW_30D_NS: u64 = 30 * 24 * 3600 * 1_000_000_000;
-    sum_provider_spend_usd(&records, provider_name, now_ns(), WINDOW_30D_NS) >= budget
+    let query_first = || -> Result<(Vec<String>, bool, u32), ()> {
+        tractor_bridge::query_nodes("UsageRecord", 10_000)
+            .map(|page| (page.nodes, page.truncated, page.stored))
+            .map_err(|_| ())
+    };
+    // Only invoked when the first read is truncated AND still under budget —
+    // `resolve_budget_check` decides that, this closure just performs the ask.
+    // `stored` is the first page's own count of what exists, so `limit: stored`
+    // asks for everything as of a moment ago. That "as of a moment ago" is the
+    // residual race: `page.truncated` is threaded through (not dropped, as it
+    // was before this function's fourth telling) so `resolve_budget_check` can
+    // tell a follow-up that raced fresh writes from one that genuinely saw
+    // everything — the race is documented there, not resolved here.
+    let requery_all = |stored: u32| -> Result<(Vec<String>, bool), ()> {
+        tractor_bridge::query_nodes("UsageRecord", stored)
+            .map(|page| (page.nodes, page.truncated))
+            .map_err(|_| ())
+    };
+    let check = resolve_budget_check(
+        provider_name,
+        budget,
+        now_ns(),
+        WINDOW_30D_NS,
+        query_first,
+        requery_all,
+    );
+    if let BudgetCheck::Unknown(reason) = &check {
+        crate::agent_events::budget_unknown(provider_name, reason.as_str());
+    }
+    budget_exceeded(&check)
 }

@@ -4,7 +4,8 @@ import {
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
 import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
-import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
+import { describeAbandonedTasks } from "@refarm.dev/health";
+import { fetchSidecarWithTimeout, readCompleteness } from "@refarm.dev/sidecar-client";
 import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
@@ -113,32 +114,103 @@ function tasksShowJsonCommand(prefix: string): string {
 	return refarmCommand(["tasks", "show", quoteCommandArg(prefix), "--json"]);
 }
 
+/**
+ * A page of tasks, and whether it was the whole answer.
+ *
+ * `GET /tasks` gained `stored`/`truncated`/`offset` when ISS-041 was fixed, and dropped `total`
+ * — which had been computed AFTER the truncate and so always equalled the page size. This
+ * command read only `tasks` and would have gone on quietly printing a page as if it were the
+ * record. Same three-state discipline as `budget.ts`: absent means absent, never rounded.
+ */
+interface TaskPage {
+	tasks: Task[];
+	stored: number | undefined;
+	truncated: boolean | undefined;
+	offset: number;
+}
+
+/** PURE. Split out so the older-sidecar case — a response with no `stored`/`truncated` at all —
+ *  is testable with a literal body and no network. */
+export function taskPageFromBody(body: {
+	tasks?: Task[];
+	stored?: number;
+	truncated?: boolean;
+	offset?: number;
+}): TaskPage {
+	return {
+		tasks: Array.isArray(body.tasks) ? body.tasks : [],
+		stored: typeof body.stored === "number" ? body.stored : undefined,
+		truncated: typeof body.truncated === "boolean" ? body.truncated : undefined,
+		// The caller's own parameter coming back, so 0 is a correct default — unlike the two
+		// above, which are measurements the node either made or did not.
+		offset: typeof body.offset === "number" ? body.offset : 0,
+	};
+}
+
 async function fetchTasks(
-	params: { status?: string; session_id?: string; limit?: number } = {},
-): Promise<Task[]> {
+	params: { status?: string; session_id?: string; limit?: number; offset?: number } = {},
+): Promise<TaskPage> {
 	const query = new URLSearchParams();
 	if (params.status) query.set("status", params.status);
 	if (params.session_id) query.set("session_id", params.session_id);
 	if (params.limit) query.set("limit", String(params.limit));
+	if (params.offset) query.set("offset", String(params.offset));
 	const qs = query.toString() ? `?${query}` : "";
 	const response = await fetchSidecarWithTimeout(sidecarUrl(`/tasks${qs}`));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
-	const body = (await response.json()) as { tasks: Task[] };
-	return body.tasks ?? [];
+	return taskPageFromBody((await response.json()) as Parameters<typeof taskPageFromBody>[0]);
+}
+
+/**
+ * PURE. The effort ids the daemon reports as live.
+ *
+ * NULL IS NOT EMPTY, and the distinction is the whole point. `[]` means "the daemon owns nothing",
+ * which makes every non-terminal stored task abandoned. `null` means "the daemon could not be
+ * asked", which proves nothing — and reading the second as the first would condemn every task
+ * actually running. Measured 2026-08-23: `/efforts` answered `[]` while `/tasks` held 82, one of
+ * them `active` since 2026-08-03.
+ *
+ * Both key spellings are accepted because the effort list has carried both; an entry with neither
+ * is dropped rather than guessed at.
+ */
+export function liveEffortIdsFromBody(body: unknown): string[] | null {
+	if (!Array.isArray(body)) return null;
+	const ids: string[] = [];
+	for (const entry of body) {
+		if (!entry || typeof entry !== "object") continue;
+		const record = entry as { id?: unknown; effortId?: unknown };
+		const id = typeof record.effortId === "string" ? record.effortId : record.id;
+		if (typeof id === "string" && id) ids.push(id);
+	}
+	return ids;
+}
+
+/** The live set, or null when the daemon could not be asked. Never throws: this is a fact ADDED to
+ *  a listing, and a listing must not fail because the extra fact was unavailable. */
+async function fetchLiveEffortIds(): Promise<string[] | null> {
+	try {
+		const response = await fetchSidecarWithTimeout(sidecarUrl("/efforts"));
+		if (!response.ok) return null;
+		return liveEffortIdsFromBody(await response.json());
+	} catch {
+		return null;
+	}
 }
 
 async function listTasks(opts: {
 	status?: string;
 	session?: string;
 	limit?: number;
+	offset?: number;
 	json?: boolean;
 }): Promise<void> {
-	let tasks: Task[];
+	let page: TaskPage;
 	try {
-		tasks = await fetchTasks({
+		page = await fetchTasks({
 			status: opts.status,
 			session_id: opts.session,
 			limit: opts.limit,
+			offset: opts.offset,
 		});
 	} catch (err) {
 		reportSidecarError(err, {
@@ -148,6 +220,16 @@ async function listTasks(opts: {
 		});
 		return;
 	}
+
+	const { tasks, stored, truncated, offset } = page;
+	// WHAT THE RECORD CLAIMS vs WHAT ANYTHING IS DOING. A stored status says the first; only the
+	// live effort set says the second. Measured 2026-08-23: 82 stored, `/efforts` empty, and one
+	// task `active` since 2026-08-03 rendering identically to a task running right now.
+	const liveEffortIds = await fetchLiveEffortIds();
+	const abandonedNote = describeAbandonedTasks(
+		tasks.map((task) => ({ id: task["@id"], status: String(task.status ?? "") })),
+		liveEffortIds,
+	);
 
 	if (opts.json) {
 		const nextCommands = tasks[0]
@@ -162,8 +244,21 @@ async function listTasks(opts: {
 					status: opts.status,
 					session_id: opts.session,
 					limit: opts.limit,
+					offset: opts.offset,
 				},
 				tasks,
+				// Carried verbatim, and `JSON.stringify` drops an `undefined` key entirely, so
+				// absent means absent on the wire too. `completeness` is the VERDICT beside them,
+				// from the one function the storage contract exports for this — a consumer
+				// deciding "that is all the tasks" needs to know which of three states it read.
+				stored,
+				truncated,
+				offset,
+				completeness: readCompleteness({ truncated }),
+				// The DATA is always here (null when the daemon could not be asked); the prose is
+				// conditional. Same split as the node-substrate and branch-drift facts.
+				liveEffortIds,
+				abandoned: abandonedNote,
 			},
 			nextCommands,
 		});
@@ -172,11 +267,36 @@ async function listTasks(opts: {
 	}
 
 	if (tasks.length === 0) {
-		console.log(chalk.dim("No tasks yet. Tasks are created automatically on each refarm ask."));
+		// THREE STATES, and only one of them is "there are none". An empty page from a node that
+		// did not report completeness proves nothing about the record — saying "No tasks yet"
+		// there is the same lie `budget.ts` was fixed for, one command over.
+		console.log(
+			chalk.dim(
+				readCompleteness({ truncated }) === "unknown"
+					? "No tasks in this response. This node did not report how many exist, so whether that means there are none cannot be determined from it."
+					: "No tasks yet. Tasks are created automatically on each refarm ask.",
+			),
+		);
 		return;
 	}
 
 	console.log(chalk.bold(`\n  Tasks  (${tasks.length} shown)\n`));
+	// SAID BEFORE THE LIST, because it changes how the list reads: without it an abandoned task
+	// and a running one are the same two words on the same line.
+	if (abandonedNote) console.log(`  ${chalk.yellow("⚠")}  ${abandonedNote}\n`);
+	if (truncated === true) {
+		const storedNote = typeof stored === "number" ? ` of ${stored} stored` : "";
+		console.log(
+			chalk.yellow(
+				`  ⚠  Showing ${tasks.length}${storedNote}, starting at ${offset} — ` +
+					`the rest is reachable: \`refarm tasks --offset ${offset + tasks.length}\`.\n`,
+			),
+		);
+	} else if (truncated === undefined) {
+		console.log(
+			chalk.dim("  ?  Completeness unknown — this node did not report how many tasks exist.\n"),
+		);
+	}
 
 	for (const task of tasks) {
 		const short = formatTaskId(task["@id"]);
@@ -327,6 +447,20 @@ export function createTasksCommand(): Command {
 			(value) => parsePositiveIntOption(value, "--limit"),
 			20,
 		)
+		.option(
+			"--offset <n>",
+			"Skip this many tasks — the way past the single-page cap (ISS-042)",
+			(value) => {
+				// Zero is valid and is the default, so this cannot reuse the positive-int parser
+				// beside it: "start at the beginning" must be expressible.
+				const parsed = Number(value);
+				if (!Number.isInteger(parsed) || parsed < 0) {
+					throw new InvalidArgumentError("--offset must be a non-negative integer.");
+				}
+				return parsed;
+			},
+			0,
+		)
 		.option("--json", "Output machine-readable JSON")
 		.addHelpText(
 			"after",
@@ -353,18 +487,35 @@ export function createTasksCommand(): Command {
 				.description("Show details and events for a task")
 				.argument("<id>", "Task ID or unique prefix")
 				.option("--json", "Output machine-readable JSON")
-				.action(async (prefix: string, opts: { json?: boolean }) => {
-					await showTask(prefix, { json: opts.json });
+				.action(async (prefix: string, opts: { json?: boolean }, subcommand: Command) => {
+					// `refarm tasks show <id> --json` bound `--json` to the PARENT, not here:
+					// Commander consumes an option the parent declares wherever it appears, and
+					// `tasks` declares `--json` too. So `opts.json` was undefined and the command
+					// printed human text (and, on a refusal, an unparseable stderr line) to a
+					// consumer that had asked for JSON. Read it from either place, the way
+					// `runtime status` and `agent doctor` already do.
+					const json =
+						opts.json === true || subcommand.parent?.opts<{ json?: boolean }>().json === true;
+					await showTask(prefix, { json });
 				}),
 		)
-		.action(async (opts: { status?: string; session?: string; limit?: number; json?: boolean }) => {
-			await listTasks({
-				status: opts.status,
-				session: opts.session,
-				limit: opts.limit,
-				json: opts.json,
-			});
-		});
+		.action(
+			async (opts: {
+				status?: string;
+				session?: string;
+				limit?: number;
+				offset?: number;
+				json?: boolean;
+			}) => {
+				await listTasks({
+					status: opts.status,
+					session: opts.session,
+					limit: opts.limit,
+					offset: opts.offset,
+					json: opts.json,
+				});
+			},
+		);
 }
 
 export const tasksCommand = createTasksCommand();
