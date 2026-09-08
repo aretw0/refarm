@@ -4,6 +4,7 @@ export const vaultSeedPackages = [
 	"content-projection",
 	"credentials-contract-v1",
 	"dispatch-surface",
+	"document-extraction-contract-v1",
 	"ds",
 	"ds-astro",
 	"effort-contract-v1",
@@ -30,8 +31,8 @@ export const vaultSeedPackages = [
 
 export const siteFacts = {
 	handoffDate: "2026-08-30",
-	packageCount: 27,
-	requiredCheckCount: 88,
+	packageCount: 28,
+	requiredCheckCount: 92,
 	publicPublishCount: 0,
 	manualApprovalRequired: true,
 } as const;

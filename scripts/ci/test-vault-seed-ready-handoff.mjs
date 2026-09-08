@@ -547,7 +547,10 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	// consumer reaching the package from a surface that is NOT the contract test, and vault-seed's
 	// records reference vault now structures its MD/MDX lane through `projectContentToRecords`.
 	// The tag moved because the fact moved — not to make this number move.
-	assert.equal(manifest.packages.length, 27);
+	//
+	// 28 since 2026-09-08 (ADR-080 amendment): `@refarm.dev/document-extraction-contract-v1`
+	// entered the selection.
+	assert.equal(manifest.packages.length, 28);
 	// 27 since 2026-08-30: std, node-contract-v1 and plugin-manifest ENTERED (vault-contract-v1
 	// imports all three at runtime; coop-vault vendors them as overrides) and health LEFT — it
 	// depends on config, which is held for boundary review, and no consumer uses it in product
@@ -560,8 +563,8 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	assert.ok(manifest.consumerProofs.some((proof) => proof.proofId === "std.pure-primitives-behind-a-published-contract"));
 	assert.equal(manifest.distributionEvidence.state, "blocked");
 	assert.equal(manifest.distributionEvidence.availability.currentVerifiedCopies, 0);
-	assert.equal(manifest.distributionEvidence.subject.packageCount, 27);
-	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 27);
+	assert.equal(manifest.distributionEvidence.subject.packageCount, 28);
+	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 28);
 	assert.equal(manifest.releaseBoundaryAudit.ok, true);
 	assert.equal(manifest.releaseBoundaryAudit.command, "release-boundary-audit");
 	assert.equal(manifest.releaseBoundaryAudit.selectionId, "consumer-ready");

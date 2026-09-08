@@ -124,6 +124,7 @@ CLI labels, copy, notebooks, routes, and UX.
 | [`@refarm.dev/content-projection`](./content-projection) | Markdown/MDX projection helpers for frontmatter, wikilinks, inline links, and valid `records:v1` output | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/local-surface`](./local-surface) | Local-first surface manifest, DS-backed HTML rendering, white-label launch plan, and quality report helpers | consumer-proven; `consumer-ready`; held |
 | [`@refarm.dev/ds-astro`](./ds-astro) | Product-neutral Astro/MDX DS component bindings and component-map metadata | candidate; `consumer-ready`; held |
+| [`@refarm.dev/document-extraction-contract-v1`](./document-extraction-contract-v1) | The `documento-extraido/v1` envelope schema for domestic financial document extractors, published as data with a language-agnostic conformance fixture suite and a thin TypeScript validator | candidate; `consumer-ready`; held |
 
 ## 🔖 Plugin Metadata
 This layer waits for the Pi and multi-layer plugin architecture proofs before entering the release lane.

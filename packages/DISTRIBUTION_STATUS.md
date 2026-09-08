@@ -69,6 +69,7 @@ channel, not a public npm publication promise.
 - `@refarm.dev/vault-contract-v1`
 - `@refarm.dev/local-surface`
 - `@refarm.dev/ds-astro`
+- `@refarm.dev/document-extraction-contract-v1`
 
 Validation:
 
@@ -236,6 +237,14 @@ reference so downstream POCs can converge text quality, UI quality, and future
 sandboxed checker plugins without copying another bespoke finding format. Rule
 catalogs, severity policy, rendered-subject collection, and product-specific
 profiles remain downstream-owned.
+
+`@refarm.dev/document-extraction-contract-v1` is selected as the
+`documento-extraido/v1` envelope for financial document extractors. It ships
+the JSON Schema as published data, a matching conformance fixture suite, and a
+thin TypeScript validator that satisfies both, so a non-TypeScript validator
+can prove itself against the same two data files. Specific extractors (PDF,
+OCR, bank/card layout parsing), business logic over the `lancamentos`, and
+envelope persistence/sync/presentation remain downstream-owned.
 
 ---
 
