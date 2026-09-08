@@ -1,11 +1,12 @@
 /**
- * Contrato documento-extraido/v1.
+ * Contract documento-extraido/v1.
  *
- * A autoridade é o JSON Schema em `schema/documento-extraido-v1.json`,
- * publicado como arquivo de dado no pacote. `validar` é um porte fino do
- * validador Python de referência (`scripts/documents/contrato.py` no
- * coop-vault); `rodarConformidade` prova, contra `fixtures/conformance.json`
- * (também publicado como dado), que os dois validadores concordam.
+ * The authority is the JSON Schema at `schema/documento-extraido-v1.json`,
+ * published as a data file in the package. `validar` is a thin port of the
+ * reference Python validator (`scripts/documents/contrato.py` in
+ * coop-vault); `rodarConformidade` proves, against
+ * `fixtures/conformance.json` (also published as data), that the two
+ * validators agree.
  */
 
 import { readFileSync } from "node:fs";
@@ -25,7 +26,7 @@ export type {
 
 let schemaCache: Record<string, unknown> | undefined;
 
-/** Carrega `schema/documento-extraido-v1.json` do próprio pacote. */
+/** Loads `schema/documento-extraido-v1.json` from the package itself. */
 export function carregarSchema(): Record<string, unknown> {
 	if (schemaCache === undefined) {
 		const caminho = new URL(

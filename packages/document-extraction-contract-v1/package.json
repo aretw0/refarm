@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"repository": "https://github.com/aretw0/refarm.git",
 	"private": false,
-	"description": "Contrato documento-extraido/v1: envelope comum de extração de documento, schema como dado e suíte de conformidade agnóstica de linguagem",
+	"description": "Contract documento-extraido/v1: common document-extraction envelope, schema as data, and a language-agnostic conformance suite",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

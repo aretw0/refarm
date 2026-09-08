@@ -1,8 +1,8 @@
 {
-	"descricao": "Casos de conformidade do contrato documento-extraido/v1. Todo validador, em qualquer linguagem, tem que produzir exatamente estes problemas para estes envelopes. As mensagens não são comparadas literalmente; o que se compara é o CAMINHO do problema, porque a redação é livre por implementação.",
+	"descricao": "Conformance cases for the documento-extraido/v1 contract. Every validator, in any language, must produce exactly these problems for these envelopes. Messages are not compared literally; what is compared is the problem's PATH, because wording is free per implementation.",
 	"casos": [
 		{
-			"nome": "envelope mínimo é válido",
+			"nome": "minimal envelope is valid",
 			"envelope": {
 				"schemaVersion": 1,
 				"classe": "contracheque",
@@ -18,7 +18,7 @@
 			"caminhos_com_problema": []
 		},
 		{
-			"nome": "classe fora do enum é recusada",
+			"nome": "classe outside the enum is rejected",
 			"envelope": {
 				"schemaVersion": 1,
 				"classe": "boleto-do-vizinho",
@@ -34,7 +34,7 @@
 			"caminhos_com_problema": ["envelope.classe"]
 		},
 		{
-			"nome": "campo obrigatório ausente é recusado",
+			"nome": "missing required field is rejected",
 			"envelope": {
 				"schemaVersion": 1,
 				"classe": "contracheque",
@@ -44,7 +44,7 @@
 			"caminhos_com_problema": ["envelope.fonte"]
 		},
 		{
-			"nome": "campo desconhecido no topo é recusado",
+			"nome": "unknown field at the top level is rejected",
 			"envelope": {
 				"schemaVersion": 1,
 				"classe": "contracheque",
@@ -61,7 +61,7 @@
 			"caminhos_com_problema": ["envelope.cpf_do_titular"]
 		},
 		{
-			"nome": "campo desconhecido dentro de um lançamento é recusado",
+			"nome": "unknown field inside a lancamento is rejected",
 			"envelope": {
 				"schemaVersion": 1,
 				"classe": "extrato-sicoob",
@@ -85,7 +85,7 @@
 			"caminhos_com_problema": ["envelope.lancamentos[0].cpf_titular_vazado"]
 		},
 		{
-			"nome": "lançamento sem natureza é recusado",
+			"nome": "lancamento without natureza is rejected",
 			"envelope": {
 				"schemaVersion": 1,
 				"classe": "extrato-sicoob",
@@ -103,7 +103,7 @@
 			"caminhos_com_problema": ["envelope.lancamentos[0].natureza"]
 		},
 		{
-			"nome": "natureza fora do enum é recusada",
+			"nome": "natureza outside the enum is rejected",
 			"envelope": {
 				"schemaVersion": 1,
 				"classe": "extrato-sicoob",
@@ -126,7 +126,7 @@
 			"caminhos_com_problema": ["envelope.lancamentos[0].natureza"]
 		},
 		{
-			"nome": "tipo errado é recusado",
+			"nome": "wrong type is rejected",
 			"envelope": {
 				"schemaVersion": 1,
 				"classe": "contracheque",
@@ -142,7 +142,7 @@
 			"caminhos_com_problema": ["envelope.avisos"]
 		},
 		{
-			"nome": "booleano não satisfaz integer",
+			"nome": "boolean does not satisfy integer",
 			"envelope": {
 				"schemaVersion": true,
 				"classe": "contracheque",
@@ -158,7 +158,7 @@
 			"caminhos_com_problema": ["envelope.schemaVersion"]
 		},
 		{
-			"nome": "campo desconhecido dentro de fonte é recusado",
+			"nome": "unknown field inside fonte is rejected",
 			"envelope": {
 				"schemaVersion": 1,
 				"classe": "contracheque",

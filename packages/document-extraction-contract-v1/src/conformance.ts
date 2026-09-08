@@ -1,12 +1,12 @@
 /**
- * Suíte de conformidade agnóstica de linguagem para o contrato
- * documento-extraido/v1.
+ * Language-agnostic conformance suite for the documento-extraido/v1
+ * contract.
  *
- * As fixtures em `fixtures/conformance.json` são dado, não código: a mesma
- * lista de casos pode ser consumida por um validador em qualquer linguagem.
- * `rodarConformidade` roda um validador contra cada caso e compara o
- * CAMINHO de cada problema devolvido — não a mensagem, que é livre por
- * implementação — com `caminhos_com_problema` da fixture, como conjunto.
+ * The fixtures in `fixtures/conformance.json` are data, not code: the same
+ * list of cases can be consumed by a validator in any language.
+ * `rodarConformidade` runs a validator against each case and compares the
+ * PATH of each returned problem — not the message, which is free per
+ * implementation — against the fixture's `caminhos_com_problema`, as a set.
  */
 
 import { readFileSync } from "node:fs";
@@ -18,7 +18,7 @@ import type {
 
 let fixturesCache: ConformanceFixtures | undefined;
 
-/** Carrega `fixtures/conformance.json` do próprio pacote. */
+/** Loads `fixtures/conformance.json` from the package itself. */
 export function carregarFixtures(): ConformanceFixtures {
 	if (fixturesCache === undefined) {
 		const caminho = new URL(
@@ -33,8 +33,8 @@ export function carregarFixtures(): ConformanceFixtures {
 }
 
 /**
- * Extrai o caminho de um problema no formato `caminho: mensagem`.
- * A mensagem depois de `:` é livre por implementação; só o caminho importa.
+ * Extracts the path from a problem in the `path: message` format.
+ * The message after `:` is free per implementation; only the path matters.
  */
 function extrairCaminho(problema: string): string {
 	const indice = problema.indexOf(":");
@@ -50,8 +50,9 @@ function conjuntosIguais(a: string[], b: string[]): boolean {
 }
 
 /**
- * Roda `validador` contra cada caso das fixtures de conformidade e devolve
- * quantos casos rodaram e quais divergiram do esperado.
+ * Runs `validador` against each case in the conformance fixtures and
+ * returns how many cases ran and which ones diverged from what was
+ * expected.
  */
 export function rodarConformidade(
 	validador: (envelope: unknown) => string[],

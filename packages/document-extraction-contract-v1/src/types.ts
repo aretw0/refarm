@@ -1,11 +1,11 @@
 /**
- * Tipos do envelope documento-extraido/v1, derivados do JSON Schema em
- * `schema/documento-extraido-v1.json`. O schema é a autoridade; estes tipos
- * são uma projeção para conveniência de quem consome o pacote em TypeScript,
- * não uma segunda fonte de verdade.
+ * Types for the documento-extraido/v1 envelope, derived from the JSON
+ * Schema at `schema/documento-extraido-v1.json`. The schema is the
+ * authority; these types are a projection for the convenience of whoever
+ * consumes the package in TypeScript, not a second source of truth.
  */
 
-/** As cinco classes de documento conhecidas pelo contrato. */
+/** The five document classes known to the contract. */
 export type ClasseDocumento =
 	| "nfce"
 	| "extrato-pluxee"
@@ -13,7 +13,7 @@ export type ClasseDocumento =
 	| "fatura-cartao"
 	| "contracheque";
 
-/** Metadados de proveniência do arquivo de onde o envelope foi extraído. */
+/** Provenance metadata for the file the envelope was extracted from. */
 export interface Fonte {
 	sha256: string;
 	bytes: number;
@@ -21,11 +21,11 @@ export interface Fonte {
 	extraido_em: string;
 }
 
-/** Um lançamento financeiro dentro do envelope. Dinheiro é sempre string decimal. */
+/** A financial entry inside the envelope. Money is always a decimal string. */
 export interface Lancamento {
 	data: string;
 	descricao: string;
-	/** Valor decimal como string — dinheiro nunca atravessa o envelope como number. */
+	/** Decimal value as a string — money never crosses the envelope as a number. */
 	valor: string;
 	natureza: "entrada" | "saida";
 	contraparte?: string | null;
@@ -34,7 +34,7 @@ export interface Lancamento {
 	moeda_estrangeira?: string | null;
 }
 
-/** O envelope comum emitido por todo extrator de documento doméstico. */
+/** The common envelope emitted by every domestic document extractor. */
 export interface DocumentoExtraido {
 	schemaVersion: 1;
 	classe: ClasseDocumento;
@@ -50,27 +50,27 @@ export interface DocumentoExtraido {
 	avisos: string[];
 }
 
-/** Um caso de conformidade: um envelope e os caminhos de problema esperados. */
+/** A conformance case: an envelope and its expected problem paths. */
 export interface ConformanceCaso {
 	nome: string;
 	envelope: unknown;
 	caminhos_com_problema: string[];
 }
 
-/** A suíte de fixtures de conformidade, carregada de `fixtures/conformance.json`. */
+/** The conformance fixture suite, loaded from `fixtures/conformance.json`. */
 export interface ConformanceFixtures {
 	descricao: string;
 	casos: ConformanceCaso[];
 }
 
-/** Uma divergência entre o que um validador produziu e o que a fixture esperava. */
+/** A divergence between what a validator produced and what the fixture expected. */
 export interface ConformanceDivergencia {
 	nome: string;
 	esperado: string[];
 	obtido: string[];
 }
 
-/** O resultado de rodar um validador contra toda a suíte de conformidade. */
+/** The result of running a validator against the whole conformance suite. */
 export interface ConformanceResult {
 	casosRodados: number;
 	divergencias: ConformanceDivergencia[];

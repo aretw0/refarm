@@ -1,44 +1,44 @@
 # @refarm.dev/document-extraction-contract-v1
 
-Contrato `documento-extraido/v1`: o envelope comum emitido por todo extrator
-de documento financeiro doméstico (contracheque, extrato, fatura, NFC-e...).
-A autoridade é o JSON Schema publicado em
-`schema/documento-extraido-v1.json`; este pacote também publica a suíte de
-conformidade em `fixtures/conformance.json` e um validador TypeScript fino
-que a satisfaz.
+Contract `documento-extraido/v1`: the common envelope emitted by every
+domestic financial document extractor (payslip, bank statement, invoice,
+NFC-e...). The authority is the JSON Schema published at
+`schema/documento-extraido-v1.json`; this package also publishes the
+conformance suite at `fixtures/conformance.json` and a thin TypeScript
+validator that satisfies it.
 
-O schema veio como está do coop-vault, onde já valida quatro extratores
-contra documentos reais — não foi redesenhado aqui.
+The schema came as-is from coop-vault, where it already validates four
+extractors against real documents — it was not redesigned here.
 
-## Por que schema e fixtures são dado, não código
+## Why schema and fixtures are data, not code
 
-O artefato contratual é o JSON, não o TypeScript. Isso permite que um
-validador em outra linguagem (por exemplo, Python) consuma exatamente o
-mesmo `schema/documento-extraido-v1.json` e as mesmas
-`fixtures/conformance.json`, e que a equivalência entre os dois validadores
-vire teste executável em vez de promessa.
+The contractual artifact is the JSON, not the TypeScript. That lets a
+validator in another language (Python, for example) consume exactly the
+same `schema/documento-extraido-v1.json` and the same
+`fixtures/conformance.json`, and turns the equivalence between the two
+validators into an executable test instead of a promise.
 
-## Subconjunto de JSON Schema coberto
+## JSON Schema subset covered
 
-`validar()` cobre exatamente este subconjunto, nem mais nem menos — o mesmo
-que o validador Python de referência (`contrato.py`, no coop-vault) declara
-no próprio docstring:
+`validar()` covers exactly this subset, no more and no less — the same one
+the reference Python validator (`contrato.py`, in coop-vault) declares in
+its own docstring:
 
-- `type`, inclusive como lista de tipos;
+- `type`, including as a list of types;
 - `required`;
 - `properties`;
-- `additionalProperties`, como `false` ou como um esquema único;
+- `additionalProperties`, as `false` or as a single schema;
 - `enum`;
-- `items`, para arrays.
+- `items`, for arrays.
 
-Qualquer construção de JSON Schema fora dessa lista é ignorada em silêncio.
-Se o schema passar a usar algo fora dela, o validador — nas duas
-linguagens — precisa crescer junto.
+Any JSON Schema construct outside this list is silently ignored. If the
+schema starts using something outside it, the validator — in both
+languages — needs to grow along with it.
 
-**Dinheiro é sempre string decimal.** O campo `lancamentos[].valor` é
-`string`, nunca `number`, porque ponto flutuante não é seguro para dinheiro.
+**Money is always a decimal string.** The `lancamentos[].valor` field is
+`string`, never `number`, because floating point is not safe for money.
 
-## Uso
+## Usage
 
 ```ts
 import {
@@ -62,42 +62,43 @@ const envelope: DocumentoExtraido = {
 	avisos: [],
 };
 
-const problemas = validar(envelope); // [] quando válido
+const problemas = validar(envelope); // [] when valid
 
-// prova que este validador satisfaz o contrato inteiro
+// proves this validator satisfies the whole contract
 const resultado = rodarConformidade(validar);
-resultado.divergencias; // [] quando conforme
+resultado.divergencias; // [] when conformant
 ```
 
-`carregarSchema()` e `carregarFixtures()` leem os dois arquivos JSON
-publicados no próprio pacote (`schema/documento-extraido-v1.json` e
-`fixtures/conformance.json`), disponíveis também via subpath export para
-quem quer consumi-los diretamente, de qualquer linguagem:
+`carregarSchema()` and `carregarFixtures()` read the two JSON files
+published in the package itself (`schema/documento-extraido-v1.json` and
+`fixtures/conformance.json`), also available via subpath export for
+anyone who wants to consume them directly, from any language:
 
 ```ts
 import schema from "@refarm.dev/document-extraction-contract-v1/schema/documento-extraido-v1.json" with { type: "json" };
 import fixtures from "@refarm.dev/document-extraction-contract-v1/fixtures/conformance.json" with { type: "json" };
 ```
 
-## Caminho, não mensagem
+## Path, not message
 
-Cada problema devolvido por `validar()` é uma string `"caminho: mensagem"`.
-A suíte de conformidade compara apenas o **caminho** (`envelope.campo`,
-`envelope.lancamentos[0].campo`) contra `caminhos_com_problema` de cada
-fixture — a mensagem é redação livre por implementação. É o caminho que é o
-contrato; a mensagem, não.
+Each problem returned by `validar()` is a `"path: message"` string. The
+conformance suite compares only the **path** (`envelope.campo`,
+`envelope.lancamentos[0].campo`) against each fixture's
+`caminhos_com_problema` — the message is free wording per implementation.
+The path is the contract; the message is not.
 
-## Fronteira
+## Boundary
 
-Este pacote possui:
+This package owns:
 
-- o JSON Schema do envelope `documento-extraido/v1`, como dado publicado;
-- a suíte de fixtures de conformidade, como dado publicado;
-- um validador TypeScript fino do subconjunto de JSON Schema acima;
-- tipos TypeScript derivados do schema.
+- the JSON Schema for the `documento-extraido/v1` envelope, as published
+  data;
+- the conformance fixture suite, as published data;
+- a thin TypeScript validator for the JSON Schema subset above;
+- TypeScript types derived from the schema.
 
-Este pacote não possui:
+This package does not own:
 
-- extratores de documento específicos (PDF, OCR, layout de banco/cartão);
-- qualquer lógica de negócio sobre o conteúdo dos lançamentos;
-- persistência, sincronização, ou apresentação do envelope.
+- specific document extractors (PDF, OCR, bank/card layout);
+- any business logic over the content of the lancamentos;
+- persistence, sync, or presentation of the envelope.

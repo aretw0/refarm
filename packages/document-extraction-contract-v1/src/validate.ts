@@ -1,23 +1,23 @@
 /**
- * Validador do envelope documento-extraido/v1.
+ * Validator for the documento-extraido/v1 envelope.
  *
- * A autoridade é o JSON Schema em `schema/documento-extraido-v1.json`. Este
- * módulo é fino de propósito — é um porte direto de
- * `scripts/documents/contrato.py` no coop-vault, para que os dois validadores
- * possam ser provados equivalentes contra as mesmas fixtures de conformidade.
+ * The authority is the JSON Schema at `schema/documento-extraido-v1.json`.
+ * This module is deliberately thin — it is a direct port of
+ * `scripts/documents/contrato.py` in coop-vault, so the two validators can
+ * be proved equivalent against the same conformance fixtures.
  *
- * Subconjunto de JSON Schema coberto, e apenas ele: `type` (inclusive lista
- * de tipos), `required`, `properties`, `additionalProperties` como `false`
- * ou como esquema único, `enum`, e `items` para arrays. Qualquer construção
- * fora dessa lista é ignorada em silêncio — se o schema passar a usá-la,
- * este validador precisa crescer junto (e o `contrato.py` também).
+ * JSON Schema subset covered, and only it: `type` (including as a list of
+ * types), `required`, `properties`, `additionalProperties` as `false` or as
+ * a single schema, `enum`, and `items` for arrays. Any construct outside
+ * this list is silently ignored — if the schema starts using it, this
+ * validator needs to grow along with it (and so does `contrato.py`).
  *
- * Uma diferença real entre as linguagens: em Python, `bool` é subclasse de
- * `int`, então o validador de referência exclui `bool` explicitamente do
- * tipo `integer`/`number`. Em TypeScript, `typeof true === "boolean"` já é
- * distinto de `typeof 1 === "number"`, então a exclusão não precisa de
- * código — mas o comportamento final, para o mesmo envelope, é o mesmo:
- * `schemaVersion: true` é recusado nas duas linguagens.
+ * A real difference between the languages: in Python, `bool` is a subclass
+ * of `int`, so the reference validator explicitly excludes `bool` from the
+ * `integer`/`number` type. In TypeScript, `typeof true === "boolean"` is
+ * already distinct from `typeof 1 === "number"`, so the exclusion needs no
+ * code — but the final behavior, for the same envelope, is the same:
+ * `schemaVersion: true` is rejected in both languages.
  */
 
 import { readFileSync } from "node:fs";
@@ -79,7 +79,7 @@ function tipoConfere(valor: unknown, esperado: unknown): boolean {
 				if (valor === null) return true;
 				break;
 			default:
-				// Nome de tipo desconhecido: ignorado em silêncio, como no Python.
+				// Unknown type name: silently ignored, like in Python.
 				break;
 		}
 	}
@@ -151,7 +151,7 @@ function validarNo(
 	return problemas;
 }
 
-/** Devolve a lista de problemas. Vazia significa válido. */
+/** Returns the list of problems. Empty means valid. */
 export function validar(envelope: unknown): string[] {
 	return validarNo(envelope, carregarSchemaInterno(), "envelope");
 }
