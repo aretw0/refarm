@@ -69,9 +69,11 @@ Only after all package relationships are verified and the OIDC workflow has stag
 2. Delete `NPM_TOKEN` from GitHub Actions secrets and revoke it at npmjs.com.
 3. Keep `RELEASE_AUTOMATION=false` unless a release is deliberately being dispatched.
 
-The workflow migration itself must install npm 11.15+ and use `npm stage publish`; Changesets'
-legacy `changeset publish` path is not stage-only. That source change is separately gated before
-this runbook can be used for post-bootstrap releases.
+The post-bootstrap migration is implemented in `release-changesets.yml`: Changesets creates the
+version PR but never publishes, then `scripts/ci/stage-release-packages.mjs` compares the pushed
+package manifests and invokes `npx npm@^11.15.0 stage publish` only for public packages whose
+versions changed. This deliberately leaves GitHub Release assets out of the staging step: they
+must not imply a public package release before the maintainer's npm 2FA approval.
 
 ## Safety invariants
 
