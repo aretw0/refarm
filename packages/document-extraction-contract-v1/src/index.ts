@@ -13,6 +13,11 @@ import { readFileSync } from "node:fs";
 
 export { validar } from "./validate.js";
 export { carregarFixtures, rodarConformidade } from "./conformance.js";
+export {
+	createInMemoryDocumentoExtraidoProducer,
+	documentoExtraidoReferencia,
+} from "./in-memory.js";
+export type { DocumentoExtraidoProducer } from "./in-memory.js";
 export type {
 	ClasseDocumento,
 	ConformanceCaso,

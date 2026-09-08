@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { carregarFixtures, carregarSchema } from "./index.js";
 import { rodarConformidade } from "./conformance.js";
+import {
+	createInMemoryDocumentoExtraidoProducer,
+	documentoExtraidoReferencia,
+} from "./in-memory.js";
+import { carregarFixtures, carregarSchema } from "./index.js";
 import { validar } from "./validate.js";
 
 describe("contrato documento-extraido/v1", () => {
@@ -36,5 +40,11 @@ describe("contrato documento-extraido/v1", () => {
 	it("um validador que recusa tudo reprova a conformidade", () => {
 		const resultado = rodarConformidade(() => ["envelope: recusado sempre"]);
 		expect(resultado.divergencias.length).toBeGreaterThan(0);
+	});
+
+	it("o produtor de referência em memória emite um envelope válido", () => {
+		const produtor = createInMemoryDocumentoExtraidoProducer();
+		expect(validar(produtor.extrair())).toEqual([]);
+		expect(produtor.extrair()).toEqual(documentoExtraidoReferencia());
 	});
 });
