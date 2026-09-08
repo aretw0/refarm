@@ -1,0 +1,178 @@
+{
+	"descricao": "Casos de conformidade do contrato documento-extraido/v1. Todo validador, em qualquer linguagem, tem que produzir exatamente estes problemas para estes envelopes. As mensagens não são comparadas literalmente; o que se compara é o CAMINHO do problema, porque a redação é livre por implementação.",
+	"casos": [
+		{
+			"nome": "envelope mínimo é válido",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "contracheque",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1234,
+					"paginas": 2,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [],
+				"avisos": []
+			},
+			"caminhos_com_problema": []
+		},
+		{
+			"nome": "classe fora do enum é recusada",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "boleto-do-vizinho",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [],
+				"avisos": []
+			},
+			"caminhos_com_problema": ["envelope.classe"]
+		},
+		{
+			"nome": "campo obrigatório ausente é recusado",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "contracheque",
+				"lancamentos": [],
+				"avisos": []
+			},
+			"caminhos_com_problema": ["envelope.fonte"]
+		},
+		{
+			"nome": "campo desconhecido no topo é recusado",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "contracheque",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [],
+				"avisos": [],
+				"cpf_do_titular": "000.000.000-00"
+			},
+			"caminhos_com_problema": ["envelope.cpf_do_titular"]
+		},
+		{
+			"nome": "campo desconhecido dentro de um lançamento é recusado",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "extrato-sicoob",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [
+					{
+						"data": "2026-08-31",
+						"descricao": "x",
+						"valor": "1.00",
+						"natureza": "saida",
+						"cpf_titular_vazado": "000.000.000-00"
+					}
+				],
+				"avisos": []
+			},
+			"caminhos_com_problema": ["envelope.lancamentos[0].cpf_titular_vazado"]
+		},
+		{
+			"nome": "lançamento sem natureza é recusado",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "extrato-sicoob",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [
+					{ "data": "2026-08-31", "descricao": "x", "valor": "1.00" }
+				],
+				"avisos": []
+			},
+			"caminhos_com_problema": ["envelope.lancamentos[0].natureza"]
+		},
+		{
+			"nome": "natureza fora do enum é recusada",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "extrato-sicoob",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [
+					{
+						"data": "2026-08-31",
+						"descricao": "x",
+						"valor": "1.00",
+						"natureza": "talvez"
+					}
+				],
+				"avisos": []
+			},
+			"caminhos_com_problema": ["envelope.lancamentos[0].natureza"]
+		},
+		{
+			"nome": "tipo errado é recusado",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "contracheque",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [],
+				"avisos": "não é lista"
+			},
+			"caminhos_com_problema": ["envelope.avisos"]
+		},
+		{
+			"nome": "booleano não satisfaz integer",
+			"envelope": {
+				"schemaVersion": true,
+				"classe": "contracheque",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [],
+				"avisos": []
+			},
+			"caminhos_com_problema": ["envelope.schemaVersion"]
+		},
+		{
+			"nome": "campo desconhecido dentro de fonte é recusado",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "contracheque",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00",
+					"caminho_local": "/home/alguem/documento.pdf"
+				},
+				"lancamentos": [],
+				"avisos": []
+			},
+			"caminhos_com_problema": ["envelope.fonte.caminho_local"]
+		}
+	]
+}

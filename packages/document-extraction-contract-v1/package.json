@@ -1,0 +1,40 @@
+{
+	"name": "@refarm.dev/document-extraction-contract-v1",
+	"version": "0.1.0",
+	"repository": "https://github.com/aretw0/refarm.git",
+	"private": false,
+	"description": "Contrato documento-extraido/v1: envelope comum de extração de documento, schema como dado e suíte de conformidade agnóstica de linguagem",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		},
+		"./schema/documento-extraido-v1.json": "./schema/documento-extraido-v1.json",
+		"./fixtures/conformance.json": "./fixtures/conformance.json"
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"clean": "rm -rf dist"
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.tsbuildinfo",
+		"schema",
+		"fixtures",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
+}
