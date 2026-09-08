@@ -4,25 +4,31 @@ Contract `documento-extraido/v1`: the common envelope emitted by every
 domestic financial document extractor (payslip, bank statement, invoice,
 NFC-e...). The authority is the JSON Schema published at
 `schema/documento-extraido-v1.json`; this package also publishes the
-conformance suite at `fixtures/conformance.json` and a thin TypeScript
-validator that satisfies it.
+conformance suite at `fixtures/conformance.json`, a thin TypeScript
+validator at `src/validate.ts`, and a thin Python validator at
+`python/validador.py` — both satisfy the same conformance suite, and that
+equivalence is an executable test on each side, not a promise.
 
 The schema came as-is from coop-vault, where it already validates four
-extractors against real documents — it was not redesigned here.
+extractors against real documents — it was not redesigned here. The Python
+validator is a direct port of coop-vault's `scripts/documents/contrato.py`,
+which stays the origin and the proof of correctness in production; this
+package's copy is what other consumers (such as vault-seed) depend on
+instead of copying it themselves.
 
 ## Why schema and fixtures are data, not code
 
-The contractual artifact is the JSON, not the TypeScript. That lets a
-validator in another language (Python, for example) consume exactly the
-same `schema/documento-extraido-v1.json` and the same
-`fixtures/conformance.json`, and turns the equivalence between the two
-validators into an executable test instead of a promise.
+The contractual artifact is the JSON, not the TypeScript or the Python.
+That lets a validator in another language consume exactly the same
+`schema/documento-extraido-v1.json` and the same
+`fixtures/conformance.json`, and turns the equivalence between validators
+into an executable test instead of a promise.
 
 ## JSON Schema subset covered
 
-`validar()` covers exactly this subset, no more and no less — the same one
-the reference Python validator (`contrato.py`, in coop-vault) declares in
-its own docstring:
+Both `validar()` implementations — TypeScript at `src/validate.ts` and
+Python at `python/validador.py` — cover exactly this subset, no more and
+no less:
 
 - `type`, including as a list of types;
 - `required`;
@@ -79,6 +85,38 @@ import schema from "@refarm.dev/document-extraction-contract-v1/schema/documento
 import fixtures from "@refarm.dev/document-extraction-contract-v1/fixtures/conformance.json" with { type: "json" };
 ```
 
+Python consumers get the same three things from `python/validador.py`,
+depending on the standard library only — no `jsonschema`, no third-party
+package:
+
+```python
+from validador import carregar_fixtures, carregar_schema, validar
+
+envelope = {
+    "schemaVersion": 1,
+    "classe": "extrato-sicoob",
+    "fonte": {
+        "sha256": "…",
+        "bytes": 1234,
+        "paginas": 2,
+        "extraido_em": "2026-09-06T10:00:00-03:00",
+    },
+    "lancamentos": [],
+    "avisos": [],
+}
+
+problemas = validar(envelope)  # [] when valid
+```
+
+`carregar_schema()` and `carregar_fixtures()` read the same two JSON files
+as their TypeScript counterparts, resolved relative to the package itself
+(`schema/documento-extraido-v1.json` and `fixtures/conformance.json`).
+`python/test_validador.py` runs `validar()` against every case in
+`fixtures/conformance.json` and requires exact agreement on the path of
+each problem — the same fixtures the TypeScript conformance suite
+(`src/conformance.test.ts`) runs, so both validators are proved against one
+shared set of cases.
+
 ## Path, not message
 
 Each problem returned by `validar()` is a `"path: message"` string. The
@@ -95,6 +133,7 @@ This package owns:
   data;
 - the conformance fixture suite, as published data;
 - a thin TypeScript validator for the JSON Schema subset above;
+- a thin Python validator for the same subset, standard-library only;
 - TypeScript types derived from the schema.
 
 This package does not own:
