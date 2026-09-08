@@ -78,6 +78,138 @@
       "state": "unread",
       "date": "2026-08-04",
       "reason": "Same shape as `improved` on the same type: set when tractor-bench.rs builds the payload, written to the GHA payload file, never read back within packages/ or apps/."
+    },
+    {
+      "id": "document-extraction-contract-v1:Fonte.paginas",
+      "state": "unread",
+      "date": "2026-09-08",
+      "reason": "The in-memory reference producer constructs `fonte.paginas`; the 2026-09-08 scan across packages/, apps/, examples/, and validations/ found no consumer read yet. It is an inaugural public contract awaiting its first downstream extractor consumer."
+    },
+    {
+      "id": "document-extraction-contract-v1:Fonte.extraido_em",
+      "state": "unread",
+      "date": "2026-09-08",
+      "reason": "The in-memory reference producer stamps `fonte.extraido_em`; the 2026-09-08 full evidence scan found no consumer read yet. It is retained as explicit pending-consumer debt."
+    },
+    {
+      "id": "document-extraction-contract-v1:Lancamento.descricao",
+      "state": "dormant",
+      "date": "2026-09-08",
+      "reason": "Declared for the stable financial-entry envelope; the 2026-09-08 evidence scan found neither construction nor read outside its declaration. No downstream extractor has landed yet."
+    },
+    {
+      "id": "document-extraction-contract-v1:Lancamento.valor",
+      "state": "unread",
+      "date": "2026-09-08",
+      "reason": "The reference contracheque envelope constructs `valor`; the 2026-09-08 evidence scan found no consumer read. The first consuming application must remove this entry when it reads the monetary value."
+    },
+    {
+      "id": "document-extraction-contract-v1:Lancamento.natureza",
+      "state": "dormant",
+      "date": "2026-09-08",
+      "reason": "Declared for the stable financial-entry envelope; the 2026-09-08 evidence scan found neither construction nor read outside its declaration."
+    },
+    {
+      "id": "document-extraction-contract-v1:Lancamento.contraparte",
+      "state": "dormant",
+      "date": "2026-09-08",
+      "reason": "Optional envelope field, deliberately present for future extractors; the 2026-09-08 full evidence scan found neither producer nor consumer."
+    },
+    {
+      "id": "document-extraction-contract-v1:Lancamento.documento",
+      "state": "unread",
+      "date": "2026-09-08",
+      "reason": "The conformance/reference envelope constructs `documento`; the 2026-09-08 evidence scan found no consumer read yet."
+    },
+    {
+      "id": "document-extraction-contract-v1:Lancamento.parcela",
+      "state": "dormant",
+      "date": "2026-09-08",
+      "reason": "Optional envelope field, deliberately present for installment-bearing sources; the 2026-09-08 evidence scan found neither producer nor consumer."
+    },
+    {
+      "id": "document-extraction-contract-v1:Lancamento.moeda_estrangeira",
+      "state": "dormant",
+      "date": "2026-09-08",
+      "reason": "Optional envelope field for a future foreign-currency source; the 2026-09-08 evidence scan found neither producer nor consumer."
+    },
+    {
+      "id": "document-extraction-contract-v1:DocumentoExtraido.classe",
+      "state": "unread",
+      "date": "2026-09-08",
+      "reason": "The reference envelope constructs `classe`; the 2026-09-08 evidence scan found no downstream read."
+    },
+    {
+      "id": "document-extraction-contract-v1:DocumentoExtraido.fonte",
+      "state": "unread",
+      "date": "2026-09-08",
+      "reason": "The reference envelope constructs `fonte`; the 2026-09-08 evidence scan found no downstream read."
+    },
+    {
+      "id": "document-extraction-contract-v1:DocumentoExtraido.emissor",
+      "state": "dormant",
+      "date": "2026-09-08",
+      "reason": "Optional issuer metadata is declared for the cross-document contract; the 2026-09-08 evidence scan found neither producer nor consumer."
+    },
+    {
+      "id": "document-extraction-contract-v1:DocumentoExtraido.competencia",
+      "state": "dormant",
+      "date": "2026-09-08",
+      "reason": "Optional competence metadata is declared for the cross-document contract; the 2026-09-08 evidence scan found neither producer nor consumer."
+    },
+    {
+      "id": "document-extraction-contract-v1:DocumentoExtraido.totais",
+      "state": "dormant",
+      "date": "2026-09-08",
+      "reason": "Optional totals metadata is declared for the cross-document contract; the 2026-09-08 evidence scan found neither producer nor consumer."
+    },
+    {
+      "id": "document-extraction-contract-v1:DocumentoExtraido.lancamentos",
+      "state": "unread",
+      "date": "2026-09-08",
+      "reason": "The reference envelope constructs `lancamentos`; the 2026-09-08 evidence scan found no downstream read."
+    },
+    {
+      "id": "document-extraction-contract-v1:DocumentoExtraido.sinais_privacidade",
+      "state": "dormant",
+      "date": "2026-09-08",
+      "reason": "Optional privacy-signal metadata is declared for the cross-document contract; the 2026-09-08 evidence scan found neither producer nor consumer."
+    },
+    {
+      "id": "document-extraction-contract-v1:DocumentoExtraido.avisos",
+      "state": "unread",
+      "date": "2026-09-08",
+      "reason": "The reference envelope constructs `avisos`; the 2026-09-08 evidence scan found no downstream read."
+    },
+    {
+      "id": "document-extraction-contract-v1:ConformanceCaso.caminhos_com_problema",
+      "state": "unreachable",
+      "date": "2026-09-08",
+      "reason": "The conformance runner reads expected problem paths, but no producer constructs this TypeScript projection in the scanned corpus; fixtures enter as JSON and are intentionally outside this type-level construction path."
+    },
+    {
+      "id": "document-extraction-contract-v1:ConformanceFixtures.descricao",
+      "state": "dormant",
+      "date": "2026-09-08",
+      "reason": "Fixture-suite metadata is declared for consumers; the 2026-09-08 evidence scan found neither producer nor consumer under the TypeScript projection."
+    },
+    {
+      "id": "document-extraction-contract-v1:ConformanceFixtures.casos",
+      "state": "unreachable",
+      "date": "2026-09-08",
+      "reason": "The conformance runner reads cases parsed from JSON, but no producer constructs this TypeScript projection in the scanned corpus; fixtures are intentionally the source authority."
+    },
+    {
+      "id": "document-extraction-contract-v1:ConformanceDivergencia.esperado",
+      "state": "unread",
+      "date": "2026-09-08",
+      "reason": "The conformance runner constructs expected paths in a divergence record; the 2026-09-08 evidence scan found no consumer read."
+    },
+    {
+      "id": "document-extraction-contract-v1:ConformanceDivergencia.obtido",
+      "state": "dormant",
+      "date": "2026-09-08",
+      "reason": "The divergence projection is declared for callers; the 2026-09-08 evidence scan found neither producer nor consumer for this field."
     }
   ]
 }
