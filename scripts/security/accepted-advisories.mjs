@@ -39,38 +39,6 @@
 /** @type {AcceptedAdvisory[]} */
 export const ACCEPTED_ADVISORIES = [
 	{
-		ghsa: "GHSA-8mv7-9c27-98vc",
-		package: "astro",
-		severity: "moderate",
-		why:
-			"Patched at 7.0.6, and 7.0.6 BREAKS THE BUILD — measured 2026-08-11 by bisecting: 7.0.4 " +
-			"builds 59/59, 7.0.6 and 7.0.9 fail with MISSING_EXPORT because rolldown resolves a " +
-			"subpath export to the .d.ts. The repo is pinned at the highest version that builds.",
-		trigger:
-			"Rolldown's subpath resolution fixed upstream. RE-BISECT the build rather than trusting " +
-			"this note — the previous record put the breakage at 7.1 and it starts at 7.0.6.",
-		recheckBy: "2026-10-10",
-	},
-	{
-		ghsa: "GHSA-f48w-9m4c-m7f5",
-		package: "astro",
-		severity: "moderate",
-		why: "Same 7.0.6 boundary and the same build failure as GHSA-8mv7-9c27-98vc.",
-		trigger: "Same as GHSA-8mv7-9c27-98vc — they lift together.",
-		recheckBy: "2026-10-10",
-	},
-	{
-		ghsa: "GHSA-4g3v-8h47-v7g6",
-		package: "astro",
-		severity: "moderate",
-		why:
-			"Patched at >=7.0.10, which does not exist: npm publishes 7.0.0-7.0.9, so the fix is the " +
-			"7.1 line. That is issue #56's own case — the one the original exclusion was actually " +
-			"about, even though it was written as if it covered all of astro.",
-		trigger: "The 7.1 line builds this repo's apps. Blocked on the same upstream rolldown fix.",
-		recheckBy: "2026-10-10",
-	},
-	{
 		ghsa: "GHSA-h39j-r5qq-r9mm",
 		package: "decompress",
 		severity: "moderate",
@@ -128,6 +96,26 @@ export const ACCEPTED_ADVISORIES = [
 			"4.2.2 (or later) is published, OR `weval` drops the dependency. It lifts with " +
 			"GHSA-h39j-r5qq-r9mm and GHSA-mp2f-45pm-3cg9 — same package, same missing release.",
 		recheckBy: "2026-11-18",
+	},
+	{
+		ghsa: "GHSA-7pqw-9j4j-h8q3",
+		package: "extract-zip",
+		severity: "high",
+		why:
+			"The advisory requires >=2.0.2, but the registry still publishes only through 2.0.1. " +
+			"It is transitive browser tooling through @puppeteer/browsers, not a shipped runtime dependency.",
+		trigger: "extract-zip 2.0.2 (or later) is published, or Puppeteer removes the dependency.",
+		recheckBy: "2026-10-09",
+	},
+	{
+		ghsa: "GHSA-2883-xcg3-v3hh",
+		package: "js-yaml",
+		severity: "high",
+		why:
+			"Changesets reaches js-yaml 3.15.1 through read-yaml-file@1; the fix starts at 4.3.2, " +
+			"whose removed safeLoad API is incompatible with that legacy consumer. This is release-tooling only.",
+		trigger: "Changesets/read-yaml-file upgrades to js-yaml 4.3.2+ compatibility, or the legacy chain is removed.",
+		recheckBy: "2026-10-09",
 	},
 ];
 
