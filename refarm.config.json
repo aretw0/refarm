@@ -44,6 +44,7 @@
 		"ignoredGitVisibilityPatterns": [
 			"**/*.d.ts",
 			"**/src/bindings.rs",
+			"examples/reqbench-t3/dist-web/**",
 			"packages/enrichment-provider-ref/pkg-plugin/**",
 			"packages/quality-checker-plugin/pkg-plugin/**",
 			"packages/source-provider-ref/pkg-plugin/**",
