@@ -1,0 +1,75 @@
+{
+	"version": 1,
+	"families": [
+		{
+			"id": "system-architecture-target",
+			"topic": "system-architecture",
+			"state": "consolidation-target",
+			"guide": "specs/diagrams/ARCH_GUIDE.md",
+			"sourcePrefix": "specs/diagrams/architecture-layers",
+			"sources": [
+				"specs/diagrams/architecture-layers--adapters.mermaid",
+				"specs/diagrams/architecture-layers--apps-runtime.mermaid",
+				"specs/diagrams/architecture-layers--contracts.mermaid",
+				"specs/diagrams/architecture-layers.mermaid"
+			]
+		},
+		{
+			"id": "system-architecture-legacy",
+			"topic": "system-architecture",
+			"state": "legacy-frozen",
+			"guide": "docs/diagrams/LAYERS.md",
+			"sourcePrefix": "docs/diagrams/layer-diagram",
+			"sources": [
+				"docs/diagrams/layer-diagram--data.mermaid",
+				"docs/diagrams/layer-diagram--distros.mermaid",
+				"docs/diagrams/layer-diagram--runtime.mermaid",
+				"docs/diagrams/layer-diagram--streams.mermaid",
+				"docs/diagrams/layer-diagram.mermaid"
+			],
+			"assessments": [
+				{
+					"source": "docs/diagrams/layer-diagram.mermaid",
+					"question": "What is the complete system architecture?",
+					"decision": "replace-covered",
+					"replacements": ["specs/diagrams/architecture-layers.mermaid"]
+				},
+				{
+					"source": "docs/diagrams/layer-diagram--distros.mermaid",
+					"question": "Which product apps enter through which runtime surface?",
+					"decision": "replace-covered",
+					"replacements": ["specs/diagrams/architecture-layers--apps-runtime.mermaid"]
+				},
+				{
+					"source": "docs/diagrams/layer-diagram--runtime.mermaid",
+					"question": "How do Tractor, WIT, and plugin execution relate?",
+					"decision": "replace-covered",
+					"replacements": ["specs/diagrams/architecture-layers--apps-runtime.mermaid"]
+				},
+				{
+					"source": "docs/diagrams/layer-diagram--data.mermaid",
+					"question": "How do data contracts connect to storage, sync, and identity adapters?",
+					"decision": "review-overlap",
+					"replacements": [
+						"specs/diagrams/architecture-layers--contracts.mermaid",
+						"specs/diagrams/architecture-layers--adapters.mermaid"
+					]
+				},
+				{
+					"source": "docs/diagrams/layer-diagram--streams.mermaid",
+					"question": "How do effort dispatch and stream events traverse transport adapters?",
+					"decision": "replace-covered",
+					"replacements": ["specs/diagrams/work-dispatch-streaming.mermaid"]
+				}
+			]
+		},
+		{
+			"id": "work-dispatch-streaming",
+			"topic": "work-dispatch-and-streaming",
+			"state": "focused-active",
+			"guide": "specs/diagrams/INDEX.md",
+			"sourcePrefix": "specs/diagrams/work-dispatch-streaming",
+			"sources": ["specs/diagrams/work-dispatch-streaming.mermaid"]
+		}
+	]
+}

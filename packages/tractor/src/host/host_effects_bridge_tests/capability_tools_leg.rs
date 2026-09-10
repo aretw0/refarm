@@ -66,6 +66,7 @@ fn make_agent_leg_bindings() -> (
         PermissionGrant::permissive(),
         None,
         Some(cross),
+        std::sync::Arc::new(ConnectionRegistry::new()),
     );
     (bindings, sync, rx)
 }
@@ -141,6 +142,7 @@ fn make_typed_agent_leg_bindings() -> TractorNativeBindings {
         PermissionGrant::permissive(),
         None,
         Some(cross),
+        std::sync::Arc::new(ConnectionRegistry::new()),
     )
 }
 
@@ -216,6 +218,7 @@ async fn list_tool_prompts_is_empty_without_a_registry() {
         PermissionGrant::permissive(),
         None,
         None, // no CrossPluginAccess
+        std::sync::Arc::new(ConnectionRegistry::new()),
     );
     assert!(bindings.list_tool_prompts().await.is_empty());
 }

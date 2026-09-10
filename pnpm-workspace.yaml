@@ -27,19 +27,49 @@ linkWorkspacePackages: true
 # reaches us only through the build-time WASM toolchain (@bytecodealliance/jco >
 # componentize-js > weval > decompress, a devDependency). It never touches shipped runtime
 # code or untrusted archives. Re-evaluate when jco/weval drop the decompress transitive.
+# Source: https://github.com/advisories/GHSA-mp2f-45pm-3cg9. Written 2026-07-14 (bf92b96d);
+# still the confirmed disposition as of the 2026-08-03 security pass (4e8ac38e) that touched
+# the rest of this file — re-checked as unpatched then, not re-verified since.
 #
-# GHSA-mh99-v99m-4gvg (brace-expansion <=5.0.7, DoS via unbounded expansion) is patched only in
-# brace-expansion 5.0.8, which is ESM-only (named `expand`, no default export) and breaks
-# style-dictionary's `import expand from "brace-expansion"` — the packages/ds design-token build
-# (verified: forcing 5.x fails ds/platforms.test.ts). All 116 paths are dev tooling (glob >
-# minimatch > brace-expansion via test-exclude/istanbul/style-dictionary); the DoS needs a crafted
-# brace pattern, and dev-time globbing only ever sees the developer's own patterns. Net: forcing the
-# fix regresses the build for a negligible dev-only risk, so accept it. Re-evaluate when the
-# consumers move to a brace-expansion 5.x that keeps a default export (or drop the transitive).
+# GHSA-mh99-v99m-4gvg (brace-expansion <=5.0.7, DoS via unbounded expansion, patched at 5.0.8) used to
+# live here too: forcing brace-expansion to 5.x was rejected because 5.x is ESM-only (named `expand`,
+# no default export) and broke style-dictionary's `import expand from "brace-expansion"` — the
+# packages/ds design-token build. That finding is STALE: the ecosystem moved on (minimatch 10.x /
+# glob 13.x, pulled in by both eslint and style-dictionary's bundled glob, now import brace-expansion
+# by its named `expand` export, not the default one). Re-verified directly against 5.0.9 — see the
+# `overrides` comment below for the brace-expansion boundary. With the whole tree forced to
+# >=5.0.9 (past this advisory's <=5.0.7 boundary too), nothing resolved needs this exception anymore,
+# so it is removed rather than left to drift stale.
+# RE-VERIFIED 2026-08-11, and the exception STANDS — but three things about it were wrong on the
+# record and are corrected here.
+#
+# 1. THE PATCH DOES NOT EXIST. Both this comment's original claim and ISS-087's contradiction of
+#    it were read off ADVISORY METADATA, which says "patched >=4.2.2". The npm registry says
+#    otherwise: decompress has published 41 versions ending at 4.2.1, and `latest` IS 4.2.1 — the
+#    vulnerable one. An override to `^4.2.2` fails to install with ERR_PNPM_NO_MATCHING_VERSION.
+#    So the original justification was right and the item disputing it was wrong; both had read
+#    the same metadata and neither had asked the registry.
+#
+# 2. IT IS CRITICAL, not moderate. That is why `pnpm audit --audit-level=high` exits 0 while its
+#    own metadata reports `critical: 1` — the count includes what this list suppresses, the gate
+#    does not. A green gate printing a critical beside it is a signal one learns to stop reading.
+#
+# 3. THE SUPPRESSION DOES NOT SUPPRESS. GHSA-h39j-r5qq-r9mm reports the SAME package, the SAME
+#    range (<=4.2.1) and the same absent patch, and is not on this list — so decompress fails the
+#    moderate-prod gate regardless. Adding it here would silence a real finding for which no fix
+#    exists, which is a different act from accepting one; it is deliberately NOT done.
+#
+# THE REACH, verified this time rather than assumed (ISS-087 noted that half was never
+# re-checked): `pnpm why decompress -r` resolves exactly one path —
+#   decompress@4.2.1 <- @bytecodealliance/weval <- componentize-js <- @bytecodealliance/jco
+# the build-time WASM toolchain. It does not reach a shipped artifact.
+#
+# WHAT WOULD CHANGE THIS: a published decompress >4.2.1, or jco dropping weval. Re-check the
+# registry, not the advisory page — that is the whole lesson of this entry.
+
 auditConfig:
   ignoreGhsas:
     - GHSA-mp2f-45pm-3cg9
-    - GHSA-mh99-v99m-4gvg
 
 packages:
   - "packages/*"
@@ -79,20 +109,113 @@ overrides:
   esbuild: 0.28.1
   # Security bumps. NOTE two audit SCOPES in CI: Release Health/Security Audit run `pnpm audit
   # --prod` (prod deps); Test & Quality runs `pnpm audit --audit-level=high` WITHOUT --prod (dev deps
-  # too). brace-expansion is a dev-dep DoS. The two within-major patches below are safe. The 3.x/4.x
-  # and <=5.0.7 advisories are patched ONLY by brace-expansion 5.x, which is ESM-only (named `expand`,
-  # NO default export) and breaks style-dictionary's `import expand from "brace-expansion"` (the
-  # packages/ds design-token build — verified: forcing 5.x fails ds/platforms.test.ts). Forcing 5.x is
-  # a net regression, so those ranges are ACCEPTED instead — see `auditConfig.ignoreGhsas` above
-  # (GHSA-mh99-v99m-4gvg). js-yaml keeps a blanket pin (4.2.0 → 4.3.0, off the vulnerable line).
-  # astro is intentionally EXCLUDED: its patch (>=7.0.10 = 7.1.x) breaks the apps' build (issue #56).
-  brace-expansion@<1.1.16: ^1.1.16
-  brace-expansion@>=2.0.0 <2.1.2: ^2.1.2
-  fast-uri@>=3.0.0 <=3.1.3: ^3.1.4
-  js-yaml: 4.3.0
-  postcss@<=8.5.17: ^8.5.18
+  # too). GHSA-rgw5-rvv9-x895 (2026) is a NEW brace-expansion advisory that "bypasses the
+  # CVE-2026-14257 mitigation" — i.e. it moved the patched boundary past where the previous overrides
+  # pinned (1.1.16→1.1.18, 2.1.2→2.1.4), and it also newly covers the 4.x/5.x line (patched at 5.0.9),
+  # which previously had NO override and was instead accepted via `auditConfig.ignoreGhsas`
+  # (GHSA-mh99-v99m-4gvg, now removed — see that comment). The old rejection of brace-expansion 5.x
+  # ("ESM-only, named `expand`, no default export, breaks style-dictionary's `import expand from
+  # "brace-expansion"`, verified: forcing 5.x fails ds/platforms.test.ts") no longer holds: minimatch
+  # 10.x / glob 13.x — pulled in by both eslint and style-dictionary's bundled glob
+  # (@bundled-es-modules/glob) — now import brace-expansion by its named `expand` export, matching what
+  # brace-expansion 5.x actually ships. Re-verified directly: forced the tree to brace-expansion 5.0.9
+  # and ran `pnpm --filter @refarm.dev/ds run test` — 12 files / 79 tests green, including the
+  # style-dictionary-backed platforms.test.ts drift guard. js-yaml keeps a blanket pin (4.2.0 → 4.3.0,
+  # off the vulnerable line). Changesets still reaches read-yaml-file@1, whose API requires js-yaml 3;
+  # keep that legacy edge on the last 3.x release instead of forcing the incompatible safeLoad removal
+  # from 4.x.
+  #
+  # astro: THE EXCLUSION'S PREMISE WAS WRONG, and so was my first correction of it. Measured
+  # 2026-08-11 by BISECTING THE ACTUAL BUILD, not by reading advisory boundaries.
+  #
+  # This comment used to say "its patch (>=7.0.10 = 7.1.x) breaks the apps' build (issue #56)".
+  # Two things in that are false: npm publishes 7.0.0 through 7.0.9 and there is no 7.0.10; and
+  # the breakage does not start at 7.1.
+  #
+  #   astro 7.0.4  builds   (59/59 packages)
+  #   astro 7.0.6  BREAKS   MISSING_EXPORT — rolldown resolves a subpath export to the .d.ts
+  #   astro 7.0.9  BREAKS   same
+  #
+  # The Rolldown subpath bug arrives at 7.0.6, two releases earlier than the record claimed, so
+  # the reachable ceiling is 7.0.4 and it buys exactly one advisory:
+  #
+  #   GHSA-7pw4-f3q4-r2p2  low       >=3.10.0 <7.0.4  -> 7.0.4   CLOSED by this pin
+  #   GHSA-8mv7-9c27-98vc  moderate  >=7.0.0 <7.0.6   -> 7.0.6   blocked: 7.0.6 breaks the build
+  #   GHSA-f48w-9m4c-m7f5  moderate  <7.0.6           -> 7.0.6   blocked: same
+  #   GHSA-4g3v-8h47-v7g6  moderate  >=2.9.0 <=7.0.9  -> 7.1.x   blocked: issue #56's own case
+  #
+  # The pin is an UPPER bound as much as a lower one: the apps declare `^7.0.0`, which resolves
+  # to 7.2.x unpinned, so `<7.0.4: 7.0.4` takes the fix and holds the line at the last version
+  # that builds. Raise it when rolldown's subpath resolution is fixed upstream — and RE-BISECT
+  # rather than trusting this table, which is exactly what the previous comment earned.
+  # Source: https://github.com/advisories/GHSA-rgw5-rvv9-x895. Verified 2026-08-03 (commit 4e8ac38e) —
+  # the three re-verification steps described above (pnpm why, minimatch/glob source inspection, the
+  # @refarm.dev/ds test run) all happened that day.
+  astro@>=7.0.0 <7.0.4: 7.0.4
+  brace-expansion@<1.1.18: ^1.1.18
+  brace-expansion@>=2.0.0 <2.1.4: ^2.1.4
+  brace-expansion@>=4.0.0 <5.0.9: ^5.0.9
+  # GHSA-7p8r-x3mc-p8w7: fast-uri fails to treat a backslash as an authority introducer, unlike
+  # Node's WHATWG URL parser — a parsing discrepancy that can bypass host-based security policy.
+  # Source: https://github.com/advisories/GHSA-7p8r-x3mc-p8w7. Verified 2026-08-04 by reading that
+  # page. GHSA-5jgf-p345-68v8, GHSA-f65p-4m7j-42xc, GHSA-fph4-wmhf-6fwf and
+  # GHSA-jqff-g426-hqxp subsequently moved the patched boundary to 3.1.6.
+  #
+  # The advisory covers THREE ranges — <2.4.4, >=3.0.0 <3.1.6, >=4.0.0 <4.1.2 — and this pins only
+  # the middle one, unlike the brace-expansion block above, which pins all of its majors. That is
+  # deliberate and bounded: the lockfile resolves fast-uri at 3.1.6 and nothing else, and a future
+  # dependency dragging in a 2.x or 4.x would surface as a NEW `pnpm audit` failure rather than
+  # slipping past, because this GHSA is not in `auditConfig.ignoreGhsas`. A preemptive pin would
+  # buy silence, not safety.
+  fast-uri@>=3.0.0 <3.1.6: ^3.1.6
+  # GHSA-mwp4-54f8-5fhr: Address4 leading-zero octet decoding mismatch (SSRF / trust-boundary bypass
+  # potential). Dev-only path (puppeteer-core > @puppeteer/browsers > proxy-agent > ... > socks >
+  # ip-address, via the optional live-source browser driver). Range-scoped like the other transitive
+  # pins above; ^10.3.1 stays on the same major.
+  # Source: https://github.com/advisories/GHSA-mwp4-54f8-5fhr. Verified 2026-08-03 (commit 4e8ac38e).
+  ip-address@<=10.3.0: ^10.3.1
+  # GHSA-5p4m-2wfm-xmqj: quadratic CPU consumption resolving `!!omap` (CWE-407), covering
+  # >=4.0.0 <4.3.1. This pin USED to read `4.3.0` and was correct then — the comment above still
+  # describes it as "off the vulnerable line", which a NEW advisory overtook: 4.3.0 is now inside
+  # the range. Same drift shape as the brace-expansion block, which is why that one is written as
+  # explicit boundaries. Blanket pin retained (js-yaml has no legacy-API constraint here) and the
+  # `read-yaml-file>js-yaml` 3.x edge below is untouched — changesets reaches read-yaml-file@1,
+  # whose API needs js-yaml 3's `safeLoad`, removed in 4.x.
+  # Source: https://github.com/advisories/GHSA-5p4m-2wfm-xmqj. Verified 2026-08-09 by reading the
+  # advisory range out of `pnpm audit --audit-level high --json` against the resolved tree.
+  js-yaml: 4.3.1
+  read-yaml-file>js-yaml: 3.15.1
+  # GHSA-2v37-7h3g-55p8: a custom generator loops indefinitely when `size` is zero (CWE-835),
+  # patched at 3.3.17. Dev-only paths — vitest, vite, @vitest/coverage-v8, @vitest/ui,
+  # @storybook/html-vite, vite-plugin-wasm, @mermaid-js/mermaid-cli and astro's build tooling.
+  # Range-scoped rather than blanket, matching the ip-address/fast-uri entries above: the lockfile
+  # resolves nanoid at 3.3.16 and nothing else, so a future dependency dragging in a 4.x or 5.x
+  # would surface as a NEW `pnpm audit` failure instead of being silently pinned back to the 3.x
+  # line. ^3.3.17 stays on the same major.
+  # Source: https://github.com/advisories/GHSA-2v37-7h3g-55p8. Verified 2026-08-09 the same way.
+  nanoid@<3.3.17: ^3.3.17
+  # GHSA-fxqj-rqcc-2cmp: postcss <=8.5.22, patched at 8.5.23. Written in the BOUNDARY STYLE the
+  # brace-expansion and fast-uri entries use, and that is the whole point of this rewrite.
+  #
+  # This line used to read `postcss@<=8.5.17: ^8.5.18` — correct when written against an older
+  # advisory, and silently overtaken when the boundary moved to <=8.5.22. The lockfile then
+  # resolved 8.5.22: INSIDE the vulnerable range, while a pin sat above it looking like a fix
+  # (ISS-086). A `<=X: ^Y` pin whose X is not the CURRENT advisory boundary reads as protection
+  # and is not, and nothing in the file made that visible. Stating the boundary the advisory
+  # states is what makes the next drift legible: when the range moves again, this line will name
+  # a version the audit no longer accepts, and the mismatch is readable without running anything.
+  #
+  # `^8.5.23` rather than a blanket `8`: same major, same reasoning as nanoid above.
+  # Source: https://github.com/advisories/GHSA-fxqj-rqcc-2cmp. Verified 2026-08-11 against both
+  # the advisory and the npm registry (8.5.23 published; 8.5.26 is latest on the 8.5 line).
+  postcss@<=8.5.22: ^8.5.23
   sharp@<0.35.0: ^0.35.0
   svgo@>=4.0.0 <4.0.2: ^4.0.2
-  undici: 7.28.0
+  # GHSA-4cwx-7wf7-3272: undici cross-user information disclosure, patched at 7.29.0. Dev-only path
+  # (jsdom > undici, via @vitest/coverage-v8 and @vitest/ui). Blanket pin (not range-scoped) because the
+  # prior entry already was — undici has no legacy-API constraint pulling it back to an older line.
+  # Source: https://github.com/advisories/GHSA-4cwx-7wf7-3272. Verified 2026-08-03 (commit 4e8ac38e).
+  undici: 7.29.0
   ws: 8.21.0
   yaml: 2.9.0
+storeDir: .pnpm-store

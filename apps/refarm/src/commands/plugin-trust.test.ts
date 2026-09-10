@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { RefarmCliConfig } from "./config-shared.js";
-import { readTrustedPlugins, runtimeTrustId, setTrustedPlugin } from "./plugin-trust.js";
+import { pluginIdPair, readTrustedPlugins, runtimeTrustId, setTrustedPlugin } from "./plugin-trust.js";
 
 /** An in-memory config cell for the injectable read/write, so no disk is touched. */
 function cell(initial: RefarmCliConfig = {}) {
@@ -94,5 +94,50 @@ describe("setTrustedPlugin — the identity allowlist RMW", () => {
 	it("readTrustedPlugins returns [] when the key is absent", () => {
 		expect(readTrustedPlugins({})).toEqual([]);
 		expect(readTrustedPlugins({ trusted_plugins: ["agent"] })).toEqual(["agent"]);
+	});
+});
+
+// ISS-068. The two config keys speak two vocabularies — `trusted_plugins` takes the RUNTIME id,
+// `approvedPermissions` the MANIFEST id — and `plugin status --json` reported both forms under one
+// `id` field. Getting it wrong is a DENY-ALL, not a typo: an invalid `trusted_plugins` entry makes
+// the daemon refuse every plugin, which happened on the operator's real node.
+describe("pluginIdPair — two vocabularies, and a null where neither can be derived", () => {
+	const alias = (id: string) => (id === "agent" ? "@refarm/agent" : id);
+
+	it("a scoped id IS the manifest id, and its last segment is the runtime one", () => {
+		expect(pluginIdPair("@refarm/agent", alias)).toEqual({
+			runtimeId: "agent",
+			manifestId: "@refarm/agent",
+		});
+	});
+
+	it("a bare id with a declared alias resolves both", () => {
+		expect(pluginIdPair("agent", alias)).toEqual({
+			runtimeId: "agent",
+			manifestId: "@refarm/agent",
+		});
+	});
+
+	// THE ONE THAT MATTERS. `lsp-code-ops` is installed on the operator's node, its
+	// `approvedPermissions` key is `@refarm/lsp-code-ops`, and NOTHING in this repo can derive
+	// that from the bare id — there is no alias. A guess here would be a confidently wrong id,
+	// which is exactly what put a deny-all on his node.
+	it("a bare id with no alias reports null rather than inventing a scope", () => {
+		expect(pluginIdPair("lsp-code-ops", alias)).toEqual({
+			runtimeId: "lsp-code-ops",
+			manifestId: null,
+		});
+	});
+
+	it("the trust wildcard is neither, and says so", () => {
+		expect(pluginIdPair("*", alias)).toEqual({ runtimeId: "*", manifestId: null });
+	});
+
+	it("without an alias table it still answers the half it can derive", () => {
+		expect(pluginIdPair("  @scope/thing  ")).toEqual({
+			runtimeId: "thing",
+			manifestId: "@scope/thing",
+		});
+		expect(pluginIdPair("thing")).toEqual({ runtimeId: "thing", manifestId: null });
 	});
 });

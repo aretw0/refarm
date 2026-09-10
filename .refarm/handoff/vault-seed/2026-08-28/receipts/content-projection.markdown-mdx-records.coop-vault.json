@@ -1,0 +1,25 @@
+{
+  "proofId": "content-projection.markdown-mdx-records",
+  "packageName": "@refarm.dev/content-projection",
+  "consumer": "coop-vault",
+  "consumerCommit": "03dff568d172e3b377c3780be9f1f71616490690",
+  "consumerDirty": false,
+  "manifestSha256": "cde622d0ba1b7244956c6bea20d5559edd5271285b57ed0867370752066b08c9",
+  "generatedAt": "2026-08-28T18:02:22.123Z",
+  "commands": [
+    "npm run test:projection",
+    "npm run test:records",
+    "npm run test:equivalencia"
+  ],
+  "result": "pass",
+  "proofTargetAtPacket": "a consumer can replace local note-to-record, wikilink, and inline-link projection helpers with the generic projection block while retaining its product configuration",
+  "proofTargetCurrentPolicy": "a consumer can replace local note-to-record, wikilink, and inline-link projection helpers with the generic projection block while retaining its product configuration",
+  "notes": [
+    "Segundo consumidor deste proof. O vault-seed foi o primeiro; o coop-vault instala com npm e overrides, nao pnpm.",
+    "Substituiu build_vault_index.mjs como produtor da projecao. O indice artesanal segue no lugar ate perder consumidor, por decisao registrada na spec do consumidor.",
+    "Equivalencia provada contra o indice artesanal: 170 notas, 186 arestas no indice, 206 na projecao, nenhuma perdida.",
+    "O proof custou tres correcoes no pacote, todas em develop: 2908a95c (YAML.parse estourava em gabarito Obsidian com {{date}} {{time}} e derrubava a projecao inteira), a88d22a0 (links em frontmatter nao eram lidos: 49 das 186 arestas), 2b877034 (links de frontmatter dentro de listas de objetos).",
+    "linkFrontmatter entrou como opt-in para nao alterar o conjunto de relacoes do vault-seed.",
+    "A revendorPolicy do packet nomeia tres passos quando o sha muda; o consumidor cumpria so o primeiro e o npm servia bytes antigos do cache. Corrigido no consumidor em 03dff56."
+  ]
+}

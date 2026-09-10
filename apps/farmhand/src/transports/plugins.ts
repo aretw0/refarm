@@ -1,12 +1,18 @@
+import { normalizePluginId } from "@refarm.dev/config";
+import { installWasmArtifact, type PluginManifest } from "@refarm.dev/plugin-manifest";
+import type { RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import type http from "node:http";
 import path from "node:path";
-import { normalizePluginId } from "@refarm.dev/config";
-import { installWasmArtifact, type PluginManifest } from "@refarm.dev/plugin-manifest";
-import type { RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
+import { fileURLToPath } from "node:url";
 import { createFilesystemCacheAdapter } from "../filesystem-cache-adapter.js";
-import { listInstalledPluginIds, loadInstalledPlugins } from "../installed-plugins.js";
+import {
+	type InstalledPluginManifest,
+	listInstalledPluginIds,
+	listInstalledPluginManifests,
+	loadInstalledPlugins,
+} from "../installed-plugins.js";
 import { LocalExtensionRegistry } from "../local-extensions.js";
 import type { PluginUsageTracker } from "../plugin-usage-tracker.js";
 
@@ -49,6 +55,20 @@ async function readJsonBody<T>(req: http.IncomingMessage): Promise<T | null> {
 		});
 		req.on("error", () => resolve(null));
 	});
+}
+
+/** The path a request row names — the wasm the manifest's entry points at, or the
+ *  conventional <dir>/plugin.wasm when the entry is not a file URL. */
+function requestedPluginPath(entry: InstalledPluginManifest): string {
+	const manifestEntry = (entry.manifest as { entry?: unknown }).entry;
+	if (typeof manifestEntry === "string" && manifestEntry.startsWith("file:")) {
+		try {
+			return fileURLToPath(manifestEntry);
+		} catch {
+			// fall through to the conventional path
+		}
+	}
+	return path.join(entry.dir, "plugin.wasm");
 }
 
 export function createPluginsRouteHandler(
@@ -107,14 +127,39 @@ export function createPluginsRouteHandler(
 				json(res, 405, { error: "method not allowed" });
 				return true;
 			}
-			const installed = listInstalledPluginIds(baseDir);
+			const manifests = listInstalledPluginManifests(baseDir);
+			const installed = manifests.map((entry) => entry.id);
 			const local = localExtensions?.getLoadedIds() ?? [];
 			const known = [...new Set([...installed, ...local])].sort();
+			const loaded = known.filter((pluginId) => Boolean(target.plugins.get?.(pluginId)));
 			json(res, 200, {
 				installed,
 				local,
-				loaded: known.filter((pluginId) => Boolean(target.plugins.get?.(pluginId))),
+				loaded,
 				known,
+				// Parity with the Rust host's /plugins shape (2be2a4cc, 7b11ec0e): the CLI reads
+				// `requested` and `defaultResponder` since dddc75cb, and with only the fields above
+				// `refarm ask` saw "No agent is loaded" against a daemon that had loaded it. This
+				// host scans ~/.refarm/plugins instead of receiving --plugin paths, so the scan IS
+				// what it was handed; `because` is null for a loaded row and names the only fact
+				// this host has for an unloaded one.
+				requested: manifests.map((entry) => ({
+					id: entry.id,
+					path: requestedPluginPath(entry),
+					loaded: loaded.includes(entry.id),
+					because: loaded.includes(entry.id) ? null : "installed but not loaded by this host",
+				})),
+				// The same election rule as the Rust host: the first LOADED plugin declaring
+				// integration:respond. Nobody elected is null, never "".
+				defaultResponder:
+					manifests.find(
+						(entry) =>
+							loaded.includes(entry.id) &&
+							(entry.manifest.capabilities?.provides ?? []).includes("integration:respond"),
+					)?.id ?? null,
+				// This host does not compute grants; empty is the honest answer (the CLI treats an
+				// empty map as "unwired", not as "nothing granted").
+				grants: {},
 			});
 			return true;
 		}

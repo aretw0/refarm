@@ -32,6 +32,10 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
             axum::routing::post(post_efforts).get(get_efforts),
         )
         .route("/efforts/summary", axum::routing::get(get_efforts_summary))
+        .route(
+            "/efforts/in-flight",
+            axum::routing::get(get_efforts_in_flight),
+        )
         .route("/efforts/:id", axum::routing::get(get_effort))
         .route("/efforts/:id/logs", axum::routing::get(get_effort_logs))
         .route("/efforts/:id/retry", axum::routing::post(post_effort_retry))
@@ -198,10 +202,20 @@ fn storage_path() -> String {
 // Per-family test modules. tests.rs lives in sidecar/, so `#[path]` must be
 // explicitly `tests/<family>.rs` (a bare `mod x;` would look for sidecar/x.rs).
 // Each child is body-only and pulls the shared helpers above via `use super::*;`.
+#[path = "tests/auth_limits.rs"]
+mod auth_limits;
+#[path = "tests/budget.rs"]
+mod budget;
+#[path = "tests/connection.rs"]
+mod connection;
 #[path = "tests/effort.rs"]
 mod effort;
 #[path = "tests/node.rs"]
 mod node;
+#[path = "tests/node_local.rs"]
+mod node_local;
+#[path = "tests/observation.rs"]
+mod observation;
 #[path = "tests/plugin.rs"]
 mod plugin;
 #[path = "tests/provider_liveness.rs"]

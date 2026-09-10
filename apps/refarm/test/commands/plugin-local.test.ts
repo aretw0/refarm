@@ -26,7 +26,15 @@ describe("extension command", () => {
 		expect(help).toContain("/r @local/<name>");
 	});
 
-	it("prints runtime activation guidance when scaffolding an extension", async () => {
+	// REVIEW ROUND 1, IMPORTANT 3 (2026-08-26): this test used to PIN the defect it
+	// should have caught — it asserted "Activate: refarm plugin reload ..." as correct
+	// output, but `reload_plugin` (packages/tractor/src/lib.rs:1164) only affects a
+	// plugin this runtime already loaded at boot (`plugin_paths`); a freshly scaffolded
+	// id was never requested, so reload silently returns `false` and "restart the
+	// runtime" does not put it there either. Now it asserts the true, corrected
+	// first-line guidance and its order: the notice leads, the old reload/restart
+	// framing is gone.
+	it("prints the WASM/light-track notice first when scaffolding an extension, not stale reload guidance", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const tempDir = mkdtempSync(join(os.tmpdir(), "refarm-extension-test-"));
@@ -43,8 +51,15 @@ describe("extension command", () => {
 		}
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("Activate: refarm plugin reload '@local/my-tool' --json");
-		expect(output).toContain("restart the Refarm runtime");
+		expect(output).toContain("Declare it before running it unsigned");
+		expect(output).toContain("is designed and not built");
+		expect(output).toContain("reloading it now does nothing — it is not an activation step");
+		expect(output).not.toMatch(/Activate:.*reload/u);
+		expect(output).not.toMatch(/Fallback:.*restart/u);
+		// Order: the truth leads. The notice must appear before the reload caveat.
+		expect(output.indexOf("Declare it before running it unsigned")).toBeLessThan(
+			output.indexOf("not an activation step"),
+		);
 		expect(errorSpy).not.toHaveBeenCalled();
 
 		logSpy.mockRestore();
@@ -240,8 +255,10 @@ describe("extension command", () => {
 		const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(tempDir);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const previousHome = process.env.HOME;
+		const previousRefarmHome = process.env.REFARM_HOME;
 		try {
 			process.env.HOME = homeDir;
+			process.env.REFARM_HOME = join(homeDir, ".refarm");
 			mkdirSync(extDir, { recursive: true });
 			writeFileSync(
 				join(extDir, "ext.json"),
@@ -279,6 +296,11 @@ describe("extension command", () => {
 				delete process.env.HOME;
 			} else {
 				process.env.HOME = previousHome;
+			}
+			if (previousRefarmHome === undefined) {
+				delete process.env.REFARM_HOME;
+			} else {
+				process.env.REFARM_HOME = previousRefarmHome;
 			}
 			cwdSpy.mockRestore();
 			logSpy.mockRestore();

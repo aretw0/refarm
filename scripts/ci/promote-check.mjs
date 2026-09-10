@@ -260,7 +260,7 @@ if (isMain()) {
 	const allowPublish = args.includes("--allow-publish");
 	const offline = args.includes("--offline");
 	const selectionIndex = args.indexOf("--selection");
-	const selectionId = selectionIndex >= 0 ? args[selectionIndex + 1] : "vault-seed-ready";
+	const selectionId = selectionIndex >= 0 ? args[selectionIndex + 1] : "consumer-ready";
 
 	const risks = findFirstPublishChangesetRisks({ root: ROOT, selectionId });
 	const baselineRisks = findOutOfSelectionBaselineRisks({ root: ROOT, selectionId });

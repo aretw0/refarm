@@ -511,7 +511,7 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 	};
 
 	return {
-		schema: "refarm.task-artifacts.v1",
+		schema: "sovereign.task-artifacts.v1",
 		taskId: TASK_ID,
 		effortId: EFFORT_ID,
 		createdAt: ISSUED_AT,

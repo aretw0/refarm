@@ -14,7 +14,10 @@ import path from "node:path";
 import { resolveRefarmRenderer } from "../renderers.js";
 import { resolveTractorNamespace } from "../utils/tractor-store.js";
 import { formatBaseSurfaceModel } from "./base-surface-output.js";
-import { resolveBaseSurfaceStatus } from "./base-surface-status.js";
+import {
+	resolveBaseSurfaceStatus,
+	type BaseSurfaceStatusOptions,
+} from "./base-surface-status.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 import { probeRuntimeLiveness } from "./runtime-readiness.js";
 import {
@@ -45,7 +48,7 @@ export interface ResolveStatusPayloadResult {
 }
 
 export interface StatusCommandDeps {
-	resolveBaseSurfaceStatus?: () => Promise<BaseSurfaceModel>;
+	resolveBaseSurfaceStatus?: (options?: BaseSurfaceStatusOptions) => Promise<BaseSurfaceModel>;
 }
 
 interface StatusCommandOptions {
@@ -55,6 +58,9 @@ interface StatusCommandOptions {
 	input?: string;
 	action?: string;
 	base?: boolean;
+	attentionScope?: string;
+	attentionWindowMs?: number;
+	attentionProfile?: string;
 }
 
 async function createStatusRuntimeSummary(namespace: string): Promise<StatusJson["runtime"]> {
@@ -103,6 +109,19 @@ export function createStatusCommand(deps: StatusCommandDeps = {}): Command {
 		.option("--json", "Output machine-readable JSON")
 		.option("--base", "Output the zero-extension daily-driver base state")
 		.option(
+			"--attention-scope <scope>",
+			"Operator-attention scope to project in --base output (overrides REFARM_OPERATOR_ATTENTION_SCOPE)",
+		)
+		.option(
+			"--attention-window-ms <ms>",
+			"Window (ms) used to evaluate operator-attention readiness in --base output",
+			parsePositiveInt,
+		)
+		.option(
+			"--attention-profile <name>",
+			"Named operator-attention intent profile for --base (cross-device-handoff | mobile-ready | operator-sync)",
+		)
+		.option(
 			"--action <id-or-index>",
 			"Invoke a live app-owned status action by available action ID or row index",
 		)
@@ -116,6 +135,8 @@ Examples:
   $ refarm status --markdown
   $ refarm status --base
   $ refarm status --base --json
+	$ refarm status --base --attention-scope connection-up:ovpn-serpro
+	$ refarm status --base --attention-profile cross-device-handoff
   $ refarm status --renderer web
   $ refarm status --input status.json --markdown
   $ refarm status --action inspect-trust
@@ -128,6 +149,18 @@ Notes:
 `,
 		)
 		.action(async (options: StatusCommandOptions) => {
+			if (
+				!options.base &&
+				(
+					options.attentionScope ||
+					options.attentionWindowMs !== undefined ||
+					options.attentionProfile
+				)
+			) {
+				throw new Error(
+					"--attention-scope/--attention-window-ms/--attention-profile require --base.",
+				);
+			}
 			if (options.base) {
 				await emitBaseStatus(options, deps);
 				return;
@@ -164,7 +197,16 @@ Notes:
 export const statusCommand = createStatusCommand();
 
 async function emitBaseStatus(
-	options: Pick<StatusCommandOptions, "json" | "markdown" | "input" | "action">,
+	options: Pick<
+		StatusCommandOptions,
+		| "json"
+		| "markdown"
+		| "input"
+		| "action"
+		| "attentionScope"
+		| "attentionWindowMs"
+		| "attentionProfile"
+	>,
 	deps: StatusCommandDeps,
 ): Promise<void> {
 	if (options.input) {
@@ -176,7 +218,11 @@ async function emitBaseStatus(
 	if (options.markdown) {
 		throw new Error("--base cannot be combined with --markdown.");
 	}
-	const model = await (deps.resolveBaseSurfaceStatus ?? resolveBaseSurfaceStatus)();
+	const model = await (deps.resolveBaseSurfaceStatus ?? resolveBaseSurfaceStatus)({
+		operatorAttentionScope: options.attentionScope,
+		operatorAttentionWindowMs: options.attentionWindowMs,
+		operatorAttentionProfile: options.attentionProfile,
+	});
 	if (options.json) {
 		printJson(model);
 	} else {
@@ -185,6 +231,14 @@ async function emitBaseStatus(
 	if (!model.ok) {
 		process.exitCode = 1;
 	}
+}
+
+function parsePositiveInt(value: string): number {
+	const parsed = Number(value);
+	if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+		throw new Error("--attention-window-ms must be a positive integer.");
+	}
+	return parsed;
 }
 
 async function emitStatusActionInvocation(options: {

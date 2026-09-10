@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn session_node_has_required_fields() {
     let ts = 1_700_000_000_000_000_000_u64;
-    let node = session_node("urn:sovereign:session:v1:abc", Some("test"), None, None, ts);
+    let node = session_node("urn:sovereign:session:v1:abc", Some("test"), None, None, ts, None);
     assert_eq!(node["@type"], "Session");
     assert_eq!(node["@id"], "urn:sovereign:session:v1:abc");
     assert_eq!(node["name"], "test");
@@ -51,6 +51,7 @@ fn session_node_with_leaf_and_parent() {
         Some("urn:sovereign:session-entry:v1:42"),
         Some("urn:sovereign:session:v1:root"),
         42,
+        None,
     );
     assert_eq!(node["leaf_entry_id"], "urn:sovereign:session-entry:v1:42");
     assert_eq!(node["parent_session_id"], "urn:sovereign:session:v1:root");
@@ -154,6 +155,7 @@ fn fork_session_node_has_correct_fields() {
         Some("urn:sovereign:session-entry:v1:ancestor"),
         Some("urn:sovereign:session:v1:origin"),
         999,
+        None,
     );
     assert_eq!(forked["@type"], "Session");
     assert_eq!(forked["parent_session_id"], "urn:sovereign:session:v1:origin");
@@ -167,7 +169,7 @@ fn fork_session_node_has_correct_fields() {
 #[test]
 fn navigate_updates_leaf_in_node() {
     // Navigate is a pure JSON patch — verify field semantics
-    let mut session = session_node("urn:sovereign:session:v1:s1", None, None, None, 1);
+    let mut session = session_node("urn:sovereign:session:v1:s1", None, None, None, 1, None);
     assert!(session["leaf_entry_id"].is_null());
 
     // Simulate navigate by patching leaf_entry_id (as navigate_session does)
@@ -177,4 +179,32 @@ fn navigate_updates_leaf_in_node() {
     // Navigate is idempotent: same entry twice is fine
     session["leaf_entry_id"] = serde_json::Value::String("urn:sovereign:session-entry:v1:42".into());
     assert_eq!(session["leaf_entry_id"], "urn:sovereign:session-entry:v1:42");
+}
+
+#[test]
+fn session_without_workspace_carries_neither_key() {
+    let node = session_node("s1", None, None, None, 42, None);
+    assert!(
+        node.get("workspace_id").is_none(),
+        "an unattributed session must carry no workspace_id key at all, not a null"
+    );
+    assert!(node.get("workspace_source").is_none());
+}
+
+#[test]
+fn session_with_workspace_carries_id_and_provenance() {
+    let node = session_node(
+        "s1",
+        None,
+        None,
+        None,
+        42,
+        Some(("rcdc5", "seeded-from-cwd")),
+    );
+    assert_eq!(node["workspace_id"], "rcdc5");
+    assert_eq!(
+        node["workspace_source"], "seeded-from-cwd",
+        "a seed must stay legible as a seed: workspace_id selects budget folds, and \
+         ADR-094 H2 allows cwd as authoring convenience but not as policy truth"
+    );
 }

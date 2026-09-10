@@ -20,11 +20,24 @@ export interface RefarmHostIdentity {
 	profile: string;
 }
 
+/**
+ * What is true of this BINARY, wherever it was invoked from. ISS-093: `packageManager` used to live
+ * here and was measured reporting `pnpm` from this checkout and `npm` from every other directory,
+ * dragging seven of `doctor`'s advice fields with it. A field named `host.*` cannot depend on where
+ * the operator is standing — and the resolution was never wrong, the NAME was. It moved to
+ * `WorkingTreeFacts` below, which says where it looked as well as what it found.
+ */
 export interface RefarmRuntimeMetadata {
 	app: string;
 	command: string;
 	profile: string;
 	version: string;
+}
+
+/** What is true of the DIRECTORY the CLI was invoked from. Varies by construction, and the `path`
+ *  is carried beside the value so the variance is a reported fact rather than a bare surprise. */
+export interface WorkingTreeFacts {
+	path: string;
 	packageManager: PackageManagerName;
 }
 
@@ -85,10 +98,26 @@ export function resolveRefarmRuntimeMetadata(
 	return {
 		...host,
 		version: resolveVersion(options),
-		packageManager: detectPackageManager({
-			cwd: options?.cwd ?? process.cwd(),
-			env: options?.env ?? process.env,
-		}),
+	};
+}
+
+/**
+ * The package manager of a working tree, and the tree it was read from.
+ *
+ * `cwd` is a REQUIRED field. The old call site was `cwd: options?.cwd ?? process.cwd()` — the shape
+ * `scripts/no-os-resolution.mjs` counts and `docs/superpowers/plans/2026-08-07-no-resolver-defaults-to-the-os.md`
+ * calls the footgun, and it is how a working-tree fact came to be published under `host.*`. The fix
+ * is not to resolve the node's base here: a node's home has no lockfile, so detection there would
+ * return a default that means nothing. The fix is that a caller must SAY which tree it is asking
+ * about, and the answer says which tree replied.
+ */
+export function resolveWorkingTreeFacts(options: {
+	cwd: string;
+	env?: NodeJS.ProcessEnv;
+}): WorkingTreeFacts {
+	return {
+		path: options.cwd,
+		packageManager: detectPackageManager({ cwd: options.cwd, env: options.env ?? process.env }),
 	};
 }
 

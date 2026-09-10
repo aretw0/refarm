@@ -19,11 +19,18 @@ export interface ResolutionStatus {
 export interface ProjectAuditResult {
     git: HealthIssue[];
     builds: HealthIssue[];
+    staleBuilds?: HealthIssue[];
     alignment: HealthIssue[];
     automations?: HealthIssue[];
     namespaceWarnings?: HealthIssue[];
     complexity?: HealthIssue[];
     complexitySummary?: ComplexityAuditResult;
+    /** False when `rootDir` is not a project (see ProjectBaseResult) — builds,
+     *  alignment, automations, and namespaceWarnings are all `[]` in that case,
+     *  not "checked and clean". `git` still forwards generic_fs's own result. */
+    applicable: boolean;
+    /** Present only when `applicable` is false. */
+    reason?: string;
 }
 
 export interface FileSystemAuditResult {
@@ -33,6 +40,16 @@ export interface FileSystemAuditResult {
         modifiedAt: string;
         size: number;
     };
+    /** False when `rootDir` is not a project (see ProjectBaseResult) — `git` is
+     *  `[]` in that case because the check never ran, not because it ran clean. */
+    applicable: boolean;
+    /** Present only when `applicable` is false. */
+    reason?: string;
+}
+
+export interface ProjectBaseResult {
+    isProject: boolean;
+    reason: string | null;
 }
 
 export interface FileSystemAuditorOptions {
@@ -82,6 +99,10 @@ export interface ComplexityAuditResult {
     }>;
 }
 
+/** The four states a declared tool can be in. `cannot-say` is deliberately not `ok`: a minimum
+ *  that nothing could verify is unmet-as-far-as-this-node-knows, not satisfied. */
+export type ToolRequirementState = "ok" | "absent" | "outdated" | "cannot-say";
+
 export interface ToolchainCheck {
     id: string;
     label: string;
@@ -91,6 +112,12 @@ export interface ToolchainCheck {
     target?: string;
     command?: string;
     version?: string;
+    /** Command checks only; path and mount checks carry no version question. */
+    state?: ToolRequirementState;
+    minVersion?: string;
+    measuredVersion?: string;
+    /** Human-readable fact for a state that is not `ok`. Never names a fix command. */
+    detail?: string;
     stderr?: string;
 }
 
@@ -109,6 +136,10 @@ export interface ToolchainCommandCheckOptions {
     args?: string[];
     required?: boolean;
     shell?: boolean;
+    /** Declared floor. Present and older than this FAILS the check — see tool-requirements.js. */
+    minVersion?: string;
+    /** What the node depends on this tool for, carried into the reported detail. */
+    why?: string;
 }
 
 export interface ToolchainAnyCommandCheckOptions {
@@ -152,6 +183,15 @@ export interface ToolchainAuditResult {
     }>;
 }
 
+/**
+ * Distinguishes a PROJECT base (a git repository, or a directory with its own
+ * package.json) from a NODE base (e.g. the operator's `~/.refarm` sovereign
+ * root) — see src/project-base.js for the full rationale. FileSystemAuditor
+ * and ProjectAuditor call this internally; it is exported for direct testing
+ * and reuse by future project-shaped auditors.
+ */
+export function detectProjectBase(rootDir: string): ProjectBaseResult;
+
 export class HealthCore {
     constructor(graphContext?: unknown);
     register(auditor: { id: string; audit(context?: unknown): Promise<unknown> }): void;
@@ -159,7 +199,7 @@ export class HealthCore {
     audit(
         requestedAuditors?: string[] | null,
         policyId?: string | null,
-        options?: { rootDir?: string },
+        options?: { rootDir?: string; configBase?: string },
     ): Promise<unknown>;
     checkResolutionStatus(rootDir?: string): Promise<ResolutionStatus[]>;
 }
@@ -195,7 +235,14 @@ export class ConfigNodeAuditor {
     constructor(options?: ConfigNodeAuditorOptions);
     readonly id: "config-node";
     readonly title: string;
-    audit(context?: { rootDir?: string }): Promise<ConfigNodeAuditResult>;
+    /**
+     * `configBase` — the scope the graph node's OWNING DAEMON used, resolved by
+     * the caller (see `resolveConfigNodeBase` in apps/refarm/src/commands/health.ts)
+     * — takes priority over `rootDir` for the local `.refarm/config.json` half of
+     * the comparison. `rootDir` remains a fallback for callers with no node-scope
+     * concept of their own (e.g. a direct, single-root unit test).
+     */
+    audit(context?: { rootDir?: string; configBase?: string }): Promise<ConfigNodeAuditResult>;
 }
 
 export class ToolchainAuditor {
@@ -227,3 +274,31 @@ export class RefarmProjectAuditor extends ProjectAuditor {
     constructor(options?: ProjectAuditorOptions);
 }
 //# sourceMappingURL=index.d.ts.map
+
+export interface DeclaredTool {
+    command: string;
+    args: string[];
+    minVersion?: string;
+    why?: string;
+}
+
+export interface ToolRequirements {
+    tools: DeclaredTool[];
+    /** Entries that could not be read. Reported rather than dropped: a vanished typo leaves an
+     *  unguarded dependency that reads as a guarded one. */
+    malformed: unknown[];
+}
+
+export function readToolRequirements(config: unknown): ToolRequirements;
+export function parseToolVersion(text: string | undefined): string | undefined;
+export function compareVersions(left: string, right: string): -1 | 0 | 1;
+export function toolRequirementState(input: {
+    present: boolean;
+    versionText?: string;
+    minVersion?: string;
+}): ToolRequirementState;
+export function explainToolRequirement(
+    tool: { command: string; minVersion?: string; why?: string },
+    state: ToolRequirementState,
+    measured: string | undefined,
+): string | null;

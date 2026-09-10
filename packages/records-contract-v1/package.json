@@ -1,6 +1,7 @@
 {
   "name": "@refarm.dev/records-contract-v1",
   "version": "0.1.0",
+  "repository": "https://github.com/aretw0/refarm.git",
   "private": false,
   "description": "Versioned records capability contract (records:v1) and conformance suite",
   "type": "module",

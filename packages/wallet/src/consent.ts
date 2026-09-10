@@ -116,6 +116,11 @@ export function createWalletRequestCapability(
 		args: [{ name: "requester", required: true }],
 		options: [
 			{ name: "purpose", kind: "string", summary: "Why the service needs the attributes" },
+			{
+				name: "justification",
+				kind: "string",
+				summary: "A longer human-readable justification beyond --purpose (optional)",
+			},
 			{ name: "scope", kind: "string", summary: "Comma-separated attribute names requested" },
 			{ name: "expires", kind: "string", summary: "When the request lapses (ISO 8601)" },
 		],
@@ -124,6 +129,7 @@ export function createWalletRequestCapability(
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
 			const requester = String(input.args.requester ?? "");
 			const purpose = String(input.options?.purpose ?? "").trim();
+			const justification = String(input.options?.justification ?? "").trim();
 			const scope = parseScope(input.options?.scope);
 			const expiresAt = String(input.options?.expires ?? "").trim();
 			if (!requester || !purpose || scope.length === 0 || !expiresAt) {
@@ -140,6 +146,7 @@ export function createWalletRequestCapability(
 				requester,
 				subject: "citizen-local",
 				purpose,
+				...(justification ? { justification } : {}),
 				requestedAttributes: scope,
 				expiresAt,
 			};

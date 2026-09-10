@@ -43,6 +43,7 @@ export interface LocalRecordsCommandDepsOptions {
 
 export function localRecordsStatePath(options: LocalRecordsStatePathOptions): string {
 	return path.join(
+		// os-resolution: project — local records live beside the project they record, under a dot dir in its own tree
 		options.cwd ?? process.cwd(),
 		`.${options.appId}`,
 		options.fileName ?? "manifest.json",

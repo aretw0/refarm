@@ -28,6 +28,13 @@ fn test_plugin_host() -> PluginHost {
         crate::host::instance::DEFAULT_ON_EVENT_BUDGET_MS,
     )
     .unwrap()
+    // These fixtures compile a bare WAT module to a tempfile with NO plugin.json —
+    // exercising P1 module-loading mechanics, not the integrity gate — so there is
+    // no manifest to carry an integrity claim. Since an absent claim now loads only
+    // where the node declared it is under development (this task), wildcard-waive it
+    // here rather than let every mechanics test start failing the security gate it
+    // isn't testing.
+    .with_under_development(Some(["*".to_string()].into_iter().collect()))
 }
 
 fn test_native_sync() -> NativeSync {

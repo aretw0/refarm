@@ -834,10 +834,11 @@
             ModelRoute::for_test("ollama", "http://127.0.0.1:11434", "/v1/chat/completions");
 
         // Primary request: accepted.
-        assert!(enforce_model_route_any(
+        assert!(enforce_model_route_for_task(
             "anthropic",
             "https://api.anthropic.com",
             "/v1/messages",
+            None,
             &primary,
             Some(&fallback),
             &[],
@@ -845,10 +846,11 @@
         .is_ok());
 
         // Fallback request: accepted (this is exactly what was blocked before).
-        assert!(enforce_model_route_any(
+        assert!(enforce_model_route_for_task(
             "ollama",
             "http://127.0.0.1:11434",
             "/v1/chat/completions",
+            None,
             &primary,
             Some(&fallback),
             &[],
@@ -856,10 +858,11 @@
         .is_ok());
 
         // A third provider neither route allows: still rejected.
-        assert!(enforce_model_route_any(
+        assert!(enforce_model_route_for_task(
             "openai",
             "https://api.openai.com",
             "/v1/chat/completions",
+            None,
             &primary,
             Some(&fallback),
             &[],
@@ -881,10 +884,11 @@
         )];
 
         // The configured ollama route is accepted even though it is not primary/fallback.
-        assert!(enforce_model_route_any(
+        assert!(enforce_model_route_for_task(
             "ollama",
             "http://localhost:11434",
             "/v1/chat/completions",
+            None,
             &primary,
             None,
             &configured,
@@ -892,15 +896,302 @@
         .is_ok());
 
         // A provider in NEITHER the primary/fallback NOR the configured set: rejected.
-        assert!(enforce_model_route_any(
+        assert!(enforce_model_route_for_task(
             "anthropic",
             "https://api.anthropic.com",
             "/v1/messages",
+            None,
             &primary,
             None,
             &configured,
         )
         .is_err());
+    }
+
+    /// ISS-145 — WHICH SEAT pays, when one provider holds two.
+    ///
+    /// The host read one credential env var per provider, so the operator's personal and corporate
+    /// Copilot seats — different endpoints, different entitlements — could never both be
+    /// provisioned, and a workspace bound to the one that was not the default could not be
+    /// honoured. Keyed by the OPAQUE credential id, which is what the task already declares and
+    /// what the budget record already stamps: one id rather than three inferences.
+    /// A CREDENTIAL THIS PROCESS CAN BE HANDED AGAIN.
+    ///
+    /// MEASURED 2026-08-19 on the operator's node: every dispatch failed with `token expired`
+    /// about a day after the runtime started, and a restart fixed it. The credential was fine.
+    /// The host reads its map per call, but a process cannot have its own environment rewritten
+    /// from outside — so a renewal could never reach a running node.
+    ///
+    /// A declared FILE can be rewritten. It wins over the inline copy, which stays as the
+    /// fallback so nothing that works today stops working.
+    #[test]
+    fn account_credentials_prefer_the_declared_file_over_the_inline_copy() {
+        let dir = std::env::temp_dir().join(format!("refarm-cred-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let path = dir.join("model-accounts.token");
+        std::fs::write(&path, r#"{"model-account:A":{"access":"tid=renewed"}}"#).expect("write");
+
+        let raw = account_credentials_raw(
+            Some(path.to_string_lossy().to_string()),
+            Some(r#"{"model-account:A":{"access":"tid=stale"}}"#.to_string()),
+        )
+        .expect("some source");
+        let credential = parse_account_credential(&raw, "model-account:A").expect("seat");
+        assert_eq!(
+            credential.access, "tid=renewed",
+            "the rewritten file is what a running node must pick up"
+        );
+
+        // A declared path that is GONE falls back rather than refusing: the inline copy is stale,
+        // not wrong, and refusing every dispatch because a file vanished is the worse failure.
+        std::fs::remove_file(&path).expect("remove");
+        let fallback = account_credentials_raw(
+            Some(path.to_string_lossy().to_string()),
+            Some(r#"{"model-account:A":{"access":"tid=stale"}}"#.to_string()),
+        )
+        .expect("falls back");
+        assert!(fallback.contains("tid=stale"), "the process keeps what it already had");
+
+        // An EMPTY file is not an answer either — a half-written rewrite must not blank the node.
+        std::fs::write(&path, "   ").expect("write empty");
+        let empty = account_credentials_raw(
+            Some(path.to_string_lossy().to_string()),
+            Some(r#"{"model-account:A":{"access":"tid=stale"}}"#.to_string()),
+        )
+        .expect("falls back");
+        assert!(empty.contains("tid=stale"), "an empty file is not a credential map");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn parse_account_credential_reads_one_seat_by_its_opaque_id() {
+        let raw = r#"{
+            "model-account:CORP": {"access":"tid=corp","baseUrl":"https://api.business.githubcopilot.com"},
+            "model-account:PESS": {"access":"tid=pess","baseUrl":"https://api.individual.githubcopilot.com"}
+        }"#;
+        let corp = parse_account_credential(raw, "model-account:CORP").expect("corp");
+        assert_eq!(corp.access, "tid=corp");
+        assert_eq!(corp.base_url.as_deref(), Some("https://api.business.githubcopilot.com"));
+
+        // The SIBLING is a different seat with a different endpoint — the whole reason this is
+        // keyed by account rather than by provider.
+        let pess = parse_account_credential(raw, "model-account:PESS").expect("pess");
+        assert_eq!(pess.access, "tid=pess");
+        assert_ne!(pess.base_url, corp.base_url);
+    }
+
+    #[test]
+    fn parse_account_credential_yields_none_for_anything_it_cannot_read() {
+        // Falling back to the provider-wide variable is the previous behaviour; inventing a
+        // credential is not a behaviour this may have.
+        assert!(parse_account_credential("not json", "model-account:CORP").is_none());
+        assert!(parse_account_credential("{}", "model-account:CORP").is_none());
+        assert!(parse_account_credential(r#"{"model-account:CORP":{}}"#, "model-account:CORP").is_none());
+        assert!(
+            parse_account_credential(r#"{"model-account:CORP":{"access":"  "}}"#, "model-account:CORP")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn parse_account_credential_omits_an_endpoint_nobody_announced() {
+        // Absent is absent: a seat with no announced endpoint must not gain one, or the route
+        // guardrail would admit a host the account never named.
+        let one = parse_account_credential(r#"{"a":{"access":"t"}}"#, "a").expect("a");
+        assert!(one.base_url.is_none());
+        assert!(one.account_id.is_none());
+    }
+
+    /// ISS-140 tier B — what a single TASK may reach, not only what the node may.
+    ///
+    /// The three route sets resolve once at plugin load, so they bound the NODE. A workspace bound
+    /// to one account could therefore have its work sent to another, and `refarm budget by-account`
+    /// would name the account the CLI intended rather than the one the host actually spent — an
+    /// attribution worse than none, because it reads as measured.
+    #[test]
+    fn routes_for_task_narrows_and_can_never_widen() {
+        let primary = ModelRoute {
+            provider: "openai-codex".to_string(),
+            base_url: "https://chatgpt.com".to_string(),
+            path: "/backend-api/codex/responses".to_string(),
+        };
+        let configured = vec![ModelRoute {
+            provider: "github-copilot".to_string(),
+            base_url: "https://api.business.githubcopilot.com".to_string(),
+            path: "/chat/completions".to_string(),
+        }];
+
+        // Un-narrowed: exactly what the node authorised, unchanged.
+        assert_eq!(routes_for_task(None, &primary, None, &configured).len(), 2);
+
+        // Narrowed: an INTERSECTION. One provider survives.
+        let only = routes_for_task(Some("github-copilot"), &primary, None, &configured);
+        assert_eq!(only.len(), 1);
+        assert_eq!(only[0].provider, "github-copilot");
+
+        // MONOTONIC: a declaration can only shrink the set, so a task naming something the node
+        // never authorised reaches NOTHING rather than something new.
+        assert!(routes_for_task(Some("kimi-api"), &primary, None, &configured).is_empty());
+    }
+
+    #[test]
+    fn a_task_declaring_an_unauthorised_provider_is_REFUSED_not_served_by_the_primary() {
+        // The silent substitution this closes: falling through to the primary would send a
+        // workspace's work to an account it never named, and the record would name the other one.
+        let primary = ModelRoute {
+            provider: "openai-codex".to_string(),
+            base_url: "https://chatgpt.com".to_string(),
+            path: "/backend-api/codex/responses".to_string(),
+        };
+        let err = enforce_model_route_for_task(
+            "openai-codex",
+            "https://chatgpt.com",
+            "/backend-api/codex/responses",
+            Some("github-copilot"),
+            &primary,
+            None,
+            &[],
+        )
+        .unwrap_err();
+        assert!(err.contains("did not authorise"), "got: {err}");
+    }
+
+    #[test]
+    fn narrowing_to_the_declared_provider_still_admits_its_own_route() {
+        let primary = ModelRoute {
+            provider: "openai-codex".to_string(),
+            base_url: "https://chatgpt.com".to_string(),
+            path: "/backend-api/codex/responses".to_string(),
+        };
+        let configured = vec![ModelRoute {
+            provider: "github-copilot".to_string(),
+            base_url: "https://api.business.githubcopilot.com".to_string(),
+            path: "/chat/completions".to_string(),
+        }];
+        assert!(enforce_model_route_for_task(
+            "github-copilot",
+            "https://api.business.githubcopilot.com",
+            "/chat/completions",
+            Some("github-copilot"),
+            &primary,
+            None,
+            &configured,
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn a_narrowed_task_cannot_reach_a_SIBLING_the_node_authorised() {
+        // The whole point. The node authorises both; this task declared one; the other is closed
+        // for the duration of that task.
+        let primary = ModelRoute {
+            provider: "openai-codex".to_string(),
+            base_url: "https://chatgpt.com".to_string(),
+            path: "/backend-api/codex/responses".to_string(),
+        };
+        let configured = vec![ModelRoute {
+            provider: "github-copilot".to_string(),
+            base_url: "https://api.business.githubcopilot.com".to_string(),
+            path: "/chat/completions".to_string(),
+        }];
+        let err = enforce_model_route_for_task(
+            "openai-codex",
+            "https://chatgpt.com",
+            "/backend-api/codex/responses",
+            Some("github-copilot"),
+            &primary,
+            None,
+            &configured,
+        )
+        .unwrap_err();
+        assert!(err.contains("provider mismatch"), "got: {err}");
+    }
+
+    /// ISS-141 — when a configured route was admitted for THIS provider and refused the request
+    /// for another reason, its complaint is what surfaces.
+    ///
+    /// Measured 2026-08-17: a Copilot request refused for its PATH was reported as
+    /// `provider mismatch: requested 'github-copilot', expected 'openai-codex'` — the primary's
+    /// complaint about a question nobody asked. The reading sent the search at the allowlist,
+    /// which was correct, while the actual difference was one path segment.
+    #[test]
+    fn enforce_route_any_reports_the_nearest_routes_complaint() {
+        let primary = ModelRoute {
+            provider: "openai-codex".to_string(),
+            base_url: "https://chatgpt.com".to_string(),
+            path: "/backend-api/codex/responses".to_string(),
+        };
+        let configured = vec![ModelRoute {
+            provider: "github-copilot".to_string(),
+            base_url: "https://api.business.githubcopilot.com".to_string(),
+            path: "/chat/completions".to_string(),
+        }];
+
+        let err = enforce_model_route_for_task(
+            "github-copilot",
+            "https://api.business.githubcopilot.com",
+            "/v1/chat/completions",
+            None,
+            &primary,
+            None,
+            &configured,
+        )
+        .unwrap_err();
+        assert!(err.contains("path"), "expected a path complaint, got: {err}");
+        assert!(!err.contains("provider mismatch"), "got: {err}");
+
+        // A provider NOBODY admitted still reports the primary's mismatch, unchanged.
+        let err = enforce_model_route_for_task(
+            "kimi-api",
+            "https://api.moonshot.cn",
+            "/v1/chat/completions",
+            None,
+            &primary,
+            None,
+            &configured,
+        )
+        .unwrap_err();
+        assert!(err.contains("provider mismatch"), "got: {err}");
+    }
+
+    /// ISS-141 — the endpoint is a property of the ACCOUNT, and the format is the contract.
+    ///
+    /// Measured on two real Copilot seats 2026-08-17: `api.business.githubcopilot.com` and
+    /// `api.individual.githubcopilot.com`. No static provider table can hold both, and the global
+    /// MODEL_BASE_URL would redirect every other provider along with whichever one it named.
+    #[test]
+    fn parse_provider_base_url_reads_one_providers_endpoint() {
+        let raw = "github-copilot=https://api.business.githubcopilot.com,openai-codex=https://chatgpt.com";
+        assert_eq!(
+            parse_provider_base_url(raw, "github-copilot").as_deref(),
+            Some("https://api.business.githubcopilot.com")
+        );
+        assert_eq!(
+            parse_provider_base_url(raw, "openai-codex").as_deref(),
+            Some("https://chatgpt.com")
+        );
+        // A provider the map says nothing about falls through to the static defaults.
+        assert!(parse_provider_base_url(raw, "groq").is_none());
+        assert!(parse_provider_base_url("", "github-copilot").is_none());
+    }
+
+    #[test]
+    fn parse_provider_base_url_drops_what_it_cannot_read_rather_than_guessing() {
+        // The CLI writes this and the guest reads it with the same rule. A pair either side cannot
+        // read must be DROPPED, so the two can only agree or both fall back — never disagree about
+        // where a request is allowed to go.
+        assert!(parse_provider_base_url("github-copilot=ftp://x.example", "github-copilot").is_none());
+        assert!(parse_provider_base_url("github-copilot=", "github-copilot").is_none());
+        assert!(parse_provider_base_url("no-equals-sign", "github-copilot").is_none());
+    }
+
+    #[test]
+    fn parse_provider_base_url_is_case_insensitive_on_the_provider_only() {
+        assert_eq!(
+            parse_provider_base_url("GitHub-Copilot=https://api.business.githubcopilot.com", "github-copilot")
+                .as_deref(),
+            Some("https://api.business.githubcopilot.com")
+        );
     }
 
     #[test]
@@ -915,7 +1206,7 @@
     fn enforce_route_any_without_fallback_returns_the_primary_error_unchanged() {
         // No fallback (the common case) must behave byte-identically to the
         // single-route matcher: the same request that enforce_model_route rejects
-        // yields the SAME error string through enforce_model_route_any.
+        // yields the SAME error string through enforce_model_route_for_task.
         let primary =
             ModelRoute::for_test("anthropic", "https://api.anthropic.com", "/v1/messages");
 
@@ -925,10 +1216,11 @@
             "/v1/chat/completions",
             &primary,
         );
-        let any = enforce_model_route_any(
+        let any = enforce_model_route_for_task(
             "ollama",
             "http://127.0.0.1:11434",
             "/v1/chat/completions",
+            None,
             &primary,
             None,
             &[],

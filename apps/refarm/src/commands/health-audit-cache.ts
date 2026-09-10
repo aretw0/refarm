@@ -5,7 +5,10 @@ import path from "node:path";
 import { resolveHealthPolicyReport, type HealthPolicyReport } from "./health-policy.js";
 import type { HealthReport } from "./health.js";
 
-const HEALTH_AUDIT_CACHE_VERSION = 2;
+// Bumped to 3: HealthReport gained `skippedAuditors` (project-base
+// applicability). A cache entry written under version 2 would silently omit
+// the new field on a hit, so it must not be treated as fresh.
+const HEALTH_AUDIT_CACHE_VERSION = 3;
 const HEALTH_AUDIT_CACHE_FILE = "health-audit.json";
 const HEALTH_AUDIT_CACHE_MAX_AGE_MS = 5 * 60_000;
 const HEALTH_PROJECT_STATE_FINGERPRINT_FILES = [".project/automations.json"];

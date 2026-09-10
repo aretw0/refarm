@@ -43,11 +43,39 @@ export const RUNTIME_AGENT_ERROR_PREFIXES = [
 	"[budget]",
 ];
 
+// Every plugin identity this package DECLARES. The alias table below is derived from it rather
+// than hand-listed, which is the same "declare once, project many" rule the charset block further
+// down states for ids — and the rule this table was breaking.
+const DECLARED_PLUGIN_DESCRIPTORS = [RUNTIME_AGENT_PLUGIN_DESCRIPTOR, LSP_CODE_OPS_PLUGIN_DESCRIPTOR];
+
+// MEASURED on the operator's node 2026-08-25, and this is what a hand-written table cost: the
+// entry for `@refarm/lsp-code-ops` was missing while its descriptor sat TEN LINES ABOVE, so
+// `normalizePluginId("lsp-code-ops")` answered `lsp-code-ops` and `pluginIdPair` — which
+// deliberately returns null rather than GUESS a manifest id — reported `manifestId: null`. The
+// consequence, walked end to end on a loaded plugin that declares `shell:spawn`:
+//
+//     refarm plugin status              id "lsp-code-ops", manifestId null
+//     refarm plugin permissions lsp-code-ops
+//                                       -> refused, "Run `plugin list` to see installed plugins"
+//     refarm plugin list                -> does NOT contain it, under ANY --origin filter
+//     refarm plugin permissions @refarm/lsp-code-ops
+//                                       -> works, and that id appears on NO listing surface
+//
+// So the node held a loaded, shell-spawning plugin whose permissions could not be reached from
+// any id it published. `pluginIdPair`'s refusal to guess was right and stays; what was missing is
+// the DECLARATION it consults, which this package already had and was not reading.
+//
+// The two `runtime-agent` spellings stay hand-written: they are legacy input spellings, derivable
+// from no descriptor, and dropping them would silently stop normalising ids already on disk.
 const PLUGIN_ID_ALIASES = {
-	agent: AGENT_PLUGIN_ID,
 	"runtime-agent": RUNTIME_AGENT_PLUGIN_ID,
 	runtime_agent: RUNTIME_AGENT_PLUGIN_ID,
-	[AGENT_NPM_PACKAGE]: AGENT_PLUGIN_ID,
+	...Object.fromEntries(
+		DECLARED_PLUGIN_DESCRIPTORS.flatMap((descriptor) => [
+			[pluginIdRuntimeToken(descriptor.id), descriptor.id],
+			...(descriptor.npmPackage ? [[descriptor.npmPackage, descriptor.id]] : []),
+		]),
+	),
 };
 
 export function normalizePluginId(pluginId) {

@@ -1,6 +1,7 @@
 {
   "name": "@refarm.dev/dispatch-surface",
   "version": "0.1.0",
+  "repository": "https://github.com/aretw0/refarm.git",
   "description": "Shared transport and control-surface primitives for dispatch and effort control planes.",
   "type": "module",
   "main": "./dist/index.js",

@@ -13,6 +13,7 @@ import {
 	isRuntimeAgentErrorContent,
 	isAgentPluginId,
 	isRuntimeAgentPluginId,
+	LSP_CODE_OPS_PLUGIN_DESCRIPTOR,
 	normalizePluginId,
 	pluginIdToFsToken,
 	isFsSafeId,
@@ -157,5 +158,53 @@ describe("plugin-id charset contract (RS↔TS mirror)", () => {
 		// token, not the fs token. They must never be unified.
 		expect(pluginIdToFsToken("@refarm/agent")).toBe("refarm_agent");
 		expect(pluginIdRuntimeToken("@refarm/agent")).toBe("agent");
+	});
+});
+
+/**
+ * MEASURED on the operator's node 2026-08-25. The alias table was hand-written and omitted
+ * `@refarm/lsp-code-ops` while its descriptor sat ten lines above it in the same file. The
+ * consequence, walked end to end on a LOADED plugin that declares `shell:spawn`:
+ *
+ *     refarm plugin status                          id "lsp-code-ops", manifestId null
+ *     refarm plugin permissions lsp-code-ops        refused -> "Run `plugin list`"
+ *     refarm plugin list                            does NOT contain it, under ANY --origin
+ *     refarm plugin permissions @refarm/lsp-code-ops works — an id no surface publishes
+ *
+ * A loaded, shell-spawning plugin whose permissions were unreachable from every published id.
+ */
+describe("the alias table is DERIVED from what this package declares", () => {
+	it("normalises every declared core plugin, not only the agent", () => {
+		expect(normalizePluginId("lsp-code-ops")).toBe(LSP_CODE_OPS_PLUGIN_DESCRIPTOR.id);
+	});
+
+	it("normalises a declared plugin's npm package too", () => {
+		expect(normalizePluginId(LSP_CODE_OPS_PLUGIN_DESCRIPTOR.npmPackage)).toBe(
+			LSP_CODE_OPS_PLUGIN_DESCRIPTOR.id,
+		);
+	});
+
+	it("covers EVERY declared descriptor, so adding one cannot silently miss the table", async () => {
+		// The guard that makes this structural rather than a second hand-written list: it asks the
+		// declarations themselves. A descriptor added tomorrow is covered without editing a test,
+		// and one added to a hand-written table would not have been.
+		const identity = await import("./plugin-identity.js");
+		const declared = [identity.RUNTIME_AGENT_PLUGIN_DESCRIPTOR, LSP_CODE_OPS_PLUGIN_DESCRIPTOR];
+		for (const descriptor of declared) {
+			const runtimeToken = identity.pluginIdRuntimeToken(descriptor.id);
+			expect(normalizePluginId(runtimeToken)).toBe(descriptor.id);
+		}
+	});
+
+	it("keeps the legacy spellings a descriptor cannot derive", () => {
+		// `runtime-agent` / `runtime_agent` are input spellings already on disk. Deriving the table
+		// must not drop them, which is the way this change could have broken something silently.
+		expect(normalizePluginId("runtime-agent")).toBe(AGENT_PLUGIN_ID);
+		expect(normalizePluginId("runtime_agent")).toBe(AGENT_PLUGIN_ID);
+	});
+
+	it("still passes an unknown id through untouched, never inventing a scope", () => {
+		expect(normalizePluginId("desconhecido")).toBe("desconhecido");
+		expect(normalizePluginId("@local/tool")).toBe("@local/tool");
 	});
 });

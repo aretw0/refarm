@@ -343,6 +343,13 @@ export function validatePluginManifest(manifest) {
 		errors.push("capabilities.requiresApi must not contain duplicates");
 	}
 
+	if (
+		manifest.capabilities.requiresConnections &&
+		hasDuplicates(manifest.capabilities.requiresConnections)
+	) {
+		errors.push("capabilities.requiresConnections must not contain duplicates");
+	}
+
 	// `verbDocs` is permissive by FORM: optional per-verb prose. When present, every
 	// key must be a `<key>:<verb>` string the plugin actually `provides` — a doc for
 	// a verb it doesn't serve is a mistake, not extensibility. Values must be strings.

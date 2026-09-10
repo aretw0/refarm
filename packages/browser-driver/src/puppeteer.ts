@@ -1,4 +1,8 @@
-import type { BrowserSession, SessionCookie } from "./session.js";
+import type { BrowserSession, LoginSignals, SessionCookie } from "./session.js";
+
+// `LoginSignals` is browser-agnostic and now lives in ./session (shared with the Playwright
+// adapter). Re-exported here so `@refarm.dev/browser-driver/puppeteer` keeps exporting it.
+export type { LoginSignals } from "./session.js";
 
 /**
  * The puppeteer-core BrowserSession adapter — the ONLY module that touches a real browser,
@@ -14,18 +18,6 @@ import type { BrowserSession, SessionCookie } from "./session.js";
  * It can't be unit-tested where there is no Chrome; the operator runs it. The testable logic
  * lives in ./session (behind the BrowserSession interface), which this satisfies.
  */
-
-export interface LoginSignals {
-	/** Success when the page URL includes this substring (e.g. the dashboard path). */
-	urlIncludes?: string;
-	/** Success when this CSS selector appears (e.g. a dashboard element only shown when authed). */
-	readySelector?: string;
-	/** Success when a cookie with this name is set (the session cookie, e.g. "JSESSIONID"). */
-	cookieNamed?: string;
-	/** URL fragments that mean "still logging in" — success requires the URL NOT to match these
-	 * (default: /login|sso|auth|signin/). */
-	loginUrlPattern?: string;
-}
 
 export interface PuppeteerSessionOptions {
 	/** Path to the operator's Chrome. If omitted, CHROME_PATH, then puppeteer's own lookup. */

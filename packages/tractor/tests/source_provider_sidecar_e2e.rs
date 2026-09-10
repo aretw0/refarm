@@ -57,8 +57,24 @@ async fn start_sidecar(tractor: &TractorNative, base_dir: &Path) -> u16 {
     .expect("sidecar state")
     .with_registry(tractor.plugin_registry.clone());
 
+    let auth_base = base_dir.to_path_buf();
     tokio::spawn(async move {
-        let _ = tractor::sidecar::start(state, "127.0.0.1".to_string(), port).await;
+        // Loopback bind: no `surfaces.sidecar-http` declaration needed (S1's default),
+        // so `None` is the correct/honest value for `declared_surface`, not a stand-in
+        // for a real one. `Some("127.0.0.1")` for `host` is this harness explicitly
+        // asserting loopback, mirroring an operator who passed `--http-host 127.0.0.1`.
+        // No declared `device-token` gate and (normally) no REFARM_AUTH_POLICY ⇒ no
+        // policy is resolvable ⇒ no auth layer, which is what this harness wants.
+        let _ = tractor::sidecar::start(
+            state,
+            Some("127.0.0.1".to_string()),
+            port,
+            None,
+            tractor::sidecar::ResolvedAuthPolicy::resolve(
+                &tractor::sidecar::AuthPolicySource::new(auth_base, false),
+            ),
+        )
+        .await;
     });
     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
     port
@@ -87,7 +103,10 @@ async fn wasm_source_provider_discover_over_the_sidecar() {
     let plugin_id = handle.id.clone();
     // It declared its verbs synchronous (capabilities.syncVerbs).
     assert!(
-        handle.sync_verbs.iter().any(|v| v == "source:discover"),
+        // Through the handle's OWN accessor rather than a field path: `sync_verbs` moved under
+        // `profile` and this reached past it, so the test stopped compiling and no gate said so —
+        // `clippy` without `--all-targets` never reaches an integration test.
+        handle.serves_sync("source:discover"),
         "the plugin manifest must declare syncVerbs:[source:discover, …]"
     );
     tractor.register_for_events(handle);

@@ -80,7 +80,11 @@ async fn dev_mode_links_the_http_import_and_loads() {
         TelemetryBus::new(100),
         tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
     )
-    .unwrap();
+    .unwrap()
+        // No manifest here declares integrity (by design, per the module doc) —
+        // wildcard-waive it so every row exercises the trust/linker boundary this
+        // file is actually testing, not the integrity gate.
+    .with_under_development(Some(["*".to_string()].into_iter().collect()));
 
     let handle = host.load(path, &make_sync()).await;
     assert!(
@@ -140,7 +144,11 @@ async fn strict_with_declared_network_grant_links_http_and_loads() {
     .unwrap()
     // "*" passes the (orthogonal) trust gate; the network grant comes from the
     // manifest's declared permissions.
-    .with_trusted_plugins(Some(["*".to_string()].into_iter().collect()));
+    .with_trusted_plugins(Some(["*".to_string()].into_iter().collect()))
+        // No manifest here declares integrity (by design, per the module doc) —
+        // wildcard-waive it so every row exercises the trust/linker boundary this
+        // file is actually testing, not the integrity gate.
+    .with_under_development(Some(["*".to_string()].into_iter().collect()));
 
     let handle = host.load(&staged, &make_sync()).await;
     assert!(
@@ -191,7 +199,11 @@ async fn strict_without_declared_network_grant_fails_to_link_http() {
         TelemetryBus::new(100),
         tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
     )
-    .unwrap();
+    .unwrap()
+        // No manifest here declares integrity (by design, per the module doc) —
+        // wildcard-waive it so every row exercises the trust/linker boundary this
+        // file is actually testing, not the integrity gate.
+    .with_under_development(Some(["*".to_string()].into_iter().collect()));
 
     let result = host.load(path, &make_sync()).await;
     assert!(
@@ -272,7 +284,11 @@ async fn approving_a_subset_scopes_out_the_network_grant_and_fails_to_link_http(
     )
     .unwrap()
     .with_trusted_plugins(Some(["*".to_string()].into_iter().collect()))
-    .with_approved_permissions(Some(approved));
+    .with_approved_permissions(Some(approved))
+        // No manifest here declares integrity (by design, per the module doc) —
+        // wildcard-waive it so every row exercises the trust/linker boundary this
+        // file is actually testing, not the integrity gate.
+    .with_under_development(Some(["*".to_string()].into_iter().collect()));
 
     let result = host.load(&staged, &make_sync()).await;
     assert!(
@@ -315,7 +331,11 @@ async fn approving_the_declared_network_grant_keeps_it_and_loads() {
     )
     .unwrap()
     .with_trusted_plugins(Some(["*".to_string()].into_iter().collect()))
-    .with_approved_permissions(Some(approved));
+    .with_approved_permissions(Some(approved))
+        // No manifest here declares integrity (by design, per the module doc) —
+        // wildcard-waive it so every row exercises the trust/linker boundary this
+        // file is actually testing, not the integrity gate.
+    .with_under_development(Some(["*".to_string()].into_iter().collect()));
 
     let handle = host.load(&staged, &make_sync()).await;
     assert!(

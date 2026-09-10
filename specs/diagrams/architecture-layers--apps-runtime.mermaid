@@ -5,12 +5,13 @@ graph TD
         Me["apps/me\nHomestead · Identity · Astro"]
         Farmhand["apps/farmhand\nTask Daemon · Node.js"]
         RefarmCLI["apps/refarm\nRuntime · CLI entry"]
+        Site["apps/site\nDocumentation · Astro"]
     end
 
-    subgraph Core["Dual-Runtime Core  (tractor)"]
+    subgraph Core["Execution Kernel"]
         direction LR
-        TractorTS["tractor-ts\nJCO transpile · Browser / Node"]
-        TractorRS["tractor\nRust · wasmtime · IoT"]
+        TractorRS["tractor\nRust · native runtime authority · wasmtime"]
+        TractorTS["tractor-ts\nBrowser compatibility · conformance"]
     end
 
     subgraph WIT["WIT Contract  (plugin-wit)"]
@@ -33,8 +34,8 @@ graph TD
     Farmhand -->|tractor-ts| TractorTS
     RefarmCLI -->|"HTTP 42001"| HttpAdapt
 
-    TractorTS ---|"same WIT"| WITPkg
-    TractorRS ---|"same WIT"| WITPkg
+    TractorRS ---|"native host implements"| WITPkg
+    TractorTS ---|"compatibility conforms to"| WITPkg
 
     WITPkg -->|"implemented by"| Agent
     WITPkg -->|"implemented by"| ThirdParty
@@ -47,7 +48,7 @@ graph TD
     classDef plugin    fill:#fee2e2,stroke:#991b1b,stroke-width:1px;
     classDef transport fill:#e0f2fe,stroke:#075985,stroke-width:1px;
 
-    class Dev,Me,Farmhand,RefarmCLI app;
+    class Dev,Me,Farmhand,RefarmCLI,Site app;
     class TractorTS,TractorRS core;
     class WITPkg,LLMBridge,AgentFS wit;
     class Agent,ThirdParty plugin;

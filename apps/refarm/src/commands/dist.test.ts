@@ -1,8 +1,45 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
 
-import { bakeInstaller, buildKitManifest, integrityOf } from "./dist.js";
+import {
+	bakeInstaller,
+	buildKitManifest,
+	collectKitFiles,
+	defaultFarmClientKitDir,
+	integrityOf,
+	tailnetSelfHost,
+} from "./dist.js";
+
+const KIT_DIR = path.resolve(
+	path.dirname(fileURLToPath(import.meta.url)),
+	"../../../../packages/farm-client",
+);
 
 describe("refarm dist — the kit manifest", () => {
+	it("resolves the installed kit independently of the operator's cwd", () => {
+		expect(defaultFarmClientKitDir(new URL("src/index.mjs", `file://${KIT_DIR}/`).href)).toBe(
+			KIT_DIR,
+		);
+	});
+
+	it("prefers the canonical MagicDNS FQDN and removes only its terminal root dot", () => {
+		expect(
+			tailnetSelfHost({
+				Self: {
+					HostName: "serpro-1577853",
+					DNSName: "serpro-1577853.tail894688.ts.net.",
+				},
+			}),
+		).toBe("serpro-1577853.tail894688.ts.net");
+	});
+
+	it("falls back to the OS hostname when an older status has no MagicDNS name", () => {
+		expect(tailnetSelfHost({ Self: { HostName: "serpro-1577853" } })).toBe("serpro-1577853");
+		expect(tailnetSelfHost({ Self: {} })).toBeNull();
+	});
+
 	it("integrityOf is SRI-style sha256-<base64> and content-addressed", () => {
 		expect(integrityOf("hello")).toMatch(/^sha256-[A-Za-z0-9+/]+=*$/);
 		expect(integrityOf("hello")).toBe(integrityOf(Buffer.from("hello")));
@@ -46,5 +83,40 @@ describe("refarm dist — the kit manifest", () => {
 	it("bakeInstaller with an empty host leaves the installer requiring FARM_HOST", () => {
 		const baked = bakeInstaller('x || "__FARM_HOST__"', { host: "", port: 4321 });
 		expect(baked).toBe('x || ""');
+	});
+});
+
+describe("refarm dist — what actually reaches the device", () => {
+	it("distributes the vendored prompt block, so the kit that ASKS is the kit that installs", async () => {
+		const files = await collectKitFiles(KIT_DIR);
+		const paths = files.map((f) => f.path);
+		// The kit is zero-dependency: nothing to INSTALL on the phone. The prompt
+		// block therefore travels INSIDE the kit — and a carried file that is not
+		// distributed is a wizard that never reaches the device.
+		expect(paths).toContain("vendor/prompt-contract-v1/dist/index.js");
+		expect(paths).toContain("vendor/operation-consent-v1/dist/index.js");
+		expect(paths).toContain("src/ask-host.mjs");
+		expect(paths).toContain("src/shims.mjs");
+	});
+
+	it("manifest + sha256 cover EVERY distributed file, vendored block included", async () => {
+		const files = await collectKitFiles(KIT_DIR);
+		const manifest = buildKitManifest(files, {
+			name: "farm-client",
+			version: "0.1.0",
+			createdAt: "2026-07-30T00:00:00.000Z",
+		});
+		expect(manifest.files.length).toBe(files.length);
+		for (const file of files) {
+			const entry = manifest.files.find((f) => f.path === file.path);
+			expect(entry, `${file.path} is served but not in the manifest`).toBeDefined();
+			expect(entry?.integrity).toBe(integrityOf(file.content));
+			expect(entry?.bytes).toBe(file.content.length);
+		}
+		const vendored = manifest.files.find(
+			(f) => f.path === "vendor/prompt-contract-v1/dist/index.js",
+		);
+		expect(vendored?.integrity).toMatch(/^sha256-/);
+		expect(vendored?.bytes).toBeGreaterThan(0);
 	});
 });

@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import {
 	latestAcceptedHandoffReport,
+	parseArgs,
 	validateHandoffManifest,
 } from "./vault-seed-handoff-consumer-install.mjs";
 
@@ -23,7 +24,7 @@ function fixture() {
 		sourceGitSha: "abc123",
 		ok: true,
 		status: "ready",
-		selection: { id: "vault-seed-ready" },
+		selection: { id: "consumer-ready" },
 		acceptance: { status: "accepted", packageCount: 2 },
 		packages: [
 			{
@@ -135,6 +136,68 @@ test("validates a downstream vendor copy when supplied", () => {
 	);
 });
 
+test("validates only the packages a downstream consumer actually copied", () => {
+	const { root, handoffDir, alphaTarball } = fixture();
+	const consumerRoot = path.join(root, "consumer");
+	mkdirSync(path.join(consumerRoot, "vendor"), { recursive: true });
+	writeFileSync(path.join(consumerRoot, "vendor", alphaTarball), "alpha");
+	writeFileSync(
+		path.join(consumerRoot, "package.json"),
+		JSON.stringify({
+			dependencies: {
+				"@refarm.dev/alpha": `file:vendor/${alphaTarball}`,
+				"@refarm.dev/another-proof": "file:vendor/another-proof.tgz",
+			},
+		}),
+	);
+	writeFileSync(
+		path.join(consumerRoot, "pnpm-workspace.yaml"),
+		[
+			"overrides:",
+			`  "@refarm.dev/alpha": "file:vendor/${alphaTarball}"`,
+		].join("\n"),
+	);
+
+	const report = validateHandoffManifest({
+		root,
+		handoffDir,
+		consumerRoot,
+		consumerPackages: ["@refarm.dev/alpha"],
+	});
+
+	assert.equal(report.ok, true);
+	assert.equal(report.consumerPackageCount, 1);
+	assert.deepEqual(report.consumerPackages, ["@refarm.dev/alpha"]);
+});
+
+test("rejects an explicitly requested consumer package absent from the handoff", () => {
+	const { root, handoffDir } = fixture();
+	const report = validateHandoffManifest({
+		root,
+		handoffDir,
+		consumerPackages: ["@refarm.dev/missing"],
+	});
+
+	assert.equal(report.ok, false);
+	assert.deepEqual(report.issues.map((item) => item.code), ["consumer-package-unknown"]);
+});
+
+test("parses repeatable focused consumer packages", () => {
+	const options = parseArgs([
+		"--consumer-root",
+		"/tmp/consumer",
+		"--consumer-package",
+		"@refarm.dev/ds",
+		"--consumer-package",
+		"@refarm.dev/quality-contract-v1",
+	]);
+
+	assert.deepEqual(options.consumerPackages, [
+		"@refarm.dev/ds",
+		"@refarm.dev/quality-contract-v1",
+	]);
+});
+
 test("latest-accepted mode skips a newer blocked candidate", () => {
 	const accepted = fixture();
 	const blockedDir = path.join(accepted.root, ".refarm/handoff/vault-seed/zz-blocked");
@@ -144,7 +207,7 @@ test("latest-accepted mode skips a newer blocked candidate", () => {
 		sourceGitSha: "blocked",
 		ok: false,
 		status: "ready",
-		selection: { id: "vault-seed-ready" },
+		selection: { id: "consumer-ready" },
 		acceptance: { status: "accepted", packageCount: 0 },
 		packages: [],
 		consumerInstall: { copyFiles: ["manifest.json"], fileSpecs: {}, pnpmOverrides: {} },
@@ -160,4 +223,29 @@ test("latest-accepted mode skips a newer blocked candidate", () => {
 	assert.equal(report.latestCandidate.ok, false);
 	assert.equal(report.latestCandidate.sourceGitSha, "blocked");
 	assert.equal(report.latestCandidate.issueCount, 2);
+});
+
+test("latest-accepted mode preserves a focused consumer package selection", () => {
+	const { root, alphaTarball } = fixture();
+	const consumerRoot = path.join(root, "consumer");
+	mkdirSync(path.join(consumerRoot, "vendor"), { recursive: true });
+	writeFileSync(path.join(consumerRoot, "vendor", alphaTarball), "alpha");
+	writeFileSync(
+		path.join(consumerRoot, "package.json"),
+		JSON.stringify({ dependencies: { "@refarm.dev/alpha": `file:vendor/${alphaTarball}` } }),
+	);
+	writeFileSync(
+		path.join(consumerRoot, "pnpm-workspace.yaml"),
+		`overrides:\n  "@refarm.dev/alpha": "file:vendor/${alphaTarball}"\n`,
+	);
+
+	const report = latestAcceptedHandoffReport({
+		root,
+		consumerRoot,
+		consumerPackages: ["@refarm.dev/alpha"],
+	});
+
+	assert.equal(report.ok, true);
+	assert.deepEqual(report.consumerPackages, ["@refarm.dev/alpha"]);
+	assert.equal(report.consumerPackageCount, 1);
 });

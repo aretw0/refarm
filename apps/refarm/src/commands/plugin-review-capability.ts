@@ -52,6 +52,8 @@ export interface ExtensionReviewInput {
 	targetPath: string;
 	grantedCapabilities: string[];
 	policyMode: PluginPolicyMode;
+	/** Connection names declared by this host. Omit only for host-agnostic analysis. */
+	availableConnections?: string[];
 	/**
 	 * The command verb this review is projected under — stamped into the envelope's
 	 * `command` field and the install handoff. Defaults to `"extension"` so the
@@ -68,6 +70,7 @@ export type ExtensionReviewReport = JsonSuccessEnvelope<{
 	decision: PluginPolicyDecision;
 	readyToInstall: boolean;
 	deniedCapabilities: string[];
+	missingConnections: string[];
 }>;
 
 /**
@@ -80,6 +83,7 @@ export function buildExtensionReviewReport(input: ExtensionReviewInput): Extensi
 	const decision = decidePluginPolicy(manifest as never, {
 		grantedCapabilities: input.grantedCapabilities,
 		policyMode: input.policyMode,
+		...(input.availableConnections ? { availableConnections: input.availableConnections } : {}),
 	});
 	const readyToInstall = decision.status === "completed" && decision.manifestValid;
 	// The handoff points at installing WHAT WAS REVIEWED (this path, with the same
@@ -100,6 +104,7 @@ export function buildExtensionReviewReport(input: ExtensionReviewInput): Extensi
 			decision,
 			readyToInstall,
 			deniedCapabilities: decision.missingCapabilities,
+			missingConnections: decision.missingConnections,
 		},
 	});
 }
@@ -176,6 +181,9 @@ export const extensionReviewHooks: CapabilitySurfaceHooks = {
 		}
 		if (deniedCapabilities.length > 0) {
 			lines.push(`  denied capabilities (not granted): ${deniedCapabilities.join(", ")}`);
+		}
+		if (report.missingConnections.length > 0) {
+			lines.push(`  missing declared connections: ${report.missingConnections.join(", ")}`);
 		}
 		lines.push(`  ready to install: ${readyToInstall ? "yes" : "no — review required"}`);
 		return lines.join("\n");

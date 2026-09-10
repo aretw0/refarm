@@ -13,7 +13,12 @@ jobs:
   health:
     uses: ./.github/workflows/reusable-release-health.yml
     with:
-      quality-command: "pnpm run lint && pnpm run type-check"
+      # `scripts:test` joins quality HERE and not in Test & Quality, deliberately. It runs 93 script
+      # suites in ~133s; at ~176 pushes per 30 days that is ~390 minutes against a 2000-minute
+      # baseline already at 87.1% burn. Weekly is what the budget affords, and a backstop is what
+      # this gate is: the before-push lane already runs it on every machine that uses the lane, and
+      # this catches the pushes that did not. Until 2026-08-23 no workflow ran it at all (ISS-136).
+      quality-command: "pnpm run lint && pnpm run type-check && pnpm run scripts:test"
       build-command: pnpm run build
       security-audit-level: high
       report-file: release-health.md

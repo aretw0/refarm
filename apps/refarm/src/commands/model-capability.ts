@@ -3,10 +3,34 @@ import type {
 	CapabilityGroup,
 	CapabilityGroupResolution,
 } from "@refarm.dev/capabilities";
+import type { AccountView } from "@refarm.dev/model-account-contract-v1";
+import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
+import { REFARM_BINARY } from "../brand.js";
 
+import {
+	authorizedAccounts,
+	readModelAuthorization,
+	type ModelAuthorization,
+} from "@refarm.dev/model-account-contract-v1";
+import fs from "node:fs";
+import path from "node:path";
+import {
+	loadAccountCredentials,
+	loadAccountView,
+	type AccountViewSilo,
+} from "../credentials/account-view-loader.js";
+import { renewExpiredCopilotCredentials } from "../credentials/copilot-renew.js";
+import { githubOAuthClientId } from "../credentials/github.js";
+import {
+	copilotRequestIdentity,
+	resolveCopilotIdentity,
+} from "../credentials/oauth/index.js";
 import { parseModelScope } from "../model-routing.js";
-import { type CapabilitySurfaceHooks, renderCapabilityError } from "./capability-commander.js";
+import { resolveRefarmVersion } from "./runtime-metadata.js";
+
+import { resolveRefarmHome } from "../utils/refarm-home.js";
+import { renderCapabilityError, type CapabilitySurfaceHooks } from "./capability-commander.js";
 import {
 	buildCurrentModelEnvelope,
 	buildInvalidScopeEnvelope,
@@ -17,12 +41,13 @@ import {
 	buildSetFallbackEnvelope,
 	buildSetModelBaseUrlEnvelope,
 	buildSetModelEnvelope,
-	type CurrentModelStatus,
 	defaultModelDeps,
 	formatCurrentModelFromStatus,
 	formatKnownModelProviders,
 	formatModelDoctorFromStatus,
 	formatModelEnvFromEnvelope,
+	loadModelAccountCatalog,
+	type CurrentModelStatus,
 	type ModelCommandDeps,
 	type ModelDoctorStatus,
 } from "./model.js";
@@ -108,7 +133,7 @@ export function createModelCapabilityGroup(
 		name: "current",
 		summary: "Show the currently configured model route",
 		async run() {
-			return buildCurrentModelEnvelope(await deps.loadTokens());
+			return buildCurrentModelEnvelope(await deps.loadTokens(), await loadModelAccountCatalog());
 		},
 		renderers: { web: { route: "/settings/model" } },
 	};
@@ -125,10 +150,11 @@ export function createModelCapabilityGroup(
 		name: "doctor",
 		summary: "Probe the active local model provider endpoint",
 		async run() {
-			return buildModelDoctorEnvelope(await deps.loadTokens(), {
-				fetch: deps.fetch,
-				isContainer: deps.isContainer,
-			});
+			return buildModelDoctorEnvelope(
+				await deps.loadTokens(),
+				{ fetch: deps.fetch, isContainer: deps.isContainer },
+				await loadModelAccountCatalog(),
+			);
 		},
 	};
 
@@ -146,10 +172,104 @@ export function createModelCapabilityGroup(
 				kind: "boolean",
 				summary: "Include local runtime credential secrets",
 			},
+			{
+				name: "workspace",
+				kind: "string",
+				summary: "Resolve the credential as this workspace would — honours `refarm credential bind`",
+			},
 		],
 		async run(input) {
+			// THE VIEW IS BUILT HERE, where I/O is allowed, and handed to a pure builder. It is what
+			// lets the envelope say WHY a credential is absent instead of omitting it in silence —
+			// measured 2026-08-15 with two eligible Copilot accounts.
+			//
+			// A view that cannot be loaded is left undefined rather than guessed at: the entries are
+			// still correct, and the notice simply has nothing to add.
+			let view: AccountView | undefined;
+			try {
+				// THE WORKSPACE IS WHAT MAKES A BINDING MEAN ANYTHING. Without it the view resolves at
+				// node level and two eligible accounts stay ambiguous forever, however carefully the
+				// operator bound them.
+				const workspaceId =
+					typeof input.options.workspace === "string" && input.options.workspace.trim()
+						? input.options.workspace.trim()
+						: null;
+				view = await loadAccountView({
+					// The DECLARED home (ISS-139). `process.env.HOME` here read a catalog that is not
+					// there, so `model env --include-secrets` exported no credential at all — and
+					// `scripts/tractor-start.sh` refuses to start the runtime without one.
+					home: resolveRefarmHome(),
+					silo: new SiloCore() as unknown as AccountViewSilo,
+					workspaceId,
+				});
+			} catch {
+				view = undefined;
+			}
+			// The DECLARATION and the credentials it authorises, loaded only for `--include-secrets`.
+			// A node that has declared nothing gets exactly the previous behaviour.
+			// THE DECLARATION IS CONFIG, NOT A SECRET, so it is read on every call: it decides
+			// `MODEL_CONFIGURED_PROVIDERS`, which is the host's egress allowlist and is exported
+			// with or without `--include-secrets`. The CREDENTIALS behind it are loaded only when
+			// secrets were asked for.
+			let authorization: ModelAuthorization | undefined;
+			let credentials: ReadonlyMap<string, unknown> | undefined;
+			const home = resolveRefarmHome();
+			try {
+				authorization = readModelAuthorization(
+					JSON.parse(fs.readFileSync(path.join(home, "config.json"), "utf8")) as unknown,
+				);
+			} catch {
+				authorization = undefined;
+			}
+			if (input.options["include-secrets"]) {
+				try {
+					const silo = new SiloCore() as unknown as AccountViewSilo & {
+						saveSecret?: (ns: string, id: string, value: string) => Promise<unknown>;
+					};
+					credentials = await loadAccountCredentials({ home, silo });
+					// RENEWED BEFORE THE RUNTIME IS HANDED IT (ISS-141). A Copilot token lasts
+					// minutes and `scripts/tractor-start.sh` provisions the Rust runtime from exactly
+					// this command, so an expired credential here starts a runtime that cannot
+					// dispatch and says nothing until the first request fails.
+					if (authorization && view && typeof silo.saveSecret === "function") {
+						// EVERY AUTHORISED SEAT, not only the provisionable one (ISS-145). This
+						// iterated `provisionableAccounts`, which REFUSES a provider holding two
+						// authorised seats — so the moment the operator authorised both of his
+						// Copilot accounts, neither was renewed and both silently expired. A
+						// renewal that skips exactly the accounts the node may spend is a renewal
+						// that runs only where it was not needed.
+						const provision = authorizedAccounts(authorization, view.accounts).authorized;
+						// THE DECLARED IDENTITY, resolved from the same config the login reads. Inventing
+						// headers here refuses on every attempt (ISS-141).
+						const identity = copilotRequestIdentity(
+							resolveCopilotIdentity(
+								JSON.parse(fs.readFileSync(path.join(home, "config.json"), "utf8")) as unknown,
+							),
+							githubOAuthClientId(),
+							// THE BRAND IS THE APP'S. The wire package takes a user agent and never builds one, so it
+		// stays usable by any caller (brand guard).
+		`${REFARM_BINARY}/${resolveRefarmVersion()}`,
+						);
+						credentials = await renewExpiredCopilotCredentials(provision, credentials, {
+							fetch: globalThis.fetch,
+							identityHeaders: identity.headers,
+							save: async (credentialId, credential) => {
+								await silo.saveSecret!("model", credentialId, JSON.stringify(credential));
+							},
+						});
+					}
+				} catch {
+					credentials = undefined;
+				}
+			}
 			return buildModelEnvEnvelope(await deps.loadTokens(), {
 				includeSecrets: Boolean(input.options["include-secrets"]),
+				...(view ? { view } : {}),
+				...(authorization ? { authorization } : {}),
+				...(credentials ? { credentials } : {}),
+				// The home the credential FILE is written into. Without it the runtime gets only
+				// the spawn-time copy and a renewal can never reach it (measured 2026-08-19).
+				home,
 			});
 		},
 	};

@@ -27,6 +27,7 @@ import { openTractorGraph } from "./tractor-store.js";
  */
 export async function resolveSovereignConfig(
 	env = process.env,
+	// os-resolution: project — tier-agnostic reader; with no root the tier it lands on is workspace, which is cwd-anchored
 	root = process.cwd(),
 ): Promise<Record<string, unknown> | null> {
 	// fs wins, exactly like the Rust host: a present, valid local file is the

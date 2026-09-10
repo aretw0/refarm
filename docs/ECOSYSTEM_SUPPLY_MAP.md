@@ -121,7 +121,7 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    fallback paths. The downstream `vault-seed` proof is now complete: 16/16 consumer-contract tests
    are green and the reference vault composes `source-web` fixture input through `records:v1` and
    `enrichment:v1` with an empty gap ledger. The official publication handoff is now
-   `vault-seed-ready`; the requirements-supply handoff remains proof/reference evidence for the
+   `consumer-ready`; the requirements-supply handoff remains proof/reference evidence for the
    clean `enrichment:v1` + `records:v1` packet and the `source-web` + `source-contract-v1`
    transitive packet.
 7. WASM substrate (Tractor, ADR-049 / ADR-044) as the common distribution layer for lab/site
@@ -163,7 +163,7 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    and the next decision per item. Exported SDK targets remain visible in the
    full supply map. Both payloads carry `publicationBoundary`: discovery
    currently lives at `@refarm.dev/cli/capability-index`, `@refarm.dev/cli`
-   remains in `boundary-review`, it is not a `vault-seed-ready` leaf, and runtime
+   remains in `boundary-review`, it is not a `consumer-ready` leaf, and runtime
    execution stays private until promotion proofs pass. The preflight is for
    release posture and consumer planning, not app-owned runtime dispatch.
 

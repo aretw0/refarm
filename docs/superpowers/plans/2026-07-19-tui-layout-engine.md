@@ -101,12 +101,13 @@ text measurement + the surface→layout→ANSI projection** (terminal-specific, 
   analogous to the multi-platform token demo.
 
 ### Task 4 — interactivity — DEFERRED WITH A PLAN (its own slice)
-- [ ] Focus/keyboard/input for an interactive, navigable dashboard — a distinct subsystem (input +
-  focus + redraw), the genuinely-hard "interactive widget" the verdict said to LEARN-FROM
-  Textual/ratatui. Deferred not as a punt but as **preparation**: the layout engine already hands it the
-  positioned boxes (hit-test + focus order) it needs, so it starts from a prepared base. The runway —
-  adopt-vs-build (leaning thin-own-loop over our Yoga tree, React-free), the input seam, focus model, and
-  redraw slices — is planned in **`2026-07-19-tui-interactivity.md`**.
+> **Deferred to its own slice — not a step of this plan.** Focus/keyboard/input for an
+> interactive, navigable dashboard is a distinct subsystem (input + focus + redraw), the
+> genuinely-hard "interactive widget" the verdict said to LEARN-FROM Textual/ratatui. Deferred
+> not as a punt but as **preparation**: the layout engine already hands it the positioned boxes
+> (hit-test + focus order) it needs, so it starts from a prepared base. The runway —
+> adopt-vs-build (leaning thin-own-loop over our Yoga tree, React-free), the input seam, focus
+> model, and redraw slices — is planned in **`2026-07-19-tui-interactivity.md`**.
 - Other open refinements (smaller, not Task 4): `projectThemeToTui` color (Task 2 uses injected
   colorizers), a wcwidth measure (wide/zero-width glyphs), and box borders in the renderer.
 

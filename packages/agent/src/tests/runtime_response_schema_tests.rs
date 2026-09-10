@@ -7,7 +7,8 @@ fn react_returns_stub_on_native() {
         tool_calls,
         tokens_in,
         tokens_out,
-        tokens_cached,
+        cache_read_tokens,
+        cache_creation_tokens,
         tokens_reasoning,
         model,
         usage_raw,
@@ -17,7 +18,8 @@ fn react_returns_stub_on_native() {
     assert_eq!(tool_calls.as_array().unwrap().len(), 0);
     assert_eq!(tokens_in, 0, "stub has no token count");
     assert_eq!(tokens_out, 0);
-    assert_eq!(tokens_cached, 0);
+    assert_eq!(cache_read_tokens, 0);
+    assert_eq!(cache_creation_tokens, 0);
     assert_eq!(tokens_reasoning, 0);
     assert!(!model.is_empty(), "model must be non-empty");
     assert!(!usage_raw.is_empty());
@@ -30,7 +32,8 @@ fn agent_response_schema_has_required_fields() {
         tool_calls,
         tokens_in,
         tokens_out,
-        _tokens_cached,
+        _cache_read_tokens,
+        _cache_creation_tokens,
         _tokens_reasoning,
         model,
         _usage_raw,

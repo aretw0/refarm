@@ -187,6 +187,12 @@ fn execute_reap_deletes_files_and_evicts_map() {
             tasks: vec![],
             source: None,
             submitted_at: String::new(),
+            budget: None,
+            workspace_id: None,
+            workspace_source: None,
+            scenario_id: None,
+            credential_id: None,
+            expectation: None,
         },
     );
     super::super::persist_effort_result(&state.results_dir, &old).unwrap();

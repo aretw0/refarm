@@ -1,7 +1,7 @@
+import { withActivity } from "@refarm.dev/capabilities";
 import { loadConfig } from "@refarm.dev/config";
 import chalk from "chalk";
 import { refarmCommand } from "../brand.js";
-import { startSpinner } from "../utils/spinner.js";
 import type { CollectContext, CredentialProvider } from "./types.js";
 
 // Default client_id for the refarm GitHub OAuth App.
@@ -9,6 +9,24 @@ import type { CollectContext, CredentialProvider } from "./types.js";
 // or via env:                      REFARM_PROVIDER_GITHUB_CLIENT_ID=...
 // Device flow does not use a client_secret — this value is safe to commit.
 const DEFAULT_CLIENT_ID = "Ov23lier7kyBcgIUQsih";
+
+/**
+ * The same OAuth App serves BOTH GitHub logins, and that is not a shortcut.
+ *
+ * Scopes are requested per authorization, never configured on the app, so this id asks for
+ * `repo read:org` here and `read:user` for Copilot without either inheriting the other's power.
+ * See docs/GITHUB_IDENTITY_SETUP.md.
+ */
+export function githubOAuthClientId(env: NodeJS.ProcessEnv = process.env): string {
+	const fromEnv = env.REFARM_PROVIDER_GITHUB_CLIENT_ID;
+	if (typeof fromEnv === "string" && fromEnv.trim().length > 0) return fromEnv.trim();
+	try {
+		const cfg = loadConfig() as { providers?: { github?: { clientId?: string } } };
+		return cfg.providers?.github?.clientId ?? DEFAULT_CLIENT_ID;
+	} catch {
+		return DEFAULT_CLIENT_ID;
+	}
+}
 const DEFAULT_SCOPES = "repo read:org";
 const DEVICE_CODE_URL = "https://github.com/login/device/code";
 const TOKEN_URL = "https://github.com/login/oauth/access_token";
@@ -98,16 +116,21 @@ export const githubCredentialProvider: CredentialProvider = {
 		console.log(chalk.gray(`  → ${device.verification_uri}\n`));
 		ctx.tryOpenUrl(device.verification_uri);
 
-		const stop = startSpinner("Waiting for authorization…");
-		try {
-			const token = await pollForToken(clientId, device.device_code, device.interval);
-			stop();
-			const login = await resolveUsername(token);
-			console.log(chalk.green(`  ✓ GitHub — authorized as ${login}`));
-			return token;
-		} catch (err) {
-			stop();
-			throw err;
-		}
+		// Emit the surface-neutral "working" signal instead of driving the spinner
+		// directly — the CLI's activity subscriber (attached once at process boot)
+		// renders it, so this flow lights up the same terminal spinner as before
+		// without owning any rendering itself. `withActivity` emits `finished{ok:false}`
+		// and rethrows on any failure (a declined authorization included), so the
+		// spinner never hangs open.
+		return withActivity(
+			"Waiting for GitHub authorization",
+			async () => {
+				const token = await pollForToken(clientId, device.device_code, device.interval);
+				const login = await resolveUsername(token);
+				console.log(chalk.green(`  ✓ GitHub — authorized as ${login}`));
+				return token;
+			},
+			{ kind: "auth" },
+		);
 	},
 };

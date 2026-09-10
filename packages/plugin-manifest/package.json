@@ -28,8 +28,7 @@
 	},
 	"homepage": "https://refarm.dev",
 	"files": [
-		"dist",
-		"!dist/**/*.tsbuildinfo",
+		"src",
 		"README.md"
 	],
 	"publishConfig": {

@@ -3,13 +3,15 @@ import {
 	surfaceablePluginVerbsFrom,
 	type SurfaceablePluginVerb,
 } from "@refarm.dev/capability-host";
+import { sovereignDir } from "@refarm.dev/config";
 import { BUNDLED_PLUGIN_DESCRIPTORS, pluginIdToFsToken } from "@refarm.dev/config/plugin-identity";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
-import { resolveRefarmHome } from "../utils/refarm-home.js";
+import { pluginsBaseDir, resolveRefarmHome } from "../utils/refarm-home.js";
+import type { ModelRateCatalogMaterialization } from "./model-rate-catalog.js";
 import { RUNTIME_AGENT_RELOAD_JSON_COMMAND } from "./plugin-handoffs.js";
+import type { IntegrityVerdict } from "./plugin-inventory.js";
 
 // Plugins bundled with the refarm npm package — auto-installed and updated by farmhand on
 // boot. The agnostic BUNDLED_PLUGIN_DESCRIPTORS carries the set; this app-level alias is
@@ -87,10 +89,84 @@ export interface PluginListReport {
 }
 
 export interface RuntimePluginStatusEntry {
+	/**
+	 * `manifestId ?? runtimeId` — a display id, NOT a unique row key. Two installed trees can
+	 * share both (a pre-convergence layout left beside the live one) and still be two separate
+	 * rows here; `dir` is what tells them apart. See the merge in `mergePluginFacts`
+	 * (plugin-runtime.ts).
+	 */
 	id: string;
-	installed: boolean;
+	/**
+	 * The id `trusted_plugins` is matched against — the manifest id's last `/` segment, which is
+	 * what the host compares at the load gate.
+	 *
+	 * Reported because guessing it wrong is not a typo, it is a DENY-ALL: `trusted_plugins` has
+	 * three states, not two — absent is permissive, valid is an allowlist, and INVALID makes the
+	 * daemon log "trusted_plugins config unreadable" and refuse every plugin. That happened on
+	 * this operator's real node, from a confident reading of a manifest's own `id` field.
+	 */
+	runtimeId: string;
+	/**
+	 * The id `approvedPermissions` is keyed by — the scoped manifest id — or NULL when this
+	 * response cannot tell. A bare runtime id maps back only through a declared alias, and
+	 * `lsp-code-ops` has none: its real manifest id is `@refarm/lsp-code-ops`, which nothing here
+	 * can derive. Null rather than a guess, because a confidently wrong id is what put a deny-all
+	 * on the operator's node in the first place. See `pluginIdPair`.
+	 */
+	manifestId: string | null;
+	/**
+	 * The installed directory this row's disk facts came from — CLI-observed. `null` for a row
+	 * that exists only because the host was handed a path this node's scan never found on disk
+	 * (deleted since boot, or outside the scanned base dir): absence must declare itself, not
+	 * borrow another tree's directory.
+	 */
+	dir: string | null;
+	/**
+	 * Whether the daemon was HANDED this tree at startup (a `--plugin <path>` argument that
+	 * resolved to it) — host-observed, independent of whether the load went on to succeed.
+	 */
+	requested: boolean;
+	/** Whether this tree is a live channel right now — host-observed. */
 	loaded: boolean;
-	local: boolean;
+	/** Whether this tree exists on disk — CLI-observed; the daemon never scans. */
+	installed: boolean;
+	/**
+	 * The CLI's integrity verdict for the tree on disk (`"matches"` / `"mismatch"` / `"absent"`),
+	 * or `null` when this row has no disk tree to verify (a host-requested path the scan never
+	 * found).
+	 */
+	integrity: IntegrityVerdict | null;
+	/**
+	 * Whether this plugin is DECLARED — part of the bundled/core set this node is supposed to
+	 * carry — independent of `installed`/`requested`/`loaded`. Declaration-observed
+	 * (`knownPluginDescriptors`, plugin-runtime.ts), the fifth fact: it is what lets "declared
+	 * and not installed" (a bundled plugin missing from this node) read differently from "never
+	 * heard of" (a third-party or local plugin with no such claim). A row can be `known: true`
+	 * with no installed tree at all (`installed: false, dir: null`) — that row IS the finding.
+	 */
+	known: boolean;
+	/**
+	 * Whether THIS NODE declared it is developing this plugin (`.refarm/config.json`'s
+	 * `pluginDevelopment`, keyed by runtime id) — the third axis, beside `trusted_plugins`
+	 * (identity) and `approvedPermissions` (effect). The host consults exactly this
+	 * declaration to waive an ABSENT integrity claim at load, never a wrong one.
+	 *
+	 * Reported for the same reason `known` is: an unpopulated field is a field nobody
+	 * notices. Without this, an operator sees `integrity: absent` and cannot tell whether
+	 * that tree will load at all — this row is the answer.
+	 */
+	development: boolean;
+	/** What this plugin ACTUALLY GOT at load: `declared ∩ approved`, computed by the host and
+	 *  reported rather than recomputed (ISS-171). `null` when no load computed one — never an
+	 *  empty array, which would mean everything was withheld. */
+	effectivePermissions: string[] | null;
+	/** Every capability the manifest asked for, as the LOAD saw it. Travels beside `effective`
+	 *  because a MISS IS PERMISSIVE: `effective` alone cannot tell "nothing was withheld" from
+	 *  "nobody was consulted". */
+	declaredPermissions: string[] | null;
+	/** Whether THAT LOAD ran unverified under the node's declaration — distinct from
+	 *  `development`, which is what the node declares now. */
+	loadedUnderDevelopment: boolean | null;
 }
 
 export interface RuntimePluginStatusReport {
@@ -130,6 +206,23 @@ export interface PluginInstallResult {
 	version: string | null;
 	packageSource: PluginPackageSource;
 	packageDir?: string;
+	/**
+	 * WHERE this plugin was installed — the directory the daemon will load it from.
+	 *
+	 * Added 2026-08-05 because its absence made a whole class of confusion undiagnosable. Two
+	 * installers were writing the agent to two directories and the daemon loaded only one, so
+	 * `refarm plugin install` truthfully answered `already up-to-date` about ITS directory while
+	 * a stale plugin kept being loaded from the other. The operator, and the assistant helping
+	 * him, mis-diagnosed that three times in a row from the symptom.
+	 *
+	 * One installer owns the path now, so the ambiguity is gone — but a report that says WHERE
+	 * turns "it says up-to-date and it is not" from an investigation into a glance, and the next
+	 * layout question will not be the last.
+	 *
+	 * Present on every outcome including `cached`: a cached result is exactly the case where
+	 * knowing which directory was consulted matters most.
+	 */
+	installedPath?: string;
 	message?: string;
 	buildCommand?: string;
 	bytes?: number;
@@ -139,6 +232,13 @@ export interface PluginInstallResult {
 export interface PluginInstallReport {
 	failed: number;
 	plugins: PluginInstallResult[];
+	/**
+	 * The runtime's rate catalog rides the same pass (see ./model-rate-catalog.ts). It is
+	 * NOT a plugin and never fails the install, but it IS part of what this pass put — or
+	 * declined to put — in the sovereign dir, so it belongs in the report a human reads,
+	 * not only in the JSON a tool parses.
+	 */
+	modelRateCatalog?: ModelRateCatalogMaterialization;
 	ok?: boolean;
 	error?: string;
 	nextAction?: string | null;
@@ -147,16 +247,24 @@ export interface PluginInstallReport {
 	nextCommands?: string[];
 }
 
-export function pluginsBaseDir(): string {
-	return path.join(resolveRefarmHome(), "plugins");
-}
-
 // The filesystem-safe plugin-id projection lives with the rest of plugin
 // identity in @refarm.dev/config (neutral, shared by the CLI, the Barn, and any
 // storage backend) — never reimplemented per consumer. Re-exported so the
 // existing plugin-* command imports keep one import site, and used by
 // sentinelPath below.
 export { pluginIdToFsToken };
+
+// WHERE an installed plugin lives is one function, in one module (./plugin-install-path.ts)
+// — see its header for why. `pluginsBaseDir` used to be defined twice (here, and in
+// ../utils/refarm-home.ts) with a subtly different answer for a relative REFARM_HOME; both
+// import sites now resolve to the single sovereign-directories definition.
+export {
+	INSTALLED_PLUGIN_WASM_FILENAME,
+	installedPluginDir,
+	installedPluginWasmPath,
+	legacyScopedPluginWasmPath,
+} from "./plugin-install-path.js";
+export { pluginsBaseDir };
 
 export function readPackageVersion(pkgDir: string): string | null {
 	try {
@@ -249,8 +357,13 @@ function readLocalExtensionManifest(extDir: string): InstalledPluginManifest | n
 	}
 }
 
-function readLocalExtensionBase(baseDir: string): InstalledPluginManifest[] {
-	const extensionsDir = path.join(baseDir, ".refarm", "extensions");
+/** The extensions directory of ONE tier, given that directory — not a base to append a
+ *  hardcoded `.refarm` onto. The append is what made this reader and `plugin-local.ts` disagree:
+ *  that file resolves the operator tier as `resolveRefarmHome() + "extensions"`, which honours a
+ *  REFARM_HOME whose last segment is not `.refarm`, while this one silently rebuilt the path
+ *  from a base plus a literal. Same question, two answers, and `plugin local promote` wrote
+ *  where this reader would not look. Each caller now names its own directory. */
+function readExtensionsIn(extensionsDir: string): InstalledPluginManifest[] {
 	if (!existsSync(extensionsDir)) return [];
 	let entries;
 	try {
@@ -268,10 +381,22 @@ function readLocalExtensionBase(baseDir: string): InstalledPluginManifest[] {
 }
 
 export function readLocalExtensionManifests(
+	// os-resolution: project — the project-local .refarm/extensions tier, which is anchored where the operator stands
 	cwd = process.cwd(),
-	homeDir = os.homedir(),
+	// The OPERATOR tier, through the SAME call `plugin-local.ts` makes. It was `os.homedir()`
+	// here and `resolveRefarmHome()` there — one question with two answers, which part company
+	// the moment a REFARM_HOME is declared: `plugin local promote` wrote an extension into the
+	// declared home while this reader looked for it in the OS one.
+	//
+	// RENAMED from `homeDir`: it used to be a BASE that this file appended `.refarm` to, and it
+	// is now the sovereign home itself. Same position, different meaning — a rename is what makes
+	// that visible to a caller instead of silently reinterpreting the value it already passes.
+	operatorHome = resolveRefarmHome(),
 ): InstalledPluginManifest[] {
-	return [...readLocalExtensionBase(cwd), ...readLocalExtensionBase(homeDir)];
+	return [
+		...readExtensionsIn(path.join(cwd, sovereignDir(), "extensions")),
+		...readExtensionsIn(path.join(operatorHome, "extensions")),
+	];
 }
 
 export function readSurfaceablePluginManifests(): InstalledPluginManifest[] {
@@ -279,11 +404,20 @@ export function readSurfaceablePluginManifests(): InstalledPluginManifest[] {
 }
 
 export function readSurfaceablePluginVerbs(
+	// os-resolution: project — the project-local .refarm/extensions tier, which is anchored where the operator stands
 	cwd = process.cwd(),
-	homeDir = os.homedir(),
+	// The OPERATOR tier, through the SAME call `plugin-local.ts` makes. It was `os.homedir()`
+	// here and `resolveRefarmHome()` there — one question with two answers, which part company
+	// the moment a REFARM_HOME is declared: `plugin local promote` wrote an extension into the
+	// declared home while this reader looked for it in the OS one.
+	//
+	// RENAMED from `homeDir`: it used to be a BASE that this file appended `.refarm` to, and it
+	// is now the sovereign home itself. Same position, different meaning — a rename is what makes
+	// that visible to a caller instead of silently reinterpreting the value it already passes.
+	operatorHome = resolveRefarmHome(),
 	installedManifests = readInstalledPluginManifests(),
 ): SurfaceablePluginVerb[] {
-	return [...installedManifests, ...readLocalExtensionManifests(cwd, homeDir)].flatMap((manifest) =>
+	return [...installedManifests, ...readLocalExtensionManifests(cwd, operatorHome)].flatMap((manifest) =>
 		surfaceablePluginVerbsFrom(manifest),
 	);
 }

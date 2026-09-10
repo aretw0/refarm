@@ -230,7 +230,7 @@ mod guest {
         let Ok(rows) = tractor_bridge::query_nodes(PERSONA_NODE_TYPE, PERSONA_QUERY_LIMIT) else {
             return Vec::new();
         };
-        rows.iter()
+        rows.nodes.iter()
             .filter_map(|s| serde_json::from_str::<Value>(s).ok())
             .collect()
     }

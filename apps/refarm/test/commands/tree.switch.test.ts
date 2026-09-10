@@ -6,6 +6,7 @@ vi.mock("node:child_process", () => ({
 }));
 
 import { spawnSync } from "node:child_process";
+import { SESSION_LOCK_PATH } from "../../src/commands/session-lock.js";
 import { createTreeCommand } from "../../src/commands/tree.js";
 import { GIT_LINE, HISTORY, makeJsonFetch, makeSpawnResult, SESSION } from "./tree.fixtures.js";
 
@@ -164,7 +165,7 @@ describe("refarm tree switch and guards", () => {
 
 		expect(mkdirSpy).toHaveBeenCalled();
 		expect(writeSpy).toHaveBeenCalledWith(
-			expect.stringContaining(".refarm/session.lock"),
+			SESSION_LOCK_PATH,
 			SESSION["@id"],
 			"utf-8",
 		);
@@ -206,6 +207,10 @@ describe("refarm tree switch and guards", () => {
 		vi.spyOn(fs, "mkdirSync").mockImplementation(
 			() => undefined as string | undefined,
 		);
+		// getWriteCandidatePaths() probes writability with a real (unmocked) accessSync
+		// on the lock dir's parent — see the sibling tests above in this file, and
+		// vitest.setup.ts, for why this must be stubbed under the throwaway HOME.
+		vi.spyOn(fs, "accessSync").mockImplementation(() => undefined);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -214,7 +219,7 @@ describe("refarm tree switch and guards", () => {
 			.parseAsync(["abc123"], { from: "user" });
 
 		expect(writeSpy).toHaveBeenCalledWith(
-			expect.stringContaining(".refarm/session.lock"),
+			SESSION_LOCK_PATH,
 			SESSION["@id"],
 			"utf-8",
 		);

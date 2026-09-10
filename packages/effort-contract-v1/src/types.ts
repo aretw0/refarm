@@ -130,3 +130,36 @@ export interface EffortConformanceResult {
 	failed: number;
 	failures: string[];
 }
+
+/**
+ * WHICH RESOURCE A TASK SPENDS — a model call, or ordinary computation.
+ *
+ * This is the operator's budgeting axis, in his own words (2026-08-28): "tarefas que realmente
+ * precisam de modelos para rodar ou só computação normal com recursos normais também no cálculo".
+ * A surface that declares work must be able to say which half it is BEFORE it runs, because a
+ * task dispatched to a model that did not need one is invisible waste, and one done by hand that
+ * did need one is the operator carrying the system.
+ *
+ * THE RULE IS THE HOST'S, NOT A SECOND OPINION. `effort_activity_kind` in
+ * `packages/tractor/src/sidecar/dispatch.rs` decides it at run time:
+ *
+ *     Some("respond") | None => "agent",
+ *     Some(_)                => "dispatch",
+ *
+ * `respond` is the agent's prompt turn — the long model call. Every other verb is a direct
+ * plugin dispatch. An absent `fn` defaults to `respond`, which is why `undefined` reads as
+ * `agent` here too rather than as "unknown".
+ *
+ * The two spellings live in two languages and cannot share code, so a guard READS the Rust
+ * source and asserts they still agree — the same device `PROCESS_HANDOFF_OUTPUT_CAP_BYTES`
+ * uses for its host twin. A restated constant that drifts is worse than one that is derived.
+ */
+export type TaskWorkClass = "agent" | "dispatch";
+
+/** The verb whose dispatch is a model turn, and the default when a task names none. */
+export const AGENT_RESPOND_FN = "respond" as const;
+
+/** PURE. Which resource this task spends. Mirrors `effort_activity_kind`. */
+export function taskWorkClass(fn: string | undefined | null): TaskWorkClass {
+	return fn == null || fn === AGENT_RESPOND_FN ? "agent" : "dispatch";
+}

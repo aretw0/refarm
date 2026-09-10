@@ -71,12 +71,13 @@
 		"@refarm.dev/ds": "workspace:*",
 		"@refarm.dev/effort-contract-v1": "workspace:*",
 		"@refarm.dev/identity-contract-v1": "workspace:*",
+		"@refarm.dev/localization-v1": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/runtime": "workspace:*",
 		"@refarm.dev/storage-sqlite": "workspace:*",
 		"@refarm.dev/sync-loro": "workspace:*",
 		"@refarm.dev/tractor": "workspace:*",
-		"astro": "^7.0.0"
+		"astro": "7.2.8"
 	},
 	"devDependencies": {
 		"@refarm.dev/eslint-config": "workspace:*",

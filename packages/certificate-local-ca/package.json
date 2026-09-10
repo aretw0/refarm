@@ -1,0 +1,34 @@
+{
+	"name": "@refarm.dev/certificate-local-ca",
+	"version": "0.1.0",
+	"private": true,
+	"description": "The canonical certificate provider: one operator CA, name-constrained, whose private key never leaves the node — plus the consent-carried request to trust it on a device",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run",
+		"clean": "rm -rf dist",
+		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/certificate-contract-v1": "workspace:*",
+		"@refarm.dev/operation-consent-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"typescript": "catalog:"
+	}
+}

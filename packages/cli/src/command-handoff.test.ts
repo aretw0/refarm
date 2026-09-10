@@ -10,12 +10,15 @@ import {
 	instantiateCommandTemplate,
 	instantiateCommandTemplateById,
 	instantiateProcessTemplate,
+	isAbsoluteCommandPath,
 	joinCommand,
 	normalizeHandoffValues,
+	privilegedApplicationCommand,
 	quoteCommandArg,
 	quoteCommandArgIfNeeded,
 	shellCommand,
 	substituteCommandTemplateValue,
+	SUDO_SECURE_PATH_MODEL,
 	workspaceCommand,
 } from "./command-handoff.js";
 
@@ -28,7 +31,9 @@ describe("command handoff helpers", () => {
 
 	it("quotes command arguments only when needed", () => {
 		expect(quoteCommandArgIfNeeded("effort-1")).toBe("effort-1");
-		expect(quoteCommandArgIfNeeded("urn:sovereign:task:v1:abc123")).toBe("urn:sovereign:task:v1:abc123");
+		expect(quoteCommandArgIfNeeded("urn:sovereign:task:v1:abc123")).toBe(
+			"urn:sovereign:task:v1:abc123",
+		);
 		expect(quoteCommandArgIfNeeded("effort with space")).toBe("'effort with space'");
 	});
 
@@ -260,6 +265,96 @@ describe("command handoff helpers", () => {
 		});
 
 		expect(offenders).toEqual([]);
+	});
+});
+
+/**
+ * A step that needs root is the one place where naming the binary is not enough. `sudo` replaces
+ * `PATH` with `secure_path`, which omits the per-user bin directory a CLI installs into, so
+ * `sudo -E tool …` fails with `command not found` exactly where the guidance was needed most.
+ */
+describe("privileged application commands", () => {
+	it("names the interpreter and the entrypoint by absolute path, so nothing is looked up", () => {
+		expect(
+			privilegedApplicationCommand("tool", ["cert", "trust"], {
+				execPath: "/usr/bin/node",
+				execArgv: [],
+				entrypoint: "/opt/tool/index.js",
+			}),
+		).toBe("sudo -E /usr/bin/node /opt/tool/index.js cert trust");
+	});
+
+	it("carries the module hooks the entrypoint was launched with", () => {
+		expect(
+			privilegedApplicationCommand("tool", ["cert", "trust"], {
+				execPath: "/usr/bin/node",
+				execArgv: ["--import", "file:///opt/tool/hook.mjs"],
+				entrypoint: "/opt/tool/index.js",
+			}),
+		).toBe(
+			"sudo -E /usr/bin/node --import file:///opt/tool/hook.mjs /opt/tool/index.js cert trust",
+		);
+	});
+
+	it("leaves this session's own flags out of a line the operator is told to type", () => {
+		expect(
+			privilegedApplicationCommand("tool", ["cert", "trust"], {
+				execPath: "/usr/bin/node",
+				execArgv: ["--inspect-brk=9229", "--test", "--conditions=source"],
+				entrypoint: "/opt/tool/index.js",
+			}),
+			// `=` is outside the unquoted-safe set, so the flag is quoted — still one argument.
+		).toBe("sudo -E /usr/bin/node '--conditions=source' /opt/tool/index.js cert trust");
+	});
+
+	it("quotes a path with spaces so the shell still sees one argument", () => {
+		expect(
+			privilegedApplicationCommand("tool", ["cert", "trust"], {
+				execPath: "/usr/bin/node",
+				execArgv: [],
+				entrypoint: "/opt/Tool CLI/index.js",
+			}),
+		).toBe("sudo -E /usr/bin/node '/opt/Tool CLI/index.js' cert trust");
+	});
+
+	it("falls back to the binary name when the process cannot describe itself", () => {
+		// An embedded host, not a CLI. Inventing a path would be worse than naming the binary.
+		expect(
+			privilegedApplicationCommand("tool", ["cert", "trust"], {
+				execPath: "/usr/bin/node",
+				execArgv: [],
+				entrypoint: null,
+			}),
+		).toBe("sudo -E tool cert trust");
+		expect(
+			privilegedApplicationCommand("tool", ["cert", "trust"], {
+				execPath: "/usr/bin/node",
+				execArgv: [],
+				entrypoint: "dist/index.js",
+			}),
+		).toBe("sudo -E tool cert trust");
+	});
+
+	it("derives the path from the running process by default", () => {
+		const command = privilegedApplicationCommand("tool", ["cert", "trust"]);
+		expect(command.startsWith(`sudo -E ${quoteCommandArgIfNeeded(process.execPath)} `)).toBe(true);
+		expect(command.endsWith(" cert trust")).toBe(true);
+	});
+
+	it("recognises the absolute paths a shell needs no PATH for", () => {
+		expect(isAbsoluteCommandPath("/opt/tool/index.js")).toBe(true);
+		expect(isAbsoluteCommandPath("C:\\tools\\tool.cmd")).toBe(true);
+		expect(isAbsoluteCommandPath("\\\\host\\share\\tool.cmd")).toBe(true);
+		expect(isAbsoluteCommandPath("tool")).toBe(false);
+		expect(isAbsoluteCommandPath("./dist/index.js")).toBe(false);
+		expect(isAbsoluteCommandPath("~/.local/bin/tool")).toBe(false);
+	});
+
+	it("models a sudo search path with no per-user bin directory in it", () => {
+		// The environment truth the whole rule rests on.
+		expect(SUDO_SECURE_PATH_MODEL.some((entry) => entry.includes(".local"))).toBe(false);
+		expect(SUDO_SECURE_PATH_MODEL.some((entry) => entry.startsWith("/home"))).toBe(false);
+		expect(SUDO_SECURE_PATH_MODEL).toContain("/usr/bin");
 	});
 });
 

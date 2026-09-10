@@ -217,7 +217,77 @@ curl -s 'http://127.0.0.1:42001/telemetry/window?minutes=30'
 pnpm run farm:status
 # Stop:
 refarm runtime stop
+
+### Scenario 3a — VPN com preparo explícito (sem auto-disparo)
+
+Use este fluxo para evitar tentativas automáticas quando o operador ainda não
+está com o celular em mãos.
+
+```bash
+# 1) Inspecionar estado da conexão declarada
+refarm workspace run refarm vpn-status
+
+# 2) Armar preparo explícito do operador (janela curta)
+refarm workspace run refarm vpn-prepare
+
+# 3) Checar prontidão sem efeito colateral
+refarm workspace run refarm vpn-ready
+
+# 4) Só então tentar subida segura
+refarm workspace run refarm vpn-up-safe
 ```
+
+Notas operacionais:
+
+- `vpn-up-safe` bloqueia quando não houve preparo explícito recente.
+- `vpn-up-safe` também bloqueia durante cooldown para evitar rajada de tentativas.
+- `vpn-ready` é read-only: apenas informa se está pronto para tentar.
+
+Canal reutilizável (além de VPN):
+
+- O contrato do preparo explícito agora vive no pacote compartilhado
+  `packages/operator-state/src/index.ts` (helpers de comandos e handoff
+  neutro de atenção).
+- `scripts/operator-attention-gate.mjs` atua como adaptador fino desse
+  contrato para uso direto em shell.
+- A VPN é apenas um consumidor desse canal (`scope = connection-up:<name>`).
+- Outras ações sensíveis podem reaproveitar o mesmo contrato, sem acoplar regra
+  de negócio ao workspace `rcdc5`.
+- O contrato é surface-agnostic (`ok`, `nextAction`, `nextActions`,
+  `nextCommand`, `nextCommands`) para beneficiar CLI, web, automações e futuras
+  superfícies sem depender de detalhes do app `refarm`.
+
+Exemplo genérico:
+
+```bash
+node scripts/operator-attention-gate.mjs attention:minha-acao --prepare-only --window-ms 120000 --json
+node scripts/operator-attention-gate.mjs attention:minha-acao --check-only --json
+node scripts/operator-attention-gate.mjs attention:minha-acao --consume-only --json
+```
+
+Fluxo recomendado no CLI (entre dispositivos/processos):
+
+```bash
+# 1) Armar intenção com perfil reutilizável
+refarm intention arm --profile cross-device-handoff --json
+
+# 2) Verificar prontidão explícita da intenção
+refarm intention check --profile cross-device-handoff --json
+
+# 3) Projetar esse estado no status base
+refarm status --base --attention-profile cross-device-handoff --json
+
+# 4) Consumir intenção após executar a ação sensível
+refarm intention consume --profile cross-device-handoff --json
+```
+
+Notas:
+
+- `refarm intention` separa o ato de intencionar da execução operacional.
+- Perfis (`cross-device-handoff`, `mobile-ready`, `operator-sync`) reduzem
+  ad-hoc de `scope/window` e facilitam assimilação de processos recorrentes.
+- `refarm status --base` continua aceitando override explícito por
+  `--attention-scope` e `--attention-window-ms` quando necessário.
 
 ### Scenario 3b — Canonical local ask flow (daily driver)
 
@@ -347,7 +417,7 @@ pnpm run farm:status        # check ARTIFACTS section
   tractor.log      # tractor stdout/stderr (background mode)
   farmhand.pid     # farmhand background PID
   farmhand.log     # farmhand stdout/stderr (background mode)
-  .env             # MODEL credentials (refarm sow)
+  .env             # runtime env read by launcher; may differ from Silo identity store
   config.json      # model provider, model, budgets, FS restrictions
   .repl_history    # REPL command history
   tasks/           # FileTransport input queue (farmhand)
@@ -377,8 +447,9 @@ When something is wrong, work top-down:
 3. **Stale PID file?** — process dead but PID file exists → `refarm runtime stop` then retry.
 4. **Binary missing?** — ARTIFACTS section in farm:status will tell you what to build.
 5. **No credentials?** — `refarm model doctor --json` or `refarm sow`.
-6. **Disk full?** — `pnpm run disk:check` → `pnpm run clean:light` or `pnpm run clean:heavy`.
-7. **WASM/harness fails?** — ensure `$CARGO_TARGET_DIR` is set and agent.wasm is at
+6. **Context/store mismatch?** — compare `refarm model current --json` with `refarm runtime status --json` and verify `SILO_HOME` / `REFARM_HOME` alignment.
+7. **Disk full?** — `pnpm run disk:check` → `pnpm run clean:light` or `pnpm run clean:heavy`.
+8. **WASM/harness fails?** — ensure `$CARGO_TARGET_DIR` is set and agent.wasm is at
    `$CARGO_TARGET_DIR/wasm32-wasip1/release/agent.wasm`.
 
 ---

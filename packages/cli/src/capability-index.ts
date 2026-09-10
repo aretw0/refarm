@@ -93,7 +93,7 @@ export interface ReferenceDriverPublicationBoundary {
 	discoveryPackage: "@refarm.dev/cli";
 	discoverySubpath: "@refarm.dev/cli/capability-index";
 	publicationState: "boundary-review";
-	consumerInstallPolicy: "not-vault-seed-ready";
+	consumerInstallPolicy: "not-consumer-ready";
 	runtimeExecutionState: "private";
 	note: string;
 }

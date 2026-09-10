@@ -48,7 +48,7 @@ test("detects changeset bumps against 0.1.0 first-publish packages", () => {
 	assert.deepEqual(
 		findFirstPublishChangesetRisks({
 			root,
-			selectionId: "vault-seed-ready",
+			selectionId: "consumer-ready",
 		}),
 		[
 			{
@@ -80,7 +80,7 @@ test("ignores changeset bumps after a package is beyond first publish", () => {
 	assert.deepEqual(
 		findFirstPublishChangesetRisks({
 			root,
-			selectionId: "vault-seed-ready",
+			selectionId: "consumer-ready",
 		}),
 		[],
 	);
@@ -114,7 +114,7 @@ test("flags out-of-selection packages still awaiting first publish", () => {
 	assert.deepEqual(
 		findOutOfSelectionBaselineRisks({
 			root,
-			selectionId: "vault-seed-ready",
+			selectionId: "consumer-ready",
 		}),
 		[
 			{
@@ -130,7 +130,7 @@ test("flags out-of-selection packages still awaiting first publish", () => {
 	assert.deepEqual(
 		findFirstPublishChangesetRisks({
 			root,
-			selectionId: "vault-seed-ready",
+			selectionId: "consumer-ready",
 		}),
 		[
 			{
@@ -167,7 +167,7 @@ test("ignores out-of-selection packages already beyond first publish", () => {
 	assert.deepEqual(
 		findOutOfSelectionBaselineRisks({
 			root,
-			selectionId: "vault-seed-ready",
+			selectionId: "consumer-ready",
 		}),
 		[],
 	);
@@ -194,17 +194,17 @@ function makeFixtureRoot({ changesets = {}, packages = {} } = {}) {
 						publishRequiresManualApproval: true,
 					},
 				],
-				defaultSelection: "vault-seed-ready",
+				defaultSelection: "consumer-ready",
 				selections: [
 					{
-						id: "vault-seed-ready",
-						profileTags: ["vault-seed-ready"],
+						id: "consumer-ready",
+						profileTags: ["consumer-ready"],
 					},
 				],
 				packageProfiles: Object.values(packages).map((pkg) => ({
 					id: pkg.name,
 					risk: "core",
-					tags: pkg.tags ?? ["vault-seed-ready"],
+					tags: pkg.tags ?? ["consumer-ready"],
 				})),
 				phases: [
 					{

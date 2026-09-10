@@ -35,7 +35,7 @@ jobs:
         run: node scripts/ci/setup-env.mjs
 
       - name: Release policy plan (preflight)
-        run: pnpm --silent run release:first-publish:plan -- --selection vault-seed-ready --json
+        run: pnpm --silent run release:first-publish:plan -- --selection consumer-ready --json
 
       - name: Strict dispatch-surface native artifact build (release mode)
         run: |
@@ -68,7 +68,7 @@ jobs:
 
       - name: Guard first-publish versions
         id: first-publish-guard
-        run: pnpm --silent run release:first-publish:changesets-guard -- --selection vault-seed-ready --soft
+        run: pnpm --silent run release:first-publish:changesets-guard -- --selection consumer-ready --soft
 
       - name: First-publish handoff pending
         if: steps.first-publish-guard.outputs.blocked == 'true'
@@ -76,26 +76,20 @@ jobs:
           echo "Changesets release is intentionally skipped while first-publish packages are still at 0.1.0."
           echo "Run the explicit first-publish lane for 0.1.0, then resume changesets for later releases."
 
-      - name: Create Release PR or Publish
+      - name: Create Release PR
         if: steps.first-publish-guard.outputs.blocked != 'true'
         id: changesets
         uses: changesets/action@63a615b9cd06ba9a3e6d13796c7fbcb080a60a0b # v1
         with:
           version: changeset version
-          publish: changeset publish
           commit: "chore(release): version packages"
           title: "chore(release): version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish runtime descriptor bundle to release assets
-        if: steps.changesets.outputs.published == 'true'
-        env:
-          PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
-        run: node scripts/ci/publish-runtime-descriptor-release-assets.mjs --bundle-dir .artifacts/runtime-descriptors --sha "${{ github.sha }}"
-
-      - name: Publish summary
-        if: steps.changesets.outputs.published == 'true'
-        run: |
-          echo "Published packages: ${{ steps.changesets.outputs.publishedPackages }}"
+      # The first publication is token-authenticated in first-publish-selection.
+      # All later releases are staged through npm's short-lived OIDC credential;
+      # npm 2FA approval is the only transition from staged to public.
+      - name: Stage versioned public packages with npm OIDC
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        run: node scripts/ci/stage-release-packages.mjs --base "${{ github.event.before }}" --head "${{ github.sha }}"

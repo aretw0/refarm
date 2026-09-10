@@ -28,11 +28,15 @@ export function cardHtml(opts: {
 	rows: string[];
 	active?: boolean;
 	actionsHtml?: string;
+	attrs?: Record<string, string>;
 }): string {
 	const active = opts.active ? ` data-active="1"` : "";
+	const attrs = Object.entries(opts.attrs ?? {})
+		.map(([key, value]) => ` ${escapeHtml(key)}="${escapeHtml(value)}"`)
+		.join("");
 	const actions = opts.actionsHtml ? `<div class="ds-card__actions">${opts.actionsHtml}</div>` : "";
 
-	return `<div class="ds-card"${active}><div class="ds-card__title">${escapeHtml(opts.title)}</div>${opts.rows.join("")}${actions}</div>`;
+	return `<div class="ds-card"${active}${attrs}><div class="ds-card__title">${escapeHtml(opts.title)}</div>${opts.rows.join("")}${actions}</div>`;
 }
 
 export function tableHtml(opts: { headers: string[]; rows: string[][] }): string {

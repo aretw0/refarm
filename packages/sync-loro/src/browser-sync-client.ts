@@ -19,9 +19,34 @@ export type BrowserSyncClientEvent =
 
 export interface BrowserSyncClientOptions {
 	wsUrl?: string;
+	/**
+	 * The per-device bearer credential (from `refarm auth enroll`), if the daemon's WS is
+	 * gated (ADR-093). Absent ⇒ no `Sec-WebSocket-Protocol` is offered at all — behavior
+	 * is unchanged from before ADR-093. Present ⇒ offered alongside `WS_SYNC_PROTOCOL`; see
+	 * that constant's doc for the full convention.
+	 */
+	token?: string;
 	onEvent?: (event: BrowserSyncClientEvent) => void;
 	webSocketConstructor?: typeof WebSocket;
 }
+
+/**
+ * ADR-093's WS credential handshake convention
+ * (`specs/ADRs/ADR-093-device-auth-gate-and-browser-websocket-credential-channel.md`): a
+ * browser cannot set an `Authorization` header on a WebSocket, so when a token is present
+ * this client offers TWO `Sec-WebSocket-Protocol` entries via the `WebSocket` constructor's
+ * second argument (works identically in the browser and in Node's `ws` package):
+ *   - `WS_SYNC_PROTOCOL` — the protocol name.
+ *   - `bearer.<token>`   — the bearer credential, verbatim.
+ *
+ * The server (`daemon::WsServer`) authenticates the `bearer.<token>` half against
+ * `REFARM_AUTH_POLICY` and echoes back ONLY `WS_SYNC_PROTOCOL` in its handshake response —
+ * the token half is never reflected. Absent token ⇒ no protocols are offered at all, and
+ * behavior is byte-identical to before ADR-093 (no policy configured ⇒ the daemon accepts
+ * regardless of what, if anything, is offered).
+ */
+export const WS_SYNC_PROTOCOL = "refarm-sync-v1";
+const WS_TOKEN_PROTOCOL_PREFIX = "bearer.";
 
 /**
  * BrowserSyncClient — connects the browser's LoroCRDTStorage to a Farmhand daemon
@@ -38,6 +63,7 @@ export class BrowserSyncClient {
 	private unsubscribe: (() => void) | null = null;
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	private readonly wsUrl: string;
+	private readonly token: string | undefined;
 	private readonly onEvent: (event: BrowserSyncClientEvent) => void;
 	private readonly WebSocketCtor: typeof WebSocket;
 
@@ -46,6 +72,7 @@ export class BrowserSyncClient {
 		options: string | BrowserSyncClientOptions = {},
 	) {
 		this.wsUrl = typeof options === "string" ? options : (options.wsUrl ?? "ws://localhost:42000");
+		this.token = typeof options === "string" ? undefined : options.token;
 		this.onEvent = typeof options === "string" ? () => {} : (options.onEvent ?? (() => {}));
 		this.WebSocketCtor =
 			typeof options === "string" ? WebSocket : (options.webSocketConstructor ?? WebSocket);
@@ -69,7 +96,12 @@ export class BrowserSyncClient {
 	private _connect(): void {
 		try {
 			this.onEvent({ type: "connecting", wsUrl: this.wsUrl });
-			this.ws = new this.WebSocketCtor(this.wsUrl);
+			// Absent token ⇒ omit the second argument entirely (not `undefined` explicitly,
+			// though both behave the same in the DOM/`ws` constructors) — keeps the no-token
+			// path byte-identical to before ADR-093.
+			this.ws = this.token
+				? new this.WebSocketCtor(this.wsUrl, [WS_SYNC_PROTOCOL, `${WS_TOKEN_PROTOCOL_PREFIX}${this.token}`])
+				: new this.WebSocketCtor(this.wsUrl);
 			this.ws.binaryType = "arraybuffer";
 
 			this.ws.onopen = (): void => {

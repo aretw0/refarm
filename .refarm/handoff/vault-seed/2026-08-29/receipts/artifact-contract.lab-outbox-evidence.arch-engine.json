@@ -1,0 +1,23 @@
+{
+  "proofId": "artifact-contract.lab-outbox-evidence",
+  "packageName": "@refarm.dev/artifact-contract-v1",
+  "consumer": "arch-engine",
+  "consumerCommit": "5d2ce508fee4e41a4dfc8c0f149a2f98f8ce18fb",
+  "consumerDirty": false,
+  "manifestSha256": "6df00dc30908f178f3968d12aaac99d470829d8f9be468721e180fd2ef188dd2",
+  "generatedAt": "2026-08-29T21:21:50.000Z",
+  "commands": [
+    "uv run arch-engine build examples/eco-house-demo",
+    "scripts/cli_runner.sh cad && scripts/cli_runner.sh sh3d && scripts/cli_runner.sh manifest",
+    "npm run test:refarm"
+  ],
+  "result": "pass",
+  "proofTargetAtPacket": "a consumer emits refarm.task-artifacts.v1 manifests from Lab/outbox/notebook producers",
+  "proofTargetCurrentPolicy": "a consumer emits refarm.task-artifacts.v1 manifests from Lab/outbox/notebook producers",
+  "notes": [
+    "Produtor fora do escopo Lab/outbox/notebook: um build de projeto fisico (relatorio Markdown, quantitativos, quality-report, params.scad, OFF/OBJ/STL/PNG do OpenSCAD, .sh3d). 9 artefatos com sha256, reviewState unreviewed, provenance com process tokenizado e inputHashes das fontes YAML.",
+    "validateTaskArtifactManifest do tarball real devolve zero issues; isTaskArtifactManifest true; selectTaskArtifacts por role=report encontra exatamente o relatorio.",
+    "Atrito: role e enum fechado (dataset|report|audit-trail|receipt|log|manifest|other); todos os artefatos CAD caem em other e se distinguem so por labels. Registrado em arch-engine/docs/ECOSYSTEM-DEMANDS.md.",
+    "O manifesto e produzido em Python (core/arch_engine/contracts.py) com um validador reduzido espelhado para falhar cedo; a validacao canonica continua sendo a do pacote."
+  ]
+}

@@ -25,10 +25,21 @@ const KIT_FILES = [
 	"src/usage.mjs",
 	"src/manifest.mjs",
 	"src/farm-host.mjs",
+	"src/ask-host.mjs",
+	"src/shims.mjs",
+	"src/path-operation.mjs",
+	"src/pending-prompt.mjs",
 	"src/progress.mjs",
+	"src/reach.mjs",
+	// BUILT blocks the kit CARRIES (see scripts/vendor.mjs). They are held to the
+	// same promise as hand-written kit source: node built-ins only. That is the
+	// property that makes vendoring legitimate rather than a dependency in disguise.
+	"vendor/prompt-contract-v1/dist/index.js",
+	"vendor/operation-consent-v1/dist/index.js",
 	"bin/farm-hello.mjs",
 	"bin/farm-announce.mjs",
 	"bin/farm-ask.mjs",
+	"bin/farm-attend.mjs",
 	"bin/farm-update.mjs",
 	"bootstrap/install.mjs",
 ];
@@ -47,7 +58,14 @@ test("imports only node builtins and own siblings — no workspace deps", () => 
 	const offenders = [];
 	for (const file of KIT_FILES) {
 		for (const spec of importsOf(file)) {
-			const ok = spec.startsWith("node:") || spec.startsWith("./") || spec.startsWith("../src/");
+			// `../vendor/` is the kit's OWN carried block — a file that ships inside the
+			// kit and is verified byte-identical to its built source (test/vendor.test.mjs),
+			// not a resolution into node_modules or the monorepo.
+			const ok =
+				spec.startsWith("node:") ||
+				spec.startsWith("./") ||
+				spec.startsWith("../src/") ||
+				spec.startsWith("../vendor/");
 			if (!ok) offenders.push(`${file} → ${spec}`);
 		}
 	}

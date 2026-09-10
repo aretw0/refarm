@@ -29,6 +29,12 @@ describe("project handoff", () => {
 			blockers: ["blocked"],
 			nextActions: ["next"],
 			openQuestions: ["question"],
+			truncation: {
+				currentTasks: { returned: 2, total: 3 },
+				blockers: { returned: 1, total: 1 },
+				nextActions: { returned: 1, total: 1 },
+				openQuestions: { returned: 1, total: 1 },
+			},
 		});
 	});
 
@@ -92,5 +98,54 @@ describe("project handoff", () => {
 			next_actions: ["ship write command"],
 			key_decisions_active: ["DEC-1"],
 		});
+	});
+});
+
+describe("parseProjectHandoffSummary truncation", () => {
+	const base = { context: "c", timestamp: "2026-08-08T00:00:00Z", current_phase: "14" };
+
+	it("reports the total when the limit cuts the list", () => {
+		const summary = parseProjectHandoffSummary(
+			{ ...base, next_actions: ["a", "b", "c", "d", "e", "f", "g"] },
+			{ arrayLimit: 5 },
+		);
+		expect(summary?.nextActions).toHaveLength(5);
+		expect(summary?.truncation.nextActions).toEqual({ returned: 5, total: 7 });
+	});
+
+	it("does not claim truncation at exactly the limit", () => {
+		const summary = parseProjectHandoffSummary(
+			{ ...base, next_actions: ["a", "b", "c", "d", "e"] },
+			{ arrayLimit: 5 },
+		);
+		expect(summary?.truncation.nextActions).toEqual({ returned: 5, total: 5 });
+	});
+
+	it("counts the total before blanks are dropped, not after", () => {
+		const summary = parseProjectHandoffSummary(
+			{ ...base, blockers: ["a", "   ", "b"] },
+			{ arrayLimit: 5 },
+		);
+		expect(summary?.blockers).toEqual(["a", "b"]);
+		expect(summary?.truncation.blockers).toEqual({ returned: 2, total: 2 });
+	});
+
+	it("reports every field, including the ones that were not cut", () => {
+		const summary = parseProjectHandoffSummary({ ...base }, { arrayLimit: 5 });
+		expect(summary?.truncation).toEqual({
+			currentTasks: { returned: 0, total: 0 },
+			blockers: { returned: 0, total: 0 },
+			nextActions: { returned: 0, total: 0 },
+			openQuestions: { returned: 0, total: 0 },
+		});
+	});
+
+	it("reports no truncation when no limit is given", () => {
+		const summary = parseProjectHandoffSummary(
+			{ ...base, next_actions: ["a", "b", "c", "d", "e", "f"] },
+			{},
+		);
+		expect(summary?.nextActions).toHaveLength(6);
+		expect(summary?.truncation.nextActions).toEqual({ returned: 6, total: 6 });
 	});
 });

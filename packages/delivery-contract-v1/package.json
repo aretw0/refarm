@@ -1,0 +1,30 @@
+{
+	"name": "@refarm.dev/delivery-contract-v1",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Declared delivery — the vocabulary an adapter declares (announce/answer, attended/unattended) and the three outcomes a delivery can have",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"clean": "rm -rf dist",
+		"test:unit": "vitest run",
+		"lint": "eslint src"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "workspace:*",
+		"typescript": "catalog:",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"@refarm.dev/eslint-config": "workspace:*"
+	}
+}

@@ -31,8 +31,10 @@
 - **[DevOps & Setup](DEVOPS.md)** — Dev containers, CI, security, hardware requirements.
 - **[Process Playbook](PROCESS_PLAYBOOK.md)** — Daily operational commands: services, agents, smoke gates, troubleshooting.
 - **[Operator Daily Driver](REFARM_OPERATOR_DAILY_DRIVER.md)** — Short maintained loop for using Refarm as the daily CLI driver.
+- **[Device Operator Journeys](REFARM_DEVICE_OPERATOR_JOURNEYS.md)** — Termux and PWA acceptance paths with commands, observable outcomes, undo, and automated proof, independent of the operator's network rail and downstream workspaces.
 - **[Operator Primitives](OPERATOR_PRIMITIVES.md)** — Stable JSON, session, task, runtime, model, and finish primitives for agentic operation.
 - **[Model Provider Strata](model-provider-strata.md)** — API-key billing vs subscription-backed provider contract for model routing.
+- **[GitHub Identity Setup](GITHUB_IDENTITY_SETUP.md)** — Why platform access and Copilot are two logins, where Refarm's OAuth App lives, what each registration field does, and the declared identity profile that decides who Refarm says it is at the Copilot exchange.
 - **[NixOS Curated Runtime Strategy](NIXOS_CURATED_RUNTIME_STRATEGY.md)** — Strategic lane for evaluating Nix/NixOS as a reproducible Refarm substrate without becoming a distro prematurely.
 - **[Environment Substrate Inventory](ENVIRONMENT_SUBSTRATE_INVENTORY.md)** — Current ownership map for devcontainer, CI, host install, Rust/WASM, browser runtime, and future Nix lanes.
 - **[Action Readiness Cookbook](REFARM_ACTION_READINESS_COOKBOOK.md)** — JSON handoff contract, `nextCommand` rules, and end-of-slice agent finish flow.
@@ -43,6 +45,7 @@
 - **[Colony Playbook](COLONY_PLAYBOOK.md)** — Parallel agent batch execution guide.
 - **[Known Limitations](KNOWN_LIMITATIONS.md)** — Technical hurdles, resource quotas, expected build behavior.
 - **[PR Quality Governance](PR_QUALITY_GOVERNANCE.md)** — Guardrails and publishing hygiene.
+- **[Work Item Ledger](WORK_ITEM_LEDGER.md)** — `refarm issues`: the workspace-scoped, provider-agnostic record of named debt — the four axes, the capability table's three states, and what the handoff gate enforces.
 - **[Decision Log](decision-log.md)** — Record of high-impact architectural choices.
 - **[Stratification Policy](STRATIFICATION.md)** — TS-Strict vs JS-Atomic package classification.
 - **[Scaffolding Development Policy](SCAFFOLDING.md)** — Island Isolation Policy for `sower` scaffolding.
@@ -58,6 +61,7 @@
 - **[Package Registry](../packages/README.md)** — Catalog of all monorepo components.
 - **[Plugin Developer Playbook](PLUGIN_DEVELOPER_PLAYBOOK.md)** — Guide for building sovereign extensions.
 - **[Plugin Authoring Tracks](PLUGIN_AUTHORING_TRACKS.md)** — Rust vs TS plugin paths, complexity tiers.
+- **[Model-catalog Plugin Onboarding](MODEL_CATALOG_PLUGIN_ONBOARDING.md)** — Operational onboarding and phased adoption plan for provider/composer catalog plugins.
 - **[Extensibility Model](EXTENSIBILITY_MODEL.md)** — Multi-surface plugin model.
 - **[WASM & JCO](WASM_JCO_ARCHITECTURE.md)** — Plugin sandbox: transpilation flow, runtime vs build-time table.
 - **[Courier Plugin](COURIER.md)** — `@refarm.dev/plugin-courier`: dynamic routing and protocol agnosticism.

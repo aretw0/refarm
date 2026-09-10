@@ -14,7 +14,13 @@ vi.mock("@refarm.dev/cli/browser-open", () => ({
 	runBestEffortBrowserOpenCandidate: vi.fn(),
 }));
 
-vi.mock("@refarm.dev/config", () => ({
+// PARTIAL, via importOriginal. The whole-module replacement this used to be silently deleted
+// every other export, so `open-external-links.ts` reaching for the REAL `declaredBase()` — which
+// is what stopped it resolving the node tier from `os.homedir()` — failed with "no declaredBase
+// export is defined on the mock". Only `loadConfig` needs faking here; taking the rest from the
+// original means the next export this module starts using does not break these tests.
+vi.mock("@refarm.dev/config", async (importOriginal) => ({
+	...(await importOriginal<typeof import("@refarm.dev/config")>()),
 	loadConfig: mockLoadConfig,
 }));
 

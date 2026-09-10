@@ -163,7 +163,7 @@ describe("citizen data wallet poc", () => {
 	it("publishes a task artifact manifest for downstream labs", () => {
 		const manifest = readFixture("task-artifacts.json");
 
-		assert.equal(manifest.schema, "refarm.task-artifacts.v1");
+		assert.equal(manifest.schema, "sovereign.task-artifacts.v1");
 		assert.equal(manifest.taskId, "task-citizen-data-wallet-poc");
 		assert.equal(manifest.effortId, "effort-citizen-data-wallet-poc-001");
 		assert.equal(manifest.artifacts.length, 14);

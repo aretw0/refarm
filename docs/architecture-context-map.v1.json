@@ -1,0 +1,256 @@
+{
+  "schemaVersion": 1,
+  "status": "provisional",
+  "direction": "upstream-to-downstream",
+  "contexts": [
+    {
+      "id": "sovereign-context",
+      "name": "Sovereign Context",
+      "purpose": "Resolve and explain the active home, node, namespace, workspace and operator context.",
+      "maturity": "established-boundary",
+      "anchors": [
+        "packages/config",
+        "packages/node-contract-v1",
+        "packages/operator-state",
+        "packages/workspace-access-contract-v1"
+      ]
+    },
+    {
+      "id": "execution-kernel",
+      "name": "Execution Kernel",
+      "purpose": "Load and execute governed plugins while enforcing the native runtime and WIT boundary.",
+      "maturity": "established-boundary",
+      "anchors": [
+        "packages/barn",
+        "packages/plugin-manifest",
+        "packages/plugin-wit",
+        "packages/tractor",
+        "packages/tractor-ts"
+      ]
+    },
+    {
+      "id": "work-control",
+      "name": "Work Control",
+      "purpose": "Describe tasks, efforts, automations and their durable lifecycle independently of the worker.",
+      "maturity": "candidate-boundary",
+      "anchors": [
+        "packages/automation-contract-v1",
+        "packages/effort-contract-v1",
+        "packages/task-calendar",
+        "packages/task-contract-v1",
+        "packages/task-recurrence"
+      ]
+    },
+    {
+      "id": "agency-models",
+      "name": "Agency and Models",
+      "purpose": "Select models and credentials, maintain sessions and turn governed work into agent execution.",
+      "maturity": "candidate-boundary",
+      "anchors": [
+        "packages/agent",
+        "packages/context-provider-v1",
+        "packages/delegate",
+        "packages/model-catalog-v1",
+        "packages/model-catalog-plugin-stack",
+        "packages/prompt-contract-v1",
+        "packages/session-contract-v1"
+      ]
+    },
+    {
+      "id": "records-knowledge",
+      "name": "Records and Knowledge",
+      "purpose": "Materialize sources and project neutral, provenance-carrying knowledge records.",
+      "maturity": "candidate-boundary",
+      "anchors": [
+        "packages/content-projection",
+        "packages/enrichment-contract-v1",
+        "packages/records-contract-v1",
+        "packages/source-contract-v1",
+        "packages/storage-node-view"
+      ]
+    },
+    {
+      "id": "data-substrate",
+      "name": "Sovereign Data Substrate",
+      "purpose": "Persist, query and synchronize local-first state behind replaceable contracts.",
+      "maturity": "established-boundary",
+      "anchors": [
+        "packages/storage-contract-v1",
+        "packages/storage-fs",
+        "packages/storage-memory",
+        "packages/storage-sqlite",
+        "packages/sync-contract-v1",
+        "packages/sync-loro"
+      ]
+    },
+    {
+      "id": "identity-trust",
+      "name": "Identity, Authority and Trust",
+      "purpose": "Represent principals, credentials, authorization, consent and trust decisions.",
+      "maturity": "established-boundary",
+      "anchors": [
+        "packages/authorization-contract-v1",
+        "packages/credentials-contract-v1",
+        "packages/identity-contract-v1",
+        "packages/operation-consent-v1",
+        "packages/policy-contract-v1",
+        "packages/trust"
+      ]
+    },
+    {
+      "id": "interaction-delivery",
+      "name": "Interaction and Delivery",
+      "purpose": "Expose operations through replaceable surfaces and deliver outcomes over operator channels.",
+      "maturity": "candidate-boundary",
+      "anchors": [
+        "packages/capability-host",
+        "packages/channel-policy-v1",
+        "packages/delivery-contract-v1",
+        "packages/delivery-telegram",
+        "packages/operation-result-v1",
+        "packages/surface-terminal"
+      ]
+    },
+    {
+      "id": "platform-operations",
+      "name": "Platform Operations",
+      "purpose": "Boot, observe, diagnose and recover node-local processes and infrastructure.",
+      "maturity": "candidate-boundary",
+      "anchors": [
+        "packages/diagnostic-bundle-v1",
+        "packages/health",
+        "packages/process-contract-v1",
+        "packages/runtime",
+        "packages/runtime-operator"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "sovereign-context",
+      "to": "work-control",
+      "kind": "context-supplier",
+      "seams": ["packages/workspace-access-contract-v1"]
+    },
+    {
+      "from": "sovereign-context",
+      "to": "agency-models",
+      "kind": "configuration-supplier",
+      "seams": ["packages/config"]
+    },
+    {
+      "from": "sovereign-context",
+      "to": "platform-operations",
+      "kind": "context-supplier",
+      "seams": ["packages/node-contract-v1"]
+    },
+    {
+      "from": "identity-trust",
+      "to": "execution-kernel",
+      "kind": "policy-supplier",
+      "seams": ["packages/authorization-contract-v1", "packages/policy-contract-v1"]
+    },
+    {
+      "from": "data-substrate",
+      "to": "execution-kernel",
+      "kind": "capability-supplier",
+      "seams": ["packages/storage-contract-v1", "packages/sync-contract-v1"]
+    },
+    {
+      "from": "data-substrate",
+      "to": "identity-trust",
+      "kind": "persistence-supplier",
+      "seams": ["packages/storage-contract-v1"]
+    },
+    {
+      "from": "work-control",
+      "to": "agency-models",
+      "kind": "work-supplier",
+      "seams": ["packages/effort-contract-v1", "packages/task-contract-v1"]
+    },
+    {
+      "from": "work-control",
+      "to": "data-substrate",
+      "kind": "adapter-contract",
+      "seams": ["packages/task-contract-v1"]
+    },
+    {
+      "from": "identity-trust",
+      "to": "agency-models",
+      "kind": "credential-and-consent-supplier",
+      "seams": ["packages/credentials-contract-v1", "packages/operation-consent-v1"]
+    },
+    {
+      "from": "execution-kernel",
+      "to": "agency-models",
+      "kind": "execution-host",
+      "seams": ["packages/plugin-wit"]
+    },
+    {
+      "from": "agency-models",
+      "to": "data-substrate",
+      "kind": "adapter-contract",
+      "seams": ["packages/session-contract-v1"]
+    },
+    {
+      "from": "agency-models",
+      "to": "platform-operations",
+      "kind": "operator-prompt-supplier",
+      "seams": ["packages/prompt-contract-v1"]
+    },
+    {
+      "from": "data-substrate",
+      "to": "records-knowledge",
+      "kind": "persistence-supplier",
+      "seams": ["packages/storage-contract-v1"]
+    },
+    {
+      "from": "records-knowledge",
+      "to": "agency-models",
+      "kind": "knowledge-supplier",
+      "seams": ["packages/records-contract-v1", "packages/source-contract-v1"]
+    },
+    {
+      "from": "records-knowledge",
+      "to": "interaction-delivery",
+      "kind": "capability-supplier",
+      "seams": ["packages/records-contract-v1"]
+    },
+    {
+      "from": "interaction-delivery",
+      "to": "work-control",
+      "kind": "operation-ingress",
+      "seams": ["packages/delivery-contract-v1", "packages/operation-result-v1"]
+    },
+    {
+      "from": "platform-operations",
+      "to": "execution-kernel",
+      "kind": "lifecycle-host",
+      "seams": ["packages/process-contract-v1", "packages/diagnostic-bundle-v1"]
+    },
+    {
+      "from": "execution-kernel",
+      "to": "platform-operations",
+      "kind": "runtime-metadata-supplier",
+      "seams": ["packages/plugin-manifest"]
+    },
+    {
+      "from": "platform-operations",
+      "to": "interaction-delivery",
+      "kind": "operation-status-supplier",
+      "seams": ["packages/diagnostic-bundle-v1", "packages/runtime-operator"]
+    },
+    {
+      "from": "sovereign-context",
+      "to": "execution-kernel",
+      "kind": "node-schema-supplier",
+      "seams": ["packages/node-contract-v1"]
+    },
+    {
+      "from": "sovereign-context",
+      "to": "records-knowledge",
+      "kind": "node-schema-supplier",
+      "seams": ["packages/node-contract-v1"]
+    }
+  ]
+}

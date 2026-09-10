@@ -145,6 +145,104 @@ export function applicationCommand(binary: string, args: string[]): string {
 	return binaryCommand(binary, args);
 }
 
+/** Absolute in the sense a shell means it: no PATH lookup will happen. POSIX `/…`, a
+ *  Windows drive root `C:\…`, or a UNC share `\\host\share`. Kept local so this module
+ *  stays import-free — `node:path` would answer for the HOST platform, and a handoff can
+ *  be rendered for a target that is not it. */
+export function isAbsoluteCommandPath(value: string): boolean {
+	return /^\//.test(value) || /^[A-Za-z]:[\\/]/.test(value) || value.startsWith("\\\\");
+}
+
+/**
+ * The execArgv flags that are part of HOW THE ENTRYPOINT LOADS, and therefore must survive
+ * into a re-invocation of it. A launcher shim uses exactly these (`node --import <loader>
+ * <entry>`); everything else in `execArgv` — `--inspect`, `--test`, profiler flags — belongs
+ * to the session that happens to be running, never in a line the operator is told to type.
+ */
+const MODULE_HOOK_EXEC_ARGV =
+	/^(--import|--loader|--experimental-loader|--require|-r|--conditions|-C)(=|$)/;
+
+function moduleHookExecArgv(execArgv: readonly string[]): string[] {
+	const kept: string[] = [];
+	for (let index = 0; index < execArgv.length; index += 1) {
+		const flag = execArgv[index]!;
+		if (!MODULE_HOOK_EXEC_ARGV.test(flag)) continue;
+		kept.push(flag);
+		// The separated form (`--import <value>`) carries its value in the NEXT slot.
+		if (!flag.includes("=") && index + 1 < execArgv.length) {
+			const value = execArgv[index + 1]!;
+			if (!value.startsWith("-")) {
+				kept.push(value);
+				index += 1;
+			}
+		}
+	}
+	return kept;
+}
+
+/** Where a privileged invocation is looked up from. Not the caller's `PATH`: `sudo` replaces
+ *  it with `secure_path`, and every distribution that sets one omits per-user bin directories
+ *  such as `~/.local/bin`. This is the Debian/Ubuntu default, kept as the MODEL a handoff is
+ *  checked against — nothing here reads or trusts the local sudoers file. */
+export const SUDO_SECURE_PATH_MODEL = [
+	"/usr/local/sbin",
+	"/usr/local/bin",
+	"/usr/sbin",
+	"/usr/bin",
+	"/sbin",
+	"/bin",
+] as const;
+
+export interface PrivilegedInvocationSource {
+	/** The interpreter running this program. Absolute, always, when Node provides it. */
+	execPath?: string;
+	/** Node's own flags for this process — filtered to the module hooks the entrypoint needs. */
+	execArgv?: readonly string[];
+	/** The script Node was pointed at (`process.argv[1]`). `null` when there is none. */
+	entrypoint?: string | null;
+}
+
+/**
+ * A privileged invocation of THIS program, written so a ROOT shell can find it.
+ *
+ * WHY THIS IS NOT `sudo -E <binary> …`. `sudo` resets `PATH` to `secure_path`, and every
+ * distribution that sets one omits `~/.local/bin` — where a per-user CLI install puts its
+ * launcher. So a guidance line that says `sudo -E refarm cert trust` is unrunnable exactly
+ * where it is needed: the operator gets `sudo: refarm: command not found`. That is not a
+ * packaging bug to fix downstream, it is correct Unix behaviour, and the emitter is the
+ * thing that has to know it.
+ *
+ * The answer is to name NOTHING that needs looking up: the interpreter and the entrypoint
+ * are both taken from the running process, both already absolute, so `secure_path` never
+ * enters into it. Derived, never hardcoded — a literal `/home/<someone>` would be right for
+ * exactly one machine.
+ *
+ * Falls back to the bare binary only when the process cannot describe itself (no entrypoint,
+ * or a relative one — an embedded host, not a CLI). Nothing better is available then, and
+ * inventing a path would be worse than naming the binary.
+ */
+export function privilegedApplicationCommand(
+	binary: string,
+	args: string[],
+	source: PrivilegedInvocationSource = {},
+): string {
+	const execPath = source.execPath ?? process.execPath;
+	const entrypoint =
+		source.entrypoint === undefined ? (process.argv[1] ?? null) : source.entrypoint;
+	const execArgv = source.execArgv ?? process.execArgv;
+	if (!entrypoint || !isAbsoluteCommandPath(execPath) || !isAbsoluteCommandPath(entrypoint)) {
+		return joinCommand(["sudo", "-E", binary, ...args]);
+	}
+	return joinCommand([
+		"sudo",
+		"-E",
+		quoteCommandArgIfNeeded(execPath),
+		...moduleHookExecArgv(execArgv).map(quoteCommandArgIfNeeded),
+		quoteCommandArgIfNeeded(entrypoint),
+		...args,
+	]);
+}
+
 export function applicationProcess(binary: string, args: string[]): ApplicationProcessSpec {
 	const override = process.env[applicationCommandOverrideEnv(binary)]?.trim();
 	const command = override || binary;

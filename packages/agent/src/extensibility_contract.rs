@@ -34,7 +34,7 @@ fn a2_zero_config_boot_returns_response() {
     std::env::remove_var("MODEL_FALLBACK_PROVIDER");
     std::env::remove_var("MODEL_HISTORY_TURNS");
     std::env::remove_var("MODEL_SYSTEM");
-    let (content, _, _, _, _, _, _, _) = react("hello");
+    let (content, _, _, _, _, _, _, _, _) = react("hello");
     assert!(
         !content.is_empty(),
         "zero-config boot must produce a non-empty response"

@@ -29,6 +29,11 @@ const DESCRIPTOR = {
 	entry: "plugin.wasm", // relative to the descriptor URL — the install resolves it
 	integrity: WASM_INTEGRITY,
 	capabilities: { provides: ["quality:v1"], requires: [], providesApi: [], requiresApi: [] },
+	permissions: [],
+	observability: { hooks: ["onLoad", "onInit", "onRequest", "onError", "onTeardown"] },
+	targets: ["server"],
+	certification: { license: "MIT", a11yLevel: 0, languages: ["en"] },
+	trust: { profile: "strict" },
 };
 
 /** A stub fetch that serves the descriptor JSON and the wasm bytes from an in-memory
@@ -136,6 +141,71 @@ describe("plugin install from url — content-addressed remote install (ADR-086 
 		expect(fs.existsSync(path.join(destDir, "plugin.wasm"))).toBe(false);
 	});
 
+	it("applies capability policy before fetching the remote entry", async () => {
+		let entryFetched = false;
+		const fetchImpl: UrlFetch = async (url) => {
+			if (url === DESCRIPTOR_URL) {
+				return {
+					ok: true,
+					status: 200,
+					statusText: "OK",
+					json: async () => ({
+						...DESCRIPTOR,
+						capabilities: { ...DESCRIPTOR.capabilities, requires: ["network:outbound"] },
+					}),
+					arrayBuffer: async () => new ArrayBuffer(0),
+				};
+			}
+			entryFetched = true;
+			return stubFetch({ wasm: WASM_BYTES })(url);
+		};
+
+		const report = await buildUrlInstallReport({ url: DESCRIPTOR_URL, fetchImpl });
+
+		expect(report.ok).toBe(false);
+		expect((report as { error: string }).error).toBe("url_plugin_not_ready");
+		expect((report as unknown as { deniedCapabilities: string[] }).deniedCapabilities).toEqual([
+			"network:outbound",
+		]);
+		expect(entryFetched).toBe(false);
+	});
+
+	it("requires host-declared connections before fetching the remote entry", async () => {
+		let entryFetched = false;
+		const fetchImpl: UrlFetch = async (url) => {
+			if (url === DESCRIPTOR_URL) {
+				return {
+					ok: true,
+					status: 200,
+					statusText: "OK",
+					json: async () => ({
+						...DESCRIPTOR,
+						capabilities: {
+							...DESCRIPTOR.capabilities,
+							requiresConnections: ["corporate-vpn"],
+						},
+					}),
+					arrayBuffer: async () => new ArrayBuffer(0),
+				};
+			}
+			entryFetched = true;
+			return stubFetch({ wasm: WASM_BYTES })(url);
+		};
+
+		const report = await buildUrlInstallReport({
+			url: DESCRIPTOR_URL,
+			fetchImpl,
+			availableConnections: [],
+		});
+
+		expect(report.ok).toBe(false);
+		expect((report as { error: string }).error).toBe("url_plugin_not_ready");
+		expect((report as unknown as { missingConnections: string[] }).missingConnections).toEqual([
+			"corporate-vpn",
+		]);
+		expect(entryFetched).toBe(false);
+	});
+
 	it("fails loudly when the descriptor cannot be fetched", async () => {
 		const report = await buildUrlInstallReport({
 			url: DESCRIPTOR_URL,
@@ -189,7 +259,9 @@ describe("plugin install from url — content-addressed remote install (ADR-086 
 					status: 200,
 					statusText: "OK",
 					json: async () => ({
+						...DESCRIPTOR,
 						id: "@example/js-plugin",
+						name: "JS Plugin",
 						version: "0.3.0",
 						entry: "plugin.js",
 						integrity: JS_INTEGRITY,

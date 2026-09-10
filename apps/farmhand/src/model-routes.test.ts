@@ -1,3 +1,4 @@
+import { defaultProviderModelRef } from "@refarm.dev/config";
 import { afterEach, describe, expect, it } from "vitest";
 import {
 	createModelRouteResolver,
@@ -15,46 +16,43 @@ describe("model routes", () => {
 		delete process.env.MODEL_BASE_URL;
 	});
 
-	it("uses gpt-5.5 as OpenAI default route", () => {
+	// DERIVED from the CLI's catalogue, never retyped. This block used to hardcode
+	// "gpt-5.5" and "claude-sonnet-4-6"; the catalogue moved to gpt-5.6-sol and
+	// claude-sonnet-5 and the tests stayed behind, so they were failing for the one reason a
+	// test never should — the thing they exist to protect was working.
+	//
+	// The second one's own NAME says "keeps provider defaults aligned with refarm CLI routing",
+	// and it proved that by copying the CLI's answers into this file. A copy is not an
+	// alignment check; it is a second catalogue that drifts. Asking the real one is.
+	it("uses the CLI's OpenAI default as its own default route", () => {
 		expect(routeForScope({ modelProvider: "openai" }, "default")).toEqual({
 			provider: "openai",
-			modelId: "gpt-5.5",
+			modelId: defaultProviderModelRef("openai").split("/").slice(1).join("/"),
 		});
 	});
 
 	it("keeps provider defaults aligned with refarm CLI routing", () => {
-		expect(routeForScope({ modelProvider: "anthropic" }, "default")).toEqual({
-			provider: "anthropic",
-			modelId: "claude-sonnet-4-6",
-		});
-		expect(routeForScope({ modelProvider: "groq" }, "default")).toEqual({
-			provider: "groq",
-			modelId: "llama-3.3-70b-versatile",
-		});
-		expect(routeForScope({ modelProvider: "mistral" }, "default")).toEqual({
-			provider: "mistral",
-			modelId: "mistral-medium-3-5",
-		});
-		expect(routeForScope({ modelProvider: "gemini" }, "default")).toEqual({
-			provider: "gemini",
-			modelId: "gemini-3-flash-preview",
-		});
-		expect(routeForScope({ modelProvider: "xai" }, "default")).toEqual({
-			provider: "xai",
-			modelId: "grok-4.3",
-		});
-		expect(routeForScope({ modelProvider: "deepseek" }, "default")).toEqual({
-			provider: "deepseek",
-			modelId: "deepseek-v4-flash",
-		});
-		expect(routeForScope({ modelProvider: "together" }, "default")).toEqual({
-			provider: "together",
-			modelId: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-		});
-		expect(routeForScope({ modelProvider: "openrouter" }, "default")).toEqual({
-			provider: "openrouter",
-			modelId: "anthropic/claude-sonnet-4.6",
-		});
+		for (const provider of [
+			"openai",
+			"anthropic",
+			"groq",
+			"mistral",
+			"gemini",
+			"xai",
+			"deepseek",
+			"together",
+			"openrouter",
+		]) {
+			// `defaultProviderModelRef` returns "<provider>/<modelId>", and a modelId can itself
+			// contain a slash (`meta-llama/Llama-3.3-70B-Instruct-Turbo`,
+			// `anthropic/claude-sonnet-4.6` under openrouter) — so split off the FIRST segment
+			// only, never `split("/")[1]`.
+			const [, ...modelParts] = defaultProviderModelRef(provider).split("/");
+			expect(routeForScope({ modelProvider: provider }, "default"), provider).toEqual({
+				provider,
+				modelId: modelParts.join("/"),
+			});
+		}
 	});
 
 	it("uses codex spark for OpenAI worker route by default", () => {

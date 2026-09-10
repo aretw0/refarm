@@ -312,6 +312,16 @@ jobs:
         run: node scripts/ci/check-github-action-pins.mjs
       - name: Validate GitHub Action contracts
         run: node scripts/ci/check-github-actions-contracts.mjs
+      # Two repo-contract gates the before-push lane has run since 2026-08-17 and no
+      # workflow ever has. Measured in a dependency-free worktree (what this job is):
+      # 48ms and 64ms, no node_modules, no toolchain. The lane's own rule is that these
+      # are repo-wide rather than change-scoped, and a gate only the lane runs is one a
+      # push from any other machine walks straight past — which is how four gates were
+      # found red on 2026-08-23 after fourteen days with no pipeline. See ISS-136.
+      - name: Check task-smoke build order
+        run: node -e "import('./scripts/ci/subprocess-utils.mjs').then(m => m.assertTaskSmokeBuildOrderIntegrity()).catch(e => { console.error(e.message); process.exit(1); })"
+      - name: Check scripts/ test-coverage ceiling
+        run: node scripts/script-test-coverage.mjs
 
   # The Rust → WASM plugin packages (agent, tractor-rs, delegate, heartwood,
   # lsp-code-ops, scarecrow-plugin) build through `cargo component` + a `check:wit`
@@ -437,7 +447,11 @@ jobs:
 
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 45, not 30: a PR's merge ref carries a different content signature from the branch head,
+    # so the result cache the push run hits is a miss here and the job runs cold — 30m18s twice
+    # on PR #59 (2026-08-30), reported by GitHub as "canceled", indistinguishable from a real
+    # cancel until the clock is read. The same ceiling the other heavy jobs already carry.
+    timeout-minutes: 45
     needs: [changes, build-wasm]
     # Run whether build-wasm ran or was skipped (docs-only commits skip it), but
     # not if it FAILED — a broken Rust/WASM build must block quality rather than
@@ -468,6 +482,15 @@ jobs:
       - name: Validate .project cross-block consistency
         run: node scripts/ci/project-block-consistency.mjs
 
+      # BARE `node`, like its sibling above, because this block runs BEFORE `Setup` — which is what
+      # provisions pnpm. Added 2026-08-09 as `pnpm run project:validate:test`, it has exited 127
+      # (`pnpm: command not found`) every time it ran, which is once: the branch was not pushed
+      # again for fourteen days. The script it wraps is `node --test` with no dependencies (72ms in
+      # a dependency-free worktree), so it belongs here rather than after a conditional Setup that
+      # a cache hit skips.
+      - name: Validate .project cross-block consistency (test)
+        run: node --test scripts/ci/project-block-consistency.test.mjs
+
       - name: Text quality verify
         if: needs.changes.outputs.text_quality_changes == 'true'
         run: |
@@ -493,9 +516,20 @@ jobs:
       #     path: .turbo
       #     ...
 
-      - name: Security audit
+      # WAS `pnpm audit --audit-level=high` — the only audit in this repository that included
+      # devDependencies, and red since 2026-08-18 on GHSA-jmr9-qjv8-65gv (extract-zip). That
+      # advisory names a patch that DOES NOT EXIST: it says `>=2.0.2`, the registry's latest
+      # published version is 2.0.1, and `@puppeteer/browsers` requires `^2.0.1`, so even a lockfile
+      # override has nothing to resolve to. It surfaced only today because this step is gated on
+      # `code_changes` and no code-change push happened in between.
+      #
+      # `audit-gate.mjs` is a STRICTER severity over a narrower dep scope: `moderate` is a superset
+      # of `high`, so everything the old command reported here is still judged — now against the
+      # dated register, which is where a fact like "no patch exists" belongs. What is given up is
+      # blocking on DEV-scope advisories, and no other audit in this repo ever blocked on those.
+      - name: Security audit (moderate --prod, with per-advisory expiry)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
-        run: pnpm audit --audit-level=high
+        run: node scripts/security/audit-gate.mjs
 
       - name: Dispatch-surface parity CI
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_dispatch_surface_ci == 'true'
@@ -575,6 +609,15 @@ jobs:
       - name: Tractor heavy cache hit
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit == 'true'
         run: echo "::notice::Reusing previous successful Tractor benchmark/coverage validation for unchanged heavy inputs."
+
+      # The hardening collector proves a suite conformant by IMPORTING each package's built artifact,
+      # so its floors read low whenever Verify's FILTERED build leaves the workspace partly unbuilt —
+      # 24 conformant on a built tree against 19 here. Same shape as the Tractor release-path smoke
+      # below: a narrow, explicit guarantee that is a warm cache-hit in the normal case rather than a
+      # cold build.
+      - name: Build the workspace for the hardening collector
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
+        run: pnpm turbo run build --cache-dir=.turbo --output-logs=errors-only --ui=stream
 
       # --continue: run ALL tasks even after one fails, so a cache-invalidation that surfaces several
       # latent failures reports them in ONE run instead of one-per-push (the "cache roulette"). The gate
@@ -1027,7 +1070,11 @@ jobs:
     # Verify or rides a stale cache), the face-smoke-coverage checker (every example page has a
     # web-face smoke entry, so a new face can't silently go un-browser-tested), and the phantom-dep /
     # test-runner-contract checkers that until now lived only in the never-invoked gate:full:colony
-    # bundle + a bypassable pre-push hook.
+    # bundle + a bypassable pre-push hook. Also home for the no-os-resolution ratchet (a resolver
+    # must take its base explicitly, never default to process.cwd()/homedir() — see
+    # docs/NO_OS_RESOLUTION.md): its co-located scripts/*.test.mjs siblings (refarm-sandbox,
+    # scaffold-capability, verify-changed, ...) are NOT run anywhere in this workflow today, so this
+    # one is deliberately placed here rather than left to the same fate — see task-1-report.md.
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: changes
@@ -1051,6 +1098,16 @@ jobs:
       - name: Face smoke coverage (every example page has a web-face smoke entry)
         run: pnpm run ci:face-smoke-coverage:check
 
+      # A VENDORED COPY DRIFTS IN SILENCE. `packages/farm-client/vendor/` holds byte-copies of two
+      # blocks, and nothing in turbo's graph connects them to their sources — so changing
+      # `prompt-contract-v1` does not wake farm-client's tests, which is exactly how both copies
+      # ended up two days behind on 2026-08-19 with every gate green. This check has lived only in
+      # the before-push lane since 2026-08-17 and drifted again two days later (ISS-136).
+      # Measured 2.3s from a cold checkout: it BUILDS the block when `dist/` is absent rather than
+      # skipping, because a drift check that quietly passes when it cannot look is not a check.
+      - name: Vendored blocks are byte-identical to their sources
+        run: pnpm -C packages/farm-client run vendor:check
+
       - name: Phantom workspace deps in tool configs
         run: pnpm run deps:vitest-config-check
 
@@ -1059,6 +1116,9 @@ jobs:
 
       - name: Test-runner contracts
         run: pnpm run test-runner:contracts
+
+      - name: No-OS-resolution ratchet (a resolver must not silently default to the OS)
+        run: pnpm run no-os-resolution:test
 
   web-face-smoke:
     runs-on: ubuntu-latest
@@ -1113,6 +1173,22 @@ jobs:
         with:
           json-output: audit-moderate.json
           markdown-output: audit-moderate.md
+
+      # THE PROMOTION GATE, and now it blocks. The operator ruled on 2026-08-11 that
+      # `moderate --prod` with a per-advisory re-check date is what counts (ISS-088), and
+      # `audit-gate.mjs` is that ruling — it reads `accepted-advisories.mjs`, passes while every
+      # reported advisory is declared and no date has passed, and fails the moment one is neither.
+      #
+      # THE BARE COMMAND COULD NEVER HAVE BLOCKED, which is why nothing did: `pnpm audit
+      # --audit-level=moderate --prod` is red on arrival here (6 reported, 7 declared), so every
+      # surface that ran it had to be made non-blocking. The repo worked around the wrong tool
+      # instead of running the right one, which no workflow ran at all until 2026-08-23.
+      #
+      # It is DESIGNED to expire: on 2026-10-10 the three astro acceptances come due and this
+      # goes red until someone re-checks them. That is the point — an acceptance without a date
+      # is a decision that quietly becomes permanent.
+      - name: Security gate (moderate --prod, with per-advisory expiry)
+        run: node scripts/security/audit-gate.mjs
 
       - name: Audit moderate notice
         if: steps.audit_report.outputs.total != '0'

@@ -119,6 +119,11 @@ export function renderConsentPrompt(
 		<p><span class="refarm-muted">${escapeHtml(text(translator, "purpose", "Finalidade"))}:</span> ${escapeHtml(
 			request.purpose,
 		)}</p>
+		${
+			request.justification
+				? `<p class="refarm-consent-justification">${escapeHtml(request.justification)}</p>`
+				: ""
+		}
 		<div class="refarm-consent-scope">
 			<span class="refarm-muted">${escapeHtml(text(translator, "requested", "Atributos solicitados"))}:</span>
 			<ul class="refarm-chip-row">${scopeList}</ul>

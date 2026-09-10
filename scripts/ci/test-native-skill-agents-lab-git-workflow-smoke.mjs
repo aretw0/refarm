@@ -91,10 +91,10 @@ test("agents-lab git workflow smoke wraps external skill evidence without instal
 		{ id: "source:v1", required: true },
 	]);
 	assert.deepEqual(result.plan.engineBindings.requires, ["source:v1"]);
-	assert.equal(result.decision.schema, "refarm.skill-invocation-decision.v1");
+	assert.equal(result.decision.schema, "sovereign.skill-invocation-decision.v1");
 	assert.equal(result.decision.decision, "approved");
 	assert.equal(result.decision.executed, false);
-	assert.equal(result.receipt.schema, "refarm.skill-invocation-receipt.v1");
+	assert.equal(result.receipt.schema, "sovereign.skill-invocation-receipt.v1");
 	assert.equal(result.receipt.status, "succeeded");
 	assert.equal(result.receipt.executed, true);
 	assert.equal(result.receipt.completedAt, "2026-06-30T00:00:00.000Z");

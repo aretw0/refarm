@@ -1,0 +1,92 @@
+import { describe, expect, it } from "vitest";
+import { createRuntimeAgentRespondEffort } from "./runtime-agent-effort.js";
+
+const BASE = {
+	prompt: "p",
+	system: "s",
+	sessionId: "urn:sovereign:session:v1:abc",
+	source: "refarm-ask" as const,
+	historyTurns: 10,
+	now: () => new Date("2026-08-05T00:00:00.000Z"),
+	randomUUID: () => "fixed-uuid",
+};
+
+describe("createRuntimeAgentRespondEffort workspace attribution", () => {
+	it("omits every workspace key when none is declared", () => {
+		const effort = createRuntimeAgentRespondEffort(BASE);
+		expect("workspaceId" in effort).toBe(false);
+		const args = effort.tasks[0]!.args as unknown as Record<string, unknown> | null | undefined;
+		expect(args != null ? "workspace_id" in args : false).toBe(false);
+		expect(args != null ? "workspace_source" in args : false).toBe(false);
+	});
+
+	it("carries the id at the root for the observation and in args for the session", () => {
+		const effort = createRuntimeAgentRespondEffort({
+			...BASE,
+			workspaceId: "rcdc5",
+			workspaceSource: "declared",
+		});
+		expect((effort as unknown as Record<string, unknown>).workspaceId).toBe("rcdc5");
+		const args = effort.tasks[0]!.args as unknown as Record<string, unknown> | null | undefined;
+		expect(args != null ? args.workspace_id : undefined).toBe("rcdc5");
+		expect(args != null ? args.workspace_source : undefined).toBe("declared");
+	});
+
+	it("records a seed as a seed", () => {
+		const effort = createRuntimeAgentRespondEffort({
+			...BASE,
+			workspaceId: "refarm",
+			workspaceSource: "seeded-from-cwd",
+		});
+		const args = effort.tasks[0]!.args as unknown as Record<string, unknown> | null | undefined;
+		expect(args != null ? args.workspace_source : undefined).toBe("seeded-from-cwd");
+	});
+
+	it("a whitespace-only id is no declaration at all", () => {
+		const effort = createRuntimeAgentRespondEffort({ ...BASE, workspaceId: "   " });
+		expect("workspaceId" in effort).toBe(false);
+		const args = effort.tasks[0]!.args as unknown as Record<string, unknown> | null | undefined;
+		expect(args != null ? "workspace_id" in args : false).toBe(false);
+	});
+
+	it("stamps the id with no workspace_source key when the caller declares no source", () => {
+		// This branch is unlocked by fix 1 on the Rust side (declared_workspace() no
+		// longer defaults an unaccompanied id to "declared"): the CLI is the only
+		// caller left free to send an id without a source, so it must not either.
+		const effort = createRuntimeAgentRespondEffort({ ...BASE, workspaceId: "rcdc5" });
+		expect((effort as unknown as Record<string, unknown>).workspaceId).toBe("rcdc5");
+		const args = effort.tasks[0]!.args as unknown as Record<string, unknown> | null | undefined;
+		expect(args != null ? args.workspace_id : undefined).toBe("rcdc5");
+		expect(args != null ? "workspace_source" in args : false).toBe(false);
+	});
+});
+
+describe("which account pays (ISS-130)", () => {
+	it("declares the credential the caller's binding resolved to", () => {
+		const effort = createRuntimeAgentRespondEffort({
+			prompt: "p",
+			system: "s",
+			sessionId: "sess",
+			source: "refarm-ask",
+			historyTurns: 0,
+			credentialId: "model-account:K4NXGZTQQ4KFM0GG9139VN67PR",
+		});
+
+		expect(effort).toMatchObject({ credentialId: "model-account:K4NXGZTQQ4KFM0GG9139VN67PR" });
+	});
+
+	it("carries NO key at all when nothing resolved an account", () => {
+		// Omitted, never null — the same rule `scenarioId` follows. The host field is
+		// `#[serde(default)]`, and a null payer reads, once aggregated, exactly like a dispatch
+		// that spent nobody's quota.
+		const effort = createRuntimeAgentRespondEffort({
+			prompt: "p",
+			system: "s",
+			sessionId: "sess",
+			source: "refarm-ask",
+			historyTurns: 0,
+		});
+
+		expect(Object.hasOwn(effort, "credentialId")).toBe(false);
+	});
+});

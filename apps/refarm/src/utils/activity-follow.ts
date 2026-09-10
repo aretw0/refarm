@@ -1,6 +1,7 @@
 import { ambientActivitySink, type ActivitySink, type ProcessActivity } from "@refarm.dev/capabilities";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { resolveRefarmHome } from "./refarm-home.js";
 
 /**
  * The SOVEREIGN half of the activity bridge, CLI side: tail the daemon's
@@ -137,5 +138,5 @@ function fileSize(filePath: string): number {
 function resolveStreamsDir(): string {
 	const fromEnv = process.env.REFARM_STREAMS_DIR?.trim();
 	if (fromEnv) return fromEnv;
-	return path.join(process.env.HOME ?? ".", ".refarm", "streams");
+	return path.join(resolveRefarmHome(), "streams");
 }

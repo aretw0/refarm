@@ -1,0 +1,368 @@
+/**
+ * `refarm backup` — ISS-123's second and third gaps.
+ *
+ * The inventory says what a node holds; `sovereign-export.ts` says what a copy must contain. This
+ * is the command that writes one, and the format is chosen so that a restore is inspectable rather
+ * than magic: a directory of files plus a `manifest.json` naming every one, its digest, and its
+ * original absolute path.
+ *
+ * NO ARCHIVE FORMAT AND NO DEPENDENCY. A tar would need a library this repository does not carry,
+ * and would make the bundle opaque to the operator holding it. A directory can be read, diffed,
+ * synced by any tool he already uses, and restored by hand if refarm itself is what broke — which
+ * is exactly the situation a backup exists for.
+ */
+import { readNodeSubstrate } from "@refarm.dev/health";
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
+import { Command } from "commander";
+
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+
+import {
+	formatExportPlan,
+	planSovereignExport,
+	splitSiloContent,
+	type ExportPlanEntry,
+	type SecretRecovery,
+} from "./sovereign-export.js";
+import { dedupeInventory, inventoryLocation, sovereignLocations } from "./sovereign-inventory.js";
+import { declaredNamespaces } from "./sovereign-layout.js";
+
+export const MANIFEST_NAME = "manifest.json";
+export const BUNDLE_FILES_DIR = "files";
+
+export interface BackupManifest {
+	readonly version: 1;
+	/** Every carried file: where it came from, where it sits in the bundle, and its digest. */
+	readonly files: { source: string; stored: string; sha256: string; bytes: number }[];
+	/** Non-secret decisions lifted out of the silo, which no login rebuilds. */
+	readonly decisions: Record<string, unknown>;
+	/** Providers whose credentials must be obtained again — names only, never secrets. */
+	readonly reAuthenticate: string[];
+	/** Entries the plan could not decide — the layout describes no rule for them. Recorded so a
+	 *  restore can say the backup was partial. */
+	readonly undecided: { file: string; reason: string }[];
+	/**
+	 * Files the source node deliberately did NOT claim, and therefore did not carry.
+	 *
+	 * Recorded because "this bundle is complete" and "there was nothing else on that machine" are
+	 * different statements, and only the first is true. An operator restoring a year from now, with
+	 * the old disk still in a drawer, is owed the list of what was left behind on purpose.
+	 */
+	readonly foreign: { file: string; reason: string }[];
+	/**
+	 * Secrets this node holds that no login rebuilds, and whether this bundle contains them.
+	 *
+	 * Recorded either way. A restore reading `included: false` knows the node it is about to stand
+	 * up will be missing its CA key — which is a working node that quietly cannot be trusted by the
+	 * devices that used to trust it, and the worst thing to discover later.
+	 *
+	 * Each excluded file carries its OWN recovery verb, because the three are not the same kind of
+	 * loss and one list could not hold them (ISS-127). The warning above used to live only in this
+	 * comment; a restore reading the manifest could not act on it.
+	 */
+	readonly secrets: {
+		files: Array<{ file: string; recovery: SecretRecovery | null }>;
+		included: boolean;
+	};
+	/**
+	 * The CODE the source node was executing, and whether this bundle carries it.
+	 *
+	 * Never carried — measured 2026-08-19, a bundle of this node holds 32 files and none of them
+	 * is code. That was already true and already invisible: restoring on a reformatted machine
+	 * yields a fully configured node — credentials named, processes declared, databases intact —
+	 * with nothing to run.
+	 *
+	 * Recorded either way, for the same reason `secrets.included` is: "this bundle is complete"
+	 * and "there was nothing else to carry" are different statements. A node running a git working
+	 * tree needs that repository cloned back before any of this configuration means anything, and
+	 * a restore reading the manifest can say so instead of leaving it to be discovered.
+	 */
+	readonly substrate: {
+		kind: "installed" | "working-tree" | "unknown";
+		executes?: string;
+		repository?: string;
+		included: false;
+	};
+}
+
+/** PURE. Where a source path lives inside the bundle. Absolute paths are flattened onto a relative
+ *  tree so the bundle is self-contained and a restore never depends on the original home's name. */
+export function storedPathFor(source: string, home: string): string {
+	const relative = path.relative(home, source);
+	// A path outside the home would escape the bundle with `..`; it is stored under a marker
+	// instead of silently landing somewhere unexpected on restore.
+	return relative.startsWith("..") ? path.join("_absolute", source.replace(/^[/\\]/u, "")) : relative;
+}
+
+/** The namespaces THIS node declares, read from its own config. Absent config → the convention,
+ *  with `origin` saying which — a node predating the declaration must not call its own data
+ *  foreign. */
+export function nodeNamespaces(home: string): { namespaces: string[]; origin: "declared" | "convention" } {
+	try {
+		return declaredNamespaces(JSON.parse(fs.readFileSync(path.join(home, ".refarm", "config.json"), "utf8")));
+	} catch {
+		return declaredNamespaces(null);
+	}
+}
+
+/** Collect the inventory for a home. Shared by plan and create so the two cannot disagree. */
+export function surveyHome(home: string, namespace: string | null) {
+	const locations = sovereignLocations(path.join(home, ".refarm"), path.join(home, ".silo"), home);
+	const entries = dedupeInventory([
+		...inventoryLocation(locations.stateHome, namespace),
+		...inventoryLocation(locations.credentialStore, namespace),
+		...inventoryLocation(locations.dataDir, namespace),
+		// THE LEGACY GRAPH IS STILL WALKED. `dataDir` now names this node's declared graph, which
+		// `stateHome` already reaches through its subdirectory walk; if the list stopped here, the
+		// one place an orphan from before c3f625e4 can hide would drop out of the inventory
+		// entirely — and hiding it is worse than the ambiguity that made it worth reporting.
+		...inventoryLocation(locations.legacyDataDir, namespace),
+	]);
+	return { locations, entries, plan: planSovereignExport(entries) };
+}
+
+/** Read the silo's decisions without ever returning its secrets. Absent silo → absent, not empty. */
+export function readSiloSplit(home: string): { decisions: Record<string, unknown>; reAuthenticate: string[] } {
+	try {
+		const raw = JSON.parse(fs.readFileSync(path.join(home, ".silo", "identity.json"), "utf8"));
+		const tokens = (raw?.tokens ?? raw) as Record<string, unknown>;
+		return splitSiloContent(tokens);
+	} catch {
+		return { decisions: {}, reAuthenticate: [] };
+	}
+}
+
+/** Write the bundle. Returns the manifest it wrote, so a caller can verify without re-reading. */
+export function writeBundle(
+	home: string,
+	destination: string,
+	carried: readonly ExportPlanEntry[],
+	undecided: readonly ExportPlanEntry[],
+	foreign: readonly ExportPlanEntry[],
+	silo: { decisions: Record<string, unknown>; reAuthenticate: string[] },
+	// REQUIRED, not defaulted. A default of "no secrets" means a caller who forgets writes a
+	// manifest claiming this node holds none — and a restore would then stand up a node missing its
+	// CA identity with nothing saying so. The type makes forgetting impossible instead.
+	secrets: { entries: readonly ExportPlanEntry[]; include: boolean },
+	// REQUIRED for the same reason `secrets` is: a default would write a manifest that says
+	// nothing about the code, which is exactly the silence this field exists to break.
+	substrate: BackupManifest["substrate"],
+): BackupManifest {
+	fs.mkdirSync(path.join(destination, BUNDLE_FILES_DIR), { recursive: true });
+	const files: BackupManifest["files"] = [];
+	for (const entry of [...carried, ...(secrets.include ? secrets.entries : [])]) {
+		const stored = storedPathFor(entry.file, home);
+		const target = path.join(destination, BUNDLE_FILES_DIR, stored);
+		fs.mkdirSync(path.dirname(target), { recursive: true });
+		const bytes = fs.readFileSync(entry.file);
+		fs.writeFileSync(target, bytes);
+		files.push({
+			source: entry.file,
+			stored,
+			sha256: createHash("sha256").update(bytes).digest("hex"),
+			bytes: bytes.length,
+		});
+	}
+	const manifest: BackupManifest = {
+		version: 1,
+		files,
+		decisions: silo.decisions,
+		reAuthenticate: silo.reAuthenticate,
+		undecided: undecided.map((entry) => ({ file: entry.file, reason: entry.reason })),
+		foreign: foreign.map((entry) => ({ file: entry.file, reason: entry.reason })),
+		substrate,
+		secrets: {
+			files: secrets.entries.map((entry) => ({
+				file: entry.file,
+				recovery: entry.recovery ?? null,
+			})),
+			included: secrets.include,
+		},
+	};
+	fs.writeFileSync(path.join(destination, MANIFEST_NAME), `${JSON.stringify(manifest, null, 2)}\n`);
+	return manifest;
+}
+
+/**
+ * Verify a bundle against its own manifest.
+ *
+ * THREE STATES, because a bundle that cannot be read is not a bundle that is wrong: `intact`,
+ * `damaged` (a file is missing or its digest moved), `unreadable` (no manifest at all). Reporting
+ * the third as `damaged` would send an operator looking for corruption when the real answer is
+ * that he pointed at the wrong directory.
+ */
+export function verifyBundle(
+	destination: string,
+): { state: "intact" | "damaged" | "unreadable"; problems: string[]; manifest?: BackupManifest } {
+	let manifest: BackupManifest;
+	try {
+		manifest = JSON.parse(fs.readFileSync(path.join(destination, MANIFEST_NAME), "utf8"));
+	} catch {
+		return { state: "unreadable", problems: [`no readable ${MANIFEST_NAME} in ${destination}`] };
+	}
+	const problems: string[] = [];
+	for (const file of manifest.files) {
+		const target = path.join(destination, BUNDLE_FILES_DIR, file.stored);
+		try {
+			const digest = createHash("sha256").update(fs.readFileSync(target)).digest("hex");
+			if (digest !== file.sha256) problems.push(`${file.stored}: digest does not match the manifest`);
+		} catch {
+			problems.push(`${file.stored}: named by the manifest and not present`);
+		}
+	}
+	return { state: problems.length === 0 ? "intact" : "damaged", problems, manifest };
+}
+
+/** Place a verified bundle's files into a home. Never writes credentials — there are none to write. */
+export function restoreBundle(destination: string, home: string): { restored: string[] } {
+	const verdict = verifyBundle(destination);
+	if (verdict.state !== "intact" || !verdict.manifest) {
+		throw new Error(`refusing to restore a ${verdict.state} bundle:\n  ${verdict.problems.join("\n  ")}`);
+	}
+	const restored: string[] = [];
+	for (const file of verdict.manifest.files) {
+		const target = path.join(home, file.stored);
+		fs.mkdirSync(path.dirname(target), { recursive: true });
+		fs.copyFileSync(path.join(destination, BUNDLE_FILES_DIR, file.stored), target);
+		restored.push(target);
+	}
+	return { restored };
+}
+
+export function createBackupCommand(homeOf = () => process.env.HOME ?? ""): Command {
+	const backup = new Command("backup").description(
+		"Plan, write and verify a portable copy of this node's sovereign state",
+	);
+
+	backup
+		.command("plan")
+		.description("Show what a backup would carry, what it would not, and what is undecided")
+		.option("--json", "Output machine-readable result")
+		.option("--namespace <id>", "Storage namespace to treat as this node's own", "default")
+		.action((options: { json?: boolean; namespace?: string }) => {
+			const home = homeOf();
+			const declared = nodeNamespaces(home);
+			const { plan } = surveyHome(home, options.namespace ?? declared.namespaces[0] ?? null);
+			const silo = readSiloSplit(home);
+			if (options.json) {
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "backup",
+						operation: "plan",
+						extra: {
+							plan,
+							namespaces: declared,
+							reAuthenticate: silo.reAuthenticate,
+							decisions: silo.decisions,
+						},
+					}),
+				);
+				return;
+			}
+			process.stdout.write(
+				`${formatExportPlan(plan, silo.reAuthenticate)}\n` +
+					`\n  namespaces: ${declared.namespaces.join(", ") || "(none)"} (${declared.origin})\n` +
+					(declared.origin === "convention"
+						? "  This node has not declared its storage namespaces, so the conventional one is\n" +
+							"  assumed. Declare them in .refarm/config.json under storage.namespaces to make\n" +
+							"  the answer yours rather than inherited.\n"
+						: "") +
+					// The two commands answer different halves, and an operator meeting only this one
+					// would never learn the other exists. Measured 2026-08-13: this bundle is 95% of
+					// the bytes and 0% of the reconstitution decisions.
+					"\n  This bundle is the 95% a declaration does not carry: history and storage.\n" +
+					"  For the decisions and identity as ONE readable file:  refarm node declare\n",
+			);
+		});
+
+	backup
+		.command("create")
+		.argument("<destination>", "Directory to write the bundle into")
+		.description("Write the bundle, then verify it before reporting success")
+		.option("--json", "Output machine-readable result")
+		.option("--namespace <id>", "Storage namespace to treat as this node's own", "default")
+		.option(
+			"--include-secrets",
+			"Also carry keys and tokens no login rebuilds — the bundle then IS a credential",
+		)
+		.action((destination: string, options: { json?: boolean; namespace?: string; includeSecrets?: boolean }) => {
+			const home = homeOf();
+			const { plan } = surveyHome(home, options.namespace ?? "default");
+			const silo = readSiloSplit(home);
+			const includeSecrets = Boolean(options.includeSecrets);
+			writeBundle(
+				home,
+				destination,
+				plan.carry,
+				plan.undecidable,
+				plan.foreign,
+				silo,
+				{ entries: plan.sensitive, include: includeSecrets },
+				// WHAT THIS NODE RUNS, recorded because the bundle never carries it. A restore
+				// reading `working-tree` knows a repository has to be cloned back before any of
+				// this configuration means anything (ISS-154).
+				{ ...readNodeSubstrate(process.argv[1] ?? undefined), included: false },
+			);
+			// VERIFIED BEFORE REPORTING. A create that says "done" without reading back what it wrote
+			// is the shape of backup that fails on the day it is needed.
+			const verdict = verifyBundle(destination);
+			const result = {
+				destination,
+				state: verdict.state,
+				problems: verdict.problems,
+				carried: plan.carry.length,
+				undecided: plan.undecidable.length,
+				reAuthenticate: silo.reAuthenticate,
+				secrets: { count: plan.sensitive.length, included: includeSecrets },
+			};
+			if (options.json) {
+				printJson(
+					buildJsonSuccessEnvelope({ command: "backup", operation: "create", extra: result }),
+				);
+			} else {
+				process.stdout.write(
+					`backup ${verdict.state} — ${plan.carry.length} file(s) in ${destination}\n` +
+						`  re-authenticate after restoring: ${silo.reAuthenticate.join(", ") || "(none)"}\n` +
+						(plan.sensitive.length > 0
+							? includeSecrets
+								? `  CONTAINS ${plan.sensitive.length} SECRET(S) — store this bundle like a password\n`
+								: `  ${plan.sensitive.length} secret(s) NOT carried; without them a restored node loses its CA identity — --include-secrets carries them\n`
+							: "") +
+						(plan.undecidable.length > 0
+							? `  ${plan.undecidable.length} entries UNDECIDED and not carried — see \`refarm backup plan --json\`\n`
+							: ""),
+				);
+			}
+			if (verdict.state !== "intact") process.exitCode = 1;
+		});
+
+	backup
+		.command("verify")
+		.argument("<destination>", "Bundle directory to check against its own manifest")
+		.description("Check a bundle's files against the digests its manifest recorded")
+		.option("--json", "Output machine-readable result")
+		.action((destination: string, options: { json?: boolean }) => {
+			const verdict = verifyBundle(destination);
+			if (options.json) {
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "backup",
+						operation: "verify",
+						extra: { destination, state: verdict.state, problems: verdict.problems },
+					}),
+				);
+			} else {
+				process.stdout.write(
+					`${destination}: ${verdict.state}\n${verdict.problems.map((p) => `  ${p}\n`).join("")}`,
+				);
+			}
+			if (verdict.state !== "intact") process.exitCode = 1;
+		});
+
+	return backup;
+}
+
+export const backupCommand = createBackupCommand();

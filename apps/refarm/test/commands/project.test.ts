@@ -171,7 +171,7 @@ describe("project command", () => {
 			command: "project",
 			operation: "automations.add",
 			ok: true,
-			path: ".project/automations.json",
+			path: path.join(cwd, ".project/automations.json"),
 			automation: {
 				id: "daily-handoff",
 				status: "active",
@@ -222,7 +222,7 @@ describe("project command", () => {
 			command: "project",
 			operation: "automations.validate",
 			ok: true,
-			path: ".project/automations.json",
+			path: path.join(cwd, ".project/automations.json"),
 			count: 1,
 		});
 		logSpy.mockRestore();
@@ -269,7 +269,7 @@ describe("project command", () => {
 			command: "project",
 			operation: "automations.list",
 			ok: true,
-			path: ".project/automations.json",
+			path: path.join(cwd, ".project/automations.json"),
 			status: "active",
 			count: 1,
 			automations: [

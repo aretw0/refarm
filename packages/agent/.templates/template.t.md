@@ -3,14 +3,14 @@
 <!-- {@tools} -->
 | Tool | Source | Description |
 |---|---|---|
-| `read_file` | agent-fs | Read file contents at absolute path |
-| `write_file` | agent-fs | Write UTF-8 content to file atomically |
-| `edit_file` | agent-fs read+write | Multi-edit: `{path, edits:[{old_str,new_str}]}` — exact match required, ambiguous matches rejected |
-| `list_dir` | agent-shell (ls) | List files and directories at a path |
-| `search_files` | agent-shell (grep) | Search for regex pattern in files; optional `glob` filter; returns `file:line` matches |
-| `bash` | agent-shell | Run command via structured argv — no shell injection |
-| `read_structured` | agent-fs | Parse JSON/TOML/YAML with pagination: `{path, format?, page_size?, page_offset?}` |
-| `write_structured` | agent-fs | Validate then write JSON/TOML/YAML atomically — rejects invalid syntax before touching the file |
+| `read_file` | host-fs | Read file contents at absolute path |
+| `write_file` | host-fs | Write UTF-8 content to file atomically |
+| `edit_file` | host-fs read+write | Multi-edit: `{path, edits:[{old_str,new_str}]}` — exact match required, ambiguous matches rejected |
+| `list_dir` | host-shell (ls) | List files and directories at a path |
+| `search_files` | host-shell (grep) | Search for regex pattern in files; optional `glob` filter; returns `file:line` matches |
+| `bash` | host-shell | Run command via structured argv — no shell injection |
+| `read_structured` | host-fs | Parse JSON/TOML/YAML with pagination: `{path, format?, page_size?, page_offset?}` |
+| `write_structured` | host-fs | Validate then write JSON/TOML/YAML atomically — rejects invalid syntax before touching the file |
 | `list_sessions` | CRDT | List all conversation sessions with id, name, leaf, and which is active |
 | `current_session` | CRDT | Return metadata of the currently active session (id, leaf_entry_id) |
 | `navigate` | CRDT | Move session pointer to a specific entry: `{session_id, entry_id}` |
@@ -25,7 +25,7 @@
 | `default_provider` | `MODEL_DEFAULT_PROVIDER` | Sovereign default when provider unset |
 | `stream_responses` | `MODEL_STREAM_RESPONSES` | Explicit provider streaming opt-in/out (`true` → `1`, `false` → `0`) |
 | `budgets.<provider>` | `MODEL_BUDGET_<PROVIDER>_USD` | Rolling 30-day spend cap in USD |
-| `trusted_plugins[]` | (host policy) | Optional allowlist for plugins allowed to use `agent-shell` |
+| `trusted_plugins[]` | (host policy) | Optional allowlist for plugins allowed to use `host-shell` |
 <!-- {/config_fields} -->
 
 <!-- {@env_vars} -->

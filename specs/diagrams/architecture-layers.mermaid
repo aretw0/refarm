@@ -4,11 +4,12 @@ flowchart TB
     Me["apps/me\nHomestead · Identity · Astro"]
     Farmhand["apps/farmhand\nTask Daemon · Node.js"]
     RefarmCLI["apps/refarm\nRuntime · CLI entry"]
+    Site["apps/site\nDocumentation · Astro"]
   end
 
-  subgraph Core["Dual-Runtime Core  (tractor)"]
-    TractorTS["tractor-ts\nJCO transpile · Browser / Node"]
-    TractorRS["tractor\nRust · wasmtime · IoT"]
+  subgraph Core["Execution Kernel"]
+    TractorRS["tractor\nRust · native runtime authority · wasmtime"]
+    TractorTS["tractor-ts\nBrowser compatibility · conformance"]
   end
 
   subgraph WIT["WIT Contract  (plugin-wit)"]
@@ -52,8 +53,8 @@ flowchart TB
   RefarmCLI -->|HTTP 42001| HttpT
 
   %% Core → WIT
-  TractorTS ---|same WIT| WITPkg
-  TractorRS ---|same WIT| WITPkg
+  TractorRS ---|"native host implements"| WITPkg
+  TractorTS ---|"compatibility conforms to"| WITPkg
 
   %% WIT → Plugins
   WITPkg -->|"implemented by"| Agent
@@ -91,7 +92,7 @@ flowchart TB
   classDef transport fill:#e0f2fe,stroke:#075985,stroke-width:1px;
   classDef storage fill:#f0fdf4,stroke:#15803d,stroke-width:1px;
 
-  class Dev,Me,Farmhand,RefarmCLI app;
+  class Dev,Me,Farmhand,RefarmCLI,Site app;
   class TractorTS,TractorRS core;
   class WITPkg,LLMBridge,AgentFS wit;
   class StorageV1,SyncV1,IdentityV1,EffortV1,StreamV1 contract;

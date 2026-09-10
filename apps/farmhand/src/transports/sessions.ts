@@ -80,11 +80,23 @@ export function createSessionsRouteHandler(store: SessionStore) {
 						}
 						limit = parsedLimit;
 					}
+					// THE STORE'S OWN ORDER, not a re-sort (ISS-044). This used to
+					// `.sort((a, b) => b.created_at_ns - a.created_at_ns)`, which is harmless only
+					// because the store is an in-memory Map where a Session is never upserted — so
+					// created_at and the store's order agree by accident.
+					//
+					// `index.ts` says that Map becomes `@refarm.dev/storage-sqlite` in Phase 2, and
+					// there they stop agreeing: a store that answers in updated_at order is
+					// answering "the newest N", and re-sorting by created_at throws that away and
+					// returns the OLDEST-created N of an arbitrary window. That is the defect this
+					// repo already removed once, and the item asked to close it BEFORE the swap
+					// rather than after — after means finding it again from a wrong answer.
+					//
+					// Ordering belongs to whoever knows the store; this transport does not.
 					const rows = await store.queryNodes("Session");
 					const sessions = rows
 						.map((row) => normalizeSession(row))
 						.filter((row): row is SessionNode => row !== null)
-						.sort((a, b) => b.created_at_ns - a.created_at_ns)
 						.slice(0, limit);
 					json(res, 200, { sessions });
 					return;

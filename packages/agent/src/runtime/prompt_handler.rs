@@ -1,4 +1,8 @@
-use super::{prompt_persistence, react_loop::react_with_prompt_ref_and_route, streaming_sink};
+use super::{
+    prompt_persistence,
+    react_loop::{current_run_turns, react_with_prompt_ref_and_route},
+    streaming_sink,
+};
 
 /// Write the final is_final=true StreamChunk to the NDJSON stream file.
 ///
@@ -8,7 +12,7 @@ use super::{prompt_persistence, react_loop::react_with_prompt_ref_and_route, str
 /// Only active in the WASM build — native builds (unit tests) are a no-op.
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(clippy::too_many_arguments)]
-fn write_final_stream_chunk(_: &str, _: &str, _: &str, _: &str, _: u32, _: u32, _: u32, _: bool, _: u32) {}
+fn write_final_stream_chunk(_: &str, _: &str, _: &str, _: &str, _: u32, _: u32, _: u32, _: u32, _: bool, _: u32) {}
 
 #[cfg(target_arch = "wasm32")]
 #[allow(clippy::too_many_arguments)]
@@ -19,7 +23,8 @@ fn write_final_stream_chunk(
     provider: &str,
     tokens_in: u32,
     tokens_out: u32,
-    tokens_cached: u32,
+    cache_read_tokens: u32,
+    cache_creation_tokens: u32,
     partials_present: bool,
     sequence: u32,
 ) {
@@ -62,7 +67,8 @@ fn write_final_stream_chunk(
             provider,
             tokens_in,
             tokens_out,
-            tokens_cached,
+            cache_read_tokens,
+            cache_creation_tokens,
             partials_present,
             sequence,
         },
@@ -84,7 +90,8 @@ pub(crate) struct PromptExecutionOutcome {
     pub provider: String,
     pub tokens_in: u32,
     pub tokens_out: u32,
-    pub tokens_cached: u32,
+    pub cache_read_tokens: u32,
+    pub cache_creation_tokens: u32,
     pub tokens_reasoning: u32,
     pub usage_raw: String,
 }
@@ -127,7 +134,8 @@ pub(crate) fn execute_prompt_with_route(
         tool_calls,
         tokens_in,
         tokens_out,
-        tokens_cached,
+        cache_read_tokens,
+        cache_creation_tokens,
         tokens_reasoning,
         model,
         usage_raw,
@@ -178,7 +186,25 @@ pub(crate) fn execute_prompt_with_route(
         duration_ms,
     );
 
-    let provider_name = crate::provider_name_from_env();
+    // F3, whole-branch review: prefer the in-scope route override over the
+    // ambient env default — `provider_override` may have picked a DIFFERENT
+    // provider than env for the completion this function just ran
+    // (`react_with_prompt_ref_and_route`, above). This value decides
+    // `pricing_mode` and `estimated_usd` downstream (`store_usage_record` →
+    // `usage_record_node`), so re-deriving from env unconditionally recorded
+    // the wrong provider's pricing on the run an override actually served.
+    let provider_name = crate::resolved_provider_name(provider_override);
+    // F1's other missing half ("died at 4/25 under a 45s ceiling"), both halves
+    // of it. `loop_progress` (`provider_runtime`) accumulated the step pair
+    // during the completion loop the call above ran, and RUN_TOTALS
+    // (`react_loop.rs`) folded this dispatch into the run's turn count — read
+    // both immediately after, the same read-the-accumulator-after-the-call
+    // pattern `streaming_sink::take_active_stream_last_sequence` uses a few
+    // lines up. The pair is taken from ONE `LoopProgress` so a numerator can
+    // never be recorded beside a denominator from a different loop; the turn
+    // count travels separately because it counts something else entirely.
+    let progress = crate::provider_runtime::current_loop_progress();
+    let turns_completed = current_run_turns();
     prompt_persistence::store_usage_record(
         &ctx.prompt_ref,
         prompt_persistence::UsageRecordInput {
@@ -186,10 +212,14 @@ pub(crate) fn execute_prompt_with_route(
             model: model.clone(),
             tokens_in,
             tokens_out,
-            tokens_cached,
+            cache_read_tokens,
+            cache_creation_tokens,
             tokens_reasoning,
             usage_raw: usage_raw.clone(),
             duration_ms,
+            steps_completed: progress.map(|p| p.steps_completed),
+            steps_planned: progress.map(|p| p.steps_planned),
+            turns_completed,
         },
     );
 
@@ -209,7 +239,8 @@ pub(crate) fn execute_prompt_with_route(
         &provider_name,
         tokens_in,
         tokens_out,
-        tokens_cached,
+        cache_read_tokens,
+        cache_creation_tokens,
         last_partial_sequence.is_some(),
         response_sequence,
     );
@@ -220,7 +251,8 @@ pub(crate) fn execute_prompt_with_route(
         provider: provider_name,
         tokens_in,
         tokens_out,
-        tokens_cached,
+        cache_read_tokens,
+        cache_creation_tokens,
         tokens_reasoning,
         usage_raw,
     })
@@ -266,10 +298,55 @@ pub(crate) fn handle_prompt(payload: String) {
                 .get("profile")
                 .and_then(|s| s.as_str())
                 .map(|s| s.to_owned());
+            // Task 12: the resolved token/spend ceilings dispatch.rs folded into
+            // this same payload (absent unless the dispatch declared a budget for
+            // that axis — see dispatch.rs's `declared_max_tokens`/`declared_max_usd`).
+            // Scoped for this call only, same EnvGuard shape as MODEL_PROFILE below;
+            // `react_loop.rs`'s call site reads them fresh each turn.
+            let max_tokens_str = v
+                .get("max_tokens")
+                .and_then(|n| n.as_u64())
+                .map(|n| n.to_string());
+            let max_usd_str = v.get("max_usd").and_then(|n| n.as_f64()).map(|n| n.to_string());
+            // The workspace the CALLER declared for this run. THIS handler — not
+            // `respond` — is the path a `refarm ask` actually takes: the sidecar fires
+            // `user:prompt` as a reply-less envelope, so the runner calls `on_event`
+            // and `execute_respond`'s guards are never reached. Set here, scoped like
+            // MODEL_SESSION_ID, because `get_or_create_session` reads MODEL_WORKSPACE_ID
+            // downstream of this call and stamps it onto the Session node it creates —
+            // that stamp is the whole inheritance mechanism, and without these two
+            // lines it never happens for the one path that matters.
+            // ONE rule, applied here as well as at `dispatch.rs` and `declared_workspace`.
+            // This site forwarded the raw string and the other two disagreed about what to do
+            // with the whitespace, which is how `"  rcdc5  "` could reach a Session node
+            // (ISS-060).
+            let workspace_id = crate::session::normalize_declaration(
+                v.get("workspace_id").and_then(|s| s.as_str()),
+            );
+            let workspace_source = crate::session::normalize_declaration(
+                v.get("workspace_source").and_then(|s| s.as_str()),
+            );
             let turns_str = history_turns.map(|n| n.to_string());
+            // THE SEAT'S ENDPOINT FOR THIS TURN (ISS-145). Two accounts of one provider can
+            // announce different hosts, so the per-PROVIDER map cannot carry both — the host
+            // resolves the declared seat's endpoint and sends it here. Scoped like MODEL_PROFILE:
+            // it belongs to this turn, not to the daemon.
+            let base_url = v
+                .get("base_url")
+                .and_then(|s| s.as_str())
+                .map(str::trim)
+                .filter(|s| !s.is_empty());
+            let _task_base_url = crate::EnvGuard::maybe_set("MODEL_TASK_BASE_URL", base_url);
             let _session = crate::EnvGuard::maybe_set("MODEL_SESSION_ID", session_id.as_deref());
+            let _workspace =
+                crate::EnvGuard::maybe_set("MODEL_WORKSPACE_ID", workspace_id.as_deref());
+            let _workspace_source =
+                crate::EnvGuard::maybe_set("MODEL_WORKSPACE_SOURCE", workspace_source.as_deref());
             let _turns = crate::EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
             let _profile = crate::EnvGuard::maybe_set("MODEL_PROFILE", profile.as_deref());
+            let _max_tokens =
+                crate::EnvGuard::maybe_set("MODEL_RUN_MAX_TOKENS", max_tokens_str.as_deref());
+            let _max_usd = crate::EnvGuard::maybe_set("MODEL_RUN_MAX_USD", max_usd_str.as_deref());
             let _ = execute_prompt_with_route(
                 prompt,
                 system,

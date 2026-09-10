@@ -1,6 +1,6 @@
+import { declaredBase } from "@refarm.dev/config";
 import { orderedScopeStorePaths, type LedgerScope } from "@refarm.dev/storage-node-view";
 import fs from "node:fs";
-import os from "node:os";
 
 import { getSource, type PackageSource } from "./composition.js";
 import { resolveOrgRoot } from "./refarm-home.js";
@@ -75,12 +75,38 @@ function readPluginsAt(filePath: string): PackageSource[] {
  * ledger's `effectivePointers.set` overwrite; pi's per-key cross-scope union is a
  * deferred divergence).
  */
+/**
+ * The node's DECLARED base — the user tier's root, and the same one `config.ts` writes to.
+ *
+ * ## What this used to be, and why it changed (ISS-102)
+ *
+ * It was `os.homedir()`, named rather than inlined, with a comment admitting the gap: under a
+ * declared home — a sandbox node, a second device, anything the sovereign-state work exists to
+ * make possible — this side and `config.ts` both answered the operator's OS home. They were not
+ * correct; they were CONSISTENTLY WRONG TOGETHER, and the co-habitation guarantee is what kept
+ * them consistent rather than split.
+ *
+ * ## The guarantee is unchanged, and that is the whole point
+ *
+ * The user tier must land on the exact file `config.ts` writes, so scalars and `plugins[]` share
+ * one file at every tier. Both sides now resolve through `declaredBase()`, so they still agree —
+ * and they agree on the base the NODE declared rather than on the one the OS happens to have.
+ * Moving one without the other would split that file, which is why ISS-102 insisted they move in
+ * one change with a test pinning them to the same path.
+ *
+ * With nothing declared, `declaredBase()` is `HOME`, so the ordinary case is byte-for-byte what it
+ * was.
+ */
+function cohabitationHome(): string {
+	return declaredBase();
+}
+
 export function resolveComposition(deps: CompositionResolverDeps = {}): CompositionResolution {
 	const env = deps.env ?? process.env;
 	const scopePaths = orderedScopeStorePaths("config.json", {
+		// os-resolution: project — the workspace tier root, which storage-fs anchors on the operator directory by design
 		workspaceRoot: deps.cwd ?? process.cwd(),
-		// userHome intentionally defaulted to os.homedir() (see co-habitation note).
-		...(deps.home !== undefined ? { userHome: deps.home } : {}),
+		userHome: deps.home ?? cohabitationHome(),
 		...(resolveOrgRoot(env) ? { orgRoot: resolveOrgRoot(env) } : {}),
 	});
 
@@ -100,8 +126,12 @@ export function resolveComposition(deps: CompositionResolverDeps = {}): Composit
 }
 
 /** The user-tier config path this resolver folds — exposed so a test can assert
- * it equals config.ts's `configPath({local:false})` (the co-habitation guarantee). */
-export function userScopeConfigPath(home = os.homedir()): string {
+ * it equals config.ts's `configPath({local:false})` (the co-habitation guarantee).
+ *
+ * The default is the DECLARED base since ISS-102, matching `config.ts`'s. Both used to answer the
+ * OS home, which kept them consistent and kept them wrong under any declared home. */
+// os-resolution: node — the user tier follows the base this node declared, and so does config.ts
+export function userScopeConfigPath(home = cohabitationHome()): string {
 	return orderedScopeStorePaths("config.json", { userHome: home }).find((p) => p.scope === "user")!
 		.path;
 }
@@ -120,8 +150,9 @@ export function compositionScopePath(
 	const orgRoot = resolveOrgRoot(deps.env ?? process.env);
 	if (scope === "org" && !orgRoot) return null;
 	const path = orderedScopeStorePaths("config.json", {
+		// os-resolution: project — the workspace tier root, which storage-fs anchors on the operator directory by design
 		workspaceRoot: deps.cwd ?? process.cwd(),
-		...(deps.home !== undefined ? { userHome: deps.home } : {}),
+		userHome: deps.home ?? cohabitationHome(),
 		...(orgRoot ? { orgRoot } : {}),
 	}).find((p) => p.scope === scope);
 	return path?.path ?? null;

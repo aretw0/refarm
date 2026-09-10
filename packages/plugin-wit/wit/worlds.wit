@@ -30,6 +30,7 @@ world effect-capable {
     import structured-io;
     import code-ops;
     import capability-tools;
+    import host-connection;
     export integration;
 }
 
@@ -60,5 +61,6 @@ world host-plugin {
     import structured-io;
     import code-ops;
     import capability-tools;
+    import host-connection;
     export integration;
 }

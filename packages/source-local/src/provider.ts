@@ -60,6 +60,7 @@ function untrackedPaths(lines: string[] | undefined): string[] | undefined {
 export function createLocalSourceProvider(
 	options: LocalSourceProviderOptions = {},
 ): SourceProvider {
+	// os-resolution: project — serves sources from the local project tree the operator is standing in
 	const cwd = options.cwd ?? process.cwd();
 
 	function resolveLocation(ref: string): SourceLocation {

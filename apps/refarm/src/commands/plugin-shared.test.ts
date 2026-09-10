@@ -76,7 +76,9 @@ describe("local extension surface manifests", () => {
 				}),
 			);
 
-			expect(readLocalExtensionManifests(cwd, home)).toEqual([
+			// The second argument is the SOVEREIGN HOME now, not a base this reader appends `.refarm` to —
+			// the same value `resolveRefarmHome()` returns and `plugin-local.ts` already passes.
+			expect(readLocalExtensionManifests(cwd, path.join(home, ".refarm"))).toEqual([
 				{
 					id: "@local/wallet",
 					capabilities: {
@@ -131,7 +133,7 @@ describe("local extension surface manifests", () => {
 				}),
 			);
 
-			expect(readSurfaceablePluginVerbs(cwd, home, [])).toEqual([
+			expect(readSurfaceablePluginVerbs(cwd, path.join(home, ".refarm"), [])).toEqual([
 				{
 					pluginId: "@local/vault",
 					pluginKey: "vault",

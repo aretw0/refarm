@@ -128,16 +128,26 @@ describe("session command", () => {
 		const readPluginState = vi
 			.fn()
 			.mockResolvedValueOnce({
-				installed: ["@refarm/agent"],
+				requested: [
+					{
+						id: "@refarm/agent",
+						path: "/plugins/refarm_agent/plugin.wasm",
+						loaded: true,
+						because: null,
+					},
+				],
 				loaded: [],
-				local: [],
-				known: ["@refarm/agent"],
 			})
 			.mockResolvedValueOnce({
-				installed: ["@refarm/agent"],
+				requested: [
+					{
+						id: "@refarm/agent",
+						path: "/plugins/refarm_agent/plugin.wasm",
+						loaded: true,
+						because: null,
+					},
+				],
 				loaded: ["@refarm/agent"],
-				local: [],
-				known: ["@refarm/agent"],
 			});
 		const reloadPlugins = vi.fn().mockResolvedValue({
 			reloaded: ["@refarm/agent"],
@@ -154,10 +164,8 @@ describe("session command", () => {
 
 	it("does not enter the REPL when the runtime agent plugin is missing", async () => {
 		const readPluginState = vi.fn().mockResolvedValue({
-			installed: [],
+			requested: [],
 			loaded: [],
-			local: [],
-			known: [],
 		});
 		mockDefaultChatDeps.mockReturnValue({ readPluginState });
 		const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
@@ -171,6 +179,42 @@ describe("session command", () => {
 		);
 		expect(stderrSpy).toHaveBeenCalledWith(
 			expect.stringContaining("refarm plugin install --json"),
+		);
+		stderrSpy.mockRestore();
+	});
+
+	it("never recommends install when a plugin was requested and failed to load — the state D2 exists to make expressible", async () => {
+		// The host emits id: null for EVERY failed load (never a guessed id) — so
+		// requestedPluginIds alone cannot tell "nothing was ever requested" (genuinely not
+		// installed) apart from "installed and handed to the daemon, but failed with an id this
+		// scan cannot know". Telling an operator to install a plugin that is already installed
+		// and merely failed is the exact confusion this closes.
+		const readPluginState = vi.fn().mockResolvedValue({
+			requested: [
+				{
+					id: null,
+					path: "/plugins/refarm_agent/plugin.wasm",
+					loaded: false,
+					because: "wasm parse error: unexpected end of file",
+				},
+			],
+			loaded: [],
+		});
+		mockDefaultChatDeps.mockReturnValue({ readPluginState });
+		const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+		await expect(runSessionLaunchFlow()).resolves.toBeUndefined();
+
+		expect(mockRunSessionRepl).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		expect(stderrSpy).not.toHaveBeenCalledWith(
+			expect.stringContaining("Install bundled plugins"),
+		);
+		expect(stderrSpy).toHaveBeenCalledWith(
+			expect.stringContaining("A plugin failed to load"),
+		);
+		expect(stderrSpy).toHaveBeenCalledWith(
+			expect.stringContaining("refarm plugin status --json"),
 		);
 		stderrSpy.mockRestore();
 	});

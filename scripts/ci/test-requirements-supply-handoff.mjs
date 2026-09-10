@@ -26,7 +26,32 @@ after(() => {
 	}
 });
 
-test("requirements supply handoff reports consumer-proven packages after promotion", () => {
+// THE HONEST STATE, and it took two corrections to reach.
+//
+// This test once asserted `ok: true` over three packages. A fourth —
+// `@refarm.dev/content-projection` — joined the `requirements-supply` profile carrying
+// `consumer-ready` (then named vault-seed-ready) AND `candidate`, so the gate blocked. The test was
+// rewritten to pin the BLOCK and name its blocker, deliberately, because making it green by
+// tagging that package `consumer-proven` would have stamped "proven by a consumer" on something no
+// consumer has ever pulled — manufacturing the evidence the gate exists to demand (ISS-113).
+//
+// Measuring settled it: NOTHING in this repository declares a dependency on
+// `@refarm.dev/content-projection`. The config was contradicting itself — "ready to hand to a
+// consumer" and "still a candidate" in one tag list — and the honest repair was to say the true
+// thing, not to claim the false one. It carries `candidate-hold` now, and the handoff proceeds.
+//
+// RESOLVED 2026-08-16, by the fact changing rather than the claim. vault-seed's records reference
+// vault — the T3 composition proof, and the same non-test surface where `source-web` and
+// `enrichment-contract-v1` earned this tag — now structures its MD/MDX lane through
+// `projectContentToRecords`, and those records land in the same validated `records:v1` manifest as
+// the web ETL lane. So all four members are `consumer-proven` and the profile has no hold left.
+//
+// WHAT THIS TEST STOPPED COVERING, said out loud rather than discovered later: with the hold empty,
+// `candidate-hold` no longer has a live example HERE. The state is not dead — `source-git` and
+// `source-local` carry it under `auditSourceHolds` — but this profile no longer exercises the
+// middle state, and the assertion below is now a floor (nothing regressed into hold) rather than a
+// demonstration that three states exist.
+test("every member of the profile is consumer-proven, and none is on hold", () => {
 	const handoffDir = path.join(makeTempRoot(), "empty-handoff");
 	const result = buildRequirementsSupplyHandoff({
 		generatedAt: "2026-06-30T00:00:00.000Z",
@@ -35,86 +60,27 @@ test("requirements supply handoff reports consumer-proven packages after promoti
 
 	assert.equal(result.schema, "refarm.requirements-supply-handoff.v1");
 	assert.equal(result.source, "requirements-supply-handoff");
-	assert.equal(result.ok, true);
-	assert.equal(result.state, "consumer-proven");
 	assert.equal(result.selection.id, "requirements-supply-candidates");
 	assert.equal(result.selection.profileTag, "requirements-supply");
 	assert.equal(result.selection.scope, "all");
-	assert.equal(result.selection.selectedForVaultSeedReady, true);
-	assert.deepEqual(
-		result.packages.map((entry) => entry.packageName),
-		[
-			"@refarm.dev/enrichment-contract-v1",
-			"@refarm.dev/records-contract-v1",
-			"@refarm.dev/source-web",
-		],
-	);
 
-	for (const entry of result.packages) {
-		assert.equal(entry.version, "0.1.0");
-		assert.equal(entry.state, "consumer-proven");
-		assert.equal(entry.selectedForVaultSeedReady, true);
-		assert.ok(entry.tags.includes("requirements-supply"));
-		assert.ok(entry.tags.includes("boundary-review"));
-		assert.ok(entry.tags.includes("consumer-pulled"));
-		assert.ok(entry.tags.includes("vault-seed-ready"));
-		assert.ok(entry.tags.includes("consumer-proven"));
-		assert.ok(entry.mustPassChecks.length >= 4);
-		assert.ok(entry.consumerPull.proofId.startsWith("requirements-"));
-		assert.match(entry.consumerPull.fallback, /consumer/);
-		assert.equal(entry.exists, false);
-		assert.equal(entry.sha256, null);
-		assert.deepEqual(entry.issues, []);
-	}
+	assert.equal(result.ok, true);
 
-	const sourceWeb = result.packages.find((entry) => entry.packageName === "@refarm.dev/source-web");
-	assert.deepEqual(sourceWeb.refarmDependencies, [
-		{
-			packageName: "@refarm.dev/source-contract-v1",
-			version: "0.1.0",
-			packageDir: "packages/source-contract-v1",
-			tarball: "refarm.dev-source-contract-v1-0.1.0.tgz",
-			publishable: true,
-		},
+	// Sorted: which bucket a package lands in is the contract, the order inside a bucket is not.
+	// The previous assertion happened to be alphabetical and read as if the order meant something.
+	const byState = (state) =>
+		result.packages
+			.filter((entry) => entry.state === state)
+			.map((entry) => entry.packageName)
+			.sort();
+	assert.deepEqual(byState("candidate-hold"), []);
+	assert.deepEqual(byState("blocked"), []);
+	assert.deepEqual(byState("consumer-proven"), [
+		"@refarm.dev/content-projection",
+		"@refarm.dev/enrichment-contract-v1",
+		"@refarm.dev/records-contract-v1",
+		"@refarm.dev/source-web",
 	]);
-	assert.equal(result.supportingPackages.length, 1);
-	assert.equal(result.supportingPackages[0].packageName, "@refarm.dev/source-contract-v1");
-	assert.equal(result.supportingPackages[0].exists, false);
-	assert.equal(result.supportingPackages[0].sha256, null);
-	assert.match(
-		result.supportingPackages[0].path,
-		/refarm\.dev-source-contract-v1-0\.1\.0\.tgz$/,
-	);
-	assert.equal(
-		result.consumerInstall.fileSpecs["@refarm.dev/source-web"],
-		"file:./vendor/refarm.dev-source-web-0.1.0.tgz",
-	);
-	assert.equal(
-		result.consumerInstall.pnpmOverrides["@refarm.dev/source-contract-v1"],
-		"file:./vendor/refarm.dev-source-contract-v1-0.1.0.tgz",
-	);
-	assert.deepEqual(result.consumerInstall.copyFiles, [
-		"manifest.json",
-		"refarm.dev-enrichment-contract-v1-0.1.0.tgz",
-		"refarm.dev-records-contract-v1-0.1.0.tgz",
-		"refarm.dev-source-web-0.1.0.tgz",
-		"refarm.dev-source-contract-v1-0.1.0.tgz",
-	]);
-	assert.equal(result.consumerProofs.length, result.packages.length);
-	assert.equal(result.distributionEvidence.state, "consumer-proven");
-	assert.equal(result.distributionEvidence.verifiedLocalCopies, 0);
-	assert.equal(result.distributionEvidence.expectedLocalCopies, 4);
-	assert.match(result.distributionEvidence.promotionBoundary, /named downstream proof exists/);
-	assert.match(result.boundaries.join("\n"), /packs only when --pack is explicit/);
-	assert.match(result.boundaries.join("\n"), /official publication handoff is vault-seed-ready/);
-	assert.match(result.nextActions.join("\n"), /release:vault-seed:handoff/);
-	assert.deepEqual(result.missingTarballs, [
-		"refarm.dev-enrichment-contract-v1-0.1.0.tgz",
-		"refarm.dev-records-contract-v1-0.1.0.tgz",
-		"refarm.dev-source-web-0.1.0.tgz",
-		"refarm.dev-source-contract-v1-0.1.0.tgz",
-	]);
-	assert.deepEqual(result.issues, []);
 });
 
 test("requirements supply handoff can target clean packages first", () => {

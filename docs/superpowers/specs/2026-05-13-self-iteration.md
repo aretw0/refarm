@@ -47,7 +47,8 @@ Key files:
 - `packages/tractor/src/host/agent_tools_bridge/core.rs` — agent-fs/agent-shell host impl
 - `packages/agent/src/lib.rs` — the agent itself (LLM routing, ReAct loop, tool dispatch)
 - `packages/agent/wit/` — WIT world: exports `integration#respond`, imports `agent-fs`, `agent-shell`
-- `scripts/agent-install.mjs` — copies compiled WASM → `~/.refarm/plugins/@refarm/agent/`
+- `refarm plugin install --bundled` — copies compiled WASM → `~/.refarm/plugins/refarm_agent/`
+  (was `scripts/agent-install.mjs` writing `plugins/@refarm/agent/`, deleted 2026-08-05 — see below)
 
 ---
 
@@ -75,11 +76,23 @@ prompt, and session context assembled by the chat CLI.
 
 Farmhand now auto-installs agent on boot via `bundleInstallPlugin`, reading
 the WASM from the co-located npm package (`@refarm.dev/agent` dist/jco/).
-A version file (`.version`) prevents unnecessary reinstalls. The `scripts/agent-install.mjs`
-script remains for backward compatibility but is no longer the primary path.
+A version file (`.version`) prevents unnecessary reinstalls.
 
-To manually trigger install: `refarm agent install`
-To check for updates: `refarm agent update`
+**Corrected 2026-08-05.** "Remains for backward compatibility but is no longer the primary path"
+stopped being true and became actively harmful: `scripts/agent-install.mjs` wrote
+`plugins/@refarm/agent/` while `refarm plugin install` wrote `plugins/refarm_agent/`, and the
+daemon loaded the first. So the command the CLI RECOMMENDS on a plugin failure could not fix it —
+observed on the operator's own node, where a rebuilt agent reported `already up-to-date` while a
+stale one kept being loaded. A third writer was found in the same pass: `bundled-plugins.ts` wrote
+the scoped directory while its own sentinel keyed on the flat token.
+
+One installer now owns the path, and both the CLI and `tractor-start.sh` derive it from one
+function rather than spelling a layout. The flat `refarm_agent` form won because `.versions`
+already keyed on it, every other plugin already used it, and a raw `@scope/name` handed to
+`path.join` nests — so a hostile id escapes the base directory, which the flattened form cannot do.
+
+To manually trigger install: `refarm plugin install --bundled`
+To force a reinstall of an unchanged version: `refarm plugin install --bundled --force`
 
 This is resolved — a fresh devcontainer or CI runner works without manual steps.
 

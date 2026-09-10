@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 import { createHash } from "node:crypto";
 import {
+	MINIMUM_PLAUSIBLE_TASK_ARTIFACT_MANIFEST_COUNT,
 	checkTaskArtifactManifests,
 	validateTaskArtifactManifestFile,
+	TASK_ARTIFACT_MANIFEST_SCHEMA,
 } from "./check-task-artifact-manifests.mjs";
 
 function sha256Text(value) {
@@ -21,7 +24,7 @@ async function makeFixture(manifestOverrides = {}, artifactOverrides = {}) {
 	const contents = "hello\n";
 	writeFileSync(path.join(fixtureDir, "report.md"), contents);
 	const manifest = {
-		schema: "refarm.task-artifacts.v1",
+		schema: TASK_ARTIFACT_MANIFEST_SCHEMA,
 		taskId: "task-sample",
 		effortId: "effort-sample",
 		createdAt: "2026-01-01T00:00:00.000Z",
@@ -65,6 +68,23 @@ describe("check-task-artifact-manifests", () => {
 		assert.equal(result.ok, true);
 		assert.equal(result.manifestCount, 1);
 		assert.deepEqual(result.issues, []);
+	});
+
+	it("reports a coverage error instead of a silent clean pass when no manifests are found", async () => {
+		// A bare tmpdir with no validations/ tree at all: walkForManifests already
+		// swallows the missing rootDir into [], and the pre-fix gate reported
+		// "Validated 0 task artifact manifest(s)." with exit 0 — indistinguishable
+		// from a real scan that found nothing wrong.
+		const root = await mkdtemp(path.join(os.tmpdir(), "refarm-artifacts-empty-"));
+		const result = checkTaskArtifactManifests(root);
+
+		assert.equal(result.ok, false);
+		assert.equal(result.manifestCount, 0);
+		assert.ok(
+			result.manifestCount < MINIMUM_PLAUSIBLE_TASK_ARTIFACT_MANIFEST_COUNT,
+			"fixture must exercise the below-floor path",
+		);
+		assert.match(result.coverageError, /found 0 task-artifacts\.json manifest/);
 	});
 
 	it("reports stale hashes", async () => {
@@ -137,5 +157,18 @@ describe("check-task-artifact-manifests", () => {
 				},
 			],
 		);
+	});
+});
+
+describe("ISS-112 — one vocabulary, two stacks", () => {
+	it("pins the CI wire name to the package's declaration", () => {
+		const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+		const packageSource = readFileSync(
+			path.join(root, "packages/artifact-contract-v1/src/types.ts"),
+			"utf8",
+		);
+		const declared = packageSource.match(/TASK_ARTIFACT_MANIFEST_SCHEMA = "([^"]+)"/);
+		assert.ok(declared, "the package declares TASK_ARTIFACT_MANIFEST_SCHEMA");
+		assert.equal(TASK_ARTIFACT_MANIFEST_SCHEMA, declared[1]);
 	});
 });

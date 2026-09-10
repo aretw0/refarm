@@ -1,3 +1,4 @@
+import { OperatorPromptCancelledError } from "@refarm.dev/prompt-contract-v1";
 import chalk from "chalk";
 import { isModuleResolutionError, renderBootstrapFailure } from "./bootstrap-preflight.js";
 import { TokenAuthError } from "./credentials/token-auth-error.js";
@@ -69,9 +70,45 @@ function handleCliMainError(err: unknown): void {
 		process.exitCode = 1;
 		return;
 	}
-	throw err;
+	// Safety net: commands that prompt (sow, auth enroll, init, migrate, and any
+	// runtime-recovery prompt reached via ask/session/chat) mostly catch this
+	// themselves for a command-specific message, but an operator cancelling
+	// (Ctrl+C or Ctrl+D) must NEVER surface as a stack trace or an "unsettled
+	// top-level await" warning from any command — including ones this file's
+	// author didn't anticipate. 130 is the conventional SIGINT exit code.
+	if (err instanceof OperatorPromptCancelledError) {
+		console.log(chalk.gray("\n  Cancelled."));
+		process.exitCode = 130;
+		return;
+	}
+	// THE FALLTHROUGH USED TO RETHROW, and that is how a measured refusal reached the operator as a
+	// Node stack trace. Measured 2026-08-14: `sow --model-provider github-copilot` produced a
+	// perfectly written sentence — "GitHub did not accept this identity at copilot_internal/v2/token
+	// (HTTP 403)" — buried under `at process.processTicksAndRejections`. The message was right and
+	// the presentation crashed.
+	//
+	// BOTH AUDIENCES ARE SERVED, which is why this is not simply a softer message. The operator gets
+	// the sentence first, in red, because it is usually all he needs. The stack follows it dimmed,
+	// because an unanticipated failure is a defect and hiding the trace behind a flag would cost a
+	// re-run that may not reproduce. Nothing is swallowed; only the order changed.
+	const message = err instanceof Error ? err.message : String(err);
+	console.error(chalk.red(`✗  ${message}`));
+	if (err instanceof Error && typeof err.stack === "string") {
+		console.error(chalk.dim(err.stack.split("\n").slice(1).join("\n")));
+	}
+	process.exitCode = 1;
 }
 
-if (!process.env.VITEST) {
-	await runCliMain();
-}
+// NO AUTO-RUN ON IMPORT. This used to be `if (!process.env.VITEST) await runCliMain()`, which used
+// an environment variable as a proxy for "was I imported?" — and got it wrong in the direction that
+// hides defects. A test that SPAWNS the built CLI inherits VITEST, so the child printed nothing and
+// exited 0: success-shaped silence. Measured 2026-08-12: `VITEST=true refarm init --help` produced
+// zero lines.
+//
+// That is why the lazy-command drift survived. `refarm sow --reconfigure` was rejected by the CLI
+// while `sow --help` advertised it, and no test could see that, because the only way to see it is
+// to run the real binary. The suites drove `sowCommand` directly instead — where the option exists.
+//
+// `index.ts` (the bin) now calls `runCliMain()` explicitly, so importing this module for a unit
+// test runs nothing and spawning the binary runs everything. The question "am I the entrypoint?" is
+// answered by the entrypoint, which is the only thing that knows.

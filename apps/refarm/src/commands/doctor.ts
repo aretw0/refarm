@@ -3,7 +3,30 @@ import {
 	STATUS_DIAGNOSTICS,
 	type StatusJson,
 } from "@refarm.dev/cli/status";
+import fs from "node:fs";
+import path from "node:path";
+
+import { effectiveModelRouteForScope, loadConfig, sovereignDir } from "@refarm.dev/config";
+
 import { Command } from "commander";
+import type { NodeContextMetadata } from "../utils/context-metadata.js";
+import { resolveNodeContextMetadata } from "../utils/context-metadata.js";
+import { resolveLoadedPlugin } from "../utils/loaded-plugin.js";
+import { readNodeDescriptor } from "../utils/node-descriptor.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
+import {
+	resolveRuntimeEnvironment,
+	type RuntimeEnvironment,
+} from "../utils/runtime-environment.js";
+import {
+	defaultAgentPluginPath,
+	defaultRateCatalogPath,
+	resolveRuntimeFreshness,
+	type RuntimeFreshness,
+} from "../utils/runtime-freshness.js";
+import { buildConnectionDoctorRecommendations } from "./connection-doctor.js";
+import { buildContextDoctorRecommendations } from "./context-doctor.js";
+import { buildContextReport, resolveContextInput, type Divergence } from "./context.js";
 import {
 	diagnosticNextActions,
 	diagnosticNextCommands,
@@ -11,12 +34,25 @@ import {
 	type DiagnosticRecommendationSeverity,
 } from "./diagnostic-recommendations.js";
 import { emitRefarmDoctorOutput, resolveDoctorOutputMode } from "./doctor-output.js";
-import { resolveRefarmRuntimeMetadata, type RefarmRuntimeMetadata } from "./runtime-metadata.js";
+import {
+	buildNodeNameDoctorRecommendations,
+	type NodeIdentitySnapshot,
+} from "./node-name-doctor.js";
+import { buildRuntimeEnvironmentDoctorRecommendations } from "./runtime-environment-doctor.js";
+import { buildRuntimeFreshnessDoctorRecommendations } from "./runtime-freshness-doctor.js";
+import {
+	resolveRefarmRuntimeMetadata,
+	resolveWorkingTreeFacts,
+	type RefarmRuntimeMetadata,
+	type WorkingTreeFacts,
+} from "./runtime-metadata.js";
 import {
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 	RUNTIME_NOT_READY_RECOVERY_ACTION,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
+import { buildScopeDoctorRecommendations, type ScopeComparison } from "./scope-doctor.js";
+import { buildSovereignDivergenceDoctorRecommendations } from "./sovereign-divergence-doctor.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { resolveStatusPayload } from "./status.js";
 
@@ -35,6 +71,10 @@ export interface RefarmDoctorReport {
 	nextCommand: string | null;
 	nextCommands: string[];
 	host: RefarmRuntimeMetadata;
+	/** ISS-093: the directory the CLI was invoked from, and what was detected THERE. Kept apart from
+	 *  `host` because `host` promises facts that do not move with the caller, and `packageManager`
+	 *  moved with it — measured `pnpm` here and `npm` from anywhere else, under a `host.*` name. */
+	workingTree: WorkingTreeFacts;
 	status: StatusJson;
 }
 
@@ -55,19 +95,130 @@ export interface RefarmDoctorOptions {
 	failOnWarnings?: boolean;
 }
 
+/** THE ONE DELIBERATE cwd READ added by ISS-093's fix — a named, documented function rather than a
+ *  `?? process.cwd()` default, which is the shape `scripts/no-os-resolution.mjs` counts and the shape
+ *  that put a working-tree fact under `host.*` in the first place. `doctor`'s own report says which
+ *  directory this was, so the read is declared in the output, not merely in a comment. */
+function operatorWorkingDirectory(): string {
+	return process.cwd();
+}
+
 export function buildRefarmDoctorReport(
 	status: StatusJson,
-	options: { failOnWarnings?: boolean; metadata?: RefarmRuntimeMetadata } = {},
+	options: {
+		failOnWarnings?: boolean;
+		metadata?: RefarmRuntimeMetadata;
+		/** ISS-093. Injected by tests; the default reads the operator's working directory through
+		 *  `operatorWorkingDirectory()` below. Kept OUT of `metadata` because the two answer
+		 *  different questions: `metadata` is the binary, this is the tree it was invoked in. */
+		workingTree?: WorkingTreeFacts;
+		/** The config object `loadConfig()` returns — read ONLY for the declared
+		 * `connections` block (see `connection-doctor.ts`). Omitted (the default) means
+		 * "nothing declared", which produces no connection findings — this keeps the
+		 * function pure and every caller that does not pass it (including every existing
+		 * test) unaffected. */
+		connectionConfig?: Record<string, unknown>;
+		/** Where the operator is standing beside where the node lives (see
+		 * `scope-doctor.ts`). Omitted means "not compared", which produces no findings —
+		 * same purity rule as `connectionConfig`, and every existing caller is unaffected. */
+		scope?: { comparison: ScopeComparison; exists: (filePath: string) => boolean };
+		/** What the RUNNING node currently knows about its own identity (see
+		 * `node-name-doctor.ts`). `null`/omitted means "no live node to ask", which
+		 * produces no finding — same purity rule as `connectionConfig` and `scope`. */
+		nodeIdentity?: NodeIdentitySnapshot | null;
+		/** Whether the running node predates the artifacts beside it. `null` when the
+		 *  caller did not resolve it — silence, not an assumption that it is fine. */
+		runtimeFreshness?: RuntimeFreshness | null;
+		/** Whether the running node carries the model environment its config declares. `null`
+		 *  when the caller did not resolve it — silence, not an assumption that it is fine. */
+		runtimeEnvironment?: RuntimeEnvironment | null;
+		/** Context metadata resolved by the caller (home/store alignment, mode). Omitted
+		 * means "not inspected", which produces no findings. */
+		context?: NodeContextMetadata;
+		/** The sovereign-state divergences `refarm context` already resolves (see
+		 *  `buildContextReport` in `./context.ts`) — reused here rather than re-derived so
+		 *  this command does not invent a second comparison. `null`/omitted means "not
+		 *  inspected", which produces no findings, same purity rule as `context` above. */
+		sovereignDivergences?: Divergence[] | null;
+	} = {},
 ): RefarmDoctorReport {
-	const { failures, warnings, informational } = classifyStatusDiagnostics(status);
+	const { failures, warnings: statusWarnings, informational } = classifyStatusDiagnostics(status);
+	// A declared connection with an unresolvable binary, or a catalog issue, is a doctor
+	// finding in its own right (Task 3) — folded into the SAME `warnings`/`recommendations`
+	// buckets status diagnostics use rather than a parallel mechanism, so the existing
+	// output/JSON/next-action plumbing (doctor-output.ts) surfaces it for free.
+	const connectionRecommendations = buildConnectionDoctorRecommendations(
+		options.connectionConfig ?? {},
+	);
+	// The node answering from one directory while the operator edits another is the same
+	// KIND of thing: a truth nothing else states, folded into the same buckets.
+	const scopeRecommendations = options.scope
+		? buildScopeDoctorRecommendations(options.scope.comparison, options.scope.exists)
+		: [];
+	// A live node with an id and no declared name is a courtesy TELL of the same shape —
+	// folded in alongside the scope divergence it sits next to in `node-name-doctor.ts`'s
+	// own module doc.
+	const nodeNameRecommendations = buildNodeNameDoctorRecommendations(
+		options.nodeIdentity ?? null,
+	);
+	// The node running an older build than the one on disk is the same KIND of truth as
+	// the two above: something nothing else states, folded into the same buckets. It is
+	// a TELL, never a restart performed for the operator.
+	const runtimeFreshnessRecommendations = buildRuntimeFreshnessDoctorRecommendations(
+		options.runtimeFreshness ?? null,
+	);
+	// A node up and healthy that cannot reach its declared provider is the same KIND of truth,
+	// and the one nothing stated until it broke on 2026-08-05.
+	const runtimeEnvironmentRecommendations = buildRuntimeEnvironmentDoctorRecommendations(
+		options.runtimeEnvironment ?? null,
+	);
+	const contextRecommendations = buildContextDoctorRecommendations(options.context);
+	// The plugin-hash mismatch (and its unknown-gap siblings) `refarm context` already
+	// resolves is the same KIND of truth as the recommendations above: something nothing
+	// else in `doctor` states, folded into the same buckets. Never a restart, never a write
+	// — see `sovereign-divergence-doctor.ts`'s own header.
+	//
+	// `status.runtime.ready` is threaded straight through as the second, non-`Divergence`
+	// signal `sovereign-divergence-doctor.ts` needs to report a stale descriptor beside a
+	// reachable sidecar (its header explains why that combination is not the ordinary
+	// `runtime:not-ready` case). `status` is already this function's own parameter — read
+	// from the SAME probe `classifyStatusDiagnostics` used above, not a second HTTP call —
+	// so `check.ts`'s `runDefaultDoctor` gets this for free through its existing
+	// `buildRefarmDoctorReport(statusPayload.json, …)` call, with no wiring of its own.
+	// ISS-030: `undefined` and `null` are DIFFERENT here and `?? []` collapsed them. Omitted means
+	// "not compared" (the documented default, and what every test that does not care passes);
+	// `null` means the comparison was attempted and threw, which is a finding of its own.
+	const sovereignDivergenceRecommendations = buildSovereignDivergenceDoctorRecommendations(
+		options.sovereignDivergences === undefined ? [] : options.sovereignDivergences,
+		status.runtime.ready === true,
+	);
+	const warnings = [
+		...statusWarnings,
+		...connectionRecommendations.map((r) => r.diagnostic),
+		...scopeRecommendations.map((r) => r.diagnostic),
+		...nodeNameRecommendations.map((r) => r.diagnostic),
+		...runtimeFreshnessRecommendations.map((r) => r.diagnostic),
+		...runtimeEnvironmentRecommendations.map((r) => r.diagnostic),
+		...contextRecommendations.map((r) => r.diagnostic),
+		...sovereignDivergenceRecommendations.map((r) => r.diagnostic),
+	];
 
 	const failOnWarnings = options.failOnWarnings === true;
 	const ok = failures.length === 0 && (!failOnWarnings || warnings.length === 0);
-	const recommendations = buildRefarmDoctorRecommendations({
-		failures,
-		warnings,
-		informational,
-	});
+	const recommendations = [
+		...buildRefarmDoctorRecommendations({
+			failures,
+			warnings: statusWarnings,
+			informational,
+		}),
+		...connectionRecommendations,
+		...scopeRecommendations,
+		...nodeNameRecommendations,
+		...runtimeFreshnessRecommendations,
+		...runtimeEnvironmentRecommendations,
+		...contextRecommendations,
+		...sovereignDivergenceRecommendations,
+	];
 	const nextActions = diagnosticNextActions(recommendations);
 	const nextCommands = diagnosticNextCommands(recommendations);
 
@@ -92,6 +243,7 @@ export function buildRefarmDoctorReport(
 				command: status.host.command,
 				profile: status.host.profile,
 			}),
+		workingTree: options.workingTree ?? resolveWorkingTreeFacts({ cwd: operatorWorkingDirectory() }),
 		status,
 	};
 }
@@ -196,24 +348,200 @@ function createRefarmDoctorRecommendation(
 	}
 }
 
-export const doctorCommand = new Command("doctor")
-	.description("Run host readiness checks from the refarm status contract")
-	.option(
-		"--input <path>",
-		"Read status payload from JSON file (or '-' for stdin) instead of booting runtime",
-	)
-	.option(
-		"--renderer <kind>",
-		"Renderer mode when booting runtime: web | tui | headless",
-		"headless",
-	)
-	.option("--json", "Output machine-readable doctor report")
-	.option("--next-action", "Print only the first blocking recovery action")
-	.option("--next-command", "Print only the first executable recovery command")
-	.option("--fail-on-warnings", "Treat warning diagnostics as failures")
-	.addHelpText(
-		"after",
-		`
+export interface RefarmDoctorCommandDeps {
+	/** Overrides for resolving the config `buildConnectionDoctorRecommendations` reads
+	 * (Task 3). Both default to the real `process.cwd()` / `loadConfig()` — injected so
+	 * tests can drive the connection-finding wiring without ever touching the real
+	 * `.refarm/config.json`. */
+	cwd?: () => string;
+	loadConfig?: (root?: string) => Record<string, unknown>;
+	/** What the running node says about itself — injected so a test can state "a node is
+	 *  running and answers from there" without one. */
+	readNodeDescriptor?: (
+		refarmHome: string,
+	) => ({ declarationBase: string; sovereignDir: string } & NodeIdentitySnapshot) | null;
+	/** Overrides `resolveSovereignDivergences()` — injected so a test can assert on the
+	 *  FULL `warnings`/`recommendations` output without also reading this host's real
+	 *  sovereign state (config paths, node descriptor). Same purity rule as `loadConfig`
+	 *  and `readNodeDescriptor` above: omitted means "use the real resolver". */
+	sovereignDivergences?: () => Divergence[] | null;
+	/** Overrides `resolveNodeContextMetadata(process.env)` — the last environment reader that was
+	 *  NOT injectable, and the reason three tests in `doctor.test.ts` failed on a developer machine
+	 *  while passing in CI (ISS-100): a test asserting on the FULL `warnings`/`nextActions` output
+	 *  cannot depend on whether whoever runs it happens to have SILO_HOME and REFARM_HOME declared.
+	 *  Same purity rule as the three above: omitted means "read the real environment". */
+	context?: () => ReturnType<typeof resolveNodeContextMetadata>;
+}
+
+/**
+ * Resolve the config object connection findings are read from. Never throws: a broken
+ * `.refarm/config.json` is a different failure surface — `refarm connection status`
+ * already surfaces a load failure explicitly with a JSON error envelope — so doctor
+ * must not crash the WHOLE report over it. It just has nothing to check for connection
+ * findings this run, same "report, never fail shut" posture as `readConnectionCatalog`.
+ */
+/**
+ * Where the operator is standing, beside where a node started with this home would look.
+ *
+ * Resolved here rather than inside the finding so `scope-doctor.ts` stays pure and every
+ * test drives it with literals. Never throws: a scope comparison is a courtesy, and a
+ * doctor that crashes because a path could not be resolved is worse than one that stays
+ * quiet about it.
+ */
+function resolveScopeComparison(
+	deps: RefarmDoctorCommandDeps | undefined,
+): { comparison: ScopeComparison; exists: (filePath: string) => boolean } | undefined {
+	try {
+		// `declaredBase()` no longer falls back to cwd (it now mirrors the Rust host's
+		// REFARM_HOME/OS-home fallback) — using it here would collapse `operatorBase` onto
+		// the same value `nodeHome` resolves to on every ordinary machine, silently disabling
+		// the exact divergence this comparison exists to report. This value must stay the
+		// operator's literal standing directory, so the fallback is a bare `process.cwd()`,
+		// not a "smart" resolver.
+		// os-resolution: process — deliberately the operator LITERAL standing directory: the divergence report compares it against the node home, so a resolver here would erase the very gap being measured
+		const operatorBase = path.resolve(deps?.cwd?.() ?? process.cwd());
+		const nodeHome = path.resolve(resolveRefarmHome());
+		// What the RUNNING node says about itself, when it is running and says it. Absent,
+		// stale or unreadable falls back to this home — the same inference as before, which
+		// is right whenever the node was started with the home it lives in, and only wrong
+		// in the case the descriptor exists to catch.
+		const running = deps?.readNodeDescriptor?.(nodeHome) ?? readNodeDescriptor(nodeHome);
+		const dir = running?.sovereignDir ?? sovereignDir();
+		// `resolveRefarmHome()` IS the sovereign dir; a descriptor's `declarationBase` is its
+		// PARENT, because that is what the config path convention joins the dir name onto.
+		// Naming the final directory once keeps the two from being confused.
+		const nodeDir = running ? path.join(path.resolve(running.declarationBase), dir) : nodeHome;
+		return {
+			comparison: {
+				operatorConfigPath: path.join(operatorBase, dir, "config.json"),
+				nodeConfigPath: path.join(nodeDir, "config.json"),
+				operatorPolicyPath: path.join(operatorBase, dir, "auth-policy.json"),
+				nodePolicyPath: path.join(nodeDir, "auth-policy.json"),
+			},
+			exists: (filePath) => fs.existsSync(filePath),
+		};
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * What the RUNNING node currently knows about its own identity — the same descriptor
+ * `resolveScopeComparison` reads, refetched here rather than threaded through it so this
+ * stays a small, local addition and `resolveScopeComparison`'s existing contract (and its
+ * own fallback-to-`undefined`-on-any-error posture) is untouched. Never throws, for the
+ * same reason: a node-name suggestion is a courtesy, and a doctor that crashes because a
+ * descriptor could not be read is worse than one that stays quiet about it.
+ */
+function resolveNodeDescriptor(deps: RefarmDoctorCommandDeps | undefined): NodeIdentitySnapshot | null {
+	try {
+		const nodeHome = path.resolve(resolveRefarmHome());
+		return deps?.readNodeDescriptor?.(nodeHome) ?? readNodeDescriptor(nodeHome);
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Whether the running node predates what is on disk. Same posture as
+ * `resolveNodeDescriptor` above and for the same reason: never throws, and any failure is
+ * `null` rather than a guess. `resolveRuntimeFreshness` itself answers `unknown` for the
+ * cases it CAN see — a dead pid, an unfindable artifact — so `null` here means only that
+ * this resolver could not run at all.
+ *
+ * Exported so `check.ts` can resolve the SAME freshness comparison for its own
+ * `buildRefarmDoctorReport` call, rather than re-deriving it — see that module's
+ * `runDefaultDoctor` for why the composite gate needs this too.
+ */
+export function resolveFreshness(): RuntimeFreshness | null {
+	try {
+		const nodeHome = path.resolve(resolveRefarmHome());
+		// Deliberately the real reader, not `deps.readNodeDescriptor`: the injectable
+		// override is typed without `pid`/`startedAt`, and this comparison needs both.
+		// The test weight sits on the pure `resolveRuntimeFreshness` and the finding
+		// builder, which is where every other doctor finding keeps it too.
+		const descriptor = readNodeDescriptor(nodeHome);
+		if (!descriptor) return null;
+		const loaded = resolveLoadedPlugin(descriptor.pid);
+		return resolveRuntimeFreshness(
+			{ pid: descriptor.pid, startedAt: descriptor.startedAt },
+			defaultAgentPluginPath(nodeHome, loaded?.path),
+			undefined,
+			defaultRateCatalogPath(nodeHome),
+		);
+	} catch {
+		return null;
+	}
+}
+
+/** Same posture as the two resolvers above: never throws, `null` on any failure rather than a
+ *  guess. The declared provider comes from the sovereign config the operator writes. */
+function resolveEnvironment(deps: RefarmDoctorCommandDeps | undefined): RuntimeEnvironment | null {
+	try {
+		const nodeHome = path.resolve(resolveRefarmHome());
+		const descriptor = readNodeDescriptor(nodeHome);
+		if (!descriptor || typeof descriptor.pid !== "number") return null;
+		// The DECLARED provider, resolved exactly as `refarm model current` resolves it — the
+		// operator's stored tokens plus their env. Deliberately NOT this CLI process's
+		// MODEL_PROVIDER alone: that is a different process's environment, and reading it as if
+		// it were the declaration would compare the daemon against whatever shell happened to
+		// invoke the doctor.
+		// os-resolution: project — reads the workspace tier config where the operator stands, the tier storage-fs anchors on cwd
+		const baseDir = deps?.cwd?.() ?? process.cwd();
+		const tokens = (deps?.loadConfig ?? loadConfig)(baseDir) as Record<string, unknown>;
+		const route = effectiveModelRouteForScope(tokens, "default", { env: process.env });
+		return resolveRuntimeEnvironment({ pid: descriptor.pid }, route?.provider);
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * The sovereign-state divergences `refarm context` already resolves — reused here rather
+ * than re-derived (see `sovereign-divergence-doctor.ts`'s header). Same posture as the
+ * resolvers above: never throws, `null` on any failure rather than a guess, so a doctor
+ * run does not crash because a divergence comparison could not be made.
+ *
+ * Exported for the same reason as `resolveFreshness` above: `check.ts` needs the identical
+ * comparison for its own `buildRefarmDoctorReport` call.
+ */
+export function resolveSovereignDivergences(): Divergence[] | null {
+	try {
+		return buildContextReport(resolveContextInput()).divergences;
+	} catch {
+		return null;
+	}
+}
+
+function resolveConnectionConfig(deps: RefarmDoctorCommandDeps | undefined): Record<string, unknown> {
+	// os-resolution: project — reads the workspace tier config where the operator stands, the tier storage-fs anchors on cwd
+	const baseDir = deps?.cwd?.() ?? process.cwd();
+	try {
+		return (deps?.loadConfig ?? loadConfig)(baseDir) as Record<string, unknown>;
+	} catch {
+		return {};
+	}
+}
+
+export function createDoctorCommand(deps?: RefarmDoctorCommandDeps): Command {
+	return new Command("doctor")
+		.description("Run host readiness checks from the refarm status contract")
+		.option(
+			"--input <path>",
+			"Read status payload from JSON file (or '-' for stdin) instead of booting runtime",
+		)
+		.option(
+			"--renderer <kind>",
+			"Renderer mode when booting runtime: web | tui | headless",
+			"headless",
+		)
+		.option("--json", "Output machine-readable doctor report")
+		.option("--next-action", "Print only the first blocking recovery action")
+		.option("--next-command", "Print only the first executable recovery command")
+		.option("--fail-on-warnings", "Treat warning diagnostics as failures")
+		.addHelpText(
+			"after",
+			`
 
 Examples:
   $ refarm doctor
@@ -229,22 +557,32 @@ Notes:
   Doctor turns status diagnostics into operator recommendations.
   Use refarm check when you also want the repository health gate.
 `,
-	)
-	.action(async (options: RefarmDoctorOptions) => {
-		const report = await withResolvedStatusPayload({
-			resolveStatusPayload,
-			resolveOptions: options,
-			run: (status) => {
-				const report = buildRefarmDoctorReport(status, {
-					failOnWarnings: options.failOnWarnings,
-				});
-				const outputMode = resolveDoctorOutputMode(options);
-				emitRefarmDoctorOutput({ report, mode: outputMode });
-				return report;
-			},
-		});
+		)
+		.action(async (options: RefarmDoctorOptions) => {
+			const report = await withResolvedStatusPayload({
+				resolveStatusPayload,
+				resolveOptions: options,
+				run: (status) => {
+					const report = buildRefarmDoctorReport(status, {
+						failOnWarnings: options.failOnWarnings,
+						connectionConfig: resolveConnectionConfig(deps),
+						scope: resolveScopeComparison(deps),
+						nodeIdentity: resolveNodeDescriptor(deps),
+						runtimeFreshness: resolveFreshness(),
+						runtimeEnvironment: resolveEnvironment(deps),
+						context: deps?.context?.() ?? resolveNodeContextMetadata(process.env),
+						sovereignDivergences: deps?.sovereignDivergences?.() ?? resolveSovereignDivergences(),
+					});
+					const outputMode = resolveDoctorOutputMode(options);
+					emitRefarmDoctorOutput({ report, mode: outputMode });
+					return report;
+				},
+			});
 
-		if (!report.ok) {
-			process.exitCode = 1;
-		}
-	});
+			if (!report.ok) {
+				process.exitCode = 1;
+			}
+		});
+}
+
+export const doctorCommand = createDoctorCommand();

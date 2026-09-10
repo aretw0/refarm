@@ -12,7 +12,7 @@
 		{
 			"command": "pnpm -C validations/astro-wasi-ssr run build",
 			"exitCode": 0,
-			"result": "Astro 7 server build emitted dist/server/index.mjs."
+			"result": "Astro 7 server build emitted dist/server/entry.mjs."
 		},
 		{
 			"command": "pnpm -C validations/astro-wasi-ssr run componentize",
@@ -23,7 +23,7 @@
 		{
 			"command": "rg -n \"node:module|process|Buffer|sharp\" validations/astro-wasi-ssr/dist/server -g '*.mjs'",
 			"exitCode": 0,
-			"result": "Static inspection of the generated Astro 7 server bundle shows Node-specific surfaces, starting with node:module in dist/server/index.mjs."
+			"result": "Static inspection of the generated Astro 7 server bundle shows Node-specific surfaces, starting with node:module in dist/server/entry.mjs."
 		}
 	],
 	"resolved": [

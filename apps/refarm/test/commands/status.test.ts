@@ -50,13 +50,22 @@ describe("statusCommand", () => {
 	let home: string;
 	let cargoTargetDir: string;
 	let originalCargoTargetDir: string | undefined;
+	let originalPath: string | undefined;
+	let emptyPathDir: string;
 
 	beforeEach(() => {
 		cwd = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-status-cwd-"));
 		home = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-status-home-"));
 		cargoTargetDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-status-cargo-"));
+		emptyPathDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-status-path-"));
 		originalCargoTargetDir = process.env.CARGO_TARGET_DIR;
 		process.env.CARGO_TARGET_DIR = cargoTargetDir;
+		// PATH, for the same reason CARGO_TARGET_DIR is pinned above: the engine now also accepts a
+		// `tractor` installed on PATH, so a suite inheriting the developer's PATH asserts about
+		// whatever that machine happens to have. Measured 2026-08-19 — installing the binary on a
+		// real node turned 12 of these green tests red without a line of their own changing.
+		originalPath = process.env.PATH;
+		process.env.PATH = emptyPathDir;
 		vi.spyOn(process, "cwd").mockReturnValue(cwd);
 		vi.spyOn(os, "homedir").mockReturnValue(home);
 		vi.clearAllMocks();
@@ -122,6 +131,8 @@ describe("statusCommand", () => {
 		} else {
 			process.env.CARGO_TARGET_DIR = originalCargoTargetDir;
 		}
+		if (originalPath === undefined) delete process.env.PATH;
+		else process.env.PATH = originalPath;
 		vi.restoreAllMocks();
 	});
 
@@ -156,42 +167,51 @@ describe("statusCommand", () => {
 
 		expect(help).toContain("refarm status --base");
 		expect(help).toContain("refarm status --base --json");
+		expect(help).toContain("refarm status --base --attention-scope connection-up:ovpn-serpro");
+		expect(help).toContain("refarm status --base --attention-profile cross-device-handoff");
 	});
 
 	it("prints the base model as JSON", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const resolveBaseSurfaceStatus = vi.fn().mockResolvedValue({
+			schemaVersion: 1,
+			command: "status",
+			operation: "base",
+			ok: false,
+			units: [
+				{
+					id: "runtime",
+					label: "Runtime",
+					owner: "apps/refarm",
+					state: "blocked",
+					severity: "failure",
+					summary: "Runtime sidecar is not ready.",
+					evidence: [],
+					actions: [
+						{
+							label: "refarm runtime ensure --wait --next-command",
+							command: "refarm runtime ensure --wait --next-command",
+							primary: true,
+						},
+					],
+				},
+			],
+			nextAction: "refarm runtime ensure --wait --next-command",
+			nextActions: ["refarm runtime ensure --wait --next-command"],
+			nextCommand: "refarm runtime ensure --wait --next-command",
+			nextCommands: ["refarm runtime ensure --wait --next-command"],
+		});
 		const command = createStatusCommand({
-			resolveBaseSurfaceStatus: async () => ({
-				schemaVersion: 1,
-				command: "status",
-				operation: "base",
-				ok: false,
-				units: [
-					{
-						id: "runtime",
-						label: "Runtime",
-						owner: "apps/refarm",
-						state: "blocked",
-						severity: "failure",
-						summary: "Runtime sidecar is not ready.",
-						evidence: [],
-						actions: [
-							{
-								label: "refarm runtime ensure --wait --next-command",
-								command: "refarm runtime ensure --wait --next-command",
-								primary: true,
-							},
-						],
-					},
-				],
-				nextAction: "refarm runtime ensure --wait --next-command",
-				nextActions: ["refarm runtime ensure --wait --next-command"],
-				nextCommand: "refarm runtime ensure --wait --next-command",
-				nextCommands: ["refarm runtime ensure --wait --next-command"],
-			}),
+			resolveBaseSurfaceStatus,
 		});
 
 		await command.parseAsync(["--base", "--json"], { from: "user" });
+
+		expect(resolveBaseSurfaceStatus).toHaveBeenCalledWith({
+			operatorAttentionScope: undefined,
+			operatorAttentionWindowMs: undefined,
+			operatorAttentionProfile: undefined,
+		});
 
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
 			command: "status",
@@ -202,6 +222,92 @@ describe("statusCommand", () => {
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 		process.exitCode = undefined;
+	});
+
+	it("encaminha options explícitas de atenção para status --base", async () => {
+		const resolveBaseSurfaceStatus = vi.fn().mockResolvedValue({
+			schemaVersion: 1,
+			command: "status",
+			operation: "base",
+			ok: true,
+			units: [],
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
+		});
+		const command = createStatusCommand({ resolveBaseSurfaceStatus });
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			[
+				"--base",
+				"--json",
+				"--attention-scope",
+				"connection-up:phone",
+				"--attention-window-ms",
+				"90000",
+			],
+			{ from: "user" },
+		);
+
+		expect(resolveBaseSurfaceStatus).toHaveBeenCalledWith({
+			operatorAttentionScope: "connection-up:phone",
+			operatorAttentionWindowMs: 90000,
+			operatorAttentionProfile: undefined,
+		});
+		spy.mockRestore();
+	});
+
+	it("encaminha attention-profile para status --base", async () => {
+		const resolveBaseSurfaceStatus = vi.fn().mockResolvedValue({
+			schemaVersion: 1,
+			command: "status",
+			operation: "base",
+			ok: true,
+			units: [],
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
+		});
+		const command = createStatusCommand({ resolveBaseSurfaceStatus });
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			[
+				"--base",
+				"--json",
+				"--attention-profile",
+				"cross-device-handoff",
+			],
+			{ from: "user" },
+		);
+
+		expect(resolveBaseSurfaceStatus).toHaveBeenCalledWith({
+			operatorAttentionScope: undefined,
+			operatorAttentionWindowMs: undefined,
+			operatorAttentionProfile: "cross-device-handoff",
+		});
+		spy.mockRestore();
+	});
+
+	it("rejeita options de atenção sem --base", async () => {
+		await expect(
+			statusCommand.parseAsync(["--attention-scope", "connection-up:phone"], {
+				from: "user",
+			}),
+		).rejects.toThrow(
+			/--attention-scope\/--attention-window-ms\/--attention-profile require --base/,
+		);
+
+		await expect(
+			statusCommand.parseAsync(["--attention-profile", "cross-device-handoff"], {
+				from: "user",
+			}),
+		).rejects.toThrow(
+			/--attention-scope\/--attention-window-ms\/--attention-profile require --base/,
+		);
 	});
 
 	it("builds status from a local runtime snapshot without booting tractor-ts", async () => {

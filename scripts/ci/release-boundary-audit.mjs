@@ -6,7 +6,8 @@ import { buildReleaseCheckPlan } from "../release-check.mjs";
 
 const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SCHEMA_VERSION = 1;
-const VAULT_SEED_READY = "vault-seed-ready";
+const CONSUMER_READY = "consumer-ready";
+const REQUIREMENTS_SUPPLY = "requirements-supply";
 
 const FORBIDDEN_OPENING_PATTERNS = [
 	/\bRefarm platform\b/,
@@ -53,6 +54,13 @@ const CONSUMER_PROVEN_REQUIREMENTS_SUPPLY_PACKAGES = new Set([
 	"@refarm.dev/source-web",
 	"@refarm.dev/enrichment-contract-v1",
 	"@refarm.dev/records-contract-v1",
+	// Added 2026-08-16 by the same bar the three above meet: a consumer reaches the package from a
+	// surface that is not the contract test. vault-seed's records reference vault — the T3
+	// composition proof — now structures its MD/MDX lane through `projectContentToRecords` and
+	// lands those records in the same validated `records:v1` manifest as the web ETL lane.
+	// (ISS-113 refused this tag while the only caller was the contract test, which proved the
+	// package works and not that anything uses it.)
+	"@refarm.dev/content-projection",
 ]);
 
 function readText(root, relativePath) {
@@ -90,7 +98,7 @@ function packageFiles(root, packageName) {
 }
 
 function auditAudienceBoundary(policy, issues) {
-	const selection = policy.selections?.find((item) => item.id === VAULT_SEED_READY);
+	const selection = policy.selections?.find((item) => item.id === CONSUMER_READY);
 	const expected = {
 		consumer: "vault-seed",
 		naming: "product-neutral-sdk",
@@ -116,7 +124,7 @@ function auditSdkPrimitiveHolds(profiles, issues) {
 			}));
 		}
 		if (
-			profile.tags.includes(VAULT_SEED_READY) &&
+			profile.tags.includes(CONSUMER_READY) &&
 			!profile.tags.includes("consumer-pulled")
 		) {
 			issues.push(issue({
@@ -129,10 +137,10 @@ function auditSdkPrimitiveHolds(profiles, issues) {
 }
 
 function auditConsumerPulledProfiles(profiles, issues) {
-	for (const profile of profiles.filter((item) => item.tags?.includes(VAULT_SEED_READY))) {
+	for (const profile of profiles.filter((item) => item.tags?.includes(CONSUMER_READY))) {
 		if (!profile.tags.includes("consumer-pulled")) {
 			issues.push(issue({
-				code: "VAULT_SEED_READY_WITHOUT_CONSUMER_PULLED",
+				code: "CONSUMER_READY_WITHOUT_CONSUMER_PULLED",
 				packageName: profile.id,
 				message: "`vault-seed-ready` packages must declare consumer-pulled intent.",
 			}));
@@ -142,7 +150,7 @@ function auditConsumerPulledProfiles(profiles, issues) {
 
 function auditConsumerPullMetadata(profiles, issues) {
 	const requiredFields = ["proofId", "downstreamUse", "proofTarget", "ownershipBoundary"];
-	for (const profile of profiles.filter((item) => item.tags?.includes(VAULT_SEED_READY))) {
+	for (const profile of profiles.filter((item) => item.tags?.includes(CONSUMER_READY))) {
 		const missingFields = requiredFields.filter(
 			(field) =>
 				typeof profile.consumerPull?.[field] !== "string" ||
@@ -150,7 +158,7 @@ function auditConsumerPullMetadata(profiles, issues) {
 		);
 		if (missingFields.length > 0) {
 			issues.push(issue({
-				code: "VAULT_SEED_READY_WITHOUT_CONSUMER_PULL_METADATA",
+				code: "CONSUMER_READY_WITHOUT_CONSUMER_PULL_METADATA",
 				packageName: profile.id,
 				message: "`vault-seed-ready` packages must declare complete consumerPull metadata in release policy.",
 				evidence: missingFields,
@@ -160,7 +168,7 @@ function auditConsumerPullMetadata(profiles, issues) {
 }
 
 function auditSelectedPackageNaming(root, profiles, issues) {
-	const selected = profiles.filter((item) => item.tags?.includes(VAULT_SEED_READY));
+	const selected = profiles.filter((item) => item.tags?.includes(CONSUMER_READY));
 	const selectedNames = new Set(selected.map((item) => item.id));
 
 	for (const profile of selected) {
@@ -213,7 +221,7 @@ function auditSelectedPackageNaming(root, profiles, issues) {
 
 function auditSelectedLeaves(profiles, policyText, issues) {
 	const selected = profiles
-		.filter((profile) => profile.tags?.includes(VAULT_SEED_READY))
+		.filter((profile) => profile.tags?.includes(CONSUMER_READY))
 		.map((profile) => profile.id);
 	if (!selected.includes("@refarm.dev/process-handoff")) {
 		issues.push(issue({
@@ -249,7 +257,7 @@ function auditSourceHolds(profiles, policyText, issues) {
 	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
 	const selected = new Set(
 		profiles
-			.filter((profile) => profile.tags?.includes(VAULT_SEED_READY))
+			.filter((profile) => profile.tags?.includes(CONSUMER_READY))
 			.map((profile) => profile.id),
 	);
 	for (const packageName of [
@@ -277,7 +285,7 @@ function auditSourceHolds(profiles, policyText, issues) {
 			}
 		}
 		if (CONSUMER_PROVEN_SOURCE_PACKAGES.has(packageName)) {
-			for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+			for (const tag of ["consumer-pulled", "consumer-ready", "consumer-proven"]) {
 				if (!profile.tags.includes(tag)) {
 					issues.push(issue({
 						code: "SOURCE_PACKAGE_MISSING_CONSUMER_PROOF_TAG",
@@ -319,18 +327,28 @@ function auditSourceHolds(profiles, policyText, issues) {
 	}
 }
 
+// MEMBERSHIP IS DERIVED, PROOF IS DECLARED, and the split is the whole point.
+//
+// This walked a hardcoded list of three names until 2026-08-16, while the profile had four
+// members. `@refarm.dev/content-projection` was audited by NOTHING — the hold rule below never
+// ran against the one package actually on hold. Deriving membership from the tag closes that by
+// construction: a new member is audited the moment it joins.
+//
+// `CONSUMER_PROVEN_REQUIREMENTS_SUPPLY_PACKAGES` stays an explicit declaration on purpose. It is
+// the audit's EXTERNAL anchor — the thing the config must agree with. Derive it from the same
+// tags this function audits and the check becomes a tautology that can never fail.
 function auditRequirementsSupplyHolds(profiles, issues) {
 	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
 	const selected = new Set(
 		profiles
-			.filter((profile) => profile.tags?.includes(VAULT_SEED_READY))
+			.filter((profile) => profile.tags?.includes(CONSUMER_READY))
 			.map((profile) => profile.id),
 	);
-	for (const packageName of [
-		"@refarm.dev/source-web",
-		"@refarm.dev/enrichment-contract-v1",
-		"@refarm.dev/records-contract-v1",
-	]) {
+	const members = profiles
+		.filter((profile) => profile.tags?.includes(REQUIREMENTS_SUPPLY))
+		.map((profile) => profile.id);
+	const audited = new Set([...members, ...CONSUMER_PROVEN_REQUIREMENTS_SUPPLY_PACKAGES]);
+	for (const packageName of audited) {
 		const profile = byId.get(packageName);
 		if (!profile) {
 			issues.push(issue({
@@ -350,7 +368,7 @@ function auditRequirementsSupplyHolds(profiles, issues) {
 			}
 		}
 		if (CONSUMER_PROVEN_REQUIREMENTS_SUPPLY_PACKAGES.has(packageName)) {
-			for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+			for (const tag of ["consumer-pulled", "consumer-ready", "consumer-proven"]) {
 				if (!profile.tags.includes(tag)) {
 					issues.push(issue({
 						code: "REQUIREMENTS_SUPPLY_PACKAGE_MISSING_CONSUMER_PROOF_TAG",
@@ -383,6 +401,7 @@ function auditRequirementsSupplyHolds(profiles, issues) {
 			}));
 		}
 	}
+	return [...audited];
 }
 
 export function buildReleaseBoundaryAudit({ root = DEFAULT_ROOT } = {}) {
@@ -393,7 +412,7 @@ export function buildReleaseBoundaryAudit({ root = DEFAULT_ROOT } = {}) {
 	const issues = [];
 	const releaseCheck = buildReleaseCheckPlan({
 		cwd: root,
-		selectionId: VAULT_SEED_READY,
+		selectionId: CONSUMER_READY,
 	});
 
 	auditAudienceBoundary(policy, issues);
@@ -403,7 +422,7 @@ export function buildReleaseBoundaryAudit({ root = DEFAULT_ROOT } = {}) {
 	auditSelectedPackageNaming(root, profiles, issues);
 	auditSelectedLeaves(profiles, configText, issues);
 	auditSourceHolds(profiles, configText, issues);
-	auditRequirementsSupplyHolds(profiles, issues);
+	const requirementsSupplyAudited = auditRequirementsSupplyHolds(profiles, issues);
 
 	if (!releaseCheck.ok) {
 		issues.push(issue({
@@ -416,15 +435,16 @@ export function buildReleaseBoundaryAudit({ root = DEFAULT_ROOT } = {}) {
 	const selectedPackages = releaseCheck.ok
 		? releaseCheck.plan.orderedNames
 		: profiles
-			.filter((profile) => profile.tags?.includes(VAULT_SEED_READY))
+			.filter((profile) => profile.tags?.includes(CONSUMER_READY))
 			.map((profile) => profile.id);
 	return {
 		schemaVersion: SCHEMA_VERSION,
 		command: "release-boundary-audit",
 		ok: issues.length === 0,
-		selectionId: VAULT_SEED_READY,
+		selectionId: CONSUMER_READY,
 		auditedPackageCount: selectedPackages.length,
 		auditedPackages: selectedPackages,
+		requirementsSupplyAudited,
 		issueCount: issues.length,
 		issues,
 	};

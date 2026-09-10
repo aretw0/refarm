@@ -11,7 +11,7 @@
 
 use crate::host::plugin_host::plugin::host::{
     model_bridge::{Host as ModelBridgeHost, StreamResponseMetadata, StreamResponseResult},
-    tractor_bridge::Host as TractorBridgeHost,
+    tractor_bridge::{Host as TractorBridgeHost, NodePage},
     types::{Host as TypesHost, IdentityInfo, PluginError},
 };
 use crate::host::plugin_registry::PluginRegistry;
@@ -101,6 +101,31 @@ pub struct TractorNativeBindings {
     /// at PluginHost boot and cloned in here at load, so the per-call effect path
     /// reads &self, never std::env::var.
     pub(crate) effect_policy: crate::host::host_effects_bridge::HostEffectPolicy,
+    /// The provider THIS INVOCATION declared, narrowing the allowlist for its duration.
+    ///
+    /// ISS-140 tier B. The three route sets below are resolved once at plugin load, so they bound
+    /// what the NODE may reach and nothing bounded what a single task may. A workspace bound to one
+    /// account could therefore have its work sent to another, and the budget record would name the
+    /// account the CLI intended rather than the one the host actually spent.
+    ///
+    /// NARROWING IS MONOTONICALLY SAFE, which is what makes reading the task's own declaration
+    /// sound here: this can only INTERSECT with the boot allowlist, never widen it. A task that
+    /// lies about its provider restricts itself and reaches nothing new — so the authorization
+    /// still comes from the node's declaration, and only the SELECTION comes from the task.
+    ///
+    /// `None` is the un-narrowed state: a dispatch that declared no provider, or a host wired
+    /// without the runner that sets this, behaves exactly as it did before.
+    ///
+    /// Single-threaded by construction rather than by lock: a plugin's invocations are served by
+    /// one task that owns the handle and calls the guest one at a time.
+    pub(crate) task_provider: Option<String>,
+    /// The ACCOUNT this invocation declared, by opaque credential id (ISS-145).
+    ///
+    /// `task_provider` bounds WHERE a task may send; this bounds WHICH SEAT pays. They are
+    /// different questions and one provider can hold two seats — the operator's Copilot pair have
+    /// different endpoints and different entitlements, and a workspace binding that named one
+    /// could not be honoured while the host read a single env var per provider.
+    pub(crate) task_credential_id: Option<String>,
     /// The expected model ROUTE (provider + base-url + path) guardrail, resolved
     /// from the routing env vars (MODEL_PROVIDER / MODEL_BASE_URL)
     /// ONCE at boot. Read per model POST to validate the guest's requested route —
@@ -140,6 +165,17 @@ pub struct TractorNativeBindings {
     /// `None` for test-constructed bindings / hosts wired without a registry — those
     /// paths keep the pre-registry behavior (empty tool list, `get_plugin_api` NotFound).
     pub(crate) cross_plugin: Option<crate::host::wasi_bridge::CrossPluginAccess>,
+    /// The SHARED connection registry — ONE per host process, never one per plugin
+    /// instance. A connection (e.g. `serpro-vpn`) is a resource several plugins
+    /// legitimately want at once, and each establish is a phone-approval push for
+    /// the operator; sharing is the entire point (see `host-connection` in
+    /// `packages/plugin-wit/wit/host.wit`). `PluginHost` owns the single
+    /// `Arc<ConnectionRegistry>` (beside `engine`/`linker`) and clones this SAME
+    /// `Arc` into every `TractorNativeBindings` at load — constructing a fresh
+    /// registry here instead would silently give each plugin its own "shared"
+    /// connection, one login apiece.
+    pub(crate) connection_registry:
+        std::sync::Arc<crate::host::host_effects_bridge::ConnectionRegistry>,
 }
 
 /// A plugin's capability grant for the `request-permission` host export.
@@ -273,6 +309,16 @@ mod get_identity_tests {
 }
 
 impl TractorNativeBindings {
+    /// The credential this invocation declared, read fresh from the env map.
+    ///
+    /// Resolved per call rather than cached: the CLI rewrites the map when a credential is renewed,
+    /// and a cached copy would keep spending a token the node has already replaced.
+    fn task_account(&self) -> Option<AccountCredential> {
+        account_credential_from_env(self.task_credential_id.as_deref()?)
+    }
+}
+
+impl TractorNativeBindings {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         plugin_id: impl Into<String>,
@@ -284,6 +330,7 @@ impl TractorNativeBindings {
         permission_grant: PermissionGrant,
         trusted_plugins: Option<std::collections::HashSet<String>>,
         cross_plugin: Option<CrossPluginAccess>,
+        connection_registry: std::sync::Arc<crate::host::host_effects_bridge::ConnectionRegistry>,
     ) -> Self {
         Self {
             plugin_id: plugin_id.into(),
@@ -295,9 +342,13 @@ impl TractorNativeBindings {
             // Resolved once here at load (not per-request) from the same env the guest's
             // profile resolver reads, so host and guest agree on the configured set.
             configured_routes: ModelRoute::configured_routes_from_env(),
+            // Nothing is running yet, so nothing is narrowed yet.
+            task_provider: None,
+            task_credential_id: None,
             permission_grant,
             trusted_plugins,
             cross_plugin,
+            connection_registry,
         }
     }
 }
@@ -356,21 +407,41 @@ impl TractorBridgeHost for TractorNativeBindings {
         }
     }
 
-    /// Query nodes by @type, returning up to `limit` results.
+    /// Query nodes by @type, returning up to `limit` results, NEWEST FIRST, plus the
+    /// facts a guest needs to know whether that was everything.
+    ///
+    /// The limit is applied in SQL rather than by slicing here. Before 2026-08-06 this
+    /// loaded every row of the type and dropped all but `limit`, which was affordable at
+    /// 29 records and is not at 29,000. The ordering guarantee it relies on is documented
+    /// in `docs/SOVEREIGN_RECORD_ORDERING.md`.
+    ///
+    /// `stored` (via `count_nodes`, a `SELECT COUNT(*)` that never materialises the rows
+    /// it counts) is the true total of this `@type`, independent of `limit`. `truncated`
+    /// is derived from `stored` versus how many rows `nodes` actually carries — NOT from
+    /// `limit` — so a caller passing a limit larger than the total still gets
+    /// `truncated: false`. Before 2026-08-06 the WIT signature returned a bare
+    /// `list<json-ld-node>`, so a guest receiving exactly `limit` rows had no way to tell
+    /// a complete answer from a cut one.
     async fn query_nodes(
         &mut self,
         node_type: String,
         limit: u32,
-    ) -> Result<Vec<String>, PluginError> {
-        self.sync
-            .query_nodes(&node_type)
-            .map_err(|e| PluginError::Internal(e.to_string()))
-            .map(|rows| {
-                rows.into_iter()
-                    .take(limit as usize)
-                    .map(|r| r.payload)
-                    .collect()
-            })
+    ) -> Result<NodePage, PluginError> {
+        let rows = self
+            .sync
+            .query_nodes_limited(&node_type, limit as usize)
+            .map_err(|e| PluginError::Internal(e.to_string()))?;
+        let stored = self
+            .sync
+            .count_nodes(&node_type)
+            .map_err(|e| PluginError::Internal(e.to_string()))?;
+        let nodes: Vec<String> = rows.into_iter().map(|r| r.payload).collect();
+        let truncated = stored > nodes.len();
+        Ok(NodePage {
+            nodes,
+            stored: stored as u32,
+            truncated,
+        })
     }
 
     /// Decide whether the plugin may use `capability`. The WIT names this a
@@ -529,6 +600,8 @@ impl ModelBridgeHost for TractorNativeBindings {
             &path,
             &headers,
             &body,
+            self.task_provider.as_deref(),
+            self.task_account().as_ref(),
             &self.model_route,
             self.fallback_route.as_ref(),
             &self.configured_routes,
@@ -556,6 +629,8 @@ impl ModelBridgeHost for TractorNativeBindings {
             &path,
             &headers,
             &body,
+            self.task_provider.as_deref(),
+            self.task_account().as_ref(),
             &self.model_route,
             self.fallback_route.as_ref(),
             &self.configured_routes,
@@ -648,12 +723,23 @@ fn model_complete_http(
     path: &str,
     headers: &[(String, String)],
     body: &[u8],
+    task_provider: Option<&str>,
+    task_account: Option<&AccountCredential>,
     expected: &ModelRoute,
     fallback: Option<&ModelRoute>,
     configured: &[ModelRoute],
 ) -> Result<Vec<u8>, String> {
     let resp = send_model_http_post(
-        provider, base_url, path, headers, body, expected, fallback, configured,
+        provider,
+        base_url,
+        path,
+        headers,
+        body,
+        task_provider,
+        task_account,
+        expected,
+        fallback,
+        configured,
     )?;
     read_response_bytes(resp)
 }
@@ -664,14 +750,68 @@ fn model_complete_http(
 /// primary error is returned unchanged, so an unset MODEL_FALLBACK_PROVIDER behaves
 /// byte-identically to a single-route host. On a fallback mismatch the primary
 /// error surfaces (chosen to keep the no-fallback path's error string identical).
-fn enforce_model_route_any(
+/// PURE. The routes admitted for THIS invocation, given what the task declared.
+///
+/// ISS-140 tier B. `None` leaves the set exactly as the node authorised it — the un-narrowed
+/// behaviour, byte for byte. A declared provider INTERSECTS: only routes for that provider survive,
+/// which can shrink the set to empty and can never add to it.
+///
+/// EMPTY IS A REFUSAL, not a fallthrough. A task that declares a provider the node never authorised
+/// must be refused rather than quietly served by the primary route — that silent substitution is
+/// the whole defect: a workspace bound to one account having its work sent to another while the
+/// budget record named the first.
+pub(crate) fn routes_for_task<'a>(
+    task_provider: Option<&str>,
+    primary: &'a ModelRoute,
+    fallback: Option<&'a ModelRoute>,
+    configured: &'a [ModelRoute],
+) -> Vec<&'a ModelRoute> {
+    let all: Vec<&ModelRoute> = std::iter::once(primary)
+        .chain(fallback)
+        .chain(configured.iter())
+        .collect();
+    let Some(wanted) = task_provider else {
+        return all;
+    };
+    let wanted = normalize_provider_name(wanted);
+    all.into_iter()
+        .filter(|route| normalize_provider_name(&route.provider) == wanted)
+        .collect()
+}
+
+/// The route guardrail, with the task's narrowing applied when it declared one.
+///
+/// ONE ENTRY POINT. A `_any` wrapper that passed `None` lived here until every caller moved to this
+/// form and left it reachable only from tests — a second door into one rule, which is exactly the
+/// shape that lets two places drift. Callers and tests both pass `None` explicitly, and that reads
+/// as what it is: no narrowing.
+#[allow(clippy::too_many_arguments)]
+fn enforce_model_route_for_task(
     provider: &str,
     base_url: &str,
     path: &str,
+    task_provider: Option<&str>,
     primary: &ModelRoute,
     fallback: Option<&ModelRoute>,
     configured: &[ModelRoute],
 ) -> Result<(), String> {
+    if let Some(wanted) = task_provider {
+        let admitted = routes_for_task(Some(wanted), primary, fallback, configured);
+        if admitted.is_empty() {
+            return Err(format!(
+                "[blocked: model-bridge task declared provider '{}', which this node did not authorise]",
+                normalize_provider_name(wanted)
+            ));
+        }
+        let mut last = String::new();
+        for route in &admitted {
+            match enforce_model_route(provider, base_url, path, route) {
+                Ok(()) => return Ok(()),
+                Err(err) => last = err,
+            }
+        }
+        return Err(last);
+    }
     match enforce_model_route(provider, base_url, path, primary) {
         Ok(()) => Ok(()),
         Err(primary_err) => {
@@ -679,17 +819,38 @@ fn enforce_model_route_any(
             // route a profile may have selected. The PRIMARY error is what surfaces if
             // none match — so an unset fallback + empty configured list is byte-identical
             // to the single-route host, and the error string is unchanged.
+            let mut nearest: Option<String> = None;
+            let requested_provider = normalize_provider_name(provider);
+            let mut consider = |route: &ModelRoute| -> Option<()> {
+                match enforce_model_route(provider, base_url, path, route) {
+                    Ok(()) => Some(()),
+                    Err(err) => {
+                        // THE NEAREST ROUTE'S COMPLAINT, not always the primary's. When a route was
+                        // admitted for this very provider and refused the base url or the path, the
+                        // primary's "provider mismatch" names a question nobody asked — measured
+                        // 2026-08-17, where a Copilot request refused for its PATH was reported as
+                        // requesting a provider the host did not expect, and the reading cost a
+                        // debugging cycle before the real difference was found.
+                        if nearest.is_none()
+                            && normalize_provider_name(&route.provider) == requested_provider
+                        {
+                            nearest = Some(err);
+                        }
+                        None
+                    }
+                }
+            };
             if let Some(fb) = fallback {
-                if enforce_model_route(provider, base_url, path, fb).is_ok() {
+                if consider(fb).is_some() {
                     return Ok(());
                 }
             }
             for route in configured {
-                if enforce_model_route(provider, base_url, path, route).is_ok() {
+                if consider(route).is_some() {
                     return Ok(());
                 }
             }
-            Err(primary_err)
+            Err(nearest.unwrap_or(primary_err))
         }
     }
 }
@@ -703,11 +864,36 @@ fn send_model_http_post(
     path: &str,
     headers: &[(String, String)],
     body: &[u8],
+    task_provider: Option<&str>,
+    task_account: Option<&AccountCredential>,
     expected: &ModelRoute,
     fallback: Option<&ModelRoute>,
     configured: &[ModelRoute],
 ) -> Result<ureq::Response, String> {
-    enforce_model_route_any(provider, base_url, path, expected, fallback, configured)?;
+    // THE ACCOUNT'S OWN ENDPOINT IS AN ADMITTED ROUTE (ISS-145). Two seats of one provider can
+    // announce different hosts — the operator's Copilot pair do — so a task bound to the seat that
+    // is NOT the provisioned default would otherwise be refused for a base url the node genuinely
+    // authorised, just not under that provider's single entry.
+    let account_route = task_account.and_then(|account| {
+        account.base_url.as_ref().map(|url| ModelRoute {
+            provider: normalize_provider_name(provider),
+            base_url: url.clone(),
+            path: known_provider_api_path(provider).to_string(),
+        })
+    });
+    let mut admitted: Vec<ModelRoute> = configured.to_vec();
+    if let Some(route) = account_route {
+        admitted.push(route);
+    }
+    enforce_model_route_for_task(
+        provider,
+        base_url,
+        path,
+        task_provider,
+        expected,
+        fallback,
+        &admitted,
+    )?;
     enforce_model_request_body(body)?;
     let provider = normalize_provider_name(provider);
 
@@ -718,18 +904,36 @@ fn send_model_http_post(
         req = req.set(name, value);
     }
 
+    // THE SEAT THE TASK DECLARED, before the provider-wide variable. One env var per provider is
+    // what made two accounts of one provider mutually exclusive; a task that named its account
+    // spends THAT account, and one that named none keeps the previous behaviour exactly.
+    let task_bearer = task_account.map(|account| format!("Bearer {}", account.access));
     if use_anthropic_auth(&provider) {
         let key = anthropic_api_key_from_env()?;
         req = req.set("x-api-key", &key);
     } else if use_openai_codex_auth(&provider) {
-        let Some(header) = bearer_key_for_provider(&provider)? else {
-            return Err("OPENAI_CODEX_ACCESS_TOKEN not set".to_string());
+        let header = match task_bearer.clone() {
+            Some(bearer) => bearer,
+            None => bearer_key_for_provider(&provider)?
+                .ok_or_else(|| "OPENAI_CODEX_ACCESS_TOKEN not set".to_string())?,
         };
-        let account_id = openai_codex_account_id_from_env()?;
+        let account_id = match task_account.and_then(|a| a.account_id.clone()) {
+            Some(id) => id,
+            None => openai_codex_account_id_from_env()?,
+        };
         for (name, value) in openai_codex_auth_headers(&header, &account_id, &codex_request_id()) {
             req = req.set(name, &value);
         }
-    } else if let Some(header) = bearer_key_for_provider(&provider)? {
+    } else if use_github_copilot_auth(&provider) {
+        let header = match task_bearer.clone() {
+            Some(bearer) => bearer,
+            None => bearer_key_for_provider(&provider)?
+                .ok_or_else(|| "GITHUB_COPILOT_ACCESS_TOKEN not set".to_string())?,
+        };
+        for (name, value) in github_copilot_auth_headers(&header, &codex_request_id()) {
+            req = req.set(name, &value);
+        }
+    } else if let Some(header) = task_bearer.or(bearer_key_for_provider(&provider)?) {
         req = req.set("authorization", &header);
     }
 
@@ -760,8 +964,127 @@ fn use_anthropic_auth(provider: &str) -> bool {
     provider.trim().eq_ignore_ascii_case("anthropic")
 }
 
+/// PURE. One account's credential from the `MODEL_ACCOUNT_CREDENTIALS` map.
+///
+/// ## Why a per-ACCOUNT map exists at all
+///
+/// The host reads ONE credential env var per provider (`bearer_key_for_provider`), so two
+/// authorised accounts of one provider could never both be provisioned — measured on the
+/// operator's node, which holds a personal and a corporate Copilot seat with DIFFERENT endpoints
+/// (`api.individual.` and `api.business.`). Until this existed, `provisionableAccounts` had to
+/// refuse the pair and make him authorise one, and the workspace binding could name a seat the
+/// host had no way to spend.
+///
+/// Keyed by the OPAQUE credential id, which is what the task already declares and what the budget
+/// record already stamps — so the account that pays, the account that was bound, and the account
+/// the record names are one id rather than three inferences.
+///
+/// NEVER REACHES THE GUEST: the key is refused by name in `sensitive_aliases::policy`, pinned by a
+/// test there. The host reads it at send time and the guest holds a bridge handle.
+pub(crate) fn parse_account_credential(
+    raw: &str,
+    credential_id: &str,
+) -> Option<AccountCredential> {
+    let parsed: serde_json::Value = serde_json::from_str(raw).ok()?;
+    let entry = parsed.get(credential_id)?;
+    let access = entry.get("access")?.as_str()?.trim();
+    if access.is_empty() {
+        return None;
+    }
+    let field = |name: &str| {
+        entry
+            .get(name)
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(str::to_owned)
+    };
+    Some(AccountCredential {
+        access: access.to_string(),
+        account_id: field("accountId"),
+        base_url: field("baseUrl"),
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct AccountCredential {
+    pub(crate) access: String,
+    pub(crate) account_id: Option<String>,
+    /// The endpoint THIS account announces, when it announces one. Per-account rather than
+    /// per-provider because Copilot's token exchange returns a different host per seat.
+    pub(crate) base_url: Option<String>,
+}
+
+/// The ENDPOINT half of a seat's credential, for callers that must not touch the token.
+///
+/// The sidecar needs the endpoint to tell the guest where to send; it has no business holding the
+/// key. Two functions rather than one return value: a caller that only needs the address cannot
+/// accidentally carry the secret with it.
+pub(crate) fn account_base_url_from_env(credential_id: &str) -> Option<String> {
+    account_credential_from_env(credential_id)?.base_url
+}
+
+/// The env var naming a FILE that holds the same map. Set, it wins.
+///
+/// MEASURED 2026-08-19: a credential handed to this process at spawn goes stale about a day later,
+/// and every dispatch then fails with `token expired` until the node is restarted. The read below
+/// already happens per call — what was missing was a source anything could rewrite. A process
+/// cannot have its own environment updated from outside; a file it re-reads can.
+///
+/// The path is expected to end in `.token`, which the sovereign layout already classifies as a
+/// secret: it is never carried into a backup bundle, and that rule is inherited rather than
+/// restated here.
+pub(crate) const MODEL_ACCOUNT_CREDENTIALS_PATH_ENV: &str = "MODEL_ACCOUNT_CREDENTIALS_PATH";
+
+/// PURE. The raw credential map, from the file when one is declared, else from the environment.
+///
+/// A declared path that cannot be read falls back to the environment rather than failing: the
+/// env copy is stale, not wrong, and refusing every dispatch because a file went missing is worse
+/// than serving the credential the process already had.
+fn account_credentials_raw(env_path: Option<String>, env_inline: Option<String>) -> Option<String> {
+    if let Some(path) = env_path.map(|p| p.trim().to_string()).filter(|p| !p.is_empty()) {
+        if let Ok(contents) = std::fs::read_to_string(&path) {
+            let contents = contents.trim().to_string();
+            if !contents.is_empty() {
+                return Some(contents);
+            }
+        }
+    }
+    env_inline
+}
+
+fn account_credential_from_env(credential_id: &str) -> Option<AccountCredential> {
+    let raw = account_credentials_raw(
+        std::env::var(MODEL_ACCOUNT_CREDENTIALS_PATH_ENV).ok(),
+        std::env::var("MODEL_ACCOUNT_CREDENTIALS").ok(),
+    )?;
+    parse_account_credential(&raw, credential_id)
+}
+
 fn use_openai_codex_auth(provider: &str) -> bool {
     provider.trim().eq_ignore_ascii_case("openai-codex")
+}
+
+fn use_github_copilot_auth(provider: &str) -> bool {
+    provider.trim().eq_ignore_ascii_case("github-copilot")
+}
+
+/// Copilot's editor-client headers.
+///
+/// DECLARED, NOT SMUGGLED. This node already announces that it reaches Copilot by imitating an
+/// editor client — `refarm credential list` prints that notice on every listing, and clearing
+/// `providers.githubCopilot.identity` stops it. The choice was made and printed; this is where it
+/// is carried out. Sending only `authorization` reaches the endpoint and is refused by it.
+fn github_copilot_auth_headers(bearer: &str, request_id: &str) -> Vec<(&'static str, String)> {
+    vec![
+        ("authorization", bearer.to_string()),
+        ("Copilot-Integration-Id", "vscode-chat".to_string()),
+        ("Editor-Version", "vscode/1.99.0".to_string()),
+        ("Editor-Plugin-Version", "copilot-chat/0.26.0".to_string()),
+        ("User-Agent", "GitHubCopilotChat/0.26.0".to_string()),
+        ("Openai-Intent", "conversation-panel".to_string()),
+        ("X-Request-Id", request_id.to_string()),
+    ]
 }
 
 // Registry of known providers that need no MODEL_BASE_URL to work.
@@ -783,6 +1106,9 @@ fn known_provider_base_url(provider: &str) -> Option<&'static str> {
 fn known_provider_api_path(provider: &str) -> &'static str {
     match provider.trim().to_ascii_lowercase().as_str() {
         "openai-codex" => "/backend-api/codex/responses",
+        // Copilot speaks the OpenAI chat shape at its own root; its BASE URL is per-account and
+        // arrives via MODEL_PROVIDER_BASE_URLS, never from a table here (ISS-141).
+        "github-copilot" => "/chat/completions",
         "groq"       => "/openai/v1/chat/completions",
         "openrouter" => "/api/v1/chat/completions",
         "gemini"     => "/v1beta/openai/chat/completions",
@@ -833,6 +1159,12 @@ fn bearer_key_for_provider(provider: &str) -> Result<Option<String>, String> {
 
     let primary_env_var = if use_openai_codex_auth(&normalized) {
         "OPENAI_CODEX_ACCESS_TOKEN".to_string()
+    } else if use_github_copilot_auth(&normalized) {
+        // NOT the derived `GITHUB_COPILOT_API_KEY`. The credential is a subscription token, the
+        // CLI exports it as `GITHUB_COPILOT_ACCESS_TOKEN` (`modelCredentialEnvKey`), and the
+        // derived name would have looked for a variable nothing writes — a provider configured
+        // everywhere and unreachable here.
+        "GITHUB_COPILOT_ACCESS_TOKEN".to_string()
     } else if is_openai_provider_family(&normalized) {
         "OPENAI_API_KEY".to_string()
     } else {
@@ -1001,7 +1333,19 @@ impl ModelRoute {
         }
 
         let path = known_provider_api_path(&provider).to_string();
-        let base_url = model_base_url_from_env().unwrap_or_else(|| {
+        // THE ACCOUNT'S OWN ENDPOINT FIRST. Some providers announce where to talk to them as part
+        // of issuing the credential — GitHub Copilot returns a different host per seat
+        // (`api.business.` vs `api.individual.`), measured on two real accounts 2026-08-17. A
+        // static table cannot hold that, and the GLOBAL `MODEL_BASE_URL` cannot either: setting it
+        // for one provider redirects every other provider's traffic with it.
+        //
+        // Order: the per-provider map, then the global override, then the static defaults. The map
+        // is narrower than the override and describes a fact about the credential rather than an
+        // operator's intent to redirect, so an operator who sets `MODEL_BASE_URL` deliberately is
+        // still the one being obeyed for providers the map says nothing about.
+        let base_url = provider_base_url_from_env(&provider)
+            .or_else(model_base_url_from_env)
+            .unwrap_or_else(|| {
             if let Some(url) = known_provider_base_url(&provider) {
                 url.to_string()
             } else if is_openai_provider_family(&provider) {
@@ -1100,6 +1444,39 @@ impl ModelRoute {
     }
 }
 
+/// PURE. One provider's endpoint from a `MODEL_PROVIDER_BASE_URLS` value.
+///
+/// FORMAT IS THE CONTRACT, shared with the CLI that writes it and the guest that reads it:
+/// `provider=url` pairs joined by `,`, no whitespace, ASCII. A pair this cannot read is DROPPED
+/// rather than guessed, which is what keeps host and guest able only to agree or both fall back —
+/// never to disagree about where a request is allowed to go.
+pub(crate) fn parse_provider_base_url(raw: &str, provider: &str) -> Option<String> {
+    let wanted = provider.trim().to_ascii_lowercase();
+    for pair in raw.split(',') {
+        let (name, url) = pair.split_once('=')?;
+        let name = name.trim().to_ascii_lowercase();
+        let url = url.trim();
+        if name != wanted || url.is_empty() {
+            continue;
+        }
+        // Same shape the guardrail below will demand of it anyway; rejecting here keeps a
+        // malformed entry from becoming an accepted route.
+        if !url.starts_with("http://") && !url.starts_with("https://") {
+            return None;
+        }
+        if !url.is_ascii() || url.chars().any(|c| c.is_whitespace() || c.is_control()) {
+            return None;
+        }
+        return Some(url.to_string());
+    }
+    None
+}
+
+fn provider_base_url_from_env(provider: &str) -> Option<String> {
+    let raw = std::env::var("MODEL_PROVIDER_BASE_URLS").ok()?;
+    parse_provider_base_url(&raw, provider)
+}
+
 fn model_base_url_from_env() -> Option<String> {
     let value = std::env::var("MODEL_BASE_URL").ok()?;
     let trimmed = value.trim();
@@ -1172,7 +1549,13 @@ fn enforce_model_route(
     let requested_base = normalize_base_url(base_url)?;
     let expected_base = normalize_base_url(&expected.base_url)?;
     if requested_base != expected_base {
-        return Err("[blocked: model-bridge base_url not allowed]".to_string());
+        // BOTH VALUES, because the difference is the diagnosis and the operator cannot see either.
+        // Measured 2026-08-17: this refused a Copilot request and named neither host, so the search
+        // went to the allowlist while the difference was one seat's endpoint against another's.
+        // These are addresses, not credentials — nothing here is secret.
+        return Err(format!(
+            "[blocked: model-bridge base_url not allowed: requested '{requested_base}', expected '{expected_base}']"
+        ));
     }
 
     let requested_path = normalize_path(path);

@@ -24,6 +24,7 @@ export function isOrganizableSourceFile(filePath) {
 	return !normalized.split("/").some((segment) => GENERATED_SEGMENTS.has(segment));
 }
 
+// os-resolution: project — resolves source files against the repository being organized
 export function uniqueSourceFiles(files, root = process.cwd()) {
 	const seen = new Set();
 	const selected = [];
@@ -38,11 +39,13 @@ export function uniqueSourceFiles(files, root = process.cwd()) {
 	return selected.sort();
 }
 
+// os-resolution: project — asks git which files changed in the repository being organized
 export function changedSourceFiles(root = process.cwd()) {
 	return changedSourceFilesFromGit(root);
 }
 
 export function changedSourceFilesFromGit(
+	// os-resolution: project — asks git which files changed in the repository being organized
 	root = process.cwd(),
 	git = { execFileSync, existsSync: fs.existsSync },
 ) {
@@ -67,6 +70,7 @@ export function changedSourceFilesFromGit(
 	);
 }
 
+// os-resolution: project — resolves one file against the repository being organized
 export function organizeImportText(fileName, text, root = process.cwd()) {
 	const absolute = path.resolve(root, fileName);
 	let currentText = text;
@@ -80,6 +84,7 @@ export function organizeImportText(fileName, text, root = process.cwd()) {
 	return normalizeMultilineNamedBindingIndent(currentText);
 }
 
+// os-resolution: project — resolves the file set against the repository being organized
 export function organizeImports(files, { root = process.cwd(), check = false } = {}) {
 	const changed = [];
 	const entries = [];

@@ -1,0 +1,43 @@
+{
+	"name": "@refarm.dev/task-recurrence",
+	"version": "0.1.0",
+	"private": false,
+	"description": "Generic recurring-task expansion — a schedule reference + text template → a task:v1 create-input. No vendor vocabulary.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run src/recurrence.test.ts",
+		"test:conformance": "vitest run src/recurrence.test.ts",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@refarm.dev/task-contract-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.tsbuildinfo",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"license": "MIT"
+}

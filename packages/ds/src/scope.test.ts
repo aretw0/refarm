@@ -21,6 +21,7 @@ describe("token scope discipline", () => {
 		const css = read("./components.css");
 		expect(css).toContain(".ds-card");
 		expect(css).toContain(".ds-btn");
+		expect(css).toMatch(/\.ds-grid\s*\{[^}]*gap:\s*1rem/s);
 		expect(/#[0-9a-fA-F]{3,8}\b/.test(css)).toBe(false);
 	});
 

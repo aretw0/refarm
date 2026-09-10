@@ -8,7 +8,7 @@ consumer repository into a Refarm implementation detail.
 | Class | Examples | Refarm may write? | Purpose |
 | --- | --- | ---: | --- |
 | Refarm core | this monorepo | Yes | Own shared primitives, CLI contracts, runtime behavior, and docs. |
-| Writable consumer | `agents-lab`, `vault-seed` | Only when explicitly scoped | Prove that primitives work outside Refarm and keep repo-local policy there. |
+| Writable consumer | `agents-lab`, `vault-seed`, `coop-vault`, `enem`, `arch-engine` | Only when explicitly scoped | Prove that primitives work outside Refarm and keep repo-local policy there. `arch-engine` is the first non-JavaScript producer: it emits `quality:v1`, `artifact:v1` and `provenance:v1` from Python and proves them with the real tarballs (`.refarm/handoff/vault-seed/2026-08-30/receipts/*.arch-engine.json`); it pulled `provenance-contract-v1` into the lane and `validateQualityReport` into `quality-contract-v1`. |
 | Read-only evidence vault | work mirrors, submission drafts, archived repos | No | Provide requirements, examples, and failure evidence for Refarm primitives. |
 
 Read-only evidence must not receive `.refarm/config.json`, generated reports,

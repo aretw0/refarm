@@ -100,6 +100,15 @@ describe("active session pointer helpers", () => {
 	it("reports whether clearing the active session lock succeeded", () => {
 		const unlinkSpy = vi.spyOn(fs, "unlinkSync");
 		const readSpy = vi.spyOn(fs, "readFileSync");
+		// When both unlink attempts below report ENOENT, clearActiveSessionId() falls
+		// through to its write-empty-marker fallback (writeWithFallback -> mkdirSync +
+		// writeFileSync). Without these two mocked, that fallback hit the REAL fs — this
+		// was the actual, empirically-confirmed writer that put a 0-byte session.lock
+		// under a real operator's ~/.refarm before this suite sandboxed HOME (see
+		// vitest.setup.ts). It never surfaced as a test failure because a no-op write
+		// still returns successfully either way.
+		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
+		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
 		unlinkSpy.mockImplementationOnce(() => undefined);
 		readSpy.mockImplementationOnce(() => {
 			throw new Error("missing");

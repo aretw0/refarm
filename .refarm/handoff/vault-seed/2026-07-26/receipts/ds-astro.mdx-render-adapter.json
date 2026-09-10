@@ -1,0 +1,14 @@
+{
+  "proofId": "ds-astro.mdx-render-adapter",
+  "packageName": "@refarm.dev/ds-astro",
+  "consumer": "vault-seed",
+  "consumerCommit": "5aa0869662cddff7783c63dc4c8628ef42984b4a",
+  "consumerDirty": false,
+  "manifestSha256": "5da8e0171e83818e2cd2881a52f28996a522d8e9dcd9f1ba5f46ae49679b8acd",
+  "generatedAt": "2026-08-23T01:18:31.224Z",
+  "commands": [
+    "node node_modules/vitest/vitest.mjs --config ./vitest.config.mjs --configLoader runner run scripts/refarm_ds_astro_consumer_contract.test.mjs"
+  ],
+  "result": "pass",
+  "proofTarget": "vault-seed can replace local dgk/vault/astro block packages with @refarm.dev/ds-astro imports while keeping product-specific MDX copy and route semantics downstream"
+}

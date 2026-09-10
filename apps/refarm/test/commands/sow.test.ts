@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
 	mockSaveTokens,
+	mockSaveSecret,
 	mockLoadTokens,
 	mockOperatorAsk,
 	mockGithubCollect,
@@ -9,6 +10,7 @@ const {
 	mockModelCollect,
 } = vi.hoisted(() => ({
 	mockSaveTokens: vi.fn().mockResolvedValue({}),
+	mockSaveSecret: vi.fn().mockResolvedValue({}),
 	mockLoadTokens: vi.fn().mockResolvedValue({}),
 	mockOperatorAsk: vi.fn().mockResolvedValue("my-org"),
 	mockGithubCollect: vi.fn().mockResolvedValue("gho_test_github"),
@@ -52,7 +54,7 @@ vi.mock("../../src/credentials/index.js", () => ({
 
 vi.mock("@refarm.dev/silo", () => ({
 	SiloCore: vi.fn().mockImplementation(function () {
-		return { saveTokens: mockSaveTokens, loadTokens: mockLoadTokens };
+		return { saveTokens: mockSaveTokens, loadTokens: mockLoadTokens, saveSecret: mockSaveSecret };
 	}),
 }));
 
@@ -103,18 +105,20 @@ describe("sowCommand — default (no flags)", () => {
 
 		await sowCommand.parseAsync([], { from: "user" });
 
+		// THE SECRET NO LONGER TOUCHES THE TOKEN MAP. It goes to the silo's `model` namespace under
+		// an opaque credential id, which is what lets a second account of one provider exist. The
+		// token map keeps only the DECISIONS — which provider is active — and those are not secret.
 		expect(mockSaveTokens).toHaveBeenCalledWith(
 			expect.objectContaining({
 				modelProvider: "openai-codex",
 				oauthProvider: "openai-codex",
-				oauthCredentials: {
-					"openai-codex": expect.objectContaining({
-						access: "oauth-access-test",
-						refresh: "oauth-refresh-test",
-						accountId: "chatgpt-account-test",
-					}),
-				},
 			}),
+		);
+		expect(JSON.stringify(mockSaveTokens.mock.calls)).not.toContain("oauth-access-test");
+		expect(mockSaveSecret).toHaveBeenCalledWith(
+			"model",
+			expect.stringMatching(/^model-account:/u),
+			expect.stringContaining("oauth-access-test"),
 		);
 	});
 
@@ -388,6 +392,174 @@ describe("sowCommand — default (no flags)", () => {
 		expect(mockSaveTokens).not.toHaveBeenCalled();
 	});
 
+	/**
+	 * AN EXPIRED CREDENTIAL IS NOT A CONFIGURED ONE (ISS-121).
+	 *
+	 * Measured on the operator's node 2026-08-12: the `openai-codex` OAuth token had expired five
+	 * days earlier and `refarm sow` reported "Model: already configured — skipped". The single
+	 * command an operator runs to fix their login declined to do anything, because the check asked
+	 * whether a credential was PRESENT.
+	 */
+	it("re-authenticates when the stored OAuth credential has EXPIRED", async () => {
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "openai-codex",
+			oauthProvider: "openai-codex",
+			oauthCredentials: { "openai-codex": { expires: Date.now() - 5 * 86_400_000 } },
+		});
+		await sowCommand.parseAsync([], { from: "user" });
+		expect(mockModelCollect).toHaveBeenCalled();
+	});
+
+	it("says WHY it is asking again, rather than re-prompting without explanation", async () => {
+		// Two different facts land on the same prompt — never configured, and configured-then-died.
+		// An operator who is asked to log in again without being told which is being told nothing.
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "openai-codex",
+			oauthProvider: "openai-codex",
+			oauthCredentials: { "openai-codex": { expires: Date.now() - 5 * 86_400_000 } },
+		});
+		await sowCommand.parseAsync([], { from: "user" });
+		const output = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
+		expect(output).toContain("EXPIRED");
+		logSpy.mockRestore();
+	});
+
+	it("leaves a LIVE OAuth credential alone", async () => {
+		// The other side of the boundary. A wizard that re-prompted for a healthy credential would
+		// have traded a silent skip for a standing nag.
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "openai-codex",
+			oauthProvider: "openai-codex",
+			oauthCredentials: { "openai-codex": { expires: Date.now() + 86_400_000 } },
+		});
+		await sowCommand.parseAsync([], { from: "user" });
+		expect(mockModelCollect).not.toHaveBeenCalled();
+	});
+
+	it("does not re-prompt a keyed provider that records no expiry at all", async () => {
+		// `unknown` is the third state and it must not collapse into `expired`. An API-key provider
+		// carries no `expires`; treating that absence as a failure would re-prompt on every run.
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "anthropic",
+			modelApiKey: "sk-ant-existing",
+		});
+		await sowCommand.parseAsync([], { from: "user" });
+		expect(mockModelCollect).not.toHaveBeenCalled();
+	});
+
+	it("does NOT claim a live credential is about to be destroyed, because it is not", async () => {
+		// This asserted the opposite until 2026-08-14, and the warning it pinned was wrong TWICE.
+		// It was written for one slot per provider, where authenticating destroyed what was there;
+		// the write is now keyed by account and only retires the legacy entry of the SAME provider.
+		// And it read `stored.modelProvider` — the ACTIVE provider — not the one being logged into,
+		// so adding github-copilot told the operator his working openai-codex credential was about
+		// to be destroyed. Neither half was true.
+		//
+		// A false warning on a safe operation is worse than no warning: it teaches the operator to
+		// abort. What actually happens is reported after the write, counted from the catalog.
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "openai-codex",
+			oauthProvider: "openai-codex",
+			oauthCredentials: { "openai-codex": { expires: Date.now() + 86_400_000 } },
+		});
+		await sowCommand.parseAsync(["--reconfigure"], { from: "user" });
+		const output = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
+		expect(output).not.toContain("cannot be recovered");
+		expect(output).not.toMatch(/replaces the LIVE/u);
+		logSpy.mockRestore();
+	});
+
+	it("does NOT warn when replacing an already-expired credential", async () => {
+		// Replacing something that authenticates nothing costs nothing, and a warning there would
+		// be noise on the exact path today's expiry fix exists to make frictionless.
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "openai-codex",
+			oauthProvider: "openai-codex",
+			oauthCredentials: { "openai-codex": { expires: Date.now() - 86_400_000 } },
+		});
+		await sowCommand.parseAsync([], { from: "user" });
+		const output = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
+		expect(output).not.toContain("cannot be recovered");
+		expect(output).toContain("EXPIRED");
+		logSpy.mockRestore();
+	});
+
+	/**
+	 * `--model-provider` skips the picker. Named for the MODEL axis because `sow` already selects
+	 * among credential providers (`--github`, `--cloudflare`), and the bare `--provider` is left
+	 * unclaimed so a future Telegram or SSO credential can have it without a breaking change.
+	 */
+	describe("--model-provider", () => {
+		it("goes straight to the named provider, without asking", async () => {
+			// The operator's ask: log into openai-codex without walking the menu.
+			mockLoadTokens.mockResolvedValue({});
+			await sowCommand.parseAsync(["--model-provider", "openai-codex"], { from: "user" });
+			expect(mockModelCollect).toHaveBeenCalledWith(
+				expect.anything(),
+				expect.objectContaining({ modelProvider: "openai-codex" }),
+			);
+		});
+
+		it("overrides 'already configured', because naming a provider is an instruction", async () => {
+			// Without this the flag would be silently ignored on a node that already has a working
+			// credential — an instruction read as a question, which is the defect two commits back.
+			mockLoadTokens.mockResolvedValue({
+				modelProvider: "anthropic",
+				modelApiKey: "sk-ant-existing",
+			});
+			await sowCommand.parseAsync(["--model-provider", "openai-codex"], { from: "user" });
+			expect(mockModelCollect).toHaveBeenCalled();
+		});
+
+		it("ACCEPTS github-copilot, whose login exists as of 2026-08-14", async () => {
+			// This test used to pin the opposite: copilot was the operator's corporate quota with no
+			// login built (ISS-122), and `sow` refused it. The adapter now exists under refarm's own
+			// OAuth App, so the refusal would be a lie. The `no-credential-flow` STATE is still
+			// covered, against a synthetic inventory, in model-provider-selection.test.ts.
+			mockLoadTokens.mockResolvedValue({});
+			await sowCommand.parseAsync(["--model-provider", "github-copilot"], { from: "user" });
+			expect(mockModelCollect).toHaveBeenCalled();
+		});
+
+		it("still refuses a provider it does not know at all, WITHOUT touching the silo", async () => {
+			// The refusal-before-any-write guarantee this file has always asserted, now carried by the
+			// case that is still true: a typo is not a provider.
+			const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+			mockLoadTokens.mockResolvedValue({});
+			await sowCommand.parseAsync(["--model-provider", "githbu-copilot"], { from: "user" });
+			expect(mockModelCollect).not.toHaveBeenCalled();
+			expect(mockSaveTokens).not.toHaveBeenCalled();
+			expect(process.exitCode).toBe(1);
+			errSpy.mockRestore();
+			process.exitCode = 0;
+		});
+
+		it("refuses an ambiguous provider rather than choosing a billing path", async () => {
+			const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+			mockLoadTokens.mockResolvedValue({});
+			await sowCommand.parseAsync(["--model-provider", "anthropic"], { from: "user" });
+			expect(mockModelCollect).not.toHaveBeenCalled();
+			expect(errSpy.mock.calls.map((c) => String(c[0])).join("\n")).toContain("anthropic:subscription");
+			errSpy.mockRestore();
+			process.exitCode = 0;
+		});
+
+		it("names the valid values for a typo, as JSON when asked", async () => {
+			const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+			mockLoadTokens.mockResolvedValue({});
+			await sowCommand.parseAsync(["--model-provider", "opnai", "--json"], { from: "user" });
+			const payload = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+			expect(payload.ok).toBe(false);
+			expect(payload.error).toBe("unusable-model-provider");
+			expect(payload.message).toContain("openai");
+			logSpy.mockRestore();
+			process.exitCode = 0;
+		});
+	});
+
 	it("reconfigures model credentials when --reconfigure is explicit", async () => {
 		mockLoadTokens.mockResolvedValue({
 			modelProvider: "anthropic",
@@ -467,8 +639,8 @@ describe("sowCommand — default (no flags)", () => {
 		sowCommand.outputHelp();
 
 		expect(help).toContain("The Refarm runtime reloads Silo credentials");
-		expect(help).toContain("refarm sow --model openai/gpt-5.5");
-		expect(help).toContain("refarm sow --model openai/gpt-5.5 --json");
+		expect(help).toContain("refarm sow --model openai/gpt-5.6-sol");
+		expect(help).toContain("refarm sow --model openai/gpt-5.6-sol --json");
 		expect(help).toContain("--json is non-interactive");
 		expect(help).toContain(
 			"nextAction describes any manual login/configuration",
@@ -550,13 +722,16 @@ describe("sowCommand — --all flag", () => {
 			{ from: "user" },
 		);
 
+		// Decisions only, in the token map. The credential itself went to the namespaced store.
 		expect(mockSaveTokens).toHaveBeenNthCalledWith(1, {
 			modelProvider: "anthropic",
 			oauthProvider: "anthropic",
-			oauthCredentials: {
-				anthropic: { accessToken: "oauth-test" },
-			},
 		});
+		expect(mockSaveSecret).toHaveBeenCalledWith(
+			"model",
+			expect.stringMatching(/^model-account:/u),
+			expect.stringContaining("oauth-test"),
+		);
 		expect(mockSaveTokens).toHaveBeenNthCalledWith(2, {
 			modelProvider: "anthropic",
 			modelId: "claude-sonnet-4-6",
@@ -634,6 +809,15 @@ describe("sowCommand — --cloudflare flag", () => {
 		});
 	});
 
+	it("does not print model skipped banner when explicit cloudflare setup is requested", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await sowCommand.parseAsync(["--cloudflare"], { from: "user" });
+
+		const joinedOutput = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(joinedOutput).not.toContain("Model: already configured");
+	});
+
 	it("prompts for Cloudflare when --cloudflare is passed", async () => {
 		await sowCommand.parseAsync(["--cloudflare"], { from: "user" });
 		expect(mockCloudflareCollect).toHaveBeenCalledOnce();
@@ -684,5 +868,70 @@ describe("sowCommand — SIGINT handling", () => {
 		mockModelCollect.mockRejectedValueOnce(error);
 		await sowCommand.parseAsync([], { from: "user" });
 		expect(process.exitCode).toBe(130);
+	});
+});
+
+/**
+ * ISS-144 — a model id is not portable across providers.
+ *
+ * Measured on the operator's node 2026-08-17. He re-authenticated GitHub Copilot; `sow` wrote
+ * `modelProvider: github-copilot` and left `modelId: gpt-5.5`, which belongs to openai-codex. The
+ * route became `github-copilot/gpt-5.5` — a provider and a model from different providers — and the
+ * first dispatch through it reached Copilot and was refused by Copilot's own API:
+ *
+ *     HTTP 400  model "gpt-5.5" is not accessible via the /chat/completions endpoint
+ *
+ * The SCOPED routes were right throughout (`worker` and `monitor` resolved to
+ * `github-copilot/gpt-4o`) because they are derived. Only the pinned `modelId` was wrong, because a
+ * pinned value survived the change of the thing it was pinned to.
+ */
+describe("sowCommand — a model id does not survive a change of provider", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		process.exitCode = undefined;
+	});
+
+	it("re-derives the model when the login moves the route to another provider", async () => {
+		mockLoadTokens.mockResolvedValue({ modelProvider: "openai-codex", modelId: "gpt-5.5" });
+		mockModelCollect.mockResolvedValue({
+			provider: "github-copilot",
+			apiKey: "copilot-access",
+			oauthCredentials: {
+				access: "tid=abc",
+				refresh: "ghu_x",
+				expires: Date.now() + 60_000,
+				accountId: "acct",
+			},
+		});
+
+		await sowCommand.parseAsync([], { from: "user" });
+
+		const saved = mockSaveTokens.mock.calls.map(([t]) => t).find((t) => t?.modelProvider);
+		expect(saved?.modelProvider).toBe("github-copilot");
+		expect(saved?.modelId).toBeTruthy();
+		expect(saved?.modelId).not.toBe("gpt-5.5");
+	});
+
+	it("does NOT touch the model when the provider is unchanged", async () => {
+		// A re-login of the same provider must not silently replace a model the operator pinned.
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "github-copilot",
+			modelId: "claude-sonnet-4",
+		});
+		mockModelCollect.mockResolvedValue({
+			provider: "github-copilot",
+			apiKey: "copilot-access",
+			oauthCredentials: {
+				access: "tid=abc",
+				refresh: "ghu_x",
+				expires: Date.now() + 60_000,
+				accountId: "acct",
+			},
+		});
+
+		await sowCommand.parseAsync([], { from: "user" });
+
+		const saved = mockSaveTokens.mock.calls.map(([t]) => t).find((t) => t?.modelProvider);
+		expect(saved?.modelId).toBeUndefined();
 	});
 });

@@ -10,6 +10,41 @@ export interface ProgressIndicator {
 	stop(): void;
 }
 
+/**
+ * TWO STREAMS, ONE CURSOR — the defect this guards against.
+ *
+ * The spinner writes to stderr and commands report through `console.log` on stdout. A terminal gives
+ * both one cursor, so a success line lands ON the spinner's line and the two run together:
+ *
+ *   ⠼ Signing in to GitHub Copilot — Exchanging the token…  ✓ GitHub Copilot — authenticated
+ *
+ * Reported by the operator 2026-08-15. Fixing it at each call site would be a rule everyone has to
+ * remember; this makes correct interleaving the default for every command that uses the spinner at
+ * all. While an indicator is live, a stdout write clears the spinner's line first and the spinner
+ * redraws after.
+ */
+function guardStdoutWhileSpinning(
+	stream: NodeJS.WriteStream,
+	redraw: () => void,
+): () => void {
+	const stdout = process.stdout;
+	if (!stream.isTTY || !stdout.isTTY) return () => {};
+	// THE REFERENCE, not a bound copy. Restoring a bound copy leaves `stdout.write` different from
+	// what it was, so a second spinner would wrap the first wrapper and each cycle would add a layer.
+	const original = stdout.write;
+	stdout.write = function patched(this: unknown, ...args: unknown[]) {
+		stream.write("\r\x1b[2K");
+		const result = (original as (...a: unknown[]) => boolean).apply(stdout, args);
+		redraw();
+		return result;
+	} as typeof stdout.write;
+	return () => {
+		// Only if nobody else took over in the meantime; clobbering someone else's patch would be
+		// the same class of accident this guard exists to prevent.
+		stdout.write = original;
+	};
+}
+
 export function startSpinner(message: string, options: SpinnerOptions = {}): () => void {
 	const indicator = startProgressIndicator(message, options);
 	return () => indicator.stop();
@@ -43,6 +78,7 @@ export function startProgressIndicator(
 	};
 	render();
 	const id = setInterval(render, intervalMs);
+	const releaseStdout = guardStdoutWhileSpinning(stream, render);
 
 	return {
 		update(nextMessage: string) {
@@ -53,6 +89,7 @@ export function startProgressIndicator(
 			if (stopped) return;
 			stopped = true;
 			clearInterval(id);
+			releaseStdout();
 			stream.write("\r\x1b[2K");
 		},
 	};

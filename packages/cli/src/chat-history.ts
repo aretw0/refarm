@@ -1,11 +1,10 @@
-import { sovereignDir } from "@refarm.dev/config";
+import { declaredBase, sovereignDir } from "@refarm.dev/config";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 export const MAX_CHAT_HISTORY_LINES = 500;
 
-export function resolveChatHistoryPath(homeDir = os.homedir()): string {
+export function resolveChatHistoryPath(homeDir = declaredBase()): string {
 	// The sovereign dir name (`.refarm`) is injected by the app, not hardcoded here
 	// (SOVEREIGN_DIR); chat-history lives under it, beside config/streams/etc.
 	return path.join(homeDir, sovereignDir(), "chat-history");

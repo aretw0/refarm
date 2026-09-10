@@ -86,8 +86,11 @@ or a short code over the mesh; the *ritual*, not Keycloak.)
 
 **The CLI auth loop is complete and proven live:**
 - `@refarm.dev/workspace-access-contract-v1` — the authorization block (resolveAccess).
-- The opt-in §8 gate on the sidecar HTTP (`packages/tractor/src/sidecar/auth.rs`): `REFARM_AUTH_POLICY`
-  unset ⇒ off (byte-identical); set ⇒ 401 without a valid `Authorization: Bearer <token>` (sha256 enrolled).
+- The opt-in §8 gate on the sidecar HTTP (`packages/tractor/src/sidecar/auth.rs`): declared
+  `"gate": "device-token"` ⇒ 401 without a valid `Authorization: Bearer <token>` (sha256 enrolled);
+  nothing declared and no env ⇒ off (byte-identical). Since 2026-07-30 the DECLARATION is the opt-in
+  and the policy path is derived (`<refarm-dir>/auth-policy.json`, what `refarm auth enroll` writes);
+  `REFARM_AUTH_POLICY` is only an override, and a declared-but-unenrolled gate binds deny-all.
 - `farm-client` carries `FARM_TOKEN` → `Authorization: Bearer` on every sidecar call.
 - `refarm auth enroll <identity>` mints a token, writes its sha256 into the policy (0600), prints it once;
   `refarm auth list`. Proven: enroll → daemon 401s without the token, works with it.

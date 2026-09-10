@@ -117,3 +117,9 @@ export function packageBinaryCommand(
     args?: string[],
     options?: PackageManagerOptions,
 ): PackageBinaryCommand;
+
+export function packageWorkspaceDeployCommand(
+    packageName: string,
+    directory: string,
+    options?: PackageManagerOptions,
+): PackageSpawnCommand;

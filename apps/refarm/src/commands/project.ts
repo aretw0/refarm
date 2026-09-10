@@ -25,7 +25,16 @@ import {
 	type ProjectHandoffUpdate,
 	type ProjectHandoffValidationResult,
 } from "@refarm.dev/cli/project-handoff";
+import {
+	automationBodyFromWork,
+	automationWorkTasks,
+	type AutomationWorkInput,
+} from "@refarm.dev/cli/automation-work";
 import { runDueScheduledWork } from "@refarm.dev/cli/scheduled-work-runner";
+import {
+	formatScheduledWorkSources,
+	type ScheduledWorkSource,
+} from "@refarm.dev/cli/scheduled-work-sources";
 import { createLocalSchedulerLedger } from "@refarm.dev/windmill/local-scheduler-ledger";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -81,6 +90,9 @@ interface AutomationsAddOptions extends AutomationsValidateOptions {
 	schedule?: string;
 	timezone?: string;
 	eventType?: string;
+	ask?: string;
+	dispatch?: string[];
+	args?: string[];
 	dryRun?: boolean;
 }
 
@@ -98,6 +110,7 @@ interface AutomationsTickOptions extends AutomationsValidateOptions {
 	submit?: boolean;
 	owner?: string;
 	now?: string;
+	workspace?: string;
 }
 
 function defaultDeps(): ProjectDeps {
@@ -116,10 +129,6 @@ function handoffPath(cwd: string): string {
 	return path.join(cwd, PROJECT_HANDOFF_RELATIVE_PATH);
 }
 
-function automationsPath(cwd: string): string {
-	return path.join(cwd, PROJECT_AUTOMATIONS_RELATIVE_PATH);
-}
-
 /**
  * A ledger for `tick` dry-run: it reads the real `.refarm` fired state (so the
  * report reflects what a real `--submit` would fire), but `recordFired` is a
@@ -133,6 +142,40 @@ function dryRunLedger(cwd: string) {
 	};
 }
 
+/**
+ * The directory a DECLARED workspace names, resolved from the node's config.
+ *
+ * Refuses an unknown id by NAMING the declared ones rather than describing the problem: the
+ * operator or agent that mistyped needs the list, and a refusal that withholds it makes them go
+ * looking for a surface that has it.
+ */
+async function resolveDeclaredWorkspaceCwd(workspaceId: string): Promise<string> {
+	const { declaredBase, declaredWorkspacesFromConfig, loadConfig } = await import(
+		"@refarm.dev/config"
+	);
+	// THE NODE'S CONFIG, NAMED. `loadConfig()` with no root walks up from the working directory,
+	// so asking it for "the declared workspaces" from outside any tree answers "this node
+	// declares none" — the ambient resolution this option exists to escape, reintroduced one
+	// layer down. Measured from /tmp on 2026-08-28 before this argument was passed.
+	const config = await loadConfig(declaredBase());
+	// `absolutePath`, not `path`: the declaration may be relative, and the resolver anchors it on
+	// the NODE's base so the same declaration names the same directory from anywhere. Taking the
+	// raw `path` here would put the ambient working directory back into the answer.
+	const workspaces = (
+		declaredWorkspacesFromConfig(config) as Array<{ id: string; absolutePath: string } | null>
+	).filter((workspace): workspace is { id: string; absolutePath: string } => workspace !== null);
+	const match = workspaces.find((workspace) => workspace.id === workspaceId);
+	if (!match) {
+		const declared = workspaces.map((workspace) => workspace.id);
+		throw new Error(
+			declared.length > 0
+				? `No declared workspace "${workspaceId}". Declared: ${declared.join(", ")}.`
+				: `No declared workspace "${workspaceId}", and this node declares none.`,
+		);
+	}
+	return match.absolutePath;
+}
+
 function formatTickReportPlain(
 	report: {
 		summary: {
@@ -143,6 +186,7 @@ function formatTickReportPlain(
 			failed: number;
 		};
 		results: Array<{ status: string; job: { name: string } }>;
+		sources?: readonly ScheduledWorkSource[];
 	},
 	submit: boolean,
 ): string {
@@ -151,6 +195,12 @@ function formatTickReportPlain(
 	const lines = [
 		`Scheduled work tick (${mode}): due=${s.due} ${submit ? "submitted" : "would-submit"}=${s.submitted} already-fired=${s.alreadyFired} skipped=${s.skipped} failed=${s.failed}`,
 	];
+	// WHAT IT READ, on the line under what it did. A supervised tick logs into a journal nobody
+	// reads closely, and all-zeros is the same line whether nothing was due, nothing was declared,
+	// or the clock was pointed at the wrong directory (ISS-175).
+	if (report.sources?.length) {
+		lines.push(`  read: ${formatScheduledWorkSources(report.sources)}`);
+	}
 	for (const result of report.results) {
 		lines.push(`  ${result.status}: ${result.job.name}`);
 	}
@@ -463,7 +513,9 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 		.action((options: AutomationsValidateOptions) => {
 			const filePath = automationsPath(deps.cwd());
 			const document = readExistingJson(filePath);
-			const result = validateProjectAutomationsDocument(document);
+			// The path it ACTUALLY read, not the bare relative name: the same string from every
+			// directory cannot say which project answered (see `automationsPath`).
+			const result = validateProjectAutomationsDocument(document, { path: filePath });
 			printAutomationsValidation(result, {
 				json: options.json,
 				operation: "automations.validate",
@@ -499,7 +551,7 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 							operation: "automations.list",
 							nextCommands,
 							extra: {
-								path: PROJECT_AUTOMATIONS_RELATIVE_PATH,
+								path: automationsPath(deps.cwd()),
 								status: options.status ?? null,
 								count: automations.length,
 								automations,
@@ -556,18 +608,54 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 		.option("--schedule <expr>", "Cron expression for --trigger cron")
 		.option("--timezone <tz>", "Timezone for --trigger cron")
 		.option("--event-type <type>", "Event type for --trigger event")
+		.option(
+			"--ask <prompt>",
+			"What to ask the agent when it fires — a MODEL call that spends quota",
+		)
+		.option(
+			"--dispatch <pluginId:verb>",
+			"A plugin verb to call — ordinary computation, no model. Repeatable.",
+			(value: string, previous: string[] = []) => [...previous, value],
+		)
+		.option(
+			"--args <json>",
+			"JSON arguments for the matching --dispatch, in order. Repeatable.",
+			(value: string, previous: string[] = []) => [...previous, value],
+		)
 		.option("--dry-run", "Print the would-be automations document without writing")
 		.option("--json", "Output machine-readable write result")
 		.action((options: AutomationsAddOptions) => {
 			const filePath = automationsPath(deps.cwd());
 			try {
 				const trigger = projectAutomationTriggerFromOptions(options);
+				const automationId = options.id ?? "";
+				// PARSED HERE, not at fire time. An automation whose args are malformed JSON must
+				// fail while the operator is looking at it, never at 03:00 in a journal nobody
+				// reads — which is the shape of failure this whole lane exists to remove.
+				const parsedArgs = (options.args ?? []).map((raw, index) => {
+					try {
+						return JSON.parse(raw) as unknown;
+					} catch (error) {
+						const message = error instanceof Error ? error.message : String(error);
+						throw new Error(`--args #${index + 1} is not valid JSON: ${message}`);
+					}
+				});
+				const work: AutomationWorkInput = {
+					...(options.ask ? { ask: options.ask } : {}),
+					...(options.dispatch ? { dispatch: options.dispatch } : {}),
+					...(parsedArgs.length > 0 ? { args: parsedArgs } : {}),
+					direction: options.name ?? automationId,
+					automationId,
+				};
+				const tasks = automationWorkTasks(work);
+				const body = automationBodyFromWork(work);
 				const document = addProjectAutomationRecord(readExistingJson(filePath), {
-					id: options.id ?? "",
+					id: automationId,
 					name: options.name ?? "",
 					description: options.description,
 					status: options.status as ProjectAutomationStatus | undefined,
 					trigger,
+					...(body ? { body } : {}),
 				});
 				const result = validateProjectAutomationsDocument(document);
 				if (!result.ok) {
@@ -589,9 +677,17 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 							operation: options.dryRun ? "automations.add.dry-run" : "automations.add",
 							nextCommands,
 							extra: {
-								path: PROJECT_AUTOMATIONS_RELATIVE_PATH,
+								path: automationsPath(deps.cwd()),
 								dryRun: Boolean(options.dryRun),
 								automation,
+								// WHAT IT WILL SPEND, decided by the host's own rule rather than restated
+								// here: `agent` is a model turn, `dispatch` is ordinary computation. The
+								// operator budgets along this line, so the write receipt names it.
+								work: tasks.map((task) => ({
+									pluginId: task.pluginId,
+									fn: task.fn,
+									workClass: task.workClass,
+								})),
 								document,
 								validation: result,
 							},
@@ -662,7 +758,7 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 								: "automations.set-status",
 							nextCommands,
 							extra: {
-								path: PROJECT_AUTOMATIONS_RELATIVE_PATH,
+								path: automationsPath(deps.cwd()),
 								dryRun: Boolean(options.dryRun),
 								automation,
 								document,
@@ -706,11 +802,22 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 		.option("--submit", "Dispatch due efforts and record the fired ledger")
 		.option("--owner <owner>", "Ledger owner recorded on each job")
 		.option("--now <iso>", "Clock override (ISO-8601) for due-ness")
+		.option(
+			"--workspace <id>",
+			"Tick a DECLARED workspace by id, resolved from the node config — not from where this runs",
+		)
 		.option("--json", "Output machine-readable tick report")
 		.action(async (options: AutomationsTickOptions) => {
-			const cwd = deps.cwd();
 			const submit = Boolean(options.submit);
 			try {
+				// A DECLARED TARGET BEATS AN AMBIENT ONE. Project automations resolve by walking up
+				// from the working directory, so a supervised tick reads whatever tree its unit
+				// happens to sit in — and on 2026-08-27 that was a directory with no automations,
+				// reported as success for as long as it ran. Declared workspace paths come from the
+				// NODE's config and name the same directory from anywhere (ISS-175, ISS-075).
+				const cwd = options.workspace
+					? await resolveDeclaredWorkspaceCwd(options.workspace)
+					: deps.cwd();
 				const report = await runDueScheduledWork({
 					cwd,
 					owner: options.owner,
@@ -791,6 +898,19 @@ function projectAutomationTriggerFromOptions(
 		return { type: "event", eventType: options.eventType };
 	}
 	throw new Error("Automation trigger must be manual, once, cron, or event.");
+}
+
+/** The automations document this invocation actually read, ABSOLUTE.
+ *
+ * It used to report the bare relative `.project/automations.json`, which is the same string from
+ * every directory — so the envelope could not say WHICH project answered, and three runs from three
+ * different places were indistinguishable. `scripts/directory-independence.mjs` convicted it through
+ * the inverse check: a project-scoped command that answers identically everywhere has stopped
+ * reading the project, or has stopped saying which one it read. Same defect ISS-034 had in
+ * `workspace sources declarations`, one command over.
+ */
+function automationsPath(cwd: string): string {
+	return path.join(cwd, PROJECT_AUTOMATIONS_RELATIVE_PATH);
 }
 
 export function createProjectCommand(deps: Partial<ProjectDeps> = {}): Command {

@@ -1,0 +1,4 @@
+{
+	"wire": "scoped-credential-scopes.v1",
+	"scopes": ["prompt:answer", "operation:read", "operation:start"]
+}

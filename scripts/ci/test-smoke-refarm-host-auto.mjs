@@ -419,7 +419,7 @@ test("detects composite check gate files", () => {
 
 test("detects CLI install substrate files", () => {
 	assert.equal(isCliInstallSurfaceFile("scripts/install-refarm-cli.mjs"), true);
-	assert.equal(isCliInstallSurfaceFile("scripts/agent-install.mjs"), true);
+	assert.equal(isCliInstallSurfaceFile("scripts/installed-plugin-path.mjs"), true);
 	assert.equal(
 		isCliInstallSurfaceFile("scripts/ci/check-node-substrate.mjs"),
 		true,
@@ -507,7 +507,7 @@ test("routes CLI install substrate deltas to focused install lane", () => {
 	);
 	assert.equal(
 		decideProfile([
-			"scripts/agent-install.mjs",
+			"scripts/installed-plugin-path.mjs",
 			"scripts/install-refarm-cli.mjs",
 		]).profile,
 		"install",

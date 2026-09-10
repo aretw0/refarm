@@ -68,14 +68,7 @@ const PACKAGE_CLI_SRC_DIR = [
 
 const STATUS_WITH_ACTIONS_FIXTURE = [
 	join(process.cwd(), "test", "fixtures", "status-with-actions.json"),
-	join(
-		process.cwd(),
-		"apps",
-		"refarm",
-		"test",
-		"fixtures",
-		"status-with-actions.json",
-	),
+	join(process.cwd(), "apps", "refarm", "test", "fixtures", "status-with-actions.json"),
 ].find((file) => statSync(file, { throwIfNoEntry: false })?.isFile());
 
 function commandSourceFiles(dir = COMMANDS_DIR): string[] {
@@ -193,9 +186,7 @@ function generatedHandoffEntries(
 ): Array<{ handoff: string; key: string; sampleId: string }> {
 	return payloads.flatMap((payload) =>
 		Object.entries(payload.handoffs ?? {})
-			.filter(
-				(entry): entry is [string, string] => typeof entry[1] === "string",
-			)
+			.filter((entry): entry is [string, string] => typeof entry[1] === "string")
 			.map(([key, handoff]) => ({ handoff, key, sampleId: payload.sampleId })),
 	);
 }
@@ -234,31 +225,20 @@ function generatedProcessShapeViolations(
 		if (!Array.isArray(payload.nextProcesses)) {
 			return [`${payload.sampleId}.nextProcesses: not an array`];
 		}
-		return generatedProcessEntries([payload]).flatMap(
-			({ process, sampleId, index }) => {
-				const prefix = `${sampleId}.nextProcesses[${index}]`;
-				const violations: string[] = [];
-				if (
-					typeof process.command !== "string" ||
-					process.command.trim() === ""
-				) {
-					violations.push(`${prefix}.command`);
-				}
-				if (
-					!Array.isArray(process.args) ||
-					!process.args.every((arg) => typeof arg === "string")
-				) {
-					violations.push(`${prefix}.args`);
-				}
-				if (
-					typeof process.display !== "string" ||
-					process.display.trim() === ""
-				) {
-					violations.push(`${prefix}.display`);
-				}
-				return violations;
-			},
-		);
+		return generatedProcessEntries([payload]).flatMap(({ process, sampleId, index }) => {
+			const prefix = `${sampleId}.nextProcesses[${index}]`;
+			const violations: string[] = [];
+			if (typeof process.command !== "string" || process.command.trim() === "") {
+				violations.push(`${prefix}.command`);
+			}
+			if (!Array.isArray(process.args) || !process.args.every((arg) => typeof arg === "string")) {
+				violations.push(`${prefix}.args`);
+			}
+			if (typeof process.display !== "string" || process.display.trim() === "") {
+				violations.push(`${prefix}.display`);
+			}
+			return violations;
+		});
 	});
 }
 
@@ -327,9 +307,7 @@ function collectGeneratedTemplates(value: unknown): GeneratedTemplate[] {
 	});
 }
 
-function sampleCommandTemplateParameters(
-	parameters: string[],
-): Record<string, string> {
+function sampleCommandTemplateParameters(parameters: string[]): Record<string, string> {
 	return Object.fromEntries(
 		parameters.map((parameter) => [
 			parameter,
@@ -384,8 +362,7 @@ function generatedCommandFieldsWithoutJson(
 	if (typeof value === "string") {
 		const key = path.at(-1) ?? "";
 		const isCommandField = /command/i.test(key);
-		const mustStayJson =
-			isTaskReadCommand(value) || isProvisionTurboCacheCommand(value);
+		const mustStayJson = isTaskReadCommand(value) || isProvisionTurboCacheCommand(value);
 		if (isCommandField && mustStayJson && !isJsonCommand(value)) {
 			return [`${path.join(".")}: ${value}`];
 		}
@@ -469,11 +446,7 @@ function createContractAskSuccessCommand() {
 			.mockImplementation(
 				async (
 					_effortId: string,
-					onChunk: (chunk: {
-						content: string;
-						is_final: boolean;
-						metadata?: unknown;
-					}) => void,
+					onChunk: (chunk: { content: string; is_final: boolean; metadata?: unknown }) => void,
 				) => {
 					onChunk({
 						content: "contract response",
@@ -484,6 +457,11 @@ function createContractAskSuccessCommand() {
 			),
 		readActiveSessionId: vi.fn().mockReturnValue(sessionId),
 		persistActiveSessionId: vi.fn(),
+		// Stubbed so this contract test never reads the operator's real
+		// .refarm/config.json or hits the real sidecar over the network — the same
+		// cross-machine flake fixed across ask.test.ts.
+		declaredWorkspaceRoots: vi.fn().mockReturnValue([]),
+		readSessionWorkspace: vi.fn().mockResolvedValue(undefined),
 	});
 }
 
@@ -491,9 +469,12 @@ function createContractAskCommand() {
 	return createAskCommand({
 		submitEffort: vi.fn(),
 		followStream: vi.fn(),
-		resolveSessionIdPrefix: vi
-			.fn()
-			.mockRejectedValue(new Error("No session matching abc123")),
+		resolveSessionIdPrefix: vi.fn().mockRejectedValue(new Error("No session matching abc123")),
+		// Stubbed so this contract test never reads the operator's real
+		// .refarm/config.json or hits the real sidecar over the network — the same
+		// cross-machine flake fixed across ask.test.ts.
+		declaredWorkspaceRoots: vi.fn().mockReturnValue([]),
+		readSessionWorkspace: vi.fn().mockResolvedValue(undefined),
 	});
 }
 
@@ -607,12 +588,16 @@ function createTempProjectCommand() {
 	mkdirSync(projectDir, { recursive: true });
 	writeFileSync(
 		join(projectDir, "handoff.json"),
-		`${JSON.stringify({
-			context: "contract handoff",
-			timestamp: "2026-05-01T00:00:00.000Z",
-			current_phase: 12,
-			next_actions: ["continue"],
-		}, null, 2)}\n`,
+		`${JSON.stringify(
+			{
+				context: "contract handoff",
+				timestamp: "2026-05-01T00:00:00.000Z",
+				current_phase: 12,
+				next_actions: ["continue"],
+			},
+			null,
+			2,
+		)}\n`,
 	);
 	return {
 		cleanup: () => rmSync(cwd, { recursive: true, force: true }),
@@ -668,7 +653,7 @@ function createContractInitCommand() {
 			createOperator: () => ({
 				ask: vi.fn().mockResolvedValue("workspace"),
 			}),
-			createSilo: () => ({
+		createSilo: () => ({
 				bootstrapIdentity: vi.fn().mockResolvedValue({
 					publicKey: "pk_contract",
 					timestamp: "2026-05-01T00:00:00.000Z",
@@ -727,10 +712,11 @@ function makeContractFetch() {
 				ok: true,
 				status: 200,
 				json: async () => ({
-					installed: ["@refarm/agent"],
-					loaded: ["@refarm/agent"],
-					local: [],
-					known: ["@refarm/agent"],
+					requested: [
+						{ id: "agent", path: "/plugins/refarm_agent/plugin.wasm", loaded: true, because: null },
+					],
+					loaded: ["agent"],
+					defaultResponder: "agent",
 				}),
 			};
 		}
@@ -877,11 +863,9 @@ function createContractModelCommand() {
 	return toCommanderGroup(
 		createModelCapabilityGroup({
 			loadTokens: async () => tokens,
-			saveTokens: vi
-				.fn()
-				.mockImplementation(async (update: Record<string, unknown>) => {
-					Object.assign(tokens, update);
-				}),
+			saveTokens: vi.fn().mockImplementation(async (update: Record<string, unknown>) => {
+				Object.assign(tokens, update);
+			}),
 		}),
 		modelCapabilityHooks,
 	);
@@ -897,17 +881,17 @@ function createContractPluginCommand() {
 			buildListReport: async () => ({ plugins: [] }),
 			readManifest: async () => ({ permissions: [] }),
 			readRuntimePluginState: async () => null,
+			readInstalledPlugins: () => [],
 			buildInstallReport: async () =>
 				({ ok: true, command: "plugin", operation: "install" }) as never,
 			runBundle: async () => ({ exitCode: 0, stdout: "", stderr: "" }) as never,
 			onProgress: () => {},
-			reloadAndWait: async () =>
-				({ reloaded: [], skipped: [], timedOut: false }) as never,
-			restartRuntime: async () =>
-				({ ok: true, restartCommand: "refarm runtime restart" }) as never,
+			reloadAndWait: async () => ({ reloaded: [], skipped: [], timedOut: false }) as never,
+			restartRuntime: async () => ({ ok: true, restartCommand: "refarm runtime restart" }) as never,
 			persistApproval: (filePath, pluginId, capabilities) => ({
 				pluginId,
 				filePath,
+				ineffectiveKeys: [],
 				approved: [...new Set(capabilities)].sort(),
 				changed: true,
 			}),
@@ -916,6 +900,13 @@ function createContractPluginCommand() {
 				filePath,
 				trusted,
 				trustedPlugins: trusted ? [pluginId] : [],
+				changed: true,
+			}),
+			persistDevelopment: (filePath, pluginId, developing) => ({
+				pluginId,
+				filePath,
+				underDevelopment: developing,
+				declaredAt: developing ? "2026-08-26" : null,
 				changed: true,
 			}),
 			persistRevocation: (filePath, pluginId, capability) => ({
@@ -952,55 +943,53 @@ function createContractSessionsCommand() {
 		parent_session_id: session["@id"],
 	};
 	let activeSessionId: string | null = session["@id"];
-	const fetch = vi
-		.fn()
-		.mockImplementation(async (url: string | URL, init?: RequestInit) => {
-			const value = String(url);
-			if (value.endsWith("/sessions") && init?.method === "POST") {
-				return {
-					ok: true,
-					status: 200,
-					json: async () => ({ session }),
-				};
-			}
-			if (value.endsWith("/sessions")) {
-				return {
-					ok: true,
-					status: 200,
-					json: async () => ({ sessions: [session] }),
-				};
-			}
-			if (value.endsWith("/fork")) {
-				return {
-					ok: true,
-					status: 200,
-					json: async () => ({ session: fork }),
-				};
-			}
-			if (value.endsWith("/history")) {
-				return {
-					ok: true,
-					status: 200,
-					json: async () => ({
-						session,
-						entries: [
-							{
-								id: "entry-abc",
-								kind: "user",
-								content: "hello",
-								timestamp_ns: 1_700_000_000_000_000_000,
-							},
-						],
-						total: 1,
-					}),
-				};
-			}
+	const fetch = vi.fn().mockImplementation(async (url: string | URL, init?: RequestInit) => {
+		const value = String(url);
+		if (value.endsWith("/sessions") && init?.method === "POST") {
 			return {
-				ok: false,
-				status: 404,
-				json: async () => ({ error: "not found" }),
+				ok: true,
+				status: 200,
+				json: async () => ({ session }),
 			};
-		});
+		}
+		if (value.endsWith("/sessions")) {
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({ sessions: [session] }),
+			};
+		}
+		if (value.endsWith("/fork")) {
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({ session: fork }),
+			};
+		}
+		if (value.endsWith("/history")) {
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({
+					session,
+					entries: [
+						{
+							id: "entry-abc",
+							kind: "user",
+							content: "hello",
+							timestamp_ns: 1_700_000_000_000_000_000,
+						},
+					],
+					total: 1,
+				}),
+			};
+		}
+		return {
+			ok: false,
+			status: 404,
+			json: async () => ({ error: "not found" }),
+		};
+	});
 	return createSessionsCommand({
 		clearActiveSessionId: vi.fn().mockImplementation(() => {
 			activeSessionId = null;
@@ -1009,18 +998,14 @@ function createContractSessionsCommand() {
 		fetch,
 		readActiveSessionId: vi.fn().mockImplementation(() => activeSessionId),
 		sidecarUrl: (path) => `http://contract.test${path}`,
-		writeActiveSessionIdAndVerify: vi
-			.fn()
-			.mockImplementation((sessionId: string) => {
-				activeSessionId = sessionId;
-			}),
+		writeActiveSessionIdAndVerify: vi.fn().mockImplementation((sessionId: string) => {
+			activeSessionId = sessionId;
+		}),
 	});
 }
 
 function createContractSessionsSubcommand(name: string) {
-	const command = createContractSessionsCommand().commands.find(
-		(entry) => entry.name() === name,
-	);
+	const command = createContractSessionsCommand().commands.find((entry) => entry.name() === name);
 	if (!command) throw new Error(`Missing sessions subcommand ${name}`);
 	return command;
 }
@@ -1028,14 +1013,13 @@ function createContractSessionsSubcommand(name: string) {
 function createContractSowCommand() {
 	const tokens: Record<string, unknown> = { modelProvider: "openai" };
 	return createSowCommand({
+		homeOf: () => "/nonexistent-home",
 		createSilo: () => ({
 			loadTokens: vi.fn().mockResolvedValue(tokens),
-			saveTokens: vi
-				.fn()
-				.mockImplementation(async (update: Record<string, unknown>) => {
-					Object.assign(tokens, update);
-					return {};
-				}),
+			saveTokens: vi.fn().mockImplementation(async (update: Record<string, unknown>) => {
+				Object.assign(tokens, update);
+				return {};
+			}),
 		}),
 		createOperator: () => ({ ask: vi.fn() }),
 		env: () => ({}),
@@ -1164,9 +1148,7 @@ function propertyBlocks(source: string, property: string): string[] {
 		const arrayStart = source.indexOf("[", pattern.lastIndex);
 		const lineEnd = source.indexOf("\n", pattern.lastIndex);
 		if (arrayStart === -1 || (lineEnd !== -1 && lineEnd < arrayStart)) {
-			blocks.push(
-				source.slice(start, lineEnd === -1 ? source.length : lineEnd),
-			);
+			blocks.push(source.slice(start, lineEnd === -1 ? source.length : lineEnd));
 			continue;
 		}
 		let depth = 0;
@@ -1189,14 +1171,10 @@ describe("JSON next command contract", () => {
 	it("keeps interactive credential collection out of executable handoffs", () => {
 		const violations = commandSourceFiles().flatMap((file) => {
 			const source = readFileSync(file, "utf8");
-			return ["nextCommand", "nextCommands", "actionCommand"].flatMap(
-				(property) =>
-					propertyBlocks(source, property)
-						.filter(hasInteractiveSowCommand)
-						.map(
-							(block) =>
-								`${relative(process.cwd(), file)} ${property}: ${block.trim()}`,
-						),
+			return ["nextCommand", "nextCommands", "actionCommand"].flatMap((property) =>
+				propertyBlocks(source, property)
+					.filter(hasInteractiveSowCommand)
+					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`),
 			);
 		});
 
@@ -1206,14 +1184,10 @@ describe("JSON next command contract", () => {
 	it("keeps placeholders out of executable handoffs", () => {
 		const violations = commandSourceFiles().flatMap((file) => {
 			const source = readFileSync(file, "utf8");
-			return ["nextCommand", "nextCommands", "actionCommand"].flatMap(
-				(property) =>
-					propertyBlocks(source, property)
-						.filter(hasPlaceholderCommand)
-						.map(
-							(block) =>
-								`${relative(process.cwd(), file)} ${property}: ${block.trim()}`,
-						),
+			return ["nextCommand", "nextCommands", "actionCommand"].flatMap((property) =>
+				propertyBlocks(source, property)
+					.filter(hasPlaceholderCommand)
+					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`),
 			);
 		});
 
@@ -1226,10 +1200,7 @@ describe("JSON next command contract", () => {
 			return ["nextAction", "nextActions"].flatMap((property) =>
 				propertyBlocks(source, property)
 					.filter(hasCommandLikePlaceholderAction)
-					.map(
-						(block) =>
-							`${relative(process.cwd(), file)} ${property}: ${block.trim()}`,
-					),
+					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`),
 			);
 		});
 
@@ -1239,14 +1210,10 @@ describe("JSON next command contract", () => {
 	it("keeps REPL-only commands out of executable handoffs", () => {
 		const violations = commandSourceFiles().flatMap((file) => {
 			const source = readFileSync(file, "utf8");
-			return ["nextCommand", "nextCommands", "actionCommand"].flatMap(
-				(property) =>
-					propertyBlocks(source, property)
-						.filter(hasReplCommand)
-						.map(
-							(block) =>
-								`${relative(process.cwd(), file)} ${property}: ${block.trim()}`,
-						),
+			return ["nextCommand", "nextCommands", "actionCommand"].flatMap((property) =>
+				propertyBlocks(source, property)
+					.filter(hasReplCommand)
+					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`),
 			);
 		});
 
@@ -1254,20 +1221,13 @@ describe("JSON next command contract", () => {
 	});
 
 	it("keeps package-manager-specific commands out of static executable handoffs", () => {
-		const files = [
-			...commandSourceFiles(),
-			...optionalSourceFiles(PACKAGE_CLI_SRC_DIR),
-		];
+		const files = [...commandSourceFiles(), ...optionalSourceFiles(PACKAGE_CLI_SRC_DIR)];
 		const violations = files.flatMap((file) => {
 			const source = readFileSync(file, "utf8");
-			return ["nextCommand", "nextCommands", "actionCommand"].flatMap(
-				(property) =>
-					propertyBlocks(source, property)
-						.filter(hasHardcodedPackageManagerCommand)
-						.map(
-							(block) =>
-								`${relative(process.cwd(), file)} ${property}: ${block.trim()}`,
-						),
+			return ["nextCommand", "nextCommands", "actionCommand"].flatMap((property) =>
+				propertyBlocks(source, property)
+					.filter(hasHardcodedPackageManagerCommand)
+					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`),
 			);
 		});
 
@@ -1348,13 +1308,7 @@ describe("JSON next command contract", () => {
 				{
 					id: "config-set-local",
 					command: config.command,
-					args: [
-						"set",
-						"operator.openExternalLinks",
-						"never",
-						"--local",
-						"--json",
-					],
+					args: ["set", "operator.openExternalLinks", "never", "--local", "--json"],
 				},
 				{
 					id: "config-get-local",
@@ -1401,8 +1355,7 @@ describe("JSON next command contract", () => {
 					command: headlessCommand,
 					args: [
 						"--input",
-						STATUS_WITH_ACTIONS_FIXTURE ??
-							"test/fixtures/status-with-actions.json",
+						STATUS_WITH_ACTIONS_FIXTURE ?? "test/fixtures/status-with-actions.json",
 						"--action-request",
 						"inspect-trust",
 					],
@@ -1431,11 +1384,7 @@ describe("JSON next command contract", () => {
 				{
 					id: "open-url-dry-run",
 					command: createOpenUrlCommand({ open: vi.fn() }),
-					args: [
-						"https://example.test/auth?code=a&state=b",
-						"--dry-run",
-						"--json",
-					],
+					args: ["https://example.test/auth?code=a&state=b", "--dry-run", "--json"],
 				},
 				{
 					id: "package-manager",
@@ -1526,14 +1475,7 @@ describe("JSON next command contract", () => {
 				{
 					id: "project-handoff-write-dry-run",
 					command: project.command,
-					args: [
-						"handoff",
-						"write",
-						"--context",
-						"contract handoff update",
-						"--dry-run",
-						"--json",
-					],
+					args: ["handoff", "write", "--context", "contract handoff update", "--dry-run", "--json"],
 				},
 				{
 					id: "resume-with-passed-finish",
@@ -1654,9 +1596,7 @@ describe("JSON next command contract", () => {
 				},
 				{
 					id: "tasks-show",
-					command: createTasksCommand().commands.find(
-						(command) => command.name() === "show",
-					)!,
+					command: createTasksCommand().commands.find((command) => command.name() === "show")!,
 					args: ["abc123def456", "--json"],
 				},
 				{
@@ -1697,13 +1637,7 @@ describe("JSON next command contract", () => {
 				{
 					id: "tidy-imports-dry-run",
 					command: createContractTidyCommand(),
-					args: [
-						"imports",
-						"--check",
-						"--dry-run",
-						"--json",
-						"apps/refarm/src/program.ts",
-					],
+					args: ["imports", "--check", "--dry-run", "--json", "apps/refarm/src/program.ts"],
 				},
 				{
 					id: "tree-invalid-list-scope",
@@ -1779,57 +1713,33 @@ describe("JSON next command contract", () => {
 			const handoffPlaceholders = handoffEntries
 				.filter(({ handoff }) => /<[^>]+>/.test(handoff))
 				.map(({ handoff, key, sampleId }) => `${sampleId}.${key}: ${handoff}`);
-			const processPlaceholders = processEntries.flatMap(
-				({ process, sampleId, index }) => [
-					...(typeof process.command === "string" &&
-					/<[^>]+>/.test(process.command)
-						? [
-								`${sampleId}.nextProcesses[${index}].command: ${process.command}`,
-							]
-						: []),
-					...(Array.isArray(process.args)
-						? process.args
-								.filter(
-									(arg): arg is string =>
-										typeof arg === "string" && /<[^>]+>/.test(arg),
-								)
-								.map(
-									(arg) => `${sampleId}.nextProcesses[${index}].args: ${arg}`,
-								)
-						: []),
-					...(typeof process.display === "string" &&
-					/<[^>]+>/.test(process.display)
-						? [
-								`${sampleId}.nextProcesses[${index}].display: ${process.display}`,
-							]
-						: []),
-				],
-			);
+			const processPlaceholders = processEntries.flatMap(({ process, sampleId, index }) => [
+				...(typeof process.command === "string" && /<[^>]+>/.test(process.command)
+					? [`${sampleId}.nextProcesses[${index}].command: ${process.command}`]
+					: []),
+				...(Array.isArray(process.args)
+					? process.args
+							.filter((arg): arg is string => typeof arg === "string" && /<[^>]+>/.test(arg))
+							.map((arg) => `${sampleId}.nextProcesses[${index}].args: ${arg}`)
+					: []),
+				...(typeof process.display === "string" && /<[^>]+>/.test(process.display)
+					? [`${sampleId}.nextProcesses[${index}].display: ${process.display}`]
+					: []),
+			]);
 			const replOnly = commandEntries
 				.filter(({ command }) => /^\/[A-Za-z]/.test(command))
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
 			const taskReadCommandsWithoutJson = commandEntries
-				.filter(
-					({ command }) =>
-						isTaskReadCommand(command) && !isJsonCommand(command),
-				)
+				.filter(({ command }) => isTaskReadCommand(command) && !isJsonCommand(command))
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
 			const taskReadActionsWithoutJson = actionEntries
-				.filter(
-					({ action }) => isTaskReadCommand(action) && !isJsonCommand(action),
-				)
+				.filter(({ action }) => isTaskReadCommand(action) && !isJsonCommand(action))
 				.map(({ action, sampleId }) => `${sampleId}: ${action}`);
 			const provisionCommandsWithoutJson = commandEntries
-				.filter(
-					({ command }) =>
-						isProvisionTurboCacheCommand(command) && !isJsonCommand(command),
-				)
+				.filter(({ command }) => isProvisionTurboCacheCommand(command) && !isJsonCommand(command))
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
 			const provisionActionsWithoutJson = actionEntries
-				.filter(
-					({ action }) =>
-						isProvisionTurboCacheCommand(action) && !isJsonCommand(action),
-				)
+				.filter(({ action }) => isProvisionTurboCacheCommand(action) && !isJsonCommand(action))
 				.map(({ action, sampleId }) => `${sampleId}: ${action}`);
 			const missingNextActions = payloads
 				.filter((payload) => !Array.isArray(payload.nextActions))
@@ -1838,17 +1748,12 @@ describe("JSON next command contract", () => {
 				.filter((payload) => !Array.isArray(payload.nextCommands))
 				.map((payload) => payload.sampleId);
 			const commandFieldPlaceholderLeaks = payloads.flatMap((payload) =>
-				generatedCommandFieldPlaceholderLeaks(payload).map(
-					(leak) => `${payload.sampleId}.${leak}`,
-				),
+				generatedCommandFieldPlaceholderLeaks(payload).map((leak) => `${payload.sampleId}.${leak}`),
 			);
 			const commandFieldsWithoutJson = payloads.flatMap((payload) =>
-				generatedCommandFieldsWithoutJson(payload).map(
-					(leak) => `${payload.sampleId}.${leak}`,
-				),
+				generatedCommandFieldsWithoutJson(payload).map((leak) => `${payload.sampleId}.${leak}`),
 			);
-			const singularPluralMismatches =
-				singularPluralHandoffMismatches(payloads);
+			const singularPluralMismatches = singularPluralHandoffMismatches(payloads);
 			const processShapeViolations = generatedProcessShapeViolations(payloads);
 
 			expect(placeholders).toEqual([]);
@@ -1908,9 +1813,7 @@ describe("JSON next command contract", () => {
 			)
 			.map((template) => template.command);
 		const parameterizedTemplatesWithoutProcess = templates
-			.filter(
-				(template) => commandTemplateParameters(template.command).length > 0,
-			)
+			.filter((template) => commandTemplateParameters(template.command).length > 0)
 			.filter((template) => !template.process)
 			.map((template) => template.command);
 		const instantiatedTemplatesWithPlaceholders = templates
@@ -1930,9 +1833,7 @@ describe("JSON next command contract", () => {
 								}
 							: {}),
 						parameters: template.parameters,
-						...(template.cwdParameter
-							? { cwdParameter: template.cwdParameter }
-							: {}),
+						...(template.cwdParameter ? { cwdParameter: template.cwdParameter } : {}),
 						useWhen: template.useWhen ?? "Test template instantiation.",
 					},
 					sampleCommandTemplateParameters(template.parameters),
@@ -1956,27 +1857,21 @@ describe("JSON next command contract", () => {
 		expect(templateCommands).toContain(
 			"refarm agent finish --profile affected --since <ref> --run --json",
 		);
-		expect(templateCommands).toContain(
-			"refarm plugin bundle <plugin.wasm> --dry-run --json",
-		);
+		expect(templateCommands).toContain("refarm plugin bundle <plugin.wasm> --dry-run --json");
 		expect(commands).not.toContain(
 			"refarm agent finish --profile package --workspace <dir> --next-command",
 		);
 		expect(commands).not.toContain(
 			"refarm agent finish --profile affected --since <ref> --run --json",
 		);
-		expect(commands).not.toContain(
-			"refarm plugin bundle <plugin.wasm> --dry-run --json",
-		);
+		expect(commands).not.toContain("refarm plugin bundle <plugin.wasm> --dry-run --json");
 		expect(actions).not.toContain(
 			"refarm agent finish --profile package --workspace <dir> --next-command",
 		);
 		expect(actions).not.toContain(
 			"refarm agent finish --profile affected --since <ref> --run --json",
 		);
-		expect(actions).not.toContain(
-			"refarm plugin bundle <plugin.wasm> --dry-run --json",
-		);
+		expect(actions).not.toContain("refarm plugin bundle <plugin.wasm> --dry-run --json");
 		expect(actions.filter((action) => /<[^>]+>/.test(action))).toEqual([]);
 		expect(templatesWithUndeclaredParameters).toEqual([]);
 		expect(parameterizedTemplatesWithoutProcess).toEqual([]);
@@ -1984,13 +1879,11 @@ describe("JSON next command contract", () => {
 		expect(templates).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
-					command:
-						"refarm agent finish --profile package --workspace <dir> --next-command",
+					command: "refarm agent finish --profile package --workspace <dir> --next-command",
 					parameters: ["dir"],
 				}),
 				expect.objectContaining({
-					command:
-						"refarm agent finish --profile affected --since <ref> --run --json",
+					command: "refarm agent finish --profile affected --since <ref> --run --json",
 					parameters: ["ref"],
 				}),
 				expect.objectContaining({

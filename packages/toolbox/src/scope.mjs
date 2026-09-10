@@ -454,6 +454,7 @@ async function main() {
 	const args = parseArgs(process.argv.slice(3));
 	validateArgs(args);
 
+	// os-resolution: project — reads the workspace tier config of the repository the operator is standing in
 	const rootDir = process.cwd();
 	const configPath = findSovereignConfigPath(rootDir);
 	if (!configPath) {

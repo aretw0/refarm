@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { detectProjectBase } from "../project-base.js";
 
 /**
  * The newest mtime under `dir`, in epoch milliseconds, or null when it holds no files.
@@ -107,14 +108,36 @@ export class ProjectAuditor {
 
 		// In a stratified flow, we might receive results from generic_fs
 		const genericResults = context.generic_fs || {};
+		const git = genericResults.git || [];
+
+		// Same axis as generic_fs (see project-base.js): build configs, package
+		// alignment, and workspace structure are all questions about a project's
+		// own package layout. At a node base there is no such layout to judge —
+		// workspacePackageDirs would simply find nothing under it, which looks
+		// identical to "checked every package and they are all fine". Saying so
+		// explicitly keeps that silence from being read as a clean pass.
+		const projectBase = detectProjectBase(rootDir);
+		if (!projectBase.isProject) {
+			return {
+				git,
+				builds: [],
+				staleBuilds: [],
+				alignment: [],
+				automations: [],
+				namespaceWarnings: [],
+				applicable: false,
+				reason: projectBase.reason,
+			};
+		}
 
 		return {
-			git: genericResults.git || [],
+			git,
 			builds: await this.checkBuildConfigs(rootDir, { workspaceRoots, exemptPackageIds }),
 			staleBuilds: this.checkStaleBuilds(rootDir, { workspaceRoots, exemptPackageIds }),
 			alignment: await this.checkPackageAlignment(rootDir, { workspaceRoots, exemptPackageIds }),
 			automations: this.checkProjectAutomations(rootDir),
 			namespaceWarnings: this.checkWorkspaceNamespaces(rootDir, { workspaceNamespaces }),
+			applicable: true,
 		};
 	}
 
@@ -323,9 +346,24 @@ export class ProjectAuditor {
 		const declaredPaths = new Set(
 			declarations.map((namespace) => normalizeNamespacePath(namespace?.path)).filter(Boolean),
 		);
-		const warnings = [];
 
-		for (const namespacePath of versionedRootDotDirectories(rootDir)) {
+		const scan = versionedRootDotDirectories(rootDir);
+		if (!scan.ok) {
+			// `git ls-files` failing here is not "nothing to warn about" — it is
+			// this check never running. Reported as a note-in-console before,
+			// that read identically to a clean scan to every caller that only
+			// counts findings; a typed issue makes "could not check" visible.
+			return [
+				workspaceNamespaceIssue(
+					rootDir,
+					"workspace_namespace_scan_unreachable",
+					`could not list git-tracked files to audit workspace namespaces: ${scan.error}`,
+				),
+			];
+		}
+
+		const warnings = [];
+		for (const namespacePath of scan.namespaces) {
 			if (BUILTIN_INFRASTRUCTURE_NAMESPACES.has(namespacePath)) continue;
 			if (declaredPaths.has(namespacePath)) continue;
 			warnings.push(
@@ -497,8 +535,8 @@ function versionedRootDotDirectories(rootDir) {
 			encoding: "utf-8",
 			stdio: ["ignore", "pipe", "ignore"],
 		});
-	} catch {
-		return [];
+	} catch (e) {
+		return { ok: false, error: e?.message ?? String(e), namespaces: [] };
 	}
 
 	const namespaces = new Set();
@@ -514,7 +552,7 @@ function versionedRootDotDirectories(rootDir) {
 		}
 		namespaces.add(namespacePath);
 	}
-	return [...namespaces].sort();
+	return { ok: true, error: null, namespaces: [...namespaces].sort() };
 }
 
 function normalizeNamespacePath(value) {

@@ -35,7 +35,7 @@ No real personal, institutional, or secret data is used.
   direction, gaps, and no conformance claim.
 - A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON artifacts and a Markdown audit trail are generated deterministically.
-- A `refarm.task-artifacts.v1` manifest lists generated outputs with media
+- A `sovereign.task-artifacts.v1` manifest lists generated outputs with media
   types, SHA-256 hashes, review state, tokenized producer process, and
   provenance for downstream labs.
 

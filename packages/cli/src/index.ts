@@ -1,5 +1,18 @@
 export type { StatusJson, StatusOptions, StatusSurfaceAction } from "./status.js";
 export {
+	deriveWorkspaceDeclaration,
+	WorkspaceDeclarationError,
+	type WorkspaceDeclarationInput,
+	type WorkspaceDeclarationEvidence,
+	type WorkspaceDeclarationProposal,
+} from "./workspace-declaration.js";
+export {
+	deriveWorkspaceCommandDeclaration,
+	WorkspaceCommandDeclarationError,
+	type WorkspaceCommandDeclarationInput,
+	type WorkspaceCommandDeclarationProposal,
+} from "./workspace-command-declaration.js";
+export {
 	assertStatusJson,
 	buildStatusJson,
 	formatStatusJson,
@@ -350,3 +363,30 @@ export {
 	saveChatHistory,
 	resolveChatHistoryPath,
 } from "./chat-history.js";
+export {
+	qualifyId,
+	rejectUnsupportedFields,
+	WORK_ITEM_AXES,
+	WORK_ITEM_FIELDS,
+	WORK_ITEM_STATUSES,
+} from "./work-items/contract.js";
+export type {
+	CapabilityTable,
+	CoercedValue,
+	FieldSupport,
+	WorkItem,
+	WorkItemAdapter,
+	WorkItemAxis,
+	WorkItemField,
+	WorkItemReadResult,
+	WorkItemStatus,
+	WorkItemWriteResult,
+} from "./work-items/contract.js";
+export { createProjectJsonAdapter } from "./work-items/project-json-adapter.js";
+export type { ProjectJsonAdapterOptions } from "./work-items/project-json-adapter.js";
+export { resolveWorkspaceLedger } from "./work-items/resolve.js";
+export type {
+	LedgerResolution,
+	LedgerWorkspace,
+	ResolveLedgerInput,
+} from "./work-items/resolve.js";

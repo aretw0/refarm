@@ -5,6 +5,7 @@ static ENV_LOCK: Mutex<()> = Mutex::new(());
 mod config_and_dedup;
 mod equivalence_errors;
 mod equivalence_paths;
+mod loop_progress;
 mod loop_runner;
 mod loop_setup;
 mod response_contract;

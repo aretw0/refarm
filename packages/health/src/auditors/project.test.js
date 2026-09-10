@@ -266,6 +266,20 @@ describe("ProjectAuditor", () => {
 		]);
 	});
 
+	it("reports a typed issue instead of a silent empty pass when git ls-files cannot run", () => {
+		// rootDir here (from beforeEach) has no .git at all, so `git ls-files -z`
+		// fails with a real, non-mocked "not a git repository" error. Calling
+		// checkWorkspaceNamespaces directly (bypassing the applicable() gate that
+		// audit() enforces) proves this specific function's own honesty: the old
+		// code caught this and returned [], indistinguishable from "scanned, found
+		// nothing to warn about".
+		const auditor = new ProjectAuditor();
+
+		expect(auditor.checkWorkspaceNamespaces(rootDir)).toEqual([
+			expect.objectContaining({ type: "workspace_namespace_scan_unreachable" }),
+		]);
+	});
+
 	it("accepts declared versioned root namespaces", () => {
 		const auditor = new ProjectAuditor({
 			workspaceNamespaces: [{ path: ".project", owner: "pi-project-workflows" }],
@@ -276,6 +290,63 @@ describe("ProjectAuditor", () => {
 		execGit(rootDir, ["add", ".project/handoff.json"]);
 
 		expect(auditor.checkWorkspaceNamespaces(rootDir)).toEqual([]);
+	});
+
+	describe("audit() — project-base applicability", () => {
+		it("runs its checks normally when rootDir is a project (has .git)", async () => {
+			initGitRoot(rootDir);
+			makeWorkspacePackage(
+				"packages",
+				"missing-build",
+				{ name: "@example/missing-build", main: "./dist/index.js" },
+				["tsconfig.json"],
+			);
+
+			const auditor = new ProjectAuditor();
+			const result = await auditor.audit({ rootDir });
+
+			expect(result.applicable).toBe(true);
+			expect(result.reason).toBeUndefined();
+			expect(result.builds).toEqual([{ package: "packages/missing-build", type: "missing_build_config" }]);
+		});
+
+		it("does NOT run build/alignment/automation checks, and says why, when rootDir is not a project", async () => {
+			// The node-base shape: no .git here, but a package that HAPPENS to
+			// exist below it (e.g. a vendored checkout). Without the gate this
+			// would silently read as "checked, no missing build configs" rather
+			// than "there is no project here to check".
+			makeWorkspacePackage(
+				"packages",
+				"missing-build",
+				{ name: "@example/missing-build", main: "./dist/index.js" },
+				["tsconfig.json"],
+			);
+
+			const auditor = new ProjectAuditor();
+			const result = await auditor.audit({ rootDir });
+
+			expect(result.applicable).toBe(false);
+			expect(result.reason).toContain(rootDir);
+			expect(result.builds).toEqual([]);
+			expect(result.alignment).toEqual([]);
+			expect(result.staleBuilds).toEqual([]);
+			expect(result.automations).toEqual([]);
+			expect(result.namespaceWarnings).toEqual([]);
+		});
+
+		it("still forwards generic_fs's git findings through when present, even though it does not apply itself", async () => {
+			// HealthCore always feeds ProjectAuditor whatever generic_fs produced,
+			// via context.generic_fs — that pass-through must survive the
+			// inapplicability gate rather than being zeroed along with it.
+			const auditor = new ProjectAuditor();
+			const result = await auditor.audit({
+				rootDir,
+				generic_fs: { git: [{ file: "x.ts", type: "git_ignored", path: "/x.ts" }] },
+			});
+
+			expect(result.applicable).toBe(false);
+			expect(result.git).toEqual([{ file: "x.ts", type: "git_ignored", path: "/x.ts" }]);
+		});
 	});
 });
 

@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
 	buildBaseSurfaceModel,
 	buildCapabilitySurfaceUnit,
+	buildOperatorAttentionGateCommands,
+	buildOperatorAttentionGateHandoff,
+	buildOperatorAttentionSurfaceUnit,
 	buildReviewQueueSurfaceUnit,
 	createBaseSurfaceActionRequest,
 	createBaseSurfaceActionRows,
@@ -447,5 +450,121 @@ describe("operator state model", () => {
 		expect(formatBaseSurfaceModelText(model, { title: "wallet base status" })).toContain(
 			"Wallet: Wallet has 3 held items; 1 item needs review.",
 		);
+	});
+
+	it("expõe comandos estáveis para arm/check/consume do canal de atenção", () => {
+		const commands = buildOperatorAttentionGateCommands("vpn", 120000, {
+			commandPrefix: "refarm operator attention",
+		});
+
+		expect(commands).toEqual({
+			prepare: "refarm operator attention 'vpn' --prepare-only --window-ms 120000 --json",
+			check: "refarm operator attention 'vpn' --check-only --window-ms 120000 --json",
+			consume: "refarm operator attention 'vpn' --consume-only --json",
+		});
+	});
+
+	it("gera handoff neutro de atenção com nextCommand quando não armado", () => {
+		const handoff = buildOperatorAttentionGateHandoff({
+			scope: "vpn",
+			armed: false,
+			windowMs: 90000,
+			expiresAt: null,
+		});
+
+		expect(handoff).toMatchObject({
+			ok: false,
+			command: "operator-attention-gate",
+			scope: "vpn",
+			armed: false,
+			windowMs: 90000,
+			nextAction: "Arme o canal de atenção para 'vpn'.",
+			nextActions: ["Arme o canal de atenção para 'vpn'."],
+			nextCommand: "node scripts/operator-attention-gate.mjs 'vpn' --prepare-only --window-ms 90000 --json",
+			nextCommands: [
+				"node scripts/operator-attention-gate.mjs 'vpn' --prepare-only --window-ms 90000 --json",
+			],
+		});
+	});
+
+	it("gera handoff neutro sem ações quando já armado", () => {
+		const handoff = buildOperatorAttentionGateHandoff(
+			{
+				scope: "vpn",
+				armed: true,
+				windowMs: 90000,
+				expiresAt: "2026-01-01T00:00:00.000Z",
+			},
+			{ commandPrefix: "refarm operator attention", json: false },
+		);
+
+		expect(handoff).toMatchObject({
+			ok: true,
+			command: "operator-attention-gate",
+			scope: "vpn",
+			armed: true,
+			windowMs: 90000,
+			expiresAt: "2026-01-01T00:00:00.000Z",
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
+		});
+	});
+
+	it("modela unit de atenção com ação de preparo quando ainda não armado", () => {
+		const attentionUnit = buildOperatorAttentionSurfaceUnit({
+			owner: "apps/refarm",
+			status: {
+				scope: "connection-up:ovpn-serpro",
+				armed: false,
+				windowMs: 60000,
+				expiresAt: null,
+			},
+		});
+		const model = buildBaseSurfaceModel({ units: [attentionUnit] });
+
+		expect(attentionUnit).toMatchObject({
+			id: "operator-attention",
+			state: "blocked",
+			severity: "warning",
+			summary: "Canal de atenção ainda não armado para 'connection-up:ovpn-serpro'.",
+		});
+		expect(attentionUnit.actions).toEqual([
+			{
+				id: "prepare",
+				label: "Arme o canal de atenção para 'connection-up:ovpn-serpro'.",
+				command:
+					"node scripts/operator-attention-gate.mjs 'connection-up:ovpn-serpro' --prepare-only --window-ms 60000 --json",
+				intent: "operator-attention:prepare",
+				primary: true,
+			},
+		]);
+		expect(model.nextCommand).toBe(
+			"node scripts/operator-attention-gate.mjs 'connection-up:ovpn-serpro' --prepare-only --window-ms 60000 --json",
+		);
+	});
+
+	it("modela unit de atenção pronta sem ações pendentes quando já armado", () => {
+		const attentionUnit = buildOperatorAttentionSurfaceUnit({
+			owner: "apps/refarm",
+			status: {
+				scope: "connection-up:ovpn-serpro",
+				armed: true,
+				windowMs: 60000,
+				expiresAt: "2026-01-01T00:00:00.000Z",
+			},
+		});
+		const model = buildBaseSurfaceModel({ units: [attentionUnit] });
+
+		expect(attentionUnit).toMatchObject({
+			id: "operator-attention",
+			state: "ready",
+			severity: "info",
+			summary: "Canal de atenção armado para 'connection-up:ovpn-serpro'.",
+		});
+		expect(attentionUnit.actions).toEqual([]);
+		expect(model.nextCommand).toBeNull();
+		expect(model.nextCommands).toEqual([]);
 	});
 });

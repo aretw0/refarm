@@ -27,6 +27,7 @@ function parseArgs(argv = []) {
 		root: ROOT,
 		handoffDir: null,
 		consumerRoot: null,
+		consumerPackages: [],
 		latestAccepted: false,
 		json: false,
 	};
@@ -45,6 +46,11 @@ function parseArgs(argv = []) {
 		}
 		if (arg === "--consumer-root") {
 			options.consumerRoot = path.resolve(requireValue(argv, index, arg));
+			index += 1;
+			continue;
+		}
+		if (arg === "--consumer-package") {
+			options.consumerPackages.push(requireValue(argv, index, arg));
 			index += 1;
 			continue;
 		}
@@ -105,7 +111,12 @@ function expectedManifestSpec(tarball) {
 	return `file:./vendor/${tarball}`;
 }
 
-function validateHandoffManifest({ root = ROOT, handoffDir = null, consumerRoot = null } = {}) {
+function validateHandoffManifest({
+	root = ROOT,
+	handoffDir = null,
+	consumerRoot = null,
+	consumerPackages = [],
+} = {}) {
 	const resolvedHandoffDir = resolveHandoffDir(root, handoffDir);
 	const issues = [];
 
@@ -124,11 +135,25 @@ function validateHandoffManifest({ root = ROOT, handoffDir = null, consumerRoot 
 	const packages = Array.isArray(manifest.packages) ? manifest.packages : [];
 	const packageNames = packages.map((entry) => entry.packageName).filter(Boolean);
 	const install = manifest.consumerInstall ?? {};
+	const requestedConsumerPackages = [...new Set(consumerPackages)];
+	const consumerEntries = requestedConsumerPackages.length > 0
+		? requestedConsumerPackages
+			.map((packageName) => {
+				const entry = packages.find((candidate) => candidate.packageName === packageName);
+				if (!entry) {
+					issue(issues, "consumer-package-unknown", `${packageName} is absent from the handoff selection`, {
+						packageName,
+					});
+				}
+				return entry;
+			})
+			.filter(Boolean)
+		: packages;
 
 	if (manifest.source !== "vault-seed-ready-handoff") {
 		issue(issues, "source", "manifest.source must be vault-seed-ready-handoff", { actual: manifest.source });
 	}
-	if (manifest.selection?.id !== "vault-seed-ready") {
+	if (manifest.selection?.id !== "consumer-ready") {
 		issue(issues, "selection", "manifest.selection.id must be vault-seed-ready", { actual: manifest.selection?.id });
 	}
 	if (manifest.ok !== true || manifest.status !== "ready") {
@@ -224,18 +249,40 @@ function validateHandoffManifest({ root = ROOT, handoffDir = null, consumerRoot 
 	}
 
 	if (consumerRoot) {
-		validateConsumerCopy({ consumerRoot, packages, packageNames, issues });
+		validateConsumerCopy({
+			consumerRoot,
+			packages: consumerEntries,
+			packageNames: consumerEntries.map((entry) => entry.packageName),
+			issues,
+			strictDirectRefs: requestedConsumerPackages.length === 0,
+		});
 	}
 
-	return result({ root, handoffDir: resolvedHandoffDir, consumerRoot, manifest, issues });
+	return result({
+		root,
+		handoffDir: resolvedHandoffDir,
+		consumerRoot,
+		consumerPackages: requestedConsumerPackages,
+		manifest,
+		issues,
+	});
 }
 
-function latestAcceptedHandoffReport({ root = ROOT, consumerRoot = null } = {}) {
+function latestAcceptedHandoffReport({
+	root = ROOT,
+	consumerRoot = null,
+	consumerPackages = [],
+} = {}) {
 	const dirs = handoffDirs(root).reverse();
 	let latestCandidate = null;
 
 	for (const dir of dirs) {
-		const report = validateHandoffManifest({ root, handoffDir: dir, consumerRoot });
+		const report = validateHandoffManifest({
+			root,
+			handoffDir: dir,
+			consumerRoot,
+			consumerPackages,
+		});
 		latestCandidate ??= report;
 		if (report.ok) {
 			return {
@@ -264,7 +311,7 @@ function latestAcceptedHandoffReport({ root = ROOT, consumerRoot = null } = {}) 
 		};
 	}
 
-	return validateHandoffManifest({ root, consumerRoot });
+	return validateHandoffManifest({ root, consumerRoot, consumerPackages });
 }
 
 function summarizeCandidate(report) {
@@ -281,7 +328,13 @@ function summarizeCandidate(report) {
 	};
 }
 
-function validateConsumerCopy({ consumerRoot, packages, packageNames, issues }) {
+function validateConsumerCopy({
+	consumerRoot,
+	packages,
+	packageNames,
+	issues,
+	strictDirectRefs = true,
+}) {
 	const vendorDir = path.join(consumerRoot, "vendor");
 	const pkgPath = path.join(consumerRoot, "package.json");
 	const workspacePath = path.join(consumerRoot, "pnpm-workspace.yaml");
@@ -313,7 +366,9 @@ function validateConsumerCopy({ consumerRoot, packages, packageNames, issues }) 
 		}
 		const selected = packages.find((entry) => entry.packageName === packageName);
 		if (!selected) {
-			issue(issues, "consumer-direct-extra", `Consumer package.json references ${packageName}, absent from handoff selection`);
+			if (strictDirectRefs) {
+				issue(issues, "consumer-direct-extra", `Consumer package.json references ${packageName}, absent from handoff selection`);
+			}
 			continue;
 		}
 		const wanted = expectedVendorSpec(selected.tarball);
@@ -349,7 +404,7 @@ function collectDirectFileRefs(packageJson) {
 	return refs;
 }
 
-function result({ root, handoffDir, consumerRoot, manifest, issues }) {
+function result({ root, handoffDir, consumerRoot, consumerPackages = [], manifest, issues }) {
 	return {
 		ok: issues.length === 0,
 		command: "vault-seed-handoff-consumer-install",
@@ -357,6 +412,8 @@ function result({ root, handoffDir, consumerRoot, manifest, issues }) {
 		root,
 		handoffDir,
 		consumerRoot,
+		consumerPackages,
+		consumerPackageCount: consumerPackages.length || manifest?.packages?.length || 0,
 		sourceGitSha: manifest?.sourceGitSha ?? null,
 		packageCount: manifest?.packages?.length ?? 0,
 		issueCount: issues.length,
@@ -374,6 +431,9 @@ function formatReport(report) {
 	}
 	if (report.consumerRoot) {
 		lines.push(`consumerRoot: ${report.consumerRoot}`);
+	}
+	if (report.consumerPackages.length > 0) {
+		lines.push(`consumerPackages: ${report.consumerPackages.join(", ")}`);
 	}
 	lines.push(`packages: ${report.packageCount}`);
 	if (report.sourceGitSha) {

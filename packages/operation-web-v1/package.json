@@ -1,0 +1,38 @@
+{
+	"name": "@refarm.dev/operation-web-v1",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Browser-neutral client and localized view messages for Refarm's admitted operation catalog and bounded run lifecycle",
+	"license": "MIT",
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		},
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run",
+		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/ds": "workspace:*",
+		"@refarm.dev/localization-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"typescript": "catalog:"
+	}
+}

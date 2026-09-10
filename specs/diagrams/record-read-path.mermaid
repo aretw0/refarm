@@ -1,0 +1,49 @@
+flowchart TB
+  subgraph Storage["SQLite storage — packages/tractor/src/storage/sqlite.rs"]
+    DB[("nodes table\nid · type · payload · updated_at")]
+    INNER["query_nodes_inner\nORDER BY updated_at DESC, id DESC"]
+    QN["query_nodes(type)\nfull Vec, caller limits"]
+    QNL["query_nodes_limited(type, n)\nLIMIT pushed into SQL"]
+    CN["count_nodes(type)\nSELECT COUNT(*)"]
+  end
+
+  GUAR["ORDERING GUARANTEE ESTABLISHED HERE\nnewest first · id DESC is the total-order tiebreak\n(before 2026-08-06: no ORDER BY at all)"]
+
+  subgraph Readers["Readers — each takes the front N, meaning the N most recent"]
+    SIDECAR["GET /nodes?type=…\nsidecar/mod.rs :: get_nodes"]
+    BRIDGE["WASM bridge query-nodes host call\nhost/wasi_bridge/core.rs\nTractorBridgeHost::query_nodes\nreturns node-page: nodes + stored + truncated"]
+    SESSION["Agent session helpers\nlatest_session_id_with_v1_preference · latest_session_leaf_id\nagent/src/session/wasm_ops.rs"]
+  end
+
+  CEIL["TRUNCATION IS REPORTED, NEVER SILENT\nstored + truncated travel with the response\nsidecar ceiling: MAX_NODES_PER_RESPONSE = 100\nbridge ceiling: the guest's own limit — no fixed cap"]
+
+  CLI["refarm budget observations\napps/refarm/src/commands/budget.ts"]
+
+  DB --> INNER
+  INNER --> QN
+  INNER --> QNL
+  DB --> CN
+  INNER -.->|establishes| GUAR
+
+  QNL --> SIDECAR
+  CN --> SIDECAR
+  SIDECAR -.->|reports| CEIL
+
+  QNL --> BRIDGE
+  CN --> BRIDGE
+  BRIDGE -.->|reports| CEIL
+  BRIDGE -->|"tractor_bridge::query_nodes — guest stub, not a direct storage read"| SESSION
+
+  SIDECAR --> CLI
+
+  classDef storage fill:#e0f2fe,stroke:#0369a1,stroke-width:1px;
+  classDef guarantee fill:#dcfce7,stroke:#166534,stroke-width:2px;
+  classDef ceiling fill:#fef3c7,stroke:#a16207,stroke-width:2px;
+  classDef reader fill:#f8fafc,stroke:#334155,stroke-width:1px;
+  classDef cli fill:#ede9fe,stroke:#5b21b6,stroke-width:1px;
+
+  class DB,INNER,QN,QNL,CN storage;
+  class GUAR guarantee;
+  class CEIL ceiling;
+  class SIDECAR,BRIDGE,SESSION reader;
+  class CLI cli;

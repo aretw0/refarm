@@ -416,9 +416,9 @@ Consumer-local semantic tokens remain fallback-only for raw Marimo sessions.
 **2026-06-26 process provenance packet:** `@refarm.dev/process-handoff` now proves
 its runner-style process specs can be embedded directly in
 `@refarm.dev/artifact-contract-v1` task artifact provenance without
-shell-splitting. The package is the build-free `vault-seed-ready` leaf;
+shell-splitting. The package is the build-free `consumer-ready` leaf;
 `@refarm.dev/cli/process-handoff` stays as a compatibility re-export. The
-`vault-seed-ready` publish dry-run passes with this leaf included and the full
+`consumer-ready` publish dry-run passes with this leaf included and the full
 CLI closure excluded. Candidate tarball:
 `.refarm/handoff/vault-seed/2026-06-30/refarm.dev-process-handoff-0.1.0.tgz`.
 Official proof received (2026-07-03): `vault-seed` now has `@aretw0/dgk-runner`
@@ -471,7 +471,7 @@ after the 2026-07-01 T3 consumer proof.
 required `source-web` transitive override. The downstream consumer-contract
 suite is green (16/16), and the reference vault proves `source-web` fixture input
 composing through `records:v1` and `enrichment:v1` with an empty gap ledger. The
-active `vault-seed-ready` selection now adds:
+active `consumer-ready` selection now adds:
 
 | Package | Tarball |
 | --- | --- |
@@ -605,7 +605,7 @@ caller-declared command checks, path checks, any-command fallbacks, and the
 devcontainer `node_modules` volume mount check. Its JSON-ready report returns
 `ok`, `checks`, `missing`, and `mountIssues`; downstream CLIs keep product
 commands, recovery text, required file lists, and any combined health+quality
-summary. `@refarm.dev/health` is promoted to `vault-seed-ready` only for
+summary. `@refarm.dev/health` is promoted to `consumer-ready` only for
 `health.toolchain-environment-auditor`.
 
 ### Additional Assimilation Matrix

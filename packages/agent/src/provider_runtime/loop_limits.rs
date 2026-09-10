@@ -1,4 +1,7 @@
-/// The default tool-iteration ceiling when `MODEL_TOOL_CALL_MAX_ITER` is unset. A
+/// The default tool-iteration ceiling when `MODEL_TOOL_CALL_MAX_ITER` is unset.
+/// A COUNT of loop iterations (`loop_core.rs` runs exactly this many), not a
+/// maximum index: 25 means 25 steps, and `step 25/25` is the last one an
+/// observer sees. A
 /// real coding task (edit a file → run a build/test → read the failure → fix →
 /// verify) routinely takes well over a handful of tool turns, and reference agents
 /// (pi, Hermes) run dozens; the previous default of 5 forced premature termination on

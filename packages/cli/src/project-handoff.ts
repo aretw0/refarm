@@ -69,10 +69,30 @@ function cleanString(value: unknown): string | undefined {
 	return trimmed.length > 0 ? trimmed : undefined;
 }
 
+export interface ProjectHandoffFieldCount {
+	returned: number;
+	total: number;
+}
+
+export interface ProjectHandoffTruncation {
+	currentTasks: ProjectHandoffFieldCount;
+	blockers: ProjectHandoffFieldCount;
+	nextActions: ProjectHandoffFieldCount;
+	openQuestions: ProjectHandoffFieldCount;
+}
+
 function cleanStringArray(value: unknown, limit?: number): string[] {
-	if (!Array.isArray(value)) return [];
-	const items = value.map(cleanString).filter((item): item is string => item !== undefined);
-	return limit === undefined ? items : items.slice(0, limit);
+	return countedStringArray(value, limit).items;
+}
+
+function countedStringArray(
+	value: unknown,
+	limit?: number,
+): { items: string[]; count: ProjectHandoffFieldCount } {
+	if (!Array.isArray(value)) return { items: [], count: { returned: 0, total: 0 } };
+	const cleaned = value.map(cleanString).filter((item): item is string => item !== undefined);
+	const items = limit === undefined ? cleaned : cleaned.slice(0, limit);
+	return { items, count: { returned: items.length, total: cleaned.length } };
 }
 
 function fieldIssue(
@@ -96,15 +116,25 @@ export function parseProjectHandoffSummary(
 			? value.current_phase
 			: undefined;
 	if (!context && !timestamp && currentPhase === undefined) return undefined;
+	const currentTasks = countedStringArray(value.current_tasks, options.arrayLimit);
+	const blockers = countedStringArray(value.blockers, options.arrayLimit);
+	const nextActions = countedStringArray(value.next_actions, options.arrayLimit);
+	const openQuestions = countedStringArray(value.open_questions, options.arrayLimit);
 	return {
 		path: options.path ?? PROJECT_HANDOFF_RELATIVE_PATH,
 		timestamp,
 		currentPhase,
 		context,
-		currentTasks: cleanStringArray(value.current_tasks, options.arrayLimit),
-		blockers: cleanStringArray(value.blockers, options.arrayLimit),
-		nextActions: cleanStringArray(value.next_actions, options.arrayLimit),
-		openQuestions: cleanStringArray(value.open_questions, options.arrayLimit),
+		currentTasks: currentTasks.items,
+		blockers: blockers.items,
+		nextActions: nextActions.items,
+		openQuestions: openQuestions.items,
+		truncation: {
+			currentTasks: currentTasks.count,
+			blockers: blockers.count,
+			nextActions: nextActions.count,
+			openQuestions: openQuestions.count,
+		},
 	};
 }
 

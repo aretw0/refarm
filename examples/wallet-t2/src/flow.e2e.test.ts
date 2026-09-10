@@ -301,6 +301,49 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		expect(after.pendingCount).toBe(0);
 	});
 
+	it("the T2-F7 consent prompt shows a --justification when the requesting service sets one", async () => {
+		const reg = buildRegistry({ statePath: tempStatePath() });
+		const run = async (
+			name: string,
+			args: Record<string, string>,
+			options: Record<string, string> = {},
+		): Promise<Record<string, unknown>> => {
+			const verb = reg.get(name);
+			if (!verb || "actions" in verb) throw new Error(`${name} verb not mounted`);
+			return (await verb.run({ args, options, json: true })) as unknown as Record<string, unknown>;
+		};
+
+		// A service submits a request WITH a justification beyond --purpose.
+		await run(
+			"request",
+			{ requester: "Loja Fictícia" },
+			{
+				purpose: "Confirmar maioridade",
+				justification: "Exigido pela regulação do setor antes de qualquer venda.",
+				scope: "faixa_etaria",
+				expires: "2026-12-31T00:00:00Z",
+			},
+		);
+
+		// The consent screen renders the justification the citizen reads before deciding.
+		const consent = await run("consent", {});
+		expect(consent.consentHtml as string).toContain(
+			"Exigido pela regulação do setor antes de qualquer venda.",
+		);
+
+		// A sibling request with NO --justification renders with no regression: the section stays
+		// absent for it — exactly one justification section total, not two.
+		await run(
+			"request",
+			{ requester: "Outra Loja" },
+			{ purpose: "Confirmar maioridade", scope: "faixa_etaria", expires: "2026-12-31T00:00:00Z" },
+		);
+		const consentAfter = await run("consent", {});
+		const justificationSections =
+			(consentAfter.consentHtml as string).match(/refarm-consent-justification/g) ?? [];
+		expect(justificationSections.length).toBe(1);
+	});
+
 	it("the T2-F7 consent journey: the citizen AUTHORIZES a pending request (the sovereign yes)", async () => {
 		const reg = buildRegistry({ statePath: tempStatePath() });
 		const run = async (

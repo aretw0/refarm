@@ -13,6 +13,7 @@ import {
 import { findWorkspaceRoot } from "@refarm.dev/config";
 import { Command } from "commander";
 import { refarmCommand } from "../brand.js";
+import { guardedAction, type RefusalHandoff } from "./action-boundary.js";
 import { RESUME_JSON_COMMAND } from "./credential-handoffs.js";
 import {
 	createPackageScriptCommand,
@@ -98,6 +99,18 @@ export function runTidyProcess(
 	return runProcessHandoff(spec, options);
 }
 
+/** The package manager is a dependency `tidy imports` NEEDS: when the spawn itself fails
+ *  (`spawn npm ENOENT` on a machine without it) the command did not do its job, so it
+ *  refuses. Distinct from `tidy-imports-failed`, which is the organizer running and
+ *  reporting unorganized imports. */
+const TIDY_IMPORTS_REFUSAL_HANDOFF: RefusalHandoff = {
+	command: "tidy",
+	operation: "imports",
+	error: "tidy-imports-unavailable",
+	nextAction: `Could not run the package manager. Inspect the resolved command, or set ${PACKAGE_MANAGER_OVERRIDE}=${PACKAGE_MANAGERS.join("|")}.`,
+	nextCommand: refarmCommand(["tidy", "imports", "--dry-run", "--json"]),
+};
+
 export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 	const resolvedDeps: TidyDeps = {
 		cwd: () => process.cwd(),
@@ -131,81 +144,95 @@ export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 		.option("--check", "Check import organization without writing files")
 		.option("--dry-run", "Print the import organization plan without running it")
 		.option("--json", "Output machine-readable command plan or result")
-		.action(async (files: string[], options: TidyImportsOptions) => {
-			const selectedFiles = files ?? [];
-			const workspaceRoot = findWorkspaceRoot(resolvedDeps.cwd());
-			const spec = resolveTidyImportsSpec({
-				cwd: workspaceRoot,
-				check: options.check,
-				files: selectedFiles,
-			});
-			const plan = buildTidyImportsPlan(spec, options, selectedFiles);
+		.action(
+			guardedAction(
+				(_files: string[], options: TidyImportsOptions) => ({
+					json: options.json === true,
+					...TIDY_IMPORTS_REFUSAL_HANDOFF,
+				}),
+				async (files: string[], options: TidyImportsOptions) => {
+					const selectedFiles = files ?? [];
+					const workspaceRoot = findWorkspaceRoot(resolvedDeps.cwd());
+					const spec = resolveTidyImportsSpec({
+						cwd: workspaceRoot,
+						check: options.check,
+						files: selectedFiles,
+					});
+					const plan = buildTidyImportsPlan(spec, options, selectedFiles);
 
-			if (options.dryRun) {
-				const nextCommand = refarmTidyImportsCommand(selectedFiles, {
-					check: options.check,
-				});
-				if (options.json) {
-					printJson(
-						buildJsonSuccessEnvelope({
-							command: "tidy",
-							operation: "imports",
-							nextCommand,
-							nextCommands: [nextCommand],
-							extra: plan,
-						}),
-					);
-				} else {
-					console.log(`Command: ${plan.display}`);
-				}
-				return;
-			}
+					if (options.dryRun) {
+						const nextCommand = refarmTidyImportsCommand(selectedFiles, {
+							check: options.check,
+						});
+						if (options.json) {
+							printJson(
+								buildJsonSuccessEnvelope({
+									command: "tidy",
+									operation: "imports",
+									nextCommand,
+									nextCommands: [nextCommand],
+									extra: plan,
+								}),
+							);
+						} else {
+							console.log(`Command: ${plan.display}`);
+						}
+						return;
+					}
 
-			const result = await resolvedDeps.run(spec, { capture: options.json === true });
-			if (options.json) {
-				if (result.exitCode === 0) {
-					const successNextCommands = options.check ? [] : [RESUME_JSON_COMMAND];
-					printJson(
-						buildJsonSuccessEnvelope({
-							command: "tidy",
-							operation: "imports",
-							nextCommands: successNextCommands,
-							extra: {
-								...plan,
-								exitCode: result.exitCode,
-								stdout: result.stdout,
-								stderr: result.stderr,
-							},
-						}),
-					);
-				} else {
-					const fixCommand = options.check
-						? refarmTidyImportsCommand(selectedFiles)
-						: refarmTidyImportsCommand(selectedFiles, { check: true });
-					printJson(
-						buildJsonErrorEnvelope({
-							command: "tidy",
-							operation: "imports",
-							error: "tidy-imports-failed",
-							message: `Import organization exited with code ${result.exitCode}.`,
-							nextAction: fixCommand,
-							nextActions: [fixCommand, refarmTidyImportsCommand(selectedFiles, { check: true })],
-							nextCommand: fixCommand,
-							nextCommands: [fixCommand, refarmTidyImportsCommand(selectedFiles, { check: true })],
-							extra: {
-								...plan,
-								exitCode: result.exitCode,
-								stdout: result.stdout,
-								stderr: result.stderr,
-							},
-						}),
-					);
-				}
-			}
-			if (result.exitCode !== 0) {
-				process.exitCode = result.exitCode;
-			}
-		});
+					const result = await resolvedDeps.run(spec, { capture: options.json === true });
+					if (options.json) {
+						if (result.exitCode === 0) {
+							const successNextCommands = options.check ? [] : [RESUME_JSON_COMMAND];
+							printJson(
+								buildJsonSuccessEnvelope({
+									command: "tidy",
+									operation: "imports",
+									nextCommands: successNextCommands,
+									extra: {
+										...plan,
+										exitCode: result.exitCode,
+										stdout: result.stdout,
+										stderr: result.stderr,
+									},
+								}),
+							);
+						} else {
+							const fixCommand = options.check
+								? refarmTidyImportsCommand(selectedFiles)
+								: refarmTidyImportsCommand(selectedFiles, { check: true });
+							printJson(
+								buildJsonErrorEnvelope({
+									command: "tidy",
+									operation: "imports",
+									error: "tidy-imports-failed",
+									message: `Import organization exited with code ${result.exitCode}.`,
+									nextAction: fixCommand,
+									nextActions: [
+										fixCommand,
+										refarmTidyImportsCommand(selectedFiles, { check: true }),
+									],
+									nextCommand: fixCommand,
+									nextCommands: [
+										fixCommand,
+										refarmTidyImportsCommand(selectedFiles, { check: true }),
+									],
+									extra: {
+										...plan,
+										exitCode: result.exitCode,
+										stdout: result.stdout,
+										stderr: result.stderr,
+									},
+								}),
+							);
+						}
+					}
+					if (result.exitCode !== 0) {
+						process.exitCode = result.exitCode;
+					}
+				},
+			),
+		);
 
 	return command;
 }

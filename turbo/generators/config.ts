@@ -32,6 +32,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
         choices: [
           "contract-v1",
           "buildable",
+          "model-catalog-plugin",
           "source-only",
           "wasm-component",
           "ui-library",
@@ -83,7 +84,13 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
       ];
 
       // Patch root tsconfig.json paths for TS types
-      const needsRootPaths = ["buildable", "source-only", "ui-library", "contract-v1"];
+      const needsRootPaths = [
+        "buildable",
+        "model-catalog-plugin",
+        "source-only",
+        "ui-library",
+        "contract-v1",
+      ];
       if (needsRootPaths.includes(type)) {
         actions.push({
           type: "modify",

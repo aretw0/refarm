@@ -147,19 +147,27 @@ describe("sessions route handler", () => {
 		]);
 	});
 
-	it("GET /sessions applies bounded list limits", async () => {
+	// THE STORE'S ORDER IS THE ANSWER (ISS-044). This test used to feed [older, newer] and expect
+	// `newer` — pinning a `.sort(created_at DESC)` in the transport. That re-sort is harmless only
+	// while the store is an in-memory Map where a Session is never upserted; `index.ts` says it
+	// becomes storage-sqlite in Phase 2, where the store answers in updated_at order and a
+	// created_at re-sort silently returns the wrong N.
+	//
+	// So the rows now arrive in the order a store would give them, and the transport takes the
+	// FRONT N without touching it.
+	it("GET /sessions takes the front N of the store's own order", async () => {
 		store.queryNodes.mockResolvedValueOnce([
-			{
-				"@type": "Session",
-				"@id": "urn:sovereign:session:v1:older",
-				name: "older",
-				created_at_ns: 1,
-			},
 			{
 				"@type": "Session",
 				"@id": "urn:sovereign:session:v1:newer",
 				name: "newer",
 				created_at_ns: 2,
+			},
+			{
+				"@type": "Session",
+				"@id": "urn:sovereign:session:v1:older",
+				name: "older",
+				created_at_ns: 1,
 			},
 		]);
 
@@ -169,6 +177,32 @@ describe("sessions route handler", () => {
 			expect.objectContaining({
 				"@id": "urn:sovereign:session:v1:newer",
 			}),
+		]);
+	});
+
+	// THE CASE THAT DISTINGUISHES THE TWO, and which no test had: a store order that DISAGREES
+	// with created_at. A transport that re-sorts returns "b" here; one that trusts the store
+	// returns "a". Under an in-memory Map the two are indistinguishable, which is exactly why the
+	// re-sort survived — and why this case has to be written rather than waited for.
+	it("does not re-sort: a store order that disagrees with created_at is preserved", async () => {
+		store.queryNodes.mockResolvedValueOnce([
+			{
+				"@type": "Session",
+				"@id": "urn:sovereign:session:v1:a",
+				name: "a",
+				created_at_ns: 1,
+			},
+			{
+				"@type": "Session",
+				"@id": "urn:sovereign:session:v1:b",
+				name: "b",
+				created_at_ns: 999,
+			},
+		]);
+
+		const { body } = await request(PORT, "GET", "/sessions?limit=1");
+		expect((body as Record<string, unknown>).sessions).toEqual([
+			expect.objectContaining({ "@id": "urn:sovereign:session:v1:a" }),
 		]);
 	});
 

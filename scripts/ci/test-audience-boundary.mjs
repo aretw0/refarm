@@ -138,7 +138,7 @@ test("ecosystem supply map keeps reference driver package-first", () => {
 	assert.match(supplyMap, /candidate,\s+internal,\s+then hold/);
 	assert.match(supplyMap, /publicationBoundary/);
 	assert.match(supplyMap, /@refarm\.dev\/cli`\s+remains in\s+`boundary-review`/);
-	assert.match(supplyMap, /not a\s+`vault-seed-ready`\s+leaf/);
+	assert.match(supplyMap, /not a\s+`consumer-ready`\s+leaf/);
 	assert.match(supplyMap, /package-owned by\s+`@refarm\.dev\/cli\/capability-index`/);
 	assert.match(supplyMap, /[Pp]reflight is for\s+release posture and consumer\s+planning/);
 	assert.match(supplyMap, /worker\s+isolation/i);
@@ -201,11 +201,25 @@ test("work focus keeps adjacent tracks orbiting without premature product work",
 
 	assert.match(focus, /Distributed availability \/ Pears/);
 	assert.match(focus, /runtime-adoption-gated/);
-	assert.match(focus, /Adopting Bare\/Hypercore\/Pears wholesale/);
+	// THE RULE, not the roster. This pinned `Adopting Bare/Hypercore/Pears wholesale` verbatim and
+	// went red when the row was rewritten to name Pears/Iroh instead — the anti-goal survived
+	// intact and only the stack list moved. What this test is FOR is that the row still refuses
+	// wholesale adoption ahead of proof; WHICH P2P stack is on the shortlist this quarter is the
+	// document's business, and a copy of it here is a second roadmap that drifts.
+	assert.match(focus, /adopting [^|]*wholesale before the boundary is proven/i);
 
 	assert.match(focus, /Remote workspace control/);
-	assert.match(focus, /capability-scoped control/);
-	assert.match(focus, /Treating mounts, host paths, Telegram, Matrix, or Tailscale as the core abstraction/);
+	// Same repair as the row above: the prose moved on (`capability-scoped control` became a
+	// fuller description of named, shell-free, reviewed commands) while the RULE held. What must
+	// not vanish is that remote control is projected through named operations and that a terminal
+	// is never one of them.
+	assert.match(focus, /shell-free commands/i);
+	assert.match(focus, /stdout and argv never become a remote terminal/i);
+	// The anti-goal, by rule. The roster was rewritten (`mounts, Telegram, Matrix` became `SSH,
+	// host paths, Tailscale, or a generic remote shell`) and the refusal is unchanged: transport
+	// is never the abstraction. Pinning the list made this a copy of the roadmap that drifts.
+	assert.match(focus, /host paths[^|]*as the abstraction/i);
+	assert.match(focus, /generic remote shell/i);
 });
 
 test("convergence roadmap keeps sub-project numbers unique", () => {
@@ -386,7 +400,7 @@ test("release policy keeps SDK primitives behind explicit audience boundaries", 
 			`${profile.id} must declare boundary-review before publication`,
 		);
 		assert.ok(
-			!profile.tags.includes("vault-seed-ready") ||
+			!profile.tags.includes("consumer-ready") ||
 				profile.tags.includes("consumer-pulled"),
 			`${profile.id} must not enter vault-seed-ready without consumer-pulled proof`,
 		);
@@ -396,7 +410,7 @@ test("release policy keeps SDK primitives behind explicit audience boundaries", 
 test("vault-seed-ready packages declare consumer-pulled intent", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const policy = config.releasePolicy;
-	const selection = policy.selections.find((item) => item.id === "vault-seed-ready");
+	const selection = policy.selections.find((item) => item.id === "consumer-ready");
 	assert.deepEqual(selection.audienceBoundary, {
 		consumer: "vault-seed",
 		naming: "product-neutral-sdk",
@@ -406,7 +420,7 @@ test("vault-seed-ready packages declare consumer-pulled intent", () => {
 
 	const profiles = policy.packageProfiles;
 	const readyProfiles = profiles.filter((profile) =>
-		profile.tags?.includes("vault-seed-ready"),
+		profile.tags?.includes("consumer-ready"),
 	);
 
 	assert.ok(readyProfiles.length > 0, "expected vault-seed-ready profiles");
@@ -462,7 +476,7 @@ test("process handoff stays the selected process leaf", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const policyText = read("refarm.config.json");
 	const selected = config.releasePolicy.packageProfiles
-		.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+		.filter((profile) => profile.tags?.includes("consumer-ready"))
 		.map((profile) => profile.id);
 
 	assert.ok(selected.includes("@refarm.dev/process-handoff"));
@@ -478,7 +492,7 @@ test("source librarian packages distinguish proven handoff leaves from held adap
 	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
 	const vaultSeedReady = new Set(
 		profiles
-			.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+			.filter((profile) => profile.tags?.includes("consumer-ready"))
 			.map((profile) => profile.id),
 	);
 
@@ -505,7 +519,7 @@ test("source librarian packages distinguish proven handoff leaves from held adap
 		"@refarm.dev/source-web",
 	]) {
 		const profile = byId.get(packageName);
-		for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+		for (const tag of ["consumer-pulled", "consumer-ready", "consumer-proven"]) {
 			assert.ok(
 				profile.tags.includes(tag),
 				`${packageName} must declare ${tag} after selected downstream proof`,
@@ -538,7 +552,7 @@ test("requirements supply packages are selected only after downstream proof", ()
 	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
 	const vaultSeedReady = new Set(
 		profiles
-			.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+			.filter((profile) => profile.tags?.includes("consumer-ready"))
 			.map((profile) => profile.id),
 	);
 
@@ -557,7 +571,7 @@ test("requirements supply packages are selected only after downstream proof", ()
 			profile.tags.includes("boundary-review"),
 			`${packageName} must stay boundary-reviewed`,
 		);
-		for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+		for (const tag of ["consumer-pulled", "consumer-ready", "consumer-proven"]) {
 			assert.ok(
 				profile.tags.includes(tag),
 				`${packageName} must declare ${tag} after selected downstream proof`,
@@ -607,7 +621,7 @@ test("t2 credentials seam is consumer-pulled with reference issuer and wallet pr
 	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
 	const vaultSeedReady = new Set(
 		profiles
-			.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+			.filter((profile) => profile.tags?.includes("consumer-ready"))
 			.map((profile) => profile.id),
 	);
 
@@ -620,7 +634,7 @@ test("t2 credentials seam is consumer-pulled with reference issuer and wallet pr
 	]) {
 		const profile = byId.get(packageName);
 		assert.ok(profile, `${packageName} must be release-profiled`);
-		for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+		for (const tag of ["consumer-pulled", "consumer-ready", "consumer-proven"]) {
 			assert.ok(
 				profile.tags.includes(tag),
 				`${packageName} must declare ${tag} after the selected credentials pull`,
@@ -703,7 +717,7 @@ test("release-engine docs keep host integration product-neutral", () => {
 test("vault-seed-ready README openings stay consumer-neutral", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const profiles = config.releasePolicy.packageProfiles.filter((profile) =>
-		profile.tags?.includes("vault-seed-ready"),
+		profile.tags?.includes("consumer-ready"),
 	);
 	const forbiddenOpening = [
 		/\bRefarm platform\b/,
@@ -741,7 +755,7 @@ test("vault-seed-ready package descriptions stay consumer-neutral", () => {
 	];
 
 	for (const profile of config.releasePolicy.packageProfiles.filter((candidate) =>
-		candidate.tags?.includes("vault-seed-ready"),
+		candidate.tags?.includes("consumer-ready"),
 	)) {
 		const packageDir = profile.id.replace("@refarm.dev/", "");
 		const packageJson = JSON.parse(read(`packages/${packageDir}/package.json`));
@@ -761,7 +775,7 @@ test("vault-seed-ready README openings promote selected packages, not compatibil
 	const config = JSON.parse(read("refarm.config.json"));
 	const selectedPackageNames = new Set(
 		config.releasePolicy.packageProfiles
-			.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+			.filter((profile) => profile.tags?.includes("consumer-ready"))
 			.map((profile) => profile.id),
 	);
 	const forbiddenCompatibilitySubpaths = [
@@ -776,7 +790,7 @@ test("vault-seed-ready README openings promote selected packages, not compatibil
 	];
 
 	for (const profile of config.releasePolicy.packageProfiles.filter((candidate) =>
-		candidate.tags?.includes("vault-seed-ready"),
+		candidate.tags?.includes("consumer-ready"),
 	)) {
 		const packageDir = profile.id.replace("@refarm.dev/", "");
 		const readme = read(`packages/${packageDir}/README.md`);
@@ -806,7 +820,7 @@ test("vault-seed-ready README bodies avoid Refarm-owned capability wording", () 
 	];
 
 	for (const profile of config.releasePolicy.packageProfiles.filter((candidate) =>
-		candidate.tags?.includes("vault-seed-ready"),
+		candidate.tags?.includes("consumer-ready"),
 	)) {
 		const packageDir = profile.id.replace("@refarm.dev/", "");
 		const readme = read(`packages/${packageDir}/README.md`);

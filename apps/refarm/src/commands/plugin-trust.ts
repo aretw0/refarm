@@ -35,6 +35,42 @@ export function runtimeTrustId(pluginId: string): string {
 	return segment && segment.trim().length > 0 ? segment.trim() : trimmed;
 }
 
+/**
+ * PURE. The two ids a plugin has, and an honest `null` when one of them is not knowable from the
+ * string alone.
+ *
+ * THE ASYMMETRY, measured on the operator's node (ISS-068):
+ *
+ *   trusted_plugins:     ["agent", "lsp-code-ops"]     <- RUNTIME ids
+ *   approvedPermissions: { "@refarm/lsp-code-ops": … } <- MANIFEST id
+ *
+ * Two config keys, two vocabularies, and `plugin status --json` reported both forms under one
+ * `id` field. Getting it wrong is not a typo: an INVALID `trusted_plugins` entry makes the daemon
+ * log "trusted_plugins config unreadable" and deny every plugin — three states, not two, where
+ * absent is permissive and invalid is deny-all.
+ *
+ * `runtimeId` is always derivable: it is the last `/` segment, mirroring the host's own
+ * `manifest_runtime_plugin_id`.
+ *
+ * `manifestId` is NOT. A scoped id is already one; a bare id maps back only through a declared
+ * alias, and `lsp-code-ops` has none — its real manifest id is `@refarm/lsp-code-ops`, which no
+ * function here can derive. So this returns `null` rather than guessing, because a confidently
+ * wrong manifest id is the exact failure this item is about: the deny-all on the operator's node
+ * came from a confident reading of an id, not from a typo. A `null` sends the reader to
+ * `refarm plugin approve`, which normalises correctly.
+ */
+export function pluginIdPair(pluginId: string, alias: (id: string) => string = (id) => id): {
+	runtimeId: string;
+	manifestId: string | null;
+} {
+	const trimmed = pluginId.trim();
+	if (trimmed === "*") return { runtimeId: "*", manifestId: null };
+	const runtimeId = runtimeTrustId(trimmed);
+	if (trimmed.includes("/")) return { runtimeId, manifestId: trimmed };
+	const aliased = alias(trimmed);
+	return { runtimeId, manifestId: aliased !== trimmed ? aliased : null };
+}
+
 /** Resolve the config file path for a scope; null when the scope is unavailable. */
 export function trustConfigPath(
 	scope: LedgerScope,

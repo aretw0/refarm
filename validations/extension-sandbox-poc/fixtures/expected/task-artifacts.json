@@ -1,5 +1,5 @@
 {
-  "schema": "refarm.task-artifacts.v1",
+  "schema": "sovereign.task-artifacts.v1",
   "taskId": "task-extension-sandbox-poc",
   "effortId": "effort-extension-sandbox-poc-001",
   "createdAt": "2026-01-01T00:00:00.000Z",
@@ -11,7 +11,7 @@
       "role": "dataset",
       "hash": {
         "algorithm": "sha256",
-        "value": "9a4b4d782ad1bef1fabdde576b6a27b1eb515e09668aaee58ef70409a3d776a2"
+        "value": "faa17f6af7b11424900f4062d3ed07df3116d1fb0042203a65c24e1c389524ee"
       },
       "reviewState": "accepted",
       "provenance": {

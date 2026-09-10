@@ -27,7 +27,7 @@ read secrets.
   and vault-local tools can use without claiming real vault integration.
 - A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON artifacts and a Markdown review report are generated deterministically.
-- A `refarm.task-artifacts.v1` manifest lists generated outputs with media
+- A `sovereign.task-artifacts.v1` manifest lists generated outputs with media
   types, SHA-256 hashes, review state, provenance, tokenized producer process,
   and consumer labels.
 

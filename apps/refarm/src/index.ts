@@ -12,7 +12,11 @@ if (!process.env.SOVEREIGN_DIR?.trim()) {
 }
 
 try {
-	await import("./cli-main.js");
+	// Called here rather than run as an import side effect, so that importing `cli-main.js` in a
+	// unit test starts nothing and spawning this binary starts everything — including from inside a
+	// vitest run, which the old `!process.env.VITEST` guard silently prevented.
+	const { runCliMain } = await import("./cli-main.js");
+	await runCliMain();
 } catch (error) {
 	if (!isModuleResolutionError(error)) throw error;
 	renderBootstrapFailure(error);

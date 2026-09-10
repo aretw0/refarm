@@ -350,6 +350,11 @@ fn clean_model_env() {
         "MODEL_SYSTEM",
         "MODEL_AGENT_ID",
         "MODEL_SESSION_ID",
+        // Cleaned like MODEL_SESSION_ID: the guest inherits the host's env at
+        // instantiation, so a leaked workspace would let the attribution test pass
+        // without the payload ever carrying the declaration.
+        "MODEL_WORKSPACE_ID",
+        "MODEL_WORKSPACE_SOURCE",
         "MODEL_TASK_MEMORY",
         "REFACTOR_LSP_CMD",
         "REFACTOR_LSP_RUST_ANALYZER_CMD",
@@ -2044,6 +2049,146 @@ async fn harness_session_entries_stored_for_each_turn() {
         leaf_after_1, leaf_after_2,
         "leaf_entry_id must advance between turns"
     );
+
+    clean_model_env();
+}
+
+/// The regression guard for same-session workspace inheritance.
+///
+/// This drives the REAL path a `refarm ask` takes: the sidecar fires `user:prompt` as a
+/// reply-less envelope, so the runner calls `on_event` — NOT `respond`. Guards placed on
+/// `respond` alone (as they first were) are unreachable here, which is exactly why the
+/// declared workspace never reached `get_or_create_session`, the Session node was created
+/// with no `workspace_id` at all, and a later turn in the same session silently re-seeded
+/// from the operator's cwd. A test that stopped at `parse_respond_payload` could not see
+/// any of that; this one asserts on the stored node.
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/agent"]
+async fn harness_declared_workspace_is_stamped_on_the_session_node() {
+    let _env = env_lock();
+    let path = wasm_path();
+    assert!(path.exists(), "agent.wasm not found");
+
+    clean_model_env();
+
+    let port = mock_llm_server(openai_response("ok", 4, 2)).await;
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    let sync = make_sync();
+    let host = PluginHost::new(
+        TrustManager::new(),
+        TelemetryBus::new(100),
+        tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
+    )
+    .unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load agent");
+
+    let session_id = "urn:sovereign:session:v1:workspace-attribution-harness";
+
+    // Turn 1: the dispatch DECLARES a workspace, exactly as `refarm ask --workspace
+    // rcdc5` makes the sidecar build it (see dispatch.rs::respond_payload_json).
+    let declared = serde_json::json!({
+        "prompt": "first message",
+        "prompt_ref": "harness-workspace-1",
+        "session_id": session_id,
+        "workspace_id": "rcdc5",
+        "workspace_source": "declared",
+    })
+    .to_string();
+    call_on_event_with_timeout(&mut handle, &declared, "workspace attribution turn 1").await;
+
+    let session_payload = |sync: &NativeSync| -> serde_json::Value {
+        let sessions: Vec<_> = sync
+            .query_nodes("Session")
+            .expect("query Session")
+            .into_iter()
+            .map(|n| serde_json::from_str::<serde_json::Value>(&n.payload).unwrap())
+            .filter(|v| v["@id"] == session_id)
+            .collect();
+        assert_eq!(
+            sessions.len(),
+            1,
+            "exactly one Session node for the declared id"
+        );
+        sessions.into_iter().next().unwrap()
+    };
+
+    let after_1 = session_payload(&sync);
+    assert_eq!(
+        after_1["workspace_id"], "rcdc5",
+        "the declared workspace must be stamped onto the Session node the guest creates \
+         — this field is what a LATER `refarm ask` reads to inherit the attribution; \
+         without it the CLI ladder correctly falls through to the cwd seed and the run \
+         is attributed to whatever directory the operator happened to be standing in"
+    );
+    assert_eq!(after_1["workspace_source"], "declared");
+
+    // Turn 2: the SAME session, and this dispatch declares NOTHING — the inheritance
+    // case. The stamp must survive: the declaration belongs to the session, not to the
+    // dispatch, so a turn sent from elsewhere can neither erase nor re-attribute it.
+    let undeclared = serde_json::json!({
+        "prompt": "second message",
+        "prompt_ref": "harness-workspace-2",
+        "session_id": session_id,
+    })
+    .to_string();
+    call_on_event_with_timeout(&mut handle, &undeclared, "workspace attribution turn 2").await;
+
+    let after_2 = session_payload(&sync);
+    assert_eq!(
+        after_2["workspace_id"], "rcdc5",
+        "a follow-up turn that declares no workspace must inherit, never overwrite"
+    );
+    assert_eq!(after_2["workspace_source"], "declared");
+
+    clean_model_env();
+}
+
+/// The other half of the same rule: a dispatch that declares no workspace at all leaves
+/// the Session node carrying no `workspace_id` key — absent, not null. A null would read
+/// as "asked and found nothing declared", which is a different fact from "never asked".
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/agent"]
+async fn harness_undeclared_workspace_leaves_the_session_unattributed() {
+    let _env = env_lock();
+    let path = wasm_path();
+    assert!(path.exists(), "agent.wasm not found");
+
+    clean_model_env();
+
+    let port = mock_llm_server(openai_response("ok", 4, 2)).await;
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    let sync = make_sync();
+    let host = PluginHost::new(
+        TrustManager::new(),
+        TelemetryBus::new(100),
+        tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
+    )
+    .unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load agent");
+
+    let session_id = "urn:sovereign:session:v1:workspace-unattributed-harness";
+    let payload = serde_json::json!({
+        "prompt": "no workspace here",
+        "prompt_ref": "harness-workspace-none",
+        "session_id": session_id,
+    })
+    .to_string();
+    call_on_event_with_timeout(&mut handle, &payload, "unattributed workspace turn").await;
+
+    let node = sync
+        .query_nodes("Session")
+        .expect("query Session")
+        .into_iter()
+        .map(|n| serde_json::from_str::<serde_json::Value>(&n.payload).unwrap())
+        .find(|v| v["@id"] == session_id)
+        .expect("Session node created for the dispatched id");
+    assert!(
+        node.get("workspace_id").is_none(),
+        "an undeclared dispatch must leave no workspace_id key at all, got: {node}"
+    );
+    assert!(node.get("workspace_source").is_none());
 
     clean_model_env();
 }

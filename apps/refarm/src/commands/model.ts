@@ -1,20 +1,31 @@
 import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
-import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	modelCredentialEnvKey,
 	modelCredentialStatus as resolveModelCredentialStatus,
 } from "@refarm.dev/config";
+import {
+	authorizedAccounts,
+	authorizedProviders,
+	credentialSecretLocation,
+	provisionableAccounts,
+	readCredentialAt,
+	readLegacyCredentials,
+	type AccountView,
+	type ModelAccountDescriptor,
+	type ModelAuthorization,
+} from "@refarm.dev/model-account-contract-v1";
 import { isContainer as detectContainerRuntime, fetchWithTimeout } from "@refarm.dev/root";
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
-import { refarmCommand } from "../brand.js";
+import {
+	MODEL_ACCOUNT_CREDENTIALS_PATH_ENV_VAR,
+	writeLiveCredentials,
+} from "../credentials/live-credential-file.js";
 import {
 	DEFAULT_MODEL_PROVIDER,
 	defaultModelForProvider,
 	defaultModelForScope,
-	defaultProviderModelRef,
-	defaultScopedModelRef,
 	effectiveModelRouteForScope,
 	formatModelRef,
 	isRuntimeSubscriptionModelProvider,
@@ -32,14 +43,23 @@ import {
 	parseModelRef,
 	type ModelScope,
 } from "../model-routing.js";
+import { resolveNodeContextMetadata, type NodeContextMetadata } from "../utils/context-metadata.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
 	MODEL_DOCTOR_JSON_COMMAND,
 	MODEL_PROVIDERS_JSON_COMMAND,
+	modelBaseUrlJsonCommand,
+	modelRefJsonCommand,
+	OLLAMA_DEFAULT_REF,
+	OPENAI_DEFAULT_REF,
+	OPENAI_MONITOR_REF,
+	OPENAI_WORKER_REF,
 	OPERATOR_LINKS_CONFIG_COMMAND,
+	setScopedModelJsonCommand,
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
+	sowModelJsonCommand,
 } from "./credential-handoffs.js";
 import {
 	providerDoctorProfile,
@@ -55,14 +75,16 @@ export {
 	buildSetModelEnvelope,
 } from "./model-mutators.js";
 
-const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
-const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
-const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
-const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434";
 const OLLAMA_DOCKER_BASE_URL = "http://host.docker.internal:11434";
 const MODEL_PROVIDER_PROBE_TIMEOUT_MS = 2_000;
 const REFARM_MANAGED_MODEL_ENV_KEYS = "REFARM_MANAGED_MODEL_ENV_KEYS";
+/** Per-provider endpoints, `provider=url` joined by `,`. Read by the tractor host AND by the
+ *  guest agent, which parse it identically — see `buildProviderBaseUrls` for why it exists. */
+export const MODEL_PROVIDER_BASE_URLS_ENV_VAR = "MODEL_PROVIDER_BASE_URLS";
+/** Every authorised seat's credential, keyed by opaque id. HOST ONLY — refused by name in the
+ *  env-forward policy so it can never reach a plugin. See `buildAccountCredentialMap`. */
+export const MODEL_ACCOUNT_CREDENTIALS_ENV_VAR = "MODEL_ACCOUNT_CREDENTIALS";
 
 export interface ModelTokens {
 	modelProvider?: string;
@@ -89,6 +111,45 @@ export interface ModelCommandDeps {
 	isContainer?: () => boolean;
 }
 
+/**
+ * What a route's credential is, once whoever could look has looked.
+ *
+ * The first six come from `modelCredentialStatus` (packages/config), which does no I/O. The last
+ * two can only be decided by a caller holding the account catalog, and exist because `unresolved`
+ * — "a credential may be in the `model` namespace, which the pure function cannot read" — was
+ * being rendered to operators as though it meant "there is none".
+ */
+export type ModelCredentialState =
+	| "not-required"
+	| "env"
+	| "silo-api-key"
+	| "silo-oauth"
+	| "missing"
+	| "unresolved"
+	/** A model account this node holds, is healthy, and the operator has authorised. */
+	| "account"
+	/** Held and healthy, and NOT authorised. A declaration away from usable, not a repair away. */
+	| "unauthorized";
+
+/**
+ * The catalog a caller hands in so `unresolved` can be decided.
+ *
+ * OPTIONAL BY DESIGN. `buildCurrentModelStatus` has nine production call sites and stays
+ * synchronous and I/O-free (see parity.ts's "THE TWO CRITICALS"); a caller that has not loaded the
+ * catalog gets exactly the previous answer, and one that has gets the true one.
+ */
+export interface ModelAccountCatalog {
+	readonly accounts: readonly ModelAccountDescriptor[];
+	readonly authorization: ModelAuthorization;
+	/**
+	 * The stored credentials by opaque id, for readers that need an expiry rather than a state.
+	 *
+	 * ABSENT MEANS THE LOADER DID NOT FETCH THEM, never that the store holds none — the same
+	 * distinction the catalog itself draws between `undefined` and an empty account list.
+	 */
+	readonly credentials?: ReadonlyMap<string, unknown>;
+}
+
 export interface CurrentModelStatus {
 	current: {
 		provider: string | undefined;
@@ -98,7 +159,8 @@ export interface CurrentModelStatus {
 	routes: Record<ModelScope, string>;
 	credential: {
 		envKey: string | undefined;
-		state: "not-required" | "env" | "silo-api-key" | "silo-oauth" | "missing";
+		/** `unresolved` is not `missing`: the credential may be namespaced, where this cannot look. */
+		state: ModelCredentialState;
 		status: string | null;
 	};
 	routeCredentials: Record<
@@ -106,16 +168,26 @@ export interface CurrentModelStatus {
 		{
 			provider: string | undefined;
 			envKey: string | undefined;
-			state: "not-required" | "env" | "silo-api-key" | "silo-oauth" | "missing";
+			/** `unresolved` is not `missing`: the credential may be namespaced, where this cannot look. */
+			state: ModelCredentialState;
 			status: string | null;
 		}
 	>;
 	baseUrl: string | undefined;
+	/**
+	 * WHERE {@link baseUrl} came from — `undefined` when there is no base URL at all.
+	 *
+	 * Recorded because the two sources have different remedies and only one of them is reachable
+	 * from inside this process (ISS-121). Without this, an operator handed `model base-url off`
+	 * for an environment-exported endpoint would watch the command succeed and the fault remain.
+	 */
+	baseUrlSource: "env" | "silo" | undefined;
 	fallback: string | undefined;
 	source: {
 		kind: "environment" | "identity" | "built-in";
 		envOverrides: string[];
 	};
+	context: NodeContextMetadata;
 	recommendations?: {
 		diagnostic: string;
 		severity: "failure" | "warning" | "info";
@@ -134,8 +206,32 @@ export interface CurrentModelStatus {
 	};
 }
 
+/**
+ * What the stored OAuth credential says about its own lifetime — THREE STATES (ISS-081).
+ *
+ * `unknown` is not a hedge and not "probably fine": it is a credential that carries no `expires`,
+ * or a provider that is not OAuth at all. Reporting that as `valid` would be the shape this
+ * repository keeps removing — an absence rendered as a reassurance.
+ */
+export type CredentialLifetime =
+	| { state: "valid"; expiresAt: number; remainingMs: number }
+	| { state: "expired"; expiresAt: number; expiredForMs: number }
+	| { state: "unknown"; reason: "not-oauth" | "no-expiry-recorded" };
+
 export interface ModelDoctorStatus {
 	current: CurrentModelStatus["current"];
+	/** Carried from {@link CurrentModelStatus} because it decides which remedy the doctor can offer. */
+	baseUrlSource: CurrentModelStatus["baseUrlSource"];
+	/**
+	 * THE CREDENTIAL'S OWN CLOCK, reported beside the reachability probe and never folded into it.
+	 *
+	 * Measured on the operator's node 2026-08-12: the `openai-codex` token had expired FIVE DAYS
+	 * earlier and nothing in this repository said so. `model doctor` probed whether the endpoint
+	 * answers, which is a different question — an expired credential and an unreachable host are
+	 * two facts with two remedies, and a doctor reporting only the second sends an operator to
+	 * debug a network.
+	 */
+	credential: CredentialLifetime;
 	providerProbe: {
 		provider: string | undefined;
 		baseUrl: string | undefined;
@@ -165,6 +261,16 @@ export interface ModelDoctorStatus {
 		inspectCurrent: string;
 		startOllama: string;
 		setDockerOllamaBaseUrl: string;
+		/**
+		 * Drop the PERSISTED base URL so the provider's built-in endpoint applies again.
+		 *
+		 * The remedy when the stored configuration is itself the fault. It restores a default
+		 * rather than inventing a value — the operator's own endpoint, if they had one, is not
+		 * recoverable from here and guessing one would be writing their configuration for them.
+		 */
+		clearPersistedBaseUrl: string;
+		/** Shell, not CLI: an endpoint coming from the environment is outside this process's reach. */
+		unsetBaseUrlEnv: string;
 	};
 }
 
@@ -197,6 +303,10 @@ function modelCredentialStatus(provider: string | undefined, tokens: ModelTokens
 			return `Silo OAuth (${status.oauthProvider})`;
 		case "missing":
 			return "missing (run refarm sow)";
+		case "unresolved":
+			// NOT "missing". The credential may be in the silo's `model` namespace, which the pure
+			// status function cannot read — `refarm credential list` is the surface that can.
+			return "not in env or tokens (refarm credential list)";
 	}
 }
 
@@ -210,18 +320,62 @@ function modelCredentialState(
 function modelRouteCredentialStatus(
 	provider: string | undefined,
 	tokens: ModelTokens,
+	catalog?: ModelAccountCatalog,
 ): CurrentModelStatus["routeCredentials"][ModelScope] {
 	const status = resolveModelCredentialStatus(provider, tokens, process.env);
-	return {
+	const resolved = resolveCredentialAgainstCatalog(
 		provider,
-		envKey: "envKey" in status ? status.envKey : undefined,
-		state: status.state,
-		status: modelCredentialStatus(provider, tokens),
-	};
+		{
+			state: status.state,
+			envKey: "envKey" in status ? status.envKey : undefined,
+			status: modelCredentialStatus(provider, tokens),
+		},
+		catalog,
+	);
+	return { provider, ...resolved };
 }
 
 function stringToken(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+/**
+ * PURE. Decide an `unresolved` credential against the account catalog.
+ *
+ * ONLY `unresolved` IS TOUCHED. `env`, `silo-api-key` and `silo-oauth` are positive findings from a
+ * store this function does not improve on, and `not-required`/`missing` are already decided. A
+ * resolver that recomputed all six would let the catalog overrule a credential the operator has
+ * exported into the environment, which is the reverse of the precedence every other surface keeps.
+ *
+ * THE THREE OUTCOMES HAVE THREE REMEDIES, which is why they are three states and not one boolean:
+ * an authorised seat needs nothing, a held-but-undeclared seat needs `credential authorize`, and
+ * nothing held needs `sow`. Collapsing the middle one into `missing` would send an operator to
+ * re-authenticate an account this node already has.
+ */
+export function resolveCredentialAgainstCatalog(
+	provider: string | undefined,
+	base: { state: ModelCredentialState; envKey: string | undefined; status: string | null },
+	catalog: ModelAccountCatalog | undefined,
+): { state: ModelCredentialState; envKey: string | undefined; status: string | null } {
+	if (!catalog || !provider || base.state !== "unresolved") return base;
+	const aliases = (accounts: readonly ModelAccountDescriptor[]) =>
+		accounts.map((a) => a.alias).join(", ");
+	const { authorized } = authorizedAccounts(catalog.authorization, catalog.accounts);
+	const usable = authorized.filter((a) => a.provider === provider);
+	if (usable.length > 0) {
+		return { ...base, state: "account", status: `model account (${aliases(usable)})` };
+	}
+	// HEALTHY ONLY. An `incomplete` descriptor has no secret, so declaring it would not make it
+	// spendable and `credential authorize` is the wrong instruction to hand back.
+	const held = catalog.accounts.filter((a) => a.provider === provider && a.health === "healthy");
+	if (held.length > 0) {
+		return {
+			...base,
+			state: "unauthorized",
+			status: `held, not authorised (${aliases(held)}) — refarm credential authorize`,
+		};
+	}
+	return { ...base, state: "missing", status: "missing (run refarm sow)" };
 }
 
 function modelRuntimeCredentialEnv(
@@ -234,15 +388,43 @@ function modelRuntimeCredentialEnv(
 	return apiKey ? [envKey, apiKey] : null;
 }
 
+/**
+ * THE DUAL-READ, reached through the account contract rather than by indexing a map.
+ *
+ * The behaviour is unchanged today: every credential on every existing node is legacy, so the
+ * location resolves to the flat token map and this returns exactly what the old two-line lookup
+ * returned. What changes is that the knowledge of WHERE a credential lives now lives in one place
+ * (`credentialSecretLocation`) instead of being re-derived here, which is the precondition for the
+ * writer to move at all. Readers before writers — the other order leaves a credential nothing can
+ * read.
+ *
+ * `unreadable` is deliberately treated the same as absent BY THIS CALLER and not by the contract:
+ * `runtimeOAuthCredential` returns a nullable credential to a caller that only decides whether to
+ * export an environment variable. The distinction is preserved where it can be acted on, and
+ * collapsed only at the boundary that cannot act on it.
+ */
 function runtimeOAuthCredential(
 	provider: string | undefined,
 	tokens: ModelTokens,
 ): RuntimeOAuthCredential | null {
-	if (!provider || tokens.oauthProvider !== provider) return null;
-	if (!tokens.oauthCredentials || typeof tokens.oauthCredentials !== "object") return null;
-	const value = tokens.oauthCredentials[provider];
-	if (!value || typeof value !== "object") return null;
-	const candidate = value as { access?: unknown; accountId?: unknown };
+	// NO `oauthProvider` GATE. It was a pointer beside the credentials that duplicated what they
+	// already say, and duplicated information can disagree with reality — measured on the operator's
+	// node 2026-08-15: `refarm model set` clears `oauthProvider` whenever the provider changes, so
+	// switching back to a provider whose credential was sitting right there in the map made it
+	// unreachable, and the injector exported nothing while reporting nothing.
+	//
+	// The lookup below is already BY PROVIDER, which is the credential answering for itself. Asking
+	// a pointer as well could only ever subtract.
+	if (!provider) return null;
+	const descriptor = readLegacyCredentials(tokens as Record<string, unknown>).find(
+		(account) => account.provider === provider,
+	);
+	if (!descriptor) return null;
+	const read = readCredentialAt(credentialSecretLocation(descriptor), {
+		legacyOauthCredentials: tokens.oauthCredentials as Record<string, unknown> | undefined,
+	});
+	if (read.kind !== "found") return null;
+	const candidate = read.credential as { access?: unknown; accountId?: unknown };
 	if (typeof candidate.access !== "string" || candidate.access.trim().length === 0) {
 		return null;
 	}
@@ -260,9 +442,170 @@ function shellQuote(value: string): string {
 
 /** Compute the ordered model runtime env entries (no I/O). Shared by the shell
  * printer and the `env` envelope so both surface the exact same variables. */
+/**
+ * Why a credential can be absent, when it is not simply missing.
+ *
+ * `buildModelEnvEntries` exports variables; it has no way to say "there IS a credential and I will
+ * not choose between two of them". Measured on the operator's node 2026-08-15: with two eligible
+ * GitHub Copilot accounts, `model env --include-secrets` printed provider and model and omitted the
+ * token in silence, while `credential current` refused correctly and exited 1. The surface that
+ * feeds a dispatch was the one that stayed quiet.
+ */
+/** PURE. The credential the view resolved, in the shape the env entries need. */
+function viewCredential(
+	view: AccountView | undefined,
+	provider: string | undefined,
+): RuntimeOAuthCredential | null {
+	if (!view || !provider) return null;
+	const found = view.credentialFor(provider);
+	if (found.kind !== "found") return null;
+	const candidate = found.credential as { access?: unknown; accountId?: unknown };
+	if (typeof candidate.access !== "string" || candidate.access.trim().length === 0) return null;
+	return {
+		access: candidate.access,
+		...(typeof candidate.accountId === "string" && candidate.accountId.trim().length > 0
+			? { accountId: candidate.accountId }
+			: {}),
+	};
+}
+
+export function modelEnvCredentialNotice(
+	view: AccountView | undefined,
+	provider: string | undefined,
+): string | null {
+	if (!view || !provider) return null;
+	const found = view.credentialFor(provider);
+	switch (found.kind) {
+		case "found":
+		case "none":
+			// `none` is already legible everywhere else — the operator is told to log in. Repeating it
+			// here would add noise to the common first-run case.
+			return null;
+		case "ambiguous":
+			return (
+				`model_credential_ambiguous: ${found.candidates.length} ${provider} accounts are eligible and ` +
+				`nothing said which to use, so NO credential was exported. Bind one to a workspace: ` +
+				found.candidates.map((c) => `refarm credential bind <workspace> ${c.credentialId}`).join(" | ")
+			);
+		case "incomplete":
+			return `${provider} account "${found.descriptor.alias}" is missing its secret, so no credential was exported. Repair or forget it: refarm credential list`;
+		case "unreadable":
+			return `the ${provider} credential store could not be consulted (${found.reason}), so no credential was exported.`;
+	}
+}
+
+/**
+ * PURE. The per-provider endpoint map the host and guest both route against.
+ *
+ * ## Why a map and not one base url
+ *
+ * `MODEL_BASE_URL` is global: one endpoint for the whole daemon. Measured on the operator's node
+ * 2026-08-17, the two Copilot accounts announce DIFFERENT endpoints in their own token exchange:
+ *
+ *     corporativo  https://api.business.githubcopilot.com     baseUrlSource: from-token
+ *     pessoal      https://api.individual.githubcopilot.com   baseUrlSource: from-token
+ *
+ * So a static provider→url table in the host is not merely incomplete, it is WRONG for this
+ * provider, and setting the global `MODEL_BASE_URL` to one of them would redirect every other
+ * provider's traffic with it. The endpoint is a property of the ACCOUNT.
+ *
+ * ## The format IS the contract
+ *
+ * `provider=url` pairs joined by `,`. No whitespace anywhere, ASCII only — which is exactly the
+ * shape the host's default `MODEL_*` forward policy already admits ("provider base URLs, model
+ * ids, flags"), so this crosses to the guest without widening any allowlist. The host and the
+ * guest parse the same string with the same rule; a pair either side cannot read is DROPPED rather
+ * than guessed, so the two can only ever agree or both fall back.
+ *
+ * Only providers whose credential actually announces an endpoint appear. A provider with a
+ * well-known static endpoint needs no entry and gets none — an empty map is the ordinary case.
+ */
+export function buildProviderBaseUrls(
+	accounts: readonly { credentialId: string; provider: string }[],
+	credentials: ReadonlyMap<string, unknown>,
+): string {
+	const seen = new Set<string>();
+	const pairs: string[] = [];
+	for (const account of accounts) {
+		if (seen.has(account.provider)) continue;
+		const credential = credentials.get(account.credentialId) as { baseUrl?: unknown } | undefined;
+		const baseUrl = typeof credential?.baseUrl === "string" ? credential.baseUrl.trim() : "";
+		// Rejected here rather than at the far end: a value with whitespace or a non-ASCII byte
+		// would be dropped by the host's forward policy and take the WHOLE map with it, so one bad
+		// endpoint would silently unroute every other provider.
+		if (!baseUrl || !/^https?:\/\/[\x21-\x7e]+$/u.test(baseUrl) || baseUrl.includes(",")) continue;
+		if (!/^[a-z0-9_-]+$/u.test(account.provider)) continue;
+		seen.add(account.provider);
+		pairs.push(`${account.provider}=${baseUrl}`);
+	}
+	return pairs.join(",");
+}
+
+/**
+ * PURE. Every AUTHORISED account's credential, keyed by opaque id, for the host alone.
+ *
+ * ## Why a per-account map
+ *
+ * The host reads ONE credential env var per provider, so two authorised seats of one provider
+ * could never both be provisioned — and the operator holds a personal and a corporate Copilot seat
+ * with DIFFERENT endpoints and DIFFERENT entitlements. `provisionableAccounts` had to refuse the
+ * pair and make him authorise one, and a workspace bound to the other could not be honoured.
+ *
+ * Keyed by the OPAQUE credential id, which the dispatch already declares and the budget
+ * observation already stamps: the seat that was bound, the seat that pays and the seat the record
+ * names become ONE id rather than three inferences that can disagree.
+ *
+ * ## It must never reach a plugin
+ *
+ * `MODEL_ACCOUNT_CREDENTIALS` is refused BY NAME in the host's env-forward policy, pinned by a test
+ * there. The host reads it at send time; the guest holds a bridge handle and no key. That is the
+ * same boundary every other credential already respects — this one just had to be stated, because
+ * the name would otherwise have passed a policy built around `*_KEY` and `*_TOKEN` suffixes.
+ *
+ * The endpoint travels WITH the seat, because Copilot's exchange announces a different host per
+ * seat and a per-provider map cannot carry two.
+ */
+export function buildAccountCredentialMap(
+	accounts: readonly { credentialId: string; provider: string }[],
+	credentials: ReadonlyMap<string, unknown>,
+): string {
+	const out: Record<string, { access: string; accountId?: string; baseUrl?: string }> = {};
+	for (const account of accounts) {
+		const credential = credentials.get(account.credentialId) as
+			| { access?: unknown; accountId?: unknown; baseUrl?: unknown }
+			| undefined;
+		const access = typeof credential?.access === "string" ? credential.access.trim() : "";
+		if (!access) continue;
+		const accountId =
+			typeof credential?.accountId === "string" ? credential.accountId.trim() : "";
+		const baseUrl = typeof credential?.baseUrl === "string" ? credential.baseUrl.trim() : "";
+		out[account.credentialId] = {
+			access,
+			...(accountId ? { accountId } : {}),
+			// Only an endpoint the credential actually announced. Absent stays absent, or the host's
+			// route guardrail would admit a host the account never named.
+			...(/^https?:\/\/[\x21-\x7e]+$/u.test(baseUrl) ? { baseUrl } : {}),
+		};
+	}
+	// A map with no readable seat is no map: an empty object would export a variable that says
+	// "asked and found nothing", which is not what an absent one says.
+	return Object.keys(out).length > 0 ? JSON.stringify(out) : "";
+}
+
 function buildModelEnvEntries(
 	tokens: ModelTokens,
-	options: { includeSecrets?: boolean } = {},
+	options: {
+		includeSecrets?: boolean;
+		view?: AccountView;
+		/** What the node DECLARED it may spend. Absent or undeclared keeps the previous derivation,
+		 *  so adopting the declaration is additive rather than a behaviour change (ISS-131 tier 3). */
+		authorization?: ModelAuthorization;
+		/** One account's credential, by opaque id. Only consulted for the authorised set. */
+		credentials?: ReadonlyMap<string, unknown>;
+		/** The node home to write the live credential file into. Absent means only the inline
+		 *  copy is provisioned — the previous behaviour, kept for callers that pass no home. */
+		home?: string;
+	} = {},
 ): [string, string][] {
 	const status = buildCurrentModelStatus(tokens);
 	const entries: [string, string][] = [];
@@ -293,14 +636,31 @@ function buildModelEnvEntries(
 	// configured; only "missing" is excluded. The list crosses the host→guest boundary
 	// as text (tractor's MODEL_CONFIGURED_PROVIDERS text-content allowlist); the secrets
 	// themselves never do.
-	const configuredProviders = MODEL_PROVIDERS.filter(
-		(provider) => modelCredentialState(provider, tokens) !== "missing",
-	);
+	//
+	// DERIVED FROM THE DECLARATION when there is one. This list becomes the host's EGRESS
+	// ALLOWLIST, so deriving it from "which credential states are not missing" let an
+	// implementation detail decide a policy question — and on a node whose credentials had moved
+	// to the namespaced store, `unresolved` is not `missing`, so every provider passed. The
+	// operator's declaration is the answer to "what may this node spend"; nothing else is.
+	const declared =
+		options.authorization && options.authorization.scope !== "undeclared" && options.view
+			? authorizedProviders(authorizedAccounts(options.authorization, options.view.accounts))
+			: null;
+	const configuredProviders =
+		declared ??
+		MODEL_PROVIDERS.filter((provider) => modelCredentialState(provider, tokens) !== "missing");
 	if (configuredProviders.length > 0) {
 		entries.push([MODEL_CONFIGURED_PROVIDERS_ENV_VAR, configuredProviders.join(",")]);
 	}
 	if (options.includeSecrets) {
-		const oauthCredential = runtimeOAuthCredential(status.current.provider, tokens);
+		// THE VIEW FIRST, because it sees namespaced credentials and honours a workspace binding; the
+		// legacy reader is the fallback for a node whose credential never moved.
+		//
+		// Wiring the view into the NOTICE alone was worse than not wiring it at all: it announced a
+		// resolution and then exported nothing, which is a claim contradicted one line later.
+		const oauthCredential =
+			viewCredential(options.view, status.current.provider) ??
+			runtimeOAuthCredential(status.current.provider, tokens);
 		const oauthEnvKey = modelCredentialEnvKey(status.current.provider);
 		if (oauthCredential && oauthEnvKey && !process.env[oauthEnvKey]) {
 			entries.push([oauthEnvKey, oauthCredential.access]);
@@ -312,6 +672,63 @@ function buildModelEnvEntries(
 		) {
 			entries.push(["OPENAI_CODEX_ACCOUNT_ID", oauthCredential.accountId]);
 		}
+		// EVERY AUTHORISED PROVIDER, not only the route's. The route names one provider and a
+		// workspace binding may name another (ISS-131), so exporting only the route's credential
+		// left the host able to reach a provider it had no key for — which is the mismatch the
+		// operator hit: `route github-copilot (override)` against a host holding openai-codex.
+		//
+		// One account per provider is all this shape can carry — the host reads one credential env
+		// var per provider — so a provider with two authorised accounts is REFUSED here rather than
+		// resolved by picking. `provisionableAccounts` owns that rule for every reader of it.
+		if (options.authorization && options.view && options.credentials) {
+			const { provision } = provisionableAccounts({
+				catalog: options.view.accounts,
+				authorization: options.authorization,
+			});
+			// EVERY AUTHORISED SEAT, not only the one provisionable per provider (ISS-145). The host
+			// picks by the credential id the dispatch declares; the per-provider variables below
+			// stay as the fallback for a dispatch that declares none.
+			const authorized = authorizedAccounts(options.authorization, options.view.accounts).authorized;
+			const accountCredentials = buildAccountCredentialMap(authorized, options.credentials);
+			if (accountCredentials && !process.env[MODEL_ACCOUNT_CREDENTIALS_ENV_VAR]) {
+				entries.push([MODEL_ACCOUNT_CREDENTIALS_ENV_VAR, accountCredentials]);
+				// AND A PATH THE RUNNING HOST CAN BE HANDED AGAIN. The inline copy above is fixed at
+				// spawn; a credential with a finite life outlives about a day and then every
+				// dispatch fails until the node is restarted (measured 2026-08-19). The host reads
+				// its map per call and prefers this file, so a renewal reaches a live runtime
+				// without one. The inline copy stays as the fallback.
+				const live = options.home ? writeLiveCredentials(options.home, accountCredentials) : null;
+				if (live && !process.env[MODEL_ACCOUNT_CREDENTIALS_PATH_ENV_VAR]) {
+					entries.push([MODEL_ACCOUNT_CREDENTIALS_PATH_ENV_VAR, live]);
+				}
+			}
+			const providerBaseUrls = buildProviderBaseUrls(provision, options.credentials);
+			// THE ENDPOINT TRAVELS WITH THE CREDENTIAL. Without it the host resolves a static
+			// provider table and a Copilot request lands on the localhost floor — the operator's
+			// dispatch reported "Model provider unavailable: ollama" for a request nobody made to
+			// ollama (ISS-141).
+			if (providerBaseUrls && !process.env[MODEL_PROVIDER_BASE_URLS_ENV_VAR]) {
+				entries.push([MODEL_PROVIDER_BASE_URLS_ENV_VAR, providerBaseUrls]);
+			}
+			for (const account of provision) {
+				const envKey = modelCredentialEnvKey(account.provider);
+				if (!envKey || process.env[envKey] || entries.some(([key]) => key === envKey)) continue;
+				const credential = options.credentials.get(account.credentialId) as
+					| { access?: unknown; accountId?: unknown }
+					| undefined;
+				const access = typeof credential?.access === "string" ? credential.access : undefined;
+				if (!access) continue;
+				entries.push([envKey, access]);
+				if (
+					account.provider === "openai-codex" &&
+					typeof credential?.accountId === "string" &&
+					!process.env.OPENAI_CODEX_ACCOUNT_ID &&
+					!entries.some(([key]) => key === "OPENAI_CODEX_ACCOUNT_ID")
+				) {
+					entries.push(["OPENAI_CODEX_ACCOUNT_ID", credential.accountId]);
+				}
+			}
+		}
 	}
 	return entries;
 }
@@ -321,9 +738,23 @@ function buildModelEnvEntries(
  * surface is rendered by the env renderText hook via formatModelEnvFromEnvelope. */
 export function buildModelEnvEnvelope(
 	tokens: ModelTokens,
-	options: { includeSecrets?: boolean } = {},
+	options: {
+		includeSecrets?: boolean;
+		view?: AccountView;
+		authorization?: ModelAuthorization;
+		credentials?: ReadonlyMap<string, unknown>;
+		/** Threaded through so provisioning can write the credential FILE a running host re-reads —
+		 *  without it only the spawn-time copy exists, and a renewal never reaches a live node. */
+		home?: string;
+	} = {},
 ) {
 	const entries = buildModelEnvEntries(tokens, options);
+	// THE SILENCE, MADE AUDIBLE. Carried beside the entries rather than folded into them: an env map
+	// can only say what IS exported, and the operator needs to know why something is not.
+	const credentialNotice = modelEnvCredentialNotice(
+		options.view,
+		buildCurrentModelStatus(tokens).current.provider,
+	);
 	const env: Record<string, string> = {};
 	for (const [key, value] of entries) {
 		env[key] = value;
@@ -335,6 +766,7 @@ export function buildModelEnvEnvelope(
 		extra: {
 			env,
 			managedKeys,
+			...(credentialNotice ? { credentialNotice } : {}),
 			[REFARM_MANAGED_MODEL_ENV_KEYS]: managedKeys.join(","),
 		},
 		nextCommand: MODEL_CURRENT_JSON_COMMAND,
@@ -404,17 +836,38 @@ function modelDoctorHandoffs(
 		// table; the field name stays `startOllama` (the wire) until the shape is
 		// generalized. For ollama this is "ollama serve", byte-identical to before.
 		startOllama: profile.startCommand ?? "ollama serve",
-		setDockerOllamaBaseUrl: refarmCommand(["model", "base-url", OLLAMA_DOCKER_BASE_URL, "--json"]),
+		setDockerOllamaBaseUrl: modelBaseUrlJsonCommand(OLLAMA_DOCKER_BASE_URL),
+		clearPersistedBaseUrl: modelBaseUrlJsonCommand("off"),
+		unsetBaseUrlEnv: `unset ${MODEL_BASE_URL_ENV_VAR}`,
 	};
 }
 
 function modelDoctorRecoveryCommands(status: ModelDoctorStatus): string[] {
 	if (status.providerProbe.ready !== false) return [];
+	// A ROUTE THAT IS NOT A URL IS NOT FIXED BY STARTING A SERVER. Handing back `ollama serve`
+	// here would spend the operator's time on a runtime that was never the problem; the fault is
+	// in the stored configuration, so the remedy restores it and then shows what it became.
+	if (status.providerProbe.reason === "endpoint-malformed") {
+		// WHERE the endpoint came from decides which remedy is even available. A value the shell
+		// exported cannot be cleared by this process, and `model base-url off` on an env-sourced
+		// endpoint would report success while the malformed value survived the next run.
+		return status.baseUrlSource === "env"
+			? [status.handoffs.unsetBaseUrlEnv, status.handoffs.inspectCurrent]
+			: [status.handoffs.clearPersistedBaseUrl, status.handoffs.inspectCurrent];
+	}
 	const commands: string[] = [];
 	if (status.probeEnvironment.container && status.probeEnvironment.localhostTargetsRuntime) {
 		commands.push(status.handoffs.setDockerOllamaBaseUrl);
 	}
-	commands.push(status.handoffs.startOllama);
+	// A REMOTE PROVIDER HAS NO LOCAL RUNTIME TO START, and `PROVIDER_DOCTOR_PROFILES` already
+	// records which do: `DEFAULT_REMOTE_PROFILE` carries no `startCommand` precisely because there
+	// is nothing to start. `handoffs.startOllama` falls back to the literal `"ollama serve"` for
+	// every provider (the field name is the wire, kept until the shape is generalized), so pushing
+	// it unconditionally spent the table's knowledge on the way past it. Measured 2026-08-23: a
+	// healthy github-copilot route whose probe failed answered `nextAction: "ollama serve"`.
+	if (providerDoctorProfile(status.current.provider).startCommand) {
+		commands.push(status.handoffs.startOllama);
+	}
 	if (
 		status.probeEnvironment.container &&
 		!commands.includes(status.handoffs.setDockerOllamaBaseUrl)
@@ -429,6 +882,25 @@ function modelDoctorRecommendations(
 	status: ModelDoctorStatus,
 ): ModelDoctorStatus["recommendations"] | undefined {
 	if (status.providerProbe.ready !== false) return undefined;
+	// The machine-readable twin of the human verdict, and it has to agree with it. A consumer
+	// reading `model-provider-unreachable` for a route that is not a URL would file a network
+	// incident; the diagnostic name is what an automated reader dispatches on.
+	if (status.providerProbe.reason === "endpoint-malformed") {
+		const fromEnv = status.baseUrlSource === "env";
+		return [
+			{
+				diagnostic: "model-endpoint-malformed",
+				severity: "failure",
+				summary: `The configured model endpoint is not a URL, so no request was made — the ${fromEnv ? "environment" : "stored configuration"} is the fault, not the network.`,
+				action: fromEnv
+					? `Unset ${MODEL_BASE_URL_ENV_VAR} in the shell that started this process, then re-check the route.`
+					: "Clear the persisted base URL so the provider's built-in endpoint applies again, then re-check the route.",
+				command: fromEnv
+					? modelDoctorHandoffs().unsetBaseUrlEnv
+					: modelDoctorHandoffs().clearPersistedBaseUrl,
+			},
+		];
+	}
 	const profile = providerDoctorProfile(status.providerProbe.provider);
 	return [
 		{
@@ -491,7 +963,13 @@ async function probeProviderEndpoint(
 			baseUrl,
 			url,
 			ready: false,
-			reason: "unreachable",
+			// A ROUTE THAT CANNOT BE PARSED WAS NEVER PINGED. `fetch` throws before any socket is
+			// opened when the URL is malformed, so calling that "unreachable" reports a network
+			// verdict for a configuration fact and sends the operator to debug a connection that
+			// is fine (ISS-121). `ERR_INVALID_URL` is the code Node uses for exactly this.
+			reason: causeCode === "ERR_INVALID_URL" || /Failed to parse URL/u.test(message)
+				? "endpoint-malformed"
+				: "unreachable",
 			error: causeCode ? `${message}: ${causeCode}` : message,
 			timedOut: name === "AbortError",
 		};
@@ -567,6 +1045,77 @@ async function probeProviderViaRuntime(
  *  4. non-ollama with no TS-resolvable endpoint — no-endpoint-source; the Rust
  *     runtime, which owns the provider→baseURL map, fills this in a later fatia.
  */
+/**
+ * PURE. What the stored credential says about its own expiry.
+ *
+ * `now` is injected because a lifetime check whose clock is ambient cannot be tested without
+ * waiting, and the one thing this must get right is the boundary.
+ */
+export function credentialLifetime(
+	provider: string | undefined,
+	tokens: ModelTokens,
+	now: number,
+	catalog?: ModelAccountCatalog,
+): CredentialLifetime {
+	// Reached through the account contract, so expiry is read from wherever the credential actually
+	// lives. `not-oauth` stays the answer for BOTH "no descriptor" and "nothing stored": neither
+	// establishes an expiry, and this function's `unknown` is precisely the state that must not be
+	// mistaken for `expired` — an API-key provider records no expiry at all, and re-prompting every
+	// run for every keyed provider is the defect that reading absence as failure produces.
+	const descriptor = provider
+		? readLegacyCredentials(tokens as Record<string, unknown>).find((a) => a.provider === provider)
+		: undefined;
+	const legacy = descriptor
+		? readCredentialAt(credentialSecretLocation(descriptor), {
+				legacyOauthCredentials: (tokens as { oauthCredentials?: Record<string, unknown> })
+					.oauthCredentials,
+			})
+		: { kind: "absent" as const };
+	const expiries =
+		legacy.kind === "found"
+			? [expiryOf(legacy.credential)]
+			: namespacedExpiries(provider, catalog);
+	if (expiries.length === 0) return { state: "unknown", reason: "not-oauth" };
+	const recorded = expiries.filter((value): value is number => value !== null);
+	if (recorded.length === 0) return { state: "unknown", reason: "no-expiry-recorded" };
+	// THE SOONEST, when a provider holds more than one seat. A doctor is a warning surface, and an
+	// expiry that has already passed on one authorised seat is a fault the operator must see —
+	// hiding it behind a healthier sibling is the same "claims more than it measured" defect this
+	// whole slice removes. Per-seat detail is `refarm credential list`'s question, not this one's.
+	const expiresAt = Math.min(...recorded);
+	return expiresAt <= now
+		? { state: "expired", expiresAt, expiredForMs: now - expiresAt }
+		: { state: "valid", expiresAt, remainingMs: expiresAt - now };
+}
+
+/** PURE. The `expires` a stored credential blob records, or `null` when it records none. */
+function expiryOf(credential: unknown): number | null {
+	const entry = credential as { expires?: unknown };
+	return typeof entry?.expires === "number" ? entry.expires : null;
+}
+
+/**
+ * PURE. Every expiry the catalog holds for a provider — `[]` when it can say nothing.
+ *
+ * An EMPTY array and an array of `null`s are different answers: the first is "no credential here"
+ * (`not-oauth`), the second is "a credential that records no expiry" (`no-expiry-recorded`). The
+ * caller needs both, and collapsing them would resurrect an absence rendered as a reassurance.
+ */
+function namespacedExpiries(
+	provider: string | undefined,
+	catalog: ModelAccountCatalog | undefined,
+): (number | null)[] {
+	if (!provider || !catalog?.credentials) return [];
+	const { authorized } = authorizedAccounts(catalog.authorization, catalog.accounts);
+	const seats = (authorized.length > 0 ? authorized : catalog.accounts).filter(
+		(a) => a.provider === provider && a.health === "healthy",
+	);
+	return seats.flatMap((seat) => {
+		const stored = catalog.credentials?.get(seat.credentialId);
+		return stored === undefined ? [] : [expiryOf(stored)];
+	});
+}
+
 async function resolveProviderProbe(
 	provider: string | undefined,
 	current: CurrentModelStatus,
@@ -608,8 +1157,9 @@ async function resolveProviderProbe(
 export async function buildModelDoctorStatus(
 	tokens: ModelTokens,
 	deps: Pick<ModelCommandDeps, "fetch" | "isContainer"> = {},
+	catalog?: ModelAccountCatalog,
 ): Promise<ModelDoctorStatus> {
-	const current = buildCurrentModelStatus(tokens);
+	const current = buildCurrentModelStatus(tokens, catalog);
 	const profile = providerDoctorProfile(current.current.provider);
 	const handoffs = modelDoctorHandoffs(profile);
 	const container = deps.isContainer?.() ?? detectContainerRuntime();
@@ -622,6 +1172,8 @@ export async function buildModelDoctorStatus(
 	const probe = await resolveProviderProbe(provider, current, tokens, deps);
 	const status: ModelDoctorStatus = {
 		current: current.current,
+		baseUrlSource: current.baseUrlSource,
+		credential: credentialLifetime(provider, tokens, Date.now(), catalog),
 		providerProbe: probe,
 		probeEnvironment,
 		handoffs,
@@ -637,8 +1189,9 @@ export async function buildModelDoctorStatus(
 export async function buildModelDoctorEnvelope(
 	tokens: ModelTokens,
 	deps: Pick<ModelCommandDeps, "fetch" | "isContainer"> = {},
+	catalog?: ModelAccountCatalog,
 ) {
-	const status = await buildModelDoctorStatus(tokens, deps);
+	const status = await buildModelDoctorStatus(tokens, deps, catalog);
 	return buildJsonSuccessEnvelope({
 		command: "model",
 		operation: "doctor",
@@ -659,10 +1212,40 @@ export async function formatModelDoctor(
 
 /** Format `model doctor` text from an already-computed status — so a CLI
  * renderText hook formats straight from the envelope. */
+/**
+ * The credential's own clock, as one line — or NOTHING when there is nothing to say.
+ *
+ * `unknown` prints no line on purpose. A doctor that announces "credential: unknown" for every
+ * keyless local provider teaches an operator to skim past the line, and the day it says `expired`
+ * they skim past that too. Silence where there is no fact, a sentence where there is one.
+ */
+export function formatCredentialLifetime(lifetime: CredentialLifetime): string | null {
+	const days = (ms: number) => Math.floor(ms / 86_400_000);
+	if (lifetime.state === "expired") {
+		const held = days(lifetime.expiredForMs);
+		return chalk.red(
+			`  credential: EXPIRED ${held === 0 ? "today" : `${held} day(s) ago`} — this authenticates nothing; re-run the provider login`,
+		);
+	}
+	if (lifetime.state === "valid") {
+		const left = days(lifetime.remainingMs);
+		return left <= 3
+			? chalk.yellow(`  credential: expires in ${left} day(s)`)
+			: chalk.dim(`  credential: valid for ${left} more day(s)`);
+	}
+	return null;
+}
+
 export function formatModelDoctorFromStatus(status: ModelDoctorStatus): string {
 	const lines: string[] = [];
 	lines.push(chalk.bold("Model doctor"));
 	lines.push(`  current: ${chalk.cyan(status.current.ref)}`);
+	// BEFORE the probe, and before any early return. An expired credential and an unreachable
+	// host are two facts with two remedies, and every `return` below this point belongs to the
+	// probe — printing the credential after them means the one case where it matters most (a
+	// skipped or failed probe) is the one where it never gets said (ISS-081).
+	const credentialLine = formatCredentialLifetime(status.credential);
+	if (credentialLine) lines.push(credentialLine);
 	if (status.providerProbe.skipped) {
 		lines.push("  provider probe: skipped");
 		lines.push(chalk.dim("  use --json for machine-readable handoffs"));
@@ -673,7 +1256,17 @@ export function formatModelDoctorFromStatus(status: ModelDoctorStatus): string {
 		lines.push(chalk.green(`  status:  ready (${status.providerProbe.status})`));
 		return lines.join("\n");
 	}
-	lines.push(chalk.red("  status:  unreachable"));
+	// The VERDICT the operator reads, not a constant. Printing "unreachable" for every failure
+	// meant a malformed route — a configuration fact — arrived as a network verdict, and the
+	// evidence that said otherwise sat one line below, in an error string nobody reads first.
+	lines.push(chalk.red(`  status:  ${status.providerProbe.reason}`));
+	if (status.providerProbe.reason === "endpoint-malformed") {
+		lines.push(
+			chalk.red(
+				`  meaning: the configured endpoint is not a URL, so nothing was contacted — the fault is in the ${status.baseUrlSource === "env" ? "environment" : "stored configuration"}, not the network`,
+			),
+		);
+	}
 	if (status.providerProbe.error) lines.push(`  error:   ${status.providerProbe.error}`);
 	for (const command of modelDoctorRecoveryCommands(status)) {
 		lines.push(chalk.dim(`  fix:     ${command}`));
@@ -683,8 +1276,8 @@ export function formatModelDoctorFromStatus(status: ModelDoctorStatus): string {
 
 /** Format the `model current` human text as a string (no I/O), so the CLI
  * renderText hook formats from this single source of truth. */
-export function formatCurrentModel(tokens: ModelTokens): string {
-	return formatCurrentModelFromStatus(buildCurrentModelStatus(tokens));
+export function formatCurrentModel(tokens: ModelTokens, catalog?: ModelAccountCatalog): string {
+	return formatCurrentModelFromStatus(buildCurrentModelStatus(tokens, catalog));
 }
 
 /** Format `model current` text from an already-computed status — so a CLI
@@ -701,6 +1294,18 @@ export function formatCurrentModelFromStatus(status: CurrentModelStatus): string
 	if (resolvedModel) lines.push(`  model:    ${resolvedModel}`);
 	if (status.credential.envKey) lines.push(`  key env:  ${status.credential.envKey}`);
 	if (status.credential.status) lines.push(`  key:      ${status.credential.status}`);
+	lines.push(`  context:  ${status.context.mode}`);
+	lines.push(
+		`  binding:  ${status.context.binding.kind} (${status.context.binding.origin})`,
+	);
+	lines.push(`  state:    ${status.context.state.policy}`);
+	lines.push(`  creds:    ${status.context.credentials.policy}`);
+	lines.push(`  runtime:  ${status.context.runtime.policy}`);
+	lines.push(`  home:     ${status.context.sovereignHome}`);
+	lines.push(`  store:    ${status.context.credentialStoreHome}`);
+	if (!status.context.homesAligned) {
+		lines.push(chalk.yellow("  warning: REFARM_HOME and SILO_HOME resolve to different homes"));
+	}
 	if (status.baseUrl) lines.push(`  base url: ${status.baseUrl}`);
 	if (status.fallback) lines.push(`  fallback: ${status.fallback}`);
 	if (provider === "ollama") lines.push(chalk.dim(`  doctor:   ${MODEL_DOCTOR_JSON_COMMAND}`));
@@ -733,8 +1338,8 @@ export function formatCurrentModelFromStatus(status: CurrentModelStatus): string
 
 /** Build the `model current` JSON envelope (no I/O) so every surface — CLI, the
  * REPL /model capability, an API — returns the identical result. */
-export function buildCurrentModelEnvelope(tokens: ModelTokens) {
-	const status = buildCurrentModelStatus(tokens);
+export function buildCurrentModelEnvelope(tokens: ModelTokens, catalog?: ModelAccountCatalog) {
+	const status = buildCurrentModelStatus(tokens, catalog);
 	return buildJsonSuccessEnvelope({
 		command: "model",
 		operation: "current",
@@ -770,7 +1375,7 @@ function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 			commands.push(
 				SOW_JSON_COMMAND,
 				MODEL_PROVIDERS_JSON_COMMAND,
-				refarmCommand(["sow", "--model", quoteCommandArg(status.current.ref), "--json"]),
+				sowModelJsonCommand(status.current.ref),
 				LOCAL_MODEL_JSON_COMMAND,
 			);
 			continue;
@@ -778,14 +1383,7 @@ function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 		commands.push(
 			SOW_JSON_COMMAND,
 			MODEL_PROVIDERS_JSON_COMMAND,
-			refarmCommand([
-				"model",
-				"set",
-				"--scope",
-				scope,
-				quoteCommandArg(OLLAMA_DEFAULT_REF),
-				"--json",
-			]),
+			setScopedModelJsonCommand(scope, OLLAMA_DEFAULT_REF),
 		);
 	}
 	return Array.from(new Set(commands));
@@ -820,14 +1418,7 @@ function currentModelMissingRecommendations(
 				command:
 					scope === "default"
 						? SOW_JSON_COMMAND
-						: refarmCommand([
-								"model",
-								"set",
-								"--scope",
-								scope,
-								quoteCommandArg(OLLAMA_DEFAULT_REF),
-								"--json",
-							]),
+						: setScopedModelJsonCommand(scope, OLLAMA_DEFAULT_REF),
 			});
 			continue;
 		}
@@ -850,14 +1441,7 @@ function currentModelMissingRecommendations(
 			severity: "failure",
 			summary: `The ${scope} model route requires credentials that are not available.`,
 			action: "Configure credentials or switch the scoped route to a no-key local model.",
-			command: refarmCommand([
-				"model",
-				"set",
-				"--scope",
-				scope,
-				quoteCommandArg(OLLAMA_DEFAULT_REF),
-				"--json",
-			]),
+			command: setScopedModelJsonCommand(scope, OLLAMA_DEFAULT_REF),
 		});
 	}
 	return recommendations;
@@ -871,23 +1455,9 @@ function currentModelHandoffs(
 		inspectProviders: MODEL_PROVIDERS_JSON_COMMAND,
 		localNoKeyModel: LOCAL_MODEL_JSON_COMMAND,
 		openExternalLinks: OPERATOR_LINKS_CONFIG_COMMAND,
-		setModel: refarmCommand(["model", quoteCommandArg(status.current.ref), "--json"]),
-		setWorkerModel: refarmCommand([
-			"model",
-			"set",
-			"--scope",
-			"worker",
-			quoteCommandArg(status.routes.worker),
-			"--json",
-		]),
-		setMonitorModel: refarmCommand([
-			"model",
-			"set",
-			"--scope",
-			"monitor",
-			quoteCommandArg(status.routes.monitor),
-			"--json",
-		]),
+		setModel: modelRefJsonCommand(status.current.ref),
+		setWorkerModel: setScopedModelJsonCommand("worker", status.routes.worker),
+		setMonitorModel: setScopedModelJsonCommand("monitor", status.routes.monitor),
 	};
 }
 
@@ -915,7 +1485,84 @@ export function resolveRuntimeModelRoute(
 	};
 }
 
-export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus {
+/**
+ * PURE. The route a dispatch actually takes once the workspace's binding has spoken.
+ *
+ * ISS-131, on the operator's ruling: a workspace-scoped run is decided by that workspace's binding.
+ * The route names a PROVIDER and a binding names an ACCOUNT, and until this existed the two could
+ * disagree with nothing reconciling them — measured on the operator's node, where both workspaces
+ * were bound to Copilot accounts and every dispatch went to openai-codex.
+ *
+ * THE MODEL MOVES WITH THE PROVIDER, because it has to: a route of `openai-codex/gpt-5.5` carries a
+ * model id that means nothing to Copilot. The scope's default for the bound provider is used, which
+ * is the same answer the node would give for that provider anywhere else.
+ *
+ * A binding to an account of the SAME provider changes nothing here — the route already names it,
+ * and which of that provider's accounts pays is the resolver's question, not the route's.
+ */
+export function routeForBoundAccount(
+	route: { modelProvider?: string; modelId?: string },
+	account: { provider: string } | undefined,
+	scope: ModelScope,
+): { modelProvider?: string; modelId?: string } {
+	if (!account || account.provider === route.modelProvider) return route;
+	return {
+		modelProvider: account.provider,
+		modelId: defaultModelForScope(account.provider, scope),
+	};
+}
+
+/**
+ * Load the account catalog for {@link buildCurrentModelStatus}, or `undefined` when it cannot be read.
+ *
+ * NEVER THROWS, and `undefined` is not an empty catalog. A store this process cannot read leaves
+ * the status exactly where it was — `unresolved`, the honest "I cannot see" — rather than turning
+ * a filesystem fault into a claim that the operator holds no credentials. This is the same
+ * distinction `refarm tasks` drew on 2026-08-23 between an empty effort list and an unaskable one.
+ *
+ * Imports are deferred so the module graph of every other `model.ts` consumer is unchanged.
+ */
+export async function loadModelAccountCatalog(): Promise<ModelAccountCatalog | undefined> {
+	try {
+		const [{ loadAccountView }, { readModelAuthorization }, { resolveRefarmHome }, fs, path] =
+			await Promise.all([
+				import("../credentials/account-view-loader.js"),
+				import("@refarm.dev/model-account-contract-v1"),
+				import("../utils/refarm-home.js"),
+				import("node:fs"),
+				import("node:path"),
+			]);
+		const home = resolveRefarmHome();
+		const { loadAccountCredentials } = await import("../credentials/account-view-loader.js");
+		const view = await loadAccountView({ home, silo: new SiloCore() as never });
+		// Read beside the view rather than lazily: both come from the same store, and a second
+		// deferred read would let the two halves of one answer be taken at different moments.
+		const credentials = await loadAccountCredentials({ home, silo: new SiloCore() as never });
+		// A MISSING CONFIG IS AN UNDECLARED AUTHORIZATION, not a broken catalog: the accounts are
+		// still known, and `readModelAuthorization` already lands a malformed declaration on the
+		// state that authorises nothing.
+		let config: unknown = {};
+		try {
+			config = JSON.parse(
+				fs.default.readFileSync(path.default.join(home, "config.json"), "utf8"),
+			) as unknown;
+		} catch {
+			config = {};
+		}
+		return {
+			accounts: view.accounts,
+			authorization: readModelAuthorization(config),
+			credentials,
+		};
+	} catch {
+		return undefined;
+	}
+}
+
+export function buildCurrentModelStatus(
+	tokens: ModelTokens,
+	catalog?: ModelAccountCatalog,
+): CurrentModelStatus {
 	const defaultRoute = effectiveModelRouteForScope(tokens, "default", {
 		env: process.env,
 	});
@@ -929,11 +1576,25 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 		!routeProviderOverridden || tokens.modelProvider?.toLowerCase() === provider?.toLowerCase();
 
 	const credentialEnv = modelCredentialEnvKey(provider);
-	const credentialState = modelCredentialState(provider, tokens);
-	const credentialStatus = modelCredentialStatus(provider, tokens);
-	const baseUrl =
-		process.env[MODEL_BASE_URL_ENV_VAR] ??
-		(storedProviderMatchesRoute ? tokens.modelBaseUrl : undefined);
+	const resolvedCredential = resolveCredentialAgainstCatalog(
+		provider,
+		{
+			state: modelCredentialState(provider, tokens),
+			envKey: credentialEnv,
+			status: modelCredentialStatus(provider, tokens),
+		},
+		catalog,
+	);
+	const credentialState = resolvedCredential.state;
+	const credentialStatus = resolvedCredential.status;
+	const envBaseUrl = process.env[MODEL_BASE_URL_ENV_VAR];
+	const siloBaseUrl = storedProviderMatchesRoute ? tokens.modelBaseUrl : undefined;
+	const baseUrl = envBaseUrl ?? siloBaseUrl;
+	const baseUrlSource: CurrentModelStatus["baseUrlSource"] = envBaseUrl
+		? "env"
+		: siloBaseUrl
+			? "silo"
+			: undefined;
 	const fallbackProvider =
 		process.env[MODEL_FALLBACK_PROVIDER_ENV_VAR] ?? tokens.modelFallbackProvider;
 	let fallbackRef: string | undefined;
@@ -953,9 +1614,9 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 	});
 	const monitorRoute = formatModelRef(monitor.provider, monitor.modelId);
 	const routeCredentials: CurrentModelStatus["routeCredentials"] = {
-		default: modelRouteCredentialStatus(provider, tokens),
-		worker: modelRouteCredentialStatus(worker.provider, tokens),
-		monitor: modelRouteCredentialStatus(monitor.provider, tokens),
+		default: modelRouteCredentialStatus(provider, tokens, catalog),
+		worker: modelRouteCredentialStatus(worker.provider, tokens, catalog),
+		monitor: modelRouteCredentialStatus(monitor.provider, tokens, catalog),
 	};
 	const envOverrides = activeModelEnvOverrides();
 	let sourceKind: CurrentModelStatus["source"]["kind"];
@@ -989,11 +1650,13 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 		},
 		routeCredentials,
 		baseUrl,
+		baseUrlSource,
 		fallback: fallbackRef,
 		source: {
 			kind: sourceKind,
 			envOverrides,
 		},
+		context: resolveNodeContextMetadata(process.env),
 	};
 	return {
 		...status,

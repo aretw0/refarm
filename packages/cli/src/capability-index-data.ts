@@ -30,9 +30,9 @@ export const REFERENCE_DRIVER_PUBLICATION_BOUNDARY: ReferenceDriverPublicationBo
 	discoveryPackage: "@refarm.dev/cli",
 	discoverySubpath: "@refarm.dev/cli/capability-index",
 	publicationState: "boundary-review",
-	consumerInstallPolicy: "not-vault-seed-ready",
+	consumerInstallPolicy: "not-consumer-ready",
 	runtimeExecutionState: "private",
-	note: "Reference-driver discovery is exported from the CLI package for dogfood and planning, but @refarm.dev/cli is not a vault-seed-ready leaf and runtime execution stays private until promotion proofs pass.",
+	note: "Reference-driver discovery is exported from the CLI package for dogfood and planning, but @refarm.dev/cli is not a consumer-ready leaf and runtime execution stays private until promotion proofs pass.",
 } as const;
 
 export function buildCapabilities(binary: string) {

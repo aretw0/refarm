@@ -87,7 +87,7 @@ pnpm run test:repro     # Lint + type-check + unit + integration + e2e
 ## Índice de Evidências POC
 
 `poc-evidence-index.json` é gerado por `pnpm run validation-pocs:index` a
-partir dos manifests `refarm.task-artifacts.v1`. Ele serve como mapa de leitura
+partir dos manifests `sovereign.task-artifacts.v1`. Ele serve como mapa de leitura
 para consumidores externos: cenário, anexo, scorecard, limites, evidências de
 promoção de claims e `writingClaims` por tema.
 

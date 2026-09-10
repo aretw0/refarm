@@ -90,7 +90,10 @@ async fn security_mode_strict_rejects_untrusted_plugin() {
     let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS)
         .unwrap()
         // Deny-all allowlist (configured but empty) — no grant, not listed → reject.
-        .with_trusted_plugins(Some(std::collections::HashSet::new()));
+        .with_trusted_plugins(Some(std::collections::HashSet::new()))
+        // null-plugin.wasm carries no manifest, so no integrity claim — wildcard-waive
+        // it so this test exercises the SecurityMode/trust gate it is actually about.
+        .with_under_development(Some(["*".to_string()].into_iter().collect()));
     let sync = make_sync();
 
     let result = host.load(fixture_path(), &sync).await;
@@ -117,7 +120,11 @@ async fn security_mode_strict_allows_after_grant() {
     let mut trust = TrustManager::with_security_mode(SecurityMode::Strict);
     trust.grant("null-plugin", &hash, None);
 
-    let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
+    let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS)
+        .unwrap()
+        // null-plugin.wasm carries no manifest, so no integrity claim — wildcard-waive
+        // it so this test exercises the SecurityMode/trust gate it is actually about.
+        .with_under_development(Some(["*".to_string()].into_iter().collect()));
     let sync = make_sync();
 
     let handle = host.load(fixture_path(), &sync).await;
@@ -142,7 +149,10 @@ async fn strict_load_with_allowlist(
     let trust = TrustManager::with_security_mode(SecurityMode::Strict);
     let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS)
         .unwrap()
-        .with_trusted_plugins(allow);
+        .with_trusted_plugins(allow)
+        // null-plugin.wasm carries no manifest, so no integrity claim — wildcard-waive
+        // it so this test exercises the SecurityMode/trust gate it is actually about.
+        .with_under_development(Some(["*".to_string()].into_iter().collect()));
     host.load(fixture_path(), &make_sync())
         .await
         .map(|_| ())
@@ -196,7 +206,11 @@ async fn strict_allowlist_configured_without_the_plugin_denies() {
 async fn plugin_lifecycle_setup_teardown() {
     let bus = TelemetryBus::new(100);
     let trust = TrustManager::with_security_mode(SecurityMode::None);
-    let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
+    let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS)
+        .unwrap()
+        // null-plugin.wasm carries no manifest, so no integrity claim — wildcard-waive
+        // it so this test exercises the SecurityMode/trust gate it is actually about.
+        .with_under_development(Some(["*".to_string()].into_iter().collect()));
     let sync = make_sync();
 
     // load() calls setup() internally — must not error
@@ -256,7 +270,11 @@ fn loro_binary_js_interop() {
 async fn plugin_ingest_roundtrip() {
     let bus = TelemetryBus::new(100);
     let trust = TrustManager::with_security_mode(SecurityMode::None);
-    let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
+    let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS)
+        .unwrap()
+        // null-plugin.wasm carries no manifest, so no integrity claim — wildcard-waive
+        // it so this test exercises the SecurityMode/trust gate it is actually about.
+        .with_under_development(Some(["*".to_string()].into_iter().collect()));
     let sync = make_sync();
 
     let mut handle = host

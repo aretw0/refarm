@@ -1,0 +1,14 @@
+{
+  "proofId": "quality-contract.declared-lint-envelope",
+  "packageName": "@refarm.dev/quality-contract-v1",
+  "consumer": "vault-seed",
+  "consumerCommit": "5aa0869662cddff7783c63dc4c8628ef42984b4a",
+  "consumerDirty": false,
+  "manifestSha256": "5da8e0171e83818e2cd2881a52f28996a522d8e9dcd9f1ba5f46ae49679b8acd",
+  "generatedAt": "2026-08-23T01:18:31.224Z",
+  "commands": [
+    "node node_modules/vitest/vitest.mjs --config ./vitest.config.mjs --configLoader runner run scripts/refarm_quality_consumer_contract.test.mjs"
+  ],
+  "result": "pass",
+  "proofTarget": "vault-seed and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned"
+}

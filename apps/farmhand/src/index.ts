@@ -2,8 +2,9 @@
  * Farmhand — Headless Refarm daemon
  *
  * Boots a Tractor instance backed by LoroCRDTStorage (ADR-045) and exposes a
- * WebSocket sync transport on port 42000. Studio (browser) connects to
- * ws://localhost:42000 for binary Loro CRDT sync.
+ * WebSocket sync transport on 127.0.0.1:42000 (loopback by default — see
+ * FARMHAND_WS_HOST). Studio (browser) connects to ws://localhost:42000 for binary
+ * Loro CRDT sync.
  *
  * Reactive behaviors:
  *  - PluginRoute nodes  → load the referenced plugin into this Tractor instance
@@ -12,23 +13,34 @@
 
 import { AGENT_CORE_BUNDLE, loadConfigAsync } from "@refarm.dev/config";
 import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
+import {
+	copilotAccountId,
+	copilotApiBaseUrl,
+	copilotRefreshMargin,
+	copilotTokenExchangeUrl,
+} from "@refarm.dev/github-copilot-wire";
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
+import {
+	readModelAuthorization,
+	type ModelAccountDescriptor,
+} from "@refarm.dev/model-account-contract-v1";
 import type { RuntimeHost, RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
 import { SiloCore } from "@refarm.dev/silo";
 import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
+import { DEFAULT_BIND_HOST } from "@refarm.dev/std";
 import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { createTaskV1StorageAdapter } from "@refarm.dev/storage-sqlite";
 import { createNodeSqliteStorageProvider } from "@refarm.dev/storage-sqlite/node";
 import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
 import { Tractor } from "@refarm.dev/tractor";
 import { WsStreamTransport } from "@refarm.dev/ws-stream-transport";
+import fs from "node:fs";
 import { mkdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { autoInstallPlugins } from "./auto-install-plugins.js";
 import { bundleInstallPlugins, type BundledEntry } from "./bundled-plugins.js";
 import { injectConfigEnv } from "./config-env.js";
-import { injectSkillEnv } from "./skill-env.js";
 import { injectConfiguredProvidersEnv } from "./configured-providers-env.js";
 import { loadInstalledPlugins } from "./installed-plugins.js";
 import { LocalExtensionRegistry } from "./local-extensions.js";
@@ -41,6 +53,7 @@ import {
 } from "./model-routes.js";
 import { PluginUsageTracker } from "./plugin-usage-tracker.js";
 import { createSiloModelEnvInjector, type OAuthCreds } from "./silo-model-env.js";
+import { injectSkillEnv } from "./skill-env.js";
 import {
 	projectStreamChunk,
 	shouldProjectStreamChunk,
@@ -58,10 +71,18 @@ import { createSessionsRouteHandler } from "./transports/sessions.js";
 import { createTasksRouteHandler } from "./transports/tasks.js";
 
 const FARMHAND_PORT = 42000;
+// `undefined` when the operator set nothing, NOT a loopback default. The absence is
+// load-bearing: this is the `daemon-ws` surface, and under S5 a value that is always present
+// always NARROWS, so substituting `127.0.0.1` here would make `surfaces.daemon-ws` permanently
+// inert and silent — the exact defect `refarm web serve`'s `--host` default carried. An absent
+// value means "let the declaration decide"; loopback is what an absent DECLARATION resolves to
+// (S1). This is an UNAUTHENTICATED CRDT relay — a peer that reaches it reads and writes the
+// whole document — so it refuses any declaration it cannot enforce (see transport.ts).
+const FARMHAND_WS_HOST = process.env.FARMHAND_WS_HOST?.trim() || undefined;
 const FARMHAND_HTTP_PORT = Number(process.env.FARMHAND_HTTP_PORT ?? 42001);
 // Bind parity with the Rust daemon's --http-host: loopback unless the operator
 // explicitly opens the sidecar to other devices.
-const FARMHAND_HTTP_HOST = process.env.FARMHAND_HTTP_HOST?.trim() || "127.0.0.1";
+const FARMHAND_HTTP_HOST = process.env.FARMHAND_HTTP_HOST?.trim() || DEFAULT_BIND_HOST;
 const FARMHAND_PLUGIN_ID = "farmhand";
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
@@ -189,18 +210,93 @@ const silo = new SiloCore();
 const modelRouteResolver = createModelRouteResolver({
 	loadTokens: () => silo.loadTokens() as Promise<Record<string, unknown>>,
 });
+/** The refarm home this daemon reads its non-secret node files from. `SOVEREIGN_DIR` is injected
+ *  as `.refarm` before any config read (below), so this is the same directory the CLI writes. */
+function refarmHomeDir(): string {
+	return process.env.REFARM_HOME ?? path.join(os.homedir(), ".refarm");
+}
+
+function readNodeJson(file: string): unknown {
+	try {
+		return JSON.parse(fs.readFileSync(path.join(refarmHomeDir(), file), "utf8")) as unknown;
+	} catch {
+		return undefined;
+	}
+}
+
 const siloModelEnvInjector = createSiloModelEnvInjector({
 	store: {
 		loadTokens: () => silo.loadTokens() as Promise<Record<string, unknown>>,
 		saveTokens: (tokens) => silo.saveTokens(tokens),
 	},
+	// WHAT THE NODE HOLDS AND WHAT IT DECLARED IT MAY SPEND, read fresh on every injection rather
+	// than captured at import: a declaration made while the daemon runs must apply at its next
+	// start without the operator having to know that it was cached (ISS-131 tier 3).
+	accounts: async () => {
+		const parsed = readNodeJson("model-accounts.json");
+		return {
+			catalog: Array.isArray(parsed) ? (parsed as ModelAccountDescriptor[]) : [],
+			authorization: readModelAuthorization(readNodeJson("config.json")),
+		};
+	},
+	// The namespaced store, so a credential `sow` migrated can be READ at all and a renewed one
+	// written back where it came from instead of copied into the flat map (ISS-081, ISS-140).
+	secrets: {
+		load: (namespace, id) => silo.loadSecret(namespace, id),
+		save: (namespace, id, value) => silo.saveSecret(namespace, id, value),
+	},
 	refreshOAuthToken,
 });
+
+/**
+ * GitHub Copilot renews by RE-EXCHANGING the durable token, not by an OAuth grant.
+ *
+ * The stored `access` is a short-lived Copilot token (`tid=` prefix, minutes of life) and `refresh`
+ * holds the durable GitHub user token (`ghu_`) that mints it. There is no `refresh_token` grant to
+ * post, which is why github-copilot appears in neither `OAUTH_TOKEN_URLS` nor `OAUTH_CLIENT_IDS`
+ * and why its credential simply expired and stayed expired — measured 2026-08-17, where a dispatch
+ * that had reached Copilot at last answered `HTTP 401: IDE token expired`.
+ *
+ * THE ENDPOINT MOVES WITH THE TOKEN. Each exchange announces where that seat talks, so the renewal
+ * rewrites `baseUrl` too; a renewal that kept the old endpoint would be a fresh token pointed at a
+ * stale host. The shape is read through the one module that owns this undocumented wire.
+ */
+async function refreshCopilotToken(creds: OAuthCreds): Promise<OAuthCreds | null> {
+	try {
+		const response = await fetch(copilotTokenExchangeUrl(), {
+			headers: {
+				authorization: `Bearer ${creds.refresh}`,
+				accept: "application/json",
+				"user-agent": "GitHubCopilotChat/0.26.0",
+				"editor-version": "vscode/1.99.0",
+			},
+			signal: AbortSignal.timeout(15_000),
+		});
+		if (!response.ok) return null;
+		const body = (await response.json()) as { token?: unknown; expires_at?: unknown };
+		if (typeof body.token !== "string" || typeof body.expires_at !== "number") return null;
+		const endpoint = copilotApiBaseUrl(body.token, undefined);
+		const accountId = copilotAccountId(body.token);
+		return {
+			access: body.token,
+			// The DURABLE token is unchanged and stays the refresh material; storing the new
+			// short-lived one here would make the next renewal fail.
+			refresh: creds.refresh,
+			expires: copilotRefreshMargin(body.expires_at),
+			...(accountId ? { accountId } : {}),
+			baseUrl: endpoint.baseUrl,
+			baseUrlSource: endpoint.kind,
+		} as OAuthCreds;
+	} catch {
+		return null;
+	}
+}
 
 async function refreshOAuthToken(
 	oauthProvider: string,
 	creds: OAuthCreds,
 ): Promise<OAuthCreds | null> {
+	if (oauthProvider === "github-copilot") return refreshCopilotToken(creds);
 	const tokenUrl = OAUTH_TOKEN_URLS[oauthProvider];
 	const clientId = OAUTH_CLIENT_IDS[oauthProvider];
 	if (!tokenUrl || !clientId) return null;
@@ -452,7 +548,11 @@ async function main() {
 	const stopFileWatcher = fileTransport.watch();
 	console.log(`[farmhand] File transport watching ${farmhandBaseDir}/tasks/`);
 
-	const httpSidecar = new HttpSidecar(FARMHAND_HTTP_PORT, fileTransport, FARMHAND_HTTP_HOST);
+	const httpSidecar = new HttpSidecar(
+		FARMHAND_HTTP_PORT,
+		fileTransport.operations,
+		FARMHAND_HTTP_HOST,
+	);
 	httpSidecar.addRouteHandler(createSessionsRouteHandler(runtime));
 	httpSidecar.addRouteHandler(createTasksRouteHandler(taskMemoryAdapter));
 	httpSidecar.addRouteHandler(createControlSurfaceRouteHandler(fileTransport));
@@ -492,7 +592,7 @@ async function main() {
 		"@context": "https://schema.refarm.dev/",
 		"@type": "FarmhandPresence",
 		"@id": `urn:farmhand:presence:${FARMHAND_ID}`,
-		"sourcePlugin": FARMHAND_PLUGIN_ID,
+		sourcePlugin: FARMHAND_PLUGIN_ID,
 		farmhandId: FARMHAND_ID,
 		status: "online",
 		startedAt: new Date().toISOString(),
@@ -502,8 +602,11 @@ async function main() {
 	console.log("[farmhand] Presence node written.");
 
 	// Start WebSocket transport (binary Uint8Array frames — Loro deltas)
-	const transport = new WebSocketSyncTransport(FARMHAND_PORT);
-	console.log(`[farmhand] WebSocket server listening on ws://localhost:${FARMHAND_PORT}`);
+	const transport = new WebSocketSyncTransport(FARMHAND_PORT, FARMHAND_WS_HOST);
+	// Print the host it ACTUALLY bound. This line used to say `ws://localhost:42000` while
+	// the server bound every interface — a log that actively misreported the exposure, which
+	// is worse than no log: an operator reading it concludes the relay is local-only.
+	console.log(`[farmhand] WebSocket server listening on ws://${transport.host}:${FARMHAND_PORT}`);
 
 	// Wire transport ↔ LoroCRDTStorage (binary Loro sync)
 	transport.onMessage((bytes) => void storage.applyUpdate(bytes));
@@ -520,7 +623,7 @@ async function main() {
 				"@context": "https://schema.refarm.dev/",
 				"@type": "FarmhandPresence",
 				"@id": `urn:farmhand:presence:${FARMHAND_ID}`,
-				"sourcePlugin": FARMHAND_PLUGIN_ID,
+				sourcePlugin: FARMHAND_PLUGIN_ID,
 				farmhandId: FARMHAND_ID,
 				status: "online",
 				lastHeartbeatAt: new Date().toISOString(),

@@ -5,6 +5,7 @@ export {
 	resolveRequestTimeoutMs,
 	type FetchTimeoutOptions,
 } from "./fetch-with-timeout.js";
+export { sovereignDirectories, type SovereignDirectories } from "./directories.js";
 
 /** True when running inside a Docker container or devcontainer.
  *  Localhost ports may not be reachable from the host browser. */

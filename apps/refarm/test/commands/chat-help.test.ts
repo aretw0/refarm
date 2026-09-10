@@ -13,7 +13,7 @@ describe("chat command help", () => {
 
 		command.outputHelp();
 
-		expect(help).toContain("/model openai/gpt-5.5");
+		expect(help).toContain("/model openai/gpt-5.6-sol");
 		expect(help).toContain("/model providers");
 		expect(help).toContain("/model worker openai/gpt-5.3-codex-spark");
 		expect(help).toContain("/model reset worker");

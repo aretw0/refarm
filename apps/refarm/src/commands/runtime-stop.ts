@@ -68,6 +68,27 @@ function runtimePidMatchesTarget(
 	return isFarmhandProcess(args);
 }
 
+/**
+ * PURE. A pid file's contents as a pid, or `null` when the file does not hold one.
+ *
+ * ISS-053: the digits-only match happens BEFORE the parse, ported from
+ * `scripts/refarm-sandbox.mjs`'s `parseSandboxPidFile`, which was fixed for exactly this.
+ * `Number.parseInt` is lenient — `parseInt("123abc", 10)` is `123`, `parseInt("3.5", 10)` is `3` —
+ * so a truncated or corrupted pid file used to pass the finiteness check as a plausible pid, and
+ * this module would then have signalled whatever process happens to hold that number. A pid file
+ * refarm itself writes is always clean digits; anything else is corruption, and corruption is
+ * reported rather than guessed at.
+ *
+ * Exported so the guard is provable without a filesystem — the same split the sandbox launcher
+ * makes for its own version.
+ */
+export function parseRuntimePid(raw: string): number | null {
+	const trimmed = raw.trim();
+	if (!/^[0-9]+$/.test(trimmed)) return null;
+	const pid = Number.parseInt(trimmed, 10);
+	return Number.isFinite(pid) && pid > 0 ? pid : null;
+}
+
 function stopRuntimeTarget(
 	name: RuntimeStopTargetResult["name"],
 	pidFile: string,
@@ -85,8 +106,8 @@ function stopRuntimeTarget(
 	}
 
 	const raw = readFileSync(pidFile, "utf-8").trim();
-	const pid = Number.parseInt(raw, 10);
-	if (!Number.isFinite(pid) || pid <= 0) {
+	const pid = parseRuntimePid(raw);
+	if (pid === null) {
 		try {
 			unlinkSync(pidFile);
 		} catch {

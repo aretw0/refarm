@@ -123,7 +123,7 @@ test("generated vault consumer dependencies are covered by vault-seed-ready rele
 		env: {
 			REFARM_PACKAGE_MANAGER: "pnpm",
 		},
-		selectionId: "vault-seed-ready",
+		selectionId: "consumer-ready",
 	});
 
 	assert.equal(check.ok, true);
@@ -155,7 +155,7 @@ test("generated vault consumer dependencies are covered by vault-seed-ready rele
 	for (const packageName of consumerPackages) {
 		const profile = check.plan.orderedPackages.find((pkg) => pkg.name === packageName)?.profile;
 		assert.equal(
-			profile?.tags?.includes("vault-seed-ready"),
+			profile?.tags?.includes("consumer-ready"),
 			true,
 			`${packageName} must stay tagged for vault-seed-ready`,
 		);
