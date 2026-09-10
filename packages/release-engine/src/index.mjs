@@ -300,13 +300,21 @@ export function validatePolicy(policy) {
 		}
 		selectionIds.add(selection.id);
 
-		if (!Array.isArray(selection.profileTags) || selection.profileTags.length === 0) {
-			throw new Error(`selection profileTags must be a non-empty array for ${selection.id}`);
+		const hasAllTags = Array.isArray(selection.profileTags) && selection.profileTags.length > 0;
+		const hasAnyTags = Array.isArray(selection.profileTagAny) && selection.profileTagAny.length > 0;
+		if (hasAllTags === hasAnyTags) {
+			throw new Error(`selection must declare exactly one non-empty tag matcher for ${selection.id}`);
 		}
 
-		for (const tag of selection.profileTags) {
-			if (typeof tag !== "string" || tag.length === 0) {
-				throw new Error(`selection profileTags must contain non-empty strings for ${selection.id}`);
+		for (const [field, tags] of [["profileTags", selection.profileTags], ["profileTagAny", selection.profileTagAny]]) {
+			if (tags === undefined) continue;
+			if (!Array.isArray(tags) || tags.length === 0) {
+				throw new Error(`selection ${field} must be a non-empty array for ${selection.id}`);
+			}
+			for (const tag of tags) {
+				if (typeof tag !== "string" || tag.length === 0) {
+					throw new Error(`selection ${field} must contain non-empty strings for ${selection.id}`);
+				}
 			}
 		}
 
@@ -477,7 +485,7 @@ function readChangesetCandidates(cwd = process.cwd()) {
 	}));
 }
 
-function resolveCandidatePackages({ cwd, packageNames, policy, profileTags = [] }) {
+function resolveCandidatePackages({ cwd, packageNames, policy, profileTags = [], profileTagAny = [] }) {
 	const allPackages = readPackageJsonsForWorkspace(cwd);
 	const surfaceBlocks = new Map(
 		(policy.surfaceBlocks || []).map((block) => [block.surface, block]),
@@ -494,6 +502,14 @@ function resolveCandidatePackages({ cwd, packageNames, policy, profileTags = [] 
 							bump: profile.bump || "patch",
 							source: "policy-tag",
 						}))
+				: profileTagAny.length > 0
+					? (policy.packageProfiles || [])
+							.filter((profile) => profileHasAnyTag(profile, profileTagAny))
+							.map((profile) => ({
+								name: profile.id,
+								bump: profile.bump || "patch",
+								source: "policy-tag-any",
+							}))
 				: readChangesetCandidates(cwd);
 
 	const normalized = [];
@@ -575,6 +591,11 @@ function profileHasTags(profile, requiredTags) {
 	return requiredTags.every((tag) => tags.has(tag));
 }
 
+function profileHasAnyTag(profile, tagsToMatch) {
+	const tags = new Set(Array.isArray(profile?.tags) ? profile.tags : []);
+	return tagsToMatch.some((tag) => tags.has(tag));
+}
+
 function topologicalOrder(candidates, allPackages) {
 	const included = new Set(candidates.map((item) => item.name));
 	const adj = new Map();
@@ -644,11 +665,18 @@ export function buildReleasePlan({
 			: Array.isArray(selection?.profileTags)
 				? selection.profileTags
 				: [];
+	const resolvedProfileTagAny =
+		profileTags.length > 0
+			? []
+			: Array.isArray(selection?.profileTagAny)
+				? selection.profileTagAny
+				: [];
 	const { allPackages, candidates } = resolveCandidatePackages({
 		cwd,
 		packageNames,
 		policy,
 		profileTags: resolvedProfileTags,
+		profileTagAny: resolvedProfileTagAny,
 	});
 	const ready = candidates.filter((item) => item.status === "ok");
 	const blockers = candidates.filter((item) => item.status !== "ok");
@@ -708,6 +736,7 @@ export function buildReleasePlan({
 		gates: policy.phases,
 		publishIntents,
 		profileTags: resolvedProfileTags,
+		profileTagAny: resolvedProfileTagAny,
 		selection: selection
 			? {
 					id: selection.id,
