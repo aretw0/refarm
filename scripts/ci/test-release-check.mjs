@@ -137,6 +137,10 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		"@refarm.dev/heartwood",
 		"@refarm.dev/silo",
 		"@refarm.dev/plugin-manifest",
+		// ENTERED 2026-09-08 (ADR-080 amendment): `@refarm.dev/document-extraction-contract-v1` has
+		// no dependencies, so the engine places it right after plugin-manifest here — re-read from
+		// the plan, not hand-placed.
+		"@refarm.dev/document-extraction-contract-v1",
 		"@refarm.dev/storage-memory",
 		"@refarm.dev/credentials-contract-v1",
 		"@refarm.dev/dispatch-surface",
@@ -252,7 +256,10 @@ test("release check plan json exposes acceptance summary", () => {
 	// consumer reaching the package from a surface that is NOT the contract test, and vault-seed's
 	// records reference vault now structures its MD/MDX lane through `projectContentToRecords`.
 	// The tag moved because the fact moved — not to make this number move.
-	assert.equal(payload.acceptance.packageCount, 27);
+	//
+	// 28 since 2026-09-08 (ADR-080 amendment): `@refarm.dev/document-extraction-contract-v1`
+	// entered the selection.
+	assert.equal(payload.acceptance.packageCount, 28);
 	assert.equal(payload.acceptance.blockerCount, 0);
 	assert.equal(payload.acceptance.manualApprovalRequired, true);
 	assert.deepEqual(payload.acceptance.profileTags, ["consumer-ready"]);

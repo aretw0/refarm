@@ -220,7 +220,11 @@ test("vault-seed handoff docs distinguish historical 10-package packets from cur
 	// literal. A hardcoded `22-package` matched a doc that had gone stale and reported PASS: the
 	// number is now DERIVED from the same selection this test measures, so the doc and the config
 	// cannot disagree without failing.
-	assert.equal(currentSelection.length, 27);
+	//
+	// 28 since 2026-09-08 (ADR-080 amendment): `@refarm.dev/document-extraction-contract-v1`
+	// entered. The amendment records that the package cap did not hold and that adding a package
+	// now requires turning this literal plus the three distribution docs, or this assertion fails.
+	assert.equal(currentSelection.length, 28);
 
 	assert.match(releaseGateDoc, new RegExp(`current\\s+${currentSelection.length}-package\\s+selection`));
 	assert.match(releaseGateDoc, /materialized the then-current 10-package selection/);
@@ -232,7 +236,7 @@ test("vault-seed handoff docs distinguish historical 10-package packets from cur
 	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 23 packages and 72 required checks/);
 	assert.match(vaultSeedHandoffAdr, /currently 23 packages tagged/);
 	assert.match(vaultSeedHandoffAdr, /current accepted packet: 23 packages,\s+72 required checks/);
-	assert.match(releasePolicyDoc, /selected 27-package publish plan/);
+	assert.match(releasePolicyDoc, /selected 28-package publish plan/);
 	assert.doesNotMatch(vaultSeedHandoffAdr, /currently 20 packages tagged/);
 	assert.doesNotMatch(releasePolicyDoc, /selected 20-package publish plan/);
 });

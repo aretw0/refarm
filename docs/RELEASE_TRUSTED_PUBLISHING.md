@@ -30,6 +30,28 @@ OIDC authentication.
 
 ## Bootstrap once
 
+Before creating or storing a token, run the local preflight. It prints the exact workflow and
+settings links and does not contact npm or read a credential:
+
+```bash
+pnpm run release:bootstrap:preflight -- --json
+```
+
+To verify a newly-created token without putting it in shell history, enter it only into the
+current terminal session. The helper writes a private temporary npm config, calls only
+`npm whoami`, and removes that config before it exits; it never publishes:
+
+```bash
+read -rs REFARM_NPM_BOOTSTRAP_TOKEN
+export REFARM_NPM_BOOTSTRAP_TOKEN
+pnpm run release:bootstrap:preflight -- --verify-token
+unset REFARM_NPM_BOOTSTRAP_TOKEN
+```
+
+Do not send the token to a chat, paste it into a command argument, or commit it. A successful
+preflight proves authentication only; the workflow's package and publish-dry-run gates remain the
+authority for release readiness.
+
 1. Keep `RELEASE_AUTOMATION=false`. Run the First Publish Selection workflow on `main` with
    `dry_run=true`; it exercises plan, boundary audit, packed-tarball install smoke, and publish
    dry-runs without publishing.
@@ -69,9 +91,11 @@ Only after all package relationships are verified and the OIDC workflow has stag
 2. Delete `NPM_TOKEN` from GitHub Actions secrets and revoke it at npmjs.com.
 3. Keep `RELEASE_AUTOMATION=false` unless a release is deliberately being dispatched.
 
-The workflow migration itself must install npm 11.15+ and use `npm stage publish`; Changesets'
-legacy `changeset publish` path is not stage-only. That source change is separately gated before
-this runbook can be used for post-bootstrap releases.
+The post-bootstrap migration is implemented in `release-changesets.yml`: Changesets creates the
+version PR but never publishes, then `scripts/ci/stage-release-packages.mjs` compares the pushed
+package manifests and invokes `npx npm@^11.15.0 stage publish` only for public packages whose
+versions changed. This deliberately leaves GitHub Release assets out of the staging step: they
+must not imply a public package release before the maintainer's npm 2FA approval.
 
 ## Safety invariants
 

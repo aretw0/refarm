@@ -44,6 +44,7 @@
 		"ignoredGitVisibilityPatterns": [
 			"**/*.d.ts",
 			"**/src/bindings.rs",
+			"examples/reqbench-t3/dist-web/**",
 			"packages/enrichment-provider-ref/pkg-plugin/**",
 			"packages/quality-checker-plugin/pkg-plugin/**",
 			"packages/source-provider-ref/pkg-plugin/**",
@@ -1060,6 +1061,29 @@
 					"downstreamUse": "The manifest:v1 types and validators that vault-contract-v1 depends on at runtime",
 					"proofTarget": "a consumer's vault contract resolves the manifest:v1 types and validators from the registry; plugin installation, trust decisions and runtime hosting stay with the host",
 					"ownershipBoundary": "Install policy, trust, WASM/runtime hosting and registries remain host-owned; the package owns the manifest shape, its validation and its fixtures"
+				}
+			},
+			{
+				"id": "@refarm.dev/document-extraction-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/document-extraction-contract-v1 run lint",
+					"pnpm --filter @refarm.dev/document-extraction-contract-v1 run type-check",
+					"pnpm --filter @refarm.dev/document-extraction-contract-v1 run test",
+					"pnpm --filter @refarm.dev/document-extraction-contract-v1 run build"
+				],
+				"tags": [
+					"contract",
+					"documents",
+					"consumer-pulled",
+					"consumer-ready",
+					"candidate"
+				],
+				"consumerPull": {
+					"proofId": "document-extraction-contract.python-validator-conformance",
+					"downstreamUse": "The documento-extraido/v1 envelope schema and its conformance fixtures, published as data so a non-TypeScript validator can prove itself against them",
+					"proofTarget": "a consumer's Python validator for documento-extraido/v1 agrees path-for-path with the vendored fixtures/conformance.json, proving the contract is language-agnostic and not TypeScript-only",
+					"ownershipBoundary": "Document extractors (PDF, OCR, bank/card layout parsing), business logic over lançamentos, and envelope persistence/sync/presentation remain downstream"
 				}
 			}
 		],

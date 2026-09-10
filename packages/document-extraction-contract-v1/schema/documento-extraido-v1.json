@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "documento-extraido/v1",
+  "description": "Envelope comum emitido por todo extrator de documento doméstico. A autoridade é este arquivo; validadores por linguagem são finos e provados equivalentes.",
+  "type": "object",
+  "required": ["schemaVersion", "classe", "fonte", "lancamentos", "avisos"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "integer", "enum": [1] },
+    "classe": {
+      "type": "string",
+      "enum": [
+        "nfce",
+        "extrato-pluxee",
+        "extrato-sicoob",
+        "fatura-cartao",
+        "contracheque"
+      ]
+    },
+    "fonte": {
+      "type": "object",
+      "required": ["sha256", "bytes", "paginas", "extraido_em"],
+      "additionalProperties": false,
+      "properties": {
+        "sha256": { "type": "string" },
+        "bytes": { "type": "integer" },
+        "paginas": { "type": "integer" },
+        "extraido_em": { "type": "string" }
+      }
+    },
+    "emissor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nome": { "type": ["string", "null"] },
+        "cnpj": { "type": ["string", "null"] }
+      }
+    },
+    "competencia": { "type": ["string", "null"] },
+    "totais": { "type": "object" },
+    "lancamentos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["data", "descricao", "valor", "natureza"],
+        "additionalProperties": false,
+        "properties": {
+          "data": { "type": "string" },
+          "descricao": { "type": "string" },
+          "valor": { "type": "string" },
+          "natureza": { "type": "string", "enum": ["entrada", "saida"] },
+          "contraparte": { "type": ["string", "null"] },
+          "documento": { "type": ["string", "null"] },
+          "parcela": { "type": ["string", "null"] },
+          "moeda_estrangeira": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "sinais_privacidade": {
+      "type": "object",
+      "additionalProperties": { "type": "integer" }
+    },
+    "avisos": { "type": "array", "items": { "type": "string" } }
+  }
+}

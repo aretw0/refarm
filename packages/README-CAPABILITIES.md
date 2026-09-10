@@ -83,6 +83,19 @@ sanctionados sobre `@refarm.dev/ds` para consumidores renderizarem conteúdo
 MDX sem criar bibliotecas locais de blocos. O pacote não define PARA,
 notebooks, rotas, copy editorial ou blocos específicos de produto.
 
+### `documento-extraido:v1`
+**Pacote**: `@refarm.dev/document-extraction-contract-v1`
+
+Envelope comum emitido por extratores de documentos financeiros domésticos
+(holerite, extrato bancário, fatura de cartão, NFC-e). A autoridade é o JSON
+Schema publicado em `schema/documento-extraido-v1.json`; o pacote também
+publica a suíte de conformidade em `fixtures/conformance.json` e um validador
+TypeScript fino que a satisfaz, de modo que um validador em outra linguagem
+(Python, por exemplo) prove equivalência contra os mesmos dois arquivos de
+dados. Extratores específicos (PDF, OCR, layout bancário/cartão), lógica de
+negócio sobre os lançamentos e persistência/sync/apresentação do envelope
+ficam fora do contrato.
+
 ## Local Surface
 
 ### `local-surface:v1`

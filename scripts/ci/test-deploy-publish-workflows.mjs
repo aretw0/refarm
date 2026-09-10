@@ -36,7 +36,7 @@ test("deploy-dev workflow keeps GitHub Pages deploy gated by site build smoke", 
 	assert.doesNotMatch(workflow, /NPM_TOKEN|NODE_AUTH_TOKEN|changeset publish|pnpm publish|npm publish/);
 });
 
-test("release workflow keeps package publishing opt-in and provenance-scoped", () => {
+test("release workflow keeps Changesets PR creation separate from stage-only OIDC publishing", () => {
 	const packageJson = readJson("package.json");
 	const changesetConfig = readJson(".changeset/config.json");
 	const workflow = read(".github/workflows/release-changesets.yml");
@@ -62,10 +62,9 @@ test("release workflow keeps package publishing opt-in and provenance-scoped", (
 	assert.match(workflow, /if: steps\.first-publish-guard\.outputs\.blocked == 'true'/);
 	assert.match(workflow, /if: steps\.first-publish-guard\.outputs\.blocked != 'true'/);
 	assert.match(workflow, /uses: changesets\/action@[0-9a-f]{40}/);
-	assert.match(workflow, /publish: changeset publish/);
-	assert.match(workflow, /NPM_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/);
-	assert.match(workflow, /if: steps\.changesets\.outputs\.published == 'true'/);
-	assert.match(workflow, /publish-runtime-descriptor-release-assets\.mjs --bundle-dir \.artifacts\/runtime-descriptors --sha "\$\{\{ github\.sha \}\}"/);
+	assert.doesNotMatch(workflow, /changeset publish|NPM_TOKEN|NODE_AUTH_TOKEN/);
+	assert.match(workflow, /node scripts\/ci\/stage-release-packages\.mjs --base "\$\{\{ github\.event\.before \}\}" --head "\$\{\{ github\.sha \}\}"/);
+	assert.doesNotMatch(workflow, /publish-runtime-descriptor-release-assets\.mjs/);
 	assert.doesNotMatch(workflow, /pull_request_target:/);
 	assert.doesNotMatch(workflow, /npm\.pkg\.github\.com|packages:\s*write/);
 });

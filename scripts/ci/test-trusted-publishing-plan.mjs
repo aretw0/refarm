@@ -17,7 +17,9 @@ test("trusted publishing plan names the stage-only migration and exact GitHub cl
 	assert.equal(plan.trustedPublisher.workflow, TRUSTED_PUBLISHING_WORKFLOW);
 	assert.equal(plan.trustedPublisher.allowedAction, "npm stage publish");
 	assert.equal(plan.trustedPublisher.npmVersion, `>=${TRUSTED_PUBLISHING_NPM_VERSION}`);
-	assert.equal(plan.packages.length, 27);
+	// 28 since 2026-09-08 (ADR-080 amendment): `@refarm.dev/document-extraction-contract-v1`
+	// entered the `consumer-ready` selection.
+	assert.equal(plan.packages.length, 28);
 	assert.deepEqual(plan.repositoryMismatches, []);
 	for (const pkg of plan.packages) {
 		assert.equal(pkg.repositoryMatches, true, pkg.name);

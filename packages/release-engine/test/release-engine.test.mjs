@@ -394,6 +394,9 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", (t)
     "@refarm.dev/heartwood",
     "@refarm.dev/silo",
     "@refarm.dev/plugin-manifest",
+    // 28 since 2026-09-08 (ADR-080 amendment): document-extraction-contract-v1 entered, with no
+    // dependencies, so the engine places it right after plugin-manifest.
+    "@refarm.dev/document-extraction-contract-v1",
     "@refarm.dev/storage-memory",
     "@refarm.dev/credentials-contract-v1",
     "@refarm.dev/dispatch-surface",
@@ -414,7 +417,7 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", (t)
   assert.equal(payload.packages.includes("@refarm.dev/cli"), false);
   assert.equal(payload.packages.includes("@refarm.dev/homestead"), false);
   assert.equal(payload.acceptance.status, "accepted");
-  assert.equal(payload.acceptance.packageCount, 27);
+  assert.equal(payload.acceptance.packageCount, 28);
   assert.equal(payload.acceptance.blockerCount, 0);
   assert.equal(payload.acceptance.manualApprovalRequired, true);
   assert.deepEqual(payload.acceptance.profileTags, ["consumer-ready"]);

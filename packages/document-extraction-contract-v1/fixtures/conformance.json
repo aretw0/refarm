@@ -1,0 +1,178 @@
+{
+	"descricao": "Conformance cases for the documento-extraido/v1 contract. Every validator, in any language, must produce exactly these problems for these envelopes. Messages are not compared literally; what is compared is the problem's PATH, because wording is free per implementation.",
+	"casos": [
+		{
+			"nome": "minimal envelope is valid",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "contracheque",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1234,
+					"paginas": 2,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [],
+				"avisos": []
+			},
+			"caminhos_com_problema": []
+		},
+		{
+			"nome": "classe outside the enum is rejected",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "boleto-do-vizinho",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [],
+				"avisos": []
+			},
+			"caminhos_com_problema": ["envelope.classe"]
+		},
+		{
+			"nome": "missing required field is rejected",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "contracheque",
+				"lancamentos": [],
+				"avisos": []
+			},
+			"caminhos_com_problema": ["envelope.fonte"]
+		},
+		{
+			"nome": "unknown field at the top level is rejected",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "contracheque",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [],
+				"avisos": [],
+				"cpf_do_titular": "000.000.000-00"
+			},
+			"caminhos_com_problema": ["envelope.cpf_do_titular"]
+		},
+		{
+			"nome": "unknown field inside a lancamento is rejected",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "extrato-sicoob",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [
+					{
+						"data": "2026-08-31",
+						"descricao": "x",
+						"valor": "1.00",
+						"natureza": "saida",
+						"cpf_titular_vazado": "000.000.000-00"
+					}
+				],
+				"avisos": []
+			},
+			"caminhos_com_problema": ["envelope.lancamentos[0].cpf_titular_vazado"]
+		},
+		{
+			"nome": "lancamento without natureza is rejected",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "extrato-sicoob",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [
+					{ "data": "2026-08-31", "descricao": "x", "valor": "1.00" }
+				],
+				"avisos": []
+			},
+			"caminhos_com_problema": ["envelope.lancamentos[0].natureza"]
+		},
+		{
+			"nome": "natureza outside the enum is rejected",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "extrato-sicoob",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [
+					{
+						"data": "2026-08-31",
+						"descricao": "x",
+						"valor": "1.00",
+						"natureza": "talvez"
+					}
+				],
+				"avisos": []
+			},
+			"caminhos_com_problema": ["envelope.lancamentos[0].natureza"]
+		},
+		{
+			"nome": "wrong type is rejected",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "contracheque",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [],
+				"avisos": "não é lista"
+			},
+			"caminhos_com_problema": ["envelope.avisos"]
+		},
+		{
+			"nome": "boolean does not satisfy integer",
+			"envelope": {
+				"schemaVersion": true,
+				"classe": "contracheque",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00"
+				},
+				"lancamentos": [],
+				"avisos": []
+			},
+			"caminhos_com_problema": ["envelope.schemaVersion"]
+		},
+		{
+			"nome": "unknown field inside fonte is rejected",
+			"envelope": {
+				"schemaVersion": 1,
+				"classe": "contracheque",
+				"fonte": {
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"bytes": 1,
+					"paginas": 1,
+					"extraido_em": "2026-09-06T10:00:00-03:00",
+					"caminho_local": "/home/alguem/documento.pdf"
+				},
+				"lancamentos": [],
+				"avisos": []
+			},
+			"caminhos_com_problema": ["envelope.fonte.caminho_local"]
+		}
+	]
+}

@@ -55,7 +55,10 @@ test("plans vault-seed first-publish dry-run without version bumps", () => {
 	// consumer reaching the package from a surface that is NOT the contract test, and vault-seed's
 	// records reference vault now structures its MD/MDX lane through `projectContentToRecords`.
 	// The tag moved because the fact moved — not to make this number move.
-	assert.equal(plan.packageCount, 27);
+	//
+	// 28 since 2026-09-08 (ADR-080 amendment): `@refarm.dev/document-extraction-contract-v1`
+	// ENTERED the selection.
+	assert.equal(plan.packageCount, 28);
 	assert.equal(plan.requiredConfirmation, "publish-consumer-ready-0.1.0");
 	assert.equal(plan.packages.every((pkg) => pkg.version === "0.1.0"), true);
 	assert.equal(plan.commands.every((command) => command.display === "pnpm publish --dry-run --no-git-checks"), true);

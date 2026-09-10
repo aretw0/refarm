@@ -32,7 +32,7 @@ Properties:
 
 ### `release-changesets.yml` — Package Release
 
-Creates Changesets release PRs and publishes packages only when release automation is explicitly enabled.
+Creates Changesets release PRs and stages versioned public packages only when release automation is explicitly enabled.
 
 Properties:
 
@@ -41,8 +41,8 @@ Properties:
 - optional owner lock: `vars.RELEASE_OWNER`;
 - permissions: `contents: write`, `pull-requests: write`, `id-token: write`;
 - setup cache mode: `off`;
-- publish command: `changeset publish`;
-- current bootstrap authentication: `secrets.NPM_TOKEN` (inaugural packages only);
+- Changesets creates the version PR; `stage-release-packages.mjs` detects version changes in the main push and runs `npm stage publish` via OIDC;
+- current bootstrap authentication: `secrets.NPM_TOKEN` is confined to `first-publish-selection.yml` (inaugural packages only);
 - runtime descriptor release path is smoked before publish.
 
 Trusted-publishing migration and the token-to-OIDC handoff are documented in
@@ -66,7 +66,7 @@ pnpm run runtime-descriptor:release-smoke
 
 | Name | Kind | Used by | Purpose |
 |---|---|---|---|
-| `NPM_TOKEN` | secret | `first-publish-selection.yml` | one-time inaugural publication only; revoke after OIDC is verified |
+| `NPM_TOKEN` | secret | `first-publish-selection.yml` | one-time inaugural publication only; revoke after the first staged OIDC release is verified |
 | `RELEASE_AUTOMATION` | variable | `release-changesets.yml` | explicit opt-in for package release automation |
 | `RELEASE_OWNER` | variable | `release-changesets.yml` | optional owner lock |
 | `GITHUB_TOKEN` | automatic | GitHub Actions | release PRs and repository operations |
