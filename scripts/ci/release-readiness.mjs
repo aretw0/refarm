@@ -48,6 +48,12 @@ const RELEASE_READINESS_STEPS = [
 			reason: "Generated artifacts (bindings.rs, dist/, target/) must never be tracked — untrack before they reach history, not via a later rewrite.",
 		},
 	{
+		id: "vendored-block-integrity",
+		script: "farm-client:vendor:check",
+		reason:
+			"The only tracked delivery-capsule dist files must be rebuilt and proven byte-identical to their canonical source before release.",
+	},
+	{
 		id: "test-runner-contracts",
 		script: "test-runner:contracts",
 		reason:
@@ -108,15 +114,16 @@ const RELEASE_READINESS_STEPS = [
 	{
 		id: "first-publish-selection-plan",
 		script: "release:first-publish:plan",
-		args: ["--", "--selection", "consumer-ready"],
+		args: ["--", "--selection", "ecosystem-ready"],
 		reason:
-			"First-publish packages for the selected release-policy lane must resolve to an accepted publish plan before release approval.",
+			"The complete inaugural ecosystem packet must resolve to an accepted publish plan before release approval.",
 	},
 	{
-		id: "consumer-install-smoke",
-		script: "release:vault-seed:install:smoke",
+		id: "ecosystem-install-smoke",
+		script: "release:install:smoke",
+		args: ["--", "--selection", "ecosystem-ready"],
 		reason:
-			"Consumer-ready packages must be dependency-closed and survive pack, clean install, and entrypoint import before release approval.",
+			"Every inaugural ecosystem package must be dependency-closed and survive pack, clean install, and entrypoint import before release approval.",
 	},
 	{
 		id: "publish-dry-run",

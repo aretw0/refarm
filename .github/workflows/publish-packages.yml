@@ -1,150 +1,19 @@
-name: Publish Packages
+name: Retired Legacy Package Publish
 
-# Triggered by pushing tags like:
-# @refarm.dev/storage-contract-v1@0.1.0
-# @refarm.dev/sync-contract-v1@0.1.0
-# etc.
-
+# This filename is retained so an old bookmarked workflow gives an explicit
+# recovery direction. Tag pushes must never regain a token-authenticated route.
 on:
-  push:
-    tags:
-      - "*storage-contract-v1@*"
-      - "*sync-contract-v1@*"
-      - "*identity-contract-v1@*"
-      - "*plugin-manifest@*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  publish:
-    # Optional owner gate: set RELEASE_OWNER to lock releases to one owner.
-    if: vars.RELEASE_AUTOMATION == 'true' && (vars.RELEASE_OWNER == '' || github.repository_owner == vars.RELEASE_OWNER)
-    name: Publish to npm
+  retired:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: write # For creating releases
-      id-token: write # For npm provenance
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: "0"
-
-      - name: Setup
-        id: setup
-        uses: ./.github/actions/setup
-        with:
-          cache-mode: "off"
-
-      - name: Setup Refarm Environment
-        run: node scripts/ci/setup-env.mjs
-
-      - name: Build all packages
-        run: pnpm -r run build
-
-      - name: Strict dispatch-surface native artifact build (release mode)
+      - name: Explain the supported release routes
         run: |
-          bash scripts/ci/release-dispatch-surface-build.sh "${{ github.sha }}~1" "${{ github.sha }}"
-
-      - name: Extract package info from tag
-        id: pkg
-        run: |
-          TAG="${{ github.ref_name }}"
-
-          # Extract package name and version
-          # Example: @refarm.dev/storage-contract-v1@0.1.0
-          # → name=@refarm.dev/storage-contract-v1, version=0.1.0
-          PKG_NAME=$(echo "$TAG" | sed 's/@\([^@]*\)$//')
-          VERSION=$(echo "$TAG" | sed 's/.*@//')
-
-          # Determine workspace directory
-          # Uses the dynamic scope from config
-          WORKSPACE=$(echo "$PKG_NAME" | sed "s|$REFARM_SCOPE_DEV/||")
-
-          echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "workspace=$WORKSPACE" >> $GITHUB_OUTPUT
-
-          echo "📦 Publishing: $PKG_NAME@$VERSION"
-          echo "📁 Workspace: packages/$WORKSPACE"
-
-      - name: Verify package version matches tag
-        working-directory: packages/${{ steps.pkg.outputs.workspace }}
-        run: |
-          PKG_VERSION=$(node -p "require('./package.json').version")
-          TAG_VERSION="${{ steps.pkg.outputs.version }}"
-
-          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "❌ Version mismatch!"
-            echo "   Tag version: $TAG_VERSION"
-            echo "   package.json: $PKG_VERSION"
-            echo ""
-            echo "Fix by running:"
-            echo "  cd packages/${{ steps.pkg.outputs.workspace }}"
-            echo "  pnpm version $TAG_VERSION --no-git-tag-version"
-            echo "  git add package.json"
-            echo "  git commit --amend --no-edit"
-            exit 1
-          fi
-
-          echo "✅ Version $PKG_VERSION matches tag"
-
-      - name: Run type checks
-        run: pnpm run lint --workspaces
-
-      - name: Run conformance tests
-        run: pnpm run test:capabilities
-
-      - name: Dry-run publish (validation)
-        working-directory: packages/${{ steps.pkg.outputs.workspace }}
-        run: |
-          echo "🔍 Validating package contents..."
-          pnpm publish --dry-run
-
-      - name: Configure pnpm authentication
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-
-      - name: Publish to npm
-        working-directory: packages/${{ steps.pkg.outputs.workspace }}
-        run: |
-          echo "🚀 Publishing ${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }}"
-          pnpm publish --provenance --access public
-
-      - name: Create GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PRERELEASE="false"
-          if echo "${{ steps.pkg.outputs.version }}" | grep -Eq -- '-(alpha|beta|rc)'; then
-            PRERELEASE="true"
-          fi
-
-          NOTES=$(cat <<'EOF'
-          ## ${{ steps.pkg.outputs.name }} v${{ steps.pkg.outputs.version }}
-
-          Published to npm: https://www.npmjs.com/package/${{ steps.pkg.outputs.name }}/v/${{ steps.pkg.outputs.version }}
-
-          ### Installation
-
-          pnpm add ${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }}
-
-          ### Changes
-
-          See [CHANGELOG.md]($REFARM_REPO_URL/blob/main/packages/${{ steps.pkg.outputs.workspace }}/CHANGELOG.md) for details.
-          EOF
-          )
-          gh release create "${{ github.ref_name }}" \
-            --title "Release ${{ steps.pkg.outputs.name }} v${{ steps.pkg.outputs.version }}" \
-            --notes "$NOTES" \
-            $( [ "$PRERELEASE" = "true" ] && echo "--prerelease" )
-
-      - name: Post-publish verification
-        run: |
-          echo "⏳ Waiting for npm registry propagation (30s)..."
-          sleep 30
-
-          echo "🔍 Verifying package is available..."
-          pnpm view ${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }} --json
-
-          echo "✅ Package published successfully!"
+          echo "The tag-based publisher is retired."
+          echo "For an inaugural 0.1.0 package, use First Publish Selection with the npm-production environment."
+          echo "For later versions, use release-changesets.yml and npm stage publish via trusted OIDC."
