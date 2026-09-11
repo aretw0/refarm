@@ -1,6 +1,7 @@
 {
 	"name": "@refarm.dev/source-oslc",
 	"version": "0.1.0",
+	"repository": "https://github.com/aretw0/refarm.git",
 	"private": false,
 	"description": "Generic OSLC / IBM Jazz (ELM, DOORS-Next, EWM) read toolkit for the source:v1 capability — protocol only, no vendor vocabulary.",
 	"type": "module",

@@ -1,8 +1,9 @@
 {
 	"name": "@refarm.dev/prompt-contract-v1",
 	"version": "0.1.0",
-	"private": true,
+	"repository": "https://github.com/aretw0/refarm.git",
 	"description": "Typed operator-prompt primitive — confirm, select, text, and secret prompts across CLI, TUI, and web surfaces",
+	"license": "MIT",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -11,6 +12,14 @@
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
 		}
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.tsbuildinfo",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
 	},
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",

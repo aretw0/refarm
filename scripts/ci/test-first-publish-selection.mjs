@@ -64,6 +64,45 @@ test("plans vault-seed first-publish dry-run without version bumps", () => {
 	assert.equal(plan.commands.every((command) => command.display === "pnpm publish --dry-run --no-git-checks"), true);
 });
 
+test("plans rcdc5 first-publish dry-run with an explicit eight-package boundary", () => {
+	const plan = buildFirstPublishPlan({
+		cwd: ROOT,
+		env: { REFARM_PACKAGE_MANAGER: "pnpm" },
+		selectionId: "rcdc5-ready",
+	});
+
+	assert.equal(plan.mode, "dry-run");
+	assert.equal(plan.packageCount, 8);
+	assert.equal(plan.requiredConfirmation, "publish-rcdc5-ready-0.1.0");
+	assert.deepEqual(
+		plan.packages.map((pkg) => pkg.name),
+		[
+			"@refarm.dev/source-contract-v1",
+			"@refarm.dev/login-flow",
+			"@refarm.dev/prompt-contract-v1",
+			"@refarm.dev/diagnostic-bundle-v1",
+			"@refarm.dev/source-web",
+			"@refarm.dev/operation-result-v1",
+			"@refarm.dev/browser-driver",
+			"@refarm.dev/source-oslc",
+		],
+	);
+	assert.equal(plan.packages.every((pkg) => pkg.version === "0.1.0"), true);
+});
+
+test("plans ecosystem-ready as one 34-package inaugural unit", () => {
+	const plan = buildFirstPublishPlan({
+		cwd: ROOT,
+		env: { REFARM_PACKAGE_MANAGER: "pnpm" },
+		selectionId: "ecosystem-ready",
+	});
+
+	assert.equal(plan.mode, "dry-run");
+	assert.equal(plan.packageCount, 34);
+	assert.equal(plan.requiredConfirmation, "publish-ecosystem-ready-0.1.0");
+	assert.equal(plan.packages.every((pkg) => pkg.version === "0.1.0"), true);
+});
+
 test("requires explicit confirmation before publish mode", () => {
 	assert.equal(firstPublishConfirmValue("ecosystem-ready"), "publish-ecosystem-ready-0.1.0");
 

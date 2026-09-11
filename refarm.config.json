@@ -221,6 +221,31 @@
 				]
 			},
 			{
+				"id": "rcdc5-ready",
+				"description": "Dependency-closed operator and source packages proven by the rcdc5 VPN and authenticated-source consumer.",
+				"audienceBoundary": {
+					"consumer": "rcdc5",
+					"naming": "product-neutral-sdk",
+					"productLocal": "VPN profiles, Serpro authentication, OSLC endpoint selection, scraping policy, and CLI UX remain downstream-owned."
+				},
+				"profileTags": [
+					"rcdc5-ready"
+				]
+			},
+			{
+				"id": "ecosystem-ready",
+				"description": "Complete inaugural public packet: the union of the vault, research, personal/professional vault, and rcdc5 consumer proofs.",
+				"audienceBoundary": {
+					"consumer": "vault-seed, coop-vault, enem, arch-engine, personal/professional vaults, and rcdc5",
+					"naming": "product-neutral-sdk",
+					"productLocal": "Vault taxonomy, study and professional content, source credentials, VPN profiles, endpoint selection, and product UX remain downstream-owned."
+				},
+				"profileTagAny": [
+					"consumer-ready",
+					"rcdc5-ready"
+				]
+			},
+			{
 				"id": "design-system-ready",
 				"description": "Dependency-closed design-system release unit proven by a downstream vault consumer.",
 				"profileTags": [
@@ -661,6 +686,7 @@
 					"sdk-primitive",
 					"consumer-pulled",
 					"consumer-ready",
+					"rcdc5-ready",
 					"boundary-review",
 					"consumer-proven"
 				],
@@ -720,6 +746,7 @@
 					"requirements-supply",
 					"consumer-pulled",
 					"consumer-ready",
+					"rcdc5-ready",
 					"boundary-review",
 					"consumer-proven"
 				],
@@ -1061,6 +1088,108 @@
 					"downstreamUse": "The manifest:v1 types and validators that vault-contract-v1 depends on at runtime",
 					"proofTarget": "a consumer's vault contract resolves the manifest:v1 types and validators from the registry; plugin installation, trust decisions and runtime hosting stay with the host",
 					"ownershipBoundary": "Install policy, trust, WASM/runtime hosting and registries remain host-owned; the package owns the manifest shape, its validation and its fixtures"
+				}
+			},
+			{
+				"id": "@refarm.dev/browser-driver",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/browser-driver run lint",
+					"pnpm --filter @refarm.dev/browser-driver run type-check",
+					"pnpm --filter @refarm.dev/browser-driver run test",
+					"pnpm --filter @refarm.dev/browser-driver run build"
+				],
+				"tags": ["browser", "source", "consumer-pulled", "consumer-proven", "rcdc5-ready", "boundary-review"],
+				"consumerPull": {
+					"proofId": "rcdc5.ovpn-serpro.authenticated-browser-driver",
+					"downstreamUse": "Injectable browser login/session driver used by the rcdc5 authenticated source tooling.",
+					"proofTarget": "rcdc5 vendors and pins the packed tarball, validates its digest and closure, and retains site-specific login policy downstream.",
+					"ownershipBoundary": "Browser choice, credentials, VPN, selectors and source-specific pacing remain downstream-owned."
+				}
+			},
+			{
+				"id": "@refarm.dev/login-flow",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/login-flow run lint",
+					"pnpm --filter @refarm.dev/login-flow run type-check",
+					"pnpm --filter @refarm.dev/login-flow run test",
+					"pnpm --filter @refarm.dev/login-flow run build"
+				],
+				"tags": ["operator", "consumer-pulled", "consumer-proven", "rcdc5-ready", "boundary-review"],
+				"consumerPull": {
+					"proofId": "rcdc5.ovpn-serpro.login-flow",
+					"downstreamUse": "Process-state login orchestration for an operator-approved VPN connection.",
+					"proofTarget": "rcdc5 vendors and pins the packed tarball and tests its VPN adapter without a real connection.",
+					"ownershipBoundary": "VPN profiles, approval notices, reconnect policy and operator wording remain downstream-owned."
+				}
+			},
+			{
+				"id": "@refarm.dev/prompt-contract-v1",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/prompt-contract-v1 run lint",
+					"pnpm --filter @refarm.dev/prompt-contract-v1 run type-check",
+					"pnpm --filter @refarm.dev/prompt-contract-v1 run test:conformance",
+					"pnpm --filter @refarm.dev/prompt-contract-v1 run build"
+				],
+				"tags": ["operator", "contract", "consumer-pulled", "consumer-proven", "rcdc5-ready", "boundary-review"],
+				"consumerPull": {
+					"proofId": "rcdc5.ovpn-serpro.operator-confirmation",
+					"downstreamUse": "OperatorChannel confirmation before rcdc5 initiates a Serpro VPN connection.",
+					"proofTarget": "rcdc5 imports the packed package, tests scripted confirm/cancel behavior, and verifies every vendored tarball's digest and lockfile integrity.",
+					"ownershipBoundary": "The VPN action, profile names, authentication and user-facing copy remain downstream-owned."
+				}
+			},
+			{
+				"id": "@refarm.dev/operation-result-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/operation-result-v1 run lint",
+					"pnpm --filter @refarm.dev/operation-result-v1 run type-check",
+					"pnpm --filter @refarm.dev/operation-result-v1 run test:unit",
+					"pnpm --filter @refarm.dev/operation-result-v1 run build"
+				],
+				"tags": ["contract", "consumer-pulled", "consumer-proven", "rcdc5-ready", "boundary-review"],
+				"consumerPull": {
+					"proofId": "rcdc5.vendor.operation-result-closure",
+					"downstreamUse": "Bounded operation-result envelope used by rcdc5 operational surfaces.",
+					"proofTarget": "rcdc5 validates the packed tarball's manifest and its diagnostic-bundle-v1 transitive closure.",
+					"ownershipBoundary": "Operational commands, diagnostics policy and domain-specific result presentation remain downstream-owned."
+				}
+			},
+			{
+				"id": "@refarm.dev/diagnostic-bundle-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/diagnostic-bundle-v1 run lint",
+					"pnpm --filter @refarm.dev/diagnostic-bundle-v1 run type-check",
+					"pnpm --filter @refarm.dev/diagnostic-bundle-v1 run test:unit",
+					"pnpm --filter @refarm.dev/diagnostic-bundle-v1 run build"
+				],
+				"tags": ["contract", "consumer-pulled", "consumer-proven", "rcdc5-ready", "boundary-review"],
+				"consumerPull": {
+					"proofId": "rcdc5.vendor.operation-result-closure",
+					"downstreamUse": "Sanitized diagnostic support required by operation-result-v1.",
+					"proofTarget": "rcdc5's vendor manifest validates the package as operation-result-v1's pinned transitive dependency.",
+					"ownershipBoundary": "Diagnostic collection, severity policy and display remain downstream-owned."
+				}
+			},
+			{
+				"id": "@refarm.dev/source-oslc",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/source-oslc run lint",
+					"pnpm --filter @refarm.dev/source-oslc run type-check",
+					"pnpm --filter @refarm.dev/source-oslc run test:conformance",
+					"pnpm --filter @refarm.dev/source-oslc run build"
+				],
+				"tags": ["source", "adapter", "consumer-pulled", "consumer-proven", "rcdc5-ready", "boundary-review"],
+				"consumerPull": {
+					"proofId": "rcdc5.scraper-playwright.oslc-source",
+					"downstreamUse": "OSLC source adapter consumed by rcdc5's authenticated scraper.",
+					"proofTarget": "rcdc5 vendors and pins the package, including source-web/source-contract-v1 closure, and exercises its source adapter tests.",
+					"ownershipBoundary": "IBM/Serpro endpoints, credentials, selectors, extraction profiles and persistence remain downstream-owned."
 				}
 			},
 			{

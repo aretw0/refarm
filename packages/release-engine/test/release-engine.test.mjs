@@ -798,7 +798,7 @@ test("rejects release policy selections without profile tags", () => {
         },
       ],
     })),
-    /selection profileTags must be a non-empty array for empty-selection/,
+    /selection must declare exactly one non-empty tag matcher for empty-selection/,
   );
 });
 
