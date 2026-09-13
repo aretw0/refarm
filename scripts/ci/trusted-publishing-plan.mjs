@@ -9,7 +9,7 @@ export const TRUSTED_PUBLISHING_WORKFLOW = "release-changesets.yml";
 export const TRUSTED_PUBLISHING_NPM_VERSION = "11.15.0";
 
 export function parseTrustedPublishingPlanArgs(argv = []) {
-	const options = { selectionId: "consumer-ready", json: false };
+	const options = { selectionId: "ecosystem-ready", json: false };
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
 		if (arg === "--") continue;
@@ -41,7 +41,7 @@ function npmPackageUrl(packageName) {
 	return `https://www.npmjs.com/package/${encodeURIComponent(packageName)}`;
 }
 
-export function buildTrustedPublishingPlan({ cwd = ROOT, selectionId = "consumer-ready" } = {}) {
+export function buildTrustedPublishingPlan({ cwd = ROOT, selectionId = "ecosystem-ready" } = {}) {
 	const release = buildReleaseCheckPlan({ cwd, selectionId });
 	if (!release.ok) return { ok: false, release, packages: [], blockers: ["release-policy"] };
 

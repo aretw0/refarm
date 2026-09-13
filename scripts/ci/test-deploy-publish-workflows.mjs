@@ -54,11 +54,11 @@ test("release workflow keeps Changesets PR creation separate from stage-only OID
 	assert.match(workflow, /if: vars\.RELEASE_AUTOMATION == 'true'/);
 	assert.match(workflow, /vars\.RELEASE_OWNER == '' \|\| github\.repository_owner == vars\.RELEASE_OWNER/);
 	assert.match(workflow, /uses: \.\/\.github\/actions\/setup\n\s+with:\n\s+cache-mode: "off"/);
-	assert.match(workflow, /pnpm --silent run release:first-publish:plan -- --selection consumer-ready --json/);
+	assert.match(workflow, /pnpm --silent run release:first-publish:plan -- --selection ecosystem-ready --json/);
 	assert.doesNotMatch(workflow, /scripts\/release-engine\.mjs/);
 	assert.match(workflow, /pnpm run runtime-descriptor:release-smoke -- --sha "\$\{\{ github\.sha \}\}"/);
 	assert.match(workflow, /id: first-publish-guard/);
-	assert.match(workflow, /pnpm --silent run release:first-publish:changesets-guard -- --selection consumer-ready --soft/);
+	assert.match(workflow, /pnpm --silent run release:first-publish:changesets-guard -- --selection ecosystem-ready --soft/);
 	assert.match(workflow, /if: steps\.first-publish-guard\.outputs\.blocked == 'true'/);
 	assert.match(workflow, /if: steps\.first-publish-guard\.outputs\.blocked != 'true'/);
 	assert.match(workflow, /uses: changesets\/action@[0-9a-f]{40}/);
@@ -74,12 +74,13 @@ test("first-publish workflow publishes 0.1.0 only through explicit manual confir
 
 	assert.match(workflow, /name: First Publish Selection/);
 	assert.match(workflow, /workflow_dispatch:/);
-	assert.match(workflow, /selection:\n\s+description: "Release policy selection to publish at its declared 0\.1\.0 versions"\n\s+required: true\n\s+default: "consumer-ready"\n\s+type: string/);
+	assert.match(workflow, /selection:\n\s+description: "Release policy selection to publish at its declared 0\.1\.0 versions"\n\s+required: true\n\s+default: "ecosystem-ready"\n\s+type: string/);
 	assert.match(workflow, /dry_run:/);
 	assert.match(workflow, /default: "true"/);
 	assert.match(workflow, /confirm:/);
 	assert.match(workflow, /Required when dry_run=false: publish-<selection>-0\.1\.0/);
 	assert.match(workflow, /permissions:\n\s+contents: read\n\s+id-token: write/);
+	assert.match(workflow, /environment: npm-production/);
 	assert.match(workflow, /if: vars\.RELEASE_AUTOMATION == 'true'/);
 	assert.match(workflow, /vars\.RELEASE_OWNER == '' \|\| github\.repository_owner == vars\.RELEASE_OWNER/);
 	assert.match(workflow, /uses: actions\/checkout@[0-9a-f]{40}/);
@@ -94,6 +95,17 @@ test("first-publish workflow publishes 0.1.0 only through explicit manual confir
 	assert.match(workflow, /pnpm --silent run release:first-publish -- --selection "\$REFARM_FIRST_PUBLISH_SELECTION" --publish --confirm "\$REFARM_FIRST_PUBLISH_CONFIRM"/);
 	assert.doesNotMatch(workflow, /pull_request_target:/);
 	assert.doesNotMatch(workflow, /packages:\s*write/);
+});
+
+test("legacy tag publisher is retired and cannot recover token-based npm publication", () => {
+	const workflow = read(".github/workflows/publish-packages.yml");
+
+	assert.match(workflow, /name: Retired Legacy Package Publish/);
+	assert.match(workflow, /workflow_dispatch:/);
+	assert.match(workflow, /The tag-based publisher is retired\./);
+	assert.doesNotMatch(workflow, /push:\n\s+tags:/);
+	assert.doesNotMatch(workflow, /NPM_TOKEN|NODE_AUTH_TOKEN|npm publish|pnpm publish/);
+	assert.doesNotMatch(workflow, /contents:\s*write|id-token:\s*write/);
 });
 
 test("develop sync workflow does not rewrite atomic history after squash releases", () => {

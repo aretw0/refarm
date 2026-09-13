@@ -1,6 +1,7 @@
 {
 	"name": "@refarm.dev/operation-result-v1",
 	"version": "0.1.0",
+	"repository": "https://github.com/aretw0/refarm.git",
 	"private": false,
 	"description": "Bounded, redacted operation result contract for Refarm surfaces and plugins",
 	"license": "MIT",

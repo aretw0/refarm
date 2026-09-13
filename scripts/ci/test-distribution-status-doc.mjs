@@ -236,7 +236,7 @@ test("vault-seed handoff docs distinguish historical 10-package packets from cur
 	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 23 packages and 72 required checks/);
 	assert.match(vaultSeedHandoffAdr, /currently 23 packages tagged/);
 	assert.match(vaultSeedHandoffAdr, /current accepted packet: 23 packages,\s+72 required checks/);
-	assert.match(releasePolicyDoc, /selected 28-package publish plan/);
+	assert.match(releasePolicyDoc, /selected 34-package inaugural publish plan/);
 	assert.doesNotMatch(vaultSeedHandoffAdr, /currently 20 packages tagged/);
 	assert.doesNotMatch(releasePolicyDoc, /selected 20-package publish plan/);
 });

@@ -65,11 +65,14 @@ to inspect the first-release gate sequence, then `pnpm run release:readiness`
 when the local environment should prove npm/crates/workflow readiness end to end.
 This gate composes existing checks instead of minting a second release policy.
 For a first-publish lane, run
-`pnpm run release:first-publish:plan -- --selection consumer-ready` to inspect
-the selected 28-package publish plan without publishing or running the full
-package publish dry-run. The `release:vault-seed:*` aliases remain available
-for this consumer handoff, but the first-publish lane itself is keyed by release
-policy selection, not by the downstream product name.
+`pnpm run release:first-publish:plan -- --selection ecosystem-ready` to inspect
+the selected 34-package inaugural publish plan without publishing or running the
+full package publish dry-run. `ecosystem-ready` is the union of the independently
+proven vault-seed and rcdc5 lanes, covering the other named vault/research consumers
+without turning internal or development-only packages public. The
+`release:vault-seed:*` aliases remain available for that consumer handoff, but the
+first-publish lane itself is keyed by release policy selection, not by a downstream
+product name.
 
 1. It blocks execution if the git working tree is dirty.
 2. It bumps the version locally.

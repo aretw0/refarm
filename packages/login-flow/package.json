@@ -1,6 +1,7 @@
 {
 	"name": "@refarm.dev/login-flow",
 	"version": "0.1.0",
+	"repository": "https://github.com/aretw0/refarm.git",
 	"private": false,
 	"description": "Drive an interactive connect/login CLI to a ready state — pattern-matched states, optional obfuscated stdin prompts, human-in-the-loop notices (e.g. approve-on-phone). Injectable process, so the whole flow is testable with a fake. No vendor specifics.",
 	"type": "module",

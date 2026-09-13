@@ -172,6 +172,84 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 	}
 });
 
+test("plans the dependency-closed rcdc5 consumer publication unit", () => {
+	const check = buildReleaseCheckPlan({
+		cwd: ROOT,
+		env: {
+			REFARM_PACKAGE_MANAGER: "pnpm",
+		},
+		selectionId: "rcdc5-ready",
+	});
+
+	assert.equal(check.ok, true);
+	assert.deepEqual(check.plan.orderedNames, [
+		"@refarm.dev/source-contract-v1",
+		"@refarm.dev/login-flow",
+		"@refarm.dev/prompt-contract-v1",
+		"@refarm.dev/diagnostic-bundle-v1",
+		"@refarm.dev/source-web",
+		"@refarm.dev/operation-result-v1",
+		"@refarm.dev/browser-driver",
+		"@refarm.dev/source-oslc",
+	]);
+	assert.deepEqual(check.plan.profileTags, ["rcdc5-ready"]);
+	assert.equal(
+		check.plan.orderedPackages.every((pkg) => Boolean(pkg.profile.consumerPull?.proofId)),
+		true,
+		"every selected package must retain an explicit consumer proof",
+	);
+});
+
+test("plans the complete ecosystem inaugural publication unit", () => {
+	const check = buildReleaseCheckPlan({
+		cwd: ROOT,
+		env: {
+			REFARM_PACKAGE_MANAGER: "pnpm",
+		},
+		selectionId: "ecosystem-ready",
+	});
+
+	assert.equal(check.ok, true);
+	assert.deepEqual(check.plan.profileTags, []);
+	assert.deepEqual(check.plan.profileTagAny, ["consumer-ready", "rcdc5-ready"]);
+	assert.deepEqual(check.plan.orderedNames, [
+		"@refarm.dev/storage-contract-v1",
+		"@refarm.dev/identity-contract-v1",
+		"@refarm.dev/artifact-contract-v1",
+		"@refarm.dev/channel-policy-v1",
+		"@refarm.dev/effort-contract-v1",
+		"@refarm.dev/quality-contract-v1",
+		"@refarm.dev/provenance-contract-v1",
+		"@refarm.dev/std",
+		"@refarm.dev/node-contract-v1",
+		"@refarm.dev/source-contract-v1",
+		"@refarm.dev/enrichment-contract-v1",
+		"@refarm.dev/records-contract-v1",
+		"@refarm.dev/process-handoff",
+		"@refarm.dev/release-engine",
+		"@refarm.dev/heartwood",
+		"@refarm.dev/silo",
+		"@refarm.dev/plugin-manifest",
+		"@refarm.dev/login-flow",
+		"@refarm.dev/prompt-contract-v1",
+		"@refarm.dev/diagnostic-bundle-v1",
+		"@refarm.dev/document-extraction-contract-v1",
+		"@refarm.dev/storage-memory",
+		"@refarm.dev/credentials-contract-v1",
+		"@refarm.dev/dispatch-surface",
+		"@refarm.dev/ds",
+		"@refarm.dev/source-web",
+		"@refarm.dev/content-projection",
+		"@refarm.dev/identity-heartwood",
+		"@refarm.dev/vault-contract-v1",
+		"@refarm.dev/operation-result-v1",
+		"@refarm.dev/local-surface",
+		"@refarm.dev/ds-astro",
+		"@refarm.dev/browser-driver",
+		"@refarm.dev/source-oslc",
+	]);
+});
+
 test("plans the dependency-closed design system publication unit", () => {
 	const check = buildReleaseCheckPlan({
 		cwd: ROOT,

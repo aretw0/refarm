@@ -37,6 +37,24 @@ test("compiled wasm is forbidden, but wasm test fixtures are allowed", () => {
 	);
 });
 
+test("allows only the four independently verified farm-client delivery files", () => {
+	const offenders = findTrackedArtifacts([
+		"packages/farm-client/vendor/prompt-contract-v1/dist/index.js",
+		"packages/farm-client/vendor/prompt-contract-v1/dist/index.js.map",
+		"packages/farm-client/vendor/operation-consent-v1/dist/index.js",
+		"packages/farm-client/vendor/operation-consent-v1/dist/index.js.map",
+		"packages/farm-client/vendor/unreviewed-block/dist/index.js",
+		"packages/farm-client/vendor/prompt-contract-v1/dist/extra.js",
+	]);
+	assert.deepEqual(
+		offenders.map((offender) => offender.file),
+		[
+			"packages/farm-client/vendor/unreviewed-block/dist/index.js",
+			"packages/farm-client/vendor/prompt-contract-v1/dist/extra.js",
+		],
+	);
+});
+
 test("legitimate source is NOT flagged (no false positives)", () => {
 	const offenders = findTrackedArtifacts([
 		"packages/config/src/index.d.ts", // hand-written .d.ts in a JS-atomic package

@@ -8,7 +8,7 @@ const REGISTRY = "https://registry.npmjs.org/";
 const TOKEN_ENV = "REFARM_NPM_BOOTSTRAP_TOKEN";
 
 export function parseBootstrapPreflightArgs(argv = []) {
-	const options = { selectionId: "consumer-ready", verifyToken: false, json: false };
+	const options = { selectionId: "ecosystem-ready", verifyToken: false, json: false };
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
 		if (arg === "--") continue;
@@ -32,7 +32,7 @@ export function parseBootstrapPreflightArgs(argv = []) {
 	return options;
 }
 
-export function buildBootstrapPreflight({ selectionId = "consumer-ready", verifyToken = false } = {}) {
+export function buildBootstrapPreflight({ selectionId = "ecosystem-ready", verifyToken = false } = {}) {
 	const trustedPlan = buildTrustedPublishingPlan({ selectionId });
 	return {
 		ok: trustedPlan.ok,

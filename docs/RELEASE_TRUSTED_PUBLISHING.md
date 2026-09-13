@@ -17,7 +17,9 @@ From the Refarm checkout, run:
 pnpm run release:trusted-publishing:plan -- --json
 ```
 
-It reads the accepted release selection and emits, without contacting npm or reading a token:
+It reads the accepted `ecosystem-ready` selection (the inaugural union proven by vault-seed,
+rcdc5, coop-vault, enem, arch-engine, and the personal/professional vaults) and emits, without
+contacting npm or reading a token:
 
 - each package's direct npm page URL;
 - the exact `npx npm@^11.15.0 trust github ...` command;
@@ -55,6 +57,9 @@ authority for release readiness.
 1. Keep `RELEASE_AUTOMATION=false`. Run the First Publish Selection workflow on `main` with
    `dry_run=true`; it exercises plan, boundary audit, packed-tarball install smoke, and publish
    dry-runs without publishing.
+   Before a non-dry-run dispatch, create the GitHub environment named `npm-production` and
+   configure it to require a maintainer reviewer. The workflow is bound to that environment;
+   typed confirmation is not a substitute for this separate approval.
 2. Put a newly-created, narrowly scoped npm publish token in the GitHub Actions secret named
    `NPM_TOKEN`. Never paste it into an issue, shell history, a workflow, or this repository.
    The direct link is emitted by the plan command.
@@ -63,6 +68,10 @@ authority for release readiness.
 4. Confirm every package/version is visible with `npm view @refarm.dev/<name>@0.1.0 version`.
 
 Do not re-use that token for a later release.
+
+The old tag-triggered `publish-packages.yml` workflow is deliberately retired. It no longer
+listens to tags, has no publish credential, and only points operators to the two supported paths
+above. A tag must never restore a direct token-authenticated publication path.
 
 ## Configure OIDC in bulk, then revoke the token
 

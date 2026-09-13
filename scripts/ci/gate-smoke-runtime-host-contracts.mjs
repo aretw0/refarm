@@ -10,6 +10,7 @@ const plan = process.argv.includes("--plan");
 const STEPS = [
 	["@refarm.dev/runtime", "build"],
 	["@refarm.dev/homestead", "build"],
+	["@refarm.dev/windmill", "build"],
 	["@refarm.dev/sower", "build"],
 	["@refarm.dev/scarecrow", "build"],
 	["@refarm.dev/plugin-courier", "build"],
